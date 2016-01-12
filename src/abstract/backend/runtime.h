@@ -67,17 +67,17 @@ class Runtime {
 
     virtual void
     register_fetcher(
-      abstract::frontend::Dependency<Key, Version>*
+      const abstract::frontend::Dependency<Key, Version>*
     ) =0;
 
     virtual void
     release_fetcher(
-      abstract::frontend::Dependency<Key, Version>*
+      const abstract::frontend::Dependency<Key, Version>*
     ) =0;
 
     virtual void
     expect_fetchers(
-      abstract::frontend::Dependency<Key, Version>*,
+      const abstract::frontend::Dependency<Key, Version>*,
       const Key& user_version_tag,
       const size_t n_additional_fetchers = 1
     ) =0;

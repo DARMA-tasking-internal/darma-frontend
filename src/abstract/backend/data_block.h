@@ -51,6 +51,8 @@ namespace abstract {
 
 namespace backend {
 
+// TODO Serializer needs to be changed to a Concept and DataBlock should be templated on Serializer (or something like that)
+
 class DataBlock
 {
   public:
@@ -77,8 +79,11 @@ class DataBlock
     // contiguous
     virtual void
     acquire_data(
-      void* data, abstract::frontend::Serializer* ser
+      void* data,
+      abstract::frontend::Serializer* ser
     ) const =0;
+
+    // TODO eventually: allocate_data() and/or allocator pattern from STL
 
     virtual ~DataBlock() { }
 
