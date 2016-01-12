@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          abstract_dependency.h
+//                          data_block.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,49 +42,50 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_DEPENDENCY_H_
-#define SRC_ABSTRACT_DEPENDENCY_H_
+#ifndef SRC_ABSTRACT_BACKEND_DATA_BLOCK_H_
+#define SRC_ABSTRACT_BACKEND_DATA_BLOCK_H_
 
-namespace dharma_rt {
+namespace dharma_runtime {
 
 namespace abstract {
 
-/*
- * Key concept:
- *   * must define member type `hasher` (which satisfies the `Hash` concept)
- *   * must define member type `equal` (which is of the form of std::equal_to)
- *   * must be copy constructible
- *   * must be default constructible
- */
+namespace backend {
 
-template <typename key_type>
-struct dependency {
+class DataBlock
+{
   public:
 
-    virtual const void* get_data() const =0;
+    // Gets the *deserialized* version of the data
+    // If a null Serializer is given, the data is
+    // assumed to be contiguous
+    virtual void*
+    get_data(
+      abstract::frontend::Serializer* ser = nullptr
+    ) =0;
 
-    virtual void* get_data() =0;
+    virtual const void*
+    get_data(
+      abstract::frontend::Serializer* ser = nullptr
+    ) const =0;
 
-    virtual void* num_bytes() =0;
-
-    /** @brief Store a data block allocated outside of the dependency.
-     *  The dependency is responsible for freeing the memory. */
+    // acquire/manage data created elsewhere
+    // (in *deserialized* form, if applicable)
     virtual void
-    store_data(void* data, size_t num_bytes) =0;
+    acquire_data(
+      void* data, abstract::frontend::Serializer* ser
+    ) const =0;
 
-    virtual const key_type&
-    get_key() const =0;
+    virtual ~DataBlock() { }
 
-    virtual void
-    set_key(const key_type& key) =0;
-
-    virtual ~dependency() { }
 };
+
+
+} // end namespace backend
 
 } // end namespace abstract
 
-} // end namespace dharma_rt
+} // end namespace dharma_runtime
 
 
 
-#endif /* SRC_ABSTRACT_DEPENDENCY_H_ */
+#endif /* SRC_ABSTRACT_BACKEND_DATA_BLOCK_H_ */

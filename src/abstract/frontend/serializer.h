@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          abstract_data_store.h
-//                         dharma_mockup
+//                          serializer.h
+//                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,47 +42,52 @@
 //@HEADER
 */
 
-#ifndef NEW_ABSTRACT_DATA_STORE_H_
-#define NEW_ABSTRACT_DATA_STORE_H_
+#ifndef SRC_ABSTRACT_FRONTEND_SERIALIZER_H_
+#define SRC_ABSTRACT_FRONTEND_SERIALIZER_H_
 
-#include "key.h"
-#include "version.h"
 
 namespace dharma_runtime {
 
 namespace abstract {
 
-class DataBlockMetaData {
-  public:
-    size_t size;
-};
+namespace frontend {
 
-class DataStore
-{
+class Serializer {
+
   public:
 
-    virtual
-    DataBlockMetaData
-    get_metadata(
-      const Key& key,
-      const Version& version
-    ) = 0;
+    // Get the packed size if the data type needs serialization,
+    // otherwise just get the contiguous size
+    virtual size_t
+    get_data_size() const =0;
 
-    virtual
-    void*
-    get_data_block(
-      const Key& key,
-      const Version& version
-    ) = 0;
+    virtual void
+    serialize_data(void* serialization_buffer) const
+    {
+      // No-op by default, since contiguous types
+      // don't need to do anything
+    }
 
-    virtual ~DataStore() { }
+    virtual bool
+    needs_serialization() const =0;
 
+    virtual void*
+    deserialize_data(void* serialized_data) const
+    {
+      // No-op by default, since contiguous types
+      // don't need to do anything
+      return nullptr;
+    }
+
+    virtual ~Serializer() { }
 };
 
-} // end namespace detail
+} // end namespace frontend
+
+} // end namespace abstract
 
 } // end namespace dharma_runtime
 
 
 
-#endif /* NEW_ABSTRACT_DATA_STORE_H_ */
+#endif /* SRC_ABSTRACT_FRONTEND_SERIALIZER_H_ */
