@@ -45,18 +45,42 @@
 #ifndef SRC_ABSTRACT_BACKEND_RUNTIME_H_
 #define SRC_ABSTRACT_BACKEND_RUNTIME_H_
 
+#include "../frontend/task.h"
+#include "../frontend/dependency.h"
+
 namespace dharma_runtime {
 
 namespace abstract {
 
 namespace backend {
 
+template <
+  typename Key,
+  typename Version
+>
 class Runtime {
 
   public:
 
     virtual void
-    register_task(frontend::Task* task) =0;
+    register_task(abstract::frontend::Task* task) =0;
+
+    virtual void
+    register_fetcher(
+      abstract::frontend::Dependency<Key, Version>*
+    ) =0;
+
+    virtual void
+    release_fetcher(
+      abstract::frontend::Dependency<Key, Version>*
+    ) =0;
+
+    virtual void
+    expect_fetchers(
+      abstract::frontend::Dependency<Key, Version>*,
+      const Key& alternate_name,
+      const size_t n_additional_fetchers = 1
+    ) =0;
 
     virtual ~Runtime() { }
 
