@@ -53,6 +53,16 @@ namespace backend {
 
 // TODO Serializer needs to be changed to a Concept and DataBlock should be templated on Serializer (or something like that)
 
+// Serializer is needed to deal with the problem that the serialization itself is a frontend problem,
+// but the storage and caching of the (de)serialized blobs is the responsibility of the runtime (i.e.,
+// a given version of the data for a given dependency should be deserialized at most once
+// (excepting resourse limitations) per memory space and subsequent calls to get_data() should return
+// a pointer to that deserialized buffer.  Conversely, a given version of the deserailzed data for a
+// given dependency, if acquired and/or updated in deserialized form, should be serialized at most once
+// per memory space (excepting resourse limitations) and only if it needs to be communicated to a
+// different memory space).  Thus:
+// TODO Rethink the relationship to and specification of Serializer to meet the above requirements
+
 class DataBlock
 {
   public:
@@ -65,7 +75,7 @@ class DataBlock
       abstract::frontend::Serializer* ser = nullptr
     ) =0;
 
-    // const version of the above
+    // const version of the above (does it matter?)
     virtual const void*
     get_data(
       abstract::frontend::Serializer* ser = nullptr
