@@ -52,6 +52,8 @@ namespace abstract {
 
 namespace frontend {
 
+// TODO this needs to be changed into a static class Concept and used as a template parameter since all of it's methods are const
+
 class Serializer {
 
   public:
@@ -70,7 +72,10 @@ class Serializer {
     }
 
     virtual void
-    serialize_data(void* serialization_buffer) const
+    serialize_data(
+      void* const deserialized_data,
+      void* const serialization_buffer
+    ) const
     {
       // No-op by default, since contiguous types
       // don't need to do anything.  Strictly won't
@@ -88,7 +93,7 @@ class Serializer {
 
     virtual void
     deserialize_data(
-      void* serialized_data,
+      void* const serialized_data,
       void*& deserialize_destination
     ) const {
       // No-op by default, since contiguous types

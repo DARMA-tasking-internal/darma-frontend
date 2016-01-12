@@ -61,10 +61,10 @@ class Dependency {
   public:
 
     virtual const Key&
-    get_key() =0;
+    get_key() const =0;
 
     virtual const Version&
-    get_version() =0;
+    get_version() const =0;
 
     void
     satisfy_with_data(
