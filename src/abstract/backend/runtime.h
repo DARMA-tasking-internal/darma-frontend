@@ -78,7 +78,7 @@ class Runtime {
     virtual void
     expect_fetchers(
       abstract::frontend::Dependency<Key, Version>*,
-      const Key& alternate_name,
+      const Key& user_version_tag,
       const size_t n_additional_fetchers = 1
     ) =0;
 
