@@ -56,13 +56,14 @@ class DataBlock
   public:
 
     // Gets the *deserialized* version of the data
-    // If a null Serializer is given, the data is
-    // assumed to be contiguous
+    // If a null Serializer is given, the data may be
+    // assumed to be contiguous and not need deserialization
     virtual void*
     get_data(
       abstract::frontend::Serializer* ser = nullptr
     ) =0;
 
+    // const version of the above
     virtual const void*
     get_data(
       abstract::frontend::Serializer* ser = nullptr
@@ -70,6 +71,10 @@ class DataBlock
 
     // acquire/manage data created elsewhere
     // (in *deserialized* form, if applicable)
+    // Note that the serializer is required because
+    // the runtime still needs a way of determining
+    // the size of a piece of data, even if it is
+    // contiguous
     virtual void
     acquire_data(
       void* data, abstract::frontend::Serializer* ser

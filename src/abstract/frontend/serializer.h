@@ -56,31 +56,64 @@ class Serializer {
 
   public:
 
-    // Get the packed size if the data type needs serialization,
-    // otherwise just get the contiguous size
+    virtual bool
+    needs_serialization() const =0;
+
+    // Get the packed size if the data type needs serialization
+    // Strictly won't get called unless needs_serialization()
+    // returns true.
     virtual size_t
-    get_data_size() const =0;
+    get_packed_size() const
+    {
+      // return 0 if no packing needs to be done
+      return 0;
+    }
 
     virtual void
     serialize_data(void* serialization_buffer) const
     {
       // No-op by default, since contiguous types
-      // don't need to do anything
+      // don't need to do anything.  Strictly won't
+      // get called unless needs_serialization() returns
+      // true.
     }
 
-    virtual bool
-    needs_serialization() const =0;
+    // Return the size of the *deserialized* object
+    // [note that this doesn't include, e.g., the data
+    // in any heap-pointer member variables.  In most
+    // cases, for a data type T, the data_size will be
+    // exactly sizeof(T)]
+    virtual size_t
+    get_data_size() const =0;
 
-    virtual void*
-    deserialize_data(void* serialized_data) const
-    {
+    virtual void
+    deserialize_data(
+      void* serialized_data,
+      void*& deserialize_destination
+    ) const {
       // No-op by default, since contiguous types
-      // don't need to do anything
-      return nullptr;
+      // don't need to do anything.  Strictly won't
+      // get called unless needs_serialization() returns
+      // true.
     }
 
     virtual ~Serializer() { }
 };
+
+/* Sample trivial implementation for contiguous data:
+ *
+ * template <typename T>
+ * struct contiguous_serializer
+ *   : public abstract::frontend::Serializer
+ * {
+ *   explicit
+ *   contiguous_serializer(size_t size) : size_(size) { }
+ *
+ *   size_t get_data_size() const { return size_; }
+ *
+ *   bool needs_serialization() const { return false; }
+ * };
+ */
 
 } // end namespace frontend
 
