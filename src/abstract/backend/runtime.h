@@ -66,6 +66,11 @@ class Runtime {
     register_task(abstract::frontend::Task* task) =0;
 
     virtual void
+    create_handle(
+      const abstract::frontend::Dependency<Key, Version>*
+    ) =0;
+
+    virtual void
     register_fetcher(
       const abstract::frontend::Dependency<Key, Version>*
     ) =0;
