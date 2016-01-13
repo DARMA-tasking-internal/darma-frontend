@@ -25,6 +25,7 @@ struct DataArray : public ZeroCopyable<1>
       if(n_data) {
         data_ = malloc(n_data * sizeof(T));
         data_size_ = n_data;
+        data_owned_ = true;
       }
     }
 
@@ -44,7 +45,7 @@ struct DataArray : public ZeroCopyable<1>
     }
 
     ~DataArray() {
-      if(data_size_) free(data_);
+      if(data_owned_) free(data_);
     }
 
   protected:
