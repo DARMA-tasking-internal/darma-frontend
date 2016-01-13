@@ -54,26 +54,50 @@ namespace frontend {
 
 // TODO this needs to be changed into a static class Concept and used as a template parameter since all of it's methods are const
 
-class Serializer {
+class SerializationManager {
 
   public:
+
+    typedef unsigned zero_copy_slot_t;
 
     virtual bool
     needs_serialization() const =0;
 
-    // Get the packed size if the data type needs serialization
-    // Strictly won't get called unless needs_serialization()
-    // returns true.
+    //// Get the packed size if the data type needs serialization
+    //// Strictly won't get called unless needs_serialization()
+    //// returns true.
+    //virtual size_t
+    //get_packed_size(
+    //  const void* const deserialized_data
+    //) const
+    //{
+    //  // return 0 if no packing needs to be done
+    //  return 0;
+    //}
+
     virtual size_t
-    get_packed_size() const
-    {
-      // return 0 if no packing needs to be done
-      return 0;
-    }
+    get_metadata_size() const =0;
+
+    virtual void
+    serialize_metadata(
+      const void* const deserialized_data,
+      void* const buffer
+    ) =0;
+
+    virtual void
+    deserialize_metadata(
+      const void* const serialized_data,
+      void* const buffer
+    ) =0;
+
+    virtual size_t
+    get_packed_data_size(
+      const void* const deserialized_metadata
+    ) const =0;
 
     virtual void
     serialize_data(
-      void* const deserialized_data,
+      const void* const deserialized_data,
       void* const serialization_buffer
     ) const
     {
@@ -83,18 +107,10 @@ class Serializer {
       // true.
     }
 
-    // Return the size of the *deserialized* object
-    // [note that this doesn't include, e.g., the data
-    // in any heap-pointer member variables.  In most
-    // cases, for a data type T, the data_size will be
-    // exactly sizeof(T)]
-    virtual size_t
-    get_data_size() const =0;
-
     virtual void
     deserialize_data(
       void* const serialized_data,
-      void*& deserialize_destination
+      void* const deserialized_metadata_and_dest
     ) const {
       // No-op by default, since contiguous types
       // don't need to do anything.  Strictly won't
@@ -102,7 +118,30 @@ class Serializer {
       // true.
     }
 
-    virtual ~Serializer() { }
+    virtual size_t
+    get_zero_copy_data_size(
+      const void* const deserialized_metadata,
+      zero_copy_slot_t slot
+    ) const =0;
+
+    virtual void*&
+    get_zero_copy_slot(
+      const void* const deserialized_metadata,
+      zero_copy_slot_t slot
+    ) const =0;
+
+    //// Return the size of the *deserialized* object
+    //// [note that this doesn't include, e.g., the data
+    //// in any heap-pointer member variables.  In most
+    //// cases, for a data type T, the data_size will be
+    //// exactly sizeof(T)]
+    //virtual size_t
+    //get_data_size(
+    //  const void* const data = nullptr
+    //) const =0;
+
+
+    virtual ~SerializationManager() { }
 };
 
 /* Sample trivial implementation for contiguous data:
@@ -111,12 +150,16 @@ class Serializer {
  * struct contiguous_serializer
  *   : public abstract::frontend::Serializer
  * {
- *   explicit
- *   contiguous_serializer(size_t size) : size_(size) { }
+ *   public:
+ *     explicit
+ *     contiguous_serializer(size_t size) : size_(size) { }
  *
- *   size_t get_data_size() const { return size_; }
+ *     size_t get_data_size() const { return size_; }
  *
- *   bool needs_serialization() const { return false; }
+ *     bool needs_serialization() const { return false; }
+ *
+ *   private:
+ *     size_t size_;
  * };
  */
 

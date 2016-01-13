@@ -67,19 +67,32 @@ class DataBlock
 {
   public:
 
+    //template <typename Serializer>
+    //DataBlock(
+    //  void* data,
+    //  Serializer ser
+    //) =0;
+
+    //template <typename Serializer, typename Allocator>
+    //DataBlock(
+    //  void* data,
+    //  Serializer ser,
+    //  Allocator alloc
+    //) =0;
+
+    void set_serialization_manager(
+      abstract::frontend::SerializationManager ser
+    ) =0;
+
     // Gets the *deserialized* version of the data
     // If a null Serializer is given, the data may be
     // assumed to be contiguous and not need deserialization
     virtual void*
-    get_data(
-      abstract::frontend::Serializer* ser = nullptr
-    ) =0;
+    get_data() =0;
 
     // const version of the above (does it matter?)
     virtual const void*
-    get_data(
-      abstract::frontend::Serializer* ser = nullptr
-    ) const =0;
+    get_data() const =0;
 
     // acquire/manage data created elsewhere
     // (in *deserialized* form, if applicable)
@@ -88,10 +101,10 @@ class DataBlock
     // the size of a piece of data, even if it is
     // contiguous
     virtual void
-    acquire_data(
-      void* data,
-      abstract::frontend::Serializer* ser
-    ) const =0;
+    acquire_data(void* data) =0;
+
+    virtual void
+    allocate_data() =0;
 
     // TODO eventually: allocate_data() and/or allocator pattern from STL
 
