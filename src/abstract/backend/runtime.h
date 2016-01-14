@@ -65,6 +65,8 @@ class Runtime {
     virtual void
     register_task(abstract::frontend::Task* task) =0;
 
+    // Methods for creating handles and registering fetches of those handles
+
     virtual void
     create_handle(
       const abstract::frontend::Dependency<Key, Version>*
@@ -86,6 +88,27 @@ class Runtime {
       const Key& user_version_tag,
       const size_t n_additional_fetchers = 1
     ) =0;
+
+
+    // Methods for "bare" dependency satisfaction and use.  Not used for task dependencies
+
+    virtual void
+    fill_handle_for_reading(
+      abstract::frontend::Dependency<Key, Version>*
+    ) =0;
+
+    virtual void
+    fill_handle_for_writing(
+      abstract::frontend::Dependency<Key, Version>*
+    ) =0;
+
+    virtual void
+    fill_handle_for_read_write(
+      abstract::frontend::Dependency<Key, Version>*
+    ) =0;
+
+
+    // Destructor
 
     virtual ~Runtime() { }
 

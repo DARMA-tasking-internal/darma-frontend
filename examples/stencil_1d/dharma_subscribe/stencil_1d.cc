@@ -200,6 +200,8 @@ int main(int argc, char** argv)
     if(is_rightmost) data_with_ghosts->get()[my_total_data-1] = 1.0;
   });
 
+  data_with_ghosts.publish();
+
   for(int iter = 0; iter < n_iter; ++iter) {
 
     create_work([=]{
