@@ -50,10 +50,40 @@
 
 namespace tinympl {
 
-template <class T>
+template <class... T>
 struct contains_placeholder
- : public is_placeholder<T>
+ : std::integral_constant<bool, is_placeholder<T...>::value != 0>
 { };
+
+template <>
+struct contains_placeholder<>
+ : public std::false_type
+{ };
+
+
+namespace _impl {
+
+// This fixes an error arising from "contains_placeholder" being
+// interpreted as a fully-specialized type in the specializations below
+
+template <class T>
+struct _contains_placeholder {
+  typedef typename contains_placeholder<T>::type type;
+  static constexpr const bool value = type::value;
+};
+
+}
+
+// an overload for 2 or more variadic arguments
+
+template <class T1, class T2, class... Ts>
+struct contains_placeholder<T1, T2, Ts...>
+{
+  typedef typename variadic::any_of<
+    _impl::_contains_placeholder, T1, T2, Ts...
+  >::type type;
+  static constexpr const bool value = type::value;
+};
 
 template <
   template <class...> class F,
@@ -62,7 +92,7 @@ template <
 struct contains_placeholder<F<Args...>>
 {
   typedef typename variadic::any_of<
-    contains_placeholder, Args...
+    _impl::_contains_placeholder, Args...
   >::type type;
   static constexpr const bool value = type::value;
 };

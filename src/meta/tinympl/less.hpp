@@ -63,7 +63,12 @@ namespace tinympl {
  * \note Users are allowed to specialize this metafunction for user-defined types
  *
  */
-template<class A,class B> struct less : std::integral_constant<bool, (A::value < B::value)> {};
+template<
+  class A, class B
+>
+struct less
+  : std::integral_constant<bool, (A::value < B::value)>
+{ };
 
 } // namespace tinympl
 

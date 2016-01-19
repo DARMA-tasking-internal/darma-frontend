@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          runtime.h
+//                          test_lambda.hpp
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,80 +42,35 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_BACKEND_RUNTIME_H_
-#define SRC_ABSTRACT_BACKEND_RUNTIME_H_
 
-#include "../frontend/task.h"
-#include "../frontend/dependency.h"
+#include <tinympl/lambda.hpp>
 
-namespace dharma_runtime {
+#include "metatest_helpers.h"
 
-namespace abstract {
+#include <tinympl/vector.hpp>
 
-namespace backend {
+#include <string>
+#include <vector>
+#include <type_traits>
 
-template <
-  typename Key,
-  typename Version
->
-class Runtime {
+using namespace tinympl;
+using namespace tinympl::placeholders;
 
-  public:
+meta_assert(
+  std::is_same<
+    typename lambda<std::vector<_>>::template apply<int>::type,
+    std::vector<int>
+  >::value
+);
 
-    virtual void
-    register_task(abstract::frontend::Task* task) =0;
-
-    // Methods for creating handles and registering fetches of those handles
-
-    virtual void
-    create_handle(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    register_fetcher(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    release_fetcher(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    expect_fetchers(
-      const abstract::frontend::Dependency<Key, Version>*,
-      const Key& user_version_tag,
-      const size_t n_additional_fetchers = 1
-    ) =0;
-
-
-    // Methods for "bare" dependency satisfaction and use.  Not used for task dependencies
-
-    virtual void
-    fill_handle_for_reading(
-      abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    fill_handle_for_read_write(
-      abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-
-    // Destructor
-
-    virtual ~Runtime() { }
-
-};
-
-} // end namespace backend
-
-} // end namespace abstract
-
-} // end namespace dharma_runtime
-
-
-
-
-#endif /* SRC_ABSTRACT_BACKEND_RUNTIME_H_ */
+meta_assert(
+  std::is_same<
+    typename lambda<
+      vector<
+        std::vector<_2>,
+        _1
+      >
+    >::template apply<int, double>::type,
+    vector<std::vector<double>, int>
+  >::value
+);

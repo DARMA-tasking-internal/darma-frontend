@@ -54,6 +54,7 @@
 #include "contains_placeholder.hpp"
 #include <type_traits>
 #include "identity.hpp"
+#include "is_suspension_of.hpp"
 
 namespace tinympl {
 
@@ -67,56 +68,60 @@ namespace tinympl {
 template<class Expr>
 struct lambda
 {
-	template<class ... Ts>
-	struct eval
-	{
-		template<class T, class Enable=void>
-		struct pick {
-		  typedef T type;
-	  };
+  template<class... Ts>
+  struct eval
+  {
+    template<class T, class Enable=void>
+    struct pick {
+        typedef T type;
+    };
 
-		template<class T>
-		struct pick<T,
-		  typename std::enable_if< (is_placeholder<T>::type::value > 0)>::type
-		> {
-		  typedef variadic::at_t<is_placeholder<T>::value-1, Ts ... > type;
-		};
+    template<class T>
+    struct pick<T,
+      typename std::enable_if< (is_placeholder<T>::type::value > 0)>::type
+    > {
+        typedef variadic::at_t<is_placeholder<T>::value-1, Ts...> type;
+    };
 
-		template<class T>
-		struct pick<T,
-		  typename std::enable_if< is_bind_expression<T>::type::value>::type
-		> {
-		  typedef typename T::template eval<Ts...>::type type;
-		};
+    template<class T>
+    struct pick<T,
+    typename std::enable_if< is_bind_expression<T>::type::value>::type
+    > {
+        typedef typename T::template eval<Ts...>::type type;
+    };
 
-		typedef typename pick<Expr>::type type;
-	};
+    typedef typename pick<Expr>::type type;
+  };
 
-	template<class ... Ts> using eval_t = typename eval<Ts...>::type;
-	template<class ... Ts> using apply = typename eval<Ts...>::type;
+  template<class... Ts> using eval_t = typename eval<Ts...>::type;
+  template<class... Ts> using apply = eval<Ts...>;
 };
 
 template<
-  template<class ...> class F,
-  class ... Args
+  template<class...> class F,
+  class... Args
 >
 struct lambda<F<Args...> >
 {
-	template<class ... Ts>
-	struct eval
-	{
-		template <class T>
-		using forward_t = typename std::conditional<
+  template<class ... Ts>
+  struct eval
+  {
+    template <class T>
+    using forward_t = typename std::conditional<
       contains_placeholder<T>::value,
       typename lambda<T>::template eval<Ts...>,
       identity<T>
     >::type::type;
 
-		typedef typename F< forward_t<Args>... >::type type;
-	};
+    typedef typename std::conditional<
+      is_suspension_of<F, F<forward_t<Args>...>>::value,
+      F< forward_t<Args>... >,
+      identity<F<forward_t<Args>...>>
+    >::type::type type;
+  };
 
-	template<class ... Ts> using eval_t = typename eval<Ts...>::type;
-	template<class ... Ts> using apply = typename eval<Ts...>::type;
+  template<class ... Ts> using eval_t = typename eval<Ts...>::type;
+  template<class ... Ts> using apply = eval<Ts...>;
 };
 
 // Shouldn't be needed anymore

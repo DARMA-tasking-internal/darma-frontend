@@ -108,6 +108,15 @@ class DataBlock
 
     // TODO eventually: allocate_data() and/or allocator pattern from STL
 
+    virtual void
+    wait_read_only() =0;
+
+    virtual void
+    wait_read_write() =0;
+
+    virtual void
+    wait_write_only() =0;
+
     virtual ~DataBlock() { }
 
 };

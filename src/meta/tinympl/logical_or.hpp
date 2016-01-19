@@ -51,7 +51,8 @@
 #ifndef TINYMPL_LOGICAL_OR_HPP
 #define TINYMPL_LOGICAL_OR_HPP
 
-#include "or_b.hpp"
+#include "variadic/any_of.hpp"
+#include "identity.hpp"
 
 namespace tinympl {
 
@@ -60,8 +61,10 @@ namespace tinympl {
  * \class logical_or
  * \brief Computes the logical or of all its arguments
  */
-template<class ... Args> struct logical_or : or_b<Args::value ...> {};
-template<class ... Args> using or_ = logical_or<Args...>;
+template <class... Args>
+struct logical_or : variadic::any_of<identity, Args...> {};
+template <class... Args>
+using or_ = logical_or<Args...>;
 
 } // namespace tinympl
 

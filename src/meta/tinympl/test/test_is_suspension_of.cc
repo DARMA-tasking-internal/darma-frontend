@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          runtime.h
+//                          test_is_suspension_of.cc
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,80 +42,52 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_BACKEND_RUNTIME_H_
-#define SRC_ABSTRACT_BACKEND_RUNTIME_H_
 
-#include "../frontend/task.h"
-#include "../frontend/dependency.h"
+#include <vector> // std::vector
+#include <utility> // std::pair
+#include <type_traits> // std::is_arithmetic
 
-namespace dharma_runtime {
+#include <tinympl/is_suspension_of.hpp>
 
-namespace abstract {
+#include "metatest_helpers.h"
 
-namespace backend {
-
-template <
-  typename Key,
-  typename Version
->
-class Runtime {
-
-  public:
-
-    virtual void
-    register_task(abstract::frontend::Task* task) =0;
-
-    // Methods for creating handles and registering fetches of those handles
-
-    virtual void
-    create_handle(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    register_fetcher(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    release_fetcher(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    expect_fetchers(
-      const abstract::frontend::Dependency<Key, Version>*,
-      const Key& user_version_tag,
-      const size_t n_additional_fetchers = 1
-    ) =0;
+using namespace tinympl;
 
 
-    // Methods for "bare" dependency satisfaction and use.  Not used for task dependencies
+meta_assert(
+  not is_suspension<int>::value
+);
 
-    virtual void
-    fill_handle_for_reading(
-      abstract::frontend::Dependency<Key, Version>*
-    ) =0;
+meta_assert(
+  is_suspension_of<
+    std::is_arithmetic,
+    std::is_arithmetic<int>
+  >::value
+);
 
-    virtual void
-    fill_handle_for_read_write(
-      abstract::frontend::Dependency<Key, Version>*
-    ) =0;
+meta_assert(
+  not is_suspension_of<
+    std::pair,
+    std::is_arithmetic<int>
+  >::value
+);
 
+meta_assert(
+  not is_suspension_of<
+    std::is_arithmetic,
+    std::pair<
+      std::vector<int>,
+      char
+    >
+  >::value
+);
 
-    // Destructor
-
-    virtual ~Runtime() { }
-
-};
-
-} // end namespace backend
-
-} // end namespace abstract
-
-} // end namespace dharma_runtime
-
-
-
-
-#endif /* SRC_ABSTRACT_BACKEND_RUNTIME_H_ */
+meta_assert(
+  not is_suspension_of<
+    std::pair,
+    std::pair<
+      std::vector<int>,
+      char
+    >
+  >::value
+);

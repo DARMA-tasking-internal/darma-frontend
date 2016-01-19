@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          runtime.h
+//                          test_contains_placeholder.cc
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,80 +42,54 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_BACKEND_RUNTIME_H_
-#define SRC_ABSTRACT_BACKEND_RUNTIME_H_
+#include <vector> // std::vector
+#include <tuple> // std::tuple
+#include <utility> // std::pair
 
-#include "../frontend/task.h"
-#include "../frontend/dependency.h"
+#include <tinympl/lambda.hpp>
+#include <tinympl/vector.hpp>
 
-namespace dharma_runtime {
+#include "metatest_helpers.h"
 
-namespace abstract {
+using namespace tinympl;
+using namespace tinympl::placeholders;
 
-namespace backend {
+meta_assert(contains_placeholder<_>::value);
 
-template <
-  typename Key,
-  typename Version
->
-class Runtime {
+meta_assert(contains_placeholder<std::vector<_>>::value);
 
-  public:
+meta_assert(
+  contains_placeholder<vector<vector<_, std::string>>>::value
+);
 
-    virtual void
-    register_task(abstract::frontend::Task* task) =0;
-
-    // Methods for creating handles and registering fetches of those handles
-
-    virtual void
-    create_handle(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    register_fetcher(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    release_fetcher(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    expect_fetchers(
-      const abstract::frontend::Dependency<Key, Version>*,
-      const Key& user_version_tag,
-      const size_t n_additional_fetchers = 1
-    ) =0;
+meta_assert(
+  not contains_placeholder<vector<vector<std::string>>>::value
+);
 
 
-    // Methods for "bare" dependency satisfaction and use.  Not used for task dependencies
+meta_assert(contains_placeholder<
+    std::pair<std::tuple<_2, std::tuple<>, _1, std::pair<int, char>>, _1>
+  >::value
+);
 
-    virtual void
-    fill_handle_for_reading(
-      abstract::frontend::Dependency<Key, Version>*
-    ) =0;
+meta_assert(not contains_placeholder<
+    std::tuple<
+      std::pair<char, std::tuple<double, float, std::pair<int, char>>>,
+      int, float, std::pair<int, bool>, std::tuple<>
+    >
+  >::value
+);
 
-    virtual void
-    fill_handle_for_read_write(
-      abstract::frontend::Dependency<Key, Version>*
-    ) =0;
+meta_assert(not contains_placeholder<int>::value);
 
-
-    // Destructor
-
-    virtual ~Runtime() { }
-
-};
-
-} // end namespace backend
-
-} // end namespace abstract
-
-} // end namespace dharma_runtime
+meta_assert(not contains_placeholder<>::value);
 
 
-
-
-#endif /* SRC_ABSTRACT_BACKEND_RUNTIME_H_ */
+//template <typename Key>
+//struct Key_requirements_descriptor
+//{
+//  constexpr Key_requirements_descriptor() { }
+//
+//  void
+//
+//};

@@ -72,48 +72,51 @@ elements. Defaults to \ref tinympl::less
 sorted sequence
  * \sa tinympl::sort
  */
-template<template<class ... > class Cmp,
-        template<class ...> class Out,
-        class ... Args> struct sort;
+template<
+  template <class...> class Cmp,
+  template <class...> class Out,
+  class... Args
+> struct sort;
 
-template<template<class ... > class Comp,
-        template<class ...> class Out,
-        class ... Args>
+template<
+  template <class...> class Comp,
+  template <class...> class Out,
+  class... Args
+>
 struct sort {
-private:
+  private:
     template<class ... OtherArgs>
     using next_sort = sort<Comp, Out, OtherArgs...>;
 
-    enum {this_min = min_element<Comp, Args...>::type::value };
-    typedef typename erase < this_min, this_min + 1, next_sort, Args ... >::type
-        next;
+    enum { this_min = min_element<Comp, Args...>::type::value };
+    typedef typename erase < this_min, this_min + 1, next_sort, Args ... >::type next;
 
     template<class ... CopiedElements>
     struct impl {
-        typedef typename next::template impl<CopiedElements...,
-                                        typename at<this_min, Args...>::type
-                                        >::type type;
+      typedef typename next::template impl<CopiedElements...,
+        typename at<this_min, Args...>::type
+      >::type type;
     };
 
     template<template<class ... > class , template<class ...> class, class ...>
     friend struct sort;
 
-public:
+  public:
     typedef typename impl<>::type type;
 };
 
 template<template<class ... > class Comp, template<class ...> class Out>
 struct sort<Comp, Out> {
-private:
+  private:
     template<class ... CopiedElements>
     struct impl {
-        typedef Out<CopiedElements...> type;
+      typedef Out<CopiedElements...> type;
     };
 
     template<template<class ... > class , template<class ...> class, class ...>
     friend struct sort;
 
-public:
+  public:
     typedef typename impl<>::type type;
 };
 

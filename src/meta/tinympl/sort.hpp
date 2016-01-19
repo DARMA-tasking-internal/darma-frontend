@@ -73,15 +73,22 @@ elements. Defaults to \ref tinympl::less
 sorted sequence
  * \sa variadic::sort
  */
-template<class Sequence,
-        template<class ...> class Out = as_sequence<Sequence>::template rebind,
-        template<class ... > class Cmp = less>
-struct sort : sort<as_sequence_t<Sequence>, Out, Cmp> {};
+template<
+  class Sequence,
+  template <class...> class Out = as_sequence<Sequence>::template rebind,
+  template <class... > class Cmp = less
+>
+struct sort : sort<as_sequence_t<Sequence>, Out, Cmp>
+{ };
 
-template<template<class ... > class Cmp,
-        template<class ...> class Out,
-        class ... Args>
-struct sort<sequence<Args...>, Out, Cmp> : variadic::sort<Cmp, Out, Args...> {};
+template<
+  template <class...> class Cmp,
+  template <class...> class Out,
+  class... Args
+>
+struct sort<sequence<Args...>, Out, Cmp>
+  : variadic::sort<Cmp, Out, Args...>
+{ };
 
 } // namespace tinympl
 

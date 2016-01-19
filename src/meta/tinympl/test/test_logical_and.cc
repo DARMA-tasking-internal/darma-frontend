@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          runtime.h
+//                          test_logical_and.cc
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,80 +42,22 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_BACKEND_RUNTIME_H_
-#define SRC_ABSTRACT_BACKEND_RUNTIME_H_
 
-#include "../frontend/task.h"
-#include "../frontend/dependency.h"
+#include <tinympl/logical_and.hpp>
 
-namespace dharma_runtime {
+#include "metatest_helpers.h"
 
-namespace abstract {
+using namespace tinympl;
 
-namespace backend {
+meta_assert(
+  and_<std::true_type, std::true_type>::value
+);
 
-template <
-  typename Key,
-  typename Version
->
-class Runtime {
+// Make sure it short circuits
+meta_assert(
+  not and_<
+    std::false_type,
+    test::never_evaluate_predicate<int, char, char>
+  >::value
+);
 
-  public:
-
-    virtual void
-    register_task(abstract::frontend::Task* task) =0;
-
-    // Methods for creating handles and registering fetches of those handles
-
-    virtual void
-    create_handle(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    register_fetcher(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    release_fetcher(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    expect_fetchers(
-      const abstract::frontend::Dependency<Key, Version>*,
-      const Key& user_version_tag,
-      const size_t n_additional_fetchers = 1
-    ) =0;
-
-
-    // Methods for "bare" dependency satisfaction and use.  Not used for task dependencies
-
-    virtual void
-    fill_handle_for_reading(
-      abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    fill_handle_for_read_write(
-      abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-
-    // Destructor
-
-    virtual ~Runtime() { }
-
-};
-
-} // end namespace backend
-
-} // end namespace abstract
-
-} // end namespace dharma_runtime
-
-
-
-
-#endif /* SRC_ABSTRACT_BACKEND_RUNTIME_H_ */
