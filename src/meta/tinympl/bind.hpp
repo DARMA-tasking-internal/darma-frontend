@@ -92,25 +92,27 @@ typedef arg<8> arg8;
 
 namespace placeholders {
 
-typedef arg<1> _0;
-typedef arg<2> _1;
-typedef arg<3> _2;
-typedef arg<4> _3;
-typedef arg<5> _4;
-typedef arg<6> _5;
-typedef arg<7> _6;
-typedef arg<8> _7;
+typedef arg<1> _1;
+typedef arg<2> _2;
+typedef arg<3> _3;
+typedef arg<4> _4;
+typedef arg<5> _5;
+typedef arg<6> _6;
+typedef arg<7> _7;
+typedef arg<8> _8;
+typedef arg<9> _9;
 typedef arg<1> _;
-}
+
+} // end namespace placeholders
 
 /**
  * \brief Determine whether a type is a placeholder.
  * `is_placeholder<T>::value` is 0 if `T` is not a placeholder, otherwise is the index of the placeholder
  */
-template<class T> struct is_placeholder : std::integral_constant<std::size_t, 0> {};
+template <class T> struct is_placeholder : std::integral_constant<std::size_t, 0> {};
 template<std::size_t i> struct is_placeholder< arg<i> > : std::integral_constant<std::size_t, i> 
 {
-	static_assert(i != 0, "Placeholder arg<0> is undefined");
+  static_assert(i != 0, "Placeholder arg<0> is undefined");
 };
 
 /**
@@ -121,67 +123,69 @@ template<template<class ... T> class F,class ... Args> struct is_bind_expression
 
 /** @} */
 
-template< template<class ... T> class F,class Head,class ... Tail> struct bind<F,Head,Tail...>
+template <template <class... T> class F, class Head, class... Tail>
+struct bind<F, Head, Tail...>
 {
-private:
-	template<class ... Args>
-	struct call
-	{
-		template<class ... BoundArgs>
-		struct eval
-		{
-			template<class T,class Enable = void> struct pick {typedef T type;};
-			template<class T> struct pick<T, typename std::enable_if< (is_placeholder<T>::value > 0) >::type> {typedef variadic::at_t<is_placeholder<T>::value-1, Args ... > type;};
-			template<class T> struct pick<T, typename std::enable_if< is_bind_expression<T>::value >::type> {typedef typename T::template eval<Args...>::type type;};
+  private:
+    template <class... Args>
+    struct call
+    {
+      template <class... BoundArgs>
+      struct eval
+      {
+        template<class T,class Enable = void> struct pick {typedef T type;};
+        template<class T> struct pick<T, typename std::enable_if< (is_placeholder<T>::value > 0) >::type> {typedef variadic::at_t<is_placeholder<T>::value-1, Args ... > type;};
+        template<class T> struct pick<T, typename std::enable_if< is_bind_expression<T>::value >::type> {typedef typename T::template eval<Args...>::type type;};
 
-			typedef typename pick<Head>::type argument_t;
+        typedef typename pick<Head>::type argument_t;
 
-			//Forward the call to bind
-			typedef typename bind<F,Tail...>::template call<Args...>::template eval<BoundArgs..., argument_t>::type type;
-		};
-	};
+        //Forward the call to bind
+        typedef typename bind<F,Tail...>::template call<Args...>::template eval<BoundArgs..., argument_t>::type type;
+      };
+    };
 
-	template< template<class ...> class,class ...> friend struct bind;
+    template< template<class ...> class,class ...> friend struct bind;
 
-public:
-	template<class ... Args>
-	struct eval
-	{
-		using type = typename call<Args...>::template eval<>::type;
-	};
+  public:
+    template<class ... Args>
+    struct eval
+    {
+      using type = typename call<Args...>::template eval<>::type;
+    };
 
-	template<class ... Args>
-	using eval_t = typename eval<Args...>::type;
-	template<class ... Args>
-	using apply = typename eval<Args...>::type;
+    template<class ... Args>
+    using eval_t = typename eval<Args...>::type;
+    template<class ... Args>
+    using apply = typename eval<Args...>::type;
 };
 
-template< template<class ... T> class F> struct bind<F>
+template <template <class... T> class F>
+struct bind<F>
 {
-private:
-	template<class ... Args>
-	struct call
-	{
-		template<class ... BoundArgs>
-		struct eval
-		{
-			typedef typename F<BoundArgs...>::type type;
-		};
-	};
+  private:
+    template <class... Args>
+    struct call
+    {
+      template <class... BoundArgs>
+      struct eval
+      {
+          typedef typename F<BoundArgs...>::type type;
+      };
+    };
 
-	template< template<class ...> class,class ...> friend struct bind;
+    template <template <class...> class, class...> friend struct bind;
 
-public:
-	template<class ... Args>
-	struct eval
-	{
-		using type = typename call<Args...>::template eval<>::type;
-	};
+  public:
+    template <class... Args>
+    struct eval
+    {
+      using type = typename call<Args...>::template eval<>::type;
+    };
 
-	template<class ... Args>
-	using eval_t = typename eval<Args...>::type;
-	template<class ... Args>
-	using apply = typename eval<Args...>::type;
+    template<class ... Args>
+    using eval_t = typename eval<Args...>::type;
+    template<class ... Args>
+    using apply = typename eval<Args...>::type;
 };
 
 }

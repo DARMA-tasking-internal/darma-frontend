@@ -1,6 +1,6 @@
 
-#CXX := /opt/local/bin/clang++-mp-3.5
-CXX := /opt/local/bin/g++-mp-4.8
+CXX := /opt/local/bin/clang++-mp-3.5
+#CXX := /opt/local/bin/g++-mp-4.8
 
 CPPFLAGS = -I ../../ 
 CXXFLAGS = -std=c++11 -O0 -g -ftemplate-backtrace-limit=0 -Wno-return-type
@@ -18,6 +18,9 @@ TEST_NAMES = $(TEST_CC_FILES:.cc=)
 
 $(TEST_NAMES): test_% : test_%.o
 	rm $^
+
+all_tests: $(TEST_NAMES)
+
 
 clean:
 	-rm -f *.o

@@ -76,9 +76,13 @@ template<class T> struct as_sequence;
 /**
  * \brief Customization point to allow any variadic template type to work with tinympl
  */
-template<class ... Args,template<class ...> class Seq> struct as_sequence< Seq<Args...> > {
-	typedef sequence<Args...> type;
-	template<class ... Ts> using rebind = Seq<Ts...>;
+template<
+  class... Args,
+  template <class...> class Seq
+>
+struct as_sequence< Seq<Args...> > {
+  typedef sequence<Args...> type;
+  template <class... Ts> using rebind = Seq<Ts...>;
 };
 
 /** @} */

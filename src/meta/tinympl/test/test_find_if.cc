@@ -80,19 +80,10 @@ meta_assert(
 );
 
 
-// TODO Move these to lambda tests
-meta_assert(
-  contains_placeholder<vector<vector<_, std::string>>>::value
-);
-
-meta_assert(
-  not contains_placeholder<vector<vector<std::string>>>::value
-);
-
 
 meta_assert(
   find_if<
     vector<std::string, std::string, std::string, int>,
-    lambda<logical_not<std::is_same<_, std::string>>>::template eval_t
+    lambda<logical_not<std::is_same<_, std::string>>>::template apply
   >::value == 3
 );

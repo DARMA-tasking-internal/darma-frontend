@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          runtime.h
+//                          is_instantiation.hpp
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,80 +42,39 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_BACKEND_RUNTIME_H_
-#define SRC_ABSTRACT_BACKEND_RUNTIME_H_
+#ifndef SRC_META_TINYMPL_IS_INSTANTIATION_HPP_
+#define SRC_META_TINYMPL_IS_INSTANTIATION_HPP_
 
-#include "../frontend/task.h"
-#include "../frontend/dependency.h"
+#include <type_traits> // std::true_type and std::false_type
 
-namespace dharma_runtime {
+namespace tinympl {
 
-namespace abstract {
-
-namespace backend {
+template <typename T>
+struct is_instantiation
+  : std::false_type
+{ };
 
 template <
-  typename Key,
-  typename Version
+  template <class...> class F,
+  typename... Args
 >
-class Runtime {
-
-  public:
-
-    virtual void
-    register_task(abstract::frontend::Task* task) =0;
-
-    // Methods for creating handles and registering fetches of those handles
-
-    virtual void
-    create_handle(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    register_fetcher(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    release_fetcher(
-      const abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    expect_fetchers(
-      const abstract::frontend::Dependency<Key, Version>*,
-      const Key& user_version_tag,
-      const size_t n_additional_fetchers = 1
-    ) =0;
+struct is_instantiation<F<Args...>>
+  : std::true_type
+{ };
 
 
-    // Methods for "bare" dependency satisfaction and use.  Not used for task dependencies
+// This can't be generalized, so for now just let it return false
+// template <
+//   long long Value,
+//   template <class, size_t> class F,
+//   typename Arg
+// >
+// struct is_instantiation<F<Arg, Value>>
+//   : std::true_type
+// { };
 
-    virtual void
-    fill_handle_for_reading(
-      abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    fill_handle_for_read_write(
-      abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-
-    // Destructor
-
-    virtual ~Runtime() { }
-
-};
-
-} // end namespace backend
-
-} // end namespace abstract
-
-} // end namespace dharma_runtime
+} // end namespace tinympl
 
 
 
-
-#endif /* SRC_ABSTRACT_BACKEND_RUNTIME_H_ */
+#endif /* SRC_META_TINYMPL_IS_INSTANTIATION_HPP_ */

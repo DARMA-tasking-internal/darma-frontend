@@ -1,0 +1,50 @@
+
+/****************************************
+ * Questions:
+ * -> Should this code deadlock?
+ * -> Why or why not?
+ * -> What does it print, and where does
+ *    it deadlock (if at all)?
+ ****************************************/
+
+#include <iostream>
+#include <dharma.h>
+
+using namespace dharma_runtime;
+
+void test() {
+  auto dep1 = creation_access<std::string>("my_dep");
+
+  create_work([=]{
+    dep1.set_value("hello");
+  });
+
+  auto dep2 = read_access_to(dep1);
+
+  create_work([=]{
+    dep1.set_value("goodbye");
+  });
+
+  create_work([=]{
+    std::cout << dep2.get_value() << std::endl;
+  });
+
+  // release read-only access held by `dep2`.
+  dep2 = 0;
+  // Now dep1.wait() doesn't deadlock.  Instead,
+  // it ensures that all tasks that depend on dep2
+  // (and any earlier references to dep1, both of
+  // which are actually just wrappers to versions of
+  // "my_dep") run before code following this line can run
+  dep1.wait();
+  std::string& val1 = dep1.get_value();
+  std::cout << val1 << std::endl;
+}
+
+int main(int argc, char** argv) {
+  dharma_init(argc, argv);
+
+  if(dharma_spmd_rank() == 0) test();
+
+  dharma_finalize();
+}

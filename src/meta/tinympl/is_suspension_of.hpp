@@ -45,6 +45,10 @@
 #ifndef META_TINYMPL_IS_SUSPENSION_OF_HPP_
 #define META_TINYMPL_IS_SUSPENSION_OF_HPP_
 
+#include "is_suspension.hpp"
+#include "is_instantiation_of.hpp"
+#include "logical_and.hpp"
+
 namespace tinympl {
 
 template <
@@ -52,14 +56,11 @@ template <
   typename T
 >
 struct is_suspension_of
-  : public std::false_type { };
-
-template <
-  template <class...> class F,
-  typename... Args
->
-struct is_suspension_of<F, F<Args...>>
-  : public std::true_type { };
+  : and_<
+      is_instantiation_of<F, T>,
+      is_suspension<T>
+    >
+{ };
 
 
 } // end namespace tinympl

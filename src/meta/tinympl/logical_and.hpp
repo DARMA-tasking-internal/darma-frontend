@@ -51,7 +51,8 @@
 #ifndef TINYMPL_LOGICAL_AND_HPP
 #define TINYMPL_LOGICAL_AND_HPP
 
-#include "and_b.hpp"
+#include "variadic/all_of.hpp"
+#include "identity.hpp"
 
 namespace tinympl {
 
@@ -60,8 +61,12 @@ namespace tinympl {
  * \class logical_and
  * \brief Computes the logical and of all its arguments
  */
-template<class ... Args> struct logical_and : and_b<Args::value ...> {};
-template<class ... Args> using and_ = logical_and<Args...>;
+template <class... Args>
+struct logical_and : variadic::all_of<identity, Args...>
+{ };
+
+template <class... Args>
+using and_ = logical_and<Args...>;
 
 } // namespace tinympl
 

@@ -54,7 +54,28 @@
       "Metafunction test case failed, types are not the same:\n    " #__VA_ARGS__ "\n" \
   )
 
+#include <tuple>
 
+namespace tinympl { namespace test {
+
+// Utility types for ensuring short-circuit actually happens
+
+template <typename... T>
+struct invalid_for_int {
+  typedef typename std::tuple_element<0, std::tuple<T...>>::type type;
+};
+
+template <typename... T>
+struct invalid_for_int<int, T...>;
+
+template <typename... T>
+struct never_evaluate_predicate
+{
+  typedef typename invalid_for_int<int, T...>::type type;
+  static constexpr bool value = type::value; // shouldn't be usable
+};
+
+}} // end namespace tinympl::test
 
 
 #endif /* META_TINYMPL_TEST_METATEST_HELPERS_H_ */

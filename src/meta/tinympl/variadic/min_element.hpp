@@ -76,33 +76,33 @@ namespace detail {
 template<template<class ...> class Comp, class ... > struct min_element_impl;
 template<template<class ...> class Comp, class Head, class ... Tail> struct
 min_element_impl<Comp, Head, Tail...> {
-private:
+  private:
     enum {
-        next_min = min_element_impl<Comp, Tail...>::type::value
+      next_min = min_element_impl<Comp, Tail...>::type::value
     };
 
     enum {
-        this_min = ! Comp<at_t<next_min, Tail...>, Head>::type::value
+      this_min = ! Comp<at_t<next_min, Tail...>, Head>::type::value
     };
 
-public:
-    typedef std::integral_constant < std::size_t,
-            ( this_min ?
-              0 :
-              next_min + 1 ) > type;
+  public:
+    typedef std::integral_constant<
+      std::size_t,
+      ( this_min ? 0 : next_min + 1 )
+    > type;
 };
 
 template<template<class ... > class Comp, class Head> struct
 min_element_impl<Comp, Head> {
-    typedef std::integral_constant<std::size_t, 0> type;
+  typedef std::integral_constant<std::size_t, 0> type;
 };
 
 } // namespace detail
 
-template<template<class ...> class Comp, class ... Args>
+template <template <class...> class Comp, class ... Args>
 struct min_element :
-        detail::min_element_impl<Comp, Args...>::type
-{};
+  detail::min_element_impl<Comp, Args...>::type
+{ };
 
 } // namespace variadic
 } // namespace tinympl
