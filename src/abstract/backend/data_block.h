@@ -45,6 +45,8 @@
 #ifndef SRC_ABSTRACT_BACKEND_DATA_BLOCK_H_
 #define SRC_ABSTRACT_BACKEND_DATA_BLOCK_H_
 
+#include "../frontend/serialization_manager.h"
+
 namespace dharma_runtime {
 
 namespace abstract {
@@ -67,21 +69,8 @@ class DataBlock
 {
   public:
 
-    //template <typename Serializer>
-    //DataBlock(
-    //  void* data,
-    //  Serializer ser
-    //) =0;
-
-    //template <typename Serializer, typename Allocator>
-    //DataBlock(
-    //  void* data,
-    //  Serializer ser,
-    //  Allocator alloc
-    //) =0;
-
     void set_serialization_manager(
-      abstract::frontend::SerializationManager ser
+      abstract::frontend::SerializationManager const& ser
     ) =0;
 
     // Gets the *deserialized* version of the data
@@ -101,10 +90,10 @@ class DataBlock
     // the size of a piece of data, even if it is
     // contiguous
     virtual void
-    acquire_data(void* data) =0;
+    acquire_data(void* const data) =0;
 
     virtual void
-    allocate_data() =0;
+    allocate_data(size_t n_data) =0;
 
     // TODO eventually: allocate_data() and/or allocator pattern from STL
 

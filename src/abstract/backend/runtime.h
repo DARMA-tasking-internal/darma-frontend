@@ -45,8 +45,10 @@
 #ifndef SRC_ABSTRACT_BACKEND_RUNTIME_H_
 #define SRC_ABSTRACT_BACKEND_RUNTIME_H_
 
+#include "../frontend/dependency_handle.h"
 #include "../frontend/task.h"
-#include "../frontend/dependency.h"
+#include "../frontend/containment_manager.h"
+#include "../frontend/aliasing_manager.h"
 
 namespace dharma_runtime {
 
@@ -62,50 +64,74 @@ class Runtime {
 
   public:
 
+    typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
+    typedef abstract::frontend::ContainmentManager<Key, Version> containment_manager_t;
+    typedef abstract::frontend::AliasingManager<Key, Version> aliasing_manager_t;
+    typedef abstract::frontend::Task task_t;
+
     virtual void
-    register_task(abstract::frontend::Task* task) =0;
+    register_task(task_t* const task) =0;
 
     // Methods for creating handles and registering fetches of those handles
 
     virtual void
-    create_handle(
-      const abstract::frontend::Dependency<Key, Version>*
+    register_handle(
+      const handle_t* const new_handle,
+      const handle_t* const prev_data = nullptr,
+      bool needs_read_prev_data = true
+    ) =0;
+
+    virtual void
+    publish_handle(
+      const handle_t* const,
+      const Key& version_tag,
+      const size_t n_additional_fetchers = 1
+    ) =0;
+
+    virtual handle_t
+    resolve_version_tag(
+      const Key& handle_key,
+      const Key& version_tag
     ) =0;
 
     virtual void
     register_fetcher(
-      const abstract::frontend::Dependency<Key, Version>*
+      const handle_t* const fetcher_handle
     ) =0;
 
     virtual void
     release_fetcher(
-      const abstract::frontend::Dependency<Key, Version>*
+      const handle_t* const fetcher_handle
+    ) =0;
+
+    // Methods for "bare" dependency satisfaction and use.  Not used
+    // for task dependencies
+
+    virtual void
+    fill_handle(
+      handle_t* const to_fill,
+      bool needs_write_access = false
+    ) =0;
+
+    // Methods for establishing containment and/or aliasing relationships
+
+    virtual void
+    establish_containment_relationship(
+      const handle_t* const inner_handle,
+      const handle_t* const outer_handle,
+      containment_manager_t const& manager
     ) =0;
 
     virtual void
-    expect_fetchers(
-      const abstract::frontend::Dependency<Key, Version>*,
-      const Key& user_version_tag,
-      const size_t n_additional_fetchers = 1
+    establish_aliasing_relationship(
+      const handle_t* const handle_a,
+      const handle_t* const handle_b,
+      aliasing_manager_t const& manager
     ) =0;
 
+    // Virtual destructor, since we have virtual methods
 
-    // Methods for "bare" dependency satisfaction and use.  Not used for task dependencies
-
-    virtual void
-    fill_handle_for_reading(
-      abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-    virtual void
-    fill_handle_for_read_write(
-      abstract::frontend::Dependency<Key, Version>*
-    ) =0;
-
-
-    // Destructor
-
-    virtual ~Runtime() { }
+    virtual ~Runtime() noexcept { }
 
 };
 

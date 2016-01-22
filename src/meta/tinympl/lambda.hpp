@@ -124,27 +124,6 @@ struct lambda<F<Args...> >
   template<class ... Ts> using apply = eval<Ts...>;
 };
 
-// Shouldn't be needed anymore
-//template<class T>
-//struct protect {
-//  typedef T type;
-//};
-//template <
-//  template <class ...> class F,
-//  class ... Args
-//>
-//struct lambda< protect<F<Args...> > >
-//{
-//	template<class ... Ts>
-//	struct eval
-//	{
-//		template<class T> using forward_t = typename T::template eval<Ts...>::type;
-//
-//		typedef F< forward_t< lambda<protect<Args> > > ... > type;
-//	};
-//
-//	template<class ... Ts> using eval_t = typename eval<Ts...>::type;
-//};
 
 template<class Expr> struct is_bind_expression<lambda<Expr> > : std::true_type {};
 

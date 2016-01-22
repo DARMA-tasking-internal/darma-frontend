@@ -1,4 +1,3 @@
-
 /****************************************
  * Question:
  * What should this code print out?
@@ -10,7 +9,6 @@
 using namespace dharma_runtime;
 
 void test() {
-
   auto dep1 = creation_access<std::string>("my_dep");
 
   create_work([=]{
@@ -26,7 +24,6 @@ void test() {
   create_work([=]{
     std::cout << dep2.get_value() << std::endl;
   });
-
 }
 
 int main(int argc, char** argv) {

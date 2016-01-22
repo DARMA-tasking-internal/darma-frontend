@@ -42,8 +42,8 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_SERIALIZER_H_
-#define SRC_ABSTRACT_FRONTEND_SERIALIZER_H_
+#ifndef SRC_ABSTRACT_FRONTEND_SERIALIZATION_MANAGER_H_
+#define SRC_ABSTRACT_FRONTEND_SERIALIZATION_MANAGER_H_
 
 
 namespace dharma_runtime {
@@ -62,18 +62,6 @@ class SerializationManager {
 
     virtual bool
     needs_serialization() const =0;
-
-    //// Get the packed size if the data type needs serialization
-    //// Strictly won't get called unless needs_serialization()
-    //// returns true.
-    //virtual size_t
-    //get_packed_size(
-    //  const void* const deserialized_data
-    //) const
-    //{
-    //  // return 0 if no packing needs to be done
-    //  return 0;
-    //}
 
     virtual size_t
     get_metadata_size() const =0;
@@ -151,15 +139,7 @@ class SerializationManager {
  *   : public abstract::frontend::Serializer
  * {
  *   public:
- *     explicit
- *     contiguous_serializer(size_t size) : size_(size) { }
- *
- *     size_t get_data_size() const { return size_; }
- *
- *     bool needs_serialization() const { return false; }
- *
- *   private:
- *     size_t size_;
+ *   // TODO
  * };
  */
 
@@ -171,4 +151,4 @@ class SerializationManager {
 
 
 
-#endif /* SRC_ABSTRACT_FRONTEND_SERIALIZER_H_ */
+#endif /* SRC_ABSTRACT_FRONTEND_SERIALIZATION_MANAGER_H_ */

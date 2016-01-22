@@ -47,13 +47,13 @@
 
 #include <unordered_map>
 
-#include "abstract/abstract_task_child.h"
+#include "abstract/frontend/task.h"
 
 namespace dharma_runtime {
 
 namespace backend {
 
-class task : public dharma_rt::abstract::abstract_task_child {
+class task : public dharma_runtime::abstract::frontend::Task<Key, Version> {
 
   public:
 
