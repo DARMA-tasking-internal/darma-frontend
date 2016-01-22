@@ -42,14 +42,18 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_DEPENDENCY_H_
-#define SRC_ABSTRACT_FRONTEND_DEPENDENCY_H_
+#ifndef SRC_ABSTRACT_FRONTEND_DEPENDENCY_HANDLE_H_
+#define SRC_ABSTRACT_FRONTEND_DEPENDENCY_HANDLE_H_
 
-#include "../backend/data_block.h"
 
 namespace dharma_runtime {
 
 namespace abstract {
+
+// Forward declaration of DataBlock
+namespace backend {
+  class DataBlock;
+} // end namespace backend
 
 namespace frontend {
 
@@ -57,7 +61,7 @@ template <
   typename Key,
   typename Version
 >
-class Dependency {
+class DependencyHandle {
   public:
 
     virtual const Key&
@@ -68,11 +72,11 @@ class Dependency {
 
     void
     satisfy_with_data(
-      abstract::backend::DataBlock* data
+      abstract::backend::DataBlock* const data
     ) =0;
 
 
-    virtual ~Dependency() =0;
+    virtual ~DependencyHandle() noexcept { };
 };
 
 
@@ -82,4 +86,4 @@ class Dependency {
 
 } // end namespace dharma_runtime
 
-#endif /* SRC_ABSTRACT_FRONTEND_DEPENDENCY_H_ */
+#endif /* SRC_ABSTRACT_FRONTEND_DEPENDENCY_HANDLE_H_ */
