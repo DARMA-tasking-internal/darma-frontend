@@ -52,6 +52,8 @@
 #include "util.h"
 #include "key_fwd.h"
 
+// TODO Key isn't officially part of the frontend right now.  It should be moved to something like src/abstract/defaults or something
+
 #ifndef DHARMA_DEBUG_KEY_TYPES
 #  define DHARMA_DEBUG_KEY_TYPES 1
 #endif
@@ -141,6 +143,14 @@ class key_impl
 #endif
     { }
 
+    explicit key_impl(
+      std::tuple<Types...>&& tup
+    ) : parts_(std::forward<std::tuple<Types...>>(tup))
+#if DHARMA_DEBUG_KEY_TYPES
+      , type_idx(typeid(key_impl))
+#endif
+    { }
+
     const key_part
     get_part(constexpr unsigned spot) const {
       return key_part((void*)&std::get<spot>(parts_));
@@ -216,6 +226,14 @@ class Key {
         ))
     { }
 
+    template <typename... Types>
+    explicit Key(
+      std::tuple<Types...>&& data
+    ) : k_impl_(_impl_ptr_maker_t()(
+          std::forward<std::tuple<Types...>>(data)
+        ))
+    { }
+
     template <unsigned Spot>
     const detail::key_part
     component() const {
@@ -230,6 +248,7 @@ class Key {
     friend struct detail::key_equal;
 };
 
+typedef Key default_key_t;
 
 template <typename... Types>
 Key
@@ -238,6 +257,15 @@ make_key(Types&&... data)
   return Key(
     detail::variadic_constructor_arg,
     std::forward<Types>(data)...
+  );
+}
+
+template <typename... Types>
+Key
+make_key_from_tuple(std::tuple<Types...>&& data)
+{
+  return Key(
+    std::forward<std::tuple<Types...>>(data)
   );
 }
 

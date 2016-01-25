@@ -45,16 +45,20 @@
 #ifndef SRC_TASK_FWD_H_
 #define SRC_TASK_FWD_H_
 
-#ifndef SRC_TASK_H_
-#define SRC_TASK_H_
-
 namespace dharma_runtime {
 
-namespace backend {
+namespace detail {
 
-class task;
+template <
+  typename key_type,
+  typename version_type
+>
+class TaskBase;
 
-} // end namespace backend
+template <typename... Types>
+class Task;
+
+} // end namespace detail
 
 } // end namespace dharma_runtime
 

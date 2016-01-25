@@ -61,14 +61,14 @@ struct DataArray : public ZeroCopyable<1>
 ////////////////////////////////////////////////////////////////////////////////
 // Two functions that copy ghost data in and out of a local contiguous buffer
 
-typedef Dependency<DataArray<double>> dep_t;
+typedef AccessHandle<DataArray<double>> dep_t;
 
 void copy_in_ghost_data(double* dest,
   const dep_t left_ghost, const dep_t main, const dep_t right_ghost
 ) {
   memcpy(dest, left_ghost->get(), left_ghost->size()*sizeof(double));
   dest += left_ghost->size();
-  memcpy(dest, main->get(), my_n_data*sizeof(double));
+  memcpy(dest, main->get(), main->size()*sizeof(double));
   dest += main->size();
   memcpy(dest, right_ghost->get(), right_ghost->size()*sizeof(double));
 }
@@ -88,10 +88,8 @@ int main(int argc, char** argv)
 {
   dharma_init(argc, argv);
 
-  typedef DataArray<double> data_t;
-
   size_t me = dharma_spmd_rank();
-  size_t n_ranks = dharma_spmd_size();
+  size_t n_spmd = dharma_spmd_size();
 
   // Figure out how much local data we have
   size_t my_n_data = n_data_total / n_spmd;
@@ -110,9 +108,10 @@ int main(int argc, char** argv)
   const bool is_rightmost = me == n_spmd - 1;
   const size_t right_neighbor = me == is_rightmost ? me : me + 1;
 
-  auto data = create_access<data_t>("data", me);
-  auto sent_to_left = create_access<data_t>("sent_to_left", me, 0);
-  auto sent_to_right = create_access<data_t>("sent_to_right", me, 0);
+  typedef DataArray<double> data_t;
+  auto data = initial_access<data_t>("data", me);
+  auto sent_to_left = initial_access<data_t>("sent_to_left", me, 0);
+  auto sent_to_right = initial_access<data_t>("sent_to_right", me, 0);
 
   create_work([=]{
     data->allocate(my_n_data);
@@ -140,10 +139,8 @@ int main(int argc, char** argv)
     auto left_ghost = read_access<data_t>("sent_to_right", left_neighbor, iter);
     auto right_ghost = read_access<data_t>("sent_to_left", right_neighbor, iter);
 
-    sent_to_left = create_access<data_t>("sent_to_left", me, iter);
-    sent_to_right = create_access<data_t>("sent_to_right", me, iter);
-
-    data = read_write_for(data);
+    sent_to_left = initial_access<data_t>("sent_to_left", me, iter);
+    sent_to_right = initial_access<data_t>("sent_to_right", me, iter);
 
     create_work([=]{
 
@@ -165,22 +162,22 @@ int main(int argc, char** argv)
 
   if(print_data) {
 
-    auto prev_node_finished_writing = read_access<>("write_done", me-1);
+    auto prev_node_finished_writing = read_access<void>("write_done", me-1);
 
     // The `waits()` tag is equivalent to calling prev_node_finished_writing.wait() inside the lambda
     create_work(
       waits(prev_node_finished_writing),
       [=]{
         std::cout << "On worker " << me << ": ";
-        do_print_data(data, my_n_data);
+        do_print_data(data->get(), my_n_data);
 
-        write_access<>("write_done", me).publish(n_readers=1);
+        initial_access<void>("write_done", me).publish(n_readers=1);
       }
     );
 
     // If we're the first node, start the chain in motion
     if(me == 0) {
-      write_access<>("write_done", me-1).publish(n_readers=1);
+      initial_access<void>("write_done", me-1).publish(n_readers=1);
     }
 
   }

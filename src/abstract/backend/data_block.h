@@ -92,6 +92,7 @@ class DataBlock
     virtual void
     acquire_data(void* const data) =0;
 
+    // allocates space for the object in *deserialized* form
     virtual void
     allocate_data(size_t n_data) =0;
 

@@ -18,6 +18,7 @@ void test() {
     dep1.set_value("hello");
   });
 
+  // Don't do this unless you know what you're doing
   auto dep2 = read_access_to(dep1);
 
   create_work([=]{
@@ -28,7 +29,6 @@ void test() {
     std::cout << dep2.get_value() << std::endl;
   });
 
-  dep1.wait();
   std::string& val1 = dep1.get_value();
   std::cout << val1 << std::endl;
 }

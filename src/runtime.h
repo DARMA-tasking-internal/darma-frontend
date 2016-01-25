@@ -46,38 +46,52 @@
 #define NEW_RUNTIME_H_
 
 #include "task_fwd.h"
-#include "abstract_runtime.h"
+#include "abstract/backend/runtime.h"
 
 namespace dharma_runtime {
 
-namespace backend {
+namespace detail {
 
+template <
+  typename key_type,
+  typename version_type,
+  template <typename...> class smart_ptr_template = std::shared_ptr,
+  template <typename...> class weak_ptr_template =
+      smart_ptr_traits<smart_ptr_template>::template weak_ptr_template
+>
 class runtime_context {
   public:
+
+    typedef key_type key_t;
+    typedef version_type version_t;
+    typedef detail::Task<key_t, version_t> task_t;
+    typedef smart_ptr_template<task_t> task_ptr;
+    typedef weak_ptr_template<task_t> task_weak_ptr;
 
     runtime_context()
     {
       // TODO initialize rt_;
     }
 
-    task* current_create_work_context = nullptr;
+    task_ptr current_running_task;
+    task_weak_ptr current_create_work_context;
 
     int rank() {
-      return rt_->rank();
+      return backend_runtime->rank();
     }
 
     int nproc() {
-      return rt_->nproc();
+      return backend_runtime->nproc();
     }
 
 
-  private:
 
-    dharma_rt::abstract::runtime* rt_;
+    abstract::backend::Runtime<key_type, version_type, smart_ptr_template>* backend_runtime;
 
 };
 
-extern thread_local runtime_context thread_runtime;
+extern thread_local runtime_context<
+  default_key_t, default_version_t, std::shared_ptr, std::weak_ptr> thread_runtime;
 
 } // end namespace backend
 

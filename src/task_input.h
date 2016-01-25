@@ -49,41 +49,42 @@
 #include <unordered_map>
 #include "dependency.h"
 #include "key.h"
-#include "abstract/abstract_input.h"
+//#include "abstract/abstract_input.h"
 
-namespace dharma_runtime {
-
-namespace backend {
-
-class input_base
-  : public dharma_rt::abstract::input<Key>
-{
-  public:
-
-    virtual bool
-    requires(const dharma_rt::abstract::dependency<Key>& dep) const
-    {
-      return dep.get_key() == data_block->get_key();
-    }
-
-    virtual void
-    satisfy_with(const dharma_rt::abstract::dependency<Key>& dep) const
-    {
-
-    }
-
-
-
-
-  protected:
-
-    std::shared_ptr<DataBlockBase> data_block;
-
-};
-
-} // end namespace backend
-
-} // end namespace dharma_runtime
+// DEPRECATED
+//namespace dharma_runtime {
+//
+//namespace backend {
+//
+//class input_base
+//  : public dharma_rt::abstract::input<Key>
+//{
+//  public:
+//
+//    virtual bool
+//    requires(const dharma_rt::abstract::dependency<Key>& dep) const
+//    {
+//      return dep.get_key() == data_block->get_key();
+//    }
+//
+//    virtual void
+//    satisfy_with(const dharma_rt::abstract::dependency<Key>& dep) const
+//    {
+//
+//    }
+//
+//
+//
+//
+//  protected:
+//
+//    std::shared_ptr<DataBlockBase> data_block;
+//
+//};
+//
+//} // end namespace backend
+//
+//} // end namespace dharma_runtime
 
 
 
