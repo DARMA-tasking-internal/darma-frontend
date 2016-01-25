@@ -58,7 +58,8 @@ namespace backend {
 
 template <
   typename Key,
-  typename Version
+  typename Version,
+  template <typename...> class smart_ptr_template = std::shared_ptr
 >
 class Runtime {
 
@@ -68,16 +69,23 @@ class Runtime {
     typedef abstract::frontend::ContainmentManager<Key, Version> containment_manager_t;
     typedef abstract::frontend::AliasingManager<Key, Version> aliasing_manager_t;
     typedef abstract::frontend::Task task_t;
+    typedef smart_ptr_template<task_t> task_ptr;
+    typedef smart_ptr_template<const task_t> task_const_ptr;
+    typedef smart_ptr_template<handle_t> handle_ptr;
+    typedef smart_ptr_template<const handle_t> handle_const_ptr;
 
     virtual void
-    register_task(task_t* const task) =0;
+    register_task(
+      const task_ptr& task,
+      const task_ptr& parent
+    ) =0;
 
     // Methods for creating handles and registering fetches of those handles
 
     virtual void
     register_handle(
-      const handle_t* const new_handle,
-      const handle_t* const prev_data = nullptr,
+      const handle_const_ptr& new_handle,
+      const handle_const_ptr& prev_data = nullptr,
       bool needs_read_prev_data = true
     ) =0;
 

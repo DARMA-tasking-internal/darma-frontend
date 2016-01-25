@@ -45,15 +45,15 @@
 #ifndef SRC_TASK_INPUT_FWD_H_
 #define SRC_TASK_INPUT_FWD_H_
 
-namespace dharma_runtime {
-
-namespace backend {
-
-class input_base;
-
-} // end namespace backend
-
-} // end namespace dharma_runtime
+//namespace dharma_runtime {
+//
+//namespace backend {
+//
+//class input_base;
+//
+//} // end namespace backend
+//
+//} // end namespace dharma_runtime
 
 
 

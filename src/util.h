@@ -90,6 +90,8 @@ struct smart_ptr_traits<std::shared_ptr>
       );
     }
   };
+  template <typename... Ts>
+  using weak_ptr_template = std::weak_ptr<Ts...>;
 };
 
 // Borrowed from boost implementation and

@@ -46,6 +46,8 @@
 #define SRC_ABSTRACT_FRONTEND_TASK_H_
 
 
+#include "dependency_handle.h"
+
 namespace dharma_runtime {
 
 namespace abstract {
@@ -55,23 +57,25 @@ namespace frontend {
 template <
   typename Key,
   typename Version,
-  template <typename...> class Iterable=std::vector
+  template <typename...> class Iterable=std::vector,
+  template <typename...> class smart_ptr_template=std::shared_ptr
 >
 class Task {
   public:
 
-    typedef abstract::frontend::Dependency<Key, Version> dependency_t;
+    typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
+    typedef smart_ptr_template<handle_t> handle_ptr;
 
     virtual
-    const Iterable<dependency_t>&
+    const Iterable<handle_ptr>&
     get_inputs() const =0;
 
     virtual
-    const Iterable<dependency_t>&
+    const Iterable<handle_ptr>&
     get_in_outs() const =0;
 
     virtual
-    const Iterable<dependency_t>&
+    const Iterable<handle_ptr>&
     get_outputs() const =0;
 
     virtual void

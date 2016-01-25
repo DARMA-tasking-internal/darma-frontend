@@ -46,11 +46,12 @@
 #define SRC_DHARMA_H_
 
 
+#include "handle.h"
 #include "task.h"
 #include "runtime.h"
-#include "dependency.h"
 #include "spmd.h"
 #include "key.h"
+#include "create_work.h"
 
 
 #endif /* SRC_DHARMA_H_ */

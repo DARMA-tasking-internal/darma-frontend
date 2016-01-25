@@ -45,6 +45,8 @@
 #ifndef NEW_VERSION_H_
 #define NEW_VERSION_H_
 
+// TODO Version isn't officially part of the frontend right now.  It should be moved to something like src/abstract/defaults or something
+
 #include <cassert>
 #include <vector>
 
@@ -221,6 +223,7 @@ struct version_hash
 
 typedef detail::basic_version<size_t, std::vector> Version;
 
+typedef Version default_version_t;
 
 
 } // end namespace dharma_runtime
