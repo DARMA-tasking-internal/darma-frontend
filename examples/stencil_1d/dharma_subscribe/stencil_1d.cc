@@ -13,7 +13,7 @@ constexpr bool print_data = true;
 // A user data type for holding mesh data
 
 template <typename T>
-struct DataArray : public ZeroCopyable<1>
+struct DataArray
 {
   public:
 

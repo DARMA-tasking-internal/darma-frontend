@@ -60,7 +60,7 @@ namespace tinympl {
  * \class logical_not
  * \brief Negate the argument
  */
-template<class T> struct logical_not : not_b<T::value> {};
+template<class T> struct logical_not : not_b<T::type::value> {};
 template<class T> using not_ = logical_not<T>;
 
 } // namespace tinympl

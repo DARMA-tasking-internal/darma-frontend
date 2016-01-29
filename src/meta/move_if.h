@@ -47,7 +47,7 @@
 
 #include <utility> // std::move
 
-namespace dharma_mockup { namespace meta {
+namespace dharma_runtime { namespace meta {
 
 ////////////////////////////////////////////////////////////////////////////////
 

@@ -88,6 +88,8 @@ int main(int argc, char** argv)
 {
   dharma_init(argc, argv);
 
+  using namespace dharma_runtime::keyword_arguments_for_publication;
+
   size_t me = dharma_spmd_rank();
   size_t n_spmd = dharma_spmd_size();
 

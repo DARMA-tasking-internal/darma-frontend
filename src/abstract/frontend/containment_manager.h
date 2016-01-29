@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task.h
+//                          containment_manager.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,9 +42,8 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_TASK_H_
-#define SRC_ABSTRACT_FRONTEND_TASK_H_
-
+#ifndef SRC_ABSTRACT_FRONTEND_CONTAINMENT_MANAGER_H_
+#define SRC_ABSTRACT_FRONTEND_CONTAINMENT_MANAGER_H_
 
 #include "dependency_handle.h"
 
@@ -55,36 +54,51 @@ namespace abstract {
 namespace frontend {
 
 template <
-  typename Key, typename Version,
-  template <typename...> class Iterable,
-  template <typename...> class smart_ptr_template
+  typename Key,
+  typename Version
 >
-class Task {
+class ContainmentManager
+{
   public:
 
-    typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
-    typedef smart_ptr_template<handle_t> handle_ptr;
+    typedef DependencyHandle<Key, Version> handle_t;
 
-    virtual
-    const Iterable<handle_ptr>&
-    get_inputs() const =0;
+    virtual bool
+    is_offset_size_relationship() const =0;
 
-    virtual
-    const Iterable<handle_ptr>&
-    get_outputs() const =0;
+    virtual bool
+    is_strided() const =0;
 
-    virtual const Key&
-    get_name() const =0;
+    virtual size_t
+    get_size() const =0;
+
+    virtual ptrdiff_t
+    get_offset() const =0;
+
+    virtual ptrdiff_t
+    get_stride() const =0;
 
     virtual void
-    set_name(const Key& name_key) =0;
+    slice_in(
+      const handle_t* const inner_handle,
+      handle_t* const outer_handle
+    ) const {
+      // TODO explain why default implementation does nothing
+    }
 
     virtual void
-    run() const =0;
+    slice_out(
+      handle_t* const inner_handle,
+      const handle_t* const outer_handle
+    ) const {
+      // TODO explain why default implementation does nothing
+    }
 
-    virtual ~Task() { }
+    // Virtual destructor, since we have virtual methods
+
+    virtual ~ContainmentManager() noexcept { }
+
 };
-
 
 } // end namespace frontend
 
@@ -93,5 +107,4 @@ class Task {
 } // end namespace dharma_runtime
 
 
-
-#endif /* SRC_ABSTRACT_FRONTEND_TASK_H_ */
+#endif /* SRC_ABSTRACT_FRONTEND_CONTAINMENT_MANAGER_H_ */

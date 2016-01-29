@@ -45,6 +45,7 @@
 #ifndef SRC_DHARMA_H_
 #define SRC_DHARMA_H_
 
+#define DHARMA_FRONTEND_TYPES_INCLUDE <types_for_backend.h>
 
 #include "handle.h"
 #include "task.h"
@@ -52,6 +53,8 @@
 #include "spmd.h"
 #include "key.h"
 #include "create_work.h"
+#include "abstract/backend/runtime.h"
+#include "serialization.h"
 
 
 #endif /* SRC_DHARMA_H_ */

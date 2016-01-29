@@ -221,9 +221,13 @@ struct version_hash
 
 } // end namespace detail
 
+
+namespace defaults {
+
 typedef detail::basic_version<size_t, std::vector> Version;
 
-typedef Version default_version_t;
+} // end namespace defaults
+
 
 
 } // end namespace dharma_runtime

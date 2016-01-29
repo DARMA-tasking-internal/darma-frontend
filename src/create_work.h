@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task.h
+//                          create_work.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,56 +42,54 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_TASK_H_
-#define SRC_ABSTRACT_FRONTEND_TASK_H_
+#ifndef SRC_CREATE_WORK_H_
+#define SRC_CREATE_WORK_H_
 
+#include <tinympl/variadic/back.hpp>
 
-#include "dependency_handle.h"
+#include "task.h"
 
 namespace dharma_runtime {
 
-namespace abstract {
-
-namespace frontend {
 
 template <
-  typename Key, typename Version,
-  template <typename...> class Iterable,
-  template <typename...> class smart_ptr_template
+  typename... Args
 >
-class Task {
-  public:
+void create_work(Args&&... args) {
+  namespace mv = tinympl::variadic;
 
-    typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
-    typedef smart_ptr_template<handle_t> handle_ptr;
+  // The lambda is always the last argument
+  typedef typename mv::back<Args...>::type lambda_t;
 
-    virtual
-    const Iterable<handle_ptr>&
-    get_inputs() const =0;
-
-    virtual
-    const Iterable<handle_ptr>&
-    get_outputs() const =0;
-
-    virtual const Key&
-    get_name() const =0;
-
-    virtual void
-    set_name(const Key& name_key) =0;
-
-    virtual void
-    run() const =0;
-
-    virtual ~Task() { }
-};
+  typedef abstract::backend::runtime_t runtime_t;
+  typedef runtime_t::key_t key_t;
+  typedef runtime_t::version_t version_t;
+  typedef runtime_t::task_t abstract_task_t;
+  typedef detail::Task<lambda_t> task_t;
+  typedef detail::TaskBase task_base_t;
+  typedef runtime_t::task_ptr task_ptr;
 
 
-} // end namespace frontend
+  // Set up before the move
+  task_t* running = static_cast<task_base_t* const>(
+    detail::backend_runtime->get_running_task()
+  );
 
-} // end namespace abstract
+  task_ptr t = std::make_shared<task_t>();
+  running->current_create_work_context = t;
+
+  // Invoke the copy constructor of all captured entities
+  t.set_lambda(std::get<sizeof...(Args)-1>(std::forward_as_tuple(args...)));
+
+  running->current_create_work_context = nullptr;
+
+  detail::backend_runtime->register_task(t);
+
+}
+
 
 } // end namespace dharma_runtime
 
 
 
-#endif /* SRC_ABSTRACT_FRONTEND_TASK_H_ */
+#endif /* SRC_CREATE_WORK_H_ */

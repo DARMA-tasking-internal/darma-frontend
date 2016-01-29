@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task.h
+//                          filter.hpp
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,56 +42,38 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_TASK_H_
-#define SRC_ABSTRACT_FRONTEND_TASK_H_
+#ifndef SRC_META_TINYMPL_FILTER_HPP_
+#define SRC_META_TINYMPL_FILTER_HPP_
 
+#include "variadic/filter.hpp"
+#include "as_sequence.hpp"
+#include "sequence.hpp"
 
-#include "dependency_handle.h"
+namespace tinympl {
 
-namespace dharma_runtime {
-
-namespace abstract {
-
-namespace frontend {
+/**
+ * \ingroup SeqAlgsIntr
+ * \class at
+ * \brief Get the i-th element of a sequence
+ * \param I The index of the desired element
+ * \param Seq The input sequence
+*/
+template <
+  class Seq,
+  template <class...> class UnaryPredicate,
+  template <class...> class Out = as_sequence<Seq>::template rebind
+>
+struct filter : filter<Seq, UnaryPredicate, Out> { };
 
 template <
-  typename Key, typename Version,
-  template <typename...> class Iterable,
-  template <typename...> class smart_ptr_template
+  class... Args,
+  template <class...> class UnaryPredicate,
+  template <class...> class Out
 >
-class Task {
-  public:
+struct filter<sequence<Args...>, UnaryPredicate, Out>
+  : variadic::filter<UnaryPredicate, Out, Args...> { };
 
-    typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
-    typedef smart_ptr_template<handle_t> handle_ptr;
-
-    virtual
-    const Iterable<handle_ptr>&
-    get_inputs() const =0;
-
-    virtual
-    const Iterable<handle_ptr>&
-    get_outputs() const =0;
-
-    virtual const Key&
-    get_name() const =0;
-
-    virtual void
-    set_name(const Key& name_key) =0;
-
-    virtual void
-    run() const =0;
-
-    virtual ~Task() { }
-};
+} // end namespace tinympl
 
 
-} // end namespace frontend
-
-} // end namespace abstract
-
-} // end namespace dharma_runtime
-
-
-
-#endif /* SRC_ABSTRACT_FRONTEND_TASK_H_ */
+#endif /* SRC_META_TINYMPL_FILTER_HPP_ */
