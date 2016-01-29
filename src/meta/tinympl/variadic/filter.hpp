@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task.h
+//                          filter.hpp
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,56 +42,43 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_TASK_H_
-#define SRC_ABSTRACT_FRONTEND_TASK_H_
+#ifndef SRC_META_TINYMPL_VARIADIC_FILTER_HPP_
+#define SRC_META_TINYMPL_VARIADIC_FILTER_HPP_
 
+#include "../join.hpp"
 
-#include "dependency_handle.h"
-
-namespace dharma_runtime {
-
-namespace abstract {
-
-namespace frontend {
+namespace tinympl {
+namespace variadic {
 
 template <
-  typename Key, typename Version,
-  template <typename...> class Iterable,
-  template <typename...> class smart_ptr_template
+  template <class...> class UnaryPredicate,
+  template <class...> class Out,
+  typename... Types
 >
-class Task {
+struct filter;
+
+
+template <
+  template <class...> class UnaryPredicate,
+  template <class...> class Out,
+  typename Type1, typename... Types
+>
+struct filter<
+  UnaryPredicate, Out, Type1, Types...
+> {
+  private:
+    typedef typename filter<
+      UnaryPredicate, Types..., Out
+    >::type _filtered_tail;
   public:
-
-    typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
-    typedef smart_ptr_template<handle_t> handle_ptr;
-
-    virtual
-    const Iterable<handle_ptr>&
-    get_inputs() const =0;
-
-    virtual
-    const Iterable<handle_ptr>&
-    get_outputs() const =0;
-
-    virtual const Key&
-    get_name() const =0;
-
-    virtual void
-    set_name(const Key& name_key) =0;
-
-    virtual void
-    run() const =0;
-
-    virtual ~Task() { }
+    typedef typename std::conditional<
+      UnaryPredicate<Type1>::type::value,
+      join<Out<Type1>, _filtered_tail>,
+      identity<_filtered_tail>
+    >::type::type type;
 };
 
-
-} // end namespace frontend
-
-} // end namespace abstract
-
-} // end namespace dharma_runtime
+}} // end namespace tinympl::variadic
 
 
-
-#endif /* SRC_ABSTRACT_FRONTEND_TASK_H_ */
+#endif /* SRC_META_TINYMPL_VARIADIC_FILTER_HPP_ */

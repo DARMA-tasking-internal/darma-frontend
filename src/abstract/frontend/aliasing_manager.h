@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task.h
+//                          aliasing_manager.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,9 +42,8 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_TASK_H_
-#define SRC_ABSTRACT_FRONTEND_TASK_H_
-
+#ifndef SRC_ABSTRACT_FRONTEND_ALIASING_MANAGER_H_
+#define SRC_ABSTRACT_FRONTEND_ALIASING_MANAGER_H_
 
 #include "dependency_handle.h"
 
@@ -55,36 +54,49 @@ namespace abstract {
 namespace frontend {
 
 template <
-  typename Key, typename Version,
-  template <typename...> class Iterable,
-  template <typename...> class smart_ptr_template
+  typename Key,
+  typename Version
 >
-class Task {
+class AliasingManager
+{
   public:
 
     typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
-    typedef smart_ptr_template<handle_t> handle_ptr;
-
-    virtual
-    const Iterable<handle_ptr>&
-    get_inputs() const =0;
-
-    virtual
-    const Iterable<handle_ptr>&
-    get_outputs() const =0;
-
-    virtual const Key&
-    get_name() const =0;
 
     virtual void
-    set_name(const Key& name_key) =0;
+    reconcile_with_unchanged(
+      handle_t* const changed,
+      handle_t* const unchanged
+    ) const =0;
+
+    virtual bool
+    separable(
+      const handle_t* const handle_a,
+      const handle_t* const handle_b
+    ) const =0;
 
     virtual void
-    run() const =0;
+    separate_into_copies(
+      const handle_t* const entangled_handle_a,
+      handle_t* const separated_handle_a,
+      const handle_t* const entangled_handle_b,
+      handle_t* const separated_handle_b
+    ) const =0;
 
-    virtual ~Task() { }
+    virtual void
+    reconcile_separation(
+      handle_t* const entangled_handle_a,
+      const handle_t* const separated_handle_a,
+      handle_t* const entangled_handle_b,
+      const handle_t* const separated_handle_b
+    ) const =0;
+
+
+    // Virtual destructor, since we have virtual methods
+
+    virtual ~AliasingManager() noexcept { }
+
 };
-
 
 } // end namespace frontend
 
@@ -93,5 +105,4 @@ class Task {
 } // end namespace dharma_runtime
 
 
-
-#endif /* SRC_ABSTRACT_FRONTEND_TASK_H_ */
+#endif /* SRC_ABSTRACT_FRONTEND_ALIASING_MANAGER_H_ */

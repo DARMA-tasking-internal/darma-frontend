@@ -92,6 +92,8 @@ struct smart_ptr_traits<std::shared_ptr>
   };
   template <typename... Ts>
   using weak_ptr_template = std::weak_ptr<Ts...>;
+  template <typename... Ts>
+  using shared_from_this_base = std::enable_shared_from_this<Ts...>;
 };
 
 // Borrowed from boost implementation and

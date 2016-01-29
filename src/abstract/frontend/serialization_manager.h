@@ -45,7 +45,6 @@
 #ifndef SRC_ABSTRACT_FRONTEND_SERIALIZATION_MANAGER_H_
 #define SRC_ABSTRACT_FRONTEND_SERIALIZATION_MANAGER_H_
 
-
 namespace dharma_runtime {
 
 namespace abstract {
@@ -58,30 +57,76 @@ class SerializationManager {
 
   public:
 
-    typedef unsigned zero_copy_slot_t;
+    typedef size_t zero_copy_slot_t;
 
-    virtual bool
-    needs_serialization() const =0;
+    //////////////////////////////////////////
+    //// Callbacks indicating that the
+    //// packing/unpacking of a block of data
+    //// has begun or is completing
+
+    //virtual void
+    //begin_packing(
+    //  const void* const deserialized_data
+    //)
+    //{ /* default implementation is a no-op */ }
+
+    //virtual void
+    //finish_packing(
+    //  const void* const deserialized_data,
+    //  void* const serialized_metadata,
+    //  void* const serialized_data
+    //)
+    //{ /* default implementation is a no-op */ }
+
+    //virtual void
+    //begin_unpacking(
+    //  void* const serialized_metadata,
+    //  void* const serialized_data
+    //)
+    //{ /* default implementation is a no-op */ }
+
+    //virtual void
+    //finish_unpacking(
+    //  const void* const serialized_metadata,
+    //  const void* const serialized_data,
+    //  void* const deserialized_data
+    //)
+    //{ /* default implementation is a no-op */ }
+
+    ////////////////////////////////////////
+    // Metadata serialization phase
 
     virtual size_t
-    get_metadata_size() const =0;
+    get_metadata_size(
+      const void* const deserialized_data
+    ) const =0;
 
     virtual void
     serialize_metadata(
       const void* const deserialized_data,
       void* const buffer
-    ) =0;
+    ) const
+    { /* default implementation is a no-op */ }
 
     virtual void
     deserialize_metadata(
       const void* const serialized_data,
       void* const buffer
-    ) =0;
+    ) const
+    { /* default implementation is a no-op */ }
+
+    ////////////////////////////////////////
+    // regular data serialization phase
+
+    virtual bool
+    needs_serialization() const
+    { return false; }
 
     virtual size_t
     get_packed_data_size(
-      const void* const deserialized_metadata
-    ) const =0;
+      const void* const deserialized_data
+    ) const
+    { return 0; }
 
     virtual void
     serialize_data(
@@ -97,51 +142,43 @@ class SerializationManager {
 
     virtual void
     deserialize_data(
-      void* const serialized_data,
+      const void* const serialized_data,
       void* const deserialized_metadata_and_dest
-    ) const {
+    ) const
+    {
       // No-op by default, since contiguous types
       // don't need to do anything.  Strictly won't
       // get called unless needs_serialization() returns
       // true.
     }
 
+    ////////////////////////////////////////
+    // zero-copy slot serialization phase
+
+    virtual size_t
+    get_n_zero_copy_slots(
+      const void* const deserialized_metadata,
+    ) const
+    { return 0; }
+
     virtual size_t
     get_zero_copy_data_size(
       const void* const deserialized_metadata,
       zero_copy_slot_t slot
-    ) const =0;
+    ) const
+    { return 0; }
 
     virtual void*&
     get_zero_copy_slot(
-      const void* const deserialized_metadata,
+      void* const deserialized_metadata,
       zero_copy_slot_t slot
     ) const =0;
 
-    //// Return the size of the *deserialized* object
-    //// [note that this doesn't include, e.g., the data
-    //// in any heap-pointer member variables.  In most
-    //// cases, for a data type T, the data_size will be
-    //// exactly sizeof(T)]
-    //virtual size_t
-    //get_data_size(
-    //  const void* const data = nullptr
-    //) const =0;
+    ////////////////////////////////////////
 
-
-    virtual ~SerializationManager() { }
+    virtual ~SerializationManager() = default;
 };
 
-/* Sample trivial implementation for contiguous data:
- *
- * template <typename T>
- * struct contiguous_serializer
- *   : public abstract::frontend::Serializer
- * {
- *   public:
- *   // TODO
- * };
- */
 
 } // end namespace frontend
 

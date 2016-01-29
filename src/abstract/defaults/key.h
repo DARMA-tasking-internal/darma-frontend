@@ -52,7 +52,6 @@
 #include "util.h"
 #include "key_fwd.h"
 
-// TODO Key isn't officially part of the frontend right now.  It should be moved to something like src/abstract/defaults or something
 
 #ifndef DHARMA_DEBUG_KEY_TYPES
 #  define DHARMA_DEBUG_KEY_TYPES 1
@@ -84,6 +83,14 @@ class key_part {
 
     template <typename T>
     T& as() {
+#if DHARMA_DEBUG_KEY_TYPES
+      assert(sizeof(T) == expected_size_);
+#endif
+      return *(T*)data;
+    }
+
+    template <typename T>
+    const T& as() const {
 #if DHARMA_DEBUG_KEY_TYPES
       assert(sizeof(T) == expected_size_);
 #endif
@@ -206,6 +213,8 @@ struct key_equal;
 
 } // end namespace detail
 
+namespace defaults {
+
 class Key {
   private:
 
@@ -248,7 +257,6 @@ class Key {
     friend struct detail::key_equal;
 };
 
-typedef Key default_key_t;
 
 template <typename... Types>
 Key
@@ -269,11 +277,13 @@ make_key_from_tuple(std::tuple<Types...>&& data)
   );
 }
 
+} // end namespace defaults
+
 namespace detail {
 
 struct key_hash {
   size_t
-  operator()(const Key& key) const {
+  operator()(const defaults::Key& key) const {
     // TODO optimize this w.r.t. virtual method invocations
     typedef char align_t;
     align_t* data = (align_t*)key.k_impl_->get_start();
@@ -290,7 +300,7 @@ struct key_hash {
 
 struct key_equal {
   bool
-  operator()(const Key& lhs, const Key& rhs) const {
+  operator()(const defaults::Key& lhs, const defaults::Key& rhs) const {
     // Shortcut: if the shared pointers point to the same thing, they must be equal
     if(lhs.k_impl_.get() == rhs.k_impl_.get()) return true;
     // TODO optimize this w.r.t. virtual method invocations
@@ -308,13 +318,14 @@ struct key_equal {
   }
 };
 
-} // end namespace detail
 
 inline bool
-operator==(const Key& a, const Key& b)
+operator==(const defaults::Key& a, const defaults::Key& b)
 {
   return detail::key_equal()(a, b);
 }
+
+} // end namespace detail
 
 } // end namespace dharma_runtime
 

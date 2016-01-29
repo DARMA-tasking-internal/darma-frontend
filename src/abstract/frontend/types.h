@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task.h
+//                          types.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,56 +42,21 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_TASK_H_
-#define SRC_ABSTRACT_FRONTEND_TASK_H_
+#ifndef SRC_ABSTRACT_FRONTEND_TYPES_H_
+#define SRC_ABSTRACT_FRONTEND_TYPES_H_
 
+#ifdef DHARMA_FRONTEND_TYPES_INCLUDE
+#include DHARMA_FRONTEND_TYPES_INCLUDE
+#endif
 
-#include "dependency_handle.h"
-
-namespace dharma_runtime {
-
-namespace abstract {
-
-namespace frontend {
-
-template <
-  typename Key, typename Version,
-  template <typename...> class Iterable,
-  template <typename...> class smart_ptr_template
->
-class Task {
-  public:
-
-    typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
-    typedef smart_ptr_template<handle_t> handle_ptr;
-
-    virtual
-    const Iterable<handle_ptr>&
-    get_inputs() const =0;
-
-    virtual
-    const Iterable<handle_ptr>&
-    get_outputs() const =0;
-
-    virtual const Key&
-    get_name() const =0;
-
-    virtual void
-    set_name(const Key& name_key) =0;
-
-    virtual void
-    run() const =0;
-
-    virtual ~Task() { }
-};
-
-
-} // end namespace frontend
-
-} // end namespace abstract
-
-} // end namespace dharma_runtime
+#ifndef DHARMA_BACKEND_CUSTOM_HANDLE_CONTAINER
+#include <unordered_set>
+namespace dharma_runtime { namespace types {
+  template <typename... Ts>
+  using handle_container_template = std::unordered_set<Ts...>;
+}} // end namespace dharma_runtime::types
+#endif
 
 
 
-#endif /* SRC_ABSTRACT_FRONTEND_TASK_H_ */
+#endif /* SRC_ABSTRACT_FRONTEND_TYPES_H_ */

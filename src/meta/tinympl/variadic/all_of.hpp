@@ -71,7 +71,7 @@ template< template<class ... T> class F, class ... Args> struct all_of;
 template< template<class ... T> class F, class Head, class ... Args>
 struct all_of<F, Head, Args...> :
   std::conditional <
-    F<Head>::type::value,
+    F<Head>::type::type::value,
     all_of<F, Args...>,
     std::integral_constant<bool, false>
   >::type::type

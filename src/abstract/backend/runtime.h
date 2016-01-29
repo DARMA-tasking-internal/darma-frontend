@@ -45,6 +45,9 @@
 #ifndef SRC_ABSTRACT_BACKEND_RUNTIME_H_
 #define SRC_ABSTRACT_BACKEND_RUNTIME_H_
 
+#include "types.h"
+#include "../frontend/types.h"
+
 #include "../frontend/dependency_handle.h"
 #include "../frontend/task.h"
 #include "../frontend/containment_manager.h"
@@ -59,34 +62,46 @@ namespace backend {
 template <
   typename Key,
   typename Version,
-  template <typename...> class smart_ptr_template = std::shared_ptr
+  template <typename...> class shared_ptr_template,
+  template <typename...> class unique_ptr_template
 >
 class Runtime {
 
   public:
 
+    typedef Key key_t;
+    typedef Version version_t;
     typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
     typedef abstract::frontend::ContainmentManager<Key, Version> containment_manager_t;
     typedef abstract::frontend::AliasingManager<Key, Version> aliasing_manager_t;
-    typedef abstract::frontend::Task task_t;
-    typedef smart_ptr_template<task_t> task_ptr;
-    typedef smart_ptr_template<const task_t> task_const_ptr;
-    typedef smart_ptr_template<handle_t> handle_ptr;
-    typedef smart_ptr_template<const handle_t> handle_const_ptr;
+    typedef abstract::frontend::Task<
+      Key, Version, types::handle_container_template, shared_ptr_template
+    > task_t;
+    typedef shared_ptr_template<task_t> task_ptr;
+    typedef shared_ptr_template<const task_t> task_const_ptr;
+    typedef unique_ptr_template<task_t> task_unique_ptr;
+    typedef unique_ptr_template<const task_t> task_const_unique_ptr;
+    typedef shared_ptr_template<handle_t> handle_ptr;
+    typedef shared_ptr_template<const handle_t> handle_const_ptr;
 
     virtual void
     register_task(
-      const task_ptr& task,
-      const task_ptr& parent
+      const task_ptr& task
     ) =0;
+
+    virtual task_t* const
+    get_running_task() const =0;
 
     // Methods for creating handles and registering fetches of those handles
 
     virtual void
     register_handle(
-      const handle_const_ptr& new_handle,
-      const handle_const_ptr& prev_data = nullptr,
-      bool needs_read_prev_data = true
+      const handle_ptr& new_handle
+    ) =0;
+
+    virtual void
+    release_handle(
+      const handle_ptr& new_handle
     ) =0;
 
     virtual void
@@ -114,6 +129,7 @@ class Runtime {
 
     // Methods for "bare" dependency satisfaction and use.  Not used
     // for task dependencies
+    // TODO decide between this and the wait_* methods in the DataBlock class
 
     virtual void
     fill_handle(
@@ -142,6 +158,26 @@ class Runtime {
     virtual ~Runtime() noexcept { }
 
 };
+
+
+typedef Runtime<
+  dharma_runtime::types::key_t,
+  dharma_runtime::types::version_t,
+  dharma_runtime::types::shared_ptr_template,
+  dharma_runtime::types::unique_ptr_template
+> runtime_t;
+
+
+// An initialize function that the backend should implement which the frontend
+// calls to setup the static instance of backend_runtime
+void
+dharma_backend_initialize(
+  int& argc,
+  char**& argv,
+  runtime_t*& backend_runtime,
+  types::unique_ptr_template<typename runtime_t::task_t> top_level_task
+);
+
 
 } // end namespace backend
 

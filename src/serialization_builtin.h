@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task.h
+//                          serialization_builtin.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,56 +42,84 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_TASK_H_
-#define SRC_ABSTRACT_FRONTEND_TASK_H_
+#ifndef SRC_SERIALIZATION_BUILTIN_H_
+#define SRC_SERIALIZATION_BUILTIN_H_
 
-
-#include "dependency_handle.h"
+#include "serialization.h"
 
 namespace dharma_runtime {
 
-namespace abstract {
-
-namespace frontend {
+// Examples:
 
 template <
-  typename Key, typename Version,
-  template <typename...> class Iterable,
-  template <typename...> class smart_ptr_template
+  typename T,
+  typename std::enable_if<
+    detail::is_trivially_serializable<T>::value
+  >::type
 >
-class Task {
-  public:
-
-    typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
-    typedef smart_ptr_template<handle_t> handle_ptr;
-
-    virtual
-    const Iterable<handle_ptr>&
-    get_inputs() const =0;
-
-    virtual
-    const Iterable<handle_ptr>&
-    get_outputs() const =0;
-
-    virtual const Key&
-    get_name() const =0;
-
-    virtual void
-    set_name(const Key& name_key) =0;
-
-    virtual void
-    run() const =0;
-
-    virtual ~Task() { }
+struct nonintrusive_serialization_interface<std::vector<T>>
+  : ensure_implements_zero_copy<std::vector<T>>
+{
+  size_t num_zero_copy_slots(const std::vector<T>&) const {
+    return 1;
+  }
+  size_t zero_copy_slot_size(const std::vector<T>& v, size_t slot) {
+    assert(slot == 0);
+    return v.capacity() * sizeof(T);
+  }
+  void*& get_zero_copy_slot(std::vector<T>& v, size_t slot) {
+    return v.data();
+  }
 };
 
+// TODO FIX THIS!!!!
+template <typename T, typename U>
+struct nonintrusive_serialization_interface<std::map<T, U>>
+{
+  void serialize_metadata(std::map<T, U>& m, Archive& ar) const {
+    if(ar.is_unpacking()) {
+      m = new (&m) std::map<T, U>();
+      size_t n_pairs = 0;
+      ar & n_pairs;
+      for(int i = 0; i < n_pairs; ++i) {
+        T t; ar & t;
+        U u; ar & u;
+        m.emplace(t, u);
+      }
+    }
+    else { // ar.is_sizing() || ar.is_packing()
+      ar & m.size();
+      for(auto&& pair : ar) {
+        ar & pair.first();
+        ar & pair.second();
+      }
+    }
+  }
+  void serialize_data(std::map<T, U>& m, Archive& ar) const {
+    if(ar.is_unpacking()) {
+      m = new (&m) std::map<T, U>();
+      size_t n_pairs = 0;
+      ar & n_pairs;
+      for(int i = 0; i < n_pairs; ++i) {
+        T t; ar & t;
+        U u; ar & u;
+        m.emplace(t, u);
+      }
+    }
+    else { // ar.is_sizing() || ar.is_packing()
+      ar & m.size();
+      for(auto&& pair : ar) {
+        ar & pair.first();
+        ar & pair.second();
+      }
+    }
+  }
 
-} // end namespace frontend
-
-} // end namespace abstract
+};
 
 } // end namespace dharma_runtime
 
 
 
-#endif /* SRC_ABSTRACT_FRONTEND_TASK_H_ */
+
+#endif /* SRC_SERIALIZATION_BUILTIN_H_ */

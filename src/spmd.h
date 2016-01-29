@@ -46,19 +46,37 @@
 #define SPMD_H_
 
 #include "runtime.h"
+#include "abstract/backend/runtime.h"
+#include "task.h"
+
+#include <memory>
 
 namespace dharma_runtime {
 
 typedef size_t dharma_rank_t;
 
+void
+dharma_init(
+  int& argc,
+  char**& argv
+) {
+  abstract::backend::dharma_backend_initialize(
+    argc, argv, detail::backend_runtime,
+    std::make_unique<detail::TopLevelTask>()
+  );
+}
+
 dharma_rank_t
 dharma_spmd_rank() {
-  return backend::thread_runtime.rank();
+  // TODO safer version of this
+  return detail::backend_runtime
+      ->get_running_task()->get_name().component<0>().as<dharma_rank_t>();
 }
 
 dharma_rank_t
 dharma_spmd_size() {
-  return backend::thread_runtime.nproc();
+  return detail::backend_runtime
+      ->get_running_task()->get_name().component<1>().as<dharma_rank_t>();
 }
 
 } // end namespace dharma_runtime

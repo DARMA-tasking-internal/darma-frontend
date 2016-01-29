@@ -64,32 +64,35 @@ namespace tinympl {
  * \return A sequence constructed by joining all the passed sequences with the
 type of the first one
  */
-template<class ... Args> struct join;
+template <class... Args> struct join;
 
-template<class Head, class Next, class ... Tail>
+template <class Head, class Next, class ... Tail>
 struct join<Head, Next, Tail...> {
-    typedef
-        typename join < typename join<Head, Next>::type, Tail... >::type type;
+  typedef
+    typename join<typename join<Head, Next>::type, Tail...>::type type;
 };
 
-template<class Head, class Last> struct join<Head, Last> {
-private:
-    template<class S1, class S2, template<class ...> class Out> struct do_join;
+template <class Head, class Last> struct join<Head, Last> {
+  private:
+    template <class S1, class S2, template <class...> class Out>
+    struct do_join;
 
-    template<class ... S1, class ... S2, template<class ...> class Out>
-    struct do_join< sequence<S1...>, sequence<S2...>, Out > {
+    template <class... S1, class... S2, template <class...> class Out>
+    struct do_join<sequence<S1...>, sequence<S2...>, Out> {
         typedef Out<S1..., S2...> type;
     };
 
-public:
-    typedef typename do_join <
-    as_sequence_t<Head>,
-                  as_sequence_t<Last>,
-                  as_sequence<Head>::template rebind >::type type;
+  public:
+    typedef typename do_join<
+      as_sequence_t<Head>,
+      as_sequence_t<Last>,
+      as_sequence<Head>::template rebind
+    >::type type;
 };
 
-template<class Head> struct join<Head> {
-    typedef Head type;
+template <class Head>
+struct join<Head> {
+  typedef Head type;
 };
 
 } // namespace tinympl

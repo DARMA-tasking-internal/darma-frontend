@@ -49,13 +49,9 @@ namespace dharma_runtime {
 
 namespace detail {
 
-template <
-  typename key_type,
-  typename version_type
->
 class TaskBase;
 
-template <typename... Types>
+template <typename Lambda, typename... Types>
 class Task;
 
 } // end namespace detail

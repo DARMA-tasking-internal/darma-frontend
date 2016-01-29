@@ -51,8 +51,68 @@
 #include "version.h"
 
 #include "abstract/backend/data_block.h"
+#include "keyword_arguments/keyword_arguments.h"
+
+DeclareDharmaKeyword(publication, n_readers, size_t);
 
 namespace dharma_runtime {
+
+namespace detail {
+
+namespace m = tinympl;
+namespace mv = tinympl::variadic;
+namespace mp = tinympl::placeholders;
+
+template <
+  typename... Args
+>
+struct access_expr_helper {
+
+};
+
+template <
+  typename... Args
+>
+struct publish_expr_helper {
+  static constexpr size_t find_spot = mv::find_if<
+    m::lambda<
+      is_kwarg_expression_with_tag<mp::_,
+        dharma_runtime::keyword_tags_for_publication::n_readers
+      >
+    >::template apply,
+    Args...
+  >::value;
+
+  inline
+  typename std::enable_if<
+    find_spot == sizeof...(Args),
+    size_t
+  >::type
+  get_n_readers(
+    Args&&... args
+  ) const {
+    // Default value
+    return 1;
+  }
+
+  inline
+  typename std::enable_if<
+    (find_spot < sizeof...(Args)),
+    size_t
+  >::type
+  get_n_readers(
+    Args&&... args
+  ) const {
+    // TODO won't work with 0 args
+    return std::get<
+      find_spot == sizeof...(Args) ? 0 : find_spot
+    >(std::forward_as_tuple(args...));
+  }
+
+};
+
+
+} // end namespace detail
 
 namespace detail {
 
@@ -151,13 +211,6 @@ class DependencyHandleBase
         permissions_(permissions)
     { }
 
-    void
-    satisfy_with_data(
-      abstract::backend::DataBlock* const data
-    ) {
-      satisfied_ = true;
-      // TODO
-    }
 
 
     void
@@ -173,6 +226,8 @@ class DependencyHandleBase
 
     virtual ~DependencyHandleBase() noexcept { }
 
+    bool satisfied() { return true; }
+
   protected:
     void* data_ = nullptr;
     abstract::backend::DataBlock* data_block_ = nullptr;
@@ -182,8 +237,8 @@ class DependencyHandleBase
 
 template <
   typename T,
-  typename key_type=default_key_t,
-  typename version_type=default_version_t
+  typename key_type,
+  typename version_type
 >
 class DependencyHandle
   : public DependencyHandleBase<key_type, version_type>
@@ -196,7 +251,6 @@ class DependencyHandle
 
     typedef typename base_t::key_t key_t;
     typedef typename base_t::version_t version_t;
-
 
     DependencyHandle()
       : DependencyHandleBase(
@@ -248,7 +302,7 @@ class DependencyHandle
       emplace_value(std::forward<T>(val));
     }
 
-    ~DependencyHandle() noexcept { }
+    ~DependencyHandle() noexcept = default;
 
     T& get_value() {
       assert(value_ != nullptr);
@@ -262,6 +316,31 @@ class DependencyHandle
 
   private:
 
+    template <typename U, typename Enable=void>
+    struct serialization_manager_setter {
+      inline void
+      operator()(
+        abstract::backend::DataBlock* const dblk
+      ) const {
+
+
+      }
+
+    };
+
+  public:
+
+    void
+    satisfy_with_data(
+      abstract::backend::DataBlock* const data
+    ) override {
+      this->satisfied_ = true;
+
+      this->data_ = data->get_data();
+    }
+
+  private:
+
     T*& value_;
 
 };
@@ -270,9 +349,9 @@ class DependencyHandle
 
 template <
   typename T = void,
-  typename key_type = default_key_t,
-  typename version_type = default_version_t,
-  template <typename...> class smart_ptr_template = std::shared_ptr
+  typename key_type = types::key_t,
+  typename version_type = types::version_t,
+  template <typename...> class smart_ptr_template = types::shared_ptr_template
 >
 class AccessHandle
 {
@@ -297,13 +376,13 @@ class AccessHandle
       AccessHandle& other
     ) : dep_handle_(other.dep_handle_)
     {
-      auto& rtc = detail::thread_runtime;
-
       // get the shared_ptr from the weak_ptr stored in the runtime object
-      capturing_task = rtc.current_create_work_context.lock();
-      if(capturing_task != nullptr) {
-        detail::AccessPermissions my_permissions, other_permissions;
+      capturing_task = static_cast<detail::TaskBase* const>(
+        detail::backend_runtime->get_running_task()
+      )->current_create_work_context;
+      if(capturing_task.get() != nullptr) {
         // TODO also ask the task if any special permissions downgrades were given
+        // TODO !!! connect outputs to corresponding parent task output
         switch(other.dep_handle_->get_permissions()) {
         case detail::ReadOnly: {
             // just copy the handle pointer; other remains unchanged
@@ -314,11 +393,16 @@ class AccessHandle
             break;
           } // end case detail::ReadOnly
         case detail::ReadWrite: {
+            // Permissions stay the same, both for this and other
+            permissions_ = other.permissions_ = detail::ReadWrite;
             // Version for other gets incremented
             auto other_version = other.dep_handle_->get_version();
             ++other_version;
             // this now assumes control of other's handle
             dep_handle_ = other.dep_handle_;
+            // Add the dep_handle_ as an input dependency
+            // (i.e., data needs to be there for task to start)
+            capturing_task->add_input(dep_handle_);
             // ...and increments the subversion depth
             dep_handle_->push_subversion();
             // Now future uses of other will have a later version.
@@ -326,10 +410,11 @@ class AccessHandle
               other.dep_handle_->key(),
               other_version
             );
-            // Permissions stay the same, both for this and other
-            permissions_ = other.permissions_ = detail::ReadWrite;
-            // And add the dependency as an in_out
-            capturing_task->add_in_out(dep_handle_);
+            // Add other.dep_handle_ as an output handle,
+            // (i.e., the data written inside the task must
+            // be in other.dep_handle_ when the task reports
+            // completion)
+            capturing_task->add_output(other.dep_handle_);
             break;
           } // end case detail::ReadWrite
         case detail::OverwriteOnly: {
@@ -349,8 +434,11 @@ class AccessHandle
               other_version,
               detail::ReadWrite
             );
-            // The dependency gets added as an output
-            capturing_task->add_output(dep_handle_);
+            // Add other.dep_handle_ as an output handle,
+            // (i.e., the data written inside the task must
+            // be in other.dep_handle_ when the task reports
+            // completion)
+            capturing_task->add_output(other.dep_handle_);
             break;
           } // end case detail::OverwriteOnly
         case detail::Create: {
@@ -369,8 +457,11 @@ class AccessHandle
               other_version,
               detail::ReadWrite
             );
-            // The dependency gets added as an output
-            capturing_task->add_output(dep_handle_);
+            // Add other.dep_handle_ as an output handle,
+            // (i.e., the data written inside the task must
+            // be in other.dep_handle_ when the task reports
+            // completion)
+            capturing_task->add_output(other.dep_handle_);
             break;
           } // end case detail::Create
         } // end switch
@@ -392,7 +483,14 @@ class AccessHandle
     void publish(
       PublishExprParts&&... parts
     ) {
-      // TODO write this
+      assert(permissions_ == detail::ReadWrite || permissions_ == detail::OverwriteOnly);
+      detail::publish_expr_helper<PublishExprParts...> helper;
+      auto& rts = detail::thread_runtime;
+      rts.backend_runtime->publish_handle(
+        dep_handle_.get(),
+        helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
+        helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
+      );
     }
 
 
@@ -421,19 +519,20 @@ class AccessHandle
         permissions_(permissions)
     { }
 
-    task_ptr capturing_task;
 
     detail::AccessPermissions
     get_permissions() const {
       return permissions_;
     }
 
-    void set_permissions(detail::AccessPermissions p) {
+    void
+    set_permissions(detail::AccessPermissions p) {
       permissions_ = p;
     }
 
-    dep_handle_ptr dep_handle_;
-    detail::AccessPermissions permissions_;
+    task_ptr capturing_task;
+    mutable dep_handle_ptr dep_handle_;
+    mutable detail::AccessPermissions permissions_;
 
     template <
       typename T,
@@ -444,11 +543,11 @@ class AccessHandle
       KeyExprParts&&... parts
     ) {
       // TODO this may not be correct
-      //key_type key = make_key_from_tuple(
-      //  detail::access_expr_helper<KeyExprParts...>().get_key_tuple(
-      //    std::forward<KeyExprParts>(parts...)
-      //  )
-      //);
+      key_type key = make_key_from_tuple(
+        detail::access_expr_helper<KeyExprParts...>().get_key_tuple(
+          std::forward<KeyExprParts>(parts...)
+        )
+      );
       //version_type version;
       //auto rv = AccessHandle<T>(key, version, detail::Create);
       //auto& rtc = detail::thread_runtime;
@@ -505,6 +604,7 @@ class AccessHandle
       //  [](const dep_handle_t* const to_release) {
       //    auto& rtc = detail::thread_runtime;
       //    rtc.backend_runtime->release_fetcher(to_release);
+      //    delete to_release;
       //  }
       //);
       //rtc.backend_runtime->register_fetcher(rv.dep_handle_.get());

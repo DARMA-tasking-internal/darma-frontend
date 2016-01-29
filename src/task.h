@@ -93,7 +93,7 @@ struct task_traits {
     typedef typename std::conditional<
       _first_is_key,
       mv::at<0, Types...>,
-      m::identity<default_key_t>
+      m::identity<types::key_t>
     >::type::type key_t;
 
   private:
@@ -130,65 +130,68 @@ struct task_traits {
 
 namespace detail {
 
-template <
-  typename key_type,
-  typename version_type
->
 class TaskBase
-  : public abstract::frontend::Task<key_type, version_type, std::vector, std::shared_ptr>
+  : public abstract::backend::runtime_t::task_t
 {
   protected:
 
-    template <typename... Ts>
-    using container = std::vector<Ts...>;
-    template <typename... Ts>
-    using smart_ptr_template = std::shared_ptr<Ts...>;
+    typedef abstract::backend::runtime_t::handle_t handle_t;
+    typedef abstract::backend::runtime_t::key_t key_t;
+    typedef abstract::backend::runtime_t::version_t version_t;
+    typedef types::shared_ptr_template<handle_t> handle_ptr;
+    typedef types::handle_container_template<handle_ptr> handle_ptr_container_t;
 
-    typedef abstract::frontend::DependencyHandle<key_type, version_type> handle_t;
-    typedef smart_ptr_template<handle_t> handle_ptr;
+    handle_ptr_container_t inputs_;
+    handle_ptr_container_t outputs_;
 
-    container<handle_ptr> inputs_;
-    container<handle_ptr> outputs_;
-    container<handle_ptr> in_outs_;
-
-    virtual void
-    do_run() const =0;
+    key_t name_;
 
   public:
 
-    const container<handle_ptr>&
+    const handle_ptr_container_t&
     get_inputs() const override {
       return inputs_;
     }
 
-    const container<handle_ptr>&
+    const handle_ptr_container_t&
     get_outputs() const override {
       return outputs_;
     }
 
-    const container<handle_ptr>&
-    get_in_outs() const override {
-      return in_outs_;
+    const key_t&
+    get_name() const override {
+      return name_;
     }
 
-    void run() const override {
-      do_run();
+    void
+    set_name(const key_t& name) override {
+      name_ = name;
     }
 
     virtual ~TaskBase() noexcept { }
 
+    types::shared_ptr_template<TaskBase> current_create_work_context = nullptr;
 
 };
+
+class TopLevelTask
+  : public TaskBase
+{
+  public:
+
+    void run() const override {
+      // Do nothing, as specified
+    }
+
+};
+
 
 template <
   typename Lambda,
   typename... Types
 >
 class Task
-  : public TaskBase<
-      typename task_traits<Types...>::key_t,
-      typename task_traits<Types...>::version_t
-    >,
+  : public TaskBase,
     std::enable_shared_from_this<Task>
 {
 
@@ -220,12 +223,6 @@ class Task
       this->outputs_.push_back(dep);
     }
 
-    template <typename T>
-    void add_in_out(const dep_handle_ptr<T>& dep)
-    {
-      this->in_outs_.push_back(dep);
-    }
-
     void set_lambda(
       lambda_t&& the_lambda
     ) {
@@ -233,18 +230,13 @@ class Task
       lambda_ = lambda_ptr_maker()(std::forward(the_lambda));
     }
 
-    void do_run() const override {
-      auto& rtc = detail::thread_runtime;
-      rtc.current_running_task = shared_from_this();
+    void run() const override {
       (*lambda_)();
-      rtc.current_running_task = 0;
     }
-
 
   private:
 
     lambda_ptr lambda_;
-
 
 };
 
