@@ -75,6 +75,8 @@ class DependencyHandle {
       abstract::backend::DataBlock* const data
     ) =0;
 
+    abstract::backend::DataBlock*
+    get_data_block() =0;
 
     virtual ~DependencyHandle() noexcept { };
 };

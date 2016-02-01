@@ -54,6 +54,9 @@ namespace abstract {
 
 namespace frontend {
 
+// TODO migration callbacks and such
+
+
 template <
   typename Key, typename Version,
   template <typename...> class Iterable,
@@ -78,6 +81,9 @@ class Task {
 
     virtual void
     set_name(const Key& name_key) =0;
+
+    virtual bool
+    is_migratable() const =0;
 
     virtual void
     run() const =0;
