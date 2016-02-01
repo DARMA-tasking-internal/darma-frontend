@@ -372,6 +372,7 @@ class AccessHandle
 
     AccessHandle(const AccessHandle& other) = delete;
 
+    // TODO this needs to be a move constructor (probably?)
     AccessHandle(
       AccessHandle& other
     ) : dep_handle_(other.dep_handle_)
@@ -380,7 +381,7 @@ class AccessHandle
       capturing_task = static_cast<detail::TaskBase* const>(
         detail::backend_runtime->get_running_task()
       )->current_create_work_context;
-      if(capturing_task.get() != nullptr) {
+      if(capturing_task != nullptr) {
         // TODO also ask the task if any special permissions downgrades were given
         // TODO !!! connect outputs to corresponding parent task output
         switch(other.dep_handle_->get_permissions()) {
@@ -530,7 +531,7 @@ class AccessHandle
       permissions_ = p;
     }
 
-    task_ptr capturing_task;
+    task_t* capturing_task = nullptr;
     mutable dep_handle_ptr dep_handle_;
     mutable detail::AccessPermissions permissions_;
 
