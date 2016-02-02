@@ -1,0 +1,32 @@
+
+Feb. 2nd, meeting Janine, Hemanth, Francesco 
+
+Examples to create:
+
+- 	clarifying dharma rank and mpi rank (example): (me) 
+
+- 	keyvalues store and publishing, fetching. (Hemanth)
+	NO CREATE work, just syntax of keyvalues  
+ 	* initial_access, read_access 
+ 	* serial version 
+ 	* parallel version and baseline MPI for comparison 
+
+- 	create_work (many examples)
+	* base hello world (me)
+	* fibonacci (nested create work, recursive) (Hemanth)
+	* one with collectives (ping Jeremy for this)
+	* collective dot product, independently me and Hemanth, lets see how different
+	  imagine what API would looks like, how to express collective call from user perspective
+	* multiple tasks acting on same object but different data members (Hemanth)
+
+	* example highlighting what sequential semantics (Hemanth)
+	* example subcribe (2.1), possibly simplified version of 1d stencil (me)
+	* document 1d stencil (first attempt, all)
+
+Upcoming: 
+- 0.3 work with functors 
+- 0.4 create work from within classes 
+
+
+
+
