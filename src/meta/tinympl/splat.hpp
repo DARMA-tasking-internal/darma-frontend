@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          test_lambda.hpp
+//                          splat.hpp
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,46 +42,24 @@
 //@HEADER
 */
 
+#ifndef SRC_META_TINYMPL_SPLAT_HPP_
+#define SRC_META_TINYMPL_SPLAT_HPP_
 
-#include <tinympl/lambda.hpp>
+#include "as_sequence.hpp"
+#include "sequence.hpp"
+#include "variadic/splat.hpp"
 
-#include "metatest_helpers.h"
+namespace tinympl {
 
-#include <tinympl/vector.hpp>
+template <typename Sequence, template <class... T> class F>
+struct splat_to : splat_to<as_sequence_t<Sequence>, F> { };
 
-#include <string>
-#include <vector>
-#include <type_traits>
-#include <map>
-#include <queue>
+template <template <class...> class F, class... Args>
+struct splat_to<sequence<Args...>, F>
+  : variadic::splat_to<F, Args...> { };
 
-using namespace tinympl;
-using namespace tinympl::placeholders;
+} // end namespace tinympl
 
-meta_assert(
-  std::is_same<
-    typename lambda<std::vector<_>>::template apply<int>::type,
-    std::vector<int>
-  >::value
-);
 
-meta_assert(
-  std::is_same<
-    typename lambda<
-      vector<
-        std::vector<_2>,
-        _1
-      >
-    >::template apply<int, double>::type,
-    vector<std::vector<double>, int>
-  >::value
-);
 
-meta_assert(
-  std::is_same<
-    typename lambda<
-      std::map<_1, _2>
-    >::template apply<int, double>::type,
-    std::map<int, double>
-  >::value
-);
+#endif /* SRC_META_TINYMPL_SPLAT_HPP_ */
