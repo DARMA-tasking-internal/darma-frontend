@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          test_lambda.hpp
+//                          test_splat.cc
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -43,45 +43,36 @@
 */
 
 
-#include <tinympl/lambda.hpp>
+#include <tinympl/splat.hpp>
 
 #include "metatest_helpers.h"
 
 #include <tinympl/vector.hpp>
-
-#include <string>
-#include <vector>
+#include <tuple>
 #include <type_traits>
 #include <map>
-#include <queue>
+#include <tinympl/lambda.hpp>
+#include <tinympl/bind.hpp>
 
 using namespace tinympl;
+
+meta_assert(
+  std::is_same<
+    typename splat_to<vector<int, char, char, float>, std::tuple>::type,
+    std::tuple<int, char, char, float>
+  >::value
+);
+
 using namespace tinympl::placeholders;
 
 meta_assert(
   std::is_same<
-    typename lambda<std::vector<_>>::template apply<int>::type,
-    std::vector<int>
-  >::value
-);
-
-meta_assert(
-  std::is_same<
-    typename lambda<
-      vector<
-        std::vector<_2>,
-        _1
-      >
-    >::template apply<int, double>::type,
-    vector<std::vector<double>, int>
-  >::value
-);
-
-meta_assert(
-  std::is_same<
-    typename lambda<
-      std::map<_1, _2>
-    >::template apply<int, double>::type,
-    std::map<int, double>
+    typename splat_to<
+      vector<int, char>,
+      lambda<
+        std::map<_1, _2>
+      >::template apply
+    >::type::type,
+    std::map<int, char>
   >::value
 );

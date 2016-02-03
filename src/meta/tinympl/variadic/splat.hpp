@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          test_lambda.hpp
+//                          splat.hpp
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,46 +42,21 @@
 //@HEADER
 */
 
+#ifndef SRC_META_TINYMPL_VARIADIC_SPLAT_HPP_
+#define SRC_META_TINYMPL_VARIADIC_SPLAT_HPP_
 
-#include <tinympl/lambda.hpp>
+namespace tinympl { namespace variadic {
 
-#include "metatest_helpers.h"
+template <
+  template <class...> class F,
+  typename... Args
+>
+struct splat_to {
+  typedef F<Args...> type;
+};
 
-#include <tinympl/vector.hpp>
+}}  // end namespace tinympl::variadic
 
-#include <string>
-#include <vector>
-#include <type_traits>
-#include <map>
-#include <queue>
 
-using namespace tinympl;
-using namespace tinympl::placeholders;
 
-meta_assert(
-  std::is_same<
-    typename lambda<std::vector<_>>::template apply<int>::type,
-    std::vector<int>
-  >::value
-);
-
-meta_assert(
-  std::is_same<
-    typename lambda<
-      vector<
-        std::vector<_2>,
-        _1
-      >
-    >::template apply<int, double>::type,
-    vector<std::vector<double>, int>
-  >::value
-);
-
-meta_assert(
-  std::is_same<
-    typename lambda<
-      std::map<_1, _2>
-    >::template apply<int, double>::type,
-    std::map<int, double>
-  >::value
-);
+#endif /* SRC_META_TINYMPL_VARIADIC_SPLAT_HPP_ */

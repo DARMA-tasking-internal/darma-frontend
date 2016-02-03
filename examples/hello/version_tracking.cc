@@ -195,17 +195,17 @@ int main(int argc, char** argv) {
         //  // Note: do NOT call publish while holding a reference.  It leads to non-sequential-semantic behavior
         //}
 
-        //b.set_value(
-        //  b.get_value() * 4
-        //);
+        b.set_value(
+          b.get_value() * 4
+        );
 
-        //b.publish(version="hello", n_readers=1);
+        b.publish(version="hello", n_readers=1);
 
         b.set_value(
           b.get_value() * 8
         );
 
-        //b.publish(version="world", n_readers=1);
+        b.publish(version="world", n_readers=1);
 
         //b = read_only_access_to(b);
 

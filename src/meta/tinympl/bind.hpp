@@ -109,10 +109,48 @@ typedef arg<1> _;
  * \brief Determine whether a type is a placeholder.
  * `is_placeholder<T>::value` is 0 if `T` is not a placeholder, otherwise is the index of the placeholder
  */
-template <class T> struct is_placeholder : std::integral_constant<std::size_t, 0> {};
-template<std::size_t i> struct is_placeholder< arg<i> > : std::integral_constant<std::size_t, i> 
+template <class T>
+struct is_placeholder
+  : std::integral_constant<std::size_t, 0> { };
+
+template<std::size_t i>
+struct is_placeholder< arg<i> >
+  : std::integral_constant<std::size_t, i>
 {
   static_assert(i != 0, "Placeholder arg<0> is undefined");
+  template <typename T> struct cv_qualifier_rebind { typedef T type; };
+  //template <typename T> using cv_qualifier_rebind_t =
+  //  typename cv_qualifier_rebind<T>::type;
+};
+
+template<std::size_t i>
+struct is_placeholder< const arg<i> >
+  : std::integral_constant<std::size_t, i>
+{
+  static_assert(i != 0, "Placeholder arg<0> is undefined");
+  template <typename T> struct cv_qualifier_rebind { typedef const T type; };
+  //template <typename T> using cv_qualifier_rebind_t =
+  //  typename cv_qualifier_rebind<T>::type;
+};
+
+template<std::size_t i>
+struct is_placeholder< const volatile arg<i> >
+  : std::integral_constant<std::size_t, i>
+{
+  static_assert(i != 0, "Placeholder arg<0> is undefined");
+  template <typename T> struct cv_qualifier_rebind { typedef const volatile T type; };
+  //template <typename T> using cv_qualifier_rebind_t =
+  //  typename cv_qualifier_rebind<T>::type;
+};
+
+template<std::size_t i>
+struct is_placeholder< volatile arg<i> >
+  : std::integral_constant<std::size_t, i>
+{
+  static_assert(i != 0, "Placeholder arg<0> is undefined");
+  template <typename T> struct cv_qualifier_rebind { typedef volatile T type; };
+  //template <typename T> using cv_qualifier_rebind_t =
+  //  typename cv_qualifier_rebind<T>::type;
 };
 
 /**
@@ -156,7 +194,7 @@ struct bind<F, Head, Tail...>
     template<class ... Args>
     using eval_t = typename eval<Args...>::type;
     template<class ... Args>
-    using apply = typename eval<Args...>::type;
+    using apply = typename eval<Args...>;
 };
 
 template <template <class... T> class F>
@@ -185,7 +223,7 @@ struct bind<F>
     template<class ... Args>
     using eval_t = typename eval<Args...>::type;
     template<class ... Args>
-    using apply = typename eval<Args...>::type;
+    using apply = typename eval<Args...>;
 };
 
 }
