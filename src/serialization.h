@@ -45,6 +45,8 @@
 #ifndef SRC_SERIALIZATION_H_
 #define SRC_SERIALIZATION_H_
 
+// TODO RETHINK THIS!!! I don't like how it handles, e.g., (non-default) constructors
+
 #include "meta/member_detector.h"
 
 #include <tinympl/variadic/any_of.hpp>

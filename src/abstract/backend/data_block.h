@@ -93,19 +93,22 @@ class DataBlock
     acquire_data(void* const data) =0;
 
     // allocates space for the object in *deserialized* form
-    virtual void
-    allocate_data(size_t n_data) =0;
+    //virtual void
+    //allocate_data(size_t n_data) =0;
+
+    //virtual bool
+    //is_initialized() =0;
 
     // TODO eventually: allocate_data() and/or allocator pattern from STL
 
-    virtual void
-    wait_read_only() =0;
+    //virtual void
+    //wait_read_only() =0;
 
-    virtual void
-    wait_read_write() =0;
+    //virtual void
+    //wait_read_write() =0;
 
-    virtual void
-    wait_write_only() =0;
+    //virtual void
+    //wait_write_only() =0;
 
     virtual ~DataBlock() { }
 

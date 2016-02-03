@@ -54,6 +54,8 @@
 #include "keyword_arguments/keyword_arguments.h"
 
 DeclareDharmaKeyword(publication, n_readers, size_t);
+// TODO make this a key expression instead of a std::string
+DeclareDharmaKeyword(publication, version, std::string);
 
 namespace dharma_runtime {
 
@@ -470,12 +472,37 @@ class AccessHandle
 
     }
 
-    T* operator->() {
-      return &dep_handle_->get_value();
+    //T* operator->() const {
+    //  return &dep_handle_->get_value();
+    //}
+
+    //template <typename U>
+    //typename std::enable_if<
+    //  std::is_convertible<U, T>::value
+    //  and std::is_default_constructible<T>::value,
+    //  void
+    //>::type
+    //set_value(U&& val) const {
+    //  // TODO impement this
+    //}
+
+    void
+    set_value(const T& value) const {
+      // TODO implement this
     }
 
-    const T* operator->() const {
-      return &dep_handle_->get_value();
+    template <typename U>
+    void
+    operator=(const U& other) const { }
+
+    const T&
+    get_value() const {
+      return dep_handle_->get_value();
+    }
+
+    T&
+    get_reference() const {
+      return dep_handle_->get_value();
     }
 
     template <

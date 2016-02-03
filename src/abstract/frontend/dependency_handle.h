@@ -70,13 +70,27 @@ class DependencyHandle {
     virtual const Version&
     get_version() const =0;
 
-    void
-    satisfy_with_data(
+    //// TODO we need move this, since some tasks will read only and some tasks will read/write the same handle
+    //virtual bool
+    //needs_read_data() const =0;
+
+    //// TODO we need move this, since some tasks will read only and some tasks will read/write the same handle
+    //virtual bool
+    //needs_overwrite_data() const =0;
+
+    SerializationManager*
+    get_serialization_manager() =0;
+
+    virtual void
+    satisfy_with_data_block(
       abstract::backend::DataBlock* const data
     ) =0;
 
-    abstract::backend::DataBlock*
+    virtual abstract::backend::DataBlock*
     get_data_block() =0;
+
+    virtual bool
+    is_satisfied() const =0;
 
     virtual ~DependencyHandle() noexcept { };
 };
