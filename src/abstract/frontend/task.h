@@ -67,19 +67,6 @@ class Task {
     typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
     typedef smart_ptr_template<handle_t> handle_ptr;
 
-    // NO!!!!
-    //virtual
-    //const Iterable<handle_ptr>&
-    //get_inputs() const =0;
-
-    //virtual
-    //const Iterable<handle_ptr>&
-    //get_dependencies_only()
-
-    //virtual
-    //const Iterable<handle_ptr>&
-    //get_antidependencies_only();
-
     // includes antidependencies
     virtual
     const Iterable<handle_ptr>&
@@ -90,8 +77,12 @@ class Task {
       const handle_t* const handle
     ) const =0;
 
+    // NOTE: Documentation here needs to explain that you can always
+    // distinguish a write that creates an antidependency from one that doesn't (i.e.,
+    // initial access by seeing if the version == Version(), i.e., the default
+    // constructor of Version.
     virtual bool
-    needs_overwrite_data(
+    needs_write_data(
       const handle_t* const handle
     ) const =0;
 

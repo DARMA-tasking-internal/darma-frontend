@@ -45,7 +45,11 @@
 #ifndef SRC_CREATE_WORK_H_
 #define SRC_CREATE_WORK_H_
 
+#include <memory>
+
 #include <tinympl/variadic/back.hpp>
+#include <tinympl/vector.hpp>
+#include <tinympl/splat.hpp>
 
 #include "task.h"
 
@@ -66,6 +70,28 @@ struct read_decorator_parser {
   typedef /* TODO */ int return_type;
 };
 
+template <typename Lambda, typename... Args>
+struct create_work_impl {
+  typedef create_work_parser<Args..., Lambda> parser;
+  typedef abstract::backend::runtime_t runtime_t;
+  typedef runtime_t::key_t key_t;
+  typedef runtime_t::version_t version_t;
+  typedef runtime_t::task_t abstract_task_t;
+  typedef detail::Task<Lambda> task_t;
+  typedef detail::TaskBase task_base_t;
+  typedef runtime_t::task_ptr task_ptr;
+
+  inline typename parser::return_type
+  operator()(Args&&... args, Lambda&& lambda) const && {
+    return detail::backend_runtime->register_task(
+      std::make_unique<task_t>(
+        std::forward<Lambda>(lambda)
+      )
+    );
+  }
+};
+
+
 } // end namespace detail
 
 
@@ -79,35 +105,15 @@ reads(Args&&... args) {
 template <typename... Args>
 typename detail::create_work_parser<Args...>::return_type
 create_work(Args&&... args) {
-  typedef detail::create_work_parser<Args...> parser;
+  namespace m = tinympl;
+  // Pop off the last type and move it to the front
+  typedef typename m::vector<Args...>::back::type lambda_t;
+  typedef typename m::vector<Args...>::pop_back::type rest_vector_t;
+  typedef typename m::splat_to<
+    typename rest_vector_t::template push_front<lambda_t>::type, detail::create_work_impl
+  >::type helper_t;
 
-  // The lambda is always the last argument
-  typedef typename parser::lambda_type lambda_t;
-
-  typedef abstract::backend::runtime_t runtime_t;
-  typedef runtime_t::key_t key_t;
-  typedef runtime_t::version_t version_t;
-  typedef runtime_t::task_t abstract_task_t;
-  typedef detail::Task<lambda_t> task_t;
-  typedef detail::TaskBase task_base_t;
-  typedef runtime_t::task_ptr task_ptr;
-
-
-  // Set up before the move
-  task_t* running = static_cast<task_base_t* const>(
-    detail::backend_runtime->get_running_task()
-  );
-
-  task_ptr t = std::make_shared<task_t>();
-  running->current_create_work_context = t;
-
-  // Invoke the copy constructor of all captured entities
-  t.set_lambda(std::get<sizeof...(Args)-1>(std::forward_as_tuple(args...)));
-
-  running->current_create_work_context = nullptr;
-
-  detail::backend_runtime->register_task(t);
-
+  return helper_t()(std::forward<Args>(args)...);
 }
 
 

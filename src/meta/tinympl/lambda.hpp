@@ -63,7 +63,7 @@ namespace tinympl {
  * @{
  */
 
-
+// TODO variadic placeholders
 
 template<class Expr>
 struct lambda
@@ -80,7 +80,9 @@ struct lambda
     struct pick<T,
       typename std::enable_if< (is_placeholder<T>::type::value > 0)>::type
     > {
-        typedef variadic::at_t<is_placeholder<T>::value-1, Ts...> type;
+        typedef typename is_placeholder<T>::template cv_qualifier_rebind<
+            variadic::at_t<is_placeholder<T>::value-1, Ts...>
+        >::type type;
     };
 
     template<class T>

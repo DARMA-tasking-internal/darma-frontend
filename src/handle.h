@@ -213,22 +213,10 @@ class DependencyHandleBase
         permissions_(permissions)
     { }
 
-
-
-    void
-    allocate_metadata(size_t size) {
-      // Only allowed if data is unallocated
-      assert(data_ == nullptr);
-      assert(satisfied_);
-      data_block_->allocate_data(size);
-      data_ = data_block_->get_data();
-    }
-
-    virtual void delete_value() = 0;
-
     virtual ~DependencyHandleBase() noexcept { }
 
-    bool satisfied() { return true; }
+    bool
+    is_satisfied() const override { return satisfied_; }
 
   protected:
     void* data_ = nullptr;
@@ -254,31 +242,17 @@ class DependencyHandle
     typedef typename base_t::key_t key_t;
     typedef typename base_t::version_t version_t;
 
-    DependencyHandle()
-      : DependencyHandleBase(
-          key_t(),
-          version_t()
-        ),
-        value_((T*)this->data_)
-    { }
-
-    DependencyHandle(
-      const key_t& data_key
-    ) : DependencyHandleBase(
-          data_key,
-          version_t()
-        ),
-        value_((T*)this->data_)
-    { }
-
     DependencyHandle(
       const key_t& data_key,
-      const version_t& data_version
-    ) : DependencyHandleBase(
-          data_key,
-          data_version
-        )
-    { }
+      const version_t& data_version,
+      bool write_access_allowed
+    ) : DependencyHandleBase(data_key, data_version),
+        value_((T*)this->data_)
+    {
+      backend_runtime->register_handle(this,
+        /* write_access_allowed = */ write_access_allowed
+      );
+    }
 
     template <typename... Args>
     void
@@ -304,7 +278,9 @@ class DependencyHandle
       emplace_value(std::forward<T>(val));
     }
 
-    ~DependencyHandle() noexcept = default;
+    ~DependencyHandle() {
+      backend_runtime->release_handle(this);
+    }
 
     T& get_value() {
       assert(value_ != nullptr);
@@ -318,32 +294,46 @@ class DependencyHandle
 
   private:
 
-    template <typename U, typename Enable=void>
-    struct serialization_manager_setter {
-      inline void
-      operator()(
-        abstract::backend::DataBlock* const dblk
-      ) const {
-
-
+    template <typename U>
+    struct trivial_serialization_manager
+      : public abstract::frontend::SerializationManager
+    {
+      size_t get_metadata_size(
+        const void* const deserialized_data
+      ) const override {
+        return sizeof(U);
       }
-
     };
 
   public:
 
+    abstract::frontend::SerializationManager*
+    get_serialization_manager() {
+      return &ser_manager_;
+    }
+
     void
-    satisfy_with_data(
+    satisfy_with_data_block(
       abstract::backend::DataBlock* const data
     ) override {
       this->satisfied_ = true;
-
       this->data_ = data->get_data();
+      this->data_block_ = data;
     }
+
+    abstract::backend::DataBlock*
+    get_data_block() override {
+      return this->data_block_;
+    }
+
 
   private:
 
     T*& value_;
+
+    // TODO more general serialization
+    // for now...
+    trivial_serialization_manager<T> ser_manager_;
 
 };
 
@@ -362,7 +352,7 @@ class AccessHandle
     typedef detail::DependencyHandle<T, key_type, version_type> dep_handle_t;
     typedef smart_ptr_template<dep_handle_t> dep_handle_ptr;
     typedef smart_ptr_template<const dep_handle_t> dep_handle_const_ptr;
-    typedef detail::TaskBase<key_type, version_type> task_t;
+    typedef detail::TaskBase task_t;
     typedef smart_ptr_template<task_t> task_ptr;
     typedef typename detail::smart_ptr_traits<smart_ptr_template>::maker<dep_handle_t>
       dep_handle_ptr_maker_t;
@@ -372,99 +362,114 @@ class AccessHandle
 
   public:
 
-    AccessHandle(const AccessHandle& other) = delete;
-
-    // TODO this needs to be a move constructor (probably?)
-    AccessHandle(
-      AccessHandle& other
-    ) : dep_handle_(other.dep_handle_)
+    AccessHandle(const AccessHandle& moved_from)
+      : dep_handle_(std::move(moved_from.dep_handle_)),
+        permissions_(moved_from.permissions_),
+        // this copy constructor may be invoked in ordinary usage or
+        // may be the actual capture itself.  In the latter case, the subsequent
+        // move needs access back to the outer context object, so we need to
+        // save a pointer back to other.  It should be ignored otherwise, though.
+        prev_copied_from(const_cast<AccessHandle* const>(&moved_from))
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       capturing_task = static_cast<detail::TaskBase* const>(
         detail::backend_runtime->get_running_task()
       )->current_create_work_context;
+
+      // Now check if we're in a capturing context:
       if(capturing_task != nullptr) {
+        assert(moved_from.prev_copied_from != nullptr);
+        AccessHandle& outer = *(moved_from.prev_copied_from);
         // TODO also ask the task if any special permissions downgrades were given
         // TODO !!! connect outputs to corresponding parent task output
-        switch(other.dep_handle_->get_permissions()) {
+        switch(outer.get_permissions()) {
         case detail::ReadOnly: {
             // just copy the handle pointer; other remains unchanged
-            dep_handle_ = other.dep_handle_;
+            dep_handle_ = outer.dep_handle_;
             permissions_ = detail::ReadOnly;
             // and add it as an input
-            capturing_task->add_input(dep_handle_);
+            capturing_task->add_dependency(
+              dep_handle_,
+              /*needs_read_data = */ true,
+              /*needs_write_data = */ false
+            );
             break;
           } // end case detail::ReadOnly
         case detail::ReadWrite: {
             // Permissions stay the same, both for this and other
-            permissions_ = other.permissions_ = detail::ReadWrite;
+            permissions_ = outer.permissions_ = detail::ReadWrite;
             // Version for other gets incremented
-            auto other_version = other.dep_handle_->get_version();
+            auto other_version = outer.dep_handle_->get_version();
             ++other_version;
             // this now assumes control of other's handle
-            dep_handle_ = other.dep_handle_;
-            // Add the dep_handle_ as an input dependency
-            // (i.e., data needs to be there for task to start)
-            capturing_task->add_input(dep_handle_);
+            dep_handle_ = outer.dep_handle_;
             // ...and increments the subversion depth
             dep_handle_->push_subversion();
-            // Now future uses of other will have a later version.
-            other.dep_handle_ = dep_handle_ptr_maker_t()(
-              other.dep_handle_->key(),
-              other_version
+            // Add the dep_handle_ as a dependency
+            capturing_task->add_dependency(
+              dep_handle_,
+              /*needs_read_data = */ true,
+              /*needs_write_data = */ true
             );
-            // Add other.dep_handle_ as an output handle,
-            // (i.e., the data written inside the task must
-            // be in other.dep_handle_ when the task reports
-            // completion)
-            capturing_task->add_output(other.dep_handle_);
+            // Now future uses of other will have a later version.
+            outer.dep_handle_ = dep_handle_ptr_maker_t()(
+              outer.dep_handle_->key(),
+              other_version, true
+            );
+            // Note that other.dep_handle_ is the output handle
             break;
           } // end case detail::ReadWrite
         case detail::OverwriteOnly: {
             // Version gets incremented for other
-            auto other_version = other.dep_handle_->get_version();
+            auto other_version = outer.dep_handle_->get_version();
             ++other_version;
             // this now assumes control of other's handle
-            dep_handle_ = other.dep_handle_;
+            dep_handle_ = outer.dep_handle_;
             // ...and increments the subversion depth
             dep_handle_->push_subversion();
+            // Add it as a dependency
+            capturing_task->add_dependency(
+              dep_handle_,
+              /*needs_read_data = */ false,
+              /*needs_write_data = */ true
+            );
             // Now subsequent uses of other will need to refer to
             // a later version that is now ReadWrite (since
             // the overwritten data will be available to the
             // handle)
-            other.dep_handle_ = dep_handle_ptr_maker_t()(
-              other.dep_handle_->key(),
-              other_version,
-              detail::ReadWrite
+            outer.dep_handle_ = dep_handle_ptr_maker_t()(
+              outer.dep_handle_->key(),
+              other_version, true
             );
-            // Add other.dep_handle_ as an output handle,
-            // (i.e., the data written inside the task must
-            // be in other.dep_handle_ when the task reports
-            // completion)
-            capturing_task->add_output(other.dep_handle_);
+            outer.set_permissions(detail::ReadWrite);
+            // Note that other.dep_handle_ is the output handle
             break;
           } // end case detail::OverwriteOnly
         case detail::Create: {
+            assert(dep_handle_->get_version() == version_t());
             // Version gets incremented for other
-            auto other_version = other.dep_handle_->get_version();
+            auto other_version = outer.dep_handle_->get_version();
             ++other_version;
             // this now assumes control of other's handle
-            dep_handle_ = other.dep_handle_;
+            dep_handle_ = outer.dep_handle_;
             // ...and increments the subversion depth
             dep_handle_->push_subversion();
+            // now add it as a dependency, except it neither needs to
+            // read nor overwrite
+            capturing_task->add_dependency(
+              dep_handle_,
+              /*needs_read_data = */ false,
+              /*needs_write_data = */ true
+            );
             // permissions for this remain Create, however
             // future references to other will have ReadWrite,
             // since they can read the data created here
-            other.dep_handle_ = dep_handle_ptr_maker_t()(
-              other.dep_handle_->key(),
-              other_version,
-              detail::ReadWrite
+            outer.dep_handle_ = dep_handle_ptr_maker_t()(
+              outer.dep_handle_->key(),
+              other_version, true
             );
-            // Add other.dep_handle_ as an output handle,
-            // (i.e., the data written inside the task must
-            // be in other.dep_handle_ when the task reports
-            // completion)
-            capturing_task->add_output(other.dep_handle_);
+            outer.set_permissions(detail::ReadWrite);
+            // Note that other.dep_handle_ is the output handle
             break;
           } // end case detail::Create
         } // end switch
@@ -513,14 +518,17 @@ class AccessHandle
     ) {
       assert(permissions_ == detail::ReadWrite || permissions_ == detail::OverwriteOnly);
       detail::publish_expr_helper<PublishExprParts...> helper;
-      auto& rts = detail::thread_runtime;
-      rts.backend_runtime->publish_handle(
+      detail::backend_runtime->publish_handle(
         dep_handle_.get(),
         helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
-        helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
+        helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
+        helper.version_tag_is_final(std::forward<PublishExprParts>(parts)...)
       );
     }
 
+    ~AccessHandle() {
+      // TODO!!!
+    }
 
    private:
 
@@ -529,7 +537,7 @@ class AccessHandle
       const version_type& version,
       detail::AccessPermissions permissions
     ) : dep_handle_(
-          dep_handle_ptr_maker_t()(key, version)
+          dep_handle_ptr_maker_t()(key, version, permissions != detail::ReadOnly)
         ),
         permissions_(permissions)
     { }
@@ -554,13 +562,15 @@ class AccessHandle
     }
 
     void
-    set_permissions(detail::AccessPermissions p) {
+    set_permissions(detail::AccessPermissions p) const {
       permissions_ = p;
     }
 
-    task_t* capturing_task = nullptr;
     mutable dep_handle_ptr dep_handle_;
     mutable detail::AccessPermissions permissions_;
+
+    task_t* capturing_task = nullptr;
+    AccessHandle* const prev_copied_from = nullptr;
 
     template <
       typename T,
@@ -570,17 +580,13 @@ class AccessHandle
     initial_access(
       KeyExprParts&&... parts
     ) {
-      // TODO this may not be correct
       key_type key = make_key_from_tuple(
         detail::access_expr_helper<KeyExprParts...>().get_key_tuple(
           std::forward<KeyExprParts>(parts...)
         )
       );
-      //version_type version;
-      //auto rv = AccessHandle<T>(key, version, detail::Create);
-      //auto& rtc = detail::thread_runtime;
-      //rtc.backend_runtime->register_handle(rv.dep_handle_);
-      //return rv;
+      version_type version = version_type();
+      return AccessHandle<T>(key, version, detail::Create);
     }
 
     template <
@@ -591,23 +597,15 @@ class AccessHandle
     read_access(
       KeyExprParts&&... parts
     ) {
-      // TODO this may not be correct
-      // typedef detail::access_expr_helper<KeyExprParts...> helper_t;
-      // helper_t helper;
-      // auto& rtc = detail::thread_runtime;
-      // key_type key = make_key_from_tuple(
-      //   helper.get_key_tuple(std::forward<KeyExprParts>(parts)...)
-      // );
-      // version_type version = rtc.backend_runtime->resolve_version_tag(
-      //   key, helper.get_version_tag(std::forward<KeyExprParts>(parts)...)
-      // );
-      // auto rv = AccessHandle<T>(key, version, detail::ReadOnly,
-      //   [](const dep_handle_t* const to_release) {
-      //     auto& rtc = detail::thread_runtime;
-      //     rtc.backend_runtime->release_fetcher(to_release);
-      //   }
-      // );
-      // rtc.backend_runtime->register_fetcher(rv.dep_handle_.get());
+      typedef detail::access_expr_helper<KeyExprParts...> helper_t;
+      helper_t helper;
+      key_type key = make_key_from_tuple(
+        helper.get_key_tuple(std::forward<KeyExprParts>(parts)...)
+      );
+      version_type version = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
+      AccessHandle<T> rv(key, version, detail::ReadOnly);
+      detail::backend_runtime->register_fetcher(rv.dep_handle_->get());
+      return rv;
     }
 
     template <
@@ -618,24 +616,15 @@ class AccessHandle
     read_write(
       KeyExprParts&&... parts
     ) {
-      // TODO write this
-      //typedef detail::access_expr_helper<KeyExprParts...> helper_t;
-      //helper_t helper;
-      //auto& rtc = detail::thread_runtime;
-      //key_type key = make_key_from_tuple(
-      //  helper.get_key_tuple(std::forward<KeyExprParts>(parts)...)
-      //);
-      //version_type version = rtc.backend_runtime->resolve_version_tag(
-      //  key, helper.get_version_tag(std::forward<KeyExprParts>(parts)...)
-      //);
-      //auto rv = AccessHandle<T>(key, version, detail::ReadWrite,
-      //  [](const dep_handle_t* const to_release) {
-      //    auto& rtc = detail::thread_runtime;
-      //    rtc.backend_runtime->release_fetcher(to_release);
-      //    delete to_release;
-      //  }
-      //);
-      //rtc.backend_runtime->register_fetcher(rv.dep_handle_.get());
+      typedef detail::access_expr_helper<KeyExprParts...> helper_t;
+      helper_t helper;
+      key_type key = make_key_from_tuple(
+        helper.get_key_tuple(std::forward<KeyExprParts>(parts)...)
+      );
+      version_type version = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
+      AccessHandle<T> rv(key, version, detail::ReadWrite);
+      detail::backend_runtime->register_fetcher(rv.dep_handle_->get());
+      return rv;
     }
 
 };
