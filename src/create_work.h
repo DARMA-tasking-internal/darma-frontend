@@ -51,15 +51,38 @@
 
 namespace dharma_runtime {
 
+namespace detail {
 
-template <
-  typename... Args
->
-void create_work(Args&&... args) {
-  namespace mv = tinympl::variadic;
+namespace mv = tinympl::variadic;
+
+template <typename... Args>
+struct create_work_parser {
+  typedef /* TODO ??? */ void return_type;
+  typedef typename mv::back<Args...>::type lambda_type;
+};
+
+template <typename... Args>
+struct read_decorator_parser {
+  typedef /* TODO */ int return_type;
+};
+
+} // end namespace detail
+
+
+template <typename... Args>
+typename detail::read_decorator_parser<Args...>::return_type
+reads(Args&&... args) {
+  // TODO implement this
+}
+
+
+template <typename... Args>
+typename detail::create_work_parser<Args...>::return_type
+create_work(Args&&... args) {
+  typedef detail::create_work_parser<Args...> parser;
 
   // The lambda is always the last argument
-  typedef typename mv::back<Args...>::type lambda_t;
+  typedef typename parser::lambda_type lambda_t;
 
   typedef abstract::backend::runtime_t runtime_t;
   typedef runtime_t::key_t key_t;

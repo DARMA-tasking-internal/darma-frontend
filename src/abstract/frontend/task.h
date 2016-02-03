@@ -54,7 +54,6 @@ namespace abstract {
 
 namespace frontend {
 
-// TODO migration callbacks and such
 
 
 template <
@@ -68,13 +67,37 @@ class Task {
     typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
     typedef smart_ptr_template<handle_t> handle_ptr;
 
-    virtual
-    const Iterable<handle_ptr>&
-    get_inputs() const =0;
+    // NO!!!!
+    //virtual
+    //const Iterable<handle_ptr>&
+    //get_inputs() const =0;
 
+    //virtual
+    //const Iterable<handle_ptr>&
+    //get_dependencies_only()
+
+    //virtual
+    //const Iterable<handle_ptr>&
+    //get_antidependencies_only();
+
+    // includes antidependencies
     virtual
     const Iterable<handle_ptr>&
-    get_outputs() const =0;
+    get_dependencies() const =0;
+
+    virtual bool
+    needs_read_data(
+      const handle_t* const handle
+    ) const =0;
+
+    virtual bool
+    needs_overwrite_data(
+      const handle_t* const handle
+    ) const =0;
+
+    //virtual
+    //const Iterable<handle_ptr>&
+    //get_outputs() const =0;
 
     virtual const Key&
     get_name() const =0;
@@ -82,8 +105,10 @@ class Task {
     virtual void
     set_name(const Key& name_key) =0;
 
+    // TODO more migration callbacks and such, such as...
     virtual bool
     is_migratable() const =0;
+
 
     virtual void
     run() const =0;

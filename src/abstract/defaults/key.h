@@ -134,6 +134,7 @@ class key_impl_base
 
 };
 
+// TODO std::string and/or const char* support
 template <typename... Types>
 class key_impl
 {
@@ -194,6 +195,12 @@ class key_impl
     get_type_index() const {
       return type_idx;
     }
+
+    void
+    print_user_readable() const {
+      // TODO provide this
+    }
+
 #endif
 
   private:
