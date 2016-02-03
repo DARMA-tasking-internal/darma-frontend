@@ -111,7 +111,7 @@ int main(int argc, char** argv)
   const size_t right_neighbor = me == is_rightmost ? me : me + 1;
 
   typedef DataArray<double> data_t;
-  auto data = initial_access<data_t>("data", me);
+  auto data = initial_access<data_t>("a", "data", me);
   auto sent_to_left = initial_access<data_t>("sent_to_left", me, 0);
   auto sent_to_right = initial_access<data_t>("sent_to_right", me, 0);
 
