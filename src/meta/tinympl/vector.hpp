@@ -124,9 +124,10 @@ struct vector
   //! Return a new vector constructed by inserting the elements `Ts...` in the current vector starting at the index `i`
   template<std::size_t i,class ... Ts>
   struct insert : tinympl::insert<i,
-  sequence<Ts...>,
-  vector<Args...>,
-  tinympl::vector> {};
+    sequence<Ts...>,
+    vector<Args...>,
+    tinympl::vector
+  > {};
 
   //! Return the first element of the vector
   struct front

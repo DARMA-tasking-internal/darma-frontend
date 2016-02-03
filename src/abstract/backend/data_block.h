@@ -69,10 +69,6 @@ class DataBlock
 {
   public:
 
-    void set_serialization_manager(
-      abstract::frontend::SerializationManager const& ser
-    ) =0;
-
     // Gets the *deserialized* version of the data
     // If a null Serializer is given, the data may be
     // assumed to be contiguous and not need deserialization

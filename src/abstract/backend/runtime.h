@@ -160,16 +160,24 @@ class Runtime {
      *  valid to call \ref DependencyHandle::get_key() and \ref DependencyHandle::get_version() and for
      *  which \ref DependencyHandle::satisfy_with_data_block() has not yet been called by the backend.  (The only
      *  way to ensure the latter of these conditions is to ensure it is not in the return value of
-     *  Task::get_dependencies() for any task that Runtime::register_task() has been invoked with).  Furthermore,
-     *  the frontend must ensure (either explicitly or through user requirements)  that register_handle() is never
-     *  called more than once (\b globally) with a handle referring to the same key and version pair.  The pointer
+     *  Task::get_dependencies() for any task that Runtime::register_task() has been invoked with). The pointer
      *  passed to this parameter must be valid from the time register_handle() is called until the time
-     *  release_handle() is called with a handle to the same key and version.
+     *  release_handle() is called (on this instance!) with a handle to the same key and version.
+     *
+     *  @param write_access_allowed A boolean indicating that the handle is allowed to occupy a write role in
+     *  a task; i.e., t.needs_write_data(handle) can return true for up to one Task t registered with this instance.
+     *  It is the responsibility of the frontend to ensure (either through semantics or user responsibility) that
+     *  register_handle() is not called with a handle to the same key and the same version and
+     *  write_access_allowed=true more than once \b globally.  To do so is a debug mode error/optimized mode
+     *  undefined behavior.  Also, if a frontend::Task instance returns true for Task::needs_write_data()
+     *  on a handle that was registered with write_access_allowed=false, a debug mode error should be raised
+     *  (undefined behavior is allowed in optimized mode).
      *
      */
     virtual void
     register_handle(
-      const handle_t* const handle
+      const handle_t* const handle,
+      bool write_access_allowed
     ) =0;
 
 
@@ -203,7 +211,7 @@ class Runtime {
      *  version a.b.c.d (for some values a, b, c, and d of incrementable type, e.g., integers), then this
      *  indicates to the runtime that a call to \c Runtime::release_handle() on \c handle should lead to a
      *  call of (for some handle \c h2 with the same key and version a.b.(++c)):
-     *    h2->satisfy_with_data_block(handle->get_data_block());
+     *      h2->satisfy_with_data_block(handle->get_data_block());
      *  where \c h2 must be registered at the time of that \c Runtime::handle_done_with_version_depth() is invoked
      *  on \c handle.  If no such handle is registered and no publications of handle have been made at the time
      *  of this invocation, the runtime is free to garbage collect the data block upon release.  Registering a
@@ -219,51 +227,48 @@ class Runtime {
     /** @brief Indicate to the backend that the key and version reported by \c handle should be fetchable
      *  with the user version tag \c vertion_tag exactly \c n_additional_fetchers times.
      *
-     *  @TODO update this
+     *  In other words, \ref Runtime::register_fetcher() must be called exactly \c n_fetchers times
+     *  \b globally with the key reported by \c handle and the \c version_tag given here before the runtime
+     *  can overwrite or delete the data associated with the key and version reported by \c handle.
      *
-     *  In other words, \ref Runtime::register_fetcher() must be called \c n_additional_fetchers times \b globally with
-     *  the key reported by \c handle and the \c version_tag given here before the runtime can overwrite or delete
-     *  the data associated with the key and version reported by handle.
+     *  The behavior also depends on whether or not handle is satisfied (i.e., handle->is_satisfied() returns true)
+     *  at the time of the publish_handle() invocation.  If it is satisfied, the runtime publishes the
+     *  actual data associated with the data block returned by handle->get_data_block().  This must happen
+     *  immediately, before returning from this method, since the user is free to modify the data afterwards,
+     *  which would lead to undefined beahvior.  If the handle is not satisfied, the runtime should enqueue
+     *  a publication of the handle upon satisfaction.  The latter should return immediately.
      *
-     *  @todo describe these
-     *  @param handle
-     *  @param version_tag
-     *  @param n_additional_fetchers
+     *  @param handle A (non-owning) pointer to a DependencyHandle registered with register_handle() but
+     *  not yet released with release_handle().  The handle must have been registered with write_access_allowed=true.
+     *  @param version_tag A user-space tag to be associated with the internal version reported by handle
+     *  and to be fetched as such
+     *  @param n_fetchers The number of times register_fetcher() must be called globally (and the corresponding
+     *  fetching handles released) before antidependencies on \c handle are cleared.
+     *  @param is_final Whether or not the publish is intented to indicate the key and data associated with
+     *  handle are to be considered globally read-only for the rest of its lifetime.  If true, it is a (debug-mode)
+     *  error to register a handle (anywhere) with the same key and a version v > handle->get_version()
      *
      */
     virtual void
     publish_handle(
       const handle_t* const handle,
       const Key& version_tag,
-      const size_t n_additional_fetchers = 1,
+      const size_t n_fetchers = 1,
       bool is_final = false
     ) =0;
 
-    //virtual handle_t*
-    //resolve_version_tag(
-    //  const Key& handle_key,
-    //  const Key& version_tag
-    //) =0;
-
     virtual void
     register_fetcher(
-      const handle_t* const fetcher_handle,
+      const Key& key,
       const Key& version_tag
     ) =0;
 
-    //virtual void
-    //release_fetcher(
-    //  const handle_t* const fetcher_handle
-    //) =0;
-
-    //// Methods for "bare" dependency satisfaction and use.  Not used
-    //// for task dependencies
-    //// TODO decide between this and the wait_* methods in the DataBlock class
+    // Methods for "bare" dependency satisfaction and use.  Not used
+    // for task dependencies
 
     virtual void
     satisfy_handle(
       handle_t* const to_fill,
-      bool needs_read_access = true,
       bool needs_write_access = false
     ) =0;
 
