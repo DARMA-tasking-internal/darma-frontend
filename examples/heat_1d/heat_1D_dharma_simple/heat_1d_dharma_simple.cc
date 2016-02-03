@@ -10,6 +10,8 @@
 #include <vector>
 #include <iomanip>
 
+#include "../common_heat1d.h"
+
 #include <dharma.h>
 using namespace dharma_runtime;
 
@@ -23,20 +25,6 @@ using namespace dharma_runtime;
 	over (0,1), with T(0)=100, T(1)=10
 		
 */
-
-constexpr int n_iter 	= 500; 	// num of iterations in time
-constexpr double deltaT = 0.0025;	// time step 
-constexpr double alpha  = 0.0075;	// diffusivity
-
-constexpr int nx = 100; 			// number of grid points  
-constexpr double x_min = 0.0; 		// domain start x 
-constexpr double x_max = 1.0; 		// domain end x
-constexpr double deltaX = (x_max-x_min)/( (double) (nx-1) ); 	// grid cell spacing
-constexpr double cfl = alpha * deltaT / (deltaX * deltaX ); 	// cfl condition for stability
-static_assert( cfl < 0.5, "cfl not small enough");	
-constexpr double alphadtOvdxSq = (alpha * deltaT) / (deltaX * deltaX );		// alpha * DT/ DX^2
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // main() function
@@ -70,25 +58,27 @@ int main(int argc, char** argv)
 		create work producing as output the initial temp field, 
 		and the ghost values for neighbors
 	*/
- 	create_work([=]{
-  		double* data_ptr = data.allocate(num_points_per_rank);
-  		memset(data_ptr, 0, num_points_per_rank*sizeof(double));
+ 	create_work([=]
+ 	{
+		double* data_ptr = data.allocate(num_points_per_rank);
+		memset(data_ptr, 0, num_points_per_rank*sizeof(double));
 
-  		for (int i = 0; i < num_points_per_rank; ++i)
-  			data_ptr[i] = 50.0;
+		for (int i = 0; i < num_points_per_rank; ++i)
+			data_ptr[i] = 50.0;
 
-	    if(is_leftmost) 
-	    	data_ptr[0] = 100.0;
-	    if(is_rightmost) 
-	    	data_ptr[num_points_per_rank-1] = 10.0;
+    if(is_leftmost) 
+    	data_ptr[0] = Tl;
+    if(is_rightmost) 
+    	data_ptr[num_points_per_rank-1] = Tr;
 
-	    // all tasks need to set the values of the ghosts 
-	    gv_to_left.set_value(data_ptr[0]);
-	    gv_to_right.set_value(data_ptr[num_points_per_rank-1]);
+    // all tasks need to set the values of the ghosts 
+    gv_to_left.set_value(data_ptr[0]);
+    gv_to_right.set_value(data_ptr[num_points_per_rank-1]);
 
-	    data.publish();
-	 	 	gv_to_left.publish();
-	 	 	gv_to_right.publish();
+    data.publish();
+ 	 	gv_to_left.publish();
+ 	 	gv_to_right.publish();
+
 	});
 
 	// -----------------------------------------------------
@@ -96,11 +86,11 @@ int main(int argc, char** argv)
 	// time loop 
 	for (int timeLoop = 0; timeLoop < n_iter; ++timeLoop)
 	{
-    auto gv_from_left_neigh  = read_access<double>("ghost_value_for_right_neigh", left_neighbor, timeLoop);
-    auto gv_from_right_neigh = read_access<double>("ghost_value_for_left_neigh", right_neighbor, timeLoop);
+  	auto gv_from_left_neigh  = read_access<double>("ghost_value_for_right_neigh", left_neighbor, timeLoop);
+  	auto gv_from_right_neigh = read_access<double>("ghost_value_for_left_neigh", right_neighbor, timeLoop);
 
-	  gv_to_left = initial_access<double>("ghost_value_for_left_neigh", me, iter);
-	  gv_to_right = initial_access<double>("ghost_value_for_right_neigh", me, iter);
+  	gv_to_left = initial_access<double>("ghost_value_for_left_neigh", me, iter);
+  	gv_to_right = initial_access<double>("ghost_value_for_right_neigh", me, iter);
 
  		create_work([=]
  		{
@@ -108,7 +98,9 @@ int main(int argc, char** argv)
   		local_T_wghosts[0] 	= gv_from_left_neigh.get_value();
   		local_T_wghosts[num_points_per_rank_wghosts-1] = gv_from_right_neigh.get_value();
   		for (int i = 1; i <= num_points_per_rank; ++i)
+  		{
 				local_T_wghosts[i] = data.get()[i-1];
+  		}
 
 			// update field only for inner points based on FD stencil 
 	    for (int i = 1; i <= num_points_per_rank; i++ )
@@ -127,7 +119,6 @@ int main(int argc, char** argv)
  	 	gv_to_right.publish();
 
   }	
-
 
   dharma_finalize();
 
