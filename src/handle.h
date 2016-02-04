@@ -385,14 +385,14 @@ class AccessHandle
 
   public:
 
-    AccessHandle(const AccessHandle& moved_from)
-      : dep_handle_(std::move(moved_from.dep_handle_)),
-        permissions_(moved_from.permissions_),
+    AccessHandle(const AccessHandle& copied_from)
+      : dep_handle_(copied_from.dep_handle_),
+        permissions_(copied_from.permissions_),
         // this copy constructor may be invoked in ordinary usage or
         // may be the actual capture itself.  In the latter case, the subsequent
         // move needs access back to the outer context object, so we need to
         // save a pointer back to other.  It should be ignored otherwise, though.
-        prev_copied_from(const_cast<AccessHandle* const>(&moved_from))
+        prev_copied_from(const_cast<AccessHandle* const>(&copied_from))
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       capturing_task = static_cast<detail::TaskBase* const>(
@@ -401,8 +401,8 @@ class AccessHandle
 
       // Now check if we're in a capturing context:
       if(capturing_task != nullptr) {
-        assert(moved_from.prev_copied_from != nullptr);
-        AccessHandle& outer = *(moved_from.prev_copied_from);
+        assert(copied_from.prev_copied_from != nullptr);
+        AccessHandle& outer = *(copied_from.prev_copied_from);
         // TODO also ask the task if any special permissions downgrades were given
         // TODO !!! connect outputs to corresponding parent task output
         switch(outer.get_permissions()) {
