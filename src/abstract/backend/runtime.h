@@ -169,10 +169,13 @@ class Runtime {
      *  error to register more than one task (\b globally) that returns true for Task::needs_write_data() on
      *  that handle.  (Undefined behavior is still allowed in optimized mode)
      *
+     *  @TODO !!! solver the reader-release problem
+     *
      */
     virtual void
     register_handle(
-      const handle_t* const handle
+      const handle_t* const handle,
+      const handle_t* const as_reader_of = nullptr
     ) =0;
 
 
@@ -201,6 +204,8 @@ class Runtime {
      *
      *  @todo for 0.2.1 spec, revise the write_access_allowed description to incorporate the fact that the remote handle must
      *  also not create any post-publication subsequents (probably need a special publish)
+     *
+     *  @todo 0.3.1 spec: separate the concept of read-only retrieval from that of ownership transfer
      */
     virtual void
     register_fetching_handle(
@@ -322,9 +327,13 @@ class Runtime {
       aliasing_manager_t const& manager
     ) =0;
 
-    // Virtual destructor, since we have virtual methods
+    /** @brief signifies the end of the outer SPMD task from which dharma_backend_initialize() was called
+     */
+    virtual void
+    finalize() =0;
 
-    virtual ~Runtime() noexcept { }
+
+    virtual ~Runtime() noexcept = default;
 
 };
 
