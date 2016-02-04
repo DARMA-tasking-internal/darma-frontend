@@ -140,13 +140,14 @@ class TaskBase
     typedef abstract::backend::runtime_t::key_t key_t;
     typedef abstract::backend::runtime_t::version_t version_t;
     typedef types::shared_ptr_template<handle_t> handle_ptr;
-    typedef types::handle_container_template<handle_ptr> handle_ptr_container_t;
+    typedef types::handle_container_template<handle_t*> get_deps_container_t;
     typedef std::unordered_set<handle_ptr> needs_handle_container_t;
 
-    handle_ptr_container_t dependencies_;
+    get_deps_container_t dependencies_;
 
     needs_handle_container_t needs_read_deps_;
     needs_handle_container_t needs_write_deps_;
+
 
     key_t name_;
 
@@ -158,7 +159,8 @@ class TaskBase
       bool needs_read_data,
       bool needs_write_data
     ) {
-      dependencies_.insert(dep);
+      dependencies_.insert(dep.get());
+      assert(needs_read_data || needs_write_data);
       if(needs_read_data) needs_read_deps_.insert(dep);
       if(needs_write_data) needs_write_deps_.insert(dep);
     }
@@ -166,7 +168,7 @@ class TaskBase
     ////////////////////////////////////////////////////////////////////////////////
     // Implementation of abstract::frontend::Task
 
-    const handle_ptr_container_t&
+    const get_deps_container_t&
     get_dependencies() const override {
       return dependencies_;
     }

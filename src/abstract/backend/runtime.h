@@ -125,6 +125,14 @@ class Runtime {
      *  thread.  The returned pointer must be castable to the same concrete type as was passed to
      *  \ref Runtime::register_task() when the task was registered.
      *
+     *  @remark If the runtime implements context switching, it must ensure that
+     *  the behavior of Runtime::get_running_task() is consistent and correct for a given
+     *  running thread as though the switching never occurred.
+     *
+     *  @remark The pointer returned here is guaranteed to be valid until Task::run() returns for
+     *  the returned task.  However, to allow context switching, it is not guaranteed to be valid
+     *  in the context of any other task's run() invocation, including child tasks, and thus it should
+     *  not be dereferenced in any other context.
      */
     virtual task_t* const
     get_running_task() const =0;
@@ -156,7 +164,10 @@ class Runtime {
      *  way to ensure the latter of these conditions is to ensure it is not in the return value of
      *  Task::get_dependencies() for any task that Runtime::register_task() has been invoked with). The pointer
      *  passed to this parameter must be valid from the time register_handle() is called until the time
-     *  release_handle() is called (on this instance!) with a handle to the same key and version.
+     *  release_handle() is called (on this instance!) with a handle to the same key and version.  This method
+     *  may be called more than once globally with the same key and the same version, but it is a debug-mode
+     *  error to register more than one task (\b globally) that returns true for Task::needs_write_data() on
+     *  that handle.  (Undefined behavior is still allowed in optimized mode)
      *
      */
     virtual void
@@ -203,7 +214,7 @@ class Runtime {
      *  with \c handle as an output (at least using the instance registered with register_handle()).
      *
      *  @param handle A (non-owning) pointer to the same object with which Runtime::register_handle() (or
-     *  register_fetching_handle() was previously invoked.  Any (frontend or backend) uses of \c handle
+     *  register_fetching_handle()) was previously invoked.  Any (frontend or backend) uses of \c handle
      *  after release_handle() is returns are invalid and result in undefined behavior.  Upon release,
      *  if the handle has been published with Runtime::publish_handle() or if the handle was registered
      *  as the last subversion at a given depth using Runtime::handle_done_with_version_depth(), the

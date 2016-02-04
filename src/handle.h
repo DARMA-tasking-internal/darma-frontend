@@ -244,12 +244,11 @@ class DependencyHandle
 
     DependencyHandle(
       const key_t& data_key,
-      const version_t& data_version,
-      bool write_access_allowed
+      const version_t& data_version
     ) : DependencyHandleBase(data_key, data_version),
         value_((T*)this->data_)
     {
-      backend_runtime->register_handle(this, write_access_allowed);
+      backend_runtime->register_handle(this);
     }
 
     DependencyHandle(
@@ -268,7 +267,10 @@ class DependencyHandle
     void
     emplace_value(Args&&... args)
     {
-      if(value_ == nullptr) allocate_metadata(sizeof(T));
+      // TODO decide if this should happen here or where...
+      //if(value_ == nullptr) allocate_metadata(sizeof(T));
+      // for now, assume/assert it's allocated to be the right size by the backend:
+      assert(value_ != nullptr);
       value_ = new (&value_) T(
         std::forward<Args>(args)...
       );
@@ -287,6 +289,17 @@ class DependencyHandle
       // Invoke the move constructor, if available
       emplace_value(std::forward<T>(val));
     }
+
+    template <typename U>
+    std::enable_if_t<
+      std::is_convertible<U, T>::value
+    >
+    set_value(U&& val) {
+
+    }
+
+
+
 
     ~DependencyHandle() {
       backend_runtime->release_handle(this);
@@ -487,23 +500,18 @@ class AccessHandle
 
     }
 
-    //T* operator->() const {
-    //  return &dep_handle_->get_value();
-    //}
+    T* operator->() const {
+      return &dep_handle_->get_value();
+    }
 
-    //template <typename U>
-    //typename std::enable_if<
-    //  std::is_convertible<U, T>::value
-    //  and std::is_default_constructible<T>::value,
-    //  void
-    //>::type
-    //set_value(U&& val) const {
-    //  // TODO impement this
-    //}
-
-    void
-    set_value(const T& value) const {
-      // TODO implement this
+    template <typename U>
+    typename std::enable_if<
+      std::is_convertible<U, T>::value,
+      void
+    >::type
+    set_value(U&& val) const {
+      dep_handle_->set_value(val);
+      // TODO impement this
     }
 
     template <typename U>
