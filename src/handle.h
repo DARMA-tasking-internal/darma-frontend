@@ -249,8 +249,18 @@ class DependencyHandle
     ) : DependencyHandleBase(data_key, data_version),
         value_((T*)this->data_)
     {
-      backend_runtime->register_handle(this,
-        /* write_access_allowed = */ write_access_allowed
+      backend_runtime->register_handle(this, write_access_allowed);
+    }
+
+    DependencyHandle(
+      const key_t& data_key,
+      const key_t& user_version_tag,
+      bool write_access_allowed
+    ) : DependencyHandleBase(data_key, version_t()),
+        value_((T*)this->data_)
+    {
+      backend_runtime->register_fetching_handle(this,
+        user_version_tag, write_access_allowed
       );
     }
 
@@ -542,6 +552,20 @@ class AccessHandle
         permissions_(permissions)
     { }
 
+    AccessHandle(
+      const key_type& key,
+      detail::AccessPermissions permissions,
+      const key_type& user_version_tag
+    ) : dep_handle_(
+          dep_handle_ptr_maker_t()(
+            key,
+            user_version_tag,
+            permissions != detail::ReadOnly
+          )
+        ),
+        permissions_(permissions)
+    { }
+
     template <typename Deleter>
     AccessHandle(
       const key_type& key,
@@ -602,9 +626,8 @@ class AccessHandle
       key_type key = make_key_from_tuple(
         helper.get_key_tuple(std::forward<KeyExprParts>(parts)...)
       );
-      version_type version = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
-      AccessHandle<T> rv(key, version, detail::ReadOnly);
-      detail::backend_runtime->register_fetcher(rv.dep_handle_->get());
+      key_type user_version_tag = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
+      AccessHandle<T> rv(key, detail::ReadOnly, user_version_tag);
       return rv;
     }
 
@@ -621,9 +644,8 @@ class AccessHandle
       key_type key = make_key_from_tuple(
         helper.get_key_tuple(std::forward<KeyExprParts>(parts)...)
       );
-      version_type version = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
-      AccessHandle<T> rv(key, version, detail::ReadWrite);
-      detail::backend_runtime->register_fetcher(rv.dep_handle_->get());
+      key_type user_version_tag = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
+      AccessHandle<T> rv(key, detail::ReadWrite, user_version_tag);
       return rv;
     }
 

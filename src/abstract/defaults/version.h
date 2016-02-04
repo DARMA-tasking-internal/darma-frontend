@@ -196,6 +196,24 @@ class basic_version {
       return not (*this == other);
     }
 
+    basic_version
+    operator+(basic_version const& other) const {
+      basic_version rv;
+      if(other.depth() > depth()) {
+        rv = other;
+        for(size_t i = 0; i < depth(); ++i) {
+          rv.version_clock[i] += version_clock[i];
+        }
+      }
+      else {
+        rv = *this;
+        for(size_t i = 0; i < depth(); ++i) {
+          rv.version_clock[i] += other.version_clock[i];
+        }
+      }
+      return rv;
+    }
+
   private:
 
     Container<Comparable> version_clock;

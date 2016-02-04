@@ -131,8 +131,6 @@ struct task_traits {
 
 namespace detail {
 
-
-
 class TaskBase
   : public abstract::backend::runtime_t::task_t
 {
