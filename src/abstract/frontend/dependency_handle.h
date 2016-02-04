@@ -70,6 +70,9 @@ class DependencyHandle {
     virtual const Version&
     get_version() const =0;
 
+    virtual void
+    set_version(const Version& v) =0;
+
     //// TODO we need move this, since some tasks will read only and some tasks will read/write the same handle
     //virtual bool
     //needs_read_data() const =0;

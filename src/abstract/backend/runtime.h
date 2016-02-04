@@ -164,19 +164,43 @@ class Runtime {
      *  passed to this parameter must be valid from the time register_handle() is called until the time
      *  release_handle() is called (on this instance!) with a handle to the same key and version.
      *
+     */
+    virtual void
+    register_handle(
+      const handle_t* const handle
+    ) =0;
+
+
+    /** @brief Register a dependency handle that is satisfied by retrieving data from the data store
+     *
+     *  The handle may then be used preliminarily as a dependency to tasks, etc.  Subsequents to the handle
+     *  may be created with handle versions in similarly pending states.  Upon resolution of the user_version_tag
+     *  to an internal Version (i.e., triggered by a publish of a handle with a matching key and matching user
+     *  version tag), the handle and all registered subsequents should have their versions updated (i.e., using
+     *  Version::operator+() and DependencyHandle::set_version()) to incorporate the fetched base version.
+     *
+     *  @param handle A (non-owning) pointer to a DependencyHandle for which it must be valid to call get_key()
+     *  but for which the return value of get_version() is ignored.
+     *
+     *  @param user_version_tag A Key to be used to match a publication version of the same key reported
+     *  by handle->get_key() published elsewhere.
+     *
      *  @param write_access_allowed A boolean indicating that the handle is allowed to occupy a write role in
      *  a task; i.e., t.needs_write_data(handle) can return true for up to one Task t registered with this instance.
      *  It is the responsibility of the frontend to ensure (either through semantics or user responsibility) that
-     *  register_handle() is not called with a handle to the same key and the same version and
+     *  register_handle() is not called with a handle to the same key and the same version tag and
      *  write_access_allowed=true more than once \b globally.  To do so is a debug mode error/optimized mode
      *  undefined behavior.  Also, if a frontend::Task instance returns true for Task::needs_write_data()
      *  on a handle that was registered with write_access_allowed=false, a debug mode error should be raised
      *  (undefined behavior is allowed in optimized mode).
      *
+     *  @todo revise the write_access_allowed description to incorporate the fact that the remote handle must
+     *  also not create any post-publication subsequents (probably need a special publish)
      */
     virtual void
-    register_handle(
-      const handle_t* const handle,
+    register_fetching_handle(
+      handle_t* const handle,
+      const Key& user_version_tag,
       bool write_access_allowed
     ) =0;
 
@@ -227,7 +251,7 @@ class Runtime {
     /** @brief Indicate to the backend that the key and version reported by \c handle should be fetchable
      *  with the user version tag \c vertion_tag exactly \c n_additional_fetchers times.
      *
-     *  In other words, \ref Runtime::register_fetcher() must be called exactly \c n_fetchers times
+     *  In other words, \ref Runtime::register_fetching_handle() must be called exactly \c n_fetchers times
      *  \b globally with the key reported by \c handle and the \c version_tag given here before the runtime
      *  can overwrite or delete the data associated with the key and version reported by \c handle.
      *
@@ -257,15 +281,12 @@ class Runtime {
       bool is_final = false
     ) =0;
 
-    virtual void
-    register_fetcher(
-      const Key& key,
-      const Key& version_tag
-    ) =0;
-
     // Methods for "bare" dependency satisfaction and use.  Not used
     // for task dependencies
 
+    /**
+     * @todo Document this for 0.2.1 spec
+     */
     virtual void
     satisfy_handle(
       handle_t* const to_fill,
@@ -274,6 +295,9 @@ class Runtime {
 
     // Methods for establishing containment and/or aliasing relationships
 
+    /**
+     * @todo Document this for 0.2.1 spec
+     */
     virtual void
     establish_containment_relationship(
       const handle_t* const inner_handle,
@@ -281,6 +305,9 @@ class Runtime {
       containment_manager_t const& manager
     ) =0;
 
+    /**
+     * @todo Document this for 0.2.1 spec
+     */
     virtual void
     establish_aliasing_relationship(
       const handle_t* const handle_a,
