@@ -86,10 +86,6 @@ class Task {
       const handle_t* const handle
     ) const =0;
 
-    //virtual
-    //const Iterable<handle_ptr>&
-    //get_outputs() const =0;
-
     virtual const Key&
     get_name() const =0;
 
