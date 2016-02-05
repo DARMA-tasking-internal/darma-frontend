@@ -85,14 +85,10 @@ class Runtime {
     typedef abstract::frontend::ContainmentManager<Key, Version> containment_manager_t;
     typedef abstract::frontend::AliasingManager<Key, Version> aliasing_manager_t;
     typedef abstract::frontend::Task<
-      Key, Version, types::handle_container_template, shared_ptr_template
+      Key, Version, types::handle_container_template
     > task_t;
-    typedef shared_ptr_template<task_t> task_ptr;
-    typedef shared_ptr_template<const task_t> task_const_ptr;
     typedef unique_ptr_template<task_t> task_unique_ptr;
     typedef unique_ptr_template<const task_t> task_const_unique_ptr;
-    typedef shared_ptr_template<handle_t> handle_ptr;
-    typedef shared_ptr_template<const handle_t> handle_const_ptr;
 
     /** @brief Enqueue a task that should run when its dependencies are satisfied
      *

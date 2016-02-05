@@ -187,8 +187,8 @@ typedef enum AccessPermissions {
 
 
 template <
-  typename key_type=default_key_t,
-  typename version_type=default_version_t
+  typename key_type=types::key_t,
+  typename version_type=types::version_t
 >
 class DependencyHandleBase
   : public KeyedObject<key_type>,
@@ -218,10 +218,32 @@ class DependencyHandleBase
     bool
     is_satisfied() const override { return satisfied_; }
 
+    bool
+    is_writable() const override { return writable_; }
+
+    void
+    allow_writes() override { writable_ = true; }
+
+    bool
+    version_is_pending() const override { return version_is_pending_; }
+
+    void
+    set_version_is_pending() const override {
+      version_is_pending_ = true;
+    }
+
+    void set_version(const version_t& v) override {
+      assert(version_is_pending_);
+      version_is_pending_ = false;
+      this->version_ = v;
+    }
+
   protected:
     void* data_ = nullptr;
     abstract::backend::DataBlock* data_block_ = nullptr;
     bool satisfied_ = false;
+    bool writable_ = false;
+    bool version_is_pending_ = false;
 };
 
 
@@ -295,11 +317,9 @@ class DependencyHandle
       std::is_convertible<U, T>::value
     >
     set_value(U&& val) {
-
+      // TODO handle custom operator=() case (for instance)
+      emplace_value(std::forward<U>(val));
     }
-
-
-
 
     ~DependencyHandle() {
       backend_runtime->release_handle(this);
@@ -331,7 +351,7 @@ class DependencyHandle
   public:
 
     abstract::frontend::SerializationManager*
-    get_serialization_manager() {
+    get_serialization_manager() override {
       return &ser_manager_;
     }
 

@@ -13,9 +13,11 @@ constexpr bool print_data = true;
 // A user data type for holding mesh data
 
 template <typename T>
-struct DataArray : public ZeroCopyable<1>
+struct DataArray
 {
   public:
+
+    typedef abstract::frontend::SerializationManager::zero_copy_slot_t zero_copy_slot_t;
 
     // Some user methods
     void allocate(size_t n_data) {
@@ -37,17 +39,12 @@ struct DataArray : public ZeroCopyable<1>
 
   protected:
 
-    // Interface with dharma_runtime::ZeroCopyable<N>
     void*& get_zero_copy_slot(zero_copy_slot_t slot) {
       return data_;
     }
 
     size_t zero_copy_slot_size(zero_copy_slot_t slot) const {
       return data_size_;
-    }
-
-    void serialize_metadata(Archive& ar) {
-      ar & data_size_;
     }
 
   private:

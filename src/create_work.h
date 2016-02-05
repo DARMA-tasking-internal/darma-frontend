@@ -66,9 +66,25 @@ struct create_work_parser {
 };
 
 template <typename... Args>
-struct read_decorator_parser {
+struct reads_decorator_parser {
   typedef /* TODO */ int return_type;
 };
+
+template <typename... Args>
+struct waits_decorator_parser {
+  typedef /* TODO */ int return_type;
+};
+
+template <typename... Args>
+struct writes_decorator_parser {
+  typedef /* TODO */ int return_type;
+};
+
+template <typename... Args>
+struct reads_writes_decorator_parser {
+  typedef /* TODO */ int return_type;
+};
+
 
 template <typename Lambda, typename... Args>
 struct create_work_impl {
@@ -79,7 +95,6 @@ struct create_work_impl {
   typedef runtime_t::task_t abstract_task_t;
   typedef detail::Task<Lambda> task_t;
   typedef detail::TaskBase task_base_t;
-  typedef runtime_t::task_ptr task_ptr;
 
   inline typename parser::return_type
   operator()(Args&&... args, Lambda&& lambda) const && {
@@ -96,11 +111,28 @@ struct create_work_impl {
 
 
 template <typename... Args>
-typename detail::read_decorator_parser<Args...>::return_type
+typename detail::reads_decorator_parser<Args...>::return_type
 reads(Args&&... args) {
   // TODO implement this
 }
 
+template <typename... Args>
+typename detail::waits_decorator_parser<Args...>::return_type
+waits(Args&&... args) {
+  // TODO implement this
+}
+
+template <typename... Args>
+typename detail::writes_decorator_parser<Args...>::return_type
+writes(Args&&... args) {
+  // TODO implement this
+}
+
+template <typename... Args>
+typename detail::reads_writes_decorator_parser<Args...>::return_type
+reads_writes(Args&&... args) {
+  // TODO implement this
+}
 
 template <typename... Args>
 typename detail::create_work_parser<Args...>::return_type
