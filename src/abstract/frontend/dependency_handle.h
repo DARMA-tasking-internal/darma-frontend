@@ -140,7 +140,7 @@ class DependencyHandle {
 
     /** @brief Satisfy the dependency handle with data or with an allocated buffer into which data may be written
      *
-     *  @TODO finish this and
+     *  @TODO finish this and figure out how we will distinguish read-satisfied and write-satisfied
      *
      */
     virtual void
