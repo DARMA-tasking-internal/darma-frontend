@@ -68,15 +68,25 @@ dharma_init(
 
 dharma_rank_t
 dharma_spmd_rank() {
-  // TODO safer version of this
+  assert(std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<const char*>())
+    == DHARMA_BACKEND_SPMD_NAME_PREFIX
+  );
   return detail::backend_runtime
-      ->get_running_task()->get_name().component<0>().as<dharma_rank_t>();
+      ->get_running_task()->get_name().component<1>().as<dharma_rank_t>();
 }
 
 dharma_rank_t
 dharma_spmd_size() {
+  assert(std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<const char*>())
+    == DHARMA_BACKEND_SPMD_NAME_PREFIX
+  );
   return detail::backend_runtime
-      ->get_running_task()->get_name().component<1>().as<dharma_rank_t>();
+      ->get_running_task()->get_name().component<2>().as<dharma_rank_t>();
+}
+
+void
+dharma_finalize() {
+  detail::backend_runtime->finalize();
 }
 
 } // end namespace dharma_runtime

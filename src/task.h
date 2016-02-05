@@ -148,7 +148,6 @@ class TaskBase
     needs_handle_container_t needs_read_deps_;
     needs_handle_container_t needs_write_deps_;
 
-
     key_t name_;
 
   public:
@@ -208,7 +207,7 @@ class TaskBase
 
     virtual ~TaskBase() noexcept { }
 
-    types::shared_ptr_template<TaskBase> current_create_work_context = nullptr;
+    TaskBase* current_create_work_context = nullptr;
 
 };
 
@@ -229,24 +228,8 @@ template <
   typename Lambda,
   typename... Types
 >
-class Task
-  : public TaskBase,
-    std::enable_shared_from_this<Task>
+class Task : public TaskBase
 {
-
-  protected:
-
-    template <typename T>
-    using dep_handle_t = DependencyHandle<T, key_type, version_type>;
-    template <typename... Ts>
-    using smart_ptr_template = dharma_runtime::types::shared_ptr_template<Ts...>
-    template <typename T>
-    using dep_handle_ptr = smart_ptr_template<dep_handle_t<T>>;
-
-    typedef smart_ptr_template<Lambda> lambda_ptr;
-
-    typedef typename smart_ptr_traits<smart_ptr_template>::template maker<lambda> lambda_ptr_maker;
-
   public:
 
     Task(Lambda&& in_lambda)
