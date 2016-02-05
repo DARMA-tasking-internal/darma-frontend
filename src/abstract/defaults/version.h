@@ -50,7 +50,7 @@
 #include <cassert>
 #include <vector>
 
-#include "util.h"
+#include "../../util.h"
 
 namespace dharma_runtime {
 

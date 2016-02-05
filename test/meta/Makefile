@@ -2,24 +2,31 @@
 CXX := /opt/local/bin/clang++-mp-3.5
 #CXX := /opt/local/bin/g++-mp-4.8
 
-CPPFLAGS = -I ../../src -I ../../src/meta
+CPPFLAGS = -I../../src -I../../src/meta
 CXXFLAGS = -std=c++14 -O0 -g -ftemplate-backtrace-limit=0 -Wno-return-type
 LDFLAGS = 
 
-all: all_tests
-
 TEST_CC_FILES = $(wildcard test_*.cc)
-TEST_NAMES = $(TEST_CC_FILES:.cc=)
+ALL_TESTS = $(patsubst %.cc,%,$(notdir $(TEST_CC_FILES)))
+ALL_RUNS = $(ALL_TESTS:test_%=run_test_%)
 
-.PHONY: $(TEST_NAMES)
+all: all_runs
 
-%.o : %.cc $(wildcard ../../src/meta/*.h)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $<
+.PHONY: $(ALL_RUNS)
 
-$(TEST_NAMES): test_% : test_%.o
-	rm $^
+$(ALL_TESTS): test_% : test_%.cc $(wildcard ../../src/meta/*.h)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $< -o $@
 
-all_tests: $(TEST_NAMES)
+$(ALL_RUNS): run_test_% : test_%
+	@echo "============================================================"
+	@echo "Running $<..."
+	@echo "------------------------------------------------------------"
+	./$<
+	@echo "------------------------------------------------------------"
+	rm $< # for now...
+	@echo "============================================================"
+
+all_runs: $(ALL_RUNS)
 
 clean:
 	-rm -f *.o

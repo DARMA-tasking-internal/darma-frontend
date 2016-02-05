@@ -138,9 +138,26 @@ class DependencyHandle {
     SerializationManager*
     get_serialization_manager() =0;
 
-    /** @brief Satisfy the dependency handle with data or with an allocated buffer into which data may be written
+    /** @brief Satisfy the dependency handle with data or with an allocated buffer into which data
+     *  may be written.
      *
-     *  @TODO finish this and figure out how we will distinguish read-satisfied and write-satisfied
+     *  The underlying data in the data block may not be written to until the backend calls
+     *  DependencyHandle::allow_writes() on this handle.  This method should be called at most
+     *  once in the lifetime of a DependencyHandle, and it should only be called zero times if
+     *  no tasks were registered during its lifetime that reported a dependence on the handle.
+     *
+     *  @param data A (non-owning) pointer to the data block for the DependencyHandle to use for
+     *  all data operations.  If any tasks have been used in any read contexts before
+     *  Runtime::release_read_only_usage() was called with the handle, or if the up to one
+     *  "final" usage (see Runtime::release_read_only_usage() for details) of the handle is a task
+     *  that returns true for Task::needs_read_data(handle), the readable data must be available
+     *  at the time of this invocation.  Otherwise, a buffer of the correct size to contain
+     *  the metadata as described by the serialization manager should be allocated.  As of
+     *  the 0.2 spec, the handle and data block should not be moved from the time
+     *  satisfy_with_data_block() is called until the time Runtime::release_handle() is called
+     *  (i.e., the pointer passed in here should be valid until Runtime::release_handle() is called).
+     *
+     *  @todo 0.4: spec protocol for migrating data blocks and handles after a handle has been satisfied
      *
      */
     virtual void
@@ -148,14 +165,41 @@ class DependencyHandle {
       abstract::backend::DataBlock* const data
     ) =0;
 
+    /** @brief Get the pointer to the data block passed into satisfy_with_data_block() by the backend
+     *
+     *  It is an (debug-mode) error to call this method before calling satisfy_with_data_block()
+     *
+     *  @todo 0.4: this should eventually return a DataBlock*& to facilitate migration without
+     *  re-satisfaction for certain cases
+     *
+     */
     virtual abstract::backend::DataBlock*
     get_data_block() =0;
 
-    // TODO figure out if we should distinguish here between read-satisfied and write-satisfied....
+    /** @brief returns true iff satisfy_with_data_block() has been called for this instance
+     */
     virtual bool
     is_satisfied() const =0;
 
-    virtual ~DependencyHandle() noexcept { };
+    /** @brief Notify the dependency handle that the last read-only usage of the handle has cleared
+     *  and any additional usage until Runtime::release_handle() is called may safely modify the
+     *  data in the associated data block.
+     *
+     *  It is a (debug-mode) error to call allow_writes() before calling satisfy_with_data_block().
+     *  allow_writes() should be called at most once in the lifetime of a dependency handle, and
+     *  it should only be called zero times if the handle is never used in a write context.
+     *
+     */
+    virtual void
+    allow_writes() =0;
+
+    /** @brief returns true iff allow_writes() has been called for this instance
+     */
+    virtual bool
+    is_writable() const =0;
+
+
+    virtual ~DependencyHandle() noexcept = default;
 };
 
 
