@@ -49,7 +49,8 @@
 #include <tuple>
 #include <cstring> // std::memcmp
 
-#include "util.h"
+#include "../../util.h"
+#include "../../meta/tuple_for_each.h"
 #include "key_fwd.h"
 
 
@@ -197,8 +198,18 @@ class key_impl
     }
 
     void
-    print_user_readable() const {
-      // TODO provide this
+    print_user_readable(std::ostream& o = std::cout) const {
+      print_user_readable(", ");
+    }
+
+    void
+    print_user_readable(const std::string& sep, std::ostream& o = std::cout) const {
+      meta::tuple_for_each_with_index(parts_, [sep](const auto& part, size_t i) {
+        o << part;
+        if(i != sizeof...(Types) - 1) {
+          o << sep;
+        }
+      });
     }
 
 #endif
@@ -215,12 +226,13 @@ class key_impl
 
 };
 
-struct key_hash;
-struct key_equal;
 
 } // end namespace detail
 
 namespace defaults {
+
+struct key_hash;
+struct key_equal;
 
 class Key {
   private:
@@ -230,8 +242,8 @@ class Key {
 
   public:
 
-    typedef detail::key_hash hasher;
-    typedef detail::key_equal equal;
+    typedef defaults::key_hash hasher;
+    typedef defaults::key_equal key_equal;
 
     template <typename... Types>
     Key(
@@ -267,26 +279,12 @@ class Key {
 
 template <typename... Types>
 Key
-make_key(Types&&... data)
-{
-  return Key(
-    detail::variadic_constructor_arg,
-    std::forward<Types>(data)...
-  );
-}
-
-template <typename... Types>
-Key
 make_key_from_tuple(std::tuple<Types...>&& data)
 {
   return Key(
     std::forward<std::tuple<Types...>>(data)
   );
 }
-
-} // end namespace defaults
-
-namespace detail {
 
 struct key_hash {
   size_t
@@ -299,7 +297,7 @@ struct key_hash {
     if(size == 0) return 0;
     size_t rv = std::hash<align_t>()(data[0]);
     for(int i = 1; i < size; ++i) {
-      hash_combine(rv, data[i]);
+      dharma_runtime::detail::hash_combine(rv, data[i]);
     }
     return rv;
   }
@@ -326,11 +324,45 @@ struct key_equal {
 };
 
 
-inline bool
-operator==(const defaults::Key& a, const defaults::Key& b)
-{
-  return detail::key_equal()(a, b);
+inline constexpr bool
+operator==(const defaults::Key& a, const defaults::Key& b) {
+  return defaults::key_equal()(a, b);
 }
+
+
+} // end namespace defaults
+
+namespace detail {
+
+struct key_traits<dharma_runtime::defaults::Key>
+{
+  struct maker {
+    constexpr maker() = default;
+    template <typename... Args>
+    inline constexpr dharma_runtime::defaults::Key
+    operator()(Args&&... args) const {
+      return dharma_runtime::defaults::Key(
+        detail::variadic_constructor_arg,
+        std::forward<Args>(args)...
+      );
+    }
+  };
+
+  struct maker_from_tuple {
+    constexpr maker_from_tuple() = default;
+    template <typename... Args>
+    inline constexpr dharma_runtime::defaults::Key
+    operator()(std::tuple<Args...>&& data) const {
+      return dharma_runtime::defaults::Key(
+        std::forward<std::tuple<Args...>>(data)
+      );
+    }
+  };
+
+  typedef typename dharma_runtime::defaults::Key::hasher hasher;
+  typedef typename dharma_runtime::defaults::Key::key_equal key_equal;
+
+};
 
 } // end namespace detail
 

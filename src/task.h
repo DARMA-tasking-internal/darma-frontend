@@ -218,7 +218,8 @@ class TopLevelTask
   public:
 
     void run() const override {
-      // Do nothing, as specified
+      // Abort, as specified.  This should never be called.
+      abort();
     }
 
 };

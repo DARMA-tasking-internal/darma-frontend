@@ -156,13 +156,13 @@ static_assert(
   "doesn't work"
 );
 
-static_assert(
-  not has_static_method_named_policy_with_signature<
-    TestHasPolicy,
-    int(int, char, std::string&)
-  >::value,
-  "doesn't work"
-);
+//static_assert(
+//  not has_static_method_named_policy_with_signature<
+//    TestHasPolicy,
+//    int(int, char, std::string&)
+//  >::value,
+//  "doesn't work"
+//);
 
 static_assert(
   has_member_named_policy<
@@ -192,6 +192,8 @@ static_assert(
   "doesn't work"
 );
 
+
+#include "../util/empty_main.h"
 
 //static_assert(
 //  has_method_named_policy_with_signature<

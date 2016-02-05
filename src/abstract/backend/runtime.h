@@ -371,12 +371,57 @@ typedef Runtime<
 > runtime_t;
 
 
-// An initialize function that the backend should implement which the frontend
-// calls to setup the static instance of backend_runtime
+/** @brief initialize the backend::Runtime instance
+ *
+ *  @remark This should be called once per top-level task.  The backend may chose whether
+ *  the frontend is allowed to have multiple top-level tasks in one process.  If the backend
+ *  supports multiple top-level tasks, it should define the preprocessor constant
+ *  DHARMA_BACKEND_TOP_LEVEL_TASK_MULTIPLE.  If not, it should define the constant
+ *  DHARMA_BACKEND_TOP_LEVEL_TASK_SINGLE.  The frontend is free to wrap these macro constants
+ *  in more user-friendly names before exposing them to the user.
+ *
+ *  @pre The frontend should do nothing that interacts with the backend before this
+ *  function is called.
+ *
+ *  @post Upon return, the (output) parameter backend_runtime should point to  a valid
+ *  instance of backend::Runtime.  All methods of backend_runtime should be invocable
+ *  from any thread with access to the pointer backend_runtime.  The runtime should assume
+ *  control of the (owning) pointer passed in through top_level_task and should not delete
+ *  it before Runtime::finalize() is called on the backend_runtime object.  The top-level
+ *  task object should be setup as described below
+ *
+ *  @param argc An lvalue reference to the argc passed into main().
+ *  @param argv An lvalue reference to the argv passed into main().
+ *
+ *  @param backend_runtime The input value of this parameter is ignored.  On return, it should
+ *  point to a properly initialized instance of backend::Runtime.  The backend owns this
+ *  instance, and should delete it at some point after the frontend calls Runtime::finalize() on
+ *  this instance.
+ *
+ *  @param top_level_task The task object to be returned by Runtime::get_running_task() if that
+ *  method is invoked (on the instance pointed to by backend_runtime upon return) from the outermost
+ *  task context within which dharma_backend_initialize() was invoked.  (Inside of any task context
+ *  created by an invocation of Task::run(), of course, the runtime should still behave as documented
+ *  in the Runtime::get_running_task() method).  It is \a not valid to call Task::run() on this
+ *  top-level task object (i.e., it is an error), and doing so will cause the frontend to abort.
+ *  Indeed (as of 0.2 spec), the only valid methods for the backend to call on this object are
+ *  Task::set_name() and Task::get_name().  At least before returning top_level_task from any calls to
+ *  Runtime::get_running_task(), the backend runtime should assign a name to the top-level task
+ *  with at least three parts, the first three of which must be: a string constant defined by the
+ *  preprocessor macro DHARMA_BACKEND_SPMD_KEY_PREFIX, a std::size_t for the rank of the SPMD-like
+ *  top-level task from which initialize was invoked, and a std::size_t givin the total number of
+ *  ranks in the SPMD launch (which must be known at launch time; SPMD ranks cannot be dynamically
+ *  allocated).  In other words, the backend should make a call of the form:
+ *    top_level_task->set_name(DHARMA_BACKEND_SPMD_NAME_PREFIX, rank, size);
+ *
+ *  @remark The backend is free to extract backend-specific command-line arguments provided it
+ *  updates argc and argv.  When dharma_backend_initialize() returns, backend-specific parameters
+ *  must no longer be in argc and argv.
+ *
+ */
 extern void
 dharma_backend_initialize(
-  int& argc,
-  char**& argv,
+  int& argc, char**& argv,
   runtime_t*& backend_runtime,
   types::unique_ptr_template<typename runtime_t::task_t> top_level_task
 );
@@ -392,48 +437,3 @@ dharma_backend_initialize(
 
 
 #endif /* SRC_ABSTRACT_BACKEND_RUNTIME_H_ */
-
-// ATTIC
-
-/**
-     *  @param needs_data_from_fetcher (Optional) Either a (non-owning) pointer to the handle reportingVjjj
-     *
-     *  will be retrieved before marking the handle as satisfied or \c nullptr.  If this parameter is non-null,
-     *  the handle may be used as an input, and the data to be read will correspond
-     *
-     *  ********** OLD *****************
-     *  The handle registered here indicates that it will be used subsequently in a write or read/write
-     *  context of a task.  That is, it may be eventually used either in as a task output or in a task
-     *  that has an output with the same key and the version ++handle.version (or an increment of some
-     *  equivalent subversion of handle.version).  In either case, this indicates that \ref handle is allowed
-     *  to be used in a context were it is the final use of a dependency with that specific key and version
-     *  before it is (over-)written, and all other read-only uses must complete before the write can occur.
-     *  For simplicity, we'll refer to this usage allowed for handles registered here as their "final" usage.
-     *  Read-only uses of the handle registered here are also allowed, but at least an outermost task read-only usage
-     *  must be registered before  the task making the "final" usage is registered (though eventual support for
-     *  extra read-only handles may eventually be allowed).  Note that read-only uses of the handle that must
-     *  preceed the "final" usage  may create read-only tasks of their own, which must in turn be scheduled
-     *  before the final usage (even though they are allowed to be scheduled after the "final" usage).  Note also
-     *  that the "final" usage may schedule subtasks that require a (non-strict) subset of the "final" usage's
-     *  privledges.  For a TODO finish this
-     *
-     *  @todo mechanism to allow extra read-only handles to be registered without using the publish/fetch interface
-     *
-     *
-     *
-     *  @param needs_data_from (Optional) Either a (non-owning) pointer to the handle from which readable data
-     *  will be retrieved before marking the handle as satisfied or \c nullptr.  If this parameter is non-null,
-     *  the handle may be used as an input, and the data to be read will correspond
-     *
-     *  @param is_initial TODO
-     *
-     *  the readable data requirement may be satisfied in one of two ways.  If Runtime::register_fetcher() is called with the handle after calling register_handle(),
-     *  then the data to be read must be fetched from the data store under the key and user version tag reported
-     *  by the fetcher.  Otherwise, the runtime will wait until a writable handle with the preceding version is
-     *  released (actually, until the last subversion, indicated by Runtime::handle_done_with_version_depth(),
-     *  of the preceding version is released) and satisfy input uses of handle with the released previous version's
-     *  DependencyHandle::get_data_block() return value.  It is an error to specify both data retrieval methods,
-     *  and specifying neither will lead to deadlock upon usage of the handle (thus, it is prudent for the frontend
-     *  developier to ensure that exactly one of these two read data specifications is used through, for instance,
-     *  some sort of RIIA-like mechanism).
-**/

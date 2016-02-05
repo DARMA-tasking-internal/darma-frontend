@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                                 join.hpp                                
-//                         dharma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                          test_tuple_for_each.cc
+//                         dharma_new
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,55 +42,32 @@
 //@HEADER
 */
 
+#include <iostream>
+#include <tuple>
 
-#ifndef TINYMPL_JOIN_HPP
-#define TINYMPL_JOIN_HPP
+#include <meta/tuple_for_each.h>
 
-#include "sequence.hpp"
-#include "as_sequence.hpp"
+using namespace dharma_runtime;
 
-namespace tinympl {
-
-/**
- * \ingroup SeqAlgsIntr
- * \class join
- * \brief Merge two sequences
- * \param Args The sequences
- * \return A sequence constructed by joining all the passed sequences with the
-type of the first one
- */
-template <class... Args> struct join;
-
-template <class Head, class Next, class ... Tail>
-struct join<Head, Next, Tail...> {
-  typedef
-    typename join<typename join<Head, Next>::type, Tail...>::type type;
-};
-
-template <class Head, class Last>
-struct join<Head, Last> {
-  private:
-    template <class S1, class S2, template <class...> class Out>
-    struct do_join;
-
-    template <class... S1, class... S2, template <class...> class Out>
-    struct do_join<sequence<S1...>, sequence<S2...>, Out> {
-        typedef Out<S1..., S2...> type;
-    };
-
-  public:
-    typedef typename do_join<
-      as_sequence_t<Head>,
-      as_sequence_t<Last>,
-      as_sequence<Head>::template rebind
-    >::type type;
-};
-
-template <class Head>
-struct join<Head> {
-  typedef Head type;
-};
-
-} // namespace tinympl
-
-#endif // TINYMPL_JOIN_HPP
+int main(int argc, char** argv) {
+  std::tuple<int, std::string, double, int> tup(5, "hello", 47.32, 42);
+  meta::tuple_for_each(tup, [](auto&& val) {
+    std::cout << val << std::endl;
+  });
+  meta::tuple_for_each(tup, [](auto&& val) {
+    std::cout << val << std::endl;
+  });
+  meta::tuple_for_each_with_index(tup, [](auto&& val, size_t idx) {
+    std::cout << idx << ": " << val << std::endl;
+  });
+  meta::tuple_for_each_with_index(std::make_tuple(5, "hello", 47.32, 42), [](auto&& val, size_t idx) {
+    std::cout << idx << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
+  });
+  char hello[6] = "hello";
+  meta::tuple_for_each_with_index(std::make_tuple(5, hello, 47.32, 42), [](auto&& val, size_t idx) {
+    std::cout << idx << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
+  });
+  meta::tuple_for_each(std::make_tuple(5, hello, 47.32, 42), [](auto&& val) {
+    std::cout << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
+  });
+}
