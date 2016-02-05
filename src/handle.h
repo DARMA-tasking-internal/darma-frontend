@@ -383,6 +383,23 @@ class AccessHandle
     typedef typename dep_handle_t::key_t key_t;
     typedef typename dep_handle_t::version_t version_t;
 
+  private:
+    ////////////////////////////////////////
+    // private inner classes
+
+    struct read_only_usage_holder {
+      dep_handle_ptr handle_;
+      read_only_usage_holder(const dep_handle_ptr& handle)
+        : handle_(handle)
+      { }
+      ~read_only_usage_holder() {
+        detail::backend_runtime->release_read_only_usage(handle_.get());
+      }
+    };
+
+    typedef typename detail::smart_ptr_traits<smart_ptr_template>::maker<read_only_usage_holder>
+      read_only_usage_holder_ptr_maker_t;
+
   public:
 
     AccessHandle(const AccessHandle& copied_from)
@@ -416,6 +433,7 @@ class AccessHandle
               /*needs_read_data = */ true,
               /*needs_write_data = */ false
             );
+            read_only_holder_ = outer.read_only_holder_;
             break;
           } // end case detail::ReadOnly
         case detail::ReadWrite: {
@@ -439,6 +457,15 @@ class AccessHandle
               outer.dep_handle_->key(),
               other_version, true
             );
+            // setup the read only holder for outer, but specifically
+            // do not transfer the old holder to this.  When all
+            // other uses of dep_handle_ are released, the destructor
+            // of the usage_holder will be called, telling the runtime
+            // system that no more read-only tasks will be created using
+            // this handle (in an unsatisfied state; read/write tasks
+            // can create read only tasks, but since the handle is satisfied,
+            // the data can just be read in place)
+            outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
             // Note that other.dep_handle_ is the output handle
             break;
           } // end case detail::ReadWrite
@@ -465,6 +492,8 @@ class AccessHandle
               other_version, true
             );
             outer.set_permissions(detail::ReadWrite);
+            // see ReadWrite case for explanation
+            outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
             // Note that other.dep_handle_ is the output handle
             break;
           } // end case detail::OverwriteOnly
@@ -492,6 +521,8 @@ class AccessHandle
               other_version, true
             );
             outer.set_permissions(detail::ReadWrite);
+            // see ReadWrite case for explanation
+            outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
             // Note that other.dep_handle_ is the output handle
             break;
           } // end case detail::Create
@@ -550,6 +581,9 @@ class AccessHandle
 
    private:
 
+    ////////////////////////////////////////
+    // private constructors
+
     AccessHandle(
       const key_type& key,
       const version_type& version,
@@ -557,36 +591,48 @@ class AccessHandle
     ) : dep_handle_(
           dep_handle_ptr_maker_t()(key, version, permissions != detail::ReadOnly)
         ),
-        permissions_(permissions)
-    { }
+        permissions_(permissions),
+        read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
+    {
+      if(permissions == detail::Create || permissions == detail::OverwriteOnly) {
+        // Release immediately; there's nothing to read
+        read_only_holder_.reset();
+      }
+    }
 
     AccessHandle(
       const key_type& key,
       detail::AccessPermissions permissions,
       const key_type& user_version_tag
     ) : dep_handle_(
-          dep_handle_ptr_maker_t()(
-            key,
-            user_version_tag,
-            permissions != detail::ReadOnly
-          )
+          dep_handle_ptr_maker_t()(key, user_version_tag, permissions != detail::ReadOnly)
         ),
-        permissions_(permissions)
-    { }
+        permissions_(permissions),
+        read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
+    {
+      assert(permissions != detail::Create);
+      if(permissions == detail::OverwriteOnly) {
+        // Release immediately; there's nothing to read
+        read_only_holder_.reset();
+      }
+    }
 
-    template <typename Deleter>
-    AccessHandle(
-      const key_type& key,
-      const version_type& version,
-      detail::AccessPermissions permissions,
-      Deleter deleter
-    ) : dep_handle_(
-          dep_handle_ptr_maker_t()(key, version),
-          deleter
-        ),
-        permissions_(permissions)
-    { }
+    //template <typename Deleter>
+    //AccessHandle(
+    //  const key_type& key,
+    //  const version_type& version,
+    //  detail::AccessPermissions permissions,
+    //  Deleter deleter
+    //) : dep_handle_(
+    //      dep_handle_ptr_maker_t()(key, version),
+    //      deleter
+    //    ),
+    //    permissions_(permissions)
+    //{ }
 
+
+    ////////////////////////////////////////
+    // private methods
 
     detail::AccessPermissions
     get_permissions() const {
@@ -598,11 +644,19 @@ class AccessHandle
       permissions_ = p;
     }
 
+    ////////////////////////////////////////
+    // private members
+
     mutable dep_handle_ptr dep_handle_;
     mutable detail::AccessPermissions permissions_;
 
+    types::shared_ptr_template<read_only_usage_holder> read_only_holder_;
     task_t* capturing_task = nullptr;
     AccessHandle* const prev_copied_from = nullptr;
+
+
+    ////////////////////////////////////////
+    // Friend functions
 
     template <
       typename T,

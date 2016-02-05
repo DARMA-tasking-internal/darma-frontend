@@ -169,13 +169,10 @@ class Runtime {
      *  error to register more than one task (\b globally) that returns true for Task::needs_write_data() on
      *  that handle.  (Undefined behavior is still allowed in optimized mode)
      *
-     *  @TODO !!! solver the reader-release problem
-     *
      */
     virtual void
     register_handle(
-      const handle_t* const handle,
-      const handle_t* const as_reader_of = nullptr
+      const handle_t* const handle
     ) =0;
 
 
@@ -202,6 +199,8 @@ class Runtime {
      *  on a handle that was registered with write_access_allowed=false, a debug mode error should be raised
      *  (undefined behavior is allowed in optimized mode).
      *
+     *  @remark for the 0.2.0 spec implementation, write_access_allowed should always be false
+     *
      *  @todo for 0.2.1 spec, revise the write_access_allowed description to incorporate the fact that the remote handle must
      *  also not create any post-publication subsequents (probably need a special publish)
      *
@@ -212,6 +211,32 @@ class Runtime {
       handle_t* const handle,
       const Key& user_version_tag,
       bool write_access_allowed
+    ) =0;
+
+    /** @brief Release the ability to create tasks that depend on handle as read-only.  The handle can
+     *  then only be used up to once more in a (read/)write context before it is released.
+     *
+     *  All handles can be used in a write context (i.e., be part of the return for Task::get_dependencies()
+     *  for a task that returns true for needs_write_data() on that handle) at most once in their lifetime
+     *  (from register_handle()/register_fetching_handle() to release_handle()).  This (up to) one "final"
+     *  usage must run after all read-only uses of the handle; however not all read-only uses of
+     *  a handle need to be registered by time the task making the "final" usage is registered.  Thus,
+     *  the frontend needs to indicate when no more read-only usages will be created, thus allowing
+     *  the "final" usage to clear its antidependencies.
+     *
+     *  This method indicates that no more tasks will be registered that use handle in a read context
+     *  but not in a write context (a maximum of one task may use handle in a write context anyway).
+     *  It must be called for all handles before release_handle() is called.  It is an error to call
+     *  release_handle() on a handle before calling release_read_only_usage().
+     *
+     *  @param handle a non-owning pointer to a DependencyHandle for which register_handle() or
+     *  register_fetching_handle() has been called on this instance but for which release_handle() has not
+     *  yet been called.
+     *
+     */
+    virtual void
+    release_read_only_usage(
+      const handle_t* const handle
     ) =0;
 
 
