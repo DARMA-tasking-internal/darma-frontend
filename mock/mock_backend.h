@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          spmd.h
+//                          mock_backend.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,53 +42,21 @@
 //@HEADER
 */
 
-#ifndef SPMD_H_
-#define SPMD_H_
+#ifndef MOCK_MOCK_BACKEND_H_
+#define MOCK_MOCK_BACKEND_H_
 
-#include "runtime.h"
-#include "abstract/backend/runtime.h"
-#include "task.h"
+#define DHARMA_BACKEND_TYPES_INCLUDE <stream_key.h>
+#define DHARMA_BACKEND_CUSTOM_KEY_TYPE
 
-#include <memory>
+#include "stream_key.h"
 
-namespace dharma_runtime {
+namespace dharma_runtime { namespace types {
+  typedef mock_backend::StreamKey key_t;
+}} // end namespace dharma_runtime::types
 
-typedef size_t dharma_rank_t;
+#include <dharma.h>
 
-inline void
-dharma_init(
-  int& argc,
-  char**& argv
-) {
-  abstract::backend::dharma_backend_initialize(
-    argc, argv, detail::backend_runtime,
-    std::make_unique<detail::TopLevelTask>()
-  );
-}
 
-inline dharma_rank_t
-dharma_spmd_rank() {
-  assert(std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>())
-    == DHARMA_BACKEND_SPMD_NAME_PREFIX
-  );
-  return detail::backend_runtime
-      ->get_running_task()->get_name().component<1>().as<dharma_rank_t>();
-}
 
-inline dharma_rank_t
-dharma_spmd_size() {
-  assert(std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>())
-    == DHARMA_BACKEND_SPMD_NAME_PREFIX
-  );
-  return detail::backend_runtime
-      ->get_running_task()->get_name().component<2>().as<dharma_rank_t>();
-}
 
-inline void
-dharma_finalize() {
-  detail::backend_runtime->finalize();
-}
-
-} // end namespace dharma_runtime
-
-#endif /* SPMD_H_ */
+#endif /* MOCK_MOCK_BACKEND_H_ */
