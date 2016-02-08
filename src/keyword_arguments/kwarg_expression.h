@@ -45,11 +45,18 @@
 #ifndef KEYWORD_ARGUMENTS_KWARG_EXPRESSION_H_
 #define KEYWORD_ARGUMENTS_KWARG_EXPRESSION_H_
 
+#include "keyword_argument_name.h"
+
 namespace dharma_runtime { namespace detail {
 
 ////////////////////////////////////////////////////////////////////////////////
 
 /* kwarg_expression                                                      {{{1 */ #if 1 // begin fold
+
+template <class T>
+struct is_kwarg_expression
+  : public std::false_type
+{ };
 
 template <
   typename T,
@@ -113,11 +120,6 @@ class kwarg_expression
   private:
     actual_value_t val_;
 };
-
-template <class T>
-struct is_kwarg_expression
-  : public std::false_type
-{ };
 
 template <typename T, typename KWArgName, bool rhs_is_lvalue>
 struct is_kwarg_expression<kwarg_expression<T, KWArgName, rhs_is_lvalue>>

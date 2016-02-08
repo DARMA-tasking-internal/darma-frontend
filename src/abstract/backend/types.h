@@ -53,6 +53,7 @@
 #endif
 
 #ifndef DHARMA_BACKEND_CUSTOM_KEY_TYPE
+#include "../defaults/key_fwd.h"
 #include "../defaults/key.h"
 namespace dharma_runtime { namespace types {
   typedef dharma_runtime::defaults::Key key_t;
@@ -64,15 +65,15 @@ namespace dharma_runtime {
 // Key utility functions
 
 template <typename... Args>
-inline constexpr key_t
+inline types::key_t
 make_key(Args&&... args) {
-  return dharma_runtime::detail::key_traits<key_t>::maker()(std::forward<Args>(args)...);
+  return dharma_runtime::detail::key_traits<types::key_t>::maker()(std::forward<Args>(args)...);
 }
 
 template <typename TupleType>
-inline constexpr key_t
+inline types::key_t
 make_key_from_tuple(TupleType&& tup) {
-  return dharma_runtime::detail::key_traits<key_t>::maker_from_tuple()(std::forward<TupleType>(tup));
+  return dharma_runtime::detail::key_traits<types::key_t>::maker_from_tuple()(std::forward<TupleType>(tup));
 }
 
 } // end namespace dharma_runtime

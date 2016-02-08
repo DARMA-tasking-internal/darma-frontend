@@ -162,7 +162,7 @@ class basic_version {
       else {
         // only equal if all remaining values in other
         // are equal to our "0"
-        typedef OtherVersion::value_t other_value_t;
+        typedef typename OtherVersion::value_t other_value_t;
         const other_value_t zero = other_value_t();
         for(size_t i = other.depth(); i < depth(); ++i) {
           if(zero == version_clock.at(i)) continue;
