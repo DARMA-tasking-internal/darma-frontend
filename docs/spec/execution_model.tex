@@ -1,0 +1,67 @@
+\section{Execution Model}
+\label{sec:exec_model}
+DHARMA supports \gls{spmd} parallelism as the dominant form of parallelism in
+distributed application codes. Similar to \gls{MPI}, the application developer
+is in charge of the initial problem decomposition into a set of
+independently operating \glspl{rank}. 
+However, DHARMA has a \gls{deferred} \gls{execution model}, that differs from the
+\gls{imperative} model of \gls{MPI}.
+In DHARMA, the application developer describes the
+work they would like done, providing the runtime the flexibility to optimize performance and
+exploit additional parallelism when possible.    
+Specifically, the application developer uses \gls{coordination semantics}
+(see~\ref{sec:mem_model} for details) in place of direct communication (e.g.,
+    \inlinecode{send/recv}).  Rather than explicitly (imperatively)
+perform work in program order and block on data requests, work is enqueued to
+be performed, and is free to run once all of it's data \glspl{dependency} are met.
+
+
+DHARMA enables the expression of additional \gls{task parallelism} and
+\gls{pipeline parallelism} via permissions qualifiers on data 
+and through \CC-embedded task annotations (described in
+    Chapter~\ref{chap:front_end}). Task annotations can be nested.
+\todo{elaborate on this point}
+These annotations are translated by
+the DHARMA \gls{middle end} which uses standard \CC\ constructs (e.g., lambdas,
+  reference counted pointers) and \gls{template
+metaprogramming} to manage the parallelism.  The \gls{middle end} requires
+\CC14 standard features (details provided in Chapter~\ref{chap:middle_end}), 
+  however the \gls{front end} \gls{API} does \emph{not}
+require knowledge of \CC14 to use. Furthermore, the \gls{back end} is a
+simple set of abstract \CC\ classes whose functionality must be implemented
+according to the functionality specfied in Chapter~\ref{chap:back_end}.
+
+DHARMA enforces \gls{sequential semantics}, meaning that within a \gls{rank}, you can reason about the code as
+though it were being deployed sequentially.   
+
+\todo[inline]{talk about over-decomposition - add details regarding
+  initial mapping and overdecomposition}
+
+Although not yet supported in version 0.2 of the specification, several
+important features will play a role in the DHARMA execution model:
+
+\paragraph{Expressive Underlying Abstract Machine Model}
+Notions of \glspl{execution space} and \glspl{memory space} will be introduced
+formally in later
+versions of the specification.  These abstractions (or similar ones) appear in other runtime
+solutions~\cite{kokkos, others} \todo{add relevant citations here} to
+address deficiencies in the abstract machine model used by runtimes that
+support \gls{spmd} parallelism (i.e., uniform compute elements, flat memory
+    spaces).  Using such abstractions
+facilitates performance portable application development across 
+a variety of execution spaces.
+
+
+\paragraph{Dynamically-determined fork-join parallelism}
+In future versions of the specification, additional fork join parallelism will
+be supported.  The user will be able to express the \gls{execution space} on
+which it would like to be run, along with the fraction of the resources within
+that space it would like to consume (e.g., number of threads on a CPU).
+\todo[inline]{add detail re type of fork-join parallelism supported here: Is
+  this terminally strict?, fully strict?}
+
+\paragraph{Collectives}
+In future versions of the specification, commonly used collectives
+will be supported natively.
+\todo[inline]{Jeremy: provide details here}
+
