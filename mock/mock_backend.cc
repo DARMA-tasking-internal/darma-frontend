@@ -44,9 +44,10 @@
 
 #include <iostream>
 
+#include "mock_backend.h"
+
 #include <abstract/backend/runtime.h>
 #include <abstract/backend/data_block.h>
-#include <dharma.h>
 
 using namespace dharma_runtime;
 using std::cout;
