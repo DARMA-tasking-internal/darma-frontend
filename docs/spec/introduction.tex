@@ -1,0 +1,106 @@
+\todo[inline]{Note the use of the type keyword in the glossary entries. We can use this to create subglossaries according to topic.  Right now, everything is just going to a single main glossary. We should think about whether or not we want subglossaries, and if so, how we would like to structure these.}
+
+\todo[inline]{Throughout glossaries and text, make sure usage of concurrency and
+  parallelism are consistent and correct.}
+\todo[inline]{Figure out how to make inlinecode and gls play nice together in latex,
+  then update text accordingly}
+\todo[inline]{Make a pass to add text to glossary where appropriate}
+\todo[inline]{Consistency check: DHARMA/DARMA}
+
+\chapter{Introduction}
+\label{chap:introduction}
+As we look ahead to next generation platforms and exascale computing,  hardware 
+will be characterized by dynamic behavior, increased
+heterogeneity, and a marked increase in overall system \gls{concurrency}
+~\cite{doe_arch, dav_exascale}. 
+In order to extract maximal performance from these new architecutres,
+alternative programming  and \glspl{execution model}, such as the \gls{AMT
+model} are increasingly being explored by the HPC community.  These models break from the dominant
+\gls{CSP} or \gls{spmd} models in use today. 
+An \gls{AMT} \gls{programming model} decomposes applications into small, transferable units of work (many tasks) with associated inputs (dependencies or data blocks) rather than simply decomposing at the process level (MPI ranks).
+An \gls{AMT} \gls{execution model} can be viewed as the coarse-grained, distributed memory analog of instruction-level parallelism, extending the concepts of data prefetching,
+out-of-order task execution based on dependency analysis, and even branch prediction (speculative execution). 
+Rather than executing in a well-defined order, tasks execute when inputs become available.
+An \gls{AMT} model aims to leverage all available \gls{task parallelism} and
+\gls{pipeline parallelism}, rather just relying on basic \gls{data
+  parallelism} for \gls{concurrency}.
+The term asynchronous encompasses the idea that 1) processes (threads) can
+  diverge to different tasks, rather than executing in the same order; and 2)
+  \gls{concurrency} is maximized (minimum synchronization) by leveraging
+  multiple forms of \gls{parallelism}.
+	The term many-task encompasses the idea that the application is decomposed
+  into many \emph{transferable} or \emph{migratable} units of work, to
+  enable the overlap of communication and computation as well as asynchronous load balancing strategies.  
+
+
+This document defines the specification of the DHARMA \gls{API}.
+DHARMA is an \gls{AMT} \gls{EDSL} in \CC.
+It inherits the generic language constructs of \CC, and adds 
+\gls{semantics} that facilitate distributed parallel programming via the
+higher-level abstractions presented in this document.   
+In DHARMA \gls{spmd} is the dominant parallelism and the notion of a \gls{rank}
+is maintained within the \gls{API}.   
+  The DHARMA \gls{API} simplifies the introduction
+  of asynchronous task parallelism via the use of standard \CC\ constructs, such
+  as \gls{reference counted pointers} and \glspl{lambda}.
+
+
+
+DHARMA comprises three main layers: the \gls{front end}, \gls{middle end}, and
+\gls{back end}.  The \gls{front end} is the user-level \gls{API}.  The
+\gls{middle end} is a library that heavily leverages \CC \gls{template metaprogramming} 
+to translate to a series of \gls{back end} abstract classes.
+This document we 1) introduce the \gls{front end} \gls{API}, 2) provide a brief
+description of the \gls{middle end} translation layer, and 3) detail what must be
+supported by each of the \gls{back end} abstract classes to implement the DHARMA runtime.
+
+
+
+\section{Scope}
+\label{sec:scope}
+DHARMA is a vehicle to support AMT programming models and runtime
+systems research.  The \gls{API} is being \gls{co-design}ed with application developers
+and computer scientists whose knowledge spans the entire runtime software stack.
+Current applications affecting the design include portions of the \gls{Trilinos} software stack
+and \gls{ASC} \gls{ATDM} efforts at Sandia National Laboratories. 
+ 
+
+The \gls{AMT} \gls{runtime system} research community is quite active, with many efforts being
+explored at different levels of the software stack~\cite{OCR,STAPL,Legion,StencilHPX,Charm++,Uintah, Loci}. 
+Many of these effort could be used in whole or in part to implement the DHARMA
+specificaiton.
+
+This specification covers user-directed parallelization, where the user
+has annotated that portions of the work could be performed asynchronously.
+The DHARMA runtime will schedule all asynchronous work in a \gls{deferred} fashion,
+checking that all \gls{input dependencies} are met prior to performing work.  
+The user is responsible for ensuring that the application using the DHARMA
+\gls{API} constructs executes correctly.
+
+
+The DHARMA \gls{middle end} requires \CC features supported by the \CC14
+standard, and will work with the following compilers: \inlinecode{gcc >= 4.7, clang >= 3.5}.
+
+\input{execution_model}
+
+\input{memory_model}
+
+\input{data_model}
+
+
+
+\section{Document organization}
+\label{sec:organization}
+This docuemnt is organized as follows.  In Chapter~\ref{chap:front_end} we
+introduce the \gls{front end} \gls{API}.  In Chapter~\ref{chap:middle_end} we
+provide a description of the \gls{middle end} translation layer, and in
+Chapter~\ref{chap:back_end} we provide the specifics regarding what must be
+supproted by each of the \gls{back end} abstract classes in order to implement
+the DHARMA runtime. In Chapter~\ref{chap:examples} we provide a series of
+examples that illustrate usage of the \gls{API}. The DHARMA specification is
+undergoing rapid development and evolution during the calendar year 2016.  
+We conclude this document with
+Chapter~\ref{chap:evolution}, which includes a brief history of changes between
+previous versions of the specificaiton, along with a list of the planned changes the
+in upcoming versions.
+
