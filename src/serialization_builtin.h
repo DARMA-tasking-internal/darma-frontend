@@ -45,79 +45,82 @@
 #ifndef SRC_SERIALIZATION_BUILTIN_H_
 #define SRC_SERIALIZATION_BUILTIN_H_
 
+#include <vector>
+#include <map>
+
 #include "serialization.h"
 
-namespace dharma_runtime {
-
-// Examples:
-
-template <
-  typename T,
-  typename std::enable_if<
-    detail::is_trivially_serializable<T>::value
-  >::type
->
-struct nonintrusive_serialization_interface<std::vector<T>>
-  : ensure_implements_zero_copy<std::vector<T>>
-{
-  size_t num_zero_copy_slots(const std::vector<T>&) const {
-    return 1;
-  }
-  size_t zero_copy_slot_size(const std::vector<T>& v, size_t slot) {
-    assert(slot == 0);
-    return v.capacity() * sizeof(T);
-  }
-  void*& get_zero_copy_slot(std::vector<T>& v, size_t slot) {
-    return v.data();
-  }
-};
-
-// TODO FIX THIS!!!!
-template <typename T, typename U>
-struct nonintrusive_serialization_interface<std::map<T, U>>
-{
-  void serialize_metadata(std::map<T, U>& m, Archive& ar) const {
-    if(ar.is_unpacking()) {
-      m = new (&m) std::map<T, U>();
-      size_t n_pairs = 0;
-      ar & n_pairs;
-      for(int i = 0; i < n_pairs; ++i) {
-        T t; ar & t;
-        U u; ar & u;
-        m.emplace(t, u);
-      }
-    }
-    else { // ar.is_sizing() || ar.is_packing()
-      ar & m.size();
-      for(auto&& pair : ar) {
-        ar & pair.first();
-        ar & pair.second();
-      }
-    }
-  }
-  void serialize_data(std::map<T, U>& m, Archive& ar) const {
-    if(ar.is_unpacking()) {
-      m = new (&m) std::map<T, U>();
-      size_t n_pairs = 0;
-      ar & n_pairs;
-      for(int i = 0; i < n_pairs; ++i) {
-        T t; ar & t;
-        U u; ar & u;
-        m.emplace(t, u);
-      }
-    }
-    else { // ar.is_sizing() || ar.is_packing()
-      ar & m.size();
-      for(auto&& pair : ar) {
-        ar & pair.first();
-        ar & pair.second();
-      }
-    }
-  }
-
-};
-
-} // end namespace dharma_runtime
+//namespace dharma_runtime {
+//
+//// Examples:
+//
+//template <
+//  typename T,
+//  typename std::enable_if<
+//    detail::is_trivially_serializable<T>::value
+//  >::type
+//>
+//struct nonintrusive_serialization_interface<std::vector<T>>
+//  : ensure_implements_zero_copy<std::vector<T>>
+//{
+//  size_t num_zero_copy_slots(const std::vector<T>&) const {
+//    return 1;
+//  }
+//  size_t zero_copy_slot_size(const std::vector<T>& v, size_t slot) {
+//    assert(slot == 0);
+//    return v.capacity() * sizeof(T);
+//  }
+//  void*& get_zero_copy_slot(std::vector<T>& v, size_t slot) {
+//    return v.data();
+//  }
+//};
+//
+//// TODO FIX THIS!!!!
+//template <typename T, typename U>
+//struct nonintrusive_serialization_interface<std::map<T, U>>
+//{
+//  void serialize_metadata(std::map<T, U>& m, Archive& ar) const {
+//    if(ar.is_unpacking()) {
+//      m = new (&m) std::map<T, U>();
+//      size_t n_pairs = 0;
+//      ar & n_pairs;
+//      for(int i = 0; i < n_pairs; ++i) {
+//        T t; ar & t;
+//        U u; ar & u;
+//        m.emplace(t, u);
+//      }
+//    }
+//    else { // ar.is_sizing() || ar.is_packing()
+//      ar & m.size();
+//      for(auto&& pair : m) {
+//        ar & pair.first();
+//        ar & pair.second();
+//      }
+//    }
+//  }
+//  void serialize_data(std::map<T, U>& m, Archive& ar) const {
+//    if(ar.is_unpacking()) {
+//      m = new (&m) std::map<T, U>();
+//      size_t n_pairs = 0;
+//      ar & n_pairs;
+//      for(int i = 0; i < n_pairs; ++i) {
+//        T t; ar & t;
+//        U u; ar & u;
+//        m.emplace(t, u);
+//      }
+//    }
+//    else { // ar.is_sizing() || ar.is_packing()
+//      ar & m.size();
+//      for(auto&& pair : m) {
+//        ar & pair.first();
+//        ar & pair.second();
+//      }
+//    }
+//  }
+//
+//};
+//
+//} // end namespace dharma_runtime
 
 
 

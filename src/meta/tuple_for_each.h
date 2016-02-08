@@ -111,7 +111,10 @@ struct _helper1 {
     return std::tuple_cat(
       std::tuple<i_return_t>(
         invoker<i_return_t, GenericLambda, IncludeIndex, I>()(
-          std::forward<qualified_element_t>(
+          std::forward<
+            decltype(std::get<I>(std::forward<TupleArg>(tup)))
+          >(
+          //std::forward<qualified_element_t>(
             std::get<I>(std::forward<TupleArg>(tup))
           ),
           std::forward<GenericLambda>(lambda)
@@ -139,7 +142,9 @@ struct _helper1<Tuple, GenericLambda, void, I, next_t, i_return_t, TupleArg, Inc
         >::type
     >::type qualified_element_t;
     invoker<i_return_t, GenericLambda, IncludeIndex, I>()(
-      std::forward<qualified_element_t>(
+      std::forward<
+        decltype(std::get<I>(std::forward<TupleArg>(tup)))
+      >(
         std::get<I>(std::forward<TupleArg>(tup))
       ),
       std::forward<GenericLambda>(lambda)
@@ -278,7 +283,7 @@ tuple_for_each(
     typename std::decay<Tuple>::type,
     GenericLambda, Tuple
   > impl_t;
-  impl_t()(
+  return impl_t()(
     std::forward<Tuple>(tup),
     std::forward<GenericLambda>(lambda)
   );
@@ -302,7 +307,7 @@ tuple_for_each_with_index(
     typename std::decay<Tuple>::type,
     GenericLambda, Tuple, true
   > impl_t;
-  impl_t()(
+  return impl_t()(
     std::forward<Tuple>(tup),
     std::forward<GenericLambda>(lambda)
   );

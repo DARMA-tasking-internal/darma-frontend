@@ -48,8 +48,12 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "abstract/backend/types.h"
+#include "abstract/backend/runtime.h"
+#include "abstract/frontend/dependency_handle.h"
 #include "abstract/frontend/task.h"
-#include "handle.h"
+
+#include "runtime.h"
 
 #include <tinympl/greater.hpp>
 #include <tinympl/int.hpp>
@@ -57,6 +61,9 @@
 #include <tinympl/identity.hpp>
 #include <tinympl/at.hpp>
 #include <tinympl/erase.hpp>
+#include <tinympl/bind.hpp>
+#include <tinympl/logical_and.hpp>
+#include <tinympl/vector.hpp>
 
 namespace dharma_runtime {
 
@@ -99,7 +106,7 @@ struct task_traits {
 
   private:
     static constexpr const size_t _possible_version_index =
-      std::conditional<_first_is_key, m::int_<1>, m::int_<0>>::type::value
+      std::conditional<_first_is_key, m::int_<1>, m::int_<0>>::type::value;
     static constexpr const bool _version_given = m::and_<
       m::greater<m::int_<sizeof...(Types)>, m::int_<_possible_version_index>>,
       m::delay<
@@ -113,7 +120,7 @@ struct task_traits {
     typedef typename std::conditional<
       _version_given,
       mv::at<_possible_version_index, Types...>,
-      m::identity<default_version_t>
+      m::identity<types::version_t>
     >::type::type version_t;
 
   private:
@@ -141,12 +148,13 @@ class TaskBase
     typedef abstract::backend::runtime_t::version_t version_t;
     typedef types::shared_ptr_template<handle_t> handle_ptr;
     typedef types::handle_container_template<handle_t*> get_deps_container_t;
-    typedef std::unordered_set<handle_ptr> needs_handle_container_t;
+    typedef std::unordered_set<handle_t*> needs_handle_container_t;
 
     get_deps_container_t dependencies_;
 
     needs_handle_container_t needs_read_deps_;
     needs_handle_container_t needs_write_deps_;
+    std::vector<handle_ptr> all_deps_;
 
     key_t name_;
 
@@ -159,9 +167,10 @@ class TaskBase
       bool needs_write_data
     ) {
       dependencies_.insert(dep.get());
+      all_deps_.push_back(dep);
       assert(needs_read_data || needs_write_data);
-      if(needs_read_data) needs_read_deps_.insert(dep);
-      if(needs_write_data) needs_write_deps_.insert(dep);
+      if(needs_read_data) needs_read_deps_.insert(dep.get());
+      if(needs_write_data) needs_write_deps_.insert(dep.get());
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -174,16 +183,18 @@ class TaskBase
 
     bool
     needs_read_data(
-      const handle_t* const handle
+      const handle_t* handle
     ) const override {
-      return needs_read_deps_.find(handle) != needs_read_deps_.end();
+      // TODO figure out why this doesn't work like it should...
+      return needs_read_deps_.find(const_cast<handle_t*>(handle)) != needs_read_deps_.end();
     }
 
     bool
     needs_write_data(
-      const handle_t* const handle
+      const handle_t* handle
     ) const override {
-      return needs_write_deps_.find(handle) != needs_write_deps_.end();
+      // TODO figure out why this doesn't work like it should...
+      return needs_write_deps_.find(const_cast<handle_t*>(handle)) != needs_write_deps_.end();
     }
 
     const key_t&

@@ -159,7 +159,7 @@ class SerializationManager {
      */
     virtual size_t
     get_n_zero_copy_slots(
-      const void* const deserialized_metadata,
+      const void* const deserialized_metadata
     ) const
     { return 0; }
 
@@ -178,7 +178,8 @@ class SerializationManager {
     get_zero_copy_slot(
       void* const deserialized_metadata,
       zero_copy_slot_t slot
-    ) const =0;
+    ) const
+    { static void* null_ptr_instance = nullptr; return null_ptr_instance; };
 
     //////////////////////////////////////////
     //// Callbacks indicating that the

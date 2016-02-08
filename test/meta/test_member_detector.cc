@@ -53,6 +53,11 @@ struct TestHasPolicy {
   int policy(int, char, std::string&) { return 0; }
 };
 
+struct TestHasOtherPolicy {
+  void*& policy(int) { return my_ptr; }
+  void* my_ptr;
+};
+
 struct TestHasConstPolicy {
   int policy(int, char, std::string&) const { return 0; }
 };
@@ -123,6 +128,13 @@ static_assert(
 
 static_assert(
   not has_method_named_policy_with_signature<TestNoPolicy, int(int, char, std::string&)>::value,
+  "doesn't work"
+);
+
+static_assert(
+  has_method_named_policy_with_signature<TestHasOtherPolicy,
+    void*&(int)
+  >::value,
   "doesn't work"
 );
 

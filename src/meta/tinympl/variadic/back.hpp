@@ -45,16 +45,14 @@
 #ifndef SRC_META_TINYMPL_VARIADIC_BACK_HPP_
 #define SRC_META_TINYMPL_VARIADIC_BACK_HPP_
 
+#include <tinympl/vector.hpp>
+
 namespace tinympl {
 namespace variadic {
 
-template <typename... Ts> struct back;
+template <typename... Ts>
+struct back : public vector<Ts...>::back { };
 
-template <typename T, typename... Ts>
-struct back<Ts..., T>
-{
-  typedef T type;
-};
 
 } // end namespace variadic
 } // end namespace tinympl

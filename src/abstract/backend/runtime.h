@@ -415,11 +415,11 @@ typedef Runtime<
  *  must no longer be in argc and argv.
  *
  */
-extern void
+void
 dharma_backend_initialize(
   int& argc, char**& argv,
   runtime_t*& backend_runtime,
-  types::unique_ptr_template<typename runtime_t::task_t> top_level_task
+  types::unique_ptr_template<typename runtime_t::task_t>&& top_level_task
 );
 
 

@@ -115,7 +115,7 @@ class Task {
      */
     virtual bool
     needs_read_data(
-      const handle_t* const handle
+      const handle_t* handle
     ) const =0;
 
     /** @brief returns true iff the task needs to write data to handle
@@ -141,7 +141,7 @@ class Task {
      */
     virtual bool
     needs_write_data(
-      const handle_t* const handle
+      const handle_t* handle
     ) const =0;
 
     /** @brief returns the name of the task if one has been assigned with set_name(), or

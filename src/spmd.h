@@ -55,7 +55,7 @@ namespace dharma_runtime {
 
 typedef size_t dharma_rank_t;
 
-void
+inline void
 dharma_init(
   int& argc,
   char**& argv
@@ -66,7 +66,7 @@ dharma_init(
   );
 }
 
-dharma_rank_t
+inline dharma_rank_t
 dharma_spmd_rank() {
   assert(std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<const char*>())
     == DHARMA_BACKEND_SPMD_NAME_PREFIX
@@ -75,7 +75,7 @@ dharma_spmd_rank() {
       ->get_running_task()->get_name().component<1>().as<dharma_rank_t>();
 }
 
-dharma_rank_t
+inline dharma_rank_t
 dharma_spmd_size() {
   assert(std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<const char*>())
     == DHARMA_BACKEND_SPMD_NAME_PREFIX
@@ -84,7 +84,7 @@ dharma_spmd_size() {
       ->get_running_task()->get_name().component<2>().as<dharma_rank_t>();
 }
 
-void
+inline void
 dharma_finalize() {
   detail::backend_runtime->finalize();
 }

@@ -54,7 +54,7 @@ class Key;
 namespace detail {
 
 template <typename key_type>
-struct key_traits;
+struct key_traits { };
 
 } // end namespace detail
 

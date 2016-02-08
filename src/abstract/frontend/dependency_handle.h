@@ -55,7 +55,14 @@ namespace backend {
   class DataBlock;
 } // end namespace backend
 
+// Forward declaration of SerializationManager
 namespace frontend {
+  class SerializationManager;
+} // end namespace backend
+
+namespace frontend {
+
+
 
 /**
  *  @ingroup abstract
@@ -135,7 +142,7 @@ class DependencyHandle {
      *  @todo 0.3 spec: more discussion as SerializationManager spec matures
      *
      */
-    SerializationManager*
+    virtual SerializationManager*
     get_serialization_manager() =0;
 
     /** @brief Satisfy the dependency handle with data or with an allocated buffer into which data
