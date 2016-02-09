@@ -72,7 +72,8 @@ struct join<Head, Next, Tail...> {
     typename join<typename join<Head, Next>::type, Tail...>::type type;
 };
 
-template <class Head, class Last> struct join<Head, Last> {
+template <class Head, class Last>
+struct join<Head, Last> {
   private:
     template <class S1, class S2, template <class...> class Out>
     struct do_join;

@@ -47,15 +47,21 @@
 
 #include <atomic>
 #include <cassert>
+#include "task.h"
 #include "runtime.h"
-#include "version.h"
+#include "abstract/defaults/version.h"
+#include "util.h"
+
+#include <tinympl/variadic/find_if.hpp>
+#include <tinympl/bind.hpp>
+#include <tinympl/lambda.hpp>
 
 #include "abstract/backend/data_block.h"
 #include "keyword_arguments/keyword_arguments.h"
 
 DeclareDharmaKeyword(publication, n_readers, size_t);
 // TODO make this a key expression instead of a std::string
-DeclareDharmaKeyword(publication, version, std::string);
+DeclareDharmaKeyword(publication, version, int);
 
 namespace dharma_runtime {
 
@@ -69,6 +75,19 @@ template <
   typename... Args
 >
 struct access_expr_helper {
+  inline types::key_t
+  get_key(
+    Args&&... args
+  ) const {
+    // TODO
+  }
+
+  inline types::key_t
+  get_version_tag(
+    Args&&... args
+  ) const {
+    // TODO
+  }
 
 };
 
@@ -85,32 +104,44 @@ struct publish_expr_helper {
     Args...
   >::value;
 
-  inline
-  typename std::enable_if<
-    find_spot == sizeof...(Args),
-    size_t
-  >::type
+  inline size_t
   get_n_readers(
     Args&&... args
   ) const {
     // Default value
+    // TODO fix this
     return 1;
   }
 
+  //inline
+  //typename std::enable_if<
+  //  (find_spot < sizeof...(Args)),
+  //  size_t
+  //>::type
+  //get_n_readers(
+  //  Args&&... args
+  //) const {
+  //  // TODO won't work with 0 args
+  //  return std::get<
+  //    find_spot == sizeof...(Args) ? 0 : find_spot
+  //  >(std::forward_as_tuple(args...));
+  //}
+
   inline
-  typename std::enable_if<
-    (find_spot < sizeof...(Args)),
-    size_t
-  >::type
-  get_n_readers(
+  types::key_t
+  get_version_tag(
     Args&&... args
   ) const {
-    // TODO won't work with 0 args
-    return std::get<
-      find_spot == sizeof...(Args) ? 0 : find_spot
-    >(std::forward_as_tuple(args...));
+    // TODO
   }
 
+
+  inline bool
+  version_tag_is_final(
+    Args&&... args
+  ) const {
+    // TODO
+  }
 };
 
 
@@ -125,6 +156,8 @@ class KeyedObject
   public:
 
     typedef key_type key_t;
+
+    KeyedObject(const key_type& key) : key_(key) { }
 
     const key_t&
     get_key() const {
@@ -148,12 +181,14 @@ class VersionedObject
 
     typedef version_type version_t;
 
+    VersionedObject(const version_type& v) : version_(v) { }
+
     const version_t&
     get_version() const {
       return version_;
     }
 
-  protected:
+  public:
 
     void push_subversion() {
       version_.push_subversion();
@@ -187,8 +222,8 @@ typedef enum AccessPermissions {
 
 
 template <
-  typename key_type=default_key_t,
-  typename version_type=default_version_t
+  typename key_type=types::key_t,
+  typename version_type=types::version_t
 >
 class DependencyHandleBase
   : public KeyedObject<key_type>,
@@ -201,16 +236,20 @@ class DependencyHandleBase
     typedef VersionedObject<version_type> versioned_base_t;
     typedef typename versioned_base_t::version_t version_t;
 
-    using KeyedObject<key_type>::get_key;
-    using VersionedObject<version_type>::get_version;
+    const key_type&
+    get_key() const override {
+      return this->KeyedObject<key_type>::get_key();
+    }
+    const version_type&
+    get_version() const override {
+      return this->VersionedObject<version_type>::get_version();
+    }
 
     DependencyHandleBase(
       const key_t& key,
-      const version_t& version,
-      AccessPermissions permissions = ReadOnly
+      const version_t& version
     ) : keyed_base_t(key),
-        versioned_base_t(version),
-        permissions_(permissions)
+        versioned_base_t(version)
     { }
 
     virtual ~DependencyHandleBase() noexcept { }
@@ -218,10 +257,32 @@ class DependencyHandleBase
     bool
     is_satisfied() const override { return satisfied_; }
 
+    bool
+    is_writable() const override { return writable_; }
+
+    void
+    allow_writes() override { writable_ = true; }
+
+    bool
+    version_is_pending() const override { return version_is_pending_; }
+
+    void
+    set_version_is_pending(bool is_pending) override {
+      version_is_pending_ = true;
+    }
+
+    void set_version(const version_t& v) override {
+      assert(version_is_pending_);
+      version_is_pending_ = false;
+      this->version_ = v;
+    }
+
   protected:
     void* data_ = nullptr;
     abstract::backend::DataBlock* data_block_ = nullptr;
     bool satisfied_ = false;
+    bool writable_ = false;
+    bool version_is_pending_ = false;
 };
 
 
@@ -244,13 +305,22 @@ class DependencyHandle
 
     DependencyHandle(
       const key_t& data_key,
-      const version_t& data_version,
-      bool write_access_allowed
-    ) : DependencyHandleBase(data_key, data_version),
-        value_((T*)this->data_)
+      const version_t& data_version
+    ) : base_t(data_key, data_version),
+        value_((T*&)this->base_t::data_)
     {
-      backend_runtime->register_handle(this,
-        /* write_access_allowed = */ write_access_allowed
+      backend_runtime->register_handle(this);
+    }
+
+    DependencyHandle(
+      const key_t& data_key,
+      const key_t& user_version_tag,
+      bool write_access_allowed
+    ) : base_t(data_key, version_t()),
+        value_((T*&)this->base_t::data_)
+    {
+      backend_runtime->register_fetching_handle(this,
+        user_version_tag, write_access_allowed
       );
     }
 
@@ -258,7 +328,10 @@ class DependencyHandle
     void
     emplace_value(Args&&... args)
     {
-      if(value_ == nullptr) allocate_metadata(sizeof(T));
+      // TODO decide if this should happen here or where...
+      //if(value_ == nullptr) allocate_metadata(sizeof(T));
+      // for now, assume/assert it's allocated to be the right size by the backend:
+      assert(value_ != nullptr);
       value_ = new (&value_) T(
         std::forward<Args>(args)...
       );
@@ -276,6 +349,15 @@ class DependencyHandle
     {
       // Invoke the move constructor, if available
       emplace_value(std::forward<T>(val));
+    }
+
+    template <typename U>
+    std::enable_if_t<
+      std::is_convertible<U, T>::value
+    >
+    set_value(U&& val) {
+      // TODO handle custom operator=() case (for instance)
+      emplace_value(std::forward<U>(val));
     }
 
     ~DependencyHandle() {
@@ -308,7 +390,7 @@ class DependencyHandle
   public:
 
     abstract::frontend::SerializationManager*
-    get_serialization_manager() {
+    get_serialization_manager() override {
       return &ser_manager_;
     }
 
@@ -345,6 +427,32 @@ template <
   typename version_type = types::version_t,
   template <typename...> class smart_ptr_template = types::shared_ptr_template
 >
+class AccessHandle;
+
+template <
+  typename U,
+  typename... KeyExprParts
+>
+AccessHandle<U>
+read_access(
+  KeyExprParts&&... parts
+);
+
+template <
+  typename U,
+  typename... KeyExprParts
+>
+AccessHandle<U>
+read_write(
+  KeyExprParts&&... parts
+);
+
+template <
+  typename T,
+  typename key_type,
+  typename version_type,
+  template <typename...> class smart_ptr_template
+>
 class AccessHandle
 {
   protected:
@@ -354,32 +462,69 @@ class AccessHandle
     typedef smart_ptr_template<const dep_handle_t> dep_handle_const_ptr;
     typedef detail::TaskBase task_t;
     typedef smart_ptr_template<task_t> task_ptr;
-    typedef typename detail::smart_ptr_traits<smart_ptr_template>::maker<dep_handle_t>
+    typedef typename detail::smart_ptr_traits<std::shared_ptr>::template maker<dep_handle_t>
       dep_handle_ptr_maker_t;
 
     typedef typename dep_handle_t::key_t key_t;
     typedef typename dep_handle_t::version_t version_t;
 
-  public:
+  private:
+    ////////////////////////////////////////
+    // private inner classes
 
-    AccessHandle(const AccessHandle& moved_from)
-      : dep_handle_(std::move(moved_from.dep_handle_)),
-        permissions_(moved_from.permissions_),
+    struct read_only_usage_holder {
+      dep_handle_ptr handle_;
+      read_only_usage_holder(const dep_handle_ptr& handle)
+        : handle_(handle)
+      { }
+      ~read_only_usage_holder() {
+        detail::backend_runtime->release_read_only_usage(handle_.get());
+      }
+    };
+
+    typedef typename detail::smart_ptr_traits<std::shared_ptr>::template maker<read_only_usage_holder>
+      read_only_usage_holder_ptr_maker_t;
+
+  public:
+    AccessHandle() : prev_copied_from(nullptr) {
+      // TODO more safety checks to make sure uninitialized handles aren't getting captured
+    }
+
+    AccessHandle&
+    operator=(const AccessHandle& other) {
+      // for now...
+      assert(other.prev_copied_from == nullptr);
+      dep_handle_ = other.dep_handle_;
+      permissions_ = other.permissions_;
+
+    }
+
+    AccessHandle&
+    operator=(const AccessHandle& other) const {
+      // for now...
+      assert(other.prev_copied_from == nullptr);
+      dep_handle_ = other.dep_handle_;
+      permissions_ = other.permissions_;
+    }
+
+    AccessHandle(const AccessHandle& copied_from)
+      : dep_handle_(copied_from.dep_handle_),
+        permissions_(copied_from.permissions_),
         // this copy constructor may be invoked in ordinary usage or
         // may be the actual capture itself.  In the latter case, the subsequent
         // move needs access back to the outer context object, so we need to
         // save a pointer back to other.  It should be ignored otherwise, though.
-        prev_copied_from(const_cast<AccessHandle* const>(&moved_from))
+        prev_copied_from(const_cast<AccessHandle* const>(&copied_from))
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
-      capturing_task = static_cast<detail::TaskBase* const>(
+      capturing_task = dynamic_cast<detail::TaskBase*>(
         detail::backend_runtime->get_running_task()
       )->current_create_work_context;
 
       // Now check if we're in a capturing context:
       if(capturing_task != nullptr) {
-        assert(moved_from.prev_copied_from != nullptr);
-        AccessHandle& outer = *(moved_from.prev_copied_from);
+        assert(copied_from.prev_copied_from != nullptr);
+        AccessHandle& outer = *(copied_from.prev_copied_from);
         // TODO also ask the task if any special permissions downgrades were given
         // TODO !!! connect outputs to corresponding parent task output
         switch(outer.get_permissions()) {
@@ -393,6 +538,7 @@ class AccessHandle
               /*needs_read_data = */ true,
               /*needs_write_data = */ false
             );
+            read_only_holder_ = outer.read_only_holder_;
             break;
           } // end case detail::ReadOnly
         case detail::ReadWrite: {
@@ -413,9 +559,18 @@ class AccessHandle
             );
             // Now future uses of other will have a later version.
             outer.dep_handle_ = dep_handle_ptr_maker_t()(
-              outer.dep_handle_->key(),
-              other_version, true
+              outer.dep_handle_->get_key(),
+              other_version
             );
+            // setup the read only holder for outer, but specifically
+            // do not transfer the old holder to this.  When all
+            // other uses of dep_handle_ are released, the destructor
+            // of the usage_holder will be called, telling the runtime
+            // system that no more read-only tasks will be created using
+            // this handle (in an unsatisfied state; read/write tasks
+            // can create read only tasks, but since the handle is satisfied,
+            // the data can just be read in place)
+            outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
             // Note that other.dep_handle_ is the output handle
             break;
           } // end case detail::ReadWrite
@@ -438,10 +593,12 @@ class AccessHandle
             // the overwritten data will be available to the
             // handle)
             outer.dep_handle_ = dep_handle_ptr_maker_t()(
-              outer.dep_handle_->key(),
-              other_version, true
+              outer.dep_handle_->get_key(),
+              other_version
             );
             outer.set_permissions(detail::ReadWrite);
+            // see ReadWrite case for explanation
+            outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
             // Note that other.dep_handle_ is the output handle
             break;
           } // end case detail::OverwriteOnly
@@ -465,10 +622,12 @@ class AccessHandle
             // future references to other will have ReadWrite,
             // since they can read the data created here
             outer.dep_handle_ = dep_handle_ptr_maker_t()(
-              outer.dep_handle_->key(),
-              other_version, true
+              outer.dep_handle_->get_key(),
+              other_version
             );
             outer.set_permissions(detail::ReadWrite);
+            // see ReadWrite case for explanation
+            outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
             // Note that other.dep_handle_ is the output handle
             break;
           } // end case detail::Create
@@ -477,23 +636,17 @@ class AccessHandle
 
     }
 
-    //T* operator->() const {
-    //  return &dep_handle_->get_value();
-    //}
+    T* operator->() const {
+      return &dep_handle_->get_value();
+    }
 
-    //template <typename U>
-    //typename std::enable_if<
-    //  std::is_convertible<U, T>::value
-    //  and std::is_default_constructible<T>::value,
-    //  void
-    //>::type
-    //set_value(U&& val) const {
-    //  // TODO impement this
-    //}
-
-    void
-    set_value(const T& value) const {
-      // TODO implement this
+    template <typename U>
+    typename std::enable_if<
+      std::is_convertible<U, T>::value,
+      void
+    >::type
+    set_value(U&& val) const {
+      dep_handle_->set_value(val);
     }
 
     template <typename U>
@@ -515,7 +668,7 @@ class AccessHandle
     >
     void publish(
       PublishExprParts&&... parts
-    ) {
+    ) const {
       assert(permissions_ == detail::ReadWrite || permissions_ == detail::OverwriteOnly);
       detail::publish_expr_helper<PublishExprParts...> helper;
       detail::backend_runtime->publish_handle(
@@ -527,34 +680,66 @@ class AccessHandle
     }
 
     ~AccessHandle() {
-      // TODO!!!
+      // TODO make sure this is correct
+      if(capturing_task) {
+        detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
+      }
     }
 
    private:
+
+    ////////////////////////////////////////
+    // private constructors
 
     AccessHandle(
       const key_type& key,
       const version_type& version,
       detail::AccessPermissions permissions
     ) : dep_handle_(
-          dep_handle_ptr_maker_t()(key, version, permissions != detail::ReadOnly)
+          dep_handle_ptr_maker_t()(key, version)
         ),
-        permissions_(permissions)
-    { }
+        permissions_(permissions),
+        read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
+    {
+      if(permissions == detail::Create || permissions == detail::OverwriteOnly) {
+        // Release immediately; there's nothing to read
+        read_only_holder_.reset();
+      }
+    }
 
-    template <typename Deleter>
     AccessHandle(
       const key_type& key,
-      const version_type& version,
       detail::AccessPermissions permissions,
-      Deleter deleter
+      const key_type& user_version_tag
     ) : dep_handle_(
-          dep_handle_ptr_maker_t()(key, version),
-          deleter
+          dep_handle_ptr_maker_t()(key, user_version_tag, permissions != detail::ReadOnly)
         ),
-        permissions_(permissions)
-    { }
+        permissions_(permissions),
+        read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
+    {
+      assert(permissions != detail::Create);
+      if(permissions == detail::OverwriteOnly) {
+        // Release immediately; there's nothing to read
+        read_only_holder_.reset();
+      }
+    }
 
+    //template <typename Deleter>
+    //AccessHandle(
+    //  const key_type& key,
+    //  const version_type& version,
+    //  detail::AccessPermissions permissions,
+    //  Deleter deleter
+    //) : dep_handle_(
+    //      dep_handle_ptr_maker_t()(key, version),
+    //      deleter
+    //    ),
+    //    permissions_(permissions)
+    //{ }
+
+
+    ////////////////////////////////////////
+    // private methods
 
     detail::AccessPermissions
     get_permissions() const {
@@ -566,69 +751,104 @@ class AccessHandle
       permissions_ = p;
     }
 
+    ////////////////////////////////////////
+    // private members
+
     mutable dep_handle_ptr dep_handle_;
     mutable detail::AccessPermissions permissions_;
 
+    types::shared_ptr_template<read_only_usage_holder> read_only_holder_;
     task_t* capturing_task = nullptr;
     AccessHandle* const prev_copied_from = nullptr;
 
-    template <
-      typename T,
-      typename... KeyExprParts
-    >
-    friend AccessHandle<T>
-    initial_access(
-      KeyExprParts&&... parts
+   public:
+
+    ////////////////////////////////////////
+    // Friend functions
+
+    //template <
+    //  typename... KeyExprParts
+    //>
+    //friend AccessHandle
+    //initial_access(
+    //  KeyExprParts&&... parts
+    //);
+
+    friend void
+    _initial_access_impl(
+      const key_t& key, const version_t& version, AccessHandle& rv
     ) {
-      key_type key = make_key_from_tuple(
-        detail::access_expr_helper<KeyExprParts...>().get_key_tuple(
-          std::forward<KeyExprParts>(parts...)
-        )
-      );
-      version_type version = version_type();
-      return AccessHandle<T>(key, version, detail::Create);
+      rv = AccessHandle(key, version, detail::Create);
     }
 
-    template <
-      typename T,
-      typename... KeyExprParts
-    >
-    friend AccessHandle<T>
-    read_access(
-      KeyExprParts&&... parts
+
+
+    friend void
+    _read_access_impl(
+      const key_type& key, const key_type& user_version_tag, AccessHandle& rv
     ) {
-      typedef detail::access_expr_helper<KeyExprParts...> helper_t;
-      helper_t helper;
-      key_type key = make_key_from_tuple(
-        helper.get_key_tuple(std::forward<KeyExprParts>(parts)...)
-      );
-      version_type version = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
-      AccessHandle<T> rv(key, version, detail::ReadOnly);
-      detail::backend_runtime->register_fetcher(rv.dep_handle_->get());
-      return rv;
+      rv = AccessHandle(key, detail::ReadOnly, user_version_tag);
     }
 
-    template <
-      typename T,
-      typename... KeyExprParts
-    >
-    friend AccessHandle<T>
-    read_write(
-      KeyExprParts&&... parts
+    friend void
+    _read_write_impl(
+      const key_type& key, const key_type& user_version_tag, AccessHandle& rv
     ) {
-      typedef detail::access_expr_helper<KeyExprParts...> helper_t;
-      helper_t helper;
-      key_type key = make_key_from_tuple(
-        helper.get_key_tuple(std::forward<KeyExprParts>(parts)...)
-      );
-      version_type version = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
-      AccessHandle<T> rv(key, version, detail::ReadWrite);
-      detail::backend_runtime->register_fetcher(rv.dep_handle_->get());
-      return rv;
+      rv = AccessHandle(key, detail::ReadWrite, user_version_tag);
     }
 
 };
 
+template <
+  typename T,
+  typename... KeyExprParts
+>
+AccessHandle<T>
+initial_access(
+  KeyExprParts&&... parts
+) {
+  types::key_t key = detail::access_expr_helper<KeyExprParts...>().get_key(
+    std::forward<KeyExprParts>(parts)...
+  );
+  types::version_t version = { };
+  AccessHandle<T> rv;
+  _initial_access_impl(key, version, rv);
+  return rv;
+}
+
+template <
+  typename U,
+  typename... KeyExprParts
+>
+AccessHandle<U>
+read_access(
+  KeyExprParts&&... parts
+) {
+  typedef detail::access_expr_helper<KeyExprParts...> helper_t;
+  helper_t helper;
+  types::key_t key = helper.get_key(std::forward<KeyExprParts>(parts)...);
+  types::key_t user_version_tag = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
+  AccessHandle<U> rv;
+  _read_access_impl(key, user_version_tag, rv);
+  return rv;
+}
+
+template <
+  typename U,
+  typename... KeyExprParts
+>
+AccessHandle<U>
+read_write(
+  KeyExprParts&&... parts
+) {
+  typedef detail::access_expr_helper<KeyExprParts...> helper_t;
+  helper_t helper;
+  types::key_t key = helper.get_key(std::forward<KeyExprParts>(parts)...);
+  types::key_t user_version_tag = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
+  AccessHandle<U> rv;
+  _read_write_impl(key, user_version_tag, rv);
+  return rv;
+}
 
 
 

@@ -1,0 +1,40 @@
+
+\PassOptionsToPackage{table}{xcolor}
+\usepackage[table]{xcolor} 
+\usepackage{tikz}
+\usepackage{xspace}
+\usepackage{amsmath}
+\usepackage{array,multirow,graphicx}
+\usepackage{sandiacode}
+
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{cite}
+\usepackage{paralist}
+\usepackage[htt]{hyphenat}
+\usepackage[lofdepth,lotdepth]{subfig}
+
+\setlength{\marginparwidth}{2cm}
+\usepackage{todonotes}
+
+% correct bad hyphenation here
+\hyphenation{op-tical net-works semi-conduc-tor}
+
+% This definition of C++ prevents a linebreak, raises the ++ a little bit and puts them closer together.
+% From the C++ FAQ.
+\newcommand{\CC}{C\nolinebreak\hspace{-.05em}\raisebox{.3ex}{+}\nolinebreak\hspace{-.10em}\raisebox{.3ex}{+}}
+\newcommand{\Charm}{Charm\nolinebreak\hspace{-.05em}\raisebox{.2ex}{+}\nolinebreak\hspace{-.10em}\raisebox{.2ex}{+}}
+
+\usepackage{hyperref}
+\usepackage[nonumberlist, acronym, toc]{glossaries}
+\newglossary[plg]{glossary}{pgi}{pgo}{Glossary}
+%\newglossary[mlg]{machine_model}{mgi}{mgo}{Machine Model Terminology}
+%\newglossary[dlg]{data}{dgi}{dgo}{Data Terminology}
+%\newglossary[tlg]{tasking}{tgi}{tgo}{Tasking Terminology}
+%\newglossary[clg]{collectives}{cgi}{cgo}{Collective Terminology}
+
+
+\makeglossaries
+
+\input{glsentries}
+

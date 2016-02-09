@@ -1,0 +1,956 @@
+
+\newglossaryentry{API}
+{
+  type=glossary,
+  name={API},
+  plural={APIs},
+  first={application programmer interface (API)},
+  description={An application programmer interface (API) is set of functions and tools provided by a library developer to allow an application programmer to interact with a specific piece of software or allow a developer to utilize prebuilt functionality}
+}
+
+\newglossaryentry{concurrency}
+{
+  type=glossary,
+  name={concurrency},
+  description={A condition of a system in which multiple tasks are logically
+    active at one time}
+}
+
+\newglossaryentry{parallelism}
+{
+  type=glossary,
+  name={parallelism},
+  description={A condition of a system in which tasks are actually active at
+    one time}
+}
+
+\newglossaryentry{co-design}
+{
+  type=glossary,
+  name=co-design,
+  description={\todo{Fill out co-design glossary description}},
+}
+
+\newglossaryentry{reference counted pointers}
+{
+  type=glossary,
+  name=reference counted pointers,
+  description={\todo{Fill out reference counted pointers glossary description}},
+}
+
+\newglossaryentry{lambda}
+{
+  type=glossary,
+  name=lambda,
+  description={\todo{Fill out lambda glossary description}},
+}
+
+\newglossaryentry{rank}
+{
+  type=glossary,
+  name=rank,
+  description={\todo{Fill out rank glossary description}},
+}
+
+\newglossaryentry{tuple}
+{
+  type=glossary,
+  name=tuple,
+  description={\todo{Fill out tuple glossary description}},
+}
+
+
+\newglossaryentry{deferred}
+{
+  type=glossary,
+  name=deferred,
+  description={\todo{Fill out deferred glossary description}},
+}
+
+\newglossaryentry{PGAS}
+{
+  type=glossary,
+  name=PGAS,
+  description={\todo{Fill out PGAS glossary description}},
+}
+
+
+\newglossaryentry{dependency}
+{
+  type=glossary,
+  name=dependency,
+  plural=dependencies,
+  description={\todo{Fill out dependency glossary description}},
+}
+
+\newglossaryentry{capture}
+{
+  type=glossary,
+  name=capture,
+  description={\todo{Fill out capture glossary description}},
+}
+
+\newglossaryentry{introspection}
+{
+  type=glossary,
+  name=introspection,
+  description={\todo{Fill out introspection glossary description}},
+}
+
+
+\newglossaryentry{create_work}
+{
+  type=glossary,
+  name=create_work,
+  description={\todo{Fill out create_work glossary description}},
+}
+
+\newglossaryentry{key-value store}
+{
+  type=glossary,
+  name=key-value store,
+  description={\todo{Fill out key-value store glossary description}},
+}
+
+\newglossaryentry{execution space}
+{
+  type=glossary,
+  name={execution space},
+  description={\todo{Fill out execution space glossary description}},
+}
+
+\newglossaryentry{memory space}
+{
+  type=glossary,
+  name={memory space},
+  description={\todo{Fill out memory glossary description}},
+}
+\newglossaryentry{version}
+{
+  type=glossary,
+  name=version,
+  description={\todo{Fill out version glossary description}},
+}
+\newglossaryentry{handle}
+{
+  type=glossary,
+  name=handle,
+  description={\todo{Fill out handle glossary description}},
+}
+
+\newglossaryentry{Trilinos}
+{
+  type=glossary,
+  name=Trilinos,
+  description={\todo{Fill out Trilinos glossary description}},
+}
+
+\newglossaryentry{input dependencies}
+{
+  type=glossary,
+  name=input dependencies,
+  description={\todo{Fill out input dependencies glossary description}},
+}
+
+\newglossaryentry{EDSL}
+{
+  type=glossary,
+  name={EDSL},
+  plural={EDSLs},
+  first={embedded domain specific language (E\gls{DSL})},
+  description={A \gls{DSL} that is defined as a library for a
+    generic host programming language. The embedded domain specific language
+      inherits the generic language constructs of its host language -
+      sequencing, conditionals, iteration, functions, etc. - and adds
+      domain-specific primitives that allow programmers to work at a much
+      higher level of abstraction},
+  see={DSL}
+}
+\newglossaryentry{ATDM}
+{
+  type=\acronymtype,
+  name={ATDM},
+  first={Advanced Technology Development and Mitigation (ATDM)},
+  description={This \gls{ASC} program includes laboratory code and computer engineering and science projects that pursue long-term simulation and computing goals relevant to the broad national security missions of the National Nuclear Security Administration}
+}
+\newglossaryentry{programming language} %linked, 
+{
+  type=glossary,
+  name={programming language},
+  plural={programming languages},
+  description={A programming language is a syntax and code constructs for
+    implementing one or more \glspl{programming model}.
+  For example, the \CC{} programming language supports both \gls{functional} and
+    \gls{procedural} \gls{imperative} \glspl{programming model}}
+}
+
+\newglossaryentry{programming model} %linked, 
+{
+  type=glossary,
+  name={programming model},
+  plural={programming models},
+  description={A parallel programming model is an abstract view of a machine
+    and set of first-class constructs for expressing algorithms. The programming
+      model focuses on how problems are decomposed and expressed.  In
+      \gls{MPI}, programs are decomposed based on \gls{MPI} ranks that coordinate via
+      messages. This programming model can be termed \gls{spmd}, decomposing
+      the problem into disjoint (non-conflicting) data regions.  \Charm{}
+    decomposes problems via migratable objects called \glspl{chare} that coordinate via remote procedure calls (entry methods). Legion decomposes problems in a data-centric way with logical regions.  All parallel coordination is implicitly expressed via data dependencies.  The parallel programming model covers how an application \emph{expresses} concurrency.
+In many cases, the \gls{execution model} and programming model are closely tied
+and therefore not distinguished. In these cases the non-specific term parallel
+model can be applied}
+}
+
+\newglossaryentry{front end}
+{
+  type=glossary,
+  name = {front end},
+  description = {A software stack may comprise many layers, separating the 
+    user from the hardware.  Each layer comprises a front end
+      and a \gls{back end}.  The front end provides a set of abstractions and the
+      user interface for the functionality implemented by the back end}
+}
+
+\newglossaryentry{middleware}
+{
+  type=glossary,
+    name = middleware,
+    description={See \gls{middle end}}
+} 
+\newglossaryentry{middle end}
+{
+  type=glossary,
+  name = {middle end},
+  description = {The \CC \gls{template metaprogramming} layer between the
+    DHARMA \gls{front end} and the set of abstract classes that must be implemented
+    by an implementation of the \gls{back end}}
+}
+\newglossaryentry{back end}
+{
+  type=glossary,
+  name = {back end},
+  description = {A software stack may comprise many layers, separating the 
+    user from the hardware.  Each layer comprises a \gls{front end}
+      and a back end.  The front end provides a set of abstractions and the
+      user interface for the functionality implemented by the back end}
+}
+
+\newglossaryentry{semantics}
+{
+  type=glossary,
+    name={semantics},
+    description={A mathematical model representing the intended computational behavior of program}
+}
+
+\newglossaryentry{sequential semantics}
+{
+  type=glossary,
+  name={sequential semantics},
+  description={Computational behavior of code is equivalent to running it
+    sequentially, in program order}
+}
+
+\newglossaryentry{coordination semantics}
+{
+  type=glossary,
+  name={coordination semantics},
+  description={\todo{add def of coordination semantics to glossary}}
+}
+
+
+\newglossaryentry{template metaprogramming}
+{
+  type=glossary,
+  name={template metaprogramming},
+  description={In template metaprogramming templates are used by a compiler to
+    generate additional source code, (e.g., compile-time constants, data
+        structures, funcitons), which is merged by the compiler with the rest
+      of the user-provided source code prior to compilation} 
+}
+
+\newglossaryentry{spmd} %linked, defined
+{
+  type=glossary,
+  name={SPMD},
+  first={single-program multiple-data (SPMD)},
+  description={The term single-program multiple-data (SPMD) refers to a parallel \gls{programming model} where the same tasks are carried out by multiple processing units but operate on different sets of input data. This is the most common form of parallelization and often involves multithreading on a single compute node and/or distributed computing using \gls{MPI} communication}
+}
+
+
+
+
+\newglossaryentry{bulk synchronous}  
+{
+  type=glossary,
+  name={bulk synchronous},
+  description={The bulk synchronous model of parallel computation (BSP) is
+  defined as the combination of three attributes: 1)~A number of
+  components, each performing processing and/or memory functions; 2)~A
+  router that delivers messages point to point between pairs of
+  components; and 3)~Facilities for synchronizing all or a subset of
+  the components at regular intervals of $L$ time units where $L$ is
+  the periodicity parameter.  A computation consists of a sequence of
+  supersteps. In each superstep, each component is allocated a task
+  consisting of some combination of local computation steps, message
+  transmissions and (implicitly) message arrivals from other
+  components. After each period of $L$ time units, a global check is
+  made to determine whether the superstep has been completed by all
+  the components. If it has, the machine proceeds to the next
+  superstep. Otherwise, the next period of $L$ units is allocated to
+  the unfinished superstep.  See Reference~\cite{BSP}
+  and~\cite{wikiBSP} for more details} 
+}
+
+\newglossaryentry{CSP}
+{
+  type=glossary,
+  name={CSP},
+  first={communicating sequential processes (CSP)},
+  description={CSP (communicating sequential processes) is the most popular
+    concurrency model for science and engineering applications, often being
+      synonymous with \gls{spmd}. CSP covers execution models where a usually fixed number of independent workers operate in parallel,
+      occasionally synchronizing and exchanging data through inter-process communication. Workers are \emph{disjoint processes},
+      operating in separate address spaces.  This also makes it generally synonymous with message-passing in which data exchanges between parallel workers are copy-on-read, creating disjoint data parallelism.  The term sequential is historical and CSP is generally applied even to cases in which each ``sequential process'' is composed of multiple parallel workers (usually threads)}
+}
+
+\newglossaryentry{event-based}
+{
+  type=glossary,
+  name={event-based},
+  description={The term event-based covers both \glspl{programming model} and
+    \glspl{execution model} in which an application is expressed and managed as a set of events with precedence constraints, often taking the form of a directed graph of event dependencies}
+}
+
+\newglossaryentry{execution model} %linked,
+{
+  type=glossary,
+  name={execution model},
+  plural={execution models},
+  description={A parallel execution model specifies how an application creates
+    and manages concurrency. This covers, e.g., \gls{CSP} (communicating
+        sequential processes), strict \gls{fork-join}, or event-based
+      execution.  These classifications distinguish whether many parallel
+      workers begin simultaneously (\gls{CSP}) and synchronize to reduce concurrency
+      or if a single top-level worker forks new tasks to increase concurrency.
+      These classifications also distinguish how parallel hazards (\gls{WAR},
+          \gls{RAW}, \gls{WAW}) are managed either through synchronization,
+    atomics, conservative execution, or idempotent execution.  In many cases,
+    the \gls{programming model} and execution model are closely tied and
+      therefore not distinguished. The non-specific term parallel model can be
+      applied. In other cases, the way execution is managed is decoupled from
+      the \gls{programming model} in \glspl{runtime system} with
+      \gls{declarative} \glspl{programming model} like Legion or Uintah. The execution model is implemented in the
+      \gls{runtime system}}}
+
+\newglossaryentry{runtime system} %linked,
+{
+  type=glossary,
+  name={runtime system},
+  plural={runtime systems},
+  description={A parallel runtime system primarily implements portions of an
+  \gls{execution model}, managing how and where concurrency is managed and created. 
+ Runtime systems therefore control the order in which parallel work (decomposed and expressed via the programming model) is actually performed and executed.  Runtime systems can range greatly in complexity. A runtime could only provide point-to-point message-passing, for which the runtime only manages message order and tag matching. A full \gls{MPI} implementation automatically manages collectives and global synchronization mechanisms.
+  Legion handles not only data movement but task placement and out-of-order task execution, handling almost all aspects of execution in the runtime.  Generally, parallel execution requires managing task placement, data placement, concurrency creation, concurrency managed, task ordering, and data movement. A runtime comprises all aspects of parallel execution that are not explicitly managed by the application}
+}
+
+\newglossaryentry{HLR}
+{
+  type=glossary,
+  name={HLR},
+  first={high-level runtime (HLR)},
+  description={A high-level runtime is generally any aspect of the runtime system that implicitly creates concurrency via higher-level logic based on what is expressed via the application programming model.  High-level runtimes generally involve data, task, and machine models expressed in a \gls{declarative} fashion through which the runtime reasons about application concurrency. This implicit creation of concurrency differs from the low-level runtime (\gls{LLR}), which only executes operations explicitly specified.  Legion and Uintah both implement extensive HLRs while Charm++ has very little implicit behavior}
+}
+
+\newglossaryentry{LLR}
+{
+  type=glossary,
+  name={LLR},
+  first={low-level runtime (LLR)},
+  description={A low-level runtime is generally any aspect of a \gls{runtime system} that manages explicitly specified data movement and task scheduling operations. There is very little implicit behavior. The runtime is only responsible for ensuring that events and operations satisfy explicit precedence constraints. This contrasts with a high-level runtime (\gls{HLR}) that implicitly creates parallelism from a declarative program, converting higher-level program logic into explicit operations in the LLR}
+}
+
+\newglossaryentry{DSL} %linked, defined
+{
+  type=glossary,
+  name={DSL},
+  first={domain specific language (DSL)},
+  description={Domain specific languages (DSL) are a subset of
+    \glspl{programming language} that have been specialized to a particular
+      application domain. Typically, DSL code focuses on what a programmer
+      wants to happen with respect to their application and leaves the
+      \gls{runtime system} to determine how the application is executed}
+}
+
+\newglossaryentry{simd} %linked, defined
+{
+  type=glossary,
+  name={SIMD},
+  first={single-instruction, multiple-data (SIMD)},
+  description={The term single-instruction multiple-data (SIMD) refers to a type of instruction level parallelism where an individual instruction is synchronously executed on different segments of data. This type of \gls{data parallelism} is best illustrated by \gls{vector processing}}
+}
+\newglossaryentry{mimd} %linked, defined
+{
+  type=glossary,
+  name={MIMD},
+  first={multiple-instruction, multiple-data (MIMD)},
+  description={The term multiple-instruction multiple data (MIMD) refers to a parallel \gls{programming model} where a set of processing units, operating asynchronously, execute different instructions on different sets of data}
+}
+\newglossaryentry{mpmd} %linked, defined
+{
+  type=glossary,
+  name={MPMD},
+  first={multiple-program multiple-data (MPMD)},
+  description={The term multiple-program multiple-data (MPMD) refers to a
+    parallel programming model where tasks operate on disjoint data like \gls{spmd}, but are not constrained to perform the same tasks}
+}
+
+\newglossaryentry{actor model} %linked, defined
+{
+  type=glossary,
+  name={actor model},
+  description={An actor model covers both aspects of programming and
+    \glspl{execution model}.  In the actor model,
+  applications are decomposed across objects called actors rather than processes or threads (\gls{MPI} ranks). The actor model shares similarities with active messages.  Actors send messages to other actors, but beyond simply exchanging data they can invoke remote procedure calls to create remote work or even spawn new actors.  The actor model mixes aspects of \gls{spmd} in that many actors are usually created for a data-parallel decomposition.  It also mixes aspects of \gls{fork-join} in that actor messages can ``fork'' new parallel work; the forks and joins, however, do not conform to any strict parent-child structure since usually any actor can send messages to any other actor}  
+}
+
+\newglossaryentry{fork-join} %linked, defined
+{
+  type=glossary,
+  name={fork-join},
+  description={A model of concurrent execution in which child tasks are forked
+    off a parent task.  When child tasks complete, they synchronize with join
+      partners to signal execution is complete.  \Gls{fully strict} execution
+      requires join edges be from parent to child while \gls{terminally strict} requires child tasks to join with grandparent or other ancestor tasks. This style of execution contrasts with \gls{spmd} in which there are many parallel sibling tasks running, but they did not fork from a common parent and do not join with ancestor tasks}
+}
+
+\newglossaryentry{fully strict} %linked, defined
+{
+  type=glossary,
+  name={fully strict},
+  description={ Fully strict \gls{fork-join} execution requires join edges between parent and
+    child tasks} 
+}
+
+\newglossaryentry{terminally strict} %linked, defined
+{
+  type=glossary,
+  name={terminally strict},
+  description={Terminally strict \gls{fork-join} execution requires child tasks to join with
+    grandparent or other ancestor tasks}
+}
+
+\newglossaryentry{data parallelism} %linked, defined,
+{
+  type=glossary,
+  name={data parallelism},
+  description={A type of parallelism that involves carrying out a single task
+    and/or instruction on different segments of data across many computational
+      units. Data parallelism is best illustrated by \gls{vector processing} or \gls{simd} operations on
+      \glspl{CPU} and \glspl{MIC} or typical \gls{bulk synchronous} parallel applications}
+}
+\newglossaryentry{vector processing}  
+{
+  type=glossary,
+  name={vector processing},
+  description={A vector processing is performed by a central
+  processing unit (\gls{CPU}) that implements an instruction set containing
+  instructions that operate on one-dimensional arrays of data called
+  vectors, compared to scalar processors, whose instructions operate
+  on single data items. Vector processing can greatly improve
+  performance on certain workloads, notably numerical simulation and
+  similar tasks. Vector machines appeared in the early 1970s and
+  dominated supercomputer design through the 1970s into the 1990s,
+  notably the various Cray platforms. As of 2015 most commodity \glspl{CPU}
+  implement architectures that feature instructions for a form of
+  vector processing on multiple (vectorized) data sets, typically
+  known as \gls{simd}. Common examples include MMX, \gls{SSE},
+  AltiVec and \gls{AVX}}
+}
+
+
+\newglossaryentry{task parallelism} %linked, defined
+{
+  type=glossary,
+  name={task parallelism},
+  description={A type of parallelism that focuses on completing multiple tasks simultaneously over different computational units. These tasks may operate on the same segment of data or many different datasets}
+}
+\newglossaryentry{pipeline parallelism} %linked
+{
+  type=glossary,
+  name={pipeline parallelism},
+  %description={Pipeline parallelism involves breaking up a task into a sequence of individual tasks and then overlapping the execution of the steps from multiple tasks that would otherwise have had to be done sequentially}
+  description={Pipeline parallelism is achieved by breaking up a task into a sequence of
+individual sub-tasks, each of which represents a stage whose execution can be
+  overlapped}
+}
+\newglossaryentry{task-DAG} %linked
+{
+  name={task-DAG},
+  description={A use of a directed acyclic graph (\gls{dag}) that represents tasks as nodes and directed lines as dependencies of a particular task/data segment. These graphs have no cycles, they do not represent iteration within a program}
+}
+\newglossaryentry{dag}  %linked
+{
+  type=\acronymtype,
+  name={DAG},
+  first={directed acyclic graph (DAG)},
+  description={A directed acyclic graph (DAG) is a directed graph with no cycles. This type of data representation is common form for representing dependencies}
+}
+
+\newglossaryentry{AMT}
+{
+  type=glossary,
+  name={AMT},
+  first={asynchronous many-task (AMT)},
+  description={See \gls{AMT model}}
+}
+
+\newglossaryentry{AMT model}
+{
+  type=glossary,
+  name={AMT model},
+  plural={AMT models},
+  description={Asynchronous many-task (AMT) is a categorization of programming
+    and \glspl{execution model} that break from the dominant \gls{CSP} or \gls{spmd} models.
+      Different \gls{AMT RTS} implementations can share a common AMT model.
+	An AMT \gls{programming model} decomposes applications into small, transferable units of work (many tasks) with associated inputs (dependencies or data blocks) rather than simply decomposing at the process level (\gls{MPI} ranks).
+	An AMT execution model can be viewed as the coarse-grained, distributed memory analog of instruction-level parallelism, extending the concepts of data prefetching,
+	out-of-order task execution based on dependency analysis, and even branch prediction (speculative execution). 
+	Rather than executing in a well-defined order, tasks execute when inputs become available.
+	An AMT model aims to leverage all available task and pipeline parallelism, rather just relying on basic data parallelism for concurrency.
+	The term asynchronous encompasses the idea that 1) processes (threads) can
+  diverge to different tasks, rather than executing in the same order; and 2) concurrency is maximized (minimum synchronization) by leveraging multiple forms of parallelism.
+	The term many-task encompasses the idea that the application is decomposed into many \emph{transferable} or \emph{migratable} units of work, to enable the overlap of communication and computation as well as asynchronous load balancing strategies}
+}
+
+
+
+\newglossaryentry{AMT RTS} % amt rts vs amt runtime
+{
+  type=glossary,
+  name={AMT RTS},
+  first={asynchronous many-task runtime system (AMT RTS)},
+  description={A runtime system based on \gls{AMT} concepts. An AMT RTS provides a specific implementation of an \gls{AMT model}}
+}
+
+\newglossaryentry{imperative}  %linked
+{
+  type=glossary,
+  name={imperative},
+  description={A style of programming where statements change the state of a program to produce a specific result. This contrasts to declarative programming that focuses on defining the desired result without specifying how the result is to be accomplished}
+}
+\newglossaryentry{declarative} %linked
+{
+  type=glossary,
+  name={declarative},
+  description={A style of programming that focuses on using statements to define what a program should accomplish rather than how it should accomplish the desired result}
+}
+\newglossaryentry{procedural} 
+{
+  type=glossary,
+  name={procedural},
+  description={A style of programming where developers define step by step instructions to complete a given function/task. A procedural program has a clearly defined structure with statements ordered specifically to define program behavior}
+}
+\newglossaryentry{functional} 
+{
+  type=glossary,
+  name={functional},
+  description={A style of programming that treats computation as the
+    evaluation of mathematical functions and avoids changing-state and mutable
+      data}
+}
+
+
+\newglossaryentry{in-situ} 
+{
+  type=glossary,
+  name={in-situ},
+  description={\textit{In-situ} analysis involves analyzing data \emph{on site} or \emph{in place} where it was generated, in contrast to \gls{in-transit} which first migrates data to another physical location}
+ %This method does however have side-effects with regards to application performance and scalability for some computational and memory intensive applications
+}
+
+\newglossaryentry{in-transit}
+{
+  type=glossary,
+  name={in-transit},
+  description={In-transit analysis is a method for performing analysis on an applications raw computational data while the application is running by offloading the simulation data to a set of processing units allocated for data analytics. Typically, this method involves more network communication and requires a balance between the compute hardware running the application and analysis but allows an application to resume its computations faster. This contrasts with \textit{\gls{in-situ}} analysis that operates on data in-place}
+}
+
+\newglossaryentry{Read-After-Write} 
+{
+  type=glossary,
+  name={Read-After-Write},
+  description={Read after write (\gls{RAW}) is a standard data dependency (or potential hazard) where one instruction or task requires, as an input, a data value that is computed by some other instruction or task}
+}
+
+\newglossaryentry{Write-After-Read}
+{
+  type=glossary,
+  name={Write-After-Read},
+  description={Write after read (\gls{WAR}), also known as an anti-dependency, is a potential data hazard where a task or instruction has required input(s) that are later changed. An anti-dependency can be removed at instruction-level through register renaming or a task-level through copy-on-read or copy-on-write}
+}
+
+\newglossaryentry{Write-After-Write}
+{
+  type=glossary,
+  name={Write-After-Write},
+  description={Write after write (\gls{WAW}), also known as an output
+  dependency, is a potential data hazard where data dependence is only
+  written (not read) by two or more tasks. In a sequential execution, the value
+  of the data will be well defined, but in a parallel execution, the
+  value is determined by the execution order of the tasks writing the
+  value}
+}
+
+\newglossaryentry{data-flow dependency}
+{
+  type=glossary,
+  name={data flow dependency},
+  plural={data-flow dependencies},
+  description={A data dependency where a set of tasks or instructions require a certain sequence to complete without causing race conditions. Data-flow dependency types include \gls{Write-After-Read}, \gls{Read-After-Write} and \gls{Write-After-Write}}
+}
+\newglossaryentry{anti-dependency}
+{
+  type=glossary,
+  name={anti-dependency},
+  plural={anti-dependencies},
+  see={[Glossary:]{Write-After-Read}},
+  description={See \gls{Write-After-Read}}
+}
+\newglossaryentry{chare}
+{
+  type=glossary,
+  name={chare},
+  plural={chares},
+  description={The basic unit of computational work within the \Charm{} framework. Chares are essentially \protect\CC{} objects that contain methods that carry out computations on an objects data asynchronously from the method's invocation}
+}
+\newglossaryentry{RPC} 
+{
+  type=glossary,
+  name={RPC},
+  plural={RPCs},
+  first={remote procedure calls (RPC)},
+  description={Remote Procedure Call (RPC) is a protocol that one
+  program can use to request a service from a program located in
+  another computer in a network without having to understand network
+  details. RPC uses the client/server model}
+}
+
+\newglossaryentry{DHARMA} 
+{
+  type=glossary,
+  name={DHARMA},
+  description={ The DHARMA (Distributed asyncHronous Adaptive and Resilient Models for
+    Applications) research team at Sandia is focused on next generation \glspl{programming
+    model}, \glspl{execution model}, and \glspl{runtime system} research}
+}
+
+\newglossaryentry{remote procedure invocation} 
+{
+  type=glossary,
+  name={remote procedure invocation},
+  plural={remote procedure invocations},
+  see={[Glossary:]{RPC}},
+  description={See RPC}
+}
+
+\newglossaryentry{active message passing}
+{
+  type=glossary,
+  name={active message passing},
+  description={An Active message is a messaging object
+  capable of performing processing on its own. It is a lightweight
+  messaging protocol used to optimize network communications with an
+  emphasis on reducing latency by removing software overheads
+  associated with buffering and providing applications with direct
+  user-level access to the network hardware. This contrasts with
+  traditional computer-based messaging systems in which messages are
+  passive entities with no processing power}
+}
+
+\newglossaryentry{zero-copy} %linked
+{
+  type={glossary},
+  name={zero-copy},
+  description={Zero-copy transfers are data transfers that occur directly from send to receive location without any additional buffering. Data is put immediately on the wire on the sender side and stored immediately in the final receive buffer off the wire on the receiver side. This usually leverages \gls{RDMA} operations on pinned memory}
+}
+
+\newglossaryentry{load balancing} %couldn't find any references
+{
+  type={glossary},
+  name={load balancing},
+  description={Load balancing distributes workloads across multiple
+  computing resources. Load balancing aims to optimize resource use,
+  maximize throughput, minimize response time, and avoid overload of
+  any single resource. Using multiple components with load balancing
+  instead of a single component may increase reliability and
+  availability through redundancy}  
+}
+
+\newglossaryentry{work stealing} %linked
+{
+  type={glossary},
+  name={work stealing},
+  description={The act of one computational unit (thread/process), which has completed it's workload, taking some task/job from another computational unit. This is a basic method of distributed load balancing}
+}
+\newglossaryentry{task stealing} %linked
+{
+  type={glossary},
+  name={task stealing},
+  see={[Glossary:]{work stealing}},
+  description={See \gls{work stealing}}
+}
+\newglossaryentry{logical region} %linked
+{
+  type={glossary},
+  name={logical region},
+  plural={logical regions},
+  description={A collection of objects operated on by a task. Various parameters define the behavior of logical region when operated on by a given task including privilege, coherence and behavior}
+}
+\newglossaryentry{privilege} %linked
+{
+  type={glossary},
+  name={privilege},
+  plural={privileges},
+  description={A Legion parameter that defines the side-effects a task will have on a given logical region. These side-effects could include read, write or reduction permissions}
+}
+\newglossaryentry{coherence} %linked
+{
+  type={glossary},
+  name={coherence},
+  description={An input parameter within the Legion runtime that determines the types of manipulations one function can do to another function's logical region}
+}
+\newglossaryentry{patch} %linked
+{
+  type={glossary},
+  name={patch},
+  plural={patches},
+  description={A unit of data within a structured mesh involved with discretizing workloads into data-parallel segments. Data segments takes the form of cells that can contain particles and/or member data. As the basic unit of parallel work, Uintah uses computations in the form of tasks over a single patch to express parallelism}
+}
+
+% Added by Greg Sjaardema
+\newglossaryentry{MPI+X}
+{
+  type={glossary},
+  name={MPI+X},
+  description={A hybrid \gls{programming model} combining \gls{MPI} and
+  another parallel \gls{programming model} in the same application. The
+  combination may be mixed in the same source or combinations of
+  components or routines, each of which is written in a single parallel
+  \gls{programming model}. \gls{MPI}+Threads or \gls{MPI}+OpenMP are the most
+  common hybrid models involving \gls{MPI}. \gls{MPI} describes the
+  parallelism between processes (with separate memory address spaces) and
+  the ``X'' typically provides parallelism within a process (typically
+  with a shared-memory model)}
+}
+
+% Added by Greg Sjaardema
+\newglossaryentry{PSAAP-II}
+{
+  type={glossary},
+  name={PSAAP-II},
+  first={Predictive Science Academic Alliance Program II (PSAAP-II)},
+  description={The primary goal of the \gls{NNSA}'s Predictive Science Academic
+  Alliance Program (PSAAP) is to establish validated, large-scale,
+  multidisciplinary, simulation-based ``Predictive Science'' as a
+  major academic and applied research program. The Program Statement
+  lays out the goals for a multiyear program as follow-on to the
+  present ASC Alliance program. This ``Predictive Science'' is the
+  application of verified and validated computational simulations to
+  predict properties and dynamics of complex systems. This process is
+  potentially applicable to a variety of applications, from nuclear
+  weapons effects to efficient manufacturing, global economics, to a
+  basic understanding of the universe. Each of these simulations
+  requires the integration of a diverse set of disciplines; each
+  discipline in its own right is an important component of many
+  applications. Success requires both software and algorithmic
+  frameworks for integrating models and code from multiple disciplines
+  into a single application and significant disciplinary strength and
+  depth to make that integration effective}
+}
+
+% Added by Greg Sjaardema
+\newglossaryentry{ASC}
+{
+  type={glossary},
+  name={ASC},
+  first={Advanced Simulation and Computing (ASC)},
+  description={The Advanced Simulation and Computing (ASC) Program
+  supports the Department of Energy's National Nuclear Security
+  Administration (NNSA) Defense Programs' shift in emphasis from
+  test-based confidence to simulation-based confidence. Under ASC,
+  computer simulation capabilities are developed to analyze and
+  predict the performance, safety, and reliability of nuclear weapons
+  and to certify their functionality. ASC integrates the work of three
+  Defense programs laboratories (Los Alamos National Laboratory,
+  Lawrence Livermore National Laboratory, and Sandia National
+  Laboratories) and university researchers nationally into a
+  coordinated program administered by NNSA}
+}
+
+% Added by Greg Sjaardema
+\newglossaryentry{PIM}
+{
+  type={glossary},
+  name={processing in memory},
+  description={Processing in memory (PIM) is the concept of placing
+  computation capabilities directly in memory. The PIM approach can
+  reduce the latency and energy consumption associated with moving
+  data back-and-forth through the cache and memory hierarchy, as well
+  as greatly increasing memory bandwidth by sidestepping the
+  conventional memory-package pin-count limitations}
+}
+
+% Added by Greg Sjaardema
+\newglossaryentry{scratchpad}
+{
+  type={glossary},
+  name={scratchpad},
+  description={Scratchpad memory, also known as scratchpad, scratchpad
+  RAM or local store in computer terminology, is a high-speed internal
+  memory used for temporary storage of calculations, data, and other
+  work in progress. In reference to a microprocessor, scratchpad
+  refers to a special high-speed memory circuit used to hold small
+  items of data for rapid retrieval. It can be considered similar to
+  the L1 cache in that it is the next closest memory to the \gls{ALU} after
+  the internal registers, with explicit instructions to move data to
+  and from main memory, often using \gls{DMA}-based data transfer. In
+  contrast to a system that uses caches, a system with scratchpads is
+  a system with \gls{NUMA} latencies, because the memory access
+  latencies to the different scratchpads and the main memory
+  vary. Another difference from a system that employs caches is that a
+  scratchpad commonly does not contain a copy of data that is also
+  stored in the main memory}
+}
+
+% Added by Greg Sjaardema
+\newglossaryentry{SoC}
+{
+  type={glossary},
+  name={SoC},
+  first={system-on-chip},
+  description={A system on a chip or system on chip (SoC or SOC) is an
+  integrated circuit (IC) that integrates all components of a computer
+  or other electronic system into a single chip. It may contain
+  digital, analog, mixed-signal, and often radio-frequency
+  functions--all on a single chip substrate. The System on Chip
+  approach enables HPC chip designers to include features they need,
+  and exclude features that are not required in a manner that is not
+  feasible with today's commodity board-level computing system
+  design. SoC integration is able to further reduce power, increase
+  integration density, and improve reliability. It also enables
+  designers to minimize off-chip I/O by integrating peripheral
+  functions, such as network interfaces and memory controllers by
+  integrating the components onto a single chip}
+}
+
+\newglossaryentry{POD}
+{
+  type={glossary},
+  name={POD},
+  first={plain old data},
+  description={In \CC{}, POD stands for Plain Old Data---that is, a
+  class or struct without constructors, destructors and virtual
+  members functions and all data members of the class are also POD}
+}
+
+\newglossaryentry{multi-level memory}
+{
+  type={glossary},
+  name={multi-level memory},
+  plural={multi-level memories},
+  description={A hybrid memory system that integrates multiple types
+  of memory components with different sizes, bandwidths, and access
+  methods. There may be two or more levels with each level composed of
+  a different memory technology, such as NVRAM, DRAM, 3D Stacked, or
+  other memory technologies. This is an extension of the L1, L2, and
+  L3 cache memory systems of current \gls{CPU} architectures. As a result,
+  future application analysis must account for complexities created by
+  these multi-level memory systems with or without coherency. Despite
+  the increased complexity, the performance benefits of such a system
+  should greatly outweigh the additional burden in programming brought
+  by multi-level memory. For instance, the amount of data movement
+  will be reduced both for cache memory and scratch space resulting in
+  reduced energy consumption and greater performance~\cite{AbstractMachine}}  
+}
+
+\newglossaryentry{exascale}
+{
+  type={glossary},
+  name={exascale},
+  description={Exascale computing refers to computing systems capable
+  of at least one exaFLOPS, or a billion billion ($10^{18}$)
+  calculations per second. Such capacity represents a thousandfold
+  increase over the first petascale computer that came into operation
+  in~2008. The \gls{DOE} is planning to develop and deliver capable
+  exascale computing systems by 2023-24. These systems are expected to
+  have a one-hundred to one-thousand-fold increase in sustained
+  performance over today's computing capabilities, capabilities
+  critical to enabling the next-generation computing for national
+  security, science, engineering, and large-scale data analytics.
+  Leadership in \gls{HPC} and large-scale data analytics will advance
+  national competitiveness in a wide array of strategic sectors. An
+  integrated government-industry-academia approach to the development
+  of hardware, system software, and applications software, will be
+  required to overcome the barriers of power efficiency, massive
+  parallelism, and programmability to attain maximum benefit from
+  exascale computers}
+}
+
+\newglossaryentry{MIC}
+{
+  type={glossary},
+  name={MIC},
+  plural={MICs},
+  first={Many Integrated Core Architecture (MIC)},
+  description={Intel Many Integrated Core Architecture or Intel MIC
+  is a coprocessor computer architecture developed by Intel
+  incorporating earlier work on the Larrabee many core architecture,
+  the Teraflops Research Chip multicore chip research project, and the
+  Intel Single-chip Cloud Computer multicore microprocessor. Prototype
+  products codenamed Knights Ferry were announced and released to
+  developers in~2010. The Knights Corner product was announced in~2011
+  and uses a 22~nm process. A second generation product codenamed
+  Knights Landing using a 14~nm process was announced in June~2013.
+  Xeon Phi is the brand name used for all products based on the
+  Many Integrated Core architecture}  
+}
+
+\newglossaryentry{RDMA}
+{
+  type={glossary},
+  name={RDMA},
+  first={remote direct memory access (RDMA)},
+  description={Remote direct memory access (RDMA) is a direct memory
+  access from the memory of one computer into that of another without
+  involving either one's operating system. This permits
+  high-throughput, low-latency networking, which is especially useful
+  in massively parallel computing}
+}
+
+\newacronym{ACES}{ACES}{Advanced Computing at Extreme Scale}
+\newacronym{AMR}{AMR}{adaptive mesh refinement}
+\newacronym{CFD}{CFD}{computational fluid dynamics}
+\newacronym{CPU}{CPU}{central processing unit}
+\newacronym{CLE}{CLE}{Cray Linux Environment}
+\newacronym{CUDA}{CUDA}{Compute Unified Device Architecture}
+\newacronym{DOE}{DOE}{U.~S.~Department of Energy}
+\newacronym{GPU}{GPU}{graphics processor unit}
+\newacronym{HAAP}{HAAP}{Heterogeneous Advanced Architecture Platform}
+\newacronym{HPC}{HPC}{high-performance computing}
+\newacronym{LANL}{LANL}{Los Alamos National Laboratory}
+\newacronym{LLNL}{LLNL}{Lawrence Livermore National Laboratory}
+\newacronym{MPI}{MPI}{Message Passing Interface}
+\newacronym{NERSC}{NERSC}{National Energy Research Scientific Computing Center}
+\newacronym{NNSA}{NNSA}{National Nuclear Security Administration}
+\newacronym{NUMA}{NUMA}{non-uniform memory access}
+\newacronym{RMCRT}{RMCRT}{Reverse Monte Carlo Ray Tracing}
+\newacronym{SNL}{SNL}{Sandia National Laboratories}
+\newacronym{NTV}{NTV}{near-threshold voltage}
+\newacronym{RAW}{RAW}{\gls{Read-After-Write}}
+\newacronym{WAR}{WAR}{\gls{Write-After-Read}}
+\newacronym{WAW}{WAW}{\gls{Write-After-Write}}
+\newacronym{PDE}{PDE}{partial differential equation}
+\newacronym{DMA}{DMA}{direct memory access}
+\newacronym{ALU}{ALU}{arithmetic logic unit}
+\newacronym{AVX}{AVX}{Advanced Vector Extensions}
+\newacronym{SSE}{SSE}{Streaming SIMD Extensions}

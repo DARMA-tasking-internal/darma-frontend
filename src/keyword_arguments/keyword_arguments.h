@@ -199,7 +199,6 @@ namespace dharma_runtime { namespace detail {
 
 namespace m = tinympl;
 namespace mv = tinympl::variadic;
-namespace mp = tinympl::placeholders;
 
 ////////////////////////////////////////////////////////////////////////////////
 

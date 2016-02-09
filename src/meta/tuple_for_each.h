@@ -47,217 +47,277 @@
 
 #include <tuple>
 #include <utility>
+#include <type_traits>
 
-namespace dharma_mockup { namespace meta {
+#include <tinympl/join.hpp>
+#include <tinympl/at.hpp>
+#include <tinympl/is_instantiation_of.hpp>
+#include <tinympl/identity.hpp>
+#include <tinympl/delay.hpp>
+#include <tinympl/copy_traits.hpp>
+
+namespace dharma_runtime { namespace meta {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/* tuple_for_each                                                        {{{1 */ #if 1 // begin fold
+/* generic tuple_for_each                                                {{{1 */ #if 1 // begin fold
 
+namespace _tuple_for_each_impl {
+
+namespace m = tinympl;
+
+template <typename ReturnType, typename GenericLambda, bool IncludeIndex, size_t Index>
+struct invoker {
+  template <typename T>
+  inline constexpr ReturnType
+  operator()(T&& val, GenericLambda&& lambda) const {
+    return lambda(std::forward<T>(val));
+  }
+};
+
+template <typename ReturnType, typename GenericLambda, size_t Index>
+struct invoker<ReturnType, GenericLambda, true, Index> {
+  template <typename T>
+  inline constexpr ReturnType
+  operator()(T&& val, GenericLambda&& lambda) const {
+    return lambda(std::forward<T>(val), Index);
+  }
+};
+
+
+template <typename T, typename Like>
+struct undecay_like { typedef T type; };
+
+template <typename T, typename Like>
+struct undecay_like<T, Like&> { typedef T& type; };
+
+template <typename T, typename Like>
+struct undecay_like<T, Like&&> { typedef T&& type; };
 
 template <
-  template <class, class...> class FunctorTemplate,
-  typename TupleType
+  typename Tuple, typename GenericLambda,
+  typename return_type, size_t I, typename next_t,
+  typename i_return_t, typename TupleArg,
+  bool IncludeIndex
 >
-struct tuple_for_each
-{ /* intentionally empty */ };
-
-
-namespace _impl {
-
-template<
-  int Spot, int Size,
-  template <class> class FunctorTemplate,
-  template <class...> class TupleTemplate,
-  typename... Types
->
-struct _tuple_for_each
-{
-  typedef TupleTemplate<Types...> input_tuple_t;
-  typedef _tuple_for_each<
-      Spot+1, Size, FunctorTemplate, TupleTemplate, Types...
-  > next_helper_t;
-  typedef decltype(
-    FunctorTemplate<
-      typename std::tuple_element<Spot, input_tuple_t>::type
-    >()(
-      std::declval<
-        typename std::tuple_element<Spot, input_tuple_t>::type
-      >()
-    )
-  ) this_part_result_t;
-  typedef decltype(
-    std::tuple_cat(
-      std::declval<TupleTemplate<this_part_result_t>>(),
-      std::declval<typename next_helper_t::partial_result_t>()
-    )
-  ) partial_result_t;
-
-  partial_result_t
-  operator()(input_tuple_t&& tup) const
-  {
+struct _helper1 {
+  constexpr inline return_type
+  operator()(TupleArg&& tup, GenericLambda&& lambda) const && {
+    typedef typename m::copy_cv_qualifiers<TupleArg>::template apply<
+        typename m::copy_reference_type<TupleArg>::template apply<
+          typename std::tuple_element<I, Tuple>::type
+        >::type
+    >::type qualified_element_t;
     return std::tuple_cat(
-        TupleTemplate<this_part_result_t>(
-          FunctorTemplate<typename std::tuple_element<Spot, input_tuple_t>::type>()(
-              std::get<Spot>(std::forward<input_tuple_t>(tup))
-          )
-        ),
-        next_helper_t()(std::forward<input_tuple_t>(tup))
+      std::tuple<i_return_t>(
+        invoker<i_return_t, GenericLambda, IncludeIndex, I>()(
+          std::forward<
+            decltype(std::get<I>(std::forward<TupleArg>(tup)))
+          >(
+          //std::forward<qualified_element_t>(
+            std::get<I>(std::forward<TupleArg>(tup))
+          ),
+          std::forward<GenericLambda>(lambda)
+        )
+      ),
+      next_t()(
+        std::forward<TupleArg>(tup),
+        std::forward<GenericLambda>(lambda)
+      )
     );
   }
-
 };
-
-template<
-  int Size,
-  template <class> class FunctorTemplate,
-  template <class...> class TupleTemplate,
-  typename... Types
->
-struct _tuple_for_each<
-  Size, Size, FunctorTemplate, TupleTemplate, Types...
->
-{
-  typedef TupleTemplate<Types...> input_tuple_t;
-  typedef TupleTemplate<> partial_result_t;
-  partial_result_t
-  operator()(input_tuple_t&& tup) const
-  {
-    return TupleTemplate<>();
-  }
-
-};
-
-} // end namespace _impl
 
 template <
-  template <class> class FunctorTemplate,
-  template <class...> class TupleTemplate,
-  typename... Types
+  typename Tuple, typename GenericLambda,
+  size_t I, typename next_t, typename i_return_t,
+  typename TupleArg, bool IncludeIndex
 >
-struct tuple_for_each<
-  FunctorTemplate, TupleTemplate<Types...>
->
-{
-  typedef TupleTemplate<Types...> input_tuple_t;
-  typedef _impl::_tuple_for_each<
-      0, sizeof...(Types),
-      FunctorTemplate, TupleTemplate,
-      Types...
-  > helper_t;
-  typedef typename helper_t::partial_result_t result_tuple_t;
-
-  result_tuple_t
-  operator()(input_tuple_t&& tup) const
-  {
-    return helper_t()(
-        std::forward<input_tuple_t>(tup)
+struct _helper1<Tuple, GenericLambda, void, I, next_t, i_return_t, TupleArg, IncludeIndex> {
+  constexpr inline void
+  operator()(TupleArg&& tup, GenericLambda&& lambda) const && {
+    typedef typename m::copy_cv_qualifiers<TupleArg>::template apply<
+        typename m::copy_reference_type<TupleArg>::template apply<
+          typename std::tuple_element<I, Tuple>::type
+        >::type
+    >::type qualified_element_t;
+    invoker<i_return_t, GenericLambda, IncludeIndex, I>()(
+      std::forward<
+        decltype(std::get<I>(std::forward<TupleArg>(tup)))
+      >(
+        std::get<I>(std::forward<TupleArg>(tup))
+      ),
+      std::forward<GenericLambda>(lambda)
+    );
+    next_t()(
+      std::forward<TupleArg>(tup),
+      std::forward<GenericLambda>(lambda)
     );
   }
 };
+
+template <typename T, typename... Args>
+struct call_operator_return {
+  typedef decltype(std::declval<T>()(
+    std::declval<Args>()...
+  )) type;
+};
+
+template <
+  size_t I, size_t N,
+  typename Tuple,
+  typename GenericLambda,
+  typename TupleArg,
+  bool IncludeIndex = false,
+  bool PrevIsVoid = false /* ignored for I=0 */
+>
+struct _tuple_for_each {
+  static_assert(
+    m::is_instantiation_of<std::tuple, Tuple>::value,
+    "tuple_for_each only works on std::tuple"
+  );
+
+
+  typedef typename std::conditional<
+    IncludeIndex,
+    call_operator_return<GenericLambda,
+      typename std::tuple_element<I, Tuple>::type, size_t
+    >,
+    call_operator_return<GenericLambda,
+      typename std::tuple_element<I, Tuple>::type
+    >
+  >::type::type i_return_t;
+
+  typedef _tuple_for_each<I+1, N, Tuple, GenericLambda,
+      TupleArg, IncludeIndex, std::is_same<i_return_t, void>::value
+  > next_t;
+
+  typedef typename std::conditional<
+    std::is_same<i_return_t, void>::value,
+    m::identity<void>,
+    m::delay<
+      m::join,
+      m::delay<std::tuple, i_return_t>,
+      m::identity<typename next_t::return_t>
+    >
+  >::type::type return_t;
+
+  static_assert(
+    not (
+      std::is_same<return_t, void>::value
+      xor std::is_same<typename next_t::return_t, void>::value
+    ),
+    "tuple_for_each can't mix void and non-void return types"
+  );
+
+  constexpr inline return_t
+  operator()(TupleArg&& tup, GenericLambda&& lambda) const && {
+    return _helper1<
+        Tuple, GenericLambda, return_t, I,
+        next_t, i_return_t, TupleArg, IncludeIndex
+    >()(
+      std::forward<TupleArg>(tup),
+      std::forward<GenericLambda>(lambda)
+    );
+  }
+
+};
+
+template <typename return_type>
+struct _helper2 {
+  constexpr inline return_type operator()() const && {
+    return std::tuple<>();
+  }
+};
+
+template <>
+struct _helper2<void> {
+  constexpr inline void operator()() const && { /* do nothing */ }
+};
+
+template <
+  size_t N,
+  typename Tuple,
+  typename GenericLambda,
+  typename TupleArg,
+  bool IncludeIndex,
+  bool PrevIsVoid
+>
+struct _tuple_for_each<N, N, Tuple, GenericLambda, TupleArg, IncludeIndex, PrevIsVoid> {
+  static_assert(
+    m::is_instantiation_of<std::tuple, Tuple>::value,
+    "tuple_for_each only works on std::tuple"
+  );
+
+  typedef typename std::conditional<
+    PrevIsVoid, void, std::tuple<>
+  >::type return_t;
+
+
+  constexpr inline return_t
+  operator()(TupleArg&& tup, GenericLambda&& lambda) const && {
+    return _helper2<return_t>()();
+  }
+
+};
+
+} // end namespace _tuple_for_each_impl
+
+// Note: calling with an empty tuple returns an empty tuple, not void
+
+template <
+  typename Tuple,
+  typename GenericLambda
+>
+typename _tuple_for_each_impl::_tuple_for_each<
+  0, std::tuple_size<typename std::decay<Tuple>::type>::value,
+  typename std::decay<Tuple>::type,
+  GenericLambda, Tuple
+>::return_t
+tuple_for_each(
+  Tuple&& tup,
+  GenericLambda&& lambda
+) {
+  typedef typename _tuple_for_each_impl::_tuple_for_each<
+    0, std::tuple_size<typename std::decay<Tuple>::type>::value,
+    typename std::decay<Tuple>::type,
+    GenericLambda, Tuple
+  > impl_t;
+  return impl_t()(
+    std::forward<Tuple>(tup),
+    std::forward<GenericLambda>(lambda)
+  );
+}
+
+template <
+  typename Tuple,
+  typename GenericLambda
+>
+typename _tuple_for_each_impl::_tuple_for_each<
+  0, std::tuple_size<typename std::decay<Tuple>::type>::value,
+  typename std::decay<Tuple>::type,
+  GenericLambda, Tuple, true
+>::return_t
+tuple_for_each_with_index(
+  Tuple&& tup,
+  GenericLambda&& lambda
+) {
+  typedef typename _tuple_for_each_impl::_tuple_for_each<
+    0, std::tuple_size<typename std::decay<Tuple>::type>::value,
+    typename std::decay<Tuple>::type,
+    GenericLambda, Tuple, true
+  > impl_t;
+  return impl_t()(
+    std::forward<Tuple>(tup),
+    std::forward<GenericLambda>(lambda)
+  );
+}
 
 /*                                                                            */ #endif // end fold
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
-////////////////////////////////////////////////////////////////////////////////
-
-/* tuple_for_each_templated                                              {{{1 */ #if 1 // begin fold
-
-
-template <
-  typename Functor,
-  typename TupleType
->
-struct tuple_for_each_templated
-{ /* intentionally empty */ };
-
-
-namespace _impl {
-
-template<
-  int Spot, int Size,
-  typename Functor,
-  template <class...> class TupleTemplate,
-  typename... Types
->
-struct _tuple_for_each_templated
-{
-  typedef TupleTemplate<Types...> input_tuple_t;
-  typedef _tuple_for_each_templated<
-      Spot+1, Size, Functor, TupleTemplate, Types...
-  > next_helper_t;
-
-  void
-  operator()(Functor& functor, input_tuple_t& tup) const
-  {
-    functor.template operator()<
-      typename std::tuple_element<Spot, input_tuple_t>::type,
-      Spot
-    >(
-        std::get<Spot>(tup)
-    );
-    next_helper_t()(
-        functor,
-        tup
-    );
-  }
-
-};
-
-template<
-  int Size,
-  typename Functor,
-  template <class...> class TupleTemplate,
-  typename... Types
->
-struct _tuple_for_each_templated<
-  Size, Size, Functor, TupleTemplate, Types...
->
-{
-  typedef TupleTemplate<Types...> input_tuple_t;
-  void
-  operator()(Functor& functor, input_tuple_t& tup) const
-  { }
-
-};
-
-} // end namespace _impl
-
-template <
-  typename StatefulFunctor,
-  template <class...> class TupleTemplate,
-  typename... Types
->
-struct tuple_for_each_templated<
-  StatefulFunctor, TupleTemplate<Types...>
->
-{
-  typedef TupleTemplate<Types...> input_tuple_t;
-  typedef _impl::_tuple_for_each_templated<
-      0, sizeof...(Types),
-      StatefulFunctor, TupleTemplate,
-      Types...
-  > helper_t;
-
-  void
-  operator()(StatefulFunctor& functor, input_tuple_t& tup) const
-  {
-    helper_t()(
-        functor,
-        tup
-    );
-  }
-};
-
-
-
-/*                                                                            */ #endif // end fold
-
-////////////////////////////////////////////////////////////////////////////////
-
-}} // end namespace dharma_mockup/detail
+}} // end namespace dharma_runtime::meta
 
 
 #endif /* META_TUPLE_FOR_EACH_H_ */

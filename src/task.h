@@ -48,8 +48,12 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "abstract/backend/types.h"
+#include "abstract/backend/runtime.h"
+#include "abstract/frontend/dependency_handle.h"
 #include "abstract/frontend/task.h"
-#include "handle.h"
+
+#include "runtime.h"
 
 #include <tinympl/greater.hpp>
 #include <tinympl/int.hpp>
@@ -57,6 +61,9 @@
 #include <tinympl/identity.hpp>
 #include <tinympl/at.hpp>
 #include <tinympl/erase.hpp>
+#include <tinympl/bind.hpp>
+#include <tinympl/logical_and.hpp>
+#include <tinympl/vector.hpp>
 
 namespace dharma_runtime {
 
@@ -99,7 +106,7 @@ struct task_traits {
 
   private:
     static constexpr const size_t _possible_version_index =
-      std::conditional<_first_is_key, m::int_<1>, m::int_<0>>::type::value
+      std::conditional<_first_is_key, m::int_<1>, m::int_<0>>::type::value;
     static constexpr const bool _version_given = m::and_<
       m::greater<m::int_<sizeof...(Types)>, m::int_<_possible_version_index>>,
       m::delay<
@@ -113,7 +120,7 @@ struct task_traits {
     typedef typename std::conditional<
       _version_given,
       mv::at<_possible_version_index, Types...>,
-      m::identity<default_version_t>
+      m::identity<types::version_t>
     >::type::type version_t;
 
   private:
@@ -131,8 +138,6 @@ struct task_traits {
 
 namespace detail {
 
-
-
 class TaskBase
   : public abstract::backend::runtime_t::task_t
 {
@@ -142,13 +147,14 @@ class TaskBase
     typedef abstract::backend::runtime_t::key_t key_t;
     typedef abstract::backend::runtime_t::version_t version_t;
     typedef types::shared_ptr_template<handle_t> handle_ptr;
-    typedef types::handle_container_template<handle_ptr> handle_ptr_container_t;
-    typedef std::unordered_set<handle_ptr> needs_handle_container_t;
+    typedef types::handle_container_template<handle_t*> get_deps_container_t;
+    typedef std::unordered_set<handle_t*> needs_handle_container_t;
 
-    handle_ptr_container_t dependencies_;
+    get_deps_container_t dependencies_;
 
     needs_handle_container_t needs_read_deps_;
     needs_handle_container_t needs_write_deps_;
+    std::vector<handle_ptr> all_deps_;
 
     key_t name_;
 
@@ -160,31 +166,35 @@ class TaskBase
       bool needs_read_data,
       bool needs_write_data
     ) {
-      dependencies_.insert(dep);
-      if(needs_read_data) needs_read_deps_.insert(dep);
-      if(needs_write_data) needs_write_deps_.insert(dep);
+      dependencies_.insert(dep.get());
+      all_deps_.push_back(dep);
+      assert(needs_read_data || needs_write_data);
+      if(needs_read_data) needs_read_deps_.insert(dep.get());
+      if(needs_write_data) needs_write_deps_.insert(dep.get());
     }
 
     ////////////////////////////////////////////////////////////////////////////////
     // Implementation of abstract::frontend::Task
 
-    const handle_ptr_container_t&
+    const get_deps_container_t&
     get_dependencies() const override {
       return dependencies_;
     }
 
     bool
     needs_read_data(
-      const handle_t* const handle
+      const handle_t* handle
     ) const override {
-      return needs_read_deps_.find(handle) != needs_read_deps_.end();
+      // TODO figure out why this doesn't work like it should...
+      return needs_read_deps_.find(const_cast<handle_t*>(handle)) != needs_read_deps_.end();
     }
 
     bool
     needs_write_data(
-      const handle_t* const handle
+      const handle_t* handle
     ) const override {
-      return needs_write_deps_.find(handle) != needs_write_deps_.end();
+      // TODO figure out why this doesn't work like it should...
+      return needs_write_deps_.find(const_cast<handle_t*>(handle)) != needs_write_deps_.end();
     }
 
     const key_t&
@@ -208,7 +218,7 @@ class TaskBase
 
     virtual ~TaskBase() noexcept { }
 
-    types::shared_ptr_template<TaskBase> current_create_work_context = nullptr;
+    TaskBase* current_create_work_context = nullptr;
 
 };
 
@@ -218,7 +228,8 @@ class TopLevelTask
   public:
 
     void run() const override {
-      // Do nothing, as specified
+      // Abort, as specified.  This should never be called.
+      abort();
     }
 
 };
@@ -228,24 +239,8 @@ template <
   typename Lambda,
   typename... Types
 >
-class Task
-  : public TaskBase,
-    std::enable_shared_from_this<Task>
+class Task : public TaskBase
 {
-
-  protected:
-
-    template <typename T>
-    using dep_handle_t = DependencyHandle<T, key_type, version_type>;
-    template <typename... Ts>
-    using smart_ptr_template = dharma_runtime::types::shared_ptr_template<Ts...>
-    template <typename T>
-    using dep_handle_ptr = smart_ptr_template<dep_handle_t<T>>;
-
-    typedef smart_ptr_template<Lambda> lambda_ptr;
-
-    typedef typename smart_ptr_traits<smart_ptr_template>::template maker<lambda> lambda_ptr_maker;
-
   public:
 
     Task(Lambda&& in_lambda)

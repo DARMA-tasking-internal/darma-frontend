@@ -55,8 +55,26 @@ namespace backend {
   class DataBlock;
 } // end namespace backend
 
+// Forward declaration of SerializationManager
+namespace frontend {
+  class SerializationManager;
+} // end namespace backend
+
 namespace frontend {
 
+
+
+/**
+ *  @ingroup abstract
+ *
+ *  @class DependencyHandle
+ *
+ *  @brief The fundamental abstraction for the frontend to communicate units of
+ *  data dependence to the backend.
+ *
+ *  @tparam Key must meet the Key concept
+ *  @tparam Version must meet the Version concept
+ */
 template <
   typename Key,
   typename Version
@@ -64,35 +82,131 @@ template <
 class DependencyHandle {
   public:
 
+    /** @brief The key associated with the dependency.
+     *
+     *  Other dependencies that share a key with this dependency denote a requirement of the same
+     *  data block (though differing versions indicate that the requirement refers to a different
+     *  snapshot in time of that data block).
+     *
+     *  @remark The frontend must ensure that the return value for get_key() is the same from the
+     *  time that Runtime::register_handle() or register_fetching_handle() is called with a given
+     *  handle until Runtime::release_handle() is called with that same handle.
+     *
+     */
     virtual const Key&
     get_key() const =0;
 
+    /** @brief The version associated with the dependency.
+     *
+     *  Versions are strictly ordered, hashable, incrementable objects for which the default constructed
+     *  value is always less than or equal to all values.  See Version concept for more information
+     *
+     */
     virtual const Version&
     get_version() const =0;
 
-    //// TODO we need move this, since some tasks will read only and some tasks will read/write the same handle
-    //virtual bool
-    //needs_read_data() const =0;
+    /** @brief Set the version associated with the dependency
+     *
+     *  The backend may call set_version() on a given DependencyHandle at most one time between
+     *  the handle's registration and release, and only if set_version_is_pending(true) has been
+     *  called (which should only be done if this handle or another with an earlier version from
+     *  which this handle was derived was registered with Runtime::register_fetching_handle()
+     *  and the handle's actual version is pending the resolution of the user version tag associated
+     *  with that call).
+     */
+    virtual void
+    set_version(const Version& v) =0;
 
-    //// TODO we need move this, since some tasks will read only and some tasks will read/write the same handle
-    //virtual bool
-    //needs_overwrite_data() const =0;
+    /** @brief Indicate that the version of the handle is pending the resolution of a version tag for a fetch.
+     *
+     *  This allows the frontend to continue creating and registering tasks even while waiting to find out
+     *  what version of a handle to fetch.  See set_version() for more info.
+     *
+     */
+    virtual void
+    set_version_is_pending(bool is_pending=true) =0;
 
-    SerializationManager*
+    /** @brief returns true if the backend has called set_version_is_pending(true) on the handle
+     *  and if set_version_is_pending(false) and/or set_version() has not been called since.
+     */
+    virtual bool
+    version_is_pending() const =0;
+
+    /** @brief return the serialization manager describing how to allocate, pack, and unpack the data
+     *  associated with the dependency
+     *
+     *  @remark In the 0.2.0 spec implementation, the only relevant piece of information the SerializationManager
+     *  returns is the size of the metadata (i.e., the stack size; literally sizeof(T) for some type T) so that
+     *  the backend can allocate data for data blocks.
+     *
+     *  @todo 0.3 spec: more discussion as SerializationManager spec matures
+     *
+     */
+    virtual SerializationManager*
     get_serialization_manager() =0;
 
+    /** @brief Satisfy the dependency handle with data or with an allocated buffer into which data
+     *  may be written.
+     *
+     *  The underlying data in the data block may not be written to until the backend calls
+     *  DependencyHandle::allow_writes() on this handle.  This method should be called at most
+     *  once in the lifetime of a DependencyHandle, and it should only be called zero times if
+     *  no tasks were registered during its lifetime that reported a dependence on the handle.
+     *
+     *  @param data A (non-owning) pointer to the data block for the DependencyHandle to use for
+     *  all data operations.  If any tasks have been used in any read contexts before
+     *  Runtime::release_read_only_usage() was called with the handle, or if the up to one
+     *  "final" usage (see Runtime::release_read_only_usage() for details) of the handle is a task
+     *  that returns true for Task::needs_read_data(handle), the readable data must be available
+     *  at the time of this invocation.  Otherwise, a buffer of the correct size to contain
+     *  the metadata as described by the serialization manager should be allocated.  As of
+     *  the 0.2 spec, the handle and data block should not be moved from the time
+     *  satisfy_with_data_block() is called until the time Runtime::release_handle() is called
+     *  (i.e., the pointer passed in here should be valid until Runtime::release_handle() is called).
+     *
+     *  @todo 0.4: spec protocol for migrating data blocks and handles after a handle has been satisfied
+     *
+     */
     virtual void
     satisfy_with_data_block(
       abstract::backend::DataBlock* const data
     ) =0;
 
+    /** @brief Get the pointer to the data block passed into satisfy_with_data_block() by the backend
+     *
+     *  It is an (debug-mode) error to call this method before calling satisfy_with_data_block()
+     *
+     *  @todo 0.4: this should eventually return a DataBlock*& to facilitate migration without
+     *  re-satisfaction for certain cases
+     *
+     */
     virtual abstract::backend::DataBlock*
     get_data_block() =0;
 
+    /** @brief returns true iff satisfy_with_data_block() has been called for this instance
+     */
     virtual bool
     is_satisfied() const =0;
 
-    virtual ~DependencyHandle() noexcept { };
+    /** @brief Notify the dependency handle that the last read-only usage of the handle has cleared
+     *  and any additional usage until Runtime::release_handle() is called may safely modify the
+     *  data in the associated data block.
+     *
+     *  It is a (debug-mode) error to call allow_writes() before calling satisfy_with_data_block().
+     *  allow_writes() should be called at most once in the lifetime of a dependency handle, and
+     *  it should only be called zero times if the handle is never used in a write context.
+     *
+     */
+    virtual void
+    allow_writes() =0;
+
+    /** @brief returns true iff allow_writes() has been called for this instance
+     */
+    virtual bool
+    is_writable() const =0;
+
+
+    virtual ~DependencyHandle() noexcept = default;
 };
 
 

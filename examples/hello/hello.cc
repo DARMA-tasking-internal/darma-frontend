@@ -1,6 +1,6 @@
 
 
-#include <dharma.h>
+#include <mock_backend.h>
 
 using namespace dharma_runtime;
 using namespace dharma_runtime::keyword_arguments_for_publication;
@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
   size_t n_ranks = dharma_spmd_size();
 
   if(me % 2 == 0) {
-    Dependency<std::string> dep = write_access<std::string>(me, "the_hello_dependency");
+    AccessHandle<std::string> dep = initial_access<std::string>(me, "the_hello_dependency");
 
     create_work(
       [=]{
@@ -26,14 +26,14 @@ int main(int argc, char** argv) {
   }
   else {
 
-    Dependency<std::string> dep = read_access<std::string>(me-1, "the_hello_dependency";
+    AccessHandle<std::string> dep = read_access<std::string>(me-1, "the_hello_dependency");
 
-    Dependency<> ordering;
+    AccessHandle<int> ordering;
     if(me != 1) {
-      ordering = read_write<>("ordering", read_version=me-2);
+      ordering = read_write<int>("ordering", version=me-2);
     }
     else {
-      ordering = write_access<>("ordering");
+      ordering = initial_access<int>("ordering");
     }
 
     create_work(
