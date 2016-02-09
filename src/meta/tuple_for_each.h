@@ -232,7 +232,7 @@ struct _helper2 {
 
 template <>
 struct _helper2<void> {
-  constexpr inline void operator()() const && { /* do nothing */ }
+  inline void operator()() const && { /* do nothing */ }
 };
 
 template <

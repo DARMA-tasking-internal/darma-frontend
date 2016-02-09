@@ -70,6 +70,9 @@ class basic_version {
     typedef Comparable value_t;
     typedef Container<Comparable> container_t;
 
+    basic_version() : version_clock{value_t()}
+    { }
+
     // Post-increment
     Comparable const&
     operator++(int) {
@@ -79,7 +82,7 @@ class basic_version {
     // Pre-increment
     Comparable const&
     operator++() {
-      return ++version_clock.back();
+      return ++(version_clock.back());
     }
 
     void

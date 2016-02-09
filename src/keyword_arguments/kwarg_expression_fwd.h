@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          spmd.h
+//                          kwarg_expression_fwd.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,61 +42,22 @@
 //@HEADER
 */
 
-#ifndef SPMD_H_
-#define SPMD_H_
+#ifndef SRC_KEYWORD_ARGUMENTS_KWARG_EXPRESSION_FWD_H_
+#define SRC_KEYWORD_ARGUMENTS_KWARG_EXPRESSION_FWD_H_
 
-#include <memory>
-
-#include "runtime.h"
-#include "abstract/backend/runtime.h"
-#include "dharma_assert.h"
-#include "task.h"
+namespace dharma_runtime { namespace detail {
 
 
-namespace dharma_runtime {
+template <
+  typename T,
+  typename KWArgName,
+  bool in_rhs_is_lvalue
+>
+class kwarg_expression;
 
-typedef size_t dharma_rank_t;
+}} // end namespace dharma_runtime::detail
 
-inline void
-dharma_init(
-  int& argc,
-  char**& argv
-) {
-  std::unique_ptr<typename dharma_runtime::abstract::backend::runtime_t::task_t> moved_from =
-      std::make_unique<detail::TopLevelTask>();
-  abstract::backend::dharma_backend_initialize(
-    argc, argv, detail::backend_runtime, std::move(moved_from)
-  );
-}
 
-inline dharma_rank_t
-dharma_spmd_rank() {
-  DHARMA_ASSERT_NOT_NULL(detail::backend_runtime);
-  DHARMA_ASSERT_NOT_NULL(detail::backend_runtime->get_running_task());
 
-  DHARMA_ASSERT_EQUAL(
-    std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>()),
-    DHARMA_BACKEND_SPMD_NAME_PREFIX
-  );
-  return detail::backend_runtime
-      ->get_running_task()->get_name().component<1>().as<dharma_rank_t>();
-}
 
-inline dharma_rank_t
-dharma_spmd_size() {
-  DHARMA_ASSERT_EQUAL(
-    std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>()),
-    DHARMA_BACKEND_SPMD_NAME_PREFIX
-  );
-  return detail::backend_runtime
-      ->get_running_task()->get_name().component<2>().as<dharma_rank_t>();
-}
-
-inline void
-dharma_finalize() {
-  detail::backend_runtime->finalize();
-}
-
-} // end namespace dharma_runtime
-
-#endif /* SPMD_H_ */
+#endif /* SRC_KEYWORD_ARGUMENTS_KWARG_EXPRESSION_FWD_H_ */

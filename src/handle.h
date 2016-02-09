@@ -47,14 +47,16 @@
 
 #include <atomic>
 #include <cassert>
-#include "task.h"
-#include "runtime.h"
-#include "abstract/defaults/version.h"
-#include "util.h"
 
 #include <tinympl/variadic/find_if.hpp>
 #include <tinympl/bind.hpp>
 #include <tinympl/lambda.hpp>
+
+#include "task.h"
+#include "runtime.h"
+#include "abstract/defaults/version.h"
+#include "util.h"
+#include "dharma_assert.h"
 
 #include "abstract/backend/data_block.h"
 #include "keyword_arguments/keyword_arguments.h"
@@ -80,6 +82,7 @@ struct access_expr_helper {
     Args&&... args
   ) const {
     // TODO
+    return types::key_t();
   }
 
   inline types::key_t
@@ -87,6 +90,7 @@ struct access_expr_helper {
     Args&&... args
   ) const {
     // TODO
+    return types::key_t();
   }
 
 };
@@ -133,6 +137,7 @@ struct publish_expr_helper {
     Args&&... args
   ) const {
     // TODO
+    return types::key_t();
   }
 
 
@@ -141,6 +146,7 @@ struct publish_expr_helper {
     Args&&... args
   ) const {
     // TODO
+    return false;
   }
 };
 
@@ -267,7 +273,7 @@ class DependencyHandleBase
     version_is_pending() const override { return version_is_pending_; }
 
     void
-    set_version_is_pending(bool is_pending) override {
+    set_version_is_pending(bool is_pending) {
       version_is_pending_ = true;
     }
 
@@ -447,6 +453,7 @@ read_write(
   KeyExprParts&&... parts
 );
 
+// TODO !!! 0.2.0 call set_version_is_pending() in the proper places
 template <
   typename T,
   typename key_type,
@@ -496,7 +503,7 @@ class AccessHandle
       assert(other.prev_copied_from == nullptr);
       dep_handle_ = other.dep_handle_;
       permissions_ = other.permissions_;
-
+      return *this;
     }
 
     AccessHandle&
@@ -505,6 +512,7 @@ class AccessHandle
       assert(other.prev_copied_from == nullptr);
       dep_handle_ = other.dep_handle_;
       permissions_ = other.permissions_;
+      return *this;
     }
 
     AccessHandle(const AccessHandle& copied_from)
@@ -525,6 +533,7 @@ class AccessHandle
       if(capturing_task != nullptr) {
         assert(copied_from.prev_copied_from != nullptr);
         AccessHandle& outer = *(copied_from.prev_copied_from);
+        DHARMA_ASSERT_NOT_NULL(copied_from.prev_copied_from);
         // TODO also ask the task if any special permissions downgrades were given
         // TODO !!! connect outputs to corresponding parent task output
         switch(outer.get_permissions()) {

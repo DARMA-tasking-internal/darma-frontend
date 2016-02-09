@@ -172,7 +172,7 @@ dharma_runtime::abstract::backend::dharma_backend_initialize(
   dharma_runtime::abstract::backend::runtime_t*& backend_runtime,
   types::unique_ptr_template<
     typename dharma_runtime::abstract::backend::runtime_t::task_t
-  >&& top_level_task
+  > top_level_task
 ) {
   auto* tmp_rt = new MockRuntime;
   tmp_rt->top_level_task = std::move(top_level_task);
