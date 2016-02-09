@@ -85,27 +85,22 @@ class Runtime {
     typedef abstract::frontend::ContainmentManager<Key, Version> containment_manager_t;
     typedef abstract::frontend::AliasingManager<Key, Version> aliasing_manager_t;
     typedef abstract::frontend::Task<
-      Key, Version, types::handle_container_template, shared_ptr_template
+      Key, Version, types::handle_container_template
     > task_t;
-    typedef shared_ptr_template<task_t> task_ptr;
-    typedef shared_ptr_template<const task_t> task_const_ptr;
     typedef unique_ptr_template<task_t> task_unique_ptr;
     typedef unique_ptr_template<const task_t> task_const_unique_ptr;
-    typedef shared_ptr_template<handle_t> handle_ptr;
-    typedef shared_ptr_template<const handle_t> handle_const_ptr;
 
     /** @brief Enqueue a task that should run when its dependencies are satisfied
      *
-     *  @pre Before this call, it must be valid to call \ref abstract::frontend::Task::get_inputs() and
-     *  \ref abstract::frontend::Task::get_outputs() on the parameter \a task (i.e., all inputs and
-     *  outputs must be added to \a task before the task is registered).  Each \ref
-     *  abstract::frontend::DependencyHandle returned by \ref Task::get_outputs() and \ref Task::get_inputs()
-     *  must be registered as either a handle or a fetcher (the latter for inputs only) using the
-     *  \ref Runtime::register_handle() or Runtime::register_fetcher() methods, respectively, and must not
-     *  have been released yet using the corresponding release methods.
+     *  @pre At the time of this call, it must be valid to call task->get_dependencies().  All DependencyHandles
+     *  returned by task->get_dependencies() must be registered with this instance of Runtime using either
+     *  register_handle() or register_fetching_handle() and must not have been released yet using release_handle().
+     *  It must be valid to call needs_read_data() and needs_write_data() on \c task with any of the handles
+     *  returned by get_dependencies().  At least by the time that DependencyHandle::is_satisfied() returns
+     *  true for all DependencyHandles returned by task->get_dependencies(), it must be valid to call task->run()
      *
      *  @post \a task may be invoked at any subsequent time pending the satisfaction of the handles returned
-     *  by Task::get_inputs() and Task::get_outputs()
+     *  by Task::get_dependencies()
      *
      *  @param task A unique pointer to the task to register and enqueue, meeting the preconditions
      *  described above.  The runtime backend now owns the task object and is responsible for deleting it
@@ -126,6 +121,14 @@ class Runtime {
      *  thread.  The returned pointer must be castable to the same concrete type as was passed to
      *  \ref Runtime::register_task() when the task was registered.
      *
+     *  @remark If the runtime implements context switching, it must ensure that
+     *  the behavior of Runtime::get_running_task() is consistent and correct for a given
+     *  running thread as though the switching never occurred.
+     *
+     *  @remark The pointer returned here is guaranteed to be valid until Task::run() returns for
+     *  the returned task.  However, to allow context switching, it is not guaranteed to be valid
+     *  in the context of any other task's run() invocation, including child tasks, and thus it should
+     *  not be dereferenced in any other context.
      */
     virtual task_t* const
     get_running_task() const =0;
@@ -134,23 +137,18 @@ class Runtime {
 
 
     /** @brief Register a local handle to a data block
-     *  @TODO update this to talk about get_dependencies rather than get_inputs and get_outputs
      *
-     *  Register a handle that can be used locally as a return value of Task::get_dependencies() for tasks
+     *  Register a handle that can be used as a part of the return value of Task::get_dependencies() for tasks
      *  registered on this runtime instance.  Note that the *only* allowed return values of get_dependencies()
-     *  for a task passed to register_task() on this instance are values for which register_handle() has been
-     *  called and release_handle() has not yet been called.  If the dependency requires readable data to be
-     *  marked as satisfied (i.e., if \c t.needs_read_data(handle) returns true when handle is returned as part of
-     *  Task::get_dependencies() for a registered task \c t), the readable data requirement may be satisfied in one
-     *  of two ways.  If Runtime::register_fetcher() is called with the handle after calling register_handle(),
-     *  then the data to be read must be fetched from the data store under the key and user version tag reported
-     *  by the fetcher.  Otherwise, the runtime will wait until a writable handle with the preceding version is
-     *  released (actually, until the last subversion, indicated by Runtime::handle_done_with_version_depth(),
-     *  of the preceding version is released) and satisfy input uses of handle with the released previous version's
-     *  DependencyHandle::get_data_block() return value.  It is an error to specify both data retrieval methods,
-     *  and specifying neither will lead to deadlock upon usage of the handle (thus, it is prudent for the frontend
-     *  developier to ensure that exactly one of these two read data specifications is used through, for instance,
-     *  some sort of RIIA-like mechanism).
+     *  for a task passed to register_task() on this instance are values for which register_handle() (or
+     *  register_fetching_handle()) has been called and release_handle() has not yet been called.  If the
+     *  dependency requires readable data to be marked as satisfied (i.e., if \c t.needs_read_data(handle)
+     *  returns true when handle is returned as part of Task::get_dependencies() for a registered task \c t),
+     *  the readable data requirement must be satisfied by the release of all previous versions of handle
+     *  \a and a call to handle_done_with_version_depth() on a handle with a penultimate subversion that is
+     *  exactly 1 increment prior to the final subversion of \c handle and is at the same depth.  See
+     *  Runtime::handle_done_with_version_depth() for more details.
+     *
      *
      *  @sa Task::needs_read_data()
      *  @sa Runtime::register_task()
@@ -162,36 +160,94 @@ class Runtime {
      *  way to ensure the latter of these conditions is to ensure it is not in the return value of
      *  Task::get_dependencies() for any task that Runtime::register_task() has been invoked with). The pointer
      *  passed to this parameter must be valid from the time register_handle() is called until the time
-     *  release_handle() is called (on this instance!) with a handle to the same key and version.
+     *  release_handle() is called (on this instance!) with a handle to the same key and version.  This method
+     *  may be called more than once globally with the same key and the same version, but it is a debug-mode
+     *  error to register more than one task (\b globally) that returns true for Task::needs_write_data() on
+     *  that handle.  (Undefined behavior is still allowed in optimized mode)
+     *
+     */
+    virtual void
+    register_handle(
+      const handle_t* const handle
+    ) =0;
+
+
+    /** @brief Register a dependency handle that is satisfied by retrieving data from the data store
+     *
+     *  The handle may then be used preliminarily as a dependency to tasks, etc.  Subsequents to the handle
+     *  may be created with handle versions in similarly pending states.  Upon resolution of the user_version_tag
+     *  to an internal Version (i.e., triggered by a publish of a handle with a matching key and matching user
+     *  version tag), the handle and all registered subsequents should have their versions updated (i.e., using
+     *  Version::operator+() and DependencyHandle::set_version()) to incorporate the fetched base version.
+     *
+     *  @param handle A (non-owning) pointer to a DependencyHandle for which it must be valid to call get_key()
+     *  but for which the return value of get_version() is ignored.
+     *
+     *  @param user_version_tag A Key to be used to match a publication version of the same key reported
+     *  by handle->get_key() published elsewhere.
      *
      *  @param write_access_allowed A boolean indicating that the handle is allowed to occupy a write role in
      *  a task; i.e., t.needs_write_data(handle) can return true for up to one Task t registered with this instance.
      *  It is the responsibility of the frontend to ensure (either through semantics or user responsibility) that
-     *  register_handle() is not called with a handle to the same key and the same version and
+     *  register_handle() is not called with a handle to the same key and the same version tag and
      *  write_access_allowed=true more than once \b globally.  To do so is a debug mode error/optimized mode
      *  undefined behavior.  Also, if a frontend::Task instance returns true for Task::needs_write_data()
      *  on a handle that was registered with write_access_allowed=false, a debug mode error should be raised
      *  (undefined behavior is allowed in optimized mode).
      *
+     *  @remark for the 0.2.0 spec implementation, write_access_allowed should always be false
+     *
+     *  @todo for 0.2.1 spec, revise the write_access_allowed description to incorporate the fact that the remote handle must
+     *  also not create any post-publication subsequents (probably need a special publish)
+     *
+     *  @todo 0.3.1 spec: separate the concept of read-only retrieval from that of ownership transfer
      */
     virtual void
-    register_handle(
-      const handle_t* const handle,
+    register_fetching_handle(
+      handle_t* const handle,
+      const Key& user_version_tag,
       bool write_access_allowed
+    ) =0;
+
+    /** @brief Release the ability to create tasks that depend on handle as read-only.  The handle can
+     *  then only be used up to once more in a (read/)write context before it is released.
+     *
+     *  All handles can be used in a write context (i.e., be part of the return for Task::get_dependencies()
+     *  for a task that returns true for needs_write_data() on that handle) at most once in their lifetime
+     *  (from register_handle()/register_fetching_handle() to release_handle()).  This (up to) one "final"
+     *  usage must run after all read-only uses of the handle; however not all read-only uses of
+     *  a handle need to be registered by time the task making the "final" usage is registered.  Thus,
+     *  the frontend needs to indicate when no more read-only usages will be created, thus allowing
+     *  the "final" usage to clear its antidependencies.
+     *
+     *  This method indicates that no more tasks will be registered that use handle in a read context
+     *  but not in a write context (a maximum of one task may use handle in a write context anyway).
+     *  It must be called for all handles before release_handle() is called.  It is an error to call
+     *  release_handle() on a handle before calling release_read_only_usage().
+     *
+     *  @param handle a non-owning pointer to a DependencyHandle for which register_handle() or
+     *  register_fetching_handle() has been called on this instance but for which release_handle() has not
+     *  yet been called.
+     *
+     */
+    virtual void
+    release_read_only_usage(
+      const handle_t* const handle
     ) =0;
 
 
     /** @brief Release a previously registered handle, indicating that no more tasks will be registered
      *  with \c handle as an output (at least using the instance registered with register_handle()).
      *
-     *  @param handle A (non-owning) pointer to the same object with which Runtime::register_handle() was previously
-     *  invoked.  Any (frontend or backend) uses of \c handle after release_handle() is returns are invalid and
-     *  result in undefined behavior.  Upon release, if the handle has been published with Runtime::publish_handle()
-     *  or if the handle was registered as the last subversion at a given depth using
-     *  Runtime::handle_done_with_version_depth(), the appropriate action(s) should be taken to satisfy dependencies
-     *  requiring data from the data block in \c handle (i.e., the return value of handle->get_data_block()).  If
-     *  neither of these uses have been performed at the time of release, it is safe for the runtime to garbage
-     *  collect the data block returned by handle->get_data_block().
+     *  @param handle A (non-owning) pointer to the same object with which Runtime::register_handle() (or
+     *  register_fetching_handle()) was previously invoked.  Any (frontend or backend) uses of \c handle
+     *  after release_handle() is returns are invalid and result in undefined behavior.  Upon release,
+     *  if the handle has been published with Runtime::publish_handle() or if the handle was registered
+     *  as the last subversion at a given depth using Runtime::handle_done_with_version_depth(), the
+     *  appropriate action(s) should be taken to satisfy dependencies requiring data from the data block
+     *  in \c handle (i.e., the return value of handle->get_data_block()).  If neither of these uses have
+     *  been performed at the time of release, it is safe for the runtime to garbage collect the data block
+     *  returned by handle->get_data_block().
      *
      *  @sa DependencyHandle::get_data_block()
      *  @sa Runtime::handle_done_with_version_depth()
@@ -203,7 +259,6 @@ class Runtime {
       const handle_t* const handle
     ) =0;
 
-    // TODO need a better name for this
     /** @brief Indicate that no further subversions at the current version depth will be created.
      *
      *  Essentially, this establishes a satisfy-upon-release relationship between \c handle and a handle
@@ -218,6 +273,8 @@ class Runtime {
      *  handle with a version subsequent to the penultimate version of \c handle between this invocation and
      *  the release of handle will lead to undefined behavior.
      *
+     *  @todo perhaps a better name is needed here?
+     *
      */
     virtual void
     handle_done_with_version_depth(
@@ -227,7 +284,7 @@ class Runtime {
     /** @brief Indicate to the backend that the key and version reported by \c handle should be fetchable
      *  with the user version tag \c vertion_tag exactly \c n_additional_fetchers times.
      *
-     *  In other words, \ref Runtime::register_fetcher() must be called exactly \c n_fetchers times
+     *  In other words, \ref Runtime::register_fetching_handle() must be called exactly \c n_fetchers times
      *  \b globally with the key reported by \c handle and the \c version_tag given here before the runtime
      *  can overwrite or delete the data associated with the key and version reported by \c handle.
      *
@@ -257,15 +314,12 @@ class Runtime {
       bool is_final = false
     ) =0;
 
-    virtual void
-    register_fetcher(
-      const Key& key,
-      const Key& version_tag
-    ) =0;
-
     // Methods for "bare" dependency satisfaction and use.  Not used
     // for task dependencies
 
+    /**
+     * @todo Document this for 0.2.1 spec
+     */
     virtual void
     satisfy_handle(
       handle_t* const to_fill,
@@ -274,6 +328,9 @@ class Runtime {
 
     // Methods for establishing containment and/or aliasing relationships
 
+    /**
+     * @todo Document this for 0.2.1 spec
+     */
     virtual void
     establish_containment_relationship(
       const handle_t* const inner_handle,
@@ -281,6 +338,9 @@ class Runtime {
       containment_manager_t const& manager
     ) =0;
 
+    /**
+     * @todo Document this for 0.2.1 spec
+     */
     virtual void
     establish_aliasing_relationship(
       const handle_t* const handle_a,
@@ -288,9 +348,13 @@ class Runtime {
       aliasing_manager_t const& manager
     ) =0;
 
-    // Virtual destructor, since we have virtual methods
+    /** @brief signifies the end of the outer SPMD task from which dharma_backend_initialize() was called
+     */
+    virtual void
+    finalize() =0;
 
-    virtual ~Runtime() noexcept { }
+
+    virtual ~Runtime() noexcept = default;
 
 };
 
@@ -303,14 +367,59 @@ typedef Runtime<
 > runtime_t;
 
 
-// An initialize function that the backend should implement which the frontend
-// calls to setup the static instance of backend_runtime
-extern void
+/** @brief initialize the backend::Runtime instance
+ *
+ *  @remark This should be called once per top-level task.  The backend may chose whether
+ *  the frontend is allowed to have multiple top-level tasks in one process.  If the backend
+ *  supports multiple top-level tasks, it should define the preprocessor constant
+ *  DHARMA_BACKEND_TOP_LEVEL_TASK_MULTIPLE.  If not, it should define the constant
+ *  DHARMA_BACKEND_TOP_LEVEL_TASK_SINGLE.  The frontend is free to wrap these macro constants
+ *  in more user-friendly names before exposing them to the user.
+ *
+ *  @pre The frontend should do nothing that interacts with the backend before this
+ *  function is called.
+ *
+ *  @post Upon return, the (output) parameter backend_runtime should point to  a valid
+ *  instance of backend::Runtime.  All methods of backend_runtime should be invocable
+ *  from any thread with access to the pointer backend_runtime.  The runtime should assume
+ *  control of the (owning) pointer passed in through top_level_task and should not delete
+ *  it before Runtime::finalize() is called on the backend_runtime object.  The top-level
+ *  task object should be setup as described below
+ *
+ *  @param argc An lvalue reference to the argc passed into main().
+ *  @param argv An lvalue reference to the argv passed into main().
+ *
+ *  @param backend_runtime The input value of this parameter is ignored.  On return, it should
+ *  point to a properly initialized instance of backend::Runtime.  The backend owns this
+ *  instance, and should delete it at some point after the frontend calls Runtime::finalize() on
+ *  this instance.
+ *
+ *  @param top_level_task The task object to be returned by Runtime::get_running_task() if that
+ *  method is invoked (on the instance pointed to by backend_runtime upon return) from the outermost
+ *  task context within which dharma_backend_initialize() was invoked.  (Inside of any task context
+ *  created by an invocation of Task::run(), of course, the runtime should still behave as documented
+ *  in the Runtime::get_running_task() method).  It is \a not valid to call Task::run() on this
+ *  top-level task object (i.e., it is an error), and doing so will cause the frontend to abort.
+ *  Indeed (as of 0.2 spec), the only valid methods for the backend to call on this object are
+ *  Task::set_name() and Task::get_name().  At least before returning top_level_task from any calls to
+ *  Runtime::get_running_task(), the backend runtime should assign a name to the top-level task
+ *  with at least three parts, the first three of which must be: a string constant defined by the
+ *  preprocessor macro DHARMA_BACKEND_SPMD_KEY_PREFIX, a std::size_t for the rank of the SPMD-like
+ *  top-level task from which initialize was invoked, and a std::size_t givin the total number of
+ *  ranks in the SPMD launch (which must be known at launch time; SPMD ranks cannot be dynamically
+ *  allocated).  In other words, the backend should make a call of the form:
+ *    top_level_task->set_name(DHARMA_BACKEND_SPMD_NAME_PREFIX, rank, size);
+ *
+ *  @remark The backend is free to extract backend-specific command-line arguments provided it
+ *  updates argc and argv.  When dharma_backend_initialize() returns, backend-specific parameters
+ *  must no longer be in argc and argv.
+ *
+ */
+void
 dharma_backend_initialize(
-  int& argc,
-  char**& argv,
+  int& argc, char**& argv,
   runtime_t*& backend_runtime,
-  types::unique_ptr_template<typename runtime_t::task_t> top_level_task
+  types::unique_ptr_template<typename runtime_t::task_t>&& top_level_task
 );
 
 
@@ -324,38 +433,3 @@ dharma_backend_initialize(
 
 
 #endif /* SRC_ABSTRACT_BACKEND_RUNTIME_H_ */
-
-// ATTIC
-
-/**
-     *  @param needs_data_from_fetcher (Optional) Either a (non-owning) pointer to the handle reportingVjjj
-     *
-     *  will be retrieved before marking the handle as satisfied or \c nullptr.  If this parameter is non-null,
-     *  the handle may be used as an input, and the data to be read will correspond
-     *
-     *  ********** OLD *****************
-     *  The handle registered here indicates that it will be used subsequently in a write or read/write
-     *  context of a task.  That is, it may be eventually used either in as a task output or in a task
-     *  that has an output with the same key and the version ++handle.version (or an increment of some
-     *  equivalent subversion of handle.version).  In either case, this indicates that \ref handle is allowed
-     *  to be used in a context were it is the final use of a dependency with that specific key and version
-     *  before it is (over-)written, and all other read-only uses must complete before the write can occur.
-     *  For simplicity, we'll refer to this usage allowed for handles registered here as their "final" usage.
-     *  Read-only uses of the handle registered here are also allowed, but at least an outermost task read-only usage
-     *  must be registered before  the task making the "final" usage is registered (though eventual support for
-     *  extra read-only handles may eventually be allowed).  Note that read-only uses of the handle that must
-     *  preceed the "final" usage  may create read-only tasks of their own, which must in turn be scheduled
-     *  before the final usage (even though they are allowed to be scheduled after the "final" usage).  Note also
-     *  that the "final" usage may schedule subtasks that require a (non-strict) subset of the "final" usage's
-     *  privledges.  For a TODO finish this
-     *
-     *  @todo mechanism to allow extra read-only handles to be registered without using the publish/fetch interface
-     *
-     *
-     *
-     *  @param needs_data_from (Optional) Either a (non-owning) pointer to the handle from which readable data
-     *  will be retrieved before marking the handle as satisfied or \c nullptr.  If this parameter is non-null,
-     *  the handle may be used as an input, and the data to be read will correspond
-     *
-     *  @param is_initial TODO
-**/

@@ -48,8 +48,10 @@
 #include <cassert>
 #include <tuple>
 #include <cstring> // std::memcmp
+#include <iostream>
 
-#include "util.h"
+#include "../../util.h"
+#include "../../meta/tuple_for_each.h"
 #include "key_fwd.h"
 
 
@@ -111,7 +113,7 @@ class key_impl_base
   public:
 
     virtual const key_part
-    get_part(constexpr unsigned spot) const =0;
+    get_part(unsigned spot) const =0;
 
     virtual const void*
     get_start() const =0;
@@ -136,14 +138,14 @@ class key_impl_base
 
 // TODO std::string and/or const char* support
 template <typename... Types>
-class key_impl
+class key_impl : public key_impl_base
 {
   public:
 
     // TODO validate that Types... are bitwise copyable
 
     key_impl(
-      constexpr const variadic_constructor_arg_t,
+      const variadic_constructor_arg_t,
       Types&&... parts
     ) : parts_(std::forward<Types>(parts)...)
 #if DHARMA_DEBUG_KEY_TYPES
@@ -160,29 +162,41 @@ class key_impl
     { }
 
     const key_part
-    get_part(constexpr unsigned spot) const {
-      return key_part((void*)&std::get<spot>(parts_));
+    get_part(const unsigned spot) const override {
+      // This is incredibly inefficient...
+      key_part* rv;
+      meta::tuple_for_each_with_index(parts_, [&rv, spot](const auto& part, size_t i) {
+        if(i == spot) {
+          rv = new key_part(
+            (void*)&part
+#if DHARMA_DEBUG_KEY_TYPES
+            , sizeof(typename std::decay<decltype(part)>::type)
+#endif
+          );
+        }
+      });
+      return *rv;
     }
 
     const void*
-    get_start() const {
+    get_start() const override {
       return &parts_;
     }
 
     size_t
-    get_size() const {
+    get_size() const override {
       return sizeof(tuple_t);
     }
 
     size_t
-    get_n_parts() const {
+    get_n_parts() const override {
       return sizeof...(Types);
     }
 
 #if DHARMA_DEBUG_KEY_TYPES
     bool
-    parts_equal(const key_impl_base* other_in) {
-      key_impl* other = dynamic_cast<key_impl*>(other_in);
+    parts_equal(const key_impl_base* other_in) override {
+      const key_impl* other = dynamic_cast<const key_impl*>(other_in);
       if(other) {
         return parts_ == other->parts_;
       }
@@ -192,13 +206,23 @@ class key_impl
     }
 
     std::type_index
-    get_type_index() const {
+    get_type_index() const override {
       return type_idx;
     }
 
     void
-    print_user_readable() const {
-      // TODO provide this
+    print_user_readable(std::ostream& o = std::cout) const {
+      print_user_readable(", ");
+    }
+
+    void
+    print_user_readable(const std::string& sep, std::ostream& o = std::cout) const {
+      meta::tuple_for_each_with_index(parts_, [sep,&o](const auto& part, size_t i) {
+        o << part;
+        if(i != sizeof...(Types) - 1) {
+          o << sep;
+        }
+      });
     }
 
 #endif
@@ -215,12 +239,12 @@ class key_impl
 
 };
 
-struct key_hash;
-struct key_equal;
-
 } // end namespace detail
 
 namespace defaults {
+
+struct key_hash;
+struct key_equal;
 
 class Key {
   private:
@@ -230,14 +254,21 @@ class Key {
 
   public:
 
-    typedef detail::key_hash hasher;
-    typedef detail::key_equal equal;
+    typedef defaults::key_hash hasher;
+    typedef defaults::key_equal key_equal;
+
+    Key()
+      : k_impl_(std::make_shared<detail::key_impl<>>(
+          detail::variadic_constructor_arg
+        ))
+    { }
 
     template <typename... Types>
     Key(
-      constexpr const detail::variadic_constructor_arg_t,
+      const detail::variadic_constructor_arg_t,
       Types&&... data
-    ) : k_impl_(_impl_ptr_maker_t()(
+    ) : k_impl_(std::make_shared<detail::key_impl<Types...>>(
+          detail::variadic_constructor_arg,
           std::forward<Types>(data)...
         ))
     { }
@@ -260,20 +291,10 @@ class Key {
 
     _impl_ptr_t k_impl_;
 
-    friend struct detail::key_hash;
-    friend struct detail::key_equal;
+    friend struct defaults::key_hash;
+    friend struct defaults::key_equal;
 };
 
-
-template <typename... Types>
-Key
-make_key(Types&&... data)
-{
-  return Key(
-    detail::variadic_constructor_arg,
-    std::forward<Types>(data)...
-  );
-}
 
 template <typename... Types>
 Key
@@ -283,10 +304,6 @@ make_key_from_tuple(std::tuple<Types...>&& data)
     std::forward<std::tuple<Types...>>(data)
   );
 }
-
-} // end namespace defaults
-
-namespace detail {
 
 struct key_hash {
   size_t
@@ -299,20 +316,20 @@ struct key_hash {
     if(size == 0) return 0;
     size_t rv = std::hash<align_t>()(data[0]);
     for(int i = 1; i < size; ++i) {
-      hash_combine(rv, data[i]);
+      dharma_runtime::detail::hash_combine(rv, data[i]);
     }
     return rv;
   }
 };
 
 struct key_equal {
-  bool
+  constexpr bool
   operator()(const defaults::Key& lhs, const defaults::Key& rhs) const {
     // Shortcut: if the shared pointers point to the same thing, they must be equal
     if(lhs.k_impl_.get() == rhs.k_impl_.get()) return true;
     // TODO optimize this w.r.t. virtual method invocations
-    void* lhs_data = lhs.k_impl_->get_start();
-    void* rhs_data = rhs.k_impl_->get_start();
+    const void* lhs_data = lhs.k_impl_->get_start();
+    const void* rhs_data = rhs.k_impl_->get_start();
     size_t lhs_size = lhs.k_impl_->get_size();
     size_t rhs_size = rhs.k_impl_->get_size();
     if(lhs_size != rhs_size) return false;
@@ -326,11 +343,46 @@ struct key_equal {
 };
 
 
-inline bool
-operator==(const defaults::Key& a, const defaults::Key& b)
-{
-  return detail::key_equal()(a, b);
+inline constexpr bool
+operator==(const defaults::Key& a, const defaults::Key& b) {
+  return defaults::key_equal()(a, b);
 }
+
+
+} // end namespace defaults
+
+namespace detail {
+
+template <>
+struct key_traits<dharma_runtime::defaults::Key>
+{
+  struct maker {
+    constexpr maker() = default;
+    template <typename... Args>
+    inline dharma_runtime::defaults::Key
+    operator()(Args&&... args) const {
+      return dharma_runtime::defaults::Key(
+        detail::variadic_constructor_arg,
+        std::forward<Args>(args)...
+      );
+    }
+  };
+
+  struct maker_from_tuple {
+    constexpr maker_from_tuple() = default;
+    template <typename... Args>
+    inline dharma_runtime::defaults::Key
+    operator()(std::tuple<Args...>&& data) const {
+      return dharma_runtime::defaults::Key(
+        std::forward<std::tuple<Args...>>(data)
+      );
+    }
+  };
+
+  typedef typename dharma_runtime::defaults::Key::hasher hasher;
+  typedef typename dharma_runtime::defaults::Key::key_equal key_equal;
+
+};
 
 } // end namespace detail
 

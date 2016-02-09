@@ -51,6 +51,9 @@
 
 #include <tinympl/variadic/any_of.hpp>
 #include <tinympl/logical_not.hpp>
+#include <tinympl/logical_or.hpp>
+#include <tinympl/logical_and.hpp>
+
 
 namespace dharma_runtime {
 
@@ -88,7 +91,7 @@ struct invoke_num_zero_copy_slots {
 
 template <typename T>
 struct invoke_num_zero_copy_slots<T,
-  typename std::enable_if<has_method_named_num_zero_copy_slots_with_signature<T, void*&(size_t)>>::type
+  typename std::enable_if<has_method_named_num_zero_copy_slots_with_signature<T, void*&(size_t)>::value>::type
 > {
   inline size_t operator()(const T& datum) const {
     return datum.num_zero_copy_slots();
@@ -104,7 +107,7 @@ struct invoke_get_zero_copy_slot {
 
 template <typename T>
 struct invoke_get_zero_copy_slot<T,
-  typename std::enable_if<has_method_named_get_zero_copy_slot_with_signature<T, void*&(size_t)>>::type
+  typename std::enable_if<has_method_named_get_zero_copy_slot_with_signature<T, void*&(size_t)>::value>::type
 > {
   inline void*& operator()(T& datum, size_t slot) const {
     return datum.get_zero_copy_slot(slot);
@@ -119,7 +122,7 @@ struct invoke_zero_copy_slot_size {
 };
 template <typename T>
 struct invoke_zero_copy_slot_size<T,
-  typename std::enable_if<has_method_named_zero_copy_slot_size_with_signature<T, size_t(size_t)>>::type
+  typename std::enable_if<has_method_named_zero_copy_slot_size_with_signature<T, size_t(size_t)>::value>::type
 > {
   inline size_t operator()(const T& datum, size_t slot) const {
     return datum.zero_copy_slot_size(slot);
@@ -135,7 +138,7 @@ struct invoke_serialize_metadata {
 
 template <typename T>
 struct invoke_serialize_metadata<T,
-  typename std::enable_if<has_method_named_serialize_metadata_with_signature<T, void(Archive&)>>::type
+  typename std::enable_if<has_method_named_serialize_metadata_with_signature<T, void(Archive&)>::value>::type
 > {
   inline void operator()(T& datum, Archive& ar) const {
     datum.serialize_metadata(ar);
@@ -150,7 +153,7 @@ struct invoke_serialize_data {
 };
 template <typename T>
 struct invoke_serialize_data<T,
-  typename std::enable_if<has_method_named_serialize_metadata_with_signature<T, void(Archive&)>>::type
+  typename std::enable_if<has_method_named_serialize_metadata_with_signature<T, void(Archive&)>::value>::type
 > {
   inline size_t operator()(T& datum, Archive& ar) const {
     return datum.serialize_data(ar);
@@ -222,7 +225,7 @@ struct check_has_serialize_data {
 
 template <typename T>
 struct is_trivially_serializable
-  : m::not_<mv::any_of<
+  : m::not_<m::or_<
       check_has_serialize_data<T>,
       check_has_serialize_metadata<T>,
       check_has_zero_copy_slots<T>
@@ -271,7 +274,7 @@ struct serializer<T,
 > {
   inline void
   operator()(T& datum, void* buffer, size_t& spot, Archive& ar) const {
-    memcpy(buffer+spot, &datum, sizeof(T));
+    memcpy((char*)buffer+spot, &datum, sizeof(T));
     spot += sizeof(T);
   }
 };
@@ -284,7 +287,7 @@ struct serializer<T,
 > {
   inline void
   operator()(T& datum, void* buffer, size_t& spot, Archive& ar) const {
-    memcpy(&datum, buffer+spot, sizeof(T));
+    memcpy(&datum, (const char*)buffer+spot, sizeof(T));
     spot += sizeof(T);
   }
 };
@@ -500,6 +503,9 @@ class Archive {
         case detail::CollectingZeroCopyPointers:
           // TODO
           break;
+        case detail::CountingZeroCopySlots:
+          // TODO
+          break;
 #undef ___DHARMA_tmp_ser_case
       }
     }
@@ -542,7 +548,7 @@ class Archive {
 
   private:
 
-    friend struct ArchiveAccess;
+    friend struct detail::ArchiveAccess;
 
     detail::ArchiveMode mode_;
 
@@ -554,9 +560,9 @@ class Archive {
 
 namespace detail {
 
-void*& ArchiveAccess::get_buffer(Archive& ar) { return ar.buffer_; }
-size_t& ArchiveAccess::get_spot(Archive& ar) { return ar.spot_; }
-ArchiveMode& ArchiveAccess::get_mode(Archive& ar) { return ar.mode_; }
+inline void*& ArchiveAccess::get_buffer(Archive& ar) { return ar.buffer_; }
+inline size_t& ArchiveAccess::get_spot(Archive& ar) { return ar.spot_; }
+inline ArchiveMode& ArchiveAccess::get_mode(Archive& ar) { return ar.mode_; }
 
 }
 

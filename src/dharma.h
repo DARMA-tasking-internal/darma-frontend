@@ -51,7 +51,7 @@
 #include "task.h"
 #include "runtime.h"
 #include "spmd.h"
-#include "key.h"
+#include "abstract/defaults/key.h"
 #include "create_work.h"
 #include "abstract/backend/runtime.h"
 #include "serialization.h"

@@ -50,7 +50,7 @@
 #include <cassert>
 #include <vector>
 
-#include "util.h"
+#include "../../util.h"
 
 namespace dharma_runtime {
 
@@ -162,7 +162,7 @@ class basic_version {
       else {
         // only equal if all remaining values in other
         // are equal to our "0"
-        typedef OtherVersion::value_t other_value_t;
+        typedef typename OtherVersion::value_t other_value_t;
         const other_value_t zero = other_value_t();
         for(size_t i = other.depth(); i < depth(); ++i) {
           if(zero == version_clock.at(i)) continue;
@@ -194,6 +194,24 @@ class basic_version {
     bool
     operator!=(OtherVersion const& other) const {
       return not (*this == other);
+    }
+
+    basic_version
+    operator+(basic_version const& other) const {
+      basic_version rv;
+      if(other.depth() > depth()) {
+        rv = other;
+        for(size_t i = 0; i < depth(); ++i) {
+          rv.version_clock[i] += version_clock[i];
+        }
+      }
+      else {
+        rv = *this;
+        for(size_t i = 0; i < depth(); ++i) {
+          rv.version_clock[i] += other.version_clock[i];
+        }
+      }
+      return rv;
     }
 
   private:

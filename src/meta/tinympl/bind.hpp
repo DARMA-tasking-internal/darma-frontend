@@ -194,7 +194,7 @@ struct bind<F, Head, Tail...>
     template<class ... Args>
     using eval_t = typename eval<Args...>::type;
     template<class ... Args>
-    using apply = typename eval<Args...>;
+    using apply = eval<Args...>;
 };
 
 template <template <class... T> class F>
@@ -223,7 +223,7 @@ struct bind<F>
     template<class ... Args>
     using eval_t = typename eval<Args...>::type;
     template<class ... Args>
-    using apply = typename eval<Args...>;
+    using apply = eval<Args...>;
 };
 
 }

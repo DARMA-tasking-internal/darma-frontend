@@ -45,7 +45,11 @@
 #ifndef KEYWORD_ARGUMENTS_KEYWORD_ARGUMENT_NAME_H_
 #define KEYWORD_ARGUMENTS_KEYWORD_ARGUMENT_NAME_H_
 
+#include "kwarg_expression_fwd.h"
+
 namespace dharma_runtime { namespace detail {
+
+template <typename T> struct extract_tag;
 
 ////////////////////////////////////////////////////////////////////////////////
 

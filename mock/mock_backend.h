@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                                 join.hpp                                
-//                         dharma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                          mock_backend.h
+//                         dharma_new
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,55 +42,21 @@
 //@HEADER
 */
 
+#ifndef MOCK_MOCK_BACKEND_H_
+#define MOCK_MOCK_BACKEND_H_
 
-#ifndef TINYMPL_JOIN_HPP
-#define TINYMPL_JOIN_HPP
+#define DHARMA_BACKEND_TYPES_INCLUDE <stream_key.h>
+#define DHARMA_BACKEND_CUSTOM_KEY_TYPE
 
-#include "sequence.hpp"
-#include "as_sequence.hpp"
+#include "stream_key.h"
 
-namespace tinympl {
+namespace dharma_runtime { namespace types {
+  typedef mock_backend::StreamKey key_t;
+}} // end namespace dharma_runtime::types
 
-/**
- * \ingroup SeqAlgsIntr
- * \class join
- * \brief Merge two sequences
- * \param Args The sequences
- * \return A sequence constructed by joining all the passed sequences with the
-type of the first one
- */
-template <class... Args> struct join;
+#include <dharma.h>
 
-template <class Head, class Next, class ... Tail>
-struct join<Head, Next, Tail...> {
-  typedef
-    typename join<typename join<Head, Next>::type, Tail...>::type type;
-};
 
-template <class Head, class Last>
-struct join<Head, Last> {
-  private:
-    template <class S1, class S2, template <class...> class Out>
-    struct do_join;
 
-    template <class... S1, class... S2, template <class...> class Out>
-    struct do_join<sequence<S1...>, sequence<S2...>, Out> {
-        typedef Out<S1..., S2...> type;
-    };
 
-  public:
-    typedef typename do_join<
-      as_sequence_t<Head>,
-      as_sequence_t<Last>,
-      as_sequence<Head>::template rebind
-    >::type type;
-};
-
-template <class Head>
-struct join<Head> {
-  typedef Head type;
-};
-
-} // namespace tinympl
-
-#endif // TINYMPL_JOIN_HPP
+#endif /* MOCK_MOCK_BACKEND_H_ */

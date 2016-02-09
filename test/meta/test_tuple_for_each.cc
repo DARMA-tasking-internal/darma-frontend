@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_input_fwd.h
+//                          test_tuple_for_each.cc
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,19 +42,32 @@
 //@HEADER
 */
 
-#ifndef SRC_TASK_INPUT_FWD_H_
-#define SRC_TASK_INPUT_FWD_H_
+#include <iostream>
+#include <tuple>
 
-//namespace dharma_runtime {
-//
-//namespace backend {
-//
-//class input_base;
-//
-//} // end namespace backend
-//
-//} // end namespace dharma_runtime
+#include <meta/tuple_for_each.h>
 
+using namespace dharma_runtime;
 
-
-#endif /* SRC_TASK_INPUT_FWD_H_ */
+int main(int argc, char** argv) {
+  std::tuple<int, std::string, double, int> tup(5, "hello", 47.32, 42);
+  meta::tuple_for_each(tup, [](auto&& val) {
+    std::cout << val << std::endl;
+  });
+  meta::tuple_for_each(tup, [](auto&& val) {
+    std::cout << val << std::endl;
+  });
+  meta::tuple_for_each_with_index(tup, [](auto&& val, size_t idx) {
+    std::cout << idx << ": " << val << std::endl;
+  });
+  meta::tuple_for_each_with_index(std::make_tuple(5, "hello", 47.32, 42), [](auto&& val, size_t idx) {
+    std::cout << idx << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
+  });
+  char hello[6] = "hello";
+  meta::tuple_for_each_with_index(std::make_tuple(5, hello, 47.32, 42), [](auto&& val, size_t idx) {
+    std::cout << idx << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
+  });
+  meta::tuple_for_each(std::make_tuple(5, hello, 47.32, 42), [](auto&& val) {
+    std::cout << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
+  });
+}

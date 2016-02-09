@@ -45,7 +45,7 @@
 #ifndef NEW_UTIL_H_
 #define NEW_UTIL_H_
 
-#include "../meta/metaprogramming.h"
+#include "meta/metaprogramming.h"
 #include <memory> // std::shared_ptr
 #include <tuple> // std::tuple
 #include <functional>  // std::hash
@@ -55,7 +55,7 @@ namespace dharma_runtime {
 namespace detail {
 
 struct variadic_constructor_arg_t { };
-constexpr const variadic_constructor_arg_t variadic_constructor_arg;
+constexpr const variadic_constructor_arg_t variadic_constructor_arg = { };
 
 /** @brief A traits class for smart pointers that allows us to provide
  *  specializations with hooks to helpers (e.g., make_shared<T> for
@@ -64,7 +64,7 @@ constexpr const variadic_constructor_arg_t variadic_constructor_arg;
 template <
   template <class...> class smart_ptr
 >
-struct smart_ptr_traits;
+struct smart_ptr_traits { };
 
 template <>
 struct smart_ptr_traits<std::shared_ptr>
@@ -99,7 +99,8 @@ struct smart_ptr_traits<std::shared_ptr>
 // Borrowed from boost implementation and
 //   http://stackoverflow.com/questions/2590677/how-do-i-combine-hash-values-in-c0x
 template <class T>
-inline void hash_combine(std::size_t& seed, const T& v)
+inline void
+hash_combine(std::size_t& seed, const T& v)
 {
     std::hash<T> hasher;
     seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
@@ -170,27 +171,30 @@ struct hash<std::pair<U,V>> {
   }
 };
 
+namespace _tup_hash_impl {
+  template <size_t Spot, size_t Size, typename... Ts>
+  struct _tup_hash_impl {
+    inline size_t
+    operator()(const std::tuple<Ts...>& tup) const {
+      size_t rv = _tup_hash_impl<Spot+1, Size, Ts...>()(tup);
+      hash_combine(rv, std::get<Spot>(tup));
+      return rv;
+    }
+  };
+  template <size_t Size, typename... Ts>
+  struct _tup_hash_impl<Size, Size, Ts...> {
+    inline size_t
+    operator()(const std::tuple<Ts...>& tup) const {
+      return 0;
+    }
+  };
+}
+
 template <typename... Ts>
 struct hash<std::tuple<Ts...>> {
   inline size_t
   operator()(const std::tuple<Ts...>& tup) const {
-    template <size_t Spot, size_t Size>
-    struct _tup_hash_impl {
-      inline size_t
-      operator()(const std::tuple<Ts...>& tup) const {
-        size_t rv = _tup_hash_impl<Spot+1, Size>()(tup);
-        hash_combine(rv, std::get<Spot>(tup));
-        return rv;
-      }
-    };
-    template <size_t Size>
-    struct _tup_hash_impl<Size, Size> {
-      inline size_t
-      operator()(const std::tuple<Ts...>& tup) const {
-        return 0;
-      }
-    };
-    return _tup_hash_impl<0, sizeof...(Ts)>()(tup);
+    return _tup_hash_impl::_tup_hash_impl<0, sizeof...(Ts), Ts...>()(tup);
   }
 };
 

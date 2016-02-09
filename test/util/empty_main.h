@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_input.h
+//                          empty_main.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,51 +42,10 @@
 //@HEADER
 */
 
-#ifndef SRC_TASK_INPUT_H_
-#define SRC_TASK_INPUT_H_
-
-#include <memory>
-#include <unordered_map>
-#include "dependency.h"
-#include "key.h"
-//#include "abstract/abstract_input.h"
-
-// DEPRECATED
-//namespace dharma_runtime {
-//
-//namespace backend {
-//
-//class input_base
-//  : public dharma_rt::abstract::input<Key>
-//{
-//  public:
-//
-//    virtual bool
-//    requires(const dharma_rt::abstract::dependency<Key>& dep) const
-//    {
-//      return dep.get_key() == data_block->get_key();
-//    }
-//
-//    virtual void
-//    satisfy_with(const dharma_rt::abstract::dependency<Key>& dep) const
-//    {
-//
-//    }
-//
-//
-//
-//
-//  protected:
-//
-//    std::shared_ptr<DataBlockBase> data_block;
-//
-//};
-//
-//} // end namespace backend
-//
-//} // end namespace dharma_runtime
+#ifndef TEST_UTIL_EMPTY_MAIN_H_
+#define TEST_UTIL_EMPTY_MAIN_H_
 
 
+int main(int argc, char** argv) { return 0; }
 
-
-#endif /* SRC_TASK_INPUT_H_ */
+#endif /* TEST_UTIL_EMPTY_MAIN_H_ */

@@ -53,60 +53,35 @@ namespace abstract {
 
 namespace backend {
 
-// TODO Serializer needs to be changed to a Concept and DataBlock should be templated on Serializer (or something like that)
 
-// Serializer is needed to deal with the problem that the serialization itself is a frontend problem,
-// but the storage and caching of the (de)serialized blobs is the responsibility of the runtime (i.e.,
-// a given version of the data for a given dependency should be deserialized at most once
-// (excepting resourse limitations) per memory space and subsequent calls to get_data() should return
-// a pointer to that deserialized buffer.  Conversely, a given version of the deserailzed data for a
-// given dependency, if acquired and/or updated in deserialized form, should be serialized at most once
-// per memory space (excepting resourse limitations) and only if it needs to be communicated to a
-// different memory space).  Thus:
-// TODO Rethink the relationship to and specification of Serializer to meet the above requirements
-
+/** @ingroup abstract
+ *
+ *  @class DataBlock
+ *
+ *  @brief The abstraction through which the frontend interacts with data stored and
+ *  managed by the backend
+ *
+ */
 class DataBlock
 {
   public:
 
-    // Gets the *deserialized* version of the data
-    // If a null Serializer is given, the data may be
-    // assumed to be contiguous and not need deserialization
+    /** @brief Gets a (non-owning) pointer to deserialized version of the data associated with
+     *  the data block.
+     *
+     *  @todo 0.3 spec: elaborate more on this as SerializationManager matures
+     *
+     */
     virtual void*
     get_data() =0;
 
-    // const version of the above (does it matter?)
-    virtual const void*
-    get_data() const =0;
-
-    // acquire/manage data created elsewhere
-    // (in *deserialized* form, if applicable)
-    // Note that the serializer is required because
-    // the runtime still needs a way of determining
-    // the size of a piece of data, even if it is
-    // contiguous
+    /** @todo 0.2.1 spec
+     *  @remark this should never be invoked in the 0.2.0 spec implementation
+     */
     virtual void
     acquire_data(void* const data) =0;
 
-    // allocates space for the object in *deserialized* form
-    //virtual void
-    //allocate_data(size_t n_data) =0;
-
-    //virtual bool
-    //is_initialized() =0;
-
-    // TODO eventually: allocate_data() and/or allocator pattern from STL
-
-    //virtual void
-    //wait_read_only() =0;
-
-    //virtual void
-    //wait_read_write() =0;
-
-    //virtual void
-    //wait_write_only() =0;
-
-    virtual ~DataBlock() { }
+    virtual ~DataBlock() = default;
 
 };
 

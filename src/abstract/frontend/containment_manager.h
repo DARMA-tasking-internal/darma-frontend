@@ -53,6 +53,9 @@ namespace abstract {
 
 namespace frontend {
 
+/** @todo document this for the 0.2.1 spec
+ *
+ */
 template <
   typename Key,
   typename Version

@@ -1,0 +1,58 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{sandiacode}
+
+% Packages used by this style file
+\RequirePackage{listings}
+\RequirePackage{color}
+
+
+\definecolor{dkgreen}{rgb}{0,0.4,0}
+
+\newcommand{\inlinefile}[1]{{\lstset{basicstyle=\ttfamily,keywordstyle={}}\lstinline$#1$}}
+\newcommand{\inlinecode}[1]{{\lstset{basicstyle=\ttfamily,keywordstyle={}}\lstinline$#1$}}
+
+\newenvironment{subItemize}{
+\begin{itemize}
+}{
+\end{itemize}
+}
+
+\lstnewenvironment{CppCode}{%
+ %\footnotesize%
+ \lstset{language=C++,% 
+   backgroundcolor=\color{white},%
+   basicstyle=\ttfamily,%
+   showstringspaces=false,%
+   belowskip=1em,%
+   frame=none,% 
+   numbers=none,% 
+   tabsize=2,% 
+   commentstyle=\color{dkgreen},%
+   keywordstyle=\color{red}}%
+}{%
+}
+
+\lstnewenvironment{ShellCmd}{%
+ %\footnotesize%
+ \lstset{language=sh,%
+ backgroundcolor=\color{white},% 
+ frame=none,% 
+ numbers=left,% 
+ tabsize=2}%
+}{%
+ \normalsize%
+}
+
+\lstnewenvironment{ViFile}{%
+ %\footnotesize%
+ \lstset{language=sh,%
+ backgroundcolor=\color{white},% 
+ commentstyle=\color{dkgreen},%
+ keywordstyle=\color{red},%
+ frame=single,% 
+ numbers=left,% 
+ tabsize=2}%
+}{%
+ \normalsize%
+}
+
