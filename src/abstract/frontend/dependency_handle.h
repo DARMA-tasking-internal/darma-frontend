@@ -117,14 +117,17 @@ class DependencyHandle {
     virtual void
     set_version(const Version& v) =0;
 
-    /** @brief Indicate that the version of the handle is pending the resolution of a version tag for a fetch.
-     *
-     *  This allows the frontend to continue creating and registering tasks even while waiting to find out
-     *  what version of a handle to fetch.  See set_version() for more info.
-     *
-     */
-    virtual void
-    set_version_is_pending(bool is_pending=true) =0;
+    // TODO 0.2.0.1 remove this because it will only ever be called from the frontend
+    ///** @brief Indicate that the version of the handle is pending the resolution of a version tag for a fetch.
+    // *
+    // *  This allows the frontend to continue creating and registering tasks even while waiting to find out
+    // *  what version of a handle to fetch.  See set_version() for more info.
+    // *
+    // *  The frontend will call set_version_is_pending() for handles that are subsequent to
+    // *
+    // */
+    //virtual void
+    //set_version_is_pending(bool is_pending=true) =0;
 
     /** @brief returns true if the backend has called set_version_is_pending(true) on the handle
      *  and if set_version_is_pending(false) and/or set_version() has not been called since.

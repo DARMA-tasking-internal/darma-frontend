@@ -48,12 +48,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "abstract/backend/types.h"
-#include "abstract/backend/runtime.h"
-#include "abstract/frontend/dependency_handle.h"
-#include "abstract/frontend/task.h"
-
-#include "runtime.h"
 
 #include <tinympl/greater.hpp>
 #include <tinympl/int.hpp>
@@ -64,6 +58,13 @@
 #include <tinympl/bind.hpp>
 #include <tinympl/logical_and.hpp>
 #include <tinympl/vector.hpp>
+
+#include "abstract/backend/types.h"
+#include "abstract/backend/runtime.h"
+#include "abstract/frontend/dependency_handle.h"
+#include "abstract/frontend/task.h"
+
+#include "runtime.h"
 
 namespace dharma_runtime {
 

@@ -197,8 +197,7 @@ class Runtime {
      *
      *  @remark for the 0.2.0 spec implementation, write_access_allowed should always be false
      *
-     *  @todo for 0.2.1 spec, revise the write_access_allowed description to incorporate the fact that the remote handle must
-     *  also not create any post-publication subsequents (probably need a special publish)
+     *  @todo 0.2.1 spec remove write_access_allowed, create a special publish and a special fetch for ownership transfer
      *
      *  @todo 0.3.1 spec: separate the concept of read-only retrieval from that of ownership transfer
      */
@@ -329,7 +328,7 @@ class Runtime {
     // Methods for establishing containment and/or aliasing relationships
 
     /**
-     * @todo Document this for 0.2.1 spec
+     * @todo Document this for 0.2.2 spec
      */
     virtual void
     establish_containment_relationship(
@@ -339,7 +338,7 @@ class Runtime {
     ) =0;
 
     /**
-     * @todo Document this for 0.2.1 spec
+     * @todo Document this for 0.2.2 spec
      */
     virtual void
     establish_aliasing_relationship(
@@ -415,11 +414,11 @@ typedef Runtime<
  *  must no longer be in argc and argv.
  *
  */
-void
+extern void
 dharma_backend_initialize(
   int& argc, char**& argv,
   runtime_t*& backend_runtime,
-  types::unique_ptr_template<typename runtime_t::task_t>&& top_level_task
+  types::unique_ptr_template<typename runtime_t::task_t> top_level_task
 );
 
 

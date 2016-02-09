@@ -165,7 +165,7 @@ class key_impl : public key_impl_base
     get_part(const unsigned spot) const override {
       // This is incredibly inefficient...
       key_part* rv;
-      meta::tuple_for_each_with_index(parts_, [&rv, spot](const auto& part, size_t i) {
+      meta::tuple_for_each_with_index(parts_, [&rv, spot](auto& part, size_t i) {
         if(i == spot) {
           rv = new key_part(
             (void*)&part
@@ -323,7 +323,7 @@ struct key_hash {
 };
 
 struct key_equal {
-  constexpr bool
+  bool
   operator()(const defaults::Key& lhs, const defaults::Key& rhs) const {
     // Shortcut: if the shared pointers point to the same thing, they must be equal
     if(lhs.k_impl_.get() == rhs.k_impl_.get()) return true;
@@ -343,7 +343,7 @@ struct key_equal {
 };
 
 
-inline constexpr bool
+inline bool
 operator==(const defaults::Key& a, const defaults::Key& b) {
   return defaults::key_equal()(a, b);
 }

@@ -45,12 +45,13 @@
 #ifndef MOCK_STREAM_KEY_H_
 #define MOCK_STREAM_KEY_H_
 
-#include <util.h>
 #include <sstream>
 #include <iostream>
 #include <cassert>
+
 #include <meta/tuple_for_each.h>
 #include <abstract/defaults/key_fwd.h>
+#include <util.h>
 
 namespace mock_backend {
 
@@ -79,7 +80,7 @@ struct stream_key_part {
 
   template <typename T>
   T as() const {
-    as_impl<T>()(my_str_);
+    return as_impl<T>()(my_str_);
   }
 
   std::string my_str_;
@@ -128,7 +129,7 @@ struct StreamKey  {
       assert(Spot < n_parts_);
       std::stringstream sstr(val_);
       char buffer[255];
-      for(int i = 0; i < Spot; ++i) {
+      for(int i = 0; i <= Spot; ++i) {
         sstr.getline(buffer, 255);
       }
       std::string rv_str(buffer);
