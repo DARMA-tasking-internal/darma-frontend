@@ -55,7 +55,7 @@ template <
   template <class...> class Out,
   typename... Types
 >
-struct filter;
+struct filter { };
 
 
 template <
@@ -68,7 +68,7 @@ struct filter<
 > {
   private:
     typedef typename filter<
-      UnaryPredicate, Types..., Out
+      UnaryPredicate, Out, Types...
     >::type _filtered_tail;
   public:
     typedef typename std::conditional<
@@ -76,6 +76,17 @@ struct filter<
       join<Out<Type1>, _filtered_tail>,
       identity<_filtered_tail>
     >::type::type type;
+};
+
+template <
+  template <class...> class UnaryPredicate,
+  template <class...> class Out
+
+>
+struct filter<
+  UnaryPredicate, Out
+> {
+  typedef Out<> type;
 };
 
 }} // end namespace tinympl::variadic

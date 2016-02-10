@@ -217,6 +217,20 @@ class basic_version {
       return rv;
     }
 
+    void
+    print_human_readable(
+      const char* sep = ".",
+      std::ostream& o = std::cout
+    ) const {
+      int i = 0;
+      for(auto& p : version_clock) {
+        o << p;
+        if(++i != version_clock.size()) {
+          o << sep;
+        }
+      }
+    }
+
   private:
 
     Container<Comparable> version_clock;

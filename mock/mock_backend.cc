@@ -60,6 +60,16 @@ class MockRuntime
 
     typedef typename abstract::backend::runtime_t::task_unique_ptr task_unique_ptr;
 
+  private:
+
+    void describe_handle(const handle_t* const handle) const {
+      cout << "{key: ";
+      handle->get_key().print_human_readable();
+      cout << " | version: ";
+      handle->get_version().print_human_readable();
+      cout << "}";
+    }
+
   public:
     void register_task(task_unique_ptr&& task) override {
       cout << "registering task" << endl;
@@ -74,7 +84,9 @@ class MockRuntime
     register_handle(
       const handle_t* const handle
     ) override {
-      cout << "registering handle" << endl;
+      cout << "registering handle: ";
+      describe_handle(handle);
+      cout << endl;
     }
 
     void
@@ -83,28 +95,39 @@ class MockRuntime
       const key_t& user_version_tag,
       bool write_access_allowed
     ) override {
-      cout << "registering fetching handle" << endl;
+      cout << "registering fetching handle: ";
+      describe_handle(handle);
+      cout << endl;
     }
 
     void
     release_read_only_usage(
       const handle_t* const handle
     ) override {
-      cout << "releasing read-only usage" << endl;
+      cout << "releasing read-only usage: ";
+      describe_handle(handle);
+      cout << endl;
     }
 
     void
     release_handle(
       const handle_t* const handle
     ) override {
-      cout << "releasing handle" << endl;
+      cout << "releasing handle: ";
+      describe_handle(handle);
+      cout << endl;
+
     }
 
     void
     handle_done_with_version_depth(
       const handle_t* const handle
     ) override {
-      cout << "handle done with version depth" << endl;
+      cout << "handle done with version depth: ";
+      describe_handle(handle);
+      cout << endl;
+
+
     }
 
     void
@@ -114,7 +137,9 @@ class MockRuntime
       const size_t n_fetchers = 1,
       bool is_final = false
     ) override {
-      cout << "publishing handle" << endl;
+      cout << "publishing handle: ";
+      describe_handle(handle);
+      cout << endl;
     }
 
 
@@ -123,7 +148,9 @@ class MockRuntime
       handle_t* const to_fill,
       bool needs_write_access = false
     ) override {
-      cout << "satisfy handle" << endl;
+      cout << "satisfy handle: ";
+      describe_handle(to_fill);
+      cout << endl;
     }
 
     void
