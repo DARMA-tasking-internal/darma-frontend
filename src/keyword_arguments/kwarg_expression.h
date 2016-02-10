@@ -46,6 +46,8 @@
 #define KEYWORD_ARGUMENTS_KWARG_EXPRESSION_H_
 
 #include "keyword_argument_name.h"
+#include "../meta/sentinal_type.h"
+#include "../meta/move_if.h"
 
 namespace dharma_runtime { namespace detail {
 
@@ -53,22 +55,15 @@ namespace dharma_runtime { namespace detail {
 
 /* kwarg_expression                                                      {{{1 */ #if 1 // begin fold
 
-template <class T>
-struct is_kwarg_expression
-  : public std::false_type
-{ };
-
+/* TODO deprecate kwarg_expression.  typeless_kwarg_expression works much better and much more generally */
 template <
-  typename T,
-  typename KWArgName,
-  bool in_rhs_is_lvalue
+  typename T, typename KWArgName, bool in_rhs_is_lvalue
 >
 class kwarg_expression
 {
   public:
     typedef typename KWArgName::tag tag;
     typedef KWArgName name_t;
-    typedef typename KWArgName::catagory_t catagory_t;
     typedef T value_t;
 
     static constexpr bool rhs_is_lvalue = in_rhs_is_lvalue;
@@ -100,8 +95,8 @@ class kwarg_expression
           and not is_kwarg_expression<
             typename std::decay<U>::type
           >::value,
-          sentinal_type_
-        >::type = sentinal_type_()
+          meta::sentinal_type
+        >::type = meta::sentinal_type()
     ) : val_(std::forward<U>(val))
     { }
 
@@ -121,6 +116,42 @@ class kwarg_expression
     actual_value_t val_;
 };
 
+template <
+  typename Rhs, typename KWArgName
+>
+class typeless_kwarg_expression
+{
+  public:
+    typedef typename KWArgName::tag tag;
+    typedef KWArgName name_t;
+
+    constexpr typeless_kwarg_expression(Rhs&& rhs)
+      : rhs_(std::forward<Rhs>(rhs))
+    { }
+
+    template <typename T>
+    inline constexpr T
+    value_as() const {
+      return { std::forward<Rhs>(rhs_) };
+    }
+    Rhs&& rhs_;
+};
+
+
+/*                                                                            */ #endif // end fold
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+/* is_kwarg_expression and is_kwarg_expression_with_tag                  {{{1 */ #if 1 // begin fold
+
+template <class T>
+struct is_kwarg_expression
+  : public std::false_type
+{ };
+
 template <typename T, typename KWArgName, bool rhs_is_lvalue>
 struct is_kwarg_expression<kwarg_expression<T, KWArgName, rhs_is_lvalue>>
   : public std::true_type
@@ -131,44 +162,31 @@ struct is_kwarg_expression_with_tag
   : public std::false_type
 { };
 
-template <class T, typename Tag, typename Catagory, typename U, bool rhs_is_lvalue>
+template <class T, typename Tag, typename U, bool rhs_is_lvalue>
 struct is_kwarg_expression_with_tag<
-  kwarg_expression<
-    T, keyword_argument_name<U, Tag, Catagory>, rhs_is_lvalue
-  >,
+  kwarg_expression<T, keyword_argument_name<U, Tag>, rhs_is_lvalue>,
+  Tag
+> : public std::true_type
+{ };
+
+template <class T, typename Tag, bool rhs_is_lvalue>
+struct is_kwarg_expression_with_tag<
+  kwarg_expression<T, typeless_keyword_argument_name<Tag>, rhs_is_lvalue>,
+  Tag
+> : public std::true_type
+{ };
+
+template <class T, typename Tag>
+struct is_kwarg_expression_with_tag<
+  typeless_kwarg_expression<T, typeless_keyword_argument_name<Tag>>,
   Tag
 > : public std::true_type
 { };
 
 
-template <class T>
-struct is_tag
-  : public std::is_base_of<detail::keyword_tag, T>::type { };
-
-template <class T>
-struct extract_tag {
-  static_assert(is_tag<T>::value, "invalid keyword tag type");
-  typedef T type;
-};
-
-template <typename T, typename Enable/*=void*/>
-struct extract_type_if_tag {
-  // If it's not a tag, then it's the type we want
-  typedef T type;
-};
-
-template <typename T>
-struct extract_type_if_tag<
-  T, typename std::enable_if<is_tag<T>::value>::type
->
-{
-  typedef typename tag_data<T>::value_t type;
-};
-
 /*                                                                            */ #endif // end fold
 
 ////////////////////////////////////////////////////////////////////////////////
-
 
 }} // end namespace dharma_mockup::detail
 

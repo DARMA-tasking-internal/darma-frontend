@@ -58,17 +58,13 @@
     typedef typename T::memtype type; \
   };
 
-#include "move_if.h"
+//#include "move_if.h"
 
 // TODO dharma_tuple type so user tuple types don't get interpreted as bundles in e.g. transform or fold
 // TODO replace std::tuple with generic tuple type derived from extract_template in places where it makes sense
 
 namespace dharma_runtime { namespace detail {
 
-// Used in metafunctions to mark ends of things and stuff
-struct sentinal_type_ {
-  constexpr sentinal_type_() { }
-};
 
 }} // end namespace dharma_runtime::detail
 

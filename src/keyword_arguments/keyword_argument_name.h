@@ -55,23 +55,18 @@ template <typename T> struct extract_tag;
 
 /* keyword_argument_name                                                 {{{1 */ #if 1 // begin fold
 
-
-template <typename T, typename Tag, typename Catagory>
+/* TODO deprecate keyword_argument_name.  typeless_keyword_argument_name works much better and much more generally */
+template <typename T, typename Tag>
 class keyword_argument_name
 {
   public:
     typedef Tag tag;
     typedef T value_t;
-    typedef Catagory catagory_t;
     typedef kwarg_expression<T, keyword_argument_name, false> kwarg_expression_t;
     typedef kwarg_expression<T, keyword_argument_name, true> lvalue_kwarg_expression_t;
 
-    //template <typename... KWArgs>
-    //using kwarg_key_expression_t = kwarg_expression<key_expression<KWArgs...>,
-    //    keyword_argument_name, false>;
 
-    constexpr keyword_argument_name()
-    { }
+    constexpr keyword_argument_name() { }
 
     kwarg_expression_t
     operator=(T&& val) const {
@@ -82,6 +77,138 @@ class keyword_argument_name
     operator=(T& val) const {
        return lvalue_kwarg_expression_t(val);
     }
+
+};
+
+template <class T, typename Tag>
+struct extract_tag<keyword_argument_name<T, Tag>> {
+  typedef Tag type;
+};
+
+
+/*                                                                            */ #endif // end fold
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+/* typeless_keyword_argument_name                                        {{{1 */ #if 1 // begin fold
+
+template <typename Tag>
+class typeless_keyword_argument_name
+{
+  private:
+
+    template <typename Rhs>
+    using kwarg_expr = typeless_kwarg_expression<Rhs, typeless_keyword_argument_name>;
+
+  public:
+
+    typedef Tag tag;
+
+    constexpr typeless_keyword_argument_name() { }
+
+    template <typename Rhs>
+    constexpr kwarg_expr<Rhs>
+    operator=(Rhs&& val) const {
+      return { std::forward<Rhs>(val) };
+    }
+};
+
+/*                                                                            */ #endif // end fold
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+/* keyword_argument_name                                                 {{{1 */ #if 1 // begin fold
+
+template <class T>
+struct is_keyword_argument_name
+  : public std::false_type
+{ };
+
+template <class T, typename Tag>
+struct is_keyword_argument_name<
+  keyword_argument_name<T, Tag>
+> : public std::true_type
+{ };
+
+template <typename Tag>
+struct is_keyword_argument_name<
+  typeless_keyword_argument_name<Tag>
+> : public std::true_type
+{ };
+
+/*                                                                            */ #endif // end fold
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+/* unnamed_tag                                                           {{{1 */ #if 1 // begin fold
+
+template <typename T>
+struct unnamed_tag : public keyword_tag
+{
+  typedef std::true_type is_tag_t;
+  typedef T value_t;
+};
+
+template<typename T>
+using unnamed_tag_name_t = keyword_argument_name<
+   T, unnamed_tag<T>
+>;
+
+template <typename T>
+struct tag_data<unnamed_tag<T>>
+{
+  typedef unnamed_tag_name_t<T> keyword_name_t;
+  typedef T value_t;
+  static constexpr bool has_default_value = false;                                                  \
+};
+
+/*                                                                            */ #endif // end fold
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+/* null_tag and null_argument_name                                       {{{1 */ #if 1 // begin fold
+
+struct null_tag : public keyword_tag
+{
+  typedef std::true_type is_tag_t;
+};
+
+typedef keyword_argument_name<std::nullptr_t, null_tag> null_argument_name_t;
+
+namespace {
+  static constexpr null_argument_name_t null_argument_name;
+} // end anonymous namespace used to avoid duplicate symbol errors
+
+template<>
+struct tag_data<null_argument_name_t>
+{
+  typedef null_argument_name_t keyword_name_t;
+  typedef std::nullptr_t value_t;
+  static constexpr bool has_default_value = false;
+};
+
+/*                                                                            */ #endif // end fold
+
+////////////////////////////////////////////////////////////////////////////////
+
+}} // end namespace dharma_runtime::detail
+
+// ATTIC
+    //template <typename... KWArgs>
+    //using kwarg_key_expression_t = kwarg_expression<key_expression<KWArgs...>,
+    //    keyword_argument_name, false>;
 
     //template <typename U>
     //typename std::enable_if<
@@ -125,77 +252,5 @@ class keyword_argument_name
     //    )
     //  };
     //}
-
-
-};
-
-namespace m = tinympl;
-namespace mv = tinympl::variadic;
-
-template <class T, typename Tag, typename Catagory>
-struct extract_tag<keyword_argument_name<T, Tag, Catagory>> {
-  typedef Tag type;
-};
-
-template <class T>
-struct is_keyword_argument_name
-  : public std::false_type
-{ };
-
-template <class T, typename Tag, typename Catagory>
-struct is_keyword_argument_name<
-  keyword_argument_name<T, Tag, Catagory>
-> : public std::true_type
-{ };
-
-struct null_tag : public keyword_tag
-{
-  typedef std::true_type is_tag_t;
-};
-
-template <typename T, typename Catagory>
-struct unnamed_tag : public keyword_tag
-{
-  typedef std::true_type is_tag_t;
-  typedef T value_t;
-};
-
-template<typename T, typename Catagory>
-using unnamed_tag_name_t = keyword_argument_name<
-   T, unnamed_tag<T, Catagory>, Catagory
->;
-
-template <typename T, typename Catagory>
-struct tag_data<unnamed_tag<T, Catagory>>
-{
-  typedef unnamed_tag_name_t<T, Catagory> keyword_name_t;
-  typedef T value_t;
-  typedef Catagory keyword_catagory_t;
-  static constexpr bool has_default_value = false;                                                  \
-};
-
-typedef keyword_argument_name<
-  std::nullptr_t, null_tag, keyword_catagory_argument
-> null_argument_name_t;
-namespace {
-static constexpr null_argument_name_t null_argument_name;
-} // end anonymous namespace used to avoid duplicate symbol errors
-
-template<>
-struct tag_data<null_argument_name_t>
-{
-  typedef null_argument_name_t keyword_name_t;
-  typedef std::nullptr_t value_t;
-  typedef keyword_catagory_argument keyword_catagory_t;
-  static constexpr bool has_default_value = false;
-};
-
-/*                                                                            */ #endif // end fold
-
-////////////////////////////////////////////////////////////////////////////////
-
-
-}} // end namespace dharma_mockup::detail
-
 
 #endif /* KEYWORD_ARGUMENTS_KEYWORD_ARGUMENT_NAME_H_ */

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          filter.hpp
+//                          sentinal_type.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,58 +42,18 @@
 //@HEADER
 */
 
-#ifndef SRC_META_TINYMPL_FILTER_HPP_
-#define SRC_META_TINYMPL_FILTER_HPP_
+#ifndef SRC_META_SENTINAL_TYPE_H_
+#define SRC_META_SENTINAL_TYPE_H_
 
-#include "variadic/filter.hpp"
-#include "as_sequence.hpp"
-#include "sequence.hpp"
-#include "metafunction_class_wrapper.hpp"
+namespace dharma_runtime { namespace meta {
 
-namespace tinympl {
+struct sentinal_type {
+  constexpr sentinal_type() = default;
+};
 
-/**
- * \ingroup SeqAlgsIntr
- * \class at
- * \brief Get the i-th element of a sequence
- * \param I The index of the desired element
- * \param Seq The input sequence
-*/
-template <
-  class Seq,
-  template <class...> class UnaryPredicate,
-  template <class...> class Out = as_sequence<Seq>::template rebind
->
-struct filter : filter<typename as_sequence<Seq>::type, UnaryPredicate, Out> { };
-
-template <
-  class... Args,
-  template <class...> class UnaryPredicate,
-  template <class...> class Out
->
-struct filter<sequence<Args...>, UnaryPredicate, Out>
-  : variadic::filter<UnaryPredicate, Out, Args...> { };
-
-template <
-  class Seq,
-  template <class...> class UnaryPredicate,
-  template <class...> class Out = as_sequence<Seq>::template rebind
->
-using filter_t = typename filter<Seq, UnaryPredicate, Out>::type;
-
-namespace types_only {
-
-template <class Seq, class UnaryPredicateMFC,
-  class OutMFC = metafunction_class_wrapper<as_sequence<Seq>::template rebind>
->
-struct filter
-  : public tinympl::filter<Seq, UnaryPredicateMFC::template apply, OutMFC::template apply>
-{ };
-
-} // end namespace types_only
+}};
 
 
-} // end namespace tinympl
 
 
-#endif /* SRC_META_TINYMPL_FILTER_HPP_ */
+#endif /* SRC_META_SENTINAL_TYPE_H_ */
