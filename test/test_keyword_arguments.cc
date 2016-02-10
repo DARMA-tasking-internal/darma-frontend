@@ -93,36 +93,69 @@ void print_string_arg_with_default(Args&&... args) {
 template <typename... Args>
 void print_foobar_as_string(Args&&... args) {
   cout << "in print_foobar_as_string: ";
-  cout << get_typeless_kwarg_as<kw::foobar, std::string>()(std::forward<Args>(args)...);
+  cout << get_typeless_kwarg_as<kw::foobar, std::string>(std::forward<Args>(args)...);
   cout << endl;
 }
 
 template <typename... Args>
 void print_foobar_as_string_ref(Args&&... args) {
   cout << "in print_foobar_as_string_ref: ";
-  cout << get_typeless_kwarg_as<kw::foobar, const std::string&>()(std::forward<Args>(args)...);
+  cout << get_typeless_kwarg_as<kw::foobar, const std::string&>(std::forward<Args>(args)...);
   cout << endl;
 }
 
 template <typename... Args>
 void print_foobar_as_string_lvalue_ref(Args&&... args) {
   cout << "in print_foobar_as_string_lvalue_ref: ";
-  cout << get_typeless_kwarg_as<kw::foobar, std::string&>()(std::forward<Args>(args)...);
+  cout << get_typeless_kwarg_as<kw::foobar, std::string&>(std::forward<Args>(args)...);
   cout << endl;
 }
 
 template <typename... Args>
 void extend_foobar(Args&&... args) {
-  get_typeless_kwarg_as<kw::foobar, std::string&>()(std::forward<Args>(args)...) += "...still_works";
+  get_typeless_kwarg_as<kw::foobar, std::string&>(std::forward<Args>(args)...) += "...still_works";
 }
 
 template <typename... Args>
 void print_foobar_as_blabbermouth(Args&&... args) {
   cout << "in print_foobar_as_blabbermouth: ";
-  cout << get_typeless_kwarg_as<kw::foobar, const BlabberMouth&>()(std::forward<Args>(args)...).str_;
+  cout << get_typeless_kwarg_as<kw::foobar, const BlabberMouth&>(std::forward<Args>(args)...).str_;
   //cout << get_typeless_kwarg_as<kw::foobar, BlabberMouth&&>()(std::forward<Args>(args)...).str_;
   cout << endl;
 }
+
+template <typename... Args>
+void print_foobar_as_blabbermouth_with_default(Args&&... args) {
+  cout << "in print_foobar_as_blabbermouth_with_default: ";
+  static const BlabberMouth default_val("default-success");
+  cout << get_typeless_kwarg_with_default_as<kw::foobar, const BlabberMouth&>(
+    default_val, std::forward<Args>(args)...
+  ).str_;
+  //cout << get_typeless_kwarg_as<kw::foobar, BlabberMouth&&>()(std::forward<Args>(args)...).str_;
+  cout << endl;
+}
+
+template <typename... Args>
+void print_foobar_as_blabbermouth_with_converter(Args&&... args) {
+  cout << "in print_foobar_as_blabbermouth_with_converter: ";
+  cout << get_typeless_kwarg_with_converter<kw::foobar>([](auto&& blab_val){
+    return blab_val.str_;
+  }, std::forward<Args>(args)...);
+  cout << endl;
+
+}
+
+template <typename... Args>
+void print_foobar_as_blabbermouth_with_converter_and_default(Args&&... args) {
+  cout << "in print_foobar_as_blabbermouth_with_converter: ";
+  static const std::string default_val("default-success");
+  cout << get_typeless_kwarg_with_converter_and_default<kw::foobar>([](auto&& blab_val){
+    return blab_val.str_;
+  }, default_val, std::forward<Args>(args)...);
+  cout << endl;
+
+}
+
 
 using namespace dharma_runtime::keyword_arguments_for_testing;
 
@@ -174,6 +207,22 @@ int main(int argc, char** argv) {
     print_foobar_as_blabbermouth(foobar=BlabberMouth("success"));
     BlabberMouth b("success");
     print_foobar_as_blabbermouth(foobar=b);
+    print_foobar_as_blabbermouth_with_default(foobar=b);
+    print_foobar_as_blabbermouth_with_default(foobar=b);
+    print_foobar_as_blabbermouth_with_default(1, 2, 3);
+
+  }
+
+  // Should print "success" with now blabbermouth except the string constructor
+  {
+    print_foobar_as_blabbermouth_with_converter(foobar=BlabberMouth("success"));
+    BlabberMouth b("success");
+    print_foobar_as_blabbermouth_with_converter(foobar=b);
+    print_foobar_as_blabbermouth_with_converter(foobar=b);
+    print_foobar_as_blabbermouth_with_converter_and_default();
+    print_foobar_as_blabbermouth_with_converter_and_default(foobar=b);
+    print_foobar_as_blabbermouth_with_converter_and_default(foobar=b);
+    print_foobar_as_blabbermouth_with_converter_and_default(foobar=BlabberMouth("success"));
   }
 
 

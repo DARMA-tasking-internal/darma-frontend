@@ -116,6 +116,15 @@ class kwarg_expression
     actual_value_t val_;
 };
 
+/*                                                                            */ #endif // end fold
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+/* typeless_kwarg_expression                                             {{{1 */ #if 1 // begin fold
+
 template <
   typename Rhs, typename KWArgName
 >
@@ -125,18 +134,24 @@ class typeless_kwarg_expression
     typedef typename KWArgName::tag tag;
     typedef KWArgName name_t;
 
-    constexpr typeless_kwarg_expression(Rhs&& rhs)
+    constexpr
+    typeless_kwarg_expression(Rhs&& rhs)
       : rhs_(std::forward<Rhs>(rhs))
     { }
+
+    inline constexpr Rhs&&
+    value() const {
+      return std::forward<Rhs>(rhs_);
+    }
 
     template <typename T>
     inline constexpr T
     value_as() const {
-      return { std::forward<Rhs>(rhs_) };
+      return std::forward<Rhs>(rhs_);
     }
+
     Rhs&& rhs_;
 };
-
 
 /*                                                                            */ #endif // end fold
 
@@ -154,6 +169,11 @@ struct is_kwarg_expression
 
 template <typename T, typename KWArgName, bool rhs_is_lvalue>
 struct is_kwarg_expression<kwarg_expression<T, KWArgName, rhs_is_lvalue>>
+  : public std::true_type
+{ };
+
+template <typename T, typename KWArgName>
+struct is_kwarg_expression<typeless_kwarg_expression<T, KWArgName>>
   : public std::true_type
 { };
 
