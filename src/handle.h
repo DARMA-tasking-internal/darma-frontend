@@ -64,9 +64,9 @@
 #include "abstract/backend/data_block.h"
 #include "keyword_arguments/keyword_arguments.h"
 
-DeclareDharmaKeyword(publication, n_readers, size_t);
+DeclareDharmaTypeTransparentKeyword(publication, n_readers);
 // TODO make this a key expression instead of a std::string
-DeclareDharmaKeyword(publication, version, int);
+DeclareDharmaTypeTransparentKeyword(publication, version);
 
 namespace dharma_runtime {
 
@@ -85,10 +85,12 @@ template <
 >
 struct _impl {
   typedef _impl<Spot+1, Begin, End, Tuple> next_t;
-  typedef typename next_t::return_t return_t;
-  constexpr inline return_t
-  operator()(Tuple&& in_tup) const {
-    return next_t()(std::forward<Tuple>(in_tup));
+  template <typename ForwardedTuple>
+  using return_t = typename next_t::template return_t<ForwardedTuple>;
+  template <typename ForwardedTuple>
+  constexpr inline return_t<ForwardedTuple>
+  operator()(ForwardedTuple&& in_tup) const {
+    return next_t()(std::forward<ForwardedTuple>(in_tup));
   }
 };
 
@@ -100,18 +102,25 @@ struct _impl<
   typename std::enable_if<Spot >= Begin and Spot+1 <= End>::type
 > {
   typedef _impl<Spot+1, Begin, End, Tuple> next_t;
-  typedef typename m::join<
-      std::tuple<typename m::at<Spot, Tuple>::type>,
-      typename next_t::return_t
-  >::type return_t;
-  constexpr inline return_t
-  operator()(Tuple&& in_tup) const {
+  template <typename ForwardedTuple>
+  using return_t = decltype(
+    std::tuple_cat(
+      std::forward_as_tuple(
+        std::get<Spot>(std::declval<ForwardedTuple&&>())
+      ),
+      std::declval<typename next_t::template return_t<ForwardedTuple>>()
+    )
+  );
+
+  template <typename ForwardedTuple>
+  constexpr inline return_t<ForwardedTuple>
+  operator()(ForwardedTuple&& in_tup) const {
     return std::tuple_cat(
       std::forward_as_tuple(
-        std::get<Spot>(std::forward<Tuple>(in_tup))
+        std::get<Spot>(std::forward<ForwardedTuple>(in_tup))
       ),
-      std::forward<typename next_t::return_t>(
-        next_t()(std::forward<Tuple>(in_tup))
+      std::forward<typename next_t::template return_t<ForwardedTuple>>(
+        next_t()(std::forward<ForwardedTuple>(in_tup))
       )
     );
   }
@@ -124,9 +133,12 @@ struct _impl<
   Spot, Begin, End, Tuple,
   typename std::enable_if<Spot >= End>::type
 > {
-  typedef std::tuple<> return_t;
-  constexpr inline return_t
-  operator()(Tuple&& in_tup) const {
+  template <typename ForwardedTuple>
+  using return_t = std::tuple<>;
+
+  template <typename ForwardedTuple>
+  constexpr inline return_t<ForwardedTuple>
+  operator()(ForwardedTuple&& in_tup) const {
     return std::make_tuple();
   }
 };
@@ -139,11 +151,12 @@ struct tuple_part {
   private:
     typedef _tuple_part_impl::_impl<0, Begin, End, Tuple> helper_t;
   public:
-    typedef typename helper_t::return_t return_t;
-    constexpr inline return_t
-    operator()(Tuple&& tup) const {
+    template <typename ForwardedTuple>
+    constexpr inline
+    typename helper_t::template return_t<ForwardedTuple>
+    operator()(ForwardedTuple&& tup) const {
       return helper_t()(
-        std::forward<Tuple>(tup)
+        std::forward<ForwardedTuple>(tup)
       );
     }
 };
@@ -160,7 +173,7 @@ struct extract_positional_args_tuple {
         std::tuple<Args...>
     > helper_t;
     //static_assert(std::is_same<return_t, typename helper_t::return_t>::value, "...");
-    return helper_t()(std::tuple<Args...>(std::forward<Args>(args)...));
+    return helper_t()(std::forward_as_tuple(args...));
   }
 };
 
@@ -189,45 +202,32 @@ template <
   typename... Args
 >
 struct publish_expr_helper {
-  static constexpr size_t find_spot = mv::find_if<
-    m::lambda<
-      is_kwarg_expression_with_tag<mp::_,
-        dharma_runtime::keyword_tags_for_publication::n_readers
-      >
-    >::template apply,
-    Args...
-  >::value;
 
-  inline size_t
+  inline constexpr size_t
   get_n_readers(
     Args&&... args
   ) const {
-    // Default value
-    // TODO fix this
-    return 1;
-  }
+    return get_typeless_kwarg_with_default_as<
+      keyword_tags_for_publication::n_readers,
+      size_t
+    >(1, std::forward<Args>(args)...);
 
-  //inline
-  //typename std::enable_if<
-  //  (find_spot < sizeof...(Args)),
-  //  size_t
-  //>::type
-  //get_n_readers(
-  //  Args&&... args
-  //) const {
-  //  // TODO won't work with 0 args
-  //  return std::get<
-  //    find_spot == sizeof...(Args) ? 0 : find_spot
-  //  >(std::forward_as_tuple(args...));
-  //}
+  }
 
   inline
   types::key_t
   get_version_tag(
     Args&&... args
   ) const {
-    // TODO
-    return types::key_t();
+    return get_typeless_kwarg_with_converter_and_default<
+      keyword_tags_for_publication::version
+    >(
+      [](auto&& key_part){
+        return key_traits<types::key_t>::maker_from_tuple()(std::forward_as_tuple(key_part));
+      },
+      types::key_t(),
+      std::forward<Args>(args)...
+    );
   }
 
 
@@ -235,8 +235,7 @@ struct publish_expr_helper {
   version_tag_is_final(
     Args&&... args
   ) const {
-    // TODO
-    return false;
+    return get_version_tag(std::forward<Args>(args)...) == types::key_t();
   }
 };
 

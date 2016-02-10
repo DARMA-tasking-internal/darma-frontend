@@ -45,6 +45,8 @@
 #ifndef KEYWORD_ARGUMENTS_KEYWORD_ARGUMENT_NAME_H_
 #define KEYWORD_ARGUMENTS_KEYWORD_ARGUMENT_NAME_H_
 
+#include <tuple>
+
 #include "kwarg_expression_fwd.h"
 
 namespace dharma_runtime { namespace detail {
@@ -110,9 +112,27 @@ class typeless_keyword_argument_name
     constexpr typeless_keyword_argument_name() { }
 
     template <typename Rhs>
-    constexpr kwarg_expr<Rhs>
+    inline constexpr kwarg_expr<Rhs>
     operator=(Rhs&& val) const {
       return { std::forward<Rhs>(val) };
+    }
+
+    template <typename Rhs>
+    inline constexpr kwarg_expr<Rhs>
+    operator()(Rhs&& val) const {
+      return { std::forward<Rhs>(val) };
+    }
+
+    template <typename RhsArg1, typename RhsArg2, typename... RhsArgs>
+    inline constexpr kwarg_expr<
+      decltype(std::forward_as_tuple(
+        std::declval<RhsArg1>(),
+        std::declval<RhsArg2>(),
+        std::declval<RhsArgs>()...
+      ))
+    >
+    operator()(RhsArg1&& a1, RhsArg2&& a2, RhsArgs&&... args) const {
+      return { std::forward_as_tuple(a1, a2, args...) };
     }
 };
 
@@ -204,53 +224,5 @@ struct tag_data<null_argument_name_t>
 ////////////////////////////////////////////////////////////////////////////////
 
 }} // end namespace dharma_runtime::detail
-
-// ATTIC
-    //template <typename... KWArgs>
-    //using kwarg_key_expression_t = kwarg_expression<key_expression<KWArgs...>,
-    //    keyword_argument_name, false>;
-
-    //template <typename U>
-    //typename std::enable_if<
-    //  not std::is_base_of<T, U>::value
-    //  and not std::is_same<Key, typename std::decay<U>::type>::value
-    //  and not m::is_instantiation_of<key_expression, typename std::decay<U>::type>::value,
-    //  kwarg_expression_t
-    //>::type
-    //operator=(U&& val) const {
-    //   return kwarg_expression_t(std::forward<U>(val));
-    //}
-
-    //template <typename U>
-    //typename std::enable_if<
-    //  std::is_base_of<Key, typename std::decay<U>::type>::value,
-    //  kwarg_key_expression_t<Key>
-    //>::type
-    //operator=(U&& key) const {
-    //   return { std::forward<Key>(key) };
-    //}
-
-    //template <typename KWArg1, typename... KWArgs>
-    //kwarg_key_expression_t<KWArg1, KWArgs...>
-    //operator=(
-    //  key_expression<KWArg1, KWArgs...>&& val
-    //) const
-    //{
-    //  return { std::forward<key_expression<KWArg1, KWArgs...>>(val) };
-    //}
-
-
-    //template <typename... KWArgs>
-    //kwarg_key_expression_t<KWArgs...>
-    //operator()(
-    //  KWArgs&&... kwargs
-    //) const
-    //{
-    //  return {
-    //    key_expression<KWArgs...>(
-    //      std::forward<KWArgs>(kwargs)...
-    //    )
-    //  };
-    //}
 
 #endif /* KEYWORD_ARGUMENTS_KEYWORD_ARGUMENT_NAME_H_ */

@@ -25,6 +25,9 @@ int main(int argc, char** argv) {
   size_t n_ranks = dharma_spmd_size();
 
   if(me % 2 == 0) {
+
+    //BlabberMouth b("hey");
+    //AccessHandle<std::string> dep = initial_access<std::string>(me, b, "the_hello_dependency");
     AccessHandle<std::string> dep = initial_access<std::string>(me, BlabberMouth("hey"), "the_hello_dependency");
 
     create_work(
