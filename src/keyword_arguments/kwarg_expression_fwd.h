@@ -47,13 +47,14 @@
 
 namespace dharma_runtime { namespace detail {
 
-
-template <
-  typename T,
-  typename KWArgName,
-  bool in_rhs_is_lvalue
->
+template <typename T, typename KWArgName, bool in_rhs_is_lvalue>
 class kwarg_expression;
+
+template <typename Rhs, typename KWArgName>
+class typeless_kwarg_expression;
+
+template <class T>
+struct is_kwarg_expression;
 
 }} // end namespace dharma_runtime::detail
 

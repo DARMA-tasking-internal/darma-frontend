@@ -3,7 +3,6 @@
 #include <mock_backend.h>
 
 using namespace dharma_runtime;
-using namespace dharma_runtime::keyword_arguments_for_publication;
 
 struct BlabberMouth {
   BlabberMouth(const std::string& str) : str_(str) { std::cout << "#!! String constructor: " << str_ << std::endl; };
@@ -17,6 +16,8 @@ std::istream&
 operator<<(std::istream& i, BlabberMouth& val) { return i >> val.str_; }
 
 int main(int argc, char** argv) {
+
+  using namespace dharma_runtime::keyword_arguments_for_publication;
 
   dharma_init(argc, argv);
 

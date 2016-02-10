@@ -47,51 +47,40 @@
 
 #include <limits>
 
+#include "keyword_tag.h"
+
 namespace dharma_runtime {
 
 namespace detail {
 
-// Tags inherit from this (though this fact isn't used anywhere yet)
-struct keyword_tag { };
-
-struct keyword_catagory_input { };
-struct keyword_catagory_output { };
-struct keyword_catagory_argument { };
-struct keyword_catagory_unknown { };
-
-// To be specialized by keyword arguments
-template <typename Tag>
-struct tag_data
-{ /* intentionally empty */ };
-
-////////////////////////////////////////////////////////////////////////////////
-
-/* kwargs_passthrough                                                    {{{1 */ #if 1 // begin fold
-
-template <typename T>
-class kwargs_passthrough
-{
-  public:
-    template <typename... KWArgs>
-    kwargs_passthrough(
-        KWArgs&&... kwargs
-    ) : val_(
-          sentinal_type_(),
-          std::forward<KWArgs>(kwargs)...
-        )
-    { }
-
-    T& value() & { return val_; }
-    T&& value() && { return std::move(val_); }
-
-  private:
-
-    T val_;
-};
-
-/*                                                                            */ #endif // end fold
-
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+//
+///* kwargs_passthrough                                                    {{{1 */ #if 1 // begin fold
+//
+//template <typename T>
+//class kwargs_passthrough
+//{
+//  public:
+//    template <typename... KWArgs>
+//    kwargs_passthrough(
+//        KWArgs&&... kwargs
+//    ) : val_(
+//          sentinal_type_(),
+//          std::forward<KWArgs>(kwargs)...
+//        )
+//    { }
+//
+//    T& value() & { return val_; }
+//    T&& value() && { return std::move(val_); }
+//
+//  private:
+//
+//    T val_;
+//};
+//
+///*                                                                            */ #endif // end fold
+//
+//////////////////////////////////////////////////////////////////////////////////
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -193,30 +182,27 @@ class kwargs_passthrough
 
 #include "keyword_argument_name.h"
 
-#include "kwarg_select_helper.h"
+#include "get_kwarg.h"
 
 namespace dharma_runtime { namespace detail {
 
-namespace m = tinympl;
-namespace mv = tinympl::variadic;
-
-////////////////////////////////////////////////////////////////////////////////
-
-/* tag_tuple_to_type_tuple                                               {{{1 */ #if 1 // begin fold
-
-template <typename TagTuple>
-struct tag_tuple_to_type_tuple
-{ /* intentionally empty */ };
-
-template <template <typename...> class TupleType, typename... Tags>
-struct tag_tuple_to_type_tuple<TupleType<Tags...>>
-{
-  typedef TupleType<typename tag_data<Tags>::value_t...> type;
-};
-
-/*                                                                       }}}1 */ #endif // end fold
-
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+//
+///* tag_tuple_to_type_tuple                                               {{{1 */ #if 1 // begin fold
+//
+//template <typename TagTuple>
+//struct tag_tuple_to_type_tuple
+//{ /* intentionally empty */ };
+//
+//template <template <typename...> class TupleType, typename... Tags>
+//struct tag_tuple_to_type_tuple<TupleType<Tags...>>
+//{
+//  typedef TupleType<typename tag_data<Tags>::value_t...> type;
+//};
+//
+///*                                                                       }}}1 */ #endif // end fold
+//
+//////////////////////////////////////////////////////////////////////////////////
 
 
 ////////////////////////////////////////////////////////////////////////////////
