@@ -228,6 +228,8 @@ class Runtime {
      *  register_fetching_handle() has been called on this instance but for which release_handle() has not
      *  yet been called.
      *
+     *  @todo !! check that this actually says the right thing and UPDATE
+     *
      */
     virtual void
     release_read_only_usage(
@@ -287,6 +289,7 @@ class Runtime {
      *  \b globally with the key reported by \c handle and the \c version_tag given here before the runtime
      *  can overwrite or delete the data associated with the key and version reported by \c handle.
      *
+     *  @todo 0.2.0.1 satisfied needs to be changed to writable
      *  The behavior also depends on whether or not handle is satisfied (i.e., handle->is_satisfied() returns true)
      *  at the time of the publish_handle() invocation.  If it is satisfied, the runtime publishes the
      *  actual data associated with the data block returned by handle->get_data_block().  This must happen
@@ -303,6 +306,8 @@ class Runtime {
      *  @param is_final Whether or not the publish is intented to indicate the key and data associated with
      *  handle are to be considered globally read-only for the rest of its lifetime.  If true, it is a (debug-mode)
      *  error to register a handle (anywhere) with the same key and a version v > handle->get_version()
+     *
+     *  @todo 0.2.2?? Perhaps split into publish_handle/publish_data?
      *
      */
     virtual void

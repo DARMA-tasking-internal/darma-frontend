@@ -47,10 +47,13 @@
 
 #include <atomic>
 #include <cassert>
+#include <tuple>
 
 #include <tinympl/variadic/find_if.hpp>
 #include <tinympl/bind.hpp>
 #include <tinympl/lambda.hpp>
+#include <tinympl/filter.hpp>
+#include <tinympl/logical_not.hpp>
 
 #include "task.h"
 #include "runtime.h"
@@ -73,6 +76,94 @@ namespace m = tinympl;
 namespace mv = tinympl::variadic;
 namespace mp = tinympl::placeholders;
 
+namespace _tuple_part_impl {
+
+template <
+  size_t Spot, size_t Begin, size_t End,
+  typename Tuple,
+  typename Enable = void
+>
+struct _impl {
+  typedef _impl<Spot+1, Begin, End, Tuple> next_t;
+  typedef typename next_t::return_t return_t;
+  constexpr inline return_t
+  operator()(Tuple&& in_tup) const {
+    return next_t()(std::forward<Tuple>(in_tup));
+  }
+};
+
+template <
+  size_t Spot, size_t Begin, size_t End, typename Tuple
+>
+struct _impl<
+  Spot, Begin, End, Tuple,
+  typename std::enable_if<Spot >= Begin and Spot+1 <= End>::type
+> {
+  typedef _impl<Spot+1, Begin, End, Tuple> next_t;
+  typedef typename m::join<
+      std::tuple<typename m::at<Spot, Tuple>::type>,
+      typename next_t::return_t
+  >::type return_t;
+  constexpr inline return_t
+  operator()(Tuple&& in_tup) const {
+    return std::tuple_cat(
+      std::forward_as_tuple(
+        std::get<Spot>(std::forward<Tuple>(in_tup))
+      ),
+      std::forward<typename next_t::return_t>(
+        next_t()(std::forward<Tuple>(in_tup))
+      )
+    );
+  }
+};
+
+template <
+  size_t Spot, size_t Begin, size_t End, typename Tuple
+>
+struct _impl<
+  Spot, Begin, End, Tuple,
+  typename std::enable_if<Spot >= End>::type
+> {
+  typedef std::tuple<> return_t;
+  constexpr inline return_t
+  operator()(Tuple&& in_tup) const {
+    return std::make_tuple();
+  }
+};
+
+
+} // end namespace _tuple_part_impl
+
+template <size_t Begin, size_t End, typename Tuple>
+struct tuple_part {
+  private:
+    typedef _tuple_part_impl::_impl<0, Begin, End, Tuple> helper_t;
+  public:
+    typedef typename helper_t::return_t return_t;
+    constexpr inline return_t
+    operator()(Tuple&& tup) const {
+      return helper_t()(
+        std::forward<Tuple>(tup)
+      );
+    }
+};
+
+template <typename... Args>
+struct extract_positional_args_tuple {
+  typedef typename m::filter<
+      std::tuple<Args...>,
+      m::lambda<m::not_<is_kwarg_expression<mp::_>>>::template apply
+  >::type return_t;
+  constexpr inline return_t
+  operator()(Args&&... args) const {
+    typedef tuple_part<0, mv::find_if<is_kwarg_expression, Args...>::value,
+        std::tuple<Args...>
+    > helper_t;
+    //static_assert(std::is_same<return_t, typename helper_t::return_t>::value, "...");
+    return helper_t()(std::tuple<Args...>(std::forward<Args>(args)...));
+  }
+};
+
 template <
   typename... Args
 >
@@ -81,8 +172,7 @@ struct access_expr_helper {
   get_key(
     Args&&... args
   ) const {
-    // TODO
-    return types::key_t();
+    return make_key_from_tuple(extract_positional_args_tuple<Args...>()(std::forward<Args>(args)...));
   }
 
   inline types::key_t
@@ -273,7 +363,7 @@ class DependencyHandleBase
     version_is_pending() const override { return version_is_pending_; }
 
     void
-    set_version_is_pending(bool is_pending) {
+    set_version_is_pending(bool is_pending = true) {
       version_is_pending_ = true;
     }
 
@@ -325,6 +415,7 @@ class DependencyHandle
     ) : base_t(data_key, version_t()),
         value_((T*&)this->base_t::data_)
     {
+      this->set_version_is_pending(true);
       backend_runtime->register_fetching_handle(this,
         user_version_tag, write_access_allowed
       );
@@ -641,6 +732,11 @@ class AccessHandle
             break;
           } // end case detail::Create
         } // end switch
+
+        if(copied_from.dep_handle_->version_is_pending()) {
+          outer.dep_handle_->set_version_is_pending(true);
+        }
+
       } // end if capturing_task != nullptr
 
     }

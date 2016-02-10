@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          filter.hpp
+//                          repeat.hpp
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,38 +42,50 @@
 //@HEADER
 */
 
-#ifndef SRC_META_TINYMPL_FILTER_HPP_
-#define SRC_META_TINYMPL_FILTER_HPP_
-
-#include "variadic/filter.hpp"
-#include "as_sequence.hpp"
-#include "sequence.hpp"
+#ifndef SRC_META_TINYMPL_REPEAT_HPP_
+#define SRC_META_TINYMPL_REPEAT_HPP_
 
 namespace tinympl {
 
-/**
- * \ingroup SeqAlgsIntr
- * \class at
- * \brief Get the i-th element of a sequence
- * \param I The index of the desired element
- * \param Seq The input sequence
-*/
-template <
-  class Seq,
-  template <class...> class UnaryPredicate,
-  template <class...> class Out = as_sequence<Seq>::template rebind
->
-struct filter : filter<typename as_sequence<Seq>::type, UnaryPredicate, Out> { };
+namespace _repeat_impl {
 
 template <
-  class... Args,
-  template <class...> class UnaryPredicate,
-  template <class...> class Out
+  size_t I, size_t N,
+  template <class...> class metafunction,
+  typename Arg
 >
-struct filter<sequence<Args...>, UnaryPredicate, Out>
-  : variadic::filter<UnaryPredicate, Out, Args...> { };
+struct _repeat_impl {
+  typedef typename _repeat_impl<
+      I+1, N, metafunction,
+      typename metafunction<Arg>::type
+  >::type type;
+};
+
+template <
+  size_t N,
+  template <class...> class metafunction,
+  typename Arg
+>
+struct _repeat_impl<N, N, metafunction, Arg> {
+  typedef Arg type;
+};
+
+} // end namespace _repeat_impl
+
+template <
+  size_t n_repeats,
+  template <class...> class unary_metafunction,
+  typename Arg
+>
+struct repeat {
+  typedef typename _repeat_impl::_repeat_impl<0, n_repeats, unary_metafunction, Arg>::type type;
+};
+
+
 
 } // end namespace tinympl
 
 
-#endif /* SRC_META_TINYMPL_FILTER_HPP_ */
+
+
+#endif /* SRC_META_TINYMPL_REPEAT_HPP_ */

@@ -136,6 +136,22 @@ struct StreamKey  {
       return detail::stream_key_part(rv_str);
     }
 
+    void
+    print_human_readable(
+      const char* sep = ", ",
+      std::ostream& o = std::cout
+    ) const {
+      std::stringstream sstr(val_);
+      char buffer[255];
+      for(int i = 0; i < n_parts_; ++i) {
+        sstr.getline(buffer, 255);
+        o << buffer;
+        if(i != n_parts_ - 1) {
+          o << sep;
+        }
+      }
+    }
+
   private:
 
     friend struct key_hash;
