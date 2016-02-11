@@ -6,12 +6,12 @@ This chapter describes the DARMA \gls{front end} \gls{API}.
 \section{Keyword arguments}
 \label{sec:keyword}
 
-Similar to higher-level languages like Python, the DHARMA C++ interface allows the user
+Similar to higher-level languages like Python, the DARMA C++ interface allows the user
 to specify arguments to many of the API functions and constructs using either positional
 or keyword arguments.  In addition, many optional arguments may {\em only} be specified using
 keyword arguments.  The syntax for specifying a keyword argument is identical to that
 of Python: \inlinecode{keyword=value}.  For instance, if there is a function \inlinecode{some_function} in the
-DHARMA API that accepts positional or keyword arguments \inlinecode{arg_a}, \inlinecode{count}, and \inlinecode{flag}, that 
+DARMA API that accepts positional or keyword arguments \inlinecode{arg_a}, \inlinecode{count}, and \inlinecode{flag}, that 
 function can be invoked equivalently in any of the following ways:
 \begin{lstlisting}
 /* some_function signature:
@@ -47,16 +47,16 @@ callable using perfect forwarding, and thus the overhead from the keyword argume
 trick is entirely at compile-time.  These instances are defined in very descriptive
 namespaces, and frequently used keywords are aliased into more general namespaces.  For
 instance, the keywords for \inlinecode{some_function}, above, would probably be defined in the 
-namespace \inlinecode{dharma::keyword_arguments_for_some_function}.  If \inlinecode{some_function} was a 
+namespace \inlinecode{darma::keyword_arguments_for_some_function}.  If \inlinecode{some_function} was a 
 widely used construct, its more important keywords would also be defined in the namespace
-\inlinecode{dharma::keyword_arguments}.  If \inlinecode{some_function} belonged to a broader category of 
+\inlinecode{darma::keyword_arguments}.  If \inlinecode{some_function} belonged to a broader category of 
 constructs, certain of its keywords may also be aliased into a categorical namespace
 as well.  For instance, if \inlinecode{some_function} implemented some memory management functionality,
-its keywords may be aliased into \inlinecode{dharma::keyword_arguments_for_memory_management} or 
+its keywords may be aliased into \inlinecode{darma::keyword_arguments_for_memory_management} or 
 something.  All of this is done so that the user can minimize verbosity without introducing
 naming conflicts.  In certain contexts, it may be expedient for the user to simply
-put \inlinecode{using dharma::keyword_arguments} at the beginning of the calling context.  In other,
-more complicated contexts, importing all DHARMA keywords into the local context may
+put \inlinecode{using darma::keyword_arguments} at the beginning of the calling context.  In other,
+more complicated contexts, importing all DARMA keywords into the local context may
 lead to naming conflicts with local variables.  You don't have to guess at which namespaces
 a keyword is provided in or aliased into; every time a keyword argument or a callable
 accepting that argument is introduced in the documentation, the namespace to which 
@@ -67,11 +67,11 @@ it belongs and all namespaces it is aliased into are given.
 \section{SPMD support}
 \label{sec:spmd}
 
-\inlinecode{dharma_init(int& argc, char**& argv)}
+\inlinecode{darma_init(int& argc, char**& argv)}
 
-\inlinecode{dharma_rank()}
+\inlinecode{darma_rank()}
 
-\inlinecode{dharma_finalize}
+\inlinecode{darma_finalize}
 
 
 \section{Deferred Tasks}
