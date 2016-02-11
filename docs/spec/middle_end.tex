@@ -1,7 +1,26 @@
-\chapter{Middle End}
+\chapter{Translation Layer}
 \label{chap:middle_end}
 
 \todo[inline]{David and/or Jeremy?: Include a relatively high-level description of the work that is done to
 translate between front and back ends. Capture, introspection, lamport clock,
           etc.}
 
+A key design principle of DARMA is the ability to explore the design space of
+backend AMT runtime implementations without requiring changes in the application
+code.  Since the frontend is EDSL-like (embedded domain specific language-like)
+and most backends with which we want to interface use traditional C or C++
+constructs, a layer is needed that translates EDSL-based application code into
+C++ constructs that the backends can easily implement and interact with.  Given
+that DARMA is strictly embedded in C++, this layer makes heavy use of newer C++
+motifs and features from C++11 and C++14, such as template metaprogramming,
+perfect forwarding, constant expressions (\inlinecode{constexpr}), and lambda
+capture.  Many of the additions to C++ in recent years have centered around
+making it easier for the user to express compile-time optimizations and
+transformations that the compiler can make to reduce runtime overhead.  As such,
+much of the translation DARMA does between the frontend EDSL and the backend API
+happens at compile time, and should result in minimal runtime overhead with most
+modern compilers.
+
+Even though neither the frontend application programmers nor the backend
+implementation developers need to understand the implementation details of this
+layer, it is useful to document 
