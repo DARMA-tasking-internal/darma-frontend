@@ -23,4 +23,38 @@ modern compilers.
 
 Even though neither the frontend application programmers nor the backend
 implementation developers need to understand the implementation details of this
-layer, it is useful to document 
+layer, it is useful to document several of the idioms and ``tricks'' used in the
+translation layer for those wishing to have a thorough understanding of all
+DARMA layers, and particularly for those who wish to contribute to the expansion
+and adaptation of the EDSL that is the frontend.  Thus, a few of the basic
+techniques and concepts used by the translation layer are documented below.
+
+\section{Lambda Capture for Automatic Dependency Detection and Versioning}
+
+The most pivotal trick to document here is (semi-)automatic dependency detection
+through the C++11 lambda mechanism and the copy {\it capture-default} (that is,
+\inlinecode{[=]}).  The C++ standard specifies that if the copy
+{\it capture-default} is given, any variables that are ODR-used\footnote{``one
+definition rule''-used.  See
+\url{http://en.cppreference.com/w/cpp/language/definition#ODR-use} for details. 
+As this source states, ``Informally, an object is odr-used if its address is
+taken, or a reference is bound to it, and a function is odr-used if a function
+call to it is made or its address is taken.''} inside of the lambda's scope but
+defined outside of it\footnote{technically, defined in the lambdas
+``reaching scope,'' which is also formally defined} are copied by value into
+that lambda's scope.  Furthermore, if a lambda with a copy {\it capture-default}
+is moved\footnote{e.g., with \inlinecode{std::move()}; lambdas have a deleted
+copy constructor}, the move constructors of the inner scope copies will be
+invoked (or, if no user-defined move constructor is given but a user-defined
+copy constructor is, the copy constructor is invoked).  We can leverage this
+fact along with a thread-safe (and thread-specific) global context object to
+associate captured \inlinecode{AccessHandle<T>} objects with the capturing
+\inlinecode{create_work(...)} invocation as dependencies.  Furthermore, if we
+make the relevant members of \inlinecode{AccessHandle<T>} \inlinecode{mutable},
+we can modify the handle that has been {\it copied from} to increment the
+version, so that later tasks will depend on the completion of earlier
+\inlinecode{create_work} calls that capture the same handle.  Thus, the capture
+mechanism can be used for both dependency detection and sequential semantics.
+
+
+\section{Hierarchical Versioning}
