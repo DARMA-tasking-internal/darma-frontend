@@ -177,7 +177,8 @@ int main(int argc, char** argv)
 
     // If we're the first node, start the chain in motion
     if(me == 0) {
-      initial_access<int>("write_done", me-1).publish(n_readers=1);
+      auto tmp = initial_access<int>("write_done", me-1);
+      create_work([=]{ tmp.publish(n_readers=1); });
     }
 
   }
