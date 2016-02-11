@@ -59,31 +59,35 @@ namespace detail
 {
 
 //Handle generic numbers
-template<class T,T value,T base = 10,class = void> struct to_string_impl
+template<class T,T value,T base = 10,class = void>
+struct to_string_impl
 {
-	typedef typename to_string_impl<T,value / base,base>::type head;
-	typedef typename to_string_impl<T,value % base,base>::type tail;
-	typedef typename head::template append<tail>::type type;
+  typedef typename to_string_impl<T,value / base,base>::type head;
+  typedef typename to_string_impl<T,value % base,base>::type tail;
+  typedef typename head::template append<tail>::type type;
 };
 
 //Handle negative numbers
-template<class T,T value,T base> struct to_string_impl<T,value,base,
-	typename std::enable_if<(value < 0)>::type>
-{
-	typedef typename to_string_impl<T,-value,base>::type tail;
-	typedef typename tail::template insert_c<0,'-'>::type type;
+template<class T, T value, T base>
+struct to_string_impl<T,value,base,
+  typename std::enable_if<(value < 0)>::type
+> {
+  typedef typename to_string_impl<T,-value,base>::type tail;
+  typedef typename tail::template insert_c<0,'-'>::type type;
 };
 
 //Handle one digit numbers
-template<class T,T value,T base> struct to_string_impl<T,value,base,
-	typename std::enable_if<(value >= 0 && value < base)>::type>
-{
-	static_assert( value >= 0 && value < 16,"Base > 16 not supported");
+template<class T,T value,T base>
+struct to_string_impl<T,value,base,
+  typename std::enable_if<(value >= 0 && value < base)>::type
+> {
+  static_assert( value >= 0 && value < 16,"Base > 16 not supported");
 
-	typedef basic_string<char,
-		(value < 10 ?
-			'0' + value :
-			'a' + value - 10)> type;
+  typedef basic_string<char,
+    (value < 10 ?
+      '0' + value :
+      'a' + value - 10)
+  > type;
 };
 
 }

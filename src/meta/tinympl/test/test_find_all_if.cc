@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                               sequence.hpp                              
-//                         dharma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                          test_find_all_if.cc
+//                         dharma_new
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,25 +42,55 @@
 //@HEADER
 */
 
+#include <tinympl/find_all.hpp>
+#include <tinympl/find_all_if.hpp>
 
-#ifndef TINYMPL_SEQUENCE_HPP
-#define TINYMPL_SEQUENCE_HPP
+#include "metatest_helpers.h"
 
-namespace tinympl {
+#include <type_traits>
 
-/**
- * \defgroup SeqSupport Sequence support
- * Basic sequences support - provides user defined customization points to define sequences.
- * @{
- */
+#include <tinympl/vector.hpp>
+#include <tinympl/string.hpp>
 
-/**
- * \class sequence
- * \brief The main sequence type.
- */
-template<class... Args> struct sequence;
+using namespace tinympl;
 
-/** @} */
-}
+meta_assert_same(
+  typename find_all<
+    vector<float, int, int, float, double>,
+    float
+  >::type,
+  vector_c<size_t, 0, 3>
+);
 
-#endif // TINYMPL_SEQUENCE_HPP
+meta_assert_same(
+  typename find_all_if<
+    vector<float, int, int, float, double>,
+    std::is_integral
+  >::type,
+  vector_c<size_t, 1, 2>
+);
+
+
+meta_assert_same(
+  typename find_all_if<
+    vector<float>,
+    std::is_integral
+  >::type,
+  vector_c<size_t>
+);
+
+meta_assert_same(
+  typename find_all_if<
+    vector<>,
+    std::is_integral
+  >::type,
+  vector_c<size_t>
+);
+
+meta_assert_same(
+  typename find_all_if<
+    vector<int>,
+    std::is_integral
+  >::type,
+  vector_c<size_t, 0>
+);

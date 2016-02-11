@@ -69,16 +69,23 @@ sequence
 the transformed types
  * \sa variadic::transform
  */
-template<class Sequence,
-        template<class ... T> class F, template<class ... > class Out =
-            as_sequence<Sequence>::template rebind>
-struct transform : transform<as_sequence_t<Sequence>, F, Out> {};
+template<
+  class Sequence,
+  template<class ... T> class F,
+  template<class ... > class Out = as_sequence<Sequence>::template rebind
+>
+struct transform
+  : public transform<as_sequence_t<Sequence>, F, Out>
+{ };
 
-template<template<class ... T> class F,
-        template<class ... > class Out,
-        class ... Args>
-struct transform<sequence<Args...>, F, Out> :
-    variadic::transform<F, Out, Args...> {};
+template<
+  template<class ... T> class F,
+  template<class ... > class Out,
+  class... Args
+>
+struct transform<sequence<Args...>, F, Out>
+  : public variadic::transform<F, Out, Args...>
+{ };
 
 } // namespace tinympl
 

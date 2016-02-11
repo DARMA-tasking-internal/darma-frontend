@@ -48,10 +48,13 @@
 #include <tuple>
 
 #include <tinympl/find_if.hpp>
+#include <tinympl/variadic/find_all_if.hpp>
 #include <tinympl/lambda.hpp>
 #include <tinympl/bind.hpp>
 #include <tinympl/size.hpp>
 #include <tinympl/vector.hpp>
+#include <tinympl/string.hpp>
+#include <tinympl/identity.hpp>
 
 
 #include "../meta/sentinal_type.h"
@@ -447,6 +450,65 @@ get_typeless_kwarg_with_converter_and_default(
     std::forward<Default>(def_val),
     std::forward<Args>(args)...
   );
+}
+
+
+/*                                                                            */ #endif // end fold
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+/* get_positional_args_tuple                                    {{{1 */ #if 1 // begin fold
+
+namespace _get_kwarg_impl {
+
+// TODO verify that all positional args come before all keyword args
+
+struct _positional_arg_tuple_getter {
+  private:
+    template <typename... Args>
+    using _pos_arg_spots = typename mv::find_all_if_not<
+      is_kwarg_expression, Args...
+    >::type;
+
+  public:
+
+    template <typename... Args>
+    using return_t = typename m::transform<
+      _pos_arg_spots<Args...>,
+      m::lambda<mv::types_only::at<mp::_, Args&&...>>::template apply,
+      std::tuple
+    >::type;
+
+    template <typename... Args>
+    inline constexpr return_t<Args...>
+    operator()(Args&&... args) const {
+      return _impl(
+        _pos_arg_spots<Args...>(),
+        std::forward<Args>(args)...
+      );
+    }
+
+  private:
+    template <typename... Args, size_t... Spots>
+    inline constexpr return_t<Args...>
+    _impl(m::vector_c<std::size_t, Spots...>, Args&&... args) const {
+      return std::forward_as_tuple(
+        std::get<Spots>(std::forward_as_tuple(std::forward<Args>(args)...))...
+      );
+    }
+};
+
+} // end namespace _get_kwarg_impl
+
+template <typename... Args>
+inline constexpr
+_get_kwarg_impl::_positional_arg_tuple_getter::return_t<Args...>
+get_positional_arg_tuple(Args&&... args)
+{
+  return _get_kwarg_impl::_positional_arg_tuple_getter()(std::forward<Args>(args)...);
 }
 
 

@@ -65,15 +65,13 @@ sequence
 the transformed types
  * \sa tinympl::transform
  */
-template<template<class ... T> class F,
-        template<class ... > class Out,
-        class ... Args> struct transform;
-
-template< template<class ... T> class F,
-        template<class ... > class Out,
-        class ... Args>
+template<
+  template<class... T> class F,
+  template<class... > class Out,
+  class... Args
+>
 struct transform {
-    typedef Out< typename F<Args>::type ... > type;
+  typedef Out< typename F<Args>::type... > type;
 };
 
 } // namespace variadic

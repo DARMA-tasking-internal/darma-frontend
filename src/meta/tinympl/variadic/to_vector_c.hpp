@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                               sequence.hpp                              
-//                         dharma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                          to_string.hpp
+//                         dharma_new
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,25 +42,37 @@
 //@HEADER
 */
 
+#ifndef SRC_META_TINYMPL_VARIADIC_TO_VECTOR_C_HPP_
+#define SRC_META_TINYMPL_VARIADIC_TO_VECTOR_C_HPP_
 
-#ifndef TINYMPL_SEQUENCE_HPP
-#define TINYMPL_SEQUENCE_HPP
+#include "../string.hpp"
+#include "../vector.hpp"
+#include "all_of.hpp"
+#include "../lambda.hpp"
 
 namespace tinympl {
+namespace variadic {
 
-/**
- * \defgroup SeqSupport Sequence support
- * Basic sequences support - provides user defined customization points to define sequences.
- * @{
- */
+template <typename ValueType, typename... Args>
+struct to_vector_c {
+  private:
+    typedef tinympl::vector<typename Args::value_type...> _value_type_vector;
 
-/**
- * \class sequence
- * \brief The main sequence type.
- */
-template<class... Args> struct sequence;
+    template <typename T>
+    using _check = std::is_convertible<ValueType, typename T::value_type>;
 
-/** @} */
-}
+    static_assert(all_of<_check, Args...>::value,
+      "to_vector_c: unable to convert to string when all arguments do not have a value_type convertible to ValueType"
+    );
 
-#endif // TINYMPL_SEQUENCE_HPP
+  public:
+
+    typedef vector_c<ValueType, (ValueType)Args::value...> type;
+};
+
+} // end namespace variadic
+} // end namespace tinympl
+
+
+
+#endif /* SRC_META_TINYMPL_VARIADIC_TO_VECTOR_C_HPP_ */

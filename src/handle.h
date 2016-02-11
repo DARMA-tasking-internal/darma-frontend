@@ -76,106 +76,106 @@ namespace m = tinympl;
 namespace mv = tinympl::variadic;
 namespace mp = tinympl::placeholders;
 
-namespace _tuple_part_impl {
-
-template <
-  size_t Spot, size_t Begin, size_t End,
-  typename Tuple,
-  typename Enable = void
->
-struct _impl {
-  typedef _impl<Spot+1, Begin, End, Tuple> next_t;
-  template <typename ForwardedTuple>
-  using return_t = typename next_t::template return_t<ForwardedTuple>;
-  template <typename ForwardedTuple>
-  constexpr inline return_t<ForwardedTuple>
-  operator()(ForwardedTuple&& in_tup) const {
-    return next_t()(std::forward<ForwardedTuple>(in_tup));
-  }
-};
-
-template <
-  size_t Spot, size_t Begin, size_t End, typename Tuple
->
-struct _impl<
-  Spot, Begin, End, Tuple,
-  typename std::enable_if<Spot >= Begin and Spot+1 <= End>::type
-> {
-  typedef _impl<Spot+1, Begin, End, Tuple> next_t;
-  template <typename ForwardedTuple>
-  using return_t = decltype(
-    std::tuple_cat(
-      std::forward_as_tuple(
-        std::get<Spot>(std::declval<ForwardedTuple&&>())
-      ),
-      std::declval<typename next_t::template return_t<ForwardedTuple>>()
-    )
-  );
-
-  template <typename ForwardedTuple>
-  constexpr inline return_t<ForwardedTuple>
-  operator()(ForwardedTuple&& in_tup) const {
-    return std::tuple_cat(
-      std::forward_as_tuple(
-        std::get<Spot>(std::forward<ForwardedTuple>(in_tup))
-      ),
-      std::forward<typename next_t::template return_t<ForwardedTuple>>(
-        next_t()(std::forward<ForwardedTuple>(in_tup))
-      )
-    );
-  }
-};
-
-template <
-  size_t Spot, size_t Begin, size_t End, typename Tuple
->
-struct _impl<
-  Spot, Begin, End, Tuple,
-  typename std::enable_if<Spot >= End>::type
-> {
-  template <typename ForwardedTuple>
-  using return_t = std::tuple<>;
-
-  template <typename ForwardedTuple>
-  constexpr inline return_t<ForwardedTuple>
-  operator()(ForwardedTuple&& in_tup) const {
-    return std::make_tuple();
-  }
-};
-
-
-} // end namespace _tuple_part_impl
-
-template <size_t Begin, size_t End, typename Tuple>
-struct tuple_part {
-  private:
-    typedef _tuple_part_impl::_impl<0, Begin, End, Tuple> helper_t;
-  public:
-    template <typename ForwardedTuple>
-    constexpr inline
-    typename helper_t::template return_t<ForwardedTuple>
-    operator()(ForwardedTuple&& tup) const {
-      return helper_t()(
-        std::forward<ForwardedTuple>(tup)
-      );
-    }
-};
-
-template <typename... Args>
-struct extract_positional_args_tuple {
-  typedef typename m::filter<
-      std::tuple<Args...>,
-      m::lambda<m::not_<is_kwarg_expression<mp::_>>>::template apply
-  >::type return_t;
-  constexpr inline return_t
-  operator()(Args&&... args) const {
-    typedef tuple_part<0, mv::find_if<is_kwarg_expression, Args...>::value,
-        std::tuple<Args...>
-    > helper_t;
-    //static_assert(std::is_same<return_t, typename helper_t::return_t>::value, "...");
-    return helper_t()(std::forward_as_tuple(args...));
-  }
-};
+//namespace _tuple_part_impl {
+//
+//template <
+//  size_t Spot, size_t Begin, size_t End,
+//  typename Tuple,
+//  typename Enable = void
+//>
+//struct _impl {
+//  typedef _impl<Spot+1, Begin, End, Tuple> next_t;
+//  template <typename ForwardedTuple>
+//  using return_t = typename next_t::template return_t<ForwardedTuple>;
+//  template <typename ForwardedTuple>
+//  constexpr inline return_t<ForwardedTuple>
+//  operator()(ForwardedTuple&& in_tup) const {
+//    return next_t()(std::forward<ForwardedTuple>(in_tup));
+//  }
+//};
+//
+//template <
+//  size_t Spot, size_t Begin, size_t End, typename Tuple
+//>
+//struct _impl<
+//  Spot, Begin, End, Tuple,
+//  typename std::enable_if<Spot >= Begin and Spot+1 <= End>::type
+//> {
+//  typedef _impl<Spot+1, Begin, End, Tuple> next_t;
+//  template <typename ForwardedTuple>
+//  using return_t = decltype(
+//    std::tuple_cat(
+//      std::forward_as_tuple(
+//        std::get<Spot>(std::declval<ForwardedTuple&&>())
+//      ),
+//      std::declval<typename next_t::template return_t<ForwardedTuple>>()
+//    )
+//  );
+//
+//  template <typename ForwardedTuple>
+//  constexpr inline return_t<ForwardedTuple>
+//  operator()(ForwardedTuple&& in_tup) const {
+//    return std::tuple_cat(
+//      std::forward_as_tuple(
+//        std::get<Spot>(std::forward<ForwardedTuple>(in_tup))
+//      ),
+//      std::forward<typename next_t::template return_t<ForwardedTuple>>(
+//        next_t()(std::forward<ForwardedTuple>(in_tup))
+//      )
+//    );
+//  }
+//};
+//
+//template <
+//  size_t Spot, size_t Begin, size_t End, typename Tuple
+//>
+//struct _impl<
+//  Spot, Begin, End, Tuple,
+//  typename std::enable_if<Spot >= End>::type
+//> {
+//  template <typename ForwardedTuple>
+//  using return_t = std::tuple<>;
+//
+//  template <typename ForwardedTuple>
+//  constexpr inline return_t<ForwardedTuple>
+//  operator()(ForwardedTuple&& in_tup) const {
+//    return std::make_tuple();
+//  }
+//};
+//
+//
+//} // end namespace _tuple_part_impl
+//
+//template <size_t Begin, size_t End, typename Tuple>
+//struct tuple_part {
+//  private:
+//    typedef _tuple_part_impl::_impl<0, Begin, End, Tuple> helper_t;
+//  public:
+//    template <typename ForwardedTuple>
+//    constexpr inline
+//    typename helper_t::template return_t<ForwardedTuple>
+//    operator()(ForwardedTuple&& tup) const {
+//      return helper_t()(
+//        std::forward<ForwardedTuple>(tup)
+//      );
+//    }
+//};
+//
+//template <typename... Args>
+//struct extract_positional_args_tuple {
+//  typedef typename m::filter<
+//      std::tuple<Args...>,
+//      m::lambda<m::not_<is_kwarg_expression<mp::_>>>::template apply
+//  >::type return_t;
+//  constexpr inline return_t
+//  operator()(Args&&... args) const {
+//    typedef tuple_part<0, mv::find_if<is_kwarg_expression, Args...>::value,
+//        std::tuple<Args...>
+//    > helper_t;
+//    //static_assert(std::is_same<return_t, typename helper_t::return_t>::value, "...");
+//    return helper_t()(std::forward_as_tuple(args...));
+//  }
+//};
 
 template <
   typename... Args
@@ -185,7 +185,9 @@ struct access_expr_helper {
   get_key(
     Args&&... args
   ) const {
-    return make_key_from_tuple(extract_positional_args_tuple<Args...>()(std::forward<Args>(args)...));
+    return make_key_from_tuple(
+      get_positional_arg_tuple(std::forward<Args>(args)...)
+    );
   }
 
   inline types::key_t

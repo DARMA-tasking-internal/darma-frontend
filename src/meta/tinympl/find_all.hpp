@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                               sequence.hpp                              
-//                         dharma_mockup
+//                     find_all.hpp
+//                         dharma
 //              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -48,24 +43,38 @@
 */
 
 
-#ifndef TINYMPL_SEQUENCE_HPP
-#define TINYMPL_SEQUENCE_HPP
+#ifndef TINYMPL_FIND_ALL_HPP
+#define TINYMPL_FIND_ALL_HPP
+
+#include "variadic/find_all.hpp"
+#include "as_sequence.hpp"
+#include "sequence.hpp"
 
 namespace tinympl {
 
 /**
- * \defgroup SeqSupport Sequence support
- * Basic sequences support - provides user defined customization points to define sequences.
- * @{
+ * \ingroup SeqNonModAlgs
+ * \class find_all Compute the index of all elements in the sequence which are equal to the
+ * type T.
+ *
+ * \param Sequence The input sequence
+ * \param T The type to be tested
+ * \return `find_all<...>::type` is `vector_c<std::size_t,v...>` where
+`v...` are the 0-based indices of the elements equal_to T
+ * \note The comparison is done with \ref tinympl::equal_to - it can be
+specialized
+ * \sa variadic::find_all
  */
+template <class Sequence, class T>
+struct find_all
+  : public find_all<as_sequence_t<Sequence>, T>
+{ };
 
-/**
- * \class sequence
- * \brief The main sequence type.
- */
-template<class... Args> struct sequence;
+template <class T, class... Args>
+struct find_all<sequence<Args...>, T>
+  : public variadic::find_all<T, Args...>
+{ };
 
-/** @} */
-}
+} // namespace tinympl
 
-#endif // TINYMPL_SEQUENCE_HPP
+#endif // TINYMPL_FIND_ALL_HPP

@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                               sequence.hpp                              
-//                         dharma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                          to_vector_c.hpp
+//                         dharma_new
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,25 +42,32 @@
 //@HEADER
 */
 
+#ifndef SRC_META_TINYMPL_TO_VECTOR_C_HPP_
+#define SRC_META_TINYMPL_TO_VECTOR_C_HPP_
 
-#ifndef TINYMPL_SEQUENCE_HPP
-#define TINYMPL_SEQUENCE_HPP
+#include "variadic/to_vector_c.hpp"
 
 namespace tinympl {
 
-/**
- * \defgroup SeqSupport Sequence support
- * Basic sequences support - provides user defined customization points to define sequences.
- * @{
- */
+// TODO figure out what to do with an empty sequence (or at least give a more intelligent error)
+template <typename Seq,
+  typename ValueType = typename std::conditional<
+    size<Seq>::value == 1,
+    at<0, Seq>,
+    left_fold<Seq, std::common_type>
+  >::type::type
+>
+struct to_vector_c
+  : public to_vector_c<ValueType, typename as_sequence<Seq>::type>
+{ };
 
-/**
- * \class sequence
- * \brief The main sequence type.
- */
-template<class... Args> struct sequence;
+template <typename ValueType, typename... Args>
+struct to_vector_c<sequence<Args...>, ValueType>
+  : public variadic::to_vector_c<ValueType, Args...>
+{ };
 
-/** @} */
-}
+} // end namespace tinympl
 
-#endif // TINYMPL_SEQUENCE_HPP
+
+
+#endif /* SRC_META_TINYMPL_TO_VECTOR_C_HPP_ */

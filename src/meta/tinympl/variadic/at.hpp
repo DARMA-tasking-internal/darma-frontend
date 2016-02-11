@@ -61,20 +61,31 @@ namespace variadic {
  * \brief Extract the i-th element of a variadic template
  * \param i The index to extract
  */
-template<std::size_t i, class ... Args> struct at;
+template<std::size_t i, class ... Args>
+struct at;
 
-template<std::size_t i, class ... Args> using at_t = typename at<i, Args...>::type;
+template<std::size_t i, class ... Args>
+using at_t = typename at<i, Args...>::type;
 
-template<std::size_t i, class Head, class ... Tail> struct at<i, Head, Tail...>
+template<std::size_t i, class Head, class ... Tail>
+struct at<i, Head, Tail...>
 {
-	static_assert(i < sizeof ... (Tail) + 1,"Index out of range");
-	typedef typename at<i-1,Tail...>::type type;
+  static_assert(i < sizeof ... (Tail) + 1,"Index out of range");
+  typedef typename at<i-1,Tail...>::type type;
 };
 
-template<class Head,class ... Tail> struct at<0,Head,Tail...>
+template<class Head, class ... Tail> struct at<0,Head,Tail...>
 {
-	typedef Head type;
+  typedef Head type;
 };
+
+namespace types_only {
+
+template <typename WrappedSpot, class... Args>
+struct at : public tinympl::variadic::at<WrappedSpot::value, Args...>
+{ };
+
+} // end namespace types_only
 
 } // namespace variadic
 } // namespace tinympl
