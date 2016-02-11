@@ -45,6 +45,8 @@
 #ifndef EXAMPLES_STENCIL_1D_COMMON_H_
 #define EXAMPLES_STENCIL_1D_COMMON_H_
 
+#include <iomanip>
+
 /**
  * For each point with index i, do_stencil() averages
  * data[i-1], data[i], and data[i+1] and stores the new value

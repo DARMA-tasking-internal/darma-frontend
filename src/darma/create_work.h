@@ -114,24 +114,28 @@ template <typename... Args>
 typename detail::reads_decorator_parser<Args...>::return_type
 reads(Args&&... args) {
   // TODO implement this
+  return typename detail::reads_decorator_parser<Args...>::return_type();
 }
 
 template <typename... Args>
 typename detail::waits_decorator_parser<Args...>::return_type
 waits(Args&&... args) {
   // TODO implement this
+  return typename detail::waits_decorator_parser<Args...>::return_type();
 }
 
 template <typename... Args>
 typename detail::writes_decorator_parser<Args...>::return_type
 writes(Args&&... args) {
   // TODO implement this
+  return typename detail::writes_decorator_parser<Args...>::return_type();
 }
 
 template <typename... Args>
 typename detail::reads_writes_decorator_parser<Args...>::return_type
 reads_writes(Args&&... args) {
   // TODO implement this
+  return typename detail::reads_writes_decorator_parser<Args...>::return_type();
 }
 
 template <typename... Args>

@@ -1,5 +1,5 @@
 
-#include <darma.h>
+#include <mock_backend.h>
 
 #include "../common.h" // do_stencil()
 
@@ -21,9 +21,9 @@ struct DataArray
 
     // Some user methods
     void allocate(size_t n_data) {
-      assert(data_ == nullptr)
+      assert(data_ == nullptr);
       if(n_data) {
-        data_ = malloc(n_data * sizeof(T));
+        data_ = (double*)malloc(n_data * sizeof(T));
         data_size_ = n_data;
       }
     }
@@ -161,7 +161,8 @@ int main(int argc, char** argv)
 
   if(print_data) {
 
-    auto prev_node_finished_writing = read_access<void>("write_done", me-1);
+    // TODO Change this when I implement void handles
+    auto prev_node_finished_writing = read_access<int>("write_done", me-1);
 
     // The `waits()` tag is equivalent to calling prev_node_finished_writing.wait() inside the lambda
     create_work(
@@ -170,13 +171,13 @@ int main(int argc, char** argv)
         std::cout << "On worker " << me << ": ";
         do_print_data(data->get(), my_n_data);
 
-        initial_access<void>("write_done", me).publish(n_readers=1);
+        initial_access<int>("write_done", me).publish(n_readers=1);
       }
     );
 
     // If we're the first node, start the chain in motion
     if(me == 0) {
-      initial_access<void>("write_done", me-1).publish(n_readers=1);
+      initial_access<int>("write_done", me-1).publish(n_readers=1);
     }
 
   }
