@@ -69,7 +69,9 @@ it belongs and all namespaces it is aliased into are given.
 
 \inlinecode{dharma_init(int& argc, char**& argv)}
 
-\inlinecode{dharma_rank()}
+\inlinecode{dharma_spmd_rank()}
+
+\inlinecode{dharma_spmd_size()}
 
 \inlinecode{dharma_finalize}
 
@@ -84,15 +86,17 @@ variants, restrictions, usage of \inlinecode{waits}
 \section{Access Handles}
 \label{sec:handles}
 
-\inlinecode{initial_access}
+\inlinecode{initial_access<T>(...)}
 
-\inlinecode{read_access}
+\inlinecode{read_access<T>(...)}
+
+\inlinecode{read_write<T>(...)}
 
 
 \inlinecode{publish}
 \todo[inline]{should publish be called inside or outside create work, or does it not matter}
 
-\inlinecode{n_readers}
+\inlinecode{n_readers=...}
 
 \inlinecode{subscribe}
 
