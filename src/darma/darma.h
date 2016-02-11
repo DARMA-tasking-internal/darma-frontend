@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          darma.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,10 +42,19 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_H_
-#define SRC_DARMA_H_
+#ifndef SRC_DARMA_DARMA_H_
+#define SRC_DARMA_DARMA_H_
 
-#include "darma/darma.h"
+#define DARMA_FRONTEND_TYPES_INCLUDE <darma/types_for_backend.h>
+
+#include "handle.h"
+#include "task.h"
+#include "runtime.h"
+#include "spmd.h"
+#include "abstract/defaults/key.h"
+#include "create_work.h"
+#include "abstract/backend/runtime.h"
+#include "serialization.h"
 
 
-#endif /* SRC_DARMA_H_ */
+#endif /* SRC_DARMA_DARMA_H_ */

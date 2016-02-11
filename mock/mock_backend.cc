@@ -46,8 +46,8 @@
 
 #include "mock_backend.h"
 
-#include <abstract/backend/runtime.h>
-#include <abstract/backend/data_block.h>
+#include <darma/abstract/backend/runtime.h>
+#include <darma/abstract/backend/data_block.h>
 
 using namespace darma_runtime;
 using std::cout;
@@ -209,6 +209,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   backend_runtime = tmp_rt;
 }
 
+#include <darma/runtime.h>
 
 abstract::backend::runtime_t* darma_runtime::detail::backend_runtime = nullptr;
 
