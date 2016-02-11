@@ -45,9 +45,14 @@
 #ifndef KEYWORD_ARGUMENTS_KWARG_EXPRESSION_H_
 #define KEYWORD_ARGUMENTS_KWARG_EXPRESSION_H_
 
+#include <tinympl/string.hpp>
+#include <tinympl/range_c.hpp>
+
 #include "keyword_argument_name.h"
 #include "../meta/sentinal_type.h"
 #include "../meta/move_if.h"
+
+#include "kwarg_expression_fwd.h"
 
 namespace dharma_runtime { namespace detail {
 
@@ -150,7 +155,69 @@ class typeless_kwarg_expression
       return std::forward<Rhs>(rhs_);
     }
 
+  private:
+
     Rhs&& rhs_;
+};
+
+
+namespace m = tinympl;
+
+template <
+  typename KWArgName, typename... Args
+>
+class multiarg_typeless_kwarg_expression {
+  public:
+    typedef typename KWArgName::tag tag;
+    typedef KWArgName name_t;
+
+    constexpr
+    multiarg_typeless_kwarg_expression(Args&&... rhs_args)
+      : rhs_args_(std::forward<Args>(rhs_args)...)
+    { }
+
+    template <typename T>
+    inline constexpr T
+    value_as() const {
+      return value_as<T>(
+        m::range_c<size_t, 0, sizeof...(Args)>()
+      );
+    }
+
+  private:
+
+    std::tuple<Args&&...> rhs_args_;
+
+    template <typename T, size_t... Idxs>
+    inline constexpr T
+    value_as(tinympl::basic_string<size_t, Idxs...>) const {
+      return { std::get<Idxs>(std::forward<std::tuple<Args&&...>>(rhs_args_))... };
+    }
+
+    template <typename Converter, size_t... Idxs>
+    decltype(
+      std::declval<Converter>()(
+        std::get<Idxs>(std::declval<std::tuple<Args&&...>>())...
+      )
+    )
+    value_converted(Converter&& conv, m::basic_string<size_t, Idxs...>) const {
+      return conv(std::get<Idxs>(rhs_args_)...);
+    }
+
+  public:
+
+    template <typename Converter>
+    inline constexpr auto
+    value_converted(Converter&& conv) const
+      -> decltype(value_converted(
+           std::forward<Converter>(conv), m::range_c<size_t, 0, sizeof...(Args)>())
+         )
+    {
+      return value_converted(
+        std::forward<Converter>(conv),
+        m::range_c<size_t, 0, sizeof...(Args)>()
+      );
+    }
 };
 
 /*                                                                            */ #endif // end fold
@@ -177,6 +244,11 @@ struct is_kwarg_expression<typeless_kwarg_expression<T, KWArgName>>
   : public std::true_type
 { };
 
+template <typename KWArgName, typename... Args>
+struct is_kwarg_expression<multiarg_typeless_kwarg_expression<KWArgName, Args...>>
+  : public std::true_type
+{ };
+
 template <class T, class Tag>
 struct is_kwarg_expression_with_tag
   : public std::false_type
@@ -199,6 +271,13 @@ struct is_kwarg_expression_with_tag<
 template <class T, typename Tag>
 struct is_kwarg_expression_with_tag<
   typeless_kwarg_expression<T, typeless_keyword_argument_name<Tag>>,
+  Tag
+> : public std::true_type
+{ };
+
+template <typename Tag, class... Ts>
+struct is_kwarg_expression_with_tag<
+  multiarg_typeless_kwarg_expression<typeless_keyword_argument_name<Tag>, Ts...>,
   Tag
 > : public std::true_type
 { };

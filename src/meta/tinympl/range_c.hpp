@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          kwarg_expression_fwd.h
+//                          range_c.hpp
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,26 +42,35 @@
 //@HEADER
 */
 
-#ifndef SRC_KEYWORD_ARGUMENTS_KWARG_EXPRESSION_FWD_H_
-#define SRC_KEYWORD_ARGUMENTS_KWARG_EXPRESSION_FWD_H_
+#ifndef SRC_META_TINYMPL_RANGE_C_HPP_
+#define SRC_META_TINYMPL_RANGE_C_HPP_
 
-namespace dharma_runtime { namespace detail {
+#include "string.hpp"
+#include "join.hpp"
 
-template <typename T, typename KWArgName, bool in_rhs_is_lvalue>
-class kwarg_expression;
+namespace tinympl {
 
-template <typename Rhs, typename KWArgName>
-class typeless_kwarg_expression;
+template <
+  typename T, T Begin, T End,
+  typename Enable=void /* begin <= end */
+>
+struct range_c
+  : public join<
+      basic_string<T, Begin>,
+      typename range_c<T, Begin+1, End>::type
+    >::type
+{ };
 
-template <typename KWArgName, typename... Args>
-class multiarg_typeless_kwarg_expression;
+template <typename T, T Begin, T End>
+struct range_c<T, Begin, End,
+  typename std::enable_if<Begin >= End>::type
+>
+  : public basic_string<T>
+{ };
 
-template <class T>
-struct is_kwarg_expression;
-
-}} // end namespace dharma_runtime::detail
+} // end namespace tinympl
 
 
 
 
-#endif /* SRC_KEYWORD_ARGUMENTS_KWARG_EXPRESSION_FWD_H_ */
+#endif /* SRC_META_TINYMPL_RANGE_C_HPP_ */

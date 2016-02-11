@@ -104,6 +104,11 @@ class typeless_keyword_argument_name
 
     template <typename Rhs>
     using kwarg_expr = typeless_kwarg_expression<Rhs, typeless_keyword_argument_name>;
+    template <typename... Args>
+    using multi_kwarg_expr = multiarg_typeless_kwarg_expression<
+      typeless_keyword_argument_name,
+      Args...
+    >;
 
   public:
 
@@ -124,15 +129,11 @@ class typeless_keyword_argument_name
     }
 
     template <typename RhsArg1, typename RhsArg2, typename... RhsArgs>
-    inline constexpr kwarg_expr<
-      decltype(std::forward_as_tuple(
-        std::declval<RhsArg1>(),
-        std::declval<RhsArg2>(),
-        std::declval<RhsArgs>()...
-      ))
-    >
+    inline constexpr multi_kwarg_expr<RhsArg1, RhsArg2, RhsArgs...>
     operator()(RhsArg1&& a1, RhsArg2&& a2, RhsArgs&&... args) const {
-      return { std::forward_as_tuple(a1, a2, args...) };
+      return { std::forward<RhsArg1>(a1), std::forward<RhsArg2>(a2),
+        std::forward<RhsArgs>(args)...
+      };
     }
 };
 

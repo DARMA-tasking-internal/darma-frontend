@@ -156,6 +156,23 @@ void print_foobar_as_blabbermouth_with_converter_and_default(Args&&... args) {
 
 }
 
+template <typename... Args>
+void print_foobar_as_multikwarg_with_converter_multiarg(Args&&... args) {
+  cout << "in print_foobar_as_blabbermouth_with_converter: ";
+  cout << get_typeless_kwarg_with_converter<kw::foobar>([](auto&& a, auto&& b, auto&& c){
+    return std::string(a) + b.str_ + std::string(c);
+  }, std::forward<Args>(args)...);
+  cout << endl;
+}
+
+template <typename... Args>
+void print_foobar_as_multikwarg_with_converter_and_default(Args&&... args) {
+  cout << "in print_foobar_as_blabbermouth_with_converter: ";
+  cout << get_typeless_kwarg_with_converter_and_default<kw::foobar>([](auto&& a, auto&& b, auto&& c){
+    return std::string(a) + b.str_ + std::string(c);
+  }, "default-success", std::forward<Args>(args)...);
+  cout << endl;
+}
 
 using namespace dharma_runtime::keyword_arguments_for_testing;
 
@@ -223,6 +240,12 @@ int main(int argc, char** argv) {
     print_foobar_as_blabbermouth_with_converter_and_default(foobar=b);
     print_foobar_as_blabbermouth_with_converter_and_default(foobar=b);
     print_foobar_as_blabbermouth_with_converter_and_default(foobar=BlabberMouth("success"));
+    print_foobar_as_multikwarg_with_converter_multiarg(foobar("a-",BlabberMouth("b-"),"success"));
+    print_foobar_as_multikwarg_with_converter_multiarg(foobar("a-", b, "-c"));
+    print_foobar_as_multikwarg_with_converter_multiarg(foobar("a-", b, "-c"));
+    print_foobar_as_multikwarg_with_converter_and_default(foobar("a-", b, "-c"));
+    print_foobar_as_multikwarg_with_converter_and_default();
+    print_foobar_as_multikwarg_with_converter_and_default(1, 2, 3, 4);
   }
 
 
