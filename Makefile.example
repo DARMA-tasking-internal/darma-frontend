@@ -1,0 +1,68 @@
+
+# To use this: give the relative path of the example you want to make.  For instance:
+# make examples/hello/hello
+# Also, I highly recommend you build with this file in a different directory from the source itself
+
+# Change these...
+TOP_SRCDIR ?= /Users/dshollm/Projects/dharma_new/source/head
+CXX = /opt/local/bin/clang++-mp-3.8
+
+#========================================================================
+# Everything below here *should* be fine
+
+TOP_BUILDDIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+
+CPPFLAGS ?=
+CPPFLAGS += -I$(TOP_SRCDIR)/src -I$(TOP_SRCDIR)/mock
+
+CXXFLAGS ?= -O0 -g
+CXXFLAGS += -std=c++14 -ftemplate-backtrace-limit=0
+
+LDFLAGS ?= 
+
+AR ?= $(shell which ar)
+RANLIB ?= $(shell which ranlib)
+
+src2build = $(foreach path,$1,$(patsubst $(TOP_SRCDIR)/%,$(TOP_BUILDDIR)/%,$(path)))
+build2src = $(foreach path,$1,$(patsubst $(TOP_BUILDDIR)/%,$(TOP_SRCDIR)/%,$(path)))
+striptop = $(foreach pth2,$(foreach path,$1,$(patsubst $(TOP_BUILDDIR)/%,%,$(path))),$(patsubst $(TOP_SRCDIR)/%,%,$(pth2)))
+
+MOCK_SOURCES = $(wildcard $(TOP_SRCDIR)/mock/**/*.cc) $(wildcard $(TOP_SRCDIR)/mock/*.cc)
+MOCK_OBJECTS = $(call src2build,$(MOCK_SOURCES:.cc=.o))
+EXAMP_SOURCES = $(wildcard $(TOP_SRCDIR)/examples/**/*.cc)
+EXAMP_OBJECTS = $(call src2build,$(EXAMP_SOURCES:.cc=.o))
+EXAMP_EXECS = $(call striptop,$(EXAMP_OBJECTS:.o=))
+SRCS_REL := $(call striptop, $(EXAMP_SOURCES)) $(call striptop, $(MOCK_SOURCES))
+ALL_OBJECTS := $(MOCK_OBJECTS) $(EXAMP_OBJECTS)
+
+COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
+COMPILE.cc = $(CXX) $(DEPFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
+COMPILE.ld = $(CXX) $(DEPFLAGS) $(LDFLAGS) $(CXXFLAGS) $(TARGET_ARCH)
+POSTCOMPILE = mv -f $(DEPDIR)/$(call striptop,$*).Td $(DEPDIR)/$(call striptop,$*).d
+
+.PHONY: all clean
+
+all:
+
+$(EXAMP_EXECS): %: $(TOP_BUILDDIR)/%.o $(MOCK_OBJECTS)
+	$(COMPILE.ld) $(LDFLAGS) $^ -o $@
+	dsymutil $@
+
+clean:
+	-rm -rf $(ALL_OBJECTS) $(EXAMP_EXECS)
+
+DEPDIR := .d
+$(shell mkdir -p $(DEPDIR) >/dev/null)
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.Td
+
+$(ALL_OBJECTS): $(TOP_BUILDDIR)/%.o : $(TOP_SRCDIR)/%.cc $(DEPDIR)/%.d
+	mkdir -p $(dir $@) >/dev/null
+	mkdir -p $(DEPDIR)/$(call striptop,$(dir $@)) >/dev/null
+	$(COMPILE.cc) $(OUTPUT_OPTION) $<
+	$(POSTCOMPILE)
+
+$(DEPDIR)/%.d: ;
+.PRECIOUS: $(DEPDIR)/%.d
+
+-include $(patsubst %,$(DEPDIR)/%.d,$(basename $(SRCS_REL)))
+

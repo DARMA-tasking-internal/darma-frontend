@@ -209,7 +209,6 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   backend_runtime = tmp_rt;
 }
 
-#include <darma/runtime.h>
 
 abstract::backend::runtime_t* darma_runtime::detail::backend_runtime = nullptr;
 
