@@ -192,8 +192,11 @@ struct access_expr_helper {
   get_version_tag(
     Args&&... args
   ) const {
-    // TODO
-    return types::key_t();
+    return get_typeless_kwarg_with_converter_and_default<
+      dharma_runtime::keyword_tags_for_publication::version
+    >([](auto&&... key_parts){
+      return make_key(std::forward<decltype(key_parts)>(key_parts)...);
+    }, types::key_t(), std::forward<Args>(args)...);
   }
 
 };
@@ -222,8 +225,8 @@ struct publish_expr_helper {
     return get_typeless_kwarg_with_converter_and_default<
       keyword_tags_for_publication::version
     >(
-      [](auto&& key_part){
-        return key_traits<types::key_t>::maker_from_tuple()(std::forward_as_tuple(key_part));
+      [](auto&&... key_parts){
+        return make_key(std::forward<decltype(key_parts)>(key_parts)...);
       },
       types::key_t(),
       std::forward<Args>(args)...

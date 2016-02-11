@@ -36,12 +36,13 @@ int main(int argc, char** argv) {
       }
     );
 
-    dep.publish(n_readers=1);
+    dep.publish(n_readers=1, version("the", 1, "version"));
 
   }
   else {
 
-    AccessHandle<std::string> dep = read_access<std::string>(me-1, BlabberMouth("hey"), "the_hello_dependency");
+    AccessHandle<std::string> dep = read_access<std::string>(
+      me-1, BlabberMouth("hey"), "the_hello_dependency", version("the", 1, "version"));
 
     AccessHandle<int> ordering;
     if(me != 1) {

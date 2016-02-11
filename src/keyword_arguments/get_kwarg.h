@@ -51,6 +51,8 @@
 #include <tinympl/lambda.hpp>
 #include <tinympl/bind.hpp>
 #include <tinympl/size.hpp>
+#include <tinympl/vector.hpp>
+
 
 #include "../meta/sentinal_type.h"
 
@@ -271,26 +273,76 @@ get_typeless_kwarg_with_default_as(
 
 namespace _get_kwarg_impl {
 
-template <typename Tag>
-struct _typeless_kwarg_with_converter_getter {
-  template <typename Converter, typename... Args>
+namespace _tkwcg_helper {
+
+template <typename Tag,
+  typename ArgsVector,
+  typename Converter,
+  typename Enable=void /* not multi_kwarg_expr */
+>
+struct _impl {
   using return_t = decltype(
     std::declval<Converter>()(
       std::declval<
-        typename mv::at<
-          var_tag_spot<Tag, Args...>::value,
-          Args&&...
-        >::type
+        typename m::at<seq_tag_spot<Tag, ArgsVector>::value, ArgsVector>::type
       >().value()
     )
   );
-  template <typename Converter, typename... Args>
-  return_t<Converter, Args...>
+  template <typename... Args>
+  inline constexpr return_t
   operator()(Converter&& conv, Args&&... args) const {
     constexpr size_t spot = _get_kwarg_impl::var_tag_spot<Tag, Args...>::value;
     // TODO error message readability and compile-time debugability
     static_assert(spot < sizeof...(Args), "missing required keyword argument");
     return conv(std::get<spot>(std::forward_as_tuple(args...)).value());
+  }
+};
+
+template <typename Tag,
+  typename ArgsVector,
+  typename Converter
+>
+struct _impl<Tag, ArgsVector, Converter,
+  typename std::enable_if<m::is_instantiation_of<
+    multiarg_typeless_kwarg_expression,
+    typename std::decay<
+      typename m::at<seq_tag_spot<Tag, ArgsVector>::value, ArgsVector>::type
+    >::type
+  >::value>::type
+> {
+  using return_t = decltype(
+    std::declval<
+      typename m::at< seq_tag_spot<Tag, ArgsVector>::value, ArgsVector>::type
+    >().value_converted(std::declval<Converter>())
+  );
+  template <typename... Args>
+  inline constexpr return_t
+  operator()(Converter&& conv, Args&&... args) const {
+    constexpr size_t spot = _get_kwarg_impl::var_tag_spot<Tag, Args...>::value;
+    // TODO error message readability and compile-time debugability
+    static_assert(spot < sizeof...(Args), "missing required keyword argument");
+    return std::get<spot>(std::forward_as_tuple(args...)).value_converted(
+      std::forward<Converter>(conv)
+    );
+  }
+};
+
+} // end namespace _tkwcg_helper
+
+template <typename Tag>
+struct _typeless_kwarg_with_converter_getter {
+  template <typename Converter, typename... Args>
+  using helper_t = typename _tkwcg_helper::_impl<Tag, m::vector<Args...>, Converter>;
+  template <typename Converter, typename... Args>
+  using return_t = typename helper_t<Converter, Args...>::return_t;
+
+  template <typename Converter, typename... Args>
+  return_t<Converter, Args...>
+  operator()(Converter&& conv, Args&&... args) const {
+    return helper_t<Converter, Args...>()(
+      std::forward<Converter>(conv),
+      std::forward<Args>(args)...
+    );
   }
 };
 
@@ -322,7 +374,6 @@ get_typeless_kwarg_with_converter(
 
 namespace _get_kwarg_impl {
 
-
 template <
   typename Tag, typename ArgsTuple,
   typename Enable=void /* => kwarg found */
@@ -331,21 +382,17 @@ struct _default_conv_select_impl {
   static constexpr size_t spot = seq_tag_spot<Tag, ArgsTuple>::value;
 
   template <typename Converter, typename DefaultType, typename... Args>
-  using return_t = decltype(
-    std::declval<Converter>()(
-      std::declval<
-        typename mv::at<
-          var_tag_spot<Tag, Args...>::value,
-          Args&&..., meta::sentinal_type /* ignored */
-        >::type
-      >().value()
-    )
-  );
+  using helper_t = _tkwcg_helper::_impl<Tag, m::vector<Args...>, Converter>;
+  template <typename Converter, typename DefaultType, typename... Args>
+  using return_t = typename helper_t<Converter, DefaultType, Args...>::return_t;
 
   template <typename Converter, typename DefaultConvertible, typename... Args>
   inline constexpr return_t<Converter, DefaultConvertible, Args...>
   operator()(Converter&& conv, DefaultConvertible&&, Args&&... args) const {
-    return conv(std::get<spot>(std::forward_as_tuple(args...)).value());
+    return helper_t<Converter, DefaultConvertible, Args...>()(
+      std::forward<Converter>(conv),
+      std::forward<Args>(args)...
+    );
   }
 };
 
