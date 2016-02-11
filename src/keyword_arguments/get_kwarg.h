@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          get_kwarg.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -66,7 +66,7 @@
 // TODO errors on unknown/unused keyword arguments
 // TODO extract arguments given as either positional or keyword
 
-namespace dharma_runtime { namespace detail {
+namespace darma_runtime { namespace detail {
 
 namespace m = tinympl;
 namespace mv = tinympl::variadic;
@@ -516,7 +516,7 @@ get_positional_arg_tuple(Args&&... args)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-}} // end namespace dharma_runtime::detail
+}} // end namespace darma_runtime::detail
 
 
 

@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          data_block.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -47,7 +47,7 @@
 
 #include "../frontend/serialization_manager.h"
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace abstract {
 
@@ -90,7 +90,7 @@ class DataBlock
 
 } // end namespace abstract
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
 
 

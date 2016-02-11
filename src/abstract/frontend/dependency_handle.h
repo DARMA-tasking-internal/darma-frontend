@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          dependency.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -46,7 +46,7 @@
 #define SRC_ABSTRACT_FRONTEND_DEPENDENCY_HANDLE_H_
 
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace abstract {
 
@@ -217,6 +217,6 @@ class DependencyHandle {
 
 } // end namespace abstract
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
 #endif /* SRC_ABSTRACT_FRONTEND_DEPENDENCY_HANDLE_H_ */

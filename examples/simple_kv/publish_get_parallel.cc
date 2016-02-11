@@ -1,9 +1,9 @@
 
 
-#include <dharma.h>
+#include <darma.h>
 
-using namespace dharma_runtime;
-using namespace dharma_runtime::keyword_arguments_for_publication;
+using namespace darma_runtime;
+using namespace darma_runtime::keyword_arguments_for_publication;
 
 ////////////////////////////////////////////////////////////////////////////////
 // This example is to illustrate simple transactions with the keyvalue store, 
@@ -17,10 +17,10 @@ using namespace dharma_runtime::keyword_arguments_for_publication;
 
 int main(int argc, char** argv) {
 
-  dharma_init(argc, argv);
+  darma_init(argc, argv);
 
-  size_t me = dharma_spmd_rank();
-  size_t n_ranks = dharma_spmd_size();
+  size_t me = darma_spmd_rank();
+  size_t n_ranks = darma_spmd_size();
 
   auto float_to_pub = initial_access<float>("floatKey", me);
 
@@ -44,6 +44,6 @@ int main(int argc, char** argv) {
     std::cout << "My rank is " << me << " values from my left/right are " << float_from_left.get_value() << " " << float_from_right.get_value() << std::endl;
   });
 
-  dharma_finalize();
+  darma_finalize();
 
 }

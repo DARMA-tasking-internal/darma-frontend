@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          test_splat.cc
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,

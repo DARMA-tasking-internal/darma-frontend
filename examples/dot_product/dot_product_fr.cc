@@ -1,19 +1,19 @@
 
 
-#include <dharma.h>
+#include <darma.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 // main() function
 
 int main(int argc, char** argv) 
 {
-  dharma_init(argc, argv);
+  darma_init(argc, argv);
 
-  using namespace dharma_runtime;
-  using namespace dharma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
 
-  size_t me = dharma_spmd_rank();
-  size_t n_ranks = dharma_spmd_size();
+  size_t me = darma_spmd_rank();
+  size_t n_ranks = darma_spmd_size();
 
   constexpr int local_size = 10;
 
@@ -48,7 +48,7 @@ int main(int argc, char** argv)
   globalResult.set_value(0.0); 
   
   const int numElemSendBuff = 1;
-  dharma_Allreduce( myResult, globalResult, numElemSendBuff, dharma_sum );
+  darma_Allreduce( myResult, globalResult, numElemSendBuff, darma_sum );
   
   // MPI_Allreduce(
   //   void* send_data,
@@ -58,6 +58,6 @@ int main(int argc, char** argv)
   //   MPI_Op op,
   //   MPI_Comm communicator)
 
-  dharma_finalize();
+  darma_finalize();
 
 }

@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          key.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -55,15 +55,15 @@
 #include "key_fwd.h"
 
 
-#ifndef DHARMA_DEBUG_KEY_TYPES
-#  define DHARMA_DEBUG_KEY_TYPES 1
+#ifndef DARMA_DEBUG_KEY_TYPES
+#  define DARMA_DEBUG_KEY_TYPES 1
 #endif
 
-#if DHARMA_DEBUG_KEY_TYPES
+#if DARMA_DEBUG_KEY_TYPES
 #  include <typeindex>
 #endif
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace detail {
 
@@ -73,11 +73,11 @@ class key_part {
     explicit
     key_part(
       void* part_data
-#if DHARMA_DEBUG_KEY_TYPES
+#if DARMA_DEBUG_KEY_TYPES
       , size_t data_size
 #endif
     ) : data(part_data)
-#if DHARMA_DEBUG_KEY_TYPES
+#if DARMA_DEBUG_KEY_TYPES
       , expected_size_(data_size)
 #endif
     { }
@@ -85,7 +85,7 @@ class key_part {
 
     template <typename T>
     T& as() {
-#if DHARMA_DEBUG_KEY_TYPES
+#if DARMA_DEBUG_KEY_TYPES
       assert(sizeof(T) == expected_size_);
 #endif
       return *(T*)data;
@@ -93,7 +93,7 @@ class key_part {
 
     template <typename T>
     const T& as() const {
-#if DHARMA_DEBUG_KEY_TYPES
+#if DARMA_DEBUG_KEY_TYPES
       assert(sizeof(T) == expected_size_);
 #endif
       return *(T*)data;
@@ -102,7 +102,7 @@ class key_part {
   private:
     // an unowned pointer to the start of the data for this part
     void* data;
-#if DHARMA_DEBUG_KEY_TYPES
+#if DARMA_DEBUG_KEY_TYPES
     //type_info type;
     size_t expected_size_;
 #endif
@@ -126,7 +126,7 @@ class key_impl_base
 
     virtual ~key_impl_base() { }
 
-#if DHARMA_DEBUG_KEY_TYPES
+#if DARMA_DEBUG_KEY_TYPES
     virtual bool
     parts_equal(const key_impl_base* other) =0;
 
@@ -148,7 +148,7 @@ class key_impl : public key_impl_base
       const variadic_constructor_arg_t,
       Types&&... parts
     ) : parts_(std::forward<Types>(parts)...)
-#if DHARMA_DEBUG_KEY_TYPES
+#if DARMA_DEBUG_KEY_TYPES
       , type_idx(typeid(key_impl))
 #endif
     { }
@@ -156,7 +156,7 @@ class key_impl : public key_impl_base
     explicit key_impl(
       std::tuple<Types...>&& tup
     ) : parts_(std::forward<std::tuple<Types...>>(tup))
-#if DHARMA_DEBUG_KEY_TYPES
+#if DARMA_DEBUG_KEY_TYPES
       , type_idx(typeid(key_impl))
 #endif
     { }
@@ -169,7 +169,7 @@ class key_impl : public key_impl_base
         if(i == spot) {
           rv = new key_part(
             (void*)&part
-#if DHARMA_DEBUG_KEY_TYPES
+#if DARMA_DEBUG_KEY_TYPES
             , sizeof(typename std::decay<decltype(part)>::type)
 #endif
           );
@@ -193,7 +193,7 @@ class key_impl : public key_impl_base
       return sizeof...(Types);
     }
 
-#if DHARMA_DEBUG_KEY_TYPES
+#if DARMA_DEBUG_KEY_TYPES
     bool
     parts_equal(const key_impl_base* other_in) override {
       const key_impl* other = dynamic_cast<const key_impl*>(other_in);
@@ -233,7 +233,7 @@ class key_impl : public key_impl_base
 
     std::tuple<Types...> parts_;
 
-#if DHARMA_DEBUG_KEY_TYPES
+#if DARMA_DEBUG_KEY_TYPES
     std::type_index type_idx;
 #endif
 
@@ -316,7 +316,7 @@ struct key_hash {
     if(size == 0) return 0;
     size_t rv = std::hash<align_t>()(data[0]);
     for(int i = 1; i < size; ++i) {
-      dharma_runtime::detail::hash_combine(rv, data[i]);
+      darma_runtime::detail::hash_combine(rv, data[i]);
     }
     return rv;
   }
@@ -334,7 +334,7 @@ struct key_equal {
     size_t rhs_size = rhs.k_impl_->get_size();
     if(lhs_size != rhs_size) return false;
     if(std::memcmp(lhs_data, rhs_data, lhs_size) != 0) return false;
-#if DHARMA_DEBUG_KEY_TYPES
+#if DARMA_DEBUG_KEY_TYPES
     assert(lhs.k_impl_->get_type_index() == rhs.k_impl_->get_type_index());
     assert(lhs.k_impl_->parts_equal(rhs.k_impl_.get()));
 #endif
@@ -354,14 +354,14 @@ operator==(const defaults::Key& a, const defaults::Key& b) {
 namespace detail {
 
 template <>
-struct key_traits<dharma_runtime::defaults::Key>
+struct key_traits<darma_runtime::defaults::Key>
 {
   struct maker {
     constexpr maker() = default;
     template <typename... Args>
-    inline dharma_runtime::defaults::Key
+    inline darma_runtime::defaults::Key
     operator()(Args&&... args) const {
-      return dharma_runtime::defaults::Key(
+      return darma_runtime::defaults::Key(
         detail::variadic_constructor_arg,
         std::forward<Args>(args)...
       );
@@ -371,22 +371,22 @@ struct key_traits<dharma_runtime::defaults::Key>
   struct maker_from_tuple {
     constexpr maker_from_tuple() = default;
     template <typename... Args>
-    inline dharma_runtime::defaults::Key
+    inline darma_runtime::defaults::Key
     operator()(std::tuple<Args...>&& data) const {
-      return dharma_runtime::defaults::Key(
+      return darma_runtime::defaults::Key(
         std::forward<std::tuple<Args...>>(data)
       );
     }
   };
 
-  typedef typename dharma_runtime::defaults::Key::hasher hasher;
-  typedef typename dharma_runtime::defaults::Key::key_equal key_equal;
+  typedef typename darma_runtime::defaults::Key::hasher hasher;
+  typedef typename darma_runtime::defaults::Key::key_equal key_equal;
 
 };
 
 } // end namespace detail
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
 
 

@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          sentinal_type.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -45,7 +45,7 @@
 #ifndef SRC_META_SENTINAL_TYPE_H_
 #define SRC_META_SENTINAL_TYPE_H_
 
-namespace dharma_runtime { namespace meta {
+namespace darma_runtime { namespace meta {
 
 struct sentinal_type {
   constexpr sentinal_type() = default;

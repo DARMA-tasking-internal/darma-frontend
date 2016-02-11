@@ -2,7 +2,7 @@
 
 This test is the corresponding version of the MPI hello world. 
 There are three main parts involved: 
-(a) the DHARMA environment is initialized. 
+(a) the DARMA environment is initialized. 
 (b) each rank creates a task to store a greeting message into a string
 (c) each rank then creates a task to printing to standard output the message and its rank.
 

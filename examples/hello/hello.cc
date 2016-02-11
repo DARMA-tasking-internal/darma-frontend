@@ -2,7 +2,7 @@
 
 #include <mock_backend.h>
 
-using namespace dharma_runtime;
+using namespace darma_runtime;
 
 struct BlabberMouth {
   BlabberMouth(const std::string& str) : str_(str) { std::cout << "#!! String constructor: " << str_ << std::endl; };
@@ -17,12 +17,12 @@ operator<<(std::istream& i, BlabberMouth& val) { return i >> val.str_; }
 
 int main(int argc, char** argv) {
 
-  using namespace dharma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_publication;
 
-  dharma_init(argc, argv);
+  darma_init(argc, argv);
 
-  size_t me = dharma_spmd_rank();
-  size_t n_ranks = dharma_spmd_size();
+  size_t me = darma_spmd_rank();
+  size_t n_ranks = darma_spmd_size();
 
   if(me % 2 == 0) {
 
@@ -61,6 +61,6 @@ int main(int argc, char** argv) {
     );
   }
 
-  dharma_finalize();
+  darma_finalize();
 
 }

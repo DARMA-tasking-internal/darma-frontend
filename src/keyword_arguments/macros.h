@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                   keyword_arguments/macros.h
-//                         dharma_runtime
+//                         darma_runtime
 //              Copyright (C) 2015 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -49,24 +49,24 @@
 
 /* Keyword argument declaration macros                                   {{{1 */ #if 1 // begin fold
 
-#define __DHARMA_detail_remove_parens(...) __VA_ARGS__
+#define __DARMA_detail_remove_parens(...) __VA_ARGS__
 
-#define __DHARMA_declare_keyword_tag_typeless(argument_for, name)                             \
-namespace dharma_runtime {                                                                          \
+#define __DARMA_declare_keyword_tag_typeless(argument_for, name)                             \
+namespace darma_runtime {                                                                          \
 namespace keyword_tags_for_##argument_for {                                                         \
                                                                                                     \
 class name : public detail::keyword_tag                                                             \
 {                                                                                                   \
   public:                                                                                           \
     typedef std::true_type is_tag_t;                                                                \
-    typedef __DHARMA_detail_remove_parens (dharma_runtime::detail::unknown_type) value_t;           \
+    typedef __DARMA_detail_remove_parens (darma_runtime::detail::unknown_type) value_t;           \
 };                                                                                                  \
                                                                                                     \
 } /* end keyword_tags_for_<argument_for> */                                                         \
 namespace keyword_arguments_for_##argument_for {                                                    \
                                                                                                     \
 typedef detail::typeless_keyword_argument_name<                                                              \
-  dharma_runtime::keyword_tags_for_##argument_for::name                                             \
+  darma_runtime::keyword_tags_for_##argument_for::name                                             \
 > name##_keyword_name_t;                                                                            \
                                                                                                     \
 namespace {                                                                                         \
@@ -74,25 +74,25 @@ namespace {                                                                     
 static constexpr name##_keyword_name_t name;                                                        \
 } /* end of anonymous namespace */                                                                  \
 } /* end keyword_arguments_for_<argument_for> */                                                    \
-} /* end namespace dharma_runtime */
+} /* end namespace darma_runtime */
 
-#define __DHARMA_declare_keyword_tag_stuff(argument_for, name, argtype)                             \
-namespace dharma_runtime {                                                                          \
+#define __DARMA_declare_keyword_tag_stuff(argument_for, name, argtype)                             \
+namespace darma_runtime {                                                                          \
 namespace keyword_tags_for_##argument_for {                                                         \
                                                                                                     \
 class name : public detail::keyword_tag                                                             \
 {                                                                                                   \
   public:                                                                                           \
     typedef std::true_type is_tag_t;                                                                \
-    typedef __DHARMA_detail_remove_parens argtype value_t;                                                        \
+    typedef __DARMA_detail_remove_parens argtype value_t;                                                        \
 };                                                                                                  \
                                                                                                     \
 } /* end keyword_tags_for_<argument_for> */                                                         \
 namespace keyword_arguments_for_##argument_for {                                                    \
                                                                                                     \
 typedef detail::keyword_argument_name<                                                              \
-  __DHARMA_detail_remove_parens argtype ,                                                                         \
-  dharma_runtime::keyword_tags_for_##argument_for::name                                             \
+  __DARMA_detail_remove_parens argtype ,                                                                         \
+  darma_runtime::keyword_tags_for_##argument_for::name                                             \
 > name##_keyword_name_t;                                                                            \
                                                                                                     \
 namespace {                                                                                         \
@@ -100,40 +100,40 @@ namespace {                                                                     
 static constexpr name##_keyword_name_t name;                                                        \
 } /* end of anonymous namespace */                                                                  \
 } /* end keyword_arguments_for_<argument_for> */                                                    \
-} /* end namespace dharma_runtime */
+} /* end namespace darma_runtime */
 
-#define __DHARMA_declare_keyword_tag_data(argument_for, name, argtype)                              \
-namespace dharma_runtime {                                                                          \
+#define __DARMA_declare_keyword_tag_data(argument_for, name, argtype)                              \
+namespace darma_runtime {                                                                          \
 namespace detail {                                                                                  \
 template<>                                                                                          \
-struct tag_data<dharma_runtime::keyword_tags_for_##argument_for::name>                              \
+struct tag_data<darma_runtime::keyword_tags_for_##argument_for::name>                              \
 {                                                                                                   \
   typedef keyword_arguments_for_##argument_for::name##_keyword_name_t keyword_name_t;               \
-  typedef __DHARMA_detail_remove_parens argtype value_t;                                            \
+  typedef __DARMA_detail_remove_parens argtype value_t;                                            \
   static constexpr bool has_default_value = false;                                                  \
   static constexpr bool has_type = not                                                              \
-    std::is_same<value_t, dharma_runtime::detail::unknown_type>::value;                             \
+    std::is_same<value_t, darma_runtime::detail::unknown_type>::value;                             \
 };                                                                                                  \
 } /* end namespace detail */                                                                        \
-} /* end namespace dharma_runtime */
+} /* end namespace darma_runtime */
 
-#define __DHARMA_declare_keyword_helper(argument_for, name, argtype)                                \
-    __DHARMA_declare_keyword_tag_stuff(argument_for, name, argtype)                                 \
-    __DHARMA_declare_keyword_tag_data(argument_for, name, argtype)                                  \
+#define __DARMA_declare_keyword_helper(argument_for, name, argtype)                                \
+    __DARMA_declare_keyword_tag_stuff(argument_for, name, argtype)                                 \
+    __DARMA_declare_keyword_tag_data(argument_for, name, argtype)                                  \
 
-#define DeclareDharmaKeyword(argument_for, name, ...)                                               \
-    __DHARMA_declare_keyword_helper(argument_for, name, (__VA_ARGS__))
+#define DeclareDarmaKeyword(argument_for, name, ...)                                               \
+    __DARMA_declare_keyword_helper(argument_for, name, (__VA_ARGS__))
 
-#define DeclareDharmaTypeTransparentKeyword(argument_for, name)                                               \
-    __DHARMA_declare_keyword_tag_typeless(argument_for, name) \
-    __DHARMA_declare_keyword_tag_data(argument_for, name, (dharma_runtime::detail::unknown_type))
+#define DeclareDarmaTypeTransparentKeyword(argument_for, name)                                               \
+    __DARMA_declare_keyword_tag_typeless(argument_for, name) \
+    __DARMA_declare_keyword_tag_data(argument_for, name, (darma_runtime::detail::unknown_type))
 
-#define DeclareDharmaArgumentWithDefaultGetter(argument_for, name, arg_type, ...)                   \
-    __DHARMA_declare_keyword_tag_stuff(argument_for, name, (arg_type))                              \
-    namespace dharma_runtime {                                                                      \
+#define DeclareDarmaArgumentWithDefaultGetter(argument_for, name, arg_type, ...)                   \
+    __DARMA_declare_keyword_tag_stuff(argument_for, name, (arg_type))                              \
+    namespace darma_runtime {                                                                      \
     namespace detail {                                                                              \
     template<>                                                                                      \
-    struct tag_data<dharma_runtime::keyword_tags_for_##argument_for::name>                          \
+    struct tag_data<darma_runtime::keyword_tags_for_##argument_for::name>                          \
     {                                                                                               \
       typedef keyword_arguments_for_##argument_for::name##_keyword_name_t keyword_name_t;           \
       typedef arg_type value_t;                                                                     \
@@ -142,10 +142,10 @@ struct tag_data<dharma_runtime::keyword_tags_for_##argument_for::name>          
       static value_t get_default_value() __VA_ARGS__                                                \
     };                                                                                              \
     } /* end namespace detail */                                                                    \
-    } /* end namespace dharma_runtime */
+    } /* end namespace darma_runtime */
 
-#define DeclareDharmaArgumentWithDefault(argument_for, name, arg_type, ...)                         \
-  DeclareDharmaArgumentWithDefaultGetter(argument_for, name, arg_type, { return __VA_ARGS__; })
+#define DeclareDarmaArgumentWithDefault(argument_for, name, arg_type, ...)                         \
+  DeclareDarmaArgumentWithDefaultGetter(argument_for, name, arg_type, { return __VA_ARGS__; })
 
 /*                                                                            */ #endif // end fold
 

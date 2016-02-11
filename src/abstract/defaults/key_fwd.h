@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          key_fwd.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -45,7 +45,7 @@
 #ifndef SRC_KEY_FWD_H_
 #define SRC_KEY_FWD_H_
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace defaults {
 class Key;
@@ -58,7 +58,7 @@ struct key_traits { };
 
 } // end namespace detail
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
 
 

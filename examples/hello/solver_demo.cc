@@ -1,15 +1,15 @@
 
 
-#include <dharma.h>
+#include <darma.h>
 
-using namespace dharma_runtime;
+using namespace darma_runtime;
 
 int main(int argc, char** argv) {
 
-  dharma_init(argc, argv);
+  darma_init(argc, argv);
 
-  size_t me = dharma_spmd_rank();
-  size_t n_ranks = dharma_spmd_size();
+  size_t me = darma_spmd_rank();
+  size_t n_ranks = darma_spmd_size();
   assert(n_ranks % 2 == 0);
 
   if(me % 2 == 0) {
@@ -64,6 +64,6 @@ int main(int argc, char** argv) {
 
   }
 
-  dharma_finalize();
+  darma_finalize();
 
 }

@@ -1,9 +1,9 @@
 
-#include <dharma.h>
+#include <darma.h>
 
 #include "../common.h" // do_stencil()
 
-using namespace dharma_runtime;
+using namespace darma_runtime;
 
 constexpr size_t n_data_total = 5;
 constexpr size_t n_iter = 10;
@@ -50,7 +50,7 @@ struct DataArray
 
   protected:
 
-    // Interface with dharma_runtime::ZeroCopyable<N>
+    // Interface with darma_runtime::ZeroCopyable<N>
     void*& get_zero_copy_slot(zero_copy_slot_t slot) {
       return data_;
     }
@@ -132,12 +132,12 @@ class LinearSlicer {
 
 int main(int argc, char** argv)
 {
-  dharma_init(argc, argv);
+  darma_init(argc, argv);
 
   typedef DataArray<double> data_t;
 
-  size_t me = dharma_spmd_rank();
-  size_t n_ranks = dharma_spmd_size();
+  size_t me = darma_spmd_rank();
+  size_t n_ranks = darma_spmd_size();
 
   // Figure out how much local data we have
   size_t my_n_data = n_data_total / n_spmd;
@@ -236,7 +236,7 @@ int main(int argc, char** argv)
 
   }
 
-  dharma_finalize();
+  darma_finalize();
 
 }
 

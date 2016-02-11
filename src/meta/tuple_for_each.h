@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          tuple_for_each.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2015 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -56,7 +56,7 @@
 #include <tinympl/delay.hpp>
 #include <tinympl/copy_traits.hpp>
 
-namespace dharma_runtime { namespace meta {
+namespace darma_runtime { namespace meta {
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -317,7 +317,7 @@ tuple_for_each_with_index(
 
 ////////////////////////////////////////////////////////////////////////////////
 
-}} // end namespace dharma_runtime::meta
+}} // end namespace darma_runtime::meta
 
 
 #endif /* META_TUPLE_FOR_EACH_H_ */

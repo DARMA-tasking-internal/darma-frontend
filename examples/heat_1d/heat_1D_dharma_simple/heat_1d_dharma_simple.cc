@@ -12,7 +12,7 @@
 
 #include "../common_heat1d.h"
 
-#include <dharma.h>
+#include <darma.h>
 
 
 /* 
@@ -30,13 +30,13 @@
 
 int main(int argc, char** argv)
 {
- 	dharma_init(argc, argv);
+ 	darma_init(argc, argv);
 
-	using namespace dharma_runtime;
-  using namespace dharma_runtime::keyword_arguments_for_publication;
+	using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
 
-	const size_t me  = dharma_spmd_rank();
-	const size_t n_spmd = dharma_spmd_size();
+	const size_t me  = darma_spmd_rank();
+	const size_t n_spmd = darma_spmd_size();
 
 	// -----------------------------------------------------
 	// Figure out my neighbors. 0 or n_spmd-1, I am my own neighbor
@@ -127,6 +127,6 @@ int main(int argc, char** argv)
 
   }	
 
-  dharma_finalize();
+  darma_finalize();
 
 }//end main

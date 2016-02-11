@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          types.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -45,13 +45,13 @@
 #ifndef SRC_TYPES_FOR_BACKEND_H_
 #define SRC_TYPES_FOR_BACKEND_H_
 
-//#ifndef DHARMA_BACKEND_CUSTOM_HANDLE_CONTAINER
-//#define DHARMA_BACKEND_CUSTOM_HANDLE_CONTAINER 0
+//#ifndef DARMA_BACKEND_CUSTOM_HANDLE_CONTAINER
+//#define DARMA_BACKEND_CUSTOM_HANDLE_CONTAINER 0
 //#include <vector>
-//namespace dharma_runtime { namespace types {
+//namespace darma_runtime { namespace types {
 //template <typename... Ts>
 //using handle_container_template = std::vector<Ts...>;
-//}} // end namespace dharma_runtime::types
+//}} // end namespace darma_runtime::types
 //#endif
 
 

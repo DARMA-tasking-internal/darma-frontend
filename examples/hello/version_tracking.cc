@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          version_tracking.cc
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,19 +42,19 @@
 //@HEADER
 */
 
-#include <dharma.h>
+#include <darma.h>
 #include <iostream>
 
-using namespace dharma_runtime;
+using namespace darma_runtime;
 
 int main(int argc, char** argv) {
 
-  using namespace dharma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_publication;
 
-  dharma_init(argc, argv);
+  darma_init(argc, argv);
 
-  int me = dharma_spmd_rank();
-  int n_spmd = dharma_spmd_size();
+  int me = darma_spmd_rank();
+  int n_spmd = darma_spmd_size();
   assert(n_spmd > 1);
 
   if(me == 0) {
@@ -266,7 +266,7 @@ int main(int argc, char** argv) {
     // b0 destroyed here.
   }
 
-  dharma_finalize();
+  darma_finalize();
 }
 
 
@@ -278,7 +278,7 @@ int main(int argc, char** argv) {
  *   of a pending state that contributes to whether the clock needs to be updated
  * Option 3: You can either manipulate value or schedule dependendent tasks on a handle in a given
  *   scope, but not both
- *     -> significantly restricts what you can do with DHARMA, and also not sure how this would
+ *     -> significantly restricts what you can do with DARMA, and also not sure how this would
  *        work with hierarchical dependencies, much easier to reason about
  *     -> convergent iteration pattern is very hard to do with this paradigm...
  */

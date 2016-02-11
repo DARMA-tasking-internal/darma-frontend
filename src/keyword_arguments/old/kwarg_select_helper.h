@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          kwarg_select_helper.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2015 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -46,7 +46,7 @@
 #define KEYWORD_ARGUMENTS_KWARG_SELECT_HELPER_H_
 
 
-namespace dharma_runtime { namespace detail {
+namespace darma_runtime { namespace detail {
 
 //////////////////////////////////////////////////////////////////////////////////
 //
@@ -674,7 +674,7 @@ namespace dharma_runtime { namespace detail {
 //
 //////////////////////////////////////////////////////////////////////////////////
 
-}} // end namespace dharma_mockup::detail
+}} // end namespace darma_mockup::detail
 
 
 #endif /* KEYWORD_ARGUMENTS_KWARG_SELECT_HELPER_H_ */

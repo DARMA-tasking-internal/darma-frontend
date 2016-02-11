@@ -1,0 +1,11 @@
+
+
+This test simply initializes the DARMA environment. 
+Each process retrieves the corresponding rank and the size of the environment. 
+Each process then prints the value of its rank.
+
+A DARMA rank should be thought as equivalent to an MPI rank with one difference.
+The difference is that the data/label created by a DARMA rank does not necessarily 
+stay associated with that rank, but can be migrated elsewhere during runtime.
+
+

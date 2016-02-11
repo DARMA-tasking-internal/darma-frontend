@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          spmd.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -49,54 +49,54 @@
 
 #include "runtime.h"
 #include "abstract/backend/runtime.h"
-#include "dharma_assert.h"
+#include "darma_assert.h"
 #include "task.h"
 
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
-typedef size_t dharma_rank_t;
+typedef size_t darma_rank_t;
 
 inline void
-dharma_init(
+darma_init(
   int& argc,
   char**& argv
 ) {
-  std::unique_ptr<typename dharma_runtime::abstract::backend::runtime_t::task_t> moved_from =
+  std::unique_ptr<typename darma_runtime::abstract::backend::runtime_t::task_t> moved_from =
       std::make_unique<detail::TopLevelTask>();
-  abstract::backend::dharma_backend_initialize(
+  abstract::backend::darma_backend_initialize(
     argc, argv, detail::backend_runtime, std::move(moved_from)
   );
 }
 
-inline dharma_rank_t
-dharma_spmd_rank() {
-  DHARMA_ASSERT_NOT_NULL(detail::backend_runtime);
-  DHARMA_ASSERT_NOT_NULL(detail::backend_runtime->get_running_task());
+inline darma_rank_t
+darma_spmd_rank() {
+  DARMA_ASSERT_NOT_NULL(detail::backend_runtime);
+  DARMA_ASSERT_NOT_NULL(detail::backend_runtime->get_running_task());
 
-  DHARMA_ASSERT_EQUAL(
+  DARMA_ASSERT_EQUAL(
     std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>()),
-    DHARMA_BACKEND_SPMD_NAME_PREFIX
+    DARMA_BACKEND_SPMD_NAME_PREFIX
   );
   return detail::backend_runtime
-      ->get_running_task()->get_name().component<1>().as<dharma_rank_t>();
+      ->get_running_task()->get_name().component<1>().as<darma_rank_t>();
 }
 
-inline dharma_rank_t
-dharma_spmd_size() {
-  DHARMA_ASSERT_EQUAL(
+inline darma_rank_t
+darma_spmd_size() {
+  DARMA_ASSERT_EQUAL(
     std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>()),
-    DHARMA_BACKEND_SPMD_NAME_PREFIX
+    DARMA_BACKEND_SPMD_NAME_PREFIX
   );
   return detail::backend_runtime
-      ->get_running_task()->get_name().component<2>().as<dharma_rank_t>();
+      ->get_running_task()->get_name().component<2>().as<darma_rank_t>();
 }
 
 inline void
-dharma_finalize() {
+darma_finalize() {
   detail::backend_runtime->finalize();
 }
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
 #endif /* SPMD_H_ */

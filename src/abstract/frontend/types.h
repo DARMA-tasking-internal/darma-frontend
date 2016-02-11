@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          types.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -45,16 +45,16 @@
 #ifndef SRC_ABSTRACT_FRONTEND_TYPES_H_
 #define SRC_ABSTRACT_FRONTEND_TYPES_H_
 
-#ifdef DHARMA_FRONTEND_TYPES_INCLUDE
-#include DHARMA_FRONTEND_TYPES_INCLUDE
+#ifdef DARMA_FRONTEND_TYPES_INCLUDE
+#include DARMA_FRONTEND_TYPES_INCLUDE
 #endif
 
-#ifndef DHARMA_BACKEND_CUSTOM_HANDLE_CONTAINER
+#ifndef DARMA_BACKEND_CUSTOM_HANDLE_CONTAINER
 #include <unordered_set>
-namespace dharma_runtime { namespace types {
+namespace darma_runtime { namespace types {
   template <typename... Ts>
   using handle_container_template = std::unordered_set<Ts...>;
-}} // end namespace dharma_runtime::types
+}} // end namespace darma_runtime::types
 #endif
 
 

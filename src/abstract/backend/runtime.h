@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          runtime.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -53,7 +53,7 @@
 #include "../frontend/containment_manager.h"
 #include "../frontend/aliasing_manager.h"
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace abstract {
 
@@ -352,7 +352,7 @@ class Runtime {
       aliasing_manager_t const& manager
     ) =0;
 
-    /** @brief signifies the end of the outer SPMD task from which dharma_backend_initialize() was called
+    /** @brief signifies the end of the outer SPMD task from which darma_backend_initialize() was called
      */
     virtual void
     finalize() =0;
@@ -364,10 +364,10 @@ class Runtime {
 
 
 typedef Runtime<
-  dharma_runtime::types::key_t,
-  dharma_runtime::types::version_t,
-  dharma_runtime::types::shared_ptr_template,
-  dharma_runtime::types::unique_ptr_template
+  darma_runtime::types::key_t,
+  darma_runtime::types::version_t,
+  darma_runtime::types::shared_ptr_template,
+  darma_runtime::types::unique_ptr_template
 > runtime_t;
 
 
@@ -376,8 +376,8 @@ typedef Runtime<
  *  @remark This should be called once per top-level task.  The backend may chose whether
  *  the frontend is allowed to have multiple top-level tasks in one process.  If the backend
  *  supports multiple top-level tasks, it should define the preprocessor constant
- *  DHARMA_BACKEND_TOP_LEVEL_TASK_MULTIPLE.  If not, it should define the constant
- *  DHARMA_BACKEND_TOP_LEVEL_TASK_SINGLE.  The frontend is free to wrap these macro constants
+ *  DARMA_BACKEND_TOP_LEVEL_TASK_MULTIPLE.  If not, it should define the constant
+ *  DARMA_BACKEND_TOP_LEVEL_TASK_SINGLE.  The frontend is free to wrap these macro constants
  *  in more user-friendly names before exposing them to the user.
  *
  *  @pre The frontend should do nothing that interacts with the backend before this
@@ -400,7 +400,7 @@ typedef Runtime<
  *
  *  @param top_level_task The task object to be returned by Runtime::get_running_task() if that
  *  method is invoked (on the instance pointed to by backend_runtime upon return) from the outermost
- *  task context within which dharma_backend_initialize() was invoked.  (Inside of any task context
+ *  task context within which darma_backend_initialize() was invoked.  (Inside of any task context
  *  created by an invocation of Task::run(), of course, the runtime should still behave as documented
  *  in the Runtime::get_running_task() method).  It is \a not valid to call Task::run() on this
  *  top-level task object (i.e., it is an error), and doing so will cause the frontend to abort.
@@ -408,19 +408,19 @@ typedef Runtime<
  *  Task::set_name() and Task::get_name().  At least before returning top_level_task from any calls to
  *  Runtime::get_running_task(), the backend runtime should assign a name to the top-level task
  *  with at least three parts, the first three of which must be: a string constant defined by the
- *  preprocessor macro DHARMA_BACKEND_SPMD_KEY_PREFIX, a std::size_t for the rank of the SPMD-like
+ *  preprocessor macro DARMA_BACKEND_SPMD_KEY_PREFIX, a std::size_t for the rank of the SPMD-like
  *  top-level task from which initialize was invoked, and a std::size_t givin the total number of
  *  ranks in the SPMD launch (which must be known at launch time; SPMD ranks cannot be dynamically
  *  allocated).  In other words, the backend should make a call of the form:
- *    top_level_task->set_name(DHARMA_BACKEND_SPMD_NAME_PREFIX, rank, size);
+ *    top_level_task->set_name(DARMA_BACKEND_SPMD_NAME_PREFIX, rank, size);
  *
  *  @remark The backend is free to extract backend-specific command-line arguments provided it
- *  updates argc and argv.  When dharma_backend_initialize() returns, backend-specific parameters
+ *  updates argc and argv.  When darma_backend_initialize() returns, backend-specific parameters
  *  must no longer be in argc and argv.
  *
  */
 extern void
-dharma_backend_initialize(
+darma_backend_initialize(
   int& argc, char**& argv,
   runtime_t*& backend_runtime,
   types::unique_ptr_template<typename runtime_t::task_t> top_level_task
@@ -431,7 +431,7 @@ dharma_backend_initialize(
 
 } // end namespace abstract
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
 
 

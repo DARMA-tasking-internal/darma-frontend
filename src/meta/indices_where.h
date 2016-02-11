@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          indices_where.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2015 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -51,7 +51,7 @@
 // TODO remove this when metaprogramming.h is fully split up
 #include "../meta/metaprogramming.h" // join_metalists, size_t_metavector
 
-namespace dharma_mockup { namespace detail {
+namespace darma_mockup { namespace detail {
 
 ////////////////////////////////////////////////////////////////////////////////
 /* indices_where                                                         {{{1 */ #if 1 // begin fold
@@ -149,7 +149,7 @@ struct indices_where {
 /*                                                                            */ #endif // end fold
 ////////////////////////////////////////////////////////////////////////////////
 
-}} // end namespace dharma_mockup::detail
+}} // end namespace darma_mockup::detail
 
 
 #endif /* META_INDICES_WHERE_H_ */

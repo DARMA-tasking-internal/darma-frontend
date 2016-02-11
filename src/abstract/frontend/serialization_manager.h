@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          serializer.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -45,7 +45,7 @@
 #ifndef SRC_ABSTRACT_FRONTEND_SERIALIZATION_MANAGER_H_
 #define SRC_ABSTRACT_FRONTEND_SERIALIZATION_MANAGER_H_
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace abstract {
 
@@ -225,7 +225,7 @@ class SerializationManager {
 
 } // end namespace abstract
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
 
 

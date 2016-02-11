@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          kwarg_expression.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2015 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -54,7 +54,7 @@
 
 #include "kwarg_expression_fwd.h"
 
-namespace dharma_runtime { namespace detail {
+namespace darma_runtime { namespace detail {
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -287,7 +287,7 @@ struct is_kwarg_expression_with_tag<
 
 ////////////////////////////////////////////////////////////////////////////////
 
-}} // end namespace dharma_mockup::detail
+}} // end namespace darma_mockup::detail
 
 
 

@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          stream_key.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -96,15 +96,15 @@ struct StreamKey  {
 
   public:
 
-    StreamKey() : StreamKey(dharma_runtime::detail::variadic_constructor_arg) { }
+    StreamKey() : StreamKey(darma_runtime::detail::variadic_constructor_arg) { }
 
     template <typename... Types>
     explicit StreamKey(
-      const dharma_runtime::detail::variadic_constructor_arg_t,
+      const darma_runtime::detail::variadic_constructor_arg_t,
       Types&&... data
     ) {
       std::stringstream sstr;
-      dharma_runtime::meta::tuple_for_each(std::make_tuple(data...), [&sstr](const auto& val) {
+      darma_runtime::meta::tuple_for_each(std::make_tuple(data...), [&sstr](const auto& val) {
         sstr << val << std::endl;
       });
       val_ = sstr.str();
@@ -116,7 +116,7 @@ struct StreamKey  {
       std::tuple<Types...>&& data
     ) {
       std::stringstream sstr;
-      dharma_runtime::meta::tuple_for_each(data, [&sstr](const auto& val) {
+      darma_runtime::meta::tuple_for_each(data, [&sstr](const auto& val) {
         sstr << val << std::endl;
       });
       val_ = sstr.str();
@@ -182,7 +182,7 @@ operator==(const StreamKey& a, const StreamKey& b) {
 
 } // end namespace mock_backend
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace detail {
 
@@ -219,7 +219,7 @@ struct key_traits<mock_backend::StreamKey>
 
 } // end namespace detail
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
 
 

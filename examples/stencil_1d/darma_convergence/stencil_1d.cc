@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          stencil_1d.cc
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -46,7 +46,7 @@
 #include <iomanip>
 
 #include "../common.h"
-#include <dharma.h>
+#include <darma.h>
 
 constexpr size_t n_data_total = 5;
 constexpr bool print_data = true;
@@ -57,7 +57,7 @@ constexpr double convergence_min = 0.02;
  *  (0.3- safe namespace and behavior itself, 0.4- supporting constructs like create_while)
  */
 
-using namespace dharma_runtime;
+using namespace darma_runtime;
 
 ////////////////////////////////////////////////////////////////////////////////
 // A user data type for holding mesh data
@@ -87,7 +87,7 @@ struct DataArray : public ZeroCopyable<1>
 
   protected:
 
-    // Interface with dharma_runtime::ZeroCopyable<N>
+    // Interface with darma_runtime::ZeroCopyable<N>
     void*& get_zero_copy_slot(zero_copy_slot_t slot) {
       return data_;
     }
@@ -149,12 +149,12 @@ bool is_converged(double* data, size_t n_data) {
 int main(int argc, char** argv)
 {
 
-  dharma_init(argc, argv);
+  darma_init(argc, argv);
 
-  using namespace dharma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_publication;
 
-  size_t me = dharma_spmd_rank();
-  size_t n_spmd = dharma_spmd_size();
+  size_t me = darma_spmd_rank();
+  size_t n_spmd = darma_spmd_size();
 
   // Figure out how much local data we have
   size_t my_n_data = n_data_total / n_spmd;
@@ -274,7 +274,7 @@ int main(int argc, char** argv)
 
   }
 
-  dharma_finalize();
+  darma_finalize();
 
 
 }

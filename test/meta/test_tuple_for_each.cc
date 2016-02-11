@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          test_tuple_for_each.cc
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -47,7 +47,7 @@
 
 #include <meta/tuple_for_each.h>
 
-using namespace dharma_runtime;
+using namespace darma_runtime;
 
 int main(int argc, char** argv) {
   std::tuple<int, std::string, double, int> tup(5, "hello", 47.32, 42);

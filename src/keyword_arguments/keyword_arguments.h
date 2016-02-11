@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          keyword_arguments.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2015 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -49,7 +49,7 @@
 
 #include "keyword_tag.h"
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace detail {
 
@@ -152,9 +152,9 @@ namespace detail {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-}} // end namespace dharma_mockup::detail
+}} // end namespace darma_mockup::detail
 
-//namespace dharma_mockup {
+//namespace darma_mockup {
 //
 //namespace _impl {
 //
@@ -175,7 +175,7 @@ namespace detail {
 //
 //constexpr _impl::_k_impl make_key_expression = {};
 //
-//} // end namespace dharma_mockup
+//} // end namespace darma_mockup
 
 
 #include "kwarg_expression.h"
@@ -184,7 +184,7 @@ namespace detail {
 
 #include "get_kwarg.h"
 
-namespace dharma_runtime { namespace detail {
+namespace darma_runtime { namespace detail {
 
 //////////////////////////////////////////////////////////////////////////////////
 //
@@ -300,7 +300,7 @@ namespace dharma_runtime { namespace detail {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-}} // end namespace dharma_mockup::detail
+}} // end namespace darma_mockup::detail
 
 #include "macros.h"
 

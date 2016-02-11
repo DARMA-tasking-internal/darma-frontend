@@ -7,9 +7,9 @@
  ****************************************/
 
 #include <vector>
-#include <dharma.h>
+#include <darma.h>
 
-using namespace dharma_runtime;
+using namespace darma_runtime;
 
 class UserArray {
   public:
@@ -44,9 +44,9 @@ class UserArray {
 };
 
 int main(int argc, char** argv) {
-  dharma_init(argc, argv);
-  size_t me = dharma_spmd_rank();
+  darma_init(argc, argv);
+  size_t me = darma_spmd_rank();
   UserArray a(24, make_key("my_elem", me), 3.14);
   a.scale(2.718);
-  dharma_finalize();
+  darma_finalize();
 }

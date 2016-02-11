@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          wrap_with_template.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2015 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -45,7 +45,7 @@
 #ifndef META_WRAP_WITH_TEMPLATE_H_
 #define META_WRAP_WITH_TEMPLATE_H_
 
-namespace dharma_mockup { namespace meta {
+namespace darma_mockup { namespace meta {
 
 // mfc = "metafunction class" (e.g., as in boost::mpl docs)
 
@@ -77,6 +77,6 @@ struct wrap_with_template_splatting_mfc {
 template <template <typename...> class to_wrap_with>
 using wrap_with_template = wrap_with_template_mfc<to_wrap_with>;
 
-}} // end namespace dharma_mockup::detail
+}} // end namespace darma_mockup::detail
 
 #endif /* META_WRAP_WITH_TEMPLATE_H_ */

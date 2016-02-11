@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          assert.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,39 +42,39 @@
 //@HEADER
 */
 
-#ifndef SRC_DHARMA_ASSERT_H_
-#define SRC_DHARMA_ASSERT_H_
+#ifndef SRC_DARMA_ASSERT_H_
+#define SRC_DARMA_ASSERT_H_
 
 #include <cassert>
 #include <iostream>
 
-//#define DHARMA_ASSERT_EQUAL(lhs, rhs) assert(lhs == rhs)
+//#define DARMA_ASSERT_EQUAL(lhs, rhs) assert(lhs == rhs)
 
-#define DHARMA_ASSERT_RELATED_VERBOSE(lhs, op, rhs) assert(                                         \
+#define DARMA_ASSERT_RELATED_VERBOSE(lhs, op, rhs) assert(                                         \
   (lhs op rhs) ||                                                                                   \
   ((                                                                                                \
-    std::cout << "DHARMA assertion failed:" << std::endl                                            \
+    std::cout << "DARMA assertion failed:" << std::endl                                            \
               << "  " << #lhs << " " << #op << " " << #rhs << std::endl                             \
               << "  " << lhs << " " << #op << " " << #rhs << std::endl                              \
   ), false)                                                                                         \
 )
 
-#define DHARMA_ASSERT_NOT_NULL_VERBOSE(...) assert(                                                 \
+#define DARMA_ASSERT_NOT_NULL_VERBOSE(...) assert(                                                 \
   ((__VA_ARGS__) != nullptr) ||                                                                     \
   ((                                                                                                \
-    std::cout << "DHARMA assertion failed:" << std::endl                                            \
+    std::cout << "DARMA assertion failed:" << std::endl                                            \
               << "  Expression was null that should be non-null:"                                   \
               << "    " << #__VA_ARGS__ << std::endl                                                \
               << "    (evalutated as true for == with nullptr)"                                     \
   ), false)                                                                                         \
 )
 
-#define DHARMA_ASSERT_EQUAL_VERBOSE(lhs, rhs) DHARMA_ASSERT_RELATED_VERBOSE(lhs, ==, rhs)
+#define DARMA_ASSERT_EQUAL_VERBOSE(lhs, rhs) DARMA_ASSERT_RELATED_VERBOSE(lhs, ==, rhs)
 
-#define DHARMA_ASSERT_EQUAL(lhs, rhs) DHARMA_ASSERT_EQUAL_VERBOSE(lhs, rhs)
+#define DARMA_ASSERT_EQUAL(lhs, rhs) DARMA_ASSERT_EQUAL_VERBOSE(lhs, rhs)
 
-#define DHARMA_ASSERT_NOT_NULL(...) DHARMA_ASSERT_NOT_NULL_VERBOSE(__VA_ARGS__)
+#define DARMA_ASSERT_NOT_NULL(...) DARMA_ASSERT_NOT_NULL_VERBOSE(__VA_ARGS__)
 
 
 
-#endif /* SRC_DHARMA_ASSERT_H_ */
+#endif /* SRC_DARMA_ASSERT_H_ */

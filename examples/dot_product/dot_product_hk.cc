@@ -1,9 +1,9 @@
 
 
-#include <dharma.h>
+#include <darma.h>
 
-using namespace dharma_runtime;
-using namespace dharma_runtime::keyword_arguments_for_publication;
+using namespace darma_runtime;
+using namespace darma_runtime::keyword_arguments_for_publication;
 
 ////////////////////////////////////////////////////////////////////////////////
 /* 
@@ -19,10 +19,10 @@ using namespace dharma_runtime::keyword_arguments_for_publication;
 
 int main(int argc, char** argv) {
 
-  dharma_init(argc, argv);
+  darma_init(argc, argv);
 
-  size_t me = dharma_spmd_rank();
-  size_t n_ranks = dharma_spmd_size();
+  size_t me = darma_spmd_rank();
+  size_t n_ranks = darma_spmd_size();
 
   size_t local_vec_size = 50;
 
@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
   auto my_a_dot_b = initial_access<float>("local_AdotB", me);
 
   //Now for the global dot product result.
-  //Should its key have anything to do with dharma rank at all?
+  //Should its key have anything to do with darma rank at all?
   //If not, then won't there be multiple publishes of it?
   auto a_dot_b = initial_access<float>("AdotB");
 
@@ -69,6 +69,6 @@ int main(int argc, char** argv) {
   //local only?
 
 
-  dharma_finalize();
+  darma_finalize();
 
 }

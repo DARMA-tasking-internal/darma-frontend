@@ -8,9 +8,9 @@
  ****************************************/
 
 #include <iostream>
-#include <dharma.h>
+#include <darma.h>
 
-using namespace dharma_runtime;
+using namespace darma_runtime;
 
 void test() {
   // Request the rights to create a dependency/accessor
@@ -79,9 +79,9 @@ void test() {
 } // dep1 and dep2 deleted here, releasing their accesses to their respective versions of "my_dep"
 
 int main(int argc, char** argv) {
-  dharma_init(argc, argv);
+  darma_init(argc, argv);
 
-  if(dharma_spmd_rank() == 0) test();
+  if(darma_spmd_rank() == 0) test();
 
-  dharma_finalize();
+  darma_finalize();
 }

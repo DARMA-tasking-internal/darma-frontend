@@ -9,8 +9,8 @@
 #include <vector>
 #include <iomanip>
 
-#include <dharma.h>
-using namespace dharma_runtime;
+#include <darma.h>
+using namespace darma_runtime;
 
 
 /* 
@@ -56,8 +56,8 @@ constexpr int numPtsPerTaskWithGhosts = numPtsPerTask + 2;
 
 int main(int argc, char** argv)
 {
-	const size_t myPID  = dharma_spmd_rank();
-	const size_t n_spmd = dharma_spmd_size();
+	const size_t myPID  = darma_spmd_rank();
+	const size_t n_spmd = darma_spmd_size();
 
 	// Figure out my neighbors.  If I'm 0 or n_spmd-1, I am my own
 	// neighbor on the left and right
@@ -189,7 +189,7 @@ int main(int argc, char** argv)
 
 	}
 
-  dharma_finalize();
+  darma_finalize();
 
 }// end main
 

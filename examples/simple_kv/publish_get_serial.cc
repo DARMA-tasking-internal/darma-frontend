@@ -1,20 +1,20 @@
 
 
-#include <dharma.h>
+#include <darma.h>
 
-using namespace dharma_runtime;
-using namespace dharma_runtime::keyword_arguments_for_publication;
+using namespace darma_runtime;
+using namespace darma_runtime::keyword_arguments_for_publication;
 
 ////////////////////////////////////////////////////////////////////////////////
 // main() function
 
 int main(int argc, char** argv) {
 
-  dharma_init(argc, argv);
+  darma_init(argc, argv);
 
   //rank and size may be irrelevant in this example
-  size_t me = dharma_spmd_rank();
-  size_t n_ranks = dharma_spmd_size();
+  size_t me = darma_spmd_rank();
+  size_t n_ranks = darma_spmd_size();
 
   auto float_to_pub = initial_access<float>("floatKey", me);
 
@@ -26,6 +26,6 @@ int main(int argc, char** argv) {
 
   std::cout << "float being transacted is " << float_to_get.get_value() << std::endl;
  
-  dharma_finalize();
+  darma_finalize();
 
 }

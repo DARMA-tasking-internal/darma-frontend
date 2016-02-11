@@ -1,16 +1,16 @@
 
 
-#include <dharma.h>
+#include <darma.h>
 
-using namespace dharma_runtime;
-using namespace dharma_runtime::keyword_arguments_for_publication;
+using namespace darma_runtime;
+using namespace darma_runtime::keyword_arguments_for_publication;
 
 int main(int argc, char** argv) {
 
-  dharma_init(argc, argv);
+  darma_init(argc, argv);
 
-  int me = dharma_spmd_rank();
-  int nranks = dharma_spmd_size();
+  int me = darma_spmd_rank();
+  int nranks = darma_spmd_size();
   assert(nranks % 2 == 0);
 
   if(me % 2 == 0) {
@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     auto dep2 = read_access_to(dep);
 
     create_work([=]{
-      dep.set_value("hello DHARMA");
+      dep.set_value("hello DARMA");
     });
 
     create_work([=]{
@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     });
 
     create_work([=]{
-      dep.set_value("hello DHARMA 2");
+      dep.set_value("hello DARMA 2");
     });
 
     //dep2 = 0; //prevents deadlock
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
       //create_work([=]{
 
       //  create_work([=]{
-      //    dep.set_value("hello DHARMA 2");
+      //    dep.set_value("hello DARMA 2");
       //  });
 
       //  create_work([=]{
@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
     // dep r/w fred.1
     // dep2 r fred.0
     create_work([=]{
-      dep.set_value("hello DHARMA 2");
+      dep.set_value("hello DARMA 2");
     });
     // dep r/w fred.2
     // dep2 r fred.0
@@ -239,6 +239,6 @@ int main(int argc, char** argv) {
 
   }
 
-  dharma_finalize();
+  darma_finalize();
 
 }
