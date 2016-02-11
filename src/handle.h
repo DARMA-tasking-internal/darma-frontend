@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          dependency.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -59,16 +59,16 @@
 #include "runtime.h"
 #include "abstract/defaults/version.h"
 #include "util.h"
-#include "dharma_assert.h"
+#include "darma_assert.h"
 
 #include "abstract/backend/data_block.h"
 #include "keyword_arguments/keyword_arguments.h"
 
-DeclareDharmaTypeTransparentKeyword(publication, n_readers);
+DeclareDarmaTypeTransparentKeyword(publication, n_readers);
 // TODO make this a key expression instead of a std::string
-DeclareDharmaTypeTransparentKeyword(publication, version);
+DeclareDarmaTypeTransparentKeyword(publication, version);
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace detail {
 
@@ -195,7 +195,7 @@ struct access_expr_helper {
     Args&&... args
   ) const {
     return get_typeless_kwarg_with_converter_and_default<
-      dharma_runtime::keyword_tags_for_publication::version
+      darma_runtime::keyword_tags_for_publication::version
     >([](auto&&... key_parts){
       return make_key(std::forward<decltype(key_parts)>(key_parts)...);
     }, types::key_t(), std::forward<Args>(args)...);
@@ -520,7 +520,7 @@ class DependencyHandle
 
 };
 
-} // end namespace dharma_runtime::detail
+} // end namespace darma_runtime::detail
 
 template <
   typename T = void,
@@ -628,7 +628,7 @@ class AccessHandle
       if(capturing_task != nullptr) {
         assert(copied_from.prev_copied_from != nullptr);
         AccessHandle& outer = *(copied_from.prev_copied_from);
-        DHARMA_ASSERT_NOT_NULL(copied_from.prev_copied_from);
+        DARMA_ASSERT_NOT_NULL(copied_from.prev_copied_from);
         // TODO also ask the task if any special permissions downgrades were given
         // TODO !!! connect outputs to corresponding parent task output
         switch(outer.get_permissions()) {
@@ -961,7 +961,7 @@ read_write(
 
 
 
-} // end namespace dharma
+} // end namespace darma
 
 
 

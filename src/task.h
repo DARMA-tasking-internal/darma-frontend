@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          task.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,8 +42,8 @@
 //@HEADER
 */
 
-#ifndef DHARMA_RUNTIME_TASK_H_
-#define DHARMA_RUNTIME_TASK_H_
+#ifndef DARMA_RUNTIME_TASK_H_
+#define DARMA_RUNTIME_TASK_H_
 
 #include <unordered_map>
 #include <unordered_set>
@@ -66,7 +66,7 @@
 
 #include "runtime.h"
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace detail {
 
@@ -281,8 +281,8 @@ class Task : public TaskBase
 
 } // end namespace detail
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
 
 
-#endif /* DHARMA_RUNTIME_TASK_H_ */
+#endif /* DARMA_RUNTIME_TASK_H_ */

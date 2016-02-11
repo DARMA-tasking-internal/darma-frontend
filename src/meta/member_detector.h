@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          member_detector.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -50,7 +50,7 @@
 #include <tinympl/delay.hpp>
 #include <type_traits>
 
-namespace dharma_runtime { namespace meta {
+namespace darma_runtime { namespace meta {
 
 template <typename FunctionSignature>
 struct as_method;
@@ -72,11 +72,11 @@ struct as_method<ReturnValue(Args...)>
   };
 };
 
-}} // end namespace dharma_runtime::meta
+}} // end namespace darma_runtime::meta
 
 // Wide swaths borrowed from:
 //   https://en.wikibooks.org/wiki/More_C%2B%2B_Idioms/Member_Detector
-#define DHARMA_META_MAKE_MEMBER_DETECTORS(MEMBER_NAME)                                              \
+#define DARMA_META_MAKE_MEMBER_DETECTORS(MEMBER_NAME)                                              \
 template <typename Class>                                                                           \
 struct type_of_member_named_##MEMBER_NAME {                                                         \
   typedef decltype(&Class::MEMBER_NAME) type;                                                       \
@@ -132,7 +132,7 @@ class has_method_named_##MEMBER_NAME##_with_signature {                         
   private:                                                                                          \
     template <                                                                                      \
       typename U,                                                                                   \
-      typename dharma_runtime::meta::as_method<function_signature>::template bind<U>::type          \
+      typename darma_runtime::meta::as_method<function_signature>::template bind<U>::type          \
     > struct Check;                                                                                 \
     template <typename U> static char func(Check<U, &U::MEMBER_NAME>*);                             \
     template <typename U> static int func(...);                                                     \
@@ -145,7 +145,7 @@ class has_const_method_named_##MEMBER_NAME##_with_signature {                   
   private:                                                                                          \
     template <                                                                                      \
       typename U,                                                                                   \
-      typename dharma_runtime::meta::as_method<function_signature>::template bind_const<U>::type    \
+      typename darma_runtime::meta::as_method<function_signature>::template bind_const<U>::type    \
     > struct Check;                                                                                 \
     template <typename U> static char func(Check<U, &U::MEMBER_NAME>*);                             \
     template <typename U> static int func(...);                                                     \

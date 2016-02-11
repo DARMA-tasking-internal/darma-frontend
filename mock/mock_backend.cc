@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          mock_backend.cc
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -49,7 +49,7 @@
 #include <abstract/backend/runtime.h>
 #include <abstract/backend/data_block.h>
 
-using namespace dharma_runtime;
+using namespace darma_runtime;
 using std::cout;
 using std::endl;
 
@@ -173,7 +173,7 @@ class MockRuntime
     }
 
     types::unique_ptr_template<
-      typename dharma_runtime::abstract::backend::runtime_t::task_t
+      typename darma_runtime::abstract::backend::runtime_t::task_t
     > top_level_task;
 
 };
@@ -194,21 +194,21 @@ struct MockDataBlock : public abstract::backend::DataBlock
 
 
 void
-dharma_runtime::abstract::backend::dharma_backend_initialize(
+darma_runtime::abstract::backend::darma_backend_initialize(
   int& argc, char**& argv,
-  dharma_runtime::abstract::backend::runtime_t*& backend_runtime,
+  darma_runtime::abstract::backend::runtime_t*& backend_runtime,
   types::unique_ptr_template<
-    typename dharma_runtime::abstract::backend::runtime_t::task_t
+    typename darma_runtime::abstract::backend::runtime_t::task_t
   > top_level_task
 ) {
   auto* tmp_rt = new MockRuntime;
   tmp_rt->top_level_task = std::move(top_level_task);
   tmp_rt->top_level_task->set_name(
-    dharma_runtime::make_key(DHARMA_BACKEND_SPMD_NAME_PREFIX, 0, 1)
+    darma_runtime::make_key(DARMA_BACKEND_SPMD_NAME_PREFIX, 0, 1)
   );
   backend_runtime = tmp_rt;
 }
 
 
-abstract::backend::runtime_t* dharma_runtime::detail::backend_runtime = nullptr;
+abstract::backend::runtime_t* darma_runtime::detail::backend_runtime = nullptr;
 

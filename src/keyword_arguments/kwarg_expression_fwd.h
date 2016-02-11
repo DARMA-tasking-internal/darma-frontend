@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          kwarg_expression_fwd.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -45,7 +45,7 @@
 #ifndef SRC_KEYWORD_ARGUMENTS_KWARG_EXPRESSION_FWD_H_
 #define SRC_KEYWORD_ARGUMENTS_KWARG_EXPRESSION_FWD_H_
 
-namespace dharma_runtime { namespace detail {
+namespace darma_runtime { namespace detail {
 
 template <typename T, typename KWArgName, bool in_rhs_is_lvalue>
 class kwarg_expression;
@@ -59,7 +59,7 @@ class multiarg_typeless_kwarg_expression;
 template <class T>
 struct is_kwarg_expression;
 
-}} // end namespace dharma_runtime::detail
+}} // end namespace darma_runtime::detail
 
 
 

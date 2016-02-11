@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          test_keyword_arguments.cc
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -49,8 +49,8 @@
 
 using std::cout;
 using std::endl;
-using namespace dharma_runtime;
-using namespace dharma_runtime::detail;
+using namespace darma_runtime;
+using namespace darma_runtime::detail;
 
 struct BlabberMouth {
   BlabberMouth(const std::string& str) : str_(str) { std::cout << "#!! String constructor: " << str_ << std::endl; }
@@ -70,12 +70,12 @@ struct MovableOnly {
   std::string data;
 };
 
-DeclareDharmaKeyword(testing, blabber, BlabberMouth);
-DeclareDharmaKeyword(testing, move_only, MovableOnly);
-DeclareDharmaKeyword(testing, string_arg, std::string);
-DeclareDharmaTypeTransparentKeyword(testing, foobar);
+DeclareDarmaKeyword(testing, blabber, BlabberMouth);
+DeclareDarmaKeyword(testing, move_only, MovableOnly);
+DeclareDarmaKeyword(testing, string_arg, std::string);
+DeclareDarmaTypeTransparentKeyword(testing, foobar);
 
-namespace kw = dharma_runtime::keyword_tags_for_testing;
+namespace kw = darma_runtime::keyword_tags_for_testing;
 
 template <typename... Args>
 void print_string_arg(Args&&... args) {
@@ -188,7 +188,7 @@ void print_blabbermouth_positional(Args&&... args) {
 
 }
 
-using namespace dharma_runtime::keyword_arguments_for_testing;
+using namespace darma_runtime::keyword_arguments_for_testing;
 
 
 

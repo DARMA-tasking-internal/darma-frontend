@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          task.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -48,7 +48,7 @@
 
 #include "dependency_handle.h"
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace abstract {
 
@@ -66,7 +66,7 @@ namespace frontend {
  *  @tparam Version must meet the Version concept
  *  @tparam Container must meet the standard library Container concept
  *  @tparam smart_ptr_template A template for a shared pointer to a type and for which
- *  dharma_runtime::detail::smart_ptr_traits is specialized
+ *  darma_runtime::detail::smart_ptr_traits is specialized
  *
  *  @todo 0.3 spec: task migration hooks
  *
@@ -148,7 +148,7 @@ class Task {
      *  a reference to a default-constructed Key if not.
      *
      *  In the 0.2 spec this is only used with the outermost task, which is named with
-     *  a key of two size_t values: the SPMD rank and the SPMD size.  See dharma_backend_initialize()
+     *  a key of two size_t values: the SPMD rank and the SPMD size.  See darma_backend_initialize()
      *  for more information
      *
      *  @todo 0.3 spec: user task naming interface
@@ -161,7 +161,7 @@ class Task {
      *  a reference to a default-constructed Key if not
      *
      *  In the 0.2 spec this is only used with the outermost task, which is named with
-     *  a key of two size_t values: the SPMD rank and the SPMD size.  See dharma_backend_initialize()
+     *  a key of two size_t values: the SPMD rank and the SPMD size.  See darma_backend_initialize()
      *  for more information
      *
      *  @todo 0.3 spec: user task naming interface
@@ -208,7 +208,7 @@ class Task {
 
 } // end namespace abstract
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
 
 

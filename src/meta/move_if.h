@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          move_if.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2015 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -47,7 +47,7 @@
 
 #include <utility> // std::move
 
-namespace dharma_runtime { namespace meta {
+namespace darma_runtime { namespace meta {
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -118,6 +118,6 @@ struct by_value_if_or_move_if<false, false, T>
 
 ////////////////////////////////////////////////////////////////////////////////
 
-}} // end namespace dharma_mockup::detail
+}} // end namespace darma_mockup::detail
 
 #endif /* META_MOVE_IF_H_ */

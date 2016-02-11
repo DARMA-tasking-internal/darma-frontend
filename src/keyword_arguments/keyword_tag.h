@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          keyword_tag.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -45,7 +45,7 @@
 #ifndef SRC_KEYWORD_ARGUMENTS_KEYWORD_TAG_H_
 #define SRC_KEYWORD_ARGUMENTS_KEYWORD_TAG_H_
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace detail {
 
@@ -84,7 +84,7 @@ struct extract_type_if_tag<
 struct unknown_type { };
 
 
-}} // end namespace dharma_runtime::detail
+}} // end namespace darma_runtime::detail
 
 
 

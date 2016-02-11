@@ -5,7 +5,7 @@
 \todo[inline]{Figure out how to make inlinecode and gls play nice together in latex,
   then update text accordingly}
 \todo[inline]{Make a pass to add text to glossary where appropriate}
-\todo[inline]{Consistency check: DHARMA/DARMA}
+\todo[inline]{Consistency check: DARMA/DARMA}
 
 \chapter{Introduction}
 \label{chap:introduction}
@@ -33,32 +33,32 @@ The term asynchronous encompasses the idea that 1) processes (threads) can
   enable the overlap of communication and computation as well as asynchronous load balancing strategies.  
 
 
-This document defines the specification of the DHARMA \gls{API}.
-DHARMA is an \gls{AMT} \gls{EDSL} in \CC.
+This document defines the specification of the DARMA \gls{API}.
+DARMA is an \gls{AMT} \gls{EDSL} in \CC.
 It inherits the generic language constructs of \CC, and adds 
 \gls{semantics} that facilitate distributed parallel programming via the
 higher-level abstractions presented in this document.   
-In DHARMA \gls{spmd} is the dominant parallelism and the notion of a \gls{rank}
+In DARMA \gls{spmd} is the dominant parallelism and the notion of a \gls{rank}
 is maintained within the \gls{API}.   
-  The DHARMA \gls{API} simplifies the introduction
+  The DARMA \gls{API} simplifies the introduction
   of asynchronous task parallelism via the use of standard \CC\ constructs, such
   as \gls{reference counted pointers} and \glspl{lambda}.
 
 
 
-DHARMA comprises three main layers: the \gls{front end}, \gls{middle end}, and
+DARMA comprises three main layers: the \gls{front end}, \gls{middle end}, and
 \gls{back end}.  The \gls{front end} is the user-level \gls{API}.  The
 \gls{middle end} is a library that heavily leverages \CC \gls{template metaprogramming} 
 to translate to a series of \gls{back end} abstract classes.
 This document we 1) introduce the \gls{front end} \gls{API}, 2) provide a brief
 description of the \gls{middle end} translation layer, and 3) detail what must be
-supported by each of the \gls{back end} abstract classes to implement the DHARMA runtime.
+supported by each of the \gls{back end} abstract classes to implement the DARMA runtime.
 
 
 
 \section{Scope}
 \label{sec:scope}
-DHARMA is a vehicle to support AMT programming models and runtime
+DARMA is a vehicle to support AMT programming models and runtime
 systems research.  The \gls{API} is being \gls{co-design}ed with application developers
 and computer scientists whose knowledge spans the entire runtime software stack.
 Current applications affecting the design include portions of the \gls{Trilinos} software stack
@@ -67,18 +67,18 @@ and \gls{ASC} \gls{ATDM} efforts at Sandia National Laboratories.
 
 The \gls{AMT} \gls{runtime system} research community is quite active, with many efforts being
 explored at different levels of the software stack~\cite{OCR,STAPL,Legion,StencilHPX,Charm++,Uintah, Loci}. 
-Many of these effort could be used in whole or in part to implement the DHARMA
+Many of these effort could be used in whole or in part to implement the DARMA
 specificaiton.
 
 This specification covers user-directed parallelization, where the user
 has annotated that portions of the work could be performed asynchronously.
-The DHARMA runtime will schedule all asynchronous work in a \gls{deferred} fashion,
+The DARMA runtime will schedule all asynchronous work in a \gls{deferred} fashion,
 checking that all \gls{input dependencies} are met prior to performing work.  
-The user is responsible for ensuring that the application using the DHARMA
+The user is responsible for ensuring that the application using the DARMA
 \gls{API} constructs executes correctly.
 
 
-The DHARMA \gls{middle end} requires \CC features supported by the \CC14
+The DARMA \gls{middle end} requires \CC features supported by the \CC14
 standard, and will work with the following compilers: \inlinecode{gcc >= 4.7, clang >= 3.5}.
 
 \input{execution_model}
@@ -96,8 +96,8 @@ introduce the \gls{front end} \gls{API}.  In Chapter~\ref{chap:middle_end} we
 provide a description of the \gls{middle end} translation layer, and in
 Chapter~\ref{chap:back_end} we provide the specifics regarding what must be
 supproted by each of the \gls{back end} abstract classes in order to implement
-the DHARMA runtime. In Chapter~\ref{chap:examples} we provide a series of
-examples that illustrate usage of the \gls{API}. The DHARMA specification is
+the DARMA runtime. In Chapter~\ref{chap:examples} we provide a series of
+examples that illustrate usage of the \gls{API}. The DARMA specification is
 undergoing rapid development and evolution during the calendar year 2016.  
 We conclude this document with
 Chapter~\ref{chap:evolution}, which includes a brief history of changes between

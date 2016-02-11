@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          mock_backend.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -45,16 +45,16 @@
 #ifndef MOCK_MOCK_BACKEND_H_
 #define MOCK_MOCK_BACKEND_H_
 
-#define DHARMA_BACKEND_TYPES_INCLUDE <stream_key.h>
-#define DHARMA_BACKEND_CUSTOM_KEY_TYPE
+#define DARMA_BACKEND_TYPES_INCLUDE <stream_key.h>
+#define DARMA_BACKEND_CUSTOM_KEY_TYPE
 
 #include "stream_key.h"
 
-namespace dharma_runtime { namespace types {
+namespace darma_runtime { namespace types {
   typedef mock_backend::StreamKey key_t;
-}} // end namespace dharma_runtime::types
+}} // end namespace darma_runtime::types
 
-#include <dharma.h>
+#include <darma.h>
 
 
 

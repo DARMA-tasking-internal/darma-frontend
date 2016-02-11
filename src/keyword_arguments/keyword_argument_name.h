@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          keyword_argument_name.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2015 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -49,7 +49,7 @@
 
 #include "kwarg_expression_fwd.h"
 
-namespace dharma_runtime { namespace detail {
+namespace darma_runtime { namespace detail {
 
 template <typename T> struct extract_tag;
 
@@ -224,6 +224,6 @@ struct tag_data<null_argument_name_t>
 
 ////////////////////////////////////////////////////////////////////////////////
 
-}} // end namespace dharma_runtime::detail
+}} // end namespace darma_runtime::detail
 
 #endif /* KEYWORD_ARGUMENTS_KEYWORD_ARGUMENT_NAME_H_ */

@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          version.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -52,7 +52,7 @@
 
 #include "../../util.h"
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace detail {
 
@@ -265,7 +265,7 @@ typedef detail::basic_version<size_t, std::vector> Version;
 
 
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
 
 

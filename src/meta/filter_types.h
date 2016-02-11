@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          filter_types.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2015 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -47,7 +47,7 @@
 
 #include <tuple>
 
-namespace dharma_mockup {
+namespace darma_mockup {
 namespace detail {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -138,6 +138,6 @@ struct filter_types {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-}} // end namespace dharma_mockup::detail
+}} // end namespace darma_mockup::detail
 
 #endif /* META_FILTER_TYPES_H_ */

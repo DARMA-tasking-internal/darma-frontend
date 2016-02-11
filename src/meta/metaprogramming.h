@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          metaprogramming.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2015 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -52,7 +52,7 @@
 
 #include "tinympl/identity.hpp"
 
-#define DHARMA_DETAIL_make_get_member_type_metafunction(memtype) \
+#define DARMA_DETAIL_make_get_member_type_metafunction(memtype) \
   template <typename T> \
   struct get_##memtype##_metafunction { \
     typedef typename T::memtype type; \
@@ -60,15 +60,15 @@
 
 //#include "move_if.h"
 
-// TODO dharma_tuple type so user tuple types don't get interpreted as bundles in e.g. transform or fold
+// TODO darma_tuple type so user tuple types don't get interpreted as bundles in e.g. transform or fold
 // TODO replace std::tuple with generic tuple type derived from extract_template in places where it makes sense
 
-namespace dharma_runtime { namespace detail {
+namespace darma_runtime { namespace detail {
 
 
-}} // end namespace dharma_runtime::detail
+}} // end namespace darma_runtime::detail
 
-//namespace dharma_mockup { namespace detail {
+//namespace darma_mockup { namespace detail {
 //
 //namespace impl {
 //
@@ -337,13 +337,13 @@ namespace dharma_runtime { namespace detail {
 ///*                                                                            */ #endif // end fold
 //////////////////////////////////////////////////////////////////////////////////
 //
-//}} // end namespace dharma_mockup::detail
+//}} // end namespace darma_mockup::detail
 //
 //#include "../meta/filter_types.h"
 //
 //#include "../meta/indices_where.h"
 //
-//namespace dharma_mockup { namespace detail {
+//namespace darma_mockup { namespace detail {
 //
 //
 //////////////////////////////////////////////////////////////////////////////////
@@ -438,9 +438,9 @@ namespace dharma_runtime { namespace detail {
 //////////////////////////////////////////////////////////////////////////////////
 ///* apply_metafunction_to_types_matching_template                         {{{1 */ #if 1 // begin fold
 //
-//DHARMA_DETAIL_make_get_member_type_metafunction(value_t)
-//DHARMA_DETAIL_make_get_member_type_metafunction(tag)
-//DHARMA_DETAIL_make_get_member_type_metafunction(type)
+//DARMA_DETAIL_make_get_member_type_metafunction(value_t)
+//DARMA_DETAIL_make_get_member_type_metafunction(tag)
+//DARMA_DETAIL_make_get_member_type_metafunction(type)
 //
 //template<
 //  template <typename...> class with_template,
@@ -865,9 +865,9 @@ namespace dharma_runtime { namespace detail {
 ///*                                                                            */ #endif // end fold
 //////////////////////////////////////////////////////////////////////////////////
 //
-//}} // end namespace dharma_mockup::detail
+//}} // end namespace darma_mockup::detail
 //
-//namespace dharma_mockup {
+//namespace darma_mockup {
 //
 ///**
 // * For our purposes, a type T is contiguous if a pointer to
@@ -942,7 +942,7 @@ namespace dharma_runtime { namespace detail {
 //  > type;
 //};
 //
-//}} // end namespace dharma_mockup::detail
+//}} // end namespace darma_mockup::detail
 //
 //
 //#include "../meta/tuple_for_each.h"

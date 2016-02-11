@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          serialization.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -55,7 +55,7 @@
 #include <tinympl/logical_and.hpp>
 
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 class Archive;
 
@@ -75,12 +75,12 @@ namespace detail {
 namespace m = tinympl;
 namespace mv = tinympl::variadic;
 
-DHARMA_META_MAKE_MEMBER_DETECTORS(reconstruct);
-DHARMA_META_MAKE_MEMBER_DETECTORS(num_zero_copy_slots);
-DHARMA_META_MAKE_MEMBER_DETECTORS(get_zero_copy_slot);
-DHARMA_META_MAKE_MEMBER_DETECTORS(zero_copy_slot_size);
-DHARMA_META_MAKE_MEMBER_DETECTORS(serialize_metadata);
-DHARMA_META_MAKE_MEMBER_DETECTORS(serialize_data);
+DARMA_META_MAKE_MEMBER_DETECTORS(reconstruct);
+DARMA_META_MAKE_MEMBER_DETECTORS(num_zero_copy_slots);
+DARMA_META_MAKE_MEMBER_DETECTORS(get_zero_copy_slot);
+DARMA_META_MAKE_MEMBER_DETECTORS(zero_copy_slot_size);
+DARMA_META_MAKE_MEMBER_DETECTORS(serialize_metadata);
+DARMA_META_MAKE_MEMBER_DETECTORS(serialize_data);
 
 template <typename T, typename EnableIntrusive=void>
 struct invoke_num_zero_copy_slots {
@@ -492,21 +492,21 @@ class Archive {
     void
     operator&(T& datum) {
       switch(mode_) {
-#define ___DHARMA_tmp_ser_case(mode) \
+#define ___DARMA_tmp_ser_case(mode) \
         case mode: typename detail::serializer_selector<T, mode>::type()(datum, buffer_, spot_); break;
-        ___DHARMA_tmp_ser_case(detail::SizingMetadata);
-        ___DHARMA_tmp_ser_case(detail::PackingMetadata);
-        ___DHARMA_tmp_ser_case(detail::UnpackingMetadata);
-        ___DHARMA_tmp_ser_case(detail::SizingData);
-        ___DHARMA_tmp_ser_case(detail::PackingData);
-        ___DHARMA_tmp_ser_case(detail::UnpackingData);
+        ___DARMA_tmp_ser_case(detail::SizingMetadata);
+        ___DARMA_tmp_ser_case(detail::PackingMetadata);
+        ___DARMA_tmp_ser_case(detail::UnpackingMetadata);
+        ___DARMA_tmp_ser_case(detail::SizingData);
+        ___DARMA_tmp_ser_case(detail::PackingData);
+        ___DARMA_tmp_ser_case(detail::UnpackingData);
         case detail::CollectingZeroCopyPointers:
           // TODO
           break;
         case detail::CountingZeroCopySlots:
           // TODO
           break;
-#undef ___DHARMA_tmp_ser_case
+#undef ___DARMA_tmp_ser_case
       }
     }
 
@@ -742,7 +742,7 @@ class SerializationManager
 } // end namespace detail
 
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
 #include "serialization_builtin.h"
 

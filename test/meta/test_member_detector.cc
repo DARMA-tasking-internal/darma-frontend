@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          test_member_detector.cc
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -45,8 +45,8 @@
 #include <meta/member_detector.h>
 #include <string>
 
-using namespace dharma_runtime;
-using namespace dharma_runtime::meta;
+using namespace darma_runtime;
+using namespace darma_runtime::meta;
 
 
 struct TestHasPolicy {
@@ -81,7 +81,7 @@ struct TestWrongPolicy {
   void policy(int, char, std::string&) { }
 };
 
-DHARMA_META_MAKE_MEMBER_DETECTORS(policy);
+DARMA_META_MAKE_MEMBER_DETECTORS(policy);
 
 static_assert(
   has_member_named_policy<TestHasPolicy>::value,

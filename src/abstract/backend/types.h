@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          types.h
-//                         dharma_new
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -48,55 +48,55 @@
 #include <utility> // std::forward
 #include "../defaults/key_fwd.h" // key_traits
 
-#ifdef DHARMA_BACKEND_TYPES_INCLUDE
-#include DHARMA_BACKEND_TYPES_INCLUDE
+#ifdef DARMA_BACKEND_TYPES_INCLUDE
+#include DARMA_BACKEND_TYPES_INCLUDE
 #endif
 
-#ifndef DHARMA_BACKEND_CUSTOM_KEY_TYPE
+#ifndef DARMA_BACKEND_CUSTOM_KEY_TYPE
 #include "../defaults/key_fwd.h"
 #include "../defaults/key.h"
-namespace dharma_runtime { namespace types {
-  typedef dharma_runtime::defaults::Key key_t;
-}} // end namespace dharma_runtime::types
+namespace darma_runtime { namespace types {
+  typedef darma_runtime::defaults::Key key_t;
+}} // end namespace darma_runtime::types
 #endif
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 // Key utility functions
 
 template <typename... Args>
 inline types::key_t
 make_key(Args&&... args) {
-  return dharma_runtime::detail::key_traits<types::key_t>::maker()(std::forward<Args>(args)...);
+  return darma_runtime::detail::key_traits<types::key_t>::maker()(std::forward<Args>(args)...);
 }
 
 template <typename TupleType>
 inline types::key_t
 make_key_from_tuple(TupleType&& tup) {
-  return dharma_runtime::detail::key_traits<types::key_t>::maker_from_tuple()(std::forward<TupleType>(tup));
+  return darma_runtime::detail::key_traits<types::key_t>::maker_from_tuple()(std::forward<TupleType>(tup));
 }
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
-#ifndef DHARMA_BACKEND_CUSTOM_VERSION_TYPE
+#ifndef DARMA_BACKEND_CUSTOM_VERSION_TYPE
 #include "../defaults/version.h"
-namespace dharma_runtime { namespace types {
-  typedef dharma_runtime::defaults::Version version_t;
-}} // end namespace dharma_runtime::types
+namespace darma_runtime { namespace types {
+  typedef darma_runtime::defaults::Version version_t;
+}} // end namespace darma_runtime::types
 #endif
 
-#ifndef DHARMA_BACKEND_CUSTOM_SMART_POINTERS
+#ifndef DARMA_BACKEND_CUSTOM_SMART_POINTERS
 #include <memory>
-namespace dharma_runtime { namespace types {
+namespace darma_runtime { namespace types {
   template <typename... Ts>
   using shared_ptr_template = std::shared_ptr<Ts...>;
   template <typename... Ts>
   using unique_ptr_template = std::unique_ptr<Ts...>;
-}} // end namespace dharma_runtime::types
+}} // end namespace darma_runtime::types
 #endif
 
-#ifndef DHARMA_BACKEND_SPMD_NAME_PREFIX
-#define DHARMA_BACKEND_SPMD_NAME_PREFIX "___spmd_top_level"
+#ifndef DARMA_BACKEND_SPMD_NAME_PREFIX
+#define DARMA_BACKEND_SPMD_NAME_PREFIX "___spmd_top_level"
 #endif
 
 

@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          util.h
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -50,7 +50,7 @@
 #include <tuple> // std::tuple
 #include <functional>  // std::hash
 
-namespace dharma_runtime {
+namespace darma_runtime {
 
 namespace detail {
 
@@ -121,7 +121,7 @@ hash_combine(std::size_t& seed, const T& v)
 //
 //  reference
 //  operator*() {
-//    return dharma_mockup::detail::splat_tuples<reference>(
+//    return darma_mockup::detail::splat_tuples<reference>(
 //      &zip_iterator::deref_impl, std::forward<iter_tuple>(iters_)
 //    );
 //  }
@@ -133,7 +133,7 @@ hash_combine(std::size_t& seed, const T& v)
 //
 //  zip_iterator&
 //  operator++() {
-//    dharma_mockup::detail::splat_tuples<void>(
+//    darma_mockup::detail::splat_tuples<void>(
 //      &zip_iterator::pre_incr_impl, std::forward<iter_tuple>(iters_)
 //    );
 //    return *this;
@@ -155,7 +155,7 @@ hash_combine(std::size_t& seed, const T& v)
 
 } // end namespace detail
 
-} // end namespace dharma_runtime
+} // end namespace darma_runtime
 
 // Add a hash of std::pair and std::tuple
 namespace std {

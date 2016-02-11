@@ -4,7 +4,7 @@
 // ************************************************************************
 //
 //                          algorithm_variadic.hpp                         
-//                         dharma_mockup
+//                         darma_mockup
 //              Copyright (C) 2015 Sandia Corporation
 // This file was adapted from its original form in the tinympl library.
 // The original file bore the following copyright:
