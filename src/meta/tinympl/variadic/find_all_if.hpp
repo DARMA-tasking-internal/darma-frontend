@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                               sequence.hpp                              
-//                         dharma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                          find_all_if.hpp
+//                         dharma_new
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,25 +42,78 @@
 //@HEADER
 */
 
+#ifndef SRC_META_TINYMPL_VARIADIC_FIND_ALL_IF_HPP_
+#define SRC_META_TINYMPL_VARIADIC_FIND_ALL_IF_HPP_
 
-#ifndef TINYMPL_SEQUENCE_HPP
-#define TINYMPL_SEQUENCE_HPP
+#include "../string.hpp"
+#include "../join.hpp"
+#include "../transform.hpp"
+#include "../as_sequence.hpp"
+#include "../lambda.hpp"
+#include "../bind.hpp"
+#include "../plus.hpp"
+#include "../to_vector_c.hpp"
+#include "../logical_not.hpp"
 
 namespace tinympl {
+namespace variadic {
 
-/**
- * \defgroup SeqSupport Sequence support
- * Basic sequences support - provides user defined customization points to define sequences.
- * @{
- */
+template <
+  template <class...> class UnaryPredicate,
+  typename... Args
+>
+struct find_all_if;
 
-/**
- * \class sequence
- * \brief The main sequence type.
- */
-template<class... Args> struct sequence;
+template <
+  template <class...> class UnaryPredicate,
+  typename Arg1, typename... Args
+>
+struct find_all_if<UnaryPredicate, Arg1, Args...> {
+  private:
+    template <typename T>
+    using _add_one = typename plus<T, std::integral_constant<std::size_t, (std::size_t)1>>::type;
 
-/** @} */
-}
+  public:
+    typedef typename join<
+      typename std::conditional<
+        UnaryPredicate<Arg1>::type::value,
+        size_t_vector<0>,
+        size_t_vector<>
+      >::type,
+      typename tinympl::to_vector_c<
+        typename tinympl::transform<
+          typename as_sequence<
+            typename find_all_if<UnaryPredicate, Args...>::type
+          >::type,
+          _add_one
+        >::type,
+        std::size_t
+      >::type
+    >::type type;
+};
 
-#endif // TINYMPL_SEQUENCE_HPP
+template <
+  template <class...> class UnaryPredicate
+>
+struct find_all_if<UnaryPredicate> {
+  typedef size_t_vector<> type;
+};
+
+template <
+  template <class...> class UnaryPredicate,
+  typename... Args
+>
+struct find_all_if_not
+  : public find_all_if<
+      lambda<not_<UnaryPredicate<tinympl::placeholders::_>>>::template apply,
+      Args...
+    >
+{ };
+
+
+} // end namespace variadic
+} // end namespace tinympl
+
+
+
+#endif /* SRC_META_TINYMPL_VARIADIC_FIND_ALL_IF_HPP_ */

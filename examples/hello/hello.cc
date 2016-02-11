@@ -46,6 +46,7 @@ int main(int argc, char** argv) {
 
     AccessHandle<int> ordering;
     if(me != 1) {
+      // TODO void handles
       ordering = read_write<int>("ordering", version=me-2);
     }
     else {

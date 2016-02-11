@@ -45,6 +45,7 @@
 #include <iostream>
 
 #include <keyword_arguments/keyword_arguments.h>
+#include <meta/tuple_for_each.h>
 
 using std::cout;
 using std::endl;
@@ -167,11 +168,24 @@ void print_foobar_as_multikwarg_with_converter_multiarg(Args&&... args) {
 
 template <typename... Args>
 void print_foobar_as_multikwarg_with_converter_and_default(Args&&... args) {
-  cout << "in print_foobar_as_blabbermouth_with_converter: ";
+  cout << "in print_foobar_as_blabbermouth_with_converter_and_default: ";
   cout << get_typeless_kwarg_with_converter_and_default<kw::foobar>([](auto&& a, auto&& b, auto&& c){
     return std::string(a) + b.str_ + std::string(c);
   }, "default-success", std::forward<Args>(args)...);
   cout << endl;
+}
+
+template <typename... Args>
+void print_blabbermouth_positional(Args&&... args) {
+  cout << "in print_blabbermouth_positional: ";
+  meta::tuple_for_each(
+    get_positional_arg_tuple(std::forward<Args>(args)...),
+    [](auto&& val) {
+      cout << val.str_;
+    }
+  );
+  cout << endl;
+
 }
 
 using namespace dharma_runtime::keyword_arguments_for_testing;
@@ -246,6 +260,15 @@ int main(int argc, char** argv) {
     print_foobar_as_multikwarg_with_converter_and_default(foobar("a-", b, "-c"));
     print_foobar_as_multikwarg_with_converter_and_default();
     print_foobar_as_multikwarg_with_converter_and_default(1, 2, 3, 4);
+  }
+
+  // Should be only string constructors
+  {
+    BlabberMouth b("success");
+    print_blabbermouth_positional(b);
+    print_blabbermouth_positional(b, BlabberMouth("-success"));
+    print_blabbermouth_positional(BlabberMouth("success-"), b);
+    print_blabbermouth_positional(b, BlabberMouth("-"), b);
   }
 
 

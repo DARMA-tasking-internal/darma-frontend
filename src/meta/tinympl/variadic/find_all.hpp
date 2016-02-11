@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                               sequence.hpp                              
-//                         dharma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                          find_all.hpp
+//                         dharma_new
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,25 +42,31 @@
 //@HEADER
 */
 
+#ifndef SRC_META_TINYMPL_VARIADIC_FIND_ALL_HPP_
+#define SRC_META_TINYMPL_VARIADIC_FIND_ALL_HPP_
 
-#ifndef TINYMPL_SEQUENCE_HPP
-#define TINYMPL_SEQUENCE_HPP
+#include <type_traits>
+
+#include "find_all_if.hpp"
+#include "../lambda.hpp"
+#include "../bind.hpp"
+#include "../equal_to.hpp"
 
 namespace tinympl {
+namespace variadic {
 
-/**
- * \defgroup SeqSupport Sequence support
- * Basic sequences support - provides user defined customization points to define sequences.
- * @{
- */
+template <typename T, typename... Args>
+struct find_all
+  : public find_all_if<
+      lambda<equal_to<tinympl::placeholders::_, T>>::template apply,
+      Args...
+    >::type
+{ };
 
-/**
- * \class sequence
- * \brief The main sequence type.
- */
-template<class... Args> struct sequence;
 
-/** @} */
-}
+} // end namespace variadic
+} // end namespace tinympl
 
-#endif // TINYMPL_SEQUENCE_HPP
+
+
+#endif /* SRC_META_TINYMPL_VARIADIC_FIND_ALL_HPP_ */

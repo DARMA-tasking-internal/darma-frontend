@@ -68,22 +68,22 @@ namespace tinympl {
  * \param Out The output sequence type
  */
 template < std::size_t Pos,
-        class SubSeq,
-        class Seq,
-        template<class ...> class Out = as_sequence<Seq>::template rebind>
+  class SubSeq,
+  class Seq,
+  template<class ...> class Out = as_sequence<Seq>::template rebind>
 struct insert : insert<Pos, as_sequence_t<SubSeq>, as_sequence_t<Seq>, Out> {};
 
 template< std::size_t Pos, class ... SubSeqArgs, class ... SeqArgs,
-template<class...> class Out>
+  template<class...> class Out>
 class insert<Pos, sequence<SubSeqArgs...>, sequence<SeqArgs...>, Out> {
     template<class ... Us>
     using head_seq = sequence<Us ..., SubSeqArgs ... >;
 
     typedef typename variadic::erase<Pos, sizeof ...( SeqArgs ), head_seq,
-SeqArgs ... >::type head;
+        SeqArgs ... >::type head;
     typedef typename variadic::erase<0, Pos, sequence, SeqArgs ... >::type tail;
 
-public:
+  public:
     typedef typename join<Out<>, head, tail>::type type;
 };
 

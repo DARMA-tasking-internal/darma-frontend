@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                               sequence.hpp                              
-//                         dharma_mockup
+//                     find_all_if.hpp
+//                         dharma
 //              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -48,24 +43,35 @@
 */
 
 
-#ifndef TINYMPL_SEQUENCE_HPP
-#define TINYMPL_SEQUENCE_HPP
+#ifndef TINYMPL_FIND_ALL_IF_HPP
+#define TINYMPL_FIND_ALL_IF_HPP
+
+#include "variadic/find_all_if.hpp"
+#include "as_sequence.hpp"
+#include "sequence.hpp"
 
 namespace tinympl {
 
 /**
- * \defgroup SeqSupport Sequence support
- * Basic sequences support - provides user defined customization points to define sequences.
- * @{
+ * \ingroup SeqNonModAlgs
+ * \class find_all_if Compute the index of all elements in the sequence which
+satisfies a given predicate, as a vector_c<std::size_t>
+ * \param Sequence The input sequence
+ * \param F The test predicate - `F<T>::type::value` shall be convertible to bool
+ * \return `find_all_if<...>::type` is `vector_c<std::size_t,v...>` where
+`v...` are the 0-based indices of the elements which satisfy `F`.
+ * \sa variadic::find_all_if
  */
+template <class Sequence, template <class... T> class F>
+struct find_all_if
+  : public find_all_if<as_sequence_t<Sequence>, F>
+{ };
 
-/**
- * \class sequence
- * \brief The main sequence type.
- */
-template<class... Args> struct sequence;
+template <template <class... T> class F, class... Args>
+struct find_all_if<sequence<Args...>, F>
+  : public variadic::find_all_if<F, Args...>
+{ };
 
-/** @} */
-}
+} // namespace tinympl
 
-#endif // TINYMPL_SEQUENCE_HPP
+#endif // TINYMPL_FIND_ALL_IF_HPP
