@@ -46,7 +46,7 @@
 #define MOCK_MOCK_BACKEND_H_
 
 #define DARMA_BACKEND_TYPES_INCLUDE <stream_key.h>
-#define DARMA_BACKEND_CUSTOM_KEY_TYPE
+#define DARMA_BACKEND_CUSTOM_KEY_TYPE 1
 
 #include "stream_key.h"
 
