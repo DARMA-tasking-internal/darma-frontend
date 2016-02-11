@@ -58,3 +58,15 @@ mechanism can be used for both dependency detection and sequential semantics.
 
 
 \section{Hierarchical Versioning}
+
+Hierarchical versioning of handles in the translation layer is critical to the
+implementation of sequential semantics in DARMA. \todo[inline]{finish this}
+
+\section{Keyword Arguments}
+
+The tricks used to emulate keyword arguments in C++ are well-known and have been
+exploited elsewhere\footnote{e.g., the Boost::Parameter library} to similar
+effect.  The addition of perfect forwarding and constant expression semantics to
+C++11 and C++14 allow this to be done with rigorously zero runtime overhead ---
+all transformations used to interpret keyword arguments as traditional,
+positional arguments can occur at compile time.
