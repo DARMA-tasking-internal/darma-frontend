@@ -3,28 +3,5 @@
 
 \todo[inline]{Hemanth and Francesco: add examples here}
 
-\section{SPMD support}
-
-Analogous to MPI, the darma runtime is initialized and terminated with the \inlinecode{darma_init} 
-and \inlinecode{darma_finalize} calls. The total number of SPMD units are queried with the call \inlinecode{darma_spmd_size}, 
-and the rank is queried with \inlinecode{darma_spmd_rank}. A typical user written main program will look as follows:
-
-\begin{figure}[h!]
-\definecolor{grayish}{gray}{0.95}
-\begin{lstlisting}[basicstyle=\footnotesize,emph={entry,serial,when,overlap,forall},emphstyle=\textbf,backgroundcolor=\color{grayish},framexleftmargin=1em,numbers=left,numberstyle=\tiny,numbersep=5pt,escapeinside={(*@}{@*)}]
-	int main(int argc, char**argv){
-
-		darma_init(argc, argv);
-
-		size_t n_ranks = darma_spmd_size();
-		size_t me = darma_spmd_rank();
-
-		//lots of code
-
-		darma_finalize();
-	}
-\end{lstlisting}
-\end{figure}
 
 
-\section{Access Handles}
