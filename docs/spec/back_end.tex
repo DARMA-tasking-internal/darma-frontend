@@ -1,9 +1,72 @@
-\chapter{Back End}
+\chapter{Back End API}
 \label{chap:back_end}
 
-In this chapter include a detailed description of what functionality must be
-supported by each abstract class in the back end to implement the
-specification.
+\todo[inline]{Add description about directory structure: front end (interface
+    for backend developers into front end/translation layer. vs back end: what
+    the  developer must implement.   }
 
-\todo[inline]{David/Nicole: Make initial list of all classes/member functions}
-\todo[inline]{Leverage pertinent documentation in code to fill out requirements}
+
+\section{Backend Classes}
+\todo[inline]{need better section title}
+\todo[inline]{Add detail about how each of these must be implemented to support implementation}
+\subsection{{runtime}}
+\inlinecode{runtime} is an abstract class implemented by the backend containing
+much of the runtime.  Thread safety of all methods in this class should be handled by the backend implementaton;
+two threads must  be allowed to call any method in this class simultaneously, though undefined behavior
+is allowed if nonsensical simultaneous calls are made (for instance, two calls registering the exact same
+task at the same time).
+
+The following summarizes the member functions of the runtime interface that
+must be implemented, and details expected behavior and requirements for each
+funciton.
+
+\subsubsection{register\_task}
+\begin{CppCode}
+virtual void register_task(
+      task_unique_ptr&& task
+    ) =0;
+\end{CppCode}
+
+\paragraph{Brief Description:} Enqueue a task that should run when its
+dependencies are satisfied.
+     
+\paragraph{Pre conditions:} At the time of this call, it must be valid to call
+\inlinecode{task->get_dependencies()}.  All \inlinecode{DependencyHandles}
+       returned by \inlinecode{task->get_dependencies()} must be registered
+       with this instance of \inlinecode{runtime} using either
+       \inlinecode{register_handle()} or \inlinecode{register_fetching_handle()}
+         and must not have been released yet using
+           \inlinecode{release_handle()}.
+       It must be valid to call \inlinecode{needs_read_data()} and
+         \inlinecode{needs_write_data()} on \inlinecode{task} with any of the handles
+       returned by \inlinecode{get_dependencies()}.  At least by the time that
+         \inlinecode{DependencyHandle::is_satisfied()} returns
+       true for all \inlinecode{DependencyHandles} returned by
+         \inlinecode{task->get_dependencies()}, it must be valid to call
+           \inlinecode{task->run()}.
+     
+\paragraph{Post conditions:} a task may be invoked at any subsequent time pending the satisfaction of the handles returned
+       by \inlinecode{Task::get_dependencies()}
+     
+\paragraph{Parameters:} 
+\begin{compactdesc}
+\item[task] A unique pointer to the task to register and enqueue, meeting the preconditions
+       described above.  The runtime backend now owns the task object and is responsible for deleting it
+       after the task has finished running.  Any references or pointers to \ref task are considered
+       invalid after the task has run (i.e., \ref Task::run() was invoked and returned), and thus should only
+       be held by objects deleted inside Task::run() or objects deleted when \ref task is deleted.
+\end{compactdesc}
+     
+
+
+
+
+\subsection{{data\_block}}
+\subsection{{types}}
+
+\section{Front end Classes}
+\todo[inline]{need better section title}
+\todo[inline]{Add detail about how this is the interface that the back end has
+into the front end and translation layer}
+\todo[inline]{Add subsection for each class}
+
