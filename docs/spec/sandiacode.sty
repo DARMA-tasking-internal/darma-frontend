@@ -6,6 +6,7 @@
 \RequirePackage{color}
 
 
+\definecolor{grayish}{gray}{0.95}
 \definecolor{dkgreen}{rgb}{0,0.4,0}
 
 \newcommand{\inlinefile}[1]{{\lstset{basicstyle=\ttfamily,keywordstyle={}}\lstinline$#1$}}
@@ -20,7 +21,7 @@
 \lstnewenvironment{CppCode}{%
  %\footnotesize%
  \lstset{language=C++,% 
-   backgroundcolor=\color{white},%
+   backgroundcolor=\color{grayish},%
    basicstyle=\ttfamily,%
    showstringspaces=false,%
    belowskip=1em,%
