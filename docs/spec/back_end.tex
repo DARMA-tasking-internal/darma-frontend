@@ -20,7 +20,7 @@ The following summarizes the member functions of the runtime interface that
 must be implemented, and details expected behavior and requirements for each
 funciton.
 
-\subsubsection{register\_task}
+\subsubsection{ register\_task() }
 \begin{CppCode}
 virtual void register_task(
       task_unique_ptr&& task
@@ -58,6 +58,67 @@ dependencies are satisfied.
 \end{compactdesc}
      
 
+\subsubsection{get\_running\_task()}
+\begin{CppCode}
+virtual task_t* const
+    get_running_task() const =0;
+\end{CppCode}
+
+\paragraph{Brief Description:} Get a pointer to the \inlinecode{abstract::frontend::Task} object currently running on the thread 
+from which \inlinecode{get_running_task()} was invoked.
+
+\paragraph{Return value:} A non-owning pointer to the \inlinecode{abstract::frontend::Task} object running on the invoking
+thread.  The returned pointer must be castable to the same concrete type as was passed to \inlinecode{Runtime::register_task()} when the task was registered.
+
+\paragraph{Remarks:}
+\begin{itemize}
+\item If the runtime implements context switching, it must ensure that
+     the behavior of \inlinecode{Runtime::get_running_task()} is consistent and correct for a given
+     running thread as though the switching never occurred.
+\item The pointer returned here is guaranteed to be valid until \inlinecode{Task::run()} returns for
+     the returned task.  However, to allow context switching, it is not guaranteed to be valid
+     in the context of any other task's \inlinecode{run()} invocation, including child tasks, and thus it should
+     not be dereferenced in any other context.
+\end{itemize}
+
+\subsubsection{register\_handle()}
+\begin{CppCode}
+virtual void register_handle(
+      const handle_t* const handle
+    ) =0;
+\end{CppCode}
+
+\paragraph{Brief description:} Register a local handle to a data block
+       that can be used as a part of the return value of \inlinecode{Task::get_dependencies()} for tasks
+       registered on this runtime instance.  Note that the *only* allowed return values of \inlinecode{get_dependencies()}
+       for a task passed to \inlinecode{register_task()} on this instance are values for which \inlinecode{register_handle()} (or
+       \inlinecode{register_fetching_handle()}) has been called and \inlinecode{release_handle()} has not yet been called.  If the
+       dependency requires readable data to be marked as satisfied (i.e., if \inlinecode{t.needs_read_data(handle)}
+       returns true when handle is returned as part of \inlinecode{Task::get_dependencies()} for a registered task \inlinecode{t}),
+       the readable data requirement must be satisfied by the release of all previous versions of handle
+       \emph{and} a call to \inlinecode{handle_done_with_version_depth()} on a handle with a penultimate subversion that is
+       exactly 1 increment prior to the final subversion of \inlinecode{handle} and is at the same depth.  See
+       \inlinecode{Runtime::handle_done_with_version_depth()} for more details.
+     
+     
+     %  @sa Task::needs_read_data()
+     %  @sa Runtime::register_task()
+     %  @sa Runtime::register_fetcher()
+     
+\paragraph{Parameters:} 
+\begin{compactdesc}
+\item[handle] A (non-owning) pointer to a \inlinecode{abstract::frontend::DependencyHandle} for which it is
+       valid to call \inlinecode{DependencyHandle::get_key()} and \inlinecode{DependencyHandle::get_version()} and for
+       which \inlinecode{DependencyHandle::satisfy_with_data_block()} has not yet been called by the backend.  (The only
+       way to ensure the latter of these conditions is to ensure it is not in the return value of
+       \inlinecode{Task::get_dependencies()} for any task that \inlinecode{Runtime::register_task()} has been invoked with). The pointer
+       passed to this parameter must be valid from the time \inlinecode{register_handle()} is called until the time
+       \inlinecode{release_handle()} is called (on this instance!) with a handle to the same key and version.  This method
+       may be called more than once globally with the same key and the same version, but it is a debug-mode
+       error to register more than one task ({\bf globally}) that returns true for \inlinecode{Task::needs_write_data()} on
+       that handle.  (Undefined behavior is still allowed in optimized mode)
+\end{compactdesc}
+    
 
 
 
