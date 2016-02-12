@@ -209,10 +209,10 @@ class Runtime {
     ) =0;
 
     /** @brief Release the ability to create tasks that depend on handle as read-only.  The handle can
-     *  then only be used up to once more in a (read/)write context before it is released.
+     *  then only be used up to once more in a (read-)write context before it is released.
      *
      *  All handles can be used in a write context (i.e., be part of the return for Task::get_dependencies()
-     *  for a task that returns true for needs_write_data() on that handle) at most once in their lifetime
+     *  for a task that returns true for needs_write_data() on that handle) at *most* once in their lifetime
      *  (from register_handle()/register_fetching_handle() to release_handle()).  This (up to) one "final"
      *  usage must run after all read-only uses of the handle; however not all read-only uses of
      *  a handle need to be registered by time the task making the "final" usage is registered.  Thus,
@@ -221,14 +221,18 @@ class Runtime {
      *
      *  This method indicates that no more tasks will be registered that use handle in a read context
      *  but not in a write context (a maximum of one task may use handle in a write context anyway).
-     *  It must be called for all handles before release_handle() is called.  It is an error to call
-     *  release_handle() on a handle before calling release_read_only_usage().
+     *  The frontend may choose to call this after all tasks making read uses have *finished*, but this
+     *  is not a requirement currently.  It must be called for all handles before release_handle() is
+     *  called.  It is an error to call release_handle() on a handle before calling release_read_only_usage().
      *
      *  @param handle a non-owning pointer to a DependencyHandle for which register_handle() or
      *  register_fetching_handle() has been called on this instance but for which release_handle() has not
      *  yet been called.
      *
-     *  @todo !! check that this actually says the right thing and UPDATE
+     *  @todo 0.2.1 spec: decide on the release after finished vs. release after last registered thing
+     *  @todo 0.4 spec: clarify calls to this method made after all read uses *finish* versus all read
+     *  uses registered.  This will require the implementation of some sort of leaf task or something
+     *  in the frontend
      *
      */
     virtual void
