@@ -13,7 +13,7 @@ keyword arguments.  The syntax for specifying a keyword argument is identical to
 of Python: \inlinecode{keyword=value}.  For instance, if there is a function \inlinecode{some_function} in the
 DARMA API that accepts positional or keyword arguments \inlinecode{arg_a}, \inlinecode{count}, and \inlinecode{flag}, that 
 function can be invoked equivalently in any of the following ways:
-\begin{lstlisting}
+\begin{CppCode}
 /* some_function signature:
  *  void some_function(std::string arg_a, int count, bool flag);
  */
@@ -22,32 +22,34 @@ some_function("hello", 42, true);
 some_function(arg_a="hello", count=42, flag=true);
 some_function(count=42, flag=true, arg_a="hello");
 some_function("hello", flag=true, count=42);
-\end{lstlisting}
+\end{CppCode}
 Note that positional arguments may {\em not} be specified after the first keyword argument,
 and an argument cannot be specified more than once, even as a positional and keyword
 argument.  Both of these lead to compile-time errors. Omitting a required argument is 
 also a compile-time error, as is giving an argument of the incorrect type: 
-\begin{lstlisting}
+\begin{CppCode}
 // Error: arg_a specified more than once
 some_function("hello", 42, true, arg_a="whoops!");
 
-// Error: missing required argument \inlinecode{flag}
+// Error: missing required argument flag
 some_function("hello", count=42);
 
-// Error: cannot convert \inlinecode{bool} to \inlinecode{std::string}
+// Error: cannot convert bool to std::string
 some_function(arg_a=false, flag=true, count=42);
 some_function(false, 42, true);
 
 // Error: positional argument given after first keyword argument
 some_function(arg_a="hello", 42, flag=true);
-\end{lstlisting}
+\end{CppCode}
 The illusion of Python-like keyword arguments is accomplished using \inlinecode{constexpr} instances
 of a class with the assignment operator overloaded.  The arguments are passed to the 
 callable using perfect forwarding, and thus the overhead from the keyword argument 
 trick is entirely at compile-time.  These instances are defined in very descriptive
 namespaces, and frequently used keywords are aliased into more general namespaces.  For
-instance, the keywords for \inlinecode{some_function}, above, would probably be defined in the 
-namespace \inlinecode{darma::keyword_arguments_for_some_function}.  If \inlinecode{some_function} was a 
+instance, the keywords for \inlinecode{some_function}, above, would likely be
+defined in a namespace named using the following convention:
+\inlinecode{darma::keyword_arguments_for_some_function}.
+If \inlinecode{some_function} was a 
 widely used construct, its more important keywords would also be defined in the namespace
 \inlinecode{darma::keyword_arguments}.  If \inlinecode{some_function} belonged to a broader category of 
 constructs, certain of its keywords may also be aliased into a categorical namespace
@@ -71,9 +73,7 @@ kept analogous to MPI. This should make it a little easier for existing MPI base
 to DARMA. The initialization and termination of the runtime in each unit is via the calls \inlinecode{darma_init}
 and \inlinecode{darma_finalize}. The total number of SPMD units are queried with the call \inlinecode{darma_spmd_size},
 and the rank is queried with \inlinecode{darma_spmd_rank}. A typical user written main program will look as follows:
-\begin{figure}[h!]
-\definecolor{grayish}{gray}{0.95}
-\begin{lstlisting}[emph={},emphstyle=\textbf,backgroundcolor=\color{grayish},framexleftmargin=1em,numbers=left,numberstyle=\tiny,numbersep=5pt,escapeinside={(*@}{@*)}]
+\begin{CppCode}
 int main(int argc, char**argv){
 
 	darma_init(argc, argv);
@@ -84,17 +84,16 @@ int main(int argc, char**argv){
 
 	darma_finalize();
 }
-\end{lstlisting}
-\end{figure}
+\end{CppCode}
 
 The rank is a very useful concept to orchestrate dependencies in a SPMD model since data pertaining to a rank can be associated
 with a key that encodes the rank explicitly. Similarly, data that needs to be communicated to other ranks can be associated with
 keys that encode the rank of the intended recepient. The example below illustrates this concept, where the rank is integral to
 the key associated with data pertaining to that rank (the topic of access handles will be discussed shortly):
-\begin{lstlisting}
+\begin{CppCode}
 size_t me = darma_spmd_rank();
 auto float_handle = initial_access<float>("floatKey", me);
-\end{lstlisting}  
+\end{CppCode}  
 
 
 \section{Deferred Tasks}
@@ -114,11 +113,11 @@ but needs to be created, handle to data that already exists and needs to be read
 The first of these types is denoted as \inlinecode{initial_access} in DARMA, which informs the runtime that the data with the 
 specified key does not yet exist, and the user intends to create this data and publish it shortly. Hence, an \inlinecode{initial_access}
 data handle is usually followed by a memory allocation, a value assignment and finally a publish operation, as illustrated below: 
-\begin{lstlisting}
+\begin{CppCode}
 auto float_handle = initial_access<float>("floatKey");
 float_handle.set_value(3.14);
 float_handle.publish(n_readers=1);
-\end{lstlisting}
+\end{CppCode}
 The \inlinecode{n_readers} specification in the publish call informs the runtime that this data (associated with the key "floatKey") will
 only ever be read once, and hence can be safely garbage collected soon after.
 \todo[inline]{Need to explain what happens if initial access is not followed by a publish. Illegal, or unsafe programming.}
@@ -128,20 +127,21 @@ The second type of transaction, requesting read-only access to a piece of data, 
 guarantees that any task that uses this handle will be launched once the data is available anywhere in the system, even on a remote node.
 It will be illegal to overwrite and publish the data that is accessed via this handle. Conversely, it is illegal to request a \inlinecode{read_access}
 handle to data that will never be created or published by any other task.
-\begin{lstlisting}
+\begin{CppCode}
 auto float_handle = read_access<float>("another_floatKey");
 float val = float_handle.get_value();
 std::cout << "Value read with key another_floatKey is " << val;
-\end{lstlisting}
+\end{CppCode}
 
 And the last type, which informs the runtime that the data with the specified key will be read and overwritten, is with the \inlinecode{read_write_access}
 handle, illustrated below
-\begin{lstlisting}
+\begin{CppCode}
 auto float_handle = read_write<float>("yet_another_floatKey");
-std::cout << "Value read with key yet_another_floatKey is " << float_handle.get_value();
+std::cout << "Value read with key yet_another_floatKey is " 
+          << float_handle.get_value();
 float_handle.set_value(3.14*2.0);
 float_handle.publish();
-\end{lstlisting}
+\end{CppCode}
 
 
 \todo[inline]{should publish be called inside or outside create work, or does it not matter}
