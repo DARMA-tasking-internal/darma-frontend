@@ -107,19 +107,46 @@ variants, restrictions, usage of \inlinecode{waits}
 \section{Access Handles}
 \label{sec:handles}
 
-\inlinecode{initial_access<T>(...)}
+Transactions with the key-value store are conducted using data handles that are of different access types which differentiate the 
+various transactions. At the most basic level user code can declare a handle to data that does not yet exist in the system
+but needs to be created, handle to data that already exists and needs to be read or handle to data that it wants to overwrite. 
 
-\inlinecode{read_access<T>(...)}
+The first of these types is denoted as \inlinecode{initial_access} in DARMA, which informs the runtime that the data with the 
+specified key does not yet exist, and the user intends to create this data and publish it shortly. Hence, an \inlinecode{initial_access}
+data handle is usually followed by a memory allocation, a value assignment and finally a publish operation, as illustrated below: 
+\begin{lstlisting}
+auto float_handle = initial_access<float>("floatKey");
+float_handle.set_value(3.14);
+float_handle.publish(n_readers=1);
+\end{lstlisting}
+The \inlinecode{n_readers} specification in the publish call informs the runtime that this data (associated with the key "floatKey") will
+only ever be read once, and hence can be safely garbage collected soon after.
+\todo[inline]{Need to explain what happens if initial access is not followed by a publish. Illegal, or unsafe programming.}
 
-\inlinecode{read_write<T>(...)}
+
+The second type of transaction, requesting read-only access to a piece of data, is via the access handle \inlinecode{read_access}. The runtime
+guarantees that any task that uses this handle will be launched once the data is available anywhere in the system, even on a remote node.
+It will be illegal to overwrite and publish the data that is accessed via this handle. Conversely, it is illegal to request a \inlinecode{read_access}
+handle to data that will never be created or published by any other task.
+\begin{lstlisting}
+auto float_handle = read_access<float>("another_floatKey");
+float val = float_handle.get_value();
+std::cout << "Value read with key another_floatKey is " << val;
+\end{lstlisting}
+
+And the last type, which informs the runtime that the data with the specified key will be read and overwritten, is with the \inlinecode{read_write_access}
+handle, illustrated below
+\begin{lstlisting}
+auto float_handle = read_write<float>("yet_another_floatKey");
+std::cout << "Value read with key yet_another_floatKey is " << float_handle.get_value();
+float_handle.set_value(3.14*2.0);
+float_handle.publish();
+\end{lstlisting}
 
 
-\inlinecode{publish}
 \todo[inline]{should publish be called inside or outside create work, or does it not matter}
 
-\inlinecode{n_readers=...}
 
 \inlinecode{subscribe}
-
 
 \todo[inline]{what else here?}
