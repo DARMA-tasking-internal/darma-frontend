@@ -71,19 +71,18 @@ kept analogous to MPI. This should make it a little easier for existing MPI base
 to DARMA. The initialization and termination of the runtime in each unit is via the calls \inlinecode{darma_init}
 and \inlinecode{darma_finalize}. The total number of SPMD units are queried with the call \inlinecode{darma_spmd_size},
 and the rank is queried with \inlinecode{darma_spmd_rank}. A typical user written main program will look as follows:
-\begin{figure}
+\begin{figure}[h!]
 \definecolor{grayish}{gray}{0.95}
-\begin{lstlisting}[basicstyle=\footnotesize,emph={entry,serial,when,overlap,forall},emphstyle=\textbf,backgroundcolor=\color{grayish},framexleftmargin=1em,numbers=left,numberstyle=\tiny,numbersep=5pt,escapeinside={(*@}{@*)}]
+\begin{lstlisting}[emph={},emphstyle=\textbf,backgroundcolor=\color{grayish},framexleftmargin=1em,numbers=left,numberstyle=\tiny,numbersep=5pt,escapeinside={(*@}{@*)}]
 int main(int argc, char**argv){
 
 	darma_init(argc, argv);
+	size_t n_ranks = darma_spmd_size();
+	size_t me = darma_spmd_rank();
 
-    size_t n_ranks = darma_spmd_size();
-    size_t me = darma_spmd_rank();
+	//lots of code
 
-    //lots of code
-
-    darma_finalize();
+	darma_finalize();
 }
 \end{lstlisting}
 \end{figure}
@@ -96,14 +95,6 @@ the key associated with data pertaining to that rank (the topic of access handle
 size_t me = darma_spmd_rank();
 auto float_handle = initial_access<float>("floatKey", me);
 \end{lstlisting}  
-
-<<<<<<< HEAD
-=======
-\inlinecode{dharma_spmd_rank()}
-
-\inlinecode{dharma_spmd_size()}
->>>>>>> e74bf0b13bc345a543ab4179c3a78a9cc1c44ffb
-
 
 
 \section{Deferred Tasks}
