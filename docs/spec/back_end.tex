@@ -369,8 +369,32 @@ virtual void register_handle(
 
 
 
-\subsection{{data\_block}}
-\subsection{{types}}
+\subsection{{DataBlock}}
+
+The \inlinecode{DataBlock} class is the abstraction through which the frontend interacts with data stored and managed by the backend. The 
+member functions of this class, and the details of thier implementation is as follows:
+
+\subsubsection{get\_data()}
+\begin{CppCode}
+    virtual void*
+    get_data() =0;
+\end{CppCode}
+
+\paragraph{Brief description:} Gets a (non-owning) pointer to deserialized version of the data associated with
+      the data block.
+
+
+\subsubsection{acquire\_data()}
+\begin{CppCode}
+    virtual void
+    acquire_data(void* const data) =0;
+\end{CppCode}
+
+\paragraph{Remark:} This should never be invoked in the 0.2.0 spec implementation
+\todo[inline]{Should we just remove this function??}
+
+
+%\subsection{{types}}
 
 \section{Front end Classes}
 \todo[inline]{need better section title}
