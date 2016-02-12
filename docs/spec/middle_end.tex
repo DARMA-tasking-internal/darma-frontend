@@ -1,10 +1,6 @@
 \chapter{Translation Layer}
 \label{chap:middle_end}
 
-\todo[inline]{David and/or Jeremy?: Include a relatively high-level description of the work that is done to
-translate between front and back ends. Capture, introspection, lamport clock,
-          etc.}
-
 A key design principle of DARMA is the ability to explore the design space of
 backend AMT runtime implementations without requiring changes in the application
 code.  Since the frontend is EDSL-like (embedded domain specific language-like)
@@ -32,14 +28,15 @@ techniques and concepts used by the translation layer are documented below.
 \section{Lambda Capture for Automatic Dependency Detection and Versioning}
 
 The most pivotal trick to document here is (semi-)automatic dependency detection
-through the C++11 lambda mechanism and the copy {\it capture-default} (that is,
-\inlinecode{[=]}).  The C++ standard specifies that if the copy
+through the \CC11 lambda mechanism and the copy {\it capture-default} (that is,
+\inlinecode{[=]}).  The \CC\ standard specifies that if the copy
 {\it capture-default} is given, any variables that are ODR-used\footnote{``one
 definition rule''-used.  See
-\url{http://en.cppreference.com/w/cpp/language/definition#ODR-use} for details. 
+\url{http://en.cppreference.com/w/cpp/language/definition\#ODR-use} for
+details.} 
 As this source states, ``Informally, an object is odr-used if its address is
 taken, or a reference is bound to it, and a function is odr-used if a function
-call to it is made or its address is taken.''} inside of the lambda's scope but
+call to it is made or its address is taken.'' inside of the lambda's scope but
 defined outside of it\footnote{technically, defined in the lambdas
 ``reaching scope,'' which is also formally defined} are copied by value into
 that lambda's scope.  Furthermore, if a lambda with a copy {\it capture-default}
@@ -64,9 +61,9 @@ implementation of sequential semantics in DARMA. \todo[inline]{finish this}
 
 \section{Keyword Arguments}
 
-The tricks used to emulate keyword arguments in C++ are well-known and have been
+The tricks used to emulate keyword arguments in \CC\ are well-known and have been
 exploited elsewhere\footnote{e.g., the Boost::Parameter library} to similar
 effect.  The addition of perfect forwarding and constant expression semantics to
-C++11 and C++14 allow this to be done with rigorously zero runtime overhead ---
+\CC11 and \CC14 allow this to be done with rigorously zero runtime overhead ---
 all transformations used to interpret keyword arguments as traditional,
 positional arguments can occur at compile time.
