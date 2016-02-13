@@ -1,0 +1,23 @@
+\section{Programming Model}
+\label{sec:programming_model}
+In DARMA \gls{spmd} is the dominant parallelism and the notion of a \gls{rank}
+is maintained within the \gls{API}.   
+  The DARMA \gls{API} simplifies the introduction
+  of asynchronous task parallelism via the use of standard \CC\ constructs, such
+  as \gls{reference counted pointers} and \glspl{lambda}.
+
+  
+The \gls{API} is being \gls{co-design}ed with application developers
+and computer scientists whose knowledge spans the entire runtime software stack.
+Current applications affecting the design include portions of the \gls{Trilinos} software stack
+and \gls{ASC} \gls{ATDM} efforts at Sandia National Laboratories. 
+ 
+% NOTE: this is morphed text from open mp/ocr specs.  is this needed?
+%This specification covers user-directed parallelization, where the user
+%has annotated that portions of the work could be performed asynchronously.
+%The DARMA runtime will schedule all asynchronous work in a \gls{deferred} fashion,
+%checking that all \gls{input dependencies} are met prior to performing work.  
+%The user is responsible for ensuring that the application using the DARMA
+%\gls{API} constructs executes correctly.
+
+
