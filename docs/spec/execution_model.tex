@@ -22,9 +22,9 @@ and through \CC-embedded task annotations (described in
     Chapter~\ref{chap:front_end}). Task annotations can be nested.
 \todo{elaborate on this point}
 These annotations are translated by
-the DARMA \gls{middle end} which uses standard \CC\ constructs (e.g., lambdas,
+the DARMA \gls{translation layer} which uses standard \CC\ constructs (e.g., lambdas,
   reference counted pointers) and \gls{template
-metaprogramming} to manage the parallelism.  The \gls{middle end} requires
+metaprogramming} to manage the parallelism.  The \gls{translation layer} requires
 \CC14 standard features (details provided in Chapter~\ref{chap:middle_end}), 
   however the \gls{front end} \gls{API} does \emph{not}
 require knowledge of \CC14 to use. Furthermore, the \gls{back end} is a

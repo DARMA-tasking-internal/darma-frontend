@@ -1,152 +1,155 @@
 \todo[inline]{Note the use of the type keyword in the glossary entries. We can use this to create subglossaries according to topic.  Right now, everything is just going to a single main glossary. We should think about whether or not we want subglossaries, and if so, how we would like to structure these.}
-
 \todo[inline]{Throughout glossaries and text, make sure usage of concurrency and
   parallelism are consistent and correct.}
 \todo[inline]{Figure out how to make inlinecode and gls play nice together in latex,
   then update text accordingly}
 \todo[inline]{Make a pass to add text to glossary where appropriate}
-\todo[inline]{Consistency check: DARMA/DARMA}
 
 \chapter{Introduction}
 \label{chap:introduction}
 As we look ahead to next generation platforms and exascale computing,  hardware 
 will be characterized by dynamic behavior, increased
 heterogeneity, and a marked increase in overall system \gls{concurrency}~\cite{doe_arch, dav_exascale}. 
-In order to extract maximal performance from these new architecutres,
-alternative programming  and \glspl{execution model}, such as the \gls{AMT
-model} are increasingly being explored by the HPC community.  These models break from the dominant
-\gls{CSP} or \gls{spmd} models in use today. 
+Consequently, there is a profuse and diverse body of research within the
+computer science community aimed at mitigating the challenges associated with
+the shifts in \gls{HPC} system architectures.  Many of these research efforts focus on targeting
+specific challenges within the \gls{HPC} software stack (see
+Figure~\ref{fig:basicHPCStack} for a notional illustration of the stack).
+Examples of some such targeted efforts incude:
+\begin{compactenum}
+\item Abstraction layers at the top of the stack that provide compile-time generation 
+of performance portable code across a variety of memory and execution
+abstractions~\cite{Kokkos, RAJA}. 
+\item Operating system-level resource management and aribtration services~\cite{Qthreads, Hobbs, Kitten}. 
+\item Data and I/O abstractions~\cite{Kelpie, Nessie, Adios, DataSpaces, LLNLandLANLDW}.  
+\end{compactenum}
 
+Furthermore, there is a marked increase in runtime systems
+research that spans a broader swath of the software stack.  In particular, 
+alternative programming  and \glspl{execution model}, including \gls{AMT}
+models are rising in popularity.  
+%The \gls{AMT} model breaks from the dominant \gls{CSP} or \gls{spmd} model in use over the
+%last 20 years.
+An \gls{AMT} model aims to exploit all available \gls{task parallelism} and
+\gls{pipeline parallelism}, rather just rely on basic \gls{data parallelism}
+for \gls{concurrency}. The term asynchronous encompasses the idea that 
+1) processes (threads) can diverge to different tasks, rather than execute 
+the same tasks in the same order; and 2) concurrency is maximized (the 
+  minimal amount of synchronization is performed) by 
+leveraging multiple forms of parallelism. The term many-task encompasses 
+the idea that the application is decomposed into many 
+\gls{migratable} units of work, to enable the overlap of communication and 
+computation as well as asynchronous load balancing strategies.
 
+\begin{figure}
+\centering
+%\includegraphics{}
+\caption{}
+\label{fig:basicHPCStack}
+\end{figure}
 
-%An \gls{AMT} \gls{programming model} decomposes applications into small, transferable units of work (many tasks) with associated inputs (dependencies or data blocks) rather than simply decomposing at the process level (MPI ranks).
-%An \gls{AMT} \gls{execution model} can be viewed as the coarse-grained, distributed memory analog of instruction-level parallelism, extending the concepts of data prefetching,
-%out-of-order task execution based on dependency analysis, and even branch prediction (speculative execution). 
-%Rather than executing in a well-defined order, tasks execute when inputs become available.
-
-An \gls{AMT} model aims to leverage all available \gls{task parallelism} and
-\gls{pipeline parallelism}, rather just relying on basic \gls{data
-  parallelism} for \gls{concurrency}.
-The term asynchronous encompasses the idea that 1) processes (threads) can
-  diverge to different tasks, rather than executing in the same order; and 2)
-  \gls{concurrency} is maximized (minimum synchronization) by leveraging
-  multiple forms of \gls{parallelism}.
-	The term many-task encompasses the idea that the application is decomposed
-  into many \emph{transferable} or \emph{migratable} units of work, to
-  enable the overlap of communication and computation as well as asynchronous load balancing strategies.  
-
-
-The \gls{AMT} \gls{runtime system} research community is quite active, with many efforts being
+The \gls{AMT} \gls{runtime system} research community is active, with many efforts being
 explored~\cite{OCR,STAPL,Legion,StencilHPX,Charm++,Uintah, Loci}.
 Each effort represents a different design point within the design space of AMT
-models and span different ranges of the software stack.  
+models. For example, some of the runtimes provide high-level abstractions to
+facilitate creation and management of parallelism by application developers,
+while others target users at a lower level of the software stack.  
+Irrespective of the swath of the software stack that they span, it should be
+noted that, in large part, \gls{AMT} research efforts are complementary to the 
+more narrowly focused research efforts, such as those enumerated above.
+%While such targeted research efforts often originate within projects that
+%assume a \gls{CSP}/\gls{MPI} based execution model, 
+There is a tremendous potential to explore the integration of
+the research stemming from these different communities,
+ however,  this exploration is currently hampered by the combinatorial
+ complexity posed by the lack of standards, common terminology, and 
+resusable components within the \gls{AMT} community.
 
-In addition to the \gls{AMT} research, there are a number of 
-research efforts focused on mitigating exascale architectural targeted research challenges 
-within a portion the software stack.  These include, for example, efforts to 1) compile-time
-generate performance portable code across a variety of memory and execution
-abstractions~\cite{Kokkos, RAJA}, 2) provide lower-level resource management
-and aribtration services~\cite{Qthreads, Hobbs, Kitten}, or 3) provide data and
-I/O abstractions~\cite{Kelpie, Nessie, Adios, DataSpaces, LLNLandLANLDW}.  These more narrowly focused research efforts often have largely stemmed from projects that
-assumed a \gls{CSP}/\gls{MPI} based runtime system.  However, their research is
-typically applicable and complementarty to the work being done within the
-\gls{AMT} community. 
-
-  
+\section{Scope}h\label{sec:scope}
 In this document we provide the specification for DARMA,
-a programming model, intended as a community-based research vehicle to support AMT programming models and runtime
-systems co-design. 
+a co-design research vehicle for \gls{AMT} programming models and runtime
+systems.  This specification serves to facilitate three primary activities: 
+\begin{compactdesc}
+\item[Gathering and communicating application requirements:]
+Experimenting with the \gls{API} provides an agile method for application
+developers to reason about the \gls{API} (e.g., does it allow them to intuitively
+    express their algorithms?) and the execution requirements they would like
+the runtime system to support.
+Using a formal specification process provides a mechanism for tracking the
+provenance of design decisions and requirements as they evolve throughout the co-design
+process. Chapter~\ref{chap:requirements} provides a list of the application
+requirements gathered,  and
+Chapter~\ref{chap:evolution} tracks the evolution of
+the specification, highlighting which requirements
+motivated changes to the specification.
+\item[Exploring AMT design space tradeoffs:]
+DARMA aims to be as agnostic as possible with regards to data and execution
+models, to faciliate exploration of the AMT design space. The specification is
+starting with a programming model design that seeks to clearly separate policy
+from mechanism. \todo{elaborate on what we mean by this} The set of policies specified by DARMA do not uniquely map to any
+existing AMT programming model -- rather this specification captures features and policies
+supported across a variety of existing runtimes.
+
+\gls{AMT} design space exploration is currently made difficult by the lack of
+common terminology and reusable components within the \gls{AMT} community.  It
+is our hope that the formal specification process will encourage multiple
+implementations, each leveraging
+existing different \gls{AMT} runtime systems or components thereof.  
+%This excercise will be incredibly fruitful in helping the AMT community assess
+%similarities and differences across the various proposed approaches. 
+This excercise would make it easier to start identifying 
+software components that are interchangeable between various runtimes, which is a first
+step towards generating best practices within the \gls{AMT} runtime community.
+
+Some of the existing \gls{AMT} runtimes that
+target higher-levels of the software stack may have data models or other
+design decisions that preclude their direct use in an implemntation of the
+DARMA specification. The co-design feedback from such runtime devlopers 
+will be incredibly fruitful from a best practices perspective. Consider 
+the possible outcomes from such an exercise: 1) either the DARMA 
+programming model specification will evolve to account for and support new
+features, 2) the existing \gls{AMT} runtime may evolve to account for the DARMA
+requirements, or 3) both 1) and 2) occur.  Regardless of which of these
+outcomes occurs, the process could be documented and contribute to the
+broader community discussion surrounding design tradeoffs and best practices. 
+
+\item[Communication between AMT community and other CS research components]
+There are a number of abstractions and capabilities being developed that are
+agnostic to whether they are deployed within an \gls{AMT} model or a \gls{CSP} model.
+The DARMA co-design effort will seek to actively engage members from diverse
+research efforts, so that abstractions and policies from within these communities can be
+incorporated into the specification as appropriate.
+ This will encourage cross-fertilization of ideas and efforts between these two
+ communities as implementations of the specification are developed.
+\end{compactdesc}
+
+The DARMA code base comprises three main layers: the \gls{front end} \gls{API},
+\gls{translation layer}, and
+\gls{back end} \gls{API}.  The \gls{front end} is the user-level \gls{API}.  It
+is implemented as an \gls{EDSL} in \CC,  inheriting the generic language
+constructs of \CC, and adding \gls{semantics} that facilitate distributed
+parallel programming.
+The \gls{translation layer} is a library that heavily leverages \CC \gls{template metaprogramming} 
+to map the user's code onto interactions with a \gls{back end} \gls{API}.  
+The DARMA \gls{translation layer} requires \CC features supported by the \CC14
+standard, and will work with the following compilers: \inlinecode{gcc >= 4.8, clang >= 3.5}.
+The \gls{back end} \gls{API} is a set of abstract classes, that runtime system
+developers must implement in accordance with the specification requirements in
+order to be compliant with the specification.
+
 The \gls{API} will evolve quite a bit as its design and specification is comprehensively vetted over
 the course of 2016 with teams whose expertise spans the software stack,
 including application
 developers, \gls{AMT} runtime community, as well as feedback from
 research groups focused on specific components of the \gls{HPC} software stack.
-
 This document captures version 0.2 of the specification, in which we 
 specify several key features of the DARMA programming model. The features
 described in 0.2 are not comprehensive, meaning they do not capture all of the
-application requirements that are driving DARMA's design philosopy. 
-However, there are several benefits of formalizing a specification very early in the
-design process:
-\begin{compactenum}
-\item Experimenting with the \gls{API} provides an agile method for application
-developers to reason about \gls{API} and runtime system requirements,
-\item The evolution of the specification provides a vehicle for us to track the
-design 
-\gls{API} is fixing a separating
-policy from mechanism, 
-\item It provides an opportunity to introduce abstractions 
-being presented across a variety of AMT
-\item It facilitates communication of requiremetns to existing AMT runtime
-systems,
-\end{compactenum}
-The common 
+application requirements that are currently driving DARMA's design philosopy. 
+However, we are formalizing the specification very early in the
+design process, layering in features in 0.1 version increments throughout 2016.
 
-
-
-DARMA is implemented as an \gls{EDSL} in \CC.
-It inherits the generic language constructs of \CC, and adds 
-\gls{semantics} that facilitate distributed parallel programming via the
-higher-level abstractions presented in this document. 
-DARMA comprises three main layers: the \gls{front end}, \gls{middle end}, and
-\gls{back end}.  The \gls{front end} is the user-level \gls{API}.  The
-\gls{middle end} is a library that heavily leverages \CC \gls{template metaprogramming} 
-to translate to a series of \gls{back end} abstract classes that must be
-implemented to support the runtime.
-
-
-
-From a design-space perspective: application developers across a variety of domains have a strong voice in
-shaping the \gls{API}.  This documment will capture the provenance of design
-decisions, along with design requests and general application requirements that
-drive the various design decisions made.
-In DARMA \gls{spmd} is the dominant parallelism and the notion of a \gls{rank}
-is maintained within the \gls{API}.   
-  The DARMA \gls{API} simplifies the introduction
-  of asynchronous task parallelism via the use of standard \CC\ constructs, such
-  as \gls{reference counted pointers} and \glspl{lambda}.
-
-As such we expect that the \gls{API} will evolve quite a bit in 2016.  as we seek
-community feedback
-
-It provides a mechanism for:
-
-
-
-It is intended for use in co-design, and the formal
-specification effort is intended to facilitate a community-based approach for
-sharing information.
-
-
-
-
-
-
-
-
-
-
-
-\section{Scope}
-\label{sec:scope}
-The \gls{API} is being \gls{co-design}ed with application developers
-and computer scientists whose knowledge spans the entire runtime software stack.
-Current applications affecting the design include portions of the \gls{Trilinos} software stack
-and \gls{ASC} \gls{ATDM} efforts at Sandia National Laboratories. 
- 
-
-
-This specification covers user-directed parallelization, where the user
-has annotated that portions of the work could be performed asynchronously.
-The DARMA runtime will schedule all asynchronous work in a \gls{deferred} fashion,
-checking that all \gls{input dependencies} are met prior to performing work.  
-The user is responsible for ensuring that the application using the DARMA
-\gls{API} constructs executes correctly.
-
-
-The DARMA \gls{middle end} requires \CC features supported by the \CC14
-standard, and will work with the following compilers: \inlinecode{gcc >= 4.7, clang >= 3.5}.
-
+\input{programming_model}
 \input{execution_model}
 
 \input{memory_model}
@@ -158,13 +161,14 @@ standard, and will work with the following compilers: \inlinecode{gcc >= 4.7, cl
 \section{Document organization}
 \label{sec:organization}
 This docuemnt is organized as follows.  In Chapter~\ref{chap:front_end} we
-introduce the \gls{front end} \gls{API}.  In Chapter~\ref{chap:middle_end} we
-provide a description of the \gls{middle end} translation layer, and in
+introduce the \gls{front end} \gls{API}.  In
+Chapter~\ref{chap:translation_layer} we
+provide a description of the \gls{translation layer}, and in
 Chapter~\ref{chap:back_end} we provide the specifics regarding what must be
 supproted by each of the \gls{back end} abstract classes in order to implement
-the DARMA runtime. In Chapter~\ref{chap:examples} we provide a series of
-examples that illustrate usage of the \gls{API}. The DARMA specification is
-undergoing rapid development and evolution during the calendar year 2016.  
+the DARMA specification. In Chapter~\ref{chap:requirements} we include a list
+of application requirements driving the specification (along with a list of the
+    applications contributing to the requirements to date).
 We conclude this document with
 Chapter~\ref{chap:evolution}, which includes a brief history of changes between
 previous versions of the specificaiton, along with a list of the planned changes the
