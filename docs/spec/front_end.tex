@@ -1,7 +1,14 @@
 \chapter{DARMA Front End API}
 \label{chap:front_end}
-This chapter describes the DARMA \gls{front end} \gls{API}. 
-\todo[inline]{summarize chapter breakdown into sections.}
+This chapter describes the DARMA \gls{front end} \gls{API}. In this chapter we
+introduce the following constructs supported by the \gls{front end} \gls{API}:
+\begin{compactitem}
+\item Keyword arguments
+\item \gls{spmd} support
+\item Data Access Handles
+\item Task Creation
+\item Serialization Manager
+\end{compactitem}
 
 \section{Keyword arguments}
 \label{sec:keyword}
@@ -68,10 +75,11 @@ it belongs and all namespaces it is aliased into are given.
 
 \section{SPMD support}
 \label{sec:spmd}
-SPMD being the dominant model of parallelism in DARMA, the spin-up of the runtime in each SPMD unit is 
+\gls{spmd} being the dominant model of parallelism in DARMA, the spin-up of the
+runtime in each \gls{spmd} unit is 
 kept analogous to MPI. This should make it a little easier for existing MPI based application codes to transition 
 to DARMA. The initialization and termination of the runtime in each unit is via the calls \inlinecode{darma_init}
-and \inlinecode{darma_finalize}. The total number of SPMD units are queried with the call \inlinecode{darma_spmd_size},
+and \inlinecode{darma_finalize}. The total number of \gls{spmd} units are queried with the call \inlinecode{darma_spmd_size},
 and the rank is queried with \inlinecode{darma_spmd_rank}. A typical user written main program will look as follows:
 \begin{CppCode}
 int main(int argc, char**argv){
@@ -86,41 +94,33 @@ int main(int argc, char**argv){
 }
 \end{CppCode}
 
-The rank is a very useful concept to orchestrate dependencies in a SPMD model since data pertaining to a rank can be associated
+The rank is a very useful concept to orchestrate dependencies in a \gls{spmd} model since data pertaining to a rank can be associated
 with a key that encodes the rank explicitly. Similarly, data that needs to be communicated to other ranks can be associated with
 keys that encode the rank of the intended recepient. The example below illustrates this concept, where the rank is integral to
-the key associated with data pertaining to that rank (the topic of access handles will be discussed shortly):
+the key associated with data pertaining to that rank (the topic of data access
+handles will be discussed shortly in Section~\ref{sec:handles}):
 \begin{CppCode}
 size_t me = darma_spmd_rank();
-auto float_handle = initial_access<float>("floatKey", me);
+auto float_handle = initial_access<float>("float_key", me);
 \end{CppCode}  
 
-
-\section{Deferred Tasks}
-\label{sec:deferred}
-
-\inlinecode{create_work}
-variants, restrictions, usage of \inlinecode{waits}
-
-
-\section{Access Handles}
+\section{Data Access Handles}
 \label{sec:handles}
+\todo[inline]{JB Question to David/Jeremy: do we need to introduce versions, or
+is this no longer needed?}
 
-Transactions with the key-value store are conducted using data handles that are of different access types which differentiate the 
-various transactions. At the most basic level user code can declare a handle to data that does not yet exist in the system
-but needs to be created, handle to data that already exists and needs to be read or handle to data that it wants to overwrite. 
+Transactions with the \gls{key-value store} are conducted using data handles that are of different access types which differentiate the 
+various transactions. At the most basic level user code can declare 1) a handle to data that does not yet exist in the system
+but needs to be created, 2) a handle to data that already exists and needs to
+be read, or 3) a handle to data that it wants to overwrite. 
 
 The first of these types is denoted as \inlinecode{initial_access} in DARMA, which informs the runtime that the data with the 
 specified key does not yet exist, and the user intends to create this data and publish it shortly. Hence, an \inlinecode{initial_access}
 data handle is usually followed by a memory allocation, a value assignment and finally a publish operation, as illustrated below: 
 \begin{CppCode}
-auto float_handle = initial_access<float>("floatKey");
+auto float_handle = initial_access<float>("float_key");
 float_handle.set_value(3.14);
-float_handle.publish(n_readers=1);
 \end{CppCode}
-The \inlinecode{n_readers} specification in the publish call informs the runtime that this data (associated with the key "floatKey") will
-only ever be read once, and hence can be safely garbage collected soon after.
-\todo[inline]{Need to explain what happens if initial access is not followed by a publish. Illegal, or unsafe programming.}
 
 
 The second type of transaction, requesting read-only access to a piece of data, is via the access handle \inlinecode{read_access}. The runtime
@@ -128,25 +128,152 @@ guarantees that any task that uses this handle will be launched once the data is
 It will be illegal to overwrite and publish the data that is accessed via this handle. Conversely, it is illegal to request a \inlinecode{read_access}
 handle to data that will never be created or published by any other task.
 \begin{CppCode}
-auto float_handle = read_access<float>("another_floatKey");
+auto float_handle = read_access<float>("another_float_key");
 float val = float_handle.get_value();
-std::cout << "Value read with key another_floatKey is " << val;
+std::cout << "Value read with key another_float_key is " << val;
 \end{CppCode}
 
 And the last type, which informs the runtime that the data with the specified key will be read and overwritten, is with the \inlinecode{read_write_access}
 handle, illustrated below
 \begin{CppCode}
-auto float_handle = read_write<float>("yet_another_floatKey");
-std::cout << "Value read with key yet_another_floatKey is " 
+auto float_handle = read_write<float>("yet_another_float_key");
+std::cout << "Value read with key yet_another_float_key is " 
           << float_handle.get_value();
 float_handle.set_value(3.14*2.0);
-float_handle.publish();
+\end{CppCode}
+
+\todo[inline]{include discussion and syntax for ``demotion'' of access from
+read\_write to read access only}
+
+\subsection{Publish}
+\label{subsec:publish}
+The application developer must \inlinecode{publish}data associated with a
+handle that should be visible
+outside of its \gls{rank}.  When publishing,  the user must specify the
+number of additional handles that will be created to the data (for garbage
+collection purposes and for \gls{anti-dependency} management).
+Note, this may sound restrictive, but is in fact
+less information than is required by \gls{MPI}, where the number of readers and
+their \gls{rank} identifiers must be specified.
+
+\begin{CppCode}
+auto float_handle = initial_access<float>("float_key");
+float_handle.set_value(3.14);
+float_handle.publish(n_readers=1);
+\end{CppCode}
+The \inlinecode{n_readers} specification in the publish call informs the
+runtime that the data (associated with \inlinecode{float_key}) will
+only ever be read once, and hence can be safely garbage collected soon after.
+
+\todo[inline]{H: Need to explain what happens if initial access is not followed by
+a publish. Illegal, or unsafe programming. JB: Is this true? I thought you only
+had to publish things that will be visible outside of a rank.  Need to update
+this text if that is not the case.}
+
+\subsection{Subscribe}
+\label{subsec:subscribe}
+\todo[inline]{add subscribe (0.2.1)}
+
+\subsection{Keys}
+\label{subsec:keys}
+In the examples in this Section, the \inlinecode{key} to the accessor has always been a
+single string.  Note, this need not be the case as was alluded to in
+Section~\ref{sec:spmd_support}. A
+\inlinecode{key} in DARMA 
+can be an arbitrary \gls{tuple} of values.  This 
+makes it very easy for the applicaiton developer to create an expressive
+and descriptive \inlinecode{key} for each piece of data.  Tuples can comprise
+different bit-wise copiable data types.  The example at the end of
+Section~\ref{sec:spmd} illustrates the use of the \gls{rank} within the handle
+\inlinecode{key}.  The follwoing example shows the use of an
+aribitrary \gls{tuple} as a \inlinecode{key}:
+\begin{CppCode}
+  int neighbor_id
+  double other_identifier;
+
+  // some code that sets neighborID and other_identifier
+  
+  auto float_handle = initial_access<float>("float_key", 
+                                            neighbor_id, 
+                                            other_identifier);
 \end{CppCode}
 
 
-\todo[inline]{should publish be called inside or outside create work, or does it not matter}
+\section{Task Creation}
+\label{sec:deferred}
+Task creation in DARMA is done via \inlinecode{create_work}, which has the
+following syntax:
+\begin{CppCode}
+  create_work([=]
+  {
+    // work to do
+  });
+\end{CppCode}
+
+While this syntax leverages \CC\ lambdas, the user does not need to know \CC14
+standard features to use \inlinecode{create_work} (this
+complexity is managed by DARMA's translation layer, as summarized in
+Chapter~\ref{chap:translation_layer}).  All work specified within a
+\inlinecode{create_work} is queued for deferred execution, and can be run when
+all of its \glspl{dependency} and \glspl{anti-dependency} are met.  
+These \glspl{dependency} must be specified as \inlinecode{handles}, 
+which manage the complexity necessary (within DARMA's \gls{translation layer}) to 1) preserve \gls{sequential
+semantics} within a \gls{rank}, while performing work asynchronously, and 2) 
+\inlinecode{publish} data visibly outside a \gls{rank}.
+\Glspl{dependency} and \glspl{anti-dependency} for a 
+\inlinecode{create_work} are inferred by the runtime via
+\gls{introspection} (again, within the \gls{translation layer}). 
+The following simple example illustrates how \inlinecode{handles} and
+\inlinecode{create_work} can be used to gether in a simple ``hello world''
+example:
 
 
-\inlinecode{subscribe}
+\begin{CppCode}
+#include <darma.h>
+using namespace darma_runtime;
+using namespace darma_runtime::keyword_arguments_for_publication;
 
-\todo[inline]{what else here?}
+int main(int argc, char** argv) {
+
+  darma_init(argc, argv);
+
+  size_t me = darma_spmd_rank();
+  size_t n_ranks = darma_spmd_size();
+
+  auto greetingMessage = initial_access<std::string>("myName", me);
+
+  create_work([=]
+  {
+    greetingMessage.set_value("hello world!");
+  });
+
+  create_work([=]
+  {
+    std::cout << "DARMA rank " << me << " says " 
+              << greetingMessage.get_value() << std::endl;
+  });
+
+  darma_finalize();
+
+}
+\end{CppCode}
+
+In this example, 1) the DARMA environment is initialized, 2) each rank creates a
+task to store a greeting message into a string, and 3) each rank then creates a
+task to print the message and its rank to standard output.
+Note that, in this example, \inlinecode{publish} is not required as the
+dependency \inlinecode{greeting_message} is createed for each rank individually
+(i.e., none of the dependencies must be visible outside of its rank).
+In order to guarantee \gls{sequential semantics} (i.e., to make sure the value
+of \inlinecode{greetingMessage} is set before it is printed),
+\inlinecode{greetingMessage} must be a \inlinecode{handle}.
+
+
+\subsection{Decorators}
+\label{subsec:decorators}
+\todo[inline]{add information here regarding decorators to create\_work: right
+now we have waits}
+
+
+\section{Serialization Manager}
+\todo[inline]{flesh out this section}
