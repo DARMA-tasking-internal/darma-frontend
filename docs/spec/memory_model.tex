@@ -1,26 +1,15 @@
-\section{Memory Model}
+\section{Compatible Memory Models}
 \label{sec:mem_model}
 
-\todo[inline]{Janine says: memory model and data model are a bit muddled in the text
-  currently, these need to be more clearly differentiated/articulated}.
-
-\todo[inline]{a number of key points  are listed here - they need to be fleshed
-  out and strung together more coherently}
-
-\todo[inline]{add gls info in this section}
-
-The DARMA memory model is a \gls{PGAS}-like memory model that uses
-\gls{coordination semantics} in place of direct communication.
-
-
-Data that acts as any kind of dependency to deferred work within a rank, or
-that needs to be communicated between ranks should be tracked within a
-\gls{key-value store}, in which every data \inlinecode{value} is associated
-with a \inlinecode{key}.
-The \inlinecode{key} in DARMA is not a simple
+For every piece of data that is communicated between \glspl{rank} in DARMA, the
+user is required to provide an associated \inlinecode{key}.  
+A \inlinecode{key} in DARMA is not a simple
 string, rather it can be an arbitrary \gls{tuple} of values (see Chapter~\ref{chap:front_end}) for details.
 This makes it very easy for the applicaiton developer to create an expressive
-and descriptive \inlinecode{key} for a given \inlinecode{value} in the store.
+and descriptive \inlinecode{key} for each piece of data.
+The data is stored with its associated \inlinecode{key} in a \gls{key-value
+store}.  \todo[inline]{add discussion of locality - 
+  this doesn't mean things will be placed randomly throught the system}
 
 
 Data \glspl{handle} into the \gls{key-value store} are used to manage
@@ -29,10 +18,11 @@ The \inlinecode{handle} data structure maintains a smart pointer into the data
 store.  The application developer \inlinecode{publish}es data associated with a
 handle that should be visible
 outside of its \gls{rank}.  When publishing,  the user must specify the
-number of \glspl{rank} that will read the data (for garbage
-    collection puprposes).  Note, this may sound restrictive, but is in fact
-less information than is required by \gls{MPI}, where both the number of ranks
-and the actual IDs of the ranks must be specified by the application developer
+number of additional handles that will be created to the data (for garbage
+collection purposes and for \gls{anti-dependency} management).
+Note, this may sound restrictive, but is in fact
+less information than is required by \gls{MPI}, where both the number of
+\glspl{rank} and the actual \gls{rank} IDs must be specified by the application developer
 for communication purposes.
 
 In addition to facilitating communication, \inlinecode{handle} data structures track additional information required 
@@ -44,26 +34,10 @@ work (see Chapter~\ref{chap:translation_layer} for details on how this is suppor
 \todo[inline]{what do we want to say about versioning here?, introduce lamport
 clock and point to details in tranlation layer?}
 
-\todo[inline]{is fetch depracated in 0.2?}
-
 \todo[inline]{add discussion of subscribe}
 
-\todo[inline]{add discussion of locality - while we are introducing a key value
-  store, this doesn't mean things will be placed randomly throught the system}
-
-
-Although not supported in the current version specification, we introduce the
-following key features of the DARMA memory model that will be supported in future versions
-of the specificaiton:
-
-\paragraph{Memory spaces} This
-  construct will be used to provide the application developer and the runtime
-  system finer-grained control and additional flexibility to communicate
-  policies regarding data locality and data movement. 
-\todo[inline]{add discussion of data staging between memory spaces}
-
-
-
+\todo[inline]{refer back to memory spaces (already mentioned in programming
+    model section). discuss how this feature impacts memory model}
 
 
 

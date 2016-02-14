@@ -1,23 +1,68 @@
 \section{Programming Model}
 \label{sec:programming_model}
-In DARMA \gls{spmd} is the dominant parallelism and the notion of a \gls{rank}
+DARMA is a \gls{declarative} \gls{programming model}, in which the application developer describes the
+work they would like done. 
+Rather than explicitly
+(\gls{imperative}ly) perform all work in program order, blocking on data requests,
+  DARMA provides \CC-embedded task annotations that denote work that can be
+  performed asynchronously, in a deferred fashion.
+  Such work is enqueued to be performed, and is free to run once all of it's data \glspl{dependency} and
+\glspl{anti-dependency} are met.  
+The \CC-embedded task annotations, in conjunction with permissions qualifiers
+on data enable the expression of additional \gls{task parallelism} and
+\gls{pipeline parallelism}. 
+\todo{elaborate on the fact that task annotations can be nesteed?}
+Task annotations are translated by
+the DARMA \gls{translation layer} which uses standard \CC\ constructs (e.g., lambdas,
+  reference counted pointers) and \gls{template
+metaprogramming} to manage the parallelism.  The \gls{translation layer} requires
+\CC14 standard features (details provided in
+    Chapter~\ref{chap:translation_layer}), 
+  however the \gls{front end} \gls{API} does \emph{not}
+require knowledge of \CC14 to use. Furthermore, the \gls{back end} is a
+simple set of abstract \CC\ classes whose functionality must be implemented
+according to the functionality specfied in Chapter~\ref{chap:back_end}.
+%providing the runtime the flexibility to optimize performance and
+%exploit additional parallelism when possible.   
+
+
+In DARMA, \gls{spmd} is the dominant parallelism and the notion of a \gls{rank}
 is maintained within the \gls{API}.   
-  The DARMA \gls{API} simplifies the introduction
-  of asynchronous task parallelism via the use of standard \CC\ constructs, such
-  as \gls{reference counted pointers} and \glspl{lambda}.
-
-  
-The \gls{API} is being \gls{co-design}ed with application developers
-and computer scientists whose knowledge spans the entire runtime software stack.
-Current applications affecting the design include portions of the \gls{Trilinos} software stack
-and \gls{ASC} \gls{ATDM} efforts at Sandia National Laboratories. 
- 
-% NOTE: this is morphed text from open mp/ocr specs.  is this needed?
-%This specification covers user-directed parallelization, where the user
-%has annotated that portions of the work could be performed asynchronously.
-%The DARMA runtime will schedule all asynchronous work in a \gls{deferred} fashion,
-%checking that all \gls{input dependencies} are met prior to performing work.  
-%The user is responsible for ensuring that the application using the DARMA
-%\gls{API} constructs executes correctly.
+This provides application developers a convenience mechanism for creating
+the initial problem distribution.  Immediately after launch, deferred tasks
+are free to be migrated by the runtime, if it will result in
+better performance. 
+Within a \gls{rank}, DARMA provides \gls{sequential semantics}, 
+meaning that application developers can reason about the code as
+though it were being deployed sequentially within the rank.   
+\todo[inline]{add comments about initial mapping and over-decomposition}
 
 
+The declarative programming style of DARMA is provided in part by \gls{coordination
+semantics}:  rather than move data between ranks via direct communication
+(i.e.,  \inlinecode{send/recv}), all data that is communicated outside
+of a rank is associated with a unique \inlinecode{key} and placed in a
+\gls{key-value store}.  \Gls{coordination semantics} provide a simple
+level of indirection that makes it much easier for the runitme to migrate work
+and manage fault tolerance.
+
+Although not yet supported in version 0.2 of the specification, several
+important features will play a role in the DARMA programming model:
+\begin{compactdesc}
+\item{\bf Expressive Underlying Abstract Machine Model:}
+Notions of \glspl{execution space} and \glspl{memory space} will be introduced
+formally in later
+versions of the specification.  These abstractions (or similar ones) appear in other runtime
+solutions~\cite{kokkos, others} \todo{add relevant citations here} to
+address deficiencies in the abstract machine model used by runtimes that
+support \gls{spmd} parallelism (i.e., uniform compute elements, flat memory
+    spaces).  Using such abstractions
+1) facilitates performance portable application development across 
+a variety of execution spaces, and 2)
+  provides finer-grained control and additional flexibility in the
+  communication of policies regarding data locality and data movement. 
+\todo[inline]{add discussion of data staging between memory spaces}
+\item{\bf Collectives:}
+Collectives will be supported by DARMA in version 0.3 of the specification.
+\todo[inline]{add details}
+\end{compactdesc}
