@@ -400,5 +400,283 @@ member functions of this class, and the details of thier implementation is as fo
 \todo[inline]{need better section title}
 \todo[inline]{Add detail about how this is the interface that the back end has
 into the front end and translation layer}
-\todo[inline]{Add subsection for each class}
+%\todo[inline]{Add subsection for each class}
+
+\subsection{{DependencyHandle}}
+The class \inlinecode{DependencyHandle} provides the fundamental abstraction for the frontend to communicate units of
+data dependence to the backend. The following are the functions of this class:
+
+\subsubsection{get\_key()}
+\begin{CppCode}
+    virtual const Key&
+    get_key() const =0;
+\end{CppCode}
+
+\paragraph{Brief description:} The key associated with the dependency.
+       Other dependencies that share a key with this dependency denote a requirement of the same
+       data block (though differing versions indicate that the requirement refers to a different
+       snapshot in time of that data block).
+     
+\paragraph{Remark} The frontend must ensure that the return value for \inlinecode{get_key()} is the same from the
+      time that \inlinecode{Runtime::register_handle()} or \inlinecode{register_fetching_handle()} is called with a given
+       handle until \inlinecode{Runtime::release_handle()} is called with that same handle.
+
+
+\subsubsection{get\_version()}
+\begin{CppCode}
+    virtual const Version&
+    get_version() const =0;
+\end{CppCode}
+
+\paragraph{Brief description:} The version associated with the dependency.
+       Versions are strictly ordered, hashable, incrementable objects for which the default constructed
+       value is always less than or equal to all values.  See Version concept for more information
+     
+    
+\subsubsection{set\_version()}
+\begin{CppCode}
+    virtual void
+    set_version(const Version& v) =0;
+\end{CppCode}
+
+\paragraph{Brief description:} Set the version associated with the dependency
+       The backend may call \inlinecode{set_version()} on a given \inlinecode{DependencyHandle} at most one time between
+       the handle's registration and release, and only if \inlinecode{set_version_is_pending(true)} has been
+       called (which should only be done if this handle or another with an earlier version from
+       which this handle was derived was registered with \inlinecode{Runtime::register_fetching_handle()}
+       and the handle's actual version is pending the resolution of the user version tag associated
+       with that call).
+     
+
+\subsubsection{version\_is\_pending()}
+\begin{CppCode}
+    virtual bool
+    version_is_pending() const =0;
+\end{CppCode}
+
+\paragraph{Brief description:} Returns true if the backend has called \inlinecode{set_version_is_pending(true)} on the handle
+       and if \inlinecode{set_version_is_pending(false)} and/or \inlinecode{set_version()} has not been called since.
+     
+
+\subsubsection{get\_serialization\_manager()}
+\begin{CppCode}
+    virtual SerializationManager*
+    get_serialization_manager() =0;
+\end{CppCode}
+
+\paragraph{Brief description:} Return the serialization manager describing how to allocate, pack, and unpack the data
+       associated with the dependency
+     
+\paragraph{Remark} In the 0.2.0 spec implementation, the only relevant piece of information the \inlinecode{SerializationManager}
+       returns is the size of the metadata (i.e., the stack size; literally \inlinecode{sizeof(T)} for some type T) so that
+       the backend can allocate data for data blocks.
+     
+\subsubsection{satisfy\_with\_data\_block()}
+\begin{CppCode}
+    virtual void
+    satisfy_with_data_block(
+      abstract::backend::DataBlock* const data
+    ) =0;
+\end{CppCode}
+
+\paragraph{Brief description} Satisfy the dependency handle with data or with an allocated buffer into which data
+       may be written.
+       The underlying data in the data block may not be written to until the backend calls
+       \inlinecode{DependencyHandle::allow_writes()} on this handle.  This method should be called at most
+       once in the lifetime of a \inlinecode{DependencyHandle}, and it should only be called zero times if
+       no tasks were registered during its lifetime that reported a dependence on the handle.
+     
+\paragraph{Parameters:} 
+\begin{compactdesc}
+\item[data] A (non-owning) pointer to the data block for the \inlinecode{DependencyHandle} to use for
+       all data operations.  If any tasks have been used in any read contexts before
+       \inlinecode{Runtime::release_read_only_usage()} was called with the handle, or if the up to one
+       "final" usage (see \inlinecode{Runtime::release_read_only_usage()} for details) of the handle is a task
+       that returns true for \inlinecode{Task::needs_read_data(handle)}, the readable data must be available
+       at the time of this invocation.  Otherwise, a buffer of the correct size to contain
+       the metadata as described by the serialization manager should be allocated.  As of
+       the 0.2 spec, the handle and data block should not be moved from the time
+       \inlinecode{satisfy_with_data_block()} is called until the time \inlinecode{Runtime::release_handle()} is called
+       (i.e., the pointer passed in here should be valid until \inlinecode{Runtime::release_handle()} is called).
+\end{compactdesc}
+
+\subsubsection{get\_data\_block()}
+\begin{CppCode}
+    virtual abstract::backend::DataBlock*
+    get_data_block() =0;
+\end{CppCode}
+
+\paragraph{Brief description} Get the pointer to the data block passed into \inlinecode{satisfy_with_data_block()} by the backend
+       It is an (debug-mode) error to call this method before calling \inlinecode{satisfy_with_data_block()}
+
+
+\subsubsection{is\_satisfied()}
+\begin{CppCode}
+    virtual bool
+    is_satisfied() const =0;
+\end{CppCode}
+
+\paragraph{Brief description} Returns true if and only if \inlinecode{satisfy_with_data_block()} has been called for this instance.
+
+
+\subsubsection{allow\_writes()}
+\begin{CppCode}
+    virtual void
+    allow_writes() =0;
+\end{CppCode}
+
+\paragraph{Brief description} Notify the dependency handle that the last read-only usage of the handle has cleared
+       and any additional usage until \inlinecode{Runtime::release_handle()} is called may safely modify the
+       data in the associated data block.
+       It is a (debug-mode) error to call \inlinecode{allow_writes()} before calling \inlinecode{satisfy_with_data_block()}.
+       \inlinecode{allow_writes()} should be called at most once in the lifetime of a dependency handle, and
+       it should only be called zero times if the handle is never used in a write context.
+
+
+\subsubsection{is\_writable()}
+\begin{CppCode}
+    virtual bool
+    is_writable() const =0;
+\end{CppCode}
+
+\paragraph{Brief description} Returns true if and only if \inlinecode{allow_writes()} has been called for this instance
+     
+
+\subsection{{Task}}
+The class \inlinecode{Task} is the fundamental abstraction for the frontend to communicate units of
+  dependency-driven work to the backend.
+
+
+\subsubsection{get\_dependencies()}
+\begin{CppCode}
+    virtual
+    const Container<handle_t*>&
+    get_dependencies() const =0;
+\end{CppCode}
+
+\paragraph{Brief description} Returns the dependencies and antidependencies of the task.
+       All dependencies will return true when given as the argument of \inlinecode{Task::needs_read_data()}
+       on this instance and all antidependencies will return true when given as the argument of
+       \inlinecode{Task::needs_write_data()} (though write dependencies that do not overwrite data --- that is,
+       initial versions --- will have version 0 and will not be true antidependencies).
+     
+\paragraph{Return value:} An iterable container of (non-owning) pointers to \inlinecode{DependencyHandle} objects.  The
+       frontend must ensure that only pointers to handles registered with \inlinecode{Runtime::register_hanlde()}
+       but not yet released with \inlinecode{Runtime::release_handle()} are returned by this method, and the
+       pointers in the returned container must be remain valid until \inlinecode{Runtime::release_handle()}
+       is called.  Furthermore, it is a debug-mode error for the frontend to return a handle that
+       returns the same values for \inlinecode{get_key()} and \inlinecode{get_version()} but points to a different location
+       in memory than the corresponding pointer registered with \inlinecode{Runtime::register_handle()}.
+
+
+\subsubsection{needs\_read\_data()}
+\begin{CppCode}
+    virtual bool
+    needs_read_data(
+      const handle_t* handle
+    ) const =0;
+\end{CppCode}
+
+\paragraph{Brief description:} Returns true if and only if the task needs to read data from handle
+     
+\paragraph{Parameters:} 
+\begin{compactdesc}
+\item[handle] A (non-owning) pointer to the handle to be queried
+\end{compactdesc}
+
+\paragraph{Remarks} 
+\begin{itemize}
+\item The frontend must ensure that a Task {\bf must} return true for at least one of
+       \inlinecode{needs_read_data()} or \inlinecode{needs_write_data()} for each handle in the container returned by
+       \inlinecode{get_dependencies()}.  Failure to do so is a debug-mode error.
+\item The return value of this method is unrelated to whether a dependency is
+       satisfied or not.  Even for a handle that returns true for \inlinecode{handle->is_satisfied()},
+       this method should return true iff the task needs to read the data from the handle.
+\end{itemize}     
+
+
+\subsubsection{get\_name()}
+\begin{CppCode}
+    virtual const Key&
+    get_name() const =0;
+\end{CppCode}
+
+\paragraph{Brief description} Returns the name of the task if one has been assigned with \inlinecode{set_name()}, or
+       a reference to a default-constructed Key if not.
+       In the 0.2 spec this is only used with the outermost task, which is named with
+       a key of two \inlinecode{size_t} values: the SPMD rank and the SPMD size.  See \inlinecode{darma_backend_initialize()}
+       for more information
+
+
+\subsubsection{set\_name()}
+\begin{CppCode}
+    virtual void
+    set_name(const Key& name_key) =0;
+\end{CppCode}
+
+\paragraph{Brief description:} Returns the name of the task if one has been assigned with \inlinecode{set_name()}, or
+       a reference to a default-constructed Key if not.
+       In the 0.2 spec this is only used with the outermost task, which is named with
+       a key of two \inlinecode{size_t} values: the SPMD rank and the SPMD size.  See \inlinecode{darma_backend_initialize()}
+       for more information.
+
+
+\subsubsection{is\_migratable()}
+\begin{CppCode}
+    virtual bool
+    is_migratable() const =0;
+\end{CppCode}
+
+\paragraph{Brief description} Returns true if and only if the task can be migrated.
+     
+\paragraph{Remark} Always return false in the 0.2 spec implementation.  Later specs will need
+       additional hooks for migration
+
+
+
+\subsubsection{run()}
+\begin{CppCode}
+    virtual void
+    run() const =0;
+\end{CppCode}
+
+\paragraph{Brief description} Run the task.
+       This should be invoked only once all dependencies returned by \inlinecode{get_dependencies()}
+       are in a satisfied state (i.e., they return true for \inlinecode{DependencyHandle::is_satisfied()}).
+     
+\paragraph{Post conditions} Upon return, it is no longer valid to call \inlinecode{get_dependencies()}, \inlinecode{needs_read_data()},
+       or \inlinecode{needs_write_data()}.  In fact, the task is free to release these pointers (using
+       \inlinecode{Runtime::release_handle()}) before \inlinecode{Task::run()} returns.
+     
+\paragraph{Remark} \inlinecode{Task::run()} need not be invoked on the same thread as it was created, nor on the
+       same thread as the runtime querying its above methods.  However, while \inlinecode{run()} is executing
+       on a given thread, any calls to \inlinecode{Runtime::get_running_task()} must return a pointer to
+       this task object.  (If the runtime implements context switching, it must ensure that
+       the behavior of \inlinecode{Runtime::get_running_task()} is consistent and correct for a given
+       running thread as though the switching never occurred)
+
+
+\subsection{{SerializationManager}}
+The class \inlinecode{SerializationManager} is an immutable object allowing the backend to query various serialization sizes, offsets,
+   behaviours, and data, known by the for a given handle and its associated data block.
+
+
+\subsubsection{get\_metadata\_size()}
+\begin{CppCode}
+    virtual size_t
+    get_metadata_size(
+      const void* const deserialized_data
+    ) const =0;
+\end{CppCode}
+
+\paragraph{Brief description} Returns the size of the data as a (i.e., stack-allocated) C++ object in memory
+     
+\paragraph{Parameters:}
+\begin{compactdesc} 
+\item[deserialized\_data] In the 0.2.0 spec implementation, this should always be a null pointer
+\end{compactdesc}
+
+\paragraph{Remarks} Later revisions of the spec will allow classes to specify custom metadata serializers
+       (e.g., in case there is substantial temporary metadata that doesn't need go over the wire or
+       if some values need to change in preparation for migration).
 
