@@ -108,8 +108,13 @@ auto float_handle = initial_access<float>("float_key", me);
 
 \section{Data Access Handles}
 \label{sec:handles}
+
+\todo[inline]{This needs to somehow go after \inlinecode{create_work()} is
+introduced, the code examples don't actually work as is}
+
 \todo[inline]{JB Question to David/Jeremy: do we need to introduce versions, or
-is this no longer needed?}
+is this no longer needed? DSH: Versions go with publish(), but some of it needs
+to be here because e.g., \inlinecode{read_access<T>()} needs to reference them.}
 
 Transactions with the \gls{key-value store} are conducted using data handles that are of different access types which differentiate the 
 various transactions. At the most basic level user code can declare 1) a handle to data that does not yet exist in the system
@@ -119,6 +124,7 @@ be read, or 3) a handle to data that it wants to overwrite.
 The first of these types is denoted as \inlinecode{initial_access} in DARMA, which informs the runtime that the data with the 
 specified key does not yet exist, and the user intends to create this data and publish it shortly. Hence, an \inlinecode{initial_access}
 data handle is usually followed by a memory allocation, a value assignment and finally a publish operation, as illustrated below: 
+\todo[inline]{revise this.  It breaks a bunch of rules}
 \begin{CppCode}
 auto float_handle = initial_access<float>("float_key");
 float_handle.set_value(3.14);
@@ -129,6 +135,7 @@ The second type of transaction, requesting read-only access to a piece of data, 
 guarantees that any task that uses this handle will be launched once the data is available anywhere in the system, even on a remote node.
 It will be illegal to overwrite and publish the data that is accessed via this handle. Conversely, it is illegal to request a \inlinecode{read_access}
 handle to data that will never be created or published by any other task.
+\todo[inline]{revise this.  It breaks a bunch of rules}
 \begin{CppCode}
 auto float_handle = read_access<float>("another_float_key");
 float val = float_handle.get_value();
@@ -137,6 +144,7 @@ std::cout << "Value read with key another_float_key is " << val;
 
 And the last type, which informs the runtime that the data with the specified key will be read and overwritten, is with the \inlinecode{read_write_access}
 handle, illustrated below
+\todo[inline]{revise this.  It breaks a bunch of rules}
 \begin{CppCode}
 auto float_handle = read_write<float>("yet_another_float_key");
 std::cout << "Value read with key yet_another_float_key is " 
