@@ -28,8 +28,8 @@ according to the specfication in Chapter~\ref{chap:back_end}.
 %exploit additional parallelism when possible.   
 
 
-In DARMA, \gls{spmd} is the dominant parallelism and the notion of a \gls{rank}
-is maintained within the \gls{API}.   
+Most applications written in DARMA will likely have \gls{spmd} as the dominant parallelism.
+To simplify the implementation of SPMD-structured codes, the notion of a \gls{rank} is maintained within the \gls{API}.   
 This provides application developers a convenience mechanism for creating
 the initial problem decomposition and distribution.  Immediately after launch, deferred tasks
 are free to be migrated by the runtime, if it will result in
