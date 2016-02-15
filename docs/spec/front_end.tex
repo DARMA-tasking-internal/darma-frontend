@@ -53,9 +53,9 @@ some_function(arg_a="hello", 42, flag=true);
 The illusion of Python-like keyword arguments is accomplished using \inlinecode{constexpr} instances
 of a class with the assignment operator overloaded.  The arguments are passed to the 
 callable using perfect forwarding, and thus the overhead from the keyword argument 
-trick is entirely at compile-time.  These instances are defined in very descriptive
-namespaces, and frequently used keywords are aliased into more general namespaces.  For
-instance, the keywords for \inlinecode{some_function}, above, would likely be
+trick is entirely at compile-time.  (More implementation details are given in
+Section \ref{sec:kwargs}).  These instances are defined in very descriptive namespaces,
+and frequently used keywords are aliased into more general namespaces.  For instance, the keywords for \inlinecode{some_function}, above, would likely be
 defined in a namespace named using the following convention:
 \inlinecode{darma::keyword_arguments_for_some_function}.
 If \inlinecode{some_function} was a 
@@ -77,12 +77,12 @@ it belongs and all namespaces it is aliased into are given.
 
 \section{SPMD support}
 \label{sec:spmd}
-\gls{spmd} being the dominant model of parallelism in DARMA, the spin-up of the
-runtime in each \gls{spmd} unit is 
-kept analogous to MPI. This should make it a little easier for existing MPI based application codes to transition 
-to DARMA. The initialization and termination of the runtime in each unit is via the calls \inlinecode{darma_init}
-and \inlinecode{darma_finalize}. The total number of \gls{spmd} units are queried with the call \inlinecode{darma_spmd_size},
-and the rank is queried with \inlinecode{darma_spmd_rank}. A typical user written main program will look as follows:
+\gls{spmd} being the dominant model of parallelism in DARMA, \todo{are we
+comfortable saying this like this?  Is it even really true?} the spin-up of the
+runtime in each \gls{spmd} unit is kept analogous to MPI. This should make it a little easier for existing MPI based application codes to transition 
+to DARMA. The initialization and termination of the runtime in each unit is via the calls \inlinecode{darma_init()}
+and \inlinecode{darma_finalize()}. The total number of \gls{spmd} units are queried with the call \inlinecode{darma_spmd_size()},
+and the rank is queried with \inlinecode{darma_spmd_rank()}. A typical user written main program will look as follows:
 \begin{CppCode}
 int main(int argc, char**argv){
 
@@ -96,14 +96,16 @@ int main(int argc, char**argv){
 }
 \end{CppCode}
 
-The rank is a very useful concept to orchestrate dependencies in a \gls{spmd} model since data pertaining to a rank can be associated
-with a key that encodes the rank explicitly. Similarly, data that needs to be communicated to other ranks can be associated with
-keys that encode the rank of the intended recepient. The example below illustrates this concept, where the rank is integral to
-the key associated with data pertaining to that rank (the topic of data access
-handles will be discussed shortly in Section~\ref{sec:handles}):
+The rank is a very useful concept to orchestrate dependencies in a \gls{spmd}
+model since data pertaining to a rank can be associated with a key that utilize
+the rank for uniqueness. Similarly, the unique key used by a different rank
+from which data needs to be fetched can be constructed from the knowledge of
+the rank creating th edata.  The example below illustrates this concept, where
+the rank is integral to the key associated with data originating on that rank
+(the topic of data access handles will be discussed shortly in Section~\ref{sec:handles}):
 \begin{CppCode}
 size_t me = darma_spmd_rank();
-auto float_handle = initial_access<float>("float_key", me);
+auto data_handle = initial_access<double>("data_key", me);
 \end{CppCode}  
 
 \section{Data Access Handles}
