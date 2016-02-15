@@ -1,0 +1,44 @@
+\chapter{Requirements} 
+\label{chap:requirements} 
+\todo[inline]{flesh out these sections}
+Here we enumerate requirements gathered to date: 
+\begin{compactitem}
+\item Applications need an abstraction layer between applications and the
+runtime system/physical architecture that shieds physics codes from diversity and
+complexity of evolving architecturs.
+\item A performant implementation of a software stack that supports this
+abstraction layer.
+\item Community best practices and eventual standards for this abstraction
+layer.
+\item Programming model/runtime must support for \gls{spmd} algorithms.
+\item Programming model/runtime must support a variety of application developer data structures .
+\item Programming model/runtime must support collective operations.
+\item Application developer should be able to control initial problem decomposition.
+\item Application developer should be able to express all form of parallelism.
+\end{compactitem}
+
+
+\paragraph{Co-design contributors}
+In addition to the authors listed on this document,
+the \gls{API} is being \gls{co-design}ed and vetted with application developers
+and computer scientists whose knowledge spans the entire runtime software stack.
+
+\paragraph{Applications affecting the design and requirements:}
+\begin{compactitem}
+\item Sandia \gls{ASC} \gls{ATDM} electromagnetic plasma code (POC: Matt Bettencourt)
+\item Sandia \gls{ASC} \gls{ATDM} reentry code (POCs: Micah Howard, Steve Bova)
+\item \gls{Trilinos} Phalanx package (POC: Roger Pawlowski)
+\item Uncertainty Quantification driver (POCs: Eric Phipps, Francesco Rizzi)
+\item Domain Decomposition Preconditioners (POCs: Ray Tuminaro, Clark Dohrman)
+\end{compactitem}
+ 
+\paragraph{Computer Science Research Efforts}
+\begin{compactitem}
+\item Kokkos (POCs: Carter Edwards, Christian Trott)
+\item Data Management (POCs: Craig Ulmer, Gary Templet)
+\item Low-level operating systems requirements (POCs: Stephen Olivier, Ron
+    Brightwell)
+\end{compactitem}
+
+
+
