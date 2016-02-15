@@ -1,12 +1,12 @@
+%!TEX root = sandReportSpec.tex
+
 \section{Compatible Data Models}
 \label{sec:data_model}
 
 
-DARMA provides a very flexible data model, leaving the application developer
-free to use whatever data structures they like. 
-DARMA provides serialization mechanisms for bitwise copiable data structures.
-The user must provide serialization information for non-bitwise copiable data
-structures. 
+DARMA provides a flexible data model (DARMA is only aware of tuple or key identifiers for a coarse-grained data block).
+This leaves the application developer free to use arbitrary data structures, but puts more responsibility on application developer to define serialization, \gls{slicing}, and \glspl{interference test} 
+for data blocks. 
 \todo[inline]{add details here}
 
 

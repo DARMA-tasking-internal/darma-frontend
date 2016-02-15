@@ -1,11 +1,12 @@
+%!TEX root = sandReportSpec.tex
+
 \section{Compatible Memory Models}
 \label{sec:mem_model}
 
 For every piece of data that is communicated between \glspl{rank} in DARMA, the
 user is required to provide an associated \inlinecode{key}.  
-A \inlinecode{key} in DARMA is not a simple
-string, rather it can be an arbitrary \gls{tuple} of values (see Chapter~\ref{chap:front_end}) for details.
-This makes it very easy for the applicaiton developer to create an expressive
+A \inlinecode{key} in DARMA can be an arbitrary \gls{tuple} of integer, string, or other variables (see Chapter~\ref{chap:front_end}) for details.
+This makes it very easy for the application developer to create an expressive
 and descriptive \inlinecode{key} for each piece of data.
 The data is stored with its associated \inlinecode{key} in a \gls{key-value
 store}.  \todo[inline]{add discussion of locality - 
@@ -16,14 +17,15 @@ Data \glspl{handle} into the \gls{key-value store} are used to manage
 complexities associated with parallelism and communication.  
 The \inlinecode{handle} data structure maintains a smart pointer into the data
 store.  The application developer \inlinecode{publish}es data associated with a
-handle that should be visible
-outside of its \gls{rank}.  When publishing,  the user must specify the
-number of additional handles that will be created to the data (for garbage
-collection purposes and for \gls{anti-dependency} management).
-Note, this may sound restrictive, but is in fact
-less information than is required by \gls{MPI}, where both the number of
-\glspl{rank} and the actual \gls{rank} IDs must be specified by the application developer
-for communication purposes.
+handle that should be globally visible
+outside of its \gls{rank}.  When publishing, the user must specify an \gls{access group}
+for that data.  Declaring an access group informs the runtime who currently needs or will need the data,  
+allowing garbage collection and \gls{anti-dependency} resolution.
+In most cases, the access group will be declared as the number of global read handles.
+For performance optimizations in future versions, an explicit list of ranks (similar to MPI) can be given.
+Once all read handles are released (go out of scope in C++ terms), garbage collection or anti-dependency resolution can occur.
+In dynamic cases in which the number of readers is not known,
+the access group is declared through an (asynchronous) phase barrier.
 
 In addition to facilitating communication, \inlinecode{handle} data structures track additional information required 
 to enforce \gls{sequential semantics} in the presence of asynchronously defined
@@ -32,7 +34,7 @@ work (see Chapter~\ref{chap:translation_layer} for details on how this is suppor
 \todo[inline]{Intoduce notions of access type (initial access , read access, write access). The runtime can leverage this permissions information to introduce additional parallelism when possible.}
 
 \todo[inline]{what do we want to say about versioning here?, introduce lamport
-clock and point to details in tranlation layer?}
+clock and point to details in translation layer?}
 
 \todo[inline]{add discussion of subscribe}
 
