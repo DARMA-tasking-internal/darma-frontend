@@ -7,22 +7,9 @@
     for backend developers into front end/translation layer. vs back end: what
     the  developer must implement.   }
 
+\section{Backend Functions}
 
-\section{Backend Classes}
-\todo[inline]{need better section title}
-\todo[inline]{Add detail about how each of these must be implemented to support implementation}
-\subsection{{runtime}}
-\inlinecode{runtime} is an abstract class implemented by the backend containing
-much of the runtime.  Thread safety of all methods in this class should be handled by the backend implementaton;
-two threads must  be allowed to call any method in this class simultaneously, though undefined behavior
-is allowed if nonsensical simultaneous calls are made (for instance, two calls registering the exact same
-task at the same time).
-
-The following summarizes the member functions of the runtime interface that
-must be implemented, and details expected behavior and requirements for each
-function.
-
-\subsubsection{darma\_backend\_initialize()}
+\subsection{darma\_backend\_initialize()}
 \begin{CppCode}
 extern void
 darma_backend_initialize(
@@ -81,9 +68,23 @@ darma_backend_initialize(
    must no longer be in argc and argv.
 
 
+\section{Backend Classes}
+
+\subsection{{Runtime}}
+\inlinecode{Runtime} is an abstract class implemented by the backend containing
+much of the runtime.  Thread safety of all methods in this class should be handled by the backend implementaton;
+two threads must  be allowed to call any method in this class simultaneously, though undefined behavior
+is allowed if nonsensical simultaneous calls are made (for instance, two calls registering the exact same
+task at the same time).
+
+The following summarizes the member functions of the runtime interface that
+must be implemented, and details expected behavior and requirements for each
+method.
 
 
-\subsubsection{ register\_task() }
+
+
+\subsubsection{ Runtime::register\_task() }
 \begin{CppCode}
 virtual void register_task(
       task_unique_ptr&& task
@@ -121,7 +122,7 @@ dependencies are satisfied.
 \end{compactdesc}
      
 
-\subsubsection{get\_running\_task()}
+\subsubsection{Runtime::get\_running\_task()}
 \begin{CppCode}
 virtual task_t* const
     get_running_task() const =0;
@@ -144,7 +145,7 @@ thread.  The returned pointer must be castable to the same concrete type as was 
      not be dereferenced in any other context.
 \end{itemize}
 
-\subsubsection{register\_handle()}
+\subsubsection{Runtime::register\_handle()}
 \begin{CppCode}
 virtual void register_handle(
       const handle_t* const handle
@@ -183,7 +184,7 @@ virtual void register_handle(
 \end{compactdesc}
     
 
-\subsubsection{register\_fetching\_handle()}
+\subsubsection{Runtime::register\_fetching\_handle()}
 \begin{CppCode}
     virtual void
     register_fetching_handle(
@@ -221,7 +222,7 @@ virtual void register_handle(
 \paragraph{Remarks:} For the 0.2.0 spec implementation, \inlinecode{write_access_allowed} should always be false
 
 
-\subsubsection{release\_read\_only\_usage()}
+\subsubsection{Runtime::release\_read\_only\_usage()}
 \begin{CppCode}
     virtual void
     release_read_only_usage(
@@ -252,7 +253,7 @@ virtual void register_handle(
 \end{compactdesc}
 
 
-\subsubsection{release\_handle()}
+\subsubsection{Runtime::release\_handle()}
 \begin{CppCode}
     virtual void
     release_handle(
@@ -277,7 +278,7 @@ virtual void register_handle(
 \end{compactdesc}
 
 
-\subsubsection{handle\_done\_with\_version\_depth()}
+\subsubsection{Runtime::handle\_done\_with\_version\_depth()}
 \begin{CppCode}
     virtual void
     handle_done_with_version_depth(
@@ -299,7 +300,7 @@ virtual void register_handle(
        the release of handle will lead to undefined behavior.
 
 
-\subsubsection{publish\_handle()}
+\subsubsection{Runtime::publish\_handle()}
 \begin{CppCode}
     virtual void
     publish_handle(
@@ -330,7 +331,7 @@ virtual void register_handle(
 \end{compactdesc}
 
 
-\subsubsection{satisfy\_handle()}
+\subsubsection{Runtime::satisfy\_handle()}
 \begin{CppCode}
     virtual void
     satisfy_handle(
@@ -340,7 +341,7 @@ virtual void register_handle(
 \end{CppCode}
 
 
-\subsubsection{establish\_containment\_relationship()}
+\subsubsection{Runtime::establish\_containment\_relationship()}
 \begin{CppCode}
     virtual void
     establish_containment_relationship(
@@ -350,7 +351,7 @@ virtual void register_handle(
     ) =0;
 \end{CppCode}
 
-\subsubsection{establish\_aliasing\_relationship()}
+\subsubsection{Runtime::establish\_aliasing\_relationship()}
 \begin{CppCode}
     virtual void
     establish_aliasing_relationship(
@@ -360,7 +361,7 @@ virtual void register_handle(
     ) =0;
 \end{CppCode}
 
-\subsubsection{finalize()}
+\subsubsection{Runtime::finalize()}
 \begin{CppCode}
     virtual void
     finalize() =0;
@@ -376,7 +377,7 @@ virtual void register_handle(
 The \inlinecode{DataBlock} class is the abstraction through which the frontend interacts with data stored and managed by the backend. The 
 member functions of this class, and the details of thier implementation is as follows:
 
-\subsubsection{get\_data()}
+\subsubsection{DataBlock::get\_data()}
 \begin{CppCode}
     virtual void*
     get_data() =0;
@@ -386,7 +387,7 @@ member functions of this class, and the details of thier implementation is as fo
       the data block.
 
 
-\subsubsection{acquire\_data()}
+\subsubsection{DataBlock::acquire\_data()}
 \begin{CppCode}
     virtual void
     acquire_data(void* const data) =0;
