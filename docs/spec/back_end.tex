@@ -409,7 +409,7 @@ into the front end and translation layer}
 The class \inlinecode{DependencyHandle} provides the fundamental abstraction for the frontend to communicate units of
 data dependence to the backend. The following are the functions of this class:
 
-\subsubsection{get\_key()}
+\subsubsection{DependencyHandle::get\_key()}
 \begin{CppCode}
     virtual const Key&
     get_key() const =0;
@@ -425,7 +425,7 @@ data dependence to the backend. The following are the functions of this class:
        handle until \inlinecode{Runtime::release_handle()} is called with that same handle.
 
 
-\subsubsection{get\_version()}
+\subsubsection{DependencyHandle::get\_version()}
 \begin{CppCode}
     virtual const Version&
     get_version() const =0;
@@ -436,7 +436,7 @@ data dependence to the backend. The following are the functions of this class:
        value is always less than or equal to all values.  See Version concept for more information
      
     
-\subsubsection{set\_version()}
+\subsubsection{DependencyHandle::set\_version()}
 \begin{CppCode}
     virtual void
     set_version(const Version& v) =0;
@@ -451,7 +451,7 @@ data dependence to the backend. The following are the functions of this class:
        with that call).
      
 
-\subsubsection{version\_is\_pending()}
+\subsubsection{DependencyHandle::version\_is\_pending()}
 \begin{CppCode}
     virtual bool
     version_is_pending() const =0;
@@ -461,7 +461,7 @@ data dependence to the backend. The following are the functions of this class:
        and if \inlinecode{set_version_is_pending(false)} and/or \inlinecode{set_version()} has not been called since.
      
 
-\subsubsection{get\_serialization\_manager()}
+\subsubsection{DependencyHandle::get\_serialization\_manager()}
 \begin{CppCode}
     virtual SerializationManager*
     get_serialization_manager() =0;
@@ -474,7 +474,7 @@ data dependence to the backend. The following are the functions of this class:
        returns is the size of the metadata (i.e., the stack size; literally \inlinecode{sizeof(T)} for some type T) so that
        the backend can allocate data for data blocks.
      
-\subsubsection{satisfy\_with\_data\_block()}
+\subsubsection{DependencyHandle::satisfy\_with\_data\_block()}
 \begin{CppCode}
     virtual void
     satisfy_with_data_block(
@@ -503,7 +503,7 @@ data dependence to the backend. The following are the functions of this class:
        (i.e., the pointer passed in here should be valid until \inlinecode{Runtime::release_handle()} is called).
 \end{compactdesc}
 
-\subsubsection{get\_data\_block()}
+\subsubsection{DependencyHandle::get\_data\_block()}
 \begin{CppCode}
     virtual abstract::backend::DataBlock*
     get_data_block() =0;
@@ -513,7 +513,7 @@ data dependence to the backend. The following are the functions of this class:
        It is an (debug-mode) error to call this method before calling \inlinecode{satisfy_with_data_block()}
 
 
-\subsubsection{is\_satisfied()}
+\subsubsection{DependencyHandle::is\_satisfied()}
 \begin{CppCode}
     virtual bool
     is_satisfied() const =0;
@@ -522,7 +522,7 @@ data dependence to the backend. The following are the functions of this class:
 \paragraph{Brief description} Returns true if and only if \inlinecode{satisfy_with_data_block()} has been called for this instance.
 
 
-\subsubsection{allow\_writes()}
+\subsubsection{DependencyHandle::allow\_writes()}
 \begin{CppCode}
     virtual void
     allow_writes() =0;
@@ -536,7 +536,7 @@ data dependence to the backend. The following are the functions of this class:
        it should only be called zero times if the handle is never used in a write context.
 
 
-\subsubsection{is\_writable()}
+\subsubsection{DependencyHandle::is\_writable()}
 \begin{CppCode}
     virtual bool
     is_writable() const =0;
@@ -550,7 +550,7 @@ The class \inlinecode{Task} is the fundamental abstraction for the frontend to c
   dependency-driven work to the backend.
 
 
-\subsubsection{get\_dependencies()}
+\subsubsection{Task::get\_dependencies()}
 \begin{CppCode}
     virtual
     const Container<handle_t*>&
@@ -572,7 +572,7 @@ The class \inlinecode{Task} is the fundamental abstraction for the frontend to c
        in memory than the corresponding pointer registered with \inlinecode{Runtime::register_handle()}.
 
 
-\subsubsection{needs\_read\_data()}
+\subsubsection{Task::needs\_read\_data()}
 \begin{CppCode}
     virtual bool
     needs_read_data(
@@ -598,7 +598,7 @@ The class \inlinecode{Task} is the fundamental abstraction for the frontend to c
 \end{itemize}     
 
 
-\subsubsection{get\_name()}
+\subsubsection{Task::get\_name()}
 \begin{CppCode}
     virtual const Key&
     get_name() const =0;
@@ -611,7 +611,7 @@ The class \inlinecode{Task} is the fundamental abstraction for the frontend to c
        for more information
 
 
-\subsubsection{set\_name()}
+\subsubsection{Task::set\_name()}
 \begin{CppCode}
     virtual void
     set_name(const Key& name_key) =0;
@@ -624,7 +624,7 @@ The class \inlinecode{Task} is the fundamental abstraction for the frontend to c
        for more information.
 
 
-\subsubsection{is\_migratable()}
+\subsubsection{Task::is\_migratable()}
 \begin{CppCode}
     virtual bool
     is_migratable() const =0;
@@ -637,7 +637,7 @@ The class \inlinecode{Task} is the fundamental abstraction for the frontend to c
 
 
 
-\subsubsection{run()}
+\subsubsection{Task::run()}
 \begin{CppCode}
     virtual void
     run() const =0;
@@ -664,7 +664,7 @@ The class \inlinecode{SerializationManager} is an immutable object allowing the 
    behaviours, and data, known by the for a given handle and its associated data block.
 
 
-\subsubsection{get\_metadata\_size()}
+\subsubsection{SerializationManager::get\_metadata\_size()}
 \begin{CppCode}
     virtual size_t
     get_metadata_size(
