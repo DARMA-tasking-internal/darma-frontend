@@ -12,11 +12,101 @@ introduce the following constructs supported by the \gls{front end} \gls{API}:
 \item Serialization Manager
 \end{compactitem}
 
+\todo[inline]{DSH: The following sections need some significant reordering
+IMHO.}
+
+\section{Deferred Work Creation}
+\label{sec:deferred}
+In DARMA, like other AMT runtime systems, the user creates blocks of work that
+are executed when the proper permissions on the data they use are available. 
+Deferred work is communicated to the runtime system via the
+\inlinecode{create_work()} function, which utilizes the C++ lambda mechanism to
+yield the following syntax:
+% DSH merged [=]{ into one line for a couple of reasons; chief reason is we may
+% want to macro this at some point so that it can conditionally be compiled into
+% [=] __cuda_inline__ {  or something like that for GPU use.
+\begin{CppCode}
+  create_work([=]{
+    // work to do
+  });
+\end{CppCode}
+
+While this syntax leverages \CC11 lambdas, the user does not need to understand
+\CC11 standard features to use \inlinecode{create_work()} (this
+complexity is managed by DARMA's translation layer, as summarized in
+Chapter~\ref{chap:translation_layer}).  All work specified within a
+\inlinecode{create_work} is queued for deferred execution, and can be run when
+all of its \glspl{dependency} and \glspl{anti-dependency} are met.  
+These \glspl{dependency} are determined from the use of 
+\inlinecode{AccessHandle<T>} objects in the deferred context. 
+\inlinecode{AccessHandle<T>} objects are described in more detail below, in
+Section \ref{sec:handles}.  In a basic sense, though, handles help maintain
+\gls{sequential semantics} in the programming model.  For instance:
+\begin{CppCode}
+AccessHandle<int> my_handle = initial_access("some_data_key");
+create_work([=]{
+  my_handle.set_value(24);
+});
+// TODO finish this!!!
+
+\end{CppCode}
+
+\todo[inline]{DSH:  HERE is where I am right now.}
+
+% which manage the complexity necessary (within DARMA's
+%\gls{translation layer}) to 1) preserve \gls{sequential semantics} within a \gls{rank}, while performing work asynchronously, and 2) \inlinecode{publish} data visibly outside a \gls{rank}.
+%\Glspl{dependency} and \glspl{anti-dependency} for a 
+%\inlinecode{create_work} are inferred by the runtime via
+%\gls{introspection} (again, within the \gls{translation layer}). 
+%The following simple example illustrates how \inlinecode{handles} and
+%\inlinecode{create_work} can be used to gether in a simple ``hello world''
+%example:
+
+
+\begin{CppCode}
+#include <darma.h>
+using namespace darma_runtime;
+using namespace darma_runtime::keyword_arguments_for_publication;
+
+int main(int argc, char** argv) {
+
+  darma_init(argc, argv);
+
+  size_t me = darma_spmd_rank();
+  size_t n_ranks = darma_spmd_size();
+
+  auto greetingMessage = initial_access<std::string>("myName", me);
+
+  create_work([=]
+  {
+    greetingMessage.set_value("hello world!");
+  });
+
+  create_work([=]
+  {
+    std::cout << "DARMA rank " << me << " says " 
+              << greetingMessage.get_value() << std::endl;
+  });
+
+  darma_finalize();
+
+}
+\end{CppCode}
+
+In this example, 1) the DARMA environment is initialized, 2) each rank creates a
+task to store a greeting message into a string, and 3) each rank then creates a
+task to print the message and its rank to standard output.
+Note that, in this example, \inlinecode{publish} is not required as the
+dependency \inlinecode{greeting_message} is createed for each rank individually
+(i.e., none of the dependencies must be visible outside of its rank).
+In order to guarantee \gls{sequential semantics} (i.e., to make sure the value
+of \inlinecode{greetingMessage} is set before it is printed),
+\inlinecode{greetingMessage} must be a \inlinecode{handle}.
+
+
 \section{Keyword arguments}
 \label{sec:keyword}
 
-\todo[inline]{DSH: The following sections need some significant reordering
-IMHO.}
 
 Similar to higher-level languages like Python, the DARMA C++ interface allows the user
 to specify arguments to many of the API functions and constructs using either positional
@@ -213,75 +303,6 @@ aribitrary \gls{tuple} as a \inlinecode{key}:
                                             other_identifier);
 \end{CppCode}
 
-
-\section{Task Creation}
-\label{sec:deferred}
-Task creation in DARMA is done via \inlinecode{create_work}, which has the
-following syntax:
-\begin{CppCode}
-  create_work([=]
-  {
-    // work to do
-  });
-\end{CppCode}
-
-While this syntax leverages \CC\ lambdas, the user does not need to know \CC14
-standard features to use \inlinecode{create_work} (this
-complexity is managed by DARMA's translation layer, as summarized in
-Chapter~\ref{chap:translation_layer}).  All work specified within a
-\inlinecode{create_work} is queued for deferred execution, and can be run when
-all of its \glspl{dependency} and \glspl{anti-dependency} are met.  
-These \glspl{dependency} must be specified as \inlinecode{handles}, 
-which manage the complexity necessary (within DARMA's \gls{translation layer}) to 1) preserve \gls{sequential
-semantics} within a \gls{rank}, while performing work asynchronously, and 2) 
-\inlinecode{publish} data visibly outside a \gls{rank}.
-\Glspl{dependency} and \glspl{anti-dependency} for a 
-\inlinecode{create_work} are inferred by the runtime via
-\gls{introspection} (again, within the \gls{translation layer}). 
-The following simple example illustrates how \inlinecode{handles} and
-\inlinecode{create_work} can be used to gether in a simple ``hello world''
-example:
-
-
-\begin{CppCode}
-#include <darma.h>
-using namespace darma_runtime;
-using namespace darma_runtime::keyword_arguments_for_publication;
-
-int main(int argc, char** argv) {
-
-  darma_init(argc, argv);
-
-  size_t me = darma_spmd_rank();
-  size_t n_ranks = darma_spmd_size();
-
-  auto greetingMessage = initial_access<std::string>("myName", me);
-
-  create_work([=]
-  {
-    greetingMessage.set_value("hello world!");
-  });
-
-  create_work([=]
-  {
-    std::cout << "DARMA rank " << me << " says " 
-              << greetingMessage.get_value() << std::endl;
-  });
-
-  darma_finalize();
-
-}
-\end{CppCode}
-
-In this example, 1) the DARMA environment is initialized, 2) each rank creates a
-task to store a greeting message into a string, and 3) each rank then creates a
-task to print the message and its rank to standard output.
-Note that, in this example, \inlinecode{publish} is not required as the
-dependency \inlinecode{greeting_message} is createed for each rank individually
-(i.e., none of the dependencies must be visible outside of its rank).
-In order to guarantee \gls{sequential semantics} (i.e., to make sure the value
-of \inlinecode{greetingMessage} is set before it is printed),
-\inlinecode{greetingMessage} must be a \inlinecode{handle}.
 
 
 \subsection{Decorators}
