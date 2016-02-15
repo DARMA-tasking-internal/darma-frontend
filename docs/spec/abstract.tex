@@ -1,3 +1,5 @@
+%!TEX root = sandReportSpec.tex
+
 In this document we provide the specification for DARMA,
 a co-design research vehicle for \gls{AMT} programming models and runtime
 systems.  This specification serves to facilitate three primary activities: 
@@ -12,8 +14,8 @@ constructs of \CC, and adding \gls{semantics} that facilitate distributed
 parallel programming.
 The \gls{translation layer} is a library that heavily leverages \CC\ \gls{template metaprogramming} 
 to map the user's code onto interactions with a \gls{back end} \gls{API}.  
-The DARMA \gls{translation layer} requires \CC\ features supported by the \CC14
-standard, and will work with the following compilers: \inlinecode{gcc >= 4.8, clang >= 3.5}.
+The DARMA \gls{translation layer} requires \CC\ features supported by the \CC11 standard with some advanced features requiring a subset of \CC14
+To date, DARMA will work with the following compilers: \inlinecode{gcc >= 4.8, clang >= 3.5}.
 The \gls{back end} \gls{API} is a set of abstract classes, that runtime system
 developers must implement in accordance with the specification requirements in
 order to be compliant with the specification.
