@@ -6,22 +6,24 @@ design space tradeoffs, and 3) communication between the AMT community and
 other computer science research communities.
 The DARMA code base comprises three main layers: the \gls{front end} \gls{API},
 \gls{translation layer}, and
-\gls{back end} \gls{API}.  The \gls{front end} is the user-level \gls{API}.  It
-is implemented as an \gls{EDSL} in \CC,  inheriting the generic language
-constructs of \CC, and adding \gls{semantics} that facilitate distributed
-parallel programming.
-The \gls{translation layer} is a library that heavily leverages \CC\ \gls{template metaprogramming} 
-to map the user's code onto interactions with a \gls{back end} \gls{API}.  
+\gls{back end} \gls{API}.  The \gls{front end} is the user-level \gls{API}. 
+Its use has the feel of an \gls{EDSL} in \CC,  inheriting the generic
+language constructs of \CC and adding \gls{semantics} that facilitate
+distributed parallel programming.  Though the \gls{front end} \gls{EDSL} uses
+\CC onstructs in non-traditional ways to implement these semantics, it is
+nonetheless fully embedded in the \CC language and as such will compile with any
+\CC compiler that supports the \CC14 standard (\inlinecode{gcc >= 4.8, clang >=
+3.5}).  The \gls{translation layer} leverages \CC\ \gls{template
+metaprogramming} to map the user's code onto the \gls{back end} \gls{API}.
 The DARMA \gls{translation layer} requires \CC\ features supported by the \CC14
-standard, and will work with the following compilers: \inlinecode{gcc >= 4.8, clang >= 3.5}.
-The \gls{back end} \gls{API} is a set of abstract classes, that runtime system
-developers must implement in accordance with the specification requirements in
-order to be compliant with the specification.
-Each of these three layers is described herein. We also inlcude a list of
-application requirements driving the specification (along with a list of the
-applications contributing to the requirements to date), and
-conclude this document with
-a brief history of changes between
-previous versions of the specificaiton, and a summary of the planned changes 
-in upcoming versions of the specification.
+standard, and will work with the following compilers: 
+The \gls{back end} \gls{API} is a set of abstract classes and function
+signatures that runtime system developers must implement in accordance with the
+specification requirements in order to interface with application code written
+to the DARMA front end.  Each of these three layers is described herein. We also
+inlcude a list of application requirements driving the specification (along
+with a list of the applications contributing to the requirements to date), and
+conclude this document with a brief history of changes between previous
+versions of the specificaiton, and a summary of the planned changes in upcoming
+versions of the specification.
 
