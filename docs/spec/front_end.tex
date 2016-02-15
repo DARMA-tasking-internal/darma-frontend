@@ -15,6 +15,9 @@ introduce the following constructs supported by the \gls{front end} \gls{API}:
 \section{Keyword arguments}
 \label{sec:keyword}
 
+\todo[inline]{DSH: The following sections need some significant reordering
+IMHO.}
+
 Similar to higher-level languages like Python, the DARMA C++ interface allows the user
 to specify arguments to many of the API functions and constructs using either positional
 or keyword arguments.  In addition, many optional arguments may {\em only} be specified using
@@ -180,7 +183,7 @@ only ever be read once, and hence can be safely garbage collected soon after.
 \todo[inline]{H: Need to explain what happens if initial access is not followed by
 a publish. Illegal, or unsafe programming. JB: Is this true? I thought you only
 had to publish things that will be visible outside of a rank.  Need to update
-this text if that is not the case.}
+this text if that is not the case.  DSH:  Janine is correct here.}
 
 \subsection{Subscribe}
 \label{subsec:subscribe}
