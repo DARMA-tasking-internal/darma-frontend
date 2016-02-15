@@ -116,9 +116,9 @@ dependencies are satisfied.
 \begin{compactdesc}
 \item[task] A unique pointer to the task to register and enqueue, meeting the preconditions
        described above.  The runtime backend now owns the task object and is responsible for deleting it
-       after the task has finished running.  Any references or pointers to \ref task are considered
-       invalid after the task has run (i.e., \ref Task::run() was invoked and returned), and thus should only
-       be held by objects deleted inside Task::run() or objects deleted when \ref task is deleted.
+       after the task has finished running.  Any references or pointers to task are considered
+       invalid after the task has run (i.e., Task::run() was invoked and returned), and thus should only
+       be held by objects deleted inside Task::run() or objects deleted when task is deleted.
 \end{compactdesc}
      
 
