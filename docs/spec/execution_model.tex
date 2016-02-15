@@ -1,3 +1,5 @@
+%!TEX root = sandReportSpec.tex
+
 \section{Compatible Execution Models}
 \label{sec:exec_model}
 
@@ -18,7 +20,9 @@ which it would like the code to be run, along with the fraction of the resources
 that space it would like to consume (e.g., number of threads on a CPU).
 \todo[inline]{add detail re type of fork-join parallelism supported here: Is
   this terminally strict?, fully strict?}
-\item{\bf Full support for classes in actor-model mode:}\todo[inline]{elaborate on
+%JJW 02/15/2016 I don't think we'll ever support the actor model
+%The question is to what degree we will support C++ member functions as tasks
+\item{\bf Field slicing in classes and class member functions as tasks:}\todo[inline]{elaborate on
   this}
 \end{compactdesc}
 

@@ -1,27 +1,29 @@
+%!TEX root = sandReportSpec.tex
+
 \section{Programming Model}
 \label{sec:programming_model}
-DARMA is a \gls{declarative} \gls{programming model}, in which the application developer describes the
-work they would like done. 
-Rather than explicitly
-(\gls{imperative}ly) perform all work in program order, blocking on data requests,
-  DARMA provides \CC-embedded task annotations that denote work that can be
-  performed asynchronously, in a deferred fashion.
-  Such work is enqueued to be performed, and is free to run once all of it's data \glspl{dependency} and
+DARMA is a mixed \gls{imperative}/\gls{declarative} \gls{programming model}.
+As much as possible, sequential imperative semantics are used to produce intuitive, maintainable code.
+However, the ``procedural imperative'' function calls and code blocks do not execute immediately.
+Rather than explicitly perform all work in program order and block on data requests,
+ DARMA provides \CC-embedded task annotations allowed work to be
+ deferred and performed asynchronously.
+Thus DARMA is also declarative, describing the work to be done but leaving a runtime free to schedule and run the when its data \glspl{dependency} and
 \glspl{anti-dependency} are met.  
-The \CC-embedded task annotations, in conjunction with permissions qualifiers
-on data enable the expression of additional \gls{task parallelism} and
-\gls{pipeline parallelism}. 
+Task parallelism is primarily achieved through permissions/access qualifiers
+on data that enable that enable a runtime to more easily reason about which tasks are safe to run in parallel. 
 \todo{elaborate on the fact that task annotations can be nested here?}
 Task annotations are translated by
-the DARMA \gls{translation layer} which uses standard \CC\ constructs (e.g., lambdas,
+the DARMA front end through standard \CC\ constructs (e.g., lambdas,
   reference counted pointers) and \gls{template
-metaprogramming} to manage the parallelism.  The \gls{translation layer} requires
-\CC14 standard features (details provided in
+metaprogramming} to expose and understand the parallelism inherent in the code.  
+The \gls{translation layer} requires \CC11 standard features with a small subset of
+\CC14 required for advanced features (details provided in
     Chapter~\ref{chap:translation_layer}), 
   however the \gls{front end} \gls{API} does \emph{not}
 require knowledge of \CC14 to use. Furthermore, the \gls{back end} is a
 simple set of abstract \CC\ classes whose functionality must be implemented
-according to the functionality specfied in Chapter~\ref{chap:back_end}.
+according to the specfication in Chapter~\ref{chap:back_end}.
 %providing the runtime the flexibility to optimize performance and
 %exploit additional parallelism when possible.   
 
@@ -29,7 +31,7 @@ according to the functionality specfied in Chapter~\ref{chap:back_end}.
 In DARMA, \gls{spmd} is the dominant parallelism and the notion of a \gls{rank}
 is maintained within the \gls{API}.   
 This provides application developers a convenience mechanism for creating
-the initial problem distribution.  Immediately after launch, deferred tasks
+the initial problem decomposition and distribution.  Immediately after launch, deferred tasks
 are free to be migrated by the runtime, if it will result in
 better performance. 
 Within a \gls{rank}, DARMA provides \gls{sequential semantics}, 
@@ -39,12 +41,12 @@ though it were being deployed sequentially within the rank.
 
 
 The declarative programming style of DARMA is provided in part by \gls{coordination
-semantics}:  rather than move data between ranks via direct communication
-(i.e.,  \inlinecode{send/recv}), all data that is communicated outside
-of a rank is associated with a unique \inlinecode{key} and placed in a
-\gls{key-value store}.  \Gls{coordination semantics} provide a simple
-level of indirection that makes it much easier for the runitme to migrate work
-and manage fault tolerance.
+semantics}:  rather than explicitly move data between ranks via direct communication
+(i.e.,  \inlinecode{send/recv}), processes \emph{coordinate} by putting/getting
+data associated with a unique \inlinecode{key} in a
+\gls{key-value store} or \gls{tuple space}.  
+\Gls{coordination semantics} promote out-of-order message arrival, deferred execution, and task migration
+since the app declares or describes the data it needs/produces rather than enforcing an explicit delivery mechanism.
 
 Although not yet supported in version 0.2 of the specification, several
 important features will play a role in the DARMA programming model:
