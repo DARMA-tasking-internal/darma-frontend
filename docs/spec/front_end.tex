@@ -12,9 +12,6 @@ introduce the following constructs supported by the \gls{front end} \gls{API}:
 \item Serialization Manager
 \end{compactitem}
 
-\todo[inline]{DSH: The following sections need some significant reordering
-IMHO.}
-
 \section{Deferred Work Creation}
 \label{sec:deferred}
 In DARMA, like other AMT runtime systems, the user creates blocks of work that
@@ -114,12 +111,10 @@ is pivotal to the DARMA programming model.
 \section{Data Access Handles}
 \label{sec:handles}
 
-%\todo[inline]{This needs to somehow go after \inlinecode{create_work()} is
-%introduced, the code examples don't actually work as is}
-
-\todo[inline]{JB Question to David/Jeremy: do we need to introduce versions, or
-is this no longer needed? DSH: Versions go with publish(), but some of it needs
-to be here because e.g., read\_access<T>() needs to reference them.}
+% Removed todo for now
+%\todo[inline]{JB Question to David/Jeremy: do we need to introduce versions, or
+%is this no longer needed? DSH: Versions go with publish(), but some of it needs
+%to be here because e.g., read\_access<T>() needs to reference them.}
 
 Transactions with the \gls{key-value store} are conducted using data handles that are of different access types which differentiate the 
 various transactions. 
