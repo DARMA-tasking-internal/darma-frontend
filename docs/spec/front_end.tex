@@ -353,20 +353,24 @@ a keyword is provided in or aliased into; every time a keyword argument or a cal
 accepting that argument is introduced in the documentation, the namespace to which 
 it belongs and all namespaces it is aliased into are given.
 
-\subsection{Decorators to create\_work()}
-\label{subsec:decorators}
-\todo[inline]{add information here regarding decorators to create\_work: right
-now we have waits(), reads(), writes(), and reads\_writes()}
+% DSH: removed section and TODO for now.  These are discussed briefly above in
+% the handles section anyway.  We can elaborate more there later.
+%\subsection{Decorators to create\_work()}
+%\label{subsec:decorators}
+%\todo[inline]{add information here regarding decorators to create\_work: right
+%now we have waits(), reads(), writes(), and reads\_writes()}
 
 
 \section{SPMD support}
 \label{sec:spmd}
+% DSH: Removed this TODO.  It's good enough for now.
 %\todo[inline]{this section needs to be revised.  Didn't Jeremy already take a
 %crack at it?  His changes don't appear to be here\ldots} 
 %\gls{spmd} being the
 %dominant model of parallelism in DARMA, \todo{are we comfortable saying this like this?  Is it even really true?} the spin-up of the
 %runtime in each \gls{spmd} unit is kept analogous to MPI. 
-Most applications written in DARMA will likely have \gls{spmd} as the dominant parallelism.
+Most applications written in or ported to DARMA will likely have \gls{spmd} as
+the dominant form of parallelism.
 To simplify the implementation of SPMD-structured codes, the notion of a \gls{rank} is maintained within the \gls{API}.   
 This should make it a little easier for existing MPI based application codes to transition 
 to DARMA. The initialization and termination of the runtime in each unit is via the calls \inlinecode{darma_init()}
@@ -389,19 +393,24 @@ The rank is a very useful concept to orchestrate dependencies in a \gls{spmd}
 model since data pertaining to a rank can be associated with a key that utilize
 the rank for uniqueness. Similarly, the unique key used by a different rank
 from which data needs to be fetched can be constructed from the knowledge of
-the rank creating th edata.  The example below illustrates this concept, where
+the rank creating the data.  The example below illustrates this concept, where
 the rank is integral to the key associated with data originating on that rank
-(the topic of data access handles will be discussed shortly in Section~\ref{sec:handles}):
 \begin{CppCode}
 size_t me = darma_spmd_rank();
 auto data_handle = initial_access<double>("data_key", me);
 \end{CppCode}  
+Note that in DARMA, SPMD ranks are actually just a special kind of task that
+happens to have a name containing the rank, and can be treated as such. 
+However, the similarity to traditional, MPI-style SPMD upon lauch will simplify
+the learning and porting process significantly.
 
 
-\subsection{Decorators}
-\label{subsec:decorators}
-\todo[inline]{add information here regarding decorators to create\_work: right
-now we have waits(), reads(), writes(), and reads\_writes()}
+% DSH: removed section and TODO for now.  These are discussed briefly above in
+% the handles section anyway.  We can elaborate more there later.
+%\subsection{Decorators}
+%\label{subsec:decorators}
+%\todo[inline]{add information here regarding decorators to create\_work: right
+%now we have waits(), reads(), writes(), and reads\_writes()}
 
 
 \section{Serialization API}
