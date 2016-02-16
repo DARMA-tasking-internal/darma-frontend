@@ -3,9 +3,19 @@
 \chapter{Back End API}
 \label{chap:back_end}
 
-\todo[inline]{Add description about directory structure: front end (interface
-    for backend developers into front end/translation layer. vs back end: what
-    the  developer must implement.   }
+The back end API is organized into two namespaces:
+\inlinecode{dharma_runtime::abstract::frontend} and
+\inlinecode{dharma_runtime::abstract::backend}.  The former contains
+abstraction base classes of entities that are implemented in the translation
+layer and are the only constructs in that layer that the backend is
+allowed to interact with.  The latter contains abstract base classes and a
+single function signature that must be concretely implemented in the backend and
+are the only backend abstractions the translation layer is allowed to interact
+with.  Below is a summary of the requirements to implement these abstractions,
+the documentation for which is taken largely from the Doxygen-style comments in
+the source code itself.  As such, the source code may be a better resource for
+those interested in this part of the document, but we have included it here for
+completeness.
 
 \section{Backend Functions}
 
