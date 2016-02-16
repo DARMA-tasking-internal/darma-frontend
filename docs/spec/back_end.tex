@@ -15,9 +15,10 @@ with.  Below is a summary of the requirements to implement these abstractions,
 the documentation for which is taken largely from the Doxygen-style comments in
 the source code itself.  As such, the source code may be a better resource for
 those interested in this part of the document, but we have included it here for
-completeness.
+completeness.  Note that some template parameters have been omitted from this
+documentation for succinctness.  For more information, see source code.
 
-\section{Backend Functions}
+\section{Function signatures in \inlinecode{dharma_runtime::abstract::backend}}
 
 \subsection{darma\_backend\_initialize()}
 \begin{CppCode}
@@ -78,7 +79,7 @@ darma_backend_initialize(
    must no longer be in argc and argv.
 
 
-\section{Backend Classes}
+\section{Abstract classes in \inlinecode{dharma_runtime::abstract::backend}}
 
 \subsection{{Runtime}}
 \inlinecode{Runtime} is an abstract class implemented by the backend containing
@@ -397,22 +398,23 @@ member functions of this class, and the details of thier implementation is as fo
       the data block.
 
 
-\subsubsection{DataBlock::acquire\_data()}
-\begin{CppCode}
-    virtual void
-    acquire_data(void* const data) =0;
-\end{CppCode}
-
-\paragraph{Remark:} This should never be invoked in the 0.2.0 spec implementation
-\todo[inline]{Should we just remove this function??}
+% DSH removed for now, consistent with other features > 0.2.0.
+%\subsubsection{DataBlock::acquire\_data()}
+%\begin{CppCode}
+%    virtual void
+%    acquire_data(void* const data) =0;
+%\end{CppCode}
+%
+%\paragraph{Remark:} This should never be invoked in the 0.2.0 spec implementation
+%\todo[inline]{Should we just remove this function??}
 
 
 %\subsection{{types}}
 
-\section{Front end Classes}
-\todo[inline]{need better section title}
-\todo[inline]{Add detail about how this is the interface that the back end has
-into the front end and translation layer}
+\section{Abstract Classes in \inlinecode{dharma_runtime::abstract::frontend}}
+%\todo[inline]{need better section title}
+%\todo[inline]{Add detail about how this is the interface that the back end has
+%into the front end and translation layer}
 %\todo[inline]{Add subsection for each class}
 
 \subsection{{DependencyHandle}}
