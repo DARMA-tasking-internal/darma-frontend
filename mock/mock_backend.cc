@@ -76,7 +76,7 @@ class MockRuntime
     }
 
     task_t* const
-    get_running_task() const override {
+    get_running_task() const {
       return top_level_task.get();
     }
 
