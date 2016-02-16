@@ -104,7 +104,6 @@ struct StreamKey  {
       Types&&... data
     ) {
       std::stringstream sstr;
-      sstr << ... data ... << std::endl;
       darma_runtime::meta::tuple_for_each(std::make_tuple(data...), [&sstr](const auto& val) {
         sstr << val << std::endl;
       });
