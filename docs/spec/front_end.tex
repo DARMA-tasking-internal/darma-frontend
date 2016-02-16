@@ -361,10 +361,14 @@ now we have waits(), reads(), writes(), and reads\_writes()}
 
 \section{SPMD support}
 \label{sec:spmd}
-\todo[inline]{this section needs to be revised.  Didn't Jeremy already take a
-crack at it?  His changes don't appear to be here\ldots} \gls{spmd} being the
-dominant model of parallelism in DARMA, \todo{are we comfortable saying this like this?  Is it even really true?} the spin-up of the
-runtime in each \gls{spmd} unit is kept analogous to MPI. This should make it a little easier for existing MPI based application codes to transition 
+%\todo[inline]{this section needs to be revised.  Didn't Jeremy already take a
+%crack at it?  His changes don't appear to be here\ldots} 
+%\gls{spmd} being the
+%dominant model of parallelism in DARMA, \todo{are we comfortable saying this like this?  Is it even really true?} the spin-up of the
+%runtime in each \gls{spmd} unit is kept analogous to MPI. 
+Most applications written in DARMA will likely have \gls{spmd} as the dominant parallelism.
+To simplify the implementation of SPMD-structured codes, the notion of a \gls{rank} is maintained within the \gls{API}.   
+This should make it a little easier for existing MPI based application codes to transition 
 to DARMA. The initialization and termination of the runtime in each unit is via the calls \inlinecode{darma_init()}
 and \inlinecode{darma_finalize()}. The total number of \gls{spmd} units are queried with the call \inlinecode{darma_spmd_size()},
 and the rank is queried with \inlinecode{darma_spmd_rank()}. A typical user written main program will look as follows:
