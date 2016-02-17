@@ -57,8 +57,8 @@ size_t to_global ( size_t i, size_t j, size_t k ) const{
   return i+j*nx_ + k*nx_*ny_;
 }
 
-size_t to_index(double x[3])  const{
-  size_t i = x[0]*nx_, j = x[1]*ny_, k = x[2]*nz_;
+size_t to_index(size_t nx, size_t ny, , size_t nz, double x[3])  const{
+  size_t i = x[0]*nx, j = x[1]*ny, k = x[2]*nz;
   return to_global(i,j,k);
 }
 
@@ -66,16 +66,16 @@ size_t to_index(double x[3])  const{
 // A function that initializes the mesh for this darma rank
 
 void setUpMesh(size_t nx, size_t ny, size_t nz, size_t rank, Mesh & mesh) { 
-  m.num_elements = nx*ny*nz; m.nx_ = nx; m.ny_ = ny; m.nz_ = nz ; 
-  m.elements = (MeshElement *)malloc(num_elements * sizeof(MeshElement));
-  m.num_elements = 0;
-  m.dx[0] = 1./nx; m.dx[1] = 1./ny; m.dx[2] = 1./nz;
+  mesh.num_elements = nx*ny*nz; mesh.nx_ = nx; mesh.ny_ = ny; mesh.nz_ = nz ; 
+  mesh.elements = (MeshElement *)malloc(num_elements * sizeof(MeshElement));
+  mesh.num_elements = 0;
+  mesh.dx[0] = 1./nx; mesh.dx[1] = 1./ny; mesh.dx[2] = 1./nz;
   size_t i[3] = {0,0,0};
   for (i[2]=0; i[2] < nz; ++i[2])
     for (i[1]=0; i[1] < ny; ++i[1])
       for (i[0]=0; i[0] < nx; ++i[0]) {
-	assert(to_global(i[0],i[1],i[2]) == m.num_elements);
-	MeshElement &e = m.elements[m.num_elements++];
+	assert(to_global(i[0],i[1],i[2]) == mesh.num_elements);
+	MeshElement &e = mesh.elements[mesh.num_elements++];
 	for (size_t idim =0; idim<3; ++idim) {
 	  e.x_low[idim] = i[idim]*dx[idim];
 	  e.x_hi[idim] = (i[idim]+1)*dx[idim];
@@ -89,10 +89,74 @@ void setUpMesh(size_t nx, size_t ny, size_t nz, size_t rank, Mesh & mesh) {
       }
 
   // initialize the partition id
-  m.index = rank;
+  mesh.index = rank;
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
+// A user data type for particle data
+
+struct Particles {
+
+  struct Particle {
+    int element;
+    double x[3];
+    double v[3];
+    double time_left;
+    State state;
+  };
+
+  int num_parts;
+  int active_parts_l;
+  int active_parts_g;
+
+  int num_parts_to_recv[6];
+  int num_parts_to_send[6];
+
+  std::vector<Particle> parts;
+
+  std::vector<Particle> parts_to_xlo, parts_to_xhi;
+  std::vector<Particle> parts_to_ylo, parts_to_yhi; 
+  std::vector<Particle> parts_to_zlo, parts_to_zhi;
+
+  std::vector<Particle> parts_from_xlo, parts_from_xhi;
+  std::vector<Particle> parts_from_ylo, parts_from_yhi;
+  std::vector<Particle> parts_from_zlo, parts_from_zhi;
+
+  ~Particles(){
+    parts.clear();
+    parts.swap(parts); //ensure that memory is freed
+  }
+
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// A function that initializes the particle locations for this darma rank
+
+void initializeParticles(size_t n_parts, Mesh & mesh, Particles & ps){
+
+  ps.parts.resize(n_parts);
+  for(std::vector<Particle>::iterator it = ps.parts.begin(); it != ps.parts.end(); ++it){
+    it->state = ACTIVE;
+    do {
+      it->x[0] = c-2*c*(drand48() - 0.5);
+      it->x[1] = c-2*c*(drand48() - 0.5);
+      it->x[2] = c-2*c*(drand48() - 0.5);
+    } while ((it->x[0]-c)*(it->x[0]-c) + (it->x[1]-c)*(it->x[1]-c)+
+	     (it->x[2]-c)*(it->x[2]-c) > c*c);
+
+
+    it->element = to_index(mesh.nx_, mesh.ny_, mesh.nz_, it->x);
+    do {
+      it->v[0] = .125-.5*(drand48() - 0.5);
+      it->v[1] = .125-.5*(drand48() - 0.5);
+      it->v[2] = .125-.5*(drand48() - 0.5);
+    } while ((it->v[0])*(it->v[0]) + (it->v[1])*(it->v[1])+
+	   (it->v[2])*(it->v[2]) > c*c);
+
+  }
+
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // main() function
@@ -115,11 +179,17 @@ size_t main(size_t argc, char** argv)
 
   // number of elements in each dim for the local mesh partition
   size_t local_elem = global_elem/partitions;
+
+  // number of particles per each rank
+  size_t n_parts = 5000;
+
   {  
   auto mesh_handle = initial_access<Mesh>("mesh", me);
+  auto parts_handle = initial_access<Particles>("particles",me);
 
   create_work([=]{
       setUpMesh(local_elem, local_elem, local_elem, me, mesh_handle.get_reference());
+      initializeParticles(n_parts, mesh_handle.get_reference(), parts_handle.get_reference());
     });
 
   //mesh_handle.publish(n_readers=1);
