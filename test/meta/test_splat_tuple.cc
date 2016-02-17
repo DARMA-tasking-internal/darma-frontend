@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          test_tuple_for_each.cc
-//                         darma_new
+//                          test_splat_tuple.cc
+//                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,32 +42,41 @@
 //@HEADER
 */
 
+
 #include <iostream>
 #include <tuple>
 
-#include <darma/meta/tuple_for_each.h>
+#include <darma/meta/splat_tuple.h>
 
 using namespace darma_runtime;
 
+struct BlabberMouth {
+  BlabberMouth(const std::string& str) : str_(str) { std::cout << "#!! String constructor: " << str_ << std::endl; }
+  BlabberMouth(const BlabberMouth& other) : str_(other.str_) { std::cout << "#!! copy constructor: " << str_ << std::endl; };
+  BlabberMouth(BlabberMouth&& other) : str_(other.str_) { std::cout << "#!! move constructor: " << str_ << std::endl; };
+  std::string str_;
+};
+
+template <typename Tuple>
+void test_const(const Tuple& tup) {
+  meta::splat_tuple(tup, [](const int& a, const std::string& b, const double& c, const BlabberMouth& d){
+    std::cout << a << ", " << b << ", " << c << ", " << d.str_ << std::endl;
+  });
+}
+
 int main(int argc, char** argv) {
-  std::tuple<int, std::string, double, int> tup(5, "hello", 47.32, 42);
-  meta::tuple_for_each(tup, [](auto&& val) {
-    std::cout << val << std::endl;
+  // Should have one move constructor
+  auto tup = std::make_tuple(5, "hello", 47.32, BlabberMouth("blabber"));
+  meta::splat_tuple(tup, [](const int& a, const std::string& b, const double& c, const BlabberMouth& d){
+    std::cout << a << ", " << b << ", " << c << ", " << d.str_ << std::endl;
   });
-  meta::tuple_for_each(tup, [](auto&& val) {
-    std::cout << val << std::endl;
+  // Should have only a string constructor
+  meta::splat_tuple(std::forward_as_tuple(5, "hello", 47.32, BlabberMouth("blabber")),
+    [](const int& a, const std::string& b, const double& c, const BlabberMouth& d){
+      std::cout << a << ", " << b << ", " << c << ", " << d.str_ << std::endl;
   });
-  meta::tuple_for_each_with_index(tup, [](auto&& val, size_t idx) {
-    std::cout << idx << ": " << val << std::endl;
-  });
-  meta::tuple_for_each_with_index(std::make_tuple(5, "hello", 47.32, 42), [](auto&& val, size_t idx) {
-    std::cout << idx << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
-  });
-  char hello[6] = "hello";
-  meta::tuple_for_each_with_index(std::make_tuple(5, hello, 47.32, 42), [](auto&& val, size_t idx) {
-    std::cout << idx << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
-  });
-  meta::tuple_for_each(std::make_tuple(5, hello, 47.32, 42), [](auto&& val) {
-    std::cout << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
-  });
+  // Should call no constructors
+  test_const(tup);
+  // Should have only a string constructor
+  test_const(std::forward_as_tuple(5, "hello", 47.32, BlabberMouth("blabber")));
 }

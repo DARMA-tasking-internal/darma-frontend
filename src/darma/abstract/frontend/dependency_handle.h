@@ -184,7 +184,7 @@ class DependencyHandle {
      *
      */
     virtual abstract::backend::DataBlock*
-    get_data_block() =0;
+    get_data_block() const =0;
 
     /** @brief returns true iff satisfy_with_data_block() has been called for this instance
      */
