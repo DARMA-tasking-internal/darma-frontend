@@ -65,13 +65,18 @@ static std::mutex debug_output_mtx;
 
 using namespace darma_runtime;
 
+//#define DHARMA_THREADS_DEBUG 1
 
+#ifdef DHARMA_THREADS_DEBUG
 #define DEBUG(...) { \
   std::lock_guard<std::mutex> ___dbg_lg(debug_output_mtx); \
   std::cout << __VA_ARGS__ << std::endl; \
 }
+#else
+#define DEBUG(...)
+#endif
 
-#define DHARMA_ABORT(...) { \
+#define DARMA_ABORT(...) { \
   std::stringstream sstr; \
   sstr << __VA_ARGS__; \
   dharma_abort_string(sstr.str()); \
@@ -79,17 +84,12 @@ using namespace darma_runtime;
 
 void
 dharma_abort_string(const std::string& str) {
-  std::cerr << "ERROR: " << str << std::endl;
+  {
+    std::lock_guard<std::mutex> ___dbg_lg(debug_output_mtx);
+    std::cerr << "ERROR: " << str << std::endl;
+  }
   abort();
 }
-
-//template <typename... Lockables>
-//struct locker_impl {
-//  inline constexpr void
-//  operator()(Lockables&&... ls) const {
-//    std::lock(std::forward<Lockables>(ls)...);
-//  }
-//};
 
 struct locker {
   template <typename... Lockables>
@@ -115,7 +115,6 @@ struct lock_maker {
 template <template <class...> class LockTemplate, typename... Lockables>
 decltype(auto)
 make_lock_guards(Lockables&&... lockables) {
-  //auto lock_tuple = meta::tuple_for_each(std::forward_as_tuple(lockables...), lock_maker<LockTemplate>());
   return locker()(
     lock_maker<LockTemplate>()(std::forward<Lockables>(lockables))...
   );
@@ -461,7 +460,7 @@ class ThreadsRuntime
         }
 
         if(!ro_lock_iter_pair.second || !handle_mtx_ipair.second) {
-          DHARMA_ABORT("Can't re-register handle "
+          DARMA_ABORT("Can't re-register handle "
             << get_key_version_string(handle) << " that hasn't been released yet"
           );
         }
@@ -510,13 +509,13 @@ class ThreadsRuntime
         );
         if(found_mtx == handle_mtxs_.end()) {
           // it's unregistered, or it's already been released
-          DHARMA_ABORT("Can't release read-only usage for unregistered handle "
+          DARMA_ABORT("Can't release read-only usage for unregistered handle "
             << get_key_version_string(handle)
           );
         }
         else {
           // the lock is missing, but the mutex is there, so it's already been unlocked
-          DHARMA_ABORT("Can't release read-only usage more than once for handle "
+          DARMA_ABORT("Can't release read-only usage more than once for handle "
             << get_key_version_string(handle)
           );
         }
@@ -644,10 +643,11 @@ class ThreadsRuntime
 
     void
     finalize() override {
-      // TODO something here
+      // TODO more efficient implementation (at least with a seperate joiner thread or something)
       for(auto&& tt : task_threads_) {
         tt.join();
       }
+      // TODO mark something to make sure nothing else gets registered
     }
 
 
