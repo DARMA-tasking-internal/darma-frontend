@@ -433,7 +433,7 @@ class DependencyHandle
       //if(value_ == nullptr) allocate_metadata(sizeof(T));
       // for now, assume/assert it's allocated to be the right size by the backend:
       assert(value_ != nullptr);
-      value_ = new (&value_) T(
+      value_ = new (value_) T(
         std::forward<Args>(args)...
       );
     }
@@ -461,7 +461,7 @@ class DependencyHandle
       emplace_value(std::forward<U>(val));
     }
 
-    ~DependencyHandle() {
+    virtual ~DependencyHandle() {
       backend_runtime->release_handle(this);
     }
 
@@ -505,7 +505,7 @@ class DependencyHandle
     }
 
     abstract::backend::DataBlock*
-    get_data_block() override {
+    get_data_block() const override {
       return this->data_block_;
     }
 

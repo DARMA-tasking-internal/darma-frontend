@@ -168,7 +168,7 @@ class Runtime {
      */
     virtual void
     register_handle(
-      const handle_t* const handle
+      handle_t* const handle
     ) =0;
 
 

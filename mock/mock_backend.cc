@@ -82,7 +82,7 @@ class MockRuntime
 
     void
     register_handle(
-      const handle_t* const handle
+      handle_t* const handle
     ) override {
       cout << "registering handle: ";
       describe_handle(handle);
