@@ -17,7 +17,7 @@ struct MeshElement {
   double x_low[3], x_hi[3];
   size_t lower[3], upper[3];
 
-  // MPI Parallelism: here we simply add the global MeshElement id.
+  // SPMD Parallelism: here we simply add the global MeshElement id.
   size_t global_index;
   size_t global_lower[3], global_upper[3], coords[3];
 };
@@ -27,12 +27,7 @@ struct MeshElement {
   double dx[3];
 protected:
   size_t nx_, ny_, nz_;
-  size_t to_global ( size_t i, size_t j, size_t k ) const{
-    if (i<0 ) i += nx_; if (i>= nx_) i-= nx_;
-    if (j<0 ) j += ny_; if (j>= ny_) j-= ny_;
-    if (k<0 ) k += nz_; if (k>= nz_) k-= nz_;
-    return i+j*nx_ + k*nx_*ny_;
-  }
+
 public:
 
   // MPI Parallelism
@@ -45,49 +40,58 @@ public:
   // global element ids of the corner elements in this partition
   size_t coords_low[3], coords_high[3]; 
 
-  // Some user methods
-  void allocate() {
-    assert(this == nullptr);
-    this = (Mesh *)malloc(sizeof(Mesh));
-  }
-
-  setUpMesh(size_t nx, size_t ny, size_t nz, size_t rank) { 
-    num_elements = nx*ny*nz; nx_ = nx; ny_ = ny; nz_ = nz ; 
-    elements = (MeshElement *)malloc(num_elements * sizeof(MeshElement));
-    num_elements = 0;
-    dx[0] = 1./nx; dx[1] = 1./ny; dx[2] = 1./nz;
-    size_t i[3] = {0,0,0};
-    for (i[2]=0; i[2] < nz; ++i[2])
-      for (i[1]=0; i[1] < ny; ++i[1])
-        for (i[0]=0; i[0] < nx; ++i[0]) {
-          assert(to_global(i[0],i[1],i[2]) == num_elements);
-          MeshElement &e = elements[num_elements++];
-          for (size_t idim =0; idim<3; ++idim) {
-            e.x_low[idim] = i[idim]*dx[idim];
-            e.x_hi[idim] = (i[idim]+1)*dx[idim];
-          }
-          e.lower[0] = to_global(i[0]-1, i[1], i[2]);
-          e.upper[0] = to_global(i[0]+1, i[1], i[2]);
-          e.lower[1] = to_global(i[0], i[1]-1, i[2]);
-          e.upper[1] = to_global(i[0], i[1]+1, i[2]);
-          e.lower[2] = to_global(i[0], i[1], i[2]-1);
-          e.upper[2] = to_global(i[0], i[1], i[2]+1);
-        }
-
-
-    // initialize the partition id
-    index = rank;
-  }
-
   ~Mesh () {
   }
 
-  size_t to_index(double x[3])  const{
-    size_t i = x[0]*nx_, j = x[1]*ny_, k = x[2]*nz_;
-    return to_global(i,j,k);
-  }
+
 
 };
+
+////////////////////////////////////////////////////////////////////////////////
+// Some helper functions
+
+size_t to_global ( size_t i, size_t j, size_t k ) const{
+  if (i<0 ) i += nx_; if (i>= nx_) i-= nx_;
+  if (j<0 ) j += ny_; if (j>= ny_) j-= ny_;
+  if (k<0 ) k += nz_; if (k>= nz_) k-= nz_;
+  return i+j*nx_ + k*nx_*ny_;
+}
+
+size_t to_index(double x[3])  const{
+  size_t i = x[0]*nx_, j = x[1]*ny_, k = x[2]*nz_;
+  return to_global(i,j,k);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// A function that initializes the mesh for this darma rank
+
+void setUpMesh(size_t nx, size_t ny, size_t nz, size_t rank, Mesh & mesh) { 
+  m.num_elements = nx*ny*nz; m.nx_ = nx; m.ny_ = ny; m.nz_ = nz ; 
+  m.elements = (MeshElement *)malloc(num_elements * sizeof(MeshElement));
+  m.num_elements = 0;
+  m.dx[0] = 1./nx; m.dx[1] = 1./ny; m.dx[2] = 1./nz;
+  size_t i[3] = {0,0,0};
+  for (i[2]=0; i[2] < nz; ++i[2])
+    for (i[1]=0; i[1] < ny; ++i[1])
+      for (i[0]=0; i[0] < nx; ++i[0]) {
+	assert(to_global(i[0],i[1],i[2]) == m.num_elements);
+	MeshElement &e = m.elements[m.num_elements++];
+	for (size_t idim =0; idim<3; ++idim) {
+	  e.x_low[idim] = i[idim]*dx[idim];
+	  e.x_hi[idim] = (i[idim]+1)*dx[idim];
+	}
+	e.lower[0] = to_global(i[0]-1, i[1], i[2]);
+	e.upper[0] = to_global(i[0]+1, i[1], i[2]);
+	e.lower[1] = to_global(i[0], i[1]-1, i[2]);
+	e.upper[1] = to_global(i[0], i[1]+1, i[2]);
+	e.lower[2] = to_global(i[0], i[1], i[2]-1);
+	e.upper[2] = to_global(i[0], i[1], i[2]+1);
+      }
+
+  // initialize the partition id
+  m.index = rank;
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -111,17 +115,15 @@ size_t main(size_t argc, char** argv)
 
   // number of elements in each dim for the local mesh partition
   size_t local_elem = global_elem/partitions;
-  
+  {  
   auto mesh_handle = initial_access<Mesh>("mesh", me);
 
   create_work([=]{
-    mesh_handle->allocate();
-    Mesh* mesh_ptr = mesh_handle->get();
-    mesh_ptr->setUpMesh(local_elem, local_elem, local_elem, me);
-  });
+      setUpMesh(local_elem, local_elem, local_elem, me, mesh_handle.get_reference());
+    });
 
-  mesh_handle.publish();
-
+  //mesh_handle.publish(n_readers=1);
+  }
 
 
   darma_finalize();
