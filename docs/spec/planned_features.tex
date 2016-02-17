@@ -1,26 +1,30 @@
+%!TEX root = sandReportSpec.tex
+
 \chapter{Evolution of the Specification}
 \label{chap:evolution}
 \section{Specification History}
 \label{sec:past}
-Version 0.1 of the specification existed in \gls{API} form only, and was not
-formally documented.  In this version of the specification:
+Version 0.1 of the specification existed in \gls{API} form only, and
+the documention of that version of the spec differs substantially
+enough from the current one that it is not included in this work.
+In this version of the specification:
 \begin{compactenum}
-\item all input and output dependencies had to be listed by the application
+\item all input and output dependencies had to be explicitly enumerated by the application
 developer;
-\item all communication off node was
-performed directly using \gls{coordination semantics} directly;
-\item  the use of \inlinecode{version} was required to keep data
+\item Data was passed to all tasks (even inline tasks) via function parameters
+\item all input and outputs were to each task were declared using \gls{coordination semantics}
+\item explicit versioning of inputs/outputs was required to keep data
 logically distinct;
-\item \gls{sequential semantics} within a DARMA rank were not enforced.
+\item Sequential ordering of statements within DARMA has no significance for task ordering
 \end{compactenum}
 
  Application developer concerns regarding version 0.1 of the specification
  centered around the 1) verbosity of the approach, 2) the difficulty of
- reasoning regarding the program order, and 3) the fact that 
- \inlinecode{create_work} cannot be called
- within the scope of class instance member functions.  The first two of these issues are
-   addressed in version 0.2 of the specification, and the third concern will be
-   addressed in later releases of the specification.
+ reasoning about correct program order of tasks, and 3) the fact that 
+ \inlinecode{create_work} functioned poorly in the contexts of hierarchical data
+ structures and dependencies, like classes with members that were also
+ classes.  The first two of these issues are addressed in version 0.2 of the
+ specification, and the third concern will be addressed in later releases of the specification.
    
 
 
@@ -28,24 +32,25 @@ logically distinct;
 \label{sec:current}
 In version 0.2 of the specification we:
   \begin{compactenum}
-\item leverage the \CC\ \gls{capture} and
-    \gls{introspection} mechanisms to minimize verbosity of the \gls{front end}
+  % DSH: C++ doesn't really have ``introspection'', so I removed this
+\item leverage the \CC\ \gls{capture} mechanism to minimize verbosity of the \gls{front end}
     \gls{API};  
-\item enforce \gls{sequential semantics} within a \gls{rank} to
+\item provide \gls{sequential semantics} within a \gls{rank} to
     facilitate reasoning about program order; 
 \item introduce the use of
-    \glspl{handle} to access data in the \gls{key-value store}, and no longer
-    require data to be tagged with a \inlinecode{version} in all
-    settings.
+    \gls{handle} variables to access data in the \gls{key-value store} to limit number of key-value operations for often-used data
+\item explicit publication of all (potentially) off-node communication
+operations
+\item implicit versioning within a task/scope based on sequential program order    
     \end{compactenum}
-\todo[inline]{should we list subscriptions in 0.3 or 0.2?}
-\todo[inline]{is this list complete?}
 
 
 \section{Planned Features in Future Releases}
 \label{sec:future}
-\todo[inline]{Make sure list is accurate - change releases if necessary, add missing
-  things}
+% DSH: Removed this TODO item.  This list will always be incomplete and/or in
+% flux.
+% \todo[inline]{Make sure list is accurate - change releases if necessary,
+% add missing things}
 
 As part of the \gls{co-design} process, this specification will evolve quickly.
   Based on feedback thus far, there are already
@@ -55,22 +60,27 @@ will be released this calendar year (2016).  These are summarized below:
 \begin{compactdesc}
 \item[0.3:]
 \begin{compactitem}
-\item support for create works within functors 
+\item support for \inlinecode{create_work()} within functors and/or
+function-like interface (i.e., not with lambdas)
 \item hierarchical \glspl{dependency} (e.g., classes that have dependencies as
-    member variables)
-\item members functions without automatic capture can be called asynchronously
-when provided list of the member variables and member functions you will use
-within. \todo[inline]{elaborate on this -- add details regarding migratability issues}
-\item support for collectives
+member variables) and containment and aliasing management
+\item task creation within class member functions
+\item support for automatic data partitions and collectives
 \end{compactitem}
 \item[0.4:]
 \begin{compactitem}
-\item Full support for classes in an actor-model mode \todo[inline]{elaborate on this,
-add details regarding migratability tradeoffs}
+\item Full support for classes in an actor-model mode 
+% DSH: I removed this TODO.  We haven't elaborated on it here because we haven't
+% worked out the details yet.  It seems silly to put a todo in a list of what
+% are essentially todos anyway.
+% \todo[inline]{I don't know what this means - elaborate on this, add details regarding migratability tradeoffs}
 \end{compactitem}
 \item[0.5:]
 \begin{compactitem}
 \item Include support for expression of \inlinecode{execution space} and
-  \inlinecode{memory space}.
+\inlinecode{memory space} and assignment of work among these abstract machine
+model concepts
+\item Custom data models supporting arbitrary data slicing/interference tests
+\item Data staging hooks to accompany custom slicing
 \end{compactitem}
 \end{compactdesc}

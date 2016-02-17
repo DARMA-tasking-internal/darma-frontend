@@ -5,7 +5,14 @@
 
 # Change these...
 TOP_SRCDIR ?= /Users/dshollm/Projects/dharma_new/source/head
-CXX = /opt/local/bin/clang++-mp-3.8
+CXX = /opt/local/bin/g++-mp-4.9
+
+# Should be "mock" or "threads"
+# mock is for just getting something that compiles
+# threads supports a very primitive and very inefficient working implementation,
+# though it's feature support in the spec is likely to lag behind the mock
+# DARMA_BACKEND = mock
+DARMA_BACKEND = threads
 
 #========================================================================
 # Everything below here *should* be fine
@@ -27,7 +34,7 @@ src2build = $(foreach path,$1,$(patsubst $(TOP_SRCDIR)/%,$(TOP_BUILDDIR)/%,$(pat
 build2src = $(foreach path,$1,$(patsubst $(TOP_BUILDDIR)/%,$(TOP_SRCDIR)/%,$(path)))
 striptop = $(foreach pth2,$(foreach path,$1,$(patsubst $(TOP_BUILDDIR)/%,%,$(path))),$(patsubst $(TOP_SRCDIR)/%,%,$(pth2)))
 
-MOCK_SOURCES = $(wildcard $(TOP_SRCDIR)/mock/**/*.cc) $(wildcard $(TOP_SRCDIR)/mock/*.cc)
+MOCK_SOURCES = $(TOP_SRCDIR)/mock/$(DARMA_BACKEND)_backend.cc
 MOCK_OBJECTS = $(call src2build,$(MOCK_SOURCES:.cc=.o))
 EXAMP_SOURCES = $(wildcard $(TOP_SRCDIR)/examples/**/*.cc)
 EXAMP_OBJECTS = $(call src2build,$(EXAMP_SOURCES:.cc=.o))

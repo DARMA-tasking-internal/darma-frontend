@@ -1,23 +1,70 @@
+%!TEX root = sandReportSpec.tex
+
 \section{Programming Model}
 \label{sec:programming_model}
-In DARMA \gls{spmd} is the dominant parallelism and the notion of a \gls{rank}
-is maintained within the \gls{API}.   
-  The DARMA \gls{API} simplifies the introduction
-  of asynchronous task parallelism via the use of standard \CC\ constructs, such
-  as \gls{reference counted pointers} and \glspl{lambda}.
+DARMA is a mixed \gls{imperative}/\gls{declarative} \gls{programming model}.
+As much as possible, sequential imperative semantics are used to produce intuitive, maintainable code.
+However, the ``procedural imperative'' function calls and code blocks do not execute immediately.
+Rather than explicitly perform all work in program order and block on data requests,
+ DARMA provides \CC-embedded task annotations allowed work to be
+ deferred and performed asynchronously.
+Thus DARMA is also declarative, describing the work to be done but leaving a runtime free to schedule and run the when its data \glspl{dependency} and
+\glspl{anti-dependency} are met.  
+Task parallelism is primarily achieved through permissions/access qualifiers
+on data that enable that enable a runtime to more easily reason about which tasks are safe to run in parallel. 
+\todo{elaborate on the fact that task annotations can be nested here?}
+Task annotations are translated by
+the DARMA front end through standard \CC\ constructs (e.g., lambdas,
+  reference counted pointers) and \gls{template
+metaprogramming} to expose and understand the parallelism inherent in the code.  
+The \gls{translation layer} requires \CC11 standard features with a small subset of
+\CC14 required for advanced features (details provided in
+    Chapter~\ref{chap:translation_layer}), 
+  however the \gls{front end} \gls{API} does \emph{not}
+require knowledge of \CC14 to use. Furthermore, the \gls{back end} is a
+simple set of abstract \CC\ classes whose functionality must be implemented
+according to the specfication in Chapter~\ref{chap:back_end}.
+%providing the runtime the flexibility to optimize performance and
+%exploit additional parallelism when possible.   
 
-  
-The \gls{API} is being \gls{co-design}ed with application developers
-and computer scientists whose knowledge spans the entire runtime software stack.
-Current applications affecting the design include portions of the \gls{Trilinos} software stack
-and \gls{ASC} \gls{ATDM} efforts at Sandia National Laboratories. 
- 
-% NOTE: this is morphed text from open mp/ocr specs.  is this needed?
-%This specification covers user-directed parallelization, where the user
-%has annotated that portions of the work could be performed asynchronously.
-%The DARMA runtime will schedule all asynchronous work in a \gls{deferred} fashion,
-%checking that all \gls{input dependencies} are met prior to performing work.  
-%The user is responsible for ensuring that the application using the DARMA
-%\gls{API} constructs executes correctly.
+
+Most applications written in DARMA will likely have \gls{spmd} as the dominant parallelism.
+To simplify the implementation of SPMD-structured codes, the notion of a \gls{rank} is maintained within the \gls{API}.   
+This provides application developers a convenience mechanism for creating
+the initial problem decomposition and distribution.  Immediately after launch, deferred tasks
+are free to be migrated by the runtime, if it will result in
+better performance. 
+Within a \gls{rank}, DARMA provides \gls{sequential semantics}, 
+meaning that application developers can reason about the code as
+though it were being deployed sequentially within the rank.   
+\todo[inline]{add comments about initial mapping and over-decomposition}
 
 
+The declarative programming style of DARMA is provided in part by \gls{coordination
+semantics}:  rather than explicitly move data between ranks via direct communication
+(i.e.,  \inlinecode{send/recv}), processes \emph{coordinate} by putting/getting
+data associated with a unique \inlinecode{key} in a
+\gls{key-value store} or \gls{tuple space}.  
+\Gls{coordination semantics} promote out-of-order message arrival, deferred execution, and task migration
+since the app declares or describes the data it needs/produces rather than enforcing an explicit delivery mechanism.
+
+Although not yet supported in version 0.2 of the specification, several
+important features will play a role in the DARMA programming model:
+\begin{compactdesc}
+\item{\bf Expressive Underlying Abstract Machine Model:}
+Notions of \glspl{execution space} and \glspl{memory space} will be introduced
+formally in later
+versions of the specification.  These abstractions (or similar ones) appear in other runtime
+solutions~\cite{kokkos, others} \todo{add relevant citations here} to
+address deficiencies in the abstract machine model used by runtimes that
+support \gls{spmd} parallelism (i.e., uniform compute elements, flat memory
+    spaces).  Using such abstractions
+1) facilitates performance portable application development across 
+a variety of execution spaces, and 2)
+  provides finer-grained control and additional flexibility in the
+  communication of policies regarding data locality and data movement. 
+\todo[inline]{add discussion of data staging between memory spaces}
+\item{\bf Collectives:}
+Collectives will be supported by DARMA in version 0.3 of the specification.
+\todo[inline]{add details}
+\end{compactdesc}

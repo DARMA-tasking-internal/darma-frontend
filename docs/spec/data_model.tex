@@ -1,13 +1,12 @@
-\section{Data Model}
+%!TEX root = sandReportSpec.tex
+
+\section{Compatible Data Models}
 \label{sec:data_model}
 
 
-DARMA provides a very flexible data  model, leaving the application developer
-free to use whatever data structures they like. 
+DARMA provides a flexible data model (DARMA is only aware of tuple or key identifiers for a coarse-grained data block).
+This leaves the application developer free to use arbitrary data structures, but puts more responsibility on application developer to define serialization, \gls{slicing}, and \glspl{interference test} 
+for data blocks. 
+\todo[inline]{add details here}
 
-\todo[inline]{ Data can migrate -- Add discussion about serialization
-  mechanisms - what is supported by the runtime, what does the user need to
-    provide}
-
-\todo[inline]{is the permissions related text a part of memory model or data model?}
 

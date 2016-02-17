@@ -4,7 +4,7 @@ CXX := /opt/local/bin/g++-mp-5
 
 CPPFLAGS = -I../src -I../src/meta
 CXXFLAGS = -std=c++14 -O0 -g -ftemplate-backtrace-limit=0 -Wno-return-type
-LDFLAGS = 
+LDFLAGS = -std=c++14 -lstdc++
 
 TEST_CC_FILES = $(wildcard test_*.cc)
 ALL_TESTS = $(patsubst %.cc,%,$(notdir $(TEST_CC_FILES)))

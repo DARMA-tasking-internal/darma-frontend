@@ -1,4 +1,3 @@
-
 \newglossaryentry{API}
 {
   type=glossary,
@@ -150,13 +149,6 @@
   type=glossary,
   name=Trilinos,
   description={\todo{Fill out Trilinos glossary description}},
-}
-
-\newglossaryentry{input dependencies}
-{
-  type=glossary,
-  name=input dependencies,
-  description={\todo{Fill out input dependencies glossary description}},
 }
 
 \newglossaryentry{EDSL}
@@ -609,6 +601,7 @@ individual sub-tasks, each of which represents a stage whose execution can be
   plural={data-flow dependencies},
   description={A data dependency where a set of tasks or instructions require a certain sequence to complete without causing race conditions. Data-flow dependency types include \gls{Write-After-Read}, \gls{Read-After-Write} and \gls{Write-After-Write}}
 }
+
 \newglossaryentry{anti-dependency}
 {
   type=glossary,
@@ -617,6 +610,7 @@ individual sub-tasks, each of which represents a stage whose execution can be
   see={[Glossary:]{Write-After-Read}},
   description={See \gls{Write-After-Read}}
 }
+
 \newglossaryentry{chare}
 {
   type=glossary,
@@ -928,6 +922,36 @@ individual sub-tasks, each of which represents a stage whose execution can be
   in massively parallel computing}
 }
 
+\newglossaryentry{tuple space}
+{
+  type={glossary},
+  name={tuple space},
+  plural={tuple spaces},
+  description={yeah, something about Linda},
+}
+
+\newglossaryentry{interference test}
+{
+  type={glossary},
+  name={interference tests},
+  description={yeah, something about data conflicts},
+}
+
+\newglossaryentry{slicing}
+{
+  type={glossary},
+  name={slicing},
+  description={yeah, something about data subsets},
+}
+
+\newglossaryentry{access group}
+{
+  type={glossary},
+  name={access group},
+  description={yeah, something about send/recv, broadcast, scopes},
+}
+
+
 \newacronym{ACES}{ACES}{Advanced Computing at Extreme Scale}
 \newacronym{AMR}{AMR}{adaptive mesh refinement}
 \newacronym{CFD}{CFD}{computational fluid dynamics}
@@ -955,3 +979,4 @@ individual sub-tasks, each of which represents a stage whose execution can be
 \newacronym{ALU}{ALU}{arithmetic logic unit}
 \newacronym{AVX}{AVX}{Advanced Vector Extensions}
 \newacronym{SSE}{SSE}{Streaming SIMD Extensions}
+

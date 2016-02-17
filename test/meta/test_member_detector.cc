@@ -42,7 +42,7 @@
 //@HEADER
 */
 
-#include <meta/member_detector.h>
+#include <darma/meta/member_detector.h>
 #include <string>
 
 using namespace darma_runtime;

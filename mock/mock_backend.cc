@@ -76,13 +76,13 @@ class MockRuntime
     }
 
     task_t* const
-    get_running_task() const override {
+    get_running_task() const {
       return top_level_task.get();
     }
 
     void
     register_handle(
-      const handle_t* const handle
+      handle_t* const handle
     ) override {
       cout << "registering handle: ";
       describe_handle(handle);
