@@ -110,7 +110,7 @@ class basic_version {
       constexpr const Comparable zero = Comparable();
       basic_version rv(*this);
       for(int i = depth()-1; i >= 0; --i) {
-        if(rv[i] == zero) rv.pop_subversion();
+        if(rv.version_clock[i] == zero) rv.pop_subversion();
       }
       return rv;
     }
@@ -247,7 +247,7 @@ struct version_hash
     // equal versions will hash to the same thing
     const version_type tv = v.truncated();
     size_t ret_val = 0;
-    for(auto const& val : tv) {
+    for(auto const& val : tv.version_clock) {
       hash_combine(ret_val, val);
     }
     return ret_val;
@@ -263,10 +263,23 @@ typedef detail::basic_version<size_t, std::vector> Version;
 
 } // end namespace defaults
 
-
-
 } // end namespace darma_runtime
 
+namespace std {
+
+template <typename T, template <class...> class Container>
+struct hash<darma_runtime::detail::basic_version<T, Container>>
+{
+  size_t
+  operator()(const darma_runtime::detail::basic_version<T, Container>& val) const {
+    return darma_runtime::detail::version_hash<
+      darma_runtime::detail::basic_version<T, Container>
+    >()(val);
+  }
+
+};
+
+} // end namespace std
 
 
 #endif /* NEW_VERSION_H_ */

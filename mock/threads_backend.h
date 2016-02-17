@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          test_tuple_for_each.cc
-//                         darma_new
+//                          threads_backend.h
+//                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,32 +42,20 @@
 //@HEADER
 */
 
-#include <iostream>
-#include <tuple>
+#ifndef MOCK_THREADS_BACKEND_H_
+#define MOCK_THREADS_BACKEND_H_
 
-#include <darma/meta/tuple_for_each.h>
+#define DARMA_BACKEND_TYPES_INCLUDE <stream_key.h>
+#define DARMA_BACKEND_CUSTOM_KEY_TYPE 1
 
-using namespace darma_runtime;
+#include "stream_key.h"
 
-int main(int argc, char** argv) {
-  std::tuple<int, std::string, double, int> tup(5, "hello", 47.32, 42);
-  meta::tuple_for_each(tup, [](auto&& val) {
-    std::cout << val << std::endl;
-  });
-  meta::tuple_for_each(tup, [](auto&& val) {
-    std::cout << val << std::endl;
-  });
-  meta::tuple_for_each_with_index(tup, [](auto&& val, size_t idx) {
-    std::cout << idx << ": " << val << std::endl;
-  });
-  meta::tuple_for_each_with_index(std::make_tuple(5, "hello", 47.32, 42), [](auto&& val, size_t idx) {
-    std::cout << idx << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
-  });
-  char hello[6] = "hello";
-  meta::tuple_for_each_with_index(std::make_tuple(5, hello, 47.32, 42), [](auto&& val, size_t idx) {
-    std::cout << idx << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
-  });
-  meta::tuple_for_each(std::make_tuple(5, hello, 47.32, 42), [](auto&& val) {
-    std::cout << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
-  });
-}
+namespace darma_runtime { namespace types {
+  typedef mock_backend::StreamKey key_t;
+}} // end namespace darma_runtime::types
+
+#include <darma.h>
+
+
+
+#endif /* MOCK_THREADS_BACKEND_H_ */

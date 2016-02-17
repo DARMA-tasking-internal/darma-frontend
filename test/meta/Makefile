@@ -2,7 +2,7 @@
 CXX := /opt/local/bin/clang++-mp-3.5
 #CXX := /opt/local/bin/g++-mp-4.8
 
-CPPFLAGS = -I../../src -I../../src/meta
+CPPFLAGS = -I../../src
 CXXFLAGS = -std=c++14 -O0 -g -ftemplate-backtrace-limit=0 -Wno-return-type
 LDFLAGS = 
 

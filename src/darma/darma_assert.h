@@ -50,22 +50,33 @@
 
 //#define DARMA_ASSERT_EQUAL(lhs, rhs) assert(lhs == rhs)
 
+#ifndef DARMA_ASSERTION_BEGIN
+#define DARMA_ASSERTION_BEGIN std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
+#endif
+#ifndef DARMA_ASSERTION_END
+#define DARMA_ASSERTION_END std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
+#endif
+
 #define DARMA_ASSERT_RELATED_VERBOSE(lhs, op, rhs) assert(                                         \
   (lhs op rhs) ||                                                                                   \
   ((                                                                                                \
+    DARMA_ASSERTION_BEGIN,                                                             \
     std::cout << "DARMA assertion failed:" << std::endl                                            \
               << "  " << #lhs << " " << #op << " " << #rhs << std::endl                             \
-              << "  " << lhs << " " << #op << " " << #rhs << std::endl                              \
+              << "  " << lhs << " " << #op << " " << #rhs << std::endl,                              \
+    DARMA_ASSERTION_END                                                               \
   ), false)                                                                                         \
 )
 
-#define DARMA_ASSERT_NOT_NULL_VERBOSE(...) assert(                                                 \
+#define DARMA_ASSERT_NOT_NULL_VERBOSE(...) assert(                                                  \
   ((__VA_ARGS__) != nullptr) ||                                                                     \
   ((                                                                                                \
-    std::cout << "DARMA assertion failed:" << std::endl                                            \
+    DARMA_ASSERTION_BEGIN,                                                             \
+    std::cout << "DARMA assertion failed:" << std::endl                                             \
               << "  Expression was null that should be non-null:"                                   \
               << "    " << #__VA_ARGS__ << std::endl                                                \
-              << "    (evalutated as true for == with nullptr)"                                     \
+              << "    (evalutated as true for == with nullptr)" << std::endl,                                     \
+    DARMA_ASSERTION_END                                                               \
   ), false)                                                                                         \
 )
 
@@ -75,6 +86,18 @@
 
 #define DARMA_ASSERT_NOT_NULL(...) DARMA_ASSERT_NOT_NULL_VERBOSE(__VA_ARGS__)
 
+
+#define DARMA_ASSERT_MESSAGE(expr, ...) assert(                                                     \
+  (expr) ||                                                                                         \
+  ((                                                                                                \
+    DARMA_ASSERTION_BEGIN,                                                              \
+    std::cout << "DARMA assertion failed:" << std::endl                                             \
+              << "  Expression should be true: " << #expr << std::endl                              \
+              << "  Assertion details:" << std::endl                                                \
+              << "    " << __VA_ARGS__ << std::endl,                                                 \
+    DARMA_ASSERTION_END                                                               \
+  ), false)                                                                                         \
+)
 
 
 #endif /* SRC_DARMA_ASSERT_H_ */

@@ -221,6 +221,17 @@ struct key_traits<mock_backend::StreamKey>
 
 } // end namespace darma_runtime
 
+namespace std {
+
+template<>
+struct hash<mock_backend::StreamKey> {
+  size_t
+  operator()(const mock_backend::StreamKey& a) const {
+    return mock_backend::key_hash()(a);
+  }
+};
+
+} // end namespace std
 
 
 #endif /* MOCK_STREAM_KEY_H_ */
