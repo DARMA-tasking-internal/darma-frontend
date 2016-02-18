@@ -250,14 +250,6 @@ class ThreadsRuntime
     typedef typename std::unordered_map<std::pair<key_t, version_t>, shared_lock_t> read_only_locks_t;
     typedef typename std::unordered_map<std::pair<key_t, version_t>, unique_lock_t> data_ready_locks_t;
 
-    //std::deque<task_unique_ptr> waiting_tasks_;
-    //std::mutex waiting_tasks_mutex_;
-
-    //// Tasks that have all of their deps satisfied but haven't run yet
-    //std::deque<task_unique_ptr> pending_tasks_;
-    //std::mutex pending_tasks_mutex_;
-
-
     std::unordered_map<std::pair<key_t, version_t>, handle_t* const> handle_ptrs_;
     shared_mtx_t handle_ptrs_mtx_;
 
@@ -275,8 +267,6 @@ class ThreadsRuntime
 
     std::unordered_set<std::pair<key_t, version_t>> last_at_version_depth_;
     shared_mtx_t last_at_version_depth_mtx_;
-
-    //std::unordered_map<std::pair<key_t, version_t>, unique_lock_t> handle_write_locks_;
 
   private:
 
