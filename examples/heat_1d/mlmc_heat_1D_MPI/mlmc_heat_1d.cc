@@ -8,183 +8,186 @@
 #include <cassert>
 #include <assert.h>
 #include "mpi.h"
+#include <random>
 #include <vector>
 
-#include "../common_heat1d.h"
+constexpr double x_min = 0.0;     // domain start x 
+constexpr double x_max = 1.0;     // domain end x
+constexpr double Tinn = 50.0;     // init temperature inner points
+constexpr double Tl = 100.0;     	// left BC for temperature
+constexpr double Tr = 10.0;      	// right BC for temperature
+constexpr double runTime = 1.25;   // final time 
+constexpr double cfl = 0.01;   			// cfl number 
+constexpr double thermDiffMin  = 0.07;	// min value of diffusivity
+constexpr double thermDiffMax  = 0.08;	// max value of diffusivity
+
+constexpr int mlmcN0 = 50;	// initial N samples for MLMC
+constexpr double epsilon = 1e-3;	// epsilon, target tolerance for statistics
+constexpr double invepssq = std::pow(epsilon, -2.0);	// 1/epsilon^2
+
+using gen = std::default_random_engine;
+using uDist = std::uniform_real_distribution<double>;
+
+////////////////////////////////////////////////////////////////////////////////
+
+double computeMean( const std::vector<double> array)
+{
+	double mean = 0.0; 
+  for ( const auto & it : array)
+      mean += it;
+  return mean/(double) array.size();
+}
+
+double computeVariance( const std::vector<double> array)
+{
+	double mean = computeMean(array);
+	double sum = 0.0; 
+  for ( const auto & it : array)
+      sum += pow( it - mean, 2.0 );
+  return sum/(double) (array.size()-1);
+}
+
+void initializeTempField(int nx, std::vector<double> & tempField)
+{
+	assert( tempField.size() == nx );
+	std::fill( tempField.begin(), tempField.end(), Tinn );
+	tempField[0] = Tl;
+	tempField[nx-1] = Tr;
+}
+
+void solvePDE(int nx, double thermDiff, std::vector<double> & tempField)
+{
+	assert( tempField.size() == nx );
+	// setup
+	const double deltaX = (x_max-x_min)/( (double) (nx-1) );  // grid cell spacing
+	double deltaT = cfl * deltaX * deltaX / thermDiff;  			// time step
+	const int nIter = std::ceil( runTime / deltaT );
+	deltaT = runTime / nIter;																	// time step
+	const double alphadtOvdxSq = (thermDiff*deltaT)/(deltaX * deltaX );   // alpha * DT/ DX^2
+
+	initializeTempField(nx, tempField);
+
+	std::vector<double> oldTemp(tempField); 
+	for (int timeLoop = 1; timeLoop <= nIter; ++timeLoop)
+	{
+		for (int i=1; i<=nx-2; i++)
+		{
+			double laplacian = ( oldTemp[i+1] - 2.0*oldTemp[i] + oldTemp[i-1] );
+			tempField[i] = oldTemp[i] + alphadtOvdxSq * laplacian;
+		}
+		oldTemp = tempField;
+	}
+}
+
+double extractQoIMidPlane(int nx, const std::vector<double> & tempField)
+{
+	// grids are of the form: 2^l + 1 
+	// so mid location is x_mid is at i= (nx-1)/2 
+	const int midInd = (nx-1)/2;
+	return tempField[midInd];
+}
+
+void drawSamplesFromUniform(gen & generator, 
+														uDist & RNG, 
+														int N, 
+														std::vector<double> & realizations)
+{	
+	realizations.resize(N);
+	for (int i = 0; i < N; ++i)
+	{
+		realizations[i] = RNG(generator);
+	}
+}
+
+struct mlmcLevel
+{
+  int mcmcL_;
+  int Nsamples_;
+  int optiN_;
+  int NgridPt_;
+  double h_;
+  std::vector<double> alphaSamples_;
+  std::vector<double> qoiSamples_;
+  double variance_;
+};
+
+void collectSamplesAtLevel(mlmcLevel & level)
+{
+	std::vector<double> solution(level.NgridPt_,0.0);
+	for (int i = 0; i < level.Nsamples_; ++i)
+	{
+		solution.resize(level.NgridPt_, 0.0);
+		solvePDE(level.NgridPt_, level.alphaSamples_[i], solution);
+		level.qoiSamples_.push_back( extractQoIMidPlane(level.NgridPt_, solution));
+	}
+}
+
+double computeVL(const std::vector<mlmcLevel> & allLevels)
+{
+	double result = 0.0;
+	for (auto & iLev : allLevels)
+	{
+		iLev.variance_ = computeVariance(iLev.qoiSamples_);
+		result += iLev.variance_;
+	}
+	return result;
+}
 
 
-/* 
-	Solve 1d heat equation using forward Euler in time, 2d order FD in space.
-		
-	PDE: 
-		dT(x)/dt = alpha * d^2T(x)/dx^2
+// void calculateOptimalNAllLevels(std::vector<mlmcLevel> & allLevels)
+// {	
+// 	int numLevels = allLevels.size();
 
-	over (0,1), with T(0)=100, T(1)=10
+// 	std::vector<double> Vl(numLevels);
+// 	for (int i = 0; i < numLevels; ++i)
+// 	{
+// 		Vl[i] = computeVariance(allLevels[i].qoiSamples_);
+// 	}
 
-	Problem is setup as follows: 
-	
-	Full grid: 
-	    o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o
-		
-	Distribute uniformly accross all ranks: 
+// 	int k = 0;
+// 	for (auto & iLev : allLevels)
+// 	{
+// 		double f1 = 2.0*invepssq * sqrt( Vl[k]*iLev.h_ );
+// 		calculateOptimalN(iLev);
+// 		k++;
+// 	}
+// }
 
-    s   o  o  o  o  *
-			     *  o  o  o  o  *
-							 *  o  o  o  o  *
-										 *  o  o  o  o  s
-
-		   r0		   r1 			r2         r3
-
-	s:  are not actually needed because outside of domain, 
-		but exist anyway so that each local vector has same size.
-
-	Locally, each rank owns elements: 
-			
-		*  o  o  o  o  *
-
-	where inner points are:  o 
-		  ghosts points are: * 
-	
-	Below we use following shortcut for indices of key points:
-	
-		*    o   o   o   o    *
-		lli  li 		 ri  rri
-
-*/
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // main() function
-
+////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
-	int myPID;
-	int comm_size;
-	MPI_Init ( &argc, &argv );
-	MPI_Comm_rank ( MPI_COMM_WORLD, &myPID );
-	MPI_Comm_size ( MPI_COMM_WORLD, &comm_size );
+	gen generator;
+  uDist RNG(thermDiffMin,thermDiffMax);
 
-	assert( comm_size == 4 );
-
-	// ------------------------------------------
-	assert( nx % comm_size == 0 );
-	const int num_points_per_rank = nx / comm_size; 
-	const int num_points_per_rank_wghosts = num_points_per_rank + 2; 
-
-	// useful constants (see above for legend )
-	const int lli = 0;
-	const int li  = 1;
-	const int ri  = num_points_per_rank;
-	const int rri = num_points_per_rank+1;
-
-	// If I'm 0 or n_spmd-1, I am my own neighbor on the left and right
-	const bool is_leftmost = myPID == 0;
-	const int left_neighbor = is_leftmost ? myPID : myPID - 1;
-	const bool is_rightmost = myPID == comm_size - 1;
-	const int right_neighbor = myPID == is_rightmost ? myPID : myPID + 1;
-	const int leftNeigh   = myPID-1;
-	const int rightNeigh  = myPID+1;
-
-	const int tagToLeft 	= 1;	// tag for sending to left 
-	const int tagFromRight 	= 1;	// tag for recv from right
-	const int tagToRight 	= 2;	// tag for sending to right 
-	const int tagFromLeft 	= 2;	// tag for recv from left
-
-	// ------------------------------------------
-
-	// initial condition: set = 50 except for BC
-	// temp has size = num_points_per_rank + 2 for ghost points
-	std::vector<double> temp(num_points_per_rank+2, 50.0);
-	if ( is_leftmost )
-	{
-		temp[li] = Tl; 
-	}
-	if ( is_rightmost )
-	{
-		temp[ri] = Tr; 
-	}
-	std::vector<double> temp_new(temp); // needed for time advancing
-
-	// ------------------------------------------
-
-	// time loop 
-	for (int timeLoop = 1; timeLoop <= n_iter; ++timeLoop)
-	{
-		MPI_Request empty;
-		std::vector<MPI_Request> myReqs;
-		std::vector<MPI_Status>  mySts;
-
-		// recv from right
-    if ( !is_rightmost ) 
-    {
-			myReqs.push_back( empty );
-			MPI_Irecv( &temp[rri], 1, MPI_DOUBLE, rightNeigh, 
-					   	tagFromRight, MPI_COMM_WORLD, &myReqs[myReqs.size()-1] );
-    }
-		// recv from left 
-    if ( !is_leftmost )
-    {
-			myReqs.push_back( empty );
-			MPI_Irecv( &temp[lli], 1, MPI_DOUBLE, leftNeigh, 
-						tagFromLeft, MPI_COMM_WORLD, &myReqs[myReqs.size()-1] );
-    }
-
-		// send to left
-    if ( !is_leftmost )
-    {
-			myReqs.push_back( empty );
-			MPI_Isend( &temp[li], 1, MPI_DOUBLE, leftNeigh, 
-						tagToLeft, MPI_COMM_WORLD, &myReqs[myReqs.size()-1] );
-    }
-		// send to right
-    if ( !is_rightmost )
-    {
-			myReqs.push_back( empty );
-			MPI_Isend( &temp[ri], 1, MPI_DOUBLE, rightNeigh, 
-						tagToRight, MPI_COMM_WORLD, &myReqs[myReqs.size()-1] );
-    }
-
-    mySts.resize(myReqs.size());
-    MPI_Waitall( myReqs.size(), myReqs.data(), mySts.data() );
+	// std::vector<double> temp(65);
+	// solvePDE(65, 0.075, temp);
+	// for (auto & it : temp)
+	// 	std::cout << it << std::endl;
 
 
-		// update field based on FD stencil
-    for (int i = 1; i <= num_points_per_rank; i++ )
-    {
-    	double laplacian = ( temp[i+1] - 2.0*temp[i] + temp[i-1] );
-			temp_new[i] = temp[i] + alphadtOvdxSq * laplacian;
-    }
+  mlmcLevel lev0;
+  lev0.mcmcL_ = 0;
+  lev0.Nsamples_ = mlmcN0;
+  lev0.NgridPt_ = 65; // 2^6+1
+  lev0.h_ = (x_max-x_min)/( (double) (lev0.NgridPt_-1) );
 
-    // fix the domain boundary conditions 
-		if ( is_leftmost )
-		{
-			temp_new[li] = Tl;
-		}
-		if ( is_rightmost )
-		{
-			temp_new[ri] = Tr; 
-		}
+	drawSamplesFromUniform(generator, RNG, mlmcN0, lev0.alphaSamples_);
+	collectSamplesAtLevel(lev0);
+  std::vector<mlmcLevel> allLevels(lev0);
 
-		// Update time and temperature.
-    for ( int i = 1; i <= num_points_per_rank; i++ )
-    {
-			temp[i] = temp_new[i];
-    }
+	double VL = computeVL(allLevels);
 
-	}// time loop end
+	// calculateOptimalNAllLevels(allLevels);
 
-	// -----------------------------------------------------
+	// for (auto & it : lev0.qoiSamples_)
+	// 	std::cout << it << std::endl;
+	// std::cout << std::endl;
+ //  std::cout << computeMean(lev0.qoiSamples_) << " " << computeVariance(lev0.qoiSamples_) << std::endl;
 
-	// MAYBE PRINTING STAGE
 
-  for ( int i = 1; i <= num_points_per_rank; i++ )
-  {
-		std::cout << temp[i] << std::endl;
-  }
-
-	// -----------------------------------------------------
-
- 	MPI_Finalize();
- 	return 0;
 }
 
