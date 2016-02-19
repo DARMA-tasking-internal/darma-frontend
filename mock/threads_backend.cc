@@ -65,9 +65,9 @@ static std::mutex debug_output_mtx;
 
 using namespace darma_runtime;
 
-//#define DHARMA_THREADS_DEBUG 1
+#define DHARMA_THREADS_DEBUG 0
 
-#ifdef DHARMA_THREADS_DEBUG
+#if DHARMA_THREADS_DEBUG
 #define DEBUG(...) { \
   std::lock_guard<std::mutex> ___dbg_lg(debug_output_mtx); \
   std::cout << __VA_ARGS__ << std::endl; \
@@ -268,6 +268,15 @@ class ThreadsRuntime
     std::unordered_set<std::pair<key_t, version_t>> last_at_version_depth_;
     shared_mtx_t last_at_version_depth_mtx_;
 
+    std::unordered_map<task_t*, std::vector<shared_mtx_t*>*> task_shared_locks_;
+    shared_mtx_t task_shared_locks_mtx_;
+
+    std::unordered_map<task_t*, std::vector<shared_mtx_t*>*> task_unique_locks_;
+    shared_mtx_t task_unique_locks_mtx_;
+
+    std::unordered_map<std::pair<key_t, version_t>, std::pair<key_t, version_t>> handle_to_satisfy_;
+    shared_mtx_t handle_to_satisfy_mtx_;
+
   private:
 
     std::string
@@ -288,40 +297,90 @@ class ThreadsRuntime
   public:
 
     void register_task(task_unique_ptr&& in_task) override {
-      DEBUG("registering task with dependencies: " << std::endl;
-        for(auto&& idep : in_task->get_dependencies()) {
-          std::cout << "    " << get_key_version_string(idep) << ": "
-                    << "needs_read=" << std::boolalpha << in_task->needs_read_data(idep)
-                    << ", needs_write=" << std::boolalpha << in_task->needs_write_data(idep)
-                    << std::endl;
-        }
-        std::cout << "  (Task pointer: " << intptr_t(in_task.get()) << ")"
-      );
-      task_threads_.emplace_back([this](task_unique_ptr&& task){
 
-        set_running_task(task.get());
+      std::vector<shared_mtx_t*> to_lock_shared;
+      std::vector<shared_mtx_t*> to_lock_unique;
+      std::vector<shared_mtx_t*> shared_locks_to_transfer;
+      std::vector<shared_mtx_t*> unique_locks_to_transfer;
 
-        std::vector<shared_mtx_t*> to_lock_shared;
-        std::vector<shared_mtx_t*> to_lock_unique;
+      #if DHARMA_THREADS_DEBUG
+      std::stringstream needs_locks_sstr;
+      #endif
 
-        const auto& deps = task->get_dependencies();
-        { // RAII scope for _lg
-          auto _lg = make_shared_lock_guards(
-            data_ready_mtxs_mtx_, handle_mtxs_mtx_
-          );
+      task_t* parent_task = running_task_;
+      const auto& deps = in_task->get_dependencies();
+      { // RAII scope for _lg
+        auto _lg = make_shared_lock_guards(
+          data_ready_mtxs_mtx_, handle_mtxs_mtx_, task_shared_locks_mtx_,
+          task_unique_locks_mtx_
+        );
 
-          for(auto&& dep : deps) {
-            auto kver_pair = std::make_pair(dep->get_key(), dep->get_version());
+        for(auto&& dep : deps) {
+          auto kver_pair = std::make_pair(dep->get_key(), dep->get_version());
 
-            bool need_read = task->needs_read_data(dep);
-            bool need_write = task->needs_write_data(dep);
-            auto found_mtx = handle_mtxs_.find(kver_pair);
-            if(found_mtx == handle_mtxs_.end()) {
+          bool need_read = in_task->needs_read_data(dep);
+          bool need_write = in_task->needs_write_data(dep);
+          auto found_mtx = handle_mtxs_.find(kver_pair);
+          if(found_mtx == handle_mtxs_.end()) {
+            // TODO error here
+            abort();
+          }
+
+          if(dep->is_satisfied()) {
+
+            auto found_dr = data_ready_mtxs_.find(kver_pair);
+
+            // must not be in the data_ready maps
+            if(found_dr != data_ready_mtxs_.end()) {
               // TODO error here
               abort();
             }
 
-            // we'll need a shared lock the data_ready mutex for all deps
+            // The parent task must be holding a lock
+            // see if it should be shared or unique
+            if(need_write) {
+              // Look for a unique lock in the parent
+              assert(dep->is_writable());
+              auto found_parent = task_unique_locks_.find(parent_task);
+              if(found_parent == task_unique_locks_.end()) {
+                // TODO error here
+                abort();
+              }
+              auto found_uniq = std::find(found_parent->second->begin(),
+                 found_parent->second->end(), &(found_mtx->second));
+              if(found_uniq == (*found_parent).second->end()) {
+                // This is an error; parent didn't have write, but child wants it
+                abort();
+              }
+              #if DHARMA_THREADS_DEBUG
+              needs_locks_sstr << "    transfering unique lock for " << get_key_version_string(dep) << std::endl;
+              #endif
+              unique_locks_to_transfer.push_back(*found_uniq);
+              found_parent->second->erase(found_uniq);
+            }
+            else {
+              assert(need_read);
+              // Check if the parent had read priviledges
+              auto found_parent = task_shared_locks_.find(parent_task);
+              if(found_parent == task_shared_locks_.end()) {
+                // TODO error here
+                abort();
+              }
+              auto found_shar = std::find(found_parent->second->begin(),
+                 found_parent->second->end(), &(found_mtx->second));
+              if(found_shar == found_parent->second->end()) {
+                // This is not an error, (it's a priviledge downgrade);
+                // it's just not implemented yet
+                abort();
+              }
+              #if DHARMA_THREADS_DEBUG
+              needs_locks_sstr << "    transfering shared lock for " << get_key_version_string(dep) << std::endl;
+              #endif
+              shared_locks_to_transfer.push_back(*found_shar);
+              found_parent->second->erase(found_shar);
+            }
+          }
+          else {
             if(dep->get_version() == version_t() and not dep->version_is_pending()) {
               // It's the first version of the dep, so we need to allocate in place
               auto found_dr = data_ready_mtxs_.find(kver_pair);
@@ -342,7 +401,7 @@ class ThreadsRuntime
               db->allocate_data(dep->get_serialization_manager()->get_metadata_size(nullptr));
 
               DEBUG("satisfying handle " << get_key_version_string(dep)
-                << " at 0x" << std::hex << intptr_t(dep) << " with DataBlock: "
+                << " at 0x" << std::hex << intptr_t(dep) << " with empty (allocated) DataBlock: "
                 << std::hex << "0x" << intptr_t(db));
 
               dep->satisfy_with_data_block(db);
@@ -352,24 +411,37 @@ class ThreadsRuntime
                 "handle not satisfied: " << get_key_version_string(dep));
             }
             else {
+              // we'll need a shared lock the data_ready mutex for all deps
               auto found_dr = data_ready_mtxs_.find(kver_pair);
               if(found_dr == data_ready_mtxs_.end()) {
                 // TODO error here
                 abort();
               }
+              #if DHARMA_THREADS_DEBUG
+              needs_locks_sstr << "    needs shared data ready lock for " << get_key_version_string(dep) << std::endl;
+              #endif
               to_lock_shared.push_back(&(found_dr->second));
             }
 
             // if we need read access and not write access, we want to acquire a
             // shared_lock to the handle mutex
             if(need_read and not need_write) {
+              #if DHARMA_THREADS_DEBUG
+              needs_locks_sstr << "    needs shared lock for " << get_key_version_string(dep) << std::endl;
+              #endif
               to_lock_shared.push_back(&(found_mtx->second));
             }
             else if(need_read and need_write) {
+              #if DHARMA_THREADS_DEBUG
+              needs_locks_sstr << "    needs unique lock for " << get_key_version_string(dep) << std::endl;
+              #endif
               to_lock_unique.push_back(&(found_mtx->second));
             }
             else if(not need_read and need_write) {
               // this will still work; it just won't be optimal because the data will get delivered anyway
+              #if DHARMA_THREADS_DEBUG
+              needs_locks_sstr << "    needs unique lock for " << get_key_version_string(dep) << std::endl;
+              #endif
               to_lock_unique.push_back(&(found_mtx->second));
             }
             else { // not need_read and not need_write
@@ -377,13 +449,59 @@ class ThreadsRuntime
               abort(); // not implemented
             }
           }
-        } // release shared access to handle_mtxs_, data_ready_mtxs_
+        }
+      } // release shared access to handle_mtxs_, data_ready_mtxs_
+
+      DEBUG("registering task with dependencies: " << std::endl;
+        for(auto&& idep : in_task->get_dependencies()) {
+          std::cout << "    " << get_key_version_string(idep) << ": "
+                    << "needs_read=" << std::boolalpha << in_task->needs_read_data(idep)
+                    << ", needs_write=" << std::boolalpha << in_task->needs_write_data(idep)
+                    << ", satisfied=" << std::boolalpha << idep->is_satisfied()
+                    << ", writable=" << std::boolalpha << idep->is_writable()
+                    << std::endl;
+        }
+        std::cout << needs_locks_sstr.str();
+        std::cout << "  (Task pointer: " << intptr_t(in_task.get()) << ")"
+      );
+
+      task_threads_.emplace_back([
+          this,
+          parent_task,
+          to_lock_shared,
+          to_lock_unique,
+          unique_locks_to_transfer,
+          shared_locks_to_transfer
+      ](task_unique_ptr&& task){
+
+        set_running_task(task.get());
+
+        std::vector<shared_mtx_t*> to_unlock_shared;
+        std::vector<shared_mtx_t*> to_unlock_unique;
+        for(auto&& tls : to_lock_shared) to_unlock_shared.push_back(tls);
+        for(auto&& tts : shared_locks_to_transfer) to_unlock_shared.push_back(tts);
+        for(auto&& tlu : to_lock_unique) to_unlock_unique.push_back(tlu);
+        for(auto&& ttu : unique_locks_to_transfer) to_unlock_unique.push_back(ttu);
 
         do_safe_pointer_lock(to_lock_shared, to_lock_unique);
+        {
+          auto _lg = make_unique_lock_guards(task_shared_locks_mtx_, task_unique_locks_mtx_);
+          task_shared_locks_.emplace(task.get(), &to_unlock_shared);
+          task_unique_locks_.emplace(task.get(), &to_unlock_unique);
+        }
+
+        DEBUG("running task with ptr 0x" << std::hex << intptr_t(task.get()));
 
         task->run();
 
-        do_safe_pointer_unlock(to_lock_shared, to_lock_unique);
+        DEBUG("finished running task with ptr 0x" << std::hex << intptr_t(task.get()));
+
+        {
+          auto _lg = make_unique_lock_guards(task_shared_locks_mtx_, task_unique_locks_mtx_);
+          task_unique_locks_.erase(task.get());
+          task_shared_locks_.erase(task.get());
+        }
+        do_safe_pointer_unlock(to_unlock_shared, to_unlock_unique);
 
       }, std::move(in_task));
     }
@@ -391,7 +509,6 @@ class ThreadsRuntime
     task_t* const get_running_task() const override {
       return running_task_;
     }
-
 
     void
     register_handle(handle_t* const handle) override {
@@ -532,64 +649,164 @@ class ThreadsRuntime
     ) override {
       auto _lg = make_unique_lock_guards(
         last_at_version_depth_mtx_, handle_ptrs_mtx_, data_ready_locks_mtx_, data_ready_mtxs_mtx_,
-        handle_mtxs_mtx_
+        handle_mtxs_mtx_, handle_to_satisfy_mtx_
       );
       auto kver_pair = std::make_pair(handle->get_key(), handle->get_version());
 
       DEBUG("releasing handle " << get_key_version_string(handle));
 
       // If there is a subsequent registered, we need to use this block to satisfy it
-      version_t next_version = handle->get_version();
-      ++next_version;
+      version_t next_version_1 = handle->get_version();
+      ++next_version_1;
       // see if there's a handle registered for the next version
-      bool has_subsequent = false;
-      auto found = handle_ptrs_.find(std::make_pair(handle->get_key(), next_version));
+      auto found = handle_ptrs_.find(std::make_pair(handle->get_key(), next_version_1));
+
+      handle_t* to_satisfy = nullptr;
+
       if(found != handle_ptrs_.end()) {
-        DEBUG("satisfying handle " << get_key_version_string(found->second)
-                  << " at 0x" << std::hex << intptr_t(found->second) << " with DataBlock: "
-                  << std::hex << "0x" << intptr_t(found->second->get_data_block()));
-        DARMA_ASSERT_MESSAGE(handle->is_satisfied(), "handle not satisfied: " << get_key_version_string(handle));
-        // TODO we could assert here that it's not in the last_at_version_depth_ map
-        found->second->satisfy_with_data_block(handle->get_data_block());
-        has_subsequent = true;
-        // release the data_ready_mtx for the subsequent
-        auto found_drm = data_ready_locks_.find(std::make_pair(handle->get_key(), next_version));
-        if(found_drm == data_ready_locks_.end()) {
-          // TODO error here
-          abort();
-        }
-        found_drm->second.unlock();
-        data_ready_locks_.erase(found_drm);
+        to_satisfy = found->second;
+        DEBUG("found subsequent " << get_key_version_string(to_satisfy)
+          << " to satisfy in release of " << get_key_version_string(handle));
       }
       else {
         auto found_lvd = last_at_version_depth_.find(kver_pair);
         if(found_lvd != last_at_version_depth_.end()) {
-          DARMA_ASSERT_MESSAGE(handle->is_satisfied(), "handle not satisfied: " << get_key_version_string(handle));
           version_t next_version_outer = handle->get_version();
           next_version_outer.pop_subversion();
           ++next_version_outer;
           auto found_next = handle_ptrs_.find(std::make_pair(handle->get_key(), next_version_outer));
           if(found_next != handle_ptrs_.end()) {
-            DEBUG("satisfying handle " << get_key_version_string(found_next->second)
-                      << " at 0x" << std::hex << intptr_t(found_next->second) << " with DataBlock: "
-                      << std::hex << "0x" << intptr_t(found_next->second->get_data_block()));
-            found_next->second->satisfy_with_data_block(handle->get_data_block());
-            has_subsequent = true;
-            // release the data_ready_mtx for the subsequent
-            auto found_drm = data_ready_locks_.find(std::make_pair(handle->get_key(), next_version_outer));
-            if(found_drm == data_ready_locks_.end()) {
-              // TODO error here
-              abort();
-            }
-            found_drm->second.unlock();
-            data_ready_locks_.erase(found_drm);
+            to_satisfy = found_next->second;
+            DEBUG("found version-depth-up subsequent " << get_key_version_string(to_satisfy)
+              << " to satisfy in release of " << get_key_version_string(handle));
           }
-          last_at_version_depth_.erase(kver_pair);
+          else {
+            // if we still haven't found it, maybe there's a breadcrumb pointing up
+            key_t next_key;
+            version_t next_version;
+            auto found_hts = handle_to_satisfy_.find(
+              std::make_pair(handle->get_key(), next_version_outer)
+            );
+            if(found_hts != handle_to_satisfy_.end()) {
+              do {
+                next_key = found_hts->second.first;
+                next_version = found_hts->second.second;
+                // erase the old breadcrumb
+                handle_to_satisfy_.erase(found_hts);
+                found_hts = handle_to_satisfy_.find(
+                  std::make_pair(next_key, next_version)
+                );
+              } while(found_hts != handle_to_satisfy_.end());
+              auto found_ts_handle = handle_ptrs_.find(std::make_pair(next_key, next_version));
+              if(found_ts_handle == handle_ptrs_.end()) {
+                // error!
+                abort();
+              }
+              to_satisfy = found_ts_handle->second;
+              DEBUG("found multiple-version-depth-up breadcrumb subsequent " << get_key_version_string(to_satisfy)
+                << " to satisfy in release of " << get_key_version_string(handle));
+            }
+          }
+          last_at_version_depth_.erase(found_lvd);
         }
       }
 
+
+      if(to_satisfy != nullptr) {
+
+        if(handle->is_satisfied()) {
+          DEBUG("satisfying handle " << get_key_version_string(to_satisfy)
+            << " at 0x" << std::hex << intptr_t(to_satisfy) << " with DataBlock: "
+            << std::hex << "0x" << intptr_t(to_satisfy->get_data_block())
+            << " from released handle: " << get_key_version_string(handle)
+          );
+          to_satisfy->satisfy_with_data_block(handle->get_data_block());
+          // release the data_ready_mtx for the subsequent
+          auto found_drm = data_ready_locks_.find(std::make_pair(to_satisfy->get_key(), to_satisfy->get_version()));
+          if(found_drm == data_ready_locks_.end()) {
+            // TODO error here
+            abort();
+          }
+          found_drm->second.unlock();
+          data_ready_locks_.erase(found_drm);
+        }
+        else {
+          // leave a breadcrumb
+          DEBUG("leaving breadcrumb to satisfy handle " << get_key_version_string(to_satisfy)
+            << " at 0x" << std::hex << intptr_t(to_satisfy) << " with DataBlock: "
+            << std::hex << "0x" << intptr_t(to_satisfy->get_data_block())
+            << " when released handle " << get_key_version_string(handle)
+            << " is satisfied"
+          );
+          handle_to_satisfy_.emplace(kver_pair,
+            std::make_pair(to_satisfy->get_key(), to_satisfy->get_version())
+          );
+        }
+      }
+
+      // If it isn't satisfied at this point, it was never used:
+      // bool has_subsequent = false;
+      // if(not handle->is_satisfied()) {
+      //   if(found != handle_ptrs_.end()) {
+      //     // indicate that a satisfaction of this handle actually means satisfying the
+      //     // subsequent
+      //     handle_to_satisfy_.emplace(kver_pair, found->second);
+      //   }
+
+
+      // }
+      // else {
+      //   if(found != handle_ptrs_.end()) {
+      //     DEBUG("satisfying handle " << get_key_version_string(found->second)
+      //               << " at 0x" << std::hex << intptr_t(found->second) << " with DataBlock: "
+      //               << std::hex << "0x" << intptr_t(found->second->get_data_block())
+      //               << " from released handle: " << get_key_version_string(handle)
+      //     );
+      //     DARMA_ASSERT_MESSAGE(handle->is_satisfied(), "handle not satisfied: " << get_key_version_string(handle));
+      //     // TODO we could assert here that it's not in the last_at_version_depth_ map
+      //     found->second->satisfy_with_data_block(handle->get_data_block());
+      //     has_subsequent = true;
+      //     // release the data_ready_mtx for the subsequent
+      //     auto found_drm = data_ready_locks_.find(std::make_pair(handle->get_key(), next_version));
+      //     if(found_drm == data_ready_locks_.end()) {
+      //       // TODO error here
+      //       abort();
+      //     }
+      //     found_drm->second.unlock();
+      //     data_ready_locks_.erase(found_drm);
+      //   }
+      //   else {
+      //     auto found_lvd = last_at_version_depth_.find(kver_pair);
+      //     if(found_lvd != last_at_version_depth_.end()) {
+      //       DARMA_ASSERT_MESSAGE(handle->is_satisfied(), "handle not satisfied: " << get_key_version_string(handle));
+      //       version_t next_version_outer = handle->get_version();
+      //       next_version_outer.pop_subversion();
+      //       ++next_version_outer;
+      //       auto found_next = handle_ptrs_.find(std::make_pair(handle->get_key(), next_version_outer));
+      //       if(found_next != handle_ptrs_.end()) {
+      //         DEBUG("satisfying handle " << get_key_version_string(found_next->second)
+      //                   << " at 0x" << std::hex << intptr_t(found_next->second) << " with DataBlock: "
+      //                   << std::hex << "0x" << intptr_t(found_next->second->get_data_block())
+      //                   << " from released handle: " << get_key_version_string(handle)
+      //         );
+      //         found_next->second->satisfy_with_data_block(handle->get_data_block());
+      //         has_subsequent = true;
+      //         // release the data_ready_mtx for the subsequent
+      //         auto found_drm = data_ready_locks_.find(std::make_pair(handle->get_key(), next_version_outer));
+      //         if(found_drm == data_ready_locks_.end()) {
+      //           // TODO error here
+      //           abort();
+      //         }
+      //         found_drm->second.unlock();
+      //         data_ready_locks_.erase(found_drm);
+      //       }
+      //       last_at_version_depth_.erase(kver_pair);
+      //     }
+      //   }
+      // }
+
       // If there's nothing else using it, delete the data
-      if(!has_subsequent and handle->is_satisfied()) {
+      if(to_satisfy == nullptr and handle->is_satisfied()) {
         delete handle->get_data_block();
       }
 
@@ -616,6 +833,8 @@ class ThreadsRuntime
         abort();
       }
       handle_ptrs_.erase(found_h);
+
+      DEBUG("done releasing " << get_key_version_string(handle));
 
     }
 
