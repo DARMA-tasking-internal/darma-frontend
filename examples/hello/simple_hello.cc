@@ -17,8 +17,13 @@ int main(int argc, char** argv) {
   AccessHandle<std::string> dep = initial_access<std::string>(me, "the_dep");
 
   create_work([=]{
-    std::cout << "setting value of dep to \"hello world\"" << std::endl;
-    dep.set_value("hello world");
+    create_work([=]{
+      std::cout << "setting value of dep to \"hello world\"" << std::endl;
+      dep.set_value("hello world");
+    });
+    create_work([=]{
+      std::cout << "running inner work, dep value is " << dep.get_value() << std::endl;
+    });
   });
 
   create_work([=]{
