@@ -113,21 +113,12 @@ class DependencyHandle {
      *  which this handle was derived was registered with Runtime::register_fetching_handle()
      *  and the handle's actual version is pending the resolution of the user version tag associated
      *  with that call).
+     *
+     *  @todo there is a race condition in which a subsequent is being created in the frontend on one thread
+     *  while the version is being resolve on another thread
      */
     virtual void
     set_version(const Version& v) =0;
-
-    // TODO 0.2.0.1 remove this because it will only ever be called from the frontend
-    ///** @brief Indicate that the version of the handle is pending the resolution of a version tag for a fetch.
-    // *
-    // *  This allows the frontend to continue creating and registering tasks even while waiting to find out
-    // *  what version of a handle to fetch.  See set_version() for more info.
-    // *
-    // *  The frontend will call set_version_is_pending() for handles that are subsequent to
-    // *
-    // */
-    //virtual void
-    //set_version_is_pending(bool is_pending=true) =0;
 
     /** @brief returns true if the backend has called set_version_is_pending(true) on the handle
      *  and if set_version_is_pending(false) and/or set_version() has not been called since.
@@ -207,7 +198,6 @@ class DependencyHandle {
      */
     virtual bool
     is_writable() const =0;
-
 
     virtual ~DependencyHandle() noexcept = default;
 };

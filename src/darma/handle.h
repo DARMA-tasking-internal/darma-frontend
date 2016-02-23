@@ -598,6 +598,7 @@ class AccessHandle
       assert(other.prev_copied_from == nullptr);
       dep_handle_ = other.dep_handle_;
       permissions_ = other.permissions_;
+      read_only_holder_ = other.read_only_holder_;
       return *this;
     }
 
@@ -607,6 +608,7 @@ class AccessHandle
       assert(other.prev_copied_from == nullptr);
       dep_handle_ = other.dep_handle_;
       permissions_ = other.permissions_;
+      read_only_holder_ = other.read_only_holder_;
       return *this;
     }
 
@@ -742,6 +744,10 @@ class AccessHandle
         }
 
       } // end if capturing_task != nullptr
+      else {
+        // still need to transfer the read_only usage holder
+        read_only_holder_ = copied_from.read_only_holder_;
+      }
 
     }
 
@@ -831,6 +837,7 @@ class AccessHandle
         // Release immediately; there's nothing to read
         read_only_holder_.reset();
       }
+
     }
 
     //template <typename Deleter>

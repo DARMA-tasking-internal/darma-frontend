@@ -138,8 +138,8 @@ int main(int argc, char** argv)
     auto left_ghost = read_access<data_t>("sent_to_right", left_neighbor, iter);
     auto right_ghost = read_access<data_t>("sent_to_left", right_neighbor, iter);
 
-    sent_to_left = initial_access<data_t>("sent_to_left", me, iter);
-    sent_to_right = initial_access<data_t>("sent_to_right", me, iter);
+    sent_to_left = initial_access<data_t>("sent_to_left", me, iter+1);
+    sent_to_right = initial_access<data_t>("sent_to_right", me, iter+1);
 
     create_work([=]{
 

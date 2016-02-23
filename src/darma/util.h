@@ -165,7 +165,7 @@ struct hash<std::pair<U,V>> {
   inline size_t
   operator()(const std::pair<U, V>& val) const {
     size_t rv = std::hash<U>()(val.first);
-    hash_combine(rv, val.second);
+    darma_runtime::detail::hash_combine(rv, val.second);
     return rv;
   }
 };

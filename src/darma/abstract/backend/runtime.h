@@ -135,7 +135,6 @@ class Runtime {
 
     // Methods for creating handles and registering fetches of those handles
 
-
     /** @brief Register a local handle to a data block
      *
      *  Register a handle that can be used as a part of the return value of Task::get_dependencies() for tasks
