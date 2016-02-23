@@ -14,21 +14,39 @@ int main(int argc, char** argv) {
   size_t me = darma_spmd_rank();
   size_t n_ranks = darma_spmd_size();
 
-  AccessHandle<std::string> dep = initial_access<std::string>(me, "the_dep");
-
-  create_work([=]{
+  {
+    AccessHandle<std::string> dep = initial_access<std::string>(me, "the_dep");
     create_work([=]{
-      std::cout << "setting value of dep to \"hello world\"" << std::endl;
+      std::cout << "setting value to hello world" << std::endl;
       dep.set_value("hello world");
     });
-    create_work([=]{
-      std::cout << "running inner work, dep value is " << dep.get_value() << std::endl;
-    });
-  });
 
-  create_work([=]{
-    std::cout << dep.get_value() << " received on " << me << std::endl;
-  });
+    dep.publish(n_readers=1, version="hello");
+  }
+
+  //{
+  //  AccessHandle<std::string> recvd = read_access<std::string>(me, "the_dep", version="hello");
+
+  //  create_work([=]{
+  //    std::cout << recvd.get_value() << " received on " << me << std::endl;
+  //  });
+
+  //}
+
+  //AccessHandle<std::string> dep = initial_access<std::string>(me, "the_dep");
+  //create_work([=]{
+  //  create_work([=]{
+  //    std::cout << "setting value of dep to \"hello world\"" << std::endl;
+  //    dep.set_value("hello world");
+  //  });
+  //  create_work([=]{
+  //    std::cout << "running inner work, dep value is " << dep.get_value() << std::endl;
+  //  });
+  //});
+
+  //create_work([=]{
+  //  std::cout << dep.get_value() << " received on " << me << std::endl;
+  //});
 
   darma_finalize();
 
