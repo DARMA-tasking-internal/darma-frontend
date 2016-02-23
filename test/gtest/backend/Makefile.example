@@ -11,21 +11,28 @@ CXX = /opt/local/bin/g++-mp-4.9
 # mock is for just getting something that compiles
 # threads supports a very primitive and very inefficient working implementation,
 # though it's feature support in the spec is likely to lag behind the mock
-DARMA_BACKEND = mock
-#DARMA_BACKEND = threads
+#DARMA_BACKEND = mock
+DARMA_BACKEND = threads
+
+GTEST_SRCDIR=/Users/dshollm/Code/google-test/install/head/clang-3.5_opt
+#GTEST_SRCDIR=/Users/dshollm/Code/google-test/source/head
+GTEST_LIBDIR=/Users/dshollm/Code/google-test/install/head/clang-3.5_opt/lib
 
 #========================================================================
 # Everything below here *should* be fine
 
-TOP_BUILDDIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+MY_BUILDDIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+TOP_BUILDDIR:=$(shell dirname $(shell dirname $(shell dirname $(MY_BUILDDIR))))
 
 CPPFLAGS ?=
 CPPFLAGS += -I$(TOP_SRCDIR)/src -I$(TOP_SRCDIR)/mock
+CPPFLAGS += -isystem $(GTEST_SRCDIR)/include
+CPPFLAGS += -DTEST_BACKEND_INCLUDE="<$(DARMA_BACKEND)_backend.h>"
 
 CXXFLAGS ?= -O0 -g
-CXXFLAGS += -std=c++14 -ftemplate-backtrace-limit=0
+CXXFLAGS += -std=c++14 -ftemplate-backtrace-limit=0 -pthread
 
-LDFLAGS ?= 
+LDFLAGS ?= -L$(GTEST_LIBDIR) -lgtest -lgmock
 
 AR ?= $(shell which ar)
 RANLIB ?= $(shell which ranlib)
@@ -33,14 +40,16 @@ RANLIB ?= $(shell which ranlib)
 src2build = $(foreach path,$1,$(patsubst $(TOP_SRCDIR)/%,$(TOP_BUILDDIR)/%,$(path)))
 build2src = $(foreach path,$1,$(patsubst $(TOP_BUILDDIR)/%,$(TOP_SRCDIR)/%,$(path)))
 striptop = $(foreach pth2,$(foreach path,$1,$(patsubst $(TOP_BUILDDIR)/%,%,$(path))),$(patsubst $(TOP_SRCDIR)/%,%,$(pth2)))
+MY_SRCDIR:=$(call build2src, $(MY_BUILDDIR))
+stripmine = $(foreach pth2,$(foreach path,$1,$(patsubst $(MY_BUILDDIR)/%,%,$(path))),$(patsubst $(MY_SRCDIR)/%,%,$(pth2)))
 
 MOCK_SOURCES = $(TOP_SRCDIR)/mock/$(DARMA_BACKEND)_backend.cc
 MOCK_OBJECTS = $(call src2build,$(MOCK_SOURCES:.cc=.o))
-EXAMP_SOURCES = $(wildcard $(TOP_SRCDIR)/examples/*/*.cc) $(wildcard $(TOP_SRCDIR)/examples/*/*/*.cc)
-EXAMP_OBJECTS = $(call src2build,$(EXAMP_SOURCES:.cc=.o))
-EXAMP_EXECS = $(call striptop,$(EXAMP_OBJECTS:.o=))
-SRCS_REL := $(call striptop, $(EXAMP_SOURCES)) $(call striptop, $(MOCK_SOURCES))
-ALL_OBJECTS := $(MOCK_OBJECTS) $(EXAMP_OBJECTS)
+TEST_SOURCES = $(wildcard $(TOP_SRCDIR)/test/gtest/backend/test_*.cc)
+TEST_OBJECTS = $(call src2build,$(TEST_SOURCES:.cc=.o))
+TEST_EXECS = $(call stripmine,$(TEST_OBJECTS:.o=))
+SRCS_REL := $(call stripmine, $(TEST_SOURCES)) ../../../$(call stripmine, $(MOCK_SOURCES))
+ALL_OBJECTS := $(MOCK_OBJECTS) $(TEST_OBJECTS)
 
 COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
 COMPILE.cc = $(CXX) $(DEPFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
@@ -49,9 +58,9 @@ POSTCOMPILE = mv -f $(DEPDIR)/$(call striptop,$*).Td $(DEPDIR)/$(call striptop,$
 
 .PHONY: all clean
 
-all:
+all: $(TEST_EXECS)
 
-$(EXAMP_EXECS): %: $(TOP_BUILDDIR)/%.o $(MOCK_OBJECTS)
+$(TEST_EXECS): %: $(MY_BUILDDIR)/%.o $(MOCK_OBJECTS)
 	$(COMPILE.ld) $(LDFLAGS) $^ -o $@
 	dsymutil $@
 
