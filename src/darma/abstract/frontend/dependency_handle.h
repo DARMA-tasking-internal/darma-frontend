@@ -113,6 +113,9 @@ class DependencyHandle {
      *  which this handle was derived was registered with Runtime::register_fetching_handle()
      *  and the handle's actual version is pending the resolution of the user version tag associated
      *  with that call).
+     *
+     *  @todo there is a race condition in which a subsequent is being created in the frontend on one thread
+     *  while the version is being resolve on another thread
      */
     virtual void
     set_version(const Version& v) =0;
