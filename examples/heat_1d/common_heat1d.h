@@ -58,7 +58,6 @@ constexpr double cfl = alpha * deltaT / (deltaX * deltaX );   // cfl condition f
 static_assert( cfl < 0.5, "cfl not small enough");  
 constexpr double alphadtOvdxSq = (alpha * deltaT) / (deltaX * deltaX );   // alpha * DT/ DX^2
 
-
 constexpr double Tl = 100.0;     // left BC for temperature
 constexpr double Tr = 10.0;      // right BC for temperature
 

@@ -64,6 +64,11 @@ int main(int argc, char** argv)
 	MPI_Comm_rank ( MPI_COMM_WORLD, &myPID );
 	MPI_Comm_size ( MPI_COMM_WORLD, &comm_size );
 
+	// assert( comm_size == 4 );
+	std::cout << "dt = " << deltaT 
+						<< " finalTime = " << deltaT * n_iter 
+						<< " alphadtOvdxSq " << alphadtOvdxSq << std::endl;
+
 	// ------------------------------------------
 	assert( nx % comm_size == 0 );
 	const int num_points_per_rank = nx / comm_size; 
