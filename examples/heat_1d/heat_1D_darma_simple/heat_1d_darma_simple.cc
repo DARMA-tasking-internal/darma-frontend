@@ -12,6 +12,7 @@
 
 #include "../common_heat1d.h"
 
+#include <threads_backend.h>
 #include <darma.h>
 
 
