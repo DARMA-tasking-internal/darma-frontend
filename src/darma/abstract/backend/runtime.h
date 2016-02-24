@@ -414,7 +414,7 @@ typedef Runtime<
  *  preprocessor macro DARMA_BACKEND_SPMD_KEY_PREFIX, a std::size_t for the rank of the SPMD-like
  *  top-level task from which initialize was invoked, and a std::size_t givin the total number of
  *  ranks in the SPMD launch (which must be known at launch time; SPMD ranks cannot be dynamically
- *  allocated).  In other words, the backend should make a call of the form:
+ *  allocated) [test: DARMABackendInitialize.rank_size].  In other words, the backend should make a call of the form:
  *    top_level_task->set_name(DARMA_BACKEND_SPMD_NAME_PREFIX, rank, size);
  *
  *  @remark The backend is free to extract backend-specific command-line arguments provided it

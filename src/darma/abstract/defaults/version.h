@@ -73,16 +73,18 @@ class basic_version {
     basic_version() : version_clock{value_t()}
     { }
 
-    // Post-increment
-    Comparable const&
-    operator++(int) {
-      return version_clock.back()++;
-    }
+    //// Post-increment
+    //basic_version const&
+    //operator++(int) {
+    //  version_clock.back()++;
+    //  return this;
+    //}
 
     // Pre-increment
-    Comparable const&
+    basic_version&
     operator++() {
-      return ++(version_clock.back());
+      ++(version_clock.back());
+      return *this;
     }
 
     void

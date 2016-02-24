@@ -5,35 +5,68 @@
 \chapter{Versioned Asynchronous Smart Pointer (VASP) Semantics}
 
 {\small\centering
-\begin{tabular}{l|cc|cc|cc|cc}
+\begin{tabular}{l|cc|cc|cc}
  \hline
  Operations:
  & \multicolumn{2}{c|}{\inlinecode{get_value()}} 
  & \multicolumn{2}{c|}{\inlinecode{set_value()}} 
- %& \multicolumn{2}{c}{\inlinecode{create_waiting_continuation()}} \\
- & \multicolumn{2}{c|}{\inlinecode{wait()}}
+ & \multicolumn{2}{c}{\inlinecode{wait_readable()}} \\
+ \hline
+ State & { Allowed? } & { Continuing }
+ & { Allowed? } & { Continuing }
+ & { Allowed? } & { Continuing } \\
+ \hline
+ RN
+ & No & -
+ & No & -
+ & Yes & \{ {\em RR}, \inlinecode{v} \} \\
+ RR
+ & Yes & \{ {\em RR}, \inlinecode{v} \}
+ & No & -
+ & Yes & \{ {\em RR}, \inlinecode{v} \} \\
+ MN
+ & No & -
+ & No & -
+ & Yes & \{ {\em MR}, \inlinecode{v} \} \\
+ MR
+ & Yes & \{ {\em MR}, \inlinecode{v} \}
+ & No & -
+ & Yes & \{ {\em MR}, \inlinecode{v} \} \\
+ MM
+ & Yes & \{ {\em MM}, \inlinecode{v} \}
+ & Yes & \{ {\em MM}, \inlinecode{v} \}
+ & No & -
+\end{tabular}
+}
+
+
+\vspace{2em}
+
+{\small\centering
+\begin{tabular}{l|cc|cc}
+ \hline
+ Operations:
+ & \multicolumn{2}{c|}{\inlinecode{wait_modifiable()}}
  & \multicolumn{2}{c}{\inlinecode{mark_read_only()}} \\
  \hline
- State & {\footnotesize Allowed? } & {\footnotesize Continuing }
- & {\footnotesize Allowed? } & {\footnotesize Continuing }
- & {\footnotesize Allowed? } & {\footnotesize Continuing }
- & {\footnotesize Allowed? } & {\footnotesize Continuing } \\
+ State & { Allowed? } & { Continuing }
+ & { Allowed? } & { Continuing } \\
  \hline
- Empty ({\em E}) 
- & No & - 
- & No & - 
- & Yes & \{ {\em M}, \inlinecode{v++} \} 
- & No* & -  \\
- Satisfied ({\em S}) 
- & Yes & \{{\em S}, \inlinecode{v}\} 
- & No & - 
- & No & - 
- & Yes & \{{\em S}, \inlinecode{v}\} \\
- Modifiable ({\em M}) 
- & Yes & \{{\em M}, \inlinecode{v}\} 
- & Yes & \{{\em M}, \inlinecode{v}\} 
- & Yes & \{{\em M}, \inlinecode{v} \} 
- & Yes & \{{\em S}, \inlinecode{v.pop()++} \} 
+ RN
+ & No & -
+ & Yes & \{ {\em RN}, \inlinecode{v} \} \\
+ RR
+ & No & -
+ & Yes & \{ {\em RR}, \inlinecode{v} \} \\
+ MN
+ & Yes & \{ {\em MM}, \inlinecode{v} \}
+ & Yes & \{ {\em RN}, \inlinecode{v.pop()++} \} \\
+ MR
+ & Yes & \{ {\em MM}, \inlinecode{v} \}
+ & Yes & \{ {\em RR}, \inlinecode{v.pop()++} \} \\
+ MM
+ & Yes & \{ {\em MM}, \inlinecode{v} \}
+ & Yes & \{ {\em RR}, \inlinecode{v.pop()++} \} \\
 \end{tabular}
 }
 
@@ -52,36 +85,50 @@
  & {\footnotesize Allowed? } & {\footnotesize Captured } 
  & {\footnotesize Continuing } \\
  \hline
- Empty ({\em E}) 
+ RN
  & Yes 
- & \{ {\em S}, \inlinecode{v} \} 
- & \{ {\em E}, \inlinecode{v} \} 
- & Yes 
- & \{ {\em M}, \inlinecode{v.push(0)} \} 
- & \{ {\em E}, \inlinecode{v++} \} \\
- Satisfied ({\em S}) 
- & Yes 
- & \{ {\em S}, \inlinecode{v} \} 
- & \{ {\em S}, \inlinecode{v} \} 
+ & \{ {\em RR}, \inlinecode{v} \} 
+ & \{ {\em RN}, \inlinecode{v} \} 
  & No
  & -
  & - \\
- Modifiable ({\em M}) 
+ RR
  & Yes 
- & \{ {\em S}, \inlinecode{v++} \} 
- & \{ {\em E}, \inlinecode{(v++)++} \} 
+ & \{ {\em RR}, \inlinecode{v} \} 
+ & \{ {\em RR}, \inlinecode{v} \} 
+ & No
+ & -
+ & - \\
+ MN
+ & Yes 
+ & \{ {\em RR}, \inlinecode{v} \} 
+ & \{ {\em MN}, \inlinecode{v} \} 
  & Yes
- & \{ {\em M}, \inlinecode{(v.push(0))++} \} 
- & \{ {\em E}, \inlinecode{v++} \} 
+ & \{ {\em MM}, \inlinecode{v.push(0)} \} 
+ & \{ {\em MN}, \inlinecode{v++} \} \\
+ MR
+ & Yes 
+ & \{ {\em RR}, \inlinecode{v} \} 
+ & \{ {\em MR}, \inlinecode{v} \} 
+ & Yes
+ & \{ {\em MM}, \inlinecode{v.push(0)} \} 
+ & \{ {\em MN}, \inlinecode{v++} \} \\
+ MM
+ & Yes 
+ & \{ {\em RR}, \inlinecode{v++} \} 
+ & \{ {\em MR}, \inlinecode{v++} \} 
+ & Yes
+ & \{ {\em MM}, \inlinecode{v.push(0)++} \} 
+ & \{ {\em MN}, \inlinecode{v++} \} \\
 \end{tabular}
 }
 
 \vspace{2em}
 
-* A possible future expansion is to introduce a new state that
-\inlinecode{mark_read_only()} transistions {\em Empty} VASPs into.  This state
-would have identical semantics to {\em Empty} except {\em mod-capture} would not
-be allowed.
+%* A possible future expansion is to introduce a new state that
+%\inlinecode{mark_read_only()} transistions {\em Empty} VASPs into.  This state
+%would have identical semantics to {\em Empty} except {\em mod-capture} would not
+%be allowed.
 
 %\begin{sidewaystable}
 %{\small\centering
