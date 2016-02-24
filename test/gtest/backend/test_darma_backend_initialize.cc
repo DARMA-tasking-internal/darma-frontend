@@ -70,7 +70,6 @@ class MockFrontendTest
     }
 
     virtual void TearDown() {
-      darma_runtime::detail::backend_runtime->finalize();
       delete[] argv_[0];
       delete[] argv_;
     }
@@ -103,6 +102,7 @@ TEST_F(MockFrontendTest, initialize_rank_size) {
     top_level_task_ptr->get_name().component<1>().as<size_t>(),
     top_level_task_ptr->get_name().component<2>().as<size_t>()
   );
+  darma_runtime::detail::backend_runtime->finalize();
 }
 
 TEST_F(MockFrontendTest, top_level_run_not_called) {
@@ -121,6 +121,7 @@ TEST_F(MockFrontendTest, top_level_run_not_called) {
   );
   typename abstract::backend::runtime_t::task_t* top_level_task_ptr =
       detail::backend_runtime->get_running_task();
+  darma_runtime::detail::backend_runtime->finalize();
 }
 
 int main(int argc, char **argv) {
