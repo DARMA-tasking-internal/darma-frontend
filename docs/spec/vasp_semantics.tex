@@ -4,26 +4,55 @@
 
 \chapter{Versioned Asynchronous Smart Pointer (VASP) Semantics}
 
-\begin{sidewaystable}
 {\small\centering
-\begin{tabular}{l|cc|cc|ccc|ccc}
+\begin{tabular}{l|cc|cc|cc|cc}
  \hline
  Operations:
- & \multicolumn{2}{c}{\inlinecode{get_value()}} 
- & \multicolumn{2}{c}{\inlinecode{set_value()}} 
- & \multicolumn{3}{c}{\em{ro-capture}} 
- & \multicolumn{3}{c}{\em{mod-capture}}  \\
+ & \multicolumn{2}{c|}{\inlinecode{get_value()}} 
+ & \multicolumn{2}{c|}{\inlinecode{set_value()}} 
+ %& \multicolumn{2}{c}{\inlinecode{create_waiting_continuation()}} \\
+ & \multicolumn{2}{c|}{\inlinecode{wait()}}
+ & \multicolumn{2}{c}{\inlinecode{mark_read_only()}} \\
  \hline
  State & {\footnotesize Allowed? } & {\footnotesize Continuing }
  & {\footnotesize Allowed? } & {\footnotesize Continuing }
+ & {\footnotesize Allowed? } & {\footnotesize Continuing }
+ & {\footnotesize Allowed? } & {\footnotesize Continuing } \\
+ \hline
+ Empty ({\em E}) 
+ & No & - 
+ & No & - 
+ & Yes & \{ {\em M}, \inlinecode{v++} \} 
+ & No* & -  \\
+ Satisfied ({\em S}) 
+ & Yes & \{{\em S}, \inlinecode{v}\} 
+ & No & - 
+ & No & - 
+ & Yes & \{{\em S}, \inlinecode{v}\} \\
+ Modifiable ({\em M}) 
+ & Yes & \{{\em M}, \inlinecode{v}\} 
+ & Yes & \{{\em M}, \inlinecode{v}\} 
+ & Yes & \{{\em M}, \inlinecode{v} \} 
+ & Yes & \{{\em S}, \inlinecode{v.pop()++} \} 
+\end{tabular}
+}
+
+\vspace{2em}
+
+{\small\centering
+\begin{tabular}{l|ccc|ccc}
+ \hline
+ Operations:
+ & \multicolumn{3}{c}{\em{ro-capture}} 
+ & \multicolumn{3}{c}{\em{mod-capture}}  \\
+ \hline
+ State
  & {\footnotesize Allowed? } & {\footnotesize Captured } 
  & {\footnotesize Continuing } 
  & {\footnotesize Allowed? } & {\footnotesize Captured } 
  & {\footnotesize Continuing } \\
  \hline
  Empty ({\em E}) 
- & No & - 
- & No & - 
  & Yes 
  & \{ {\em S}, \inlinecode{v} \} 
  & \{ {\em E}, \inlinecode{v} \} 
@@ -31,8 +60,6 @@
  & \{ {\em M}, \inlinecode{v.push(0)} \} 
  & \{ {\em E}, \inlinecode{v++} \} \\
  Satisfied ({\em S}) 
- & Yes & \{{\em S}, \inlinecode{v}\} 
- & No & - 
  & Yes 
  & \{ {\em S}, \inlinecode{v} \} 
  & \{ {\em S}, \inlinecode{v} \} 
@@ -40,8 +67,6 @@
  & -
  & - \\
  Modifiable ({\em M}) 
- & Yes & \{{\em M}, \inlinecode{v}\} 
- & Yes & \{{\em M}, \inlinecode{v}\} 
  & Yes 
  & \{ {\em S}, \inlinecode{v++} \} 
  & \{ {\em E}, \inlinecode{(v++)++} \} 
@@ -50,6 +75,58 @@
  & \{ {\em E}, \inlinecode{v++} \} 
 \end{tabular}
 }
-\end{sidewaystable}
-\restoregeometry
 
+\vspace{2em}
+
+* A possible future expansion is to introduce a new state that
+\inlinecode{mark_read_only()} transistions {\em Empty} VASPs into.  This state
+would have identical semantics to {\em Empty} except {\em mod-capture} would not
+be allowed.
+
+%\begin{sidewaystable}
+%{\small\centering
+%\begin{tabular}{l|cc|cc|ccc|ccc}
+% \hline
+% Operations:
+% & \multicolumn{2}{c}{\inlinecode{get_value()}} 
+% & \multicolumn{2}{c}{\inlinecode{set_value()}} 
+% & \multicolumn{3}{c}{\em{ro-capture}} 
+% & \multicolumn{3}{c}{\em{mod-capture}}  \\
+% \hline
+% State & {\footnotesize Allowed? } & {\footnotesize Continuing }
+% & {\footnotesize Allowed? } & {\footnotesize Continuing }
+% & {\footnotesize Allowed? } & {\footnotesize Captured } 
+% & {\footnotesize Continuing } 
+% & {\footnotesize Allowed? } & {\footnotesize Captured } 
+% & {\footnotesize Continuing } \\
+% \hline
+% Empty ({\em E}) 
+% & No & - 
+% & No & - 
+% & Yes 
+% & \{ {\em S}, \inlinecode{v} \} 
+% & \{ {\em E}, \inlinecode{v} \} 
+% & Yes 
+% & \{ {\em M}, \inlinecode{v.push(0)} \} 
+% & \{ {\em E}, \inlinecode{v++} \} \\
+% Satisfied ({\em S}) 
+% & Yes & \{{\em S}, \inlinecode{v}\} 
+% & No & - 
+% & Yes 
+% & \{ {\em S}, \inlinecode{v} \} 
+% & \{ {\em S}, \inlinecode{v} \} 
+% & No
+% & -
+% & - \\
+% Modifiable ({\em M}) 
+% & Yes & \{{\em M}, \inlinecode{v}\} 
+% & Yes & \{{\em M}, \inlinecode{v}\} 
+% & Yes 
+% & \{ {\em S}, \inlinecode{v++} \} 
+% & \{ {\em E}, \inlinecode{(v++)++} \} 
+% & Yes
+% & \{ {\em M}, \inlinecode{(v.push(0))++} \} 
+% & \{ {\em E}, \inlinecode{v++} \} 
+%\end{tabular}
+%}
+%\end{sidewaystable}
