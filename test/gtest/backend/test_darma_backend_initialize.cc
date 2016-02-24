@@ -119,8 +119,6 @@ TEST_F(MockFrontendTest, top_level_run_not_called) {
     argc_, argv_, detail::backend_runtime,
     std::move(top_level_task)
   );
-  typename abstract::backend::runtime_t::task_t* top_level_task_ptr =
-      detail::backend_runtime->get_running_task();
   darma_runtime::detail::backend_runtime->finalize();
 }
 
