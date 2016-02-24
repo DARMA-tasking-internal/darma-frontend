@@ -1,5 +1,5 @@
 
-
+#include <threads_backend.h>
 #include <darma.h>
 
 using namespace darma_runtime;
@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
   size_t me = darma_spmd_rank();
   size_t n_ranks = darma_spmd_size();
 
-  auto greetingMessage = initial_access<std::string>("myName", me);
+  AccessHandle<std::string> greetingMessage = initial_access<std::string>("myName", me);
 
   create_work([=]
   {

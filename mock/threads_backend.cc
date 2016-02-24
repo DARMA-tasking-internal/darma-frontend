@@ -1130,9 +1130,6 @@ class ThreadsRuntime
       containment_manager_t const& manager
     ) override { abort(); };
 
-    /**
-     * @todo Document this for 0.2.2 spec
-     */
     void
     establish_aliasing_relationship(
       const handle_t* const handle_a,
