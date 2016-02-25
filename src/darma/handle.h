@@ -419,9 +419,10 @@ class DependencyHandle
     ) : base_t(data_key, version_t()),
         value_((T*&)this->base_t::data_)
     {
+      assert(write_access_allowed == false);
       this->set_version_is_pending(true);
       backend_runtime->register_fetching_handle(this,
-        user_version_tag, write_access_allowed
+        user_version_tag
       );
     }
 
