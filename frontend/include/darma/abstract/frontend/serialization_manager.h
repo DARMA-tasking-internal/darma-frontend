@@ -78,6 +78,9 @@ class SerializationManager {
      *
      *  @param deserialized_data In the 0.2.0 spec implementation, this should always be a null pointer
      *
+     *  @remarks In the 0.2 spec, this return value is always sizeof(T) for some type T (invisible to the
+     *  backend) that the DependencyHandle is intended to hold.
+     *
      *  @remarks Later revisions of the spec will allow classes to specify custom metadata serializers
      *  (e.g., in case there is substantial temporary metadata that doesn't need go over the wire or
      *  if some values need to change in preparation for migration).

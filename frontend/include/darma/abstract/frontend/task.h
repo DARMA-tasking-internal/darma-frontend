@@ -85,7 +85,7 @@ class Task {
      *  All dependencies will return true when given as the argument of Task::needs_read_data()
      *  on this instance and all antidependencies will return true when given as the argument of
      *  Task::needs_write_data() (though write dependencies that do not overwrite data --- that is,
-     *  initial versions --- will have version 0 and will not be true antidependencies).
+     *  initial versions --- will have version equal to 0 and will not be true antidependencies).
      *
      *  @return An iterable container of (non-owning) pointers to DependencyHandle objects.  The
      *  frontend must ensure that only pointers to handles registered with Runtime::register_hanlde()
@@ -94,6 +94,17 @@ class Task {
      *  is called.  Furthermore, it is a debug-mode error for the frontend to return a handle that
      *  returns the same values for get_key() and get_version() but points to a different location
      *  in memory than the corresponding pointer registered with Runtime::register_handle().
+     *
+     *  @remark The frontend must also guarantee that Runtime::release_handle() is not invoked
+     *  with any of the handles returned here between the return of this method and the invocation
+     *  (by the backend) of Task::run() on this object.  However, the frontend may call release_handle()
+     *  with some or all of the handles returned here between the time Task::run() is invoked and the
+     *  time it returns.
+     *
+     *  @remark All calls to get_dependencies() should return the same value from the time the
+     *  task is registered until the run() method is invoked.  It is invalid for the backend
+     *  to call get_dependencies() after the run() method has been invoked, and doing so
+     *  is a (debug-mode) error
      *
      */
     virtual
@@ -123,15 +134,15 @@ class Task {
      *  @param handle A (non-owning) pointer to the handle to be queried
      *
      *  @remark The frontend must ensure that a Task \b must return true for at least one of
-     *  needs_read_data() or needs_write_data() for each handle in the container returned by
-     *  get_dependencies().  Failure to do so is a debug-mode error.
+     *  needs_read_data() or needs_write_data() (and possibly both) for each handle in the container
+     *  returned by get_dependencies().  Failure to do so is a debug-mode error.
      *
      *  @remark The return value of this method is unrelated to whether a dependency is
      *  satisfied or not.  Even for a handle that returns true for handle->is_satisfied(),
      *  this method should return true iff the task needs to write data to the handle.
      *
      *  @remark Not all handles for which this method returns true will be real antidependencies.
-     *  If a handle reports a version equal to 0 (i.e., equal to the value given by the default
+     *  If a handle reports a non-pending version equal to 0 (i.e., equal to the value given by the default
      *  constructor of Version), there is no previous version to overwrite, and thus no antidependency
      *  is created.  However, the runtime should still allocate the data for the object in this case.
      *
@@ -181,8 +192,9 @@ class Task {
 
     /** @brief Run the task.
      *
-     *  This should be invoked only once all dependencies returned by get_dependencies()
-     *  are in a satisfied state (i.e., they return true for DependencyHandle::is_satisfied()).
+     *  This should be invoked exactly once for each task object, and only all all dependencies
+     *  returned by get_dependencies() are in a satisfied state (i.e., they return true for
+     *   DependencyHandle::is_satisfied()).
      *
      *  @post Upon return, it is no longer valid to call get_dependencies(), needs_read_data(),
      *  or needs_write_data().  In fact, the task is free to release these pointers (using

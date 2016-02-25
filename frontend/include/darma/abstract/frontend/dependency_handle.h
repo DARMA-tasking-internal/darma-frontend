@@ -98,8 +98,9 @@ class DependencyHandle {
 
     /** @brief The version associated with the dependency.
      *
-     *  Versions are strictly ordered, hashable, incrementable objects for which the default constructed
-     *  value is always less than or equal to all values.  See Version concept for more information
+     *  Versions are hierarchical, strictly ordered, hashable, incrementable objects for which the
+     *  default constructed value is always less than or equal to all values.  See Version concept
+     *  for more information
      *
      */
     virtual const Version&
@@ -108,20 +109,25 @@ class DependencyHandle {
     /** @brief Set the version associated with the dependency
      *
      *  The backend may call set_version() on a given DependencyHandle at most one time between
-     *  the handle's registration and release, and only if set_version_is_pending(true) has been
-     *  called (which should only be done if this handle or another with an earlier version from
-     *  which this handle was derived was registered with Runtime::register_fetching_handle()
+     *  the handle's registration and release, and only if version_is_pending() returns true
+     *  (which should only be the case if the handle was registered with Runtime::register_fetching_handle()
      *  and the handle's actual version is pending the resolution of the user version tag associated
      *  with that call).
      *
      *  @todo there is a race condition in which a subsequent is being created in the frontend on one thread
-     *  while the version is being resolve on another thread
+     *  while the version is being resolve on another thread.  This isn't an issue in the 0.2 spec
+     *  since fetching handles can't have subsequents, but this needs to be addressed (existing thread safety
+     *  requirements don't necessarily suffice here necessarily since set_version() is in the frontend and
+     *  register_fetching_handle() is in the backend)
      */
     virtual void
     set_version(const Version& v) =0;
 
-    /** @brief returns true if the backend has called set_version_is_pending(true) on the handle
-     *  and if set_version_is_pending(false) and/or set_version() has not been called since.
+    /** @brief returns true if the handle's version is pending
+     *
+     *  That is, if the handle was registered with Runtime::register_fetching_handle()
+     *  and the handle's actual version is pending the resolution of the user version tag associated
+     *  with that call, so set_version() hasn't been called yet.
      */
     virtual bool
     version_is_pending() const =0;
@@ -139,24 +145,25 @@ class DependencyHandle {
     virtual SerializationManager*
     get_serialization_manager() =0;
 
-    /** @brief Satisfy the dependency handle with data or with an allocated buffer into which data
-     *  may be written.
+    /** @brief Satisfy the dependency handle with a DataBlock containing the requested data or an
+     *  allocated buffer into which data may be written.
      *
      *  The underlying data in the data block may not be written to until the backend calls
      *  DependencyHandle::allow_writes() on this handle.  This method should be called at most
      *  once in the lifetime of a DependencyHandle, and it should only be called zero times if
      *  no tasks were registered during its lifetime that reported a dependence on the handle.
      *
-     *  @param data A (non-owning) pointer to the data block for the DependencyHandle to use for
-     *  all data operations.  If any tasks have been used in any read contexts before
-     *  Runtime::release_read_only_usage() was called with the handle, or if the up to one
-     *  "final" usage (see Runtime::release_read_only_usage() for details) of the handle is a task
+     *  @param data A (non-owning) pointer to the DataBlock for the DependencyHandle to use for
+     *  all data operations.  If any tasks have been registered that make read only usage of
+     *  the handle, or if the up to one
+     *  modify usage (see Runtime::release_read_only_usage() for details) of the handle is a task
      *  that returns true for Task::needs_read_data(handle), the readable data must be available
      *  at the time of this invocation.  Otherwise, a buffer of the correct size to contain
      *  the metadata as described by the serialization manager should be allocated.  As of
      *  the 0.2 spec, the handle and data block should not be moved from the time
      *  satisfy_with_data_block() is called until the time Runtime::release_handle() is called
-     *  (i.e., the pointer passed in here should be valid until Runtime::release_handle() is called).
+     *  (i.e., the pointer passed in here should be valid at least until Runtime::release_handle()
+     *  is called).
      *
      *  @todo 0.4: spec protocol for migrating data blocks and handles after a handle has been satisfied
      *
@@ -170,7 +177,7 @@ class DependencyHandle {
      *
      *  It is an (debug-mode) error to call this method before calling satisfy_with_data_block()
      *
-     *  @todo 0.4: this should eventually return a DataBlock*& to facilitate migration without
+     *  @todo 0.4: this should probably eventually return a DataBlock*& to facilitate migration without
      *  re-satisfaction for certain cases
      *
      */
