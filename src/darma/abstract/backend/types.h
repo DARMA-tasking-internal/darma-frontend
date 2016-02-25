@@ -52,6 +52,7 @@
 #include DARMA_BACKEND_TYPES_INCLUDE
 #endif
 
+// TODO Make the backend specify either DARMA_BACKEND_USE_CUSTOM_KEY or DARMA_BACKEND_USE_DEFAULT_KEY
 #ifndef DARMA_BACKEND_CUSTOM_KEY_TYPE
 #include "../defaults/key_fwd.h"
 #include "../defaults/key.h"

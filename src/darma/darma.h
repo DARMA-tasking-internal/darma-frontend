@@ -45,6 +45,10 @@
 #ifndef SRC_DARMA_DARMA_H_
 #define SRC_DARMA_DARMA_H_
 
+#ifdef DARMA_BACKEND_INCLUDE
+#include DARMA_BACKEND_INCLUDE
+#endif
+
 #define DARMA_FRONTEND_TYPES_INCLUDE <darma/types_for_backend.h>
 
 #include "handle.h"

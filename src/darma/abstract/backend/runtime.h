@@ -68,6 +68,10 @@ namespace backend {
  *  two threads must  be allowed to call any method in this class simultaneously, though undefined behavior
  *  is allowed if nonsensical simultaneous calls are made (for instance, two calls registering the exact same
  *  task at the same time).
+ *
+ *  @todo consider the possibility that these methods should be specified as C functions instead to avoid
+ *  virtualization overhead.  If so, there would still need to be some sort of runtime context token as the
+ *  first argument of each function call to allow multiple SPMD ranks to operate within a single process
  */
 template <
   typename Key,
@@ -103,6 +107,11 @@ class Runtime {
      *  @post \a task may be invoked at any subsequent time pending the satisfaction of the handles returned
      *  by Task::get_dependencies().  If the frontend holds a pointer or reference to the task after this method is
      *  invoked, use of that object will result in undefined behavior
+     *
+     *  @remark The handles returned by task->get_dependencies() \b may be released before task->run() returns.  The
+     *  registration restriction applies to the invocation of register_task().  However, as of the 0.2 spec, the frontend
+     *  may not release any of the handles returned by task->get_dependencies() at least until the backend calls task->run()
+     *  [the previous sentence will likely be changed in a later version of the spec]
      *
      *  @param task A unique pointer to the task to register and enqueue, meeting the preconditions
      *  described above.  The runtime backend now owns the task object and is responsible for deleting it
@@ -192,6 +201,18 @@ class Runtime {
     /** @brief Indicate that the last task holding read-only usage or the ability to schedule other
      *  tasks with read-only priviledges has completed or explicitly released the handle.
      *
+     *  After this call is made, the runtime is free to schedule the up to one modify usage (also known as "final"
+     *  usage) of the handle, which may be registered before this method is called or at any time before
+     *  release_handle() is called.
+     *
+     *  @remark It is a debug-mode error to call release_read_only_usage() on a handle after release_handle() has been
+     *  called or before the handle has been registered.
+     *
+     *  @remark The runtime is allowed to assume that the handle here is the same as the handle passed in during the
+     *  registration process if it has the same key and same version.  This means that, e.g., calling
+     *  handle->satisfy_with_data_block() on this handle must be equivalent to calling it on the one stored from
+     *  an earlier registration if the key and version are the same.
+     *
      *  @remark Since a publication is a read-only usage, all publishes must be invoked on a handle before this
      *  method is called (note that they need not be finished).
      *
@@ -207,20 +228,57 @@ class Runtime {
       const handle_t* const handle
     ) =0;
 
-    // TODO finish revising!!!
 
-    /** @brief Release a previously registered handle, indicating that no more tasks will be registered
-     *  with \c handle as an output (at least using the instance registered with register_handle()).
+    /** @brief Release a previously registered handle, indicating that the handle will no longer be used
+     *  for any method calls on this instance.
+     *
+     *  Releasing a handle indicates the handle has completed the modifiable phase of its life cycle, and thus
+     *  the return value of handle->get_data_block() represents completion of all modifications on that DataBlock
+     *  through that handle.  Thus, the DataBlock associated with a handle upon its release should be used to
+     *  satisfy any registered \a subsequents of the handle, all of which must be both registered and versioned
+     *  at the time of release_handle() invocation.  Subsequents of a handle may be indicated in several
+     *  ways.  Given k = handle->get_key() and v = handle->get_version() for the handle parameter, the following
+     *  rules may be used to determine the correct subsequent to satisfy with handle's data.  First, if a handle
+     *  is registered with key k and version ++(v.push(0)), that handle is  //TODO !!!
+     *  the simplest
+     *  subsequent is a handle registered with key k and version ++v.  If this subsequent exists, the backend
+     *  should satisfy it (i.e., using satisfy_with_data_block()) with the value returned by handle->get_data_block(),
+     *  and no further action is required (in debug mode, the backend should raise an error if subsequents are
+     *  indicated by any of the other means).  If this subsequent does not exist, the backend should check
+     *  if the handle has been registered as the last at its version depth (i.e., if the frontend has called
+     *  handle_done_with_version_depth() before calling release_handle()).  If
+     *
+     *
+     *
+     *  @remark the runtime may safely assume that any subsequent candidates will be in a versioned state at
+     *  the time of release_handle() invocation.
+     *
+     *  @todo think back through this in terms of potential local "publish subequents"?
+     *
+     *  @remark this may be invoked before all publishes are *completed* (though they still have to be invoked
+     *  before release_read_only_usage() is called), but only if there is to be no modify usage of the handle
+     *
+     *  @remark The runtime is allowed to assume that the handle here is the same as the handle passed in during the
+     *  registration process if it has the same key and same version.  This means that, e.g., calling
+     *  handle->satisfy_with_data_block() on this handle must be equivalent to calling it on the one stored from
+     *  an earlier registration if the key and version are the same. [This requirement may change in the future
+     *  to facilitate work stealing and other migrations)
+     *
+     *  @remark Even though the handle must be the same, the version \b increment behavior may be different
+     *  from that of the version when the handle was registered.  The version must still return true for the
+     *  equals comparison to the registered version and they must hash to the same value.  However, because
+     *  the frontend is allowed to append zeros to the version to indicate its desired increment behavior,
+     *  the backend should determine subsequents from the version returned by calling handle->get_version()
+     *  on the handle given as a parameter here.  Since this handle must be the same object as the one registered,
+     *  this is only an issue if the raw version captured at the time of registration is somehow used here,
+     *  which should not be done anyway since it is cheaper to store the handle pointer and the frontend must
+     *  guarantee that the handle pointer is valid until after release_handle() returns.
      *
      *  @param handle A (non-owning) pointer to the same object with which Runtime::register_handle() (or
-     *  register_fetching_handle()) was previously invoked.  Any (frontend or backend) uses of \c handle
-     *  after release_handle() is returns are invalid and result in undefined behavior.  Upon release,
-     *  if the handle has been published with Runtime::publish_handle() or if the handle was registered
-     *  as the last subversion at a given depth using Runtime::handle_done_with_version_depth(), the
-     *  appropriate action(s) should be taken to satisfy dependencies requiring data from the data block
-     *  in \c handle (i.e., the return value of handle->get_data_block()).  If neither of these uses have
-     *  been performed at the time of release, it is safe for the runtime to garbage collect the data block
-     *  returned by handle->get_data_block().
+     *  register_fetching_handle()) was previously invoked.  Any frontend uses of \c handle
+     *  after release_handle() is returns are invalid and result in debug-mode errors (undefined behavior is
+     *  allowed in optimized mode).
+     *
      *
      *  @sa DependencyHandle::get_data_block()
      *  @sa Runtime::handle_done_with_version_depth()
@@ -443,4 +501,11 @@ darma_backend_initialize(
      *  The frontend may choose to call this after all tasks making read uses have *finished*, but this
      *  is not a requirement currently.  It must be called for all handles before release_handle() is
      *  called.  It is an error to call release_handle() on a handle before calling release_read_only_usage().
+     *
+     *  Upon release, if the handle has been published with Runtime::publish_handle() or if the handle was registered
+     *  as the last subversion at a given depth using Runtime::handle_done_with_version_depth(), the
+     *  appropriate action(s) should be taken to satisfy dependencies requiring data from the data block
+     *  in \c handle (i.e., the return value of handle->get_data_block()).  If neither of these uses have
+     *  been performed at the time of release, it is safe for the runtime to garbage collect the data block
+     *  returned by handle->get_data_block().
  */
