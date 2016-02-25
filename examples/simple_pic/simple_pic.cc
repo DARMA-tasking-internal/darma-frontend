@@ -50,16 +50,34 @@ public:
 ////////////////////////////////////////////////////////////////////////////////
 // Some helper functions
 
-size_t to_global ( size_t i, size_t j, size_t k ) const{
-  if (i<0 ) i += nx_; if (i>= nx_) i-= nx_;
-  if (j<0 ) j += ny_; if (j>= ny_) j-= ny_;
-  if (k<0 ) k += nz_; if (k>= nz_) k-= nz_;
-  return i+j*nx_ + k*nx_*ny_;
-}
-
 size_t to_index(size_t nx, size_t ny, , size_t nz, double x[3])  const{
   size_t i = x[0]*nx, j = x[1]*ny, k = x[2]*nz;
-  return to_global(i,j,k);
+  return (i + j*nx + k*nx*ny);//to_global(i,j,k);
+}
+
+bool to_grid( int id, int *i, int *j, int *k , const int & nx, const int & ny, const int & nz) const {
+    // NOTE: what to do if someone ask for an id that doesn't exist?
+    //      - should there be a "NULL" value?
+    //      - should we just exit gracefully with an error message?
+    //      - return false and let the user figure out what to do?
+    //
+    //      Choose the third option for now.
+
+  if( id < 0 || id >= nx*ny*nz ) {
+    *i = *j = *k = -1;
+    return false;
+  }
+    div_t result_k;
+    div_t result_j;
+
+    result_k = div ( id, (nx*ny) );
+    *k = result_k.quot;
+
+    result_j = div ( result_k.rem, nx );
+    *j = result_j.quot;
+    *i = result_j.rem;
+
+    return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -74,24 +92,31 @@ void setUpMesh(size_t nx, size_t ny, size_t nz, size_t rank, Mesh & mesh) {
   for (i[2]=0; i[2] < nz; ++i[2])
     for (i[1]=0; i[1] < ny; ++i[1])
       for (i[0]=0; i[0] < nx; ++i[0]) {
-	assert(to_global(i[0],i[1],i[2]) == mesh.num_elements);
 	MeshElement &e = mesh.elements[mesh.num_elements++];
 	for (size_t idim =0; idim<3; ++idim) {
 	  e.x_low[idim] = i[idim]*dx[idim];
 	  e.x_hi[idim] = (i[idim]+1)*dx[idim];
 	}
-	e.lower[0] = to_global(i[0]-1, i[1], i[2]);
-	e.upper[0] = to_global(i[0]+1, i[1], i[2]);
-	e.lower[1] = to_global(i[0], i[1]-1, i[2]);
-	e.upper[1] = to_global(i[0], i[1]+1, i[2]);
-	e.lower[2] = to_global(i[0], i[1], i[2]-1);
-	e.upper[2] = to_global(i[0], i[1], i[2]+1);
+	e.lower[0] = i[0]-1 + i[1]*nx     + i[2]*nx*ny;//to_global(i[0]-1, i[1], i[2]);
+	e.upper[0] = i[0]+1 + i[1]*nx     + i[2]*nx*ny;//to_global(i[0]+1, i[1], i[2]);
+	e.lower[1] = i[0]   +(i[1]-1)*nx  + i[2]*nx*ny;//to_global(i[0], i[1]-1, i[2]);
+	e.upper[1] = i[0]   +(i[1]+1)*nx  + i[2]*nx*ny;//to_global(i[0], i[1]+1, i[2]);
+	e.lower[2] = i[0]   + i[1]*nx     +(i[2]-1)*nx*ny;//to_global(i[0], i[1], i[2]-1);
+	e.upper[2] = i[0]   + i[1]*nx     +(i[2]+1)*nx*ny;//to_global(i[0], i[1], i[2]+1);
       }
 
   // initialize the partition id
   mesh.index = rank;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// A function that initializes the mesh for this darma rank
+
+void setUpMeshPartitions(size_t partitions_x, size_t partitions_y, size_t partitions_z, size_t rank, Mesh & mesh) { 
+
+  to_grid(rank, &mesh.coords[0], &mesh.coords[1], &mesh.coords[2], partitions_x, partitions_y, partitions_z);
+
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // A user data type for particle data
@@ -175,7 +200,10 @@ size_t main(size_t argc, char** argv)
   size_t global_elem = 60; // 21x21x21 global mesh
 
   // how many partitions in each direction
-  size_t partitions = 3; // partitions in each direction
+  size_t partitions_x, partitions_y, partitions_z; 
+  partitions_x = partitions_y = partitions_z = 3; // partitions in each direction
+
+  assert(n_spmd ==  partitions*partitions*partitions);
 
   // number of elements in each dim for the local mesh partition
   size_t local_elem = global_elem/partitions;
@@ -189,6 +217,9 @@ size_t main(size_t argc, char** argv)
 
   create_work([=]{
       setUpMesh(local_elem, local_elem, local_elem, me, mesh_handle.get_reference());
+
+      setUpMeshPartitions(partitions_x, partitions_y, partitions_z, me, mesh_handle.get_reference());
+
       initializeParticles(n_parts, mesh_handle.get_reference(), parts_handle.get_reference());
     });
 
