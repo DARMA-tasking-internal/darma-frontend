@@ -3,3 +3,53 @@
 \appendix
 
 \chapter{{\tt DependencyHandle} life cycle}
+
+Given a \inlinecode{abstract::frontend::DependencyHandle} $h$, a
+\inlinecode{abstract::backend::Runtime} $r$, and a
+\inlinecode{abstract::backend::DataBlock} $db$,
+
+\begin{tabular}{l|p{40em}}
+\hline
+State & Precondition \\
+\hline
+registered & \inlinecode{r->register_handle(h)} 
+or \inlinecode{r->register_fetching_handle(h, ...)} invoked by translation
+layer \\
+%
+versioned & \inlinecode{h} was registered with
+\inlinecode{r->register_handle(h)} or \inlinecode{h->set_version()} called by
+backend (allowed iff \inlinecode{h}
+was registered using \inlinecode{r->register_fetching_handle(h, ...)}) \\
+%
+satisfied & \inlinecode{h->satisfy_with_data_block(db)}
+invoked by backend \\
+%
+modifiable & \inlinecode{r->release_read_only_usage(h)} invoked by translation
+layer \\
+%
+released & \inlinecode{r->release_handle(h)} invoked by the translation layer 
+ \\
+\hline
+\end{tabular}
+
+Note that each state also implicitly carries the preconditions of the previous
+states (higher up in the table)
+
+\vspace{2em}
+{\centering
+\begin{tabular}{l|l}
+\hline
+State & Queried using\ldots \\
+\hline
+registered & -\\
+%
+versioned & \inlinecode{!h->version_is_pending()} \\
+%
+satisfied & \inlinecode{h->is_satisfied())} \\
+%
+modifiable & \inlinecode{h->is_writable()} \\
+%
+released & - \\
+\hline
+}
+\end{tabular}

@@ -51,6 +51,8 @@
 #include <tinympl/vector.hpp>
 #include <tinympl/splat.hpp>
 
+#include "runtime.h"
+
 #include "task.h"
 
 namespace darma_runtime {
