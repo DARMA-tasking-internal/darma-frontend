@@ -117,6 +117,7 @@ TEST_F(DARMABackendInitialize, top_level_run_not_called) {
     FAIL() << "run() shouldn't be called on top level task";
   };
   tmp->replace_run = &replace_run;
+
   std::unique_ptr<typename abstract::backend::runtime_t::task_t> top_level_task
     = std::move(tmp);
   abstract::backend::darma_backend_initialize(
