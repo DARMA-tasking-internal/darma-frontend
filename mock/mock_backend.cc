@@ -92,8 +92,7 @@ class MockRuntime
     void
     register_fetching_handle(
       handle_t* const handle,
-      const key_t& user_version_tag,
-      bool write_access_allowed
+      const key_t& user_version_tag
     ) override {
       cout << "registering fetching handle: ";
       describe_handle(handle);
