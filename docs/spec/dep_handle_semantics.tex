@@ -10,7 +10,7 @@ Given a \inlinecode{abstract::frontend::DependencyHandle} $h$, a
 
 \begin{tabular}{l|p{40em}}
 \hline
-State & Precondition \\
+Stage & Precondition \\
 \hline
 registered & \inlinecode{r->register_handle(h)} 
 or \inlinecode{r->register_fetching_handle(h, ...)} invoked by translation
@@ -37,19 +37,22 @@ states (higher up in the table)
 
 \vspace{2em}
 {\centering
-\begin{tabular}{l|l}
+\begin{tabular}{l|ll}
 \hline
-State & Queried using\ldots \\
+Stage & Queried using\ldots & May be skipped if\ldots\\
 \hline
-registered & -\\
+registered & - & - \\
 %
-versioned & \inlinecode{!h->version_is_pending()} \\
+versioned & \inlinecode{!h->version_is_pending()} & - \\
 %
-satisfied & \inlinecode{h->is_satisfied())} \\
+satisfied & \inlinecode{h->is_satisfied())} & \inlinecode{h} never used in
+modify or read context other than publish
+\\
 %
-modifiable & \inlinecode{h->is_writable()} \\
+modifiable & \inlinecode{h->is_writable()} & -
+\\
 %
-released & - \\
+released & - & - \\
 \hline
 }
 \end{tabular}
