@@ -76,11 +76,11 @@ class MockRuntime
     }
 
     task_t* const
-    get_running_task() const {
+    get_running_task() const override {
       return top_level_task.get();
     }
 
-    void
+    virtual void
     register_handle(
       handle_t* const handle
     ) override {
@@ -89,7 +89,7 @@ class MockRuntime
       cout << endl;
     }
 
-    void
+    virtual void
     register_fetching_handle(
       handle_t* const handle,
       const key_t& user_version_tag
@@ -99,7 +99,7 @@ class MockRuntime
       cout << endl;
     }
 
-    void
+    virtual void
     release_read_only_usage(
       const handle_t* const handle
     ) override {
@@ -118,7 +118,7 @@ class MockRuntime
 
     }
 
-    void
+    virtual void
     handle_done_with_version_depth(
       const handle_t* const handle
     ) override {
@@ -129,7 +129,7 @@ class MockRuntime
 
     }
 
-    void
+    virtual void
     publish_handle(
       const handle_t* const handle,
       const key_t& version_tag,
@@ -142,7 +142,7 @@ class MockRuntime
     }
 
 
-    void
+    virtual void
     satisfy_handle(
       handle_t* const to_fill,
       bool needs_write_access = false
@@ -152,21 +152,21 @@ class MockRuntime
       cout << endl;
     }
 
-    void
+    virtual void
     establish_containment_relationship(
       const handle_t* const inner_handle,
       const handle_t* const outer_handle,
       containment_manager_t const& manager
     ) override { }
 
-    void
+    virtual void
     establish_aliasing_relationship(
       const handle_t* const handle_a,
       const handle_t* const handle_b,
       aliasing_manager_t const& manager
     ) override { }
 
-    void
+    virtual void
     finalize() override {
       cout << "finalize" << endl;
     }

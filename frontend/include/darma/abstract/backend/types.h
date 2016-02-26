@@ -46,20 +46,8 @@
 #define SRC_ABSTRACT_BACKEND_TYPES_H_
 
 #include <utility> // std::forward
-#include "../defaults/key_fwd.h" // key_traits
 
-#ifdef DARMA_BACKEND_TYPES_INCLUDE
-#include DARMA_BACKEND_TYPES_INCLUDE
-#endif
-
-// TODO Make the backend specify either DARMA_BACKEND_USE_CUSTOM_KEY or DARMA_BACKEND_USE_DEFAULT_KEY
-#ifndef DARMA_BACKEND_CUSTOM_KEY_TYPE
-#include "../defaults/key_fwd.h"
-#include "../defaults/key.h"
-namespace darma_runtime { namespace types {
-  typedef darma_runtime::defaults::Key key_t;
-}} // end namespace darma_runtime::types
-#endif
+#include <darma_types.h> //provided by the backend
 
 namespace darma_runtime {
 
@@ -78,28 +66,5 @@ make_key_from_tuple(TupleType&& tup) {
 }
 
 } // end namespace darma_runtime
-
-#ifndef DARMA_BACKEND_CUSTOM_VERSION_TYPE
-#include "../defaults/version.h"
-namespace darma_runtime { namespace types {
-  typedef darma_runtime::defaults::Version version_t;
-}} // end namespace darma_runtime::types
-#endif
-
-#ifndef DARMA_BACKEND_CUSTOM_SMART_POINTERS
-#include <memory>
-namespace darma_runtime { namespace types {
-  template <typename... Ts>
-  using shared_ptr_template = std::shared_ptr<Ts...>;
-  template <typename... Ts>
-  using unique_ptr_template = std::unique_ptr<Ts...>;
-}} // end namespace darma_runtime::types
-#endif
-
-#ifndef DARMA_BACKEND_SPMD_NAME_PREFIX
-#define DARMA_BACKEND_SPMD_NAME_PREFIX "___spmd_top_level"
-#endif
-
-
 
 #endif /* SRC_ABSTRACT_BACKEND_TYPES_H_ */

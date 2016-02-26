@@ -351,36 +351,36 @@ class Runtime {
     // Methods for "bare" dependency satisfaction and use.  Not used
     // for task dependencies
 
-    ///**
-    // * @todo Document this for 0.3(?) spec
-    // */
-    //virtual void
-    //satisfy_handle(
-    //  handle_t* const to_fill,
-    //  bool needs_write_access = false
-    //) =0;
+    /**
+     * @todo Document this for 0.3(?) spec
+     */
+    virtual void
+    satisfy_handle(
+      handle_t* const to_fill,
+      bool needs_write_access = false
+    ) =0;
 
     // Methods for establishing containment and/or aliasing relationships
 
-    ///**
-    // * @todo Document this for 0.3 spec
-    // */
-    //virtual void
-    //establish_containment_relationship(
-    //  const handle_t* const inner_handle,
-    //  const handle_t* const outer_handle,
-    //  containment_manager_t const& manager
-    //) =0;
+    /**
+     * @todo Document this for 0.3 spec
+     */
+    virtual void
+    establish_containment_relationship(
+      const handle_t* const inner_handle,
+      const handle_t* const outer_handle,
+      containment_manager_t const& manager
+    ) =0;
 
-    ///**
-    // * @todo Document this for 0.3 spec
-    // */
-    //virtual void
-    //establish_aliasing_relationship(
-    //  const handle_t* const handle_a,
-    //  const handle_t* const handle_b,
-    //  aliasing_manager_t const& manager
-    //) =0;
+    /**
+     * @todo Document this for 0.3 spec
+     */
+    virtual void
+    establish_aliasing_relationship(
+      const handle_t* const handle_a,
+      const handle_t* const handle_b,
+      aliasing_manager_t const& manager
+    ) =0;
 
     /** @brief signifies the end of the outer SPMD task from which darma_backend_initialize() was called
      *

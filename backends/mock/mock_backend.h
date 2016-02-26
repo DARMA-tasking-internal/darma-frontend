@@ -45,18 +45,6 @@
 #ifndef MOCK_MOCK_BACKEND_H_
 #define MOCK_MOCK_BACKEND_H_
 
-#define DARMA_BACKEND_TYPES_INCLUDE <stream_key.h>
-#define DARMA_BACKEND_CUSTOM_KEY_TYPE 1
-
-#include "stream_key.h"
-
-namespace darma_runtime { namespace types {
-  typedef mock_backend::StreamKey key_t;
-}} // end namespace darma_runtime::types
-
 #include <darma.h>
-
-
-
 
 #endif /* MOCK_MOCK_BACKEND_H_ */

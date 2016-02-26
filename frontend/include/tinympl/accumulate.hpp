@@ -51,7 +51,7 @@
 #ifndef TINYMPL_ACCUMULATE_HPP
 #define TINYMPL_ACCUMULATE_HPP
 
-#include "left_fold.hpp"
+#include <tinympl/left_fold.hpp>
 
 namespace tinympl {
 

@@ -50,9 +50,9 @@
 #include <cstring> // std::memcmp
 #include <iostream>
 
-#include "../../util.h"
-#include "../../meta/tuple_for_each.h"
-#include "key_fwd.h"
+#include <darma/util.h>
+#include <darma/meta/tuple_for_each.h>
+#include <darma/abstract/defaults/key_fwd.h>
 
 
 #ifndef DARMA_DEBUG_KEY_TYPES
@@ -348,7 +348,6 @@ operator==(const defaults::Key& a, const defaults::Key& b) {
   return defaults::key_equal()(a, b);
 }
 
-
 } // end namespace defaults
 
 namespace detail {
@@ -385,10 +384,11 @@ struct key_traits<darma_runtime::defaults::Key>
 };
 
 } // end namespace detail
-
 } // end namespace darma_runtime
 
-
-
+namespace darma_runtime { namespace types {
+  typedef darma_runtime::defaults::Key key_t;
+}} // end namespace darma_runtime::types
 
 #endif /* NEW_KEY_H_ */
+
