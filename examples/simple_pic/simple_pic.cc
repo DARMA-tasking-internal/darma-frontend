@@ -9,7 +9,7 @@ using namespace darma_runtime;
 ////////////////////////////////////////////////////////////////////////////////
 // Some helper functions
 
-size_t to_index(size_t nx, size_t ny, , size_t nz, double x[3])  const{
+size_t to_index(size_t nx, size_t ny, size_t nz, double x[3])  const{
   size_t i = x[0]*nx, j = x[1]*ny, k = x[2]*nz;
   return (i + j*nx + k*nx*ny);//to_global(i,j,k);
 }

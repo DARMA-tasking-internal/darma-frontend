@@ -67,5 +67,6 @@ include_directories( ${EXAMPLES_BIN_ROOT} )
 
 
 add_subdirectory(stencil_1d)
+#add_subdirectory(simple_pic)
 
 
