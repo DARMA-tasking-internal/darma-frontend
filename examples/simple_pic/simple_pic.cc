@@ -272,7 +272,72 @@ struct Particles {
 
   }
 
+  // A function that moves all the particles on this rank, to the edge of the mesh
+  // of this rank
+
+  void move_all( double dt, Mesh & mesh){
+    for(std::vector<Particle>::iterator it = parts.begin(); it != parts.end(); ++it){
+      it->time_left = dt;
+      if(it->state > TO_Z_HI){ //move(*it); }
+
+	//The entire code below is the move for each particle and used to be 
+	//a separate function, but I've inlined it all here.
+	Particle &p = *it;
+
+	int elem = p.element, next_elem = elem;
+	double t = p.time_left;
+
+	do {
+	  for (int idim =0; idim<3; ++idim) { 
+	    if ( p.v[idim] < 0 && p.x[idim] + p.time_left*p.v[idim] < mesh.elements[elem].x_low[idim]) {
+	      double local_t = -(p.x[idim]-mesh.elements[elem].x_low[idim])/(p.time_left*p.v[idim])*p.time_left;
+	      if (local_t < t) {
+		t = local_t;
+		next_elem = mesh.elements[elem].lower[idim];
+	      }
+	    }
+	    if (  p.v[idim] > 0 && p.x[idim] + p.time_left*p.v[idim] > mesh.elements[elem].x_hi[idim]) {
+	      double local_t = (mesh.elements[elem].x_hi[idim]-p.x[idim])/(p.time_left*p.v[idim])*p.time_left;
+	      if (local_t < t) {
+		t = local_t;
+		next_elem = mesh.elements[elem].upper[idim];
+	      }
+	    }
+	  }
+
+
+	  if (t != p.time_left )
+	    t *= (1. + 2e-16); // stupid roundoff fix
+	  for (int idim=0; idim<3; ++idim) { 
+	    p.x[idim] += t*p.v[idim];
+	    //replace periodicity with check for boundary reached
+	    if (p.x[idim] <= 0.0){
+	      p.state = (State)(2*idim); //low boundary
+	      break;
+	    } else if (p.x[idim] >= 1.0 ){
+	      p.state = (State)(2*idim + 1); //hi boundary
+	      break;
+	    }
+	  }
+	  if ( t < p.time_left){
+	    p.element = next_elem;
+	  }else{
+	    p.state = EXPIRED;
+	  }
+	  p.time_left -= t; t = p.time_left;
+	  elem = next_elem;
+
+	} while (t > 0 && p.state == ACTIVE);
+
+      }//end of if loop
+    }//end of for loop
+
+  }
+
+
 };
+
+////////////////////////////////////////////////////////////////////////////////
 
 
 
@@ -294,7 +359,7 @@ int main(int argc, char** argv)
 
   // how many partitions in each direction
   int partitions_x, partitions_y, partitions_z; 
-  partitions_x = partitions_y = partitions_z = 3; // partitions in each direction
+  partitions_x = partitions_y = partitions_z = 1; // partitions in each direction
 
   assert(n_spmd ==  partitions_x*partitions_y*partitions_z);
 
@@ -308,26 +373,49 @@ int main(int argc, char** argv)
   auto mesh_handle = initial_access<Mesh>("mesh", me);
   auto parts_handle = initial_access<Particles>("particles",me);
 
+
+  //First task to initialise the meash and particles (position, velocity)
+  //for this rank
   create_work([=]{
 
-		Mesh & m = mesh_handle.get_reference(); 
-		Particles & ps = parts_handle.get_reference();
+      Mesh & m = mesh_handle.get_reference(); 
+      Particles & ps = parts_handle.get_reference();
 
-		//The function below initialises some of the data members 
-		//of this mesh object, but not all
-		m.setUpMesh(local_elem, local_elem, local_elem, me);
+      //The function below initialises some of the data members 
+      //of this mesh object, but not all
+      m.setUpMesh(local_elem, local_elem, local_elem, me);
 
-		//This function initialises the remaining data members
-		//Can we assume provenance of the data members that have been
-		//initialised by the previous member function??
-		m.setUpMeshPartitions(partitions_x, partitions_y, partitions_z, me);
+      //This function initialises the remaining data members
+      //Can we assume provenance of the data members that have been
+      //initialised by the previous member function??
+      m.setUpMeshPartitions(partitions_x, partitions_y, partitions_z, me);
 
-		//Now initialize particles. Will m.nx_, m.ny_, m.nz_ be sensible??
-		ps.initializeParticles(n_parts, m.nx_, m.ny_, m.nz_);
-	      });
+      //Now initialize particles. Will m.nx_, m.ny_, m.nz_ be sensible??
+      ps.initializeParticles(n_parts, m.nx_, m.ny_, m.nz_);
+    });
+
+
+  //now follow on task that moves that particles of this rank to the edge of the mesh
+  create_work([=]{
+
+      Mesh & m = mesh_handle.get_reference();
+      Particles & ps = parts_handle.get_reference();
+
+      double dt = 0.025;
+      ps.move_all(dt, m);
+
+    });
+
 
   mesh_handle.publish(n_readers=1);
   parts_handle.publish(n_readers=1);
+
+  /*
+  //We will be reading the mesh data, but overwriting Particles data.
+  //(Q*) Can I reuse the existing handles (how)??
+  auto mesh_r_handle = read_access<Mesh>("mesh", me);
+  auto parts_rw_handle = read_write<Particles>("particles", me);
+  */
 
 
   darma_finalize();
