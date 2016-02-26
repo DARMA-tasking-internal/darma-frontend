@@ -203,9 +203,9 @@ class DataBlock
       return data_;
     }
 
-    void acquire_data(void* const data) override {
-      abort(); // not implemented
-    }
+    //void acquire_data(void* const data) override {
+    //  abort(); // not implemented
+    //}
 
     void allocate_data(size_t size) {
       DEBUG("Allocating data block of size " << size
@@ -242,7 +242,6 @@ class ThreadsRuntime
     typedef typename abstract::backend::runtime_t::version_t version_t;
     typedef typename abstract::backend::runtime_t::task_t task_t;
 
-    typedef typename std::mutex mutex_t;
     typedef typename std::shared_timed_mutex shared_mtx_t;
     typedef typename std::shared_lock<shared_mtx_t> shared_lock_t;
     typedef typename std::unique_lock<shared_mtx_t> unique_lock_t;
@@ -278,66 +277,17 @@ class ThreadsRuntime
     std::unordered_map<std::pair<key_t, version_t>, std::pair<key_t, version_t>> handle_to_satisfy_;
     shared_mtx_t handle_to_satisfy_mtx_;
 
-    std::unordered_map<std::pair<key_t, version_t>, std::deque<shared_lock_t>> fetch_locks_;
-    shared_mtx_t fetch_locks_mtx_;
-
-    std::unordered_map<std::pair<key_t, key_t>, version_t> published_versions_;
-    shared_mtx_t published_versions_mtx_;
-
-    std::unordered_map<std::pair<key_t, key_t>, shared_mtx_t> version_ready_mtxs_;
-    shared_mtx_t version_ready_mtxs_mtx_;
-
-    std::unordered_map<intptr_t, shared_mtx_t> fetch_handle_ready_mtxs_;
-    shared_mtx_t fetch_handle_ready_mtxs_mtx_;
-
-    std::unordered_map<intptr_t, shared_lock_t> fetch_handle_locks_;
-    shared_mtx_t fetch_handle_locks_mtx_;
-
-    std::unordered_set<intptr_t> known_fetch_handles_;
-    shared_mtx_t known_fetch_handles_mtx_;
-
-    //std::unordered_map<std::pair<key_t, version_t>, std::deque<const handle_t* const>> fetch_handles_;
-    //shared_mtx_t fetch_handles_mtx_;
-
-    //struct fetch_subsequent {
-    //  fetch_subsequent(const key_t& key, const version_t& version, handle_t* const handle_in)
-    //    : original_fetch(key, version), handle(handle_in)
-    //  {
-    //    version_ready_mtx.lock();
-    //  }
-    //  std::pair<key_t, version_t> original_fetch;
-    //  handle_t* const handle;
-    //  shared_mtx_t version_ready_mtx;
-    //  fetch_subsequent* next = nullptr;
-    //};
-
-    //std::unordered_map<std::pair<key_t, version_t>, fetch_subsequent> fetch_subsequents_;
-    //shared_mtx_t fetch_subsequents_mtx_;
-
   private:
 
     std::string
     get_key_version_string(
       const handle_t* const handle
-    ) const {
+    ) {
       std::stringstream sstr;
       sstr << "{key: ";
       handle->get_key().print_human_readable(", ", sstr);
       sstr << " | version: ";
       handle->get_version().print_human_readable(".", sstr);
-      sstr << "}";
-      return sstr.str();
-    }
-
-    std::string
-    get_key_version_string(
-      const std::pair<key_t, version_t>& kvpair
-    ) const {
-      std::stringstream sstr;
-      sstr << "{key: ";
-      kvpair.first.print_human_readable(", ", sstr);
-      sstr << " | version: ";
-      kvpair.second.print_human_readable(".", sstr);
       sstr << "}";
       return sstr.str();
     }
@@ -352,8 +302,6 @@ class ThreadsRuntime
       std::vector<shared_mtx_t*> to_lock_unique;
       std::vector<shared_mtx_t*> shared_locks_to_transfer;
       std::vector<shared_mtx_t*> unique_locks_to_transfer;
-      std::vector<handle_t*> version_pending_deps;
-      std::vector<shared_mtx_t*> version_pending_mtxs;
 
       #if DHARMA_THREADS_DEBUG
       std::stringstream needs_locks_sstr;
@@ -364,7 +312,7 @@ class ThreadsRuntime
       { // RAII scope for _lg
         auto _lg = make_shared_lock_guards(
           data_ready_mtxs_mtx_, handle_mtxs_mtx_, task_shared_locks_mtx_,
-          task_unique_locks_mtx_, fetch_handle_ready_mtxs_mtx_
+          task_unique_locks_mtx_
         );
 
         for(auto&& dep : deps) {
@@ -373,18 +321,65 @@ class ThreadsRuntime
           bool need_read = in_task->needs_read_data(dep);
           bool need_write = in_task->needs_write_data(dep);
           auto found_mtx = handle_mtxs_.find(kver_pair);
+          if(found_mtx == handle_mtxs_.end()) {
+            // TODO error here
+            abort();
+          }
 
+          if(dep->is_satisfied()) {
 
-          if(not dep->version_is_pending()) {
+            auto found_dr = data_ready_mtxs_.find(kver_pair);
 
+            // must not be in the data_ready maps
+            assert(found_dr == data_ready_mtxs_.end());
 
-            if(found_mtx == handle_mtxs_.end()) {
-              // TODO error here
-              abort();
+            // The parent task must be holding a lock
+            // see if it should be shared or unique
+            if(need_write) {
+              // Look for a unique lock in the parent
+              assert(dep->is_writable());
+              auto found_parent = task_unique_locks_.find(parent_task);
+              if(found_parent == task_unique_locks_.end()) {
+                // TODO error here
+                abort();
+              }
+              auto found_uniq = std::find(found_parent->second->begin(),
+                 found_parent->second->end(), &(found_mtx->second));
+              if(found_uniq == (*found_parent).second->end()) {
+                // This is an error; parent didn't have write, but child wants it
+                abort();
+              }
+              #if DHARMA_THREADS_DEBUG
+              needs_locks_sstr << "    transfering unique lock for " << get_key_version_string(dep) << std::endl;
+              #endif
+              unique_locks_to_transfer.push_back(*found_uniq);
+              found_parent->second->erase(found_uniq);
             }
-
-            if(dep->is_satisfied()) {
-
+            else {
+              assert(need_read);
+              // Check if the parent had read priviledges
+              auto found_parent = task_shared_locks_.find(parent_task);
+              if(found_parent == task_shared_locks_.end()) {
+                // TODO error here
+                abort();
+              }
+              auto found_shar = std::find(found_parent->second->begin(),
+                 found_parent->second->end(), &(found_mtx->second));
+              if(found_shar == found_parent->second->end()) {
+                // This is not an error, (it's a priviledge downgrade);
+                // it's just not implemented yet
+                abort();
+              }
+              #if DHARMA_THREADS_DEBUG
+              needs_locks_sstr << "    transfering shared lock for " << get_key_version_string(dep) << std::endl;
+              #endif
+              shared_locks_to_transfer.push_back(*found_shar);
+              found_parent->second->erase(found_shar);
+            }
+          }
+          else {
+            if(dep->get_version() == version_t() and not dep->version_is_pending()) {
+              // It's the first version of the dep, so we need to allocate in place
               auto found_dr = data_ready_mtxs_.find(kver_pair);
 
               // must not be in the data_ready maps
@@ -393,146 +388,62 @@ class ThreadsRuntime
                 abort();
               }
 
-              // The parent task must be holding a lock
-              // see if it should be shared or unique
-              if(need_write) {
-                // Look for a unique lock in the parent
-                assert(dep->is_writable());
-                auto found_parent = task_unique_locks_.find(parent_task);
-                if(found_parent == task_unique_locks_.end()) {
-                  // TODO error here
-                  abort();
-                }
-                auto found_uniq = std::find(found_parent->second->begin(),
-                  found_parent->second->end(), &(found_mtx->second));
-                if(found_uniq == (*found_parent).second->end()) {
-                  // This is an error; parent didn't have write, but child wants it
-                  abort();
-                }
-                #if DHARMA_THREADS_DEBUG
-                needs_locks_sstr << "    transfering unique lock for " << get_key_version_string(dep) << std::endl;
-                #endif
-                unique_locks_to_transfer.push_back(*found_uniq);
-                found_parent->second->erase(found_uniq);
-              }
-              else {
-                assert(need_read);
-                // Check if the parent had read priviledges
-                auto found_parent = task_shared_locks_.find(parent_task);
-                if(found_parent == task_shared_locks_.end()) {
-                  // TODO error here
-                  abort();
-                }
-                auto found_shar = std::find(found_parent->second->begin(),
-                  found_parent->second->end(), &(found_mtx->second));
-                if(found_shar == found_parent->second->end()) {
-                  // This is not an error, (it's a priviledge downgrade);
-                  // it's just not implemented yet
-                  abort();
-                }
-                #if DHARMA_THREADS_DEBUG
-                needs_locks_sstr << "    transfering shared lock for " << get_key_version_string(dep) << std::endl;
-                #endif
-                shared_locks_to_transfer.push_back(*found_shar);
-                found_parent->second->erase(found_shar);
-              }
+              // also, this must be a write-only use
+              assert(need_write and not need_read);
+
+              DataBlock* db = new DataBlock();
+              db->allocate_data(dep->get_serialization_manager()->get_metadata_size(nullptr));
+
+              DEBUG("satisfying handle " << get_key_version_string(dep)
+                << " at 0x" << std::hex << intptr_t(dep) << " with empty (allocated) DataBlock: "
+                << std::hex << "0x" << intptr_t(db));
+
+              dep->satisfy_with_data_block(db);
+              dep->allow_writes();
+
+              DARMA_ASSERT_MESSAGE(dep->is_satisfied(),
+                "handle not satisfied: " << get_key_version_string(dep));
             }
             else {
-              if(dep->get_version() == version_t() and not dep->version_is_pending()) {
-                // It's the first version of the dep, so we need to allocate in place
-                auto found_dr = data_ready_mtxs_.find(kver_pair);
-
-                // must not be in the data_ready maps
-                if(found_dr != data_ready_mtxs_.end()) {
-                  // TODO error here
-                  abort();
-                }
-
-                // also, this must be a write-only use
-                if(not(need_write and not need_read)) {
-                  // TODO error here
-                  abort();
-                }
-
-                DataBlock* db = new DataBlock();
-                db->allocate_data(dep->get_serialization_manager()->get_metadata_size(nullptr));
-
-                DEBUG("satisfying handle " << get_key_version_string(dep)
-                  << " at 0x" << std::hex << intptr_t(dep) << " with empty (allocated) DataBlock: "
-                  << std::hex << "0x" << intptr_t(db));
-
-                dep->satisfy_with_data_block(db);
-                dep->allow_writes();
-
-                DARMA_ASSERT_MESSAGE(dep->is_satisfied(),
-                  "handle not satisfied: " << get_key_version_string(dep));
-              }
-              else {
-                // we'll need a shared lock the data_ready mutex for all deps
-                auto found_dr = data_ready_mtxs_.find(kver_pair);
-                if(found_dr == data_ready_mtxs_.end()) {
-                  // TODO error here
-                  abort();
-                }
-                #if DHARMA_THREADS_DEBUG
-                needs_locks_sstr << "    needs shared data ready lock for " << get_key_version_string(dep) << std::endl;
-                #endif
-                to_lock_shared.push_back(&(found_dr->second));
-              }
-
-              // if we need read access and not write access, we want to acquire a
-              // shared_lock to the handle mutex
-              if(need_read and not need_write) {
-                #if DHARMA_THREADS_DEBUG
-                needs_locks_sstr << "    needs shared lock for " << get_key_version_string(dep) << std::endl;
-                #endif
-                to_lock_shared.push_back(&(found_mtx->second));
-              }
-              else if(need_read and need_write) {
-                #if DHARMA_THREADS_DEBUG
-                needs_locks_sstr << "    needs unique lock for " << get_key_version_string(dep) << std::endl;
-                #endif
-                to_lock_unique.push_back(&(found_mtx->second));
-              }
-              else if(not need_read and need_write) {
-                // this will still work; it just won't be optimal because the data will get delivered anyway
-                #if DHARMA_THREADS_DEBUG
-                needs_locks_sstr << "    needs unique lock for " << get_key_version_string(dep) << std::endl;
-                #endif
-                to_lock_unique.push_back(&(found_mtx->second));
-              }
-              else { // not need_read and not need_write
+              // we'll need a shared lock the data_ready mutex for all deps
+              auto found_dr = data_ready_mtxs_.find(kver_pair);
+              if(found_dr == data_ready_mtxs_.end()) {
                 // TODO error here
-                abort(); // not implemented
+                abort();
               }
+              #if DHARMA_THREADS_DEBUG
+              needs_locks_sstr << "    needs shared data ready lock for " << get_key_version_string(dep) << std::endl;
+              #endif
+              to_lock_shared.push_back(&(found_dr->second));
             }
-          } // end if not dep->version_is_pending()
-          else {
-            // treat fetch handles
-            assert(need_read && not need_write);
-            auto _lg = unique_lock_t(fetch_handle_ready_mtxs_mtx_);
 
-            shared_mtx_t* fhr_mtx_ptr;
-            auto found_fhr = fetch_handle_ready_mtxs_.find(intptr_t(dep));
-            if(found_fhr != fetch_handle_ready_mtxs_.end()) {
-              fhr_mtx_ptr = &found_fhr->second;
+            // if we need read access and not write access, we want to acquire a
+            // shared_lock to the handle mutex
+            if(need_read and not need_write) {
+              #if DHARMA_THREADS_DEBUG
+              needs_locks_sstr << "    needs shared lock for " << get_key_version_string(dep) << std::endl;
+              #endif
+              to_lock_shared.push_back(&(found_mtx->second));
             }
-            else {
-              auto empl_pair = fetch_handle_ready_mtxs_.emplace(
-                std::piecewise_construct,
-                std::forward_as_tuple(intptr_t(dep)),
-                std::forward_as_tuple()
-              );
-              // lock it, since the handle clearly isn't ready yet
-              empl_pair.first->second.lock();
-              fhr_mtx_ptr = &empl_pair.first->second;
+            else if(need_read and need_write) {
+              #if DHARMA_THREADS_DEBUG
+              needs_locks_sstr << "    needs unique lock for " << get_key_version_string(dep) << std::endl;
+              #endif
+              to_lock_unique.push_back(&(found_mtx->second));
             }
-            // version_is_pending(), so we need to look for it in fetch_subsequents
-
-            version_pending_mtxs.emplace_back(fhr_mtx_ptr);
-            version_pending_deps.emplace_back(dep);
-          } // end else fetch handle
-        } // end loop over deps
+            else if(not need_read and need_write) {
+              // this will still work; it just won't be optimal because the data will get delivered anyway
+              #if DHARMA_THREADS_DEBUG
+              needs_locks_sstr << "    needs unique lock for " << get_key_version_string(dep) << std::endl;
+              #endif
+              to_lock_unique.push_back(&(found_mtx->second));
+            }
+            else { // not need_read and not need_write
+              // TODO error here
+              abort(); // not implemented
+            }
+          }
+        }
       } // release shared access to handle_mtxs_, data_ready_mtxs_
 
       DEBUG("registering task with dependencies: " << std::endl;
@@ -542,7 +453,6 @@ class ThreadsRuntime
                     << ", needs_write=" << std::boolalpha << in_task->needs_write_data(idep)
                     << ", satisfied=" << std::boolalpha << idep->is_satisfied()
                     << ", writable=" << std::boolalpha << idep->is_writable()
-                    << ", version_is_pending=" << std::boolalpha << idep->version_is_pending()
                     << std::endl;
         }
         std::cout << needs_locks_sstr.str();
@@ -555,31 +465,10 @@ class ThreadsRuntime
           to_lock_shared,
           to_lock_unique,
           unique_locks_to_transfer,
-          shared_locks_to_transfer,
-          version_pending_mtxs,
-          version_pending_deps
-      ](task_unique_ptr&& task) mutable {
+          shared_locks_to_transfer
+      ](task_unique_ptr&& task){
 
         set_running_task(task.get());
-
-        do_safe_pointer_lock(version_pending_mtxs, std::vector<shared_mtx_t*>());
-        for(auto&& dep : version_pending_deps) {
-          auto kver_pair = std::make_pair(dep->get_key(), dep->get_version());
-          auto found_dr = data_ready_mtxs_.find(kver_pair);
-          assert(found_dr != data_ready_mtxs_.end());
-          //if(found_dr == data_ready_mtxs_.end()) {
-          //  // TODO error
-          //  abort();
-          //}
-          auto found_h = handle_mtxs_.find(kver_pair);
-          assert(found_dr != handle_mtxs_.end());
-          //if(found_dr == handle_mtxs_.end()) {
-          //  // TODO error
-          //  abort();
-          //}
-          to_lock_shared.emplace_back(&found_dr->second);
-          to_lock_shared.emplace_back(&found_h->second);
-        }
 
         std::vector<shared_mtx_t*> to_unlock_shared;
         std::vector<shared_mtx_t*> to_unlock_unique;
@@ -587,8 +476,6 @@ class ThreadsRuntime
         for(auto&& tts : shared_locks_to_transfer) to_unlock_shared.push_back(tts);
         for(auto&& tlu : to_lock_unique) to_unlock_unique.push_back(tlu);
         for(auto&& ttu : unique_locks_to_transfer) to_unlock_unique.push_back(ttu);
-        for(auto&& vpm : version_pending_mtxs) to_unlock_shared.push_back(vpm);
-
 
         do_safe_pointer_lock(to_lock_shared, to_lock_unique);
         {
@@ -608,6 +495,8 @@ class ThreadsRuntime
           task_unique_locks_.erase(task.get());
           task_shared_locks_.erase(task.get());
         }
+
+        // TODO this is non-compliant!!! If a handle is released during a task, this won't work
         do_safe_pointer_unlock(to_unlock_shared, to_unlock_unique);
 
       }, std::move(in_task));
@@ -621,7 +510,6 @@ class ThreadsRuntime
     register_handle(handle_t* const handle) override {
 
       auto kver_pair = std::make_pair(handle->get_key(),handle->get_version());
-      assert(not handle->version_is_pending());
 
       {
         auto _lg = make_unique_lock_guards(
@@ -686,7 +574,6 @@ class ThreadsRuntime
         handle_ptrs_.emplace(kver_pair, handle);
       } // release handle_ptrs
 
-
     }
 
     void
@@ -694,99 +581,8 @@ class ThreadsRuntime
       handle_t* const handle,
       const key_t& user_version_tag
     ) override {
-
-      assert(handle->version_is_pending());
-
-
-      { // known_fetch_handles scope
-        auto _lg = unique_lock_t(known_fetch_handles_mtx_);
-        known_fetch_handles_.emplace(intptr_t(handle));
-      } // release known_fetch_handles
-
-      auto kvt_pair = std::make_pair(handle->get_key(), user_version_tag);
-      shared_mtx_t* version_wait_mtx_ptr;
-      { // version_ready_mtxs scope
-        auto _lg = unique_lock_t(version_ready_mtxs_mtx_);
-        auto found_vmtx = version_ready_mtxs_.find(kvt_pair);
-        if(found_vmtx != version_ready_mtxs_.end()) {
-          version_wait_mtx_ptr = &found_vmtx->second;
-        }
-        else {
-          auto empl_pair = version_ready_mtxs_.emplace(
-            std::piecewise_construct,
-            std::forward_as_tuple(kvt_pair),
-            std::forward_as_tuple()
-          );
-          // Lock it, since it doesn't exist yet
-          empl_pair.first->second.lock();
-          version_wait_mtx_ptr = &empl_pair.first->second;
-        }
-      } // release version_ready_mtxs
-
-      auto wait_for_version = std::thread([
-        this, handle, user_version_tag, version_wait_mtx_ptr, kvt_pair
-      ]{
-        {
-          auto vlg = shared_lock_t(*version_wait_mtx_ptr, std::defer_lock);
-          auto _lg = shared_lock_t(published_versions_mtx_, std::defer_lock);
-          std::lock(_lg, vlg);
-          auto found_av = published_versions_.find(kvt_pair);
-          assert(found_av != published_versions_.end());
-          //if(found_av == published_versions_.end()) {
-          //  // TODO error
-          //  abort();
-          //}
-          handle->set_version(handle->get_version() + found_av->second);
-        } // release published_versions_
-
-
-        {
-          auto _lg = make_unique_lock_guards(fetch_locks_mtx_, fetch_handle_locks_mtx_);
-          // find the expected reader locks
-          auto found_fl = fetch_locks_.find(std::make_pair(handle->get_key(), handle->get_version()));
-          assert(found_fl != fetch_locks_.end());
-          //if(found_fl == fetch_locks_.end()) {
-          //  // TODO error
-          //  abort();
-          //}
-
-          // Transfer the read lock allocated in publish (via n_readers)
-          shared_mtx_t tmp;
-          shared_lock_t tmp_lock(tmp);
-          std::swap(tmp_lock, found_fl->second.back());
-
-          fetch_handle_locks_.emplace(std::piecewise_construct,
-            std::forward_as_tuple(intptr_t(handle)),
-            std::forward_as_tuple(std::move(tmp_lock))
-          );
-
-          found_fl->second.pop_back();
-
-          //fetch_handles_[{handle->get_key(), handle->get_version()}].emplace_back(handle);
-
-        } // release fetch_locks_, fetch_handle_locks, and fetch_handles
-
-        { // fetch_handle_ready_mtxs scope
-          auto _lg = unique_lock_t(fetch_handle_ready_mtxs_mtx_);
-          auto found_fhr = fetch_handle_ready_mtxs_.find(intptr_t(handle));
-          if(found_fhr != fetch_handle_ready_mtxs_.end()) {
-            found_fhr->second.unlock();
-          }
-          else {
-            auto empl_pair = fetch_handle_ready_mtxs_.emplace(
-              std::piecewise_construct,
-              std::forward_as_tuple(intptr_t(handle)),
-              std::forward_as_tuple()
-            );
-            // don't lock it, since the first task should consider it ready
-          }
-        } // release version_ready_mtxs
-
-      });
-
-      task_threads_.emplace_back(std::move(wait_for_version));
-
-
+      // TODO implement this!
+      abort();
     }
 
     void
@@ -794,58 +590,42 @@ class ThreadsRuntime
       const handle_t* const handle
     ) override
     {
-      auto _lg = make_unique_lock_guards(read_only_locks_mtx_, known_fetch_handles_mtx_, fetch_handle_locks_mtx_);
+      auto _lg = unique_lock_t(read_only_locks_mtx_);
+      DARMA_ASSERT_NOT_NULL(handle);
       DEBUG("releasing read only usage for " << get_key_version_string(handle)
                 << " at 0x" << std::hex << intptr_t(handle) << " with DataBlock: "
                 << std::hex << "0x" << intptr_t(handle->get_data_block()));
 
-      auto found_kfh = known_fetch_handles_.find(intptr_t(handle));
-      if(found_kfh != known_fetch_handles_.end()) {
-        // it's a fetching handle
-        auto found_fhl = fetch_handle_locks_.find(intptr_t(handle));
-        assert(not handle->version_is_pending());
-        if(found_fhl == fetch_handle_locks_.end()) {
-          // TODO error
-          DARMA_ABORT("fetch_handle_locks_ entry not found");
-        }
-        found_fhl->second.unlock();
-        fetch_handle_locks_.erase(found_fhl);
-      }
-      else {
-
-        // TODO!!! can't actually release read-only usage until all fetches happen
-
-        auto found = read_only_locks_.find(
+      auto found = read_only_locks_.find(
+        std::pair<key_t, version_t>(
+          handle->get_key(),
+          handle->get_version()
+        )
+      );
+      // Raise an error if it's not registered
+      if(found == read_only_locks_.end()) {
+        auto found_mtx = handle_mtxs_.find(
           std::pair<key_t, version_t>(
             handle->get_key(),
             handle->get_version()
           )
         );
-        // Raise an error if it's not registered
-        if(found == read_only_locks_.end()) {
-          auto found_mtx = handle_mtxs_.find(
-            std::pair<key_t, version_t>(
-              handle->get_key(),
-              handle->get_version()
-            )
+        if(found_mtx == handle_mtxs_.end()) {
+          // it's unregistered, or it's already been released
+          DARMA_ABORT("Can't release read-only usage for unregistered handle "
+            << get_key_version_string(handle)
           );
-          if(found_mtx == handle_mtxs_.end()) {
-            // it's unregistered, or it's already been released
-            DARMA_ABORT("Can't release read-only usage for unregistered handle "
-              << get_key_version_string(handle)
-            );
-          }
-          else {
-            // the lock is missing, but the mutex is there, so it's already been unlocked
-            DARMA_ABORT("Can't release read-only usage more than once for handle "
-              << get_key_version_string(handle)
-            );
-          }
         }
-        // unlock the read-only usage
-        found->second.unlock();
-        read_only_locks_.erase(found);
+        else {
+          // the lock is missing, but the mutex is there, so it's already been unlocked
+          DARMA_ABORT("Can't release read-only usage more than once for handle "
+            << get_key_version_string(handle)
+          );
+        }
       }
+      // unlock the read-only usage
+      found->second.unlock();
+      read_only_locks_.erase(found);
     }
 
     void
@@ -865,170 +645,192 @@ class ThreadsRuntime
     ) override {
       auto _lg = make_unique_lock_guards(
         last_at_version_depth_mtx_, handle_ptrs_mtx_, data_ready_locks_mtx_, data_ready_mtxs_mtx_,
-        handle_mtxs_mtx_, handle_to_satisfy_mtx_, fetch_handle_locks_mtx_, known_fetch_handles_mtx_
+        handle_mtxs_mtx_, handle_to_satisfy_mtx_
       );
       auto kver_pair = std::make_pair(handle->get_key(), handle->get_version());
 
       DEBUG("releasing handle " << get_key_version_string(handle));
 
-      auto found_kfh = known_fetch_handles_.find(intptr_t(handle));
-      if(found_kfh != known_fetch_handles_.end()) {
-        // Release as fetch handle
-        //found_fhl->second.unlock();
-        //fetch_handle_locks_.erase(found_fhl);
-        known_fetch_handles_.erase(found_kfh);
-        // TODO clean up version_ready_mtxs_
-        DEBUG("done releasing " << get_key_version_string(handle));
+      // If there is a subsequent registered, we need to use this block to satisfy it
+      version_t next_version_1 = handle->get_version();
+      ++next_version_1;
+      // see if there's a handle registered for the next version
+      auto found = handle_ptrs_.find(std::make_pair(handle->get_key(), next_version_1));
+
+      handle_t* to_satisfy = nullptr;
+
+      if(found != handle_ptrs_.end()) {
+        to_satisfy = found->second;
+        DEBUG("found subsequent " << get_key_version_string(to_satisfy)
+          << " to satisfy in release of " << get_key_version_string(handle));
       }
       else {
-        // TODO clean up published_versions_
-        // TODO clean up fetch_locks_
-        // TODO wait on any fetching handles to release
-
-        bool is_satisfied = handle->is_satisfied();
-        abstract::backend::DataBlock* data_block = nullptr;
-        if(is_satisfied) {
-          data_block = handle->get_data_block();
-        }
-        auto wait_to_release = std::thread([this, kver_pair, is_satisfied, data_block](auto&& _lg) {
-
-          // Wait until all fetching handles have released by getting a unique lock to the handle itself
-          // TODO some satisfies can happen before this
-          auto found_me = handle_mtxs_.find(kver_pair);
-          assert(found_me != handle_mtxs_.end());
-          { // get a unique lock on the data, then release it immediately
-            volatile auto _my_lg = unique_lock_t(found_me->second);
-          }
-
-          // If there is a subsequent registered, we need to use this block to satisfy it
-          version_t next_version_1 = kver_pair.second;
-          ++next_version_1;
-          // see if there's a handle registered for the next version
-          auto found = handle_ptrs_.find(std::make_pair(kver_pair.first, next_version_1));
-
-          handle_t* to_satisfy = nullptr;
-
-          if(found != handle_ptrs_.end()) {
-            to_satisfy = found->second;
-            DEBUG("found subsequent " << this->get_key_version_string(to_satisfy)
-              << " to satisfy in release of " << this->get_key_version_string(kver_pair));
+        auto found_lvd = last_at_version_depth_.find(kver_pair);
+        if(found_lvd != last_at_version_depth_.end()) {
+          version_t next_version_outer = handle->get_version();
+          next_version_outer.pop_subversion();
+          ++next_version_outer;
+          auto found_next = handle_ptrs_.find(std::make_pair(handle->get_key(), next_version_outer));
+          if(found_next != handle_ptrs_.end()) {
+            to_satisfy = found_next->second;
+            DEBUG("found version-depth-up subsequent " << get_key_version_string(to_satisfy)
+              << " to satisfy in release of " << get_key_version_string(handle));
           }
           else {
-            auto found_lvd = last_at_version_depth_.find(kver_pair);
-            if(found_lvd != last_at_version_depth_.end()) {
-              version_t next_version_outer = kver_pair.second;
-              next_version_outer.pop_subversion();
-              ++next_version_outer;
-              auto found_next = handle_ptrs_.find(std::make_pair(kver_pair.first, next_version_outer));
-              if(found_next != handle_ptrs_.end()) {
-                to_satisfy = found_next->second;
-                DEBUG("found version-depth-up subsequent " << this->get_key_version_string(to_satisfy)
-                  << " to satisfy in release of " << this->get_key_version_string(kver_pair));
-              }
-              else {
-                // if we still haven't found it, maybe there's a breadcrumb pointing up
-                key_t next_key;
-                version_t next_version;
-                auto found_hts = handle_to_satisfy_.find(
-                  std::make_pair(kver_pair.first, next_version_outer)
+            // if we still haven't found it, maybe there's a breadcrumb pointing up
+            key_t next_key;
+            version_t next_version;
+            auto found_hts = handle_to_satisfy_.find(
+              std::make_pair(handle->get_key(), next_version_outer)
+            );
+            if(found_hts != handle_to_satisfy_.end()) {
+              do {
+                next_key = found_hts->second.first;
+                next_version = found_hts->second.second;
+                // erase the old breadcrumb
+                handle_to_satisfy_.erase(found_hts);
+                found_hts = handle_to_satisfy_.find(
+                  std::make_pair(next_key, next_version)
                 );
-                if(found_hts != handle_to_satisfy_.end()) {
-                  do {
-                    next_key = found_hts->second.first;
-                    next_version = found_hts->second.second;
-                    // erase the old breadcrumb
-                    handle_to_satisfy_.erase(found_hts);
-                    found_hts = handle_to_satisfy_.find(
-                      std::make_pair(next_key, next_version)
-                    );
-                  } while(found_hts != handle_to_satisfy_.end());
-                  auto found_ts_handle = handle_ptrs_.find(std::make_pair(next_key, next_version));
-                  assert(found_ts_handle != handle_ptrs_.end());
-                  //if(found_ts_handle == handle_ptrs_.end()) {
-                  //  // error!
-                  //  abort();
-                  //}
-                  to_satisfy = found_ts_handle->second;
-                  DEBUG("found multiple-version-depth-up breadcrumb subsequent " << this->get_key_version_string(to_satisfy)
-                    << " to satisfy in release of " << this->get_key_version_string(kver_pair));
-                }
+              } while(found_hts != handle_to_satisfy_.end());
+              auto found_ts_handle = handle_ptrs_.find(std::make_pair(next_key, next_version));
+              if(found_ts_handle == handle_ptrs_.end()) {
+                // error!
+                abort();
               }
-              last_at_version_depth_.erase(found_lvd);
+              to_satisfy = found_ts_handle->second;
+              DEBUG("found multiple-version-depth-up breadcrumb subsequent " << get_key_version_string(to_satisfy)
+                << " to satisfy in release of " << get_key_version_string(handle));
             }
           }
+          last_at_version_depth_.erase(found_lvd);
+        }
+      }
 
-          if(to_satisfy != nullptr) {
 
-            if(is_satisfied) {
-              DEBUG("satisfying handle " << this->get_key_version_string(to_satisfy)
-                << " at 0x" << std::hex << intptr_t(to_satisfy) << " with DataBlock: "
-                << std::hex << "0x" << intptr_t(to_satisfy->get_data_block())
-                << " from released handle: " << this->get_key_version_string(kver_pair)
-              );
-              to_satisfy->satisfy_with_data_block(data_block);
-              // release the data_ready_mtx for the subsequent
-              auto found_drm = data_ready_locks_.find(std::make_pair(to_satisfy->get_key(), to_satisfy->get_version()));
-              assert(found_drm != data_ready_locks_.end());
-              //if(found_drm == data_ready_locks_.end()) {
-              //  // TODO error here
-              //  abort();
-              //}
-              found_drm->second.unlock();
-              data_ready_locks_.erase(found_drm);
-            }
-            else {
-              // leave a breadcrumb
-              DEBUG("leaving breadcrumb to satisfy handle " << this->get_key_version_string(to_satisfy)
-                << " at 0x" << std::hex << intptr_t(to_satisfy) << " with DataBlock: "
-                << std::hex << "0x" << intptr_t(to_satisfy->get_data_block())
-                << " when released handle " << this->get_key_version_string(kver_pair)
-                << " is satisfied"
-              );
-              handle_to_satisfy_.emplace(kver_pair,
-                std::make_pair(to_satisfy->get_key(), to_satisfy->get_version())
-              );
-            }
+      if(to_satisfy != nullptr) {
+
+        if(handle->is_satisfied()) {
+          DEBUG("satisfying handle " << get_key_version_string(to_satisfy)
+            << " at 0x" << std::hex << intptr_t(to_satisfy) << " with DataBlock: "
+            << std::hex << "0x" << intptr_t(to_satisfy->get_data_block())
+            << " from released handle: " << get_key_version_string(handle)
+          );
+          to_satisfy->satisfy_with_data_block(handle->get_data_block());
+          // release the data_ready_mtx for the subsequent
+          auto found_drm = data_ready_locks_.find(std::make_pair(to_satisfy->get_key(), to_satisfy->get_version()));
+          if(found_drm == data_ready_locks_.end()) {
+            // TODO error here
+            abort();
           }
+          found_drm->second.unlock();
+          data_ready_locks_.erase(found_drm);
+        }
+        else {
+          // leave a breadcrumb
+          DEBUG("leaving breadcrumb to satisfy handle " << get_key_version_string(to_satisfy)
+            << " at 0x" << std::hex << intptr_t(to_satisfy) << " with DataBlock: "
+            << std::hex << "0x" << intptr_t(to_satisfy->get_data_block())
+            << " when released handle " << get_key_version_string(handle)
+            << " is satisfied"
+          );
+          handle_to_satisfy_.emplace(kver_pair,
+            std::make_pair(to_satisfy->get_key(), to_satisfy->get_version())
+          );
+        }
+      }
+
+      // If it isn't satisfied at this point, it was never used:
+      // bool has_subsequent = false;
+      // if(not handle->is_satisfied()) {
+      //   if(found != handle_ptrs_.end()) {
+      //     // indicate that a satisfaction of this handle actually means satisfying the
+      //     // subsequent
+      //     handle_to_satisfy_.emplace(kver_pair, found->second);
+      //   }
 
 
-          // If there's nothing else using it, delete the data
-          if(to_satisfy == nullptr and is_satisfied) {
-            delete data_block;
-          }
+      // }
+      // else {
+      //   if(found != handle_ptrs_.end()) {
+      //     DEBUG("satisfying handle " << get_key_version_string(found->second)
+      //               << " at 0x" << std::hex << intptr_t(found->second) << " with DataBlock: "
+      //               << std::hex << "0x" << intptr_t(found->second->get_data_block())
+      //               << " from released handle: " << get_key_version_string(handle)
+      //     );
+      //     DARMA_ASSERT_MESSAGE(handle->is_satisfied(), "handle not satisfied: " << get_key_version_string(handle));
+      //     // TODO we could assert here that it's not in the last_at_version_depth_ map
+      //     found->second->satisfy_with_data_block(handle->get_data_block());
+      //     has_subsequent = true;
+      //     // release the data_ready_mtx for the subsequent
+      //     auto found_drm = data_ready_locks_.find(std::make_pair(handle->get_key(), next_version));
+      //     if(found_drm == data_ready_locks_.end()) {
+      //       // TODO error here
+      //       abort();
+      //     }
+      //     found_drm->second.unlock();
+      //     data_ready_locks_.erase(found_drm);
+      //   }
+      //   else {
+      //     auto found_lvd = last_at_version_depth_.find(kver_pair);
+      //     if(found_lvd != last_at_version_depth_.end()) {
+      //       DARMA_ASSERT_MESSAGE(handle->is_satisfied(), "handle not satisfied: " << get_key_version_string(handle));
+      //       version_t next_version_outer = handle->get_version();
+      //       next_version_outer.pop_subversion();
+      //       ++next_version_outer;
+      //       auto found_next = handle_ptrs_.find(std::make_pair(handle->get_key(), next_version_outer));
+      //       if(found_next != handle_ptrs_.end()) {
+      //         DEBUG("satisfying handle " << get_key_version_string(found_next->second)
+      //                   << " at 0x" << std::hex << intptr_t(found_next->second) << " with DataBlock: "
+      //                   << std::hex << "0x" << intptr_t(found_next->second->get_data_block())
+      //                   << " from released handle: " << get_key_version_string(handle)
+      //         );
+      //         found_next->second->satisfy_with_data_block(handle->get_data_block());
+      //         has_subsequent = true;
+      //         // release the data_ready_mtx for the subsequent
+      //         auto found_drm = data_ready_locks_.find(std::make_pair(handle->get_key(), next_version_outer));
+      //         if(found_drm == data_ready_locks_.end()) {
+      //           // TODO error here
+      //           abort();
+      //         }
+      //         found_drm->second.unlock();
+      //         data_ready_locks_.erase(found_drm);
+      //       }
+      //       last_at_version_depth_.erase(kver_pair);
+      //     }
+      //   }
+      // }
 
-          // Now delete stuff
+      // If there's nothing else using it, delete the data
+      if(to_satisfy == nullptr and handle->is_satisfied()) {
+        delete handle->get_data_block();
+      }
 
-          // delete the data ready mutex
-          auto found_drm = data_ready_mtxs_.find(kver_pair);
-          if(found_drm != data_ready_mtxs_.end()) {
-            data_ready_mtxs_.erase(found_drm);
-          }
+      // Now delete stuff
 
-          // delete the handle mutex
-          auto found_hm = handle_mtxs_.find(kver_pair);
-          assert(found_hm != handle_mtxs_.end());
-          //if(found_hm == handle_mtxs_.end()) {
-          //  // TODO error here
-          //  abort();
-          //}
-          handle_mtxs_.erase(found_hm);
+      // delete the data ready mutex
+      auto found_drm = data_ready_mtxs_.find(kver_pair);
+      if(found_drm != data_ready_mtxs_.end()) {
+        data_ready_mtxs_.erase(found_drm);
+      }
 
-          // delete the handle entry in the handle_ptrs map
-          auto found_h = handle_ptrs_.find(kver_pair);
-          assert(found_h != handle_ptrs_.end());
-          //if(found_h == handle_ptrs_.end()) {
-          //  // TODO error here
-          //  abort();
-          //}
-          handle_ptrs_.erase(found_h);
+      // delete the handle mutex
+      auto found_hm = handle_mtxs_.find(kver_pair);
+      if(found_hm == handle_mtxs_.end()) {
+        // TODO error here
+        abort();
+      }
+      handle_mtxs_.erase(found_hm);
 
-          DEBUG("done releasing " << this->get_key_version_string(kver_pair));
+      // delete the handle entry in the handle_ptrs map
+      auto found_h = handle_ptrs_.find(kver_pair);
+      if(found_h == handle_ptrs_.end()) {
+        // TODO error here
+        abort();
+      }
+      handle_ptrs_.erase(found_h);
 
-        }, std::move(_lg));
-
-        task_threads_.emplace_back(std::move(wait_to_release));
-      } // done releasing normal handle
-
+      DEBUG("done releasing " << get_key_version_string(handle));
 
     }
 
@@ -1040,69 +842,8 @@ class ThreadsRuntime
       const size_t n_fetchers = 1,
       bool is_final = false
     ) override {
-
-      DEBUG("Publishing handle " << get_key_version_string(handle) << " with n_fetchers " << n_fetchers);
-
-      if(n_fetchers < 1) return;
-      // We need to treat the writable and unwritable cases seperately
-      auto kver_pair = std::make_pair(handle->get_key(), handle->get_version());
-      auto kvt_pair = std::make_pair(handle->get_key(), version_tag);
-      if(handle->is_writable()) {
-        // TODO
-        assert(false);
-      }
-      else {
-        shared_lock_t _lg1(handle_mtxs_mtx_, std::defer_lock);
-        unique_lock_t _lg3(published_versions_mtx_, std::defer_lock);
-        unique_lock_t _lg4(fetch_locks_mtx_, std::defer_lock);
-        unique_lock_t _lg5(version_ready_mtxs_mtx_, std::defer_lock);
-        std::lock(_lg1, _lg3, _lg4, _lg5);
-
-
-        auto found_mtx = handle_mtxs_.find(kver_pair);
-        assert(found_mtx != handle_mtxs_.end());
-        //if(found_mtx == handle_mtxs_.end()) {
-        //  // TODO error here
-        //  abort();
-        //}
-
-        // Add the version to the published_versions
-        published_versions_.emplace(kvt_pair, handle->get_version());
-
-        auto found_vmtx = version_ready_mtxs_.find(kvt_pair);
-        if(found_vmtx != version_ready_mtxs_.end()) {
-          found_vmtx->second.unlock();
-        }
-        else {
-          auto empl_pair = version_ready_mtxs_.emplace(
-            std::piecewise_construct,
-            std::forward_as_tuple(kvt_pair),
-            std::forward_as_tuple()
-          );
-        }
-
-        // add a shared lock for each expected fetch
-        std::deque<shared_lock_t>* fetch_locks_ptr;
-        auto found_fl = fetch_locks_.find(kver_pair);
-        if(found_fl != fetch_locks_.end()) {
-          DEBUG("Fetch locks already exist");
-          fetch_locks_ptr = &(found_fl->second);
-        }
-        else {
-          DEBUG("making fetch_locks deque");
-          auto ipair = fetch_locks_.emplace(std::piecewise_construct,
-            std::forward_as_tuple(kver_pair), std::forward_as_tuple()
-          );
-          fetch_locks_ptr = &(ipair.first->second);
-        }
-        std::deque<shared_lock_t>& fetch_locks_dq = *fetch_locks_ptr;
-        for(int i = 0; i < n_fetchers; ++i) {
-          fetch_locks_dq.emplace_back(found_mtx->second);
-        }
-
-      }
-
-
+      // TODO implement this
+      abort();
     }
 
     void
@@ -1115,25 +856,28 @@ class ThreadsRuntime
     }
 
 
-    void
-    satisfy_handle(
-      handle_t* const to_fill,
-      bool needs_write_access = false
-    ) override { abort(); };
+    //void
+    //satisfy_handle(
+    //  handle_t* const to_fill,
+    //  bool needs_write_access = false
+    //) override { abort(); };
 
-    void
-    establish_containment_relationship(
-      const handle_t* const inner_handle,
-      const handle_t* const outer_handle,
-      containment_manager_t const& manager
-    ) override { abort(); };
+    //void
+    //establish_containment_relationship(
+    //  const handle_t* const inner_handle,
+    //  const handle_t* const outer_handle,
+    //  containment_manager_t const& manager
+    //) override { abort(); };
 
-    void
-    establish_aliasing_relationship(
-      const handle_t* const handle_a,
-      const handle_t* const handle_b,
-      aliasing_manager_t const& manager
-    ) override { abort(); }
+    ///**
+    // * @todo Document this for 0.2.2 spec
+    // */
+    //void
+    //establish_aliasing_relationship(
+    //  const handle_t* const handle_a,
+    //  const handle_t* const handle_b,
+    //  aliasing_manager_t const& manager
+    //) override { abort(); }
 
     std::unique_ptr<task_t> top_level_task;
 };

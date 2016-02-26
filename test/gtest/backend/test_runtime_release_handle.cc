@@ -70,15 +70,20 @@ class RuntimeRelease
       sprintf(argv_[0], "<mock frontend test>");
       // Make a mock task pointer
       std::unique_ptr<typename abstract::backend::runtime_t::task_t> top_level_task =
-          std::make_unique<mock_frontend::MockTask>();
+          std::make_unique<mock_frontend::FakeTask>();
 
       abstract::backend::darma_backend_initialize(
         argc_, argv_, detail::backend_runtime,
         std::move(top_level_task)
       );
+      backend_finalized = false;
     }
 
     virtual void TearDown() {
+      if(not backend_finalized) {
+        // Clean up from failed tests
+        detail::backend_runtime->finalize();
+      }
       delete[] argv_[0];
       delete[] argv_;
     }
@@ -86,6 +91,8 @@ class RuntimeRelease
     int argc_;
     char** argv_;
     std::string program_name;
+
+    bool backend_finalized;
 
     virtual ~RuntimeRelease() { }
 };
@@ -98,14 +105,14 @@ TEST_F(RuntimeRelease, satisfy_next) {
   auto ser_man = std::make_shared<MockSerializationManager>();
   ser_man->get_metadata_size_return = sizeof(double);
 
-  auto handle_a = std::make_shared<MockDependencyHandle>();
-  handle_a->get_key_return = detail::key_traits<MockDependencyHandle::key_t>::maker()("the_key");
-  handle_a->get_version_return = MockDependencyHandle::version_t();
+  auto handle_a = std::make_shared<FakeDependencyHandle>();
+  handle_a->get_key_return = detail::key_traits<FakeDependencyHandle::key_t>::maker()("the_key");
+  handle_a->get_version_return = FakeDependencyHandle::version_t();
   handle_a->get_serialization_manager_return = ser_man.get();
 
-  auto handle_b = std::make_shared<MockDependencyHandle>();
-  handle_b->get_key_return = detail::key_traits<MockDependencyHandle::key_t>::maker()("the_key");
-  handle_b->get_version_return = ++MockDependencyHandle::version_t();
+  auto handle_b = std::make_shared<FakeDependencyHandle>();
+  handle_b->get_key_return = detail::key_traits<FakeDependencyHandle::key_t>::maker()("the_key");
+  handle_b->get_version_return = ++FakeDependencyHandle::version_t();
   handle_b->get_serialization_manager_return = ser_man.get();
 
   detail::backend_runtime->register_handle(handle_a.get());
@@ -114,16 +121,16 @@ TEST_F(RuntimeRelease, satisfy_next) {
 
   double test_value = 3.14;
 
-  auto task_a = std::make_unique<MockTask>();
-  task_a->get_dependencies_return = MockTask::handle_container_t();
+  auto task_a = std::make_unique<FakeTask>();
+  task_a->get_dependencies_return = FakeTask::handle_container_t();
   task_a->get_dependencies_return.insert(handle_a.get());
   task_a->needs_read_data_return = false;
   task_a->needs_write_data_return = true;
-  std::function<void(const MockTask*)> task_a_run = [&](auto* _){
+  std::function<void(const FakeTask*)> task_a_run = [&](auto* _){
     abstract::backend::DataBlock* data_block = handle_a->get_data_block();
-    //ASSERT_NE(data_block, nullptr);
+    ASSERT_NE(data_block, nullptr);
     void* data = data_block->get_data();
-    //ASSERT_NE(data_handle, nullptr);
+    ASSERT_NE(data, nullptr);
     memcpy(data, (void*)&test_value, sizeof(double));
     detail::backend_runtime->release_handle(handle_a.get());
   };
@@ -131,16 +138,15 @@ TEST_F(RuntimeRelease, satisfy_next) {
 
   detail::backend_runtime->register_task(std::move(task_a));
 
-
-  auto task_b = std::make_unique<MockTask>();
-  task_b->get_dependencies_return = MockTask::handle_container_t();
+  auto task_b = std::make_unique<FakeTask>();
+  task_b->get_dependencies_return = FakeTask::handle_container_t();
   task_b->get_dependencies_return.insert(handle_b.get());
   task_b->needs_read_data_return = true;
   task_b->needs_write_data_return = false;
-  std::function<void(const MockTask*)> task_b_run = [&](auto* _){
+  std::function<void(const FakeTask*)> task_b_run = [&](auto* _){
     abstract::backend::DataBlock* data_block = handle_b->get_data_block();
 
-    MockDependencyHandle* handle_b_ptr = handle_b.get();
+    FakeDependencyHandle* handle_b_ptr = handle_b.get();
 
     ASSERT_EQ(*(double*)(handle_b_ptr->get_data_block()->get_data()), test_value);
 
@@ -152,7 +158,7 @@ TEST_F(RuntimeRelease, satisfy_next) {
   detail::backend_runtime->register_task(std::move(task_a));
 
   detail::backend_runtime->finalize();
-
+  backend_finalized = true;
 }
 
 

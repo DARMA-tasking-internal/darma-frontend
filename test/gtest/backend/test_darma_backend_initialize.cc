@@ -87,7 +87,7 @@ TEST_F(DARMABackendInitialize, rank_size) {
   using namespace darma_runtime;
   // Make a mock task pointer
   std::unique_ptr<typename abstract::backend::runtime_t::task_t> top_level_task =
-      std::make_unique<mock_frontend::MockTask>();
+      std::make_unique<mock_frontend::FakeTask>();
 
   abstract::backend::darma_backend_initialize(
     argc_, argv_, detail::backend_runtime,
@@ -112,8 +112,8 @@ TEST_F(DARMABackendInitialize, rank_size) {
 TEST_F(DARMABackendInitialize, top_level_run_not_called) {
   using namespace darma_runtime;
   using namespace mock_frontend;
-  auto tmp = std::make_unique<mock_frontend::MockTask>();
-  std::function<void(const MockTask*)> replace_run = [&](auto* _) {
+  auto tmp = std::make_unique<mock_frontend::FakeTask>();
+  std::function<void(const FakeTask*)> replace_run = [&](auto* _) {
     FAIL() << "run() shouldn't be called on top level task";
   };
   tmp->replace_run = &replace_run;
