@@ -5,17 +5,28 @@
 
 using namespace darma_runtime;
 
+enum State{
+  TO_X_LO = 0,
+  TO_X_HI = 1,
+  TO_Y_LO = 2,
+  TO_Y_HI = 3,
+  TO_Z_LO = 4,
+  TO_Z_HI = 5,
+  EXPIRED = 6,
+  ACTIVE = 7
+};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Some helper functions
 
-size_t to_index(size_t nx, size_t ny, size_t nz, double x[3])  const{
-  size_t i = x[0]*nx, j = x[1]*ny, k = x[2]*nz;
+int to_index(int nx, int ny, int nz, double x[3])  {
+  int i = x[0]*nx, j = x[1]*ny, k = x[2]*nz;
   return (i + j*nx + k*nx*ny);//to_global(i,j,k);
 }
 
 bool to_grid( int id, int *i, int *j, int *k , 
-	      const int & nx, const int & ny, const int & nz) const {
+	      const int & nx, const int & ny, const int & nz)  {
     // NOTE: what to do if someone ask for an id that doesn't exist?
     //      - should there be a "NULL" value?
     //      - should we just exit gracefully with an error message?
@@ -41,7 +52,7 @@ bool to_grid( int id, int *i, int *j, int *k ,
 }
 
 int to_id( int i, int j, int k, 
-	   const int & nx, const int & ny, const int & nz) const {
+	   const int & nx, const int & ny, const int & nz) {
 
     // Apply cyclic boundary conditions
     // to each index
@@ -58,39 +69,6 @@ int to_id( int i, int j, int k,
     return i + ( j * nx ) + ( k * nx * ny );
   }
 
-////////////////////////////////////////////////////////////////////////////////
-// Some helper functions
-
-size_t to_index(size_t nx, size_t ny, size_t nz, double x[3])  const{
-  size_t i = x[0]*nx, j = x[1]*ny, k = x[2]*nz;
-  return (i + j*nx + k*nx*ny);//to_global(i,j,k);
-}
-
-bool to_grid( int id, int *i, int *j, int *k , const int & nx, const int & ny, const int & nz) const {
-    // NOTE: what to do if someone ask for an id that doesn't exist?
-    //      - should there be a "NULL" value?
-    //      - should we just exit gracefully with an error message?
-    //      - return false and let the user figure out what to do?
-    //
-    //      Choose the third option for now.
-
-  if( id < 0 || id >= nx*ny*nz ) {
-    *i = *j = *k = -1;
-    return false;
-  }
-    div_t result_k;
-    div_t result_j;
-
-    result_k = div ( id, (nx*ny) );
-    *k = result_k.quot;
-
-    result_j = div ( result_k.rem, nx );
-    *j = result_j.quot;
-    *i = result_j.rem;
-
-    return true;
-}
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // A user data type for holding mesh data
@@ -99,32 +77,32 @@ bool to_grid( int id, int *i, int *j, int *k , const int & nx, const int & ny, c
 struct Mesh {
 
 struct MeshElement {
-  size_t index;
+  int index;
   double x_low[3], x_hi[3];
-  size_t lower[3], upper[3];
+  int lower[3], upper[3];
 
   // SPMD Parallelism: here we simply add the global MeshElement id.
-  size_t global_index;
-  size_t global_lower[3], global_upper[3], coords[3];
+  int global_index;
+  int global_lower[3], global_upper[3], coords[3];
 };
 
-  size_t num_elements;
+  int num_elements;
   MeshElement *elements;
   double dx[3];
-protected:
-  size_t nx_, ny_, nz_;
+public:
+  int nx_, ny_, nz_;
 
 public:
 
   // MPI Parallelism
   // We need to know what partition this is.
-  size_t index;
+  int index;
 
   // the global id for this mesh partition, and those below/above this 
-  size_t lower[3], upper[3], coords[3];
+  int lower[3], upper[3], coords[3];
 
   // global element ids of the corner elements in this partition
-  size_t coords_low[3], coords_high[3]; 
+  int coords_low[3], coords_high[3]; 
 
   ~Mesh () {
   }
@@ -132,17 +110,17 @@ public:
   // A function that initializes the mesh for this darma rank
   // This used to be the constructor of this class, but in the 
   //current spec this needs to be a separate member function
-  void setUpMesh(size_t nx, size_t ny, size_t nz, size_t rank) {
+  void setUpMesh(int nx, int ny, int nz, int rank) {
     num_elements = nx*ny*nz; nx_ = nx; ny_ = ny; nz_ = nz ; 
     elements = (MeshElement *)malloc(num_elements * sizeof(MeshElement));
     num_elements = 0;
     dx[0] = 1./nx; dx[1] = 1./ny; dx[2] = 1./nz;
-    size_t i[3] = {0,0,0};
+    int i[3] = {0,0,0};
     for (i[2]=0; i[2] < nz; ++i[2])
       for (i[1]=0; i[1] < ny; ++i[1])
 	for (i[0]=0; i[0] < nx; ++i[0]) {
 	  MeshElement &e = elements[num_elements++];
-	  for (size_t idim =0; idim<3; ++idim) {
+	  for (int idim =0; idim<3; ++idim) {
 	    e.x_low[idim] = i[idim]*dx[idim];
 	    e.x_hi[idim] = (i[idim]+1)*dx[idim];
 	  }
@@ -162,8 +140,8 @@ public:
   // A function that initializes the mesh partition info for this darma rank
   //This used to be a separate class (MeshOracle) in simple_pic_mpi, but
   //I've merged it with the mesh class to minimise the number of classes to deal with
-  void setUpMeshPartitions(size_t p_x, size_t p_y, size_t p_z, 
-			   size_t rank) {
+  void setUpMeshPartitions(int p_x, int p_y, int p_z, 
+			   int rank) {
 
     //set up the cartesian grid id for this mesh rank
     to_grid(rank, &coords[0], &coords[1], &coords[2], p_x, p_y, p_z);
@@ -267,10 +245,12 @@ struct Particles {
   }
 
   // A function that initializes the particle locations for this darma rank
-  void initializeParticles(size_t n_parts, int nx, int ny, int nz){
+  void initializeParticles(int n_parts, int nx, int ny, int nz){
 
-    ps.parts.resize(n_parts);
-    for(std::vector<Particle>::iterator it = ps.parts.begin(); it != ps.parts.end(); ++it){
+    double c = 0.125;
+
+    parts.resize(n_parts);
+    for(std::vector<Particle>::iterator it = parts.begin(); it != parts.end(); ++it){
       it->state = ACTIVE;
       do {
 	it->x[0] = c-2*c*(drand48() - 0.5);
@@ -299,30 +279,30 @@ struct Particles {
 ////////////////////////////////////////////////////////////////////////////////
 // main() function
 
-size_t main(size_t argc, char** argv)
+int main(int argc, char** argv)
 {
   darma_init(argc, argv);
 
   using namespace darma_runtime::keyword_arguments_for_publication;
 
-  size_t me = darma_spmd_rank();
-  size_t n_spmd = darma_spmd_size();
+  int me = darma_spmd_rank();
+  int n_spmd = darma_spmd_size();
 
   // Create a serial mesh: i.e. local ids, cyclic boundary condition on the
   // local ids.
-  size_t global_elem = 60; // 21x21x21 global mesh
+  int global_elem = 60; // 21x21x21 global mesh
 
   // how many partitions in each direction
-  size_t partitions_x, partitions_y, partitions_z; 
+  int partitions_x, partitions_y, partitions_z; 
   partitions_x = partitions_y = partitions_z = 3; // partitions in each direction
 
-  assert(n_spmd ==  partitions*partitions*partitions);
+  assert(n_spmd ==  partitions_x*partitions_y*partitions_z);
 
   // number of elements in each dim for the local mesh partition
-  size_t local_elem = global_elem/partitions;
+  int local_elem = global_elem/partitions_x;
 
   // number of particles per each rank
-  size_t n_parts = 5000;
+  int n_parts = 5000;
 
     
   auto mesh_handle = initial_access<Mesh>("mesh", me);
