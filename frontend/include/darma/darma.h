@@ -45,20 +45,15 @@
 #ifndef SRC_DARMA_DARMA_H_
 #define SRC_DARMA_DARMA_H_
 
-#ifdef DARMA_BACKEND_INCLUDE
-#include DARMA_BACKEND_INCLUDE
-#endif
-
-#define DARMA_FRONTEND_TYPES_INCLUDE <darma/types_for_backend.h>
-
+#include <darma_types.h>
 #include "handle.h"
 #include "task.h"
 #include "runtime.h"
 #include "spmd.h"
-#include "abstract/defaults/key.h"
 #include "create_work.h"
 #include "abstract/backend/runtime.h"
 #include "serialization.h"
 
 
 #endif /* SRC_DARMA_DARMA_H_ */
+

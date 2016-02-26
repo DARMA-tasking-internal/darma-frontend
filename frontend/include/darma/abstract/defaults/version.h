@@ -50,7 +50,7 @@
 #include <cassert>
 #include <vector>
 
-#include "../../util.h"
+#include <darma/util.h>
 
 namespace darma_runtime {
 
@@ -282,6 +282,10 @@ struct hash<darma_runtime::detail::basic_version<T, Container>>
 };
 
 } // end namespace std
+
+namespace darma_runtime { namespace types {
+  typedef darma_runtime::defaults::Version version_t;
+}} // end namespace darma_runtime::types
 
 
 #endif /* NEW_VERSION_H_ */

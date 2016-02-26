@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          types.h
-//                         darma_new
+//                          threads_backend.h
+//                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,17 +42,9 @@
 //@HEADER
 */
 
-#ifndef SRC_TYPES_FOR_BACKEND_H_
-#define SRC_TYPES_FOR_BACKEND_H_
+#ifndef MOCK_THREADS_BACKEND_H_
+#define MOCK_THREADS_BACKEND_H_
 
-//#ifndef DARMA_BACKEND_CUSTOM_HANDLE_CONTAINER
-//#define DARMA_BACKEND_CUSTOM_HANDLE_CONTAINER 0
-//#include <vector>
-//namespace darma_runtime { namespace types {
-//template <typename... Ts>
-//using handle_container_template = std::vector<Ts...>;
-//}} // end namespace darma_runtime::types
-//#endif
+#include <darma.h>
 
-
-#endif /* SRC_TYPES_FOR_BACKEND_H_ */
+#endif /* MOCK_THREADS_BACKEND_H_ */

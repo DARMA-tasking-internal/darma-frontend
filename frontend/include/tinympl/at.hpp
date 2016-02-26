@@ -51,9 +51,9 @@
 #ifndef TINYMPL_AT_HPP
 #define TINYMPL_AT_HPP
 
-#include "variadic/at.hpp"
-#include "as_sequence.hpp"
-#include "sequence.hpp"
+#include <tinympl/variadic/at.hpp>
+#include <tinympl/as_sequence.hpp>
+#include <tinympl/sequence.hpp>
 
 namespace tinympl {
 
