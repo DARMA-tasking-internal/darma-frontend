@@ -1,5 +1,5 @@
 
-#include <mock_backend.h>
+#include <threads_backend.h>
 
 #include <stencil_1d/common.h> // do_stencil()
 

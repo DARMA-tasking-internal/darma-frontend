@@ -311,14 +311,14 @@ class VersionedObject
 };
 
 
-typedef enum AccessPermissions {
-  ReadOnly,
-  OverwriteOnly,
-  ReadWrite,
-  Create,
-  AccessPermissions_MAX=Create,
-  AccessPermissions_MIN=ReadOnly
-} AccessPermissions;
+//typedef enum AccessPermissions {
+//  ReadOnly,
+//  OverwriteOnly,
+//  ReadWrite,
+//  Create,
+//  AccessPermissions_MAX=Create,
+//  AccessPermissions_MIN=ReadOnly
+//} AccessPermissions;
 
 
 template <
@@ -571,6 +571,19 @@ class AccessHandle
     typedef typename dep_handle_t::key_t key_t;
     typedef typename dep_handle_t::version_t version_t;
 
+    typedef enum State {
+      Read_None,
+      Read_Read,
+      Modify_None,
+      Modify_Read,
+      Modify_Modify
+    } state_t;
+
+    typedef enum CaptureOp {
+      ro_capture,
+      mod_capture
+    } capture_op_t;
+
   private:
     ////////////////////////////////////////
     // private inner classes
@@ -598,7 +611,7 @@ class AccessHandle
       // for now...
       assert(other.prev_copied_from == nullptr);
       dep_handle_ = other.dep_handle_;
-      permissions_ = other.permissions_;
+      state_ = other.state_;
       read_only_holder_ = other.read_only_holder_;
       return *this;
     }
@@ -608,19 +621,35 @@ class AccessHandle
       // for now...
       assert(other.prev_copied_from == nullptr);
       dep_handle_ = other.dep_handle_;
-      permissions_ = other.permissions_;
+      state_ = other.state_;
       read_only_holder_ = other.read_only_holder_;
       return *this;
     }
 
+    //AccessHandle(const AccessHandle& copied_from)
+    //  : dep_handle_(copied_from.dep_handle_),
+    //    permissions_(copied_from.permissions_),
+    //    prev_copied_from(const_cast<AccessHandle* const>(&copied_from)),
+    //    read_only_holder_(copied_from.read_only_holder_)
+    //{
+    //  assert(copied_from.prev_copied_from == nullptr);
+    //  assert(
+    //    dynamic_cast<detail::TaskBase*>(
+    //      detail::backend_runtime->get_running_task()
+    //    )->current_create_work_context == nullptr
+    //  );
+    //}
+
+
     AccessHandle(const AccessHandle& copied_from)
       : dep_handle_(copied_from.dep_handle_),
-        permissions_(copied_from.permissions_),
         // this copy constructor may be invoked in ordinary usage or
         // may be the actual capture itself.  In the latter case, the subsequent
         // move needs access back to the outer context object, so we need to
         // save a pointer back to other.  It should be ignored otherwise, though.
-        prev_copied_from(const_cast<AccessHandle* const>(&copied_from))
+        // note that the below const_cast is needed to convert from AccessHandle const* to AccessHandle* const
+        prev_copied_from(const_cast<AccessHandle* const>(&copied_from)),
+        read_only_holder_(copied_from.read_only_holder_)
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       capturing_task = dynamic_cast<detail::TaskBase*>(
@@ -629,127 +658,147 @@ class AccessHandle
 
       // Now check if we're in a capturing context:
       if(capturing_task != nullptr) {
-        assert(copied_from.prev_copied_from != nullptr);
-        AccessHandle& outer = *(copied_from.prev_copied_from);
+
         DARMA_ASSERT_NOT_NULL(copied_from.prev_copied_from);
+        AccessHandle& outer = *(copied_from.prev_copied_from);
+
+        {
+          // Clean out the middle thing
+          AccessHandle* copied_from_ptr = const_cast<AccessHandle*>(&copied_from);
+          copied_from_ptr->dep_handle_.reset();
+          copied_from_ptr->read_only_holder_.reset();
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////
+
+        // Determine the capture type
         // TODO also ask the task if any special permissions downgrades were given
-        // TODO !!! connect outputs to corresponding parent task output
-        switch(outer.get_permissions()) {
-        case detail::ReadOnly: {
-            // just copy the handle pointer; other remains unchanged
-            dep_handle_ = outer.dep_handle_;
-            permissions_ = detail::ReadOnly;
-            // and add it as an input
+        capture_op_t capture_type;
+        switch(outer.state_) {
+          case Read_None:
+          case Read_Read: {
+            capture_type = ro_capture;
+            break;
+          }
+          case Modify_None:
+          case Modify_Read:
+          case Modify_Modify: {
+            capture_type = mod_capture;
+            break;
+          }
+        };
+
+        ////////////////////////////////////////////////////////////////////////////////
+
+        switch(capture_type) {
+          case ro_capture: {
+            switch(outer.state_) {
+              case Read_None:
+              case Read_Read:
+              case Modify_None:
+              case Modify_Read: {
+                dep_handle_ = outer.dep_handle_;
+                state_ = Read_Read;
+                read_only_holder_ = outer.read_only_holder_;
+
+                // Outer dep handle, state, read_only_holder stays the same
+
+                break;
+              }
+              case Modify_Modify: {
+                version_t next_version = outer.dep_handle_->get_version();
+                ++next_version;
+                dep_handle_ = dep_handle_ptr_maker_t()(
+                  outer.dep_handle_->get_key(),
+                  next_version
+                );
+                read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);
+                state_ = Read_Read;
+
+                outer.dep_handle_ = dep_handle_;
+                outer.read_only_holder_ = read_only_holder_;
+                outer.state_ = Modify_Read;
+
+                break;
+              }
+            }; // end switch outer.state_
             capturing_task->add_dependency(
               dep_handle_,
               /*needs_read_data = */ true,
               /*needs_write_data = */ false
             );
-            read_only_holder_ = outer.read_only_holder_;
             break;
-          } // end case detail::ReadOnly
-        case detail::ReadWrite: {
-            // Permissions stay the same, both for this and other
-            permissions_ = outer.permissions_ = detail::ReadWrite;
-            // Version for other gets incremented
-            auto other_version = outer.dep_handle_->get_version();
-            ++other_version;
-            // this now assumes control of other's handle
-            dep_handle_ = outer.dep_handle_;
-            // ...and increments the subversion depth
-            dep_handle_->push_subversion();
-            // Add the dep_handle_ as a dependency
-            capturing_task->add_dependency(
-              dep_handle_,
-              /*needs_read_data = */ true,
-              /*needs_write_data = */ true
-            );
-            // Now future uses of other will have a later version.
-            outer.dep_handle_ = dep_handle_ptr_maker_t()(
-              outer.dep_handle_->get_key(),
-              other_version
-            );
-            // setup the read only holder for outer, but specifically
-            // do not transfer the old holder to this.  When all
-            // other uses of dep_handle_ are released, the destructor
-            // of the usage_holder will be called, telling the runtime
-            // system that no more read-only tasks will be created using
-            // this handle (in an unsatisfied state; read/write tasks
-            // can create read only tasks, but since the handle is satisfied,
-            // the data can just be read in place)
-            outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
-            // Note that other.dep_handle_ is the output handle
-            break;
-          } // end case detail::ReadWrite
-        case detail::OverwriteOnly: {
-            // Version gets incremented for other
-            auto other_version = outer.dep_handle_->get_version();
-            ++other_version;
-            // this now assumes control of other's handle
-            dep_handle_ = outer.dep_handle_;
-            // ...and increments the subversion depth
-            dep_handle_->push_subversion();
-            // Add it as a dependency
-            capturing_task->add_dependency(
-              dep_handle_,
-              /*needs_read_data = */ false,
-              /*needs_write_data = */ true
-            );
-            // Now subsequent uses of other will need to refer to
-            // a later version that is now ReadWrite (since
-            // the overwritten data will be available to the
-            // handle)
-            outer.dep_handle_ = dep_handle_ptr_maker_t()(
-              outer.dep_handle_->get_key(),
-              other_version
-            );
-            outer.set_permissions(detail::ReadWrite);
-            // see ReadWrite case for explanation
-            outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
-            // Note that other.dep_handle_ is the output handle
-            break;
-          } // end case detail::OverwriteOnly
-        case detail::Create: {
-            assert(dep_handle_->get_version() == version_t());
-            // Version gets incremented for other
-            auto other_version = outer.dep_handle_->get_version();
-            ++other_version;
-            // this now assumes control of other's handle
-            dep_handle_ = outer.dep_handle_;
-            // ...and increments the subversion depth
-            dep_handle_->push_subversion();
-            // now add it as a dependency, except it neither needs to
-            // read nor overwrite
-            capturing_task->add_dependency(
-              dep_handle_,
-              /*needs_read_data = */ false,
-              /*needs_write_data = */ true
-            );
-            // permissions for this remain Create, however
-            // future references to other will have ReadWrite,
-            // since they can read the data created here
-            outer.dep_handle_ = dep_handle_ptr_maker_t()(
-              outer.dep_handle_->get_key(),
-              other_version
-            );
-            outer.set_permissions(detail::ReadWrite);
-            // see ReadWrite case for explanation
-            outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
-            // Note that other.dep_handle_ is the output handle
-            break;
-          } // end case detail::Create
-        } // end switch
+          }
+          case mod_capture: {
+            switch(outer.state_) {
+              case Read_None:
+              case Read_Read: {
+                // TODO error here
+                assert(false);
+                break; // unreachable
+              }
+              case Modify_None:
+              case Modify_Read: {
+                version_t outer_version = outer.dep_handle_->get_version();
+                ++outer_version;
+                dep_handle_ = outer.dep_handle_;
+                read_only_holder_ = 0;
+                state_ = Modify_Modify;
 
-        if(copied_from.dep_handle_->version_is_pending()) {
+                outer.dep_handle_ = dep_handle_ptr_maker_t()(
+                  dep_handle_->get_key(),
+                  outer_version
+                );
+                outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
+                outer.state_ = Modify_None;
+
+                dep_handle_->push_subversion();
+
+                break;
+              }
+              case Modify_Modify: {
+                version_t outer_version = outer.dep_handle_->get_version();
+                ++outer_version;
+                version_t captured_version = outer.dep_handle_->get_version();
+                captured_version.push_subversion();
+                ++captured_version;
+
+                // avoid releasing the old until these two are made
+                auto tmp = outer.dep_handle_;
+                auto tmp_ro = outer.read_only_holder_;
+
+                dep_handle_ = dep_handle_ptr_maker_t()(
+                  dep_handle_->get_key(), captured_version
+                );
+                // No read only uses of this new handle
+                read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);;
+                read_only_holder_.reset();
+                state_ = Modify_Modify;
+
+                outer.dep_handle_ = dep_handle_ptr_maker_t()(
+                  dep_handle_->get_key(), outer_version
+                );
+                outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
+                outer.state_ = Modify_None;
+
+                break;
+              }
+            } // end switch outer.state
+            capturing_task->add_dependency(
+              dep_handle_,
+              /*needs_read_data = */ dep_handle_->get_version() != version_t(),
+              /*needs_write_data = */ true
+            );
+            break;
+          } // end mod_capture case
+        } // end switch(capture_type)
+
+        // This doesn't really matter until we have modifiable fetching versions, but still...
+        if(dep_handle_->version_is_pending()) {
           outer.dep_handle_->set_version_is_pending(true);
         }
 
       } // end if capturing_task != nullptr
-      else {
-        // still need to transfer the read_only usage holder
-        read_only_holder_ = copied_from.read_only_holder_;
-      }
-
     }
 
     T* operator->() const {
@@ -785,14 +834,16 @@ class AccessHandle
     void publish(
       PublishExprParts&&... parts
     ) const {
-      assert(permissions_ == detail::ReadWrite || permissions_ == detail::OverwriteOnly);
-      detail::publish_expr_helper<PublishExprParts...> helper;
-      detail::backend_runtime->publish_handle(
-        dep_handle_.get(),
-        helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
-        helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
-        helper.version_tag_is_final(std::forward<PublishExprParts>(parts)...)
-      );
+      // TODO
+      assert(false);
+      //assert(permissions_ == detail::ReadWrite || permissions_ == detail::OverwriteOnly);
+      //detail::publish_expr_helper<PublishExprParts...> helper;
+      //detail::backend_runtime->publish_handle(
+      //  dep_handle_.get(),
+      //  helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
+      //  helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
+      //  helper.version_tag_is_final(std::forward<PublishExprParts>(parts)...)
+      //);
     }
 
     ~AccessHandle() {
@@ -810,35 +861,25 @@ class AccessHandle
     AccessHandle(
       const key_type& key,
       const version_type& version,
-      detail::AccessPermissions permissions
+      state_t initial_state
     ) : dep_handle_(
           dep_handle_ptr_maker_t()(key, version)
         ),
-        permissions_(permissions),
+        state_(initial_state),
         read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
-    {
-      if(permissions == detail::Create || permissions == detail::OverwriteOnly) {
-        // Release immediately; there's nothing to read
-        read_only_holder_.reset();
-      }
-    }
+    { }
 
     AccessHandle(
       const key_type& key,
-      detail::AccessPermissions permissions,
+      state_t initial_state,
       const key_type& user_version_tag
     ) : dep_handle_(
-          dep_handle_ptr_maker_t()(key, user_version_tag, permissions != detail::ReadOnly)
+          dep_handle_ptr_maker_t()(key, user_version_tag, false)
         ),
-        permissions_(permissions),
+        state_(initial_state),
         read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
     {
-      assert(permissions != detail::Create);
-      if(permissions == detail::OverwriteOnly) {
-        // Release immediately; there's nothing to read
-        read_only_holder_.reset();
-      }
-
+      assert(state_ == Read_None);
     }
 
     //template <typename Deleter>
@@ -854,25 +895,11 @@ class AccessHandle
     //    permissions_(permissions)
     //{ }
 
-
-    ////////////////////////////////////////
-    // private methods
-
-    detail::AccessPermissions
-    get_permissions() const {
-      return permissions_;
-    }
-
-    void
-    set_permissions(detail::AccessPermissions p) const {
-      permissions_ = p;
-    }
-
     ////////////////////////////////////////
     // private members
 
     mutable dep_handle_ptr dep_handle_;
-    mutable detail::AccessPermissions permissions_;
+    mutable state_t state_;
 
     types::shared_ptr_template<read_only_usage_holder> read_only_holder_;
     task_t* capturing_task = nullptr;
@@ -895,23 +922,23 @@ class AccessHandle
     _initial_access_impl(
       const key_t& key, const version_t& version, AccessHandle& rv
     ) {
-      rv = AccessHandle(key, version, detail::Create);
+      assert(version == version_t());
+      rv = AccessHandle(key, version, Modify_None);
     }
-
-
 
     friend void
     _read_access_impl(
       const key_type& key, const key_type& user_version_tag, AccessHandle& rv
     ) {
-      rv = AccessHandle(key, detail::ReadOnly, user_version_tag);
+      rv = AccessHandle(key, Read_None, user_version_tag);
     }
 
     friend void
     _read_write_impl(
       const key_type& key, const key_type& user_version_tag, AccessHandle& rv
     ) {
-      rv = AccessHandle(key, detail::ReadWrite, user_version_tag);
+      assert(false);
+      //rv = AccessHandle(key, detail::ReadWrite, user_version_tag);
     }
 
 };

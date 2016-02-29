@@ -36,6 +36,9 @@ elseif (MOCK_BACKEND)
 set (IN_TREE_BACKEND darma_mock_backend)
 include_directories( ${CMAKE_SOURCE_DIR}/backends/mock )
 set (EXTRA_LIBS )
+elseif (SERIAL_BACKEND)
+set (IN_TREE_BACKEND darma_serial_backend)
+include_directories( ${CMAKE_SOURCE_DIR}/backends/serial )
 endif()
 
 else() #built as standalone
@@ -67,6 +70,7 @@ include_directories( ${EXAMPLES_BIN_ROOT} )
 
 
 add_subdirectory(stencil_1d)
+add_subdirectory(simple_hello)
 #add_subdirectory(simple_pic)
 
 

@@ -1,6 +1,12 @@
 
 
-#include <mock_backend.h>
+//#include <darma_types.h>
+//#if defined(DARMA_STL_THREADS_BACKEND)
+//#  include <threads_backend.h>
+//#elif defined(DARMA_MOCK_BACKEND)
+//#  include <mock_backend.h>
+//#endif
+#include <darma.h>
 
 using namespace darma_runtime;
 
@@ -35,12 +41,14 @@ int main(int argc, char** argv) {
 
   AccessHandle<std::string> dep = initial_access<std::string>(me, "the_dep");
   create_work([=]{
+    std::cout << "launching inner task to set value of dep to \"hello world\"" << std::endl;
+    //dep.set_value("hello world");
     create_work([=]{
       std::cout << "setting value of dep to \"hello world\"" << std::endl;
       dep.set_value("hello world");
     });
     create_work([=]{
-      std::cout << "running inner work, dep value is " << dep.get_value() << std::endl;
+      std::cout << "other inner work using dep: value is " << dep.get_value() << std::endl;
     });
   });
 

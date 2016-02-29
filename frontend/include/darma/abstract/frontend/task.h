@@ -209,7 +209,7 @@ class Task {
      *
      */
     virtual void
-    run() const =0;
+    run() =0;
 
 
     virtual ~Task() noexcept = default;

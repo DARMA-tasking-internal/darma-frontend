@@ -223,7 +223,7 @@ class Runtime {
      */
     virtual void
     release_read_only_usage(
-      const handle_t* const handle
+      handle_t* const handle
     ) =0;
 
 
@@ -282,6 +282,12 @@ class Runtime {
      *  this is only an issue if the raw version captured at the time of registration is somehow used here,
      *  which should not be done anyway since it is cheaper to store the handle pointer and the frontend must
      *  guarantee that the handle pointer is valid until after release_handle() returns.
+     *
+     *  @remark Note that this specification implies, e.g., that release_handle() may be called with, e.g.,
+     *  a handle with {k, 1.1.1.2} before a handle with {k, 1.1.1.1}.  This is absolutely the case, though
+     *  currently the only example of that pattern involves {k, 1.1.1.2} having no read or modify usage, aside
+     *  from perhaps a publish (read) usage.  As the specification evolves, more situations like this may arise,
+     *  though if they don't this pattern may be consigned to its own special method.
      *
      *  @param handle A (non-owning) pointer to the same object with which Runtime::register_handle() (or
      *  register_fetching_handle()) was previously invoked.  Any frontend uses of \c handle
@@ -351,36 +357,36 @@ class Runtime {
     // Methods for "bare" dependency satisfaction and use.  Not used
     // for task dependencies
 
-    /**
-     * @todo Document this for 0.3(?) spec
-     */
-    virtual void
-    satisfy_handle(
-      handle_t* const to_fill,
-      bool needs_write_access = false
-    ) =0;
+    ///**
+    // * @todo Document this for 0.3(?) spec
+    // */
+    //virtual void
+    //satisfy_handle(
+    //  handle_t* const to_fill,
+    //  bool needs_write_access = false
+    //) =0;
 
-    // Methods for establishing containment and/or aliasing relationships
+    //// Methods for establishing containment and/or aliasing relationships
 
-    /**
-     * @todo Document this for 0.3 spec
-     */
-    virtual void
-    establish_containment_relationship(
-      const handle_t* const inner_handle,
-      const handle_t* const outer_handle,
-      containment_manager_t const& manager
-    ) =0;
+    ///**
+    // * @todo Document this for 0.3 spec
+    // */
+    //virtual void
+    //establish_containment_relationship(
+    //  const handle_t* const inner_handle,
+    //  const handle_t* const outer_handle,
+    //  containment_manager_t const& manager
+    //) =0;
 
-    /**
-     * @todo Document this for 0.3 spec
-     */
-    virtual void
-    establish_aliasing_relationship(
-      const handle_t* const handle_a,
-      const handle_t* const handle_b,
-      aliasing_manager_t const& manager
-    ) =0;
+    ///**
+    // * @todo Document this for 0.3 spec
+    // */
+    //virtual void
+    //establish_aliasing_relationship(
+    //  const handle_t* const handle_a,
+    //  const handle_t* const handle_b,
+    //  aliasing_manager_t const& manager
+    //) =0;
 
     /** @brief signifies the end of the outer SPMD task from which darma_backend_initialize() was called
      *
