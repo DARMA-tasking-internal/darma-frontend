@@ -228,7 +228,7 @@ class TopLevelTask
 {
   public:
 
-    void run() const override {
+    void run() override {
       // Abort, as specified.  This should never be called.
       abort();
     }
@@ -269,7 +269,14 @@ class Task : public TaskBase
       )->current_create_work_context = nullptr;
     }
 
-    void run() const override {
+    void run() override {
+      // we should release the shared_ptrs to dependencies here,
+      // since they'll be held by the access handles at this point
+      for(auto&& dep_ptr : this->all_deps_) {
+        // Make sure the access handle does in fact have it
+        assert(not dep_ptr.unique());
+        dep_ptr.reset();
+      }
       lambda_();
     }
 

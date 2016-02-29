@@ -38,8 +38,13 @@ include_directories( ${DARMA_FRONTEND}/include )
 include_directories( ${DARMA_FRONTEND}/include/tinympl )
 include_directories( ${DARMA_FRONTEND}/include/darma )
 
-option(STL_THREADS_BACKEND "Whether to compile/link debug backend based on SLT threads" Off)
+option(SERIAL_BACKEND "Whether to compile/link debug serial backend" Off)
+option(STL_THREADS_BACKEND "Whether to compile/link debug backend based on STL threads" Off)
 option(MOCK_BACKEND "Whether to compile/link mock backend for compiling only" Off)
+
+if (SERIAL_BACKEND)
+add_subdirectory(serial)
+endif()
 
 if (STL_THREADS_BACKEND)
 add_subdirectory(stl_threads)
@@ -49,8 +54,8 @@ if (MOCK_BACKEND)
 add_subdirectory(mock)
 endif()
 
-if ((NOT STL_THREADS_BACKEND) AND (NOT MOCK_BACKEND))
-message(FATAL_ERROR "Must at least build either define =On for MOCK_BACKEND or STL_THREADS_BACKEND")
+if ((NOT STL_THREADS_BACKEND) AND (NOT MOCK_BACKEND) AND (NOT SERIAL_BACKEND))
+message(FATAL_ERROR "Must at least build either define =On for MOCK_BACKEND or STL_THREADS_BACKEND or SERIAL_BACKEND")
 endif()
 
 install (FILES common/stream_key.h DESTINATION include/common)

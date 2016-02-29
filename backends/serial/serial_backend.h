@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          data_block.h
-//                         darma_new
+//                          serial_backend.h
+//                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,59 +42,9 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_BACKEND_DATA_BLOCK_H_
-#define SRC_ABSTRACT_BACKEND_DATA_BLOCK_H_
+#ifndef BACKENDS_SERIAL_SERIAL_BACKEND_H_
+#define BACKENDS_SERIAL_SERIAL_BACKEND_H_
 
-#include "../frontend/serialization_manager.h"
+#include <darma.h>
 
-namespace darma_runtime {
-
-namespace abstract {
-
-namespace backend {
-
-
-/** @ingroup abstract
- *
- *  @class DataBlock
- *
- *  @brief The abstraction through which the frontend interacts with data stored and
- *  managed by the backend
- *
- */
-class DataBlock
-{
-  public:
-
-    /** @brief Gets a (non-owning) pointer to deserialized version of the data associated with
-     *  the data block.
-     *
-     *  The pointer is valid until the handle most recently satisfied with this data block
-     *  (at the time of the get_data() invocation) is released.
-     *
-     *  @todo 0.3 spec: elaborate more on this as SerializationManager matures
-     *
-     */
-    virtual void*
-    get_data() =0;
-
-    ///** @todo 0.2.1 spec
-    // *  @remark this should never be invoked in the 0.2.0 spec implementation
-    // */
-    //virtual void
-    //acquire_data(void* const data) =0;
-
-    virtual ~DataBlock() = default;
-
-};
-
-
-} // end namespace backend
-
-} // end namespace abstract
-
-} // end namespace darma_runtime
-
-
-
-#endif /* SRC_ABSTRACT_BACKEND_DATA_BLOCK_H_ */
+#endif /* BACKENDS_SERIAL_SERIAL_BACKEND_H_ */

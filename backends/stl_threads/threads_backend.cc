@@ -190,7 +190,7 @@ void do_safe_pointer_unlock(const Container& shared, const Container& unique) {
   }
 }
 
-class DataBlock
+class ThreadsDataBlock
   : public abstract::backend::DataBlock
 {
   private:
@@ -213,7 +213,7 @@ class DataBlock
       data_ = malloc(size);
     }
 
-    ~DataBlock() {
+    ~ThreadsDataBlock() {
       if(data_) {
         DEBUG("Freeing data block DataBlock at 0x" << std::hex << intptr_t(this));
         free(data_);
@@ -391,7 +391,7 @@ class ThreadsRuntime
               // also, this must be a write-only use
               assert(need_write and not need_read);
 
-              DataBlock* db = new DataBlock();
+              ThreadsDataBlock* db = new ThreadsDataBlock();
               db->allocate_data(dep->get_serialization_manager()->get_metadata_size(nullptr));
 
               DEBUG("satisfying handle " << get_key_version_string(dep)
@@ -587,7 +587,7 @@ class ThreadsRuntime
 
     void
     release_read_only_usage(
-      const handle_t* const handle
+      handle_t* const handle
     ) override
     {
       auto _lg = unique_lock_t(read_only_locks_mtx_);
@@ -623,6 +623,9 @@ class ThreadsRuntime
           );
         }
       }
+
+      handle->allow_writes();
+
       // unlock the read-only usage
       found->second.unlock();
       read_only_locks_.erase(found);
