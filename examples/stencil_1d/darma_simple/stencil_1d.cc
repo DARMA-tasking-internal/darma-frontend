@@ -1,5 +1,5 @@
 
-#include <threads_backend.h>
+#include <darma.h>
 
 #include <stencil_1d/common.h> // do_stencil()
 
@@ -17,7 +17,7 @@ struct DataArray
 {
   public:
 
-    typedef abstract::frontend::SerializationManager::zero_copy_slot_t zero_copy_slot_t;
+    //typedef abstract::frontend::SerializationManager::zero_copy_slot_t zero_copy_slot_t;
 
     // Some user methods
     void allocate(size_t n_data) {
@@ -39,6 +39,7 @@ struct DataArray
 
   protected:
 
+    /*
     void*& get_zero_copy_slot(zero_copy_slot_t slot) {
       return data_;
     }
@@ -46,6 +47,7 @@ struct DataArray
     size_t zero_copy_slot_size(zero_copy_slot_t slot) const {
       return data_size_;
     }
+    */
 
   private:
 
@@ -105,7 +107,7 @@ int main(int argc, char** argv)
   const bool is_leftmost = me == 0;
   const size_t left_neighbor = is_leftmost ? me : me - 1;
   const bool is_rightmost = me == n_spmd - 1;
-  const size_t right_neighbor = me == is_rightmost ? me : me + 1;
+  const size_t right_neighbor = is_rightmost ? me : me + 1;
 
   typedef DataArray<double> data_t;
   auto data = initial_access<data_t>("data", me);
@@ -113,6 +115,9 @@ int main(int argc, char** argv)
   auto sent_to_right = initial_access<data_t>("sent_to_right", me, 0);
 
   create_work([=]{
+    // Call the default constructor
+    data.emplace_value();
+      // Then allocate...
     data->allocate(my_n_data);
     double* data_ptr = data->get();
     memset(data_ptr, 0, my_n_data*sizeof(double));
@@ -121,10 +126,16 @@ int main(int argc, char** argv)
     if(me == n_spmd - 1) data_ptr[my_n_data - 1] = 1.0;
 
     if(!is_leftmost) {
+      // Call the default constructor
+      sent_to_left.emplace_value();
+      // Then allocate...
       sent_to_left->allocate(1);
       sent_to_left->get()[0] = data_ptr[0];
     }
     if(!is_rightmost) {
+      // Call the default constructor
+      sent_to_right.emplace_value();
+      // Then allocate...
       sent_to_right->allocate(1);
       sent_to_right->get()[0] = data_ptr[my_n_data - 1];
     }
@@ -148,7 +159,13 @@ int main(int argc, char** argv)
 
       do_stencil(data_with_ghosts, my_n_data - is_leftmost - is_rightmost);
 
+      // Call the default constructor
+      sent_to_left.emplace_value();
+      // Then allocate...
       sent_to_left->allocate((int)!is_leftmost);
+      // Call the default constructor
+      sent_to_right.emplace_value();
+      // Then allocate...
       sent_to_right->allocate((int)!is_rightmost);
       copy_out_ghost_data(data_with_ghosts, sent_to_left, data, sent_to_right);
 
@@ -166,8 +183,10 @@ int main(int argc, char** argv)
 
     // The `waits()` tag is equivalent to calling prev_node_finished_writing.wait() inside the lambda
     create_work(
-      waits(prev_node_finished_writing),
+      //waits(prev_node_finished_writing),
       [=]{
+        // for now, since waits() is not implemented
+        prev_node_finished_writing.set_value(1);
         std::cout << "On worker " << me << ": ";
         do_print_data(data->get(), my_n_data);
 

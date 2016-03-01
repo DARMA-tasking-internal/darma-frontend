@@ -42,16 +42,14 @@
 //@HEADER
 */
 
+#define DHARMA_SERIAL_DEBUG 1
+
 #include <stack>
 #include <unordered_set>
 #include <unordered_map>
 #include <mutex>
 #include <thread>
 #include <atomic>
-
-#include "serial_backend.h"
-
-#define DHARMA_SERIAL_DEBUG 0
 
 #if DHARMA_SERIAL_DEBUG
 std::mutex __output_mutex;
@@ -64,6 +62,8 @@ std::mutex __output_mutex;
 #else
 #define DEBUG(...)
 #endif
+
+#include "serial_backend.h"
 
 namespace serial_backend {
 
@@ -128,6 +128,15 @@ class SerialRuntime
     std::unordered_map<intptr_t, key_t> fetch_handles;
 
     std::string
+    get_key_string(
+      key_t const& key
+    ) const {
+      std::stringstream sstr;
+      key.print_human_readable(", ", sstr);
+      return sstr.str();
+    }
+
+    std::string
     get_key_version_string(
       const handle_t* const handle
     ) const {
@@ -190,6 +199,7 @@ class SerialRuntime
     void register_handle(
       handle_t* const handle
     ) override {
+      DEBUG("register_handle called with handle " << get_key_version_string(handle));
       auto found = registered_handles.find({handle->get_key(), handle->get_version()});
       assert(found == registered_handles.end());
       registered_handles.emplace(
@@ -203,6 +213,8 @@ class SerialRuntime
       handle_t* const handle,
       const key_t& user_version_tag
     ) override {
+
+      DEBUG("register_fetching_handle called for handle " << get_key_version_string(handle) << " and version tag " << get_key_string(user_version_tag));
 
       published_data_block* pdb_ptr;
       bool ready = false;
@@ -378,6 +390,8 @@ class SerialRuntime
       bool is_final = false
     ) override {
       assert(not is_final); // version 0.2.0
+
+      DEBUG("publish called on handle " << get_key_version_string(handle));
 
       unique_lock_t _lg(published_data_blocks_mtx);
 
