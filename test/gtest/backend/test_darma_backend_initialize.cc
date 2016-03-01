@@ -56,7 +56,7 @@
 
 namespace {
 
-class MockFrontendTest
+class DARMABackendInitialize
   : public ::testing::Test
 {
   protected:
@@ -70,7 +70,6 @@ class MockFrontendTest
     }
 
     virtual void TearDown() {
-      darma_runtime::detail::backend_runtime->finalize();
       delete[] argv_[0];
       delete[] argv_;
     }
@@ -79,21 +78,25 @@ class MockFrontendTest
     char** argv_;
     std::string program_name;
 
-    virtual ~MockFrontendTest() { }
+    virtual ~DARMABackendInitialize() { }
 };
 
 } // end anonymous namespace
 
-TEST_F(MockFrontendTest, initialize_rank_size) {
+TEST_F(DARMABackendInitialize, rank_size) {
   using namespace darma_runtime;
+  // Make a mock task pointer
   std::unique_ptr<typename abstract::backend::runtime_t::task_t> top_level_task =
-      std::make_unique<mock_frontend::MockTask>();
+      std::make_unique<mock_frontend::FakeTask>();
+
   abstract::backend::darma_backend_initialize(
     argc_, argv_, detail::backend_runtime,
     std::move(top_level_task)
   );
+  // Get the return of get_running_task()
   typename abstract::backend::runtime_t::task_t* top_level_task_ptr =
       detail::backend_runtime->get_running_task();
+  // Test that the first component must equal the specified prefix
   ASSERT_EQ(
     DARMA_BACKEND_SPMD_NAME_PREFIX,
     top_level_task_ptr->get_name().component<0>().as<std::string>()
@@ -103,24 +106,25 @@ TEST_F(MockFrontendTest, initialize_rank_size) {
     top_level_task_ptr->get_name().component<1>().as<size_t>(),
     top_level_task_ptr->get_name().component<2>().as<size_t>()
   );
+  darma_runtime::detail::backend_runtime->finalize();
 }
 
-TEST_F(MockFrontendTest, top_level_run_not_called) {
+TEST_F(DARMABackendInitialize, top_level_run_not_called) {
   using namespace darma_runtime;
   using namespace mock_frontend;
-  auto tmp = std::make_unique<mock_frontend::MockTask>();
-  std::function<void(const MockTask*)> replace_run = [&](auto* _) {
+  auto tmp = std::make_unique<mock_frontend::FakeTask>();
+  std::function<void(const FakeTask*)> replace_run = [&](auto* _) {
     FAIL() << "run() shouldn't be called on top level task";
   };
   tmp->replace_run = &replace_run;
+
   std::unique_ptr<typename abstract::backend::runtime_t::task_t> top_level_task
     = std::move(tmp);
   abstract::backend::darma_backend_initialize(
     argc_, argv_, detail::backend_runtime,
     std::move(top_level_task)
   );
-  typename abstract::backend::runtime_t::task_t* top_level_task_ptr =
-      detail::backend_runtime->get_running_task();
+  darma_runtime::detail::backend_runtime->finalize();
 }
 
 int main(int argc, char **argv) {

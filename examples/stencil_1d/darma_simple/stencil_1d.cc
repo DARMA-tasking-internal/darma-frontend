@@ -1,7 +1,7 @@
 
-#include <mock_backend.h>
+#include <threads_backend.h>
 
-#include "../common.h" // do_stencil()
+#include <stencil_1d/common.h> // do_stencil()
 
 using namespace darma_runtime;
 
