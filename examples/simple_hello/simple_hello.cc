@@ -11,7 +11,7 @@
 using namespace darma_runtime;
 
 
-int main(int argc, char** argv) {
+int darma_main(int argc, char** argv) {
 
   using namespace darma_runtime::keyword_arguments_for_publication;
 
@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
   size_t me = darma_spmd_rank();
   size_t n_ranks = darma_spmd_size();
 
-  {
+  if(me == 0) {
     AccessHandle<int> dep = initial_access<int>(me, "the_dep");
     create_work([=]{
       std::cout << "setting value to 42" << std::endl;
@@ -29,9 +29,8 @@ int main(int argc, char** argv) {
 
     dep.publish(n_readers=1, version="hello");
   }
-
-  {
-    AccessHandle<int> recvd = read_access<int>(me, "the_dep", version="hello");
+  else if(me == 1){
+    AccessHandle<int> recvd = read_access<int>(me-1, "the_dep", version="hello");
 
     create_work([=]{
       std::cout << recvd.get_value() << " received on " << me << std::endl;
@@ -52,10 +51,11 @@ int main(int argc, char** argv) {
   //  });
   //});
 
-  //create_work([=]{
+  //create_work(reads(dep), [=]{
   //  std::cout << dep.get_value() << " received on " << me << std::endl;
   //});
 
   darma_finalize();
 
+  return 0;
 }

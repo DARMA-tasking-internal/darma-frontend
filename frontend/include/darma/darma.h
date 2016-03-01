@@ -53,6 +53,7 @@
 #include "create_work.h"
 #include "abstract/backend/runtime.h"
 #include "serialization.h"
+#include "darma_main.h"
 
 
 #endif /* SRC_DARMA_DARMA_H_ */

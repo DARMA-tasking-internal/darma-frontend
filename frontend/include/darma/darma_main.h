@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          serial_backend.h
+//                          darma_main.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,13 +42,40 @@
 //@HEADER
 */
 
-#ifndef BACKENDS_SERIAL_SERIAL_BACKEND_H_
-#define BACKENDS_SERIAL_SERIAL_BACKEND_H_
+#ifndef FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_
+#define FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_
+
+#include <functional>
+
+namespace darma_runtime {
+namespace detail {
+
+template <typename _ignored>
+std::function<int(int, char**)>*
+_darma__generate_main_function_ptr() {
+  static std::unique_ptr<std::function<int(int, char**)>> _rv = std::make_unique<std::function<int(int, char**)>>(nullptr);
+  return _rv.get();
+}
+
+static std::function<int(int, char**)>* user_main_function_ptr = _darma__generate_main_function_ptr<void>();
+
+template <typename T>
+constexpr int register_user_main(T main_fxn) {
+  *user_main_function_ptr = main_fxn;
+  return 42;
+}
+
+} // end namespace detail
+} // end namespace darma_runtime
+
+#define darma_main(...) \
+  _darma__ignore_this = 42; \
+  int _darma__user_main(__VA_ARGS__); \
+  int _darma__ignore_this_too = \
+    ::darma_runtime::detail::register_user_main((int(*)(__VA_ARGS__))_darma__user_main); \
+  int _darma__user_main(__VA_ARGS__)
 
 
-#define DARMA_SERIAL_BACKEND_SPAWNED_RANKS_PROCESS_STRING "__internal_spawned_rank"
-#define DARMA_SERIAL_BACKEND_SPAWNED_RANK_NUM_OPTION "__internal_spawned_rank_num"
+//  int(*)(__VA_ARGS__), (int(*)(__VA_ARGS__))_darma__user_main> _darma__user_main_metaptr_t;
 
-#include <darma.h>
-
-#endif /* BACKENDS_SERIAL_SERIAL_BACKEND_H_ */
+#endif /* FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_ */

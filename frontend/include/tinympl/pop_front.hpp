@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          serial_backend.h
+//                          pop_front.hpp
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,13 +42,32 @@
 //@HEADER
 */
 
-#ifndef BACKENDS_SERIAL_SERIAL_BACKEND_H_
-#define BACKENDS_SERIAL_SERIAL_BACKEND_H_
+#ifndef FRONTEND_INCLUDE_TINYMPL_POP_FRONT_HPP_
+#define FRONTEND_INCLUDE_TINYMPL_POP_FRONT_HPP_
+
+#include <tinympl/sequence.hpp>
+#include <tinympl/as_sequence.hpp>
+#include <tinympl/variadic/pop_front.hpp>
+
+namespace tinympl {
+
+template<class Sequence,
+  template <class...> class Out = as_sequence<Sequence>::template rebind
+>
+struct pop_front : pop_front<as_sequence_t<Sequence>, Out> {};
+
+template<template <class...> class Out, class... Args>
+struct pop_front<sequence<Args...>, Out> : variadic::pop_front<Out, Args...> {};
+
+namespace types_only {
+
+template<class Sequence>
+struct pop_front : tinympl::pop_front<Sequence, as_sequence<Sequence>::template rebind> { };
+
+} // end namespace types_only
+
+} // namespace tinympl
 
 
-#define DARMA_SERIAL_BACKEND_SPAWNED_RANKS_PROCESS_STRING "__internal_spawned_rank"
-#define DARMA_SERIAL_BACKEND_SPAWNED_RANK_NUM_OPTION "__internal_spawned_rank_num"
 
-#include <darma.h>
-
-#endif /* BACKENDS_SERIAL_SERIAL_BACKEND_H_ */
+#endif /* FRONTEND_INCLUDE_TINYMPL_POP_FRONT_HPP_ */

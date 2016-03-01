@@ -45,10 +45,18 @@
 #ifndef NEW_UTIL_H_
 #define NEW_UTIL_H_
 
-#include "meta/metaprogramming.h"
 #include <memory> // std::shared_ptr
 #include <tuple> // std::tuple
 #include <functional>  // std::hash
+#include <typeinfo>
+#include <string>
+#include <vector>
+#include <set>
+#include <map>
+
+#include "meta/metaprogramming.h"
+
+#include "darma_assert.h"
 
 namespace darma_runtime {
 
@@ -107,51 +115,212 @@ hash_combine(std::size_t& seed, const T& v)
 }
 
 
-//template <typename... Iterators>
-//struct zip_iterator
-//{
-//  typedef std::tuple<Iterators...> iter_tuple;
-//  typedef std::tuple<typename std::iterator_traits<Iterators>::value_type...> value_type;
-//  typedef std::tuple<typename std::iterator_traits<Iterators>::reference...> reference;
-//
-//  static reference
-//  deref_impl(Iterators&&... iters) {
-//    return std::make_tuple(*iters...);
-//  }
-//
-//  reference
-//  operator*() {
-//    return darma_mockup::detail::splat_tuples<reference>(
-//      &zip_iterator::deref_impl, std::forward<iter_tuple>(iters_)
-//    );
-//  }
-//
-//  static void
-//  pre_incr_impl(Iterators&&... iters) {
-//    ++iters...;
-//  }
-//
-//  zip_iterator&
-//  operator++() {
-//    darma_mockup::detail::splat_tuples<void>(
-//      &zip_iterator::pre_incr_impl, std::forward<iter_tuple>(iters_)
-//    );
-//    return *this;
-//  }
-//
-//
-//  iter_tuple iters_;
-//
-//};
-//
-//template <typename... Iterables>
-//struct zip_container
-//{
-//  typedef
-//
-//
-//
-//};
+// Does a dynamic_cast in debug (-O0) mode and an unsafe static_cast in optimized mode
+template <typename ToType, typename FromType>
+inline constexpr
+ToType
+safe_static_cast(FromType&& val) {
+  // perfect forwarding here is probably unnecessary...
+  DARMA_ASSERT_MESSAGE(
+    dynamic_cast<ToType>(std::forward<FromType>(val)) != nullptr,
+    "safe_static_cast from type " << typeid(FromType).name() << " to type " << typeid(ToType).name() << " failed"
+  );
+  return static_cast<ToType>(std::forward<FromType>(val));
+}
+
+
+// An unsafe, quick-and-dirty arg parser
+
+namespace _arg_parser_impl {
+
+template <typename T>
+struct as_impl {
+  T operator()(bool empty, std::string const& val) const {
+    assert(not empty);
+    T rv;
+    std::stringstream sstr(val);
+    sstr >> rv;
+    return rv;
+  }
+};
+
+template <>
+struct as_impl<bool> {
+  bool operator()(bool empty, std::string const& val) const {
+    if(empty) return false;
+    else if(val.size() > 0) {
+      bool rv;
+      std::stringstream sstr(val);
+      sstr >> rv;
+      return rv;
+    }
+    else { // empty == false
+      return true;
+    }
+  }
+};
+
+}
+
+class ArgParser {
+  private:
+
+    struct ParsedValue {
+      bool empty;
+      std::string actual;
+      operator std::string&() { assert(not empty); return actual; }
+      operator std::string const&() const { assert(not empty); return actual; }
+      template <typename T>
+      T as() const {
+        return _arg_parser_impl::as_impl<T>()(empty, actual);
+      }
+      operator bool() const { return as<bool>(); }
+    };
+
+  public:
+
+    class Option {
+      public:
+
+        std::string short_name_ = "";
+        std::string long_name_ = "";
+        std::string help_string_ = "";
+        std::string value_ = "";
+        bool value_set_ = false;
+        size_t n_args_ = 0;
+
+        Option(std::string const& short_name, size_t n_args = 0)
+          : short_name_(short_name), n_args_(n_args)
+        { }
+
+        Option(std::string const& short_name, std::string const& long_name, size_t n_args = 0)
+          : short_name_(short_name), long_name_(long_name), n_args_(n_args)
+        { }
+
+        Option(
+          std::string const& short_name,
+          std::string const& long_name,
+          std::string const& help_string,
+          size_t n_args = 0
+        ) : short_name_(short_name),
+            long_name_(long_name),
+            help_string_(help_string),
+            n_args_(n_args)
+        {
+          assert(n_args_ <= 1); // multiple args not implemented
+        }
+    };
+
+    ArgParser(std::initializer_list<Option> l)
+      : options_(l)
+    {
+      for(auto&& opt : options_) {
+        if(opt.short_name_.size() > 0) {
+          short_opts_.emplace(opt.short_name_, &opt);
+        }
+      }
+      for(auto&& opt : options_) {
+        if(opt.long_name_.size() > 0) {
+          long_opts_.emplace(opt.long_name_, &opt);
+        }
+      }
+    }
+
+    ParsedValue
+    operator[](std::string const& opt_name) {
+      assert(parsed_);
+      auto found_short = short_opts_.find(opt_name);
+      if(found_short != short_opts_.end()) {
+        return {
+          not found_short->second->value_set_,
+          found_short->second->value_
+        };
+      }
+      else{
+        auto found_long = long_opts_.find(opt_name);
+        if(found_long != long_opts_.end()) {
+          return {
+            not found_long->second->value_set_,
+            found_long->second->value_
+          };
+        }
+        else {
+          return { /* empty = */ true, "" };
+        }
+      }
+    }
+
+    ParsedValue
+    operator[](size_t pos) {
+      if(pos < positional_args_.size()) {
+        return { false, positional_args_[pos] };
+      }
+      else {
+        return { true, "" };
+      }
+    }
+
+    void parse(int& argc, char**& argv, bool update_argv = true) {
+      if(argc > 0) {
+        program_name_ = std::string(argv[0]);
+      }
+      size_t arg_spot = 1;
+      std::set<size_t> to_remove;
+      while(arg_spot < argc) {
+        bool option_found = false;
+        for(auto&& opt : options_) {
+          if(opt.value_set_) continue;
+          if(option_found) continue;
+          if("-" + opt.short_name_ == std::string(argv[arg_spot])) { option_found = true; }
+          else if("--" + opt.long_name_ == std::string(argv[arg_spot])) { option_found = true; }
+          if(option_found) {
+            opt.value_set_ = true;
+            to_remove.insert(arg_spot);
+            if(opt.n_args_ == 1) {
+              ++arg_spot;
+              opt.value_ = std::string(argv[arg_spot]);
+              to_remove.insert(arg_spot);
+            }
+          }
+        }
+        if(not option_found) {
+          positional_args_.push_back(std::string(argv[arg_spot]));
+        }
+        ++arg_spot;
+      }
+
+      std::vector<char *> new_argv;
+      for(int i = 0; i < argc; ++i) {
+        if(to_remove.find(i) == to_remove.end()) {
+          new_argv.push_back(argv[i]);
+        }
+      }
+      for(int i = 0; i < new_argv.size(); ++i) {
+        argv[i] = new_argv[i];
+      }
+      argc = new_argv.size();
+
+      parsed_ = true;
+    }
+
+    std::string const& program_name() const {
+      return program_name_;
+    }
+
+  private:
+
+    std::vector<Option> options_;
+    bool parsed_ = false;
+
+    std::map<std::string, Option*> short_opts_;
+    std::map<std::string, Option*> long_opts_;
+    std::vector<std::string> positional_args_;
+
+    std::string program_name_;
+
+
+};
+
 
 } // end namespace detail
 

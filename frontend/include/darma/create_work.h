@@ -51,6 +51,8 @@
 #include <tinympl/vector.hpp>
 #include <tinympl/splat.hpp>
 
+#include "meta/tuple_for_each.h"
+
 #include "runtime.h"
 
 #include "task.h"
@@ -67,9 +69,29 @@ struct create_work_parser {
   typedef typename mv::back<Args...>::type lambda_type;
 };
 
+struct read_decorator_return {
+  typedef abstract::backend::runtime_t runtime_t;
+  typedef runtime_t::key_t key_t;
+  typedef runtime_t::version_t version_t;
+  typedef runtime_t::handle_t handle_t;
+  handle_t* const handle;
+};
+
 template <typename... Args>
 struct reads_decorator_parser {
-  typedef /* TODO */ int return_type;
+  typedef read_decorator_return return_type;
+  // For now:
+  static_assert(sizeof...(Args) == 1, "multi-args not yet implemented");
+  return_type
+  operator()(Args&&... args) {
+    using namespace detail::create_work_attorneys;
+    return {
+      for_AccessHandle::get_dep_handle(
+        std::get<0>(std::forward_as_tuple(args...))
+      )
+    };
+
+  }
 };
 
 template <typename... Args>
@@ -115,8 +137,7 @@ struct create_work_impl {
 template <typename... Args>
 typename detail::reads_decorator_parser<Args...>::return_type
 reads(Args&&... args) {
-  // TODO implement this
-  return typename detail::reads_decorator_parser<Args...>::return_type();
+  return detail::reads_decorator_parser<Args...>()(std::forward<Args>(args)...);
 }
 
 template <typename... Args>
@@ -150,6 +171,18 @@ create_work(Args&&... args) {
   typedef typename m::splat_to<
     typename rest_vector_t::template push_front<lambda_t>::type, detail::create_work_impl
   >::type helper_t;
+  namespace m = tinympl;
+  namespace mp = tinympl::placeholders;
+
+  detail::TaskBase* parent_task = dynamic_cast<detail::TaskBase* const>(
+    detail::backend_runtime->get_running_task()
+  );
+
+  meta::tuple_for_each_filtered_type<
+    m::lambda<std::is_same<mp::_, detail::read_decorator_return>>::template apply
+  >(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
+    parent_task->read_only_handles.emplace(rdec.handle);
+  });
 
   return helper_t()(std::forward<Args>(args)...);
 }

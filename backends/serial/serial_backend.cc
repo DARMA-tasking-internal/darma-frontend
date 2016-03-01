@@ -45,15 +45,22 @@
 #include <stack>
 #include <unordered_set>
 #include <unordered_map>
+#include <mutex>
+#include <thread>
+#include <atomic>
 
 #include "serial_backend.h"
 
-#define DHARMA_SERIAL_DEBUG 1
+#define DHARMA_SERIAL_DEBUG 0
 
 #if DHARMA_SERIAL_DEBUG
+std::mutex __output_mutex;
 #define DEBUG(...) { \
+  std::unique_lock<std::mutex> __output_lg(__output_mutex); \
   std::cout << __VA_ARGS__ << std::endl; \
 }
+#define DARMA_ASSERTION_BEGIN __output_mutex.lock(), std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
+#define DARMA_ASSERTION_END __output_mutex.unlock(), std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
 #else
 #define DEBUG(...)
 #endif
@@ -91,13 +98,32 @@ class SerialRuntime
     std::unordered_set<std::pair<key_t, version_t>> last_at_version_depth;
 
     struct published_data_block {
-      SerialDataBlock* data_block;
-      size_t fetch_handles_expected = 0;
-      size_t fetch_handles_out = 0;
+      published_data_block() = default;
+      published_data_block(
+        published_data_block&& other
+      ) : data_block(std::move(other.data_block)),
+          fetch_handles_expected(other.fetch_handles_expected.load()),
+          fetch_handles_out(other.fetch_handles_out.load()),
+          published_version(std::move(other.published_version))
+      { }
+
+      SerialDataBlock* data_block = nullptr;
+      std::atomic<size_t> fetch_handles_expected = { 0 };
+      std::atomic<size_t> fetch_handles_out = { 0 };
       version_t published_version;
     };
 
-    std::unordered_map<std::pair<key_t, key_t>, published_data_block> published_data_blocks;
+  public:
+
+    typedef std::unordered_map<std::pair<key_t, key_t>, published_data_block> published_data_blocks_t;
+    typedef std::mutex shared_mutex_t;
+    typedef std::unique_lock<shared_mutex_t> unique_lock_t;
+    typedef std::unique_lock<shared_mutex_t> shared_lock_t;
+
+  protected:
+
+    static published_data_blocks_t published_data_blocks;
+    static shared_mutex_t published_data_blocks_mtx;
 
     std::unordered_map<intptr_t, key_t> fetch_handles;
 
@@ -123,9 +149,10 @@ class SerialRuntime
     ) override {
       auto& deps = task->get_dependencies();
 
-      // TODO check that dependency is registered
 
       for(auto&& dep : deps) {
+        // TODO check that dependency is registered
+
         if(task->needs_read_data(dep)) {
           DARMA_ASSERT_MESSAGE(dep->is_satisfied(), "Handle " << get_key_version_string(dep) <<
             " not satisfied upon usage in task");
@@ -177,26 +204,28 @@ class SerialRuntime
       const key_t& user_version_tag
     ) override {
 
-      auto found_pdb = published_data_blocks.find({handle->get_key(), user_version_tag});
+      published_data_block* pdb_ptr;
+      bool ready = false;
 
-      if(found_pdb == published_data_blocks.end()) {
-        std::stringstream key_sstr;
-        handle->get_key().print_human_readable(", ", key_sstr);
-        std::stringstream vtag_sstr;
-        user_version_tag.print_human_readable(", ", vtag_sstr);
-        DARMA_ASSERT_MESSAGE(found_pdb != published_data_blocks.end(),
-          "In the serial version, you can fetch a handle before it is published (it's also"
-          " possible you fetched too many times).  Handle with key: " << key_sstr.str()
-          << " with user_version_tag: " << vtag_sstr.str()
-        );
+      // Spin lock until handle is published by someone else
+      while(not ready) {
+        shared_lock_t _lg(published_data_blocks_mtx);
+        auto found_pdb = published_data_blocks.find({handle->get_key(), user_version_tag});
+        auto end_iter = published_data_blocks.end();
+        if(found_pdb != published_data_blocks.end()) {
+          pdb_ptr = &found_pdb->second;
+          ready = true;
+        }
       }
 
-      assert(found_pdb->second.fetch_handles_expected > 0);
-      handle->satisfy_with_data_block(found_pdb->second.data_block);
-      found_pdb->second.fetch_handles_expected--;
-      found_pdb->second.fetch_handles_out++;
+      auto& pdb = *pdb_ptr;
 
-      handle->set_version(found_pdb->second.published_version);
+      assert(pdb.fetch_handles_expected > 0);
+      handle->satisfy_with_data_block(pdb.data_block);
+      ++(pdb.fetch_handles_out);
+      --(pdb.fetch_handles_expected);
+
+      handle->set_version(pdb.published_version);
 
       fetch_handles.emplace(
         std::piecewise_construct,
@@ -210,11 +239,11 @@ class SerialRuntime
     release_read_only_usage(
       handle_t* const handle
     ) override {
+      DEBUG("releasing read only usage of handle " << get_key_version_string(handle));
       auto found = registered_handles.find({handle->get_key(), handle->get_version()});
       if(found == registered_handles.end()) {
         assert(fetch_handles.find(intptr_t(handle)) != fetch_handles.end());
       }
-      DEBUG("releasing read only usage of handle " << get_key_version_string(handle));
       handle->allow_writes();
     }
 
@@ -222,6 +251,7 @@ class SerialRuntime
     handle_done_with_version_depth(
       const handle_t* const handle
     ) override {
+      DEBUG("handle done with version depth called for handle " << get_key_version_string(handle));
       auto found = registered_handles.find({handle->get_key(), handle->get_version()});
       if(found == registered_handles.end()) {
         assert(fetch_handles.find(intptr_t(handle)) != fetch_handles.end());
@@ -237,7 +267,7 @@ class SerialRuntime
     release_handle(
       const handle_t* const handle
     ) override {
-
+      DEBUG("release called for handle " << get_key_version_string(handle));
       auto found_fetcher = fetch_handles.find(intptr_t(handle));
       if(found_fetcher == fetch_handles.end()) {
 
@@ -316,7 +346,7 @@ class SerialRuntime
           DARMA_ASSERT_MESSAGE(handle->is_satisfied(), "Handle " << get_key_version_string(handle) <<
             " with subsequent " << get_key_version_string(subsequent) << " not satisfied before release");
           subsequent->satisfy_with_data_block(handle->get_data_block());
-          DEBUG("Satifying subsequent " << get_key_version_string(subsequent) << " with handle " << get_key_version_string(handle));
+          DEBUG("satifying subsequent " << get_key_version_string(subsequent) << " with handle " << get_key_version_string(handle));
         }
         else if(handle->is_satisfied()) {
           if(handle->get_data_block()->get_data() != nullptr) {
@@ -327,9 +357,10 @@ class SerialRuntime
       }
       else {
         // fetching handle
+        shared_lock_t _lg(published_data_blocks_mtx);
         auto found_pdb = published_data_blocks.find({handle->get_key(), found_fetcher->second});
-        auto pdb = found_pdb->second;
-        pdb.fetch_handles_out--;
+        auto& pdb = found_pdb->second;
+        --(pdb.fetch_handles_out);
         if(pdb.fetch_handles_expected == 0 and pdb.fetch_handles_out == 0) {
           free(pdb.data_block->get_data());
           delete pdb.data_block;
@@ -340,8 +371,6 @@ class SerialRuntime
 
     }
 
-
-
     void publish_handle(
       handle_t* const handle,
       const key_t& version_tag,
@@ -349,6 +378,8 @@ class SerialRuntime
       bool is_final = false
     ) override {
       assert(not is_final); // version 0.2.0
+
+      unique_lock_t _lg(published_data_blocks_mtx);
 
       auto& k = handle->get_key();
 
@@ -372,7 +403,7 @@ class SerialRuntime
       published_data_blocks.emplace(
         std::piecewise_construct,
         std::forward_as_tuple(k, version_tag),
-        std::forward_as_tuple(pdb)
+        std::forward_as_tuple(std::move(pdb))
       );
     }
 
@@ -380,17 +411,39 @@ class SerialRuntime
     void
     finalize() override {
       // nothing to do here
+      DEBUG("finalize called");
+      if(rank == 0) {
+        for(auto&& thr : other_ranks_if_rank_0) {
+          thr.join();
+        }
+      }
+
+
     }
 
 
     task_unique_ptr top_level_task;
     std::stack<task_t*> running_tasks;
 
+    size_t rank;
+    size_t n_ranks;
+    std::vector<std::thread> other_ranks_if_rank_0;
+
 
 
 };
 
+SerialRuntime::published_data_blocks_t SerialRuntime::published_data_blocks;
+SerialRuntime::shared_mutex_t SerialRuntime::published_data_blocks_mtx;
+
 } // end namespace serial_backend
+
+
+thread_local darma_runtime::abstract::backend::runtime_t* darma_runtime::detail::backend_runtime = nullptr;
+
+int main(int argc, char** argv) {
+  return (*darma_runtime::detail::user_main_function_ptr)(argc, argv);
+}
 
 void
 darma_runtime::abstract::backend::darma_backend_initialize(
@@ -400,13 +453,68 @@ darma_runtime::abstract::backend::darma_backend_initialize(
     typename darma_runtime::abstract::backend::runtime_t::task_t
   > top_level_task
 ) {
-  auto* tmp_rt = new serial_backend::SerialRuntime;
-  tmp_rt->top_level_task = std::move(top_level_task);
-  tmp_rt->running_tasks.push(tmp_rt->top_level_task.get());
-  tmp_rt->top_level_task->set_name(
-    darma_runtime::make_key(DARMA_BACKEND_SPMD_NAME_PREFIX, 0, 1)
-  );
-  backend_runtime = tmp_rt;
-}
+  using namespace darma_runtime::detail;
+  size_t n_ranks = 1;
+  ArgParser args = {
+    { "h", "help", "print help (not implemented)" },
+    { "", "serial-backend-n-ranks", 1 }
+  };
+  args.parse(argc, argv);
+  if(args.program_name() != DARMA_SERIAL_BACKEND_SPAWNED_RANKS_PROCESS_STRING) {
+    if(args["serial-backend-n-ranks"]) {
+      n_ranks = args["serial-backend-n-ranks"].as<size_t>();
+    }
 
-darma_runtime::abstract::backend::runtime_t* darma_runtime::detail::backend_runtime = nullptr;
+    auto* tmp_rt = new serial_backend::SerialRuntime;
+    tmp_rt->top_level_task = std::move(top_level_task);
+    tmp_rt->running_tasks.push(tmp_rt->top_level_task.get());
+    tmp_rt->top_level_task->set_name(
+      darma_runtime::make_key(DARMA_BACKEND_SPMD_NAME_PREFIX, 0, n_ranks)
+    );
+    tmp_rt->rank = 0;
+    tmp_rt->n_ranks = n_ranks;
+    backend_runtime = tmp_rt;
+
+    int tmp_argc = argc;
+    char** tmp_argv = argv;
+    for(size_t irank = 1; irank < n_ranks; ++irank) {
+      tmp_rt->other_ranks_if_rank_0.emplace_back([irank, n_ranks, tmp_argc, tmp_argv]{
+        char* new_argv[tmp_argc+2];
+        int new_argv_spot = 0;
+        std::string new_prog_name(DARMA_SERIAL_BACKEND_SPAWNED_RANKS_PROCESS_STRING);
+        new_argv[new_argv_spot++] = const_cast<char*>(new_prog_name.c_str());
+        for(int iarg = 1; iarg < tmp_argc; ++iarg) {
+          new_argv[new_argv_spot++] = tmp_argv[iarg];
+        }
+        std::string rank_arg("--" + std::string(DARMA_SERIAL_BACKEND_SPAWNED_RANK_NUM_OPTION));
+        std::string rank_num = std::to_string(irank);
+        new_argv[new_argv_spot++] = const_cast<char*>(rank_arg.c_str());
+        new_argv[new_argv_spot++] = const_cast<char*>(rank_num.c_str());
+
+        int new_argc = new_argv_spot;
+
+        int thread_main_return = (*darma_runtime::detail::user_main_function_ptr)(new_argc, new_argv);
+
+        assert(thread_main_return == 0);
+      });
+    }
+
+  }
+  else {
+    // This is a spawned program
+    ArgParser new_args = {
+      { "", DARMA_SERIAL_BACKEND_SPAWNED_RANK_NUM_OPTION, 1 }
+    };
+    new_args.parse(argc, argv);
+    size_t irank = new_args[DARMA_SERIAL_BACKEND_SPAWNED_RANK_NUM_OPTION].as<size_t>();
+    auto* my_tmp_rt = new serial_backend::SerialRuntime;
+    my_tmp_rt->top_level_task = std::move(top_level_task);
+    my_tmp_rt->running_tasks.push(my_tmp_rt->top_level_task.get());
+    my_tmp_rt->top_level_task->set_name(
+      darma_runtime::make_key(DARMA_BACKEND_SPMD_NAME_PREFIX, irank, n_ranks)
+    );
+    my_tmp_rt->rank = irank;
+    my_tmp_rt->n_ranks = n_ranks;
+    backend_runtime = my_tmp_rt;
+  }
+}

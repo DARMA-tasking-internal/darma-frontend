@@ -48,11 +48,17 @@
 #include "task_fwd.h"
 #include "abstract/backend/runtime.h"
 
+#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+#endif
+
 namespace darma_runtime {
 
 namespace detail {
 
-extern abstract::backend::runtime_t* backend_runtime;
+extern
+DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+abstract::backend::runtime_t* backend_runtime;
 
 } // end namespace backend
 

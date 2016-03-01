@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          serial_backend.h
+//                          always_true.hpp
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,13 +42,19 @@
 //@HEADER
 */
 
-#ifndef BACKENDS_SERIAL_SERIAL_BACKEND_H_
-#define BACKENDS_SERIAL_SERIAL_BACKEND_H_
+#ifndef FRONTEND_INCLUDE_TINYMPL_ALWAYS_FALSE_HPP_
+#define FRONTEND_INCLUDE_TINYMPL_ALWAYS_FALSE_HPP_
+
+#include <type_traits>
+
+namespace tinympl {
+
+template <typename... Args>
+struct always_false
+  : public std::false_type { };
+
+} // end namespace tinympl
 
 
-#define DARMA_SERIAL_BACKEND_SPAWNED_RANKS_PROCESS_STRING "__internal_spawned_rank"
-#define DARMA_SERIAL_BACKEND_SPAWNED_RANK_NUM_OPTION "__internal_spawned_rank_num"
 
-#include <darma.h>
-
-#endif /* BACKENDS_SERIAL_SERIAL_BACKEND_H_ */
+#endif /* FRONTEND_INCLUDE_TINYMPL_ALWAYS_TRUE_HPP_ */
