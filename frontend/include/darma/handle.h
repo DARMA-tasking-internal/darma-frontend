@@ -834,9 +834,24 @@ class AccessHandle
     void publish(
       PublishExprParts&&... parts
     ) const {
-      // TODO
-      assert(false);
-      //assert(permissions_ == detail::ReadWrite || permissions_ == detail::OverwriteOnly);
+      detail::publish_expr_helper<PublishExprParts...> helper;
+      switch(state_) {
+        case Read_None:
+        case Read_Read:
+        case Modify_None:
+        case Modify_Read: {
+          detail::backend_runtime->publish_handle(
+            dep_handle_.get(),
+            helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
+            helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
+          );
+          break;
+        }
+        case Modify_Modify: {
+          assert(false); // not implemented
+          break;
+        }
+      };
       //detail::publish_expr_helper<PublishExprParts...> helper;
       //detail::backend_runtime->publish_handle(
       //  dep_handle_.get(),
