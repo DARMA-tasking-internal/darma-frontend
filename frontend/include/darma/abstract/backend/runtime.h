@@ -348,7 +348,7 @@ class Runtime {
      */
     virtual void
     publish_handle(
-      const handle_t* const handle,
+      handle_t* const handle,
       const Key& version_tag,
       const size_t n_fetchers = 1,
       bool is_final = false
