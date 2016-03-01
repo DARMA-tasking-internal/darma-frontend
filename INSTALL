@@ -1,0 +1,46 @@
+To build a DARMA program, you must do the following:
+
+1) Install the DARMA front-end header-only library
+2) Build a backend runtime library, pointing at the header install in #1
+3) Build an actual application, including the frontend/backend headers 
+   and linking to the library built in #2
+
+For debugging purposes, this repo includes the complete front-end
+as well as some very simple backends along with a some simple examples.
+To build all the examples against the mock backend, configure CMake with:
+
+cmake ${source} \
+  -DCMAKE_INSTALL_PREFIX=${prefix} \
+  -DSTL_THREADS_BACKEND=Off \
+  -DMOCK_BACKEND=On
+
+Or, to use the STL threads backend
+
+cmake ${source} \
+  -DCMAKE_INSTALL_PREFIX=${prefix} \
+  -DSTL_THREADS_BACKEND=On \
+  -DMOCK_BACKEND=Off
+
+
+If building components individually, do the following:
+1) Front-end
+cmake ${frontend_source} \
+  -DCMAKE_INSTALL_PREFIX=${frontend_prefix}
+make install
+
+2) Back-end
+cmake ${backend_source} \
+  -DCMAKE_INSTALL_PREFIX=${backend_prefix} \
+  -DSTL_THREADS_BACKEND=Off \
+  -DMOCK_BACKEND=On \
+  -DDARMA_FRONTEND=${frontend_prefix}
+make install
+
+3) Examples
+cmake ${examples_source} \
+  -DDARMA_FRONTEND=${frontend_prefix} \
+  -DDARMA_BACKEND=${backend_prefix} \
+  -DDARMA_BACKEND_LIBNAME=darma_mock_backend
+
+
+
