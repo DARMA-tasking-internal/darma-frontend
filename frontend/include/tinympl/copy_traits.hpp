@@ -52,27 +52,56 @@ namespace tinympl {
   template <typename T> using rebind = apply<T>; \
   template <typename T> using rebind_t = typename apply<T>::type;
 
+
+//template <typename From>
+//struct copy_cv_qualifiers<const From> {
+//  template <typename T> struct apply { typedef const T type; };
+//  _TINYMPL_tmp_COPY_TRAITS_APPLY_ALIASES
+//};
+//
+//template <typename From>
+//struct copy_cv_qualifiers<const volatile From> {
+//  template <typename T> struct apply { typedef const volatile T type; };
+//  _TINYMPL_tmp_COPY_TRAITS_APPLY_ALIASES
+//};
+//
+//template <typename From>
+//struct copy_cv_qualifiers<volatile From> {
+//  template <typename T> struct apply { typedef volatile T type; };
+//  _TINYMPL_tmp_COPY_TRAITS_APPLY_ALIASES
+//};
+
 template <typename From>
-struct copy_cv_qualifiers {
+struct copy_volatileness {
   template <typename T> struct apply { typedef T type; };
   _TINYMPL_tmp_COPY_TRAITS_APPLY_ALIASES
 };
 
 template <typename From>
-struct copy_cv_qualifiers<const From> {
+struct copy_volatileness<volatile From> {
+  template <typename T> struct apply { typedef volatile T type; };
+  _TINYMPL_tmp_COPY_TRAITS_APPLY_ALIASES
+};
+
+template <typename From>
+struct copy_constness {
+  template <typename T> struct apply { typedef T type; };
+  _TINYMPL_tmp_COPY_TRAITS_APPLY_ALIASES
+};
+
+template <typename From>
+struct copy_constness<const From> {
   template <typename T> struct apply { typedef const T type; };
   _TINYMPL_tmp_COPY_TRAITS_APPLY_ALIASES
 };
 
 template <typename From>
-struct copy_cv_qualifiers<const volatile From> {
-  template <typename T> struct apply { typedef const volatile T type; };
-  _TINYMPL_tmp_COPY_TRAITS_APPLY_ALIASES
-};
-
-template <typename From>
-struct copy_cv_qualifiers<volatile From> {
-  template <typename T> struct apply { typedef volatile T type; };
+struct copy_cv_qualifiers {
+  template <typename T> struct apply {
+    typedef typename copy_constness<From>::template apply<
+      typename copy_volatileness<From>::template apply<T>::type
+    >::type type;
+  };
   _TINYMPL_tmp_COPY_TRAITS_APPLY_ALIASES
 };
 

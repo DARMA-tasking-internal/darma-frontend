@@ -54,7 +54,11 @@
 #include <tinympl/is_instantiation_of.hpp>
 #include <tinympl/identity.hpp>
 #include <tinympl/delay.hpp>
+#include <tinympl/repeat.hpp>
+#include <tinympl/pop_front.hpp>
 #include <tinympl/copy_traits.hpp>
+#include <tinympl/always_true.hpp>
+#include <tinympl/find_if.hpp>
 
 namespace darma_runtime { namespace meta {
 
@@ -164,6 +168,7 @@ struct call_operator_return {
 };
 
 template <
+  template <class...> class UnaryMetafunction,
   size_t I, size_t N,
   typename Tuple,
   typename GenericLambda,
@@ -171,7 +176,7 @@ template <
   bool IncludeIndex = false,
   bool PrevIsVoid = false /* ignored for I=0 */
 >
-struct _tuple_for_each {
+struct _impl {
   static_assert(
     m::is_instantiation_of<std::tuple, Tuple>::value,
     "tuple_for_each only works on std::tuple"
@@ -188,7 +193,17 @@ struct _tuple_for_each {
     >
   >::type::type i_return_t;
 
-  typedef _tuple_for_each<I+1, N, Tuple, GenericLambda,
+  typedef typename m::repeat<I+1, m::types_only::pop_front, Tuple>::type rest_tuple_t;
+  static constexpr size_t next_idx =
+    std::min(
+      I + 1 + m::find_if<rest_tuple_t, UnaryMetafunction>::type::value,
+      std::tuple_size<Tuple>::value
+    );
+
+  typedef _impl<
+      UnaryMetafunction,
+      next_idx,
+      N, Tuple, GenericLambda,
       TupleArg, IncludeIndex, std::is_same<i_return_t, void>::value
   > next_t;
 
@@ -236,6 +251,7 @@ struct _helper2<void> {
 };
 
 template <
+  template <class...> class UnaryMetafunction,
   size_t N,
   typename Tuple,
   typename GenericLambda,
@@ -243,7 +259,7 @@ template <
   bool IncludeIndex,
   bool PrevIsVoid
 >
-struct _tuple_for_each<N, N, Tuple, GenericLambda, TupleArg, IncludeIndex, PrevIsVoid> {
+struct _impl<UnaryMetafunction, N, N, Tuple, GenericLambda, TupleArg, IncludeIndex, PrevIsVoid> {
   static_assert(
     m::is_instantiation_of<std::tuple, Tuple>::value,
     "tuple_for_each only works on std::tuple"
@@ -264,12 +280,41 @@ struct _tuple_for_each<N, N, Tuple, GenericLambda, TupleArg, IncludeIndex, PrevI
 } // end namespace _tuple_for_each_impl
 
 // Note: calling with an empty tuple returns an empty tuple, not void
+template <
+  template <typename...> class UnaryMetafunction,
+  typename Tuple,
+  typename GenericLambda
+>
+typename _tuple_for_each_impl::_impl<
+  UnaryMetafunction,
+  tinympl::find_if<Tuple, UnaryMetafunction>::value,
+  std::tuple_size<typename std::decay<Tuple>::type>::value,
+  typename std::decay<Tuple>::type,
+  GenericLambda, Tuple
+>::return_t
+tuple_for_each_filtered_type(
+  Tuple&& tup,
+  GenericLambda&& lambda
+) {
+  typedef typename _tuple_for_each_impl::_impl<
+    UnaryMetafunction,
+    tinympl::find_if<Tuple, UnaryMetafunction>::value,
+    std::tuple_size<typename std::decay<Tuple>::type>::value,
+    typename std::decay<Tuple>::type,
+    GenericLambda, Tuple
+  > impl_t;
+  return impl_t()(
+    std::forward<Tuple>(tup),
+    std::forward<GenericLambda>(lambda)
+  );
+}
 
 template <
   typename Tuple,
   typename GenericLambda
 >
-typename _tuple_for_each_impl::_tuple_for_each<
+typename _tuple_for_each_impl::_impl<
+  tinympl::always_true,
   0, std::tuple_size<typename std::decay<Tuple>::type>::value,
   typename std::decay<Tuple>::type,
   GenericLambda, Tuple
@@ -278,7 +323,8 @@ tuple_for_each(
   Tuple&& tup,
   GenericLambda&& lambda
 ) {
-  typedef typename _tuple_for_each_impl::_tuple_for_each<
+  typedef typename _tuple_for_each_impl::_impl<
+    tinympl::always_true,
     0, std::tuple_size<typename std::decay<Tuple>::type>::value,
     typename std::decay<Tuple>::type,
     GenericLambda, Tuple
@@ -293,7 +339,8 @@ template <
   typename Tuple,
   typename GenericLambda
 >
-typename _tuple_for_each_impl::_tuple_for_each<
+typename _tuple_for_each_impl::_impl<
+  tinympl::always_true,
   0, std::tuple_size<typename std::decay<Tuple>::type>::value,
   typename std::decay<Tuple>::type,
   GenericLambda, Tuple, true
@@ -302,7 +349,8 @@ tuple_for_each_with_index(
   Tuple&& tup,
   GenericLambda&& lambda
 ) {
-  typedef typename _tuple_for_each_impl::_tuple_for_each<
+  typedef typename _tuple_for_each_impl::_impl<
+    tinympl::always_true,
     0, std::tuple_size<typename std::decay<Tuple>::type>::value,
     typename std::decay<Tuple>::type,
     GenericLambda, Tuple, true

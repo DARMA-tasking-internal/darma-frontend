@@ -54,6 +54,7 @@
 #include <tinympl/lambda.hpp>
 #include <tinympl/filter.hpp>
 #include <tinympl/logical_not.hpp>
+#include <tinympl/copy_traits.hpp>
 
 #include "task.h"
 #include "runtime.h"
@@ -521,6 +522,12 @@ class DependencyHandle
 
 };
 
+namespace create_work_attorneys {
+
+class for_AccessHandle;
+
+} // end namespace create_work_attorneys
+
 } // end namespace darma_runtime::detail
 
 template <
@@ -626,21 +633,6 @@ class AccessHandle
       return *this;
     }
 
-    //AccessHandle(const AccessHandle& copied_from)
-    //  : dep_handle_(copied_from.dep_handle_),
-    //    permissions_(copied_from.permissions_),
-    //    prev_copied_from(const_cast<AccessHandle* const>(&copied_from)),
-    //    read_only_holder_(copied_from.read_only_holder_)
-    //{
-    //  assert(copied_from.prev_copied_from == nullptr);
-    //  assert(
-    //    dynamic_cast<detail::TaskBase*>(
-    //      detail::backend_runtime->get_running_task()
-    //    )->current_create_work_context == nullptr
-    //  );
-    //}
-
-
     AccessHandle(const AccessHandle& copied_from)
       : dep_handle_(copied_from.dep_handle_),
         // this copy constructor may be invoked in ordinary usage or
@@ -652,9 +644,10 @@ class AccessHandle
         read_only_holder_(copied_from.read_only_holder_)
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
-      capturing_task = dynamic_cast<detail::TaskBase*>(
+      detail::TaskBase* running_task = dynamic_cast<detail::TaskBase* const>(
         detail::backend_runtime->get_running_task()
-      )->current_create_work_context;
+      );
+      capturing_task = running_task->current_create_work_context;
 
       // Now check if we're in a capturing context:
       if(capturing_task != nullptr) {
@@ -672,21 +665,33 @@ class AccessHandle
         ////////////////////////////////////////////////////////////////////////////////
 
         // Determine the capture type
-        // TODO also ask the task if any special permissions downgrades were given
+        // TODO finish asking the task if any special permissions downgrades were given
+        // TODO check that any explicit permissions are obeyed
+
         capture_op_t capture_type;
-        switch(outer.state_) {
-          case Read_None:
-          case Read_Read: {
-            capture_type = ro_capture;
-            break;
-          }
-          case Modify_None:
-          case Modify_Read:
-          case Modify_Modify: {
-            capture_type = mod_capture;
-            break;
-          }
-        };
+
+        // first check for any explicit permissions
+        auto found = running_task->read_only_handles.find(outer.dep_handle_.get());
+        if(found != running_task->read_only_handles.end()) {
+          capture_type = ro_capture;
+          running_task->read_only_handles.erase(found);
+        }
+        else {
+          // Deduce capture type from state
+          switch(outer.state_) {
+            case Read_None:
+            case Read_Read: {
+              capture_type = ro_capture;
+              break;
+            }
+            case Modify_None:
+            case Modify_Read:
+            case Modify_Modify: {
+              capture_type = mod_capture;
+              break;
+            }
+          };
+        }
 
         ////////////////////////////////////////////////////////////////////////////////
 
@@ -823,6 +828,11 @@ class AccessHandle
       return dep_handle_->get_value();
     }
 
+    const key_t&
+    get_key() const {
+      return dep_handle_->get_key();
+    }
+
     T&
     get_reference() const {
       return dep_handle_->get_value();
@@ -852,13 +862,6 @@ class AccessHandle
           break;
         }
       };
-      //detail::publish_expr_helper<PublishExprParts...> helper;
-      //detail::backend_runtime->publish_handle(
-      //  dep_handle_.get(),
-      //  helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
-      //  helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
-      //  helper.version_tag_is_final(std::forward<PublishExprParts>(parts)...)
-      //);
     }
 
     ~AccessHandle() {
@@ -897,19 +900,6 @@ class AccessHandle
       assert(state_ == Read_None);
     }
 
-    //template <typename Deleter>
-    //AccessHandle(
-    //  const key_type& key,
-    //  const version_type& version,
-    //  detail::AccessPermissions permissions,
-    //  Deleter deleter
-    //) : dep_handle_(
-    //      dep_handle_ptr_maker_t()(key, version),
-    //      deleter
-    //    ),
-    //    permissions_(permissions)
-    //{ }
-
     ////////////////////////////////////////
     // private members
 
@@ -924,14 +914,6 @@ class AccessHandle
 
     ////////////////////////////////////////
     // Friend functions
-
-    //template <
-    //  typename... KeyExprParts
-    //>
-    //friend AccessHandle
-    //initial_access(
-    //  KeyExprParts&&... parts
-    //);
 
     friend void
     _initial_access_impl(
@@ -956,7 +938,43 @@ class AccessHandle
       //rv = AccessHandle(key, detail::ReadWrite, user_version_tag);
     }
 
+    ////////////////////////////////////////
+    // Attorney for create_work
+    friend class detail::create_work_attorneys::for_AccessHandle;
+
 };
+
+namespace detail {
+
+namespace create_work_attorneys {
+
+struct for_AccessHandle {
+  template <typename AccessHandleType>
+  static inline
+  typename tinympl::copy_cv_qualifiers<AccessHandleType>::template apply<
+    typename AccessHandleType::dep_handle_t
+  >::type* const
+  get_dep_handle(
+    AccessHandleType& ah
+  ) {
+    return ah.dep_handle_.get();
+  }
+
+  template <typename AccessHandleType>
+  static inline
+  typename tinympl::copy_volatileness<AccessHandleType>::template apply<
+    typename AccessHandleType::version_t
+  >::type const&
+  get_version(
+    AccessHandleType& ah
+  ) {
+    return ah.dep_handle_->get_version();
+  }
+};
+
+} // end namespace create_work_attorneys
+
+} // end namespace detail
 
 template <
   typename T,

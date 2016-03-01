@@ -44,7 +44,9 @@
 
 #include <iostream>
 #include <tuple>
+#include <type_traits>
 
+#include <tinympl/tuple_as_sequence.hpp>
 #include <darma/meta/tuple_for_each.h>
 
 using namespace darma_runtime;
@@ -68,6 +70,21 @@ int main(int argc, char** argv) {
     std::cout << idx << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
   });
   meta::tuple_for_each(std::make_tuple(5, hello, 47.32, 42), [](auto&& val) {
-    std::cout << ": " << val << ": " << typeid(decltype(val)).name() <<  std::endl;
+    std::cout << val << ": " << typeid(decltype(val)).name() <<  std::endl;
+  });
+  meta::tuple_for_each_filtered_type<std::is_integral>(tup, [](auto&& val) {
+    std::cout << val << ": " << typeid(decltype(val)).name() <<  std::endl;
+  });
+  std::tuple<std::string, double, int> tup2("hello", 47.32, 42);
+  meta::tuple_for_each_filtered_type<std::is_integral>(tup2, [](auto&& val) {
+    std::cout << val << ": " << typeid(decltype(val)).name() <<  std::endl;
+  });
+  std::tuple<std::string, double> tup3("hello", 47.32);
+  meta::tuple_for_each_filtered_type<std::is_integral>(tup3, [](auto&& val) {
+    std::cout << val << ": " << typeid(decltype(val)).name() <<  std::endl;
+  });
+  std::tuple<> tup4;
+  meta::tuple_for_each_filtered_type<std::is_integral>(tup4, [](auto&& val) {
+    std::cout << val << ": " << typeid(decltype(val)).name() <<  std::endl;
   });
 }

@@ -47,6 +47,8 @@
 
 #define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
 
+#define DARMA_THREAD_LOCAL_BACKEND_RUNTIME thread_local
+
 #include <common/stream_key.h>
 namespace darma_runtime { namespace types {
   typedef mock_backend::StreamKey key_t;

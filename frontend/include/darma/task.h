@@ -47,7 +47,7 @@
 
 #include <unordered_map>
 #include <unordered_set>
-
+#include <set>
 
 #include <tinympl/greater.hpp>
 #include <tinympl/int.hpp>
@@ -64,6 +64,7 @@
 #include "abstract/frontend/dependency_handle.h"
 #include "abstract/frontend/task.h"
 
+#include "util.h"
 #include "runtime.h"
 
 namespace darma_runtime {
@@ -221,6 +222,9 @@ class TaskBase
 
     TaskBase* current_create_work_context = nullptr;
 
+    std::set<handle_t*> read_only_handles;
+
+
 };
 
 class TopLevelTask
@@ -251,7 +255,7 @@ class Task : public TaskBase
           // First, set the current create_work context to this task
           // so that the move operator of AccessHandle knows to use
           // the capture hook in its move constructor
-          static_cast<detail::TaskBase* const>(
+          safe_static_cast<detail::TaskBase* const>(
             detail::backend_runtime->get_running_task()
           )->current_create_work_context = this,
           // now do the actual move, which will trigger the AccessHandle move
@@ -263,10 +267,18 @@ class Task : public TaskBase
       // here *may* run after some/all invocations of add_dependency(), etc
       // Proceed with caution
 
+      TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
+          detail::backend_runtime->get_running_task()
+      );
+
+      // Assert that all explicitly specified reads were captured
+      DARMA_ASSERT_MESSAGE(
+        parent_task->read_only_handles.empty(),
+        "Priviledges explicitly declared but not used"
+      );
+
       // Remove the current create_work_context pointer so that other moves don't trigger the hook
-      static_cast<detail::TaskBase* const>(
-        detail::backend_runtime->get_running_task()
-      )->current_create_work_context = nullptr;
+      parent_task->current_create_work_context = nullptr;
     }
 
     void run() override {
