@@ -236,9 +236,9 @@ class Runtime {
      *  satisfy up to one registered \a subsequent of the handle, which must be both registered and versioned
      *  at the time of release_handle() invocation (and not yet satisfied, writable, or released).  The subsequent
      *  of a handle should be satisfied by calling subsequent->satisfy_with_data_block() with the return value of
-     *  handle->get_data_block().  Subsequents of a handle may be indicated in several ways.  Given k = handle->get_key()
-     *  and v = handle->get_version() for the handle parameter, the following rules may be used to determine the
-     *  correct subsequent to satisfy with handle's data upon release:
+     *  handle->get_data_block() if handle is satisfied upon release.  Subsequents of a handle may be indicated in
+     *  several ways.  Given k = handle->get_key() and v = handle->get_version() for the handle parameter, the
+     *  following rules may be used to determine the correct subsequent to satisfy with handle's data upon release:
      *    1. first, if a handle is registered with key k and version ++(v.push(0)), that handle is the subsequent
      *       and should be satisfied.  In this case, there must also be a handle registered with key k and version
      *       ++v which is \b not the subsequent (but debug mode should check for that handle's existence).
@@ -312,9 +312,7 @@ class Runtime {
     /** @brief Indicate that no further subversions with key handle->get_key() at the current version
      *  depth will be created.
      *
-     *  Essentially, this establishes a satisfy-upon-release relationship between \c handle and a handle
-     *  with the subsequent of the penultimate subversion of handle.  See \ref release_handle() for
-     *  more details.
+     *  See \ref release_handle() for more details.
      *
      */
     virtual void

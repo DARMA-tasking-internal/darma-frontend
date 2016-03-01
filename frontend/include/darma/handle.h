@@ -819,6 +819,13 @@ class AccessHandle
       dep_handle_->set_value(val);
     }
 
+    template <typename... Args>
+    void
+    emplace_value(Args&&... args) const {
+      dep_handle_->emplace_value(std::forward<Args>(args)...);
+    }
+
+
     template <typename U>
     void
     operator=(const U& other) const { }
