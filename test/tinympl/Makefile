@@ -2,7 +2,7 @@
 CXX := /opt/local/bin/clang++-mp-3.5
 #CXX := /opt/local/bin/g++-mp-4.8
 
-CPPFLAGS = -I ../../ 
+CPPFLAGS = -I ../../frontend/include
 CXXFLAGS = -std=c++11 -O0 -g -ftemplate-backtrace-limit=0 -Wno-return-type
 LDFLAGS = 
 
@@ -13,7 +13,7 @@ TEST_NAMES = $(TEST_CC_FILES:.cc=)
 
 .PHONY: $(TEST_NAMES)
 
-%.o : %.cc $(wildcard ../*.hpp) $(wildcard ../variadic/*.hpp)
+%.o : %.cc $(wildcard ../../frontend/include/tinympl/*.hpp) $(wildcard ../../frontend/include/tinympl/variadic/*.hpp)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $<
 
 $(TEST_NAMES): test_% : test_%.o
