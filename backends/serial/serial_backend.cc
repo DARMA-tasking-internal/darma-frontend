@@ -42,7 +42,7 @@
 //@HEADER
 */
 
-#define DHARMA_SERIAL_DEBUG 1
+#define DHARMA_SERIAL_DEBUG 0
 
 #include <stack>
 #include <unordered_set>
@@ -55,7 +55,7 @@
 std::mutex __output_mutex;
 #define DEBUG(...) { \
   std::unique_lock<std::mutex> __output_lg(__output_mutex); \
-  std::cout << __VA_ARGS__ << std::endl; \
+  std::cout << "RANK " << rank << "::" <<  __VA_ARGS__ << std::endl; \
 }
 #define DARMA_ASSERTION_BEGIN __output_mutex.lock(), std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
 #define DARMA_ASSERTION_END __output_mutex.unlock(), std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
@@ -227,17 +227,17 @@ class SerialRuntime
         if(found_pdb != published_data_blocks.end()) {
           pdb_ptr = &found_pdb->second;
           ready = true;
+          auto& pdb = *pdb_ptr;
+
+          assert(pdb.fetch_handles_expected > 0);
+          handle->satisfy_with_data_block(pdb.data_block);
+          ++(pdb.fetch_handles_out);
+          --(pdb.fetch_handles_expected);
+          handle->set_version(pdb.published_version);
         }
       }
 
-      auto& pdb = *pdb_ptr;
 
-      assert(pdb.fetch_handles_expected > 0);
-      handle->satisfy_with_data_block(pdb.data_block);
-      ++(pdb.fetch_handles_out);
-      --(pdb.fetch_handles_expected);
-
-      handle->set_version(pdb.published_version);
 
       fetch_handles.emplace(
         std::piecewise_construct,
@@ -374,12 +374,12 @@ class SerialRuntime
         assert(found_pdb != published_data_blocks.end());
         auto& pdb = found_pdb->second;
         --(pdb.fetch_handles_out);
-        if(pdb.fetch_handles_expected == 0 and pdb.fetch_handles_out == 0) {
+        if(pdb.fetch_handles_expected.load() == 0 and pdb.fetch_handles_out.load() == 0) {
           free(pdb.data_block->get_data());
           delete pdb.data_block;
           published_data_blocks.erase(found_pdb);
         }
-
+        fetch_handles.erase(found_fetcher);
       }
 
     }
@@ -391,6 +391,7 @@ class SerialRuntime
       bool is_final = false
     ) override {
       assert(not is_final); // version 0.2.0
+      if(n_fetchers == 0) return;
 
       DEBUG("publish called on handle " << get_key_version_string(handle));
 
@@ -473,10 +474,10 @@ darma_runtime::abstract::backend::darma_backend_initialize(
     { "", "serial-backend-n-ranks", 1 }
   };
   args.parse(argc, argv);
+  if(args["serial-backend-n-ranks"].as<bool>()) {
+    n_ranks = args["serial-backend-n-ranks"].as<size_t>();
+  }
   if(args.program_name() != DARMA_SERIAL_BACKEND_SPAWNED_RANKS_PROCESS_STRING) {
-    if(args["serial-backend-n-ranks"]) {
-      n_ranks = args["serial-backend-n-ranks"].as<size_t>();
-    }
 
     auto* tmp_rt = new serial_backend::SerialRuntime;
     tmp_rt->top_level_task = std::move(top_level_task);
@@ -492,7 +493,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
     char** tmp_argv = argv;
     for(size_t irank = 1; irank < n_ranks; ++irank) {
       tmp_rt->other_ranks_if_rank_0.emplace_back([irank, n_ranks, tmp_argc, tmp_argv]{
-        char* new_argv[tmp_argc+2];
+        char* new_argv[tmp_argc+4];
         int new_argv_spot = 0;
         std::string new_prog_name(DARMA_SERIAL_BACKEND_SPAWNED_RANKS_PROCESS_STRING);
         new_argv[new_argv_spot++] = const_cast<char*>(new_prog_name.c_str());
@@ -503,10 +504,17 @@ darma_runtime::abstract::backend::darma_backend_initialize(
         std::string rank_num = std::to_string(irank);
         new_argv[new_argv_spot++] = const_cast<char*>(rank_arg.c_str());
         new_argv[new_argv_spot++] = const_cast<char*>(rank_num.c_str());
+        std::string n_rank_arg("--serial-backend-n-ranks");
+        std::string n_rank_num = std::to_string(n_ranks);
+        new_argv[new_argv_spot++] = const_cast<char*>(n_rank_arg.c_str());
+        new_argv[new_argv_spot++] = const_cast<char*>(n_rank_num.c_str());
+
 
         int new_argc = new_argv_spot;
 
-        int thread_main_return = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(new_argc, new_argv);
+        int thread_main_return = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(
+          new_argc, new_argv
+        );
 
         assert(thread_main_return == 0);
       });

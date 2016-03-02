@@ -62,6 +62,16 @@ struct delay {
   >::type type;
 };
 
+template <
+  template <class...> class Delayed
+>
+struct undelay {
+  template <typename... Args>
+  struct apply {
+    typedef typename Delayed<Args...>::type::type type;
+  };
+};
+
 } // end namespace tinympl
 
 

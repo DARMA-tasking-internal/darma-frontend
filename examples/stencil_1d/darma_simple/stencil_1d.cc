@@ -6,7 +6,7 @@
 using namespace darma_runtime;
 
 constexpr size_t n_data_total = 5;
-constexpr size_t n_iter = 10;
+constexpr size_t n_iter = 2;
 constexpr bool print_data = true;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -145,16 +145,21 @@ int darma_main(int argc, char** argv)
     }
   });
 
+
+  //
   sent_to_left.publish(n_readers=1);
   sent_to_right.publish(n_readers=1);
 
   for(int iter = 0; iter < n_iter; ++iter) {
 
-    auto left_ghost = read_access<data_t>("sent_to_right", left_neighbor, iter);
-    auto right_ghost = read_access<data_t>("sent_to_left", right_neighbor, iter);
-
     sent_to_left = initial_access<data_t>("sent_to_left", me, iter+1);
     sent_to_right = initial_access<data_t>("sent_to_right", me, iter+1);
+
+    auto left_ghost = read_access<data_t>(
+      is_leftmost ? "sent_to_left" : "sent_to_right", left_neighbor, iter);
+    auto right_ghost = read_access<data_t>(
+      is_rightmost ? "sent_to_right" : "sent_to_left", right_neighbor, iter);
+
 
     create_work([=]{
 
@@ -182,13 +187,15 @@ int darma_main(int argc, char** argv)
 
   if(print_data) {
 
+    // TODO !!! Change this when we implement void handles
+
     // If we're the first node, start the chain in motion
     if(me == 0) {
       auto tmp = initial_access<int>("write_done", me-1);
-      create_work(reads(tmp), [=]{ tmp.publish(n_readers=1); });
+      create_work([=]{ tmp.set_value(/*ignored*/42); });
+      tmp.publish(n_readers=1);
     }
 
-    // TODO Change this when I implement void handles
     auto prev_node_finished_writing = read_access<int>("write_done", me-1);
 
     // The `waits()` tag is equivalent to calling prev_node_finished_writing.wait() inside the lambda
@@ -196,16 +203,19 @@ int darma_main(int argc, char** argv)
       //waits(prev_node_finished_writing),
       [=]{
         // for now, since waits() is not implemented
-        prev_node_finished_writing.set_value(1);
+        prev_node_finished_writing.get_value();
         std::cout << "On worker " << me << ": ";
         do_print_data(data->get(), my_n_data);
 
-        initial_access<int>("write_done", me).publish(n_readers=1);
+        auto next = initial_access<int>("write_done", me);
+        create_work([=]{ next.set_value(/*ignored*/42); });
+        next.publish(n_readers=(me!=n_spmd-1));
       }
     );
 
   }
 
   darma_finalize();
+  return 0;
 }
 

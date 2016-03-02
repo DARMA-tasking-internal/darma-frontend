@@ -48,6 +48,7 @@
 #include "metatest_helpers.h"
 
 #include <tinympl/vector.hpp>
+#include <tinympl/delay.hpp>
 
 #include <string>
 #include <vector>
@@ -84,4 +85,15 @@ meta_assert(
     >::template apply<int, double>::type,
     std::map<int, double>
   >::value
+);
+
+
+//meta_assert(
+//  undelay<
+//    lambda<delay<std::is_same, std::decay<placeholders::_>, identity<int>>>::template apply
+//  >::template apply<int const volatile&>::type::value
+//);
+
+meta_assert(
+  lambda<std::is_same<std::decay<placeholders::_>, int>>::template apply<int const volatile&>::type::value
 );

@@ -50,6 +50,7 @@
 #include <tinympl/variadic/back.hpp>
 #include <tinympl/vector.hpp>
 #include <tinympl/splat.hpp>
+#include <tinympl/lambda.hpp>
 
 #include "meta/tuple_for_each.h"
 
@@ -178,9 +179,11 @@ create_work(Args&&... args) {
     detail::backend_runtime->get_running_task()
   );
 
+
   meta::tuple_for_each_filtered_type<
-    m::lambda<std::is_same<mp::_, detail::read_decorator_return>>::template apply
+    m::lambda<std::is_same<std::decay<mp::_>, detail::read_decorator_return>>::template apply
   >(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
+    std::cout << "Found read only declaration" << std::endl;
     parent_task->read_only_handles.emplace(rdec.handle);
   });
 

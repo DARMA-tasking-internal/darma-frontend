@@ -52,21 +52,47 @@ namespace darma_runtime {
 
 namespace detail {
 
-//template <typename T>
-//struct value_dumper {
-//  void
-//  operator
-//};
+template <typename T>
+struct value_dumper {
+  void
+  operator()(T const& val, std::ostream& o) {
+    o << val;
+  }
+};
 
-//template <typename Container, typename ValueDumper = value_dumper<typename Container::value_type>>
-//struct container_dumper {
-//
-//};
+template <typename T, typename U>
+struct value_dumper<std::pair<T, U>> {
+  void
+  operator()(std::pair<T, U> const& val, std::ostream& o) {
+    o << "{ " << val.first << ", " << val.second << "}";
+  }
+};
+
+template <typename Container, typename ValueDumper = value_dumper<typename Container::value_type>>
+struct container_dumper {
+  void
+  operator()(Container const& c, std::ostream& o = std::cout, const char* indent = "    ") {
+    o << indent << "{" << std::endl;
+    ValueDumper vd;
+    for(auto&& val : c) {
+      o << indent << "  ";
+      vd(val, o);
+      o << std::endl;
+    }
+    o << indent << "}";
+  }
+};
+
+template <typename Key, typename Container>
+bool _check_contains(const Key& k, const Container& c) {
+  return c.find(k) != c.end();
+}
 
 
 } // end namespace detail
 
 } // end namespace darma_runtime
+
 
 #ifndef DARMA_ASSERTION_BEGIN
 #define DARMA_ASSERTION_BEGIN std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
@@ -74,6 +100,10 @@ namespace detail {
 #ifndef DARMA_ASSERTION_END
 #define DARMA_ASSERTION_END std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
 #endif
+
+// TODO
+//#define DARMA_ASSERT_IN(...) assert( \
+//  ()
 
 #define DARMA_ASSERT_RELATED_VERBOSE(lhs, op, rhs) assert(                                         \
   (lhs op rhs) ||                                                                                   \
