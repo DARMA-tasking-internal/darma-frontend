@@ -2,6 +2,8 @@ set (tinympl_HEADERS
 accumulate.hpp
 algorithm.hpp
 algorithm_variadic.hpp
+always_false.hpp
+always_true.hpp
 all_of.hpp
 and_b.hpp
 any_of.hpp
