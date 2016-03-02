@@ -77,6 +77,12 @@ template<template<class ... > class Cmp, class ... Args>
 struct max_element<sequence<Args...>, Cmp > :
     variadic::max_element<Cmp, Args...> {};
 
+template <typename Arg1, typename Arg2, typename... Args>
+struct max : max_element<sequence<Arg1, Arg2, Args...>, less> { };
+
+template <typename... Args>
+using max_t = typename max<Args...>::type;
+
 } // namespace tinympl
 
 #endif // TINYMPL_MAX_ELEMENT_HPP

@@ -79,6 +79,9 @@ struct plus<A, B>
 
 template<class Head> struct plus<Head> : std::integral_constant<typename Head::value_type,Head::value> {};
 
+template <typename... Args>
+using plus_t = typename plus<Args...>::type;
+
 } // namespace tinympl
 
 #endif // TINYMPL_PLUS_HPP

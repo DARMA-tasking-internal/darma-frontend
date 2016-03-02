@@ -61,8 +61,7 @@ static std::function<int(int, char**)>* user_main_function_ptr = _darma__generat
 
 template <typename T>
 constexpr int register_user_main(T main_fxn) {
-  *user_main_function_ptr = main_fxn;
-  return 42;
+  return *user_main_function_ptr = main_fxn, 42;
 }
 
 } // end namespace detail

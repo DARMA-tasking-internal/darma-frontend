@@ -59,6 +59,8 @@
 #include <tinympl/copy_traits.hpp>
 #include <tinympl/always_true.hpp>
 #include <tinympl/find_if.hpp>
+#include <tinympl/min_element.hpp>
+#include <tinympl/int.hpp>
 
 namespace darma_runtime { namespace meta {
 
@@ -69,6 +71,7 @@ namespace darma_runtime { namespace meta {
 namespace _tuple_for_each_impl {
 
 namespace m = tinympl;
+namespace mv = tinympl::variadic;
 
 template <typename ReturnType, typename GenericLambda, bool IncludeIndex, size_t Index>
 struct invoker {
@@ -195,10 +198,10 @@ struct _impl {
 
   typedef typename m::repeat<I+1, m::types_only::pop_front, Tuple>::type rest_tuple_t;
   static constexpr size_t next_idx =
-    std::min(
-      I + 1 + m::find_if<rest_tuple_t, UnaryMetafunction>::type::value,
-      std::tuple_size<Tuple>::value
-    );
+    m::min<
+      typename m::plus<m::int_<I>, m::int_<1>, typename m::find_if<rest_tuple_t, UnaryMetafunction>::type>::type,
+      std::tuple_size<Tuple>
+    >::type::value;
 
   typedef _impl<
       UnaryMetafunction,
@@ -207,13 +210,15 @@ struct _impl {
       TupleArg, IncludeIndex, std::is_same<i_return_t, void>::value
   > next_t;
 
+  template <typename T> struct _get_return_t { typedef typename T::return_t type; };
+
   typedef typename std::conditional<
     std::is_same<i_return_t, void>::value,
     m::identity<void>,
     m::delay<
       m::join,
       m::delay<std::tuple, i_return_t>,
-      m::identity<typename next_t::return_t>
+      _get_return_t<next_t>
     >
   >::type::type return_t;
 

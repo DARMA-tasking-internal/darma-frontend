@@ -371,6 +371,7 @@ class SerialRuntime
         // fetching handle
         shared_lock_t _lg(published_data_blocks_mtx);
         auto found_pdb = published_data_blocks.find({handle->get_key(), found_fetcher->second});
+        assert(found_pdb != published_data_blocks.end());
         auto& pdb = found_pdb->second;
         --(pdb.fetch_handles_out);
         if(pdb.fetch_handles_expected == 0 and pdb.fetch_handles_out == 0) {
@@ -431,8 +432,6 @@ class SerialRuntime
           thr.join();
         }
       }
-
-
     }
 
 

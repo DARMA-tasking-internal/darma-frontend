@@ -65,11 +65,15 @@ typedef AccessHandle<DataArray<double>> dep_t;
 void copy_in_ghost_data(double* dest,
   const dep_t left_ghost, const dep_t main, const dep_t right_ghost
 ) {
-  memcpy(dest, left_ghost->get(), left_ghost->size()*sizeof(double));
-  dest += left_ghost->size();
+  if(left_ghost->size() > 0) {
+    memcpy(dest, left_ghost->get(), left_ghost->size()*sizeof(double));
+    dest += left_ghost->size();
+  }
   memcpy(dest, main->get(), main->size()*sizeof(double));
   dest += main->size();
-  memcpy(dest, right_ghost->get(), right_ghost->size()*sizeof(double));
+  if(right_ghost->size() > 0) {
+    memcpy(dest, right_ghost->get(), right_ghost->size()*sizeof(double));
+  }
 }
 
 void copy_out_ghost_data(const double* src,
@@ -83,7 +87,7 @@ void copy_out_ghost_data(const double* src,
 ////////////////////////////////////////////////////////////////////////////////
 // main() function
 
-int main(int argc, char** argv)
+int darma_main(int argc, char** argv)
 {
   darma_init(argc, argv);
 
@@ -125,16 +129,16 @@ int main(int argc, char** argv)
     if(me == 0) data_ptr[0] = 1.0;
     if(me == n_spmd - 1) data_ptr[my_n_data - 1] = 1.0;
 
+    // Call the default constructor
+    sent_to_left.emplace_value();
     if(!is_leftmost) {
-      // Call the default constructor
-      sent_to_left.emplace_value();
       // Then allocate...
       sent_to_left->allocate(1);
       sent_to_left->get()[0] = data_ptr[0];
     }
+    // Call the default constructor
+    sent_to_right.emplace_value();
     if(!is_rightmost) {
-      // Call the default constructor
-      sent_to_right.emplace_value();
       // Then allocate...
       sent_to_right->allocate(1);
       sent_to_right->get()[0] = data_ptr[my_n_data - 1];
@@ -178,6 +182,12 @@ int main(int argc, char** argv)
 
   if(print_data) {
 
+    // If we're the first node, start the chain in motion
+    if(me == 0) {
+      auto tmp = initial_access<int>("write_done", me-1);
+      create_work(reads(tmp), [=]{ tmp.publish(n_readers=1); });
+    }
+
     // TODO Change this when I implement void handles
     auto prev_node_finished_writing = read_access<int>("write_done", me-1);
 
@@ -193,12 +203,6 @@ int main(int argc, char** argv)
         initial_access<int>("write_done", me).publish(n_readers=1);
       }
     );
-
-    // If we're the first node, start the chain in motion
-    if(me == 0) {
-      auto tmp = initial_access<int>("write_done", me-1);
-      create_work([=]{ tmp.publish(n_readers=1); });
-    }
 
   }
 
