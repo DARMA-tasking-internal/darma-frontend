@@ -13,6 +13,7 @@ as_unary_predicate.hpp
 at.hpp
 bind.hpp
 bool.hpp
+callable_traits.hpp
 char.hpp
 contains_placeholder.hpp
 copy.hpp

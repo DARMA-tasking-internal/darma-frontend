@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                             min_element.hpp                             
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                          callable_traits.hpp
+//                         dharma_new
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,43 +42,57 @@
 //@HEADER
 */
 
+#ifndef FRONTEND_INCLUDE_TINYMPL_CALLABLE_TRAITS_HPP_
+#define FRONTEND_INCLUDE_TINYMPL_CALLABLE_TRAITS_HPP_
 
-#ifndef TINYMPL_MIN_ELEMENT_HPP
-#define TINYMPL_MIN_ELEMENT_HPP
+#include <functional>
 
-#include "variadic/min_element.hpp"
-#include "as_sequence.hpp"
-#include "sequence.hpp"
-#include "less.hpp"
+#include <tinympl/vector.hpp>
 
 namespace tinympl {
 
+namespace _callable_traits_impl {
 
-/**
- * \ingroup SeqMaxMin
- * \class min_element
- * \brief Compute the index of the smallest element in a sequence
- * \param Sequence the input sequence
- * \param Cmp the comparator function; `Cmp<A,B>::type::value` must be
-convertible to bool. Defaults to \ref tinympl::less
- * \return `min_element<...>::type` is an
-`std::integral_constant<std::size_t,v>` where `v` is the 0-based index of the
-minimum element
- * \sa variadic::min_element
- */
-template<class Sequence, template<class ... > class Cmp = less>
-struct min_element : min_element<as_sequence_t<Sequence>, Cmp > {};
+template <typename Callable, typename Enable = void>
+struct extract_args_vector;
 
-template<template<class ... > class Cmp, class ... Args>
-struct min_element<sequence<Args...>, Cmp> :
-    variadic::min_element<Cmp, Args...> {};
+// Function type
+template <typename RV, typename... Args>
+struct extract_args_vector<RV(Args...)> {
+  typedef vector<Args...> type;
+};
 
-template <typename Arg1, typename Arg2, typename... Args>
-struct min : min_element<sequence<Arg1, Arg2, Args...>, less> { };
+// Function pointer type
+template <typename RV, typename... Args>
+struct extract_args_vector<RV(*)(Args...)> {
+  typedef vector<Args...> type;
+};
 
-template <typename... Args>
-using min_t = typename min<Args...>::type;
+// Member function type
+template <typename Class, typename RV, typename... Args>
+struct extract_args_vector<RV (Class::*)(Args...)> {
+  typedef vector<Args...> type;
+};
 
-} // namespace tinympl
+// TODO: std::bind expression
 
-#endif // TINYMPL_MIN_ELEMENT_HPP
+
+// TODO: Lambda or functor
+//template <typename Class>
+//struct extract_args_vector<Class,
+//  typename std::enable_if<
+//
+//  >::type
+
+
+} // end namespace _callable_traits_impl
+
+template <typename Callable>
+struct callable_traits {
+  // TODO
+};
+
+} // end namespace tinympl
+
+
+#endif /* FRONTEND_INCLUDE_TINYMPL_CALLABLE_TRAITS_HPP_ */

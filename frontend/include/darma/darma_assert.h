@@ -48,7 +48,25 @@
 #include <cassert>
 #include <iostream>
 
-//#define DARMA_ASSERT_EQUAL(lhs, rhs) assert(lhs == rhs)
+namespace darma_runtime {
+
+namespace detail {
+
+//template <typename T>
+//struct value_dumper {
+//  void
+//  operator
+//};
+
+//template <typename Container, typename ValueDumper = value_dumper<typename Container::value_type>>
+//struct container_dumper {
+//
+//};
+
+
+} // end namespace detail
+
+} // end namespace darma_runtime
 
 #ifndef DARMA_ASSERTION_BEGIN
 #define DARMA_ASSERTION_BEGIN std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
