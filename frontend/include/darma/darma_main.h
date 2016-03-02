@@ -50,18 +50,19 @@
 namespace darma_runtime {
 namespace detail {
 
-template <typename _ignored>
+template <typename _ignored = void>
 std::function<int(int, char**)>*
 _darma__generate_main_function_ptr() {
   static std::unique_ptr<std::function<int(int, char**)>> _rv = std::make_unique<std::function<int(int, char**)>>(nullptr);
   return _rv.get();
 }
 
-static std::function<int(int, char**)>* user_main_function_ptr = _darma__generate_main_function_ptr<void>();
+//static std::function<int(int, char**)>* user_main_function_ptr = _darma__generate_main_function_ptr<void>();
 
 template <typename T>
 constexpr int register_user_main(T main_fxn) {
-  return *user_main_function_ptr = main_fxn, 42;
+  *(_darma__generate_main_function_ptr<>()) = main_fxn;
+  return 42;
 }
 
 } // end namespace detail

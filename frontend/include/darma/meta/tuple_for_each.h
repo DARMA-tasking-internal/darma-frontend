@@ -199,7 +199,7 @@ struct _impl {
   typedef typename m::repeat<I+1, m::types_only::pop_front, Tuple>::type rest_tuple_t;
   static constexpr size_t next_idx =
     m::min<
-      typename m::plus<m::int_<I>, m::int_<1>, typename m::find_if<rest_tuple_t, UnaryMetafunction>::type>::type,
+      m::int_<I + 1 + m::find_if<rest_tuple_t, UnaryMetafunction>::value>,
       std::tuple_size<Tuple>
     >::type::value;
 

@@ -455,7 +455,7 @@ SerialRuntime::shared_mutex_t SerialRuntime::published_data_blocks_mtx;
 thread_local darma_runtime::abstract::backend::runtime_t* darma_runtime::detail::backend_runtime = nullptr;
 
 int main(int argc, char** argv) {
-  return (*darma_runtime::detail::user_main_function_ptr)(argc, argv);
+  return (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
 }
 
 void
@@ -506,7 +506,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
 
         int new_argc = new_argv_spot;
 
-        int thread_main_return = (*darma_runtime::detail::user_main_function_ptr)(new_argc, new_argv);
+        int thread_main_return = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(new_argc, new_argv);
 
         assert(thread_main_return == 0);
       });

@@ -121,10 +121,11 @@ inline constexpr
 ToType
 safe_static_cast(FromType&& val) {
   // perfect forwarding here is probably unnecessary...
-  return DARMA_ASSERT_MESSAGE(
+  DARMA_ASSERT_MESSAGE(
     dynamic_cast<ToType>(std::forward<FromType>(val)) != nullptr,
     "safe_static_cast from type " << typeid(FromType).name() << " to type " << typeid(ToType).name() << " failed"
-  ), static_cast<ToType>(std::forward<FromType>(val));
+  );
+  return static_cast<ToType>(std::forward<FromType>(val));
 }
 
 
