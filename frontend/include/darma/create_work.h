@@ -70,7 +70,7 @@ struct create_work_parser {
   typedef typename mv::back<Args...>::type lambda_type;
 };
 
-struct read_decorator_return {
+struct reads_decorator_return {
   typedef abstract::backend::runtime_t runtime_t;
   typedef runtime_t::key_t key_t;
   typedef runtime_t::version_t version_t;
@@ -80,7 +80,7 @@ struct read_decorator_return {
 
 template <typename... Args>
 struct reads_decorator_parser {
-  typedef read_decorator_return return_type;
+  typedef reads_decorator_return return_type;
   // For now:
   static_assert(sizeof...(Args) == 1, "multi-args not yet implemented");
   return_type
@@ -95,9 +95,32 @@ struct reads_decorator_parser {
   }
 };
 
+struct waits_decorator_return {
+  typedef abstract::backend::runtime_t runtime_t;
+  typedef runtime_t::key_t key_t;
+  typedef runtime_t::version_t version_t;
+  typedef runtime_t::handle_t handle_t;
+  typedef types::shared_ptr_template<handle_t> handle_ptr;
+  handle_ptr const& handle;
+};
+
 template <typename... Args>
 struct waits_decorator_parser {
-  typedef /* TODO */ int return_type;
+  typedef waits_decorator_return return_type;
+  // For now:
+  static_assert(sizeof...(Args) == 1, "multi-args not yet implemented");
+  return_type
+  operator()(Args&&... args) {
+    using namespace detail::create_work_attorneys;
+    assert(false); // not implemented
+    // TODO implement this
+    return {
+      for_AccessHandle::get_dep_handle_ptr(
+        std::get<0>(std::forward_as_tuple(args...))
+      )
+    };
+
+  }
 };
 
 template <typename... Args>
@@ -152,6 +175,7 @@ template <typename... Args>
 typename detail::writes_decorator_parser<Args...>::return_type
 writes(Args&&... args) {
   // TODO implement this
+  assert(false); // not implemented
   return typename detail::writes_decorator_parser<Args...>::return_type();
 }
 
@@ -159,6 +183,7 @@ template <typename... Args>
 typename detail::reads_writes_decorator_parser<Args...>::return_type
 reads_writes(Args&&... args) {
   // TODO implement this
+  assert(false); // not implemented
   return typename detail::reads_writes_decorator_parser<Args...>::return_type();
 }
 
@@ -181,11 +206,18 @@ create_work(Args&&... args) {
 
 
   meta::tuple_for_each_filtered_type<
-    m::lambda<std::is_same<std::decay<mp::_>, detail::read_decorator_return>>::template apply
+    m::lambda<std::is_same<std::decay<mp::_>, detail::reads_decorator_return>>::template apply
   >(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
-    std::cout << "Found read only declaration" << std::endl;
     parent_task->read_only_handles.emplace(rdec.handle);
   });
+
+  // TODO waits() decorator
+  //meta::tuple_for_each_filtered_type<
+  //  m::lambda<std::is_same<std::decay<mp::_>, detail::waits_decorator_return>>::template apply
+  //>(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
+  //  parent_task->waits_handles.emplace(rdec.handle);
+  //});
+
 
   return helper_t()(std::forward<Args>(args)...);
 }

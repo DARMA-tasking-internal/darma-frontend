@@ -187,7 +187,7 @@ class TaskBase
     needs_read_data(
       const handle_t* handle
     ) const override {
-      // TODO figure out why this doesn't work like it should...
+      // TODO figure out why we need a const cast here
       return needs_read_deps_.find(const_cast<handle_t*>(handle)) != needs_read_deps_.end();
     }
 
@@ -195,7 +195,7 @@ class TaskBase
     needs_write_data(
       const handle_t* handle
     ) const override {
-      // TODO figure out why this doesn't work like it should...
+      // TODO figure out why we need a const cast here
       return needs_write_deps_.find(const_cast<handle_t*>(handle)) != needs_write_deps_.end();
     }
 
@@ -270,6 +270,15 @@ class Task : public TaskBase
       TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
           detail::backend_runtime->get_running_task()
       );
+
+      //const auto& deps = this->get_dependencies();
+      //for(auto&& h : parent_task->waits_handles) {
+      //  // only add it if we don't already need it
+      //  if(deps.find(h) == deps.end()) {
+
+      //  }
+
+      //}
 
       // Assert that all explicitly specified reads were captured
       DARMA_ASSERT_MESSAGE(
