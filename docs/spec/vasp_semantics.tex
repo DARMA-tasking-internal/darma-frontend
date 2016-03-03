@@ -57,6 +57,7 @@ maintain results and side effects of the program order.
 \section{VASP States}
 
 \subsection{A motivating example}
+\label{subsec:motiv}
 
 In order to better sequential semantics on VASPs, not all operations can be
 allowed on a given VASP at a given point in the program.  Consider the following
@@ -93,93 +94,138 @@ be an argument to a {\it mod-capture} operation.  A number of other rules can be
 arrived at by similar logic, the results of which are presented below.
 
 \subsection{A Two-part State Naming System}
+\label{subsec:twopart}
 
 To facilitate the definition of rules similar to the one described above, it is
 useful to define a set of states to which a given VASP can be unambiguously
 assigned at a given point in a program order (i.e., independent of execution
-order).  From these states we can then 
+order).  From these states we can construct a set of allowable operations on a
+given VASP at a given point in the program order as well as the states of the
+corresponding outputs of operations on that VASP.
+
+In the system for naming VASP states that we have devised, each name has two
+components.  The first letter represents the VASPs scheduling permissions ---
+what sort of deferred operations are allowed.  The second letter represents the
+VASP's immediate permissions --- the allowed immediate operations.  Each of
+these permissions components has three possible levels: None (N), Read (R), and
+Modify (M).  This leads to nine possible states, six of which are meaningful in
+the simple semantics described in Section \ref{sec:simplevasp}.  
+
+By way of example, the rule derived from the discussion in Section
+\ref{subsec:motiv} can be expressed as follows:  any VASP in a state without $M$
+scheduling permissions --- for instance, $NN$, $RN$, $RR$, $RM$, etc. --- cannot
+be an argument to a {\em mod-capture} operation.  The full analysis is as
+follows.  Line \ref{ln:ill-cap1} initilizes a VASP in the state
+$MN$.\footnote{An expanded semantic, described below, includes a write-only
+state for VASPs with no data to read.  For simplicity, this discussion is
+omitted here.}  The {\em mod-capture} operation in line \ref{ln:ill-cap2} yields
+two outputs:  a captured VASP in the state $MM$ (which is thus the state of $a$
+at line \ref{ln:ill-cap2-1}) and a continuing VASP in the state $MN$.  (The
+specifics of the state transitions induced by various operations are discussed
+below).  The {\em ro-capture} in line \ref{ln:ill-cap3}, operating on this
+continuing VASP, yields a captured VASP in the state $RR$ and a continuing VASP
+in the state $MN$.  The {\em mod-capture} in line \ref{ln:ill-cap4} is then
+revealed to be illegal, since it operates on a VASP in the state $RR$.
 
 \subsection{VASP Versioning}
 
+The states described in Section \ref{subsec:twopart} yield a set of rules for
+allowed operations, but do not help in establishing a strong ordering in which
+those operations must be evaluated to conform to the program order results.  To
+establish this ordering, each VASP must have an unambiguously discernable
+version number associated with a given VASP at a given point in the program
+order.  Moreover, this version should always return true for the less than
+operation with the version associated with the same VASP at a different point in
+the program which must happen after operations at the former point in order to
+ensure correct (program-ordered) results.
+
+In order to establish this ordering in situations where program order and
+execution order may differ wildly, and thus where intervening operations on
+VASPs may be discovered upon evaluating deferred operations, VASP versions are
+hierarchical --- for instance, $3.7.14.0.2$.  Operations on VASPs may
+trigger a {\tt push()} of a subversion (e.g., $2.4 \rightarrow
+2.4.0$), an increment (e.g., $2.4 \rightarrow 2.5$, always incrementing
+the part at the greatest depth), or a {\tt pop()} and increment (e.g., $2.4
+\rightarrow 3$).  Versions maintain a logical less than relationship across
+differing depths: $2.3.1 < 2.4 < 3 < 3.0.1$, though a {\tt push()} of a zero
+results in an equality: $2.4.0 == 2.4 == 2.4.0.0$.  This hierarchical versioning
+allows ``undiscovered'' intervening uses of VASPs to be arbitrarily inserted
+into the ordering of the VASP uses that the scheduler must abide by.
+
+\todo[inline]{explain how this versioning system exposes logical idempotency
+within a version.}
 
 \section{Simple VASP Semantics}
 \label{sec:simplevasp}
 
-\vspace{2em}
+We first present a simplified subset of the full VASP semantics that may be
+sufficient for many use cases.  In this simplified subset, only states with
+scheduling permissions greater than or equal to immediate permissions are
+allowed.  Table \ref{tab:immsimp} shows the state transitions induced by
+immediate operations in simple VASP semantics, and \ref{tab:capsimp} shows the
+same information for deferred operations.
 
-{\small\centering
-\begin{tabular}{l|cc|cc|cc}
- \hline
- Operations:
+\todo[inline]{finish this section by describing the operations in the table}
+
+\begin{table}[b]
+\begin{center}
+{\small
+\begin{tabular}{l|cc|cc|cc|cc}
  & \multicolumn{2}{c|}{\inlinecode{get_value()}} 
  & \multicolumn{2}{c|}{\inlinecode{set_value()}} 
- & \multicolumn{2}{c}{\inlinecode{wait_readable()}} \\
+ & \multicolumn{2}{c|}{\inlinecode{mark_read_only()}} 
+ & \multicolumn{2}{c}{\inlinecode{release()}} \\
  \hline
  State & { Allowed? } & { Continuing }
- & { Allowed? } & { Continuing }
- & { Allowed? } & { Continuing } \\
+ & { {\footnotesize Allowed? } } & { {\footnotesize Continuing } }
+ & { {\footnotesize Allowed? } } & { {\footnotesize Continuing } }
+ & { {\footnotesize Allowed? } } & { {\footnotesize Continuing } } \\
  \hline
- RN
+ $NN$
  & No & -
  & No & -
- & Yes & \{ {\em RR}, \inlinecode{v} \} \\
- RR
+ & No & -
+ & Yes${}^*$ & \{ {\em NN}, \inlinecode{v} \} \\
+ $RN$
+ & No & -
+ & No & -
+ & Yes${}^*$ & \{ {\em RN}, \inlinecode{v} \} 
+ & Yes & \{ {\em NN}, \inlinecode{v} \} \\
+ $RR$
  & Yes & \{ {\em RR}, \inlinecode{v} \}
  & No & -
- & Yes & \{ {\em RR}, \inlinecode{v} \} \\
- MN
+ & Yes${}^*$ & \{ {\em RR}, \inlinecode{v} \} 
+ & Yes & \{ {\em NN}, \inlinecode{v} \} \\
+ $MN$
  & No & -
  & No & -
- & Yes & \{ {\em MR}, \inlinecode{v} \} \\
- MR
+ & Yes & \{ {\em RN}, \inlinecode{v.pop()++} \}
+ & Yes & \{ {\em NN}, \inlinecode{v} \} \\
+ $MR$
  & Yes & \{ {\em MR}, \inlinecode{v} \}
  & No & -
- & Yes & \{ {\em MR}, \inlinecode{v} \} \\
- MM
+ & Yes & \{ {\em RR}, \inlinecode{v.pop()++} \}
+ & Yes & \{ {\em NN}, \inlinecode{v} \} \\
+ $MM$
  & Yes & \{ {\em MM}, \inlinecode{v} \}
  & Yes & \{ {\em MM}, \inlinecode{v} \}
- & No & -
+ & Yes & \{ {\em RR}, \inlinecode{v.pop()++} \} 
+ & Yes & \{ {\em NN}, \inlinecode{v} \} \\
 \end{tabular}
 }
+\caption{Immediate operations on the various states of a VASP under the
+simplified semantics.  State transitions marked with an asterisk (*) effectively
+represent no-ops and could generate warnings at the implementer's discretion.}
+\label{tab:immsimp}
+\end{center}
+\end{table}
 % 
 
 
-\vspace{2em}
-
-{\small\centering
-\begin{tabular}{l|cc|cc}
- \hline
- Operations:
- & \multicolumn{2}{c|}{\inlinecode{wait_modifiable()}}
- & \multicolumn{2}{c}{\inlinecode{mark_read_only()}} \\
- \hline
- State & { Allowed? } & { Continuing }
- & { Allowed? } & { Continuing } \\
- \hline
- RN
- & No & -
- & Yes & \{ {\em RN}, \inlinecode{v} \} \\
- RR
- & No & -
- & Yes & \{ {\em RR}, \inlinecode{v} \} \\
- MN
- & Yes & \{ {\em MM}, \inlinecode{v} \}
- & Yes & \{ {\em RN}, \inlinecode{v.pop()++} \} \\
- MR
- & Yes & \{ {\em MM}, \inlinecode{v} \}
- & Yes & \{ {\em RR}, \inlinecode{v.pop()++} \} \\
- MM
- & Yes & \{ {\em MM}, \inlinecode{v} \}
- & Yes & \{ {\em RR}, \inlinecode{v.pop()++} \} \\
-\end{tabular}
-}
-
-\vspace{2em}
-
-{\small\centering
+\begin{table}[b]
+\begin{center}
+{\small
 \begin{tabular}{l|ccc|ccc}
- \hline
- Operations:
  & \multicolumn{3}{c|}{\em{ro-capture}} 
  & \multicolumn{3}{c}{\em{mod-capture}}  \\
  \hline
@@ -189,6 +235,13 @@ order).  From these states we can then
  & {\footnotesize Allowed? } & {\footnotesize Captured } 
  & {\footnotesize Continuing } \\
  \hline
+ NN
+ & No
+ & -
+ & - 
+ & No
+ & -
+ & - \\
  RN
  & Yes 
  & \{ {\em RR}, \inlinecode{v} \} 
@@ -226,8 +279,20 @@ order).  From these states we can then
  & \{ {\em MN}, \inlinecode{v++} \} \\
 \end{tabular}
 }
+\caption{Deferred (capturing) operations on the various states of a VASP under
+the simplified semantics.}
+\label{tab:capsimp}
+\end{center}
+\end{table}
 
-\vspace{2em}
+
+\section{Full VASP Semantics}
+
+The full extension of the simple semantics described in Section
+\ref{sec:simplevasp} extends the states to include all nine possibilities and adds some operations
+necessitating this extension.
+
+\todo[inline]{finish this section, add tables}
 
 %* A possible future expansion is to introduce a new state that
 %\inlinecode{mark_read_only()} transistions {\em Empty} VASPs into.  This state
@@ -281,3 +346,94 @@ order).  From these states we can then
 %\end{tabular}
 %}
 %\end{sidewaystable}
+
+
+%{\small\centering
+%\begin{tabular}{l|cc|cc}
+% \hline
+% & \multicolumn{2}{c|}{\inlinecode{wait_modifiable()}}
+% \hline
+% State & { Allowed? } & { Continuing }
+% & { Allowed? } & { Continuing } \\
+% \hline
+% RN
+% & No & -
+% & Yes & \{ {\em RN}, \inlinecode{v} \} \\
+% RR
+% & No & -
+% & Yes & \{ {\em RR}, \inlinecode{v} \} \\
+% MN
+% & Yes & \{ {\em MM}, \inlinecode{v} \}
+% & Yes & \{ {\em RN}, \inlinecode{v.pop()++} \} \\
+% MR
+% & Yes & \{ {\em MM}, \inlinecode{v} \}
+% & Yes & \{ {\em RR}, \inlinecode{v.pop()++} \} \\
+% MM
+% & Yes & \{ {\em MM}, \inlinecode{v} \}
+% & Yes & \{ {\em RR}, \inlinecode{v.pop()++} \} \\
+%\end{tabular}
+%}
+%{\small\centering
+%\begin{tabular}{l|cc|cc|cc}
+% \hline
+% & \multicolumn{2}{c|}{\inlinecode{get_value()}} 
+% & \multicolumn{2}{c|}{\inlinecode{set_value()}} 
+% & \multicolumn{2}{c}{\inlinecode{wait_readable()}} \\
+% \hline
+% State & { Allowed? } & { Continuing }
+% & { Allowed? } & { Continuing }
+% & { Allowed? } & { Continuing } \\
+% \hline
+% RN
+% & No & -
+% & No & -
+% & Yes & \{ {\em RR}, \inlinecode{v} \} \\
+% RR
+% & Yes & \{ {\em RR}, \inlinecode{v} \}
+% & No & -
+% & Yes & \{ {\em RR}, \inlinecode{v} \} \\
+% MN
+% & No & -
+% & No & -
+% & Yes & \{ {\em MR}, \inlinecode{v} \} \\
+% MR
+% & Yes & \{ {\em MR}, \inlinecode{v} \}
+% & No & -
+% & Yes & \{ {\em MR}, \inlinecode{v} \} \\
+% MM
+% & Yes & \{ {\em MM}, \inlinecode{v} \}
+% & Yes & \{ {\em MM}, \inlinecode{v} \}
+% & No & -
+%\end{tabular}
+%}
+%% 
+%
+%
+%\vspace{2em}
+%
+%{\small\centering
+%\begin{tabular}{l|cc|cc}
+% \hline
+% & \multicolumn{2}{c|}{\inlinecode{wait_modifiable()}}
+% & \multicolumn{2}{c}{\inlinecode{mark_read_only()}} \\
+% \hline
+% State & { Allowed? } & { Continuing }
+% & { Allowed? } & { Continuing } \\
+% \hline
+% RN
+% & No & -
+% & Yes & \{ {\em RN}, \inlinecode{v} \} \\
+% RR
+% & No & -
+% & Yes & \{ {\em RR}, \inlinecode{v} \} \\
+% MN
+% & Yes & \{ {\em MM}, \inlinecode{v} \}
+% & Yes & \{ {\em RN}, \inlinecode{v.pop()++} \} \\
+% MR
+% & Yes & \{ {\em MM}, \inlinecode{v} \}
+% & Yes & \{ {\em RR}, \inlinecode{v.pop()++} \} \\
+% MM
+% & Yes & \{ {\em MM}, \inlinecode{v} \}
+% & Yes & \{ {\em RR}, \inlinecode{v.pop()++} \} \\
+%\end{tabular}
+%}
