@@ -27,6 +27,7 @@ keyword_arguments/kwarg_expression_fwd.h
 keyword_arguments/macros.h)
 
 set (meta_HEADERS
+meta/detection.h
 meta/filter_types.h
 meta/indices_where.h
 meta/largest_aligned.h
@@ -40,6 +41,7 @@ meta/void_t.h
 meta/wrap_with_template.h)
 
 set (darma_HEADERS
+compatibility.h
 create_work.h
 darma.h
 darma_assert.h

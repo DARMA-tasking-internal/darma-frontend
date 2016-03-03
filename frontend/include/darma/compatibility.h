@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma_main.h
+//                          compatibility.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,43 +42,16 @@
 //@HEADER
 */
 
-#ifndef FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_
-#define FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_
-
-#include <functional>
-
-#include "compatibility.h"
-
-namespace darma_runtime {
-namespace detail {
-
-template <typename _ignored = void>
-std::function<int(int, char**)>*
-_darma__generate_main_function_ptr() {
-  static std::unique_ptr<std::function<int(int, char**)>> _rv = std::make_unique<std::function<int(int, char**)>>(nullptr);
-  return _rv.get();
-}
-
-//static std::function<int(int, char**)>* user_main_function_ptr = _darma__generate_main_function_ptr<void>();
-
-template <typename T>
-DARMA_CONSTEXPR_14 int
-register_user_main(T main_fxn) {
-  *(_darma__generate_main_function_ptr<>()) = main_fxn;
-  return 42;
-}
-
-} // end namespace detail
-} // end namespace darma_runtime
-
-#define darma_main(...) \
-  _darma__ignore_this = 42; \
-  int _darma__user_main(__VA_ARGS__); \
-  int _darma__ignore_this_too = \
-    ::darma_runtime::detail::register_user_main((int(*)(__VA_ARGS__))_darma__user_main); \
-  int _darma__user_main(__VA_ARGS__)
+#ifndef FRONTEND_INCLUDE_DARMA_COMPATIBILITY_H_
+#define FRONTEND_INCLUDE_DARMA_COMPATIBILITY_H_
 
 
-//  int(*)(__VA_ARGS__), (int(*)(__VA_ARGS__))_darma__user_main> _darma__user_main_metaptr_t;
+#if __cpp_constexpr >= 201304
+#  define DARMA_CONSTEXPR_14 constexpr
+#else
+#  define DARMA_CONSTEXPR_14
+#endif
 
-#endif /* FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_ */
+
+
+#endif /* FRONTEND_INCLUDE_DARMA_COMPATIBILITY_H_ */
