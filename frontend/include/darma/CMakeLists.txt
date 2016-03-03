@@ -36,6 +36,7 @@ meta/move_if.h
 meta/sentinal_type.h
 meta/splat_tuple.h
 meta/tuple_for_each.h
+meta/void_t.h
 meta/wrap_with_template.h)
 
 set (darma_HEADERS

@@ -77,107 +77,6 @@ namespace m = tinympl;
 namespace mv = tinympl::variadic;
 namespace mp = tinympl::placeholders;
 
-//namespace _tuple_part_impl {
-//
-//template <
-//  size_t Spot, size_t Begin, size_t End,
-//  typename Tuple,
-//  typename Enable = void
-//>
-//struct _impl {
-//  typedef _impl<Spot+1, Begin, End, Tuple> next_t;
-//  template <typename ForwardedTuple>
-//  using return_t = typename next_t::template return_t<ForwardedTuple>;
-//  template <typename ForwardedTuple>
-//  constexpr inline return_t<ForwardedTuple>
-//  operator()(ForwardedTuple&& in_tup) const {
-//    return next_t()(std::forward<ForwardedTuple>(in_tup));
-//  }
-//};
-//
-//template <
-//  size_t Spot, size_t Begin, size_t End, typename Tuple
-//>
-//struct _impl<
-//  Spot, Begin, End, Tuple,
-//  typename std::enable_if<Spot >= Begin and Spot+1 <= End>::type
-//> {
-//  typedef _impl<Spot+1, Begin, End, Tuple> next_t;
-//  template <typename ForwardedTuple>
-//  using return_t = decltype(
-//    std::tuple_cat(
-//      std::forward_as_tuple(
-//        std::get<Spot>(std::declval<ForwardedTuple&&>())
-//      ),
-//      std::declval<typename next_t::template return_t<ForwardedTuple>>()
-//    )
-//  );
-//
-//  template <typename ForwardedTuple>
-//  constexpr inline return_t<ForwardedTuple>
-//  operator()(ForwardedTuple&& in_tup) const {
-//    return std::tuple_cat(
-//      std::forward_as_tuple(
-//        std::get<Spot>(std::forward<ForwardedTuple>(in_tup))
-//      ),
-//      std::forward<typename next_t::template return_t<ForwardedTuple>>(
-//        next_t()(std::forward<ForwardedTuple>(in_tup))
-//      )
-//    );
-//  }
-//};
-//
-//template <
-//  size_t Spot, size_t Begin, size_t End, typename Tuple
-//>
-//struct _impl<
-//  Spot, Begin, End, Tuple,
-//  typename std::enable_if<Spot >= End>::type
-//> {
-//  template <typename ForwardedTuple>
-//  using return_t = std::tuple<>;
-//
-//  template <typename ForwardedTuple>
-//  constexpr inline return_t<ForwardedTuple>
-//  operator()(ForwardedTuple&& in_tup) const {
-//    return std::make_tuple();
-//  }
-//};
-//
-//
-//} // end namespace _tuple_part_impl
-//
-//template <size_t Begin, size_t End, typename Tuple>
-//struct tuple_part {
-//  private:
-//    typedef _tuple_part_impl::_impl<0, Begin, End, Tuple> helper_t;
-//  public:
-//    template <typename ForwardedTuple>
-//    constexpr inline
-//    typename helper_t::template return_t<ForwardedTuple>
-//    operator()(ForwardedTuple&& tup) const {
-//      return helper_t()(
-//        std::forward<ForwardedTuple>(tup)
-//      );
-//    }
-//};
-//
-//template <typename... Args>
-//struct extract_positional_args_tuple {
-//  typedef typename m::filter<
-//      std::tuple<Args...>,
-//      m::lambda<m::not_<is_kwarg_expression<mp::_>>>::template apply
-//  >::type return_t;
-//  constexpr inline return_t
-//  operator()(Args&&... args) const {
-//    typedef tuple_part<0, mv::find_if<is_kwarg_expression, Args...>::value,
-//        std::tuple<Args...>
-//    > helper_t;
-//    //static_assert(std::is_same<return_t, typename helper_t::return_t>::value, "...");
-//    return helper_t()(std::forward_as_tuple(args...));
-//  }
-//};
-
 template <
   typename... Args
 >
@@ -312,16 +211,6 @@ class VersionedObject
 };
 
 
-//typedef enum AccessPermissions {
-//  ReadOnly,
-//  OverwriteOnly,
-//  ReadWrite,
-//  Create,
-//  AccessPermissions_MAX=Create,
-//  AccessPermissions_MIN=ReadOnly
-//} AccessPermissions;
-
-
 template <
   typename key_type=types::key_t,
   typename version_type=types::version_t
@@ -386,6 +275,7 @@ class DependencyHandleBase
     bool version_is_pending_ = false;
 };
 
+struct EmptyClass { };
 
 template <
   typename T,
@@ -539,25 +429,6 @@ template <
 class AccessHandle;
 
 template <
-  typename U,
-  typename... KeyExprParts
->
-AccessHandle<U>
-read_access(
-  KeyExprParts&&... parts
-);
-
-template <
-  typename U,
-  typename... KeyExprParts
->
-AccessHandle<U>
-read_write(
-  KeyExprParts&&... parts
-);
-
-// TODO !!! 0.2.0 call set_version_is_pending() in the proper places
-template <
   typename T,
   typename key_type,
   typename version_type,
@@ -567,7 +438,10 @@ class AccessHandle
 {
   protected:
 
-    typedef detail::DependencyHandle<T, key_type, version_type> dep_handle_t;
+    typedef detail::DependencyHandle<
+        typename std::conditional<std::is_same<T, void>::value,
+          detail::EmptyClass, T
+        >::type, key_type, version_type> dep_handle_t;
     typedef smart_ptr_template<dep_handle_t> dep_handle_ptr;
     typedef smart_ptr_template<const dep_handle_t> dep_handle_const_ptr;
     typedef detail::TaskBase task_t;
@@ -579,6 +453,7 @@ class AccessHandle
     typedef typename dep_handle_t::version_t version_t;
 
     typedef enum State {
+      None_None,
       Read_None,
       Read_Read,
       Modify_None,
@@ -630,6 +505,15 @@ class AccessHandle
       dep_handle_ = other.dep_handle_;
       state_ = other.state_;
       read_only_holder_ = other.read_only_holder_;
+      return *this;
+    }
+
+    AccessHandle&
+    operator=(std::nullptr_t) const {
+      // TODO more readable error
+      dep_handle_ = 0;
+      state_ = None_None;
+      read_only_holder_ = 0;
       return *this;
     }
 
@@ -690,6 +574,10 @@ class AccessHandle
               capture_type = mod_capture;
               break;
             }
+            case None_None: {
+              DARMA_ASSERT_MESSAGE(false, "Handle used after release");
+              break;
+            }
           };
         }
 
@@ -698,6 +586,10 @@ class AccessHandle
         switch(capture_type) {
           case ro_capture: {
             switch(outer.state_) {
+              case None_None: {
+                DARMA_ASSERT_MESSAGE(false, "Handle used after release");
+                break;
+              }
               case Read_None:
               case Read_Read:
               case Modify_None:
@@ -736,6 +628,10 @@ class AccessHandle
           }
           case mod_capture: {
             switch(outer.state_) {
+              case None_None: {
+                DARMA_ASSERT_MESSAGE(false, "Handle used after release");
+                break;
+              }
               case Read_None:
               case Read_Read: {
                 // TODO error here
@@ -810,11 +706,11 @@ class AccessHandle
       return &dep_handle_->get_value();
     }
 
-    template <typename U>
-    typename std::enable_if<
-      std::is_convertible<U, T>::value,
-      void
-    >::type
+    template <
+      typename U,
+      typename = std::enable_if<std::is_convertible<U, T>::value>
+    >
+    void
     set_value(U&& val) const {
       dep_handle_->set_value(val);
     }
@@ -825,11 +721,11 @@ class AccessHandle
       dep_handle_->emplace_value(std::forward<Args>(args)...);
     }
 
-
-    template <typename U>
-    void
-    operator=(const U& other) const { }
-
+    template <
+      typename = std::enable_if<
+        not std::is_same<T, void>::value
+      >
+    >
     const T&
     get_value() const {
       return dep_handle_->get_value();
@@ -853,6 +749,10 @@ class AccessHandle
     ) const {
       detail::publish_expr_helper<PublishExprParts...> helper;
       switch(state_) {
+        case None_None: {
+          DARMA_ASSERT_MESSAGE(false, "Handle used after release");
+          break;
+        }
         case Read_None:
         case Read_Read:
         case Modify_None:
@@ -862,9 +762,22 @@ class AccessHandle
             helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
             helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
           );
+          // State unchanged...
           break;
         }
         case Modify_Modify: {
+          // Create a new handle with the next version
+          auto next_version = dep_handle_->get_version();
+          ++next_version;
+          dep_handle_ = dep_handle_ptr_maker_t()(dep_handle_->get_key(), next_version);
+          detail::backend_runtime->publish_handle(
+            dep_handle_.get(),
+            helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
+            helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
+          );
+          read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);
+          // Continuing state is MR
+          state_ = Modify_Read;
           assert(false); // not implemented
           break;
         }
@@ -872,7 +785,6 @@ class AccessHandle
     }
 
     ~AccessHandle() {
-      // TODO make sure this is correct
       if(capturing_task) {
         detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
       }
@@ -892,7 +804,11 @@ class AccessHandle
         ),
         state_(initial_state),
         read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
-    { }
+    {
+      if(std::is_same<T, void>::value) {
+        read_only_holder_ = 0;
+      }
+    }
 
     AccessHandle(
       const key_type& key,
@@ -913,7 +829,7 @@ class AccessHandle
     mutable dep_handle_ptr dep_handle_;
     mutable state_t state_;
 
-    types::shared_ptr_template<read_only_usage_holder> read_only_holder_;
+    mutable types::shared_ptr_template<read_only_usage_holder> read_only_holder_;
     task_t* capturing_task = nullptr;
     AccessHandle* const prev_copied_from = nullptr;
 
@@ -969,6 +885,17 @@ struct for_AccessHandle {
 
   template <typename AccessHandleType>
   static inline
+  typename tinympl::copy_cv_qualifiers<AccessHandleType>::template apply<
+    typename AccessHandleType::dep_handle_ptr
+  >::type const
+  get_dep_handle_ptr(
+    AccessHandleType& ah
+  ) {
+    return ah.dep_handle_;
+  }
+
+  template <typename AccessHandleType>
+  static inline
   typename tinympl::copy_volatileness<AccessHandleType>::template apply<
     typename AccessHandleType::version_t
   >::type const&
@@ -984,7 +911,7 @@ struct for_AccessHandle {
 } // end namespace detail
 
 template <
-  typename T,
+  typename T=void,
   typename... KeyExprParts
 >
 AccessHandle<T>
@@ -1001,7 +928,7 @@ initial_access(
 }
 
 template <
-  typename U,
+  typename U=void,
   typename... KeyExprParts
 >
 AccessHandle<U>
@@ -1018,7 +945,7 @@ read_access(
 }
 
 template <
-  typename U,
+  typename U=void,
   typename... KeyExprParts
 >
 AccessHandle<U>
