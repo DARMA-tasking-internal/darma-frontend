@@ -4,6 +4,109 @@
 
 \chapter{Versioned Asynchronous Smart Pointer (VASP) Semantics}
 
+\section{Introduction}
+
+The Versioned Asynchronous Smart Pointer (VASP) abstraction is a mechanism for
+translating sequential semantics on a piece of data into logically idempotent,
+strongly ordered uses of that data.  It extends the smart pointer abstraction,
+which abstracts a view of a place in memory, to also include a view of a point
+in time (usually in the future) for that memory.  The strong ordering of
+``uses''\footnote{``uses'' will be more rigorously defined later} of the VASP's
+data can be used to construct a directed acyclic task graph (task DAG), on which
+scheduling algorithms may optimize the ordering of evaluations of these ``uses''
+without deviating from the sequential intent of the program.  A hierarchical
+versioning system allows intervening ``uses'' of a VASP, arising from an
+evaluated ``use,'' to be inserted into the existing strong ordering without
+losing the sequential intent of the program and without requiring the parent
+``use'' to wait for all child ``uses'' to finish evaluating (as is the case,
+for instance, in a strict fork-join tasking model).
+
+\section{Nomenclature and Taxonomy}
+
+For the purposes of discussion in this context, we will refer to a block of
+deferred work (a deferred ``use'') of one or more VASPs as a {\it task}.
+In our taxonomy, tasks {\it capture} the VASPs they will use. The block of code
+(the {\it context}) that makes up a task that uses a VASP is known as that
+VASP's {\it capturing context}, and a given deferred use of a particular VASP is
+known as a {\it capture} of that VASP. The context immediately following a
+capture of a VASP is known as its {\it continuing context}.  Each continuing
+context must correspond to exactly one capturing context, and vice versa.  VASPs
+can also have non-deferred ``uses,'' which we will call an {\it immediate
+operation}.\footnote{The use of ``immediate'' here does not always imply
+non-blocking or that the work associated with the operation may be carried out
+as soon as the call is made (though this is the case for the allowed operations
+on a simple VASP as described in see Section \ref{sec:simplevasp}).  It does
+imply that this work will be completed before the operation returns, thus
+resulting in only one output.} All immediate operations on a VASP are {\it
+non-capturing}; that is, they do not result in an output of both a captured VASP
+and a continuing VASP, only a continuing one.  Conversely, all deferred
+operations on a VASP are {\it capturing} and thus always result in both a
+captured VASP and a continuing VASP as outputs.  
+
+The user expresses intent by writing a {\it program} containing a sequence of
+operations on VASPs that refer to the user's data.  The order in which the
+operations are expressed in the program\footnote{More formally, the order in
+which they would be evaluated in a strictly work-first traversal of the
+program's task DAG.} is called the {\it program order}.  A key feature of VASP
+semantics is that the results and side effects of executing the program must be
+deterministically identical to that of execution in program order.  Any of the
+possible orders in which the execution of the program actually proceeds is
+called an {\it execution order}, which need not be deterministic but must
+maintain results and side effects of the program order.
+
+\section{VASP States}
+
+\subsection{A motivating example}
+
+In order to better sequential semantics on VASPs, not all operations can be
+allowed on a given VASP at a given point in the program.  Consider the following
+(illegal) motivating pseudocode example using the read-only capture ({\em
+ro-capture}), modify capture ({\em mod-capture}), {\tt get\_value()}, and {\tt
+set\_value()} operations (described in more detail below):
+\begin{vaspPseudo}
+VASP<int> a; (* \label{ln:ill-cap1} *)
+mod-capture(a){  (* \label{ln:ill-cap2} *)
+  a.set_value(1);  (* \label{ln:ill-cap2-1} *)
+}; 
+ro-capture(a){ (* \label{ln:ill-cap3} *)
+  mod-capture(a){ (* \label{ln:ill-cap4} *)
+    a.set_value(2); (* \label{ln:ill-cap4-1} *)
+  }; 
+};
+ro-capture(a){ (* \label{ln:ill-cap5} *)
+  print a.get_value(); (* \label{ln:ill-cap5-1} *)
+}; 
+\end{vaspPseudo}
+The above example, if legal, would prevent the scheduler from properly defining
+a strong ordering of operations on {\tt a} without evaluating the {\it
+ro-capture} on line \ref{ln:ill-cap3}.  If the execution order that the
+scheduler chooses executes lines \ref{ln:ill-cap1}, \ref{ln:ill-cap2},
+\ref{ln:ill-cap3}, \ref{ln:ill-cap5}, \ref{ln:ill-cap2-1}, \ref{ln:ill-cap5-1},
+then \ref{ln:ill-cap4} and \ref{ln:ill-cap4-1}, the program would print a
+different value than the sequential semantics would imply.  This is, obviously,
+because the capture in line \ref{ln:ill-cap3} is lying about what it actually
+does --- it claims to only read {\tt a}, so the scheduler deduces that it is
+safe to run line \ref{ln:ill-cap5-1} before, during, or after the execution of
+line \ref{ln:ill-cap4}, leading to the errant outcome.  Thus, we quickly come to
+the rule that the captured VASP output of a {\it ro-capture} operation cannot
+be an argument to a {\it mod-capture} operation.  A number of other rules can be
+arrived at by similar logic, the results of which are presented below.
+
+\subsection{A Two-part State Naming System}
+
+To facilitate the definition of rules similar to the one described above, it is
+useful to define a set of states to which a given VASP can be unambiguously
+assigned at a given point in a program order (i.e., independent of execution
+order).  From these states we can then 
+
+\subsection{VASP Versioning}
+
+
+\section{Simple VASP Semantics}
+\label{sec:simplevasp}
+
+\vspace{2em}
+
 {\small\centering
 \begin{tabular}{l|cc|cc|cc}
  \hline
@@ -38,6 +141,7 @@
  & No & -
 \end{tabular}
 }
+% 
 
 
 \vspace{2em}
