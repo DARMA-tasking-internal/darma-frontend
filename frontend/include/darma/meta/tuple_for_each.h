@@ -49,6 +49,8 @@
 #include <utility>
 #include <type_traits>
 
+#include "../compatibility.h"
+
 #include <tinympl/join.hpp>
 #include <tinympl/at.hpp>
 #include <tinympl/is_instantiation_of.hpp>

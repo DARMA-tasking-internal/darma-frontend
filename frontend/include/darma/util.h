@@ -57,6 +57,7 @@
 #include "meta/metaprogramming.h"
 
 #include "darma_assert.h"
+#include "compatibility.h"
 
 namespace darma_runtime {
 
@@ -117,7 +118,7 @@ hash_combine(std::size_t& seed, const T& v)
 
 // Does a dynamic_cast in debug (-O0) mode and an unsafe static_cast in optimized mode
 template <typename ToType, typename FromType>
-inline constexpr
+inline DARMA_CONSTEXPR_14
 ToType
 safe_static_cast(FromType&& val) {
   // perfect forwarding here is probably unnecessary...
