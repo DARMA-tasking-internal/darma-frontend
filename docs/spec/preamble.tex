@@ -8,6 +8,7 @@
 \usepackage{array,multirow,graphicx}
 \usepackage{sandiacode}
 \usepackage{rotating}
+\usepackage{lmodern}
 %\usepackage{geometry}
 %\usepackage{pdflscape}
 
@@ -36,6 +37,32 @@
 %\newglossary[dlg]{data}{dgi}{dgo}{Data Terminology}
 %\newglossary[tlg]{tasking}{tgi}{tgo}{Tasking Terminology}
 %\newglossary[clg]{collectives}{cgi}{cgo}{Collective Terminology}
+
+\definecolor{dkgreen}{rgb}{0,0.4,0}
+\definecolor{dkblue}{rgb}{0,0,0.4}
+\definecolor{dkred}{rgb}{0.4,0,0}
+\lstnewenvironment{vaspPseudo}{%
+  \lstset{% 
+    backgroundcolor=\color{grayish},%
+    basicstyle=\ttfamily,%
+    showstringspaces=false,%
+    belowskip=1em,%
+    frame=none,% 
+    numbers=left,% 
+    numberstyle=\footnotesize,%
+    tabsize=2,% 
+    escapeinside={(*}{*)},
+    morecomment=[l]{//},%
+    commentstyle=\color{dkgreen},%
+    alsoletter=-,
+    emph={ro-capture,mod-capture,capture},emphstyle={\color{blue}\it},%
+    morekeywords={get_value,set_value,immediate},keywordstyle=\color{blue},%
+    morekeywords={[2]print},keywordstyle={[2]\color{dkblue}},%
+    morekeywords={[3]VASP},keywordstyle={[3]\color{dkred}\fontseries{b}\selectfont},%
+    morekeywords={[4]int},keywordstyle={[4]\color{dkblue}},%
+    %keywordstyle=\color{red}%
+  }%
+}{}
 
 
 \usepackage{draftwatermark}
