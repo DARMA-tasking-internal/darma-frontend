@@ -804,11 +804,7 @@ class AccessHandle
         ),
         state_(initial_state),
         read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
-    {
-      if(std::is_same<T, void>::value) {
-        read_only_holder_ = 0;
-      }
-    }
+    { }
 
     AccessHandle(
       const key_type& key,
