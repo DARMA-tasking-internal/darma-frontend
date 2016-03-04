@@ -149,11 +149,60 @@ struct meets_key_concept {
     template <int N>
     struct component_method_archetype {
       template <typename Key>
-      using apply = decltype( std::declval<Key>().component/*TODO*/ );
+      using apply = decltype( std::declval<Key>().template component<N>() );
     };
 
     // Test the first few integers...
+    typedef meta::detected_t<component_method_archetype<0>::template apply, T> key_part_0_t;
+    static constexpr auto has_key_part_0 =
+        meta::is_detected<component_method_archetype<0>::template apply, T>::value;
+    typedef meta::detected_t<component_method_archetype<1>::template apply, T> key_part_1_t;
+    static constexpr auto has_key_part_1 =
+        meta::is_detected<component_method_archetype<1>::template apply, T>::value;
+    typedef meta::detected_t<component_method_archetype<2>::template apply, T> key_part_2_t;
+    static constexpr auto has_key_part_2 =
+        meta::is_detected<component_method_archetype<2>::template apply, T>::value;
+    typedef meta::detected_t<component_method_archetype<3>::template apply, T> key_part_3_t;
+    static constexpr auto has_key_part_3 =
+        meta::is_detected<component_method_archetype<3>::template apply, T>::value;
+    // And a random larger integer...
+    typedef meta::detected_t<component_method_archetype<17>::template apply, T> key_part_17_t;
+    static constexpr auto has_key_part_17 =
+        meta::is_detected<component_method_archetype<17>::template apply, T>::value;
 
+    // Also test that the key parts have an as<> function (just using int for now)
+    typedef int component_as_test_t;
+    template <typename KeyPart>
+    using key_part_as_archetype = decltype( std::declval<KeyPart>().template as<component_as_test_t>() );
+
+    static constexpr auto key_part_0_has_as =
+        meta::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_0_t>::value;
+    static constexpr auto key_part_1_has_as =
+        meta::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_1_t>::value;
+    static constexpr auto key_part_2_has_as =
+        meta::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_2_t>::value;
+    static constexpr auto key_part_3_has_as =
+        meta::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_3_t>::value;
+    static constexpr auto key_part_17_has_as =
+        meta::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_17_t>::value;
+
+  public:
+
+    static constexpr auto has_component_method =
+         has_key_part_0
+      && has_key_part_1
+      && has_key_part_2
+      && has_key_part_3
+      && has_key_part_17
+    ;
+
+    static constexpr auto key_component_method_works =
+         key_part_0_has_as
+      && key_part_1_has_as
+      && key_part_2_has_as
+      && key_part_3_has_as
+      && key_part_17_has_as
+    ;
 
   public:
 
@@ -189,6 +238,10 @@ struct meets_key_concept {
     "key_traits<" #K "> specialization missing maker member type"); \
   static_assert(darma_runtime::detail::meets_key_concept<K>::has_maker_from_tuple, \
     "key_traits<" #K "> specialization missing maker_from_tuple member type"); \
+  static_assert(darma_runtime::detail::meets_key_concept<K>::has_component_method, \
+    #K " is missing template method component<N>()"); \
+  static_assert(darma_runtime::detail::meets_key_concept<K>::key_component_method_works, \
+    "return value of component<N>() for " #K " does not have an as<>() method that returns the component as a type"); \
 
 static_assert(not darma_runtime::detail::meets_key_concept<int>::value,
   "oops, int shouldn't be a valid key");
