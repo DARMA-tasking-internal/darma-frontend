@@ -20,23 +20,37 @@ int darma_main(int argc, char** argv) {
   size_t me = darma_spmd_rank();
   size_t n_ranks = darma_spmd_size();
 
-  if(me == 0) {
-    AccessHandle<int> dep = initial_access<int>(me, "the_dep");
-    create_work([=]{
-      std::cout << "setting value to 42" << std::endl;
-      dep.set_value(42);
-    });
+  auto outer = initial_access<int>("squirrel",me);
 
-    dep.publish(n_readers=1, version="hello");
-  }
-  else if(me == 1){
-    AccessHandle<int> recvd = read_access<int>(me-1, "the_dep", version="hello");
+  create_work([=]{ outer.set_value(me);});
+  outer.publish(n_readers=9);
+
+  for (int iter = 0; iter < 4; iter++) {
+    auto inner = read_access<int>("squirrel",me);
 
     create_work([=]{
-      std::cout << recvd.get_value() << " received on " << me << std::endl;
+      std::cout << "inner is " << inner.get_value() << std::endl;
     });
-
   }
+
+
+  //if(me == 0) {
+  //  AccessHandle<int> dep = initial_access<int>(me, "the_dep");
+  //  create_work([=]{
+  //    std::cout << "setting value to 42" << std::endl;
+  //    dep.set_value(42);
+  //  });
+
+  //  dep.publish(n_readers=1, version="hello");
+  //}
+  //else if(me == 1){
+  //  AccessHandle<int> recvd = read_access<int>(me-1, "the_dep", version="hello");
+
+  //  create_work([=]{
+  //    std::cout << recvd.get_value() << " received on " << me << std::endl;
+  //  });
+
+  //}
 
   //AccessHandle<std::string> dep = initial_access<std::string>(me, "the_dep");
   //create_work([=]{

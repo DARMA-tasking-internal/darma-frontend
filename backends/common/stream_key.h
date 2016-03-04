@@ -52,6 +52,7 @@
 #include <darma/meta/tuple_for_each.h>
 #include <darma/abstract/defaults/key_fwd.h>
 #include <darma/util.h>
+#include <darma/key_concept.h>
 
 namespace mock_backend {
 
@@ -182,6 +183,7 @@ operator==(const StreamKey& a, const StreamKey& b) {
 
 } // end namespace mock_backend
 
+
 namespace darma_runtime {
 
 namespace detail {
@@ -232,6 +234,8 @@ struct hash<mock_backend::StreamKey> {
 };
 
 } // end namespace std
+
+DARMA_STATIC_ASSERT_VALID_KEY_TYPE(mock_backend::StreamKey);
 
 
 #endif /* MOCK_STREAM_KEY_H_ */

@@ -47,6 +47,7 @@ darma.h
 darma_assert.h
 darma_main.h
 handle.h
+key_concept.h
 runtime.h
 serialization.h
 serialization_builtin.h

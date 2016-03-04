@@ -54,6 +54,8 @@
 #include <darma/meta/tuple_for_each.h>
 #include <darma/abstract/defaults/key_fwd.h>
 
+#include <darma/key_concept.h> // key_traits
+
 
 #ifndef DARMA_DEBUG_KEY_TYPES
 #  define DARMA_DEBUG_KEY_TYPES 1

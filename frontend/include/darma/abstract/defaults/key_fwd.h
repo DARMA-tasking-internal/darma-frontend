@@ -51,13 +51,6 @@ namespace defaults {
 class Key;
 } // end namespace defaults
 
-namespace detail {
-
-template <typename key_type>
-struct key_traits { };
-
-} // end namespace detail
-
 } // end namespace darma_runtime
 
 
