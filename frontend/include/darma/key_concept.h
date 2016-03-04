@@ -214,6 +214,8 @@ struct meets_key_concept {
       && hasher_works
       && has_maker
       && has_maker_from_tuple
+      && has_component_method
+      && key_component_method_works
     ;
 
     typedef std::integral_constant<bool, value> type;

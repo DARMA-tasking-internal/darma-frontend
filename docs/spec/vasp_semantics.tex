@@ -167,7 +167,7 @@ same information for deferred operations.
 
 \todo[inline]{finish this section by describing the operations in the table}
 
-\begin{table}[b]
+\begin{table}
 \begin{center}
 {\small
 \begin{tabular}{l|cc|cc|cc|cc}
@@ -219,7 +219,7 @@ represent no-ops and could generate warnings at the implementer's discretion.}
 \label{tab:immsimp}
 \end{center}
 \end{table}
-% 
+% % 
 
 
 \begin{table}[b]
@@ -284,6 +284,43 @@ the simplified semantics.}
 \label{tab:capsimp}
 \end{center}
 \end{table}
+
+\subsection{Versioning Example}
+
+This example illustrates how the hierarchical versioning maintains program
+ordering regardless the order in which the DAG is built.
+
+\todo[inline]{elaborate on this example}
+
+\begin{vaspPseudo}
+VASP<int> a, b;
+// a, b both at version 0
+mod-capture(a){
+    // a at verion 0.0
+    a.set_value(5);
+};
+// a at version 1
+mod-capture(a, b){
+    // a at version 1.0, b at version 0.0
+    b.set_value(a.get_value()*2);
+    a.set_value(a.get_value() + 1);
+};
+// a at version 2, b at verion 1
+capture(ro(a), mod(b)){
+    // a still at version 2, b at version 1.0
+    mod-capture(b){ /* b at version 1.0.1 */ };
+    // b at verion 1.1
+    ro-capture(b){ /* b still at version 1.1 */ };
+    // b still at version 1.1
+    mod-capture(b){
+        // b at version 1.1.0
+        mod-capture(b){ /* b at version 1.1.0.1 */ };
+        // b at version 1.1.1
+    };
+    // b at version 1.2
+};
+// a still at version 2, b at version 2
+\end{vaspPseudo}
 
 
 \section{Full VASP Semantics}
