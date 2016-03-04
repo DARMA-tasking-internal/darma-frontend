@@ -4,6 +4,7 @@
 % Packages used by this style file
 \RequirePackage{listings}
 \RequirePackage{color}
+\RequirePackage{shortvrb}
 
 
 \definecolor{grayish}{gray}{0.95}
@@ -11,6 +12,9 @@
 
 \newcommand{\inlinefile}[1]{{\lstset{basicstyle=\ttfamily,keywordstyle={}}\lstinline$#1$}}
 \newcommand{\inlinecode}[1]{{\lstset{basicstyle=\ttfamily,keywordstyle={},breaklines=true}\lstinline$#1$}}
+%\newcommand{\inlinevrb}[1]{\lstset{basicstyle=\ttfamily,keywordstyle={},breaklines=true}\lstinline}
+\newcommand{\inlineopts}{basicstyle=\ttfamily,keywordstyle={},breaklines=true}
+%\lstMakeShortInline[basicstyle=\ttfamily,keywordstyle={},breaklines=true]|
 
 \newenvironment{subItemize}{
 \begin{itemize}

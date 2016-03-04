@@ -124,6 +124,7 @@ but needs to be created,
 2) a handle to data that already exists and needs to
 be read, or 
 3) a handle to data that it wants to overwrite or modify. 
+(The third type of handle does not exist in the 0.2 version of the spec.)
 
 Type 1 is denoted as \inlinecode{initial_access} in DARMA, which informs the runtime that the data with the 
 specified key does not yet exist, and the user intends to create this data and
@@ -133,21 +134,23 @@ data handle is usually followed by a memory allocation, a value assignment and f
 
 \begin{CppCode}
 auto float_handle = initial_access<float>("float_key");
-float_handle.set_value(3.14);
+create_work([=]{
+  float_handle.set_value(3.14);
+});
 \end{CppCode}
 The second type of handle, requesting read-only access to a piece of data, is via \inlinecode{read_access}. 
 
-\todo[inline]{This needs to be revised or changed, since
-``wait\_and\_get\_value()'' (or whatever we end up calling it) is an
-advanced feature (and not part of the 0.2 spec).}
-\begin{CppCode}
-auto float_handle = read_access<float>("another_float_key");
-{
-  float val = float_handle.wait_and_get_value();
-  std::cout << "Value read with key another_float_key is " << val;
-}
-\end{CppCode}
-or, alternatively using deferred execution
+%\todo[inline]{This needs to be revised or changed, since
+%``wait\_and\_get\_value()'' (or whatever we end up calling it) is an
+%advanced feature (and not part of the 0.2 spec).}
+%\begin{CppCode}
+%auto float_handle = read_access<float>("another_float_key");
+%{
+%  float val = float_handle.wait_and_get_value();
+%  std::cout << "Value read with key another_float_key is " << val;
+%}
+%\end{CppCode}
+%or, alternatively using deferred execution
 \begin{CppCode}
 auto float_handle = read_access<float>("another_float_key");
 create_work([=]{
@@ -159,12 +162,13 @@ create_work([=]{
 % exists and is ready locally.
 You can only call \inlinecode{get_value} in a context where you have read access
 to the data associated with the handle, either by capturing into a deferred
-context or by explicitly waiting on the value.  This might involve moving data
-if the \inlinecode{float} is on a remote node.
+context or by explicitly waiting on the value (though waiting on the value is
+not supported in the 0.2 spec).
+This might involve moving data if the \inlinecode{float} is on a remote node.
 In general, any calls to \inlinecode{get_value} should occur within a scoped code block to avoid dangling references to stale physical memory locations.
-It may also cause the task to block execution (depending on the implementation; some implementations may be able to context switch).
-Better practice is to access data via deferred tasks inside a
-\inlinecode{create_work} block when possible.
+Even when it becomes possible to wait on the data associated with a handle (in
+later versions of the spec), best practice is to access data via deferred tasks
+inside a \inlinecode{create_work} block when possible.
 
 The third handle type, which informs the runtime that the data with the specified key will be read and overwritten or modified, 
 is with the \inlinecode{read_write} handle, illustrated below. 
@@ -186,6 +190,10 @@ create_work([=] {
   float_handle.set_value(3.14*2.0);
 });
 \end{CppCode}
+This sort of access is not available in the 0.2 version of the spec, and in
+later versions this sort of usage will be conceptualized as ``ownership
+transfer'' of a data block, since exactly one \inlinecode{AccessHandle} with
+modification priviledges on a block of data can exist at any given time.
 %As with \inlinecode{read_access}, value get/set should at least occur within a
 % scoped code block, and will likely perform better if placed in a deferred task block.
 
@@ -254,12 +262,42 @@ argument (see Section \ref{sec:keyword}) that informs the runtime that the data
 can be safely garbage collected soon after.  This code is essentially a direct
 replacement of a send/recv.
 
-\subsubsection{Publication Versions}
-\todo[inline]{publication versions}
+Publish operations are treated as asynchronous read operations --- that is,
+\inlinecode{h.publish(/*...*/)} is treated like
+\verb| create_work(reads(h), [=]{/*...*/}); |. 
+This means that the same precautions should be taken as with asynchronous reads.  In particular, even if
+the handle was in a modifiable state before the \inlinecode{publish}, it is no
+longer valid to call \lstinline!h.set_value()! after the publish, since the
+asynchronous read done by the publish may or may not have occurred yet.  In this
+scenario, one should use \verb|create_work([=]{ h.set_value(/*...*/); });|
+instead.
 
-\subsection{Subscribe}
-\label{subsec:subscribe}
-\todo[inline]{add subscribe (0.2.1)}
+\subsubsection{Publication Versions}
+
+If a handle is going to be published multiple times (or, more specifically, if
+the key with which the handle was created is going to be published multiple
+times), it needs to be published with a different version each time.  Versions
+are just like keys --- an arbitrary tuple of values (see Section
+\ref{subsec:keys}).  For instance:
+
+\begin{CppCode}
+auto float_handle = initial_access<float>("float_key");
+auto int_handle = initial_access<int>("int_key");
+/*...*/
+int_handle.publish(n_readers=3, version=77);
+// Use version() instead of version= for multi-part version keys
+float_handle.publish(n_readers=1, version("alpha",42));
+
+/* Elsewhere... (e.g., on a different rank) */
+auto my_int = read_access<int>("int_key", version=77);
+auto my_flt = read_access<float>("float_key", version("alpha",42));
+
+\end{CppCode}
+
+% DSH took this out, since it's supposed to be in 0.3
+%\subsection{Subscribe}
+%\label{subsec:subscribe}
+%\todo[inline]{add subscribe (0.2.1)}
 
 \subsection{Keys}
 \label{subsec:keys}
