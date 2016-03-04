@@ -42,7 +42,7 @@
 //@HEADER
 */
 
-#define DHARMA_SERIAL_DEBUG 0
+#define DHARMA_SERIAL_DEBUG 1
 
 #include <stack>
 #include <unordered_set>
@@ -269,9 +269,12 @@ class SerialRuntime
         assert(fetch_handles.find(intptr_t(handle)) != fetch_handles.end());
       }
       else {
-        auto found_lavd = last_at_version_depth.find({handle->get_key(), handle->get_version()});
-        assert(found_lavd == last_at_version_depth.end());
-        last_at_version_depth.emplace(handle->get_key(), handle->get_version());
+        auto found_fh = fetch_handles.find(intptr_t(handle));
+        if(found_fh == fetch_handles.end()) {
+          auto found_lavd = last_at_version_depth.find({handle->get_key(), handle->get_version()});
+          assert(found_lavd == last_at_version_depth.end());
+          last_at_version_depth.emplace(handle->get_key(), handle->get_version());
+        }
       }
     }
 

@@ -549,7 +549,6 @@ class AccessHandle
         ////////////////////////////////////////////////////////////////////////////////
 
         // Determine the capture type
-        // TODO finish asking the task if any special permissions downgrades were given
         // TODO check that any explicit permissions are obeyed
 
         capture_op_t capture_type;
