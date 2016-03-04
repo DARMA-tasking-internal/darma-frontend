@@ -26,12 +26,11 @@ int darma_main(int argc, char** argv) {
   outer.publish(n_readers=9);
 
   for (int iter = 0; iter < 4; iter++) {
-    auto inner = read_access<int>("squirrel",me);
-
-    create_work([=]{
-      std::cout << "inner is " << inner.get_value() << std::endl;
+    create_work(reads(outer),[=]{
+      std::cout << "outer is " << outer.get_value() << std::endl;
     });
   }
+
 
 
   //if(me == 0) {

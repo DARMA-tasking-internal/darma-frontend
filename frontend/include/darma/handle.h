@@ -510,7 +510,9 @@ class AccessHandle
 
     AccessHandle&
     operator=(std::nullptr_t) const {
-      // TODO more readable error
+      if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
+        detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
+      }
       dep_handle_ = 0;
       state_ = None_None;
       read_only_holder_ = 0;
@@ -785,7 +787,9 @@ class AccessHandle
 
     ~AccessHandle() {
       if(capturing_task) {
-        detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
+        if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
+          detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
+        }
       }
     }
 
