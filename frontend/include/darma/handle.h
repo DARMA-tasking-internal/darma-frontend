@@ -548,152 +548,164 @@ class AccessHandle
           copied_from_ptr->read_only_holder_.reset();
         }
 
-        ////////////////////////////////////////////////////////////////////////////////
+        bool ignored = running_task->ignored_handles.find(dep_handle_.get())
+            != running_task->ignored_handles.end();
 
-        // Determine the capture type
-        // TODO check that any explicit permissions are obeyed
+        if(not ignored) {
 
-        capture_op_t capture_type;
+          ////////////////////////////////////////////////////////////////////////////////
 
-        // first check for any explicit permissions
-        auto found = running_task->read_only_handles.find(outer.dep_handle_.get());
-        if(found != running_task->read_only_handles.end()) {
-          capture_type = ro_capture;
-          running_task->read_only_handles.erase(found);
-        }
-        else {
-          // Deduce capture type from state
-          switch(outer.state_) {
-            case Read_None:
-            case Read_Read: {
-              capture_type = ro_capture;
-              break;
-            }
-            case Modify_None:
-            case Modify_Read:
-            case Modify_Modify: {
-              capture_type = mod_capture;
-              break;
-            }
-            case None_None: {
-              DARMA_ASSERT_MESSAGE(false, "Handle used after release");
-              break;
-            }
-          };
-        }
+          // Determine the capture type
+          // TODO check that any explicit permissions are obeyed
 
-        ////////////////////////////////////////////////////////////////////////////////
+          capture_op_t capture_type;
 
-        switch(capture_type) {
-          case ro_capture: {
-            switch(outer.state_) {
-              case None_None: {
-                DARMA_ASSERT_MESSAGE(false, "Handle used after release");
-                break;
-              }
-              case Read_None:
-              case Read_Read:
-              case Modify_None:
-              case Modify_Read: {
-                dep_handle_ = outer.dep_handle_;
-                state_ = Read_Read;
-                read_only_holder_ = outer.read_only_holder_;
-
-                // Outer dep handle, state, read_only_holder stays the same
-
-                break;
-              }
-              case Modify_Modify: {
-                version_t next_version = outer.dep_handle_->get_version();
-                ++next_version;
-                dep_handle_ = dep_handle_ptr_maker_t()(
-                  outer.dep_handle_->get_key(),
-                  next_version
-                );
-                read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);
-                state_ = Read_Read;
-
-                outer.dep_handle_ = dep_handle_;
-                outer.read_only_holder_ = read_only_holder_;
-                outer.state_ = Modify_Read;
-
-                break;
-              }
-            }; // end switch outer.state_
-            capturing_task->add_dependency(
-              dep_handle_,
-              /*needs_read_data = */ true,
-              /*needs_write_data = */ false
-            );
-            break;
+          // first check for any explicit permissions
+          auto found = running_task->read_only_handles.find(outer.dep_handle_.get());
+          if(found != running_task->read_only_handles.end()) {
+            capture_type = ro_capture;
+            running_task->read_only_handles.erase(found);
           }
-          case mod_capture: {
+          else {
+            // Deduce capture type from state
             switch(outer.state_) {
-              case None_None: {
-                DARMA_ASSERT_MESSAGE(false, "Handle used after release");
-                break;
-              }
               case Read_None:
               case Read_Read: {
-                // TODO error here
-                assert(false);
-                break; // unreachable
+                capture_type = ro_capture;
+                break;
               }
               case Modify_None:
-              case Modify_Read: {
-                version_t outer_version = outer.dep_handle_->get_version();
-                ++outer_version;
-                dep_handle_ = outer.dep_handle_;
-                read_only_holder_ = 0;
-                state_ = Modify_Modify;
-
-                outer.dep_handle_ = dep_handle_ptr_maker_t()(
-                  dep_handle_->get_key(),
-                  outer_version
-                );
-                outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
-                outer.state_ = Modify_None;
-
-                dep_handle_->push_subversion();
-
-                break;
-              }
+              case Modify_Read:
               case Modify_Modify: {
-                version_t outer_version = outer.dep_handle_->get_version();
-                ++outer_version;
-                version_t captured_version = outer.dep_handle_->get_version();
-                captured_version.push_subversion();
-                ++captured_version;
-
-                // avoid releasing the old until these two are made
-                auto tmp = outer.dep_handle_;
-                auto tmp_ro = outer.read_only_holder_;
-
-                dep_handle_ = dep_handle_ptr_maker_t()(
-                  dep_handle_->get_key(), captured_version
-                );
-                // No read only uses of this new handle
-                read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);;
-                read_only_holder_.reset();
-                state_ = Modify_Modify;
-
-                outer.dep_handle_ = dep_handle_ptr_maker_t()(
-                  dep_handle_->get_key(), outer_version
-                );
-                outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
-                outer.state_ = Modify_None;
-
+                capture_type = mod_capture;
                 break;
               }
-            } // end switch outer.state
-            capturing_task->add_dependency(
-              dep_handle_,
-              /*needs_read_data = */ dep_handle_->get_version() != version_t(),
-              /*needs_write_data = */ true
-            );
-            break;
-          } // end mod_capture case
-        } // end switch(capture_type)
+              case None_None: {
+                DARMA_ASSERT_MESSAGE(false, "Handle used after release");
+                break;
+              }
+            };
+          }
+
+          ////////////////////////////////////////////////////////////////////////////////
+
+          switch(capture_type) {
+            case ro_capture: {
+              switch(outer.state_) {
+                case None_None: {
+                  DARMA_ASSERT_MESSAGE(false, "Handle used after release");
+                  break;
+                }
+                case Read_None:
+                case Read_Read:
+                case Modify_None:
+                case Modify_Read: {
+                  dep_handle_ = outer.dep_handle_;
+                  state_ = Read_Read;
+                  read_only_holder_ = outer.read_only_holder_;
+
+                  // Outer dep handle, state, read_only_holder stays the same
+
+                  break;
+                }
+                case Modify_Modify: {
+                  version_t next_version = outer.dep_handle_->get_version();
+                  ++next_version;
+                  dep_handle_ = dep_handle_ptr_maker_t()(
+                    outer.dep_handle_->get_key(),
+                    next_version
+                  );
+                  read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);
+                  state_ = Read_Read;
+
+                  outer.dep_handle_ = dep_handle_;
+                  outer.read_only_holder_ = read_only_holder_;
+                  outer.state_ = Modify_Read;
+
+                  break;
+                }
+              }; // end switch outer.state_
+              capturing_task->add_dependency(
+                dep_handle_,
+                /*needs_read_data = */ true,
+                /*needs_write_data = */ false
+              );
+              break;
+            }
+            case mod_capture: {
+              switch(outer.state_) {
+                case None_None: {
+                  DARMA_ASSERT_MESSAGE(false, "Handle used after release");
+                  break;
+                }
+                case Read_None:
+                case Read_Read: {
+                  // TODO error here
+                  assert(false);
+                  break; // unreachable
+                }
+                case Modify_None:
+                case Modify_Read: {
+                  version_t outer_version = outer.dep_handle_->get_version();
+                  ++outer_version;
+                  dep_handle_ = outer.dep_handle_;
+                  read_only_holder_ = 0;
+                  state_ = Modify_Modify;
+
+                  outer.dep_handle_ = dep_handle_ptr_maker_t()(
+                    dep_handle_->get_key(),
+                    outer_version
+                  );
+                  outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
+                  outer.state_ = Modify_None;
+
+                  dep_handle_->push_subversion();
+
+                  break;
+                }
+                case Modify_Modify: {
+                  version_t outer_version = outer.dep_handle_->get_version();
+                  ++outer_version;
+                  version_t captured_version = outer.dep_handle_->get_version();
+                  captured_version.push_subversion();
+                  ++captured_version;
+
+                  // avoid releasing the old until these two are made
+                  auto tmp = outer.dep_handle_;
+                  auto tmp_ro = outer.read_only_holder_;
+
+                  dep_handle_ = dep_handle_ptr_maker_t()(
+                    dep_handle_->get_key(), captured_version
+                  );
+                  // No read only uses of this new handle
+                  read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);;
+                  read_only_holder_.reset();
+                  state_ = Modify_Modify;
+
+                  outer.dep_handle_ = dep_handle_ptr_maker_t()(
+                    dep_handle_->get_key(), outer_version
+                  );
+                  outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
+                  outer.state_ = Modify_None;
+
+                  break;
+                }
+              } // end switch outer.state
+              capturing_task->add_dependency(
+                dep_handle_,
+                /*needs_read_data = */ dep_handle_->get_version() != version_t(),
+                /*needs_write_data = */ true
+              );
+              break;
+            } // end mod_capture case
+          } // end switch(capture_type)
+        } else {
+          // ignored
+          capturing_task = nullptr;
+          dep_handle_.reset();
+          read_only_holder_.reset();
+          state_ = None_None;
+        }
 
         // This doesn't really matter until we have modifiable fetching versions, but still...
         if(dep_handle_->version_is_pending()) {

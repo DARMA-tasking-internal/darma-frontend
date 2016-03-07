@@ -56,9 +56,17 @@ namespace darma_runtime {
 
 namespace detail {
 
-extern
+template <typename __ignored = void>
+abstract::backend::runtime_t*&
+_gen_backend_runtime_ptr() {
+  static_assert(std::is_same<__ignored, void>::value, "");
+  static DARMA_THREAD_LOCAL_BACKEND_RUNTIME abstract::backend::runtime_t* rv;
+  return rv;
+}
+
+//extern
 DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-abstract::backend::runtime_t* backend_runtime;
+abstract::backend::runtime_t*& backend_runtime = _gen_backend_runtime_ptr<>();
 
 } // end namespace backend
 
