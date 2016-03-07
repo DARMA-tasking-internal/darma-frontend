@@ -223,6 +223,7 @@ class TaskBase
     TaskBase* current_create_work_context = nullptr;
 
     std::set<handle_t*> read_only_handles;
+    std::set<handle_t*> ignored_handles;
 
 
 };

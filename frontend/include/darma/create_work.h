@@ -53,10 +53,14 @@
 #include <tinympl/lambda.hpp>
 
 #include "meta/tuple_for_each.h"
+#include "meta/splat_tuple.h"
 
 #include "runtime.h"
 
 #include "task.h"
+
+DeclareDarmaTypeTransparentKeyword(create_work_decorators, unless);
+DeclareDarmaTypeTransparentKeyword(create_work_decorators, only_if);
 
 namespace darma_runtime {
 
@@ -75,23 +79,45 @@ struct reads_decorator_return {
   typedef runtime_t::key_t key_t;
   typedef runtime_t::version_t version_t;
   typedef runtime_t::handle_t handle_t;
-  handle_t* const handle;
+  reads_decorator_return(std::initializer_list<handle_t*> args)
+    : handles(args)
+  { }
+  std::vector<handle_t*> handles;
+  bool use_it = true;
 };
+
+template <typename ReturnType>
+struct forward_to_get_dep_handle {
+  template <typename... AccessHandles>
+  constexpr inline ReturnType
+  operator()(AccessHandles&&... ah) const {
+    using namespace detail::create_work_attorneys;
+    return { for_AccessHandle::get_dep_handle(std::forward<AccessHandles>(ah))... };
+  }
+};
+
 
 template <typename... Args>
 struct reads_decorator_parser {
   typedef reads_decorator_return return_type;
   // For now:
-  static_assert(sizeof...(Args) == 1, "multi-args not yet implemented");
-  return_type
-  operator()(Args&&... args) {
+  //static_assert(sizeof...(Args) == 1, "multi-args not yet implemented");
+  DARMA_CONSTEXPR_14 inline return_type
+  operator()(Args&&... args) const {
     using namespace detail::create_work_attorneys;
-    return {
-      for_AccessHandle::get_dep_handle(
-        std::get<0>(std::forward_as_tuple(args...))
-      )
-    };
-
+    auto rv = meta::splat_tuple(
+      //std::forward_as_tuple(std::forward<Args>(args)...),
+      get_positional_arg_tuple(std::forward<Args>(args)...),
+      //[](auto&&... ah) {
+      //  return return_type { for_AccessHandle::get_dep_handle(ah)... };
+      //}
+      forward_to_get_dep_handle<return_type>()
+    );
+    rv.use_it = not get_typeless_kwarg_with_default_as<
+        darma_runtime::keyword_tags_for_create_work_decorators::unless,
+        bool
+    >(false, std::forward<Args>(args)...);
+    return rv;
   }
 };
 
@@ -208,7 +234,16 @@ create_work(Args&&... args) {
   meta::tuple_for_each_filtered_type<
     m::lambda<std::is_same<std::decay<mp::_>, detail::reads_decorator_return>>::template apply
   >(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
-    parent_task->read_only_handles.emplace(rdec.handle);
+    if(rdec.use_it) {
+      for(auto&& h : rdec.handles) {
+        parent_task->read_only_handles.emplace(h);
+      }
+    }
+    else {
+      for(auto&& h : rdec.handles) {
+        parent_task->ignored_handles.emplace(h);
+      }
+    }
   });
 
   // TODO waits() decorator
