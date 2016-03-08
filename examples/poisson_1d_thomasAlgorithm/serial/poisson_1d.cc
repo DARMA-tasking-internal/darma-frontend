@@ -23,20 +23,6 @@
 
 */
 
-
-double rhs(double x)
-{
-	return 2.0 * exp(x) * cos(x);
-}
-
-
-double trueSolution(double x)
-{
-	return exp(x) * sin(x);
-}
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
 // main() function
 
@@ -63,7 +49,7 @@ int main(int argc, char** argv)
 		if (i<nInn-1)
 			c[i] = 1.0;
 
-		d[i] = rhs(x) * dx*dx;
+		d[i] = rhsEval(x) * dx*dx;
 
 		if (i==1)
 			d[i] -= trueSolution(xL);

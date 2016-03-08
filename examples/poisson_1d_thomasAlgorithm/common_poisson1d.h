@@ -47,22 +47,37 @@
 
 
 
-void solveThomas(std::vector<double> & a, 
-								 std::vector<double> & b, 
-								 std::vector<double> & c, 
-								 std::vector<double> & d, 
-								 int n) 
+double rhsEval(double x)
+{
+    return 2.0 * exp(x) * cos(x);
+}
+
+
+
+double trueSolution(double x)
+{
+    return exp(x) * sin(x);
+}
+
+
+
+
+void solveThomas(double * a, 
+                 double * b, 
+                 double * c, 
+                 double * d, 
+                 int n) 
 {
     /*
 
-		Algorithm taken from web.
+        Algorithm taken from web.
 
     // n is the number of unknowns
     |b0 c0 0 ||x0| |d0|
     |a1 b1 c1||x1|=|d1|
     |0  a2 b2||x2| |d2|
 
-		1st iteration: b0x0 + c0x1 = d0 -> x0 + (c0/b0)x1 = d0/b0 ->
+        1st iteration: b0x0 + c0x1 = d0 -> x0 + (c0/b0)x1 = d0/b0 ->
 
         x0 + g0x1 = r0               where g0 = c0/b0        , r0 = d0/b0
 
@@ -88,7 +103,7 @@ void solveThomas(std::vector<double> & a,
     in this version the c matrix reused instead of g
     and             the d matrix reused instead of r and x matrices to report results
     Written by Keivan Moradi, 2014
-		*/
+        */
 
     n--; // since we start from x0 (not x1)
     c[0] /= b[0];
@@ -96,7 +111,7 @@ void solveThomas(std::vector<double> & a,
 
     for (int i = 1; i < n; i++) 
     {
-				c[i] /= b[i] - a[i]*c[i-1];
+                c[i] /= b[i] - a[i]*c[i-1];
         d[i] = (d[i] - a[i]*d[i-1]) / (b[i] - a[i]*c[i-1]);
     }
 
@@ -106,6 +121,17 @@ void solveThomas(std::vector<double> & a,
     {
         d[i] -= c[i]*d[i+1];
     }
+}
+
+
+
+void solveThomas(std::vector<double> & a, 
+				 std::vector<double> & b, 
+				 std::vector<double> & c, 
+				 std::vector<double> & d, 
+				 int n) 
+{
+    solveThomas(a.data(), b.data(), c.data(), d.data(), n);
 }
 
 

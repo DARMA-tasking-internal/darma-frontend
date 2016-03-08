@@ -1,11 +1,9 @@
 
-#include <threads_backend.h>
 #include <darma.h>
 
-using namespace darma_runtime;
-using namespace darma_runtime::keyword_arguments_for_publication;
-
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
+  using namespace darma_runtime;
 
   darma_init(argc, argv);
 
@@ -25,5 +23,4 @@ int main(int argc, char** argv) {
   });
 
   darma_finalize();
-
 }

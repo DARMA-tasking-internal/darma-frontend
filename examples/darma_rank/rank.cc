@@ -1,15 +1,14 @@
 
 
-#include <threads_backend.h>
 #include <darma.h>
-
-using namespace darma_runtime;
 
 ////////////////////////////////////////////////////////////////////////////////
 // main() function
 
 int main(int argc, char** argv)
 {
+	using namespace darma_runtime;
+
 	// intializes darma environment (similar to MPI_Init)
   darma_init(argc, argv);
 

@@ -68,9 +68,11 @@ include_directories( ${EXAMPLES_SRC_ROOT} )
 include_directories( ${EXAMPLES_BIN_ROOT} )
 
 
-
 add_subdirectory(stencil_1d)
 add_subdirectory(simple_hello)
+add_subdirectory(darma_hello)
+add_subdirectory(darma_rank)
+add_subdirectory(poisson_1d_thomasAlgorithm)
 #add_subdirectory(simple_pic)
 
 
