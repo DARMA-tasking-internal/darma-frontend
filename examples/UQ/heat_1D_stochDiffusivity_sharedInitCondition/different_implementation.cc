@@ -64,7 +64,7 @@ int main(int argc, char** argv)
 	const bool is_leftmost = myPID == 0;
 	const size_t left_neighbor = is_leftmost ? myPID : myPID - 1;
 	const bool is_rightmost = myPID == n_spmd - 1;
-	const size_t right_neighbor = myPID == is_rightmost ? myPID : myPID + 1;
+	const size_t right_neighbor = is_rightmost ? myPID : myPID + 1;
 
 	// -----------------------------------------------------
 	

@@ -35,7 +35,7 @@ constexpr int numMCRuns = 50;
 ////////////////////////////////////////////////////////////////////////////////
 // main() function
 
-int main(int argc, char** argv)
+int darma_main(int argc, char** argv)
 {
 	using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
@@ -101,10 +101,10 @@ int main(int argc, char** argv)
     double sampleDiff = RNG(gen);
     auto c = initial_access<std::vector<double>>("cmc", me, iMC);
 		auto rhs = initial_access<std::vector<double>>("dmc",me,iMC); // rhs and solution
+    auto cold = read_access<std::vector<double>>("c", me);
 
 	 	create_work([=]
 	 	{
-	    auto cold = read_access<std::vector<double>>("c", me);
 	 		double * ptCold = cold->data();
 	 		c.emplace_value(cold.get_value()); 
 
@@ -130,13 +130,13 @@ int main(int argc, char** argv)
 
  	for (int iMC = 0; iMC < numMCRuns; ++iMC)
  	{
+    auto a = read_access<std::vector<double>>("a", me);
+    auto b = read_access<std::vector<double>>("b", me);
+    auto c = read_access<std::vector<double>>("cmc", me, iMC);
+    auto d = read_access<std::vector<double>>("dmc", me, iMC);
+
 	 	create_work([=]
 	 	{
-	    auto a = read_access<std::vector<double>>("a", me);
-	    auto b = read_access<std::vector<double>>("b", me);
-	    auto c = read_access<std::vector<double>>("cmc", me, iMC);
-	    auto d = read_access<std::vector<double>>("dmc", me, iMC);
-
 	 		double * pta = a->data(); //not modified by thomas 
 	 		double * ptb = b->data();	//not modified by thomas 
 	 		double * ptc = c->data();	//need a copy because it is modified by thomas 

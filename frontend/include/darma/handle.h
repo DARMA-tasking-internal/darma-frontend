@@ -706,12 +706,14 @@ class AccessHandle
           read_only_holder_.reset();
           state_ = None_None;
         }
-
-        // This doesn't really matter until we have modifiable fetching versions, but still...
-        if(dep_handle_->version_is_pending()) {
-          outer.dep_handle_->set_version_is_pending(true);
+        if (dep_handle_)
+        {
+          // This doesn't really matter until we have modifiable fetching versions, but still...
+          if(dep_handle_->version_is_pending()) 
+          {
+            outer.dep_handle_->set_version_is_pending(true);
+          }
         }
-
       } // end if capturing_task != nullptr
     }
 

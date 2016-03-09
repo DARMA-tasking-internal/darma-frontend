@@ -5,7 +5,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // main() function
 
-int main(int argc, char** argv)
+int darma_main(int argc, char** argv)
 {
 	using namespace darma_runtime;
 
@@ -20,5 +20,6 @@ int main(int argc, char** argv)
   std::cout << "I am darma rank = " << me << std::endl;
 
   darma_finalize();
+  return 0;
 }
 

@@ -24,16 +24,16 @@
 	Problem is setup as follows: 
 	
 	Full grid: 
-	    o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o
+	    	o  o  o  o  o  o  o  o  o  o  o  o  o  o  o  o
 		
 	Distribute uniformly accross all ranks: 
 
     s   o  o  o  o  *
-			     *  o  o  o  o  *
-							 *  o  o  o  o  *
-										 *  o  o  o  o  s
+			     			 *  o  o  o  o  *
+							 							 *  o  o  o  o  *
+										 										 *  o  o  o  o  s
 
-		   r0		   r1 			r2         r3
+		   		r0		   			r1 					r2         	r3
 
 	s:  are not actually needed because outside of domain, 
 		but exist anyway so that each local vector has same size.
@@ -84,7 +84,7 @@ int main(int argc, char** argv)
 	const bool is_leftmost = myPID == 0;
 	const int left_neighbor = is_leftmost ? myPID : myPID - 1;
 	const bool is_rightmost = myPID == comm_size - 1;
-	const int right_neighbor = myPID == is_rightmost ? myPID : myPID + 1;
+	const int right_neighbor = is_rightmost ? myPID : myPID + 1;
 	const int leftNeigh   = myPID-1;
 	const int rightNeigh  = myPID+1;
 
