@@ -59,13 +59,13 @@
 #include <tinympl/logical_and.hpp>
 #include <tinympl/vector.hpp>
 
-#include "abstract/backend/types.h"
-#include "abstract/backend/runtime.h"
-#include "abstract/frontend/dependency_handle.h"
-#include "abstract/frontend/task.h"
+#include <darma/interface/backend/types.h>
+#include <darma/interface/backend/runtime.h>
+#include <darma/interface/frontend/dependency_handle.h>
+#include <darma/interface/frontend/task.h>
 
-#include "util.h"
-#include "runtime.h"
+#include <darma/impl/util.h>
+#include <darma/impl/runtime.h>
 
 namespace darma_runtime {
 

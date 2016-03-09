@@ -8,97 +8,6 @@ using namespace darma_runtime;
 thread_local int counter = 0;
 int me = 0;
 
-
-//constexpr int N_to_compute = 7;
-
-//struct list_key_part {
-//  std::vector<int> val;
-//};
-//
-//namespace std {
-//
-//std::ostream&
-//operator<<(std::ostream& o, list_key_part const& p) {
-//  for(auto&& v : p.val) {
-//    o << v << " ";
-//  }
-//  o << -99;
-//  return o;
-//}
-//
-//std::istream&
-//operator>>(std::istream& i, list_key_part& p) {
-//  int v = 0;
-//  while(v != -99) {
-//    i >> v;
-//    if(v != -99) {
-//      p.val.push_back(v);
-//    }
-//  }
-//  return i;
-//}
-//
-//
-//}
-
-//template <typename Handle>
-//void do_fib(Handle const& handle_n) {
-//
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  int n = handle_n.get_key().template component<1>().template as<int>();
-//  auto third_key = handle_n.get_key().template component<2>().template as<list_key_part>();
-//  third_key.val.push_back(n);
-//
-//  create_work([=]{
-//    if(n < 2) {
-//      handle_n.set_value(n);
-//    }
-//    else {
-//      bool is_initial = true;
-//      int val = third_key.val[0];
-//      for(int i = 1; i < third_key.val.size(); ++i) {
-//        if(val - 1 != third_key.val[i]) {
-//          is_initial = false;
-//          break;
-//        }
-//        else {
-//          val = third_key.val[i];
-//        }
-//      }
-//
-//      AccessHandle<int> handle_n_minus_1, handle_n_minus_2;
-//      if(is_initial) {
-//        handle_n_minus_1 = initial_access<int>("fib", n-1, third_key);
-//        handle_n_minus_2 = initial_access<int>("fib", n-2, third_key);
-//      }
-//      else {
-//        handle_n_minus_1 = read_access<int>("fib", n-1, third_key);
-//        handle_n_minus_2 = read_access<int>("fib", n-2, third_key);
-//      }
-//
-//      create_work([=]{
-//        do_fib(handle_n_minus_1);
-//        do_fib(handle_n_minus_2);
-//        handle_n.set_value(
-//          handle_n_minus_1.get_value()
-//          + handle_n_minus_2.get_value()
-//        );
-//      });
-//
-//      if(is_initial) {
-//        handle_n_minus_1.publish(n_readers=std::numeric_limits<int>::max());
-//        handle_n_minus_2.publish(n_readers=std::numeric_limits<int>::max());
-//      }
-//    }
-//  });
-//
-//}
-
-//void do_fib(std::vector<AccessHandle<int>> handles) {
-//
-//}
-
 template <typename Handle>
 void fib(Handle const& in, int n) {
 
@@ -117,7 +26,7 @@ void fib(Handle const& in, int n) {
 
       fib(y, n-2);
 
-      create_work(reads(x, y, unless=false), [=]{
+      create_work(reads(x, y), [=]{
         in.set_value(x.get_value() + y.get_value());
       });
     }
@@ -136,32 +45,6 @@ int darma_main(int argc, char** argv) {
   size_t n_ranks = darma_spmd_size();
 
   if(me == 0) {
-
-    //std::vector<AccessHandle<int>> handles(N_to_compute + 1);
-
-    //int spot = 7;
-    //for(auto& h : handles) {
-    //  h = initial_access<int>("fib", spot--);
-    //}
-
-
-    //do_fib(handles);
-
-    ////create_work([=]{
-    ////  //fib_handle.set_value(fib_part{7, 0});
-    ////  auto& f = fib_handle.get_reference();
-    ////  f.n = 7;
-    ////  f.f_n = 0;
-    ////});
-
-
-
-    //do_fib(fib_handle);
-
-    //auto hh = fib_handle
-    //create_work(reads(fib_handle), [=]{
-    //  std::cout << fib_handle.get_value() << std::endl;
-    //});
 
     auto my_fib = initial_access<int>("fib");
 

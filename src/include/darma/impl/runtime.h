@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          spmd.h
-//                         darma_new
+//                          runtime.h
+//                         darma_mockup
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,61 +42,37 @@
 //@HEADER
 */
 
-#ifndef SPMD_H_
-#define SPMD_H_
+#ifndef NEW_RUNTIME_H_
+#define NEW_RUNTIME_H_
 
-#include <memory>
+#include <darma/impl/task_fwd.h>
+#include <darma/interface/backend/runtime.h>
 
-#include "runtime.h"
-#include "abstract/backend/runtime.h"
-#include "darma_assert.h"
-#include "task.h"
-
+#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+#endif
 
 namespace darma_runtime {
 
-typedef size_t darma_rank_t;
+namespace detail {
 
-inline void
-darma_init(
-  int& argc,
-  char**& argv
-) {
-  std::unique_ptr<typename darma_runtime::abstract::backend::runtime_t::task_t> moved_from =
-      std::make_unique<detail::TopLevelTask>();
-  abstract::backend::darma_backend_initialize(
-    argc, argv, detail::backend_runtime, std::move(moved_from)
-  );
+template <typename __ignored = void>
+abstract::backend::runtime_t*&
+_gen_backend_runtime_ptr() {
+  static_assert(std::is_same<__ignored, void>::value, "");
+  static DARMA_THREAD_LOCAL_BACKEND_RUNTIME abstract::backend::runtime_t* rv;
+  return rv;
 }
 
-inline darma_rank_t
-darma_spmd_rank() {
-  DARMA_ASSERT_NOT_NULL(detail::backend_runtime);
-  DARMA_ASSERT_NOT_NULL(detail::backend_runtime->get_running_task());
+//extern
+DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+abstract::backend::runtime_t*& backend_runtime = _gen_backend_runtime_ptr<>();
 
-  DARMA_ASSERT_EQUAL(
-    std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>()),
-    DARMA_BACKEND_SPMD_NAME_PREFIX
-  );
-  return detail::backend_runtime
-      ->get_running_task()->get_name().component<1>().as<darma_rank_t>();
-}
-
-inline darma_rank_t
-darma_spmd_size() {
-  DARMA_ASSERT_EQUAL(
-    std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>()),
-    DARMA_BACKEND_SPMD_NAME_PREFIX
-  );
-  return detail::backend_runtime
-      ->get_running_task()->get_name().component<2>().as<darma_rank_t>();
-}
-
-inline void
-darma_finalize() {
-  detail::backend_runtime->finalize();
-}
+} // end namespace backend
 
 } // end namespace darma_runtime
 
-#endif /* SPMD_H_ */
+
+
+
+#endif /* NEW_RUNTIME_H_ */

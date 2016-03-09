@@ -56,14 +56,14 @@
 #include <tinympl/logical_not.hpp>
 #include <tinympl/copy_traits.hpp>
 
-#include "task.h"
-#include "runtime.h"
-#include "abstract/defaults/version.h"
-#include "util.h"
-#include "darma_assert.h"
+#include <darma/impl/task.h>
+#include <darma/impl/runtime.h>
+#include <darma/interface/defaults/version.h>
+#include <darma/impl/util.h>
+#include <darma/impl/darma_assert.h>
 
-#include "abstract/backend/data_block.h"
-#include "keyword_arguments/keyword_arguments.h"
+#include <darma/interface/backend/data_block.h>
+#include <darma/impl/keyword_arguments/keyword_arguments.h>
 
 DeclareDarmaTypeTransparentKeyword(publication, n_readers);
 // TODO make this a key expression instead of a std::string

@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          runtime.h
-//                         darma_mockup
+//                          task_fwd.h
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,37 +42,9 @@
 //@HEADER
 */
 
-#ifndef NEW_RUNTIME_H_
-#define NEW_RUNTIME_H_
+#ifndef SRC_INTERFACE_APP_DARMA_H_
+#define SRC_INTERFACE_APP_DARMA_H_
 
-#include "task_fwd.h"
-#include "abstract/backend/runtime.h"
+#include <darma/impl/darma.h>
 
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#endif
-
-namespace darma_runtime {
-
-namespace detail {
-
-template <typename __ignored = void>
-abstract::backend::runtime_t*&
-_gen_backend_runtime_ptr() {
-  static_assert(std::is_same<__ignored, void>::value, "");
-  static DARMA_THREAD_LOCAL_BACKEND_RUNTIME abstract::backend::runtime_t* rv;
-  return rv;
-}
-
-//extern
-DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-abstract::backend::runtime_t*& backend_runtime = _gen_backend_runtime_ptr<>();
-
-} // end namespace backend
-
-} // end namespace darma_runtime
-
-
-
-
-#endif /* NEW_RUNTIME_H_ */
+#endif /* SRC_INTERFACE_APP_DARMA_H_ */

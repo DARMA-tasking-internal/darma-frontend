@@ -46,8 +46,8 @@
 
 #include "mock_backend.h"
 
-#include <darma/abstract/backend/runtime.h>
-#include <darma/abstract/backend/data_block.h>
+#include <darma/interface/backend/runtime.h>
+#include <darma/interface/backend/data_block.h>
 
 using namespace darma_runtime;
 using std::cout;
