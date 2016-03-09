@@ -44,6 +44,7 @@
 
 #include <tinympl/find_all.hpp>
 #include <tinympl/find_all_if.hpp>
+#include <util/empty_main.h>
 
 #include "metatest_helpers.h"
 

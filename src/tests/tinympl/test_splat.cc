@@ -45,6 +45,7 @@
 
 #include <tinympl/splat.hpp>
 
+#include <util/empty_main.h>
 #include "metatest_helpers.h"
 
 #include <tinympl/vector.hpp>
