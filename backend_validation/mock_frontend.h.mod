@@ -448,7 +448,29 @@ class MockTask
 
 } // end namespace mock_frontend
 
+#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+#endif
 
+namespace darma_runtime {
+
+namespace detail {
+
+template <typename __ignored = void>
+abstract::backend::runtime_t*&
+_gen_backend_runtime_ptr() {
+  static_assert(std::is_same<__ignored, void>::value, "");
+  static DARMA_THREAD_LOCAL_BACKEND_RUNTIME abstract::backend::runtime_t* rv;
+  return rv;
+}
+
+//extern
+DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+abstract::backend::runtime_t*& backend_runtime = _gen_backend_runtime_ptr<>();
+
+} // end namespace backend
+
+} // end namespace darma_runtime
 
 
 #endif /* TEST_GTEST_BACKEND_MOCK_FRONTEND_H_ */
