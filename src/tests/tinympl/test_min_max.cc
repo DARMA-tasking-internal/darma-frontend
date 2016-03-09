@@ -46,6 +46,7 @@
 #include <tinympl/min_element.hpp>
 #include <tinympl/max_element.hpp>
 #include <tinympl/int.hpp>
+#include <util/empty_main.h>
 
 #include "metatest_helpers.h"
 

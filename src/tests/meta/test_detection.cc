@@ -43,7 +43,7 @@
 */
 
 
-#include <darma/meta/detection.h>
+#include <darma/impl/meta/detection.h>
 #include <string>
 
 #include <tinympl/lambda.hpp>
@@ -73,4 +73,5 @@ static_assert(
   "oops"
 );
 
-#include "../util/empty_main.h"
+#include <util/empty_main.h>
+

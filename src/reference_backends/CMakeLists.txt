@@ -23,9 +23,9 @@ endif ()
 
 
 if (DARMA_ALL_IN_ONE)
-set (DARMA_FRONTEND ${CMAKE_SOURCE_DIR}/frontend)
-set (BACKENDS_ROOT ${CMAKE_SOURCE_DIR}/backends)
-include_directories( ${CMAKE_SOURCE_DIR}/backends ${CMAKE_BINARY_DIR}/backends )
+set (DARMA_FRONTEND ${CMAKE_SOURCE_DIR}/src)
+set (BACKENDS_ROOT ${CMAKE_SOURCE_DIR}/src/reference_backends)
+include_directories( ${BACKENDS_ROOT} ${CMAKE_BINARY_DIR}/src/reference_backends )
 else() #built as standalone
 set (BACKENDS_ROOT ${CMAKE_SOURCE_DIR})
 include_directories( ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} )

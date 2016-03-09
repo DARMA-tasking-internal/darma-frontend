@@ -49,6 +49,8 @@
 #include <tinympl/lambda.hpp>
 #include <tinympl/vector.hpp>
 
+#include <util/empty_main.h>
+
 #include "metatest_helpers.h"
 
 using namespace tinympl;

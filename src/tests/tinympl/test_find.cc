@@ -49,7 +49,10 @@
 #include <tinympl/vector.hpp>
 #include <type_traits>
 
+#include <util/empty_main.h>
+
 #include "metatest_helpers.h"
+
 
 using namespace tinympl;
 

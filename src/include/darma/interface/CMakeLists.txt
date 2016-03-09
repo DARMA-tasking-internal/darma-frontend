@@ -1,0 +1,29 @@
+
+set (app_HEADERS
+app/darma.h)
+
+set (backend_HEADERS
+backend/data_block.h
+backend/runtime.h
+backend/types.h)
+
+set (default_HEADERS
+defaults/key.h
+defaults/key_fwd.h
+defaults/pointers.h
+defaults/version.h)
+
+set (frontend_HEADERS
+frontend/aliasing_manager.h
+frontend/containment_manager.h
+frontend/dependency_handle.h
+frontend/serialization_manager.h
+frontend/task.h
+frontend/types.h)
+
+
+install (FILES ${app_HEADERS} DESTINATION include/interface/app)
+install (FILES ${backend_HEADERS} DESTINATION include/interface/backend)
+install (FILES ${default_HEADERS} DESTINATION include/interface/default)
+install (FILES ${frontend_HEADERS} DESTINATION include/interface/frontend)
+

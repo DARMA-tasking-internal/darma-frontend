@@ -46,7 +46,7 @@
 #include <iostream>
 #include <tuple>
 
-#include <darma/meta/splat_tuple.h>
+#include <darma/impl/meta/splat_tuple.h>
 
 using namespace darma_runtime;
 

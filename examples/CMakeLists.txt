@@ -23,22 +23,20 @@ endif ()
 if (DARMA_ALL_IN_ONE)
 set (EXAMPLES_SRC_ROOT ${CMAKE_SOURCE_DIR}/examples)
 set (EXAMPLES_BIN_ROOT ${CMAKE_BINARY_DIR}/examples)
-
-set (DARMA_BACKEND ${CMAKE_SOURCE_DIR}/backends)
-set (DARMA_FRONTEND ${CMAKE_SOURCE_DIR}/frontend)
+set (DARMA_FRONTEND ${CMAKE_SOURCE_DIR}/src)
 
 #figure out which backend
-include_directories( ${CMAKE_SOURCE_DIR}/backends )
+include_directories( ${CMAKE_SOURCE_DIR}/src/reference_backends )
 if (STL_THREADS_BACKEND)
-include_directories( ${CMAKE_SOURCE_DIR}/backends/stl_threads )
+include_directories( ${CMAKE_SOURCE_DIR}/src/reference_backends/stl_threads )
 set (IN_TREE_BACKEND darma_stl_threads_backend)
 elseif (MOCK_BACKEND)
 set (IN_TREE_BACKEND darma_mock_backend)
-include_directories( ${CMAKE_SOURCE_DIR}/backends/mock )
+include_directories( ${CMAKE_SOURCE_DIR}/src/reference_backends/mock )
 set (EXTRA_LIBS )
 elseif (SERIAL_BACKEND)
 set (IN_TREE_BACKEND darma_serial_backend)
-include_directories( ${CMAKE_SOURCE_DIR}/backends/serial )
+include_directories( ${CMAKE_SOURCE_DIR}/src/reference_backends/serial )
 endif()
 
 else() #built as standalone
@@ -63,7 +61,6 @@ endif() #DARMA_ALL_IN_ONE
 include_directories( ${DARMA_FRONTEND}/include )
 include_directories( ${DARMA_FRONTEND}/include/tinympl )
 include_directories( ${DARMA_FRONTEND}/include/darma )
-include_directories( ${DARMA_BACKEND}/include )
 include_directories( ${EXAMPLES_SRC_ROOT} )
 include_directories( ${EXAMPLES_BIN_ROOT} )
 

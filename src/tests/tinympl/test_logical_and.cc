@@ -44,6 +44,7 @@
 
 
 #include <tinympl/logical_and.hpp>
+#include <util/empty_main.h>
 
 #include "metatest_helpers.h"
 

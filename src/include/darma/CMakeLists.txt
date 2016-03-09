@@ -1,3 +1,6 @@
+add_subdirectory(interface)
+add_subdirectory(impl)
+
 set (darma_abstract_backend_HEADERS
 abstract/backend/data_block.h
 abstract/backend/runtime.h

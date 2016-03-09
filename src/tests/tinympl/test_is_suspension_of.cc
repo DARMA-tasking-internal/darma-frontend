@@ -46,6 +46,7 @@
 #include <vector> // std::vector
 #include <utility> // std::pair
 #include <type_traits> // std::is_arithmetic
+#include <util/empty_main.h>
 
 #include <tinympl/is_suspension_of.hpp>
 

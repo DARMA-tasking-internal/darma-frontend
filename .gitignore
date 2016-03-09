@@ -1,0 +1,16 @@
+
+
+docs/spec/*.log
+docs/spec/*.acn
+docs/spec/*.aux
+docs/spec/*.dvi
+docs/spec/*.glo
+docs/spec/*.ist
+docs/spec/*.log
+docs/spec/*.out
+docs/spec/*.pdf
+docs/spec/*.pgo
+docs/spec/*.synctex.gz
+docs/spec/*.tdo
+docs/spec/*.toc
+

@@ -1,0 +1,6 @@
+
+add_executable(test_detection test_detection.cc)
+add_executable(test_member_detector test_member_detector.cc)
+add_executable(test_splat_tuple test_splat_tuple.cc)
+add_executable(test_tuple_for_each test_tuple_for_each.cc)
+
