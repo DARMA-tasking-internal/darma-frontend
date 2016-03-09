@@ -45,7 +45,7 @@
 #ifndef SRC_DARMA_H_
 #define SRC_DARMA_H_
 
-#include "darma/darma.h"
+#include <darma/interface/app/darma.h>
 
 
 #endif /* SRC_DARMA_H_ */

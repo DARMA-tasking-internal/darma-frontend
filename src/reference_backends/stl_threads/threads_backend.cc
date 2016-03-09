@@ -57,9 +57,9 @@
 
 static std::mutex debug_output_mtx;
 
-#include <darma/meta/tuple_for_each.h>
-#include <darma/meta/splat_tuple.h>
-#include <darma/darma_assert.h>
+#include <darma/impl/meta/tuple_for_each.h>
+#include <darma/impl/meta/splat_tuple.h>
+#include <darma/impl/darma_assert.h>
 
 #include "threads_backend.h"
 

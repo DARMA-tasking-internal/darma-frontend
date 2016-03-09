@@ -51,7 +51,6 @@
 #include "runtime.h"
 #include "spmd.h"
 #include "create_work.h"
-#include "abstract/backend/runtime.h"
 #include "serialization.h"
 #include "darma_main.h"
 

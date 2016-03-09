@@ -47,7 +47,7 @@
 
 #include <gmock/gmock.h>
 
-#include <darma/abstract/frontend/task.h>
+#include <darma/interface/frontend/task.h>
 #include <functional>
 
 namespace mock_frontend {

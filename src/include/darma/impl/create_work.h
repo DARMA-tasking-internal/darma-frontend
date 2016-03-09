@@ -52,12 +52,12 @@
 #include <tinympl/splat.hpp>
 #include <tinympl/lambda.hpp>
 
-#include "meta/tuple_for_each.h"
-#include "meta/splat_tuple.h"
+#include <darma/impl/meta/tuple_for_each.h>
+#include <darma/impl/meta/splat_tuple.h>
 
-#include "runtime.h"
+#include <darma/impl/runtime.h>
 
-#include "task.h"
+#include <darma/impl/task.h>
 
 DeclareDarmaTypeTransparentKeyword(create_work_decorators, unless);
 DeclareDarmaTypeTransparentKeyword(create_work_decorators, only_if);

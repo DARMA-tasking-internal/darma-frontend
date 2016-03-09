@@ -45,8 +45,8 @@
 #ifndef NEW_RUNTIME_H_
 #define NEW_RUNTIME_H_
 
-#include "task_fwd.h"
-#include "abstract/backend/runtime.h"
+#include <darma/impl/task_fwd.h>
+#include <darma/interface/backend/runtime.h>
 
 #ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
 #  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
