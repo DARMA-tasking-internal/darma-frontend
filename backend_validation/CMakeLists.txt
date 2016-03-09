@@ -5,6 +5,7 @@ project (DarmaBackendValidation)
 set (DarmaBackendValidation_VERSION_MAJOR 0)
 set (DarmaBackendValidation_VERSION_MINOR 2)
 
+enable_testing()
 
 # Compiler-specific C++11 activation.
 set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} -std=c++1y")
