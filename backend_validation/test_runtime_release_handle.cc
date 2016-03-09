@@ -101,6 +101,7 @@ TEST_F(RuntimeRelease, satisfy_next) {
   using namespace mock_frontend;
 
   auto ser_man = std::make_shared<MockSerializationManager>();
+  ser_man->delegate_to_fake();
 
   auto handle_a = std::make_shared<FakeDependencyHandle>();
   handle_a->get_key_return = detail::key_traits<FakeDependencyHandle::key_t>::maker()("the_key");
@@ -152,7 +153,7 @@ TEST_F(RuntimeRelease, satisfy_next) {
   };
   task_b->replace_run = &task_b_run;
 
-  detail::backend_runtime->register_task(std::move(task_a));
+  detail::backend_runtime->register_task(std::move(task_b));
 
   detail::backend_runtime->finalize();
   backend_finalized = true;
