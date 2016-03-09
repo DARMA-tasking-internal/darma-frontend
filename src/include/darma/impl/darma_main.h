@@ -55,7 +55,8 @@ namespace detail {
 template <typename _ignored = void>
 std::function<int(int, char**)>*
 _darma__generate_main_function_ptr() {
-  static std::unique_ptr<std::function<int(int, char**)>> _rv = std::make_unique<std::function<int(int, char**)>>(nullptr);
+  static std::unique_ptr<std::function<int(int, char**)>> _rv =
+      std::make_unique<std::function<int(int, char**)>>(nullptr);
   return _rv.get();
 }
 
