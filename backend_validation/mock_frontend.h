@@ -76,7 +76,7 @@ class FakeSerializationManager
       }
     }
     std::function<size_t(SerializationManager const*, const void* const)>* replace_get_metadata_size = nullptr;
-    size_t get_metadata_size_return = 0;
+    size_t get_metadata_size_return = sizeof(double);
 
 };
 
@@ -420,7 +420,7 @@ class MockTask
     MOCK_CONST_METHOD0(get_name, key_t const&());
     MOCK_METHOD1(set_name, void(key_t const& name_key));
     MOCK_CONST_METHOD0(is_migratable, bool());
-    MOCK_CONST_METHOD0(run, void());
+    MOCK_METHOD0(run, void());
 
     void
     delegate_to_fake() {
@@ -448,7 +448,28 @@ class MockTask
 
 } // end namespace mock_frontend
 
+#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+#endif
 
+namespace darma_runtime {
 
+namespace detail {
+
+template <typename __ignored = void>
+abstract::backend::runtime_t*&
+_gen_backend_runtime_ptr() {
+  static_assert(std::is_same<__ignored, void>::value, "");
+  static DARMA_THREAD_LOCAL_BACKEND_RUNTIME abstract::backend::runtime_t* rv;
+  return rv;
+}
+
+//extern
+DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+abstract::backend::runtime_t*& backend_runtime = _gen_backend_runtime_ptr<>();
+
+} // end namespace backend
+
+} // end namespace darma_runtime
 
 #endif /* TEST_GTEST_BACKEND_MOCK_FRONTEND_H_ */
