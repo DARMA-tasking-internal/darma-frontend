@@ -101,7 +101,7 @@ class MockRuntime
 
     virtual void
     release_read_only_usage(
-      const handle_t* const handle
+      handle_t* const handle
     ) override {
       cout << "releasing read-only usage: ";
       describe_handle(handle);
@@ -131,7 +131,7 @@ class MockRuntime
 
     virtual void
     publish_handle(
-      const handle_t* const handle,
+      handle_t* const handle,
       const key_t& version_tag,
       const size_t n_fetchers = 1,
       bool is_final = false
@@ -141,7 +141,7 @@ class MockRuntime
       cout << endl;
     }
 
-
+#if 0
     virtual void
     satisfy_handle(
       handle_t* const to_fill,
@@ -165,6 +165,7 @@ class MockRuntime
       const handle_t* const handle_b,
       aliasing_manager_t const& manager
     ) override { }
+#endif
 
     virtual void
     finalize() override {
@@ -185,8 +186,10 @@ struct MockDataBlock : public abstract::backend::DataBlock
     return data_;
   }
 
+#if 0
   void
   acquire_data(void* const data) override { }
+#endif
 
   void* data_;
 };
@@ -208,6 +211,9 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   backend_runtime = tmp_rt;
 }
 
+int main(int argc, char** argv) {
+  return (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
+}
 
-abstract::backend::runtime_t* darma_runtime::detail::backend_runtime = nullptr;
+//abstract::backend::runtime_t* darma_runtime::detail::backend_runtime = nullptr;
 
