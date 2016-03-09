@@ -2,9 +2,9 @@ set (tinympl_HEADERS
 accumulate.hpp
 algorithm.hpp
 algorithm_variadic.hpp
+all_of.hpp
 always_false.hpp
 always_true.hpp
-all_of.hpp
 and_b.hpp
 any_of.hpp
 apply.hpp
@@ -28,16 +28,16 @@ equal_to.hpp
 erase.hpp
 fill_n.hpp
 filter.hpp
-find.hpp
 find_all.hpp
 find_all_if.hpp
+find.hpp
 find_if.hpp
 functional.hpp
 fused_map.hpp
 fused_value_map.hpp
 generate_n.hpp
-greater.hpp
 greater_equal.hpp
+greater.hpp
 identity.hpp
 if.hpp
 inherit.hpp
@@ -52,8 +52,8 @@ is_unique.hpp
 join.hpp
 lambda.hpp
 left_fold.hpp
-less.hpp
 less_equal.hpp
+less.hpp
 lexicographical_compare.hpp
 logical_and.hpp
 logical_not.hpp
@@ -73,6 +73,7 @@ not_b.hpp
 not_equal_to.hpp
 or_b.hpp
 plus.hpp
+pop_front.hpp
 range_c.hpp
 ratio.hpp
 remove.hpp
@@ -95,8 +96,8 @@ string.hpp
 string_macro.hpp
 to_string.hpp
 to_vector_c.hpp
-transform.hpp
 transform2.hpp
+transform.hpp
 transform_many.hpp
 transpose.hpp
 tuple_as_sequence.hpp
@@ -122,9 +123,9 @@ variadic/count_if.hpp
 variadic/erase.hpp
 variadic/fill_n.hpp
 variadic/filter.hpp
-variadic/find.hpp
 variadic/find_all.hpp
 variadic/find_all_if.hpp
+variadic/find.hpp
 variadic/find_if.hpp
 variadic/generate_n.hpp
 variadic/insert.hpp
@@ -133,6 +134,7 @@ variadic/left_fold.hpp
 variadic/max_element.hpp
 variadic/min_element.hpp
 variadic/none_of.hpp
+variadic/pop_front.hpp
 variadic/remove.hpp
 variadic/remove_if.hpp
 variadic/replace.hpp
