@@ -45,8 +45,6 @@
 #ifndef NEW_VERSION_H_
 #define NEW_VERSION_H_
 
-// TODO Version isn't officially part of the frontend right now.  It should be moved to something like src/abstract/defaults or something
-
 #include <cassert>
 #include <vector>
 
