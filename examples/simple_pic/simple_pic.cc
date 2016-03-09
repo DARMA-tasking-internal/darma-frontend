@@ -1,5 +1,5 @@
 
-#include <mock_backend.h>
+#include <serial_backend.h>
 
 
 
@@ -344,7 +344,7 @@ struct Particles {
 ////////////////////////////////////////////////////////////////////////////////
 // main() function
 
-int main(int argc, char** argv)
+int darma_main(int argc, char** argv)
 {
   darma_init(argc, argv);
 
@@ -359,7 +359,7 @@ int main(int argc, char** argv)
 
   // how many partitions in each direction
   int partitions_x, partitions_y, partitions_z; 
-  partitions_x = partitions_y = partitions_z = 1; // partitions in each direction
+  partitions_x = partitions_y = partitions_z = 2; // partitions in each direction
 
   assert(n_spmd ==  partitions_x*partitions_y*partitions_z);
 
@@ -419,5 +419,6 @@ int main(int argc, char** argv)
 
 
   darma_finalize();
+  return 0;
 }
 
