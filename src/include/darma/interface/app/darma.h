@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          mock_backend.h
+//                          task_fwd.h
 //                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,9 +42,9 @@
 //@HEADER
 */
 
-#ifndef MOCK_MOCK_BACKEND_H_
-#define MOCK_MOCK_BACKEND_H_
+#ifndef SRC_INTERFACE_APP_DARMA_H_
+#define SRC_INTERFACE_APP_DARMA_H_
 
-#include <darma.h>
+#include <darma/impl/darma.h>
 
-#endif /* MOCK_MOCK_BACKEND_H_ */
+#endif /* SRC_INTERFACE_APP_DARMA_H_ */

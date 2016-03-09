@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          serial_backend.h
+//                          darma.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,13 +42,10 @@
 //@HEADER
 */
 
-#ifndef BACKENDS_SERIAL_SERIAL_BACKEND_H_
-#define BACKENDS_SERIAL_SERIAL_BACKEND_H_
+#ifndef SRC_DARMA_H_
+#define SRC_DARMA_H_
+
+#include <darma/interface/app/darma.h>
 
 
-#define DARMA_SERIAL_BACKEND_SPAWNED_RANKS_PROCESS_STRING "__internal_spawned_rank"
-#define DARMA_SERIAL_BACKEND_SPAWNED_RANK_NUM_OPTION "__internal_spawned_rank_num"
-
-#include <darma.h>
-
-#endif /* BACKENDS_SERIAL_SERIAL_BACKEND_H_ */
+#endif /* SRC_DARMA_H_ */

@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          spmd.h
-//                         darma_new
+//                          darma_main.h
+//                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,61 +42,44 @@
 //@HEADER
 */
 
-#ifndef SPMD_H_
-#define SPMD_H_
+#ifndef FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_
+#define FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_
 
-#include <memory>
+#include <functional>
 
-#include "runtime.h"
-#include "abstract/backend/runtime.h"
-#include "darma_assert.h"
-#include "task.h"
-
+#include <darma/impl/compatibility.h>
 
 namespace darma_runtime {
+namespace detail {
 
-typedef size_t darma_rank_t;
-
-inline void
-darma_init(
-  int& argc,
-  char**& argv
-) {
-  std::unique_ptr<typename darma_runtime::abstract::backend::runtime_t::task_t> moved_from =
-      std::make_unique<detail::TopLevelTask>();
-  abstract::backend::darma_backend_initialize(
-    argc, argv, detail::backend_runtime, std::move(moved_from)
-  );
+template <typename _ignored = void>
+std::function<int(int, char**)>*
+_darma__generate_main_function_ptr() {
+  static std::unique_ptr<std::function<int(int, char**)>> _rv =
+      std::make_unique<std::function<int(int, char**)>>(nullptr);
+  return _rv.get();
 }
 
-inline darma_rank_t
-darma_spmd_rank() {
-  DARMA_ASSERT_NOT_NULL(detail::backend_runtime);
-  DARMA_ASSERT_NOT_NULL(detail::backend_runtime->get_running_task());
+//static std::function<int(int, char**)>* user_main_function_ptr = _darma__generate_main_function_ptr<void>();
 
-  DARMA_ASSERT_EQUAL(
-    std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>()),
-    DARMA_BACKEND_SPMD_NAME_PREFIX
-  );
-  return detail::backend_runtime
-      ->get_running_task()->get_name().component<1>().as<darma_rank_t>();
+template <typename T>
+DARMA_CONSTEXPR_14 int
+register_user_main(T main_fxn) {
+  *(_darma__generate_main_function_ptr<>()) = main_fxn;
+  return 42;
 }
 
-inline darma_rank_t
-darma_spmd_size() {
-  DARMA_ASSERT_EQUAL(
-    std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>()),
-    DARMA_BACKEND_SPMD_NAME_PREFIX
-  );
-  return detail::backend_runtime
-      ->get_running_task()->get_name().component<2>().as<darma_rank_t>();
-}
-
-inline void
-darma_finalize() {
-  detail::backend_runtime->finalize();
-}
-
+} // end namespace detail
 } // end namespace darma_runtime
 
-#endif /* SPMD_H_ */
+#define darma_main(...) \
+  _darma__ignore_this = 42; \
+  int _darma__user_main(__VA_ARGS__); \
+  int _darma__ignore_this_too = \
+    ::darma_runtime::detail::register_user_main((int(*)(__VA_ARGS__))_darma__user_main); \
+  int _darma__user_main(__VA_ARGS__)
+
+
+//  int(*)(__VA_ARGS__), (int(*)(__VA_ARGS__))_darma__user_main> _darma__user_main_metaptr_t;
+
+#endif /* FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_ */
