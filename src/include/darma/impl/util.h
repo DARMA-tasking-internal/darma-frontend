@@ -54,10 +54,10 @@
 #include <set>
 #include <map>
 
-#include "meta/metaprogramming.h"
+#include <darma/impl/meta/metaprogramming.h>
 
-#include "darma_assert.h"
-#include "compatibility.h"
+#include <darma/impl/darma_assert.h>
+#include <darma/impl/compatibility.h>
 
 namespace darma_runtime {
 

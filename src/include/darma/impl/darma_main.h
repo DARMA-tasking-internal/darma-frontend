@@ -47,7 +47,7 @@
 
 #include <functional>
 
-#include "compatibility.h"
+#include <darma/impl/compatibility.h>
 
 namespace darma_runtime {
 namespace detail {

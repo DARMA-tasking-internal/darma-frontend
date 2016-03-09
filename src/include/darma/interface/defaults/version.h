@@ -50,7 +50,7 @@
 #include <cassert>
 #include <vector>
 
-#include <darma/util.h>
+#include <darma/impl/util.h>
 
 namespace darma_runtime {
 
