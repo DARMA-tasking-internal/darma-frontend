@@ -100,17 +100,11 @@ struct forward_to_get_dep_handle {
 template <typename... Args>
 struct reads_decorator_parser {
   typedef reads_decorator_return return_type;
-  // For now:
-  //static_assert(sizeof...(Args) == 1, "multi-args not yet implemented");
-  DARMA_CONSTEXPR_14 inline return_type
+  inline return_type
   operator()(Args&&... args) const {
     using namespace detail::create_work_attorneys;
     auto rv = meta::splat_tuple(
-      //std::forward_as_tuple(std::forward<Args>(args)...),
       get_positional_arg_tuple(std::forward<Args>(args)...),
-      //[](auto&&... ah) {
-      //  return return_type { for_AccessHandle::get_dep_handle(ah)... };
-      //}
       forward_to_get_dep_handle<return_type>()
     );
     rv.use_it = not get_typeless_kwarg_with_default_as<
@@ -171,7 +165,7 @@ struct create_work_impl {
   typedef detail::TaskBase task_base_t;
 
   inline typename parser::return_type
-  operator()(Args&&... args, Lambda&& lambda) const && {
+  operator()(Args&&... args, Lambda&& lambda) const {
     return detail::backend_runtime->register_task(
       std::make_unique<task_t>(
         std::forward<Lambda>(lambda)

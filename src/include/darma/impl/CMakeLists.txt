@@ -39,7 +39,7 @@ keyword_arguments/kwarg_expression_fwd.h
 keyword_arguments/macros.h)
 
 
-install (FILES ${impl_HEADERS} DESTINATION include/impl)
-install (FILES ${impl_meta_HEADERS} DESTINATION include/impl/meta)
-install (FILES ${impl_keyword_arguments_HEADERS} DESTINATION include/impl/keyword_arguments)
+install (FILES ${impl_HEADERS} DESTINATION include/darma/impl)
+install (FILES ${impl_meta_HEADERS} DESTINATION include/darma/impl/meta)
+install (FILES ${impl_keyword_arguments_HEADERS} DESTINATION include/darma/impl/keyword_arguments)
 
