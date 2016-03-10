@@ -46,11 +46,11 @@
 #define EXAMPLES_HEAT_1D_COMMON_H_
 
 
-constexpr int n_iter  = 500;  // num of iterations in time
+constexpr int n_iter  = 1;  // num of iterations in time
 constexpr double deltaT = 0.0025; // time step 
 constexpr double alpha  = 0.0075; // diffusivity
 
-constexpr int nx = 16;        // total number of grid points  
+constexpr int nx = 10;        // total number of grid points  
 constexpr double x_min = 0.0;     // domain start x 
 constexpr double x_max = 1.0;     // domain end x
 constexpr double deltaX = (x_max-x_min)/( (double) (nx-1) );  // grid cell spacing

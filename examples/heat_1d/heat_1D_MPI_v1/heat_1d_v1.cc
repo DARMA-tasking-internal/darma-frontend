@@ -9,6 +9,7 @@
 #include <assert.h>
 #include "mpi.h"
 #include <vector>
+#include <unistd.h>
 
 #include "../common_heat1d.h"
 
@@ -28,7 +29,7 @@
 		
 	Distribute uniformly accross all ranks: 
 
-    s   o  o  o  o  *
+     s  o  o  o  o  *
 			     			 *  o  o  o  o  *
 							 							 *  o  o  o  o  *
 										 										 *  o  o  o  o  s
@@ -42,13 +43,13 @@
 			
 		*  o  o  o  o  *
 
-	where inner points are:  o 
-		  ghosts points are: * 
+	where inner points are: o 
+		   ghosts points are: * 
 	
 	Below we use following shortcut for indices of key points:
 	
-		*    o   o   o   o    *
-		lli  li 		 ri  rri
+		*    o    o   o    o   *
+		lli  li 		  		ri  rri
 
 */
 
@@ -97,7 +98,7 @@ int main(int argc, char** argv)
 
 	// initial condition: set = 50 except for BC
 	// temp has size = num_points_per_rank + 2 for ghost points
-	std::vector<double> temp(num_points_per_rank+2, 50.0);
+	std::vector<double> temp(num_points_per_rank_wghosts, 50.0);
 	if ( is_leftmost )
 	{
 		temp[li] = Tl; 
@@ -122,14 +123,14 @@ int main(int argc, char** argv)
     {
 			myReqs.push_back( empty );
 			MPI_Irecv( &temp[rri], 1, MPI_DOUBLE, rightNeigh, 
-					   	tagFromRight, MPI_COMM_WORLD, &myReqs[myReqs.size()-1] );
+					   		tagFromRight, MPI_COMM_WORLD, &myReqs[myReqs.size()-1] );
     }
 		// recv from left 
     if ( !is_leftmost )
     {
 			myReqs.push_back( empty );
 			MPI_Irecv( &temp[lli], 1, MPI_DOUBLE, leftNeigh, 
-						tagFromLeft, MPI_COMM_WORLD, &myReqs[myReqs.size()-1] );
+								tagFromLeft, MPI_COMM_WORLD, &myReqs[myReqs.size()-1] );
     }
 
 		// send to left
@@ -137,14 +138,14 @@ int main(int argc, char** argv)
     {
 			myReqs.push_back( empty );
 			MPI_Isend( &temp[li], 1, MPI_DOUBLE, leftNeigh, 
-						tagToLeft, MPI_COMM_WORLD, &myReqs[myReqs.size()-1] );
+								tagToLeft, MPI_COMM_WORLD, &myReqs[myReqs.size()-1] );
     }
 		// send to right
     if ( !is_rightmost )
     {
 			myReqs.push_back( empty );
 			MPI_Isend( &temp[ri], 1, MPI_DOUBLE, rightNeigh, 
-						tagToRight, MPI_COMM_WORLD, &myReqs[myReqs.size()-1] );
+								tagToRight, MPI_COMM_WORLD, &myReqs[myReqs.size()-1] );
     }
 
     mySts.resize(myReqs.size());
@@ -179,10 +180,11 @@ int main(int argc, char** argv)
 	// -----------------------------------------------------
 
 	// MAYBE PRINTING STAGE
-
+	if (myPID==1)
+		sleep(1.5);
   for ( int i = 1; i <= num_points_per_rank; i++ )
   {
-		std::cout << temp[i] << std::endl;
+		std::cout << myPID << " " << temp[i] << std::endl;
   }
 
 	// -----------------------------------------------------
