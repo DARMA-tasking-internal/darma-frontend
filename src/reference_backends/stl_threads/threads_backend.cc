@@ -840,7 +840,7 @@ class ThreadsRuntime
 
     void
     publish_handle(
-      const handle_t* const handle,
+      handle_t* const handle,
       const key_t& version_tag,
       const size_t n_fetchers = 1,
       bool is_final = false
@@ -902,5 +902,8 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   backend_runtime = tmp_rt;
 }
 
+int main(int argc, char** argv) {
+  return (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
+}
 
-abstract::backend::runtime_t* darma_runtime::detail::backend_runtime = nullptr;
+//abstract::backend::runtime_t* darma_runtime::detail::backend_runtime = nullptr;

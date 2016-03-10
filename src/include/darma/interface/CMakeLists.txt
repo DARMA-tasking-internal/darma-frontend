@@ -22,8 +22,8 @@ frontend/task.h
 frontend/types.h)
 
 
-install (FILES ${app_HEADERS} DESTINATION include/interface/app)
-install (FILES ${backend_HEADERS} DESTINATION include/interface/backend)
-install (FILES ${default_HEADERS} DESTINATION include/interface/default)
-install (FILES ${frontend_HEADERS} DESTINATION include/interface/frontend)
+install (FILES ${app_HEADERS} DESTINATION include/darma/interface/app)
+install (FILES ${backend_HEADERS} DESTINATION include/darma/interface/backend)
+install (FILES ${default_HEADERS} DESTINATION include/darma/interface/defaults)
+install (FILES ${frontend_HEADERS} DESTINATION include/darma/interface/frontend)
 

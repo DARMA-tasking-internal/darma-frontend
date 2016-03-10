@@ -249,7 +249,7 @@ class Task : public TaskBase
 {
   public:
 
-    Task(Lambda&& in_lambda)
+    Task(Lambda const && in_lambda)
       : lambda_((
           // Double parens so that we can use the comma operator to
           // hide some stuff that needs to be done first

@@ -49,8 +49,6 @@
 #  include TEST_BACKEND_INCLUDE
 #endif
 
-#include <darma.h>
-
 #include "mock_frontend.h"
 
 using namespace darma_runtime;
@@ -149,7 +147,7 @@ void register_read_write_capture(MockDep* captured, Lambda&& lambda) {
   register_one_dep_capture<MockDep, Lambda, true, true, IsNice>(captured, std::forward<Lambda>(lambda));
 }
 
-template <typename T, bool IsNice, typename Version, typename... KeyParts>
+template <typename T, bool IsNice, bool ExpectNewAlloc, typename Version, typename... KeyParts>
 std::shared_ptr<typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type>
 make_handle(
   Version v, KeyParts&&... kp
@@ -159,9 +157,11 @@ make_handle(
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
   auto ser_man = new MockSerializationManager();
-  EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
-    .Times(AtLeast(1))
-    .WillRepeatedly(Return(sizeof(T)));
+  if (ExpectNewAlloc){
+    EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
+      .Times(AtLeast(1))
+      .WillRepeatedly(Return(sizeof(T)));
+  }
 
   auto h_0 = std::shared_ptr<handle_t>(
     new handle_t(),
@@ -177,9 +177,11 @@ make_handle(
   EXPECT_CALL(*h_0, get_version())
     .Times(AtLeast(1))
     .WillRepeatedly(ReturnRefOfCopy(v));
-  EXPECT_CALL(*h_0, get_serialization_manager())
-    .Times(AtLeast(1))
-    .WillRepeatedly(Return(ser_man));
+  if (ExpectNewAlloc){
+    EXPECT_CALL(*h_0, get_serialization_manager())
+      .Times(AtLeast(1))
+      .WillRepeatedly(Return(ser_man));
+  }
 
   return h_0;
 }
@@ -245,7 +247,7 @@ TEST_F(RegisterTask, allocate_data_block) {
 TEST_F(RegisterTask, allocate_data_block_2) {
   using namespace ::testing;
 
-  auto h_0 = make_handle<double, true>(FakeDependencyHandle::version_t(), "the_key");
+  auto h_0 = make_handle<double, true, true>(FakeDependencyHandle::version_t(), "the_key");
 
   detail::backend_runtime->register_handle(h_0.get());
 
@@ -266,10 +268,10 @@ TEST_F(RegisterTask, allocate_data_block_2) {
 TEST_F(RegisterTask, release_satisfy) {
   using namespace ::testing;
 
-  auto h_0 = make_handle<int, true>(FakeDependencyHandle::version_t(), "the_key");
+  auto h_0 = make_handle<int, true, true>(FakeDependencyHandle::version_t(), "the_key");
   auto next_version = h_0->get_version();
   ++next_version;
-  auto h_1 = make_handle<int, true>(next_version, "the_key");
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());

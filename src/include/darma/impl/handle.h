@@ -519,6 +519,20 @@ class AccessHandle
       return *this;
     }
 
+    //AccessHandle(AccessHandle const& copied_from)
+    //  : dep_handle_(copied_from.dep_handle_),
+    //    // this copy constructor may be invoked in ordinary usage or
+    //    // may be the actual capture itself.  In the latter case, the subsequent
+    //    // move needs access back to the outer context object, so we need to
+    //    // save a pointer back to other.  It should be ignored otherwise, though.
+    //    // note that the below const_cast is needed to convert from AccessHandle const* to AccessHandle* const
+    //    prev_copied_from(const_cast<AccessHandle* const>(&copied_from)),
+    //    read_only_holder_(copied_from.read_only_holder_),
+    //    state_(copied_from.state_)
+    //{
+    //  assert(copied_from.prev_copied_from == nullptr);
+    //}
+
     AccessHandle(const AccessHandle& copied_from)
       : dep_handle_(copied_from.dep_handle_),
         // this copy constructor may be invoked in ordinary usage or
@@ -527,7 +541,8 @@ class AccessHandle
         // save a pointer back to other.  It should be ignored otherwise, though.
         // note that the below const_cast is needed to convert from AccessHandle const* to AccessHandle* const
         prev_copied_from(const_cast<AccessHandle* const>(&copied_from)),
-        read_only_holder_(copied_from.read_only_holder_)
+        read_only_holder_(copied_from.read_only_holder_),
+        state_(copied_from.state_)
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = dynamic_cast<detail::TaskBase* const>(
@@ -717,6 +732,8 @@ class AccessHandle
       } // end if capturing_task != nullptr
     }
 
+    //AccessHandle(AccessHandle&&) = delete;
+
     T* operator->() const {
       return &dep_handle_->get_value();
     }
@@ -840,7 +857,7 @@ class AccessHandle
     // private members
 
     mutable dep_handle_ptr dep_handle_;
-    mutable state_t state_;
+    mutable state_t state_ = None_None;
 
     mutable types::shared_ptr_template<read_only_usage_holder> read_only_holder_;
     task_t* capturing_task = nullptr;
