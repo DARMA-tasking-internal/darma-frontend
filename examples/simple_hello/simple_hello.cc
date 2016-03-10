@@ -34,6 +34,45 @@ void fib(Handle const& in, int n) {
   });
 }
 
+template <typename T>
+struct propogate_allocator
+  : public std::allocator<T> {
+  typedef std::true_type propogate_on_container_move_assignment;
+};
+
+struct Blabbermouth {
+  Blabbermouth() : v_("") { std::cout << "default ctor " << v_ << std::endl; }
+  Blabbermouth(std::string const& v) : v_(v) { std::cout << "string ctor " << v_ << std::endl; }
+  //Blabbermouth(Blabbermouth& b) : v_(b.v_) { std::cout << "nonconst-copy ctor " << v_ << std::endl; }
+  //Blabbermouth(Blabbermouth volatile& b) : v_("oops") { std::cout << "nonconst-volatile copy ctor " << v_ << std::endl; }
+  Blabbermouth(Blabbermouth const& b) : v_(b.v_) { std::cout << "copy ctor " << v_ << std::endl; }
+  //Blabbermouth(Blabbermouth const volatile& b) : v_("oh well") { std::cout << "cv copy ctor " << v_ << std::endl; }
+  //Blabbermouth(Blabbermouth&& b) : v_(std::move(b.v_)) { std::cout << "move ctor " << v_ << std::endl; }
+  Blabbermouth(Blabbermouth const && b) : v_(std::move(b.v_)) { std::cout << "const move ctor " << v_ << std::endl; }
+  //Blabbermouth(Blabbermouth&& b) = delete;
+  //Blabbermouth&
+  //operator=(Blabbermouth&& b) {
+  //  std::cout << "move assignment operator " << v_ << std::endl;
+  //  return *this;
+  //}
+  //Blabbermouth&
+  //operator=(Blabbermouth const& b) {
+  //  std::cout << "copy assignment operator " << v_ << std::endl;
+  //  return *this;
+  //}
+  //Blabbermouth const&
+  //operator=(Blabbermouth const& b) const {
+  //  std::cout << "const copy assignment operator " << v_ << std::endl;
+  //  return *this;
+  //}
+  std::string v_;
+};
+
+//struct Foo {
+//    Blabbermouth a;
+//    Blabbermouth b;
+//};
+
 
 int darma_main(int argc, char** argv) {
 
@@ -44,17 +83,54 @@ int darma_main(int argc, char** argv) {
   me = darma_spmd_rank();
   size_t n_ranks = darma_spmd_size();
 
-  if(me == 0) {
+  //Foo f = { initial_access<int>("a"), initial_access<double>("b") };
+  //std::vector<Blabbermouth> f;
+  //f.emplace_back("hello");
+  //f.emplace_back("world");
+  //std::cout << "---------" << std::endl;
+  //create_work([=]() {
+  //    std::cout << f[0].v_ << std::endl;
+  //});
+  //std::cout << "---------" << std::endl;
 
-    auto my_fib = initial_access<int>("fib");
+  std::vector<AccessHandle<int>> v;
+  //std::vector<Blabbermouth> bv;
 
-    fib(my_fib, 7);
-
-    create_work(reads(my_fib), [=]{
-      std::cout << my_fib.get_value() << std::endl;
-    });
-
+  v.reserve(8);
+  //bv.reserve(8);
+  for(int i = 0; i < 5; ++i) {
+    const auto& tmp = initial_access<int>("hello", i);
+    v.emplace_back(tmp);
   }
+  ////std::vector<AccessHandle<int>> v2 = std::move(v);
+
+
+
+  create_work([=]{
+    int j = 0;
+    for(auto&& a : v) {
+      a.set_value(j++);
+    }
+  });
+
+  create_work([=]{
+    for(auto&& a : v) {
+      std::cout << a.get_value() << std::endl;
+    }
+  });
+
+
+  //if(me == 0) {
+
+  //  auto my_fib = initial_access<int>("fib");
+
+  //  fib(my_fib, 7);
+
+  //  create_work(reads(my_fib), [=]{
+  //    std::cout << my_fib.get_value() << std::endl;
+  //  });
+
+  //}
 
 
   //if(me == 0) {
