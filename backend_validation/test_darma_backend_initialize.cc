@@ -50,8 +50,6 @@
 #  include TEST_BACKEND_INCLUDE
 #endif
 
-#include <darma.h>
-
 #include "mock_frontend.h"
 
 namespace {
