@@ -293,7 +293,7 @@ TEST_F(RegisterTask, release_satisfy) {
   detail::backend_runtime->release_read_only_usage(h_0.get());
   detail::backend_runtime->release_read_only_usage(h_1.get());
 
-  register_read_write_capture(h_1.get(), [&,value]{
+  register_read_write_capture(h_1.get(), [&,value]{  // FIXME: this is not running but not reporting that it didn't run either
     ASSERT_THAT(*(int*)(h_1->get_data_block()->get_data()), Eq(value));
     detail::backend_runtime->release_handle(h_1.get());
   });
