@@ -241,6 +241,8 @@ TEST_F(RegisterTask, allocate_data_block) {
 
   detail::backend_runtime->finalize();
   backend_finalized = true;
+
+  detail::backend_runtime->release_handle(h_0.get());
 }
 
 // Same task, but using helpers...
@@ -262,8 +264,9 @@ TEST_F(RegisterTask, allocate_data_block_2) {
 
   detail::backend_runtime->finalize();
   backend_finalized = true;
-}
 
+  detail::backend_runtime->release_handle(h_0.get());
+}
 
 TEST_F(RegisterTask, release_satisfy) {
   using namespace ::testing;
@@ -298,7 +301,6 @@ TEST_F(RegisterTask, release_satisfy) {
   detail::backend_runtime->finalize();
   backend_finalized = true;
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 
