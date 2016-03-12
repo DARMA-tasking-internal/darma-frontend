@@ -81,11 +81,18 @@ class DARMABackendInitialize
 
 } // end anonymous namespace
 
+// check that the top-level task's name is set correctly
 TEST_F(DARMABackendInitialize, rank_size) {
   using namespace darma_runtime;
+  using namespace mock_frontend;
+  using namespace ::testing;
   // Make a mock task pointer
-  std::unique_ptr<typename abstract::backend::runtime_t::task_t> top_level_task =
-      std::make_unique<mock_frontend::FakeTask>();
+  std::unique_ptr<NiceMock<MockTask>> top_level_task =
+      std::make_unique<NiceMock<MockTask>>();
+
+  // runtime must call set_name
+  EXPECT_CALL(*top_level_task, set_name(_))
+    .Times(Exactly(1));
 
   abstract::backend::darma_backend_initialize(
     argc_, argv_, detail::backend_runtime,
@@ -94,15 +101,17 @@ TEST_F(DARMABackendInitialize, rank_size) {
   // Get the return of get_running_task()
   typename abstract::backend::runtime_t::task_t* top_level_task_ptr =
       detail::backend_runtime->get_running_task();
+  auto name = top_level_task_ptr->get_name();
+
   // Test that the first component must equal the specified prefix
   ASSERT_EQ(
     DARMA_BACKEND_SPMD_NAME_PREFIX,
-    top_level_task_ptr->get_name().component<0>().as<std::string>()
+    name.component<0>().as<std::string>()
   );
   // Rank must be less than size
   ASSERT_LT(
-    top_level_task_ptr->get_name().component<1>().as<size_t>(),
-    top_level_task_ptr->get_name().component<2>().as<size_t>()
+    name.component<1>().as<size_t>(),
+    name.component<2>().as<size_t>()
   );
   darma_runtime::detail::backend_runtime->finalize();
 }
@@ -110,14 +119,17 @@ TEST_F(DARMABackendInitialize, rank_size) {
 TEST_F(DARMABackendInitialize, top_level_run_not_called) {
   using namespace darma_runtime;
   using namespace mock_frontend;
-  auto tmp = std::make_unique<mock_frontend::FakeTask>();
-  std::function<void(const FakeTask*)> replace_run = [&](auto* _) {
-    FAIL() << "run() shouldn't be called on top level task";
-  };
-  tmp->replace_run = &replace_run;
+  using namespace ::testing;
+  std::unique_ptr<NiceMock<MockTask>> top_level_task =
+      std::make_unique<NiceMock<MockTask>>();
 
-  std::unique_ptr<typename abstract::backend::runtime_t::task_t> top_level_task
-    = std::move(tmp);
+  // runtime must call set_name
+  EXPECT_CALL(*top_level_task, set_name(_))
+    .Times(Exactly(1));
+  // run can never be called on a top-level task
+  EXPECT_CALL(*top_level_task, run())
+    .Times(Exactly(0));
+
   abstract::backend::darma_backend_initialize(
     argc_, argv_, detail::backend_runtime,
     std::move(top_level_task)

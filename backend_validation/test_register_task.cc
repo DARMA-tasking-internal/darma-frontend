@@ -70,7 +70,7 @@ class RegisterTask
       sprintf(argv_[0], "<mock frontend test>");
       // Make a mock task pointer
       std::unique_ptr<typename abstract::backend::runtime_t::task_t> top_level_task =
-          std::make_unique<mock_frontend::FakeTask>();
+          std::make_unique<::testing::NiceMock<mock_frontend::MockTask>>();
 
       abstract::backend::darma_backend_initialize(
         argc_, argv_, detail::backend_runtime,
@@ -116,10 +116,9 @@ void register_one_dep_capture(MockDep* captured, Lambda&& lambda) {
   typedef typename std::conditional<IsNice, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
 
   auto task_a = std::make_unique<task_t>();
-  if(IsNice) task_a->delegate_to_fake();
   EXPECT_CALL(*task_a, get_dependencies())
     .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(FakeTask::handle_container_t{ captured }));
+    .WillRepeatedly(ReturnRefOfCopy(MockTask::handle_container_t{ captured }));
   EXPECT_CALL(*task_a, needs_read_data(Eq(captured)))
     .Times(AtLeast(1))
     .WillRepeatedly(Return(needs_read));
@@ -214,10 +213,10 @@ TEST_F(RegisterTask, allocate_data_block) {
   detail::backend_runtime->register_handle(h_0.get());
 
   auto task_a = std::make_unique<MockTask>();
-  task_a->delegate_to_fake();
+//  task_a->delegate_to_fake();
   EXPECT_CALL(*task_a, get_dependencies())
     .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(FakeTask::handle_container_t{ h_0.get() }));
+    .WillRepeatedly(ReturnRefOfCopy(MockTask::handle_container_t{ h_0.get() }));
   EXPECT_CALL(*task_a, needs_read_data(Eq(h_0.get())))
     .Times(AtLeast(1))
     .WillRepeatedly(Return(false));

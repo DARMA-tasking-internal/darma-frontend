@@ -68,7 +68,7 @@ class RuntimeRelease
       sprintf(argv_[0], "<mock frontend test>");
       // Make a mock task pointer
       std::unique_ptr<typename abstract::backend::runtime_t::task_t> top_level_task =
-          std::make_unique<mock_frontend::FakeTask>();
+          std::make_unique<::testing::NiceMock<mock_frontend::MockTask>>();
 
       abstract::backend::darma_backend_initialize(
         argc_, argv_, detail::backend_runtime,
@@ -99,9 +99,13 @@ class RuntimeRelease
 
 TEST_F(RuntimeRelease, satisfy_next) {
   using namespace mock_frontend;
+  using namespace ::testing;
 
   auto ser_man = std::make_shared<MockSerializationManager>();
   ser_man->delegate_to_fake();
+
+  EXPECT_CALL(*ser_man, get_metadata_size(_))
+    .Times(AtLeast(1));
 
   auto handle_a = std::make_shared<FakeDependencyHandle>();
   handle_a->get_key_return = detail::key_traits<FakeDependencyHandle::key_t>::maker()("the_key");
@@ -119,39 +123,42 @@ TEST_F(RuntimeRelease, satisfy_next) {
 
   double test_value = 3.14;
 
-  auto task_a = std::make_unique<FakeTask>();
-  task_a->get_dependencies_return = FakeTask::handle_container_t();
-  task_a->get_dependencies_return.insert(handle_a.get());
-  task_a->needs_read_data_return = false;
-  task_a->needs_write_data_return = true;
-  std::function<void(const FakeTask*)> task_a_run = [&](auto* _){
-    abstract::backend::DataBlock* data_block = handle_a->get_data_block();
-    ASSERT_NE(data_block, nullptr);
-    void* data = data_block->get_data();
-    ASSERT_NE(data, nullptr);
-    memcpy(data, (void*)&test_value, sizeof(double));
-    detail::backend_runtime->release_handle(handle_a.get());
-  };
-  task_a->replace_run = &task_a_run;
+  auto task_a = std::make_unique<NiceMock<MockTask>>();
+  ON_CALL(*task_a, get_dependencies())
+    .WillByDefault(ReturnRefOfCopy(MockTask::handle_container_t{ handle_a.get() }));
+  ON_CALL(*task_a, needs_write_data(_))
+    .WillByDefault(Return(true));
+  ON_CALL(*task_a, run())
+    .WillByDefault(Invoke([&](){
+      abstract::backend::DataBlock* data_block = handle_a->get_data_block();
+      ASSERT_NE(data_block, nullptr);
+      void* data = data_block->get_data();
+      ASSERT_NE(data, nullptr);
+      memcpy(data, (void*)&test_value, sizeof(double));
+      detail::backend_runtime->release_handle(handle_a.get());
+    }));
+
+  EXPECT_CALL(*task_a, run())
+    .Times(Exactly(1));
 
   detail::backend_runtime->register_task(std::move(task_a));
 
-  auto task_b = std::make_unique<FakeTask>();
-  task_b->get_dependencies_return = FakeTask::handle_container_t();
-  task_b->get_dependencies_return.insert(handle_b.get());
-  task_b->needs_read_data_return = true;
-  task_b->needs_write_data_return = false;
-  std::function<void(const FakeTask*)> task_b_run = [&](auto* _){
-    abstract::backend::DataBlock* data_block = handle_b->get_data_block();
+  auto task_b = std::make_unique<NiceMock<MockTask>>();
+  ON_CALL(*task_b, get_dependencies())
+    .WillByDefault(ReturnRefOfCopy(MockTask::handle_container_t{ handle_b.get() }));
+  ON_CALL(*task_b, needs_read_data(_))
+    .WillByDefault(Return(true));
+  ON_CALL(*task_b, run())
+    .WillByDefault(Invoke([&](){
+      abstract::backend::DataBlock* data_block = handle_b->get_data_block();
+      FakeDependencyHandle* handle_b_ptr = handle_b.get();
+      ASSERT_EQ(*(double*)(handle_b_ptr->get_data_block()->get_data()), test_value);
+      detail::backend_runtime->release_read_only_usage(handle_b.get());
+      detail::backend_runtime->release_handle(handle_b.get());
+    }));
 
-    FakeDependencyHandle* handle_b_ptr = handle_b.get();
-
-    ASSERT_EQ(*(double*)(handle_b_ptr->get_data_block()->get_data()), test_value);
-
-    detail::backend_runtime->release_read_only_usage(handle_b.get());
-    detail::backend_runtime->release_handle(handle_b.get());
-  };
-  task_b->replace_run = &task_b_run;
+  EXPECT_CALL(*task_b, run())
+    .Times(Exactly(1));
 
   detail::backend_runtime->register_task(std::move(task_b));
 

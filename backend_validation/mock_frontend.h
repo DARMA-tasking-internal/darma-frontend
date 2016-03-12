@@ -295,111 +295,6 @@ class MockDependencyHandle
 
 };
 
-
-
-class FakeTask
-  : public darma_runtime::abstract::frontend::Task<
-      darma_runtime::types::key_t,
-      darma_runtime::types::version_t,
-      darma_runtime::types::handle_container_template
-    >
-{
-  public:
-
-    typedef darma_runtime::types::key_t key_t;
-    typedef darma_runtime::types::version_t version_t;
-    typedef darma_runtime::abstract::frontend::DependencyHandle<key_t, version_t> handle_t;
-    typedef darma_runtime::types::handle_container_template<handle_t*> handle_container_t;
-
-    handle_container_t get_dependencies_return;
-    std::function<const handle_container_t&(const FakeTask*)>* replace_get_dependencies = nullptr;
-
-    const handle_container_t&
-    get_dependencies() const override {
-      if(replace_get_dependencies) {
-        return (*replace_get_dependencies)(this);
-      }
-      else {
-        return get_dependencies_return;
-      }
-    }
-
-
-    bool needs_read_data_return = false;
-    std::function<bool(const FakeTask*, const handle_t*)>* replace_needs_read_data = nullptr;
-
-    bool needs_read_data(const handle_t* handle) const override {
-      if(replace_needs_read_data) {
-        return (*replace_needs_read_data)(this, handle);
-      }
-      else {
-        return needs_read_data_return;
-      }
-    }
-
-
-    bool needs_write_data_return = false;
-    std::function<bool(const FakeTask*, const handle_t*)>* replace_needs_write_data = nullptr;
-
-    bool needs_write_data(const handle_t* handle) const override {
-      if(replace_needs_write_data) {
-        return (*replace_needs_write_data)(this, handle);
-      }
-      else {
-        return needs_write_data_return;
-      }
-    }
-
-
-    key_t get_name_return;
-    std::function<const key_t&(const FakeTask*)>* replace_get_name = nullptr;
-
-    const key_t&
-    get_name() const override {
-      if(replace_get_name) {
-        return (*replace_get_name)(this);
-      }
-      else {
-        return get_name_return;
-      }
-    }
-
-
-    std::function<void(FakeTask*, const key_t&)>* replace_set_name = nullptr;
-
-    void set_name(const key_t& name_key) override {
-      if(replace_get_name) {
-        (*replace_set_name)(this, name_key);
-      }
-      else {
-        get_name_return = name_key;
-      }
-    }
-
-    bool is_migratable_return = false;
-    std::function<bool(const FakeTask*)>* replace_is_migratable = nullptr;
-
-    bool
-    is_migratable() const override {
-      if(replace_is_migratable) {
-        return (*replace_is_migratable)(this);
-      }
-      else {
-        return is_migratable_return;
-      }
-    }
-
-    std::function<void(const FakeTask*)>* replace_run = nullptr;
-
-    void run() override {
-      if(replace_run) {
-        (*replace_run)(this);
-      }
-    }
-
-};
-
-
 class MockTask
   : public darma_runtime::abstract::frontend::Task<
       darma_runtime::types::key_t,
@@ -407,13 +302,18 @@ class MockTask
       darma_runtime::types::handle_container_template
     >
 {
-  private:
+  public:
     typedef darma_runtime::types::key_t key_t;
     typedef darma_runtime::types::version_t version_t;
     typedef darma_runtime::abstract::frontend::DependencyHandle<key_t, version_t> handle_t;
     typedef darma_runtime::types::handle_container_template<handle_t*> handle_container_t;
 
+  private:
+    key_t get_name_return;
+
   public:
+    MockTask() { this->set_default_behavior(); }
+
     MOCK_CONST_METHOD0(get_dependencies, handle_container_t const&());
     MOCK_CONST_METHOD1(needs_read_data, bool(handle_t const* handle));
     MOCK_CONST_METHOD1(needs_write_data, bool(handle_t const* handle));
@@ -423,26 +323,28 @@ class MockTask
     MOCK_METHOD0(run, void());
 
     void
-    delegate_to_fake() {
+    set_default_behavior() {
       using ::testing::_;
       using ::testing::Invoke;
+      using ::testing::Return;
+      using ::testing::ReturnRef;
+      using ::testing::ReturnRefOfCopy;
+      using ::testing::SaveArg;
       ON_CALL(*this, get_dependencies())
-        .WillByDefault(Invoke(&fake, &FakeTask::get_dependencies));
+        .WillByDefault(ReturnRefOfCopy(handle_container_t()));
       ON_CALL(*this, needs_read_data(_))
-        .WillByDefault(Invoke(&fake, &FakeTask::needs_read_data));
+        .WillByDefault(Return(false));
       ON_CALL(*this, needs_write_data(_))
-        .WillByDefault(Invoke(&fake, &FakeTask::needs_write_data));
+        .WillByDefault(Return(false));
       ON_CALL(*this, get_name())
-        .WillByDefault(Invoke(&fake, &FakeTask::get_name));
+        .WillByDefault(ReturnRef(get_name_return));
       ON_CALL(*this, set_name(_))
-        .WillByDefault(Invoke(&fake, &FakeTask::set_name));
+        .WillByDefault(SaveArg<0>(&get_name_return));
       ON_CALL(*this, is_migratable())
-        .WillByDefault(Invoke(&fake, &FakeTask::is_migratable));
+        .WillByDefault(Return(false));
       ON_CALL(*this, run())
-        .WillByDefault(Invoke(&fake, &FakeTask::run));
+        .WillByDefault(Invoke([](){}));
     }
-
-    FakeTask fake;
 };
 
 
