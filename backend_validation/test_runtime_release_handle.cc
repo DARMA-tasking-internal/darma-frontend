@@ -102,20 +102,26 @@ TEST_F(RuntimeRelease, satisfy_next) {
   using namespace ::testing;
 
   auto ser_man = std::make_shared<MockSerializationManager>();
-  ser_man->set_metadata_size(sizeof(double));
+  ser_man->get_metadata_size_return = sizeof(double);
 
   EXPECT_CALL(*ser_man, get_metadata_size(_))
     .Times(AtLeast(1));
 
-  auto handle_a = std::make_shared<FakeDependencyHandle>();
-  handle_a->get_key_return = detail::key_traits<FakeDependencyHandle::key_t>::maker()("the_key");
-  handle_a->get_version_return = FakeDependencyHandle::version_t();
+  auto handle_a = std::make_shared<MockDependencyHandle>();
+  handle_a->get_key_return = detail::key_traits<MockDependencyHandle::key_t>::maker()("the_key");
+  handle_a->get_version_return = MockDependencyHandle::version_t();
   handle_a->get_serialization_manager_return = ser_man.get();
 
-  auto handle_b = std::make_shared<FakeDependencyHandle>();
-  handle_b->get_key_return = detail::key_traits<FakeDependencyHandle::key_t>::maker()("the_key");
-  handle_b->get_version_return = ++FakeDependencyHandle::version_t();
+  EXPECT_CALL(*handle_a, satisfy_with_data_block(_))
+    .Times(Exactly(1));
+
+  auto handle_b = std::make_shared<MockDependencyHandle>();
+  handle_b->get_key_return = detail::key_traits<MockDependencyHandle::key_t>::maker()("the_key");
+  handle_b->get_version_return = ++MockDependencyHandle::version_t();
   handle_b->get_serialization_manager_return = ser_man.get();
+
+  EXPECT_CALL(*handle_b, satisfy_with_data_block(_))
+    .Times(Exactly(1));
 
   detail::backend_runtime->register_handle(handle_a.get());
   detail::backend_runtime->register_handle(handle_b.get());
@@ -151,7 +157,7 @@ TEST_F(RuntimeRelease, satisfy_next) {
   ON_CALL(*task_b, run())
     .WillByDefault(Invoke([&](){
       abstract::backend::DataBlock* data_block = handle_b->get_data_block();
-      FakeDependencyHandle* handle_b_ptr = handle_b.get();
+      MockDependencyHandle* handle_b_ptr = handle_b.get();
       ASSERT_EQ(*(double*)(handle_b_ptr->get_data_block()->get_data()), test_value);
       detail::backend_runtime->release_read_only_usage(handle_b.get());
       detail::backend_runtime->release_handle(handle_b.get());

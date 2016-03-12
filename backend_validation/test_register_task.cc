@@ -97,11 +97,6 @@ class RegisterTask
     std::string program_name;
     bool backend_finalized;
 
-    std::shared_ptr<FakeDependencyHandle> handle_a_0;
-    std::shared_ptr<MockDependencyHandle> ghandle_a_0;
-
-    std::shared_ptr<FakeDependencyHandle> handle_a_1;
-
     virtual ~RegisterTask() noexcept { }
 };
 
@@ -156,7 +151,7 @@ make_handle(
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
   auto ser_man = new MockSerializationManager();
-  ser_man->set_metadata_size(sizeof(T));
+  ser_man->get_metadata_size_return = sizeof(T);
   if (ExpectNewAlloc){
     EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
       .Times(AtLeast(1))
@@ -170,10 +165,9 @@ make_handle(
       delete ser_man;
     }
   );
-  if(IsNice) h_0->delegate_to_fake();
   EXPECT_CALL(*h_0, get_key())
     .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(detail::key_traits<FakeDependencyHandle::key_t>::maker()(std::forward<KeyParts>(kp)...)));
+    .WillRepeatedly(ReturnRefOfCopy(detail::key_traits<MockDependencyHandle::key_t>::maker()(std::forward<KeyParts>(kp)...)));
   EXPECT_CALL(*h_0, get_version())
     .Times(AtLeast(1))
     .WillRepeatedly(ReturnRefOfCopy(v));
@@ -195,19 +189,18 @@ TEST_F(RegisterTask, allocate_data_block) {
   using namespace ::testing;
 
   auto ser_man = std::make_shared<MockSerializationManager>();
-  ser_man->set_metadata_size(sizeof(double));
+  ser_man->get_metadata_size_return = sizeof(double);
   EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
     .Times(AtLeast(1))
     .WillRepeatedly(Return(sizeof(double)));
 
   auto h_0 = std::make_shared<NiceMock<MockDependencyHandle>>();
-  h_0->delegate_to_fake();
   EXPECT_CALL(*h_0, get_key())
     .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(detail::key_traits<FakeDependencyHandle::key_t>::maker()("the_key")));
+    .WillRepeatedly(ReturnRefOfCopy(detail::key_traits<MockDependencyHandle::key_t>::maker()("the_key")));
   EXPECT_CALL(*h_0, get_version())
     .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(FakeDependencyHandle::version_t()));
+    .WillRepeatedly(ReturnRefOfCopy(MockDependencyHandle::version_t()));
   EXPECT_CALL(*h_0, get_serialization_manager())
     .Times(AtLeast(1))
     .WillRepeatedly(Return(ser_man.get()));
@@ -215,7 +208,6 @@ TEST_F(RegisterTask, allocate_data_block) {
   detail::backend_runtime->register_handle(h_0.get());
 
   auto task_a = std::make_unique<MockTask>();
-//  task_a->delegate_to_fake();
   EXPECT_CALL(*task_a, get_dependencies())
     .Times(AtLeast(1))
     .WillRepeatedly(ReturnRefOfCopy(MockTask::handle_container_t{ h_0.get() }));
@@ -250,7 +242,7 @@ TEST_F(RegisterTask, allocate_data_block) {
 TEST_F(RegisterTask, allocate_data_block_2) {
   using namespace ::testing;
 
-  auto h_0 = make_handle<double, true, true>(FakeDependencyHandle::version_t(), "the_key");
+  auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
 
   detail::backend_runtime->register_handle(h_0.get());
 
@@ -272,7 +264,7 @@ TEST_F(RegisterTask, allocate_data_block_2) {
 TEST_F(RegisterTask, release_satisfy) {
   using namespace ::testing;
 
-  auto h_0 = make_handle<int, true, true>(FakeDependencyHandle::version_t(), "the_key");
+  auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
   auto next_version = h_0->get_version();
   ++next_version;
   auto h_1 = make_handle<int, true, false>(next_version, "the_key");
