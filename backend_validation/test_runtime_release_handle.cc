@@ -102,7 +102,7 @@ TEST_F(RuntimeRelease, satisfy_next) {
   using namespace ::testing;
 
   auto ser_man = std::make_shared<MockSerializationManager>();
-  ser_man->delegate_to_fake();
+  ser_man->set_metadata_size(sizeof(double));
 
   EXPECT_CALL(*ser_man, get_metadata_size(_))
     .Times(AtLeast(1));

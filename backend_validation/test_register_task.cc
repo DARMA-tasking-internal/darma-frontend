@@ -156,6 +156,7 @@ make_handle(
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
   auto ser_man = new MockSerializationManager();
+  ser_man->set_metadata_size(sizeof(T));
   if (ExpectNewAlloc){
     EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
       .Times(AtLeast(1))
@@ -194,6 +195,7 @@ TEST_F(RegisterTask, allocate_data_block) {
   using namespace ::testing;
 
   auto ser_man = std::make_shared<MockSerializationManager>();
+  ser_man->set_metadata_size(sizeof(double));
   EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
     .Times(AtLeast(1))
     .WillRepeatedly(Return(sizeof(double)));

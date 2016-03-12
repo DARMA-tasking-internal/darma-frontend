@@ -58,49 +58,32 @@
 
 namespace mock_frontend {
 
-
-class FakeSerializationManager
-  : public darma_runtime::abstract::frontend::SerializationManager
-{
-  public:
-
-    size_t
-    get_metadata_size(
-      const void* const deserialized_data
-    ) const override {
-      if(replace_get_metadata_size) {
-        return (*replace_get_metadata_size)(this, deserialized_data);
-      }
-      else {
-        return get_metadata_size_return;
-      }
-    }
-    std::function<size_t(SerializationManager const*, const void* const)>* replace_get_metadata_size = nullptr;
-    size_t get_metadata_size_return = sizeof(double);
-
-};
-
 class MockSerializationManager
   : public darma_runtime::abstract::frontend::SerializationManager
 {
   public:
+    MockSerializationManager() { this->set_default_behavior(); }
+
     MOCK_CONST_METHOD1(
       get_metadata_size,
       size_t(const void* const deserialized_data)
     );
 
+    size_t get_metadata_size_return = 0;
+
     void
-    delegate_to_fake() {
-      using ::testing::_;
-      using ::testing::Invoke;
-      ON_CALL(*this, get_metadata_size(_))
-        .WillByDefault(Invoke(&fake, &FakeSerializationManager::get_metadata_size));
+    set_metadata_size(size_t size) {
+      get_metadata_size_return = size;
     }
 
-    FakeSerializationManager fake;
-
+    void
+    set_default_behavior() {
+      using ::testing::_;
+      using ::testing::Return;
+      ON_CALL(*this, get_metadata_size(_))
+        .WillByDefault(Return(get_metadata_size_return));
+    }
 };
-
 
 class FakeDependencyHandle
   : public darma_runtime::abstract::frontend::DependencyHandle<
