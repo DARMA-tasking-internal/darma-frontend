@@ -42,13 +42,13 @@ struct propogate_allocator
 
 struct Blabbermouth {
   Blabbermouth() : v_("") { std::cout << "default ctor " << v_ << std::endl; }
-  Blabbermouth(std::string const& v) : v_(v) { std::cout << "string ctor " << v_ << std::endl; }
+  explicit Blabbermouth(std::string v) : v_(std::move(v)) { std::cout << "string ctor " << v_ << std::endl; }
   //Blabbermouth(Blabbermouth& b) : v_(b.v_) { std::cout << "nonconst-copy ctor " << v_ << std::endl; }
   //Blabbermouth(Blabbermouth volatile& b) : v_("oops") { std::cout << "nonconst-volatile copy ctor " << v_ << std::endl; }
   Blabbermouth(Blabbermouth const& b) : v_(b.v_) { std::cout << "copy ctor " << v_ << std::endl; }
   //Blabbermouth(Blabbermouth const volatile& b) : v_("oh well") { std::cout << "cv copy ctor " << v_ << std::endl; }
-  //Blabbermouth(Blabbermouth&& b) : v_(std::move(b.v_)) { std::cout << "move ctor " << v_ << std::endl; }
-  Blabbermouth(Blabbermouth const && b) : v_(std::move(b.v_)) { std::cout << "const move ctor " << v_ << std::endl; }
+  Blabbermouth(Blabbermouth&& b) noexcept : v_(std::move(b.v_)) { std::cout << "move ctor " << v_ << std::endl; }
+  //Blabbermouth(Blabbermouth const && b) noexcept : v_(std::move(b.v_)) { std::cout << "const move ctor " << v_ << std::endl; }
   //Blabbermouth(Blabbermouth&& b) = delete;
   //Blabbermouth&
   //operator=(Blabbermouth&& b) {
@@ -81,7 +81,7 @@ int darma_main(int argc, char** argv) {
   darma_init(argc, argv);
 
   me = darma_spmd_rank();
-  size_t n_ranks = darma_spmd_size();
+  //size_t n_ranks = darma_spmd_size();
 
   //Foo f = { initial_access<int>("a"), initial_access<double>("b") };
   //std::vector<Blabbermouth> f;
