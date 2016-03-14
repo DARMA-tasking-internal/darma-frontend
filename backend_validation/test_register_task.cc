@@ -104,6 +104,7 @@ class RegisterTask
 
 ////////////////////////////////////////////////////////////////////////////////
 // some helper functions
+// TODO move these to a header
 
 template <typename MockDep, typename Lambda, bool needs_read, bool needs_write, bool IsNice=false>
 void register_one_dep_capture(MockDep* captured, Lambda&& lambda) {

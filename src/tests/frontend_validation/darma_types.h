@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                          darma_types.h
+//                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,11 +42,21 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
+#define SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
 
-#include <darma/impl/darma.h>
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
+#include "mock_key.h"
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+#define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
+
+#define DARMA_THREAD_LOCAL_BACKEND_RUNTIME thread_local
+
+namespace darma_runtime { namespace types {
+  typedef mock_backend::StreamKey key_t;
+}} // end namespace darma_runtime::types
+
+#include <darma/interface/defaults/version.h>
+#include <darma/interface/defaults/pointers.h>
+
+
+#endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */

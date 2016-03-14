@@ -418,6 +418,12 @@ class for_AccessHandle;
 
 } // end namespace create_work_attorneys
 
+namespace access_attorneys {
+
+class for_AccessHandle;
+
+} // end namespace access_attorneys
+
 } // end namespace darma_runtime::detail
 
 template <
@@ -817,10 +823,8 @@ class AccessHandle
     }
 
     ~AccessHandle() {
-      if(capturing_task) {
-        if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
-          detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
-        }
+      if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
+        detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
       }
     }
 
@@ -869,21 +873,6 @@ class AccessHandle
     // Friend functions
 
     friend void
-    _initial_access_impl(
-      const key_t& key, const version_t& version, AccessHandle& rv
-    ) {
-      assert(version == version_t());
-      rv = AccessHandle(key, version, Modify_None);
-    }
-
-    friend void
-    _read_access_impl(
-      const key_type& key, const key_type& user_version_tag, AccessHandle& rv
-    ) {
-      rv = AccessHandle(key, Read_None, user_version_tag);
-    }
-
-    friend void
     _read_write_impl(
       const key_type& key, const key_type& user_version_tag, AccessHandle& rv
     ) {
@@ -894,10 +883,30 @@ class AccessHandle
     ////////////////////////////////////////
     // Attorney for create_work
     friend class detail::create_work_attorneys::for_AccessHandle;
+    friend class detail::access_attorneys::for_AccessHandle;
 
 };
 
 namespace detail {
+
+namespace access_attorneys {
+
+struct for_AccessHandle {
+  // call the private constructors
+  template <typename T, typename Key, typename Version>
+  static AccessHandle<T>
+  construct_initial_access(Key const& key, Version const& version) {
+    return { key, version, AccessHandle<T>::State::Modify_None };
+  }
+  template <typename T, typename Key>
+  static AccessHandle<T>
+  construct_read_access(Key const& key, Key const& user_version_tag) {
+    return { key, AccessHandle<T>::State::Read_None, user_version_tag };
+  }
+
+};
+
+}
 
 namespace create_work_attorneys {
 
@@ -940,39 +949,6 @@ struct for_AccessHandle {
 
 } // end namespace detail
 
-template <
-  typename T=void,
-  typename... KeyExprParts
->
-AccessHandle<T>
-initial_access(
-  KeyExprParts&&... parts
-) {
-  types::key_t key = detail::access_expr_helper<KeyExprParts...>().get_key(
-    std::forward<KeyExprParts>(parts)...
-  );
-  types::version_t version = { };
-  AccessHandle<T> rv;
-  _initial_access_impl(key, version, rv);
-  return rv;
-}
-
-template <
-  typename U=void,
-  typename... KeyExprParts
->
-AccessHandle<U>
-read_access(
-  KeyExprParts&&... parts
-) {
-  typedef detail::access_expr_helper<KeyExprParts...> helper_t;
-  helper_t helper;
-  types::key_t key = helper.get_key(std::forward<KeyExprParts>(parts)...);
-  types::key_t user_version_tag = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
-  AccessHandle<U> rv;
-  _read_access_impl(key, user_version_tag, rv);
-  return rv;
-}
 
 template <
   typename U=void,

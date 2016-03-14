@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                          test_initial_access.cc
+//                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,11 +42,79 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
 
-#include <darma/impl/darma.h>
+#include <gtest/gtest.h>
+
+#include <darma/impl/handle.h>
 #include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+#include "mock_backend.h"
+#include "test_frontend.h"
+
+////////////////////////////////////////////////////////////////////////////////
+
+namespace {
+
+class TestInitialAccess
+  : public TestFrontend
+{
+  protected:
+
+    virtual void SetUp() {
+      setup_mock_runtime<::testing::StrictMock>();
+      TestFrontend::SetUp();
+    }
+
+    virtual void TearDown() {
+      TestFrontend::TearDown();
+    }
+};
+
+} // end anonymous namespace
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestInitialAccess, call_sequence) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  types::key_t my_key = darma_runtime::make_key("hello");
+
+  Sequence s1, s2;
+
+  auto hm1 = make_same_handle_matcher();
+
+  EXPECT_CALL(*mock_runtime, register_handle(Truly(hm1)))
+    .Times(Exactly(1))
+    .InSequence(s1, s2);
+  // release_read_only_usage() and handle_done_with_version_depth() can be called in any order
+  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
+    .Times(Exactly(1))
+    .InSequence(s1);
+  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1)))
+    .Times(Exactly(1))
+    .InSequence(s2);
+  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
+    .Times(Exactly(1))
+    .InSequence(s1, s2);
+
+  {
+
+    auto tmp = initial_access<int>("hello", version="my_version_tag");
+    ASSERT_THAT(hm1.handle, NotNull());
+    ASSERT_THAT(hm1.handle, Eq(detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp)));
+
+  } // tmp deleted
+
+
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+
