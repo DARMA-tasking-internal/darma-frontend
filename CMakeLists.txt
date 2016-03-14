@@ -12,9 +12,12 @@ include_directories( ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} )
 set(DARMA_ALL_IN_ONE On)
 
 add_subdirectory(src)
-add_subdirectory(backend_validation)
 add_subdirectory(examples)
 
-#add_subdirectory(test)
+if (GTEST_DIR)
+add_subdirectory(backend_validation)
+else()
+message("-- GTEST_DIR not given for GoogleTest installation - skipping test build")
+endif()
 
 

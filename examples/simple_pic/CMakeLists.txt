@@ -1,7 +1,5 @@
 
 add_executable(run_pic simple_pic.cc)
+target_link_libraries(run_pic ${DARMA_BACKEND_LIBNAME})
 
-if (IN_TREE_BACKEND)
-target_link_libraries(run_pic ${IN_TREE_BACKEND})
-endif()
 
