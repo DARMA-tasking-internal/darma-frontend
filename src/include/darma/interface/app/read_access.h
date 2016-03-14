@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                          read_access.h
+//                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,11 +42,31 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_
+#define SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_
 
-#include <darma/impl/darma.h>
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
+#include <darma/impl/handle.h>
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+namespace darma_runtime {
+
+template <
+  typename U=void,
+  typename... KeyExprParts
+>
+AccessHandle<U>
+read_access(
+  KeyExprParts&&... parts
+) {
+  typedef detail::access_expr_helper<KeyExprParts...> helper_t;
+  helper_t helper;
+  types::key_t key = helper.get_key(std::forward<KeyExprParts>(parts)...);
+  types::key_t user_version_tag = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
+  return detail::access_attorneys::for_AccessHandle::construct_read_access<U>(key, user_version_tag);
+}
+
+
+
+} // end namespace darma_runtime
+
+
+#endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_ */

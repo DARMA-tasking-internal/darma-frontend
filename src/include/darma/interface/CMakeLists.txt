@@ -1,5 +1,7 @@
 
 set (app_HEADERS
+app/initial_access.h
+app/read_access.h
 app/darma.h)
 
 set (backend_HEADERS
