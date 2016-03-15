@@ -45,6 +45,8 @@
 #ifndef SRC_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_H_
 #define SRC_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_H_
 
+#include <deque>
+
 #include <gtest/gtest.h>
 #include <darma/impl/task.h>
 #include <darma/impl/runtime.h>
@@ -60,7 +62,7 @@ class TestFrontend
       top_level_task = std::make_unique<darma_runtime::detail::TopLevelTask>();
     }
 
-    template <template <class...> class Strictness = ::testing::NiceMock>
+    template <template <class...> class Strictness = ::testing::StrictMock>
     void setup_mock_runtime() {
       using namespace ::testing;
 
@@ -77,7 +79,9 @@ class TestFrontend
     }
 
     virtual void SetUp() {
-      setup_mock_runtime();
+      if(not mock_runtime_setup_done) {
+        setup_mock_runtime();
+      }
     }
 
     virtual void TearDown() {
@@ -113,9 +117,9 @@ class TestFrontend
     }
 
     mock_backend::MockRuntime::task_unique_ptr top_level_task;
-    std::unique_ptr<mock_backend::MockRuntime> mock_runtime;
+    std::unique_ptr<::testing::StrictMock<mock_backend::MockRuntime>> mock_runtime;
     bool mock_runtime_setup_done = false;
-    std::vector<mock_backend::MockRuntime::handle_t const*> same_handles;
+    std::deque<mock_backend::MockRuntime::handle_t const*> same_handles;
 };
 
 
