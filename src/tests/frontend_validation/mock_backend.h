@@ -45,6 +45,8 @@
 #ifndef SRC_TESTS_FRONTEND_VALIDATION_MOCK_BACKEND_H_
 #define SRC_TESTS_FRONTEND_VALIDATION_MOCK_BACKEND_H_
 
+#include <deque>
+
 #include <gmock/gmock.h>
 
 #include <darma_types.h>
@@ -76,6 +78,9 @@ class MockRuntime
     void
     register_task(task_unique_ptr&& task) override {
       register_task_gmock_proxy(task.get());
+      if(save_tasks) {
+        registered_tasks.emplace_back(std::forward<task_unique_ptr>(task));
+      }
     }
 
     MOCK_CONST_METHOD0(get_running_task, task_t* const());
@@ -88,6 +93,9 @@ class MockRuntime
     MOCK_METHOD0(finalize, void());
 
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
+
+    bool save_tasks = true;
+    std::deque<task_unique_ptr> registered_tasks;
 };
 
 class DataBlock
