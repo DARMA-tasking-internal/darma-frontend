@@ -4,7 +4,6 @@ compatibility.h
 create_work.h
 darma.h
 darma_assert.h
-darma_main.h
 handle.h
 key_concept.h
 runtime.h

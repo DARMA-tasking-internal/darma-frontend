@@ -52,7 +52,7 @@
 #include "spmd.h"
 #include "create_work.h"
 #include "serialization.h"
-#include "darma_main.h"
+#include <darma/interface/defaults/darma_main.h>
 
 
 #endif /* SRC_DARMA_DARMA_H_ */
