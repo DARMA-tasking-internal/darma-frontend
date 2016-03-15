@@ -89,12 +89,14 @@ TEST_F(TestReadAccess, call_sequence) {
   EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(hm1), Eq(my_version_tag)))
     .Times(Exactly(1))
     .InSequence(s1, s2);
+
   //EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(HandleMatcher)))
   //  .Times(Exactly(1))
   //  .InSequence(s1);
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
     .Times(Exactly(1))
     .InSequence(s2);
+
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
     .Times(Exactly(1))
     .InSequence(s1, s2);

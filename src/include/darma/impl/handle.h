@@ -490,27 +490,49 @@ class AccessHandle
       read_only_usage_holder_ptr_maker_t;
 
   public:
-    AccessHandle() : prev_copied_from(nullptr) {
+    AccessHandle() : prev_copied_from(nullptr), dep_handle_(nullptr), read_only_holder_(nullptr), state_(None_None) {
       // TODO more safety checks to make sure uninitialized handles aren't getting captured
     }
 
+    const AccessHandle&
+    operator=(AccessHandle& other) = delete;
+    const AccessHandle&
+    operator=(AccessHandle& other) const = delete;
+
+    const AccessHandle&
+    operator=(AccessHandle const& other) = delete;
+    const AccessHandle&
+    operator=(AccessHandle const& other) const = delete;
+
     AccessHandle&
-    operator=(const AccessHandle& other) {
-      // for now...
+    operator=(AccessHandle&& other) noexcept {
       assert(other.prev_copied_from == nullptr);
+      read_only_holder_ = other.read_only_holder_;
+      if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
+        if(dep_handle_.get() != nullptr && dep_handle_.get() != other.dep_handle_.get()) {
+          detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
+        }
+      }
       dep_handle_ = other.dep_handle_;
       state_ = other.state_;
-      read_only_holder_ = other.read_only_holder_;
+      other.state_ = None_None;
       return *this;
     }
 
-    AccessHandle&
-    operator=(const AccessHandle& other) const {
-      // for now...
+    const AccessHandle&
+    operator=(AccessHandle&& other) const noexcept {
       assert(other.prev_copied_from == nullptr);
+      read_only_holder_ = other.read_only_holder_;
+      if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
+        if(dep_handle_.get() != nullptr && dep_handle_.get() != other.dep_handle_.get()) {
+          detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
+        }
+      }
       dep_handle_ = other.dep_handle_;
       state_ = other.state_;
-      read_only_holder_ = other.read_only_holder_;
+      other.state_ = None_None;
+      other.dep_handle_.reset();
+      other.read_only_holder_.reset();
       return *this;
     }
 
@@ -525,21 +547,7 @@ class AccessHandle
       return *this;
     }
 
-    //AccessHandle(AccessHandle const& copied_from)
-    //  : dep_handle_(copied_from.dep_handle_),
-    //    // this copy constructor may be invoked in ordinary usage or
-    //    // may be the actual capture itself.  In the latter case, the subsequent
-    //    // move needs access back to the outer context object, so we need to
-    //    // save a pointer back to other.  It should be ignored otherwise, though.
-    //    // note that the below const_cast is needed to convert from AccessHandle const* to AccessHandle* const
-    //    prev_copied_from(const_cast<AccessHandle* const>(&copied_from)),
-    //    read_only_holder_(copied_from.read_only_holder_),
-    //    state_(copied_from.state_)
-    //{
-    //  assert(copied_from.prev_copied_from == nullptr);
-    //}
-
-    AccessHandle(const AccessHandle& copied_from)
+    AccessHandle(AccessHandle const& copied_from) noexcept
       : dep_handle_(copied_from.dep_handle_),
         // this copy constructor may be invoked in ordinary usage or
         // may be the actual capture itself.  In the latter case, the subsequent
@@ -568,6 +576,9 @@ class AccessHandle
           copied_from_ptr->dep_handle_.reset();
           copied_from_ptr->read_only_holder_.reset();
         }
+
+        // don't leave a trail back, since we don't need it
+        prev_copied_from = nullptr;
 
         bool ignored = running_task->ignored_handles.find(dep_handle_.get())
             != running_task->ignored_handles.end();
@@ -823,7 +834,12 @@ class AccessHandle
     }
 
     ~AccessHandle() {
-      if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
+      if(
+          dep_handle_.get() != nullptr
+          and (state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read)
+          // Only do this on real handles, not transitional ones in yet-to-be-moved lambdas
+          and prev_copied_from == nullptr
+      ) {
         detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
       }
     }
@@ -860,12 +876,12 @@ class AccessHandle
     ////////////////////////////////////////
     // private members
 
-    mutable dep_handle_ptr dep_handle_;
+    mutable dep_handle_ptr dep_handle_ = { nullptr };
     mutable state_t state_ = None_None;
 
     mutable types::shared_ptr_template<read_only_usage_holder> read_only_holder_;
     task_t* capturing_task = nullptr;
-    AccessHandle* const prev_copied_from = nullptr;
+    AccessHandle* prev_copied_from = nullptr;
 
    public:
 
@@ -881,7 +897,7 @@ class AccessHandle
     }
 
     ////////////////////////////////////////
-    // Attorney for create_work
+    // Attorneys for create_work and *_access functions
     friend class detail::create_work_attorneys::for_AccessHandle;
     friend class detail::access_attorneys::for_AccessHandle;
 

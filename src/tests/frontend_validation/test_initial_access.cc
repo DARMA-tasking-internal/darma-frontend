@@ -100,14 +100,50 @@ TEST_F(TestInitialAccess, call_sequence) {
     .InSequence(s1, s2);
 
   {
-
-    auto tmp = initial_access<int>("hello", version="my_version_tag");
+    auto tmp = initial_access<int>("hello");
     ASSERT_THAT(hm1.handle, NotNull());
     ASSERT_THAT(hm1.handle, Eq(detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp)));
-
   } // tmp deleted
 
+}
 
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestInitialAccess, call_sequence_assign) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  Sequence s1, s2;
+
+  auto hm1 = make_same_handle_matcher();
+  auto hm2 = make_same_handle_matcher();
+
+  EXPECT_CALL(*mock_runtime, register_handle(Truly(hm1)))
+    .InSequence(s1, s2);
+  EXPECT_CALL(*mock_runtime, register_handle(AllOf(Truly(hm2), Not(Eq(hm1.handle)))))
+    .InSequence(s1, s2);
+  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1)))
+    .InSequence(s2);
+  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
+    .InSequence(s1);
+  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
+    .InSequence(s1, s2);
+  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2)))
+    .InSequence(s1);
+  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm2)))
+    .InSequence(s2);
+  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2)))
+    .InSequence(s1, s2);
+
+  {
+
+    auto tmp1 = initial_access<int>("hello");
+
+    // Replace tmp1
+    tmp1 = initial_access<int>("world");
+
+  } // tmp1
 
 }
 

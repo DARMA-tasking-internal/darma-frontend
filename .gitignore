@@ -1,5 +1,3 @@
-
-
 docs/spec/*.log
 docs/spec/*.acn
 docs/spec/*.aux
@@ -13,4 +11,5 @@ docs/spec/*.pgo
 docs/spec/*.synctex.gz
 docs/spec/*.tdo
 docs/spec/*.toc
+*.dSYM
 
