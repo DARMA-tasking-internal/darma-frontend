@@ -10,6 +10,7 @@ backend/runtime.h
 backend/types.h)
 
 set (default_HEADERS
+defaults/darma_main.h
 defaults/key.h
 defaults/key_fwd.h
 defaults/pointers.h

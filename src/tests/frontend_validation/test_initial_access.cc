@@ -88,6 +88,7 @@ TEST_F(TestInitialAccess, call_sequence) {
   EXPECT_CALL(*mock_runtime, register_handle(Truly(hm1)))
     .Times(Exactly(1))
     .InSequence(s1, s2);
+
   // release_read_only_usage() and handle_done_with_version_depth() can be called in any order
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
     .Times(Exactly(1))
@@ -95,6 +96,7 @@ TEST_F(TestInitialAccess, call_sequence) {
   EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1)))
     .Times(Exactly(1))
     .InSequence(s2);
+
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
     .Times(Exactly(1))
     .InSequence(s1, s2);
