@@ -78,10 +78,8 @@ TEST_F(TestReadAccess, call_sequence) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
 
-  types::key_t my_key = darma_runtime::make_key("hello");
   types::key_t my_version_tag = darma_runtime::make_key("my_version_tag");
 
-  mock_backend::MockRuntime::handle_t const* same_handle = nullptr;
   auto hm1 = make_same_handle_matcher();
 
   Sequence s1, s2;
@@ -90,9 +88,10 @@ TEST_F(TestReadAccess, call_sequence) {
     .Times(Exactly(1))
     .InSequence(s1, s2);
 
-  //EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(HandleMatcher)))
-  //  .Times(Exactly(1))
-  //  .InSequence(s1);
+  // NOTE: read_access handles should not call handle_done_with_version_depth!
+  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1)))
+    .Times(Exactly(0));
+
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
     .Times(Exactly(1))
     .InSequence(s2);
@@ -107,6 +106,57 @@ TEST_F(TestReadAccess, call_sequence) {
     ASSERT_THAT(tmp_handle, Eq(hm1.handle));
   }
 
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestReadAccess, call_sequence_assign) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  types::key_t my_version_tag = darma_runtime::make_key("my_version_tag");
+  types::key_t other_version_tag = darma_runtime::make_key("other_version_tag");
+
+  auto hm1 = make_same_handle_matcher();
+  auto hm2 = make_same_handle_matcher();
+
+  Sequence s;
+
+  EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(hm1), Eq(my_version_tag)))
+    .Times(Exactly(1))
+    .InSequence(s);
+  EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(hm2), Eq(other_version_tag)))
+    .Times(Exactly(1))
+    .InSequence(s);
+  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
+    .Times(Exactly(1))
+    .InSequence(s);
+  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
+    .Times(Exactly(1))
+    .InSequence(s);
+  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2)))
+    .Times(Exactly(1))
+    .InSequence(s);
+  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2)))
+    .Times(Exactly(1))
+    .InSequence(s);
+
+  // NOTE: read_access handles should not call handle_done_with_version_depth!
+  // This should be enforced by the strict mock anyway, but just in case,
+  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(_))
+    .Times(Exactly(0));
+
+
+  {
+    auto tmp1 = read_access<int>("hello", version="my_version_tag");
+
+    tmp1 = read_access<int>("world", version="other_version_tag");
+
+    auto* tmp_handle = detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp1);
+
+    ASSERT_THAT(tmp_handle, Eq(hm2.handle));
+  }
 
 }
 

@@ -48,5 +48,6 @@
 #include <darma/impl/darma.h>
 #include <darma/interface/app/initial_access.h>
 #include <darma/interface/app/read_access.h>
+#include <darma/interface/app/create_work.h>
 
 #endif /* SRC_INTERFACE_APP_DARMA_H_ */

@@ -79,27 +79,27 @@ TEST_F(TestInitialAccess, call_sequence) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
 
-  types::key_t my_key = darma_runtime::make_key("hello");
-
-  Sequence s1, s2;
+  Sequence s1;
 
   auto hm1 = make_same_handle_matcher();
 
   EXPECT_CALL(*mock_runtime, register_handle(Truly(hm1)))
     .Times(Exactly(1))
-    .InSequence(s1, s2);
+    .InSequence(s1);
 
-  // release_read_only_usage() and handle_done_with_version_depth() can be called in any order
+  // Release read-only usage should happen immedately for initial access,
+  // i.e., before runnign the next line of code that triggers the next register_handle
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
     .Times(Exactly(1))
     .InSequence(s1);
+
   EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1)))
     .Times(Exactly(1))
-    .InSequence(s2);
+    .InSequence(s1);
 
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
     .Times(Exactly(1))
-    .InSequence(s1, s2);
+    .InSequence(s1);
 
   {
     auto tmp = initial_access<int>("hello");
@@ -122,21 +122,25 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
   auto hm2 = make_same_handle_matcher();
 
   EXPECT_CALL(*mock_runtime, register_handle(Truly(hm1)))
-    .InSequence(s1, s2);
-  EXPECT_CALL(*mock_runtime, register_handle(AllOf(Truly(hm2), Not(Eq(hm1.handle)))))
-    .InSequence(s1, s2);
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1)))
-    .InSequence(s2);
+    .InSequence(s1);
+  // Release read-only usage should happen immedately for initial access,
+  // i.e., before runnign the next line of code that triggers the next register_handle
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
     .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
-    .InSequence(s1, s2);
+  EXPECT_CALL(*mock_runtime, register_handle(AllOf(Truly(hm2), Not(Eq(hm1.handle)))))
+    .InSequence(s1);
+  // Release read-only usage should happen immedately for initial access,
+  // i.e., before runnign the next line of code that triggers the next register_handle
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2)))
     .InSequence(s1);
+  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1)))
+    .InSequence(s1);
+  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
+    .InSequence(s1);
   EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm2)))
-    .InSequence(s2);
+    .InSequence(s1);
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2)))
-    .InSequence(s1, s2);
+    .InSequence(s1);
 
   {
 
@@ -148,6 +152,10 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
   } // tmp1
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+// TODO Assert that if a version tag is given, an error should result
 
 ////////////////////////////////////////////////////////////////////////////////
 

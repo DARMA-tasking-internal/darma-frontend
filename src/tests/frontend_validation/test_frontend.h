@@ -96,15 +96,16 @@ class TestFrontend
 
     struct SameHandleMatcher {
       SameHandleMatcher(
-        mock_backend::MockRuntime::handle_t const *& handle_to_track
+        mock_backend::MockRuntime::handle_t*& handle_to_track
       ) : handle(handle_to_track) { }
-      const mock_backend::MockRuntime::handle_t*& handle;
+      mock_backend::MockRuntime::handle_t*& handle;
       bool operator()(
-        const mock_backend::MockRuntime::handle_t* const in_handle
+        const mock_backend::MockRuntime::handle_t* in_handle
       ) const {
         if(handle) return intptr_t(in_handle) == intptr_t(handle);
         else {
-          handle = in_handle;
+          // Just const_cast so that one matcher can handle both the const and non-const cases
+          handle = const_cast<mock_backend::MockRuntime::handle_t*>(in_handle);
           return true;
         }
       }
@@ -117,9 +118,9 @@ class TestFrontend
     }
 
     mock_backend::MockRuntime::task_unique_ptr top_level_task;
-    std::unique_ptr<::testing::StrictMock<mock_backend::MockRuntime>> mock_runtime;
+    std::unique_ptr<mock_backend::MockRuntime> mock_runtime;
     bool mock_runtime_setup_done = false;
-    std::deque<mock_backend::MockRuntime::handle_t const*> same_handles;
+    std::deque<mock_backend::MockRuntime::handle_t*> same_handles;
 };
 
 

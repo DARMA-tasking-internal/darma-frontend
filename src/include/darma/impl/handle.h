@@ -354,6 +354,7 @@ class DependencyHandle
     }
 
     virtual ~DependencyHandle() {
+      if(not has_subsequent_at_version_depth) backend_runtime->handle_done_with_version_depth(this);
       backend_runtime->release_handle(this);
     }
 
@@ -401,6 +402,8 @@ class DependencyHandle
       return this->data_block_;
     }
 
+
+    bool has_subsequent_at_version_depth = false;
 
   private:
 
@@ -508,11 +511,11 @@ class AccessHandle
     operator=(AccessHandle&& other) noexcept {
       assert(other.prev_copied_from == nullptr);
       read_only_holder_ = other.read_only_holder_;
-      if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
-        if(dep_handle_.get() != nullptr && dep_handle_.get() != other.dep_handle_.get()) {
-          detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
-        }
-      }
+      //if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
+      //  if(dep_handle_.get() != nullptr && dep_handle_.get() != other.dep_handle_.get()) {
+      //    detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
+      //  }
+      //}
       dep_handle_ = other.dep_handle_;
       state_ = other.state_;
       other.state_ = None_None;
@@ -523,11 +526,11 @@ class AccessHandle
     operator=(AccessHandle&& other) const noexcept {
       assert(other.prev_copied_from == nullptr);
       read_only_holder_ = other.read_only_holder_;
-      if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
-        if(dep_handle_.get() != nullptr && dep_handle_.get() != other.dep_handle_.get()) {
-          detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
-        }
-      }
+      //if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
+      //  if(dep_handle_.get() != nullptr && dep_handle_.get() != other.dep_handle_.get()) {
+      //    detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
+      //  }
+      //}
       dep_handle_ = other.dep_handle_;
       state_ = other.state_;
       other.state_ = None_None;
@@ -538,9 +541,9 @@ class AccessHandle
 
     AccessHandle&
     operator=(std::nullptr_t) const {
-      if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
-        detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
-      }
+      //if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
+      //  detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
+      //}
       dep_handle_ = 0;
       state_ = None_None;
       read_only_holder_ = 0;
@@ -555,7 +558,7 @@ class AccessHandle
         // save a pointer back to other.  It should be ignored otherwise, though.
         // note that the below const_cast is needed to convert from AccessHandle const* to AccessHandle* const
         prev_copied_from(const_cast<AccessHandle* const>(&copied_from)),
-        read_only_holder_(copied_from.read_only_holder_),
+        read_only_holder_(std::move(copied_from.read_only_holder_)),
         state_(copied_from.state_)
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
@@ -834,14 +837,12 @@ class AccessHandle
     }
 
     ~AccessHandle() {
-      if(
-          dep_handle_.get() != nullptr
-          and (state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read)
-          // Only do this on real handles, not transitional ones in yet-to-be-moved lambdas
-          and prev_copied_from == nullptr
-      ) {
-        detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
-      }
+      //if(
+      //    dep_handle_.get() != nullptr
+      //    and (state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read)
+      //) {
+      //  detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
+      //}
     }
 
    private:
@@ -858,7 +859,12 @@ class AccessHandle
         ),
         state_(initial_state),
         read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
-    { }
+    {
+      // Release read_only_holder_ immediately if this is initial access
+      if(state_ == Modify_None and version == version_type()) {
+        read_only_holder_.reset();
+      }
+    }
 
     AccessHandle(
       const key_type& key,
@@ -871,6 +877,7 @@ class AccessHandle
         read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
     {
       assert(state_ == Read_None);
+      dep_handle_->has_subsequent_at_version_depth = true;
     }
 
     ////////////////////////////////////////
