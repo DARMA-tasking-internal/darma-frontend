@@ -21,9 +21,10 @@ else ()
   message(FATAL_ERROR "Your C++ compiler does not support C++11.")
 endif ()
 
+set (VALIDATION_SRC_ROOT ${CMAKE_SOURCE_DIR})
+set (VALIDATION_BIN_ROOT ${CMAKE_BINARY_DIR})
+
 if (DARMA_ALL_IN_ONE)
-set (VALIDATION_SRC_ROOT ${CMAKE_SOURCE_DIR}/examples)
-set (VALIDATION_BIN_ROOT ${CMAKE_BINARY_DIR}/examples)
 set (DARMA_FRONTEND_DIR ${CMAKE_SOURCE_DIR}/src)
 
 #figure out which backend
@@ -41,9 +42,6 @@ set(DARMA_BACKEND_LIBNAME darma_${backend_name}_backend)
 include_directories(${backend_dir})
 else() #built as standalone
 
-set (VALIDATION_SRC_ROOT ${CMAKE_SOURCE_DIR})
-set (VALIDATION_BIN_ROOT ${CMAKE_BINARY_DIR})
-
 if (NOT DARMA_FRONTEND_DIR)
 message(FATAL_ERROR "Must define prefix install dir for frontend via -DDARMA_FRONTEND_DIR=")
 endif()
@@ -57,7 +55,7 @@ message(FATAL_ERROR "Must define prefix install dir for backend via -DDARMA_BACK
 endif()
 
 include_directories( ${DARMA_BACKEND_DIR}/include )
-set(CMAKE_EXE_LINKER_FLAGS "-L${DARMA_BACKEND_DIR}/lib")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${DARMA_BACKEND_DIR}/lib")
 
 if (NOT DARMA_BACKEND_LIBNAME)
 message(FATAL_ERROR "Must give library name for backend, e.g. for libdarma_backend_test.a give -DDARMA_BACKEND_LIBNAME=darma_backend_test")
