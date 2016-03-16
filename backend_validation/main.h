@@ -45,6 +45,7 @@
 #ifndef DARMA_BACKEND_VALIDATION_MAIN_H
 #define DARMA_BACKEND_VALIDATION_MAIN_H
 
+#include <darma_types.h>
 #include "mock_frontend.h"
 
 #ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
