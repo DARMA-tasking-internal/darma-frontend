@@ -277,6 +277,8 @@ TEST_F(RegisterTask, release_satisfy) {
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
 
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
   int value = 42;
 
   register_write_only_capture(h_0.get(), [&,value]{
@@ -288,7 +290,6 @@ TEST_F(RegisterTask, release_satisfy) {
     detail::backend_runtime->release_handle(h_0.get());
   });
 
-  detail::backend_runtime->release_read_only_usage(h_0.get());
   detail::backend_runtime->release_read_only_usage(h_1.get());
 
   register_read_write_capture(h_1.get(), [&,value]{
