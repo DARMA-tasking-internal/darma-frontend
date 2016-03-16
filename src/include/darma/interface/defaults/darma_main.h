@@ -46,6 +46,7 @@
 #define FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_
 
 #include <functional>
+#include <memory>
 
 #include <darma/impl/compatibility.h>
 
