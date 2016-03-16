@@ -269,6 +269,11 @@ TEST_F(RegisterTask, release_satisfy) {
   ++next_version;
   auto h_1 = make_handle<int, true, false>(next_version, "the_key");
 
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(2));
+  EXPECT_CALL(*h_1.get(), get_data_block())
+    .Times(AtLeast(1));
+
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
 
@@ -286,8 +291,12 @@ TEST_F(RegisterTask, release_satisfy) {
   detail::backend_runtime->release_read_only_usage(h_0.get());
   detail::backend_runtime->release_read_only_usage(h_1.get());
 
-  register_read_write_capture(h_1.get(), [&,value]{  // FIXME: this is not running but not reporting that it didn't run either
-    ASSERT_THAT(*(int*)(h_1->get_data_block()->get_data()), Eq(value));
+  register_read_write_capture(h_1.get(), [&,value]{
+    abstract::backend::DataBlock* data_block = h_1->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    ASSERT_THAT(*((int*)data), Eq(value));
     detail::backend_runtime->release_handle(h_1.get());
   });
 
