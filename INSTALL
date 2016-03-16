@@ -6,41 +6,42 @@ To build a DARMA program, you must do the following:
    and linking to the library built in #2
 
 For debugging purposes, this repo includes the complete front-end
-as well as some very simple backends along with a some simple examples.
-To build all the examples against the mock backend, configure CMake with:
+as well as some very simple backends along with some simple examples.
+
+To build all the examples against the serial backend, configure CMake with:
 
 cmake ${source} \
   -DCMAKE_INSTALL_PREFIX=${prefix} \
-  -DSTL_THREADS_BACKEND=Off \
+  -DSERIAL_BACKEND=On
+
+Or, to use the mock backend
+
+cmake ${source} \
+  -DCMAKE_INSTALL_PREFIX=${prefix} \
   -DMOCK_BACKEND=On
 
 Or, to use the STL threads backend
 
 cmake ${source} \
   -DCMAKE_INSTALL_PREFIX=${prefix} \
-  -DSTL_THREADS_BACKEND=On \
-  -DMOCK_BACKEND=Off
-
+  -DSTL_THREADS_BACKEND=On
 
 If building components individually, do the following:
-1) Front-end
-cmake ${frontend_source} \
+1) Front-end (header-only install)
+cmake ${source}/src/include \
   -DCMAKE_INSTALL_PREFIX=${frontend_prefix}
 make install
 
 2) Back-end
-cmake ${backend_source} \
+cmake ${source}/src/reference_backends \
   -DCMAKE_INSTALL_PREFIX=${backend_prefix} \
-  -DSTL_THREADS_BACKEND=Off \
-  -DMOCK_BACKEND=On \
-  -DDARMA_FRONTEND=${frontend_prefix}
+  -DSERIAL_BACKEND=On \
+  -DDARMA_FRONTEND_DIR=${frontend_prefix}
 make install
 
 3) Examples
-cmake ${examples_source} \
-  -DDARMA_FRONTEND=${frontend_prefix} \
-  -DDARMA_BACKEND=${backend_prefix} \
-  -DDARMA_BACKEND_LIBNAME=darma_mock_backend
-
-
+cmake ${source}/examples \
+  -DDARMA_FRONTEND_DIR=${frontend_prefix} \
+  -DDARMA_BACKEND_DIR=${backend_prefix} \
+  -DDARMA_BACKEND_LIBNAME=${backend_libname}
 
