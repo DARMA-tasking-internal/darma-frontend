@@ -77,17 +77,16 @@ class RegisterTask
         std::move(top_level_task)
       );
 
-      // set up some handles to be used for testing
+      backend_finalized = false;
     }
 
     virtual void TearDown() {
-      if(not backend_finalized) {
+      if(!backend_finalized) {
         // Clean up from failed tests
         detail::backend_runtime->finalize();
       }
-      // Delete the instance of backend_runtime (?!?)
       delete detail::backend_runtime;
-      detail::backend_runtime = nullptr;
+      detail::backend_runtime = 0;
       delete[] argv_[0];
       delete[] argv_;
     }
@@ -294,11 +293,4 @@ TEST_F(RegisterTask, release_satisfy) {
 
   detail::backend_runtime->finalize();
   backend_finalized = true;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
 }

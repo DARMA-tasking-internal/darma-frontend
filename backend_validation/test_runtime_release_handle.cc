@@ -78,10 +78,12 @@ class RuntimeRelease
     }
 
     virtual void TearDown() {
-      if(not backend_finalized) {
+      if(!backend_finalized) {
         // Clean up from failed tests
         detail::backend_runtime->finalize();
       }
+      delete detail::backend_runtime;
+      detail::backend_runtime = 0;
       delete[] argv_[0];
       delete[] argv_;
     }
@@ -170,10 +172,4 @@ TEST_F(RuntimeRelease, satisfy_next) {
 
   detail::backend_runtime->finalize();
   backend_finalized = true;
-}
-
-
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
 }
