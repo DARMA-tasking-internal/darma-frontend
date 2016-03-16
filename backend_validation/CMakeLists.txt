@@ -74,7 +74,7 @@ include_directories( ${GTEST_DIR}/include )
 function(add_unit_test test_name)
 add_executable(${test_name} ${test_name}.cc main.cc)
 target_link_libraries(${test_name} ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
-add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name} "")
+add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name} "--gtest_repeat=10")
 set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
   FAIL_REGULAR_EXPRESSION "FAILED;should be deleted but never is"
   PASS_REGULAR_EXPRESSION "PASSED")
