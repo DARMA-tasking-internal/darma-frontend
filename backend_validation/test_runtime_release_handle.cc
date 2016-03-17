@@ -109,21 +109,37 @@ TEST_F(RuntimeRelease, satisfy_next) {
   EXPECT_CALL(*ser_man, get_metadata_size(_))
     .Times(AtLeast(1));
 
-  auto handle_a = std::make_shared<MockDependencyHandle>();
+  auto handle_a = std::make_shared<NiceMock<MockDependencyHandle>>();
   handle_a->get_key_return = detail::key_traits<MockDependencyHandle::key_t>::maker()("the_key");
   handle_a->get_version_return = MockDependencyHandle::version_t();
   handle_a->get_serialization_manager_return = ser_man.get();
 
   EXPECT_CALL(*handle_a, satisfy_with_data_block(_))
     .Times(Exactly(1));
+  EXPECT_CALL(*handle_a, get_data_block())
+    .Times(AtLeast(2));
+  EXPECT_CALL(*handle_a, get_key())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*handle_a, get_version())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*handle_a, get_serialization_manager())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*handle_a, allow_writes())
+    .Times(Exactly(1));
 
-  auto handle_b = std::make_shared<MockDependencyHandle>();
+  auto handle_b = std::make_shared<NiceMock<MockDependencyHandle>>();
   handle_b->get_key_return = detail::key_traits<MockDependencyHandle::key_t>::maker()("the_key");
   handle_b->get_version_return = ++MockDependencyHandle::version_t();
   handle_b->get_serialization_manager_return = ser_man.get();
 
   EXPECT_CALL(*handle_b, satisfy_with_data_block(_))
     .Times(Exactly(1));
+  EXPECT_CALL(*handle_b, get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*handle_b, get_key())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*handle_b, get_version())
+    .Times(AtLeast(1));
 
   detail::backend_runtime->register_handle(handle_a.get());
   detail::backend_runtime->register_handle(handle_b.get());
@@ -159,8 +175,10 @@ TEST_F(RuntimeRelease, satisfy_next) {
   ON_CALL(*task_b, run())
     .WillByDefault(Invoke([&](){
       abstract::backend::DataBlock* data_block = handle_b->get_data_block();
-      MockDependencyHandle* handle_b_ptr = handle_b.get();
-      ASSERT_EQ(*(double*)(handle_b_ptr->get_data_block()->get_data()), test_value);
+      ASSERT_NE(data_block, nullptr);
+      void* data = data_block->get_data();
+      ASSERT_NE(data, nullptr);
+      ASSERT_THAT(*((double*)data), DoubleEq(test_value));
       detail::backend_runtime->release_read_only_usage(handle_b.get());
       detail::backend_runtime->release_handle(handle_b.get());
     }));

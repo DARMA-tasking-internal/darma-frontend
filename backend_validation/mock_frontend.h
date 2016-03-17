@@ -114,7 +114,10 @@ class MockDependencyHandle
     darma_runtime::abstract::frontend::SerializationManager* get_serialization_manager_return = nullptr;
     darma_runtime::abstract::backend::DataBlock* get_data_block_return = nullptr;
 
-    MockDependencyHandle() { this->set_default_behavior(); }
+    MockDependencyHandle(){
+      get_key_return = darma_runtime::make_key("key_not_specified");
+      this->set_default_behavior();
+    }
 
     MOCK_CONST_METHOD0(get_key, key_t const&());
     MOCK_CONST_METHOD0(get_version, version_t const&());

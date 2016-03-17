@@ -175,6 +175,8 @@ make_handle(
     EXPECT_CALL(*h_0, get_serialization_manager())
       .Times(AtLeast(1))
       .WillRepeatedly(Return(ser_man));
+    EXPECT_CALL(*h_0, allow_writes())
+      .Times(Exactly(1));
   }
 
   return h_0;
@@ -261,7 +263,7 @@ TEST_F(RegisterTask, allocate_data_block_2) {
   detail::backend_runtime->release_handle(h_0.get());
 }
 
-TEST_F(RegisterTask, release_satisfy) {
+TEST_F(RegisterTask, release_satisfy_for_read_only) {
   using namespace ::testing;
 
   auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
@@ -269,10 +271,17 @@ TEST_F(RegisterTask, release_satisfy) {
   ++next_version;
   auto h_1 = make_handle<int, true, false>(next_version, "the_key");
 
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));
+    .Times(AtLeast(2));  // when running write-only task and when releasing
+
+  EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
   EXPECT_CALL(*h_1.get(), get_data_block())
-    .Times(AtLeast(1));
+    .Times(AtLeast(1));  // when running read-only task
+  EXPECT_CALL(*h_1.get(), allow_writes())
+    .Times(Exactly(0));
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
@@ -282,6 +291,63 @@ TEST_F(RegisterTask, release_satisfy) {
   int value = 42;
 
   register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+
+  register_read_only_capture(h_1.get(), [&,value]{
+    ASSERT_TRUE(h_1->is_satisfied());
+    ASSERT_FALSE(h_1->is_writable());
+    abstract::backend::DataBlock* data_block = h_1->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    ASSERT_THAT(*((int*)data), Eq(value));
+    detail::backend_runtime->release_handle(h_1.get());
+  });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+}
+
+TEST_F(RegisterTask, release_satisfy_for_read_write) {
+  using namespace ::testing;
+
+  auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
+  auto next_version = h_0->get_version();
+  ++next_version;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(2));  // when running write-only task and when releasing
+
+  EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1.get(), get_data_block())
+    .Times(AtLeast(1));  // when running read-write task
+  EXPECT_CALL(*h_1.get(), allow_writes())
+    .Times(Exactly(1));
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  int value = 42;
+
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
     abstract::backend::DataBlock* data_block = h_0->get_data_block();
     ASSERT_THAT(data_block, NotNull());
     void* data = data_block->get_data();
@@ -293,6 +359,8 @@ TEST_F(RegisterTask, release_satisfy) {
   detail::backend_runtime->release_read_only_usage(h_1.get());
 
   register_read_write_capture(h_1.get(), [&,value]{
+    ASSERT_TRUE(h_1->is_satisfied());
+    ASSERT_TRUE(h_1->is_writable());
     abstract::backend::DataBlock* data_block = h_1->get_data_block();
     ASSERT_THAT(data_block, NotNull());
     void* data = data_block->get_data();
