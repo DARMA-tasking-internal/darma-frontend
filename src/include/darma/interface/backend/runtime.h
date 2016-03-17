@@ -413,12 +413,8 @@ typedef Runtime<
 
 /** @brief initialize the backend::Runtime instance
  *
- *  @remark This should be called once per top-level task.  The backend may chose whether
- *  the frontend is allowed to have multiple top-level tasks in one process.  If the backend
- *  supports multiple top-level tasks, it should define the preprocessor constant
- *  DARMA_BACKEND_TOP_LEVEL_TASK_MULTIPLE.  If not, it should define the constant
- *  DARMA_BACKEND_TOP_LEVEL_TASK_SINGLE.  The frontend is free to wrap these macro constants
- *  in more user-friendly names before exposing them to the user.
+ *  @remark This should be called once per top-level task.  Only one top-level task is
+ *  allowed per process.
  *
  *  @pre The frontend should do nothing that interacts with the backend before this
  *  function is called.
