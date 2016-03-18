@@ -194,7 +194,7 @@ TEST_F(RuntimeRelease, satisfy_next) {
 }
 
 // satisfy subsequent ++v
-TEST_F(RuntimeRelease, release_satisfy_same_depth) {
+TEST_F(RuntimeRelease, satisfy_same_depth) {
   using namespace ::testing;
 
   auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
@@ -248,7 +248,7 @@ TEST_F(RuntimeRelease, release_satisfy_same_depth) {
 }
 
 // satisfy subsequent ++(v.pop_subversion())
-TEST_F(RuntimeRelease, release_satisfy_prev_depth) {
+TEST_F(RuntimeRelease, satisfy_prev_depth) {
   using namespace ::testing;
 
   auto first_version = MockDependencyHandle::version_t();
@@ -306,7 +306,7 @@ TEST_F(RuntimeRelease, release_satisfy_prev_depth) {
 }
 
 // satisfy subsequent ++(v.push_subversion())
-TEST_F(RuntimeRelease, release_satisfy_next_depth) {
+TEST_F(RuntimeRelease, satisfy_next_depth) {
   using namespace ::testing;
 
   auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
@@ -368,7 +368,7 @@ TEST_F(RuntimeRelease, release_satisfy_next_depth) {
 }
 
 // satisfy ++(v.push_subversion()) and then ++v
-TEST_F(RuntimeRelease, release_satisfy_next_then_same) {
+TEST_F(RuntimeRelease, satisfy_next_then_same) {
   using namespace ::testing;
 
   auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
@@ -449,7 +449,7 @@ TEST_F(RuntimeRelease, release_satisfy_next_then_same) {
 }
 
 // satisfy subsequent of subsequent, each at one less depth
-TEST_F(RuntimeRelease, release_satisfy_subseq_already_released) {
+TEST_F(RuntimeRelease, satisfy_subseq_already_released) {
   using namespace ::testing;
 
   auto first_version = MockDependencyHandle::version_t();
@@ -519,7 +519,7 @@ TEST_F(RuntimeRelease, release_satisfy_subseq_already_released) {
 }
 
 // satisfy subsequent of subsequent of subsequent, each at one less depth
-TEST_F(RuntimeRelease, release_satisfy_2subseqs_already_released) {
+TEST_F(RuntimeRelease, satisfy_2subseqs_already_released) {
   using namespace ::testing;
 
   auto first_version = MockDependencyHandle::version_t();
@@ -601,7 +601,7 @@ TEST_F(RuntimeRelease, release_satisfy_2subseqs_already_released) {
 
 
 // satisfy subsequent of subsequent, each at one less depth
-TEST_F(RuntimeRelease, release_satisfy_2subseqs_already_released2) {
+TEST_F(RuntimeRelease, satisfy_2subseqs_already_released2) {
   using namespace ::testing;
 
   auto first_version = MockDependencyHandle::version_t();

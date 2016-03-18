@@ -108,7 +108,7 @@ class RegisterTask
 //   before task registered, and after task registered
 
 // release_read_only_usage right before the lambda is created
-TEST_F(RegisterTask, register_task_first_writer_post_register_handle) {
+TEST_F(RegisterTask, first_writer_post_register_handle) {
   using namespace ::testing;
 
   auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
@@ -137,7 +137,7 @@ TEST_F(RegisterTask, register_task_first_writer_post_register_handle) {
 }
 
 // release_read_only_usage before the task is registered
-TEST_F(RegisterTask, register_task_first_writer_block_post_lambda) {
+TEST_F(RegisterTask, first_writer_block_post_lambda) {
   using namespace ::testing;
 
   auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
@@ -183,7 +183,7 @@ TEST_F(RegisterTask, register_task_first_writer_block_post_lambda) {
 }
 
 // release_read_only_usage after the task is registered
-TEST_F(RegisterTask, register_task_first_writer_post_register_task) {
+TEST_F(RegisterTask, first_writer_post_register_task) {
   using namespace ::testing;
 
   auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
@@ -348,7 +348,7 @@ TEST_F(RegisterTask, release_satisfy_for_read_write) {
 ////////////////////////////////////////////////////////////////////////////////
 
 // write-only with multiple outputs
-TEST_F(RegisterTask, register_task_first_writer_2outputs) {
+TEST_F(RegisterTask, first_writer_2outputs) {
   using namespace ::testing;
 
   auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
