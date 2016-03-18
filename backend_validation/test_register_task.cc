@@ -187,29 +187,40 @@ make_handle(
 
 // Try three different spots for release_only_usage(): before lambda created,
 //   before task registered, and after task registered
-TEST_F(RegisterTask, allocate_data_block) {
+
+// release_read_only_usage right before the lambda is created
+TEST_F(RegisterTask, allocate_data_block_post_register_handle) {
   using namespace ::testing;
 
-  auto ser_man = std::make_shared<MockSerializationManager>();
-  ser_man->get_metadata_size_return = sizeof(double);
-  EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
-    .Times(AtLeast(1))
-    .WillRepeatedly(Return(sizeof(double)));
-
-  auto h_0 = std::make_shared<NiceMock<MockDependencyHandle>>();
-  EXPECT_CALL(*h_0, get_key())
-    .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(detail::key_traits<MockDependencyHandle::key_t>::maker()("the_key")));
-  EXPECT_CALL(*h_0, get_version())
-    .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(MockDependencyHandle::version_t()));
-  EXPECT_CALL(*h_0, get_serialization_manager())
-    .Times(AtLeast(1))
-    .WillRepeatedly(Return(ser_man.get()));
+  auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
 
   detail::backend_runtime->register_handle(h_0.get());
 
-  auto task_a = std::make_unique<MockTask>();
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  register_write_only_capture(h_0.get(), [&]{
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+  });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  detail::backend_runtime->release_handle(h_0.get());
+}
+
+// release_read_only_usage before the task is registered
+TEST_F(RegisterTask, allocate_data_block_post_lambda) {
+  using namespace ::testing;
+
+  auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
+
+  detail::backend_runtime->register_handle(h_0.get());
+
+  typedef typename std::conditional<true, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+  auto task_a = std::make_unique<task_t>();
   EXPECT_CALL(*task_a, get_dependencies())
     .Times(AtLeast(1))
     .WillRepeatedly(ReturnRefOfCopy(MockTask::handle_container_t{ h_0.get() }));
@@ -240,8 +251,8 @@ TEST_F(RegisterTask, allocate_data_block) {
   detail::backend_runtime->release_handle(h_0.get());
 }
 
-// Same task, but using helpers...
-TEST_F(RegisterTask, allocate_data_block_2) {
+// release_read_only_usage after the task is registered
+TEST_F(RegisterTask, allocate_data_block_post_register_task) {
   using namespace ::testing;
 
   auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
@@ -263,6 +274,7 @@ TEST_F(RegisterTask, allocate_data_block_2) {
   detail::backend_runtime->release_handle(h_0.get());
 }
 
+// register a write_only task and then a read-only task on its subsequent
 TEST_F(RegisterTask, release_satisfy_for_read_only) {
   using namespace ::testing;
 
@@ -318,6 +330,7 @@ TEST_F(RegisterTask, release_satisfy_for_read_only) {
   backend_finalized = true;
 }
 
+// register a write_only task and then a read-write task on its subsequent
 TEST_F(RegisterTask, release_satisfy_for_read_write) {
   using namespace ::testing;
 
