@@ -23,20 +23,20 @@ endif ()
 
 
 if (DARMA_ALL_IN_ONE)
-set (DARMA_FRONTEND ${CMAKE_SOURCE_DIR}/src)
+set (DARMA_FRONTEND_DIR ${CMAKE_SOURCE_DIR}/src)
 set (BACKENDS_ROOT ${CMAKE_SOURCE_DIR}/src/reference_backends)
 include_directories( ${BACKENDS_ROOT} ${CMAKE_BINARY_DIR}/src/reference_backends )
 else() #built as standalone
 set (BACKENDS_ROOT ${CMAKE_SOURCE_DIR})
 include_directories( ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} )
-if (NOT DARMA_FRONTEND)
-message(FATAL_ERROR "Must define prefix install dir for frontend via -DDARMA_FRONTEND=")
+if (NOT DARMA_FRONTEND_DIR)
+message(FATAL_ERROR "Must define prefix install dir for frontend via -DDARMA_FRONTEND_DIR=")
 endif()
 endif()
 
-include_directories( ${DARMA_FRONTEND}/include )
-include_directories( ${DARMA_FRONTEND}/include/tinympl )
-include_directories( ${DARMA_FRONTEND}/include/darma )
+include_directories( ${DARMA_FRONTEND_DIR}/include )
+include_directories( ${DARMA_FRONTEND_DIR}/include/tinympl )
+include_directories( ${DARMA_FRONTEND_DIR}/include/darma )
 
 option(SERIAL_BACKEND "Whether to compile/link debug serial backend" Off)
 option(STL_THREADS_BACKEND "Whether to compile/link debug backend based on STL threads" Off)

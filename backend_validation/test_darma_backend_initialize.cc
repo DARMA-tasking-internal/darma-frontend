@@ -52,6 +52,8 @@
 
 #include "mock_frontend.h"
 
+using namespace darma_runtime;
+
 namespace {
 
 class DARMABackendInitialize
@@ -65,9 +67,16 @@ class DARMABackendInitialize
       argv_ = new char*[1];
       argv_[0] = new char[256];
       sprintf(argv_[0], "<mock frontend test>");
+      backend_finalized = false;
     }
 
     virtual void TearDown() {
+      if(!backend_finalized) {
+        // Clean up from failed tests
+        detail::backend_runtime->finalize();
+      }
+      delete detail::backend_runtime;
+      detail::backend_runtime = 0;
       delete[] argv_[0];
       delete[] argv_;
     }
@@ -76,6 +85,8 @@ class DARMABackendInitialize
     char** argv_;
     std::string program_name;
 
+    bool backend_finalized;
+
     virtual ~DARMABackendInitialize() { }
 };
 
@@ -83,7 +94,6 @@ class DARMABackendInitialize
 
 // check that the top-level task's name is set correctly
 TEST_F(DARMABackendInitialize, rank_size) {
-  using namespace darma_runtime;
   using namespace mock_frontend;
   using namespace ::testing;
   // Make a mock task pointer
@@ -113,11 +123,11 @@ TEST_F(DARMABackendInitialize, rank_size) {
     name.component<1>().as<size_t>(),
     name.component<2>().as<size_t>()
   );
-  darma_runtime::detail::backend_runtime->finalize();
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
 }
 
 TEST_F(DARMABackendInitialize, top_level_run_not_called) {
-  using namespace darma_runtime;
   using namespace mock_frontend;
   using namespace ::testing;
   std::unique_ptr<NiceMock<MockTask>> top_level_task =
@@ -134,10 +144,6 @@ TEST_F(DARMABackendInitialize, top_level_run_not_called) {
     argc_, argv_, detail::backend_runtime,
     std::move(top_level_task)
   );
-  darma_runtime::detail::backend_runtime->finalize();
-}
-
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
 }

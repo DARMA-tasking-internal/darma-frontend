@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma_main.h
+//                          test_darma_backend_initialize.cc
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,45 +42,33 @@
 //@HEADER
 */
 
-#ifndef FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_
-#define FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_
+#ifndef DARMA_BACKEND_VALIDATION_MAIN_H
+#define DARMA_BACKEND_VALIDATION_MAIN_H
 
-#include <functional>
-#include <memory>
+#include <darma_types.h>
+#include "mock_frontend.h"
 
-#include <darma/impl/compatibility.h>
+#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+#endif
 
 namespace darma_runtime {
+
 namespace detail {
 
-template <typename _ignored = void>
-std::function<int(int, char**)>*
-_darma__generate_main_function_ptr() {
-  static std::unique_ptr<std::function<int(int, char**)>> _rv =
-      std::make_unique<std::function<int(int, char**)>>(nullptr);
-  return _rv.get();
+template <typename __ignored = void>
+abstract::backend::runtime_t*&
+_gen_backend_runtime_ptr() {
+  static_assert(std::is_same<__ignored, void>::value, "");
+  static DARMA_THREAD_LOCAL_BACKEND_RUNTIME abstract::backend::runtime_t* rv;
+  return rv;
 }
 
-//static std::function<int(int, char**)>* user_main_function_ptr = _darma__generate_main_function_ptr<void>();
+DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+abstract::backend::runtime_t*& backend_runtime = _gen_backend_runtime_ptr<>();
 
-template <typename T>
-DARMA_CONSTEXPR_14 int
-register_user_main(T main_fxn) {
-  *(_darma__generate_main_function_ptr<>()) = main_fxn;
-  return 42;
-}
+} // end namespace backend
 
-} // end namespace detail
 } // end namespace darma_runtime
 
-#define darma_main(...) \
-  _darma__ignore_this = 42; \
-  int _darma__user_main(__VA_ARGS__); \
-  int _darma__ignore_this_too = \
-    ::darma_runtime::detail::register_user_main((int(*)(__VA_ARGS__))_darma__user_main); \
-  int _darma__user_main(__VA_ARGS__)
-
-
-//  int(*)(__VA_ARGS__), (int(*)(__VA_ARGS__))_darma__user_main> _darma__user_main_metaptr_t;
-
-#endif /* FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_ */
+#endif

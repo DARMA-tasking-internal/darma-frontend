@@ -903,7 +903,10 @@ darma_runtime::abstract::backend::darma_backend_initialize(
 }
 
 int main(int argc, char** argv) {
-  return (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
+  int ret = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
+  // TODO make sure that backend was finalized before deleting
+  delete darma_runtime::detail::backend_runtime;
+  return ret;
 }
 
 //abstract::backend::runtime_t* darma_runtime::detail::backend_runtime = nullptr;

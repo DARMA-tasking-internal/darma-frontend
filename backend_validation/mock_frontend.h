@@ -56,6 +56,22 @@
 #include <darma_types.h>
 #include <functional>
 
+#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+#endif
+
+namespace darma_runtime {
+
+namespace detail {
+
+extern
+DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+abstract::backend::runtime_t*& backend_runtime;
+
+} // end namespace backend
+
+} // end namespace darma_runtime
+
 namespace mock_frontend {
 
 class MockSerializationManager
@@ -98,7 +114,10 @@ class MockDependencyHandle
     darma_runtime::abstract::frontend::SerializationManager* get_serialization_manager_return = nullptr;
     darma_runtime::abstract::backend::DataBlock* get_data_block_return = nullptr;
 
-    MockDependencyHandle() { this->set_default_behavior(); }
+    MockDependencyHandle(){
+      get_key_return = darma_runtime::make_key("key_not_specified");
+      this->set_default_behavior();
+    }
 
     MOCK_CONST_METHOD0(get_key, key_t const&());
     MOCK_CONST_METHOD0(get_version, version_t const&());
@@ -200,29 +219,5 @@ class MockTask
 
 
 } // end namespace mock_frontend
-
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#endif
-
-namespace darma_runtime {
-
-namespace detail {
-
-template <typename __ignored = void>
-abstract::backend::runtime_t*&
-_gen_backend_runtime_ptr() {
-  static_assert(std::is_same<__ignored, void>::value, "");
-  static DARMA_THREAD_LOCAL_BACKEND_RUNTIME abstract::backend::runtime_t* rv;
-  return rv;
-}
-
-//extern
-DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-abstract::backend::runtime_t*& backend_runtime = _gen_backend_runtime_ptr<>();
-
-} // end namespace backend
-
-} // end namespace darma_runtime
 
 #endif /* TEST_GTEST_BACKEND_MOCK_FRONTEND_H_ */

@@ -459,7 +459,10 @@ SerialRuntime::shared_mutex_t SerialRuntime::published_data_blocks_mtx;
 //thread_local darma_runtime::abstract::backend::runtime_t* darma_runtime::detail::backend_runtime = nullptr;
 
 int main(int argc, char** argv) {
-  return (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
+  int ret = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
+  // TODO: check if runtime finalized before deleting
+  delete darma_runtime::detail::backend_runtime;
+  return ret;
 }
 
 void

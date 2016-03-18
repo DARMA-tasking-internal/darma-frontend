@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma_main.h
+//                          test_darma_backend_initialize.cc
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,45 +42,17 @@
 //@HEADER
 */
 
-#ifndef FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_
-#define FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_
+#include "main.h"
 
-#include <functional>
-#include <memory>
+#include <gtest/gtest.h>
+#include <darma/interface/defaults/darma_main.h>
+#include "mock_frontend.h"
 
-#include <darma/impl/compatibility.h>
-
-namespace darma_runtime {
-namespace detail {
-
-template <typename _ignored = void>
-std::function<int(int, char**)>*
-_darma__generate_main_function_ptr() {
-  static std::unique_ptr<std::function<int(int, char**)>> _rv =
-      std::make_unique<std::function<int(int, char**)>>(nullptr);
-  return _rv.get();
+int darma_main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  ::testing::InitGoogleMock(&argc, argv);
+  int ret = RUN_ALL_TESTS();
+  ::darma_runtime::detail::backend_runtime = 0;  // make sure main() doesn't double-delete
+  return ret;
 }
 
-//static std::function<int(int, char**)>* user_main_function_ptr = _darma__generate_main_function_ptr<void>();
-
-template <typename T>
-DARMA_CONSTEXPR_14 int
-register_user_main(T main_fxn) {
-  *(_darma__generate_main_function_ptr<>()) = main_fxn;
-  return 42;
-}
-
-} // end namespace detail
-} // end namespace darma_runtime
-
-#define darma_main(...) \
-  _darma__ignore_this = 42; \
-  int _darma__user_main(__VA_ARGS__); \
-  int _darma__ignore_this_too = \
-    ::darma_runtime::detail::register_user_main((int(*)(__VA_ARGS__))_darma__user_main); \
-  int _darma__user_main(__VA_ARGS__)
-
-
-//  int(*)(__VA_ARGS__), (int(*)(__VA_ARGS__))_darma__user_main> _darma__user_main_metaptr_t;
-
-#endif /* FRONTEND_INCLUDE_DARMA_DARMA_MAIN_H_ */
