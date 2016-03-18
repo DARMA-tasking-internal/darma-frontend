@@ -50,6 +50,7 @@
 #endif
 
 #include "mock_frontend.h"
+#include "helpers.h"
 
 using namespace darma_runtime;
 
@@ -191,3 +192,116 @@ TEST_F(RuntimeRelease, satisfy_next) {
   detail::backend_runtime->finalize();
   backend_finalized = true;
 }
+
+// register a write_only task and then make sure its subsequent was satisfied
+TEST_F(RuntimeRelease, release_satisfy_same_depth) {
+  using namespace ::testing;
+
+  auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
+  auto next_version = h_0->get_version();
+  ++next_version;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(2));  // when running write-only task and when releasing
+
+  EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_1.get(), allow_writes())
+    .Times(Exactly(0));
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  int value = 42;
+
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  ASSERT_TRUE(h_1->is_satisfied());
+  ASSERT_FALSE(h_1->is_writable());
+  abstract::backend::DataBlock* data_block = h_1->get_data_block();
+  ASSERT_THAT(data_block, NotNull());
+  void* data = data_block->get_data();
+  ASSERT_THAT(data, NotNull());
+  ASSERT_THAT(*((int*)data), Eq(value));
+
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+  detail::backend_runtime->release_handle(h_1.get());
+}
+
+// register a write_only task and then make sure its subsequent was satisfied
+TEST_F(RuntimeRelease, release_satisfy_prev_depth) {
+  using namespace ::testing;
+
+  auto first_version = MockDependencyHandle::version_t();
+  first_version.push_subversion();
+  auto h_0 = make_handle<int, true, true>(first_version, "the_key");
+  auto next_version = first_version;
+  next_version.pop_subversion();
+  ++next_version;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(2));  // when running write-only task and when releasing
+
+  EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_1.get(), allow_writes())
+    .Times(Exactly(0));
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+
+  detail::backend_runtime->handle_done_with_version_depth(h_0.get());
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  int value = 42;
+
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  ASSERT_TRUE(h_1->is_satisfied());
+  ASSERT_FALSE(h_1->is_writable());
+  abstract::backend::DataBlock* data_block = h_1->get_data_block();
+  ASSERT_THAT(data_block, NotNull());
+  void* data = data_block->get_data();
+  ASSERT_THAT(data, NotNull());
+  ASSERT_THAT(*((int*)data), Eq(value));
+
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+  detail::backend_runtime->release_handle(h_1.get());
+}
+
