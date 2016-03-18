@@ -272,8 +272,6 @@ TEST_F(RegisterTask, release_satisfy_for_read_only) {
     detail::backend_runtime->release_handle(h_0.get());
   });
 
-  detail::backend_runtime->release_read_only_usage(h_1.get());
-
   register_read_only_capture(h_1.get(), [&,value]{
     ASSERT_TRUE(h_1->is_satisfied());
     ASSERT_FALSE(h_1->is_writable());
@@ -282,6 +280,7 @@ TEST_F(RegisterTask, release_satisfy_for_read_only) {
     void* data = data_block->get_data();
     ASSERT_THAT(data, NotNull());
     ASSERT_THAT(*((int*)data), Eq(value));
+    detail::backend_runtime->release_read_only_usage(h_1.get());
     detail::backend_runtime->release_handle(h_1.get());
   });
 
