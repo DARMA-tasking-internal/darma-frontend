@@ -339,6 +339,98 @@ TEST_F(TestFetchers, satisfy_fetcher_reg_then_pub) {
     ASSERT_THAT(*((int*)data), Eq(value));
   }
 
+  ASSERT_TRUE(h_1f->is_satisfied());
+  ASSERT_FALSE(h_1f->is_writable());
+  {
+    abstract::backend::DataBlock* data_block = h_1f->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    ASSERT_THAT(*((int*)data), Eq(value));
+  }
+
+  detail::backend_runtime->release_read_only_usage(h_1f.get());
+  detail::backend_runtime->release_handle(h_1f.get());
+
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+  detail::backend_runtime->release_handle(h_1.get());
+}
+
+// satisfy subsequent ++v and its fetchers when fetches come before publish
+// and the primary is released before one of them is checked
+TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub) {
+  using namespace ::testing;
+
+  auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
+  auto next_version = h_0->get_version();
+  ++next_version;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+
+  auto h_1f = make_fetching_handle<int, true, false>(MockDependencyHandle::version_t(), "the_key");
+  auto h_1f2 = make_fetching_handle<int, true, false>(MockDependencyHandle::version_t(), "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(2));  // when running write-only task and when releasing
+
+  EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_1.get(), allow_writes())
+    .Times(Exactly(0));
+
+  EXPECT_CALL(*h_1f.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1f.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_1f.get(), allow_writes())
+    .Times(Exactly(0));
+
+  EXPECT_CALL(*h_1f2.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1f2.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_1f2.get(), allow_writes())
+    .Times(Exactly(0));
+
+  auto user_ver = make_key("alpha");
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+  detail::backend_runtime->register_fetching_handle(h_1f.get(), user_ver);
+  detail::backend_runtime->register_fetching_handle(h_1f2.get(), user_ver);
+
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  int value = 42;
+
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  detail::backend_runtime->publish_handle(h_1.get(), user_ver, 2);
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  ASSERT_TRUE(h_1->is_satisfied());
+  ASSERT_FALSE(h_1->is_writable());
+  {
+    abstract::backend::DataBlock* data_block = h_1->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    ASSERT_THAT(*((int*)data), Eq(value));
+  }
 
   ASSERT_TRUE(h_1f->is_satisfied());
   ASSERT_FALSE(h_1f->is_writable());
@@ -355,5 +447,128 @@ TEST_F(TestFetchers, satisfy_fetcher_reg_then_pub) {
 
   detail::backend_runtime->release_read_only_usage(h_1.get());
   detail::backend_runtime->release_handle(h_1.get());
+
+  ASSERT_TRUE(h_1f2->is_satisfied());
+  ASSERT_FALSE(h_1f2->is_writable());
+  {
+    abstract::backend::DataBlock* data_block = h_1f2->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    ASSERT_THAT(*((int*)data), Eq(value));
+  }
+
+  detail::backend_runtime->release_read_only_usage(h_1f2.get());
+  detail::backend_runtime->release_handle(h_1f2.get());
+}
+
+// satisfy subsequent ++v and its 2 fetchers with different user
+// version tags) and the primary is released before one of them is
+// checked
+TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub2) {
+  using namespace ::testing;
+
+  auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
+  auto next_version = h_0->get_version();
+  ++next_version;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+
+  auto h_1f = make_fetching_handle<int, true, false>(MockDependencyHandle::version_t(), "the_key");
+  auto h_1f2 = make_fetching_handle<int, true, false>(MockDependencyHandle::version_t(), "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(2));  // when running write-only task and when releasing
+
+  EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_1.get(), allow_writes())
+    .Times(Exactly(0));
+
+  EXPECT_CALL(*h_1f.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1f.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_1f.get(), allow_writes())
+    .Times(Exactly(0));
+
+  EXPECT_CALL(*h_1f2.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1f2.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_1f2.get(), allow_writes())
+    .Times(Exactly(0));
+
+  auto user_ver = make_key("alpha");
+  auto user_ver2 = make_key("beta");
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+  detail::backend_runtime->register_fetching_handle(h_1f.get(), user_ver);
+
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  int value = 42;
+
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  detail::backend_runtime->publish_handle(h_1.get(), user_ver);
+  detail::backend_runtime->publish_handle(h_1.get(), user_ver2);
+
+  detail::backend_runtime->register_fetching_handle(h_1f2.get(), user_ver2);
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  ASSERT_TRUE(h_1->is_satisfied());
+  ASSERT_FALSE(h_1->is_writable());
+  {
+    abstract::backend::DataBlock* data_block = h_1->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    ASSERT_THAT(*((int*)data), Eq(value));
+  }
+
+  ASSERT_TRUE(h_1f->is_satisfied());
+  ASSERT_FALSE(h_1f->is_writable());
+  {
+    abstract::backend::DataBlock* data_block = h_1f->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    ASSERT_THAT(*((int*)data), Eq(value));
+  }
+
+  detail::backend_runtime->release_read_only_usage(h_1f.get());
+  detail::backend_runtime->release_handle(h_1f.get());
+
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+  detail::backend_runtime->release_handle(h_1.get());
+
+  ASSERT_TRUE(h_1f2->is_satisfied());
+  ASSERT_FALSE(h_1f2->is_writable());
+  {
+    abstract::backend::DataBlock* data_block = h_1f2->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    ASSERT_THAT(*((int*)data), Eq(value));
+  }
+
+  detail::backend_runtime->release_read_only_usage(h_1f2.get());
+  detail::backend_runtime->release_handle(h_1f2.get());
 }
 
