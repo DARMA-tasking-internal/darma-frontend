@@ -346,3 +346,4 @@ TEST_F(RegisterTask, release_satisfy_for_read_write) {
   detail::backend_runtime->finalize();
   backend_finalized = true;
 }
+
