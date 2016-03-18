@@ -119,6 +119,8 @@ make_handle(
       delete ser_man;
     }
   );
+  new_handle->get_serialization_manager_return = ser_man;
+
   EXPECT_CALL(*new_handle, get_key())
     .Times(AtLeast(1))
     .WillRepeatedly(ReturnRefOfCopy(detail::key_traits<MockDependencyHandle::key_t>::maker()(std::forward<KeyParts>(kp)...)));
@@ -131,6 +133,58 @@ make_handle(
       .WillRepeatedly(Return(ser_man));
     EXPECT_CALL(*new_handle, allow_writes())
       .Times(Exactly(1));
+  }
+
+  return new_handle;
+}
+
+template <typename T, bool IsNice, bool ExpectNewAlloc, typename Version, typename... KeyParts>
+std::shared_ptr<typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type>
+make_fetching_handle(
+  Version v, KeyParts&&... kp
+) {
+  using namespace ::testing;
+  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type handle_t;
+
+  // Deleted in accompanying MockDependencyHandle shared pointer deleter
+  auto ser_man = new MockSerializationManager();
+  ser_man->get_metadata_size_return = sizeof(T);
+  if (ExpectNewAlloc){
+    EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
+      .Times(AtLeast(1))
+      .WillRepeatedly(Return(sizeof(T)));
+  }
+
+  auto new_handle = std::shared_ptr<handle_t>(
+    new handle_t(),
+    [=](handle_t* to_delete){
+      delete to_delete;
+      delete ser_man;
+    }
+  );
+  new_handle->get_serialization_manager_return = ser_man;
+
+  EXPECT_CALL(*new_handle, get_key())
+    .Times(AtLeast(1))
+    .WillRepeatedly(ReturnRefOfCopy(detail::key_traits<MockDependencyHandle::key_t>::maker()(std::forward<KeyParts>(kp)...)));
+  EXPECT_CALL(*new_handle, allow_writes())
+    .Times(Exactly(0));
+
+  new_handle->version_is_pending_return = true;
+
+  {
+    Sequence s1;
+    EXPECT_CALL(*new_handle.get(), version_is_pending())
+      .Times(AtLeast(0))
+      .InSequence(s1)
+      .WillRepeatedly(Return(true));
+    EXPECT_CALL(*new_handle.get(), set_version(_))
+      .Times(Exactly(1))
+      .InSequence(s1);
+    EXPECT_CALL(*new_handle.get(), version_is_pending())
+      .Times(AtLeast(0))
+      .InSequence(s1)
+      .WillRepeatedly(Return(false));
   }
 
   return new_handle;
