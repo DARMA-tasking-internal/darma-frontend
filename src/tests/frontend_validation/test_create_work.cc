@@ -338,7 +338,7 @@ TEST_F(TestCreateWork, capture_initial_access_2) {
 
   mock_runtime->save_tasks = true;
 
-  // Reverse order of expected usage
+  // Reverse order of expected usage because of the way expectations work
   Sequence s_hm3;
   auto hm3 = make_same_handle_matcher();
   expect_handle_life_cycle(hm3, s_hm3);
