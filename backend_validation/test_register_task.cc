@@ -216,7 +216,6 @@ TEST_F(RegisterTask, register_task_first_writer_post_register_task) {
 // register a task with no dependencies or anti-dependencies
 TEST_F(RegisterTask, register_task_with_no_deps) {
   using namespace ::testing;
-  using namespace ::testing;
   typedef typename std::conditional<false, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
 
   auto task_a = std::make_unique<task_t>();

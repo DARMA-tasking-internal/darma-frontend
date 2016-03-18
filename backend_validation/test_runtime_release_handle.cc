@@ -448,8 +448,6 @@ TEST_F(RuntimeRelease, release_satisfy_next_then_same) {
   detail::backend_runtime->release_handle(h_2.get());
 }
 
-// TODO: satisfy subsequent of subsequent when subsequent was released first
-
 // satisfy subsequent of subsequent, each at one less depth
 TEST_F(RuntimeRelease, release_satisfy_subseq_already_released) {
   using namespace ::testing;

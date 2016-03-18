@@ -83,4 +83,5 @@ endfunction()
 add_unit_test(test_darma_backend_initialize)
 add_unit_test(test_register_task)
 add_unit_test(test_runtime_release_handle)
+add_unit_test(test_get_running_task)
 

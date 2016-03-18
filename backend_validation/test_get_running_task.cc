@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          test_darma_backend_initialize.cc
+//                          test_get_running_task.cc
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -51,12 +51,13 @@
 #endif
 
 #include "mock_frontend.h"
+#include "helpers.h"
 
 using namespace darma_runtime;
 
 namespace {
 
-class DARMABackendInitialize
+class DARMAGetRunningTask
   : public ::testing::Test
 {
   protected:
@@ -87,13 +88,30 @@ class DARMABackendInitialize
 
     bool backend_finalized;
 
-    virtual ~DARMABackendInitialize() { }
+    virtual ~DARMAGetRunningTask() { }
 };
 
 } // end anonymous namespace
 
+template <typename Lambda, bool IsNice=true>
+void register_child_task(const std::string &base, int which, Lambda&& lambda) {
+  using namespace ::testing;
+  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+
+  auto task_a = std::make_unique<task_t>();
+  EXPECT_CALL(*task_a, set_name(_))
+    .Times(Exactly(1));  // if this fails, the test itself will malfunction
+  EXPECT_CALL(*task_a, get_dependencies())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*task_a, run())
+    .Times(Exactly(1))
+    .WillOnce(Invoke(std::forward<Lambda>(lambda)));
+  task_a->set_name(make_key(base, which));
+  detail::backend_runtime->register_task(std::move(task_a));
+}
+
 // check that the top-level task's name is set correctly
-TEST_F(DARMABackendInitialize, rank_size) {
+TEST_F(DARMAGetRunningTask, get_running_task) {
   using namespace mock_frontend;
   using namespace ::testing;
   // Make a mock task pointer
@@ -120,32 +138,36 @@ TEST_F(DARMABackendInitialize, rank_size) {
     DARMA_BACKEND_SPMD_NAME_PREFIX,
     name.component<0>().as<std::string>()
   );
-  // Rank must be less than size
-  ASSERT_LT(
-    name.component<1>().as<size_t>(),
-    name.component<2>().as<size_t>()
-  );
+
+  typedef typename std::conditional<false, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+
+  std::string base("child");
+  int which = 0;
+  
+  register_child_task(base, which, [=]{
+    auto task = detail::backend_runtime->get_running_task();
+    auto taskname = task->get_name();
+
+    // TODO: check that the name has the right number of parts
+
+    // Make sure we get our own name back from the task returned by the runtime
+    ASSERT_TRUE(base.compare(taskname.component<0>().as<std::string>())==0);
+    ASSERT_EQ(taskname.component<1>().as<int>(), which);
+
+    int child_which = which+1;
+    register_child_task(base, child_which, [=]{
+      auto task = detail::backend_runtime->get_running_task();
+      auto taskname = task->get_name();
+
+      // TODO: check that the name has the right number of parts
+
+      // Make sure we get our own name back from the task returned by the runtime
+      ASSERT_TRUE(base.compare(taskname.component<0>().as<std::string>())==0);
+      ASSERT_EQ(taskname.component<1>().as<int>(), child_which);
+    });
+  });
+
   detail::backend_runtime->finalize();
   backend_finalized = true;
 }
 
-TEST_F(DARMABackendInitialize, top_level_run_not_called) {
-  using namespace mock_frontend;
-  using namespace ::testing;
-  std::unique_ptr<NiceMock<MockTask>> top_level_task =
-      std::make_unique<NiceMock<MockTask>>();
-
-  // runtime must call set_name
-  EXPECT_CALL(*top_level_task, set_name(_))
-    .Times(Exactly(1));
-  // run can never be called on a top-level task
-  EXPECT_CALL(*top_level_task, run())
-    .Times(Exactly(0));
-
-  abstract::backend::darma_backend_initialize(
-    argc_, argv_, detail::backend_runtime,
-    std::move(top_level_task)
-  );
-  detail::backend_runtime->finalize();
-  backend_finalized = true;
-}
