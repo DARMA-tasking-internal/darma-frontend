@@ -182,23 +182,28 @@ make_handle(
   return h_0;
 }
 
-//
 ////////////////////////////////////////////////////////////////////////////////
 
 // Try three different spots for release_only_usage(): before lambda created,
 //   before task registered, and after task registered
 
 // release_read_only_usage right before the lambda is created
-TEST_F(RegisterTask, allocate_data_block_post_register_handle) {
+TEST_F(RegisterTask, register_task_first_writer_post_register_handle) {
   using namespace ::testing;
 
   auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(1));  // when running write-only task
 
   detail::backend_runtime->register_handle(h_0.get());
 
   detail::backend_runtime->release_read_only_usage(h_0.get());
 
   register_write_only_capture(h_0.get(), [&]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
     abstract::backend::DataBlock* data_block = h_0->get_data_block();
     ASSERT_THAT(data_block, NotNull());
     void* data = data_block->get_data();
@@ -212,10 +217,14 @@ TEST_F(RegisterTask, allocate_data_block_post_register_handle) {
 }
 
 // release_read_only_usage before the task is registered
-TEST_F(RegisterTask, allocate_data_block_post_lambda) {
+TEST_F(RegisterTask, register_task_first_writer_block_post_lambda) {
   using namespace ::testing;
 
   auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(1));  // when running write-only task
 
   detail::backend_runtime->register_handle(h_0.get());
 
@@ -234,6 +243,8 @@ TEST_F(RegisterTask, allocate_data_block_post_lambda) {
     .Times(Exactly(1))
     .WillOnce(Invoke(
       [&]{
+        ASSERT_TRUE(h_0->is_satisfied());
+        ASSERT_TRUE(h_0->is_writable());
         abstract::backend::DataBlock* data_block = h_0->get_data_block();
         ASSERT_THAT(data_block, NotNull());
         void* data = data_block->get_data();
@@ -252,14 +263,20 @@ TEST_F(RegisterTask, allocate_data_block_post_lambda) {
 }
 
 // release_read_only_usage after the task is registered
-TEST_F(RegisterTask, allocate_data_block_post_register_task) {
+TEST_F(RegisterTask, register_task_first_writer_post_register_task) {
   using namespace ::testing;
 
   auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(1));  // when running write-only task
 
   detail::backend_runtime->register_handle(h_0.get());
 
   register_write_only_capture(h_0.get(), [&]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
     abstract::backend::DataBlock* data_block = h_0->get_data_block();
     ASSERT_THAT(data_block, NotNull());
     void* data = data_block->get_data();
@@ -274,7 +291,30 @@ TEST_F(RegisterTask, allocate_data_block_post_register_task) {
   detail::backend_runtime->release_handle(h_0.get());
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+// register a task with no dependencies or anti-dependencies
+TEST_F(RegisterTask, register_task_with_no_deps) {
+  using namespace ::testing;
+  using namespace ::testing;
+  typedef typename std::conditional<false, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+
+  auto task_a = std::make_unique<task_t>();
+  EXPECT_CALL(*task_a, get_dependencies())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*task_a, run())
+    .Times(Exactly(1));
+
+  detail::backend_runtime->register_task(std::move(task_a));
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 // register a write_only task and then a read-only task on its subsequent
+// to make sure its subsequent gets satisfied as expected
 TEST_F(RegisterTask, release_satisfy_for_read_only) {
   using namespace ::testing;
 
@@ -331,6 +371,7 @@ TEST_F(RegisterTask, release_satisfy_for_read_only) {
 }
 
 // register a write_only task and then a read-write task on its subsequent
+// to make sure its subsequent gets satisfied as expected
 TEST_F(RegisterTask, release_satisfy_for_read_write) {
   using namespace ::testing;
 
