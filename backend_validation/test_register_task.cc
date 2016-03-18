@@ -50,6 +50,7 @@
 #endif
 
 #include "mock_frontend.h"
+#include "helpers.h"
 
 using namespace darma_runtime;
 using namespace mock_frontend;
@@ -100,87 +101,6 @@ class RegisterTask
 };
 
 } // end anonymous namespace
-
-////////////////////////////////////////////////////////////////////////////////
-// some helper functions
-// TODO move these to a header
-
-template <typename MockDep, typename Lambda, bool needs_read, bool needs_write, bool IsNice=false>
-void register_one_dep_capture(MockDep* captured, Lambda&& lambda) {
-  using namespace ::testing;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
-
-  auto task_a = std::make_unique<task_t>();
-  EXPECT_CALL(*task_a, get_dependencies())
-    .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(MockTask::handle_container_t{ captured }));
-  EXPECT_CALL(*task_a, needs_read_data(Eq(captured)))
-    .Times(AtLeast(1))
-    .WillRepeatedly(Return(needs_read));
-  EXPECT_CALL(*task_a, needs_write_data(Eq(captured)))
-    .Times(AtLeast(1))
-    .WillRepeatedly(Return(needs_write));
-  EXPECT_CALL(*task_a, run())
-    .Times(Exactly(1))
-    .WillOnce(Invoke(std::forward<Lambda>(lambda)));
-  detail::backend_runtime->register_task(std::move(task_a));
-}
-
-template <typename MockDep, typename Lambda, bool IsNice=false>
-void register_read_only_capture(MockDep* captured, Lambda&& lambda) {
-  register_one_dep_capture<MockDep, Lambda, true, false, IsNice>(captured, std::forward<Lambda>(lambda));
-}
-
-template <typename MockDep, typename Lambda, bool IsNice=false>
-void register_write_only_capture(MockDep* captured, Lambda&& lambda) {
-  register_one_dep_capture<MockDep, Lambda, false, true, IsNice>(captured, std::forward<Lambda>(lambda));
-}
-
-template <typename MockDep, typename Lambda, bool IsNice=false>
-void register_read_write_capture(MockDep* captured, Lambda&& lambda) {
-  register_one_dep_capture<MockDep, Lambda, true, true, IsNice>(captured, std::forward<Lambda>(lambda));
-}
-
-template <typename T, bool IsNice, bool ExpectNewAlloc, typename Version, typename... KeyParts>
-std::shared_ptr<typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type>
-make_handle(
-  Version v, KeyParts&&... kp
-) {
-  using namespace ::testing;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type handle_t;
-
-  // Deleted in accompanying MockDependencyHandle shared pointer deleter
-  auto ser_man = new MockSerializationManager();
-  ser_man->get_metadata_size_return = sizeof(T);
-  if (ExpectNewAlloc){
-    EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
-      .Times(AtLeast(1))
-      .WillRepeatedly(Return(sizeof(T)));
-  }
-
-  auto h_0 = std::shared_ptr<handle_t>(
-    new handle_t(),
-    [=](handle_t* to_delete){
-      delete to_delete;
-      delete ser_man;
-    }
-  );
-  EXPECT_CALL(*h_0, get_key())
-    .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(detail::key_traits<MockDependencyHandle::key_t>::maker()(std::forward<KeyParts>(kp)...)));
-  EXPECT_CALL(*h_0, get_version())
-    .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(v));
-  if (ExpectNewAlloc){
-    EXPECT_CALL(*h_0, get_serialization_manager())
-      .Times(AtLeast(1))
-      .WillRepeatedly(Return(ser_man));
-    EXPECT_CALL(*h_0, allow_writes())
-      .Times(Exactly(1));
-  }
-
-  return h_0;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 
