@@ -64,20 +64,20 @@ void register_one_dep_capture(MockDep* captured, Lambda&& lambda) {
   using namespace ::testing;
   typedef typename std::conditional<IsNice, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
 
-  auto task_a = std::make_unique<task_t>();
-  EXPECT_CALL(*task_a, get_dependencies())
+  auto new_task = std::make_unique<task_t>();
+  EXPECT_CALL(*new_task, get_dependencies())
     .Times(AtLeast(1))
     .WillRepeatedly(ReturnRefOfCopy(MockTask::handle_container_t{ captured }));
-  EXPECT_CALL(*task_a, needs_read_data(Eq(captured)))
+  EXPECT_CALL(*new_task, needs_read_data(Eq(captured)))
     .Times(AtLeast(1))
     .WillRepeatedly(Return(needs_read));
-  EXPECT_CALL(*task_a, needs_write_data(Eq(captured)))
+  EXPECT_CALL(*new_task, needs_write_data(Eq(captured)))
     .Times(AtLeast(1))
     .WillRepeatedly(Return(needs_write));
-  EXPECT_CALL(*task_a, run())
+  EXPECT_CALL(*new_task, run())
     .Times(Exactly(1))
     .WillOnce(Invoke(std::forward<Lambda>(lambda)));
-  detail::backend_runtime->register_task(std::move(task_a));
+  detail::backend_runtime->register_task(std::move(new_task));
 }
 
 template <typename MockDep, typename Lambda, bool IsNice=false>
@@ -112,28 +112,28 @@ make_handle(
       .WillRepeatedly(Return(sizeof(T)));
   }
 
-  auto h_0 = std::shared_ptr<handle_t>(
+  auto new_handle = std::shared_ptr<handle_t>(
     new handle_t(),
     [=](handle_t* to_delete){
       delete to_delete;
       delete ser_man;
     }
   );
-  EXPECT_CALL(*h_0, get_key())
+  EXPECT_CALL(*new_handle, get_key())
     .Times(AtLeast(1))
     .WillRepeatedly(ReturnRefOfCopy(detail::key_traits<MockDependencyHandle::key_t>::maker()(std::forward<KeyParts>(kp)...)));
-  EXPECT_CALL(*h_0, get_version())
+  EXPECT_CALL(*new_handle, get_version())
     .Times(AtLeast(1))
     .WillRepeatedly(ReturnRefOfCopy(v));
   if (ExpectNewAlloc){
-    EXPECT_CALL(*h_0, get_serialization_manager())
+    EXPECT_CALL(*new_handle, get_serialization_manager())
       .Times(AtLeast(1))
       .WillRepeatedly(Return(ser_man));
-    EXPECT_CALL(*h_0, allow_writes())
+    EXPECT_CALL(*new_handle, allow_writes())
       .Times(Exactly(1));
   }
 
-  return h_0;
+  return new_handle;
 }
 
 #endif
