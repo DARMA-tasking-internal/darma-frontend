@@ -413,12 +413,8 @@ typedef Runtime<
 
 /** @brief initialize the backend::Runtime instance
  *
- *  @remark This should be called once per top-level task.  The backend may chose whether
- *  the frontend is allowed to have multiple top-level tasks in one process.  If the backend
- *  supports multiple top-level tasks, it should define the preprocessor constant
- *  DARMA_BACKEND_TOP_LEVEL_TASK_MULTIPLE.  If not, it should define the constant
- *  DARMA_BACKEND_TOP_LEVEL_TASK_SINGLE.  The frontend is free to wrap these macro constants
- *  in more user-friendly names before exposing them to the user.
+ *  @remark This should be called once per top-level task.  Only one top-level task is
+ *  allowed per process.
  *
  *  @pre The frontend should do nothing that interacts with the backend before this
  *  function is called.
@@ -436,8 +432,8 @@ typedef Runtime<
  *
  *  @param backend_runtime The input value of this parameter is ignored.  On return, it should
  *  point to a properly initialized instance of backend::Runtime.  The backend owns this
- *  instance, and should delete it at some point after the frontend calls Runtime::finalize() on
- *  this instance.
+ *  instance and should delete it after darma_main() returns, at which point Runtime::finalize()
+ *  should have returned.
  *
  *  @param top_level_task The task object to be returned by Runtime::get_running_task() if that
  *  method is invoked (on the instance pointed to by backend_runtime upon return) from the outermost
@@ -476,73 +472,17 @@ darma_backend_initialize(
 } // end namespace darma_runtime
 
 
-
+/** @brief Calls the application-provided darma_main() and then deletes
+ *  the backend runtime before returning.
+ *
+ *  Invokes darma_main() via a call to the function pointer returned
+ *  by darma_runtime::detail::_darma__generate_main_function_ptr<>().
+ *  After returning from darma_main(), the darma_runtime::detail::backend_runtime
+ *  pointer must be deleted.  It is a debug-mode error for darma_main()
+ *  to return without having invoked Runtime::finalize() if
+ *  darma_backend_initialize() was also called.
+ *
+ */
+int main(int argc, char **argv);
 
 #endif /* SRC_ABSTRACT_BACKEND_RUNTIME_H_ */
-
-/**
- * attic
- *      *    If the
-     *  dependency requires readable data to be marked as satisfied (i.e., if \c t.needs_read_data(handle)
-     *  returns true when handle is returned as part of Task::get_dependencies() for a registered task \c t),
-     *  the readable data requirement must be satisfied by the release of all previous versions of handle
-     *  \a and a call to handle_done_with_version_depth() on a handle with a penultimate subversion that is
-     *  exactly 1 increment prior to the final subversion of \c handle and is at the same depth.  See
-     *  Runtime::handle_done_with_version_depth() for more details.
- *
-     *   and for
-     *  which \ref DependencyHandle::satisfy_with_data_block() has not yet been called by the backend.  (The only
-     *  way to ensure the latter of these conditions is to ensure it is not in the return value of
-     *  Task::get_dependencies() for any task that Runtime::register_task() has been invoked with).
-     *  This method
-     *  may be called more than once globally with the same key and the same version, but it is a debug-mode
-     *  error to register more than one task (\b globally) that returns true for Task::needs_write_data() on
-     *  that handle.  (Undefined behavior is still allowed in optimized mode)
-     *  Subsequents to the handle may be created with handle versions in similarly pending states.
-     *
-     *  All handles can be used in a write context (i.e., be part of the return for Task::get_dependencies()
-     *  for a task that returns true for needs_write_data() on that handle) at *most* once in their lifetime
-     *  (from register_handle()/register_fetching_handle() to release_handle()).  This (up to) one "final"
-     *  usage must run after all read-only uses of the handle; however not all read-only uses of
-     *  a handle need to be registered by time the task making the "final" usage is registered.  Thus,
-     *  the frontend needs to indicate when no more read-only usages will be created, thus allowing
-     *  the "final" usage to clear its antidependencies.
-     *
-     *  This method indicates that no more tasks will be registered that use handle in a read context
-     *  but not in a write context (a maximum of one task may use handle in a write context anyway).
-     *  The frontend may choose to call this after all tasks making read uses have *finished*, but this
-     *  is not a requirement currently.  It must be called for all handles before release_handle() is
-     *  called.  It is an error to call release_handle() on a handle before calling release_read_only_usage().
-     *
-     *  Upon release, if the handle has been published with Runtime::publish_handle() or if the handle was registered
-     *  as the last subversion at a given depth using Runtime::handle_done_with_version_depth(), the
-     *  appropriate action(s) should be taken to satisfy dependencies requiring data from the data block
-     *  in \c handle (i.e., the return value of handle->get_data_block()).  If neither of these uses have
-     *  been performed at the time of release, it is safe for the runtime to garbage collect the data block
-     *  returned by handle->get_data_block().
-     *
-     *  subsequent is a handle registered with key k and version ++v.  If this subsequent exists, the backend
-     *  should satisfy it (i.e., using satisfy_with_data_block()) with the value returned by handle->get_data_block(),
-     *  and no further action is required (in debug mode, the backend should raise an error if subsequents are
-     *  indicated by any of the other means).  If this subsequent does not exist, the backend should check
-     *  if the handle has been registered as the last at its version depth (i.e., if the frontend has called
-     *  handle_done_with_version_depth() before calling release_handle()).  If
-     *
-     *  version a.b.c.d (for some values a, b, c, and d of incrementable type, e.g., integers), then this
-     *  indicates to the runtime that a call to \c Runtime::release_handle() on \c handle should lead to a
-     *  call of (for some handle \c h2 with the same key and version a.b.(++c)):
-     *      h2->satisfy_with_data_block(handle->get_data_block());
-     *  where \c h2 must be registered at the time of that \c Runtime::handle_done_with_version_depth() is invoked
-     *  on \c handle.  If no such handle is registered and no publications of handle have been made at the time
-     *  of this invocation, the runtime is free to garbage collect the data block upon release.  Registering a
-     *  handle with a version subsequent to the penultimate version of \c handle between this invocation and
-     *  the release of handle will lead to undefined behavior.
-     *
-     *  @todo 0.2.0.1 satisfied needs to be changed to writable
-     *  The behavior also depends on whether or not handle is satisfied (i.e., handle->is_satisfied() returns true)
-     *  at the time of the publish_handle() invocation.  If it is satisfied, the runtime publishes the
-     *  actual data associated with the data block returned by handle->get_data_block().  This must happen
-     *  immediately, before returning from this method, since the user is free to modify the data afterwards,
-     *  which would lead to undefined beahvior.  If the handle is not satisfied, the runtime should enqueue
-     *  a publication of the handle upon satisfaction.  The latter should return immediately.
- */
