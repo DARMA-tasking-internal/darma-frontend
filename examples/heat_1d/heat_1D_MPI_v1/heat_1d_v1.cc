@@ -17,7 +17,7 @@
 /* 
 	Solve 1d heat equation using forward Euler in time, 2d order FD in space.
 		
-	PDE: 
+	PDE:   
 		dT(x)/dt = alpha * d^2T(x)/dx^2
 
 	over (0,1), with T(0)=100, T(1)=10
@@ -179,9 +179,7 @@ int main(int argc, char** argv)
 
 	// -----------------------------------------------------
 
-	// MAYBE PRINTING STAGE
-	if (myPID==1)
-		sleep(1.5);
+	sleep(myPID+0.5);
   for ( int i = 1; i <= num_points_per_rank; i++ )
   {
 		std::cout << myPID << " " << temp[i] << std::endl;
