@@ -65,8 +65,8 @@
 #include <darma/interface/backend/data_block.h>
 #include <darma/impl/keyword_arguments/keyword_arguments.h>
 
+// TODO move these to appropriate header files in interface/app
 DeclareDarmaTypeTransparentKeyword(publication, n_readers);
-// TODO make this a key expression instead of a std::string
 DeclareDarmaTypeTransparentKeyword(publication, version);
 
 namespace darma_runtime {
@@ -497,13 +497,15 @@ class AccessHandle
       // TODO more safety checks to make sure uninitialized handles aren't getting captured
     }
 
-    const AccessHandle&
+    AccessHandle&
     operator=(AccessHandle& other) = delete;
+
     const AccessHandle&
     operator=(AccessHandle& other) const = delete;
 
-    const AccessHandle&
+    AccessHandle&
     operator=(AccessHandle const& other) = delete;
+
     const AccessHandle&
     operator=(AccessHandle const& other) const = delete;
 
@@ -511,11 +513,6 @@ class AccessHandle
     operator=(AccessHandle&& other) noexcept {
       assert(other.prev_copied_from == nullptr);
       read_only_holder_ = other.read_only_holder_;
-      //if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
-      //  if(dep_handle_.get() != nullptr && dep_handle_.get() != other.dep_handle_.get()) {
-      //    detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
-      //  }
-      //}
       dep_handle_ = other.dep_handle_;
       state_ = other.state_;
       other.state_ = None_None;
@@ -526,11 +523,6 @@ class AccessHandle
     operator=(AccessHandle&& other) const noexcept {
       assert(other.prev_copied_from == nullptr);
       read_only_holder_ = other.read_only_holder_;
-      //if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
-      //  if(dep_handle_.get() != nullptr && dep_handle_.get() != other.dep_handle_.get()) {
-      //    detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
-      //  }
-      //}
       dep_handle_ = other.dep_handle_;
       state_ = other.state_;
       other.state_ = None_None;
@@ -541,9 +533,6 @@ class AccessHandle
 
     AccessHandle&
     operator=(std::nullptr_t) const {
-      //if(state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read) {
-      //  detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
-      //}
       dep_handle_ = 0;
       state_ = None_None;
       read_only_holder_ = 0;
@@ -644,6 +633,9 @@ class AccessHandle
                   break;
                 }
                 case Modify_Modify: {
+                  // We're creating a subsequent at the same version depth
+                  outer.dep_handle_->has_subsequent_at_version_depth = true;
+
                   version_t next_version = outer.dep_handle_->get_version();
                   ++next_version;
                   dep_handle_ = dep_handle_ptr_maker_t()(
@@ -652,6 +644,7 @@ class AccessHandle
                   );
                   read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);
                   state_ = Read_Read;
+
 
                   outer.dep_handle_ = dep_handle_;
                   outer.read_only_holder_ = read_only_holder_;
@@ -705,6 +698,9 @@ class AccessHandle
                   captured_version.push_subversion();
                   ++captured_version;
 
+                  // We're creating a subsequent at the same version depth
+                  outer.dep_handle_->has_subsequent_at_version_depth = true;
+
                   // avoid releasing the old until these two are made
                   auto tmp = outer.dep_handle_;
                   auto tmp_ro = outer.read_only_holder_;
@@ -751,8 +747,6 @@ class AccessHandle
         }
       } // end if capturing_task != nullptr
     }
-
-    //AccessHandle(AccessHandle&&) = delete;
 
     T* operator->() const {
       return &dep_handle_->get_value();
@@ -893,17 +887,6 @@ class AccessHandle
    public:
 
     ////////////////////////////////////////
-    // Friend functions
-
-    friend void
-    _read_write_impl(
-      const key_type& key, const key_type& user_version_tag, AccessHandle& rv
-    ) {
-      assert(false);
-      //rv = AccessHandle(key, detail::ReadWrite, user_version_tag);
-    }
-
-    ////////////////////////////////////////
     // Attorneys for create_work and *_access functions
     friend class detail::create_work_attorneys::for_AccessHandle;
     friend class detail::access_attorneys::for_AccessHandle;
@@ -940,7 +923,7 @@ struct for_AccessHandle {
     typename AccessHandleType::dep_handle_t
   >::type* const
   get_dep_handle(
-    AccessHandleType& ah
+    AccessHandleType const& ah
   ) {
     return ah.dep_handle_.get();
   }
@@ -971,26 +954,6 @@ struct for_AccessHandle {
 } // end namespace create_work_attorneys
 
 } // end namespace detail
-
-
-template <
-  typename U=void,
-  typename... KeyExprParts
->
-AccessHandle<U>
-read_write(
-  KeyExprParts&&... parts
-) {
-  typedef detail::access_expr_helper<KeyExprParts...> helper_t;
-  helper_t helper;
-  types::key_t key = helper.get_key(std::forward<KeyExprParts>(parts)...);
-  types::key_t user_version_tag = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
-  AccessHandle<U> rv;
-  _read_write_impl(key, user_version_tag, rv);
-  return rv;
-}
-
-
 
 } // end namespace darma
 

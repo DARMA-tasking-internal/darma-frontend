@@ -456,12 +456,12 @@ SerialRuntime::shared_mutex_t SerialRuntime::published_data_blocks_mtx;
 } // end namespace serial_backend
 
 
-//thread_local darma_runtime::abstract::backend::runtime_t* darma_runtime::detail::backend_runtime = nullptr;
+thread_local darma_runtime::abstract::backend::runtime_t* my_backend_runtime = nullptr;
 
 int main(int argc, char** argv) {
   int ret = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
   // TODO: check if runtime finalized before deleting
-  delete darma_runtime::detail::backend_runtime;
+  delete my_backend_runtime;
   return ret;
 }
 
@@ -493,7 +493,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
     );
     tmp_rt->rank = 0;
     tmp_rt->n_ranks = n_ranks;
-    backend_runtime = tmp_rt;
+    backend_runtime = my_backend_runtime = tmp_rt;
 
     int tmp_argc = argc;
     char** tmp_argv = argv;
