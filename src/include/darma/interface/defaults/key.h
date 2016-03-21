@@ -56,6 +56,7 @@
 
 #include <darma/key_concept.h> // key_traits
 
+// TODO key must be able to be sent over the wire
 
 #ifndef DARMA_DEBUG_KEY_TYPES
 #  define DARMA_DEBUG_KEY_TYPES 1
