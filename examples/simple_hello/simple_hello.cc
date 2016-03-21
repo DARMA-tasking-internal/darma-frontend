@@ -225,7 +225,7 @@ int darma_main(int argc, char** argv) {
   //  std::cout << dep.get_value() << " received on " << me << std::endl;
   //});
 
-  darma_finalize();
+  //darma_finalize();
 
   return 0;
 }

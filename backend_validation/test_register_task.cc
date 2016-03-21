@@ -50,6 +50,7 @@
 #endif
 
 #include "mock_frontend.h"
+#include "helpers.h"
 
 using namespace darma_runtime;
 using namespace mock_frontend;
@@ -102,114 +103,53 @@ class RegisterTask
 } // end anonymous namespace
 
 ////////////////////////////////////////////////////////////////////////////////
-// some helper functions
-// TODO move these to a header
-
-template <typename MockDep, typename Lambda, bool needs_read, bool needs_write, bool IsNice=false>
-void register_one_dep_capture(MockDep* captured, Lambda&& lambda) {
-  using namespace ::testing;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
-
-  auto task_a = std::make_unique<task_t>();
-  EXPECT_CALL(*task_a, get_dependencies())
-    .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(MockTask::handle_container_t{ captured }));
-  EXPECT_CALL(*task_a, needs_read_data(Eq(captured)))
-    .Times(AtLeast(1))
-    .WillRepeatedly(Return(needs_read));
-  EXPECT_CALL(*task_a, needs_write_data(Eq(captured)))
-    .Times(AtLeast(1))
-    .WillRepeatedly(Return(needs_write));
-  EXPECT_CALL(*task_a, run())
-    .Times(Exactly(1))
-    .WillOnce(Invoke(std::forward<Lambda>(lambda)));
-  detail::backend_runtime->register_task(std::move(task_a));
-}
-
-template <typename MockDep, typename Lambda, bool IsNice=false>
-void register_read_only_capture(MockDep* captured, Lambda&& lambda) {
-  register_one_dep_capture<MockDep, Lambda, true, false, IsNice>(captured, std::forward<Lambda>(lambda));
-}
-
-template <typename MockDep, typename Lambda, bool IsNice=false>
-void register_write_only_capture(MockDep* captured, Lambda&& lambda) {
-  register_one_dep_capture<MockDep, Lambda, false, true, IsNice>(captured, std::forward<Lambda>(lambda));
-}
-
-template <typename MockDep, typename Lambda, bool IsNice=false>
-void register_read_write_capture(MockDep* captured, Lambda&& lambda) {
-  register_one_dep_capture<MockDep, Lambda, true, true, IsNice>(captured, std::forward<Lambda>(lambda));
-}
-
-template <typename T, bool IsNice, bool ExpectNewAlloc, typename Version, typename... KeyParts>
-std::shared_ptr<typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type>
-make_handle(
-  Version v, KeyParts&&... kp
-) {
-  using namespace ::testing;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type handle_t;
-
-  // Deleted in accompanying MockDependencyHandle shared pointer deleter
-  auto ser_man = new MockSerializationManager();
-  ser_man->get_metadata_size_return = sizeof(T);
-  if (ExpectNewAlloc){
-    EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
-      .Times(AtLeast(1))
-      .WillRepeatedly(Return(sizeof(T)));
-  }
-
-  auto h_0 = std::shared_ptr<handle_t>(
-    new handle_t(),
-    [=](handle_t* to_delete){
-      delete to_delete;
-      delete ser_man;
-    }
-  );
-  EXPECT_CALL(*h_0, get_key())
-    .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(detail::key_traits<MockDependencyHandle::key_t>::maker()(std::forward<KeyParts>(kp)...)));
-  EXPECT_CALL(*h_0, get_version())
-    .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(v));
-  if (ExpectNewAlloc){
-    EXPECT_CALL(*h_0, get_serialization_manager())
-      .Times(AtLeast(1))
-      .WillRepeatedly(Return(ser_man));
-    EXPECT_CALL(*h_0, allow_writes())
-      .Times(Exactly(1));
-  }
-
-  return h_0;
-}
-
-//
-////////////////////////////////////////////////////////////////////////////////
 
 // Try three different spots for release_only_usage(): before lambda created,
 //   before task registered, and after task registered
-TEST_F(RegisterTask, allocate_data_block) {
+
+// release_read_only_usage right before the lambda is created
+TEST_F(RegisterTask, first_writer_post_register_handle) {
   using namespace ::testing;
 
-  auto ser_man = std::make_shared<MockSerializationManager>();
-  ser_man->get_metadata_size_return = sizeof(double);
-  EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
-    .Times(AtLeast(1))
-    .WillRepeatedly(Return(sizeof(double)));
-
-  auto h_0 = std::make_shared<NiceMock<MockDependencyHandle>>();
-  EXPECT_CALL(*h_0, get_key())
-    .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(detail::key_traits<MockDependencyHandle::key_t>::maker()("the_key")));
-  EXPECT_CALL(*h_0, get_version())
-    .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(MockDependencyHandle::version_t()));
-  EXPECT_CALL(*h_0, get_serialization_manager())
-    .Times(AtLeast(1))
-    .WillRepeatedly(Return(ser_man.get()));
+  auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(1));  // when running write-only task
 
   detail::backend_runtime->register_handle(h_0.get());
 
-  auto task_a = std::make_unique<MockTask>();
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  register_write_only_capture(h_0.get(), [&]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+  });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  detail::backend_runtime->release_handle(h_0.get());
+}
+
+// release_read_only_usage before the task is registered
+TEST_F(RegisterTask, first_writer_block_post_lambda) {
+  using namespace ::testing;
+
+  auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(1));  // when running write-only task
+
+  detail::backend_runtime->register_handle(h_0.get());
+
+  typedef typename std::conditional<true, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+  auto task_a = std::make_unique<task_t>();
   EXPECT_CALL(*task_a, get_dependencies())
     .Times(AtLeast(1))
     .WillRepeatedly(ReturnRefOfCopy(MockTask::handle_container_t{ h_0.get() }));
@@ -223,6 +163,8 @@ TEST_F(RegisterTask, allocate_data_block) {
     .Times(Exactly(1))
     .WillOnce(Invoke(
       [&]{
+        ASSERT_TRUE(h_0->is_satisfied());
+        ASSERT_TRUE(h_0->is_writable());
         abstract::backend::DataBlock* data_block = h_0->get_data_block();
         ASSERT_THAT(data_block, NotNull());
         void* data = data_block->get_data();
@@ -240,15 +182,21 @@ TEST_F(RegisterTask, allocate_data_block) {
   detail::backend_runtime->release_handle(h_0.get());
 }
 
-// Same task, but using helpers...
-TEST_F(RegisterTask, allocate_data_block_2) {
+// release_read_only_usage after the task is registered
+TEST_F(RegisterTask, first_writer_post_register_task) {
   using namespace ::testing;
 
   auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(1));  // when running write-only task
 
   detail::backend_runtime->register_handle(h_0.get());
 
   register_write_only_capture(h_0.get(), [&]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
     abstract::backend::DataBlock* data_block = h_0->get_data_block();
     ASSERT_THAT(data_block, NotNull());
     void* data = data_block->get_data();
@@ -263,6 +211,29 @@ TEST_F(RegisterTask, allocate_data_block_2) {
   detail::backend_runtime->release_handle(h_0.get());
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+// register a task with no dependencies or anti-dependencies
+TEST_F(RegisterTask, register_task_with_no_deps) {
+  using namespace ::testing;
+  typedef typename std::conditional<false, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+
+  auto task_a = std::make_unique<task_t>();
+  EXPECT_CALL(*task_a, get_dependencies())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*task_a, run())
+    .Times(Exactly(1));
+
+  detail::backend_runtime->register_task(std::move(task_a));
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// register a write_only task and then a read-only task on its subsequent
+// to make sure its subsequent gets satisfied as expected
 TEST_F(RegisterTask, release_satisfy_for_read_only) {
   using namespace ::testing;
 
@@ -301,8 +272,6 @@ TEST_F(RegisterTask, release_satisfy_for_read_only) {
     detail::backend_runtime->release_handle(h_0.get());
   });
 
-  detail::backend_runtime->release_read_only_usage(h_1.get());
-
   register_read_only_capture(h_1.get(), [&,value]{
     ASSERT_TRUE(h_1->is_satisfied());
     ASSERT_FALSE(h_1->is_writable());
@@ -311,6 +280,7 @@ TEST_F(RegisterTask, release_satisfy_for_read_only) {
     void* data = data_block->get_data();
     ASSERT_THAT(data, NotNull());
     ASSERT_THAT(*((int*)data), Eq(value));
+    detail::backend_runtime->release_read_only_usage(h_1.get());
     detail::backend_runtime->release_handle(h_1.get());
   });
 
@@ -318,6 +288,8 @@ TEST_F(RegisterTask, release_satisfy_for_read_only) {
   backend_finalized = true;
 }
 
+// register a write_only task and then a read-write task on its subsequent
+// to make sure its subsequent gets satisfied as expected
 TEST_F(RegisterTask, release_satisfy_for_read_write) {
   using namespace ::testing;
 
@@ -368,6 +340,219 @@ TEST_F(RegisterTask, release_satisfy_for_read_write) {
     ASSERT_THAT(*((int*)data), Eq(value));
     detail::backend_runtime->release_handle(h_1.get());
   });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// write-only with multiple outputs
+TEST_F(RegisterTask, first_writer_2outputs) {
+  using namespace ::testing;
+
+  auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(1));  // when running write-only task
+
+  auto h_1 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "other_key");
+  EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1.get(), get_data_block())
+    .Times(AtLeast(1));  // when running write-only task
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+
+  typedef typename std::conditional<false, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+
+  auto task_a = std::make_unique<task_t>();
+  EXPECT_CALL(*task_a, get_dependencies())
+    .Times(AtLeast(1))
+    .WillRepeatedly(ReturnRefOfCopy(MockTask::handle_container_t{ h_0.get(), h_1.get() }));
+  EXPECT_CALL(*task_a, needs_read_data(Eq(h_0.get())))
+    .Times(AtLeast(1))
+    .WillRepeatedly(Return(false));
+  EXPECT_CALL(*task_a, needs_read_data(Eq(h_1.get())))
+    .Times(AtLeast(1))
+    .WillRepeatedly(Return(false));
+  EXPECT_CALL(*task_a, needs_write_data(Eq(h_0.get())))
+    .Times(AtLeast(1))
+    .WillRepeatedly(Return(true));
+  EXPECT_CALL(*task_a, needs_write_data(Eq(h_1.get())))
+    .Times(AtLeast(1))
+    .WillRepeatedly(Return(true));
+  EXPECT_CALL(*task_a, run())
+    .Times(Exactly(1))
+    .WillOnce(Invoke([&]{
+      ASSERT_TRUE(h_0->is_satisfied());
+      ASSERT_TRUE(h_1->is_satisfied());
+      ASSERT_TRUE(h_0->is_writable());
+      ASSERT_TRUE(h_1->is_writable());
+      {
+        abstract::backend::DataBlock* data_block = h_0->get_data_block();
+        ASSERT_THAT(data_block, NotNull());
+        void* data = data_block->get_data();
+        ASSERT_THAT(data, NotNull());
+      }
+      {
+        abstract::backend::DataBlock* data_block = h_1->get_data_block();
+        ASSERT_THAT(data_block, NotNull());
+        void* data = data_block->get_data();
+        ASSERT_THAT(data, NotNull());
+      }
+    }));
+
+  detail::backend_runtime->register_task(std::move(task_a));
+
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  detail::backend_runtime->release_handle(h_0.get());
+  detail::backend_runtime->release_handle(h_1.get());
+}
+
+// read-only task with multiple dependencies
+TEST_F(RegisterTask, multiple_deps_rr) {
+  using namespace ::testing;
+
+  auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(1));  // when running write-only task
+
+  auto next_version0 = h_0->get_version();
+  ++next_version0;
+  auto h_0s = make_handle<int, true, false>(next_version0, "the_key");
+  EXPECT_CALL(*h_0s.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0s.get(), get_data_block())
+    .Times(AtLeast(1));  // when running read-only task
+  EXPECT_CALL(*h_0s.get(), allow_writes())
+    .Times(Exactly(0));
+
+  auto h_1 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "other_key");
+  EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1.get(), get_data_block())
+    .Times(AtLeast(1));  // when running write-only task
+
+  auto next_version1 = h_1->get_version();
+  ++next_version1;
+  auto h_1s = make_handle<int, true, false>(next_version1, "other_key");
+  EXPECT_CALL(*h_1s.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1s.get(), get_data_block())
+    .Times(AtLeast(1));  // when running read-only task
+  EXPECT_CALL(*h_1s.get(), allow_writes())
+    .Times(Exactly(0));
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_0s.get());
+  detail::backend_runtime->register_handle(h_1.get());
+  detail::backend_runtime->register_handle(h_1s.get());
+
+  int value = 42;
+
+  typedef typename std::conditional<false, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+
+  auto task_wo = std::make_unique<task_t>();
+  EXPECT_CALL(*task_wo, get_dependencies())
+    .Times(AtLeast(1))
+    .WillRepeatedly(ReturnRefOfCopy(MockTask::handle_container_t{ h_0.get(), h_1.get() }));
+  EXPECT_CALL(*task_wo, needs_read_data(Eq(h_0.get())))
+    .Times(AtLeast(1))
+    .WillRepeatedly(Return(false));
+  EXPECT_CALL(*task_wo, needs_read_data(Eq(h_1.get())))
+    .Times(AtLeast(1))
+    .WillRepeatedly(Return(false));
+  EXPECT_CALL(*task_wo, needs_write_data(Eq(h_0.get())))
+    .Times(AtLeast(1))
+    .WillRepeatedly(Return(true));
+  EXPECT_CALL(*task_wo, needs_write_data(Eq(h_1.get())))
+    .Times(AtLeast(1))
+    .WillRepeatedly(Return(true));
+  EXPECT_CALL(*task_wo, run())
+    .Times(Exactly(1))
+    .WillOnce(Invoke([&]{
+      ASSERT_TRUE(h_0->is_satisfied());
+      ASSERT_TRUE(h_1->is_satisfied());
+      ASSERT_TRUE(h_0->is_writable());
+      ASSERT_TRUE(h_1->is_writable());
+      {
+        abstract::backend::DataBlock* data_block = h_0->get_data_block();
+        ASSERT_THAT(data_block, NotNull());
+        void* data = data_block->get_data();
+        ASSERT_THAT(data, NotNull());
+        memcpy(data, &value, sizeof(int));
+      }
+      {
+        abstract::backend::DataBlock* data_block = h_1->get_data_block();
+        ASSERT_THAT(data_block, NotNull());
+        void* data = data_block->get_data();
+        ASSERT_THAT(data, NotNull());
+        int value2 = value*2;
+        memcpy(data, &value2, sizeof(int));
+      }
+      detail::backend_runtime->release_handle(h_0.get());
+      detail::backend_runtime->release_handle(h_1.get());
+    }));
+
+  detail::backend_runtime->register_task(std::move(task_wo));
+
+  auto task_rr = std::make_unique<task_t>();
+  EXPECT_CALL(*task_rr, get_dependencies())
+    .Times(AtLeast(1))
+    .WillRepeatedly(ReturnRefOfCopy(MockTask::handle_container_t{ h_0s.get(), h_1s.get() }));
+  EXPECT_CALL(*task_rr, needs_read_data(Eq(h_0s.get())))
+    .Times(AtLeast(1))
+    .WillRepeatedly(Return(true));
+  EXPECT_CALL(*task_rr, needs_read_data(Eq(h_1s.get())))
+    .Times(AtLeast(1))
+    .WillRepeatedly(Return(true));
+  EXPECT_CALL(*task_rr, needs_write_data(Eq(h_0s.get())))
+    .Times(AtLeast(1))
+    .WillRepeatedly(Return(false));
+  EXPECT_CALL(*task_rr, needs_write_data(Eq(h_1s.get())))
+    .Times(AtLeast(1))
+    .WillRepeatedly(Return(false));
+  EXPECT_CALL(*task_rr, run())
+    .Times(Exactly(1))
+    .WillOnce(Invoke([&]{
+      ASSERT_TRUE(h_0s->is_satisfied());
+      ASSERT_TRUE(h_1s->is_satisfied());
+      ASSERT_FALSE(h_0s->is_writable());
+      ASSERT_FALSE(h_1s->is_writable());
+      {
+        abstract::backend::DataBlock* data_block = h_0s->get_data_block();
+        ASSERT_THAT(data_block, NotNull());
+        void* data = data_block->get_data();
+        ASSERT_THAT(data, NotNull());
+        ASSERT_THAT(*((int*)data), Eq(value));
+      }
+      {
+        abstract::backend::DataBlock* data_block = h_1s->get_data_block();
+        ASSERT_THAT(data_block, NotNull());
+        void* data = data_block->get_data();
+        ASSERT_THAT(data, NotNull());
+        ASSERT_THAT(*((int*)data), Eq(value*2));
+      }
+      detail::backend_runtime->release_read_only_usage(h_0s.get());
+      detail::backend_runtime->release_read_only_usage(h_1s.get());
+      detail::backend_runtime->release_handle(h_0s.get());
+      detail::backend_runtime->release_handle(h_1s.get());
+    }));
+
+  detail::backend_runtime->register_task(std::move(task_rr));
 
   detail::backend_runtime->finalize();
   backend_finalized = true;

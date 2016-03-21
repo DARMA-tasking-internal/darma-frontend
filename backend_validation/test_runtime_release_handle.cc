@@ -50,6 +50,7 @@
 #endif
 
 #include "mock_frontend.h"
+#include "helpers.h"
 
 using namespace darma_runtime;
 
@@ -191,3 +192,487 @@ TEST_F(RuntimeRelease, satisfy_next) {
   detail::backend_runtime->finalize();
   backend_finalized = true;
 }
+
+// satisfy subsequent ++v
+TEST_F(RuntimeRelease, satisfy_same_depth) {
+  using namespace ::testing;
+
+  auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
+  auto next_version = h_0->get_version();
+  ++next_version;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(2));  // when running write-only task and when releasing
+
+  EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_1.get(), allow_writes())
+    .Times(Exactly(0));
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  int value = 42;
+
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  ASSERT_TRUE(h_1->is_satisfied());
+  ASSERT_FALSE(h_1->is_writable());
+  abstract::backend::DataBlock* data_block = h_1->get_data_block();
+  ASSERT_THAT(data_block, NotNull());
+  void* data = data_block->get_data();
+  ASSERT_THAT(data, NotNull());
+  ASSERT_THAT(*((int*)data), Eq(value));
+
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+  detail::backend_runtime->release_handle(h_1.get());
+}
+
+// satisfy subsequent ++(v.pop_subversion())
+TEST_F(RuntimeRelease, satisfy_prev_depth) {
+  using namespace ::testing;
+
+  auto first_version = MockDependencyHandle::version_t();
+  first_version.push_subversion();
+  auto h_0 = make_handle<int, true, true>(first_version, "the_key");
+  auto next_version = first_version;
+  next_version.pop_subversion();
+  ++next_version;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(2));  // when running write-only task and when releasing
+
+  EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_1.get(), allow_writes())
+    .Times(Exactly(0));
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+
+  detail::backend_runtime->handle_done_with_version_depth(h_0.get());
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  int value = 42;
+
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  ASSERT_TRUE(h_1->is_satisfied());
+  ASSERT_FALSE(h_1->is_writable());
+  abstract::backend::DataBlock* data_block = h_1->get_data_block();
+  ASSERT_THAT(data_block, NotNull());
+  void* data = data_block->get_data();
+  ASSERT_THAT(data, NotNull());
+  ASSERT_THAT(*((int*)data), Eq(value));
+
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+  detail::backend_runtime->release_handle(h_1.get());
+}
+
+// satisfy subsequent ++(v.push_subversion())
+TEST_F(RuntimeRelease, satisfy_next_depth) {
+  using namespace ::testing;
+
+  auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
+  auto next_version = h_0->get_version();
+  next_version.push_subversion();
+  ++next_version;
+  auto next_version2 = h_0->get_version();
+  ++next_version2;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+  // h_2 must exist even though we're not directly using it
+  auto h_2 = make_handle<int, true, false>(next_version2, "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(2));  // when running write-only task and when releasing
+
+  EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_1.get(), allow_writes())
+    .Times(Exactly(0));
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+  detail::backend_runtime->register_handle(h_2.get());
+
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  int value = 42;
+
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  ASSERT_TRUE(h_1->is_satisfied());
+  ASSERT_FALSE(h_1->is_writable());
+  abstract::backend::DataBlock* data_block = h_1->get_data_block();
+  ASSERT_THAT(data_block, NotNull());
+  void* data = data_block->get_data();
+  ASSERT_THAT(data, NotNull());
+  ASSERT_THAT(*((int*)data), Eq(value));
+
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+  detail::backend_runtime->release_handle(h_1.get());
+  detail::backend_runtime->release_read_only_usage(h_2.get());
+  detail::backend_runtime->release_handle(h_2.get());
+}
+
+// satisfy ++(v.push_subversion()) and then ++v
+TEST_F(RuntimeRelease, satisfy_next_then_same) {
+  using namespace ::testing;
+
+  auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
+  auto next_version = h_0->get_version();
+  next_version.push_subversion();
+  ++next_version;
+  auto next_version2 = h_0->get_version();
+  ++next_version2;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+  auto h_2 = make_handle<int, true, false>(next_version2, "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(2));  // when running write-only task and when releasing
+
+  EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_1.get(), allow_writes())
+    .Times(Exactly(1));
+
+  EXPECT_CALL(*h_2.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_2.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_2.get(), allow_writes())
+    .Times(Exactly(0));
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+  detail::backend_runtime->register_handle(h_2.get());
+
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  int value = 42;
+
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+
+  register_read_write_capture(h_1.get(), [&,value]{
+    ASSERT_TRUE(h_1->is_satisfied());
+    ASSERT_TRUE(h_1->is_writable());
+    abstract::backend::DataBlock* data_block = h_1->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    ASSERT_THAT(*((int*)data), Eq(value));
+    *((int*)data) = value*2;
+    detail::backend_runtime->handle_done_with_version_depth(h_1.get());
+    detail::backend_runtime->release_handle(h_1.get());
+  });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  ASSERT_TRUE(h_2->is_satisfied());
+  ASSERT_FALSE(h_2->is_writable());
+  abstract::backend::DataBlock* data_block = h_2->get_data_block();
+  ASSERT_THAT(data_block, NotNull());
+  void* data = data_block->get_data();
+  ASSERT_THAT(data, NotNull());
+  ASSERT_THAT(*((int*)data), Eq(value*2));
+
+  detail::backend_runtime->release_read_only_usage(h_2.get());
+  detail::backend_runtime->release_handle(h_2.get());
+}
+
+// satisfy subsequent of subsequent, each at one less depth
+TEST_F(RuntimeRelease, satisfy_subseq_already_released) {
+  using namespace ::testing;
+
+  auto first_version = MockDependencyHandle::version_t();
+  first_version.push_subversion();
+  first_version.push_subversion();
+  auto h_0 = make_handle<int, true, true>(first_version, "the_key");
+  auto next_version = first_version;
+  next_version.pop_subversion();
+  ++next_version;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+  auto next_version2 = next_version;
+  next_version2.pop_subversion();
+  ++next_version2;
+  auto h_2 = make_handle<int, true, false>(next_version2, "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(2));  // when running write-only task and when releasing
+
+  EXPECT_CALL(*h_2.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_2.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_2.get(), allow_writes())
+    .Times(Exactly(0));
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+  detail::backend_runtime->register_handle(h_2.get());
+
+  detail::backend_runtime->handle_done_with_version_depth(h_0.get());
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  detail::backend_runtime->handle_done_with_version_depth(h_1.get());
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+  detail::backend_runtime->release_handle(h_1.get());
+  // h_0's subsequent, h_1, was just released prematurely, so h_0 needs
+  // to satisfy h_2 instead 
+
+  int value = 42;
+
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  ASSERT_TRUE(h_2->is_satisfied());
+  ASSERT_FALSE(h_2->is_writable());
+  abstract::backend::DataBlock* data_block = h_2->get_data_block();
+  ASSERT_THAT(data_block, NotNull());
+  void* data = data_block->get_data();
+  ASSERT_THAT(data, NotNull());
+  ASSERT_THAT(*((int*)data), Eq(value));
+
+  detail::backend_runtime->release_read_only_usage(h_2.get());
+  detail::backend_runtime->release_handle(h_2.get());
+}
+
+// satisfy subsequent of subsequent of subsequent, each at one less depth
+TEST_F(RuntimeRelease, satisfy_2subseqs_already_released) {
+  using namespace ::testing;
+
+  auto first_version = MockDependencyHandle::version_t();
+  first_version.push_subversion();
+  first_version.push_subversion();
+  first_version.push_subversion();
+  first_version.push_subversion();
+  auto h_0 = make_handle<int, true, true>(first_version, "the_key");
+  auto next_version = first_version;
+  next_version.pop_subversion();
+  ++next_version;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+  auto next_version2 = next_version;
+  next_version2.pop_subversion();
+  ++next_version2;
+  auto h_2 = make_handle<int, true, false>(next_version2, "the_key");
+  auto next_version3 = next_version2;
+  next_version3.pop_subversion();
+  ++next_version3;
+  auto h_3 = make_handle<int, true, false>(next_version3, "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(2));  // when running write-only task and when releasing
+
+  EXPECT_CALL(*h_3.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_3.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_3.get(), allow_writes())
+    .Times(Exactly(0));
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+  detail::backend_runtime->register_handle(h_2.get());
+  detail::backend_runtime->register_handle(h_3.get());
+
+  detail::backend_runtime->handle_done_with_version_depth(h_0.get());
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  detail::backend_runtime->handle_done_with_version_depth(h_2.get());
+  detail::backend_runtime->release_read_only_usage(h_2.get());
+  detail::backend_runtime->release_handle(h_2.get());
+  detail::backend_runtime->handle_done_with_version_depth(h_1.get());
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+  detail::backend_runtime->release_handle(h_1.get());
+  // h_1's subsequent, h_2, was just released prematurely
+  // h_0's subsequent, h_1, was also just released prematurely
+  // so h_0 needs to satisfy h_3 instead
+
+  int value = 42;
+
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  ASSERT_TRUE(h_3->is_satisfied());
+  ASSERT_FALSE(h_3->is_writable());
+  abstract::backend::DataBlock* data_block = h_3->get_data_block();
+  ASSERT_THAT(data_block, NotNull());
+  void* data = data_block->get_data();
+  ASSERT_THAT(data, NotNull());
+  ASSERT_THAT(*((int*)data), Eq(value));
+
+  detail::backend_runtime->release_read_only_usage(h_3.get());
+  detail::backend_runtime->release_handle(h_3.get());
+}
+
+
+// satisfy subsequent of subsequent, each at one less depth
+TEST_F(RuntimeRelease, satisfy_2subseqs_already_released2) {
+  using namespace ::testing;
+
+  auto first_version = MockDependencyHandle::version_t();
+  first_version.push_subversion();
+  first_version.push_subversion();
+  first_version.push_subversion();
+  first_version.push_subversion();
+  auto h_0 = make_handle<int, true, true>(first_version, "the_key");
+  auto next_version = first_version;
+  next_version.pop_subversion();
+  ++next_version;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+  auto next_version2 = next_version;
+  next_version2.pop_subversion();
+  ++next_version2;
+  auto h_2 = make_handle<int, true, false>(next_version2, "the_key");
+  auto next_version3 = next_version2;
+  next_version3.pop_subversion();
+  ++next_version3;
+  auto h_3 = make_handle<int, true, false>(next_version3, "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(2));  // when running write-only task and when releasing
+
+  EXPECT_CALL(*h_3.get(), satisfy_with_data_block(_))
+    .Times(Exactly(0));
+  EXPECT_CALL(*h_3.get(), allow_writes())
+    .Times(Exactly(0));
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+  detail::backend_runtime->register_handle(h_2.get());
+  detail::backend_runtime->register_handle(h_3.get());
+
+  detail::backend_runtime->handle_done_with_version_depth(h_0.get());
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  // we're not going to call handle_done_with_version_depth on h_2
+  detail::backend_runtime->release_read_only_usage(h_2.get());
+  detail::backend_runtime->release_handle(h_2.get());
+  detail::backend_runtime->handle_done_with_version_depth(h_1.get());
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+  detail::backend_runtime->release_handle(h_1.get());
+  // h_1's subsequent, h_2, was just released prematurely
+  // h_0's subsequent, h_1, was also just released prematurely
+  // but since h_2 didn't have handle_done_with_version_depth called,
+  // do not satisfy h_3 with h_0
+
+  int value = 42;
+
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  ASSERT_FALSE(h_3->is_satisfied());
+  ASSERT_FALSE(h_3->is_writable());
+
+  detail::backend_runtime->release_read_only_usage(h_3.get());
+  detail::backend_runtime->release_handle(h_3.get());
+}
+
+
