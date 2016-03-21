@@ -111,6 +111,27 @@ TEST_F(TestInitialAccess, call_sequence) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// Same as call_sequence, but uses helper to verify that other uses of helper should be valid
+TEST_F(TestInitialAccess, call_sequence_helper) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  Sequence s1;
+  auto hm1 = make_same_handle_matcher();
+  expect_handle_life_cycle(hm1, s1);
+
+  {
+    auto tmp = initial_access<int>("hello");
+    ASSERT_THAT(hm1.handle, NotNull());
+    ASSERT_THAT(hm1.handle, Eq(detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp)));
+  } // tmp deleted
+
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestInitialAccess, call_sequence_assign) {
   using namespace ::testing;
   using namespace darma_runtime;
