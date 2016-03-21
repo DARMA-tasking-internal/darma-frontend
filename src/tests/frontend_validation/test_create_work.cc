@@ -316,6 +316,7 @@ TEST_F(TestCreateWork, capture_read_access_2) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
+  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
 
   mock_runtime->save_tasks = true;
 
@@ -329,17 +330,20 @@ TEST_F(TestCreateWork, capture_read_access_2) {
 
   {
     auto tmp = read_access<int>("hello", version="world");
-    create_work([=]{
-      std::cout << tmp.get_value();
-      FAIL() << "This code block shouldn't be running in this example";
+    create_work([=,&hm1]{
+      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
     });
-    create_work([=]{
-      std::cout << tmp.get_value();
-      FAIL() << "This code block shouldn't be running in this example";
+    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
+    create_work([=,&hm1]{
+      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
     });
+    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
   }
 
-  mock_runtime->registered_tasks.clear();
+  while(not mock_runtime->registered_tasks.empty()) {
+    mock_runtime->registered_tasks.front()->run();
+    mock_runtime->registered_tasks.pop_front();
+  }
 
 }
 
@@ -375,11 +379,11 @@ TEST_F(TestCreateWork, mod_capture_MN) {
 
   {
     auto tmp = initial_access<int>("hello");
-    create_work([=]{
+    create_work([=,&hm1]{
       ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
     });
     ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm2.handle));
-    create_work([=]{
+    create_work([=,&hm2]{
       ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm2.handle));
     });
     ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm3.handle));
@@ -548,6 +552,9 @@ TEST_F(TestCreateWork, ro_capture_MM) {
   v_hm2.pop_subversion();
   ++v_hm2;
   ASSERT_EQ(v_hm3, v_hm2);
+  ASSERT_EQ(hm1.key, hm2.key);
+  ASSERT_EQ(hm2.key, hm3.key);
+  ASSERT_EQ(hm3.key, hm4.key);
 
 
 
