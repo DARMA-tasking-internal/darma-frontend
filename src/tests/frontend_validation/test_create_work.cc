@@ -98,36 +98,6 @@ class TestCreateWork
       });
     }
 
-    template <typename SameHandle>
-    void expect_handle_life_cycle(SameHandle&& same_handle,
-      ::testing::Sequence& s = ::testing::Sequence(),
-      bool read_only = false,
-      bool calls_last_at_version_depth = true
-    ) {
-      using namespace ::testing;
-      Sequence s2;
-
-      if(read_only) {
-        EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(same_handle), _))
-          .InSequence(s, s2);
-      }
-      else {
-        EXPECT_CALL(*mock_runtime, register_handle(Truly(same_handle)))
-          .InSequence(s, s2);
-      }
-
-      EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(same_handle)))
-        .InSequence(s);
-
-      if(not read_only and calls_last_at_version_depth) {
-        EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(same_handle)))
-          .InSequence(s2);
-      }
-
-      EXPECT_CALL(*mock_runtime, release_handle(Truly(same_handle)))
-        .InSequence(s, s2);
-
-    }
 
 };
 
@@ -555,8 +525,6 @@ TEST_F(TestCreateWork, ro_capture_MM) {
   ASSERT_EQ(hm1.key, hm2.key);
   ASSERT_EQ(hm2.key, hm3.key);
   ASSERT_EQ(hm3.key, hm4.key);
-
-
 
 }
 
