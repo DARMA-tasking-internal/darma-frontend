@@ -52,6 +52,7 @@
 #include <darma/impl/runtime.h>
 
 #include "mock_backend.h"
+#include "darma_types.h"
 
 class TestFrontend
   : public ::testing::Test
@@ -91,21 +92,33 @@ class TestFrontend
         mock_runtime_setup_done = false;
       }
       same_handles.clear();
+      same_keys.clear();
+      same_versions.clear();
 
     }
 
     struct SameHandleMatcher {
       SameHandleMatcher(
-        mock_backend::MockRuntime::handle_t*& handle_to_track
-      ) : handle(handle_to_track) { }
+        mock_backend::MockRuntime::handle_t*& handle_to_track,
+        darma_runtime::types::key_t& key_to_track,
+        darma_runtime::types::version_t& version_to_track
+      ) : handle(handle_to_track), key(key_to_track), version(version_to_track) { }
       mock_backend::MockRuntime::handle_t*& handle;
+      darma_runtime::types::version_t& version;
+      darma_runtime::types::key_t& key;
       bool operator()(
         const mock_backend::MockRuntime::handle_t* in_handle
       ) const {
-        if(handle) return intptr_t(in_handle) == intptr_t(handle);
+        if(handle != nullptr) {
+          return intptr_t(in_handle) == intptr_t(handle)
+              and key == in_handle->get_key()
+              and version == in_handle->get_version();
+        }
         else {
           // Just const_cast so that one matcher can handle both the const and non-const cases
           handle = const_cast<mock_backend::MockRuntime::handle_t*>(in_handle);
+          key = handle->get_key();
+          version = handle->get_version();
           return true;
         }
       }
@@ -114,13 +127,17 @@ class TestFrontend
     SameHandleMatcher
     make_same_handle_matcher() {
       same_handles.push_back(nullptr);
-      return { same_handles.back() };
+      same_keys.emplace_back();
+      same_versions.emplace_back();
+      return { same_handles.back(), same_keys.back(), same_versions.back() };
     }
 
     mock_backend::MockRuntime::task_unique_ptr top_level_task;
     std::unique_ptr<mock_backend::MockRuntime> mock_runtime;
     bool mock_runtime_setup_done = false;
     std::deque<mock_backend::MockRuntime::handle_t*> same_handles;
+    std::deque<darma_runtime::types::key_t> same_keys;
+    std::deque<darma_runtime::types::version_t> same_versions;
 };
 
 

@@ -633,6 +633,9 @@ class AccessHandle
                   break;
                 }
                 case Modify_Modify: {
+                  // We're creating a subsequent at the same version depth
+                  outer.dep_handle_->has_subsequent_at_version_depth = true;
+
                   version_t next_version = outer.dep_handle_->get_version();
                   ++next_version;
                   dep_handle_ = dep_handle_ptr_maker_t()(
@@ -641,6 +644,7 @@ class AccessHandle
                   );
                   read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);
                   state_ = Read_Read;
+
 
                   outer.dep_handle_ = dep_handle_;
                   outer.read_only_holder_ = read_only_holder_;
@@ -693,6 +697,9 @@ class AccessHandle
                   version_t captured_version = outer.dep_handle_->get_version();
                   captured_version.push_subversion();
                   ++captured_version;
+
+                  // We're creating a subsequent at the same version depth
+                  outer.dep_handle_->has_subsequent_at_version_depth = true;
 
                   // avoid releasing the old until these two are made
                   auto tmp = outer.dep_handle_;
@@ -916,7 +923,7 @@ struct for_AccessHandle {
     typename AccessHandleType::dep_handle_t
   >::type* const
   get_dep_handle(
-    AccessHandleType& ah
+    AccessHandleType const& ah
   ) {
     return ah.dep_handle_.get();
   }
