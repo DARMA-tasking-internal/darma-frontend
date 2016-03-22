@@ -98,7 +98,7 @@ class MockRuntime
     std::deque<task_unique_ptr> registered_tasks;
 };
 
-class DataBlock
+class MockDataBlock
   : public darma_runtime::abstract::backend::DataBlock
 {
   public:

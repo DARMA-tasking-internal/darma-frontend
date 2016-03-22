@@ -51,6 +51,9 @@ class TestAccessHandle_get_value_Test;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#include <iomanip>
+#include <iostream>
+
 #include <gtest/gtest.h>
 
 #include "mock_backend.h"
@@ -85,32 +88,43 @@ class TestAccessHandle
 TEST_F(TestAccessHandle, get_value) {
   using namespace ::testing;
   using namespace darma_runtime;
+  using namespace mock_backend;
   using namespace darma_runtime::keyword_arguments_for_publication;
 
   mock_runtime->save_tasks = true;
 
-  Sequence s_hm2;
-  auto hm2 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm2, s_hm2);
-  Sequence s_hm1;
-  auto hm1 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm1, s_hm1);
+  handle_t* h0 = nullptr, *h1 = nullptr;
 
   {
-    InSequence s;
-    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-      in_get_dependencies(hm1), needs_write_of(hm1), Not(needs_read_of(hm1))
-    )));
+    InSequence s_handles;
+
+    EXPECT_CALL(*mock_runtime, register_handle(_))
+      .WillOnce(SaveArg<0>(&h0));
+    EXPECT_CALL(*mock_runtime, register_handle(_))
+      .WillOnce(SaveArg<0>(&h1));
   }
 
-  // TODO finish this!!!
+  int data = 0;
+  MockDataBlock db;
+  EXPECT_CALL(db, get_data())
+    .Times(AnyNumber())
+    .WillRepeatedly(Return(&data));
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+    handle_in_get_dependencies(h0), Not(needs_read_handle(h0)), needs_write_handle(h0)
+  )))
+    .WillOnce(InvokeWithoutArgs([&h0,&db]{ h0->satisfy_with_data_block(&db); }));
 
   {
     auto tmp = initial_access<int>("hello");
-    create_work([=,&hm1]{
-      ASSERT_THAT(tmp.dep_handle_.get(), Eq(hm1.handle));
+
+    EXPECT_THAT(h0, NotNull());
+
+    create_work([=,&h0,&h1]{
+      EXPECT_THAT(tmp.dep_handle_.get(), Eq(h0));
+      EXPECT_THAT(h1, NotNull());
     });
-    ASSERT_THAT(tmp.dep_handle_.get(), Eq(hm2.handle));
+    EXPECT_THAT(tmp.dep_handle_.get(), Eq(h1));
   }
 
   while(not mock_runtime->registered_tasks.empty()) {
