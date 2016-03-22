@@ -321,7 +321,7 @@ class Runtime {
     ) =0;
 
     /** @brief Indicate to the backend that the key and version reported by \c handle should be fetchable
-     *  with the user version tag \c version_tag exactly \c n_additional_fetchers times.
+     *  with the user version tag \c version_tag exactly \c n_fetchers times.
      *
      *  In other words, \ref Runtime::register_fetching_handle() must be called exactly \c n_fetchers times
      *  \b globally with the key reported by \c handle and the \c version_tag given here before the runtime
@@ -338,7 +338,7 @@ class Runtime {
      *  @param n_fetchers The number of times register_fetching_handle() must be called globally (and the corresponding
      *  fetching handles released) before antidependencies on \c handle are cleared and its data can be
      *  overwritten or deleted.
-     *  @param is_final Whether or not the publish is intented to indicate the key and data associated with
+     *  @param is_final Whether or not the publish is intended to indicate the key and data associated with
      *  handle are to be considered globally read-only for the rest of its lifetime.  If true, it is a (debug-mode)
      *  error to register a handle (anywhere) with the same key and a version v > handle->get_version().  For
      *  version 0.2 of the spec, is_final should always be false
