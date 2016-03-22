@@ -128,7 +128,7 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg) {
   EXPECT_CALL(*h_1.get(), get_data_block())
     .Times(AtLeast(1));
   EXPECT_CALL(*h_1.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(AtMost(1));
 
   EXPECT_CALL(*h_1f.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -213,7 +213,7 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg2) {
   EXPECT_CALL(*h_1.get(), get_data_block())
     .Times(AtLeast(1));
   EXPECT_CALL(*h_1.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(AtMost(1));
 
   EXPECT_CALL(*h_1f.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -297,7 +297,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg_then_pub) {
   EXPECT_CALL(*h_1.get(), get_data_block())
     .Times(AtLeast(1));
   EXPECT_CALL(*h_1.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(AtMost(1));
 
   EXPECT_CALL(*h_1f.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -382,7 +382,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub) {
   EXPECT_CALL(*h_1.get(), get_data_block())
     .Times(AtLeast(1));
   EXPECT_CALL(*h_1.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(AtMost(1));
 
   EXPECT_CALL(*h_1f.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -489,7 +489,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub2) {
   EXPECT_CALL(*h_1.get(), get_data_block())
     .Times(AtLeast(1));
   EXPECT_CALL(*h_1.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(AtMost(1));
 
   EXPECT_CALL(*h_1f.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));

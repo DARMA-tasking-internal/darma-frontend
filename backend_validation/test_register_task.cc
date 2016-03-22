@@ -252,7 +252,7 @@ TEST_F(RegisterTask, release_satisfy_for_read_only) {
   EXPECT_CALL(*h_1.get(), get_data_block())
     .Times(AtLeast(1));  // when running read-only task
   EXPECT_CALL(*h_1.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(AtMost(1));
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
@@ -435,7 +435,7 @@ TEST_F(RegisterTask, multiple_deps_rr) {
   EXPECT_CALL(*h_0s.get(), get_data_block())
     .Times(AtLeast(1));  // when running read-only task
   EXPECT_CALL(*h_0s.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(AtMost(1));
 
   auto h_1 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "other_key");
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
@@ -451,7 +451,7 @@ TEST_F(RegisterTask, multiple_deps_rr) {
   EXPECT_CALL(*h_1s.get(), get_data_block())
     .Times(AtLeast(1));  // when running read-only task
   EXPECT_CALL(*h_1s.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(AtMost(1));
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_0s.get());
