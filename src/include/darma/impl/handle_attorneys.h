@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                          handle_attorneys.h
+//                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,13 +42,80 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef SRC_INCLUDE_DARMA_IMPL_HANDLE_ATTORNEYS_H_
+#define SRC_INCLUDE_DARMA_IMPL_HANDLE_ATTORNEYS_H_
 
-#include <darma/impl/darma.h>
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
+#include <darma/impl/handle.h>
 #include <darma/interface/app/access_handle.h>
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+
+namespace darma_runtime {
+
+namespace detail {
+
+namespace access_attorneys {
+
+struct for_AccessHandle {
+  // call the private constructors
+  template <typename T, typename Key, typename Version>
+  static AccessHandle<T>
+  construct_initial_access(Key const& key, Version const& version) {
+    return { key, version, AccessHandle<T>::State::Modify_None };
+  }
+  template <typename T, typename Key>
+  static AccessHandle<T>
+  construct_read_access(Key const& key, Key const& user_version_tag) {
+    return { key, AccessHandle<T>::State::Read_None, user_version_tag };
+  }
+
+};
+
+}
+
+namespace create_work_attorneys {
+
+struct for_AccessHandle {
+  template <typename AccessHandleType>
+  static inline
+  typename tinympl::copy_cv_qualifiers<AccessHandleType>::template apply<
+    typename AccessHandleType::dep_handle_t
+  >::type* const
+  get_dep_handle(
+    AccessHandleType const& ah
+  ) {
+    return ah.dep_handle_.get();
+  }
+
+  template <typename AccessHandleType>
+  static inline
+  typename tinympl::copy_cv_qualifiers<AccessHandleType>::template apply<
+    typename AccessHandleType::dep_handle_ptr
+  >::type const
+  get_dep_handle_ptr(
+    AccessHandleType& ah
+  ) {
+    return ah.dep_handle_;
+  }
+
+  template <typename AccessHandleType>
+  static inline
+  typename tinympl::copy_volatileness<AccessHandleType>::template apply<
+    typename AccessHandleType::version_t
+  >::type const&
+  get_version(
+    AccessHandleType& ah
+  ) {
+    return ah.dep_handle_->get_version();
+  }
+};
+
+} // end namespace create_work_attorneys
+
+} // end namespace detail
+
+} // end namespace darma
+
+
+
+
+#endif /* SRC_INCLUDE_DARMA_IMPL_HANDLE_ATTORNEYS_H_ */
