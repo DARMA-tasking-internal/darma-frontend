@@ -53,6 +53,7 @@
 #endif
 
 #include "mock_frontend.h"
+#include "main.h"
 
 using namespace darma_runtime;
 using namespace mock_frontend;

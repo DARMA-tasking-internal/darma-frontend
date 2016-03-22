@@ -461,14 +461,16 @@ SerialRuntime::shared_mutex_t SerialRuntime::published_data_blocks_mtx;
 int main(int argc, char** argv) {
   int ret = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
   // TODO: check if runtime finalized before deleting
-  delete darma_runtime::detail::backend_runtime;
+  if(darma_runtime::detail::backend_runtime) {
+    delete darma_runtime::detail::backend_runtime;
+  }
   return ret;
 }
 
 void
 darma_runtime::abstract::backend::darma_backend_initialize(
   int& argc, char**& argv,
-  darma_runtime::abstract::backend::runtime_t*& backend_runtime,
+  darma_runtime::abstract::backend::runtime_t*& backend_rt,
   types::unique_ptr_template<
     typename darma_runtime::abstract::backend::runtime_t::task_t
   > top_level_task
@@ -493,7 +495,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
     );
     tmp_rt->rank = 0;
     tmp_rt->n_ranks = n_ranks;
-    backend_runtime = tmp_rt;
+    backend_rt = tmp_rt;
 
     int tmp_argc = argc;
     char** tmp_argv = argv;
@@ -542,6 +544,6 @@ darma_runtime::abstract::backend::darma_backend_initialize(
     );
     my_tmp_rt->rank = irank;
     my_tmp_rt->n_ranks = n_ranks;
-    backend_runtime = my_tmp_rt;
+    backend_rt = my_tmp_rt;
   }
 }

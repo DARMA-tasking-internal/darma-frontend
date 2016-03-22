@@ -51,6 +51,7 @@
 
 #include "mock_frontend.h"
 #include "helpers.h"
+#include "main.h"
 
 using namespace darma_runtime;
 using namespace mock_frontend;
@@ -63,6 +64,8 @@ class TestFetchers
   protected:
 
     virtual void SetUp() {
+
+      detail::backend_runtime = darma_runtime::detail::_gen_backend_runtime_ptr<>();
 
       // Emulate argc and argv
       argc_ = 1;

@@ -64,8 +64,12 @@ _gen_backend_runtime_ptr() {
   return rv;
 }
 
+namespace {
+
 DARMA_THREAD_LOCAL_BACKEND_RUNTIME
 abstract::backend::runtime_t*& backend_runtime = _gen_backend_runtime_ptr<>();
+
+}
 
 } // end namespace backend
 

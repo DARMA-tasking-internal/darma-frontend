@@ -60,17 +60,17 @@
 #  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
 #endif
 
-namespace darma_runtime {
-
-namespace detail {
-
-extern
-DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-abstract::backend::runtime_t*& backend_runtime;
-
-} // end namespace backend
-
-} // end namespace darma_runtime
+//namespace darma_runtime {
+//
+//namespace detail {
+//
+//extern
+//DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+//abstract::backend::runtime_t*& backend_runtime;
+//
+//} // end namespace backend
+//
+//} // end namespace darma_runtime
 
 namespace mock_frontend {
 
