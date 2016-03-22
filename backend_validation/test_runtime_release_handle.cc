@@ -212,7 +212,7 @@ TEST_F(RuntimeRelease, satisfy_same_depth) {
   EXPECT_CALL(*h_1.get(), get_data_block())
     .Times(AtLeast(1));
   EXPECT_CALL(*h_1.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(Exactly(1));
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
@@ -269,7 +269,7 @@ TEST_F(RuntimeRelease, satisfy_prev_depth) {
   EXPECT_CALL(*h_1.get(), get_data_block())
     .Times(AtLeast(1));
   EXPECT_CALL(*h_1.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(AtMost(1));
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
@@ -329,7 +329,7 @@ TEST_F(RuntimeRelease, satisfy_next_depth) {
   EXPECT_CALL(*h_1.get(), get_data_block())
     .Times(AtLeast(1));
   EXPECT_CALL(*h_1.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(AtMost(1));
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
@@ -397,7 +397,7 @@ TEST_F(RuntimeRelease, satisfy_next_then_same) {
   EXPECT_CALL(*h_2.get(), get_data_block())
     .Times(AtLeast(1));
   EXPECT_CALL(*h_2.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(AtMost(1));
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
