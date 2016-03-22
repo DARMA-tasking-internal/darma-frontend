@@ -195,7 +195,7 @@ class DependencyHandle {
      *
      *  It is a (debug-mode) error to call allow_writes() before calling satisfy_with_data_block().
      *  allow_writes() should be called at most once in the lifetime of a dependency handle, and
-     *  it should only be called zero times if the handle is never used in a write context.
+     *  it should only be called zero times for handles registered with register_fetching_handle().
      *
      */
     virtual void
