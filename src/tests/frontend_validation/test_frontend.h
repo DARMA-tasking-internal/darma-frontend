@@ -164,6 +164,28 @@ class TestFrontend
 
     }
 
+    template <typename SameHandle>
+    auto in_get_dependencies(SameHandle&& same_handle) {
+      return ::testing::Truly([&handle=same_handle.handle](auto* task_arg) {
+        const auto& task_deps = task_arg->get_dependencies();
+        return task_deps.find(handle) != task_deps.end();
+      });
+    }
+
+    template <typename SameHandle>
+    auto needs_read_of(SameHandle&& same_handle) {
+      return ::testing::Truly([&handle=same_handle.handle](auto* task_arg) {
+        return task_arg->needs_read_data(handle);
+      });
+    }
+
+    template <typename SameHandle>
+    auto needs_write_of(SameHandle&& same_handle) {
+      return ::testing::Truly([&handle=same_handle.handle](auto* task_arg) {
+        return task_arg->needs_write_data(handle);
+      });
+    }
+
     mock_backend::MockRuntime::task_unique_ptr top_level_task;
     std::unique_ptr<mock_backend::MockRuntime> mock_runtime;
     bool mock_runtime_setup_done = false;

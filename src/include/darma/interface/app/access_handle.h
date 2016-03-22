@@ -45,6 +45,10 @@
 #ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_ACCESS_HANDLE_H_
 #define SRC_INCLUDE_DARMA_INTERFACE_APP_ACCESS_HANDLE_H_
 
+#ifdef DARMA_TEST_FRONTEND_VALIDATION
+#  include <gtest/gtest_prod.h>
+#endif
+
 #include <darma/impl/handle.h>
 
 namespace darma_runtime {
@@ -503,11 +507,13 @@ class AccessHandle
     friend class detail::create_work_attorneys::for_AccessHandle;
     friend class detail::access_attorneys::for_AccessHandle;
 
+#ifdef DARMA_TEST_FRONTEND_VALIDATION
+    friend class ::TestAccessHandle;
+    FRIEND_TEST(::TestAccessHandle, get_value);
+#endif
+
 };
 
 } // end namespace darma_runtime
-
-
-#include <darma/impl/handle_attorneys.h>
 
 #endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_ACCESS_HANDLE_H_ */
