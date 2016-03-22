@@ -42,11 +42,11 @@ include_directories(${backend_dir})
 
 else() #built as standalone
 if (NOT DARMA_FRONTEND_DIR)
-message(FATAL_ERROR "Must define prefix install dir for frontend via -DDARMA_FRONTEND=")
+message(FATAL_ERROR "Must define prefix install dir for frontend via -DDARMA_FRONTEND_DIR=")
 endif()
 
 if (NOT DARMA_BACKEND_DIR)
-message(FATAL_ERROR "Must define prefix install dir for backend via -DDARMA_BACKEND=")
+message(FATAL_ERROR "Must define prefix install dir for backend via -DDARMA_BACKEND_DIR=")
 endif()
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${DARMA_BACKEND_DIR}/lib")
 
