@@ -1,5 +1,6 @@
 
 set (app_HEADERS
+app/access_handle.h
 app/create_work.h
 app/initial_access.h
 app/read_access.h

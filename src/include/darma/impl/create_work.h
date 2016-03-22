@@ -58,6 +58,7 @@
 #include <darma/impl/runtime.h>
 
 #include <darma/impl/task.h>
+#include <darma/impl/handle_attorneys.h>
 
 // TODO move these to their own files in interface/app when they become part of the spec
 DeclareDarmaTypeTransparentKeyword(create_work_decorators, unless);

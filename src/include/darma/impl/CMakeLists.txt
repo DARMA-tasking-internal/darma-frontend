@@ -5,6 +5,7 @@ create_work.h
 darma.h
 darma_assert.h
 handle.h
+handle_attorneys.h
 key_concept.h
 runtime.h
 serialization.h

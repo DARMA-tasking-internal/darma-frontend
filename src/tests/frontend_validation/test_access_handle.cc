@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                          test_access_handle.h
+//                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,13 +42,37 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#include <gtest/gtest.h>
 
-#include <darma/impl/darma.h>
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
+#include "mock_backend.h"
+#include "test_frontend.h"
+
 #include <darma/interface/app/access_handle.h>
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+////////////////////////////////////////////////////////////////////////////////
+
+namespace {
+
+class TestAccessHandle
+  : public TestFrontend
+{
+  protected:
+
+    virtual void SetUp() {
+      setup_mock_runtime<::testing::StrictMock>();
+      TestFrontend::SetUp();
+    }
+
+    virtual void TearDown() {
+      TestFrontend::TearDown();
+    }
+};
+
+} // end anonymous namespace
+
+////////////////////////////////////////////////////////////////////////////////
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

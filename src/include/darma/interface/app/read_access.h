@@ -45,7 +45,8 @@
 #ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_
 #define SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_
 
-#include <darma/impl/handle.h>
+#include <darma/interface/app/access_handle.h>
+#include <darma/impl/handle_attorneys.h>
 
 namespace darma_runtime {
 
