@@ -45,7 +45,11 @@
 #ifndef SRC_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_H_
 #define SRC_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_H_
 
+#define DEBUG_CREATE_WORK_HANDLES 0
+
 #include <deque>
+#include <iomanip>
+#include <iostream>
 
 #include <gtest/gtest.h>
 #include <darma/impl/task.h>
@@ -58,6 +62,9 @@ class TestFrontend
   : public ::testing::Test
 {
   protected:
+
+    typedef typename darma_runtime::abstract::backend::runtime_t::handle_t handle_t;
+    typedef typename darma_runtime::abstract::backend::runtime_t::task_t task_t;
 
     void setup_top_level_task() {
       top_level_task = std::make_unique<darma_runtime::detail::TopLevelTask>();
@@ -172,6 +179,19 @@ class TestFrontend
       });
     }
 
+    auto handle_in_get_dependencies(handle_t*& handle) {
+      return ::testing::Truly([&handle](task_t const * const task_arg) {
+        const auto& task_deps = task_arg->get_dependencies();
+        bool rv = task_deps.find(handle) != task_deps.end();
+#if DEBUG_CREATE_WORK_HANDLES
+        std::cout << "handle_in_get_dependencies(0x" << std::hex << intptr_t(handle)
+                  << ") for task " << std::hex << intptr_t(task_arg)
+                  << ": " << std::boolalpha << rv << std::endl;
+#endif
+        return rv;
+      });
+    }
+
     template <typename SameHandle>
     auto needs_read_of(SameHandle&& same_handle) {
       return ::testing::Truly([&handle=same_handle.handle](auto* task_arg) {
@@ -179,10 +199,34 @@ class TestFrontend
       });
     }
 
+    auto needs_read_handle(handle_t*& handle) {
+      return ::testing::Truly([&handle](task_t const * const task_arg) {
+        bool rv = task_arg->needs_read_data(handle);
+#if DEBUG_CREATE_WORK_HANDLES
+        std::cout << "needs_read_handle(0x" << std::hex << intptr_t(handle)
+                  << ") for task " << std::hex << intptr_t(task_arg)
+                  << ": " << std::boolalpha << rv << std::endl;
+#endif
+        return rv;
+      });
+    }
+
     template <typename SameHandle>
     auto needs_write_of(SameHandle&& same_handle) {
       return ::testing::Truly([&handle=same_handle.handle](auto* task_arg) {
         return task_arg->needs_write_data(handle);
+      });
+    }
+
+    auto needs_write_handle(handle_t*& handle) {
+      return ::testing::Truly([&handle](task_t const * const task_arg) {
+        bool rv = task_arg->needs_write_data(handle);
+#if DEBUG_CREATE_WORK_HANDLES
+        std::cout << "needs_write_handle(0x" << std::hex << intptr_t(handle)
+                  << ") for task " << std::hex << intptr_t(task_arg)
+                  << ": " << std::boolalpha << rv << std::endl;
+#endif
+        return rv;
       });
     }
 
