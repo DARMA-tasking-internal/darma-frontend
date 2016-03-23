@@ -51,6 +51,7 @@
 #include "keyword_argument_name.h"
 #include "../meta/sentinal_type.h"
 #include "../meta/move_if.h"
+#include "../meta/detection.h"
 
 #include "kwarg_expression_fwd.h"
 
@@ -232,22 +233,30 @@ class multiarg_typeless_kwarg_expression {
 template <class T>
 struct is_kwarg_expression
   : public std::false_type
-{ };
+{
+  typedef meta::nonesuch tag;
+};
 
 template <typename T, typename KWArgName, bool rhs_is_lvalue>
 struct is_kwarg_expression<kwarg_expression<T, KWArgName, rhs_is_lvalue>>
   : public std::true_type
-{ };
+{
+  typedef typename KWArgName::tag tag;
+};
 
 template <typename T, typename KWArgName>
 struct is_kwarg_expression<typeless_kwarg_expression<T, KWArgName>>
   : public std::true_type
-{ };
+{
+  typedef typename KWArgName::tag tag;
+};
 
 template <typename KWArgName, typename... Args>
 struct is_kwarg_expression<multiarg_typeless_kwarg_expression<KWArgName, Args...>>
   : public std::true_type
-{ };
+{
+  typedef typename KWArgName::tag tag;
+};
 
 template <class T, class Tag>
 struct is_kwarg_expression_with_tag

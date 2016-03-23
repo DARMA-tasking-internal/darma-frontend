@@ -50,6 +50,7 @@
 #endif
 
 #include <darma/impl/handle.h>
+#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 
 namespace darma_runtime {
 
@@ -416,7 +417,9 @@ class AccessHandle
     }
 
     template <typename... Args>
-    void
+    std::enable_if_t<
+      not std::is_same<T, void>::value
+    >
     emplace_value(Args&&... args) const {
       DARMA_ASSERT_MESSAGE(
         state_ != None_None,
@@ -456,6 +459,11 @@ class AccessHandle
       return dep_handle_->get_key();
     }
 
+    template <
+      typename = std::enable_if<
+        not std::is_same<T, void>::value
+      >
+    >
     T&
     get_reference() const {
       DARMA_ASSERT_MESSAGE(
@@ -475,6 +483,12 @@ class AccessHandle
     void publish(
       PublishExprParts&&... parts
     ) const {
+      static_assert(detail::only_allowed_kwargs_given<
+          keyword_tags_for_publication::version,
+          keyword_tags_for_publication::n_readers
+        >::template apply<PublishExprParts...>::type::value,
+        "Unknown keyword argument given to AccessHandle<>::publish()"
+      );
       detail::publish_expr_helper<PublishExprParts...> helper;
       switch(state_) {
         case None_None: {
