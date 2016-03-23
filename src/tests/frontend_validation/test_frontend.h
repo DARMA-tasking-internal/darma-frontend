@@ -61,10 +61,15 @@
 class TestFrontend
   : public ::testing::Test
 {
-  protected:
+  public:
 
     typedef typename darma_runtime::abstract::backend::runtime_t::handle_t handle_t;
     typedef typename darma_runtime::abstract::backend::runtime_t::task_t task_t;
+    typedef typename darma_runtime::abstract::backend::runtime_t::version_t version_t;
+    typedef typename darma_runtime::abstract::backend::runtime_t::key_t key_t;
+
+  protected:
+
 
     void setup_top_level_task() {
       top_level_task = std::make_unique<darma_runtime::detail::TopLevelTask>();
@@ -230,6 +235,7 @@ class TestFrontend
       });
     }
 
+
     mock_backend::MockRuntime::task_unique_ptr top_level_task;
     std::unique_ptr<mock_backend::MockRuntime> mock_runtime;
     bool mock_runtime_setup_done = false;
@@ -237,7 +243,6 @@ class TestFrontend
     std::deque<darma_runtime::types::key_t> same_keys;
     std::deque<darma_runtime::types::version_t> same_versions;
 };
-
 
 
 #endif /* SRC_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_H_ */

@@ -102,10 +102,11 @@ make_handle(
   Version v, KeyParts&&... kp
 ) {
   using namespace ::testing;
+  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockSerializationManager>, MockSerializationManager>::type ser_man_t;
   typedef typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type handle_t;
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
-  auto ser_man = new MockSerializationManager();
+  auto ser_man = new ser_man_t;
   ser_man->get_metadata_size_return = sizeof(T);
   if (ExpectNewAlloc){
     EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
@@ -132,8 +133,6 @@ make_handle(
     EXPECT_CALL(*new_handle, get_serialization_manager())
       .Times(AtLeast(1))
       .WillRepeatedly(Return(ser_man));
-    EXPECT_CALL(*new_handle, allow_writes())
-      .Times(Exactly(1));
   }
 
   return new_handle;
@@ -145,10 +144,11 @@ make_fetching_handle(
   Version v, KeyParts&&... kp
 ) {
   using namespace ::testing;
+  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockSerializationManager>, MockSerializationManager>::type ser_man_t;
   typedef typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type handle_t;
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
-  auto ser_man = new MockSerializationManager();
+  auto ser_man = new ser_man_t;
   ser_man->get_metadata_size_return = sizeof(T);
   if (ExpectNewAlloc){
     EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))

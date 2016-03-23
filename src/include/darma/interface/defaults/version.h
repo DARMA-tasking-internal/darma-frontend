@@ -254,6 +254,12 @@ struct version_hash
   }
 };
 
+template <typename Comparable, template <typename...> class Container>
+std::ostream& operator<<(std::ostream& o, basic_version<Comparable, Container> const& v) {
+  v.print_human_readable(".", o);
+  return o;
+}
+
 } // end namespace detail
 
 
