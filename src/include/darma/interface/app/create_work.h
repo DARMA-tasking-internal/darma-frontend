@@ -46,12 +46,18 @@
 #define SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
 
 #include <darma/impl/create_work.h>
+#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 
 namespace darma_runtime {
 
 template <typename... Args>
 typename detail::create_work_parser<Args...>::return_type
 create_work(Args&&... args) {
+  static_assert(detail::only_allowed_kwargs_given<
+    >::template apply<Args...>::type::value,
+    "Unknown keyword argument given to create_work()"
+  );
+
   namespace m = tinympl;
   // Pop off the last type and move it to the front
   typedef typename m::vector<Args...>::back::type lambda_t;

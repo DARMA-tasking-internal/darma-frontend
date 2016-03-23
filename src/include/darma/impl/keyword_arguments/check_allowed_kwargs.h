@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                          read_access.h
+//                          check_allowed_kwargs.h
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,38 +42,55 @@
 //@HEADER
 */
 
-#ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_
-#define SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_
+#ifndef SRC_INCLUDE_DARMA_IMPL_KEYWORD_ARGUMENTS_CHECK_ALLOWED_KWARGS_H_
+#define SRC_INCLUDE_DARMA_IMPL_KEYWORD_ARGUMENTS_CHECK_ALLOWED_KWARGS_H_
 
-#include <darma/interface/app/access_handle.h>
-#include <darma/impl/handle_attorneys.h>
-#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
+#include <tinympl/all_of.hpp>
+#include <tinympl/any_of.hpp>
+#include <tinympl/lambda.hpp>
+
+#include "../meta/detection.h"
+#include "kwarg_expression.h"
 
 namespace darma_runtime {
+namespace detail {
 
-template <
-  typename U=void,
-  typename... KeyExprParts
->
-AccessHandle<U>
-read_access(
-  KeyExprParts&&... parts
-) {
-  static_assert(detail::only_allowed_kwargs_given<
-      keyword_tags_for_publication::version
-    >::template apply<KeyExprParts...>::type::value,
-    "Unknown keyword argument given to read_access"
-  );
-  typedef detail::access_expr_helper<KeyExprParts...> helper_t;
-  helper_t helper;
-  types::key_t key = helper.get_key(std::forward<KeyExprParts>(parts)...);
-  types::key_t user_version_tag = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
-  return detail::access_attorneys::for_AccessHandle::construct_read_access<U>(key, user_version_tag);
-}
+namespace m = tinympl;
+namespace mv = tinympl::variadic;
+namespace mp = tinympl::placeholders;
 
 
+template <typename... KWTags>
+struct only_allowed_kwargs_given {
 
+
+  template <typename... Args>
+  struct apply {
+    private:
+
+      template <typename Arg>
+      using _allowed_arg = mv::any_of<
+        m::lambda<
+          std::is_same<typename is_kwarg_expression<Arg>::tag, mp::_>
+        >::template apply,
+        meta::nonesuch,
+        KWTags...
+      >;
+
+    public:
+
+      typedef typename std::conditional<
+          sizeof...(Args) == 0,
+          std::true_type,
+          mv::all_of<_allowed_arg, Args...>
+      >::type::type type;
+
+  };
+};
+
+
+} // end namespace detail
 } // end namespace darma_runtime
 
 
-#endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_ */
+#endif /* SRC_INCLUDE_DARMA_IMPL_KEYWORD_ARGUMENTS_CHECK_ALLOWED_KWARGS_H_ */
