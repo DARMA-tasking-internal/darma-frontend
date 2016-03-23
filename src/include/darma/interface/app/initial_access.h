@@ -47,6 +47,7 @@
 
 #include <darma/interface/app/access_handle.h>
 #include <darma/impl/handle_attorneys.h>
+#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 
 namespace darma_runtime {
 
@@ -58,6 +59,10 @@ AccessHandle<T>
 initial_access(
   KeyExprParts&&... parts
 ) {
+  static_assert(detail::only_allowed_kwargs_given<
+    >::template apply<KeyExprParts...>::type::value,
+    "Unknown keyword argument given to initial_access"
+  );
   types::key_t key = detail::access_expr_helper<KeyExprParts...>().get_key(
     std::forward<KeyExprParts>(parts)...
   );

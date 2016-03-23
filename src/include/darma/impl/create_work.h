@@ -181,6 +181,11 @@ struct create_work_impl {
 template <typename... Args>
 typename detail::reads_decorator_parser<Args...>::return_type
 reads(Args&&... args) {
+  static_assert(detail::only_allowed_kwargs_given<
+      keyword_tags_for_create_work_decorators::unless
+    >::template apply<Args...>::type::value,
+    "Unknown keyword argument given to reads() decorator for create_work()"
+  );
   return detail::reads_decorator_parser<Args...>()(std::forward<Args>(args)...);
 }
 

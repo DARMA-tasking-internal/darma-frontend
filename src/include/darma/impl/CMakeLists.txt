@@ -30,6 +30,7 @@ meta/void_t.h
 meta/wrap_with_template.h)
 
 set (impl_keyword_arguments_HEADERS
+keyword_arguments/check_allowed_kwargs.h
 keyword_arguments/get_kwarg.h
 keyword_arguments/keyword_argument_name.h
 keyword_arguments/keyword_arguments.h
