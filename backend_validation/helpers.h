@@ -110,8 +110,7 @@ make_handle(
   ser_man->get_metadata_size_return = sizeof(T);
   if (ExpectNewAlloc){
     EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
-      .Times(AtLeast(1))
-      .WillRepeatedly(Return(sizeof(T)));
+      .Times(AtLeast(1));
   }
 
   auto new_handle = std::shared_ptr<handle_t>(
@@ -122,17 +121,17 @@ make_handle(
     }
   );
   new_handle->get_serialization_manager_return = ser_man;
+  new_handle->get_key_return = detail::key_traits<MockDependencyHandle::key_t>::maker()(
+      std::forward<KeyParts>(kp)...);
+  new_handle->get_version_return = v;
 
   EXPECT_CALL(*new_handle, get_key())
-    .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(detail::key_traits<MockDependencyHandle::key_t>::maker()(std::forward<KeyParts>(kp)...)));
+    .Times(AtLeast(1));
   EXPECT_CALL(*new_handle, get_version())
-    .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(v));
+    .Times(AtLeast(1));
   if (ExpectNewAlloc){
     EXPECT_CALL(*new_handle, get_serialization_manager())
-      .Times(AtLeast(1))
-      .WillRepeatedly(Return(ser_man));
+      .Times(AtLeast(1));
   }
 
   return new_handle;
@@ -152,8 +151,7 @@ make_fetching_handle(
   ser_man->get_metadata_size_return = sizeof(T);
   if (ExpectNewAlloc){
     EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
-      .Times(AtLeast(1))
-      .WillRepeatedly(Return(sizeof(T)));
+      .Times(AtLeast(1));
   }
 
   auto new_handle = std::shared_ptr<handle_t>(
@@ -164,29 +162,17 @@ make_fetching_handle(
     }
   );
   new_handle->get_serialization_manager_return = ser_man;
-
-  EXPECT_CALL(*new_handle, get_key())
-    .Times(AtLeast(1))
-    .WillRepeatedly(ReturnRefOfCopy(detail::key_traits<MockDependencyHandle::key_t>::maker()(std::forward<KeyParts>(kp)...)));
-  EXPECT_CALL(*new_handle, allow_writes())
-    .Times(Exactly(0));
-
+  new_handle->get_key_return = detail::key_traits<MockDependencyHandle::key_t>::maker()(
+      std::forward<KeyParts>(kp)...);
+  new_handle->get_version_return = v;
   new_handle->version_is_pending_return = true;
 
-  {
-    Sequence s1;
-    EXPECT_CALL(*new_handle.get(), version_is_pending())
-      .Times(AtLeast(0))
-      .InSequence(s1)
-      .WillRepeatedly(Return(true));
-    EXPECT_CALL(*new_handle.get(), set_version(_))
-      .Times(Exactly(1))
-      .InSequence(s1);
-    EXPECT_CALL(*new_handle.get(), version_is_pending())
-      .Times(AtLeast(0))
-      .InSequence(s1)
-      .WillRepeatedly(Return(false));
-  }
+  EXPECT_CALL(*new_handle, get_key())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*new_handle, allow_writes())
+    .Times(Exactly(0));
+  EXPECT_CALL(*new_handle.get(), set_version(_))
+    .Times(Exactly(1));
 
   return new_handle;
 }

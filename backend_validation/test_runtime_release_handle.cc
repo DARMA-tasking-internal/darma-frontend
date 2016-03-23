@@ -212,7 +212,7 @@ TEST_F(RuntimeRelease, satisfy_same_depth) {
   EXPECT_CALL(*h_1.get(), get_data_block())
     .Times(AtLeast(1));
   EXPECT_CALL(*h_1.get(), allow_writes())
-    .Times(Exactly(1));
+    .Times(AtMost(1));
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
@@ -475,7 +475,7 @@ TEST_F(RuntimeRelease, satisfy_subseq_already_released) {
   EXPECT_CALL(*h_2.get(), get_data_block())
     .Times(AtLeast(1));
   EXPECT_CALL(*h_2.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(AtMost(1));
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
@@ -551,7 +551,7 @@ TEST_F(RuntimeRelease, satisfy_2subseqs_already_released) {
   EXPECT_CALL(*h_3.get(), get_data_block())
     .Times(AtLeast(1));
   EXPECT_CALL(*h_3.get(), allow_writes())
-    .Times(Exactly(0));
+    .Times(AtMost(1));
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
@@ -681,9 +681,7 @@ TEST_F(RuntimeRelease, satisfy_subseq_diff_version_incr) {
   using namespace ::testing;
 
   auto first_version = MockDependencyHandle::version_t();
-  first_version.push_subversion();
-  first_version.push_subversion(); // 0.0.0
-  auto h_0 = make_handle<int, true, true>(first_version, "the_key");  // 0
+  auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");  // 0
 
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -692,6 +690,9 @@ TEST_F(RuntimeRelease, satisfy_subseq_diff_version_incr) {
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  // register with v=0 but release with v=0.0.0
+  h_0->increase_version_depth(2);
 
   auto next_version = h_0->get_version();
   ++next_version;  // 0.0.1

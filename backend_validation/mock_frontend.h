@@ -163,6 +163,12 @@ class MockDependencyHandle
       ON_CALL(*this, is_writable())
         .WillByDefault(ReturnPointee(&is_writable_return));
     }
+
+    void
+    increase_version_depth(int cnt) {
+      for (int i=0; i<cnt; i++)
+        get_version_return.push_subversion();
+    }
 };
 
 class MockTask
