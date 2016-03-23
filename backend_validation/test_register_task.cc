@@ -194,8 +194,6 @@ TEST_F(RegisterTask, first_writer_post_register_task) {
 
   detail::backend_runtime->register_handle(h_0.get());
 
-  detail::backend_runtime->release_read_only_usage(h_0.get());
-
   register_write_only_capture(h_0.get(), [&]{
     ASSERT_TRUE(h_0->is_satisfied());
     ASSERT_TRUE(h_0->is_writable());
@@ -204,6 +202,8 @@ TEST_F(RegisterTask, first_writer_post_register_task) {
     void* data = data_block->get_data();
     ASSERT_THAT(data, NotNull());
   });
+
+  detail::backend_runtime->release_read_only_usage(h_0.get());
 
   detail::backend_runtime->finalize();
   backend_finalized = true;
@@ -397,10 +397,10 @@ TEST_F(RegisterTask, first_writer_2outputs) {
       }
     }));
 
+  detail::backend_runtime->register_task(std::move(task_a));
+
   detail::backend_runtime->release_read_only_usage(h_0.get());
   detail::backend_runtime->release_read_only_usage(h_1.get());
-
-  detail::backend_runtime->register_task(std::move(task_a));
 
   detail::backend_runtime->finalize();
   backend_finalized = true;
