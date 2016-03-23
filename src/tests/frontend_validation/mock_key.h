@@ -181,6 +181,11 @@ operator==(const StreamKey& a, const StreamKey& b) {
   return key_equal()(a, b);
 }
 
+inline std::ostream& operator<<(std::ostream& o, StreamKey const& k) {
+  k.print_human_readable(", ", o);
+  return o;
+}
+
 } // end namespace mock_backend
 
 

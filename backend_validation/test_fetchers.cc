@@ -65,8 +65,6 @@ class TestFetchers
 
     virtual void SetUp() {
 
-      detail::backend_runtime = darma_runtime::detail::_gen_backend_runtime_ptr<>();
-
       // Emulate argc and argv
       argc_ = 1;
       argv_ = new char*[1];

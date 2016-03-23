@@ -256,7 +256,10 @@ class SerialRuntime
       if(found == registered_handles.end()) {
         assert(fetch_handles.find(intptr_t(handle)) != fetch_handles.end());
       }
-      handle->allow_writes();
+      auto found_fh = fetch_handles.find(intptr_t(handle));
+      if(found_fh == fetch_handles.end()) {
+        handle->allow_writes();
+      }
     }
 
     void

@@ -142,6 +142,8 @@ bool _check_contains(const Key& k, const Container& c) {
     std::cout << "DARMA assertion failed:" << std::endl                                             \
               << "  Expression should be true: " << #expr << std::endl                              \
               << "  Assertion details:" << std::endl                                                \
+              << "    File: " << __FILE__ << std::endl                                                \
+              << "    Line: " << __LINE__ << std::endl                                                \
               << "    " << __VA_ARGS__ << std::endl,                                                 \
     DARMA_ASSERTION_END                                                               \
   ), false)                                                                                         \
