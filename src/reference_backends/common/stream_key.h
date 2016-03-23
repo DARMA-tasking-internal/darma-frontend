@@ -181,7 +181,7 @@ operator==(const StreamKey& a, const StreamKey& b) {
   return key_equal()(a, b);
 }
 
-std::ostream& operator<<(std::ostream& o, StreamKey const& k) {
+inline std::ostream& operator<<(std::ostream& o, StreamKey const& k) {
   k.print_human_readable(", ", o);
   return o;
 }
