@@ -114,7 +114,7 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg) {
   ++next_version;
   auto h_1 = make_handle<int, true, false>(next_version, "the_key");
 
-  auto h_1f = make_fetching_handle<int, true, false>(MockDependencyHandle::version_t(), "the_key");
+  auto h_1f = make_fetching_handle<int, true>(MockDependencyHandle::version_t(), "the_key");
 
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -197,8 +197,8 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg2) {
   ++next_version;
   auto h_1 = make_handle<int, true, false>(next_version, "the_key");
 
-  auto h_1f = make_fetching_handle<int, true, false>(MockDependencyHandle::version_t(), "the_key");
-  auto h_1f2 = make_fetching_handle<int, true, false>(MockDependencyHandle::version_t(), "the_key");
+  auto h_1f = make_fetching_handle<int, true>(MockDependencyHandle::version_t(), "the_key");
+  auto h_1f2 = make_fetching_handle<int, true>(MockDependencyHandle::version_t(), "the_key");
 
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -303,8 +303,8 @@ TEST_F(TestFetchers, satisfy_fetcher_pub2_then_reg2) {
   ++next_version;
   auto h_1 = make_handle<int, true, false>(next_version, "the_key");
 
-  auto h_1f = make_fetching_handle<int, true, false>(MockDependencyHandle::version_t(), "the_key");
-  auto h_1f2 = make_fetching_handle<int, true, false>(MockDependencyHandle::version_t(), "the_key");
+  auto h_1f = make_fetching_handle<int, true>(MockDependencyHandle::version_t(), "the_key");
+  auto h_1f2 = make_fetching_handle<int, true>(MockDependencyHandle::version_t(), "the_key");
 
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -411,7 +411,7 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg_release) {
   ++next_version;
   auto h_1 = make_handle<int, true, false>(next_version, "the_key");
 
-  auto h_1f = make_fetching_handle<int, true, false>(MockDependencyHandle::version_t(), "the_key");
+  auto h_1f = make_fetching_handle<int, true>(MockDependencyHandle::version_t(), "the_key");
 
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -541,7 +541,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg_then_pub) {
   });
 
   register_nodep_task([&,value,user_ver]{
-    auto h_1f = make_fetching_handle<int, true, false>(
+    auto h_1f = make_fetching_handle<int, true>(
         MockDependencyHandle::version_t(), "the_key");
 
     EXPECT_CALL(*h_1f.get(), satisfy_with_data_block(_))
@@ -634,7 +634,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg_then_pub_release) {
   });
 
   register_nodep_task([&,value,user_ver]{
-    auto h_1f = make_fetching_handle<int, true, false>(
+    auto h_1f = make_fetching_handle<int, true>(
         MockDependencyHandle::version_t(), "the_key");
 
     EXPECT_CALL(*h_1f.get(), satisfy_with_data_block(_))
@@ -721,7 +721,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub) {
   });
 
   register_nodep_task([&,value,user_ver]{
-    auto h_1f = make_fetching_handle<int, true, false>(
+    auto h_1f = make_fetching_handle<int, true>(
         MockDependencyHandle::version_t(), "the_key");
 
     EXPECT_CALL(*h_1f.get(), satisfy_with_data_block(_))
@@ -749,7 +749,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub) {
   });
 
   register_nodep_task([&,value,user_ver]{
-    auto h_2f = make_fetching_handle<int, true, false>(
+    auto h_2f = make_fetching_handle<int, true>(
         MockDependencyHandle::version_t(), "the_key");
 
     EXPECT_CALL(*h_2f.get(), satisfy_with_data_block(_))
@@ -842,7 +842,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub2) {
   });
 
   register_nodep_task([&,value,user_ver]{
-    auto h_1f = make_fetching_handle<int, true, false>(
+    auto h_1f = make_fetching_handle<int, true>(
         MockDependencyHandle::version_t(), "the_key");
 
     EXPECT_CALL(*h_1f.get(), satisfy_with_data_block(_))
@@ -870,7 +870,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub2) {
   });
 
   register_nodep_task([&,value,user_ver2]{
-    auto h_2f = make_fetching_handle<int, true, false>(
+    auto h_2f = make_fetching_handle<int, true>(
         MockDependencyHandle::version_t(), "the_key");
 
     EXPECT_CALL(*h_2f.get(), satisfy_with_data_block(_))
