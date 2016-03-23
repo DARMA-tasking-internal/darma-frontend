@@ -146,6 +146,10 @@ make_handle(
   if (ExpectNewAlloc){
     EXPECT_CALL(*new_handle, get_serialization_manager())
       .Times(AtLeast(1));
+    // because this is a new allocation and will not be satisfied by
+    // a predecessor, it MUST be writable at some point
+    EXPECT_CALL(*new_handle, allow_writes())
+      .Times(Exactly(1));
   }
 
   return new_handle;
