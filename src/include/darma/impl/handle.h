@@ -359,12 +359,12 @@ class DependencyHandle
     }
 
     T& get_value() {
-      assert(value_ != nullptr);
+      DARMA_ASSERT_NOT_NULL(value_, "get_value() called on handle with null value");
       return *value_;
     }
 
     const T& get_value() const {
-      assert(value_ != nullptr);
+      DARMA_ASSERT_NOT_NULL(value_, "get_value() called on handle with null value");
       return *value_;
     }
 

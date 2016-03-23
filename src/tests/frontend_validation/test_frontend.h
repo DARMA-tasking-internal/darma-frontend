@@ -235,6 +235,13 @@ class TestFrontend
       });
     }
 
+    void
+    run_all_tasks() {
+      while(not mock_runtime->registered_tasks.empty()) {
+        mock_runtime->registered_tasks.front()->run();
+        mock_runtime->registered_tasks.pop_front();
+      }
+    }
 
     mock_backend::MockRuntime::task_unique_ptr top_level_task;
     std::unique_ptr<mock_backend::MockRuntime> mock_runtime;
