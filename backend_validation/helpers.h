@@ -96,6 +96,20 @@ void register_read_write_capture(MockDep* captured, Lambda&& lambda) {
   register_one_dep_capture<MockDep, Lambda, true, true, IsNice>(captured, std::forward<Lambda>(lambda));
 }
 
+template <typename Lambda, bool IsNice=false>
+void register_nodep_task(Lambda&& lambda) {
+  using namespace ::testing;
+  typedef typename std::conditional<false, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+
+  auto new_task = std::make_unique<task_t>();
+  EXPECT_CALL(*new_task, get_dependencies())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*new_task, run())
+    .Times(Exactly(1))
+    .WillOnce(Invoke(std::forward<Lambda>(lambda)));
+  detail::backend_runtime->register_task(std::move(new_task));
+}
+
 template <typename T, bool IsNice, bool ExpectNewAlloc, typename Version, typename... KeyParts>
 std::shared_ptr<typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type>
 make_handle(

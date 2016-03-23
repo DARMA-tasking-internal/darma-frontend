@@ -216,15 +216,8 @@ TEST_F(RegisterTask, first_writer_post_register_task) {
 // register a task with no dependencies or anti-dependencies
 TEST_F(RegisterTask, register_task_with_no_deps) {
   using namespace ::testing;
-  typedef typename std::conditional<false, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
 
-  auto task_a = std::make_unique<task_t>();
-  EXPECT_CALL(*task_a, get_dependencies())
-    .Times(AtLeast(1));
-  EXPECT_CALL(*task_a, run())
-    .Times(Exactly(1));
-
-  detail::backend_runtime->register_task(std::move(task_a));
+  register_nodep_task([]{});
 
   detail::backend_runtime->finalize();
   backend_finalized = true;
@@ -274,7 +267,6 @@ TEST_F(RegisterTask, release_satisfy_for_read_only) {
 
   register_read_only_capture(h_1.get(), [&,value]{
     ASSERT_TRUE(h_1->is_satisfied());
-    ASSERT_FALSE(h_1->is_writable());
     abstract::backend::DataBlock* data_block = h_1->get_data_block();
     ASSERT_THAT(data_block, NotNull());
     void* data = data_block->get_data();
@@ -530,8 +522,6 @@ TEST_F(RegisterTask, multiple_deps_rr) {
     .WillOnce(Invoke([&]{
       ASSERT_TRUE(h_0s->is_satisfied());
       ASSERT_TRUE(h_1s->is_satisfied());
-      ASSERT_FALSE(h_0s->is_writable());
-      ASSERT_FALSE(h_1s->is_writable());
       {
         abstract::backend::DataBlock* data_block = h_0s->get_data_block();
         ASSERT_THAT(data_block, NotNull());
