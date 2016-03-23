@@ -267,7 +267,6 @@ TEST_F(RegisterTask, release_satisfy_for_read_only) {
 
   register_read_only_capture(h_1.get(), [&,value]{
     ASSERT_TRUE(h_1->is_satisfied());
-    ASSERT_FALSE(h_1->is_writable());
     abstract::backend::DataBlock* data_block = h_1->get_data_block();
     ASSERT_THAT(data_block, NotNull());
     void* data = data_block->get_data();
@@ -523,8 +522,6 @@ TEST_F(RegisterTask, multiple_deps_rr) {
     .WillOnce(Invoke([&]{
       ASSERT_TRUE(h_0s->is_satisfied());
       ASSERT_TRUE(h_1s->is_satisfied());
-      ASSERT_FALSE(h_0s->is_writable());
-      ASSERT_FALSE(h_1s->is_writable());
       {
         abstract::backend::DataBlock* data_block = h_0s->get_data_block();
         ASSERT_THAT(data_block, NotNull());

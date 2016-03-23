@@ -236,7 +236,6 @@ TEST_F(RuntimeRelease, satisfy_same_depth) {
   backend_finalized = true;
 
   ASSERT_TRUE(h_1->is_satisfied());
-  ASSERT_FALSE(h_1->is_writable());
   abstract::backend::DataBlock* data_block = h_1->get_data_block();
   ASSERT_THAT(data_block, NotNull());
   void* data = data_block->get_data();
@@ -294,7 +293,6 @@ TEST_F(RuntimeRelease, satisfy_prev_depth) {
   backend_finalized = true;
 
   ASSERT_TRUE(h_1->is_satisfied());
-  ASSERT_FALSE(h_1->is_writable());
   abstract::backend::DataBlock* data_block = h_1->get_data_block();
   ASSERT_THAT(data_block, NotNull());
   void* data = data_block->get_data();
@@ -354,7 +352,6 @@ TEST_F(RuntimeRelease, satisfy_next_depth) {
   backend_finalized = true;
 
   ASSERT_TRUE(h_1->is_satisfied());
-  ASSERT_FALSE(h_1->is_writable());
   abstract::backend::DataBlock* data_block = h_1->get_data_block();
   ASSERT_THAT(data_block, NotNull());
   void* data = data_block->get_data();
@@ -437,7 +434,6 @@ TEST_F(RuntimeRelease, satisfy_next_then_same) {
   backend_finalized = true;
 
   ASSERT_TRUE(h_2->is_satisfied());
-  ASSERT_FALSE(h_2->is_writable());
   abstract::backend::DataBlock* data_block = h_2->get_data_block();
   ASSERT_THAT(data_block, NotNull());
   void* data = data_block->get_data();
@@ -507,7 +503,6 @@ TEST_F(RuntimeRelease, satisfy_subseq_already_released) {
   backend_finalized = true;
 
   ASSERT_TRUE(h_2->is_satisfied());
-  ASSERT_FALSE(h_2->is_writable());
   abstract::backend::DataBlock* data_block = h_2->get_data_block();
   ASSERT_THAT(data_block, NotNull());
   void* data = data_block->get_data();
@@ -588,7 +583,6 @@ TEST_F(RuntimeRelease, satisfy_2subseqs_already_released) {
   backend_finalized = true;
 
   ASSERT_TRUE(h_3->is_satisfied());
-  ASSERT_FALSE(h_3->is_writable());
   abstract::backend::DataBlock* data_block = h_3->get_data_block();
   ASSERT_THAT(data_block, NotNull());
   void* data = data_block->get_data();
@@ -724,7 +718,6 @@ TEST_F(RuntimeRelease, satisfy_subseq_diff_version_incr) {
   backend_finalized = true;
 
   ASSERT_TRUE(h_1->is_satisfied());
-  ASSERT_FALSE(h_1->is_writable());
   abstract::backend::DataBlock* data_block = h_1->get_data_block();
   ASSERT_THAT(data_block, NotNull());
   void* data = data_block->get_data();

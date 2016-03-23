@@ -165,7 +165,6 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg) {
   backend_finalized = true;
 
   ASSERT_TRUE(h_1->is_satisfied());
-  ASSERT_FALSE(h_1->is_writable());
   {
     abstract::backend::DataBlock* data_block = h_1->get_data_block();
     ASSERT_THAT(data_block, NotNull());
@@ -258,7 +257,6 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg2) {
   backend_finalized = true;
 
   ASSERT_TRUE(h_1->is_satisfied());
-  ASSERT_FALSE(h_1->is_writable());
   {
     abstract::backend::DataBlock* data_block = h_1->get_data_block();
     ASSERT_THAT(data_block, NotNull());
@@ -367,7 +365,6 @@ TEST_F(TestFetchers, satisfy_fetcher_pub2_then_reg2) {
   backend_finalized = true;
 
   ASSERT_TRUE(h_1->is_satisfied());
-  ASSERT_FALSE(h_1->is_writable());
   {
     abstract::backend::DataBlock* data_block = h_1->get_data_block();
     ASSERT_THAT(data_block, NotNull());
@@ -465,7 +462,6 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg_release) {
   backend_finalized = true;
 
   ASSERT_TRUE(h_1->is_satisfied());
-  ASSERT_FALSE(h_1->is_writable());
   {
     abstract::backend::DataBlock* data_block = h_1->get_data_block();
     ASSERT_THAT(data_block, NotNull());
@@ -535,7 +531,6 @@ TEST_F(TestFetchers, satisfy_fetcher_reg_then_pub) {
   register_read_only_capture(h_1.get(), [&,value,user_ver]{
     register_read_only_capture(h_1.get(), [&,value,user_ver]{
       ASSERT_TRUE(h_1->is_satisfied());
-      ASSERT_FALSE(h_1->is_writable());
       {
         abstract::backend::DataBlock* data_block = h_1->get_data_block();
         ASSERT_THAT(data_block, NotNull());
@@ -627,7 +622,6 @@ TEST_F(TestFetchers, satisfy_fetcher_reg_then_pub_release) {
   register_read_only_capture(h_1.get(), [&,value,user_ver]{
     register_read_only_capture(h_1.get(), [&,value,user_ver]{
       ASSERT_TRUE(h_1->is_satisfied());
-      ASSERT_FALSE(h_1->is_writable());
       {
         abstract::backend::DataBlock* data_block = h_1->get_data_block();
         ASSERT_THAT(data_block, NotNull());
@@ -717,7 +711,6 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub) {
   register_read_only_capture(h_1.get(), [&,value,user_ver]{
     register_read_only_capture(h_1.get(), [&,value,user_ver]{
       ASSERT_TRUE(h_1->is_satisfied());
-      ASSERT_FALSE(h_1->is_writable());
       {
         abstract::backend::DataBlock* data_block = h_1->get_data_block();
         ASSERT_THAT(data_block, NotNull());
@@ -838,7 +831,6 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub2) {
   register_read_only_capture(h_1.get(), [&,value,user_ver,user_ver2]{
     register_read_only_capture(h_1.get(), [&,value,user_ver,user_ver2]{
       ASSERT_TRUE(h_1->is_satisfied());
-      ASSERT_FALSE(h_1->is_writable());
       {
         abstract::backend::DataBlock* data_block = h_1->get_data_block();
         ASSERT_THAT(data_block, NotNull());
