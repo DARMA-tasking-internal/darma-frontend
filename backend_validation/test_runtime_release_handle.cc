@@ -54,6 +54,9 @@
 
 using namespace darma_runtime;
 
+// to disable a test, add a line like the one below
+//#define some_test_name DISABLED_some_test_name
+
 namespace {
 
 class RuntimeRelease
