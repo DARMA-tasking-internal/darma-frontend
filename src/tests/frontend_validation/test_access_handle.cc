@@ -46,7 +46,9 @@
 
 // Forward declarations for friend usage
 class TestAccessHandle;
-class TestAccessHandle_get_value_Test;
+class TestAccessHandle_get_reference_Test;
+class TestAccessHandle_set_value_Test;
+class TestAccessHandle_publish_MM_Test;
 #define DARMA_TEST_FRONTEND_VALIDATION 1
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -85,7 +87,7 @@ class TestAccessHandle
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestAccessHandle, get_value) {
+TEST_F(TestAccessHandle, get_reference) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace mock_backend;
@@ -95,14 +97,9 @@ TEST_F(TestAccessHandle, get_value) {
 
   handle_t* h0 = nullptr, *h1 = nullptr;
 
-  {
-    InSequence s_handles;
-
-    EXPECT_CALL(*mock_runtime, register_handle(_))
-      .WillOnce(SaveArg<0>(&h0));
-    EXPECT_CALL(*mock_runtime, register_handle(_))
-      .WillOnce(SaveArg<0>(&h1));
-  }
+  EXPECT_CALL(*mock_runtime, register_handle(_))
+    .WillOnce(SaveArg<0>(&h0))
+    .WillOnce(SaveArg<0>(&h1));
 
   int data = 0;
   MockDataBlock db;
@@ -120,9 +117,10 @@ TEST_F(TestAccessHandle, get_value) {
 
     EXPECT_THAT(h0, NotNull());
 
-    create_work([=,&h0,&h1]{
+    create_work([=,&h0,&h1,&data]{
       EXPECT_THAT(tmp.dep_handle_.get(), Eq(h0));
       EXPECT_THAT(h1, NotNull());
+      EXPECT_THAT(&tmp.get_reference(), Eq(&data));
     });
     EXPECT_THAT(tmp.dep_handle_.get(), Eq(h1));
   }
@@ -131,6 +129,163 @@ TEST_F(TestAccessHandle, get_value) {
     mock_runtime->registered_tasks.front()->run();
     mock_runtime->registered_tasks.pop_front();
   }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestAccessHandle, set_value) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  mock_runtime->save_tasks = true;
+
+  handle_t* h0 = nullptr, *h1 = nullptr;
+
+  EXPECT_CALL(*mock_runtime, register_handle(_))
+    .WillOnce(SaveArg<0>(&h0))
+    .WillOnce(SaveArg<0>(&h1));
+
+  int data = 0;
+  MockDataBlock db;
+  EXPECT_CALL(db, get_data())
+    .Times(AnyNumber())
+    .WillRepeatedly(Return(&data));
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+    handle_in_get_dependencies(h0), Not(needs_read_handle(h0)), needs_write_handle(h0)
+  )))
+    .WillOnce(InvokeWithoutArgs([&h0,&db]{ h0->satisfy_with_data_block(&db); }));
+
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work([=,&h0,&h1,&data]{
+      tmp.set_value(42);
+    });
+
+  }
+
+  while(not mock_runtime->registered_tasks.empty()) {
+    mock_runtime->registered_tasks.front()->run();
+    mock_runtime->registered_tasks.pop_front();
+  }
+
+  EXPECT_THAT(data, Eq(42));
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestAccessHandle, publish_MN) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  mock_runtime->save_tasks = false;
+
+  handle_t* h0 = nullptr, *h1 = nullptr;
+  constexpr auto version_str = "hello";
+  key_t pub_version = make_key(version_str);
+
+  EXPECT_CALL(*mock_runtime, register_handle(_))
+    .WillOnce(SaveArg<0>(&h0))
+    .WillOnce(SaveArg<0>(&h1));
+
+  int data = 0;
+  NiceMock<MockDataBlock> db;
+  ON_CALL(db, get_data())
+    .WillByDefault(Return(&data));
+
+  ON_CALL(*mock_runtime, register_task_gmock_proxy(_))
+    .WillByDefault(InvokeWithoutArgs([&h0,&db]{ h0->satisfy_with_data_block(&db); }));
+
+  EXPECT_CALL(*mock_runtime, publish_handle(
+    Eq(ByRef(h1)), Eq(pub_version), Eq(1), _
+  ));
+
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work([=]{
+      FAIL() << "should not be invoked in this test";
+      tmp.set_value(42);
+    });
+
+    tmp.publish(version=version_str);
+
+  }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestAccessHandle, publish_MM) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  mock_runtime->save_tasks = true;
+
+  handle_t* h0, *h1, *h2;
+  h0 = h1 = h2 = nullptr;
+  constexpr auto version_str = "hello";
+  key_t pub_version = make_key(version_str);
+  version_t v0, v1, v2;
+
+  EXPECT_CALL(*mock_runtime, register_handle(_))
+    .WillOnce(SaveArg<0>(&h0))
+    .WillOnce(SaveArg<0>(&h1))
+    .WillOnce(SaveArg<0>(&h2));
+
+  int data = 0;
+  NiceMock<MockDataBlock> db;
+  ON_CALL(db, get_data())
+    .WillByDefault(Return(&data));
+
+  ON_CALL(*mock_runtime, register_task_gmock_proxy(_))
+    .WillByDefault(InvokeWithoutArgs([&h0,&db]{ h0->satisfy_with_data_block(&db); }));
+
+  // Handle done with version depth shouldn't be called for h0
+  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Eq(ByRef(h1))));
+  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Eq(ByRef(h2))));
+
+  EXPECT_CALL(*mock_runtime, publish_handle(
+    Eq(ByRef(h2)), Eq(pub_version), Eq(1), _
+  ));
+
+  {
+    auto tmp = initial_access<int>("hello");
+
+    // tmp.dep_handle_ == h0
+    EXPECT_THAT(tmp.dep_handle_.get(), Eq(h0));
+    create_work([=,&h0,&h2,&h1,&v0,&v2]{
+      v0 = h0->get_version();
+      tmp.set_value(42);
+      tmp.publish(version=version_str);
+      EXPECT_THAT(tmp.dep_handle_.get(), Eq(h2));
+      v2 = h2->get_version();
+    });
+    EXPECT_THAT(tmp.dep_handle_.get(), Eq(h1));
+    v1 = h1->get_version();
+  } // h1 deleted
+
+  while(not mock_runtime->registered_tasks.empty()) {
+    mock_runtime->registered_tasks.front()->run();
+    mock_runtime->registered_tasks.pop_front();
+  }
+
+  EXPECT_THAT(data, Eq(42));
+  ++v0;
+  EXPECT_EQ(v0, v2);
+  v2.pop_subversion();
+  ++v2;
+  EXPECT_EQ(v1, v2);
+
 
 }
 

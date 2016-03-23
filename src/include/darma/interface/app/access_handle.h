@@ -109,9 +109,12 @@ class AccessHandle
       read_only_usage_holder_ptr_maker_t;
 
   public:
-    AccessHandle() : prev_copied_from(nullptr), dep_handle_(nullptr), read_only_holder_(nullptr), state_(None_None) {
-      // TODO more safety checks to make sure uninitialized handles aren't getting captured
-    }
+    AccessHandle()
+      : prev_copied_from(nullptr),
+        dep_handle_(nullptr),
+        read_only_holder_(nullptr),
+        state_(None_None)
+    { }
 
     AccessHandle&
     operator=(AccessHandle& other) = delete;
@@ -125,33 +128,29 @@ class AccessHandle
     const AccessHandle&
     operator=(AccessHandle const& other) const = delete;
 
-    AccessHandle&
+    AccessHandle const&
     operator=(AccessHandle&& other) noexcept {
-      assert(other.prev_copied_from == nullptr);
-      read_only_holder_ = other.read_only_holder_;
-      dep_handle_ = other.dep_handle_;
-      state_ = other.state_;
-      other.state_ = None_None;
+      // Forward to const move assignment operator
+      return const_cast<AccessHandle const*>(this)->operator=(
+        std::move(other)
+      );
       return *this;
     }
 
-    const AccessHandle&
+    AccessHandle const&
     operator=(AccessHandle&& other) const noexcept {
       assert(other.prev_copied_from == nullptr);
-      read_only_holder_ = other.read_only_holder_;
-      dep_handle_ = other.dep_handle_;
-      state_ = other.state_;
-      other.state_ = None_None;
-      other.dep_handle_.reset();
-      other.read_only_holder_.reset();
+      read_only_holder_ = std::move(other.read_only_holder_);
+      dep_handle_ = std::move(other.dep_handle_);
+      state_ = std::move(other.state_);
       return *this;
     }
 
     AccessHandle&
     operator=(std::nullptr_t) const {
-      dep_handle_ = 0;
+      read_only_holder_ = nullptr;
+      dep_handle_ = nullptr;
       state_ = None_None;
-      read_only_holder_ = 0;
       return *this;
     }
 
@@ -431,6 +430,7 @@ class AccessHandle
           // Create a new handle with the next version
           auto next_version = dep_handle_->get_version();
           ++next_version;
+          dep_handle_->has_subsequent_at_version_depth = true;
           dep_handle_ = dep_handle_ptr_maker_t()(dep_handle_->get_key(), next_version);
           detail::backend_runtime->publish_handle(
             dep_handle_.get(),
@@ -440,20 +440,12 @@ class AccessHandle
           read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);
           // Continuing state is MR
           state_ = Modify_Read;
-          assert(false); // not implemented
           break;
         }
       };
     }
 
-    ~AccessHandle() {
-      //if(
-      //    dep_handle_.get() != nullptr
-      //    and (state_ == Modify_Modify || state_ == Modify_None || state_ == Modify_Read)
-      //) {
-      //  detail::backend_runtime->handle_done_with_version_depth(dep_handle_.get());
-      //}
-    }
+    ~AccessHandle() { }
 
    private:
 
@@ -509,7 +501,9 @@ class AccessHandle
 
 #ifdef DARMA_TEST_FRONTEND_VALIDATION
     friend class ::TestAccessHandle;
-    FRIEND_TEST(::TestAccessHandle, get_value);
+    FRIEND_TEST(::TestAccessHandle, set_value);
+    FRIEND_TEST(::TestAccessHandle, get_reference);
+    FRIEND_TEST(::TestAccessHandle, publish_MM);
 #endif
 
 };
