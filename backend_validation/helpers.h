@@ -151,7 +151,7 @@ make_handle(
   return new_handle;
 }
 
-template <typename T, bool IsNice, bool ExpectNewAlloc, typename Version, typename... KeyParts>
+template <typename T, bool IsNice, typename Version, typename... KeyParts>
 std::shared_ptr<typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type>
 make_fetching_handle(
   Version v, KeyParts&&... kp
@@ -163,10 +163,6 @@ make_fetching_handle(
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
   auto ser_man = new ser_man_t;
   ser_man->get_metadata_size_return = sizeof(T);
-  if (ExpectNewAlloc){
-    EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
-      .Times(AtLeast(1));
-  }
 
   auto new_handle = std::shared_ptr<handle_t>(
     new handle_t(),
