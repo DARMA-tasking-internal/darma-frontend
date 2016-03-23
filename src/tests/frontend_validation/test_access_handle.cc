@@ -48,6 +48,7 @@
 class TestAccessHandle;
 class TestAccessHandle_get_reference_Test;
 class TestAccessHandle_set_value_Test;
+class TestAccessHandle_publish_MN_Test;
 class TestAccessHandle_publish_MM_Test;
 #define DARMA_TEST_FRONTEND_VALIDATION 1
 
@@ -214,6 +215,7 @@ TEST_F(TestAccessHandle, publish_MN) {
       FAIL() << "should not be invoked in this test";
       tmp.set_value(42);
     });
+    ASSERT_EQ(tmp.state_, AccessHandle<int>::State::Modify_None);
 
     tmp.publish(version=version_str);
 
@@ -264,11 +266,13 @@ TEST_F(TestAccessHandle, publish_MM) {
     // tmp.dep_handle_ == h0
     EXPECT_THAT(tmp.dep_handle_.get(), Eq(h0));
     create_work([=,&h0,&h2,&h1,&v0,&v2]{
+      ASSERT_EQ(tmp.state_, AccessHandle<int>::State::Modify_Modify);
       v0 = h0->get_version();
       tmp.set_value(42);
       tmp.publish(version=version_str);
       EXPECT_THAT(tmp.dep_handle_.get(), Eq(h2));
       v2 = h2->get_version();
+      ASSERT_EQ(tmp.state_, AccessHandle<int>::State::Modify_Read);
     });
     EXPECT_THAT(tmp.dep_handle_.get(), Eq(h1));
     v1 = h1->get_version();
