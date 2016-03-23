@@ -675,16 +675,13 @@ TEST_F(RuntimeRelease, satisfy_2subseqs_already_released2) {
   detail::backend_runtime->release_handle(h_3.get());
 }
 
-#if 0
 // satisfy subsequent using different version increment behavior
 // (make sure runtime doesn't assume constant behavior)
 TEST_F(RuntimeRelease, satisfy_subseq_diff_version_incr) {
   using namespace ::testing;
 
   auto first_version = MockDependencyHandle::version_t();
-  first_version.push_subversion();
-  first_version.push_subversion(); // 0.0.0
-  auto h_0 = make_handle<int, true, true>(first_version, "the_key");  // 0
+  auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");  // 0
 
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -693,6 +690,9 @@ TEST_F(RuntimeRelease, satisfy_subseq_diff_version_incr) {
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  // register with v=0 but release with v=0.0.0
+  h_0->increase_version_depth(2);
 
   auto next_version = h_0->get_version();
   ++next_version;  // 0.0.1
@@ -734,4 +734,4 @@ TEST_F(RuntimeRelease, satisfy_subseq_diff_version_incr) {
   detail::backend_runtime->release_read_only_usage(h_1.get());
   detail::backend_runtime->release_handle(h_1.get());
 }
-#endif
+
