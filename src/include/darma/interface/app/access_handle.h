@@ -503,6 +503,7 @@ class AccessHandle
     friend class ::TestAccessHandle;
     FRIEND_TEST(::TestAccessHandle, set_value);
     FRIEND_TEST(::TestAccessHandle, get_reference);
+    FRIEND_TEST(::TestAccessHandle, publish_MN);
     FRIEND_TEST(::TestAccessHandle, publish_MM);
 #endif
 
