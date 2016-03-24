@@ -185,7 +185,7 @@ make_fetching_handle(
     .Times(AtLeast(1));
   EXPECT_CALL(*new_handle, allow_writes())
     .Times(Exactly(0));
-  EXPECT_CALL(*new_handle.get(), set_version(_))
+  EXPECT_CALL(*new_handle, set_version(_))
     .Times(Exactly(1));
 
   return new_handle;
