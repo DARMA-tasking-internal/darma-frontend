@@ -144,6 +144,8 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg) {
 
   int value = 42;
 
+  // Increment the version depth of h_0 in preparation for write-only capture
+  h_0.get()->get_version_return.push_subversion();
   register_write_only_capture(h_0.get(), [&,value]{
     ASSERT_TRUE(h_0->is_satisfied());
     ASSERT_TRUE(h_0->is_writable());

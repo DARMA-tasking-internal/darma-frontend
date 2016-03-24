@@ -127,12 +127,13 @@ make_handle(
   typedef typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type handle_t;
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
-  auto ser_man = new ser_man_t;
-  ser_man->get_metadata_size_return = sizeof(T);
-  if (ExpectNewAlloc){
-    EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
-      .Times(AtLeast(1));
-  }
+  NiceMock<MockSerializationManager>* ser_man = new NiceMock<MockSerializationManager>;
+  ON_CALL(*ser_man, get_metadata_size(IsNull()))
+    .WillByDefault(Return(sizeof(T)));
+  //if (ExpectNewAlloc){
+  //  EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
+  //    .Times(AtLeast(1));
+  //}
 
   auto new_handle = std::shared_ptr<handle_t>(
     new handle_t(),
@@ -150,9 +151,10 @@ make_handle(
     .Times(AtLeast(1));
   EXPECT_CALL(*new_handle, get_version())
     .Times(AtLeast(1));
+  EXPECT_CALL(*new_handle, get_serialization_manager())
+    .Times(AnyNumber())
+    .WillRepeatedly(Return(ser_man));
   if (ExpectNewAlloc){
-    EXPECT_CALL(*new_handle, get_serialization_manager())
-      .Times(AtLeast(1));
     // because this is a new allocation and will not be satisfied by
     // a predecessor, it MUST be writable at some point
     EXPECT_CALL(*new_handle, allow_writes())

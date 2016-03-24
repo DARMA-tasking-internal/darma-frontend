@@ -42,7 +42,7 @@
 //@HEADER
 */
 
-#define DHARMA_SERIAL_DEBUG 1
+#define DHARMA_SERIAL_DEBUG 0
 
 #include <stack>
 #include <unordered_set>
