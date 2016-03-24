@@ -42,6 +42,10 @@
 //@HEADER
 */
 
+#include <type_traits>
+
+#include <darma/impl/keyword_arguments/keyword_tag.h>
+
 #ifndef KEYWORD_ARGUMENTS_MACROS_H_
 #define KEYWORD_ARGUMENTS_MACROS_H_
 
@@ -112,7 +116,7 @@ struct tag_data<darma_runtime::keyword_tags_for_##argument_for::name>           
   typedef __DARMA_detail_remove_parens argtype value_t;                                            \
   static constexpr bool has_default_value = false;                                                  \
   static constexpr bool has_type = not                                                              \
-    std::is_same<value_t, darma_runtime::detail::unknown_type>::value;                             \
+    std::is_same<value_t, darma_runtime::detail::unknown_type>::type::value;                        \
 };                                                                                                  \
 } /* end namespace detail */                                                                        \
 } /* end namespace darma_runtime */
