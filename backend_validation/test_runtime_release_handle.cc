@@ -447,8 +447,7 @@ TEST_F(RuntimeRelease, satisfy_next_then_same) {
   detail::backend_runtime->release_handle(h_2.get());
 }
 
-// satisfy subsequent of subsequent, each at one less depth
-TEST_F(RuntimeRelease, satisfy_subseq_already_released) {
+SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_subseq_already_released) {
   using namespace ::testing;
 
   auto first_version = MockDependencyHandle::version_t();
@@ -517,7 +516,7 @@ TEST_F(RuntimeRelease, satisfy_subseq_already_released) {
 }
 
 // satisfy subsequent of subsequent of subsequent, each at one less depth
-TEST_F(RuntimeRelease, satisfy_2subseqs_already_released) {
+SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_2subseqs_already_released) {
   using namespace ::testing;
 
   auto first_version = MockDependencyHandle::version_t();
@@ -598,7 +597,7 @@ TEST_F(RuntimeRelease, satisfy_2subseqs_already_released) {
 
 
 // satisfy subsequent of subsequent, each at one less depth
-TEST_F(RuntimeRelease, satisfy_2subseqs_already_released2) {
+SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_2subseqs_already_released2) {
   using namespace ::testing;
 
   auto first_version = MockDependencyHandle::version_t();

@@ -52,6 +52,13 @@
 #  include TEST_BACKEND_INCLUDE
 #endif
 
+// satisfy subsequent of subsequent, each at one less depth
+#ifdef DARMA_SERIAL_BACKEND
+#  define SERIAL_DISABLED_TEST_F(test, name) TEST_F(test, DISABLED_##name)
+#else
+#  define SERIAL_DISABLED_TEST_F(test, name) TEST_F(test, name)
+#endif
+
 #include "mock_frontend.h"
 #include "main.h"
 
