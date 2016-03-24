@@ -42,9 +42,6 @@
 //@HEADER
 */
 
-#ifndef SRC_TESTS_FRONTEND_VALIDATION_TEST_CREATE_WORK_CC_
-#define SRC_TESTS_FRONTEND_VALIDATION_TEST_CREATE_WORK_CC_
-
 #include <gtest/gtest.h>
 
 #include "mock_backend.h"
@@ -55,8 +52,6 @@
 #include <darma/interface/app/create_work.h>
 
 ////////////////////////////////////////////////////////////////////////////////
-
-namespace {
 
 class TestCreateWork
   : public TestFrontend
@@ -77,8 +72,6 @@ class TestCreateWork
     }
 
 };
-
-} // end anonymous namespace
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -511,11 +504,3 @@ TEST_F(TestCreateWork, ro_capture_MM) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
-
-
-#endif /* SRC_TESTS_FRONTEND_VALIDATION_TEST_CREATE_WORK_CC_ */
