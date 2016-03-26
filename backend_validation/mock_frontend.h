@@ -78,22 +78,12 @@ class MockSerializationManager
   : public darma_runtime::abstract::frontend::SerializationManager
 {
   public:
-    MockSerializationManager() { this->set_default_behavior(); }
+    MockSerializationManager() {}
 
     MOCK_CONST_METHOD1(
       get_metadata_size,
       size_t(const void* const deserialized_data)
     );
-
-    size_t get_metadata_size_return = 0;
-
-    void
-    set_default_behavior() {
-      using ::testing::_;
-      using ::testing::Return;
-      ON_CALL(*this, get_metadata_size(_))
-        .WillByDefault(Return(get_metadata_size_return));
-    }
 };
 
 class MockDependencyHandle

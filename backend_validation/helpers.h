@@ -121,11 +121,9 @@ make_handle(
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
   auto ser_man = new ser_man_t;
-  ser_man->get_metadata_size_return = sizeof(T);
-  if (ExpectNewAlloc){
-    EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
-      .Times(AtLeast(1));
-  }
+  EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
+    .Times(AtLeast(ExpectNewAlloc ? 1 : 0))
+    .WillRepeatedly(Return(sizeof(T)));
 
   auto new_handle = std::shared_ptr<handle_t>(
     new handle_t(),
@@ -166,7 +164,9 @@ make_fetching_handle(
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
   auto ser_man = new ser_man_t;
-  ser_man->get_metadata_size_return = sizeof(T);
+  EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
+    .Times(AtLeast(0))
+    .WillRepeatedly(Return(sizeof(T)));
 
   auto new_handle = std::shared_ptr<handle_t>(
     new handle_t(),

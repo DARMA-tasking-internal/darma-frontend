@@ -108,10 +108,9 @@ TEST_F(RuntimeRelease, satisfy_next) {
   using namespace ::testing;
 
   auto ser_man = std::make_shared<MockSerializationManager>();
-  ser_man->get_metadata_size_return = sizeof(double);
-
-  EXPECT_CALL(*ser_man, get_metadata_size(_))
-    .Times(AtLeast(1));
+  EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
+    .Times(AtLeast(1))
+    .WillRepeatedly(Return(sizeof(double)));
 
   auto handle_a = std::make_shared<NiceMock<MockDependencyHandle>>();
   handle_a->get_key_return = detail::key_traits<MockDependencyHandle::key_t>::maker()("the_key");
