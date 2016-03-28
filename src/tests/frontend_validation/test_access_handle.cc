@@ -559,7 +559,7 @@ TEST_F(TestAccessHandle, death_release_read_only) {
       create_work(reads(tmp), [=]{ tmp = 0; });
       run_all_tasks();
     },
-    "release\\(\\) called on handle without Modify-schedule priviledges"
+    "release\\(\\) called on handle without Modify-schedule privileges"
   );
 
 }
@@ -580,7 +580,7 @@ TEST_F(TestAccessHandle, death_release_read_only_2) {
       create_work(reads(tmp), [=]{ tmp = 0; });
       run_all_tasks();
     },
-    "release\\(\\) called on handle without Modify-schedule priviledges"
+    "release\\(\\) called on handle without Modify-schedule privileges"
   );
 
 }
