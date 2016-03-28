@@ -82,10 +82,10 @@ struct reads_decorator_return {
   typedef runtime_t::key_t key_t;
   typedef runtime_t::version_t version_t;
   typedef runtime_t::handle_t handle_t;
-  reads_decorator_return(std::initializer_list<handle_t*> args)
+  reads_decorator_return(std::initializer_list<types::shared_ptr_template<handle_t>> args)
     : handles(args)
   { }
-  std::vector<handle_t*> handles;
+  std::vector<types::shared_ptr_template<handle_t>> handles;
   bool use_it = true;
 };
 
@@ -95,7 +95,7 @@ struct forward_to_get_dep_handle {
   constexpr inline ReturnType
   operator()(AccessHandles&&... ah) const {
     using namespace detail::create_work_attorneys;
-    return { for_AccessHandle::get_dep_handle(std::forward<AccessHandles>(ah))... };
+    return { for_AccessHandle::get_dep_handle_ptr(std::forward<AccessHandles>(ah))... };
   }
 };
 
