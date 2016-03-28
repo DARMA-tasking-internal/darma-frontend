@@ -83,7 +83,7 @@ create_work(Args&&... args) {
     }
     else {
       for(auto&& h : rdec.handles) {
-        parent_task->ignored_handles.emplace(h);
+        parent_task->ignored_handles.emplace(h.get());
       }
     }
   });
