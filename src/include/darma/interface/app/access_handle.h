@@ -199,7 +199,7 @@ class AccessHandle
           capture_op_t capture_type;
 
           // first check for any explicit permissions
-          auto found = running_task->read_only_handles.find(outer.dep_handle_.get());
+          auto found = running_task->read_only_handles.find(outer.dep_handle_);
           if(found != running_task->read_only_handles.end()) {
             capture_type = ro_capture;
             running_task->read_only_handles.erase(found);
@@ -393,7 +393,7 @@ class AccessHandle
       // TODO warning for multiple release (or should this be an error?)
       DARMA_ASSERT_MESSAGE(
         state_ == Modify_Modify || state_ == Modify_Read || state_ == Modify_None,
-        "release() called on handle without Modify-schedule priviledges"
+        "release() called on handle without Modify-schedule privileges"
       );
       read_only_holder_ = nullptr;
       dep_handle_ = nullptr;
