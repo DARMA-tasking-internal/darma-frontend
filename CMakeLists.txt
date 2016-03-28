@@ -20,4 +20,3 @@ else()
 message("-- GTEST_DIR not given for GoogleTest installation - skipping test build")
 endif()
 
-
