@@ -232,7 +232,7 @@ class AccessHandle
               switch(outer.state_) {
                 case None_None: {
                   // Unreachable
-                  DARMA_ASSERT_MESSAGE(false, "Handle used after release");
+                  DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
                   break;
                 }
                 case Read_None:
@@ -278,13 +278,14 @@ class AccessHandle
             case mod_capture: {
               switch(outer.state_) {
                 case None_None: {
-                  DARMA_ASSERT_MESSAGE(false, "Handle used after release");
+                  // Unreachable in 0.2
+                  DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
                   break;
                 }
                 case Read_None:
                 case Read_Read: {
                   // Unreachable in 0.2
-                  DARMA_ASSERT_MESSAGE(false, "Tried to schedule a modifying task of a handle with read-only schedule access");
+                  DARMA_ASSERT_MESSAGE(false, "Tried to schedule a modifying task of a handle with read-only schedule access"); // LCOV_EXCL_LINE
                   break; // unreachable
                 }
                 case Modify_None:

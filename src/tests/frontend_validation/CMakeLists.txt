@@ -25,3 +25,6 @@ add_unit_test(test_access_handle)
 
 add_executable(run_all_frontend_tests ${frontendtestfiles})
 target_link_libraries(run_all_frontend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
+if (DARMA_COVERAGE)
+setup_target_for_coverage(frontend_coverage run_all_frontend_tests coverage)
+endif()
