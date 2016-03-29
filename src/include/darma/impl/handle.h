@@ -56,7 +56,7 @@
 #include <tinympl/logical_not.hpp>
 #include <tinympl/copy_traits.hpp>
 
-#include <darma/impl/task.h>
+#include <darma/impl/task_fwd.h>
 #include <darma/impl/runtime.h>
 #include <darma/interface/defaults/version.h>
 #include <darma/impl/util.h>
@@ -427,15 +427,20 @@ class for_AccessHandle;
 
 } // end namespace access_attorneys
 
+class AccessHandleBase {
+  public:
+    virtual ~AccessHandleBase() = default;
+};
+
 } // end namespace darma_runtime::detail
 
-template <
-  typename T = void,
-  typename key_type = types::key_t,
-  typename version_type = types::version_t,
-  template <typename...> class smart_ptr_template = types::shared_ptr_template
->
-class AccessHandle;
+//template <
+//  typename T = void,
+//  typename key_type = types::key_t,
+//  typename version_type = types::version_t,
+//  template <typename...> class smart_ptr_template = types::shared_ptr_template
+//>
+//class AccessHandle;
 
 }
 

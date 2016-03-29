@@ -91,7 +91,7 @@ TEST_F(TestCreateWork, capture_initial_access) {
     .InSequence(s1);
 
   // Release read-only usage should happen immedately for initial access,
-  // i.e., before runnign the next line of code that triggers the next register_handle
+  // i.e., before running the next line of code that triggers the next register_handle
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
     .InSequence(s1);
 
@@ -376,46 +376,46 @@ TEST_F(TestCreateWork, mod_capture_MN) {
   mock_runtime->save_tasks = true;
 
   // Reverse order of expected usage because of the way expectations work
-  Sequence s_hm3;
-  auto hm3 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm3, s_hm3);
-  Sequence s_hm2;
-  auto hm2 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm2, s_hm2);
-  Sequence s_hm1;
-  auto hm1 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm1, s_hm1);
+  handle_t* h0, *h1, *h2;
+  h0 = h1 = h2 = nullptr;
+  EXPECT_CALL(*mock_runtime, register_handle(_))
+    .Times(Exactly(3))
+    .WillOnce(SaveArg<0>(&h0))
+    .WillOnce(SaveArg<0>(&h1))
+    .WillOnce(SaveArg<0>(&h2));
+  //Sequence s_hm3;
+  //auto hm3 = make_same_handle_matcher();
+  //expect_handle_life_cycle(hm3, s_hm3);
+  //Sequence s_hm2;
+  //auto hm2 = make_same_handle_matcher();
+  //expect_handle_life_cycle(hm2, s_hm2);
+  //Sequence s_hm1;
+  //auto hm1 = make_same_handle_matcher();
+  //expect_handle_life_cycle(hm1, s_hm1);
 
   {
     InSequence s;
     EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-      in_get_dependencies(hm1), needs_write_of(hm1), Not(needs_read_of(hm1))
+      handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
     )));
     EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-      in_get_dependencies(hm2), needs_write_of(hm2), needs_read_of(hm2)
+      handle_in_get_dependencies(h1), needs_write_handle(h1), needs_read_handle(h1)
     )));
   }
 
   {
     auto tmp = initial_access<int>("hello");
-    create_work([=,&hm1]{
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
+    create_work([=,&h0]{
+      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h0));
     });
-    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm2.handle));
-    create_work([=,&hm2]{
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm2.handle));
+    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h1));
+    create_work([=,&h1]{
+      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h1));
     });
-    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm3.handle));
+    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h2));
   }
 
-  while(not mock_runtime->registered_tasks.empty()) {
-    mock_runtime->registered_tasks.front()->run();
-    mock_runtime->registered_tasks.pop_front();
-  }
-
-  ASSERT_THAT(hm1.handle, Not(Eq(hm2.handle)));
-  ASSERT_THAT(hm2.handle, Not(Eq(hm3.handle)));
-
+  run_all_tasks();
 
 }
 

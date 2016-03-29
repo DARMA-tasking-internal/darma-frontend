@@ -55,10 +55,11 @@
 #include <darma/impl/meta/tuple_for_each.h>
 #include <darma/impl/meta/splat_tuple.h>
 
-#include <darma/impl/runtime.h>
-
-#include <darma/impl/task.h>
 #include <darma/impl/handle_attorneys.h>
+#include <darma/interface/app/access_handle.h>
+#include <darma/impl/runtime.h>
+#include <darma/impl/task.h>
+#include <darma/impl/util.h>
 
 // TODO move these to their own files in interface/app when they become part of the spec
 DeclareDarmaTypeTransparentKeyword(create_work_decorators, unless);
@@ -99,6 +100,25 @@ struct forward_to_get_dep_handle {
   }
 };
 
+struct forward_to_uncaptured_deps {
+  explicit
+  forward_to_uncaptured_deps(TaskBase* t) : task(t) { }
+  template <typename... AccessHandles>
+  void
+  operator()(AccessHandles&&... ah) const {
+    meta::tuple_for_each(std::forward_as_tuple(std::forward<AccessHandles>(ah)...),
+      [&](auto&& h){
+        //std::unique_ptr<AccessHandleBase> ahbptr(
+        //);
+        // TODO FIX THIS!!!
+        task->uncaptured_deps.emplace_back(
+          std::make_unique<std::decay_t<decltype(h)>>(h)
+        );
+      }
+    );
+  }
+  TaskBase* task;
+};
 
 template <typename... Args>
 struct reads_decorator_parser {
@@ -106,6 +126,12 @@ struct reads_decorator_parser {
   inline return_type
   operator()(Args&&... args) const {
     using namespace detail::create_work_attorneys;
+    detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
+      detail::backend_runtime->get_running_task()
+    );
+    detail::TaskBase* task = parent_task->current_create_work_context;
+    forward_to_uncaptured_deps f(task);
+
     auto rv = meta::splat_tuple(
       get_positional_arg_tuple(std::forward<Args>(args)...),
       forward_to_get_dep_handle<return_type>()
@@ -114,6 +140,9 @@ struct reads_decorator_parser {
         darma_runtime::keyword_tags_for_create_work_decorators::unless,
         bool
     >(false, std::forward<Args>(args)...);
+    meta::splat_tuple(
+      get_positional_arg_tuple(std::forward<Args>(args)...), f
+    );
     return rv;
   }
 };
@@ -171,6 +200,9 @@ struct create_work_impl {
     task_base->set_runnable(
       std::make_shared<Runnable<Lambda>>(std::forward<Lambda>(lambda))
     );
+    detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
+      detail::backend_runtime->get_running_task()
+    );
     return detail::backend_runtime->register_task(
       std::move(task_base)
       //std::make_unique<task_t>(
@@ -183,7 +215,12 @@ struct create_work_impl {
 
 inline types::unique_ptr_template<TaskBase>
 _start_create_work() {
-  return std::make_unique<TaskBase>();
+  auto rv = std::make_unique<TaskBase>();
+  detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
+    detail::backend_runtime->get_running_task()
+  );
+  parent_task->current_create_work_context = rv.get();
+  return std::move(rv);
 }
 
 struct _do_create_work {
@@ -209,27 +246,29 @@ struct _do_create_work {
     namespace m = tinympl;
     namespace mp = tinympl::placeholders;
 
-    detail::TaskBase* parent_task = dynamic_cast<detail::TaskBase* const>(
+    detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
       detail::backend_runtime->get_running_task()
     );
-
-    parent_task->current_create_work_context = task_.get();
-
+    parent_task->current_create_work_context = nullptr;
 
     meta::tuple_for_each_filtered_type<
-      m::lambda<std::is_same<std::decay<mp::_>, detail::reads_decorator_return>>::template apply
+      m::lambda<std::is_same<std::decay<mp::_>, reads_decorator_return>>::template apply
     >(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
       if(rdec.use_it) {
         for(auto&& h : rdec.handles) {
-          parent_task->read_only_handles.emplace(h);
+          task_->read_only_handles.emplace(h);
         }
       }
       else {
         for(auto&& h : rdec.handles) {
-          parent_task->ignored_handles.emplace(h.get());
+          task_->ignored_handles.emplace(h.get());
         }
       }
     });
+
+    for(auto&& reg : task_->registrations_to_run) {
+      reg();
+    }
 
     // TODO waits() decorator
     //meta::tuple_for_each_filtered_type<
@@ -244,6 +283,7 @@ struct _do_create_work {
   }
   types::unique_ptr_template<TaskBase> task_;
 };
+
 
 
 } // end namespace detail
