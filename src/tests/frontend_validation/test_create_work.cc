@@ -42,9 +42,6 @@
 //@HEADER
 */
 
-#ifndef SRC_TESTS_FRONTEND_VALIDATION_TEST_CREATE_WORK_CC_
-#define SRC_TESTS_FRONTEND_VALIDATION_TEST_CREATE_WORK_CC_
-
 #include <gtest/gtest.h>
 
 #include "mock_backend.h"
@@ -55,8 +52,6 @@
 #include <darma/interface/app/create_work.h>
 
 ////////////////////////////////////////////////////////////////////////////////
-
-namespace {
 
 class TestCreateWork
   : public TestFrontend
@@ -77,8 +72,6 @@ class TestCreateWork
     }
 
 };
-
-} // end anonymous namespace
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -256,6 +249,83 @@ TEST_F(TestCreateWork, ro_capture_RN) {
   mock_runtime->registered_tasks.clear();
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, ro_capture_unused) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  mock_runtime->save_tasks = true;
+
+  handle_t* h0, *h1;
+  h0 = h1 = nullptr;
+  EXPECT_CALL(*mock_runtime, register_handle(_))
+    .Times(Exactly(2))
+    .WillOnce(SaveArg<0>(&h0))
+    .WillOnce(SaveArg<0>(&h1));
+
+  {
+    InSequence s;
+    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+      handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
+    )));
+    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+      handle_in_get_dependencies(h1), Not(needs_write_handle(h1)), needs_read_handle(h1)
+    )));
+  }
+
+  {
+    auto tmp = initial_access<int>("hello");
+    create_work([=]{
+      std::cout << tmp.get_value();
+      FAIL() << "This code block shouldn't be running in this example";
+    });
+    create_work(reads(tmp), [=]{ });
+  }
+
+  mock_runtime->registered_tasks.clear();
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+//TEST_F(TestCreateWork, ro_capture_MM_unused) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//
+//  mock_runtime->save_tasks = true;
+//
+//  handle_t* h0, *h1, *h2;
+//  h0 = h1 = h2 = nullptr;
+//  EXPECT_CALL(*mock_runtime, register_handle(_))
+//    .Times(Exactly(2))
+//    .WillOnce(SaveArg<0>(&h0))
+//    .WillOnce(SaveArg<0>(&h1))
+//    .WillOnce(SaveArg<0>(&h2));
+//
+//  {
+//    InSequence s;
+//    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+//      handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
+//    )));
+//    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+//      handle_in_get_dependencies(h1), Not(needs_write_handle(h1)), needs_read_handle(h1)
+//    )));
+//  }
+//
+//  {
+//    auto tmp = initial_access<int>("hello");
+//    create_work([=]{
+//      create_work(reads(tmp), [=]{ });
+//    });
+//  }
+//
+//  run_all_tasks();
+
+//}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -511,11 +581,3 @@ TEST_F(TestCreateWork, ro_capture_MM) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
-
-
-#endif /* SRC_TESTS_FRONTEND_VALIDATION_TEST_CREATE_WORK_CC_ */

@@ -53,6 +53,8 @@ namespace frontend {
 
 // TODO this needs to be changed into a static class Concept and used as a template parameter since all of it's methods are const
 
+/* LCOV_EXCL_START (exclude abstract class from coverage) */
+
 /** @ingroup abstract
  *
  *  @class SerializationManager
@@ -222,6 +224,8 @@ class SerializationManager {
 
     virtual ~SerializationManager() = default;
 };
+
+/* LCOV_EXCL_STOP (exclude abstract class from coverage) */
 
 
 } // end namespace frontend

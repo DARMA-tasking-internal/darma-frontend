@@ -52,6 +52,13 @@
 #  include TEST_BACKEND_INCLUDE
 #endif
 
+// satisfy subsequent of subsequent, each at one less depth
+#ifdef DARMA_SERIAL_BACKEND
+#  define SERIAL_DISABLED_TEST_F(test, name) TEST_F(test, DISABLED_##name)
+#else
+#  define SERIAL_DISABLED_TEST_F(test, name) TEST_F(test, name)
+#endif
+
 #include "mock_frontend.h"
 #include "main.h"
 
@@ -141,9 +148,9 @@ make_handle(
     .Times(AtLeast(1));
   EXPECT_CALL(*new_handle, get_version())
     .Times(AtLeast(1));
+  EXPECT_CALL(*new_handle, get_serialization_manager())
+    .Times(AnyNumber());
   if (ExpectNewAlloc){
-    EXPECT_CALL(*new_handle, get_serialization_manager())
-      .Times(AtLeast(1));
     // because this is a new allocation and will not be satisfied by
     // a predecessor, it MUST be writable at some point
     EXPECT_CALL(*new_handle, allow_writes())

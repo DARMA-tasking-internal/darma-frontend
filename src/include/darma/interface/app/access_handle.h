@@ -199,7 +199,7 @@ class AccessHandle
           capture_op_t capture_type;
 
           // first check for any explicit permissions
-          auto found = running_task->read_only_handles.find(outer.dep_handle_.get());
+          auto found = running_task->read_only_handles.find(outer.dep_handle_);
           if(found != running_task->read_only_handles.end()) {
             capture_type = ro_capture;
             running_task->read_only_handles.erase(found);
@@ -232,7 +232,7 @@ class AccessHandle
               switch(outer.state_) {
                 case None_None: {
                   // Unreachable
-                  DARMA_ASSERT_MESSAGE(false, "Handle used after release");
+                  DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
                   break;
                 }
                 case Read_None:
@@ -278,13 +278,14 @@ class AccessHandle
             case mod_capture: {
               switch(outer.state_) {
                 case None_None: {
-                  DARMA_ASSERT_MESSAGE(false, "Handle used after release");
+                  // Unreachable in 0.2
+                  DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
                   break;
                 }
                 case Read_None:
                 case Read_Read: {
                   // Unreachable in 0.2
-                  DARMA_ASSERT_MESSAGE(false, "Tried to schedule a modifying task of a handle with read-only schedule access");
+                  DARMA_ASSERT_MESSAGE(false, "Tried to schedule a modifying task of a handle with read-only schedule access"); // LCOV_EXCL_LINE
                   break; // unreachable
                 }
                 case Modify_None:
@@ -392,7 +393,7 @@ class AccessHandle
       // TODO warning for multiple release (or should this be an error?)
       DARMA_ASSERT_MESSAGE(
         state_ == Modify_Modify || state_ == Modify_Read || state_ == Modify_None,
-        "release() called on handle without Modify-schedule priviledges"
+        "release() called on handle without Modify-schedule privileges"
       );
       read_only_holder_ = nullptr;
       dep_handle_ = nullptr;

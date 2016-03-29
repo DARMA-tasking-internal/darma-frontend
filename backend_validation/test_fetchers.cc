@@ -144,6 +144,8 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg) {
 
   int value = 42;
 
+  // Increment the version depth of h_0 in preparation for write-only capture
+  h_0.get()->get_version_return.push_subversion();
   register_write_only_capture(h_0.get(), [&,value]{
     ASSERT_TRUE(h_0->is_satisfied());
     ASSERT_TRUE(h_0->is_writable());
@@ -152,6 +154,7 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg) {
     void* data = data_block->get_data();
     ASSERT_THAT(data, NotNull());
     memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->handle_done_with_version_depth(h_0.get());
     detail::backend_runtime->release_handle(h_0.get());
   });
 

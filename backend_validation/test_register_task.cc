@@ -183,7 +183,7 @@ TEST_F(RegisterTask, first_writer_block_post_lambda) {
 }
 
 // release_read_only_usage after the task is registered
-TEST_F(RegisterTask, first_writer_post_register_task) {
+SERIAL_DISABLED_TEST_F(RegisterTask, first_writer_post_register_task) {
   using namespace ::testing;
 
   auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
@@ -340,7 +340,7 @@ TEST_F(RegisterTask, release_satisfy_for_read_write) {
 ////////////////////////////////////////////////////////////////////////////////
 
 // write-only with multiple outputs
-TEST_F(RegisterTask, first_writer_2outputs) {
+SERIAL_DISABLED_TEST_F(RegisterTask, first_writer_2outputs) {
   using namespace ::testing;
 
   auto h_0 = make_handle<double, true, true>(MockDependencyHandle::version_t(), "the_key");
