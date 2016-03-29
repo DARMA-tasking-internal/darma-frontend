@@ -191,7 +191,7 @@ int darma_main(int argc, char** argv)
 		}
 		myErrHandle.set_value(error);
   });
-	myErrHandle.publish(n_readers=n_spmd);
+	myErrHandle.publish(n_readers=n_spmd,version=0);
 
 
 	// fake collective procedure
@@ -199,7 +199,7 @@ int darma_main(int argc, char** argv)
 	{
 		if (iPd != me)
 		{
- 	 		auto iPdErr = read_access<double>("myl1error",iPd);
+ 	 		auto iPdErr = read_access<double>("myl1error",iPd,version=0);
 			create_work([=]
 			{
 				myErrHandle.get_reference() += iPdErr.get_value();
@@ -219,6 +219,7 @@ int darma_main(int argc, char** argv)
   return 0;
 
 }//end main
+
 
 
 

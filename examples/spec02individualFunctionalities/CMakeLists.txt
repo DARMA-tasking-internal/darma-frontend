@@ -22,3 +22,6 @@ target_link_libraries(publishAndReadAccess ${DARMA_BACKEND_LIBNAME})
 
 add_executable(cwReadsArg cwReadsArg.cc)
 target_link_libraries(cwReadsArg ${DARMA_BACKEND_LIBNAME})
+
+add_executable(version version.cc)
+target_link_libraries(version ${DARMA_BACKEND_LIBNAME})
