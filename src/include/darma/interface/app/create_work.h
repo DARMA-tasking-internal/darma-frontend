@@ -49,9 +49,14 @@
 
 #include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 
-#define create_work(...) { \
-  auto _DARMA__started_ ## __LINE__ = darma_runtime::detail::_start_create_work(); \
-  darma_runtime::detail::_do_create_work(std::move(_DARMA__started_ ## __LINE__))(__VA_ARGS__); }
+#include <darma/impl/util.h>
+
+//#define create_work(...) { \
+//  auto _DARMA__started_ ## __LINE__ = darma_runtime::detail::_start_create_work(); \
+//  darma_runtime::detail::_do_create_work(std::move(_DARMA__started_ ## __LINE__))(__VA_ARGS__); }
+#define create_work \
+  auto DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__) = darma_runtime::detail::_start_create_work(); \
+  darma_runtime::detail::_do_create_work(std::move(DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__))).operator()
 
 namespace darma_runtime {
 

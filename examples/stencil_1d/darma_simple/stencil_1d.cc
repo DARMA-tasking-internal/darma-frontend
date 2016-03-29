@@ -200,7 +200,6 @@ int darma_main(int argc, char** argv)
 
     // The `waits()` tag is equivalent to calling prev_node_finished_writing.wait() inside the lambda
     create_work(
-      //waits(prev_node_finished_writing),
       [=]{
         // for now, since waits() is not implemented
         prev_node_finished_writing.get_value();
@@ -218,4 +217,3 @@ int darma_main(int argc, char** argv)
   darma_finalize();
   return 0;
 }
-

@@ -66,6 +66,7 @@
 
 #include <darma/impl/util.h>
 #include <darma/impl/runtime.h>
+#include <darma/impl/handle_fwd.h>
 
 namespace darma_runtime {
 
@@ -194,6 +195,15 @@ class TaskBase : public abstract::backend::runtime_t::task_t
       if(needs_write_data) needs_write_deps_.insert(dep.get());
     }
 
+
+    template <typename AccessHandle>
+    void do_capture(
+      AccessHandle const& source,
+      AccessHandle& captured,
+      AccessHandle& continuing,
+      bool is_read_only = false
+    );
+
     ////////////////////////////////////////////////////////////////////////////////
     // Implementation of abstract::frontend::Task
 
@@ -253,8 +263,12 @@ class TaskBase : public abstract::backend::runtime_t::task_t
     std::set<handle_ptr> read_only_handles;
     std::set<handle_t*> ignored_handles;
 
+    std::vector<std::function<void()>> registrations_to_run;
+    std::vector<std::unique_ptr<AccessHandleBase>> uncaptured_deps;
+
   private:
     std::shared_ptr<RunnableBase> runnable_;
+
 
 };
 
@@ -348,6 +362,8 @@ class Task : public TaskBase
 
 } // end namespace darma_runtime
 
+
+#include <darma/impl/task_capture_impl.h>
 
 
 #endif /* DARMA_RUNTIME_TASK_H_ */
