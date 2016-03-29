@@ -222,7 +222,7 @@ class TaskBase
 
     TaskBase* current_create_work_context = nullptr;
 
-    std::set<handle_t*> read_only_handles;
+    std::set<handle_ptr> read_only_handles;
     std::set<handle_t*> ignored_handles;
 
 
@@ -272,6 +272,11 @@ class Task : public TaskBase
           detail::backend_runtime->get_running_task()
       );
 
+      for(auto&& h : parent_task->read_only_handles) {
+        add_dependency(h, /* needs_read_data=*/true, /* needs_write_data=*/false);
+      }
+      parent_task->read_only_handles.clear();
+
       //const auto& deps = this->get_dependencies();
       //for(auto&& h : parent_task->waits_handles) {
       //  // only add it if we don't already need it
@@ -284,7 +289,7 @@ class Task : public TaskBase
       // Assert that all explicitly specified reads were captured
       DARMA_ASSERT_MESSAGE(
         parent_task->read_only_handles.empty(),
-        "Priviledges explicitly declared but not used"
+        "Privileges explicitly declared but not used"
       );
 
       // Remove the current create_work_context pointer so that other moves don't trigger the hook

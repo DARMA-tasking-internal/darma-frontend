@@ -52,8 +52,6 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace {
-
 class TestReadAccess
   : public TestFrontend
 {
@@ -68,8 +66,6 @@ class TestReadAccess
       TestFrontend::TearDown();
     }
 };
-
-} // end anonymous namespace
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -184,7 +180,3 @@ TEST_F(TestReadAccess, call_sequence_assign) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
