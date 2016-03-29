@@ -22,6 +22,7 @@ set (frontend_HEADERS
 frontend/aliasing_manager.h
 frontend/containment_manager.h
 frontend/dependency_handle.h
+frontend/reduce_op.h
 frontend/serialization_manager.h
 frontend/task.h
 frontend/types.h)

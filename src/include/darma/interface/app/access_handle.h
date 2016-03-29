@@ -153,6 +153,26 @@ class AccessHandle
       return *this;
     }
 
+    /**
+      Add an allreduce contribution from this data block into another data block
+      @param output     The handle for the data that will hold the result of the
+                        allreduce
+      @param nChunks    The number of chunks that will contribute to the all-reduce
+    */
+    void
+    allreduce(AccessHandle const& output, int nChunks){
+      //TODO - this should make a lambda task for the allreduce to properly capture permissions
+    }
+    
+    /**
+      Add an allreduce contribution from this data block. Do the allreduce in place.
+      @param nChunks    The number of chunks that will contribute to the all-reduce
+    */
+    void
+    allreduce(int nChunks){
+      //TODO - this should make a lambda task for the allreduce to properly capture permissions
+    }
+
     AccessHandle(AccessHandle const& copied_from) noexcept
       : dep_handle_(copied_from.dep_handle_),
         // this copy constructor may be invoked in ordinary usage or
