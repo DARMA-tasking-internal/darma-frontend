@@ -140,7 +140,6 @@ int darma_main(int argc, char** argv)
   	if (!is_rightmost)
 	  	gv_to_right = initial_access<double>("ghost_value_for_right_neigh", me, timeLoop+1);
 
-
  		create_work([=]
  		{
  			auto & dataRef = data.get_reference();
@@ -194,35 +193,27 @@ int darma_main(int argc, char** argv)
   });
 	myErrHandle.publish(n_readers=n_spmd);
 
+
 	// fake collective procedure
-	create_work([=]
+	for (int iPd = 0; iPd < n_spmd; ++iPd)
 	{
-		double newError = myErrHandle.get_value();
-		for (int iPd = 0; iPd < n_spmd; ++iPd)
+		if (iPd != me)
 		{
-			if (iPd != me)
+ 	 		auto iPdErr = read_access<double>("myl1error",iPd);
+			create_work([=]
 			{
-	 	 		auto iPdErr = read_access<double>("myl1error",iPd);
-	 	 		newError += iPdErr.get_value();
-			}
+				myErrHandle.get_reference() += iPdErr.get_value();
+ 	 		});
 		}
-		myErrHandle.set_value(newError);
-	});
+	}
 
 	// print to terminal
-	sleep(me+0.5);
-	std::cout << " global L1 error = " << myErrHandle.get_value() << std::endl;
-	assert( myErrHandle.get_value() < 1e-2 );
-
   create_work([=]
   {
-		double * data_ptr = data->data();
-	  for ( int i = 1; i <= num_points_per_rank; i++ )
-	  {
-			double xx = xL+(i-1)*deltaX;
-			std::cout << me << " " << steadySolution(xx) << " " << data_ptr[i] << std::endl;
-	  }
-  });
+		sleep(me+0.5);
+		std::cout << " global L1 error = " << myErrHandle.get_value() << std::endl;		
+		assert( myErrHandle.get_value() < 1e-2 );
+	});
 
   darma_finalize();
   return 0;
@@ -230,3 +221,13 @@ int darma_main(int argc, char** argv)
 }//end main
 
 
+
+//  create_work([=]
+//  {
+// 	double * data_ptr = data->data();
+//   for ( int i = 1; i <= num_points_per_rank; i++ )
+//   {
+// 		double xx = xL+(i-1)*deltaX;
+// 		std::cout << me << " " << steadySolution(xx) << " " << data_ptr[i] << std::endl;
+//   }
+//  });
