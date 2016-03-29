@@ -165,13 +165,84 @@ struct create_work_impl {
   typedef detail::TaskBase task_base_t;
 
   inline typename parser::return_type
-  operator()(Args&&... args, Lambda&& lambda) const {
+  operator()(
+    std::unique_ptr<TaskBase>&& task_base,
+    Args&&... args, Lambda&& lambda) const {
+    task_base->set_runnable(
+      std::make_shared<Runnable<Lambda>>(std::forward<Lambda>(lambda))
+    );
     return detail::backend_runtime->register_task(
-      std::make_unique<task_t>(
-        std::forward<Lambda>(lambda)
-      )
+      std::move(task_base)
+      //std::make_unique<task_t>(
+      //  std::forward<Lambda>(lambda)
+      //)
     );
   }
+};
+
+
+inline types::unique_ptr_template<TaskBase>
+_start_create_work() {
+  return std::make_unique<TaskBase>();
+}
+
+struct _do_create_work {
+  explicit
+  _do_create_work(types::unique_ptr_template<TaskBase>&& tsk_base)
+    : task_(std::move(tsk_base))
+  { }
+  template <typename... Args>
+  inline void
+  operator()(Args&&... args) {
+    static_assert(detail::only_allowed_kwargs_given<
+      >::template apply<Args...>::type::value,
+      "Unknown keyword argument given to create_work()"
+    );
+
+    namespace m = tinympl;
+    // Pop off the last type and move it to the front
+    typedef typename m::vector<Args...>::back::type lambda_t;
+    typedef typename m::vector<Args...>::pop_back::type rest_vector_t;
+    typedef typename m::splat_to<
+      typename rest_vector_t::template push_front<lambda_t>::type, detail::create_work_impl
+    >::type helper_t;
+    namespace m = tinympl;
+    namespace mp = tinympl::placeholders;
+
+    detail::TaskBase* parent_task = dynamic_cast<detail::TaskBase* const>(
+      detail::backend_runtime->get_running_task()
+    );
+
+    parent_task->current_create_work_context = task_.get();
+
+
+    meta::tuple_for_each_filtered_type<
+      m::lambda<std::is_same<std::decay<mp::_>, detail::reads_decorator_return>>::template apply
+    >(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
+      if(rdec.use_it) {
+        for(auto&& h : rdec.handles) {
+          parent_task->read_only_handles.emplace(h);
+        }
+      }
+      else {
+        for(auto&& h : rdec.handles) {
+          parent_task->ignored_handles.emplace(h.get());
+        }
+      }
+    });
+
+    // TODO waits() decorator
+    //meta::tuple_for_each_filtered_type<
+    //  m::lambda<std::is_same<std::decay<mp::_>, detail::waits_decorator_return>>::template apply
+    //>(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
+    //  parent_task->waits_handles.emplace(rdec.handle);
+    //});
+
+
+    return helper_t()(std::move(task_), std::forward<Args>(args)...);
+
+  }
+  types::unique_ptr_template<TaskBase> task_;
 };
 
 

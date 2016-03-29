@@ -140,8 +140,27 @@ struct task_traits {
 
 namespace detail {
 
-class TaskBase
-  : public abstract::backend::runtime_t::task_t
+class RunnableBase {
+ public:
+   virtual void run() =0;
+   virtual ~RunnableBase() { }
+};
+
+template <typename Callable>
+struct Runnable : public RunnableBase
+{
+ public:
+  explicit
+  Runnable(Callable&& c)
+    : run_this_(std::forward<Callable>(c))
+  { }
+  void run() override { run_this_(); }
+
+ private:
+  Callable run_this_;
+};
+
+class TaskBase : public abstract::backend::runtime_t::task_t
 {
   protected:
 
@@ -215,6 +234,15 @@ class TaskBase
       return false;
     }
 
+    void run() override {
+      assert(runnable_);
+      runnable_->run();
+    }
+
+    void set_runnable(std::shared_ptr<RunnableBase> r) {
+      runnable_ = r;
+    }
+
     // end implementation of abstract::frontend::Task
     ////////////////////////////////////////////////////////////////////////////////
 
@@ -225,8 +253,11 @@ class TaskBase
     std::set<handle_ptr> read_only_handles;
     std::set<handle_t*> ignored_handles;
 
+  private:
+    std::shared_ptr<RunnableBase> runnable_;
 
 };
+
 
 class TopLevelTask
   : public TaskBase
