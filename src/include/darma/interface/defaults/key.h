@@ -50,11 +50,11 @@
 #include <cstring> // std::memcmp
 #include <iostream>
 
-#include <darma/util.h>
-#include <darma/meta/tuple_for_each.h>
+#include <darma/impl/util.h>
+#include <darma/impl/meta/tuple_for_each.h>
 #include <darma/interface/defaults/key_fwd.h>
 
-#include <darma/key_concept.h> // key_traits
+#include <darma/impl/key_concept.h> // key_traits
 
 // TODO key must be able to be sent over the wire
 
