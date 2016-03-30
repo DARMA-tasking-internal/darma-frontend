@@ -107,6 +107,15 @@ struct for_AccessHandle {
   ) {
     return ah.dep_handle_->get_version();
   }
+
+  template <typename AccessHandleType>
+  static inline
+  unsigned&
+  captured_as_info(
+    AccessHandleType const& ah
+  ) {
+    return ah.captured_as_;
+  }
 };
 
 } // end namespace create_work_attorneys

@@ -58,12 +58,8 @@ namespace darma_runtime {
 
 template <
   typename T,
-  typename key_type = types::key_t,
-  typename version_type = types::version_t,
-  template <typename...> class smart_ptr_template = types::shared_ptr_template
-  //typename key_type,
-  //typename version_type,
-  //template <typename...> class smart_ptr_template
+  typename key_type,
+  typename version_type
 >
 class AccessHandle : public detail::AccessHandleBase
 {
@@ -73,29 +69,15 @@ class AccessHandle : public detail::AccessHandleBase
         typename std::conditional<std::is_same<T, void>::value,
           detail::EmptyClass, T
         >::type, key_type, version_type> dep_handle_t;
-    typedef smart_ptr_template<dep_handle_t> dep_handle_ptr;
-    typedef smart_ptr_template<const dep_handle_t> dep_handle_const_ptr;
+    typedef types::shared_ptr_template<dep_handle_t> dep_handle_ptr;
+    typedef types::shared_ptr_template<const dep_handle_t> dep_handle_const_ptr;
     typedef detail::TaskBase task_t;
-    typedef smart_ptr_template<task_t> task_ptr;
+    typedef types::shared_ptr_template<task_t> task_ptr;
     typedef typename detail::smart_ptr_traits<std::shared_ptr>::template maker<dep_handle_t>
       dep_handle_ptr_maker_t;
 
     typedef typename dep_handle_t::key_t key_t;
     typedef typename dep_handle_t::version_t version_t;
-
-    typedef enum State {
-      None_None,
-      Read_None,
-      Read_Read,
-      Modify_None,
-      Modify_Read,
-      Modify_Modify
-    } state_t;
-
-    typedef enum CaptureOp {
-      ro_capture,
-      mod_capture
-    } capture_op_t;
 
   private:
     ////////////////////////////////////////
@@ -116,8 +98,7 @@ class AccessHandle : public detail::AccessHandleBase
 
   public:
     AccessHandle()
-      : prev_copied_from(nullptr),
-        dep_handle_(nullptr),
+      : dep_handle_(nullptr),
         read_only_holder_(nullptr),
         state_(None_None)
     { }
@@ -138,14 +119,13 @@ class AccessHandle : public detail::AccessHandleBase
     operator=(AccessHandle&& other) noexcept {
       // Forward to const move assignment operator
       return const_cast<AccessHandle const*>(this)->operator=(
-        std::move(other)
+        std::forward<AccessHandle>(other)
       );
       return *this;
     }
 
     AccessHandle const&
     operator=(AccessHandle&& other) const noexcept {
-      assert(other.prev_copied_from == nullptr);
       read_only_holder_ = std::move(other.read_only_holder_);
       dep_handle_ = std::move(other.dep_handle_);
       state_ = std::move(other.state_);
@@ -160,12 +140,6 @@ class AccessHandle : public detail::AccessHandleBase
 
     AccessHandle(AccessHandle const& copied_from) noexcept
       : dep_handle_(copied_from.dep_handle_),
-        // this copy constructor may be invoked in ordinary usage or
-        // may be the actual capture itself.  In the latter case, the subsequent
-        // move needs access back to the outer context object, so we need to
-        // save a pointer back to other.  It should be ignored otherwise, though.
-        // note that the below const_cast is needed to convert from AccessHandle const* to AccessHandle* const
-        prev_copied_from(const_cast<AccessHandle* const>(&copied_from)),
         read_only_holder_(std::move(copied_from.read_only_holder_)),
         state_(copied_from.state_)
     {
@@ -388,10 +362,10 @@ class AccessHandle : public detail::AccessHandleBase
 
     mutable dep_handle_ptr dep_handle_ = { nullptr };
     mutable state_t state_ = None_None;
-
     mutable types::shared_ptr_template<read_only_usage_holder> read_only_holder_;
+    mutable unsigned captured_as_ = CapturedAsInfo::Normal;
+
     task_t* capturing_task = nullptr;
-    AccessHandle* prev_copied_from = nullptr;
 
    public:
 

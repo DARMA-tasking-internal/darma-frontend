@@ -74,76 +74,62 @@ namespace mv = tinympl::variadic;
 
 template <typename... Args>
 struct create_work_parser {
-  typedef /* TODO ??? */ void return_type;
+  // For now, return void
+  typedef void return_type;
   typedef typename mv::back<Args...>::type lambda_type;
-};
-
-struct reads_decorator_return {
-  typedef abstract::backend::runtime_t runtime_t;
-  typedef runtime_t::key_t key_t;
-  typedef runtime_t::version_t version_t;
-  typedef runtime_t::handle_t handle_t;
-  reads_decorator_return(std::initializer_list<types::shared_ptr_template<handle_t>> args)
-    : handles(args)
-  { }
-  std::vector<types::shared_ptr_template<handle_t>> handles;
-  bool use_it = true;
-};
-
-template <typename ReturnType>
-struct forward_to_get_dep_handle {
-  template <typename... AccessHandles>
-  constexpr inline ReturnType
-  operator()(AccessHandles&&... ah) const {
-    using namespace detail::create_work_attorneys;
-    return { for_AccessHandle::get_dep_handle_ptr(std::forward<AccessHandles>(ah))... };
-  }
-};
-
-struct forward_to_uncaptured_deps {
-  explicit
-  forward_to_uncaptured_deps(TaskBase* t) : task(t) { }
-  template <typename... AccessHandles>
-  void
-  operator()(AccessHandles&&... ah) const {
-    meta::tuple_for_each(std::forward_as_tuple(std::forward<AccessHandles>(ah)...),
-      [&](auto&& h){
-        //std::unique_ptr<AccessHandleBase> ahbptr(
-        //);
-        // TODO FIX THIS!!!
-        task->uncaptured_deps.emplace_back(
-          std::make_unique<std::decay_t<decltype(h)>>(h)
-        );
-      }
-    );
-  }
-  TaskBase* task;
 };
 
 template <typename... Args>
 struct reads_decorator_parser {
-  typedef reads_decorator_return return_type;
-  inline return_type
+  typedef int return_type;
+  inline int
   operator()(Args&&... args) const {
-    using namespace detail::create_work_attorneys;
+    using detail::create_work_attorneys::for_AccessHandle;
     detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
       detail::backend_runtime->get_running_task()
     );
     detail::TaskBase* task = parent_task->current_create_work_context;
-    forward_to_uncaptured_deps f(task);
 
-    auto rv = meta::splat_tuple(
-      get_positional_arg_tuple(std::forward<Args>(args)...),
-      forward_to_get_dep_handle<return_type>()
-    );
-    rv.use_it = not get_typeless_kwarg_with_default_as<
+    // See if all of these arguments are supposed to be ignored
+    // NOTE: This is a post-0.2 feature
+    bool ignored = not get_typeless_kwarg_with_default_as<
         darma_runtime::keyword_tags_for_create_work_decorators::unless,
         bool
     >(false, std::forward<Args>(args)...);
-    meta::splat_tuple(
-      get_positional_arg_tuple(std::forward<Args>(args)...), f
+    ignored = ignored && not get_typeless_kwarg_with_default_as<
+      darma_runtime::keyword_tags_for_create_work_decorators::only_if,
+      bool
+    >(true, std::forward<Args>(args)...);
+
+    // Mark this usage as a read-only capture
+    meta::tuple_for_each(
+      get_positional_arg_tuple(std::forward<Args>(args)...),
+      [&](auto const& ah) {
+        static_assert(is_access_handle<std::decay_t<decltype(ah)>>::value,
+          "Non-AccessHandle<> argument passed to reads() decorator"
+        );
+        if(ignored) for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::Ignored;
+        else {
+          // Mark it as uncaptured for now; the capture operation will set this flag back to 0
+          for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::Uncaptured;
+        }
+        for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::ReadOnly;
+
+
+        // Set the flags back after registration
+        task->post_registration_ops.emplace_back([&]{
+          DARMA_ASSERT_MESSAGE(
+            (for_AccessHandle::captured_as_info(ah) & AccessHandleBase::Uncaptured) == 0,
+            "handle with key { " << ah.get_key() << " } declared as read usage, but was actually unused"
+          );
+          // Reset everything
+          for_AccessHandle::captured_as_info(ah) = AccessHandleBase::Normal;
+        });
+
+      }
     );
-    return rv;
+
+    return 0; // ignored
   }
 };
 
@@ -205,9 +191,6 @@ struct create_work_impl {
     );
     return detail::backend_runtime->register_task(
       std::move(task_base)
-      //std::make_unique<task_t>(
-      //  std::forward<Lambda>(lambda)
-      //)
     );
   }
 };
@@ -251,40 +234,21 @@ struct _do_create_work {
     );
     parent_task->current_create_work_context = nullptr;
 
-    meta::tuple_for_each_filtered_type<
-      m::lambda<std::is_same<std::decay<mp::_>, reads_decorator_return>>::template apply
-    >(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
-      if(rdec.use_it) {
-        for(auto&& h : rdec.handles) {
-          task_->read_only_handles.emplace(h);
-        }
-      }
-      else {
-        for(auto&& h : rdec.handles) {
-          task_->ignored_handles.emplace(h.get());
-        }
-      }
-    });
-
     for(auto&& reg : task_->registrations_to_run) {
       reg();
     }
+    task_->registrations_to_run.clear();
 
-    // TODO waits() decorator
-    //meta::tuple_for_each_filtered_type<
-    //  m::lambda<std::is_same<std::decay<mp::_>, detail::waits_decorator_return>>::template apply
-    //>(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
-    //  parent_task->waits_handles.emplace(rdec.handle);
-    //});
-
+    for(auto&& post_reg_op : task_->post_registration_ops) {
+      post_reg_op();
+    }
+    task_->post_registration_ops.clear();
 
     return helper_t()(std::move(task_), std::forward<Args>(args)...);
-
   }
+
   types::unique_ptr_template<TaskBase> task_;
 };
-
-
 
 } // end namespace detail
 

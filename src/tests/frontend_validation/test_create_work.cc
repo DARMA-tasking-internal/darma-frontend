@@ -141,7 +141,6 @@ TEST_F(TestCreateWork, capture_initial_access) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#if 0 // TODO re-enable this test!
 TEST_F(TestCreateWork, capture_initial_access_vector) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -221,7 +220,6 @@ TEST_F(TestCreateWork, capture_initial_access_vector) {
 
   mock_runtime->registered_tasks.clear();
 }
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -254,80 +252,50 @@ TEST_F(TestCreateWork, ro_capture_RN) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, ro_capture_unused) {
+TEST_F(TestCreateWork, death_ro_capture_unused) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
 
-  mock_runtime->save_tasks = true;
+  EXPECT_DEATH(
+    {
+      mock_runtime->save_tasks = false;
+      auto tmp = initial_access<int>("hello");
+      create_work([=]{
+        std::cout << tmp.get_value();
+        FAIL() << "This code block shouldn't be running in this example";
+      });
+      { create_work(reads(tmp), [=]{ }); }
+    },
+    "handle with key .* declared as read usage, but was actually unused"
+  );
 
-  handle_t* h0, *h1;
-  h0 = h1 = nullptr;
-  EXPECT_CALL(*mock_runtime, register_handle(_))
-    .Times(Exactly(2))
-    .WillOnce(SaveArg<0>(&h0))
-    .WillOnce(SaveArg<0>(&h1));
-
-  {
-    InSequence s;
-    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-      handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
-    )));
-    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-      handle_in_get_dependencies(h1), Not(needs_write_handle(h1)), needs_read_handle(h1)
-    )));
-  }
-
-  {
-    auto tmp = initial_access<int>("hello");
-    create_work([=]{
-      std::cout << tmp.get_value();
-      FAIL() << "This code block shouldn't be running in this example";
-    });
-    create_work(reads(tmp), [=]{ });
-  }
-
-  mock_runtime->registered_tasks.clear();
+  //mock_runtime->registered_tasks.clear();
 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-//TEST_F(TestCreateWork, ro_capture_MM_unused) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  mock_runtime->save_tasks = true;
-//
-//  handle_t* h0, *h1, *h2;
-//  h0 = h1 = h2 = nullptr;
-//  EXPECT_CALL(*mock_runtime, register_handle(_))
-//    .Times(Exactly(2))
-//    .WillOnce(SaveArg<0>(&h0))
-//    .WillOnce(SaveArg<0>(&h1))
-//    .WillOnce(SaveArg<0>(&h2));
-//
-//  {
-//    InSequence s;
-//    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-//      handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
-//    )));
-//    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-//      handle_in_get_dependencies(h1), Not(needs_write_handle(h1)), needs_read_handle(h1)
-//    )));
-//  }
-//
-//  {
-//    auto tmp = initial_access<int>("hello");
-//    create_work([=]{
-//      create_work(reads(tmp), [=]{ });
-//    });
-//  }
-//
-//  run_all_tasks();
+TEST_F(TestCreateWork, death_ro_capture_MM_unused) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
 
-//}
+  {
+    EXPECT_DEATH(
+      {
+        mock_runtime->save_tasks = true;
+        auto tmp = initial_access<int>("hello");
+        create_work([=] {
+          create_work(reads(tmp), [=] { });
+        });
+        run_all_tasks();
+      },
+      "handle with key .* declared as read usage, but was actually unused"
+    );
+  }
+
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -359,10 +327,7 @@ TEST_F(TestCreateWork, capture_read_access_2) {
     ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
   }
 
-  while(not mock_runtime->registered_tasks.empty()) {
-    mock_runtime->registered_tasks.front()->run();
-    mock_runtime->registered_tasks.pop_front();
-  }
+  run_all_tasks();
 
 }
 
@@ -383,15 +348,6 @@ TEST_F(TestCreateWork, mod_capture_MN) {
     .WillOnce(SaveArg<0>(&h0))
     .WillOnce(SaveArg<0>(&h1))
     .WillOnce(SaveArg<0>(&h2));
-  //Sequence s_hm3;
-  //auto hm3 = make_same_handle_matcher();
-  //expect_handle_life_cycle(hm3, s_hm3);
-  //Sequence s_hm2;
-  //auto hm2 = make_same_handle_matcher();
-  //expect_handle_life_cycle(hm2, s_hm2);
-  //Sequence s_hm1;
-  //auto hm1 = make_same_handle_matcher();
-  //expect_handle_life_cycle(hm1, s_hm1);
 
   {
     InSequence s;
@@ -478,10 +434,7 @@ TEST_F(TestCreateWork, mod_capture_MM) {
     ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm3.handle));
   }
 
-  while(not mock_runtime->registered_tasks.empty()) {
-    mock_runtime->registered_tasks.front()->run();
-    mock_runtime->registered_tasks.pop_front();
-  }
+  run_all_tasks();
 
   ASSERT_THAT(hm1.handle, Not(Eq(hm2.handle)));
   ASSERT_THAT(hm2.handle, Not(Eq(hm3.handle)));
@@ -565,10 +518,7 @@ TEST_F(TestCreateWork, ro_capture_MM) {
     EXPECT_EQ(h1->get_key(), h2->get_key());
   } // h2 should be released at this point
 
-  while(not mock_runtime->registered_tasks.empty()) {
-    mock_runtime->registered_tasks.front()->run();
-    mock_runtime->registered_tasks.pop_front();
-  }
+  run_all_tasks();
 
   // Assert that the version relationships match the chart
   v0.pop_subversion();
