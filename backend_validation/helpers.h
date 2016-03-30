@@ -139,7 +139,6 @@ make_handle(
       delete ser_man;
     }
   );
-  new_handle->get_serialization_manager_return = ser_man;
   new_handle->get_key_return = detail::key_traits<MockDependencyHandle::key_t>::maker()(
       std::forward<KeyParts>(kp)...);
   new_handle->get_version_return = v;
@@ -149,7 +148,8 @@ make_handle(
   EXPECT_CALL(*new_handle, get_version())
     .Times(AtLeast(1));
   EXPECT_CALL(*new_handle, get_serialization_manager())
-    .Times(AnyNumber());
+    .Times(AnyNumber())
+    .WillRepeatedly(Return(ser_man));
   if (ExpectNewAlloc){
     // because this is a new allocation and will not be satisfied by
     // a predecessor, it MUST be writable at some point
@@ -182,7 +182,6 @@ make_fetching_handle(
       delete ser_man;
     }
   );
-  new_handle->get_serialization_manager_return = ser_man;
   new_handle->get_key_return = detail::key_traits<MockDependencyHandle::key_t>::maker()(
       std::forward<KeyParts>(kp)...);
   new_handle->get_version_return = v;
@@ -194,6 +193,9 @@ make_fetching_handle(
     .Times(Exactly(0));
   EXPECT_CALL(*new_handle, set_version(_))
     .Times(Exactly(1));
+  EXPECT_CALL(*new_handle, get_serialization_manager())
+    .Times(AnyNumber())
+    .WillRepeatedly(Return(ser_man));
 
   return new_handle;
 }
