@@ -53,6 +53,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <sstream>
 
 #include <darma/impl/meta/metaprogramming.h>
 
