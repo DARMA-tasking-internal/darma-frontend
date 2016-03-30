@@ -66,6 +66,7 @@
 
 #include <darma/impl/util.h>
 #include <darma/impl/runtime.h>
+#include <darma/impl/handle_fwd.h>
 
 namespace darma_runtime {
 
@@ -140,8 +141,27 @@ struct task_traits {
 
 namespace detail {
 
-class TaskBase
-  : public abstract::backend::runtime_t::task_t
+class RunnableBase {
+ public:
+   virtual void run() =0;
+   virtual ~RunnableBase() { }
+};
+
+template <typename Callable>
+struct Runnable : public RunnableBase
+{
+ public:
+  explicit
+  Runnable(Callable&& c)
+    : run_this_(std::forward<Callable>(c))
+  { }
+  void run() override { run_this_(); }
+
+ private:
+  Callable run_this_;
+};
+
+class TaskBase : public abstract::backend::runtime_t::task_t
 {
   protected:
 
@@ -174,6 +194,13 @@ class TaskBase
       if(needs_read_data) needs_read_deps_.insert(dep.get());
       if(needs_write_data) needs_write_deps_.insert(dep.get());
     }
+
+    template <typename AccessHandle>
+    void do_capture(
+      AccessHandle const& source,
+      AccessHandle& captured,
+      AccessHandle& continuing
+    );
 
     ////////////////////////////////////////////////////////////////////////////////
     // Implementation of abstract::frontend::Task
@@ -215,18 +242,32 @@ class TaskBase
       return false;
     }
 
+    void run() override {
+      assert(runnable_);
+      runnable_->run();
+    }
+
     // end implementation of abstract::frontend::Task
     ////////////////////////////////////////////////////////////////////////////////
+
+    void set_runnable(std::shared_ptr<RunnableBase> r) {
+      runnable_ = r;
+    }
 
     virtual ~TaskBase() noexcept { }
 
     TaskBase* current_create_work_context = nullptr;
 
-    std::set<handle_ptr> read_only_handles;
-    std::set<handle_t*> ignored_handles;
+    std::vector<std::function<void()>> registrations_to_run;
+    std::vector<std::function<void()>> post_registration_ops;
 
+  private:
+
+    // Should this be a unique_ptr?
+    std::shared_ptr<RunnableBase> runnable_;
 
 };
+
 
 class TopLevelTask
   : public TaskBase
@@ -241,82 +282,84 @@ class TopLevelTask
 };
 
 
-template <
-  typename Lambda,
-  typename... Types
->
-class Task : public TaskBase
-{
-  public:
-
-    Task(Lambda const && in_lambda)
-      : lambda_((
-          // Double parens so that we can use the comma operator to
-          // hide some stuff that needs to be done first
-          // First, set the current create_work context to this task
-          // so that the move operator of AccessHandle knows to use
-          // the capture hook in its move constructor
-          safe_static_cast<detail::TaskBase* const>(
-            detail::backend_runtime->get_running_task()
-          )->current_create_work_context = this,
-          // now do the actual move, which will trigger the AccessHandle move
-          // constructor hook
-          std::move(in_lambda)
-        ))
-    {
-      // IMPORTANT NOTE:  Anything that gets put in the constructor
-      // here *may* run after some/all invocations of add_dependency(), etc
-      // Proceed with caution
-
-      TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
-          detail::backend_runtime->get_running_task()
-      );
-
-      for(auto&& h : parent_task->read_only_handles) {
-        add_dependency(h, /* needs_read_data=*/true, /* needs_write_data=*/false);
-      }
-      parent_task->read_only_handles.clear();
-
-      //const auto& deps = this->get_dependencies();
-      //for(auto&& h : parent_task->waits_handles) {
-      //  // only add it if we don't already need it
-      //  if(deps.find(h) == deps.end()) {
-
-      //  }
-
-      //}
-
-      // Assert that all explicitly specified reads were captured
-      DARMA_ASSERT_MESSAGE(
-        parent_task->read_only_handles.empty(),
-        "Privileges explicitly declared but not used"
-      );
-
-      // Remove the current create_work_context pointer so that other moves don't trigger the hook
-      parent_task->current_create_work_context = nullptr;
-    }
-
-    void run() override {
-      // we should release the shared_ptrs to dependencies here,
-      // since they'll be held by the access handles at this point
-      for(auto&& dep_ptr : this->all_deps_) {
-        // Make sure the access handle does in fact have it
-        assert(not dep_ptr.unique());
-        dep_ptr.reset();
-      }
-      lambda_();
-    }
-
-  private:
-
-    Lambda lambda_;
-
-};
+//template <
+//  typename Lambda,
+//  typename... Types
+//>
+//class Task : public TaskBase
+//{
+//  public:
+//
+//    Task(Lambda const && in_lambda)
+//      : lambda_((
+//          // Double parens so that we can use the comma operator to
+//          // hide some stuff that needs to be done first
+//          // First, set the current create_work context to this task
+//          // so that the move operator of AccessHandle knows to use
+//          // the capture hook in its move constructor
+//          safe_static_cast<detail::TaskBase* const>(
+//            detail::backend_runtime->get_running_task()
+//          )->current_create_work_context = this,
+//          // now do the actual move, which will trigger the AccessHandle move
+//          // constructor hook
+//          std::move(in_lambda)
+//        ))
+//    {
+//      // IMPORTANT NOTE:  Anything that gets put in the constructor
+//      // here *may* run after some/all invocations of add_dependency(), etc
+//      // Proceed with caution
+//
+//      TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
+//          detail::backend_runtime->get_running_task()
+//      );
+//
+//      for(auto&& h : parent_task->read_only_handles) {
+//        add_dependency(h, /* needs_read_data=*/true, /* needs_write_data=*/false);
+//      }
+//      parent_task->read_only_handles.clear();
+//
+//      //const auto& deps = this->get_dependencies();
+//      //for(auto&& h : parent_task->waits_handles) {
+//      //  // only add it if we don't already need it
+//      //  if(deps.find(h) == deps.end()) {
+//
+//      //  }
+//
+//      //}
+//
+//      // Assert that all explicitly specified reads were captured
+//      DARMA_ASSERT_MESSAGE(
+//        parent_task->read_only_handles.empty(),
+//        "Privileges explicitly declared but not used"
+//      );
+//
+//      // Remove the current create_work_context pointer so that other moves don't trigger the hook
+//      parent_task->current_create_work_context = nullptr;
+//    }
+//
+//    void run() override {
+//      // we should release the shared_ptrs to dependencies here,
+//      // since they'll be held by the access handles at this point
+//      for(auto&& dep_ptr : this->all_deps_) {
+//        // Make sure the access handle does in fact have it
+//        assert(not dep_ptr.unique());
+//        dep_ptr.reset();
+//      }
+//      lambda_();
+//    }
+//
+//  private:
+//
+//    Lambda lambda_;
+//
+//};
 
 } // end namespace detail
 
 } // end namespace darma_runtime
 
+
+#include <darma/impl/task_capture_impl.h>
 
 
 #endif /* DARMA_RUNTIME_TASK_H_ */
