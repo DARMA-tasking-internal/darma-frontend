@@ -46,6 +46,7 @@
 #define DARMA_TASK_CAPTURE_IMPL_H_H
 
 #include <darma/impl/task.h>
+#include <darma/impl/handle.h>
 
 namespace darma_runtime {
 
@@ -56,8 +57,7 @@ void
 TaskBase::do_capture(
   AccessHandleT const& source,
   AccessHandleT& captured,
-  AccessHandleT& continuing,
-  bool is_read_only
+  AccessHandleT& continuing
 ) {
 
   registrations_to_run.emplace_back([&]{
@@ -65,25 +65,28 @@ TaskBase::do_capture(
     typedef typename AccessHandleT::dep_handle_ptr_maker_t dep_handle_ptr_maker_t;
     typedef typename AccessHandleT::read_only_usage_holder_ptr_maker_t read_only_usage_holder_ptr_maker_t;
 
-    bool ignored = ignored_handles.find(source.dep_handle_.get()) != ignored_handles.end();
+    //bool ignored = ignored_handles.find(source.dep_handle_.get()) != ignored_handles.end();
+    bool ignored = (source.captured_as_ & AccessHandleBase::Ignored) != 0;
 
     if (not ignored) {
 
       ////////////////////////////////////////////////////////////////////////////////
 
       // Determine the capture type
-      // TODO check that any explicit permissions are obeyed
+
+      // Unset the uncaptured bit
+      source.captured_as_ &= ~AccessHandleBase::Uncaptured;
 
       typename AccessHandleT::capture_op_t capture_type;
 
       // first check for any explicit permissions
-      auto found = read_only_handles.find(source.dep_handle_);
-      if (found != read_only_handles.end()) {
+      bool is_marked_read_capture = (source.captured_as_ & AccessHandleBase::ReadOnly) != 0;
+      if (is_marked_read_capture) {
         capture_type = AccessHandleT::ro_capture;
-        read_only_handles.erase(found);
       }
       else {
         // Deduce capture type from state
+        assert(source.captured_as_ == AccessHandleBase::CapturedAsInfo::Normal);
         switch (source.state_) {
           case AccessHandleT::Read_None:
           case AccessHandleT::Read_Read: {
