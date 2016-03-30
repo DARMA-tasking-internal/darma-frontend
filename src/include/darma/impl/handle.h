@@ -56,7 +56,7 @@
 #include <tinympl/logical_not.hpp>
 #include <tinympl/copy_traits.hpp>
 
-#include <darma/impl/task.h>
+#include <darma/impl/task_fwd.h>
 #include <darma/impl/runtime.h>
 #include <darma/interface/defaults/version.h>
 #include <darma/impl/util.h>
@@ -427,17 +427,59 @@ class for_AccessHandle;
 
 } // end namespace access_attorneys
 
+class AccessHandleBase {
+  public:
+    virtual ~AccessHandleBase() = default;
+
+    typedef enum State {
+      None_None,
+      Read_None,
+      Read_Read,
+      Modify_None,
+      Modify_Read,
+      Modify_Modify
+    } state_t;
+
+    typedef enum CaptureOp {
+      ro_capture,
+      mod_capture
+    } capture_op_t;
+
+    typedef enum CapturedAsInfo {
+      Normal = 0,
+      Ignored = 1,
+      ReadOnly = 2,
+      // Future use:
+      ScheduleOnly = 4,
+      Leaf = 8,
+      Uncaptured = 16
+    } captured_as_info_t;
+
+};
+
 } // end namespace darma_runtime::detail
 
 template <
   typename T = void,
   typename key_type = types::key_t,
-  typename version_type = types::version_t,
-  template <typename...> class smart_ptr_template = types::shared_ptr_template
+  typename version_type = types::version_t
 >
 class AccessHandle;
 
-}
+namespace detail {
+
+template <typename T>
+struct is_access_handle
+  : std::false_type { };
+
+template <typename... Args>
+struct is_access_handle<AccessHandle<Args...>>
+  : std::true_type { };
+
+
+} // end namespace detail
+
+} // end namespace darma_runtime
 
 
 

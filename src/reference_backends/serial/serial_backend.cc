@@ -57,8 +57,8 @@ std::mutex __output_mutex;
   std::unique_lock<std::mutex> __output_lg(__output_mutex); \
   std::cout << "RANK " << rank << "::" <<  __VA_ARGS__ << std::endl; \
 }
-#define DARMA_ASSERTION_BEGIN __output_mutex.lock(), std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
-#define DARMA_ASSERTION_END __output_mutex.unlock(), std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
+#define DARMA_ASSERTION_BEGIN __output_mutex.lock(), std::cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
+#define DARMA_ASSERTION_END __output_mutex.unlock(), std::cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
 #else
 #define DEBUG(...)
 #endif
