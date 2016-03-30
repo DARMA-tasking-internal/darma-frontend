@@ -56,22 +56,6 @@
 #include <darma_types.h>
 #include <functional>
 
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#endif
-
-//namespace darma_runtime {
-//
-//namespace detail {
-//
-//extern
-//DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-//abstract::backend::runtime_t*& backend_runtime;
-//
-//} // end namespace backend
-//
-//} // end namespace darma_runtime
-
 namespace mock_frontend {
 
 class MockSerializationManager
@@ -136,11 +120,13 @@ class MockDependencyHandle
       ON_CALL(*this, get_version())
         .WillByDefault(ReturnRef(get_version_return));
       ON_CALL(*this, set_version(_))
-        .WillByDefault(Invoke([this](version_t const &v){ get_version_return = v; version_is_pending_return = false; }));
+        .WillByDefault(Invoke([this](version_t const &v){
+           get_version_return = v; version_is_pending_return = false; }));
       ON_CALL(*this, version_is_pending())
         .WillByDefault(ReturnPointee(&version_is_pending_return));
       ON_CALL(*this, satisfy_with_data_block(_))
-        .WillByDefault(Invoke([this](darma_runtime::abstract::backend::DataBlock *db){ get_data_block_return = db; is_satisfied_return = true; }));
+        .WillByDefault(Invoke([this](darma_runtime::abstract::backend::DataBlock *db){
+           get_data_block_return = db; is_satisfied_return = true; }));
       ON_CALL(*this, get_data_block())
         .WillByDefault(ReturnPointee(&get_data_block_return));
       ON_CALL(*this, is_satisfied())

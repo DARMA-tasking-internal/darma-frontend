@@ -64,13 +64,13 @@
 
 using namespace darma_runtime;
 using namespace mock_frontend;
+using namespace ::testing;
 
 // some helper functions
 
 template <typename MockDep, typename Lambda, bool needs_read, bool needs_write, bool IsNice=false>
 void register_one_dep_capture(MockDep* captured, Lambda&& lambda) {
-  using namespace ::testing;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+  typedef typename std::conditional<IsNice, NiceMock<MockTask>, MockTask>::type task_t;
 
   auto new_task = std::make_unique<task_t>();
   EXPECT_CALL(*new_task, get_dependencies())
@@ -105,8 +105,7 @@ void register_read_write_capture(MockDep* captured, Lambda&& lambda) {
 
 template <typename Lambda, bool IsNice=false>
 void register_nodep_task(Lambda&& lambda) {
-  using namespace ::testing;
-  typedef typename std::conditional<false, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+  typedef typename std::conditional<false, NiceMock<MockTask>, MockTask>::type task_t;
 
   auto new_task = std::make_unique<task_t>();
   EXPECT_CALL(*new_task, get_dependencies())
@@ -118,13 +117,15 @@ void register_nodep_task(Lambda&& lambda) {
 }
 
 template <typename T, bool IsNice, bool ExpectNewAlloc, typename Version, typename... KeyParts>
-std::shared_ptr<typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type>
+std::shared_ptr<typename std::conditional<IsNice, NiceMock<MockDependencyHandle>,
+    MockDependencyHandle>::type>
 make_handle(
   Version v, KeyParts&&... kp
 ) {
-  using namespace ::testing;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockSerializationManager>, MockSerializationManager>::type ser_man_t;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type handle_t;
+  typedef typename std::conditional<IsNice, NiceMock<MockSerializationManager>,
+      MockSerializationManager>::type ser_man_t;
+  typedef typename std::conditional<IsNice, NiceMock<MockDependencyHandle>,
+      MockDependencyHandle>::type handle_t;
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
   auto ser_man = new ser_man_t;
@@ -161,13 +162,15 @@ make_handle(
 }
 
 template <typename T, bool IsNice, typename Version, typename... KeyParts>
-std::shared_ptr<typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type>
+std::shared_ptr<typename std::conditional<IsNice, NiceMock<MockDependencyHandle>,
+    MockDependencyHandle>::type>
 make_fetching_handle(
   Version v, KeyParts&&... kp
 ) {
-  using namespace ::testing;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockSerializationManager>, MockSerializationManager>::type ser_man_t;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type handle_t;
+  typedef typename std::conditional<IsNice, NiceMock<MockSerializationManager>,
+      MockSerializationManager>::type ser_man_t;
+  typedef typename std::conditional<IsNice, NiceMock<MockDependencyHandle>,
+      MockDependencyHandle>::type handle_t;
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
   auto ser_man = new ser_man_t;
