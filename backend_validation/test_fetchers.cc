@@ -544,23 +544,20 @@ TEST_F(TestFetchers, satisfy_fetcher_reg_then_pub) {
     });
   });
 
-  // declaring this out here so it doesn't go out of scope before tasks finish
-  auto h_1f = make_fetching_handle<int, true>(
-      MockDependencyHandle::version_t(), "the_key");
+  register_nodep_task([&,value,user_ver]{
+    auto h_1f = make_fetching_handle<int, true>(
+        MockDependencyHandle::version_t(), "the_key");
 
-  EXPECT_CALL(*h_1f, satisfy_with_data_block(_))
-    .Times(Exactly(1));
-  EXPECT_CALL(*h_1f, get_data_block())
-    .Times(AtLeast(1));
-  EXPECT_CALL(*h_1f, allow_writes())
-    .Times(Exactly(0));  // since it's a fetching handle
+    EXPECT_CALL(*h_1f, satisfy_with_data_block(_))
+      .Times(Exactly(1));
+    EXPECT_CALL(*h_1f, get_data_block())
+      .Times(AtLeast(1));
+    EXPECT_CALL(*h_1f, allow_writes())
+      .Times(Exactly(0));  // since it's a fetching handle
 
-  // h_1f is not a dependency of the task registered on the line below
-  register_nodep_task([&,value,user_ver, h_1f]{
     detail::backend_runtime->register_fetching_handle(h_1f.get(), user_ver);
 
-    // but h_1f is a dependency here
-    register_read_only_capture(h_1f.get(), [&,value]{
+    register_read_only_capture(h_1f.get(), [=]{
       ASSERT_TRUE(h_1f->is_satisfied());
       ASSERT_FALSE(h_1f->is_writable());
       {
@@ -640,23 +637,20 @@ TEST_F(TestFetchers, satisfy_fetcher_reg_then_pub_release) {
     });
   });
 
-  // declaring this out here so it doesn't go out of scope before tasks finish
-  auto h_1f = make_fetching_handle<int, true>(
-      MockDependencyHandle::version_t(), "the_key");
+  register_nodep_task([&,value,user_ver]{
+    auto h_1f = make_fetching_handle<int, true>(
+        MockDependencyHandle::version_t(), "the_key");
 
-  EXPECT_CALL(*h_1f, satisfy_with_data_block(_))
-    .Times(Exactly(1));
-  EXPECT_CALL(*h_1f, get_data_block())
-    .Times(AtLeast(1));
-  EXPECT_CALL(*h_1f, allow_writes())
-    .Times(Exactly(0));  // since it's a fetching handle
+    EXPECT_CALL(*h_1f, satisfy_with_data_block(_))
+      .Times(Exactly(1));
+    EXPECT_CALL(*h_1f, get_data_block())
+      .Times(AtLeast(1));
+    EXPECT_CALL(*h_1f, allow_writes())
+      .Times(Exactly(0));  // since it's a fetching handle
 
-  // h_1f is not a dependency of the task registered on the line below
-  register_nodep_task([&,value,user_ver, h_1f]{
     detail::backend_runtime->register_fetching_handle(h_1f.get(), user_ver);
 
-    // but h_1f is a dependency here
-    register_read_only_capture(h_1f.get(), [&,value]{
+    register_read_only_capture(h_1f.get(), [=]{
       ASSERT_TRUE(h_1f->is_satisfied());
       ASSERT_FALSE(h_1f->is_writable());
       {
@@ -732,23 +726,20 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub) {
     });
   });
 
-  // declaring this out here so it doesn't go out of scope before tasks finish
-  auto h_1f = make_fetching_handle<int, true>(
-      MockDependencyHandle::version_t(), "the_key");
+  register_nodep_task([&,value,user_ver]{
+    auto h_1f = make_fetching_handle<int, true>(
+        MockDependencyHandle::version_t(), "the_key");
 
-  EXPECT_CALL(*h_1f, satisfy_with_data_block(_))
-    .Times(Exactly(1));
-  EXPECT_CALL(*h_1f, get_data_block())
-    .Times(AtLeast(1));
-  EXPECT_CALL(*h_1f, allow_writes())
-    .Times(Exactly(0));  // since it's a fetching handle
+    EXPECT_CALL(*h_1f, satisfy_with_data_block(_))
+      .Times(Exactly(1));
+    EXPECT_CALL(*h_1f, get_data_block())
+      .Times(AtLeast(1));
+    EXPECT_CALL(*h_1f, allow_writes())
+      .Times(Exactly(0));  // since it's a fetching handle
 
-  // h_1f is not a dependency of the task registered on the line below
-  register_nodep_task([&,value,user_ver, h_1f]{
     detail::backend_runtime->register_fetching_handle(h_1f.get(), user_ver);
 
-    // but h_1f is a dependency here
-    register_read_only_capture(h_1f.get(), [&,value]{
+    register_read_only_capture(h_1f.get(), [=]{
       ASSERT_TRUE(h_1f->is_satisfied());
       ASSERT_FALSE(h_1f->is_writable());
       {
@@ -763,23 +754,20 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub) {
     });
   });
 
-  // declaring this out here so it doesn't go out of scope before tasks finish
-  auto h_2f = make_fetching_handle<int, true>(
-      MockDependencyHandle::version_t(), "the_key");
+  register_nodep_task([&,value,user_ver]{
+    auto h_2f = make_fetching_handle<int, true>(
+        MockDependencyHandle::version_t(), "the_key");
 
-  EXPECT_CALL(*h_2f, satisfy_with_data_block(_))
-    .Times(Exactly(1));
-  EXPECT_CALL(*h_2f, get_data_block())
-    .Times(AtLeast(1));
-  EXPECT_CALL(*h_2f, allow_writes())
-    .Times(Exactly(0));  // since it's a fetching handle
+    EXPECT_CALL(*h_2f, satisfy_with_data_block(_))
+      .Times(Exactly(1));
+    EXPECT_CALL(*h_2f, get_data_block())
+      .Times(AtLeast(1));
+    EXPECT_CALL(*h_2f, allow_writes())
+      .Times(Exactly(0));  // since it's a fetching handle
 
-  // h_2f is not a dependency of the task registered on the line below
-  register_nodep_task([&,value,user_ver, h_2f]{
     detail::backend_runtime->register_fetching_handle(h_2f.get(), user_ver);
 
-    // but h_2f is a dependency here
-    register_read_only_capture(h_2f.get(), [&,value]{
+    register_read_only_capture(h_2f.get(), [=]{
       ASSERT_TRUE(h_2f->is_satisfied());
       ASSERT_FALSE(h_2f->is_writable());
       {
@@ -859,23 +847,20 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub2) {
     });
   });
 
-  // declaring this out here so it doesn't go out of scope before tasks finish
-  auto h_1f = make_fetching_handle<int, true>(
-      MockDependencyHandle::version_t(), "the_key");
+  register_nodep_task([&,value,user_ver]{
+    auto h_1f = make_fetching_handle<int, true>(
+        MockDependencyHandle::version_t(), "the_key");
 
-  EXPECT_CALL(*h_1f, satisfy_with_data_block(_))
-    .Times(Exactly(1));
-  EXPECT_CALL(*h_1f, get_data_block())
-    .Times(AtLeast(1));
-  EXPECT_CALL(*h_1f, allow_writes())
-    .Times(Exactly(0));  // since it's a fetching handle
+    EXPECT_CALL(*h_1f, satisfy_with_data_block(_))
+      .Times(Exactly(1));
+    EXPECT_CALL(*h_1f, get_data_block())
+      .Times(AtLeast(1));
+    EXPECT_CALL(*h_1f, allow_writes())
+      .Times(Exactly(0));  // since it's a fetching handle
 
-  // h_1f is not a dependency of the task registered on the line below
-  register_nodep_task([&,value,user_ver, h_1f]{
     detail::backend_runtime->register_fetching_handle(h_1f.get(), user_ver);
 
-    // but h_1f is a dependency here
-    register_read_only_capture(h_1f.get(), [&,value]{
+    register_read_only_capture(h_1f.get(), [=]{
       ASSERT_TRUE(h_1f->is_satisfied());
       ASSERT_FALSE(h_1f->is_writable());
       {
@@ -890,23 +875,20 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub2) {
     });
   });
 
-  // declaring this out here so it doesn't go out of scope before tasks finish
-  auto h_2f = make_fetching_handle<int, true>(
-      MockDependencyHandle::version_t(), "the_key");
+  register_nodep_task([&,value,user_ver2]{
+    auto h_2f = make_fetching_handle<int, true>(
+        MockDependencyHandle::version_t(), "the_key");
 
-  EXPECT_CALL(*h_2f, satisfy_with_data_block(_))
-    .Times(Exactly(1));
-  EXPECT_CALL(*h_2f, get_data_block())
-    .Times(AtLeast(1));
-  EXPECT_CALL(*h_2f, allow_writes())
-    .Times(Exactly(0));  // since it's a fetching handle
+    EXPECT_CALL(*h_2f, satisfy_with_data_block(_))
+      .Times(Exactly(1));
+    EXPECT_CALL(*h_2f, get_data_block())
+      .Times(AtLeast(1));
+    EXPECT_CALL(*h_2f, allow_writes())
+      .Times(Exactly(0));  // since it's a fetching handle
 
-  // h_2f is not a dependency of the task registered on the line below
-  register_nodep_task([&,value,user_ver2, h_2f]{
     detail::backend_runtime->register_fetching_handle(h_2f.get(), user_ver2);
 
-    // but h_2f is a dependency here
-    register_read_only_capture(h_2f.get(), [&,value]{
+    register_read_only_capture(h_2f.get(), [=]{
       ASSERT_TRUE(h_2f->is_satisfied());
       ASSERT_FALSE(h_2f->is_writable());
       {
