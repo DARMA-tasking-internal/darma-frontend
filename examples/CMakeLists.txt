@@ -39,8 +39,36 @@ set(backend_dir ${CMAKE_SOURCE_DIR}/src/reference_backends/${backend_name})
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${backend_dir}")
 set(DARMA_BACKEND_LIBNAME darma_${backend_name}_backend)
 include_directories(${backend_dir})
+include_directories( ${DARMA_FRONTEND_DIR}/include )
+include_directories( ${DARMA_FRONTEND_DIR}/include/tinympl )
+include_directories( ${DARMA_FRONTEND_DIR}/include/darma )
 
 else() #built as standalone
+
+if (DARMA_BACKEND_PKG)
+
+find_package (${DARMA_BACKEND_PKG})
+if (NOT ${DARMA_BACKEND_PKG}_FOUND)
+  message (FATAL_ERROR "Error: Darma backend package could not be found")
+endiF ()
+
+set (CMAKE_CXX_COMPILER ${DARMA_BACKEND_CXX_COMPILER})
+if (NOT CMAKE_CXX_FLAGS)
+  set (CMAKE_CXX_FLAGS ${DARMA_BACKEND_CXX_FLAGS})
+endif ()
+
+include_directories( ${DARMA_BACKEND_INCLUDE_DIRS} )
+link_directories( ${DARMA_BACKEND_LIBRARY_DIRS} )
+# DARMA_BACKEND_LIBNAME might contain multiple libraries
+set( DARMA_BACKEND_LIBNAME ${DARMA_BACKEND_LIBRARIES} )
+
+else()  # not using cmake package
+
+if (NOT DARMA_BACKEND_LIBNAME)
+message(FATAL_ERROR
+    "Must define backend package via -DDARMA_BACKEND_PKG= or give library name for backend (e.g. for libdarma_backend_test.a give -DDARMA_BACKEND_LIBNAME=darma_backend_test)")
+endif()
+
 if (NOT DARMA_FRONTEND_DIR)
 message(FATAL_ERROR "Must define prefix install dir for frontend via -DDARMA_FRONTEND_DIR=")
 endif()
@@ -48,21 +76,20 @@ endif()
 if (NOT DARMA_BACKEND_DIR)
 message(FATAL_ERROR "Must define prefix install dir for backend via -DDARMA_BACKEND_DIR=")
 endif()
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${DARMA_BACKEND_DIR}/lib")
 
-if (NOT DARMA_BACKEND_LIBNAME)
-message(FATAL_ERROR "Must give library name for backend, e.g. for libdarma_backend_test.a give -DDARMA_BACKEND_LIBNAME=darma_backend_test")
-endif()
+link_directories( ${DARMA_BACKEND_DIR}/lib )
 
 include_directories( ${DARMA_BACKEND_DIR}/include )
-endif() #DARMA_ALL_IN_ONE
-
 include_directories( ${DARMA_FRONTEND_DIR}/include )
 include_directories( ${DARMA_FRONTEND_DIR}/include/tinympl )
 include_directories( ${DARMA_FRONTEND_DIR}/include/darma )
+
+endif()
+
+endif() #DARMA_ALL_IN_ONE
+
 include_directories( ${EXAMPLES_SRC_ROOT} )
 include_directories( ${EXAMPLES_BIN_ROOT} )
-
 
 add_subdirectory(stencil_1d)
 add_subdirectory(simple_hello)

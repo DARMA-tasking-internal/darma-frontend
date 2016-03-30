@@ -1,0 +1,28 @@
+# - Config file for the DarmaSerialBackend package
+# It defines the following variables
+#  DARMA_BACKEND_INCLUDE_DIRS - include directories
+#  DARMA_BACKEND_LIBRARY_DIRS - library directories
+#  DARMA_BACKEND_LIBRARIES    - libraries to link against
+#  DARMA_BACKEND_CXX_COMPILER - the compiler used
+#  DARMA_BACKEND_CXX_FLAGS - the compiler flags used
+
+# Compute paths
+GET_FILENAME_COMPONENT (DARMA_BACKEND_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+IF (EXISTS "${DARMA_BACKEND_CMAKE_DIR}/CMakeCache.txt")
+   # In build tree, which is undesirable
+   MESSAGE(FATAL_ERROR "FIND_PACKAGE found build tree instead of install tree.  Use -DDarmaSerialBackend_DIR= to point cmake to the install tree.")
+ELSE ()
+   SET (DARMA_BACKEND_INCLUDE_DIRS "${DARMA_BACKEND_CMAKE_DIR}/../include")
+   SET (DARMA_BACKEND_LIBRARY_DIRS "${DARMA_BACKEND_CMAKE_DIR}/../lib")
+ENDIF ()
+
+# Get compiler and flags
+SET (DARMA_BACKEND_CXX_COMPILER "@CMAKE_CXX_COMPILER@")
+SET (DARMA_BACKEND_CXX_FLAGS "@CMAKE_CXX_FLAGS@")
+ 
+# Our library dependencies (contains definitions for IMPORTED targets)
+INCLUDE ("${DARMA_BACKEND_CMAKE_DIR}/DarmaSerialBackendDepends.cmake")
+ 
+# These are IMPORTED targets created by DarmaSerialBackendDepends.cmake
+SET (DARMA_BACKEND_LIBRARIES darma_serial_backend)
+
