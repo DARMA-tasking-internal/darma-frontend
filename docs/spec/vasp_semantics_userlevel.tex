@@ -1,0 +1,125 @@
+%!TEX root = sandReportSpec.tex
+
+\appendix
+\newcommand{\specialcell}[2][c]{%
+  \begin{tabular}[#1]{@{}c@{}}#2\end{tabular}}
+
+
+\chapter{Handles Usage Rules}
+
+\todo[inline]{FR: Placeholder 
+just to write text for explaining 
+rules on using handles}
+
+
+\section{Overview}
+Handles are assigned states, and these states change 
+based on the operations applied to them. In other words, 
+handles' states transition. However, not all states 
+are allowed at all times. The ``permissions'' on 
+what it is allowed or not changes based on the 
+context. 
+Permissions can refer to: 
+\begin{itemize}
+\item Scheduling: permissions on a handle 
+within a \inlinecode{create_work}.
+\item Immediate: permissions that apply immediately.
+\end{itemize}
+
+For spec-0.2, there are two main types of handle:
+\begin{itemize}
+\item \inlinecode{initial_access<>}: when a handle of 
+this type is first created, it is assigned 
+``Modify/None'' permissions.
+%
+\item \inlinecode{read_access<>}: when a handle of 
+this type is first created, it is assigned 
+``Read/None'' permissions.
+\end{itemize}
+
+
+Example: 
+\hspace{-0.75cm}
+\begin{minipage}[t]{0.45\linewidth}%
+\centering
+\begin{vaspPseudo}
+initial_access<int> a;
+//a is in Modify/None
+a.set_value(1); //NOT allowed
+a.get_value();  //NOT allowed
+create_work([=]
+{
+    a.set_value(1); //allowed
+});
+\end{vaspPseudo}
+\end{minipage}
+\hspace{0.55cm}
+\begin{minipage}[t]{0.45\linewidth}
+\centering
+\begin{vaspPseudo}
+read_access<int> b;
+b.get_value(); //NOT allowed
+create_work([=]
+{
+    b.set_value(1); //allowed
+});
+\end{vaspPseudo}
+\end{minipage}
+
+
+\begin{table}[!h]
+\begin{center}
+{\small
+\begin{tabular}{cc|cc|cc|cc|cc}
+ \multicolumn{2}{c|}{\inlinecode{}}
+ & \multicolumn{2}{c|}{\inlinecode{get_value()}} 
+ & \multicolumn{2}{c|}{\inlinecode{set_value()}} 
+ & \multicolumn{2}{c|}{\inlinecode{mark_read_only()}} 
+ & \multicolumn{2}{c}{\inlinecode{release()}} \\
+ \hline
+ \specialcell{Scheduling\\ permissions} 
+ & \specialcell{Immediate\\ permissions}  
+ & { {\footnotesize Allowed? } } \hspace{-0.75cm} & { {\footnotesize After } }
+ & { {\footnotesize Allowed? } } \hspace{-0.75cm} & { {\footnotesize After } }
+ & { {\footnotesize Allowed? } } \hspace{-0.5cm} & { {\footnotesize After } }
+ & { {\footnotesize Allowed? } } \hspace{-0.5cm} & { {\footnotesize After } }\\
+ \hline
+ None & None
+ & No & -
+ & No & -
+ & No & -
+ & Yes${}^*$ & {\em None/None} \\
+ Read & None
+ & No & -
+ & No & -
+ & Yes${}^*$ & {\em Read/None}
+ & Yes & {\em None/None} \\
+ Read & Read
+ & Yes & {\em Read/Read}
+ & No & -
+ & Yes${}^*$ & {\em Read/Read}   
+ & Yes & {\em None/None}   \\
+ Modify & None
+ & No & -
+ & No & -
+ & Yes & {\em Read/None} 
+ & Yes & {\em None/None}   \\
+ Modify & Read
+ & Yes & {\em Modify/Read}  
+ & No & -
+ & Yes & {\em Read/Read} 
+ & Yes & {\em None/None}   \\
+ Modify & Modify
+ & Yes & {\em Modify/Modify}  
+ & Yes & {\em Modify/Modify}  
+ & Yes & {\em Read/Read}  
+ & Yes & {\em None/None}   \\
+\end{tabular}
+}
+\caption{Immediate operations on the various states. 
+State transitions marked with an asterisk (*) effectively
+represent no-ops and could generate warnings.}
+\label{tab:immsimp}
+\end{center}
+\end{table}
+%
