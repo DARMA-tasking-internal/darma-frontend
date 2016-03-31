@@ -77,6 +77,7 @@ Example (2):
 WRONG
 \begin{vaspPseudo}
 read_access<int> b
+//b is in Read/None
 b.get_value()   $\no$
 b.set_value(1)  $\no$
 create_work([=]{ //modify capture
@@ -90,6 +91,7 @@ create_work([=]{ //modify capture
 CORRECT
 \begin{vaspPseudo}
 read_access<int> b
+//b is in Read/None
 create_work([=]{ //modify capture
   b.get_value()  $\yes$
 });
