@@ -14,6 +14,11 @@ int darma_main(int argc, char** argv)
 
   create_work([=]
   {
+    my_handle1.emplace_value(3.3);
+    my_handle1.set_value(3.4);
+    my_handle1.get_reference() = 3.6;
+    std::cout << "After construction: h1Value = " << h1Val << std::endl;
+
     // first, constructs data with default constructor
     my_handle1.emplace_value(3.3);
     my_handle2.emplace_value("Sky is blue");

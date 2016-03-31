@@ -1,15 +1,18 @@
 %!TEX root = sandReportSpec.tex
 
-\appendix
+% \appendix
 \newcommand{\specialcell}[2][c]{%
   \begin{tabular}[#1]{@{}c@{}}#2\end{tabular}}
+\newcommand{\yes}{\text{\ding{51}}}
+\newcommand{\no}{\text{\ding{55}}}
+
 
 
 \chapter{Handles Usage Rules}
 
 \todo[inline]{FR: Placeholder 
 just to write text for explaining 
-rules on using handles}
+rules on using handles, can be moved some other place if more useful}
 
 
 \section{Overview}
@@ -22,7 +25,7 @@ context.
 Permissions can refer to: 
 \begin{itemize}
 \item Scheduling: permissions on a handle 
-within a \inlinecode{create_work}.
+within a \inlinecode{create_work} (more generally within a deferred work).
 \item Immediate: permissions that apply immediately.
 \end{itemize}
 
@@ -38,88 +41,192 @@ this type is first created, it is assigned
 \end{itemize}
 
 
-Example: 
+Example (1): 
 \hspace{-0.75cm}
 \begin{minipage}[t]{0.45\linewidth}%
 \centering
+WRONG
 \begin{vaspPseudo}
-initial_access<int> a;
+initial_access<int> a
 //a is in Modify/None
-a.set_value(1); //NOT allowed
-a.get_value();  //NOT allowed
-create_work([=]
-{
-    a.set_value(1); //allowed
+a.set_value(1) $\no$ 
+a.get_value()  $\no$
+\end{vaspPseudo}
+\end{minipage}
+\hspace{0.55cm}
+\begin{minipage}[t]{0.45\linewidth}
+\centering
+CORRECT
+\begin{vaspPseudo}
+initial_access<int> a
+//a is in Modify/None
+create_work([=]{ //modify capture
+    a.emplace_value(1)  $\yes$
+    a.set_value(1)      $\yes$
+    a.get_reference()=1 $\yes$
+});
+\end{vaspPseudo}
+\end{minipage}
+
+
+
+Example (2): 
+\hspace{-0.75cm}
+\begin{minipage}[t]{0.45\linewidth}%
+\centering
+WRONG
+\begin{vaspPseudo}
+read_access<int> b
+b.get_value()   $\no$
+b.set_value(1)  $\no$
+create_work([=]{ //modify capture
+  b.set_value(1) $\no$
 });
 \end{vaspPseudo}
 \end{minipage}
 \hspace{0.55cm}
 \begin{minipage}[t]{0.45\linewidth}
 \centering
+CORRECT
 \begin{vaspPseudo}
-read_access<int> b;
-b.get_value(); //NOT allowed
-create_work([=]
-{
-    b.set_value(1); //allowed
+read_access<int> b
+create_work([=]{ //modify capture
+  b.get_value()  $\yes$
 });
 \end{vaspPseudo}
 \end{minipage}
 
 
+
+
+
 \begin{table}[!h]
 \begin{center}
 {\small
-\begin{tabular}{cc|cc|cc|cc|cc}
+\begin{tabular}{cc|cc|cc|cc}
+ \hline
  \multicolumn{2}{c|}{\inlinecode{}}
  & \multicolumn{2}{c|}{\inlinecode{get_value()}} 
- & \multicolumn{2}{c|}{\inlinecode{set_value()}} 
- & \multicolumn{2}{c|}{\inlinecode{mark_read_only()}} 
+ & \multicolumn{2}{c|}
+ {
+    \specialcell{ \inlinecode{emplace_value()} \\ 
+                  \inlinecode{set_value()}\\
+                  \inlinecode{get_reference()}\\
+                  } 
+ } 
  & \multicolumn{2}{c}{\inlinecode{release()}} \\
  \hline
  \specialcell{Scheduling\\ permissions} 
  & \specialcell{Immediate\\ permissions}  
- & { {\footnotesize Allowed? } } \hspace{-0.75cm} & { {\footnotesize After } }
- & { {\footnotesize Allowed? } } \hspace{-0.75cm} & { {\footnotesize After } }
- & { {\footnotesize Allowed? } } \hspace{-0.5cm} & { {\footnotesize After } }
- & { {\footnotesize Allowed? } } \hspace{-0.5cm} & { {\footnotesize After } }\\
+ & { {\footnotesize Allowed? } } \hspace{-0.cm} & { {\footnotesize Continuing as}}
+ & { {\footnotesize Allowed? } } \hspace{-0.cm} & { {\footnotesize Continuing as}}
+ & { {\footnotesize Allowed? } } \hspace{-0cm} & { {\footnotesize Continuing as }}\\
  \hline
  None & None
  & No & -
  & No & -
- & No & -
  & Yes${}^*$ & {\em None/None} \\
+ %
  Read & None
  & No & -
  & No & -
- & Yes${}^*$ & {\em Read/None}
  & Yes & {\em None/None} \\
+ %
  Read & Read
  & Yes & {\em Read/Read}
  & No & -
- & Yes${}^*$ & {\em Read/Read}   
  & Yes & {\em None/None}   \\
+ %
  Modify & None
  & No & -
  & No & -
- & Yes & {\em Read/None} 
  & Yes & {\em None/None}   \\
+ %
  Modify & Read
  & Yes & {\em Modify/Read}  
  & No & -
- & Yes & {\em Read/Read} 
  & Yes & {\em None/None}   \\
+ %
  Modify & Modify
  & Yes & {\em Modify/Modify}  
  & Yes & {\em Modify/Modify}  
- & Yes & {\em Read/Read}  
  & Yes & {\em None/None}   \\
+\hline
 \end{tabular}
 }
-\caption{Immediate operations on the various states. 
-State transitions marked with an asterisk (*) effectively
+\caption{Operations on the various states. 
+Transitions marked with an asterisk (*) effectively
 represent no-ops and could generate warnings.}
 \label{tab:immsimp}
 \end{center}
 \end{table}
 %
+
+
+
+
+\begin{table}[b]
+\begin{center}
+{\small
+\begin{tabular}{cc|ccc|ccc}
+ \hline
+ \multicolumn{2}{c|}{} 
+ & \multicolumn{3}{c|}{\em{read-only capture}} 
+ & \multicolumn{3}{c}{\em{modify capture}}  \\
+ \hline
+ \specialcell{Scheduling\\ permissions} 
+ & \specialcell{Immediate\\ permissions}  
+ & {\footnotesize Allowed? } & {\footnotesize Captured } 
+ & {\footnotesize Continuing as} 
+ & {\footnotesize Allowed? } & {\footnotesize Captured } 
+ & {\footnotesize Continuing as} \\
+ \hline
+ None & None & No & - & - & No & - & - \\
+ %
+ Read & None 
+ & Yes 
+ & {\em Read/Read}
+ & {\em Read/None}
+ & No
+ & -
+ & - \\
+ %
+ Read & Read
+ & Yes 
+ & {\em Read/Read}
+ & {\em Read/Read}
+ & No
+ & -
+ & - \\
+ %
+ Modify & None
+ & Yes 
+ & {\em Read/Read}
+ & {\em Modify/None}
+ & Yes
+ & {\em Modify/Modify} 
+ & {\em Modify/None} \\
+ %
+ Modify & Read
+ & Yes 
+ & {\em Read/Read}
+ & {\em Modify/Read}
+ & Yes
+ & {\em Modify/Modify} 
+ & {\em Modify/None} \\
+ %
+ Modify & Modify
+ & Yes 
+ & {\em Read/Read} 
+ & {\em Modify/Read} 
+ & Yes
+ & {\em Modify/Modify}
+ & {\em Modify/None} \\
+\end{tabular}
+}
+\caption{Deferred (capturing) operations on the various states.}
+\label{tab:capsimp}
+\end{center}
+\end{table}
+
+
