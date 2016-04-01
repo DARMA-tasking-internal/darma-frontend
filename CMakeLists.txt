@@ -11,6 +11,8 @@ include_directories( ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} )
 
 set(DARMA_ALL_IN_ONE On)
 
+option (CTEST_SKIP_EXAMPLES "Skip the examples when running ctest." OFF)
+
 add_subdirectory(src)
 add_subdirectory(examples)
 
