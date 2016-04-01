@@ -99,7 +99,7 @@ endif()
 function(add_test_for_example test_name test_exec test_args)
 if (NOT CTEST_SKIP_EXAMPLES)
 add_test(${test_name} ${test_exec} ${example_standard_args} ${test_args})
-set_tests_properties(${test_name} PROPERTIES TIMEOUT 60)
+set_tests_properties(${test_name} PROPERTIES TIMEOUT 10)
 endif()
 endfunction()
 
