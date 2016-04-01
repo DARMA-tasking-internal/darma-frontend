@@ -96,6 +96,13 @@ if (SERIAL_BACKEND)
 set(example_standard_args --serial-backend-n-ranks 8)
 endif()
 
+function(add_test_for_example test_name test_exec test_args)
+if (NOT CTEST_SKIP_EXAMPLES)
+add_test(${test_name} ${test_exec} ${example_standard_args} ${test_args})
+set_tests_properties(${test_name} PROPERTIES TIMEOUT 60)
+endif()
+endfunction()
+
 add_subdirectory(stencil_1d)
 add_subdirectory(simple_hello)
 add_subdirectory(darma_hello)
