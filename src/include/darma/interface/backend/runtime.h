@@ -82,7 +82,7 @@ class Runtime {
     typedef Key key_t;
     typedef Version version_t;
     typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
-    typedef abstract::frontend::ReduceOp reduce_op_t;
+    //typedef abstract::frontend::ReduceOp reduce_op_t;
     typedef abstract::frontend::ContainmentManager<Key, Version> containment_manager_t;
     typedef abstract::frontend::AliasingManager<Key, Version> aliasing_manager_t;
     typedef abstract::frontend::Task<
@@ -176,16 +176,16 @@ class Runtime {
       into a new output dependency handle
       @param input_key
     */
-    virtual void
-    allreduce(
-      key_t* input_key,
-      handle_t* const input,
-      handle_t* const outpt,
-      int chunkNumber,
-      int begin,
-      int end,
-      allreduce_op_t* op
-    ) = 0;
+    //virtual void
+    //allreduce(
+    //  key_t* input_key,
+    //  handle_t* const input,
+    //  handle_t* const outpt,
+    //  int chunkNumber,
+    //  int begin,
+    //  int end,
+    //  allreduce_op_t* op
+    //) = 0;
 
 
     /** @brief Register a dependency handle that is satisfied by retrieving data from the data store

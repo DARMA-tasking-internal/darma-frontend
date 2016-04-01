@@ -8,6 +8,7 @@ handle.h
 handle_attorneys.h
 key_concept.h
 runtime.h
+segmented_key.h
 serialization.h
 serialization_builtin.h
 spmd.h
