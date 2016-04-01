@@ -94,6 +94,7 @@ class basic_version {
     void
     pop_subversion()
     {
+      assert(depth() > 1);
       version_clock.pop_back();
     }
 
@@ -109,7 +110,7 @@ class basic_version {
     truncated() const {
       constexpr const Comparable zero = Comparable();
       basic_version rv(*this);
-      for(int i = depth()-1; i >= 0; --i) {
+      for(int i = depth()-1; i >= 1; --i) {
         if(rv.version_clock[i] == zero) rv.pop_subversion();
       }
       return rv;
