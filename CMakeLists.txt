@@ -14,11 +14,12 @@ set(DARMA_ALL_IN_ONE On)
 option (CTEST_SKIP_EXAMPLES "Skip the examples when running ctest." OFF)
 
 add_subdirectory(src)
-add_subdirectory(examples)
 
 if (GTEST_DIR)
 add_subdirectory(backend_validation)
 else()
 message("-- GTEST_DIR not given for GoogleTest installation - skipping test build")
 endif()
+
+add_subdirectory(examples)
 
