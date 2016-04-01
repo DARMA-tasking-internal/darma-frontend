@@ -187,7 +187,7 @@ static_assert(sizeof(MultiSegmentKey<3>) == 256);
 
 template <typename T, typename Enable=void>
 struct bytes_convert {
-  constexpr bool size_known_statically = false;
+  static constexpr bool size_known_statically = false;
   inline size_t
   get_size(T const& val) const {
     std::ostringstream osstr;
@@ -211,9 +211,9 @@ struct bytes_convert {
 
 template <typename T>
 struct bytes_convert<T, std::enable_if_t<std::is_fundamental<T>::value>> {
-  constexpr bool size_known_statically = true;
-  constexpr bool can_reinterpret_cast = true;
-  constexpr size_t size = sizeof(T);
+  static constexpr bool size_known_statically = true;
+  static constexpr bool can_reinterpret_cast = true;
+  static constexpr size_t size = sizeof(T);
   inline constexpr void
   operator()(T const& val, void* dest, const size_t offset, const size_t n_bytes) const {
     ::memcpy(dest, &val + n_bytes, n_bytes);
@@ -222,9 +222,9 @@ struct bytes_convert<T, std::enable_if_t<std::is_fundamental<T>::value>> {
 
 template <typename T, size_t N>
 struct bytes_convert<T[N], std::enable_if_t<std::is_fundamental<T>::value>> {
-  constexpr bool size_known_statically = true;
-  constexpr bool can_reinterpret_cast = true;
-  constexpr size_t size = sizeof(T) * N;
+  static constexpr bool size_known_statically = true;
+  static constexpr bool can_reinterpret_cast = true;
+  static constexpr size_t size = sizeof(T) * N;
   inline constexpr void
   operator()(T const val[N], void* dest, const size_t offset, const size_t n_bytes) const {
     ::memcpy(dest, val + offset, n_bytes);
@@ -233,7 +233,7 @@ struct bytes_convert<T[N], std::enable_if_t<std::is_fundamental<T>::value>> {
 
 template <typename CharT, typename Traits, typename Allocator>
 struct bytes_convert<std::basic_string<CharT, Traits, Allocator>> {
-  constexpr bool size_known_statically = false;
+  static constexpr bool size_known_statically = false;
   typedef std::basic_string<CharT, Traits, Allocator> string_t;
   inline size_t
   get_size(string_t const& val) const {
@@ -261,7 +261,7 @@ template <typename CharT>
 struct bytes_convert<CharT*,
   std::enable_if_t<has_char_traits<std::remove_cv_t<CharT>>::value>
 > {
-  constexpr bool size_known_statically = false;
+  static constexpr bool size_known_statically = false;
   typedef std::char_traits<std::remove_cv_t<CharT>> traits_t;
   inline size_t
   get_size(CharT* val) const {
@@ -272,9 +272,32 @@ struct bytes_convert<CharT*,
     const size_t size = get_size(val);
     ::memcpy(dest, ((char*)val) + offset, n_bytes);
   }
+  // Can't be converted back
 };
 
+template <typename T>
+using convertible_to_bytes_archetype = decltype( bytes_convert<T>()(
+  std::declval<T>(), std::declval<void*>(), size_t(0), size_t(0)
+) );
+template <typename T>
+using convertible_to_bytes = meta::is_detected<convertible_to_bytes_archetype, T>;
 
+template <typename T>
+using convertible_from_bytes_archetype = decltype( std::declval<bytes_convert<T>>().get_value(
+  std::declval<void*>(), size_t(0)
+) );
+template <typename T>
+using convertible_from_bytes = meta::is_detected_convertible<T, convertible_from_bytes_archetype, T>;
+
+template <typename T>
+using can_reinterpret_cast_bytes_archetype = std::integral_constant<bool, bytes_convert<T>::can_reinterpret_cast>;
+template <typename T>
+using can_reinterpret_cast_bytes = meta::detected_or<std::false_type, can_reinterpret_cast_bytes_archetype, T>;
+
+template <typename T>
+using bytes_size_known_statically_archetype = std::integral_constant<bool, bytes_convert<T>::size_known_statically>;
+template <typename T>
+using bytes_size_known_statically = meta::detected_or<std::false_type, bytes_size_known_statically_archetype, T>;
 
 } // end namespace detail
 
