@@ -5,6 +5,7 @@ project (DarmaExamples)
 set (DarmaExamples_VERSION_MAJOR 0)
 set (DarmaExamples_VERSION_MINOR 2)
 
+enable_testing()
 
 # Compiler-specific C++11 activation.
 set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} -std=c++1y")
@@ -90,6 +91,10 @@ endif() #DARMA_ALL_IN_ONE
 
 include_directories( ${EXAMPLES_SRC_ROOT} )
 include_directories( ${EXAMPLES_BIN_ROOT} )
+
+if (SERIAL_BACKEND)  
+set(example_standard_args --serial-backend-n-ranks 8)
+endif()
 
 add_subdirectory(stencil_1d)
 add_subdirectory(simple_hello)
