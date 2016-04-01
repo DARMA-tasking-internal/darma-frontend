@@ -119,7 +119,7 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -206,7 +206,7 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg2) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -312,7 +312,7 @@ TEST_F(TestFetchers, satisfy_fetcher_pub2_then_reg2) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -420,7 +420,7 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg_release) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -501,7 +501,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg_then_pub) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -593,7 +593,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg_then_pub_release) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -683,7 +683,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -802,7 +802,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub2) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -922,7 +922,7 @@ TEST_F(TestFetchers, publish_no_fetchers) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
