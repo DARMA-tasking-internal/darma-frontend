@@ -20,6 +20,7 @@ set (impl_meta_HEADERS
 meta/detection.h
 meta/filter_types.h
 meta/indices_where.h
+meta/is_streamable.h
 meta/largest_aligned.h
 meta/member_detector.h
 meta/metaprogramming.h

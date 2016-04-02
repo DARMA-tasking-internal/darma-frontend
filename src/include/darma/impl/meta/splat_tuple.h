@@ -58,22 +58,17 @@ namespace _splat_tuple_impl {
 namespace m = tinympl;
 namespace mv = tinympl::variadic;
 
-template <size_t Spot, size_t Size, typename Callable, typename Tuple, typename... Args>
-struct helper;
 
-template <size_t Spot, size_t Size, typename Callable, typename... Ts, typename... Args>
-struct helper<Spot, Size, Callable, std::tuple<Ts...>, Args...> {
+template <size_t Spot, size_t Size, typename Callable>
+struct helper {
   private:
     typedef helper<
-        Spot+1, Size, Callable, std::tuple<Ts...>,
-        Args..., typename mv::at<Spot, Ts...>::type
+      Spot+1, Size, Callable
     > _next_t;
   public:
-    typedef decltype(std::declval<Callable>()(std::declval<Ts>()...)) return_t;
-    static_assert(std::is_same<return_t, typename _next_t::return_t>::value, "return type mismatch");
 
     template <typename ForwardedTuple, typename... ForwardedArgs>
-    inline constexpr return_t
+    inline constexpr auto
     operator()(Callable&& callable, ForwardedTuple&& ftup, ForwardedArgs&&... args) const {
       return _next_t()(
         std::forward<Callable>(callable),
@@ -84,17 +79,12 @@ struct helper<Spot, Size, Callable, std::tuple<Ts...>, Args...> {
     }
 };
 
-template <size_t Size, typename Callable, typename... Ts, typename... Args>
-struct helper<Size, Size, Callable, std::tuple<Ts...>, Args...> {
-  typedef decltype(std::declval<Callable>()(std::declval<Args>()...)) return_t;
+template <size_t Size, typename Callable>
+struct helper<Size, Size, Callable> {
 
   template <typename ForwardedTuple, typename... ForwardedArgs>
-  inline constexpr return_t
+  inline constexpr auto
   operator()(Callable&& callable, ForwardedTuple&& ftup, ForwardedArgs&&... args) const {
-    static_assert(
-      std::is_same<return_t, decltype(callable(std::forward<ForwardedArgs>(args)...))>::value,
-      "return type mismatch"
-    );
     return callable(std::forward<ForwardedArgs>(args)...);
   }
 
@@ -104,9 +94,9 @@ struct helper<Size, Size, Callable, std::tuple<Ts...>, Args...> {
 } // end namespace _splat_tuple_impl
 
 template <typename Callable, typename Tuple>
-typename _splat_tuple_impl::helper<0, tinympl::size<Tuple>::value, Callable, std::decay_t<Tuple>>::return_t
+auto
 splat_tuple(Tuple&& tuple, Callable&& callable) {
-  return _splat_tuple_impl::helper<0, tinympl::size<Tuple>::value, Callable, std::decay_t<Tuple>>()(
+  return _splat_tuple_impl::helper<0, tinympl::size<Tuple>::value, Callable>()(
     std::forward<Callable>(callable),
     std::forward<Tuple>(tuple)
   );

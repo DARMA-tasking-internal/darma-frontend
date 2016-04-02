@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                                any_of.hpp                               
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                         compatibility.hpp
+//                          tinympl
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,33 +42,13 @@
 //@HEADER
 */
 
+#ifndef TINYMPL_COMPATIBILITY_HPP
+#define TINYMPL_COMPATIBILITY_HPP
 
-#ifndef TINYMPL_ANY_OF_HPP
-#define TINYMPL_ANY_OF_HPP
+#if __has_feature(cxx_variable_templates)
+#  define TINYMPL_HAS_VARIABLE_TEMPLATES 1
+#else
+#  define TINYMPL_HAS_VARIABLE_TEMPLATES 0
+#endif
 
-#include <tinympl/variadic/any_of.hpp>
-#include <tinympl/as_sequence.hpp>
-#include <tinympl/sequence.hpp>
-
-namespace tinympl {
-
-/**
- * \ingroup SeqNonModAlgs
- * \class any_of
- * \brief Determines whether any of the elements in the sequence satisfy the
-given predicate
- * \param Sequence the input sequence
- * \param F the predicate, `F<T>::type::value` must be convertible to `bool`
- * \return `any_of<...>::type` is a `std::integral_constant<bool,v>` where `v`
-is true iff at least one element in the sequence satisfy the predicate `F`
- * \sa variadic::any_of
- */
-template <class Sequence, template <class...> class F>
-struct any_of : any_of<as_sequence_t<Sequence>, F> { };
-
-template< template<class ...> class F, class ... Args>
-struct any_of<sequence<Args...>, F > : variadic::any_of<F, Args...> { };
-
-} // namespace tinympl
-
-#endif // TINYMPL_ANY_OF_HPP
+#endif //TINYMPL_COMPATIBILITY_HPP

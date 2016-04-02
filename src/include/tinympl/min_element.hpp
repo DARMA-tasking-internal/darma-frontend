@@ -79,10 +79,13 @@ template<template<class ... > class Cmp, class ... Args>
 struct min_element<sequence<Args...>, Cmp> :
     variadic::min_element<Cmp, Args...> {};
 
-template <typename Arg1, typename Arg2, typename... Args>
-struct min
-  : at<min_element<sequence<Arg1, Arg2, Args...>, less>::type::value,
-      sequence<Arg1, Arg2, Args...>
+template <typename... Args>
+struct min;
+
+template <typename Arg1, typename... Args>
+struct min<Arg1, Args...>
+  : at<min_element<sequence<Arg1, Args...>, less>::type::value,
+      sequence<Arg1, Args...>
     >::type
 { };
 

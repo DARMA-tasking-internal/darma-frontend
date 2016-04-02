@@ -2,6 +2,7 @@
 #include <darma.h>
 
 #include <stencil_1d/common.h> // do_stencil()
+#include <cstring> // ::memcpy()
 
 using namespace darma_runtime;
 

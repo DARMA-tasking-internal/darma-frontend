@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                                any_of.hpp                               
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                       test_segmented_key.cc
+//                         darma
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -48,32 +43,20 @@
 */
 
 
-#ifndef TINYMPL_ANY_OF_HPP
-#define TINYMPL_ANY_OF_HPP
+#include <gtest/gtest.h>
 
-#include <tinympl/variadic/any_of.hpp>
-#include <tinympl/as_sequence.hpp>
-#include <tinympl/sequence.hpp>
+#include <darma/impl/segmented_key.h>
+#include <darma/impl/key_concept.h>
 
-namespace tinympl {
+using namespace darma_runtime;
 
-/**
- * \ingroup SeqNonModAlgs
- * \class any_of
- * \brief Determines whether any of the elements in the sequence satisfy the
-given predicate
- * \param Sequence the input sequence
- * \param F the predicate, `F<T>::type::value` must be convertible to `bool`
- * \return `any_of<...>::type` is a `std::integral_constant<bool,v>` where `v`
-is true iff at least one element in the sequence satisfy the predicate `F`
- * \sa variadic::any_of
- */
-template <class Sequence, template <class...> class F>
-struct any_of : any_of<as_sequence_t<Sequence>, F> { };
+DARMA_STATIC_ASSERT_VALID_KEY_TYPE(detail::SegmentedKey);
 
-template< template<class ...> class F, class ... Args>
-struct any_of<sequence<Args...>, F > : variadic::any_of<F, Args...> { };
-
-} // namespace tinympl
-
-#endif // TINYMPL_ANY_OF_HPP
+TEST(TestSegmentedKey, simple_int) {
+  using namespace darma_runtime::detail;
+  auto maker = typename key_traits<SegmentedKey>::maker{};
+  SegmentedKey k = maker(1,2,3);
+  ASSERT_EQ(k.component<0>().as<int>(), 1);
+  ASSERT_EQ(k.component<1>().as<int>(), 2);
+  ASSERT_EQ(k.component<2>().as<int>(), 3);
+}

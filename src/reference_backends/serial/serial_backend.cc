@@ -50,6 +50,7 @@
 #include <mutex>
 #include <thread>
 #include <atomic>
+#include <cstring>
 
 #if DHARMA_SERIAL_DEBUG
 std::mutex __output_mutex;
@@ -415,7 +416,7 @@ class SerialRuntime
     pdb.data_block = new SerialDataBlock();
     size_t data_size = handle->get_serialization_manager()->get_metadata_size(nullptr);
     pdb.data_block->data_ = malloc(data_size);
-    memcpy(pdb.data_block->data_, handle->get_data_block()->get_data(), data_size);
+    ::memcpy(pdb.data_block->data_, handle->get_data_block()->get_data(), data_size);
 
     pdb.fetch_handles_expected = n_fetchers;
     pdb.published_version = handle->get_version();

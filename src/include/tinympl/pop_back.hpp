@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                                any_of.hpp                               
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                          pop_back.hpp
+//                         dharma
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,33 +42,32 @@
 //@HEADER
 */
 
+#ifndef FRONTEND_INCLUDE_TINYMPL_POP_BACK_HPP_
+#define FRONTEND_INCLUDE_TINYMPL_POP_BACK_HPP_
 
-#ifndef TINYMPL_ANY_OF_HPP
-#define TINYMPL_ANY_OF_HPP
-
-#include <tinympl/variadic/any_of.hpp>
-#include <tinympl/as_sequence.hpp>
 #include <tinympl/sequence.hpp>
+#include <tinympl/as_sequence.hpp>
+#include <tinympl/variadic/pop_back.hpp>
 
 namespace tinympl {
 
-/**
- * \ingroup SeqNonModAlgs
- * \class any_of
- * \brief Determines whether any of the elements in the sequence satisfy the
-given predicate
- * \param Sequence the input sequence
- * \param F the predicate, `F<T>::type::value` must be convertible to `bool`
- * \return `any_of<...>::type` is a `std::integral_constant<bool,v>` where `v`
-is true iff at least one element in the sequence satisfy the predicate `F`
- * \sa variadic::any_of
- */
-template <class Sequence, template <class...> class F>
-struct any_of : any_of<as_sequence_t<Sequence>, F> { };
+template<class Sequence,
+  template <class...> class Out = as_sequence<Sequence>::template rebind
+>
+struct pop_back : pop_back<as_sequence_t<Sequence>, Out> {};
 
-template< template<class ...> class F, class ... Args>
-struct any_of<sequence<Args...>, F > : variadic::any_of<F, Args...> { };
+template<template <class...> class Out, class... Args>
+struct pop_back<sequence<Args...>, Out> : variadic::pop_back<Out, Args...> {};
+
+namespace types_only {
+
+template<class Sequence>
+struct pop_back : tinympl::pop_back<Sequence, as_sequence<Sequence>::template rebind> { };
+
+} // end namespace types_only
 
 } // namespace tinympl
 
-#endif // TINYMPL_ANY_OF_HPP
+
+
+#endif /* FRONTEND_INCLUDE_TINYMPL_POP_BACK_HPP_ */

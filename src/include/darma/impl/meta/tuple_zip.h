@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                                any_of.hpp                               
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                      tuple_zip.h
+//                         DARMA
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,33 +42,57 @@
 //@HEADER
 */
 
+#ifndef DARMA_IMPL_META_TUPLE_ZIP_H_
+#define DARMA_IMPL_META_TUPLE_ZIP_H_
 
-#ifndef TINYMPL_ANY_OF_HPP
-#define TINYMPL_ANY_OF_HPP
+#include <tinympl/zip.hpp>
+#include <tinympl/tuple_as_sequence.hpp>
+#include <tinympl/min_element.hpp>
 
-#include <tinympl/variadic/any_of.hpp>
-#include <tinympl/as_sequence.hpp>
-#include <tinympl/sequence.hpp>
+namespace darma_runtime {
 
-namespace tinympl {
+namespace meta {
 
-/**
- * \ingroup SeqNonModAlgs
- * \class any_of
- * \brief Determines whether any of the elements in the sequence satisfy the
-given predicate
- * \param Sequence the input sequence
- * \param F the predicate, `F<T>::type::value` must be convertible to `bool`
- * \return `any_of<...>::type` is a `std::integral_constant<bool,v>` where `v`
-is true iff at least one element in the sequence satisfy the predicate `F`
- * \sa variadic::any_of
- */
-template <class Sequence, template <class...> class F>
-struct any_of : any_of<as_sequence_t<Sequence>, F> { };
+namespace _impl {
 
-template< template<class ...> class F, class ... Args>
-struct any_of<sequence<Args...>, F > : variadic::any_of<F, Args...> { };
 
-} // namespace tinympl
+template <size_t I, size_t N, typename... Tuples>
+struct tuple_zip_helper {
+  typedef tuple_zip_helper<I+1, N, Tuples...> next_helper_t;
+  inline constexpr auto
+  operator()(Tuples&&... tuples) const {
+    return std::tuple_cat(
+      std::forward_as_tuple(
+        std::forward_as_tuple(std::get<I>(std::forward<Tuples>(tuples))...)
+      ),
+      next_helper_t()(std::forward<Tuples>(tuples)...)
+    );
+  }
+};
 
-#endif // TINYMPL_ANY_OF_HPP
+template <size_t N, typename... Tuples>
+struct tuple_zip_helper<N, N, Tuples...> {
+  inline constexpr auto
+  operator()(Tuples&&...) const {
+    return std::forward_as_tuple();
+  }
+};
+
+} // end namespace _impl
+
+template <typename... Tuples>
+auto
+tuple_zip(Tuples&&... tuples) {
+  static constexpr size_t min_size =
+    tinympl::min<std::tuple_size<Tuples>...>::value;
+  typedef _impl::tuple_zip_helper<0, min_size, Tuples...> helper_t;
+
+  return helper_t()(std::forward<Tuples>(tuples)...);
+}
+
+} // end namespace meta
+
+} // end namespace darma_runtime
+
+
+#endif //DARMA_IMPL_META_TUPLE_ZIP_H_

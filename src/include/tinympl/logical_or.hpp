@@ -62,7 +62,7 @@ namespace tinympl {
  * \brief Computes the logical or of all its arguments
  */
 template <class... Args>
-struct logical_or : variadic::any_of<identity, Args...> {};
+struct logical_or : variadic::any_of<value_identity, Args...> {};
 template <class... Args>
 using or_ = logical_or<Args...>;
 

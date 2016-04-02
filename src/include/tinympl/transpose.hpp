@@ -75,13 +75,13 @@ transposed
  * \param OutInner The type of the inner output sequence
  */
 template < class SequenceOfSequences,
-           template<class ...> class OutOuter =
-                as_sequence<SequenceOfSequences>::template rebind,
-           template<class ...> class OutInner =
-                as_sequence<typename at<0,SequenceOfSequences>::type>::
-                    template rebind >
+  template<class ...> class OutOuter =
+    as_sequence<SequenceOfSequences>::template rebind,
+  template<class ...> class OutInner =
+    as_sequence<typename at<0,SequenceOfSequences>::type>::template rebind
+>
 struct transpose :
-    transpose< as_sequence_t<SequenceOfSequences>, OutOuter, OutInner > {};
+  transpose< as_sequence_t<SequenceOfSequences>, OutOuter, OutInner > {};
 
 template< class ... Sequences,
           template<class ...> class OutOuter,
