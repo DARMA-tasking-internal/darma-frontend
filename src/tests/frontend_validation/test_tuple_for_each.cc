@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          check_allowed_kwargs.h
-//                         dharma_new
+//                       test_tuple_for_each.cc
+//                         darma
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,55 +42,62 @@
 //@HEADER
 */
 
-#ifndef SRC_INCLUDE_DARMA_IMPL_KEYWORD_ARGUMENTS_CHECK_ALLOWED_KWARGS_H_
-#define SRC_INCLUDE_DARMA_IMPL_KEYWORD_ARGUMENTS_CHECK_ALLOWED_KWARGS_H_
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
-#include <tinympl/all_of.hpp>
-#include <tinympl/any_of.hpp>
-#include <tinympl/lambda.hpp>
+#include <darma/impl/meta/tuple_for_each.h>
 
-#include "../meta/detection.h"
-#include "kwarg_expression.h"
+using namespace darma_runtime::meta;
 
-namespace darma_runtime {
-namespace detail {
-
-namespace m = tinympl;
-namespace mv = tinympl::variadic;
-namespace mp = tinympl::placeholders;
-
-
-template <typename... KWTags>
-struct only_allowed_kwargs_given {
+TEST(TupleForEach, basic) {
+  std::vector<std::string> vals;
+  tuple_for_each(std::forward_as_tuple("hello", "world"), [&](auto&& val) {
+    vals.push_back(val);
+  });
+  ASSERT_EQ(vals[0], "hello");
+  ASSERT_EQ(vals[1], "world");
+}
 
 
-  template <typename... Args>
-  struct apply {
-    private:
+TEST(TupleForEach, basic_zip) {
+  using namespace ::testing;
+  std::vector<std::string> vals;
+  tuple_for_each_zipped(
+    std::forward_as_tuple("hello 1", "world 1"),
+    std::forward_as_tuple("hello 2", "world 2"),
+    [&](auto&& val1, auto&& val2) {
+      vals.push_back(val1);
+      vals.push_back(val2);
+    }
+  );
+  ASSERT_THAT(vals, ElementsAre("hello 1", "hello 2", "world 1", "world 2"));
+}
 
-      template <typename Arg>
-      using _allowed_arg = mv::any_of<
-        m::lambda<
-          std::is_same<typename is_kwarg_expression<Arg>::tag, mp::_>
-        >::template apply_value,
-        meta::nonesuch,
-        KWTags...
-      >;
+TEST(TupleZip, basic) {
+  auto t = tuple_zip(
+    std::forward_as_tuple(1, 2, 3),
+    std::forward_as_tuple(4, 5, 6)
+  );
+  static_assert(std::tuple_size<std::decay_t<decltype(t)>>::value == 3, "");
+  static_assert(std::tuple_size<std::decay_t<decltype(std::get<0>(t))>>::value == 2, "");
 
-    public:
+  ASSERT_EQ(std::get<0>(std::get<0>(t)), 1);
+  ASSERT_EQ(std::get<1>(std::get<0>(t)), 4);
+  ASSERT_EQ(std::get<0>(std::get<1>(t)), 2);
+  ASSERT_EQ(std::get<1>(std::get<1>(t)), 5);
+  ASSERT_EQ(std::get<0>(std::get<2>(t)), 3);
+  ASSERT_EQ(std::get<1>(std::get<2>(t)), 6);
+}
 
-      typedef typename std::conditional<
-          sizeof...(Args) == 0,
-          std::true_type,
-          mv::all_of<_allowed_arg, Args...>
-      >::type::type type;
+TEST(TuplePopBack, basic) {
+  auto t = std::make_tuple(1, 2, 3);
+  auto t2 = tuple_pop_back(t);
+  static_assert(std::tuple_size<std::decay_t<decltype(t)>>::value == 3, "");
+  static_assert(std::tuple_size<std::decay_t<decltype(t2)>>::value == 2, "");
 
-  };
-};
-
-
-} // end namespace detail
-} // end namespace darma_runtime
-
-
-#endif /* SRC_INCLUDE_DARMA_IMPL_KEYWORD_ARGUMENTS_CHECK_ALLOWED_KWARGS_H_ */
+  ASSERT_EQ(std::get<0>(t2), 1);
+  ASSERT_EQ(std::get<1>(t2), 2);
+  ASSERT_EQ(std::get<0>(t), 1);
+  ASSERT_EQ(std::get<1>(t), 2);
+  ASSERT_EQ(std::get<2>(t), 3);
+}

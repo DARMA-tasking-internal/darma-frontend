@@ -53,11 +53,77 @@
 #include <cassert>
 #include <cstring>
 #include <sstream>
+#include <type_traits>
+
+#include <tinympl/plus.hpp>
+#include <tinympl/variadic/all_of.hpp>
+#include <tinympl/vector.hpp>
+
 #include <darma/impl/meta/detection.h>
+#include <darma/impl/key_concept.h>
+#include <darma/impl/bytes_convert.h>
+#include <darma/impl/meta/tuple_for_each.h>
+#include "util.h"
+
 
 namespace darma_runtime {
 
 namespace detail {
+
+
+namespace m = tinympl;
+namespace mv = tinympl::variadic;
+
+using std::uint8_t;
+
+class SegmentedKey;
+
+namespace _segmented_key_impl {
+
+template <typename T, typename Enable=void>
+struct as_impl {
+  T operator()(void* data, size_t n_bytes) const {
+    return bytes_convert<T>().get_value(data, n_bytes);
+  }
+};
+
+template <typename T>
+struct as_impl<T,
+  std::enable_if_t<can_reinterpret_cast_bytes<T>::value>
+>
+{
+  T operator()(void* data, size_t) const {
+    return *reinterpret_cast<T*>(data);
+  }
+};
+
+}
+
+
+class
+SegmentedKeyPartBase {
+  public:
+
+    template <typename T>
+    T as() const {
+      return _segmented_key_impl::as_impl<T>()(data, n_bytes);
+    }
+
+  private:
+    void* data;
+    size_t n_bytes;
+
+    friend class SegmentedKey;
+
+    explicit
+    SegmentedKeyPartBase(size_t n_bytes_in)
+      : data(::operator new(n_bytes_in)),
+        n_bytes(n_bytes_in)
+    { }
+
+};
+
+// <editor-fold desc="MultiSegmentKey and corresponding segment structures">
 
 struct alignas(1) KeySegmentPieceMetadata {
   bool is_first : 1;
@@ -102,6 +168,10 @@ struct MultiSegmentKeyBase {
 
   virtual void get_part_bytes(uint8_t part, char* dest) const =0;
 
+  virtual size_t hash() const = 0;
+
+  virtual bool equal(MultiSegmentKeyBase const& other) const = 0;
+
   virtual ~MultiSegmentKeyBase() = default;
   uint8_t n_parts = uninitialized;
 };
@@ -111,6 +181,120 @@ class alignas(64) MultiSegmentKey
   : public MultiSegmentKeyBase
 {
   public:
+
+    template <typename... Args>
+    MultiSegmentKey(
+      variadic_constructor_arg_t,
+      Args&&... args
+    ) {
+      n_parts = sizeof...(args);
+      memset(&first_segment_, 0, sizeof(FirstKeySegment));
+      if(NExtraSegments) memset(segments_, 0, sizeof(KeySegment)*NExtraSegments);
+
+      uint8_t remain_current_seg = FirstKeySegment::payload_size;
+      unsigned next_extra_segment = 0;
+      char* data_spot = first_segment_.data;
+      first_segment_.is_last = true; // will get changed if not true
+      uint8_t current_n_pieces = 0;
+      meta::tuple_for_each_zipped(
+        std::forward_as_tuple(bytes_convert<std::remove_reference_t<Args>>()...),
+        std::forward_as_tuple(std::forward<Args>(args)...),
+        [&](auto&& bytes_converter, auto&& val) {
+
+          size_t data_size_remain = bytes_converter.get_size(std::forward<decltype(val)>(val));
+
+          if(remain_current_seg == 0) {
+            if(next_extra_segment == 0) {
+              first_segment_.n_pieces = current_n_pieces;
+              first_segment_.is_last = false;
+            }
+            else {
+              segments_[next_extra_segment-1].n_pieces = current_n_pieces;
+              segments_[next_extra_segment-1].is_last = false;
+            }
+            // If the last part ended at the end of a piece, we need to add a new piece
+            data_spot = segments_[next_extra_segment].data;
+            segments_[next_extra_segment].is_last = true; // we'll change this if it's not true
+            ++next_extra_segment;
+            current_n_pieces = 0;
+            remain_current_seg = KeySegment::payload_size;
+          }
+
+          // make room for the metadata
+          remain_current_seg -= sizeof(KeySegmentPieceMetadata);
+          // and put the metadata in place
+          KeySegmentPieceMetadata* current_piece_md = reinterpret_cast<KeySegmentPieceMetadata*>(data_spot);
+          current_piece_md->is_first = true;
+          ++current_n_pieces;
+          data_spot += sizeof(KeySegmentPieceMetadata);
+
+          // potentially multi-piece part spanning more than one segment
+          size_t data_offset = 0;
+          while(data_size_remain) {
+            if(data_size_remain <= remain_current_seg) {
+              // Last piece
+              // update the remaining space in the current segment
+              remain_current_seg -= data_size_remain;
+              data_size_remain = 0;
+              // copy the actual bytes into place
+              bytes_converter(
+                std::forward<decltype(val)>(val), data_spot,
+                data_size_remain, data_offset
+              );
+              // reset the offset
+              data_offset = 0;
+              // Mark this piece as the last in the part
+              current_piece_md->is_last = true;
+              current_piece_md->piece_size = (uint8_t)data_size_remain;
+              // advance the spot
+              data_spot += data_size_remain;
+            }
+            else {
+              // Middle piece, subtract space from data_size_remain
+              data_size_remain -= remain_current_seg;
+              // copy the actual bytes into place
+              bytes_converter(
+                std::forward<decltype(val)>(val), data_spot,
+                remain_current_seg, data_offset
+              );
+              // update the offset
+              data_offset += remain_current_seg;
+              // update piece metadata
+              current_piece_md->is_last = false;
+              current_piece_md->piece_size = remain_current_seg;
+              // Start another piece in the next segment
+              // close out this segment
+              segments_[next_extra_segment-1].n_pieces = current_n_pieces;
+              segments_[next_extra_segment-1].is_last = false;
+
+              data_spot = segments_[next_extra_segment].data;
+              segments_[next_extra_segment].is_last = true; // we'll change this if it's not true
+              current_n_pieces = 1; // (the one we're about to create)
+              // Set up the metadata for the next piece
+              remain_current_seg = KeySegment::payload_size;
+              remain_current_seg -= sizeof(KeySegmentPieceMetadata);
+              current_piece_md = reinterpret_cast<KeySegmentPieceMetadata*>(data_spot);
+              current_piece_md->is_first = false; // it's a continuation piece
+              current_piece_md->is_last = data_size_remain <= remain_current_seg;
+              // advance data spot past the piece header
+              data_spot += sizeof(KeySegmentPieceMetadata);
+              ++next_extra_segment;
+            }
+          } // end while data_size_remain
+
+          if(remain_current_seg == 0) {
+            // in case it fits exactly, we need to fix up current_n_pieces
+            if(next_extra_segment == 0) first_segment_.n_pieces = current_n_pieces;
+            else segments_[next_extra_segment-1].n_pieces = current_n_pieces;
+          }
+
+        }
+      );
+
+    }
+
+  private:
+
     template <typename Func>
     inline void iter_pieces(Func&& f) const {
       char* spot = first_segment_.data;
@@ -150,6 +334,34 @@ class alignas(64) MultiSegmentKey
       }
     }
 
+  public:
+
+    size_t hash() const override {
+      size_t rv = 0;
+      return hash_as_bytes(*this);
+      //iter_pieces([&](KeySegmentPieceMetadata ip_md, char* spot, uint8_t current_part) {
+      //  for(int i = 0; i < ip_md.piece_size; ++i) {
+      //    hash_combine(rv, std::hash<char>()(*spot));
+      //    spot++;
+      //  }
+      //});
+      //return rv;
+    }
+
+    bool equal(MultiSegmentKeyBase const& other) const override {
+      MultiSegmentKey const* other_cast = dynamic_cast<MultiSegmentKey const*>(&other);
+      if(other_cast == nullptr) return false;
+      else return equal_as_bytes(*this, *other_cast);
+      //size_t rv = 0;
+      //iter_pieces([&](KeySegmentPieceMetadata ip_md, char* spot, uint8_t current_part) {
+      //  for(int i = 0; i < ip_md.piece_size; ++i) {
+      //    hash_combine(rv, std::hash<char>()(*spot));
+      //    spot++;
+      //  }
+      //});
+      //return rv;
+    }
+
     size_t get_part_size(uint8_t part) const override {
       assert(part < n_parts);
       size_t part_size = 0;
@@ -180,140 +392,200 @@ class alignas(64) MultiSegmentKey
     KeySegment segments_[NExtraSegments];
 };
 
-static_assert(sizeof(MultiSegmentKey<0>) == 64);
-static_assert(sizeof(MultiSegmentKey<1>) == 128);
-static_assert(sizeof(MultiSegmentKey<2>) == 192);
-static_assert(sizeof(MultiSegmentKey<3>) == 256);
+static_assert(sizeof(MultiSegmentKey<0>) == 64,
+  "SegmentedKey with one segment must compile to a size of exactly 1 cache line");
+static_assert(sizeof(MultiSegmentKey<1>) == 128,
+  "SegmentedKey with two segments must compile to a size of exactly 2 cache line");
+static_assert(sizeof(MultiSegmentKey<2>) == 192,
+  "SegmentedKey with three segments must compile to a size of exactly 3 cache lines");
+static_assert(sizeof(MultiSegmentKey<3>) == 256,
+  "SegmentedKey with four segments must compile to a size of exactly 4 cache lines");
 
-template <typename T, typename Enable=void>
-struct bytes_convert {
-  static constexpr bool size_known_statically = false;
-  inline size_t
-  get_size(T const& val) const {
-    std::ostringstream osstr;
-    osstr << val;
-    return bytes_convert<std::string>().get_size(osstr.str());
-  }
-  inline constexpr void
-  operator()(T const& val, void* dest, const size_t offset, const size_t n_bytes) const {
-    std::ostringstream osstr;
-    osstr << val;
-    bytes_convert<std::string>()(osstr.str(), dest, offset, n_bytes);
-  }
-  inline T
-  get_value(void* data, size_t size) const {
-    std::istringstream isstr(std::string((char*)data, size));
-    T rv;
-    isstr >> rv;
-    return rv;
-  }
-};
+// </editor-fold>
 
-template <typename T>
-struct bytes_convert<T, std::enable_if_t<std::is_fundamental<T>::value>> {
-  static constexpr bool size_known_statically = true;
-  static constexpr bool can_reinterpret_cast = true;
-  static constexpr size_t size = sizeof(T);
-  inline constexpr void
-  operator()(T const& val, void* dest, const size_t offset, const size_t n_bytes) const {
-    ::memcpy(dest, &val + n_bytes, n_bytes);
+template <unsigned N=0>
+struct create_n_segment_key {
+  template <typename... Args>
+  constexpr inline MultiSegmentKeyBase*
+  operator()(unsigned n_segments, Args&&... args) const {
+    if(n_segments == N) {
+      MultiSegmentKey<N>* rv = new MultiSegmentKey<N>(
+        variadic_constructor_arg,
+        std::forward<Args>(args)...
+      );
+      return rv;
+    }
+    else {
+      return create_n_segment_key<N+1>()(n_segments, std::forward<Args>(args)...);
+    }
   }
 };
 
-template <typename T, size_t N>
-struct bytes_convert<T[N], std::enable_if_t<std::is_fundamental<T>::value>> {
-  static constexpr bool size_known_statically = true;
-  static constexpr bool can_reinterpret_cast = true;
-  static constexpr size_t size = sizeof(T) * N;
-  inline constexpr void
-  operator()(T const val[N], void* dest, const size_t offset, const size_t n_bytes) const {
-    ::memcpy(dest, val + offset, n_bytes);
+
+template <
+  bool all_sizes_known_statically /* = false */,
+  typename... Args
+>
+struct create_multi_segment_key_impl {
+  inline unsigned
+  get_n_extra_segments(Args&&... args) const {
+    size_t remain_current = FirstKeySegment::payload_size;
+    unsigned n_extra_segments = 0;
+    meta::tuple_for_each_zipped(
+      std::forward_as_tuple(bytes_convert<std::remove_reference_t<Args>>()...),
+      std::forward_as_tuple(std::forward<Args>(args)...),
+      [&](auto&& bytes_converter, auto&& val) {
+
+        size_t data_size_remain = bytes_converter.get_size(std::forward<decltype(val)>(val));
+        if(remain_current == 0) {
+          // If the last part ended at the end of a piece, we need to add a new piece
+          ++n_extra_segments;
+          remain_current = KeySegment::payload_size;
+        }
+        // make room for the metadata
+        remain_current -= sizeof(KeySegmentPieceMetadata);
+        // potentially multi-piece part spanning more than one segment
+        while(data_size_remain) {
+          if(data_size_remain <= remain_current) {
+            // Last piece
+            remain_current -= data_size_remain;
+            data_size_remain = 0;
+          }
+          else {
+            // Middle piece, subtract space from data_size_remain
+            data_size_remain -= remain_current;
+            // Start another piece
+            ++n_extra_segments;
+            remain_current = KeySegment::payload_size;
+            remain_current -= sizeof(KeySegmentPieceMetadata);
+          }
+        } // end while data_size_remain
+
+      }
+    );
+    return n_extra_segments;
   }
+  constexpr inline MultiSegmentKeyBase*
+  operator()(Args&&... args) const {
+    return create_n_segment_key<>()(get_n_extra_segments(
+      std::forward<Args>(args)...
+    ), std::forward<Args>(args)...);
+  }
+
 };
 
-template <typename CharT, typename Traits, typename Allocator>
-struct bytes_convert<std::basic_string<CharT, Traits, Allocator>> {
-  static constexpr bool size_known_statically = false;
-  typedef std::basic_string<CharT, Traits, Allocator> string_t;
-  inline size_t
-  get_size(string_t const& val) const {
-    return val.size() * sizeof(CharT);
-  }
-  inline constexpr void
-  operator()(string_t const& val, void* dest, const size_t offset, const size_t n_bytes) const {
-    const size_t size = get_size(val);
-    ::memcpy(dest, val.data() + offset, n_bytes);
-  }
-  inline string_t
-  get_value(void* data, size_t size) const {
-    return string_t((CharT*)data, size / sizeof(CharT));
-  }
-};
+//template <typename... Args>
+//struct create_multi_segment_key_impl<true, Args...> {
+//  typedef m::vector<Args...> args_vector_t;
+//  typedef m::vector<std::remove_reference_t<Args>...> noref_args_vector_t;
+//  typedef m::vector<bytes_convert<std::remove_reference_t<Args>>...> bytes_convert_vector_t;
+//
+//  //static constexpr size_t total_static_size = m::plus<
+//  //  std::integral_constant<size_t, bytes_convert<std::remove_reference_t<Args>>::size>...
+//  //>::value + sizeof(KeySegmentPieceMetadata);
+//};
 
-template <typename T>
-using has_char_traits_archetype = std::char_traits<T>;
+template <typename... Args>
+std::shared_ptr<MultiSegmentKeyBase>
+create_multi_segment_key(Args&&... args) {
+  static constexpr bool all_sizes_known_statically = false && // for now, just treat all as variable size
+    mv::all_of<bytes_size_known_statically, std::remove_reference_t<Args>...>::type::value;
+  create_multi_segment_key_impl<all_sizes_known_statically, Args...>()(
+    std::forward<Args>(args)...
+  );
+}
 
-template <typename T>
-using has_char_traits = meta::is_detected<has_char_traits_archetype, T>;
+struct segmented_key_hasher;
+struct segmented_key_equal;
 
-// e.g. const char* and other c-style strings with variable length.
-template <typename CharT>
-struct bytes_convert<CharT*,
-  std::enable_if_t<has_char_traits<std::remove_cv_t<CharT>>::value>
-> {
-  static constexpr bool size_known_statically = false;
-  typedef std::char_traits<std::remove_cv_t<CharT>> traits_t;
-  inline size_t
-  get_size(CharT* val) const {
-    return traits_t::length(val);
-  }
-  inline constexpr void
-  operator()(CharT* val, void* dest, const size_t offset, const size_t n_bytes) const {
-    const size_t size = get_size(val);
-    ::memcpy(dest, ((char*)val) + offset, n_bytes);
-  }
-  // Can't be converted back
-};
-
-template <typename T>
-using convertible_to_bytes_archetype = decltype( bytes_convert<T>()(
-  std::declval<T>(), std::declval<void*>(), size_t(0), size_t(0)
-) );
-template <typename T>
-using convertible_to_bytes = meta::is_detected<convertible_to_bytes_archetype, T>;
-
-template <typename T>
-using convertible_from_bytes_archetype = decltype( std::declval<bytes_convert<T>>().get_value(
-  std::declval<void*>(), size_t(0)
-) );
-template <typename T>
-using convertible_from_bytes = meta::is_detected_convertible<T, convertible_from_bytes_archetype, T>;
-
-template <typename T>
-using can_reinterpret_cast_bytes_archetype = std::integral_constant<bool, bytes_convert<T>::can_reinterpret_cast>;
-template <typename T>
-using can_reinterpret_cast_bytes = meta::detected_or<std::false_type, can_reinterpret_cast_bytes_archetype, T>;
-
-template <typename T>
-using bytes_size_known_statically_archetype = std::integral_constant<bool, bytes_convert<T>::size_known_statically>;
-template <typename T>
-using bytes_size_known_statically = meta::detected_or<std::false_type, bytes_size_known_statically_archetype, T>;
-
-} // end namespace detail
-
-namespace defaults {
 
 class SegmentedKey {
 
-    // TODO finish this!!!
+  public:
+
+    static constexpr unsigned max_extra_segments = 255;
+    static constexpr unsigned max_num_parts = std::numeric_limits<uint8_t>::max() - 1;
+
+    template <typename... Args>
+    SegmentedKey(
+      variadic_constructor_arg_t const,
+      Args&&... args
+    ) : key_impl_(create_multi_segment_key(std::forward<Args>(args)...))
+    { }
+
+    template <uint8_t N>
+    SegmentedKeyPartBase
+    component() const {
+      size_t part_size = key_impl_->get_part_size(N);
+      SegmentedKeyPartBase rv(part_size);
+      key_impl_->get_part_bytes(N, (char*)rv.data);
+    }
 
   protected:
 
-    std::shared_ptr<darma_runtime::detail::MultiSegmentKeyBase> key_impl_;
+    friend struct segmented_key_hasher;
+    friend struct segmented_key_equal;
+    std::shared_ptr<MultiSegmentKeyBase> key_impl_;
 
 }; // end class SegmentedKey
 
-} // end namespace defaults
+struct segmented_key_hasher {
+  inline
+  size_t operator()(SegmentedKey const& k) const {
+    return k.key_impl_->hash();
+  }
+};
+
+struct segmented_key_equal {
+  inline
+  bool operator()(SegmentedKey const& k, SegmentedKey const& k2) const {
+    return k.key_impl_->equal(*(k2.key_impl_.get()));
+  }
+};
+
+// Specialization to stop recursion
+template <>
+struct create_n_segment_key<SegmentedKey::max_extra_segments> {
+  template <typename... Args>
+  constexpr inline MultiSegmentKeyBase*
+  operator()(unsigned n_segments, Args&&...) const {
+    DARMA_ASSERT_MESSAGE(false,
+      "Key expression is too large to use with SegmentedKey.  Increase"
+        " SegmentedKey::max_extra_segments, use a smaller key expression,"
+        " or build with a different key type (if supported by the current"
+        " backend)"
+    );
+  }
+};
+
+template <>
+struct key_traits<SegmentedKey>
+{
+  struct maker {
+    template <typename... Args>
+    inline SegmentedKey
+    operator()(Args&&... args) const {
+      return SegmentedKey(
+        detail::variadic_constructor_arg,
+        std::forward<Args>(args)...
+      );
+    }
+  };
+
+  struct maker_from_tuple {
+    template <typename Tuple>
+    inline SegmentedKey
+    operator()(Tuple&& data) const {
+      meta::splat_tuple(std::forward<Tuple>(data), maker());
+    }
+  };
+
+  typedef segmented_key_equal key_equal;
+  typedef segmented_key_hasher hasher;
+
+};
+
+} // end namespace detail
 
 } // end namespace darma_runtime
 

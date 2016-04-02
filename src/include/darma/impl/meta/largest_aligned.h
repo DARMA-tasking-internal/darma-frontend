@@ -45,7 +45,8 @@
 #ifndef SRC_META_LARGEST_ALIGNED_H_
 #define SRC_META_LARGEST_ALIGNED_H_
 
-#include <tinympl/vector>
+#include <tinympl/vector.hpp>
+#include <tinympl/identity.hpp>
 
 namespace darma_runtime {
 

@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                                any_of.hpp                               
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                       tuple_pop_back.hpp
+//                         dharma
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,33 +42,61 @@
 //@HEADER
 */
 
+#ifndef DARMA_IMPL_META_TUPLE_POP_BACK_H
+#define DARMA_IMPL_META_TUPLE_POP_BACK_H
 
-#ifndef TINYMPL_ANY_OF_HPP
-#define TINYMPL_ANY_OF_HPP
+#include <utility>
+#include <tuple>
+#include <tinympl/at.hpp>
+#include <tinympl/insert.hpp>
+#include <tinympl/pop_back.hpp>
+#include <tinympl/tuple_as_sequence.hpp>
+#include <tinympl/splat.hpp>
+#include "splat_tuple.h"
 
-#include <tinympl/variadic/any_of.hpp>
-#include <tinympl/as_sequence.hpp>
-#include <tinympl/sequence.hpp>
+namespace darma_runtime {
 
-namespace tinympl {
+namespace meta {
 
-/**
- * \ingroup SeqNonModAlgs
- * \class any_of
- * \brief Determines whether any of the elements in the sequence satisfy the
-given predicate
- * \param Sequence the input sequence
- * \param F the predicate, `F<T>::type::value` must be convertible to `bool`
- * \return `any_of<...>::type` is a `std::integral_constant<bool,v>` where `v`
-is true iff at least one element in the sequence satisfy the predicate `F`
- * \sa variadic::any_of
- */
-template <class Sequence, template <class...> class F>
-struct any_of : any_of<as_sequence_t<Sequence>, F> { };
+namespace m = tinympl;
+namespace mv = tinympl::variadic;
 
-template< template<class ...> class F, class ... Args>
-struct any_of<sequence<Args...>, F > : variadic::any_of<F, Args...> { };
+namespace _impl {
 
-} // namespace tinympl
+template <template <class...> class copy_properties>
+struct _wrapper {
+  template <typename Back, typename... Args>
+  struct _tuple_pop_back_helper {
+    constexpr inline auto
+    operator()(typename copy_properties<Args>::type &&... args, typename copy_properties<Back>::type &&) const {
+      return std::forward_as_tuple(std::forward<Args>(args)...);
+    }
+  };
+};
 
-#endif // TINYMPL_ANY_OF_HPP
+} // end namespace _impl
+
+template <typename Tuple>
+auto
+tuple_pop_back(Tuple&& tup) {
+  typedef typename m::copy_all_type_properties<Tuple>::template apply<
+    typename m::push_front<
+      typename m::pop_back<std::decay_t<Tuple>>::type,
+      typename m::back<std::decay_t<Tuple>>::type
+    >::type
+  >::type new_tuple_t;
+  typedef typename m::splat_to<new_tuple_t, _impl::_wrapper<
+      m::copy_all_type_properties<Tuple>::template apply
+    >::template _tuple_pop_back_helper>::type helper_t;
+  return splat_tuple(
+    std::forward<Tuple>(tup),
+    helper_t()
+  );
+}
+
+} // end namespace meta
+
+} // end namespace darma_runtime
+
+
+#endif //DARMA_IMPL_META_TUPLE_POP_BACK_H

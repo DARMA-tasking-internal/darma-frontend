@@ -57,12 +57,21 @@
 #include <tinympl/identity.hpp>
 #include <tinympl/delay.hpp>
 #include <tinympl/repeat.hpp>
+#include <tinympl/pop_back.hpp>
 #include <tinympl/pop_front.hpp>
 #include <tinympl/copy_traits.hpp>
 #include <tinympl/always_true.hpp>
 #include <tinympl/find_if.hpp>
 #include <tinympl/min_element.hpp>
 #include <tinympl/int.hpp>
+#include <tinympl/zip.hpp>
+#include <tinympl/tuple_as_sequence.hpp>
+#include <tinympl/vector.hpp>
+#include <tinympl/variadic/back.hpp>
+
+#include "tuple_zip.h"
+#include "splat_tuple.h"
+#include "tuple_pop_back.h"
 
 namespace darma_runtime { namespace meta {
 
@@ -339,6 +348,40 @@ tuple_for_each(
   return impl_t()(
     std::forward<Tuple>(tup),
     std::forward<GenericLambda>(lambda)
+  );
+}
+
+template <typename... Args>
+auto
+tuple_for_each_zipped(
+  Args&&... args
+) {
+  typedef typename tinympl::variadic::pop_back<std::tuple, Args...>::type Tuples;
+  auto tuple_zip_wrapper = [](auto&&... tups){ return tuple_zip(std::forward<decltype(tups)>(tups)...); };
+  typedef decltype(splat_tuple(
+    std::declval<Tuples>(), tuple_zip_wrapper
+  )) TuplesZipped;
+  auto&& func = std::get<sizeof...(Args)-1>(
+    std::tuple<Args...>(std::forward<Args>(args)...)
+  );
+  auto wrap_lambda = [f=std::move(func)](auto&& zip_item) {
+    return splat_tuple(
+      std::forward<decltype(zip_item)>(zip_item),
+      f
+    );
+  };
+  typedef typename _tuple_for_each_impl::_impl<
+    tinympl::always_true,
+    0, std::tuple_size<TuplesZipped>::value,
+    typename std::decay<TuplesZipped>::type,
+    decltype(wrap_lambda), TuplesZipped
+  > impl_t;
+  return impl_t()(
+    splat_tuple(
+      tuple_pop_back(std::make_tuple(std::forward<Args>(args)...)),
+      tuple_zip_wrapper
+    ),
+    std::forward<decltype(wrap_lambda)>(wrap_lambda)
   );
 }
 

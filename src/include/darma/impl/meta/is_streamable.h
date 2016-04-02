@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                                any_of.hpp                               
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                       is_streamable.h
+//                         darma
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,33 +42,50 @@
 //@HEADER
 */
 
+#ifndef DARMA_IS_STREAMABLE_H
+#define DARMA_IS_STREAMABLE_H
 
-#ifndef TINYMPL_ANY_OF_HPP
-#define TINYMPL_ANY_OF_HPP
+#include <istream>
+#include <ostream>
+#include <type_traits>
 
-#include <tinympl/variadic/any_of.hpp>
-#include <tinympl/as_sequence.hpp>
-#include <tinympl/sequence.hpp>
+#include <darma/impl/meta/detection.h>
 
-namespace tinympl {
+namespace darma_runtime {
 
-/**
- * \ingroup SeqNonModAlgs
- * \class any_of
- * \brief Determines whether any of the elements in the sequence satisfy the
-given predicate
- * \param Sequence the input sequence
- * \param F the predicate, `F<T>::type::value` must be convertible to `bool`
- * \return `any_of<...>::type` is a `std::integral_constant<bool,v>` where `v`
-is true iff at least one element in the sequence satisfy the predicate `F`
- * \sa variadic::any_of
- */
-template <class Sequence, template <class...> class F>
-struct any_of : any_of<as_sequence_t<Sequence>, F> { };
+namespace meta {
 
-template< template<class ...> class F, class ... Args>
-struct any_of<sequence<Args...>, F > : variadic::any_of<F, Args...> { };
+namespace _impl {
 
-} // namespace tinympl
+template<typename StreamType = std::ostream>
+struct generate_is_streamable_archetype {
+  template<typename T>
+  using apply_out = decltype(
+    std::declval<StreamType&>() << std::declval<T const &>()
+  );
+  template<typename T>
+  using apply_in = decltype(
+    std::declval<StreamType&>() >> std::declval<T &>()
+  );
+};
 
-#endif // TINYMPL_ANY_OF_HPP
+} // end namespace _impl
+
+template <typename T, typename StreamType = std::ostream>
+using is_streamable = is_detected<
+  _impl::generate_is_streamable_archetype<StreamType>::template apply_out, T
+>;
+
+template <typename T, typename StreamType = std::ostream>
+using is_out_streamable = is_streamable<T, StreamType>;
+
+template <typename T, typename StreamType = std::istream>
+using is_in_streamable = is_detected<
+  _impl::generate_is_streamable_archetype<StreamType>::template apply_in, T
+>;
+
+} // end namespace meta
+
+} // end namespace darma_runtime
+
+#endif //DARMA_IS_STREAMABLE_H

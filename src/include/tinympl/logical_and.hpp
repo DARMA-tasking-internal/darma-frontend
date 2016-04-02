@@ -62,7 +62,7 @@ namespace tinympl {
  * \brief Computes the logical and of all its arguments
  */
 template <class... Args>
-struct logical_and : variadic::all_of<identity, Args...>
+struct logical_and : variadic::all_of<value_identity, Args...>
 { };
 
 template <class... Args>

@@ -64,7 +64,7 @@ namespace variadic {
  * \param Out The output sequence type
  * \param Args... the input variadic template
  */
-template<std::size_t start,std::size_t end,template<class ...> class Out,class ... Args> struct erase;
+template<std::size_t start, std::size_t end, template<class ...> class Out, class ... Args> struct erase;
 
 template<std::size_t start,std::size_t end,template<class ...> class Out,class ... Args> using erase_t = typename erase<start,end,Out,Args...>::type;
 
