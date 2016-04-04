@@ -85,11 +85,6 @@ struct bytes_convert<std::basic_string<CharT, Traits, Allocator>> {
     const size_t size = get_size(val);
     ::memcpy(dest, val.data() + offset, n_bytes);
   }
-  inline constexpr void
-  operator()(string_t&& val, void* dest, size_t const n_bytes, const size_t offset) const {
-    const size_t size = get_size(val);
-    ::memcpy(dest, val.data() + offset, n_bytes);
-  }
   inline string_t
   get_value(void* data, size_t size) const {
     return string_t((CharT*)data, size / sizeof(CharT));
@@ -145,8 +140,17 @@ struct bytes_convert<T, std::enable_if_t<std::is_fundamental<T>::value>> {
   }
 };
 
+template <typename T>
+using has_char_traits_archetype = std::char_traits<T>;
+
+template <typename T>
+using has_char_traits = meta::is_detected<has_char_traits_archetype, T>;
+
 template <typename T, size_t N>
-struct bytes_convert<T[N], std::enable_if_t<std::is_fundamental<T>::value>> {
+struct bytes_convert<T[N], std::enable_if_t<
+  // Char strings should be treated specially (i.e., ignoring the trailing '\0')
+  std::is_fundamental<T>::value and not has_char_traits<std::remove_cv_t<T>>::value
+>> {
   static constexpr bool size_known_statically = true;
   static constexpr bool can_reinterpret_cast = true;
   static constexpr size_t size = sizeof(T) * N;
@@ -156,13 +160,6 @@ struct bytes_convert<T[N], std::enable_if_t<std::is_fundamental<T>::value>> {
     ::memcpy(dest, val + offset, n_bytes);
   }
 };
-
-
-template <typename T>
-using has_char_traits_archetype = std::char_traits<T>;
-
-template <typename T>
-using has_char_traits = meta::is_detected<has_char_traits_archetype, T>;
 
 // e.g. const char* and other c-style strings with variable length.
 template <typename CharT>
@@ -177,6 +174,24 @@ struct bytes_convert<CharT*,
   }
   inline constexpr void
   operator()(CharT* val, void* dest, const size_t n_bytes, const size_t offset) const {
+    const size_t size = get_size(val);
+    ::memcpy(dest, ((char*)val) + offset, n_bytes);
+  }
+  // Can't be converted back
+};
+
+template <typename CharT, size_t N>
+struct bytes_convert<CharT[N],
+  std::enable_if_t<has_char_traits<std::remove_cv_t<CharT>>::value>
+> {
+  static constexpr bool size_known_statically = false;
+  typedef std::char_traits<std::remove_cv_t<CharT>> traits_t;
+  inline size_t
+  get_size(CharT const val[N]) const {
+    return traits_t::length(val);
+  }
+  inline constexpr void
+  operator()(CharT const val[N], void* dest, const size_t n_bytes, const size_t offset) const {
     const size_t size = get_size(val);
     ::memcpy(dest, ((char*)val) + offset, n_bytes);
   }

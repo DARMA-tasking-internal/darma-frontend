@@ -45,6 +45,23 @@
 #ifndef DARMA_SEGMENTED_KEY_H
 #define DARMA_SEGMENTED_KEY_H
 
+#define PRINT_BITS(data, n_bytes) { \
+  char* debug_spot = (char*)data; \
+  for(int __i = 0; __i < n_bytes; ++__i) { \
+    std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<0)); \
+    std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<1)); \
+    std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<2)); \
+    std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<3)); \
+    std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<4)); \
+    std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<5)); \
+    std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<6)); \
+    std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<7)); \
+    std::cout << " "; \
+    debug_spot++; \
+  } \
+  std::cout << std::endl; \
+}
+
 #define DEBUG_SEGMENTED_KEY_BYTES 0
 
 #include <cstddef>
@@ -214,7 +231,7 @@ class alignas(64) MultiSegmentKey
       first_segment_.is_last = true; // will get changed if not true
       uint8_t current_n_pieces = 0;
       meta::tuple_for_each_zipped(
-        std::forward_as_tuple(bytes_convert<std::remove_reference_t<Args>>()...),
+        std::forward_as_tuple(bytes_convert<std::remove_cv_t<std::remove_reference_t<Args>>>()...),
         std::forward_as_tuple(std::forward<Args>(args)...),
         [&](auto&& bytes_converter, auto&& val) {
 
@@ -272,36 +289,6 @@ class alignas(64) MultiSegmentKey
               current_piece_md->piece_size = (uint8_t)data_size_remain;
               // End the loop
               data_size_remain = 0;
-#if DEBUG_SEGMENTED_KEY_BYTES
-              char* debug_spot = (char*)first_segment_.data;
-              for(int i = 0; debug_spot < data_spot; ++i) {
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<0));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<1));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<2));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<3));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<4));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<5));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<6));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<7));
-                std::cout << " ";
-                debug_spot++;
-              }
-              std::cout << std::endl;
-              debug_spot = (char*)&val;
-              for(int i = 0; i < sizeof(val); ++i) {
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<0));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<1));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<2));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<3));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<4));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<5));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<6));
-                std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<7));
-                std::cout << " ";
-                debug_spot++;
-              }
-              std::cout << std::endl;
-#endif
             }
             else {
               // Middle piece, subtract space from data_size_remain
@@ -318,8 +305,14 @@ class alignas(64) MultiSegmentKey
               current_piece_md->piece_size = remain_current_seg;
               // Start another piece in the next segment
               // close out this segment
-              segments_[next_extra_segment-1].n_pieces = current_n_pieces;
-              segments_[next_extra_segment-1].is_last = false;
+              if(next_extra_segment == 0) {
+                first_segment_.n_pieces = current_n_pieces;
+                first_segment_.is_last = false;
+              }
+              else {
+                segments_[next_extra_segment - 1].n_pieces = current_n_pieces;
+                segments_[next_extra_segment - 1].is_last = false;
+              }
 
               data_spot = segments_[next_extra_segment].data;
               segments_[next_extra_segment].is_last = true; // we'll change this if it's not true
@@ -356,40 +349,10 @@ class alignas(64) MultiSegmentKey
       }
 
 #if DEBUG_SEGMENTED_KEY_BYTES
-      char* debug_spot = (char*)this;
-      for(int i = 0; i < sizeof(*this); ++i) {
-        std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)*debug_spot;
-        debug_spot++;
+      PRINT_BITS(first_segment_.data, FirstKeySegment::payload_size);
+      for(int i = 0; i < NExtraSegments; ++i) {
+        PRINT_BITS(segments_[i].data, KeySegment::payload_size);
       }
-      std::cout << std::endl;
-      debug_spot = (char*)this;
-      for(int i = 0; i < sizeof(*this); ++i) {
-        std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<0));
-        std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<1));
-        std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<2));
-        std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<3));
-        std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<4));
-        std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<5));
-        std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<6));
-        std::cout << std::setw(1) << (bool)(((char)*debug_spot)&(1<<7));
-        std::cout << " ";
-        debug_spot++;
-      }
-      std::cout << std::endl;
-      debug_spot = (char*)first_segment_.data;
-      for(int i = 0; i < FirstKeySegment::payload_size; ++i) {
-        std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<0));
-        std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<1));
-        std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<2));
-        std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<3));
-        std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<4));
-        std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<5));
-        std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<6));
-        std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<7));
-        std::cout << " ";
-        debug_spot++;
-      }
-      std::cout << std::endl;
 #endif
 
 
@@ -405,7 +368,7 @@ class alignas(64) MultiSegmentKey
       for(uint8_t ipiece = 0; ipiece < first_segment_.n_pieces; ++ipiece) {
         KeySegmentPieceMetadata ip_md = *(KeySegmentPieceMetadata*)spot;
         spot += sizeof(KeySegmentPieceMetadata);
-        if(not f(ip_md, spot, current_part)) break;
+        if(not f(ip_md, spot, current_part)) return;
         if(!part_started) {
           assert(ip_md.is_first);
           if(ip_md.is_last) ++current_part;
@@ -418,10 +381,11 @@ class alignas(64) MultiSegmentKey
         spot += ip_md.piece_size;
       }
       for(unsigned iseg = 0; iseg < NExtraSegments; ++iseg) {
+        const char* spot = segments_[iseg].data;
         for(uint8_t ipiece = 0; ipiece < segments_[iseg].n_pieces; ++ipiece) {
           KeySegmentPieceMetadata ip_md = *(KeySegmentPieceMetadata *) spot;
           spot += sizeof(KeySegmentPieceMetadata);
-          if(not f(ip_md, spot, current_part)) break;
+          if(not f(ip_md, spot, current_part)) return;
           if (!part_started) {
             assert(ip_md.is_first);
             if (ip_md.is_last) ++current_part;
@@ -470,7 +434,7 @@ class alignas(64) MultiSegmentKey
       iter_pieces([&](KeySegmentPieceMetadata const ip_md, const char* spot, uint8_t current_part) {
         if(current_part == part) {
           part_size += ip_md.piece_size;
-          return ip_md.is_last; // break if last
+          return not ip_md.is_last; // break if last
         }
         return true; // don't break, continue
       });
@@ -483,24 +447,10 @@ class alignas(64) MultiSegmentKey
         if(current_part == part) {
           ::memcpy(buffer_spot, spot, ip_md.piece_size);
           buffer_spot += ip_md.piece_size;
-          return ip_md.is_last; // break if last piece
+          return not ip_md.is_last; // break if last piece
         }
-        return true; // don't break
+        else return true; // don't break
       });
-      //debug_spot = (char*)first_segment_.data;
-      //for(int i = 0; i < FirstKeySegment::payload_size; ++i) {
-      //  std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<0));
-      //  std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<1));
-      //  std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<2));
-      //  std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<3));
-      //  std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<4));
-      //  std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<5));
-      //  std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<6));
-      //  std::cout << std::setw(1) << (bool)(((int)*debug_spot)&(1<<7));
-      //  std::cout << " ";
-      //  debug_spot++;
-      //}
-      //std::cout << std::endl;
     }
 
   private:
@@ -548,7 +498,7 @@ struct create_multi_segment_key_impl {
     size_t remain_current = FirstKeySegment::payload_size;
     unsigned n_extra_segments = 0;
     meta::tuple_for_each_zipped(
-      std::forward_as_tuple(bytes_convert<std::remove_reference_t<Args>>()...),
+      std::forward_as_tuple(bytes_convert<std::remove_cv_t<std::remove_reference_t<Args>>>()...),
       std::forward_as_tuple(std::forward<Args>(args)...),
       [&](auto&& bytes_converter, auto&& val) {
 
@@ -605,7 +555,7 @@ template <typename... Args>
 std::shared_ptr<MultiSegmentKeyBase>
 create_multi_segment_key(Args&&... args) {
   static constexpr bool all_sizes_known_statically = false && // for now, just treat all as variable size
-    mv::all_of<bytes_size_known_statically, std::remove_reference_t<Args>...>::type::value;
+    mv::all_of<bytes_size_known_statically, std::remove_cv_t<std::remove_reference_t<Args>>...>::type::value;
   return create_multi_segment_key_impl<all_sizes_known_statically, Args...>()(
     std::forward<Args>(args)...
   );
