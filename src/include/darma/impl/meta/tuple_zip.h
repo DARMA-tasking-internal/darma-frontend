@@ -62,7 +62,7 @@ struct tuple_zip_helper {
   inline constexpr auto
   operator()(Tuples&&... tuples) const {
     return std::tuple_cat(
-      std::forward_as_tuple(
+      std::make_tuple(
         std::forward_as_tuple(std::get<I>(std::forward<Tuples>(tuples))...)
       ),
       next_helper_t()(std::forward<Tuples>(tuples)...)
@@ -84,7 +84,7 @@ template <typename... Tuples>
 auto
 tuple_zip(Tuples&&... tuples) {
   static constexpr size_t min_size =
-    tinympl::min<std::tuple_size<Tuples>...>::value;
+    tinympl::min<std::tuple_size<std::decay_t<Tuples>>...>::value;
   typedef _impl::tuple_zip_helper<0, min_size, Tuples...> helper_t;
 
   return helper_t()(std::forward<Tuples>(tuples)...);

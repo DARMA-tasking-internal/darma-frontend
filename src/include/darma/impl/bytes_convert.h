@@ -100,7 +100,7 @@ template <typename T, typename Enable>
 struct bytes_convert {
   static constexpr bool size_known_statically = false;
 
-  inline constexpr
+  inline
   std::enable_if_t<
     meta::is_out_streamable<T, std::ostringstream>::value
   >
@@ -110,7 +110,7 @@ struct bytes_convert {
     return bytes_convert<std::string>().get_size(osstr.str());
   }
 
-  inline constexpr
+  inline
   std::enable_if_t<
     meta::is_out_streamable<T, std::ostringstream>::value
   >
@@ -141,7 +141,7 @@ struct bytes_convert<T, std::enable_if_t<std::is_fundamental<T>::value>> {
   inline constexpr size_t get_size(T const&) const { return size; }
   inline constexpr void
   operator()(T const &val, void *dest, const size_t n_bytes, const size_t offset) const {
-    ::memcpy(dest, &val + n_bytes, n_bytes);
+    ::memcpy(dest, (char*)(&val) + offset, n_bytes);
   }
 };
 

@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                       test_tuple_for_each.cc
-//                         darma
+//                       run_all_tests.cc
+//                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -43,61 +43,8 @@
 */
 
 #include <gtest/gtest.h>
-#include <gmock/gmock.h>
 
-#include <darma/impl/meta/tuple_for_each.h>
-
-using namespace darma_runtime::meta;
-
-TEST(TupleForEach, basic) {
-  std::vector<std::string> vals;
-  tuple_for_each(std::forward_as_tuple("hello", "world"), [&](auto&& val) {
-    vals.push_back(val);
-  });
-  ASSERT_EQ(vals[0], "hello");
-  ASSERT_EQ(vals[1], "world");
-}
-
-
-TEST(TupleForEach, basic_zip) {
-  using namespace ::testing;
-  std::vector<std::string> vals;
-  tuple_for_each_zipped(
-    std::forward_as_tuple("hello 1", "world 1"),
-    std::forward_as_tuple("hello 2", "world 2"),
-    [&](auto&& val1, auto&& val2) {
-      vals.push_back(val1);
-      vals.push_back(val2);
-    }
-  );
-  ASSERT_THAT(vals, ElementsAre("hello 1", "hello 2", "world 1", "world 2"));
-}
-
-TEST(TupleZip, basic) {
-  auto t = tuple_zip(
-    std::forward_as_tuple(1, 2, 3),
-    std::forward_as_tuple(4, 5, 6)
-  );
-  static_assert(std::tuple_size<std::decay_t<decltype(t)>>::value == 3, "");
-  static_assert(std::tuple_size<std::decay_t<decltype(std::get<0>(t))>>::value == 2, "");
-
-  ASSERT_EQ(std::get<0>(std::get<0>(t)), 1);
-  ASSERT_EQ(std::get<1>(std::get<0>(t)), 4);
-  ASSERT_EQ(std::get<0>(std::get<1>(t)), 2);
-  ASSERT_EQ(std::get<1>(std::get<1>(t)), 5);
-  ASSERT_EQ(std::get<0>(std::get<2>(t)), 3);
-  ASSERT_EQ(std::get<1>(std::get<2>(t)), 6);
-}
-
-TEST(TuplePopBack, basic) {
-  auto t = std::make_tuple(1, 2, 3);
-  auto t2 = tuple_pop_back(t);
-  static_assert(std::tuple_size<std::decay_t<decltype(t)>>::value == 3, "");
-  static_assert(std::tuple_size<std::decay_t<decltype(t2)>>::value == 2, "");
-
-  ASSERT_EQ(std::get<0>(t2), 1);
-  ASSERT_EQ(std::get<1>(t2), 2);
-  ASSERT_EQ(std::get<0>(t), 1);
-  ASSERT_EQ(std::get<1>(t), 2);
-  ASSERT_EQ(std::get<2>(t), 3);
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }
