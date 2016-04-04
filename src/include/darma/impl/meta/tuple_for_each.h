@@ -119,7 +119,7 @@ template <
   bool IncludeIndex
 >
 struct _helper1 {
-  constexpr inline return_type
+  constexpr inline auto
   operator()(TupleArg&& tup, GenericLambda&& lambda) const && {
     typedef typename m::copy_cv_qualifiers<TupleArg>::template apply<
         typename m::copy_reference_type<TupleArg>::template apply<
@@ -241,7 +241,7 @@ struct _impl {
     "tuple_for_each can't mix void and non-void return types"
   );
 
-  constexpr inline return_t
+  constexpr inline auto
   operator()(TupleArg&& tup, GenericLambda&& lambda) const && {
     return _helper1<
         Tuple, GenericLambda, return_t, I,
@@ -301,13 +301,7 @@ template <
   typename Tuple,
   typename GenericLambda
 >
-typename _tuple_for_each_impl::_impl<
-  UnaryMetafunction,
-  tinympl::find_if<Tuple, UnaryMetafunction>::value,
-  std::tuple_size<typename std::decay<Tuple>::type>::value,
-  typename std::decay<Tuple>::type,
-  GenericLambda, Tuple
->::return_t
+auto
 tuple_for_each_filtered_type(
   Tuple&& tup,
   GenericLambda&& lambda
@@ -329,12 +323,7 @@ template <
   typename Tuple,
   typename GenericLambda
 >
-typename _tuple_for_each_impl::_impl<
-  tinympl::always_true,
-  0, std::tuple_size<typename std::decay<Tuple>::type>::value,
-  typename std::decay<Tuple>::type,
-  GenericLambda, Tuple
->::return_t
+auto
 tuple_for_each(
   Tuple&& tup,
   GenericLambda&& lambda
@@ -361,13 +350,13 @@ tuple_for_each_zipped(
   typedef decltype(splat_tuple(
     std::declval<Tuples>(), tuple_zip_wrapper
   )) TuplesZipped;
-  auto&& func = std::get<sizeof...(Args)-1>(
+  auto func = std::get<sizeof...(Args)-1>(
     std::tuple<Args...>(std::forward<Args>(args)...)
   );
-  auto wrap_lambda = [f=std::move(func)](auto&& zip_item) {
+  auto wrap_lambda = [&](auto&& zip_item) {
     return splat_tuple(
       std::forward<decltype(zip_item)>(zip_item),
-      f
+      func
     );
   };
   typedef typename _tuple_for_each_impl::_impl<
@@ -381,7 +370,7 @@ tuple_for_each_zipped(
       tuple_pop_back(std::make_tuple(std::forward<Args>(args)...)),
       tuple_zip_wrapper
     ),
-    std::forward<decltype(wrap_lambda)>(wrap_lambda)
+    std::move(wrap_lambda)
   );
 }
 
@@ -389,12 +378,7 @@ template <
   typename Tuple,
   typename GenericLambda
 >
-typename _tuple_for_each_impl::_impl<
-  tinympl::always_true,
-  0, std::tuple_size<typename std::decay<Tuple>::type>::value,
-  typename std::decay<Tuple>::type,
-  GenericLambda, Tuple, true
->::return_t
+auto
 tuple_for_each_with_index(
   Tuple&& tup,
   GenericLambda&& lambda

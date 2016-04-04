@@ -45,38 +45,170 @@
 
 #include <iostream>
 #include <tuple>
+#include <memory>
 
-#include <darma/impl/meta/splat_tuple.h>
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+
+#include <darma/impl/meta/tuple_for_each.h>
+#include "blabbermouth.h"
 
 using namespace darma_runtime;
 
-struct BlabberMouth {
-  BlabberMouth(const std::string& str) : str_(str) { std::cout << "#!! String constructor: " << str_ << std::endl; }
-  BlabberMouth(const BlabberMouth& other) : str_(other.str_) { std::cout << "#!! copy constructor: " << str_ << std::endl; };
-  BlabberMouth(BlabberMouth&& other) : str_(other.str_) { std::cout << "#!! move constructor: " << str_ << std::endl; };
-  std::string str_;
+typedef EnableCTorBlabbermouth<String, Copy, Move> BlabberMouth;
+static MockBlabbermouthListener* listener;
+
+////////////////////////////////////////////////////////////////////////////////
+
+class TestSplatTuple
+  : public ::testing::Test
+{
+  protected:
+
+    virtual void SetUp() {
+      using namespace ::testing;
+      listener_ptr = std::make_unique<StrictMock<MockBlabbermouthListener>>();
+      BlabberMouth::listener = listener_ptr.get();
+      listener = BlabberMouth::listener;
+    }
+
+    virtual void TearDown() {
+      listener_ptr.reset();
+    }
+
+    std::unique_ptr<::testing::StrictMock<MockBlabbermouthListener>> listener_ptr;
+
 };
+
+////////////////////////////////////////////////////////////////////////////////
+
+//struct BlabberMouth {
+//  BlabberMouth(const std::string& str) : str_(str) { std::cout << "#!! String constructor: " << str_ << std::endl; }
+//  BlabberMouth(const BlabberMouth& other) : str_(other.str_) { std::cout << "#!! copy constructor: " << str_ << std::endl; };
+//  BlabberMouth(BlabberMouth&& other) : str_(other.str_) { std::cout << "#!! move constructor: " << str_ << std::endl; };
+//  std::string str_;
+//};
 
 template <typename Tuple>
 void test_const(const Tuple& tup) {
-  meta::splat_tuple(tup, [](const int& a, const std::string& b, const double& c, const BlabberMouth& d){
-    std::cout << a << ", " << b << ", " << c << ", " << d.str_ << std::endl;
+  meta::splat_tuple(tup, [](
+    const int& a,
+    const std::string& b,
+    const double& c,
+    const BlabberMouth& d
+  ){
+    std::cout << a << ", " << b << ", " << c << std::endl;
   });
 }
 
-int main(int argc, char** argv) {
+TEST_F(TestSplatTuple, old_1) {
+  using namespace ::testing;
+  testing::internal::CaptureStdout();
+  Sequence s;
+
   // Should have one move constructor
+  EXPECT_CALL(*listener, string_ctor()).InSequence(s);
+  //EXPECT_CALL(*listener, move_ctor()).InSequence(s);
   auto tup = std::make_tuple(5, "hello", 47.32, BlabberMouth("blabber"));
   meta::splat_tuple(tup, [](const int& a, const std::string& b, const double& c, const BlabberMouth& d){
-    std::cout << a << ", " << b << ", " << c << ", " << d.str_ << std::endl;
+    std::cout << a << ", " << b << ", " << c << std::endl;
   });
-  // Should have only a string constructor
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "5, hello, 47.32\n"
+  );
+
+}
+
+TEST_F(TestSplatTuple, old_2) {
+  using namespace ::testing;
+  testing::internal::CaptureStdout();
+  Sequence s;
+
+  // Should have one move constructor
+  EXPECT_CALL(*listener, string_ctor()).InSequence(s);
+  //EXPECT_CALL(*listener, move_ctor()).InSequence(s);
   meta::splat_tuple(std::forward_as_tuple(5, "hello", 47.32, BlabberMouth("blabber")),
     [](const int& a, const std::string& b, const double& c, const BlabberMouth& d){
-      std::cout << a << ", " << b << ", " << c << ", " << d.str_ << std::endl;
+      std::cout << a << ", " << b << ", " << c << std::endl;
+    });
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "5, hello, 47.32\n"
+  );
+
+}
+
+TEST_F(TestSplatTuple, old_seq) {
+  // Note: these tests are together to ensure splat_tuple has no unintented consequences (e.g., moving and
+  // causing a value to expire, etc.)
+
+  using namespace ::testing;
+
+  testing::internal::CaptureStdout();
+
+  Sequence s;
+
+  EXPECT_CALL(*listener, string_ctor()).InSequence(s);
+  auto tup = std::make_tuple(5, "hello", 47.32, BlabberMouth("blabber"));
+  meta::splat_tuple(tup, [](const int& a, const std::string& b, const double& c, const BlabberMouth& d){
+    std::cout << a << ", " << b << ", " << c << std::endl;
   });
+
+  // Should have only a string constructor
+  EXPECT_CALL(*listener, string_ctor()).InSequence(s);
+  meta::splat_tuple(std::forward_as_tuple(5, "hello", 47.32, BlabberMouth("blabber")),
+    [](const int& a, const std::string& b, const double& c, const BlabberMouth& d){
+      std::cout << a << ", " << b << ", " << c << std::endl;
+  });
+
   // Should call no constructors
   test_const(tup);
+
   // Should have only a string constructor
+  EXPECT_CALL(*listener, string_ctor()).InSequence(s);
   test_const(std::forward_as_tuple(5, "hello", 47.32, BlabberMouth("blabber")));
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "5, hello, 47.32\n"
+    "5, hello, 47.32\n"
+    "5, hello, 47.32\n"
+    "5, hello, 47.32\n"
+  );
+}
+
+TEST_F(TestSplatTuple, lvalue_1) {
+  using namespace ::testing;
+  testing::internal::CaptureStdout();
+  Sequence s;
+
+  int my_int = 5;
+
+  meta::splat_tuple(std::forward_as_tuple(my_int, "hello"),
+    [](int& val, std::string const& str){
+      std::cout << str << std::endl;
+      val = 42;
+    });
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "hello\n"
+  );
+  ASSERT_EQ(my_int, 42);
+
+}
+
+TEST_F(TestSplatTuple, lvalue_2) {
+  using namespace ::testing;
+  Sequence s;
+
+  auto tup = std::make_tuple(1, 2);
+
+  meta::splat_tuple(tup,
+    [](int& val, int& val2){
+      val = 3;
+      val2 = 4;
+    });
+
+  ASSERT_EQ(std::get<0>(tup), 3);
+  ASSERT_EQ(std::get<1>(tup), 4);
 }
