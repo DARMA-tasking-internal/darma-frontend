@@ -90,3 +90,78 @@ TEST_F(TestSegmentedKey, simple_int) {
   ASSERT_EQ(k.component<1>().as<int>(), 4);
   ASSERT_EQ(k.component<2>().as<int>(), 8);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSegmentedKey, simple_string) {
+  using namespace darma_runtime::detail;
+  auto maker = typename key_traits<SegmentedKey>::maker{};
+  SegmentedKey k = maker("hello", 2, "world!");
+  ASSERT_EQ(k.component<0>().as<std::string>(), "hello");
+  ASSERT_EQ(k.component<1>().as<int>(), 2);
+  ASSERT_EQ(k.component<2>().as<std::string>(), "world!");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSegmentedKey, string_split) {
+  using namespace darma_runtime::detail;
+  auto maker = typename key_traits<SegmentedKey>::maker{};
+  SegmentedKey k = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+  ASSERT_EQ(k.component<0>().as<std::string>(), "hello");
+  ASSERT_EQ(k.component<1>().as<int>(), 2);
+  ASSERT_EQ(k.component<6>().as<std::string>(), "world!");
+  ASSERT_EQ(k.component<7>().as<std::string>(), "How is it going today?");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSegmentedKey, ints_split) {
+  using namespace darma_runtime::detail;
+  auto maker = typename key_traits<SegmentedKey>::maker{};
+  SegmentedKey k = maker(
+    1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096
+  );
+  ASSERT_EQ(k.component<1>().as<int>(), 2);
+  ASSERT_EQ(k.component<12>().as<int>(), 4096);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSegmentedKey, ints_exact) {
+  using namespace darma_runtime::detail;
+  auto maker = typename key_traits<SegmentedKey>::maker{};
+  SegmentedKey k = maker(
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "Ab"
+  );
+  ASSERT_EQ(k.component<1>().as<int>(), 2);
+  ASSERT_EQ(k.component<10>().as<std::string>(), "Ab");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSegmentedKey, ints_exact_2) {
+  using namespace darma_runtime::detail;
+  auto maker = typename key_traits<SegmentedKey>::maker{};
+  SegmentedKey k = maker(
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "Ab",
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, "AB"
+  );
+  ASSERT_EQ(k.component<1>().as<int>(), 2);
+  ASSERT_EQ(k.component<23>().as<std::string>(), "AB");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSegmentedKey, string_span_3) {
+  using namespace darma_runtime::detail;
+  auto maker = typename key_traits<SegmentedKey>::maker{};
+  const std::string s = ""
+    "hello, there.  How is it going today? "
+    " Blah blah blah blah blah blah blah"
+    " Blah blah blah blah blah blah blah"
+    " Blah blah blah blah blah blah blah"
+    " Blah blah blah blah blah blah blah 42";
+  SegmentedKey k = maker(s, 42, s);
+  ASSERT_EQ(k.component<2>().as<std::string>(), s);
+}
