@@ -270,7 +270,7 @@ class Runtime {
      *            during that handle's life cycle, repeat with {k', v'} = {k', ++(v'.pop())}
      *          * otherwise, {k, v} has no subsequent.  This is also true if a {k', v'} is reached for which
      *            handle_done_with_version_depth() was called with v'.depth() == 1 (or if v'.depth() == 1 at
-     *            any time in this process taht pop() would need to be called)
+     *            any time in this process that pop() would need to be called)
      *
      *  If a handle has no subsequent, the runtime should garbage collect the DataBlock associated with handle
      *  (as soon as any pending publish/fetch interactions complete, see remark below).
