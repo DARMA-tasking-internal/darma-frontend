@@ -1,0 +1,23 @@
+
+darma_init() 			ok
+darma_finalize()	ok
+darma_spmd_rank		ok	
+darma_spmd_size		ok
+
+create_work				ok
+initial_access<>	ok
+read_access<>			ok 
+
+reads()						ok
+n_readers					ok 
+version 
+
+AccessHandle<> 
+	publish						ok 
+	get_value					ok
+	set_value 				ok
+	get_reference			ok 
+	emplace_value			ok
+	operator->				ok
+	get_key
+	=0 or release

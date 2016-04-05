@@ -103,6 +103,7 @@ set_tests_properties(${test_name} PROPERTIES TIMEOUT 10)
 endif()
 endfunction()
 
+add_subdirectory(spec02individualFunctionalities)
 add_subdirectory(stencil_1d)
 add_subdirectory(simple_hello)
 add_subdirectory(darma_hello)
