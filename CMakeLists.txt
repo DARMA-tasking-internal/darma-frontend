@@ -8,6 +8,10 @@ set (Darma_VERSION_MINOR 2)
 enable_testing()
 
 include_directories( ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} )
+include_directories( ${CMAKE_BINARY_DIR}/src/include )
+
+# indicate that CMAKE was used, so config-generated.h can be used
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_CONFIG_GENERATED_H_AVAILABLE" )
 
 set(DARMA_ALL_IN_ONE On)
 

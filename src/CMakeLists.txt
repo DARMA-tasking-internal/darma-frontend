@@ -5,7 +5,7 @@ project (DarmaFrontend)
 set (DarmaFrontend_VERSION_MAJOR 0)
 set (DarmaFrontend_VERSION_MINOR 2)
 
-include_directories( ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} )
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/include )
 
 option(DARMA_COVERAGE "Whether to setup coverage targets for tests" Off)
 

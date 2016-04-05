@@ -1,5 +1,6 @@
 
 set (impl_HEADERS
+config.h
 compatibility.h
 create_work.h
 darma.h
@@ -46,3 +47,11 @@ install (FILES ${impl_HEADERS} DESTINATION include/darma/impl)
 install (FILES ${impl_meta_HEADERS} DESTINATION include/darma/impl/meta)
 install (FILES ${impl_keyword_arguments_HEADERS} DESTINATION include/darma/impl/keyword_arguments)
 
+include (CheckCXXSourceCompiles)
+check_cxx_source_compiles("
+extern void* my_memcpy(void *dest, const void *src)
+    __attribute__((nonnull (1, 2)));
+int main() { }
+" DARMA_HAVE_ATTRIBUTE_NONNULL)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config-generated.h.in ${CMAKE_CURRENT_BINARY_DIR}/config-generated.h)
+install (FILES ${CMAKE_CURRENT_BINARY_DIR}/config-generated.h DESTINATION include/darma/impl)
