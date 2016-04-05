@@ -11,8 +11,8 @@ target_link_libraries(cw1 ${DARMA_BACKEND_LIBNAME})
 add_executable(initialAccess initialAccess.cc)
 target_link_libraries(initialAccess ${DARMA_BACKEND_LIBNAME})
 
-add_executable(accessHandle1 accessHandle1.cc)
-target_link_libraries(accessHandle1 ${DARMA_BACKEND_LIBNAME})
+#add_executable(accessHandle1 accessHandle1.cc)
+#target_link_libraries(accessHandle1 ${DARMA_BACKEND_LIBNAME})
 
 add_executable(accessHandleArrowOperator accessHandleArrowOperator.cc)
 target_link_libraries(accessHandleArrowOperator ${DARMA_BACKEND_LIBNAME})
