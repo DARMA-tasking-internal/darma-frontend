@@ -89,6 +89,9 @@ TEST_F(TestSegmentedKey, simple_int) {
   ASSERT_EQ(k.component<0>().as<int>(), 2);
   ASSERT_EQ(k.component<1>().as<int>(), 4);
   ASSERT_EQ(k.component<2>().as<int>(), 8);
+  ASSERT_EQ(k.component(0).as<int>(), 2);
+  ASSERT_EQ(k.component(1).as<int>(), 4);
+  ASSERT_EQ(k.component(2).as<int>(), 8);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -132,10 +135,10 @@ TEST_F(TestSegmentedKey, ints_exact) {
   using namespace darma_runtime::detail;
   auto maker = typename key_traits<SegmentedKey>::maker{};
   SegmentedKey k = maker(
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "Ab"
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "A"
   );
   ASSERT_EQ(k.component<1>().as<int>(), 2);
-  ASSERT_EQ(k.component<10>().as<std::string>(), "Ab");
+  ASSERT_EQ(k.component<10>().as<std::string>(), "A");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -164,4 +167,90 @@ TEST_F(TestSegmentedKey, string_span_3) {
     " Blah blah blah blah blah blah blah 42";
   SegmentedKey k = maker(s, 42, s);
   ASSERT_EQ(k.component<2>().as<std::string>(), s);
+}
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSegmentedKey, equal_multipart) {
+  using namespace darma_runtime::detail;
+  auto maker = typename key_traits<SegmentedKey>::maker{};
+  SegmentedKey k1 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+  SegmentedKey k2 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+  ASSERT_TRUE(key_traits<SegmentedKey>::key_equal()(k1, k2));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSegmentedKey, hash_multipart) {
+  using namespace darma_runtime::detail;
+  auto maker = typename key_traits<SegmentedKey>::maker{};
+  SegmentedKey k1 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+  SegmentedKey k2 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+  ASSERT_EQ(key_traits<SegmentedKey>::hasher()(k1), key_traits<SegmentedKey>::hasher()(k2));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSegmentedKey, without_last_component_simple) {
+  using namespace darma_runtime::detail;
+  typedef typename key_traits<SegmentedKey>::internal_use_access access;
+  auto maker = typename key_traits<SegmentedKey>::maker{};
+  SegmentedKey k = maker(2,4);
+  SegmentedKey k2 = access::add_internal_last_component(k, 8);
+  SegmentedKey k3 = access::without_internal_last_component(k2);
+  ASSERT_EQ(k3.component<0>().as<int>(), 2);
+  ASSERT_EQ(k3.component<1>().as<int>(), 4);
+  ASSERT_EQ(k.n_components(), 2);
+  ASSERT_EQ(k2.n_components(), 2);
+  ASSERT_EQ(k3.n_components(), 2);
+  ASSERT_EQ(access::get_internal_last_component(k2).as<int>(), 8);
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSegmentedKey, without_last_component_multipart) {
+  using namespace darma_runtime::detail;
+  typedef typename key_traits<SegmentedKey>::internal_use_access access;
+  auto maker = typename key_traits<SegmentedKey>::maker{};
+  SegmentedKey k = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+  SegmentedKey k2 = access::add_internal_last_component(k, "asdf");
+  SegmentedKey k3 = access::without_internal_last_component(k2);
+  EXPECT_EQ(k2.component<1>().as<int>(), 2);
+  EXPECT_EQ(k2.component<2>().as<int>(), 3);
+  EXPECT_EQ(k2.component<7>().as<std::string>(), "How is it going today?");
+  EXPECT_EQ(k3.component<1>().as<int>(), 2);
+  EXPECT_EQ(k3.component<2>().as<int>(), 3);
+  EXPECT_EQ(k3.component<7>().as<std::string>(), "How is it going today?");
+  EXPECT_EQ(k.n_components(), 8);
+  EXPECT_EQ(k2.n_components(), 8);
+  EXPECT_EQ(k3.n_components(), 8);
+
+  ASSERT_FALSE(access::has_internal_last_component(k3));
+  ASSERT_EQ(access::get_internal_last_component(k2).as<std::string>(), "asdf");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSegmentedKey, bytes_copy) {
+  using namespace darma_runtime::detail;
+  auto maker = typename key_traits<SegmentedKey>::maker{};
+  SegmentedKey k = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+
+  bytes_convert<SegmentedKey> bc;
+  size_t size = bc.get_size(k);
+  char key_data[size];
+  bc(k, key_data, size, 0);
+
+  SegmentedKey k2 = bc.get_value(key_data, size);
+
+  EXPECT_EQ(k.component<0>().as<std::string>(), "hello");
+  EXPECT_EQ(k.component<1>().as<int>(), 2);
+  EXPECT_EQ(k.component<6>().as<std::string>(), "world!");
+  EXPECT_EQ(k.component<7>().as<std::string>(), "How is it going today?");
+
+  ASSERT_EQ(k2.component<0>().as<std::string>(), "hello");
+  ASSERT_EQ(k2.component<1>().as<int>(), 2);
+  ASSERT_EQ(k2.component<6>().as<std::string>(), "world!");
+  ASSERT_EQ(k2.component<7>().as<std::string>(), "How is it going today?");
+
+  ASSERT_TRUE(key_traits<SegmentedKey>::key_equal()(k, k2));
 }

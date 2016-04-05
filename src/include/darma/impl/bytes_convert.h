@@ -221,7 +221,7 @@ using convertible_from_bytes = meta::is_detected_convertible<T, _impl::convertib
 namespace _impl {
 template<typename T>
 using can_reinterpret_cast_bytes_archetype =
-std::integral_constant<bool, bytes_convert<T>::can_reinterpret_cast>;
+  std::integral_constant<bool, bytes_convert<T>::can_reinterpret_cast>;
 } // end namespace _impl
 template <typename T>
 using can_reinterpret_cast_bytes =
@@ -235,6 +235,39 @@ std::integral_constant<bool, bytes_convert<T>::size_known_statically>;
 template <typename T>
 using bytes_size_known_statically =
   meta::detected_or<std::false_type, _impl::bytes_size_known_statically_archetype, T>;
+
+struct raw_bytes {
+  public:
+    explicit
+    raw_bytes(size_t nbytes)
+      : size(nbytes),
+        data(new char[nbytes])
+    { }
+    std::unique_ptr<char[]> data = nullptr;
+    size_t get_size() const { return size; }
+    //~raw_bytes() { if(data) delete[] data; }
+  private:
+    size_t size;
+};
+
+template <>
+struct bytes_convert<raw_bytes> {
+  static constexpr bool size_known_statically = false;
+  inline size_t
+  get_size(raw_bytes const& bytes) const {
+    return bytes.get_size();
+  }
+  inline void
+  operator()(raw_bytes const& bytes, void* dest, const size_t n_bytes, const size_t offset) const {
+    ::memcpy(dest, bytes.data.get() + offset, n_bytes);
+  }
+  inline raw_bytes
+  get_value(void* data, size_t size) const {
+    raw_bytes bytes(size);
+    memcpy(bytes.data.get(), data, size);
+    return bytes;
+  }
+};
 
 } // end namespace detail
 

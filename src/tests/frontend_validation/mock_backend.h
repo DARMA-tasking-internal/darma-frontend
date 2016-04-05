@@ -83,6 +83,14 @@ class MockRuntime
       }
     }
 
+
+#ifdef __clang__
+#if __has_warning("-Winconsistent-missing-override")
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winconsistent-missing-override"
+#endif
+#endif
+
     MOCK_CONST_METHOD0(get_running_task, task_t* const());
     MOCK_METHOD1(register_handle, void(handle_t* const handle));
     MOCK_METHOD2(register_fetching_handle, void(handle_t* const, key_t const&));
@@ -93,6 +101,12 @@ class MockRuntime
     MOCK_METHOD0(finalize, void());
 
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
+
+#ifdef __clang__
+#if __has_warning("-Winconsistent-missing-override")
+#pragma clang diagnostic pop
+#endif
+#endif
 
     bool save_tasks = true;
     std::deque<task_unique_ptr> registered_tasks;
