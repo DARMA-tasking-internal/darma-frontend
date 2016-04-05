@@ -52,3 +52,9 @@ cmake ${source}/examples \
   -DDARMA_BACKEND_DIR=${backend_prefix} \
   -DDARMA_BACKEND_LIBNAME=${backend_libname}
 
+===========================================================================
+
+The frontend and backend validation tests require the DEVELOPMENT version
+of googletest/googlemock.  Release 1.7.0 is NOT sufficient.  Specify the
+path to them to cmake using -DGTEST_DIR=.
+
