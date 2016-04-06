@@ -23,6 +23,7 @@ int darma_main(int argc, char** argv)
   int source = myRank==0 ? 1 : 0;
 
   auto my_handle = initial_access<double>("data", myRank);
+
   create_work([=]
   {
     my_handle.emplace_value(0.5 + (double) myRank);
