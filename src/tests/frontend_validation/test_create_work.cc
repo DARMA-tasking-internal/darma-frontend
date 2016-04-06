@@ -520,7 +520,13 @@ TEST_F(TestCreateWork, ro_capture_MM) {
 
   run_all_tasks();
 
-  // Assert that the version relationships match the chart
+  // Assert that the versions are correct
+  ASSERT_EQ(v0, version_t{0});
+  ASSERT_EQ(v1, version_t{1});
+  ASSERT_THAT(v3, Eq(version_t{1,1}));
+  ASSERT_EQ(v2, version_t{2});
+
+  // also assert that the version relationships and increment behavior works
   v0.pop_subversion();
   ++v0;
   ASSERT_EQ(v1, v0);
@@ -533,3 +539,101 @@ TEST_F(TestCreateWork, ro_capture_MM) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, publish_inside_version) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+
+  mock_runtime->save_tasks = true;
+
+  {
+    auto tmp = initial_access<double>("data", 0);
+    EXPECT_VERSION_EQ_EXACT(tmp, {0});
+    create_work([=] {
+      EXPECT_VERSION_EQ_EXACT(tmp, {0,0});
+      tmp.publish(n_readers=1);
+      EXPECT_VERSION_EQ_EXACT(tmp, {0,1});
+    });
+    EXPECT_VERSION_EQ_EXACT(tmp, {1});
+  }
+
+  run_all_tasks();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, publish_outside_version) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+
+  mock_runtime->save_tasks = true;
+
+  {
+    auto tmp = initial_access<double>("data", 0);
+    EXPECT_VERSION_EQ_EXACT(tmp, {0});
+    create_work([=] {
+      EXPECT_VERSION_EQ_EXACT(tmp, {0,0});
+    });
+    EXPECT_VERSION_EQ_EXACT(tmp, {1});
+    tmp.publish(n_readers=1);
+    EXPECT_VERSION_EQ_EXACT(tmp, {1});
+  }
+
+  run_all_tasks();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, publish_inside_register_release) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+
+  mock_runtime->save_tasks = true;
+
+  handle_t* h0, *h1, *h2;
+  h0 = h1 = h2 = nullptr;
+  //version_t v0, v1, v2, v3;
+
+  {
+    InSequence s;
+    EXPECT_CALL(*mock_runtime, register_handle(_)).WillOnce(SaveArg<0>(&h0));
+    EXPECT_CALL(*mock_runtime, release_read_only_usage(Eq(ByRef(h0))));
+
+    // continuing context handle should be registered before the task
+    EXPECT_CALL(*mock_runtime, register_handle(_)).WillOnce(SaveArg<0>(&h1));
+
+    // Now we expect the task to be registered
+    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(_));
+
+    // h1 goes away because tmp goes out of scope after the task is registered
+    // but before it is run
+    EXPECT_CALL(*mock_runtime, release_read_only_usage(Eq(ByRef(h1))));
+    EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1))));
+
+    // Then these should happen once the task runs
+    EXPECT_CALL(*mock_runtime, register_handle(_)).WillOnce(SaveArg<0>(&h2));
+    EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h0))));
+    EXPECT_CALL(*mock_runtime, release_read_only_usage(Eq(ByRef(h2))));
+    EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h2))));
+
+  }
+
+  {
+    auto tmp = initial_access<double>("data", 0);
+    ASSERT_VERSION_EQ(h0, {0});
+    create_work([=,&h2] {
+      tmp.publish(n_readers=1);
+      ASSERT_VERSION_EQ(h2, {0,1});
+    });
+    ASSERT_VERSION_EQ(h1, {1});
+  }
+
+  run_all_tasks();
+
+}
