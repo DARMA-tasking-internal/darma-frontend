@@ -184,7 +184,7 @@ struct create_work_impl {
     std::unique_ptr<TaskBase>&& task_base,
     Args&&... args, Lambda&& lambda) const {
     task_base->set_runnable(
-      std::make_shared<Runnable<Lambda>>(std::forward<Lambda>(lambda))
+      std::make_unique<Runnable<Lambda>>(std::forward<Lambda>(lambda))
     );
     detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
       detail::backend_runtime->get_running_task()

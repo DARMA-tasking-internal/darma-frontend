@@ -197,9 +197,8 @@ class TaskBase : public abstract::backend::runtime_t::task_t
 
     template <typename AccessHandle>
     void do_capture(
-      AccessHandle const& source,
       AccessHandle& captured,
-      AccessHandle& continuing
+      AccessHandle const& source_and_continuing
     );
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -244,14 +243,19 @@ class TaskBase : public abstract::backend::runtime_t::task_t
 
     void run() override {
       assert(runnable_);
+      for(auto& dep_ptr : this->all_deps_) {
+        // Make sure the access handle does in fact have it
+        assert(not dep_ptr.unique());
+        dep_ptr.reset();
+      }
       runnable_->run();
     }
 
     // end implementation of abstract::frontend::Task
     ////////////////////////////////////////////////////////////////////////////////
 
-    void set_runnable(std::shared_ptr<RunnableBase> r) {
-      runnable_ = r;
+    void set_runnable(std::unique_ptr<RunnableBase>&& r) {
+      runnable_ = std::move(r);
     }
 
     virtual ~TaskBase() noexcept { }
@@ -264,7 +268,7 @@ class TaskBase : public abstract::backend::runtime_t::task_t
   private:
 
     // Should this be a unique_ptr?
-    std::shared_ptr<RunnableBase> runnable_;
+    std::unique_ptr<RunnableBase> runnable_;
 
 };
 
