@@ -240,14 +240,15 @@ class Runtime {
      *  several ways.  Given k = handle->get_key() and v = handle->get_version() for the handle parameter, the
      *  following rules may be used to determine the correct subsequent to satisfy with handle's data upon release:
      *    1. first, if a handle is registered with key k and version ++(v.push(0)), that handle is the subsequent
-     *       and should be satisfied.  In this case, there must also be a handle registered with key k and version
+     *       and should be satisfied.  In this case, unless handle_done_with_version_depth() was called with handle
+     *       as an argument before this release call, there must also be a handle registered with key k and version
      *       ++v which is \b not the subsequent (but debug mode should check for that handle's existence).
      *    2. If no handle with {k, ++(v.push(0))} is registered, the runtime should check for {k, ++v}.  If that
      *       handle exists, it is the subsequent.  (Further, none of the following rules should yield a subsequent,
      *       and debug mode should check for this and raise an error).
      *    3. If handle_done_with_version_depth() was called with handle as an argument before this release call, or
      *       if {k, ++v} is not found to exist (e.g., potentially it has already been released) but a handle h' with
-     *       {k, ++v} was an argument ot handle_done_with_version_depth() before the release of h', the runtime should
+     *       {k, ++v} was an argument to handle_done_with_version_depth() before the release of h', the runtime should
      *       check for the existence of {k', v'} = {k, ++(v.pop())}.
      *       Then,
      *          * if {k', v'} exists, it is the subsequent
@@ -255,7 +256,7 @@ class Runtime {
      *            during that handle's life cycle, repeat with {k', v'} = {k', ++(v'.pop())}
      *          * otherwise, {k, v} has no subsequent.  This is also true if a {k', v'} is reached for which
      *            handle_done_with_version_depth() was called with v'.depth() == 1 (or if v'.depth() == 1 at
-     *            any time in this process taht pop() would need to be called)
+     *            any time in this process that pop() would need to be called)
      *
      *  If a handle has no subsequent, the runtime should garbage collect the DataBlock associated with handle
      *  (as soon as any pending publish/fetch interactions complete, see remark below).
