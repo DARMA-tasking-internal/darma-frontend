@@ -50,8 +50,6 @@
 
 #include "../frontend/dependency_handle.h"
 #include "../frontend/task.h"
-#include "../frontend/containment_manager.h"
-#include "../frontend/aliasing_manager.h"
 
 namespace darma_runtime {
 
@@ -69,11 +67,6 @@ namespace backend {
  *  backend implementaton; two threads must be allowed to call any method in
  *  this class simultaneously.
  *
- *  @todo Consider the possibility that these methods should be specified as C
- *  functions instead to avoid virtualization overhead.  If so, there would
- *  still need to be some sort of runtime context token as the first argument
- *  of each function call to allow multiple SPMD ranks to operate within a
- *  single process.
  */
 template <
   typename Key,
@@ -88,8 +81,6 @@ class Runtime {
     typedef Key key_t;
     typedef Version version_t;
     typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
-    typedef abstract::frontend::ContainmentManager<Key, Version> containment_manager_t;
-    typedef abstract::frontend::AliasingManager<Key, Version> aliasing_manager_t;
     typedef abstract::frontend::Task<
       Key, Version, types::handle_container_template
     > task_t;
@@ -154,10 +145,6 @@ class Runtime {
      *  switching, it is not guaranteed to be valid in the context of any other
      *  task's run() invocation, including child tasks, and thus it should not
      *  be dereferenced in any other context.
-     *
-     *  @todo Return value lifetime?  Maybe this should be a weak_ptr since
-     *  there's no logical way to limit the lifetime of the returned value,
-     *  especially with work stealing and context switching.
      */
     virtual task_t* const
     get_running_task() const =0;
@@ -254,7 +241,6 @@ class Runtime {
      *  instance but for which release_handle() has not yet been called.  The
      *  handle must already be properly versioned (i.e.,
      *  handle->version_is_pending() returns false).
-     *
      *
      */
     virtual void
@@ -412,40 +398,6 @@ class Runtime {
       bool is_final = false
     ) =0;
 
-    // Methods for "bare" dependency satisfaction and use.  Not used
-    // for task dependencies
-
-    ///**
-    // * @todo Document this for 0.3(?) spec
-    // */
-    //virtual void
-    //satisfy_handle(
-    //  handle_t* const to_fill,
-    //  bool needs_write_access = false
-    //) =0;
-
-    //// Methods for establishing containment and/or aliasing relationships
-
-    ///**
-    // * @todo Document this for 0.3 spec
-    // */
-    //virtual void
-    //establish_containment_relationship(
-    //  const handle_t* const inner_handle,
-    //  const handle_t* const outer_handle,
-    //  containment_manager_t const& manager
-    //) =0;
-
-    ///**
-    // * @todo Document this for 0.3 spec
-    // */
-    //virtual void
-    //establish_aliasing_relationship(
-    //  const handle_t* const handle_a,
-    //  const handle_t* const handle_b,
-    //  aliasing_manager_t const& manager
-    //) =0;
-
     /** @brief signifies the end of the outer SPMD task from which
      *  darma_backend_initialize() was called.
      *
@@ -460,7 +412,6 @@ class Runtime {
      */
     virtual void
     finalize() =0;
-
 
     virtual ~Runtime() noexcept = default;
 
