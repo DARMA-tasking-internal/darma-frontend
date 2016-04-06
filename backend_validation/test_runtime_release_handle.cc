@@ -591,6 +591,11 @@ SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_prev_already_released_cut) {
   EXPECT_CALL(*h_0.get(), get_data_block())
     .Times(AtLeast(1));  // when running write-only task
 
+  EXPECT_CALL(*h_2.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_2.get(), allow_writes())
+    .Times(AtMost(1));
+
   EXPECT_CALL(*h_3.get(), satisfy_with_data_block(_))
     .Times(Exactly(0));
   EXPECT_CALL(*h_3.get(), allow_writes())
@@ -607,14 +612,12 @@ SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_prev_already_released_cut) {
   // we're not going to call handle_done_with_version_depth on h_2,
   // so it should not satisfy h_3
   detail::backend_runtime->release_read_only_usage(h_2.get());
-  detail::backend_runtime->release_handle(h_2.get());
   detail::backend_runtime->handle_done_with_version_depth(h_1.get());
   detail::backend_runtime->release_read_only_usage(h_1.get());
   detail::backend_runtime->release_handle(h_1.get());
-  // h_1's subsequent, h_2, was just released prematurely
-  // h_0's subsequent, h_1, was also just released prematurely
-  // but since h_2 didn't have handle_done_with_version_depth called,
-  // do not satisfy h_3 with h_0
+  // h_0's subsequent, h_1, was just released prematurely.
+  // h_2 still exists but didn't have handle_done_with_version_depth
+  // called on it, so h_0 should satisfy h_2 but not h_3
 
   int value = 42;
 
@@ -631,6 +634,10 @@ SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_prev_already_released_cut) {
 
   detail::backend_runtime->finalize();
   backend_finalized = true;
+
+  ASSERT_TRUE(h_2->is_satisfied());
+
+  detail::backend_runtime->release_handle(h_2.get());
 
   ASSERT_FALSE(h_3->is_satisfied());
   ASSERT_FALSE(h_3->is_writable());
