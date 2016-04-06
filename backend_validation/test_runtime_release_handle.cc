@@ -239,6 +239,11 @@ TEST_F(RuntimeRelease, satisfy_next_depth) {
   EXPECT_CALL(*h_1.get(), allow_writes())
     .Times(AtMost(1));
 
+  EXPECT_CALL(*h_2.get(), satisfy_with_data_block(_))
+    .Times(Exactly(0));
+  EXPECT_CALL(*h_2.get(), allow_writes())
+    .Times(Exactly(0));
+
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
   detail::backend_runtime->register_handle(h_2.get());
@@ -276,18 +281,14 @@ TEST_F(RuntimeRelease, satisfy_next_depth) {
 
 // satisfy subsequent ++(v.push_subversion()) even though
 // handle_done_with_version_depth was called
-TEST_F(RuntimeRelease, satisfy_next_depth_hdwvd) {
+TEST_F(RuntimeRelease, satisfy_next_depth_when_last_at_depth) {
   using namespace ::testing;
 
   auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
   auto next_version = h_0->get_version();
   next_version.push_subversion();
   ++next_version;
-  auto next_version2 = h_0->get_version();
-  ++next_version2;
   auto h_1 = make_handle<int, true, false>(next_version, "the_key");
-  // h_2 must exist even though we're not directly using it
-  auto h_2 = make_handle<int, true, false>(next_version2, "the_key");
 
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -303,7 +304,6 @@ TEST_F(RuntimeRelease, satisfy_next_depth_hdwvd) {
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
-  detail::backend_runtime->register_handle(h_2.get());
 
   detail::backend_runtime->handle_done_with_version_depth(h_0.get());
   detail::backend_runtime->release_read_only_usage(h_0.get());
@@ -333,12 +333,10 @@ TEST_F(RuntimeRelease, satisfy_next_depth_hdwvd) {
 
   detail::backend_runtime->release_read_only_usage(h_1.get());
   detail::backend_runtime->release_handle(h_1.get());
-  detail::backend_runtime->release_read_only_usage(h_2.get());
-  detail::backend_runtime->release_handle(h_2.get());
 }
 
 // satisfy ++(v.push_subversion()) and then ++v
-TEST_F(RuntimeRelease, satisfy_next_then_same) {
+TEST_F(RuntimeRelease, satisfy_next_then_prev) {
   using namespace ::testing;
 
   auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
@@ -417,7 +415,9 @@ TEST_F(RuntimeRelease, satisfy_next_then_same) {
   detail::backend_runtime->release_handle(h_2.get());
 }
 
-SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_subseq_already_released) {
+// satisfy subsequent of subsequent, each at one less depth, when the
+// first subsequent has already been released
+SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_prev_already_released) {
   using namespace ::testing;
 
   auto first_version = MockDependencyHandle::version_t();
@@ -486,7 +486,8 @@ SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_subseq_already_released) {
 }
 
 // satisfy subsequent of subsequent of subsequent, each at one less depth
-SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_2subseqs_already_released) {
+// when the first two subsequents have already been released
+SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_prev_two_already_released) {
   using namespace ::testing;
 
   auto first_version = MockDependencyHandle::version_t();
@@ -566,27 +567,28 @@ SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_2subseqs_already_released) {
 }
 
 
-// satisfy subsequent of subsequent, each at one less depth
-SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_2subseqs_already_released2) {
+// satisfy subsequent of subsequent, each at one less depth, when the
+// first subsequent has already been released
+SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_prev_already_released_cut) {
   using namespace ::testing;
 
   auto first_version = MockDependencyHandle::version_t();
   first_version.push_subversion();
   first_version.push_subversion();
   first_version.push_subversion();
-  first_version.push_subversion();
+  first_version.push_subversion();  // 0.0.0.0.0
   auto h_0 = make_handle<int, true, true>(first_version, "the_key");
   auto next_version = first_version;
   next_version.pop_subversion();
-  ++next_version;
+  ++next_version;  // 0.0.0.1
   auto h_1 = make_handle<int, true, false>(next_version, "the_key");
   auto next_version2 = next_version;
   next_version2.pop_subversion();
-  ++next_version2;
+  ++next_version2;  // 0.0.1
   auto h_2 = make_handle<int, true, false>(next_version2, "the_key");
   auto next_version3 = next_version2;
   next_version3.pop_subversion();
-  ++next_version3;
+  ++next_version3;  // 0.1
   auto h_3 = make_handle<int, true, false>(next_version3, "the_key");
 
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
@@ -607,7 +609,8 @@ SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_2subseqs_already_released2) {
   detail::backend_runtime->handle_done_with_version_depth(h_0.get());
   detail::backend_runtime->release_read_only_usage(h_0.get());
 
-  // we're not going to call handle_done_with_version_depth on h_2
+  // we're not going to call handle_done_with_version_depth on h_2,
+  // so it should not satisfy h_3
   detail::backend_runtime->release_read_only_usage(h_2.get());
   detail::backend_runtime->release_handle(h_2.get());
   detail::backend_runtime->handle_done_with_version_depth(h_1.get());
@@ -714,7 +717,7 @@ SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_none_due_to_min_depth) {
 
 // satisfy subsequent using different version increment behavior
 // (make sure runtime doesn't assume constant behavior)
-TEST_F(RuntimeRelease, satisfy_subseq_diff_version_incr) {
+TEST_F(RuntimeRelease, satisfy_different_version_incr_behavior) {
   using namespace ::testing;
 
   auto first_version = MockDependencyHandle::version_t();
