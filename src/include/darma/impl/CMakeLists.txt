@@ -6,6 +6,7 @@ create_work.h
 darma.h
 darma_assert.h
 handle.h
+handle_fwd.h
 handle_attorneys.h
 key_concept.h
 runtime.h
@@ -15,6 +16,7 @@ serialization_builtin.h
 spmd.h
 task.h
 task_fwd.h
+task_capture_impl.h
 util.h)
 
 set (impl_meta_HEADERS

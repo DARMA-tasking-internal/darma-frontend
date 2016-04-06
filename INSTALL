@@ -8,40 +8,53 @@ To build a DARMA program, you must do the following:
 For debugging purposes, this repo includes the complete front-end
 as well as some very simple backends along with some simple examples.
 
-To build all the examples against the serial backend, configure CMake with:
+===========================================================================
+
+To do an all-in-one build of the frontend, the reference serial backend,
+and the examples, configure CMake with:
 
 cmake ${source} \
   -DCMAKE_INSTALL_PREFIX=${prefix} \
   -DSERIAL_BACKEND=On
 
-Or, to use the mock backend
-
-cmake ${source} \
-  -DCMAKE_INSTALL_PREFIX=${prefix} \
-  -DMOCK_BACKEND=On
-
-Or, to use the STL threads backend
-
-cmake ${source} \
-  -DCMAKE_INSTALL_PREFIX=${prefix} \
-  -DSTL_THREADS_BACKEND=On
+===========================================================================
 
 If building components individually, do the following:
-1) Front-end (header-only install)
+
+1) To install the frontend (header-only):
+
 cmake ${source}/src/include \
   -DCMAKE_INSTALL_PREFIX=${frontend_prefix}
 make install
 
-2) Back-end
+2) To build and install the reference serial backend:
+
 cmake ${source}/src/reference_backends \
   -DCMAKE_INSTALL_PREFIX=${backend_prefix} \
   -DSERIAL_BACKEND=On \
   -DDARMA_FRONTEND_DIR=${frontend_prefix}
 make install
 
-3) Examples
+3) To build the examples against some installed backend:
+
+If the backend provides a CMake package:
+
+cmake ${source}/examples \
+  -DDARMA_BACKEND_PKG=${backend_package_name} \
+  -D${backend_package_name}_DIR=${backend_prefix}/cmake
+
+For the serial backend, use backend_package_name=DarmaSerialBackend above.
+
+If the backend does not provide a CMake package:
+
 cmake ${source}/examples \
   -DDARMA_FRONTEND_DIR=${frontend_prefix} \
   -DDARMA_BACKEND_DIR=${backend_prefix} \
   -DDARMA_BACKEND_LIBNAME=${backend_libname}
+
+===========================================================================
+
+The frontend and backend validation tests require the DEVELOPMENT version
+of googletest/googlemock.  Release 1.7.0 is NOT sufficient.  Specify the
+path to them to cmake using -DGTEST_DIR=.
 

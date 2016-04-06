@@ -82,6 +82,9 @@ template <
 class DependencyHandle {
   public:
 
+    typedef Key key_t;
+    typedef Version version_t;
+
     /** @brief The key associated with the dependency.
      *
      *  Other dependencies that share a key with this dependency denote a requirement of the same
