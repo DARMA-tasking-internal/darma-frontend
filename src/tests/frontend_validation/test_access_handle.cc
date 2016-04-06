@@ -253,10 +253,6 @@ TEST_F(TestAccessHandle, publish_MM) {
   ON_CALL(*mock_runtime, register_task_gmock_proxy(_))
     .WillByDefault(InvokeWithoutArgs([&h0,&db]{ h0->satisfy_with_data_block(&db); }));
 
-  // Handle done with version depth shouldn't be called for h0
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Eq(ByRef(h1))));
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Eq(ByRef(h2))));
-
   EXPECT_CALL(*mock_runtime, publish_handle(
     Eq(ByRef(h2)), Eq(pub_version), Eq(1), _
   ));

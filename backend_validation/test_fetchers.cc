@@ -154,7 +154,6 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg) {
     void* data = data_block->get_data();
     ASSERT_THAT(data, NotNull());
     memcpy(data, &value, sizeof(int));
-    detail::backend_runtime->handle_done_with_version_depth(h_0.get());
     detail::backend_runtime->release_handle(h_0.get());
   });
 
@@ -950,7 +949,6 @@ TEST_F(TestFetchers, publish_no_fetchers) {
     void* data = data_block->get_data();
     ASSERT_THAT(data, NotNull());
     memcpy(data, &value, sizeof(int));
-    detail::backend_runtime->handle_done_with_version_depth(h_0.get());
     detail::backend_runtime->release_handle(h_0.get());
   });
 

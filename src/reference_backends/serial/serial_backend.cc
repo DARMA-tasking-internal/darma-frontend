@@ -258,13 +258,6 @@ class SerialRuntime
   }
 
   void
-  handle_done_with_version_depth(
-    const handle_t *const handle
-  ) override {
-    DEBUG("handle done with version depth called for handle " << get_key_version_string(handle));
-  }
-
-  void
   release_handle(
     const handle_t *const handle
   ) override {

@@ -80,7 +80,7 @@ TEST_F(TestCreateWork, capture_initial_access) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
 
-  Sequence s1, s2;
+  Sequence s1;
 
   auto hm1 = make_same_handle_matcher();
   auto hm2 = make_same_handle_matcher();
@@ -102,18 +102,14 @@ TEST_F(TestCreateWork, capture_initial_access) {
       in_get_dependencies(hm1),
       needs_write_of(hm1),
       Not(needs_read_of(hm1))
-    ))).InSequence(s1, s2);
+    ))).InSequence(s1);
 
-  // order is not specified for release read only usage on continuing context
-  // and handle_done_with_version_depth
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2)))
     .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm2)))
-    .InSequence(s2);
 
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2)))
     .Times(Exactly(1))
-    .InSequence(s1, s2);
+    .InSequence(s1);
 
   {
     auto tmp = initial_access<int>("hello");
@@ -127,10 +123,6 @@ TEST_F(TestCreateWork, capture_initial_access) {
   } // tmp deleted
 
   // We expect the captured handle won't be released until the task is deleted, which we'll do here
-  // Also, that handle should call done with version depth upon deletion of the task
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s1);
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
     .Times(Exactly(1))
     .InSequence(s1);
@@ -146,7 +138,7 @@ TEST_F(TestCreateWork, capture_initial_access_vector) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
 
-  Sequence s1, s2, s3, s4;
+  Sequence s1, s2, s3;
 
   auto hm1_1 = make_same_handle_matcher();
   auto hm2_1 = make_same_handle_matcher();
@@ -174,23 +166,19 @@ TEST_F(TestCreateWork, capture_initial_access_vector) {
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
       in_get_dependencies(hm1_1), needs_write_of(hm1_1), Not(needs_read_of(hm1_1)),
       in_get_dependencies(hm2_1), needs_write_of(hm2_1), Not(needs_read_of(hm2_1))
-  ))).InSequence(s1, s2, s3, s4);
+  ))).InSequence(s1, s2, s3);
 
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1_2)))
     .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1_2)))
-    .InSequence(s2);
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2_2)))
     .InSequence(s3);
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm2_2)))
-    .InSequence(s4);
 
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1_2)))
     .Times(Exactly(1))
     .InSequence(s1, s2);
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2_2)))
     .Times(Exactly(1))
-    .InSequence(s3, s4);
+    .InSequence(s3);
 
   {
     std::vector<AccessHandle<int>> handles;
@@ -205,12 +193,6 @@ TEST_F(TestCreateWork, capture_initial_access_vector) {
 
   } // handles deleted
 
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1_1)))
-    .Times(Exactly(1))
-    .InSequence(s1, s2);
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm2_1)))
-    .Times(Exactly(1))
-    .InSequence(s3, s4);
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1_1)))
     .Times(Exactly(1))
     .InSequence(s1);
@@ -397,7 +379,7 @@ TEST_F(TestCreateWork, mod_capture_MM) {
   expect_handle_life_cycle(hm3, s_hm3);
   Sequence s_hm2;
   auto hm2 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm2, s_hm2, /*read_only=*/false, /*calls_last_at_version_depth=*/false);
+  expect_handle_life_cycle(hm2, s_hm2, /*read_only=*/false);
   Sequence s_hm1;
   auto hm1 = make_same_handle_matcher();
   expect_handle_life_cycle(hm1, s_hm1);
@@ -463,11 +445,6 @@ TEST_F(TestCreateWork, ro_capture_MM) {
     .WillOnce(SaveArg<0>(&h1))
     .WillOnce(SaveArg<0>(&h2))
     .WillOnce(SaveArg<0>(&h3));
-
-  // Expect that handle_done_with_version_depth will be called for everything except h1
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Eq(ByRef(h0))));
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Eq(ByRef(h2))));
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Eq(ByRef(h3))));
 
   EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h0)))).WillOnce(Assign(&h0, nullptr));
   EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1)))).WillOnce(Assign(&h1, nullptr));
