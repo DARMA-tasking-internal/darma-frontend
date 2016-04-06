@@ -93,8 +93,6 @@ class SerialRuntime
 
   std::unordered_map<std::pair<key_t, version_t>, handle_t *const> registered_handles;
 
-  std::unordered_set<std::pair<key_t, version_t>> last_at_version_depth;
-
   struct published_data_block {
     published_data_block() = default;
     published_data_block(
@@ -264,18 +262,6 @@ class SerialRuntime
     const handle_t *const handle
   ) override {
     DEBUG("handle done with version depth called for handle " << get_key_version_string(handle));
-    auto found = registered_handles.find({handle->get_key(), handle->get_version()});
-    if (found == registered_handles.end()) {
-      assert(fetch_handles.find(intptr_t(handle)) != fetch_handles.end());
-    }
-    else {
-      auto found_fh = fetch_handles.find(intptr_t(handle));
-      if (found_fh == fetch_handles.end()) {
-        auto found_lavd = last_at_version_depth.find({handle->get_key(), handle->get_version()});
-        assert(found_lavd == last_at_version_depth.end());
-        last_at_version_depth.emplace(handle->get_key(), handle->get_version());
-      }
-    }
   }
 
   void
@@ -294,16 +280,10 @@ class SerialRuntime
       // remove ourselves from the registered handles
       registered_handles.erase(found);
 
-
-      auto found_lavd = last_at_version_depth.find({k, v});
-      bool is_lavd = found_lavd != last_at_version_depth.end();
-      if (is_lavd) last_at_version_depth.erase(found_lavd);
-
       handle_t *subsequent = nullptr;
 
-      // 1. first, if a handle is registered with key k and version ++(v.push(0)), that handle is the subsequent
-      //    and should be satisfied.  In this case, there must also be a handle registered with key k and version
-      //    ++v which is \b not the subsequent (but debug mode should check for that handle's existence).
+      // 1. First, if a handle with key k and version ++(v.push_subversion())}
+      //    is registered, that handle is the subsequent.
       auto v_rule_1 = v;
       v_rule_1.push_subversion();
       ++v_rule_1;
@@ -312,42 +292,33 @@ class SerialRuntime
         subsequent = found_rule_1->second;
       }
       else {
-        //  2. If no handle with {k, ++(v.push(0))} is registered, the runtime should check for {k, ++v}.  If that
-        //     handle exists, it is the subsequent.  (Further, none of the following rules should yield a subsequent,
-        //     and debug mode should check for this and raise an error).
+        // 2. If no handle with {k, ++(v.push_subversion())} is registered, but a
+        //    handle with {k, ++v} is registered, then {k, ++v} is the subsequent.
         auto v_rule_2 = v;
         ++v_rule_2;
         auto found_rule_2 = registered_handles.find({k, v_rule_2});
         if (found_rule_2 != registered_handles.end()) {
-          assert(!is_lavd);
           subsequent = found_rule_2->second;
-          // TODO check no other subsequents
         }
         else {
-          // 3. If handle_done_with_version_depth() was called with handle as an argument before this release call, or
-          //    if {k, ++v} is not found to exist (e.g., potentially it has already been released) but a handle h' with
-          //    {k, ++v} was an argument ot handle_done_with_version_depth() before the release of h', the runtime should
-          //    check for the existence of {k', v'} = {k, ++(v.pop())}.
-          //    Then,
-          //       * if {k', v'} exists, it is the subsequent
-          //       * if {k', v'} does not exist but handle_done_with_version_depth() was called on a handle with it
-          //         during that handle's life cycle, repeat with {k', v'} = {k', ++(v'.pop())}
-          //       * otherwise, {k, v} has no subsequent.  This is also true if a {k', v'} is reached for which
-          //         handle_done_with_version_depth() was called with v'.depth() == 1 (or if v'.depth() == 1 at
-          //         any time in this process taht pop() would need to be called)
+          // 3. If neither {k, ++(v.push_subversion())} nor {k, ++v} is registered,
+          //    then the following procedure should be followed to determine the
+          //    subsequent:
+          //      a. Set v'=++(v.pop_subversion()).
+          //      b. If {k, v'} exists, it is the subsequent.
+          //      c. If {k, v'} does not exist and v'.depth() == 1, no subsequent
+          //         exists.
+          //      d. Set v'=++(v'.pop_subversion()) and return to step b.
           // NOTE:  In the serial version, we know there won't be out of order releases like this, so all we need
           // to do is handle the last at version depth case here.
 
-          if (is_lavd and v.depth() > 1) {
+          if (v.depth() > 1) {
             auto v_rule_3 = v;
             v_rule_3.pop_subversion();
             ++v_rule_3;
             auto found_rule_3 = registered_handles.find({k, v_rule_3});
             if (found_rule_3 != registered_handles.end()) {
               subsequent = found_rule_3->second;
-            }
-            else {
-              assert(false); // shouldn't get here
             }
 
           }
