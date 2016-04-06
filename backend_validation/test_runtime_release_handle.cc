@@ -239,11 +239,6 @@ TEST_F(RuntimeRelease, satisfy_next_depth) {
   EXPECT_CALL(*h_1.get(), allow_writes())
     .Times(AtMost(1));
 
-  EXPECT_CALL(*h_2.get(), satisfy_with_data_block(_))
-    .Times(Exactly(0));
-  EXPECT_CALL(*h_2.get(), allow_writes())
-    .Times(Exactly(0));
-
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->register_handle(h_1.get());
   detail::backend_runtime->register_handle(h_2.get());
