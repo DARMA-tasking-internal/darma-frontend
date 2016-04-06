@@ -248,7 +248,7 @@ class Runtime {
      *       should be followed to determine the subsequent:
      *         a. Set v'=++(v.pop_subversion())
      *         b. If {k, v'} exists, it is the subsequent
-               c. If {k, v'} does not exist and v'.depth() == 1, no subsequent exists
+     *         c. If {k, v'} does not exist and v'.depth() == 1, no subsequent exists
      *         d. Set v'=++(v'.pop_subversion()) and return to step b.
      *
      *  If a handle has no subsequent, the runtime should garbage collect the DataBlock associated with handle
