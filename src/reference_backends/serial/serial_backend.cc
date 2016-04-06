@@ -407,7 +407,8 @@ class SerialRuntime
     auto found_pdb = published_data_blocks.find({k, version_tag});
     assert(found_pdb == published_data_blocks.end());
 
-    assert(handle->is_satisfied() and not handle->is_writable());
+    assert(handle->is_satisfied());
+    assert(not handle->is_writable());
 
     assert(n_fetchers >= 1);
 

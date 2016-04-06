@@ -55,12 +55,15 @@ namespace detail {
 template <typename AccessHandleT>
 void
 TaskBase::do_capture(
-  AccessHandleT const& source,
   AccessHandleT& captured,
-  AccessHandleT& continuing
+  AccessHandleT const& source_and_continuing
 ) {
 
+
   registrations_to_run.emplace_back([&]{
+
+    auto& source = source_and_continuing;
+    auto& continuing = source_and_continuing;
 
     typedef typename AccessHandleT::dep_handle_ptr_maker_t dep_handle_ptr_maker_t;
     typedef typename AccessHandleT::read_only_usage_holder_ptr_maker_t read_only_usage_holder_ptr_maker_t;
@@ -237,11 +240,12 @@ TaskBase::do_capture(
       } // end switch(capture_type)
     } else {
       // ignored
-      captured.capturing_task = nullptr;
+      //captured.capturing_task = nullptr;
       captured.dep_handle_.reset();
       captured.read_only_holder_.reset();
       captured.state_ = AccessHandleT::None_None;
     }
+
   });
 }
 

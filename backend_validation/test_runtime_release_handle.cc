@@ -115,7 +115,7 @@ TEST_F(RuntimeRelease, satisfy_same_depth) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -171,7 +171,7 @@ TEST_F(RuntimeRelease, satisfy_prev_depth) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -230,7 +230,7 @@ TEST_F(RuntimeRelease, satisfy_next_depth) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -290,7 +290,7 @@ TEST_F(RuntimeRelease, satisfy_next_then_same) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -373,7 +373,7 @@ SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_subseq_already_released) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_2.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -448,7 +448,7 @@ SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_2subseqs_already_released) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_3.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -529,7 +529,7 @@ SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_2subseqs_already_released2) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_3.get(), satisfy_with_data_block(_))
     .Times(Exactly(0));
@@ -589,7 +589,7 @@ TEST_F(RuntimeRelease, satisfy_subseq_diff_version_incr) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   detail::backend_runtime->register_handle(h_0.get());
   detail::backend_runtime->release_read_only_usage(h_0.get());

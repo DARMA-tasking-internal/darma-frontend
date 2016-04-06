@@ -158,11 +158,7 @@ class AccessHandle : public detail::AccessHandleBase
       //TODO - this should make a lambda task for the allreduce to properly capture permissions
     }
 
-    AccessHandle(AccessHandle const& copied_from) noexcept
-      : dep_handle_(copied_from.dep_handle_),
-        read_only_holder_(std::move(copied_from.read_only_holder_)),
-        state_(copied_from.state_)
-    {
+    AccessHandle(AccessHandle const& copied_from) noexcept {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = detail::safe_static_cast<detail::TaskBase* const>(
         detail::backend_runtime->get_running_task()
@@ -171,11 +167,17 @@ class AccessHandle : public detail::AccessHandleBase
 
       // Now check if we're in a capturing context:
       if(capturing_task != nullptr) {
-        capturing_task->do_capture<AccessHandle>(copied_from, *this,
-          const_cast<AccessHandle&>(copied_from)
-        );
+        capturing_task->do_capture<AccessHandle>(*this, copied_from);
       } // end if capturing_task != nullptr
+      else {
+        // regular copy
+        dep_handle_ = copied_from.dep_handle_;
+        read_only_holder_ = copied_from.read_only_holder_;
+        state_ = copied_from.state_;
+      }
     }
+
+    AccessHandle(AccessHandle&&) noexcept = default;
 
     T* operator->() const {
       DARMA_ASSERT_MESSAGE(
@@ -326,15 +328,17 @@ class AccessHandle : public detail::AccessHandleBase
           auto next_version = dep_handle_->get_version();
           ++next_version;
           dep_handle_->has_subsequent_at_version_depth = true;
+          read_only_holder_ = nullptr;
           dep_handle_ = dep_handle_ptr_maker_t()(dep_handle_->get_key(), next_version);
+          read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);
+          // Continuing state is MR
+          state_ = Modify_Read;
+          // Now publish this.  The backend should have satisfied it at this point
           detail::backend_runtime->publish_handle(
             dep_handle_.get(),
             helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
             helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
           );
-          read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);
-          // Continuing state is MR
-          state_ = Modify_Read;
           break;
         }
       };

@@ -28,7 +28,7 @@
 using uDist = std::uniform_real_distribution<double>;
 constexpr double kmin = 1.0;
 constexpr double kmax = 1.1;
-constexpr int numMCRuns = 50;
+constexpr int numMCRuns = 100;
 
 
 
@@ -144,14 +144,22 @@ int darma_main(int argc, char** argv)
 
 	 		solveThomas(pta, ptb, ptc, ptd, nInn);
 
-	 		double * mcDataPt = mcData->data();
-
-	    // auto mcRes = read_write<std::vector<double>>("MC_results", me);
 	    double * mcResPtr = mcData->data();
 	 		mcResPtr[iMC] = ptd[(nInn-1)/2];
-	 		std::cout << ptd[(nInn-1)/2] << std::endl;
-	 	});
+	 		// std::cout << ptd[(nInn-1)/2] << std::endl;
+	 	});	 	
  	}
+
+ 	create_work([=]
+ 	{
+    auto & mcRes = mcData.get_reference();
+    double sum=0.0;
+    for (int i = 0; i < numMCRuns; ++i)
+    {
+    	sum += mcRes[i];
+    }
+ 		std::cout << sum/static_cast<double>(numMCRuns) << std::endl;
+ 	});
 
 
   darma_finalize();

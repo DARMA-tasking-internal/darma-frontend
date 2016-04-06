@@ -119,7 +119,7 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -206,7 +206,7 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg2) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -312,7 +312,7 @@ TEST_F(TestFetchers, satisfy_fetcher_pub2_then_reg2) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -420,7 +420,7 @@ TEST_F(TestFetchers, satisfy_fetcher_pub_then_reg_release) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -501,7 +501,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg_then_pub) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -593,7 +593,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg_then_pub_release) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -683,7 +683,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -802,7 +802,7 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub2) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -905,6 +905,70 @@ TEST_F(TestFetchers, satisfy_fetcher_reg2_then_pub2) {
 
   detail::backend_runtime->finalize();
   backend_finalized = true;
+
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+  detail::backend_runtime->release_handle(h_1.get());
+}
+
+// publish with n_fetchers=0
+TEST_F(TestFetchers, publish_no_fetchers) {
+  using namespace ::testing;
+
+  auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
+  auto next_version = h_0->get_version();
+  ++next_version;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(1));  // when running write-only task
+
+  EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_1.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_1.get(), allow_writes())
+    .Times(AtMost(1));
+
+  auto user_ver = make_key("alpha");
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  int value = 42;
+
+  // Increment the version depth of h_0 in preparation for write-only capture
+  h_0.get()->get_version_return.push_subversion();
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->handle_done_with_version_depth(h_0.get());
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  // publish with zero fetchers (should not cause a hang or other undesirable
+  // behavior that is not directly measured)
+  detail::backend_runtime->publish_handle(h_1.get(), user_ver, 0);
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  ASSERT_TRUE(h_1->is_satisfied());
+  {
+    abstract::backend::DataBlock* data_block = h_1->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    ASSERT_THAT(*((int*)data), Eq(value));
+  }
 
   detail::backend_runtime->release_read_only_usage(h_1.get());
   detail::backend_runtime->release_handle(h_1.get());

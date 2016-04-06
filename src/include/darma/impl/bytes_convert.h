@@ -80,7 +80,7 @@ struct bytes_convert<std::basic_string<CharT, Traits, Allocator>> {
   get_size(string_t const& val) const {
     return val.size() * sizeof(CharT);
   }
-  inline constexpr vckoid
+  inline constexpr void
   operator()(string_t const &val, void *dest, const size_t n_bytes, const size_t offset) const {
     const size_t size = get_size(val);
     ::memcpy(dest, val.data() + offset, n_bytes);
