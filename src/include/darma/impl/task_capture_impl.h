@@ -133,8 +133,6 @@ TaskBase::do_capture(
             }
             case AccessHandleT::Modify_Modify: {
               // We're creating a subsequent at the same version depth
-              continuing.dep_handle_->has_subsequent_at_version_depth = true;
-
               version_t next_version = source.dep_handle_->get_version();
               ++next_version;
               captured.dep_handle_ = dep_handle_ptr_maker_t()(
@@ -203,7 +201,6 @@ TaskBase::do_capture(
               ++captured_version;
 
               // We're creating a subsequent at the same version depth
-              continuing.dep_handle_->has_subsequent_at_version_depth = true;
 
               // avoid releasing the old until these two are made
               auto tmp = source.dep_handle_;

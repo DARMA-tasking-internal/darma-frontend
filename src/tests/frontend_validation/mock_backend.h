@@ -86,7 +86,6 @@ class MockRuntime
     MOCK_METHOD2(register_fetching_handle, void(handle_t* const, key_t const&));
     MOCK_METHOD1(release_read_only_usage, void(handle_t* const));
     MOCK_METHOD1(release_handle, void(const handle_t* const));
-    MOCK_METHOD1(handle_done_with_version_depth, void(const handle_t* const));
     MOCK_METHOD4(publish_handle, void(handle_t* const, key_t const&, size_t const, bool));
     MOCK_METHOD0(finalize, void());
 

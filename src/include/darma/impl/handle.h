@@ -354,7 +354,6 @@ class DependencyHandle
     }
 
     virtual ~DependencyHandle() {
-      if(not has_subsequent_at_version_depth) backend_runtime->handle_done_with_version_depth(this);
       backend_runtime->release_handle(this);
     }
 
@@ -401,9 +400,6 @@ class DependencyHandle
     get_data_block() const override {
       return this->data_block_;
     }
-
-
-    bool has_subsequent_at_version_depth = false;
 
   private:
 
