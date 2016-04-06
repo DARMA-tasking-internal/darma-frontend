@@ -58,5 +58,3 @@ if ((NOT STL_THREADS_BACKEND) AND (NOT MOCK_BACKEND) AND (NOT SERIAL_BACKEND))
 message(FATAL_ERROR "Must at least build either define =On for MOCK_BACKEND or STL_THREADS_BACKEND or SERIAL_BACKEND")
 endif()
 
-install (FILES common/stream_key.h DESTINATION include/common)
-
