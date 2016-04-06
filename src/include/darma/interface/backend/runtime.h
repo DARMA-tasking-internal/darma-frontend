@@ -234,45 +234,39 @@ class Runtime {
      *  the return value of handle->get_data_block() represents completion of all modifications on that DataBlock
      *  through that handle.  Thus, the DataBlock associated with a handle upon its release should be used to
      *  satisfy up to one registered \a subsequent of the handle, which must be both registered and versioned
-     *  at the time of release_handle() invocation (and not yet satisfied, writable, or released).  The subsequent
-     *  of a handle should be satisfied by calling subsequent->satisfy_with_data_block() with the return value of
-     *  handle->get_data_block() if handle is satisfied upon release.  Subsequents of a handle may be indicated in
-     *  several ways.  Given k = handle->get_key() and v = handle->get_version() for the handle parameter, the
-     *  following rules may be used to determine the correct subsequent to satisfy with handle's data upon release:
-     *    1. first, if a handle is registered with key k and version ++(v.push(0)), that handle is the subsequent
-     *       and should be satisfied.  In this case, unless handle_done_with_version_depth() was called with handle
-     *       as an argument before this release call, there must also be a handle registered with key k and version
-     *       ++v which is \b not the subsequent (but debug mode should check for that handle's existence).
-     *    2. If no handle with {k, ++(v.push(0))} is registered, the runtime should check for {k, ++v}.  If that
-     *       handle exists, it is the subsequent.  (Further, none of the following rules should yield a subsequent,
-     *       and debug mode should check for this and raise an error).
-     *    3. If handle_done_with_version_depth() was called with handle as an argument before this release call, or
-     *       if {k, ++v} is not found to exist (e.g., potentially it has already been released) but a handle h' with
-     *       {k, ++v} was an argument to handle_done_with_version_depth() before the release of h', the runtime should
-     *       check for the existence of {k', v'} = {k, ++(v.pop())}.
-     *       Then,
-     *          * if {k', v'} exists, it is the subsequent
-     *          * if {k', v'} does not exist but handle_done_with_version_depth() was called on a handle with it
-     *            during that handle's life cycle, repeat with {k', v'} = {k', ++(v'.pop())}
-     *          * otherwise, {k, v} has no subsequent.  This is also true if a {k', v'} is reached for which
-     *            handle_done_with_version_depth() was called with v'.depth() == 1 (or if v'.depth() == 1 at
-     *            any time in this process that pop() would need to be called)
+     *  at the time of release_handle() invocation (and not yet satisfied, writable, or released).  If the handle
+     *  is satisfied upon its release, the subsequent should be satisfied by calling
+     *  subsequent->satisfy_with_data_block() with the return value of handle->get_data_block().
+     *
+     *  Given k = handle->get_key() and v = handle->get_version() for the handle parameter, the following rules
+     *  may be used to determine the correct subsequent to satisfy with the handle's data upon release:
+     *    1. First, if a handle with key k and version ++(v.push_subversion())} is registered, that handle is the
+     *       subsequent.
+     *    2. If no handle with {k, ++(v.push_subversion())} is registered, but a handle with {k, ++v} is registered,
+     *       then {k, ++v} is the subsequent.
+     *    3. If neither {k, ++(v.push_subversion())} nor {k, ++v} is registered, then the following procedure
+     *       should be followed to determine the subsequent:
+     *         a. Set v'=++(v.pop_subversion())
+     *         b. If {k, v'} exists, it is the subsequent
+               c. If {k, v'} does not exist and v'.depth() == 1, no subsequent exists
+     *         d. Set v'=++(v'.pop_subversion()) and return to step b.
      *
      *  If a handle has no subsequent, the runtime should garbage collect the DataBlock associated with handle
-     *  (as soon as any pending publish/fetch interactions complete, see remark below).
+     *  (as soon as any pending publish/fetch interactions complete; see remark below).
      *
-     *  @remark this may be invoked before all publishes are *completed* (though they still have to be invoked
-     *  before release_read_only_usage() is called), but only if there is to be no modify usage of the handle
+     *  @remark While this (and release_read_only_usage()) must be invoked after all associated published are invoked,
+     *  it is possible for this to be invoked before all publishes have \b completed if there is to be no modify usage
+     *  of the handle.
      *
-     *  @remark the runtime may safely assume that any subsequent candidates will be in a versioned state at
+     *  @remark The runtime may safely assume that any subsequent candidates will be in a versioned state at
      *  the time of release_handle() invocation.  In fact, as of the 0.2 spec, they must have been handles
-     *  registered with register_handle() and not register_fetching_handle()
+     *  registered with register_handle() and not register_fetching_handle().
      *
      *  @remark The runtime is allowed to assume that the handle here is the same as the handle passed in during the
      *  registration process if it has the same key and same version.  This means that, e.g., calling
      *  handle->satisfy_with_data_block() on this handle must be equivalent to calling it on the one stored from
      *  an earlier registration if the key and version are the same. [This requirement may change in the future
-     *  to facilitate work stealing and other migrations)
+     *  to facilitate work stealing and other migrations.]
      *
      *  @remark Even though the handle must be the same, the version \b increment behavior may be different
      *  from that of the version when the handle was registered.  The version must still return true for the
@@ -285,7 +279,7 @@ class Runtime {
      *  guarantee that the handle pointer is valid until after release_handle() returns.
      *
      *  @remark Note that this specification implies, e.g., that release_handle() may be called with, e.g.,
-     *  a handle with {k, 1.1.1.2} before a handle with {k, 1.1.1.1}.  This is absolutely the case, though
+     *  a handle with {k, 1.1.1.2} before a handle with {k, 1.1.1.1}.  This is absolutely the case, although
      *  currently the only example of that pattern involves {k, 1.1.1.2} having no read or modify usage, aside
      *  from perhaps a publish (read) usage.  As the specification evolves, more situations like this may arise,
      *  though if they don't this pattern may be consigned to its own special method.
@@ -310,10 +304,9 @@ class Runtime {
       const handle_t* const handle
     ) =0;
 
-    /** @brief Indicate that no further subversions with key handle->get_key() at the current version
-     *  depth will be created.
+    /** @brief Indicate that this handle is the last at this version depth for its base version.
      *
-     *  See \ref release_handle() for more details.
+     *  @remark Expected to be a no-op in the 0.2 spec.
      *
      */
     virtual void
