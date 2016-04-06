@@ -71,6 +71,10 @@ class basic_version {
     basic_version() : version_clock{value_t()}
     { }
 
+    basic_version(std::initializer_list<Comparable> i_list)
+      : version_clock(i_list)
+    { }
+
     //// Post-increment
     //basic_version const&
     //operator++(int) {
