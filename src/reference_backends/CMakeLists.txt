@@ -39,22 +39,12 @@ include_directories( ${DARMA_FRONTEND_DIR}/include/tinympl )
 include_directories( ${DARMA_FRONTEND_DIR}/include/darma )
 
 option(SERIAL_BACKEND "Whether to compile/link debug serial backend" Off)
-option(STL_THREADS_BACKEND "Whether to compile/link debug backend based on STL threads" Off)
-option(MOCK_BACKEND "Whether to compile/link mock backend for compiling only" Off)
 
 if (SERIAL_BACKEND)
 add_subdirectory(serial)
 endif()
 
-if (STL_THREADS_BACKEND)
-add_subdirectory(stl_threads)
-endif()
-
-if (MOCK_BACKEND)
-add_subdirectory(mock)
-endif()
-
-if ((NOT STL_THREADS_BACKEND) AND (NOT MOCK_BACKEND) AND (NOT SERIAL_BACKEND))
-message(FATAL_ERROR "Must at least build either define =On for MOCK_BACKEND or STL_THREADS_BACKEND or SERIAL_BACKEND")
+if (NOT SERIAL_BACKEND)
+message(FATAL_ERROR "Must build with -DSERIAL_BACKEND=On")
 endif()
 
