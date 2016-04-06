@@ -480,6 +480,75 @@ SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_prev_already_released) {
   detail::backend_runtime->release_handle(h_2.get());
 }
 
+// satisfy subsequent of subsequent, the first at the same depth and
+// the second at the previous depth, when the first subsequent has
+// already been released
+SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_same_already_released) {
+  using namespace ::testing;
+
+  auto first_version = MockDependencyHandle::version_t();
+  first_version.push_subversion();
+  first_version.push_subversion();
+  auto h_0 = make_handle<int, true, true>(first_version, "the_key");
+  auto next_version = first_version;
+  ++next_version;
+  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
+  auto next_version2 = first_version;
+  next_version2.pop_subversion();
+  ++next_version2;
+  auto h_2 = make_handle<int, true, false>(next_version2, "the_key");
+
+  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_0.get(), get_data_block())
+    .Times(AtLeast(1));  // when running write-only task
+
+  EXPECT_CALL(*h_2.get(), satisfy_with_data_block(_))
+    .Times(Exactly(1));
+  EXPECT_CALL(*h_2.get(), get_data_block())
+    .Times(AtLeast(1));
+  EXPECT_CALL(*h_2.get(), allow_writes())
+    .Times(AtMost(1));
+
+  detail::backend_runtime->register_handle(h_0.get());
+  detail::backend_runtime->register_handle(h_1.get());
+  detail::backend_runtime->register_handle(h_2.get());
+
+  detail::backend_runtime->release_read_only_usage(h_0.get());
+
+  detail::backend_runtime->handle_done_with_version_depth(h_1.get());
+  detail::backend_runtime->release_read_only_usage(h_1.get());
+  detail::backend_runtime->release_handle(h_1.get());
+  // h_0's subsequent, h_1, was just released prematurely, so h_0 needs
+  // to satisfy h_2 instead 
+
+  int value = 42;
+
+  register_write_only_capture(h_0.get(), [&,value]{
+    ASSERT_TRUE(h_0->is_satisfied());
+    ASSERT_TRUE(h_0->is_writable());
+    abstract::backend::DataBlock* data_block = h_0->get_data_block();
+    ASSERT_THAT(data_block, NotNull());
+    void* data = data_block->get_data();
+    ASSERT_THAT(data, NotNull());
+    memcpy(data, &value, sizeof(int));
+    detail::backend_runtime->release_handle(h_0.get());
+  });
+
+  detail::backend_runtime->finalize();
+  backend_finalized = true;
+
+  ASSERT_TRUE(h_2->is_satisfied());
+  abstract::backend::DataBlock* data_block = h_2->get_data_block();
+  ASSERT_THAT(data_block, NotNull());
+  void* data = data_block->get_data();
+  ASSERT_THAT(data, NotNull());
+  ASSERT_THAT(*((int*)data), Eq(value));
+
+  detail::backend_runtime->release_read_only_usage(h_2.get());
+  detail::backend_runtime->release_handle(h_2.get());
+}
+
 // satisfy subsequent of subsequent of subsequent, each at one less depth
 // when the first two subsequents have already been released
 SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_prev_two_already_released) {
@@ -556,91 +625,6 @@ SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_prev_two_already_released) {
   void* data = data_block->get_data();
   ASSERT_THAT(data, NotNull());
   ASSERT_THAT(*((int*)data), Eq(value));
-
-  detail::backend_runtime->release_read_only_usage(h_3.get());
-  detail::backend_runtime->release_handle(h_3.get());
-}
-
-
-// satisfy subsequent of subsequent, each at one less depth, when the
-// first subsequent has already been released
-SERIAL_DISABLED_TEST_F(RuntimeRelease, satisfy_prev_already_released_cut) {
-  using namespace ::testing;
-
-  auto first_version = MockDependencyHandle::version_t();
-  first_version.push_subversion();
-  first_version.push_subversion();
-  first_version.push_subversion();
-  first_version.push_subversion();  // 0.0.0.0.0
-  auto h_0 = make_handle<int, true, true>(first_version, "the_key");
-  auto next_version = first_version;
-  next_version.pop_subversion();
-  ++next_version;  // 0.0.0.1
-  auto h_1 = make_handle<int, true, false>(next_version, "the_key");
-  auto next_version2 = next_version;
-  next_version2.pop_subversion();
-  ++next_version2;  // 0.0.1
-  auto h_2 = make_handle<int, true, false>(next_version2, "the_key");
-  auto next_version3 = next_version2;
-  next_version3.pop_subversion();
-  ++next_version3;  // 0.1
-  auto h_3 = make_handle<int, true, false>(next_version3, "the_key");
-
-  EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
-    .Times(Exactly(1));
-  EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(1));  // when running write-only task
-
-  EXPECT_CALL(*h_2.get(), satisfy_with_data_block(_))
-    .Times(Exactly(1));
-  EXPECT_CALL(*h_2.get(), allow_writes())
-    .Times(AtMost(1));
-
-  EXPECT_CALL(*h_3.get(), satisfy_with_data_block(_))
-    .Times(Exactly(0));
-  EXPECT_CALL(*h_3.get(), allow_writes())
-    .Times(Exactly(0));
-
-  detail::backend_runtime->register_handle(h_0.get());
-  detail::backend_runtime->register_handle(h_1.get());
-  detail::backend_runtime->register_handle(h_2.get());
-  detail::backend_runtime->register_handle(h_3.get());
-
-  detail::backend_runtime->handle_done_with_version_depth(h_0.get());
-  detail::backend_runtime->release_read_only_usage(h_0.get());
-
-  // we're not going to call handle_done_with_version_depth on h_2,
-  // so it should not satisfy h_3
-  detail::backend_runtime->release_read_only_usage(h_2.get());
-  detail::backend_runtime->handle_done_with_version_depth(h_1.get());
-  detail::backend_runtime->release_read_only_usage(h_1.get());
-  detail::backend_runtime->release_handle(h_1.get());
-  // h_0's subsequent, h_1, was just released prematurely.
-  // h_2 still exists but didn't have handle_done_with_version_depth
-  // called on it, so h_0 should satisfy h_2 but not h_3
-
-  int value = 42;
-
-  register_write_only_capture(h_0.get(), [&,value]{
-    ASSERT_TRUE(h_0->is_satisfied());
-    ASSERT_TRUE(h_0->is_writable());
-    abstract::backend::DataBlock* data_block = h_0->get_data_block();
-    ASSERT_THAT(data_block, NotNull());
-    void* data = data_block->get_data();
-    ASSERT_THAT(data, NotNull());
-    memcpy(data, &value, sizeof(int));
-    detail::backend_runtime->release_handle(h_0.get());
-  });
-
-  detail::backend_runtime->finalize();
-  backend_finalized = true;
-
-  ASSERT_TRUE(h_2->is_satisfied());
-
-  detail::backend_runtime->release_handle(h_2.get());
-
-  ASSERT_FALSE(h_3->is_satisfied());
-  ASSERT_FALSE(h_3->is_writable());
 
   detail::backend_runtime->release_read_only_usage(h_3.get());
   detail::backend_runtime->release_handle(h_3.get());
