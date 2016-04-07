@@ -102,7 +102,7 @@ class TestFrontend
     virtual void TearDown() {
       top_level_task.reset();
       if(mock_runtime_setup_done) {
-        mock_runtime.reset();
+        mock_runtime = nullptr;
         mock_runtime_setup_done = false;
       }
       same_handles.clear();
@@ -280,7 +280,7 @@ struct assert_version_is_helper<handle_t*> {
     if(success) return ::testing::AssertionSuccess();
 
     return ::testing::AssertionFailure()
-      << "Version associated with " << v1_expr << ", which is"
+      << "Version associated with " << v1_expr << ", which is "
       << v1 << ", is not"
       << (exact ? std::string(" exactly ") : std::string(" "))
       << "equal to expected value of " << v2 << " (from expression "

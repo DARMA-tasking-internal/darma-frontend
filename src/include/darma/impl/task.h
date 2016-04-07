@@ -72,6 +72,10 @@ namespace darma_runtime {
 
 namespace detail {
 
+////////////////////////////////////////////////////////////////////////////////
+
+// <editor-fold desc="Task template parameter parsing nonsense (to be removed probably)" defaultstate="collapsed">
+
 // TODO decide between this and "is_key<>", which would not check the concept but would be self-declared
 template <typename T>
 struct meets_key_concept;
@@ -137,9 +141,11 @@ struct task_traits {
 
 };
 
-}
+// </editor-fold>
 
-namespace detail {
+////////////////////////////////////////////////////////////////////////////////
+
+// <editor-fold desc="Runnable and RunnableBase">
 
 class RunnableBase {
  public:
@@ -160,6 +166,44 @@ struct Runnable : public RunnableBase
  private:
   Callable run_this_;
 };
+
+template <
+  typename Functor,
+  typename... Args
+>
+class FunctorRunnable
+  : public RunnableBase
+{
+  private:
+
+    typedef std::tuple<
+      std::remove_cv_t<std::remove_reference_t<Args>> const...
+    > args_tuple_t;
+
+    args_tuple_t args_;
+
+  public:
+
+    FunctorRunnable(
+      variadic_constructor_arg_t const,
+      Args&&... args
+    ) : args_(std::forward<Args>(args)...)
+    { }
+
+    void run() override {
+      meta::splat_tuple(
+        std::move(args_),
+        Functor()
+      );
+    }
+};
+
+
+// </editor-fold>
+
+////////////////////////////////////////////////////////////////////////////////
+
+// <editor-fold desc="TaskBase and its descendants">
 
 class TaskBase : public abstract::backend::runtime_t::task_t
 {
@@ -241,18 +285,25 @@ class TaskBase : public abstract::backend::runtime_t::task_t
       return false;
     }
 
-    void run() override {
+    virtual void run() override {
       assert(runnable_);
+      pre_run_setup();
+      runnable_->run();
+      post_run_cleanup();
+    }
+
+    // end implementation of abstract::frontend::Task
+    ////////////////////////////////////////////////////////////////////////////////
+
+    void pre_run_setup() {
       for(auto& dep_ptr : this->all_deps_) {
         // Make sure the access handle does in fact have it
         assert(not dep_ptr.unique());
         dep_ptr.reset();
       }
-      runnable_->run();
     }
 
-    // end implementation of abstract::frontend::Task
-    ////////////////////////////////////////////////////////////////////////////////
+    void post_run_cleanup() { }
 
     void set_runnable(std::unique_ptr<RunnableBase>&& r) {
       runnable_ = std::move(r);
@@ -267,10 +318,10 @@ class TaskBase : public abstract::backend::runtime_t::task_t
 
   private:
 
-    // Should this be a unique_ptr?
     std::unique_ptr<RunnableBase> runnable_;
 
 };
+
 
 class TopLevelTask
   : public TaskBase
@@ -283,6 +334,11 @@ class TopLevelTask
     }
 
 };
+
+
+// </editor-fold>
+
+////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace detail
 

@@ -47,6 +47,7 @@
 
 #include <memory>
 
+#include <tinympl/variadic/at.hpp>
 #include <tinympl/variadic/back.hpp>
 #include <tinympl/vector.hpp>
 #include <tinympl/splat.hpp>
@@ -72,17 +73,16 @@ namespace detail {
 
 namespace mv = tinympl::variadic;
 
-template <typename... Args>
-struct create_work_parser {
-  // For now, return void
-  typedef void return_type;
-  typedef typename mv::back<Args...>::type lambda_type;
-};
+//template <typename... Args>
+//struct create_work_parser {
+//  // For now, return void
+//  typedef void return_type;
+//  typedef typename mv::back<Args...>::type lambda_type;
+//};
 
 template <typename... Args>
 struct reads_decorator_parser {
-  typedef int return_type;
-  inline int
+  inline decltype(auto)
   operator()(Args&&... args) const {
     using detail::create_work_attorneys::for_AccessHandle;
     detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
@@ -129,7 +129,10 @@ struct reads_decorator_parser {
       }
     );
 
-    return 0; // ignored
+    // Return the argument as a passthrough
+    return std::forward<mv::at_t<0, Args...>>(
+      std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...))
+    );
   }
 };
 
@@ -175,19 +178,16 @@ struct reads_decorator_parser {
 
 template <typename Lambda, typename... Args>
 struct create_work_impl {
-  typedef create_work_parser<Args..., Lambda> parser;
   typedef detail::Task<Lambda> task_t;
   typedef detail::TaskBase task_base_t;
 
-  inline typename parser::return_type
+  inline auto
   operator()(
     std::unique_ptr<TaskBase>&& task_base,
-    Args&&... args, Lambda&& lambda) const {
+    Args&&... args, Lambda&& lambda
+  ) const {
     task_base->set_runnable(
       std::make_unique<Runnable<Lambda>>(std::forward<Lambda>(lambda))
-    );
-    detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
-      detail::backend_runtime->get_running_task()
     );
     return detail::backend_runtime->register_task(
       std::move(task_base)
@@ -206,18 +206,50 @@ _start_create_work() {
   return std::move(rv);
 }
 
-struct _do_create_work {
-  explicit
-  _do_create_work(types::unique_ptr_template<TaskBase>&& tsk_base)
-    : task_(std::move(tsk_base))
-  { }
+template <typename Functor>
+struct _do_create_work_impl {
   template <typename... Args>
   inline void
-  operator()(Args&&... args) {
-    static_assert(detail::only_allowed_kwargs_given<
-      >::template apply<Args...>::type::value,
-      "Unknown keyword argument given to create_work()"
+  operator()(
+    types::unique_ptr_template<TaskBase>&& task_base,
+    Args&&... args
+  ) {
+    task_base->set_runnable(
+      std::make_unique<FunctorRunnable<Functor, Args...>>(
+        variadic_constructor_arg,
+        std::forward<Args>(args)...
+      )
     );
+    detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
+      detail::backend_runtime->get_running_task()
+    );
+    parent_task->current_create_work_context = nullptr;
+
+    for(auto&& reg : task_base->registrations_to_run) {
+      reg();
+    }
+    task_base->registrations_to_run.clear();
+
+    for(auto&& post_reg_op : task_base->post_registration_ops) {
+      post_reg_op();
+    }
+    task_base->post_registration_ops.clear();
+
+    return detail::backend_runtime->register_task(
+      std::move(task_base)
+    );
+
+  }
+};
+
+template <>
+struct _do_create_work_impl<void> {
+  template <typename... Args>
+  inline void
+  operator()(
+    types::unique_ptr_template<TaskBase>&& task,
+    Args&&... args
+  ) {
 
     namespace m = tinympl;
     // Pop off the last type and move it to the front
@@ -226,25 +258,50 @@ struct _do_create_work {
     typedef typename m::splat_to<
       typename rest_vector_t::template push_front<lambda_t>::type, detail::create_work_impl
     >::type helper_t;
-    namespace m = tinympl;
-    namespace mp = tinympl::placeholders;
 
     detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
       detail::backend_runtime->get_running_task()
     );
     parent_task->current_create_work_context = nullptr;
 
-    for(auto&& reg : task_->registrations_to_run) {
+    for(auto&& reg : task->registrations_to_run) {
       reg();
     }
-    task_->registrations_to_run.clear();
+    task->registrations_to_run.clear();
 
-    for(auto&& post_reg_op : task_->post_registration_ops) {
+    for(auto&& post_reg_op : task->post_registration_ops) {
       post_reg_op();
     }
-    task_->post_registration_ops.clear();
+    task->post_registration_ops.clear();
 
-    return helper_t()(std::move(task_), std::forward<Args>(args)...);
+    return helper_t()(std::forward<types::unique_ptr_template<TaskBase>>(task),
+      std::forward<Args>(args)...
+    );
+  }
+};
+
+struct _do_create_work {
+
+  explicit
+  _do_create_work(types::unique_ptr_template<TaskBase>&& tsk_base)
+    : task_(std::move(tsk_base))
+  { }
+
+  template <typename Functor=void, typename... Args>
+  inline void
+  operator()(Args&&... args) {
+    // Check for allowed keywords
+    static_assert(detail::only_allowed_kwargs_given<
+        // No allowed keywords yet
+      >::template apply<Args...>::type::value,
+      "Unknown keyword argument given to create_work()"
+    );
+
+    // forward to the appropriate specialization (Lambda or functor)
+    return _do_create_work_impl<Functor>()(
+      std::move(task_),
+      std::forward<Args>(args)...
+    );
   }
 
   types::unique_ptr_template<TaskBase> task_;
@@ -254,7 +311,7 @@ struct _do_create_work {
 
 
 template <typename... Args>
-typename detail::reads_decorator_parser<Args...>::return_type
+decltype(auto)
 reads(Args&&... args) {
   static_assert(detail::only_allowed_kwargs_given<
       keyword_tags_for_create_work_decorators::unless
@@ -290,10 +347,7 @@ reads(Args&&... args) {
 //  return typename detail::reads_writes_decorator_parser<Args...>::return_type();
 //}
 
-
-
 } // end namespace darma_runtime
-
 
 
 #endif /* SRC_CREATE_WORK_H_ */
