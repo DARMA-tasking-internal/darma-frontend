@@ -83,7 +83,7 @@ struct SimpleFunctor {
     int arg,
     AccessHandle<int> handle
   ) const {
-    std::cout << "Hello World" << std::endl;
+    // Do nothing for now...
   }
 };
 
@@ -100,7 +100,6 @@ struct SimplerFunctor {
 
 TEST_F(TestFunctor, simple) {
   using namespace ::testing;
-  //testing::internal::CaptureStdout();
 
   mock_runtime->save_tasks = true;
 
@@ -131,9 +130,6 @@ TEST_F(TestFunctor, simple) {
 
   run_all_tasks();
 
-  //ASSERT_EQ(testing::internal::GetCapturedStdout(),
-  //  "Hello World\n"
-  //);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -151,4 +147,45 @@ TEST_F(TestFunctor, simpler) {
   ASSERT_EQ(testing::internal::GetCapturedStdout(),
     "Hello World\n"
   );
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestFunctor, simple_read) {
+  using namespace ::testing;
+
+  mock_runtime->save_tasks = true;
+
+  handle_t* h0, *h1, *h2;
+  h0 = h1 = h2 = nullptr;
+
+  InSequence s;
+
+  EXPECT_CALL(*mock_runtime, register_handle(_))
+    .Times(2)
+    .WillOnce(SaveArg<0>(&h0))
+    .WillOnce(SaveArg<0>(&h1));
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+    handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
+  )));
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+    handle_in_get_dependencies(h1), Not(needs_write_handle(h1)), needs_read_handle(h1)
+  )));
+
+  EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h0))));
+
+  EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1))));
+
+  {
+    auto tmp = initial_access<int>("hello");
+    EXPECT_VERSION_EQ(tmp, {0});
+    create_work<SimpleFunctor>(15, tmp);
+    EXPECT_VERSION_EQ(tmp, {1});
+    create_work<SimpleFunctor>(15, reads(tmp));
+    EXPECT_VERSION_EQ(tmp, {1});
+  }
+
+  run_all_tasks();
+
 }
