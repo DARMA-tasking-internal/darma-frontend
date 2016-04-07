@@ -106,9 +106,9 @@ TEST_F(TestSplatTuple, old_1) {
   testing::internal::CaptureStdout();
   Sequence s;
 
-  // Should have one move constructor
+  // Should have one move constructor if the nondefault destructor is givien
   EXPECT_CALL(*listener, string_ctor()).InSequence(s);
-  //EXPECT_CALL(*listener, move_ctor()).InSequence(s);
+  EXPECT_CALL(*listener, move_ctor()).Times(AtMost(1)).InSequence(s);
   auto tup = std::make_tuple(5, "hello", 47.32, BlabberMouth("blabber"));
   meta::splat_tuple(tup, [](const int& a, const std::string& b, const double& c, const BlabberMouth& d){
     std::cout << a << ", " << b << ", " << c << std::endl;
@@ -125,9 +125,7 @@ TEST_F(TestSplatTuple, old_2) {
   testing::internal::CaptureStdout();
   Sequence s;
 
-  // Should have one move constructor
   EXPECT_CALL(*listener, string_ctor()).InSequence(s);
-  //EXPECT_CALL(*listener, move_ctor()).InSequence(s);
   meta::splat_tuple(std::forward_as_tuple(5, "hello", 47.32, BlabberMouth("blabber")),
     [](const int& a, const std::string& b, const double& c, const BlabberMouth& d){
       std::cout << a << ", " << b << ", " << c << std::endl;
@@ -149,7 +147,9 @@ TEST_F(TestSplatTuple, old_seq) {
 
   Sequence s;
 
+  // Should have one move constructor if a nondefault destructor is given
   EXPECT_CALL(*listener, string_ctor()).InSequence(s);
+  EXPECT_CALL(*listener, move_ctor()).Times(AtMost(1)).InSequence(s);
   auto tup = std::make_tuple(5, "hello", 47.32, BlabberMouth("blabber"));
   meta::splat_tuple(tup, [](const int& a, const std::string& b, const double& c, const BlabberMouth& d){
     std::cout << a << ", " << b << ", " << c << std::endl;

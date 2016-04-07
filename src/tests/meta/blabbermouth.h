@@ -61,6 +61,7 @@ class AbstractBlabbermouthListener {
     virtual void copy_assignment_op() const = 0;
     virtual void move_ctor() const = 0;
     virtual void move_assignment_op() const = 0;
+    virtual void destructor() const = 0;
 };
 
 class MockBlabbermouthListener {
@@ -72,6 +73,7 @@ class MockBlabbermouthListener {
     MOCK_CONST_METHOD0(move_ctor, void());
     MOCK_CONST_METHOD0(copy_assignment_op, void());
     MOCK_CONST_METHOD0(move_assignment_op, void());
+    MOCK_CONST_METHOD0(destructor, void());
 };
 
 typedef enum CTorType {
@@ -81,7 +83,8 @@ typedef enum CTorType {
   Copy,
   Move,
   CopyAssignment,
-  MoveAssignment
+  MoveAssignment,
+  Destructor
 } CTorType;
 
 
@@ -134,6 +137,14 @@ class EnableCTorBlabbermouth
     EnableCTorBlabbermouth&
     operator=(EnableCTorBlabbermouth const& b) noexcept
     { data = b.data; listener->copy_assignment_op(); return *this; }
+
+    ~EnableCTorBlabbermouth() noexcept {
+        if(tinympl::find<enabled_ctors_t, std::integral_constant<CTorType, Destructor>>::value
+          != tinympl::size<enabled_ctors_t>::value
+        ) {
+            listener->destructor();
+        }
+    };
 
     std::string data;
 

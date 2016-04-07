@@ -56,23 +56,24 @@ namespace meta {
 namespace _impl {
 
 
-template <size_t I, size_t N, typename... Tuples>
+template <size_t I, size_t N>
 struct tuple_zip_helper {
-  typedef tuple_zip_helper<I+1, N, Tuples...> next_helper_t;
-  inline constexpr auto
+  template <typename... Tuples>
+  inline constexpr decltype(auto)
   operator()(Tuples&&... tuples) const {
     return std::tuple_cat(
       std::make_tuple(
         std::forward_as_tuple(std::get<I>(std::forward<Tuples>(tuples))...)
       ),
-      next_helper_t()(std::forward<Tuples>(tuples)...)
+      tuple_zip_helper<I+1, N>()(std::forward<Tuples>(tuples)...)
     );
   }
 };
 
-template <size_t N, typename... Tuples>
-struct tuple_zip_helper<N, N, Tuples...> {
-  inline constexpr auto
+template <size_t N>
+struct tuple_zip_helper<N, N> {
+  template <typename... Tuples>
+  inline constexpr decltype(auto)
   operator()(Tuples&&...) const {
     return std::forward_as_tuple();
   }
@@ -80,14 +81,15 @@ struct tuple_zip_helper<N, N, Tuples...> {
 
 } // end namespace _impl
 
+
 template <typename... Tuples>
-auto
+decltype(auto)
 tuple_zip(Tuples&&... tuples) {
   static constexpr size_t min_size =
     tinympl::min<std::tuple_size<std::decay_t<Tuples>>...>::value;
-  typedef _impl::tuple_zip_helper<0, min_size, Tuples...> helper_t;
-
-  return helper_t()(std::forward<Tuples>(tuples)...);
+  return _impl::tuple_zip_helper<0, min_size>()(
+    std::forward<Tuples>(tuples)...
+  );
 }
 
 } // end namespace meta

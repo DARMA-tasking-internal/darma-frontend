@@ -51,66 +51,9 @@
 
 #include <darma/impl/util.h>
 
-//#define create_work(...) { \
-//  auto _DARMA__started_ ## __LINE__ = darma_runtime::detail::_start_create_work(); \
-//  darma_runtime::detail::_do_create_work(std::move(_DARMA__started_ ## __LINE__))(__VA_ARGS__); }
 #define create_work \
   auto DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__) = darma_runtime::detail::_start_create_work(); \
   darma_runtime::detail::_do_create_work(std::move(DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__))).operator()
-
-namespace darma_runtime {
-
-
-//template <typename... Args>
-//typename detail::create_work_parser<Args...>::return_type
-//create_work(Args&&... args) {
-//  static_assert(detail::only_allowed_kwargs_given<
-//    >::template apply<Args...>::type::value,
-//    "Unknown keyword argument given to create_work()"
-//  );
-//
-//  namespace m = tinympl;
-//  // Pop off the last type and move it to the front
-//  typedef typename m::vector<Args...>::back::type lambda_t;
-//  typedef typename m::vector<Args...>::pop_back::type rest_vector_t;
-//  typedef typename m::splat_to<
-//    typename rest_vector_t::template push_front<lambda_t>::type, detail::create_work_impl
-//  >::type helper_t;
-//  namespace m = tinympl;
-//  namespace mp = tinympl::placeholders;
-//
-//  detail::TaskBase* parent_task = dynamic_cast<detail::TaskBase* const>(
-//    detail::backend_runtime->get_running_task()
-//  );
-//
-//
-//  meta::tuple_for_each_filtered_type<
-//    m::lambda<std::is_same<std::decay<mp::_>, detail::reads_decorator_return>>::template apply
-//  >(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
-//    if(rdec.use_it) {
-//      for(auto&& h : rdec.handles) {
-//        parent_task->read_only_handles.emplace(h);
-//      }
-//    }
-//    else {
-//      for(auto&& h : rdec.handles) {
-//        parent_task->ignored_handles.emplace(h.get());
-//      }
-//    }
-//  });
-//
-//  // TODO waits() decorator
-//  //meta::tuple_for_each_filtered_type<
-//  //  m::lambda<std::is_same<std::decay<mp::_>, detail::waits_decorator_return>>::template apply
-//  //>(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
-  //  parent_task->waits_handles.emplace(rdec.handle);
-  //});
-
-
-//  return helper_t()(std::forward<Args>(args)...);
-//}
-
-}
 
 
 #endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_ */

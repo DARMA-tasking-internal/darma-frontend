@@ -56,6 +56,7 @@
 using namespace darma_runtime;
 
 typedef EnableCTorBlabbermouth<Default, String, Copy, Move> BlabberMouth;
+//typedef EnableCTorBlabbermouth<Default, String, Copy, Move, Destructor> BlabberMouthWithDestructor;
 static MockBlabbermouthListener* listener;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -101,6 +102,8 @@ TEST_F(TestTupleZip, basic_1) {
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestTupleZip, basic_2) {
 
   auto t1 = std::make_tuple(1, 2, 3);
@@ -125,6 +128,8 @@ TEST_F(TestTupleZip, basic_2) {
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestTupleZip, basic_fwd) {
 
   auto t = meta::tuple_zip(
@@ -143,11 +148,17 @@ TEST_F(TestTupleZip, basic_fwd) {
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestTupleZip, blabber_1) {
   using namespace ::testing;
 
+  // The return of make_tuple will get moved if blabbermouth has a non-default destructor
   InSequence s;
-  EXPECT_CALL(*listener, string_ctor()).Times(4);
+  EXPECT_CALL(*listener, string_ctor()).Times(2);
+  EXPECT_CALL(*listener, move_ctor()).Times(AtMost(2));
+  EXPECT_CALL(*listener, string_ctor()).Times(2);
+  EXPECT_CALL(*listener, move_ctor()).Times(AtMost(2));
 
   auto t1 = std::make_tuple(BlabberMouth("hello1"), BlabberMouth("hello2"));
   auto t2 = std::make_tuple(BlabberMouth("hello3"), BlabberMouth("hello4"));
@@ -159,22 +170,42 @@ TEST_F(TestTupleZip, blabber_1) {
   ASSERT_EQ(std::get<1>(std::get<1>(t)).data, "hello4");
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestTupleZip, blabber_2) {
   using namespace ::testing;
 
-  InSequence s;
   EXPECT_CALL(*listener, string_ctor()).Times(4);
-
-  auto t = meta::tuple_zip(
-    std::forward_as_tuple(BlabberMouth("hello1"), BlabberMouth("hello2")),
-    std::forward_as_tuple(BlabberMouth("hello3"), BlabberMouth("hello4"))
-  );
-
-  ASSERT_EQ(std::get<0>(std::get<0>(t)).data, "hello1");
-  ASSERT_EQ(std::get<1>(std::get<0>(t)).data, "hello3");
-  ASSERT_EQ(std::get<0>(std::get<1>(t)).data, "hello2");
-  ASSERT_EQ(std::get<1>(std::get<1>(t)).data, "hello4");
+  ASSERT_EQ(std::get<0>(std::get<0>(
+    meta::tuple_zip(
+      std::forward_as_tuple(BlabberMouth("hello1"), BlabberMouth("hello2")),
+      std::forward_as_tuple(BlabberMouth("hello3"), BlabberMouth("hello4"))
+    )
+  )).data, "hello1");
+  EXPECT_CALL(*listener, string_ctor()).Times(4);
+  ASSERT_EQ(std::get<1>(std::get<0>(
+    meta::tuple_zip(
+      std::forward_as_tuple(BlabberMouth("hello1"), BlabberMouth("hello2")),
+      std::forward_as_tuple(BlabberMouth("hello3"), BlabberMouth("hello4"))
+    )
+  )).data, "hello3");
+  EXPECT_CALL(*listener, string_ctor()).Times(4);
+  ASSERT_EQ(std::get<0>(std::get<1>(
+    meta::tuple_zip(
+      std::forward_as_tuple(BlabberMouth("hello1"), BlabberMouth("hello2")),
+      std::forward_as_tuple(BlabberMouth("hello3"), BlabberMouth("hello4"))
+    )
+  )).data, "hello2");
+  EXPECT_CALL(*listener, string_ctor()).Times(4);
+  ASSERT_EQ(std::get<1>(std::get<1>(
+    meta::tuple_zip(
+      std::forward_as_tuple(BlabberMouth("hello1"), BlabberMouth("hello2")),
+      std::forward_as_tuple(BlabberMouth("hello3"), BlabberMouth("hello4"))
+    )
+  )).data, "hello4");
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestTupleZip, basic_lvalue) {
 

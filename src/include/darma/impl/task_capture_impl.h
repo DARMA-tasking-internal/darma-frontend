@@ -59,6 +59,10 @@ TaskBase::do_capture(
   AccessHandleT const& source_and_continuing
 ) {
 
+  // Note: source_and_continuing is not functionally const, since
+  // we modify it significantly (it just happens that those modifications
+  // are to mutable member variables which have to be mutable because
+  // of the [=] capture behavior)
 
   registrations_to_run.emplace_back([&]{
 
