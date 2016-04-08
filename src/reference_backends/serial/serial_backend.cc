@@ -489,6 +489,11 @@ darma_runtime::abstract::backend::darma_backend_initialize(
         );
 
         assert(thread_main_return == 0);
+
+        // TODO: check if runtime finalized before deleting
+        if (darma_runtime::detail::backend_runtime) {
+          delete darma_runtime::detail::backend_runtime;
+        }
       });
     }
 
