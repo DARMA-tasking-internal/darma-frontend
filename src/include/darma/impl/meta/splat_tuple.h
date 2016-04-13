@@ -53,22 +53,32 @@
 
 namespace darma_runtime { namespace meta {
 
+// Attorney pattern for splatted callables
+template <typename To>
+struct splat_tuple_access {
+  template <typename Callable, typename... Args>
+  inline constexpr decltype(auto)
+  operator()(Callable&& callable, Args&&... args) const {
+    return callable(std::forward<Args>(args)...);
+  }
+};
+
 namespace _splat_tuple_impl {
 
 namespace m = tinympl;
 namespace mv = tinympl::variadic;
 
 
-template <size_t Spot, size_t Size, typename Callable>
+template <size_t Spot, size_t Size, typename AccessTo>
 struct helper {
   private:
     typedef helper<
-      Spot+1, Size, Callable
+      Spot+1, Size, AccessTo
     > _next_t;
   public:
 
-    template <typename ForwardedTuple, typename... ForwardedArgs>
-    inline constexpr auto
+    template <typename Callable, typename ForwardedTuple, typename... ForwardedArgs>
+    inline constexpr decltype(auto)
     operator()(Callable&& callable, ForwardedTuple&& ftup, ForwardedArgs&&... args) const {
       return _next_t()(
         std::forward<Callable>(callable),
@@ -79,24 +89,26 @@ struct helper {
     }
 };
 
-template <size_t Size, typename Callable>
-struct helper<Size, Size, Callable> {
+template <size_t Size, typename AccessTo>
+struct helper<Size, Size, AccessTo> {
 
-  template <typename ForwardedTuple, typename... ForwardedArgs>
-  inline constexpr auto
+  template <typename Callable, typename ForwardedTuple, typename... ForwardedArgs>
+  inline constexpr decltype(auto)
   operator()(Callable&& callable, ForwardedTuple&& ftup, ForwardedArgs&&... args) const {
-    return callable(std::forward<ForwardedArgs>(args)...);
+    return splat_tuple_access<AccessTo>()(
+      std::forward<Callable>(callable),
+      std::forward<ForwardedArgs>(args)...
+    );
   }
-
 };
 
 
 } // end namespace _splat_tuple_impl
 
-template <typename Callable, typename Tuple>
-auto
+template <typename AccessTo=void, typename Callable, typename Tuple>
+inline decltype(auto)
 splat_tuple(Tuple&& tuple, Callable&& callable) {
-  return _splat_tuple_impl::helper<0, tinympl::size<Tuple>::value, Callable>()(
+  return _splat_tuple_impl::helper<0, tinympl::size<Tuple>::value, AccessTo>()(
     std::forward<Callable>(callable),
     std::forward<Tuple>(tuple)
   );

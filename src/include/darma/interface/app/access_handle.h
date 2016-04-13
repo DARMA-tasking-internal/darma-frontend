@@ -51,6 +51,8 @@
 
 #include <darma/impl/handle.h>
 
+#include <darma/impl/meta/splat_tuple.h>
+
 #include <darma/impl/task.h>
 #include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 #include <darma/impl/util.h>
@@ -65,6 +67,9 @@ template <
 >
 class AccessHandle : public detail::AccessHandleBase
 {
+  public:
+
+    typedef T value_type;
 
   protected:
 
@@ -192,10 +197,9 @@ class AccessHandle : public detail::AccessHandleBase
       );
       capturing_task = running_task->current_create_work_context;
 
-      copied_from.captured_as_ |= CapturedAsInfo::ReadOnly;
-
       // Now check if we're in a capturing context:
       if(capturing_task != nullptr) {
+        copied_from.captured_as_ |= CapturedAsInfo::ReadOnly;
         capturing_task->do_capture<AccessHandle>(*this, copied_from);
       } // end if capturing_task != nullptr
       else {
@@ -425,6 +429,19 @@ class AccessHandle : public detail::AccessHandleBase
    private:
 
     ////////////////////////////////////////
+    // private conversion operators
+
+    template <
+      typename = std::enable_if<
+        not std::is_same<T, void>::value
+          and is_compile_time_readable
+      >
+    >
+    operator T const&() const {
+      return get_value();
+    }
+
+    ////////////////////////////////////////
     // private constructors
 
     AccessHandle(
@@ -483,6 +500,8 @@ class AccessHandle : public detail::AccessHandleBase
     friend CompileTimeReadAccessAnalog;
     friend CompileTimeModifiableAnalog;
 
+    // Allow implicit conversion to value in the invocation of the task
+    friend struct meta::splat_tuple_access<detail::AccessHandleBase>;
 
 #ifdef DARMA_TEST_FRONTEND_VALIDATION
     friend class ::TestAccessHandle;

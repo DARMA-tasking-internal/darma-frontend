@@ -154,9 +154,9 @@ struct task_traits {
 
 // <editor-fold desc="Functor traits">
 
+// TODO strictness specifiers
 template <
-  typename Functor,
-  typename... CallArgs
+  typename Functor
 >
 struct functor_traits {
 
@@ -175,35 +175,61 @@ struct functor_traits {
   static constexpr auto n_args_max = meta::callable_traits<Functor>::n_args_max;
 
   template <size_t N>
-  struct arg_num_traits {
+  struct arg_traits {
     struct is_access_handle
       : meta::callable_traits<Functor>::template arg_n_matches<decayed_is_access_handle, N>
     { };
     struct is_compile_time_modifiable
       : meta::callable_traits<Functor>::template arg_n_matches<decayed_is_compile_time_modifiable, N>
     { };
+    struct is_const
+      : meta::callable_traits<Functor>::template arg_n_matches<std::is_const, N>
+    { };
   };
 
   template <typename CallArg, typename IndexWrapped>
-  struct arg_traits {
+  struct call_arg_traits {
     template <typename T>
     using compile_time_read_access_analog_archetype = typename T::CompileTimeReadAccessAnalog;
+    template <typename T>
+    using value_type_archetype = typename T::value_type;
+
     static constexpr auto index = IndexWrapped::value;
+
+    template <typename T>
+    using detected_convertible_to_value = meta::is_detected_convertible<T, value_type_archetype, std::decay_t<CallArg>>;
+
+    // Did the caller give a handle and the functor give an argument that was a const (reference to)
+    // a type that is convertible to that handle's value_type?
+    static constexpr bool is_const_conversion_capture =
+      // Well, not if the argument is an AccessHandle
+      (not functor_traits::arg_traits<index>::is_access_handle::value) and
+      // If so, the argument at index has to pass this convertibility predicate
+      (meta::callable_traits<Functor>::template arg_n_matches<detected_convertible_to_value, index>::value) and
+      // also, it has to be const
+      functor_traits::arg_traits<index>::is_const::value
+    ; // end is_const_conversion_capture
+
     static constexpr bool is_read_only_capture =
-      functor_traits::arg_num_traits<index>::is_access_handle::value
-      and not functor_traits::arg_num_traits<index>::is_compile_time_modifiable::value;
+      is_const_conversion_capture or
+      (functor_traits::arg_traits<index>::is_access_handle::value
+      and not functor_traits::arg_traits<index>::is_compile_time_modifiable::value)
+    ;
+
     typedef std::conditional<
       is_read_only_capture,
       meta::detected_t<compile_time_read_access_analog_archetype, std::decay_t<CallArg>> const,
       std::remove_cv_t<std::remove_reference_t<CallArg>> const
     > args_tuple_entry;
+
   };
 
   template <typename CallArgsAndIndexWrapped>
   using arg_traits_tuple_entry = typename
-    tinympl::splat_to<CallArgsAndIndexWrapped, arg_traits>::type::args_tuple_entry;
+    tinympl::splat_to<CallArgsAndIndexWrapped, call_arg_traits>::type::args_tuple_entry;
 
 
+  template <typename... CallArgs>
   using args_tuple_t = typename tinympl::transform<
     typename tinympl::zip<tinympl::sequence, tinympl::sequence,
       tinympl::as_sequence_t<tinympl::vector<CallArgs...>>,
@@ -251,7 +277,7 @@ class FunctorRunnable
 {
   private:
 
-    typedef functor_traits<Functor, Args...> traits;
+    typedef functor_traits<Functor> traits;
     static constexpr auto n_functor_args_min = traits::n_args_min;
     static constexpr auto n_functor_args_max = traits::n_args_max;
 
@@ -260,7 +286,7 @@ class FunctorRunnable
       "Functor task created with wrong number of arguments"
     );
 
-    typename traits::args_tuple_t args_;
+    typename traits::template args_tuple_t<Args...> args_;
 
   public:
 
@@ -271,7 +297,7 @@ class FunctorRunnable
     { }
 
     void run() override {
-      meta::splat_tuple(
+      meta::splat_tuple<AccessHandleBase>(
         std::move(args_),
         Functor()
       );
