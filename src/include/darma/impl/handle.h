@@ -284,7 +284,8 @@ template <
   typename version_type
 >
 class DependencyHandle
-  : public DependencyHandleBase<key_type, version_type>
+  : public DependencyHandleBase<key_type, version_type>,
+    public abstract::frontend::SerializationManager
 {
   protected:
 
@@ -375,18 +376,13 @@ class DependencyHandle
     struct trivial_serialization_manager
       : public abstract::frontend::SerializationManager
     {
-      size_t get_metadata_size(
-        const void* const deserialized_data
-      ) const override {
-        return sizeof(U);
-      }
     };
 
   public:
 
     abstract::frontend::SerializationManager*
     get_serialization_manager() override {
-      return &ser_manager_;
+      return this;
     }
 
     void
@@ -406,13 +402,47 @@ class DependencyHandle
 
     bool has_subsequent_at_version_depth = false;
 
+
+    ////////////////////////////////////////////////////////////
+    // SerializationManager implementation
+
+    size_t
+    get_metadata_size() const override {
+      return sizeof(T);
+    }
+
+    size_t
+    get_packed_data_size(
+      const void* const object_data
+    ) const override {
+      assert(false);
+    }
+
+    void
+    pack_data(
+      const void* const object_data,
+      void* const serialization_buffer
+    ) const override {
+      // TODO write this
+      assert(false);
+    }
+
+    void
+    unpack_data(
+      void* const object_dest,
+      const void* const serialized_data
+    ) const override {
+      // TODO write this
+      assert(false);
+    }
+
+    //
+    ////////////////////////////////////////////////////////////
+
   private:
 
     T*& value_;
 
-    // TODO more general serialization
-    // for now...
-    trivial_serialization_manager<T> ser_manager_;
 
 };
 
@@ -490,7 +520,7 @@ struct access_handle_traits {
   };
 };
 
-} // end namespace darma_runtime::detail
+} // end namespace detail
 
 template <
   typename T = void,

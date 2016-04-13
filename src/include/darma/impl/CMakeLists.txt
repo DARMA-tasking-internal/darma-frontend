@@ -11,8 +11,6 @@ handle_attorneys.h
 key_concept.h
 runtime.h
 segmented_key.h
-serialization.h
-serialization_builtin.h
 spmd.h
 task.h
 task_fwd.h
@@ -45,9 +43,14 @@ keyword_arguments/kwarg_expression.h
 keyword_arguments/kwarg_expression_fwd.h
 keyword_arguments/macros.h)
 
+set (impl_serialization_HEADERS
+serialization/archive.h
+serialization/nonintrusive.h
+)
 
 install (FILES ${impl_HEADERS} DESTINATION include/darma/impl)
 install (FILES ${impl_meta_HEADERS} DESTINATION include/darma/impl/meta)
+install (FILES ${impl_serialization_HEADERS} DESTINATION include/darma/impl/serialization)
 install (FILES ${impl_keyword_arguments_HEADERS} DESTINATION include/darma/impl/keyword_arguments)
 
 include (CheckCXXSourceCompiles)

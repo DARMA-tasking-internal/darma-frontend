@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
+//                         archive.h
+//                          DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,17 +42,33 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMA_IMPL_SERIALIZATION_ARCHIVE_H_
+#define DARMA_IMPL_SERIALIZATION_ARCHIVE_H_
 
-#include <darma_types.h>
-#include "handle.h"
-#include "task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "create_work.h"
-#include <darma/interface/defaults/darma_main.h>
+#include <darma/impl/serialization/nonintrusive.h>
+
+namespace darma_runtime {
+
+namespace serialization {
+
+// A simple frontend object for interacting with user-defined serializations
+class Archive {
+  private:
+
+    size_t size = 0;
+
+  public:
+
+    // TODO this should be private
+    detail::SerializerMode mode;
+
+    size_t get_size() const { return size; }
 
 
-#endif /* SRC_DARMA_DARMA_H_ */
+};
 
+} // end namespace serialization
+
+} // end namespace darma_runtime
+
+#endif /* DARMA_IMPL_SERIALIZATION_ARCHIVE_H_ */

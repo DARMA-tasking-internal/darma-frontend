@@ -63,7 +63,6 @@ namespace frontend {
 namespace frontend {
 
 
-
 /**
  *  @ingroup abstract
  *
