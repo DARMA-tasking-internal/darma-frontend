@@ -64,10 +64,10 @@ class MockSerializationManager
   public:
     MockSerializationManager() {}
 
-    MOCK_CONST_METHOD1(
-      get_metadata_size,
-      size_t(const void* const deserialized_data)
-    );
+    MOCK_CONST_METHOD0(get_metadata_size, size_t());
+    MOCK_CONST_METHOD1(get_packed_data_size, size_t(const void* const));
+    MOCK_CONST_METHOD2(pack_data, void(const void* const, void* const));
+    MOCK_CONST_METHOD2(unpack_data, void(void* const, const void* const));
 };
 
 class MockDependencyHandle

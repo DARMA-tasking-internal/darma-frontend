@@ -129,7 +129,7 @@ make_handle(
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
   auto ser_man = new ser_man_t;
-  EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
+  EXPECT_CALL(*ser_man, get_metadata_size())
     .Times(AtLeast(ExpectNewAlloc ? 1 : 0))
     .WillRepeatedly(Return(sizeof(T)));
 
@@ -174,7 +174,7 @@ make_fetching_handle(
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
   auto ser_man = new ser_man_t;
-  EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
+  EXPECT_CALL(*ser_man, get_metadata_size())
     .Times(AtLeast(0))
     .WillRepeatedly(Return(sizeof(T)));
 

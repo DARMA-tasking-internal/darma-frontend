@@ -173,7 +173,7 @@ class SerialRuntime
         else {
           assert(not task->needs_read_data(dep));
           auto *serman = dep->get_serialization_manager();
-          size_t size = serman->get_metadata_size(nullptr);
+          size_t size = serman->get_metadata_size();
           SerialDataBlock *db = new SerialDataBlock();
           db->data_ = malloc(size);
           dep->satisfy_with_data_block(db);
@@ -415,7 +415,7 @@ class SerialRuntime
     // Just do a copy for now
     published_data_block pdb;
     pdb.data_block = new SerialDataBlock();
-    size_t data_size = handle->get_serialization_manager()->get_metadata_size(nullptr);
+    size_t data_size = handle->get_serialization_manager()->get_metadata_size();
     pdb.data_block->data_ = malloc(data_size);
     ::memcpy(pdb.data_block->data_, handle->get_data_block()->get_data(), data_size);
 
