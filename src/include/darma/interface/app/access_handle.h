@@ -50,6 +50,7 @@
 #endif
 
 #include <darma/impl/handle.h>
+
 #include <darma/impl/task.h>
 #include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 #include <darma/impl/util.h>
@@ -59,11 +60,14 @@ namespace darma_runtime {
 template <
   typename T,
   typename key_type,
-  typename version_type
+  typename version_type,
+  typename traits
 >
 class AccessHandle : public detail::AccessHandleBase
 {
+
   protected:
+
 
     typedef detail::DependencyHandle<
         typename std::conditional<std::is_same<T, void>::value,
@@ -79,22 +83,20 @@ class AccessHandle : public detail::AccessHandleBase
     typedef typename dep_handle_t::key_t key_t;
     typedef typename dep_handle_t::version_t version_t;
 
+  public:
+
+    static constexpr auto is_compile_time_modifiable = traits::is_compile_time_modifiable;
+    static constexpr auto is_compile_time_readable = traits::is_compile_time_readable;
+
+    using CompileTimeReadAccessAnalog = AccessHandle<T, key_t, version_t,
+      typename traits::template with_compile_time_modifiable<false>::type
+    >;
+    using CompileTimeModifiableAnalog = AccessHandle<T, key_t, version_t,
+      typename traits::template with_compile_time_modifiable<true>::type
+    >;
+
+
   private:
-    ////////////////////////////////////////
-    // private inner classes
-
-    struct read_only_usage_holder {
-      dep_handle_ptr handle_;
-      read_only_usage_holder(const dep_handle_ptr& handle)
-        : handle_(handle)
-      { }
-      ~read_only_usage_holder() {
-        detail::backend_runtime->release_read_only_usage(handle_.get());
-      }
-    };
-
-    typedef typename detail::smart_ptr_traits<std::shared_ptr>::template maker<read_only_usage_holder>
-      read_only_usage_holder_ptr_maker_t;
 
   public:
     AccessHandle()
@@ -177,7 +179,63 @@ class AccessHandle : public detail::AccessHandleBase
       }
     }
 
+    template <
+      typename _Ignored = void,
+      typename = std::enable_if_t<not is_compile_time_modifiable and std::is_same<_Ignored, void>::value>
+    >
+    AccessHandle(
+      CompileTimeModifiableAnalog const& copied_from
+    ) noexcept {
+      // get the shared_ptr from the weak_ptr stored in the runtime object
+      detail::TaskBase* running_task = detail::safe_static_cast<detail::TaskBase* const>(
+        detail::backend_runtime->get_running_task()
+      );
+      capturing_task = running_task->current_create_work_context;
+
+      copied_from.captured_as_ |= CapturedAsInfo::ReadOnly;
+
+      // Now check if we're in a capturing context:
+      if(capturing_task != nullptr) {
+        capturing_task->do_capture<AccessHandle>(*this, copied_from);
+      } // end if capturing_task != nullptr
+      else {
+        // regular copy
+        dep_handle_ = copied_from.dep_handle_;
+        read_only_holder_ = copied_from.read_only_holder_;
+        state_ = copied_from.state_;
+      }
+    }
+
     AccessHandle(AccessHandle&&) noexcept = default;
+
+    // These two allow trasparent casting away of compile-time modifiability
+
+    //template <
+    //  typename _Ignored = void,
+    //  typename = std::enable_if_t<is_compile_time_modifiable and std::is_same<_Ignored, void>::value>
+    //>
+    //operator AccessHandle<T, key_t, version_t,
+    //  typename traits::template with_compile_time_modifiable<false>::type
+    //>() {
+    //  return *(reinterpret_cast<
+    //      AccessHandle<T, key_t, version_t, typename traits::template with_compile_time_modifiable<false>::type>*
+    //    >(this)
+    //  );
+    //};
+
+    //template <
+    //  typename _Ignored = void,
+    //  typename = std::enable_if_t<is_compile_time_modifiable and std::is_same<_Ignored, void>::value>
+    //>
+    //operator const AccessHandle<T, key_t, version_t,
+    //  typename traits::template with_compile_time_modifiable<false>::type
+    //>() const
+    //{
+    //  return *(reinterpret_cast<
+    //      AccessHandle<T, key_t, version_t, typename traits::template with_compile_time_modifiable<false>::type>*
+    //    >(this)
+    //  );
+    //};
 
     T* operator->() const {
       DARMA_ASSERT_MESSAGE(
@@ -203,7 +261,13 @@ class AccessHandle : public detail::AccessHandleBase
       return dep_handle_->get_value();
     }
 
-    void
+    template <
+      typename _Ignored = void
+    >
+    std::enable_if_t<
+      is_compile_time_modifiable
+      and std::is_same<_Ignored, void>::value
+    >
     release() const {
       // TODO warning for multiple release (or should this be an error?)
       DARMA_ASSERT_MESSAGE(
@@ -217,7 +281,10 @@ class AccessHandle : public detail::AccessHandleBase
 
     template <
       typename U,
-      typename = std::enable_if<std::is_convertible<U, T>::value>
+      typename = std::enable_if_t<
+        std::is_convertible<U, T>::value
+        and is_compile_time_modifiable
+      >
     >
     void
     set_value(U&& val) const {
@@ -232,9 +299,11 @@ class AccessHandle : public detail::AccessHandleBase
       dep_handle_->set_value(val);
     }
 
-    template <typename... Args>
+    template <typename _Ignored = void, typename... Args>
     std::enable_if_t<
       not std::is_same<T, void>::value
+        and is_compile_time_modifiable
+        and std::is_same<_Ignored, void>::value
     >
     emplace_value(Args&&... args) const {
       DARMA_ASSERT_MESSAGE(
@@ -251,6 +320,7 @@ class AccessHandle : public detail::AccessHandleBase
     template <
       typename = std::enable_if<
         not std::is_same<T, void>::value
+        and is_compile_time_readable
       >
     >
     const T&
@@ -278,6 +348,7 @@ class AccessHandle : public detail::AccessHandleBase
     template <
       typename = std::enable_if<
         not std::is_same<T, void>::value
+        and is_compile_time_modifiable
       >
     >
     T&
@@ -294,9 +365,14 @@ class AccessHandle : public detail::AccessHandleBase
     }
 
     template <
+      typename _Ignored = void,
       typename... PublishExprParts
     >
-    void publish(
+    std::enable_if_t<
+      is_compile_time_readable
+      and std::is_same<_Ignored, void>::value
+    >
+    publish(
       PublishExprParts&&... parts
     ) const {
       static_assert(detail::only_allowed_kwargs_given<
@@ -330,7 +406,7 @@ class AccessHandle : public detail::AccessHandleBase
           dep_handle_->has_subsequent_at_version_depth = true;
           read_only_holder_ = nullptr;
           dep_handle_ = dep_handle_ptr_maker_t()(dep_handle_->get_key(), next_version);
-          read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);
+          read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_.get());
           // Continuing state is MR
           state_ = Modify_Read;
           // Now publish this.  The backend should have satisfied it at this point
@@ -359,7 +435,7 @@ class AccessHandle : public detail::AccessHandleBase
           dep_handle_ptr_maker_t()(key, version)
         ),
         state_(initial_state),
-        read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
+        read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_.get()))
     {
       // Release read_only_holder_ immediately if this is initial access
       if(state_ == Modify_None and version == version_type()) {
@@ -375,7 +451,7 @@ class AccessHandle : public detail::AccessHandleBase
           dep_handle_ptr_maker_t()(key, user_version_tag, false)
         ),
         state_(initial_state),
-        read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
+        read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_.get()))
     {
       assert(state_ == Read_None);
       dep_handle_->has_subsequent_at_version_depth = true;
@@ -402,6 +478,11 @@ class AccessHandle : public detail::AccessHandleBase
     // TaskBase is also a friend
     friend class detail::TaskBase;
 
+    ////////////////////////////////////////
+    // Analogs with different privileges are friends too
+    friend CompileTimeReadAccessAnalog;
+    friend CompileTimeModifiableAnalog;
+
 
 #ifdef DARMA_TEST_FRONTEND_VALIDATION
     friend class ::TestAccessHandle;
@@ -412,6 +493,12 @@ class AccessHandle : public detail::AccessHandleBase
 #endif
 
 };
+
+template <typename T,
+  typename key_t = types::key_t,
+  typename version_t = types::version_t
+>
+using ReadAccessHandle = AccessHandle<T, key_t, version_t, detail::access_handle_traits<false, true>>;
 
 } // end namespace darma_runtime
 

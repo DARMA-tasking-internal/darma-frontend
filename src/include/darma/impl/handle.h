@@ -62,6 +62,7 @@
 #include <darma/impl/util.h>
 #include <darma/impl/darma_assert.h>
 
+
 #include <darma/interface/backend/data_block.h>
 #include <darma/impl/keyword_arguments/keyword_arguments.h>
 
@@ -455,6 +456,38 @@ class AccessHandleBase {
       Uncaptured = 16
     } captured_as_info_t;
 
+    typedef typename abstract::backend::runtime_t::handle_t handle_t;
+
+  protected:
+
+    struct read_only_usage_holder {
+      handle_t* const handle_;
+      read_only_usage_holder(handle_t* const handle)
+        : handle_(handle)
+      { }
+      ~read_only_usage_holder() {
+        detail::backend_runtime->release_read_only_usage(handle_);
+      }
+    };
+
+    typedef typename detail::smart_ptr_traits<std::shared_ptr>::template maker<read_only_usage_holder>
+      read_only_usage_holder_ptr_maker_t;
+
+};
+
+template <
+  bool is_compile_time_modifiable_ = true,
+  bool is_compile_time_readable_ = true
+>
+struct access_handle_traits {
+  static constexpr auto is_compile_time_modifiable = is_compile_time_modifiable_;
+  static constexpr auto is_compile_time_readable = is_compile_time_readable_;
+  template <bool new_compile_time_mod_value>
+  struct with_compile_time_modifiable {
+    typedef access_handle_traits<
+      new_compile_time_mod_value, is_compile_time_readable
+    > type;
+  };
 };
 
 } // end namespace darma_runtime::detail
@@ -462,7 +495,8 @@ class AccessHandleBase {
 template <
   typename T = void,
   typename key_type = types::key_t,
-  typename version_type = types::version_t
+  typename version_type = types::version_t,
+  typename traits = detail::access_handle_traits<>
 >
 class AccessHandle;
 

@@ -52,12 +52,17 @@ namespace darma_runtime {
 
 namespace detail {
 
-template <typename AccessHandleT>
+template <
+  typename AccessHandleT1,
+  typename AccessHandleT2
+>
 void
 TaskBase::do_capture(
-  AccessHandleT& captured,
-  AccessHandleT const& source_and_continuing
+  AccessHandleT1& captured,
+  AccessHandleT2 const& source_and_continuing
 ) {
+
+  typedef AccessHandleT1 AccessHandleT;
 
   // Note: source_and_continuing is not functionally const, since
   // we modify it significantly (it just happens that those modifications
@@ -146,7 +151,7 @@ TaskBase::do_capture(
                 next_version
               );
               captured.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(
-                captured.dep_handle_
+                captured.dep_handle_.get()
               );
               captured.state_ = AccessHandleT::Read_Read;
 
@@ -193,7 +198,7 @@ TaskBase::do_capture(
                 outer_version
               );
               continuing.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(
-                continuing.dep_handle_
+                continuing.dep_handle_.get()
               );
               continuing.state_ = AccessHandleT::Modify_None;
 
@@ -218,7 +223,7 @@ TaskBase::do_capture(
               );
               // No read only uses of this new handle
               captured.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(
-                captured.dep_handle_
+                captured.dep_handle_.get()
               );
               captured.read_only_holder_.reset();
               captured.state_ = AccessHandleT::Modify_Modify;
@@ -227,7 +232,7 @@ TaskBase::do_capture(
                 source.dep_handle_->get_key(), outer_version
               );
               continuing.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(
-                continuing.dep_handle_
+                continuing.dep_handle_.get()
               );
               continuing.state_ = AccessHandleT::Modify_None;
 

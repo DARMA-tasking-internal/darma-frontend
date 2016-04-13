@@ -20,6 +20,7 @@ task_capture_impl.h
 util.h)
 
 set (impl_meta_HEADERS
+meta/callable_traits.h
 meta/detection.h
 meta/filter_types.h
 meta/indices_where.h

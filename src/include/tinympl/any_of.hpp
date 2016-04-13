@@ -74,6 +74,15 @@ struct any_of : any_of<as_sequence_t<Sequence>, F> { };
 template< template<class ...> class F, class ... Args>
 struct any_of<sequence<Args...>, F > : variadic::any_of<F, Args...> { };
 
+namespace types_only {
+
+template< typename S, class FWrapped>
+struct any_of : tinympl::any_of<
+  S, FWrapped::template apply_value
+> { };
+
+} // end namespace types_only
+
 } // namespace tinympl
 
 #endif // TINYMPL_ANY_OF_HPP

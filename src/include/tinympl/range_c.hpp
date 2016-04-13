@@ -45,8 +45,8 @@
 #ifndef SRC_META_TINYMPL_RANGE_C_HPP_
 #define SRC_META_TINYMPL_RANGE_C_HPP_
 
-#include "string.hpp"
-#include "join.hpp"
+#include <tinympl/string.hpp>
+#include <tinympl/join.hpp>
 
 namespace tinympl {
 
@@ -56,7 +56,7 @@ template <
 >
 struct range_c
   : public join<
-      basic_string<T, Begin>,
+      tinympl::basic_string<T, Begin>,
       typename range_c<T, Begin+1, End>::type
     >::type
 { };

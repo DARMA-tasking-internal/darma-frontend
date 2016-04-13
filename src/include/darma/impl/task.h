@@ -53,11 +53,15 @@
 #include <tinympl/int.hpp>
 #include <tinympl/delay.hpp>
 #include <tinympl/identity.hpp>
+#include <tinympl/delay.hpp>
 #include <tinympl/at.hpp>
 #include <tinympl/erase.hpp>
 #include <tinympl/bind.hpp>
 #include <tinympl/logical_and.hpp>
 #include <tinympl/vector.hpp>
+#include <tinympl/transform2.hpp>
+#include <tinympl/as_sequence.hpp>
+#include <tinympl/tuple_as_sequence.hpp>
 
 #include <darma/interface/backend/types.h>
 #include <darma/interface/backend/runtime.h>
@@ -67,6 +71,9 @@
 #include <darma/impl/util.h>
 #include <darma/impl/runtime.h>
 #include <darma/impl/handle_fwd.h>
+#include <darma/impl/meta/callable_traits.h>
+#include <darma/impl/handle.h>
+
 
 namespace darma_runtime {
 
@@ -145,6 +152,74 @@ struct task_traits {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// <editor-fold desc="Functor traits">
+
+template <
+  typename Functor,
+  typename... CallArgs
+>
+struct functor_traits {
+
+  template <typename T>
+  using compile_time_modifiable_archetype = std::integral_constant<bool, T::is_compile_time_modifiable>;
+  template <typename T>
+  using decayed_is_compile_time_modifiable = meta::detected_or_t<std::false_type,
+    compile_time_modifiable_archetype, std::decay_t<T>
+  >;
+
+
+  template <typename T>
+  using decayed_is_access_handle = is_access_handle<std::decay_t<T>>;
+
+  static constexpr auto n_args_min = meta::callable_traits<Functor>::n_args_min;
+  static constexpr auto n_args_max = meta::callable_traits<Functor>::n_args_max;
+
+  template <size_t N>
+  struct arg_num_traits {
+    struct is_access_handle
+      : meta::callable_traits<Functor>::template arg_n_matches<decayed_is_access_handle, N>
+    { };
+    struct is_compile_time_modifiable
+      : meta::callable_traits<Functor>::template arg_n_matches<decayed_is_compile_time_modifiable, N>
+    { };
+  };
+
+  template <typename CallArg, typename IndexWrapped>
+  struct arg_traits {
+    template <typename T>
+    using compile_time_read_access_analog_archetype = typename T::CompileTimeReadAccessAnalog;
+    static constexpr auto index = IndexWrapped::value;
+    static constexpr bool is_read_only_capture =
+      functor_traits::arg_num_traits<index>::is_access_handle::value
+      and not functor_traits::arg_num_traits<index>::is_compile_time_modifiable::value;
+    typedef std::conditional<
+      is_read_only_capture,
+      meta::detected_t<compile_time_read_access_analog_archetype, std::decay_t<CallArg>> const,
+      std::remove_cv_t<std::remove_reference_t<CallArg>> const
+    > args_tuple_entry;
+  };
+
+  template <typename CallArgsAndIndexWrapped>
+  using arg_traits_tuple_entry = typename
+    tinympl::splat_to<CallArgsAndIndexWrapped, arg_traits>::type::args_tuple_entry;
+
+
+  using args_tuple_t = typename tinympl::transform<
+    typename tinympl::zip<tinympl::sequence, tinympl::sequence,
+      tinympl::as_sequence_t<tinympl::vector<CallArgs...>>,
+      tinympl::as_sequence_t<typename tinympl::range_c<size_t, 0, sizeof...(CallArgs)>::type>
+    >::type,
+    arg_traits_tuple_entry,
+    std::tuple
+  >::type;
+
+
+};
+
+// </editor-fold>
+
+////////////////////////////////////////////////////////////////////////////////
+
 // <editor-fold desc="Runnable and RunnableBase">
 
 class RunnableBase {
@@ -176,11 +251,16 @@ class FunctorRunnable
 {
   private:
 
-    typedef std::tuple<
-      std::remove_cv_t<std::remove_reference_t<Args>> const...
-    > args_tuple_t;
+    typedef functor_traits<Functor, Args...> traits;
+    static constexpr auto n_functor_args_min = traits::n_args_min;
+    static constexpr auto n_functor_args_max = traits::n_args_max;
 
-    args_tuple_t args_;
+    static_assert(
+      sizeof...(Args) <= n_functor_args_max && sizeof...(Args) >= n_functor_args_min,
+      "Functor task created with wrong number of arguments"
+    );
+
+    typename traits::args_tuple_t args_;
 
   public:
 
@@ -239,10 +319,10 @@ class TaskBase : public abstract::backend::runtime_t::task_t
       if(needs_write_data) needs_write_deps_.insert(dep.get());
     }
 
-    template <typename AccessHandle>
+    template <typename AccessHandleT1, typename AccessHandleT2>
     void do_capture(
-      AccessHandle& captured,
-      AccessHandle const& source_and_continuing
+      AccessHandleT1& captured,
+      AccessHandleT2 const& source_and_continuing
     );
 
     ////////////////////////////////////////////////////////////////////////////////
