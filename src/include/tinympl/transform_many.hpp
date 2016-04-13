@@ -74,12 +74,12 @@ template<template<class ...> class F,
         template<class ...> class Out,
         class ... Sequences>
 struct transform_many {
-    template<class Seq> using F_t = typename copy<Seq, F>::type::type;
+  template<class Seq> using F_t = typename copy<Seq, F>::type::type;
 
-    typedef typename transform <
-    typename transpose< sequence<Sequences...>, sequence, sequence>::type,
-             F_t,
-             Out >::type type;
+  typedef typename transform <
+    typename transpose< tinympl::sequence<Sequences...>, sequence, sequence>::type,
+    F_t, Out
+  >::type type;
 };
 
 } // namespace tinympl

@@ -99,7 +99,7 @@ class transpose< sequence<Sequences...>, OutOuter, OutInner> {
     static_assert( variadic::all_of <
                    bind < equal_to, int_<size>,
                    bind<tinympl::size, arg1> >::
-                       template eval, Sequences...>::value,
+                       template eval_value, Sequences...>::value,
                    "transpose: all the sequences must have the same size" );
 
     template<std::size_t i, class ... Bound>

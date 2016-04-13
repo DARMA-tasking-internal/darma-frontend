@@ -89,6 +89,18 @@ struct SimpleFunctor {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct SimpleReadOnlyFunctor {
+  void
+  operator()(
+    int arg,
+    ReadAccessHandle<int> handle
+  ) const {
+    // Do nothing for now...
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct SimplerFunctor {
   void
   operator()() const {
@@ -183,6 +195,68 @@ TEST_F(TestFunctor, simple_read) {
     create_work<SimpleFunctor>(15, tmp);
     EXPECT_VERSION_EQ(tmp, {1});
     create_work<SimpleFunctor>(15, reads(tmp));
+    EXPECT_VERSION_EQ(tmp, {1});
+  }
+
+  run_all_tasks();
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestFunctor, simple_read_only) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+
+  mock_runtime->save_tasks = true;
+
+  handle_t* h0, *h1, *h2;
+  h0 = h1 = h2 = nullptr;
+
+  InSequence s;
+
+  EXPECT_CALL(*mock_runtime, register_handle(_))
+    .Times(2)
+    .WillOnce(SaveArg<0>(&h0))
+    .WillOnce(SaveArg<0>(&h1));
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+    handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
+  )));
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+    handle_in_get_dependencies(h1), Not(needs_write_handle(h1)), needs_read_handle(h1)
+  )));
+
+  EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h0))));
+
+  EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1))));
+
+  static_assert(
+    not detail::functor_traits<SimpleReadOnlyFunctor>::template arg_num_traits<0>::is_access_handle::value, ""
+  );
+  static_assert(
+    detail::functor_traits<SimpleReadOnlyFunctor>::template arg_num_traits<1>::is_access_handle::value, ""
+  );
+  static_assert(
+    not detail::functor_traits<SimpleReadOnlyFunctor>::template decayed_is_compile_time_modifiable<ReadAccessHandle<int>>::value, ""
+  );
+  static_assert(
+    not detail::functor_traits<SimpleReadOnlyFunctor>::template arg_num_traits<0>::is_compile_time_modifiable::value, ""
+  );
+  static_assert(
+    not detail::functor_traits<SimpleReadOnlyFunctor>::template arg_num_traits<1>::is_compile_time_modifiable::value, ""
+  );
+
+  {
+    auto tmp = initial_access<int>("hello");
+    static_assert(
+      detail::functor_traits<SimpleReadOnlyFunctor, decltype(15), decltype(tmp)>
+        ::template arg_traits<decltype(tmp), std::integral_constant<size_t, 1>>::is_read_only_capture, ""
+    );
+    EXPECT_VERSION_EQ(tmp, {0});
+    create_work<SimpleFunctor>(15, tmp);
+    EXPECT_VERSION_EQ(tmp, {1});
+    create_work<SimpleReadOnlyFunctor>(15, tmp);
     EXPECT_VERSION_EQ(tmp, {1});
   }
 

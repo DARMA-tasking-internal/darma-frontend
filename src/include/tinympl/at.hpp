@@ -71,6 +71,9 @@ struct at : at <I, as_sequence_t<Sequence> > {};
 template<std::size_t I, class ... Args>
 struct at<I, sequence<Args...> > : variadic::at<I, Args...> {};
 
+template<std::size_t I, class Sequence>
+using at_t = typename at<I, as_sequence_t<Sequence> >::type;
+
 template <class Sequence>
 using front = at<0, Sequence>;
 template <class Sequence>
