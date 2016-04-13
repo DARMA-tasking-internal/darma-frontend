@@ -61,6 +61,8 @@
 #include <darma/interface/defaults/version.h>
 #include <darma/impl/util.h>
 #include <darma/impl/darma_assert.h>
+#include <darma/impl/serialization/archive.h>
+#include <darma/impl/serialization/nonintrusive.h>
 
 
 #include <darma/interface/backend/data_block.h>
@@ -415,6 +417,9 @@ class DependencyHandle
     get_packed_data_size(
       const void* const object_data
     ) const override {
+      serialization::Serializer<T> s;
+      serialization::Archive ar;
+      s.get_packed_size(*(T const* const)(object_data), ar);
       assert(false);
     }
 
