@@ -49,6 +49,9 @@
 #include <darma/impl/meta/detection.h>
 #include <cstddef>
 #include <cassert>
+#include <string>
+
+#include <tinympl/always_true.hpp>
 
 namespace darma_runtime {
 
@@ -75,45 +78,46 @@ template <typename T, typename Enable=void>
 struct serializability_traits {
   private:
 
-    template <typename ArchiveT>
+    template <typename U, typename ArchiveT>
     using has_intrusive_serialize_archetype =
-    decltype( std::declval<T>().serialize( std::declval<std::remove_reference_t<ArchiveT>&>() ) );
+    decltype( std::declval<U>().serialize( std::declval<std::remove_reference_t<ArchiveT>&>() ) );
 
   public:
     template <typename ArchiveT>
     using has_intrusive_serialize = meta::is_detected<has_intrusive_serialize_archetype, std::decay_t<T>, ArchiveT>;
 
   private:
-    using has_intrusive_get_packed_size_archetype = decltype( std::declval<T>().get_packed_size( ) );
-    template <typename ArchiveT>
+    template <typename U>
+    using has_intrusive_get_packed_size_archetype = decltype( std::declval<U>().get_packed_size( ) );
+    template <typename U, typename ArchiveT>
     using has_intrusive_get_packed_size_with_archive_archetype = decltype(
-      std::declval<T>().get_packed_size( std::declval<std::remove_reference_t<ArchiveT>&>() )
+      std::declval<U>().get_packed_size( std::declval<std::remove_reference_t<ArchiveT>&>() )
     );
 
   public:
     using has_intrusive_get_packed_size =
-      meta::is_detected<has_intrusive_get_packed_size_archetype, std::decay_t<T>>;
+      meta::is_detected<has_intrusive_get_packed_size_archetype, T>;
     template <typename ArchiveT>
     using has_intrusive_get_packed_size_with_archive =
-      meta::is_detected<has_intrusive_get_packed_size_with_archive_archetype, ArchiveT>;
+      meta::is_detected<has_intrusive_get_packed_size_with_archive_archetype, T, ArchiveT>;
 
   private:
-    template <typename ArchiveT>
+    template <typename U, typename ArchiveT>
     using has_intrusive_pack_archetype =
-    decltype( std::declval<T>().pack( std::declval<std::remove_reference_t<ArchiveT>&>() ) );
+      decltype( std::declval<U>().pack( std::declval<std::remove_reference_t<ArchiveT>&>() ) );
 
   public:
     template <typename ArchiveT>
-    using has_intrusive_pack = meta::is_detected<has_intrusive_pack_archetype, std::decay_t<T>, ArchiveT>;
+    using has_intrusive_pack = meta::is_detected<has_intrusive_pack_archetype, T, ArchiveT>;
 
   private:
-    template <typename ArchiveT>
+    template <typename U, typename ArchiveT>
     using has_intrusive_unpack_archetype =
-    decltype( std::declval<T>().unpack( std::declval<std::remove_reference_t<ArchiveT>&>() ) );
+    decltype( std::declval<U>().unpack( std::declval<std::remove_reference_t<ArchiveT>&>() ) );
 
   public:
     template <typename ArchiveT>
-    using has_intrusive_unpack = meta::is_detected<has_intrusive_pack_archetype, std::decay_t<T>, ArchiveT>;
+    using has_intrusive_unpack = meta::is_detected<has_intrusive_pack_archetype, T, ArchiveT>;
 
 };
 
@@ -129,39 +133,40 @@ struct Serializer {
   ////////////////////////////////////////////////////////////////////////////////
 
   // get_packed_size() method available version
-  template <typename ArchiveT,
-    typename = std::enable_if_t< traits::has_intrusive_get_packed_size::value >
+  template <typename ArchiveT>
+  std::enable_if_t<
+    traits::has_intrusive_get_packed_size::value
+      and tinympl::always_true<ArchiveT>::value,
+    size_t
   >
-  size_t
   get_packed_size(T const& val, ArchiveT&) const {
     return val.get_packed_size();
   };
 
   // get_packed_size(Archive&) method available version
-  template <typename ArchiveT,
-    typename = std::enable_if_t<
-      not traits::has_intrusive_get_packed_size::value
-      and traits::template has_intrusive_get_packed_size_with_archive<ArchiveT>::value
-    >
+  template <typename ArchiveT>
+  std::enable_if_t<
+    not traits::has_intrusive_get_packed_size::value
+      and traits::template has_intrusive_get_packed_size_with_archive<ArchiveT>::value,
+    size_t
   >
-  size_t
   get_packed_size(T const& val, ArchiveT& archive) const {
     return val.get_packed_size(archive);
   };
 
   // only serialize() method available version
-  template <typename ArchiveT,
-    typename = std::enable_if_t<
-      not traits::template has_intrusive_get_packed_size::value
+  template <typename ArchiveT>
+  std::enable_if_t<
+    not traits::has_intrusive_get_packed_size::value
       and not traits::template has_intrusive_get_packed_size_with_archive<ArchiveT>::value
-      and traits::template has_intrusive_serialize<ArchiveT>::value
-    >
+      and traits::template has_intrusive_serialize<ArchiveT>::value,
+    size_t
   >
-  size_t
   get_packed_size(T const& val, ArchiveT& archive) const {
     size_t start = archive.get_size();
     archive.mode = detail::Sizing;
-    val.serialize(archive);
+    // const-cast necessary for general serialize method to work
+    const_cast<T&>(val).serialize(archive);
     size_t stop = archive.get_size();
     assert(stop >= start);
     return stop - start;
@@ -216,6 +221,57 @@ struct Serializer {
   };
 };
 
+////////////////////////////////////////////////////////////////////////////////
+// Specialization for fundamental types
+
+template <typename T>
+struct Serializer<T,
+  std::enable_if_t<std::is_fundamental<T>::value>
+> {
+  template <typename ArchiveT>
+  size_t
+  get_packed_size(T const&, ArchiveT&) const {
+    return sizeof(T);
+  }
+  template <typename ArchiveT>
+  void
+  pack(T const& val, ArchiveT& ar) const {
+    memcpy(ar.get_spot(), &val, sizeof(T));
+    ar.get_spot() += sizeof(T);
+  }
+  template <typename ArchiveT>
+  void
+  unpack(T& val, ArchiveT& ar) const {
+    memcpy(&val, ar.get_spot(), sizeof(T));
+    ar.get_spot() += sizeof(T);
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// Specialization for std::string
+
+template <typename CharT, typename Traits, typename Allocator>
+struct Serializer<std::basic_string<CharT, Traits, Allocator>,
+  std::enable_if_t</*TODO*/ true>
+> {
+  typedef std::basic_string<CharT, Traits, Allocator> T;
+  template <typename ArchiveT>
+  size_t
+  get_packed_size(T const&, ArchiveT&) const {
+    /* TODO */
+    return 0;
+  }
+  template <typename ArchiveT>
+  void
+  pack(T const& val, ArchiveT& ar) const {
+    /* TODO */
+  }
+  template <typename ArchiveT>
+  void
+  unpack(T& val, ArchiveT& ar) const {
+    /* TODO */
+  }
+};
 
 } // end namespace serialization
 

@@ -55,7 +55,8 @@ namespace serialization {
 class Archive {
   private:
 
-    size_t size = 0;
+    char size = 0;
+    void* spot = nullptr;
 
   public:
 
@@ -64,6 +65,9 @@ class Archive {
 
     size_t get_size() const { return size; }
 
+    void*& get_spot() { return spot; }
+
+    // TODO bells and whistles like |, <<, >>, iterator ranges, etc
 
 };
 
