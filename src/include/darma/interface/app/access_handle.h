@@ -74,10 +74,7 @@ class AccessHandle : public detail::AccessHandleBase
   protected:
 
 
-    typedef detail::DependencyHandle<
-        typename std::conditional<std::is_same<T, void>::value,
-          detail::EmptyClass, T
-        >::type, key_type, version_type> dep_handle_t;
+    typedef detail::DependencyHandle<T, key_type, version_type> dep_handle_t;
     typedef types::shared_ptr_template<dep_handle_t> dep_handle_ptr;
     typedef types::shared_ptr_template<const dep_handle_t> dep_handle_const_ptr;
     typedef detail::TaskBase task_t;

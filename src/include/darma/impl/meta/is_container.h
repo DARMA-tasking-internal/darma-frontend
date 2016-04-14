@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                               inherit.hpp                               
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                      is_container.h
+//                         DARMA
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,24 +42,35 @@
 //@HEADER
 */
 
+#ifndef DARMA_IMPL_META_IS_CONTAINER_H
+#define DARMA_IMPL_META_IS_CONTAINER_H
 
-#ifndef TINYMPL_INHERIT_HPP
-#define TINYMPL_INHERIT_HPP
+#include <type_traits>
+#include <cstddef>
 
-namespace tinympl {
+#include "detection.h"
+#include "detection_archetypes.h"
 
-/**
- * \ingroup Functional
- * \class inherit
- * \brief Construct a type inherited from the arguments
- */
-template <class... Args>
-struct inherit {
-  struct inherit_t : Args... {};
-  typedef inherit_t type;
+namespace darma_runtime {
+namespace meta {
+
+// Some incomplete concept checking stubs to be filled in later
+template <typename T>
+using is_erasable = std::true_type;
+
+// Concept checking for stl container types
+
+template <typename C>
+struct is_container {
+  public:
+    // Must have a value_type member
+    using value_type = detected_t<has_value_type_archetype, C>;
+    static constexpr auto has_value_type =
+      is_detected<has_value_type_archetype, C>::value;
+
 };
 
+} // end namespace meta
+} // end namespace darma_runtime
 
-} // namespace tinympl
-
-#endif // TINYMPL_INHERIT_HPP
+#endif //DARMA_IMPL_META_IS_CONTAINER_H

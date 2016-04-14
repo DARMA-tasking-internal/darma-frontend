@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                               inherit.hpp                               
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                      detection_archetypes.h
+//                         DARMA
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,24 +42,27 @@
 //@HEADER
 */
 
+#ifndef DARMA_IMPL_META_DETECTION_ARCHETYPES_H
+#define DARMA_IMPL_META_DETECTION_ARCHETYPES_H
 
-#ifndef TINYMPL_INHERIT_HPP
-#define TINYMPL_INHERIT_HPP
+namespace darma_runtime {
+namespace meta {
 
-namespace tinympl {
+// Some commonly used detection archetypes so I don't have to keep typing them
 
-/**
- * \ingroup Functional
- * \class inherit
- * \brief Construct a type inherited from the arguments
- */
-template <class... Args>
-struct inherit {
-  struct inherit_t : Args... {};
-  typedef inherit_t type;
-};
+template <typename T>
+using has_type_archetype = typename T::type;
 
+template <typename T>
+using has_value_type_archetype = typename T::value_type;
 
-} // namespace tinympl
+template <typename T>
+using has_iterator_archetype = typename T::iterator;
 
-#endif // TINYMPL_INHERIT_HPP
+template <typename T>
+using has_const_iterator_archetype = typename T::const_iterator;
+
+} // end namespace meta
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_META_DETECTION_ARCHETYPES_H

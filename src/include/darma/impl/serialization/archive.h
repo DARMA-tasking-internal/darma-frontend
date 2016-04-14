@@ -46,30 +46,43 @@
 #define DARMA_IMPL_SERIALIZATION_ARCHIVE_H_
 
 #include <darma/impl/serialization/nonintrusive.h>
+#include <darma/impl/serialization/serialization_fwd.h>
 
 namespace darma_runtime {
 
 namespace serialization {
 
+////////////////////////////////////////////////////////////////////////////////
+
 // A simple frontend object for interacting with user-defined serializations
+// TODO Archives that check for pointer loops and stuff
+
 class Archive {
   private:
+    // readability alias
+    using byte = char;
 
-    char size = 0;
-    void* spot = nullptr;
+    byte* start = nullptr;
+    byte* spot = nullptr;
+
+    detail::SerializerMode mode = detail::SerializerMode::None;
 
   public:
 
-    // TODO this should be private
-    detail::SerializerMode mode;
-
-    size_t get_size() const { return size; }
-
-    void*& get_spot() { return spot; }
+    bool is_sizing() const { return mode == detail::SerializerMode::Sizing; }
+    bool is_packing() const { return mode == detail::SerializerMode::Packing; }
+    bool is_unpacking() const { return mode == detail::SerializerMode::Unpacking; }
 
     // TODO bells and whistles like |, <<, >>, iterator ranges, etc
 
+  private:
+
+    friend class Serializer_attorneys::ArchiveAccess;
+    friend class darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+
 };
+
+////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace serialization
 

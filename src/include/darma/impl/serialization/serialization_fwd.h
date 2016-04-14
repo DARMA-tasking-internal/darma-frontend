@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                               inherit.hpp                               
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                      serialization_fwd.h
+//                         DARMA
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,24 +42,33 @@
 //@HEADER
 */
 
+#ifndef DARMA_SERIALIZATION_FWD_H
+#define DARMA_SERIALIZATION_FWD_H
 
-#ifndef TINYMPL_INHERIT_HPP
-#define TINYMPL_INHERIT_HPP
+namespace darma_runtime {
 
-namespace tinympl {
+namespace serialization {
 
-/**
- * \ingroup Functional
- * \class inherit
- * \brief Construct a type inherited from the arguments
- */
-template <class... Args>
-struct inherit {
-  struct inherit_t : Args... {};
-  typedef inherit_t type;
-};
+template <typename T, typename Enable=void>
+struct Serializer;
+
+namespace Serializer_attorneys {
+
+struct ArchiveAccess;
+
+} // end namespace Serializer_attorneys
+
+} // end namespace serialization
+
+namespace detail {
+namespace DependencyHandle_attorneys {
+
+struct ArchiveAccess;
+
+} // end namespace DependencyHandle_attorneys
+} // end namespace detail
 
 
-} // namespace tinympl
+} // end namespace darma_runtime
 
-#endif // TINYMPL_INHERIT_HPP
+#endif //DARMA_SERIALIZATION_FWD_H
