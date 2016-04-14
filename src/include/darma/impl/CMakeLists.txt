@@ -20,9 +20,11 @@ util.h)
 set (impl_meta_HEADERS
 meta/callable_traits.h
 meta/detection.h
+meta/detection_archetypes.h
 meta/filter_types.h
 meta/indices_where.h
 meta/is_streamable.h
+meta/is_container.h
 meta/largest_aligned.h
 meta/member_detector.h
 meta/metaprogramming.h
@@ -46,6 +48,10 @@ keyword_arguments/macros.h)
 set (impl_serialization_HEADERS
 serialization/archive.h
 serialization/nonintrusive.h
+serialization/builtin.h
+serialization/stl_containers.h
+serialization/serialization_fwd.h
+serialization/traits.h
 )
 
 install (FILES ${impl_HEADERS} DESTINATION include/darma/impl)

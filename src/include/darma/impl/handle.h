@@ -63,6 +63,7 @@
 #include <darma/impl/darma_assert.h>
 #include <darma/impl/serialization/archive.h>
 #include <darma/impl/serialization/nonintrusive.h>
+#include <darma/impl/serialization/traits.h>
 
 
 #include <darma/interface/backend/data_block.h>
@@ -152,7 +153,6 @@ struct publish_expr_helper {
 
 namespace detail {
 
-
 template <typename key_type>
 class KeyedObject
 {
@@ -175,7 +175,6 @@ class KeyedObject
   protected:
     key_t key_;
 };
-
 
 template <typename version_type>
 class VersionedObject
@@ -213,6 +212,23 @@ class VersionedObject
     version_t version_;
 };
 
+
+namespace DependencyHandle_attorneys {
+
+struct ArchiveAccess {
+  template <typename ArchiveT>
+  static void set_buffer(ArchiveT& ar, void* const buffer) {
+    // Assert that we're not overwriting a buffer, at least until
+    // a use case for that sort of thing comes up
+    assert(ar.start == nullptr);
+    ar.start = ar.spot = (char* const)buffer;
+  }
+};
+
+} // end namespace DependencyHandle_attorneys
+
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="DependencyHandleBase">
 
 template <
   typename key_type=types::key_t,
@@ -264,6 +280,20 @@ class DependencyHandleBase
       version_is_pending_ = true;
     }
 
+    void
+    satisfy_with_data_block(
+      abstract::backend::DataBlock* const data
+    ) override {
+      this->satisfied_ = true;
+      this->data_ = data->get_data();
+      this->data_block_ = data;
+    }
+
+    abstract::backend::DataBlock*
+    get_data_block() const override {
+      return this->data_block_;
+    }
+
     void set_version(const version_t& v) override {
       assert(version_is_pending_);
       version_is_pending_ = false;
@@ -278,7 +308,8 @@ class DependencyHandleBase
     bool version_is_pending_ = false;
 };
 
-struct EmptyClass { };
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
 
 template <
   typename T,
@@ -292,11 +323,15 @@ class DependencyHandle
   protected:
 
     typedef DependencyHandleBase<key_type, version_type> base_t;
+    typedef serialization::detail::serializability_traits<T> serdes_traits;
 
   public:
 
     typedef typename base_t::key_t key_t;
     typedef typename base_t::version_t version_t;
+
+    ////////////////////////////////////////////////////////////
+    // Constructors and Destructor <editor-fold desc="Constructors and Destructor">
 
     DependencyHandle(
       const key_t& data_key,
@@ -321,6 +356,17 @@ class DependencyHandle
       );
     }
 
+    virtual ~DependencyHandle() {
+      if(not has_subsequent_at_version_depth) backend_runtime->handle_done_with_version_depth(this);
+      backend_runtime->release_handle(this);
+    }
+
+    // end Constructors and Destructor </editor-fold>
+    ////////////////////////////////////////////////////////////
+
+    ////////////////////////////////////////////////////////////
+    // get_value, emplace_value, set_value, etc. <editor-fold desc="get_value, emplace_value, set_value, etc.">
+
     template <typename... Args>
     void
     emplace_value(Args&&... args)
@@ -334,32 +380,12 @@ class DependencyHandle
       );
     }
 
-    void
-    set_value(const T& val)
-    {
-      // Invoke the copy constructor
-      emplace_value(val);
-    }
-
-    void
-    set_value(T&& val)
-    {
-      // Invoke the move constructor, if available
-      emplace_value(std::forward<T>(val));
-    }
-
     template <typename U>
-    std::enable_if_t<
-      std::is_convertible<U, T>::value
-    >
+    void
     set_value(U&& val) {
+      // The enable-if is in Access handle
       // TODO handle custom operator=() case (for instance)
       emplace_value(std::forward<U>(val));
-    }
-
-    virtual ~DependencyHandle() {
-      if(not has_subsequent_at_version_depth) backend_runtime->handle_done_with_version_depth(this);
-      backend_runtime->release_handle(this);
     }
 
     T& get_value() {
@@ -372,41 +398,29 @@ class DependencyHandle
       return *value_;
     }
 
-  private:
+    // end get_value, emplace_value, set_value, etc. </editor-fold>
+    ////////////////////////////////////////////////////////////
 
-    template <typename U>
-    struct trivial_serialization_manager
-      : public abstract::frontend::SerializationManager
-    {
-    };
+    ////////////////////////////////////////////////////////////
+    // <editor-fold desc="abstract::frontend::DependencyHandle implmentation">
 
-  public:
+    // Most of this implementation is inherited from concrete base classes
 
     abstract::frontend::SerializationManager*
     get_serialization_manager() override {
       return this;
     }
 
-    void
-    satisfy_with_data_block(
-      abstract::backend::DataBlock* const data
-    ) override {
-      this->satisfied_ = true;
-      this->data_ = data->get_data();
-      this->data_block_ = data;
-    }
-
-    abstract::backend::DataBlock*
-    get_data_block() const override {
-      return this->data_block_;
-    }
-
-
-    bool has_subsequent_at_version_depth = false;
-
+    // </editor-fold>
+    ////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////
-    // SerializationManager implementation
+    // SerializationManager implementation <editor-fold desc="SerializationManager implementation">
+
+    static_assert(
+      serdes_traits::template is_serializable_with_archive<serialization::Archive>::value,
+      "Handles to non-serializable types not yet supported"
+    );
 
     size_t
     get_metadata_size() const override {
@@ -420,7 +434,6 @@ class DependencyHandle
       serialization::Serializer<T> s;
       serialization::Archive ar;
       s.get_packed_size(*(T const* const)(object_data), ar);
-      assert(false);
     }
 
     void
@@ -428,8 +441,10 @@ class DependencyHandle
       const void* const object_data,
       void* const serialization_buffer
     ) const override {
-      // TODO write this
-      assert(false);
+      serialization::Serializer<T> s;
+      serialization::Archive ar;
+      DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, serialization_buffer);
+      s.pack(*(T const* const)(object_data), ar);
     }
 
     void
@@ -437,12 +452,21 @@ class DependencyHandle
       void* const object_dest,
       const void* const serialized_data
     ) const override {
-      // TODO write this
-      assert(false);
+      serialization::Serializer<T> s;
+      serialization::Archive ar;
+      // Need to cast away constness of the buffer because the Archive requires
+      // a non-const buffer to be able to operate in pack mode (i.e., so that
+      // the user can write one function for both serialization and deserialization)
+      DependencyHandle_attorneys::ArchiveAccess::set_buffer(
+        ar, const_cast<void* const>(serialized_data)
+      );
+      s.unpack(*(T* const)(object_dest), ar);
     }
 
-    //
+    // end SerializationManager implementation </editor-fold>
     ////////////////////////////////////////////////////////////
+
+    bool has_subsequent_at_version_depth = false;
 
   private:
 

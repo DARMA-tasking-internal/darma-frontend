@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                               inherit.hpp                               
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                      stl_containers.h
+//                         DARMA
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,24 +42,13 @@
 //@HEADER
 */
 
+#ifndef DARMA_IMPL_SERIALIZATION_STL_CONTAINERS_H
+#define DARMA_IMPL_SERIALIZATION_STL_CONTAINERS_H
 
-#ifndef TINYMPL_INHERIT_HPP
-#define TINYMPL_INHERIT_HPP
+namespace darma_runtime {
+namespace serialization {
 
-namespace tinympl {
+} // end namespace serialization
+} // end namespace darma_runtime
 
-/**
- * \ingroup Functional
- * \class inherit
- * \brief Construct a type inherited from the arguments
- */
-template <class... Args>
-struct inherit {
-  struct inherit_t : Args... {};
-  typedef inherit_t type;
-};
-
-
-} // namespace tinympl
-
-#endif // TINYMPL_INHERIT_HPP
+#endif //DARMA_IMPL_SERIALIZATION_STL_CONTAINERS_H

@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                               inherit.hpp                               
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                      builtin.h
+//                         DARMA
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,24 +42,52 @@
 //@HEADER
 */
 
+#ifndef DARMA_IMPL_SERIALIZATION_BUILTIN_H
+#define DARMA_IMPL_SERIALIZATION_BUILTIN_H
 
-#ifndef TINYMPL_INHERIT_HPP
-#define TINYMPL_INHERIT_HPP
+#include <type_traits>
+#include <cstddef>
 
-namespace tinympl {
+#include "nonintrusive.h"
 
-/**
- * \ingroup Functional
- * \class inherit
- * \brief Construct a type inherited from the arguments
- */
-template <class... Args>
-struct inherit {
-  struct inherit_t : Args... {};
-  typedef inherit_t type;
+namespace darma_runtime {
+namespace serialization {
+
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="Specialization for fundamental types">
+
+template <typename T>
+struct Serializer<T,
+  std::enable_if_t<std::is_fundamental<std::remove_cv_t<T>>::value>
+> {
+  template <typename ArchiveT>
+  size_t
+  get_packed_size(T const&, ArchiveT&) const {
+    return sizeof(T);
+  }
+
+  template <typename ArchiveT>
+  void
+  pack(T const& val, ArchiveT& ar) const {
+    using Serializer_attorneys::ArchiveAccess;
+    memcpy(ArchiveAccess::spot(ar), &val, sizeof(T));
+    ArchiveAccess::spot(ar) += sizeof(T);
+  }
+
+  template <typename ArchiveT>
+  void
+  unpack(T& val, ArchiveT& ar) const {
+    using Serializer_attorneys::ArchiveAccess;
+    memcpy(&val, ArchiveAccess::spot(ar), sizeof(T));
+    ArchiveAccess::spot(ar) += sizeof(T);
+  }
 };
 
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
 
-} // namespace tinympl
 
-#endif // TINYMPL_INHERIT_HPP
+} // end namespace serialization
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_SERIALIZATION_BUILTIN_H

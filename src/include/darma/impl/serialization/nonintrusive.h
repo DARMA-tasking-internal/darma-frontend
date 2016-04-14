@@ -45,85 +45,70 @@
 #ifndef DARMA_IMPL_SERIALIZATION_NONINTRUSIVE_H_
 #define DARMA_IMPL_SERIALIZATION_NONINTRUSIVE_H_
 
-#include <utility>
-#include <darma/impl/meta/detection.h>
-#include <cstddef>
 #include <cassert>
+#include <cstddef>
 #include <string>
+#include <utility>
 
 #include <tinympl/always_true.hpp>
+#include <tinympl/copy_traits.hpp>
+
+#include <darma/impl/meta/detection.h>
+#include <darma/impl/serialization/serialization_fwd.h>
+#include <darma/impl/serialization/traits.h>
+#include <cstring>
 
 namespace darma_runtime {
 
-// Forward declarations
-namespace serialization {
-  template <typename T, typename Enable=void>
-  struct Serializer;
-} // end namespace serialization
-
-
 namespace serialization {
 
-namespace detail {
+////////////////////////////////////////////////////////////////////////////////
 
-typedef enum SerializerMode {
-  Sizing,
-  Packing,
-  Unpacking
-} SerializerMode;
+namespace Serializer_attorneys {
 
-// TODO check things like is_polymorphic (and do something about it)
+struct ArchiveAccess {
+  template <typename ArchiveT>
+  static inline
+  tinympl::copy_cv_qualifiers<ArchiveT>::apply_t<char*>&
+  start(ArchiveT& ar) { return ar.start; }
 
-template <typename T, typename Enable=void>
-struct serializability_traits {
-  private:
+  template <typename ArchiveT>
+  static inline
+  tinympl::copy_cv_qualifiers<ArchiveT>::apply_t<char*>&
+  spot(ArchiveT& ar) { return ar.spot; }
 
-    template <typename U, typename ArchiveT>
-    using has_intrusive_serialize_archetype =
-    decltype( std::declval<U>().serialize( std::declval<std::remove_reference_t<ArchiveT>&>() ) );
+  template <typename ArchiveT>
+  static inline
+  tinympl::copy_cv_qualifiers<ArchiveT>::apply_t<detail::SerializerMode>&
+  mode(ArchiveT& ar) { return ar.mode; }
 
-  public:
-    template <typename ArchiveT>
-    using has_intrusive_serialize = meta::is_detected<has_intrusive_serialize_archetype, std::decay_t<T>, ArchiveT>;
+  template <typename ArchiveT>
+  static inline size_t
+  get_size(ArchiveT& ar) {
+    assert(ar.is_sizing());
+    return ar.spot - ar.start;
+  }
 
-  private:
-    template <typename U>
-    using has_intrusive_get_packed_size_archetype = decltype( std::declval<U>().get_packed_size( ) );
-    template <typename U, typename ArchiveT>
-    using has_intrusive_get_packed_size_with_archive_archetype = decltype(
-      std::declval<U>().get_packed_size( std::declval<std::remove_reference_t<ArchiveT>&>() )
-    );
+  template <typename ArchiveT>
+  static inline void
+  start_sizing(ArchiveT& ar) {
+    assert(not ar.is_sizing()); // for now, to avoid accidental resets
+    ar.start = nullptr;
+    ar.spot = nullptr;
+    ar.mode = serialization::detail::SerializerMode::Sizing;
+  }
 
-  public:
-    using has_intrusive_get_packed_size =
-      meta::is_detected<has_intrusive_get_packed_size_archetype, T>;
-    template <typename ArchiveT>
-    using has_intrusive_get_packed_size_with_archive =
-      meta::is_detected<has_intrusive_get_packed_size_with_archive_archetype, T, ArchiveT>;
-
-  private:
-    template <typename U, typename ArchiveT>
-    using has_intrusive_pack_archetype =
-      decltype( std::declval<U>().pack( std::declval<std::remove_reference_t<ArchiveT>&>() ) );
-
-  public:
-    template <typename ArchiveT>
-    using has_intrusive_pack = meta::is_detected<has_intrusive_pack_archetype, T, ArchiveT>;
-
-  private:
-    template <typename U, typename ArchiveT>
-    using has_intrusive_unpack_archetype =
-    decltype( std::declval<U>().unpack( std::declval<std::remove_reference_t<ArchiveT>&>() ) );
-
-  public:
-    template <typename ArchiveT>
-    using has_intrusive_unpack = meta::is_detected<has_intrusive_pack_archetype, T, ArchiveT>;
+  template <typename ArchiveT>
+  static inline void
+  start_packing(ArchiveT& ar) {
+    ar.mode = serialization::detail::SerializerMode::Packing;
+  }
 
 };
 
+} // end namespace Serializer_attorneys
 
-} // end namespace detail
-
+////////////////////////////////////////////////////////////////////////////////
 
 // Default implementation expresses the intrusive interface non-intrusively
 template <typename T, typename Enable>
@@ -150,8 +135,9 @@ struct Serializer {
       and traits::template has_intrusive_get_packed_size_with_archive<ArchiveT>::value,
     size_t
   >
-  get_packed_size(T const& val, ArchiveT& archive) const {
-    return val.get_packed_size(archive);
+  get_packed_size(T const& val, ArchiveT& ar) const {
+    if(not ar.is_sizing()) Serializer_attorneys::ArchiveAccess::start_sizing(ar);
+    return val.get_packed_size(ar);
   };
 
   // only serialize() method available version
@@ -162,90 +148,59 @@ struct Serializer {
       and traits::template has_intrusive_serialize<ArchiveT>::value,
     size_t
   >
-  get_packed_size(T const& val, ArchiveT& archive) const {
-    size_t start = archive.get_size();
-    archive.mode = detail::Sizing;
-    // const-cast necessary for general serialize method to work
-    const_cast<T&>(val).serialize(archive);
-    size_t stop = archive.get_size();
-    assert(stop >= start);
-    return stop - start;
+  get_packed_size(T const& val, ArchiveT& ar) const {
+    size_t offset = 0;
+    if(not ar.is_sizing()) Serializer_attorneys::ArchiveAccess::start_sizing(ar);
+    else offset = Serializer_attorneys::ArchiveAccess::get_size(ar);
+    // const-cast necessary for general serialize method to work, which should be
+    // non-const to work with deserialization
+    const_cast<T&>(val).serialize(ar);
+    return Serializer_attorneys::ArchiveAccess::get_size(ar) - offset;
   };
 
   ////////////////////////////////////////////////////////////////////////////////
 
   // pack() method version
-  template <typename ArchiveT,
-    typename = std::enable_if_t<traits::template has_intrusive_pack<ArchiveT>::value>
-  >
-  void
-  pack(T const& val, ArchiveT& archive) const {
-    val.pack(archive);
+  template <typename ArchiveT>
+  std::enable_if_t<traits::template has_intrusive_pack<ArchiveT>::value>
+  pack(T const& val, ArchiveT& ar) const {
+    val.pack(ar);
   };
 
   // serialize() method version
-  template <typename ArchiveT,
-    typename = std::enable_if_t<
-      traits::template has_intrusive_serialize<ArchiveT>::value
+  template <typename ArchiveT>
+  std::enable_if_t<
+    traits::template has_intrusive_serialize<ArchiveT>::value
       and not traits::template has_intrusive_pack<ArchiveT>::value
-    >
   >
-  void
-  pack(T& val, ArchiveT& archive) const {
-    archive.mode = detail::Packing;
-    val.serialize(archive);
+  pack(T const& val, ArchiveT& ar) const {
+    Serializer_attorneys::ArchiveAccess::start_packing(ar);
+    // const-cast necessary for general serialize() method to work, which should be
+    // non-const to work with deserialization
+    const_cast<T&>(val).serialize(ar);
   };
 
   ////////////////////////////////////////////////////////////////////////////////
 
   // unpack() method version
-  template <typename ArchiveT,
-    typename = std::enable_if_t<traits::template has_intrusive_pack<ArchiveT>::value>
-  >
-  void
-  unpack(T const& val, ArchiveT& archive) const {
-    val.pack(archive);
+  template <typename ArchiveT>
+  std::enable_if_t<traits::template has_intrusive_pack<ArchiveT>::value>
+  unpack(T& val, ArchiveT& ar) const {
+    val.pack(ar);
   };
 
   // serialize() method version
-  template <typename ArchiveT,
-    typename = std::enable_if_t<
-      traits::template has_intrusive_serialize<ArchiveT>::value
-        and not traits::template has_intrusive_unpack<ArchiveT>::value
-    >
+  template <typename ArchiveT>
+  std::enable_if_t<
+    traits::template has_intrusive_serialize<ArchiveT>::value
+      and not traits::template has_intrusive_unpack<ArchiveT>::value
   >
-  void
   unpack(T& val, ArchiveT& archive) const {
     archive.mode = detail::Unpacking;
     val.serialize(archive);
   };
 };
 
-////////////////////////////////////////////////////////////////////////////////
-// Specialization for fundamental types
-
-template <typename T>
-struct Serializer<T,
-  std::enable_if_t<std::is_fundamental<T>::value>
-> {
-  template <typename ArchiveT>
-  size_t
-  get_packed_size(T const&, ArchiveT&) const {
-    return sizeof(T);
-  }
-  template <typename ArchiveT>
-  void
-  pack(T const& val, ArchiveT& ar) const {
-    memcpy(ar.get_spot(), &val, sizeof(T));
-    ar.get_spot() += sizeof(T);
-  }
-  template <typename ArchiveT>
-  void
-  unpack(T& val, ArchiveT& ar) const {
-    memcpy(&val, ar.get_spot(), sizeof(T));
-    ar.get_spot() += sizeof(T);
-  }
-};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Specialization for std::string
@@ -276,5 +231,8 @@ struct Serializer<std::basic_string<CharT, Traits, Allocator>,
 } // end namespace serialization
 
 } // end namespace darma_runtime
+
+// TODO eventually we might want to (very carefully) move these includes to a different file to reduce compile times for power users
+#include "builtin.h"
 
 #endif /* DARMA_IMPL_SERIALIZATION_NONINTRUSIVE_H_ */
