@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      builtin.h
+//                      serializer_attorneys.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,55 +42,77 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_SERIALIZATION_BUILTIN_H
-#define DARMA_IMPL_SERIALIZATION_BUILTIN_H
+#ifndef DARMA_SERIALIZER_ATTORNEYS_H
+#define DARMA_SERIALIZER_ATTORNEYS_H
 
-#include <type_traits>
 #include <cstddef>
+#include <cassert>
 
-#include "nonintrusive.h"
+#include <tinympl/always_true.hpp>
+#include <tinympl/copy_traits.hpp>
+
+#include "serialization_fwd.h"
 
 namespace darma_runtime {
 namespace serialization {
 
 ////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="Specialization for fundamental types">
 
-template <typename T>
-struct Serializer<T,
-  std::enable_if_t<std::is_fundamental<std::remove_cv_t<T>>::value>
-> {
+namespace Serializer_attorneys {
+
+struct ArchiveAccess {
   template <typename ArchiveT>
-  void
-  compute_size(T const&, ArchiveT& ar) const {
-    if(not ar.is_sizing()) Serializer_attorneys::ArchiveAccess::start_sizing(ar);
-    Serializer_attorneys::ArchiveAccess::spot(ar) += sizeof(T);
+  static inline
+  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type&
+  start(ArchiveT& ar) { return ar.start; }
+
+  template <typename ArchiveT>
+  static inline
+  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type&
+  spot(ArchiveT& ar) { return ar.spot; }
+
+  template <typename ArchiveT>
+  static inline
+  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<detail::SerializerMode>::type&
+  mode(ArchiveT& ar) { return ar.mode; }
+
+  template <typename ArchiveT>
+  static inline size_t
+  get_size(ArchiveT& ar) {
+    assert(ar.is_sizing());
+    return ar.spot - ar.start;
   }
 
   template <typename ArchiveT>
-  void
-  pack(T const& val, ArchiveT& ar) const {
-    using Serializer_attorneys::ArchiveAccess;
-    if(not ar.is_packing()) ArchiveAccess::start_packing(ar);
-    std::memcpy(ArchiveAccess::spot(ar), &val, sizeof(T));
-    ArchiveAccess::spot(ar) += sizeof(T);
+  static inline void
+  start_sizing(ArchiveT& ar) {
+    assert(not ar.is_sizing()); // for now, to avoid accidental resets
+    ar.start = nullptr;
+    ar.spot = nullptr;
+    ar.mode = serialization::detail::SerializerMode::Sizing;
   }
 
   template <typename ArchiveT>
-  void
-  unpack(void* val, ArchiveT& ar) const {
-    using Serializer_attorneys::ArchiveAccess;
-    if(not ar.is_unpacking()) ArchiveAccess::start_unpacking(ar);
-    std::memcpy(val, ArchiveAccess::spot(ar), sizeof(T));
-    ArchiveAccess::spot(ar) += sizeof(T);
+  static inline void
+  start_packing(ArchiveT& ar) {
+    ar.mode = serialization::detail::SerializerMode::Packing;
+    ar.spot = ar.start;
   }
+
+  template <typename ArchiveT>
+  static inline void
+  start_unpacking(ArchiveT& ar) {
+    ar.mode = serialization::detail::SerializerMode::Unpacking;
+    ar.spot = ar.start;
+  }
+
 };
 
-// </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+} // end namespace Serializer_attorneys
 
+////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace serialization
 } // end namespace darma_runtime
 
-#endif //DARMA_IMPL_SERIALIZATION_BUILTIN_H
+#endif //DARMA_SERIALIZER_ATTORNEYS_H

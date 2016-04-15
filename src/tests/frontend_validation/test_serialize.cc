@@ -42,11 +42,20 @@
 //@HEADER
 */
 
+#include <vector>
+#include <map>
+#include <unordered_map>
+
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include <darma/impl/serialization/nonintrusive.h>
 #include <darma/impl/serialization/archive.h>
+#include <darma/impl/handle.h>
 
+
+using namespace darma_runtime;
+using namespace darma_runtime::detail;
 using namespace darma_runtime::serialization;
 using namespace darma_runtime::serialization::detail;
 
@@ -58,6 +67,30 @@ class TestSerialize
   : public ::testing::Test
 {
   protected:
+
+    template <typename T, typename Archive=SimplePackUnpackArchive>
+    T do_serdes(T const& val) const {
+      using darma_runtime::serialization::Serializer_attorneys::ArchiveAccess;
+      Ser<T> ser;
+      SimplePackUnpackArchive ar;
+
+      ArchiveAccess::start_sizing(ar);
+      ser.compute_size(val, ar);
+      size_t size = ArchiveAccess::get_size(ar);
+
+      char data[size];
+      DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, data);
+      ArchiveAccess::start_packing(ar);
+      ser.pack(val, ar);
+
+      char rv[sizeof(T)];
+      ArchiveAccess::start_unpacking(ar);
+      ser.unpack(&rv, ar);
+
+
+      // Return by copy, so memory shouldn't be an issue
+      return *(T*)rv;
+    }
 
     virtual void SetUp() {
 
@@ -98,4 +131,56 @@ TEST_F(TestSerialize, fundamental_chain) {
 
   ASSERT_EQ(ArchiveAccess::get_size(ar), sizeof(value)*n_reps);
 
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSerialize, vector_simple) {
+  using darma_runtime::serialization::Serializer_attorneys::ArchiveAccess;
+  using namespace std;
+  using namespace ::testing;
+
+  vector<int> value = { 3, 1, 4, 1, 5, 9, 2, 6 };
+
+  auto v_unpacked = do_serdes(value);
+
+  ASSERT_THAT(v_unpacked, ElementsAre(3, 1, 4, 1, 5, 9, 2, 6));
+  // Also assert that value is unchanged
+  ASSERT_THAT(value, ElementsAre(3, 1, 4, 1, 5, 9, 2, 6));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSerialize, map_simple) {
+  using darma_runtime::serialization::Serializer_attorneys::ArchiveAccess;
+  using namespace std;
+  using namespace ::testing;
+
+  static_assert(meta::is_container<map<int, int>>::value, "map must be a Container");
+
+  map<int, int> value = { {3, 1}, {4, 1}, {5, 9}, {2, 6} };
+
+  auto v_unpacked = do_serdes(value);
+
+  ASSERT_THAT(v_unpacked, ContainerEq(value));
+  // Also assert that value is unchanged
+  //ASSERT_THAT(value, ElementsAre(3, 1, 4, 1, 5, 9, 2, 6));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSerialize, unordered_map_simple) {
+  using darma_runtime::serialization::Serializer_attorneys::ArchiveAccess;
+  using namespace std;
+  using namespace ::testing;
+
+  static_assert(meta::is_container<unordered_map<int, int>>::value, "unordered_map must be a Container");
+
+  unordered_map<int, int> value = { {3, 1}, {4, 1}, {5, 9}, {2, 6} };
+
+  auto v_unpacked = do_serdes(value);
+
+  ASSERT_THAT(v_unpacked, ContainerEq(value));
+  // Also assert that value is unchanged
+  //ASSERT_THAT(value, ElementsAre(3, 1, 4, 1, 5, 9, 2, 6));
 }

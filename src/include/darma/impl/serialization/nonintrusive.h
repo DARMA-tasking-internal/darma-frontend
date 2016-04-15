@@ -47,6 +47,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstring>
 #include <string>
 #include <utility>
 
@@ -56,7 +57,8 @@
 #include <darma/impl/meta/detection.h>
 #include <darma/impl/serialization/serialization_fwd.h>
 #include <darma/impl/serialization/traits.h>
-#include <cstring>
+
+#include "serializer_attorneys.h"
 
 namespace darma_runtime {
 
@@ -64,64 +66,10 @@ namespace serialization {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace Serializer_attorneys {
-
-struct ArchiveAccess {
-  template <typename ArchiveT>
-  static inline
-  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type&
-  start(ArchiveT& ar) { return ar.start; }
-
-  template <typename ArchiveT>
-  static inline
-  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type&
-  spot(ArchiveT& ar) { return ar.spot; }
-
-  template <typename ArchiveT>
-  static inline
-  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<detail::SerializerMode>::type&
-  mode(ArchiveT& ar) { return ar.mode; }
-
-  template <typename ArchiveT>
-  static inline size_t
-  get_size(ArchiveT& ar) {
-    assert(ar.is_sizing());
-    return ar.spot - ar.start;
-  }
-
-  template <typename ArchiveT>
-  static inline void
-  start_sizing(ArchiveT& ar) {
-    assert(not ar.is_sizing()); // for now, to avoid accidental resets
-    ar.start = nullptr;
-    ar.spot = nullptr;
-    ar.mode = serialization::detail::SerializerMode::Sizing;
-  }
-
-  template <typename ArchiveT>
-  static inline void
-  start_packing(ArchiveT& ar) {
-    ar.mode = serialization::detail::SerializerMode::Packing;
-  }
-
-  template <typename ArchiveT>
-  static inline void
-  start_unpacking(ArchiveT& ar) {
-    ar.mode = serialization::detail::SerializerMode::Unpacking;
-  }
-
-};
-
-} // end namespace Serializer_attorneys
-
-////////////////////////////////////////////////////////////////////////////////
-
 // Default implementation expresses pass-through to the intrusive interface non-intrusively
 template <typename T, typename Enable>
-struct Serializer {
+struct Sizer {
   typedef detail::serializability_traits<T> traits;
-
-  ////////////////////////////////////////////////////////////////////////////////
 
   // compute_size() method available version
   template <typename ArchiveT>
@@ -159,7 +107,13 @@ struct Serializer {
     const_cast<T&>(val).serialize(ar);
   };
 
-  ////////////////////////////////////////////////////////////////////////////////
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+template <typename T, typename Enable>
+struct Packer {
+  typedef detail::serializability_traits<T> traits;
 
   // pack() method version
   template <typename ArchiveT>
@@ -182,14 +136,23 @@ struct Serializer {
     const_cast<T&>(val).serialize(ar);
   };
 
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+template <typename T, typename Enable>
+struct Unpacker {
+  typedef detail::serializability_traits<T> traits;
+
   ////////////////////////////////////////////////////////////////////////////////
 
   // unpack() method version
   template <typename ArchiveT>
   std::enable_if_t<traits::template has_intrusive_pack<ArchiveT>::value>
-  unpack(T& val, ArchiveT& ar) const {
+  unpack(void* allocated, ArchiveT& ar) const {
     if(not ar.is_unpacking()) Serializer_attorneys::ArchiveAccess::start_unpacking(ar);
-    val.unpack(ar);
+    T* v = new (allocated) T;
+    v->unpack(ar);
   };
 
   // serialize() method version
@@ -198,11 +161,23 @@ struct Serializer {
     traits::template has_intrusive_serialize<ArchiveT>::value
       and not traits::template has_intrusive_unpack<ArchiveT>::value
   >
-  unpack(T& val, ArchiveT& ar) const {
+  unpack(void* allocated, ArchiveT& ar) const {
     if(not ar.is_unpacking()) Serializer_attorneys::ArchiveAccess::start_unpacking(ar);
-    val.serialize(ar);
+    T* v = new (allocated) T;
+    v->serialize(ar);
   };
+
 };
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Default implementation expresses pass-through to the intrusive interface non-intrusively
+template <typename T, typename Enable>
+struct Serializer
+  : public Sizer<T, Enable>,
+    public Packer<T, Enable>,
+    public Unpacker<T, Enable>
+{ };
 
 
 ////////////////////////////////////////////////////////////////////////////////

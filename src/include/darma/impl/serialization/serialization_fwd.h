@@ -52,6 +52,15 @@ namespace serialization {
 template <typename T, typename Enable=void>
 struct Serializer;
 
+template <typename T, typename Enable=void>
+struct Sizer;
+
+template <typename T, typename Enable=void>
+struct Packer;
+
+template <typename T, typename Enable=void>
+struct Unpacker;
+
 namespace detail {
 
 typedef enum SerializerMode {

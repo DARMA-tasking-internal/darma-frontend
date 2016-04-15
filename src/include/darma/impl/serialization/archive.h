@@ -58,30 +58,39 @@ namespace serialization {
 // A simple frontend object for interacting with user-defined serializations
 // TODO Archives that check for pointer loops and stuff
 
+namespace detail {
+
 template <typename ArchiveT>
 class ArchiveOperatorsMixin {
   public:
     template <typename T>
     inline void
-    operator<<(T&& val) {
-      static_cast<ArchiveT*>(this)->pack_item(std::forward<T>(val));
+    operator<<(T &&val) {
+      static_cast<ArchiveT *>(this)->pack_item(std::forward<T>(val));
     }
 
     template <typename T>
     inline void
-    operator>>(T&& val) {
-      static_cast<ArchiveT*>(this)->unpack_item(std::forward<T>(val));
+    operator>>(T &&val) {
+      static_cast<ArchiveT *>(this)->unpack_item(std::forward<T>(val));
     }
 
     template <typename T>
     inline void
-    operator%(T&& val) {
-      static_cast<ArchiveT*>(this)->incorporate_size(std::forward<T>(val));
+    operator%(T &&val) {
+      static_cast<ArchiveT *>(this)->incorporate_size(std::forward<T>(val));
     }
+
+    // TODO iterator ranges, etc
+    // TODO operator|
 };
 
+} // end namespace detail
+
+////////////////////////////////////////////////////////////////////////////////
+
 class SimplePackUnpackArchive
-  : public ArchiveOperatorsMixin<SimplePackUnpackArchive>
+  : public detail::ArchiveOperatorsMixin<SimplePackUnpackArchive>
 {
   private:
     // readability alias
@@ -113,10 +122,9 @@ class SimplePackUnpackArchive
     template <typename T>
     void unpack_item(T& val) {
       typename detail::serializability_traits<T>::serializer ser;
-      ser.unpack(val, *this);
+      ser.unpack(static_cast<void*>(&val), *this);
     }
 
-    // TODO bells and whistles like |, <<, >>, iterator ranges, etc
 
   private:
 

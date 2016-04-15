@@ -209,7 +209,7 @@ struct serializability_traits {
 
     template <typename U, typename ArchiveT>
     using has_nonintrusive_pack_archetype = decltype(
-      declval<Serializer<U>>().compute_size(
+      declval<Serializer<U>>().pack(
         declval<const U&>(), declval<remove_const_t<ArchiveT>&>()
       )
     );
@@ -230,22 +230,10 @@ struct serializability_traits {
 
     template <typename U, typename ArchiveT>
     using has_nonintrusive_unpack_archetype = decltype(
-      declval<Serializer<U>>().compute_size(
-        declval<U&>(), declval<remove_const_t<ArchiveT>&>()
+      declval<Serializer<U>>().unpack(
+        declval<void*>(), declval<remove_const_t<ArchiveT>&>()
       )
     );
-
-    // Works for both extra const or missing reference because of implicit conversion
-    template <typename U, typename ArchiveT>
-    using has_const_ref_incorrect_nonintrusive_unpack_archetype = decltype(
-      declval<Serializer<U>>().compute_size(
-        declval<const U&>(), declval<remove_const_t<ArchiveT>&>()
-      )
-    );
-    template <typename ArchiveT>
-    using has_const_ref_incorrect_nonintrusive_unpack =
-      is_detected<has_const_ref_incorrect_nonintrusive_unpack_archetype, _clean_T, ArchiveT>;
-
 
   public:
 
