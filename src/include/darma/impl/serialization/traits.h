@@ -276,6 +276,8 @@ struct serializability_traits {
       has_nonintrusive_unpack<ArchiveT>
     >;
 
+    typedef Serializer<_clean_T> serializer;
+
     // </editor-fold>
     ////////////////////////////////////////////////////////////////////////////////
 

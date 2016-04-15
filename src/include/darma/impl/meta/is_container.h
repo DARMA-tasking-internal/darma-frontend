@@ -56,17 +56,145 @@ namespace meta {
 
 // Some incomplete concept checking stubs to be filled in later
 template <typename T>
-using is_erasable = std::true_type;
+using is_erasable = std::true_type; // TODO implement this
+template <typename T>
+using is_forward_iterator = std::true_type; // TODO implement this
+template <typename T>
+using is_copy_insertable = std::true_type; // TODO implement this
+
+template <typename T>
+struct is_equality_comparable {
+  private:
+    template <typename U>
+    using equality_comparable_archetype = decltype( std::declval<U>() == std::declval<U>() );
+  public:
+    static constexpr auto value =
+      is_detected_convertible<bool, equality_comparable_archetype, T>::value;
+    using type = std::integral_constant<bool, value>;
+};
+
 
 // Concept checking for stl container types
 
 template <typename C>
 struct is_container {
   public:
-    // Must have a value_type member
+    // Must have a value_type member type
     using value_type = detected_t<has_value_type_archetype, C>;
-    static constexpr auto has_value_type =
-      is_detected<has_value_type_archetype, C>::value;
+    static constexpr auto has_value_type = is_detected<has_value_type_archetype, C>::value;
+
+    // value_type must be erasable
+    static constexpr auto value_type_is_valid = is_erasable<value_type>::value;
+
+    // Must have reference and const_reference member types
+  private:
+    template <typename T>
+    using has_reference_member_type_archetype = typename T::reference;
+    template <typename T>
+    using has_const_reference_member_type_archetype = typename T::const_reference;
+  public:
+    using reference = detected_t<has_reference_member_type_archetype, C>;
+    using const_reference = detected_t<has_const_reference_member_type_archetype, C>;
+    static constexpr auto has_reference = is_detected<has_value_type_archetype, C>::value;
+    static constexpr auto has_const_reference = is_detected<has_value_type_archetype, C>::value;
+
+    // Must have iterator and const_iterator member types
+  private:
+    template <typename T>
+    using has_iterator_member_type_archetype = typename T::iterator;
+    template <typename T>
+    using has_const_iterator_member_type_archetype = typename T::const_iterator;
+  public:
+    using iterator = detected_t<has_iterator_member_type_archetype, C>;
+    using const_iterator = detected_t<has_const_iterator_member_type_archetype, C>;
+    static constexpr auto has_iterator = is_detected<has_value_type_archetype, C>::value;
+    static constexpr auto has_const_iterator = is_detected<has_value_type_archetype, C>::value;
+
+    // iterator and const_iterator member types must meet the ForwardIterator concept
+    static constexpr auto iterator_is_valid = is_forward_iterator<iterator>::value;
+    static constexpr auto const_iterator_is_valid = is_forward_iterator<const_iterator>::value;
+
+    // must have difference_type and size_type member types
+  private:
+    template <typename T>
+    using has_difference_type_member_type_archetype = typename T::difference_type;
+    template <typename T>
+    using has_size_type_member_type_archetype = typename T::size_type;
+  public:
+    using difference_type = detected_t<has_difference_type_member_type_archetype, C>;
+    static constexpr auto has_difference_type =
+      is_detected<has_difference_type_member_type_archetype, C>::value;
+    using size_type = detected_t<has_size_type_member_type_archetype, C>;
+    static constexpr auto has_size_type =
+      is_detected<has_size_type_member_type_archetype, C>::value;
+
+    // must be default constructible
+    static constexpr auto is_default_constructible = std::is_default_constructible<C>::value;
+
+    // TODO must be copy constructible if value_type is CopyInsertable
+
+    // must be assignable
+    static constexpr auto is_assignable = std::is_assignable<C, C>::value;
+
+    // must be destructible
+    static constexpr auto is_destructible = std::is_destructible<C>::value;
+
+    // must have a begin() method that returns an iterator, and a begin() const method
+    // that returns a const_iterator (and same for end).  Also has to have cbegin() and
+    // cend() that return const_iterator instances
+  private:
+    template <typename T>
+    using has_begin_method_archetype = decltype( std::declval<T>().begin() );
+    template <typename T>
+    using has_end_method_archetype = decltype( std::declval<T>().end() );
+    template <typename T>
+    using has_cbegin_method_archetype = decltype( std::declval<T>().cbegin() );
+    template <typename T>
+    using has_cend_method_archetype = decltype( std::declval<T>().cend() );
+  public:
+    static constexpr auto begin_method_works =
+      is_detected_exact<iterator, has_begin_method_archetype, C>::value;
+    static constexpr auto begin_const_method_works =
+      is_detected_exact<const_iterator, has_begin_method_archetype, const C>::value;
+    static constexpr auto cbegin_method_works =
+      is_detected_exact<const_iterator, has_cbegin_method_archetype, C>::value;
+    static constexpr auto end_method_works =
+      is_detected_exact<iterator, has_end_method_archetype, C>::value;
+    static constexpr auto end_const_method_works =
+      is_detected_exact<const_iterator, has_end_method_archetype, const C>::value;
+    static constexpr auto cend_method_works =
+      is_detected_exact<const_iterator, has_cend_method_archetype, C>::value;
+
+    // must be EqualityComparable if value_type is EqualityComparable
+    static constexpr auto compatible_equality_comparable =
+      (not is_equality_comparable<value_type>::value) or is_equality_comparable<C>::value;
+
+    // TODO swap, size, max_size, empty
+
+  public:
+
+    static constexpr auto value = \
+         has_value_type
+      && value_type_is_valid
+      && has_reference
+      && has_const_reference
+      && has_iterator
+      && has_const_iterator
+      && iterator_is_valid
+      && const_iterator_is_valid
+      && has_difference_type
+      && has_size_type
+      && is_default_constructible
+      && is_assignable
+      && is_destructible
+      && begin_method_works
+      && begin_const_method_works
+      && cbegin_method_works
+      && end_method_works
+      && end_const_method_works
+      && cend_method_works
+      && compatible_equality_comparable
+    ;
 
 };
 
