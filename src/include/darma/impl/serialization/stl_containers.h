@@ -64,6 +64,10 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
     typedef detail::serializability_traits<value_type> value_serdes_traits;
     typedef typename value_serdes_traits::serializer value_serializer;
 
+    ////////////////////////////////////////////////////////////
+    // <editor-fold desc="Special handling if reserve() is available, push_back() or insert(), etc">
+
+
     template <typename T>
     using back_inserter_valid_archetype = decltype( std::back_inserter( std::declval<T&>() ) );
     template <typename T>
@@ -92,20 +96,42 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
       /* do nothing */
     };
 
+    // </editor-fold>
+    ////////////////////////////////////////////////////////////
+
   public:
+
+
+    ////////////////////////////////////////////////////////////
+    // <editor-fold desc="compute_size()">
+
     template <typename ArchiveT>
     std::enable_if_t<value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value>
-    get_packed_size(C const& c, ArchiveT& ar) const {
+    compute_size(C const& c, ArchiveT& ar) const {
+      if(not ar.is_sizing()) Serializer_attorneys::ArchiveAccess::start_sizing(ar);
       ar.incorporate_size(c.size());
       for(auto&& item : c) ar.incorporate_size(item);
     }
 
+    // </editor-fold>
+    ////////////////////////////////////////////////////////////
+
+    ////////////////////////////////////////////////////////////
+    // <editor-fold desc="pack()">
+
     template <typename ArchiveT>
     std::enable_if_t<value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value>
     pack(C const& c, ArchiveT& ar) const {
+      if(not ar.is_packing()) Serializer_attorneys::ArchiveAccess::start_packing(ar);
       ar.pack_item(c.size());
       for(auto&& item : c) ar.pack_item(item);
     }
+
+    // </editor-fold>
+    ////////////////////////////////////////////////////////////
+
+    ////////////////////////////////////////////////////////////
+    // <editor-fold desc="unpack()">
 
     template <typename ArchiveT>
     std::enable_if_t<
@@ -113,6 +139,7 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
         and is_back_insertable
     >
     unpack(C& c, ArchiveT& ar) const {
+      if(not ar.is_unpacking()) Serializer_attorneys::ArchiveAccess::start_unpacking(ar);
       // call default constructor
       new (&c) C;
 
@@ -138,6 +165,7 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
         and is_insertable and not is_back_insertable
     >
     unpack(C& c, ArchiveT& ar) const {
+      if(not ar.is_unpacking()) Serializer_attorneys::ArchiveAccess::start_unpacking(ar);
       // call default constructor
       new (&c) C;
       // and start unpacking
@@ -155,6 +183,9 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
         ins_iter = *(C*)tmp;
       }
     }
+
+    // </editor-fold>
+    ////////////////////////////////////////////////////////////
 };
 
 
