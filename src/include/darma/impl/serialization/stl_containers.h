@@ -54,11 +54,13 @@
 namespace darma_runtime {
 namespace serialization {
 
+// TODO Allocator awareness!!!
 
 // A specialization for all stl containers of serializable objects
 template <typename C>
 struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
-  private:
+  protected:
+
     typedef meta::is_container<C> container_traits;
     typedef typename container_traits::value_type value_type;
     typedef detail::serializability_traits<value_type> value_serdes_traits;
@@ -67,20 +69,25 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
     ////////////////////////////////////////////////////////////
     // <editor-fold desc="Special handling if reserve() is available, push_back() or insert(), etc">
 
+    template <typename T>
+    using back_insertable_archetype = decltype(
+      std::declval<T>().push_back(std::declval<value_type>())
+    );
 
     template <typename T>
-    using back_inserter_valid_archetype = decltype( std::back_inserter( std::declval<T&>() ) );
-    template <typename T>
-    using inserter_valid_archetype = decltype( std::inserter(
-      std::declval<T&>(), std::declval<typename T::iterator>()
-    ) );
+    using insertable_archetype = decltype(
+      std::declval<T>().insert(
+        std::declval<typename container_traits::iterator>(),
+        std::declval<value_type>()
+      )
+    );
     template <typename T>
     using reservable_archetype = decltype( std::declval<T>().reserve( std::declval<size_t>() ) );
 
     static constexpr auto is_back_insertable = meta::is_detected<
-      back_inserter_valid_archetype, C>::value;
+      back_insertable_archetype, C>::value;
     static constexpr auto is_insertable = meta::is_detected<
-      inserter_valid_archetype, C>::value;
+      insertable_archetype, C>::value;
     static constexpr auto is_reservable = meta::is_detected<
       reservable_archetype , C>::value;
 
@@ -96,11 +103,55 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
       /* do nothing */
     };
 
+    template <typename T>
+    using has_allocator_archetype = decltype( std::declval<const T>().get_allocator() );
+    static constexpr auto has_allocator = meta::is_detected<has_allocator_archetype, C>::value;
+    using allocator_t =
+      meta::detected_or_t<std::allocator<value_type>, has_allocator_archetype, C>;
+    using Alloc_traits = std::allocator_traits<allocator_t>;
+
+
+
+    template <typename _Ignored = void>
+    inline std::enable_if_t<has_allocator and std::is_same<_Ignored, void>::value,
+      value_type*
+    >
+    _allocate_item(C const& c) const {
+      auto alloc = c.get_allocator();
+      return Alloc_traits::allocate(alloc, 1);
+    };
+
+    template <typename _Ignored = void>
+    inline std::enable_if_t<not has_allocator and std::is_same<_Ignored, void>::value,
+      value_type*
+    >
+    _allocate_item(C const&) const {
+      allocator_t alloc;
+      return Alloc_traits::allocate(alloc, 1);
+    };
+
+    // UNUSED:
+    //template <typename... Args>
+    //inline std::enable_if_t<has_allocator>
+    //_cosntruct_item(C const& c, void* at, Args&&... args) const {
+    //  return Alloc_traits::construct(
+    //    c.get_allocator(), at, std::forward<Args>(args)...
+    //  );
+    //};
+
+    //// UNUSED:
+    //template <typename... Args>
+    //inline std::enable_if_t<not has_allocator>
+    //_construct_item(void* at, Args&&... args) const {
+    //  return Alloc_traits::construct(
+    //    allocator_t(), at, std::forward<Args>(args)...
+    //  );
+    //};
+
     // </editor-fold>
     ////////////////////////////////////////////////////////////
 
   public:
-
 
     ////////////////////////////////////////////////////////////
     // <editor-fold desc="compute_size()">
@@ -133,25 +184,27 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
     ////////////////////////////////////////////////////////////
     // <editor-fold desc="unpack()">
 
+    // TODO optimization for contiguous containers
+
     template <typename ArchiveT>
     std::enable_if_t<
       value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
         and is_back_insertable
     >
-    unpack(C& c, ArchiveT& ar) const {
+    unpack(void* allocated, ArchiveT& ar) const {
       if(not ar.is_unpacking()) Serializer_attorneys::ArchiveAccess::start_unpacking(ar);
       // call default constructor
-      new (&c) C;
+      C* c = new (allocated) C;
 
       // and start unpacking
       size_t n_items = 0;
       ar.unpack_item(n_items);
-      _unpack_prepare(c, n_items);
+      _unpack_prepare(*c, n_items);
 
-      auto back_iter = std::back_inserter(c);
+      auto back_iter = std::back_inserter(*c);
       for(typename C::size_type i = 0; i < n_items; ++i) {
         // Allocate the data for the item
-        void* tmp = operator new(sizeof(value_type));
+        void *tmp = _allocate_item(*c);
         // unpack into it
         ar.unpack_item(*(value_type*)tmp);
         // put it in the container
@@ -164,29 +217,100 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
       value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
         and is_insertable and not is_back_insertable
     >
-    unpack(C& c, ArchiveT& ar) const {
+    unpack(void* allocated, ArchiveT& ar) const {
       if(not ar.is_unpacking()) Serializer_attorneys::ArchiveAccess::start_unpacking(ar);
       // call default constructor
-      new (&c) C;
+      C* c = new (allocated) C;
       // and start unpacking
       size_t n_items = 0;
       ar.unpack_item(n_items);
-      _unpack_prepare(c, n_items);
+      _unpack_prepare(*c, n_items);
 
-      std::insert_iterator<C> ins_iter(c, c.begin());
+      std::insert_iterator<C> ins_iter(*c, c->begin());
       for(typename C::size_type i = 0; i < n_items; ++i) {
         // Allocate the data for the item
-        void *tmp = operator new(sizeof(value_type));
+        void *tmp = _allocate_item(*c);
         // unpack into it
-        ar.unpack_item(*(C*)tmp);
+        ar.unpack_item(*(value_type*)tmp);
         // put it in the container
-        ins_iter = *(C*)tmp;
+        ins_iter = *(value_type*)tmp;
       }
     }
 
     // </editor-fold>
     ////////////////////////////////////////////////////////////
 };
+
+////////////////////////////////////////////////////////////////////////////////
+
+template <typename T1, typename T2>
+struct Serializer<std::pair<T1, T2>> {
+
+  typedef detail::serializability_traits<T1> T1_serdes_traits;
+  typedef typename T1_serdes_traits::serializer Ser1;
+  typedef detail::serializability_traits<T2> T2_serdes_traits;
+  typedef typename T2_serdes_traits::serializer Ser2;
+
+ private:
+  template <typename ArchiveT>
+  using serializable_into = std::integral_constant<bool,
+    T1_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
+      and T2_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
+  >;
+
+  typedef std::pair<T1, T2> T;
+
+ public:
+
+  ////////////////////////////////////////////////////////////
+  // <editor-fold desc="compute_size()">
+
+  template <typename ArchiveT>
+  std::enable_if_t<serializable_into<ArchiveT>::value>
+  compute_size(T const& c, ArchiveT& ar) const {
+    if (not ar.is_sizing()) Serializer_attorneys::ArchiveAccess::start_sizing(ar);
+    ar.incorporate_size(c.first);
+    ar.incorporate_size(c.second);
+  }
+
+  // </editor-fold>
+  ////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////
+  // <editor-fold desc="pack()">
+
+  template <typename ArchiveT>
+  std::enable_if_t<serializable_into<ArchiveT>::value>
+  pack(T const& c, ArchiveT& ar) const {
+    if (not ar.is_packing()) Serializer_attorneys::ArchiveAccess::start_packing(ar);
+    ar.pack_item(c.first);
+    ar.pack_item(c.second);
+  }
+
+  // </editor-fold>
+  ////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////
+  // <editor-fold desc="unpack()">
+
+  template <typename ArchiveT>
+  std::enable_if_t<serializable_into<ArchiveT>::value>
+  unpack(void* allocated, ArchiveT& ar) const {
+    if (not ar.is_unpacking()) Serializer_attorneys::ArchiveAccess::start_unpacking(ar);
+
+    // TODO be sure it's okay to not call the std::pair constructor
+
+    Ser1().unpack( (void*)(&((*(T*)allocated).first)), ar );
+
+    Ser2().unpack( (void*)(&((*(T*)allocated).second)), ar );
+
+  }
+
+  // </editor-fold>
+  ////////////////////////////////////////////////////////////
+
+};
+
 
 
 } // end namespace serialization

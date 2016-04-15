@@ -465,7 +465,7 @@ class DependencyHandle
       DependencyHandle_attorneys::ArchiveAccess::set_buffer(
         ar, const_cast<void* const>(serialized_data)
       );
-      s.unpack(*(T* const)(object_dest), ar);
+      s.unpack(object_dest, ar);
     }
 
     // end SerializationManager implementation </editor-fold>
