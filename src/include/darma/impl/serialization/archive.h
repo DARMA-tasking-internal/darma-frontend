@@ -73,6 +73,24 @@ class Archive {
     bool is_packing() const { return mode == detail::SerializerMode::Packing; }
     bool is_unpacking() const { return mode == detail::SerializerMode::Unpacking; }
 
+    template <typename T>
+    void incorporate_size(T const& val) {
+      typename detail::serializability_traits<T>::serializer ser;
+      ser.get_packed_size(val, *this);
+    }
+
+    template <typename T>
+    void pack_item(T const& val) {
+      typename detail::serializability_traits<T>::serializer ser;
+      ser.pack(val, *this);
+    }
+
+    template <typename T>
+    void unpack_item(T& val) {
+      typename detail::serializability_traits<T>::serializer ser;
+      ser.unpack(val, *this);
+    }
+
     // TODO bells and whistles like |, <<, >>, iterator ranges, etc
 
   private:

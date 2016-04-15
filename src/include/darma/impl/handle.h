@@ -223,6 +223,11 @@ struct ArchiveAccess {
     assert(ar.start == nullptr);
     ar.start = ar.spot = (char* const)buffer;
   }
+  template <typename ArchiveT>
+  static size_t get_size(ArchiveT& ar) {
+    assert(ar.is_sizing());
+    return ar.spot - ar.start;
+  }
 };
 
 } // end namespace DependencyHandle_attorneys
@@ -434,6 +439,7 @@ class DependencyHandle
       serialization::Serializer<T> s;
       serialization::Archive ar;
       s.get_packed_size(*(T const* const)(object_data), ar);
+      return DependencyHandle_attorneys::ArchiveAccess::get_size(ar);
     }
 
     void

@@ -61,16 +61,16 @@ struct Serializer<T,
   std::enable_if_t<std::is_fundamental<std::remove_cv_t<T>>::value>
 > {
   template <typename ArchiveT>
-  size_t
-  get_packed_size(T const&, ArchiveT&) const {
-    return sizeof(T);
+  void
+  get_packed_size(T const&, ArchiveT& ar) const {
+    Serializer_attorneys::ArchiveAccess::spot(ar) += sizeof(T);
   }
 
   template <typename ArchiveT>
   void
   pack(T const& val, ArchiveT& ar) const {
     using Serializer_attorneys::ArchiveAccess;
-    memcpy(ArchiveAccess::spot(ar), &val, sizeof(T));
+    std::memcpy(ArchiveAccess::spot(ar), &val, sizeof(T));
     ArchiveAccess::spot(ar) += sizeof(T);
   }
 
@@ -78,7 +78,7 @@ struct Serializer<T,
   void
   unpack(T& val, ArchiveT& ar) const {
     using Serializer_attorneys::ArchiveAccess;
-    memcpy(&val, ArchiveAccess::spot(ar), sizeof(T));
+    std::memcpy(&val, ArchiveAccess::spot(ar), sizeof(T));
     ArchiveAccess::spot(ar) += sizeof(T);
   }
 };
