@@ -24,6 +24,7 @@ add_unit_test(test_create_work)
 add_unit_test(test_access_handle)
 add_unit_test(test_segmented_key)
 add_unit_test(test_functor)
+add_unit_test(test_serialize)
 
 add_executable(run_all_frontend_tests ${frontendtestfiles})
 target_link_libraries(run_all_frontend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)

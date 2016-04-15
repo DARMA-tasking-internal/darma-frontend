@@ -58,8 +58,6 @@
 #include <darma/impl/serialization/traits.h>
 #include <cstring>
 
-// TODO rename get_packed_size to compute_size ?
-
 namespace darma_runtime {
 
 namespace serialization {
@@ -106,48 +104,55 @@ struct ArchiveAccess {
     ar.mode = serialization::detail::SerializerMode::Packing;
   }
 
+  template <typename ArchiveT>
+  static inline void
+  start_unpacking(ArchiveT& ar) {
+    ar.mode = serialization::detail::SerializerMode::Unpacking;
+  }
+
 };
 
 } // end namespace Serializer_attorneys
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Default implementation expresses the intrusive interface non-intrusively
+// Default implementation expresses pass-through to the intrusive interface non-intrusively
 template <typename T, typename Enable>
 struct Serializer {
   typedef detail::serializability_traits<T> traits;
 
   ////////////////////////////////////////////////////////////////////////////////
 
-  // get_packed_size() method available version
+  // compute_size() method available version
   template <typename ArchiveT>
   std::enable_if_t<
-    traits::has_intrusive_get_packed_size::value
+    traits::has_intrusive_compute_size::value
       and tinympl::always_true<ArchiveT>::value
   >
-  get_packed_size(T const& val, ArchiveT& ar) const {
-    Serializer_attorneys::ArchiveAccess::spot(ar) += val.get_packed_size();
+  compute_size(T const& val, ArchiveT& ar) const {
+    if(not ar.is_sizing()) Serializer_attorneys::ArchiveAccess::start_sizing(ar);
+    Serializer_attorneys::ArchiveAccess::spot(ar) += val.compute_size();
   };
 
-  // get_packed_size(Archive&) method available version
+  // compute_size(Archive&) method available version
   template <typename ArchiveT>
   std::enable_if_t<
-    not traits::has_intrusive_get_packed_size::value
-      and traits::template has_intrusive_get_packed_size_with_archive<ArchiveT>::value
+    not traits::has_intrusive_compute_size::value
+      and traits::template has_intrusive_compute_size_with_archive<ArchiveT>::value
   >
-  get_packed_size(T const& val, ArchiveT& ar) const {
+  compute_size(T const& val, ArchiveT& ar) const {
     if(not ar.is_sizing()) Serializer_attorneys::ArchiveAccess::start_sizing(ar);
-    Serializer_attorneys::ArchiveAccess::spot(ar) += val.get_packed_size(ar);
+    Serializer_attorneys::ArchiveAccess::spot(ar) += val.compute_size(ar);
   };
 
   // only serialize() method available version
   template <typename ArchiveT>
   std::enable_if_t<
-    not traits::has_intrusive_get_packed_size::value
-      and not traits::template has_intrusive_get_packed_size_with_archive<ArchiveT>::value
+    not traits::has_intrusive_compute_size::value
+      and not traits::template has_intrusive_compute_size_with_archive<ArchiveT>::value
       and traits::template has_intrusive_serialize<ArchiveT>::value
   >
-  get_packed_size(T const& val, ArchiveT& ar) const {
+  compute_size(T const& val, ArchiveT& ar) const {
     if(not ar.is_sizing()) Serializer_attorneys::ArchiveAccess::start_sizing(ar);
     // const-cast necessary for general serialize method to work, which should be
     // non-const to work with deserialization
@@ -160,6 +165,7 @@ struct Serializer {
   template <typename ArchiveT>
   std::enable_if_t<traits::template has_intrusive_pack<ArchiveT>::value>
   pack(T const& val, ArchiveT& ar) const {
+    if(not ar.is_packing()) Serializer_attorneys::ArchiveAccess::start_packing(ar);
     val.pack(ar);
   };
 
@@ -170,7 +176,7 @@ struct Serializer {
       and not traits::template has_intrusive_pack<ArchiveT>::value
   >
   pack(T const& val, ArchiveT& ar) const {
-    Serializer_attorneys::ArchiveAccess::start_packing(ar);
+    if(not ar.is_packing()) Serializer_attorneys::ArchiveAccess::start_packing(ar);
     // const-cast necessary for general serialize() method to work, which should be
     // non-const to work with deserialization
     const_cast<T&>(val).serialize(ar);
@@ -182,6 +188,7 @@ struct Serializer {
   template <typename ArchiveT>
   std::enable_if_t<traits::template has_intrusive_pack<ArchiveT>::value>
   unpack(T& val, ArchiveT& ar) const {
+    if(not ar.is_unpacking()) Serializer_attorneys::ArchiveAccess::start_unpacking(ar);
     val.unpack(ar);
   };
 
@@ -191,9 +198,9 @@ struct Serializer {
     traits::template has_intrusive_serialize<ArchiveT>::value
       and not traits::template has_intrusive_unpack<ArchiveT>::value
   >
-  unpack(T& val, ArchiveT& archive) const {
-    archive.mode = detail::Unpacking;
-    val.serialize(archive);
+  unpack(T& val, ArchiveT& ar) const {
+    if(not ar.is_unpacking()) Serializer_attorneys::ArchiveAccess::start_unpacking(ar);
+    val.serialize(ar);
   };
 };
 
@@ -209,7 +216,7 @@ struct Serializer {
 //  typedef std::basic_string<CharT, Traits, Allocator> T;
 //  template <typename ArchiveT>
 //  size_t
-//  get_packed_size(T const&, ArchiveT&) const {
+//  compute_size(T const&, ArchiveT&) const {
 //    /* TODO */
 //    return 0;
 //  }

@@ -45,8 +45,9 @@
 #ifndef DARMA_IMPL_SERIALIZATION_TRAITS_H_
 #define DARMA_IMPL_SERIALIZATION_TRAITS_H_
 
+#include <tinympl/logical_and.hpp>
+
 #include <darma/impl/serialization/serialization_fwd.h>
-#include "archive.h"
 
 namespace darma_runtime {
 
@@ -61,17 +62,10 @@ using std::remove_reference_t;
 using std::remove_const_t;
 using std::add_const_t;
 
-typedef enum SerializerMode {
-  None,
-  Sizing,
-  Packing,
-  Unpacking
-} SerializerMode;
-
 // TODO check things like is_polymorphic (and do something about it)
 // TODO check for const-incorrect or reference incorrect implementations and give helpful error messages in static_asserts
 
-template <typename T, typename Enable=void>
+template <typename T, typename Enable>
 struct serializability_traits {
 
   private:
@@ -119,28 +113,28 @@ struct serializability_traits {
     //----------------------------------------
 
     //----------------------------------------
-    // <editor-fold desc="get_packed_size()">
+    // <editor-fold desc="compute_size()">
 
   private:
     template <typename U>
-    using has_intrusive_get_packed_size_archetype = decltype( declval<U>().get_packed_size( ) );
+    using has_intrusive_compute_size_archetype = decltype( declval<U>().compute_size( ) );
     template <typename U, typename ArchiveT>
-    using has_intrusive_get_packed_size_with_archive_archetype = decltype(
-      declval<U>().get_packed_size( declval<remove_reference_t<ArchiveT>&>() )
+    using has_intrusive_compute_size_with_archive_archetype = decltype(
+      declval<U>().compute_size( declval<remove_reference_t<ArchiveT>&>() )
     );
 
     // For better error messages via static_asserts
-    using has_const_incorrect_get_packed_size = is_detected<has_intrusive_get_packed_size_archetype, _T>;
+    using has_const_incorrect_compute_size = is_detected<has_intrusive_compute_size_archetype, _T>;
     template <typename ArchiveT>
-    using has_const_incorrect_get_packed_size_with_archive =
-      meta::is_detected<has_intrusive_get_packed_size_with_archive_archetype, _T, ArchiveT>;
+    using has_const_incorrect_compute_size_with_archive =
+      meta::is_detected<has_intrusive_compute_size_with_archive_archetype, _T, ArchiveT>;
 
   public:
-    using has_intrusive_get_packed_size =
-      meta::is_detected<has_intrusive_get_packed_size_archetype, _const_T>;
+    using has_intrusive_compute_size =
+      meta::is_detected<has_intrusive_compute_size_archetype, _const_T>;
     template <typename ArchiveT>
-    using has_intrusive_get_packed_size_with_archive =
-      meta::is_detected<has_intrusive_get_packed_size_with_archive_archetype, _const_T, ArchiveT>;
+    using has_intrusive_compute_size_with_archive =
+      meta::is_detected<has_intrusive_compute_size_with_archive_archetype, _const_T, ArchiveT>;
 
     // </editor-fold>
     //----------------------------------------
@@ -188,13 +182,13 @@ struct serializability_traits {
     // <editor-fold desc="Detection of presence of nonintrusive serialization methods (for a given ArchiveT)">
 
     //----------------------------------------
-    // <editor-fold desc="get_packed_size()">
+    // <editor-fold desc="compute_size()">
 
   private:
 
     template <typename U, typename ArchiveT>
-    using has_nonintrusive_get_packed_size_archetype = decltype(
-      declval<Serializer<U>>().get_packed_size(
+    using has_nonintrusive_compute_size_archetype = decltype(
+      declval<Serializer<U>>().compute_size(
         declval<const U&>(), declval<remove_const_t<ArchiveT>&>()
       )
     );
@@ -202,8 +196,8 @@ struct serializability_traits {
   public:
 
     template <typename ArchiveT>
-    using has_nonintrusive_get_packed_size =
-      is_detected<has_nonintrusive_get_packed_size_archetype, _clean_T, ArchiveT>;
+    using has_nonintrusive_compute_size =
+      is_detected<has_nonintrusive_compute_size_archetype, _clean_T, ArchiveT>;
 
     // </editor-fold>
     //----------------------------------------
@@ -215,7 +209,7 @@ struct serializability_traits {
 
     template <typename U, typename ArchiveT>
     using has_nonintrusive_pack_archetype = decltype(
-      declval<Serializer<U>>().get_packed_size(
+      declval<Serializer<U>>().compute_size(
         declval<const U&>(), declval<remove_const_t<ArchiveT>&>()
       )
     );
@@ -236,7 +230,7 @@ struct serializability_traits {
 
     template <typename U, typename ArchiveT>
     using has_nonintrusive_unpack_archetype = decltype(
-      declval<Serializer<U>>().get_packed_size(
+      declval<Serializer<U>>().compute_size(
         declval<U&>(), declval<remove_const_t<ArchiveT>&>()
       )
     );
@@ -244,7 +238,7 @@ struct serializability_traits {
     // Works for both extra const or missing reference because of implicit conversion
     template <typename U, typename ArchiveT>
     using has_const_ref_incorrect_nonintrusive_unpack_archetype = decltype(
-      declval<Serializer<U>>().get_packed_size(
+      declval<Serializer<U>>().compute_size(
         declval<const U&>(), declval<remove_const_t<ArchiveT>&>()
       )
     );
@@ -271,7 +265,7 @@ struct serializability_traits {
     // Use of tinympl::logical_and here should short-circuit and save a tiny bit of compilation time
     template <typename ArchiveT>
     using is_serializable_with_archive = tinympl::logical_and<
-      has_nonintrusive_get_packed_size<ArchiveT>,
+      has_nonintrusive_compute_size<ArchiveT>,
       has_nonintrusive_pack<ArchiveT>,
       has_nonintrusive_unpack<ArchiveT>
     >;
@@ -288,6 +282,21 @@ struct serializability_traits {
 } // end namespace serialization
 
 } // end namespace darma_runtime
+
+#define STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(type, artype, ...) \
+  static_assert( \
+    ::darma_runtime::serialization::detail::serializability_traits<type>::template has_nonintrusive_compute_size<artype>::value, \
+    __VA_ARGS__ ":  Cannot generate valid Serializer::compute_size() method for type/archive combination" \
+  ); \
+  static_assert( \
+     ::darma_runtime::serialization::detail::serializability_traits<type>::template has_nonintrusive_pack<artype>::value, \
+      __VA_ARGS__ ":  Cannot generate valid Serializer::pack() method for type/archive combination" \
+  ); \
+  static_assert( \
+    ::darma_runtime::serialization::detail::serializability_traits<type>::template has_nonintrusive_unpack<artype>::value, \
+    __VA_ARGS__ ":  Cannot generate valid Serializer::unpack() method for type/archive combination" \
+  );
+
 
 
 #endif /* DARMA_IMPL_SERIALIZATION_TRAITS_H_ */

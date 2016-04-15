@@ -47,6 +47,7 @@
 
 #include <darma/impl/serialization/nonintrusive.h>
 #include <darma/impl/serialization/serialization_fwd.h>
+#include <darma/impl/serialization/traits.h>
 
 namespace darma_runtime {
 
@@ -57,7 +58,31 @@ namespace serialization {
 // A simple frontend object for interacting with user-defined serializations
 // TODO Archives that check for pointer loops and stuff
 
-class Archive {
+template <typename ArchiveT>
+class ArchiveOperatorsMixin {
+  public:
+    template <typename T>
+    inline void
+    operator<<(T&& val) {
+      static_cast<ArchiveT*>(this)->pack_item(std::forward<T>(val));
+    }
+
+    template <typename T>
+    inline void
+    operator>>(T&& val) {
+      static_cast<ArchiveT*>(this)->unpack_item(std::forward<T>(val));
+    }
+
+    template <typename T>
+    inline void
+    operator%(T&& val) {
+      static_cast<ArchiveT*>(this)->incorporate_size(std::forward<T>(val));
+    }
+};
+
+class SimplePackUnpackArchive
+  : public ArchiveOperatorsMixin<SimplePackUnpackArchive>
+{
   private:
     // readability alias
     using byte = char;
@@ -76,7 +101,7 @@ class Archive {
     template <typename T>
     void incorporate_size(T const& val) {
       typename detail::serializability_traits<T>::serializer ser;
-      ser.get_packed_size(val, *this);
+      ser.compute_size(val, *this);
     }
 
     template <typename T>

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      serialization_fwd.h
+//                      test_serialize.cc
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,48 +42,60 @@
 //@HEADER
 */
 
-#ifndef DARMA_SERIALIZATION_FWD_H
-#define DARMA_SERIALIZATION_FWD_H
+#include <gtest/gtest.h>
 
-namespace darma_runtime {
+#include <darma/impl/serialization/nonintrusive.h>
+#include <darma/impl/serialization/archive.h>
 
-namespace serialization {
+using namespace darma_runtime::serialization;
+using namespace darma_runtime::serialization::detail;
 
-template <typename T, typename Enable=void>
-struct Serializer;
+template <typename T> using Ser = typename serializability_traits<T>::serializer;
 
-namespace detail {
+////////////////////////////////////////////////////////////////////////////////
 
-typedef enum SerializerMode {
-  None,
-  Sizing,
-  Packing,
-  Unpacking
-} SerializerMode;
+class TestSerialize
+  : public ::testing::Test
+{
+  protected:
 
-template <typename T, typename Enable=void>
-struct serializability_traits;
+    virtual void SetUp() {
 
-} // end namespace detail
+    }
 
-namespace Serializer_attorneys {
+    virtual void TearDown() {
 
-struct ArchiveAccess;
+    }
+};
 
+////////////////////////////////////////////////////////////////////////////////
 
-} // end namespace Serializer_attorneys
+TEST_F(TestSerialize, fundamental) {
+  using darma_runtime::serialization::Serializer_attorneys::ArchiveAccess;
 
-} // end namespace serialization
+  {
+    int value = 42;
+    Ser<int> ser;
+    SimplePackUnpackArchive ar;
+    ser.compute_size(value, ar);
+    ASSERT_EQ(ArchiveAccess::get_size(ar), sizeof(value));
+  }
 
-namespace detail {
-namespace DependencyHandle_attorneys {
+}
 
-struct ArchiveAccess;
+////////////////////////////////////////////////////////////////////////////////
 
-} // end namespace DependencyHandle_attorneys
-} // end namespace detail
+TEST_F(TestSerialize, fundamental_chain) {
+  using darma_runtime::serialization::Serializer_attorneys::ArchiveAccess;
 
+  int value = 42;
+  constexpr int n_reps = 10;
+  Ser<int> ser;
+  SimplePackUnpackArchive ar;
 
-} // end namespace darma_runtime
+  // make sure it doesn't reset between repeats
+  for(int i= 0; i < n_reps; ++i) ser.compute_size(value, ar);
 
-#endif //DARMA_SERIALIZATION_FWD_H
+  ASSERT_EQ(ArchiveAccess::get_size(ar), sizeof(value)*n_reps);
+
+}

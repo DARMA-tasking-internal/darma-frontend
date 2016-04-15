@@ -422,8 +422,7 @@ class DependencyHandle
     ////////////////////////////////////////////////////////////
     // SerializationManager implementation <editor-fold desc="SerializationManager implementation">
 
-    static_assert(
-      serdes_traits::template is_serializable_with_archive<serialization::Archive>::value,
+    STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(T, serialization::SimplePackUnpackArchive,
       "Handles to non-serializable types not yet supported"
     );
 
@@ -437,8 +436,8 @@ class DependencyHandle
       const void* const object_data
     ) const override {
       serialization::Serializer<T> s;
-      serialization::Archive ar;
-      s.get_packed_size(*(T const* const)(object_data), ar);
+      serialization::SimplePackUnpackArchive ar;
+      s.compute_size(*(T const* const)(object_data), ar);
       return DependencyHandle_attorneys::ArchiveAccess::get_size(ar);
     }
 
@@ -448,7 +447,7 @@ class DependencyHandle
       void* const serialization_buffer
     ) const override {
       serialization::Serializer<T> s;
-      serialization::Archive ar;
+      serialization::SimplePackUnpackArchive ar;
       DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, serialization_buffer);
       s.pack(*(T const* const)(object_data), ar);
     }
@@ -459,7 +458,7 @@ class DependencyHandle
       const void* const serialized_data
     ) const override {
       serialization::Serializer<T> s;
-      serialization::Archive ar;
+      serialization::SimplePackUnpackArchive ar;
       // Need to cast away constness of the buffer because the Archive requires
       // a non-const buffer to be able to operate in pack mode (i.e., so that
       // the user can write one function for both serialization and deserialization)
