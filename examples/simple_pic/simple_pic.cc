@@ -84,6 +84,13 @@ struct MeshElement {
   // SPMD Parallelism: here we simply add the global MeshElement id.
   int global_index;
   int global_lower[3], global_upper[3], coords[3];
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar | index | global_index;
+    ar | x_low | x_hi | lower | upper;
+    ar | global_upper | global_index | global_lower | coords;
+  }
 };
 
   int num_elements;
@@ -105,6 +112,20 @@ public:
   int coords_low[3], coords_high[3]; 
 
   ~Mesh () {
+  }
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar | dx[0] | dx[1] | dx[2];
+    ar | lower[0] | lower[1] | lower[2];
+    ar | upper[0] | upper[1] | upper[2];
+    ar | coords[0] | coords[1] | coords[2];
+    ar | coords_low[0] | coords_low[1] | coords_low[2];
+    ar | coords_high[0] | coords_high[1] | coords_high[2];
+    ar | nx_ | ny_ | nz_;
+    ar | index;
+    ar | num_elements;
+    ar.serialize_range(elements, elements + num_elements);
   }
 
   // A function that initializes the mesh for this darma rank
@@ -220,6 +241,10 @@ struct Particles {
     double v[3];
     double time_left;
     State state;
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | element | x | v | time_left | state;
+    }
   };
 
   int num_parts;
@@ -238,6 +263,27 @@ struct Particles {
   std::vector<Particle> parts_from_xlo, parts_from_xhi;
   std::vector<Particle> parts_from_ylo, parts_from_yhi;
   std::vector<Particle> parts_from_zlo, parts_from_zhi;
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+
+    ar | num_parts;
+    ar | active_parts_l;
+    ar | active_parts_g;
+
+    ar | num_parts_to_recv;
+    ar | num_parts_to_send;
+
+    ar |  parts;
+
+    ar |  parts_to_xlo | parts_to_xhi;
+    ar |  parts_to_ylo | parts_to_yhi;
+    ar |  parts_to_zlo | parts_to_zhi;
+
+    ar |  parts_from_xlo | parts_from_xhi;
+    ar |  parts_from_ylo | parts_from_yhi;
+    ar |  parts_from_zlo | parts_from_zhi;
+  }
 
   ~Particles(){
     parts.clear();

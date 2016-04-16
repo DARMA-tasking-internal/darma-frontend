@@ -180,5 +180,6 @@ struct Serializer
 #include "builtin.h"
 #include "stl_containers.h"
 #include "stl_pair.h"
+#include "array.h"
 
 #endif /* DARMA_IMPL_SERIALIZATION_NONINTRUSIVE_H_ */

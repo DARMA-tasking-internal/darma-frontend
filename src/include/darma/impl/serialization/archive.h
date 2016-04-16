@@ -64,27 +64,31 @@ template <typename ArchiveT>
 class ArchiveOperatorsMixin {
   public:
     template <typename T>
-    inline void
+    inline ArchiveT&
     operator<<(T &&val) {
       static_cast<ArchiveT *>(this)->pack_item(std::forward<T>(val));
+      return *static_cast<ArchiveT *>(this);
     }
 
     template <typename T>
-    inline void
+    inline ArchiveT&
     operator>>(T &&val) {
       static_cast<ArchiveT *>(this)->unpack_item(std::forward<T>(val));
+      return *static_cast<ArchiveT *>(this);
     }
 
     template <typename T>
-    inline void
+    inline ArchiveT&
     operator%(T &&val) {
       static_cast<ArchiveT *>(this)->incorporate_size(std::forward<T>(val));
+      return *static_cast<ArchiveT *>(this);
     }
 
     template <typename T>
-    inline void
+    inline ArchiveT&
     operator|(T&& val) {
       static_cast<ArchiveT *>(this)->serialize_item(std::forward<T>(val));
+      return *static_cast<ArchiveT *>(this);
     }
 };
 

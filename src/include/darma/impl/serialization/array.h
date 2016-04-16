@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      builtin.h
+//                      array.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,59 +42,57 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_SERIALIZATION_BUILTIN_H
-#define DARMA_IMPL_SERIALIZATION_BUILTIN_H
+#ifndef DARMA_IMPL_SERIALIZATION_ARRAY_H
+#define DARMA_IMPL_SERIALIZATION_ARRAY_H
 
-#include <type_traits>
 #include <cstddef>
 
 #include "nonintrusive.h"
+#include "traits.h"
 
 namespace darma_runtime {
 namespace serialization {
 
-////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="Specialization for fundamental types">
+template <typename T, size_t N>
+struct Serializer<T[N]> {
+  private:
 
-template <typename T>
-struct Serializer<T,
-  std::enable_if_t<
-    std::is_fundamental<std::remove_cv_t<T>>::value
-    or std::is_enum<std::remove_cv_t<T>>::value
-  >
+    typedef detail::serializability_traits<T> serdes_traits;
 
-> {
-  template <typename ArchiveT>
-  void
-  compute_size(T const&, ArchiveT& ar) const {
-    assert(ar.is_sizing());
-    Serializer_attorneys::ArchiveAccess::spot(ar) += sizeof(T);
-  }
+    template <typename Archive>
+    using enable_if_ser = std::enable_if_t<
+      serdes_traits::template is_serializable_with_archive<Archive>::value
+    >;
 
-  template <typename ArchiveT>
-  void
-  pack(T const& val, ArchiveT& ar) const {
-    using Serializer_attorneys::ArchiveAccess;
-    assert(ar.is_packing());
-    std::memcpy(ArchiveAccess::spot(ar), &val, sizeof(T));
-    ArchiveAccess::spot(ar) += sizeof(T);
-  }
+  public:
 
-  template <typename ArchiveT>
-  void
-  unpack(void* val, ArchiveT& ar) const {
-    using Serializer_attorneys::ArchiveAccess;
-    assert(ar.is_unpacking());
-    std::memcpy(val, ArchiveAccess::spot(ar), sizeof(T));
-    ArchiveAccess::spot(ar) += sizeof(T);
-  }
+    template <typename Archive>
+    enable_if_ser<Archive>
+    compute_size(const T val[N], Archive& ar) const {
+      for(int i = 0; i < N; ++i) {
+        ar.incorporate_size(val[i]);
+      }
+    }
+
+    template <typename Archive>
+    enable_if_ser<Archive>
+    pack(const T val[N], Archive& ar) const {
+      for(int i = 0; i < N; ++i) {
+        ar.pack_item(val[i]);
+      }
+    }
+
+    template <typename Archive>
+    enable_if_ser<Archive>
+    unpack(void* allocated, Archive& ar) const {
+      for(int i = 0; i < N; ++i) {
+        ar.unpack_item(((T*)allocated)[i]);
+      }
+    }
 };
 
-// </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
-
-
 } // end namespace serialization
+
 } // end namespace darma_runtime
 
-#endif //DARMA_IMPL_SERIALIZATION_BUILTIN_H
+#endif //DARMA_IMPL_SERIALIZATION_ARRAY_H

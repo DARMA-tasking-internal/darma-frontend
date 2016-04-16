@@ -38,17 +38,12 @@ struct DataArray
       if(data_size_) free(data_);
     }
 
-  protected:
-
-    /*
-    void*& get_zero_copy_slot(zero_copy_slot_t slot) {
-      return data_;
+    template <typename ArchiveT>
+    void serialize(ArchiveT& ar) {
+      ar | data_size_;
+      ar.serialize_range(data_, data_ + data_size_);
     }
 
-    size_t zero_copy_slot_size(zero_copy_slot_t slot) const {
-      return data_size_;
-    }
-    */
 
   private:
 
