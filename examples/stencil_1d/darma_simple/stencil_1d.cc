@@ -41,6 +41,7 @@ struct DataArray
     template <typename ArchiveT>
     void serialize(ArchiveT& ar) {
       ar | data_size_;
+      // This doesn't work
       ar.serialize_range(data_, data_ + data_size_);
     }
 
