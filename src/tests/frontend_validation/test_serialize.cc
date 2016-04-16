@@ -70,7 +70,7 @@ class TestSerialize
 
     template <typename T, typename Archive=SimplePackUnpackArchive>
     T do_serdes(T const& val) const {
-      using darma_runtime::serialization::Serializer_attorneys::ArchiveAccess;
+      using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
       Ser<T> ser;
       SimplePackUnpackArchive ar;
 
@@ -79,7 +79,7 @@ class TestSerialize
       size_t size = ArchiveAccess::get_size(ar);
 
       char data[size];
-      DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, data);
+      ArchiveAccess::set_buffer(ar, data);
       ArchiveAccess::start_packing(ar);
       ser.pack(val, ar);
 
@@ -104,12 +104,13 @@ class TestSerialize
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSerialize, fundamental) {
-  using darma_runtime::serialization::Serializer_attorneys::ArchiveAccess;
+  using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
 
   {
     int value = 42;
     Ser<int> ser;
     SimplePackUnpackArchive ar;
+    ArchiveAccess::start_sizing(ar);
     ser.compute_size(value, ar);
     ASSERT_EQ(ArchiveAccess::get_size(ar), sizeof(value));
   }
@@ -119,12 +120,13 @@ TEST_F(TestSerialize, fundamental) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSerialize, fundamental_chain) {
-  using darma_runtime::serialization::Serializer_attorneys::ArchiveAccess;
+  using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
 
   int value = 42;
   constexpr int n_reps = 10;
   Ser<int> ser;
   SimplePackUnpackArchive ar;
+  ArchiveAccess::start_sizing(ar);
 
   // make sure it doesn't reset between repeats
   for(int i= 0; i < n_reps; ++i) ser.compute_size(value, ar);
@@ -136,7 +138,7 @@ TEST_F(TestSerialize, fundamental_chain) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSerialize, vector_simple) {
-  using darma_runtime::serialization::Serializer_attorneys::ArchiveAccess;
+  using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
   using namespace std;
   using namespace ::testing;
 
@@ -152,7 +154,6 @@ TEST_F(TestSerialize, vector_simple) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSerialize, map_simple) {
-  using darma_runtime::serialization::Serializer_attorneys::ArchiveAccess;
   using namespace std;
   using namespace ::testing;
 
@@ -163,14 +164,11 @@ TEST_F(TestSerialize, map_simple) {
   auto v_unpacked = do_serdes(value);
 
   ASSERT_THAT(v_unpacked, ContainerEq(value));
-  // Also assert that value is unchanged
-  //ASSERT_THAT(value, ElementsAre(3, 1, 4, 1, 5, 9, 2, 6));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSerialize, unordered_map_simple) {
-  using darma_runtime::serialization::Serializer_attorneys::ArchiveAccess;
   using namespace std;
   using namespace ::testing;
 
@@ -181,6 +179,4 @@ TEST_F(TestSerialize, unordered_map_simple) {
   auto v_unpacked = do_serdes(value);
 
   ASSERT_THAT(v_unpacked, ContainerEq(value));
-  // Also assert that value is unchanged
-  //ASSERT_THAT(value, ElementsAre(3, 1, 4, 1, 5, 9, 2, 6));
 }

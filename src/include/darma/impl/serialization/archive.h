@@ -81,8 +81,44 @@ class ArchiveOperatorsMixin {
       static_cast<ArchiveT *>(this)->incorporate_size(std::forward<T>(val));
     }
 
-    // TODO iterator ranges, etc
-    // TODO operator|
+    template <typename T>
+    inline void
+    operator|(T&& val) {
+      static_cast<ArchiveT *>(this)->serialize_item(std::forward<T>(val));
+    }
+};
+
+template <typename ArchiveT>
+class ArchiveRangesMixin {
+  public:
+    template <typename ForwardIterator>
+    inline void
+    serialize_range(ForwardIterator first, ForwardIterator end) {
+      for(ForwardIterator it = first; it != end; ++it) {
+        static_cast<ArchiveT*>(this)->serialize_item(*it);
+      }
+    }
+    template <typename ForwardIterator>
+    inline void
+    pack_range(ForwardIterator first, ForwardIterator end) {
+      for(ForwardIterator it = first; it != end; ++it) {
+        static_cast<ArchiveT*>(this)->pack_item(*it);
+      }
+    }
+    template <typename ForwardIterator>
+    inline void
+    unpack_range(ForwardIterator first, ForwardIterator end) {
+      for(ForwardIterator it = first; it != end; ++it) {
+        static_cast<ArchiveT*>(this)->unpack_item(*it);
+      }
+    }
+    template <typename ForwardIterator>
+    inline void
+    incorporate_size_for_range(ForwardIterator first, ForwardIterator end) {
+      for(ForwardIterator it = first; it != end; ++it) {
+        static_cast<ArchiveT*>(this)->incorporate_size(*it);
+      }
+    }
 };
 
 } // end namespace detail
@@ -90,7 +126,8 @@ class ArchiveOperatorsMixin {
 ////////////////////////////////////////////////////////////////////////////////
 
 class SimplePackUnpackArchive
-  : public detail::ArchiveOperatorsMixin<SimplePackUnpackArchive>
+  : public detail::ArchiveOperatorsMixin<SimplePackUnpackArchive>,
+    public detail::ArchiveRangesMixin<SimplePackUnpackArchive>
 {
   private:
     // readability alias
@@ -123,6 +160,16 @@ class SimplePackUnpackArchive
     void unpack_item(T& val) {
       typename detail::serializability_traits<T>::serializer ser;
       ser.unpack(static_cast<void*>(&val), *this);
+    }
+
+    template <typename T>
+    void serialize_item(T& val) {
+      if(is_sizing()) incorporate_size(val);
+      else if(is_packing()) pack_item(val);
+      else {
+        assert(is_unpacking());
+        unpack_item(val);
+      }
     }
 
 

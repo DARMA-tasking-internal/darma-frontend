@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      serializer_attorneys.h
+//                      intrusive.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,54 +42,38 @@
 //@HEADER
 */
 
-#ifndef DARMA_SERIALIZER_ATTORNEYS_H
-#define DARMA_SERIALIZER_ATTORNEYS_H
-
-#include <cstddef>
-#include <cassert>
-
-#include <tinympl/always_true.hpp>
-#include <tinympl/copy_traits.hpp>
-
-#include "serialization_fwd.h"
+#ifndef DARMA_INTRUSIVE_H
+#define DARMA_INTRUSIVE_H
 
 namespace darma_runtime {
 namespace serialization {
 
-////////////////////////////////////////////////////////////////////////////////
+/**
+ *  Empty base class meeting intrusive serialization interface specification.
+ *  Basically, useful for inheriting from and marking methods as override for
+ *  compile-time safety.  **Not required, though.**
+ */
+template <typename ArchiveT>
+class Serializable {
+  protected:
 
-namespace Serializer_attorneys {
+    // These methods are protected in the base class so that they don't get accidentally
+    // detected if they aren't defined in the derived class.  They should be public
+    // in the derived class
 
-struct ArchiveAccess {
-  template <typename ArchiveT>
-  static inline
-  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type&
-  start(ArchiveT& ar) { return ar.start; }
+    void serialize(ArchiveT&) { }
 
-  template <typename ArchiveT>
-  static inline
-  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type&
-  spot(ArchiveT& ar) { return ar.spot; }
+    void compute_size() const { }
 
-  template <typename ArchiveT>
-  static inline
-  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<detail::SerializerMode>::type&
-  mode(ArchiveT& ar) { return ar.mode; }
+    void compute_size(ArchiveT&) const { }
 
-  template <typename ArchiveT>
-  static inline size_t
-  get_size(ArchiveT& ar) {
-    assert(ar.is_sizing());
-    return ar.spot - ar.start;
-  }
+    void pack(ArchiveT&) const { }
+
+    void unpack(ArchiveT&) { }
 
 };
-
-} // end namespace Serializer_attorneys
-
-////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace serialization
 } // end namespace darma_runtime
 
-#endif //DARMA_SERIALIZER_ATTORNEYS_H
+#endif //DARMA_INTRUSIVE_H

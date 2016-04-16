@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      serializer_attorneys.h
+//                      stl_pair.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,54 +42,89 @@
 //@HEADER
 */
 
-#ifndef DARMA_SERIALIZER_ATTORNEYS_H
-#define DARMA_SERIALIZER_ATTORNEYS_H
+#ifndef DARMA_IMPL_SERIALIZATION_STL_PAIR_H
+#define DARMA_IMPL_SERIALIZATION_STL_PAIR_H
 
-#include <cstddef>
-#include <cassert>
+#include <type_traits>
+#include <iterator>
 
-#include <tinympl/always_true.hpp>
-#include <tinympl/copy_traits.hpp>
-
-#include "serialization_fwd.h"
+#include "nonintrusive.h"
 
 namespace darma_runtime {
 namespace serialization {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace Serializer_attorneys {
+template <typename T1, typename T2>
+struct Serializer<std::pair<T1, T2>> {
 
-struct ArchiveAccess {
-  template <typename ArchiveT>
-  static inline
-  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type&
-  start(ArchiveT& ar) { return ar.start; }
+typedef detail::serializability_traits<T1> T1_serdes_traits;
+typedef typename T1_serdes_traits::serializer Ser1;
+typedef detail::serializability_traits<T2> T2_serdes_traits;
+typedef typename T2_serdes_traits::serializer Ser2;
 
-  template <typename ArchiveT>
-  static inline
-  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type&
-  spot(ArchiveT& ar) { return ar.spot; }
+private:
+template <typename ArchiveT>
+using serializable_into = std::integral_constant<bool,
+  T1_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
+    and T2_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
+>;
 
-  template <typename ArchiveT>
-  static inline
-  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<detail::SerializerMode>::type&
-  mode(ArchiveT& ar) { return ar.mode; }
+typedef std::pair<T1, T2> T;
 
-  template <typename ArchiveT>
-  static inline size_t
-  get_size(ArchiveT& ar) {
-    assert(ar.is_sizing());
-    return ar.spot - ar.start;
-  }
+public:
+
+////////////////////////////////////////////////////////////
+// <editor-fold desc="compute_size()">
+
+template <typename ArchiveT>
+std::enable_if_t<serializable_into<ArchiveT>::value>
+compute_size(T const& c, ArchiveT& ar) const {
+  assert(ar.is_sizing());
+  ar.incorporate_size(c.first);
+  ar.incorporate_size(c.second);
+}
+
+// </editor-fold>
+////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////
+// <editor-fold desc="pack()">
+
+template <typename ArchiveT>
+std::enable_if_t<serializable_into<ArchiveT>::value>
+pack(T const& c, ArchiveT& ar) const {
+  assert(ar.is_packing());
+  ar.pack_item(c.first);
+  ar.pack_item(c.second);
+}
+
+// </editor-fold>
+////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////
+// <editor-fold desc="unpack()">
+
+template <typename ArchiveT>
+std::enable_if_t<serializable_into<ArchiveT>::value>
+unpack(void* allocated, ArchiveT& ar) const {
+  assert(ar.is_unpacking());
+
+  // TODO be sure it's okay to not call the std::pair constructor
+
+  Ser1().unpack( (void*)(&((*(T*)allocated).first)), ar );
+
+  Ser2().unpack( (void*)(&((*(T*)allocated).second)), ar );
+
+}
+
+// </editor-fold>
+////////////////////////////////////////////////////////////
 
 };
 
-} // end namespace Serializer_attorneys
 
-////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace serialization
 } // end namespace darma_runtime
-
-#endif //DARMA_SERIALIZER_ATTORNEYS_H
+#endif //DARMA_IMPL_SERIALIZATION_STL_PAIR_H
