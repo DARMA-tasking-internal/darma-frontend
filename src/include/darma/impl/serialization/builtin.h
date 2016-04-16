@@ -63,7 +63,7 @@ struct Serializer<T,
   template <typename ArchiveT>
   void
   compute_size(T const&, ArchiveT& ar) const {
-    if(not ar.is_sizing()) Serializer_attorneys::ArchiveAccess::start_sizing(ar);
+    assert(ar.is_sizing());
     Serializer_attorneys::ArchiveAccess::spot(ar) += sizeof(T);
   }
 
@@ -71,7 +71,7 @@ struct Serializer<T,
   void
   pack(T const& val, ArchiveT& ar) const {
     using Serializer_attorneys::ArchiveAccess;
-    if(not ar.is_packing()) ArchiveAccess::start_packing(ar);
+    assert(ar.is_packing());
     std::memcpy(ArchiveAccess::spot(ar), &val, sizeof(T));
     ArchiveAccess::spot(ar) += sizeof(T);
   }
@@ -80,7 +80,7 @@ struct Serializer<T,
   void
   unpack(void* val, ArchiveT& ar) const {
     using Serializer_attorneys::ArchiveAccess;
-    if(not ar.is_unpacking()) ArchiveAccess::start_unpacking(ar);
+    assert(ar.is_unpacking());
     std::memcpy(val, ArchiveAccess::spot(ar), sizeof(T));
     ArchiveAccess::spot(ar) += sizeof(T);
   }

@@ -227,9 +227,15 @@ class SerialRuntime
         pdb_ptr = &found_pdb->second;
         ready = true;
         auto &pdb = *pdb_ptr;
+        auto md_size = handle->get_serialization_manager()->get_metadata_size();
+        void* unpack_to = operator new(md_size);
+        handle->get_serialization_manager()->unpack_data(unpack_to, pdb.data_block->data_);
+
+        auto* db = new SerialDataBlock;
+        db->data_ = unpack_to;
 
         assert(pdb.fetch_handles_expected > 0);
-        handle->satisfy_with_data_block(pdb.data_block);
+        handle->satisfy_with_data_block(db);
         ++(pdb.fetch_handles_out);
         --(pdb.fetch_handles_expected);
         handle->set_version(pdb.published_version);
@@ -377,11 +383,17 @@ class SerialRuntime
       shared_lock_t _lg(published_data_blocks_mtx);
       auto found_pdb = published_data_blocks.find({handle->get_key(), found_fetcher->second});
       assert(found_pdb != published_data_blocks.end());
+      // delete the deserialized copy
+      operator delete(handle->get_data_block()->get_data());
+      delete handle->get_data_block();
+
+      // If we're the last ones, delete the serialized data too
       auto &pdb = found_pdb->second;
       --(pdb.fetch_handles_out);
       if (pdb.fetch_handles_expected.load() == 0 and pdb.fetch_handles_out.load() == 0) {
-        free(pdb.data_block->get_data());
-        delete pdb.data_block;
+        operator delete(pdb.data_block->data_);
+        delete(pdb.data_block);
+        delete &pdb;
         published_data_blocks.erase(found_pdb);
       }
       fetch_handles.erase(found_fetcher);
@@ -415,9 +427,11 @@ class SerialRuntime
     // Just do a copy for now
     published_data_block pdb;
     pdb.data_block = new SerialDataBlock();
-    size_t data_size = handle->get_serialization_manager()->get_metadata_size();
-    pdb.data_block->data_ = malloc(data_size);
-    ::memcpy(pdb.data_block->data_, handle->get_data_block()->get_data(), data_size);
+    size_t data_size = handle->get_serialization_manager()->get_packed_data_size(
+      handle->get_data_block()->get_data()
+    );
+    pdb.data_block->data_ = operator new(data_size);
+    handle->get_serialization_manager()->pack_data(handle->get_data_block()->get_data(), pdb.data_block->data_);
 
     pdb.fetch_handles_expected = n_fetchers;
     pdb.published_version = handle->get_version();

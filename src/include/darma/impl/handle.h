@@ -228,6 +228,28 @@ struct ArchiveAccess {
     assert(ar.is_sizing());
     return ar.spot - ar.start;
   }
+  template <typename ArchiveT>
+  static inline void
+  start_sizing(ArchiveT& ar) {
+    assert(not ar.is_sizing()); // for now, to avoid accidental resets
+    ar.start = nullptr;
+    ar.spot = nullptr;
+    ar.mode = serialization::detail::SerializerMode::Sizing;
+  }
+
+  template <typename ArchiveT>
+  static inline void
+  start_packing(ArchiveT& ar) {
+    ar.mode = serialization::detail::SerializerMode::Packing;
+    ar.spot = ar.start;
+  }
+
+  template <typename ArchiveT>
+  static inline void
+  start_unpacking(ArchiveT& ar) {
+    ar.mode = serialization::detail::SerializerMode::Unpacking;
+    ar.spot = ar.start;
+  }
 };
 
 } // end namespace DependencyHandle_attorneys
@@ -437,6 +459,7 @@ class DependencyHandle
     ) const override {
       serialization::Serializer<T> s;
       serialization::SimplePackUnpackArchive ar;
+      DependencyHandle_attorneys::ArchiveAccess::start_sizing(ar);
       s.compute_size(*(T const* const)(object_data), ar);
       return DependencyHandle_attorneys::ArchiveAccess::get_size(ar);
     }
@@ -449,6 +472,7 @@ class DependencyHandle
       serialization::Serializer<T> s;
       serialization::SimplePackUnpackArchive ar;
       DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, serialization_buffer);
+      DependencyHandle_attorneys::ArchiveAccess::start_packing(ar);
       s.pack(*(T const* const)(object_data), ar);
     }
 
@@ -465,6 +489,7 @@ class DependencyHandle
       DependencyHandle_attorneys::ArchiveAccess::set_buffer(
         ar, const_cast<void* const>(serialized_data)
       );
+      DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);
       s.unpack(object_dest, ar);
     }
 

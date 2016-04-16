@@ -159,7 +159,7 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
     template <typename ArchiveT>
     std::enable_if_t<value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value>
     compute_size(C const& c, ArchiveT& ar) const {
-      if(not ar.is_sizing()) Serializer_attorneys::ArchiveAccess::start_sizing(ar);
+      assert(ar.is_sizing());
       ar.incorporate_size(c.size());
       for(auto&& item : c) ar.incorporate_size(item);
     }
@@ -173,7 +173,7 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
     template <typename ArchiveT>
     std::enable_if_t<value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value>
     pack(C const& c, ArchiveT& ar) const {
-      if(not ar.is_packing()) Serializer_attorneys::ArchiveAccess::start_packing(ar);
+      assert(ar.is_packing());
       ar.pack_item(c.size());
       for(auto&& item : c) ar.pack_item(item);
     }
@@ -192,7 +192,7 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
         and is_back_insertable
     >
     unpack(void* allocated, ArchiveT& ar) const {
-      if(not ar.is_unpacking()) Serializer_attorneys::ArchiveAccess::start_unpacking(ar);
+      assert(ar.is_unpacking());
       // call default constructor
       C* c = new (allocated) C;
 
@@ -218,7 +218,7 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
         and is_insertable and not is_back_insertable
     >
     unpack(void* allocated, ArchiveT& ar) const {
-      if(not ar.is_unpacking()) Serializer_attorneys::ArchiveAccess::start_unpacking(ar);
+      assert(ar.is_unpacking());
       // call default constructor
       C* c = new (allocated) C;
       // and start unpacking
@@ -240,77 +240,6 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
     // </editor-fold>
     ////////////////////////////////////////////////////////////
 };
-
-////////////////////////////////////////////////////////////////////////////////
-
-template <typename T1, typename T2>
-struct Serializer<std::pair<T1, T2>> {
-
-  typedef detail::serializability_traits<T1> T1_serdes_traits;
-  typedef typename T1_serdes_traits::serializer Ser1;
-  typedef detail::serializability_traits<T2> T2_serdes_traits;
-  typedef typename T2_serdes_traits::serializer Ser2;
-
- private:
-  template <typename ArchiveT>
-  using serializable_into = std::integral_constant<bool,
-    T1_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
-      and T2_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
-  >;
-
-  typedef std::pair<T1, T2> T;
-
- public:
-
-  ////////////////////////////////////////////////////////////
-  // <editor-fold desc="compute_size()">
-
-  template <typename ArchiveT>
-  std::enable_if_t<serializable_into<ArchiveT>::value>
-  compute_size(T const& c, ArchiveT& ar) const {
-    if (not ar.is_sizing()) Serializer_attorneys::ArchiveAccess::start_sizing(ar);
-    ar.incorporate_size(c.first);
-    ar.incorporate_size(c.second);
-  }
-
-  // </editor-fold>
-  ////////////////////////////////////////////////////////////
-
-  ////////////////////////////////////////////////////////////
-  // <editor-fold desc="pack()">
-
-  template <typename ArchiveT>
-  std::enable_if_t<serializable_into<ArchiveT>::value>
-  pack(T const& c, ArchiveT& ar) const {
-    if (not ar.is_packing()) Serializer_attorneys::ArchiveAccess::start_packing(ar);
-    ar.pack_item(c.first);
-    ar.pack_item(c.second);
-  }
-
-  // </editor-fold>
-  ////////////////////////////////////////////////////////////
-
-  ////////////////////////////////////////////////////////////
-  // <editor-fold desc="unpack()">
-
-  template <typename ArchiveT>
-  std::enable_if_t<serializable_into<ArchiveT>::value>
-  unpack(void* allocated, ArchiveT& ar) const {
-    if (not ar.is_unpacking()) Serializer_attorneys::ArchiveAccess::start_unpacking(ar);
-
-    // TODO be sure it's okay to not call the std::pair constructor
-
-    Ser1().unpack( (void*)(&((*(T*)allocated).first)), ar );
-
-    Ser2().unpack( (void*)(&((*(T*)allocated).second)), ar );
-
-  }
-
-  // </editor-fold>
-  ////////////////////////////////////////////////////////////
-
-};
-
 
 
 } // end namespace serialization
