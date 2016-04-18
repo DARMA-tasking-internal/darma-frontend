@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          mock_backend.h
-//                         darma_new
+//                          dependency.h
+//                         darma_mockup
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,9 +42,17 @@
 //@HEADER
 */
 
-#ifndef MOCK_MOCK_BACKEND_H_
-#define MOCK_MOCK_BACKEND_H_
+#ifndef DARMA_HANDLE_FWD_H
+#define DARMA_HANDLE_FWD_H
 
-#include <darma.h>
+namespace darma_runtime {
 
-#endif /* MOCK_MOCK_BACKEND_H_ */
+namespace detail {
+
+class AccessHandleBase;
+
+} // end namespace detail
+
+} // end namespace darma_runtime
+
+#endif //DARMA_HANDLE_FWD_H

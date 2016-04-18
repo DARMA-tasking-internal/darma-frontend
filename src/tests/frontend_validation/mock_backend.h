@@ -68,8 +68,6 @@ class MockRuntime
     typedef darma_runtime::types::key_t key_t;
     typedef darma_runtime::types::version_t version_t;
     typedef darma_runtime::abstract::frontend::DependencyHandle<key_t, version_t> handle_t;
-    typedef darma_runtime::abstract::frontend::ContainmentManager<key_t, version_t> containment_manager_t;
-    typedef darma_runtime::abstract::frontend::AliasingManager<key_t, version_t> aliasing_manager_t;
     typedef darma_runtime::abstract::frontend::Task<
         key_t, version_t, darma_runtime::types::handle_container_template> task_t;
     typedef darma_runtime::types::unique_ptr_template<task_t> task_unique_ptr;
@@ -88,7 +86,6 @@ class MockRuntime
     MOCK_METHOD2(register_fetching_handle, void(handle_t* const, key_t const&));
     MOCK_METHOD1(release_read_only_usage, void(handle_t* const));
     MOCK_METHOD1(release_handle, void(const handle_t* const));
-    MOCK_METHOD1(handle_done_with_version_depth, void(const handle_t* const));
     MOCK_METHOD4(publish_handle, void(handle_t* const, key_t const&, size_t const, bool));
     MOCK_METHOD0(finalize, void());
 

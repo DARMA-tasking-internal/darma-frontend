@@ -5,7 +5,7 @@
 
 using namespace darma_runtime;
 
-constexpr size_t n_data_total = 5;
+constexpr size_t n_data_total = 20;
 constexpr size_t n_iter = 2;
 constexpr bool print_data = true;
 
@@ -95,6 +95,12 @@ int darma_main(int argc, char** argv)
 
   size_t me = darma_spmd_rank();
   size_t n_spmd = darma_spmd_size();
+
+  if (n_data_total < n_spmd){
+    std::cerr << "stencil_1d needs n_data_total >= n_spmd" << std::endl;
+    darma_finalize();
+    return 1;
+  }
 
   // Figure out how much local data we have
   size_t my_n_data = n_data_total / n_spmd;
@@ -200,7 +206,6 @@ int darma_main(int argc, char** argv)
 
     // The `waits()` tag is equivalent to calling prev_node_finished_writing.wait() inside the lambda
     create_work(
-      //waits(prev_node_finished_writing),
       [=]{
         // for now, since waits() is not implemented
         prev_node_finished_writing.get_value();
@@ -218,4 +223,3 @@ int darma_main(int argc, char** argv)
   darma_finalize();
   return 0;
 }
-

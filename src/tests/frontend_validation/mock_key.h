@@ -50,7 +50,6 @@
 #include <cassert>
 
 #include <darma/impl/meta/tuple_for_each.h>
-#include <darma/interface/defaults/key_fwd.h>
 #include <darma/impl/util.h>
 #include <darma/impl/key_concept.h>
 
