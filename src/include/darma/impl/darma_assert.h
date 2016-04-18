@@ -95,10 +95,10 @@ bool _check_contains(const Key& k, const Container& c) {
 
 
 #ifndef DARMA_ASSERTION_BEGIN
-#define DARMA_ASSERTION_BEGIN std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
+#define DARMA_ASSERTION_BEGIN std::cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
 #endif
 #ifndef DARMA_ASSERTION_END
-#define DARMA_ASSERTION_END std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
+#define DARMA_ASSERTION_END std::cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
 #endif
 
 // TODO
@@ -109,7 +109,7 @@ bool _check_contains(const Key& k, const Container& c) {
   (lhs op rhs) ||                                                                                   \
   ((                                                                                                \
     DARMA_ASSERTION_BEGIN,                                                             \
-    std::cout << "DARMA assertion failed:" << std::endl                                            \
+    std::cerr << "DARMA assertion failed:" << std::endl                                            \
               << "  " << #lhs << " " << #op << " " << #rhs << std::endl                             \
               << "  " << lhs << " " << #op << " " << #rhs << std::endl,                              \
     DARMA_ASSERTION_END                                                               \
@@ -120,7 +120,7 @@ bool _check_contains(const Key& k, const Container& c) {
   ((__VA_ARGS__) != nullptr) ||                                                                     \
   ((                                                                                                \
     DARMA_ASSERTION_BEGIN,                                                             \
-    std::cout << "DARMA assertion failed:" << std::endl                                             \
+    std::cerr << "DARMA assertion failed:" << std::endl                                             \
               << "  Expression was null that should be non-null:"                                   \
               << "    " << #__VA_ARGS__ << std::endl                                                \
               << "    (evalutated as true for == with nullptr)" << std::endl,                                     \
@@ -139,7 +139,7 @@ bool _check_contains(const Key& k, const Container& c) {
   (expr) ||                                                                                         \
   ((                                                                                                \
     DARMA_ASSERTION_BEGIN,                                                              \
-    std::cout << "DARMA assertion failed:" << std::endl                                             \
+    std::cerr << "DARMA assertion failed:" << std::endl                                             \
               << "  Expression should be true: " << #expr << std::endl                              \
               << "  Assertion details:" << std::endl                                                \
               << "    File: " << __FILE__ << std::endl                                                \

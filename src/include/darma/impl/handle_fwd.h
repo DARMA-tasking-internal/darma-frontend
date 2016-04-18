@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          containment_manager.h
-//                         darma_new
+//                          dependency.h
+//                         darma_mockup
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,72 +42,17 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_CONTAINMENT_MANAGER_H_
-#define SRC_ABSTRACT_FRONTEND_CONTAINMENT_MANAGER_H_
-
-#include "dependency_handle.h"
+#ifndef DARMA_HANDLE_FWD_H
+#define DARMA_HANDLE_FWD_H
 
 namespace darma_runtime {
 
-namespace abstract {
+namespace detail {
 
-namespace frontend {
+class AccessHandleBase;
 
-/** @todo document this for the 0.2.1 spec
- *
- */
-template <
-  typename Key,
-  typename Version
->
-class ContainmentManager
-{
-  public:
-
-    typedef DependencyHandle<Key, Version> handle_t;
-
-    virtual bool
-    is_offset_size_relationship() const =0;
-
-    virtual bool
-    is_strided() const =0;
-
-    virtual size_t
-    get_size() const =0;
-
-    virtual ptrdiff_t
-    get_offset() const =0;
-
-    virtual ptrdiff_t
-    get_stride() const =0;
-
-    virtual void
-    slice_in(
-      const handle_t* const inner_handle,
-      handle_t* const outer_handle
-    ) const {
-      // TODO explain why default implementation does nothing
-    }
-
-    virtual void
-    slice_out(
-      handle_t* const inner_handle,
-      const handle_t* const outer_handle
-    ) const {
-      // TODO explain why default implementation does nothing
-    }
-
-    // Virtual destructor, since we have virtual methods
-
-    virtual ~ContainmentManager() noexcept { }
-
-};
-
-} // end namespace frontend
-
-} // end namespace abstract
+} // end namespace detail
 
 } // end namespace darma_runtime
 
-
-#endif /* SRC_ABSTRACT_FRONTEND_CONTAINMENT_MANAGER_H_ */
+#endif //DARMA_HANDLE_FWD_H
