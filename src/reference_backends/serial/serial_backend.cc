@@ -443,10 +443,13 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   size_t n_ranks = 1;
   ArgParser args = {
     {"h", "help", "print help (not implemented)"},
+    {"", "backend-n-ranks", 1},
     {"", "serial-backend-n-ranks", 1}
   };
   args.parse(argc, argv);
-  if (args["serial-backend-n-ranks"].as<bool>()) {
+  if (args["backend-n-ranks"].as<bool>()) {
+    n_ranks = args["backend-n-ranks"].as<size_t>();
+  } else if (args["serial-backend-n-ranks"].as<bool>()) {
     n_ranks = args["serial-backend-n-ranks"].as<size_t>();
   }
   if (args.program_name() != DARMA_SERIAL_BACKEND_SPAWNED_RANKS_PROCESS_STRING) {
@@ -476,7 +479,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
         std::string rank_num = std::to_string(irank);
         new_argv[new_argv_spot++] = const_cast<char *>(rank_arg.c_str());
         new_argv[new_argv_spot++] = const_cast<char *>(rank_num.c_str());
-        std::string n_rank_arg("--serial-backend-n-ranks");
+        std::string n_rank_arg("--backend-n-ranks");
         std::string n_rank_num = std::to_string(n_ranks);
         new_argv[new_argv_spot++] = const_cast<char *>(n_rank_arg.c_str());
         new_argv[new_argv_spot++] = const_cast<char *>(n_rank_num.c_str());
@@ -489,6 +492,11 @@ darma_runtime::abstract::backend::darma_backend_initialize(
         );
 
         assert(thread_main_return == 0);
+
+        // TODO: check if runtime finalized before deleting
+        if (darma_runtime::detail::backend_runtime) {
+          delete darma_runtime::detail::backend_runtime;
+        }
       });
     }
 

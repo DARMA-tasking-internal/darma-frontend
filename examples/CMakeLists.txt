@@ -92,14 +92,15 @@ endif() #DARMA_ALL_IN_ONE
 include_directories( ${EXAMPLES_SRC_ROOT} )
 include_directories( ${EXAMPLES_BIN_ROOT} )
 
-if (SERIAL_BACKEND)  
-set(example_standard_args --serial-backend-n-ranks 8)
-endif()
+#if (SERIAL_BACKEND)
+set(example_standard_args --backend-n-ranks 8)
+#endif()
 
 function(add_test_for_example test_name test_exec test_args)
 if (NOT CTEST_SKIP_EXAMPLES)
 add_test(${test_name} ${test_exec} ${example_standard_args} ${test_args})
-set_tests_properties(${test_name} PROPERTIES TIMEOUT 10)
+set_tests_properties(${test_name} PROPERTIES TIMEOUT 10
+  FAIL_REGULAR_EXPRESSION "FAILED;WARNING")
 endif()
 endfunction()
 
