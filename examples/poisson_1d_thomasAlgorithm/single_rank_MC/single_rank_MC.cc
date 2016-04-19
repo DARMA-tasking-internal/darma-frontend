@@ -28,7 +28,7 @@
 using uDist = std::uniform_real_distribution<double>;
 constexpr double kmin = 1.0;
 constexpr double kmax = 1.1;
-constexpr int numMCRuns = 100;
+constexpr int numMCRuns = 200;
 
 
 
@@ -158,7 +158,10 @@ int darma_main(int argc, char** argv)
     {
     	sum += mcRes[i];
     }
- 		std::cout << sum/static_cast<double>(numMCRuns) << std::endl;
+    double meanSum = sum/static_cast<double>(numMCRuns);
+ 		std::cout << meanSum << std::endl;
+		assert( meanSum < 0.81 );
+		assert( meanSum > 0.80 );
  	});
 
 

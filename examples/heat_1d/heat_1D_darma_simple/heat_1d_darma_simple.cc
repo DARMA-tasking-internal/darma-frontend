@@ -220,15 +220,3 @@ int darma_main(int argc, char** argv)
 
 }//end main
 
-
-
-
-//  create_work([=]
-//  {
-// 	double * data_ptr = data->data();
-//   for ( int i = 1; i <= num_points_per_rank; i++ )
-//   {
-// 		double xx = xL+(i-1)*deltaX;
-// 		std::cout << me << " " << steadySolution(xx) << " " << data_ptr[i] << std::endl;
-//   }
-//  });
