@@ -7,8 +7,10 @@ int darma_main(int argc, char** argv)
   using namespace darma_runtime::keyword_arguments_for_publication;
 
   darma_init(argc, argv);
+  const int myRank = darma_spmd_rank();
+  const int size = darma_spmd_size();
 
-  auto my_handle = initial_access<double>("data");
+  auto my_handle = initial_access<double>("data", myRank);
   create_work([=]
   {
     my_handle.emplace_value(0.55);

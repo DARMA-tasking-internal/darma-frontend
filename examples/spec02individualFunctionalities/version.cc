@@ -7,7 +7,6 @@ int darma_main(int argc, char** argv)
   using namespace darma_runtime::keyword_arguments_for_publication;
 
   darma_init(argc, argv);
-
   const int myRank = darma_spmd_rank();
   const int size = darma_spmd_size();
 
@@ -35,15 +34,23 @@ int darma_main(int argc, char** argv)
   });
 
   // first time reading
-  auto readHandle = read_access<double>("data", source,version=0);
-  create_work([=]
+  /* putting this {} here is needed and useful because it tells backend 
+     that readHandle will go outofscope and so backend has more detailed info  
+     and this can benefit parallelism and execution: in other words, the idea is that 
+     one should scope things when it is possible to do so. Scoping is a good practice and 
+     in this case is needed and benefits execution.
+  */ 
   {
-    std::cout << myRank << " " << readHandle.get_value() << std::endl;
-    if (myRank==0)
-      assert( readHandle.get_value() == 1.5 );
-    else
-      assert( readHandle.get_value() == 0.5 );
-  });
+    auto readHandle = read_access<double>("data", source,version=0);
+    create_work([=]
+    {
+      std::cout << myRank << " " << readHandle.get_value() << std::endl;
+      if (myRank==0)
+        assert( readHandle.get_value() == 1.5 );
+      else
+        assert( readHandle.get_value() == 0.5 );
+    });
+  }
 
 
   // reset value and update version
