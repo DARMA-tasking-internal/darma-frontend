@@ -12,6 +12,42 @@ introduce the following constructs supported by the \gls{front end} \gls{API}:
 \item Serialization Manager
 \end{compactitem}
 
+
+\section{0.2 API Functions}
+
+\begin{itemize}
+
+\item \texttt{darma\_init()}
+\item \texttt{darma\_finalize()}
+\item \texttt{darma\_spmd\_rank}
+\item \texttt{darma\_spmd\_size}
+
+\item \texttt{create\_work}
+\item \texttt{initial\_access<T>}
+\item \texttt{read\_access<T>}
+
+\item \texttt{reads()}
+\item \texttt{n\_readers}
+\item \texttt{version}
+
+\item \texttt{AccessHandle<T>}
+\begin{itemize}
+  \item \texttt{publish}
+  \item \texttt{get\_value}
+  \item \texttt{set\_value}
+  \item \texttt{get\_reference}
+  \item \texttt{emplace\_value}
+  \item \texttt{operator->}
+  \item \texttt{get\_key}
+  \item \texttt{=0} or \texttt{release}
+\end{itemize}
+
+
+\end{itemize}
+
+
+
+
 \section{Deferred Work Creation}
 \label{sec:deferred}
 In DARMA, like other AMT runtime systems, the user creates blocks of work that
