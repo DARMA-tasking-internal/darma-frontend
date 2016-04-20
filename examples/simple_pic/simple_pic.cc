@@ -407,8 +407,11 @@ int darma_main(int argc, char** argv)
     });
 
 
+#if 0
+  // only uncomment this if you're going to do something with the data below
   mesh_handle.publish(n_readers=1);
   parts_handle.publish(n_readers=1);
+#endif
 
   /*
   //We will be reading the mesh data, but overwriting Particles data.
