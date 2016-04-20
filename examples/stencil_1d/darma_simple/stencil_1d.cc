@@ -186,8 +186,10 @@ int darma_main(int argc, char** argv)
 
     });
 
-    sent_to_left.publish(n_readers=1);
-    sent_to_right.publish(n_readers=1);
+    if (iter < n_iter-1){
+      sent_to_left.publish(n_readers=1);
+      sent_to_right.publish(n_readers=1);
+    }
 
   } // end of loop over n_iter
 
