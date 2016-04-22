@@ -10,6 +10,7 @@
 #include <vector>
 #include <iomanip>
 #include <unistd.h>
+#include <sstream>
 
 #include "../common_heat1d.h"
 
@@ -213,10 +214,11 @@ int darma_main(int argc, char** argv)
 	// print to terminal
   create_work([=]
   {
-		sleep(me+0.5);
-		std::cout << " global L1 error = " << myGlobalErrHandle.get_value() << std::endl;		
-		assert( myGlobalErrHandle.get_value() < 1e-2 );
-	});
+    std::stringstream ss;
+    ss << " global L1 error = " << myGlobalErrHandle.get_value() << std::endl;
+    std::cout << ss.str();
+    assert( myGlobalErrHandle.get_value() < 1e-2 );
+  });
 
   darma_finalize();
   return 0;
