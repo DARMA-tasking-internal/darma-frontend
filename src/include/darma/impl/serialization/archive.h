@@ -60,6 +60,7 @@ namespace serialization {
 
 namespace detail {
 
+
 template <typename ArchiveT>
 class ArchiveOperatorsMixin {
   public:
@@ -126,6 +127,7 @@ class ArchiveRangesMixin {
 };
 
 } // end namespace detail
+
 
 ////////////////////////////////////////////////////////////////////////////////
 

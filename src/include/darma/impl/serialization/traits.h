@@ -70,6 +70,7 @@ struct serializability_traits {
 
   private:
 
+
     // Define some type aliases that aid in correctly detecting traits for deduced
     // types that may have qualifiers on them not recognized by the template
     // specialization pattern matcher
@@ -247,6 +248,7 @@ struct serializability_traits {
     // </editor-fold>
     ////////////////////////////////////////////////////////////////////////////////
 
+
     ////////////////////////////////////////////////////////////////////////////////
     // <editor-fold desc="is_serializable_with_archive">
 
@@ -262,6 +264,9 @@ struct serializability_traits {
 
     // </editor-fold>
     ////////////////////////////////////////////////////////////////////////////////
+
+
+    friend class allocation_traits<T, void>;
 
 };
 
