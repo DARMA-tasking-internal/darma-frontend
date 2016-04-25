@@ -73,6 +73,9 @@ typedef enum SerializerMode {
 template <typename T, typename Enable=void>
 struct serializability_traits;
 
+template <typename T, typename Enable=void>
+class allocation_traits;
+
 } // end namespace detail
 
 namespace Serializer_attorneys {
