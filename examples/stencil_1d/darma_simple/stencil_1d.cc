@@ -40,9 +40,9 @@ struct DataArray
 
     template <typename ArchiveT>
     void serialize(ArchiveT& ar) {
+      using darma_runtime::serialization::range;
       ar | data_size_;
-      // This doesn't work
-      ar.serialize_range(data_, data_ + data_size_);
+      ar | range(data_, data_ + data_size_);
     }
 
 
