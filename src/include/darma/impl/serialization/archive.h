@@ -49,6 +49,10 @@
 #include <darma/impl/serialization/serialization_fwd.h>
 #include <darma/impl/serialization/traits.h>
 
+#include <tinympl/is_instantiation_of.hpp>
+
+#include "range.h"
+
 namespace darma_runtime {
 
 namespace serialization {
@@ -59,7 +63,6 @@ namespace serialization {
 // TODO Archives that check for pointer loops and stuff
 
 namespace detail {
-
 
 template <typename ArchiveT>
 class ArchiveOperatorsMixin {
@@ -93,37 +96,101 @@ class ArchiveOperatorsMixin {
     }
 };
 
-template <typename ArchiveT>
-class ArchiveRangesMixin {
+template <typename ArchiveT, typename MoreGeneralMixin>
+class ArchiveRangesMixin : public MoreGeneralMixin {
+  private:
+    template <typename T>
+    using enable_condition = tinympl::is_instantiation_of<SerDesRange, T>;
+
   public:
-    template <typename ForwardIterator>
-    inline void
-    serialize_range(ForwardIterator first, ForwardIterator end) {
-      for(ForwardIterator it = first; it != end; ++it) {
-        static_cast<ArchiveT*>(this)->serialize_item(*it);
+    template <typename T, typename ReturnValue = void>
+    using enabled_version = enable_if_t<enable_condition<T>::value, ReturnValue>;
+    template <typename T, typename ReturnValue = void>
+    using disabled_version = enable_if_t<not enable_condition<T>::value, ReturnValue>;
+
+    // operator>> does the unpacking
+    template <typename T>
+    inline enabled_version<T, ArchiveT&>
+    operator>>(T &&val) {
+      typedef typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type size_type;
+      typedef typename T::iterator_traits::value_type value_type;
+      typedef allocation_traits<value_type> value_allocation_traits;
+      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
+      assert(this_archive->is_unpacking());
+      // initialize to prevent e.g. spurious valgrind errors and perhaps compiler warnings
+      size_type size = 0;
+      this_archive->unpack_item(size);
+      val.begin() = value_allocation_traits::allocate(*this_archive, size);
+      val.end() = val.begin() + size;
+      for(auto&& item : val) {
+        this_archive->unpack_item(item);
       }
+      return *this_archive;
     }
-    template <typename ForwardIterator>
-    inline void
-    pack_range(ForwardIterator first, ForwardIterator end) {
-      for(ForwardIterator it = first; it != end; ++it) {
-        static_cast<ArchiveT*>(this)->pack_item(*it);
+    template <typename T>
+    inline disabled_version<T, ArchiveT&>
+    operator>>(T &&val) { return this->MoreGeneralMixin::template operator>>(std::forward<T>(val)); }
+
+    // operator<< does the packing
+    template <typename T>
+    inline enabled_version<T, ArchiveT&>
+    operator<<(T &&val) {
+      typedef typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type size_type;
+      typedef typename T::iterator_traits::value_type value_type;
+      typedef typename allocation_traits<value_type>::template allocator_traits<ArchiveT> value_allocator_traits;
+      size_type size = val.end() - val.begin();
+      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
+      this_archive->pack_item(size);
+      for(auto&& item : val) {
+        this_archive->pack_item(item);
       }
+      return *static_cast<ArchiveT *>(this);
     }
-    template <typename ForwardIterator>
-    inline void
-    unpack_range(ForwardIterator first, ForwardIterator end) {
-      for(ForwardIterator it = first; it != end; ++it) {
-        static_cast<ArchiveT*>(this)->unpack_item(*it);
+    template <typename T>
+    inline disabled_version<T, ArchiveT&>
+    operator<<(T &&val) { return this->MoreGeneralMixin::template operator<<(std::forward<T>(val)); }
+
+    // operator% does sizing (rarely used)
+    template <typename T>
+    inline enabled_version<T, ArchiveT&>
+    operator%(T &&val) {
+      typedef typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type size_type;
+      typedef typename T::iterator_traits::value_type value_type;
+      typedef typename allocation_traits<value_type>::template allocator_traits<ArchiveT> value_allocator_traits;
+      size_type size = val.end() - val.begin();
+      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
+      this_archive->incorporate_size(size);
+      for(auto&& item : val) {
+        this_archive->incorporate_size(item);
       }
+      return *static_cast<ArchiveT *>(this);
     }
-    template <typename ForwardIterator>
-    inline void
-    incorporate_size_for_range(ForwardIterator first, ForwardIterator end) {
-      for(ForwardIterator it = first; it != end; ++it) {
-        static_cast<ArchiveT*>(this)->incorporate_size(*it);
+    template <typename T>
+    inline disabled_version<T, ArchiveT&>
+    operator%(T &&val) { return this->MoreGeneralMixin::template operator%(std::forward<T>(val)); }
+
+    template <typename T>
+    inline enabled_version<T, ArchiveT&>
+    operator|(T&& val) {
+      typedef typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type size_type;
+      typedef typename T::iterator_traits::value_type value_type;
+      typedef typename allocation_traits<value_type>::template allocator_traits<ArchiveT> value_allocator_traits;
+      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
+      if(this_archive->is_unpacking()) {
+        this->operator>>(std::forward<T>(val));
       }
+      else {
+        size_type size = val.end() - val.begin();
+        this_archive->serialize_item(size);
+        for(auto&& item : val) {
+          this_archive->serialize_item(item);
+        }
+      }
+      return *static_cast<ArchiveT *>(this);
     }
+    template <typename T>
+    inline disabled_version<T, ArchiveT&>
+    operator|(T &&val) { return this->MoreGeneralMixin::template operator|(std::forward<T>(val)); }
 };
 
 } // end namespace detail
@@ -132,8 +199,9 @@ class ArchiveRangesMixin {
 ////////////////////////////////////////////////////////////////////////////////
 
 class SimplePackUnpackArchive
-  : public detail::ArchiveOperatorsMixin<SimplePackUnpackArchive>,
-    public detail::ArchiveRangesMixin<SimplePackUnpackArchive>
+  : public detail::ArchiveRangesMixin<SimplePackUnpackArchive,
+      detail::ArchiveOperatorsMixin<SimplePackUnpackArchive>
+    >
 {
   private:
     // readability alias

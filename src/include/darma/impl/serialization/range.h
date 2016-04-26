@@ -47,88 +47,140 @@
 
 #include <type_traits>
 #include <iterator>
-#include "nonintrusive.h"
+#include "allocation.h"
 
 namespace darma_runtime {
 namespace serialization {
 
 namespace detail {
 
+template <typename BeginIterator, typename EndIterator>
+struct SerDesRange;
+
 template <typename RandomAccessIterator>
-struct SerDesRange {
+struct SerDesRange<
+  RandomAccessIterator&,
+  RandomAccessIterator
+> {
   private:
-    RandomAccessIterator begin_;
+    RandomAccessIterator& begin_;
     RandomAccessIterator end_;
 
   public:
 
-    SerDesRange(
-      RandomAccessIterator in_begin,
-      RandomAccessIterator in_end
-    ) : begin_(in_begin), end_(in_end) { }
+    typedef RandomAccessIterator iterator;
+    typedef std::iterator_traits<RandomAccessIterator> iterator_traits;
 
-    RandomAccessIterator
-    begin() const {
-      return begin_;
-    }
+    SerDesRange(RandomAccessIterator& in_begin, RandomAccessIterator in_end)
+      : begin_(in_begin), end_(in_end) { }
 
-    RandomAccessIterator
-    end() const {
-      return end_;
-    }
+    RandomAccessIterator&
+    begin() { return begin_; }
+
+    RandomAccessIterator const&
+    begin() const { return begin_; }
+
+    RandomAccessIterator&
+    end() { return end_; }
+
+    RandomAccessIterator const&
+    end() const { return end_; }
+};
+
+template <typename RandomAccessIterator>
+struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&> {
+  private:
+    RandomAccessIterator& begin_;
+    RandomAccessIterator& end_;
+
+  public:
+
+    typedef RandomAccessIterator iterator;
+    typedef std::iterator_traits<RandomAccessIterator> iterator_traits;
+
+    SerDesRange(RandomAccessIterator& in_begin, RandomAccessIterator& in_end)
+      : begin_(in_begin), end_(in_end) { }
+
+    RandomAccessIterator&
+    begin() const { return begin_; }
+
+    RandomAccessIterator&
+    end() const { return end_; }
 };
 
 } // end namespace detail
 
 ////////////////////////////////////////////////////////////////////////////////
 
-template <typename RandomAccessIterator>
+template <typename BeginIter, typename EndIter>
 auto
-range(RandomAccessIterator begin, RandomAccessIterator end) {
-  return detail::SerDesRange<std::decay_t<RandomAccessIterator>>( begin, end );
+range(BeginIter&& begin, EndIter&& end) {
+  return detail::SerDesRange<BeginIter, EndIter>(
+    std::forward<BeginIter>(begin),
+    std::forward<EndIter>(end)
+  );
 }
 
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+//
+//template <typename RandomAccessIterator>
+//struct Serializer<detail::SerDesRange<RandomAccessIterator>> {
+//  private:
+//    typedef detail::SerDesRange<RandomAccessIterator> range_t;
+//    typedef typename std::iterator_traits<RandomAccessIterator>::difference_type difference_type;
+//    typedef typename std::iterator_traits<RandomAccessIterator>::value_type value_type;
+//    using value_allocation_traits = detail::allocation_traits<value_type>;
+//
+//  public:
+//    template <typename Archive>
+//    void
+//    compute_size(range_t const& range, Archive& ar) const {
+//      for(auto const& v : range) {
+//        ar.incorporate_size(v);
+//      }
+//    }
+//
+//    template <typename Archive>
+//    void
+//    pack(range_t const& range, Archive& ar) const {
+//      // cast just to be safe, but that should be the return value of the subtraction operator
+//      ar.pack_item(static_cast<difference_type>(range.end() - range.begin()));
+//      for(auto const& v : range) {
+//        ar.pack_item(v);
+//      }
+//    }
+//
+//    template <typename Archive>
+//    range_t*
+//    allocate(Archive& ar) const {
+//      if(ar.is_unpacking()) {
+//        // We want to allocate the actual data, not the range object
+//        // "peek" at the item without advancing the archive
+//        difference_type const& n_items = *static_cast<difference_type*>(
+//          Serializer_attorneys::ArchiveAccess::spot(ar)
+//        );
+//        return value_allocation_traits::template allocate(ar, n_items);
+//      }
+//      else {
+//        // otherwise, we're allocating the actual range object itself in some other context
+//        auto alloc = std::allocator<range_t>();
+//        return std::allocator_traits<decltype(alloc)>::allocate(alloc, 1);
+//      }
+//    }
+//
+//    template <typename Archive>
+//    void
+//    unpack(void* allocated, Archive& ar) const {
+//      difference_type n_items = 0;
+//      ar.unpack_item(n_items);
+//      for(difference_type i = 0; i < n_items; ++i) {
+//        ar.unpack_item((value_type*)allocated);
+//        allocated = (char*)allocated + sizeof(value_type);
+//      }
+//
+//    }
 
-template <typename RandomAccessIterator>
-struct Serializer<detail::SerDesRange<RandomAccessIterator>> {
-  private:
-    typedef detail::SerDesRange<RandomAccessIterator> range_t;
-    typedef typename std::iterator_traits<RandomAccessIterator>::difference_type difference_type;
-    typedef typename std::iterator_traits<RandomAccessIterator>::value_type value_type;
-
-  public:
-    template <typename Archive>
-    void
-    compute_size(range_t const& range, Archive& ar) const {
-      for(auto const& v : range) {
-        ar.incorporate_size(v);
-      }
-    }
-
-    template <typename Archive>
-    void
-    pack(range_t const& range, Archive& ar) const {
-      // cast just to be safe, but that should be the return value of the subtraction operator
-      ar.pack_item(static_cast<difference_type>(range.end() - range.begin()));
-      for(auto const& v : range) {
-        ar.pack_item(v);
-      }
-    }
-
-    template <typename Archive>
-    void
-    unpack(void* allocated, Archive& ar) const {
-      // Initialize to avoid compiler warnings
-      difference_type n_items = 0;
-      ar.unpack_item(n_items);
-      for(difference_type i = 0; i < n_items; ++i) {
-
-
-      }
-    }
-
-};
+//};
 
 } // end namespace serialization
 } // end namespace darma_runtime
