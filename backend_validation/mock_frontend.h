@@ -58,6 +58,20 @@
 
 namespace mock_frontend {
 
+namespace {
+
+// Shell class that deletes data on destruction
+struct data_holder {
+  void* data;
+  data_holder(void* in_data) : data(in_data) { }
+  ~data_holder() { operator delete(data); }
+};
+
+// Holds data and deletes it when the program ends (at static destruction time)
+static std::vector<std::unique_ptr<data_holder>> ptrs_to_delete = {};
+
+} // end anonymous namespace
+
 class MockSerializationManager
   : public darma_runtime::abstract::frontend::SerializationManager
 {
@@ -68,6 +82,7 @@ class MockSerializationManager
     MOCK_CONST_METHOD1(get_packed_data_size, size_t(const void* const));
     MOCK_CONST_METHOD2(pack_data, void(const void* const, void* const));
     MOCK_CONST_METHOD2(unpack_data, void(void* const, const void* const));
+    MOCK_CONST_METHOD0(allocate_data, void*());
 };
 
 class MockDependencyHandle

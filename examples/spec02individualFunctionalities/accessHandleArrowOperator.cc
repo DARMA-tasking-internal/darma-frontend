@@ -6,9 +6,12 @@ int darma_main(int argc, char** argv)
   using namespace darma_runtime;
 
   darma_init(argc, argv);
+  const int myRank = darma_spmd_rank();
+  const int size = darma_spmd_size();
+
 
   // this just creates different handle
-  auto my_handle1 = initial_access<std::vector<double>>("data");
+  auto my_handle1 = initial_access<std::vector<double>>("data", myRank);
 
   create_work([=]
   {

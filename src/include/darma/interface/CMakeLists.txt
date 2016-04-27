@@ -14,13 +14,10 @@ backend/types.h)
 set (default_HEADERS
 defaults/darma_main.h
 defaults/key.h
-defaults/key_fwd.h
 defaults/pointers.h
 defaults/version.h)
 
 set (frontend_HEADERS
-frontend/aliasing_manager.h
-frontend/containment_manager.h
 frontend/dependency_handle.h
 frontend/reduce_op.h
 frontend/serialization_manager.h

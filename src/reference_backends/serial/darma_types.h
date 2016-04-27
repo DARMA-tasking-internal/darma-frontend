@@ -49,11 +49,7 @@
 
 #define DARMA_THREAD_LOCAL_BACKEND_RUNTIME thread_local
 
-#include <common/stream_key.h>
-namespace darma_runtime { namespace types {
-  typedef mock_backend::StreamKey key_t;
-}} // end namespace darma_runtime::types
-
+#include <darma/interface/defaults/key.h>
 #include <darma/interface/defaults/version.h>
 #include <darma/interface/defaults/pointers.h>
 

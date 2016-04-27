@@ -152,10 +152,17 @@ make_handle(
     .Times(AnyNumber())
     .WillRepeatedly(Return(ser_man));
   if (ExpectNewAlloc){
+    // TODO figure out how/where to delete this (***known leak***)
+    void* ser_man_data = operator new(sizeof(T));
+    mock_frontend::ptrs_to_delete.emplace_back(
+      std::make_unique<data_holder>(ser_man_data)
+    );
     // because this is a new allocation and will not be satisfied by
     // a predecessor, it MUST be writable at some point
     EXPECT_CALL(*new_handle, allow_writes())
       .Times(Exactly(1));
+    EXPECT_CALL(*ser_man, allocate_data())
+      .Times(1).WillOnce(Return(ser_man_data));
   }
 
   return new_handle;

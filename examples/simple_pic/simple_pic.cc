@@ -116,6 +116,7 @@ public:
 
   template <typename Archive>
   void serialize(Archive& ar) {
+    using darma_runtime::serialization::range;
     ar | dx[0] | dx[1] | dx[2];
     ar | lower[0] | lower[1] | lower[2];
     ar | upper[0] | upper[1] | upper[2];
@@ -125,7 +126,7 @@ public:
     ar | nx_ | ny_ | nz_;
     ar | index;
     ar | num_elements;
-    ar.serialize_range(elements, elements + num_elements);
+    ar | range(elements, elements + num_elements);
   }
 
   // A function that initializes the mesh for this darma rank
@@ -453,8 +454,11 @@ int darma_main(int argc, char** argv)
     });
 
 
+#if 0
+  // only uncomment this if you're going to do something with the data below
   mesh_handle.publish(n_readers=1);
   parts_handle.publish(n_readers=1);
+#endif
 
   /*
   //We will be reading the mesh data, but overwriting Particles data.
