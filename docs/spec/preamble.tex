@@ -13,6 +13,7 @@
 %\usepackage{pdflscape}
 \usepackage{amssymb}
 \usepackage{pifont}
+\usepackage{changepage}
 
 \usepackage{times}
 \usepackage{graphicx}
@@ -67,6 +68,19 @@
     %keywordstyle=\color{red}%
   }%
 }{}
+
+\usepackage{lipsum}
+\usepackage{changepage}
+
+\newenvironment{subs}
+  {\adjustwidth{1.3cm}{0pt}}
+  {\endadjustwidth}
+
+
+\newcommand{\specialcell}[2][c]{%
+  \begin{tabular}[#1]{@{}c@{}}#2\end{tabular}}
+\newcommand{\yes}{\text{\ding{51}}}
+\newcommand{\no}{\text{\ding{55}}}
 
 
 \usepackage{draftwatermark}
