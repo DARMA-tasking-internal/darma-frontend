@@ -49,13 +49,6 @@ int darma_main(int argc, char** argv)
   std::mt19937 gen(rd());
   uDist RNG(kmin, kmax);
 
-  // grid related info 
-	constexpr int nx = 51; 
-	constexpr int nInn = nx-2;
-	constexpr double xL = 0.0;
-	constexpr double xR = 1.0;
-	constexpr double dx = 1.0/static_cast<double>(nx-1);
-
 	// vectors that make up the FD matrix
 	auto subD = initial_access<std::vector<double>>("a",me); // subdiagonal 
 	auto diag = initial_access<std::vector<double>>("b",me); // diagonal 
@@ -116,9 +109,9 @@ int darma_main(int argc, char** argv)
 			{
 				pt4[i] = rhsEval(x) * dx*dx / sampleDiff;
 				if (i==1)
-					pt4[i] -= trueSolution(xL);
+					pt4[i] -= BC(xL);
 				if (i==nInn-1)
-					pt4[i] -= trueSolution(xR);
+					pt4[i] -= BC(xR);
 				x += dx;
 			}
 	 	});

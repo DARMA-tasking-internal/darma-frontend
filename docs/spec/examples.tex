@@ -6,7 +6,11 @@
 
 
 
-\subsection{Publish and read access}
+\subsection{Example 1: publishing and read access}
+
+First example is basic and explains in more detail the use of \texttt{publish} 
+and \texttt{read\_access}. The example involves two DARMA ranks, each creating 
+data, publishing it, and then fetching the other rank's data.
 
 \begin{CppCodeNumb}
 #include <darma.h>
@@ -61,17 +65,19 @@ int darma_main(int argc, char** argv)
 
 
 
-\section{Publish, versioning and lifetime of handles}
+\section{Example 2: publishing, versioning and lifetime of handles}
 
-Lifetime of handles is tricky, particularly for \texttt{read\_access<T>()} handle.  
+Lifetime of handles is tricky, particularly for \texttt{read\_access} type handles.  
 In the following example, we initialize data, publish it, fetch it from another rank, 
 modify the data, publish it again under a new version, and then fetch the new version from another rank. 
-The \texttt{create\_work} on lines $40-44$ can't execute until the backend knows you're done with the first fetched version. 
-We put an extra set of \texttt{\{ \}} around the readaccess+creatework in lines $28-36$ to tell the backend that 
+The \texttt{create\_work} on lines $40-44$ can't execute until the back end knows the first fetched version is done.
+We put an extra set of \texttt{\{ \}} around the code in lines $28-36$ to tell the back end that 
 the \texttt{readHandle} is no longer needed and can go out-of-scope and the fetching is done.  
-Without the scoping \texttt{\{\}}, the code would deadlock. THis is because the backend would not know that 
+Without the scoping \texttt{\{\}}, the code would deadlock. This is because the back end would not know that 
 the fetching is done until after \texttt{darma\_finalize()} is called. However, \texttt{darma\_finalize()} 
 can't return until after {\it all} the \texttt{create\_works} have completed.  And so the code would deadlock. 
+Scoping is in this case necessary, but it is only useful in other cases to improve efficiency and parallelism 
+in the scheduling and execution of tasks. Scoping is a good programming practice.
 
 
 \begin{CppCodeNumb}
@@ -98,7 +104,7 @@ int darma_main(int argc, char** argv)
   });
 
   /* scope {} needed here and useful because it tells backend that 
-     readHandle will go outofscope and so backend has more detailed 
+     readHandle will go out-of-scope and so backend has more detailed 
      info and this can benefit parallelism and execution. 
      In other words, one should scope things whenever it is possible. */ 
   {
@@ -140,9 +146,227 @@ int darma_main(int argc, char** argv)
 
 
 
-\subsection{1D Poisson Equation or 1D Heat}
+\section{Example 3: 1D Poisson Equation}
 
-To complete
+Boundary value problem:
+
+\begin{equation} 
+  \frac{\partial^2 u(x)}{\partial x^2} = f(x) \quad 
+  \text{in} \ \Omega=(0,1), \ \text{with} 
+  \ u(0)=0, \ u(1)=\exp{(1)}\sin{(1)}
+\end{equation} 
+where $f(x)=2\exp{(x)}\sin{(x)}$. This problem is chosen because 
+it has an exact solution, namely $u_{exact} = \exp{(1)}\sin{(1)}$. 
+The exact solution will be used for checking the correctness 
+of the code.
+
+Discretize the domain with $N$ equally spaced points such that 
+\begin{equation}
+u_i \approx u(x_i), \quad f_i=f(x_i) 
+\quad x_i = i \Delta x, \ \Delta x=\frac{1}{N-1}, \ \ i=0,1,...,N-1
+\end{equation}
+Use central difference approximation for the second derivative 
+for all interior points:
+\begin{large}
+\begin{equation}
+\begin{cases}
+  \frac{u_{i+1} - 2u_i + u_{i-1}}{(\Delta x)^2}=f_i, & \text{for } i=1,...,N-2 \\
+    u_0=0, \ u_{N-1}=\exp{(1)}*\sin{(1)} & \text{Dirichlet BC}
+\end{cases}  
+\end{equation}
+\end{large}
+
+This translates to a linear system of equations $Au=f$ 
+where $A$ is an $N-2 \times N-2$ tridiagonal matrix 
+\begin{equation}
+A = \begin{vmatrix}
+-2 & 1 \\
+1 & -2 & 1 \\
+& 1 & -2 & 1 \\
+& & \ddots & \ddots & 1 \\
+& & & 1 & -2
+\end{vmatrix}.
+\end{equation}
+
+and $u$ is the unknown, and $f$ is the right-hand-side. 
+Both $u$ and $f$ have size $N-2$. 
+Solving this linear system yields the solution at all the inner 
+points of the domain. For demonstration purposes, we solve 
+this system using Thomas algorithm, a method well-suited 
+for tridiagonal systems. 
+The solver needs these vectors:
+\begin{enumerate}
+\item $a$: contains all the sub-diagonal entries. 
+\item $b$: contains all the diagonal entries. 
+\item $c$: contains all the upper-diagonal entries. 
+\item $d$: contains all the right-hand-side entries. 
+Also, our current version of the solver is 
+such that on exit, the vector $d$ contains the solution.
+\end{enumerate}
+
+How to implement this in DARMA? 
+For demonstration purposes, we limit our attention to the case 
+of a single rank. More complex examples will be shown below 
+involving multiple ranks.
+
+There are three main steps involved, namely initialization, 
+solution of the linear system, and error check. 
+The DARMA main file is as follows:
+\begin{CppCodeNumb}
+// headers
+// "../poisson1d.h"
+int darma_main(int argc, char** argv)
+{
+  darma_init(argc, argv);
+  size_t me = darma_spmd_rank();
+  size_t n_spmd = darma_spmd_size();
+
+  assert(n_spmd>=1);   // run with 1 rank, ignore the rest
+  if (me>0){
+    darma_finalize();
+    return 0;
+  }
+
+  typedef std::vector<double> vecDbl;
+  // create handles for data needed for linear solve
+  auto subD = initial_access<vecDbl>("a",me); // subdiagonal 
+  auto diag = initial_access<vecDbl>("b",me); // diagonal 
+  auto supD = initial_access<vecDbl>("c",me); // superdiagonal
+  auto rhs  = initial_access<vecDbl>("d",me); // rhs and solution
+
+  initialize(subD, diag, supD, rhs);
+  solveTridiagonalSystem(subD, diag, supD, rhs);
+  checkFinalL1Error(rhs);
+
+  darma_finalize();
+  return 0;
+}
+\end{CppCodeNumb}
+
+The header file poisson1d.h contains:
+\begin{CppCodeNumb}
+constexpr int nx = 51;                      // number of grid points
+constexpr int nInn = nx-2;                  // number of internal points
+constexpr double xL = 0.0;                  // x of left boundary
+constexpr double xR = 1.0;                  // x of right boundary
+constexpr double dx = 1.0/(double)(nx-1);   // spacing
+
+// evaluate right-hand-side
+double rhsEval(double x){ 
+  return 2.0 * exp(x) * cos(x);
+}
+
+// true solution
+double trueSolution(double x){
+  return exp(x) * sin(x);
+}
+
+// evaluate boundary conditions
+double BC(double x){
+  return trueSolution(x);
+}
+\end{CppCodeNumb}
+
+
+The initialization function has the form:
+\begin{CppCodeNumb}
+void initialize(AccessHandle<std::vector<double>> & subD,
+                AccessHandle<std::vector<double>> & diag, 
+                AccessHandle<std::vector<double>> & supD,
+                AccessHandle<std::vector<double>> & rhs)
+{
+  // initial condition
+  create_work([=]
+  {
+    subD.emplace_value();
+    diag.emplace_value();
+    supD.emplace_value();
+    rhs.emplace_value();
+    subD->resize(nInn);
+    diag->resize(nInn,0.0);
+    supD->resize(nInn,0.0);
+    rhs->resize(nInn,0.0);
+    double * ptrD1 = subD->data();
+    double * ptrD2 = diag->data();
+    double * ptrD3 = supD->data();
+    double * ptrD4 = rhs->data();
+
+    double x = dx;
+    for (int i = 0; i < nInn; ++i)
+    {
+      ptrD2[i] = -2;
+
+      if (i>0)
+        ptrD1[i] = 1.0;
+      if (i<nInn-1)
+        ptrD3[i] = 1.0;
+
+      ptrD4[i] = rhsEval(x) * dx*dx;
+
+      if (i==1)
+        ptrD4[i] -= BC(xL);
+      if (i==nInn-1)
+        ptrD4[i] -= BC(xR);
+
+      x += dx;
+    }
+  }); 
+}
+\end{CppCodeNumb}
+
+
+The function to solve the linear system is:
+\begin{CppCodeNumb}
+void solveTridiagonalSystem(AccessHandle<std::vector<double>> & subD,
+                            AccessHandle<std::vector<double>> & diag, 
+                            AccessHandle<std::vector<double>> & supD,
+                            AccessHandle<std::vector<double>> & rhs)
+{
+  // solve tridiagonal system
+  create_work([=]
+  {
+    double * pta = subD->data();
+    double * ptb = diag->data();
+    double * ptc = supD->data();
+    double * ptd = rhs->data();
+
+    // code for Thomas algorithm, omitted for brevity
+    solveThomas(pta, ptb, ptc, ptd, nInn);
+  });
+}
+\end{CppCodeNumb}
+
+
+Finally, we check for convergence by checking the $L1$-norm of the 
+error between the computed and true solution.
+\begin{CppCodeNumb}
+void checkFinalL1Error(AccessHandle<std::vector<double>> & solution)
+{
+  // check solution error 
+  create_work([=]
+  {
+    double * ptd = solution->data();
+    double error = 0.0;
+    double x = dx;
+    for (int i = 0; i < (int) solution->size(); ++i)
+    {
+      error += std::abs( trueSolution(x) - ptd[i] );
+      x += dx;
+    }
+    std::cout << " L1 error = " << error << std::endl;
+    assert( error < 1e-2 );
+  });
+}
+\end{CppCodeNumb}
+
+
+
+
+
+
+
+
+
 
 
 
