@@ -1172,8 +1172,8 @@ int darma_main(int argc, char** argv)
 \section{AccessHandle methods}
 
 In this section, we describe the methods that can be called 
-on the handles \texttt{initial\_access<T>} and \texttt{read\_access<T>}.
-
+on \texttt{AccessHandle<T>} objects (i.e., the objects returned by the 
+\texttt{initial\_access<T>} and \texttt{read\_access<T>} functions).
 
 
 \subsection{\underline{\texttt{emplace\_value}}}
@@ -1183,48 +1183,58 @@ on the handles \texttt{initial\_access<T>} and \texttt{read\_access<T>}.
 \vspace{-1.2cm}
 
 \subsubsection{Summary} 
-Calls the default constructor for the data pointed to by the handle.
+Construct an object of the type pointed to by an \texttt{AccessHandle<T>} object
+(that is, \texttt{T}) in place by forwarding the arguments to the constructor
+for \texttt{T}.
 
 \subsubsection{Syntax} 
 \begin{CppCode}
-void some_handle.emplace_value(arg1, arg2, ...)
+void some_handle.emplace_value(args...)
 \end{CppCode}
 
-\subsubsection{Input Parameters} 
+\subsubsection{Positional Arguments} 
 \begin{itemize}
-\item arg1, arg2, ...: Parameters needed by the default 
-constructor of the target object to construct.
+\item args... (deduced types):  Arguments to forward to the constructor of
+\texttt{T}.
 \end{itemize}
 
-\subsubsection{Output Parameters} 
-None.
+\subsubsection{Details} 
 
-\subsubsection{Description} 
-This method should be called within a context with write privileges 
-on the target handle to initialize the data.
-\todo{anything missing? details?}
-
+\texttt{AccessHandle<T>::emplace\_value(...)} mimics the syntax for in-place
+construction in standard library containers.  See, for instance,
+\texttt{std::vector<T>::emplace\_back(...)}.  If in-place construction is
+unnecessary or undesired, \texttt{set\_value()} can be used instead.  Note that
+calling \texttt{emplace\_value()} on a handle requires {\it Modify} immediate
+permissions (see \S~\ref{sec:handlerules}).
 
 \subsubsection{Code Snippet} 
 \begin{figure}[!h]
 \begin{CppCodeNumb}
-#include <darma.h>
-int darma_main(int argc, char** argv)
-{
-	//...
-  typedef std::vector<double> vec;
-  AccessHandle<vec> my_handle2 = initial_access<vec>("key_2", myRank);
-  create_work([=]{
-  	my_handle2.emplace_value();
-  });
-
-  // ... 
-  return 0;
-}
+struct LoudMouth {
+  LoudMouth(int i, double j) { cout << "Ctor: " << i << ", " << j << endl; }
+};
+auto h = initial_access<LoudMouth>("key");
+create_work([=]{
+  h.emplace_value(42, 3.14); // prints "Ctor: 42, 3.14" 
+});
 \end{CppCodeNumb}
 \label{fig:fe_api_initialaccess}
 \caption{Basic usage of \texttt{emplace\_value}.}
 \end{figure}
+
+\subsubsection{Restrictions and Pitfalls} 
+\begin{itemize}
+  \item {\color{red}[0.2 only]} Because the 0.2 spec lacks a means of specifying
+  the constructor of \texttt{T} to be called by default, the first usage of
+  every modifiable handle (i.e., the first {\texttt{create\_work}} capturing the
+  handle) after being setup with \texttt{initial\_access<T>} should call
+  \texttt{emplace\_value()} or \texttt{set\_value()} before performing any
+  operations on the pointed-to object.  In other words, the pointed-to object
+  contains uninitialized memory until the user invokes 
+  \texttt{emplace\_value(...)} or \texttt{set\_value()} to construct the object.
+  Failure to do so leads to undefined behavior (just as, for instance,
+  \texttt{int x; cout << x;} leads to undefined behavior in C). 
+\end{itemize}
 
 \end{subs}
 
@@ -1265,7 +1275,7 @@ that the handle (or any handle with the same name key) will not be published
 again in the remaining lifetime of the program.
 \end{itemize}
 
-\subsubsection{Description} 
+\subsubsection{Details} 
 
 Publish the data associated with a given handle \texttt{h} such that it can be
 retrieved \texttt{n\_readers} times anywhere via a \texttt{read\_access<T>} invocation
