@@ -385,7 +385,6 @@ class DependencyHandle
     }
 
     virtual ~DependencyHandle() {
-      if(not has_subsequent_at_version_depth) backend_runtime->handle_done_with_version_depth(this);
       backend_runtime->release_handle(this);
     }
 

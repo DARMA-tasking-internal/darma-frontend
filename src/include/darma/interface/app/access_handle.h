@@ -404,7 +404,6 @@ class AccessHandle : public detail::AccessHandleBase
           // Create a new handle with the next version
           auto next_version = dep_handle_->get_version();
           ++next_version;
-          dep_handle_->has_subsequent_at_version_depth = true;
           read_only_holder_ = nullptr;
           dep_handle_ = dep_handle_ptr_maker_t()(dep_handle_->get_key(), next_version);
           read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_.get());
@@ -468,7 +467,6 @@ class AccessHandle : public detail::AccessHandleBase
         read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_.get()))
     {
       assert(state_ == Read_None);
-      dep_handle_->has_subsequent_at_version_depth = true;
     }
 
     ////////////////////////////////////////
