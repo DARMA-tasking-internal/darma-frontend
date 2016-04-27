@@ -485,13 +485,8 @@ settled in the backend API)}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-\newcommand{\specialcell}[2][c]{%
-  \begin{tabular}[#1]{@{}c@{}}#2\end{tabular}}
-\newcommand{\yes}{\text{\ding{51}}}
-\newcommand{\no}{\text{\ding{55}}}
-
-
-\section{Handles Usage Rules}
+\section{Handle Usage Rules}
+\label{sec:handlerules}
 \todo[inline]{FR: can be moved some other place if more useful}
 
 Handles are assigned states, and these states change 
@@ -517,7 +512,6 @@ this type is first created, it is assigned
 this type is first created, it is assigned 
 ``Read/None'' permissions.
 \end{itemize}
-
 
 
 
@@ -687,7 +681,7 @@ read_access<int> b
 //b is in Read/None
 b.get_value()   $\no$
 b.set_value(1)  $\no$
-create_work([=]{ //modify capture
+create_work([=]{ //capture
   b.set_value(1) $\no$
 });
 \end{vaspPseudo}
@@ -699,7 +693,7 @@ CORRECT
 \begin{vaspPseudo}
 read_access<int> b
 //b is in Read/None
-create_work([=]{ //modify capture
+create_work([=]{ // capture
   b.get_value()  $\yes$
 });
 \end{vaspPseudo}
@@ -708,48 +702,96 @@ create_work([=]{ //modify capture
 
 
 
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% 									FUNCTIONS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 \clearpage
-\section{Basic examples for front end functions}
+\section{Front end functions}
 
-In this section, we illustrate the basic functionalities of 
-the DARMA 0.2 spec using some simple, targeting examples.
+In this section, we discuss the basic API 
+functions in the DARMA 0.2 spec.
 
 
-\subsection{List of front end functions}
+\subsection{\underline{\texttt{darma\_init}}}
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
 
+\subsubsection{Summary}
+Initializes the DARMA execution environment.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+void darma_runtime::darma_init(int& argc, char**& argv);
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
 \begin{itemize}
-\item \texttt{darma\_init()}
-\item \texttt{darma\_finalize()}
-\item \texttt{darma\_spmd\_rank}
-\item \texttt{darma\_spmd\_size}
-
-\item \texttt{initial\_access<T>}
-\item \texttt{create\_work}
-\item \texttt{read\_access<T>}
-
-\item \texttt{reads()}
-\item \texttt{n\_readers}
-\item \texttt{version}
-
-\item \texttt{AccessHandle<T>}
-\begin{itemize}
-  \item \texttt{publish}
-  \item \texttt{get\_value}
-  \item \texttt{set\_value}
-  \item \texttt{get\_reference}
-  \item \texttt{emplace\_value}
-  \item \texttt{operator->}
-  \item \texttt{get\_key}
-  \item \texttt{=0} or \texttt{release}
+\item argc: command line arguments count.
+\item argv: array arguments.
 \end{itemize}
-\end{itemize}
+The input parameters are the command line argument count 
+and array arguments provided to main.  
+Note that the back-end will process and remove 
+any DARMA back-end-specific arguments from these.
+
+\subsubsection{Output Parameters} 
+None.
+
+
+\subsubsection{Description} 
+Must be called only once before any other DARMA function is called.
+It needs to be combined with \texttt{darma\_finalize()} (see below).
+\todo{anything missing? details?}
+
+\subsubsection{Code Snippet} 
+See code for \texttt{darma\_finalize} in \S~\ref{ssec:api_fe_finalize}.
+
+\end{subs}
 
 
 
-\subsection{Initializing/finalizing the environment}
 
-At the base of DARMA, there is the initialization 
-of the environment.
+%%%%%%%%%%%%%
+
+
+\clearpage
+
+\subsection{\underline{\texttt{darma\_finalize}}}
+\label{ssec:api_fe_finalize}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Finalizes the DARMA execution environment.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+void darma_runtime::darma_finalize();
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None. 
+
+\subsubsection{Output Parameters} 
+None. 
+
+\subsubsection{Description} 
+Terminates the execution environment, cleaning up all DARMA processes.
+Needs to be called {\it after} \texttt{darma\_init}.\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
 \begin{CppCodeNumb}
 #include <darma.h>
 int darma_main(int argc, char** argv)
@@ -766,13 +808,110 @@ int darma_main(int argc, char** argv)
   return 0;
 }
 \end{CppCodeNumb}
+\label{fig:fe_api_init}
+\caption{Basic usage of \texttt{darma\_init} and \texttt{darma\_finalize} 
+to initialize and finalize environment.}
+\end{figure}
+
+\end{subs}
 
 
 
 
 
-\subsection{SPMD concept: rank and size}
+%%%%%%%%%%%%%
 
+
+
+\clearpage
+
+\subsection{\underline{\texttt{darma\_spmd\_size}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Returns the size of the DARMA environment.
+
+\subsubsection{Syntax}
+\begin{CppCode}
+int darma_runtime::darma_spmd_size();
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None. 
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item the size of the DARMA environment.
+\end{itemize}
+
+\subsubsection{Description} 
+This function returns the size of the DARMA environment. 
+The size of the DARMA environment is always $>0$.\todo{anything missing? details?}
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+  using namespace darma_runtime;
+  darma_init(argc, argv);
+
+  const int size = darma_spmd_size();
+  // ...
+
+  darma_finalize();
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_ranksize}
+\caption{Basic usage of \texttt{darma\_spmd\_size}.}
+\end{figure}
+
+
+\end{subs}
+
+
+
+
+
+%%%%%%%%%%%%%
+
+\clearpage
+
+\subsection{\underline{\texttt{darma\_spmd\_rank}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Returns the rank of the calling process within the DARMA environment.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+int darma_runtime::darma_spmd_rank();
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None. 
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item the rank value.
+\end{itemize}
+
+\subsubsection{Description} 
+This function returns the rank of the calling process 
+in the DARMA environment. If the size of the environment is $N$, 
+then the returned rank, $r$, is always $0 <= r <= N-1$.
+\todo{anything missing? details?}
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
 \begin{CppCodeNumb}
 #include <darma.h>
 int darma_main(int argc, char** argv)
@@ -791,15 +930,62 @@ int darma_main(int argc, char** argv)
   return 0;
 }
 \end{CppCodeNumb}
+\label{fig:fe_api_ranksize}
+\caption{Basic usage of \texttt{darma\_spmd\_rank}.}
+\end{figure}
+
+\end{subs}
 
 
 
-\subsection{Handle type 1: \texttt{initial\_access<T>}}
+%%%%%%%%%%%%%
 
-It is important to stress the concept that when data is 
-initialized, given the SPMD environment provided by DARMA, 
-each rank needs to create a unique label for the data.
 
+
+\clearpage
+\subsection{\underline{\texttt{create\_work}}}
+\label{ssec:api_fe_cw}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Communicates work to the runtime system.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+create_work([=]
+{ 
+	// code goes here
+});
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+Input arguments are optional. If no input is provided, the 
+\texttt{create\_work} has privileges on the handles used inside 
+as determined by the semantics of the code. 
+On the contrary, using the keyword \texttt{reads}, it can take as 
+argument a list of handles that are captured with read-only permissions. 
+See \S~\ref{ssec:api_fe_reads} for more information on how to do this. 
+This constraints the permissions to be read-only 
+on these handles passed to the function.
+\todo{anything missing? details?}
+
+
+\subsubsection{Output Parameters} 
+None.
+
+\subsubsection{Description} 
+This function communicates work to the runtime system. 
+Specifically, this is needed to construct deferred work. 
+Note: the block of code enclosed will be executed only when all the 
+proper permissions on the data it uses will be available.
+\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
 \begin{CppCodeNumb}
 #include <darma.h>
 int darma_main(int argc, char** argv)
@@ -808,286 +994,946 @@ int darma_main(int argc, char** argv)
   darma_init(argc, argv);
   const int myRank = darma_spmd_rank();
   const int size = darma_spmd_size();
-
-  // this just creates different handles for different types
-  // NOTE: data does not exist yet, only handles!
-  auto my_handle1 = initial_access<double>("data_key_1", myRank);
-  auto my_handle2 = initial_access<int>("data_key_2", myRank);
-  auto my_handle3 = initial_access<std::string>("data_key_3", myRank);
-  // etc...
-
-  darma_finalize();
-  return 0;
-}
-\end{CppCodeNumb}
-
-
-
-
-\subsection{Arrow operator and task creation}
-
-\begin{CppCodeNumb}
-#include <darma.h>
-int darma_main(int argc, char** argv)
-{
-  using namespace darma_runtime;
-
-  darma_init(argc, argv);
-  const int myRank = darma_spmd_rank();
-  const int size = darma_spmd_size();
-
-  auto my_handle1 = initial_access<std::vector<double>>("data", myRank);
 
   create_work([=]
   {
-    // first, constructs data with default constructor
-    my_handle1.emplace_value(0.0); // set to zero
-
-    // operator-> : get access to methods of object pointed to by handle
-    my_handle1->resize(4);
-
-    double * vecPtr = my_handle1->data();
-    for (int i = 0; i < 4; ++i)
-    {
-      vecPtr[i] = (double) i + 0.4;
-    }
-
-    std::cout << my_handle1->back() << std::endl;
-    assert( my_handle1->back() == 3.4 );
+  	std::cout << " Hello world! " << std::endl;
   });
 
   darma_finalize();
   return 0;
 }
 \end{CppCodeNumb}
+\label{fig:fe_api_cw}
+\caption{Basic usage of \texttt{create\_work}.}
+\end{figure}
+
+\end{subs}
 
 
 
 
-\subsection{More on access handle}
 
+
+
+
+\clearpage
+
+\section{Front end handles}
+
+In this section, we discuss the handle types in the DARMA 0.2 spec.
+
+
+\subsection{\underline{\texttt{initial\_access}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Handle to data that does not yet exist in the system 
+but needs to be created.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+AccessHandle<T> darma_runtime::initial_access<T>(arg1, arg2, ...);
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+\begin{itemize}
+\item arg1, arg2, ...: arbitrary tuple of values defining the key of the data.
+\end{itemize}
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item the handle.  
+\end{itemize}
+
+\subsubsection{Description} 
+This construct creates a handle to data that does not yet 
+exist but needs to be created. It takes as input an arbitrary 
+tuple of values. Note that this key has to be unique. 
+One cannot define two handles with same the same key, even if 
+it is created by different ranks. 
+When data is initialized, given the SPMD environment provided by DARMA, 
+each rank needs to create a unique label for the data. 
+One basic way to ensure this is the case is to always use the rank 
+as one component of the key. 
+\todo{anything missing? details?}
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
 \begin{CppCodeNumb}
 #include <darma.h>
 int darma_main(int argc, char** argv)
 {
-  using namespace darma_runtime;
-
-  darma_init(argc, argv);
-  const int myRank = darma_spmd_rank();
-  const int size = darma_spmd_size();
-
-  // this just creates different handles for different types
-  // NOTE: data does not exist yet, only handles!
+	//...
   auto my_handle1 = initial_access<double>("data_key_1", myRank);
-  auto my_handle2 = initial_access<std::string>("data_key_3", myRank);
-
-  create_work([=]
-  {
-    my_handle1.emplace_value(3.3);
-    my_handle1.set_value(3.4);
-    my_handle1.get_reference() = 3.6;
-
-    // first, constructs data with default constructor
-    my_handle1.emplace_value(3.3);
-    my_handle2.emplace_value("Sky is blue");
-
-    // get current values pointed to by the handles
-    auto h1Val = my_handle1.get_value();
-    auto h2Val = my_handle2.get_value();
-    std::cout << "After construction: h1Value = " << h1Val << std::endl;
-    std::cout << "After construction: h2Value = " << h2Val << std::endl;
-
-    // reset values using set value function
-    my_handle1.set_value(6.6);
-    my_handle2.set_value("Sky is green");
-    std::cout << "After reset: h1Value = " << my_handle1.get_value() << std::endl;
-    std::cout << "After reset: h2Value = " << my_handle2.get_value() << std::endl;
-
-    // reset values using reference
-    auto & h1r = my_handle1.get_reference();
-    auto & h2r = my_handle2.get_reference();
-    h1r = 9.9;
-    h2r = "Sky is yellow";
-    std::cout << "After reset: h1Value = " << my_handle1.get_value() << std::endl;
-    std::cout << "After reset: h2Value = " << my_handle2.get_value() << std::endl;
-
-  });
-
-  darma_finalize();
+  auto my_handle2 = initial_access<int>("data_key_2", myRank, "_online");
+  // ...
   return 0;
 }
 \end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{initial\_access}.}
+\end{figure}
+
+\end{subs}
 
 
 
+%%%%%%%%%%%%%
 
-\subsection{Create work with read-only permission on handle}
 
+\clearpage
+\subsection{\underline{\texttt{read\_access}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Handle with \text{read-only} permission to data that already exits in the system. 
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+AccessHandle<T> darma_runtime::read_access<T>(arg1, arg2, ...);
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+\begin{itemize}
+\item arg1, arg2, ...: tuple of values identifying the key of the data to be read.
+\end{itemize}
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item the handle.  
+\end{itemize}
+
+\subsubsection{Description} 
+This construct creates a handle to data that already exists and 
+needs to be accessed with read-only privileges. 
+It takes as input the tuple of values uniquely 
+identifying the data that needs to be read. 
+
+In general, it is used to access data that is migratable, i.e. data 
+that potentially is stored off node.
+\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
 \begin{CppCodeNumb}
 #include <darma.h>
 int darma_main(int argc, char** argv)
 {
-  using namespace darma_runtime;
+	//...
+  AccessHandle<double> my_handle1 = initial_access<double>("key_1", myRank);
+  create_work([=]{
+  	my_handle1.emplace_value(5.3);
+  });
 
-  darma_init(argc, argv);
-  const int myRank = darma_spmd_rank();
-  const int size = darma_spmd_size();
+  AccessHandle<double> readHandle = read_access<double>("key_1", myRank);
+  create_work([=]{
+  	std::cout << readHandle.get_value() << std::endl;
+  });
+  //...
 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{read\_access}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%% 					Access handles methods
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\clearpage
+\section{AccessHandle methods}
+
+In this section, we describe the methods that can be called 
+on \texttt{AccessHandle<T>} objects (i.e., the objects returned by the 
+\texttt{initial\_access<T>} and \texttt{read\_access<T>} functions).
+
+
+\subsection{\underline{\texttt{emplace\_value}}}
+\label{ssec:api_fe_emplace_value}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Construct an object of the type pointed to by an \texttt{AccessHandle<T>} object
+(that is, \texttt{T}) in place by forwarding the arguments to the constructor
+for \texttt{T}.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+void some_handle.emplace_value(args...)
+\end{CppCode}
+
+\subsubsection{Positional Arguments} 
+\begin{itemize}
+\item args... (deduced types):  Arguments to forward to the constructor of
+\texttt{T}.
+\end{itemize}
+
+\subsubsection{Details} 
+
+\texttt{AccessHandle<T>::emplace\_value(...)} mimics the syntax for in-place
+construction in standard library containers.  See, for instance,
+\texttt{std::vector<T>::emplace\_back(...)}.  If in-place construction is
+unnecessary or undesired, \texttt{set\_value()} can be used instead.  Note that
+calling \texttt{emplace\_value()} on a handle requires {\it Modify} immediate
+permissions (see \S~\ref{sec:handlerules}).
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+struct LoudMouth {
+  LoudMouth(int i, double j) { cout << "Ctor: " << i << ", " << j << endl; }
+};
+auto h = initial_access<LoudMouth>("key");
+create_work([=]{
+  h.emplace_value(42, 3.14); // prints "Ctor: 42, 3.14" 
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{emplace\_value}.}
+\end{figure}
+
+\subsubsection{Restrictions and Pitfalls} 
+\begin{itemize}
+  \item {\color{red}[0.2 only]} Because the 0.2 spec lacks a means of specifying
+  the constructor of \texttt{T} to be called by default, the first usage of
+  every modifiable handle (i.e., the first {\texttt{create\_work}} capturing the
+  handle) after being setup with \texttt{initial\_access<T>} should call
+  \texttt{emplace\_value()} or \texttt{set\_value()} before performing any
+  operations on the pointed-to object.  In other words, the pointed-to object
+  contains uninitialized memory until the user invokes 
+  \texttt{emplace\_value(...)} or \texttt{set\_value()} to construct the object.
+  Failure to do so leads to undefined behavior (just as, for instance,
+  \texttt{int x; cout << x;} leads to undefined behavior in C). 
+\end{itemize}
+
+\end{subs}
+
+
+
+\clearpage
+\subsection{\underline{\texttt{publish}}}
+\label{ssec:api_fe_publish}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Publish the data pointed to by a given handle so that it can be retrieved on 
+other DARMA ranks.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+void some_handle.publish(n_readers=..., version=...)
+\end{CppCode}
+
+\subsubsection{Positional Arguments} 
+None
+
+\subsubsection{Keyword Arguments} 
+\begin{itemize}
+\item \texttt{n\_readers=size\_t} (optional): informs the runtime how many . If
+omitted, it defaults to 1.
+\item \texttt{version=KeyExpression} (or \texttt{version(KeyExpression\ldots)},
+see \S~\ref{sec:keyword} for multiple-right-hand-side keyword argument usage)
+(optional):
+informs the runtime what version to associate with the data being published. 
+The value can be an arbitrary \texttt{KeyExpression}.
+If omitted, the version defaults to an empty key (i.e., a key tuple with zero 
+components).  Omitting this keyword implicitly indicates to the runtime system
+that the handle (or any handle with the same name key) will not be published
+again in the remaining lifetime of the program.
+\end{itemize}
+
+\subsubsection{Details} 
+
+Publish the data associated with a given handle \texttt{h} such that it can be
+retrieved \texttt{n\_readers} times anywhere via a \texttt{read\_access<T>} invocation
+that gives the same name key as \texttt{h} and the same \texttt{version} key as
+the one given to the keyword argument to \texttt{publish()}.
+A \texttt{publish()} is a {\it read-only capture} operation (see
+\S~\ref{sec:handlerules}).
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+auto me = darma_spmd_rank();
+assert(darma_spmd_size() >= 2);
+if(me == 0) {
+  auto my_handle = initial_access<double>("key_1");
+  create_work([=]{
+    my_handle.emplace_value(5.3);
+  });
+  my_handle.publish(n_readers=1, version="only");
+}
+else if(me == 1) {
+  auto my_handle = read_access<double>("key_1", version="only");
+  create_work([=]{
+    cout << my_handle.get_value() << endl; // prints "5.3"
+  });
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{publish()}.}
+\end{figure}
+
+\subsubsection{Restrictions and Pitfalls}
+\begin{itemize}
+  \item \texttt{publish()} is one of the ways DARMA lets you ``shoot yourself in
+  the foot.''  While it is very difficult to create dependency loops, race
+  conditions, and deadlock using handles within a given rank and without
+  \texttt{publish()} operations, it is quite easy to do so with
+  \texttt{publish()}/\texttt{read\_access()} pairs (just like, for instance,
+  with blocking sends and receives in MPI).  For instance, the following snippet
+  deadlocks:
+\begin{minipage}[t]{1\linewidth}%
+  \centering
+  \begin{CppCode}
+// This code deadlocks!
+auto me = darma_spmd_rank();
+assert(darma_spmd_size() >= 2);
+if(me == 0) {
+  auto h1 = initial_access<int>("key", 0);
+  auto h2 = read_access<int>("key", 1);
+  create_work([=]{ 
+    h1.set_value(42);
+    h1.publish();
+    cout << h2.get_value() << endl;
+  }); 
+}
+else if (me == 1) {
+  auto h3 = initial_access<int>("key", 1);
+  auto h4 = initial_access<int>("key", 0);
+  create_work([=]{ 
+    h3.set_value(73);
+    h3.publish();
+    cout << h4.get_value() << endl; 
+  }); 
+}
+// Deadlock! (eventually, at the latest when darma_finalize() is
+// called): neither of the above create_work()s can ever run
+  \end{CppCode}
+\end{minipage}
+  This snippet deadlocks because a dependency loop has been created between two
+  \texttt{publish()}/\texttt{read\_access()} pairs. While the deadlock is
+  relatively obvious here, it can be much more difficult to decypher in a more
+  complex code, especially if, for instance, \texttt{h1} and \texttt{h2} are
+  arguments to a function, or if the parts of the keys used to construct the
+  handles are variables with values dependent on some previous computation.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item It is particularly easy to create deadlock scenarios by publishing a
+  handle and fetching it within the same rank.  For this reason, we recommend
+  extreme caution with this scenario could arise, and in general we suggest that
+  the user should avoid doing so if at all possible.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item Since \texttt{publish()} is a {\it read-only capture} operation, it must
+  have scheduling privileges of {\it Read} or {\it Modify}; calling publish on a
+  handle with other scheduling permissions is a runtime error.  Also, as with
+  all {\it read-only capture} operations, calling \texttt{publish()} on a
+  handle with {\it Modify} immediate permissions results in a handle with {\it
+  Read} immediate permissions in the continuing context.  See
+  \S~\ref{sec:handlerules} for more details.  For example, the following code
+  results in a runtime error at the marked line:
+\begin{minipage}[t]{0.95\linewidth}%
+  \centering
+  \begin{CppCode}
+  auto h = initial_access<int>("key");
+  create_work([=]{
+    h.set_value(5);
+    h.publish();
+    h.set_value(10); // $\no$ h has Read immediate permissions
+  });
+  \end{CppCode}
+\end{minipage}
+  \item It is an error to call \texttt{publish()} on a handle with a given
+  name key (or any other handle with that same name key) more than once with
+  a given version key.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item If \texttt{publish()} is called on a given handle without the
+  \texttt{version} keyword argument, it is an error to call \texttt{publish()}
+  again on that handle or any other handle with the same name key for the
+  remaining lifetime of the program.  Note that because of the default behavior
+  of the \texttt{version} keyword argument, giving an explicit version that is
+  the empty key (e.g., \texttt{h.publish(version())} or
+  \texttt{h.publish(version=make\_key())}) will lead to this same behavior.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item {\color{red} [0.2 only]} Because the 0.2 spec does not include a
+  serialization interface, only handles with bitwise-copiable types may be
+  published, though some backends may support more functionality.
+\end{itemize}
+
+
+\end{subs}
+
+
+
+
+\clearpage
+\subsection{\underline{\texttt{get\_value}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Get a copy of the data pointed to by the handle.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+value_type some_handle.get_value()
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None.
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item a copy of the data.  
+\end{itemize}
+
+\subsubsection{Description} 
+It can be called only inside a deferred work context whenever 
+the enclosing context carries read permissions on the handle.
+\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  AccessHandle<double> my_handle1 = read_access<double>("key_1", myRank);
+  create_work([=]{
+  	double myValue = my_handle1.get_value();
+  });
+
+  // ... 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{get\_value}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+
+
+\clearpage
+\subsection{\underline{\texttt{set\_value}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Set the value of the data pointed to by the handle.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+void some_handle.set_value(value)
+\end{CppCode}
+
+\subsubsection{Positional Arguments}
+\begin{itemize}
+  \item value (type convertible to \texttt{T}) The new value for the data.
+\end{itemize}
+
+
+\subsubsection{Details} 
+{\color{red}[0.2 only]} In the 0.2 spec, this just directly forwards to
+\texttt{emplace\_value()} so that the relevant copy constructor of {\tt T} is
+called.  Thus, all comments and examples for \texttt{emplace\_value()} apply
+here.  See \S~\ref{ssec:api_fe_emplace_value} for more.
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+auto h = initial_access<double>("key_1");
+create_work([=]{
+  h.set_value(55.343);
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_set_value}
+\caption{Basic usage of \texttt{set\_value}.}
+\end{figure}
+
+\subsubsection{Restrictions and Pitfalls}
+\begin{itemize}
+  \item The specification of the method is likely to change in the future to
+  analogous to the behavior, e.g., \texttt{std::vector<T>::push\_back()} (as it
+  relates to \texttt{std::vector<T>::emplace\_back()}).  If this could be a
+  problem for \texttt{T}, you should probably use \texttt{emplace\_value()} for now.
+\end{itemize}
+
+\end{subs}
+
+\clearpage
+\subsection{\underline{\texttt{get\_reference}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Get a non-constant reference to the data pointed to by the handle.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+value_type & some_handle.get_reference()
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None.
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item a non-constant reference to the data.  
+\end{itemize}
+
+\subsubsection{Description} 
+This method can be called within a context with write privileges 
+on the target handle.\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  AccessHandle<double> my_handle1 = read_access<double>("key_1", myRank);
+  create_work([=]{
+  	my_handle1.get_reference() = 242.343;
+  });
+
+  // ... 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{get\_reference}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+\clearpage
+\subsection{\underline{Arrow Operator \texttt{->}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+A dereference operator to directly access the object 
+pointed to by the handle.
+
+
+\subsubsection{Syntax} 
+\todo{how to write syntax here??}
+\begin{CppCode}
+some_handle->
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None.
+
+\subsubsection{Output Parameters} 
+The return type of the method called on the object.
+
+\subsubsection{Description} 
+This method can be called within a deferred work to directly 
+access the object pointed to by the handle.\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  typedef std::vector<double> vec;
+  AccessHandle<vec> my_handle2 = initial_access<vec>("key_2", myRank);
+
+  create_work([=]{
+  	my_handle2.emplace_value(0.0);
+    my_handle2->resize(4);
+    double * vecPtr = my_handle2->data();    
+  });
+
+  // ... 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of arrow operator \texttt{->}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+
+
+
+\clearpage
+\subsection{\underline{\texttt{get\_key}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Get a copy of the key identifying the data pointed to by the handle.
+
+\subsubsection{Syntax} 
+\todo{what is the key  type here?}
+\begin{CppCode}
+key_type & some_handle.get_key()
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None.
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item a copy of the key identifying the data.
+\end{itemize}
+
+\subsubsection{Description} 
+This method can be called at any time after the handle is created.
+\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  AccessHandle<double> my_handle1 = read_access<double>("key_1", myRank);
+  auto myK = my_handle1.get_key();
+
+  create_work([=]{
+  	my_handle1.get_reference() = 242.343;
+  	auto myK = my_handle1.get_key();
+  });
+
+  // ... 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{get\_key}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+\clearpage
+\subsection{\underline{\texttt{=0}} or \underline{\texttt{release}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Releases the handle.
+
+\subsubsection{Syntax} 
+These two are equivalent.
+\begin{CppCode}
+void some_handle = 0;    
+void some_handle.release()
+\end{CppCode}
+
+
+\subsubsection{Input Parameters} 
+None.
+
+\subsubsection{Output Parameters} 
+None.
+
+\subsubsection{Description} 
+This method can be called to release a handle to some data.
+\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  AccessHandle<double> my_handle1 = initial_access<double>("key_1", myRank);
+  create_work([=]{
+  	my_handle1.get_reference() = 242.343;
+  });
+
+  my_handle1.release();
+
+  // ... 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{=0} or \texttt{release}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%% 										KEYWORDS
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\clearpage
+\section{Keywords}
+
+In this section, we describe the keywords of the 0.2 API. 
+
+
+\subsection{\underline{\texttt{reads}}}
+\label{ssec:api_fe_reads}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Argument to a \texttt{create\_work} to constraint 
+privileges of a set of handles to be read-only within that context.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+create_work(reads(handle1, handle2, ...),[=]{
+	// code 
+});
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+\begin{itemize}
+\item handle1, handle2, ...: list of handles to 
+constraint to read-only privileges.
+\end{itemize}
+
+\subsubsection{Description} 
+Used as argument to a \texttt{create\_work} to constraint 
+privileges of a list of handles to be read-only within that context.
+Can only be called as argument to \texttt{create\_work}. 
+It can contain a single or a list of handles.\todo{anything missing? details?} 
+See also \S~\ref{ssec:api_fe_cw} for more information on \texttt{create\_work}.
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
   auto my_handle = initial_access<double>("data", myRank);
-  create_work([=]
-  {
+  create_work([=]{
     my_handle.emplace_value(0.55);
   });
-
-  create_work(reads(my_handle),[=]
-  {
+  create_work(reads(my_handle),[=]{
     std::cout << " " << my_handle.get_value() << std::endl;
+    my_handle.set_value() = ... ; // NOT allowed!
   });
-
-  darma_finalize();
+  // ... 
   return 0;
 }
 \end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{reads}.}
+\end{figure}
+
+\end{subs}
 
 
 
 
 
+\clearpage
+\subsection{\underline{\texttt{n\_readers}}}
 
-\subsection{Publish and read access}
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
 
+\subsubsection{Summary} 
+Specifies the number of times a certain piece of 
+data will be read after being published. This keyword has to be used within 
+the \texttt{publish} method of an access handle.
+
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+n_readers = ...; 
+\end{CppCode}
+See \S~\ref{ssec:api_fe_publish} for details on \texttt{publish}.
+
+
+\subsubsection{Input Parameters} 
+\begin{itemize}
+\item the number of times the data will be read.
+\end{itemize}
+See \S~\ref{ssec:api_fe_publish} for details on \texttt{publish}.
+
+
+\subsubsection{Description} 
+Specifies the number of times a certain piece of 
+data will be read. This keyword has to be used within 
+the \texttt{publish} method of an access handle.
+More specifically, this refers to the number of \texttt{read\_access} 
+handles that will be defined to read this data.\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
 \begin{CppCodeNumb}
 #include <darma.h>
 int darma_main(int argc, char** argv)
 {
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  darma_init(argc, argv);
-  const int myRank = darma_spmd_rank();
-  const int size = darma_spmd_size();
-
-  // supposed to be run with 2 ranks, so ignore the rest
-  assert(size>=2);
-  if (myRank>=2){
-    darma_finalize();
-    return 0;
-  }
-
-  // rank0 reads from source = rank1 
-  // rank1 reads from source = rank0 
-  int source = myRank==0 ? 1 : 0;
-
+	// ...
   auto my_handle = initial_access<double>("data", myRank);
   create_work([=]
   {
     my_handle.emplace_value(0.5 + (double) myRank);
-
-    // n_readers == 1 because: 
-    //  rank0 reads data of rank1
-    //  rank1 reads data of rank0
     my_handle.publish(n_readers=1);
   });
 
-  AccessHandle<double> readHandle = read_access<double>("data", source);
-  create_work([=]
-  {
-    std::cout << myRank << " " << readHandle.get_value() << std::endl;
-    if (myRank==0)
-      assert( readHandle.get_value() == 1.5 );
-    else
-      assert( readHandle.get_value() == 0.5 );
-  });
-
-  darma_finalize();
+  // ... 
   return 0;
 }
 \end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{n\_readers}.}
+\end{figure}
+
+\end{subs}
 
 
 
 
 
 
-\subsection{Publish, versioning and lifetime of handles}
+\clearpage
+\subsection{\underline{\texttt{version}}}
+\label{ssec:api_fe_version}
 
-Lifetime of handles is tricky, particularly for \texttt{read\_access<T>()} handle.  
-In the following example, we initialize data, publish it, fetch it from another rank, 
-modify the data, publish it again under a new version, and then fetch the new version from another rank. 
-The \texttt{create\_work} on lines $40-44$ can't execute until the backend knows you're done with the first fetched version. 
-We put an extra set of \texttt{\{ \}} around the readaccess+creatework in lines $28-36$ to tell the backend that 
-the \texttt{readHandle} is no longer needed and can go out-of-scope and the fetching is done.  
-Without the scoping \texttt{\{\}}, the code would deadlock. THis is because the backend would not know that 
-the fetching is done until after \texttt{darma\_finalize()} is called. However, \texttt{darma\_finalize()} 
-can't return until after {\it all} the \texttt{create\_works} have completed.  And so the code would deadlock. 
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Specifies explicitly a version to associate to some data 
+at the time of the publishing operation of that data.  
 
 
+\subsubsection{Syntax} 
+\begin{CppCode}
+version = ...;    or    version = (arg1, arg2, ...)
+\end{CppCode}
+
+
+\subsubsection{Input Parameters} 
+A tuple of values.
+
+
+\subsubsection{Description} 
+Specifies explicitly a version to associated to some data 
+at the time of the publishing operation.  
+It is used when the same data is overwritten multiple times 
+and one needs to keep track of the various versions.
+
+Version can be an arbitrary tuple of values.
+\todo{anything missing? details?}
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
 \begin{CppCodeNumb}
 #include <darma.h>
 int darma_main(int argc, char** argv)
 {
-  using namespace darma_runtime; 
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  darma_init(argc, argv);
-  const int myRank = darma_spmd_rank();
-  const int size = darma_spmd_size();
-
-  // supposed to be run with 2 ranks, so ignore the rest
-  assert(size>=2);
-  // rank0 reads from source = rank1, rank1 reads from source = rank0 
-  int source = myRank==0 ? 1 : 0;
-
+	//...
   // create data
   auto my_handle = initial_access<double>("data", myRank);
-  create_work([=]
-  {
+  create_work([=]{
     my_handle.emplace_value(0.5 + (double) myRank);
-    my_handle.publish(n_readers=1,version=0); // n_readers == 1
+    my_handle.publish(n_readers=1,version=(0,"basic"));
   });
-
-  /* scope {} needed here and useful because it tells backend that 
-     readHandle will go outofscope and so backend has more detailed 
-     info and this can benefit parallelism and execution. 
-     In other words, one should scope things whenever it is possible. */ 
-  {
-    auto readHandle = read_access<double>("data", source,version=0);
-    create_work([=]
-    {
-      std::cout << myRank << " " << readHandle.get_value() << std::endl;
-      if (myRank==0)
-        assert( readHandle.get_value() == 1.5 );
-      else
-        assert( readHandle.get_value() == 0.5 );
-    });
-  }
-
+  // ...
   // reset value and update version
-  create_work([=]
-  {
+  create_work([=]{
     my_handle.set_value(2.5 + (double) myRank);
     my_handle.publish(n_readers=1,version=1);
   });
-
-  // second time reading
-  auto readHandle2 = read_access<double>("data", source,version=1);
-  create_work([=]
-  {
-    std::cout << myRank << " " << readHandle2.get_value() << std::endl;
-    if (myRank==0)
-      assert( readHandle2.get_value() == 3.5 );
-    else
-      assert( readHandle2.get_value() == 2.5 );
-  });
-
-  darma_finalize();
+  // ... 
   return 0;
 }
 \end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{version}.}
+\end{figure}
 
-
-
-
-
-
+\end{subs}
 
 
