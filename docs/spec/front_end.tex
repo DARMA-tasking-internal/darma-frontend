@@ -1177,6 +1177,7 @@ on \texttt{AccessHandle<T>} objects (i.e., the objects returned by the
 
 
 \subsection{\underline{\texttt{emplace\_value}}}
+\label{ssec:api_fe_emplace_value}
 
 \hspace{0.1cm} %needed for some reason or does not compile
 \begin{subs}
@@ -1466,47 +1467,43 @@ Set the value of the data pointed to by the handle.
 
 \subsubsection{Syntax} 
 \begin{CppCode}
-void some_handle.set_value(...)
+void some_handle.set_value(value)
 \end{CppCode}
 
-\subsubsection{Input Parameters} 
-The new value for the data.
+\subsubsection{Positional Arguments}
+\begin{itemize}
+  \item value (type convertible to \texttt{T}) The new value for the data.
+\end{itemize}
 
-\subsubsection{Output Parameters} 
-None.
 
-\subsubsection{Description} 
-It can be called only inside a deferred work context whenever 
-the capturing context allows write permissions on the handle.
-\todo{anything missing? details?}
+\subsubsection{Details} 
+{\color{red}[0.2 only]} In the 0.2 spec, this just directly forwards to
+\texttt{emplace\_value()} so that the relevant copy constructor of {\tt T} is
+called.  Thus, all comments and examples for \texttt{emplace\_value()} apply
+here.  See \S~\ref{ssec:api_fe_emplace_value} for more.
 
 
 \subsubsection{Code Snippet} 
 \begin{figure}[!h]
 \begin{CppCodeNumb}
-#include <darma.h>
-int darma_main(int argc, char** argv)
-{
-	//...
-  AccessHandle<double> my_handle1 = initial_access<double>("key_1", myRank);
-  create_work([=]{
-  	my_handle1.set_value(55.343);
-  });
-
-  // ... 
-  return 0;
-}
+auto h = initial_access<double>("key_1");
+create_work([=]{
+  h.set_value(55.343);
+});
 \end{CppCodeNumb}
-\label{fig:fe_api_initialaccess}
+\label{fig:fe_api_set_value}
 \caption{Basic usage of \texttt{set\_value}.}
 \end{figure}
 
+\subsubsection{Restrictions and Pitfalls}
+\begin{itemize}
+  \item The specification of the method is likely to change in the future to
+  analogous to the behavior, e.g., \texttt{std::vector<T>::push\_back()} (as it
+  relates to \texttt{std::vector<T>::emplace\_back()}).  If this could be a
+  problem for \texttt{T}, you should probably use \texttt{emplace\_value()} for now.
+\end{itemize}
+
 \end{subs}
-
-
-
-
-
 
 \clearpage
 \subsection{\underline{\texttt{get\_reference}}}
