@@ -82,6 +82,18 @@ class SerialDataBlock
 
 };
 
+class PackedDataBlock
+  : public abstract::backend::DataBlock {
+  public:
+
+    void *get_data() override {
+      return data_;
+    }
+
+    void *data_ = nullptr;
+
+};
+
 class SerialRuntime
   : public abstract::backend::runtime_t {
  protected:
@@ -99,13 +111,13 @@ class SerialRuntime
   struct published_data_block {
     published_data_block() = default;
     published_data_block(
-      published_data_block &&other
+      published_data_block&& other
     ) : data_block(std::move(other.data_block)),
         fetch_handles_expected(other.fetch_handles_expected.load()),
         fetch_handles_out(other.fetch_handles_out.load()),
         published_version(std::move(other.published_version)) { }
 
-    SerialDataBlock *data_block = nullptr;
+    PackedDataBlock* data_block = nullptr;
     std::atomic<size_t> fetch_handles_expected = {0};
     std::atomic<size_t> fetch_handles_out = {0};
     version_t published_version;
@@ -175,7 +187,7 @@ class SerialRuntime
           auto *serman = dep->get_serialization_manager();
           size_t size = serman->get_metadata_size();
           SerialDataBlock *db = new SerialDataBlock();
-          db->data_ = malloc(size);
+          db->data_ = serman->allocate_data();
           dep->satisfy_with_data_block(db);
         }
       }
@@ -227,18 +239,20 @@ class SerialRuntime
         pdb_ptr = &found_pdb->second;
         ready = true;
         auto &pdb = *pdb_ptr;
-        auto md_size = handle->get_serialization_manager()->get_metadata_size();
-        void* unpack_to = operator new(md_size);
-        handle->get_serialization_manager()->unpack_data(unpack_to, pdb.data_block->data_);
+        //auto md_size = handle->get_serialization_manager()->get_metadata_size();
+        void* unpack_to = handle->get_serialization_manager()->allocate_data();
+        handle->get_serialization_manager()->unpack_data(
+          unpack_to, pdb.data_block->data_
+        );
 
         auto* db = new SerialDataBlock;
         db->data_ = unpack_to;
+        handle->satisfy_with_data_block(db);
+        handle->set_version(pdb.published_version);
 
         assert(pdb.fetch_handles_expected > 0);
-        handle->satisfy_with_data_block(db);
         ++(pdb.fetch_handles_out);
         --(pdb.fetch_handles_expected);
-        handle->set_version(pdb.published_version);
       }
     }
 
@@ -388,12 +402,11 @@ class SerialRuntime
       delete handle->get_data_block();
 
       // If we're the last ones, delete the serialized data too
-      auto &pdb = found_pdb->second;
+      auto& pdb = found_pdb->second;
       --(pdb.fetch_handles_out);
       if (pdb.fetch_handles_expected.load() == 0 and pdb.fetch_handles_out.load() == 0) {
         operator delete(pdb.data_block->data_);
-        delete(pdb.data_block);
-        delete &pdb;
+        delete pdb.data_block;
         published_data_blocks.erase(found_pdb);
       }
       fetch_handles.erase(found_fetcher);
@@ -426,7 +439,7 @@ class SerialRuntime
 
     // Just do a copy for now
     published_data_block pdb;
-    pdb.data_block = new SerialDataBlock();
+    pdb.data_block = new PackedDataBlock();
     size_t data_size = handle->get_serialization_manager()->get_packed_data_size(
       handle->get_data_block()->get_data()
     );

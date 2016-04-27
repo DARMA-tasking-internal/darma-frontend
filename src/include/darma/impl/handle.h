@@ -64,6 +64,7 @@
 #include <darma/impl/serialization/archive.h>
 #include <darma/impl/serialization/nonintrusive.h>
 #include <darma/impl/serialization/traits.h>
+#include <darma/impl/serialization/allocation.h>
 
 
 #include <darma/interface/backend/data_block.h>
@@ -491,6 +492,12 @@ class DependencyHandle
       );
       DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);
       s.unpack(object_dest, ar);
+    }
+
+    void*
+    allocate_data() const override {
+      serialization::SimplePackUnpackArchive ar;
+      return serialization::detail::allocation_traits<T>::allocate(ar, 1);
     }
 
     // end SerializationManager implementation </editor-fold>
