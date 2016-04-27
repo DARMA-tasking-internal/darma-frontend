@@ -47,11 +47,17 @@
 
 
 
+constexpr int nx = 51; 
+constexpr int nInn = nx-2;
+constexpr double xL = 0.0;
+constexpr double xR = 1.0;
+constexpr double dx = 1.0/(double)(nx-1);
+
+
 double rhsEval(double x)
 {
     return 2.0 * exp(x) * cos(x);
 }
-
 
 
 double trueSolution(double x)
@@ -60,6 +66,10 @@ double trueSolution(double x)
 }
 
 
+double BC(double x)
+{
+    return trueSolution(x);
+}
 
 
 void solveThomas(double * a, 
