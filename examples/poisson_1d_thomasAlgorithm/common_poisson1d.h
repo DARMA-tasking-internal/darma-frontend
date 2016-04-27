@@ -53,13 +53,10 @@ double rhsEval(double x)
 }
 
 
-
 double trueSolution(double x)
 {
     return exp(x) * sin(x);
 }
-
-
 
 
 void solveThomas(double * a, 
