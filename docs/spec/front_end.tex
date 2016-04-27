@@ -485,7 +485,8 @@ settled in the backend API)}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-\section{Handles Usage Rules}
+\section{Handle Usage Rules}
+\label{sec:handlerules}
 \todo[inline]{FR: can be moved some other place if more useful}
 
 Handles are assigned states, and these states change 
@@ -1168,7 +1169,7 @@ int darma_main(int argc, char** argv)
 
 
 \clearpage
-\section{Access handles methods}
+\section{AccessHandle methods}
 
 In this section, we describe the methods that can be called 
 on the handles \texttt{initial\_access<T>} and \texttt{read\_access<T>}.
@@ -1238,61 +1239,149 @@ int darma_main(int argc, char** argv)
 \vspace{-1.2cm}
 
 \subsubsection{Summary} 
-Publish the data pointed to by the handle so that is becomes 
-accessible to all other DARMA ranks.
-
+Publish the data pointed to by a given handle so that it can be retrieved on 
+other DARMA ranks.
 
 \subsubsection{Syntax} 
 \begin{CppCode}
 void some_handle.publish(n_readers=..., version=...)
 \end{CppCode}
 
-\subsubsection{Input Parameters} 
-\begin{itemize}
-\item \texttt{n\_readers} (optional): informs the runtime how many times 
-the data associated with this handle will be read. If omitted, 
-it defaults to one.
-\item \texttt{version} (optional): informs the runtime what version 
-to associate with the data being published. Version can be 
-an arbitrary tuple of values. See \S~\ref{ssec:api_fe_version} 
-for a description of the \texttt{version} keyword. 
-If omitted, the version defaults to zero.\todo{right??}
+\subsubsection{Positional Arguments} 
+None
 
-\end{itemize}
-
-\subsubsection{Output Parameters} 
+\subsubsection{Keyword Arguments} 
 \begin{itemize}
-\item the handle.  
+\item \texttt{n\_readers=size\_t} (optional): informs the runtime how many . If
+omitted, it defaults to 1.
+\item \texttt{version=KeyExpression} (or \texttt{version(KeyExpression\ldots)},
+see \S~\ref{sec:keyword} for multiple-right-hand-side keyword argument usage)
+(optional):
+informs the runtime what version to associate with the data being published. 
+The value can be an arbitrary \texttt{KeyExpression}.
+If omitted, the version defaults to an empty key (i.e., a key tuple with zero 
+components).  Omitting this keyword implicitly indicates to the runtime system
+that the handle (or any handle with the same name key) will not be published
+again in the remaining lifetime of the program.
 \end{itemize}
 
 \subsubsection{Description} 
-This method can only be called on handles of type \texttt{initial\_access<T>}.
-This method can be called either inside or just 
-after a \texttt{create\_work}.\todo{any reason which one is better?} 
-In general, it is used to publish data such that it can be accessed by 
-other DARMA ranks.\todo{anything missing? details?}
 
+Publish the data associated with a given handle \texttt{h} such that it can be
+retrieved \texttt{n\_readers} times anywhere via a \texttt{read\_access<T>} invocation
+that gives the same name key as \texttt{h} and the same \texttt{version} key as
+the one given to the keyword argument to \texttt{publish()}.
+A \texttt{publish()} is a {\it read-only capture} operation (see
+\S~\ref{sec:handlerules}).
 
 \subsubsection{Code Snippet} 
 \begin{figure}[!h]
 \begin{CppCodeNumb}
-#include <darma.h>
-int darma_main(int argc, char** argv)
-{
-	//...
-  AccessHandle<double> my_handle1 = initial_access<double>("key_1", myRank);
+auto me = darma_spmd_rank();
+assert(darma_spmd_size() >= 2);
+if(me == 0) {
+  auto my_handle = initial_access<double>("key_1");
   create_work([=]{
-  	my_handle1.emplace_value(5.3);
+    my_handle.emplace_value(5.3);
   });
-	my_handle1.publish(n_readers=1);
-
-  // ... 
-  return 0;
+  my_handle.publish(n_readers=1, version="only");
+}
+else if(me == 1) {
+  auto my_handle = read_access<double>("key_1", version="only");
+  create_work([=]{
+    cout << my_handle.get_value() << endl; // prints "5.3"
+  });
 }
 \end{CppCodeNumb}
 \label{fig:fe_api_initialaccess}
-\caption{Basic usage of \texttt{publish}.}
+\caption{Basic usage of \texttt{publish()}.}
 \end{figure}
+
+\subsubsection{Restrictions and Pitfalls}
+\begin{itemize}
+  \item \texttt{publish()} is one of the ways DARMA lets you ``shoot yourself in
+  the foot.''  While it is very difficult to create dependency loops, race
+  conditions, and deadlock using handles within a given rank and without
+  \texttt{publish()} operations, it is quite easy to do so with
+  \texttt{publish()}/\texttt{read\_access()} pairs (just like, for instance,
+  with blocking sends and receives in MPI).  For instance, the following snippet
+  deadlocks:
+\begin{minipage}[t]{1\linewidth}%
+  \centering
+  \begin{CppCode}
+// This code deadlocks!
+auto me = darma_spmd_rank();
+assert(darma_spmd_size() >= 2);
+if(me == 0) {
+  auto h1 = initial_access<int>("key", 0);
+  auto h2 = read_access<int>("key", 1);
+  create_work([=]{ 
+    h1.set_value(42);
+    h1.publish();
+    cout << h2.get_value() << endl;
+  }); 
+}
+else if (me == 1) {
+  auto h3 = initial_access<int>("key", 1);
+  auto h4 = initial_access<int>("key", 0);
+  create_work([=]{ 
+    h3.set_value(73);
+    h3.publish();
+    cout << h4.get_value() << endl; 
+  }); 
+}
+// Deadlock! (eventually, at the latest when darma_finalize() is
+// called): neither of the above create_work()s can ever run
+  \end{CppCode}
+\end{minipage}
+  This snippet deadlocks because a dependency loop has been created between two
+  \texttt{publish()}/\texttt{read\_access()} pairs. While the deadlock is
+  relatively obvious here, it can be much more difficult to decypher in a more
+  complex code, especially if, for instance, \texttt{h1} and \texttt{h2} are
+  arguments to a function, or if the parts of the keys used to construct the
+  handles are variables with values dependent on some previous computation.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item It is particularly easy to create deadlock scenarios by publishing a
+  handle and fetching it within the same rank.  For this reason, we recommend
+  extreme caution with this scenario could arise, and in general we suggest that
+  the user should avoid doing so if at all possible.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item Since \texttt{publish()} is a {\it read-only capture} operation, it must
+  have scheduling privileges of {\it Read} or {\it Modify}; calling publish on a
+  handle with other scheduling permissions is a runtime error.  Also, as with
+  all {\it read-only capture} operations, calling \texttt{publish()} on a
+  handle with {\it Modify} immediate permissions results in a handle with {\it
+  Read} immediate permissions in the continuing context.  See
+  \S~\ref{sec:handlerules} for more details.  For example, the following code
+  results in a runtime error at the marked line:
+\begin{minipage}[t]{0.95\linewidth}%
+  \centering
+  \begin{CppCode}
+  auto h = initial_access<int>("key");
+  create_work([=]{
+    h.set_value(5);
+    h.publish();
+    h.set_value(10); // $\no$ h has Read immediate permissions
+  });
+  \end{CppCode}
+\end{minipage}
+  \item It is an error to call \texttt{publish()} on a handle with a given
+  name key (or any other handle with that same name key) more than once with
+  a given version key.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item If \texttt{publish()} is called on a given handle without the
+  \texttt{version} keyword argument, it is an error to call \texttt{publish()}
+  again on that handle or any other handle with the same name key for the
+  remaining lifetime of the program.  Note that because of the default behavior
+  of the \texttt{version} keyword argument, giving an explicit version that is
+  the empty key (e.g., \texttt{h.publish(version())} or
+  \texttt{h.publish(version=make\_key())}) will lead to this same behavior.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item {\color{red} [0.2 only]} Because the 0.2 spec does not include a
+  serialization interface, only handles with bitwise-copiable types may be
+  published, though some backends may support more functionality.
+\end{itemize}
+
 
 \end{subs}
 
