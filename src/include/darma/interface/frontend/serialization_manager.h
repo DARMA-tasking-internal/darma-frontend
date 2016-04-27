@@ -69,8 +69,6 @@ class SerializationManager {
 
   public:
 
-    typedef size_t zero_copy_slot_t;
-
     /** @brief returns the size of the data as a contiguous C++ object in memory (i.e., sizeof(T))
      */
     virtual size_t
@@ -130,6 +128,10 @@ class SerializationManager {
       void* const object_dest,
       const void* const serialized_data
     ) const =0;
+
+    /** TODO document this */
+    virtual void*
+    allocate_data() const =0;
 
     //////////////////////////////////////////
 
