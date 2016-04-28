@@ -59,7 +59,7 @@ struct splat_tuple_access {
   template <typename Callable, typename... Args>
   inline constexpr decltype(auto)
   operator()(Callable&& callable, Args&&... args) const {
-    return callable(std::forward<Args>(args)...);
+    return std::forward<Callable>(callable)(std::forward<Args>(args)...);
   }
 };
 

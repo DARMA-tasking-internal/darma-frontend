@@ -73,6 +73,9 @@
 #include "splat_tuple.h"
 #include "tuple_pop_back.h"
 
+
+// TODO clean this code up to use auto return values and correctly use universal references and type deduction
+
 namespace darma_runtime { namespace meta {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -89,7 +92,7 @@ struct invoker {
   template <typename T>
   inline constexpr ReturnType
   operator()(T&& val, GenericLambda&& lambda) const {
-    return lambda(std::forward<T>(val));
+    return std::forward<GenericLambda>(lambda)(std::forward<T>(val));
   }
 };
 
@@ -98,7 +101,7 @@ struct invoker<ReturnType, GenericLambda, true, Index> {
   template <typename T>
   inline constexpr ReturnType
   operator()(T&& val, GenericLambda&& lambda) const {
-    return lambda(std::forward<T>(val), Index);
+    return std::forward<GenericLambda>(lambda)(std::forward<T>(val), Index);
   }
 };
 
