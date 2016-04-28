@@ -7,40 +7,80 @@
 \label{chap:examples}
 
 
-
 \section{Basic functionalities for spec 0.2}
 
+\subsection{Example}
+Example showing initialization and finalize of the DARMA environment.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/initAndFinalize.cc}
 
 \subsection{Example}
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/initAndFinalize.cc}
+Example showing DARMA rank and size.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/rankAndSize.cc}
 
 \subsection{Example}
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/rankAndSize.cc}
+Example showing create work.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/cw1.cc}
 
 \subsection{Example}
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/cw1.cc}
+Example showing the use of initial access.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/initialAccess.cc}
 
 \subsection{Example}
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/initialAccess.cc}
+Another example on initial access handle and its usage.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/accessHandle1.cc}
 
 \subsection{Example}
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/accessHandle1.cc}
+Example showing the arrow operator on an handle.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/accessHandleArrowOperator.cc}
 
 \subsection{Example}
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/accessHandleArrowOperator.cc}
+Example showing create work constraining privileges on a handle to be read-only.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/cwReadsArg.cc}
 
-\subsection{Example}
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/cwReadsArg.cc}
+
+
+
+
+\section{Hello World}
+
+Example for one possible implementation of ``hello world''. 
+There are three main parts involved: 
+\begin{enumerate}
+\item the DARMA environment is initialized. 
+\item each rank creates a task to store a greeting message into a string
+\item each rank then creates a task to printing to standard output the message and its rank.
+\end{enumerate}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/darma_hello/darma_hello.cc}
+
+
+
+
+
+\section{Key-Value Example}
+
+This example is to illustrate simple transactions with the keyvalue store, 
+but in a distributed setting. We will ask each rank to publish a float to be
+read by two readers, a rank on the left and one on the right. Then we will ask
+each rank to get two floats, those published by the left and right neighbors
+and print to screen. Periodic logic for neighbors, and each rank publishes a 
+float that uniquely determines its rank.
+
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/simple_kv/publish_get_parallel.cc}
+
+
+
+
 
 
 
 \subsection{Publishing and read access}
 
-First example is basic and explains in more detail the use of \texttt{publish} 
+This example explains in more detail the use of \texttt{publish} 
 and \texttt{read\_access}. The example involves two DARMA ranks, each creating 
 data, publishing it, and then fetching the other rank's data.
 
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/publishAndReadAccess.cc}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/publishAndReadAccess.cc}
+
 
 
 
@@ -61,7 +101,7 @@ Scoping is in this case necessary, but it is only useful in other cases to impro
 in the scheduling and execution of tasks. Scoping is a good programming practice.
 
 
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/version.cc}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/version.cc}
 
 
 
@@ -135,20 +175,20 @@ involving multiple ranks.
 There are three main steps involved, namely initialization, 
 solution of the linear system, and error check. 
 The DARMA main file is as follows:
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/poisson_1d_thomasAlgorithm/single_rank/single_rank.cc}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/poisson_1d_thomasAlgorithm/single_rank/single_rank.cc}
 
 The header file constants.h contains:
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/poisson_1d_thomasAlgorithm/constants.h}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/poisson_1d_thomasAlgorithm/constants.h}
 
 The initialization function has the form:
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/poisson_1d_thomasAlgorithm/single_rank/initialize.h}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/poisson_1d_thomasAlgorithm/single_rank/initialize.h}
 
 The function to solve the linear system is:
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/poisson_1d_thomasAlgorithm/single_rank/solveTridiag.h}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/poisson_1d_thomasAlgorithm/single_rank/solveTridiag.h}
 
 Finally, we check for convergence by checking the $L1$-norm of the 
 error between the computed and true solution.
-\lstinputlisting[style=CppCodeNumbstyle]{../../examples/poisson_1d_thomasAlgorithm/single_rank/checkError.h}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/poisson_1d_thomasAlgorithm/single_rank/checkError.h}
 
 
 

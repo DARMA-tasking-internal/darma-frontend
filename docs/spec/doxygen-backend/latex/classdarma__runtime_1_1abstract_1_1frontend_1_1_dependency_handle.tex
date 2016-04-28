@@ -1,0 +1,171 @@
+\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{}\subsection{darma\+\_\+runtime\+:\+:abstract\+:\+:frontend\+:\+:Dependency\+Handle$<$ Key, Version $>$ Class Template Reference}
+\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle$<$ Key, Version $>$@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle$<$ Key, Version $>$}}
+
+
+The fundamental abstraction for the frontend to communicate units of data dependence to the backend.  
+
+
+
+
+{\ttfamily \#include $<$dependency\+\_\+handle.\+h$>$}
+
+\subsubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+typedef Key {\bfseries key\+\_\+t}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_abd7fa3e4ff70e7cc555e35fd9a8cfcb4}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_abd7fa3e4ff70e7cc555e35fd9a8cfcb4}
+
+\item 
+typedef Version {\bfseries version\+\_\+t}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a85eec61f65c30c7ab07a2a50a22d2cbc}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a85eec61f65c30c7ab07a2a50a22d2cbc}
+
+\end{DoxyCompactItemize}
+\subsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+virtual const Key \& \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a1691ddba9c8d08dbefe010e6d10b789a}{get\+\_\+key} () const  =0
+\begin{DoxyCompactList}\small\item\em The key associated with the dependency. \end{DoxyCompactList}\item 
+virtual const Version \& \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a2cc4baf6ffc4fcd03f083c5a24a536de}{get\+\_\+version} () const  =0
+\begin{DoxyCompactList}\small\item\em The version associated with the dependency. \end{DoxyCompactList}\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a1e4310f0b8c15aa0d8e25c741605fc7b}{set\+\_\+version} (const Version \&v)=0
+\begin{DoxyCompactList}\small\item\em Set the version associated with the dependency. \end{DoxyCompactList}\item 
+virtual bool \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_af5d0a240952f4564a9458e013f2a1f71}{version\+\_\+is\+\_\+pending} () const  =0
+\begin{DoxyCompactList}\small\item\em returns true if the handle\textquotesingle{}s version is pending \end{DoxyCompactList}\item 
+virtual \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager}{Serialization\+Manager} $\ast$ \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a5f7255811060d60394ada18074a67231}{get\+\_\+serialization\+\_\+manager} ()=0
+\begin{DoxyCompactList}\small\item\em return the serialization manager describing how to allocate, pack, and unpack the data associated with the dependency \end{DoxyCompactList}\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_ae8fd943e2ccf822ebcf1843a1b38db5c}{satisfy\+\_\+with\+\_\+data\+\_\+block} (\hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_data_block}{abstract\+::backend\+::\+Data\+Block} $\ast$const data)=0
+\begin{DoxyCompactList}\small\item\em Satisfy the dependency handle with a Data\+Block containing the requested data or an allocated buffer into which data may be written. \end{DoxyCompactList}\item 
+virtual \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_data_block}{abstract\+::backend\+::\+Data\+Block} $\ast$ \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a9ad7b36f78deeeb2e4dce50da1cece39}{get\+\_\+data\+\_\+block} () const  =0
+\begin{DoxyCompactList}\small\item\em Get the pointer to the data block passed into \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_ae8fd943e2ccf822ebcf1843a1b38db5c}{satisfy\+\_\+with\+\_\+data\+\_\+block()} by the backend. \end{DoxyCompactList}\item 
+virtual bool \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_acd5151a52a934a1a010975d692898c88}{is\+\_\+satisfied} () const  =0\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_acd5151a52a934a1a010975d692898c88}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_acd5151a52a934a1a010975d692898c88}
+
+\begin{DoxyCompactList}\small\item\em returns true iff \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_ae8fd943e2ccf822ebcf1843a1b38db5c}{satisfy\+\_\+with\+\_\+data\+\_\+block()} has been called for this instance \end{DoxyCompactList}\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a390a3d8ef0f1ef7f1603b53f820e197b}{allow\+\_\+writes} ()=0
+\begin{DoxyCompactList}\small\item\em Notify the dependency handle that the last read-\/only usage of the handle has cleared and any additional usage until Runtime\+::release\+\_\+handle() is called may safely modify the data in the associated data block. \end{DoxyCompactList}\item 
+virtual bool \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a5c0e9e43c41a1e8d3cd5104ad9cb5a54}{is\+\_\+writable} () const  =0\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a5c0e9e43c41a1e8d3cd5104ad9cb5a54}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a5c0e9e43c41a1e8d3cd5104ad9cb5a54}
+
+\begin{DoxyCompactList}\small\item\em returns true iff \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a390a3d8ef0f1ef7f1603b53f820e197b}{allow\+\_\+writes()} has been called for this instance \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\subsubsection{Detailed Description}
+\subsubsection*{template$<$typename Key, typename Version$>$\\*
+class darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle$<$ Key, Version $>$}
+
+The fundamental abstraction for the frontend to communicate units of data dependence to the backend. 
+
+
+\begin{DoxyTemplParams}{Template Parameters}
+{\em Key} & must meet the Key concept \\
+\hline
+{\em Version} & must meet the Version concept \\
+\hline
+\end{DoxyTemplParams}
+
+
+\subsubsection{Member Function Documentation}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}!get\+\_\+key@{get\+\_\+key}}
+\index{get\+\_\+key@{get\+\_\+key}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}}
+\paragraph[{\texorpdfstring{get\+\_\+key() const  =0}{get_key() const  =0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version $>$ virtual const Key\& {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}$<$ Key, Version $>$\+::get\+\_\+key (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a1691ddba9c8d08dbefe010e6d10b789a}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a1691ddba9c8d08dbefe010e6d10b789a}
+
+
+The key associated with the dependency. 
+
+Other dependencies that share a key with this dependency denote a requirement of the same data block (though differing versions indicate that the requirement refers to a different snapshot in time of that data block).
+
+\begin{DoxyRemark}{Remarks}
+The frontend must ensure that the return value for \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a1691ddba9c8d08dbefe010e6d10b789a}{get\+\_\+key()} is the same from the time that Runtime\+::register\+\_\+handle() or register\+\_\+fetching\+\_\+handle() is called with a given handle until Runtime\+::release\+\_\+handle() is called with that same handle. 
+\end{DoxyRemark}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}!get\+\_\+version@{get\+\_\+version}}
+\index{get\+\_\+version@{get\+\_\+version}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}}
+\paragraph[{\texorpdfstring{get\+\_\+version() const  =0}{get_version() const  =0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version $>$ virtual const Version\& {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}$<$ Key, Version $>$\+::get\+\_\+version (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a2cc4baf6ffc4fcd03f083c5a24a536de}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a2cc4baf6ffc4fcd03f083c5a24a536de}
+
+
+The version associated with the dependency. 
+
+Versions are hierarchical, strictly ordered, hashable, incrementable objects for which the default constructed value is always less than or equal to all values. See Version concept for more information \index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}!set\+\_\+version@{set\+\_\+version}}
+\index{set\+\_\+version@{set\+\_\+version}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}}
+\paragraph[{\texorpdfstring{set\+\_\+version(const Version \&v)=0}{set_version(const Version &v)=0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version $>$ virtual void {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}$<$ Key, Version $>$\+::set\+\_\+version (
+\begin{DoxyParamCaption}
+\item[{const Version \&}]{v}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a1e4310f0b8c15aa0d8e25c741605fc7b}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a1e4310f0b8c15aa0d8e25c741605fc7b}
+
+
+Set the version associated with the dependency. 
+
+The backend may call \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a1e4310f0b8c15aa0d8e25c741605fc7b}{set\+\_\+version()} on a given \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{Dependency\+Handle} at most one time between the handle\textquotesingle{}s registration and release, and only if \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_af5d0a240952f4564a9458e013f2a1f71}{version\+\_\+is\+\_\+pending()} returns true (which should only be the case if the handle was registered with Runtime\+::register\+\_\+fetching\+\_\+handle() and the handle\textquotesingle{}s actual version is pending the resolution of the user version tag associated with that call).\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}!version\+\_\+is\+\_\+pending@{version\+\_\+is\+\_\+pending}}
+\index{version\+\_\+is\+\_\+pending@{version\+\_\+is\+\_\+pending}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}}
+\paragraph[{\texorpdfstring{version\+\_\+is\+\_\+pending() const  =0}{version_is_pending() const  =0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version $>$ virtual bool {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}$<$ Key, Version $>$\+::version\+\_\+is\+\_\+pending (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_af5d0a240952f4564a9458e013f2a1f71}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_af5d0a240952f4564a9458e013f2a1f71}
+
+
+returns true if the handle\textquotesingle{}s version is pending 
+
+That is, if the handle was registered with Runtime\+::register\+\_\+fetching\+\_\+handle() and the handle\textquotesingle{}s actual version is pending the resolution of the user version tag associated with that call, so \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a1e4310f0b8c15aa0d8e25c741605fc7b}{set\+\_\+version()} hasn\textquotesingle{}t been called yet. \index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}!get\+\_\+serialization\+\_\+manager@{get\+\_\+serialization\+\_\+manager}}
+\index{get\+\_\+serialization\+\_\+manager@{get\+\_\+serialization\+\_\+manager}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}}
+\paragraph[{\texorpdfstring{get\+\_\+serialization\+\_\+manager()=0}{get_serialization_manager()=0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version $>$ virtual {\bf Serialization\+Manager}$\ast$ {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}$<$ Key, Version $>$\+::get\+\_\+serialization\+\_\+manager (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a5f7255811060d60394ada18074a67231}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a5f7255811060d60394ada18074a67231}
+
+
+return the serialization manager describing how to allocate, pack, and unpack the data associated with the dependency 
+
+\begin{DoxyRemark}{Remarks}
+In the 0.\+2.\+0 spec implementation, the only relevant piece of information the \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager}{Serialization\+Manager} returns is the size of the metadata (i.\+e., the stack size; literally sizeof(\+T) for some type T) so that the backend can allocate data for data blocks.
+\end{DoxyRemark}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}!satisfy\+\_\+with\+\_\+data\+\_\+block@{satisfy\+\_\+with\+\_\+data\+\_\+block}}
+\index{satisfy\+\_\+with\+\_\+data\+\_\+block@{satisfy\+\_\+with\+\_\+data\+\_\+block}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}}
+\paragraph[{\texorpdfstring{satisfy\+\_\+with\+\_\+data\+\_\+block(abstract\+::backend\+::\+Data\+Block $\ast$const data)=0}{satisfy_with_data_block(abstract::backend::DataBlock *const data)=0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version $>$ virtual void {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}$<$ Key, Version $>$\+::satisfy\+\_\+with\+\_\+data\+\_\+block (
+\begin{DoxyParamCaption}
+\item[{{\bf abstract\+::backend\+::\+Data\+Block} $\ast$const}]{data}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_ae8fd943e2ccf822ebcf1843a1b38db5c}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_ae8fd943e2ccf822ebcf1843a1b38db5c}
+
+
+Satisfy the dependency handle with a Data\+Block containing the requested data or an allocated buffer into which data may be written. 
+
+The underlying data in the data block may not be written to until the backend calls \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a390a3d8ef0f1ef7f1603b53f820e197b}{Dependency\+Handle\+::allow\+\_\+writes()} on this handle. This method should be called at most once in the lifetime of a \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{Dependency\+Handle}, and it should only be called zero times if no tasks were registered during its lifetime that reported a dependence on the handle.
+
+
+\begin{DoxyParams}{Parameters}
+{\em data} & A (non-\/owning) pointer to the Data\+Block for the \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{Dependency\+Handle} to use for all data operations. If any tasks have been registered that make read only usage of the handle, or if the up to one modify usage (see Runtime\+::release\+\_\+read\+\_\+only\+\_\+usage() for details) of the handle is a task that returns true for Task\+::needs\+\_\+read\+\_\+data(handle), the readable data must be available at the time of this invocation. Otherwise, a buffer of the correct size to contain the metadata as described by the serialization manager should be allocated. As of the 0.\+2 spec, the handle and data block should not be moved from the time \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_ae8fd943e2ccf822ebcf1843a1b38db5c}{satisfy\+\_\+with\+\_\+data\+\_\+block()} is called until the time Runtime\+::release\+\_\+handle() is called (i.\+e., the pointer passed in here should be valid at least until Runtime\+::release\+\_\+handle() is called).\\
+\hline
+\end{DoxyParams}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}!get\+\_\+data\+\_\+block@{get\+\_\+data\+\_\+block}}
+\index{get\+\_\+data\+\_\+block@{get\+\_\+data\+\_\+block}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}}
+\paragraph[{\texorpdfstring{get\+\_\+data\+\_\+block() const  =0}{get_data_block() const  =0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version $>$ virtual {\bf abstract\+::backend\+::\+Data\+Block}$\ast$ {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}$<$ Key, Version $>$\+::get\+\_\+data\+\_\+block (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a9ad7b36f78deeeb2e4dce50da1cece39}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a9ad7b36f78deeeb2e4dce50da1cece39}
+
+
+Get the pointer to the data block passed into \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_ae8fd943e2ccf822ebcf1843a1b38db5c}{satisfy\+\_\+with\+\_\+data\+\_\+block()} by the backend. 
+
+It is an (debug-\/mode) error to call this method before calling \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_ae8fd943e2ccf822ebcf1843a1b38db5c}{satisfy\+\_\+with\+\_\+data\+\_\+block()}\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}!allow\+\_\+writes@{allow\+\_\+writes}}
+\index{allow\+\_\+writes@{allow\+\_\+writes}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}}
+\paragraph[{\texorpdfstring{allow\+\_\+writes()=0}{allow_writes()=0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version $>$ virtual void {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Dependency\+Handle}$<$ Key, Version $>$\+::allow\+\_\+writes (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a390a3d8ef0f1ef7f1603b53f820e197b}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a390a3d8ef0f1ef7f1603b53f820e197b}
+
+
+Notify the dependency handle that the last read-\/only usage of the handle has cleared and any additional usage until Runtime\+::release\+\_\+handle() is called may safely modify the data in the associated data block. 
+
+It is a (debug-\/mode) error to call \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a390a3d8ef0f1ef7f1603b53f820e197b}{allow\+\_\+writes()} before calling \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_ae8fd943e2ccf822ebcf1843a1b38db5c}{satisfy\+\_\+with\+\_\+data\+\_\+block()}. \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_a390a3d8ef0f1ef7f1603b53f820e197b}{allow\+\_\+writes()} should be called at most once in the lifetime of a dependency handle, and it should only be called zero times for handles registered with register\+\_\+fetching\+\_\+handle(). 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+dependency\+\_\+handle.\+h\end{DoxyCompactItemize}
