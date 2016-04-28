@@ -66,7 +66,6 @@
 #include <darma/impl/serialization/traits.h>
 #include <darma/impl/serialization/allocation.h>
 
-
 #include <darma/interface/backend/data_block.h>
 #include <darma/impl/keyword_arguments/keyword_arguments.h>
 
