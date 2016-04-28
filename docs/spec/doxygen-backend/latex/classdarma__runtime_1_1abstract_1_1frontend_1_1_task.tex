@@ -1,0 +1,181 @@
+\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_task}{}\subsection{darma\+\_\+runtime\+:\+:abstract\+:\+:frontend\+:\+:Task$<$ Key, Version, Container $>$ Class Template Reference}
+\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_task}\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task$<$ Key, Version, Container $>$@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task$<$ Key, Version, Container $>$}}
+
+
+The fundamental abstraction for the frontend to communicate units of dependency-\/driven work to the backend.  
+
+
+
+
+{\ttfamily \#include $<$task.\+h$>$}
+
+\subsubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+typedef \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{abstract\+::frontend\+::\+Dependency\+Handle}$<$ Key, Version $>$ {\bfseries handle\+\_\+t}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_af6a67173383df0843204f1200f86b945}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_af6a67173383df0843204f1200f86b945}
+
+\end{DoxyCompactItemize}
+\subsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+virtual const Container$<$ \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{handle\+\_\+t} $\ast$ $>$ \& \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_adbe380f89b64b6a60278ab5a62f96c06}{get\+\_\+dependencies} () const  =0
+\begin{DoxyCompactList}\small\item\em returns the dependencies and antidependencies of the task \end{DoxyCompactList}\item 
+virtual bool \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a1cf2e35fe4770026d6039a06ca95c587}{needs\+\_\+read\+\_\+data} (const \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{handle\+\_\+t} $\ast$handle) const  =0
+\begin{DoxyCompactList}\small\item\em returns true iff the task needs to read data from handle \end{DoxyCompactList}\item 
+virtual bool \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a17a3f093c6cf7d8f591a83a044de7e41}{needs\+\_\+write\+\_\+data} (const \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{handle\+\_\+t} $\ast$handle) const  =0
+\begin{DoxyCompactList}\small\item\em returns true iff the task needs to write data to handle \end{DoxyCompactList}\item 
+virtual const Key \& \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_aab93fdc54c8b6b1ba7214dc849633201}{get\+\_\+name} () const  =0
+\begin{DoxyCompactList}\small\item\em returns the name of the task if one has been assigned with \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a57f64c02eb91a69fa4167a420392ce3b}{set\+\_\+name()}, or a reference to a default-\/constructed Key if not. \end{DoxyCompactList}\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a57f64c02eb91a69fa4167a420392ce3b}{set\+\_\+name} (const Key \&name\+\_\+key)=0
+\begin{DoxyCompactList}\small\item\em returns the name of the task if one has been assigned with \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a57f64c02eb91a69fa4167a420392ce3b}{set\+\_\+name()}, or a reference to a default-\/constructed Key if not \end{DoxyCompactList}\item 
+virtual bool \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a219f6b388190a1a4673f6144877b51b8}{is\+\_\+migratable} () const  =0
+\begin{DoxyCompactList}\small\item\em returns true iff the task can be migrated \end{DoxyCompactList}\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a0b17be7ac7b74aa1e1c54ce3f527cd14}{run} ()=0
+\begin{DoxyCompactList}\small\item\em Run the task. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\subsubsection{Detailed Description}
+\subsubsection*{template$<$typename Key, typename Version, template$<$ typename... $>$ class Container$>$\\*
+class darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task$<$ Key, Version, Container $>$}
+
+The fundamental abstraction for the frontend to communicate units of dependency-\/driven work to the backend. 
+
+
+\begin{DoxyTemplParams}{Template Parameters}
+{\em Key} & must meet the Key concept \\
+\hline
+{\em Version} & must meet the Version concept \\
+\hline
+{\em Container} & must meet the standard library Container concept \\
+\hline
+{\em smart\+\_\+ptr\+\_\+template} & A template for a shared pointer to a type and for which darma\+\_\+runtime\+::detail\+::smart\+\_\+ptr\+\_\+traits is specialized\\
+\hline
+\end{DoxyTemplParams}
+
+
+\subsubsection{Member Function Documentation}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}!get\+\_\+dependencies@{get\+\_\+dependencies}}
+\index{get\+\_\+dependencies@{get\+\_\+dependencies}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}}
+\paragraph[{\texorpdfstring{get\+\_\+dependencies() const  =0}{get_dependencies() const  =0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class Container$>$ virtual const Container$<${\bf handle\+\_\+t}$\ast$$>$\& {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}$<$ Key, Version, Container $>$\+::get\+\_\+dependencies (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_adbe380f89b64b6a60278ab5a62f96c06}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_adbe380f89b64b6a60278ab5a62f96c06}
+
+
+returns the dependencies and antidependencies of the task 
+
+All dependencies will return true when given as the argument of \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a1cf2e35fe4770026d6039a06ca95c587}{Task\+::needs\+\_\+read\+\_\+data()} on this instance and all antidependencies will return true when given as the argument of \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a17a3f093c6cf7d8f591a83a044de7e41}{Task\+::needs\+\_\+write\+\_\+data()} (though write dependencies that do not overwrite data --- that is, initial versions --- will have version equal to 0 and will not be true antidependencies).
+
+\begin{DoxyReturn}{Returns}
+An iterable container of (non-\/owning) pointers to \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{Dependency\+Handle} objects. The frontend must ensure that only pointers to handles registered with Runtime\+::register\+\_\+hanlde() but not yet released with Runtime\+::release\+\_\+handle() are returned by this method, and the pointers in the returned container must be remain valid until Runtime\+::release\+\_\+handle() is called. Furthermore, it is a debug-\/mode error for the frontend to return a handle that returns the same values for get\+\_\+key() and get\+\_\+version() but points to a different location in memory than the corresponding pointer registered with Runtime\+::register\+\_\+handle().
+\end{DoxyReturn}
+\begin{DoxyRemark}{Remarks}
+The frontend must also guarantee that Runtime\+::release\+\_\+handle() is not invoked with any of the handles returned here between the return of this method and the invocation (by the backend) of \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a0b17be7ac7b74aa1e1c54ce3f527cd14}{Task\+::run()} on this object. However, the frontend may call release\+\_\+handle() with some or all of the handles returned here between the time \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a0b17be7ac7b74aa1e1c54ce3f527cd14}{Task\+::run()} is invoked and the time it returns.
+
+All calls to \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_adbe380f89b64b6a60278ab5a62f96c06}{get\+\_\+dependencies()} should return the same value from the time the task is registered until the \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a0b17be7ac7b74aa1e1c54ce3f527cd14}{run()} method is invoked. It is invalid for the backend to call \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_adbe380f89b64b6a60278ab5a62f96c06}{get\+\_\+dependencies()} after the \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a0b17be7ac7b74aa1e1c54ce3f527cd14}{run()} method has been invoked, and doing so is a (debug-\/mode) error 
+\end{DoxyRemark}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}!needs\+\_\+read\+\_\+data@{needs\+\_\+read\+\_\+data}}
+\index{needs\+\_\+read\+\_\+data@{needs\+\_\+read\+\_\+data}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}}
+\paragraph[{\texorpdfstring{needs\+\_\+read\+\_\+data(const handle\+\_\+t $\ast$handle) const  =0}{needs_read_data(const handle_t *handle) const  =0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class Container$>$ virtual bool {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}$<$ Key, Version, Container $>$\+::needs\+\_\+read\+\_\+data (
+\begin{DoxyParamCaption}
+\item[{const {\bf handle\+\_\+t} $\ast$}]{handle}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a1cf2e35fe4770026d6039a06ca95c587}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a1cf2e35fe4770026d6039a06ca95c587}
+
+
+returns true iff the task needs to read data from handle 
+
+
+\begin{DoxyParams}{Parameters}
+{\em handle} & A (non-\/owning) pointer to the handle to be queried\\
+\hline
+\end{DoxyParams}
+\begin{DoxyRemark}{Remarks}
+The frontend must ensure that a \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task}{Task} {\bfseries must} return true for at least one of \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a1cf2e35fe4770026d6039a06ca95c587}{needs\+\_\+read\+\_\+data()} or \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a17a3f093c6cf7d8f591a83a044de7e41}{needs\+\_\+write\+\_\+data()} for each handle in the container returned by \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_adbe380f89b64b6a60278ab5a62f96c06}{get\+\_\+dependencies()}. Failure to do so is a debug-\/mode error.
+
+The return value of this method is unrelated to whether a dependency is satisfied or not. Even for a handle that returns true for handle-\/$>$is\+\_\+satisfied(), this method should return true iff the task needs to read the data from the handle. 
+\end{DoxyRemark}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}!needs\+\_\+write\+\_\+data@{needs\+\_\+write\+\_\+data}}
+\index{needs\+\_\+write\+\_\+data@{needs\+\_\+write\+\_\+data}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}}
+\paragraph[{\texorpdfstring{needs\+\_\+write\+\_\+data(const handle\+\_\+t $\ast$handle) const  =0}{needs_write_data(const handle_t *handle) const  =0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class Container$>$ virtual bool {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}$<$ Key, Version, Container $>$\+::needs\+\_\+write\+\_\+data (
+\begin{DoxyParamCaption}
+\item[{const {\bf handle\+\_\+t} $\ast$}]{handle}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a17a3f093c6cf7d8f591a83a044de7e41}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a17a3f093c6cf7d8f591a83a044de7e41}
+
+
+returns true iff the task needs to write data to handle 
+
+
+\begin{DoxyParams}{Parameters}
+{\em handle} & A (non-\/owning) pointer to the handle to be queried\\
+\hline
+\end{DoxyParams}
+\begin{DoxyRemark}{Remarks}
+The frontend must ensure that a \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task}{Task} {\bfseries must} return true for at least one of \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a1cf2e35fe4770026d6039a06ca95c587}{needs\+\_\+read\+\_\+data()} or \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a17a3f093c6cf7d8f591a83a044de7e41}{needs\+\_\+write\+\_\+data()} (and possibly both) for each handle in the container returned by \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_adbe380f89b64b6a60278ab5a62f96c06}{get\+\_\+dependencies()}. Failure to do so is a debug-\/mode error.
+
+The return value of this method is unrelated to whether a dependency is satisfied or not. Even for a handle that returns true for handle-\/$>$is\+\_\+satisfied(), this method should return true iff the task needs to write data to the handle.
+
+Not all handles for which this method returns true will be real antidependencies. If a handle reports a non-\/pending version equal to 0 (i.\+e., equal to the value given by the default constructor of Version), there is no previous version to overwrite, and thus no antidependency is created. However, the runtime should still allocate the data for the object in this case.
+\end{DoxyRemark}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}!get\+\_\+name@{get\+\_\+name}}
+\index{get\+\_\+name@{get\+\_\+name}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}}
+\paragraph[{\texorpdfstring{get\+\_\+name() const  =0}{get_name() const  =0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class Container$>$ virtual const Key\& {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}$<$ Key, Version, Container $>$\+::get\+\_\+name (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_aab93fdc54c8b6b1ba7214dc849633201}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_aab93fdc54c8b6b1ba7214dc849633201}
+
+
+returns the name of the task if one has been assigned with \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a57f64c02eb91a69fa4167a420392ce3b}{set\+\_\+name()}, or a reference to a default-\/constructed Key if not. 
+
+In the 0.\+2 spec this is only used with the outermost task, which is named with a key of two size\+\_\+t values\+: the S\+P\+MD rank and the S\+P\+MD size. See darma\+\_\+backend\+\_\+initialize() for more information\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}!set\+\_\+name@{set\+\_\+name}}
+\index{set\+\_\+name@{set\+\_\+name}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}}
+\paragraph[{\texorpdfstring{set\+\_\+name(const Key \&name\+\_\+key)=0}{set_name(const Key &name_key)=0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class Container$>$ virtual void {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}$<$ Key, Version, Container $>$\+::set\+\_\+name (
+\begin{DoxyParamCaption}
+\item[{const Key \&}]{name\+\_\+key}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a57f64c02eb91a69fa4167a420392ce3b}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a57f64c02eb91a69fa4167a420392ce3b}
+
+
+returns the name of the task if one has been assigned with \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a57f64c02eb91a69fa4167a420392ce3b}{set\+\_\+name()}, or a reference to a default-\/constructed Key if not 
+
+In the 0.\+2 spec this is only used with the outermost task, which is named with a key of two size\+\_\+t values\+: the S\+P\+MD rank and the S\+P\+MD size. See darma\+\_\+backend\+\_\+initialize() for more information\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}!is\+\_\+migratable@{is\+\_\+migratable}}
+\index{is\+\_\+migratable@{is\+\_\+migratable}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}}
+\paragraph[{\texorpdfstring{is\+\_\+migratable() const  =0}{is_migratable() const  =0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class Container$>$ virtual bool {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}$<$ Key, Version, Container $>$\+::is\+\_\+migratable (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a219f6b388190a1a4673f6144877b51b8}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a219f6b388190a1a4673f6144877b51b8}
+
+
+returns true iff the task can be migrated 
+
+\begin{DoxyRemark}{Remarks}
+always return false in the 0.\+2 spec implementation. Later specs will need additional hooks for migration 
+\end{DoxyRemark}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}!run@{run}}
+\index{run@{run}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}}
+\paragraph[{\texorpdfstring{run()=0}{run()=0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class Container$>$ virtual void {\bf darma\+\_\+runtime\+::abstract\+::frontend\+::\+Task}$<$ Key, Version, Container $>$\+::run (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a0b17be7ac7b74aa1e1c54ce3f527cd14}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a0b17be7ac7b74aa1e1c54ce3f527cd14}
+
+
+Run the task. 
+
+This should be invoked exactly once for each task object, and only all all dependencies returned by \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_adbe380f89b64b6a60278ab5a62f96c06}{get\+\_\+dependencies()} are in a satisfied state (i.\+e., they return true for \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle_acd5151a52a934a1a010975d692898c88}{Dependency\+Handle\+::is\+\_\+satisfied()}).
+
+\begin{DoxyPostcond}{Postcondition}
+Upon return, it is no longer valid to call \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_adbe380f89b64b6a60278ab5a62f96c06}{get\+\_\+dependencies()}, \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a1cf2e35fe4770026d6039a06ca95c587}{needs\+\_\+read\+\_\+data()}, or \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a17a3f093c6cf7d8f591a83a044de7e41}{needs\+\_\+write\+\_\+data()}. In fact, the task is free to release these pointers (using Runtime\+::release\+\_\+handle()) before \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a0b17be7ac7b74aa1e1c54ce3f527cd14}{Task\+::run()} returns.
+\end{DoxyPostcond}
+\begin{DoxyRemark}{Remarks}
+\hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a0b17be7ac7b74aa1e1c54ce3f527cd14}{Task\+::run()} need not be invoked on the same thread as it was created, nor on the same thread as the runtime querying its above methods. However, while \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task_a0b17be7ac7b74aa1e1c54ce3f527cd14}{run()} is executing on a given thread, any calls to Runtime\+::get\+\_\+running\+\_\+task() must return a pointer to this task object. (If the runtime implements context switching, it must ensure that the behavior of Runtime\+::get\+\_\+running\+\_\+task() is consistent and correct for a given running thread as though the switching never occurred) 
+\end{DoxyRemark}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+task.\+h\end{DoxyCompactItemize}

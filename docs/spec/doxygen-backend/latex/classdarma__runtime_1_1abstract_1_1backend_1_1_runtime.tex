@@ -1,0 +1,273 @@
+\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime}{}\subsection{darma\+\_\+runtime\+:\+:abstract\+:\+:backend\+:\+:Runtime$<$ Key, Version, shared\+\_\+ptr\+\_\+template, unique\+\_\+ptr\+\_\+template $>$ Class Template Reference}
+\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime}\index{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime$<$ Key, Version, shared\+\_\+ptr\+\_\+template, unique\+\_\+ptr\+\_\+template $>$@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime$<$ Key, Version, shared\+\_\+ptr\+\_\+template, unique\+\_\+ptr\+\_\+template $>$}}
+
+
+Abstract class implemented by the backend containing much of the runtime.  
+
+
+
+
+{\ttfamily \#include $<$runtime.\+h$>$}
+
+\subsubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+typedef Key {\bfseries key\+\_\+t}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a68a07863baaa1231459b18e89d03591d}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a68a07863baaa1231459b18e89d03591d}
+
+\item 
+typedef Version {\bfseries version\+\_\+t}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_ab2b7bd7e3f4558439e6d7990f3bca5a9}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_ab2b7bd7e3f4558439e6d7990f3bca5a9}
+
+\item 
+typedef \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{abstract\+::frontend\+::\+Dependency\+Handle}$<$ Key, Version $>$ {\bfseries handle\+\_\+t}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a4b8adeddf52a86f7bb088121f7fa844c}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a4b8adeddf52a86f7bb088121f7fa844c}
+
+\item 
+typedef \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task}{abstract\+::frontend\+::\+Task}$<$ Key, Version, types\+::handle\+\_\+container\+\_\+template $>$ {\bfseries task\+\_\+t}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a921338d08fd71b75bdba39853bdafbe3}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a921338d08fd71b75bdba39853bdafbe3}
+
+\item 
+typedef unique\+\_\+ptr\+\_\+template$<$ \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task}{task\+\_\+t} $>$ {\bfseries task\+\_\+unique\+\_\+ptr}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_ab566617d2c90c79dae40da7e17add6b5}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_ab566617d2c90c79dae40da7e17add6b5}
+
+\item 
+typedef unique\+\_\+ptr\+\_\+template$<$ const \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task}{task\+\_\+t} $>$ {\bfseries task\+\_\+const\+\_\+unique\+\_\+ptr}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_ac4caeb318d06ed0d40e1e7624875b376}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_ac4caeb318d06ed0d40e1e7624875b376}
+
+\end{DoxyCompactItemize}
+\subsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_aec2382c6822c63ed76f69af1e1f8470b}{register\+\_\+task} (task\+\_\+unique\+\_\+ptr \&\&task)=0
+\begin{DoxyCompactList}\small\item\em Enqueue a task that should run when its dependencies are satisfied. \end{DoxyCompactList}\item 
+virtual \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task}{task\+\_\+t} $\ast$const \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a7081e6e5cd86df28496d5f06f55b2001}{get\+\_\+running\+\_\+task} () const  =0
+\begin{DoxyCompactList}\small\item\em Get a pointer to the \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task}{abstract\+::frontend\+::\+Task} object currently running on the thread from which \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a7081e6e5cd86df28496d5f06f55b2001}{get\+\_\+running\+\_\+task()} was invoked. \end{DoxyCompactList}\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a8c70dc2b90fedd7ae6f090a19b3f694f}{register\+\_\+handle} (\hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{handle\+\_\+t} $\ast$const handle)=0
+\begin{DoxyCompactList}\small\item\em Register a local handle to a data block. \end{DoxyCompactList}\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_acdb81206fe8a663754cf68f44731b35e}{register\+\_\+fetching\+\_\+handle} (\hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{handle\+\_\+t} $\ast$const handle, const Key \&user\+\_\+version\+\_\+tag)=0
+\begin{DoxyCompactList}\small\item\em Register a dependency handle that is satisfied by retrieving data from the data store. \end{DoxyCompactList}\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a737e5704115b99df2ce2806b42ac76b1}{release\+\_\+read\+\_\+only\+\_\+usage} (\hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{handle\+\_\+t} $\ast$const handle)=0
+\begin{DoxyCompactList}\small\item\em Indicate that the last task holding read-\/only usage or the ability to schedule other tasks with read-\/only priviledges has completed or explicitly released the handle. \end{DoxyCompactList}\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle} (const \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{handle\+\_\+t} $\ast$const handle)=0
+\begin{DoxyCompactList}\small\item\em Release a previously registered handle, indicating that the handle will no longer be used for any method calls on this instance. \end{DoxyCompactList}\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a99e798d2c6d6ed6e49e68d3136764cde}{publish\+\_\+handle} (\hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{handle\+\_\+t} $\ast$const handle, const Key \&version\+\_\+tag, const size\+\_\+t n\+\_\+fetchers=1, bool is\+\_\+final=false)=0
+\begin{DoxyCompactList}\small\item\em Indicate to the backend that the key and version reported by {\ttfamily handle} should be fetchable with the user version tag {\ttfamily version\+\_\+tag} exactly {\ttfamily n\+\_\+fetchers} times. \end{DoxyCompactList}\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_af889e310f4ec8b0300d42fe934fad8a3}{finalize} ()=0
+\begin{DoxyCompactList}\small\item\em signifies the end of the outer S\+P\+MD task from which darma\+\_\+backend\+\_\+initialize() was called. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\subsubsection{Detailed Description}
+\subsubsection*{template$<$typename Key, typename Version, template$<$ typename... $>$ class shared\+\_\+ptr\+\_\+template, template$<$ typename... $>$ class unique\+\_\+ptr\+\_\+template$>$\\*
+class darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime$<$ Key, Version, shared\+\_\+ptr\+\_\+template, unique\+\_\+ptr\+\_\+template $>$}
+
+Abstract class implemented by the backend containing much of the runtime. 
+
+\begin{DoxyNote}{Note}
+Thread safety of all methods in this class should be handled by the backend implementaton; two threads must be allowed to call any method in this class simultaneously. 
+\end{DoxyNote}
+
+
+\subsubsection{Member Function Documentation}
+\index{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}!register\+\_\+task@{register\+\_\+task}}
+\index{register\+\_\+task@{register\+\_\+task}!darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}}
+\paragraph[{\texorpdfstring{register\+\_\+task(task\+\_\+unique\+\_\+ptr \&\&task)=0}{register_task(task_unique_ptr &&task)=0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class shared\+\_\+ptr\+\_\+template, template$<$ typename... $>$ class unique\+\_\+ptr\+\_\+template$>$ virtual void {\bf darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}$<$ Key, Version, shared\+\_\+ptr\+\_\+template, unique\+\_\+ptr\+\_\+template $>$\+::register\+\_\+task (
+\begin{DoxyParamCaption}
+\item[{task\+\_\+unique\+\_\+ptr \&\&}]{task}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_aec2382c6822c63ed76f69af1e1f8470b}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_aec2382c6822c63ed76f69af1e1f8470b}
+
+
+Enqueue a task that should run when its dependencies are satisfied. 
+
+\begin{DoxyPrecond}{Precondition}
+At the time of this call, it must be valid to call task-\/$>$get\+\_\+dependencies(). All Dependency\+Handles returned by task-\/$>$get\+\_\+dependencies() must be registered with this instance of \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime}{Runtime} using either \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a8c70dc2b90fedd7ae6f090a19b3f694f}{register\+\_\+handle()} or \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_acdb81206fe8a663754cf68f44731b35e}{register\+\_\+fetching\+\_\+handle()} and must not have been released yet using \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()}. It must be valid to call needs\+\_\+read\+\_\+data() and needs\+\_\+write\+\_\+data() on {\ttfamily task} with any of the handles returned by get\+\_\+dependencies(). At least by the time that Dependency\+Handle\+::is\+\_\+satisfied() returns true (and h-\/$>$is\+\_\+writable() returns true for Dependency\+Handle objects h for which task-\/$>$needs\+\_\+write\+\_\+data(h) returns true) for all Dependency\+Handle objects returned by task-\/$>$get\+\_\+dependencies(), it must be valid to call task-\/$>$run().
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+{\itshape task} may be invoked at any subsequent time pending the satisfaction of the handles returned by Task\+::get\+\_\+dependencies(). If the frontend holds a pointer or reference to the task after this method is invoked, use of that object will result in undefined behavior.
+\end{DoxyPostcond}
+\begin{DoxyRemark}{Remarks}
+The handles returned by task-\/$>$get\+\_\+dependencies() {\bfseries may} be released before task-\/$>$run() returns. The registration restriction applies to the invocation of \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_aec2382c6822c63ed76f69af1e1f8470b}{register\+\_\+task()}. However, as of the 0.\+2 spec, the frontend may not release any of the handles returned by task-\/$>$get\+\_\+dependencies() at least until the backend calls task-\/$>$run(). \mbox{[}The previous sentence will likely be changed in a later version of the spec.\mbox{]}
+\end{DoxyRemark}
+
+\begin{DoxyParams}{Parameters}
+{\em task} & A unique pointer to the task to register and enqueue, meeting the preconditions described above. The runtime backend now owns the task object and is responsible for deleting it after the task has finished running. Any other references or pointers to task are considered invalid after this method is invoked. \\
+\hline
+\end{DoxyParams}
+\index{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}!get\+\_\+running\+\_\+task@{get\+\_\+running\+\_\+task}}
+\index{get\+\_\+running\+\_\+task@{get\+\_\+running\+\_\+task}!darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}}
+\paragraph[{\texorpdfstring{get\+\_\+running\+\_\+task() const  =0}{get_running_task() const  =0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class shared\+\_\+ptr\+\_\+template, template$<$ typename... $>$ class unique\+\_\+ptr\+\_\+template$>$ virtual {\bf task\+\_\+t}$\ast$ const {\bf darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}$<$ Key, Version, shared\+\_\+ptr\+\_\+template, unique\+\_\+ptr\+\_\+template $>$\+::get\+\_\+running\+\_\+task (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a7081e6e5cd86df28496d5f06f55b2001}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a7081e6e5cd86df28496d5f06f55b2001}
+
+
+Get a pointer to the \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task}{abstract\+::frontend\+::\+Task} object currently running on the thread from which \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a7081e6e5cd86df28496d5f06f55b2001}{get\+\_\+running\+\_\+task()} was invoked. 
+
+\begin{DoxyReturn}{Returns}
+A non-\/owning pointer to the \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_task}{abstract\+::frontend\+::\+Task} object running on the invoking thread. The returned pointer must be castable to the same concrete type as was passed to \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_aec2382c6822c63ed76f69af1e1f8470b}{Runtime\+::register\+\_\+task()} when the task was registered.
+\end{DoxyReturn}
+\begin{DoxyRemark}{Remarks}
+If the runtime implements context switching, it must ensure that the behavior of \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a7081e6e5cd86df28496d5f06f55b2001}{Runtime\+::get\+\_\+running\+\_\+task()} is consistent and correct for a given running thread as though the switching never occurred.
+
+The pointer returned here is guaranteed to be valid until Task\+::run() returns for the returned task. However, to allow context switching, it is not guaranteed to be valid in the context of any other task\textquotesingle{}s run() invocation, including child tasks, and thus it should not be dereferenced in any other context. 
+\end{DoxyRemark}
+\index{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}!register\+\_\+handle@{register\+\_\+handle}}
+\index{register\+\_\+handle@{register\+\_\+handle}!darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}}
+\paragraph[{\texorpdfstring{register\+\_\+handle(handle\+\_\+t $\ast$const handle)=0}{register_handle(handle_t *const handle)=0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class shared\+\_\+ptr\+\_\+template, template$<$ typename... $>$ class unique\+\_\+ptr\+\_\+template$>$ virtual void {\bf darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}$<$ Key, Version, shared\+\_\+ptr\+\_\+template, unique\+\_\+ptr\+\_\+template $>$\+::register\+\_\+handle (
+\begin{DoxyParamCaption}
+\item[{{\bf handle\+\_\+t} $\ast$const}]{handle}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a8c70dc2b90fedd7ae6f090a19b3f694f}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a8c70dc2b90fedd7ae6f090a19b3f694f}
+
+
+Register a local handle to a data block. 
+
+Register a handle that can be used as a part of the return value of Task\+::get\+\_\+dependencies() for tasks registered on this runtime instance. Note that the {\itshape only} allowed return values of get\+\_\+dependencies() for a task passed to \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_aec2382c6822c63ed76f69af1e1f8470b}{register\+\_\+task()} on this instance are values for which \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a8c70dc2b90fedd7ae6f090a19b3f694f}{register\+\_\+handle()} (or \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_acdb81206fe8a663754cf68f44731b35e}{register\+\_\+fetching\+\_\+handle()}) has been called and \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()} has not yet been called.
+
+
+\begin{DoxyParams}{Parameters}
+{\em handle} & A (non-\/owning) pointer to a \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{abstract\+::frontend\+::\+Dependency\+Handle} for which it is valid to call handle-\/$>$get\+\_\+key() and handle-\/$>$get\+\_\+version(). \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a8c70dc2b90fedd7ae6f090a19b3f694f}{register\+\_\+handle()} must not be called more than once for a given key and version. The pointer passed as this parameter must be valid from the time \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a8c70dc2b90fedd7ae6f090a19b3f694f}{register\+\_\+handle()} is called until the time \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()} is called (on this instance!) with a handle to the same key and version.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyRemark}{Remarks}
+In terms of handle life cycle, the handle passed method is always in a versioned state by the time \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a8c70dc2b90fedd7ae6f090a19b3f694f}{register\+\_\+handle()} returns (unlike \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_acdb81206fe8a663754cf68f44731b35e}{register\+\_\+fetching\+\_\+handle()}). Specifically, the version to be used is the version returned by handle-\/$>$get\+\_\+version(), and handle-\/$>$version\+\_\+is\+\_\+pending() must return false if handle is a valid parameter to this method.
+\end{DoxyRemark}
+\begin{DoxySeeAlso}{See also}
+Task\+::needs\+\_\+read\+\_\+data() 
+
+\hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_aec2382c6822c63ed76f69af1e1f8470b}{Runtime\+::register\+\_\+task()} 
+\end{DoxySeeAlso}
+\index{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}!register\+\_\+fetching\+\_\+handle@{register\+\_\+fetching\+\_\+handle}}
+\index{register\+\_\+fetching\+\_\+handle@{register\+\_\+fetching\+\_\+handle}!darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}}
+\paragraph[{\texorpdfstring{register\+\_\+fetching\+\_\+handle(handle\+\_\+t $\ast$const handle, const Key \&user\+\_\+version\+\_\+tag)=0}{register_fetching_handle(handle_t *const handle, const Key &user_version_tag)=0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class shared\+\_\+ptr\+\_\+template, template$<$ typename... $>$ class unique\+\_\+ptr\+\_\+template$>$ virtual void {\bf darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}$<$ Key, Version, shared\+\_\+ptr\+\_\+template, unique\+\_\+ptr\+\_\+template $>$\+::register\+\_\+fetching\+\_\+handle (
+\begin{DoxyParamCaption}
+\item[{{\bf handle\+\_\+t} $\ast$const}]{handle, }
+\item[{const Key \&}]{user\+\_\+version\+\_\+tag}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_acdb81206fe8a663754cf68f44731b35e}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_acdb81206fe8a663754cf68f44731b35e}
+
+
+Register a dependency handle that is satisfied by retrieving data from the data store. 
+
+The handle may then be used preliminarily as a dependency to tasks, etc. Upon return, the handle\textquotesingle{}s state in its lifecycle may be {\itshape either} registered (i.\+e., unversioned) or a versioned. The return value of handle-\/$>$get\+\_\+version() is ignored upon invocation and handle-\/$>$version\+\_\+is\+\_\+pending() must return true upon invocation. At some point after this invocation but before the first task depending on handle is run (which means potentially even before this method returns), handle-\/$>$set\+\_\+version() must be called exactly once to update the handle\textquotesingle{}s version to the version with which it was published (potentially remotely).
+
+
+\begin{DoxyParams}{Parameters}
+{\em handle} & A (non-\/owning) pointer to a Dependency\+Handle for which it must be valid to call get\+\_\+key() but for which the return value of get\+\_\+version() is ignored.\\
+\hline
+{\em user\+\_\+version\+\_\+tag} & A Key to be used to match a publication version tag of a publish (potentially elsewhere) with a handle that reports the same key as handle-\/$>$get\+\_\+key(). \\
+\hline
+\end{DoxyParams}
+\index{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}!release\+\_\+read\+\_\+only\+\_\+usage@{release\+\_\+read\+\_\+only\+\_\+usage}}
+\index{release\+\_\+read\+\_\+only\+\_\+usage@{release\+\_\+read\+\_\+only\+\_\+usage}!darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}}
+\paragraph[{\texorpdfstring{release\+\_\+read\+\_\+only\+\_\+usage(handle\+\_\+t $\ast$const handle)=0}{release_read_only_usage(handle_t *const handle)=0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class shared\+\_\+ptr\+\_\+template, template$<$ typename... $>$ class unique\+\_\+ptr\+\_\+template$>$ virtual void {\bf darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}$<$ Key, Version, shared\+\_\+ptr\+\_\+template, unique\+\_\+ptr\+\_\+template $>$\+::release\+\_\+read\+\_\+only\+\_\+usage (
+\begin{DoxyParamCaption}
+\item[{{\bf handle\+\_\+t} $\ast$const}]{handle}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a737e5704115b99df2ce2806b42ac76b1}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a737e5704115b99df2ce2806b42ac76b1}
+
+
+Indicate that the last task holding read-\/only usage or the ability to schedule other tasks with read-\/only priviledges has completed or explicitly released the handle. 
+
+After this call is made, the runtime is free to schedule the up to one modify usage (also known as \char`\"{}final\char`\"{} usage) of the handle, which may be registered before this method is called or at any time before \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()} is called.
+
+\begin{DoxyRemark}{Remarks}
+It is a debug-\/mode error to call \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a737e5704115b99df2ce2806b42ac76b1}{release\+\_\+read\+\_\+only\+\_\+usage()} on a handle after \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()} has been called or before the handle has been registered.
+
+The runtime is allowed to assume that the handle here is the same as the handle passed in during the registration process if it has the same key and same version. This means that, e.\+g., calling handle-\/$>$satisfy\+\_\+with\+\_\+data\+\_\+block() on this handle must be equivalent to calling it on the one stored from an earlier registration if the key and version are the same.
+
+Since a publication is a read-\/only usage, all publishes must be invoked on a handle before this method is called (note that they need not be finished).
+\end{DoxyRemark}
+
+\begin{DoxyParams}{Parameters}
+{\em handle} & a non-\/owning pointer to a Dependency\+Handle for which \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a8c70dc2b90fedd7ae6f090a19b3f694f}{register\+\_\+handle()} or \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_acdb81206fe8a663754cf68f44731b35e}{register\+\_\+fetching\+\_\+handle()} has been called on this instance but for which \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()} has not yet been called. The handle must already be properly versioned (i.\+e., handle-\/$>$version\+\_\+is\+\_\+pending() returns false). \\
+\hline
+\end{DoxyParams}
+\index{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}!release\+\_\+handle@{release\+\_\+handle}}
+\index{release\+\_\+handle@{release\+\_\+handle}!darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}}
+\paragraph[{\texorpdfstring{release\+\_\+handle(const handle\+\_\+t $\ast$const handle)=0}{release_handle(const handle_t *const handle)=0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class shared\+\_\+ptr\+\_\+template, template$<$ typename... $>$ class unique\+\_\+ptr\+\_\+template$>$ virtual void {\bf darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}$<$ Key, Version, shared\+\_\+ptr\+\_\+template, unique\+\_\+ptr\+\_\+template $>$\+::release\+\_\+handle (
+\begin{DoxyParamCaption}
+\item[{const {\bf handle\+\_\+t} $\ast$const}]{handle}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}
+
+
+Release a previously registered handle, indicating that the handle will no longer be used for any method calls on this instance. 
+
+Releasing a handle indicates the handle has completed the modifiable phase of its life cycle, and thus the return value of handle-\/$>$get\+\_\+data\+\_\+block() represents completion of all modifications on that \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_data_block}{Data\+Block} through that handle. Thus, the \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_data_block}{Data\+Block} associated with a handle upon its release should be used to satisfy up to one registered {\itshape subsequent} of the handle, which must be both registered and versioned at the time of \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()} invocation (and not yet satisfied, writable, or released). If the handle is satisfied upon its release, the subsequent should be satisfied by calling subsequent-\/$>$satisfy\+\_\+with\+\_\+data\+\_\+block() with the return value of handle-\/$>$get\+\_\+data\+\_\+block().
+
+Given k = handle-\/$>$get\+\_\+key() and v = handle-\/$>$get\+\_\+version() for the handle parameter, the following rules may be used to determine the correct subsequent to satisfy with the handle\textquotesingle{}s data upon release\+:
+\begin{DoxyEnumerate}
+\item First, if a handle with key k and version ++(v.\+push\+\_\+subversion())\} is registered, that handle is the subsequent.
+\item If no handle with \{k, ++(v.\+push\+\_\+subversion())\} is registered, but a handle with \{k, ++v\} is registered, then \{k, ++v\} is the subsequent.
+\item If neither \{k, ++(v.\+push\+\_\+subversion())\} nor \{k, ++v\} is registered, then the following procedure should be followed to determine the subsequent\+: a. Set v\textquotesingle{}=++(v.\+pop\+\_\+subversion()). b. If \{k, v\textquotesingle{}\} exists, it is the subsequent. c. If \{k, v\textquotesingle{}\} does not exist and v\textquotesingle{}.depth() == 1, no subsequent exists. d. Set v\textquotesingle{}=++(v\textquotesingle{}.pop\+\_\+subversion()) and return to step b.
+\end{DoxyEnumerate}
+
+If a handle has no subsequent, the runtime should garbage collect the \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_data_block}{Data\+Block} associated with handle (as soon as any pending publish/fetch interactions complete; see remark below).
+
+\begin{DoxyRemark}{Remarks}
+While this (and \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a737e5704115b99df2ce2806b42ac76b1}{release\+\_\+read\+\_\+only\+\_\+usage()}) must be invoked after all associated published are invoked, it is possible for this to be invoked before all publishes have {\bfseries completed} if there is to be no modify usage of the handle.
+
+The runtime may safely assume that any subsequent candidates will be in a versioned state at the time of \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()} invocation. In fact, as of the 0.\+2 spec, they must have been handles registered with \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a8c70dc2b90fedd7ae6f090a19b3f694f}{register\+\_\+handle()} and not \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_acdb81206fe8a663754cf68f44731b35e}{register\+\_\+fetching\+\_\+handle()}.
+
+The runtime is allowed to assume that the handle here is the same as the handle passed in during the registration process if it has the same key and same version. This means that, e.\+g., calling handle-\/$>$satisfy\+\_\+with\+\_\+data\+\_\+block() on this handle must be equivalent to calling it on the one stored from an earlier registration if the key and version are the same. \mbox{[}This requirement may change in the future to facilitate work stealing and other migrations.\mbox{]}
+
+Even though the handle must be the same, the version {\bfseries increment} behavior may be different from that of the version when the handle was registered. The version must still return true for the equals comparison to the registered version and they must hash to the same value. However, because the frontend is allowed to append zeros to the version to indicate its desired increment behavior, the backend should determine subsequents from the version returned by calling handle-\/$>$get\+\_\+version() on the handle given as a parameter here. Since this handle must be the same object as the one registered, this is only an issue if the raw version captured at the time of registration is somehow used here, which should not be done anyway since it is cheaper to store the handle pointer and the frontend must guarantee that the handle pointer is valid until after \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()} returns.
+
+Note that this specification implies, e.\+g., that \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()} may be called with, e.\+g., a handle with \{k, 1.\+1.\+1.\+2\} before a handle with \{k, 1.\+1.\+1.\+1\}. This is absolutely the case, although currently the only example of that pattern involves \{k, 1.\+1.\+1.\+2\} having no read or modify usage, aside from perhaps a publish (read) usage. As the specification evolves, more situations like this may arise, though if they don\textquotesingle{}t this pattern may be consigned to its own special method.
+\end{DoxyRemark}
+
+\begin{DoxyParams}{Parameters}
+{\em handle} & A (non-\/owning) pointer to the same object with which \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a8c70dc2b90fedd7ae6f090a19b3f694f}{Runtime\+::register\+\_\+handle()} (or \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_acdb81206fe8a663754cf68f44731b35e}{register\+\_\+fetching\+\_\+handle()}) was previously invoked. Any frontend uses of {\ttfamily handle} after \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()} returns are invalid and result in debug-\/mode errors (undefined behavior is allowed in optimized mode). Furthermore, the pointer to the handle itself is not valid after \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()} returns, so if there are pending publishes (arising from a lack of modify usage, as remarked above), the runtime must retrieve the data block before returning (furthermore, if handle is not satisfied because it had no read uses other than the publish(), the runtime will need to track any satisfactions that would satisfy handle and use the data block from that satisfaction to fulfill corresponding fetches on the pending publishes of handle).\\
+\hline
+\end{DoxyParams}
+\begin{DoxySeeAlso}{See also}
+Dependency\+Handle\+::get\+\_\+data\+\_\+block() 
+
+\hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a99e798d2c6d6ed6e49e68d3136764cde}{Runtime\+::publish\+\_\+handle()} 
+\end{DoxySeeAlso}
+\index{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}!publish\+\_\+handle@{publish\+\_\+handle}}
+\index{publish\+\_\+handle@{publish\+\_\+handle}!darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}}
+\paragraph[{\texorpdfstring{publish\+\_\+handle(handle\+\_\+t $\ast$const handle, const Key \&version\+\_\+tag, const size\+\_\+t n\+\_\+fetchers=1, bool is\+\_\+final=false)=0}{publish_handle(handle_t *const handle, const Key &version_tag, const size_t n_fetchers=1, bool is_final=false)=0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class shared\+\_\+ptr\+\_\+template, template$<$ typename... $>$ class unique\+\_\+ptr\+\_\+template$>$ virtual void {\bf darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}$<$ Key, Version, shared\+\_\+ptr\+\_\+template, unique\+\_\+ptr\+\_\+template $>$\+::publish\+\_\+handle (
+\begin{DoxyParamCaption}
+\item[{{\bf handle\+\_\+t} $\ast$const}]{handle, }
+\item[{const Key \&}]{version\+\_\+tag, }
+\item[{const size\+\_\+t}]{n\+\_\+fetchers = {\ttfamily 1}, }
+\item[{bool}]{is\+\_\+final = {\ttfamily false}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a99e798d2c6d6ed6e49e68d3136764cde}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a99e798d2c6d6ed6e49e68d3136764cde}
+
+
+Indicate to the backend that the key and version reported by {\ttfamily handle} should be fetchable with the user version tag {\ttfamily version\+\_\+tag} exactly {\ttfamily n\+\_\+fetchers} times. 
+
+In other words, \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_acdb81206fe8a663754cf68f44731b35e}{Runtime\+::register\+\_\+fetching\+\_\+handle()} must be called exactly {\ttfamily n\+\_\+fetchers} times {\bfseries globally} with the key reported by {\ttfamily handle} and the {\ttfamily version\+\_\+tag} given here before the runtime can overwrite or delete the data associated with the key and version reported by {\ttfamily handle}.
+
+\begin{DoxyRemark}{Remarks}
+All \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a99e798d2c6d6ed6e49e68d3136764cde}{publish\+\_\+handle()} calls must be made for a given handle before \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a737e5704115b99df2ce2806b42ac76b1}{release\+\_\+read\+\_\+only\+\_\+usage()} is called with that handle. However, not all fetches need to be completed before \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a737e5704115b99df2ce2806b42ac76b1}{release\+\_\+read\+\_\+only\+\_\+usage()} or even \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()} is called. See details in \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()}.
+\end{DoxyRemark}
+
+\begin{DoxyParams}{Parameters}
+{\em handle} & A (non-\/owning) pointer to a Dependency\+Handle registered with \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a8c70dc2b90fedd7ae6f090a19b3f694f}{register\+\_\+handle()} but not yet released with \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()}. \\
+\hline
+{\em version\+\_\+tag} & A user-\/space tag to be associated with the internal version reported by handle and to be fetched as such. \\
+\hline
+{\em n\+\_\+fetchers} & The number of times \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_acdb81206fe8a663754cf68f44731b35e}{register\+\_\+fetching\+\_\+handle()} must be called globally (and the corresponding fetching handles released) before antidependencies on {\ttfamily handle} are cleared and its data can be overwritten or deleted. \\
+\hline
+{\em is\+\_\+final} & Whether or not the publish is intended to indicate the key and data associated with handle are to be considered globally read-\/only for the rest of its lifetime. If true, it is a (debug-\/mode) error to register a handle (anywhere) with the same key and a version v $>$ handle-\/$>$get\+\_\+version(). For version 0.\+2 of the spec, is\+\_\+final should always be false. \\
+\hline
+\end{DoxyParams}
+\index{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}!finalize@{finalize}}
+\index{finalize@{finalize}!darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}}
+\paragraph[{\texorpdfstring{finalize()=0}{finalize()=0}}]{\setlength{\rightskip}{0pt plus 5cm}template$<$typename Key , typename Version , template$<$ typename... $>$ class shared\+\_\+ptr\+\_\+template, template$<$ typename... $>$ class unique\+\_\+ptr\+\_\+template$>$ virtual void {\bf darma\+\_\+runtime\+::abstract\+::backend\+::\+Runtime}$<$ Key, Version, shared\+\_\+ptr\+\_\+template, unique\+\_\+ptr\+\_\+template $>$\+::finalize (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_af889e310f4ec8b0300d42fe934fad8a3}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_af889e310f4ec8b0300d42fe934fad8a3}
+
+
+signifies the end of the outer S\+P\+MD task from which darma\+\_\+backend\+\_\+initialize() was called. 
+
+\begin{DoxyRemark}{Remarks}
+Note that after \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_af889e310f4ec8b0300d42fe934fad8a3}{finalize()} returns, the only valid methods that may be invoked on this instance are \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a737e5704115b99df2ce2806b42ac76b1}{release\+\_\+read\+\_\+only\+\_\+usage()} and \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_a54ba21615ed22638ea23a2a1f03fea02}{release\+\_\+handle()}. No handle released after \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_af889e310f4ec8b0300d42fe934fad8a3}{finalize()} returns may have a subsequent. However, when finalize is {\bfseries invoked}, there may still be pending tasks that schedule other tasks (the frontend has no way to know this), and thus any method on this instance must be valid to call {\bfseries between} the invocation and return of \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_runtime_af889e310f4ec8b0300d42fe934fad8a3}{finalize()}. 
+\end{DoxyRemark}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+runtime.\+h\end{DoxyCompactItemize}

@@ -1,0 +1,38 @@
+\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_data_block}{}\subsection{darma\+\_\+runtime\+:\+:abstract\+:\+:backend\+:\+:Data\+Block Class Reference}
+\label{classdarma__runtime_1_1abstract_1_1backend_1_1_data_block}\index{darma\+\_\+runtime\+::abstract\+::backend\+::\+Data\+Block@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Data\+Block}}
+
+
+The abstraction through which the frontend interacts with data stored and managed by the backend.  
+
+
+
+
+{\ttfamily \#include $<$data\+\_\+block.\+h$>$}
+
+\subsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+virtual void $\ast$ \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_data_block_af184a4868855e95a5db5b7e05b945773}{get\+\_\+data} ()=0
+\begin{DoxyCompactList}\small\item\em Gets a (non-\/owning) pointer to deserialized version of the data associated with the data block. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\subsubsection{Detailed Description}
+The abstraction through which the frontend interacts with data stored and managed by the backend. 
+
+\subsubsection{Member Function Documentation}
+\index{darma\+\_\+runtime\+::abstract\+::backend\+::\+Data\+Block@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Data\+Block}!get\+\_\+data@{get\+\_\+data}}
+\index{get\+\_\+data@{get\+\_\+data}!darma\+\_\+runtime\+::abstract\+::backend\+::\+Data\+Block@{darma\+\_\+runtime\+::abstract\+::backend\+::\+Data\+Block}}
+\paragraph[{\texorpdfstring{get\+\_\+data()=0}{get_data()=0}}]{\setlength{\rightskip}{0pt plus 5cm}virtual void$\ast$ darma\+\_\+runtime\+::abstract\+::backend\+::\+Data\+Block\+::get\+\_\+data (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1backend_1_1_data_block_af184a4868855e95a5db5b7e05b945773}{}\label{classdarma__runtime_1_1abstract_1_1backend_1_1_data_block_af184a4868855e95a5db5b7e05b945773}
+
+
+Gets a (non-\/owning) pointer to deserialized version of the data associated with the data block. 
+
+The pointer is valid until the handle most recently satisfied with this data block (at the time of the \hyperlink{classdarma__runtime_1_1abstract_1_1backend_1_1_data_block_af184a4868855e95a5db5b7e05b945773}{get\+\_\+data()} invocation) is released. 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+data\+\_\+block.\+h\end{DoxyCompactItemize}
