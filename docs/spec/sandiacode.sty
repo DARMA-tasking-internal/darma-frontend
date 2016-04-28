@@ -22,9 +22,10 @@
 \end{itemize}
 }
 
-\lstnewenvironment{CppCode}{%
- %\footnotesize%
- \lstset{language=C++,% 
+
+%%% define style & environment for C++ code WITHOUT numbering of lines
+\lstdefinestyle{CppCodeStyle}{%
+   language=C++,% 
    backgroundcolor=\color{grayish},%
    basicstyle=\ttfamily,%
    showstringspaces=false,%
@@ -35,14 +36,17 @@
    tabsize=2,% 
    emph={value_type},emphstyle={\color{red}},%
    commentstyle=\color{dkgreen},%
-   keywordstyle=\color{red}}%
-}{%
+   keywordstyle=\color{red}
+}
+\lstnewenvironment{CppCode}{%
+ %\footnotesize%
+ \lstset{style=CppCodeStyle}}{%
 }
 
 
-\lstnewenvironment{CppCodeNumb}{%
- %\footnotesize%
- \lstset{language=C++,% 
+%%% define style & environment for C++ code with numbering of lines
+\lstdefinestyle{CppCodeNumbstyle}{%
+   language=C++,% 
    backgroundcolor=\color{grayish},%
    basicstyle=\ttfamily,%
    showstringspaces=false,%
@@ -53,8 +57,11 @@
    numberstyle=\footnotesize,%
    tabsize=2,% 
    commentstyle=\color{dkgreen},%
-   keywordstyle=\color{red}}%
-}{%
+   keywordstyle=\color{red}
+}
+\lstnewenvironment{CppCodeNumb}{%
+ %\footnotesize%
+ \lstset{style=CppCodeNumbstyle}}{%
 }
 
 
