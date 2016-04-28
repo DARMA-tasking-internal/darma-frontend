@@ -1,0 +1,146 @@
+\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager}{}\subsection{darma\+\_\+runtime\+:\+:abstract\+:\+:frontend\+:\+:Serialization\+Manager Class Reference}
+\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager}\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}}
+
+
+An immutable object allowing the backend to query various serialization sizes, offsets, behaviors, and data, known by the for a given handle and its associated data block.  
+
+
+
+
+{\ttfamily \#include $<$serialization\+\_\+manager.\+h$>$}
+
+\subsubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+typedef size\+\_\+t {\bfseries zero\+\_\+copy\+\_\+slot\+\_\+t}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a34f35ed56d081e65db2f7ec52d5eda7b}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a34f35ed56d081e65db2f7ec52d5eda7b}
+
+\end{DoxyCompactItemize}
+\subsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+virtual size\+\_\+t \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_aea3d2e5de9badbe1dba23ac23c2f6a1b}{get\+\_\+metadata\+\_\+size} (const void $\ast$const deserialized\+\_\+data) const  =0
+\begin{DoxyCompactList}\small\item\em returns the size of the data as a (i.\+e., stack-\/allocated) C++ object in memory \end{DoxyCompactList}\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a257178cab2f041335026b6876f86e730}{serialize\+\_\+metadata} (const void $\ast$const deserialized\+\_\+data, void $\ast$const buffer) const 
+\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a8d703c61379cd5280ed7861c1600af76}{deserialize\+\_\+metadata} (const void $\ast$const serialized\+\_\+data, void $\ast$const buffer) const 
+\item 
+virtual bool \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a674620c4245e7f916b98595840ed8e91}{needs\+\_\+serialization} () const 
+\item 
+virtual size\+\_\+t \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a9213865a3780222b3b5839e25bd3271b}{get\+\_\+packed\+\_\+data\+\_\+size} (const void $\ast$const deserialized\+\_\+data) const 
+\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_ae87cf73c64377e74728ea1bce1edd103}{serialize\+\_\+data} (const void $\ast$const deserialized\+\_\+data, void $\ast$const serialization\+\_\+buffer) const 
+\item 
+virtual void \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a20ea2945275c2bf6ede9c0a1176b5b1e}{deserialize\+\_\+data} (const void $\ast$const serialized\+\_\+data, void $\ast$const deserialized\+\_\+metadata\+\_\+and\+\_\+dest) const 
+\item 
+virtual size\+\_\+t \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a888d9ad9d2d1be97d114f57f730dad1a}{get\+\_\+n\+\_\+zero\+\_\+copy\+\_\+slots} (const void $\ast$const deserialized\+\_\+metadata) const 
+\item 
+virtual size\+\_\+t \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a848049de9bcd4c05c63fe4150d18d0c7}{get\+\_\+zero\+\_\+copy\+\_\+data\+\_\+size} (const void $\ast$const deserialized\+\_\+metadata, zero\+\_\+copy\+\_\+slot\+\_\+t slot) const 
+\item 
+virtual void $\ast$\& \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a43c81378b299231508f5fa571c978f2a}{get\+\_\+zero\+\_\+copy\+\_\+slot} (void $\ast$const deserialized\+\_\+metadata, zero\+\_\+copy\+\_\+slot\+\_\+t slot) const 
+\end{DoxyCompactItemize}
+
+
+\subsubsection{Detailed Description}
+An immutable object allowing the backend to query various serialization sizes, offsets, behaviors, and data, known by the for a given handle and its associated data block. 
+
+\begin{DoxyRemark}{Remarks}
+The only method that is valid to invoke for the 0.\+2.\+0 spec implementation is \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_aea3d2e5de9badbe1dba23ac23c2f6a1b}{get\+\_\+metadata\+\_\+size()} 
+\end{DoxyRemark}
+
+
+\subsubsection{Member Function Documentation}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}!get\+\_\+metadata\+\_\+size@{get\+\_\+metadata\+\_\+size}}
+\index{get\+\_\+metadata\+\_\+size@{get\+\_\+metadata\+\_\+size}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}}
+\paragraph[{\texorpdfstring{get\+\_\+metadata\+\_\+size(const void $\ast$const deserialized\+\_\+data) const  =0}{get_metadata_size(const void *const deserialized_data) const  =0}}]{\setlength{\rightskip}{0pt plus 5cm}virtual size\+\_\+t darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager\+::get\+\_\+metadata\+\_\+size (
+\begin{DoxyParamCaption}
+\item[{const void $\ast$const}]{deserialized\+\_\+data}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [pure virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_aea3d2e5de9badbe1dba23ac23c2f6a1b}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_aea3d2e5de9badbe1dba23ac23c2f6a1b}
+
+
+returns the size of the data as a (i.\+e., stack-\/allocated) C++ object in memory 
+
+
+\begin{DoxyParams}{Parameters}
+{\em deserialized\+\_\+data} & In the 0.\+2.\+0 spec implementation, this should always be a null pointer\\
+\hline
+\end{DoxyParams}
+\begin{DoxyRemark}{Remarks}
+In the 0.\+2 spec, this return value is always sizeof(\+T) for some type T (invisible to the backend) that the \hyperlink{classdarma__runtime_1_1abstract_1_1frontend_1_1_dependency_handle}{Dependency\+Handle} is intended to hold.
+
+Later revisions of the spec will allow classes to specify custom metadata serializers (e.\+g., in case there is substantial temporary metadata that doesn\textquotesingle{}t need go over the wire or if some values need to change in preparation for migration).
+\end{DoxyRemark}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}!serialize\+\_\+metadata@{serialize\+\_\+metadata}}
+\index{serialize\+\_\+metadata@{serialize\+\_\+metadata}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}}
+\paragraph[{\texorpdfstring{serialize\+\_\+metadata(const void $\ast$const deserialized\+\_\+data, void $\ast$const buffer) const }{serialize_metadata(const void *const deserialized_data, void *const buffer) const }}]{\setlength{\rightskip}{0pt plus 5cm}virtual void darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager\+::serialize\+\_\+metadata (
+\begin{DoxyParamCaption}
+\item[{const void $\ast$const}]{deserialized\+\_\+data, }
+\item[{void $\ast$const}]{buffer}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a257178cab2f041335026b6876f86e730}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a257178cab2f041335026b6876f86e730}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}!deserialize\+\_\+metadata@{deserialize\+\_\+metadata}}
+\index{deserialize\+\_\+metadata@{deserialize\+\_\+metadata}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}}
+\paragraph[{\texorpdfstring{deserialize\+\_\+metadata(const void $\ast$const serialized\+\_\+data, void $\ast$const buffer) const }{deserialize_metadata(const void *const serialized_data, void *const buffer) const }}]{\setlength{\rightskip}{0pt plus 5cm}virtual void darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager\+::deserialize\+\_\+metadata (
+\begin{DoxyParamCaption}
+\item[{const void $\ast$const}]{serialized\+\_\+data, }
+\item[{void $\ast$const}]{buffer}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a8d703c61379cd5280ed7861c1600af76}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a8d703c61379cd5280ed7861c1600af76}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}!needs\+\_\+serialization@{needs\+\_\+serialization}}
+\index{needs\+\_\+serialization@{needs\+\_\+serialization}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}}
+\paragraph[{\texorpdfstring{needs\+\_\+serialization() const }{needs_serialization() const }}]{\setlength{\rightskip}{0pt plus 5cm}virtual bool darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager\+::needs\+\_\+serialization (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a674620c4245e7f916b98595840ed8e91}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a674620c4245e7f916b98595840ed8e91}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}!get\+\_\+packed\+\_\+data\+\_\+size@{get\+\_\+packed\+\_\+data\+\_\+size}}
+\index{get\+\_\+packed\+\_\+data\+\_\+size@{get\+\_\+packed\+\_\+data\+\_\+size}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}}
+\paragraph[{\texorpdfstring{get\+\_\+packed\+\_\+data\+\_\+size(const void $\ast$const deserialized\+\_\+data) const }{get_packed_data_size(const void *const deserialized_data) const }}]{\setlength{\rightskip}{0pt plus 5cm}virtual size\+\_\+t darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager\+::get\+\_\+packed\+\_\+data\+\_\+size (
+\begin{DoxyParamCaption}
+\item[{const void $\ast$const}]{deserialized\+\_\+data}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a9213865a3780222b3b5839e25bd3271b}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a9213865a3780222b3b5839e25bd3271b}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}!serialize\+\_\+data@{serialize\+\_\+data}}
+\index{serialize\+\_\+data@{serialize\+\_\+data}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}}
+\paragraph[{\texorpdfstring{serialize\+\_\+data(const void $\ast$const deserialized\+\_\+data, void $\ast$const serialization\+\_\+buffer) const }{serialize_data(const void *const deserialized_data, void *const serialization_buffer) const }}]{\setlength{\rightskip}{0pt plus 5cm}virtual void darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager\+::serialize\+\_\+data (
+\begin{DoxyParamCaption}
+\item[{const void $\ast$const}]{deserialized\+\_\+data, }
+\item[{void $\ast$const}]{serialization\+\_\+buffer}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_ae87cf73c64377e74728ea1bce1edd103}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_ae87cf73c64377e74728ea1bce1edd103}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}!deserialize\+\_\+data@{deserialize\+\_\+data}}
+\index{deserialize\+\_\+data@{deserialize\+\_\+data}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}}
+\paragraph[{\texorpdfstring{deserialize\+\_\+data(const void $\ast$const serialized\+\_\+data, void $\ast$const deserialized\+\_\+metadata\+\_\+and\+\_\+dest) const }{deserialize_data(const void *const serialized_data, void *const deserialized_metadata_and_dest) const }}]{\setlength{\rightskip}{0pt plus 5cm}virtual void darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager\+::deserialize\+\_\+data (
+\begin{DoxyParamCaption}
+\item[{const void $\ast$const}]{serialized\+\_\+data, }
+\item[{void $\ast$const}]{deserialized\+\_\+metadata\+\_\+and\+\_\+dest}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a20ea2945275c2bf6ede9c0a1176b5b1e}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a20ea2945275c2bf6ede9c0a1176b5b1e}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}!get\+\_\+n\+\_\+zero\+\_\+copy\+\_\+slots@{get\+\_\+n\+\_\+zero\+\_\+copy\+\_\+slots}}
+\index{get\+\_\+n\+\_\+zero\+\_\+copy\+\_\+slots@{get\+\_\+n\+\_\+zero\+\_\+copy\+\_\+slots}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}}
+\paragraph[{\texorpdfstring{get\+\_\+n\+\_\+zero\+\_\+copy\+\_\+slots(const void $\ast$const deserialized\+\_\+metadata) const }{get_n_zero_copy_slots(const void *const deserialized_metadata) const }}]{\setlength{\rightskip}{0pt plus 5cm}virtual size\+\_\+t darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager\+::get\+\_\+n\+\_\+zero\+\_\+copy\+\_\+slots (
+\begin{DoxyParamCaption}
+\item[{const void $\ast$const}]{deserialized\+\_\+metadata}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a888d9ad9d2d1be97d114f57f730dad1a}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a888d9ad9d2d1be97d114f57f730dad1a}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}!get\+\_\+zero\+\_\+copy\+\_\+data\+\_\+size@{get\+\_\+zero\+\_\+copy\+\_\+data\+\_\+size}}
+\index{get\+\_\+zero\+\_\+copy\+\_\+data\+\_\+size@{get\+\_\+zero\+\_\+copy\+\_\+data\+\_\+size}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}}
+\paragraph[{\texorpdfstring{get\+\_\+zero\+\_\+copy\+\_\+data\+\_\+size(const void $\ast$const deserialized\+\_\+metadata, zero\+\_\+copy\+\_\+slot\+\_\+t slot) const }{get_zero_copy_data_size(const void *const deserialized_metadata, zero_copy_slot_t slot) const }}]{\setlength{\rightskip}{0pt plus 5cm}virtual size\+\_\+t darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager\+::get\+\_\+zero\+\_\+copy\+\_\+data\+\_\+size (
+\begin{DoxyParamCaption}
+\item[{const void $\ast$const}]{deserialized\+\_\+metadata, }
+\item[{zero\+\_\+copy\+\_\+slot\+\_\+t}]{slot}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a848049de9bcd4c05c63fe4150d18d0c7}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a848049de9bcd4c05c63fe4150d18d0c7}
+\index{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}!get\+\_\+zero\+\_\+copy\+\_\+slot@{get\+\_\+zero\+\_\+copy\+\_\+slot}}
+\index{get\+\_\+zero\+\_\+copy\+\_\+slot@{get\+\_\+zero\+\_\+copy\+\_\+slot}!darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager@{darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager}}
+\paragraph[{\texorpdfstring{get\+\_\+zero\+\_\+copy\+\_\+slot(void $\ast$const deserialized\+\_\+metadata, zero\+\_\+copy\+\_\+slot\+\_\+t slot) const }{get_zero_copy_slot(void *const deserialized_metadata, zero_copy_slot_t slot) const }}]{\setlength{\rightskip}{0pt plus 5cm}virtual void$\ast$\& darma\+\_\+runtime\+::abstract\+::frontend\+::\+Serialization\+Manager\+::get\+\_\+zero\+\_\+copy\+\_\+slot (
+\begin{DoxyParamCaption}
+\item[{void $\ast$const}]{deserialized\+\_\+metadata, }
+\item[{zero\+\_\+copy\+\_\+slot\+\_\+t}]{slot}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [virtual]}}\hypertarget{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a43c81378b299231508f5fa571c978f2a}{}\label{classdarma__runtime_1_1abstract_1_1frontend_1_1_serialization_manager_a43c81378b299231508f5fa571c978f2a}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+serialization\+\_\+manager.\+h\end{DoxyCompactItemize}

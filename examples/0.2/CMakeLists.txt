@@ -1,0 +1,114 @@
+cmake_minimum_required (VERSION 2.8)
+
+project (DarmaExamples)
+# The version number.
+set (DarmaExamples_VERSION_MAJOR 0)
+set (DarmaExamples_VERSION_MINOR 2)
+
+enable_testing()
+
+# Compiler-specific C++11 activation.
+set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} -std=c++1y")
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+  execute_process(
+  COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
+  if (NOT (GCC_VERSION VERSION_GREATER 4.8 OR GCC_VERSION VERSION_EQUAL 4.8))
+    message(FATAL_ERROR "${PROJECT_NAME} requires g++ 4.8 or greater.")
+  endif ()
+elseif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+else ()
+  message(FATAL_ERROR "Your C++ compiler does not support C++11.")
+endif ()
+
+set (EXAMPLES_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+set (EXAMPLES_BIN_ROOT ${CMAKE_CURRENT_BINARY_DIR})
+
+if (DARMA_ALL_IN_ONE)
+set (DARMA_FRONTEND_DIR ${CMAKE_SOURCE_DIR}/src)
+
+#figure out which backend
+include_directories( ${CMAKE_SOURCE_DIR}/src/reference_backends )
+if (STL_THREADS_BACKEND) 
+set (backend_name stl_threads)
+elseif (MOCK_BACKEND)    
+set (backend_name mock)
+elseif (SERIAL_BACKEND)  
+set (backend_name serial)
+endif()
+set(backend_dir ${CMAKE_SOURCE_DIR}/src/reference_backends/${backend_name})
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${backend_dir}")
+set(DARMA_BACKEND_LIBNAME darma_${backend_name}_backend)
+include_directories(${backend_dir})
+include_directories( ${DARMA_FRONTEND_DIR}/include )
+include_directories( ${DARMA_FRONTEND_DIR}/include/tinympl )
+include_directories( ${DARMA_FRONTEND_DIR}/include/darma )
+
+else() #built as standalone
+
+if (DARMA_BACKEND_PKG)
+
+find_package (${DARMA_BACKEND_PKG})
+if (NOT ${DARMA_BACKEND_PKG}_FOUND)
+  message (FATAL_ERROR "Error: Darma backend package could not be found")
+endiF ()
+
+set (CMAKE_CXX_COMPILER ${DARMA_BACKEND_CXX_COMPILER})
+if (NOT CMAKE_CXX_FLAGS)
+  set (CMAKE_CXX_FLAGS ${DARMA_BACKEND_CXX_FLAGS})
+endif ()
+
+include_directories( ${DARMA_BACKEND_INCLUDE_DIRS} )
+link_directories( ${DARMA_BACKEND_LIBRARY_DIRS} )
+# DARMA_BACKEND_LIBNAME might contain multiple libraries
+set( DARMA_BACKEND_LIBNAME ${DARMA_BACKEND_LIBRARIES} )
+
+else()  # not using cmake package
+
+if (NOT DARMA_BACKEND_LIBNAME)
+message(FATAL_ERROR
+    "Must define backend package via -DDARMA_BACKEND_PKG= or give library name for backend (e.g. for libdarma_backend_test.a give -DDARMA_BACKEND_LIBNAME=darma_backend_test)")
+endif()
+
+if (NOT DARMA_FRONTEND_DIR)
+message(FATAL_ERROR "Must define prefix install dir for frontend via -DDARMA_FRONTEND_DIR=")
+endif()
+
+if (NOT DARMA_BACKEND_DIR)
+message(FATAL_ERROR "Must define prefix install dir for backend via -DDARMA_BACKEND_DIR=")
+endif()
+
+link_directories( ${DARMA_BACKEND_DIR}/lib )
+
+include_directories( ${DARMA_BACKEND_DIR}/include )
+include_directories( ${DARMA_FRONTEND_DIR}/include )
+include_directories( ${DARMA_FRONTEND_DIR}/include/tinympl )
+include_directories( ${DARMA_FRONTEND_DIR}/include/darma )
+
+endif()
+
+endif() #DARMA_ALL_IN_ONE
+
+include_directories( ${EXAMPLES_SRC_ROOT} )
+include_directories( ${EXAMPLES_BIN_ROOT} )
+
+#if (SERIAL_BACKEND)
+set(example_standard_args --backend-n-ranks 8)
+#endif()
+
+function(add_test_for_example test_name test_exec test_args)
+if (NOT CTEST_SKIP_EXAMPLES)
+add_test(${test_name} ${test_exec} ${example_standard_args} ${test_args})
+set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
+  FAIL_REGULAR_EXPRESSION "FAILED;WARNING")
+endif()
+endfunction()
+
+add_subdirectory(spec02individualFunctionalities)
+add_subdirectory(darma_hello)
+add_subdirectory(heat_1d)
+add_subdirectory(poisson_1d_thomasAlgorithm)
+add_subdirectory(simple_kv)
+add_subdirectory(stencil_1d)
+
+
