@@ -1,8 +1,0 @@
-\backcite {BSP}{{13}{(document)}{Doc-Start}}
-\backcite {wikiBSP}{{13}{(document)}{Doc-Start}}
-\backcite {doe_arch, dav_exascale}{{19}{1}{chapter.1}}
-\backcite {Kokkos, RAJA}{{19}{1}{Item.1}}
-\backcite {Qthreads, Hobbs, Kitten}{{19}{2}{Item.2}}
-\backcite {Kelpie, Nessie, Adios, DataSpaces, LLNLandLANLDW}{{19}{3}{Item.3}}
-\backcite {OCR,STAPL,Legion,StencilHPX,Charm++,Uintah, Loci}{{19}{1}{figure.caption.26}}
-\backcite {kokkos, others}{{21}{1.2}{section*.29}}
