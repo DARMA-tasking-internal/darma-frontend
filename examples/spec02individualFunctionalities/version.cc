@@ -1,6 +1,4 @@
-
 #include <darma.h>
-
 int darma_main(int argc, char** argv)
 {
   using namespace darma_runtime;
@@ -34,11 +32,9 @@ int darma_main(int argc, char** argv)
   });
 
   // first time reading
-  /* putting this {} here is needed and useful because it tells backend 
-     that readHandle will go outofscope and so backend has more detailed info  
-     and this can benefit parallelism and execution: in other words, the idea is that 
-     one should scope things when it is possible to do so. Scoping is a good practice and 
-     in this case is needed and benefits execution.
+  /* scopinh below {} is needed because it tells the backend that readHandle 
+     will go outofscope and so backend has more detailed info. 
+     Scoping is a good practice and in this case is needed to avoid deadlock.
   */ 
   {
     auto readHandle = read_access<double>("data", source,version=0);
@@ -51,7 +47,6 @@ int darma_main(int argc, char** argv)
         assert( readHandle.get_value() == 0.5 );
     });
   }
-
 
   // reset value and update version
   create_work([=]
@@ -71,7 +66,5 @@ int darma_main(int argc, char** argv)
   });
 
   darma_finalize();
-
   return 0;
 }
-

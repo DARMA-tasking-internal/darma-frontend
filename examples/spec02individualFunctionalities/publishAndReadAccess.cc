@@ -1,6 +1,4 @@
-
 #include <darma.h>
-
 int darma_main(int argc, char** argv)
 {
   using namespace darma_runtime;
@@ -48,4 +46,3 @@ int darma_main(int argc, char** argv)
 
   return 0;
 }
-

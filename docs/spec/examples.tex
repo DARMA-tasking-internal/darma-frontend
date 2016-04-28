@@ -1,71 +1,52 @@
 %!TEX root = sandReportSpec.tex
 
+\appendix
+
+
 \chapter{Examples}
 \label{chap:examples}
 
 
 
+\section{Basic functionalities for spec 0.2}
 
-\subsection{Example 1: publishing and read access}
+
+\subsection{Example}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/initAndFinalize.cc}
+
+\subsection{Example}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/rankAndSize.cc}
+
+\subsection{Example}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/cw1.cc}
+
+\subsection{Example}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/initialAccess.cc}
+
+\subsection{Example}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/accessHandle1.cc}
+
+\subsection{Example}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/accessHandleArrowOperator.cc}
+
+\subsection{Example}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/cwReadsArg.cc}
+
+
+
+\subsection{Publishing and read access}
 
 First example is basic and explains in more detail the use of \texttt{publish} 
 and \texttt{read\_access}. The example involves two DARMA ranks, each creating 
 data, publishing it, and then fetching the other rank's data.
 
-\begin{CppCodeNumb}
-#include <darma.h>
-int darma_main(int argc, char** argv)
-{
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  darma_init(argc, argv);
-  const int myRank = darma_spmd_rank();
-  const int size = darma_spmd_size();
-
-  // supposed to be run with 2 ranks, so ignore the rest
-  assert(size>=2);
-  if (myRank>=2){
-    darma_finalize();
-    return 0;
-  }
-
-  // rank0 reads from source = rank1 
-  // rank1 reads from source = rank0 
-  int source = myRank==0 ? 1 : 0;
-
-  auto my_handle = initial_access<double>("data", myRank);
-  create_work([=]
-  {
-    my_handle.emplace_value(0.5 + (double) myRank);
-
-    // n_readers == 1 because: 
-    //  rank0 reads data of rank1
-    //  rank1 reads data of rank0
-    my_handle.publish(n_readers=1);
-  });
-
-  AccessHandle<double> readHandle = read_access<double>("data", source);
-  create_work([=]
-  {
-    std::cout << myRank << " " << readHandle.get_value() << std::endl;
-    if (myRank==0)
-      assert( readHandle.get_value() == 1.5 );
-    else
-      assert( readHandle.get_value() == 0.5 );
-  });
-
-  darma_finalize();
-  return 0;
-}
-\end{CppCodeNumb}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/publishAndReadAccess.cc}
 
 
 
 
 
-
-\section{Example 2: publishing, versioning and lifetime of handles}
+\section{Publishing, versioning and lifetime of handles}
 
 Lifetime of handles is tricky, particularly for \texttt{read\_access} type handles.  
 In the following example, we initialize data, publish it, fetch it from another rank, 
@@ -80,73 +61,15 @@ Scoping is in this case necessary, but it is only useful in other cases to impro
 in the scheduling and execution of tasks. Scoping is a good programming practice.
 
 
-\begin{CppCodeNumb}
-#include <darma.h>
-int darma_main(int argc, char** argv)
-{
-  using namespace darma_runtime; 
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  darma_init(argc, argv);
-  const int myRank = darma_spmd_rank();
-  const int size = darma_spmd_size();
-
-  // supposed to be run with 2 ranks, so ignore the rest
-  assert(size>=2);
-  // rank0 reads from source = rank1, rank1 reads from source = rank0 
-  int source = myRank==0 ? 1 : 0;
-
-  // create data
-  auto my_handle = initial_access<double>("data", myRank);
-  create_work([=]
-  {
-    my_handle.emplace_value(0.5 + (double) myRank);
-    my_handle.publish(n_readers=1,version=0); // n_readers == 1
-  });
-
-  /* scope {} needed here and useful because it tells backend that 
-     readHandle will go out-of-scope and so backend has more detailed 
-     info and this can benefit parallelism and execution. 
-     In other words, one should scope things whenever it is possible. */ 
-  {
-    auto readHandle = read_access<double>("data", source,version=0);
-    create_work([=]
-    {
-      std::cout << myRank << " " << readHandle.get_value() << std::endl;
-      if (myRank==0)
-        assert( readHandle.get_value() == 1.5 );
-      else
-        assert( readHandle.get_value() == 0.5 );
-    });
-  }
-
-  // reset value and update version
-  create_work([=]
-  {
-    my_handle.set_value(2.5 + (double) myRank);
-    my_handle.publish(n_readers=1,version=1);
-  });
-
-  // second time reading
-  auto readHandle2 = read_access<double>("data", source,version=1);
-  create_work([=]
-  {
-    std::cout << myRank << " " << readHandle2.get_value() << std::endl;
-    if (myRank==0)
-      assert( readHandle2.get_value() == 3.5 );
-    else
-      assert( readHandle2.get_value() == 2.5 );
-  });
-
-  darma_finalize();
-  return 0;
-}
-\end{CppCodeNumb}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/spec02individualFunctionalities/version.cc}
 
 
 
 
 
-\section{Example 3: 1D Poisson Equation}
+
+
+\section{1D Poisson Equation}
 
 Boundary value problem:
 
@@ -212,159 +135,20 @@ involving multiple ranks.
 There are three main steps involved, namely initialization, 
 solution of the linear system, and error check. 
 The DARMA main file is as follows:
-\begin{CppCodeNumb}
-// headers
-// "../poisson1d.h"
-int darma_main(int argc, char** argv)
-{
-  darma_init(argc, argv);
-  size_t me = darma_spmd_rank();
-  size_t n_spmd = darma_spmd_size();
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/poisson_1d_thomasAlgorithm/single_rank/single_rank.cc}
 
-  assert(n_spmd>=1);   // run with 1 rank, ignore the rest
-  if (me>0){
-    darma_finalize();
-    return 0;
-  }
-
-  typedef std::vector<double> vecDbl;
-  // create handles for data needed for linear solve
-  auto subD = initial_access<vecDbl>("a",me); // subdiagonal 
-  auto diag = initial_access<vecDbl>("b",me); // diagonal 
-  auto supD = initial_access<vecDbl>("c",me); // superdiagonal
-  auto rhs  = initial_access<vecDbl>("d",me); // rhs and solution
-
-  initialize(subD, diag, supD, rhs);
-  solveTridiagonalSystem(subD, diag, supD, rhs);
-  checkFinalL1Error(rhs);
-
-  darma_finalize();
-  return 0;
-}
-\end{CppCodeNumb}
-
-The header file poisson1d.h contains:
-\begin{CppCodeNumb}
-constexpr int nx = 51;                      // number of grid points
-constexpr int nInn = nx-2;                  // number of internal points
-constexpr double xL = 0.0;                  // x of left boundary
-constexpr double xR = 1.0;                  // x of right boundary
-constexpr double dx = 1.0/(double)(nx-1);   // spacing
-
-// evaluate right-hand-side
-double rhsEval(double x){ 
-  return 2.0 * exp(x) * cos(x);
-}
-
-// true solution
-double trueSolution(double x){
-  return exp(x) * sin(x);
-}
-
-// evaluate boundary conditions
-double BC(double x){
-  return trueSolution(x);
-}
-\end{CppCodeNumb}
-
+The header file constants.h contains:
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/poisson_1d_thomasAlgorithm/constants.h}
 
 The initialization function has the form:
-\begin{CppCodeNumb}
-void initialize(AccessHandle<std::vector<double>> & subD,
-                AccessHandle<std::vector<double>> & diag, 
-                AccessHandle<std::vector<double>> & supD,
-                AccessHandle<std::vector<double>> & rhs)
-{
-  // initial condition
-  create_work([=]
-  {
-    subD.emplace_value();
-    diag.emplace_value();
-    supD.emplace_value();
-    rhs.emplace_value();
-    subD->resize(nInn);
-    diag->resize(nInn,0.0);
-    supD->resize(nInn,0.0);
-    rhs->resize(nInn,0.0);
-    double * ptrD1 = subD->data();
-    double * ptrD2 = diag->data();
-    double * ptrD3 = supD->data();
-    double * ptrD4 = rhs->data();
-
-    double x = dx;
-    for (int i = 0; i < nInn; ++i)
-    {
-      ptrD2[i] = -2;
-
-      if (i>0)
-        ptrD1[i] = 1.0;
-      if (i<nInn-1)
-        ptrD3[i] = 1.0;
-
-      ptrD4[i] = rhsEval(x) * dx*dx;
-
-      if (i==1)
-        ptrD4[i] -= BC(xL);
-      if (i==nInn-1)
-        ptrD4[i] -= BC(xR);
-
-      x += dx;
-    }
-  }); 
-}
-\end{CppCodeNumb}
-
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/poisson_1d_thomasAlgorithm/single_rank/initialize.h}
 
 The function to solve the linear system is:
-\begin{CppCodeNumb}
-void solveTridiagonalSystem(AccessHandle<std::vector<double>> & subD,
-                            AccessHandle<std::vector<double>> & diag, 
-                            AccessHandle<std::vector<double>> & supD,
-                            AccessHandle<std::vector<double>> & rhs)
-{
-  // solve tridiagonal system
-  create_work([=]
-  {
-    double * pta = subD->data();
-    double * ptb = diag->data();
-    double * ptc = supD->data();
-    double * ptd = rhs->data();
-
-    // code for Thomas algorithm, omitted for brevity
-    solveThomas(pta, ptb, ptc, ptd, nInn);
-  });
-}
-\end{CppCodeNumb}
-
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/poisson_1d_thomasAlgorithm/single_rank/solveTridiag.h}
 
 Finally, we check for convergence by checking the $L1$-norm of the 
 error between the computed and true solution.
-\begin{CppCodeNumb}
-void checkFinalL1Error(AccessHandle<std::vector<double>> & solution)
-{
-  // check solution error 
-  create_work([=]
-  {
-    double * ptd = solution->data();
-    double error = 0.0;
-    double x = dx;
-    for (int i = 0; i < (int) solution->size(); ++i)
-    {
-      error += std::abs( trueSolution(x) - ptd[i] );
-      x += dx;
-    }
-    std::cout << " L1 error = " << error << std::endl;
-    assert( error < 1e-2 );
-  });
-}
-\end{CppCodeNumb}
-
-
-
-
-
-
-
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/poisson_1d_thomasAlgorithm/single_rank/checkError.h}
 
 
 
