@@ -1,0 +1,52 @@
+
+%%%%%%%%%%%%%
+
+%\clearpage
+
+\subsection{\texttt{darma\_spmd\_rank}}
+
+\paragraph{Summary}\mbox{}\\
+Returns the rank of the calling process within the DARMA environment.
+
+\paragraph{Syntax}\mbox{}\\
+\begin{CppCode}
+int darma_runtime::darma_spmd_rank();
+\end{CppCode}
+
+\paragraph{Positional Arguments} \mbox{}\\
+None. 
+
+\paragraph{Output}\mbox{}\\
+The rank value.
+
+\paragraph{Details}\mbox{}\\
+This function returns the rank of the calling process 
+in the DARMA environment. If the size of the environment is $N$, 
+then the returned rank, $r$, is always $0 <= r <= N-1$.
+\todo{anything missing? details?}
+
+\paragraph{Code Snippet}\mbox{}\\ 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+  using namespace darma_runtime;
+  darma_init(argc, argv);
+
+  // get my rank
+  const int myRank = darma_spmd_rank();
+  // get size 
+  const int size = darma_spmd_size();
+
+  std::cout << "Rank " << myRank << "/" << size << std::endl;
+
+  darma_finalize();
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_ranksize}
+\caption{Basic usage of \texttt{darma\_spmd\_rank}.}
+\end{figure}
+
+

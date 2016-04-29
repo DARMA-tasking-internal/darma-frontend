@@ -1,0 +1,63 @@
+%\clearpage
+\subsection{\texttt{create\_work}}
+\label{ssec:api_fe_cw}
+
+\paragraph{Summary}\mbox{}\\
+Communicates work to the runtime system.
+
+\paragraph{Syntax}\mbox{}\\
+\begin{CppCode}
+create_work([=]
+{ 
+	// code goes here
+});
+\end{CppCode}
+
+\paragraph{Input Parameters}\mbox{}\\
+Input arguments are optional. If no input is provided, the 
+\texttt{create\_work} has privileges on the handles used inside 
+as determined by the semantics of the code. 
+On the contrary, using the keyword \texttt{reads}, it can take as 
+argument a list of handles that are captured with read-only permissions. 
+See \S~\ref{ssec:api_fe_reads} for more information on how to do this. 
+This constraints the permissions to be read-only 
+on these handles passed to the function.
+\todo{anything missing? details?}
+
+
+\paragraph{Output}\mbox{}\\
+None.
+
+\paragraph{Details}\mbox{}\\
+This function communicates work to the runtime system. 
+Specifically, this is needed to construct deferred work. 
+Note: the block of code enclosed will be executed only when all the 
+proper permissions on the data it uses will be available.
+\todo{anything missing? details?}
+
+
+\paragraph{Code Snippet}\mbox{}\\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+  using namespace darma_runtime;
+  darma_init(argc, argv);
+  const int myRank = darma_spmd_rank();
+  const int size = darma_spmd_size();
+
+  create_work([=]
+  {
+  	std::cout << " Hello world! " << std::endl;
+  });
+
+  darma_finalize();
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_cw}
+\caption{Basic usage of \texttt{create\_work}.}
+\end{figure}
+
+
