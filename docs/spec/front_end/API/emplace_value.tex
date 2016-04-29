@@ -1,0 +1,58 @@
+\subsection{\texttt{emplace\_value}}
+\label{ssec:api_fe_emplace_value}
+
+\paragraph{Summary}\mbox{}\\ 
+Construct an object of the type pointed to by an \texttt{AccessHandle<T>} object
+(that is, \texttt{T}) in place by forwarding the arguments to the constructor
+for \texttt{T}.
+
+\paragraph{Syntax}\mbox{}\\ 
+\begin{CppCode}
+void some_handle.emplace_value(args...)
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{}\\ 
+args... (deduced types):  Arguments to forward to the constructor of
+\texttt{T}.
+
+\paragraph{Details}\mbox{}\\ 
+
+\texttt{AccessHandle<T>::emplace\_value(...)} mimics the syntax for in-place
+construction in standard library containers.  See, for instance,
+\texttt{std::vector<T>::emplace\_back(...)}.  If in-place construction is
+unnecessary or undesired, \texttt{set\_value()} can be used instead.  Note that
+calling \texttt{emplace\_value()} on a handle requires {\it Modify} immediate
+permissions (see \S~\ref{sec:handlerules}).
+
+\paragraph{Code Snippet}\mbox{}\\ 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+struct LoudMouth {
+  LoudMouth(int i, double j) { cout << "Ctor: " << i << ", " << j << endl; }
+};
+auto h = initial_access<LoudMouth>("key");
+create_work([=]{
+  h.emplace_value(42, 3.14); // prints "Ctor: 42, 3.14" 
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{emplace\_value}.}
+\end{figure}
+
+\paragraph{Restrictions and Pitfalls}\mbox{}\\ 
+\begin{itemize}
+  \item {\color{red}[0.2 only]} Because the 0.2 spec lacks a means of specifying
+  the constructor of \texttt{T} to be called by default, the first usage of
+  every modifiable handle (i.e., the first {\texttt{create\_work}} capturing the
+  handle) after being setup with \texttt{initial\_access<T>} should call
+  \texttt{emplace\_value()} or \texttt{set\_value()} before performing any
+  operations on the pointed-to object.  In other words, the pointed-to object
+  contains uninitialized memory until the user invokes 
+  \texttt{emplace\_value(...)} or \texttt{set\_value()} to construct the object.
+  Failure to do so leads to undefined behavior (just as, for instance,
+  \texttt{int x; cout << x;} leads to undefined behavior in C). 
+\end{itemize}
+
+
+
+

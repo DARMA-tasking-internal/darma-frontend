@@ -1,0 +1,76 @@
+\section{Keyword arguments}
+\label{sec:keyword}
+
+
+Similar to higher-level languages like Python, the DARMA C++ interface allows the user
+to specify arguments to many of the API functions and constructs using either positional
+or keyword arguments. In addition, many optional arguments may {\em only} be specified using
+keyword arguments. The syntax for specifying a keyword argument is identical to that
+of Python: \inlinecode{keyword=value}.  For instance, if there is 
+a function \inlinecode{some_function} in the DARMA API that accepts 
+positional or keyword arguments \inlinecode{arg_a}, 
+\inlinecode{count}, and \inlinecode{flag}, that function can be invoked 
+equivalently in any of the following ways:
+\begin{CppCode}
+/* some_function signature:
+ *  void some_function(std::string arg_a, int count, bool flag);
+ */
+// All of the following are equivalent:
+some_function("hello", 42, true);
+some_function(arg_a="hello", count=42, flag=true);
+some_function(count=42, flag=true, arg_a="hello");
+some_function("hello", flag=true, count=42);
+\end{CppCode}
+Note that positional arguments may {\em not} be specified after the first keyword argument,
+and an argument cannot be specified more than once, even as a positional and keyword
+argument.  Both of these lead to compile-time errors. Omitting a required argument is 
+also a compile-time error, as is giving an argument of the incorrect type: 
+\begin{CppCode}
+// Error: arg_a specified more than once
+some_function("hello", 42, true, arg_a="whoops!");
+
+// Error: missing required argument flag
+some_function("hello", count=42);
+
+// Error: cannot convert bool to std::string
+some_function(arg_a=false, flag=true, count=42);
+some_function(false, 42, true);
+
+// Error: positional argument given after first keyword argument
+some_function(arg_a="hello", 42, flag=true);
+\end{CppCode}
+The illusion of Python-like keyword arguments is accomplished 
+using \inlinecode{constexpr} instances
+of a class with the assignment operator overloaded.  The arguments are passed to the 
+callable using perfect forwarding, and thus the overhead from the keyword argument 
+trick is entirely at compile-time.  (More implementation details are given in
+Section \ref{sec:kwargs}).  These instances are defined in very descriptive namespaces,
+and frequently used keywords are aliased into more general namespaces. 
+For instance, the keywords for \inlinecode{some_function}, above, would likely be 
+defined in a namespace named using the following convention:
+\inlinecode{darma::keyword_arguments_for_some_function}.
+If \inlinecode{some_function} was a 
+widely used construct, its more important keywords would also be defined 
+in the namespace \inlinecode{darma::keyword_arguments}. 
+If \inlinecode{some_function} belonged to a broader category of 
+constructs, certain of its keywords may also be aliased into a 
+categorical namespace as well.  For instance, if \inlinecode{some_function} 
+implemented some memory management functionality,
+its keywords may be aliased into \inlinecode{darma::keyword_arguments_for_memory_management} or 
+something.  All of this is done so that the user can minimize verbosity without introducing
+naming conflicts.  In certain contexts, it may be expedient for the user to simply
+put \inlinecode{using darma::keyword_arguments} at the beginning of the calling context. 
+In other, more complicated contexts, importing all DARMA keywords into the 
+local context may lead to naming conflicts with local variables. 
+You don't have to guess at which namespaces
+a keyword is provided in or aliased into; every time a keyword argument or a callable
+accepting that argument is introduced in the documentation, the namespace to which 
+it belongs and all namespaces it is aliased into are given.
+
+% DSH: removed section and TODO for now.  These are discussed briefly above in
+% the handles section anyway.  We can elaborate more there later.
+%\subsection{Decorators to create\_work()}
+%\label{subsec:decorators}
+%\todo[inline]{add information here regarding decorators to create\_work: right
+%now we have waits(), reads(), writes(), and reads\_writes()}
+

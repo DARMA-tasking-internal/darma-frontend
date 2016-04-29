@@ -1,0 +1,41 @@
+\subsection{\texttt{get\_key}}
+
+\paragraph{Summary}\mbox{}\\ 
+Get a copy of the key identifying the data pointed to by the handle.
+
+\paragraph{Syntax}\mbox{}\\ 
+\todo{what is the key  type here?}
+\begin{CppCode}
+key_type & some_handle.get_key()
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{}\\ 
+None.
+
+\paragraph{Output}\mbox{}\\ 
+A copy of the key identifying the data.
+
+\paragraph{Details}\mbox{}\\ 
+This method can be called at any time after the handle is created.
+\todo{anything missing? details?}
+
+
+\paragraph{Code Snippet}\mbox{}\\ 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+//...
+AccessHandle<double> my_handle1 = read_access<double>("key_1", myRank);
+auto myK = my_handle1.get_key();
+
+create_work([=]{
+	my_handle1.get_reference() = 242.343;
+	auto myK = my_handle1.get_key();
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_get_key}
+\caption{Basic usage of \texttt{get\_key}.}
+\end{figure}
+
+
+
+
