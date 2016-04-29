@@ -73,23 +73,33 @@ template <
   template <class...> class UnaryMetafunction
 >
 struct any_arg_conditional {
-  //template <typename T,
-  //  typename = std::enable_if_t<
-  //    not std::is_same<T, std::remove_reference_t<T>>::value
-  //    and UnaryMetafunction<T>::value
-  //  >
-  //>
-  //operator T() { }
-
+  // Note that this first one is a non-const operator!  (This is the key to
+  // the whole thing working)
   template <typename T,
     typename = std::enable_if_t<UnaryMetafunction<T>::value>
   >
-  operator T&() const { }
+  operator T();
 
   template <typename T,
+    typename = std::enable_if_t<UnaryMetafunction<const T>::value>
+  >
+  operator const T() const;
+
+  template <typename T,
+    typename = std::enable_if_t<UnaryMetafunction<T&>::value>
+  >
+  operator T&() volatile;
+
+  template <typename T,
+    typename = std::enable_if_t<UnaryMetafunction<const T&>::value>
+  >
+  operator const T&() const volatile;
+
+  template <typename T,
+    // for now, leave off the rvalue reference for consistency between gcc and clang
     typename = std::enable_if_t<UnaryMetafunction<T>::value>
   >
-  operator T&&() const { }
+  operator T&&() const volatile;
 };
 
 using any_arg = any_arg_conditional<tinympl::always_true>;
