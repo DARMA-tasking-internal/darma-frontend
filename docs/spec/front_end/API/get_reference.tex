@@ -1,0 +1,35 @@
+\subsection{\texttt{get\_reference}}
+
+\paragraph{Summary}\mbox{}\\
+Get a non-constant reference to the data pointed to by the handle.
+
+\paragraph{Syntax}\mbox{}\\
+\begin{CppCode}
+value_type & some_handle.get_reference()
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{}\\
+None.
+
+\paragraph{Output}\mbox{}\\
+A non-constant reference to the data.  
+
+\paragraph{Details}\mbox{}\\
+This method can be called within a context with write privileges 
+on the target handle.\todo{anything missing? details?}
+
+
+\paragraph{Code Snippet}\mbox{}\\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+AccessHandle<double> my_handle1 = read_access<double>("key_1", myRank);
+create_work([=]{
+	my_handle1.get_reference() = 242.343;
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_getreference}
+\caption{Basic usage of \texttt{get\_reference}.}
+\end{figure}
+
+
+

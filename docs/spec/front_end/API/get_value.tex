@@ -1,0 +1,42 @@
+\subsection{\texttt{get\_value}}
+
+\paragraph{Summary} \mbox{}\\
+Get a copy of the data pointed to by the handle.
+
+\paragraph{Syntax}\mbox{}\\
+\begin{CppCode}
+value_type some_handle.get_value()
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{}\\ 
+None.
+
+\paragraph{Output}\mbox{}\\ 
+A copy of the data.  
+
+\paragraph{Details}\mbox{}\\ 
+It can be called only inside a deferred work context whenever 
+the enclosing context carries read permissions on the handle.
+\todo{anything missing? details?}
+
+
+\paragraph{Code Snippet}\mbox{}\\ 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+AccessHandle<double> my_handle = initial_access<double>("key_1", myRank);
+create_work([=]{
+  my_handle.set_value(3.14);
+});
+// ...
+AccessHandle<double> my_handle1 = read_access<double>("key_1", myRank);
+create_work([=]{
+	double myValue = my_handle1.get_value();
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_get_value}
+\caption{Basic usage of \texttt{get\_value}.}
+\end{figure}
+
+
+
+

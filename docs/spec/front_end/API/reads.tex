@@ -1,0 +1,45 @@
+\subsection{\texttt{reads}}
+\label{ssec:api_fe_reads}
+
+\paragraph{Summary} \mbox{}\\
+Argument to a \texttt{create\_work} to constraint 
+privileges of a set of handles to be read-only within that context.
+
+\paragraph{Syntax} \mbox{}\\
+\begin{CppCode}
+create_work(reads(handle1, handle2, ...),[=]{
+	// code 
+});
+\end{CppCode}
+
+\paragraph{Positional Arguments} \mbox{}\\
+handle1, handle2, ...: list of handles to 
+constraint to read-only privileges.
+
+\paragraph{Details} \mbox{}\\
+Used as argument to a \texttt{create\_work} to constraint 
+privileges of a list of handles to be read-only within that context.
+Can only be called as argument to \texttt{create\_work}. 
+It can contain a single or a list of handles.\todo{anything missing? details?} 
+See also \S~\ref{ssec:api_fe_cw} for more information on \texttt{create\_work}.
+
+
+\paragraph{Code Snippet} \mbox{}\\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+// ...
+auto my_handle = initial_access<double>("data", myRank);
+create_work([=]{
+  my_handle.emplace_value(0.55);
+});
+create_work(reads(my_handle),[=]{
+  std::cout << " " << my_handle.get_value() << std::endl;
+  my_handle.set_value() = ... ; // NOT allowed!
+});
+// ... 
+\end{CppCodeNumb}
+\label{fig:fe_api_reads}
+\caption{Basic usage of \texttt{reads}.}
+\end{figure}
+
+

@@ -1,0 +1,41 @@
+\subsection{\texttt{->}}
+
+\paragraph{Summary}\mbox{}\\
+A dereference operator to directly access the object 
+pointed to by the handle.
+
+
+\paragraph{Syntax}\mbox{}\\
+\todo{how to write syntax here??}
+\begin{CppCode}
+some_handle->
+\end{CppCode}
+
+\paragraph{Input Parameters}\mbox{}\\
+None.
+
+\paragraph{Output Parameters}\mbox{}\\
+The return type of the method called on the object.
+
+\paragraph{Details}\mbox{}\\
+This method can be called within a deferred work to directly 
+access the object pointed to by the handle.\todo{anything missing? details?}
+
+
+\paragraph{Code Snippet}\mbox{}\\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+//...
+typedef std::vector<double> vec;
+AccessHandle<vec> my_handle2 = initial_access<vec>("key_2", myRank);
+
+create_work([=]{
+	my_handle2.emplace_value(0.0);
+  my_handle2->resize(4);
+  double * vecPtr = my_handle2->data();    
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_arrow}
+\caption{Basic usage of arrow operator \texttt{->}.}
+\end{figure}
+

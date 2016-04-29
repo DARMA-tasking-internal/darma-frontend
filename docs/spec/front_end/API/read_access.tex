@@ -1,0 +1,46 @@
+\subsection{\texttt{read\_access}}
+
+\paragraph{Summary}\mbox{}\\
+Handle with \text{read-only} permission to data that already exits in the system. 
+
+\paragraph{Syntax}\mbox{}\\
+\begin{CppCode}
+AccessHandle<T> darma_runtime::read_access<T>(arg1, arg2, ...);
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{}\\
+arg1, arg2, ...: tuple of values identifying the key of the data to be read.
+
+\paragraph{Output}\mbox{}\\
+The handle.  
+
+\paragraph{Details}\mbox{}\\
+This construct creates a handle to data that already exists and 
+needs to be accessed with read-only privileges. 
+It takes as input the tuple of values uniquely 
+identifying the data that needs to be read. 
+
+In general, it is used to access data that is migratable, i.e. data 
+that potentially is stored off node.
+\todo{anything missing? details?}
+
+
+\paragraph{Code Snippet}\mbox{}\\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+AccessHandle<double> my_handle1 = initial_access<double>("key_1", myRank);
+create_work([=]{
+	my_handle1.emplace_value(5.3);
+});
+//...
+AccessHandle<double> readHandle = read_access<double>("key_1", myRank);
+create_work([=]{
+	std::cout << readHandle.get_value() << std::endl;
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_readaccess}
+\caption{Basic usage of \texttt{read\_access}.}
+\end{figure}
+
+
+
