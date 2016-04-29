@@ -49,6 +49,7 @@
 
 #include "is_instantiation.hpp"
 #include "logical_and.hpp"
+#include "detection.hpp"
 
 namespace tinympl {
 
@@ -109,6 +110,25 @@ struct is_suspension
       is_instantiation<T>,
       _impl::_has_member_type_named_type<T>
     >
+{ };
+
+namespace _impl {
+
+template <typename T>
+using has_value_archetype = decltype( T::value );
+
+template <typename T>
+using has_value = is_detected_convertible<bool, has_value_archetype, T>;
+
+} // end namespace _impl
+
+
+template <typename T>
+struct is_value_suspension
+  : and_<
+    is_instantiation<T>,
+    _impl::has_value<T>
+  >
 { };
 
 } // end namespace tinympl

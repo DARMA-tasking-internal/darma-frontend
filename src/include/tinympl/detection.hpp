@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          test_lambda.hpp
-//                         darma_new
+//                          detection.hpp
+//                         tinympl
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,65 +42,67 @@
 //@HEADER
 */
 
+#ifndef TINYMPL_DETECTION_H_
+#define TINYMPL_DETECTION_H_
 
-#include <tinympl/lambda.hpp>
-
-#include <util/empty_main.h>
-
-#include "metatest_helpers.h"
-
-#include <tinympl/vector.hpp>
-#include <tinympl/delay.hpp>
-#include <tinympl/logical_not.hpp>
-
-#include <string>
-#include <vector>
 #include <type_traits>
-#include <map>
-#include <queue>
 
-using namespace tinympl;
-using namespace tinympl::placeholders;
+#include <tinympl/void_t.hpp>
 
-meta_assert(
-  std::is_same<
-    typename lambda<std::vector<_>>::template apply<int>::type,
-    std::vector<int>
-  >::value
-);
+namespace tinympl {
 
-meta_assert(
-  std::is_same<
-    typename lambda<
-      vector<
-        std::vector<_2>,
-        _1
-      >
-    >::template apply<int, double>::type,
-    vector<std::vector<double>, int>
-  >::value
-);
+// Large pieces taken or adapted from http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4436.pdf
 
-meta_assert(
-  std::is_same<
-    typename lambda<
-      std::map<_1, _2>
-    >::template apply<int, double>::type,
-    std::map<int, double>
-  >::value
-);
+// primary template handles all types not supporting the archetypal Op
+template <
+  class Default,
+  class _always_void,
+  template <class...> class Op,
+  class... Args
+>
+struct detector {
+  constexpr static auto value = false;
+  using type = Default;
+};
 
-meta_assert(lambda<
-    not_<std::is_const<_1>>
-  >::template apply_value<int>::value
-);
+// specialization recognizes and handles only types supporting Op
+template <
+  class Default,
+  template <class...> class Op,
+  class... Args
+>
+struct detector<Default, void_t<Op<Args...>>, Op, Args...> {
+  constexpr static auto value = true;
+  using type = Op<Args...>;
+};
 
-//meta_assert(
-//  undelay<
-//    lambda<delay<std::is_same, std::decay<placeholders::_>, identity<int>>>::template apply
-//  >::template apply<int const volatile&>::type::value
-//);
+struct nonesuch {
+  nonesuch() = delete;
+  ~nonesuch() = delete;
+  nonesuch(nonesuch const&) = delete;
+  void operator=(nonesuch const&) = delete;
+};
 
-meta_assert(
-  lambda<std::is_same<std::decay<placeholders::_>, int>>::template apply<int const volatile&>::type::value
-);
+template <template <class...> class Op, class... Args>
+using is_detected = detector<nonesuch, void, Op, Args...>;
+
+template <template <class...> class Op, class... Args>
+using detected_t = typename is_detected<Op, Args...>::type;
+
+template <class Default, template <class...> class Op, class... Args>
+using detected_or = detector<Default, void, Op, Args...>;
+
+template <class Default, template <class...> class Op, class... Args>
+using detected_or_t = typename detected_or<Default, Op, Args...>::type;
+
+template <class Expected, template<class...> class Op, class... Args>
+using is_detected_exact = std::is_same<Expected, detected_t<Op, Args...>>;
+
+template <class To, template <class...> class Op, class... Args>
+using is_detected_convertible = std::is_convertible<detected_t<Op, Args...>, To>;
+
+} // end namespace tinympl
+
+
+
+#endif /* TINYMPL_DETECTION_H_ */

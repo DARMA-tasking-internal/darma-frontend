@@ -101,10 +101,6 @@ bool _check_contains(const Key& k, const Container& c) {
 #define DARMA_ASSERTION_END std::cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl
 #endif
 
-// TODO
-//#define DARMA_ASSERT_IN(...) assert( \
-//  ()
-
 #define DARMA_ASSERT_RELATED_VERBOSE(lhs, op, rhs) assert(                                         \
   (lhs op rhs) ||                                                                                   \
   ((                                                                                                \
