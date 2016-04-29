@@ -1,7 +1,7 @@
 \subsection{\texttt{initial\_access}}
 
 \paragraph{Summary}\mbox{}\\ 
-Handle to data that does not yet exist in the system 
+Create a handle to data that does not yet exist in the system 
 but needs to be created.
 
 \paragraph{Syntax}\mbox{}\\ 
@@ -12,8 +12,9 @@ AccessHandle<T> darma_runtime::initial_access<T>(arg1, arg2, ...);
 \paragraph{Positional Arguments}\mbox{}\\ 
 arg1, arg2, ...: arbitrary tuple of values defining the key of the data.
 
-\paragraph{Output}\mbox{}\\ 
-The handle.  
+\paragraph{Return}\mbox{}\\ 
+An object of unspecified type that may be treated as an \texttt{AccessHandle<T>}
+with the key given by the ar
 
 \paragraph{Details}\mbox{}\\ 
 This construct creates a handle to data that does not yet 
