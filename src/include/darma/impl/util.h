@@ -73,6 +73,11 @@
 #define DARMA_CONCAT_TOKEN_(foo, bar) DARMA_CONCAT_TOKEN_IMPL_(foo, bar)
 #define DARMA_CONCAT_TOKEN_IMPL_(foo, bar) foo ## bar
 
+template <typename T>
+struct _____________________________TYPE_DISPLAY________________________________;
+#define _DARMA_HIDE_TYPE_DISPLAY() _____________________________TYPE_DISPLAY________________________________
+#define DARMA_TYPE_DISPLAY(T) _DARMA_HIDE_TYPE_DISPLAY()<T> _undef;
+
 namespace darma_runtime {
 
 namespace detail {

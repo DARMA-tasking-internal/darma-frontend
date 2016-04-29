@@ -321,12 +321,29 @@ TEST_F(TestFunctor, simple_read_only_convert) {
   {
     auto tmp = initial_access<int>("hello");
     static_assert(
-      detail::functor_traits<SimpleReadOnlyFunctorConvert>
-      ::template call_arg_traits<decltype(tmp)&&, std::integral_constant<size_t, 1>>::is_const_conversion_capture, ""
+      not detail::functor_traits<SimpleReadOnlyFunctorConvert>
+        ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_access_handle,
+      "arg 1 should not be detected as an AccessHandle"
     );
     static_assert(
       detail::functor_traits<SimpleReadOnlyFunctorConvert>
-      ::template call_arg_traits<decltype(tmp)&&, std::integral_constant<size_t, 1>>::is_read_only_capture, ""
+      ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_convertible_to_value,
+      "arg 1 should be detected as convertible to type wrapped by AccessHandle tmp"
+    );
+    static_assert(
+      detail::functor_traits<SimpleReadOnlyFunctorConvert>
+      ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_const,
+      "arg 1 should be detected to be const"
+    );
+    static_assert(
+      detail::functor_traits<SimpleReadOnlyFunctorConvert>
+        ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_const_conversion_capture,
+      "arg 1 should be detected as a const conversion capture"
+    );
+    static_assert(
+      detail::functor_traits<SimpleReadOnlyFunctorConvert>
+        ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_read_only_capture,
+      "arg 1 should be detected as a read only capture"
     );
     EXPECT_VERSION_EQ(tmp, {0});
     create_work<SimpleReadOnlyFunctorConvert>(15, tmp);

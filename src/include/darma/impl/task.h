@@ -199,15 +199,23 @@ struct functor_traits {
     template <typename T>
     using detected_convertible_to_value = meta::is_detected_convertible<T, value_type_archetype, std::decay_t<CallArg>>;
 
+    static constexpr bool is_access_handle = functor_traits::arg_traits<index>::is_access_handle::value;
+
+    static constexpr bool is_convertible_to_value =
+      meta::callable_traits<Functor>::template arg_n_matches<detected_convertible_to_value, index>::value;
+
+    static constexpr bool is_const = functor_traits::arg_traits<index>::is_const::value;
+    //DARMA_TYPE_DISPLAY(call_arg_traits);
+
     // Did the caller give a handle and the functor give an argument that was a const (reference to)
     // a type that is convertible to that handle's value_type?
     static constexpr bool is_const_conversion_capture =
       // Well, not if the argument is an AccessHandle
-      (not functor_traits::arg_traits<index>::is_access_handle::value) and
+      (not is_access_handle) and
       // If so, the argument at index has to pass this convertibility predicate
-      (meta::callable_traits<Functor>::template arg_n_matches<detected_convertible_to_value, index>::value) and
+      is_convertible_to_value and
       // also, it has to be const
-      functor_traits::arg_traits<index>::is_const::value
+      is_const
     ; // end is_const_conversion_capture
 
     static constexpr bool is_read_only_capture =

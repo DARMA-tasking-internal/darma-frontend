@@ -54,6 +54,7 @@
 #include <utility> // declval
 
 #include <darma/impl/meta/detection.h>
+#include <darma/impl/util.h>
 #include <src/include/tinympl/always_true.hpp>
 
 namespace darma_runtime {
@@ -72,35 +73,32 @@ template <
   template <class...> class UnaryMetafunction
 >
 struct any_arg_conditional {
-  template <typename T,
-    typename = std::enable_if_t<
-      not std::is_same<T, std::remove_reference_t<T>>::value
-      and UnaryMetafunction<T>::value
-    >
-  >
-  operator T();
+  //template <typename T,
+  //  typename = std::enable_if_t<
+  //    not std::is_same<T, std::remove_reference_t<T>>::value
+  //    and UnaryMetafunction<T>::value
+  //  >
+  //>
+  //operator T() { }
 
   template <typename T,
-    typename = std::enable_if_t<
-      std::is_same<T, std::remove_reference_t<T>>::value
-      and UnaryMetafunction<T>::value
-    >
+    typename = std::enable_if_t<UnaryMetafunction<T>::value>
   >
-  operator T&();
+  operator T&() const { }
 
   template <typename T,
-    typename = std::enable_if_t<
-      std::is_same<T, std::remove_reference_t<T>>::value
-      and UnaryMetafunction<T>::value
-    >
+    typename = std::enable_if_t<UnaryMetafunction<T>::value>
   >
-  operator T&&();
+  operator T&&() const { }
 };
 
 using any_arg = any_arg_conditional<tinympl::always_true>;
 
 template <typename F, typename... Args>
-using callable_archetype = decltype( std::declval<F>()(std::declval<Args>()...) );
+using callable_archetype = decltype( std::declval<F>()(
+  std::declval<Args>()...
+  //std::declval<decltype( ( std::declval<Args>() ) )>()...
+) );
 template <typename F, typename... Args>
 using is_callable_with_args = is_detected<callable_archetype, F, Args...>;
 

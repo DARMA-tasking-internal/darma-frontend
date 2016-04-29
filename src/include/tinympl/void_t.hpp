@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          test_lambda.hpp
-//                         darma_new
+//                          void_t.hpp
+//                         tinympl
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,65 +42,23 @@
 //@HEADER
 */
 
+#ifndef TINYMPL_VOID_T_H_
+#define TINYMPL_VOID_T_H_
 
-#include <tinympl/lambda.hpp>
+namespace tinympl {
 
-#include <util/empty_main.h>
+// A void_t implementation that works with gcc-4.9 (workaround for bug 64395
+// From: http://stackoverflow.com/questions/35753920/why-does-the-void-t-detection-idiom-not-work-with-gcc-4-9
+namespace _void_t_impl {
 
-#include "metatest_helpers.h"
+template <class... >
+struct make_void { using type = void; };
 
-#include <tinympl/vector.hpp>
-#include <tinympl/delay.hpp>
-#include <tinympl/logical_not.hpp>
+} // end namepace _void_t_impl
 
-#include <string>
-#include <vector>
-#include <type_traits>
-#include <map>
-#include <queue>
+template <class... T>
+using void_t = typename _void_t_impl::make_void<T...>::type;
 
-using namespace tinympl;
-using namespace tinympl::placeholders;
+} // end namespace tinympl
 
-meta_assert(
-  std::is_same<
-    typename lambda<std::vector<_>>::template apply<int>::type,
-    std::vector<int>
-  >::value
-);
-
-meta_assert(
-  std::is_same<
-    typename lambda<
-      vector<
-        std::vector<_2>,
-        _1
-      >
-    >::template apply<int, double>::type,
-    vector<std::vector<double>, int>
-  >::value
-);
-
-meta_assert(
-  std::is_same<
-    typename lambda<
-      std::map<_1, _2>
-    >::template apply<int, double>::type,
-    std::map<int, double>
-  >::value
-);
-
-meta_assert(lambda<
-    not_<std::is_const<_1>>
-  >::template apply_value<int>::value
-);
-
-//meta_assert(
-//  undelay<
-//    lambda<delay<std::is_same, std::decay<placeholders::_>, identity<int>>>::template apply
-//  >::template apply<int const volatile&>::type::value
-//);
-
-meta_assert(
-  lambda<std::is_same<std::decay<placeholders::_>, int>>::template apply<int const volatile&>::type::value
-);
+#endif /* TINYMPL_VOID_T_H_ */

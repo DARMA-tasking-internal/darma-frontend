@@ -55,28 +55,26 @@
 #include <tinympl/vector.hpp>
 
 #include <darma/impl/meta/callable_traits.h>
+#include <src/include/tinympl/logical_not.hpp>
 
 using namespace darma_runtime::meta;
 
-#define meta_assert(...) static_assert( \
-  __VA_ARGS__, \
-  "callable_traits metatest failed" \
-);
+#define meta_fail "callable traits metatest failed"
 
 template <typename Callable>
 void test_it_1(Callable&& c) {
-  meta_assert(callable_traits<Callable>::n_args_min == 8);
-  meta_assert(callable_traits<Callable>::template arg_n_matches<std::is_integral, 0>::value);
-  meta_assert(callable_traits<Callable>::template arg_n_matches<std::is_integral, 1>::value);
-  meta_assert(callable_traits<Callable>::template arg_n_matches<std::is_integral, 2>::value);
-  meta_assert(callable_traits<Callable>::template arg_n_matches<std::is_integral, 3>::value);
-  meta_assert(not callable_traits<Callable>::template arg_n_matches<std::is_integral, 4>::value);
-  meta_assert(not callable_traits<Callable>::template arg_n_matches<std::is_integral, 5>::value);
-  meta_assert(not callable_traits<Callable>::template arg_n_matches<std::is_integral, 6>::value);
-  meta_assert(not callable_traits<Callable>::template arg_n_matches<std::is_integral, 7>::value);
-  meta_assert(not callable_traits<Callable>::template arg_n_matches<std::is_integral, 15>::value);
-  meta_assert(not callable_traits<Callable>::template all_args_match<std::is_integral>::value);
-  meta_assert(callable_traits<Callable>::template all_args_match<
+  static_assert(callable_traits<Callable>::n_args_min == 8, meta_fail);
+  static_assert(callable_traits<Callable>::template arg_n_matches<std::is_integral, 0>::value, meta_fail);
+  static_assert(callable_traits<Callable>::template arg_n_matches<std::is_integral, 1>::value, meta_fail);
+  static_assert(callable_traits<Callable>::template arg_n_matches<std::is_integral, 2>::value, meta_fail);
+  static_assert(callable_traits<Callable>::template arg_n_matches<std::is_integral, 3>::value, meta_fail);
+  static_assert(not callable_traits<Callable>::template arg_n_matches<std::is_integral, 4>::value, meta_fail);
+  static_assert(not callable_traits<Callable>::template arg_n_matches<std::is_integral, 5>::value, meta_fail);
+  static_assert(not callable_traits<Callable>::template arg_n_matches<std::is_integral, 6>::value, meta_fail);
+  static_assert(not callable_traits<Callable>::template arg_n_matches<std::is_integral, 7>::value, meta_fail);
+  static_assert(not callable_traits<Callable>::template arg_n_matches<std::is_integral, 15>::value, meta_fail);
+  static_assert(not callable_traits<Callable>::template all_args_match<std::is_integral>::value, meta_fail);
+  static_assert(callable_traits<Callable>::template all_args_match<
     tinympl::lambda<
       tinympl::not_equal_to<
         tinympl::find<
@@ -86,7 +84,20 @@ void test_it_1(Callable&& c) {
         std::integral_constant<size_t, 2>
       >
     >::template apply_value
-  >::value)
+  >::value, meta_fail);
+  static_assert(callable_traits<Callable>::template arg_n_matches<
+    tinympl::lambda<std::is_const<tinympl::placeholders::_>>::template apply_value, 2
+  >::value, meta_fail);
+  static_assert(callable_traits<Callable>::template arg_n_matches<
+    tinympl::lambda<
+      tinympl::not_<std::is_const<tinympl::placeholders::_>>
+    >::template apply_value, 2>::value, meta_fail
+  );
+  static_assert(tinympl::lambda<
+      tinympl::not_<std::is_const<tinympl::placeholders::_1>>
+    >::template apply_value<int>::value,
+    "oops"
+  );
 }
 
 
