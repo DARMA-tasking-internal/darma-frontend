@@ -1,0 +1,45 @@
+\subsection{\texttt{initial\_access}}
+
+\paragraph{Summary}\mbox{}\\ 
+Handle to data that does not yet exist in the system 
+but needs to be created.
+
+\paragraph{Syntax}\mbox{}\\ 
+\begin{CppCode}
+AccessHandle<T> darma_runtime::initial_access<T>(arg1, arg2, ...);
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{}\\ 
+arg1, arg2, ...: arbitrary tuple of values defining the key of the data.
+
+\paragraph{Output}\mbox{}\\ 
+The handle.  
+
+\paragraph{Details}\mbox{}\\ 
+This construct creates a handle to data that does not yet 
+exist but needs to be created. It takes as input an arbitrary 
+tuple of values. Note that this key has to be unique. 
+One cannot define two handles with same the same key, even if 
+it is created by different ranks. 
+When data is initialized, given the SPMD environment provided by DARMA, 
+each rank needs to create a unique label for the data. 
+One basic way to ensure this is the case is to always use the rank 
+as one component of the key. 
+\todo{anything missing? details?}
+
+\paragraph{Code Snippet}\mbox{}\\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+  auto my_handle1 = initial_access<double>("data_key_1", myRank);
+  auto my_handle2 = initial_access<int>("data_key_2", myRank, "_online");
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{initial\_access}.}
+\end{figure}
+
+
+
+
+%%%%%%%%%%%%%
+

@@ -1,0 +1,87 @@
+%\clearpage
+
+\subsection{\texttt{darma\_init}}
+
+\paragraph{Summary}\mbox{}\\
+Initializes the DARMA execution environment.
+
+\paragraph{Syntax}\mbox{}\\
+\begin{CppCode}
+void darma_runtime::darma_init(int& argc, char**& argv);
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{}\\
+\begin{itemize}
+\item argc: command line arguments count.
+\item argv: array arguments.
+\end{itemize}
+The input parameters are the command line argument count 
+and array arguments provided to main.  
+Note that the back-end will process and remove 
+any DARMA back-end-specific arguments from these.
+
+\paragraph{Output}\mbox{}\\
+None.
+
+
+\paragraph{Details}\mbox{}\\
+Must be called only once before any other DARMA function is called.
+It needs to be combined with \texttt{darma\_finalize()} (see below).
+\todo{anything missing? details?}
+
+\paragraph{Code Snippet}\mbox{}\\ 
+See code for \texttt{darma\_finalize} in Figure~\ref{fig:fe_api_init}.
+
+
+%\clearpage
+
+\subsection{\texttt{darma\_finalize}}
+\label{ssec:api_fe_finalize}
+
+\paragraph{Summary}\mbox{}\\
+Finalizes the DARMA execution environment.
+
+\paragraph{Syntax}\mbox{}\\ 
+\begin{CppCode}
+void darma_runtime::darma_finalize();
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{} \\
+None. 
+
+\paragraph{Output}\mbox{} \\
+None. 
+
+\paragraph{Details}\mbox{} 
+Terminates the execution environment, cleaning up all DARMA processes.
+Needs to be called {\it after} \texttt{darma\_init}.\todo{anything missing? details?}
+
+
+\paragraph{Code Snippet}\mbox{} \\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+  using namespace darma_runtime;
+
+  std::cout << "Initializing darma" << std::endl;
+  darma_init(argc, argv);
+
+  // code goes here
+
+  std::cout << "Finalizing darma" << std::endl;
+  darma_finalize();
+  return 0;
+}
+\end{CppCodeNumb}
+\caption{Basic usage of \texttt{darma\_init} and \texttt{darma\_finalize} 
+to initialize and finalize environment.}
+\label{fig:fe_api_init}
+\end{figure}
+
+
+
+
+
+

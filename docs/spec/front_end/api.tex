@@ -1,0 +1,59 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% 									API
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{API: Creating and Managing Work}
+In this section we provide details regarding the DARMA-\specVersion\ \gls{API}.
+
+\input{front_end/API/darma_init_finalize}
+\clearpage
+\input{front_end/API/darma_spmd_size}
+\clearpage
+\input{front_end/API/darma_spmd_rank}
+\clearpage
+\input{front_end/API/create_work}
+\clearpage
+
+\section{API: Data Access Handles}
+
+In this section, we discuss the handle types in the DARMA \specVersion\ spec.
+\input{front_end/API/initial_access}
+\clearpage
+\input{front_end/API/read_access}
+\clearpage
+
+\section{API: \texttt{AccessHandle} methods}
+
+In this section, we describe the methods that can be called 
+on \texttt{AccessHandle<T>} objects (i.e., the objects returned by the 
+\texttt{initial\_access<T>} and \texttt{read\_access<T>} functions).
+
+
+\input{front_end/API/emplace_value}
+\clearpage
+\input{front_end/API/publish}
+\clearpage
+\input{front_end/API/get_value}
+\clearpage
+\input{front_end/API/set_value}
+\clearpage
+\input{front_end/API/get_reference}
+\clearpage
+\input{front_end/API/arrow_operator}
+\clearpage
+\input{front_end/API/get_key}
+\clearpage
+\input{front_end/API/release}
+\clearpage
+
+\section{API: Keywords}
+
+In this section, we describe the keywords of the \specVersion\ API. 
+
+\input{front_end/API/reads}
+\clearpage
+\input{front_end/API/n_readers}
+\clearpage
+\input{front_end/API/version}

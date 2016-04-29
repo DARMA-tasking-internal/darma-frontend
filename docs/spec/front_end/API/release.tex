@@ -1,0 +1,43 @@
+\subsection{\texttt{=0} or \texttt{release}}
+
+\paragraph{Summary} \mbox{}\\
+Releases the handle.
+
+\paragraph{Syntax} \mbox{}\\
+These two are equivalent.
+\begin{CppCode}
+void some_handle = 0;    
+void some_handle.release()
+\end{CppCode}
+
+
+\paragraph{Positional Arguments} \mbox{}\\
+None.
+
+\paragraph{Output} \mbox{}\\
+None.
+
+\paragraph{Details} \mbox{}\\
+This method can be called to release a handle to some data.
+\todo{anything missing? details?}
+
+
+\paragraph{Code Snippet} \mbox{}\\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+// ...
+AccessHandle<double> my_handle1 = initial_access<double>("key_1", myRank);
+create_work([=]{
+	my_handle1.get_reference() = 242.343;
+});
+my_handle1.release();
+// ...
+\end{CppCodeNumb}
+\label{fig:fe_api_release}
+\caption{Basic usage of \texttt{=0} or \texttt{release}.}
+\end{figure}
+
+
+
+
+
