@@ -3,19 +3,19 @@
 \label{ssec:api_fe_cw}
 
 \paragraph{Summary}\mbox{}\\
-Communicates work to the runtime system.
+Expresses work to be executed by the runtime system.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
 // Functionally:
 create_work([=]{
-  // deferred work goes here
+  // Code expressing deferred work goes here
 });
 // or:
 create_work(
   ConstraintExpressions..., 
   [=]{
-	// deferred work goes here
+    // Code expressing deferred work goes here
   }
 );
 
@@ -25,7 +25,9 @@ create_work(
 
 \paragraph{Positional Arguments}\mbox{}\\
 \begin{itemize}
-  \item \texttt{LambdaExpression} \todo{write this}
+  \item \texttt{LambdaExpression} A C++11 lambda expression with a copy
+  default-capture (i.e., \texttt{[=]}) and taking no arguments.  More details
+  below.
   \item \texttt{ConstraintExpressions...} (optional) If given, these
   arguments can be used to express modifications in the default capture behavior
   of \texttt{AccessHandle<T>} objects captured by the \texttt{LambdaExpression}
@@ -36,51 +38,41 @@ create_work(
   \texttt{LambdaExpression} that follows.
 \end{itemize}
 
-%Input arguments are optional. If no input is provided, the 
-%\texttt{create\_work} has privileges on the handles used inside 
-%as determined by the semantics of the code. 
-%On the contrary, using the keyword \texttt{reads}, it can take as 
-%argument a list of handles that are captured with read-only permissions. 
-%See \S~\ref{ssec:api_fe_reads} for more information on how to do this. 
-%This constraints the permissions to be read-only 
-%on these handles passed to the function.
-%\todo{anything missing? details?}
-
 
 \paragraph{Return}\mbox{}\\
 Currently \texttt{void} in the 0.2 spec, but may be an object of unspecified
 type in future implementations.
 
 \paragraph{Details}\mbox{}\\
-This function communicates work to the runtime system. 
-Specifically, this is needed to construct deferred work. 
-Note: the block of code enclosed will be executed only when all the 
-proper permissions on the data it uses will be available.
-\todo{anything missing? details?}
+This function expresses work to be executed by the runtime system.  Any
+\texttt{AccessHandle<T>} variables used in the \texttt{LambdaExpression} will be
+captured and made available inside the capturing context as if they were used in
+sequence with previous capture operations on the same handle.  Depending on the
+scheduling permissions available to the \texttt{AccessHandle<T>} at the time of
+\texttt{create\_work} invocation and on the \texttt{ConstraintExpressions...}
+given as arguments, this function call expresses either a {\it read-only
+capture} or a {\it modify capture} operation on a given handle (see
+\S~\ref{sec:handlerules}).  If a handle \texttt{h} has {\it Read} scheduling
+permissions when it is captured or if the explicit constraint expression
+\texttt{reads(h)} is given in the \texttt{ConstraintExpressions...} arguments,
+\texttt{create\_work} functions as a {\it read-only capture} operation on that handle.
+Otherwise, it functions as a {\it modify capture}.  
 
 
 \paragraph{Code Snippet}\mbox{}\\
 \begin{figure}[!h]
 \begin{CppCodeNumb}
-#include <darma.h>
-int darma_main(int argc, char** argv)
-{
-  using namespace darma_runtime;
-  darma_init(argc, argv);
-  const int myRank = darma_spmd_rank();
-  const int size = darma_spmd_size();
-
-  create_work([=]
-  {
-  	std::cout << " Hello world! " << std::endl;
-  });
-
-  darma_finalize();
-  return 0;
-}
+create_work([=]{
+  std::cout << " Hello world! " << std::endl;
+});
 \end{CppCodeNumb}
 \label{fig:fe_api_cw}
 \caption{Basic usage of \texttt{create\_work}.}
 \end{figure}
 
+
+\paragraph{Restrictions and Pitfalls}\mbox{} \\
+\begin{itemize}
+  \item \todo{there are a lot of these to write about}
+\end{itemize}
 
