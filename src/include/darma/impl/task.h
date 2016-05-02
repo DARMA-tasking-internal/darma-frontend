@@ -182,8 +182,8 @@ struct functor_traits {
     struct is_compile_time_modifiable
       : meta::callable_traits<Functor>::template arg_n_matches<decayed_is_compile_time_modifiable, N>
     { };
-    struct is_const
-      : meta::callable_traits<Functor>::template arg_n_matches<std::is_const, N>
+    struct is_nonconst_lvalue_reference
+      : meta::callable_traits<Functor>::template arg_n_is_nonconst_lvalue_reference<N>
     { };
   };
 
@@ -204,7 +204,9 @@ struct functor_traits {
     static constexpr bool is_convertible_to_value =
       meta::callable_traits<Functor>::template arg_n_matches<detected_convertible_to_value, index>::value;
 
-    static constexpr bool is_const = functor_traits::arg_traits<index>::is_const::value;
+    static constexpr bool is_nonconst_lvalue_reference =
+      functor_traits::arg_traits<index>::is_nonconst_lvalue_reference::value;
+
     //DARMA_TYPE_DISPLAY(call_arg_traits);
 
     // Did the caller give a handle and the functor give an argument that was a const (reference to)
@@ -214,8 +216,8 @@ struct functor_traits {
       (not is_access_handle) and
       // If so, the argument at index has to pass this convertibility predicate
       is_convertible_to_value and
-      // also, it has to be const
-      is_const
+      // also, it can't be an lvalue reference that expects modifications
+      (not is_nonconst_lvalue_reference)
     ; // end is_const_conversion_capture
 
     static constexpr bool is_read_only_capture =
