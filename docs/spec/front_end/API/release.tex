@@ -1,26 +1,31 @@
 \subsection{\texttt{=0} or \texttt{release}}
 
 \paragraph{Summary} \mbox{}\\
-Releases the handle.
+Releases the reference to the data held by the handle.
 
 \paragraph{Syntax} \mbox{}\\
 These two are equivalent.
 \begin{CppCode}
-void some_handle = 0;    
-void some_handle.release()
+// Functional:
+some_handle = 0;    
+some_handle.release()
+
+// Formal
+void AccessHandle<T>::operator=(std::nullptr_t);
+void AccessHandle<T>::release();
 \end{CppCode}
 
 
 \paragraph{Positional Arguments} \mbox{}\\
 None.
 
-\paragraph{Output} \mbox{}\\
+\paragraph{Return} \mbox{}\\
 None.
 
 \paragraph{Details} \mbox{}\\
-This method can be called to release a handle to some data.
-\todo{anything missing? details?}
-
+Release the reference to the underlying data held by a given handle.  Note that
+this effectively only decrements the reference count; the data itself will not
+be deleted unless there are no other existing handles referring to it.
 
 \paragraph{Code Snippet} \mbox{}\\
 \begin{figure}[!h]
