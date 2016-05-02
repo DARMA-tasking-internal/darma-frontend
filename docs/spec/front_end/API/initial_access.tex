@@ -1,7 +1,7 @@
 \subsection{\texttt{initial\_access}}
 
 \paragraph{Summary}\mbox{}\\ 
-Handle to data that does not yet exist in the system 
+Create a handle to data that does not yet exist in the system 
 but needs to be created.
 
 \paragraph{Syntax}\mbox{}\\ 
@@ -12,33 +12,46 @@ AccessHandle<T> darma_runtime::initial_access<T>(arg1, arg2, ...);
 \paragraph{Positional Arguments}\mbox{}\\ 
 arg1, arg2, ...: arbitrary tuple of values defining the key of the data.
 
-\paragraph{Output}\mbox{}\\ 
-The handle.  
+\paragraph{Return}\mbox{}\\ 
+An object of unspecified type that may be treated as an \texttt{AccessHandle<T>}
+with the key given by the arguments.
 
 \paragraph{Details}\mbox{}\\ 
 This construct creates a handle to data that does not yet 
-exist but needs to be created. It takes as input an arbitrary 
-tuple of values. Note that this key has to be unique. 
-One cannot define two handles with same the same key, even if 
-it is created by different ranks. 
-When data is initialized, given the SPMD environment provided by DARMA, 
-each rank needs to create a unique label for the data. 
+exist but needs to be created.  The handle is created with {\it Modify}
+scheduling permissions and {\it None} immediate permissions.  The function takes
+as input an arbitrary tuple of values.
+Note that this key has to be unique (see discussion about keys and uniqueness
+elsewhere\todo{figure out where this should refer}).  One cannot define two
+handles with same the same key, even if they are created by different ranks.
 One basic way to ensure this is the case is to always use the rank 
 as one component of the key. 
-\todo{anything missing? details?}
 
 \paragraph{Code Snippet}\mbox{}\\
 \begin{figure}[!h]
 \begin{CppCodeNumb}
   auto my_handle1 = initial_access<double>("data_key_1", myRank);
   auto my_handle2 = initial_access<int>("data_key_2", myRank, "_online");
-}
 \end{CppCodeNumb}
 \label{fig:fe_api_initialaccess}
 \caption{Basic usage of \texttt{initial\_access}.}
 \end{figure}
 
+\paragraph{Restrictions and Pitfalls}\mbox{}\\ 
+\begin{itemize}
+  \item Because the actual type returned by \texttt{initial\_access<T>} is
+  unspecified, you should generally use \texttt{auto} instead of naming type on 
+  the left hand side of the assignment (this is generally a good idea in modern
+  C++). In other words,
+  \begin{CppCode}
+	// $\yes$ good, preferred
+	auto my_handle1 = initial_access<double>("data_key_1", myRank); 
 
+	// $\no$ still compiles, but not preferred (may miss out
+	//  on some future optimizations and compile-time checks)
+	AccessHandle<double> my_handle1 = initial_access<double>("data_key_1", myRank); 
+  \end{CppCode}
+\end{itemize}
 
 
 %%%%%%%%%%%%%
