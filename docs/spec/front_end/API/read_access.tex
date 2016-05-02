@@ -1,7 +1,8 @@
 \subsection{\texttt{read\_access}}
 
 \paragraph{Summary}\mbox{}\\
-Handle with \text{read-only} permission to data that already exits in the system. 
+Creates a handle with \text{read-only} permission to data that already exits in
+the system.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
@@ -11,14 +12,19 @@ AccessHandle<T> darma_runtime::read_access<T>(arg1, arg2, ...);
 \paragraph{Positional Arguments}\mbox{}\\
 arg1, arg2, ...: tuple of values identifying the key of the data to be read.
 
-\paragraph{Output}\mbox{}\\
-The handle.  
+\paragraph{Keyword Arguments}\mbox{}\\
+version \todo{description of version keyword argument}
+
+\paragraph{Return}\mbox{}\\
+An object of unspecified type that may be treated as an \texttt{AccessHandle<T>}
+with the key given by the arguments.
 
 \paragraph{Details}\mbox{}\\
-This construct creates a handle to data that already exists and 
+This function creates a handle to data that already exists and 
 needs to be accessed with read-only privileges. 
 It takes as input the tuple of values uniquely 
-identifying the data that needs to be read. 
+identifying the data that needs to be read.  \todo{finish this, talking about
+how corresponding publish has to happen at some point Read/None permissions }
 
 In general, it is used to access data that is migratable, i.e. data 
 that potentially is stored off node.
@@ -42,5 +48,7 @@ create_work([=]{
 \caption{Basic usage of \texttt{read\_access}.}
 \end{figure}
 
+\todo{pitfalls: talk about how unspecified type may provide compile-time
+checking that e.g. set\_value() wasn't called in the future}
 
 
