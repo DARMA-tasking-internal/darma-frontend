@@ -115,6 +115,52 @@ void test_it_1(Callable&& c) {
   //  >::template apply_value<int const&>::value,
   //  "oops"
   //);
+
+}
+
+template <typename Callable>
+void test_it_by_value(Callable&& c) {
+  typedef callable_traits<Callable> traits;
+  static_assert(traits::template arg_n_is_by_value<0>::value, meta_fail);
+  static_assert(traits::template arg_n_is_by_reference<1>::value, meta_fail);
+  static_assert(traits::template arg_n_is_by_reference<2>::value, meta_fail);
+  // Ignore rvalue references for now
+  // static_assert(traits::template arg_n_is_by_value<3>::value, meta_fail);
+  static_assert(traits::template arg_n_is_by_value<4>::value, meta_fail);
+  static_assert(traits::template arg_n_is_by_reference<5>::value, meta_fail);
+  static_assert(traits::template arg_n_is_by_reference<6>::value, meta_fail);
+  // Ignore rvalue references for now
+  // static_assert(traits::template arg_n_is_by_value<Callable, 7>::value, meta_fail);
+}
+
+template <typename Callable>
+void test_it_accepts_const_reference(Callable&& c) {
+  typedef callable_traits<Callable> traits;
+  static_assert(traits::template arg_n_accepts_const_reference<0>::value, meta_fail);
+  static_assert(not traits::template arg_n_accepts_const_reference<1>::value, meta_fail);
+  static_assert(traits::template arg_n_accepts_const_reference<2>::value, meta_fail);
+  // Ignore rvalue references for now
+  // static_assert(traits::template arg_n_accepts_const_reference<3>::value, meta_fail);
+  static_assert(traits::template arg_n_accepts_const_reference<4>::value, meta_fail);
+  static_assert(not traits::template arg_n_accepts_const_reference<5>::value, meta_fail);
+  static_assert(traits::template arg_n_accepts_const_reference<6>::value, meta_fail);
+  // Ignore rvalue references for now
+  // static_assert(traits::template arg_n_accepts_const_reference<7>::value, meta_fail);
+}
+
+template <typename Callable>
+void test_it_is_nonconst_reference(Callable&& c) {
+  typedef callable_traits<Callable> traits;
+  static_assert(not traits::template arg_n_is_nonconst_lvalue_reference<0>::value, meta_fail);
+  static_assert(traits::template arg_n_is_nonconst_lvalue_reference<1>::value, meta_fail);
+  static_assert(not traits::template arg_n_is_nonconst_lvalue_reference<2>::value, meta_fail);
+  // Ignore rvalue references for now
+  // static_assert(traits::template arg_n_is_nonconst_lvalue_reference<3>::value, meta_fail);
+  static_assert(not traits::template arg_n_is_nonconst_lvalue_reference<4>::value, meta_fail);
+  static_assert(traits::template arg_n_is_nonconst_lvalue_reference<5>::value, meta_fail);
+  static_assert(not traits::template arg_n_is_nonconst_lvalue_reference<6>::value, meta_fail);
+  // Ignore rvalue references for now
+  // static_assert(traits::template arg_n_accepts_const_reference<7>::value, meta_fail);
 }
 
 
@@ -132,6 +178,21 @@ TEST(TestCallableTraits, static1) {
   test_it_1(fun1);
   test_it_1(fun2());
   test_it_1([&](
+    int, int&, int const&, int&&, std::string, std::string&, std::string const&, std::string&&
+  ){ });
+  test_it_by_value(fun1);
+  test_it_by_value(fun2());
+  test_it_by_value([&](
+    int, int&, int const&, int&&, std::string, std::string&, std::string const&, std::string&&
+  ){ });
+  test_it_accepts_const_reference(fun1);
+  test_it_accepts_const_reference(fun2());
+  test_it_accepts_const_reference([&](
+    int, int&, int const&, int&&, std::string, std::string&, std::string const&, std::string&&
+  ){ });
+  test_it_is_nonconst_reference(fun1);
+  test_it_is_nonconst_reference(fun2());
+  test_it_is_nonconst_reference([&](
     int, int&, int const&, int&&, std::string, std::string&, std::string const&, std::string&&
   ){ });
 }

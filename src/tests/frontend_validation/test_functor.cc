@@ -278,79 +278,79 @@ TEST_F(TestFunctor, simple_read_only) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// TODO reenable this when I fix const detection in callable_traits (I know how, just haven't done it yet)
-//TEST_F(TestFunctor, simple_read_only_convert) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//
-//  mock_runtime->save_tasks = true;
-//
-//  handle_t* h0, *h1, *h2;
-//  h0 = h1 = h2 = nullptr;
-//
-//  int val = 25;
-//
-//  Sequence shandle;
-//
-//  mock_backend::MockDataBlock db;
-//
-//  {
-//
-//    InSequence s;
-//
-//    EXPECT_CALL(*mock_runtime, register_handle(_))
-//      .InSequence(shandle)
-//      .WillOnce(
-//        DoAll(
-//          SaveArg<0>(&h1),
-//          Invoke([&](auto& h) { h->satisfy_with_data_block(&db); })
-//        )
-//      );
-//
-//    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-//      handle_in_get_dependencies(h1), Not(needs_write_handle(h1)), needs_read_handle(h1)
-//    )));
-//
-//    EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1))));
-//
-//  }
-//
-//  EXPECT_CALL(db, get_data())
-//    .InSequence(shandle)
-//    .WillRepeatedly(Return((void*)&val));
-//
-//  {
-//    auto tmp = initial_access<int>("hello");
-//    static_assert(
-//      not detail::functor_traits<SimpleReadOnlyFunctorConvert>
-//        ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_access_handle,
-//      "arg 1 should not be detected as an AccessHandle"
-//    );
-//    static_assert(
-//      detail::functor_traits<SimpleReadOnlyFunctorConvert>
-//      ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_convertible_to_value,
-//      "arg 1 should be detected as convertible to type wrapped by AccessHandle tmp"
-//    );
-//    static_assert(
-//      detail::functor_traits<SimpleReadOnlyFunctorConvert>
-//      ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_const,
-//      "arg 1 should be detected to be const"
-//    );
-//    static_assert(
-//      detail::functor_traits<SimpleReadOnlyFunctorConvert>
-//        ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_const_conversion_capture,
-//      "arg 1 should be detected as a const conversion capture"
-//    );
-//    static_assert(
-//      detail::functor_traits<SimpleReadOnlyFunctorConvert>
-//        ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_read_only_capture,
-//      "arg 1 should be detected as a read only capture"
-//    );
-//    EXPECT_VERSION_EQ(tmp, {0});
-//    create_work<SimpleReadOnlyFunctorConvert>(15, tmp);
-//    EXPECT_VERSION_EQ(tmp, {0});
-//  }
-//
-//  run_all_tasks();
-//
-//}
+// TODO write a test that detects the opposite, i.e., nonconst lvalue reference as Modify request and a corresponding death test when called with a read-only handle
+TEST_F(TestFunctor, simple_read_only_convert) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+
+  mock_runtime->save_tasks = true;
+
+  handle_t* h0, *h1, *h2;
+  h0 = h1 = h2 = nullptr;
+
+  int val = 25;
+
+  Sequence shandle;
+
+  mock_backend::MockDataBlock db;
+
+  {
+
+    InSequence s;
+
+    EXPECT_CALL(*mock_runtime, register_handle(_))
+      .InSequence(shandle)
+      .WillOnce(
+        DoAll(
+          SaveArg<0>(&h1),
+          Invoke([&](auto& h) { h->satisfy_with_data_block(&db); })
+        )
+      );
+
+    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+      handle_in_get_dependencies(h1), Not(needs_write_handle(h1)), needs_read_handle(h1)
+    )));
+
+    EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1))));
+
+  }
+
+  EXPECT_CALL(db, get_data())
+    .InSequence(shandle)
+    .WillRepeatedly(Return((void*)&val));
+
+  {
+    auto tmp = initial_access<int>("hello");
+    static_assert(
+      not detail::functor_traits<SimpleReadOnlyFunctorConvert>
+        ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_access_handle,
+      "arg 1 should not be detected as an AccessHandle"
+    );
+    static_assert(
+      detail::functor_traits<SimpleReadOnlyFunctorConvert>
+        ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_convertible_to_value,
+      "arg 1 should be detected as convertible to type wrapped by AccessHandle tmp"
+    );
+    static_assert(
+      not detail::functor_traits<SimpleReadOnlyFunctorConvert>
+        ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_nonconst_lvalue_reference,
+      "arg 1 should not be detected as a non-const lvalue reference"
+    );
+    static_assert(
+      detail::functor_traits<SimpleReadOnlyFunctorConvert>
+        ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_const_conversion_capture,
+      "arg 1 should be detected as a const conversion capture"
+    );
+    static_assert(
+      detail::functor_traits<SimpleReadOnlyFunctorConvert>
+        ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_read_only_capture,
+      "arg 1 should be detected as a read only capture"
+    );
+    EXPECT_VERSION_EQ(tmp, {0});
+    create_work<SimpleReadOnlyFunctorConvert>(15, tmp);
+    EXPECT_VERSION_EQ(tmp, {0});
+  }
+
+  run_all_tasks();
+
+}
