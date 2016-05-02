@@ -2,22 +2,26 @@
 
 
 \paragraph{Summary}\mbox{}\\
-Returns the size of the DARMA environment.
+Returns the number of ranks in the DARMA environment.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
-int darma_runtime::darma_spmd_size();
+/* unspecified */ darma_runtime::darma_spmd_size();
 \end{CppCode}
 
 \paragraph{Positional Arguments} \mbox{}\\
 None. 
 
-\paragraph{Output} \mbox{}\\
-The size of the DARMA environment.
+\paragraph{Return} \mbox{}\\
+An object of unspecified type that may be treated as a \texttt{std::size\_t}
+giving the number of ranks in the DARMA environment.
 
 \paragraph{Details} \mbox{}\\
-This function returns the size of the DARMA environment. 
-The size of the DARMA environment is always $>0$.\todo{anything missing? details?}
+This function gives the number of ranks DARMA is executing the program with. 
+Specifically, it is the number of times the backend has invoked
+\texttt{darma\_main} anywhere in the system for this particular run of the
+program (and thus, it is also the number of times the backend expects the user
+to invoke \texttt{darma\_init}).
 
 \paragraph{Code Snippet} \mbox{}\\
 \begin{figure}[!h]
@@ -28,7 +32,7 @@ int darma_main(int argc, char** argv)
   using namespace darma_runtime;
   darma_init(argc, argv);
 
-  const int size = darma_spmd_size();
+  const size_t size = darma_spmd_size();
   // ...
 
   darma_finalize();
@@ -38,4 +42,15 @@ int darma_main(int argc, char** argv)
 \label{fig:fe_api_ranksize}
 \caption{Basic usage of \texttt{darma\_spmd\_size}.}
 \end{figure}
+
+\paragraph{Restrictions and Pitfalls}\mbox{} \\
+\begin{itemize}
+  \item The value returned by this function will always return \texttt{true}
+  for greater-than comparison with 0, and will always be convertible to a
+  \texttt{std::size\_t} with a value greater than 0.
+  \item The return type is unspecified to allow future expansion to generalized
+  ranks.  For instance, future versions of the spec may allow the user to
+  request the rank as an \texttt{\{x, y, z\}} tuple of indices in a structured
+  lattice.
+\end{itemize}
 
