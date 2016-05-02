@@ -1,7 +1,7 @@
 #include "../common_poisson1d.h"
 #include "../constants.h"
 #include <darma.h>
-using namespace darma_runtime;
+using namespace darma_runtime; //here because headers below need this too
 #include "initialize.h"
 #include "solveTridiag.h"
 #include "checkError.h"
