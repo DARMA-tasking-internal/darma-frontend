@@ -55,8 +55,8 @@ invocation, as well as and all of the decendents of that work, must be
 completed.  No user-level DARMA operations are allowed after this call, though
 the implicit invocation of the destructors of \texttt{AccessHandle<T>} objects
 (at, e.g., the final closing brace of \texttt{darma\_main()}) is allowed.  Must
-be called exactly once for each call of \textt{darma\_init} (which, in turn must
-be called exactly once in the current version of the spec).
+be called exactly once for each call of \texttt{darma\_init} (which, in turn
+must be called exactly once in the current version of the spec).
 
 \paragraph{Code Snippet}\mbox{} \\
 \begin{figure}[!h]
@@ -81,7 +81,7 @@ to initialize and finalize environment.}
 \label{fig:fe_api_init}
 \end{figure}
 
-\paragraph{Restrictions and Pitfalls}
+\paragraph{Restrictions and Pitfalls}\mbox{} \\
 \begin{itemize}
   \item \texttt{darma\_finalize} should be called at the outermost task depth on
   a rank.  In other words, it should {\it never} be called from within a
