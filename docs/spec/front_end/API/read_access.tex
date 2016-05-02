@@ -1,19 +1,27 @@
 \subsection{\texttt{read\_access}}
 
 \paragraph{Summary}\mbox{}\\
-Creates a handle with \text{read-only} permission to data that already exits in
-the system.
+Creates a handle with \text{read-only} access to data that has been or will be
+published elsewhere in the system.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
-AccessHandle<T> darma_runtime::read_access<T>(arg1, arg2, ...);
+/* unspecified, convertible to AccessHandle<T> */
+darma_runtime::read_access<T>(KeyParts..., version=KeyExpression);
 \end{CppCode}
 
 \paragraph{Positional Arguments}\mbox{}\\
-arg1, arg2, ...: tuple of values identifying the key of the data to be read.
+\begin{itemize}
+  \item \texttt{KeyParts...}: tuple of values identifying the key of the data to
+  be read.
+\end{itemize}
 
 \paragraph{Keyword Arguments}\mbox{}\\
-version \todo{description of version keyword argument}
+\begin{itemize}
+  \item \texttt{version=KeyExpression} \todo{description of version keyword
+  argument}
+\end{itemize}
+
 
 \paragraph{Return}\mbox{}\\
 An object of unspecified type that may be treated as an \texttt{AccessHandle<T>}
@@ -34,14 +42,19 @@ that potentially is stored off node.
 \paragraph{Code Snippet}\mbox{}\\
 \begin{figure}[!h]
 \begin{CppCodeNumb}
-AccessHandle<double> my_handle1 = initial_access<double>("key_1", myRank);
+/* on one rank: */
+auto my_handle1 = initial_access<double>("key_1");
 create_work([=]{
-	my_handle1.emplace_value(5.3);
+  my_handle1.emplace_value(5.3);
 });
+my_handle1.publish(n_readers=1, version="final");
+
 //...
-AccessHandle<double> readHandle = read_access<double>("key_1", myRank);
+
+/* on another rank: */
+auto readHandle = read_access<double>("key_1", version="final");
 create_work([=]{
-	std::cout << readHandle.get_value() << std::endl;
+  std::cout << readHandle.get_value() << std::endl;
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_readaccess}
