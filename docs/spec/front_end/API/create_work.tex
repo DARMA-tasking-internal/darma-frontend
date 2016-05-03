@@ -58,6 +58,9 @@ permissions when it is captured or if the explicit constraint expression
 |create_work| functions as a {\it read-only capture} operation on that handle.
 Otherwise, it functions as a {\it modify capture}.  
 
+Additional general discussion on use of |create_work| can be found in
+\S~\ref{sec:deferred}.
+
 
 \paragraph{Code Snippet}\mbox{}\\
 \begin{figure}[!h]
@@ -72,7 +75,44 @@ create_work([=]{
 
 
 \paragraph{Restrictions and Pitfalls}\mbox{} \\
+Most of the general restrictionsn and pitfalls related to |create_work|
+are discussed in \S~\ref{sec:deferred}.  Some more technical restrictions are
+given here.
 \begin{itemize}
-  \item \todo{there are a lot of these to write about}
+  \item Because of the way in which |create_work| is implemented, placement of
+  multple |create_work| operations on the same line of code will not compile. 
+  For instance:
+  \begin{CppCode}
+// $\no$ does not compile, gives cryptic error message
+create_work([=]{}); create_work([=]{}); 
+  \end{CppCode}
+  This is particularly easy to accidentally do when defining preprocessor
+  macros:
+  \begin{CppCode}
+// $\no$ does not compile, gives even more cryptic error message
+#define foo(...) __VA_ARGS__
+foo(
+  create_work([=]{}); 
+  create_work([=]{}); 
+)
+  \end{CppCode}
+  Note that this is not a problem when using nested |create_work| calls:
+  \begin{CppCode}
+// $\yes$ not a problem
+create_work([=]{ create_work([=]{}); }); // works fine
+  \end{CppCode}
+  Other than the obvious solution of putting the |create_work| invocations on
+  multiple lines, this issue can be worked around by putting any of the later
+  |create_work| calls within their own scopes:
+  \begin{CppCode}
+// $\yes$ works fine
+create_work([=]{}); { create_work([=]{}); }
+// $\yes$ also fine
+foo(
+  create_work([=]{}); 
+  { create_work([=]{}); }
+  { create_work([=]{}); }
+)
+  \end{CppCode}
 \end{itemize}
 
