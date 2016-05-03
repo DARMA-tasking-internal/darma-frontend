@@ -16,13 +16,13 @@ None.
 
 \paragraph{Keyword Arguments} \mbox{}\\
 \begin{compactitem}
-\item \texttt{n\_readers=size\_t} (optional): informs the runtime how many . If
+\item |n_readers=size_t| (optional): informs the runtime how many . If
 omitted, it defaults to 1.
-\item \texttt{version=KeyExpression} (or \texttt{version(KeyExpression\ldots)},
+\item |version=KeyExpression| (or |version(KeyExpression...)|,
 see \S~\ref{sec:keyword} for multiple-right-hand-side keyword argument usage)
 (optional):
 informs the runtime what version to associate with the data being published. 
-The value can be an arbitrary \texttt{KeyExpression}.
+The value can be an arbitrary |KeyExpression|.
 If omitted, the version defaults to an empty key (i.e., a key tuple with zero 
 components).  Omitting this keyword implicitly indicates to the runtime system
 that the handle (or any handle with the same name key) will not be published
@@ -31,11 +31,11 @@ again in the remaining lifetime of the program.
 
 \paragraph{Details} \mbox{}\\
 
-Publish the data associated with a given handle \texttt{h} such that it can be
-retrieved \texttt{n\_readers} times anywhere via a \texttt{read\_access<T>} invocation
-that gives the same name key as \texttt{h} and the same \texttt{version} key as
-the one given to the keyword argument to \texttt{publish()}.
-A \texttt{publish()} is a {\it read-only capture} operation (see
+Publish the data associated with a given handle |h| such that it can be
+retrieved |n_readers| times anywhere via a |read_access<T>| invocation
+that gives the same name key as |h| and the same |version| key as
+the one given to the keyword argument to |publish()|.
+A |publish()| is a {\it read-only capture} operation (see
 \S~\ref{sec:handlerules}).
 
 \paragraph{Code Snippet} \mbox{}\\
@@ -58,16 +58,16 @@ else if(me == 1) {
 }
 \end{CppCodeNumb}
 \label{fig:fe_api_publish}
-\caption{Basic usage of \texttt{publish()}.}
+\caption{Basic usage of \lstinline|publish()|.}
 \end{figure}
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\
 \begin{compactitem}
-  \item \texttt{publish()} is one of the ways DARMA lets you ``shoot yourself in
+  \item |publish()| is one of the ways DARMA lets you ``shoot yourself in
   the foot.''  While it is very difficult to create dependency loops, race
   conditions, and deadlock using handles within a given rank and without
-  \texttt{publish()} operations, it is quite easy to do so with
-  \texttt{publish()}/\texttt{read\_access()} pairs (just like, for instance,
+  |publish()| operations, it is quite easy to do so with
+  |publish()|/|read_access()| pairs (just like, for instance,
   with blocking sends and receives in MPI).  For instance, the following snippet
   deadlocks:
   %\begin{center}
@@ -97,9 +97,9 @@ else if (me == 1) {
 // called): neither of the above create_work()s can ever run
   \end{CppCode}
   This snippet deadlocks because a dependency loop has been created between two
-  \texttt{publish()}/\texttt{read\_access()} pairs. While the deadlock is
+  |publish()|/|read_access()| pairs. While the deadlock is
   relatively obvious here, it can be much more difficult to decypher in a more
-  complex code, especially if, for instance, \texttt{h1} and \texttt{h2} are
+  complex code, especially if, for instance, |h1| and |h2| are
   arguments to a function, or if the parts of the keys used to construct the
   handles are variables with values dependent on some previous computation.
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -108,10 +108,10 @@ else if (me == 1) {
   extreme caution with this scenario could arise, and in general we suggest that
   the user should avoid doing so if at all possible.
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  \item Since \texttt{publish()} is a {\it read-only capture} operation, it must
+  \item Since |publish()| is a {\it read-only capture} operation, it must
   have scheduling privileges of {\it Read} or {\it Modify}; calling publish on a
   handle with other scheduling permissions is a runtime error.  Also, as with
-  all {\it read-only capture} operations, calling \texttt{publish()} on a
+  all {\it read-only capture} operations, calling |publish()| on a
   handle with {\it Modify} immediate permissions results in a handle with {\it
   Read} immediate permissions in the continuing context.  See
   \S~\ref{sec:handlerules} for more details.  For example, the following code
@@ -127,17 +127,17 @@ else if (me == 1) {
   });
   \end{CppCode}
 %\end{minipage}
-  \item It is an error to call \texttt{publish()} on a handle with a given
+  \item It is an error to call |publish()| on a handle with a given
   name key (or any other handle with that same name key) more than once with
   a given version key.
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  \item If \texttt{publish()} is called on a given handle without the
-  \texttt{version} keyword argument, it is an error to call \texttt{publish()}
+  \item If |publish()| is called on a given handle without the
+  |version| keyword argument, it is an error to call |publish()|
   again on that handle or any other handle with the same name key for the
   remaining lifetime of the program.  Note that because of the default behavior
-  of the \texttt{version} keyword argument, giving an explicit version that is
-  the empty key (e.g., \texttt{h.publish(version())} or
-  \texttt{h.publish(version=make\_key())}) will lead to this same behavior.
+  of the |version| keyword argument, giving an explicit version that is
+  the empty key (e.g., |h.publish(version())| or
+  |h.publish(version=make_key())|) will lead to this same behavior.
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   \item {\color{red} [0.2 only]} Because the 0.2 spec does not include a
   serialization interface, only handles with bitwise-copiable types may be

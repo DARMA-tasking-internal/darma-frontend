@@ -1,3 +1,4 @@
+%!TEX root = ../sandReportSpec.tex
 \subsection{\texttt{read\_access}}
 \label{ssec:api_fe_read_access}
 
@@ -13,19 +14,19 @@ darma_runtime::read_access<T>(KeyParts..., version=KeyExpression);
 
 \paragraph{Positional Arguments}\mbox{}\\
 \begin{itemize}
-  \item \texttt{KeyParts...}: tuple of values identifying the key of the data to
+  \item |KeyParts...|: tuple of values identifying the key of the data to
   be read.
 \end{itemize}
 
 \paragraph{Keyword Arguments}\mbox{}\\
 \begin{itemize}
-  \item \texttt{version=KeyExpression} \todo{description of version keyword
+  \item |version=KeyExpression| \todo{description of version keyword
   argument}
 \end{itemize}
 
 
 \paragraph{Return}\mbox{}\\
-An object of unspecified type that may be treated as an \texttt{AccessHandle<T>}
+An object of unspecified type that may be treated as an |AccessHandle<T>|
 with the key given by the arguments.
 
 \paragraph{Details}\mbox{}\\
