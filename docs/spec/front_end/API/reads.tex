@@ -7,14 +7,14 @@ privileges of a set of handles to be read-only within that context.
 
 \paragraph{Syntax} \mbox{}\\
 \begin{CppCode}
-create_work(reads(handles...),[=]{
-	// code 
+create_work(reads(handles...), [=]{
+  // code 
 });
 \end{CppCode}
 
 \paragraph{Positional Arguments} \mbox{}\\
 \begin{itemize}
-  \item handles...: list of \texttt{AccessHandle<T>} objects to
+  \item \texttt{handles...}: list of \texttt{AccessHandle<T>} objects to
   constrain to read-only privileges.
 \end{itemize}
 
