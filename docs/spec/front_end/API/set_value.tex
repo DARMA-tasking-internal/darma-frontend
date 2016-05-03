@@ -5,12 +5,13 @@ Set the value of the data pointed to by the handle.
 
 \paragraph{Syntax} \mbox{}\\
 \begin{CppCode}
-void some_handle.set_value(value)
+void AccessHandle<T>::set_value(value)
 \end{CppCode}
 
 \paragraph{Positional Arguments}\mbox{}\\
-value (type convertible to \texttt{T}): The new value for the data.
-
+\begin{itemize}
+  \item value (type convertible to \texttt{T}): The new value for the data.
+\end{itemize}
 
 \paragraph{Details}\mbox{}\\
 {\color{red}[0.2 only]} In the 0.2 spec, this just directly forwards to

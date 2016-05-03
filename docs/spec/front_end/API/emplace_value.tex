@@ -8,12 +8,18 @@ for \texttt{T}.
 
 \paragraph{Syntax}\mbox{}\\ 
 \begin{CppCode}
-void some_handle.emplace_value(args...)
+// functional:
+some_handle.emplace_value(arg1, arg2, ...);
+
+// Formal:
+void AccessHandle<T>::emplace_value(Args&&... args);
 \end{CppCode}
 
 \paragraph{Positional Arguments}\mbox{}\\ 
-args... (deduced types):  Arguments to forward to the constructor of
-\texttt{T}.
+\begin{itemize}
+  \item \texttt{args...} (deduced types):  Arguments to forward to the
+  constructor of \texttt{T}.
+\end{itemize}
 
 \paragraph{Details}\mbox{}\\ 
 

@@ -1,25 +1,30 @@
-\subsection{\texttt{->}}
+\subsection{\texttt{operator->}}
 
 \paragraph{Summary}\mbox{}\\
 A dereference operator to directly access the object 
 pointed to by the handle.
 
-
 \paragraph{Syntax}\mbox{}\\
-\todo{how to write syntax here??}
 \begin{CppCode}
-some_handle->
+T* AccessHandle<T>::operator->();
 \end{CppCode}
 
 \paragraph{Input Parameters}\mbox{}\\
 None.
 
-\paragraph{Output Parameters}\mbox{}\\
-The return type of the method called on the object.
+\paragraph{Return}\mbox{}\\
+Returns a reference to the data pointed to by the handle.
 
 \paragraph{Details}\mbox{}\\
-This method can be called within a deferred work to directly 
-access the object pointed to by the handle.\todo{anything missing? details?}
+Just like \texttt{set\_value} and \texttt{get\_reference}, this operator
+requires {\it Modify} immediate permissions to invoke safely.  Unlike 
+\texttt{set\_value} and \texttt{get\_reference}, however, the arrow operator can
+also be invoked on handles that only have {\it Read} immediate permissions.  In
+that case, it is up to the user to ensure that only \texttt{const} methods are
+called on the resulting object.  In other words,
+\texttt{AccessHandle<T>::operator->()} lets you ``shoot yourself in the foot''.
+If more safety is desired, use the more  verbose forms with
+\texttt{set\_value()} and \texttt{get\_reference()}.
 
 
 \paragraph{Code Snippet}\mbox{}\\
@@ -30,12 +35,12 @@ typedef std::vector<double> vec;
 AccessHandle<vec> my_handle2 = initial_access<vec>("key_2", myRank);
 
 create_work([=]{
-	my_handle2.emplace_value(0.0);
+  my_handle2.emplace_value(0.0);
   my_handle2->resize(4);
   double * vecPtr = my_handle2->data();    
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_arrow}
-\caption{Basic usage of arrow operator \texttt{->}.}
+\caption{Basic usage of \texttt{AccessHandle<T>::operator->()}.}
 \end{figure}
 

@@ -1,35 +1,35 @@
 \subsection{\texttt{get\_key}}
 
 \paragraph{Summary}\mbox{}\\ 
-Get a copy of the key identifying the data pointed to by the handle.
+Get the key identifying the data pointed to by the handle.
 
 \paragraph{Syntax}\mbox{}\\ 
-\todo{what is the key  type here?}
 \begin{CppCode}
-key_type & some_handle.get_key()
+darma_runtime::types::key_t const& AccessHandle<T>::get_key();
 \end{CppCode}
 
 \paragraph{Positional Arguments}\mbox{}\\ 
 None.
 
-\paragraph{Output}\mbox{}\\ 
-A copy of the key identifying the data.
+\paragraph{Return}\mbox{}\\ 
+The key identifying the data.
 
 \paragraph{Details}\mbox{}\\ 
-This method can be called at any time after the handle is created.
-\todo{anything missing? details?}
-
+This method can be called at any time after the handle is created.  It does not
+require any permissions, scheduling or immediate.
 
 \paragraph{Code Snippet}\mbox{}\\ 
 \begin{figure}[!h]
 \begin{CppCodeNumb}
 //...
+auto myRank = darma_spmd_rank();
 AccessHandle<double> my_handle1 = read_access<double>("key_1", myRank);
 auto myK = my_handle1.get_key();
 
 create_work([=]{
 	my_handle1.get_reference() = 242.343;
 	auto myK = my_handle1.get_key();
+	assert(myRank == myK.get_key().component<1>().as<int>());
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_get_key}

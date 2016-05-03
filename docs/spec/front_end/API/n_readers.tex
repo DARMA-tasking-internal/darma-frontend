@@ -1,46 +1,47 @@
 \subsection{\texttt{n\_readers}}
 
 \paragraph{Summary}\mbox{}\\ 
-Specifies the number of times a certain piece of 
-data will be read after being published. This keyword has to be used within 
-the \texttt{publish} method of an access handle.
 
+Keyword argument to \texttt{AccessHandle<T>::publish()}.  See
+\S~\ref{ssec:api_fe_publish} for details.
 
-\paragraph{Syntax}\mbox{}\\ 
-These two are equivalent.
-\begin{CppCode}
-n_readers = ...; 
-n_readers(...); 
-\end{CppCode}
-See \S~\ref{ssec:api_fe_publish} for details on \texttt{publish}.
+In namespace \texttt{darma\_runtime::keyword\_arguments\_for\_publication}.
 
-
-\paragraph{Positional Argument}\mbox{}\\ 
-The number of times the data will be read.
-See \S~\ref{ssec:api_fe_publish} for details on \texttt{publish}.
-
-
-\paragraph{Details}\mbox{}\\ 
-Specifies the number of times a certain piece of 
-data will be read. This keyword has to be used within 
-the \texttt{publish} method of an access handle.
-More specifically, this refers to the number of \texttt{read\_access} 
-handles that will be defined to read this data.\todo{anything missing? details?}
-
-
-\paragraph{Code Snippet}\mbox{}\\ 
-\begin{figure}[!h]
-\begin{CppCodeNumb}
-auto my_handle = initial_access<double>("data", myRank);
-create_work([=]
-{
-  my_handle.emplace_value(0.5 + (double) myRank);
-  my_handle.publish(n_readers=1);
-});
-\end{CppCodeNumb}
-\label{fig:fe_api_n_readers}
-\caption{Basic usage of \texttt{n\_readers}.}
-\end{figure}
+%\paragraph{Syntax}\mbox{}\\ 
+%These two are equivalent.
+%\begin{CppCode}
+%n_readers = ...; 
+%n_readers(...); 
+%\end{CppCode}
+%See \S~\ref{ssec:api_fe_publish} for details on \texttt{publish}.
+%
+%
+%\paragraph{Positional Argument}\mbox{}\\ 
+%The number of times the data will be read.
+%See \S~\ref{ssec:api_fe_publish} for details on \texttt{publish}.
+%
+%
+%\paragraph{Details}\mbox{}\\ 
+%Specifies the number of times a certain piece of 
+%data will be read. This keyword has to be used within 
+%the \texttt{publish} method of an access handle.
+%More specifically, this refers to the number of \texttt{read\_access} 
+%handles that will be defined to read this data.\todo{anything missing? details?}
+%
+%
+%\paragraph{Code Snippet}\mbox{}\\ 
+%\begin{figure}[!h]
+%\begin{CppCodeNumb}
+%auto my_handle = initial_access<double>("data", myRank);
+%create_work([=]
+%{
+%  my_handle.emplace_value(0.5 + (double) myRank);
+%  my_handle.publish(n_readers=1);
+%});
+%\end{CppCodeNumb}
+%\label{fig:fe_api_n_readers}
+%\caption{Basic usage of \texttt{n\_readers}.}
+%\end{figure}
 
 
 
