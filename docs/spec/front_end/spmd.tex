@@ -2,6 +2,7 @@
 
 \section{SPMD support}
 \label{sec:spmd}
+\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
 % DSH: Removed this TODO.  It's good enough for now.
 %\todo[inline]{this section needs to be revised.  Didn't Jeremy already take a
 %crack at it?  His changes don't appear to be here\ldots} 
@@ -14,9 +15,9 @@ To simplify the implementation of SPMD-structured codes, the notion of
 a \gls{rank} is maintained within the \gls{API}.   
 This should make it a little easier for existing MPI based application codes to transition 
 to DARMA. The initialization and termination of the runtime in each unit 
-is via the calls \inlinecode{darma_init()} and \inlinecode{darma_finalize()}. 
-The total number of \gls{spmd} units are queried with the call \inlinecode{darma_spmd_size()},
-and the rank is queried with \inlinecode{darma_spmd_rank()}. A typical user 
+is via the calls |darma_init()| and |darma_finalize()|. 
+The total number of \gls{spmd} units are queried with the call |darma_spmd_size()|,
+and the rank is queried with |darma_spmd_rank()|. A typical user 
 written main program will look as follows:
 \begin{CppCode}
 int main(int argc, char**argv){
@@ -46,3 +47,5 @@ happens to have a name containing the rank, and can be treated as such.
 However, the similarity to traditional, MPI-style SPMD upon launch will simplify
 the learning and porting process significantly.
 
+
+\lstDeleteShortInline{\|}
