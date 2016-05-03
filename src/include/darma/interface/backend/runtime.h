@@ -81,9 +81,7 @@ class Runtime {
     typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
     //typedef abstract::frontend::ReduceOp reduce_op_t;
 
-    typedef abstract::frontend::Task<
-      Key, Version, types::handle_container_template
-    > task_t;
+    typedef abstract::frontend::Task task_t;
     typedef unique_ptr_template<task_t> task_unique_ptr;
     typedef unique_ptr_template<const task_t> task_const_unique_ptr;
 

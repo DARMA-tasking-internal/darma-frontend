@@ -146,11 +146,7 @@ class MockDependencyHandle
 };
 
 class MockTask
-  : public darma_runtime::abstract::frontend::Task<
-      darma_runtime::types::key_t,
-      darma_runtime::types::version_t,
-      darma_runtime::types::handle_container_template
-    >
+  : public darma_runtime::abstract::frontend::Task
 {
   public:
     typedef darma_runtime::types::key_t key_t;
@@ -171,6 +167,8 @@ class MockTask
     MOCK_METHOD1(set_name, void(key_t const& name_key));
     MOCK_CONST_METHOD0(is_migratable, bool());
     MOCK_METHOD0(run, void());
+    MOCK_CONST_METHOD0(get_packed_size, size_t());
+    MOCK_CONST_METHOD1(pack, void(void*));
 
     void
     set_default_behavior() {

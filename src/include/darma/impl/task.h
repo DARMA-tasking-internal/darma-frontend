@@ -332,6 +332,7 @@ class TaskBase : public abstract::backend::runtime_t::task_t
     typedef types::handle_container_template<handle_t*> get_deps_container_t;
     typedef std::unordered_set<handle_t*> needs_handle_container_t;
 
+
     get_deps_container_t dependencies_;
 
     needs_handle_container_t needs_read_deps_;
@@ -408,6 +409,17 @@ class TaskBase : public abstract::backend::runtime_t::task_t
       post_run_cleanup();
     }
 
+    size_t get_packed_size() const override {
+      // TODO
+      assert(false);
+      return 0;
+    }
+
+    void pack(void* allocated) const override {
+      // TODO
+      assert(false);
+    }
+
     // end implementation of abstract::frontend::Task
     ////////////////////////////////////////////////////////////////////////////////
 
@@ -438,7 +450,6 @@ class TaskBase : public abstract::backend::runtime_t::task_t
 
 };
 
-
 class TopLevelTask
   : public TaskBase
 {
@@ -457,6 +468,21 @@ class TopLevelTask
 ////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace detail
+
+// implementation of abstract::frontend::unpack_task
+
+namespace abstract {
+namespace frontend {
+
+inline abstract::frontend::Task*
+unpack_task(void* packed_data) {
+  // TODO
+  assert(false);
+  return nullptr;
+}
+
+} // end namespace frontend
+} // end namespace abstract
 
 } // end namespace darma_runtime
 
