@@ -13,15 +13,15 @@ Returns the number of ranks in the DARMA environment.
 None. 
 
 \paragraph{Return} \mbox{}\\
-An object of unspecified type that may be treated as a \texttt{std::size\_t}
+An object of unspecified type that may be treated as a |std::size_t|
 giving the number of ranks in the DARMA environment.
 
 \paragraph{Details} \mbox{}\\
 This function gives the number of ranks DARMA is executing the program with. 
 Specifically, it is the number of times the backend has invoked
-\texttt{darma\_main} anywhere in the system for this particular run of the
+|darma_main| anywhere in the system for this particular run of the
 program (and thus, it is also the number of times the backend expects the user
-to invoke \texttt{darma\_init}).
+to invoke |darma_init|).
 
 \paragraph{Code Snippet} \mbox{}\\
 \begin{figure}[!h]
@@ -40,17 +40,17 @@ int darma_main(int argc, char** argv)
 }
 \end{CppCodeNumb}
 \label{fig:fe_api_ranksize}
-\caption{Basic usage of \texttt{darma\_spmd\_size}.}
+\caption{Basic usage of \lstinline|darma_spmd_size|.}
 \end{figure}
 
 \paragraph{Restrictions and Pitfalls}\mbox{} \\
 \begin{itemize}
-  \item The value returned by this function will always return \texttt{true}
+  \item The value returned by this function will always return |true|
   for greater-than comparison with 0, and will always be convertible to a
-  \texttt{std::size\_t} with a value greater than 0.
+  |std::size_t| with a value greater than 0.
   \item The return type is unspecified to allow future expansion to generalized
   ranks.  For instance, future versions of the spec may allow the user to
-  request the rank as an \texttt{\{x, y, z\}} tuple of indices in a structured
+  request the rank as an |{x, y, z}| tuple of indices in a structured
   lattice.
 \end{itemize}
 

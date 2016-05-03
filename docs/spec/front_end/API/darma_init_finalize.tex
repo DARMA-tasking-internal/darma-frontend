@@ -25,11 +25,11 @@ application-specific arguments untouched.
 \paragraph{Details}\mbox{}\\
 Must be called exactly once per rank (``exactly once'' may change in later
 spec versions) before any other DARMA function is called.
-Together with \texttt{darma\_finalize()} (see \S~\ref{ssec:api_fe_finalize}),
+Together with |darma\_finalize()| (see \S~\ref{ssec:api_fe_finalize}),
 this creates an opaque context that defines a DARMA rank.
 
 \paragraph{Code Snippet}\mbox{}\\ 
-See code for \texttt{darma\_finalize} in Figure~\ref{fig:fe_api_init}.
+See code for |darma\_finalize| in Figure~\ref{fig:fe_api_init}.
 
 %\clearpage
 
@@ -50,12 +50,12 @@ None.
 \paragraph{Details}\mbox{} 
 Called to signify the end of the opaque context that defines a DARMA rank.  At
 least by the time this function returns, the backend guarentees that all work
-(tasks) created between the corresponding \texttt{darma\_init} call and this
+(tasks) created between the corresponding |darma\_init| call and this
 invocation, as well as and all of the decendents of that work, must be
 completed.  No user-level DARMA operations are allowed after this call, though
-the implicit invocation of the destructors of \texttt{AccessHandle<T>} objects
-(at, e.g., the final closing brace of \texttt{darma\_main()}) is allowed.  Must
-be called exactly once for each call of \texttt{darma\_init} (which, in turn
+the implicit invocation of the destructors of |AccessHandle<T>| objects
+(at, e.g., the final closing brace of |darma\_main()|) is allowed.  Must
+be called exactly once for each call of |darma\_init| (which, in turn
 must be called exactly once in the current version of the spec).
 
 \paragraph{Code Snippet}\mbox{} \\
@@ -83,11 +83,11 @@ to initialize and finalize environment.}
 
 \paragraph{Restrictions and Pitfalls}\mbox{} \\
 \begin{itemize}
-  \item \texttt{darma\_finalize} should be called at the outermost task depth on
+  \item |darma\_finalize| should be called at the outermost task depth on
   a rank.  In other words, it should {\it never} be called from within a
-  \texttt{create\_work} or other asynchronous context.
-  %\item \texttt{darma\_finalize} should be called in the same immediately
-  %enclosing scope (IES) in which \texttt{darma\_init} was invoked.  
+  |create\_work| or other asynchronous context.
+  %\item |darma\_finalize| should be called in the same immediately
+  %enclosing scope (IES) in which |darma\_init| was invoked.  
 \end{itemize}
 
 

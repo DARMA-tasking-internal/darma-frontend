@@ -1,4 +1,4 @@
-#!/bin/bash                                                                 
+#!/bin/bash -e
 
 #requires doxygen 1.8.11
 doxygen doxygen-backend/Doxyfile
