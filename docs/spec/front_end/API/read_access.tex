@@ -15,13 +15,15 @@ darma_runtime::read_access<T>(KeyParts..., version=KeyExpression);
 \paragraph{Positional Arguments}\mbox{}\\
 \begin{itemize}
   \item |KeyParts...|: tuple of values identifying the key of the data to
-  be read.
+  be read.  This is also called the ``name key'' of the handle.
 \end{itemize}
 
 \paragraph{Keyword Arguments}\mbox{}\\
 \begin{itemize}
-  \item |version=KeyExpression| \todo{description of version keyword
-  argument}
+  \item |version=KeyExpression| or |version(KeyParts...) (optional) A
+  |KeyExpression| corresponding to the key given as the |version| when
+  |publish()| was invoked on a handle with the same name key.  See
+  \S~\ref{ssec:api_fe_publish} for more details.
 \end{itemize}
 
 
