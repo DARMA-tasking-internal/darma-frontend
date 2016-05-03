@@ -2,48 +2,51 @@
 \label{ssec:api_fe_version}
 
 \paragraph{Summary}\mbox{}\\ 
-Specifies explicitly a version to associate to some data 
-at the time of the publishing operation of that data.  
+Keyword argument to |AccessHandle<T>::publish()| and
+|read_access<T>()|.  See \S~\ref{ssec:api_fe_publish} for details on
+|AccessHandle<T>::publish()| and \S~\ref{ssec:api_fe_read_access} for
+details on |read_access<T>()|.
 
+In namespace |darma_runtime::keyword_arguments_for_publication|.
 
-\paragraph{Syntax}\mbox{}\\ 
-These two are equivalent.
-\begin{CppCode}
-version = ...; 
-version(arg1, arg2, ...);
-\end{CppCode}
-
-\paragraph{Positional Arguments}\mbox{}\\ 
-A tuple of values.
-
-\paragraph{Details}\mbox{}\\ 
-Specifies explicitly a version to associated to some data 
-at the time of the publishing operation.  
-It is used when the same data is overwritten multiple times 
-and one needs to keep track of the various versions.
-
-Version can be an arbitrary tuple of values.
-\todo{anything missing? details?}
-
-\paragraph{Code Snippet}\mbox{}\\ 
-\begin{figure}[!h]
-\begin{CppCodeNumb}
-//...
-auto my_handle = initial_access<double>("data", myRank);
-create_work([=]{
-  my_handle.emplace_value(0.5 + (double) myRank);
-  my_handle.publish(n_readers=1,version=(0,"basic"));
-});
-// ...
-// reset value and update version
-create_work([=]{
-  my_handle.set_value(2.5 + (double) myRank);
-  my_handle.publish(n_readers=1,version=1);
-});
-\end{CppCodeNumb}
-\label{fig:fe_api_version}
-\caption{Basic usage of \texttt{version}.}
-\end{figure}
+%\paragraph{Syntax}\mbox{}\\ 
+%These two are equivalent.
+%\begin{CppCode}
+%version = ...; 
+%version(arg1, arg2, ...);
+%\end{CppCode}
+%
+%\paragraph{Positional Arguments}\mbox{}\\ 
+%A tuple of values.
+%
+%\paragraph{Details}\mbox{}\\ 
+%Specifies explicitly a version to associated to some data 
+%at the time of the publishing operation.  
+%It is used when the same data is overwritten multiple times 
+%and one needs to keep track of the various versions.
+%
+%Version can be an arbitrary tuple of values.
+%\todo{anything missing? details?}
+%
+%\paragraph{Code Snippet}\mbox{}\\ 
+%\begin{figure}[!h]
+%\begin{CppCodeNumb}
+%//...
+%auto my_handle = initial_access<double>("data", myRank);
+%create_work([=]{
+%  my_handle.emplace_value(0.5 + (double) myRank);
+%  my_handle.publish(n_readers=1,version=(0,"basic"));
+%});
+%// ...
+%// reset value and update version
+%create_work([=]{
+%  my_handle.set_value(2.5 + (double) myRank);
+%  my_handle.publish(n_readers=1,version=1);
+%});
+%\end{CppCodeNumb}
+%\label{fig:fe_api_version}
+%\caption{Basic usage of |version|.}
+%\end{figure}
 
 
 

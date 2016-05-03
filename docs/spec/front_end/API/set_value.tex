@@ -5,19 +5,19 @@ Set the value of the data pointed to by the handle.
 
 \paragraph{Syntax} \mbox{}\\
 \begin{CppCode}
-void some_handle.set_value(value)
+void AccessHandle<T>::set_value(value)
 \end{CppCode}
 
 \paragraph{Positional Arguments}\mbox{}\\
-value (type convertible to \texttt{T}): The new value for the data.
-
+\begin{itemize}
+  \item value (type convertible to |T|): The new value for the data.
+\end{itemize}
 
 \paragraph{Details}\mbox{}\\
 {\color{red}[0.2 only]} In the 0.2 spec, this just directly forwards to
-\texttt{emplace\_value()} so that the relevant copy constructor of {\tt T} is
-called.  Thus, all comments and examples for \texttt{emplace\_value()} apply
+|emplace_value()| so that the relevant copy constructor of {\tt T} is
+called.  Thus, all comments and examples for |emplace_value()| apply
 here.  See \S~\ref{ssec:api_fe_emplace_value} for more.
-
 
 \paragraph{Code Snippet}\mbox{}\\
 \begin{figure}[!h]
@@ -28,15 +28,15 @@ create_work([=]{
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_set_value}
-\caption{Basic usage of \texttt{set\_value}.}
+\caption{Basic usage of \lstinline|set_value|.}
 \end{figure}
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\
 \begin{itemize}
   \item The specification of the method is likely to change in the future to
-  analogous to the behavior, e.g., \texttt{std::vector<T>::push\_back()} (as it
-  relates to \texttt{std::vector<T>::emplace\_back()}).  If this could be a
-  problem for \texttt{T}, you should probably use \texttt{emplace\_value()} for now.
+  analogous to the behavior, e.g., |std::vector<T>::push_back()| (as it
+  relates to |std::vector<T>::emplace_back()|).  If this could be a
+  problem for |T|, you should probably use |emplace_value()| for now.
 \end{itemize}
 
 

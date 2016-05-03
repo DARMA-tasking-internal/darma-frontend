@@ -5,31 +5,46 @@ Get a non-constant reference to the data pointed to by the handle.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
-value_type & some_handle.get_reference()
+T& AccessHandle<T>::get_reference()
 \end{CppCode}
 
 \paragraph{Positional Arguments}\mbox{}\\
 None.
 
-\paragraph{Output}\mbox{}\\
+\paragraph{Return}\mbox{}\\
 A non-constant reference to the data.  
 
 \paragraph{Details}\mbox{}\\
-This method can be called within a context with write privileges 
-on the target handle.\todo{anything missing? details?}
-
+This method requires {\it Modify} immediate permissions.  See
+\S~\ref{sec:handlerules} for more information on immediate permissions.
 
 \paragraph{Code Snippet}\mbox{}\\
 \begin{figure}[!h]
 \begin{CppCodeNumb}
 AccessHandle<double> my_handle1 = read_access<double>("key_1", myRank);
 create_work([=]{
-	my_handle1.get_reference() = 242.343;
+  my_handle1.get_reference() = 242.343;
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_getreference}
-\caption{Basic usage of \texttt{get\_reference}.}
+\caption{Basic usage of \lstinline|get_reference|.}
 \end{figure}
 
 
-
+\paragraph{Restrictions and Pitfalls}\mbox{}\\ 
+\begin{itemize}
+  \item Do not hold the reference returned by this method across an asyncronous
+  operation on the source handle.  For example, the following results in
+  undefined behavior:
+  \begin{CppCode}
+	auto h = initial_access<int>("my_key"); 
+	create_work([=]{ h.set_value(5); });
+	
+	create_work([=]{ 
+	  auto& v = h.get_reference();
+	  create_work([=]{ h.set_value(10); });
+	  cout << v << endl; // $\no$ undefined behavior!!
+	});
+  \end{CppCode}
+  See recommendations in \S~\ref{ssec:api_fe_get_value} for more.
+\end{itemize}
