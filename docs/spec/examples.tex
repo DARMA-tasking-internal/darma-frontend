@@ -9,32 +9,32 @@
 
 \section{Basic functionalities for spec 0.2}
 
-\subsection{Example}
-Example showing initialization and finalize of the DARMA environment.
+\subsection{DARMA environment}
+Example showing how to initialize and finalize the DARMA environment.
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/initAndFinalize.cc}
 
-\subsection{Example}
+\subsection{DARMA rank and size}
 Example showing DARMA rank and size.
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/rankAndSize.cc}
 
-\subsection{Example}
-Example showing create work.
+\subsection{Deferred work creation}
+Example showing a very simple \texttt{create\_work} with no dependencies.
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/cw1.cc}
 
-\subsection{Example}
-Example showing the use of initial access.
+\subsection{Creating handles 1}
+Example showing the use of \texttt{initial\_access}.
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/initialAccess.cc}
 
-\subsection{Example}
-Another example on initial access handle and its usage.
+\subsection{Creating handles 2}
+Another example on \texttt{initial\_access} handle and its use.
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/accessHandle1.cc}
 
-\subsection{Example}
+\subsection{Arrow operator for handles}
 Example showing the arrow operator on an handle.
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/accessHandleArrowOperator.cc}
 
-\subsection{Example}
-Example showing create work constraining privileges on a handle to be read-only.
+\subsection{Deferred work and constraining privileges}
+Example showing how to issue a \texttt{create\_work} and constraining privileges on a handle to be read-only.
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/cwReadsArg.cc}
 
 
@@ -47,11 +47,10 @@ Example for one possible implementation of ``hello world''.
 There are three main parts involved: 
 \begin{enumerate}
 \item the DARMA environment is initialized. 
-\item each rank creates a task to store a greeting message into a string
+\item each rank issues a task to store a greeting message into a string.
 \item each rank then creates a task to printing to standard output the message and its rank.
 \end{enumerate}
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/darma_hello/darma_hello.cc}
-
 
 
 
@@ -66,8 +65,6 @@ and print to screen. Periodic logic for neighbors, and each rank publishes a
 float that uniquely determines its rank.
 
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/simple_kv/publish_get_parallel.cc}
-
-
 
 
 
@@ -169,8 +166,7 @@ such that on exit, the vector $d$ contains the solution.
 
 How to implement this in DARMA? 
 For demonstration purposes, we limit our attention to the case 
-of a single rank. More complex examples will be shown below 
-involving multiple ranks.
+of a single rank. More complex examples involving multiple ranks will be shown below. 
 
 There are three main steps involved, namely initialization, 
 solution of the linear system, and error check. 
@@ -186,11 +182,80 @@ The initialization function has the form:
 The function to solve the linear system is:
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/poisson_1d_thomasAlgorithm/single_rank/solveTridiag.h}
 
-Finally, we check for convergence by checking the $L1$-norm of the 
+Finally, we check for convergence by checking the $L^1$-norm of the 
 error between the computed and true solution.
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/poisson_1d_thomasAlgorithm/single_rank/checkError.h}
 
 
+
+
+
+\section{1D Heat Equation}
+
+In this section, we solve the following simple problem:
+
+\begin{equation} 
+	\frac{\partial T(x,t)}{\partial t} = 
+  \alpha \frac{\partial^2 T(x,t)}{\partial x^2} \quad 
+  \text{in} \ \Omega=(0,1), \ \text{with} 
+  \ T(0,t)=100, \ T(1,t)=10, \ \forall t \geq 0
+\end{equation} 
+where $T(x,t)$ is the temperature, $t$ is time, and $\alpha$ is the 
+thermal diffusivity. The steady-state solution of this problem is 
+a straight line connecting the left and right boundary conditions. 
+
+We discretize the spatial domain with $N$ equally spaced points such that 
+\begin{equation}
+x_i = i \Delta x, \quad \Delta x=\frac{1}{N-1}, \quad \ i=0,1,...,N-1
+\end{equation}
+Similarly, in time with $n_{iter}$ steps such that 
+\begin{equation}
+t_m = m \Delta t, \quad \Delta t=\frac{t_{max}}{n_{iter}-1}, \quad \ m=0,1,...,n_{iter}-1
+\end{equation}
+
+
+We use second-order finite-differences in space, and Euler method in time. 
+Hence, the discrete version takes the form: 
+\begin{large}
+\begin{equation}
+\frac{T_i^{m+1} - T_i^m}{\Delta t} 
+= \alpha \frac{T_{i+1}^m - 2T_i^m + T_{i-1}^m}{\Delta x^2}
+\end{equation}
+\end{large}
+where $T_i^m$ represents the approximate temperature at the $i$-th grid point, 
+at the $m$-th time instant. Hence, for every grid point $i$, given the solution 
+at the current time instant $T_i^m$, the solution at the next step is given by 
+\begin{large}
+\begin{equation}
+T_i^{m+1} = T_i^m + \frac{ \alpha \Delta t }{\Delta x^2} 
+(T_{i+1}^m - 2T_i^m + T_{i-1}^m)
+\end{equation}
+\end{large}
+
+For demonstration purposes, we adopt here $\alpha=0.0075$, discretize the domain 
+with $N=16$, use $n_{iter}=2500$ time steps and consider $\Delta t=0.05$ which is 
+sufficiently small for the numerical method to be stable.
+The main constants are defined in the following header file:
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/heat_1d/common_heat1d.h}
+
+The problem involves three main stages, namely initialization, time advancing, 
+and convergence check. We use four DARMA ranks to distribute the grid points, 
+such that each rank handles a local grid with $4$ points. 
+In brief, the problem is setup by having each rank 
+generate tasks for its local grid, then communicate with the neighboring ranks 
+to get the information for the ghost points needed to update the stencil. 
+A high-level schematic of the work-flow is shown in Figure~\ref{fig:example_heat1d}.
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.75\textwidth]{./figures/examples/heat_tasks.pdf}
+\caption{Schematic of task generation for the heat 1D PDE.}
+\label{fig:example_heat1d}
+\end{figure}
+
+
+The full main code is shown below.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/heat_1d/heat_1D_darma_simple/heat_1d_darma_simple.cc}
 
 
 
