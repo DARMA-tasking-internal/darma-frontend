@@ -2,26 +2,28 @@
 \label{ssec:api_fe_reads}
 
 \paragraph{Summary} \mbox{}\\
-Argument to a \texttt{create\_work} to constraint 
+Creates an argument to a \texttt{create\_work} to constrain
 privileges of a set of handles to be read-only within that context.
 
 \paragraph{Syntax} \mbox{}\\
 \begin{CppCode}
-create_work(reads(handle1, handle2, ...),[=]{
-	// code 
+create_work(reads(handles...), [=]{
+  // code 
 });
 \end{CppCode}
 
 \paragraph{Positional Arguments} \mbox{}\\
-handle1, handle2, ...: list of handles to 
-constraint to read-only privileges.
+\begin{itemize}
+  \item \texttt{handles...}: list of \texttt{AccessHandle<T>} objects to
+  constrain to read-only privileges.
+\end{itemize}
+
 
 \paragraph{Details} \mbox{}\\
-Used as argument to a \texttt{create\_work} to constraint 
+Used as argument to a \texttt{create\_work} to constrain
 privileges of a list of handles to be read-only within that context.
-Can only be called as argument to \texttt{create\_work}. 
-It can contain a single or a list of handles.\todo{anything missing? details?} 
-See also \S~\ref{ssec:api_fe_cw} for more information on \texttt{create\_work}.
+It can contain a single handle or a list of handles.  See also
+\S~\ref{ssec:api_fe_cw} for more information on \texttt{create\_work}.
 
 
 \paragraph{Code Snippet} \mbox{}\\
@@ -32,9 +34,9 @@ auto my_handle = initial_access<double>("data", myRank);
 create_work([=]{
   my_handle.emplace_value(0.55);
 });
-create_work(reads(my_handle),[=]{
+create_work(reads(my_handle), [=]{
   std::cout << " " << my_handle.get_value() << std::endl;
-  my_handle.set_value() = ... ; // NOT allowed!
+  my_handle.set_value(3.14); // $\no$ runtime error
 });
 // ... 
 \end{CppCodeNumb}
@@ -43,3 +45,9 @@ create_work(reads(my_handle),[=]{
 \end{figure}
 
 
+\paragraph{Restrictions and Pitfalls}\mbox{}\\
+\begin{itemize}
+  \item This can only be called as argument to \texttt{create\_work}.  Use in
+  other contexts will lead to compile-time errors, run-time errors, or
+  undefined behavior.
+\end{itemize}

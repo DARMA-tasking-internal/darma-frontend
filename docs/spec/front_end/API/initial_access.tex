@@ -45,11 +45,11 @@ as one component of the key.
   C++). In other words,
   \begin{CppCode}
 	// $\yes$ good, preferred
-	auto my_handle1 = initial_access<double>("data_key_1", myRank); 
+	auto my_handle1 = initial_access<double>("good"); 
 
 	// $\no$ still compiles, but not preferred (may miss out
 	//  on some future optimizations and compile-time checks)
-	AccessHandle<double> my_handle1 = initial_access<double>("data_key_1", myRank); 
+	AccessHandle<double> my_handle1 = initial_access<double>("bad"); 
   \end{CppCode}
 \end{itemize}
 
