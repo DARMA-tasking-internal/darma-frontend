@@ -1,24 +1,40 @@
+%!TEX root = ../sandReportSpec.tex
 \subsection{\texttt{read\_access}}
+\label{ssec:api_fe_read_access}
 
 \paragraph{Summary}\mbox{}\\
-Handle with \text{read-only} permission to data that already exits in the system. 
+Creates a handle with \text{read-only} access to data that has been or will be
+published elsewhere in the system.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
-AccessHandle<T> darma_runtime::read_access<T>(arg1, arg2, ...);
+/* unspecified, convertible to AccessHandle<T> */
+darma_runtime::read_access<T>(KeyParts..., version=KeyExpression);
 \end{CppCode}
 
 \paragraph{Positional Arguments}\mbox{}\\
-arg1, arg2, ...: tuple of values identifying the key of the data to be read.
+\begin{itemize}
+  \item |KeyParts...|: tuple of values identifying the key of the data to
+  be read.
+\end{itemize}
 
-\paragraph{Output}\mbox{}\\
-The handle.  
+\paragraph{Keyword Arguments}\mbox{}\\
+\begin{itemize}
+  \item |version=KeyExpression| \todo{description of version keyword
+  argument}
+\end{itemize}
+
+
+\paragraph{Return}\mbox{}\\
+An object of unspecified type that may be treated as an |AccessHandle<T>|
+with the key given by the arguments.
 
 \paragraph{Details}\mbox{}\\
-This construct creates a handle to data that already exists and 
+This function creates a handle to data that already exists and 
 needs to be accessed with read-only privileges. 
 It takes as input the tuple of values uniquely 
-identifying the data that needs to be read. 
+identifying the data that needs to be read.  \todo{finish this, talking about
+how corresponding publish has to happen at some point Read/None permissions }
 
 In general, it is used to access data that is migratable, i.e. data 
 that potentially is stored off node.
@@ -28,19 +44,26 @@ that potentially is stored off node.
 \paragraph{Code Snippet}\mbox{}\\
 \begin{figure}[!h]
 \begin{CppCodeNumb}
-AccessHandle<double> my_handle1 = initial_access<double>("key_1", myRank);
+/* on one rank: */
+auto my_handle1 = initial_access<double>("key_1");
 create_work([=]{
-	my_handle1.emplace_value(5.3);
+  my_handle1.emplace_value(5.3);
 });
+my_handle1.publish(n_readers=1, version="final");
+
 //...
-AccessHandle<double> readHandle = read_access<double>("key_1", myRank);
+
+/* on another rank: */
+auto readHandle = read_access<double>("key_1", version="final");
 create_work([=]{
-	std::cout << readHandle.get_value() << std::endl;
+  std::cout << readHandle.get_value() << std::endl;
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_readaccess}
 \caption{Basic usage of \texttt{read\_access}.}
 \end{figure}
 
+\todo{pitfalls: talk about how unspecified type may provide compile-time
+checking that e.g. set\_value() wasn't called in the future}
 
 

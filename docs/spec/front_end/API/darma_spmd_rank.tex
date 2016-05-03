@@ -6,24 +6,38 @@
 \subsection{\texttt{darma\_spmd\_rank}}
 
 \paragraph{Summary}\mbox{}\\
-Returns the rank of the calling process within the DARMA environment.
+Returns the rank index associated with the opaque rank context from which this
+function was invoked.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
-int darma_runtime::darma_spmd_rank();
+/* unspecified */ darma_runtime::darma_spmd_rank();
 \end{CppCode}
 
 \paragraph{Positional Arguments} \mbox{}\\
 None. 
 
 \paragraph{Output}\mbox{}\\
-The rank value.
+An object of unspecified type that may be treated as a |std::size_t|
+which is less than the value returned by |darma_spmd_size()|.
 
 \paragraph{Details}\mbox{}\\
-This function returns the rank of the calling process 
-in the DARMA environment. If the size of the environment is $N$, 
-then the returned rank, $r$, is always $0 <= r <= N-1$.
-\todo{anything missing? details?}
+This function returns the rank index of the calling DARMA rank.  (Recall that a
+rank is the opaque context between the invocation of |darma_init| and
+a corresponding invocation of |darma_finalize|).  If the value returned
+by |darma_spmd_size| is convertible to a |std::size_t| with the
+value $N$, then the value returned by this function will be convertible to a
+|std::size_t| with the value $r$, which will always satisfy $0 <=
+r < N$.  Furthermore, the type of the value returned by this function will
+always be directly comparable to the type returned by |darma_spmd_size|
+and to $0$ such that this previous condition is met.  The value returned is also
+equality comparable with $0$, the value returned will be true for equality
+comparison with $0$ on exactly one rank.  The value returned by this function
+will be unique on every rank (in the equality sense), and will be the same
+across multiple invocations of the function within a given rank.  The value
+returned will also be the same at any asynchronous work invocation depth within
+a rank's opaque context, regardless of whether that work gets stolen or
+migrated.
 
 \paragraph{Code Snippet}\mbox{}\\ 
 \begin{figure}[!h]
@@ -35,9 +49,9 @@ int darma_main(int argc, char** argv)
   darma_init(argc, argv);
 
   // get my rank
-  const int myRank = darma_spmd_rank();
+  const size_t myRank = darma_spmd_rank();
   // get size 
-  const int size = darma_spmd_size();
+  const size_t size = darma_spmd_size();
 
   std::cout << "Rank " << myRank << "/" << size << std::endl;
 

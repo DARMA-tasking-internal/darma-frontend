@@ -2,26 +2,33 @@
 \label{ssec:api_fe_emplace_value}
 
 \paragraph{Summary}\mbox{}\\ 
-Construct an object of the type pointed to by an \texttt{AccessHandle<T>} object
-(that is, \texttt{T}) in place by forwarding the arguments to the constructor
-for \texttt{T}.
+Construct an object of the type pointed to by an |AccessHandle<T>| object
+(that is, |T|) in place by forwarding the arguments to the constructor
+for |T|.
 
 \paragraph{Syntax}\mbox{}\\ 
 \begin{CppCode}
-void some_handle.emplace_value(args...)
+// functional:
+some_handle.emplace_value(arg1, arg2, ...);
+
+// Formal:
+void AccessHandle<T>::emplace_value(Args&&... args);
 \end{CppCode}
 
 \paragraph{Positional Arguments}\mbox{}\\ 
-args... (deduced types):  Arguments to forward to the constructor of
-\texttt{T}.
+\begin{itemize}
+  \item |args...| (deduced types):  Arguments to forward to the
+  constructor of |T|.
+\end{itemize}
 
 \paragraph{Details}\mbox{}\\ 
 
-\texttt{AccessHandle<T>::emplace\_value(...)} mimics the syntax for in-place
+|AccessHandle<T>::emplace_value(...)| mimics the syntax for in-place
 construction in standard library containers.  See, for instance,
-\texttt{std::vector<T>::emplace\_back(...)}.  If in-place construction is
-unnecessary or undesired, \texttt{set\_value()} can be used instead.  Note that
-calling \texttt{emplace\_value()} on a handle requires {\it Modify} immediate
+|std::vector<T>::emplace_back(...)|.  If in-place construction is
+unnecessary or undesired, |set_value()| can be used instead.  
+Note that
+calling |emplace_value()| on a handle requires {\it Modify} immediate
 permissions (see \S~\ref{sec:handlerules}).
 
 \paragraph{Code Snippet}\mbox{}\\ 
@@ -36,21 +43,21 @@ create_work([=]{
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_initialaccess}
-\caption{Basic usage of \texttt{emplace\_value}.}
+\caption{Basic usage of \lstinline|emplace_value|.}
 \end{figure}
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\ 
 \begin{itemize}
   \item {\color{red}[0.2 only]} Because the 0.2 spec lacks a means of specifying
-  the constructor of \texttt{T} to be called by default, the first usage of
-  every modifiable handle (i.e., the first {\texttt{create\_work}} capturing the
-  handle) after being setup with \texttt{initial\_access<T>} should call
-  \texttt{emplace\_value()} or \texttt{set\_value()} before performing any
+  the constructor of |T| to be called by default, the first usage of
+  every modifiable handle (i.e., the first {|create_work|} capturing the
+  handle) after being setup with |initial_access<T>| should call
+  |emplace_value()| or |set_value()| before performing any
   operations on the pointed-to object.  In other words, the pointed-to object
   contains uninitialized memory until the user invokes 
-  \texttt{emplace\_value(...)} or \texttt{set\_value()} to construct the object.
+  |emplace_value(...)| or |set_value()| to construct the object.
   Failure to do so leads to undefined behavior (just as, for instance,
-  \texttt{int x; cout << x;} leads to undefined behavior in C). 
+  |int x; cout << x;| leads to undefined behavior in C). 
 \end{itemize}
 
 

@@ -3,7 +3,7 @@
 \subsection{\texttt{darma\_init}}
 
 \paragraph{Summary}\mbox{}\\
-Initializes the DARMA execution environment.
+Initializes the DARMA execution environment for a rank.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
@@ -17,21 +17,19 @@ void darma_runtime::darma_init(int& argc, char**& argv);
 \end{itemize}
 The input parameters are the command line argument count 
 and array arguments provided to main.  
-Note that the back-end will process and remove 
-any DARMA back-end-specific arguments from these.
-
-\paragraph{Output}\mbox{}\\
-None.
+Note that the backend will process and remove 
+any DARMA backend-specific arguments from these, leaving any
+application-specific arguments untouched.
 
 
 \paragraph{Details}\mbox{}\\
-Must be called only once before any other DARMA function is called.
-It needs to be combined with \texttt{darma\_finalize()} (see below).
-\todo{anything missing? details?}
+Must be called exactly once per rank (``exactly once'' may change in later
+spec versions) before any other DARMA function is called.
+Together with |darma\_finalize()| (see \S~\ref{ssec:api_fe_finalize}),
+this creates an opaque context that defines a DARMA rank.
 
 \paragraph{Code Snippet}\mbox{}\\ 
-See code for \texttt{darma\_finalize} in Figure~\ref{fig:fe_api_init}.
-
+See code for |darma\_finalize| in Figure~\ref{fig:fe_api_init}.
 
 %\clearpage
 
@@ -39,7 +37,7 @@ See code for \texttt{darma\_finalize} in Figure~\ref{fig:fe_api_init}.
 \label{ssec:api_fe_finalize}
 
 \paragraph{Summary}\mbox{}\\
-Finalizes the DARMA execution environment.
+Finalizes the DARMA execution environment for a rank.
 
 \paragraph{Syntax}\mbox{}\\ 
 \begin{CppCode}
@@ -49,13 +47,16 @@ void darma_runtime::darma_finalize();
 \paragraph{Positional Arguments}\mbox{} \\
 None. 
 
-\paragraph{Output}\mbox{} \\
-None. 
-
 \paragraph{Details}\mbox{} 
-Terminates the execution environment, cleaning up all DARMA processes.
-Needs to be called {\it after} \texttt{darma\_init}.\todo{anything missing? details?}
-
+Called to signify the end of the opaque context that defines a DARMA rank.  At
+least by the time this function returns, the backend guarentees that all work
+(tasks) created between the corresponding |darma\_init| call and this
+invocation, as well as and all of the decendents of that work, must be
+completed.  No user-level DARMA operations are allowed after this call, though
+the implicit invocation of the destructors of |AccessHandle<T>| objects
+(at, e.g., the final closing brace of |darma\_main()|) is allowed.  Must
+be called exactly once for each call of |darma\_init| (which, in turn
+must be called exactly once in the current version of the spec).
 
 \paragraph{Code Snippet}\mbox{} \\
 \begin{figure}[!h]
@@ -65,12 +66,12 @@ int darma_main(int argc, char** argv)
 {
   using namespace darma_runtime;
 
-  std::cout << "Initializing darma" << std::endl;
   darma_init(argc, argv);
+  std::cout << "DARMA initialized" << std::endl;
 
   // code goes here
 
-  std::cout << "Finalizing darma" << std::endl;
+  std::cout << "Finalizing DARMA..." << std::endl;
   darma_finalize();
   return 0;
 }
@@ -80,7 +81,14 @@ to initialize and finalize environment.}
 \label{fig:fe_api_init}
 \end{figure}
 
-
+\paragraph{Restrictions and Pitfalls}\mbox{} \\
+\begin{itemize}
+  \item |darma\_finalize| should be called at the outermost task depth on
+  a rank.  In other words, it should {\it never} be called from within a
+  |create\_work| or other asynchronous context.
+  %\item |darma\_finalize| should be called in the same immediately
+  %enclosing scope (IES) in which |darma\_init| was invoked.  
+\end{itemize}
 
 
 
