@@ -13,7 +13,7 @@ AccessHandle<T> darma_runtime::initial_access<T>(arg1, arg2, ...);
 arg1, arg2, ...: arbitrary tuple of values defining the key of the data.
 
 \paragraph{Return}\mbox{}\\ 
-An object of unspecified type that may be treated as an \texttt{AccessHandle<T>}
+An object of unspecified type that may be treated as an |AccessHandle<T>|
 with the key given by the arguments.
 
 \paragraph{Details}\mbox{}\\ 
@@ -34,13 +34,13 @@ as one component of the key.
   auto my_handle2 = initial_access<int>("data_key_2", myRank, "_online");
 \end{CppCodeNumb}
 \label{fig:fe_api_initialaccess}
-\caption{Basic usage of \texttt{initial\_access}.}
+\caption{Basic usage of \lstinline|initial_access|.}
 \end{figure}
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\ 
 \begin{itemize}
-  \item Because the actual type returned by \texttt{initial\_access<T>} is
-  unspecified, you should generally use \texttt{auto} instead of naming type on 
+  \item Because the actual type returned by |initial_access<T>| is
+  unspecified, you should generally use |auto| instead of naming type on 
   the left hand side of the assignment (this is generally a good idea in modern
   C++). In other words,
   \begin{CppCode}

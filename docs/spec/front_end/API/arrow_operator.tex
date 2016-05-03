@@ -16,15 +16,15 @@ None.
 Returns a reference to the data pointed to by the handle.
 
 \paragraph{Details}\mbox{}\\
-Just like \texttt{set\_value} and \texttt{get\_reference}, this operator
+Just like |set_value| and |get_reference|, this operator
 requires {\it Modify} immediate permissions to invoke safely.  Unlike 
-\texttt{set\_value} and \texttt{get\_reference}, however, the arrow operator can
+|set_value| and |get_reference|, however, the arrow operator can
 also be invoked on handles that only have {\it Read} immediate permissions.  In
-that case, it is up to the user to ensure that only \texttt{const} methods are
+that case, it is up to the user to ensure that only |const| methods are
 called on the resulting object.  In other words,
-\texttt{AccessHandle<T>::operator->()} lets you ``shoot yourself in the foot''.
+|AccessHandle<T>::operator->()| lets you ``shoot yourself in the foot''.
 If more safety is desired, use the more  verbose forms with
-\texttt{set\_value()} and \texttt{get\_reference()}.
+|set_value()| and |get_reference()|.
 
 
 \paragraph{Code Snippet}\mbox{}\\

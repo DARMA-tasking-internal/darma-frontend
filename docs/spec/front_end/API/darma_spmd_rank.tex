@@ -18,18 +18,18 @@ function was invoked.
 None. 
 
 \paragraph{Output}\mbox{}\\
-An object of unspecified type that may be treated as a \texttt{std::size\_t}
-which is less than the value returned by \texttt{darma\_spmd\_size()}.
+An object of unspecified type that may be treated as a |std::size_t|
+which is less than the value returned by |darma_spmd_size()|.
 
 \paragraph{Details}\mbox{}\\
 This function returns the rank index of the calling DARMA rank.  (Recall that a
-rank is the opaque context between the invocation of \texttt{darma\_init} and
-a corresponding invocation of \texttt{darma\_finalize}).  If the value returned
-by \texttt{darma\_spmd\_size} is convertible to a \texttt{std::size\_t} with the
+rank is the opaque context between the invocation of |darma_init| and
+a corresponding invocation of |darma_finalize|).  If the value returned
+by |darma_spmd_size| is convertible to a |std::size_t| with the
 value $N$, then the value returned by this function will be convertible to a
-\texttt{std::size\_t} with the value $r$, which will always satisfy $0 <=
+|std::size_t| with the value $r$, which will always satisfy $0 <=
 r < N$.  Furthermore, the type of the value returned by this function will
-always be directly comparable to the type returned by \texttt{darma\_spmd\_size}
+always be directly comparable to the type returned by |darma_spmd_size|
 and to $0$ such that this previous condition is met.  The value returned is also
 equality comparable with $0$, the value returned will be true for equality
 comparison with $0$ on exactly one rank.  The value returned by this function
