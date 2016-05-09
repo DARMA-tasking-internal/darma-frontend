@@ -46,7 +46,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include <darma/impl/segmented_key.h>
+#include <src/include/darma/impl/key/segmented_key.h>
 #include <darma/impl/key_concept.h>
 
 #include "../meta/blabbermouth.h"
