@@ -272,6 +272,10 @@ class DependencyHandleBase
     typedef VersionedObject<version_type> versioned_base_t;
     typedef typename versioned_base_t::version_t version_t;
 
+    // Tag type for handle migration unpack
+    struct handle_migration_unpack_t { };
+    static constexpr handle_migration_unpack_t handle_migration_unpack = { };
+
     const key_type&
     get_key() const override {
       return this->KeyedObject<key_type>::get_key();
@@ -279,6 +283,18 @@ class DependencyHandleBase
     const version_type&
     get_version() const override {
       return this->VersionedObject<version_type>::get_version();
+    }
+
+    template <typename ArchiveT>
+    explicit DependencyHandleBase(
+      handle_migration_unpack_t,
+      ArchiveT& ar
+    ) : keyed_base_t(key_t()),
+        versioned_base_t(version_t())
+    {
+      ar >> this->key_;
+      ar >> this->version_;
+      ar >> this->version_is_pending_;
     }
 
     DependencyHandleBase(
@@ -381,6 +397,16 @@ class DependencyHandle
       backend_runtime->register_fetching_handle(this,
         user_version_tag
       );
+    }
+
+    template <typename ArchiveT>
+    DependencyHandle(
+      typename base_t::handle_migration_unpack_t,
+      ArchiveT& ar
+    ) : base_t(base_t::handle_migration_unpack, ar),
+        value_((T*&)this->base_t::data_)
+    {
+      backend_runtime->register_migrated_handle(this);
     }
 
     virtual ~DependencyHandle() {
@@ -500,8 +526,6 @@ class DependencyHandle
 
     // end SerializationManager implementation </editor-fold>
     ////////////////////////////////////////////////////////////
-
-    bool has_subsequent_at_version_depth = false;
 
   private:
 

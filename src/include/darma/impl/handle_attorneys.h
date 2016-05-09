@@ -122,7 +122,7 @@ struct for_AccessHandle {
 
 } // end namespace detail
 
-} // end namespace darma
+} // end namespace darma_runtime
 
 
 

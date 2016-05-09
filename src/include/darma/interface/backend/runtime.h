@@ -181,6 +181,11 @@ class Runtime {
       handle_t* const handle
     ) =0;
 
+    virtual void
+    register_migrated_handle(
+      handle_t* const handle
+    ) =0;
+
     /**
       Performance an all-reduce operation over a given input data and store
       into a new output dependency handle
@@ -361,6 +366,11 @@ class Runtime {
     release_handle(
       const handle_t* const handle
     ) =0;
+
+    //virtual void
+    //release_migrated_handle(
+    //  const handle_t* const handle
+    //) =0;
 
     /** @brief Indicate to the backend that the key and version reported by
      *  \c handle should be fetchable with the user version tag \c version_tag

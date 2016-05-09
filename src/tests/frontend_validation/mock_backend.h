@@ -96,6 +96,9 @@ class MockRuntime
     MOCK_METHOD4(publish_handle, void(handle_t* const, key_t const&, size_t const, bool));
     MOCK_METHOD0(finalize, void());
 
+    MOCK_METHOD1(register_migrated_handle, void(handle_t* const));
+    MOCK_METHOD1(release_migrated_handle, void(const handle_t* const));
+
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
 
 #ifdef __clang__

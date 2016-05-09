@@ -60,6 +60,11 @@ namespace darma_runtime {
 
 namespace detail {
 
+namespace _bytes_convert_impl {
+
+
+} // end namespace _bytes_convert_impl
+
 //template <typename T>
 //void to_bytes(T&& val, void* dest, size_t const n_bytes, size_t const offset = 0) {
 //  bytes_convert<std::remove_reference_t<T>>()(
@@ -76,15 +81,18 @@ template <typename CharT, typename Traits, typename Allocator>
 struct bytes_convert<std::basic_string<CharT, Traits, Allocator>> {
   static constexpr bool size_known_statically = false;
   typedef std::basic_string<CharT, Traits, Allocator> string_t;
+
   inline size_t
   get_size(string_t const& val) const {
     return val.size() * sizeof(CharT);
   }
+
   inline constexpr void
   operator()(string_t const &val, void *dest, const size_t n_bytes, const size_t offset) const {
     const size_t size = get_size(val);
     ::memcpy(dest, val.data() + offset, n_bytes);
   }
+
   inline string_t
   get_value(void* data, size_t size) const {
     return string_t((CharT*)data, size / sizeof(CharT));

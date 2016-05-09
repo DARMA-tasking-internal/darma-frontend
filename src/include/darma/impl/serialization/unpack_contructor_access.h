@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      tuple_zip.h
+//                      unpack_contructor_access.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,59 +42,45 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_META_TUPLE_ZIP_H_
-#define DARMA_IMPL_META_TUPLE_ZIP_H_
+#ifndef DARMA_IMPL_SERIALIZATION_UNPACK_CONTRUCTOR_ACCESS_H
+#define DARMA_IMPL_SERIALIZATION_UNPACK_CONTRUCTOR_ACCESS_H
 
-#include <tinympl/zip.hpp>
-#include <tinympl/tuple_as_sequence.hpp>
-#include <tinympl/min_element.hpp>
+#include <type_traits>
+
+#include <darma/impl/meta/detection.h>
+#include "serialization_fwd.h"
+#include "archive.h"
 
 namespace darma_runtime {
+namespace serialization {
 
-namespace meta {
+struct UnpackConstructorAccess {
+  private:
+    //template <typename T, typename ArchiveT>
+    //using has_unpack_constructor_archetype = decltype(
+    //  T(
+    //    std::declval<unpack_constructor_tag_t>(),
+    //    std::declval<std::remove_reference_t<ArchiveT>&>()
+    //  )
+    //);
+    template <typename T, typename ArchiveT>
+    using has_unpack_constructor_archetype = typename T::template allow_in_place_unpack<ArchiveT>;
 
-namespace _impl {
+    template <typename T, typename ArchiveT>
+    using has_unpack_constructor = meta::is_detected<has_unpack_constructor_archetype, T, ArchiveT>;
 
-
-template <size_t I, size_t N>
-struct tuple_zip_helper {
-  template <typename... Tuples>
-  inline constexpr decltype(auto)
-  operator()(Tuples&&... tuples) const {
-    return std::tuple_cat(
-      std::make_tuple(
-        std::forward_as_tuple(std::get<I>(std::forward<Tuples>(tuples))...)
-      ),
-      tuple_zip_helper<I+1, N>()(std::forward<Tuples>(tuples)...)
-    );
-  }
+  public:
+    template <typename T, typename ArchiveT>
+    static
+    std::enable_if_t<
+      has_unpack_constructor<T, ArchiveT>::value
+    >
+    call_unpack_constructor(void* allocated, ArchiveT& ar) {
+      new (allocated) T(unpack_constructor_tag, ar);
+    }
 };
 
-template <size_t N>
-struct tuple_zip_helper<N, N> {
-  template <typename... Tuples>
-  inline constexpr decltype(auto)
-  operator()(Tuples&&...) const {
-    return std::make_tuple();
-  }
-};
-
-} // end namespace _impl
-
-
-template <typename... Tuples>
-decltype(auto)
-tuple_zip(Tuples&&... tuples) {
-  static constexpr size_t min_size =
-    tinympl::min<std::tuple_size<std::decay_t<Tuples>>...>::value;
-  return _impl::tuple_zip_helper<0, min_size>()(
-    std::forward<Tuples>(tuples)...
-  );
-}
-
-} // end namespace meta
-
+} // end namespace serialization
 } // end namespace darma_runtime
 
-
-#endif //DARMA_IMPL_META_TUPLE_ZIP_H_
+#endif //DARMA_IMPL_SERIALIZATION_UNPACK_CONTRUCTOR_ACCESS_H

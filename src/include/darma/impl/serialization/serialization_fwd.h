@@ -61,6 +61,13 @@ struct Packer;
 template <typename T, typename Enable=void>
 struct Unpacker;
 
+struct unpack_constructor_tag_t { };
+constexpr unpack_constructor_tag_t unpack_constructor_tag = { };
+
+struct UnpackConstructorAccess;
+
+struct SimplePackUnpackArchive;
+
 namespace detail {
 
 typedef enum SerializerMode {

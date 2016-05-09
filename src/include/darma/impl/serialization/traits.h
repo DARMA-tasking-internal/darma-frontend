@@ -48,6 +48,8 @@
 #include <tinympl/logical_and.hpp>
 
 #include <darma/impl/serialization/serialization_fwd.h>
+#include "nonintrusive.h"
+#include "unpack_contructor_access.h"
 
 namespace darma_runtime {
 
@@ -88,6 +90,8 @@ struct serializability_traits {
     using _clean_T = remove_const_t<remove_reference_t<T>>;
 
   public:
+
+    typedef _clean_T value_type;
 
     ////////////////////////////////////////////////////////////////////////////////
     // <editor-fold desc="Detection of presence of intrusive serialization methods">
@@ -163,15 +167,26 @@ struct serializability_traits {
 
   private:
     template <typename U, typename ArchiveT>
+    using has_intrusive_unpack_constructor_archetype =
+      decltype( UnpackConstructorAccess::call_unpack_constructor<U>(
+          declval<void*>(),
+          declval<remove_reference_t<ArchiveT>&>()
+        )
+      );
+
+    template <typename U, typename ArchiveT>
     using has_intrusive_unpack_archetype =
-      decltype( declval<U>().unpack( declval<remove_reference_t<ArchiveT>&>() ) );
+      decltype( U().unpack( declval<remove_reference_t<ArchiveT>&>() ) );
 
     template <typename U, typename ArchiveT>
     using has_const_incorrect_unpack = is_detected<has_intrusive_unpack_archetype, _const_T, ArchiveT>;
 
   public:
     template <typename ArchiveT>
-    using has_intrusive_unpack = is_detected<has_intrusive_pack_archetype, _T, ArchiveT>;
+    using has_intrusive_unpack_constructor = is_detected<has_intrusive_unpack_constructor_archetype, _clean_T, ArchiveT>;
+
+    template <typename ArchiveT>
+    using has_intrusive_unpack = is_detected<has_intrusive_unpack_archetype, _T, ArchiveT>;
 
     // </editor-fold>
     //----------------------------------------
