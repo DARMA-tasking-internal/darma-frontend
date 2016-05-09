@@ -161,6 +161,24 @@ equal_as_bytes(T const& a, U const& b) {
   return true;
 }
 
+inline bool
+equal_as_bytes(const char* a, size_t a_size, const char* b, size_t b_size) {
+  if(a_size != b_size) return false;
+  for(int i = 0; i < a_size; ++i, ++a, ++b) {
+    if(*a != *b) return false;
+  }
+  return true;
+}
+
+inline size_t
+hash_as_bytes(const char* a, size_t a_size) {
+  size_t rv = 0;
+  for(int i = 0; i < a_size; ++i, ++a) {
+    hash_combine(rv, *a);
+  }
+  return rv;
+}
+
 
 // Does a dynamic_cast in debug (-O0) mode and an unsafe static_cast in optimized mode
 template <typename ToType, typename FromType>
