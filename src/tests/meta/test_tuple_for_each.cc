@@ -141,33 +141,63 @@ TEST_F(TestTupleForEach, indexed_old) {
   );
 }
 
+template <typename T>
+using decay_is_integral = std::is_integral<std::decay_t<T>>;
+template <typename T>
+using rvalue_ref_is_integral = std::integral_constant<bool,
+  std::is_integral<std::remove_reference_t<T>>::value
+  and std::is_rvalue_reference<T>::value
+>;
+
 TEST_F(TestTupleForEach, filtered_type_old) {
   testing::internal::CaptureStdout();
+
   std::tuple<int, std::string, double, int> tup(5, "hello", 47.32, 42);
-  tuple_for_each_filtered_type<std::is_integral>(tup, [](auto&& val) {
+  tuple_for_each_filtered_type<decay_is_integral>(tup, [](auto&& val) {
     std::cout << val << " ";
   });
   std::cout << std::endl;
+
   std::tuple<std::string, double, int> tup2("hello", 47.32, 42);
-  tuple_for_each_filtered_type<std::is_integral>(tup2, [](auto&& val) {
+  tuple_for_each_filtered_type<decay_is_integral>(tup2, [](auto&& val) {
     std::cout << val << " ";
   });
   std::cout << std::endl;
+
   std::tuple<std::string, double> tup3("hello", 47.32);
-  tuple_for_each_filtered_type<std::is_integral>(tup3, [](auto&& val) {
+  tuple_for_each_filtered_type<decay_is_integral>(tup3, [](auto&& val) {
     std::cout << val << " ";
   });
   std::cout << std::endl;
+
   std::tuple<> tup4;
-  tuple_for_each_filtered_type<std::is_integral>(tup4, [](auto&& val) {
-    std::cout << val << ": " << typeid(decltype(val)).name() <<  std::endl;
+  tuple_for_each_filtered_type<decay_is_integral>(tup4, [](auto&& val) {
+    std::cout << val << " ";
   });
   std::cout << std::endl;
+
+  // Regular is_integral should return false for int&, and tup should be a tuple of int&,
+  // so nothing should be printed
+  int i = 5;
+  auto tup5 = std::make_tuple(i);
+  tuple_for_each_filtered_type<std::is_integral>(tup5, [](auto&& val) {
+    std::cout << val << " ";
+  });
+  std::cout << std::endl;
+
+  // argument should be tuple<int&&, int&>&&, so should print "6 "
+  tuple_for_each_filtered_type<rvalue_ref_is_integral>(std::forward_as_tuple(6, i), [](auto&& val) {
+    std::cout << val << " ";
+  });
+  std::cout << std::endl;
+
   ASSERT_EQ(testing::internal::GetCapturedStdout(),
     "5 42 \n"
     "42 \n"
     "\n"
     "\n"
+    "\n"
+    "6 \n"
   );
 }
 

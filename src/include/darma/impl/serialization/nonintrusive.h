@@ -58,6 +58,7 @@
 #include <darma/impl/serialization/serialization_fwd.h>
 #include <darma/impl/serialization/traits.h>
 
+#include "unpack_contructor_access.h"
 #include "serializer_attorneys.h"
 
 namespace darma_runtime {
@@ -95,7 +96,7 @@ struct Sizer {
   template <typename ArchiveT>
   std::enable_if_t<
     not traits::has_intrusive_compute_size::value
-      and not traits::template has_intrusive_compute_size_with_archive<ArchiveT>::value
+
       and traits::template has_intrusive_serialize<ArchiveT>::value
   >
   compute_size(T const& val, ArchiveT& ar) const {
@@ -135,13 +136,22 @@ struct Packer {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+
 template <typename T, typename Enable>
 struct Unpacker {
   typedef detail::serializability_traits<T> traits;
 
-  // unpack() method version
+  // unpacking constructor version [i.e., T(Archive&)]
   template <typename ArchiveT>
-  std::enable_if_t<traits::template has_intrusive_pack<ArchiveT>::value>
+  std::enable_if_t<traits::template has_intrusive_unpack_constructor<ArchiveT>::value>
+  unpack(void* allocated, ArchiveT& ar) const {
+    UnpackConstructorAccess::call_unpack_constructor<T>(allocated, ar);
+  };
+
+  // unpack() method version
+  // Note that it is an error to have both an unpacking constructor and an unpack() method
+  template <typename ArchiveT>
+  std::enable_if_t<traits::template has_intrusive_unpack<ArchiveT>::value>
   unpack(void* allocated, ArchiveT& ar) const {
     T* v = new (allocated) T;
     v->unpack(ar);
@@ -152,6 +162,7 @@ struct Unpacker {
   std::enable_if_t<
     traits::template has_intrusive_serialize<ArchiveT>::value
       and not traits::template has_intrusive_unpack<ArchiveT>::value
+      and not traits::template has_intrusive_unpack_constructor<ArchiveT>::value
   >
   unpack(void* allocated, ArchiveT& ar) const {
     T* v = new (allocated) T;

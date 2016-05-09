@@ -56,6 +56,7 @@
 #include <darma/impl/task.h>
 #include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 #include <darma/impl/util.h>
+#include <darma/impl/serialization/traits.h>
 
 namespace darma_runtime {
 
@@ -469,6 +470,24 @@ class AccessHandle : public detail::AccessHandleBase
       assert(state_ == Read_None);
     }
 
+
+    template <typename ArchiveT>
+    using allow_in_place_unpack = std::true_type;
+
+    template <typename ArchiveT>
+    AccessHandle(
+      serialization::unpack_constructor_tag_t,
+      ArchiveT& ar
+    ) : dep_handle_(
+          dep_handle_ptr_maker_t()(detail::DependencyHandleBase<key_t, version_t>::handle_migration_unpack, ar)
+        )
+    {
+
+
+    }
+
+
+
     ////////////////////////////////////////
     // private members
 
@@ -497,6 +516,14 @@ class AccessHandle : public detail::AccessHandleBase
 
     // Allow implicit conversion to value in the invocation of the task
     friend struct meta::splat_tuple_access<detail::AccessHandleBase>;
+    friend struct serialization::UnpackConstructorAccess;
+
+    static_assert(
+      serialization::detail::serializability_traits<AccessHandle>::template has_intrusive_unpack_constructor<
+        serialization::SimplePackUnpackArchive
+      >::value,
+      "AccessHandle not serializable as expected"
+    );
 
 #ifdef DARMA_TEST_FRONTEND_VALIDATION
     friend class ::TestAccessHandle;
