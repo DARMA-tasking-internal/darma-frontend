@@ -107,7 +107,7 @@ bool _check_contains(const Key& k, const Container& c) {
     DARMA_ASSERTION_BEGIN,                                                             \
     std::cerr << "DARMA assertion failed:" << std::endl                                            \
               << "  " << #lhs << " " << #op << " " << #rhs << std::endl                             \
-              << "  " << lhs << " " << #op << " " << #rhs << std::endl,                              \
+              << "  " << lhs << " " << #op << " " << rhs << std::endl,                              \
     DARMA_ASSERTION_END                                                               \
   ), false)                                                                                         \
 )

@@ -51,22 +51,40 @@
 #include <darma/impl/key/bytes_convert.h>
 #include <darma/impl/key/raw_bytes.h>
 #include <darma/impl/serialization/serialization_fwd.h>
+#include <darma/impl/serialization/nonintrusive.h>
+
+#include <darma/impl/key_concept.h>
 
 namespace darma_runtime {
 
 namespace detail {
 
+class SimpleKey;
+
+} // end namespace detail
+
+namespace serialization {
+
+template <> struct Serializer<darma_runtime::detail::SimpleKey, void>;
+
+} // end namespace serialization
+
+namespace detail {
+
 namespace _simple_key_impl {
 
-template <typename T, typename Enable=void>
+template <typename TDeduced, typename Enable=void>
 struct add_arg {
-  void operator()(T&& arg, std::vector<raw_bytes>& components, std::vector<bytes_type_metadata>& types) const {
-    bytes_convert<std::remove_cv_t<std::remove_reference_t<T>>> bc;
+  void operator()(
+    TDeduced&& arg,
+    std::vector<raw_bytes>& components, std::vector<bytes_type_metadata>& types
+  ) const {
+    bytes_convert<std::remove_cv_t<std::remove_reference_t<TDeduced>>> bc;
     size_t size = bc.get_size(arg);
     components.emplace_back(size);
-    types.push_back();
-    bc.get_bytes_type_metadata(types.back(), arg);
-    bc(arg, components.back().data.get(), size, 0);
+    types.emplace_back();
+    bc.get_bytes_type_metadata(&(types.back()), arg);
+    bc(std::forward<TDeduced>(arg), components.back().data.get(), size, 0);
   }
 };
 
@@ -86,29 +104,32 @@ class SimpleKey {
     class SimpleKeyComponent {
       public:
 
-        SimpleKeyComponent(raw_bytes& comp)
-          : component_(comp)
+        SimpleKeyComponent(raw_bytes const& comp, bytes_type_metadata const& type)
+          : component_(comp), type_(type)
         { }
 
         template <typename T>
-        T as() {
+        T as() && {
           return bytes_convert<T>().get_value(
+            &type_,
             component_.data.get(), component_.get_size()
           );
         }
 
 
       private:
-        raw_bytes& component_;
+        raw_bytes const& component_;
+        bytes_type_metadata const& type_;
 
     };
 
     template <typename... Args>
     SimpleKey(variadic_constructor_arg_t const, Args&&... args);
 
-    SimpleKey() = default;
 
   public:
+
+    SimpleKey() = default;
 
     template <uint8_t N=not_given>
     SimpleKeyComponent
@@ -119,7 +140,7 @@ class SimpleKey {
       assert(N == not_given xor N_dynamic == not_given);
       const uint8_t actual_N = N == not_given ? (uint8_t)N_dynamic : N;
       assert(actual_N < n_components());
-      return { components_.at(actual_N) };
+      return { components_.at(actual_N), types_.at(actual_N) };
     }
 
     size_t n_components() const { return components_.size() - has_internal_last_component; }
@@ -137,9 +158,10 @@ class SimpleKey {
     friend struct _simple_key_impl::add_arg<const SimpleKey>;
     friend struct _simple_key_impl::add_arg<const SimpleKey&>;
 
-    friend struct bytes_convert<SimpleKey>;
+    friend struct serialization::Serializer<SimpleKey, void>;
 
 };
+
 
 namespace _simple_key_impl {
 
@@ -155,6 +177,7 @@ struct add_arg<SimpleKeyDeduced,
     for(auto&& part : arg.components_) {
       components.emplace_back(std::move(part));
     }
+    types = std::move(arg.types_);
   }
 
   // lvalue overload (need to create new and memcopy data)
@@ -166,22 +189,23 @@ struct add_arg<SimpleKeyDeduced,
     for(auto const& part : arg.components_) {
       components.emplace_back(part.get_size());
       ::memcpy(components.back().data.get(), part.data.get(), part.get_size());
-      types.push_back(arg.types[i++]);
     }
+    types = arg.types_;
   }
 };
 
 } // end namespace _simple_key_impl
 
+
 template <typename... Args>
-SimpleKey::SimpleKey<Args...>(variadic_constructor_arg_t const, Args&&... args) {
+SimpleKey::SimpleKey(variadic_constructor_arg_t const, Args&&... args) {
   // We can't just do add_arg<Args>()(std::forward<Args>(args), components_)... because
   // argument evaluation order isn't guaranteed
   meta::tuple_for_each(
     std::forward_as_tuple(std::forward<Args>(args)...),
     [this](auto&& arg) {
       _simple_key_impl::add_arg<decltype(arg)>()(
-        std::forward<decltype(arg)>(arg), components_
+        std::forward<decltype(arg)>(arg), components_, types_
       );
     }
   );
@@ -193,13 +217,13 @@ namespace _simple_key_impl {
 struct _traits_impl {
   template <typename... Args>
   static SimpleKey
-  make(Args&&... args) const {
+  make(Args&&... args) {
     return SimpleKey(variadic_constructor_arg, std::forward<Args>(args)...);
   }
 
   template <typename Tuple>
   static SimpleKey
-  make_from_tuple(Tuple&& tup) const {
+  make_from_tuple(Tuple&& tup) {
     return meta::splat_tuple(std::forward<Tuple>(tup),
       [](auto&&... args) {
         SimpleKey(variadic_constructor_arg, std::forward<decltype(args)>(args)...);
@@ -260,7 +284,7 @@ struct _traits_impl {
   static SimpleKey::SimpleKeyComponent
   get_internal_last_component(SimpleKey const& k) {
     assert(k.has_internal_last_component);
-    return { k.components_[k.components_.size() - 1] };
+    return SimpleKey::SimpleKeyComponent( k.components_.back(), k.types_.back() );
   }
 
   static bool
@@ -272,7 +296,7 @@ struct _traits_impl {
 
 } // end namespace _simple_key_impl
 
-// TODO key_traits
+
 template <>
 struct key_traits<SimpleKey> {
   struct maker {
@@ -306,9 +330,19 @@ struct key_traits<SimpleKey> {
 };
 
 
+
 } // end namespace detail
 
 namespace serialization {
+
+template <>
+struct Serializer<darma_runtime::detail::SimpleKey, /*Enabled => */void> {
+  template <typename ArchiveT>
+  void serialize(darma_runtime::detail::SimpleKey& val, ArchiveT& ar) const {
+    ar | val.components_;
+    ar | val.types_;
+  }
+};
 
 } // end namespace serialization
 

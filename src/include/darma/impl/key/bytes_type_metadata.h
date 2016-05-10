@@ -48,6 +48,8 @@
 #include <cassert>
 #include <cstdint>
 
+#include <darma/impl/serialization/nonintrusive.h>
+
 
 namespace darma_runtime {
 
@@ -208,6 +210,13 @@ category_extension_bytes_value(void* md) {
 ////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace detail
+
+namespace serialization {
+
+template <>
+struct serialize_as_pod<darma_runtime::detail::bytes_type_metadata> : std::true_type { };
+
+} // end namespace serialization
 
 } // end namespace darma_runtime
 

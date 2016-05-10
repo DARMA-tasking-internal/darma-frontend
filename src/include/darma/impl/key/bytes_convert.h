@@ -84,7 +84,7 @@ struct bytes_convert<std::basic_string<CharT, Traits, Allocator>> {
   inline void
   get_bytes_type_metadata(bytes_type_metadata* md, string_t const& val) const {
     assert(val.size() <= string_like_type_metadata::max_string_size);
-    auto* md_string = reinterpret_cast<string_like_type_metadata*>(&md);
+    auto* md_string = reinterpret_cast<string_like_type_metadata*>(md);
     md_string->_always_true = 1;
     md_string->size = (uint8_t)val.size();
   }
@@ -107,7 +107,8 @@ struct bytes_convert<std::basic_string<CharT, Traits, Allocator>> {
   }
 
   inline string_t
-  get_value(bytes_type_metadata* md, void* data, size_t size) const {
+  get_value(bytes_type_metadata const* md, void* data, size_t size) const {
+    DARMA_ASSERT_EQUAL((int)reinterpret_cast<const string_like_type_metadata*>(md)->size, (int)(size / sizeof(CharT)));
     return string_t((CharT*)data, size / sizeof(CharT));
   }
 };
@@ -147,8 +148,8 @@ struct bytes_convert {
     meta::is_in_streamable<T, std::istringstream>::value,
     T
   >
-  get_value(void* data, size_t size) const {
-    std::istringstream isstr(bytes_convert<std::string>().get_value(data, size));
+  get_value(bytes_type_metadata const* md, void* data, size_t size) const {
+    std::istringstream isstr(bytes_convert<std::string>().get_value(md, data, size));
     T rv;
     isstr >> rv;
     return rv;
@@ -186,7 +187,7 @@ struct bytes_convert<T,
 
     inline void
     get_bytes_type_metadata(bytes_type_metadata* md, T const& val) const {
-      auto* md_int = reinterpret_cast<int_like_type_metadata*>(&md);
+      auto* md_int = reinterpret_cast<int_like_type_metadata*>(md);
       md_int->_always_false = false;
       md_int->_always_true = true;
       md_int->is_negative = val < 0;
@@ -235,8 +236,8 @@ struct bytes_convert<T,
     }
 
     inline T
-    get_value(bytes_type_metadata* md, void* data, size_t size) const {
-      auto* md_int = reinterpret_cast<int_like_type_metadata*>(md);
+    get_value(bytes_type_metadata const* md, void* data, size_t size) const {
+      const auto* md_int = reinterpret_cast<const int_like_type_metadata*>(md);
       assert(md_int->_always_true);
       assert(not md_int->_always_false);
       assert(std::is_signed<T>::value or not md_int->is_negative);
@@ -244,19 +245,19 @@ struct bytes_convert<T,
       assert(size == 1 << md_int->int_size_exponent);
       switch(md_int->int_size_exponent) {
         case 0: {
-          rv = (uint8_t)data;
+          rv = *(uint8_t*)data;
           break;
         }
         case 1: {
-          rv = (uint16_t)data;
+          rv = *(uint16_t*)data;
           break;
         }
         case 2: {
-          rv = (uint32_t)data;
+          rv = *(uint32_t*)data;
           break;
         }
         case 3: {
-          rv = (uint64_t)data;
+          rv = *(uint64_t*)data;
           break;
         }
         default : {
@@ -265,6 +266,7 @@ struct bytes_convert<T,
           break;
         }
       }
+      if(md_int->is_negative) rv = -rv;
       return rv;
     }
 };
@@ -322,8 +324,8 @@ struct bytes_convert<CharT*,
   static_assert(sizeof(CharT) == 1, "wide characters not yet implemeneted");
   inline void
   get_bytes_type_metadata(bytes_type_metadata* md, CharT* val) const {
-    assert(val.size() <= string_like_type_metadata::max_string_size);
-    auto* md_string = reinterpret_cast<string_like_type_metadata*>(&md);
+    assert(get_size(val) <= string_like_type_metadata::max_string_size);
+    auto* md_string = reinterpret_cast<string_like_type_metadata*>(md);
     md_string->_always_true = 1;
     md_string->size = (uint8_t)get_size(val) * (uint8_t)sizeof(CharT);
   }
@@ -355,9 +357,9 @@ struct bytes_convert<CharT[N],
 > {
   static_assert(sizeof(CharT) == 1, "wide characters not yet implemeneted");
   inline void
-  get_bytes_type_metadata(bytes_type_metadata* md, CharT* val) const {
-    assert(val.size() <= string_like_type_metadata::max_string_size);
-    auto* md_string = reinterpret_cast<string_like_type_metadata*>(&md);
+  get_bytes_type_metadata(bytes_type_metadata* md, CharT const* val) const {
+    assert(get_size(val) <= string_like_type_metadata::max_string_size);
+    auto* md_string = reinterpret_cast<string_like_type_metadata*>(md);
     md_string->_always_true = 1;
     md_string->size = (uint8_t)get_size(val) * (uint8_t)sizeof(CharT);
   }

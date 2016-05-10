@@ -193,5 +193,6 @@ struct Serializer
 #include "stl_pair.h"
 #include "array.h"
 #include "range.h"
+#include "as_pod.h"
 
 #endif /* DARMA_IMPL_SERIALIZATION_NONINTRUSIVE_H_ */

@@ -49,6 +49,7 @@
 #include <memory>
 
 #include <darma/impl/key/key_fwd.h>
+#include <darma/impl/serialization/nonintrusive.h>
 
 namespace darma_runtime {
 
@@ -86,7 +87,36 @@ struct bytes_convert<raw_bytes> {
   }
 };
 
+
+
 } // end namespace detail
+
+namespace serialization {
+
+template <>
+struct Serializer<darma_runtime::detail::raw_bytes, void> {
+  template <typename Archive>
+  void get_size(darma_runtime::detail::raw_bytes const& val, Archive& ar) const {
+    ar % val.get_size();
+    ar % range(val.data.get(), (char*)val.data.get() + val.get_size());
+  }
+  template <typename Archive>
+  void pack(darma_runtime::detail::raw_bytes const& val, Archive& ar) const {
+    ar << val.get_size();
+    ar << range(val.data.get(), (char*)val.data.get() + val.get_size());
+  }
+  template <typename Archive>
+  void unpack(void* allocated, Archive& ar) const {
+    size_t size = 0;
+    ar >> size;
+    darma_runtime::detail::raw_bytes* val = new (allocated) darma_runtime::detail::raw_bytes(size);
+    using Serializer_attorneys::ArchiveAccess;
+    memcpy(val->data.get(), ArchiveAccess::spot(ar), size);
+    ArchiveAccess::spot(ar) += size;
+  }
+};
+
+} // end namespace serialization
 
 } // end namespace darma_runtime
 
