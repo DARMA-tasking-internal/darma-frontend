@@ -46,6 +46,7 @@
 #define DARMA_IMPL_SERIALIZATION_TRAITS_H_
 
 #include <tinympl/logical_and.hpp>
+#include <tinympl/logical_or.hpp>
 
 #include <darma/impl/serialization/serialization_fwd.h>
 #include "nonintrusive.h"
@@ -198,6 +199,27 @@ struct serializability_traits {
     // <editor-fold desc="Detection of presence of nonintrusive serialization methods (for a given ArchiveT)">
 
     //----------------------------------------
+    // <editor-fold desc="serialize()">
+
+  private:
+
+    template <typename U, typename ArchiveT>
+    using has_nonintrusive_serialize_archetype = decltype(
+      declval<Serializer<U>>().serialize(
+        declval<U&>(), declval<remove_const_t<ArchiveT>&>()
+      )
+    );
+
+  public:
+
+    template <typename ArchiveT>
+    using has_nonintrusive_serialize =
+      is_detected<has_nonintrusive_serialize_archetype, _clean_T, ArchiveT>;
+
+    // </editor-fold>
+    //----------------------------------------
+
+    //----------------------------------------
     // <editor-fold desc="compute_size()">
 
   private:
@@ -269,10 +291,13 @@ struct serializability_traits {
 
     // Use of tinympl::logical_and here should short-circuit and save a tiny bit of compilation time
     template <typename ArchiveT>
-    using is_serializable_with_archive = tinympl::logical_and<
-      has_nonintrusive_compute_size<ArchiveT>,
-      has_nonintrusive_pack<ArchiveT>,
-      has_nonintrusive_unpack<ArchiveT>
+    using is_serializable_with_archive = tinympl::logical_or<
+      has_nonintrusive_serialize<ArchiveT>,
+      tinympl::logical_and<
+        has_nonintrusive_compute_size<ArchiveT>,
+        has_nonintrusive_pack<ArchiveT>,
+        has_nonintrusive_unpack<ArchiveT>
+      >
     >;
 
     typedef Serializer<_clean_T> serializer;

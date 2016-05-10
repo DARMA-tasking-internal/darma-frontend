@@ -64,6 +64,7 @@ using std::declval;
 using meta::is_detected;
 using std::conditional_t;
 using std::add_const_t;
+using std::remove_const_t;
 using std::integral_constant;
 using std::enable_if_t;
 
