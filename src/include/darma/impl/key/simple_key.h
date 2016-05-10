@@ -50,6 +50,7 @@
 #include <darma/impl/meta/splat_tuple.h>
 #include <darma/impl/key/bytes_convert.h>
 #include <darma/impl/key/raw_bytes.h>
+#include <darma/impl/serialization/serialization_fwd.h>
 
 namespace darma_runtime {
 
@@ -105,6 +106,8 @@ class SimpleKey {
     template <typename... Args>
     SimpleKey(variadic_constructor_arg_t const, Args&&... args);
 
+    SimpleKey() = default;
+
   public:
 
     template <uint8_t N=not_given>
@@ -119,13 +122,13 @@ class SimpleKey {
       return { components_.at(actual_N) };
     }
 
-    size_t n_components() const { return components_.size(); }
+    size_t n_components() const { return components_.size() - has_internal_last_component; }
 
   private:
 
     std::vector<raw_bytes> components_;
     std::vector<bytes_type_metadata> types_;
-    bool has_internal_last_component;
+    bool has_internal_last_component = false;
 
     friend struct _simple_key_impl::_traits_impl;
     // This is ugly, but...
@@ -133,6 +136,8 @@ class SimpleKey {
     friend struct _simple_key_impl::add_arg<SimpleKey&>;
     friend struct _simple_key_impl::add_arg<const SimpleKey>;
     friend struct _simple_key_impl::add_arg<const SimpleKey&>;
+
+    friend struct bytes_convert<SimpleKey>;
 
 };
 
@@ -202,9 +207,8 @@ struct _traits_impl {
     );
   }
 
-  template <typename Tuple>
   static bool
-  keys_are_equal(SimpleKey const& k1, SimpleKey const& k2) {
+  do_key_equal(SimpleKey const& k1, SimpleKey const& k2) {
     if(k1.n_components() != k2.n_components()) return false;
     for(int i = 0; i < k1.n_components(); ++i) {
       const raw_bytes& c1 = k1.components_.at(i);
@@ -216,7 +220,6 @@ struct _traits_impl {
     return true;
   }
 
-  template <typename Tuple>
   static size_t
   do_key_hash(SimpleKey const& k) {
     size_t rv = 0;
@@ -226,14 +229,88 @@ struct _traits_impl {
     return rv;
   }
 
+  template <typename T>
+  static SimpleKey
+  add_internal_last_component(
+    SimpleKey const& k, T const& to_add
+  ) {
+    assert(!k.has_internal_last_component);
+    static_assert(not std::is_same<T, SimpleKey>::value, "Can't use SimpleKey as internal last component");
+    auto rv = make(k, to_add);
+    rv.has_internal_last_component = true;
+    return rv;
+  }
+
+  static SimpleKey
+  without_internal_last_component(
+    SimpleKey const& k
+  ) {
+    assert(k.has_internal_last_component);
+    SimpleKey rv;
+    // Note that n_components() doesn't include the internal component
+    for(int i = 0; i < rv.n_components(); ++i) {
+      rv.components_.emplace_back(k.components_[i].get_size());
+      memcpy(rv.components_.back().data.get(), k.components_[i].data.get(), k.components_[i].get_size());
+      rv.types_.push_back(k.types_[i]);
+    }
+    rv.has_internal_last_component = true;
+    return rv;
+  }
+
+  static SimpleKey::SimpleKeyComponent
+  get_internal_last_component(SimpleKey const& k) {
+    assert(k.has_internal_last_component);
+    return { k.components_[k.components_.size() - 1] };
+  }
+
+  static bool
+  has_internal_last_component(SimpleKey const& k) {
+    return k.has_internal_last_component;
+  }
 
 };
 
 } // end namespace _simple_key_impl
 
+// TODO key_traits
+template <>
+struct key_traits<SimpleKey> {
+  struct maker {
+    template <typename... Args>
+    inline SimpleKey
+    operator()(Args&&... args) const {
+      return _simple_key_impl::_traits_impl::make(std::forward<Args>(args)...);
+    }
+  };
+  struct maker_from_tuple {
+    template <typename Tuple>
+    inline SimpleKey
+    operator()(Tuple&& tup) const {
+      return _simple_key_impl::_traits_impl::make_from_tuple(std::forward<Tuple>(tup));
+    }
+  };
+  struct key_equal {
+    inline bool
+    operator()(SimpleKey const& k1, SimpleKey const& k2) const {
+      return _simple_key_impl::_traits_impl::do_key_equal(k1, k2);
+    }
+  };
+  struct hasher {
+    inline size_t
+    operator()(SimpleKey const& k) const {
+      return _simple_key_impl::_traits_impl::do_key_hash(k);
+    }
+  };
+
+  typedef _simple_key_impl::_traits_impl internal_use_access;
+};
+
 
 } // end namespace detail
 
+namespace serialization {
+
+} // end namespace serialization
 
 } // end namespace darma_runtime
 
