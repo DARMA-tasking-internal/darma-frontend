@@ -391,9 +391,9 @@ class DependencyHandle
     satisfy_with_data_block(
       abstract::backend::DataBlock* const data
     ) override {
-      this->satisfied_ = true;
       this->data_ = data->get_data();
       this->data_block_ = data;
+      this->satisfied_ = true;
     }
 
     abstract::backend::DataBlock*
