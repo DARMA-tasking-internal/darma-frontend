@@ -471,22 +471,23 @@ class AccessHandle : public detail::AccessHandleBase
     }
 
 
-    template <typename ArchiveT>
-    using allow_in_place_unpack = std::true_type;
+    //template <typename ArchiveT>
+    //using allow_in_place_unpack = std::true_type;
 
     template <typename ArchiveT>
     AccessHandle(
       serialization::unpack_constructor_tag_t,
       ArchiveT& ar
-    ) : dep_handle_(
-          dep_handle_ptr_maker_t()(detail::DependencyHandleBase<key_t, version_t>::handle_migration_unpack, ar)
-        )
+    )
     {
-
-
+      dep_handle_ = dep_handle_ptr_maker_t()(detail::handle_migration_unpack, ar);
+      ar >> state_;
+      bool holds_read_only = false;
+      ar >> holds_read_only;
+      if(holds_read_only) {
+        read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_.get());
+      }
     }
-
-
 
     ////////////////////////////////////////
     // private members
@@ -516,14 +517,16 @@ class AccessHandle : public detail::AccessHandleBase
 
     // Allow implicit conversion to value in the invocation of the task
     friend struct meta::splat_tuple_access<detail::AccessHandleBase>;
-    friend struct serialization::UnpackConstructorAccess;
+    //friend struct serialization::UnpackConstructorAccess;
 
-    static_assert(
-      serialization::detail::serializability_traits<AccessHandle>::template has_intrusive_unpack_constructor<
-        serialization::SimplePackUnpackArchive
-      >::value,
-      "AccessHandle not serializable as expected"
-    );
+    //static_assert(
+    //  serialization::detail::serializability_traits<AccessHandle>::template has_intrusive_unpack_constructor<
+    //    serialization::SimplePackUnpackArchive
+    //  >::value,
+    //  "AccessHandle not serializable as expected"
+    //);
+
+    friend struct darma_runtime::serialization::Serializer<AccessHandle, void>;
 
 #ifdef DARMA_TEST_FRONTEND_VALIDATION
     friend class ::TestAccessHandle;
@@ -540,6 +543,52 @@ template <typename T,
   typename version_t = types::version_t
 >
 using ReadAccessHandle = AccessHandle<T, key_t, version_t, detail::access_handle_traits<false, true>>;
+
+namespace serialization {
+
+template <typename AccessHandleT>
+struct Serializer<AccessHandleT, std::enable_if_t<darma_runtime::detail::is_access_handle<AccessHandleT>::value>> {
+  private:
+    using dep_handle_ptr = typename AccessHandleT::dep_handle_ptr;
+    using dep_handle_ptr_maker_t = typename AccessHandleT::dep_handle_ptr_maker_t;
+
+  public:
+    template <typename ArchiveT>
+    void compute_size(AccessHandleT const& val, ArchiveT& ar) const {
+      auto const& dep_handle = val.dep_handle_;
+      ar % dep_handle.get_key();
+      ar % dep_handle.get_version();
+      ar % dep_handle.version_is_pending();
+      ar % val.state_;
+      // Omit captured_as_; it should always be normal here
+      assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
+      // for whether or not the read-only holder is active
+      ar % bool();
+      // capturing_task will be replaced by task serialization, so we don't need to pack it here
+    }
+
+    template <typename ArchiveT>
+    void pack(AccessHandleT const& val, ArchiveT& ar) const {
+      auto const& dep_handle = val.dep_handle_;
+      ar << dep_handle.get_key();
+      ar << dep_handle.get_version();
+      ar << dep_handle.version_is_pending();
+      ar << val.state_;
+      // Omit captured_as_; it should always be normal here
+      assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
+      // only need to store whether or not the read-only holder is active
+      ar << bool(val.read_only_holder_);
+      // capturing_task will be replaced by task serialization, so we don't need to pack it here
+    }
+
+    template <typename ArchiveT>
+    void unpack(void* allocated, ArchiveT& ar) const {
+      // Call an unpacking constructor
+      new (allocated) AccessHandleT(serialization::unpack_constructor_tag, ar);
+    }
+};
+
+} // end namespace serialization
 
 } // end namespace darma_runtime
 

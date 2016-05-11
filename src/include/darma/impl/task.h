@@ -129,77 +129,6 @@ register_runnable() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// <editor-fold desc="Task template parameter parsing nonsense (to be removed probably)" defaultstate="collapsed">
-
-// TODO decide between this and "is_key<>", which would not check the concept but would be self-declared
-template <typename T>
-struct meets_key_concept;
-template <typename T>
-struct meets_version_concept;
-
-namespace template_tags {
-template <typename T> struct input { typedef T type; };
-template <typename T> struct output { typedef T type; };
-template <typename T> struct in_out { typedef T type; };
-}
-
-namespace m = tinympl;
-namespace mv = tinympl::variadic;
-namespace pl = tinympl::placeholders;
-namespace tt = template_tags;
-
-template <typename... Types>
-struct task_traits {
-  private:
-    static constexpr const bool _first_is_key = m::and_<
-        m::greater<m::int_<sizeof...(Types)>, m::int_<0>>,
-        m::delay<
-          meets_key_concept,
-          mv::at<0, Types...>
-        >
-      >::value;
-
-  public:
-    typedef typename std::conditional<
-      _first_is_key,
-      mv::at<0, Types...>,
-      m::identity<types::key_t>
-    >::type::type key_t;
-
-  private:
-    static constexpr const size_t _possible_version_index =
-      std::conditional<_first_is_key, m::int_<1>, m::int_<0>>::type::value;
-    static constexpr const bool _version_given = m::and_<
-      m::greater<m::int_<sizeof...(Types)>, m::int_<_possible_version_index>>,
-      m::delay<
-        meets_version_concept,
-        mv::at<_possible_version_index, Types...>
-      >
-    >::value;
-
-
-  public:
-    typedef typename std::conditional<
-      _version_given,
-      mv::at<_possible_version_index, Types...>,
-      m::identity<types::version_t>
-    >::type::type version_t;
-
-  private:
-
-    typedef typename m::erase<
-      (size_t)0, (size_t)(_first_is_key + _version_given),
-      m::vector<Types...>, m::vector
-    >::type other_types;
-
-  public:
-
-};
-
-// </editor-fold>
-
-////////////////////////////////////////////////////////////////////////////////
-
 // <editor-fold desc="Functor traits">
 
 // TODO strictness specifiers
@@ -582,6 +511,7 @@ class TopLevelTask
 // implementation of abstract::frontend::unpack_task
 
 namespace abstract {
+
 namespace frontend {
 
 inline abstract::frontend::Task*
@@ -603,6 +533,7 @@ unpack_task(void* packed_data) {
 }
 
 } // end namespace frontend
+
 } // end namespace abstract
 
 } // end namespace darma_runtime

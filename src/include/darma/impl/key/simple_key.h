@@ -46,10 +46,13 @@
 #define DARMA_IMPL_KEY_SIMPLE_KEY_H_H
 
 #include <darma/impl/util.h>
+
 #include <darma/impl/meta/tuple_for_each.h>
 #include <darma/impl/meta/splat_tuple.h>
+
 #include <darma/impl/key/bytes_convert.h>
 #include <darma/impl/key/raw_bytes.h>
+
 #include <darma/impl/serialization/serialization_fwd.h>
 #include <darma/impl/serialization/nonintrusive.h>
 
@@ -145,6 +148,33 @@ class SimpleKey {
 
     size_t n_components() const { return components_.size() - has_internal_last_component; }
 
+    void
+    print_human_readable(
+      const char* sep = ", ", std::ostream& o = std::cout
+    ) const {
+      for(size_t i = 0; i < n_components(); ++i) {
+        const auto* md = &(types_[i]);
+        if(md->is_string_like) {
+          o << component(i).as<std::string>();
+        }
+        else if(md->is_int_like_type
+            and not reinterpret_cast<const int_like_type_metadata*>(md)->is_enumerated) {
+          o << component(i).as<intmax_t>();
+        }
+        else if(md->is_floating_point_like_type) {
+          o << component(i).as<double>();
+        }
+        else {
+          assert(false); // not implemented
+        }
+
+        if(i != n_components()) o << sep;
+      }
+
+      assert(not has_internal_last_component); // not implemented
+
+    }
+
   private:
 
     std::vector<raw_bytes> components_;
@@ -226,7 +256,7 @@ struct _traits_impl {
   make_from_tuple(Tuple&& tup) {
     return meta::splat_tuple(std::forward<Tuple>(tup),
       [](auto&&... args) {
-        SimpleKey(variadic_constructor_arg, std::forward<decltype(args)>(args)...);
+        return SimpleKey(variadic_constructor_arg, std::forward<decltype(args)>(args)...);
       }
     );
   }
@@ -338,14 +368,67 @@ namespace serialization {
 template <>
 struct Serializer<darma_runtime::detail::SimpleKey, /*Enabled => */void> {
   template <typename ArchiveT>
-  void serialize(darma_runtime::detail::SimpleKey& val, ArchiveT& ar) const {
-    ar | val.components_;
-    ar | val.types_;
+  void compute_size(darma_runtime::detail::SimpleKey const& val, ArchiveT& ar) const {
+    ar % (size_t)val.types_.size();
+    for(auto&& t : val.types_) ar % t;
+    for(auto&& c : val.components_) {
+      ar % c.get_size();
+      Serializer_attorneys::ArchiveAccess::spot(ar) += c.get_size();
+    }
+  }
+  template <typename ArchiveT>
+  void pack(darma_runtime::detail::SimpleKey const& val, ArchiveT& ar) const {
+    ar << (size_t)val.types_.size();
+    for(auto&& t : val.types_) ar << t;
+    for(auto&& c : val.components_) {
+      ar << c.get_size();
+      memcpy(
+        Serializer_attorneys::ArchiveAccess::spot(ar),
+        c.data.get(),
+        c.get_size()
+      );
+      Serializer_attorneys::ArchiveAccess::spot(ar) += c.get_size();
+    }
+  }
+  template <typename ArchiveT>
+  void unpack(void* allocated, ArchiveT& ar) const {
+    auto* val = new (allocated) darma_runtime::detail::SimpleKey;
+    size_t ncomp = 0;
+    ar >> ncomp;
+    val->types_.reserve(ncomp);
+    for(size_t i = 0; i < ncomp; ++i) {
+      val->types_.emplace_back();
+      ar >> val->types_.back();
+    }
+    val->components_.reserve(ncomp);
+    for(size_t i = 0; i < ncomp; ++i) {
+      size_t size = 0;
+      ar >> size;
+      val->components_.emplace_back(size);
+      memcpy(
+        val->components_.back().data.get(),
+        Serializer_attorneys::ArchiveAccess::spot(ar),
+        size
+      );
+      Serializer_attorneys::ArchiveAccess::spot(ar) += size;
+    }
   }
 };
 
 } // end namespace serialization
 
 } // end namespace darma_runtime
+
+STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(darma_runtime::detail::SimpleKey,
+  darma_runtime::serialization::SimplePackUnpackArchive,
+  "SimpleKey must be serializable"
+)
+static_assert(darma_runtime::serialization::serialize_as_pod<darma_runtime::detail::bytes_type_metadata>::value, "oops");
+static_assert(std::is_pod<darma_runtime::detail::bytes_type_metadata>::value, "oops");
+STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(darma_runtime::detail::bytes_type_metadata,
+  darma_runtime::serialization::SimplePackUnpackArchive,
+  "bytes_type_metadata must be serializable"
+)
+
 
 #endif //DARMA_IMPL_KEY_SIMPLE_KEY_H_H

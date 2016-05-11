@@ -257,6 +257,10 @@ struct ArchiveAccess {
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="DependencyHandleBase">
 
+// Tag type for handle migration unpack
+struct handle_migration_unpack_t { };
+static constexpr handle_migration_unpack_t handle_migration_unpack = { };
+
 template <
   typename key_type=types::key_t,
   typename version_type=types::version_t
@@ -272,9 +276,6 @@ class DependencyHandleBase
     typedef VersionedObject<version_type> versioned_base_t;
     typedef typename versioned_base_t::version_t version_t;
 
-    // Tag type for handle migration unpack
-    struct handle_migration_unpack_t { };
-    static constexpr handle_migration_unpack_t handle_migration_unpack = { };
 
     const key_type&
     get_key() const override {
@@ -295,6 +296,7 @@ class DependencyHandleBase
       ar >> this->key_;
       ar >> this->version_;
       ar >> this->version_is_pending_;
+      backend_runtime->register_migrated_handle(this);
     }
 
     DependencyHandleBase(
@@ -351,6 +353,7 @@ class DependencyHandleBase
     bool version_is_pending_ = false;
 };
 
+
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -401,12 +404,11 @@ class DependencyHandle
 
     template <typename ArchiveT>
     DependencyHandle(
-      typename base_t::handle_migration_unpack_t,
+      handle_migration_unpack_t,
       ArchiveT& ar
-    ) : base_t(base_t::handle_migration_unpack, ar),
+    ) : base_t(handle_migration_unpack, ar),
         value_((T*&)this->base_t::data_)
     {
-      backend_runtime->register_migrated_handle(this);
     }
 
     virtual ~DependencyHandle() {

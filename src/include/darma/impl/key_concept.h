@@ -221,8 +221,23 @@ struct meets_key_concept {
     typedef std::integral_constant<bool, value> type;
 };
 
+template <typename Key>
+std::enable_if_t<detail::meets_key_concept<Key>::value, bool>
+operator==(const Key& a, const Key& b) {
+  return typename detail::key_traits<Key>::key_equal()(a, b);
+}
+
+template <typename Key>
+std::enable_if_t<detail::meets_key_concept<Key>::value, std::ostream&>
+operator<<(std::ostream& o, Key const& k) {
+  k.print_human_readable(", ", o);
+  return o;
+};
 
 } // end namespace detail
+
+
+
 } // end namespace darma_runtime
 
 #define DARMA_STATIC_ASSERT_VALID_KEY_TYPE(K) \

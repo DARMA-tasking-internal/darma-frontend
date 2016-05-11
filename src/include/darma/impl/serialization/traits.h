@@ -167,13 +167,13 @@ struct serializability_traits {
     // <editor-fold desc="unpack()">
 
   private:
-    template <typename U, typename ArchiveT>
-    using has_intrusive_unpack_constructor_archetype =
-      decltype( UnpackConstructorAccess::call_unpack_constructor<U>(
-          declval<void*>(),
-          declval<remove_reference_t<ArchiveT>&>()
-        )
-      );
+    //template <typename U, typename ArchiveT>
+    //using has_intrusive_unpack_constructor_archetype =
+    //  decltype( UnpackConstructorAccess::call_unpack_constructor<U>(
+    //      declval<void*>(),
+    //      declval<remove_reference_t<ArchiveT>&>()
+    //    )
+    //  );
 
     template <typename U, typename ArchiveT>
     using has_intrusive_unpack_archetype =
@@ -183,8 +183,8 @@ struct serializability_traits {
     using has_const_incorrect_unpack = is_detected<has_intrusive_unpack_archetype, _const_T, ArchiveT>;
 
   public:
-    template <typename ArchiveT>
-    using has_intrusive_unpack_constructor = is_detected<has_intrusive_unpack_constructor_archetype, _clean_T, ArchiveT>;
+    //template <typename ArchiveT>
+    //using has_intrusive_unpack_constructor = is_detected<has_intrusive_unpack_constructor_archetype, _clean_T, ArchiveT>;
 
     template <typename ArchiveT>
     using has_intrusive_unpack = is_detected<has_intrusive_unpack_archetype, _T, ArchiveT>;
@@ -305,6 +305,59 @@ struct serializability_traits {
     // </editor-fold>
     ////////////////////////////////////////////////////////////////////////////////
 
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<has_nonintrusive_compute_size<ArchiveT>::value>
+    compute_size(T const& val, ArchiveT& ar) {
+      serializer().compute_size(val, ar);
+    }
+
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<
+      not has_nonintrusive_compute_size<ArchiveT>::value
+        and has_nonintrusive_serialize<ArchiveT>::value
+    >
+    compute_size(T const& val, ArchiveT& ar) {
+      // cast away constness when invoking general serialize
+      serializer().serialize(const_cast<T&>(val), ar);
+    }
+
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<has_nonintrusive_pack<ArchiveT>::value>
+    pack(T const& val, ArchiveT& ar) {
+      serializer().pack(val, ar);
+    }
+
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<
+      not has_nonintrusive_pack<ArchiveT>::value
+        and has_nonintrusive_serialize<ArchiveT>::value
+    >
+    pack(T const& val, ArchiveT& ar) {
+      // cast away constness when invoking general serialize
+      serializer().serialize(const_cast<T&>(val), ar);
+    }
+
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<has_nonintrusive_unpack<ArchiveT>::value>
+    unpack(void* allocated, ArchiveT& ar) {
+      serializer().unpack(allocated, ar);
+    }
+
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<
+      not has_nonintrusive_unpack<ArchiveT>::value
+        and has_nonintrusive_serialize<ArchiveT>::value
+    >
+    unpack(void* allocated, ArchiveT& ar) {
+      T* val = new (allocated) T;
+      serializer().serialize(*val, ar);
+    }
 
     friend class allocation_traits<T, void>;
 
