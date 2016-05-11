@@ -258,13 +258,13 @@ class DependencyHandleBase
 
     void
     set_version_is_pending(bool is_pending = true) {
-      version_is_pending_ = true;
+      version_is_pending_ = is_pending;
     }
 
     void set_version(const version_t& v) override {
       assert(version_is_pending_);
-      version_is_pending_ = false;
       this->version_ = v;
+      version_is_pending_ = false;
     }
 
   protected:
