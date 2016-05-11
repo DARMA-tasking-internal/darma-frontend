@@ -155,15 +155,52 @@ class SimpleKey {
       if(end <= first_component) return rv;
       assert(end <= n_components());
       assert(first_component < n_components());
-      rv.components_ = std::vector<raw_bytes>(
-        &components_[first_component],
-        &components_[end-1] + 1
+      bool do_last_componenet = propagate_internal_data and has_internal_last_component;
+      rv.components_.reserve(end - first_component + do_last_componenet);
+      std::copy(
+        components_.begin() + first_component,
+        components_.begin() + end,
+        std::back_inserter(rv.components_)
       );
-      rv.types_ = std::vector<bytes_type_metadata>(
-        &types_[first_component],
-        &types_[end-1] + 1
+      rv.types_.reserve(end - first_component + do_last_componenet);
+      std::copy(
+        types_.begin() + first_component,
+        types_.begin() + end,
+        std::back_inserter(rv.types_)
       );
+      if(do_last_componenet) {
+        rv.components_.push_back(components_.back());
+        rv.types_.push_back(types_.back());
+      }
+      rv.has_internal_last_component = propagate_internal_data;
       return rv;
+    }
+
+    SimpleKey&&
+    subkey(size_t first_component, size_t end, bool propagate_internal_data = true) && {
+      SimpleKey rv;
+      if(end <= first_component) return std::move(rv);
+      assert(end <= n_components());
+      assert(first_component < n_components());
+      bool do_last_componenet = propagate_internal_data and has_internal_last_component;
+      rv.components_.reserve(end - first_component + do_last_componenet);
+      std::move(
+        components_.begin() + first_component,
+        components_.begin() + end,
+        std::back_inserter(rv.components_)
+      );
+      rv.types_.reserve(end - first_component + do_last_componenet);
+      std::move(
+        types_.begin() + first_component,
+        types_.begin() + end,
+        std::back_inserter(rv.types_)
+      );
+      if(do_last_componenet) {
+        rv.components_.emplace_back(std::move(components_.back()));
+        rv.types_.push_back(std::move(types_.back()));
+      }
+      rv.has_internal_last_component = propagate_internal_data;
+      return std::move(rv);
     }
 
 
