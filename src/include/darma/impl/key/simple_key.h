@@ -57,6 +57,7 @@
 #include <darma/impl/serialization/nonintrusive.h>
 
 #include <darma/impl/key_concept.h>
+#include <darma/impl/darma_assert.h>
 
 namespace darma_runtime {
 
@@ -142,11 +143,40 @@ class SimpleKey {
         "tried to get key component greater than max_num_parts");
       assert(N == not_given xor N_dynamic == not_given);
       const uint8_t actual_N = N == not_given ? (uint8_t)N_dynamic : N;
-      assert(actual_N < n_components());
+      DARMA_ASSERT_RELATED_VERBOSE((int)actual_N, <, n_components());
       return { components_.at(actual_N), types_.at(actual_N) };
     }
 
     size_t n_components() const { return components_.size() - has_internal_last_component; }
+
+    SimpleKey
+    subkey(size_t first_component, size_t end, bool propagate_internal_data = true) const & {
+      SimpleKey rv;
+      if(end <= first_component) return rv;
+      assert(end <= n_components());
+      assert(first_component < n_components());
+      rv.components_ = std::vector<raw_bytes>(
+        &components_[first_component],
+        &components_[end-1] + 1
+      );
+      rv.types_ = std::vector<bytes_type_metadata>(
+        &types_[first_component],
+        &types_[end-1] + 1
+      );
+      return rv;
+    }
+
+
+    std::string
+    human_readable_string(const char* sep = ", ",
+      const char* left_paren = "{", const char* right_paren = "}"
+    ) const {
+      std::ostringstream sstr;
+      sstr << left_paren;
+      print_human_readable(sep, sstr);
+      sstr << right_paren;
+      return sstr.str();
+    }
 
     void
     print_human_readable(
@@ -301,13 +331,13 @@ struct _traits_impl {
   ) {
     assert(k.has_internal_last_component);
     SimpleKey rv;
-    // Note that n_components() doesn't include the internal component
-    for(int i = 0; i < rv.n_components(); ++i) {
+    // Note that n_components() doesn't include the internal component, so this just works
+    for(int i = 0; i < k.n_components(); ++i) {
       rv.components_.emplace_back(k.components_[i].get_size());
       memcpy(rv.components_.back().data.get(), k.components_[i].data.get(), k.components_[i].get_size());
       rv.types_.push_back(k.types_[i]);
     }
-    rv.has_internal_last_component = true;
+    rv.has_internal_last_component = false;
     return rv;
   }
 
@@ -423,8 +453,6 @@ STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(darma_runtime::detail::SimpleKey,
   darma_runtime::serialization::SimplePackUnpackArchive,
   "SimpleKey must be serializable"
 )
-static_assert(darma_runtime::serialization::serialize_as_pod<darma_runtime::detail::bytes_type_metadata>::value, "oops");
-static_assert(std::is_pod<darma_runtime::detail::bytes_type_metadata>::value, "oops");
 STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(darma_runtime::detail::bytes_type_metadata,
   darma_runtime::serialization::SimplePackUnpackArchive,
   "bytes_type_metadata must be serializable"

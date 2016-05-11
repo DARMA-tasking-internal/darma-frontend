@@ -64,13 +64,13 @@ struct raw_bytes {
     { }
     raw_bytes(raw_bytes&&) = default;
     raw_bytes(raw_bytes const& other)
-      : size(other.size)
+      : size(other.size), data(new char[other.size])
     {
       memcpy(data.get(), other.data.get(), size);
     }
     raw_bytes& operator=(raw_bytes const& other) {
-      data.reset();
       size = other.size;
+      data.reset(new char[other.size]);
       memcpy(data.get(), other.data.get(), size);
     }
     std::unique_ptr<char[]> data = nullptr;
