@@ -64,6 +64,11 @@ struct alignas(1) bytes_type_metadata {
   bool is_floating_point_like_type : 1; // if true; cast to float_like_type_metadata
   bool is_user_defined_type : 1; // otherwise, use type index
   char _unused : 4;
+  //bytes_type_metadata() = default;
+  //bytes_type_metadata(bytes_type_metadata const&) = default;
+  //bytes_type_metadata(bytes_type_metadata&&) = default;
+  //bytes_type_metadata& operator=(bytes_type_metadata const&) = default;
+  //bytes_type_metadata& operator=(bytes_type_metadata&&) = default;
 };
 static_assert(sizeof(bytes_type_metadata) == 1,
   "bytes_type_metadata must be compiled as size 1");
@@ -141,7 +146,7 @@ struct alignas(1) category_extension_byte {
   uint32_t value : (6 + NExtraBytes*8);
 };
 
-bool has_category_extension_byte(bytes_type_metadata* md) {
+inline bool has_category_extension_byte(bytes_type_metadata* md) {
   if(not md->is_string_like) {
     if(md->is_int_like_type) {
       auto* md_int = reinterpret_cast<int_like_type_metadata*>(md);
@@ -162,7 +167,7 @@ bool has_category_extension_byte(bytes_type_metadata* md) {
   return false;
 }
 
-uint8_t
+inline uint8_t
 category_extension_bytes_size(void* md) {
   assert(has_category_extension_byte((bytes_type_metadata*)md));
   auto* extra_0 = reinterpret_cast<category_extension_byte<0>*>(
@@ -171,7 +176,7 @@ category_extension_bytes_size(void* md) {
   return extra_0->n_extra_bytes + (uint8_t)1;
 }
 
-uint32_t
+inline uint32_t
 category_extension_bytes_value(void* md) {
   assert(has_category_extension_byte((bytes_type_metadata*)md));
   uint8_t n_bytes = category_extension_bytes_size(md);
@@ -206,6 +211,7 @@ category_extension_bytes_value(void* md) {
   return 0; // unreachable;
 }
 
+
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -219,5 +225,6 @@ struct serialize_as_pod<darma_runtime::detail::bytes_type_metadata> : std::true_
 } // end namespace serialization
 
 } // end namespace darma_runtime
+
 
 #endif //DARMA_IMPL_KEY_BYTES_TYPE_METADATA_H

@@ -54,8 +54,6 @@
 namespace darma_runtime {
 namespace serialization {
 
-// TODO Allocator awareness!!!
-
 // A specialization for all stl containers of serializable objects
 template <typename C>
 struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
@@ -83,6 +81,9 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
     );
     template <typename T>
     using reservable_archetype = decltype( std::declval<T>().reserve( std::declval<size_t>() ) );
+    template <typename T>
+    using has_emplace_back_default_archetype =
+      decltype( std::declval<T>().emplace_back() );
 
     static constexpr auto is_back_insertable = meta::is_detected<
       back_insertable_archetype, C>::value;
@@ -90,6 +91,8 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
       insertable_archetype, C>::value;
     static constexpr auto is_reservable = meta::is_detected<
       reservable_archetype , C>::value;
+    static constexpr auto has_emplace_back_default = meta::is_detected<
+      has_emplace_back_default_archetype, C>::value;
 
     template <typename _Ignored = void>
     inline std::enable_if_t<is_reservable and std::is_same<_Ignored, void>::value>
@@ -234,6 +237,27 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
         ar.unpack_item(*(value_type*)tmp);
         // put it in the container
         ins_iter = *(value_type*)tmp;
+      }
+    }
+
+    template <typename ArchiveT>
+    std::enable_if_t<
+      value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value and
+        has_emplace_back_default and not is_insertable and not is_back_insertable
+    >
+    unpack(void* allocated, ArchiveT& ar) const {
+      assert(ar.is_unpacking());
+      // call default constructor
+      C* c = new (allocated) C;
+      // and start unpacking
+      size_t n_items = 0;
+      ar.unpack_item(n_items);
+      _unpack_prepare(*c, n_items);
+
+      for(typename C::size_type i = 0; i < n_items; ++i) {
+        c->emplace_back();
+        // unpack into it
+        ar.unpack_item(c->back());
       }
     }
 

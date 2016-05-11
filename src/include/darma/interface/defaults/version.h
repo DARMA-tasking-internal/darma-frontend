@@ -241,6 +241,7 @@ class basic_version {
     Container<Comparable> version_clock;
 
     friend class version_hash<basic_version>;
+    friend struct darma_runtime::serialization::Serializer<basic_version>;
 };
 
 template <typename version_type>
@@ -273,6 +274,18 @@ namespace defaults {
 typedef detail::basic_version<size_t, std::vector> Version;
 
 } // end namespace defaults
+
+namespace serialization {
+
+template <>
+struct Serializer<darma_runtime::defaults::Version> {
+  template <typename Archive>
+  void serialize(darma_runtime::defaults::Version const& v, Archive& ar) const {
+    ar | v.version_clock;
+  }
+};
+
+} // end namespace serialization
 
 } // end namespace darma_runtime
 

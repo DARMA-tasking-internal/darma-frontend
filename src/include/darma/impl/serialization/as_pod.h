@@ -71,7 +71,7 @@ struct Serializer<T, std::enable_if_t<serialize_as_pod<T>::value>> {
   );
 
   template <typename Archive>
-  void get_size(T const& val, Archive& ar) {
+  void compute_size(T const& val, Archive& ar) {
     assert(ar.is_sizing());
     Serializer_attorneys::ArchiveAccess::spot(ar) += sizeof(T);
   }
