@@ -89,6 +89,7 @@ class RunnableBase;
 
 typedef std::vector<std::function<std::unique_ptr<RunnableBase>(void*)>> runnable_registry_t;
 
+// TODO make sure this pattern works on all compilers at all optimization levels
 template <typename = void>
 runnable_registry_t&
 get_runnable_registry()  {

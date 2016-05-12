@@ -108,7 +108,9 @@ struct bytes_convert<std::basic_string<CharT, Traits, Allocator>> {
 
   inline string_t
   get_value(bytes_type_metadata const* md, void* data, size_t size) const {
-    DARMA_ASSERT_EQUAL((int)reinterpret_cast<const string_like_type_metadata*>(md)->size, (int)(size / sizeof(CharT)));
+    DARMA_ASSERT_EQUAL(
+      (int)reinterpret_cast<const string_like_type_metadata*>(md)->size, (int)(size / sizeof(CharT))
+    );
     return string_t((CharT*)data, size / sizeof(CharT));
   }
 };
@@ -120,41 +122,41 @@ struct bytes_convert<std::basic_string<CharT, Traits, Allocator>> {
 // <editor-fold desc="generic version, using stream operator">
 
 template <typename T, typename Enable>
-struct bytes_convert {
-  static constexpr bool size_known_statically = false;
-
-  inline
-  std::enable_if_t<
-    meta::is_out_streamable<T, std::ostringstream>::value
-  >
-  get_size(T const& val) const {
-    std::ostringstream osstr;
-    osstr << val;
-    return bytes_convert<std::string>().get_size(osstr.str());
-  }
-
-  inline
-  std::enable_if_t<
-    meta::is_out_streamable<T, std::ostringstream>::value
-  >
-  operator()(T const &val, void *dest, const size_t n_bytes, const size_t offset) const {
-    std::ostringstream osstr;
-    osstr << val;
-    bytes_convert<std::string>()(osstr.str(), dest, n_bytes, offset);
-  }
-
-  inline
-  std::enable_if_t<
-    meta::is_in_streamable<T, std::istringstream>::value,
-    T
-  >
-  get_value(bytes_type_metadata const* md, void* data, size_t size) const {
-    std::istringstream isstr(bytes_convert<std::string>().get_value(md, data, size));
-    T rv;
-    isstr >> rv;
-    return rv;
-  }
-};
+struct bytes_convert; // {
+//  static constexpr bool size_known_statically = false;
+//
+//  inline
+//  std::enable_if_t<
+//    meta::is_out_streamable<T, std::ostringstream>::value
+//  >
+//  get_size(T const& val) const {
+//    std::ostringstream osstr;
+//    osstr << val;
+//    return bytes_convert<std::string>().get_size(osstr.str());
+//  }
+//
+//  inline
+//  std::enable_if_t<
+//    meta::is_out_streamable<T, std::ostringstream>::value
+//  >
+//  operator()(T const &val, void *dest, const size_t n_bytes, const size_t offset) const {
+//    std::ostringstream osstr;
+//    osstr << val;
+//    bytes_convert<std::string>()(osstr.str(), dest, n_bytes, offset);
+//  }
+//
+//  inline
+//  std::enable_if_t<
+//    meta::is_in_streamable<T, std::istringstream>::value,
+//    T
+//  >
+//  get_value(bytes_type_metadata const* md, void* data, size_t size) const {
+//    std::istringstream isstr(bytes_convert<std::string>().get_value(md, data, size));
+//    T rv;
+//    isstr >> rv;
+//    return rv;
+//  }
+//};
 
 // </editor-fold>
 //----------------------------------------
@@ -238,11 +240,12 @@ struct bytes_convert<T,
     inline T
     get_value(bytes_type_metadata const* md, void* data, size_t size) const {
       const auto* md_int = reinterpret_cast<const int_like_type_metadata*>(md);
-      assert(md_int->_always_true);
-      assert(not md_int->_always_false);
+      DARMA_ASSERT_MESSAGE(md_int->_always_true, "Bad conversion to integral type from data stored as non-integer");
+      DARMA_ASSERT_MESSAGE(not md_int->_always_false, "Bad conversion to integral type from data stored as non-integer");
       assert(std::is_signed<T>::value or not md_int->is_negative);
       T rv;
       assert(size == 1 << md_int->int_size_exponent);
+      // TODO overflow checking (i.e., can T fit the value)
       switch(md_int->int_size_exponent) {
         case 0: {
           rv = *(uint8_t*)data;
@@ -270,6 +273,98 @@ struct bytes_convert<T,
       return rv;
     }
 };
+
+
+template <typename T>
+struct bytes_convert<T,
+  std::enable_if_t<std::is_enum<T>::value>
+>
+{
+  inline void
+  get_bytes_type_metadata(bytes_type_metadata* md, T const& val) const {
+    auto* md_enum = reinterpret_cast<enum_like_type_metadata*>(md);
+    md_enum->_always_false = false;
+    md_enum->_always_true_1 = true;
+    md_enum->_always_true_2 = true;
+    size_t index = get_registered_enum_index(val);
+    md_enum->enum_category = index < enum_like_type_metadata::use_extension_byte_for_category ?
+                             (uint8_t)index : enum_like_type_metadata::use_extension_byte_for_category;
+  }
+
+  inline uint32_t
+  get_extension_byte_value() const {
+    size_t index = get_registered_enum_index(T());
+    return index < enum_like_type_metadata::use_extension_byte_for_category ? 0 : (uint32_t)index;
+  }
+
+  inline size_t get_size(T const& val) const {
+    return sizeof(T);
+  }
+
+  inline constexpr void
+  operator()(T const &val, void *dest, const size_t n_bytes, const size_t offset) const {
+    memcpy(dest, (char*)&val + offset, n_bytes);
+  }
+
+  inline T
+  get_value(bytes_type_metadata const* md, void* data, size_t size) const {
+    size_t correct_index = get_registered_enum_index(T());
+    const auto* md_enum = reinterpret_cast<enum_like_type_metadata const*>(md);
+    DARMA_ASSERT_MESSAGE(md_enum->_always_true_1, "Bad conversion to enumerated type from data stored as non-enum");
+    DARMA_ASSERT_MESSAGE(md_enum->_always_true_2, "Bad conversion to enumerated type from data stored as non-enum");
+    DARMA_ASSERT_MESSAGE(not md_enum->_always_false, "Bad conversion to enumerated type from data stored as non-enum");
+    size_t stored_index = md_enum->enum_category == enum_like_type_metadata::use_extension_byte_for_category ?
+                          category_extension_bytes_value(static_cast<const void*>(md)) : md_enum->enum_category;
+    // TODO more readable error message.
+    // This indicates that the value is being retrieved as an enum type that it wasn't stored as
+    DARMA_ASSERT_EQUAL(correct_index, stored_index);
+    DARMA_ASSERT_EQUAL(size, sizeof(T));
+    return *static_cast<T*>(data);
+  }
+
+};
+
+template <typename T>
+struct bytes_convert<T,
+  std::enable_if_t<std::is_floating_point<T>::value>
+>
+{
+  inline void
+  get_bytes_type_metadata(bytes_type_metadata* md, T const& val) const {
+    auto* md_float = reinterpret_cast<float_like_type_metadata*>(md);
+    md_float->_always_true = true;
+    md_float->_always_false_1 = false;
+    md_float->_always_false_2 = false;
+  }
+
+  inline uint32_t
+  get_extension_byte_value() const {
+    assert(false); // should never be called
+    return 0;
+  }
+
+  inline size_t get_size(T const& val) const {
+    return sizeof(double);
+  }
+
+  inline constexpr void
+  operator()(T const &val, void *dest, const size_t n_bytes, const size_t offset) const {
+    double val_d = val;
+    memcpy(dest, (char*)&val_d + offset, n_bytes);
+  }
+
+  inline T
+  get_value(bytes_type_metadata const* md, void* data, size_t size) const {
+    size_t correct_index = get_registered_enum_index(T());
+    const auto* md_float = reinterpret_cast<float_like_type_metadata const*>(md);
+    DARMA_ASSERT_MESSAGE(md_float->_always_true, "Bad conversion to floating point type from data stored as non-floating point");
+    DARMA_ASSERT_MESSAGE(not md_float->_always_false_1, "Bad conversion to floating point type from data stored as non-floating point");
+    DARMA_ASSERT_MESSAGE(not md_float->_always_false_2, "Bad conversion to floating point type from data stored as non-floating point");
+    return (T)*static_cast<double*>(data);
+  }
+
+};
+
 
 // </editor-fold>
 //----------------------------------------

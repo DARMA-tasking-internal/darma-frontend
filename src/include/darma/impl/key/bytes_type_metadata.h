@@ -49,11 +49,62 @@
 #include <cstdint>
 
 #include <darma/impl/serialization/nonintrusive.h>
+#include <vector>
+#include <unordered_map>
+#include <typeindex>
 
 
 namespace darma_runtime {
 
 namespace detail {
+
+typedef std::unordered_map<std::type_index, size_t> enum_registry_t;
+
+template <typename = void>
+enum_registry_t&
+get_enum_registry() {
+  static enum_registry_t reg;
+  return reg;
+}
+
+namespace _impl {
+
+//template <typename = void>
+//struct get_enum_registry_wrapper {
+//  static enum_registry_t& registry;
+//};
+//
+//template <typename _ignored>
+//enum_registry_t& get_enum_registry_wrapper::registry = get_enum_registry();
+//
+//static enum_registry_t& enum_registry = get_enum_registry_wrapper::registry;
+
+template <typename Enum>
+struct EnumRegistrar {
+  size_t index;
+  EnumRegistrar() {
+    auto& reg = get_enum_registry();
+    assert(reg.find(std::type_index(typeid(Enum))) == reg.end());
+    index = reg.size();
+    reg[std::type_index(typeid(Enum))] = index;
+  }
+};
+
+template <typename Enum>
+struct EnumRegistrarWrapper {
+  static EnumRegistrar<Enum> registrar;
+};
+
+template <typename Enum>
+EnumRegistrar<Enum> EnumRegistrarWrapper<Enum>::registrar = { };
+
+} // end namespace _impl
+
+template <typename Enum>
+size_t
+get_registered_enum_index(Enum const&) {
+  return _impl::EnumRegistrarWrapper<Enum>::registrar.index;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="bytes_type_metadata and castable sibling structs">
@@ -168,7 +219,7 @@ inline bool has_category_extension_byte(bytes_type_metadata* md) {
 }
 
 inline uint8_t
-category_extension_bytes_size(void* md) {
+category_extension_bytes_size(const void* md) {
   assert(has_category_extension_byte((bytes_type_metadata*)md));
   auto* extra_0 = reinterpret_cast<category_extension_byte<0>*>(
     (char*)md + sizeof(bytes_type_metadata)
@@ -177,7 +228,7 @@ category_extension_bytes_size(void* md) {
 }
 
 inline uint32_t
-category_extension_bytes_value(void* md) {
+category_extension_bytes_value(const void* md) {
   assert(has_category_extension_byte((bytes_type_metadata*)md));
   uint8_t n_bytes = category_extension_bytes_size(md);
   switch(n_bytes) {
