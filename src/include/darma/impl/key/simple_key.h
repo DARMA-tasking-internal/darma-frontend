@@ -224,9 +224,13 @@ class SimpleKey {
         if(md->is_string_like) {
           o << component(i).as<std::string>();
         }
-        else if(md->is_int_like_type
-            and not reinterpret_cast<const int_like_type_metadata*>(md)->is_enumerated) {
-          o << component(i).as<intmax_t>();
+        else if(md->is_int_like_type) {
+          if(not reinterpret_cast<const int_like_type_metadata*>(md)->is_enumerated) {
+            o << component(i).as<intmax_t>();
+          }
+          else {
+            o << "<enum>";
+          }
         }
         else if(md->is_floating_point_like_type) {
           o << component(i).as<double>();
@@ -331,10 +335,13 @@ struct _traits_impl {
   static bool
   do_key_equal(SimpleKey const& k1, SimpleKey const& k2) {
     if(k1.n_components() != k2.n_components()) return false;
-    for(int i = 0; i < k1.n_components(); ++i) {
+    for(size_t i = 0; i < k1.n_components(); ++i) {
       const raw_bytes& c1 = k1.components_.at(i);
       const raw_bytes& c2 = k2.components_.at(i);
       if(not equal_as_bytes(c1.data.get(), c1.get_size(), c2.data.get(), c2.get_size())) {
+        return false;
+      }
+      if(not equal_as_bytes(k1.types_.at(i), k2.types_.at(i))) {
         return false;
       }
     }
@@ -346,6 +353,9 @@ struct _traits_impl {
     size_t rv = 0;
     for(auto const& c : k.components_) {
       hash_combine(rv, hash_as_bytes(c.data.get(), c.get_size()));
+    }
+    for(auto const& t : k.types_) {
+      hash_combine(rv, hash_as_bytes(t));
     }
     return rv;
   }

@@ -251,3 +251,19 @@ TEST_F(TestSimpleKey, without_last_component_multipart) {
 
 //  ASSERT_TRUE(key_traits<SimpleKey>::key_equal()(k, k2));
 //}
+
+////////////////////////////////////////////////////////////////////////////////
+
+typedef enum EnumTestA { OneA=1, TwoA=2, ThreeA=3 } EnumTestA;
+typedef enum EnumTestB { OneB=1, TwoB=2, ThreeB=3 } EnumTestB;
+
+TEST_F(TestSimpleKey, enums) {
+  using namespace darma_runtime::detail;
+  using namespace ::testing;
+  auto maker = typename key_traits<SimpleKey>::maker{};
+  auto kA = maker(OneA, TwoB, ThreeA);
+  auto kB1 = maker(OneB, TwoA, ThreeB);
+  auto kB2 = maker(OneB, TwoA, ThreeB);
+  EXPECT_THAT(kA, Not(Eq(kB1)));
+  EXPECT_EQ(kB1, kB2);
+}
