@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma_types.h
-//                         dharma_new
+//                      as_pod.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,63 @@
 //@HEADER
 */
 
-#ifndef SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
-#define SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
+#ifndef DARMA_IMPL_SERIALIZATION_AS_POD_H
+#define DARMA_IMPL_SERIALIZATION_AS_POD_H
 
-#define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
+#include <type_traits>
+#include "nonintrusive.h"
 
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#define DARMA_THREAD_LOCAL_BACKEND_RUNTIME thread_local
-#endif
+namespace darma_runtime {
 
-#include <darma/impl/key/simple_key.h>
-
-namespace darma_runtime { namespace types {
-  typedef darma_runtime::detail::SimpleKey key_t;
-}} // end namespace darma_runtime::types
-
-#include <darma/interface/defaults/version.h>
-#include <darma/interface/defaults/pointers.h>
+namespace serialization {
 
 
-#endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */
+// TODO merge with fundamental from builtin.h?
+
+template <typename T>
+struct serialize_as_pod : std::false_type { };
+
+template <typename T>
+struct Serializer<T, std::enable_if_t<serialize_as_pod<T>::value>> {
+
+  static_assert(
+    std::is_trivially_constructible<T>::value,
+    "Values serialized as POD must be trivially constructable"
+  );
+  static_assert(
+    std::is_standard_layout<T>::value,
+    "Values serialized as POD must be standard layout types"
+  );
+
+  template <typename Archive>
+  void compute_size(T const& val, Archive& ar) {
+    assert(ar.is_sizing());
+    Serializer_attorneys::ArchiveAccess::spot(ar) += sizeof(T);
+  }
+
+  template <typename Archive>
+  void pack(T const& val, Archive& ar) {
+    using Serializer_attorneys::ArchiveAccess;
+    assert(ar.is_packing());
+    std::memcpy(ArchiveAccess::spot(ar), &val, sizeof(T));
+    ArchiveAccess::spot(ar) += sizeof(T);
+  }
+
+  template <typename ArchiveT>
+  void
+  unpack(void* val, ArchiveT& ar) const {
+    // This approach should be valid for trivially-constructible, standard layout types
+    using Serializer_attorneys::ArchiveAccess;
+    assert(ar.is_unpacking());
+    std::memcpy(val, ArchiveAccess::spot(ar), sizeof(T));
+    ArchiveAccess::spot(ar) += sizeof(T);
+  }
+};
+
+
+} // end namespace serialization
+
+} // end namespace darma_runtime
+
+
+#endif //DARMA_IMPL_SERIALIZATION_AS_POD_H

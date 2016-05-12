@@ -208,9 +208,14 @@ class DependencyHandle {
     virtual bool
     is_writable() const =0;
 
+    //virtual size_t
+    //get_packed_handle_size() const =0;
+
+    //virtual void
+    //pack_handle(void* allocated) const =0;
+
     virtual ~DependencyHandle() noexcept = default;
 };
-
 
 } // end namespace frontend
 

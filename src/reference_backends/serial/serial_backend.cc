@@ -432,6 +432,23 @@ class SerialRuntime
     }
   }
 
+  virtual void
+  register_migrated_handle(
+    handle_t* const handle
+  ) override
+  {
+    // TODO
+    assert(false); // not implemented
+  }
+
+  //virtual void
+  //release_migrated_handle(
+  //  const handle_t* const handle
+  //) override
+  //{
+  //  // TODO
+  //  assert(false); // not implemented
+  //}
 
   task_unique_ptr top_level_task;
   std::stack<task_t *> running_tasks;

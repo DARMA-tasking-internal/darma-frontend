@@ -51,4 +51,16 @@
 
 #include <darma.h>
 
+namespace std {
+
+template <>
+struct hash<darma_runtime::detail::SimpleKey> {
+  size_t
+  operator()(darma_runtime::detail::SimpleKey const& k) const {
+    return darma_runtime::detail::key_traits<darma_runtime::detail::SimpleKey>::hasher()(k);
+  }
+};
+
+} // end namespace std
+
 #endif /* BACKENDS_SERIAL_SERIAL_BACKEND_H_ */

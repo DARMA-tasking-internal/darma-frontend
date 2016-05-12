@@ -46,21 +46,21 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include <src/include/darma/impl/key/segmented_key.h>
+#include <darma/impl/key/simple_key.h>
 #include <darma/impl/key_concept.h>
 
 #include "../meta/blabbermouth.h"
 
 using namespace darma_runtime;
 
-DARMA_STATIC_ASSERT_VALID_KEY_TYPE(detail::SegmentedKey);
+DARMA_STATIC_ASSERT_VALID_KEY_TYPE(detail::SimpleKey);
 
 typedef EnableCTorBlabbermouth<Default, String, Copy, Move> BlabberMouth;
 static MockBlabbermouthListener* listener;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class TestSegmentedKey
+class TestSimpleKey
   : public ::testing::Test
 {
   protected:
@@ -82,10 +82,10 @@ class TestSegmentedKey
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestSegmentedKey, simple_int) {
+TEST_F(TestSimpleKey, simple_int) {
   using namespace darma_runtime::detail;
-  auto maker = typename key_traits<SegmentedKey>::maker{};
-  SegmentedKey k = maker(2,4,8);
+  auto maker = typename key_traits<SimpleKey>::maker{};
+  SimpleKey k = maker(2,4,8);
   ASSERT_EQ(k.component<0>().as<int>(), 2);
   ASSERT_EQ(k.component<1>().as<int>(), 4);
   ASSERT_EQ(k.component<2>().as<int>(), 8);
@@ -96,10 +96,10 @@ TEST_F(TestSegmentedKey, simple_int) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestSegmentedKey, simple_string) {
+TEST_F(TestSimpleKey, simple_string) {
   using namespace darma_runtime::detail;
-  auto maker = typename key_traits<SegmentedKey>::maker{};
-  SegmentedKey k = maker("hello", 2, "world!");
+  auto maker = typename key_traits<SimpleKey>::maker{};
+  SimpleKey k = maker("hello", 2, "world!");
   ASSERT_EQ(k.component<0>().as<std::string>(), "hello");
   ASSERT_EQ(k.component<1>().as<int>(), 2);
   ASSERT_EQ(k.component<2>().as<std::string>(), "world!");
@@ -107,10 +107,10 @@ TEST_F(TestSegmentedKey, simple_string) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestSegmentedKey, string_split) {
+TEST_F(TestSimpleKey, string_split) {
   using namespace darma_runtime::detail;
-  auto maker = typename key_traits<SegmentedKey>::maker{};
-  SegmentedKey k = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+  auto maker = typename key_traits<SimpleKey>::maker{};
+  SimpleKey k = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
   ASSERT_EQ(k.component<0>().as<std::string>(), "hello");
   ASSERT_EQ(k.component<1>().as<int>(), 2);
   ASSERT_EQ(k.component<6>().as<std::string>(), "world!");
@@ -119,10 +119,10 @@ TEST_F(TestSegmentedKey, string_split) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestSegmentedKey, ints_split) {
+TEST_F(TestSimpleKey, ints_split) {
   using namespace darma_runtime::detail;
-  auto maker = typename key_traits<SegmentedKey>::maker{};
-  SegmentedKey k = maker(
+  auto maker = typename key_traits<SimpleKey>::maker{};
+  SimpleKey k = maker(
     1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096
   );
   ASSERT_EQ(k.component<1>().as<int>(), 2);
@@ -131,10 +131,10 @@ TEST_F(TestSegmentedKey, ints_split) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestSegmentedKey, ints_exact) {
+TEST_F(TestSimpleKey, ints_exact) {
   using namespace darma_runtime::detail;
-  auto maker = typename key_traits<SegmentedKey>::maker{};
-  SegmentedKey k = maker(
+  auto maker = typename key_traits<SimpleKey>::maker{};
+  SimpleKey k = maker(
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "A"
   );
   ASSERT_EQ(k.component<1>().as<int>(), 2);
@@ -143,10 +143,10 @@ TEST_F(TestSegmentedKey, ints_exact) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestSegmentedKey, ints_exact_2) {
+TEST_F(TestSimpleKey, ints_exact_2) {
   using namespace darma_runtime::detail;
-  auto maker = typename key_traits<SegmentedKey>::maker{};
-  SegmentedKey k = maker(
+  auto maker = typename key_traits<SimpleKey>::maker{};
+  SimpleKey k = maker(
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "Ab",
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, "AB"
   );
@@ -156,47 +156,44 @@ TEST_F(TestSegmentedKey, ints_exact_2) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestSegmentedKey, string_span_3) {
+TEST_F(TestSimpleKey, string_span_3) {
   using namespace darma_runtime::detail;
-  auto maker = typename key_traits<SegmentedKey>::maker{};
+  auto maker = typename key_traits<SimpleKey>::maker{};
   const std::string s = ""
     "hello, there.  How is it going today? "
-    " Blah blah blah blah blah blah blah"
-    " Blah blah blah blah blah blah blah"
-    " Blah blah blah blah blah blah blah"
     " Blah blah blah blah blah blah blah 42";
-  SegmentedKey k = maker(s, 42, s);
+  SimpleKey k = maker(s, 42, s);
   ASSERT_EQ(k.component<2>().as<std::string>(), s);
 }
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestSegmentedKey, equal_multipart) {
+TEST_F(TestSimpleKey, equal_multipart) {
   using namespace darma_runtime::detail;
-  auto maker = typename key_traits<SegmentedKey>::maker{};
-  SegmentedKey k1 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
-  SegmentedKey k2 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
-  ASSERT_TRUE(key_traits<SegmentedKey>::key_equal()(k1, k2));
+  auto maker = typename key_traits<SimpleKey>::maker{};
+  SimpleKey k1 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+  SimpleKey k2 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+  ASSERT_TRUE(key_traits<SimpleKey>::key_equal()(k1, k2));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestSegmentedKey, hash_multipart) {
+TEST_F(TestSimpleKey, hash_multipart) {
   using namespace darma_runtime::detail;
-  auto maker = typename key_traits<SegmentedKey>::maker{};
-  SegmentedKey k1 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
-  SegmentedKey k2 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
-  ASSERT_EQ(key_traits<SegmentedKey>::hasher()(k1), key_traits<SegmentedKey>::hasher()(k2));
+  auto maker = typename key_traits<SimpleKey>::maker{};
+  SimpleKey k1 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+  SimpleKey k2 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+  ASSERT_EQ(key_traits<SimpleKey>::hasher()(k1), key_traits<SimpleKey>::hasher()(k2));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestSegmentedKey, without_last_component_simple) {
+TEST_F(TestSimpleKey, without_last_component_simple) {
   using namespace darma_runtime::detail;
-  typedef typename key_traits<SegmentedKey>::internal_use_access access;
-  auto maker = typename key_traits<SegmentedKey>::maker{};
-  SegmentedKey k = maker(2,4);
-  SegmentedKey k2 = access::add_internal_last_component(k, 8);
-  SegmentedKey k3 = access::without_internal_last_component(k2);
+  typedef typename key_traits<SimpleKey>::internal_use_access access;
+  auto maker = typename key_traits<SimpleKey>::maker{};
+  SimpleKey k = maker(2,4);
+  SimpleKey k2 = access::add_internal_last_component(k, 8);
+  SimpleKey k3 = access::without_internal_last_component(k2);
   ASSERT_EQ(k3.component<0>().as<int>(), 2);
   ASSERT_EQ(k3.component<1>().as<int>(), 4);
   ASSERT_EQ(k.n_components(), 2);
@@ -207,13 +204,13 @@ TEST_F(TestSegmentedKey, without_last_component_simple) {
 
 //////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestSegmentedKey, without_last_component_multipart) {
+TEST_F(TestSimpleKey, without_last_component_multipart) {
   using namespace darma_runtime::detail;
-  typedef typename key_traits<SegmentedKey>::internal_use_access access;
-  auto maker = typename key_traits<SegmentedKey>::maker{};
-  SegmentedKey k = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
-  SegmentedKey k2 = access::add_internal_last_component(k, "asdf");
-  SegmentedKey k3 = access::without_internal_last_component(k2);
+  typedef typename key_traits<SimpleKey>::internal_use_access access;
+  auto maker = typename key_traits<SimpleKey>::maker{};
+  SimpleKey k = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+  SimpleKey k2 = access::add_internal_last_component(k, "asdf");
+  SimpleKey k3 = access::without_internal_last_component(k2);
   EXPECT_EQ(k2.component<1>().as<int>(), 2);
   EXPECT_EQ(k2.component<2>().as<int>(), 3);
   EXPECT_EQ(k2.component<7>().as<std::string>(), "How is it going today?");
@@ -230,27 +227,43 @@ TEST_F(TestSegmentedKey, without_last_component_multipart) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestSegmentedKey, bytes_copy) {
+//TEST_F(TestSimpleKey, bytes_copy) {
+//  using namespace darma_runtime::detail;
+//  auto maker = typename key_traits<SimpleKey>::maker{};
+//  SimpleKey k = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+//
+//  bytes_convert<SimpleKey> bc;
+//  size_t size = bc.get_size(k);
+//  char key_data[size];
+//  bc(k, key_data, size, 0);
+//
+//  SimpleKey k2 = bc.get_value(key_data, size);
+//
+//  EXPECT_EQ(k.component<0>().as<std::string>(), "hello");
+//  EXPECT_EQ(k.component<1>().as<int>(), 2);
+//  EXPECT_EQ(k.component<6>().as<std::string>(), "world!");
+//  EXPECT_EQ(k.component<7>().as<std::string>(), "How is it going today?");
+//
+//  ASSERT_EQ(k2.component<0>().as<std::string>(), "hello");
+//  ASSERT_EQ(k2.component<1>().as<int>(), 2);
+//  ASSERT_EQ(k2.component<6>().as<std::string>(), "world!");
+//  ASSERT_EQ(k2.component<7>().as<std::string>(), "How is it going today?");
+
+//  ASSERT_TRUE(key_traits<SimpleKey>::key_equal()(k, k2));
+//}
+
+////////////////////////////////////////////////////////////////////////////////
+
+typedef enum EnumTestA { OneA=1, TwoA=2, ThreeA=3 } EnumTestA;
+typedef enum EnumTestB { OneB=1, TwoB=2, ThreeB=3 } EnumTestB;
+
+TEST_F(TestSimpleKey, enums) {
   using namespace darma_runtime::detail;
-  auto maker = typename key_traits<SegmentedKey>::maker{};
-  SegmentedKey k = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
-
-  bytes_convert<SegmentedKey> bc;
-  size_t size = bc.get_size(k);
-  char key_data[size];
-  bc(k, key_data, size, 0);
-
-  SegmentedKey k2 = bc.get_value(key_data, size);
-
-  EXPECT_EQ(k.component<0>().as<std::string>(), "hello");
-  EXPECT_EQ(k.component<1>().as<int>(), 2);
-  EXPECT_EQ(k.component<6>().as<std::string>(), "world!");
-  EXPECT_EQ(k.component<7>().as<std::string>(), "How is it going today?");
-
-  ASSERT_EQ(k2.component<0>().as<std::string>(), "hello");
-  ASSERT_EQ(k2.component<1>().as<int>(), 2);
-  ASSERT_EQ(k2.component<6>().as<std::string>(), "world!");
-  ASSERT_EQ(k2.component<7>().as<std::string>(), "How is it going today?");
-
-  ASSERT_TRUE(key_traits<SegmentedKey>::key_equal()(k, k2));
+  using namespace ::testing;
+  auto maker = typename key_traits<SimpleKey>::maker{};
+  auto kA = maker(OneA, TwoB, ThreeA);
+  auto kB1 = maker(OneB, TwoA, ThreeB);
+  auto kB2 = maker(OneB, TwoA, ThreeB);
+  EXPECT_THAT(kA, Not(Eq(kB1)));
+  EXPECT_EQ(kB1, kB2);
 }

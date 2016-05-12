@@ -10,7 +10,7 @@ handle_fwd.h
 handle_attorneys.h
 key_concept.h
 runtime.h
-segmented_key.h
+        key/segmented_key.h
 spmd.h
 task.h
 task_fwd.h

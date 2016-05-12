@@ -46,8 +46,11 @@
 #define DARMA_IMPL_SERIALIZATION_TRAITS_H_
 
 #include <tinympl/logical_and.hpp>
+#include <tinympl/logical_or.hpp>
 
 #include <darma/impl/serialization/serialization_fwd.h>
+#include "nonintrusive.h"
+#include "unpack_contructor_access.h"
 
 namespace darma_runtime {
 
@@ -88,6 +91,8 @@ struct serializability_traits {
     using _clean_T = remove_const_t<remove_reference_t<T>>;
 
   public:
+
+    typedef _clean_T value_type;
 
     ////////////////////////////////////////////////////////////////////////////////
     // <editor-fold desc="Detection of presence of intrusive serialization methods">
@@ -162,16 +167,27 @@ struct serializability_traits {
     // <editor-fold desc="unpack()">
 
   private:
+    //template <typename U, typename ArchiveT>
+    //using has_intrusive_unpack_constructor_archetype =
+    //  decltype( UnpackConstructorAccess::call_unpack_constructor<U>(
+    //      declval<void*>(),
+    //      declval<remove_reference_t<ArchiveT>&>()
+    //    )
+    //  );
+
     template <typename U, typename ArchiveT>
     using has_intrusive_unpack_archetype =
-      decltype( declval<U>().unpack( declval<remove_reference_t<ArchiveT>&>() ) );
+      decltype( U().unpack( declval<remove_reference_t<ArchiveT>&>() ) );
 
     template <typename U, typename ArchiveT>
     using has_const_incorrect_unpack = is_detected<has_intrusive_unpack_archetype, _const_T, ArchiveT>;
 
   public:
+    //template <typename ArchiveT>
+    //using has_intrusive_unpack_constructor = is_detected<has_intrusive_unpack_constructor_archetype, _clean_T, ArchiveT>;
+
     template <typename ArchiveT>
-    using has_intrusive_unpack = is_detected<has_intrusive_pack_archetype, _T, ArchiveT>;
+    using has_intrusive_unpack = is_detected<has_intrusive_unpack_archetype, _T, ArchiveT>;
 
     // </editor-fold>
     //----------------------------------------
@@ -181,6 +197,27 @@ struct serializability_traits {
 
     ////////////////////////////////////////////////////////////////////////////////
     // <editor-fold desc="Detection of presence of nonintrusive serialization methods (for a given ArchiveT)">
+
+    //----------------------------------------
+    // <editor-fold desc="serialize()">
+
+  private:
+
+    template <typename U, typename ArchiveT>
+    using has_nonintrusive_serialize_archetype = decltype(
+      declval<Serializer<U>>().serialize(
+        declval<U&>(), declval<remove_const_t<ArchiveT>&>()
+      )
+    );
+
+  public:
+
+    template <typename ArchiveT>
+    using has_nonintrusive_serialize =
+      is_detected<has_nonintrusive_serialize_archetype, _clean_T, ArchiveT>;
+
+    // </editor-fold>
+    //----------------------------------------
 
     //----------------------------------------
     // <editor-fold desc="compute_size()">
@@ -254,10 +291,13 @@ struct serializability_traits {
 
     // Use of tinympl::logical_and here should short-circuit and save a tiny bit of compilation time
     template <typename ArchiveT>
-    using is_serializable_with_archive = tinympl::logical_and<
-      has_nonintrusive_compute_size<ArchiveT>,
-      has_nonintrusive_pack<ArchiveT>,
-      has_nonintrusive_unpack<ArchiveT>
+    using is_serializable_with_archive = tinympl::logical_or<
+      has_nonintrusive_serialize<ArchiveT>,
+      tinympl::logical_and<
+        has_nonintrusive_compute_size<ArchiveT>,
+        has_nonintrusive_pack<ArchiveT>,
+        has_nonintrusive_unpack<ArchiveT>
+      >
     >;
 
     typedef Serializer<_clean_T> serializer;
@@ -265,6 +305,59 @@ struct serializability_traits {
     // </editor-fold>
     ////////////////////////////////////////////////////////////////////////////////
 
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<has_nonintrusive_compute_size<ArchiveT>::value>
+    compute_size(T const& val, ArchiveT& ar) {
+      serializer().compute_size(val, ar);
+    }
+
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<
+      not has_nonintrusive_compute_size<ArchiveT>::value
+        and has_nonintrusive_serialize<ArchiveT>::value
+    >
+    compute_size(T const& val, ArchiveT& ar) {
+      // cast away constness when invoking general serialize
+      serializer().serialize(const_cast<T&>(val), ar);
+    }
+
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<has_nonintrusive_pack<ArchiveT>::value>
+    pack(T const& val, ArchiveT& ar) {
+      serializer().pack(val, ar);
+    }
+
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<
+      not has_nonintrusive_pack<ArchiveT>::value
+        and has_nonintrusive_serialize<ArchiveT>::value
+    >
+    pack(T const& val, ArchiveT& ar) {
+      // cast away constness when invoking general serialize
+      serializer().serialize(const_cast<T&>(val), ar);
+    }
+
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<has_nonintrusive_unpack<ArchiveT>::value>
+    unpack(void* allocated, ArchiveT& ar) {
+      serializer().unpack(allocated, ar);
+    }
+
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<
+      not has_nonintrusive_unpack<ArchiveT>::value
+        and has_nonintrusive_serialize<ArchiveT>::value
+    >
+    unpack(void* allocated, ArchiveT& ar) {
+      T* val = new (allocated) T;
+      serializer().serialize(*val, ar);
+    }
 
     friend class allocation_traits<T, void>;
 

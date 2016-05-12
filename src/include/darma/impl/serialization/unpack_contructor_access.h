@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma_types.h
-//                         dharma_new
+//                      unpack_contructor_access.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,45 @@
 //@HEADER
 */
 
-#ifndef SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
-#define SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
+#ifndef DARMA_IMPL_SERIALIZATION_UNPACK_CONTRUCTOR_ACCESS_H
+#define DARMA_IMPL_SERIALIZATION_UNPACK_CONTRUCTOR_ACCESS_H
 
-#define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
+#include <type_traits>
 
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#define DARMA_THREAD_LOCAL_BACKEND_RUNTIME thread_local
-#endif
+#include <darma/impl/meta/detection.h>
+#include "serialization_fwd.h"
+#include "archive.h"
 
-#include <darma/impl/key/simple_key.h>
+namespace darma_runtime {
+namespace serialization {
 
-namespace darma_runtime { namespace types {
-  typedef darma_runtime::detail::SimpleKey key_t;
-}} // end namespace darma_runtime::types
+struct UnpackConstructorAccess {
+  private:
+    //template <typename T, typename ArchiveT>
+    //using has_unpack_constructor_archetype = decltype(
+    //  T(
+    //    std::declval<unpack_constructor_tag_t>(),
+    //    std::declval<std::remove_reference_t<ArchiveT>&>()
+    //  )
+    //);
+    template <typename T, typename ArchiveT>
+    using has_unpack_constructor_archetype = typename T::template allow_in_place_unpack<ArchiveT>;
 
-#include <darma/interface/defaults/version.h>
-#include <darma/interface/defaults/pointers.h>
+    template <typename T, typename ArchiveT>
+    using has_unpack_constructor = meta::is_detected<has_unpack_constructor_archetype, T, ArchiveT>;
 
+  public:
+    template <typename T, typename ArchiveT>
+    static
+    std::enable_if_t<
+      has_unpack_constructor<T, ArchiveT>::value
+    >
+    call_unpack_constructor(void* allocated, ArchiveT& ar) {
+      new (allocated) T(unpack_constructor_tag, ar);
+    }
+};
 
-#endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */
+} // end namespace serialization
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_SERIALIZATION_UNPACK_CONTRUCTOR_ACCESS_H
