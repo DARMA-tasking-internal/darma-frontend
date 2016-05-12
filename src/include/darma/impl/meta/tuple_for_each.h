@@ -73,336 +73,278 @@
 #include "splat_tuple.h"
 #include "tuple_pop_back.h"
 
-
-// TODO clean this code up to use auto return values and correctly use universal references and type deduction
-
-namespace darma_runtime { namespace meta {
-
-////////////////////////////////////////////////////////////////////////////////
-
-/* generic tuple_for_each                                                {{{1 */ #if 1 // begin fold
+namespace darma_runtime {
+namespace meta {
 
 namespace _tuple_for_each_impl {
 
-namespace m = tinympl;
-namespace mv = tinympl::variadic;
-
-template <typename ReturnType, typename GenericLambda, bool IncludeIndex, size_t Index>
-struct invoker {
-  template <typename T>
-  inline constexpr ReturnType
-  operator()(T&& val, GenericLambda&& lambda) const {
-    return std::forward<GenericLambda>(lambda)(std::forward<T>(val));
-  }
-};
-
-template <typename ReturnType, typename GenericLambda, size_t Index>
-struct invoker<ReturnType, GenericLambda, true, Index> {
-  template <typename T>
-  inline constexpr ReturnType
-  operator()(T&& val, GenericLambda&& lambda) const {
-    return std::forward<GenericLambda>(lambda)(std::forward<T>(val), Index);
-  }
-};
-
-
-template <typename T, typename Like>
-struct undecay_like { typedef T type; };
-
-template <typename T, typename Like>
-struct undecay_like<T, Like&> { typedef T& type; };
-
-template <typename T, typename Like>
-struct undecay_like<T, Like&&> { typedef T&& type; };
+using std::conditional_t;
+using std::tuple_element_t;
+using std::is_same;
+using std::integral_constant;
+using std::tuple_size;
+using std::remove_reference_t;
+using std::forward;
+using std::forward_as_tuple;
 
 template <
-  typename Tuple, typename GenericLambda,
-  typename return_type, size_t I, typename next_t,
-  typename i_return_t, typename TupleArg,
-  bool IncludeIndex
->
-struct _helper1 {
-  constexpr inline auto
-  operator()(TupleArg&& tup, GenericLambda&& lambda) const && {
-    typedef typename m::copy_cv_qualifiers<TupleArg>::template apply<
-        typename m::copy_reference_type<TupleArg>::template apply<
-          typename std::tuple_element<I, Tuple>::type
-        >::type
-    >::type qualified_element_t;
-    return std::tuple_cat(
-      std::tuple<i_return_t>(
-        invoker<i_return_t, GenericLambda, IncludeIndex, I>()(
-          std::forward<
-            decltype(std::get<I>(std::forward<TupleArg>(tup)))
-          >(
-          //std::forward<qualified_element_t>(
-            std::get<I>(std::forward<TupleArg>(tup))
-          ),
-          std::forward<GenericLambda>(lambda)
-        )
-      ),
-      next_t()(
-        std::forward<TupleArg>(tup),
-        std::forward<GenericLambda>(lambda)
-      )
-    );
-  }
-};
-
-template <
-  typename Tuple, typename GenericLambda,
-  size_t I, typename next_t, typename i_return_t,
-  typename TupleArg, bool IncludeIndex
->
-struct _helper1<Tuple, GenericLambda, void, I, next_t, i_return_t, TupleArg, IncludeIndex> {
-  constexpr inline void
-  operator()(TupleArg&& tup, GenericLambda&& lambda) const && {
-    typedef typename m::copy_cv_qualifiers<TupleArg>::template apply<
-        typename m::copy_reference_type<TupleArg>::template apply<
-          typename std::tuple_element<I, Tuple>::type
-        >::type
-    >::type qualified_element_t;
-    invoker<i_return_t, GenericLambda, IncludeIndex, I>()(
-      std::forward<
-        decltype(std::get<I>(std::forward<TupleArg>(tup)))
-      >(
-        std::get<I>(std::forward<TupleArg>(tup))
-      ),
-      std::forward<GenericLambda>(lambda)
-    );
-    next_t()(
-      std::forward<TupleArg>(tup),
-      std::forward<GenericLambda>(lambda)
-    );
-  }
-};
-
-template <typename T, typename... Args>
-struct call_operator_return {
-  typedef decltype(std::declval<T>()(
-    std::declval<Args>()...
-  )) type;
-};
-
-template <
-  template <class...> class UnaryMetafunction,
-  size_t I, size_t N,
-  typename Tuple,
-  typename GenericLambda,
-  typename TupleArg,
-  bool IncludeIndex = false,
-  bool PrevIsVoid = false /* ignored for I=0 */
+  template <typename...> class Metafunction,
+  size_t I, size_t N, bool CallWithIndex
 >
 struct _impl {
-  static_assert(
-    m::is_instantiation_of<std::tuple, Tuple>::value,
-    "tuple_for_each only works on std::tuple"
-  );
 
+  using next_t = _impl<Metafunction, I+1, N, CallWithIndex>;
 
-  typedef typename std::conditional<
-    IncludeIndex,
-    call_operator_return<GenericLambda,
-      typename std::tuple_element<I, Tuple>::type, size_t
-    >,
-    call_operator_return<GenericLambda,
-      typename std::tuple_element<I, Tuple>::type
-    >
-  >::type::type i_return_t;
+  //----------------------------------------
+  // <editor-fold desc="_do_call_if_with_index">
+  // does call differently depending on whether index is required for call
 
-  typedef typename m::repeat<I+1, m::types_only::pop_front, Tuple>::type rest_tuple_t;
-  static constexpr size_t next_idx =
-    m::min<
-      m::int_<I + 1 + m::find_if<rest_tuple_t, UnaryMetafunction>::value>,
-      std::tuple_size<Tuple>
-    >::type::value;
+  template <typename T, typename Callable>
+  inline decltype(auto)
+  _do_arg_call_if_with_index(std::false_type, T&& arg, Callable&& f) const {
+    return splat_tuple(
+      forward<T>(arg),
+      forward<Callable>(f)
+    );
+  }
 
-  typedef _impl<
-      UnaryMetafunction,
-      next_idx,
-      N, Tuple, GenericLambda,
-      TupleArg, IncludeIndex, std::is_same<i_return_t, void>::value
-  > next_t;
+  template <typename T, typename Callable>
+  inline decltype(auto)
+  _do_arg_call_if_with_index(std::true_type, T&& arg, Callable&& f) const {
+    return splat_tuple(
+      std::tuple_cat(
+        forward<T>(arg),
+        std::make_tuple(I)
+      ),
+      forward<Callable>(f)
+    );
+  }
 
-  template <typename T> struct _get_return_t { typedef typename T::return_t type; };
+  template <typename T, typename Callable>
+  inline decltype(auto)
+  _do_arg_call(T&& arg, Callable&& f) const {
+    return _do_arg_call_if_with_index(integral_constant<bool, CallWithIndex>(),
+      forward<T>(arg), forward<Callable>(f)
+    );
+  };
 
-  typedef typename std::conditional<
-    std::is_same<i_return_t, void>::value,
-    m::identity<void>,
-    m::delay<
-      m::join,
-      m::delay<std::tuple, i_return_t>,
-      _get_return_t<next_t>
-    >
-  >::type::type return_t;
+  // </editor-fold>
+  //----------------------------------------
 
-  static_assert(
-    not (
-      std::is_same<return_t, void>::value
-      xor std::is_same<typename next_t::return_t, void>::value
-    ),
-    "tuple_for_each can't mix void and non-void return types"
-  );
+  //----------------------------------------
+  // <editor-fold desc="_call_impl_if_return_void">
+  // Tag dispatch based on whether call returns void, dispatches to _do_call_if_with_index and
+  // invokes specialization for I+1
 
-  constexpr inline auto
-  operator()(TupleArg&& tup, GenericLambda&& lambda) const && {
-    return _helper1<
-        Tuple, GenericLambda, return_t, I,
-        next_t, i_return_t, TupleArg, IncludeIndex
-    >()(
-      std::forward<TupleArg>(tup),
-      std::forward<GenericLambda>(lambda)
+  // Callable returns void, so return void and don't forward any Args to next
+  template <typename Tuple, typename Callable, typename... Args>
+  inline void _call_impl_if_return_void(std::true_type,
+    Tuple&& tup, Callable&& f, Args&&... args
+  ) const {
+    static_assert(sizeof...(args) == 0,
+      "tuple_for_each variant invoked mixed void-returning and non-void-returning callable"
+    );
+    _do_arg_call(
+      std::get<I>(std::forward<Tuple>(tup)), std::forward<Callable>(f)
+    );
+    next_t()(std::forward<Tuple>(tup), std::forward<Callable>(f));
+  };
+
+  // Callable does not return void, so we need to forward the return as part of args...
+  template <typename Tuple, typename Callable, typename... Args>
+  inline auto _call_impl_if_return_void(std::false_type,
+    Tuple&& tup, Callable&& f, Args&&... args
+  ) const {
+    return next_t()(
+      std::forward<Tuple>(tup), std::forward<Callable>(f), std::forward<Args>(args)...,
+      _do_arg_call(
+        std::get<I>(std::forward<Tuple>(tup)), std::forward<Callable>(f)
+      )
+    );
+  };
+
+  // </editor-fold>
+  //----------------------------------------
+
+  //----------------------------------------
+  // <editor-fold desc="_call_impl_if_mfn">
+  // Tag dispatch based on metafunction evaluation, invokes return void dispatch if true
+
+  // Metafunction is true, so forward the Ith argument to the callable
+  template <typename Tuple, typename Callable, typename... Args>
+  inline auto _call_impl_if_mfn(std::true_type,
+    Tuple&& tup, Callable&& f, Args&&... args
+  ) const {
+    return _call_impl_if_return_void(
+      std::integral_constant<bool,
+        std::is_same<
+          decltype(this->_do_arg_call(std::get<I>(forward<Tuple>(tup)),
+            forward<Callable>(f)
+          )), void
+        >::value
+      >(),
+      forward<Tuple>(tup), forward<Callable>(f),
+      forward<Args>(args)...
+    );
+  }
+
+  // Metafunction is false, so don't forward the Ith argument
+  template <typename Tuple, typename Callable, typename... Args>
+  inline auto _call_impl_if_mfn(std::false_type,
+    Tuple&& tup, Callable&& f, Args&&... args
+  ) const {
+    return next_t()(
+      forward<Tuple>(tup), forward<Callable>(f),
+      forward<Args>(args)...
+    );
+  }
+
+  // </editor-fold>
+  //----------------------------------------
+
+  // Forward to tag dispatch based on metafunction evaluation
+  template <typename Tuple, typename Callable, typename... Args>
+  inline auto operator()(Tuple&& tup, Callable&& f, Args&&... args) const {
+    return _call_impl_if_mfn(
+      std::integral_constant<bool, tinympl::splat_to_t<
+        remove_reference_t<tuple_element_t<I, remove_reference_t<Tuple>>>,
+        Metafunction
+      >::value>(),
+      forward<Tuple>(tup), forward<Callable>(f), forward<Args>(args)...
     );
   }
 
 };
 
-template <typename return_type>
-struct _helper2 {
-  constexpr inline return_type operator()() const && {
-    return std::tuple<>();
-  }
-};
+template <template <typename...> class Metafunction, size_t N, bool CallWithIndex>
+struct _impl<Metafunction, N, N, CallWithIndex> {
 
-template <>
-struct _helper2<void> {
-  inline void operator()() const && { /* do nothing */ }
-};
-
-template <
-  template <class...> class UnaryMetafunction,
-  size_t N,
-  typename Tuple,
-  typename GenericLambda,
-  typename TupleArg,
-  bool IncludeIndex,
-  bool PrevIsVoid
->
-struct _impl<UnaryMetafunction, N, N, Tuple, GenericLambda, TupleArg, IncludeIndex, PrevIsVoid> {
-  static_assert(
-    m::is_instantiation_of<std::tuple, Tuple>::value,
-    "tuple_for_each only works on std::tuple"
-  );
-
-  typedef typename std::conditional<
-    PrevIsVoid, void, std::tuple<>
-  >::type return_t;
-
-
-  constexpr inline return_t
-  operator()(TupleArg&& tup, GenericLambda&& lambda) const && {
-    return _helper2<return_t>()();
+  template <typename Tuple, typename Callable>
+  inline void _call_impl_if_return_void(std::true_type, Tuple&&, Callable&&) const {
+    /* do nothing */
   }
 
+  template <typename Tuple, typename Callable, typename... Args>
+  inline auto _call_impl_if_return_void(std::false_type,
+    Tuple&&, Callable&&, Args&&... args
+  ) const {
+    return forward_as_tuple(forward<Args>(args)...);
+  };
+
+  template <typename Tuple, typename Callable, typename... Args>
+  inline auto operator()(Tuple&& tup, Callable&& f, Args&&... args) const {
+    return _call_impl_if_return_void(
+      integral_constant<bool,
+        sizeof...(args) == 0
+          // if the tuple is zero-sized, return std::tuple<> rather than void
+          and tuple_size<remove_reference_t<Tuple>>::value != 0
+      >(),
+      forward<Tuple>(tup), forward<Callable>(f), forward<Args>(args)...
+    );
+  }
 };
 
 } // end namespace _tuple_for_each_impl
 
-// Note: calling with an empty tuple returns an empty tuple, not void
 template <
-  template <typename...> class UnaryMetafunction,
-  typename Tuple,
-  typename GenericLambda
+  template <typename...> class Metafunction, bool WithIndex,
+  typename... Args
 >
-auto
-tuple_for_each_filtered_type(
-  Tuple&& tup,
-  GenericLambda&& lambda
+auto tuple_for_each_zipped_general(
+  Args&&... args
 ) {
-  typedef typename _tuple_for_each_impl::_impl<
-    UnaryMetafunction,
-    tinympl::find_if<Tuple, UnaryMetafunction>::value,
-    std::tuple_size<typename std::decay<Tuple>::type>::value,
-    typename std::decay<Tuple>::type,
-    GenericLambda, Tuple
-  > impl_t;
-  return impl_t()(
-    std::forward<Tuple>(tup),
-    std::forward<GenericLambda>(lambda)
+  decltype(auto) callable = std::get<sizeof...(Args)-1>(
+    std::forward_as_tuple(std::forward<Args>(args)...)
   );
-}
+  decltype(auto) tuples = tuple_pop_back(
+    std::forward_as_tuple(std::forward<Args>(args)...)
+  );
+  auto do_tuple_zip = [](auto&&... tuples) -> decltype(auto) {
+    return tuple_zip(std::forward<decltype(tuples)>(tuples)...);
+  };
+  decltype(auto) tuples_zipped = splat_tuple(
+    std::forward<decltype(tuples)>(tuples),
+    do_tuple_zip
+  );
 
-template <
-  typename Tuple,
-  typename GenericLambda
->
-auto
-tuple_for_each(
-  Tuple&& tup,
-  GenericLambda&& lambda
-) {
-  typedef typename _tuple_for_each_impl::_impl<
-    tinympl::always_true,
-    0, std::tuple_size<typename std::decay<Tuple>::type>::value,
-    typename std::decay<Tuple>::type,
-    GenericLambda, Tuple
-  > impl_t;
-  return impl_t()(
-    std::forward<Tuple>(tup),
-    std::forward<GenericLambda>(lambda)
+  return _tuple_for_each_impl::_impl<
+    Metafunction, 0,
+    std::tuple_size<std::decay_t<decltype(tuples_zipped)>>::value,
+    WithIndex
+  >()(
+    std::forward<decltype(tuples_zipped)>(tuples_zipped),
+    std::forward<decltype(callable)>(callable)
   );
+};
+
+template <typename... Args>
+auto tuple_for_each_zipped(
+  Args&&... args
+) {
+  return tuple_for_each_zipped_general<
+    tinympl::always_true, false
+  >(std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-auto
-tuple_for_each_zipped(
+auto tuple_for_each_zipped_with_index(
   Args&&... args
 ) {
-  typedef typename tinympl::variadic::pop_back<std::tuple, Args...>::type Tuples;
-  auto tuple_zip_wrapper = [](auto&&... tups){ return tuple_zip(std::forward<decltype(tups)>(tups)...); };
-  typedef decltype(splat_tuple(
-    std::declval<Tuples>(), tuple_zip_wrapper
-  )) TuplesZipped;
-  auto func = std::get<sizeof...(Args)-1>(
-    std::tuple<Args...>(std::forward<Args>(args)...)
-  );
-  auto wrap_lambda = [&](auto&& zip_item) {
-    return splat_tuple(
-      std::forward<decltype(zip_item)>(zip_item),
-      func
-    );
-  };
-  typedef typename _tuple_for_each_impl::_impl<
-    tinympl::always_true,
-    0, std::tuple_size<TuplesZipped>::value,
-    typename std::decay<TuplesZipped>::type,
-    decltype(wrap_lambda), TuplesZipped
-  > impl_t;
-  return impl_t()(
-    splat_tuple(
-      tuple_pop_back(std::make_tuple(std::forward<Args>(args)...)),
-      tuple_zip_wrapper
-    ),
-    std::move(wrap_lambda)
+  return tuple_for_each_zipped_general<
+    tinympl::always_true, true
+  >(std::forward<Args>(args)...);
+}
+
+// Note: calling with an empty tuple returns an empty tuple, not void
+template <
+  template <typename...> class UnaryMetafunction, bool WithIndex = false,
+  typename Tuple, typename Callable
+>
+auto tuple_for_each_filtered_type(
+  Tuple&& tup,
+  Callable&& callable
+) {
+  return tuple_for_each_zipped_general<UnaryMetafunction, WithIndex>(
+    std::forward<Tuple>(tup), std::forward<Callable>(callable)
   );
 }
+
+template <typename Tuple, typename Callable>
+auto tuple_for_each(
+  Tuple&& tup,
+  Callable&& callable
+) {
+  return tuple_for_each_filtered_type<tinympl::always_true>(
+    std::forward<Tuple>(tup), std::forward<Callable>(callable)
+  );
+};
+
 
 template <
-  typename Tuple,
-  typename GenericLambda
+  template <typename...> class UnaryMetafunction,
+  typename Tuple, typename Callable
 >
 auto
-tuple_for_each_with_index(
+tuple_for_each_filtered_type_with_index(
   Tuple&& tup,
-  GenericLambda&& lambda
+  Callable&& callable
 ) {
-  typedef typename _tuple_for_each_impl::_impl<
-    tinympl::always_true,
-    0, std::tuple_size<typename std::decay<Tuple>::type>::value,
-    typename std::decay<Tuple>::type,
-    GenericLambda, Tuple, true
-  > impl_t;
-  return impl_t()(
-    std::forward<Tuple>(tup),
-    std::forward<GenericLambda>(lambda)
+  return tuple_for_each_filtered_type<tinympl::always_true, true>(
+    std::forward<Tuple>(tup), std::forward<Callable>(callable)
   );
-}
+};
 
-/*                                                                            */ #endif // end fold
+template < typename Tuple, typename Callable >
+auto
+tuple_for_each_with_index(
+  Tuple&& tup, Callable&& callable
+) {
+  return tuple_for_each_filtered_type_with_index<tinympl::always_true>(
+    std::forward<Tuple>(tup), std::forward<Callable>(callable)
+  );
+};
 
-////////////////////////////////////////////////////////////////////////////////
-
-}} // end namespace darma_runtime::meta
-
+} // end namespace meta
+} // end namespace darma_runtime
 
 #endif /* META_TUPLE_FOR_EACH_H_ */

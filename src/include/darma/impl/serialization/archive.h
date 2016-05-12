@@ -52,6 +52,7 @@
 #include <tinympl/is_instantiation_of.hpp>
 
 #include "range.h"
+#include "traits.h"
 
 namespace darma_runtime {
 
@@ -212,6 +213,22 @@ class SimplePackUnpackArchive
 
     detail::SerializerMode mode = detail::SerializerMode::None;
 
+    template <typename T>
+    using is_serializable_with_this = typename
+      detail::serializability_traits<T>::template is_serializable_with_archive<SimplePackUnpackArchive>;
+    template <typename T>
+    using traits = typename detail::serializability_traits<T>;
+
+    template <typename T>
+    using has_only_serialize = std::integral_constant<bool,
+      traits<T>::template has_nonintrusive_serialize<SimplePackUnpackArchive>::value
+      and not (
+        traits<T>::template has_nonintrusive_compute_size<SimplePackUnpackArchive>::value
+        or traits<T>::template has_nonintrusive_pack<SimplePackUnpackArchive>::value
+        or traits<T>::template has_nonintrusive_unpack<SimplePackUnpackArchive>::value
+      )
+    >;
+
   public:
 
     bool is_sizing() const { return mode == detail::SerializerMode::Sizing; }
@@ -219,25 +236,28 @@ class SimplePackUnpackArchive
     bool is_unpacking() const { return mode == detail::SerializerMode::Unpacking; }
 
     template <typename T>
-    void incorporate_size(T const& val) {
-      typename detail::serializability_traits<T>::serializer ser;
-      ser.compute_size(val, *this);
+    std::enable_if_t<is_serializable_with_this<T>::value>
+    incorporate_size(T const& val) {
+      traits<T>::compute_size(val, *this);
     }
 
     template <typename T>
-    void pack_item(T const& val) {
-      typename detail::serializability_traits<T>::serializer ser;
-      ser.pack(val, *this);
+    std::enable_if_t<is_serializable_with_this<T>::value>
+    pack_item(T const& val) {
+      traits<T>::template pack(val, *this);
     }
 
     template <typename T>
-    void unpack_item(T& val) {
-      typename detail::serializability_traits<T>::serializer ser;
-      ser.unpack(static_cast<void*>(&val), *this);
+    std::enable_if_t<is_serializable_with_this<T>::value>
+    unpack_item(T& val) {
+      traits<T>::unpack(const_cast<void*>(static_cast<const void*>(&val)), *this);
     }
 
     template <typename T>
-    void serialize_item(T& val) {
+    std::enable_if_t<
+      is_serializable_with_this<T>::value and not has_only_serialize<T>::value
+    >
+    serialize_item(T& val) {
       if(is_sizing()) incorporate_size(val);
       else if(is_packing()) pack_item(val);
       else {
@@ -246,6 +266,15 @@ class SimplePackUnpackArchive
       }
     }
 
+    template <typename T>
+    std::enable_if_t<
+      is_serializable_with_this<T>::value and has_only_serialize<T>::value
+    >
+    serialize_item(T& val) {
+      typename traits<T>::serializer ser;
+      if(is_unpacking()) new (&val) T;
+      ser.serialize(val, *this);
+    }
 
   private:
 

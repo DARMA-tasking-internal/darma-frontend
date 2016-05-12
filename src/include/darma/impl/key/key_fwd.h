@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma_types.h
-//                         dharma_new
+//                      key_fwd.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,18 @@
 //@HEADER
 */
 
-#ifndef SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
-#define SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
+#ifndef DARMA_IMPL_KEY_KEY_FWD_H
+#define DARMA_IMPL_KEY_KEY_FWD_H
 
-#define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
+namespace darma_runtime {
 
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#define DARMA_THREAD_LOCAL_BACKEND_RUNTIME thread_local
-#endif
+namespace detail {
 
-#include <darma/impl/key/simple_key.h>
+template <typename T, typename Enable=void>
+struct bytes_convert;
 
-namespace darma_runtime { namespace types {
-  typedef darma_runtime::detail::SimpleKey key_t;
-}} // end namespace darma_runtime::types
+} // end namespace detail
 
-#include <darma/interface/defaults/version.h>
-#include <darma/interface/defaults/pointers.h>
+} // end namespace darma_runtime
 
-
-#endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */
+#endif //DARMA_IMPL_KEY_KEY_FWD_H

@@ -79,13 +79,15 @@
 #include <tinympl/variadic/all_of.hpp>
 #include <tinympl/logical_and.hpp>
 #include <tinympl/vector.hpp>
+#include <tinympl/all_of.hpp>
 
 #include <darma/impl/meta/detection.h>
 #include <darma/impl/key_concept.h>
-#include <darma/impl/bytes_convert.h>
+#include <darma/impl/key/bytes_convert.h>
 #include <darma/impl/meta/tuple_for_each.h>
-#include <src/include/tinympl/all_of.hpp>
-#include "util.h"
+#include <darma/impl/util.h>
+#include <darma/impl/key/key_fwd.h>
+#include <darma/impl/key/raw_bytes.h>
 
 
 namespace darma_runtime {
@@ -781,7 +783,7 @@ class SegmentedKey {
 
     static constexpr unsigned segment_size = SegmentedKey_segment_size;
     static constexpr unsigned max_extra_segments = 8;
-    static constexpr uint8_t max_num_parts = std::numeric_limits<uint8_t>::max() - 1;
+    static constexpr uint8_t max_num_parts = std::numeric_limits<uint8_t>::max() - (uint8_t)1;
 
     SegmentedKey(
       std::shared_ptr<MultiSegmentKeyBase> const& k_impl

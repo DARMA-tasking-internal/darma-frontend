@@ -75,7 +75,7 @@ struct tuple_zip_helper<N, N> {
   template <typename... Tuples>
   inline constexpr decltype(auto)
   operator()(Tuples&&...) const {
-    return std::forward_as_tuple();
+    return std::make_tuple();
   }
 };
 

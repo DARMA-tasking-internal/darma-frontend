@@ -81,9 +81,7 @@ class Runtime {
     typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
     //typedef abstract::frontend::ReduceOp reduce_op_t;
 
-    typedef abstract::frontend::Task<
-      Key, Version, types::handle_container_template
-    > task_t;
+    typedef abstract::frontend::Task task_t;
     typedef unique_ptr_template<task_t> task_unique_ptr;
     typedef unique_ptr_template<const task_t> task_const_unique_ptr;
 
@@ -180,6 +178,11 @@ class Runtime {
      */
     virtual void
     register_handle(
+      handle_t* const handle
+    ) =0;
+
+    virtual void
+    register_migrated_handle(
       handle_t* const handle
     ) =0;
 
@@ -363,6 +366,11 @@ class Runtime {
     release_handle(
       const handle_t* const handle
     ) =0;
+
+    //virtual void
+    //release_migrated_handle(
+    //  const handle_t* const handle
+    //) =0;
 
     /** @brief Indicate to the backend that the key and version reported by
      *  \c handle should be fetchable with the user version tag \c version_tag
