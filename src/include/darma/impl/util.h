@@ -396,7 +396,8 @@ namespace std {
 
 template <typename U, typename V>
 struct hash<std::pair<U,V>> {
-  inline size_t
+  inline
+  size_t
   operator()(const std::pair<U, V>& val) const {
     size_t rv = std::hash<U>()(val.first);
     darma_runtime::detail::hash_combine(rv, val.second);

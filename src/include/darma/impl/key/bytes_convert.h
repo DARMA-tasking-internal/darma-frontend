@@ -208,24 +208,25 @@ struct bytes_convert<T,
 
     inline constexpr void
     operator()(T const &val, void *dest, const size_t n_bytes, const size_t offset) const {
+      using signed_T = std::make_signed_t<T>;
       switch(get_min_bytes_exponent(val)) {
         case 0: {
-          uint8_t v = (uint8_t)(std::abs(val));
+          uint8_t v = (uint8_t)(std::abs(signed_T(val)));
           ::memcpy(dest, (char*)(&v) + offset, n_bytes);
           break;
         }
         case 1: {
-          uint16_t v = (uint16_t)(std::abs(val));
+          uint16_t v = (uint16_t)(std::abs(signed_T(val)));
           ::memcpy(dest, (char*)(&v) + offset, n_bytes);
           break;
         }
         case 2: {
-          uint32_t v = (uint32_t)(std::abs(val));
+          uint32_t v = (uint32_t)(std::abs(signed_T(val)));
           ::memcpy(dest, (char*)(&v) + offset, n_bytes);
           break;
         }
         case 3: {
-          uint64_t v = (uint64_t)(std::abs(val));
+          uint64_t v = (uint64_t)(std::abs(signed_T(val)));
           ::memcpy(dest, (char*)(&v) + offset, n_bytes);
           break;
         }
