@@ -240,6 +240,7 @@ operator<<(std::ostream& o, Key const& k) {
 
 } // end namespace darma_runtime
 
+
 #define DARMA_STATIC_ASSERT_VALID_KEY_TYPE(K) \
   static_assert(darma_runtime::detail::meets_key_concept<K>::has_traits_specialization, \
     "key_traits not specialized for type" #K); \
