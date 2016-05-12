@@ -10,10 +10,10 @@ int darma_main(int argc, char** argv)
   const int size = darma_spmd_size();
 
   // supposed to be run with 2 ranks, so ignore the rest
-  assert(size>=2);
-  if (myRank>1){
-    darma_finalize();
-    return 0;
+  if (size>2){
+    std::cerr << "# of ranks != 2, not supported!" << std::endl;
+    std::cerr << " " __FILE__ << ":" << __LINE__ << '\n';        
+    exit( EXIT_FAILURE );
   }
 
   // rank0 reads from source = rank1 
@@ -36,10 +36,21 @@ int darma_main(int argc, char** argv)
   create_work([=]
   {
     std::cout << myRank << " " << readHandle.get_value() << std::endl;
-    if (myRank==0)
-      assert( readHandle.get_value() == 1.5 );
+    if (myRank==0){
+      if (readHandle.get_value() != 1.5){
+        std::cerr << "readHandle.get_value() != 1.5" << std::endl;
+        std::cerr << " " __FILE__ << ":" << __LINE__ << '\n';        
+        exit( EXIT_FAILURE );
+      }
+    }
     else
-      assert( readHandle.get_value() == 0.5 );
+    {
+      if (readHandle.get_value() != 0.5){
+        std::cerr << "readHandle.get_value() != 1.5" << std::endl;
+        std::cerr << " " __FILE__ << ":" << __LINE__ << '\n';        
+        exit( EXIT_FAILURE );
+      }
+    }
   });
 
   darma_finalize();

@@ -22,7 +22,12 @@ int darma_main(int argc, char** argv)
     }
 
     std::cout << my_handle1->back() << std::endl;
-    assert( my_handle1->back() == 3.4 );
+    if (my_handle1->back() != 3.4) 
+    {
+      std::cerr << "Error: handle value != 3.4!" << std::endl;
+      std::cerr << " " __FILE__ << ":" << __LINE__ << '\n';        
+      exit( EXIT_FAILURE );
+    }
   });
 
   darma_finalize();
