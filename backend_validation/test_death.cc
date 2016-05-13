@@ -164,4 +164,9 @@ TEST_F(DARMADeathTest, publish_handle_after_release_handle) {
   );
 }
 
+// TODO: add death test for get_dependencies returning unregistered handle
+
+// TODO: add death test for needs_read_data and needs_write_data both
+//       returning false for some dependency
+
 #endif
