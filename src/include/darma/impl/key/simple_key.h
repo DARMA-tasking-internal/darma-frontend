@@ -258,6 +258,7 @@ class SimpleKey {
     friend struct _simple_key_impl::add_arg<SimpleKey&>;
     friend struct _simple_key_impl::add_arg<const SimpleKey>;
     friend struct _simple_key_impl::add_arg<const SimpleKey&>;
+    friend struct _simple_key_impl::add_arg<SimpleKey&&>;
 
     friend struct serialization::Serializer<SimpleKey>;
 
@@ -303,7 +304,7 @@ SimpleKey::SimpleKey(variadic_constructor_arg_t const, Args&&... args) {
   // We can't just do add_arg<Args>()(std::forward<Args>(args), components_)... because
   // argument evaluation order isn't guaranteed
   meta::tuple_for_each(
-    std::forward_as_tuple(std::forward<Args>(args)...),
+    std::make_tuple(std::forward<Args>(args)...),
     [this](auto&& arg) {
       _simple_key_impl::add_arg<decltype(arg)>()(
         std::forward<decltype(arg)>(arg), components_, types_
