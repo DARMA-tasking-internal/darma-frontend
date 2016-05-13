@@ -255,22 +255,21 @@ this type is first created, it is assigned
 
 \lstDeleteShortInline{\|}
 
-
 \begin{table}[!t]
 \begin{center}
 {\small
 \begin{tabular}{cc|cc|cc|cc}
  \hline
- \multicolumn{2}{c|}{|}|
- & \multicolumn{2}{c|}{|get_value()|} 
+ \multicolumn{2}{c|}{|}
+ & \multicolumn{2}{c|}{\texttt{get\_value()}} 
  & \multicolumn{2}{c|}
  {
-    \specialcell{ |emplace_value()| \\ 
-                  |set_value()|\\
-                  |get_reference()|\\
-                  } 
- } 
- & \multicolumn{2}{c}{|release()|} \\
+    \specialcell{ \texttt{emplace\_value()} \\ 
+                  \texttt{set\_value()}\\
+                  \texttt{get\_reference()}\\
+                } 
+ }
+ & \multicolumn{2}{c}{\texttt{release()}} \\
  \hline
  \specialcell{Scheduling\\ permissions} 
  & \specialcell{Immediate\\ permissions}  

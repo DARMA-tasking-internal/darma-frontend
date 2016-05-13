@@ -12,10 +12,11 @@ int darma_main(int argc, char** argv)
   size_t me = darma_spmd_rank();
   size_t n_spmd = darma_spmd_size();
 
-  assert(n_spmd>=1);   // run with 1 rank, ignore the rest
-  if (me>0){
-    darma_finalize();
-    return 0;
+  // supposed to be run with 1 rank
+  if (n_spmd>1){
+    std::cerr << "# of ranks != 1, not supported!" << std::endl;
+    std::cerr << " " __FILE__ << ":" << __LINE__ << '\n';        
+    exit( EXIT_FAILURE );
   }
 
   typedef std::vector<double> vecDbl;

@@ -38,7 +38,12 @@ int darma_main(int argc, char** argv)
  	darma_init(argc, argv);
 	const size_t me  = darma_spmd_rank();
 	const size_t n_spmd = darma_spmd_size();
-	assert(n_spmd==4);	// supposed to be run with 4 ranks
+	// supposed to be run with 4 ranks
+	if (n_spmd!=4){
+		std::cerr << "# of ranks != 4, not supported!" << std::endl;
+    std::cerr << " " __FILE__ << ":" << __LINE__ << '\n';        
+    exit( EXIT_FAILURE );
+	}
 
 	// Figure out my neighbors. 0 or n_spmd-1, I am my own neighbor
 	const bool is_leftmost = me == 0;
@@ -182,7 +187,12 @@ int darma_main(int argc, char** argv)
     std::stringstream ss;
     ss << " global L1 error = " << myGlobalErr.get_value() << std::endl;
     std::cout << ss.str();
-    assert( myGlobalErr.get_value() < 1e-2 );
+		if (myGlobalErr.get_value() > 1e-2)
+		{
+			std::cerr << "PDE solve did not converge: L1 error > 1e-2" << std::endl;
+	    std::cerr << " " __FILE__ << ":" << __LINE__ << '\n';        
+	    exit( EXIT_FAILURE );
+		}
   });
 
   darma_finalize();
