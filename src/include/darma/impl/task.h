@@ -73,6 +73,7 @@
 #include <darma/impl/handle_fwd.h>
 #include <darma/impl/meta/callable_traits.h>
 #include <darma/impl/handle.h>
+#include <darma/impl/functor_traits.h>
 #include <darma/impl/serialization/nonintrusive.h>
 
 
@@ -130,111 +131,6 @@ register_runnable() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// <editor-fold desc="Functor traits">
-
-// TODO strictness specifiers
-template <
-  typename Functor
->
-struct functor_traits {
-
-  template <typename T>
-  using compile_time_modifiable_archetype = std::integral_constant<bool, T::is_compile_time_modifiable>;
-  template <typename T>
-  using decayed_is_compile_time_modifiable = meta::detected_or_t<std::false_type,
-    compile_time_modifiable_archetype, std::decay_t<T>
-  >;
-
-
-  template <typename T>
-  using decayed_is_access_handle = is_access_handle<std::decay_t<T>>;
-
-  static constexpr auto n_args_min = meta::callable_traits<Functor>::n_args_min;
-  static constexpr auto n_args_max = meta::callable_traits<Functor>::n_args_max;
-
-  template <size_t N>
-  struct arg_traits {
-    struct is_access_handle
-      : meta::callable_traits<Functor>::template arg_n_matches<decayed_is_access_handle, N>
-    { };
-    struct is_compile_time_modifiable
-      : meta::callable_traits<Functor>::template arg_n_matches<decayed_is_compile_time_modifiable, N>
-    { };
-    struct is_nonconst_lvalue_reference
-      : meta::callable_traits<Functor>::template arg_n_is_nonconst_lvalue_reference<N>
-    { };
-  };
-
-  // TODO this should be querying information on call arg traits, not formal arg traits
-  template <typename CallArg, typename IndexWrapped>
-  struct call_arg_traits {
-    template <typename T>
-    using compile_time_read_access_analog_archetype = typename T::CompileTimeReadAccessAnalog;
-    template <typename T>
-    using value_type_archetype = typename T::value_type;
-
-    static constexpr auto index = IndexWrapped::value;
-
-    template <typename T>
-    using detected_convertible_to_value = meta::is_detected_convertible<T, value_type_archetype, std::decay_t<CallArg>>;
-
-    static constexpr bool is_access_handle = functor_traits::arg_traits<index>::is_access_handle::value;
-
-    static constexpr bool is_convertible_to_value =
-      meta::callable_traits<Functor>::template arg_n_matches<detected_convertible_to_value, index>::value;
-
-    static constexpr bool is_nonconst_lvalue_reference =
-      functor_traits::arg_traits<index>::is_nonconst_lvalue_reference::value;
-
-    //DARMA_TYPE_DISPLAY(call_arg_traits);
-
-    // Did the caller give a handle and the functor give an argument that was a const (reference to)
-    // a type that is convertible to that handle's value_type?
-    static constexpr bool is_const_conversion_capture =
-      // Well, not if the argument is an AccessHandle
-      (not is_access_handle) and
-      // If so, the argument at index has to pass this convertibility predicate
-      is_convertible_to_value and
-      // also, it can't be an lvalue reference that expects modifications
-      (not is_nonconst_lvalue_reference)
-    ; // end is_const_conversion_capture
-
-    static constexpr bool is_read_only_capture =
-      is_const_conversion_capture or
-      (functor_traits::arg_traits<index>::is_access_handle::value
-      and not functor_traits::arg_traits<index>::is_compile_time_modifiable::value)
-    ;
-
-    typedef std::conditional<
-      is_read_only_capture,
-      meta::detected_t<compile_time_read_access_analog_archetype, std::decay_t<CallArg>> const,
-      std::remove_cv_t<std::remove_reference_t<CallArg>> const
-    > args_tuple_entry;
-
-  };
-
-  template <typename CallArgsAndIndexWrapped>
-  using arg_traits_tuple_entry = typename
-    tinympl::splat_to<CallArgsAndIndexWrapped, call_arg_traits>::type::args_tuple_entry;
-
-
-  template <typename... CallArgs>
-  using args_tuple_t = typename tinympl::transform<
-    typename tinympl::zip<tinympl::sequence, tinympl::sequence,
-      tinympl::as_sequence_t<tinympl::vector<CallArgs...>>,
-      tinympl::as_sequence_t<typename tinympl::range_c<size_t, 0, sizeof...(CallArgs)>::type>
-    >::type,
-    arg_traits_tuple_entry,
-    std::tuple
-  >::type;
-
-
-};
-
-// </editor-fold>
-
-////////////////////////////////////////////////////////////////////////////////
-
 // <editor-fold desc="Runnable and RunnableBase">
 
 class RunnableBase {
@@ -282,6 +178,7 @@ class FunctorRunnable
   private:
 
     typedef functor_traits<Functor> traits;
+    typedef functor_call_traits<Functor, Args...> call_traits;
     static constexpr auto n_functor_args_min = traits::n_args_min;
     static constexpr auto n_functor_args_max = traits::n_args_max;
 
@@ -290,7 +187,7 @@ class FunctorRunnable
       "Functor task created with wrong number of arguments"
     );
 
-    using args_tuple_t = typename traits::template args_tuple_t<Args...>;
+    using args_tuple_t = typename call_traits::args_tuple_t;
     args_tuple_t args_;
 
     static const size_t index_;

@@ -57,38 +57,9 @@ namespace serialization {
 // <editor-fold desc="Specialization for fundamental types">
 
 template <typename T>
-struct Serializer<T,
-  std::enable_if_t<
-    std::is_fundamental<std::remove_cv_t<T>>::value
-    or std::is_enum<std::remove_cv_t<T>>::value
-  >
-
-> {
-  template <typename ArchiveT>
-  void
-  compute_size(T const&, ArchiveT& ar) const {
-    assert(ar.is_sizing());
-    Serializer_attorneys::ArchiveAccess::spot(ar) += sizeof(T);
-  }
-
-  template <typename ArchiveT>
-  void
-  pack(T const& val, ArchiveT& ar) const {
-    using Serializer_attorneys::ArchiveAccess;
-    assert(ar.is_packing());
-    std::memcpy(ArchiveAccess::spot(ar), &val, sizeof(T));
-    ArchiveAccess::spot(ar) += sizeof(T);
-  }
-
-  template <typename ArchiveT>
-  void
-  unpack(void* val, ArchiveT& ar) const {
-    using Serializer_attorneys::ArchiveAccess;
-    assert(ar.is_unpacking());
-    std::memcpy(val, ArchiveAccess::spot(ar), sizeof(T));
-    ArchiveAccess::spot(ar) += sizeof(T);
-  }
-};
+struct serialize_as_pod_if<T,
+  std::enable_if_t<std::is_fundamental<T>::value or std::is_enum<T>::value>
+> : std::true_type { };
 
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
