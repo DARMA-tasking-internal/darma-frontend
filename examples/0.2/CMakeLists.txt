@@ -83,17 +83,15 @@ endif() #DARMA_ALL_IN_ONE
 include_directories( ${EXAMPLES_SRC_ROOT} )
 include_directories( ${EXAMPLES_BIN_ROOT} )
 
-#if (SERIAL_BACKEND)
-set(example_standard_args --backend-n-ranks 8)
-#endif()
-
-function(add_test_for_example test_name test_exec test_args)
+# all extra arguments to add_test_for_example are used as arguments for
+# executing the test itself
+macro(add_test_for_example test_name test_exec)
 if (NOT CTEST_SKIP_EXAMPLES)
-add_test(${test_name} ${test_exec} ${example_standard_args} ${test_args})
+add_test(${test_name} ${test_exec} ${ARGN})
 set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
   FAIL_REGULAR_EXPRESSION "FAILED;WARNING")
 endif()
-endfunction()
+endmacro()
 
 add_subdirectory(spec02individualFunctionalities)
 add_subdirectory(darma_hello)
