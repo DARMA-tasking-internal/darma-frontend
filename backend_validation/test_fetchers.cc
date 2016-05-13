@@ -1296,13 +1296,13 @@ TEST_F(TestFetchers, release_pending_fetcher) {
   register_read_only_capture(h_1.get(), [&,value]{
     ASSERT_TRUE(h_1->is_satisfied());
     detail::backend_runtime->publish_handle(h_1.get(), user_ver);
+    detail::backend_runtime->release_read_only_usage(h_1.get());
   });
 
   detail::backend_runtime->register_fetching_handle(h_1f.get(), user_ver);
   detail::backend_runtime->release_read_only_usage(h_1f.get());
   detail::backend_runtime->release_handle(h_1f.get());
 
-  detail::backend_runtime->release_read_only_usage(h_1.get());
   register_read_write_capture(h_1.get(), [&,value]{
     ASSERT_TRUE(h_1->is_satisfied());
     ASSERT_TRUE(h_1->is_writable());
