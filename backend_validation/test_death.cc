@@ -164,9 +164,70 @@ TEST_F(DARMADeathTest, publish_handle_after_release_handle) {
   );
 }
 
-// TODO: add death test for get_dependencies returning unregistered handle
+TEST_F(DARMADeathTest, dependency_not_used_for_read_or_write) {
+  using namespace ::testing;
 
-// TODO: add death test for needs_read_data and needs_write_data both
-//       returning false for some dependency
+  typedef ::testing::NiceMock<MockTask> task_t;
+
+  EXPECT_DEATH(
+    {
+      init_backend();
+      auto h_0 = this->make_handle(
+          MockDependencyHandle::version_t(), "the_key");
+
+      detail::backend_runtime->register_handle(h_0.get());
+
+      auto task_a = std::make_unique<task_t>();
+      EXPECT_CALL(*task_a, get_dependencies())
+        .Times(AtLeast(1))
+        .WillRepeatedly(ReturnRefOfCopy(MockTask::handle_container_t{ h_0.get() }));
+      EXPECT_CALL(*task_a, needs_read_data(Eq(h_0.get())))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(false));
+      EXPECT_CALL(*task_a, needs_write_data(Eq(h_0.get())))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(false));
+
+      detail::backend_runtime->register_task(std::move(task_a));
+
+      detail::backend_runtime->release_read_only_usage(h_0.get());
+      detail::backend_runtime->finalize();
+      detail::backend_runtime->release_handle(h_0.get());
+    },
+    ""
+  );
+}
+
+TEST_F(DARMADeathTest, unregistered_dependency_returned) {
+  using namespace ::testing;
+
+  typedef ::testing::NiceMock<MockTask> task_t;
+
+  EXPECT_DEATH(
+    {
+      init_backend();
+      auto h_0 = this->make_handle(
+          MockDependencyHandle::version_t(), "the_key");
+
+      auto task_a = std::make_unique<task_t>();
+      EXPECT_CALL(*task_a, get_dependencies())
+        .Times(AtLeast(1))
+        .WillRepeatedly(ReturnRefOfCopy(MockTask::handle_container_t{ h_0.get() }));
+      EXPECT_CALL(*task_a, needs_read_data(Eq(h_0.get())))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(true));
+      EXPECT_CALL(*task_a, needs_write_data(Eq(h_0.get())))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(false));
+
+      detail::backend_runtime->register_task(std::move(task_a));
+
+      detail::backend_runtime->release_read_only_usage(h_0.get());
+      detail::backend_runtime->finalize();
+      detail::backend_runtime->release_handle(h_0.get());
+    },
+    ""
+  );
+}
 
 #endif
