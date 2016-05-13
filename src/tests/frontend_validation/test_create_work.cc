@@ -234,7 +234,7 @@ TEST_F(TestCreateWork, ro_capture_RN) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestCreateWork, death_ro_capture_unused) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -260,7 +260,7 @@ TEST_F(TestCreateWork, death_ro_capture_unused) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestCreateWork, death_ro_capture_MM_unused) {
   using namespace ::testing;
   using namespace darma_runtime;
