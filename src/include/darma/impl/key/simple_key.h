@@ -69,7 +69,7 @@ class SimpleKey;
 
 namespace serialization {
 
-template <> struct Serializer<darma_runtime::detail::SimpleKey, void>;
+template <> struct Serializer<darma_runtime::detail::SimpleKey>;
 
 } // end namespace serialization
 
@@ -259,7 +259,7 @@ class SimpleKey {
     friend struct _simple_key_impl::add_arg<const SimpleKey>;
     friend struct _simple_key_impl::add_arg<const SimpleKey&>;
 
-    friend struct serialization::Serializer<SimpleKey, void>;
+    friend struct serialization::Serializer<SimpleKey>;
 
 };
 
@@ -443,7 +443,7 @@ struct key_traits<SimpleKey> {
 namespace serialization {
 
 template <>
-struct Serializer<darma_runtime::detail::SimpleKey, /*Enabled => */void> {
+struct Serializer<darma_runtime::detail::SimpleKey> {
   template <typename ArchiveT>
   void compute_size(darma_runtime::detail::SimpleKey const& val, ArchiveT& ar) const {
     ar % (size_t)val.types_.size();

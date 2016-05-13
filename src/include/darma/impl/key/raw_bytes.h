@@ -105,25 +105,23 @@ struct bytes_convert<raw_bytes> {
 namespace serialization {
 
 template <>
-struct Serializer<darma_runtime::detail::raw_bytes, void> {
+struct Serializer<darma_runtime::detail::raw_bytes> {
   template <typename Archive>
   void get_size(darma_runtime::detail::raw_bytes const& val, Archive& ar) const {
     ar % val.get_size();
-    ar % range(val.data.get(), (char*)val.data.get() + val.get_size());
+    ar.add_to_size(val.get_size());
   }
   template <typename Archive>
   void pack(darma_runtime::detail::raw_bytes const& val, Archive& ar) const {
     ar << val.get_size();
-    ar << range(val.data.get(), (char*)val.data.get() + val.get_size());
+    ar.pack_contiguous((char*)val.data.get(), (char*)val.data.get() + val.get_size());
   }
   template <typename Archive>
   void unpack(void* allocated, Archive& ar) const {
     size_t size = 0;
     ar >> size;
     darma_runtime::detail::raw_bytes* val = new (allocated) darma_runtime::detail::raw_bytes(size);
-    using Serializer_attorneys::ArchiveAccess;
-    memcpy(val->data.get(), ArchiveAccess::spot(ar), size);
-    ArchiveAccess::spot(ar) += size;
+    ar.template unpack_contiguous<char>(val->data.get(), size);
   }
 };
 

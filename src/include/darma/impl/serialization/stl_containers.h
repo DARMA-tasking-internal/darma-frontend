@@ -53,10 +53,11 @@
 
 namespace darma_runtime {
 namespace serialization {
+namespace detail {
 
 // A specialization for all stl containers of serializable objects
 template <typename C>
-struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
+struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> {
   protected:
 
     typedef meta::is_container<C> container_traits;
@@ -266,6 +267,7 @@ struct Serializer<C, std::enable_if_t<meta::is_container<C>::value>> {
 };
 
 
+} // end namespace detail
 } // end namespace serialization
 } // end namespace darma_runtime
 

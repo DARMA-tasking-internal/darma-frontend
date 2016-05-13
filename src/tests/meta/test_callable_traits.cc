@@ -196,3 +196,89 @@ TEST(TestCallableTraits, static1) {
     int, int&, int const&, int&&, std::string, std::string&, std::string const&, std::string&&
   ){ });
 }
+
+
+template <typename T>
+struct F {
+  static void by_value(T);
+  static void lvalue_ref(T&);
+  static void const_lvalue_ref(const T&);
+  static void rvalue_ref(T&&);
+};
+
+struct SomeBitField {
+  bool i : 1;
+  uint8_t j : 6;
+  bool k : 1;
+};
+
+TEST(TestCallableTraits, static2) {
+  // With int
+  using T = int;
+  static_assert(callable_traits<decltype(F<T>::by_value)>::template arg_n_is_by_value<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::by_value)>::template arg_n_is_by_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::by_value)>::template arg_n_is_nonconst_lvalue_reference<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::by_value)>::template arg_n_accepts_const_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::by_value)>::template arg_n_is_const_lvalue_reference<0>::value, meta_fail);
+
+  static_assert(not callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_is_by_value<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_is_by_reference<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_is_nonconst_lvalue_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_accepts_const_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_is_const_lvalue_reference<0>::value, meta_fail);
+
+  static_assert(not callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_is_by_value<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_is_by_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_is_nonconst_lvalue_reference<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_accepts_const_reference<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_is_const_lvalue_reference<0>::value, meta_fail);
+
+}
+
+
+TEST(TestCallableTraits, static3) {
+  // With std::string
+
+  using T = std::string;
+  static_assert(callable_traits<decltype(F<T>::by_value)>::template arg_n_is_by_value<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::by_value)>::template arg_n_is_by_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::by_value)>::template arg_n_is_nonconst_lvalue_reference<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::by_value)>::template arg_n_accepts_const_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::by_value)>::template arg_n_is_const_lvalue_reference<0>::value, meta_fail);
+
+  static_assert(not callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_is_by_value<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_is_by_reference<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_is_nonconst_lvalue_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_accepts_const_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_is_const_lvalue_reference<0>::value, meta_fail);
+
+  static_assert(not callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_is_by_value<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_is_by_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_is_nonconst_lvalue_reference<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_accepts_const_reference<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_is_const_lvalue_reference<0>::value, meta_fail);
+
+}
+
+TEST(TestCallableTraits, static4) {
+  using T = SomeBitField;
+  static_assert(callable_traits<decltype(F<T>::by_value)>::template arg_n_is_by_value<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::by_value)>::template arg_n_is_by_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::by_value)>::template arg_n_is_nonconst_lvalue_reference<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::by_value)>::template arg_n_accepts_const_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::by_value)>::template arg_n_is_const_lvalue_reference<0>::value, meta_fail);
+
+  static_assert(not callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_is_by_value<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_is_by_reference<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_is_nonconst_lvalue_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_accepts_const_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::lvalue_ref)>::template arg_n_is_const_lvalue_reference<0>::value, meta_fail);
+
+  static_assert(not callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_is_by_value<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_is_by_reference<0>::value, meta_fail);
+  static_assert(not callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_is_nonconst_lvalue_reference<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_accepts_const_reference<0>::value, meta_fail);
+  static_assert(callable_traits<decltype(F<T>::const_lvalue_ref)>::template arg_n_is_const_lvalue_reference<0>::value, meta_fail);
+
+}
+

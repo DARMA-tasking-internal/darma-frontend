@@ -52,14 +52,16 @@ namespace darma_runtime {
 
 namespace serialization {
 
-
-// TODO merge with fundamental from builtin.h?
-
-template <typename T>
-struct serialize_as_pod : std::false_type { };
+template <typename T, typename Enable=void>
+struct serialize_as_pod_if : std::false_type { };
 
 template <typename T>
-struct Serializer<T, std::enable_if_t<serialize_as_pod<T>::value>> {
+struct serialize_as_pod : serialize_as_pod_if<T> { };
+
+namespace detail {
+
+template <typename T>
+struct Serializer_enabled_if<T, std::enable_if_t<serialize_as_pod<T>::value>> {
 
   static_assert(
     std::is_trivially_constructible<T>::value,
@@ -71,30 +73,29 @@ struct Serializer<T, std::enable_if_t<serialize_as_pod<T>::value>> {
   );
 
   template <typename Archive>
-  void compute_size(T const& val, Archive& ar) {
+  void compute_size(T const &val, Archive &ar) {
     assert(ar.is_sizing());
-    Serializer_attorneys::ArchiveAccess::spot(ar) += sizeof(T);
+    ar.add_to_size(sizeof(T));
   }
 
   template <typename Archive>
-  void pack(T const& val, Archive& ar) {
-    using Serializer_attorneys::ArchiveAccess;
+  void pack(T const &val, Archive &ar) {
     assert(ar.is_packing());
-    std::memcpy(ArchiveAccess::spot(ar), &val, sizeof(T));
-    ArchiveAccess::spot(ar) += sizeof(T);
+    // most optimizers can coalesce consecutive small copies, so this should be pretty fast
+    ar.pack_contiguous(&val, &val + 1);
   }
 
   template <typename ArchiveT>
   void
-  unpack(void* val, ArchiveT& ar) const {
+  unpack(void *val, ArchiveT &ar) const {
     // This approach should be valid for trivially-constructible, standard layout types
-    using Serializer_attorneys::ArchiveAccess;
     assert(ar.is_unpacking());
-    std::memcpy(val, ArchiveAccess::spot(ar), sizeof(T));
-    ArchiveAccess::spot(ar) += sizeof(T);
+    // most optimizers can coalesce consecutive copies, so this should be pretty fast
+    ar.template unpack_contiguous<T>(reinterpret_cast<T *>(val), 1);
   }
 };
 
+} // end namespace detail
 
 } // end namespace serialization
 
