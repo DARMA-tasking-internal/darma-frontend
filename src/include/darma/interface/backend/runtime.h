@@ -225,22 +225,13 @@ class Runtime {
      *  handle after release_handle() has been called or before the handle has
      *  been registered.
      *
-     *  @remark The runtime is allowed to assume that the handle here is the
-     *  same as the handle passed in during the registration process if it has
-     *  the same key and same version.  This means that, e.g., calling
-     *  handle->satisfy_with_data_block() on this handle must be equivalent to
-     *  calling it on the one stored from an earlier registration if the key and
-     *  version are the same.
-     *
      *  @remark Since a publication is a read-only usage, all publishes must be
      *  invoked on a handle before this method is called (note that they need
      *  not be finished).
      *
      *  @param handle a non-owning pointer to a DependencyHandle for which
      *  register_handle() or register_fetching_handle() has been called on this
-     *  instance but for which release_handle() has not yet been called.  The
-     *  handle must already be properly versioned (i.e.,
-     *  handle->version_is_pending() returns false).
+     *  instance but for which release_handle() has not yet been called.
      *
      */
     virtual void
@@ -284,7 +275,7 @@ class Runtime {
      *  interactions complete; see remark below).
      *
      *  @remark While this (and release_read_only_usage()) must be invoked
-     *  after all associated published are invoked, it is possible for this to
+     *  after all associated publishes are invoked, it is possible for this to
      *  be invoked before all publishes have \b completed if there is to be no
      *  modify usage of the handle.
      *
@@ -292,14 +283,6 @@ class Runtime {
      *  will be in a versioned state at the time of release_handle() invocation.
      *  In fact, as of the 0.2 spec, they must have been handles registered with
      *  register_handle() and not register_fetching_handle().
-     *
-     *  @remark The runtime is allowed to assume that the handle here is the
-     *  same as the handle passed in during the registration process if it has
-     *  the same key and same version.  This means that, e.g., calling
-     *  handle->satisfy_with_data_block() on this handle must be equivalent to
-     *  calling it on the one stored from an earlier registration if the key and
-     *  version are the same. [This requirement may change in the future to
-     *  facilitate work stealing and other migrations.]
      *
      *  @remark Even though the handle must be the same, the version
      *  \b increment behavior may be different from that of the version when the
