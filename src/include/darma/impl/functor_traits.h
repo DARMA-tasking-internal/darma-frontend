@@ -152,7 +152,8 @@ struct functor_call_traits {
 
       public:
 
-        static constexpr bool is_access_handle = is_access_handle<std::decay_t<CallArg>>::value;
+        static constexpr auto is_access_handle =
+          darma_runtime::detail::is_access_handle<std::decay_t<CallArg>>::value;
 
         using formal_traits = typename functor_traits<Functor>::template formal_arg_traits<N>;
 

@@ -228,7 +228,7 @@ struct _impl<Metafunction, N, N, CallWithIndex> {
   inline auto _call_impl_if_return_void(std::false_type,
     Tuple&&, Callable&&, Args&&... args
   ) const {
-    return forward_as_tuple(forward<Args>(args)...);
+    return std::make_tuple(forward<Args>(args)...);
   };
 
   template <typename Tuple, typename Callable, typename... Args>
@@ -254,10 +254,10 @@ auto tuple_for_each_zipped_general(
   Args&&... args
 ) {
   decltype(auto) callable = std::get<sizeof...(Args)-1>(
-    std::forward_as_tuple(std::forward<Args>(args)...)
+    std::make_tuple(std::forward<Args>(args)...)
   );
   decltype(auto) tuples = tuple_pop_back(
-    std::forward_as_tuple(std::forward<Args>(args)...)
+    std::make_tuple(std::forward<Args>(args)...)
   );
   auto do_tuple_zip = [](auto&&... tuples) -> decltype(auto) {
     return tuple_zip(std::forward<decltype(tuples)>(tuples)...);

@@ -72,6 +72,7 @@ struct raw_bytes {
       size = other.size;
       data.reset(new char[other.size]);
       memcpy(data.get(), other.data.get(), size);
+      return *this;
     }
     std::unique_ptr<char[]> data = nullptr;
     size_t get_size() const { return size; }

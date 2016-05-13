@@ -192,7 +192,7 @@ static_assert(sizeof(float_like_type_metadata) == 1,
   "user_defined_type_metadata must be compiled as size 1");
 
 template <uint8_t NExtraBytes>
-struct alignas(1) category_extension_byte {
+struct category_extension_byte {
   uint8_t n_extra_bytes : 2; // allows up to 4 bytes to express categories
   uint32_t value : (6 + NExtraBytes*8);
 };
