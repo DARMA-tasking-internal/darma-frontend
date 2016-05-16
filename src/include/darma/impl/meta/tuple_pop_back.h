@@ -47,85 +47,31 @@
 
 #include <utility>
 #include <tuple>
-#include <tinympl/at.hpp>
-#include <tinympl/insert.hpp>
-#include <tinympl/pop_back.hpp>
-#include <tinympl/tuple_as_sequence.hpp>
-#include <tinympl/splat.hpp>
-#include "splat_tuple.h"
 
 namespace darma_runtime {
 
 namespace meta {
 
-namespace m = tinympl;
-namespace mv = tinympl::variadic;
-
-//namespace _impl {
-//
-//template <template <class...> class copy_properties>
-//struct _wrapper {
-//  template <typename Back, typename... Args>
-//  struct _tuple_pop_back_helper {
-//    constexpr inline decltype(auto)
-//    operator()(typename copy_properties<Args>::type &&... args, typename copy_properties<Back>::type &&) const {
-//      return std::forward_as_tuple(std::forward<Args>(args)...);
-//    }
-//  };
-//};
-
-//} // end namespace _impl
-
-//template <typename Tuple>
-//decltype(auto)
-//tuple_pop_back(Tuple&& tup) {
-//  typedef typename m::copy_all_type_properties<Tuple>::template apply<
-//    typename m::push_front<
-//      typename m::pop_back<std::decay_t<Tuple>>::type,
-//      typename m::back<std::decay_t<Tuple>>::type
-//    >::type
-//  >::type new_tuple_t;
-//  typedef typename m::splat_to<new_tuple_t, _impl::_wrapper<
-//      m::copy_all_type_properties<Tuple>::template apply
-//    >::template _tuple_pop_back_helper>::type helper_t;
-//  return splat_tuple(
-//    std::forward<Tuple>(tup),
-//    helper_t()
-//  );
-//}
-
 namespace _tuple_pop_back_impl {
 
-template <size_t I, size_t N, typename Enable=void>
-struct _impl {
-  template <typename Tuple, typename... Args>
-  auto operator()(Tuple&& tup, Args&&... args) const {
-    return _impl<I + 1, N>()(
-      std::forward<Tuple>(tup), std::forward<Args>(args)...,
-      std::get<I>(std::forward<Tuple>(tup))
-    );
-  }
+template <size_t... Is, typename Tuple>
+auto
+_impl( std::index_sequence<Is...>, Tuple&& tup ) {
+  return std::forward_as_tuple( std::get<Is>( std::forward<Tuple>(tup))... );
 };
-
-template <size_t I, size_t N>
-struct _impl<I, N, std::enable_if_t<I+1 == N>> {
-  template <typename Tuple, typename... Args>
-  auto operator()(Tuple&&, Args&&... args) const {
-    return std::forward_as_tuple(std::forward<Args>(args)...);
-  }
-};
-
-template <size_t N>
-struct _impl<N, N>;
 
 } // end namespace impl
 
 template <typename Tuple>
 auto
 tuple_pop_back(Tuple&& tup) {
-  return _tuple_pop_back_impl::_impl<0,
-    std::tuple_size<std::remove_reference_t<Tuple>>::value
-  >()(std::forward<Tuple>(tup));
+  static_assert(std::tuple_size<std::decay_t<Tuple>>::value > 0,
+    "Can't pop back empty tuple"
+  );
+  return _tuple_pop_back_impl::_impl(
+    std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value - 1>(),
+    std::forward<Tuple>(tup)
+  );
 }
 
 

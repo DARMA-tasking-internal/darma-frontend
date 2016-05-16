@@ -490,7 +490,7 @@ struct _positional_arg_tuple_getter {
     inline constexpr auto
     _impl(m::vector_c<std::size_t, Spots...>, Args&&... args) const {
       return std::forward_as_tuple(
-        std::get<Spots>(std::make_tuple(std::forward<Args>(args)...))...
+        std::get<Spots>(std::forward_as_tuple(std::forward<Args>(args)...))...
       );
     }
 };
