@@ -526,7 +526,7 @@ class AccessHandle : public detail::AccessHandleBase
     //  "AccessHandle not serializable as expected"
     //);
 
-    friend struct darma_runtime::serialization::Serializer<AccessHandle, void>;
+    friend struct darma_runtime::serialization::Serializer<AccessHandle>;
 
 #ifdef DARMA_TEST_FRONTEND_VALIDATION
     friend class ::TestAccessHandle;
@@ -546,9 +546,10 @@ using ReadAccessHandle = AccessHandle<T, key_t, version_t, detail::access_handle
 
 namespace serialization {
 
-template <typename AccessHandleT>
-struct Serializer<AccessHandleT, std::enable_if_t<darma_runtime::detail::is_access_handle<AccessHandleT>::value>> {
+template <typename... Args>
+struct Serializer<AccessHandle<Args...>> {
   private:
+    using AccessHandleT = AccessHandle<Args...>;
     using dep_handle_ptr = typename AccessHandleT::dep_handle_ptr;
     using dep_handle_ptr_maker_t = typename AccessHandleT::dep_handle_ptr_maker_t;
 

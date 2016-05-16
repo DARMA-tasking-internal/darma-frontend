@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      builtin.h
+//                      test_kwargs.cc.cc
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,30 +42,82 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_SERIALIZATION_BUILTIN_H
-#define DARMA_IMPL_SERIALIZATION_BUILTIN_H
 
-#include <type_traits>
-#include <cstddef>
+#include <darma/impl/keyword_arguments/get_kwarg.h>
+#include <darma/impl/meta/splat_tuple.h>
 
-#include "nonintrusive.h"
+#include "blabbermouth.h"
 
-namespace darma_runtime {
-namespace serialization {
+typedef EnableCTorBlabbermouth<String, Copy, Move> BlabberMouth;
+static MockBlabbermouthListener* listener;
+
+using namespace darma_runtime;
+using namespace darma_runtime::detail;
+using namespace darma_runtime::meta;
 
 ////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="Specialization for fundamental types">
 
-template <typename T>
-struct serialize_as_pod_if<T,
-  std::enable_if_t<std::is_fundamental<T>::value or std::is_enum<T>::value>
-> : std::true_type { };
+class TestKeywordArguments
+  : public ::testing::Test
+{
+  protected:
 
-// </editor-fold>
+    virtual void SetUp() {
+      using namespace ::testing;
+      listener_ptr = std::make_unique<StrictMock<MockBlabbermouthListener>>();
+      BlabberMouth::listener = listener_ptr.get();
+      listener = BlabberMouth::listener;
+    }
+
+    virtual void TearDown() {
+      listener_ptr.reset();
+    }
+
+    std::unique_ptr<::testing::StrictMock<MockBlabbermouthListener>> listener_ptr;
+
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 
+void _test(BlabberMouth& val) { std::cout << val.data << std::endl; }
+void _test(BlabberMouth&& val) { std::cout << val.data << std::endl; }
 
-} // end namespace serialization
-} // end namespace darma_runtime
+void _test_lvalue_only(BlabberMouth& val) { std::cout << val.data << std::endl; }
+void _test_rvalue_only(BlabberMouth&& val) { std::cout << val.data << std::endl; }
 
-#endif //DARMA_IMPL_SERIALIZATION_BUILTIN_H
+template <typename... Args>
+void test_lvalue_only(Args&&... args) {
+  meta::splat_tuple(
+    get_positional_arg_tuple(std::forward<Args>(args)...), _test_lvalue_only
+  );
+}
+
+template <typename... Args>
+void test_rvalue_only(Args&&... args) {
+  meta::splat_tuple(
+    get_positional_arg_tuple(std::forward<Args>(args)...), _test_rvalue_only
+  );
+}
+
+TEST_F(TestKeywordArguments, rvalue_only) {
+  EXPECT_CALL(*listener, string_ctor()).Times(1);
+  testing::internal::CaptureStdout();
+
+  test_rvalue_only(BlabberMouth("hello"));
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "hello\n"
+  );
+}
+
+TEST_F(TestKeywordArguments, lvalue_only) {
+  EXPECT_CALL(*listener, string_ctor()).Times(1);
+  testing::internal::CaptureStdout();
+
+  BlabberMouth b("hello");
+  test_lvalue_only(b);
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "hello\n"
+  );
+}

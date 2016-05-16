@@ -55,39 +55,35 @@ namespace meta {
 
 namespace _impl {
 
+// Credit for this solution that works around libc++ bug #22806 goes to
+// the author of the answer to http://stackoverflow.com/a/37259996/152060
 
-template <size_t I, size_t N>
-struct tuple_zip_helper {
-  template <typename... Tuples>
-  inline constexpr decltype(auto)
-  operator()(Tuples&&... tuples) const {
-    return std::tuple_cat(
-      std::make_tuple(
-        std::forward_as_tuple(std::get<I>(std::forward<Tuples>(tuples))...)
-      ),
-      tuple_zip_helper<I+1, N>()(std::forward<Tuples>(tuples)...)
-    );
-  }
-};
+template<size_t I, typename... Tuples>
+constexpr auto
+tuple_zip_one(Tuples&&... tuples) {
+  return std::forward_as_tuple(
+    std::get<I>(std::forward<Tuples>(tuples))...
+  );
+}
 
-template <size_t N>
-struct tuple_zip_helper<N, N> {
-  template <typename... Tuples>
-  inline constexpr decltype(auto)
-  operator()(Tuples&&...) const {
-    return std::make_tuple();
-  }
-};
+template<size_t...Is, typename... Tuples>
+constexpr auto
+tuple_zip_helper(std::index_sequence<Is...>, Tuples&&... tuples) {
+  return std::make_tuple(
+    tuple_zip_one<Is>( std::forward<Tuples>(tuples)... )...
+  );
+}
 
 } // end namespace _impl
 
 
 template <typename... Tuples>
-decltype(auto)
-tuple_zip(Tuples&&... tuples) {
-  static constexpr size_t min_size =
-    tinympl::min<std::tuple_size<std::decay_t<Tuples>>...>::value;
-  return _impl::tuple_zip_helper<0, min_size>()(
+auto tuple_zip(Tuples&&... tuples) {
+  static constexpr size_t min_size = std::min({
+    std::tuple_size<std::decay_t<Tuples>>::value...
+  });
+  return _impl::tuple_zip_helper(
+    std::make_index_sequence<min_size>(),
     std::forward<Tuples>(tuples)...
   );
 }

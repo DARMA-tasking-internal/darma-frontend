@@ -477,14 +477,7 @@ struct _positional_arg_tuple_getter {
   public:
 
     template <typename... Args>
-    using return_t = typename m::transform<
-      _pos_arg_spots<Args...>,
-      m::lambda<mv::types_only::at<mp::_, Args&&...>>::template apply,
-      std::tuple
-    >::type;
-
-    template <typename... Args>
-    inline constexpr return_t<Args...>
+    inline constexpr auto
     operator()(Args&&... args) const {
       return _impl(
         _pos_arg_spots<Args...>(),
@@ -494,7 +487,7 @@ struct _positional_arg_tuple_getter {
 
   private:
     template <typename... Args, size_t... Spots>
-    inline constexpr return_t<Args...>
+    inline constexpr auto
     _impl(m::vector_c<std::size_t, Spots...>, Args&&... args) const {
       return std::forward_as_tuple(
         std::get<Spots>(std::forward_as_tuple(std::forward<Args>(args)...))...
@@ -506,7 +499,7 @@ struct _positional_arg_tuple_getter {
 
 template <typename... Args>
 inline constexpr
-_get_kwarg_impl::_positional_arg_tuple_getter::return_t<Args...>
+auto
 get_positional_arg_tuple(Args&&... args)
 {
   return _get_kwarg_impl::_positional_arg_tuple_getter()(std::forward<Args>(args)...);

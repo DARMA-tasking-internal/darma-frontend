@@ -101,6 +101,8 @@ void test_const(const Tuple& tup) {
   });
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestSplatTuple, old_1) {
   using namespace ::testing;
   testing::internal::CaptureStdout();
@@ -120,6 +122,8 @@ TEST_F(TestSplatTuple, old_1) {
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestSplatTuple, old_2) {
   using namespace ::testing;
   testing::internal::CaptureStdout();
@@ -136,6 +140,8 @@ TEST_F(TestSplatTuple, old_2) {
   );
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSplatTuple, old_seq) {
   // Note: these tests are together to ensure splat_tuple has no unintented consequences (e.g., moving and
@@ -177,6 +183,8 @@ TEST_F(TestSplatTuple, old_seq) {
   );
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestSplatTuple, lvalue_1) {
   using namespace ::testing;
   testing::internal::CaptureStdout();
@@ -197,6 +205,8 @@ TEST_F(TestSplatTuple, lvalue_1) {
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestSplatTuple, lvalue_2) {
   using namespace ::testing;
   Sequence s;
@@ -211,4 +221,54 @@ TEST_F(TestSplatTuple, lvalue_2) {
 
   ASSERT_EQ(std::get<0>(tup), 3);
   ASSERT_EQ(std::get<1>(tup), 4);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void takes_rvalues(int&& i, double&& j, BlabberMouth&& b) {
+  std::cout << i << j << b.data << std::endl;
+}
+
+TEST_F(TestSplatTuple, rvalue) {
+
+  EXPECT_CALL(*listener, string_ctor());
+
+  testing::internal::CaptureStdout();
+  meta::splat_tuple(
+    std::forward_as_tuple(5, 10, BlabberMouth("hello")),
+    takes_rvalues
+  );
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "510hello\n"
+  );
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void takes_mixed(int& i, double const& j, BlabberMouth&& b) {
+  std::cout << i << j << b.data << std::endl;
+}
+
+TEST_F(TestSplatTuple, mixed_lrvalue) {
+  EXPECT_CALL(*listener, string_ctor()).Times(2);
+  testing::internal::CaptureStdout();
+
+  int my_i = 5;
+  meta::splat_tuple(
+    std::forward_as_tuple(my_i, 10, BlabberMouth("hello")),
+    takes_mixed
+  );
+
+  double value = 10;
+  BlabberMouth b("hello");
+  meta::splat_tuple(
+    std::forward_as_tuple(my_i, value, std::move(b)),
+    takes_mixed
+  );
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "510hello\n510hello\n"
+  );
+
 }

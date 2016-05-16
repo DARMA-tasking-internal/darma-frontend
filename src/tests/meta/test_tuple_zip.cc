@@ -51,6 +51,7 @@
 #include <gmock/gmock.h>
 
 #include <darma/impl/meta/tuple_zip.h>
+#include <darma/impl/util.h>
 #include "blabbermouth.h"
 
 using namespace darma_runtime;
@@ -207,6 +208,34 @@ TEST_F(TestTupleZip, blabber_2) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+TEST_F(TestTupleZip, blabber_3) {
+  using namespace ::testing;
+
+  // The return of make_tuple will get moved if blabbermouth has a non-default destructor
+  InSequence s;
+  EXPECT_CALL(*listener, string_ctor()).Times(3);
+  //EXPECT_CALL(*listener, move_ctor()).Times(AtMost(2));
+  EXPECT_CALL(*listener, string_ctor()).Times(3);
+  //EXPECT_CALL(*listener, move_ctor()).Times(AtMost(2));
+
+  BlabberMouth b3("hello5");
+  BlabberMouth b4("hello6");
+
+  auto t = meta::tuple_zip(
+    std::forward_as_tuple(BlabberMouth("hello1"), BlabberMouth("hello2"), b3),
+    std::forward_as_tuple(BlabberMouth("hello3"), b4, BlabberMouth("hello4"))
+  );
+
+  ASSERT_EQ(std::get<0>(std::get<0>(t)).data, "hello1");
+  ASSERT_EQ(std::get<1>(std::get<0>(t)).data, "hello3");
+  ASSERT_EQ(std::get<0>(std::get<1>(t)).data, "hello2");
+  ASSERT_EQ(std::get<1>(std::get<1>(t)).data, "hello6");
+  ASSERT_EQ(std::get<0>(std::get<2>(t)).data, "hello5");
+  ASSERT_EQ(std::get<1>(std::get<2>(t)).data, "hello4");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestTupleZip, basic_lvalue) {
 
   int val = 2;
@@ -227,4 +256,16 @@ TEST_F(TestTupleZip, basic_lvalue) {
 
   std::get<0>(std::get<1>(t)) = 42;
   ASSERT_EQ(val, 42);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Work around for libc++ bug #22806 required to make this work.
+TEST_F(TestTupleZip, lrl_single) {
+  auto x = "hello";
+  int y = 2;
+  auto z = "goodbye";
+  decltype(auto) zipped = meta::tuple_zip(
+    std::forward_as_tuple(x, 2, z)
+  );
 }

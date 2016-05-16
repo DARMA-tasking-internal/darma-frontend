@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      serialization_fwd.h
+//                      vector.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,73 +42,43 @@
 //@HEADER
 */
 
-#ifndef DARMA_SERIALIZATION_FWD_H
-#define DARMA_SERIALIZATION_FWD_H
+#ifndef DARMA_IMPL_SERIALIZATION_STL_VECTOR_H
+#define DARMA_IMPL_SERIALIZATION_STL_VECTOR_H
+
+#include <vector>
+
+#include "nonintrusive.h"
+#include "traits.h"
 
 namespace darma_runtime {
 
 namespace serialization {
 
-namespace detail {
-
-template <typename T, typename Enable=void>
-struct Serializer_enabled_if;
-
-template <typename T, typename Enable=void>
-struct Sizer;
-
-template <typename T, typename Enable=void>
-struct Packer;
-
-template <typename T, typename Enable=void>
-struct Unpacker;
-
-} // end namespace detail
-
+// Faster specialization for std::vector specifically
 template <typename T>
-struct Serializer;
+struct Serializer<std::vector<T>>
+  // Inherit from the general container specialization
+  : detail::Serializer_enabled_if<std::vector<T>>
+{
+  private:
 
-struct unpack_constructor_tag_t { };
-constexpr unpack_constructor_tag_t unpack_constructor_tag = { };
+    using value_traits = detail::serializability_traits<T>;
 
-struct UnpackConstructorAccess;
+    template <typename ArchiveT>
+    using value_type_is_serializable = typename value_traits::template is_serializable_with_archive<ArchiveT>;
 
-struct SimplePackUnpackArchive;
+    using value_serializer = typename value_traits::serializer;
 
-namespace detail {
+    using vector_t = std::vector<T>;
 
-typedef enum SerializerMode {
-  None,
-  Sizing,
-  Packing,
-  Unpacking
-} SerializerMode;
+  public:
 
-template <typename T, typename Enable=void>
-struct serializability_traits;
+    // TODO fill this in with more efficient versions
+};
 
-template <typename T, typename Enable=void>
-class allocation_traits;
-
-} // end namespace detail
-
-namespace Serializer_attorneys {
-
-struct ArchiveAccess;
-
-} // end namespace Serializer_attorneys
 
 } // end namespace serialization
 
-namespace detail {
-namespace DependencyHandle_attorneys {
-
-struct ArchiveAccess;
-
-} // end namespace DependencyHandle_attorneys
-} // end namespace detail
-
-
 } // end namespace darma_runtime
 
-#endif //DARMA_SERIALIZATION_FWD_H
+#endif //DARMA_IMPL_SERIALIZATION_STL_VECTOR_H

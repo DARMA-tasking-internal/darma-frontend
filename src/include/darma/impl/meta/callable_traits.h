@@ -53,82 +53,20 @@
 #include <type_traits>
 #include <utility> // declval
 
-#include <darma/impl/meta/detection.h>
-#include <darma/impl/util.h>
 #include <tinympl/always_true.hpp>
 #include <tinympl/logical_or.hpp>
+#include <tinympl/logical_not.hpp>
+
+#include <darma/impl/meta/detection.h>
+#include <darma/impl/util.h>
+
+#include "any_convertible.h"
 
 namespace darma_runtime {
 
 namespace meta {
 
 namespace _callable_traits_impl {
-
-////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="any_arg variants">
-
-// Much credit is owed to help from:
-//   http://stackoverflow.com/questions/36581303/counting-arguments-of-an-arbitrary-callable-with-the-c-detection-idiom
-// for this solution
-
-struct any_arg {
-  template <typename T>
-  operator T&();
-  template <typename T>
-  operator T&&();
-};
-
-struct ambiguous_if_by_value {
-  template <typename T>
-  operator T();
-  template <typename T>
-  operator T&();
-};
-
-// Note that by value arguments (e.g., j in void foo(int j);) can be deduced from this
-// in clang, but cannot be deduced from this in gcc, so be super careful with this
-struct any_const_reference {
-  template <typename T>
-  operator const T&() const;
-};
-
-
-// Be careful!  This doesn't work with things like is_const or is_reference
-template <
-  template <class...> class UnaryMetafunction
->
-struct any_arg_conditional {
-  // Note that this first one is a non-const operator!  (This is the key to
-  // the whole thing working)
-  template <typename T,
-    typename = std::enable_if_t<UnaryMetafunction<T>::value>
-  >
-  operator T();
-
-  template <typename T,
-    typename = std::enable_if_t<UnaryMetafunction<const T>::value>
-  >
-  operator const T() const;
-
-  template <typename T,
-    typename = std::enable_if_t<UnaryMetafunction<T&>::value>
-  >
-  operator T&() volatile;
-
-  template <typename T,
-    typename = std::enable_if_t<UnaryMetafunction<const T&>::value>
-  >
-  operator const T&() const volatile;
-
-  template <typename T,
-    // for now, leave off the rvalue reference for consistency between gcc and clang
-    typename = std::enable_if_t<UnaryMetafunction<T>::value>
-  >
-  operator T&&() const volatile;
-};
-
-// </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -323,12 +261,11 @@ struct callable_traits
 
   public:
 
-
     template <size_t N>
     struct arg_n_is_by_reference
       : _callable_traits_impl::is_callable_replace_arg_n<Callable,
-          _callable_traits_impl::ambiguous_if_by_value,
-          _callable_traits_impl::any_arg,
+          ambiguous_if_by_value,
+          any_arg,
           N, 0, base_t::n_args_max
         >
     {
@@ -356,8 +293,8 @@ struct callable_traits
       // Specifically, this works around bug #63217 in gcc.
       : tinympl::logical_or<
           _callable_traits_impl::is_callable_replace_arg_n<Callable,
-            _callable_traits_impl::any_const_reference,
-            _callable_traits_impl::any_arg,
+            any_const_reference,
+            any_arg,
             N, 0, base_t::n_args_max
           >,
           arg_n_is_by_value<N>
@@ -370,6 +307,14 @@ struct callable_traits
     };
 
     template <size_t N>
+    struct arg_n_is_const_lvalue_reference
+      : tinympl::logical_and<
+          arg_n_accepts_const_reference<N>,
+          tinympl::not_<arg_n_is_by_value<N>>
+        >::type
+    { };
+
+    template <size_t N>
     struct arg_n_is_nonconst_lvalue_reference
       // Process of elimination: it's a reference but it doesn't take a const reference
       : std::integral_constant<bool,
@@ -377,7 +322,12 @@ struct callable_traits
         >
     { };
 
-
+    template <size_t N, typename U>
+    struct arg_n_is_implicitly_convertible_from
+      : _callable_traits_impl::is_callable_replace_arg_n<Callable,
+          U, any_arg, N, 0, base_t::n_args_max
+        >
+    { };
 
     template <
       template <class...> class UnaryMetafunction,

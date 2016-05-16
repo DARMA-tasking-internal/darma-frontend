@@ -58,73 +58,73 @@ namespace serialization {
 template <typename T1, typename T2>
 struct Serializer<std::pair<T1, T2>> {
 
-typedef detail::serializability_traits<T1> T1_serdes_traits;
-typedef typename T1_serdes_traits::serializer Ser1;
-typedef detail::serializability_traits<T2> T2_serdes_traits;
-typedef typename T2_serdes_traits::serializer Ser2;
+  private:
 
-private:
-template <typename ArchiveT>
-using serializable_into = std::integral_constant<bool,
-  T1_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
-    and T2_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
->;
+    typedef detail::serializability_traits<T1> T1_serdes_traits;
+    typedef typename T1_serdes_traits::serializer Ser1;
+    typedef detail::serializability_traits<T2> T2_serdes_traits;
+    typedef typename T2_serdes_traits::serializer Ser2;
 
-typedef std::pair<T1, T2> T;
+    template <typename ArchiveT>
+    using serializable_into = std::integral_constant<bool,
+      T1_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
+        and T2_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
+    >;
 
-public:
+    typedef std::pair<T1, T2> T;
 
-////////////////////////////////////////////////////////////
-// <editor-fold desc="compute_size()">
+  public:
 
-template <typename ArchiveT>
-std::enable_if_t<serializable_into<ArchiveT>::value>
-compute_size(T const& c, ArchiveT& ar) const {
-  assert(ar.is_sizing());
-  ar.incorporate_size(c.first);
-  ar.incorporate_size(c.second);
-}
+    ////////////////////////////////////////////////////////////
+    // <editor-fold desc="compute_size()">
 
-// </editor-fold>
-////////////////////////////////////////////////////////////
+    template <typename ArchiveT>
+    std::enable_if_t<serializable_into<ArchiveT>::value>
+    compute_size(T const& c, ArchiveT& ar) const {
+      assert(ar.is_sizing());
+      ar.incorporate_size(c.first);
+      ar.incorporate_size(c.second);
+    }
 
-////////////////////////////////////////////////////////////
-// <editor-fold desc="pack()">
+    // </editor-fold>
+    ////////////////////////////////////////////////////////////
 
-template <typename ArchiveT>
-std::enable_if_t<serializable_into<ArchiveT>::value>
-pack(T const& c, ArchiveT& ar) const {
-  assert(ar.is_packing());
-  ar.pack_item(c.first);
-  ar.pack_item(c.second);
-}
+    ////////////////////////////////////////////////////////////
+    // <editor-fold desc="pack()">
 
-// </editor-fold>
-////////////////////////////////////////////////////////////
+    template <typename ArchiveT>
+    std::enable_if_t<serializable_into<ArchiveT>::value>
+    pack(T const& c, ArchiveT& ar) const {
+      assert(ar.is_packing());
+      ar.pack_item(c.first);
+      ar.pack_item(c.second);
+    }
 
-////////////////////////////////////////////////////////////
-// <editor-fold desc="unpack()">
+    // </editor-fold>
+    ////////////////////////////////////////////////////////////
 
-template <typename ArchiveT>
-std::enable_if_t<serializable_into<ArchiveT>::value>
-unpack(void* allocated, ArchiveT& ar) const {
-  assert(ar.is_unpacking());
+    ////////////////////////////////////////////////////////////
+    // <editor-fold desc="unpack()">
 
-  // TODO be sure it's okay to not call the std::pair constructor
+    template <typename ArchiveT>
+    std::enable_if_t<serializable_into<ArchiveT>::value>
+    unpack(void* allocated, ArchiveT& ar) const {
+      assert(ar.is_unpacking());
 
-  Ser1().unpack( (void*)(&((*(T*)allocated).first)), ar );
+      // TODO be sure it's okay to not call the std::pair constructor
 
-  Ser2().unpack( (void*)(&((*(T*)allocated).second)), ar );
+      Ser1().unpack( (void*)(&((*(T*)allocated).first)), ar );
 
-}
+      Ser2().unpack( (void*)(&((*(T*)allocated).second)), ar );
 
-// </editor-fold>
-////////////////////////////////////////////////////////////
+    }
+
+    // </editor-fold>
+    ////////////////////////////////////////////////////////////
 
 };
 
-
-
 } // end namespace serialization
 } // end namespace darma_runtime
+
 #endif //DARMA_IMPL_SERIALIZATION_STL_PAIR_H

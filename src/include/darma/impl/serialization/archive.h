@@ -45,14 +45,17 @@
 #ifndef DARMA_IMPL_SERIALIZATION_ARCHIVE_H_
 #define DARMA_IMPL_SERIALIZATION_ARCHIVE_H_
 
-#include <darma/impl/serialization/nonintrusive.h>
-#include <darma/impl/serialization/serialization_fwd.h>
-#include <darma/impl/serialization/traits.h>
+#include <type_traits>
+#include <iterator>
 
 #include <tinympl/is_instantiation_of.hpp>
+#include <src/include/darma/impl/meta/is_container.h>
 
+#include "serialization_fwd.h"
+#include "nonintrusive.h"
 #include "range.h"
-#include "traits.h"
+#include "archive_mixins.h"
+#include "archive_passthrough.h"
 
 namespace darma_runtime {
 
@@ -63,144 +66,9 @@ namespace serialization {
 // A simple frontend object for interacting with user-defined serializations
 // TODO Archives that check for pointer loops and stuff
 
-namespace detail {
-
-template <typename ArchiveT>
-class ArchiveOperatorsMixin {
-  public:
-    template <typename T>
-    inline ArchiveT&
-    operator<<(T &&val) {
-      static_cast<ArchiveT *>(this)->pack_item(std::forward<T>(val));
-      return *static_cast<ArchiveT *>(this);
-    }
-
-    template <typename T>
-    inline ArchiveT&
-    operator>>(T &&val) {
-      static_cast<ArchiveT *>(this)->unpack_item(std::forward<T>(val));
-      return *static_cast<ArchiveT *>(this);
-    }
-
-    template <typename T>
-    inline ArchiveT&
-    operator%(T &&val) {
-      static_cast<ArchiveT *>(this)->incorporate_size(std::forward<T>(val));
-      return *static_cast<ArchiveT *>(this);
-    }
-
-    template <typename T>
-    inline ArchiveT&
-    operator|(T&& val) {
-      static_cast<ArchiveT *>(this)->serialize_item(std::forward<T>(val));
-      return *static_cast<ArchiveT *>(this);
-    }
-};
-
-template <typename ArchiveT, typename MoreGeneralMixin>
-class ArchiveRangesMixin : public MoreGeneralMixin {
-  private:
-    template <typename T>
-    using enable_condition = tinympl::is_instantiation_of<SerDesRange, T>;
-
-  public:
-    template <typename T, typename ReturnValue = void>
-    using enabled_version = enable_if_t<enable_condition<T>::value, ReturnValue>;
-    template <typename T, typename ReturnValue = void>
-    using disabled_version = enable_if_t<not enable_condition<T>::value, ReturnValue>;
-
-    // operator>> does the unpacking
-    template <typename T>
-    inline enabled_version<T, ArchiveT&>
-    operator>>(T &&val) {
-      typedef typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type size_type;
-      typedef typename T::iterator_traits::value_type value_type;
-      typedef allocation_traits<value_type> value_allocation_traits;
-      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
-      assert(this_archive->is_unpacking());
-      // initialize to prevent e.g. spurious valgrind errors and perhaps compiler warnings
-      size_type size = 0;
-      this_archive->unpack_item(size);
-      val.begin() = value_allocation_traits::allocate(*this_archive, size);
-      val.end() = val.begin() + size;
-      for(auto&& item : val) {
-        this_archive->unpack_item(item);
-      }
-      return *this_archive;
-    }
-    template <typename T>
-    inline disabled_version<T, ArchiveT&>
-    operator>>(T &&val) { return this->MoreGeneralMixin::template operator>>(std::forward<T>(val)); }
-
-    // operator<< does the packing
-    template <typename T>
-    inline enabled_version<T, ArchiveT&>
-    operator<<(T &&val) {
-      typedef typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type size_type;
-      typedef typename T::iterator_traits::value_type value_type;
-      typedef typename allocation_traits<value_type>::template allocator_traits<ArchiveT> value_allocator_traits;
-      size_type size = val.end() - val.begin();
-      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
-      this_archive->pack_item(size);
-      for(auto&& item : val) {
-        this_archive->pack_item(item);
-      }
-      return *static_cast<ArchiveT *>(this);
-    }
-    template <typename T>
-    inline disabled_version<T, ArchiveT&>
-    operator<<(T &&val) { return this->MoreGeneralMixin::template operator<<(std::forward<T>(val)); }
-
-    // operator% does sizing (rarely used)
-    template <typename T>
-    inline enabled_version<T, ArchiveT&>
-    operator%(T &&val) {
-      typedef typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type size_type;
-      typedef typename T::iterator_traits::value_type value_type;
-      typedef typename allocation_traits<value_type>::template allocator_traits<ArchiveT> value_allocator_traits;
-      size_type size = val.end() - val.begin();
-      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
-      this_archive->incorporate_size(size);
-      for(auto&& item : val) {
-        this_archive->incorporate_size(item);
-      }
-      return *static_cast<ArchiveT *>(this);
-    }
-    template <typename T>
-    inline disabled_version<T, ArchiveT&>
-    operator%(T &&val) { return this->MoreGeneralMixin::template operator%(std::forward<T>(val)); }
-
-    template <typename T>
-    inline enabled_version<T, ArchiveT&>
-    operator|(T&& val) {
-      typedef typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type size_type;
-      typedef typename T::iterator_traits::value_type value_type;
-      typedef typename allocation_traits<value_type>::template allocator_traits<ArchiveT> value_allocator_traits;
-      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
-      if(this_archive->is_unpacking()) {
-        this->operator>>(std::forward<T>(val));
-      }
-      else {
-        size_type size = val.end() - val.begin();
-        this_archive->serialize_item(size);
-        for(auto&& item : val) {
-          this_archive->serialize_item(item);
-        }
-      }
-      return *static_cast<ArchiveT *>(this);
-    }
-    template <typename T>
-    inline disabled_version<T, ArchiveT&>
-    operator|(T &&val) { return this->MoreGeneralMixin::template operator|(std::forward<T>(val)); }
-};
-
-} // end namespace detail
-
-
-////////////////////////////////////////////////////////////////////////////////
-
 class SimplePackUnpackArchive
-  : public detail::ArchiveRangesMixin<SimplePackUnpackArchive,
+  : public detail::ArchivePassthroughMixin<SimplePackUnpackArchive>,
+    public detail::ArchiveRangesMixin<SimplePackUnpackArchive,
       detail::ArchiveOperatorsMixin<SimplePackUnpackArchive>
     >
 {
@@ -211,70 +79,48 @@ class SimplePackUnpackArchive
     byte* start = nullptr;
     byte* spot = nullptr;
 
-    detail::SerializerMode mode = detail::SerializerMode::None;
-
-    template <typename T>
-    using is_serializable_with_this = typename
-      detail::serializability_traits<T>::template is_serializable_with_archive<SimplePackUnpackArchive>;
-    template <typename T>
-    using traits = typename detail::serializability_traits<T>;
-
-    template <typename T>
-    using has_only_serialize = std::integral_constant<bool,
-      traits<T>::template has_nonintrusive_serialize<SimplePackUnpackArchive>::value
-      and not (
-        traits<T>::template has_nonintrusive_compute_size<SimplePackUnpackArchive>::value
-        or traits<T>::template has_nonintrusive_pack<SimplePackUnpackArchive>::value
-        or traits<T>::template has_nonintrusive_unpack<SimplePackUnpackArchive>::value
-      )
-    >;
 
   public:
 
-    bool is_sizing() const { return mode == detail::SerializerMode::Sizing; }
-    bool is_packing() const { return mode == detail::SerializerMode::Packing; }
-    bool is_unpacking() const { return mode == detail::SerializerMode::Unpacking; }
-
-    template <typename T>
-    std::enable_if_t<is_serializable_with_this<T>::value>
-    incorporate_size(T const& val) {
-      traits<T>::compute_size(val, *this);
+    inline void add_to_size(size_t size) {
+      assert(is_sizing());
+      spot += size;
     }
 
-    template <typename T>
-    std::enable_if_t<is_serializable_with_this<T>::value>
-    pack_item(T const& val) {
-      traits<T>::template pack(val, *this);
+    template <typename InputIterator>
+    inline void pack_contiguous(InputIterator begin, InputIterator end) {
+      // Check that InputIterator is an input iterator
+      static_assert(std::is_base_of<std::input_iterator_tag,
+          typename std::iterator_traits<InputIterator>::iterator_category
+        >::value,
+        "InputIterator must be an input iterator."
+      );
+      assert(is_packing());
+
+      //typedef typename std::iterator_traits<InputIterator>::value_type value_type;
+      typedef std::remove_cv_t<std::remove_reference_t<decltype(*begin)>> value_type;
+      std::copy(begin, end, reinterpret_cast<value_type*>(spot));
+      const size_t sz = sizeof(value_type);
+      spot += std::distance(begin, end) * sizeof(value_type);
     }
 
-    template <typename T>
-    std::enable_if_t<is_serializable_with_this<T>::value>
-    unpack_item(T& val) {
-      traits<T>::unpack(const_cast<void*>(static_cast<const void*>(&val)), *this);
+    template <typename ReinterpretCastableValueType, typename OutputIterator>
+    inline void unpack_contiguous(OutputIterator dest, size_t n_items) {
+      // Check that OutputIterator is an input iterator
+      static_assert(meta::is_output_iterator<OutputIterator>::value,
+        "OutputIterator must be an output iterator."
+      );
+      assert(is_unpacking());
+
+      // TODO a mode where moving out of this isn't allowed?
+      std::move(
+        reinterpret_cast<ReinterpretCastableValueType*>(spot),
+        reinterpret_cast<ReinterpretCastableValueType*>(spot)+n_items,
+        dest
+      );
+      spot += n_items * sizeof(ReinterpretCastableValueType);
     }
 
-    template <typename T>
-    std::enable_if_t<
-      is_serializable_with_this<T>::value and not has_only_serialize<T>::value
-    >
-    serialize_item(T& val) {
-      if(is_sizing()) incorporate_size(val);
-      else if(is_packing()) pack_item(val);
-      else {
-        assert(is_unpacking());
-        unpack_item(val);
-      }
-    }
-
-    template <typename T>
-    std::enable_if_t<
-      is_serializable_with_this<T>::value and has_only_serialize<T>::value
-    >
-    serialize_item(T& val) {
-      typename traits<T>::serializer ser;
-      if(is_unpacking()) new (&val) T;
-      ser.serialize(val, *this);
-    }
 
   private:
 
