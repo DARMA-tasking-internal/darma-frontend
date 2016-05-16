@@ -115,16 +115,16 @@ TEST_F(TestTupleForEach, indexed_old) {
     std::cout << idx << ": " << val << " ";
   });
   std::cout << std::endl;
-  tuple_for_each_with_index(std::make_tuple(5, "hello", 47.32, 42), [](auto&& val, size_t idx) {
+  tuple_for_each_with_index(std::forward_as_tuple(5, "hello", 47.32, 42), [](auto&& val, size_t idx) {
     std::cout << idx << ": " << val << " ";
   });
   std::cout << std::endl;
   char hello[6] = "hello";
-  tuple_for_each_with_index(std::make_tuple(5, hello, 47.32, 42), [](auto&& val, size_t idx) {
+  tuple_for_each_with_index(std::forward_as_tuple(5, hello, 47.32, 42), [](auto&& val, size_t idx) {
     std::cout << idx << ": " << val << " ";
   });
   std::cout << std::endl;
-  tuple_for_each_with_index(std::make_tuple(5, hello, 47.32, 42), [](auto&& val, size_t idx) {
+  tuple_for_each_with_index(std::forward_as_tuple(5, hello, 47.32, 42), [](auto&& val, size_t idx) {
     std::cout << idx << ": " << val << " ";
   });
   std::cout << std::endl;

@@ -237,7 +237,7 @@ struct _impl<Metafunction, N, N, CallWithIndex> {
   inline auto _call_impl_if_return_void(std::false_type,
     Tuple&&, Callable&&, Args&&... args
   ) const {
-    return std::make_tuple(forward<Args>(args)...);
+    return std::forward_as_tuple(forward<Args>(args)...);
   };
 
   template <typename Tuple, typename Callable, typename... Args>
@@ -258,7 +258,7 @@ template <template <typename...> class Metafunction, bool CallWithIndex>
 struct _impl<Metafunction, 0, 0, CallWithIndex> {
   template <typename Tuple, typename Callable>
   inline auto operator()(Tuple&& tup, Callable&& f) const {
-    return std::make_tuple();
+    return std::forward_as_tuple();
   }
 };
 
