@@ -55,9 +55,9 @@
 #include <tinympl/copy_traits.hpp>
 
 #include <darma/impl/meta/detection.h>
-#include <darma/impl/serialization/serialization_fwd.h>
-#include <darma/impl/serialization/traits.h>
 
+#include "serialization_fwd.h"
+#include "traits.h"
 #include "unpack_contructor_access.h"
 #include "serializer_attorneys.h"
 
@@ -68,6 +68,8 @@ namespace serialization {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Default implementation expresses pass-through to the intrusive interface non-intrusively
+namespace detail {
+
 template <typename T, typename Enable>
 struct Sizer {
   typedef detail::serializability_traits<T> traits;
@@ -79,7 +81,7 @@ struct Sizer {
       and tinympl::always_true<ArchiveT>::value
   >
   compute_size(T const& val, ArchiveT& ar) const {
-    Serializer_attorneys::ArchiveAccess::spot(ar) += val.compute_size();
+    ar.add_to_size(val.compute_size());
   };
 
   // compute_size(Archive&) method available version
@@ -89,7 +91,7 @@ struct Sizer {
       and traits::template has_intrusive_compute_size_with_archive<ArchiveT>::value
   >
   compute_size(T const& val, ArchiveT& ar) const {
-    Serializer_attorneys::ArchiveAccess::spot(ar) += val.compute_size(ar);
+    val.compute_size(ar);
   };
 
   // only serialize() method available version
@@ -107,7 +109,11 @@ struct Sizer {
 
 };
 
+} // end namespace detail
+
 ////////////////////////////////////////////////////////////////////////////////
+
+namespace detail {
 
 template <typename T, typename Enable>
 struct Packer {
@@ -116,7 +122,7 @@ struct Packer {
   // pack() method version
   template <typename ArchiveT>
   std::enable_if_t<traits::template has_intrusive_pack<ArchiveT>::value>
-  pack(T const& val, ArchiveT& ar) const {
+  pack(T const &val, ArchiveT &ar) const {
     val.pack(ar);
   };
 
@@ -126,34 +132,31 @@ struct Packer {
     traits::template has_intrusive_serialize<ArchiveT>::value
       and not traits::template has_intrusive_pack<ArchiveT>::value
   >
-  pack(T const& val, ArchiveT& ar) const {
+  pack(T const &val, ArchiveT &ar) const {
     // const-cast necessary for general serialize() method to work, which should be
     // non-const to work with deserialization
-    const_cast<T&>(val).serialize(ar);
+    const_cast<T &>(val).serialize(ar);
   };
 
 };
 
+} // end namespace detail
+
 ////////////////////////////////////////////////////////////////////////////////
 
+
+namespace detail {
 
 template <typename T, typename Enable>
 struct Unpacker {
   typedef detail::serializability_traits<T> traits;
 
-  //// unpacking constructor version [i.e., T(Archive&)]
-  //template <typename ArchiveT>
-  //std::enable_if_t<traits::template has_intrusive_unpack_constructor<ArchiveT>::value>
-  //unpack(void* allocated, ArchiveT& ar) const {
-  //  UnpackConstructorAccess::call_unpack_constructor<T>(allocated, ar);
-  //};
-
   // unpack() method version
   // Note that it is an error to have both an unpacking constructor and an unpack() method
   template <typename ArchiveT>
   std::enable_if_t<traits::template has_intrusive_unpack<ArchiveT>::value>
-  unpack(void* allocated, ArchiveT& ar) const {
-    T* v = new (allocated) T;
+  unpack(void *allocated, ArchiveT &ar) const {
+    T *v = new(allocated) T;
     v->unpack(ar);
   };
 
@@ -163,35 +166,45 @@ struct Unpacker {
     traits::template has_intrusive_serialize<ArchiveT>::value
       and not traits::template has_intrusive_unpack<ArchiveT>::value
   >
-  unpack(void* allocated, ArchiveT& ar) const {
-    T* v = new (allocated) T;
+  unpack(void *allocated, ArchiveT &ar) const {
+    T *v = new(allocated) T;
     v->serialize(ar);
   };
 
 };
 
+} // end namespace detail
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // Default implementation expresses pass-through to the intrusive interface non-intrusively
-template <typename T, typename Enable>
-struct Serializer
-  : public Sizer<T, Enable>,
-    public Packer<T, Enable>,
-    public Unpacker<T, Enable>
-{ };
+namespace detail {
+  template <typename T, typename Enable>
+  struct Serializer_enabled_if
+    : public Sizer<T, Enable>,
+      public Packer<T, Enable>,
+      public Unpacker<T, Enable>
+  { };
+} // end namespace detail
 
 ////////////////////////////////////////////////////////////////////////////////
+
+template <typename T>
+struct Serializer
+  : public detail::Serializer_enabled_if<T>
+{ };
 
 } // end namespace serialization
 
 } // end namespace darma_runtime
 
 // TODO eventually we might want to (very carefully) move these includes to a different file to reduce compile times for power users
+#include "as_pod.h"
 #include "builtin.h"
 #include "stl_containers.h"
 #include "stl_pair.h"
 #include "array.h"
 #include "range.h"
-#include "as_pod.h"
+#include "stl_vector.h"
 
 #endif /* DARMA_IMPL_SERIALIZATION_NONINTRUSIVE_H_ */

@@ -47,9 +47,11 @@
 
 #include <type_traits>
 #include <cstddef>
+#include <iterator>
 
 #include "detection.h"
 #include "detection_archetypes.h"
+#include "any_convertible.h"
 
 namespace darma_runtime {
 namespace meta {
@@ -61,6 +63,58 @@ template <typename T>
 using is_forward_iterator = std::true_type; // TODO implement this
 template <typename T>
 using is_copy_insertable = std::true_type; // TODO implement this
+
+template <typename Iterator>
+struct is_iterator {
+  private:
+    template <typename T>
+    using _dereferencable_archetype = decltype( *std::declval<T&>() );
+    template <typename T>
+    using _preincrementable_archetype = decltype( ++std::declval<T&>() );
+
+  public:
+
+    using type = typename std::integral_constant<bool,
+      is_detected<_dereferencable_archetype, Iterator>::value
+      and is_detected_exact<Iterator&, _preincrementable_archetype, Iterator>::value
+      and std::is_copy_constructible<Iterator>::value
+      and std::is_copy_assignable<Iterator>::value
+      and std::is_destructible<Iterator>::value
+      // and std::is_swappable<Iterator&>::value // needs c++17
+    >;
+    static constexpr auto value = type::value;
+};
+
+template <typename Iterator>
+struct is_output_iterator {
+  private:
+
+    template <typename T>
+    using _assignable_archetype = decltype(
+      std::declval<decltype(*std::declval<T&>())>() = std::declval<any_arg>()
+    );
+
+    template <typename T>
+    using _preincrementable_archetype = decltype( ++std::declval<T&>() );
+
+    template <typename T>
+    using _postincrementable_archetype = decltype( std::declval<T&>()++ );
+
+    template <typename T>
+    using _postincrement_assign_archetype = decltype(
+      *(std::declval<T&>()++) = std::declval<any_arg>()
+    );
+
+  public:
+    using type = typename std::integral_constant<bool, true
+      //and is_detected<_assignable_archetype, Iterator>::value //doesn't work for some reason
+      and is_detected_exact<Iterator&, _preincrementable_archetype, Iterator>::value
+      and is_detected_convertible<Iterator const&, _postincrementable_archetype, Iterator>::value
+      //and is_detected<_postincrement_assign_archetype, Iterator>::value //doesn't work for some reason
+      and is_iterator<Iterator>::value
+    >;
+    static constexpr auto value = type::value;
+};
 
 template <typename T>
 struct is_equality_comparable {
@@ -166,8 +220,9 @@ struct is_container {
       is_detected_exact<const_iterator, has_cend_method_archetype, C>::value;
 
     // must be EqualityComparable if value_type is EqualityComparable
-    static constexpr auto compatible_equality_comparable =
-      (not is_equality_comparable<value_type>::value) or is_equality_comparable<C>::value;
+    // bug in tuple definition of equality causes this to not work for tuples
+    //static constexpr auto compatible_equality_comparable =
+    //  (not is_equality_comparable<value_type>::value) or is_equality_comparable<C>::value;
 
     // TODO swap, size, max_size, empty
 
@@ -193,7 +248,7 @@ struct is_container {
       && end_method_works
       && end_const_method_works
       && cend_method_works
-      && compatible_equality_comparable
+      //&& compatible_equality_comparable
     ;
 
 };

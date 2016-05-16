@@ -48,9 +48,7 @@
 #include <tinympl/logical_and.hpp>
 #include <tinympl/logical_or.hpp>
 
-#include <darma/impl/serialization/serialization_fwd.h>
-#include "nonintrusive.h"
-#include "unpack_contructor_access.h"
+#include "serialization_fwd.h"
 
 namespace darma_runtime {
 
@@ -72,7 +70,6 @@ template <typename T, typename Enable>
 struct serializability_traits {
 
   private:
-
 
     // Define some type aliases that aid in correctly detecting traits for deduced
     // types that may have qualifiers on them not recognized by the template
@@ -167,13 +164,6 @@ struct serializability_traits {
     // <editor-fold desc="unpack()">
 
   private:
-    //template <typename U, typename ArchiveT>
-    //using has_intrusive_unpack_constructor_archetype =
-    //  decltype( UnpackConstructorAccess::call_unpack_constructor<U>(
-    //      declval<void*>(),
-    //      declval<remove_reference_t<ArchiveT>&>()
-    //    )
-    //  );
 
     template <typename U, typename ArchiveT>
     using has_intrusive_unpack_archetype =
@@ -183,8 +173,6 @@ struct serializability_traits {
     using has_const_incorrect_unpack = is_detected<has_intrusive_unpack_archetype, _const_T, ArchiveT>;
 
   public:
-    //template <typename ArchiveT>
-    //using has_intrusive_unpack_constructor = is_detected<has_intrusive_unpack_constructor_archetype, _clean_T, ArchiveT>;
 
     template <typename ArchiveT>
     using has_intrusive_unpack = is_detected<has_intrusive_unpack_archetype, _T, ArchiveT>;
