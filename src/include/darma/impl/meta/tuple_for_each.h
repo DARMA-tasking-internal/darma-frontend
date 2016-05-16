@@ -68,6 +68,7 @@
 #include <tinympl/tuple_as_sequence.hpp>
 #include <tinympl/vector.hpp>
 #include <tinympl/variadic/back.hpp>
+#include <tinympl/splat.hpp>
 
 #include "tuple_zip.h"
 #include "splat_tuple.h"
@@ -108,15 +109,23 @@ struct _impl {
     );
   }
 
+  template <size_t... Is, typename T>
+  inline constexpr auto
+  _index_extended_tuple(std::index_sequence<Is...>, T&& arg) const {
+    return std::forward_as_tuple(
+      std::get<Is>(arg)..., I
+    );
+  };
+
   template <typename T, typename Callable>
   inline decltype(auto)
   _do_arg_call_if_with_index(std::true_type, T&& arg, Callable&& f) const {
     return splat_tuple(
-      std::tuple_cat(
-        forward<T>(arg),
-        std::make_tuple(I)
+      _index_extended_tuple(
+        std::make_index_sequence<std::tuple_size<std::decay_t<T>>::value>(),
+        std::forward<T>(arg)
       ),
-      forward<Callable>(f)
+      std::forward<Callable>(f)
     );
   }
 
@@ -244,6 +253,34 @@ struct _impl<Metafunction, N, N, CallWithIndex> {
   }
 };
 
+// Always return an empty tuple in the 0 args case
+template <template <typename...> class Metafunction, bool CallWithIndex>
+struct _impl<Metafunction, 0, 0, CallWithIndex> {
+  template <typename Tuple, typename Callable>
+  inline auto operator()(Tuple&& tup, Callable&& f) const {
+    return std::make_tuple();
+  }
+};
+
+template <
+  template <typename...> class Metafunction, bool WithIndex,
+  typename Callable, typename ArgsTup, size_t... Is
+>
+auto _zipped_impl(
+  std::index_sequence<Is...>,
+  Callable&& callable,
+  ArgsTup&& args_tup
+) {
+  return _impl<Metafunction, 0,
+    std::tuple_size<std::decay_t<
+      std::tuple_element_t<0, std::decay_t<ArgsTup>>
+    >>::value,
+    WithIndex
+  >()(
+    tuple_zip(std::get<Is>(args_tup)...), std::forward<Callable>(callable)
+  );
+};
+
 } // end namespace _tuple_for_each_impl
 
 template <
@@ -253,27 +290,10 @@ template <
 auto tuple_for_each_zipped_general(
   Args&&... args
 ) {
-  decltype(auto) callable = std::get<sizeof...(Args)-1>(
-    std::make_tuple(std::forward<Args>(args)...)
-  );
-  decltype(auto) tuples = tuple_pop_back(
-    std::make_tuple(std::forward<Args>(args)...)
-  );
-  auto do_tuple_zip = [](auto&&... tuples) -> decltype(auto) {
-    return tuple_zip(std::forward<decltype(tuples)>(tuples)...);
-  };
-  decltype(auto) tuples_zipped = splat_tuple(
-    std::forward<decltype(tuples)>(tuples),
-    do_tuple_zip
-  );
-
-  return _tuple_for_each_impl::_impl<
-    Metafunction, 0,
-    std::tuple_size<std::decay_t<decltype(tuples_zipped)>>::value,
-    WithIndex
-  >()(
-    std::forward<decltype(tuples_zipped)>(tuples_zipped),
-    std::forward<decltype(callable)>(callable)
+  return _tuple_for_each_impl::_zipped_impl< Metafunction, WithIndex >(
+    std::make_index_sequence<sizeof...(Args) - 1>(),
+    std::get<sizeof...(Args)-1>(std::forward_as_tuple(std::forward<Args>(args)...)),
+    std::forward_as_tuple(std::forward<Args>(args)...)
   );
 };
 

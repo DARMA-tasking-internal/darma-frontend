@@ -220,8 +220,9 @@ struct is_container {
       is_detected_exact<const_iterator, has_cend_method_archetype, C>::value;
 
     // must be EqualityComparable if value_type is EqualityComparable
-    static constexpr auto compatible_equality_comparable =
-      (not is_equality_comparable<value_type>::value) or is_equality_comparable<C>::value;
+    // bug in tuple definition of equality causes this to not work for tuples
+    //static constexpr auto compatible_equality_comparable =
+    //  (not is_equality_comparable<value_type>::value) or is_equality_comparable<C>::value;
 
     // TODO swap, size, max_size, empty
 
@@ -247,7 +248,7 @@ struct is_container {
       && end_method_works
       && end_const_method_works
       && cend_method_works
-      && compatible_equality_comparable
+      //&& compatible_equality_comparable
     ;
 
 };

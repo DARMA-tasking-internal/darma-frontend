@@ -65,52 +65,23 @@ struct splat_tuple_access {
 
 namespace _splat_tuple_impl {
 
-namespace m = tinympl;
-namespace mv = tinympl::variadic;
-
-
-template <size_t Spot, size_t Size, typename AccessTo>
-struct helper {
-  private:
-    typedef helper<
-      Spot+1, Size, AccessTo
-    > _next_t;
-  public:
-
-    template <typename Callable, typename ForwardedTuple, typename... ForwardedArgs>
-    inline constexpr decltype(auto)
-    operator()(Callable&& callable, ForwardedTuple&& ftup, ForwardedArgs&&... args) const {
-      return _next_t()(
-        std::forward<Callable>(callable),
-        std::forward<ForwardedTuple>(ftup),
-        std::forward<ForwardedArgs>(args)...,
-        std::get<Spot>(std::forward<ForwardedTuple>(ftup))
-      );
-    }
+template <typename AccessTo, size_t... Is, typename Tuple, typename Callable>
+constexpr decltype(auto)
+_helper(std::index_sequence<Is...>, Tuple&& tup, Callable&& callable) {
+  return splat_tuple_access<AccessTo>()(
+    std::forward<Callable>(callable),
+    std::get<Is>(std::forward<Tuple>(tup))...
+  );
 };
-
-template <size_t Size, typename AccessTo>
-struct helper<Size, Size, AccessTo> {
-
-  template <typename Callable, typename ForwardedTuple, typename... ForwardedArgs>
-  inline constexpr decltype(auto)
-  operator()(Callable&& callable, ForwardedTuple&& ftup, ForwardedArgs&&... args) const {
-    return splat_tuple_access<AccessTo>()(
-      std::forward<Callable>(callable),
-      std::forward<ForwardedArgs>(args)...
-    );
-  }
-};
-
 
 } // end namespace _splat_tuple_impl
 
 template <typename AccessTo=void, typename Callable, typename Tuple>
 inline decltype(auto)
-splat_tuple(Tuple&& tuple, Callable&& callable) {
-  return _splat_tuple_impl::helper<0, tinympl::size<Tuple>::value, AccessTo>()(
-    std::forward<Callable>(callable),
-    std::forward<Tuple>(tuple)
+splat_tuple(Tuple&& tup, Callable&& callable) {
+  return _splat_tuple_impl::_helper<AccessTo>(
+    std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value>(),
+    std::forward<Tuple>(tup), std::forward<Callable>(callable)
   );
 }
 
