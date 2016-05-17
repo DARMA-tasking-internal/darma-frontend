@@ -64,7 +64,7 @@ template <
   typename T,
   typename key_type,
   typename version_type,
-  typename traits
+  typename Traits
 >
 class AccessHandle : public detail::AccessHandleBase
 {
@@ -88,16 +88,28 @@ class AccessHandle : public detail::AccessHandleBase
 
   public:
 
-    static constexpr auto is_compile_time_modifiable = traits::is_compile_time_modifiable;
-    static constexpr auto is_compile_time_readable = traits::is_compile_time_readable;
+    using traits = Traits;
 
     using CompileTimeReadAccessAnalog = AccessHandle<T, key_t, version_t,
-      typename traits::template with_compile_time_modifiable<false>::type
-    >;
-    using CompileTimeModifiableAnalog = AccessHandle<T, key_t, version_t,
-      typename traits::template with_compile_time_modifiable<true>::type
+      typename traits
+        ::template with_max_schedule_permissions<detail::AccessHandlePermissions::Read>::type
+        ::template with_max_immediate_permissions<detail::AccessHandlePermissions::Read>::type
     >;
 
+    static constexpr bool is_compile_time_immediate_modifiable =
+      (traits::max_immediate_permissions == detail::AccessHandlePermissions::Modify
+        or not traits::max_immediate_permissions_given);
+    static constexpr bool is_compile_time_schedule_modifiable =
+      (traits::max_schedule_permissions == detail::AccessHandlePermissions::Modify
+        or not traits::max_schedule_permissions_given);
+    static constexpr bool is_compile_time_immediate_readable =
+      (traits::max_immediate_permissions == detail::AccessHandlePermissions::Read
+        or traits::max_immediate_permissions == detail::AccessHandlePermissions::Modify
+        or not traits::max_immediate_permissions_given);
+    static constexpr bool is_compile_time_schedule_readable =
+      (traits::max_schedule_permissions == detail::AccessHandlePermissions::Read
+        or traits::max_schedule_permissions == detail::AccessHandlePermissions::Modify
+        or not traits::max_schedule_permissions_given);
 
   private:
 
@@ -183,12 +195,21 @@ class AccessHandle : public detail::AccessHandleBase
     }
 
     template <
-      typename _Ignored = void,
-      typename = std::enable_if_t<not is_compile_time_modifiable and std::is_same<_Ignored, void>::value>
+      typename AccessHandleDeduced,
+      typename AccessHandleT = std::decay_t<AccessHandleDeduced>,
+      typename = std::enable_if_t<
+        traits::max_immediate_permissions_given and is_compile_time_immediate_readable
+        and traits::max_schedule_permissions_given and is_compile_time_schedule_readable
+        and detail::is_access_handle<AccessHandleT>::value
+        and AccessHandleT::is_compile_time_immediate_readable
+        and AccessHandleT::is_compile_time_schedule_readable
+        and not std::is_same<AccessHandleT, AccessHandle>::value
+      >
     >
     AccessHandle(
-      CompileTimeModifiableAnalog const& copied_from
+      AccessHandleDeduced&& copied_from
     ) noexcept {
+      using detail::analogous_access_handle_attorneys::AccessHandleAccess;
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = detail::safe_static_cast<detail::TaskBase* const>(
         detail::backend_runtime->get_running_task()
@@ -197,47 +218,18 @@ class AccessHandle : public detail::AccessHandleBase
 
       // Now check if we're in a capturing context:
       if(capturing_task != nullptr) {
-        copied_from.captured_as_ |= CapturedAsInfo::ReadOnly;
+        AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::ReadOnly;
         capturing_task->do_capture<AccessHandle>(*this, copied_from);
       } // end if capturing_task != nullptr
       else {
         // regular copy
-        dep_handle_ = copied_from.dep_handle_;
-        read_only_holder_ = copied_from.read_only_holder_;
-        state_ = copied_from.state_;
+        dep_handle_ = AccessHandleAccess::dep_handle(copied_from);
+        read_only_holder_ = AccessHandleAccess::read_only_holder(copied_from);
+        state_ = AccessHandleAccess::state(copied_from);
       }
     }
 
     AccessHandle(AccessHandle&&) noexcept = default;
-
-    // These two allow trasparent casting away of compile-time modifiability
-
-    //template <
-    //  typename _Ignored = void,
-    //  typename = std::enable_if_t<is_compile_time_modifiable and std::is_same<_Ignored, void>::value>
-    //>
-    //operator AccessHandle<T, key_t, version_t,
-    //  typename traits::template with_compile_time_modifiable<false>::type
-    //>() {
-    //  return *(reinterpret_cast<
-    //      AccessHandle<T, key_t, version_t, typename traits::template with_compile_time_modifiable<false>::type>*
-    //    >(this)
-    //  );
-    //};
-
-    //template <
-    //  typename _Ignored = void,
-    //  typename = std::enable_if_t<is_compile_time_modifiable and std::is_same<_Ignored, void>::value>
-    //>
-    //operator const AccessHandle<T, key_t, version_t,
-    //  typename traits::template with_compile_time_modifiable<false>::type
-    //>() const
-    //{
-    //  return *(reinterpret_cast<
-    //      AccessHandle<T, key_t, version_t, typename traits::template with_compile_time_modifiable<false>::type>*
-    //    >(this)
-    //  );
-    //};
 
     T* operator->() const {
       DARMA_ASSERT_MESSAGE(
@@ -267,14 +259,12 @@ class AccessHandle : public detail::AccessHandleBase
       typename _Ignored = void
     >
     std::enable_if_t<
-      is_compile_time_modifiable
-      and std::is_same<_Ignored, void>::value
+      std::is_same<_Ignored, void>::value
     >
     release() const {
-      // TODO warning for multiple release (or should this be an error?)
       DARMA_ASSERT_MESSAGE(
-        state_ == Modify_Modify || state_ == Modify_Read || state_ == Modify_None,
-        "release() called on handle without Modify-schedule privileges"
+        state_ != None_None,
+        "release() called on handle that was already released"
       );
       read_only_holder_ = nullptr;
       dep_handle_ = nullptr;
@@ -285,7 +275,7 @@ class AccessHandle : public detail::AccessHandleBase
       typename U,
       typename = std::enable_if_t<
         std::is_convertible<U, T>::value
-        and is_compile_time_modifiable
+        and is_compile_time_immediate_modifiable
       >
     >
     void
@@ -304,7 +294,7 @@ class AccessHandle : public detail::AccessHandleBase
     template <typename _Ignored = void, typename... Args>
     std::enable_if_t<
       not std::is_same<T, void>::value
-        and is_compile_time_modifiable
+        and is_compile_time_immediate_modifiable
         and std::is_same<_Ignored, void>::value
     >
     emplace_value(Args&&... args) const {
@@ -322,7 +312,7 @@ class AccessHandle : public detail::AccessHandleBase
     template <
       typename = std::enable_if<
         not std::is_same<T, void>::value
-        and is_compile_time_readable
+        and is_compile_time_immediate_readable
       >
     >
     const T&
@@ -350,7 +340,7 @@ class AccessHandle : public detail::AccessHandleBase
     template <
       typename = std::enable_if<
         not std::is_same<T, void>::value
-        and is_compile_time_modifiable
+        and is_compile_time_immediate_modifiable
       >
     >
     T&
@@ -371,7 +361,7 @@ class AccessHandle : public detail::AccessHandleBase
       typename... PublishExprParts
     >
     std::enable_if_t<
-      is_compile_time_readable
+      is_compile_time_schedule_readable
       and std::is_same<_Ignored, void>::value
     >
     publish(
@@ -428,15 +418,15 @@ class AccessHandle : public detail::AccessHandleBase
     ////////////////////////////////////////
     // private conversion operators
 
-    template <
-      typename = std::enable_if<
-        not std::is_same<T, void>::value
-          and is_compile_time_readable
-      >
-    >
-    operator T const&() const {
-      return get_value();
-    }
+    //template <
+    //  typename = std::enable_if<
+    //    not std::is_same<T, void>::value
+    //      and is_compile_time_readable
+    //  >
+    //>
+    //operator T const&() const {
+    //  return get_value();
+    //}
 
     ////////////////////////////////////////
     // private constructors
@@ -470,9 +460,6 @@ class AccessHandle : public detail::AccessHandleBase
       assert(state_ == Read_None);
     }
 
-
-    //template <typename ArchiveT>
-    //using allow_in_place_unpack = std::true_type;
 
     template <typename ArchiveT>
     AccessHandle(
@@ -512,19 +499,12 @@ class AccessHandle : public detail::AccessHandleBase
 
     ////////////////////////////////////////
     // Analogs with different privileges are friends too
-    friend CompileTimeReadAccessAnalog;
-    friend CompileTimeModifiableAnalog;
+    //friend CompileTimeReadAccessAnalog;
+    //friend CompileTimeModifiableAnalog;
+    friend struct detail::analogous_access_handle_attorneys::AccessHandleAccess;
 
     // Allow implicit conversion to value in the invocation of the task
     friend struct meta::splat_tuple_access<detail::AccessHandleBase>;
-    //friend struct serialization::UnpackConstructorAccess;
-
-    //static_assert(
-    //  serialization::detail::serializability_traits<AccessHandle>::template has_intrusive_unpack_constructor<
-    //    serialization::SimplePackUnpackArchive
-    //  >::value,
-    //  "AccessHandle not serializable as expected"
-    //);
 
     friend struct darma_runtime::serialization::Serializer<AccessHandle>;
 
@@ -542,7 +522,13 @@ template <typename T,
   typename key_t = types::key_t,
   typename version_t = types::version_t
 >
-using ReadAccessHandle = AccessHandle<T, key_t, version_t, detail::access_handle_traits<false, true>>;
+using ReadAccessHandle = AccessHandle<
+  T, key_t, version_t,
+  typename detail::make_access_handle_traits<
+    detail::max_schedule_permissions<detail::AccessHandlePermissions::Read>,
+    detail::max_immediate_permissions<detail::AccessHandlePermissions::Read>
+  >::type
+>;
 
 namespace serialization {
 

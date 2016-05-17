@@ -258,8 +258,18 @@ TEST_F(TestFunctor, simple_read_only) {
       ::template call_arg_traits<1>::is_access_handle, ""
   );
   static_assert(
+    not detail::_functor_traits_impl::decayed_is_compile_time_immediate_modifiable<ReadAccessHandle<int>>::value,
+    ""
+  );
+  static_assert(
+    not detail::functor_traits<SimpleReadOnlyFunctor>
+      ::template formal_arg_traits<1>::is_compile_time_immediate_modifiable_handle,
+    "should not be compile-time immediate modifiable handle"
+  );
+  static_assert(
     detail::functor_traits<SimpleReadOnlyFunctor>
-      ::template formal_arg_traits<1>::is_compile_time_read_only_handle, ""
+      ::template formal_arg_traits<1>::is_compile_time_immediate_read_only_handle,
+      "Not compile-time immediate read-only handle"
   );
   //static_assert(
   //  not detail::functor_traits<SimpleReadOnlyFunctor>::template arg_traits<1>::is_compile_time_modifiable::value, ""
