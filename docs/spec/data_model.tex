@@ -1,12 +1,14 @@
 %!TEX root = sandReportSpec.tex
 
 \section{Compatible Data Models}
-\label{sec:data_model}
-
-
-DARMA provides a flexible data model (DARMA is only aware of tuple or key identifiers for a coarse-grained data block).
-This leaves the application developer free to use arbitrary data structures, but puts more responsibility on application developer to define serialization, \gls{slicing}, and \glspl{interference test} 
-for data blocks. 
-\todo[inline]{add details here}
+\label{sec:datamodel}
+\gls{DARMA} supports \gls{data-flow dependency} management, and consequently
+must have some knowledge of the structure of application data in order to make
+effective, efficient runtime dependency management and data staging decisions.  Rather
+than impose a \gls{data model} directly, \gls{DARMA} leaves the application
+developer free to use arbitrary data structures.  This means the application
+developer must define \gls{serialization}, \gls{slicing}, and \glspl{interference test} for 
+their data (i.e., this information cannot be directly inferred due to the lack
+of \gls{data model}). 
 
 
