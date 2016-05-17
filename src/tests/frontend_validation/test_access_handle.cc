@@ -541,45 +541,47 @@ TEST_F(TestAccessHandle, death_get_key_after_release) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestAccessHandle, death_release_read_only) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+// These shouldn't be failures!!!
 
-  mock_runtime->save_tasks = true;
-
-  EXPECT_DEATH(
-    {
-      auto tmp = read_access<std::string>("hello", version="world");
-      create_work(reads(tmp), [=]{ tmp = 0; });
-      run_all_tasks();
-    },
-    "release\\(\\) called on handle without Modify-schedule privileges"
-  );
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestAccessHandle, death_release_read_only_2) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  mock_runtime->save_tasks = true;
-
-  EXPECT_DEATH(
-    {
-      auto tmp = initial_access<std::string>("hello");
-      create_work(reads(tmp), [=]{ tmp = 0; });
-      run_all_tasks();
-    },
-    "release\\(\\) called on handle without Modify-schedule privileges"
-  );
-
-}
+//TEST_F(TestAccessHandle, death_release_read_only) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace mock_backend;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//
+//  mock_runtime->save_tasks = true;
+//
+//  EXPECT_DEATH(
+//    {
+//      auto tmp = read_access<std::string>("hello", version="world");
+//      create_work(reads(tmp), [=]{ tmp = 0; });
+//      run_all_tasks();
+//    },
+//    "release\\(\\) called on handle without Modify-schedule privileges"
+//  );
+//
+//}
+//
+//////////////////////////////////////////////////////////////////////////////////
+//
+//TEST_F(TestAccessHandle, death_release_read_only_2) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace mock_backend;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//
+//  mock_runtime->save_tasks = true;
+//
+//  EXPECT_DEATH(
+//    {
+//      auto tmp = initial_access<std::string>("hello");
+//      create_work(reads(tmp), [=]{ tmp = 0; });
+//      run_all_tasks();
+//    },
+//    "release\\(\\) called on handle without Modify-schedule privileges"
+//  );
+//
+//}
 
 ////////////////////////////////////////////////////////////////////////////////
 
