@@ -195,8 +195,7 @@ class AccessHandle : public detail::AccessHandleBase
     }
 
     template <
-      typename AccessHandleDeduced,
-      typename AccessHandleT = std::decay_t<AccessHandleDeduced>,
+      typename AccessHandleT,
       typename = std::enable_if_t<
         traits::max_immediate_permissions_given and is_compile_time_immediate_readable
         and traits::max_schedule_permissions_given and is_compile_time_schedule_readable
@@ -207,7 +206,7 @@ class AccessHandle : public detail::AccessHandleBase
       >
     >
     AccessHandle(
-      AccessHandleDeduced&& copied_from
+      AccessHandleT const& copied_from
     ) noexcept {
       using detail::analogous_access_handle_attorneys::AccessHandleAccess;
       // get the shared_ptr from the weak_ptr stored in the runtime object
