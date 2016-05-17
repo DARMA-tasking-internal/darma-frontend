@@ -1,16 +1,15 @@
 \section{Keyword arguments}
 \label{sec:keyword}
-\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
-
-
-Similar to higher-level languages like Python, the DARMA C++ interface allows the user
-to specify arguments to many of the API functions and constructs using either positional
-or keyword arguments. In addition, many optional arguments may {\em only} be specified using
-keyword arguments. The syntax for specifying a keyword argument is identical to that
-of Python: |keyword=value|.  For instance, if there is 
-a function |some_function| in the DARMA API that accepts 
-positional or keyword arguments |arg_a|, 
-|count|, and |flag|, that function can be invoked 
+%\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
+Similar to higher-level languages like Python, the DARMA \CC{} interface allows the user
+to specify arguments to many of the \gls{API} functions and constructs using
+either \glspl{positional argument}
+or \glspl{keyword argument}. In addition, many optional arguments may {\em only} be specified using
+\glspl{keyword argument}. The syntax for specifying a \gls{keyword argument} is identical to that
+of Python: \inlinecode{keyword=value}.  For instance, if there is 
+a function \inlinecode{some_function} in the DARMA \gls{API} that accepts 
+positional or \glspl{keyword argument} \inlinecode{arg_a}, 
+\inlinecode{count}, and \inlinecode{flag}, that function can be invoked 
 equivalently in any of the following ways:
 \begin{CppCode}
 /* some_function signature:
@@ -22,9 +21,10 @@ some_function(arg_a="hello", count=42, flag=true);
 some_function(count=42, flag=true, arg_a="hello");
 some_function("hello", flag=true, count=42);
 \end{CppCode}
-Note that positional arguments may {\em not} be specified after the first keyword argument,
-and an argument cannot be specified more than once, even as a positional and keyword
-argument.  Both of these lead to compile-time errors. Omitting a required argument is 
+Note that \glspl{positional argument} may {\em not} be specified after the
+first \gls{keyword argument},
+and an argument cannot be specified more than once, even as a positional and
+\gls{keyword argument}.  Both of these lead to compile-time errors. Omitting a required argument is 
 also a compile-time error, as is giving an argument of the incorrect type: 
 \begin{CppCode}
 // Error: arg_a specified more than once
@@ -40,31 +40,32 @@ some_function(false, 42, true);
 // Error: positional argument given after first keyword argument
 some_function(arg_a="hello", 42, flag=true);
 \end{CppCode}
-The illusion of Python-like keyword arguments is accomplished 
-using |constexpr| instances
+The illusion of Python-like \glspl{keyword argument} is accomplished 
+using \inlinecode{constexpr} instances
 of a class with the assignment operator overloaded.  The arguments are passed to the 
-callable using perfect forwarding, and thus the overhead from the keyword argument 
+callable using \gls{perfect forwarding}, and thus the overhead from the
+\gls{keyword argument}
 trick is entirely at compile-time.  (More implementation details are given in
 Section \ref{sec:kwargs}).  These instances are defined in very descriptive namespaces,
 and frequently used keywords are aliased into more general namespaces. 
-For instance, the keywords for |some_function|, above, would likely be 
+For instance, the keywords for \inlinecode{some_function}, above, would likely be 
 defined in a namespace named using the following convention:
-|darma_runtime::keyword_arguments_for_some_function|.
-If |some_function| was a 
+\inlinecode{darma_runtime::keyword_arguments_for_some_function}.
+If \inlinecode{some_function} was a 
 widely used construct, its more important keywords would also be defined 
-in the namespace |darma_runtime::keyword_arguments|. 
-If |some_function| belonged to a broader category of 
+in the namespace \inlinecode{darma_runtime::keyword_arguments}. 
+If \inlinecode{some_function} belonged to a broader category of 
 constructs, certain of its keywords may also be aliased into a 
-categorical namespace as well.  For instance, if |some_function| 
+categorical namespace as well.  For instance, if \inlinecode{some_function} 
 implemented some memory management functionality,
-its keywords may be aliased into |darma_runtime::keyword_arguments_for_memory_management| or 
-something.  All of this is done so that the user can minimize verbosity without introducing
+its keywords may be aliased into, for example, \inlinecode{darma_runtime::keyword_arguments_for_memory_management}.
+All of this is done so that the user can minimize verbosity without introducing
 naming conflicts.  In certain contexts, it may be expedient for the user to simply
-put |using darma_runtime::keyword_arguments| at the beginning of the calling context. 
+put \inlinecode{using darma_runtime::keyword_arguments} at the beginning of the calling context. 
 In other, more complicated contexts, importing all DARMA keywords into the 
 local context may lead to naming conflicts with local variables. 
 You don't have to guess at which namespaces
-a keyword is provided in or aliased into; every time a keyword argument or a callable
+a keyword is provided in or aliased into; every time a \gls{keyword argument} or a callable
 accepting that argument is introduced in the documentation, the namespace to which 
 it belongs and all namespaces it is aliased into are given.
 
@@ -76,4 +77,4 @@ it belongs and all namespaces it is aliased into are given.
 %now we have waits(), reads(), writes(), and reads\_writes()}
 
 
-\lstDeleteShortInline{\|}
+%\lstDeleteShortInline{\|}
