@@ -49,6 +49,7 @@
 #include <type_traits>
 
 #include <darma/impl/meta/callable_traits.h>
+#include "task.h"
 
 namespace darma_runtime {
 
@@ -170,12 +171,25 @@ struct functor_call_traits {
           and (formal_traits::is_const_lvalue_reference or formal_traits::is_by_value)
         ; // end is_const_conversion_capture
 
+        static constexpr bool is_nonconst_conversion_capture =
+          // Only if the call argument is an access handle
+          is_access_handle
+          // only if the formal argument isn't an AccessHandle
+          and (not formal_traits::is_access_handle)
+          // If so, the value type has to be convertible
+          and formal_traits::template is_impliticly_convertible_from<access_handle_value_type>::value
+          // and the formal argument must be a non-const lvalue reference
+          and formal_traits::is_nonconst_lvalue_reference
+        ; // end is_nonconst_conversion_capture
+
         static constexpr bool is_read_only_capture =
           // If we're converting from an AccessHandle<T> to a const T& or T formal argument, then it's a read capture
           is_const_conversion_capture
           // or if this argument is an access handle and the formal argument is compile-time read only
           or (is_access_handle and formal_traits::is_compile_time_read_only_handle)
         ;
+
+        static constexpr bool is_conversion_capture = is_const_conversion_capture or is_nonconst_conversion_capture;
 
         typedef std::conditional<
           is_read_only_capture,
@@ -186,6 +200,38 @@ struct functor_call_traits {
           std::remove_cv_t<std::remove_reference_t<CallArg>> const
         > args_tuple_entry;
 
+        template <typename T>
+        static std::enable_if_t<
+          not darma_runtime::detail::is_access_handle<std::decay_t<T>>::value or not is_conversion_capture,
+          T
+        >
+        get_converted_arg(T&& val) {
+          return val;
+        }
+
+        template <typename T>
+        static std::enable_if_t<
+          darma_runtime::detail::is_access_handle<std::decay_t<T>>::value and is_const_conversion_capture,
+          typename std::decay_t<T>::value_type const&
+        >
+        get_converted_arg(T&& val) {
+          return val.get_value();
+        }
+
+        template <typename T>
+        static std::enable_if_t<
+          darma_runtime::detail::is_access_handle<std::decay_t<T>>::value and is_nonconst_conversion_capture,
+          typename std::decay_t<T>::value_type&
+        >
+        get_converted_arg(T&& val) {
+          return val.get_reference();
+        }
+
+    };
+
+    template <typename IndexWrapped>
+    struct call_arg_traits_types_only {
+      using type = call_arg_traits<IndexWrapped::value>;
     };
 
   private:

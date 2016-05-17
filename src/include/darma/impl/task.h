@@ -62,6 +62,7 @@
 #include <tinympl/transform2.hpp>
 #include <tinympl/as_sequence.hpp>
 #include <tinympl/tuple_as_sequence.hpp>
+#include <tinympl/stl_integer_sequence.hpp>
 
 #include <darma/interface/backend/types.h>
 #include <darma/interface/backend/runtime.h>
@@ -192,6 +193,24 @@ class FunctorRunnable
 
     static const size_t index_;
 
+    auto
+    _get_args_to_splat() {
+      return meta::tuple_for_each_zipped_with_index(
+        args_,
+        typename tinympl::transform<
+          std::make_index_sequence<std::tuple_size<args_tuple_t>::value>,
+          call_traits::template call_arg_traits_types_only,
+          std::tuple
+        >::type(),
+        [this](auto&& arg, auto&& call_arg_traits_i_val, size_t i) {
+          using call_traits_i = std::decay_t<decltype(call_arg_traits_i_val)>;
+          return call_traits_i::template get_converted_arg(
+            std::forward<decltype(arg)>(arg)
+          );
+        }
+      );
+    }
+
   public:
 
     FunctorRunnable(
@@ -207,7 +226,7 @@ class FunctorRunnable
 
     void run() override {
       meta::splat_tuple<AccessHandleBase>(
-        std::move(args_),
+        _get_args_to_splat(),
         Functor()
       );
     }
