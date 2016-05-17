@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      intrusive.h
+//                      stl_integer_sequence.hpp
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,38 +42,22 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTRUSIVE_H
-#define DARMA_INTRUSIVE_H
+#ifndef TINYMPL_STL_INTEGER_SEQUENCE_HPP
+#define TINYMPL_STL_INTEGER_SEQUENCE_HPP
 
-namespace darma_runtime {
-namespace serialization {
+#include <tinympl/as_sequence.hpp>
+#include <utility>
 
-/**
- *  Empty base class meeting intrusive serialization interface specification.
- *  Basically, useful for inheriting from and marking methods as override for
- *  compile-time safety.  **Not required, though.**
- */
-template <typename ArchiveT>
-class Serializable {
-  protected:
+namespace tinympl {
 
-    // These methods are protected in the base class so that they don't get accidentally
-    // detected if they aren't defined in the derived class.  They should be public
-    // in the derived class
-
-    virtual void serialize(ArchiveT&) { }
-
-    virtual void compute_size() const { }
-
-    virtual void compute_size(ArchiveT&) const { }
-
-    virtual void pack(ArchiveT&) const { }
-
-    virtual void unpack(ArchiveT&) { }
-
+template <typename T, T... vals>
+struct as_sequence<std::integer_sequence<T, vals...>> {
+  using type = sequence<std::integral_constant<T, vals>...>;
+  template <typename... wrapped>
+  using rebind = std::integer_sequence<T, wrapped::value...>;
 };
 
-} // end namespace serialization
-} // end namespace darma_runtime
 
-#endif //DARMA_INTRUSIVE_H
+} // end namespace tinympl
+
+#endif //TINYMPL_STL_INTEGER_SEQUENCE_HPP
