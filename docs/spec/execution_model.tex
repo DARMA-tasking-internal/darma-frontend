@@ -1,30 +1,26 @@
 %!TEX root = sandReportSpec.tex
 
 \section{Compatible Execution Models}
-\label{sec:exec_model}
+\label{sec:execmodel}
+\gls{DARMA} supports \gls{phased execution} models, rather than \gls{conservative
+execution} models.  
+An initial \gls{spmd} launch of an algorithm must be supported, and if
+no imbalances are present, the \gls{runtime system} implementation should
+maintain an optimal initial decomposition. In addition to the coarse-grained distributed
+\gls{data parallelism} specified by the \gls{spmd} launch, additional \gls{task
+parallelism} and \gls{pipeline parallelism} are introduced via the \CC-embedded task annotations.
+As part of the \gls{AMT} design space exploration, we are working with
+\gls{runtime system} teams to develop \gls{DARMA}-compliant \glspl{back end}
+implementations that utilize existing \gls{AMT} technologies with different
+underlying \glspl{execution model} (e.g., \gls{actor model}, \gls{event-based}).  
 
-As was mentioned earlier, DARMA is intended to support a range of execution
-models.  An initial \gls{spmd} launch of an algorithm must be supported, and if
-no imbalances are present, the runtime implementation should maintain this
-optimal initial decomposition. In addition to the coarse-grained distributed
-parallelism specified by the \gls{spmd} launch, additional task- and
-pipeline-parallelism is introduced via the \CC-embedded task annotations.
 
 Although not yet supported in version \specVersion\ of the specification, several
-important features will play a role in the DARMA execution model:
+important features will play a role in the DARMA \gls{execution model}:
+
+\todo[inline]{Jeremy/David: elaborate/vet list please}
 \begin{compactdesc}
-\item{\bf Fine-grained \gls{fork-join} parallelism}
-Syntax to express both task-parallel and data-parallel code will be provided.
-Furthermore, the user will be able to express the \gls{execution space} on
-which it would like the code to be run, along with the fraction of the resources within
-that space it would like to consume (e.g., number of threads on a CPU).
-\todo[inline]{add detail re type of fork-join parallelism supported here: Is
-  this terminally strict?, fully strict?}
-%JJW 02/15/2016 I don't think we'll ever support the actor model
-%The question is to what degree we will support C++ member functions as tasks
-\item{\bf Field slicing in classes and class member functions as tasks:}\todo[inline]{elaborate on
-  this}
+\item{\bf Execution of deferred fine-grained parallel patterns}
+\item{\bf Performance introspection-based scheduling}
 \end{compactdesc}
 
-\todo[inline]{refer back to execution spaces (already mentioned in programming
-    model section). discuss how this feature impacts execution model}

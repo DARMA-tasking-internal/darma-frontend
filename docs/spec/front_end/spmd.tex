@@ -2,25 +2,21 @@
 
 \section{SPMD support}
 \label{sec:spmd}
-\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
-% DSH: Removed this TODO.  It's good enough for now.
-%\todo[inline]{this section needs to be revised.  Didn't Jeremy already take a
-%crack at it?  His changes don't appear to be here\ldots} 
-%\gls{spmd} being the
-%dominant model of parallelism in DARMA, \todo{are we comfortable saying this like this?  Is it even really true?} the spin-up of the
-%runtime in each \gls{spmd} unit is kept analogous to MPI. 
 Most applications written in or ported to DARMA will likely have \gls{spmd} as
 the dominant form of parallelism.
-To simplify the implementation of SPMD-structured codes, the notion of 
+To simplify the implementation of \gls{spmd}-structured codes, the notion of 
 a \gls{rank} is maintained within the \gls{API}.   
-This should make it a little easier for existing MPI based application codes to transition 
-to DARMA. The initialization and termination of the runtime in each unit 
-is via the calls |darma_init()| and |darma_finalize()|. 
-The total number of \gls{spmd} units are queried with the call |darma_spmd_size()|,
-and the rank is queried with |darma_spmd_rank()|. A typical user 
-written main program will look as follows:
+This should make it a little easier for existing MPI-based application codes to transition 
+to DARMA and allows for intutive specification of initial application
+distribution on a system.
+Formally in DARMA, \gls{spmd} \glspl{rank} are the \gls{opaque context}
+between a the calls to \codelink{darma_init} and \codelink{darma_finalize}.
+This amounts to it being a special kind of task that \todo{David/Jeremy: finish
+this sentence}.   
+The total number of \gls{spmd} units are queried with the call \codelink{darma_spmd_size},
+and the \gls{rank} is queried with \codelink{darma_spmd_rank}. A typical user-written main program will look as follows:
 \begin{CppCode}
-int main(int argc, char**argv){
+int darma_main(int argc, char**argv){
 
 	darma_init(argc, argv);
 	size_t n_ranks = darma_spmd_size();
@@ -29,23 +25,21 @@ int main(int argc, char**argv){
 	//lots of code
 
 	darma_finalize();
+  return 0;
 }
 \end{CppCode}
 
-The rank is a very useful concept to orchestrate dependencies in a \gls{spmd}
-model since data pertaining to a rank can be associated with a key that utilize
-the rank for uniqueness. Similarly, the unique key used by a different rank
-from which data needs to be fetched can be constructed from the knowledge of
-the rank creating the data.  The example below illustrates this concept, where
-the rank is integral to the key associated with data originating on that rank
+Note that it is often useful to include the \gls{rank} index within a 
+\gls{handle}'s \codelink{key}:  
 \begin{CppCode}
 size_t me = darma_spmd_rank();
 auto data_handle = initial_access<double>("data_key", me);
 \end{CppCode}  
-Note that in DARMA, SPMD ranks are actually just a special kind of task that
-happens to have a name containing the rank, and can be treated as such. 
-However, the similarity to traditional, MPI-style SPMD upon launch will simplify
-the learning and porting process significantly.
+\todo{David/Jeremy:sanity check this statement, and elaborate/edit as needed}
+Recall that every \gls{handle} \codelink{key} must be unique, and the 
+ use of the \gls{rank} index within a \gls{handle}'s \codelink{key} provides an
+ intuitive way for disambiguating \codelink{key}s associated with distributed
+ data.  \todo[inline]{David/Jeremy: does the rank-portion of the key can be
+ identified so that it can serve as a hint to the underlying runtime as to
+ where to look for the data}
 
-
-\lstDeleteShortInline{\|}
