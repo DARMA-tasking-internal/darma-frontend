@@ -34,12 +34,6 @@
 \newcommand{\Charm}{Charm\nolinebreak\hspace{-.05em}\raisebox{.2ex}{+}\nolinebreak\hspace{-.10em}\raisebox{.2ex}{+}}
 \newcommand{\specVersion}{0.2}
 
-\usepackage[nonumberlist, acronym, toc]{glossaries}
-\newglossary[plg]{glossary}{pgi}{pgo}{Glossary}
-%\newglossary[mlg]{machine_model}{mgi}{mgo}{Machine Model Terminology}
-%\newglossary[dlg]{data}{dgi}{dgo}{Data Terminology}
-%\newglossary[tlg]{tasking}{tgi}{tgo}{Tasking Terminology}
-%\newglossary[clg]{collectives}{cgi}{cgo}{Collective Terminology}
 
 \definecolor{dkgreen}{rgb}{0,0.4,0}
 \definecolor{dkblue}{rgb}{0,0,0.4}
@@ -177,7 +171,19 @@
 \usepackage{caption}
 \captionsetup{labelsep=space,justification=centering,font={bf},singlelinecheck=off,skip=4pt,position=top}
 
+\usepackage[nonumberlist, acronym, toc]{glossaries}
+\newglossary[plg]{glossary}{pgi}{pgo}{Glossary}
+%\newglossary[mlg]{machine_model}{mgi}{mgo}{Machine Model Terminology}
+%\newglossary[dlg]{data}{dgi}{dgo}{Data Terminology}
+%\newglossary[tlg]{tasking}{tgi}{tgo}{Tasking Terminology}
+%\newglossary[clg]{collectives}{cgi}{cgo}{Collective Terminology}
+
 \makeglossaries
+
+\newcommand{\codetarget}[1]{\hypertarget{#1}{\inlinecode{#1}}}
+\newcommand{\codelink}[1]{\hyperlink{#1}{\inlinecode{#1}}}
+
+\newcommand{\compilerReqs}{(gcc $>= 4.9$, clang $>= 3.5$)}
 
 \input{glsentries}
 

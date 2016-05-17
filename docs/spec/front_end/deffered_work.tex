@@ -1,21 +1,24 @@
-\lstMakeShortInline[style=CppCodeInlineStyle]{|}
+%\lstMakeShortInline[style=CppCodeInlineStyle]{|}
 \section{Deferred Work Creation}
 \label{sec:deferred}
-In DARMA, like other AMT runtime systems, the user creates blocks of work that
+In an AMT \gls{runtime system}, the user creates blocks of work that
 are executed when the proper permissions on the data they use are available.
-Deferred work\footnote{``Deferred work'' is one generic term we use for work
-performed by code inside the capturing lambda passed to the
-\inlinecode{create_work()} construct (as well as other deferred constructs which
+In DARMA, \gls{deferred work}\footnote{``\Gls{deferred work}'' is one generic term we use for work
+performed by code inside the capturing \gls{lambda} passed to the
+\codelink{create_work} construct (as well as other deferred constructs which
 may be added to future versions of the spec).  This does not necessarily imply
-that the continuing context (after the \inlinecode{create_work()}) will be
-executed before the captured work (note that ``captured work'' and ``captured
-context'' are two other generic terms we use for the same thing).  In other
-words, if all of the permissions for executing the ``deferred work'' are
-available at the time of its creation, the runtime may choose to execute it
+that the \gls{continuing context} (after the \codelink{create_work}) will be
+executed before the \gls{captured work} (note that ``\gls{captured work}'' and
+``\gls{captured context}'' are two other generic terms we use interchangeably
+with \gls{deferred work}).  
+In other words, if all of the permissions for executing the \gls{deferred work} are
+available at the time of its creation, the \gls{runtime system} may choose to execute it
 immediately.  It also may choose to block until the permissions are ready rather
-than executing the continuing context.  More details to follow.} is communicated
-to the runtime system via the |create_work()| function, which utilizes the C++
-lambda mechanism to yield the following syntax:
+than executing the \gls{continuing context}.  More details to follow.}
+\todo{David: I modified the footnote slightly - please confirm
+it is still correct.} is communicated
+to the \gls{runtime system} via \codelink{create_work} function, which utilizes
+the \CC{} \gls{lambda} mechanism to yield the following syntax:
 % DSH merged [=]{ into one line for a couple of reasons; chief reason is we may
 % want to macro this at some point so that it can conditionally be compiled into
 % [=] __cuda_inline__ {  or something like that for GPU use.
@@ -25,17 +28,17 @@ lambda mechanism to yield the following syntax:
   });
 \end{CppCode}
 
-While this syntax leverages C++11 lambdas, the user does not need to
-completely understand C++11 standard features to use |create_work()|
-(this complexity is managed by DARMA's translation layer, as summarized in
+While this syntax leverages \CC{}11 \glspl{lambda}, the user does not need to
+completely understand \CC{}11 standard features to use \codelink{create_work}
+(this complexity is managed by DARMA's \gls{translation layer}, as summarized in
 Chapter~\ref{chap:translation_layer}). All the work specified within a
-|create_work| is queued for deferred execution, and will be run when
+\codelink{create_work} is queued for deferred execution, and will be run when
 all of its \glspl{dependency} and \glspl{anti-dependency} are met.  
 These \glspl{dependency} are determined from the use of 
-|AccessHandle<T>| objects in the deferred context. 
-|AccessHandle<T>| objects are described in more detail below, in
-Section \ref{sec:handles}.  In a basic sense, handles help maintain
-\gls{sequential semantics} in the programming model.  For instance, the
+\codelink{AccessHandle<T>} objects in the \gls{deferred context}. 
+\codelink{AccessHandle<T>} objects are described in more detail below, in
+Section \ref{sec:handles}.  In a basic sense, \glspl{handle} help maintain
+\gls{sequential semantics} in the \gls{programming model}.  For instance, the
 following code should print ``first: 42, second: 84'':
 \begin{CppCode}
 AccessHandle<int> my_handle = initial_access("some_data_key");
@@ -53,7 +56,7 @@ create_work([=]{
 });
 \end{CppCode}
 This intuitive way of coding is called \gls{sequential semantics}, 
-and its use is pivotal to the DARMA programming model.
+and its use is pivotal to the DARMA \gls{programming model}.
 
 % DSH took this out for now
 % which manage the complexity necessary (within DARMA's
@@ -103,6 +106,9 @@ and its use is pivotal to the DARMA programming model.
 %of |greetingMessage| is set before it is printed),
 %|greetingMessage| must be a |handle|.
 
+\todo[inline]{David:add functor interface text. This will involve updating the 
+footnote in this section (for example, the definition of continuing context in
+the footnote.  Also, the definition of continuing context may need to be
+updated in the glosary as well... Please check. } 
 
-
-\lstDeleteShortInline{|}
+%\lstDeleteShortInline{|}
