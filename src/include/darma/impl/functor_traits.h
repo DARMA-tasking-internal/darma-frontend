@@ -64,18 +64,45 @@ namespace _functor_traits_impl {
 template <typename T>
 using decayed_is_access_handle = is_access_handle<std::decay_t<T>>;
 
+//template <typename T>
+//using _compile_time_modifiable_archetype = std::integral_constant<bool, T::is_compile_time_modifiable>;
+//template <typename T>
+//using decayed_is_compile_time_modifiable = meta::detected_or_t<std::false_type,
+//  _compile_time_modifiable_archetype, std::decay_t<T>
+//>;
+//template <typename T>
+//using _compile_time_readable_archetype = std::integral_constant<bool, T::is_compile_time_readable>;
+//template <typename T>
+//using decayed_is_compile_time_readable = meta::detected_or_t<std::false_type,
+//  _compile_time_readable_archetype, std::decay_t<T>
+//>;
+
 template <typename T>
-using _compile_time_modifiable_archetype = std::integral_constant<bool, T::is_compile_time_modifiable>;
+using _compile_time_immediate_readable = std::integral_constant<bool, T::is_compile_time_immediate_readable>;
 template <typename T>
-using decayed_is_compile_time_modifiable = meta::detected_or_t<std::false_type,
-  _compile_time_modifiable_archetype, std::decay_t<T>
->;
+using _compile_time_immediate_modifiable = std::integral_constant<bool, T::is_compile_time_immediate_modifiable>;
 template <typename T>
-using _compile_time_readable_archetype = std::integral_constant<bool, T::is_compile_time_readable>;
+using _compile_time_schedule_readable = std::integral_constant<bool, T::is_compile_time_schedule_readable>;
 template <typename T>
-using decayed_is_compile_time_readable = meta::detected_or_t<std::false_type,
-  _compile_time_readable_archetype, std::decay_t<T>
->;
+using _compile_time_schedule_modifiable = std::integral_constant<bool, T::is_compile_time_schedule_modifiable>;
+
+template <typename T>
+using decayed_is_compile_time_immediate_readable = typename meta::detected_or_t<std::true_type,
+  _compile_time_immediate_readable, std::decay_t<T>
+>::type;
+template <typename T>
+using decayed_is_compile_time_immediate_modifiable = typename meta::detected_or_t<std::true_type,
+  _compile_time_immediate_modifiable, std::decay_t<T>
+>::type;
+template <typename T>
+using decayed_is_compile_time_schedule_readable = typename meta::detected_or_t<std::true_type,
+  _compile_time_schedule_readable, std::decay_t<T>
+>::type;
+template <typename T>
+using decayed_is_compile_time_schedule_modifiable = typename meta::detected_or_t<std::true_type,
+  _compile_time_schedule_modifiable, std::decay_t<T>
+>::type;
+
 
 template <typename T>
 using _compile_time_read_access_analog_archetype = typename T::CompileTimeReadAccessAnalog;
@@ -106,19 +133,19 @@ struct functor_traits {
       >::value;
 
       static constexpr auto
-      is_compile_time_modifiable_handle = tinympl::logical_and<
+      is_compile_time_immediate_modifiable_handle = tinympl::logical_and<
         typename traits::template arg_n_matches<
-          _functor_traits_impl::decayed_is_compile_time_modifiable, N
+          _functor_traits_impl::decayed_is_compile_time_immediate_modifiable, N
         >,
         std::integral_constant<bool, is_access_handle>
       >::value;
 
       static constexpr auto
-      is_compile_time_read_only_handle = tinympl::logical_and<
+      is_compile_time_immediate_read_only_handle = tinympl::logical_and<
         typename traits::template arg_n_matches<
-          _functor_traits_impl::decayed_is_compile_time_readable, N
+          _functor_traits_impl::decayed_is_compile_time_immediate_readable, N
         >,
-        std::integral_constant<bool, not is_compile_time_modifiable_handle>,
+        std::integral_constant<bool, not is_compile_time_immediate_modifiable_handle>,
         std::integral_constant<bool, is_access_handle>
       >::value;
 
@@ -186,7 +213,7 @@ struct functor_call_traits {
           // If we're converting from an AccessHandle<T> to a const T& or T formal argument, then it's a read capture
           is_const_conversion_capture
           // or if this argument is an access handle and the formal argument is compile-time read only
-          or (is_access_handle and formal_traits::is_compile_time_read_only_handle)
+          or (is_access_handle and formal_traits::is_compile_time_immediate_read_only_handle)
         ;
 
         static constexpr bool is_conversion_capture = is_const_conversion_capture or is_nonconst_conversion_capture;
@@ -202,7 +229,8 @@ struct functor_call_traits {
 
         template <typename T>
         static std::enable_if_t<
-          not darma_runtime::detail::is_access_handle<std::decay_t<T>>::value or not is_conversion_capture,
+          not _functor_traits_impl::decayed_is_access_handle<T>::value
+            or not is_conversion_capture,
           T
         >
         get_converted_arg(T&& val) {
@@ -211,7 +239,8 @@ struct functor_call_traits {
 
         template <typename T>
         static std::enable_if_t<
-          darma_runtime::detail::is_access_handle<std::decay_t<T>>::value and is_const_conversion_capture,
+          _functor_traits_impl::decayed_is_access_handle<std::decay_t<T>>::value
+            and is_const_conversion_capture,
           typename std::decay_t<T>::value_type const&
         >
         get_converted_arg(T&& val) {
@@ -220,7 +249,8 @@ struct functor_call_traits {
 
         template <typename T>
         static std::enable_if_t<
-          darma_runtime::detail::is_access_handle<std::decay_t<T>>::value and is_nonconst_conversion_capture,
+          _functor_traits_impl::decayed_is_access_handle<std::decay_t<T>>::value
+            and is_nonconst_conversion_capture,
           typename std::decay_t<T>::value_type&
         >
         get_converted_arg(T&& val) {

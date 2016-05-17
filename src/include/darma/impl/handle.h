@@ -548,6 +548,36 @@ class for_AccessHandle;
 
 } // end namespace access_attorneys
 
+namespace analogous_access_handle_attorneys {
+
+struct AccessHandleAccess {
+  template <typename AccessHandleT>
+  static auto&
+  captured_as(AccessHandleT& ah) {
+    return ah.captured_as_;
+  }
+  template <typename AccessHandleT>
+  static auto&
+  dep_handle(AccessHandleT& ah) {
+    return ah.dep_handle_;
+  }
+  template <typename AccessHandleT>
+  static auto&
+  read_only_holder(AccessHandleT& ah) {
+    return ah.read_only_holder_;
+  }
+  template <typename AccessHandleT>
+  static auto&
+  state(AccessHandleT& ah) {
+    return ah.state_;
+  }
+};
+
+} // end namespace analogous_access_handle_attorneys
+
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="AccessHandleBase">
+
 class AccessHandleBase {
   public:
     virtual ~AccessHandleBase() = default;
@@ -595,22 +625,168 @@ class AccessHandleBase {
 
 };
 
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="access_handle_traits and helpers">
+
+typedef enum AccessHandlePermissions {
+  NotGiven=-1,
+  None=0, Read=1, Modify=2
+} access_handle_permissions_t;
+
+// (Not really true, needs more explanation): Min permissions refers to as a parameter, max permissions refers to as a call argument or lvalue
+// (or as a parameter for determining whether a capture is read-only).  All are only the known compile-time
+// bounds; if no restrictions are given at compile time, all will be AccessHandlePermissions::NotGiven
+// TODO more full documentation
 template <
-  bool is_compile_time_modifiable_ = true,
-  bool is_compile_time_readable_ = true
+  access_handle_permissions_t MinSchedulePermissions = NotGiven,
+  access_handle_permissions_t MinImmediatePermissions = NotGiven,
+  access_handle_permissions_t MaxSchedulePermissions = NotGiven,
+  access_handle_permissions_t MaxImmediatePermissions = NotGiven
 >
 struct access_handle_traits {
-  static constexpr auto is_compile_time_modifiable = is_compile_time_modifiable_;
-  static constexpr auto is_compile_time_readable = is_compile_time_readable_;
-  template <bool new_compile_time_mod_value>
-  struct with_compile_time_modifiable {
+
+  static constexpr auto min_schedule_permissions = MinSchedulePermissions;
+  static constexpr auto min_schedule_permissions_given = MinSchedulePermissions != NotGiven;
+  static constexpr auto min_immediate_permissions = MinImmediatePermissions;
+  static constexpr auto min_immediate_permissions_given = MinImmediatePermissions != NotGiven;
+  static constexpr auto max_schedule_permissions = MaxSchedulePermissions;
+  static constexpr auto max_schedule_permissions_given = MaxSchedulePermissions != NotGiven;
+  static constexpr auto max_immediate_permissions = MaxImmediatePermissions;
+  static constexpr auto max_immediate_permissions_given = MaxImmediatePermissions != NotGiven;
+
+  template <access_handle_permissions_t new_min_schedule_permissions>
+  struct with_min_schedule_permissions {
     typedef access_handle_traits<
-      new_compile_time_mod_value, is_compile_time_readable
+      new_min_schedule_permissions,
+      MinImmediatePermissions,
+      MaxSchedulePermissions,
+      MaxImmediatePermissions
     > type;
   };
+
+  template <access_handle_permissions_t new_max_schedule_permissions>
+  struct with_max_schedule_permissions {
+    typedef access_handle_traits<
+      MinSchedulePermissions,
+      MinImmediatePermissions,
+      new_max_schedule_permissions,
+      MaxImmediatePermissions
+    > type;
+  };
+
+  template <access_handle_permissions_t new_min_immediate_permissions>
+  struct with_min_immediate_permissions {
+    typedef access_handle_traits<
+      MinSchedulePermissions,
+      new_min_immediate_permissions,
+      MaxSchedulePermissions,
+      MaxImmediatePermissions
+    > type;
+  };
+
+  template <access_handle_permissions_t new_max_immediate_permissions>
+  struct with_max_immediate_permissions {
+    typedef access_handle_traits<
+      MinSchedulePermissions,
+      MinImmediatePermissions,
+      MaxSchedulePermissions,
+      new_max_immediate_permissions
+    > type;
+  };
+
 };
 
+
+//------------------------------------------------------------
+// <editor-fold desc="make_access_traits and associated 'keyword' template arguments">
+
+template <access_handle_permissions_t permissions>
+struct min_schedule_permissions {
+  static constexpr auto value = permissions;
+};
+
+template <access_handle_permissions_t permissions>
+struct max_schedule_permissions {
+  static constexpr auto value = permissions;
+};
+
+template <access_handle_permissions_t permissions>
+struct min_immediate_permissions {
+  static constexpr auto value = permissions;
+};
+
+template <access_handle_permissions_t permissions>
+struct max_immediate_permissions {
+  static constexpr auto value = permissions;
+};
+
+namespace _impl {
+
+template <typename traits, typename... modifiers>
+struct _make_access_handle_traits;
+
+template <typename traits, access_handle_permissions_t permissions, typename... modifiers>
+struct _make_access_handle_traits<traits, min_schedule_permissions<permissions>, modifiers...> {
+  using type = typename _make_access_handle_traits<
+    typename traits::template with_min_schedule_permissions<permissions>::type,
+    modifiers...
+  >::type;
+};
+
+template <typename traits, access_handle_permissions_t permissions, typename... modifiers>
+struct _make_access_handle_traits<traits, max_schedule_permissions<permissions>, modifiers...> {
+  using type = typename _make_access_handle_traits<
+    typename traits::template with_max_schedule_permissions<permissions>::type,
+    modifiers...
+  >::type;
+};
+
+template <typename traits, access_handle_permissions_t permissions, typename... modifiers>
+struct _make_access_handle_traits<traits, min_immediate_permissions<permissions>, modifiers...> {
+  using type = typename _make_access_handle_traits<
+    typename traits::template with_min_immediate_permissions<permissions>::type,
+    modifiers...
+  >::type;
+};
+
+template <typename traits, access_handle_permissions_t permissions, typename... modifiers>
+struct _make_access_handle_traits<traits, max_immediate_permissions<permissions>, modifiers...> {
+  using type = typename _make_access_handle_traits<
+    typename traits::template with_max_immediate_permissions<permissions>::type,
+    modifiers...
+  >::type;
+};
+
+template <typename traits>
+struct _make_access_handle_traits<traits> {
+  using type = traits;
+};
+
+} // end namespace _impl
+
+template <typename... modifiers>
+struct make_access_handle_traits {
+  using type = typename
+    _impl::_make_access_handle_traits<access_handle_traits<>, modifiers...>::type;
+};
+
+template <typename... modifiers>
+using make_access_handle_traits_t = typename make_access_handle_traits<modifiers...>::type;
+
+// </editor-fold>
+//------------------------------------------------------------
+
+
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
+
 } // end namespace detail
+
+
 
 template <
   typename T = void,
@@ -622,12 +798,19 @@ class AccessHandle;
 
 namespace detail {
 
-template <typename T>
+template <typename T, typename Enable=void>
 struct is_access_handle
   : std::false_type { };
 
+template <typename T>
+struct is_access_handle<T,
+  std::enable_if_t<not std::is_same<
+    T, std::remove_cv_t<std::remove_reference_t<T>>
+  >::value>
+> : is_access_handle<std::remove_cv_t<std::remove_reference_t<T>>> { };
+
 template <typename... Args>
-struct is_access_handle<AccessHandle<Args...>>
+struct is_access_handle<AccessHandle<Args...>, void>
   : std::true_type { };
 
 
