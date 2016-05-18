@@ -76,7 +76,7 @@
 template <typename T>
 struct _____________________________TYPE_DISPLAY________________________________;
 #define _DARMA_HIDE_TYPE_DISPLAY() _____________________________TYPE_DISPLAY________________________________
-#define DARMA_TYPE_DISPLAY(T) _DARMA_HIDE_TYPE_DISPLAY()<T> _undef;
+#define DARMA_TYPE_DISPLAY(...) _DARMA_HIDE_TYPE_DISPLAY()<__VA_ARGS__> _undef;
 
 namespace darma_runtime {
 

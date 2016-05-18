@@ -90,11 +90,15 @@ class AccessHandle : public detail::AccessHandleBase
 
     using traits = Traits;
 
-    using CompileTimeReadAccessAnalog = AccessHandle<T, key_t, version_t,
+    template <typename NewTraits>
+    using with_traits = AccessHandle<T, key_t, version_t, NewTraits>;
+
+    using CompileTimeReadAccessAnalog = with_traits<
       typename traits
         ::template with_max_schedule_permissions<detail::AccessHandlePermissions::Read>::type
         ::template with_max_immediate_permissions<detail::AccessHandlePermissions::Read>::type
     >;
+
 
     static constexpr bool is_compile_time_immediate_modifiable =
       (traits::max_immediate_permissions == detail::AccessHandlePermissions::Modify
@@ -110,6 +114,24 @@ class AccessHandle : public detail::AccessHandleBase
       (traits::max_schedule_permissions == detail::AccessHandlePermissions::Read
         or traits::max_schedule_permissions == detail::AccessHandlePermissions::Modify
         or not traits::max_schedule_permissions_given);
+
+    static constexpr bool is_leaf = (
+      traits::max_schedule_permissions == detail::AccessHandlePermissions::None
+    );
+
+    // Assert that max_schedule_permissions, if given, is >= min_schedule_permissions, if also given
+    static_assert(
+      not traits::max_schedule_permissions_given or not traits::min_schedule_permissions_given
+      or (int)traits::max_schedule_permissions >= (int)traits::min_schedule_permissions,
+      "Tried to create handle with max_schedule_permissions < min_schedule_permissions"
+    );
+    // Assert that max_immediate_permissions, if given, is >= min_immediate_permissions, if also given
+    static_assert(
+      not traits::max_immediate_permissions_given or not traits::min_immediate_permissions_given
+        or (int)traits::max_immediate_permissions >= (int)traits::min_immediate_permissions,
+      "Tried to create handle with max_immediate_permissions < min_immediate_permissions"
+    );
+
 
   private:
 
@@ -194,15 +216,27 @@ class AccessHandle : public detail::AccessHandleBase
       }
     }
 
+    ////////////////////////////////////////
+    // Analogous type conversion constructor
+
     template <
       typename AccessHandleT,
       typename = std::enable_if_t<
-        traits::max_immediate_permissions_given and is_compile_time_immediate_readable
-        and traits::max_schedule_permissions_given and is_compile_time_schedule_readable
-        and detail::is_access_handle<AccessHandleT>::value
-        and AccessHandleT::is_compile_time_immediate_readable
-        and AccessHandleT::is_compile_time_schedule_readable
-        and not std::is_same<AccessHandleT, AccessHandle>::value
+        // Check if it's an AccessHandle type that's not this type
+        detail::is_access_handle<AccessHandleT>::value
+          and not std::is_same<AccessHandleT, AccessHandle>::value
+        // Check if the conversion is allowed based on min permissions and max permissions
+        and (
+          not traits::max_immediate_permissions_given
+            or not AccessHandleT::traits::min_immediate_permissions_given
+            or traits::max_immediate_permissions >= AccessHandleT::traits::min_immediate_permissions
+        )
+        // same thing for schedule case
+        and (
+          not traits::max_schedule_permissions_given
+            or not AccessHandleT::traits::min_schedule_permissions_given
+            or traits::max_schedule_permissions >= AccessHandleT::traits::min_schedule_permissions
+        )
       >
     >
     AccessHandle(
@@ -217,7 +251,18 @@ class AccessHandle : public detail::AccessHandleBase
 
       // Now check if we're in a capturing context:
       if(capturing_task != nullptr) {
-        AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::ReadOnly;
+        if(
+          // If this type is a compile-time read-only handle, mark it as such here
+          traits::max_immediate_permissions == detail::AccessHandlePermissions::Read
+          // If the other type is compile-time read-only and we don't know, mark it as a read
+          or (AccessHandleT::traits::max_immediate_permissions == detail::AccessHandlePermissions::Read
+            and not traits::max_immediate_permissions_given
+          )
+        ) {
+          AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::ReadOnly;
+        }
+        // TODO mark leaf, schedule-only, etc
+        // TODO require dynamic modify from RHS if this class is static modify
         capturing_task->do_capture<AccessHandle>(*this, copied_from);
       } // end if capturing_task != nullptr
       else {
@@ -227,6 +272,10 @@ class AccessHandle : public detail::AccessHandleBase
         state_ = AccessHandleAccess::state(copied_from);
       }
     }
+
+    // end analogous type conversion constructor
+    ////////////////////////////////////////
+
 
     AccessHandle(AccessHandle&&) noexcept = default;
 
