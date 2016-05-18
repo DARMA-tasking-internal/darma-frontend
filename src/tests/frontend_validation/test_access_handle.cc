@@ -292,7 +292,7 @@ TEST_F(TestAccessHandle, publish_MM) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_capture_released) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -321,7 +321,7 @@ TEST_F(TestAccessHandle, death_capture_released) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_publish_released) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -347,7 +347,7 @@ TEST_F(TestAccessHandle, death_publish_released) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_value) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -369,7 +369,7 @@ TEST_F(TestAccessHandle, death_get_value) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_set_value) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -391,7 +391,7 @@ TEST_F(TestAccessHandle, death_set_value) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_reference) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -413,7 +413,7 @@ TEST_F(TestAccessHandle, death_get_reference) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_set_value_2) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -439,7 +439,7 @@ TEST_F(TestAccessHandle, death_set_value_2) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_value_after_release) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -467,7 +467,7 @@ TEST_F(TestAccessHandle, death_get_value_after_release) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_emplace_value_after_release) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -495,7 +495,7 @@ TEST_F(TestAccessHandle, death_emplace_value_after_release) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_dereference) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -518,7 +518,7 @@ TEST_F(TestAccessHandle, death_dereference) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_dereference_arrow) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -540,7 +540,7 @@ TEST_F(TestAccessHandle, death_dereference_arrow) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_key_after_release) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -563,7 +563,7 @@ TEST_F(TestAccessHandle, death_get_key_after_release) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_release_read_only) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -586,7 +586,7 @@ TEST_F(TestAccessHandle, death_release_read_only) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef DEBUG
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_release_read_only_2) {
   using namespace ::testing;
   using namespace darma_runtime;

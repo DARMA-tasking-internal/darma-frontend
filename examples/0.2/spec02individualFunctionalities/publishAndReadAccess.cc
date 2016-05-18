@@ -10,7 +10,7 @@ int darma_main(int argc, char** argv)
   const int size = darma_spmd_size();
 
   // supposed to be run with 2 ranks, so ignore the rest
-  if (size>2){
+  if (size!=2){
     std::cerr << "# of ranks != 2, not supported!" << std::endl;
     std::cerr << " " __FILE__ << ":" << __LINE__ << '\n';        
     exit( EXIT_FAILURE );

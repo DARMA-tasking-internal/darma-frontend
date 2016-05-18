@@ -77,8 +77,8 @@ function(add_unit_test test_name)
 set(backendtestfiles "${backendtestfiles};${test_name}.cc" PARENT_SCOPE)
 add_executable(${test_name} ${test_name}.cc main.cc)
 target_link_libraries(${test_name} ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
-add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name} "--gtest_repeat=5")
-set_tests_properties(${test_name} PROPERTIES TIMEOUT 5
+add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name} "--gtest_repeat=3")
+set_tests_properties(${test_name} PROPERTIES TIMEOUT 20
   FAIL_REGULAR_EXPRESSION "FAILED;should be deleted but never is;WARNING"
   PASS_REGULAR_EXPRESSION "PASSED")
 endfunction()
@@ -88,6 +88,7 @@ add_unit_test(test_register_task)
 add_unit_test(test_runtime_release_handle)
 add_unit_test(test_get_running_task)
 add_unit_test(test_fetchers)
+add_unit_test(test_death)
 
 add_executable(run_all_backend_tests ${backendtestfiles})
 target_link_libraries(run_all_backend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
