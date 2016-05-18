@@ -45,6 +45,9 @@
 #ifndef META_TINYMPL_DELAY_HPP_
 #define META_TINYMPL_DELAY_HPP_
 
+#include <tinympl/detection.hpp>
+#include <tinympl/identity.hpp>
+
 namespace tinympl {
 
 /**
@@ -71,6 +74,110 @@ struct undelay {
     typedef typename Delayed<Args...>::type::type type;
   };
 };
+
+namespace _impl {
+
+template <typename T>
+using _is_lazy_value_suspension_archetype = decltype( T::type::value );
+
+template <typename T>
+using _has_member_value_archetype = decltype( T::value );
+
+} // end namespace _impl
+
+template <typename T>
+using is_lazy_value_suspension = is_detected<
+  _impl::_is_lazy_value_suspension_archetype, T>;
+
+template <typename T>
+using is_lazy_boolean_value_suspension = is_detected_convertible<bool,
+  _impl::_is_lazy_value_suspension_archetype, T>;
+
+template <typename T>
+using has_member_value = is_detected<_impl::_has_member_value_archetype, T>;
+
+template <typename T>
+using has_member_value_convertible_to_bool =
+  is_detected_convertible<bool, _impl::_has_member_value_archetype, T>;
+
+template <typename T>
+struct extract_value_potentially_lazy {
+  private:
+    using _type_to_evaluate =
+      typename std::conditional_t<
+        has_member_value<T>::value,
+        identity<T>, T
+      >::type;
+
+  public:
+
+    static constexpr auto value = _type_to_evaluate::value;
+
+    using type = std::integral_constant<decltype(value), value>;
+
+};
+
+template <typename T>
+struct extract_bool_value_potentially_lazy {
+  private:
+    using _type_to_evaluate = typename std::conditional_t<
+      has_member_value_convertible_to_bool<T>::value,
+      identity<T>, T
+    >::type;
+
+  public:
+
+    static constexpr bool value = _type_to_evaluate::value;
+
+    using type = std::integral_constant<bool, value>;
+};
+
+template <typename T>
+struct extract_value_potentially_lazy_arbitrary_depth
+{
+  private:
+
+    template <typename U>
+    struct _get_type_to_eval {
+      using type = typename std::conditional_t<
+        has_member_value<U>::value,
+        identity<U>, _get_type_to_eval<typename U::type>
+      >::type;
+    };
+
+    using _type_to_evaluate = typename _get_type_to_eval<T>::type;
+
+  public:
+
+    static constexpr auto value = _type_to_evaluate::value;
+
+    using type = std::integral_constant<decltype(value), value>;
+
+};
+
+template <typename T>
+struct extract_bool_value_potentially_lazy_arbitrary_depth
+{
+  private:
+
+    template <typename U>
+    struct _get_type_to_eval {
+      using type = typename std::conditional_t<
+        has_member_value_convertible_to_bool<U>::value,
+        identity<U>, _get_type_to_eval<typename U::type>
+      >::type;
+    };
+
+    using _type_to_evaluate = typename _get_type_to_eval<T>::type;
+
+  public:
+
+    static constexpr bool value = _type_to_evaluate::value;
+
+    using type = std::integral_constant<bool, value>;
+
+};
+
 
 } // end namespace tinympl
 
