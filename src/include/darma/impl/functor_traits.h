@@ -157,7 +157,8 @@ struct functor_traits {
       static constexpr auto is_nonconst_lvalue_reference = traits::template arg_n_is_nonconst_lvalue_reference<N>::value;
 
       template <typename T>
-      using is_impliticly_convertible_from = typename traits::template arg_n_is_implicitly_convertible_from<N, T>;
+      using is_implicitly_convertible_from =
+        typename traits::template arg_n_is_implicitly_convertible_from<N, T>;
 
     };
 
@@ -196,7 +197,7 @@ struct functor_call_traits {
           // and not if the formal argument is an AccessHandle
           and (not formal_traits::is_access_handle)
           // If so, the value type has to be convertible
-          and formal_traits::template is_impliticly_convertible_from<access_handle_value_type>::value
+          and formal_traits::template is_implicitly_convertible_from<access_handle_value_type const&>::value
           // also, the corresponding formal argument has to be a const_lvalue_reference or passed by value
           and (formal_traits::is_const_lvalue_reference or formal_traits::is_by_value)
         ; // end is_const_conversion_capture
@@ -208,7 +209,7 @@ struct functor_call_traits {
           // only if the formal argument isn't an AccessHandle
           and (not formal_traits::is_access_handle)
           // If so, the value type has to be convertible
-          and formal_traits::template is_impliticly_convertible_from<access_handle_value_type>::value
+          and formal_traits::template is_implicitly_convertible_from<access_handle_value_type&>::value
           // and the formal argument must be a non-const lvalue reference
           and formal_traits::is_nonconst_lvalue_reference
         ; // end is_nonconst_conversion_capture
@@ -231,6 +232,10 @@ struct functor_call_traits {
         // Was the calling argument a T&&?  (excluding AccessHandle<T>&&)
         static constexpr bool is_nonhandle_rvalue_reference =
           std::is_rvalue_reference<CallArg>::value and not is_access_handle;
+
+        // is the formal argument a T rather than a T& or T const&?  If so, we can std::move into it
+        // from the args tuple
+        static constexpr bool formal_arg_accepts_move = formal_traits::is_by_value;
 
         // Specifically disallow AccessHandle<T>&& => * case for now
         static_assert(
@@ -255,24 +260,34 @@ struct functor_call_traits {
         using _const_conversion_capture_arg_tuple_entry = meta::detected_t<
           _const_conversion_capture_arg_tuple_entry_archetype, CallArg
         >;
+        static_assert(
+          not is_const_conversion_capture or not
+            std::is_same<_const_conversion_capture_arg_tuple_entry, meta::nonesuch>::value,
+          "internal error: const conversion capture detected, but arg_tuple type not detected correctly"
+        );
 
         // If it's a nonconst conversion capture, make sure it's a leaf and has minimum
         // immediate permissions of modify
         template <typename AccessHandleT>
         using _nonconst_conversion_capture_arg_tuple_entry_archetype =
-          typename std::decay_t<AccessHandleT>::template with_triats<
-            typename std::decay_t<AccessHandleT>::traits
+          typename std::decay<AccessHandleT>::type::template with_triats<
+            typename std::decay<AccessHandleT>::type::traits
               ::template with_min_immediate_permissions<detail::AccessHandlePermissions::Modify>::type
               ::template with_max_schedule_permissions<detail::AccessHandlePermissions::None>::type
-              // Also set the min schedule permissions, in case they were higher before
+            //  // Also set the min schedule permissions, in case they were higher before
               ::template with_min_schedule_permissions<detail::AccessHandlePermissions::None>::type
-              // but the max immediate permissions should stay the same.  If they are given and less
-              // than Modify, we should get a compile-time error
+            //  // but the max immediate permissions should stay the same.  If they are given and less
+            //  // than Modify, we should get a compile-time error
           >;
 
         using _nonconst_conversion_capture_arg_tuple_entry = meta::detected_t<
           _nonconst_conversion_capture_arg_tuple_entry_archetype, CallArg
         >;
+        static_assert(
+          not is_nonconst_conversion_capture
+            or not std::is_same<_nonconst_conversion_capture_arg_tuple_entry, meta::nonesuch>::value,
+          "internal error: non-const conversion capture detected, but arg_tuple type not detected correctly"
+        );
 
         // Ignore scheduling permissions for now
         template <typename AccessHandleT>
@@ -290,13 +305,30 @@ struct functor_call_traits {
 
       public:
 
-        // TODO disallow T& => T& case with helpful static_assert
-        // TODO disallow T& => T const& case with helpful static_assert
-        // TODO disallow T&& => T& case with helpful static_assert
-        // TODO disallow T const& => T const& case with helpful static_assert
+        // disallow the implicit {T&, T const&} => {T&, T const&} cases (all 4)
+        static_assert(
+          is_access_handle or
+            (formal_traits::is_by_value or not std::is_lvalue_reference<CallArg>::value),
+          "implicit copy of lvalue not allowed.  Either use darma_copy(), wrap the variable in"
+            " an AccessHandle<T>, or change the functor to take the argument by value"
+        );
+
+        // disallow the T&& => T& case
+        static_assert(
+          is_access_handle or
+            not (is_nonhandle_rvalue_reference and formal_traits::is_nonconst_lvalue_reference),
+          "cannot bind rvalue to non-const lvalue reference in functor invocation"
+        );
+
+        // disallow {T&, T const&, T&&} => {AccessHandle<T>, AccessHandle<U>} cases, at least for now
+        static_assert(
+          is_access_handle or not formal_traits::is_access_handle,
+          "implicit conversion of non-AccessHandle<T> argument to AccessHandle<T> is not yet supported."
+            "  You must create an AccessHandle<T> and set its value to the argument before invoking this"
+            " functor."
+        );
+
         // TODO disallow unconvertible with helpful error?
-        // TODO make a darma_copy() function or something
-        // TODO disallow all T {T&, T const&, T&&} => AccessHandle<T> implicit conversions for now
 
         static_assert(
           not (is_nonconst_conversion_capture and is_const_conversion_capture),
@@ -315,22 +347,49 @@ struct functor_call_traits {
           //------------------------------------------------------------
           // For the AccessHandle<T> => ReadAccessHandle<T>& case:
           std::integral_constant<bool, is_read_only_handle_capture>,
-          /* => */ _read_only_handle_capture_arg_tuple_entry,
+            /* => */ _read_only_handle_capture_arg_tuple_entry,
           //------------------------------------------------------------
-          // For other cases, require const
+          // Something is wrong with my logic for this case, so we'll leave it out for now
+          // (only results in one extra copy)
+          //// If the formal argument is by value, make it non-const since we're
+          //// going to move into it from the args tuple (also check for not handle to be safe)
+          //std::integral_constant<bool, formal_arg_accepts_move and not is_access_handle>,
+          //  /* => */ std::remove_cv_t<std::remove_reference_t<CallArg>>,
+          //------------------------------------------------------------
+          // For other cases, require const non-reference
           std::true_type,
             /* => */ std::remove_cv_t<std::remove_reference_t<CallArg>> const
         >;
 
+        // Normal case, just pass through
         template <typename T>
         static std::enable_if_t<
-          not _functor_traits_impl::decayed_is_access_handle<T>::value
-            or not is_conversion_capture,
-          T
+          (not _functor_traits_impl::decayed_is_access_handle<T>::value
+            or not is_conversion_capture)
+          //and not formal_arg_accepts_move
+          , T
         >
         get_converted_arg(T&& val) {
           return val;
         }
+
+        // Something is wrong with my logic for this case, so we'll leave it out for now
+        // (only results in one extra copy)
+        //// if it's non-const, we did that because we want to move out of it
+        //// and into the formal argument
+        //template <typename T>
+        //static std::enable_if_t<
+        //  (not _functor_traits_impl::decayed_is_access_handle<T>::value
+        //    or not is_conversion_capture)
+        //  and formal_arg_accepts_move
+        //  , std::remove_reference_t<T>
+        //>
+        //get_converted_arg(T&& val) {
+        //  // Yes, I know it looks like I'm moving out of an lvalue reference, but
+        //  // I'm basically just pusing the expiration of the lvalue inside this function,
+        //  // since its a mess to try and expire some elements of a tuple and not others
+        //  return std::move(val);
+        //}
 
         template <typename T>
         static std::enable_if_t<
