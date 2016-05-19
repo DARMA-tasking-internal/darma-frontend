@@ -60,6 +60,13 @@
 
 namespace darma_runtime {
 
+
+// todo move this to a more appropriate place
+template <typename T>
+T darma_copy(T& lvalue) {
+  return lvalue;
+}
+
 template <
   typename T,
   typename key_type,

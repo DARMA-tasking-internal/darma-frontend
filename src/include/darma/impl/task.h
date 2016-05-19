@@ -182,9 +182,7 @@ class FunctorRunnable
   private:
 
     typedef functor_traits<Functor> traits;
-  public:
     typedef functor_call_traits<Functor, Args&&...> call_traits;
-  private:
     static constexpr auto n_functor_args_min = traits::n_args_min;
     static constexpr auto n_functor_args_max = traits::n_args_max;
 
@@ -196,6 +194,7 @@ class FunctorRunnable
   public:
     using args_tuple_t = typename call_traits::args_tuple_t;
   private:
+
     args_tuple_t args_;
 
     static const size_t index_;
