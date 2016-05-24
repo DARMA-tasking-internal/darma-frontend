@@ -80,7 +80,7 @@ TEST_F(TestCreateWork, capture_initial_access) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
 
-  Sequence s1, s2;
+  Sequence s1;
 
   auto hm1 = make_same_handle_matcher();
   auto hm2 = make_same_handle_matcher();
@@ -91,7 +91,7 @@ TEST_F(TestCreateWork, capture_initial_access) {
     .InSequence(s1);
 
   // Release read-only usage should happen immedately for initial access,
-  // i.e., before runnign the next line of code that triggers the next register_handle
+  // i.e., before running the next line of code that triggers the next register_handle
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
     .InSequence(s1);
 
@@ -102,18 +102,14 @@ TEST_F(TestCreateWork, capture_initial_access) {
       in_get_dependencies(hm1),
       needs_write_of(hm1),
       Not(needs_read_of(hm1))
-    ))).InSequence(s1, s2);
+    ))).InSequence(s1);
 
-  // order is not specified for release read only usage on continuing context
-  // and handle_done_with_version_depth
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2)))
     .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm2)))
-    .InSequence(s2);
 
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2)))
     .Times(Exactly(1))
-    .InSequence(s1, s2);
+    .InSequence(s1);
 
   {
     auto tmp = initial_access<int>("hello");
@@ -127,10 +123,6 @@ TEST_F(TestCreateWork, capture_initial_access) {
   } // tmp deleted
 
   // We expect the captured handle won't be released until the task is deleted, which we'll do here
-  // Also, that handle should call done with version depth upon deletion of the task
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s1);
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
     .Times(Exactly(1))
     .InSequence(s1);
@@ -146,7 +138,7 @@ TEST_F(TestCreateWork, capture_initial_access_vector) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
 
-  Sequence s1, s2, s3, s4;
+  Sequence s1, s2, s3;
 
   auto hm1_1 = make_same_handle_matcher();
   auto hm2_1 = make_same_handle_matcher();
@@ -174,23 +166,19 @@ TEST_F(TestCreateWork, capture_initial_access_vector) {
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
       in_get_dependencies(hm1_1), needs_write_of(hm1_1), Not(needs_read_of(hm1_1)),
       in_get_dependencies(hm2_1), needs_write_of(hm2_1), Not(needs_read_of(hm2_1))
-  ))).InSequence(s1, s2, s3, s4);
+  ))).InSequence(s1, s2, s3);
 
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1_2)))
     .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1_2)))
-    .InSequence(s2);
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2_2)))
     .InSequence(s3);
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm2_2)))
-    .InSequence(s4);
 
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1_2)))
     .Times(Exactly(1))
     .InSequence(s1, s2);
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2_2)))
     .Times(Exactly(1))
-    .InSequence(s3, s4);
+    .InSequence(s3);
 
   {
     std::vector<AccessHandle<int>> handles;
@@ -205,12 +193,6 @@ TEST_F(TestCreateWork, capture_initial_access_vector) {
 
   } // handles deleted
 
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1_1)))
-    .Times(Exactly(1))
-    .InSequence(s1, s2);
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm2_1)))
-    .Times(Exactly(1))
-    .InSequence(s3, s4);
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1_1)))
     .Times(Exactly(1))
     .InSequence(s1);
@@ -252,80 +234,50 @@ TEST_F(TestCreateWork, ro_capture_RN) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, ro_capture_unused) {
+TEST_F(TestCreateWork, death_ro_capture_unused) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
 
-  mock_runtime->save_tasks = true;
+  EXPECT_DEATH(
+    {
+      mock_runtime->save_tasks = false;
+      auto tmp = initial_access<int>("hello");
+      create_work([=]{
+        std::cout << tmp.get_value();
+        FAIL() << "This code block shouldn't be running in this example";
+      });
+      { create_work(reads(tmp), [=]{ }); }
+    },
+    "handle with key .* declared as read usage, but was actually unused"
+  );
 
-  handle_t* h0, *h1;
-  h0 = h1 = nullptr;
-  EXPECT_CALL(*mock_runtime, register_handle(_))
-    .Times(Exactly(2))
-    .WillOnce(SaveArg<0>(&h0))
-    .WillOnce(SaveArg<0>(&h1));
-
-  {
-    InSequence s;
-    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-      handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
-    )));
-    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-      handle_in_get_dependencies(h1), Not(needs_write_handle(h1)), needs_read_handle(h1)
-    )));
-  }
-
-  {
-    auto tmp = initial_access<int>("hello");
-    create_work([=]{
-      std::cout << tmp.get_value();
-      FAIL() << "This code block shouldn't be running in this example";
-    });
-    create_work(reads(tmp), [=]{ });
-  }
-
-  mock_runtime->registered_tasks.clear();
+  //mock_runtime->registered_tasks.clear();
 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-//TEST_F(TestCreateWork, ro_capture_MM_unused) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  mock_runtime->save_tasks = true;
-//
-//  handle_t* h0, *h1, *h2;
-//  h0 = h1 = h2 = nullptr;
-//  EXPECT_CALL(*mock_runtime, register_handle(_))
-//    .Times(Exactly(2))
-//    .WillOnce(SaveArg<0>(&h0))
-//    .WillOnce(SaveArg<0>(&h1))
-//    .WillOnce(SaveArg<0>(&h2));
-//
-//  {
-//    InSequence s;
-//    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-//      handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
-//    )));
-//    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-//      handle_in_get_dependencies(h1), Not(needs_write_handle(h1)), needs_read_handle(h1)
-//    )));
-//  }
-//
-//  {
-//    auto tmp = initial_access<int>("hello");
-//    create_work([=]{
-//      create_work(reads(tmp), [=]{ });
-//    });
-//  }
-//
-//  run_all_tasks();
+TEST_F(TestCreateWork, death_ro_capture_MM_unused) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
 
-//}
+  {
+    EXPECT_DEATH(
+      {
+        mock_runtime->save_tasks = true;
+        auto tmp = initial_access<int>("hello");
+        create_work([=] {
+          create_work(reads(tmp), [=] { });
+        });
+        run_all_tasks();
+      },
+      "handle with key .* declared as read usage, but was actually unused"
+    );
+  }
+
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -357,10 +309,7 @@ TEST_F(TestCreateWork, capture_read_access_2) {
     ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
   }
 
-  while(not mock_runtime->registered_tasks.empty()) {
-    mock_runtime->registered_tasks.front()->run();
-    mock_runtime->registered_tasks.pop_front();
-  }
+  run_all_tasks();
 
 }
 
@@ -374,46 +323,37 @@ TEST_F(TestCreateWork, mod_capture_MN) {
   mock_runtime->save_tasks = true;
 
   // Reverse order of expected usage because of the way expectations work
-  Sequence s_hm3;
-  auto hm3 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm3, s_hm3);
-  Sequence s_hm2;
-  auto hm2 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm2, s_hm2);
-  Sequence s_hm1;
-  auto hm1 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm1, s_hm1);
+  handle_t* h0, *h1, *h2;
+  h0 = h1 = h2 = nullptr;
+  EXPECT_CALL(*mock_runtime, register_handle(_))
+    .Times(Exactly(3))
+    .WillOnce(SaveArg<0>(&h0))
+    .WillOnce(SaveArg<0>(&h1))
+    .WillOnce(SaveArg<0>(&h2));
 
   {
     InSequence s;
     EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-      in_get_dependencies(hm1), needs_write_of(hm1), Not(needs_read_of(hm1))
+      handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
     )));
     EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-      in_get_dependencies(hm2), needs_write_of(hm2), needs_read_of(hm2)
+      handle_in_get_dependencies(h1), needs_write_handle(h1), needs_read_handle(h1)
     )));
   }
 
   {
     auto tmp = initial_access<int>("hello");
-    create_work([=,&hm1]{
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
+    create_work([=,&h0]{
+      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h0));
     });
-    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm2.handle));
-    create_work([=,&hm2]{
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm2.handle));
+    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h1));
+    create_work([=,&h1]{
+      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h1));
     });
-    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm3.handle));
+    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h2));
   }
 
-  while(not mock_runtime->registered_tasks.empty()) {
-    mock_runtime->registered_tasks.front()->run();
-    mock_runtime->registered_tasks.pop_front();
-  }
-
-  ASSERT_THAT(hm1.handle, Not(Eq(hm2.handle)));
-  ASSERT_THAT(hm2.handle, Not(Eq(hm3.handle)));
-
+  run_all_tasks();
 
 }
 
@@ -428,63 +368,58 @@ TEST_F(TestCreateWork, mod_capture_MM) {
   mock_runtime->save_tasks = true;
 
   // Reverse order of expected usage because of the way expectations work
-  Sequence s_hm5;
-  auto hm5 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm5, s_hm5);
-  Sequence s_hm4;
-  auto hm4 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm4, s_hm4);
-  Sequence s_hm3;
-  auto hm3 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm3, s_hm3);
-  Sequence s_hm2;
-  auto hm2 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm2, s_hm2, /*read_only=*/false, /*calls_last_at_version_depth=*/false);
-  Sequence s_hm1;
-  auto hm1 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm1, s_hm1);
+
+  handle_t* h0, *h1, *h2, *h3, *h4;
+  h0 = h1 = h2 = h3 = h4 = nullptr;
+  EXPECT_CALL(*mock_runtime, register_handle(_))
+    .Times(Exactly(5))
+    .WillOnce(SaveArg<0>(&h0))
+    .WillOnce(SaveArg<0>(&h1))
+    .WillOnce(SaveArg<0>(&h2))
+    .WillOnce(SaveArg<0>(&h3))
+    .WillOnce(SaveArg<0>(&h4));
 
   Sequence s;
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-    in_get_dependencies(hm1), needs_write_of(hm1), Not(needs_read_of(hm1))
+    handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
   ))).InSequence(s);
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-    in_get_dependencies(hm2), needs_write_of(hm2), needs_read_of(hm2)
+    handle_in_get_dependencies(h1), needs_write_handle(h1), needs_read_handle(h1)
   ))).InSequence(s);
 
   {
     auto tmp = initial_access<int>("hello");
-    create_work([=]{
-      // tmp.handle == hm1
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
+    create_work([=,&h0]{
+      // tmp.handle == h0
+      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h0));
     });
-    // tmp.handle == hm2
-    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm2.handle));
-    create_work([=]{
-      // tmp.handle == hm2
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm2.handle));
+    // tmp.handle == h1
+    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h1));
+    create_work([=,&h3,&h4,&h1]{
+      // tmp.handle == h1
+      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h1));
       EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(_)).InSequence(s);
-      // Note that last at version depth shouldn't be called for hm2
-      create_work([=]{
-        // tmp.handle == hm4
-        ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm4.handle));
+      // Note that last at version depth shouldn't be called for h1
+      create_work([=,&h3]{
+        // tmp.handle == h3
+        ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h3));
       });
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm5.handle));
-      // tmp.handle == hm5
+      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h4));
+      // tmp.handle == h4
     });
-    // tmp.handle == hm3
-    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm3.handle));
+    // tmp.handle == h2
+    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h2));
   }
 
-  while(not mock_runtime->registered_tasks.empty()) {
-    mock_runtime->registered_tasks.front()->run();
-    mock_runtime->registered_tasks.pop_front();
-  }
+  run_all_tasks();
 
-  ASSERT_THAT(hm1.handle, Not(Eq(hm2.handle)));
-  ASSERT_THAT(hm2.handle, Not(Eq(hm3.handle)));
-  ASSERT_THAT(hm3.handle, Not(Eq(hm4.handle)));
-  ASSERT_THAT(hm4.handle, Not(Eq(hm5.handle)));
+  // Note that we can only assert not equal for handles with overlapping lifetimes;
+  // C++ might allocate them in the same place for efficiency
+  ASSERT_THAT(h0, Not(Eq(h1)));
+  ASSERT_THAT(h1, Not(Eq(h2)));
+  ASSERT_THAT(h1, Not(Eq(h3)));
+  ASSERT_THAT(h1, Not(Eq(h4)));
+  ASSERT_THAT(h3, Not(Eq(h4)));
 
 }
 
@@ -508,11 +443,6 @@ TEST_F(TestCreateWork, ro_capture_MM) {
     .WillOnce(SaveArg<0>(&h1))
     .WillOnce(SaveArg<0>(&h2))
     .WillOnce(SaveArg<0>(&h3));
-
-  // Expect that handle_done_with_version_depth will be called for everything except h1
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Eq(ByRef(h0))));
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Eq(ByRef(h2))));
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Eq(ByRef(h3))));
 
   EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h0)))).WillOnce(Assign(&h0, nullptr));
   EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1)))).WillOnce(Assign(&h1, nullptr));
@@ -563,12 +493,15 @@ TEST_F(TestCreateWork, ro_capture_MM) {
     EXPECT_EQ(h1->get_key(), h2->get_key());
   } // h2 should be released at this point
 
-  while(not mock_runtime->registered_tasks.empty()) {
-    mock_runtime->registered_tasks.front()->run();
-    mock_runtime->registered_tasks.pop_front();
-  }
+  run_all_tasks();
 
-  // Assert that the version relationships match the chart
+  // Assert that the versions are correct
+  ASSERT_EQ(v0, version_t{0});
+  ASSERT_EQ(v1, version_t{1});
+  ASSERT_THAT(v3, Eq(version_t{1,1}));
+  ASSERT_EQ(v2, version_t{2});
+
+  // also assert that the version relationships and increment behavior works
   v0.pop_subversion();
   ++v0;
   ASSERT_EQ(v1, v0);
@@ -581,3 +514,163 @@ TEST_F(TestCreateWork, ro_capture_MM) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, publish_inside_version) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+
+  mock_runtime->save_tasks = true;
+
+  {
+    auto tmp = initial_access<double>("data", 0);
+    EXPECT_VERSION_EQ_EXACT(tmp, {0});
+    create_work([=] {
+      EXPECT_VERSION_EQ_EXACT(tmp, {0,0});
+      tmp.publish(n_readers=1);
+      EXPECT_VERSION_EQ_EXACT(tmp, {0,1});
+    });
+    EXPECT_VERSION_EQ_EXACT(tmp, {1});
+  }
+
+  run_all_tasks();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, publish_outside_version) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+
+  mock_runtime->save_tasks = true;
+
+  {
+    auto tmp = initial_access<double>("data", 0);
+    EXPECT_VERSION_EQ_EXACT(tmp, {0});
+    create_work([=] {
+      EXPECT_VERSION_EQ_EXACT(tmp, {0,0});
+    });
+    EXPECT_VERSION_EQ_EXACT(tmp, {1});
+    tmp.publish(n_readers=1);
+    EXPECT_VERSION_EQ_EXACT(tmp, {1});
+  }
+
+  run_all_tasks();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, publish_inside_register_release) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+
+  mock_runtime->save_tasks = true;
+
+  handle_t* h0, *h1, *h2;
+  h0 = h1 = h2 = nullptr;
+
+  {
+    InSequence s;
+    EXPECT_CALL(*mock_runtime, register_handle(_)).WillOnce(SaveArg<0>(&h0));
+    EXPECT_CALL(*mock_runtime, release_read_only_usage(Eq(ByRef(h0))));
+
+    // continuing context handle should be registered before the task
+    EXPECT_CALL(*mock_runtime, register_handle(_)).WillOnce(SaveArg<0>(&h1));
+
+    // Now we expect the task to be registered
+    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(_));
+
+    // h1 goes away because tmp goes out of scope after the task is registered
+    // but before it is run
+    EXPECT_CALL(*mock_runtime, release_read_only_usage(Eq(ByRef(h1))));
+    EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1))));
+
+    // Then these should happen once the task runs
+    // Note thate h2 must be registered before h0 is released!
+    EXPECT_CALL(*mock_runtime, register_handle(_)).WillOnce(SaveArg<0>(&h2));
+    // Note thate h0 must be released before h2!
+    EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h0))));
+    // Now the publish should be called
+    EXPECT_CALL(*mock_runtime, publish_handle(Eq(ByRef(h2)), _, _, _));
+    // Then h2 can be released
+    EXPECT_CALL(*mock_runtime, release_read_only_usage(Eq(ByRef(h2))));
+    EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h2))));
+
+  }
+
+  {
+    auto tmp = initial_access<double>("data", 0);
+    ASSERT_VERSION_EQ_EXACT(h0, {0});
+    create_work([=,&h2] {
+      tmp.publish(n_readers=1);
+      ASSERT_VERSION_EQ_EXACT(h2, {0,1});
+    });
+    ASSERT_VERSION_EQ_EXACT(h1, {1});
+  }
+
+  run_all_tasks();
+
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, publish_inside_register_release_order_2) {
+  // TODO this doesn't actually test the issue that caused publishAndReadAccess to fail
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+
+  mock_runtime->save_tasks = true;
+
+  handle_t* h0, *h1, *h2;
+  h0 = h1 = h2 = nullptr;
+
+  {
+    InSequence s;
+    EXPECT_CALL(*mock_runtime, register_handle(_)).WillOnce(SaveArg<0>(&h0));
+    EXPECT_CALL(*mock_runtime, release_read_only_usage(Eq(ByRef(h0))));
+
+    // continuing context handle should be registered before the task
+    EXPECT_CALL(*mock_runtime, register_handle(_)).WillOnce(SaveArg<0>(&h1));
+
+    // Now we expect the task to be registered
+    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(_));
+
+    // Then these should happen once the task runs
+    // Note thate h2 must be registered before h0 is released!
+    EXPECT_CALL(*mock_runtime, register_handle(_)).WillOnce(SaveArg<0>(&h2));
+    // Note thate h0 must be released before h2!
+    EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h0))));
+    // Now the publish should be called
+    EXPECT_CALL(*mock_runtime, publish_handle(Eq(ByRef(h2)), _, _, _));
+    // Then h2 can be released
+    EXPECT_CALL(*mock_runtime, release_read_only_usage(Eq(ByRef(h2))));
+    EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h2))));
+
+    // h1 goes away because tmp goes out of scope after the task is registered
+    // but before it is run
+    EXPECT_CALL(*mock_runtime, release_read_only_usage(Eq(ByRef(h1))));
+    EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1))));
+  }
+
+  {
+    auto tmp = initial_access<double>("data", 0);
+    ASSERT_VERSION_EQ(h0, {0});
+    create_work([=,&h2] {
+      tmp.publish(n_readers=1);
+      ASSERT_VERSION_EQ(h2, {0,1});
+    });
+    run_all_tasks();
+    ASSERT_VERSION_EQ(h1, {1});
+  }
+
+
+
+}

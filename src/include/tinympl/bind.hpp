@@ -191,10 +191,18 @@ struct bind<F, Head, Tail...>
       using type = typename call<Args...>::template eval<>::type;
     };
 
+    template<class... Ts>
+    struct eval_value
+    {
+      static constexpr auto value = eval<Ts...>::type::value;
+    };
+
     template<class ... Args>
     using eval_t = typename eval<Args...>::type;
     template<class ... Args>
     using apply = eval<Args...>;
+    template<class ... Args>
+    using apply_value = eval_value<Args...>;
 };
 
 template <template <class... T> class F>
@@ -219,11 +227,18 @@ struct bind<F>
     {
       using type = typename call<Args...>::template eval<>::type;
     };
+    template<class... Ts>
+    struct eval_value
+    {
+      static constexpr auto value = eval<Ts...>::type::value;
+    };
 
     template<class ... Args>
     using eval_t = typename eval<Args...>::type;
     template<class ... Args>
     using apply = eval<Args...>;
+    template<class ... Args>
+    using apply_value = eval_value<Args...>;
 };
 
 }

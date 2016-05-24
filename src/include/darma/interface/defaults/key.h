@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                          key.h
-//                         darma_mockup
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,328 +42,164 @@
 //@HEADER
 */
 
-#ifndef NEW_KEY_H_
-#define NEW_KEY_H_
+#ifndef DARMA_STREAM_KEY_H_
+#define DARMA_STREAM_KEY_H_
 
-#include <cassert>
-#include <tuple>
-#include <cstring> // std::memcmp
+#include <sstream>
 #include <iostream>
+#include <cassert>
 
-#include <darma/util.h>
-#include <darma/meta/tuple_for_each.h>
-#include <darma/interface/defaults/key_fwd.h>
-
-#include <darma/key_concept.h> // key_traits
-
-// TODO key must be able to be sent over the wire
-
-#ifndef DARMA_DEBUG_KEY_TYPES
-#  define DARMA_DEBUG_KEY_TYPES 1
-#endif
-
-#if DARMA_DEBUG_KEY_TYPES
-#  include <typeindex>
-#endif
+#include <darma/impl/meta/tuple_for_each.h>
+#include <darma/impl/util.h>
+#include <darma/impl/key_concept.h>
 
 namespace darma_runtime {
 
+namespace stream_key {
+
 namespace detail {
 
-class key_part {
-  public:
-
-    explicit
-    key_part(
-      void* part_data
-#if DARMA_DEBUG_KEY_TYPES
-      , size_t data_size
-#endif
-    ) : data(part_data)
-#if DARMA_DEBUG_KEY_TYPES
-      , expected_size_(data_size)
-#endif
-    { }
-
-
-    template <typename T>
-    T& as() {
-#if DARMA_DEBUG_KEY_TYPES
-      assert(sizeof(T) == expected_size_);
-#endif
-      return *(T*)data;
-    }
-
-    template <typename T>
-    const T& as() const {
-#if DARMA_DEBUG_KEY_TYPES
-      assert(sizeof(T) == expected_size_);
-#endif
-      return *(T*)data;
-    }
-
-  private:
-    // an unowned pointer to the start of the data for this part
-    void* data;
-#if DARMA_DEBUG_KEY_TYPES
-    //type_info type;
-    size_t expected_size_;
-#endif
+template <typename T>
+struct as_impl {
+  T operator()(const std::string& str) const {
+    T rv;
+    std::stringstream sstr(str);
+    sstr >> rv;
+    return rv;
+  }
 };
 
-class key_impl_base
-{
-  public:
-
-    virtual const key_part
-    get_part(unsigned spot) const =0;
-
-    virtual const void*
-    get_start() const =0;
-
-    virtual size_t
-    get_size() const =0;
-
-    virtual size_t
-    get_n_parts() const =0;
-
-    virtual ~key_impl_base() { }
-
-#if DARMA_DEBUG_KEY_TYPES
-    virtual bool
-    parts_equal(const key_impl_base* other) =0;
-
-    virtual std::type_index
-    get_type_index() const =0;
-#endif
-
+template <>
+struct as_impl<const char*> {
+  const char* operator()(const std::string& str) const {
+    return str.c_str();
+  }
 };
 
-// TODO std::string and/or const char* support
-template <typename... Types>
-class key_impl : public key_impl_base
-{
-  public:
+struct stream_key_part {
 
-    // TODO validate that Types... are bitwise copyable
+  stream_key_part(const std::string& str) : my_str_(str) { }
 
-    key_impl(
-      const variadic_constructor_arg_t,
-      Types&&... parts
-    ) : parts_(std::forward<Types>(parts)...)
-#if DARMA_DEBUG_KEY_TYPES
-      , type_idx(typeid(key_impl))
-#endif
-    { }
+  template <typename T>
+  T as() const {
+    return as_impl<T>()(my_str_);
+  }
 
-    explicit key_impl(
-      std::tuple<Types...>&& tup
-    ) : parts_(std::forward<std::tuple<Types...>>(tup))
-#if DARMA_DEBUG_KEY_TYPES
-      , type_idx(typeid(key_impl))
-#endif
-    { }
-
-    const key_part
-    get_part(const unsigned spot) const override {
-      // This is incredibly inefficient...
-      key_part* rv;
-      meta::tuple_for_each_with_index(parts_, [&rv, spot](auto& part, size_t i) {
-        if(i == spot) {
-          rv = new key_part(
-            (void*)&part
-#if DARMA_DEBUG_KEY_TYPES
-            , sizeof(typename std::decay<decltype(part)>::type)
-#endif
-          );
-        }
-      });
-      return *rv;
-    }
-
-    const void*
-    get_start() const override {
-      return &parts_;
-    }
-
-    size_t
-    get_size() const override {
-      return sizeof(tuple_t);
-    }
-
-    size_t
-    get_n_parts() const override {
-      return sizeof...(Types);
-    }
-
-#if DARMA_DEBUG_KEY_TYPES
-    bool
-    parts_equal(const key_impl_base* other_in) override {
-      const key_impl* other = dynamic_cast<const key_impl*>(other_in);
-      if(other) {
-        return parts_ == other->parts_;
-      }
-      else {
-        return false;
-      }
-    }
-
-    std::type_index
-    get_type_index() const override {
-      return type_idx;
-    }
-
-    void
-    print_user_readable(std::ostream& o = std::cout) const {
-      print_user_readable(", ");
-    }
-
-    void
-    print_user_readable(const std::string& sep, std::ostream& o = std::cout) const {
-      meta::tuple_for_each_with_index(parts_, [sep,&o](const auto& part, size_t i) {
-        o << part;
-        if(i != sizeof...(Types) - 1) {
-          o << sep;
-        }
-      });
-    }
-
-#endif
-
-  private:
-
-    typedef std::tuple<Types...> tuple_t;
-
-    std::tuple<Types...> parts_;
-
-#if DARMA_DEBUG_KEY_TYPES
-    std::type_index type_idx;
-#endif
+  std::string my_str_;
 
 };
 
 } // end namespace detail
 
-namespace defaults {
-
 struct key_hash;
 struct key_equal;
 
-class Key {
-  private:
-
-    typedef std::shared_ptr<detail::key_impl_base> _impl_ptr_t;
-    typedef typename detail::smart_ptr_traits<std::shared_ptr>::maker<_impl_ptr_t> _impl_ptr_maker_t;
+struct StreamKey  {
 
   public:
 
-    typedef defaults::key_hash hasher;
-    typedef defaults::key_equal key_equal;
-
-    Key()
-      : k_impl_(std::make_shared<detail::key_impl<>>(
-          detail::variadic_constructor_arg
-        ))
-    { }
+    StreamKey() : StreamKey(darma_runtime::detail::variadic_constructor_arg) { }
 
     template <typename... Types>
-    Key(
-      const detail::variadic_constructor_arg_t,
+    explicit StreamKey(
+      const darma_runtime::detail::variadic_constructor_arg_t,
       Types&&... data
-    ) : k_impl_(std::make_shared<detail::key_impl<Types...>>(
-          detail::variadic_constructor_arg,
-          std::forward<Types>(data)...
-        ))
-    { }
+    ) {
+      std::stringstream sstr;
+      darma_runtime::meta::tuple_for_each(std::make_tuple(data...), [&sstr](const auto& val) {
+        sstr << val << std::endl;
+      });
+      val_ = sstr.str();
+      n_parts_ = sizeof...(Types);
+    }
 
     template <typename... Types>
-    explicit Key(
+    explicit StreamKey(
       std::tuple<Types...>&& data
-    ) : k_impl_(_impl_ptr_maker_t()(
-          std::forward<std::tuple<Types...>>(data)
-        ))
-    { }
+    ) {
+      std::stringstream sstr;
+      darma_runtime::meta::tuple_for_each(data, [&sstr](const auto& val) {
+        sstr << val << std::endl;
+      });
+      val_ = sstr.str();
+      n_parts_ = sizeof...(Types);
+    }
 
     template <unsigned Spot>
-    const detail::key_part
+    const detail::stream_key_part
     component() const {
-      return k_impl_->get_part(Spot);
+      assert(Spot < n_parts_);
+      std::stringstream sstr(val_);
+      char buffer[255];
+      for(int i = 0; i <= Spot; ++i) {
+        sstr.getline(buffer, 255);
+      }
+      std::string rv_str(buffer);
+      return detail::stream_key_part(rv_str);
+    }
+
+    void
+    print_human_readable(
+      const char* sep = ", ",
+      std::ostream& o = std::cout
+    ) const {
+      std::stringstream sstr(val_);
+      char buffer[255];
+      for(int i = 0; i < n_parts_; ++i) {
+        sstr.getline(buffer, 255);
+        o << buffer;
+        if(i != n_parts_ - 1) {
+          o << sep;
+        }
+      }
     }
 
   private:
 
-    _impl_ptr_t k_impl_;
+    friend struct key_hash;
+    friend struct key_equal;
 
-    friend struct defaults::key_hash;
-    friend struct defaults::key_equal;
+    std::string val_;
+    size_t n_parts_;
 };
-
-
-template <typename... Types>
-Key
-make_key_from_tuple(std::tuple<Types...>&& data)
-{
-  return Key(
-    std::forward<std::tuple<Types...>>(data)
-  );
-}
 
 struct key_hash {
   size_t
-  operator()(const defaults::Key& key) const {
-    // TODO optimize this w.r.t. virtual method invocations
-    typedef char align_t;
-    align_t* data = (align_t*)key.k_impl_->get_start();
-    size_t size = key.k_impl_->get_size() / sizeof(align_t);
-    assert(key.k_impl_->get_size() % sizeof(align_t) == 0);
-    if(size == 0) return 0;
-    size_t rv = std::hash<align_t>()(data[0]);
-    for(int i = 1; i < size; ++i) {
-      darma_runtime::detail::hash_combine(rv, data[i]);
-    }
-    return rv;
+  operator()(const StreamKey& a) const {
+    return std::hash<std::string>()(a.val_);
   }
 };
 
 struct key_equal {
   bool
-  operator()(const defaults::Key& lhs, const defaults::Key& rhs) const {
-    // Shortcut: if the shared pointers point to the same thing, they must be equal
-    if(lhs.k_impl_.get() == rhs.k_impl_.get()) return true;
-    // TODO optimize this w.r.t. virtual method invocations
-    const void* lhs_data = lhs.k_impl_->get_start();
-    const void* rhs_data = rhs.k_impl_->get_start();
-    size_t lhs_size = lhs.k_impl_->get_size();
-    size_t rhs_size = rhs.k_impl_->get_size();
-    if(lhs_size != rhs_size) return false;
-    if(std::memcmp(lhs_data, rhs_data, lhs_size) != 0) return false;
-#if DARMA_DEBUG_KEY_TYPES
-    assert(lhs.k_impl_->get_type_index() == rhs.k_impl_->get_type_index());
-    assert(lhs.k_impl_->parts_equal(rhs.k_impl_.get()));
-#endif
-    return true;
+  operator()(const StreamKey& a, const StreamKey& b) const {
+    return a.val_ == b.val_;
   }
 };
 
-
 inline bool
-operator==(const defaults::Key& a, const defaults::Key& b) {
-  return defaults::key_equal()(a, b);
+operator==(const StreamKey& a, const StreamKey& b) {
+  return key_equal()(a, b);
 }
 
-} // end namespace defaults
+inline std::ostream& operator<<(std::ostream& o, StreamKey const& k) {
+  k.print_human_readable(", ", o);
+  return o;
+}
+
+} // end namespace stream_key
 
 namespace detail {
 
 template <>
-struct key_traits<darma_runtime::defaults::Key>
+struct key_traits<darma_runtime::stream_key::StreamKey>
 {
   struct maker {
     constexpr maker() = default;
     template <typename... Args>
-    inline darma_runtime::defaults::Key
+    inline darma_runtime::stream_key::StreamKey
     operator()(Args&&... args) const {
-      return darma_runtime::defaults::Key(
+      return darma_runtime::stream_key::StreamKey(
         detail::variadic_constructor_arg,
         std::forward<Args>(args)...
       );
@@ -373,25 +209,49 @@ struct key_traits<darma_runtime::defaults::Key>
   struct maker_from_tuple {
     constexpr maker_from_tuple() = default;
     template <typename... Args>
-    inline darma_runtime::defaults::Key
+    inline darma_runtime::stream_key::StreamKey
     operator()(std::tuple<Args...>&& data) const {
-      return darma_runtime::defaults::Key(
+      return darma_runtime::stream_key::StreamKey(
         std::forward<std::tuple<Args...>>(data)
       );
     }
   };
 
-  typedef typename darma_runtime::defaults::Key::hasher hasher;
-  typedef typename darma_runtime::defaults::Key::key_equal key_equal;
+  typedef darma_runtime::stream_key::key_hash hasher;
+  typedef darma_runtime::stream_key::key_equal key_equal;
 
 };
 
 } // end namespace detail
+
+} // end namespace darma_runtime
+
+namespace std {
+
+template<>
+struct hash<darma_runtime::stream_key::StreamKey> {
+  size_t
+  operator()(const darma_runtime::stream_key::StreamKey& a) const {
+    return darma_runtime::stream_key::key_hash()(a);
+  }
+};
+
+} // end namespace std
+
+DARMA_STATIC_ASSERT_VALID_KEY_TYPE(darma_runtime::stream_key::StreamKey);
+
+namespace darma_runtime {
+
+namespace defaults {
+
+typedef darma_runtime::stream_key::StreamKey Key;
+
+} // end namespace defaults
+
 } // end namespace darma_runtime
 
 namespace darma_runtime { namespace types {
   typedef darma_runtime::defaults::Key key_t;
 }} // end namespace darma_runtime::types
 
-#endif /* NEW_KEY_H_ */
-
+#endif /* DARMA_STREAM_KEY_H_ */

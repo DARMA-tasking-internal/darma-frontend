@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          containment_manager.h
-//                         darma_new
+//                      serializer_attorneys.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,72 +42,54 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_CONTAINMENT_MANAGER_H_
-#define SRC_ABSTRACT_FRONTEND_CONTAINMENT_MANAGER_H_
+#ifndef DARMA_SERIALIZER_ATTORNEYS_H
+#define DARMA_SERIALIZER_ATTORNEYS_H
 
-#include "dependency_handle.h"
+#include <cstddef>
+#include <cassert>
+
+#include <tinympl/always_true.hpp>
+#include <tinympl/copy_traits.hpp>
+
+#include "serialization_fwd.h"
 
 namespace darma_runtime {
+namespace serialization {
 
-namespace abstract {
+////////////////////////////////////////////////////////////////////////////////
 
-namespace frontend {
+namespace Serializer_attorneys {
 
-/** @todo document this for the 0.2.1 spec
- *
- */
-template <
-  typename Key,
-  typename Version
->
-class ContainmentManager
-{
-  public:
+struct ArchiveAccess {
+  template <typename ArchiveT>
+  static inline
+  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type&
+  start(ArchiveT& ar) { return ar.start; }
 
-    typedef DependencyHandle<Key, Version> handle_t;
+  template <typename ArchiveT>
+  static inline
+  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type&
+  spot(ArchiveT& ar) { return ar.spot; }
 
-    virtual bool
-    is_offset_size_relationship() const =0;
+  template <typename ArchiveT>
+  static inline
+  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<detail::SerializerMode>::type&
+  mode(ArchiveT& ar) { return ar.mode; }
 
-    virtual bool
-    is_strided() const =0;
-
-    virtual size_t
-    get_size() const =0;
-
-    virtual ptrdiff_t
-    get_offset() const =0;
-
-    virtual ptrdiff_t
-    get_stride() const =0;
-
-    virtual void
-    slice_in(
-      const handle_t* const inner_handle,
-      handle_t* const outer_handle
-    ) const {
-      // TODO explain why default implementation does nothing
-    }
-
-    virtual void
-    slice_out(
-      handle_t* const inner_handle,
-      const handle_t* const outer_handle
-    ) const {
-      // TODO explain why default implementation does nothing
-    }
-
-    // Virtual destructor, since we have virtual methods
-
-    virtual ~ContainmentManager() noexcept { }
+  template <typename ArchiveT>
+  static inline size_t
+  get_size(ArchiveT& ar) {
+    assert(ar.is_sizing());
+    return ar.spot - ar.start;
+  }
 
 };
 
-} // end namespace frontend
+} // end namespace Serializer_attorneys
 
-} // end namespace abstract
+////////////////////////////////////////////////////////////////////////////////
 
+} // end namespace serialization
 } // end namespace darma_runtime
 
-
-#endif /* SRC_ABSTRACT_FRONTEND_CONTAINMENT_MANAGER_H_ */
+#endif //DARMA_SERIALIZER_ATTORNEYS_H

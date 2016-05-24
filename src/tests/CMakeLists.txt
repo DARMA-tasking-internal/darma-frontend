@@ -18,9 +18,9 @@ else ()
 endif ()
 
 # nothing, for now
-add_subdirectory(meta)
 add_subdirectory(tinympl)
 if (GTEST_DIR)
+add_subdirectory(meta)
 add_subdirectory(frontend_validation)
 endif()
 

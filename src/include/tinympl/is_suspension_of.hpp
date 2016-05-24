@@ -62,6 +62,16 @@ struct is_suspension_of
     >
 { };
 
+template <
+  template <class...> class F,
+  typename T
+>
+struct is_value_suspension_of
+  : and_<
+    is_instantiation_of<F, T>,
+    is_value_suspension<T>
+  >
+{ };
 
 } // end namespace tinympl
 

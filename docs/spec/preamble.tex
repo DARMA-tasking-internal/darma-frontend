@@ -11,6 +11,9 @@
 \usepackage{lmodern}
 %\usepackage{geometry}
 %\usepackage{pdflscape}
+\usepackage{amssymb}
+\usepackage{pifont}
+\usepackage{changepage}
 
 \usepackage{times}
 \usepackage{graphicx}
@@ -56,14 +59,28 @@
     morecomment=[s]{/*}{*/},%
     commentstyle=\color{dkgreen},%
     alsoletter=-,
+    mathescape,
     emph={ro-capture,mod-capture,capture,ro,mod},emphstyle={\color{blue}\it},%
-    morekeywords={get_value,set_value,immediate},keywordstyle=\color{blue},%
+    morekeywords={get_value,set_value,immediate,get_reference,emplace_value},keywordstyle=\color{blue},%
     morekeywords={[2]print},keywordstyle={[2]\color{dkblue}},%
     morekeywords={[3]VASP},keywordstyle={[3]\color{dkred}\fontseries{b}\selectfont},%
     morekeywords={[4]int},keywordstyle={[4]\color{dkblue}},%
     %keywordstyle=\color{red}%
   }%
 }{}
+
+\usepackage{lipsum}
+\usepackage{changepage}
+
+\newenvironment{subs}
+  {\adjustwidth{1.3cm}{0pt}}
+  {\endadjustwidth}
+
+
+\newcommand{\specialcell}[2][c]{%
+  \begin{tabular}[#1]{@{}c@{}}#2\end{tabular}}
+\newcommand{\yes}{\text{\ding{51}}}
+\newcommand{\no}{\text{\ding{55}}}
 
 
 \usepackage{draftwatermark}

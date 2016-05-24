@@ -51,7 +51,6 @@
 #include "runtime.h"
 #include "spmd.h"
 #include "create_work.h"
-#include "serialization.h"
 #include <darma/interface/defaults/darma_main.h>
 
 

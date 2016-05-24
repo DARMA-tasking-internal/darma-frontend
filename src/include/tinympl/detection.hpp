@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          key_fwd.h
-//                         darma_new
+//                          detection.hpp
+//                         tinympl
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,18 +42,67 @@
 //@HEADER
 */
 
-#ifndef SRC_KEY_FWD_H_
-#define SRC_KEY_FWD_H_
+#ifndef TINYMPL_DETECTION_H_
+#define TINYMPL_DETECTION_H_
 
-namespace darma_runtime {
+#include <type_traits>
 
-namespace defaults {
-class Key;
-} // end namespace defaults
+#include <tinympl/void_t.hpp>
 
-} // end namespace darma_runtime
+namespace tinympl {
+
+// Large pieces taken or adapted from http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4436.pdf
+
+// primary template handles all types not supporting the archetypal Op
+template <
+  class Default,
+  class _always_void,
+  template <class...> class Op,
+  class... Args
+>
+struct detector {
+  constexpr static auto value = false;
+  using type = Default;
+};
+
+// specialization recognizes and handles only types supporting Op
+template <
+  class Default,
+  template <class...> class Op,
+  class... Args
+>
+struct detector<Default, void_t<Op<Args...>>, Op, Args...> {
+  constexpr static auto value = true;
+  using type = Op<Args...>;
+};
+
+struct nonesuch {
+  nonesuch() = delete;
+  ~nonesuch() = delete;
+  nonesuch(nonesuch const&) = delete;
+  void operator=(nonesuch const&) = delete;
+};
+
+template <template <class...> class Op, class... Args>
+using is_detected = detector<nonesuch, void, Op, Args...>;
+
+template <template <class...> class Op, class... Args>
+using detected_t = typename is_detected<Op, Args...>::type;
+
+template <class Default, template <class...> class Op, class... Args>
+using detected_or = detector<Default, void, Op, Args...>;
+
+template <class Default, template <class...> class Op, class... Args>
+using detected_or_t = typename detected_or<Default, Op, Args...>::type;
+
+template <class Expected, template<class...> class Op, class... Args>
+using is_detected_exact = std::is_same<Expected, detected_t<Op, Args...>>;
+
+template <class To, template <class...> class Op, class... Args>
+using is_detected_convertible = std::is_convertible<detected_t<Op, Args...>, To>;
+
+} // end namespace tinympl
 
 
 
-
-#endif /* SRC_KEY_FWD_H_ */
+#endif /* TINYMPL_DETECTION_H_ */

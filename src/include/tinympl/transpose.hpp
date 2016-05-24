@@ -75,13 +75,13 @@ transposed
  * \param OutInner The type of the inner output sequence
  */
 template < class SequenceOfSequences,
-           template<class ...> class OutOuter =
-                as_sequence<SequenceOfSequences>::template rebind,
-           template<class ...> class OutInner =
-                as_sequence<typename at<0,SequenceOfSequences>::type>::
-                    template rebind >
+  template<class ...> class OutOuter =
+    as_sequence<SequenceOfSequences>::template rebind,
+  template<class ...> class OutInner =
+    as_sequence<typename at<0,SequenceOfSequences>::type>::template rebind
+>
 struct transpose :
-    transpose< as_sequence_t<SequenceOfSequences>, OutOuter, OutInner > {};
+  transpose< as_sequence_t<SequenceOfSequences>, OutOuter, OutInner > {};
 
 template< class ... Sequences,
           template<class ...> class OutOuter,
@@ -99,7 +99,7 @@ class transpose< sequence<Sequences...>, OutOuter, OutInner> {
     static_assert( variadic::all_of <
                    bind < equal_to, int_<size>,
                    bind<tinympl::size, arg1> >::
-                       template eval, Sequences...>::value,
+                       template eval_value, Sequences...>::value,
                    "transpose: all the sequences must have the same size" );
 
     template<std::size_t i, class ... Bound>
