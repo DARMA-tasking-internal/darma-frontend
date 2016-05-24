@@ -45,164 +45,164 @@
 #include <darma/impl/meta/member_detector.h>
 #include <string>
 
-using namespace darma_runtime;
-using namespace darma_runtime::meta;
-
-
-struct TestHasPolicy {
-  int policy(int, char, std::string&) { return 0; }
-};
-
-struct TestHasOtherPolicy {
-  void*& policy(int) { return my_ptr; }
-  void* my_ptr;
-};
-
-struct TestHasConstPolicy {
-  int policy(int, char, std::string&) const { return 0; }
-};
-
-struct TestHasBothPolicy {
-  int policy(int, char, std::string&) { return 0; }
-  int policy(int, char, std::string&) const { return 0; }
-};
-
-struct TestNoPolicy { };
-
-struct TestMemberPolicy { int policy; };
-
-struct TestStaticPolicy {
-  static int policy(int, char, std::string&) { return 0; }
-};
-
-struct TestWrongPolicy {
-  int policy(char, int, std::string&) { return 0; }
-  int policy() { return 0; }
-  void policy(int, char, std::string&) { }
-};
-
-DARMA_META_MAKE_MEMBER_DETECTORS(policy);
-
-static_assert(
-  has_member_named_policy<TestHasPolicy>::value,
-  "doesn't work"
-);
-
-static_assert(
-  has_method_named_policy_with_signature<
-    TestHasPolicy, int(int, char, std::string&)
-  >::value,
-  "doesn't work"
-);
-
-static_assert(
-  not has_const_method_named_policy_with_signature<
-    TestHasPolicy, int(int, char, std::string&)
-  >::value,
-  "doesn't work"
-);
-
-static_assert(
-  has_const_method_named_policy_with_signature<
-    TestHasConstPolicy, int(int, char, std::string&)
-  >::value,
-  "doesn't work"
-);
-
-static_assert(
-  not has_method_named_policy_with_signature<
-    TestHasConstPolicy, int(int, char, std::string&)
-  >::value,
-  "doesn't work"
-);
-
-static_assert(
-  has_method_named_policy_with_signature<
-    TestHasBothPolicy, int(int, char, std::string&)
-  >::value and
-  has_const_method_named_policy_with_signature<
-    TestHasBothPolicy, int(int, char, std::string&)
-  >::value,
-  "doesn't work"
-);
-
-static_assert(
-  not has_method_named_policy_with_signature<TestNoPolicy, int(int, char, std::string&)>::value,
-  "doesn't work"
-);
-
-static_assert(
-  has_method_named_policy_with_signature<TestHasOtherPolicy,
-    void*&(int)
-  >::value,
-  "doesn't work"
-);
-
-static_assert(
-  not has_method_named_policy_with_signature<TestWrongPolicy, int(int, char, std::string&)>::value
-  and not has_const_method_named_policy_with_signature<TestWrongPolicy, int(int, char, std::string&)>::value,
-  "doesn't work"
-);
-
-static_assert(
-  not has_method_named_policy_with_signature<
-    int, int(int, char, std::string&)
-  >::value,
-  "doesn't work"
-);
-
-static_assert(
-  not has_method_named_policy_with_signature<
-    TestStaticPolicy, int(int, char, std::string&)
-  >::value,
-  "doesn't work"
-);
-
-static_assert(
-  not has_method_named_policy<TestMemberPolicy>::value,
-  "doesn't work"
-);
-
-static_assert(
-  has_method_named_policy<TestHasPolicy>::value,
-  "doesn't work"
-);
-
+//using namespace darma_runtime;
+//using namespace darma_runtime::meta;
+//
+//
+//struct TestHasPolicy {
+//  int policy(int, char, std::string&) { return 0; }
+//};
+//
+//struct TestHasOtherPolicy {
+//  void*& policy(int) { return my_ptr; }
+//  void* my_ptr;
+//};
+//
+//struct TestHasConstPolicy {
+//  int policy(int, char, std::string&) const { return 0; }
+//};
+//
+//struct TestHasBothPolicy {
+//  int policy(int, char, std::string&) { return 0; }
+//  int policy(int, char, std::string&) const { return 0; }
+//};
+//
+//struct TestNoPolicy { };
+//
+//struct TestMemberPolicy { int policy; };
+//
+//struct TestStaticPolicy {
+//  static int policy(int, char, std::string&) { return 0; }
+//};
+//
+//struct TestWrongPolicy {
+//  int policy(char, int, std::string&) { return 0; }
+//  int policy() { return 0; }
+//  void policy(int, char, std::string&) { }
+//};
+//
+//DARMA_META_MAKE_MEMBER_DETECTORS(policy);
+//
 //static_assert(
-//  not has_static_method_named_policy_with_signature<
-//    TestHasPolicy,
-//    int(int, char, std::string&)
+//  has_member_named_policy<TestHasPolicy>::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  has_method_named_policy_with_signature<
+//    TestHasPolicy, int(int, char, std::string&)
 //  >::value,
 //  "doesn't work"
 //);
-
-static_assert(
-  has_member_named_policy<
-    TestStaticPolicy
-  >::value,
-  "doesn't work"
-);
-
-static_assert(
-  has_method_named_policy<
-    TestStaticPolicy
-  >::value,
-  "doesn't work"
-);
-
-static_assert(
-  not has_instance_method_named_policy<
-    TestStaticPolicy
-  >::value,
-  "doesn't work"
-);
-
-static_assert(
-  has_static_member_named_policy<
-    TestStaticPolicy
-  >::value,
-  "doesn't work"
-);
+//
+//static_assert(
+//  not has_const_method_named_policy_with_signature<
+//    TestHasPolicy, int(int, char, std::string&)
+//  >::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  has_const_method_named_policy_with_signature<
+//    TestHasConstPolicy, int(int, char, std::string&)
+//  >::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  not has_method_named_policy_with_signature<
+//    TestHasConstPolicy, int(int, char, std::string&)
+//  >::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  has_method_named_policy_with_signature<
+//    TestHasBothPolicy, int(int, char, std::string&)
+//  >::value and
+//  has_const_method_named_policy_with_signature<
+//    TestHasBothPolicy, int(int, char, std::string&)
+//  >::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  not has_method_named_policy_with_signature<TestNoPolicy, int(int, char, std::string&)>::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  has_method_named_policy_with_signature<TestHasOtherPolicy,
+//    void*&(int)
+//  >::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  not has_method_named_policy_with_signature<TestWrongPolicy, int(int, char, std::string&)>::value
+//  and not has_const_method_named_policy_with_signature<TestWrongPolicy, int(int, char, std::string&)>::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  not has_method_named_policy_with_signature<
+//    int, int(int, char, std::string&)
+//  >::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  not has_method_named_policy_with_signature<
+//    TestStaticPolicy, int(int, char, std::string&)
+//  >::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  not has_method_named_policy<TestMemberPolicy>::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  has_method_named_policy<TestHasPolicy>::value,
+//  "doesn't work"
+//);
+//
+////static_assert(
+////  not has_static_method_named_policy_with_signature<
+////    TestHasPolicy,
+////    int(int, char, std::string&)
+////  >::value,
+////  "doesn't work"
+////);
+//
+//static_assert(
+//  has_member_named_policy<
+//    TestStaticPolicy
+//  >::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  has_method_named_policy<
+//    TestStaticPolicy
+//  >::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  not has_instance_method_named_policy<
+//    TestStaticPolicy
+//  >::value,
+//  "doesn't work"
+//);
+//
+//static_assert(
+//  has_static_member_named_policy<
+//    TestStaticPolicy
+//  >::value,
+//  "doesn't work"
+//);
 
 
 #include "../util/empty_main.h"

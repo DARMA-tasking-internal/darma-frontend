@@ -60,6 +60,17 @@ namespace tinympl {
  */
 template<class T> struct identity {typedef T type;};
 
+/**
+ * \ingroup Functional
+ * \class identity_value
+ * \brief Returns the argument passed and T::value for value
+ */
+template<class T>
+struct value_identity {
+  typedef T type;
+  static constexpr decltype(type::value) value = type::value;
+};
+
 } // namespace tinympl
 
 #endif // TINYMPL_IDENTITY_HPP

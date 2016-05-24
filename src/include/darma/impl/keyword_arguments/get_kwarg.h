@@ -65,6 +65,7 @@
 // TODO validate arg/kwarg expression in terms of rules
 // TODO errors on unknown/unused keyword arguments
 // TODO extract arguments given as either positional or keyword
+// TODO switch to auto (or decltype(auto), or auto&&) return values
 
 namespace darma_runtime { namespace detail {
 
@@ -297,7 +298,7 @@ struct _impl {
     constexpr size_t spot = _get_kwarg_impl::var_tag_spot<Tag, Args...>::value;
     // TODO error message readability and compile-time debugability
     static_assert(spot < sizeof...(Args), "missing required keyword argument");
-    return conv(std::get<spot>(std::forward_as_tuple(args...)).value());
+    return std::forward<Converter>(conv)(std::get<spot>(std::forward_as_tuple(args...)).value());
   }
 };
 
@@ -476,14 +477,7 @@ struct _positional_arg_tuple_getter {
   public:
 
     template <typename... Args>
-    using return_t = typename m::transform<
-      _pos_arg_spots<Args...>,
-      m::lambda<mv::types_only::at<mp::_, Args&&...>>::template apply,
-      std::tuple
-    >::type;
-
-    template <typename... Args>
-    inline constexpr return_t<Args...>
+    inline constexpr auto
     operator()(Args&&... args) const {
       return _impl(
         _pos_arg_spots<Args...>(),
@@ -493,7 +487,7 @@ struct _positional_arg_tuple_getter {
 
   private:
     template <typename... Args, size_t... Spots>
-    inline constexpr return_t<Args...>
+    inline constexpr auto
     _impl(m::vector_c<std::size_t, Spots...>, Args&&... args) const {
       return std::forward_as_tuple(
         std::get<Spots>(std::forward_as_tuple(std::forward<Args>(args)...))...
@@ -505,7 +499,7 @@ struct _positional_arg_tuple_getter {
 
 template <typename... Args>
 inline constexpr
-_get_kwarg_impl::_positional_arg_tuple_getter::return_t<Args...>
+auto
 get_positional_arg_tuple(Args&&... args)
 {
   return _get_kwarg_impl::_positional_arg_tuple_getter()(std::forward<Args>(args)...);

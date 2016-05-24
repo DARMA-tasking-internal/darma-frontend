@@ -64,13 +64,13 @@
 
 using namespace darma_runtime;
 using namespace mock_frontend;
+using namespace ::testing;
 
 // some helper functions
 
 template <typename MockDep, typename Lambda, bool needs_read, bool needs_write, bool IsNice=false>
 void register_one_dep_capture(MockDep* captured, Lambda&& lambda) {
-  using namespace ::testing;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+  typedef typename std::conditional<IsNice, NiceMock<MockTask>, MockTask>::type task_t;
 
   auto new_task = std::make_unique<task_t>();
   EXPECT_CALL(*new_task, get_dependencies())
@@ -105,8 +105,7 @@ void register_read_write_capture(MockDep* captured, Lambda&& lambda) {
 
 template <typename Lambda, bool IsNice=false>
 void register_nodep_task(Lambda&& lambda) {
-  using namespace ::testing;
-  typedef typename std::conditional<false, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+  typedef typename std::conditional<false, NiceMock<MockTask>, MockTask>::type task_t;
 
   auto new_task = std::make_unique<task_t>();
   EXPECT_CALL(*new_task, get_dependencies())
@@ -118,19 +117,30 @@ void register_nodep_task(Lambda&& lambda) {
 }
 
 template <typename T, bool IsNice, bool ExpectNewAlloc, typename Version, typename... KeyParts>
-std::shared_ptr<typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type>
+std::shared_ptr<typename std::conditional<IsNice, NiceMock<MockDependencyHandle>,
+    MockDependencyHandle>::type>
 make_handle(
   Version v, KeyParts&&... kp
 ) {
-  using namespace ::testing;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockSerializationManager>, MockSerializationManager>::type ser_man_t;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type handle_t;
+  typedef typename std::conditional<false, NiceMock<MockSerializationManager>,
+      MockSerializationManager>::type ser_man_t;
+  typedef typename std::conditional<IsNice, NiceMock<MockDependencyHandle>,
+      MockDependencyHandle>::type handle_t;
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
-  auto ser_man = new ser_man_t;
-  EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
-    .Times(AtLeast(ExpectNewAlloc ? 1 : 0))
+  auto* ser_man = new ser_man_t;
+  EXPECT_CALL(*ser_man, get_metadata_size())
+    .Times(AnyNumber())
     .WillRepeatedly(Return(sizeof(T)));
+  EXPECT_CALL(*ser_man, get_packed_data_size(_))
+    .Times(AnyNumber())
+    .WillRepeatedly(Return(sizeof(T)));
+  static_assert(std::is_fundamental<T>::value, "Mock only supports publish/fetch of fundamental values for now");
+  EXPECT_CALL(*ser_man, pack_data(_, _))
+    .Times(AnyNumber())
+    .WillRepeatedly(Invoke([](auto* object_data, auto* ser_buff){
+      memcpy(ser_buff, object_data, sizeof(T));
+    }));
 
   auto new_handle = std::shared_ptr<handle_t>(
     new handle_t(),
@@ -139,7 +149,6 @@ make_handle(
       delete ser_man;
     }
   );
-  new_handle->get_serialization_manager_return = ser_man;
   new_handle->get_key_return = detail::key_traits<MockDependencyHandle::key_t>::maker()(
       std::forward<KeyParts>(kp)...);
   new_handle->get_version_return = v;
@@ -149,31 +158,58 @@ make_handle(
   EXPECT_CALL(*new_handle, get_version())
     .Times(AtLeast(1));
   EXPECT_CALL(*new_handle, get_serialization_manager())
-    .Times(AnyNumber());
+    .Times(AnyNumber())
+    .WillRepeatedly(Return(ser_man));
   if (ExpectNewAlloc){
+    // TODO better memory management/checking (it's going to have to be in a backend tests base class of some sort)
+    void* ser_man_data = operator new(sizeof(T));
     // because this is a new allocation and will not be satisfied by
     // a predecessor, it MUST be writable at some point
     EXPECT_CALL(*new_handle, allow_writes())
       .Times(Exactly(1));
+    EXPECT_CALL(*ser_man, allocate_data())
+      .Times(Exactly(1)).WillOnce(Return(ser_man_data));
   }
 
   return new_handle;
 }
 
 template <typename T, bool IsNice, typename Version, typename... KeyParts>
-std::shared_ptr<typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type>
+std::shared_ptr<typename std::conditional<IsNice, NiceMock<MockDependencyHandle>,
+    MockDependencyHandle>::type>
 make_fetching_handle(
   Version v, KeyParts&&... kp
 ) {
-  using namespace ::testing;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockSerializationManager>, MockSerializationManager>::type ser_man_t;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockDependencyHandle>, MockDependencyHandle>::type handle_t;
+  typedef typename std::conditional<false, NiceMock<MockSerializationManager>,
+      MockSerializationManager>::type ser_man_t;
+  typedef typename std::conditional<IsNice, NiceMock<MockDependencyHandle>,
+      MockDependencyHandle>::type handle_t;
 
   // Deleted in accompanying MockDependencyHandle shared pointer deleter
   auto ser_man = new ser_man_t;
-  EXPECT_CALL(*ser_man, get_metadata_size(IsNull()))
+  EXPECT_CALL(*ser_man, get_metadata_size())
     .Times(AtLeast(0))
     .WillRepeatedly(Return(sizeof(T)));
+  // TODO better memory management/checking (it's going to have to be in a backend tests base class of some sort)
+  // NOTE That if allocate_data is never called, this will be leaked!!!  (it won't be called if the backend
+  // is implementing publish/fetch as antidependencies)
+  void* ser_man_data = operator new(sizeof(T));
+  EXPECT_CALL(*ser_man, allocate_data())
+    .Times(AtMost(1))
+    .WillRepeatedly(Return(ser_man_data));
+  // Assume T is fundamental for now...
+  static_assert(std::is_fundamental<T>::value, "Mock only supports fetching of fundamental values for now");
+  EXPECT_CALL(*ser_man, unpack_data(_,_))
+    .Times(AtMost(1))
+    .WillOnce(Invoke([](auto* dest, auto* ser_data){
+      memcpy(dest, ser_data, sizeof(T));
+    }));
+  // This could also be published, so we might need to pack data
+  EXPECT_CALL(*ser_man, pack_data(_, _))
+    .Times(AnyNumber())
+    .WillRepeatedly(Invoke([](auto* object_data, auto* ser_buff){
+      memcpy(ser_buff, object_data, sizeof(T));
+    }));
 
   auto new_handle = std::shared_ptr<handle_t>(
     new handle_t(),
@@ -182,7 +218,6 @@ make_fetching_handle(
       delete ser_man;
     }
   );
-  new_handle->get_serialization_manager_return = ser_man;
   new_handle->get_key_return = detail::key_traits<MockDependencyHandle::key_t>::maker()(
       std::forward<KeyParts>(kp)...);
   new_handle->get_version_return = v;
@@ -194,6 +229,9 @@ make_fetching_handle(
     .Times(Exactly(0));
   EXPECT_CALL(*new_handle, set_version(_))
     .Times(Exactly(1));
+  EXPECT_CALL(*new_handle, get_serialization_manager())
+    .Times(AnyNumber())
+    .WillRepeatedly(Return(ser_man));
 
   return new_handle;
 }

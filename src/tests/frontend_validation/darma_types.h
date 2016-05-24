@@ -45,14 +45,16 @@
 #ifndef SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
 #define SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
 
-#include "mock_key.h"
-
 #define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
 
+#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
 #define DARMA_THREAD_LOCAL_BACKEND_RUNTIME thread_local
+#endif
+
+#include <darma/impl/key/simple_key.h>
 
 namespace darma_runtime { namespace types {
-  typedef mock_backend::StreamKey key_t;
+  typedef darma_runtime::detail::SimpleKey key_t;
 }} // end namespace darma_runtime::types
 
 #include <darma/interface/defaults/version.h>

@@ -45,6 +45,7 @@
 #ifndef FRONTEND_INCLUDE_DARMA_COMPATIBILITY_H_
 #define FRONTEND_INCLUDE_DARMA_COMPATIBILITY_H_
 
+#include <darma/impl/config.h>
 
 #if __cpp_constexpr >= 201304
 #  define DARMA_CONSTEXPR_14 constexpr
@@ -52,6 +53,9 @@
 #  define DARMA_CONSTEXPR_14
 #endif
 
-
+#ifdef DARMA_HAVE_ATTRIBUTE_NONNULL
+#define DARMA_ATTRIBUTE_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
+#define DARMA_ATTRIBUTE_ALL_NONNULL __attribute__((nonnull))
+#endif
 
 #endif /* FRONTEND_INCLUDE_DARMA_COMPATIBILITY_H_ */

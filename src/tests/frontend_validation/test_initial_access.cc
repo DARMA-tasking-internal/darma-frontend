@@ -89,10 +89,6 @@ TEST_F(TestInitialAccess, call_sequence) {
     .Times(Exactly(1))
     .InSequence(s1);
 
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s1);
-
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
     .Times(Exactly(1))
     .InSequence(s1);
@@ -150,11 +146,7 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
   // i.e., before runnign the next line of code that triggers the next register_handle
   EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2)))
     .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm1)))
-    .InSequence(s1);
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
-    .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(hm2)))
     .InSequence(s1);
   EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2)))
     .InSequence(s1);

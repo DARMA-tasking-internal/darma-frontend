@@ -58,6 +58,9 @@ template <template <class...> class F, class... Args>
 struct splat_to<sequence<Args...>, F>
   : variadic::splat_to<F, Args...> { };
 
+template <typename Sequence, template <class...> class F>
+using splat_to_t = typename splat_to<Sequence, F>::type;
+
 } // end namespace tinympl
 
 
