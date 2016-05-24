@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          callable_traits.hpp
-//                         dharma_new
+//                      intrusive.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,57 +42,38 @@
 //@HEADER
 */
 
-#ifndef FRONTEND_INCLUDE_TINYMPL_CALLABLE_TRAITS_HPP_
-#define FRONTEND_INCLUDE_TINYMPL_CALLABLE_TRAITS_HPP_
+#ifndef DARMA_INTRUSIVE_H
+#define DARMA_INTRUSIVE_H
 
-#include <functional>
+namespace darma_runtime {
+namespace serialization {
 
-#include <tinympl/vector.hpp>
+/**
+ *  Empty base class meeting intrusive serialization interface specification.
+ *  Basically, useful for inheriting from and marking methods as override for
+ *  compile-time safety.  **Not required, though.**
+ */
+template <typename ArchiveT>
+class Serializable {
+  protected:
 
-namespace tinympl {
+    // These methods are protected in the base class so that they don't get accidentally
+    // detected if they aren't defined in the derived class.  They should be public
+    // in the derived class
 
-namespace _callable_traits_impl {
+    void serialize(ArchiveT&) { }
 
-template <typename Callable, typename Enable = void>
-struct extract_args_vector;
+    void compute_size() const { }
 
-// Function type
-template <typename RV, typename... Args>
-struct extract_args_vector<RV(Args...)> {
-  typedef vector<Args...> type;
+    void compute_size(ArchiveT&) const { }
+
+    void pack(ArchiveT&) const { }
+
+    void unpack(ArchiveT&) { }
+
 };
 
-// Function pointer type
-template <typename RV, typename... Args>
-struct extract_args_vector<RV(*)(Args...)> {
-  typedef vector<Args...> type;
-};
+} // end namespace serialization
+} // end namespace darma_runtime
 
-// Member function type
-template <typename Class, typename RV, typename... Args>
-struct extract_args_vector<RV (Class::*)(Args...)> {
-  typedef vector<Args...> type;
-};
-
-// TODO: std::bind expression
-
-
-// TODO: Lambda or functor
-//template <typename Class>
-//struct extract_args_vector<Class,
-//  typename std::enable_if<
-//
-//  >::type
-
-
-} // end namespace _callable_traits_impl
-
-template <typename Callable>
-struct callable_traits {
-  // TODO
-};
-
-} // end namespace tinympl
-
-
-#endif /* FRONTEND_INCLUDE_TINYMPL_CALLABLE_TRAITS_HPP_ */
+#endif //DARMA_INTRUSIVE_H

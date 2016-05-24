@@ -13,8 +13,8 @@ as_unary_predicate.hpp
 at.hpp
 bind.hpp
 bool.hpp
-callable_traits.hpp
 char.hpp
+compatibility.hpp
 contains_placeholder.hpp
 copy.hpp
 copy_if.hpp
@@ -73,6 +73,7 @@ not_b.hpp
 not_equal_to.hpp
 or_b.hpp
 plus.hpp
+pop_back.hpp
 pop_front.hpp
 range_c.hpp
 ratio.hpp
@@ -134,6 +135,7 @@ variadic/left_fold.hpp
 variadic/max_element.hpp
 variadic/min_element.hpp
 variadic/none_of.hpp
+variadic/pop_back.hpp
 variadic/pop_front.hpp
 variadic/remove.hpp
 variadic/remove_if.hpp

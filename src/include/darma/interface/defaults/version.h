@@ -71,6 +71,10 @@ class basic_version {
     basic_version() : version_clock{value_t()}
     { }
 
+    basic_version(std::initializer_list<Comparable> i_list)
+      : version_clock(i_list)
+    { }
+
     //// Post-increment
     //basic_version const&
     //operator++(int) {
@@ -94,6 +98,7 @@ class basic_version {
     void
     pop_subversion()
     {
+      assert(depth() > 1);
       version_clock.pop_back();
     }
 
@@ -109,7 +114,7 @@ class basic_version {
     truncated() const {
       constexpr const Comparable zero = Comparable();
       basic_version rv(*this);
-      for(int i = depth()-1; i >= 0; --i) {
+      for(int i = depth()-1; i >= 1; --i) {
         if(rv.version_clock[i] == zero) rv.pop_subversion();
       }
       return rv;
@@ -236,6 +241,7 @@ class basic_version {
     Container<Comparable> version_clock;
 
     friend class version_hash<basic_version>;
+    friend struct darma_runtime::serialization::Serializer<basic_version>;
 };
 
 template <typename version_type>
@@ -268,6 +274,18 @@ namespace defaults {
 typedef detail::basic_version<size_t, std::vector> Version;
 
 } // end namespace defaults
+
+namespace serialization {
+
+template <>
+struct Serializer<darma_runtime::defaults::Version> {
+  template <typename Archive>
+  void serialize(darma_runtime::defaults::Version const& v, Archive& ar) const {
+    ar | v.version_clock;
+  }
+};
+
+} // end namespace serialization
 
 } // end namespace darma_runtime
 

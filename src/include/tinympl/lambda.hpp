@@ -78,7 +78,7 @@ struct lambda
 
     template<class T>
     struct pick<T,
-      typename std::enable_if< (is_placeholder<T>::type::value > 0)>::type
+      std::enable_if_t< (is_placeholder<T>::type::value > 0)>
     > {
         typedef typename is_placeholder<T>::template cv_qualifier_rebind<
             variadic::at_t<is_placeholder<T>::value-1, Ts...>
@@ -95,8 +95,15 @@ struct lambda
     typedef typename pick<Expr>::type type;
   };
 
+  template<class... Ts>
+  struct eval_value
+  {
+    static constexpr decltype(eval<Ts...>::type::value) value = eval<Ts...>::type::value;
+  };
+
   template<class... Ts> using eval_t = typename eval<Ts...>::type;
   template<class... Ts> using apply = eval<Ts...>;
+  template<class... Ts> using apply_value = eval_value<Ts...>;
 };
 
 template<
@@ -122,8 +129,15 @@ struct lambda<F<Args...> >
     >::type::type type;
   };
 
-  template<class ... Ts> using eval_t = typename eval<Ts...>::type;
-  template<class ... Ts> using apply = eval<Ts...>;
+  template<class... Ts>
+  struct eval_value
+  {
+    static constexpr decltype(eval<Ts...>::type::value) value = eval<Ts...>::type::value;
+  };
+
+  template<class... Ts> using eval_t = typename eval<Ts...>::type;
+  template<class... Ts> using apply = eval<Ts...>;
+  template<class... Ts> using apply_value = eval_value<Ts...>;
 };
 
 

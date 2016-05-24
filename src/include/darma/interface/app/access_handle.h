@@ -50,7 +50,13 @@
 #endif
 
 #include <darma/impl/handle.h>
+
+#include <darma/impl/meta/splat_tuple.h>
+
+#include <darma/impl/task.h>
 #include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
+#include <darma/impl/util.h>
+#include <darma/impl/serialization/traits.h>
 
 namespace darma_runtime {
 
@@ -58,61 +64,46 @@ template <
   typename T,
   typename key_type,
   typename version_type,
-  template <typename...> class smart_ptr_template
+  typename traits
 >
-class AccessHandle
+class AccessHandle : public detail::AccessHandleBase
 {
+  public:
+
+    typedef T value_type;
+
   protected:
 
-    typedef detail::DependencyHandle<
-        typename std::conditional<std::is_same<T, void>::value,
-          detail::EmptyClass, T
-        >::type, key_type, version_type> dep_handle_t;
-    typedef smart_ptr_template<dep_handle_t> dep_handle_ptr;
-    typedef smart_ptr_template<const dep_handle_t> dep_handle_const_ptr;
+
+    typedef detail::DependencyHandle<T, key_type, version_type> dep_handle_t;
+    typedef types::shared_ptr_template<dep_handle_t> dep_handle_ptr;
+    typedef types::shared_ptr_template<const dep_handle_t> dep_handle_const_ptr;
     typedef detail::TaskBase task_t;
-    typedef smart_ptr_template<task_t> task_ptr;
+    typedef types::shared_ptr_template<task_t> task_ptr;
     typedef typename detail::smart_ptr_traits<std::shared_ptr>::template maker<dep_handle_t>
       dep_handle_ptr_maker_t;
 
     typedef typename dep_handle_t::key_t key_t;
     typedef typename dep_handle_t::version_t version_t;
 
-    typedef enum State {
-      None_None,
-      Read_None,
-      Read_Read,
-      Modify_None,
-      Modify_Read,
-      Modify_Modify
-    } state_t;
+  public:
 
-    typedef enum CaptureOp {
-      ro_capture,
-      mod_capture
-    } capture_op_t;
+    static constexpr auto is_compile_time_modifiable = traits::is_compile_time_modifiable;
+    static constexpr auto is_compile_time_readable = traits::is_compile_time_readable;
+
+    using CompileTimeReadAccessAnalog = AccessHandle<T, key_t, version_t,
+      typename traits::template with_compile_time_modifiable<false>::type
+    >;
+    using CompileTimeModifiableAnalog = AccessHandle<T, key_t, version_t,
+      typename traits::template with_compile_time_modifiable<true>::type
+    >;
+
 
   private:
-    ////////////////////////////////////////
-    // private inner classes
-
-    struct read_only_usage_holder {
-      dep_handle_ptr handle_;
-      read_only_usage_holder(const dep_handle_ptr& handle)
-        : handle_(handle)
-      { }
-      ~read_only_usage_holder() {
-        detail::backend_runtime->release_read_only_usage(handle_.get());
-      }
-    };
-
-    typedef typename detail::smart_ptr_traits<std::shared_ptr>::template maker<read_only_usage_holder>
-      read_only_usage_holder_ptr_maker_t;
 
   public:
     AccessHandle()
-      : prev_copied_from(nullptr),
-        dep_handle_(nullptr),
+      : dep_handle_(nullptr),
         read_only_holder_(nullptr),
         state_(None_None)
     { }
@@ -133,14 +124,13 @@ class AccessHandle
     operator=(AccessHandle&& other) noexcept {
       // Forward to const move assignment operator
       return const_cast<AccessHandle const*>(this)->operator=(
-        std::move(other)
+        std::forward<AccessHandle>(other)
       );
       return *this;
     }
 
     AccessHandle const&
     operator=(AccessHandle&& other) const noexcept {
-      assert(other.prev_copied_from == nullptr);
       read_only_holder_ = std::move(other.read_only_holder_);
       dep_handle_ = std::move(other.dep_handle_);
       state_ = std::move(other.state_);
@@ -153,216 +143,101 @@ class AccessHandle
       return *this;
     }
 
-    AccessHandle(AccessHandle const& copied_from) noexcept
-      : dep_handle_(copied_from.dep_handle_),
-        // this copy constructor may be invoked in ordinary usage or
-        // may be the actual capture itself.  In the latter case, the subsequent
-        // move needs access back to the outer context object, so we need to
-        // save a pointer back to other.  It should be ignored otherwise, though.
-        // note that the below const_cast is needed to convert from AccessHandle const* to AccessHandle* const
-        prev_copied_from(const_cast<AccessHandle* const>(&copied_from)),
-        read_only_holder_(std::move(copied_from.read_only_holder_)),
-        state_(copied_from.state_)
-    {
+    /**
+      Add an allreduce contribution from this data block into another data block
+      @param output     The handle for the data that will hold the result of the
+                        allreduce
+      @param nChunks    The number of chunks that will contribute to the all-reduce
+    */
+    void
+    allreduce(AccessHandle const& output, int nChunks){
+      //TODO - this should make a lambda task for the allreduce to properly capture permissions
+    }
+    
+    /**
+      Add an allreduce contribution from this data block. Do the allreduce in place.
+      @param nChunks    The number of chunks that will contribute to the all-reduce
+    */
+    void
+    allreduce(int nChunks){
+      //TODO - this should make a lambda task for the allreduce to properly capture permissions
+    }
+
+    AccessHandle(AccessHandle const& copied_from) noexcept {
       // get the shared_ptr from the weak_ptr stored in the runtime object
-      detail::TaskBase* running_task = dynamic_cast<detail::TaskBase* const>(
+      detail::TaskBase* running_task = detail::safe_static_cast<detail::TaskBase* const>(
         detail::backend_runtime->get_running_task()
       );
       capturing_task = running_task->current_create_work_context;
 
       // Now check if we're in a capturing context:
       if(capturing_task != nullptr) {
-
-        DARMA_ASSERT_NOT_NULL(copied_from.prev_copied_from);
-        AccessHandle& outer = *(copied_from.prev_copied_from);
-
-        {
-          // Clean out the middle thing
-          AccessHandle* copied_from_ptr = const_cast<AccessHandle*>(&copied_from);
-          copied_from_ptr->dep_handle_.reset();
-          copied_from_ptr->read_only_holder_.reset();
-        }
-
-        // don't leave a trail back, since we don't need it
-        prev_copied_from = nullptr;
-
-        bool ignored = running_task->ignored_handles.find(dep_handle_.get())
-            != running_task->ignored_handles.end();
-
-        if(not ignored) {
-
-          ////////////////////////////////////////////////////////////////////////////////
-
-          // Determine the capture type
-          // TODO check that any explicit permissions are obeyed
-
-          capture_op_t capture_type;
-
-          // first check for any explicit permissions
-          auto found = running_task->read_only_handles.find(outer.dep_handle_);
-          if(found != running_task->read_only_handles.end()) {
-            capture_type = ro_capture;
-            running_task->read_only_handles.erase(found);
-          }
-          else {
-            // Deduce capture type from state
-            switch(outer.state_) {
-              case Read_None:
-              case Read_Read: {
-                capture_type = ro_capture;
-                break;
-              }
-              case Modify_None:
-              case Modify_Read:
-              case Modify_Modify: {
-                capture_type = mod_capture;
-                break;
-              }
-              case None_None: {
-                DARMA_ASSERT_MESSAGE(false, "Handle used after release");
-                break;
-              }
-            };
-          }
-
-          ////////////////////////////////////////////////////////////////////////////////
-
-          switch(capture_type) {
-            case ro_capture: {
-              switch(outer.state_) {
-                case None_None: {
-                  // Unreachable
-                  DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
-                  break;
-                }
-                case Read_None:
-                case Read_Read:
-                case Modify_None:
-                case Modify_Read: {
-                  dep_handle_ = outer.dep_handle_;
-                  state_ = Read_Read;
-                  read_only_holder_ = outer.read_only_holder_;
-
-                  // Outer dep handle, state, read_only_holder stays the same
-
-                  break;
-                }
-                case Modify_Modify: {
-                  // We're creating a subsequent at the same version depth
-                  outer.dep_handle_->has_subsequent_at_version_depth = true;
-
-                  version_t next_version = outer.dep_handle_->get_version();
-                  ++next_version;
-                  dep_handle_ = dep_handle_ptr_maker_t()(
-                    outer.dep_handle_->get_key(),
-                    next_version
-                  );
-                  read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);
-                  state_ = Read_Read;
-
-
-                  outer.dep_handle_ = dep_handle_;
-                  outer.read_only_holder_ = read_only_holder_;
-                  outer.state_ = Modify_Read;
-
-                  break;
-                }
-              }; // end switch outer.state_
-              capturing_task->add_dependency(
-                dep_handle_,
-                /*needs_read_data = */ true,
-                /*needs_write_data = */ false
-              );
-              break;
-            }
-            case mod_capture: {
-              switch(outer.state_) {
-                case None_None: {
-                  // Unreachable in 0.2
-                  DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
-                  break;
-                }
-                case Read_None:
-                case Read_Read: {
-                  // Unreachable in 0.2
-                  DARMA_ASSERT_MESSAGE(false, "Tried to schedule a modifying task of a handle with read-only schedule access"); // LCOV_EXCL_LINE
-                  break; // unreachable
-                }
-                case Modify_None:
-                case Modify_Read: {
-                  version_t outer_version = outer.dep_handle_->get_version();
-                  ++outer_version;
-                  dep_handle_ = outer.dep_handle_;
-                  read_only_holder_ = 0;
-                  state_ = Modify_Modify;
-
-                  outer.dep_handle_ = dep_handle_ptr_maker_t()(
-                    dep_handle_->get_key(),
-                    outer_version
-                  );
-                  outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
-                  outer.state_ = Modify_None;
-
-                  dep_handle_->push_subversion();
-
-                  break;
-                }
-                case Modify_Modify: {
-                  version_t outer_version = outer.dep_handle_->get_version();
-                  ++outer_version;
-                  version_t captured_version = outer.dep_handle_->get_version();
-                  captured_version.push_subversion();
-                  ++captured_version;
-
-                  // We're creating a subsequent at the same version depth
-                  outer.dep_handle_->has_subsequent_at_version_depth = true;
-
-                  // avoid releasing the old until these two are made
-                  auto tmp = outer.dep_handle_;
-                  auto tmp_ro = outer.read_only_holder_;
-
-                  dep_handle_ = dep_handle_ptr_maker_t()(
-                    dep_handle_->get_key(), captured_version
-                  );
-                  // No read only uses of this new handle
-                  read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);;
-                  read_only_holder_.reset();
-                  state_ = Modify_Modify;
-
-                  outer.dep_handle_ = dep_handle_ptr_maker_t()(
-                    dep_handle_->get_key(), outer_version
-                  );
-                  outer.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(outer.dep_handle_);
-                  outer.state_ = Modify_None;
-
-                  break;
-                }
-              } // end switch outer.state
-              capturing_task->add_dependency(
-                dep_handle_,
-                /*needs_read_data = */ dep_handle_->get_version() != version_t(),
-                /*needs_write_data = */ true
-              );
-              break;
-            } // end mod_capture case
-          } // end switch(capture_type)
-        } else {
-          // ignored
-          capturing_task = nullptr;
-          dep_handle_.reset();
-          read_only_holder_.reset();
-          state_ = None_None;
-        }
-        if (dep_handle_)
-        {
-          // This doesn't really matter until we have modifiable fetching versions, but still...
-          if(dep_handle_->version_is_pending())
-          {
-            outer.dep_handle_->set_version_is_pending(true);
-          }
-        }
+        capturing_task->do_capture<AccessHandle>(*this, copied_from);
       } // end if capturing_task != nullptr
+      else {
+        // regular copy
+        dep_handle_ = copied_from.dep_handle_;
+        read_only_holder_ = copied_from.read_only_holder_;
+        state_ = copied_from.state_;
+      }
     }
+
+    template <
+      typename _Ignored = void,
+      typename = std::enable_if_t<not is_compile_time_modifiable and std::is_same<_Ignored, void>::value>
+    >
+    AccessHandle(
+      CompileTimeModifiableAnalog const& copied_from
+    ) noexcept {
+      // get the shared_ptr from the weak_ptr stored in the runtime object
+      detail::TaskBase* running_task = detail::safe_static_cast<detail::TaskBase* const>(
+        detail::backend_runtime->get_running_task()
+      );
+      capturing_task = running_task->current_create_work_context;
+
+      // Now check if we're in a capturing context:
+      if(capturing_task != nullptr) {
+        copied_from.captured_as_ |= CapturedAsInfo::ReadOnly;
+        capturing_task->do_capture<AccessHandle>(*this, copied_from);
+      } // end if capturing_task != nullptr
+      else {
+        // regular copy
+        dep_handle_ = copied_from.dep_handle_;
+        read_only_holder_ = copied_from.read_only_holder_;
+        state_ = copied_from.state_;
+      }
+    }
+
+    AccessHandle(AccessHandle&&) noexcept = default;
+
+    // These two allow trasparent casting away of compile-time modifiability
+
+    //template <
+    //  typename _Ignored = void,
+    //  typename = std::enable_if_t<is_compile_time_modifiable and std::is_same<_Ignored, void>::value>
+    //>
+    //operator AccessHandle<T, key_t, version_t,
+    //  typename traits::template with_compile_time_modifiable<false>::type
+    //>() {
+    //  return *(reinterpret_cast<
+    //      AccessHandle<T, key_t, version_t, typename traits::template with_compile_time_modifiable<false>::type>*
+    //    >(this)
+    //  );
+    //};
+
+    //template <
+    //  typename _Ignored = void,
+    //  typename = std::enable_if_t<is_compile_time_modifiable and std::is_same<_Ignored, void>::value>
+    //>
+    //operator const AccessHandle<T, key_t, version_t,
+    //  typename traits::template with_compile_time_modifiable<false>::type
+    //>() const
+    //{
+    //  return *(reinterpret_cast<
+    //      AccessHandle<T, key_t, version_t, typename traits::template with_compile_time_modifiable<false>::type>*
+    //    >(this)
+    //  );
+    //};
 
     T* operator->() const {
       DARMA_ASSERT_MESSAGE(
@@ -388,7 +263,13 @@ class AccessHandle
       return dep_handle_->get_value();
     }
 
-    void
+    template <
+      typename _Ignored = void
+    >
+    std::enable_if_t<
+      is_compile_time_modifiable
+      and std::is_same<_Ignored, void>::value
+    >
     release() const {
       // TODO warning for multiple release (or should this be an error?)
       DARMA_ASSERT_MESSAGE(
@@ -402,7 +283,10 @@ class AccessHandle
 
     template <
       typename U,
-      typename = std::enable_if<std::is_convertible<U, T>::value>
+      typename = std::enable_if_t<
+        std::is_convertible<U, T>::value
+        and is_compile_time_modifiable
+      >
     >
     void
     set_value(U&& val) const {
@@ -417,9 +301,11 @@ class AccessHandle
       dep_handle_->set_value(val);
     }
 
-    template <typename... Args>
+    template <typename _Ignored = void, typename... Args>
     std::enable_if_t<
       not std::is_same<T, void>::value
+        and is_compile_time_modifiable
+        and std::is_same<_Ignored, void>::value
     >
     emplace_value(Args&&... args) const {
       DARMA_ASSERT_MESSAGE(
@@ -436,6 +322,7 @@ class AccessHandle
     template <
       typename = std::enable_if<
         not std::is_same<T, void>::value
+        and is_compile_time_readable
       >
     >
     const T&
@@ -463,6 +350,7 @@ class AccessHandle
     template <
       typename = std::enable_if<
         not std::is_same<T, void>::value
+        and is_compile_time_modifiable
       >
     >
     T&
@@ -479,9 +367,14 @@ class AccessHandle
     }
 
     template <
+      typename _Ignored = void,
       typename... PublishExprParts
     >
-    void publish(
+    std::enable_if_t<
+      is_compile_time_readable
+      and std::is_same<_Ignored, void>::value
+    >
+    publish(
       PublishExprParts&&... parts
     ) const {
       static_assert(detail::only_allowed_kwargs_given<
@@ -512,16 +405,17 @@ class AccessHandle
           // Create a new handle with the next version
           auto next_version = dep_handle_->get_version();
           ++next_version;
-          dep_handle_->has_subsequent_at_version_depth = true;
+          read_only_holder_ = nullptr;
           dep_handle_ = dep_handle_ptr_maker_t()(dep_handle_->get_key(), next_version);
+          read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_.get());
+          // Continuing state is MR
+          state_ = Modify_Read;
+          // Now publish this.  The backend should have satisfied it at this point
           detail::backend_runtime->publish_handle(
             dep_handle_.get(),
             helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
             helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
           );
-          read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_);
-          // Continuing state is MR
-          state_ = Modify_Read;
           break;
         }
       };
@@ -530,6 +424,19 @@ class AccessHandle
     ~AccessHandle() { }
 
    private:
+
+    ////////////////////////////////////////
+    // private conversion operators
+
+    template <
+      typename = std::enable_if<
+        not std::is_same<T, void>::value
+          and is_compile_time_readable
+      >
+    >
+    operator T const&() const {
+      return get_value();
+    }
 
     ////////////////////////////////////////
     // private constructors
@@ -542,7 +449,7 @@ class AccessHandle
           dep_handle_ptr_maker_t()(key, version)
         ),
         state_(initial_state),
-        read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
+        read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_.get()))
     {
       // Release read_only_holder_ immediately if this is initial access
       if(state_ == Modify_None and version == version_type()) {
@@ -558,10 +465,28 @@ class AccessHandle
           dep_handle_ptr_maker_t()(key, user_version_tag, false)
         ),
         state_(initial_state),
-        read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_))
+        read_only_holder_(read_only_usage_holder_ptr_maker_t()(dep_handle_.get()))
     {
       assert(state_ == Read_None);
-      dep_handle_->has_subsequent_at_version_depth = true;
+    }
+
+
+    //template <typename ArchiveT>
+    //using allow_in_place_unpack = std::true_type;
+
+    template <typename ArchiveT>
+    AccessHandle(
+      serialization::unpack_constructor_tag_t,
+      ArchiveT& ar
+    )
+    {
+      dep_handle_ = dep_handle_ptr_maker_t()(detail::handle_migration_unpack, ar);
+      ar >> state_;
+      bool holds_read_only = false;
+      ar >> holds_read_only;
+      if(holds_read_only) {
+        read_only_holder_ = read_only_usage_holder_ptr_maker_t()(dep_handle_.get());
+      }
     }
 
     ////////////////////////////////////////
@@ -569,10 +494,10 @@ class AccessHandle
 
     mutable dep_handle_ptr dep_handle_ = { nullptr };
     mutable state_t state_ = None_None;
-
     mutable types::shared_ptr_template<read_only_usage_holder> read_only_holder_;
+    mutable unsigned captured_as_ = CapturedAsInfo::Normal;
+
     task_t* capturing_task = nullptr;
-    AccessHandle* prev_copied_from = nullptr;
 
    public:
 
@@ -580,6 +505,28 @@ class AccessHandle
     // Attorneys for create_work and *_access functions
     friend class detail::create_work_attorneys::for_AccessHandle;
     friend class detail::access_attorneys::for_AccessHandle;
+
+    ////////////////////////////////////////
+    // TaskBase is also a friend
+    friend class detail::TaskBase;
+
+    ////////////////////////////////////////
+    // Analogs with different privileges are friends too
+    friend CompileTimeReadAccessAnalog;
+    friend CompileTimeModifiableAnalog;
+
+    // Allow implicit conversion to value in the invocation of the task
+    friend struct meta::splat_tuple_access<detail::AccessHandleBase>;
+    //friend struct serialization::UnpackConstructorAccess;
+
+    //static_assert(
+    //  serialization::detail::serializability_traits<AccessHandle>::template has_intrusive_unpack_constructor<
+    //    serialization::SimplePackUnpackArchive
+    //  >::value,
+    //  "AccessHandle not serializable as expected"
+    //);
+
+    friend struct darma_runtime::serialization::Serializer<AccessHandle>;
 
 #ifdef DARMA_TEST_FRONTEND_VALIDATION
     friend class ::TestAccessHandle;
@@ -590,6 +537,59 @@ class AccessHandle
 #endif
 
 };
+
+template <typename T,
+  typename key_t = types::key_t,
+  typename version_t = types::version_t
+>
+using ReadAccessHandle = AccessHandle<T, key_t, version_t, detail::access_handle_traits<false, true>>;
+
+namespace serialization {
+
+template <typename... Args>
+struct Serializer<AccessHandle<Args...>> {
+  private:
+    using AccessHandleT = AccessHandle<Args...>;
+    using dep_handle_ptr = typename AccessHandleT::dep_handle_ptr;
+    using dep_handle_ptr_maker_t = typename AccessHandleT::dep_handle_ptr_maker_t;
+
+  public:
+    template <typename ArchiveT>
+    void compute_size(AccessHandleT const& val, ArchiveT& ar) const {
+      auto const& dep_handle = val.dep_handle_;
+      ar % dep_handle.get_key();
+      ar % dep_handle.get_version();
+      ar % dep_handle.version_is_pending();
+      ar % val.state_;
+      // Omit captured_as_; it should always be normal here
+      assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
+      // for whether or not the read-only holder is active
+      ar % bool();
+      // capturing_task will be replaced by task serialization, so we don't need to pack it here
+    }
+
+    template <typename ArchiveT>
+    void pack(AccessHandleT const& val, ArchiveT& ar) const {
+      auto const& dep_handle = val.dep_handle_;
+      ar << dep_handle.get_key();
+      ar << dep_handle.get_version();
+      ar << dep_handle.version_is_pending();
+      ar << val.state_;
+      // Omit captured_as_; it should always be normal here
+      assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
+      // only need to store whether or not the read-only holder is active
+      ar << bool(val.read_only_holder_);
+      // capturing_task will be replaced by task serialization, so we don't need to pack it here
+    }
+
+    template <typename ArchiveT>
+    void unpack(void* allocated, ArchiveT& ar) const {
+      // Call an unpacking constructor
+      new (allocated) AccessHandleT(serialization::unpack_constructor_tag, ar);
+    }
+};
+
+} // end namespace serialization
 
 } // end namespace darma_runtime
 

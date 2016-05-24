@@ -53,11 +53,15 @@
 #include <tinympl/int.hpp>
 #include <tinympl/delay.hpp>
 #include <tinympl/identity.hpp>
+#include <tinympl/delay.hpp>
 #include <tinympl/at.hpp>
 #include <tinympl/erase.hpp>
 #include <tinympl/bind.hpp>
 #include <tinympl/logical_and.hpp>
 #include <tinympl/vector.hpp>
+#include <tinympl/transform2.hpp>
+#include <tinympl/as_sequence.hpp>
+#include <tinympl/tuple_as_sequence.hpp>
 
 #include <darma/interface/backend/types.h>
 #include <darma/interface/backend/runtime.h>
@@ -66,82 +70,193 @@
 
 #include <darma/impl/util.h>
 #include <darma/impl/runtime.h>
+#include <darma/impl/handle_fwd.h>
+#include <darma/impl/meta/callable_traits.h>
+#include <darma/impl/handle.h>
+#include <darma/impl/functor_traits.h>
+#include <darma/impl/serialization/nonintrusive.h>
+
+
+#include <typeindex>
+
 
 namespace darma_runtime {
 
 namespace detail {
 
-// TODO decide between this and "is_key<>", which would not check the concept but would be self-declared
-template <typename T>
-struct meets_key_concept;
-template <typename T>
-struct meets_version_concept;
+class RunnableBase;
 
-namespace template_tags {
-template <typename T> struct input { typedef T type; };
-template <typename T> struct output { typedef T type; };
-template <typename T> struct in_out { typedef T type; };
+////////////////////////////////////////////////////////////////////////////////
+
+typedef std::vector<std::function<std::unique_ptr<RunnableBase>(void*)>> runnable_registry_t;
+
+// TODO make sure this pattern works on all compilers at all optimization levels
+template <typename = void>
+runnable_registry_t&
+get_runnable_registry()  {
+  static runnable_registry_t reg;
+  return reg;
 }
 
-namespace m = tinympl;
-namespace mv = tinympl::variadic;
-namespace pl = tinympl::placeholders;
-namespace tt = template_tags;
+namespace _impl {
 
-template <typename... Types>
-struct task_traits {
-  private:
-    static constexpr const bool _first_is_key = m::and_<
-        m::greater<m::int_<sizeof...(Types)>, m::int_<0>>,
-        m::delay<
-          meets_key_concept,
-          mv::at<0, Types...>
-        >
-      >::value;
-
-  public:
-    typedef typename std::conditional<
-      _first_is_key,
-      mv::at<0, Types...>,
-      m::identity<types::key_t>
-    >::type::type key_t;
-
-  private:
-    static constexpr const size_t _possible_version_index =
-      std::conditional<_first_is_key, m::int_<1>, m::int_<0>>::type::value;
-    static constexpr const bool _version_given = m::and_<
-      m::greater<m::int_<sizeof...(Types)>, m::int_<_possible_version_index>>,
-      m::delay<
-        meets_version_concept,
-        mv::at<_possible_version_index, Types...>
-      >
-    >::value;
-
-
-  public:
-    typedef typename std::conditional<
-      _version_given,
-      mv::at<_possible_version_index, Types...>,
-      m::identity<types::version_t>
-    >::type::type version_t;
-
-  private:
-
-    typedef typename m::erase<
-      (size_t)0, (size_t)(_first_is_key + _version_given),
-      m::vector<Types...>, m::vector
-    >::type other_types;
-
-  public:
-
+template <typename Runnable>
+struct RunnableRegistrar {
+  size_t index;
+  RunnableRegistrar() {
+    runnable_registry_t &reg = get_runnable_registry<>();
+    index = reg.size();
+    reg.emplace_back([](void *data) -> std::unique_ptr<RunnableBase> {
+      return Runnable::construct_from_bytes(data);
+    });
+  }
 };
 
+template <typename Runnable>
+struct RunnableRegistrarWrapper {
+  static RunnableRegistrar<Runnable> registrar;
+};
+
+template <typename Runnable>
+RunnableRegistrar<Runnable> RunnableRegistrarWrapper<Runnable>::registrar = { };
+
+} // end namespace _impl
+
+template <typename Runnable>
+const size_t
+register_runnable() {
+  return _impl::RunnableRegistrarWrapper<Runnable>::registrar.index;
 }
 
-namespace detail {
 
-class TaskBase
-  : public abstract::backend::runtime_t::task_t
+////////////////////////////////////////////////////////////////////////////////
+
+// <editor-fold desc="Runnable and RunnableBase">
+
+class RunnableBase {
+  public:
+    virtual void run() =0;
+    virtual size_t get_index() const =0;
+    virtual ~RunnableBase() { }
+};
+
+template <typename Callable>
+struct Runnable : public RunnableBase
+{
+  private:
+  public:
+    explicit
+    Runnable(Callable&& c)
+      : run_this_(std::forward<Callable>(c))
+    { }
+    void run() override { run_this_(); }
+
+    static const size_t index_;
+
+    static std::unique_ptr<RunnableBase>
+    construct_from_bytes(void* data) {
+      // TODO write this
+      assert(false);
+    }
+
+    size_t get_index() const override { return index_; }
+
+  private:
+    Callable run_this_;
+};
+
+template <typename Callable>
+const size_t Runnable<Callable>::index_ = register_runnable<Runnable<Callable>>();
+
+template <
+  typename Functor,
+  typename... Args
+>
+class FunctorRunnable
+  : public RunnableBase
+{
+  private:
+
+    typedef functor_traits<Functor> traits;
+    typedef functor_call_traits<Functor, Args...> call_traits;
+    static constexpr auto n_functor_args_min = traits::n_args_min;
+    static constexpr auto n_functor_args_max = traits::n_args_max;
+
+    static_assert(
+      sizeof...(Args) <= n_functor_args_max && sizeof...(Args) >= n_functor_args_min,
+      "Functor task created with wrong number of arguments"
+    );
+
+    using args_tuple_t = typename call_traits::args_tuple_t;
+    args_tuple_t args_;
+
+    static const size_t index_;
+
+  public:
+
+    FunctorRunnable(
+      args_tuple_t&& args_tup
+    ) : args_(std::forward<args_tuple_t>(args_tup))
+    { }
+
+    FunctorRunnable(
+      variadic_constructor_arg_t const,
+      Args&&... args
+    ) : args_(std::forward<Args>(args)...)
+    { }
+
+    void run() override {
+      meta::splat_tuple<AccessHandleBase>(
+        std::move(args_),
+        Functor()
+      );
+    }
+
+
+    static std::unique_ptr<RunnableBase>
+    construct_from_bytes(void* data) {
+      // TODO inplace rather than move construction?
+      // TODO !!! special treatment for handles
+
+      // Make an archive from the void*
+      serialization::SimplePackUnpackArchive ar;
+      using DependencyHandle_attorneys::ArchiveAccess;
+      ArchiveAccess::start_unpacking(ar);
+      ArchiveAccess::set_buffer(ar, data);
+
+      // Reallocate
+      using tuple_alloc_traits = serialization::detail::allocation_traits<args_tuple_t>;
+      void* args_tup_spot = tuple_alloc_traits::allocate(ar, 1);
+      args_tuple_t& args = *static_cast<args_tuple_t*>(args_tup_spot);
+
+      // Unpack each of the arguments
+      meta::tuple_for_each(
+        args,
+        [&ar](auto& arg) {
+          ar.unpack_item(const_cast<
+            std::remove_const_t<std::remove_reference_t<decltype(arg)>>&
+          >(arg));
+        }
+      );
+
+      // now cast to xvalue and invoke the argument move constructor
+      return std::make_unique<FunctorRunnable>(std::move(args));
+    }
+
+    size_t get_index() const override { return index_; }
+};
+
+template <typename Functor, typename... Args>
+const size_t FunctorRunnable<Functor, Args...>::index_ =
+  register_runnable<FunctorRunnable<Functor, Args...>>();
+
+// </editor-fold>
+
+////////////////////////////////////////////////////////////////////////////////
+
+// <editor-fold desc="TaskBase and its descendants">
+
+class TaskBase : public abstract::backend::runtime_t::task_t
 {
   protected:
 
@@ -151,6 +266,7 @@ class TaskBase
     typedef types::shared_ptr_template<handle_t> handle_ptr;
     typedef types::handle_container_template<handle_t*> get_deps_container_t;
     typedef std::unordered_set<handle_t*> needs_handle_container_t;
+
 
     get_deps_container_t dependencies_;
 
@@ -174,6 +290,12 @@ class TaskBase
       if(needs_read_data) needs_read_deps_.insert(dep.get());
       if(needs_write_data) needs_write_deps_.insert(dep.get());
     }
+
+    template <typename AccessHandleT1, typename AccessHandleT2>
+    void do_capture(
+      AccessHandleT1& captured,
+      AccessHandleT2 const& source_and_continuing
+    );
 
     ////////////////////////////////////////////////////////////////////////////////
     // Implementation of abstract::frontend::Task
@@ -215,16 +337,53 @@ class TaskBase
       return false;
     }
 
+    virtual void run() override {
+      assert(runnable_);
+      pre_run_setup();
+      runnable_->run();
+      post_run_cleanup();
+    }
+
+    size_t get_packed_size() const override {
+      // TODO
+      assert(false);
+      return 0;
+    }
+
+    void pack(void* allocated) const override {
+      // TODO
+      assert(false);
+    }
+
     // end implementation of abstract::frontend::Task
     ////////////////////////////////////////////////////////////////////////////////
+
+    void pre_run_setup() {
+      for(auto& dep_ptr : this->all_deps_) {
+        // Make sure the access handle does in fact have it
+        assert(not dep_ptr.unique());
+        dep_ptr.reset();
+      }
+    }
+
+    void post_run_cleanup() { }
+
+    void set_runnable(std::unique_ptr<RunnableBase>&& r) {
+      runnable_ = std::move(r);
+    }
 
     virtual ~TaskBase() noexcept { }
 
     TaskBase* current_create_work_context = nullptr;
 
-    std::set<handle_ptr> read_only_handles;
-    std::set<handle_t*> ignored_handles;
+    std::vector<std::function<void()>> registrations_to_run;
+    std::vector<std::function<void()>> post_registration_ops;
 
+  private:
+
+    std::unique_ptr<RunnableBase> runnable_;
+
+    friend abstract::frontend::Task* unpack_task(void* packed_data);
 
 };
 
@@ -241,82 +400,44 @@ class TopLevelTask
 };
 
 
-template <
-  typename Lambda,
-  typename... Types
->
-class Task : public TaskBase
-{
-  public:
+// </editor-fold>
 
-    Task(Lambda const && in_lambda)
-      : lambda_((
-          // Double parens so that we can use the comma operator to
-          // hide some stuff that needs to be done first
-          // First, set the current create_work context to this task
-          // so that the move operator of AccessHandle knows to use
-          // the capture hook in its move constructor
-          safe_static_cast<detail::TaskBase* const>(
-            detail::backend_runtime->get_running_task()
-          )->current_create_work_context = this,
-          // now do the actual move, which will trigger the AccessHandle move
-          // constructor hook
-          std::move(in_lambda)
-        ))
-    {
-      // IMPORTANT NOTE:  Anything that gets put in the constructor
-      // here *may* run after some/all invocations of add_dependency(), etc
-      // Proceed with caution
-
-      TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
-          detail::backend_runtime->get_running_task()
-      );
-
-      for(auto&& h : parent_task->read_only_handles) {
-        add_dependency(h, /* needs_read_data=*/true, /* needs_write_data=*/false);
-      }
-      parent_task->read_only_handles.clear();
-
-      //const auto& deps = this->get_dependencies();
-      //for(auto&& h : parent_task->waits_handles) {
-      //  // only add it if we don't already need it
-      //  if(deps.find(h) == deps.end()) {
-
-      //  }
-
-      //}
-
-      // Assert that all explicitly specified reads were captured
-      DARMA_ASSERT_MESSAGE(
-        parent_task->read_only_handles.empty(),
-        "Privileges explicitly declared but not used"
-      );
-
-      // Remove the current create_work_context pointer so that other moves don't trigger the hook
-      parent_task->current_create_work_context = nullptr;
-    }
-
-    void run() override {
-      // we should release the shared_ptrs to dependencies here,
-      // since they'll be held by the access handles at this point
-      for(auto&& dep_ptr : this->all_deps_) {
-        // Make sure the access handle does in fact have it
-        assert(not dep_ptr.unique());
-        dep_ptr.reset();
-      }
-      lambda_();
-    }
-
-  private:
-
-    Lambda lambda_;
-
-};
+////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace detail
 
+// implementation of abstract::frontend::unpack_task
+
+namespace abstract {
+
+namespace frontend {
+
+inline abstract::frontend::Task*
+unpack_task(void* packed_data) {
+  serialization::SimplePackUnpackArchive ar;
+  detail::DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);
+  detail::DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, packed_data);
+
+  std::size_t runnable_index;
+  ar >> runnable_index;
+
+  // Now unpack the number of dependencies, their keys and versions
+  //std::vector<std::pair<types::key_t, types::version_t>> deps;
+  //ar >> deps;
+
+  // TODO
+  assert(false);
+  return nullptr;
+}
+
+} // end namespace frontend
+
+} // end namespace abstract
+
 } // end namespace darma_runtime
 
+
+#include <darma/impl/task_capture_impl.h>
 
 
 #endif /* DARMA_RUNTIME_TASK_H_ */

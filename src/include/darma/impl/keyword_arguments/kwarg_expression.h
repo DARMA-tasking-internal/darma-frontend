@@ -50,82 +50,12 @@
 
 #include "keyword_argument_name.h"
 #include "../meta/sentinal_type.h"
-#include "../meta/move_if.h"
 #include "../meta/detection.h"
 
 #include "kwarg_expression_fwd.h"
 
-namespace darma_runtime { namespace detail {
-
-////////////////////////////////////////////////////////////////////////////////
-
-/* kwarg_expression                                                      {{{1 */ #if 1 // begin fold
-
-/* TODO deprecate kwarg_expression.  typeless_kwarg_expression works much better and much more generally */
-template <
-  typename T, typename KWArgName, bool in_rhs_is_lvalue
->
-class kwarg_expression
-{
-  public:
-    typedef typename KWArgName::tag tag;
-    typedef KWArgName name_t;
-    typedef T value_t;
-
-    static constexpr bool rhs_is_lvalue = in_rhs_is_lvalue;
-
-    typedef typename std::conditional<rhs_is_lvalue,
-        T&, T
-    >::type actual_value_t;
-
-    kwarg_expression() = delete;
-
-    kwarg_expression(actual_value_t&& val) : val_(
-        meta::move_if<not rhs_is_lvalue, T>()(
-            std::forward<actual_value_t>(val)
-        )
-    ) {  }
-
-    kwarg_expression(kwarg_expression&& other)
-      : val_(meta::move_if<not rhs_is_lvalue, T>()(
-          std::forward<actual_value_t>(other.val_))
-        )
-    { }
-
-    template <typename U>
-    explicit
-    kwarg_expression(
-        U&& val,
-        typename std::enable_if<
-          not std::is_base_of<T, U>::value
-          and not is_kwarg_expression<
-            typename std::decay<U>::type
-          >::value,
-          meta::sentinal_type
-        >::type = meta::sentinal_type()
-    ) : val_(std::forward<U>(val))
-    { }
-
-    actual_value_t value() & {
-      return meta::move_if<not rhs_is_lvalue, T>()(
-          std::forward<actual_value_t>(val_)
-      );
-    }
-
-    actual_value_t value() && {
-      return meta::move_if<not rhs_is_lvalue, T>()(
-          std::forward<actual_value_t>(val_)
-      );
-    }
-
-  private:
-    actual_value_t val_;
-};
-
-/*                                                                            */ #endif // end fold
-
-////////////////////////////////////////////////////////////////////////////////
-
+namespace darma_runtime {
+namespace detail {
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -162,8 +92,6 @@ class typeless_kwarg_expression
 };
 
 
-namespace m = tinympl;
-
 template <
   typename KWArgName, typename... Args
 >
@@ -181,7 +109,7 @@ class multiarg_typeless_kwarg_expression {
     inline constexpr T
     value_as() const {
       return value_as<T>(
-        m::range_c<size_t, 0, sizeof...(Args)>()
+        tinympl::range_c<size_t, 0, sizeof...(Args)>()
       );
     }
 
@@ -196,27 +124,19 @@ class multiarg_typeless_kwarg_expression {
     }
 
     template <typename Converter, size_t... Idxs>
-    decltype(
-      std::declval<Converter>()(
-        std::get<Idxs>(std::declval<std::tuple<Args&&...>>())...
-      )
-    )
-    value_converted(Converter&& conv, m::basic_string<size_t, Idxs...>) const {
-      return conv(std::get<Idxs>(rhs_args_)...);
+    auto
+    value_converted(Converter&& conv, tinympl::range_c<size_t, Idxs...>) const {
+      return std::forward<Converter>(conv)(std::get<Idxs>(rhs_args_)...);
     }
 
   public:
 
     template <typename Converter>
     inline constexpr auto
-    value_converted(Converter&& conv) const
-      -> decltype(value_converted(
-           std::forward<Converter>(conv), m::range_c<size_t, 0, sizeof...(Args)>())
-         )
-    {
+    value_converted(Converter&& conv) const {
       return value_converted(
         std::forward<Converter>(conv),
-        m::range_c<size_t, 0, sizeof...(Args)>()
+        tinympl::range_c<size_t, 0, sizeof...(Args)>()
       );
     }
 };
@@ -235,13 +155,6 @@ struct is_kwarg_expression
   : public std::false_type
 {
   typedef meta::nonesuch tag;
-};
-
-template <typename T, typename KWArgName, bool rhs_is_lvalue>
-struct is_kwarg_expression<kwarg_expression<T, KWArgName, rhs_is_lvalue>>
-  : public std::true_type
-{
-  typedef typename KWArgName::tag tag;
 };
 
 template <typename T, typename KWArgName>
@@ -270,13 +183,6 @@ struct is_kwarg_expression_with_tag<
 > : public std::true_type
 { };
 
-template <class T, typename Tag, bool rhs_is_lvalue>
-struct is_kwarg_expression_with_tag<
-  kwarg_expression<T, typeless_keyword_argument_name<Tag>, rhs_is_lvalue>,
-  Tag
-> : public std::true_type
-{ };
-
 template <class T, typename Tag>
 struct is_kwarg_expression_with_tag<
   typeless_kwarg_expression<T, typeless_keyword_argument_name<Tag>>,
@@ -291,12 +197,12 @@ struct is_kwarg_expression_with_tag<
 > : public std::true_type
 { };
 
-
 /*                                                                            */ #endif // end fold
 
 ////////////////////////////////////////////////////////////////////////////////
 
-}} // end namespace darma_mockup::detail
+} // end namespace detail
+} // end namespace darma_mockup
 
 
 

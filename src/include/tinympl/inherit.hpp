@@ -58,10 +58,10 @@ namespace tinympl {
  * \class inherit
  * \brief Construct a type inherited from the arguments
  */
-template<class ... Args> struct inherit
-{
-	struct inherit_t : Args... {};
-	typedef inherit_t type;
+template <class... Args>
+struct inherit {
+  struct inherit_t : Args... {};
+  typedef inherit_t type;
 };
 
 

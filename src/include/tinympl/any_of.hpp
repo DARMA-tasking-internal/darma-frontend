@@ -51,9 +51,9 @@
 #ifndef TINYMPL_ANY_OF_HPP
 #define TINYMPL_ANY_OF_HPP
 
-#include "variadic/any_of.hpp"
-#include "as_sequence.hpp"
-#include "sequence.hpp"
+#include <tinympl/variadic/any_of.hpp>
+#include <tinympl/as_sequence.hpp>
+#include <tinympl/sequence.hpp>
 
 namespace tinympl {
 
@@ -68,11 +68,20 @@ given predicate
 is true iff at least one element in the sequence satisfy the predicate `F`
  * \sa variadic::any_of
  */
-template< class Sequence, template<class ...> class F>
-struct any_of : any_of<as_sequence_t<Sequence>, F> {};
+template <class Sequence, template <class...> class F>
+struct any_of : any_of<as_sequence_t<Sequence>, F> { };
 
 template< template<class ...> class F, class ... Args>
-struct any_of<sequence<Args...>, F > : variadic::any_of<F, Args...> {};
+struct any_of<sequence<Args...>, F > : variadic::any_of<F, Args...> { };
+
+namespace types_only {
+
+template< typename S, class FWrapped>
+struct any_of : tinympl::any_of<
+  S, FWrapped::template apply_value
+> { };
+
+} // end namespace types_only
 
 } // namespace tinympl
 

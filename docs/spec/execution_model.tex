@@ -1,30 +1,21 @@
 %!TEX root = sandReportSpec.tex
 
-\section{Compatible Execution Models}
+\section{Execution Models}
 \label{sec:exec_model}
 
-As was mentioned earlier, DARMA is intended to support a range of execution
-models.  An initial \gls{spmd} launch of an algorithm must be supported, and if
-no imbalances are present, the runtime implementation should maintain this
-optimal initial decomposition. In addition to the coarse-grained distributed
-parallelism specified by the \gls{spmd} launch, additional task- and
-pipeline-parallelism is introduced via the \CC-embedded task annotations.
+The main focus of DARMA is the programming model and corresponding translation layer that maps CSP semantics onto a data-flow description of the algorithm based on deferred tasks.
+DARMA prescribes nothing about the scheduling of tasks or even implementation of the tuple spaces supporting process coordination.
+A backend scheduler is therefore free to use, e.g. either depth-first or breadth-first priorities in executing tasks on the CDAG.
+Similarly, a scheduler may use thread pools with work queues to run tasks or it may use a fork-join model that creates new threads for each task.
+DARMA codes are therefore execution model-agnostic, only requiring that a backend runtime preserve the data-flow constraints expressed in the application and derived by the translation layer.
 
-Although not yet supported in version 0.2 of the specification, several
-important features will play a role in the DARMA execution model:
-\begin{compactdesc}
-\item{\bf Fine-grained \gls{fork-join} parallelism}
-Syntax to express both task-parallel and data-parallel code will be provided.
-Furthermore, the user will be able to express the \gls{execution space} on
-which it would like the code to be run, along with the fraction of the resources within
-that space it would like to consume (e.g., number of threads on a CPU).
-\todo[inline]{add detail re type of fork-join parallelism supported here: Is
-  this terminally strict?, fully strict?}
-%JJW 02/15/2016 I don't think we'll ever support the actor model
-%The question is to what degree we will support C++ member functions as tasks
-\item{\bf Field slicing in classes and class member functions as tasks:}\todo[inline]{elaborate on
-  this}
-\end{compactdesc}
+DARMA furthermore prescribes nothing about the internals of each task.
+DARMA is fully compatible with parallel elastic tasks - tasks with flexible fine-grained parallelism, usually data parallelism.
+For example, depending on dynamic conditions, more or fewer threads may be requested for a CUDA kernel.
+Although the DARMA application-level API currently only allows expressing task granularity and task data-flow,
+we expect the API to also express task elasticity in future versions.
 
-\todo[inline]{refer back to execution spaces (already mentioned in programming
-    model section). discuss how this feature impacts execution model}
+To date, two of the most critical challenges for scientific applications with massive data parallelism in a task-based model
+are the initial problem decomposition and the initial problem distribution.
+To more easily support massive data parallelism in the near-term,
+DARMA runtimes are required to enable an efficient \gls{spmd} launch similar to an MPI launch.

@@ -1,0 +1,2 @@
+
+#cmakedefine DARMA_HAVE_ATTRIBUTE_NONNULL

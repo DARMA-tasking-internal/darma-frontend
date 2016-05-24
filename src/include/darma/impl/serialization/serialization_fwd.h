@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          aliasing_manager.h
-//                         darma_new
+//                      serialization_fwd.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,70 +42,73 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_ALIASING_MANAGER_H_
-#define SRC_ABSTRACT_FRONTEND_ALIASING_MANAGER_H_
-
-#include "dependency_handle.h"
+#ifndef DARMA_SERIALIZATION_FWD_H
+#define DARMA_SERIALIZATION_FWD_H
 
 namespace darma_runtime {
 
-namespace abstract {
+namespace serialization {
 
-namespace frontend {
+namespace detail {
 
-/** @todo document this for the 0.2.1 spec
- *
- */
-template <
-  typename Key,
-  typename Version
->
-class AliasingManager
-{
-  public:
+template <typename T, typename Enable=void>
+struct Serializer_enabled_if;
 
-    typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
+template <typename T, typename Enable=void>
+struct Sizer;
 
-    virtual void
-    reconcile_with_unchanged(
-      handle_t* const changed,
-      handle_t* const unchanged
-    ) const =0;
+template <typename T, typename Enable=void>
+struct Packer;
 
-    virtual bool
-    separable(
-      const handle_t* const handle_a,
-      const handle_t* const handle_b
-    ) const =0;
+template <typename T, typename Enable=void>
+struct Unpacker;
 
-    virtual void
-    separate_into_copies(
-      const handle_t* const entangled_handle_a,
-      handle_t* const separated_handle_a,
-      const handle_t* const entangled_handle_b,
-      handle_t* const separated_handle_b
-    ) const =0;
+} // end namespace detail
 
-    virtual void
-    reconcile_separation(
-      handle_t* const entangled_handle_a,
-      const handle_t* const separated_handle_a,
-      handle_t* const entangled_handle_b,
-      const handle_t* const separated_handle_b
-    ) const =0;
+template <typename T>
+struct Serializer;
 
+struct unpack_constructor_tag_t { };
+constexpr unpack_constructor_tag_t unpack_constructor_tag = { };
 
-    // Virtual destructor, since we have virtual methods
+struct UnpackConstructorAccess;
 
-    virtual ~AliasingManager() noexcept { }
+struct SimplePackUnpackArchive;
 
-};
+namespace detail {
 
-} // end namespace frontend
+typedef enum SerializerMode {
+  None,
+  Sizing,
+  Packing,
+  Unpacking
+} SerializerMode;
 
-} // end namespace abstract
+template <typename T, typename Enable=void>
+struct serializability_traits;
+
+template <typename T, typename Enable=void>
+class allocation_traits;
+
+} // end namespace detail
+
+namespace Serializer_attorneys {
+
+struct ArchiveAccess;
+
+} // end namespace Serializer_attorneys
+
+} // end namespace serialization
+
+namespace detail {
+namespace DependencyHandle_attorneys {
+
+struct ArchiveAccess;
+
+} // end namespace DependencyHandle_attorneys
+} // end namespace detail
+
 
 } // end namespace darma_runtime
 
-
-#endif /* SRC_ABSTRACT_FRONTEND_ALIASING_MANAGER_H_ */
+#endif //DARMA_SERIALIZATION_FWD_H

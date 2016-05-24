@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          move_if.h
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
+//                      vector.h
+//                         DARMA
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,82 +42,43 @@
 //@HEADER
 */
 
-#ifndef META_MOVE_IF_H_
-#define META_MOVE_IF_H_
+#ifndef DARMA_IMPL_SERIALIZATION_STL_VECTOR_H
+#define DARMA_IMPL_SERIALIZATION_STL_VECTOR_H
 
-#include <utility> // std::move
+#include <vector>
 
-namespace darma_runtime { namespace meta {
+#include "nonintrusive.h"
+#include "traits.h"
 
-////////////////////////////////////////////////////////////////////////////////
+namespace darma_runtime {
 
-/* several move_if_* functors for correct transfer of move semantics     {{{1 */ #if 1 // begin fold
+namespace serialization {
 
+// Faster specialization for std::vector specifically
 template <typename T>
-struct move_if_not_lvalue_reference
+struct Serializer<std::vector<T>>
+  // Inherit from the general container specialization
+  : detail::Serializer_enabled_if<std::vector<T>>
 {
-  T&& operator()(T&& val) const noexcept {
-    return std::move(val);
-  }
-};
+  private:
 
-template <typename T>
-struct move_if_not_lvalue_reference<T&>
-{
-  T& operator()(T& val) const noexcept {
-    return val;
-  }
-};
+    using value_traits = detail::serializability_traits<T>;
 
-template <bool condition, typename T>
-struct move_if
-{
-  T&& operator()(T&& val) const noexcept {
-    return std::move(val);
-  }
-};
+    template <typename ArchiveT>
+    using value_type_is_serializable = typename value_traits::template is_serializable_with_archive<ArchiveT>;
 
-template <typename T>
-struct move_if<false, T>
-{
-  T& operator()(T& val) const noexcept {
-    return val;
-  }
-};
+    using value_serializer = typename value_traits::serializer;
 
-template <bool by_value_condition, bool move_condition, typename T>
-struct by_value_if_or_move_if
-{ };
+    using vector_t = std::vector<T>;
 
-template <bool move_condition, typename T>
-struct by_value_if_or_move_if<true, move_condition, T>
-{
-  T operator()(T&& val) const noexcept {
-    return val;
-  }
-};
+  public:
 
-template <typename T>
-struct by_value_if_or_move_if<false, true, T>
-{
-  T&& operator()(T&& val) const noexcept {
-    return std::move(val);
-  }
-};
-
-template <typename T>
-struct by_value_if_or_move_if<false, false, T>
-{
-  T& operator()(T& val) const noexcept {
-    return val;
-  }
+    // TODO fill this in with more efficient versions
 };
 
 
-/*                                                                            */ #endif // end fold
+} // end namespace serialization
 
-////////////////////////////////////////////////////////////////////////////////
+} // end namespace darma_runtime
 
-}} // end namespace darma_mockup::detail
-
-#endif /* META_MOVE_IF_H_ */
+#endif //DARMA_IMPL_SERIALIZATION_STL_VECTOR_H
