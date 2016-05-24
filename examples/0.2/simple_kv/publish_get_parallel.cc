@@ -7,8 +7,11 @@ int darma_main(int argc, char** argv)
   size_t me = darma_spmd_rank();
   size_t n_ranks = darma_spmd_size();
 
-  auto float_to_pub = initial_access<float>("floatKey", me);
+  // define neighbors with periodic arrangement
+  size_t left_nbr = (me == 0) ? n_ranks-1 : me-1 ;
+  size_t right_nbr = (me == n_ranks-1) ? 0 : me+1 ;
 
+  auto float_to_pub = initial_access<float>("floatKey", me);
   create_work([=]
   {
     //set_value could be replaced by the more verbose
@@ -16,14 +19,12 @@ int darma_main(int argc, char** argv)
     float_to_pub.set_value(2692.0 + me); //a float I like
   });
 
-  float_to_pub.publish(n_readers=2); //two guys will read this
+  float_to_pub.publish(n_readers=2); 
+  //n_readers=2: two read_access handles will be defined for this
 
-  size_t left_nbr = (me == 0) ? n_ranks-1 : me-1 ;
-  size_t right_nbr = (me == n_ranks-1) ? 0 : me+1 ;
-
+  // fetch the data
   auto float_from_left = read_access<float>("floatKey", left_nbr);
   auto float_from_right= read_access<float>("floatKey", right_nbr);
-
   create_work([=]
   {
     std::cout << "My rank is " << me 

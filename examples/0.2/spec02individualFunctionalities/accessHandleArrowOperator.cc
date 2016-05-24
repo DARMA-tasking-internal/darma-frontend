@@ -6,8 +6,8 @@ int darma_main(int argc, char** argv)
   const int myRank = darma_spmd_rank();
   const int size = darma_spmd_size();
 
+  // create handle to data
   auto my_handle1 = initial_access<std::vector<double>>("data", myRank);
-
   create_work([=]
   {
     // first, constructs data with default constructor
@@ -15,15 +15,15 @@ int darma_main(int argc, char** argv)
     // operator-> : get access to methods of object pointed to by handle
     my_handle1->resize(4);
 
+    // get the data and set values
     double * vecPtr = my_handle1->data();
-    for (int i = 0; i < 4; ++i)
-    {
+    for (int i = 0; i < 4; ++i){
       vecPtr[i] = (double) i + 0.4;
     }
 
+    // get the last element and check its value
     std::cout << my_handle1->back() << std::endl;
-    if (my_handle1->back() != 3.4) 
-    {
+    if (my_handle1->back() != 3.4){
       std::cerr << "Error: handle value != 3.4!" << std::endl;
       std::cerr << " " __FILE__ << ":" << __LINE__ << '\n';        
       exit( EXIT_FAILURE );

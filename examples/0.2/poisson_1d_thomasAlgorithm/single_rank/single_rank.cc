@@ -26,8 +26,13 @@ int darma_main(int argc, char** argv)
 	auto supD = initial_access<vecDbl>("c",me); // superdiagonal
 	auto rhs  = initial_access<vecDbl>("d",me); // rhs and solution
 
+  // initialize the handles
 	initialize(subD, diag, supD, rhs);
+
+  // solve tridiagonal system 
 	solveTridiagonalSystem(subD, diag, supD, rhs);
+
+  // check solution L1 error
 	checkFinalL1Error(rhs);
 
   darma_finalize();
