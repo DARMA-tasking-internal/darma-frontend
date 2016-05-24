@@ -2,11 +2,12 @@
 
 \section{Compatible Data Models}
 \label{sec:data_model}
-
-
-DARMA provides a flexible data model (DARMA is only aware of tuple or key identifiers for a coarse-grained data block).
-This leaves the application developer free to use arbitrary data structures, but puts more responsibility on application developer to define serialization, \gls{slicing}, and \glspl{interference test} 
-for data blocks. 
-\todo[inline]{add details here}
+DARMA only implements a data model through its serialization interface.
+The notion of data structure, data layout, and data type only exist in the application and translation layer (see Section \ref{TL}).
+The backend runtime in DARMA is only aware of tuple or key identifiers for a coarse-grained data block of a given size.
+To actually migrate data, the backend invokes serialization hooks implemented by the application.
+In future versions, an API similar to the serialization interface will support the definition of data subsets and data slices.
+Again, the backend runtime will only understand data and task dependencies, requiring the type-aware application and translation layers to define the details of serialization and slicing operations.
+This leaves the application developer free to use arbitrary data structures, but puts more responsibility on the application developer.
 
 
