@@ -53,11 +53,30 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <sstream>
 
 #include <darma/impl/meta/metaprogramming.h>
 
 #include <darma/impl/darma_assert.h>
 #include <darma/impl/compatibility.h>
+#include <darma/impl/meta/largest_aligned.h>
+
+// Borrowed from google test
+// Due to C++ preprocessor weirdness, we need double indirection to
+// concatenate two tokens when one of them is __LINE__.  Writing
+//
+//   foo ## __LINE__
+//
+// will result in the token foo__LINE__, instead of foo followed by
+// the current line number.  For more details, see
+// https://isocpp.org/wiki/faq/misc-technical-issues#macros-with-token-pasting
+#define DARMA_CONCAT_TOKEN_(foo, bar) DARMA_CONCAT_TOKEN_IMPL_(foo, bar)
+#define DARMA_CONCAT_TOKEN_IMPL_(foo, bar) foo ## bar
+
+template <typename T>
+struct _____________________________TYPE_DISPLAY________________________________;
+#define _DARMA_HIDE_TYPE_DISPLAY() _____________________________TYPE_DISPLAY________________________________
+#define DARMA_TYPE_DISPLAY(T) _DARMA_HIDE_TYPE_DISPLAY()<T> _undef;
 
 namespace darma_runtime {
 
@@ -111,8 +130,53 @@ template <class T>
 inline void
 hash_combine(std::size_t& seed, const T& v)
 {
-    std::hash<T> hasher;
-    seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+  std::hash<T> hasher;
+  seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+}
+
+template <typename T>
+inline size_t
+hash_as_bytes(T const& val) {
+  typedef typename meta::largest_aligned_int<T>::type largest_int_t;
+  constexpr size_t n_parts = sizeof(T) / sizeof(largest_int_t);
+  largest_int_t* spot = (largest_int_t*)&val;
+  size_t rv = 0;
+  for(int i = 0; i < n_parts; ++i, ++spot) {
+    hash_combine(rv, *spot);
+  }
+  return rv;
+}
+
+template <typename T, typename U>
+inline bool
+equal_as_bytes(T const& a, U const& b) {
+  if(sizeof(T) != sizeof(U)) return false;
+  typedef typename meta::largest_aligned_int<T>::type largest_int_t;
+  constexpr size_t n_parts = sizeof(T) / sizeof(largest_int_t);
+  largest_int_t* a_spot = (largest_int_t*)&a;
+  largest_int_t* b_spot = (largest_int_t*)&b;
+  for(int i = 0; i < n_parts; ++i, ++a_spot, ++b_spot) {
+    if(*a_spot != *b_spot) return false;
+  }
+  return true;
+}
+
+inline bool
+equal_as_bytes(const char* a, size_t a_size, const char* b, size_t b_size) {
+  if(a_size != b_size) return false;
+  for(int i = 0; i < a_size; ++i, ++a, ++b) {
+    if(*a != *b) return false;
+  }
+  return true;
+}
+
+inline size_t
+hash_as_bytes(const char* a, size_t a_size) {
+  size_t rv = 0;
+  for(int i = 0; i < a_size; ++i, ++a) {
+    hash_combine(rv, *a);
+  }
+  return rv;
 }
 
 
@@ -332,7 +396,8 @@ namespace std {
 
 template <typename U, typename V>
 struct hash<std::pair<U,V>> {
-  inline size_t
+  inline
+  size_t
   operator()(const std::pair<U, V>& val) const {
     size_t rv = std::hash<U>()(val.first);
     darma_runtime::detail::hash_combine(rv, val.second);

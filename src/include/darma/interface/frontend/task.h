@@ -45,6 +45,8 @@
 #ifndef SRC_ABSTRACT_FRONTEND_TASK_H_
 #define SRC_ABSTRACT_FRONTEND_TASK_H_
 
+#include <darma_types.h>
+#include <darma/interface/frontend/types.h>
 
 #include "dependency_handle.h"
 
@@ -54,6 +56,8 @@ namespace abstract {
 
 namespace frontend {
 
+// TODO more devirtualization (using "abstract inherits from concrete" pattern)
+
 /**
  *  @ingroup abstract
  *
@@ -62,23 +66,22 @@ namespace frontend {
  *  @brief The fundamental abstraction for the frontend to communicate units of
  *  dependency-driven work to the backend.
  *
- *  @tparam Key must meet the Key concept
- *  @tparam Version must meet the Version concept
- *  @tparam Container must meet the standard library Container concept
- *  @tparam smart_ptr_template A template for a shared pointer to a type and for which
- *  darma_runtime::detail::smart_ptr_traits is specialized
- *
  *  @todo 0.3 spec: task migration hooks
  *
  */
-template <
-  typename Key, typename Version,
-  template <typename...> class Container
->
 class Task {
-  public:
+  private:
+
+    using Key = types::key_t;
+    using Version = types::version_t;
 
     typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
+
+    template <typename... Args>
+    using Container = types::handle_container_template<Args...>;
+
+  public:
+
 
     /** @brief returns the dependencies and antidependencies of the task
      *
@@ -211,9 +214,16 @@ class Task {
     virtual void
     run() =0;
 
+    virtual size_t
+    get_packed_size() const =0;
+
+    virtual void
+    pack(void* allocated) const =0;
 
     virtual ~Task() noexcept = default;
 };
+
+Task* unpack_task(void* packed_data);
 
 
 } // end namespace frontend

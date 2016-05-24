@@ -238,7 +238,7 @@ TEST_F(RegisterTask, release_satisfy_for_read_only) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
@@ -293,7 +293,7 @@ TEST_F(RegisterTask, release_satisfy_for_read_write) {
   EXPECT_CALL(*h_0.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));
   EXPECT_CALL(*h_0.get(), get_data_block())
-    .Times(AtLeast(2));  // when running write-only task and when releasing
+    .Times(AtLeast(1));  // when running write-only task
 
   EXPECT_CALL(*h_1.get(), satisfy_with_data_block(_))
     .Times(Exactly(1));

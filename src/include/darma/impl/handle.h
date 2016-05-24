@@ -56,11 +56,15 @@
 #include <tinympl/logical_not.hpp>
 #include <tinympl/copy_traits.hpp>
 
-#include <darma/impl/task.h>
+#include <darma/impl/task_fwd.h>
 #include <darma/impl/runtime.h>
 #include <darma/interface/defaults/version.h>
 #include <darma/impl/util.h>
 #include <darma/impl/darma_assert.h>
+#include <darma/impl/serialization/archive.h>
+#include <darma/impl/serialization/nonintrusive.h>
+#include <darma/impl/serialization/traits.h>
+#include <darma/impl/serialization/allocation.h>
 
 #include <darma/interface/backend/data_block.h>
 #include <darma/impl/keyword_arguments/keyword_arguments.h>
@@ -149,7 +153,6 @@ struct publish_expr_helper {
 
 namespace detail {
 
-
 template <typename key_type>
 class KeyedObject
 {
@@ -172,7 +175,6 @@ class KeyedObject
   protected:
     key_t key_;
 };
-
 
 template <typename version_type>
 class VersionedObject
@@ -211,6 +213,54 @@ class VersionedObject
 };
 
 
+namespace DependencyHandle_attorneys {
+
+struct ArchiveAccess {
+  template <typename ArchiveT>
+  static void set_buffer(ArchiveT& ar, void* const buffer) {
+    // Assert that we're not overwriting a buffer, at least until
+    // a use case for that sort of thing comes up
+    assert(ar.start == nullptr);
+    ar.start = ar.spot = (char* const)buffer;
+  }
+  template <typename ArchiveT>
+  static size_t get_size(ArchiveT& ar) {
+    assert(ar.is_sizing());
+    return ar.spot - ar.start;
+  }
+  template <typename ArchiveT>
+  static inline void
+  start_sizing(ArchiveT& ar) {
+    assert(not ar.is_sizing()); // for now, to avoid accidental resets
+    ar.start = nullptr;
+    ar.spot = nullptr;
+    ar.mode = serialization::detail::SerializerMode::Sizing;
+  }
+
+  template <typename ArchiveT>
+  static inline void
+  start_packing(ArchiveT& ar) {
+    ar.mode = serialization::detail::SerializerMode::Packing;
+    ar.spot = ar.start;
+  }
+
+  template <typename ArchiveT>
+  static inline void
+  start_unpacking(ArchiveT& ar) {
+    ar.mode = serialization::detail::SerializerMode::Unpacking;
+    ar.spot = ar.start;
+  }
+};
+
+} // end namespace DependencyHandle_attorneys
+
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="DependencyHandleBase">
+
+// Tag type for handle migration unpack
+struct handle_migration_unpack_t { };
+static constexpr handle_migration_unpack_t handle_migration_unpack = { };
+
 template <
   typename key_type=types::key_t,
   typename version_type=types::version_t
@@ -226,6 +276,7 @@ class DependencyHandleBase
     typedef VersionedObject<version_type> versioned_base_t;
     typedef typename versioned_base_t::version_t version_t;
 
+
     const key_type&
     get_key() const override {
       return this->KeyedObject<key_type>::get_key();
@@ -233,6 +284,19 @@ class DependencyHandleBase
     const version_type&
     get_version() const override {
       return this->VersionedObject<version_type>::get_version();
+    }
+
+    template <typename ArchiveT>
+    explicit DependencyHandleBase(
+      handle_migration_unpack_t,
+      ArchiveT& ar
+    ) : keyed_base_t(key_t()),
+        versioned_base_t(version_t())
+    {
+      ar >> this->key_;
+      ar >> this->version_;
+      ar >> this->version_is_pending_;
+      backend_runtime->register_migrated_handle(this);
     }
 
     DependencyHandleBase(
@@ -261,6 +325,20 @@ class DependencyHandleBase
       version_is_pending_ = true;
     }
 
+    void
+    satisfy_with_data_block(
+      abstract::backend::DataBlock* const data
+    ) override {
+      this->satisfied_ = true;
+      this->data_ = data->get_data();
+      this->data_block_ = data;
+    }
+
+    abstract::backend::DataBlock*
+    get_data_block() const override {
+      return this->data_block_;
+    }
+
     void set_version(const version_t& v) override {
       assert(version_is_pending_);
       version_is_pending_ = false;
@@ -275,7 +353,9 @@ class DependencyHandleBase
     bool version_is_pending_ = false;
 };
 
-struct EmptyClass { };
+
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
 
 template <
   typename T,
@@ -283,16 +363,21 @@ template <
   typename version_type
 >
 class DependencyHandle
-  : public DependencyHandleBase<key_type, version_type>
+  : public DependencyHandleBase<key_type, version_type>,
+    public abstract::frontend::SerializationManager
 {
   protected:
 
     typedef DependencyHandleBase<key_type, version_type> base_t;
+    typedef serialization::detail::serializability_traits<T> serdes_traits;
 
   public:
 
     typedef typename base_t::key_t key_t;
     typedef typename base_t::version_t version_t;
+
+    ////////////////////////////////////////////////////////////
+    // Constructors and Destructor <editor-fold desc="Constructors and Destructor">
 
     DependencyHandle(
       const key_t& data_key,
@@ -317,6 +402,25 @@ class DependencyHandle
       );
     }
 
+    template <typename ArchiveT>
+    DependencyHandle(
+      handle_migration_unpack_t,
+      ArchiveT& ar
+    ) : base_t(handle_migration_unpack, ar),
+        value_((T*&)this->base_t::data_)
+    {
+    }
+
+    virtual ~DependencyHandle() {
+      backend_runtime->release_handle(this);
+    }
+
+    // end Constructors and Destructor </editor-fold>
+    ////////////////////////////////////////////////////////////
+
+    ////////////////////////////////////////////////////////////
+    // get_value, emplace_value, set_value, etc. <editor-fold desc="get_value, emplace_value, set_value, etc.">
+
     template <typename... Args>
     void
     emplace_value(Args&&... args)
@@ -330,32 +434,12 @@ class DependencyHandle
       );
     }
 
-    void
-    set_value(const T& val)
-    {
-      // Invoke the copy constructor
-      emplace_value(val);
-    }
-
-    void
-    set_value(T&& val)
-    {
-      // Invoke the move constructor, if available
-      emplace_value(std::forward<T>(val));
-    }
-
     template <typename U>
-    std::enable_if_t<
-      std::is_convertible<U, T>::value
-    >
+    void
     set_value(U&& val) {
+      // The enable-if is in Access handle
       // TODO handle custom operator=() case (for instance)
       emplace_value(std::forward<U>(val));
-    }
-
-    virtual ~DependencyHandle() {
-      if(not has_subsequent_at_version_depth) backend_runtime->handle_done_with_version_depth(this);
-      backend_runtime->release_handle(this);
     }
 
     T& get_value() {
@@ -368,50 +452,87 @@ class DependencyHandle
       return *value_;
     }
 
-  private:
+    // end get_value, emplace_value, set_value, etc. </editor-fold>
+    ////////////////////////////////////////////////////////////
 
-    template <typename U>
-    struct trivial_serialization_manager
-      : public abstract::frontend::SerializationManager
-    {
-      size_t get_metadata_size(
-        const void* const deserialized_data
-      ) const override {
-        return sizeof(U);
-      }
-    };
+    ////////////////////////////////////////////////////////////
+    // <editor-fold desc="abstract::frontend::DependencyHandle implmentation">
 
-  public:
+    // Most of this implementation is inherited from concrete base classes
 
     abstract::frontend::SerializationManager*
     get_serialization_manager() override {
-      return &ser_manager_;
+      return this;
+    }
+
+    // </editor-fold>
+    ////////////////////////////////////////////////////////////
+
+    ////////////////////////////////////////////////////////////
+    // SerializationManager implementation <editor-fold desc="SerializationManager implementation">
+
+    STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(T, serialization::SimplePackUnpackArchive,
+      "Handles to non-serializable types not yet supported"
+    );
+
+    size_t
+    get_metadata_size() const override {
+      return sizeof(T);
+    }
+
+    size_t
+    get_packed_data_size(
+      const void* const object_data
+    ) const override {
+      serialization::Serializer<T> s;
+      serialization::SimplePackUnpackArchive ar;
+      DependencyHandle_attorneys::ArchiveAccess::start_sizing(ar);
+      s.compute_size(*(T const* const)(object_data), ar);
+      return DependencyHandle_attorneys::ArchiveAccess::get_size(ar);
     }
 
     void
-    satisfy_with_data_block(
-      abstract::backend::DataBlock* const data
-    ) override {
-      this->satisfied_ = true;
-      this->data_ = data->get_data();
-      this->data_block_ = data;
+    pack_data(
+      const void* const object_data,
+      void* const serialization_buffer
+    ) const override {
+      serialization::Serializer<T> s;
+      serialization::SimplePackUnpackArchive ar;
+      DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, serialization_buffer);
+      DependencyHandle_attorneys::ArchiveAccess::start_packing(ar);
+      s.pack(*(T const* const)(object_data), ar);
     }
 
-    abstract::backend::DataBlock*
-    get_data_block() const override {
-      return this->data_block_;
+    void
+    unpack_data(
+      void* const object_dest,
+      const void* const serialized_data
+    ) const override {
+      serialization::Serializer<T> s;
+      serialization::SimplePackUnpackArchive ar;
+      // Need to cast away constness of the buffer because the Archive requires
+      // a non-const buffer to be able to operate in pack mode (i.e., so that
+      // the user can write one function for both serialization and deserialization)
+      DependencyHandle_attorneys::ArchiveAccess::set_buffer(
+        ar, const_cast<void* const>(serialized_data)
+      );
+      DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);
+      s.unpack(object_dest, ar);
     }
 
+    void*
+    allocate_data() const override {
+      serialization::SimplePackUnpackArchive ar;
+      return serialization::detail::allocation_traits<T>::allocate(ar, 1);
+    }
 
-    bool has_subsequent_at_version_depth = false;
+    // end SerializationManager implementation </editor-fold>
+    ////////////////////////////////////////////////////////////
 
   private:
 
     T*& value_;
 
-    // TODO more general serialization
-    // for now...
-    trivial_serialization_manager<T> ser_manager_;
 
 };
 
@@ -427,17 +548,92 @@ class for_AccessHandle;
 
 } // end namespace access_attorneys
 
-} // end namespace darma_runtime::detail
+class AccessHandleBase {
+  public:
+    virtual ~AccessHandleBase() = default;
+
+    typedef enum State {
+      None_None,
+      Read_None,
+      Read_Read,
+      Modify_None,
+      Modify_Read,
+      Modify_Modify
+    } state_t;
+
+    typedef enum CaptureOp {
+      ro_capture,
+      mod_capture
+    } capture_op_t;
+
+    typedef enum CapturedAsInfo {
+      Normal = 0,
+      Ignored = 1,
+      ReadOnly = 2,
+      // Future use:
+      ScheduleOnly = 4,
+      Leaf = 8,
+      Uncaptured = 16
+    } captured_as_info_t;
+
+    typedef typename abstract::backend::runtime_t::handle_t handle_t;
+
+  protected:
+
+    struct read_only_usage_holder {
+      handle_t* const handle_;
+      read_only_usage_holder(handle_t* const handle)
+        : handle_(handle)
+      { }
+      ~read_only_usage_holder() {
+        detail::backend_runtime->release_read_only_usage(handle_);
+      }
+    };
+
+    typedef typename detail::smart_ptr_traits<std::shared_ptr>::template maker<read_only_usage_holder>
+      read_only_usage_holder_ptr_maker_t;
+
+};
+
+template <
+  bool is_compile_time_modifiable_ = true,
+  bool is_compile_time_readable_ = true
+>
+struct access_handle_traits {
+  static constexpr auto is_compile_time_modifiable = is_compile_time_modifiable_;
+  static constexpr auto is_compile_time_readable = is_compile_time_readable_;
+  template <bool new_compile_time_mod_value>
+  struct with_compile_time_modifiable {
+    typedef access_handle_traits<
+      new_compile_time_mod_value, is_compile_time_readable
+    > type;
+  };
+};
+
+} // end namespace detail
 
 template <
   typename T = void,
   typename key_type = types::key_t,
   typename version_type = types::version_t,
-  template <typename...> class smart_ptr_template = types::shared_ptr_template
+  typename traits = detail::access_handle_traits<>
 >
 class AccessHandle;
 
-}
+namespace detail {
+
+template <typename T>
+struct is_access_handle
+  : std::false_type { };
+
+template <typename... Args>
+struct is_access_handle<AccessHandle<Args...>>
+  : std::true_type { };
+
+
+} // end namespace detail
+
+} // end namespace darma_runtime
 
 
 

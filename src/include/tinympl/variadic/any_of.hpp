@@ -73,7 +73,7 @@ struct any_of;
 template< template<class... T> class F, class Head, class... Args>
 struct any_of<F, Head, Args...> :
   std::conditional<
-    F<Head>::type::value,
+    F<Head>::value,
     std::integral_constant<bool, true>,
     any_of<F, Args...>
   >::type::type

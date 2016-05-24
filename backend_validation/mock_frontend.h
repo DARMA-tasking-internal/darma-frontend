@@ -56,22 +56,6 @@
 #include <darma_types.h>
 #include <functional>
 
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#endif
-
-//namespace darma_runtime {
-//
-//namespace detail {
-//
-//extern
-//DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-//abstract::backend::runtime_t*& backend_runtime;
-//
-//} // end namespace backend
-//
-//} // end namespace darma_runtime
-
 namespace mock_frontend {
 
 class MockSerializationManager
@@ -80,10 +64,11 @@ class MockSerializationManager
   public:
     MockSerializationManager() {}
 
-    MOCK_CONST_METHOD1(
-      get_metadata_size,
-      size_t(const void* const deserialized_data)
-    );
+    MOCK_CONST_METHOD0(get_metadata_size, size_t());
+    MOCK_CONST_METHOD1(get_packed_data_size, size_t(const void* const));
+    MOCK_CONST_METHOD2(pack_data, void(const void* const, void* const));
+    MOCK_CONST_METHOD2(unpack_data, void(void* const, const void* const));
+    MOCK_CONST_METHOD0(allocate_data, void*());
 };
 
 class MockDependencyHandle
@@ -101,7 +86,6 @@ class MockDependencyHandle
     bool version_is_pending_return = false;
     bool is_satisfied_return = false;
     bool is_writable_return = false;
-    darma_runtime::abstract::frontend::SerializationManager* get_serialization_manager_return = nullptr;
     darma_runtime::abstract::backend::DataBlock* get_data_block_return = nullptr;
 
     MockDependencyHandle(){
@@ -137,13 +121,13 @@ class MockDependencyHandle
       ON_CALL(*this, get_version())
         .WillByDefault(ReturnRef(get_version_return));
       ON_CALL(*this, set_version(_))
-        .WillByDefault(Invoke([this](version_t const &v){ get_version_return = v; version_is_pending_return = false; }));
+        .WillByDefault(Invoke([this](version_t const &v){
+           get_version_return = v; version_is_pending_return = false; }));
       ON_CALL(*this, version_is_pending())
         .WillByDefault(ReturnPointee(&version_is_pending_return));
-      ON_CALL(*this, get_serialization_manager())
-        .WillByDefault(ReturnPointee(&get_serialization_manager_return));
       ON_CALL(*this, satisfy_with_data_block(_))
-        .WillByDefault(Invoke([this](darma_runtime::abstract::backend::DataBlock *db){ get_data_block_return = db; is_satisfied_return = true; }));
+        .WillByDefault(Invoke([this](darma_runtime::abstract::backend::DataBlock *db){
+           get_data_block_return = db; is_satisfied_return = true; }));
       ON_CALL(*this, get_data_block())
         .WillByDefault(ReturnPointee(&get_data_block_return));
       ON_CALL(*this, is_satisfied())
@@ -162,11 +146,7 @@ class MockDependencyHandle
 };
 
 class MockTask
-  : public darma_runtime::abstract::frontend::Task<
-      darma_runtime::types::key_t,
-      darma_runtime::types::version_t,
-      darma_runtime::types::handle_container_template
-    >
+  : public darma_runtime::abstract::frontend::Task
 {
   public:
     typedef darma_runtime::types::key_t key_t;
@@ -187,6 +167,8 @@ class MockTask
     MOCK_METHOD1(set_name, void(key_t const& name_key));
     MOCK_CONST_METHOD0(is_migratable, bool());
     MOCK_METHOD0(run, void());
+    MOCK_CONST_METHOD0(get_packed_size, size_t());
+    MOCK_CONST_METHOD1(pack, void(void*));
 
     void
     set_default_behavior() {

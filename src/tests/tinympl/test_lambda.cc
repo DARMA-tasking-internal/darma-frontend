@@ -51,6 +51,7 @@
 
 #include <tinympl/vector.hpp>
 #include <tinympl/delay.hpp>
+#include <tinympl/logical_not.hpp>
 
 #include <string>
 #include <vector>
@@ -89,6 +90,10 @@ meta_assert(
   >::value
 );
 
+meta_assert(lambda<
+    not_<std::is_const<_1>>
+  >::template apply_value<int>::value
+);
 
 //meta_assert(
 //  undelay<

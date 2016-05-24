@@ -48,6 +48,7 @@
 #include <tuple>
 
 #include "kwarg_expression_fwd.h"
+#include "keyword_tag.h"
 
 namespace darma_runtime { namespace detail {
 

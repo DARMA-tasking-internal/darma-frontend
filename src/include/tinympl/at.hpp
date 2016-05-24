@@ -54,6 +54,7 @@
 #include <tinympl/variadic/at.hpp>
 #include <tinympl/as_sequence.hpp>
 #include <tinympl/sequence.hpp>
+#include <tinympl/size.hpp>
 
 namespace tinympl {
 
@@ -69,6 +70,19 @@ struct at : at <I, as_sequence_t<Sequence> > {};
 
 template<std::size_t I, class ... Args>
 struct at<I, sequence<Args...> > : variadic::at<I, Args...> {};
+
+template<std::size_t I, class Sequence>
+using at_t = typename at<I, as_sequence_t<Sequence> >::type;
+
+template <class Sequence>
+using front = at<0, Sequence>;
+template <class Sequence>
+using front_t = typename front<Sequence>::type;
+
+template <class Sequence>
+using back = at<size<Sequence>::value-1, Sequence>;
+template <class Sequence>
+using back_t = typename back<Sequence>::type;
 
 } // namespace tinympl
 

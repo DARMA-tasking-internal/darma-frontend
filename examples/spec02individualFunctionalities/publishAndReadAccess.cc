@@ -10,14 +10,20 @@ int darma_main(int argc, char** argv)
 
   const int myRank = darma_spmd_rank();
   const int size = darma_spmd_size();
-  // supposed to be run with 2 ranks 
-  assert(size==2);
+
+  // supposed to be run with 2 ranks, so ignore the rest
+  assert(size>=2);
+  if (myRank>1){
+    darma_finalize();
+    return 0;
+  }
 
   // rank0 reads from source = rank1 
   // rank1 reads from source = rank0 
   int source = myRank==0 ? 1 : 0;
 
   auto my_handle = initial_access<double>("data", myRank);
+
   create_work([=]
   {
     my_handle.emplace_value(0.5 + (double) myRank);

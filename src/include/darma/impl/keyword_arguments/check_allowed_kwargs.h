@@ -72,7 +72,7 @@ struct only_allowed_kwargs_given {
       using _allowed_arg = mv::any_of<
         m::lambda<
           std::is_same<typename is_kwarg_expression<Arg>::tag, mp::_>
-        >::template apply,
+        >::template apply_value,
         meta::nonesuch,
         KWTags...
       >;

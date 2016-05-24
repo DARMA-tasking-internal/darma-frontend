@@ -54,6 +54,8 @@
 #include <gtest/gtest.h>
 #include <darma/impl/task.h>
 #include <darma/impl/runtime.h>
+#include <src/include/darma/interface/app/access_handle.h>
+#include <src/include/darma/impl/handle_attorneys.h>
 
 #include "mock_backend.h"
 #include "darma_types.h"
@@ -100,7 +102,7 @@ class TestFrontend
     virtual void TearDown() {
       top_level_task.reset();
       if(mock_runtime_setup_done) {
-        mock_runtime.reset();
+        mock_runtime = nullptr;
         mock_runtime_setup_done = false;
       }
       same_handles.clear();
@@ -148,31 +150,24 @@ class TestFrontend
     template <typename SameHandle>
     void expect_handle_life_cycle(SameHandle&& same_handle,
       ::testing::Sequence s = ::testing::Sequence(),
-      bool read_only = false,
-      bool calls_last_at_version_depth = true
+      bool read_only = false
     ) {
       using namespace ::testing;
-      Sequence s2;
 
       if(read_only) {
         EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(same_handle), _))
-          .InSequence(s, s2);
+          .InSequence(s);
       }
       else {
         EXPECT_CALL(*mock_runtime, register_handle(Truly(same_handle)))
-          .InSequence(s, s2);
+          .InSequence(s);
       }
 
       EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(same_handle)))
         .InSequence(s);
 
-      if(not read_only and calls_last_at_version_depth) {
-        EXPECT_CALL(*mock_runtime, handle_done_with_version_depth(Truly(same_handle)))
-          .InSequence(s2);
-      }
-
       EXPECT_CALL(*mock_runtime, release_handle(Truly(same_handle)))
-        .InSequence(s, s2);
+        .InSequence(s);
 
     }
 
@@ -250,6 +245,79 @@ class TestFrontend
     std::deque<darma_runtime::types::key_t> same_keys;
     std::deque<darma_runtime::types::version_t> same_versions;
 };
+
+namespace _impl {
+
+using namespace darma_runtime;
+using namespace darma_runtime::detail;
+typedef typename abstract::backend::runtime_t::handle_t handle_t;
+
+template <typename Handle, typename Enable=void>
+struct assert_version_is_helper;
+
+template <>
+struct assert_version_is_helper<handle_t*> {
+  ::testing::AssertionResult
+  operator()(
+    const char* v1_expr,
+    const char* v2_expr,
+    handle_t* h,
+    darma_runtime::types::version_t v2,
+    bool exact=false
+  ) const {
+    auto& v1 = h->get_version();
+
+    bool success = v1 == v2;
+    if(success and exact) success = v1.depth() == v2.depth();
+
+    if(success) return ::testing::AssertionSuccess();
+
+    return ::testing::AssertionFailure()
+      << "Version associated with " << v1_expr << ", which is "
+      << v1 << ", is not"
+      << (exact ? std::string(" exactly ") : std::string(" "))
+      << "equal to expected value of " << v2 << " (from expression "
+      << v2_expr << ")";
+  }
+};
+
+template <typename... Args>
+struct assert_version_is_helper<AccessHandle<Args...>> {
+  ::testing::AssertionResult
+  operator()(
+    const char* v1_expr,
+    const char* v2_expr,
+    AccessHandle<Args...> const& ah,
+    darma_runtime::types::version_t v2,
+    bool exact=false
+  ) const {
+    using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+    handle_t* handle = for_AccessHandle::get_dep_handle(ah);
+    return assert_version_is_helper<handle_t*>()(v1_expr, v2_expr, handle, v2);
+  }
+
+
+};
+
+} // end namespace _impl
+
+template <bool exact, typename VersionFrom>
+::testing::AssertionResult
+AssertHandleVersionIs(
+  const char* v1_expr,
+  const char* v2_expr,
+  VersionFrom&& vf,
+  darma_runtime::types::version_t v2
+) {
+  return _impl::assert_version_is_helper<std::decay_t<VersionFrom>>()(
+    v1_expr, v2_expr, std::forward<VersionFrom>(vf), v2, exact
+  );
+}
+
+#define EXPECT_VERSION_EQ(h, ...) EXPECT_PRED_FORMAT2(AssertHandleVersionIs<false>, h, TestFrontend::version_t(__VA_ARGS__))
+#define EXPECT_VERSION_EQ_EXACT(h, ...) EXPECT_PRED_FORMAT2(AssertHandleVersionIs<true>, h, TestFrontend::version_t(__VA_ARGS__))
+#define ASSERT_VERSION_EQ(h, ...) ASSERT_PRED_FORMAT2(AssertHandleVersionIs<false>, h, TestFrontend::version_t(__VA_ARGS__))
+#define ASSERT_VERSION_EQ_EXACT(h, ...) ASSERT_PRED_FORMAT2(AssertHandleVersionIs<true>, h, TestFrontend::version_t(__VA_ARGS__))
 
 
 #endif /* SRC_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_H_ */

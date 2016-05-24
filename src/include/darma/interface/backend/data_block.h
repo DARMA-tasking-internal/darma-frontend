@@ -58,31 +58,23 @@ namespace backend {
  *
  *  @class DataBlock
  *
- *  @brief The abstraction through which the frontend interacts with data stored and
- *  managed by the backend
+ *  @brief The abstraction through which the frontend interacts with data stored
+ *  and managed by the backend.
  *
  */
 class DataBlock
 {
   public:
 
-    /** @brief Gets a (non-owning) pointer to deserialized version of the data associated with
-     *  the data block.
+    /** @brief Gets a (non-owning) pointer to deserialized version of the data
+     *  associated with the data block.
      *
-     *  The pointer is valid until the handle most recently satisfied with this data block
-     *  (at the time of the get_data() invocation) is released.
-     *
-     *  @todo 0.3 spec: elaborate more on this as SerializationManager matures
+     *  The pointer is valid until the handle most recently satisfied with this
+     *  data block (at the time of the get_data() invocation) is released.
      *
      */
     virtual void*
     get_data() =0;
-
-    ///** @todo 0.2.1 spec
-    // *  @remark this should never be invoked in the 0.2.0 spec implementation
-    // */
-    //virtual void
-    //acquire_data(void* const data) =0;
 
     virtual ~DataBlock() = default;
 

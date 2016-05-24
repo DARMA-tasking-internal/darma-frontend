@@ -6,14 +6,20 @@ int darma_main(int argc, char** argv)
   using namespace darma_runtime;
 
   darma_init(argc, argv);
+  const int myRank = darma_spmd_rank();
+  const int size = darma_spmd_size();
 
   // this just creates different handles for different types
   // NOTE: data does not exist yet, only handles!
-  auto my_handle1 = initial_access<double>("data_key_1");
-  auto my_handle2 = initial_access<std::string>("data_key_3");
+  auto my_handle1 = initial_access<double>("data_key_1", myRank);
+  auto my_handle2 = initial_access<std::string>("data_key_3", myRank);
 
   create_work([=]
   {
+    my_handle1.emplace_value(3.3);
+    my_handle1.set_value(3.4);
+    my_handle1.get_reference() = 3.6;
+
     // first, constructs data with default constructor
     my_handle1.emplace_value(3.3);
     my_handle2.emplace_value("Sky is blue");

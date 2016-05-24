@@ -12,4 +12,4 @@ docs/spec/*.synctex.gz
 docs/spec/*.tdo
 docs/spec/*.toc
 *.dSYM
-
+src/include/darma/interface/frontend/serialization_manager_old.h

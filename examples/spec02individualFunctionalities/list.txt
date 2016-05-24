@@ -10,7 +10,7 @@ read_access<>			ok
 
 reads()						ok
 n_readers					ok 
-version 
+version 					ok
 
 AccessHandle<> 
 	publish						ok 

@@ -28,7 +28,7 @@
 using uDist = std::uniform_real_distribution<double>;
 constexpr double kmin = 1.0;
 constexpr double kmax = 1.1;
-constexpr int numMCRuns = 50;
+constexpr int numMCRuns = 200;
 
 
 
@@ -48,13 +48,6 @@ int darma_main(int argc, char** argv)
 	std::random_device rd;
   std::mt19937 gen(rd());
   uDist RNG(kmin, kmax);
-
-  // grid related info 
-	constexpr int nx = 51; 
-	constexpr int nInn = nx-2;
-	constexpr double xL = 0.0;
-	constexpr double xR = 1.0;
-	constexpr double dx = 1.0/static_cast<double>(nx-1);
 
 	// vectors that make up the FD matrix
 	auto subD = initial_access<std::vector<double>>("a",me); // subdiagonal 
@@ -116,9 +109,9 @@ int darma_main(int argc, char** argv)
 			{
 				pt4[i] = rhsEval(x) * dx*dx / sampleDiff;
 				if (i==1)
-					pt4[i] -= trueSolution(xL);
+					pt4[i] -= BC(xL);
 				if (i==nInn-1)
-					pt4[i] -= trueSolution(xR);
+					pt4[i] -= BC(xR);
 				x += dx;
 			}
 	 	});
@@ -144,14 +137,25 @@ int darma_main(int argc, char** argv)
 
 	 		solveThomas(pta, ptb, ptc, ptd, nInn);
 
-	 		double * mcDataPt = mcData->data();
-
-	    // auto mcRes = read_write<std::vector<double>>("MC_results", me);
 	    double * mcResPtr = mcData->data();
 	 		mcResPtr[iMC] = ptd[(nInn-1)/2];
-	 		std::cout << ptd[(nInn-1)/2] << std::endl;
-	 	});
+	 		// std::cout << ptd[(nInn-1)/2] << std::endl;
+	 	});	 	
  	}
+
+ 	create_work([=]
+ 	{
+    auto & mcRes = mcData.get_reference();
+    double sum=0.0;
+    for (int i = 0; i < numMCRuns; ++i)
+    {
+    	sum += mcRes[i];
+    }
+    double meanSum = sum/static_cast<double>(numMCRuns);
+ 		std::cout << meanSum << std::endl;
+		assert( meanSum < 0.81 );
+		assert( meanSum > 0.80 );
+ 	});
 
 
   darma_finalize();
