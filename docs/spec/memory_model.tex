@@ -1,5 +1,6 @@
 
 \section{Compatible Memory Models}
+<<<<<<< HEAD
 \label{sec:memmodel}
 \todo[inline]{Janine: Change uses of handle throughout doc to data handle.  For
   now I kept terminology as handle keep glossary links working correctly}
@@ -41,6 +42,36 @@ between \glspl{handle} are specified.
   the equivalent of distributed shared memory + coordiantion semantics - can
     we say anything speculative about that here? or at least say why we are not
     supporting that in this version of the specification?}
+=======
+\label{sec:mem_model}
+
+The memory model for DARMA encompasses how variables are accessed (pointer, iterator, accessor) and when updates become visible to parallel threads (concurrency).  
+DARMA provides a global memory space in which data are identified by unique tuple identifiers.  
+Any objects published into the tuple space can be read/written by any thread/process. 
+This is similar to UPC which provides a global address space, but data is always accessed by pointer address rather than tuple. 
+This further contrasts with MPI 2-sided in which data are accessed by address, but there is no global memory space.  
+Data within in an MPI process is ?private? and can only be exchanged via messages.  
+DARMA , like UPC, further contrasts with PGAS (partitioned global address spaces) in that the global memory space is ?flat? and is not explicitly partitioned across processes.
+The tuple space vs address space is only relevant for creating and managing coarse-grained tasks. 
+Within a task, tuple identifiers are resolved to a specific local address and the standard C++ memory model applies.
+
+Also critical is concurrency in the memory model and when/how updates data are made visible to parallel threads.  
+Again, within tasks, the C++ memory model applies.  
+At the task level (coarse-grained), DARMA ensures atomicity of all tasks. 
+The DARMA scheduler enforces the C++ sequential consistency model at the level of tasks in the same way that C++ ensures sequential consistency at the level of instructions. 
+DARMA understands read/write usages of tasks and ensures that writes are always visible to subsequent reads - and reads always complete before subsequent writes.  
+This happens automatically within a process (shared memory), but requires an extra annotation by the app developer for objects exchanged between processes (distributed memory) to ensure data consistency.
+
+The details of the global memory model are managed through a data \glspl{handle} object.  
+The application developer \inlinecode{publish}es data associated with a handle that should be globally visible
+outside of its \gls{rank}.  
+When publishing, the user must specify an \gls{access group} for that data.  
+Declaring an access group informs the runtime who currently needs or will need the data,  
+allowing garbage collection and \gls{anti-dependency} resolution.
+In most cases, the access group will be declared as the number of readers (1, in the case of simple point-to-point send).
+Once all read handles are released (go out of scope in C++ terms), garbage collection or anti-dependency resolution can occur.
+
+>>>>>>> darma/0.3-devel
 
 
 

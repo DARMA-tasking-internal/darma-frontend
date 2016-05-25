@@ -1,5 +1,6 @@
 %!TEX root = sandReportSpec.tex
 
+<<<<<<< HEAD
 In this document, we provide the specification for \gls{DARMA}, 
 a co-design research vehicle for \gls{AMT} \glspl{programming model} and
 \glspl{runtime system}.  \gls{DARMA} serves to:
@@ -33,3 +34,33 @@ versions of the specification, and summary of the planned changes in upcoming
 versions of the specification.  Appendices walk the user through a more detailed set
 of examples of applications written in the \gls{DARMA} \gls{API} and provide
 additional technical details for those who are interested.
+=======
+In this document, we provide the specification for DARMA 
+\todo{acronym DARMA not defined anywhere, this is first time it appears},
+a co-design research vehicle for \gls{AMT} programming models and runtime
+systems.  This specification serves to facilitate three primary activities: 
+1) gathering and communicating application requirements, 2) exploring AMT
+design space tradeoffs, and 3) communication between the AMT community and
+other computer science research communities.
+As part of this document, we discuss application requirements driving the specification (along
+with a list of the applications contributing to the requirements to date).
+
+The DARMA code base comprises two main layers: 
+an API for writing application code that expresses the algorithm and  
+a translation layer implicitly invoked by application-level code that maps application-level constructs
+to an abstract backend API.
+Executable DARMA applications link to a third layer implementing the abstract backend runtime API.
+The implementations may be external, but default implementations are provided in the DARMA code distribution.
+The application-facing user-level \gls{API} has the feel of an \gls{EDSL} in \CC,  
+inheriting the generic language constructs of \CC and adding \gls{semantics} that facilitate
+distributed parallel programming.  
+Though the \gls{EDSL} uses modern \CC constructs unfamiliar to many programmers to implement these semantics, 
+it is nonetheless fully embedded in the \CC language and as such will compile with any
+\CC compiler that supports the full \CC11 standard and subsets of \CC14.
+There advanced C++ features are widely supported (\inlinecode{gcc >= 4.8, clang >= 3.5, icc >= 16}).  
+The \gls{translation layer} leverages \CC\ \gls{template
+metaprogramming} to map the user's code onto the \gls{back end} runtime \gls{API}.
+Each of these three layers is described herein.
+
+
+>>>>>>> darma/0.3-devel
