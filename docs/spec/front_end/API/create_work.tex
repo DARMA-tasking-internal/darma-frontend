@@ -1,0 +1,120 @@
+%\clearpage
+\subsection{\texttt{create\_work}}
+\label{ssec:api_fe_cw}
+
+\paragraph{Summary}\mbox{}\\
+\codetarget{create_work} expresses work to be executed by the \gls{runtime
+system}.
+
+\paragraph{Syntax}\mbox{}\\
+\begin{CppCode}
+// Functionally:
+create_work([=]{
+  // Code expressing deferred work goes here
+});
+// or:
+create_work(
+  ConstraintExpressions..., 
+  [=]{
+    // Code expressing deferred work goes here
+  }
+);
+
+// Formally:
+/* unspecified */ create_work(Arguments..., LambdaExpression);
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{}\\
+\begin{compactitem}
+  \item \inlinecode{LambdaExpression} A \CC{}11 lambda expression with a copy
+    default-\gls{capture} (i.e., |[=]|) and taking no arguments.  More details
+  below.
+\item \inlinecode{ConstraintExpressions...} (optional) If given, these
+  arguments can be used to express modifications in the default capture behavior
+  of \codelink{AccessHandle<T>} objects captured by the \inlinecode{LambdaExpression}
+  given as the final argument.  In the \specVersion-spec, the only valid permission
+  modification expression is the return value of the \codelink{reads()} modifier
+  (see \S~\ref{ssec:api_fe_reads}), which indicates that only read operations
+  are performed on a given \gls{handle} or \glspl{handle} within the
+  \inlinecode{LambdaExpression} that follows.
+\end{compactitem}
+
+
+\paragraph{Return}\mbox{}\\
+Currently \inlinecode{void} in the \specVersion-spec, but may be an object of unspecified
+type in future implementations.
+
+\paragraph{Details}\mbox{}\\
+This function expresses work to be executed by the \gls{runtime system}.  Any
+\codelink{AccessHandle<T>} variables used in the \inlinecode{LambdaExpression} will be
+captured and made available inside the capturing context as if they were used in
+sequence with previous capture operations on the same \gls{handle}.  Depending on the
+scheduling permissions available to the \codelink{AccessHandle<T>} at the time of
+\codelink{create_work} invocation and on the \inlinecode{ConstraintExpressions...}
+given as arguments, this function call expresses either a {\it read-only
+capture} or a {\it modify capture} operation on a given \gls{handle} (see
+\S~\ref{sec:handlerules}).  If a \gls{handle} \inlinecode{h} has {\it Read} scheduling
+permissions when it is captured or if the explicit constraint expression
+\inlinecode{reads(h)} is given in the \inlinecode{ConstraintExpressions...} arguments,
+\codelink{create_work} functions as a {\it read-only capture} operation on that
+\gls{handle}.
+Otherwise, it functions as a {\it modify capture}.  
+
+Additional general discussion on use of \codelink{create_work} can be found in
+\S~\ref{sec:deferred}.
+
+
+\paragraph{Code Snippet}\mbox{}\\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+create_work([=]{
+  std::cout << " Hello world! " << std::endl;
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_cw}
+  \caption{Basic usage of \protect\codelink{create_work}.}
+\end{figure}
+
+
+\paragraph{Restrictions and Pitfalls}\mbox{} \\
+Most of the general restrictionsn and pitfalls related to \codelink{create_work}
+are discussed in \S~\ref{sec:deferred}.  Some more technical restrictions are
+given here.
+\begin{compactitem}
+  \item Because of the way in which \codelink{create_work} is implemented, placement of
+    multiple \codelink{create_work} operations on the same line of code will not compile. 
+  For instance:
+  \begin{CppCode}
+// $\no$ does not compile, gives cryptic error message
+create_work([=]{}); create_work([=]{}); 
+  \end{CppCode}
+  This is particularly easy to accidentally do when defining preprocessor
+  macros:
+  \begin{CppCode}
+// $\no$ does not compile, gives even more cryptic error message
+#define foo(...) __VA_ARGS__
+foo(
+  create_work([=]{}); 
+  create_work([=]{}); 
+)
+  \end{CppCode}
+  Note that this is not a problem when using nested \codelink{create_work} calls:
+  \begin{CppCode}
+// $\yes$ not a problem
+create_work([=]{ create_work([=]{}); }); // works fine
+  \end{CppCode}
+  Other than the obvious solution of putting the \codelink{create_work} invocations on
+  multiple lines, this issue can be worked around by putting any of the later
+  \codelink{create_work} calls within their own scopes:
+  \begin{CppCode}
+// $\yes$ works fine
+create_work([=]{}); { create_work([=]{}); }
+// $\yes$ also fine
+foo(
+  create_work([=]{}); 
+  { create_work([=]{}); }
+  { create_work([=]{}); }
+)
+  \end{CppCode}
+\end{compactitem}
+

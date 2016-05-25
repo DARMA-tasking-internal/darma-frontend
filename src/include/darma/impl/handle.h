@@ -322,16 +322,16 @@ class DependencyHandleBase
 
     void
     set_version_is_pending(bool is_pending = true) {
-      version_is_pending_ = true;
+      version_is_pending_ = is_pending;
     }
 
     void
     satisfy_with_data_block(
       abstract::backend::DataBlock* const data
     ) override {
-      this->satisfied_ = true;
       this->data_ = data->get_data();
       this->data_block_ = data;
+      this->satisfied_ = true;
     }
 
     abstract::backend::DataBlock*
@@ -341,8 +341,8 @@ class DependencyHandleBase
 
     void set_version(const version_t& v) override {
       assert(version_is_pending_);
-      version_is_pending_ = false;
       this->version_ = v;
+      version_is_pending_ = false;
     }
 
   protected:

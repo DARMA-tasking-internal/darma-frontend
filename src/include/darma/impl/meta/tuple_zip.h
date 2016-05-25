@@ -45,6 +45,8 @@
 #ifndef DARMA_IMPL_META_TUPLE_ZIP_H_
 #define DARMA_IMPL_META_TUPLE_ZIP_H_
 
+#include <algorithm>
+
 #include <tinympl/zip.hpp>
 #include <tinympl/tuple_as_sequence.hpp>
 #include <tinympl/min_element.hpp>
@@ -79,6 +81,9 @@ tuple_zip_helper(std::index_sequence<Is...>, Tuples&&... tuples) {
 
 template <typename... Tuples>
 auto tuple_zip(Tuples&&... tuples) {
+  //static constexpr size_t min_size = tinympl::min<
+  //  std::tuple_size<std::decay_t<Tuples>>...
+  //>::value;
   static constexpr size_t min_size = std::min({
     std::tuple_size<std::decay_t<Tuples>>::value...
   });
