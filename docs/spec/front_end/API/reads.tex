@@ -1,0 +1,53 @@
+\subsection{\texttt{reads}}
+\label{ssec:api_fe_reads}
+
+\paragraph{Summary} \mbox{}\\
+Creates an argument to a |create_work| to constrain
+privileges of a set of handles to be read-only within that context.
+
+\paragraph{Syntax} \mbox{}\\
+\begin{CppCode}
+create_work(reads(handles...), [=]{
+  // code 
+});
+\end{CppCode}
+
+\paragraph{Positional Arguments} \mbox{}\\
+\begin{itemize}
+  \item |handles...|: list of |AccessHandle<T>| objects to
+  constrain to read-only privileges.
+\end{itemize}
+
+
+\paragraph{Details} \mbox{}\\
+Used as argument to a |create_work| to constrain
+privileges of a list of handles to be read-only within that context.
+It can contain a single handle or a list of handles.  See also
+\S~\ref{ssec:api_fe_cw} for more information on |create_work|.
+
+
+\paragraph{Code Snippet} \mbox{}\\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+// ...
+auto my_handle = initial_access<double>("data", myRank);
+create_work([=]{
+  my_handle.emplace_value(0.55);
+});
+create_work(reads(my_handle), [=]{
+  std::cout << " " << my_handle.get_value() << std::endl;
+  my_handle.set_value(3.14); // $\no$ runtime error
+});
+// ... 
+\end{CppCodeNumb}
+\label{fig:fe_api_reads}
+\caption{Basic usage of \lstinline|reads|.}
+\end{figure}
+
+
+\paragraph{Restrictions and Pitfalls}\mbox{}\\
+\begin{itemize}
+  \item This can only be called as argument to |create_work|.  Use in
+  other contexts will lead to compile-time errors, run-time errors, or
+  undefined behavior.
+\end{itemize}

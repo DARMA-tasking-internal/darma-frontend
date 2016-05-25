@@ -1,0 +1,56 @@
+\subsection{\texttt{darma\_spmd\_size}}
+
+
+\paragraph{Summary}\mbox{}\\
+\codetarget{darma_spmd_size} the number of \glspl{rank} in the DARMA environment.
+
+\paragraph{Syntax}\mbox{}\\
+\begin{CppCode}
+/* unspecified */ darma_runtime::darma_spmd_size();
+\end{CppCode}
+
+\paragraph{Positional Arguments} \mbox{}\\
+None. 
+
+\paragraph{Return} \mbox{}\\
+An object of unspecified type that may be treated as a \inlinecode{std::size_t}
+giving the number of \glspl{rank} in the DARMA environment.
+
+\paragraph{Details} \mbox{}\\
+This function gives the number of \glspl{rank} DARMA is executing the program with. 
+Specifically, it is the number of times the backend has invoked
+\codelink{darma_main} anywhere in the system for this particular run of the
+program (and thus, it is also the number of times the backend expects the user
+to invoke \codelink{darma_init}.
+
+\paragraph{Code Snippet} \mbox{}\\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+  using namespace darma_runtime;
+  darma_init(argc, argv);
+
+  const size_t size = darma_spmd_size();
+  // ...
+
+  darma_finalize();
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_ranksize}
+  \caption{Basic usage of \protect\codelink{darma_spmd_size}.}
+\end{figure}
+
+\paragraph{Restrictions and Pitfalls}\mbox{} \\
+\begin{compactitem}
+  \item The value returned by this function will always return \inlinecode{true}
+  for greater-than comparison with 0, and will always be convertible to a
+    \inlinecode{std::size_t} with a value greater than 0.
+  \item The return type is unspecified to allow future expansion to generalized
+  ranks.  For instance, future versions of the spec may allow the user to
+    request the rank as an \inlinecode{\{x, y, z\}} tuple of indices in a structured
+  lattice.
+\end{compactitem}
+

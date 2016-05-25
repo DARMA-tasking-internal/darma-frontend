@@ -1,71 +1,89 @@
 %!TEX root = sandReportSpec.tex
 
+\appendix
+
+
 \chapter{Examples}
 \label{chap:examples}
 
 
+\section{Basic functionalities for spec 0.2}
+
+\subsection{DARMA environment}
+Example showing how to initialize and finalize the DARMA environment.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/initAndFinalize.cc}
+
+\subsection{DARMA rank and size}
+Example showing DARMA rank and size.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/rankAndSize.cc}
+
+\subsection{Deferred work creation}
+Example showing a very simple \texttt{create\_work} with no dependencies.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/cw1.cc}
+
+\subsection{Creating handles 1}
+Example showing the use of \texttt{initial\_access}.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/initialAccess.cc}
+
+\subsection{Creating handles 2}
+Another example on \texttt{initial\_access} handle and its use.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/accessHandle1.cc}
+
+\subsection{Arrow operator for handles}
+Example showing the arrow operator on an handle.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/accessHandleArrowOperator.cc}
+
+\subsection{Deferred work and constraining privileges}
+Example showing how to issue a \texttt{create\_work} and constraining privileges on a handle to be read-only.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/cwReadsArg.cc}
 
 
-\subsection{Example 1: publishing and read access}
 
-First example is basic and explains in more detail the use of \texttt{publish} 
+
+
+\section{Hello World}
+
+Example for one possible implementation of ``hello world''. 
+There are three main parts involved: 
+\begin{enumerate}
+\item the DARMA environment is initialized. 
+\item each rank issues a task to store a greeting message into a string.
+\item each rank then creates a task to printing to standard output the message and its rank.
+\end{enumerate}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/darma_hello/darma_hello.cc}
+
+
+
+
+\section{Key-Value Example}
+
+This example is to illustrate simple transactions with the keyvalue store, 
+but in a distributed setting. We will ask each rank to publish a float to be
+read by two readers, a rank on the left and one on the right. Then we will ask
+each rank to get two floats, those published by the left and right neighbors
+and print to screen. Periodic logic for neighbors, and each rank publishes a 
+float that uniquely determines its rank.
+
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/simple_kv/publish_get_parallel.cc}
+
+
+
+
+
+\subsection{Publishing and read access}
+
+This example explains in more detail the use of \texttt{publish} 
 and \texttt{read\_access}. The example involves two DARMA ranks, each creating 
 data, publishing it, and then fetching the other rank's data.
 
-\begin{CppCodeNumb}
-#include <darma.h>
-int darma_main(int argc, char** argv)
-{
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  darma_init(argc, argv);
-  const int myRank = darma_spmd_rank();
-  const int size = darma_spmd_size();
-
-  // supposed to be run with 2 ranks, so ignore the rest
-  assert(size>=2);
-  if (myRank>=2){
-    darma_finalize();
-    return 0;
-  }
-
-  // rank0 reads from source = rank1 
-  // rank1 reads from source = rank0 
-  int source = myRank==0 ? 1 : 0;
-
-  auto my_handle = initial_access<double>("data", myRank);
-  create_work([=]
-  {
-    my_handle.emplace_value(0.5 + (double) myRank);
-
-    // n_readers == 1 because: 
-    //  rank0 reads data of rank1
-    //  rank1 reads data of rank0
-    my_handle.publish(n_readers=1);
-  });
-
-  AccessHandle<double> readHandle = read_access<double>("data", source);
-  create_work([=]
-  {
-    std::cout << myRank << " " << readHandle.get_value() << std::endl;
-    if (myRank==0)
-      assert( readHandle.get_value() == 1.5 );
-    else
-      assert( readHandle.get_value() == 0.5 );
-  });
-
-  darma_finalize();
-  return 0;
-}
-\end{CppCodeNumb}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/publishAndReadAccess.cc}
 
 
 
 
 
 
-\section{Example 2: publishing, versioning and lifetime of handles}
+\section{Publishing, versioning and lifetime of handles}
 
 Lifetime of handles is tricky, particularly for \texttt{read\_access} type handles.  
 In the following example, we initialize data, publish it, fetch it from another rank, 
@@ -80,73 +98,15 @@ Scoping is in this case necessary, but it is only useful in other cases to impro
 in the scheduling and execution of tasks. Scoping is a good programming practice.
 
 
-\begin{CppCodeNumb}
-#include <darma.h>
-int darma_main(int argc, char** argv)
-{
-  using namespace darma_runtime; 
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  darma_init(argc, argv);
-  const int myRank = darma_spmd_rank();
-  const int size = darma_spmd_size();
-
-  // supposed to be run with 2 ranks, so ignore the rest
-  assert(size>=2);
-  // rank0 reads from source = rank1, rank1 reads from source = rank0 
-  int source = myRank==0 ? 1 : 0;
-
-  // create data
-  auto my_handle = initial_access<double>("data", myRank);
-  create_work([=]
-  {
-    my_handle.emplace_value(0.5 + (double) myRank);
-    my_handle.publish(n_readers=1,version=0); // n_readers == 1
-  });
-
-  /* scope {} needed here and useful because it tells backend that 
-     readHandle will go out-of-scope and so backend has more detailed 
-     info and this can benefit parallelism and execution. 
-     In other words, one should scope things whenever it is possible. */ 
-  {
-    auto readHandle = read_access<double>("data", source,version=0);
-    create_work([=]
-    {
-      std::cout << myRank << " " << readHandle.get_value() << std::endl;
-      if (myRank==0)
-        assert( readHandle.get_value() == 1.5 );
-      else
-        assert( readHandle.get_value() == 0.5 );
-    });
-  }
-
-  // reset value and update version
-  create_work([=]
-  {
-    my_handle.set_value(2.5 + (double) myRank);
-    my_handle.publish(n_readers=1,version=1);
-  });
-
-  // second time reading
-  auto readHandle2 = read_access<double>("data", source,version=1);
-  create_work([=]
-  {
-    std::cout << myRank << " " << readHandle2.get_value() << std::endl;
-    if (myRank==0)
-      assert( readHandle2.get_value() == 3.5 );
-    else
-      assert( readHandle2.get_value() == 2.5 );
-  });
-
-  darma_finalize();
-  return 0;
-}
-\end{CppCodeNumb}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/spec02individualFunctionalities/version.cc}
 
 
 
 
 
-\section{Example 3: 1D Poisson Equation}
+
+
+\section{1D Poisson Equation}
 
 Boundary value problem:
 
@@ -206,167 +166,96 @@ such that on exit, the vector $d$ contains the solution.
 
 How to implement this in DARMA? 
 For demonstration purposes, we limit our attention to the case 
-of a single rank. More complex examples will be shown below 
-involving multiple ranks.
+of a single rank. More complex examples involving multiple ranks will be shown below. 
 
 There are three main steps involved, namely initialization, 
 solution of the linear system, and error check. 
 The DARMA main file is as follows:
-\begin{CppCodeNumb}
-// headers
-// "../poisson1d.h"
-int darma_main(int argc, char** argv)
-{
-  darma_init(argc, argv);
-  size_t me = darma_spmd_rank();
-  size_t n_spmd = darma_spmd_size();
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/poisson_1d_thomasAlgorithm/single_rank/single_rank.cc}
 
-  assert(n_spmd>=1);   // run with 1 rank, ignore the rest
-  if (me>0){
-    darma_finalize();
-    return 0;
-  }
-
-  typedef std::vector<double> vecDbl;
-  // create handles for data needed for linear solve
-  auto subD = initial_access<vecDbl>("a",me); // subdiagonal 
-  auto diag = initial_access<vecDbl>("b",me); // diagonal 
-  auto supD = initial_access<vecDbl>("c",me); // superdiagonal
-  auto rhs  = initial_access<vecDbl>("d",me); // rhs and solution
-
-  initialize(subD, diag, supD, rhs);
-  solveTridiagonalSystem(subD, diag, supD, rhs);
-  checkFinalL1Error(rhs);
-
-  darma_finalize();
-  return 0;
-}
-\end{CppCodeNumb}
-
-The header file poisson1d.h contains:
-\begin{CppCodeNumb}
-constexpr int nx = 51;                      // number of grid points
-constexpr int nInn = nx-2;                  // number of internal points
-constexpr double xL = 0.0;                  // x of left boundary
-constexpr double xR = 1.0;                  // x of right boundary
-constexpr double dx = 1.0/(double)(nx-1);   // spacing
-
-// evaluate right-hand-side
-double rhsEval(double x){ 
-  return 2.0 * exp(x) * cos(x);
-}
-
-// true solution
-double trueSolution(double x){
-  return exp(x) * sin(x);
-}
-
-// evaluate boundary conditions
-double BC(double x){
-  return trueSolution(x);
-}
-\end{CppCodeNumb}
-
+The header file constants.h contains:
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/poisson_1d_thomasAlgorithm/constants.h}
 
 The initialization function has the form:
-\begin{CppCodeNumb}
-void initialize(AccessHandle<std::vector<double>> & subD,
-                AccessHandle<std::vector<double>> & diag, 
-                AccessHandle<std::vector<double>> & supD,
-                AccessHandle<std::vector<double>> & rhs)
-{
-  // initial condition
-  create_work([=]
-  {
-    subD.emplace_value();
-    diag.emplace_value();
-    supD.emplace_value();
-    rhs.emplace_value();
-    subD->resize(nInn);
-    diag->resize(nInn,0.0);
-    supD->resize(nInn,0.0);
-    rhs->resize(nInn,0.0);
-    double * ptrD1 = subD->data();
-    double * ptrD2 = diag->data();
-    double * ptrD3 = supD->data();
-    double * ptrD4 = rhs->data();
-
-    double x = dx;
-    for (int i = 0; i < nInn; ++i)
-    {
-      ptrD2[i] = -2;
-
-      if (i>0)
-        ptrD1[i] = 1.0;
-      if (i<nInn-1)
-        ptrD3[i] = 1.0;
-
-      ptrD4[i] = rhsEval(x) * dx*dx;
-
-      if (i==1)
-        ptrD4[i] -= BC(xL);
-      if (i==nInn-1)
-        ptrD4[i] -= BC(xR);
-
-      x += dx;
-    }
-  }); 
-}
-\end{CppCodeNumb}
-
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/poisson_1d_thomasAlgorithm/single_rank/initialize.h}
 
 The function to solve the linear system is:
-\begin{CppCodeNumb}
-void solveTridiagonalSystem(AccessHandle<std::vector<double>> & subD,
-                            AccessHandle<std::vector<double>> & diag, 
-                            AccessHandle<std::vector<double>> & supD,
-                            AccessHandle<std::vector<double>> & rhs)
-{
-  // solve tridiagonal system
-  create_work([=]
-  {
-    double * pta = subD->data();
-    double * ptb = diag->data();
-    double * ptc = supD->data();
-    double * ptd = rhs->data();
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/poisson_1d_thomasAlgorithm/single_rank/solveTridiag.h}
 
-    // code for Thomas algorithm, omitted for brevity
-    solveThomas(pta, ptb, ptc, ptd, nInn);
-  });
-}
-\end{CppCodeNumb}
-
-
-Finally, we check for convergence by checking the $L1$-norm of the 
+Finally, we check for convergence by checking the $L^1$-norm of the 
 error between the computed and true solution.
-\begin{CppCodeNumb}
-void checkFinalL1Error(AccessHandle<std::vector<double>> & solution)
-{
-  // check solution error 
-  create_work([=]
-  {
-    double * ptd = solution->data();
-    double error = 0.0;
-    double x = dx;
-    for (int i = 0; i < (int) solution->size(); ++i)
-    {
-      error += std::abs( trueSolution(x) - ptd[i] );
-      x += dx;
-    }
-    std::cout << " L1 error = " << error << std::endl;
-    assert( error < 1e-2 );
-  });
-}
-\end{CppCodeNumb}
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/poisson_1d_thomasAlgorithm/single_rank/checkError.h}
 
 
 
 
 
+\section{1D Heat Equation}
+
+In this section, we solve the following simple problem:
+
+\begin{equation} 
+	\frac{\partial T(x,t)}{\partial t} = 
+  \alpha \frac{\partial^2 T(x,t)}{\partial x^2} \quad 
+  \text{in} \ \Omega=(0,1), \ \text{with} 
+  \ T(0,t)=100, \ T(1,t)=10, \ \forall t \geq 0
+\end{equation} 
+where $T(x,t)$ is the temperature, $t$ is time, and $\alpha$ is the 
+thermal diffusivity. The steady-state solution of this problem is 
+a straight line connecting the left and right boundary conditions. 
+
+We discretize the spatial domain with $N$ equally spaced points such that 
+\begin{equation}
+x_i = i \Delta x, \quad \Delta x=\frac{1}{N-1}, \quad \ i=0,1,...,N-1
+\end{equation}
+Similarly, in time with $n_{iter}$ steps such that 
+\begin{equation}
+t_m = m \Delta t, \quad \Delta t=\frac{t_{max}}{n_{iter}-1}, \quad \ m=0,1,...,n_{iter}-1
+\end{equation}
 
 
+We use second-order finite-differences in space, and Euler method in time. 
+Hence, the discrete version takes the form: 
+\begin{large}
+\begin{equation}
+\frac{T_i^{m+1} - T_i^m}{\Delta t} 
+= \alpha \frac{T_{i+1}^m - 2T_i^m + T_{i-1}^m}{\Delta x^2}
+\end{equation}
+\end{large}
+where $T_i^m$ represents the approximate temperature at the $i$-th grid point, 
+at the $m$-th time instant. Hence, for every grid point $i$, given the solution 
+at the current time instant $T_i^m$, the solution at the next step is given by 
+\begin{large}
+\begin{equation}
+T_i^{m+1} = T_i^m + \frac{ \alpha \Delta t }{\Delta x^2} 
+(T_{i+1}^m - 2T_i^m + T_{i-1}^m)
+\end{equation}
+\end{large}
+
+For demonstration purposes, we adopt here $\alpha=0.0075$, discretize the domain 
+with $N=16$, use $n_{iter}=2500$ time steps and consider $\Delta t=0.05$ which is 
+sufficiently small for the numerical method to be stable.
+The main constants are defined in the following header file:
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/heat_1d/common_heat1d.h}
+
+The problem involves three main stages, namely initialization, time advancing, 
+and convergence check. We use four DARMA ranks to distribute the grid points, 
+such that each rank handles a local grid with $4$ points. 
+In brief, the problem is setup by having each rank 
+generate tasks for its local grid, then communicate with the neighboring ranks 
+to get the information for the ghost points needed to update the stencil. 
+A high-level schematic of the work-flow is shown in Figure~\ref{fig:example_heat1d}.
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.75\textwidth]{./figures/examples/heat_tasks.pdf}
+\caption{Schematic of task generation for the heat 1D PDE.}
+\label{fig:example_heat1d}
+\end{figure}
 
 
+The full main code is shown below.
+\lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/heat_1d/heat_1D_darma_simple/heat_1d_darma_simple.cc}
 
 
 

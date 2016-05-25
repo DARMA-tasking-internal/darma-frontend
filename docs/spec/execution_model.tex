@@ -1,5 +1,31 @@
 %!TEX root = sandReportSpec.tex
 
+<<<<<<< HEAD
+\section{Compatible Execution Models}
+\label{sec:execmodel}
+\gls{DARMA} supports \gls{phased execution} models, rather than \gls{conservative
+execution} models.  
+An initial \gls{spmd} launch of an algorithm must be supported, and if
+no imbalances are present, the \gls{runtime system} implementation should
+maintain an optimal initial decomposition. In addition to the coarse-grained distributed
+\gls{data parallelism} specified by the \gls{spmd} launch, additional \gls{task
+parallelism} and \gls{pipeline parallelism} are introduced via the \CC-embedded task annotations.
+As part of the \gls{AMT} design space exploration, we are working with
+\gls{runtime system} teams to develop \gls{DARMA}-compliant \glspl{back end}
+implementations that utilize existing \gls{AMT} technologies with different
+underlying \glspl{execution model} (e.g., \gls{actor model}, \gls{event-based}).  
+
+
+Although not yet supported in version \specVersion\ of the specification, several
+important features will play a role in the DARMA \gls{execution model}:
+
+\todo[inline]{Jeremy/David: elaborate/vet list please}
+\begin{compactdesc}
+\item{\bf Execution of deferred fine-grained parallel patterns}
+\item{\bf Performance introspection-based scheduling}
+\end{compactdesc}
+
+=======
 \section{Execution Models}
 \label{sec:exec_model}
 
@@ -19,3 +45,4 @@ To date, two of the most critical challenges for scientific applications with ma
 are the initial problem decomposition and the initial problem distribution.
 To more easily support massive data parallelism in the near-term,
 DARMA runtimes are required to enable an efficient \gls{spmd} launch similar to an MPI launch.
+>>>>>>> darma/0.3-devel

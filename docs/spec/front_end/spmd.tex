@@ -1,0 +1,45 @@
+%!TEX root = ../sandReportSpec.tex
+
+\section{SPMD support}
+\label{sec:spmd}
+Most applications written in or ported to DARMA will likely have \gls{spmd} as
+the dominant form of parallelism.
+To simplify the implementation of \gls{spmd}-structured codes, the notion of 
+a \gls{rank} is maintained within the \gls{API}.   
+This should make it a little easier for existing MPI-based application codes to transition 
+to DARMA and allows for intutive specification of initial application
+distribution on a system.
+Formally in DARMA, \gls{spmd} \glspl{rank} are the \gls{opaque context}
+between a the calls to \codelink{darma_init} and \codelink{darma_finalize}.
+This amounts to it being a special kind of task that \todo{David/Jeremy: finish
+this sentence}.   
+The total number of \gls{spmd} units are queried with the call \codelink{darma_spmd_size},
+and the \gls{rank} is queried with \codelink{darma_spmd_rank}. A typical user-written main program will look as follows:
+\begin{CppCode}
+int darma_main(int argc, char**argv){
+
+	darma_init(argc, argv);
+	size_t n_ranks = darma_spmd_size();
+	size_t me = darma_spmd_rank();
+
+	//lots of code
+
+	darma_finalize();
+  return 0;
+}
+\end{CppCode}
+
+Note that it is often useful to include the \gls{rank} index within a 
+\gls{handle}'s \codelink{key}:  
+\begin{CppCode}
+size_t me = darma_spmd_rank();
+auto data_handle = initial_access<double>("data_key", me);
+\end{CppCode}  
+\todo{David/Jeremy:sanity check this statement, and elaborate/edit as needed}
+Recall that every \gls{handle} \codelink{key} must be unique, and the 
+ use of the \gls{rank} index within a \gls{handle}'s \codelink{key} provides an
+ intuitive way for disambiguating \codelink{key}s associated with distributed
+ data.  \todo[inline]{David/Jeremy: does the rank-portion of the key can be
+ identified so that it can serve as a hint to the underlying runtime as to
+ where to look for the data}
+

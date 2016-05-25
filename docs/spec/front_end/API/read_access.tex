@@ -1,0 +1,69 @@
+%!TEX root = ../sandReportSpec.tex
+\subsection{\texttt{read\_access}}
+\label{ssec:api_fe_read_access}
+
+\paragraph{Summary}\mbox{}\\
+Creates a handle with \text{read-only} access to data that has been or will be
+published elsewhere in the system.
+
+\paragraph{Syntax}\mbox{}\\
+\begin{CppCode}
+/* unspecified, convertible to AccessHandle<T> */
+darma_runtime::read_access<T>(KeyParts..., version=KeyExpression);
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{}\\
+\begin{itemize}
+  \item |KeyParts...|: tuple of values identifying the key of the data to
+  be read.
+\end{itemize}
+
+\paragraph{Keyword Arguments}\mbox{}\\
+\begin{itemize}
+  \item |version=KeyExpression| \todo{description of version keyword
+  argument}
+\end{itemize}
+
+
+\paragraph{Return}\mbox{}\\
+An object of unspecified type that may be treated as an |AccessHandle<T>|
+with the key given by the arguments.
+
+\paragraph{Details}\mbox{}\\
+This function creates a handle to data that already exists and 
+needs to be accessed with read-only privileges. 
+It takes as input the tuple of values uniquely 
+identifying the data that needs to be read.  \todo{finish this, talking about
+how corresponding publish has to happen at some point Read/None permissions }
+
+In general, it is used to access data that is migratable, i.e. data 
+that potentially is stored off node.
+\todo{anything missing? details?}
+
+
+\paragraph{Code Snippet}\mbox{}\\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+/* on one rank: */
+auto my_handle1 = initial_access<double>("key_1");
+create_work([=]{
+  my_handle1.emplace_value(5.3);
+});
+my_handle1.publish(n_readers=1, version="final");
+
+//...
+
+/* on another rank: */
+auto readHandle = read_access<double>("key_1", version="final");
+create_work([=]{
+  std::cout << readHandle.get_value() << std::endl;
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_readaccess}
+\caption{Basic usage of \texttt{read\_access}.}
+\end{figure}
+
+\todo{pitfalls: talk about how unspecified type may provide compile-time
+checking that e.g. set\_value() wasn't called in the future}
+
+
