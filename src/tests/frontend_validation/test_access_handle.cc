@@ -292,6 +292,7 @@ TEST_F(TestAccessHandle, publish_MM) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_capture_released) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -316,9 +317,11 @@ TEST_F(TestAccessHandle, death_capture_released) {
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_publish_released) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -340,9 +343,11 @@ TEST_F(TestAccessHandle, death_publish_released) {
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_value) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -360,9 +365,11 @@ TEST_F(TestAccessHandle, death_get_value) {
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_set_value) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -380,9 +387,11 @@ TEST_F(TestAccessHandle, death_set_value) {
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_reference) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -400,9 +409,11 @@ TEST_F(TestAccessHandle, death_get_reference) {
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_set_value_2) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -424,9 +435,11 @@ TEST_F(TestAccessHandle, death_set_value_2) {
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_value_after_release) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -450,9 +463,11 @@ TEST_F(TestAccessHandle, death_get_value_after_release) {
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_emplace_value_after_release) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -476,9 +491,11 @@ TEST_F(TestAccessHandle, death_emplace_value_after_release) {
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_dereference) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -497,9 +514,11 @@ TEST_F(TestAccessHandle, death_dereference) {
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_dereference_arrow) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -517,9 +536,11 @@ TEST_F(TestAccessHandle, death_dereference_arrow) {
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_key_after_release) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -538,6 +559,7 @@ TEST_F(TestAccessHandle, death_get_key_after_release) {
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
