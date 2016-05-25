@@ -1,6 +1,17 @@
 %!TEX root = sandReportSpec.tex
 
 \section{Compatible Data Models}
+<<<<<<< HEAD
+\label{sec:datamodel}
+\gls{DARMA} supports \gls{data-flow dependency} management, and consequently
+must have some knowledge of the structure of application data in order to make
+effective, efficient runtime dependency management and data staging decisions.  Rather
+than impose a \gls{data model} directly, \gls{DARMA} leaves the application
+developer free to use arbitrary data structures.  This means the application
+developer must define \gls{serialization}, \gls{slicing}, and \glspl{interference test} for 
+their data (i.e., this information cannot be directly inferred due to the lack
+of \gls{data model}). 
+=======
 \label{sec:data_model}
 DARMA only implements a data model through its serialization interface.
 The notion of data structure, data layout, and data type only exist in the application and translation layer (see Section \ref{TL}).
@@ -9,5 +20,6 @@ To actually migrate data, the backend invokes serialization hooks implemented by
 In future versions, an API similar to the serialization interface will support the definition of data subsets and data slices.
 Again, the backend runtime will only understand data and task dependencies, requiring the type-aware application and translation layers to define the details of serialization and slicing operations.
 This leaves the application developer free to use arbitrary data structures, but puts more responsibility on the application developer.
+>>>>>>> darma/0.3-devel
 
 

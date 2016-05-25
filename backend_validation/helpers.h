@@ -225,10 +225,6 @@ make_fetching_handle(
 
   EXPECT_CALL(*new_handle, get_key())
     .Times(AtLeast(1));
-  EXPECT_CALL(*new_handle, allow_writes())
-    .Times(Exactly(0));
-  EXPECT_CALL(*new_handle, set_version(_))
-    .Times(Exactly(1));
   EXPECT_CALL(*new_handle, get_serialization_manager())
     .Times(AnyNumber())
     .WillRepeatedly(Return(ser_man));

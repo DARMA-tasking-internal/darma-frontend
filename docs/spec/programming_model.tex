@@ -1,6 +1,21 @@
 %!TEX root = sandReportSpec.tex
 
+\todo[inline]{add task to glossary}
+
 \section{Programming Model}
+<<<<<<< HEAD
+\label{sec:programmingmodel}
+\gls{DARMA} is a mixed \gls{imperative}/\gls{declarative} \gls{programming model}.
+\gls{DARMA} employs \CC-embedded task annotations to support \gls{deferred
+work}\footnote{Each block of
+\gls{deferred work} can be considered a task (coarse-grained blocks of \gls{procedural} \gls{imperative} code).},  which is not necessarily performed in program order.   Instead,
+\gls{deferred work} is performed asynchronously when all of its \glspl{data-flow dependency} are
+satisfied. In this regard,  \gls{DARMA} is a \gls{declarative} \gls{programming
+model}.  Task annotations are translated by \gls{DARMA} through standard
+\CC\ constructs (e.g., \glspl{lambda}, \glspl{reference counted pointer}) and \gls{template metaprogramming} to
+expose and understand the \gls{task parallelism} inherent in the code.
+
+=======
 \label{sec:programming_model}
 The focus of the application-facing frontend API is the programming model.
 The programming model must provide application developers a mechanism for expressing both a \emph{correct} and a \emph{performant algorithm}.
@@ -82,8 +97,41 @@ Furthermore, the \gls{back end} is a simple set of abstract \CC\ classes whose f
 according to the specfication in Chapter~\ref{chap:back_end}.
 %providing the runtime the flexibility to optimize performance and
 %exploit additional parallelism when possible.   
+>>>>>>> darma/0.3-devel
+
+Most applications written in or ported to \gls{DARMA} will likely have \gls{spmd} as the dominant parallelism.
+To simplify the implementation of \gls{spmd}-structured codes, the notion of a \gls{rank} is maintained within the \gls{API}.   
+By maintaining the notion of a \gls{rank}, we provide application developers a convenience mechanism for creating
+the initial problem decomposition and distribution.  
+Immediately after launch, \gls{deferred work} is free to be migrated by the runtime, if it will result in
+better performance.
+By maintaining the notion of a \gls{rank}, the \gls{DARMA} \gls{programming model} expresses \gls{phased execution},
+where many tasks are launched in parallel.  \Gls{phased execution} is a more
+\gls{imperative} style of programming than, for example, \gls{conservative execution} 
+(in which application execution begins with zero \gls{concurrency}
+and grows conservatively as tasks that can be launched in parallel are
+encountered).
+
+<<<<<<< HEAD
+Within a \gls{rank}, \gls{DARMA} provides \gls{sequential semantics}, 
+meaning that application developers can reason about the code (including
+\gls{deferred work} defined within the \gls{rank}) as though it were being deployed sequentially within the \gls{rank}.   
 
 
+
+Although not yet supported in version \specVersion\ of the specification, several
+important features will play a role in the \gls{DARMA} \gls{programming model}:
+  \todo[inline]{David/Jeremy: please vet/edit this list as appropriate}
+\begin{compactdesc}
+\item{\bf Expressive Underlying Abstract Machine Model:}
+Notions of \glspl{execution space} and \glspl{memory space} will be introduced
+formally in later
+versions of the specification.  These abstractions (or similar ones) appear in other runtime
+solutions, e.g. \cite{Kokkos}, to
+  address deficiencies in the \gls{abstract machine model} used by 
+  \glspl{runtime system} that support \gls{spmd} parallelism (i.e., uniform compute elements, flat memory
+    spaces).  Using such abstractions
+=======
 Most applications written in DARMA will likely have \gls{spmd} as the dominant parallelism.
 To simplify the implementation of SPMD-structured codes, the notion of a \gls{rank} is maintained within the \gls{API}.   
 This provides application developers a convenience mechanism for creating
@@ -110,14 +158,38 @@ important features will play a role in the DARMA programming model:
 Notions of \glspl{execution space} and \glspl{memory space} will be introduced formally in later versions of the specification.  
 These abstractions (or similar ones) appear in other runtime solutions~\cite{kokkos, others} \todo{add relevant citations here} to address deficiencies in the abstract machine model used by runtimes that support \gls{spmd} parallelism 
 (i.e., uniform compute elements, flat memory spaces).  Using such abstractions
+>>>>>>> darma/0.3-devel
 1) facilitates performance portable application development across 
-a variety of execution spaces, and 2)
+  a variety of \glspl{execution space}, and 2)
   provides finer-grained control and additional flexibility in the
   communication of policies regarding data locality and data movement. 
+<<<<<<< HEAD
+   Specifically, application developers should be able to express the desired \gls{execution space} on
+which they would like their code to be run, and should be able to request the fraction of the resources within
+that space they think is appropriate (e.g., number of threads on a CPU).
+\item{\bf Runtime peformance introspection}
+  In future versions of the specification \gls{DARMA} will specify hooks for the
+  application developer to express, guide, and leverage the use of runtime-level
+  performance \gls{introspection}. An important \gls{co-design} activity will include determining
+  whether peformance \gls{introspection} needs to factor into the
+  application-level \gls{programming
+  model} on the \gls{front end} at all, or whether it purley belongs as part of the  \gls{back end}
+  \gls{runtime system} \gls{API}.
+\item{\bf Expression of fine-grained deferred parallel patterns}.
+  In future versions of the specification, \gls{DARMA} will 
+  specify deferred fine-grained parallel patterns, e.g., deferred
+  \inlinecode{parallel-for}, \inlinecode{parallel-scan}, etc.
+  \todo[inline]{David/Jeremy: Can we better articulate how fine-grained task
+  parallelism comes into play here? } 
+\item{\bf Field slicing in classes and class member functions as tasks}
+  \todo[inline]{David/Jeremy: please elaborate here - can we say something here about
+  the role we anticipate tasks as member functions to play.}
+=======
 \item {\bf Data Staging:}
 The memory and execution space concepts introduced above will enable 1) performance portable tasks that can run in multiple environments through a single code and 2) 
 user-directed placement hints to tell the runtime where tasks should run
 \item {\bf Collectives:}
 Some collectives will be supported by DARMA in version 0.3 of the specification, including all-reduce, reduce-scatter, and barrier collectives.
 Collectives will be data-centric rather rank-centric, as done in MPI.
+>>>>>>> darma/0.3-devel
 \end{compactdesc}
