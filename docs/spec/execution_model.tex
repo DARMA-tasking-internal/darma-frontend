@@ -1,5 +1,6 @@
 %!TEX root = sandReportSpec.tex
 
+<<<<<<< HEAD
 \section{Compatible Execution Models}
 \label{sec:execmodel}
 \gls{DARMA} supports \gls{phased execution} models, rather than \gls{conservative
@@ -24,3 +25,24 @@ important features will play a role in the DARMA \gls{execution model}:
 \item{\bf Performance introspection-based scheduling}
 \end{compactdesc}
 
+=======
+\section{Execution Models}
+\label{sec:exec_model}
+
+The main focus of DARMA is the programming model and corresponding translation layer that maps CSP semantics onto a data-flow description of the algorithm based on deferred tasks.
+DARMA prescribes nothing about the scheduling of tasks or even implementation of the tuple spaces supporting process coordination.
+A backend scheduler is therefore free to use, e.g. either depth-first or breadth-first priorities in executing tasks on the CDAG.
+Similarly, a scheduler may use thread pools with work queues to run tasks or it may use a fork-join model that creates new threads for each task.
+DARMA codes are therefore execution model-agnostic, only requiring that a backend runtime preserve the data-flow constraints expressed in the application and derived by the translation layer.
+
+DARMA furthermore prescribes nothing about the internals of each task.
+DARMA is fully compatible with parallel elastic tasks - tasks with flexible fine-grained parallelism, usually data parallelism.
+For example, depending on dynamic conditions, more or fewer threads may be requested for a CUDA kernel.
+Although the DARMA application-level API currently only allows expressing task granularity and task data-flow,
+we expect the API to also express task elasticity in future versions.
+
+To date, two of the most critical challenges for scientific applications with massive data parallelism in a task-based model
+are the initial problem decomposition and the initial problem distribution.
+To more easily support massive data parallelism in the near-term,
+DARMA runtimes are required to enable an efficient \gls{spmd} launch similar to an MPI launch.
+>>>>>>> darma/0.3-devel
