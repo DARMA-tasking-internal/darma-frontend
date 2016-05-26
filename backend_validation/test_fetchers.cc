@@ -997,7 +997,7 @@ TEST_F(TestFetchers, publish_no_fetchers) {
 }
 
 // publish a versioned handle that was registered with register_fetching_handle
-TEST_F(TestFetchers, republish_versioned_fetcher) {
+SERIAL_DISABLED_TEST_F(TestFetchers, republish_versioned_fetcher) {
   using namespace ::testing;
 
   auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");
@@ -1116,7 +1116,7 @@ TEST_F(TestFetchers, republish_versioned_fetcher) {
 }
 
 // publish a pending handle that was registered with register_fetching_handle
-TEST_F(TestFetchers, republish_pending_fetcher) {
+SERIAL_DISABLED_TEST_F(TestFetchers, republish_pending_fetcher) {
   using namespace ::testing;
 
   auto h_0 = make_handle<int, true, true>(MockDependencyHandle::version_t(), "the_key");

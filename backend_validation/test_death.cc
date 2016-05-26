@@ -169,7 +169,7 @@ TEST_F(DARMADeathTest, unregistered_dependency_returned_from_get_dependencies) {
   );
 }
 
-TEST_F(DARMADeathTest, released_dependency_returned_from_get_dependencies) {
+SERIAL_DISABLED_TEST_F(DARMADeathTest, released_dependency_returned_from_get_dependencies) {
   using namespace ::testing;
 
   typedef ::testing::NiceMock<MockTask> task_t;
@@ -237,7 +237,7 @@ TEST_F(DARMADeathTest, register_handle_called_twice_same_handle) {
   );
 }
 
-TEST_F(DARMADeathTest, register_handle_called_with_pending_version) {
+SERIAL_DISABLED_TEST_F(DARMADeathTest, register_handle_called_with_pending_version) {
   using namespace ::testing;
 
   EXPECT_DEATH(
@@ -251,7 +251,7 @@ TEST_F(DARMADeathTest, register_handle_called_with_pending_version) {
   );
 }
 
-TEST_F(DARMADeathTest, register_fetching_handle_called_with_nonpending_version) {
+SERIAL_DISABLED_TEST_F(DARMADeathTest, register_fetching_handle_called_with_nonpending_version) {
   using namespace ::testing;
 
   EXPECT_DEATH(
@@ -397,7 +397,7 @@ TEST_F(DARMADeathTest, register_too_few_fetching_handles) {
   );
 }
 
-TEST_F(DARMADeathTest, register_task_after_finalize) {
+SERIAL_DISABLED_TEST_F(DARMADeathTest, register_task_after_finalize) {
   using namespace ::testing;
 
   typedef ::testing::NiceMock<MockTask> task_t;
@@ -429,7 +429,7 @@ TEST_F(DARMADeathTest, register_task_after_finalize) {
   );
 }
 
-TEST_F(DARMADeathTest, get_running_task_after_finalize) {
+SERIAL_DISABLED_TEST_F(DARMADeathTest, get_running_task_after_finalize) {
   using namespace ::testing;
 
   EXPECT_DEATH(
@@ -444,7 +444,7 @@ TEST_F(DARMADeathTest, get_running_task_after_finalize) {
   );
 }
 
-TEST_F(DARMADeathTest, register_handle_after_finalize) {
+SERIAL_DISABLED_TEST_F(DARMADeathTest, register_handle_after_finalize) {
   using namespace ::testing;
 
   EXPECT_DEATH(
@@ -461,7 +461,7 @@ TEST_F(DARMADeathTest, register_handle_after_finalize) {
   );
 }
 
-TEST_F(DARMADeathTest, register_fetching_handle_after_finalize) {
+SERIAL_DISABLED_TEST_F(DARMADeathTest, register_fetching_handle_after_finalize) {
   using namespace ::testing;
 
   EXPECT_DEATH(
@@ -478,7 +478,7 @@ TEST_F(DARMADeathTest, register_fetching_handle_after_finalize) {
   );
 }
 
-TEST_F(DARMADeathTest, publish_handle_after_finalize) {
+SERIAL_DISABLED_TEST_F(DARMADeathTest, publish_handle_after_finalize) {
   using namespace ::testing;
 
   EXPECT_DEATH(
@@ -497,7 +497,7 @@ TEST_F(DARMADeathTest, publish_handle_after_finalize) {
   );
 }
 
-TEST_F(DARMADeathTest, dependency_not_used_for_read_or_write) {
+SERIAL_DISABLED_TEST_F(DARMADeathTest, dependency_not_used_for_read_or_write) {
   using namespace ::testing;
 
   typedef ::testing::NiceMock<MockTask> task_t;

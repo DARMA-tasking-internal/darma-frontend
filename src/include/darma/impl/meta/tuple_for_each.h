@@ -113,7 +113,9 @@ struct _impl {
   inline constexpr auto
   _index_extended_tuple(std::index_sequence<Is...>, T&& arg) const {
     return std::forward_as_tuple(
-      std::get<Is>(arg)..., I
+      std::get<Is>(arg)...,
+      // Thwart some sort of constant rvalue optimization that's happening in GCC
+      std::integral_constant<size_t, I>::value
     );
   };
 
