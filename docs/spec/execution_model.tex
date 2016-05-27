@@ -1,48 +1,41 @@
 %!TEX root = sandReportSpec.tex
 
-<<<<<<< HEAD
-\section{Compatible Execution Models}
-\label{sec:execmodel}
-\gls{DARMA} supports \gls{phased execution} models, rather than \gls{conservative
-execution} models.  
-An initial \gls{spmd} launch of an algorithm must be supported, and if
-no imbalances are present, the \gls{runtime system} implementation should
-maintain an optimal initial decomposition. In addition to the coarse-grained distributed
-\gls{data parallelism} specified by the \gls{spmd} launch, additional \gls{task
-parallelism} and \gls{pipeline parallelism} are introduced via the \CC-embedded task annotations.
-As part of the \gls{AMT} design space exploration, we are working with
-\gls{runtime system} teams to develop \gls{DARMA}-compliant \glspl{back end}
-implementations that utilize existing \gls{AMT} technologies with different
-underlying \glspl{execution model} (e.g., \gls{actor model}, \gls{event-based}).  
 
-
-Although not yet supported in version \specVersion\ of the specification, several
-important features will play a role in the DARMA \gls{execution model}:
-
-\todo[inline]{Jeremy/David: elaborate/vet list please}
-\begin{compactdesc}
-\item{\bf Execution of deferred fine-grained parallel patterns}
-\item{\bf Performance introspection-based scheduling}
-\end{compactdesc}
-
-=======
 \section{Execution Models}
 \label{sec:exec_model}
+The main focus of \gls{DARMA} is the \gls{programming model} and corresponding
+\gls{translation layer} that maps a program expressed via \gls{CSP} semantics
+with additional \CC{}-embeded task annotations into a generic data-flow based
+description of the algorithm based on \gls{deferred tasks}.
+\gls{DARMA} prescribes nothing about the scheduling of tasks nor the implementation 
+of the data structures (e.g., \gls{key-value store}, \gls{tuple space}) required to support coordination.
+A \gls{back end} \gls{runtime} scheduler is therefore free to use, for example,
+either depth-first or breadth-first priorities in deferred tasks (as captured
+in a \gls{CDAG}).
+Similarly, a scheduler may use \gls{thread pools} with work queues to manage
+tasks or it may use a \gls{fork-join} model that creates new threads for each task.
+In this way, \gls{DARMA} codes are \gls{execution model}-agnostic, only
+requiring that a \gls{back end} \gls{runtime system} preserve the
+\glspl{data-flow dependency} expressed in the application and derived by the
+\gls{translation layer}.
 
-The main focus of DARMA is the programming model and corresponding translation layer that maps CSP semantics onto a data-flow description of the algorithm based on deferred tasks.
-DARMA prescribes nothing about the scheduling of tasks or even implementation of the tuple spaces supporting process coordination.
-A backend scheduler is therefore free to use, e.g. either depth-first or breadth-first priorities in executing tasks on the CDAG.
-Similarly, a scheduler may use thread pools with work queues to run tasks or it may use a fork-join model that creates new threads for each task.
-DARMA codes are therefore execution model-agnostic, only requiring that a backend runtime preserve the data-flow constraints expressed in the application and derived by the translation layer.
+Futhermore, \gls{DARMA} prescribes nothing about the internals of each task.
+\gls{DARMA} is fully compatible with parallel elastic tasks - tasks with
+flexible fine-grained parallelism, usually \gls{data parallelism}.
+For example, depending on dynamic conditions, more or fewer threads may be
+requested for a \gls{CUDA} kernel.
+Although the \gls{DARMA} \gls{front end} \gls{API} currently only allows
+expressing task granularity and task data-flow in the \specVersion\ version of
+the specification, task elasticity will be specified in future version of the
+specificaiton.
 
-DARMA furthermore prescribes nothing about the internals of each task.
-DARMA is fully compatible with parallel elastic tasks - tasks with flexible fine-grained parallelism, usually data parallelism.
-For example, depending on dynamic conditions, more or fewer threads may be requested for a CUDA kernel.
-Although the DARMA application-level API currently only allows expressing task granularity and task data-flow,
-we expect the API to also express task elasticity in future versions.
 
-To date, two of the most critical challenges for scientific applications with massive data parallelism in a task-based model
-are the initial problem decomposition and the initial problem distribution.
-To more easily support massive data parallelism in the near-term,
-DARMA runtimes are required to enable an efficient \gls{spmd} launch similar to an MPI launch.
->>>>>>> darma/0.3-devel
+\gls{DARMA} runtimes are required to enable an efficient
+\gls{spmd} launch of their program, similar to an MPI launch.
+This is based off applcation developer feedback, which has indicated that 
+two of the most critical challenges for scientific applications with massive data parallelism in a task-based model
+include initial problem decomposition and distribution.
+\gls{DARMA}'s efficient \gls{spmd} runtime-based launch requirement 
+will be modified if solutions are developed to support massive \gls{spmd} launches
+through compiler-based transformations.
+
