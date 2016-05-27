@@ -18,6 +18,17 @@ the idea that the application is decomposed into many
 \gls{migratable} units of work, to enable the overlap of communication and 
 computation as well as asynchronous load balancing strategies.
 
+A key design goal of \gls{AMT} models is to enable performance-based
+optimizations of code dynamically at runtime.
+We note that performance-based code transformations are ubiquitous at the compiler-level.
+Compilers will add, delete, swap, or reorder instructions to avoid unnecessary operations, improve data locality, or improve pipelining.
+However, many optimizations that benefit performance are unknowable until the program
+actually runs -- as these decisions may be based on current system performance,
+or the data needs of the application itself. Such dynamic runtime optimizations are much more expensive 
+than compile-time optimizations, thus the use of \emph{tasks} as a basis
+for dynamic runtime transformations. 
+
+
 The \gls{AMT} community is currently very active (e.g.,
 ~\cite{OCR,STAPL,Legion,Realm,StencilHPX,Charm++,Uintah,Loci,PARSEC,DaGuE,Cilk}),
 representing a range of different design points within the
@@ -156,9 +167,10 @@ The rest of this chapter provides a high-level description of
 memory, data, and (compatible) execution models. We note that throughout the
 \gls{co-design} process, decisions are first and foremost, 
 made to best support application requirements.  Furthermore, we target a
-\gls{back end} representation that supports \gls{AMT} \gls{runtime system}
-design space exploration, by facilitating build out of \gls{DARMA}-compliant
-back ends with a variety of existing \gls{AMT} \gls{runtime system}
+\gls{back end} \gls{API} specification that is general enought to support 
+\gls{AMT} \gls{runtime system}
+design space exploration, via build out of \gls{DARMA}-compliant
+back ends using existing \gls{AMT} \gls{runtime system}
 technologies.
 Lastly, we note that the features detailed in Chapters~\ref{chap:front_end} and
 ~\ref{chap:back_end}  are not entirely comprehensive -- meaning they do not yet capture all of the
@@ -169,36 +181,27 @@ provide the community opportunity for input, and active engagement in the
 to the \gls{DARMA} specification are welcome and can be made via a \gls{DEP} (see
 Appendix~\ref{chap:DEP} for details on this process and a \gls{DEP} template). 
 
-\subsection{High-level Design}
+\section{High-level Design}
 \gls{DARMA} is a translation layer between an 
 application-facing \gls{front end} \gls{API} and a \gls{runtime system} facing \gls{back end} 
 \gls{API}. 
-
-\paragraph{Application-facing front end API:}
-The \gls{front end} \gls{API} is the center of \gls{programming model}
-activities.  \gls{DARMA}'s \gls{front end} \gls{API} 
+\gls{DARMA}'s \gls{front end} \gls{API} 
 is an \gls{EDSL} in \CC,  inheriting the generic
 language constructs of \CC and adding \gls{semantics} that facilitate
 distributed, deferred, asynchronous, parallel programming. Though the \gls{EDSL} uses
 \CC constructs unfamiliar to many programmers to implement these semantics, 
 it is nonetheless fully embedded in the \CC language and
 requires a widely supported subset of \CC{}14 functionality \compilerReqs.
+The \gls{front end} \gls{API} is the center of \gls{programming model}
+\gls{co-design} activities, which seek to involve a wide variety of both
+application and \gls{runtime system} developers. 
 
-\paragraph{Translation layer:}
-For context, we note here that code transformations are already ubiquitous at the compiler-level.
-Compilers will add, delete, swap, or reorder instructions to avoid unnecessary operations, improve data locality, or improve pipelining.
-\gls{DARMA} aims to enable analogous transformations dynamically at runtime.
-Many transformations of program execution that benefit performance will be unknowable until the program actually runs,
-however these dynamic runtime optimizations are much more expensive than compile-time optimizations.
-Consequently, \emph{tasks} are the basis of \gls{DARMA} dynamic transformations
-(in an analogous way that instructions are the basis of static compiler
-transformations).
 
 \gls{DARMA}'s \gls{translation layer} leverages \CC\ \gls{template
 metaprogramming} to map the user's \gls{front end} \gls{API} calls onto the \gls{back end} runtime \gls{API},
 bridging the \gls{programming model} and actual program execution.
 We note however that the \gls{DARMA} \gls{translation layer} itself does not
-perform any optimizations -- these are left entirely to the \gls{back end} \gls{runtime system} implementations.
+perform any performance optimizations -- these are left entirely to the \gls{back end} \gls{runtime system} implementations.
 Rather, the translation layer converts the application code specified with
 \gls{DARMA}'s \gls{front end} \gls{API} into
 an ``intermediate representation'' that enables a \gls{runtime system} to make
@@ -206,10 +209,6 @@ intelligent, dynamic decisions (e.g.,
 about task order and task locality or possibly even task deletion and task
 replication when appropriate).
 
-
-
-
-\paragraph{Runtime-facing back end API:}
 The \gls{back end} \gls{API} is a set of abstract classes and function
 signatures that \gls{runtime system} developers must implement in accordance with the
 specification requirements in order to interface with application code written
@@ -217,8 +216,7 @@ to the \gls{DARMA} front end.
 Strictly speaking, the \gls{back end} \gls{API} calls only generate a stream of
 \emph{deferred tasks} (tasks with corresponding data inputs/outputs) that
 implicitly capture the program's data flow.
-
-However, we note the information passed through the \gls{translation layer} to
+The information passed through the \gls{translation layer} to
 the \gls{back end} is sufficient
 to (and intended to) support a \gls{CDAG} representation of the application.
 In a \gls{task-DAG} representation, tasks are vertices $V$ in a graph $G$ with directed edges $E$.
@@ -231,12 +229,14 @@ indicating that (depending on direction of the edge) data is either consumed or 
 The \gls{task-DAG} indicating task-task precedence constraints can always be
 obtained form the \gls{CDAG}, which captures the data-flow task graph.
 The \gls{CDAG} is thus more general, capturing additional information to
-enable runtime code transformations.
+enable runtime code transformations.\footnote{
 Although beyond the scope of this specification document, the interested reader
 will find numerous works discussing heuristics and order-preserving convex
 transformations of task graphs that demonstrate the utility of a coarse-grained
-\gls{CDAG} for enabling dynamic runtime optimization of an algorithm~\cite{}.
-We reiterate, though, that the \gls{CDAG} is only a concept guiding the design
+\gls{CDAG} for enabling dynamic runtime optimization of an
+algorithm~\cite{missingCitations}.
+}
+We reiterate that the \gls{CDAG} is only a concept guiding the design
 of the \gls{back end} \gls{API} and not strictly part of the \gls{DARMA} specificaion.
 
 
