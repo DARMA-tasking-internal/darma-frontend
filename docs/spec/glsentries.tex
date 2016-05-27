@@ -801,7 +801,9 @@ individual sub-tasks, each of which represents a stage whose execution can be
 \newglossaryentry{task-DAG} %linked
 {
   name={task-DAG},
-  description={A use of a directed acyclic graph (\gls{dag}) that represents tasks as nodes and directed lines as dependencies of a particular task/data segment. These graphs have no cycles, they do not represent iteration within a program}
+  description={A use of a directed acyclic graph (\gls{dag}) that represents
+    tasks as nodes. Edges between two nodes capture task/task precedent
+      constraints}
 }
 \newglossaryentry{dag}  %linked
 {
@@ -809,6 +811,18 @@ individual sub-tasks, each of which represents a stage whose execution can be
   name={DAG},
   first={directed acyclic graph (DAG)},
   description={A directed acyclic graph (DAG) is a directed graph with no cycles. This type of data representation is common form for representing dependencies}
+}
+
+\newglossaryentry{CDAG}  %linked
+{
+  type=\acronymtype,
+  name={CDAG},
+  first={computational directed acyclic graph (CDAG)},
+  description={ A CDAG is a data-flow task graph that has two
+types of vertices - tasks $T$ and data $D$ that compose the complete set of vertices $V$.
+Edges never directly connect two tasks and instead edges are only ever described between a task vertex, $t$, and a data vertex, $d$
+indicating that (depending on direction of the edge) data is either consumed or produced by a task.
+}
 }
 
 \newglossaryentry{asynchronous}
