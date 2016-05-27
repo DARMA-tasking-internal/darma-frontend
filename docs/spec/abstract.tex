@@ -1,24 +1,18 @@
 %!TEX root = sandReportSpec.tex
 
 In this document, we provide the specification for \gls{DARMA}, 
-a co-design research vehicle for \gls{AMT} \glspl{programming model} and
-\glspl{runtime system}.  \gls{DARMA} serves to:
+a co-design research vehicle for \gls{AMT} \glspl{programming model}.
+\gls{DARMA} serves to:
 1) insulate applications from \gls{runtime system} and hardware idiosyncrasies,
 2) improve \gls{AMT} runtime programmability by co-designing an \gls{API} directly with
   application developers, 3) synthesize application \gls{co-design} activities into
-  meaningful requirements for runtimes, and 4) 
+  meaningful requirements for \glspl{runtime system}, and 4) 
 facilitate \gls{AMT} design space characterization and definition, accelerating the
 development of \gls{AMT} best practices.
 
-The \gls{DARMA} code base comprises two main layers: 
-an \gls{API} for writing application code that expresses the algorithm and  
-a translation layer implicitly invoked by application-level code that maps application-level constructs
-to an abstract \gls{back end} \gls{API}.
-Executable \gls{DARMA} applications link to a third layer implementing the
-abstract \gls{back end} runtime \gls{API}.
-The implementations may be external, but default implementations are provided
-in the \gls{DARMA} code distribution.
-The application-facing user-level \gls{front end} \gls{API} 
+\gls{DARMA} is a translation layer between an 
+application-facing \gls{front end} \gls{API} and a \gls{runtime system} facing \gls{back end} 
+\gls{API}.    The application-facing user-level \gls{front end} \gls{API} 
 has the feel of an \gls{EDSL} in \CC,  inheriting the generic
 language constructs of \CC and adding \gls{semantics} that facilitate
 distributed parallel programming. Though the \gls{EDSL} uses
@@ -30,7 +24,11 @@ metaprogramming} to map the user's code onto the \gls{back end} runtime \gls{API
 The \gls{back end} \gls{API} is a set of abstract classes and function
 signatures that \gls{runtime system} developers must implement in accordance with the
 specification requirements in order to interface with application code written
-to the \gls{DARMA} front end.  
+to the \gls{DARMA} front end. Executable \gls{DARMA} applications must link to a \gls{runtime
+  system} that implements the abstract \gls{back end} runtime \gls{API}.
+It is intended that these implementations will be external, drawing upon
+existing AMT technologies.  However,  a reference implementation will be provided
+in the \gls{DARMA} code distribution.
 
 Each of these three layers is described herein. We also
 include a list of application requirements driving the specification (along
