@@ -5,6 +5,8 @@ project (Darma)
 set (Darma_VERSION_MAJOR 0)
 set (Darma_VERSION_MINOR 2)
 
+include(CTest)
+
 enable_testing()
 
 include_directories( ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} )
