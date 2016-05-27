@@ -81,9 +81,6 @@ tuple_zip_helper(std::index_sequence<Is...>, Tuples&&... tuples) {
 
 template <typename... Tuples>
 auto tuple_zip(Tuples&&... tuples) {
-  //static constexpr size_t min_size = tinympl::min<
-  //  std::tuple_size<std::decay_t<Tuples>>...
-  //>::value;
   static constexpr size_t min_size = std::min({
     std::tuple_size<std::decay_t<Tuples>>::value...
   });
