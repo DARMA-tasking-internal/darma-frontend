@@ -1,0 +1,237 @@
+%!TEX root = ../sandReportSpec.tex
+
+\section{Serialization and Layout Description}
+\label{sec:serialization}
+
+\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
+
+The DARMA front end programming model provides an extremely flexible and
+extensible interface for describing serialization and/or layout of C++ types. 
+In spite of this flexibility, the vast majority of use cases only require the
+understanding and use of one or two very basic abstractions.  However, the DARMA
+serialization interface provides a wide variety of features to handle complex
+and corner cases, as well as features to tune and optimize performance-critical
+cases.  The following section describes the DARMA serialization interface,
+beginning with abstractions that handle the vast majority of use cases and
+expanding to progressively more niche features later in the section.
+
+Note that this section is entitled ``Serialization and Layout Description''
+rather than just ``Serialization'' because the interface provides ways to
+specify movement of data in ways that aren't traditionally considered
+serialization, such as describing a type as a series of \gls{RDMA} pointers with
+associated sizes.  More details to follow.
+
+\subsection{Basic Intrusive Interface}
+\label{ssec:serbasic}
+
+The most basic and straightforward way to specify serialization of a user type
+in DARMA, and the method that should be used in the vast majority of cases
+(with, perhaps, one simple extension discussed below), is providing a publicly
+accessible\footnote{later versions of the spec may allow private
+implementations with a \inlinecode{friend} specification} |serialize| method
+in the user class.  The |serialize| method provided for this purpose should be
+non-|const| and should take a single argument, which in the simplest case will
+be an lvalue reference to a
+|darma_runtime::serialization::SimplePackUnpackArchive| object.  For instance,
+consider the following (somewhat contrived) user-defined class:
+%
+\begin{CppCodeNumb}
+class MyClass {
+  private:
+    double a_, b_;
+    std::string label_;
+    double prod_sqrt_;
+  public:
+    static constexpr const char unlabeled_string[] = "<unlabeled>";
+    MyClass(int a, int b)
+      : MyClass(unlabeled_string, a, b)
+    { }
+    MyClass(std::string const& label, int a, int b)
+      : a_(a), b_(b), label_(label),
+        prod_sqrt_(a_ == b_ ? a_ : std::sqrt(a_*b_))
+    { }
+};
+\end{CppCodeNumb}
+%
+The simplest way to allow DARMA to interact with |MyClass| is to provide the
+a |serialize| method in the class definition:
+\begin{CppCodeNumb}
+using darma_runtime::serialization::SimplePackUnpackArchive;
+class MyClass {
+  public:
+    /* ... */
+    void serialize(SimplePackUnpackArchive& ar) {
+      ar | a_ | b_ | label_ | prod_sqrt_;
+    }
+};
+\end{CppCodeNumb}
+As you can see, the type |SimplePackUnpackArchive| has an overload for
+\inlinecode{operator|()} and takes a serializable type and returns itself (more
+on what constitues a ``serializable type'' later).
+
+\subsection{\texttt{SimplePackUnpackArchive}}
+
+DARMA encapsulates advanced serialization behaviors in the archive
+\gls{concept}.  The only archive type fully implemented in the current
+specification is |SimplePackUnpackArchive|, which performs serialization in the
+most basic and traditional way.  On the sender side, DARMA performs
+two serialization passes: one in sizing mode and one in packing mode.  The receiver
+only requires one pass: unpacking.  These modes can be queried using the archive
+object methods |is_sizing()|, |is_packing()|, and |is_unpacking()|.  (Exactly
+one of these will return true at any given time; also, all archive types
+implement these methods).
+
+\subsection{Generic Archive Serialization}
+
+As DARMA develops further and as more performance considerations are addressed,
+the DARMA team and our collaborators plan to provide other archive types which
+take a more advanced serialization strategies, such as enabling \gls{RDMA}
+access to pieces of a type.  In order to write code that can take advantage of
+these features when they become available, the vast majority of user types can
+simply provide a templated |serialize| method:
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | a_ | b_ | label_ | prod_sqrt_;
+    }
+};
+\end{CppCodeNumb}
+
+\subsection{Different Behaviors in Different Modes}
+
+Consider again the |MyClass| example above.  Since |prod_sqrt_| can be
+recomputed on the fly, it may be desirable to avoid including it in the data to
+be moved and instead just recompute it on the receiving side.  To do this, however,
+we need the |serialize| method to perform different actions in unpacking mode
+than in the other modes.  The |is_unpacking()| method makes this easy:
+%
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | a_ | b_ | label_;
+      if(ar.is_unpacking())
+        prod_sqrt_ = a_ == b_ ? a_ : std::sqrt(a_*b_);
+    }
+};
+\end{CppCodeNumb}
+%
+Notice also that the |label_| field of |MyClass| has the same static value if a
+label is ungiven every time.  If |MyClass| often does not have a |label_|, it
+may be advantagous to pack a boolean indicating whether the label exists,
+followed by the label itself only if the label is given.  We can do this using
+the same approach:
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | a_ | b_;
+      bool has_label;
+      if(!ar.is_unpacking()) {
+        has_label = label_ != unlabeled_string;
+        ar | has_label;
+        if(has_label) ar | label_;
+      }
+      else { // ar.is_unpacking()
+        ar | has_label;
+        if(has_label) ar | label_;
+        else label_ = unlabeled_string;    
+        // From before:
+        prod_sqrt_ = a_ == b_ ? a_ : std::sqrt(a_*b_);
+      }
+    }
+};
+\end{CppCodeNumb}
+
+\subsection{Seperate Methods for Seperate Modes}
+The performance-concious reader may have noticed that the consecutive
+serialization of a large number of |MyClass| objects may involve a significant
+number of unnecessary extra branch instructions (i.e., |if|
+statements),\footnote{in many cases, an advanced optimizer or branch predictor
+{\it may} be able to coallesce some of these, but this isn't the general case}
+which can cause branch prediction misses and thus significantly reduce
+performance.  For this and other reasons, DARMA allows the user to specify
+seperate |pack|, |unpack|, and |compute_size| methods as needed.  Each takes an
+archive object as an argument, and the |pack| and |compute_size| methods must
+be |const|.  The first example that recomputes |prod_sqrt_| could then be
+rewritten as:
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | a_ | b_ | label_;
+    }
+    template <typename Archive>
+    void unpack(Archive& ar) {
+      ar | a_ | b_ | label_;
+      prod_sqrt_ = a_ == b_ ? a_ : std::sqrt(a_*b_);
+    }
+};
+\end{CppCodeNumb}
+The more specialized |pack|, |unpack|, and |compute_size| methods always have
+higher priority than |serialize|, so in this case DARMA will invoke |unpack|
+during the unpacking pass while still calling |serialize| in the sizing and
+packing passes.
+
+The {\it very} performance-concious reader may have further noticed that since
+the \inlinecode{operator|()} implementation must function in all three modes,
+there must be further branch instructions inside its implementation.  Thus, in a
+performance-critical context, the user may want to provide all three methods and
+use an operator that is specific to the phase in question.\footnote{This could
+also be accomplished (and may be in the future) by passing in different types
+for the sizing, packing, and unpacking phases, which is yet another reason to
+use the templated versions of these methods instead.}  This can be done using
+|operator<<()| for packing, |operator>>()| for unpacking, and |operator%| for
+sizing.  The final |serialize| with both the |prod_sqrt_| and |label_|
+optimizations could then be rewritten as:
+%
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void compute_size(Archive& ar) const {
+      ar % a_ % b_;
+      if(label_ == unlabeled_string) ar % false;
+      else ar % true % label_;
+    }
+    template <typename Archive>
+    void pack(Archive& ar) const {
+      ar << a_ << b_;
+      if(label_ == unlabeled_string) ar << false;
+      else ar << true << label_;
+    }
+    template <typename Archive>
+    void unpack(Archive& ar) {
+      ar >> a_ >> b_;
+      bool has_label;
+      ar >> has_label;
+      if(has_label) ar >> label_;
+      else label_ = unlabeled_string;
+      prod_sqrt_ = a_ == b_ ? a : std::sqrt(a_*b_);
+    }
+};
+\end{CppCodeNumb}
+%
+Besides being significantly more verbose, keep in mind that these optimizations
+have important implications for maintainability of your code.  If another member
+variable |c_| were added to |MyClass|, the serialization implementation in the
+final example would have to be modified in {\it three} places, whereas the
+earlier examples, while potentially less performant, only have to be updated in
+one place.  Also, failure to ensure that the order of member variable
+serialization is identical in multiple places can lead to hard-to-detect bugs. 
+Thus, we recommend using the single |serialize| method except in
+performance-critical, inner-loop-like code.
+
+\subsection{Serializing Pointers and Ranges}
+
+\lstDeleteShortInline{\|}
