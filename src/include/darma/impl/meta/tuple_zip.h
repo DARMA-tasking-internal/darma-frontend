@@ -45,6 +45,8 @@
 #ifndef DARMA_IMPL_META_TUPLE_ZIP_H_
 #define DARMA_IMPL_META_TUPLE_ZIP_H_
 
+#include <algorithm>
+
 #include <tinympl/zip.hpp>
 #include <tinympl/tuple_as_sequence.hpp>
 #include <tinympl/min_element.hpp>

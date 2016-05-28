@@ -87,19 +87,25 @@ class TestTupleZip
 
 TEST_F(TestTupleZip, basic_1) {
 
-  auto t = meta::tuple_zip(
-    std::make_tuple(1, 2, 3),
-    std::make_tuple(4, 5, 6)
-  );
-  static_assert(std::tuple_size<std::decay_t<decltype(t)>>::value == 3, "");
-  static_assert(std::tuple_size<std::decay_t<decltype(std::get<0>(t))>>::value == 2, "");
+#define _test_tup meta::tuple_zip( \
+    std::forward_as_tuple( \
+      1, 2, 3 \
+    ), \
+    std::forward_as_tuple( \
+      4, 5, 6 \
+    ) \
+  )
+  static_assert(std::tuple_size<std::decay_t<decltype(_test_tup)>>::value == 3, "");
+  static_assert(std::tuple_size<std::decay_t<decltype(std::get<0>(_test_tup))>>::value == 2, "");
 
-  ASSERT_EQ(std::get<0>(std::get<0>(t)), 1);
-  ASSERT_EQ(std::get<1>(std::get<0>(t)), 4);
-  ASSERT_EQ(std::get<0>(std::get<1>(t)), 2);
-  ASSERT_EQ(std::get<1>(std::get<1>(t)), 5);
-  ASSERT_EQ(std::get<0>(std::get<2>(t)), 3);
-  ASSERT_EQ(std::get<1>(std::get<2>(t)), 6);
+  ASSERT_EQ(std::get<0>(std::get<0>(_test_tup)), 1);
+  ASSERT_EQ(std::get<1>(std::get<0>(_test_tup)), 4);
+  ASSERT_EQ(std::get<0>(std::get<1>(_test_tup)), 2);
+  ASSERT_EQ(std::get<1>(std::get<1>(_test_tup)), 5);
+  ASSERT_EQ(std::get<0>(std::get<2>(_test_tup)), 3);
+  ASSERT_EQ(std::get<1>(std::get<2>(_test_tup)), 6);
+
+#undef _test_tup
 
 }
 
@@ -133,19 +139,20 @@ TEST_F(TestTupleZip, basic_2) {
 
 TEST_F(TestTupleZip, basic_fwd) {
 
-  auto t = meta::tuple_zip(
-    std::forward_as_tuple(1, 2, 3),
-    std::forward_as_tuple(4, 5, 6)
-  );
-  static_assert(std::tuple_size<std::decay_t<decltype(t)>>::value == 3, "");
-  static_assert(std::tuple_size<std::decay_t<decltype(std::get<0>(t))>>::value == 2, "");
+#define _test_tup meta::tuple_zip( \
+    std::forward_as_tuple(1, 2, 3), \
+    std::forward_as_tuple(4, 5, 6) \
+  )
+  static_assert(std::tuple_size<std::decay_t<decltype(_test_tup)>>::value == 3, "");
+  static_assert(std::tuple_size<std::decay_t<decltype(std::get<0>(_test_tup))>>::value == 2, "");
 
-  ASSERT_EQ(std::get<0>(std::get<0>(t)), 1);
-  ASSERT_EQ(std::get<1>(std::get<0>(t)), 4);
-  ASSERT_EQ(std::get<0>(std::get<1>(t)), 2);
-  ASSERT_EQ(std::get<1>(std::get<1>(t)), 5);
-  ASSERT_EQ(std::get<0>(std::get<2>(t)), 3);
-  ASSERT_EQ(std::get<1>(std::get<2>(t)), 6);
+  ASSERT_EQ(std::get<0>(std::get<0>(_test_tup)), 1);
+  ASSERT_EQ(std::get<1>(std::get<0>(_test_tup)), 4);
+  ASSERT_EQ(std::get<0>(std::get<1>(_test_tup)), 2);
+  ASSERT_EQ(std::get<1>(std::get<1>(_test_tup)), 5);
+  ASSERT_EQ(std::get<0>(std::get<2>(_test_tup)), 3);
+  ASSERT_EQ(std::get<1>(std::get<2>(_test_tup)), 6);
+#undef _test_tup
 
 }
 
@@ -213,25 +220,25 @@ TEST_F(TestTupleZip, blabber_3) {
 
   // The return of make_tuple will get moved if blabbermouth has a non-default destructor
   InSequence s;
-  EXPECT_CALL(*listener, string_ctor()).Times(3);
-  //EXPECT_CALL(*listener, move_ctor()).Times(AtMost(2));
-  EXPECT_CALL(*listener, string_ctor()).Times(3);
-  //EXPECT_CALL(*listener, move_ctor()).Times(AtMost(2));
+  EXPECT_CALL(*listener, string_ctor()).Times(2 + 4*6);
 
   BlabberMouth b3("hello5");
   BlabberMouth b4("hello6");
 
-  auto t = meta::tuple_zip(
-    std::forward_as_tuple(BlabberMouth("hello1"), BlabberMouth("hello2"), b3),
-    std::forward_as_tuple(BlabberMouth("hello3"), b4, BlabberMouth("hello4"))
-  );
+#define _test_tup meta::tuple_zip( \
+    std::forward_as_tuple(BlabberMouth("hello1"), BlabberMouth("hello2"), b3), \
+    std::forward_as_tuple(BlabberMouth("hello3"), b4, BlabberMouth("hello4")) \
+  )
 
-  ASSERT_EQ(std::get<0>(std::get<0>(t)).data, "hello1");
-  ASSERT_EQ(std::get<1>(std::get<0>(t)).data, "hello3");
-  ASSERT_EQ(std::get<0>(std::get<1>(t)).data, "hello2");
-  ASSERT_EQ(std::get<1>(std::get<1>(t)).data, "hello6");
-  ASSERT_EQ(std::get<0>(std::get<2>(t)).data, "hello5");
-  ASSERT_EQ(std::get<1>(std::get<2>(t)).data, "hello4");
+  ASSERT_EQ(std::get<0>(std::get<0>(_test_tup)).data, "hello1");
+  ASSERT_EQ(std::get<1>(std::get<0>(_test_tup)).data, "hello3");
+  ASSERT_EQ(std::get<0>(std::get<1>(_test_tup)).data, "hello2");
+  ASSERT_EQ(std::get<1>(std::get<1>(_test_tup)).data, "hello6");
+  ASSERT_EQ(std::get<0>(std::get<2>(_test_tup)).data, "hello5");
+  ASSERT_EQ(std::get<1>(std::get<2>(_test_tup)).data, "hello4");
+
+#undef _test_tup
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -239,23 +246,25 @@ TEST_F(TestTupleZip, blabber_3) {
 TEST_F(TestTupleZip, basic_lvalue) {
 
   int val = 2;
-  auto t = meta::tuple_zip(
-    std::forward_as_tuple(1, val, 3),
-    std::forward_as_tuple(4, 5, 6)
-  );
+#define _test_tup meta::tuple_zip( \
+    std::forward_as_tuple(1, val, 3), \
+    std::forward_as_tuple(4, 5, 6) \
+  )
 
-  static_assert(std::tuple_size<std::decay_t<decltype(t)>>::value == 3, "");
-  static_assert(std::tuple_size<std::decay_t<decltype(std::get<0>(t))>>::value == 2, "");
+  static_assert(std::tuple_size<std::decay_t<decltype(_test_tup)>>::value == 3, "");
+  static_assert(std::tuple_size<std::decay_t<decltype(std::get<0>(_test_tup))>>::value == 2, "");
 
-  ASSERT_EQ(std::get<0>(std::get<0>(t)), 1);
-  ASSERT_EQ(std::get<1>(std::get<0>(t)), 4);
-  ASSERT_EQ(std::get<0>(std::get<1>(t)), 2);
-  ASSERT_EQ(std::get<1>(std::get<1>(t)), 5);
-  ASSERT_EQ(std::get<0>(std::get<2>(t)), 3);
-  ASSERT_EQ(std::get<1>(std::get<2>(t)), 6);
+  ASSERT_EQ(std::get<0>(std::get<0>(_test_tup)), 1);
+  ASSERT_EQ(std::get<1>(std::get<0>(_test_tup)), 4);
+  ASSERT_EQ(std::get<0>(std::get<1>(_test_tup)), 2);
+  ASSERT_EQ(std::get<1>(std::get<1>(_test_tup)), 5);
+  ASSERT_EQ(std::get<0>(std::get<2>(_test_tup)), 3);
+  ASSERT_EQ(std::get<1>(std::get<2>(_test_tup)), 6);
 
-  std::get<0>(std::get<1>(t)) = 42;
+  std::get<0>(std::get<1>(_test_tup)) = 42;
   ASSERT_EQ(val, 42);
+
+#undef _test_tup
 }
 
 ////////////////////////////////////////////////////////////////////////////////

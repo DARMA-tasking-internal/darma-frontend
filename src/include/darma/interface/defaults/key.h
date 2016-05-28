@@ -49,6 +49,8 @@
 #include <iostream>
 #include <cassert>
 
+#include <tinympl/variadic/fill_n.hpp>
+
 #include <darma/impl/meta/tuple_for_each.h>
 #include <darma/impl/util.h>
 #include <darma/impl/key_concept.h>

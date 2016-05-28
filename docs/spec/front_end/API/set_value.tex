@@ -1,0 +1,44 @@
+\subsection{\texttt{set\_value}}
+
+\paragraph{Summary} \mbox{}\\
+Set the value of the data pointed to by the handle.
+
+\paragraph{Syntax} \mbox{}\\
+\begin{CppCode}
+void AccessHandle<T>::set_value(value)
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{}\\
+\begin{itemize}
+  \item value (type convertible to |T|): The new value for the data.
+\end{itemize}
+
+\paragraph{Details}\mbox{}\\
+{\color{red}[0.2 only]} In the 0.2 spec, this just directly forwards to
+|emplace_value()| so that the relevant copy constructor of {\tt T} is
+called.  Thus, all comments and examples for |emplace_value()| apply
+here.  See \S~\ref{ssec:api_fe_emplace_value} for more.
+
+\paragraph{Code Snippet}\mbox{}\\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+auto h = initial_access<double>("key_1");
+create_work([=]{
+  h.set_value(55.343);
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_set_value}
+\caption{Basic usage of \lstinline|set_value|.}
+\end{figure}
+
+\paragraph{Restrictions and Pitfalls}\mbox{}\\
+\begin{itemize}
+  \item The specification of the method is likely to change in the future to
+  analogous to the behavior, e.g., |std::vector<T>::push_back()| (as it
+  relates to |std::vector<T>::emplace_back()|).  If this could be a
+  problem for |T|, you should probably use |emplace_value()| for now.
+\end{itemize}
+
+
+
+
