@@ -268,8 +268,132 @@ class MyData {
 
 \subsection{Non-intrusive Interface}
 
+Classes for which the user cannot define an intrusive |serialize| method (or
+any of the other intrusive methods) for one reason or another can still be
+made serializable by defining a specialization (partial or full) of the class
+|darma_runtime::serialization::Serializer<T>| for the type in
+question.\footnote{Generic implementations requiring partial specialization
+with an enable_if clause should use
+\inlinecode{darma_runtime::serialization::detail::Serializer_enabled_if<T,
+Enable>}.  Consult source code for more details.}  Like the intrusive interface,
+these classes can define a |serialize| method; individual |compute_size|,
+|pack|, and |unpack| methods; or some combination of these, with the specific
+versions having higher priority.  All of these methods must be |const| (the
+Serializer object itself isn't allowed to have state anyway; it's just a
+convenient mechanism for grouping functions for a class nonintrusively).  Their
+signatures are a bit different from the intrusive analogues.  Consider a
+slightly different version of |MyClass| from above, the public
+interface of which is specified as:
+\begin{CppCodeNumb}
+class YourClass {
+  public:
+    double get_a() const;
+    void set_a(double val);
+    double get_b() const;
+    void set_b(double val);
+    std::string const& get_label() const;
+    void set_label(std::string const& val);
+    double get_product_sqrt() const;
+};
+\end{CppCodeNumb}
+Assuming |YourClass| is default constructible, way to specify a serialization
+for |YourClass| non-intrusively is:
+\begin{CppCodeNumb}
+namespace darma_runtime { namespace serialization {
+template <>
+struct Serializer<YourClass> {
+  template <typename Archive>
+  void serialize(YourClass& yc, Archive& ar) const {
+    if(!ar.is_unpacking()) {
+      double a = yc.get_a();
+      double b = yc.get_b();
+      std::string label = yc.get_label();
+      ar | a | b | label;
+    }
+    else {
+      double a, b;
+      std::string label;
+      ar | a | b | label;
+      yc.set_a(a);
+      yc.set_b(b);
+      yc.set_label(label);
+    }
+  }
+};
+}} // end namespace darma_runtime::serialization
+\end{CppCodeNumb}
+As before, we can split this into |serialize| and |unpack| methods.  However,
+the |unpack| method requires a slightly different signature:
+\begin{CppCodeNumb}
+template <typename Archive>
+darma_runtime::serialization::Serializer<YourClass>::unpack(
+  void* allocated, Archive& ar
+) const;
+\end{CppCodeNumb}
+Rather than being a reference to an instance of the class itself, the first
+argument to the non-intrusive |unpack| method is a pointer to the beginning of a
+chunk of memory of size |sizeof(YourClass)| allocated by the backend, but not
+constructed.  This allows for the unpacking of non-default-constructible
+classes.  The |unpack| method must construct the object at that memory
+location using the C++ placement new.  The syntax of placement new might be a
+little strange if you've never seen it before, but once you see it, its use is
+pretty straightforward.  The non-intrusive |Serializer| for |YourClass| can then
+be written as:
+\begin{CppCodeNumb}
+namespace darma_runtime { namespace serialization {
+template <>
+struct Serializer<YourClass> {
+  template <typename Archive>
+  void serialize(YourClass& yc, Archive& ar) const {
+    assert(!ar.is_unpacking()) // just in case
+    double a = yc.get_a();
+    double b = yc.get_b();
+    std::string label = yc.get_label();
+    ar | a | b | label;
+  }
+  template <typename Archive>
+  void unpack(void* allocated, Archive& ar) const {
+    double a, b;
+    std::string label;
+    ar | a | b | label;
+    // Since YourClass is default-constructible, the placement new
+    // that we want looks like this:
+    YourClass* yc = new (allocated) YourClass();
+    yc->set_a(a);
+    yc->set_b(b);
+    yc->set_label(label);
+  }
+};
+}} // end namespace darma_runtime::serialization
+\end{CppCodeNumb}
+The nonintrusive interface versions of |pack| and |compute_size| have similar
+signatures to that of |serialize|, except they take a |const| lvalue reference
+as their first argument:
+\begin{CppCodeNumb}
+template <typename Archive>
+darma_runtime::serialization::Serializer<YourClass>::compute_size(
+  YourClass const& val, Archive& ar
+) const;
+template <typename Archive>
+darma_runtime::serialization::Serializer<YourClass>::pack(
+  YourClass const& val, Archive& ar
+) const;
+\end{CppCodeNumb}
+
+The non-intrusive serialization interface has higher priority than the intrusive
+one, but in general the user should not define both or mixed intrusive and
+nonintrusive serializations
+
 \subsection{Definition of ``Serializable''}
 
+Having introduced the archive concept, the intrusive interface, and the
+nonintrusive interface, we're finally ready to formally define ``serializable''
+as DARMA sees it.  TODO finish this
+
 \subsection{Builtin Implementations for Standard Library Types}
+
+\subsection{Polymorphism}
+
+\subsection{Serialization Pitfalls}
 
 \lstDeleteShortInline{\|}
