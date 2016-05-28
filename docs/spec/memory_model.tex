@@ -1,6 +1,48 @@
-%!TEX root = sandReportSpec.tex
 
 \section{Compatible Memory Models}
+<<<<<<< HEAD
+\label{sec:memmodel}
+\todo[inline]{Janine: Change uses of handle throughout doc to data handle.  For
+  now I kept terminology as handle keep glossary links working correctly}
+
+\gls{DARMA} implements a \gls{distributed memory model}, with each \gls{rank}
+in \gls{DARMA} conceptually having its own private memory space. 
+Inter-\gls{rank} communication occurs indirectly via a 
+\gls{key-value store} or \gls{tuple space} abstraction using
+\gls{coordination semantics} (such as \codelink{publish} and
+\codelink{fetch}). 
+
+In \gls{DARMA} a data \gls{handle} is conceptually a \gls{reference counted pointer} into the
+\gls{key-value store}.  Data \glspl{handle} are used to manage the
+complexities associated with \gls{task parallelism} and inter-\gls{rank} communication.  
+When data needs to be made accessible off-\gls{rank}, the application developer 
+\codelink{publish}es the \gls{handle}.  Each \gls{handle} has a globally unique handle ID
+(e.g., a \codelink{key} into the \gls{key-value store}).  
+In addition to facilitating communication, \gls{handle} data structures track
+additional information to support \gls{sequential semantics} (see Chapter~\ref{chap:translation_layer} for details on how this is supported).
+
+The \gls{declarative} programming style of \gls{DARMA} is provided in part by \gls{coordination
+semantics}:  rather than explicitly move data between \glspl{rank} via direct communication
+(i.e.,  \inlinecode{send/recv}), processes \emph{coordinate} by
+publishing/fetching data associated with unique \codelink{key}s in a
+\gls{key-value store}.
+\Gls{coordination semantics} promote out-of-order message arrival,
+\gls{deferred execution}, and \gls{migratable} work 
+since the application declares or describes the data it needs/produces rather than enforcing an explicit delivery mechanism.
+In addition to \gls{coordination semantics}, \gls{asynchronous} collectives
+between \glspl{handle} are specified. 
+
+
+\todo[inline]{Jeremy: I would like to add a few sentences here regarding how
+  this is a generalization of pinned vs unpinned memory, and that this is in
+    fact a part of the reason for the distributed memory with coordination
+    semantics design decision}
+
+\todo[inline]{David/Jeremy: We've had talks about the potential for supporting
+  the equivalent of distributed shared memory + coordiantion semantics - can
+    we say anything speculative about that here? or at least say why we are not
+    supporting that in this version of the specification?}
+=======
 \label{sec:mem_model}
 
 The memory model for DARMA encompasses how variables are accessed (pointer, iterator, accessor) and when updates become visible to parallel threads (concurrency).  
@@ -29,6 +71,7 @@ allowing garbage collection and \gls{anti-dependency} resolution.
 In most cases, the access group will be declared as the number of readers (1, in the case of simple point-to-point send).
 Once all read handles are released (go out of scope in C++ terms), garbage collection or anti-dependency resolution can occur.
 
+>>>>>>> darma/0.3-devel
 
 
 

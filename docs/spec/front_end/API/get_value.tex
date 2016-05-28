@@ -1,0 +1,69 @@
+\subsection{\texttt{get\_value}}
+\label{ssec:api_fe_get_value}
+
+\paragraph{Summary} \mbox{}\
+Access the data pointed to by the handle in a read-only manner.
+
+\paragraph{Syntax}\mbox{}\\
+\begin{CppCode}
+const T& AccessHandle<T>::get_value();
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{}\\ 
+None.
+
+\paragraph{Return}\mbox{}\\ 
+A const reference to the data associated with the handle.  
+
+\paragraph{Details}\mbox{}\\ 
+Calling |get_value()| on a handle requires {\it Read} or {\it
+Modify} immediate permissions (see \S~\ref{sec:handlerules}).
+
+
+\paragraph{Code Snippet}\mbox{}\\ 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+AccessHandle<double> my_handle = initial_access<double>("key_1", myRank);
+create_work([=]{
+  my_handle.set_value(3.14);
+});
+create_work(reads(my_handle), [=]{
+  cout << my_handle.get_value() << endl; // prints "3.14"
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_get_value}
+\caption{Basic usage of \lstinline|get_value|.}
+\end{figure}
+
+
+\paragraph{Restrictions and Pitfalls}\mbox{}\\ 
+\begin{itemize}
+  \item Do not hold the reference returned by this method across an asyncronous
+  operation on the source handle.  For example, the following results in
+  undefined behavior:
+  \begin{CppCode}
+	auto h = initial_access<int>("my_key"); 
+	create_work([=]{ h.set_value(5); });
+	
+	create_work([=]{ 
+	  auto const& v = h.get_value();
+	  create_work([=]{ h.set_value(10); });
+	  cout << v << endl; // $\no$ undefined behavior!!
+	});
+  \end{CppCode}
+  Instead, to be safe, we recommend that when mixing synchronous and
+  asynchronous code, enclose assignments and their corresponding uses in their
+  own scope:
+  \begin{CppCode}
+	auto h = initial_access<int>("my_key"); 
+	create_work([=]{ h.set_value(5); });
+	create_work([=]{ 
+	  { // begin scope for v
+		auto const& v = h.get_value();
+		cout << v << endl; 
+	  } // $\yes$ prevent accidental usage of v after the create_work using h
+	  create_work([=]{ h.set_value(10); });
+	  // uses of v here are now a compile-time error rather than undefined behavior
+	});
+  \end{CppCode}
+\end{itemize}

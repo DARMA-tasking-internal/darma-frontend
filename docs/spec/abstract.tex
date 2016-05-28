@@ -1,5 +1,40 @@
 %!TEX root = sandReportSpec.tex
 
+<<<<<<< HEAD
+In this document, we provide the specification for \gls{DARMA}, 
+a co-design research vehicle for \gls{AMT} \glspl{programming model} and
+\glspl{runtime system}.  \gls{DARMA} serves to:
+1) insulate applications from \gls{runtime system} and hardware idiosyncrasies,
+2) improve \gls{AMT} runtime programmability by co-designing an \gls{API} directly with
+  application developers, 3) synthesize application \gls{co-design} activities into
+  meaningful requirements for runtimes, and 4) 
+facilitate \gls{AMT} design space characterization and definition, accelerating the
+development of \gls{AMT} best practices.
+
+The \gls{DARMA} code base comprises three main layers: the \gls{front end} \gls{API},
+\gls{translation layer}, and \gls{back end} \gls{API}.  
+The \gls{front end} is the user-level \gls{API}. 
+Its use has the feel of an \gls{EDSL} in \CC,  inheriting the generic
+language constructs of \CC and adding \gls{semantics} that facilitate
+distributed parallel programming. Though the \gls{front end} \gls{EDSL} uses
+\CC constructs in non-traditional ways to implement these semantics, it is
+nonetheless fully embedded in the \CC language and
+requires a widely supported subset of \CC{}14 functionality \compilerReqs.
+The \gls{translation layer} leverages \CC\ \gls{template
+metaprogramming} to map the user's code onto the \gls{back end} \gls{API}.
+The \gls{back end} \gls{API} is a set of abstract classes and function
+signatures that \gls{runtime system} developers must implement in accordance with the
+specification requirements in order to interface with application code written
+to the \gls{DARMA} front end.  
+Each of these three layers is described herein. We also
+include a list of application requirements driving the specification (along
+with a list of the applications contributing to the requirements to date), some basic rules 
+and examples, and conclude with a brief history of changes between previous
+versions of the specification, and summary of the planned changes in upcoming
+versions of the specification.  Appendices walk the user through a more detailed set
+of examples of applications written in the \gls{DARMA} \gls{API} and provide
+additional technical details for those who are interested.
+=======
 In this document, we provide the specification for DARMA 
 \todo{acronym DARMA not defined anywhere, this is first time it appears},
 a co-design research vehicle for \gls{AMT} programming models and runtime
@@ -28,3 +63,4 @@ metaprogramming} to map the user's code onto the \gls{back end} runtime \gls{API
 Each of these three layers is described herein.
 
 
+>>>>>>> darma/0.3-devel
