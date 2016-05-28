@@ -1,31 +1,35 @@
 %!TEX root = sandReportSpec.tex
 
-<<<<<<< HEAD
 In this document, we provide the specification for \gls{DARMA}, 
-a co-design research vehicle for \gls{AMT} \glspl{programming model} and
-\glspl{runtime system}.  \gls{DARMA} serves to:
+a co-design research vehicle for \gls{AMT} \glspl{programming model}.
+\gls{DARMA} serves to:
 1) insulate applications from \gls{runtime system} and hardware idiosyncrasies,
 2) improve \gls{AMT} runtime programmability by co-designing an \gls{API} directly with
   application developers, 3) synthesize application \gls{co-design} activities into
-  meaningful requirements for runtimes, and 4) 
+  meaningful requirements for \glspl{runtime system}, and 4) 
 facilitate \gls{AMT} design space characterization and definition, accelerating the
 development of \gls{AMT} best practices.
 
-The \gls{DARMA} code base comprises three main layers: the \gls{front end} \gls{API},
-\gls{translation layer}, and \gls{back end} \gls{API}.  
-The \gls{front end} is the user-level \gls{API}. 
-Its use has the feel of an \gls{EDSL} in \CC,  inheriting the generic
+\gls{DARMA} is a \gls{translation layer} between an 
+application-facing \gls{front end} \gls{API} and a \gls{runtime system} facing \gls{back end} 
+\gls{API}.    The application-facing user-level \gls{front end} \gls{API} 
+has the feel of an \gls{EDSL} in \CC,  inheriting the generic
 language constructs of \CC and adding \gls{semantics} that facilitate
-distributed parallel programming. Though the \gls{front end} \gls{EDSL} uses
-\CC constructs in non-traditional ways to implement these semantics, it is
-nonetheless fully embedded in the \CC language and
+distributed parallel programming. Though the \gls{EDSL} uses
+\CC constructs unfamiliar to many programmers to implement these semantics, 
+it is nonetheless fully embedded in the \CC language and
 requires a widely supported subset of \CC{}14 functionality \compilerReqs.
 The \gls{translation layer} leverages \CC\ \gls{template
-metaprogramming} to map the user's code onto the \gls{back end} \gls{API}.
+metaprogramming} to map the user's code onto the \gls{back end} runtime \gls{API}.
 The \gls{back end} \gls{API} is a set of abstract classes and function
 signatures that \gls{runtime system} developers must implement in accordance with the
 specification requirements in order to interface with application code written
-to the \gls{DARMA} front end.  
+to the \gls{DARMA} front end. Executable \gls{DARMA} applications must link to a \gls{runtime
+  system} that implements the abstract \gls{back end} runtime \gls{API}.
+It is intended that these implementations will be external, drawing upon
+existing AMT technologies.  However,  a reference implementation will be provided
+in the \gls{DARMA} code distribution.
+
 Each of these three layers is described herein. We also
 include a list of application requirements driving the specification (along
 with a list of the applications contributing to the requirements to date), some basic rules 
@@ -34,33 +38,4 @@ versions of the specification, and summary of the planned changes in upcoming
 versions of the specification.  Appendices walk the user through a more detailed set
 of examples of applications written in the \gls{DARMA} \gls{API} and provide
 additional technical details for those who are interested.
-=======
-In this document, we provide the specification for DARMA 
-\todo{acronym DARMA not defined anywhere, this is first time it appears},
-a co-design research vehicle for \gls{AMT} programming models and runtime
-systems.  This specification serves to facilitate three primary activities: 
-1) gathering and communicating application requirements, 2) exploring AMT
-design space tradeoffs, and 3) communication between the AMT community and
-other computer science research communities.
-As part of this document, we discuss application requirements driving the specification (along
-with a list of the applications contributing to the requirements to date).
 
-The DARMA code base comprises two main layers: 
-an API for writing application code that expresses the algorithm and  
-a translation layer implicitly invoked by application-level code that maps application-level constructs
-to an abstract backend API.
-Executable DARMA applications link to a third layer implementing the abstract backend runtime API.
-The implementations may be external, but default implementations are provided in the DARMA code distribution.
-The application-facing user-level \gls{API} has the feel of an \gls{EDSL} in \CC,  
-inheriting the generic language constructs of \CC and adding \gls{semantics} that facilitate
-distributed parallel programming.  
-Though the \gls{EDSL} uses modern \CC constructs unfamiliar to many programmers to implement these semantics, 
-it is nonetheless fully embedded in the \CC language and as such will compile with any
-\CC compiler that supports the full \CC11 standard and subsets of \CC14.
-There advanced C++ features are widely supported (\inlinecode{gcc >= 4.8, clang >= 3.5, icc >= 16}).  
-The \gls{translation layer} leverages \CC\ \gls{template
-metaprogramming} to map the user's code onto the \gls{back end} runtime \gls{API}.
-Each of these three layers is described herein.
-
-
->>>>>>> darma/0.3-devel
