@@ -73,8 +73,7 @@ template <
   typename version_type,
   typename Traits
 >
-class AccessHandle : public detail::AccessHandleBase
-{
+class AccessHandle : public detail::AccessHandleBase {
   public:
 
     typedef T value_type;
@@ -102,8 +101,8 @@ class AccessHandle : public detail::AccessHandleBase
 
     using CompileTimeReadAccessAnalog = with_traits<
       typename traits
-        ::template with_max_schedule_permissions<detail::AccessHandlePermissions::Read>::type
-        ::template with_max_immediate_permissions<detail::AccessHandlePermissions::Read>::type
+      ::template with_max_schedule_permissions<detail::AccessHandlePermissions::Read>::type
+      ::template with_max_immediate_permissions<detail::AccessHandlePermissions::Read>::type
     >;
 
 
@@ -121,6 +120,8 @@ class AccessHandle : public detail::AccessHandleBase
       (traits::max_schedule_permissions == detail::AccessHandlePermissions::Read
         or traits::max_schedule_permissions == detail::AccessHandlePermissions::Modify
         or not traits::max_schedule_permissions_given);
+    static constexpr bool is_compile_time_immediate_read_only =
+      (is_compile_time_immediate_readable and not is_compile_time_immediate_modifiable);
 
     static constexpr bool is_leaf = (
       traits::max_schedule_permissions == detail::AccessHandlePermissions::None
@@ -129,13 +130,13 @@ class AccessHandle : public detail::AccessHandleBase
     // Assert that max_schedule_permissions, if given, is >= min_schedule_permissions, if also given
     static_assert(
       not traits::max_schedule_permissions_given or not traits::min_schedule_permissions_given
-      or (int)traits::max_schedule_permissions >= (int)traits::min_schedule_permissions,
+        or (int) traits::max_schedule_permissions >= (int) traits::min_schedule_permissions,
       "Tried to create handle with max_schedule_permissions < min_schedule_permissions"
     );
     // Assert that max_immediate_permissions, if given, is >= min_immediate_permissions, if also given
     static_assert(
       not traits::max_immediate_permissions_given or not traits::min_immediate_permissions_given
-        or (int)traits::max_immediate_permissions >= (int)traits::min_immediate_permissions,
+        or (int) traits::max_immediate_permissions >= (int) traits::min_immediate_permissions,
       "Tried to create handle with max_immediate_permissions < min_immediate_permissions"
     );
 
@@ -146,39 +147,38 @@ class AccessHandle : public detail::AccessHandleBase
     AccessHandle()
       : dep_handle_(nullptr),
         read_only_holder_(nullptr),
-        state_(None_None)
-    { }
+        state_(None_None) { }
 
-    AccessHandle&
-    operator=(AccessHandle& other) = delete;
+    AccessHandle &
+      operator=(AccessHandle &other) = delete;
 
-    const AccessHandle&
-    operator=(AccessHandle& other) const = delete;
+    const AccessHandle &
+      operator=(AccessHandle &other) const = delete;
 
-    AccessHandle&
-    operator=(AccessHandle const& other) = delete;
+    AccessHandle &
+      operator=(AccessHandle const &other) = delete;
 
-    const AccessHandle&
-    operator=(AccessHandle const& other) const = delete;
+    const AccessHandle &
+      operator=(AccessHandle const &other) const = delete;
 
-    AccessHandle const&
-    operator=(AccessHandle&& other) noexcept {
+    AccessHandle const &
+    operator=(AccessHandle &&other) noexcept {
       // Forward to const move assignment operator
-      return const_cast<AccessHandle const*>(this)->operator=(
+      return const_cast<AccessHandle const *>(this)->operator=(
         std::forward<AccessHandle>(other)
       );
       return *this;
     }
 
-    AccessHandle const&
-    operator=(AccessHandle&& other) const noexcept {
+    AccessHandle const &
+    operator=(AccessHandle &&other) const noexcept {
       read_only_holder_ = std::move(other.read_only_holder_);
       dep_handle_ = std::move(other.dep_handle_);
       state_ = std::move(other.state_);
       return *this;
     }
 
-    AccessHandle const&
+    AccessHandle const &
     operator=(std::nullptr_t) const {
       release();
       return *this;
@@ -191,28 +191,28 @@ class AccessHandle : public detail::AccessHandleBase
       @param nChunks    The number of chunks that will contribute to the all-reduce
     */
     void
-    allreduce(AccessHandle const& output, int nChunks){
+    allreduce(AccessHandle const &output, int nChunks) {
       //TODO - this should make a lambda task for the allreduce to properly capture permissions
     }
-    
+
     /**
       Add an allreduce contribution from this data block. Do the allreduce in place.
       @param nChunks    The number of chunks that will contribute to the all-reduce
     */
     void
-    allreduce(int nChunks){
+    allreduce(int nChunks) {
       //TODO - this should make a lambda task for the allreduce to properly capture permissions
     }
 
-    AccessHandle(AccessHandle const& copied_from) noexcept {
+    AccessHandle(AccessHandle const &copied_from) noexcept {
       // get the shared_ptr from the weak_ptr stored in the runtime object
-      detail::TaskBase* running_task = detail::safe_static_cast<detail::TaskBase* const>(
+      detail::TaskBase *running_task = detail::safe_static_cast<detail::TaskBase *const>(
         detail::backend_runtime->get_running_task()
       );
       capturing_task = running_task->current_create_work_context;
 
       // Now check if we're in a capturing context:
-      if(capturing_task != nullptr) {
+      if (capturing_task != nullptr) {
         capturing_task->do_capture<AccessHandle>(*this, copied_from);
       } // end if capturing_task != nullptr
       else {
@@ -232,40 +232,40 @@ class AccessHandle : public detail::AccessHandleBase
         // Check if it's an AccessHandle type that's not this type
         detail::is_access_handle<AccessHandleT>::value
           and not std::is_same<AccessHandleT, AccessHandle>::value
-        // Check if the conversion is allowed based on min permissions and max permissions
-        and (
-          not traits::max_immediate_permissions_given
-            or not AccessHandleT::traits::min_immediate_permissions_given
-            or traits::max_immediate_permissions >= AccessHandleT::traits::min_immediate_permissions
-        )
-        // same thing for schedule case
-        and (
-          not traits::max_schedule_permissions_given
-            or not AccessHandleT::traits::min_schedule_permissions_given
-            or traits::max_schedule_permissions >= AccessHandleT::traits::min_schedule_permissions
-        )
+            // Check if the conversion is allowed based on min permissions and max permissions
+          and (
+            not traits::max_immediate_permissions_given
+              or not AccessHandleT::traits::min_immediate_permissions_given
+              or traits::max_immediate_permissions >= AccessHandleT::traits::min_immediate_permissions
+          )
+            // same thing for schedule case
+          and (
+            not traits::max_schedule_permissions_given
+              or not AccessHandleT::traits::min_schedule_permissions_given
+              or traits::max_schedule_permissions >= AccessHandleT::traits::min_schedule_permissions
+          )
       >
     >
     AccessHandle(
-      AccessHandleT const& copied_from
+      AccessHandleT const &copied_from
     ) noexcept {
       using detail::analogous_access_handle_attorneys::AccessHandleAccess;
       // get the shared_ptr from the weak_ptr stored in the runtime object
-      detail::TaskBase* running_task = detail::safe_static_cast<detail::TaskBase* const>(
+      detail::TaskBase *running_task = detail::safe_static_cast<detail::TaskBase *const>(
         detail::backend_runtime->get_running_task()
       );
       capturing_task = running_task->current_create_work_context;
 
       // Now check if we're in a capturing context:
-      if(capturing_task != nullptr) {
-        if(
+      if (capturing_task != nullptr) {
+        if (
           // If this type is a compile-time read-only handle, mark it as such here
           traits::max_immediate_permissions == detail::AccessHandlePermissions::Read
-          // If the other type is compile-time read-only and we don't know, mark it as a read
-          or (AccessHandleT::traits::max_immediate_permissions == detail::AccessHandlePermissions::Read
-            and not traits::max_immediate_permissions_given
-          )
-        ) {
+            // If the other type is compile-time read-only and we don't know, mark it as a read
+            or (AccessHandleT::traits::max_immediate_permissions == detail::AccessHandlePermissions::Read
+              and not traits::max_immediate_permissions_given
+            )
+          ) {
           AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::ReadOnly;
         }
         // TODO mark leaf, schedule-only, etc
@@ -284,9 +284,20 @@ class AccessHandle : public detail::AccessHandleBase
     ////////////////////////////////////////
 
 
-    AccessHandle(AccessHandle&&) noexcept = default;
+    AccessHandle(AccessHandle &&) noexcept = default;
 
-    T* operator->() const {
+    template <typename _Ignored=void,
+      typename = std::enable_if_t<
+        is_compile_time_immediate_readable
+          and std::is_same<_Ignored, void>::value
+      >
+    >
+    std::conditional_t<
+      is_compile_time_immediate_read_only,
+      T const *,
+      T*
+    >
+    operator->() const {
       DARMA_ASSERT_MESSAGE(
         state_ != None_None,
         "handle dereferenced after release"
@@ -298,7 +309,18 @@ class AccessHandle : public detail::AccessHandleBase
       return &dep_handle_->get_value();
     }
 
-    T& operator*() const {
+    template <typename _Ignored=void,
+      typename = std::enable_if_t<
+        is_compile_time_immediate_readable
+          and std::is_same<_Ignored, void>::value
+      >
+    >
+    std::conditional_t<
+      is_compile_time_immediate_read_only,
+      T const&,
+      T&
+    >
+    operator*() const {
       DARMA_ASSERT_MESSAGE(
         state_ != None_None,
         "handle dereferenced after release"
@@ -311,11 +333,15 @@ class AccessHandle : public detail::AccessHandleBase
     }
 
     template <
-      typename _Ignored = void
+      typename _Ignored = void,
+      typename = std::enable_if_t<
+        // Technically, if this is compile-time nothing, you can't even do this, so we can disable it
+        not (traits::max_immediate_permissions == detail::AccessHandlePermissions::None
+          and traits::max_schedule_permissions == detail::AccessHandlePermissions::None)
+          and std::is_same<_Ignored, void>::value
+      >
     >
-    std::enable_if_t<
-      std::is_same<_Ignored, void>::value
-    >
+    void
     release() const {
       DARMA_ASSERT_MESSAGE(
         state_ != None_None,
