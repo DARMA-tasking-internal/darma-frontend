@@ -88,8 +88,8 @@ struct SetTo42Differently {
 \end{CppCodeNumb}
 As you can see, if we want to be able to schedule more deferred uses of a
 handle, we have to take an |AccessHandle<T>| as a formal
-parameter.\footnote{Equivalently, an lvalue reference or a const lvalue
-reference to an \inlinecode{AccessHandle} can be given. 
+parameter.\footnote{Equivalently, an lvalue reference or a \inlinecode{const}
+lvalue reference to an \inlinecode{AccessHandle} can be given. 
 \inlinecode{AccessHandle} objects ignore \inlinecode{const}, and the copy
 overhead is negligable (though giving a reference parameter will be {\it
 slightly} more efficient)}  If we want to pass on a read-only |AccessHandle|, we
@@ -118,5 +118,12 @@ created with |create_work(reads(h), ...)|.  Moreover, any attempts to call
 |h.set_value()| inside of |PrintIntValueDifferently| will result in a {\it
 compile-time} error (unlike in the pure lambda case), since DARMA knows at
 compile time that the |AccessHandle<T>| is read-only.  
+
+\subsection{Mixing Deferred and Immediate Arguments}
+
+
+\subsection{Functor Interface Pitfalls}
+
+While powerful, the functor interface 
 
 \lstDeleteShortInline{\|}

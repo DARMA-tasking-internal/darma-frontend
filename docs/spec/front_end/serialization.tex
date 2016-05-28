@@ -232,10 +232,43 @@ serialization is identical in multiple places can lead to hard-to-detect bugs.
 Thus, we recommend using the single |serialize| method except in
 performance-critical, inner-loop-like code.
 
-
 \subsection{Serializing Pointers and Ranges}
 
+DARMA also provides a convenient way to serialize iterables of serializable
+objects using |darma_runtime::serialization::range|.  As a simple example:
+\begin{CppCodeNumb}
+template <typename T>
+class MyData {
+  private:
+    T* data_;
+    size_t n_items;
+  public:
+    MyData(T const* copy_from, size_t n)
+      : n_items(n) {
+      data_ = new T[n];
+      std::copy(copy_from, copy_from+n, data_);
+    }
+    ~MyData() { delete[] data_; }
+};
+\end{CppCodeNumb}
+If we restrict ourselves to only making |MyData<T>| instances that hold
+serializable types |T|, we can write the |serialize| method for this class as
+\begin{CppCodeNumb}
+using darma_runtime::serialization::range;
+template <typename T>
+class MyData {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | range(data_, data_ + n_items);
+    }
+};
+\end{CppCodeNumb}
+
 \subsection{Non-intrusive Interface}
+
+\subsection{Definition of ``Serializable''}
 
 \subsection{Builtin Implementations for Standard Library Types}
 
