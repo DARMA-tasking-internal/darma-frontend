@@ -1,0 +1,122 @@
+%!TEX root = ../sandReportSpec.tex
+
+\section{Creating Deferred Work using Functors}
+\label{sec:functor}
+
+\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
+
+Thus far, the only method we've introduced for creating deferred work is using
+C++ lambdas.  For instance,
+\begin{CppCodeNumb}
+auto h = initial_access<int>("my_key");
+create_work([=]{ h.set_value(42); });
+create_work(reads(h), [=]{ 
+  cout << h.get_value() << endl; // prints "42"
+});
+\end{CppCodeNumb}
+While this is a useful shorthand that makes it easy to get simple programs up
+and running quickly, DARMA also provides a far more powerful and flexible
+mechanism for describing and creating deferred work:  functors.  While functors
+are significantly more verbose than the in-line lambda syntax, they are also
+much more feature rich and allow DARMA to perform some additional optimizations
+that aren't available to lambdas because of the limitations inherent to the C++
+language itself.  The same piece of code from above can be written with
+functors:
+\begin{CppCodeNumb}
+struct SetTo42 {
+  void operator()(AccessHandle<int> h) const {
+    h.set_value(42);
+  }
+};
+
+struct PrintIntValue {
+  void operator()(int v) const {
+    cout << v << endl;
+  }
+};
+
+int main() {
+  /* ... */
+  auto my_handle = initial_access<int>("my_key");
+  create_work<SetTo42>(my_handle);
+  create_work<PrintIntValue>(my_handle);
+  /* ... */
+}
+\end{CppCodeNumb}
+Even though this code snippet is substantially more verbose than the lambda
+version, it provides some useful advantages.  Most noticably, the functors
+|SetTo42| and |PrintIntValue| are reusable, just like normal functions.  They
+can be implemented in different files or even different translation units for
+code cleanliness and modularization.  There are some more subtle differences
+too, though.  Notice that in |PrintIntValue|, |AccessHandle::get_value()| never
+needs to be called.  As long as the type to which the |AccessHandle| refers is
+convertible to the formal parameter given in the functor call operator, DARMA
+will call |get_value()| automatically.  Also, since the formal parameter is a
+value (as opposed to a reference), DARMA can deduce at compile time that this
+|PrintIntValue| makes a read-only usage of its argument.  (This would work the
+same way if the formal parameter had been |int const&|, a const lvalue
+reference).  Even more subtly, the fact that the formal parameter for
+|PrintIntValue| isn't an |AccessHandle| communicates to DARMA at compile time
+that |PrintIntValue| won't schedule any tasks that depend on |my_handle| inside
+of |PrintIntValue| (we call this a {\it leaf} task with respect to |my_handle|),
+which is useful information that the backend can utilize to make informed
+scheduling decisions.  To accomplish the same effect for a modify usage, we can
+give a formal parameter that is a non-|const| lvalue (e.g., |int&|).  The
+|SetTo42| functor could then be rewritten:
+\begin{CppCodeNumb}
+struct SetTo42 {
+  void operator()(int& val) const {
+    val = 42;
+  }
+};
+\end{CppCodeNumb}
+As you can see, the functor code starts to look very much like regular C++ code.
+
+The lambda interface can still be mixed with the functor interface.  For
+instance,
+\begin{CppCodeNumb}
+struct SetTo42Differently {
+  void operator()(AccessHandle<int> h) const {
+    create_work([=]{
+      h.set_value(21);
+    });
+    create_work([=]{
+      h.set_value( h.get_value() * 2 );
+    });
+  }
+};
+\end{CppCodeNumb}
+As you can see, if we want to be able to schedule more deferred uses of a
+handle, we have to take an |AccessHandle<T>| as a formal
+parameter.\footnote{Equivalently, an lvalue reference or a const lvalue
+reference to an \inlinecode{AccessHandle} can be given. 
+\inlinecode{AccessHandle} objects ignore \inlinecode{const}, and the copy
+overhead is negligable (though giving a reference parameter will be {\it
+slightly} more efficient)}  If we want to pass on a read-only |AccessHandle|, we
+can do so by giving |ReadAccessHandle<T>|\footnote{Note that
+\inlinecode{ReadAccessHandle<T>} is identical to \inlinecode{AccessHandle<T>}
+in every way except that it is known to be read-only at compile time, whereas
+\inlinecode{AccessHandle<T>} has unknown compile-time permissions.  All
+compile-time qualified \inlinecode{AccessHandle<T>} variant are castable to
+\inlinecode{AccessHandle<T>} (and to any other \inlinecode{AccessHandle<T>}
+variant with greater compile-time permissions)} and the formal parameter type:
+\begin{CppCodeNumb}
+struct PrintIntValueDifferently {
+  void operator()(ReadAccessHandle<int> h) const {
+    create_work([=]{
+      std::ofstream f("42.txt");
+      f << h.get_value() << endl;
+    });
+    create_work([=]{
+      cout << h.get_value() << endl;
+    });
+  }
+};
+\end{CppCodeNumb}
+The nested tasks will request read permissions on |h|, just as if they had been
+created with |create_work(reads(h), ...)|.  Moreover, any attempts to call
+|h.set_value()| inside of |PrintIntValueDifferently| will result in a {\it
+compile-time} error (unlike in the pure lambda case), since DARMA knows at
+compile time that the |AccessHandle<T>| is read-only.  
+
+\lstDeleteShortInline{\|}
