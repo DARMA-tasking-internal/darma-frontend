@@ -6,7 +6,7 @@
 The notion of data structure, data layout, and data type only exist in the
 application and \gls{translation layer} (see Section \ref{TL}).
 Thus, a \gls{runtime system} implementing the \gls{DARMA} specification is only
-aware of \gls{tuple} or \gls{key} identifiers for a coarse-grained data block of a given size.
+aware of \gls{tuple} or \codelink{key} identifiers for a coarse-grained data block of a given size.
 To actually migrate data, a \gls{back end} \gls{runtime system} invokes
 \gls{serialization} hooks implemented by the application.
 In future versions, an \gls{API} similar to the \gls{serialization} interface will support the definition of data subsets and data slices.
