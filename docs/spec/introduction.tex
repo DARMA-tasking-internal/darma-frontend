@@ -3,9 +3,10 @@
 \label{chap:introduction}
 As we look ahead to next generation platforms and exascale computing,  hardware 
 will be characterized by dynamic behavior, increased
-heterogeneity, and a marked increase in overall system \gls{concurrency}~\cite{doe_arch, dav_exascale}. 
+heterogeneity, decreased reliability, and a marked increase in system
+\gls{concurrency}, both on-node and system-wide~\cite{doe_arch, dav_exascale}. 
 \gls{AMT} \glspl{programming model} and \glspl{runtime system} 
-aim to mitigate these challenges associated with the shifts in \gls{HPC} system architectures.  
+aim to mitigate the challenges associated with the shifts in \gls{HPC} system architectures.  
 \gls{AMT} models strive to exploit all available \gls{task parallelism} and
 \gls{pipeline parallelism}, rather than rely solely on \gls{data parallelism}
 for \gls{concurrency}. The term {\em \gls{asynchronous}} encompasses the idea that 
@@ -17,31 +18,37 @@ the idea that the application is decomposed into many
 \gls{migratable} units of work, to enable the overlap of communication and 
 computation as well as asynchronous load balancing strategies.
 
+A key design goal of \gls{AMT} models is to enable performance-based
+optimizations of code dynamically at runtime.
+We note that performance-based code transformations are ubiquitous at the compiler-level.
+Compilers will add, delete, swap, or reorder instructions to avoid unnecessary operations, improve data locality, or improve pipelining.
+However, many optimizations that benefit performance are unknowable until the program
+actually runs -- as these decisions may be based on current system performance,
+or the data needs of the application itself. Such dynamic runtime optimizations are much more expensive 
+than compile-time optimizations, thus the use of \emph{tasks} as a basis
+for dynamic runtime transformations.
+
 The \gls{AMT} community is currently very active (e.g.,
 ~\cite{OCR,STAPL,Legion,Realm,StencilHPX,Charm++,Uintah,Loci,PARSEC,DaGuE,Cilk}),
 representing a range of different design points within the
-design space of \gls{AMT} models. The community has not yet standardized, and
-a variety of options are still being explored with regards to \gls{programming model},
-\gls{execution model}, \gls{memory model}, and \gls{data model}.  Across all of
-these model axes, individual design decisions lend themselved to a more
-\gls{declarative} (placing more resposnisbility on the \gls{runtime system}) vs.  
-\gls{imperative} (placing more responsibility on the application developer)
-software stacks. 
+design space of \gls{AMT} models. While the technologies show significant
+potential to address challenges, the community has not yet identified best
+practices and existing systems still represent \gls{programming model},
+\gls{execution model}, \gls{memory model}, and \gls{data model}.  
 
 \begin{compactdesc}
 \item[Programming model:]
 From a \gls{programming model} perspective,
 \gls{AMT} models all have some notion of decomposing applications into small,
 \gls{migratable} units of work. 
-\Gls{task parallelism} can be expressed in an \gls{imperative}
+\Gls{task parallelism} can be expressed in a \gls{fork-join}
 fashion, with users managing the \glspl{data-flow dependency} explicitly
-themselves.  Conversely, \gls{task parallelism} can be expressed in a \gls{declarative}
-fashion, where \glspl{data-flow dependency} are managed within the associated \gls{runtime system}. 
+themselves.  Conversely, \glspl{data-flow dependency} can be managed explicitly within the associated \gls{runtime system}. 
   In \gls{declarative} \gls{AMT} \glspl{programming model}, users must provide
   the \gls{runtime system} with sufficient information to manage
   \glspl{data-flow dependency}: this includes information regarding the
   structure of the data and permissions/access requirements (e.g. \gls{RAW}/
-  \gls{WAR}).  In general, \gls{declarative} models are best suited for coarse-grained \gls{task
+  \gls{WAR}).  In general, data-flow models are best suited for coarse-grained \gls{task
 parallelism}, as \gls{runtime system} overheads increase with the mangement of
 \glspl{data-flow dependency}.  
 \item[Execution model:]
@@ -65,10 +72,8 @@ parallelism}, as \gls{runtime system} overheads increase with the mangement of
     to increase \gls{concurrency}.  On the other side of the spectrum lies
     \gls{phased execution}, where many parallel workers begin work simultaneously, (naturally supporting a \gls{spmd}
     style of programming) and \glspl{phase barrier} guarantee safe execution. 
-    \Gls{conservative execution} is a more \gls{declarative} form of managing
-    initial problem distribution; the \gls{spmd} launching of work in \gls{phased execution} 
-    is much more \gls{imperative}, as it is prescribed by the application
-    developer.
+    \todo[inline]{Jeremy: These terms were from the RESPA paper.  Do you want
+    to refine/change the messaging here? Or is it ok as is?}
 %     While \gls{AMT} models also naturally lend themselves to 
 %    \gls{speculative execution}, we are not aware
 %    of this feature being supported currently within any of the leading \gls{AMT} runtimes.
@@ -79,55 +84,35 @@ parallelism}, as \gls{runtime system} overheads increase with the mangement of
      Computational tasks can only operate on their local data. When remote data
      is required, it is communicated between the remote and local tasks.
      In a \gls{distributed shared memory model}, physically distinct memory can be accessed as one
-    logically shared address space.  In both of these models, memory can be
-    directly accessed directly via 1) its address, or 2) indirectly via
+     logically shared address space.  \gls{PGAS} models fall in between, with a
+     logically global address space, with a portion remaining local/private to
+     a particular process.  Across the spectrum of memory models, memory can be
+    directly accessed directly via 1) its address, or 2) indirectly via a
     \gls{coordination semantics}. In the second scenario, parallel workers never directly
     communicate, rather they ``coordinate'' indirectly via a \gls{key-value
-    store} or \gls{tuple space}.  \Glspl{distributed shared memory model} are
-    often considered a more \gls{declarative} programming style, due to the
-    single logical address space.  However both \glspl{memory model} support
-    a \gls{declarative} style of programming when using \gls{coordination
-    semantics}.
+    store} or \gls{tuple space}.  
 \item[Data model:]
- \Gls{AMT} models that support a more \gls{declarative} style of programming,
-  especially with regards to \gls{data-flow dependency} management, 
-  can make much more effective data management decisions, e.g., \gls{slicing} the data to minimize hazards, performing \glspl{interference test} for dependency
-  analysis, and performing \gls{serialization} to stage data on remote resources when needed.  
+  In order for data-flow \gls{AMT} models to make effective data management
+  decisions (e.g., \gls{slicing} the data and making copies to increase
+  parallelism  by minimizizing hazards), they must have some knowledge of the
+  structure of the data.
   One option for providing structural information regarding data is to impose a
   \gls{data model}.  Another option is to require application developers to define
   \gls{serialization}, \gls{slicing}, and \glspl{interference test} for their data blocks. 
 \end{compactdesc}
 
-
 \section{Scope}\label{sec:scope}
-In this document we provide the specification for \gls{DARMA},
-an application-driven \gls{programming model} and \gls{runtime system} co-design 
-research vehicle.
-\gls{DARMA} comprises three layers: the \gls{front end} \gls{API},
-\gls{translation layer}, and
-\gls{back end} \gls{API}. 
-The \gls{front end} is the user-level \gls{API}. 
-Its use has the feel of an \gls{EDSL} in \CC,  inheriting the generic
-language constructs of \CC and adding \gls{semantics} that facilitate
-distributed parallel programming.  Though the \gls{front end} \gls{EDSL} uses
-\CC constructs in non-traditional ways to implement these semantics, it is
-nonetheless fully embedded in the \CC language and 
-requires a widely supported subset of \CC{}14 functionality \compilerReqs.
-The \gls{translation layer} leverages \CC\ \gls{template
-metaprogramming} to map the user's code onto the \gls{back end} \gls{API}.
-The \gls{back end} \gls{API} is a set of abstract classes and function
-signatures that \gls{runtime system} developers must implement in accordance with the
-specification requirements in order to interface with application code written
-to the \gls{DARMA} \gls{front end}.  
-
-
-\gls{DARMA} aims to serve four primary functions:
+Although the \gls{AMT} model community is quite active, the lack of
+standards impedes adoption of these solutions by the application community.
+Although it is premature to standardize, we believe there is sufficient  
+breadth and depth in the research community to begin developing community best
+practices.  Towards this end, this document proivides the specification for \gls{DARMA},
+a research vehicle for \gls{AMT} \gls{programming model} \gls{co-design}.  
+\gls{DARMA} aims to serve four primary purposes:
 \begin{compactdesc}
 \item[Insulate applications from runtime system and hardware idiosyncrasies:]
   \gls{AMT} models are, by their very definition, a more \gls{declarative} style of
-  programming than currently deployed \gls{CSP} model. 
-  While this provides application developers insulation from hardware
-  idiosyncrasies, the \gls{AMT} community currently lacks best practices and standards.
+  programming than the currently deployed \gls{CSP} model. 
   \gls{DARMA}'s design includes separate application-facing \gls{front end} and
   \gls{runtime system}-facing \gls{back end} \glspl{API}. This separation of concerns 
   enables an application team to explore the impact of \gls{runtime system}
@@ -136,7 +121,7 @@ to the \gls{DARMA} \gls{front end}.
   having to deal with the combinatorial complexity of
   implementing their application in many different \gls{front end} \glspl{API}. 
   It should be noted that \gls{DARMA}'s \gls{front end} \gls{API} is not
-  intended to be static  -- it will evolve based on \gls{co-design} feedback from both application
+  fixed -- it will evolve based on \gls{co-design} feedback from both application
   and \gls{runtime system} developers. 
 \item[Improve AMT runtime programmability by co-designing a front end  API directly with application developers:]
   Recent work~\cite{L2Sand2015} highlighted gaps with respect to productivity
@@ -176,25 +161,89 @@ development of AMT best practices:]
 \end{compactdesc}
 
 
-This document captures version \specVersion\ of the \gls{DARMA} specification. 
-Sections~\ref{sec:programmingmodel}--\ref{sec:datamodel} provide a brief
-summary regarding the compatible programming, execution, memory, and data
-models supported within \gls{DARMA}. 
-All design decisions, first and foremost, are made to best support application
-requirements.  When possible, we have aimed to  
-specify multi-paradigm abstractions and make flexible design decisions that
-facilitate \gls{back end} implementation leveraging existing \gls{AMT}
-technologies.  
-%However, some \gls{DARMA} design decisions may preclude the use of a subset of existing \gls{AMT} 
-%technologies, without significant modifications.
+The rest of this chapter provides a high-level description of 
+\gls{DARMA}'s structural design  along with a brief summary of \gls{DARMA}'s programming,
+memory, data, and (compatible) execution models. We note that throughout the
+\gls{co-design} process, decisions are first and foremost, 
+made to best support application requirements.  Furthermore, we target a
+\gls{back end} \gls{API} specification that is general enought to support 
+\gls{AMT} \gls{runtime system}
+design space exploration, via build out of \gls{DARMA}-compliant
+back ends using existing \gls{AMT} \gls{runtime system}
+technologies.
 Lastly, we note that the features detailed in Chapters~\ref{chap:front_end} and
 ~\ref{chap:back_end}  are not entirely comprehensive -- meaning they do not yet capture all of the
 application requirements driving \gls{DARMA} \gls{co-design}.  This is because 
 we are formalizing the specification process from the inception of \gls{DARMA}, layering-in features incrementally to
-provide the community an opportunity for input, and active engagement in the
+provide the community opportunity for input, and active engagement in the
 \gls{co-design} process.  Suggested enhancements and changes 
 to the \gls{DARMA} specification are welcome and can be made via a \gls{DEP} (see
-Appendix~\ref{chap:DEP} for details on this process and a \gls{DEP} template).
+Appendix~\ref{chap:DEP} for details on this process and a \gls{DEP} template). 
+
+\section{High-level Design}
+\gls{DARMA} is a translation layer between an 
+application-facing \gls{front end} \gls{API} and a \gls{runtime system} facing \gls{back end} 
+\gls{API}. 
+\gls{DARMA}'s \gls{front end} \gls{API} 
+is an \gls{EDSL} in \CC,  inheriting the generic
+language constructs of \CC and adding \gls{semantics} that facilitate
+distributed, deferred, asynchronous, parallel programming. Though the \gls{EDSL} uses
+\CC constructs unfamiliar to many programmers to implement these semantics, 
+it is nonetheless fully embedded in the \CC language and
+requires a widely supported subset of \CC{}14 functionality \compilerReqs.
+The \gls{front end} \gls{API} is the center of \gls{programming model}
+\gls{co-design} activities, which seek to involve a wide variety of both
+application and \gls{runtime system} developers. 
+
+
+\gls{DARMA}'s \gls{translation layer} leverages \CC\ \gls{template
+metaprogramming} to map the user's \gls{front end} \gls{API} calls onto the \gls{back end} runtime \gls{API},
+bridging the \gls{programming model} and actual program execution.
+We note however that the \gls{DARMA} \gls{translation layer} itself does not
+perform any performance optimizations -- these are left entirely to the \gls{back end} \gls{runtime system} implementations.
+Rather, the translation layer converts the application code specified with
+\gls{DARMA}'s \gls{front end} \gls{API} into
+an ``intermediate representation'' that enables a \gls{runtime system} to make
+intelligent, dynamic decisions (e.g., 
+about task order and task locality or possibly even task deletion and task
+replication when appropriate).
+
+The \gls{back end} \gls{API} is a set of abstract classes and function
+signatures that \gls{runtime system} developers must implement in accordance with the
+specification requirements in order to interface with application code written
+to the \gls{DARMA} front end. 
+Strictly speaking, the \gls{back end} \gls{API} calls only generate a stream of
+\emph{deferred tasks} (tasks with corresponding data inputs/outputs) that
+implicitly capture the program's data flow.
+The information passed through the \gls{translation layer} to
+the \gls{back end} is sufficient
+to (and intended to) support a \gls{CDAG} representation of the application.
+In a \gls{task-DAG} representation, tasks are vertices $V$ in a graph $G$ with directed edges $E$.
+An edge from vertex $v_1$ to vertex $v_2$ indicates a precedence constraint.
+A \gls{CDAG} representation describes task-data precedence constraints, rather
+than just task-task precedence constraints.  In a \gls{CDAG} there are two
+types of vertices - tasks $T$ and data $D$ that compose the complete set of vertices $V$.
+Edges never directly connect two tasks and instead edges are only ever described between a task vertex, $t$, and a data vertex, $d$
+indicating that (depending on direction of the edge) data is either consumed or produced by a task.
+The \gls{task-DAG} indicating task-task precedence constraints can always be
+obtained form the \gls{CDAG}, which captures the data-flow task graph.
+The \gls{CDAG} is thus more general, capturing additional information to
+enable runtime code transformations.\footnote{
+Although beyond the scope of this specification document, the interested reader
+will find numerous works discussing heuristics and order-preserving convex
+transformations of task graphs that demonstrate the utility of a coarse-grained
+\gls{CDAG} for enabling dynamic runtime optimization of an
+algorithm~\cite{missingCitations}.
+}
+We reiterate that the \gls{CDAG} is only a concept guiding the design
+of the \gls{back end} \gls{API} and not strictly part of the \gls{DARMA} specificaion.
+
+
+Finally, we highlight that a \gls{DARMA} executable application must link to a \gls{runtime
+  system} that implements the abstract \gls{back end} runtime \gls{API}.
+It is intended that these implementations will be external, drawing upon
+existing AMT technologies.  However,  a reference implementation will be provided
+in the \gls{DARMA} code distribution.
 
 
 
@@ -221,7 +270,7 @@ Chapter~\ref{chap:evolution}, which includes a brief history of changes between
 previous versions of the specificaiton, along with a list of the planned changes 
 in upcoming versions.
 Appendix~\ref{chap:examples} provides a suite of examples that illustrate the
-key \gls{front end} \gls{API} features. Appendix~\ref{chap:vasp} provides
+ \gls{front end} \gls{API} features. Appendix~\ref{chap:vasp} provides
 additional technical details regarding %\gls{vasps}.
 Appendix~\ref{chap:DEP} provides information regarding how the broader
 community can shape the \gls{DARMA} specification and includes a template for 
