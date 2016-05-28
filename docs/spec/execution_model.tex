@@ -6,7 +6,7 @@
 The main focus of \gls{DARMA} is the \gls{programming model} and corresponding
 \gls{translation layer} that maps a program expressed via a combination of
 \gls{CSP} semantics, \gls{coordination semantics}, and additional \CC{}-embeded task annotations into a generic data-flow based
-description of an algorithm based on \gls{deferred tasks}.
+description of an algorithm based on deferred tasks.
 
 \gls{DARMA} runtimes required to enable an efficient
 \gls{spmd} launch of their program, similar to an MPI launch.
@@ -20,11 +20,12 @@ through compiler-based transformations.
 Other than this requirement, \gls{DARMA} prescribes very little
 about execution.
 For example, \gls{DARMA} prescribes nothing about the scheduling of tasks nor the implementation 
-of the data structures (e.g., \gls{key-value store}, \gls{tuple space}) required to support coordination.
-A \gls{back end} \gls{runtime} scheduler is therefore free to use, for example,
+of the data structures (e.g., \gls{key-value store}, \gls{tuple space})
+  required to support \gls{coordination semantics}.
+A \gls{back end} \gls{runtime system} scheduler is therefore free to use, for example,
 either depth-first or breadth-first priorities in deferred tasks (as captured
 in a \gls{CDAG}).
-Similarly, a scheduler may use \gls{thread pools} with work queues to manage
+Similarly, a scheduler may use \glspl{thread pool} with work queues to manage
 tasks or it may use a \gls{fork-join} model that creates new threads for each task.
 In this way, \gls{DARMA} codes are \gls{execution model}-agnostic, only
 requiring that a \gls{back end} \gls{runtime system} preserve the
