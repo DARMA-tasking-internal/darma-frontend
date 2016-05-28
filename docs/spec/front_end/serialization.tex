@@ -392,8 +392,31 @@ as DARMA sees it.  TODO finish this
 
 \subsection{Builtin Implementations for Standard Library Types}
 
+The DARMA translation layer has default |Serializer| implementations for many
+builtin and standard library types, including containers, POD types, and arrays
+of serializable types.  TODO more complete list
+
+You can define a serialization for any bitwise copyable, POD type simply by
+specializing |darma_runtime::serialization::serialize_as_pod<T>| to inherit from
+|std::true_type|:
+\begin{CppCodeNumb}
+class MyPlainOldData {
+  int i, j, k;
+  double x, y, z; 
+};
+namespace darma_runtime { namespace serialization {
+template <>
+struct serialize_as_pod<MyPlainOldData> : std::true_type { };
+}} // end namespace darma_runtime::serialization
+\end{CppCodeNumb}
+
 \subsection{Polymorphism}
 
+Deserialization into polymorphic base class pointers is currently not supported
+by the DARMA serialization interface.
+
 \subsection{Serialization Pitfalls}
+
+TODO
 
 \lstDeleteShortInline{\|}
