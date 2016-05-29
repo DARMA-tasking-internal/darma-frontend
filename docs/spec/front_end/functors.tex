@@ -35,7 +35,7 @@ struct PrintIntValue {
   }
 };
 
-int main() {
+int darma_main(...) {
   /* ... */
   auto my_handle = initial_access<int>("my_key");
   create_work<SetTo42>(my_handle);
@@ -64,7 +64,7 @@ scheduling decisions.  To accomplish the same effect for a modify usage, we can
 give a formal parameter that is a non-|const| lvalue (e.g., |int&|).  The
 |SetTo42| functor could then be rewritten:
 \begin{CppCodeNumb}
-struct SetTo42 {
+struct SetTo42Simpler {
   void operator()(int& val) const {
     val = 42;
   }
@@ -121,9 +121,87 @@ compile time that the |AccessHandle<T>| is read-only.
 
 \subsection{Mixing Deferred and Immediate Arguments}
 
+In DARMA, deferred functor invocations can also take normal, value arguments. 
+These can, of course, be mixed (i.e., an invocation can take some
+|AccessHandle| arguments and some value arguments in the same call).  However,
+since deferred execution can be tricky, there are some special rules involved with value arguments to |create_work|.
+\begin{itemize}
+  \item When the formal parameter to the functor is a non-const lvalue
+  reference, deferred invocation of the functor cannot be make with a
+  non-|AccessHandle| as that argument.  For instance,
+\begin{CppCodeNumb}
+int i;
+auto j = initial_access<int>("mykey");;
+create_work<SetTo42Simpler>(i); // $\no$ compile-error!
+create_work<SetTo42Simpler>(j); // $\yes$
+\end{CppCodeNumb}
+  \item When the formal parameter is a |const| lvalue reference, the deferred
+  invocation cannot take a non-|AccessHandle<T>| lvalue.  This is because an
+  implicit copy would be required that isn't apparent from the syntax.  To do
+  this, you need to either use a value formal parameter or explicitly use
+  |darma_runtime::darma_copy|:
+\begin{CppCodeNumb}
+struct PrintIntRef {
+  void operator()(const int& val) const { cout << val << endl; }
+};
+int darma_main(...) {
+  /* ... */
+  int i = 42;
+  auto j = read_access<int>("mykey");
+  create_work([=]{ j.set_value(42); });
+  create_work<PrintIntRef>(i); // $\no$ compile error, implicit copy of i $\label{ln:badprintintref}$
+  create_work<PrintIntRef>(42); // $\yes$ 42 is an rvalue (prvalue)
+  create_work<PrintIntRef>(j); // $\yes$ j is an AccessHandle<int>
+  create_work<PrintIntRef>(darma_copy(i)); // $\yes$ explicit darma_copy used
+  create_work<PrintIntRef>(std::move(i)); // $\yes$ i is an rvalue (xvalue)
+  /* ... */
+}
+\end{CppCodeNumb}
+  This isn't a matter of constness, but one of reference-ness; even if |i| had
+  been declared as |const int i = 42;|, line \ref{ln:badprintintref} would still
+  be a compile-time error, since the reference may have expired by the time the
+  deferred work actually runs and a copy needs to be made.
+  \item Normal arguments can't be implicitly converted to |AccessHandle| formal
+  parameters (whereas the reverse is allowed, and even encouraged).
+\end{itemize}
+
 
 \subsection{Functor Interface Pitfalls}
 
-While powerful, the functor interface 
+\begin{itemize}
+  \item Rvalue references (|T&&|) can't be given as formal parameters to DARMA
+  functors, and doing so may lead to unexpected and/or undefined compile-time
+  and/or runtime behavior.  This is related to how DARMA detects attributes of
+  the formal parameters for functors, but it's also redundant --- you can just
+  use a regular value parameter.  Value parameters can always be moved out of,
+  and because of the way deferred execution works, rvalues must be moved into
+  storage until the actual invocation occurs anyway, so there is no savings
+  from using an rvalue reference over a value parameter.
+  \item The DARMA functor interface doesn't currently support deferred
+  invocation of functors with templated call operators (the detection idiom we
+  use woudn't work here, and besides, we wouldn't even know if the deduced type
+  is supposed to be an AccessHandle or not!).  Limited support for this may be
+  available in the future.  Note that the functor itself can still be
+  templated, as long as the functor's template parameters are given explicitly
+  at the invocation site:
+\begin{CppCodeNumb}
+struct CantBeUsed {
+  template <typename T>
+  operator()(T val) const;
+};
+template <typename T>
+struct ThisIsFine {
+  operator()(T val) const;
+};
+int darma_main(...) {
+  /* ... */
+  auto h = initial_access<int>("hello");
+  create_work<ThisIsFine<int>>(h);
+  /* ... */
+}
+\end{CppCodeNumb}
+  \item Functors don't have state in DARMA.  (Even if they did, there is no
+  access to the functor instance at the call site, so that state wouldn't be useful).
+\end{itemize}
 
 \lstDeleteShortInline{\|}
