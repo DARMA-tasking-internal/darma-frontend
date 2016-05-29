@@ -389,46 +389,63 @@ TEST_F(TestFunctor, simple_read_only_convert) {
 ////////////////////////////////////////////////////////////////////////////////
 
 // DOESN"T WORK
-//TEST_F(TestFunctor, simple_nonconst_lvalue) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  mock_runtime->save_tasks = true;
-//
-//  handle_t* h0, *h1;
-//  h0 = h1 = nullptr;
-//
-//  InSequence s;
-//
-//  EXPECT_CALL(*mock_runtime, register_handle(_))
-//    .Times(2)
-//    .WillOnce(SaveArg<0>(&h0))
-//    .WillOnce(SaveArg<0>(&h1));
-//
-//  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-//    handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
-//  )));
-//
-//  EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1))));
-//
-//  EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h0))));
-//
-//  {
-//    auto tmp = initial_access<int>("hello");
-//    EXPECT_VERSION_EQ(tmp, {0});
-//
-//    DARMA_TYPE_DISPLAY(typename detail::FunctorRunnable<SimpleFunctorNonConstLvalue, decltype((tmp))>::args_tuple_t);
-//
-//    static_assert(detail::functor_traits<SimpleFunctorNonConstLvalue>
-//      ::template formal_arg_traits<0>::is_nonconst_lvalue_reference, "");
-//    static_assert(detail::functor_traits<SimpleFunctorNonConstLvalue>
-//    ::template formal_arg_traits<0>::template is_implicitly_convertible_from<int&>::value, "");
-//    static_assert(detail::functor_call_traits<SimpleFunctorNonConstLvalue, decltype((tmp))>
-//      ::template call_arg_traits<0>::is_nonconst_conversion_capture, "");
-//
-//    create_work<SimpleFunctorNonConstLvalue>(tmp);
-//    EXPECT_VERSION_EQ(tmp, {1});
-//  }
-//
-//  run_all_tasks();
-//
-//}
+TEST_F(TestFunctor, simple_nonconst_lvalue) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  mock_runtime->save_tasks = true;
+
+  handle_t* h0, *h1;
+  h0 = h1 = nullptr;
+
+  {
+    InSequence s;
+
+    EXPECT_CALL(*mock_runtime, register_handle(_))
+      .Times(2)
+      .WillOnce(SaveArg<0>(&h0))
+      .WillOnce(SaveArg<0>(&h1));
+
+    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+      handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
+    )));
+
+    EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1))));
+
+    EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h0))));
+  }
+
+  int val = 42;
+  {
+    auto tmp = initial_access<int>("hello");
+    EXPECT_VERSION_EQ(tmp, {0});
+
+    auto* db = new mock_backend::MockDataBlock();
+    EXPECT_CALL(*db, get_data())
+      .WillRepeatedly(Return(&val));
+    h0->satisfy_with_data_block(db);
+
+    using carg = typename detail::FunctorRunnable<SimpleFunctorNonConstLvalue, decltype((tmp))>
+      ::call_traits::template call_arg_traits<0>::CallArg;
+    //DARMA_TYPE_DISPLAY(
+    //  //typename std::decay_t<carg>::template with_traits<std::decay_t<carg>::traits>
+    //  std::decay_t<carg>::traits
+    //);
+
+    static_assert(detail::functor_traits<SimpleFunctorNonConstLvalue>
+      ::template formal_arg_traits<0>::is_nonconst_lvalue_reference, "");
+    static_assert(detail::functor_traits<SimpleFunctorNonConstLvalue>
+      ::template formal_arg_traits<0>::template is_implicitly_convertible_from<int&>::value, "");
+    static_assert(detail::functor_call_traits<SimpleFunctorNonConstLvalue, decltype((tmp))>
+      ::template call_arg_traits<0>::is_nonconst_conversion_capture, "");
+
+    //DARMA_TYPE_DISPLAY(
+    //  typename detail::FunctorRunnable<SimpleFunctorNonConstLvalue, decltype((tmp))>::args_tuple_t
+    //);
+
+    create_work<SimpleFunctorNonConstLvalue>(tmp);
+    EXPECT_VERSION_EQ(tmp, {1});
+  }
+
+  run_all_tasks();
+
+}

@@ -176,8 +176,8 @@ struct functor_call_traits {
     template <size_t N>
     struct call_arg_traits {
 
-      private:
         using CallArg = tinympl::variadic::at_t<N, CallArgs...>;
+      private:
 
         using access_handle_value_type = _functor_traits_impl::value_type_if_defined_t<std::decay_t<CallArg>>;
 
@@ -229,6 +229,10 @@ struct functor_call_traits {
 
         static constexpr bool is_conversion_capture = is_const_conversion_capture or is_nonconst_conversion_capture;
 
+        static_assert(not is_conversion_capture or (
+          is_const_conversion_capture xor is_nonconst_conversion_capture
+        ), "internal error: Can't be both const conversion capture and nonconst conversion capture");
+
         // Was the calling argument a T&&?  (excluding AccessHandle<T>&&)
         static constexpr bool is_nonhandle_rvalue_reference =
           std::is_rvalue_reference<CallArg>::value and not is_access_handle;
@@ -268,24 +272,25 @@ struct functor_call_traits {
 
         // If it's a nonconst conversion capture, make sure it's a leaf and has minimum
         // immediate permissions of modify
+        // TODO get this working.  For some reason it's being stubborn
         template <typename AccessHandleT>
         using _nonconst_conversion_capture_arg_tuple_entry_archetype =
-          typename std::decay<AccessHandleT>::type::template with_triats<
-            typename std::decay<AccessHandleT>::type::traits
-              ::template with_min_immediate_permissions<detail::AccessHandlePermissions::Modify>::type
-              ::template with_max_schedule_permissions<detail::AccessHandlePermissions::None>::type
+          typename std::decay_t<AccessHandleT>; //::template with_triats<
+            //typename std::decay_t<AccessHandleT>::traits
+            //  ::template with_min_immediate_permissions<detail::AccessHandlePermissions::Modify>::type
+            //  ::template with_max_schedule_permissions<detail::AccessHandlePermissions::None>::type
             //  // Also set the min schedule permissions, in case they were higher before
-              ::template with_min_schedule_permissions<detail::AccessHandlePermissions::None>::type
+            //  ::template with_min_schedule_permissions<detail::AccessHandlePermissions::None>::type
             //  // but the max immediate permissions should stay the same.  If they are given and less
             //  // than Modify, we should get a compile-time error
-          >;
+          //>;
 
         using _nonconst_conversion_capture_arg_tuple_entry = meta::detected_t<
           _nonconst_conversion_capture_arg_tuple_entry_archetype, CallArg
         >;
         static_assert(
-          not is_nonconst_conversion_capture
-            or not std::is_same<_nonconst_conversion_capture_arg_tuple_entry, meta::nonesuch>::value,
+          (not is_nonconst_conversion_capture)
+            or (not std::is_same<_nonconst_conversion_capture_arg_tuple_entry, meta::nonesuch>::value),
           "internal error: non-const conversion capture detected, but arg_tuple type not detected correctly"
         );
 
@@ -393,7 +398,7 @@ struct functor_call_traits {
 
         template <typename T>
         static std::enable_if_t<
-          _functor_traits_impl::decayed_is_access_handle<std::decay_t<T>>::value
+          _functor_traits_impl::decayed_is_access_handle<T>::value
             and is_const_conversion_capture,
           typename std::decay_t<T>::value_type const&
         >
@@ -403,7 +408,7 @@ struct functor_call_traits {
 
         template <typename T>
         static std::enable_if_t<
-          _functor_traits_impl::decayed_is_access_handle<std::decay_t<T>>::value
+          _functor_traits_impl::decayed_is_access_handle<T>::value
             and is_nonconst_conversion_capture,
           typename std::decay_t<T>::value_type&
         >
