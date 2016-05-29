@@ -387,13 +387,25 @@ nonintrusive serializations
 
 Having introduced the archive concept, the intrusive interface, and the
 nonintrusive interface, we're finally ready to formally define ``serializable''
-as DARMA sees it.  TODO finish this
+as DARMA sees it.  DARMA views the serializability of a given type as a property
+associated with that type and a given archive type --- a type T can be described
+as ``serializable with archive type A''.  We've been sloppy about this up to
+this point because it's usually clear from context which archive type we're
+referring to (or if we're referring to a generic archive type given as a
+template parameter).  This allows for the development of archive types that, for
+instance, only handle performance sensative types but in a highly performant
+manner.  
 
-\subsection{Builtin Implementations for Standard Library Types}
+\subsection{Implementations for Builtin and Standard Library Types}
 
 The DARMA translation layer has default |Serializer| implementations for many
-builtin and standard library types, including containers, POD types, and arrays
-of serializable types.  TODO more complete list
+builtin and standard library types.  Currently this includes anything that meets
+the standard container \gls{concept} (for which the value types are also
+serializable), POD types, |std::pair| of serializable types, and
+compile-time sized arrays of serializable types.  Many of the implementations in
+the current backend are with respect to a generic archive type, but since
+|SimplePackUnpackArchive| is the only archive type currenly fully implemented,
+the code is only tested with this archive thus far.
 
 You can define a serialization for any bitwise copyable, POD type simply by
 specializing |darma_runtime::serialization::serialize_as_pod<T>| to inherit from
@@ -412,10 +424,55 @@ struct serialize_as_pod<MyPlainOldData> : std::true_type { };
 \subsection{Polymorphism}
 
 Deserialization into polymorphic base class pointers is currently not supported
-by the DARMA serialization interface.
+by the DARMA serialization interface.  If a type is to be used in a context that
+requires DARMA to deserialize it (most importantly, as the wrapped by an
+|AccessHandle<T>| or the type of an argument passed to a
+functor-style |create_work| that could be migrated), the concrete type must be
+known at compile time.  Support for this may be forthcoming, but it is not a
+high priority.  There are a number of other patterns in the programming
+literature that can be used to mimic run-time polymorphism, and we suggest the
+user consider these if necessary.
 
 \subsection{Serialization Pitfalls}
 
-TODO
+\begin{itemize}
+  \item Because DARMA detects the various intrusive and nonintrusive
+  |serialize|, |pack|, |unpack|, etc. methods, |const|-incorrectness or an
+  otherwise incorrect signature can cause these methods to go undetected and
+  lead to unexpected behavior.  For instance,
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | a_ | b_ | label_;
+    }
+    template <typename Archive>
+    void unpack(Archive ar) { // $\no$ missing lvalue reference in parameter!
+      ar | a_ | b_ | label_;
+      prod_sqrt_ = a_ == b_ ? a_ : std::sqrt(a_*b_);
+    }
+};
+\end{CppCodeNumb}
+would fail to ever define |prod_sqrt_| because the |unpack| method would not be
+detected and DARMA would fall back on |serialize| for the unpacking process. 
+Most of the common mistakes we anticipate are checked with |static_assert|s, but
+it is impossible to check all possible mistakes.  Care should be taken when this
+issue could arise.  Note that if only |serialize| had been defined incorrectly,
+for instance:
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) const { // $\no$ should not be const!
+      ar | a_ | b_ | label_ | prod_sqrt_;
+    }
+};
+\end{CppCodeNumb}
+then the code that uses |MyClass| would simply fail to compile, since |MyClass|
+isn't serializable with any archive types.
+\end{itemize}
 
 \lstDeleteShortInline{\|}
