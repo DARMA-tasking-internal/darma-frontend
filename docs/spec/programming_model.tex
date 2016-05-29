@@ -25,13 +25,13 @@ to perform dynamic runtime optimizations, while making it as simple as possible
 for programmers to reason about the correctness of their code.
 This motivates \gls{DARMA}'s combined use of successful \gls{programming model}
 concepts from a variety of existing \glspl{runtime system}. 
-
 One of \gls{DARMA}'s \gls{programming model} key design decisions is rooted in
 the following observations: 
 1) all application
 developers can effectively reason about how to write correct sequential codes,
 2) all MPI
 programmers can effectively reason about how to write correct \gls{CSP} codes,
+and
 3) most applications written in or ported to \gls{DARMA} will likely
 have \gls{spmd} as their dominant parallelism.
 To simplify the implementation of \gls{spmd}-structured codes, the notion of a
@@ -42,9 +42,10 @@ Immediately after launch, any user-specified \gls{deferred work} is free to be
 migrated by the \gls{runtime system}, if it will result in
 better performance.
 Because \gls{DARMA} maintains the notion of a \codelink{rank}, it is also
-possible for \gls{DARMA} to maintain \gls{CSP} semantics within an initial
-implementation or port of a code, 
-so that developers can express correctness constraints through a familiar and
+possible for \gls{DARMA} to maintain \gls{CSP}-like semantics (in particular, within an initial
+implementation or port of a code prior to the introduction of \gls{deferred
+work}). 
+This grants developers the ability to express correctness constraints through a familiar and
 intuitive \gls{programming model}.  
 \gls{DARMA} facilitates the expression of hybrid parallelism by supporting  
 \gls{sequential semantics}, within a \codelink{rank}.  This means that application
@@ -67,23 +68,24 @@ expose \gls{task parallelism} inherent in the code.
 %The application-level API therefore expresses both correctness and granularity.
 We note here that \gls{DARMA}'s runtime optimizations are complementary to
 compile-time optimizations performed by \emph{performance
-portability} tools, e.g.~cite[Kokkos,RAJA,TiDA].  Compile-time performance
+portability} tools, e.g.~\cite{Kokkos,RAJA,TiDA}.  Compile-time performance
 portability tools provide the ability to map a
 single code onto high-performance execution across diverse compute platforms.
 \todo[inline]{Jeremy/David: Can/should we say more about interoperability with
 perf portability layers here}
 
-
-Communication between \gls{DARMA} ranks is not performed via direct messaging,
-differentiating it different from a \gls{CSP} model.  Instead, \gls{coordination
-semantics} are used:   
+One of the major differences between \gls{DARMA} and a traditional \gls{CSP}
+\gls{programming model} is the manner in which communication is performed.  
+Communication between \gls{DARMA} \codelink{rank}s is not performed via direct messaging.
+Instead, \gls{coordination semantics} are used:   
 rather than explicitly move data between ranks via direct communication
-(i.e.,  \inlinecode{send/recv}), processes \emph{coordinate} by putting/getting data associated with a unique \inlinecode{key} in a
-\gls{key-value store} or \gls{tuple space}.  
-\Gls{coordination semantics} promote out-of-order message arrival, deferred execution, and task migration
+(i.e.,  \inlinecode{send/recv}), processes \emph{coordinate} by putting/getting
+data associated with a unique \codelink{key} in a \gls{tuple space}.  
+\Gls{coordination semantics} promote out-of-order message arrival, deferred
+execution, task migration, and resilience strategies 
 since the application declares or describes the data it needs/produces rather than enforcing an explicit delivery mechanism.
-The key to providing performant coordination semantics in \gls{DARMA} is 
-the use of \gls{zero-copy} mechanisms and tuple caching that 
+The use of \gls{zero-copy} mechanisms and tuple caching provide 
+performant \gls{coordination semantics} in \gls{DARMA} in order to
 produce execution equivalent to an MPI \inlinecode{send/recv} code. 
 \todo[inline]{Jeremy, David: Are these mechanisms that are key to performance
   achieved in the translation layer? Or, are these requirements to runtime
@@ -91,13 +93,15 @@ teams in their implementation?}
 
 
 Together, these features make \gls{DARMA} a mixed \gls{imperative}/\gls{declarative} \gls{programming model}.
-As much as possible, sequential imperative semantics are used to produce intuitive, maintainable code.
-However, the ``procedural imperative'' function calls and code blocks do not execute immediately.
-Rather than explicitly perform all work in program order and block on data requests.
-The ability to defer work and advance ahead is what gives the \gls{back end}
-\gls{runtime  system} the ability to make performance-improving transformations.
-\Gls{deferred execution} makes \gls{DARMA} \emph{declarative}, leaving the
+As much as possible, sequential \gls{imperative} semantics are used to produce intuitive, maintainable code.
+However, the ``\gls{procedural} \gls{imperative}'' function calls and code
+blocks do not necessarily execute immediately.
+Rather than explicitly perform all work in program order and block on data requests,
+they wait for all \glspl{data-flow dependency} to be satisfied.
+Such \gls{deferred execution} makes \gls{DARMA} \emph{declarative}, leaving the
 exact control-flow up to the \gls{runtime system}.
+Furthermore, it is this ability to defer work and advance ahead that gives the \gls{back end}
+\gls{runtime  system} the ability to make performance-improving transformations.
 
 
 
@@ -135,13 +139,13 @@ solutions, e.g. \cite{Kokkos, RAJA}, to
   a variety of \glspl{execution space}, and 2)
   provides finer-grained control and additional flexibility in the
   communication of policies regarding data locality and data movement. 
-\item{\bf Runtime peformance introspection}
+\item{\bf Runtime performance introspection}
   In future versions of the specification \gls{DARMA} will specify hooks for the
   application developer to express, guide, and leverage the use of runtime-level
   performance \gls{introspection}. An important \gls{co-design} activity will include determining
-  whether peformance \gls{introspection} needs to factor into the
+  whether performance \gls{introspection} needs to factor into the
   application-level \gls{programming
-  model} on the \gls{front end} at all, or whether it purley belongs as part of the  \gls{back end}
+  model} on the \gls{front end} at all, or whether it purely belongs as part of the  \gls{back end}
   \gls{runtime system} \gls{API}.
 \item{\bf Expression of fine-grained deferred parallel patterns}.
   In future versions of the specification, \gls{DARMA} will 
@@ -161,8 +165,8 @@ Collectives will be data-centric rather rank-centric, as done in MPI.
 \item{\bf Programmer-directed optimization}
 While an abstract algorithm may make more information available to the compiler or runtime for performance-tuning transformations,
 compilers and runtime schedulers may not always understand the global nature of the problem.
-As such, they may not make peformance-improving optimizations that are apparent to an application developer.
-A critically important part of future co-design activities will be teh
+As such, they may not make performance-improving optimizations that are apparent to an application developer.
+A critically important part of future co-design activities will be the
 development of the interface by which developers can steer the runtime towards
 a desired set of optimizations that compilers or runtime schedulers might fail
 to perform.
