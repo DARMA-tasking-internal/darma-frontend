@@ -5,10 +5,10 @@ The memory model for \gls{DARMA} encompasses how variables are accessed %(e.g., 
   and when updates become visible to parallel threads (concurrency).  
 Within a \gls{DARMA} \codelink{rank}, memory is local or private, and the
 standard \CC{} memory model applies. 
-Memory that is shared between \codelink{ranks} using a flat global memory space in
-which data is identified by unique tuple identifiers, e.g. a \gls{key-value
+To share memory between \codelink{ranks} \gls{DARMA} uses a flat global memory space in
+which data is identified by unique \gls{tuple} identifiers, e.g. a \gls{key-value
   store} or \gls{tuple space} abstraction.  
-  \todo{Jeremy/David: we need to figure out which of these terms we want to use, and do so consistently throughtout the text}
+  \todo{Jeremy/David: we need to figure out which of these terms we want to use, and do so consistently throughout the text}
 Any object published into the \gls{tuple space} can be read/written by any thread/process. 
 
 In \gls{DARMA} a data \gls{handle} is conceptually a \gls{reference counted pointer} into the

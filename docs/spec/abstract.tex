@@ -1,8 +1,8 @@
 %!TEX root = sandReportSpec.tex
 
 In this document, we provide the specification for \gls{DARMA}, 
-a co-design research vehicle for \gls{AMT} \glspl{programming model}.
-\gls{DARMA} serves to:
+a co-design research vehicle for \gls{AMT} \glspl{programming model} that 
+serves to:
 1) insulate applications from \gls{runtime system} and hardware idiosyncrasies,
 2) improve \gls{AMT} runtime programmability by co-designing an \gls{API} directly with
   application developers, 3) synthesize application \gls{co-design} activities into
@@ -13,9 +13,9 @@ development of \gls{AMT} best practices.
 \gls{DARMA} is a \gls{translation layer} between an 
 application-facing \gls{front end} \gls{API} and a \gls{runtime system} facing \gls{back end} 
 \gls{API}.    The application-facing user-level \gls{front end} \gls{API} 
-has the feel of an \gls{EDSL} in \CC,  inheriting the generic
+is an \gls{EDSL} in \CC,  inheriting the generic
 language constructs of \CC and adding \gls{semantics} that facilitate
-distributed parallel programming. Though the \gls{EDSL} uses
+distributed asynchronous parallel programming. Though the \gls{EDSL} uses
 \CC constructs unfamiliar to many programmers to implement these semantics, 
 it is nonetheless fully embedded in the \CC language and
 requires a widely supported subset of \CC{}14 functionality \compilerReqs.
@@ -27,15 +27,16 @@ specification requirements in order to interface with application code written
 to the \gls{DARMA} front end. Executable \gls{DARMA} applications must link to a \gls{runtime
   system} that implements the abstract \gls{back end} runtime \gls{API}.
 It is intended that these implementations will be external, drawing upon
-existing AMT technologies.  However,  a reference implementation will be provided
+existing \gls{AMT} technologies.  However,  a reference implementation will be provided
 in the \gls{DARMA} code distribution.
 
-Each of these three layers is described herein. We also
+The \gls{front end} \gls{API}, \gls{translation layer}, and \gls{back end}
+\gls{API} are detailed herein. We also
 include a list of application requirements driving the specification (along
-with a list of the applications contributing to the requirements to date), some basic rules 
-and examples, and conclude with a brief history of changes between previous
+with a list of the applications contributing to the requirements to date), 
+a brief history of changes between previous
 versions of the specification, and summary of the planned changes in upcoming
 versions of the specification.  Appendices walk the user through a more detailed set
-of examples of applications written in the \gls{DARMA} \gls{API} and provide
+of examples of applications written in the \gls{DARMA} \gls{front end} \gls{API} and provide
 additional technical details for those who are interested.
 
