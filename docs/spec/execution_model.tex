@@ -5,12 +5,12 @@
 \label{sec:exec_model}
 The main focus of \gls{DARMA} is the \gls{programming model} and corresponding
 \gls{translation layer} that maps a program expressed via a combination of
-\gls{CSP} semantics, \gls{coordination semantics}, and additional \CC{}-embeded task annotations into a generic data-flow based
+\gls{CSP} semantics, \gls{coordination semantics}, and additional \CC{}-embedded task annotations into a generic data-flow based
 description of an algorithm based on deferred tasks.
 
-\gls{DARMA} runtimes required to enable an efficient
+\gls{DARMA}-compliant \gls{back end} \gls{runtime systems} are required to enable an efficient
 \gls{spmd} launch of their program, similar to an MPI launch.
-This is based off applcation developer feedback, which has indicated that 
+This is based off application developer feedback, which has indicated that 
 two of the most critical challenges for scientific applications with massive data parallelism in a task-based model
 include initial problem decomposition and distribution.
 \gls{DARMA}'s efficient \gls{spmd} runtime-based launch requirement 
@@ -32,7 +32,7 @@ requiring that a \gls{back end} \gls{runtime system} preserve the
 \glspl{data-flow dependency} expressed in the application and derived by the
 \gls{translation layer}.
 
-Futhermore, \gls{DARMA} prescribes nothing about the internals of each task.
+Furthermore, \gls{DARMA} prescribes nothing about the internals of each task.
 \gls{DARMA} is fully compatible with parallel elastic tasks - tasks with
 flexible fine-grained parallelism, usually \gls{data parallelism}.
 For example, depending on dynamic conditions, more or fewer threads may be
@@ -40,6 +40,6 @@ requested for a \gls{CUDA} kernel.
 Although the \gls{DARMA} \gls{front end} \gls{API} currently only allows
 expressing task granularity and task data-flow in the \specVersion\ version of
 the specification, task elasticity will be specified in future version of the
-specificaiton.
+specification.
 
 

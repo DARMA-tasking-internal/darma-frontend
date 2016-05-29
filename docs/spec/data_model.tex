@@ -10,7 +10,7 @@ aware of \gls{tuple} or \codelink{key} identifiers for a coarse-grained data blo
 To actually migrate data, a \gls{back end} \gls{runtime system} invokes
 \gls{serialization} hooks implemented by the application.
 In future versions, an \gls{API} similar to the \gls{serialization} interface will support the definition of data subsets and data slices.
-Again, the backend runtime will only understand data and task dependencies,
+Again, the \gls{back end} \gls{runtime system} will only understand data and task dependencies,
   requiring the type-aware application and \glspl{translation layer} to define
   the details of subsetting and slicing operations.
 This leaves the application developer free to use arbitrary data structures,
