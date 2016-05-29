@@ -273,9 +273,8 @@ any of the other intrusive methods) for one reason or another can still be
 made serializable by defining a specialization (partial or full) of the class
 |darma_runtime::serialization::Serializer<T>| for the type in
 question.\footnote{Generic implementations requiring partial specialization
-with an enable_if clause should use
-\inlinecode{darma_runtime::serialization::detail::Serializer_enabled_if<T,
-Enable>}.  Consult source code for more details.}  Like the intrusive interface,
+  with an \inlinecode{enable_if} clause should use
+\inlinecode{darma_runtime::serialization::detail::Serializer_enabled_if<T, Enable>}.  Consult source code for more details.}  Like the intrusive interface,
 these classes can define a |serialize| method; individual |compute_size|,
 |pack|, and |unpack| methods; or some combination of these, with the specific
 versions having higher priority.  All of these methods must be |const| (the
