@@ -32,9 +32,10 @@
 % From the C++ FAQ.
 \newcommand{\CC}{C\nolinebreak\hspace{-.05em}\raisebox{.3ex}{+}\nolinebreak\hspace{-.10em}\raisebox{.3ex}{+}\xspace}
 \newcommand{\Charm}{Charm\nolinebreak\hspace{-.05em}\raisebox{.2ex}{+}\nolinebreak\hspace{-.10em}\raisebox{.2ex}{+}}
+\newcommand{\specVersion}{0.3.0-alpha}
 
-\usepackage[nonumberlist, acronym, toc]{glossaries}
-\newglossary[plg]{glossary}{pgi}{pgo}{Glossary}
+%\usepackage[nonumberlist, acronym, toc]{glossaries}
+%\newglossary[plg]{glossary}{pgi}{pgo}{Glossary}
 %\newglossary[mlg]{machine_model}{mgi}{mgo}{Machine Model Terminology}
 %\newglossary[dlg]{data}{dgi}{dgo}{Data Terminology}
 %\newglossary[tlg]{tasking}{tgi}{tgo}{Tasking Terminology}
@@ -100,8 +101,8 @@
 \usepackage[nointegrals]{wasysym}
 
 %\renewcommand{\DoxyLabelFont}{%
-%    \fontseries{bc}\selectfont%
-%        \color{darkgray}%
+ %   \fontseries{bc}\selectfont%
+ %       \color{darkgray}%
 %}
 \newcommand{\+}{\discretionary{\mbox{\scriptsize$\hookleftarrow$}}{}{}}
 
@@ -176,7 +177,19 @@
 \usepackage{caption}
 \captionsetup{labelsep=space,justification=centering,font={bf},singlelinecheck=off,skip=4pt,position=top}
 
+\usepackage[nosuper, nonumberlist, acronym, toc]{glossaries}
+\newglossary[plg]{glossary}{pgi}{pgo}{Glossary}
+%\newglossary[mlg]{machine_model}{mgi}{mgo}{Machine Model Terminology}
+%\newglossary[dlg]{data}{dgi}{dgo}{Data Terminology}
+%\newglossary[tlg]{tasking}{tgi}{tgo}{Tasking Terminology}
+%\newglossary[clg]{collectives}{cgi}{cgo}{Collective Terminology}
+
 \makeglossaries
+
+\newcommand{\codetarget}[1]{\hypertarget{#1}{\inlinecode{#1}}}
+\newcommand{\codelink}[1]{\hyperlink{#1}{\inlinecode{#1}}}
+
+\newcommand{\compilerReqs}{(gcc $>= 4.9$, clang $>= 3.5$, icc $>=16$)}
 
 \input{glsentries}
 

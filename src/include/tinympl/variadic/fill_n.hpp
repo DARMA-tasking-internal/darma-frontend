@@ -55,6 +55,39 @@
 namespace tinympl {
 namespace variadic {
 
+// O(log(N)) list fill borrowed from brigand:
+//   (https://github.com/edouarda/brigand/blob/master/brigand/sequences/filled_list.hpp)
+namespace detail {
+
+template<class, class>
+struct dup_append_list;
+
+template<template<class...> class List, class... Ts, class... Us>
+struct dup_append_list<List<Ts...>, List<Us...>>
+{
+  using type = List<Ts..., Ts..., Us...>;
+};
+
+template<class T, template<class...> class List, std::size_t N>
+struct fill_n_impl
+  : dup_append_list<
+      typename fill_n_impl<T, List, N/2>::type,
+      typename fill_n_impl<T, List, N - N/2*2>::type
+    >
+{ };
+
+template<class T, template<class...> class List>
+struct fill_n_impl<T, List, 1> {
+  using type = List<T>;
+};
+
+template<class T, template<class...> class List>
+struct fill_n_impl<T, List, 0> {
+  using type = List<>;
+};
+
+} // end namespace detail
+
 /**
  * \ingroup VarModAlgs
  * \class fill_n
@@ -66,35 +99,9 @@ namespace variadic {
 types equal to `T`
  * \sa tinympl::fill_n
  */
-template<std::size_t n, class T, template<class ...> class Out> struct fill_n;
+template <std::size_t n, class T, template <class ...> class Out>
+using fill_n = typename detail::fill_n_impl<T, Out, n>::type;
 
-
-template<std::size_t n, class T, template<class ...> class Out> struct fill_n {
-private:
-    template<class ... Args> struct impl {
-        typedef typename fill_n < n - 1, T, Out >::template
-            impl<Args..., T>::type type;
-    };
-
-    template<std::size_t, class, template<class ...> class>
-    friend struct fill_n;
-
-public:
-    typedef typename impl<>::type type;
-};
-
-template<class T, template<class...> class Out> struct fill_n<0, T, Out> {
-private:
-    template<class ... Args> struct impl {
-        typedef Out<Args...> type;
-    };
-
-    template<std::size_t, class, template<class ...> class>
-    friend struct fill_n;
-
-public:
-    typedef typename impl<>::type type;
-};
 
 } // namespace variadic
 } // namespace tinympl

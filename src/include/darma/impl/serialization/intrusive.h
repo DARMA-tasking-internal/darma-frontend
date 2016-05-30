@@ -61,15 +61,15 @@ class Serializable {
     // detected if they aren't defined in the derived class.  They should be public
     // in the derived class
 
-    void serialize(ArchiveT&) { }
+    virtual void serialize(ArchiveT&) { }
 
-    void compute_size() const { }
+    virtual void compute_size() const { }
 
-    void compute_size(ArchiveT&) const { }
+    virtual void compute_size(ArchiveT&) const { }
 
-    void pack(ArchiveT&) const { }
+    virtual void pack(ArchiveT&) const { }
 
-    void unpack(ArchiveT&) { }
+    virtual void unpack(ArchiveT&) { }
 
 };
 
