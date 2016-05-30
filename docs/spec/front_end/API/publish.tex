@@ -1,0 +1,148 @@
+\subsection{\texttt{publish}}
+\label{ssec:api_fe_publish}
+
+\paragraph{Summary} \mbox{}\\
+Publish the data pointed to by a given handle so that it can be retrieved on 
+other DARMA ranks.
+
+\paragraph{Syntax} \mbox{}\\
+\begin{CppCode}
+void
+AccessHandle<T>::publish(n_readers=..., version=...)
+\end{CppCode}
+
+\paragraph{Positional Arguments} \mbox{}\\
+None.
+
+\paragraph{Keyword Arguments} \mbox{}\\
+\begin{compactitem}
+\item |n_readers=size_t| (optional): informs the runtime how many . If
+omitted, it defaults to 1.
+\item |version=KeyExpression| (or |version(KeyExpression...)|,
+see \S~\ref{sec:keyword} for multiple-right-hand-side keyword argument usage)
+(optional):
+informs the runtime what version to associate with the data being published. 
+The value can be an arbitrary |KeyExpression|.
+If omitted, the version defaults to an empty key (i.e., a key tuple with zero 
+components).  Omitting this keyword implicitly indicates to the runtime system
+that the handle (or any handle with the same name key) will not be published
+again in the remaining lifetime of the program.
+\end{compactitem}
+
+\paragraph{Details} \mbox{}\\
+
+Publish the data associated with a given handle |h| such that it can be
+retrieved |n_readers| times anywhere via a |read_access<T>| invocation
+that gives the same name key as |h| and the same |version| key as
+the one given to the keyword argument to |publish()|.
+A |publish()| is a {\it read-only capture} operation (see
+\S~\ref{sec:handlerules}).
+
+\paragraph{Code Snippet} \mbox{}\\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+auto me = darma_spmd_rank();
+assert(darma_spmd_size() >= 2);
+if(me == 0) {
+  auto my_handle = initial_access<double>("key_1");
+  create_work([=]{
+    my_handle.emplace_value(5.3);
+  });
+  my_handle.publish(n_readers=1, version="only");
+}
+else if(me == 1) {
+  auto my_handle = read_access<double>("key_1", version="only");
+  create_work([=]{
+    cout << my_handle.get_value() << endl; // prints "5.3"
+  });
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_publish}
+\caption{Basic usage of \lstinline|publish()|.}
+\end{figure}
+
+\paragraph{Restrictions and Pitfalls}\mbox{}\\
+\begin{compactitem}
+  \item |publish()| is one of the ways DARMA lets you ``shoot yourself in
+  the foot.''  While it is very difficult to create dependency loops, race
+  conditions, and deadlock using handles within a given rank and without
+  |publish()| operations, it is quite easy to do so with
+  |publish()|/|read_access()| pairs (just like, for instance,
+  with blocking sends and receives in MPI).  For instance, the following snippet
+  deadlocks:
+  %\begin{center}
+  \begin{CppCode}
+// This code deadlocks!
+auto me = darma_spmd_rank();
+assert(darma_spmd_size() >= 2);
+if(me == 0) {
+  auto h1 = initial_access<int>("key", 0);
+  auto h2 = read_access<int>("key", 1);
+  create_work([=]{ 
+    h1.set_value(42);
+    h1.publish();
+    cout << h2.get_value() << endl;
+  }); 
+}
+else if (me == 1) {
+  auto h3 = initial_access<int>("key", 1);
+  auto h4 = initial_access<int>("key", 0);
+  create_work([=]{ 
+    h3.set_value(73);
+    h3.publish();
+    cout << h4.get_value() << endl; 
+  }); 
+}
+// Deadlock! (eventually, at the latest when darma_finalize() is
+// called): neither of the above create_work()s can ever run
+  \end{CppCode}
+  This snippet deadlocks because a dependency loop has been created between two
+  |publish()|/|read_access()| pairs. While the deadlock is
+  relatively obvious here, it can be much more difficult to decypher in a more
+  complex code, especially if, for instance, |h1| and |h2| are
+  arguments to a function, or if the parts of the keys used to construct the
+  handles are variables with values dependent on some previous computation.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item It is particularly easy to create deadlock scenarios by publishing a
+  handle and fetching it within the same rank.  For this reason, we recommend
+  extreme caution with this scenario could arise, and in general we suggest that
+  the user should avoid doing so if at all possible.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item Since |publish()| is a {\it read-only capture} operation, it must
+  have scheduling privileges of {\it Read} or {\it Modify}; calling publish on a
+  handle with other scheduling permissions is a runtime error.  Also, as with
+  all {\it read-only capture} operations, calling |publish()| on a
+  handle with {\it Modify} immediate permissions results in a handle with {\it
+  Read} immediate permissions in the continuing context.  See
+  \S~\ref{sec:handlerules} for more details.  For example, the following code
+  results in a runtime error at the marked line:
+%\begin{minipage}[t]{0.95\linewidth}%
+%  \centering
+  \begin{CppCode}
+  auto h = initial_access<int>("key");
+  create_work([=]{
+    h.set_value(5);
+    h.publish();
+    h.set_value(10); // $\no$ h has Read immediate permissions
+  });
+  \end{CppCode}
+%\end{minipage}
+  \item It is an error to call |publish()| on a handle with a given
+  name key (or any other handle with that same name key) more than once with
+  a given version key.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item If |publish()| is called on a given handle without the
+  |version| keyword argument, it is an error to call |publish()|
+  again on that handle or any other handle with the same name key for the
+  remaining lifetime of the program.  Note that because of the default behavior
+  of the |version| keyword argument, giving an explicit version that is
+  the empty key (e.g., |h.publish(version())| or
+  |h.publish(version=make_key())|) will lead to this same behavior.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item {\color{red} [0.2 only]} Because the 0.2 spec does not include a
+  serialization interface, only handles with bitwise-copiable types may be
+  published, though some backends may support more functionality.
+\end{compactitem}
+
+
+

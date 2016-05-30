@@ -1,0 +1,97 @@
+%\clearpage
+
+\subsection{\texttt{darma\_init}}
+\label{subsec:darma_init}
+
+\paragraph{Summary}\mbox{}\\
+\codetarget{darma_init} initializes the DARMA execution environment for a \gls{rank}.
+
+\paragraph{Syntax}\mbox{}\\
+\begin{CppCode}
+void darma_runtime::darma_init(int& argc, char**& argv);
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{}\\
+\begin{itemize}
+\item argc: command line arguments count.
+\item argv: array arguments.
+\end{itemize}
+The input parameters are the command line argument count 
+and array arguments provided to main.  
+Note that the backend will process and remove 
+any DARMA \gls{back end}-specific arguments from these, leaving any
+application-specific arguments untouched.
+
+
+\paragraph{Details}\mbox{}\\
+Must be called exactly once per \gls{rank} (``exactly once'' may change in later
+spec versions) before any other DARMA function is called.
+Together with \codelink{darma_finalize} (see \S~\ref{ssec:api_fe_finalize}),
+this creates an \gls{opaque context} that defines a DARMA \gls{rank}.
+
+\paragraph{Code Snippet}\mbox{}\\ 
+See code for \codelink{darma_init} in Figure~\ref{fig:fe_api_init}.
+
+%\clearpage
+
+\subsection{\texttt{darma\_finalize}}
+\label{ssec:api_fe_finalize}
+
+\paragraph{Summary}\mbox{}\\
+\codetarget{darma_finalize} the DARMA execution environment for a \gls{rank}.
+
+\paragraph{Syntax}\mbox{}\\ 
+\begin{CppCode}
+void darma_runtime::darma_finalize();
+\end{CppCode}
+
+\paragraph{Positional Arguments}\mbox{} \\
+None. 
+
+\paragraph{Details}\mbox{} 
+Called to signify the end of the \gls{opaque context} that defines a DARMA
+\gls{rank}.  At
+least by the time this function returns, the backend guarentees that all work
+(tasks) created between the corresponding \codelink{darma_init} call and this
+invocation, as well as all of the decendents of that work, must be
+completed.  No user-level DARMA operations are allowed after this call, though
+the implicit invocation of the destructors of \codelink{AccessHandle<T>} objects
+(at, e.g., the final closing brace of \codelink{darma_main}) is allowed.  Must
+be called exactly once for each call of \codelink{darma_init} (which, in turn
+must be called exactly once in the current version of the spec).
+
+\paragraph{Code Snippet}\mbox{} \\
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+  using namespace darma_runtime;
+
+  darma_init(argc, argv);
+  std::cout << "DARMA initialized" << std::endl;
+
+  // code goes here
+
+  std::cout << "Finalizing DARMA..." << std::endl;
+  darma_finalize();
+  return 0;
+}
+\end{CppCodeNumb}
+\caption{Basic usage of \protect\codelink{darma_init} and \protect\codelink{darma_finalize} 
+to initialize and finalize environment.}
+\label{fig:fe_api_init}
+\end{figure}
+
+\paragraph{Restrictions and Pitfalls}\mbox{} \\
+\begin{itemize}
+  \item \codelink{darma_finalize} should be called at the outermost task depth on
+    a \gls{rank}.  In other words, it should {\it never} be called from within a
+    \codelink{create_work} or other asynchronous context.
+    %\item \codelink{darma_finalize} should be called in the same immediately
+  %enclosing scope (IES) in which \codelink{darma_init} was invoked.  
+\end{itemize}
+
+
+
+

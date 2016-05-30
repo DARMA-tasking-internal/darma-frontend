@@ -62,6 +62,7 @@
 #include <tinympl/transform2.hpp>
 #include <tinympl/as_sequence.hpp>
 #include <tinympl/tuple_as_sequence.hpp>
+#include <tinympl/stl_integer_sequence.hpp>
 
 #include <darma/interface/backend/types.h>
 #include <darma/interface/backend/runtime.h>
@@ -175,10 +176,13 @@ template <
 class FunctorRunnable
   : public RunnableBase
 {
+  public:
+
+
   private:
 
     typedef functor_traits<Functor> traits;
-    typedef functor_call_traits<Functor, Args...> call_traits;
+    typedef functor_call_traits<Functor, Args&&...> call_traits;
     static constexpr auto n_functor_args_min = traits::n_args_min;
     static constexpr auto n_functor_args_max = traits::n_args_max;
 
@@ -187,10 +191,31 @@ class FunctorRunnable
       "Functor task created with wrong number of arguments"
     );
 
+  public:
     using args_tuple_t = typename call_traits::args_tuple_t;
+  private:
+
     args_tuple_t args_;
 
     static const size_t index_;
+
+    auto
+    _get_args_to_splat() {
+      return meta::tuple_for_each_zipped(
+        args_,
+        typename tinympl::transform<
+          std::make_index_sequence<std::tuple_size<args_tuple_t>::value>,
+          call_traits::template call_arg_traits_types_only,
+          std::tuple
+        >::type(),
+        [this](auto&& arg, auto&& call_arg_traits_i_val) {
+          using call_traits_i = std::decay_t<decltype(call_arg_traits_i_val)>;
+          return call_traits_i::template get_converted_arg(
+            std::forward<decltype(arg)>(arg)
+          );
+        }
+      );
+    }
 
   public:
 
@@ -207,7 +232,7 @@ class FunctorRunnable
 
     void run() override {
       meta::splat_tuple<AccessHandleBase>(
-        std::move(args_),
+        _get_args_to_splat(),
         Functor()
       );
     }

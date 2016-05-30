@@ -11,10 +11,6 @@
 \definecolor{dkgreen}{rgb}{0,0.4,0}
 
 \newcommand{\inlinefile}[1]{{\lstset{basicstyle=\ttfamily,keywordstyle={}}\lstinline$#1$}}
-\newcommand{\inlinecode}[1]{{\lstset{basicstyle=\ttfamily,keywordstyle={},breaklines=true}\lstinline$#1$}}
-%\newcommand{\inlinevrb}[1]{\lstset{basicstyle=\ttfamily,keywordstyle={},breaklines=true}\lstinline}
-\newcommand{\inlineopts}{basicstyle=\ttfamily,keywordstyle={},breaklines=true}
-%\lstMakeShortInline[basicstyle=\ttfamily,keywordstyle={},breaklines=true]|
 
 \newenvironment{subItemize}{
 \begin{itemize}
@@ -22,9 +18,10 @@
 \end{itemize}
 }
 
-\lstnewenvironment{CppCode}{%
- %\footnotesize%
- \lstset{language=C++,% 
+
+%%% define style & environment for C++ code WITHOUT numbering of lines
+\lstdefinestyle{CppCodeStyle}{%
+   language=C++,% 
    backgroundcolor=\color{grayish},%
    basicstyle=\ttfamily,%
    showstringspaces=false,%
@@ -33,16 +30,38 @@
    numbers=none,% 
    mathescape,%
    tabsize=2,% 
+   morekeywords={constexpr},%
    emph={value_type},emphstyle={\color{red}},%
    commentstyle=\color{dkgreen},%
-   keywordstyle=\color{red}}%
-}{%
+   keywordstyle=\color{red}
+}
+\lstnewenvironment{CppCode}{%
+ %\footnotesize%
+ \lstset{style=CppCodeStyle}}{%
 }
 
+\lstdefinestyle{CppCodeInlineStyle}{%
+   language=C++,% 
+   backgroundcolor=\color{grayish},%
+   basicstyle=\ttfamily,%
+   showstringspaces=false,%
+   belowskip=1em,%
+   frame=none,% 
+   numbers=none,% 
+   mathescape,%
+   tabsize=2,% 
+   %emph={value_type},emphstyle={\color{red}},%
+   %commentstyle=\color{dkgreen},%
+   %keywordstyle=\color{red},%
+   morekeywords={constexpr},%
+   breaklines=true%
+}
 
-\lstnewenvironment{CppCodeNumb}{%
- %\footnotesize%
- \lstset{language=C++,% 
+\newcommand{\inlinecode}[1]{{\lstset{style=CppCodeInlineStyle}\lstinline$#1$}}
+
+%%% define style & environment for C++ code with numbering of lines
+\lstdefinestyle{CppCodeNumbstyle}{%
+   language=C++,% 
    backgroundcolor=\color{grayish},%
    basicstyle=\ttfamily,%
    showstringspaces=false,%
@@ -53,8 +72,12 @@
    numberstyle=\footnotesize,%
    tabsize=2,% 
    commentstyle=\color{dkgreen},%
-   keywordstyle=\color{red}}%
-}{%
+   morekeywords={constexpr},%
+   keywordstyle=\color{red}
+}
+\lstnewenvironment{CppCodeNumb}{%
+ %\footnotesize%
+ \lstset{style=CppCodeNumbstyle}}{%
 }
 
 

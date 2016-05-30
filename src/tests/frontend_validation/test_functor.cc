@@ -113,6 +113,17 @@ struct SimpleReadOnlyFunctorConvert {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct SimpleFunctorNonConstLvalue {
+  void
+  operator()(
+    int& arg
+  ) const {
+    // Do nothing for now...
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct SimplerFunctor {
   void
   operator()() const {
@@ -243,34 +254,44 @@ TEST_F(TestFunctor, simple_read_only) {
 
   EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1))));
 
-  static_assert(
-    not detail::functor_traits<SimpleReadOnlyFunctor>::template formal_arg_traits<0>::is_access_handle, ""
-  );
-  static_assert(
-    detail::functor_traits<SimpleReadOnlyFunctor>::template formal_arg_traits<1>::is_access_handle, ""
-  );
-  static_assert(
-    not detail::functor_call_traits<SimpleReadOnlyFunctor, int&&, AccessHandle<int>&>
-      ::template call_arg_traits<0>::is_access_handle, ""
-  );
-  static_assert(
-    detail::functor_call_traits<SimpleReadOnlyFunctor, int&&, AccessHandle<int>&>
-      ::template call_arg_traits<1>::is_access_handle, ""
-  );
-  static_assert(
-    detail::functor_traits<SimpleReadOnlyFunctor>
-      ::template formal_arg_traits<1>::is_compile_time_read_only_handle, ""
-  );
+  //static_assert(
+  //  not detail::functor_traits<SimpleReadOnlyFunctor>::template formal_arg_traits<0>::is_access_handle, ""
+  //);
+  //static_assert(
+  //  detail::functor_traits<SimpleReadOnlyFunctor>::template formal_arg_traits<1>::is_access_handle, ""
+  //);
+  //static_assert(
+  //  not detail::functor_call_traits<SimpleReadOnlyFunctor, int&&, AccessHandle<int>&>
+  //    ::template call_arg_traits<0>::is_access_handle, ""
+  //);
+  //static_assert(
+  //  detail::functor_call_traits<SimpleReadOnlyFunctor, int&&, AccessHandle<int>&>
+  //    ::template call_arg_traits<1>::is_access_handle, ""
+  //);
+  //static_assert(
+  //  not detail::_functor_traits_impl::decayed_is_compile_time_immediate_modifiable<ReadAccessHandle<int>>::value,
+  //  ""
+  //);
+  //static_assert(
+  //  not detail::functor_traits<SimpleReadOnlyFunctor>
+  //    ::template formal_arg_traits<1>::is_compile_time_immediate_modifiable_handle,
+  //  "should not be compile-time immediate modifiable handle"
+  //);
+  //static_assert(
+  //  detail::functor_traits<SimpleReadOnlyFunctor>
+  //    ::template formal_arg_traits<1>::is_compile_time_immediate_read_only_handle,
+  //    "Not compile-time immediate read-only handle"
+  //);
   //static_assert(
   //  not detail::functor_traits<SimpleReadOnlyFunctor>::template arg_traits<1>::is_compile_time_modifiable::value, ""
   //);
 
   {
     auto tmp = initial_access<int>("hello");
-    //static_assert(
-    //  detail::functor_traits<SimpleReadOnlyFunctor>
-    //    ::template call_arg_traits<decltype(tmp), std::integral_constant<size_t, 1>>::is_read_only_capture, ""
-    //);
+    static_assert(
+      detail::functor_call_traits<SimpleReadOnlyFunctor, decltype((15)), decltype((tmp))>
+        ::template call_arg_traits<1>::is_read_only_handle_capture, ""
+    );
     EXPECT_VERSION_EQ(tmp, {0});
     create_work<SimpleFunctor>(15, tmp);
     EXPECT_VERSION_EQ(tmp, {1});
@@ -297,6 +318,7 @@ TEST_F(TestFunctor, simple_read_only_convert) {
   int val = 25;
 
   Sequence shandle;
+
 
   mock_backend::MockDataBlock db;
 
@@ -327,6 +349,9 @@ TEST_F(TestFunctor, simple_read_only_convert) {
 
   {
     auto tmp = initial_access<int>("hello");
+    //DARMA_TYPE_DISPLAY(
+    //  typename detail::FunctorRunnable<SimpleReadOnlyFunctorConvert, decltype((15)), decltype((tmp))>::call_traits
+    //);
 //    static_assert(
 //      not detail::functor_traits<SimpleReadOnlyFunctorConvert>
 //        ::template call_arg_traits<decltype((tmp)), std::integral_constant<size_t, 1>>::is_access_handle,
@@ -360,3 +385,50 @@ TEST_F(TestFunctor, simple_read_only_convert) {
   run_all_tasks();
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+// DOESN"T WORK
+//TEST_F(TestFunctor, simple_nonconst_lvalue) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  mock_runtime->save_tasks = true;
+//
+//  handle_t* h0, *h1;
+//  h0 = h1 = nullptr;
+//
+//  InSequence s;
+//
+//  EXPECT_CALL(*mock_runtime, register_handle(_))
+//    .Times(2)
+//    .WillOnce(SaveArg<0>(&h0))
+//    .WillOnce(SaveArg<0>(&h1));
+//
+//  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+//    handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
+//  )));
+//
+//  EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1))));
+//
+//  EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h0))));
+//
+//  {
+//    auto tmp = initial_access<int>("hello");
+//    EXPECT_VERSION_EQ(tmp, {0});
+//
+//    DARMA_TYPE_DISPLAY(typename detail::FunctorRunnable<SimpleFunctorNonConstLvalue, decltype((tmp))>::args_tuple_t);
+//
+//    static_assert(detail::functor_traits<SimpleFunctorNonConstLvalue>
+//      ::template formal_arg_traits<0>::is_nonconst_lvalue_reference, "");
+//    static_assert(detail::functor_traits<SimpleFunctorNonConstLvalue>
+//    ::template formal_arg_traits<0>::template is_implicitly_convertible_from<int&>::value, "");
+//    static_assert(detail::functor_call_traits<SimpleFunctorNonConstLvalue, decltype((tmp))>
+//      ::template call_arg_traits<0>::is_nonconst_conversion_capture, "");
+//
+//    create_work<SimpleFunctorNonConstLvalue>(tmp);
+//    EXPECT_VERSION_EQ(tmp, {1});
+//  }
+//
+//  run_all_tasks();
+//
+//}

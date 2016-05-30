@@ -1,123 +1,172 @@
 %!TEX root = sandReportSpec.tex
 
+
 \section{Programming Model}
-\label{sec:programming_model}
-The focus of the application-facing frontend API is the programming model.
-The programming model must provide application developers a mechanism for expressing both a \emph{correct} and a \emph{performant algorithm}.
-Of highest priority is the ability for developers to write a correct algorithm.
-Above all else, an application must produce correct answers.
-The programming model actually demands more than just performance. 
-It demands performance portability - the ability to map a single code onto high-performance execution across multiple platforms.
-Performance portability demands code transformations - either at runtime or compile-time - to change execution from, e.g. a GPU-optimal execution to a CPU-optimal execution.
+\label{sec:programmingmodel}
+\todo[inline]{add task to glossary}
 
-Correctness and performance portability must both balance the level of abstraction.
-Algorithms written at too low a level are highly error-prone and not portable.
-In particular, they may over-express correctness constraints.
-A compiler/runtime must obey the correctness requirements (e.g. instruction order) prescribed by an application code.
-Low-level code may be unnecessarily prevent the compiler or runtime from optimizing program execution.
-For example, code hard-wired for a particular loop structure and data layout may perform very well on one system,
-but that may prevent the compiler from tiling optimizations of the loops on other systems. 
-What is the correct way and level of abstraction for programmers to 1) express constraints (correctness) while 2) still enabling the compiler/runtime to transform execution (performance portability) while also 3) allowing developers to direct (hand-optimize) execution when the compiler/runtime misses optimizations apparent to a human developer. 
+\Glspl{programming model} provide application developers 
+abstractions for expressing \emph{correct} and \emph{performant} algorithms. 
+As described earlier, a key design goal of \gls{AMT} models is to enable performance-based
+optimizations of code dynamically at runtime.
+Runtime-based optimizations come with an associated runtime cost, which is what
+motiviates the use of \glspl{task} (rather than, e.g., instructions) as the basis for dynamic runtime transformations.
+Existing \gls{AMT} models provide a variety of \glspl{API} for capturing and expressing
+\glspl{data-flow dependency} and communicating these to the underlying
+\gls{runtime system}.  
+One of the adoption challenges many of these \glspl{runtime system} face is
+that they require a significant shift away from what has become
+the defacto standard of distributed HPC programming: \gls{CSP}. 
 
-As such, to enable the easy (or as easy as possible) expression of algorithms, DARMA uses sequential semantics.
-When necessary, DARMA also enables the semantics of communicating sequential processes (CSPs).
-All developers know how to write correct sequential codes and all MPI programmers know how to write correct CSP code.
-In this way, the developers can express correctness constraints through a familiar and intuitive programming model.
-The application-level API of DARMA is therefore designed to capture the minimum number of constraints required for correct execution expressed in sequential code.
+\gls{DARMA}'s \gls{programming model} seeks to facilitate the expression of
+deferred, asysnchronous work, enabling a \gls{back end} \gls{runtime system}
+to perform dynamic runtime optimizations, while making it as simple as possible
+for programmers to reason about the correctness of their code.
+This motivates \gls{DARMA}'s combined use of successful \gls{programming model}
+concepts from a variety of existing \glspl{runtime system}. 
+One of \gls{DARMA}'s \gls{programming model} key design decisions is rooted in
+the following observations: 
+1) all application
+developers can effectively reason about how to write correct sequential codes,
+2) all MPI
+programmers can effectively reason about how to write correct \gls{CSP} codes,
+and
+3) most applications written in or ported to \gls{DARMA} will likely
+have \gls{spmd} as their dominant parallelism.
+To simplify the implementation of \gls{spmd}-structured codes, the notion of a
+\codelink{rank} is maintained within the \gls{API}.   
+By maintaining the notion of a \codelink{rank}, \gls{DARMA} provides application developers a convenience mechanism for creating
+the initial problem decomposition and distribution.
+Immediately after launch, any user-specified \gls{deferred work} is free to be
+migrated by the \gls{runtime system}, if it will result in
+better performance.
+Because \gls{DARMA} maintains the notion of a \codelink{rank}, it is also
+possible for \gls{DARMA} to maintain \gls{CSP}-like semantics (in particular, within an initial
+implementation or port of a code prior to the introduction of \gls{deferred
+work}). 
+This grants developers the ability to express correctness constraints through a familiar and
+intuitive \gls{programming model}.  
+\gls{DARMA} facilitates the expression of hybrid parallelism by supporting  
+\gls{sequential semantics}, within a \codelink{rank}.  This means that application
+developers can reason about code as
+though it were being deployed sequentially within the \codelink{rank}, even in
+the presence of user-specified \gls{deferred work}.   
 
-Code transformations are already ubiquitous at the compiler-level.
-Compilers will add, delete, swap, or reorder instructions to avoid unnecessary operations, improve data locality, or improve pipelining.
-DARMA aims for a similar goal, but at runtime.
-Many transformations of program execution that benefit performance will be unknowable until the program actually runs.
-These dynamic optimizations occurring at runtime are much more expensive than compile-time optimizations.
-Clearly, dynamically transforming an application at the level of individual instructions is not feasible.
-As such, \emph{tasks} are the basis of DARMA dynamic transformations in the same way that instructions are the basis of compiler static transformations.
-The issue of granularity is therefore of paramount importance in task-based model.
-How should the extra flexibility of fine-grained tasks be balanced against amortizing the cost of runtime analysis?
-For the time-being, the choice of a correct task granularity seems beyond the abilities of current compilers.
-As such, choosing task granularity is the responsibility of the application developer.
-The application-level API therefore expresses both correctness and granularity.
+\gls{DARMA} employs \CC-embedded task annotations for the specification of \gls{deferred
+work}. Each block of \gls{deferred work} can be considered a task (coarse-grained blocks of 
+\gls{procedural} \gls{imperative} code),  which is not necessarily performed in program order.   Instead,
+\gls{deferred work} is performed asynchronously when all of its \glspl{data-flow dependency} are
+satisfied.  \Gls{task parallelism} is primarily achieved through permissions/access qualifiers
+on data that enable that enable a runtime to reason about which tasks can run in parallel and which tasks are strictly ordered.
+Task granularity is determined by the user and annotations are translated by \gls{DARMA}'s \gls{translation
+layer} through standard \CC\ constructs (e.g., \glspl{lambda}, \glspl{reference counted pointer}) and \gls{template metaprogramming} to
+expose \gls{task parallelism} inherent in the code.
+%The issue of granularity is therefore of paramount importance in task-based model.
+%How should the extra flexibility of fine-grained tasks be balanced against amortizing the cost of runtime analysis?
+%For the time-being, the choice of a correct task granularity seems beyond the abilities of current compilers.
+%The application-level API therefore expresses both correctness and granularity.
+We note here that \gls{DARMA}'s runtime optimizations are complementary to
+compile-time optimizations performed by \emph{performance
+portability} tools, e.g.~\cite{Kokkos,RAJA,TiDA}.  Compile-time performance
+portability tools provide the ability to map a
+single code onto high-performance execution across diverse compute platforms.
 
-The translation layer bridges the programming model and the actual program execution.
-The translation layer itself does not perform any transformations of the program execution from sequential order.
-Rather, the translation layer interprets the sequential semantics in the application and creates events in an ``intermediate representation'' suitable for the backend runtime.
-The backend API is therefore intended to communicate the algorithm at the right level of abstraction.
-The program representation created by backend API calls should enable a runtime to make intelligent dynamic decisions about task order and task locality or possibly even task deletion and task replication when appropriate.
 
-Strictly speaking, the backend API calls only generate a stream of deferred tasks (tasks with corresponding data inputs/outputs) that describes the inherent data flow.
-However, the information passed from translation layer to backend is sufficient to (and intended to) support a CDAG (computational directed acyclic graph) representation of the application.
-In a DAG representation, tasks are vertices (V) in a graph (G) with directed edges (E).
-An edge from vertex $v_1$ to vertex $v_2$ indicates a precedence constraint.
-Instead of directly defining task-task precedence constraints, DARMA generally describes task-data precedence constraints.
-There are two types of vertices - tasks (T) and data (D) that compose the complete set of vertices (V).
-Edges never directly connect two tasks and instead edges are only ever described between a task vertex, $t$, and a data vertex, $d$
-indicating that (depending on direction of the edge) data is either consumed or produced by a task.
-The \emph{task-DAG} indicating task-task precedence constraints can always be obtained form the data-flow task graph,
-making the data-flow graph more general and therefore more useful for enabling runtime code transformations.
-Although beyond the scope of this specification document, the interested reader will find numerous works discussing heuristics and order-preserving convex transformations of task graphs that demonstrate the utility of a coarse-grained CDAG for enabling dynamic runtime optimization of an algorithm.
-We reiterate, though, that the CDAG is only a concept guiding the design of the backend API and not strictly part of the specificaion.
+One of the major differences between \gls{DARMA} and a traditional \gls{CSP}
+\gls{programming model} is the manner in which communication is performed.  
+Communication between \gls{DARMA} \codelink{rank}s is not performed via direct messaging.
+Instead, \gls{coordination semantics} are used.  Processes \emph{coordinate} by putting/getting
+data associated with a unique \codelink{key} in a \gls{tuple space}.  
+\Gls{coordination semantics} enables out-of-order message arrival, deferred
+execution, task migration, and resilience strategies 
+since the application declares or describes the data it needs/produces rather than enforcing an explicit delivery mechanism.
+The coordination semantics in the specification are intended to support the use of \gls{zero-copy} mechanisms and tuple caching,
+generally producing execution equivalent to an MPI \inlinecode{send/recv} code. 
 
-A final concern, not addressed in the current specification, is the issue of programmer-directed optimization.
-While an abstract algorithm may make more information available to the compiler or runtime for performance-tuning transformations,
-compilers and runtime schedulers may not always understand the global nature of the problem.
-As such,  they may not make peformance-improving optimizations that are apparent to an application developer.
-It will be critically important as runtimes develop to enable developers to steer the runtime towards optimizations when compilers or schedulers fail.
-
-DARMA is a mixed \gls{imperative}/\gls{declarative} \gls{programming model}.
-As much as possible, sequential imperative semantics are used to produce intuitive, maintainable code.
-However, the ``procedural imperative'' function calls and code blocks do not execute immediately.
+Together, these features make \gls{DARMA} a mixed \gls{imperative}/\gls{declarative} \gls{programming model}.
+As much as possible, sequential \gls{imperative} semantics are used to produce intuitive, maintainable code.
+However, the ``\gls{procedural} \gls{imperative}'' function calls and code
+blocks do not necessarily execute immediately.
 Rather than explicitly perform all work in program order and block on data requests,
-DARMA provides \CC-embedded task annotations that allow work to be deferred and performed asynchronously.
-The ability to defer work and advance ahead is what gives the backend runtime the ability to make performance-improving transformations.
-Deferred execution makes DARMA also \emph{declarative}, leaving the exact control-flow up to the runtime.
-
-Task parallelism is primarily achieved through permissions/access qualifiers
-on data that enable a runtime to reason about which tasks can run in parallel and which tasks are strictly ordered.
-Task annotations are translated by the DARMA front end through \CC\ constructs (e.g., lambdas, reference counted pointers, template
-metaprogramming) to expose and understand the parallelism inherent in the code.  
-The \gls{translation layer} requires \CC11 standard features with a small subset of`
-\CC14 required for advanced features (details provided in Chapter~\ref{chap:translation_layer}), 
-however the \gls{front end} \gls{API} does \emph{not} require knowledge of \CC14 to use. 
-Furthermore, the \gls{back end} is a simple set of abstract \CC\ classes whose functionality must be implemented
-according to the specfication in Chapter~\ref{chap:back_end}.
-%providing the runtime the flexibility to optimize performance and
-%exploit additional parallelism when possible.   
+they wait for all \glspl{data-flow dependency} to be satisfied.
+Such \gls{deferred execution} makes \gls{DARMA} \emph{declarative}, leaving the
+exact control-flow up to the \gls{runtime system}.
+Furthermore, it is this ability to defer work and advance ahead that gives the \gls{back end}
+\gls{runtime  system} the ability to make performance-improving transformations.
 
 
-Most applications written in DARMA will likely have \gls{spmd} as the dominant parallelism.
-To simplify the implementation of SPMD-structured codes, the notion of a \gls{rank} is maintained within the \gls{API}.   
-This provides application developers a convenience mechanism for creating
-the initial problem decomposition and distribution.  
-Immediately after launch, deferred tasks are free to be migrated by the runtime, if it will result in better performance. 
-Within a \gls{rank}, DARMA provides \gls{sequential semantics},  meaning that application developers can reason about the code as
-though it were being deployed sequentially within the rank.   
-Thus DARMA emphasizes sequential semantics, but supports a CSP model.
+
+%The application-level API therefore expresses both correctness and granularity.
+%The issue of task granularity is therefore of paramount importance in a task-based model.
+%How should the extra flexibility of fine-grained tasks be balanced against amortizing the cost of runtime analysis?
+%For the time-being, the choice of a correct task granularity is beyond the abilities of current compilers.
+%As such, choosing task granularity is the responsibility of the application developer.
 
 
-The ``communication'' in DARMA's CSP model is actually provided by \gls{coordination semantics}:  
-rather than explicitly move data between ranks via direct communication
-(i.e.,  \inlinecode{send/recv}), processes \emph{coordinate} by putting/getting data associated with a unique \inlinecode{key} in a
-\gls{key-value store} or \gls{tuple space}.  
-\Gls{coordination semantics} promote out-of-order message arrival, deferred execution, and task migration
-since the app declares or describes the data it needs/produces rather than enforcing an explicit delivery mechanism.
-The key to performance in the DARMA CSP model are exploiting zero-copy mechanisms and tuple caching that enable a key-value store programming model
-to produce execution equivalent to an MPI send/recv code. 
 
-Although not yet supported in version 0.3 of the specification, several
-important features will play a role in the DARMA programming model:
+%Correctness and performance portability must both balance the level of abstraction.
+%Algorithms written at too low a level are highly error-prone and not portable.
+%In particular, they may over-express correctness constraints.
+%A compiler/runtime must obey the correctness requirements (e.g. instruction order) prescribed by an application code.
+%Low-level code may be unnecessarily prevent the compiler or runtime from optimizing program execution.
+%For example, code hard-wired for a particular loop structure and data layout may perform very well on one system,
+%but that may prevent the compiler from tiling optimizations of the loops on other systems. 
+%What is the correct way and level of abstraction for programmers to 1) express constraints (correctness) while 2) still enabling the compiler/runtime to transform execution (performance portability) while also 3) allowing developers to direct (hand-optimize) execution when the compiler/runtime misses optimizations apparent to a human developer. 
+
+
+Although not yet supported in version \specVersion\ of the specification, several
+important features will play a role in the \gls{DARMA} \gls{programming model}:
+\todo[inline]{David/Jeremy: please vet/edit this list as appropriate}
 \begin{compactdesc}
 \item{\bf Expressive Underlying Abstract Machine Model:}
-Notions of \glspl{execution space} and \glspl{memory space} will be introduced formally in later versions of the specification.  
-These abstractions (or similar ones) appear in other runtime solutions~\cite{kokkos, others} \todo{add relevant citations here} to address deficiencies in the abstract machine model used by runtimes that support \gls{spmd} parallelism 
-(i.e., uniform compute elements, flat memory spaces).  Using such abstractions
+Notions of \glspl{execution space} and \glspl{memory space} will be introduced
+formally in later
+versions of the specification.  These abstractions (or similar ones) appear in other runtime
+solutions, e.g. \cite{Kokkos, RAJA}, to
+  address deficiencies in the \gls{abstract machine model} used by 
+  \glspl{runtime system} that support \gls{spmd} parallelism (i.e., uniform compute elements, flat memory
+    spaces).  Using such abstractions
 1) facilitates performance portable application development across 
-a variety of execution spaces, and 2)
+  a variety of \glspl{execution space}, and 2)
   provides finer-grained control and additional flexibility in the
   communication of policies regarding data locality and data movement. 
+\item{\bf Runtime performance introspection}
+  In future versions of the specification \gls{DARMA} will specify hooks for the
+  application developer to express, guide, and leverage the use of runtime-level
+  performance \gls{introspection}. An important \gls{co-design} activity will include determining
+  whether performance \gls{introspection} needs to factor into the
+  application-level \gls{programming
+  model} on the \gls{front end} at all, or whether it purely belongs as part of the  \gls{back end}
+  \gls{runtime system} \gls{API}.
+\item{\bf Expression of fine-grained deferred parallel patterns}.
+  In future versions of the specification, \gls{DARMA} will 
+  specify deferred fine-grained parallel patterns, e.g., deferred
+  \inlinecode{parallel-for}, \inlinecode{parallel-scan}, etc.
+\item{\bf Field slicing in classes and class member functions as tasks}
+  \todo[inline]{David/Jeremy: please elaborate here - can we say something here about
+  the role we anticipate tasks as member functions to play.}
 \item {\bf Data Staging:}
-The memory and execution space concepts introduced above will enable 1) performance portable tasks that can run in multiple environments through a single code and 2) 
-user-directed placement hints to tell the runtime where tasks should run
+The memory and execution space concepts introduced above enable 1) performance portable tasks that can run in 
+multiple environments through a single code and 2) user-directed placement hints to tell the runtime where tasks should run
 \item {\bf Collectives:}
-Some collectives will be supported by DARMA in version 0.3 of the specification, including all-reduce, reduce-scatter, and barrier collectives.
+  Some collectives will be supported by \gls{DARMA} in version 0.3.1 of
+  the specification, including \inlinecode{all-reduce},
+  \inlinecode{reduce-scatter}, and \inlinecode{barrier} collectives.
 Collectives will be data-centric rather rank-centric, as done in MPI.
+\item{\bf Programmer-directed optimization}
+While an abstract algorithm may make more information available to the compiler or runtime for performance-tuning transformations,
+compilers and runtime schedulers may not always understand the global nature of the problem.
+As such, they may not make performance-improving optimizations that are apparent to an application developer.
+A critically important part of future co-design activities will be the
+development of the interface by which developers can steer the runtime towards
+a desired set of optimizations that compilers or runtime schedulers might fail
+to perform.
 \end{compactdesc}
+
+
+
+
+
+
+ 
+

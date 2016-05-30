@@ -52,8 +52,33 @@
 
 #include <cstddef>
 
+#include <tinympl/sequence.hpp>
+#include <tinympl/identity.hpp>
+#include "fill_n.hpp"
+
 namespace tinympl {
 namespace variadic {
+
+// Constant time at<...> implementation borrowed from the brigand project (search on github)
+namespace detail {
+
+template <typename T> struct _element_at;
+
+template <class... Ts>
+struct _element_at<sequence<Ts...>> {
+  template <class T>
+  static identity<T> at(Ts..., identity<T>*, ...);
+};
+
+template <std::size_t i, typename... Args>
+struct _at_impl
+  : decltype(
+      _element_at<fill_n<i, void const*, sequence>>::at( static_cast<identity<Args>*>(nullptr)... )
+    )
+{ };
+
+
+} // end namespace detail
 
 /**
  * \ingroup VarBasics
@@ -61,23 +86,12 @@ namespace variadic {
  * \brief Extract the i-th element of a variadic template
  * \param i The index to extract
  */
-template<std::size_t i, class ... Args>
-struct at;
+template <std::size_t i, class... Args>
+using at = typename detail::_at_impl<i, Args...>;
 
-template<std::size_t i, class ... Args>
+template<std::size_t i, class... Args>
 using at_t = typename at<i, Args...>::type;
 
-template<std::size_t i, class Head, class ... Tail>
-struct at<i, Head, Tail...>
-{
-  static_assert(i < sizeof ... (Tail) + 1,"Index out of range");
-  typedef typename at<i-1,Tail...>::type type;
-};
-
-template<class Head, class ... Tail> struct at<0,Head,Tail...>
-{
-  typedef Head type;
-};
 
 namespace types_only {
 
