@@ -436,7 +436,7 @@ namespace abstract {
 
 namespace frontend {
 
-inline abstract::frontend::Task*
+inline types::unique_ptr_template<abstract::frontend::Task>
 unpack_task(void* packed_data) {
   serialization::SimplePackUnpackArchive ar;
   detail::DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);
