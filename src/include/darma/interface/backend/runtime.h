@@ -83,7 +83,7 @@ class Runtime {
      *  @sa abstract::frontend::Task
      */
     virtual void
-      register_task(
+    register_task(
       types::unique_ptr_template<frontend::Task>&& task
     ) = 0;
 
@@ -109,7 +109,7 @@ class Runtime {
     *  @sa abstract::frontend::Task
     */
     virtual abstract::frontend::Task*
-      get_running_task() const = 0;
+    get_running_task() const = 0;
 
     /** @brief Register a Use object
      *
@@ -132,7 +132,7 @@ class Runtime {
      *  (or any other handle with an equivalent return for get_key() to the one passed in here)
      */
     virtual Flow*
-      make_initial_flow(
+    make_initial_flow(
       frontend::Handle* handle
     ) =0;
 
@@ -167,7 +167,8 @@ class Runtime {
     typedef enum FlowPropagationPurpose {
       Input,
       Output,
-      ForwardingChanges
+      ForwardingChanges,
+      OutputFlowOfReadOperation
     } flow_propagation_purpose_t;
 
     /**
@@ -177,7 +178,7 @@ class Runtime {
     make_same_flow(
       Flow* from,
       flow_propagation_purpose_t purpose
-    ) const =0;
+    ) =0;
 
     /**
      *  @TODO document this
@@ -186,7 +187,7 @@ class Runtime {
     make_next_flow(
       Flow* from,
       flow_propagation_purpose_t purpose
-    ) const =0;
+    ) =0;
 
 
     /** @brief Release a Use object previously registered with register_use.
