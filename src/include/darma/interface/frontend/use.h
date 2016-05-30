@@ -46,6 +46,7 @@
 #define DARMA_IMPLEMENTATION_FRONTEND_USE_H
 
 #include <darma/interface/backend/flow.h>
+#include "handle.h"
 
 namespace darma_runtime {
 namespace abstract {
@@ -85,11 +86,11 @@ class Use {
 
     /** @brief Get the usage object that this Use needs to be available with the appropriate permissions
      */
-    virtual backend::Flow* get_in_flow() const =0;
+    virtual backend::Flow* get_in_flow() =0;
 
     /** @brief Get the usage object that this Use *makes* available when it is released
      */
-    virtual backend::Flow* get_out_flow() const =0;
+    virtual backend::Flow* get_out_flow() =0;
 
     /** Get the immediate permissions needed for the Flow returned by get_in_flow()
      */
