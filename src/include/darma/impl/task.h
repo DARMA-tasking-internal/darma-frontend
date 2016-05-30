@@ -179,7 +179,6 @@ class FunctorRunnable
   public:
 
 
-  private:
 
     typedef functor_traits<Functor> traits;
     typedef functor_call_traits<Functor, Args&&...> call_traits;
@@ -199,7 +198,7 @@ class FunctorRunnable
 
     static const size_t index_;
 
-    auto
+    decltype(auto)
     _get_args_to_splat() {
       return meta::tuple_for_each_zipped(
         args_,
@@ -208,7 +207,7 @@ class FunctorRunnable
           call_traits::template call_arg_traits_types_only,
           std::tuple
         >::type(),
-        [this](auto&& arg, auto&& call_arg_traits_i_val) {
+        [this](auto&& arg, auto&& call_arg_traits_i_val) -> decltype(auto) {
           using call_traits_i = std::decay_t<decltype(call_arg_traits_i_val)>;
           return call_traits_i::template get_converted_arg(
             std::forward<decltype(arg)>(arg)
@@ -437,7 +436,7 @@ namespace abstract {
 
 namespace frontend {
 
-inline abstract::frontend::Task*
+inline types::unique_ptr_template<abstract::frontend::Task>
 unpack_task(void* packed_data) {
   serialization::SimplePackUnpackArchive ar;
   detail::DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);
