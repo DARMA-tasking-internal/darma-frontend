@@ -47,6 +47,7 @@
 
 #include <darma/impl/task.h>
 #include <darma/impl/handle.h>
+#include "use.h"
 
 namespace darma_runtime {
 
@@ -61,6 +62,10 @@ TaskBase::do_capture(
   AccessHandleT1& captured,
   AccessHandleT2 const& source_and_continuing
 ) {
+
+  using abstract::frontend::Use::Permissions::None;
+  using abstract::frontend::Use::Permissions::Read;
+  using abstract::frontend::Use::Permissions::Modify;
 
   typedef AccessHandleT1 AccessHandleT;
 
@@ -89,6 +94,15 @@ TaskBase::do_capture(
       // Unset the uncaptured bit
       source.captured_as_ &= ~AccessHandleBase::Uncaptured;
 
+      typedef enum State {
+        None_None,
+        Read_None,
+        Read_Read,
+        Modify_None,
+        Modify_Read,
+        Modify_Modify
+      } state_t;
+
       typename AccessHandleT::capture_op_t capture_type;
 
       // first check for any explicit permissions
@@ -99,19 +113,16 @@ TaskBase::do_capture(
       else {
         // Deduce capture type from state
         assert(source.captured_as_ == AccessHandleBase::CapturedAsInfo::Normal);
-        switch (source.state_) {
-          case AccessHandleT::Read_None:
-          case AccessHandleT::Read_Read: {
+        switch (source.current_use_.schedule_permissions_) {
+          case Read: {
             capture_type = AccessHandleT::ro_capture;
             break;
           }
-          case AccessHandleT::Modify_None:
-          case AccessHandleT::Modify_Read:
-          case AccessHandleT::Modify_Modify: {
+          case Modify: {
             capture_type = AccessHandleT::mod_capture;
             break;
           }
-          case AccessHandleT::None_None: {
+          case None: {
             DARMA_ASSERT_MESSAGE(false, "Handle used after release");
             break;
           }
@@ -120,47 +131,44 @@ TaskBase::do_capture(
 
       ////////////////////////////////////////////////////////////////////////////////
 
+      auto _ro_capture_non_mod_imm = [&]{
+
+      };
+
+      auto _ro_capture_mod_imm = [&]{
+
+      };
+
       switch (capture_type) {
         case AccessHandleT::ro_capture: {
-          switch (source.state_) {
-            case AccessHandleT::None_None: {
+          switch (source.current_use_.schedule_permissions_) {
+            case None: {
               // Unreachable
               DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
               break;
             }
-            case AccessHandleT::Read_None:
-            case AccessHandleT::Read_Read:
-            case AccessHandleT::Modify_None:
-            case AccessHandleT::Modify_Read: {
-              captured.dep_handle_ = source.dep_handle_;
-              captured.state_ = AccessHandleT::Read_Read;
-              captured.read_only_holder_ = source.read_only_holder_;
-
-              // Outer dep handle, state, read_only_holder stays the same
-
+            case Read: {
+              switch (source.current_use_.immediate_permissions_) {
+                case None:
+                case Read:
+                  _ro_capture_non_mod_imm();
+                  break;
+                case Modify:
+                  _ro_capture_mod_imm();
+              }
               break;
             }
-            case AccessHandleT::Modify_Modify: {
-              // We're creating a subsequent at the same version depth
-              version_t next_version = source.dep_handle_->get_version();
-              ++next_version;
-              captured.dep_handle_ = dep_handle_ptr_maker_t()(
-                source.dep_handle_->get_key(),
-                next_version
-              );
-              captured.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(
-                captured.dep_handle_.get()
-              );
-              captured.state_ = AccessHandleT::Read_Read;
-
-
-              continuing.dep_handle_ = captured.dep_handle_;
-              continuing.read_only_holder_ = captured.read_only_holder_;
-              continuing.state_ = AccessHandleT::Modify_Read;
-
+            case Modify: {
+              switch (source.current_use_.immediate_permissions_) {
+                case None:
+                case Read:
+                  _ro_capture_non_mod_imm();
+                case Modify:
+                  _ro_capture_mod_imm();
+              }
               break;
             }
-          }; // end switch outer.state_
+          }; // end switch source.current_use_.schedule_permissions_
           add_dependency(
             captured.dep_handle_,
             /*needs_read_data = */ true,
@@ -168,74 +176,35 @@ TaskBase::do_capture(
           );
           break;
         }
+        // TODO finish this
         case AccessHandleT::mod_capture: {
-          switch (source.state_) {
-            case AccessHandleT::None_None: {
-              // Unreachable in 0.2
+          switch (source.current_use_.schedule_permissions_) {
+            case None: {
+              // Unreachable
               DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
               break;
             }
-            case AccessHandleT::Read_None:
-            case AccessHandleT::Read_Read: {
-              // Unreachable in 0.2
+            case Read: {
               DARMA_ASSERT_MESSAGE(false,
                 "Tried to schedule a modifying task of a handle with read-only schedule access"); // LCOV_EXCL_LINE
               break; // unreachable
             }
-            case AccessHandleT::Modify_None:
-            case AccessHandleT::Modify_Read: {
-              version_t outer_version = source.dep_handle_->get_version();
-              ++outer_version;
-              captured.dep_handle_ = source.dep_handle_;
-              captured.read_only_holder_ = 0;
-              captured.state_ = AccessHandleT::Modify_Modify;
-              captured.dep_handle_->push_subversion();
+            case Modify: {
+              switch (source.current_use_.immediate_permissions_) {
+                case None:
+                case Read: {
+                  // TODO implement this
 
-              continuing.dep_handle_ = dep_handle_ptr_maker_t()(
-                source.dep_handle_->get_key(),
-                outer_version
-              );
-              continuing.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(
-                continuing.dep_handle_.get()
-              );
-              continuing.state_ = AccessHandleT::Modify_None;
-
+                  break;
+                }
+                case Modify: {
+                  // TODO implement this
+                  break;
+                }
+              }
               break;
             }
-            case AccessHandleT::Modify_Modify: {
-              version_t outer_version = source.dep_handle_->get_version();
-              ++outer_version;
-              version_t captured_version = source.dep_handle_->get_version();
-              captured_version.push_subversion();
-              ++captured_version;
-
-              // We're creating a subsequent at the same version depth
-
-              // avoid releasing the old until these two are made
-              auto tmp = source.dep_handle_;
-              auto tmp_ro = source.read_only_holder_;
-
-              captured.dep_handle_ = dep_handle_ptr_maker_t()(
-                source.dep_handle_->get_key(), captured_version
-              );
-              // No read only uses of this new handle
-              captured.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(
-                captured.dep_handle_.get()
-              );
-              captured.read_only_holder_.reset();
-              captured.state_ = AccessHandleT::Modify_Modify;
-
-              continuing.dep_handle_ = dep_handle_ptr_maker_t()(
-                source.dep_handle_->get_key(), outer_version
-              );
-              continuing.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(
-                continuing.dep_handle_.get()
-              );
-              continuing.state_ = AccessHandleT::Modify_None;
-
-              break;
-            }
-          } // end switch outer.state
+          }; // end switch source.current_use_.schedule_permissions_
           add_dependency(
             captured.dep_handle_,
             /*needs_read_data = */ captured.dep_handle_->get_version() != version_t(),
@@ -249,7 +218,7 @@ TaskBase::do_capture(
       //captured.capturing_task = nullptr;
       captured.dep_handle_.reset();
       captured.read_only_holder_.reset();
-      captured.state_ = AccessHandleT::None_None;
+      captured.state_ = None_None;
     }
 
   });
