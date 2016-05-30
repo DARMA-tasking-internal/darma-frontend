@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          data_block.h
-//                         darma_new
+//                      handle.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,51 +42,34 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_BACKEND_DATA_BLOCK_H_
-#define SRC_ABSTRACT_BACKEND_DATA_BLOCK_H_
+#ifndef DARMA_INTERFACE_FRONTEND_HANDLE_H
+#define DARMA_INTERFACE_FRONTEND_HANDLE_H
 
-#include "../frontend/serialization_manager.h"
+#include <darma/interface/frontend/serialization_manager.h>
+#include <darma_types.h>
 
 namespace darma_runtime {
-
 namespace abstract {
+namespace frontend {
 
-namespace backend {
-
-
-/** @ingroup abstract
+/** @brief Encapsulates a named, mutable chunk of data which may be accessed by one or more tasks
+ *  that use that data (or the privilege to schedule permissions on that data).
  *
- *  @class DataBlock
- *
- *  @brief The abstraction through which the frontend interacts with data stored
- *  and managed by the backend.
- *
+ *  A Handle represents an entity conceptually similar to a variable in a serial program.
  */
-class DataBlock
-{
+class Handle {
   public:
 
-    /** @brief Gets a (non-owning) pointer to deserialized version of the data
-     *  associated with the data block.
-     *
-     *  The pointer is valid until the handle most recently satisfied with this
-     *  data block (at the time of the get_data() invocation) is released.
-     *
-     */
-    virtual void*
-    get_data() =0;
+    virtual types::key_t const&
+      get_key() const =0;
 
-    virtual ~DataBlock() = default;
+    virtual SerializationManager*
+      get_serialization_manager() const =0;
 
 };
 
-
-} // end namespace backend
-
+} // end namespace frontend
 } // end namespace abstract
-
 } // end namespace darma_runtime
 
-
-
-#endif /* SRC_ABSTRACT_BACKEND_DATA_BLOCK_H_ */
+#endif //DARMA_INTERFACE_FRONTEND_HANDLE_H
