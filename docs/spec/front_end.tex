@@ -6,22 +6,22 @@
 This chapter describes the DARMA \gls{front end} \gls{API}, 
 by introducing the following supported constructs:
 \begin{compactitem}
-\item Task and Deferred Work Creation
+\item Instantiating Deferred Work 
 \item Data Access Handles
 \item Keyword arguments
-\item \gls{spmd} support
+\item \gls{spmd} support (coordination languages)
 \item Serialization Manager
 \end{compactitem}
 Moreover, we discuss in detail the rules for using the data access handles.
 
 
-\section{Deferred Work Creation}
+\section{Deferred Work Instantiation}
 \label{sec:deferred}
-In DARMA, like other AMT runtime systems, the user creates blocks of work that
-are executed when the proper permissions on the data they use are available. 
-Deferred work is communicated to the runtime system via the
-\inlinecode{create_work()} function, which utilizes the C++ lambda mechanism to
-yield the following syntax:
+In DARMA, like other AMT runtime systems, the user creates blocks of work and defines the preconditions for the task to begin executing.
+Rather than require app developers to explicitly define vertices and edges in a task-DAG or use explicit fork-join constructs,
+task preconditions are implicit in either the sequential order of tasks or the data-flow inherent in the key-value store coordination for publish/fetch pairs (more below).
+Deferred work is instantiated (but not necessarily executed) via the \inlinecode{create_work()} function. 
+For inline tasks (as compared to functor-based tasks, more below), this utilizes the C++ lambda mechanism to yield the following syntax:
 % DSH merged [=]{ into one line for a couple of reasons; chief reason is we may
 % want to macro this at some point so that it can conditionally be compiled into
 % [=] __cuda_inline__ {  or something like that for GPU use.
@@ -31,18 +31,13 @@ yield the following syntax:
   });
 \end{CppCode}
 
-While this syntax leverages \CC11 lambdas, the user does not need to understand
-\CC11 standard features to use \inlinecode{create_work()} (this
-complexity is managed by DARMA's translation layer, as summarized in
-Chapter~\ref{chap:translation_layer}). All the work specified within a
-\inlinecode{create_work} is queued for deferred execution, and will be run when
-all of its \glspl{dependency} and \glspl{anti-dependency} are met.  
-These \glspl{dependency} are determined from the use of 
-\inlinecode{AccessHandle<T>} objects in the deferred context. 
-\inlinecode{AccessHandle<T>} objects are described in more detail below, in
-Section \ref{sec:handles}.  In a basic sense, handles help maintain
-\gls{sequential semantics} in the programming model.  For instance, the
-following code should print ``first: 42, second: 84'':
+While this syntax leverages \CC11 lambdas, the user does not need to understand \CC11 standard features to use \inlinecode{create_work()} (this
+complexity is managed by DARMA's translation layer, as summarized in Chapter~\ref{chap:translation_layer}). 
+All the work specified within a \inlinecode{create_work} is queued for deferred execution. 
+The task does not need to execute immediately and may be executed by the backend runtime any time after all its preconditions are satisfied. 
+Preconditions are either dependencies (waiting for data to be produced) or anti-dependencies (waiting for data to be released so it can be overwritten).   
+Preconditions for a task are never given explicitly, but are instead derived implicitly based on sequential usage of \inlinecode{AccessHandle} objects, discussed in detail below.
+For example, to follow sequential semantic the following code should print ``first: 42, second: 84'':
 \begin{CppCode}
 AccessHandle<int> my_handle = initial_access("some_data_key");
 create_work([=]{
@@ -58,8 +53,40 @@ create_work([=]{
   cout << ", second: " << my_handle.get_value();
 });
 \end{CppCode}
-This intuitive way of coding is called \gls{sequential semantics}, 
-and its use is pivotal to the DARMA programming model.
+The code produces results equivalent to a C++ code in which \inlinecode{create_work} is removed and \inlinecode{AccessHandle} is just replaced with the underlying type.
+These sequential semantics are pivotal to the DARMA programming model.
+
+Relying solely on sequential semantics is the ``ideal'' way of coding in terms of limiting programmer burden, avoiding deadlock, and enabling runtime optimizations.
+The details of this are beyond the scope of the current work.
+For certain cases, particularly those involving massive SPDM parallelism across a distributed memory machine,
+it may be more scalable and natural to code in a CSP-like framework involving parallel execution streams.
+Rather than coding as if only a single execution stream, the programmer codes must be aware of multiple parallel streams.
+Rather than exchanging data through send/recv pairs, however, DARMA uses coordination to communicate data between parallel execution streams.
+Two execution streams never explicitly exchange data. Instead they put and get data from a key-value store.
+Coordinating (rather than communicating) abstracts physical data locations to better support task migration.
+Additionally, it removes message-ordering requirements to better support asynchronous data transfers.
+While they key-value store appears to be a centralized, global data store that copies data in/out,
+the key-value store can be implemented as a distributed hash table (DHT) that supports zero-copy transfers.
+Thus both sequential semantics and coordination semantics follow the same principle in DARMA.
+An intuitive programming model that simplifies reasoning about algorithms is transformed to a parallel, scalable execution by the translation layer and backend runtime.
+
+In the example here, variables are not passed down from a parent task to child tasks.
+Instead, one execution stream produces a value and publishes it to the key-value store.
+Another execution stream reads the value by fetching it from the key-value store.
+The processes coordinate with publish/fetch pairs similar to send/recv pairs in the CSP model of MPI.
+
+\begin{minipage}{0.45\textwidth}
+Execution Stream 0:
+\begin{CppCode}
+Some publish/fetch code
+\end{CppCode}
+\end{minipage}
+\begin{minipage}{0.45\textwidth}
+Execution Stream 1:
+\begin{CppCode}
+Some publish/fetch code
+\end{CppCode}
+\end{minipage}
 
 % DSH took this out for now
 % which manage the complexity necessary (within DARMA's
@@ -109,45 +136,71 @@ and its use is pivotal to the DARMA programming model.
 %of \inlinecode{greetingMessage} is set before it is printed),
 %\inlinecode{greetingMessage} must be a \inlinecode{handle}.
 
-
+\newcommand{\ahandle}{AccessHandle}
+\newcommand{\ahandleT}{AccessHandle<T>}
+\newcommand{\cwork}{\inlinecode{create_work}}
 
 \section{Data Access Handles}
 \label{sec:handles}
+\inlinecode{AccessHandle<T>} objects are lightweight wrappers around the actual data structure of interest having type T. 
+The handles add a control block (metadata) that tracks uses of the handle and enforces
+\gls{sequential semantics}, analogous to smart pointers that wrap pointer types and provide a reference counting control block.
+Critically, this interface is non-intrusive, wrapping any type T without requiring that type to be modified.
+
+Most critically, \inlinecode{AccessHandle} enables deferred access since \ahandle can exist in ready or pending states. 
+Ready and pending are not rigorously defined in the state table for \ahandle in Section \ref{}, but rather guiding concepts.
+Ready handles can be dereferenced (have their underlying values fetched) and be used immediately to perform work.
+Pending handles cannot be dereferenced, but can still be used to \emph{schedule} or \emph{instantiate} work.
+Thus even if a handle is carrying pending or unresolved data, execution can advance thereby unrolling more of the task graph.
+This \emph{lookahead} is the key element that enables runtime optimizations.
+Lookahead gives the runtime more complete knowledge of the task graph instead of locally executing step-by-step.
+By looking ahead, the runtime can reorder or migrate tasks to maximize data locality and improve load balance.
+The most critical conceptual change from standard C++ to DARMA are pending variables that enable lookahead, unlike conventional C++ variables that must always be ``ready''.
 
 % Removed todo for now
 %\todo[inline]{JB Question to David/Jeremy: do we need to introduce versions, or
 %is this no longer needed? DSH: Versions go with publish(), but some of it needs
 %to be here because e.g., read\_access<T>() needs to reference them.}
 
-Transactions with the \gls{key-value store} are conducted using data handles 
-that are of different access types which differentiate the various transactions. 
-At the most basic level user code can declare 
+%Transactions with the \gls{key-value store} are conducted using data handles 
+%that are of different access types which differentiate the various transactions. 
+Handles can be created three different ways.
 \begin{enumerate}
 \item a handle to data that does not yet exist in the system
 but needs to be created, or
-\item a handle to data that already exists and needs to
+\item a handle to data produced by another process that needs to
 be read, or 
-\item a handle to data that it wants to overwrite or modify. 
-Note that this type of handle does not exist in the 0.2 version of the spec.
+\item a handle to data produced by another process that needs to be overwritten or modified. 
+Note that this type of handle does not exist in the current version of the spec.
 \end{enumerate}
+
 
 Type 1 is denoted as \inlinecode{initial_access} in DARMA, 
 which informs the runtime that the data with the 
 specified key does not yet exist, and the user intends to 
-create this data and (potentially) publish it.
+create this data.% and (potentially) publish it.
 Hence, an \inlinecode{initial_access} data handle is usually 
-followed by a memory allocation, a value assignment and 
-finally a publish operation, as illustrated below: 
+followed by a memory allocation, and a value assignment. 
+Remark: Although we could explicitly write out \inlinecode{AccessHandle<T>} in the code below,
+we \emph{strongly encourage} programmers to use the C++ \inlinecode{auto} keyword.
+It will greatly increase code portability for future (potentially backwards-incompatible) versions of DARMA,
+with the additional benefit of decreasing code verbosity.
 
+%finally a publish operation, as illustrated below: 
 \begin{CppCode}
 auto float_handle = initial_access<float>("float_key");
 create_work([=]{
   float_handle.set_value(3.14);
 });
 \end{CppCode}
-The second type of handle, requesting read-only access 
-to a piece of data, is via \inlinecode{read_access}. 
+As stated above, DARMA provides two methods for expressing task preconditions: sequential semantics and coordination.
+\inlinecode{initial_access} is necessary in both methods.
+Once created, a handle can be passed along to subtasks within the same, sequential execution stream.
+A handle created by \inlinecode{initial_access} can also be published, making it available to other execution streams via key-value store coordination.
 
+
+Handles of Type 2 above request read-only access to data produced externally in the system through \inlinecode{read_access}. 
+As such, \inlinecode{read_acccess} is only relevant for applications that use coordination to express data flow.
 %\todo[inline]{This needs to be revised or changed, since
 %``wait\_and\_get\_value()'' (or whatever we end up calling it) is an
 %advanced feature (and not part of the 0.2 spec).}
@@ -168,52 +221,56 @@ create_work([=]{
 \end{CppCode}
 %The runtime guarantees that \inlinecode{get_value} will wait until the value
 % exists and is ready locally.
-You can only call \inlinecode{get_value} in a context where you have read access
-to the data associated with the handle, either by capturing into a deferred
-context or by explicitly waiting on the value (though waiting on the value is
-not supported in the 0.2 spec).
+Immediately following the \inlinecode{read_access} function, the \ahandle will be \emph{pending} instead of \emph{ready}.
+To enable \inlinecode{get_value} to be called (put the handle in a ready state), the handle must be used inside of a \inlinecode{create_work}.
+\cwork defers execution of the code block until they key-value store resolves the value of \inlinecode{float_handle} and converts it to a ready state.
 This might involve moving data if the \inlinecode{float} is on a remote node.
+Remark: future versions of DARMA will enable tasks to begin optimistically with some handles still in a pending state, but this is not supported in the current version.
+ 
+
 In general, any calls to \inlinecode{get_value} should occur 
 within a scoped code block to avoid dangling references to stale physical memory locations.
-Even when it becomes possible to wait on the data associated with a handle (in
-later versions of the spec), best practice is to access data via deferred tasks
+%Even when it becomes possible to wait on the data associated with a handle (in
+%later versions of the spec), best practice is to access data via deferred tasks
 inside a \inlinecode{create_work} block when possible.
 
-The third handle type, which informs the runtime that the data 
-with the specified key will be read and overwritten or modified, 
-is with the \inlinecode{read_write} handle, illustrated below. 
-%Again, we show an
-%example done within the same task and an example using a deferred task.
+
+%The third handle type, which informs the runtime that the data 
+%with the specified key will be read and overwritten or modified, 
+%is with the \inlinecode{read_write} handle, illustrated below. 
+%%Again, we show an
+%%example done within the same task and an example using a deferred task.
+%%\begin{CppCode}
+%%auto float_handle = read_write<float>("yet_another_float_key");
+%%{
+%%  std::cout << "Value read with key yet_another_float_key is " 
+%%          << float_handle.get_value();
+%%  float_handle.set_value(3.14*2.0);
+%%}
+%%\end{CppCode}
 %\begin{CppCode}
 %auto float_handle = read_write<float>("yet_another_float_key");
-%{
+%create_work([=] {
 %  std::cout << "Value read with key yet_another_float_key is " 
 %          << float_handle.get_value();
 %  float_handle.set_value(3.14*2.0);
-%}
+%});
 %\end{CppCode}
-\begin{CppCode}
-auto float_handle = read_write<float>("yet_another_float_key");
-create_work([=] {
-  std::cout << "Value read with key yet_another_float_key is " 
-          << float_handle.get_value();
-  float_handle.set_value(3.14*2.0);
-});
-\end{CppCode}
-This sort of access is not available in the 0.2 version of the spec, and in
-later versions this sort of usage will be conceptualized as ``ownership
-transfer'' of a data block, since exactly one \inlinecode{AccessHandle} with
-modification privileges on a block of data can exist at any given time.
-%As with \inlinecode{read_access}, value get/set should at least occur within a
-% scoped code block, and will likely perform better if placed in a deferred task block.
+%This sort of access is not available in the 0.2 version of the spec, and in
+%later versions this sort of usage will be conceptualized as ``ownership
+%transfer'' of a data block, since exactly one \inlinecode{AccessHandle} with
+%modification privileges on a block of data can exist at any given time.
+%%As with \inlinecode{read_access}, value get/set should at least occur within a
+%% scoped code block, and will likely perform better if placed in a deferred task block.
 
 Tasks should only ever request the privileges they need. 
 Over-requesting privileges will limit the amount of available parallelism in the code.
-It may occur that the task is using a read-write handle, but needs to create a
-task that only requires read access.
+A task may be using a handle with read-write privileges created by \inlinecode{initial_access}
+and then create a subtask that requires only read privileges.
 
 \begin{CppCode}
-auto float_handle = read_write<float>("yet_another_float_key");
+auto float_handle = initial_access<float>("yet_another_float_key");
+....
 create_work(reads(float_handle), [=] {
   std::cout << "Value read with key yet_another_float_key is " 
           << float_handle.get_value() << std::endl;
@@ -225,8 +282,9 @@ create_work(reads(float_handle), [=] {
 //read-write work down here
 \end{CppCode}
 In this case, subtasks are created that only need read access. 
-Without the \inlinecode{reads} qualifier, these tasks would conflict since they
+Without the \inlinecode{reads} qualifier, these tasks could not run in parallel (or out-of-order) since they
 would by default request read-write privileges.
+Sequential semantics would then require them to write in-order sequentially.
 
 \subsection{Publish}
 \label{subsec:publish}
@@ -235,29 +293,22 @@ within the same scope (that is, tasks that have a copy of the actual
 \inlinecode{AccessHandle<T>} object, created as discussed in
 Section \ref{sec:handles}.
 For data to be globally visible in the global memory space (key-value store),
-the application developer must explicitly \inlinecode{publish} data.  Unpublished 
-data will be reclaimed once the last handle to it goes out of scope,
+the application developer must explicitly \inlinecode{publish} data.  
+Unpublished data will be reclaimed once the last handle referencing it goes out of scope (i.e refcount goes to zero),
 freeing the memory and resolving any anti-dependencies analogous to the
-destructor invocation in C++ when a class goes out of scope.  Unpublished data
-can leverage the sequential semantics of the application for garbage
-collection.  Published data, however, is globally visible to all workers and
-requires more ``permanence.''  In order to reclaim the data (garbage collect or
-resolve anti-dependence), publish data must know its access group.
-When all read handles within an access group have been deleted or released
-\emph{globally}, the published data can be reclaimed.
+destructor invocation in C++ when a class goes out of scope.  
+Unpublished data can leverage the sequential semantics of the application for garbage collection.  
+Published data, however, is globally visible to all workers and requires more ``permanence.''  
+In order to reclaim the data (garbage collect or resolve anti-dependence), publish data must know its access group.
+When all read handles within an access group have been deleted or released \emph{globally}, the published data can be reclaimed.
 The easiest way to declare an access group (and currently supported method) is
-to simply give the total number of additional read \inlinecode{AccessHandle<T>}
-objects that will be created referring to it.
-In future versions, hints will be supported about which specific tasks will need
-to read data.
-The publish/fetch mechanism replaces an analogous \inlinecode{MPI_Send/Recv} or
-even potentially an \inlinecode{MPI_Bcast}.
-In MPI, these function calls force an \inlinecode{MPI_Send} or
-\inlinecode{MPI_Wait} to block until the runtime guarantees that the data has
+to simply give the total number of additional read \inlinecode{AccessHandle<T>} objects that will be created referring to it.
+In future versions, hints will be supported about which specific tasks will need to read data.
+The publish/fetch mechanism replaces an analogous \inlinecode{MPI_Send/Recv} or even potentially an \inlinecode{MPI_Bcast}.
+In MPI, these function calls force an \inlinecode{MPI_Send} or \inlinecode{MPI_Wait} to block until the runtime guarantees that the data has
 been delivered.
 An access group in DARMA provides a similar guarantee.
-Until all readers in an access group have received or released their data, DARMA
-cannot reclaim (garbage collect, clear anti-dependencies).
+Until all readers in an access group have received or released their data, DARMA cannot reclaim (garbage collect, clear anti-dependencies).
 
 \begin{CppCode}
 auto float_handle = initial_access<float>("float_key");
@@ -268,31 +319,32 @@ float_handle.publish(n_readers=1);
 \end{CppCode}
 The \inlinecode{n_readers} specification in the publish call is a keyword
 argument (see Section \ref{sec:keyword}) that informs the runtime that the data
-(associated with \inlinecode{float_key}) will only ever be read once, and hence
-can be safely garbage collected soon after.  This code is essentially a direct
-replacement of a send/recv.
+(associated with \inlinecode{float_key}) will only ever be read once, and hence can be safely garbage collected soon after.  
+This code is essentially a direct replacement of a send/recv.
 
+As discussed above, handles can either be ready or pending. 
+In reality, the distinction is more subtle. 
+The ``readiness'' and ``pendingness'' can be different for read usages and write usages.
+Thus a handle can be read-ready, but modify-pending.
+This will be the case after publish operations.
 Publish operations are treated as asynchronous read operations --- that is,
 \inlinecode{h.publish(/*...*/)} is treated like
 \verb| create_work(reads(h), [=]{/*...*/}); |. 
 This means that the same precautions should be taken as with asynchronous reads. 
-In particular, even if the handle was in a modifiable state before the 
-\inlinecode{publish}, it is no
-longer valid to call \lstinline!h.set_value()! after the publish, since the
-asynchronous read done by the publish may or may not have occurred yet.  In this
-scenario, one should use \verb|create_work([=]{ h.set_value(/*...*/); });|
-instead.
-
-
+In particular, even if the handle was ready for modifying before
+\inlinecode{publish}, it is no onger valid to call \lstinline!h.set_value()! after the publish.
+The asynchronous read done by the publish may or may not have occurred yet.  
+In this scenario, one should use \verb|create_work([=]{ h.set_value(/*...*/); });| instead
+to force the handle from a pending state to a ready state.
 
 \subsubsection{Publication Versions}
-
 If a handle is going to be published multiple times (or, more specifically, if
 the key with which the handle was created is going to be published multiple
-times), it needs to be published with a different version each time.  Versions
-are just like keys --- an arbitrary tuple of values (see Section
-\ref{subsec:keys}).  For instance:
+times), it needs to be published with a different version each time.  
+Versions are just like keys --- an arbitrary tuple of values (see Section \ref{subsec:keys}).  
+For instance:
 
+\begin{minipage}{0.45\textwidth}
 \begin{CppCode}
 auto float_handle = initial_access<float>("float_key");
 auto int_handle = initial_access<int>("int_key");
@@ -300,12 +352,18 @@ auto int_handle = initial_access<int>("int_key");
 int_handle.publish(n_readers=3, version=77);
 // Use version() instead of version= for multi-part version keys
 float_handle.publish(n_readers=1, version("alpha",42));
-
+\end{minipage}
+\begin{minipage}{0.45\textwidth}
+\begin{CppCode}
 /* Elsewhere... (e.g., on a different rank) */
 auto my_int = read_access<int>("int_key", version=77);
 auto my_flt = read_access<float>("float_key", version("alpha",42));
-
 \end{CppCode}
+\end{minipage}
+Versions are analogous to MPI tags to ensure the uniqueness of data.
+However, unlike MPI which uses a combination of message order and tag to uniquely identify messages and match send/recv pairs,
+the DARMA asynchronous model does not allow implicit publication order to be used in matching publish/fetch pairs.
+Instead, all publications must uniquely definitely each publication with a specific version.
 
 % DSH took this out, since it's supposed to be in 0.3
 %\subsection{Subscribe}
@@ -338,8 +396,6 @@ aribitrary \gls{tuple} as a \inlinecode{key}:
 
 \section{Keyword arguments}
 \label{sec:keyword}
-
-
 Similar to higher-level languages like Python, the DARMA C++ interface allows the user
 to specify arguments to many of the API functions and constructs using either positional
 or keyword arguments. In addition, many optional arguments may {\em only} be specified using
@@ -377,33 +433,34 @@ some_function(false, 42, true);
 // Error: positional argument given after first keyword argument
 some_function(arg_a="hello", 42, flag=true);
 \end{CppCode}
-The illusion of Python-like keyword arguments is accomplished 
-using \inlinecode{constexpr} instances
-of a class with the assignment operator overloaded.  The arguments are passed to the 
-callable using perfect forwarding, and thus the overhead from the keyword argument 
-trick is entirely at compile-time.  (More implementation details are given in
-Section \ref{sec:kwargs}).  These instances are defined in very descriptive namespaces,
-and frequently used keywords are aliased into more general namespaces. 
-For instance, the keywords for \inlinecode{some_function}, above, would likely be 
-defined in a namespace named using the following convention:
-\inlinecode{darma::keyword_arguments_for_some_function}.
-If \inlinecode{some_function} was a 
-widely used construct, its more important keywords would also be defined 
-in the namespace \inlinecode{darma::keyword_arguments}. 
-If \inlinecode{some_function} belonged to a broader category of 
-constructs, certain of its keywords may also be aliased into a 
-categorical namespace as well.  For instance, if \inlinecode{some_function} 
-implemented some memory management functionality,
-its keywords may be aliased into \inlinecode{darma::keyword_arguments_for_memory_management} or 
-something.  All of this is done so that the user can minimize verbosity without introducing
-naming conflicts.  In certain contexts, it may be expedient for the user to simply
-put \inlinecode{using darma::keyword_arguments} at the beginning of the calling context. 
-In other, more complicated contexts, importing all DARMA keywords into the 
-local context may lead to naming conflicts with local variables. 
-You don't have to guess at which namespaces
-a keyword is provided in or aliased into; every time a keyword argument or a callable
-accepting that argument is introduced in the documentation, the namespace to which 
-it belongs and all namespaces it is aliased into are given.
+The enabling of Python-like keyword arguments introduces no runtime overhead.
+For those interested in C++ details, keyword arguments are accomplished using \inlinecode{constexpr} class instances with overloaded assignment operator.  
+with arguments passed to the callable using perfect forwarding.
+More implementation details are given in Section \ref{sec:kwargs}.  
+
+\todo{Keywords and namespaces - I don't think we ever resolved this}
+%These instances are defined in very descriptive namespaces,
+%and frequently used keywords are aliased into more general namespaces. 
+%For instance, the keywords for \inlinecode{some_function}, above, would likely be 
+%defined in a namespace named using the following convention:
+%\inlinecode{darma::keyword_arguments_for_some_function}.
+%If \inlinecode{some_function} was a 
+%widely used construct, its more important keywords would also be defined 
+%in the namespace \inlinecode{darma::keyword_arguments}. 
+%If \inlinecode{some_function} belonged to a broader category of 
+%constructs, certain of its keywords may also be aliased into a 
+%categorical namespace as well.  For instance, if \inlinecode{some_function} 
+%implemented some memory management functionality,
+%its keywords may be aliased into \inlinecode{darma::keyword_arguments_for_memory_management} or 
+%something.  All of this is done so that the user can minimize verbosity without introducing
+%naming conflicts.  In certain contexts, it may be expedient for the user to simply
+%put \inlinecode{using darma::keyword_arguments} at the beginning of the calling context. 
+%In other, more complicated contexts, importing all DARMA keywords into the 
+%local context may lead to naming conflicts with local variables. 
+%You don't have to guess at which namespaces
+%a keyword is provided in or aliased into; every time a keyword argument or a callable
+%accepting that argument is introduced in the documentation, the namespace to which 
+%it belongs and all namespaces it is aliased into are given.
 
 % DSH: removed section and TODO for now.  These are discussed briefly above in
 % the handles section anyway.  We can elaborate more there later.
@@ -425,30 +482,27 @@ Most applications written in or ported to DARMA will likely have \gls{spmd} as
 the dominant form of parallelism.
 To simplify the implementation of SPMD-structured codes, the notion of 
 a \gls{rank} is maintained within the \gls{API}.   
-This should make it a little easier for existing MPI based application codes to transition 
-to DARMA. The initialization and termination of the runtime in each unit 
+Again, rather than rely entirely on sequential semantics in cases of massive data parallelism,
+many independent parallel execution streams can begin simultaneously and coordinate via the key-value store.
+Each execution stream is assigned a unique rank ID, analogous to the MPI rank assigned to processes in a MPI communicator.
+The initialization and termination of the runtime in each unit 
 is via the calls \inlinecode{darma_init()} and \inlinecode{darma_finalize()}. 
 The total number of \gls{spmd} units are queried with the call \inlinecode{darma_spmd_size()},
 and the rank is queried with \inlinecode{darma_spmd_rank()}. A typical user 
 written main program will look as follows:
 \begin{CppCode}
 int main(int argc, char**argv){
-
-	darma_init(argc, argv);
-	size_t n_ranks = darma_spmd_size();
-	size_t me = darma_spmd_rank();
-
-	//lots of code
-
-	darma_finalize();
+  darma_init(argc, argv);
+  size_t n_ranks = darma_spmd_size();
+  size_t me = darma_spmd_rank();
+  ...
+  darma_finalize();
 }
 \end{CppCode}
 
 The rank is a very useful concept to orchestrate dependencies in a \gls{spmd}
-model since data pertaining to a rank can be associated with a key that utilize
-the rank for uniqueness. Similarly, the unique key used by a different rank
-from which data needs to be fetched can be constructed from the knowledge of
-the rank creating the data.  The example below illustrates this concept, where
+model since data pertaining to a rank can be associated with keys that utilize
+the rank for uniqueness. The example below illustrates this concept, where
 the rank is integral to the key associated with data originating on that rank
 \begin{CppCode}
 size_t me = darma_spmd_rank();
@@ -456,9 +510,7 @@ auto data_handle = initial_access<double>("data_key", me);
 \end{CppCode}  
 Note that in DARMA, SPMD ranks are actually just a special kind of task that
 happens to have a name containing the rank, and can be treated as such. 
-However, the similarity to traditional, MPI-style SPMD upon launch will simplify
-the learning and porting process significantly.
-
+However, the similarity to traditional, MPI-style SPMD upon launch should improve the ease of porting and scalability significantly.
 
 % DSH: removed section and TODO for now.  These are discussed briefly above in
 % the handles section anyway.  We can elaborate more there later.
@@ -490,29 +542,41 @@ settled in the backend API)}
 \todo[inline]{FR: can be moved some other place if more useful}
 
 Handles are assigned states, and these states change 
-based on the operations applied to them. In other words, 
-handles' states transition. However, not all states 
-are allowed at all times. The ``permissions'' on 
-what it is allowed changes based on the context. 
-Permissions fall under two main categories: 
+based on the operations applied to them.  
+As discussed above, the state of a handle encompasses both its read/write permissions and its ``readiness."
+Pending handles can only be used for scheduling tasks while ready handles can be immediately used to do work.
+We more rigorously divide permissions into two main categories: 
 \begin{itemize}
-\item[a] {\it Scheduling}: permissions on a handle 
-within a \inlinecode{create_work} (more generally within a deferred work).
-\item[b] {\it Immediate}: permissions that apply immediately.
+\item[a] {\it Scheduling}: Permissions a handle may use when instantiating tasks with \inlinecode{create_work}.
+These permissions apply independent of handle readiness. 
+Generally, this will be Read (handle may only used in read-only tasks) or Modify (handle may be used in read-only or read-write tasks). 
+\item[b] {\it Immediate}: Permissions that apply immediately, indicating the ``readiness'' of the handle.  Immediate privileges can ever be greater than Scheduling privileges.
+A task can never have greater permissions doing immediate work than it can for instantiating deferred work.
 \end{itemize}
 
-In the 0.2 spec, as described above, there are two main types 
-of handle supported:
+For the two methods of creating handles, we have the following initializations.
 \begin{itemize}
-\item \inlinecode{initial_access<T>}: when a handle of 
-this type is first created, it is assigned 
-``Modify/None'' permissions.
+\item \inlinecode{initial_access<T>}: Initialized with scheduling modify, immediate none. 
+The handle can be used in any mode when instantiating deferred work.
+However, the handle is not necessarily initialized and as such cannot be used immediately for reads or writes.
 %
-\item \inlinecode{read_access<T>}: when a handle of 
-this type is first created, it is assigned 
-``Read/None'' permissions.
+\item \inlinecode{read_access<T>}: Initialized with scheduling read, immediate none.
+The handle can only be used for reads when instantiating deferred work.
+However, the handle is not necessarily initialized and as such cannot be used immediately.
 \end{itemize}
+Table \ref{tab:immsimp} summarizes the state transitions for handles following \cwork.
 
+\begin{CppCode}
+//Initial parent state
+create_work([=]{
+  //Subtask state
+})
+//Continuing parent state
+\end{CppCode}
+In the parent task, a handle will have an initial pair of scheduling/immediate privileges.
+After the create work, the handle's state will have changed, potentially losing some immediate privileges.
+As specified currently, execution does not begin inside the deferred work block until a handle becomes ready.
+Inside the \cwork, the handle's immediate and scheduling privileges will therefore be the same.
 
 
 \begin{table}[!t]
@@ -529,7 +593,7 @@ this type is first created, it is assigned
                   \inlinecode{get_reference()}\\
                   } 
  } 
- & \multicolumn{2}{c}{\inlinecode{release()}} \\
+ & \multicolumn{2}{c}{\inlinecode{publish()}} \\
  \hline
  \specialcell{Scheduling\\ permissions} 
  & \specialcell{Immediate\\ permissions}  
@@ -569,9 +633,7 @@ this type is first created, it is assigned
 \hline
 \end{tabular}
 }
-\caption{Operations on the various states. 
-Transitions marked with an asterisk (*) effectively
-represent no-ops and could generate warnings.}
+\caption{Operations on the various states}
 \label{tab:immsimp}
 \end{center}
 \end{table}
@@ -581,16 +643,16 @@ represent no-ops and could generate warnings.}
 {\small
 \begin{tabular}{cc|ccc|ccc}
  \hline
- \multicolumn{2}{c|}{} 
+ \multicolumn{2}{c|}{Initial parent handle} 
  & \multicolumn{3}{c|}{\em{read-only capture}} 
  & \multicolumn{3}{c}{\em{modify capture}}  \\
  \hline
  \specialcell{Scheduling\\ permissions} 
  & \specialcell{Immediate\\ permissions}  
- & {\footnotesize Allowed? } & {\footnotesize Captured } 
- & {\footnotesize Continuing as} 
- & {\footnotesize Allowed? } & {\footnotesize Captured } 
- & {\footnotesize Continuing as} \\
+ & {\footnotesize Allowed? } &  \specialcell{\footnotesize Subtask\\handle} 
+ &  \specialcell{\footnotesize Continuing\\parent handle} 
+ & {\footnotesize Allowed? } &  \specialcell{\footnotesize Subtask\\handle} 
+ &  \specialcell{\footnotesize Continuing\\parent handle} \\
  \hline
  None & None & No & - & - & No & - & - \\
  %
@@ -640,9 +702,9 @@ represent no-ops and could generate warnings.}
 \end{center}
 \end{table}
 
+We include illustrative examples to demonstrate specific incorrect usages for handles with modify privileges (Figure \ref{fig:example1vasp}) and read privileges (Figure \ref{fig:example2vasp}).
 
-
-Example (1): 
+\begin{figure}
 \hspace{-0.75cm}
 \begin{minipage}[t]{0.45\linewidth}%
 \centering
@@ -668,10 +730,13 @@ create_work([=]{ //modify capture
 });
 \end{vaspPseudo}
 \end{minipage}
+\caption{Example illustrating correct and incorrect usages of Modify privileges for handles}
+\label{fig:example1vasp}
+\end{figure}
 
 
 
-Example (2): 
+\begin{figure} 
 \hspace{-0.75cm}
 \begin{minipage}[t]{0.45\linewidth}%
 \centering
@@ -698,7 +763,9 @@ create_work([=]{ // capture
 });
 \end{vaspPseudo}
 \end{minipage}
-
+\caption{Example illustrating correct and incorrect usages of Read privileges for handles}
+\label{fig:example2vasp}
+\end{figure}
 
 
 
@@ -1224,6 +1291,7 @@ create_work([=]{
 \end{figure}
 
 \subsubsection{Restrictions and Pitfalls} 
+\todo{What is the status of constructor stuff}
 \begin{itemize}
   \item {\color{red}[0.2 only]} Because the 0.2 spec lacks a means of specifying
   the constructor of \texttt{T} to be called by default, the first usage of
@@ -1309,6 +1377,7 @@ else if(me == 1) {
 \end{figure}
 
 \subsubsection{Restrictions and Pitfalls}
+\todo{Let's soften the language here}
 \begin{itemize}
   \item \texttt{publish()} is one of the ways DARMA lets you ``shoot yourself in
   the foot.''  While it is very difficult to create dependency loops, race

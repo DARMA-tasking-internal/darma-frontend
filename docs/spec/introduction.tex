@@ -40,8 +40,8 @@ the same tasks in the same order; and 2) concurrency is maximized (the
   minimal amount of synchronization is performed) by 
 leveraging multiple forms of parallelism. The term many-task encompasses 
 the idea that the application is decomposed into many 
-\gls{migratable} units of work, to enable the overlap of communication and 
-computation as well as asynchronous load balancing strategies.
+\gls{migratable} units of work that enable the overlap of communication and 
+computation as well as dynamic task reordering and load balancing strategies.
 
 \begin{figure}
 \centering
@@ -65,7 +65,7 @@ There is a tremendous potential to explore the integration of
 the research stemming from these different communities.
  However,  this exploration is currently hampered by the combinatorial
  complexity posed by the lack of standards, common terminology, and 
-resusable components within the \gls{AMT} community.
+reusable components within the \gls{AMT} community.
 
 \section{Scope}\label{sec:scope}
 In this document we provide the specification for DARMA,
@@ -86,7 +86,7 @@ the specification, highlighting which requirements
 motivated changes to the specification.
 \item[Exploring AMT design space tradeoffs:]
 DARMA aims to be as agnostic as possible with regards to data, memory, and execution
-models in order to faciliate exploration of the AMT design space. The
+models in order to facilitate exploration of the AMT design space. The
 specification gives a programming model design that seeks to
 clearly separate policy from mechanism. \todo{elaborate on what we mean by this} The set of policies specified by DARMA do not uniquely map to any
 existing AMT programming model -- rather this specification captures features and policies
