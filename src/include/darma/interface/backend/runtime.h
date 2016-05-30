@@ -48,9 +48,11 @@
 #include "types.h"
 #include <darma/interface/frontend/types.h>
 
-#include <darma/interface/frontend/dependency_handle.h>
+#include <darma/interface/backend/flow.h>
+#include <darma/interface/frontend/handle.h>
 #include <darma/interface/frontend/task.h>
 #include <darma/interface/frontend/use.h>
+#include <darma/interface/frontend/publication_details.h>
 
 namespace darma_runtime {
 
@@ -71,6 +73,8 @@ namespace backend {
  */
 class Runtime {
   public:
+
+    typedef frontend::Task task_t;
 
     /** @brief Register a task to be run at some future time by the runtime system.
      *
@@ -111,14 +115,14 @@ class Runtime {
      *
      *  This method registe a Use object to be used later as a possible dereference of
      *  the iterator to the iterable returned by t.get_dependencies() for some task t registered
-     *  after this invocation of register_handle_access() but before the corresponding
-     *  release_handle_access().  This also indicates the beginning of the window in which make_next()
+     *  after this invocation of register_use() but before the corresponding
+     *  release_use().  This also indicates the beginning of the window in which make_next()
      *  may be called on either the get_input_flow() or the get_output_flow() returns from the argument
-     *  (which also closes with the corresponding call to release_handle_access()).
+     *  (which also closes with the corresponding call to release_use()).
      */
     virtual void
-      register_handle_access(
-      frontend::Use* ha
+    register_use(
+      frontend::Use* u
     ) =0;
 
     /** @brief Make an initial Flow to be associated with the handle given as an argument.
@@ -140,24 +144,52 @@ class Runtime {
      *
      */
     virtual Flow*
-      make_fetching_flow(
+    make_fetching_flow(
       frontend::Handle* handle,
       types::key_t const& version_key
-    );
+    ) =0;
 
     /** @brief Make an null Flow to be associated with the handle given as an argument.
      *
      *  A null usage as a return value of ha->get_out_flow() for some Use* ha is
      *  intended to indicate that the data associated with that Use has no consumers
-     *  and can safely be deleted.  See release_handle_access().
+     *  and can safely be deleted.  See release_use().
      *
      */
     virtual Flow*
-      make_null_flow(
+    make_null_flow(
       frontend::Handle* handle
     ) =0;
 
-    /** @brief Release a Use object previously registered with register_handle_access.
+    /**
+     *  @TODO document this
+     */
+    typedef enum FlowPropagationPurpose {
+      Input,
+      Output,
+      ForwardingChanges
+    } flow_propagation_purpose_t;
+
+    /**
+     *  @TODO document this
+     */
+    virtual Flow*
+    make_same_flow(
+      Flow* from,
+      flow_propagation_purpose_t purpose
+    ) const =0;
+
+    /**
+     *  @TODO document this
+     */
+    virtual Flow*
+    make_next_flow(
+      Flow* from,
+      flow_propagation_purpose_t purpose
+    ) const =0;
+
+
+    /** @brief Release a Use object previously registered with register_use.
      *
      *  Upon release, if the Use has at least immediate_permissions() of Write, the data
      *  in the location indicated by ha->get_data_pointer_reference() with size and layout characteristics
@@ -165,7 +197,7 @@ class Runtime {
      *  any Use objects reporting immediate_permissions of Read (or greater) and reporting
      *  a get_in_flow() that is the same as (by Flow sameness rules, see Flow documentation) or aliases (see below)
      *  the Flow reported by ha->get_out_flow().  If the return value of ha->get_out_flow() is the same as
-     *  or aliases a Flow created with make_null_flow() at the time release_handle_access() is invoked,
+     *  or aliases a Flow created with make_null_flow() at the time release_use() is invoked,
      *  the data at this location may be safely deleted.
      *
      *  A Flow alias between ha->get_in_flow() and ha->get_out_flow() is established when a Use ha
@@ -176,17 +208,17 @@ class Runtime {
      *  and Flow b aliases c, the fact that a aliases c should be discernible without linear cost in the size of the
      *  set {a, b, c}.
      *
-     *  The evaluation of release_handle_access() on a Use ha1 must be atomic with respect to the evaluation
-     *  of release_handle_access() on another Use ha2 if either could establish an alias on the other's
+     *  The evaluation of release_use() on a Use ha1 must be atomic with respect to the evaluation
+     *  of release_use() on another Use ha2 if either could establish an alias on the other's
      *  get_out_flow() return value (this may also include get_in_flow() in future versions of the spec).  That is,
      *  if the release of ha1 could establish an alias on the Flow returned by ha2.get_out_flow(), then the evaluation
-     *  of release_handle_access(ha1) and release_handle_access(ha2) must be atomic with respect to each other (whichever
+     *  of release_use(ha1) and release_use(ha2) must be atomic with respect to each other (whichever
      *  evaluation starts first must finish before the other starts).
      *
      */
     virtual void
-      release_handle_access(
-      frontend::Use* ha,
+    release_use(
+      frontend::Use* u
     ) =0;
 
 
@@ -198,8 +230,8 @@ class Runtime {
      *  @sa PublicationDetails
      */
     virtual void
-      publish_flow(
-      Flow* usage,
+    publish_flow(
+      Flow* f,
       frontend::PublicationDetails* details
     ) =0;
 
@@ -211,11 +243,76 @@ class Runtime {
      *  @sa Flow
      */
     virtual void
-      release_published_flow(
-      Flow* usage
+    release_published_flow(
+      Flow* f
     ) =0;
 
 };
+
+typedef Runtime runtime_t;
+
+/** @brief initialize the backend::Runtime instance
+ *
+ *  @todo update this for the new backend
+ *
+ *  @remark This should be called once per top-level task.  Only one top-level
+ *  task is allowed per process.
+ *
+ *  @pre The frontend should do nothing that interacts with the backend before
+ *  this function is called.
+ *
+ *  @post Upon return, the (output) parameter backend_runtime should point to a
+ *  valid instance of backend::Runtime.  All methods of backend_runtime should
+ *  be invocable from any thread with access to the pointer backend_runtime
+ *  until that thread returns from a call to Runtime::finalize() on that
+ *  instance.  The runtime should assume control of the (owning) pointer passed
+ *  in through top_level_task and should not delete it before
+ *  Runtime::finalize() is invoked on the backend_runtime object.  The top-level
+ *  task object should be setup as described below.
+ *
+ *  @param argc An lvalue reference to the argc passed into main().
+ *  @param argv An lvalue reference to the argv passed into main().
+ *
+ *  @param backend_runtime The input value of this parameter is ignored.  On
+ *  return, it should point to a properly initialized instance of
+ *  backend::Runtime.  The backend owns this instance and should delete it
+ *  after darma_main() returns, at which point Runtime::finalize() should have
+ *  returned.
+ *
+ *  @param top_level_task The task object to be returned by
+ *  Runtime::get_running_task() if that method is invoked (on the instance
+ *  pointed to by backend_runtime upon return) from the outermost task context
+ *  within which darma_backend_initialize() was invoked.  (Inside of any task
+ *  context created by an invocation of Task::run(), of course, the runtime
+ *  should still behave as documented in the Runtime::get_running_task()
+ *  method).  It is \a not valid to call Task::run() on this top-level task
+ *  object [test: DARMABackendInitialize.top_level_run_not_called] (i.e., it is
+ *  an error), and doing so will cause the frontend to abort.  Indeed (as of 0.2
+ *  spec), the only valid methods for the backend to call on this object are
+ *  Task::set_name() and Task::get_name().  At least before returning
+ *  top_level_task from any calls to Runtime::get_running_task(), the backend
+ *  runtime should assign a name to the top-level task with at least three
+ *  parts, the first three of which must be: a string constant defined by the
+ *  preprocessor macro DARMA_BACKEND_SPMD_KEY_PREFIX, a std::size_t for the rank
+ *  of the SPMD-like top-level task from which initialize was invoked, and a
+ *  std::size_t givin the total number of ranks in the SPMD launch (which must
+ *  be known at launch time; SPMD ranks cannot be dynamically allocated)
+ *  [test: DARMABackendInitialize.rank_size].  In other words, the backend
+ *  should make a call of the form:
+ *  top_level_task->set_name(DARMA_BACKEND_SPMD_NAME_PREFIX, rank, size);
+ *
+ *  @remark The backend is free to extract backend-specific command-line
+ *  arguments provided it updates argc and argv.  When
+ *  darma_backend_initialize() returns, backend-specific parameters must no
+ *  longer be in argc and argv.
+ *
+ */
+extern void
+  darma_backend_initialize(
+  int& argc, char**& argv,
+  runtime_t*& backend_runtime,
+  types::unique_ptr_template<typename runtime_t::task_t> top_level_task
+);
 
 } // end namespace backend
 
