@@ -5,7 +5,6 @@
 \label{sec:programmingmodel}
 \todo[inline]{add task to glossary}
 
-
 \Glspl{programming model} provide application developers 
 abstractions for expressing \emph{correct} and \emph{performant} algorithms. 
 As described earlier, a key design goal of \gls{AMT} models is to enable performance-based
@@ -71,26 +70,18 @@ compile-time optimizations performed by \emph{performance
 portability} tools, e.g.~\cite{Kokkos,RAJA,TiDA}.  Compile-time performance
 portability tools provide the ability to map a
 single code onto high-performance execution across diverse compute platforms.
-\todo[inline]{Jeremy/David: Can/should we say more about interoperability with
-perf portability layers here}
+
 
 One of the major differences between \gls{DARMA} and a traditional \gls{CSP}
 \gls{programming model} is the manner in which communication is performed.  
 Communication between \gls{DARMA} \codelink{rank}s is not performed via direct messaging.
-Instead, \gls{coordination semantics} are used:   
-rather than explicitly move data between ranks via direct communication
-(i.e.,  \inlinecode{send/recv}), processes \emph{coordinate} by putting/getting
+Instead, \gls{coordination semantics} are used.  Processes \emph{coordinate} by putting/getting
 data associated with a unique \codelink{key} in a \gls{tuple space}.  
-\Gls{coordination semantics} promote out-of-order message arrival, deferred
+\Gls{coordination semantics} enables out-of-order message arrival, deferred
 execution, task migration, and resilience strategies 
 since the application declares or describes the data it needs/produces rather than enforcing an explicit delivery mechanism.
-The use of \gls{zero-copy} mechanisms and tuple caching provide 
-performant \gls{coordination semantics} in \gls{DARMA} in order to
-produce execution equivalent to an MPI \inlinecode{send/recv} code. 
-\todo[inline]{Jeremy, David: Are these mechanisms that are key to performance
-  achieved in the translation layer? Or, are these requirements to runtime
-teams in their implementation?}
-
+The coordination semantics in the specification are intended to support the use of \gls{zero-copy} mechanisms and tuple caching,
+generally producing execution equivalent to an MPI \inlinecode{send/recv} code. 
 
 Together, these features make \gls{DARMA} a mixed \gls{imperative}/\gls{declarative} \gls{programming model}.
 As much as possible, sequential \gls{imperative} semantics are used to produce intuitive, maintainable code.
@@ -170,7 +161,6 @@ A critically important part of future co-design activities will be the
 development of the interface by which developers can steer the runtime towards
 a desired set of optimizations that compilers or runtime schedulers might fail
 to perform.
-\todo[inline]{Jeremy: I moved this here and rephrased a bit -- please vet}
 \end{compactdesc}
 
 
