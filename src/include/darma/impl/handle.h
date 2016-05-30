@@ -441,15 +441,6 @@ class AccessHandleBase {
   public:
     virtual ~AccessHandleBase() = default;
 
-    typedef enum State {
-      None_None,
-      Read_None,
-      Read_Read,
-      Modify_None,
-      Modify_Read,
-      Modify_Modify
-    } state_t;
-
     typedef enum CaptureOp {
       ro_capture,
       mod_capture
