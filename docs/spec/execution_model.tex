@@ -32,14 +32,15 @@ requiring that a \gls{back end} \gls{runtime system} preserve the
 \glspl{data-flow dependency} expressed in the application and derived by the
 \gls{translation layer}.
 
-Furthermore, \gls{DARMA} prescribes nothing about the internals of each task.
-\gls{DARMA} is fully compatible with parallel elastic tasks - tasks with
-flexible fine-grained parallelism, usually \gls{data parallelism}.
-For example, depending on dynamic conditions, more or fewer threads may be
-requested for a \gls{CUDA} kernel.
-Although the \gls{DARMA} \gls{front end} \gls{API} currently only allows
-expressing task granularity and task data-flow in the \specVersion\ version of
-the specification, task elasticity will be specified in future version of the
-specification.
+The main focus of DARMA is the programming model and corresponding translation layer that maps CSP semantics onto a data-flow description of the algorithm based on deferred tasks.
+DARMA prescribes nothing about the scheduling of tasks or implementation of key-value store semantics supporting process coordination (see below).
+A backend scheduler is therefore free to use, e.g. either depth-first or breadth-first priorities in executing tasks on the CDAG.
+Similarly, a scheduler may use thread pools with work queues to run tasks or it may use a fork-join model that creates new threads for each task.
+DARMA codes are therefore execution model-agnostic, only requiring that a backend runtime preserve the data-flow constraints expressed in the application and derived by the translation layer.
 
+DARMA furthermore prescribes nothing about the internals of each task.
+DARMA is fully compatible with parallel elastic tasks - tasks with flexible fine-grained parallelism, usually data parallelism.
+For example, depending on dynamic conditions, more or fewer threads may be requested for a GPU kernel.
+Although the DARMA application-level API currently only allows expressing task granularity and task data-flow,
+we expect the API to also express task elasticity in future versions.
 

@@ -1,28 +1,529 @@
 %!TEX root = sandReportSpec.tex
 
-\chapter{Front End}
+\chapter{DARMA Front End API}
 \label{chap:front_end}
 
-This chapter begins by introducing the following constructs supported in
-\specVersion\ of the specification:
+This chapter describes the DARMA \gls{front end} \gls{API}, 
+by introducing the following supported constructs:
 \begin{compactitem}
-\item Task and \gls{deferred work} creation
-\item Data access \glspl{handle}
-\item \Glspl{keyword argument}
-\item \gls{spmd} support
-%\item Serialization Manager
+\item Instantiating Deferred Work 
+\item Data Access Handles
+\item Keyword arguments
+\item \gls{spmd} support (coordination languages)
+\item Serialization Manager
 \end{compactitem}
-After providing summary descriptions of these constructs, we provide a detailed description of the
-\gls{API}.
+Moreover, we discuss in detail the rules for using the data access handles.
 
-\input{front_end/deffered_work}
-\input{front_end/data_access_handles}
-\input{front_end/functors}
-\input{front_end/keyword_arguments}
-\input{front_end/serialization}
-\input{front_end/spmd}
-%\input{front_end/collectives}
-\input{front_end/api}
+
+\section{Deferred Work Instantiation}
+\label{sec:deferred}
+In DARMA, like other AMT runtime systems, the user creates blocks of work and defines the preconditions for the task to begin executing.
+Rather than require app developers to explicitly define vertices and edges in a task-DAG or use explicit fork-join constructs,
+task preconditions are implicit in either the sequential order of tasks or the data-flow inherent in the key-value store coordination for publish/fetch pairs (more below).
+Deferred work is instantiated (but not necessarily executed) via the \inlinecode{create_work()} function. 
+For inline tasks (as compared to functor-based tasks, more below), this utilizes the C++ lambda mechanism to yield the following syntax:
+% DSH merged [=]{ into one line for a couple of reasons; chief reason is we may
+% want to macro this at some point so that it can conditionally be compiled into
+% [=] __cuda_inline__ {  or something like that for GPU use.
+\begin{CppCode}
+  create_work([=]{
+    // work to do
+  });
+\end{CppCode}
+
+While this syntax leverages \CC11 lambdas, the user does not need to understand \CC11 standard features to use \inlinecode{create_work()} (this
+complexity is managed by DARMA's translation layer, as summarized in Chapter~\ref{chap:translation_layer}). 
+All the work specified within a \inlinecode{create_work} is queued for deferred execution. 
+The task does not need to execute immediately and may be executed by the backend runtime any time after all its preconditions are satisfied. 
+Preconditions are either dependencies (waiting for data to be produced) or anti-dependencies (waiting for data to be released so it can be overwritten).   
+Preconditions for a task are never given explicitly, but are instead derived implicitly based on sequential usage of \inlinecode{AccessHandle} objects, discussed in detail below.
+For example, to follow sequential semantic the following code should print ``first: 42, second: 84'':
+\begin{CppCode}
+AccessHandle<int> my_handle = initial_access("some_data_key");
+create_work([=]{
+  my_handle.set_value(42);
+});
+create_work([=]{
+  cout << "first: " << my_handle.get_value();
+});
+create_work([=]{
+  my_handle.set_value(my_handle.get_value()*2);
+});
+create_work([=]{
+  cout << ", second: " << my_handle.get_value();
+});
+\end{CppCode}
+The code produces results equivalent to a C++ code in which \inlinecode{create_work} is removed and \inlinecode{AccessHandle} is just replaced with the underlying type.
+These sequential semantics are pivotal to the DARMA programming model.
+
+Relying solely on sequential semantics is the ``ideal'' way of coding in terms of limiting programmer burden, avoiding deadlock, and enabling runtime optimizations.
+The details of this are beyond the scope of the current work.
+For certain cases, particularly those involving massive SPDM parallelism across a distributed memory machine,
+it may be more scalable and natural to code in a CSP-like framework involving parallel execution streams.
+Rather than coding as if only a single execution stream, the programmer codes must be aware of multiple parallel streams.
+Rather than exchanging data through send/recv pairs, however, DARMA uses coordination to communicate data between parallel execution streams.
+Two execution streams never explicitly exchange data. Instead they put and get data from a key-value store.
+Coordinating (rather than communicating) abstracts physical data locations to better support task migration.
+Additionally, it removes message-ordering requirements to better support asynchronous data transfers.
+While they key-value store appears to be a centralized, global data store that copies data in/out,
+the key-value store can be implemented as a distributed hash table (DHT) that supports zero-copy transfers.
+Thus both sequential semantics and coordination semantics follow the same principle in DARMA.
+An intuitive programming model that simplifies reasoning about algorithms is transformed to a parallel, scalable execution by the translation layer and backend runtime.
+
+In the example here, variables are not passed down from a parent task to child tasks.
+Instead, one execution stream produces a value and publishes it to the key-value store.
+Another execution stream reads the value by fetching it from the key-value store.
+The processes coordinate with publish/fetch pairs similar to send/recv pairs in the CSP model of MPI.
+
+\begin{minipage}{0.45\textwidth}
+Execution Stream 0:
+\begin{CppCode}
+Some publish/fetch code
+\end{CppCode}
+\end{minipage}
+\begin{minipage}{0.45\textwidth}
+Execution Stream 1:
+\begin{CppCode}
+Some publish/fetch code
+\end{CppCode}
+\end{minipage}
+
+% DSH took this out for now
+% which manage the complexity necessary (within DARMA's
+%\gls{translation layer}) to 1) preserve \gls{sequential semantics} within a \gls{rank}, while performing work asynchronously, and 2) \inlinecode{publish} data visibly outside a \gls{rank}.
+%\Glspl{dependency} and \glspl{anti-dependency} for a 
+%\inlinecode{create_work} are inferred by the runtime via
+%\gls{introspection} (again, within the \gls{translation layer}). 
+%The following simple example illustrates how \inlinecode{handles} and
+%\inlinecode{create_work} can be used to gether in a simple ``hello world''
+%example:
+%\begin{CppCode}
+%#include <darma.h>
+%using namespace darma_runtime;
+%using namespace darma_runtime::keyword_arguments_for_publication;
+%
+%int main(int argc, char** argv) {
+%
+%  darma_init(argc, argv);
+%
+%  size_t me = darma_spmd_rank();
+%  size_t n_ranks = darma_spmd_size();
+%
+%  auto greetingMessage = initial_access<std::string>("myName", me);
+%
+%  create_work([=]
+%  {
+%    greetingMessage.set_value("hello world!");
+%  });
+%
+%  create_work([=]
+%  {
+%    std::cout << "DARMA rank " << me << " says " 
+%              << greetingMessage.get_value() << std::endl;
+%  });
+%
+%  darma_finalize();
+%
+%}
+%\end{CppCode}
+%In this example, 1) the DARMA environment is initialized, 2) each rank creates
+%% a task to store a greeting message into a string, and 3) each rank then creates a
+%task to print the message and its rank to standard output.
+%Note that, in this example, \inlinecode{publish} is not required as the
+%dependency \inlinecode{greeting_message} is createed for each rank individually
+%(i.e., none of the dependencies must be visible outside of its rank).
+%In order to guarantee \gls{sequential semantics} (i.e., to make sure the value
+%of \inlinecode{greetingMessage} is set before it is printed),
+%\inlinecode{greetingMessage} must be a \inlinecode{handle}.
+
+\newcommand{\ahandle}{AccessHandle}
+\newcommand{\ahandleT}{AccessHandle<T>}
+\newcommand{\cwork}{\inlinecode{create_work}}
+
+\section{Data Access Handles}
+\label{sec:handles}
+\inlinecode{AccessHandle<T>} objects are lightweight wrappers around the actual data structure of interest having type T. 
+The handles add a control block (metadata) that tracks uses of the handle and enforces
+\gls{sequential semantics}, analogous to smart pointers that wrap pointer types and provide a reference counting control block.
+Critically, this interface is non-intrusive, wrapping any type T without requiring that type to be modified.
+
+Most critically, \inlinecode{AccessHandle} enables deferred access since \ahandle can exist in ready or pending states. 
+Ready and pending are not rigorously defined in the state table for \ahandle in Section \ref{}, but rather guiding concepts.
+Ready handles can be dereferenced (have their underlying values fetched) and be used immediately to perform work.
+Pending handles cannot be dereferenced, but can still be used to \emph{schedule} or \emph{instantiate} work.
+Thus even if a handle is carrying pending or unresolved data, execution can advance thereby unrolling more of the task graph.
+This \emph{lookahead} is the key element that enables runtime optimizations.
+Lookahead gives the runtime more complete knowledge of the task graph instead of locally executing step-by-step.
+By looking ahead, the runtime can reorder or migrate tasks to maximize data locality and improve load balance.
+The most critical conceptual change from standard C++ to DARMA are pending variables that enable lookahead, unlike conventional C++ variables that must always be ``ready''.
+
+% Removed todo for now
+%\todo[inline]{JB Question to David/Jeremy: do we need to introduce versions, or
+%is this no longer needed? DSH: Versions go with publish(), but some of it needs
+%to be here because e.g., read\_access<T>() needs to reference them.}
+
+%Transactions with the \gls{key-value store} are conducted using data handles 
+%that are of different access types which differentiate the various transactions. 
+Handles can be created three different ways.
+\begin{enumerate}
+\item a handle to data that does not yet exist in the system
+but needs to be created, or
+\item a handle to data produced by another process that needs to
+be read, or 
+\item a handle to data produced by another process that needs to be overwritten or modified. 
+Note that this type of handle does not exist in the current version of the spec.
+\end{enumerate}
+
+
+Type 1 is denoted as \inlinecode{initial_access} in DARMA, 
+which informs the runtime that the data with the 
+specified key does not yet exist, and the user intends to 
+create this data.% and (potentially) publish it.
+Hence, an \inlinecode{initial_access} data handle is usually 
+followed by a memory allocation, and a value assignment. 
+Remark: Although we could explicitly write out \inlinecode{AccessHandle<T>} in the code below,
+we \emph{strongly encourage} programmers to use the C++ \inlinecode{auto} keyword.
+It will greatly increase code portability for future (potentially backwards-incompatible) versions of DARMA,
+with the additional benefit of decreasing code verbosity.
+
+%finally a publish operation, as illustrated below: 
+\begin{CppCode}
+auto float_handle = initial_access<float>("float_key");
+create_work([=]{
+  float_handle.set_value(3.14);
+});
+\end{CppCode}
+As stated above, DARMA provides two methods for expressing task preconditions: sequential semantics and coordination.
+\inlinecode{initial_access} is necessary in both methods.
+Once created, a handle can be passed along to subtasks within the same, sequential execution stream.
+A handle created by \inlinecode{initial_access} can also be published, making it available to other execution streams via key-value store coordination.
+
+
+Handles of Type 2 above request read-only access to data produced externally in the system through \inlinecode{read_access}. 
+As such, \inlinecode{read_acccess} is only relevant for applications that use coordination to express data flow.
+%\todo[inline]{This needs to be revised or changed, since
+%``wait\_and\_get\_value()'' (or whatever we end up calling it) is an
+%advanced feature (and not part of the 0.2 spec).}
+%\begin{CppCode}
+%auto float_handle = read_access<float>("another_float_key");
+%{
+%  float val = float_handle.wait_and_get_value();
+%  std::cout << "Value read with key another_float_key is " << val;
+%}
+%\end{CppCode}
+%or, alternatively using deferred execution
+\begin{CppCode}
+auto float_handle = read_access<float>("another_float_key");
+create_work([=]{
+  float val = float_handle.get_value();
+  std::cout << "Value read with key another_float_key is " << val;  
+});
+\end{CppCode}
+%The runtime guarantees that \inlinecode{get_value} will wait until the value
+% exists and is ready locally.
+Immediately following the \inlinecode{read_access} function, the \ahandle will be \emph{pending} instead of \emph{ready}.
+To enable \inlinecode{get_value} to be called (put the handle in a ready state), the handle must be used inside of a \inlinecode{create_work}.
+\cwork defers execution of the code block until they key-value store resolves the value of \inlinecode{float_handle} and converts it to a ready state.
+This might involve moving data if the \inlinecode{float} is on a remote node.
+Remark: future versions of DARMA will enable tasks to begin optimistically with some handles still in a pending state, but this is not supported in the current version.
+ 
+
+In general, any calls to \inlinecode{get_value} should occur 
+within a scoped code block to avoid dangling references to stale physical memory locations.
+%Even when it becomes possible to wait on the data associated with a handle (in
+%later versions of the spec), best practice is to access data via deferred tasks
+inside a \inlinecode{create_work} block when possible.
+
+
+%The third handle type, which informs the runtime that the data 
+%with the specified key will be read and overwritten or modified, 
+%is with the \inlinecode{read_write} handle, illustrated below. 
+%%Again, we show an
+%%example done within the same task and an example using a deferred task.
+%%\begin{CppCode}
+%%auto float_handle = read_write<float>("yet_another_float_key");
+%%{
+%%  std::cout << "Value read with key yet_another_float_key is " 
+%%          << float_handle.get_value();
+%%  float_handle.set_value(3.14*2.0);
+%%}
+%%\end{CppCode}
+%\begin{CppCode}
+%auto float_handle = read_write<float>("yet_another_float_key");
+%create_work([=] {
+%  std::cout << "Value read with key yet_another_float_key is " 
+%          << float_handle.get_value();
+%  float_handle.set_value(3.14*2.0);
+%});
+%\end{CppCode}
+%This sort of access is not available in the 0.2 version of the spec, and in
+%later versions this sort of usage will be conceptualized as ``ownership
+%transfer'' of a data block, since exactly one \inlinecode{AccessHandle} with
+%modification privileges on a block of data can exist at any given time.
+%%As with \inlinecode{read_access}, value get/set should at least occur within a
+%% scoped code block, and will likely perform better if placed in a deferred task block.
+
+Tasks should only ever request the privileges they need. 
+Over-requesting privileges will limit the amount of available parallelism in the code.
+A task may be using a handle with read-write privileges created by \inlinecode{initial_access}
+and then create a subtask that requires only read privileges.
+
+\begin{CppCode}
+auto float_handle = initial_access<float>("yet_another_float_key");
+....
+create_work(reads(float_handle), [=] {
+  std::cout << "Value read with key yet_another_float_key is " 
+          << float_handle.get_value() << std::endl;
+})
+create_work(reads(float_handle), [=] {
+  float val = float_handle.get_value();
+  if (val > 0) std::out << "Value is positive" << std::end;
+})
+//read-write work down here
+\end{CppCode}
+In this case, subtasks are created that only need read access. 
+Without the \inlinecode{reads} qualifier, these tasks could not run in parallel (or out-of-order) since they
+would by default request read-write privileges.
+Sequential semantics would then require them to write in-order sequentially.
+
+\subsection{Publish}
+\label{subsec:publish}
+By default, unless explicitly published, data handles are visible only to tasks
+within the same scope (that is, tasks that have a copy of the actual
+\inlinecode{AccessHandle<T>} object, created as discussed in
+Section \ref{sec:handles}.
+For data to be globally visible in the global memory space (key-value store),
+the application developer must explicitly \inlinecode{publish} data.  
+Unpublished data will be reclaimed once the last handle referencing it goes out of scope (i.e refcount goes to zero),
+freeing the memory and resolving any anti-dependencies analogous to the
+destructor invocation in C++ when a class goes out of scope.  
+Unpublished data can leverage the sequential semantics of the application for garbage collection.  
+Published data, however, is globally visible to all workers and requires more ``permanence.''  
+In order to reclaim the data (garbage collect or resolve anti-dependence), publish data must know its access group.
+When all read handles within an access group have been deleted or released \emph{globally}, the published data can be reclaimed.
+The easiest way to declare an access group (and currently supported method) is
+to simply give the total number of additional read \inlinecode{AccessHandle<T>} objects that will be created referring to it.
+In future versions, hints will be supported about which specific tasks will need to read data.
+The publish/fetch mechanism replaces an analogous \inlinecode{MPI_Send/Recv} or even potentially an \inlinecode{MPI_Bcast}.
+In MPI, these function calls force an \inlinecode{MPI_Send} or \inlinecode{MPI_Wait} to block until the runtime guarantees that the data has
+been delivered.
+An access group in DARMA provides a similar guarantee.
+Until all readers in an access group have received or released their data, DARMA cannot reclaim (garbage collect, clear anti-dependencies).
+
+\begin{CppCode}
+auto float_handle = initial_access<float>("float_key");
+create_work([=]{
+  float_handle.set_value(3.14);
+});
+float_handle.publish(n_readers=1);
+\end{CppCode}
+The \inlinecode{n_readers} specification in the publish call is a keyword
+argument (see Section \ref{sec:keyword}) that informs the runtime that the data
+(associated with \inlinecode{float_key}) will only ever be read once, and hence can be safely garbage collected soon after.  
+This code is essentially a direct replacement of a send/recv.
+
+As discussed above, handles can either be ready or pending. 
+In reality, the distinction is more subtle. 
+The ``readiness'' and ``pendingness'' can be different for read usages and write usages.
+Thus a handle can be read-ready, but modify-pending.
+This will be the case after publish operations.
+Publish operations are treated as asynchronous read operations --- that is,
+\inlinecode{h.publish(/*...*/)} is treated like
+\verb| create_work(reads(h), [=]{/*...*/}); |. 
+This means that the same precautions should be taken as with asynchronous reads. 
+In particular, even if the handle was ready for modifying before
+\inlinecode{publish}, it is no onger valid to call \lstinline!h.set_value()! after the publish.
+The asynchronous read done by the publish may or may not have occurred yet.  
+In this scenario, one should use \verb|create_work([=]{ h.set_value(/*...*/); });| instead
+to force the handle from a pending state to a ready state.
+
+\subsubsection{Publication Versions}
+If a handle is going to be published multiple times (or, more specifically, if
+the key with which the handle was created is going to be published multiple
+times), it needs to be published with a different version each time.  
+Versions are just like keys --- an arbitrary tuple of values (see Section \ref{subsec:keys}).  
+For instance:
+
+\begin{minipage}{0.45\textwidth}
+\begin{CppCode}
+auto float_handle = initial_access<float>("float_key");
+auto int_handle = initial_access<int>("int_key");
+/*...*/
+int_handle.publish(n_readers=3, version=77);
+// Use version() instead of version= for multi-part version keys
+float_handle.publish(n_readers=1, version("alpha",42));
+\end{minipage}
+\begin{minipage}{0.45\textwidth}
+\begin{CppCode}
+/* Elsewhere... (e.g., on a different rank) */
+auto my_int = read_access<int>("int_key", version=77);
+auto my_flt = read_access<float>("float_key", version("alpha",42));
+\end{CppCode}
+\end{minipage}
+Versions are analogous to MPI tags to ensure the uniqueness of data.
+However, unlike MPI which uses a combination of message order and tag to uniquely identify messages and match send/recv pairs,
+the DARMA asynchronous model does not allow implicit publication order to be used in matching publish/fetch pairs.
+Instead, all publications must uniquely definitely each publication with a specific version.
+
+% DSH took this out, since it's supposed to be in 0.3
+%\subsection{Subscribe}
+%\label{subsec:subscribe}
+%\todo[inline]{add subscribe (0.2.1)}
+
+\subsection{Keys}
+\label{subsec:keys}
+In the examples in this Section, the \inlinecode{key} to the
+\inlinecode{AccessHandle<T>} has always been a single string. 
+A \inlinecode{key} in DARMA 
+can be an arbitrary \gls{tuple} of values.  This 
+makes it very easy for the application developer to create an expressive
+and descriptive \inlinecode{key} for each piece of data.  Tuples can comprise
+different bit-wise copiable data types.  The example at the end of
+Section~\ref{sec:spmd} illustrates the use of the \gls{rank} within the handle
+\inlinecode{key}.  The following example shows the use of an
+aribitrary \gls{tuple} as a \inlinecode{key}:
+\begin{CppCode}
+  int neighbor_id
+  double other_identifier;
+
+  // some code that sets neighborID and other_identifier
+  
+  auto float_handle = initial_access<float>("float_key", 
+                                            neighbor_id, 
+                                            other_identifier);
+\end{CppCode}
+
+
+\section{Keyword arguments}
+\label{sec:keyword}
+Similar to higher-level languages like Python, the DARMA C++ interface allows the user
+to specify arguments to many of the API functions and constructs using either positional
+or keyword arguments. In addition, many optional arguments may {\em only} be specified using
+keyword arguments. The syntax for specifying a keyword argument is identical to that
+of Python: \inlinecode{keyword=value}.  For instance, if there is 
+a function \inlinecode{some_function} in the DARMA API that accepts 
+positional or keyword arguments \inlinecode{arg_a}, 
+\inlinecode{count}, and \inlinecode{flag}, that function can be invoked 
+equivalently in any of the following ways:
+\begin{CppCode}
+/* some_function signature:
+ *  void some_function(std::string arg_a, int count, bool flag);
+ */
+// All of the following are equivalent:
+some_function("hello", 42, true);
+some_function(arg_a="hello", count=42, flag=true);
+some_function(count=42, flag=true, arg_a="hello");
+some_function("hello", flag=true, count=42);
+\end{CppCode}
+Note that positional arguments may {\em not} be specified after the first keyword argument,
+and an argument cannot be specified more than once, even as a positional and keyword
+argument.  Both of these lead to compile-time errors. Omitting a required argument is 
+also a compile-time error, as is giving an argument of the incorrect type: 
+\begin{CppCode}
+// Error: arg_a specified more than once
+some_function("hello", 42, true, arg_a="whoops!");
+
+// Error: missing required argument flag
+some_function("hello", count=42);
+
+// Error: cannot convert bool to std::string
+some_function(arg_a=false, flag=true, count=42);
+some_function(false, 42, true);
+
+// Error: positional argument given after first keyword argument
+some_function(arg_a="hello", 42, flag=true);
+\end{CppCode}
+The enabling of Python-like keyword arguments introduces no runtime overhead.
+For those interested in C++ details, keyword arguments are accomplished using \inlinecode{constexpr} class instances with overloaded assignment operator.  
+with arguments passed to the callable using perfect forwarding.
+More implementation details are given in Section \ref{sec:kwargs}.  
+
+\todo{Keywords and namespaces - I don't think we ever resolved this}
+%These instances are defined in very descriptive namespaces,
+%and frequently used keywords are aliased into more general namespaces. 
+%For instance, the keywords for \inlinecode{some_function}, above, would likely be 
+%defined in a namespace named using the following convention:
+%\inlinecode{darma::keyword_arguments_for_some_function}.
+%If \inlinecode{some_function} was a 
+%widely used construct, its more important keywords would also be defined 
+%in the namespace \inlinecode{darma::keyword_arguments}. 
+%If \inlinecode{some_function} belonged to a broader category of 
+%constructs, certain of its keywords may also be aliased into a 
+%categorical namespace as well.  For instance, if \inlinecode{some_function} 
+%implemented some memory management functionality,
+%its keywords may be aliased into \inlinecode{darma::keyword_arguments_for_memory_management} or 
+%something.  All of this is done so that the user can minimize verbosity without introducing
+%naming conflicts.  In certain contexts, it may be expedient for the user to simply
+%put \inlinecode{using darma::keyword_arguments} at the beginning of the calling context. 
+%In other, more complicated contexts, importing all DARMA keywords into the 
+%local context may lead to naming conflicts with local variables. 
+%You don't have to guess at which namespaces
+%a keyword is provided in or aliased into; every time a keyword argument or a callable
+%accepting that argument is introduced in the documentation, the namespace to which 
+%it belongs and all namespaces it is aliased into are given.
+
+% DSH: removed section and TODO for now.  These are discussed briefly above in
+% the handles section anyway.  We can elaborate more there later.
+%\subsection{Decorators to create\_work()}
+%\label{subsec:decorators}
+%\todo[inline]{add information here regarding decorators to create\_work: right
+%now we have waits(), reads(), writes(), and reads\_writes()}
+
+
+\section{SPMD support}
+\label{sec:spmd}
+% DSH: Removed this TODO.  It's good enough for now.
+%\todo[inline]{this section needs to be revised.  Didn't Jeremy already take a
+%crack at it?  His changes don't appear to be here\ldots} 
+%\gls{spmd} being the
+%dominant model of parallelism in DARMA, \todo{are we comfortable saying this like this?  Is it even really true?} the spin-up of the
+%runtime in each \gls{spmd} unit is kept analogous to MPI. 
+Most applications written in or ported to DARMA will likely have \gls{spmd} as
+the dominant form of parallelism.
+To simplify the implementation of SPMD-structured codes, the notion of 
+a \gls{rank} is maintained within the \gls{API}.   
+Again, rather than rely entirely on sequential semantics in cases of massive data parallelism,
+many independent parallel execution streams can begin simultaneously and coordinate via the key-value store.
+Each execution stream is assigned a unique rank ID, analogous to the MPI rank assigned to processes in a MPI communicator.
+The initialization and termination of the runtime in each unit 
+is via the calls \inlinecode{darma_init()} and \inlinecode{darma_finalize()}. 
+The total number of \gls{spmd} units are queried with the call \inlinecode{darma_spmd_size()},
+and the rank is queried with \inlinecode{darma_spmd_rank()}. A typical user 
+written main program will look as follows:
+\begin{CppCode}
+int main(int argc, char**argv){
+  darma_init(argc, argv);
+  size_t n_ranks = darma_spmd_size();
+  size_t me = darma_spmd_rank();
+  ...
+  darma_finalize();
+}
+\end{CppCode}
+
+The rank is a very useful concept to orchestrate dependencies in a \gls{spmd}
+model since data pertaining to a rank can be associated with keys that utilize
+the rank for uniqueness. The example below illustrates this concept, where
+the rank is integral to the key associated with data originating on that rank
+\begin{CppCode}
+size_t me = darma_spmd_rank();
+auto data_handle = initial_access<double>("data_key", me);
+\end{CppCode}  
+Note that in DARMA, SPMD ranks are actually just a special kind of task that
+happens to have a name containing the rank, and can be treated as such. 
+However, the similarity to traditional, MPI-style SPMD upon launch should improve the ease of porting and scalability significantly.
+
+% DSH: removed section and TODO for now.  These are discussed briefly above in
+% the handles section anyway.  We can elaborate more there later.
+%\subsection{Decorators}
+%\label{subsec:decorators}
+%\todo[inline]{add information here regarding decorators to create\_work: right
+%now we have waits(), reads(), writes(), and reads\_writes()}
+
+
+\section{Serialization API}
+\todo[inline]{flesh out this section for 0.2.1 or 0.3 (whenever it gets more
+settled in the backend API)}
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -32,8 +533,1476 @@ After providing summary descriptions of these constructs, we provide a detailed 
 
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\section{Handle Usage Rules}
+\label{sec:handlerules}
+\todo[inline]{FR: can be moved some other place if more useful}
+
+Handles are assigned states, and these states change 
+based on the operations applied to them.  
+As discussed above, the state of a handle encompasses both its read/write permissions and its ``readiness."
+Pending handles can only be used for scheduling tasks while ready handles can be immediately used to do work.
+We more rigorously divide permissions into two main categories: 
+\begin{itemize}
+\item[a] {\it Scheduling}: Permissions a handle may use when instantiating tasks with \inlinecode{create_work}.
+These permissions apply independent of handle readiness. 
+Generally, this will be Read (handle may only used in read-only tasks) or Modify (handle may be used in read-only or read-write tasks). 
+\item[b] {\it Immediate}: Permissions that apply immediately, indicating the ``readiness'' of the handle.  Immediate privileges can ever be greater than Scheduling privileges.
+A task can never have greater permissions doing immediate work than it can for instantiating deferred work.
+\end{itemize}
+
+For the two methods of creating handles, we have the following initializations.
+\begin{itemize}
+\item \inlinecode{initial_access<T>}: Initialized with scheduling modify, immediate none. 
+The handle can be used in any mode when instantiating deferred work.
+However, the handle is not necessarily initialized and as such cannot be used immediately for reads or writes.
+%
+\item \inlinecode{read_access<T>}: Initialized with scheduling read, immediate none.
+The handle can only be used for reads when instantiating deferred work.
+However, the handle is not necessarily initialized and as such cannot be used immediately.
+\end{itemize}
+Table \ref{tab:immsimp} summarizes the state transitions for handles following \cwork.
+
+\begin{CppCode}
+//Initial parent state
+create_work([=]{
+  //Subtask state
+})
+//Continuing parent state
+\end{CppCode}
+In the parent task, a handle will have an initial pair of scheduling/immediate privileges.
+After the create work, the handle's state will have changed, potentially losing some immediate privileges.
+As specified currently, execution does not begin inside the deferred work block until a handle becomes ready.
+Inside the \cwork, the handle's immediate and scheduling privileges will therefore be the same.
+
+
+\begin{table}[!t]
+\begin{center}
+{\small
+\begin{tabular}{cc|cc|cc|cc}
+ \hline
+ \multicolumn{2}{c|}{\inlinecode{}}
+ & \multicolumn{2}{c|}{\inlinecode{get_value()}} 
+ & \multicolumn{2}{c|}
+ {
+    \specialcell{ \inlinecode{emplace_value()} \\ 
+                  \inlinecode{set_value()}\\
+                  \inlinecode{get_reference()}\\
+                  } 
+ } 
+ & \multicolumn{2}{c}{\inlinecode{publish()}} \\
+ \hline
+ \specialcell{Scheduling\\ permissions} 
+ & \specialcell{Immediate\\ permissions}  
+ & { {\footnotesize Allowed? } } \hspace{-0.cm} & { {\footnotesize Continuing as}}
+ & { {\footnotesize Allowed? } } \hspace{-0.cm} & { {\footnotesize Continuing as}}
+ & { {\footnotesize Allowed? } } \hspace{-0cm} & { {\footnotesize Continuing as }}\\
+ \hline
+ None & None
+ & No & -
+ & No & -
+ & Yes${}^*$ & {\em None/None} \\
+ %
+ Read & None
+ & No & -
+ & No & -
+ & Yes & {\em None/None} \\
+ %
+ Read & Read
+ & Yes & {\em Read/Read}
+ & No & -
+ & Yes & {\em None/None}   \\
+ %
+ Modify & None
+ & No & -
+ & No & -
+ & Yes & {\em None/None}   \\
+ %
+ Modify & Read
+ & Yes & {\em Modify/Read}  
+ & No & -
+ & Yes & {\em None/None}   \\
+ %
+ Modify & Modify
+ & Yes & {\em Modify/Modify}  
+ & Yes & {\em Modify/Modify}  
+ & Yes & {\em None/None}   \\
+\hline
+\end{tabular}
+}
+\caption{Operations on the various states}
+\label{tab:immsimp}
+\end{center}
+\end{table}
+%
+\begin{table}[!t]
+\begin{center}
+{\small
+\begin{tabular}{cc|ccc|ccc}
+ \hline
+ \multicolumn{2}{c|}{Initial parent handle} 
+ & \multicolumn{3}{c|}{\em{read-only capture}} 
+ & \multicolumn{3}{c}{\em{modify capture}}  \\
+ \hline
+ \specialcell{Scheduling\\ permissions} 
+ & \specialcell{Immediate\\ permissions}  
+ & {\footnotesize Allowed? } &  \specialcell{\footnotesize Subtask\\handle} 
+ &  \specialcell{\footnotesize Continuing\\parent handle} 
+ & {\footnotesize Allowed? } &  \specialcell{\footnotesize Subtask\\handle} 
+ &  \specialcell{\footnotesize Continuing\\parent handle} \\
+ \hline
+ None & None & No & - & - & No & - & - \\
+ %
+ Read & None 
+ & Yes 
+ & {\em Read/Read}
+ & {\em Read/None}
+ & No
+ & -
+ & - \\
+ %
+ Read & Read
+ & Yes 
+ & {\em Read/Read}
+ & {\em Read/Read}
+ & No
+ & -
+ & - \\
+ %
+ Modify & None
+ & Yes 
+ & {\em Read/Read}
+ & {\em Modify/None}
+ & Yes
+ & {\em Modify/Modify} 
+ & {\em Modify/None} \\
+ %
+ Modify & Read
+ & Yes 
+ & {\em Read/Read}
+ & {\em Modify/Read}
+ & Yes
+ & {\em Modify/Modify} 
+ & {\em Modify/None} \\
+ %
+ Modify & Modify
+ & Yes 
+ & {\em Read/Read} 
+ & {\em Modify/Read} 
+ & Yes
+ & {\em Modify/Modify}
+ & {\em Modify/None} \\
+\end{tabular}
+}
+\caption{Deferred (capturing) operations on the various states.}
+\label{tab:capsimp}
+\end{center}
+\end{table}
+
+We include illustrative examples to demonstrate specific incorrect usages for handles with modify privileges (Figure \ref{fig:example1vasp}) and read privileges (Figure \ref{fig:example2vasp}).
+
+\begin{figure}
+\hspace{-0.75cm}
+\begin{minipage}[t]{0.45\linewidth}%
+\centering
+WRONG
+\begin{vaspPseudo}
+initial_access<int> a
+//a is in Modify/None
+a.set_value(1) $\no$ 
+a.get_value()  $\no$
+\end{vaspPseudo}
+\end{minipage}
+\hspace{0.55cm}
+\begin{minipage}[t]{0.45\linewidth}
+\centering
+CORRECT
+\begin{vaspPseudo}
+initial_access<int> a
+//a is in Modify/None
+create_work([=]{ //modify capture
+    a.emplace_value(1)  $\yes$
+    a.set_value(1)      $\yes$
+    a.get_reference()=1 $\yes$
+});
+\end{vaspPseudo}
+\end{minipage}
+\caption{Example illustrating correct and incorrect usages of Modify privileges for handles}
+\label{fig:example1vasp}
+\end{figure}
 
 
 
+\begin{figure} 
+\hspace{-0.75cm}
+\begin{minipage}[t]{0.45\linewidth}%
+\centering
+WRONG
+\begin{vaspPseudo}
+read_access<int> b
+//b is in Read/None
+b.get_value()   $\no$
+b.set_value(1)  $\no$
+create_work([=]{ //capture
+  b.set_value(1) $\no$
+});
+\end{vaspPseudo}
+\end{minipage}
+\hspace{0.55cm}
+\begin{minipage}[t]{0.45\linewidth}
+\centering
+CORRECT
+\begin{vaspPseudo}
+read_access<int> b
+//b is in Read/None
+create_work([=]{ // capture
+  b.get_value()  $\yes$
+});
+\end{vaspPseudo}
+\end{minipage}
+\caption{Example illustrating correct and incorrect usages of Read privileges for handles}
+\label{fig:example2vasp}
+\end{figure}
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% 									FUNCTIONS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\clearpage
+\section{Front end functions}
+
+In this section, we discuss the basic API 
+functions in the DARMA 0.2 spec.
+
+
+\subsection{\underline{\texttt{darma\_init}}}
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary}
+Initializes the DARMA execution environment.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+void darma_runtime::darma_init(int& argc, char**& argv);
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+\begin{itemize}
+\item argc: command line arguments count.
+\item argv: array arguments.
+\end{itemize}
+The input parameters are the command line argument count 
+and array arguments provided to main.  
+Note that the back-end will process and remove 
+any DARMA back-end-specific arguments from these.
+
+\subsubsection{Output Parameters} 
+None.
+
+
+\subsubsection{Description} 
+Must be called only once before any other DARMA function is called.
+It needs to be combined with \texttt{darma\_finalize()} (see below).
+\todo{anything missing? details?}
+
+\subsubsection{Code Snippet} 
+See code for \texttt{darma\_finalize} in \S~\ref{ssec:api_fe_finalize}.
+
+\end{subs}
+
+
+
+
+%%%%%%%%%%%%%
+
+
+\clearpage
+
+\subsection{\underline{\texttt{darma\_finalize}}}
+\label{ssec:api_fe_finalize}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Finalizes the DARMA execution environment.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+void darma_runtime::darma_finalize();
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None. 
+
+\subsubsection{Output Parameters} 
+None. 
+
+\subsubsection{Description} 
+Terminates the execution environment, cleaning up all DARMA processes.
+Needs to be called {\it after} \texttt{darma\_init}.\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+  using namespace darma_runtime;
+
+  std::cout << "Initializing darma" << std::endl;
+  darma_init(argc, argv);
+
+  // code goes here
+
+  std::cout << "Finalizing darma" << std::endl;
+  darma_finalize();
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_init}
+\caption{Basic usage of \texttt{darma\_init} and \texttt{darma\_finalize} 
+to initialize and finalize environment.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+
+%%%%%%%%%%%%%
+
+
+
+\clearpage
+
+\subsection{\underline{\texttt{darma\_spmd\_size}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Returns the size of the DARMA environment.
+
+\subsubsection{Syntax}
+\begin{CppCode}
+int darma_runtime::darma_spmd_size();
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None. 
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item the size of the DARMA environment.
+\end{itemize}
+
+\subsubsection{Description} 
+This function returns the size of the DARMA environment. 
+The size of the DARMA environment is always $>0$.\todo{anything missing? details?}
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+  using namespace darma_runtime;
+  darma_init(argc, argv);
+
+  const int size = darma_spmd_size();
+  // ...
+
+  darma_finalize();
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_ranksize}
+\caption{Basic usage of \texttt{darma\_spmd\_size}.}
+\end{figure}
+
+
+\end{subs}
+
+
+
+
+
+%%%%%%%%%%%%%
+
+\clearpage
+
+\subsection{\underline{\texttt{darma\_spmd\_rank}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Returns the rank of the calling process within the DARMA environment.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+int darma_runtime::darma_spmd_rank();
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None. 
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item the rank value.
+\end{itemize}
+
+\subsubsection{Description} 
+This function returns the rank of the calling process 
+in the DARMA environment. If the size of the environment is $N$, 
+then the returned rank, $r$, is always $0 <= r <= N-1$.
+\todo{anything missing? details?}
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+  using namespace darma_runtime;
+  darma_init(argc, argv);
+
+  // get my rank
+  const int myRank = darma_spmd_rank();
+  // get size 
+  const int size = darma_spmd_size();
+
+  std::cout << "Rank " << myRank << "/" << size << std::endl;
+
+  darma_finalize();
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_ranksize}
+\caption{Basic usage of \texttt{darma\_spmd\_rank}.}
+\end{figure}
+
+\end{subs}
+
+
+
+%%%%%%%%%%%%%
+
+
+
+\clearpage
+\subsection{\underline{\texttt{create\_work}}}
+\label{ssec:api_fe_cw}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Communicates work to the runtime system.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+create_work([=]
+{ 
+	// code goes here
+});
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+Input arguments are optional. If no input is provided, the 
+\texttt{create\_work} has privileges on the handles used inside 
+as determined by the semantics of the code. 
+On the contrary, using the keyword \texttt{reads}, it can take as 
+argument a list of handles that are captured with read-only permissions. 
+See \S~\ref{ssec:api_fe_reads} for more information on how to do this. 
+This constraints the permissions to be read-only 
+on these handles passed to the function.
+\todo{anything missing? details?}
+
+
+\subsubsection{Output Parameters} 
+None.
+
+\subsubsection{Description} 
+This function communicates work to the runtime system. 
+Specifically, this is needed to construct deferred work. 
+Note: the block of code enclosed will be executed only when all the 
+proper permissions on the data it uses will be available.
+\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+  using namespace darma_runtime;
+  darma_init(argc, argv);
+  const int myRank = darma_spmd_rank();
+  const int size = darma_spmd_size();
+
+  create_work([=]
+  {
+  	std::cout << " Hello world! " << std::endl;
+  });
+
+  darma_finalize();
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_cw}
+\caption{Basic usage of \texttt{create\_work}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+
+
+
+
+\clearpage
+
+\section{Front end handles}
+
+In this section, we discuss the handle types in the DARMA 0.2 spec.
+
+
+\subsection{\underline{\texttt{initial\_access}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Handle to data that does not yet exist in the system 
+but needs to be created.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+AccessHandle<T> darma_runtime::initial_access<T>(arg1, arg2, ...);
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+\begin{itemize}
+\item arg1, arg2, ...: arbitrary tuple of values defining the key of the data.
+\end{itemize}
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item the handle.  
+\end{itemize}
+
+\subsubsection{Description} 
+This construct creates a handle to data that does not yet 
+exist but needs to be created. It takes as input an arbitrary 
+tuple of values. Note that this key has to be unique. 
+One cannot define two handles with same the same key, even if 
+it is created by different ranks. 
+When data is initialized, given the SPMD environment provided by DARMA, 
+each rank needs to create a unique label for the data. 
+One basic way to ensure this is the case is to always use the rank 
+as one component of the key. 
+\todo{anything missing? details?}
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  auto my_handle1 = initial_access<double>("data_key_1", myRank);
+  auto my_handle2 = initial_access<int>("data_key_2", myRank, "_online");
+  // ...
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{initial\_access}.}
+\end{figure}
+
+\end{subs}
+
+
+
+%%%%%%%%%%%%%
+
+
+\clearpage
+\subsection{\underline{\texttt{read\_access}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Handle with \text{read-only} permission to data that already exits in the system. 
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+AccessHandle<T> darma_runtime::read_access<T>(arg1, arg2, ...);
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+\begin{itemize}
+\item arg1, arg2, ...: tuple of values identifying the key of the data to be read.
+\end{itemize}
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item the handle.  
+\end{itemize}
+
+\subsubsection{Description} 
+This construct creates a handle to data that already exists and 
+needs to be accessed with read-only privileges. 
+It takes as input the tuple of values uniquely 
+identifying the data that needs to be read. 
+
+In general, it is used to access data that is migratable, i.e. data 
+that potentially is stored off node.
+\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  AccessHandle<double> my_handle1 = initial_access<double>("key_1", myRank);
+  create_work([=]{
+  	my_handle1.emplace_value(5.3);
+  });
+
+  AccessHandle<double> readHandle = read_access<double>("key_1", myRank);
+  create_work([=]{
+  	std::cout << readHandle.get_value() << std::endl;
+  });
+  //...
+
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{read\_access}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%% 					Access handles methods
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\clearpage
+\section{AccessHandle methods}
+
+In this section, we describe the methods that can be called 
+on \texttt{AccessHandle<T>} objects (i.e., the objects returned by the 
+\texttt{initial\_access<T>} and \texttt{read\_access<T>} functions).
+
+
+\subsection{\underline{\texttt{emplace\_value}}}
+\label{ssec:api_fe_emplace_value}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Construct an object of the type pointed to by an \texttt{AccessHandle<T>} object
+(that is, \texttt{T}) in place by forwarding the arguments to the constructor
+for \texttt{T}.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+void some_handle.emplace_value(args...)
+\end{CppCode}
+
+\subsubsection{Positional Arguments} 
+\begin{itemize}
+\item args... (deduced types):  Arguments to forward to the constructor of
+\texttt{T}.
+\end{itemize}
+
+\subsubsection{Details} 
+
+\texttt{AccessHandle<T>::emplace\_value(...)} mimics the syntax for in-place
+construction in standard library containers.  See, for instance,
+\texttt{std::vector<T>::emplace\_back(...)}.  If in-place construction is
+unnecessary or undesired, \texttt{set\_value()} can be used instead.  Note that
+calling \texttt{emplace\_value()} on a handle requires {\it Modify} immediate
+permissions (see \S~\ref{sec:handlerules}).
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+struct LoudMouth {
+  LoudMouth(int i, double j) { cout << "Ctor: " << i << ", " << j << endl; }
+};
+auto h = initial_access<LoudMouth>("key");
+create_work([=]{
+  h.emplace_value(42, 3.14); // prints "Ctor: 42, 3.14" 
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{emplace\_value}.}
+\end{figure}
+
+\subsubsection{Restrictions and Pitfalls} 
+\todo{What is the status of constructor stuff}
+\begin{itemize}
+  \item {\color{red}[0.2 only]} Because the 0.2 spec lacks a means of specifying
+  the constructor of \texttt{T} to be called by default, the first usage of
+  every modifiable handle (i.e., the first {\texttt{create\_work}} capturing the
+  handle) after being setup with \texttt{initial\_access<T>} should call
+  \texttt{emplace\_value()} or \texttt{set\_value()} before performing any
+  operations on the pointed-to object.  In other words, the pointed-to object
+  contains uninitialized memory until the user invokes 
+  \texttt{emplace\_value(...)} or \texttt{set\_value()} to construct the object.
+  Failure to do so leads to undefined behavior (just as, for instance,
+  \texttt{int x; cout << x;} leads to undefined behavior in C). 
+\end{itemize}
+
+\end{subs}
+
+
+
+\clearpage
+\subsection{\underline{\texttt{publish}}}
+\label{ssec:api_fe_publish}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Publish the data pointed to by a given handle so that it can be retrieved on 
+other DARMA ranks.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+void some_handle.publish(n_readers=..., version=...)
+\end{CppCode}
+
+\subsubsection{Positional Arguments} 
+None
+
+\subsubsection{Keyword Arguments} 
+\begin{itemize}
+\item \texttt{n\_readers=size\_t} (optional): informs the runtime how many . If
+omitted, it defaults to 1.
+\item \texttt{version=KeyExpression} (or \texttt{version(KeyExpression\ldots)},
+see \S~\ref{sec:keyword} for multiple-right-hand-side keyword argument usage)
+(optional):
+informs the runtime what version to associate with the data being published. 
+The value can be an arbitrary \texttt{KeyExpression}.
+If omitted, the version defaults to an empty key (i.e., a key tuple with zero 
+components).  Omitting this keyword implicitly indicates to the runtime system
+that the handle (or any handle with the same name key) will not be published
+again in the remaining lifetime of the program.
+\end{itemize}
+
+\subsubsection{Details} 
+
+Publish the data associated with a given handle \texttt{h} such that it can be
+retrieved \texttt{n\_readers} times anywhere via a \texttt{read\_access<T>} invocation
+that gives the same name key as \texttt{h} and the same \texttt{version} key as
+the one given to the keyword argument to \texttt{publish()}.
+A \texttt{publish()} is a {\it read-only capture} operation (see
+\S~\ref{sec:handlerules}).
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+auto me = darma_spmd_rank();
+assert(darma_spmd_size() >= 2);
+if(me == 0) {
+  auto my_handle = initial_access<double>("key_1");
+  create_work([=]{
+    my_handle.emplace_value(5.3);
+  });
+  my_handle.publish(n_readers=1, version="only");
+}
+else if(me == 1) {
+  auto my_handle = read_access<double>("key_1", version="only");
+  create_work([=]{
+    cout << my_handle.get_value() << endl; // prints "5.3"
+  });
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{publish()}.}
+\end{figure}
+
+\subsubsection{Restrictions and Pitfalls}
+\todo{Let's soften the language here}
+\begin{itemize}
+  \item \texttt{publish()} is one of the ways DARMA lets you ``shoot yourself in
+  the foot.''  While it is very difficult to create dependency loops, race
+  conditions, and deadlock using handles within a given rank and without
+  \texttt{publish()} operations, it is quite easy to do so with
+  \texttt{publish()}/\texttt{read\_access()} pairs (just like, for instance,
+  with blocking sends and receives in MPI).  For instance, the following snippet
+  deadlocks:
+\begin{minipage}[t]{1\linewidth}%
+  \centering
+  \begin{CppCode}
+// This code deadlocks!
+auto me = darma_spmd_rank();
+assert(darma_spmd_size() >= 2);
+if(me == 0) {
+  auto h1 = initial_access<int>("key", 0);
+  auto h2 = read_access<int>("key", 1);
+  create_work([=]{ 
+    h1.set_value(42);
+    h1.publish();
+    cout << h2.get_value() << endl;
+  }); 
+}
+else if (me == 1) {
+  auto h3 = initial_access<int>("key", 1);
+  auto h4 = initial_access<int>("key", 0);
+  create_work([=]{ 
+    h3.set_value(73);
+    h3.publish();
+    cout << h4.get_value() << endl; 
+  }); 
+}
+// Deadlock! (eventually, at the latest when darma_finalize() is
+// called): neither of the above create_work()s can ever run
+  \end{CppCode}
+\end{minipage}
+  This snippet deadlocks because a dependency loop has been created between two
+  \texttt{publish()}/\texttt{read\_access()} pairs. While the deadlock is
+  relatively obvious here, it can be much more difficult to decypher in a more
+  complex code, especially if, for instance, \texttt{h1} and \texttt{h2} are
+  arguments to a function, or if the parts of the keys used to construct the
+  handles are variables with values dependent on some previous computation.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item It is particularly easy to create deadlock scenarios by publishing a
+  handle and fetching it within the same rank.  For this reason, we recommend
+  extreme caution with this scenario could arise, and in general we suggest that
+  the user should avoid doing so if at all possible.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item Since \texttt{publish()} is a {\it read-only capture} operation, it must
+  have scheduling privileges of {\it Read} or {\it Modify}; calling publish on a
+  handle with other scheduling permissions is a runtime error.  Also, as with
+  all {\it read-only capture} operations, calling \texttt{publish()} on a
+  handle with {\it Modify} immediate permissions results in a handle with {\it
+  Read} immediate permissions in the continuing context.  See
+  \S~\ref{sec:handlerules} for more details.  For example, the following code
+  results in a runtime error at the marked line:
+\begin{minipage}[t]{0.95\linewidth}%
+  \centering
+  \begin{CppCode}
+  auto h = initial_access<int>("key");
+  create_work([=]{
+    h.set_value(5);
+    h.publish();
+    h.set_value(10); // $\no$ h has Read immediate permissions
+  });
+  \end{CppCode}
+\end{minipage}
+  \item It is an error to call \texttt{publish()} on a handle with a given
+  name key (or any other handle with that same name key) more than once with
+  a given version key.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item If \texttt{publish()} is called on a given handle without the
+  \texttt{version} keyword argument, it is an error to call \texttt{publish()}
+  again on that handle or any other handle with the same name key for the
+  remaining lifetime of the program.  Note that because of the default behavior
+  of the \texttt{version} keyword argument, giving an explicit version that is
+  the empty key (e.g., \texttt{h.publish(version())} or
+  \texttt{h.publish(version=make\_key())}) will lead to this same behavior.
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  \item {\color{red} [0.2 only]} Because the 0.2 spec does not include a
+  serialization interface, only handles with bitwise-copiable types may be
+  published, though some backends may support more functionality.
+\end{itemize}
+
+
+\end{subs}
+
+
+
+
+\clearpage
+\subsection{\underline{\texttt{get\_value}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Get a copy of the data pointed to by the handle.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+value_type some_handle.get_value()
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None.
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item a copy of the data.  
+\end{itemize}
+
+\subsubsection{Description} 
+It can be called only inside a deferred work context whenever 
+the enclosing context carries read permissions on the handle.
+\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  AccessHandle<double> my_handle1 = read_access<double>("key_1", myRank);
+  create_work([=]{
+  	double myValue = my_handle1.get_value();
+  });
+
+  // ... 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{get\_value}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+
+
+\clearpage
+\subsection{\underline{\texttt{set\_value}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Set the value of the data pointed to by the handle.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+void some_handle.set_value(value)
+\end{CppCode}
+
+\subsubsection{Positional Arguments}
+\begin{itemize}
+  \item value (type convertible to \texttt{T}) The new value for the data.
+\end{itemize}
+
+
+\subsubsection{Details} 
+{\color{red}[0.2 only]} In the 0.2 spec, this just directly forwards to
+\texttt{emplace\_value()} so that the relevant copy constructor of {\tt T} is
+called.  Thus, all comments and examples for \texttt{emplace\_value()} apply
+here.  See \S~\ref{ssec:api_fe_emplace_value} for more.
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+auto h = initial_access<double>("key_1");
+create_work([=]{
+  h.set_value(55.343);
+});
+\end{CppCodeNumb}
+\label{fig:fe_api_set_value}
+\caption{Basic usage of \texttt{set\_value}.}
+\end{figure}
+
+\subsubsection{Restrictions and Pitfalls}
+\begin{itemize}
+  \item The specification of the method is likely to change in the future to
+  analogous to the behavior, e.g., \texttt{std::vector<T>::push\_back()} (as it
+  relates to \texttt{std::vector<T>::emplace\_back()}).  If this could be a
+  problem for \texttt{T}, you should probably use \texttt{emplace\_value()} for now.
+\end{itemize}
+
+\end{subs}
+
+\clearpage
+\subsection{\underline{\texttt{get\_reference}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Get a non-constant reference to the data pointed to by the handle.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+value_type & some_handle.get_reference()
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None.
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item a non-constant reference to the data.  
+\end{itemize}
+
+\subsubsection{Description} 
+This method can be called within a context with write privileges 
+on the target handle.\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  AccessHandle<double> my_handle1 = read_access<double>("key_1", myRank);
+  create_work([=]{
+  	my_handle1.get_reference() = 242.343;
+  });
+
+  // ... 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{get\_reference}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+\clearpage
+\subsection{\underline{Arrow Operator \texttt{->}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+A dereference operator to directly access the object 
+pointed to by the handle.
+
+
+\subsubsection{Syntax} 
+\todo{how to write syntax here??}
+\begin{CppCode}
+some_handle->
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None.
+
+\subsubsection{Output Parameters} 
+The return type of the method called on the object.
+
+\subsubsection{Description} 
+This method can be called within a deferred work to directly 
+access the object pointed to by the handle.\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  typedef std::vector<double> vec;
+  AccessHandle<vec> my_handle2 = initial_access<vec>("key_2", myRank);
+
+  create_work([=]{
+  	my_handle2.emplace_value(0.0);
+    my_handle2->resize(4);
+    double * vecPtr = my_handle2->data();    
+  });
+
+  // ... 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of arrow operator \texttt{->}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+
+
+
+\clearpage
+\subsection{\underline{\texttt{get\_key}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Get a copy of the key identifying the data pointed to by the handle.
+
+\subsubsection{Syntax} 
+\todo{what is the key  type here?}
+\begin{CppCode}
+key_type & some_handle.get_key()
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+None.
+
+\subsubsection{Output Parameters} 
+\begin{itemize}
+\item a copy of the key identifying the data.
+\end{itemize}
+
+\subsubsection{Description} 
+This method can be called at any time after the handle is created.
+\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  AccessHandle<double> my_handle1 = read_access<double>("key_1", myRank);
+  auto myK = my_handle1.get_key();
+
+  create_work([=]{
+  	my_handle1.get_reference() = 242.343;
+  	auto myK = my_handle1.get_key();
+  });
+
+  // ... 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{get\_key}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+\clearpage
+\subsection{\underline{\texttt{=0}} or \underline{\texttt{release}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Releases the handle.
+
+\subsubsection{Syntax} 
+These two are equivalent.
+\begin{CppCode}
+void some_handle = 0;    
+void some_handle.release()
+\end{CppCode}
+
+
+\subsubsection{Input Parameters} 
+None.
+
+\subsubsection{Output Parameters} 
+None.
+
+\subsubsection{Description} 
+This method can be called to release a handle to some data.
+\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  AccessHandle<double> my_handle1 = initial_access<double>("key_1", myRank);
+  create_work([=]{
+  	my_handle1.get_reference() = 242.343;
+  });
+
+  my_handle1.release();
+
+  // ... 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{=0} or \texttt{release}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%% 										KEYWORDS
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\clearpage
+\section{Keywords}
+
+In this section, we describe the keywords of the 0.2 API. 
+
+
+\subsection{\underline{\texttt{reads}}}
+\label{ssec:api_fe_reads}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Argument to a \texttt{create\_work} to constraint 
+privileges of a set of handles to be read-only within that context.
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+create_work(reads(handle1, handle2, ...),[=]{
+	// code 
+});
+\end{CppCode}
+
+\subsubsection{Input Parameters} 
+\begin{itemize}
+\item handle1, handle2, ...: list of handles to 
+constraint to read-only privileges.
+\end{itemize}
+
+\subsubsection{Description} 
+Used as argument to a \texttt{create\_work} to constraint 
+privileges of a list of handles to be read-only within that context.
+Can only be called as argument to \texttt{create\_work}. 
+It can contain a single or a list of handles.\todo{anything missing? details?} 
+See also \S~\ref{ssec:api_fe_cw} for more information on \texttt{create\_work}.
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  auto my_handle = initial_access<double>("data", myRank);
+  create_work([=]{
+    my_handle.emplace_value(0.55);
+  });
+  create_work(reads(my_handle),[=]{
+    std::cout << " " << my_handle.get_value() << std::endl;
+    my_handle.set_value() = ... ; // NOT allowed!
+  });
+  // ... 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{reads}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+
+\clearpage
+\subsection{\underline{\texttt{n\_readers}}}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Specifies the number of times a certain piece of 
+data will be read after being published. This keyword has to be used within 
+the \texttt{publish} method of an access handle.
+
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+n_readers = ...; 
+\end{CppCode}
+See \S~\ref{ssec:api_fe_publish} for details on \texttt{publish}.
+
+
+\subsubsection{Input Parameters} 
+\begin{itemize}
+\item the number of times the data will be read.
+\end{itemize}
+See \S~\ref{ssec:api_fe_publish} for details on \texttt{publish}.
+
+
+\subsubsection{Description} 
+Specifies the number of times a certain piece of 
+data will be read. This keyword has to be used within 
+the \texttt{publish} method of an access handle.
+More specifically, this refers to the number of \texttt{read\_access} 
+handles that will be defined to read this data.\todo{anything missing? details?}
+
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	// ...
+  auto my_handle = initial_access<double>("data", myRank);
+  create_work([=]
+  {
+    my_handle.emplace_value(0.5 + (double) myRank);
+    my_handle.publish(n_readers=1);
+  });
+
+  // ... 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{n\_readers}.}
+\end{figure}
+
+\end{subs}
+
+
+
+
+
+
+\clearpage
+\subsection{\underline{\texttt{version}}}
+\label{ssec:api_fe_version}
+
+\hspace{0.1cm} %needed for some reason or does not compile
+\begin{subs}
+\vspace{-1.2cm}
+
+\subsubsection{Summary} 
+Specifies explicitly a version to associate to some data 
+at the time of the publishing operation of that data.  
+
+
+\subsubsection{Syntax} 
+\begin{CppCode}
+version = ...;    or    version = (arg1, arg2, ...)
+\end{CppCode}
+
+
+\subsubsection{Input Parameters} 
+A tuple of values.
+
+
+\subsubsection{Description} 
+Specifies explicitly a version to associated to some data 
+at the time of the publishing operation.  
+It is used when the same data is overwritten multiple times 
+and one needs to keep track of the various versions.
+
+Version can be an arbitrary tuple of values.
+\todo{anything missing? details?}
+
+\subsubsection{Code Snippet} 
+\begin{figure}[!h]
+\begin{CppCodeNumb}
+#include <darma.h>
+int darma_main(int argc, char** argv)
+{
+	//...
+  // create data
+  auto my_handle = initial_access<double>("data", myRank);
+  create_work([=]{
+    my_handle.emplace_value(0.5 + (double) myRank);
+    my_handle.publish(n_readers=1,version=(0,"basic"));
+  });
+  // ...
+  // reset value and update version
+  create_work([=]{
+    my_handle.set_value(2.5 + (double) myRank);
+    my_handle.publish(n_readers=1,version=1);
+  });
+  // ... 
+  return 0;
+}
+\end{CppCodeNumb}
+\label{fig:fe_api_initialaccess}
+\caption{Basic usage of \texttt{version}.}
+\end{figure}
+
+\end{subs}
 
 
