@@ -49,6 +49,7 @@
 #include <darma/interface/frontend/types.h>
 
 #include "dependency_handle.h"
+#include "use.h"
 
 namespace darma_runtime {
 
@@ -58,105 +59,41 @@ namespace frontend {
 
 // TODO more devirtualization (using "abstract inherits from concrete" pattern)
 
-/**
- *  @ingroup abstract
+/** @brief A piece of work that acts on (accesses) zero or more Handle objects
+ *  at a particular point in the apparently sequential uses of these Handle objects.
  *
- *  @class Task
  *
- *  @brief The fundamental abstraction for the frontend to communicate units of
- *  dependency-driven work to the backend.
- *
- *  @todo 0.3 spec: task migration hooks
+ *  Life-cycle of a Task, for some Task instance t:
+ *    + registration -- register_task() is called by moving a unique_ptr to t into the first argument.
+ *      At registration time, all of the Use objects returned by the dereference of the iterator
+ *      to the iterable returned by t.get_dependencies() must be registered and must not be released at least
+ *      until the backend invokes t.run() method
+ *    + execution -- the backend calls t.run() once all of the dependent Usees have their required
+ *      permissions to their data.  By this point (and not necessarily sooner), the backend must have assigned
+ *      the return of get_data_pointer_reference() to the beginning of the actual data for any Use
+ *      dependencies requiring immediate permissions
+ *    + release -- when Task.run() returns, the task is ready to be released.  The backend may do this by deleting
+ *      or resetting the unique_ptr passed to it during registration, which will in turn trigger the ~Task() virtual
+ *      method invocation.  At this point (in the task destructor), the frontend is responsible for calling
+ *      release_handle_access() on any Use instances requested by the task and not explicitly released in the
+ *      task body by the user.
  *
  */
 class Task {
-  private:
-
-    using Key = types::key_t;
-    using Version = types::version_t;
-
-    typedef abstract::frontend::DependencyHandle<Key, Version> handle_t;
-
-    template <typename... Args>
-    using Container = types::handle_container_template<Args...>;
-
   public:
 
-
-    /** @brief returns the dependencies and antidependencies of the task
+    /** @brief Return an Iterable of Use objects whose permission requests must be satisfied before the task
+     *  can run.
      *
-     *  All dependencies will return true when given as the argument of Task::needs_read_data()
-     *  on this instance and all antidependencies will return true when given as the argument of
-     *  Task::needs_write_data() (though write dependencies that do not overwrite data --- that is,
-     *  initial versions --- will have version equal to 0 and will not be true antidependencies).
-     *
-     *  @return An iterable container of (non-owning) pointers to DependencyHandle objects.  The
-     *  frontend must ensure that only pointers to handles registered with Runtime::register_hanlde()
-     *  but not yet released with Runtime::release_handle() are returned by this method, and the
-     *  pointers in the returned container must be remain valid until Runtime::release_handle()
-     *  is called.  Furthermore, it is a debug-mode error for the frontend to return a handle that
-     *  returns the same values for get_key() and get_version() but points to a different location
-     *  in memory than the corresponding pointer registered with Runtime::register_handle().
-     *
-     *  @remark The frontend must also guarantee that Runtime::release_handle() is not invoked
-     *  with any of the handles returned here between the return of this method and the invocation
-     *  (by the backend) of Task::run() on this object.  However, the frontend may call release_handle()
-     *  with some or all of the handles returned here between the time Task::run() is invoked and the
-     *  time it returns.
-     *
-     *  @remark All calls to get_dependencies() should return the same value from the time the
-     *  task is registered until the run() method is invoked.  It is invalid for the backend
-     *  to call get_dependencies() after the run() method has been invoked, and doing so
-     *  is a (debug-mode) error
-     *
+     *  See description in Task and Use life cycle discussions.
      */
-    virtual
-    const Container<handle_t*>&
+    virtual types::handle_container_template<Use*>
     get_dependencies() const =0;
 
-    /** @brief returns true iff the task needs to read data from handle
-     *
-     *  @param handle A (non-owning) pointer to the handle to be queried
-     *
-     *  @remark The frontend must ensure that a Task \b must return true for at least one of
-     *  needs_read_data() or needs_write_data() for each handle in the container returned by
-     *  get_dependencies().  Failure to do so is a debug-mode error.
-     *
-     *  @remark The return value of this method is unrelated to whether a dependency is
-     *  satisfied or not.  Even for a handle that returns true for handle->is_satisfied(),
-     *  this method should return true iff the task needs to read the data from the handle.
-     *
+    /** @brief Invoked by the backend to start the execution phase of the task's life cycle.
      */
-    virtual bool
-    needs_read_data(
-      const handle_t* handle
-    ) const =0;
-
-    /** @brief returns true iff the task needs to write data to handle
-     *
-     *  @param handle A (non-owning) pointer to the handle to be queried
-     *
-     *  @remark The frontend must ensure that a Task \b must return true for at least one of
-     *  needs_read_data() or needs_write_data() (and possibly both) for each handle in the container
-     *  returned by get_dependencies().  Failure to do so is a debug-mode error.
-     *
-     *  @remark The return value of this method is unrelated to whether a dependency is
-     *  satisfied or not.  Even for a handle that returns true for handle->is_satisfied(),
-     *  this method should return true iff the task needs to write data to the handle.
-     *
-     *  @remark Not all handles for which this method returns true will be real antidependencies.
-     *  If a handle reports a non-pending version equal to 0 (i.e., equal to the value given by the default
-     *  constructor of Version), there is no previous version to overwrite, and thus no antidependency
-     *  is created.  However, the runtime should still allocate the data for the object in this case.
-     *
-     *  @todo 0.3 spec: Ability to get handles that are not preallocated but instead can acquire
-     *  data from some existing object (not another dependency, just another object in general).
-     *
-     */
-    virtual bool
-    needs_write_data(
-      const handle_t* handle
-    ) const =0;
+    virtual void
+    run() =0;
 
     /** @brief returns the name of the task if one has been assigned with set_name(), or
      *  a reference to a default-constructed Key if not.
@@ -165,10 +102,10 @@ class Task {
      *  a key of two size_t values: the SPMD rank and the SPMD size.  See darma_backend_initialize()
      *  for more information
      *
-     *  @todo 0.3 spec: user task naming interface
+     *  @todo >0.3.1 spec: user task naming interface
      *
      */
-    virtual const Key&
+    virtual const types::key_t&
     get_name() const =0;
 
     /** @brief returns the name of the task if one has been assigned with set_name(), or
@@ -178,10 +115,10 @@ class Task {
      *  a key of two size_t values: the SPMD rank and the SPMD size.  See darma_backend_initialize()
      *  for more information
      *
-     *  @todo 0.3 spec: user task naming interface
+     *  @todo >0.3.1 spec: user task naming interface
      */
     virtual void
-    set_name(const Key& name_key) =0;
+    set_name(const types::key_t& name_key) =0;
 
     /** @brief returns true iff the task can be migrated
      *
@@ -190,40 +127,28 @@ class Task {
      *
      */
     virtual bool
-    is_migratable() const =0;
+      is_migratable() const =0;
 
-
-    /** @brief Run the task.
-     *
-     *  This should be invoked exactly once for each task object, and only all all dependencies
-     *  returned by get_dependencies() are in a satisfied state (i.e., they return true for
-     *   DependencyHandle::is_satisfied()).
-     *
-     *  @post Upon return, it is no longer valid to call get_dependencies(), needs_read_data(),
-     *  or needs_write_data().  In fact, the task is free to release these pointers (using
-     *  Runtime::release_handle()) before Task::run() returns.
-     *
-     *  @remark Task::run() need not be invoked on the same thread as it was created, nor on the
-     *  same thread as the runtime querying its above methods.  However, while run() is executing
-     *  on a given thread, any calls to Runtime::get_running_task() must return a pointer to
-     *  this task object.  (If the runtime implements context switching, it must ensure that
-     *  the behavior of Runtime::get_running_task() is consistent and correct for a given
-     *  running thread as though the switching never occurred)
-     *
+    /**
+     *  @todo document this
      */
-    virtual void
-    run() =0;
-
     virtual size_t
     get_packed_size() const =0;
 
+    /**
+     *  @todo document this
+     */
     virtual void
     pack(void* allocated) const =0;
 
     virtual ~Task() noexcept = default;
 };
 
-Task* unpack_task(void* packed_data);
+/**
+ *  @todo document this
+ */
+types::unique_ptr_template<Task>
+unpack_task(void* packed_data);
 
 
 } // end namespace frontend
