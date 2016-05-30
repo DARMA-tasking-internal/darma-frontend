@@ -4,8 +4,8 @@
 In an AMT \gls{runtime system}, the user creates blocks of work that
 are executed when the proper permissions on the data they use are available.
 In DARMA, \gls{deferred work}\footnote{``\Gls{deferred work}'' is one generic term we use for work
-performed by code inside the capturing \gls{lambda} passed to the
-\codelink{create_work} construct (as well as other deferred constructs which
+performed by code inside the capturing \gls{lambda} or other deferred invocation
+passed to the \codelink{create_work} construct (as well as other deferred constructs which
 may be added to future versions of the spec).  This does not necessarily imply
 that the \gls{continuing context} (after the \codelink{create_work}) will be
 executed before the \gls{captured work} (note that ``\gls{captured work}'' and
@@ -15,9 +15,7 @@ In other words, if all of the permissions for executing the \gls{deferred work} 
 available at the time of its creation, the \gls{runtime system} may choose to execute it
 immediately.  It also may choose to block until the permissions are ready rather
 than executing the \gls{continuing context}.  More details to follow.}
-\todo{David: I modified the footnote slightly - please confirm
-it is still correct.} is communicated
-to the \gls{runtime system} via \codelink{create_work} function, which utilizes
+is communicated to the \gls{runtime system} via \codelink{create_work} function, which utilizes
 the \CC{} \gls{lambda} mechanism to yield the following syntax:
 % DSH merged [=]{ into one line for a couple of reasons; chief reason is we may
 % want to macro this at some point so that it can conditionally be compiled into
@@ -35,13 +33,14 @@ Chapter~\ref{chap:translation_layer}). All the work specified within a
 \codelink{create_work} is queued for deferred execution, and will be run when
 all of its \glspl{dependency} and \glspl{anti-dependency} are met.  
 These \glspl{dependency} are determined from the use of 
-\codelink{AccessHandle<T>} objects in the \gls{deferred context}. 
+\codelink{AccessHandle<T>} (the return type of \codelink{initial_access})
+objects in \glspl{deferred context}.
 \codelink{AccessHandle<T>} objects are described in more detail below, in
 Section \ref{sec:handles}.  In a basic sense, \glspl{handle} help maintain
 \gls{sequential semantics} in the \gls{programming model}.  For instance, the
 following code should print ``first: 42, second: 84'':
 \begin{CppCode}
-AccessHandle<int> my_handle = initial_access("some_data_key");
+auto my_handle = initial_access("some_data_key");
 create_work([=]{
   my_handle.set_value(42);
 });
@@ -105,10 +104,5 @@ and its use is pivotal to the DARMA \gls{programming model}.
 %In order to guarantee \gls{sequential semantics} (i.e., to make sure the value
 %of |greetingMessage| is set before it is printed),
 %|greetingMessage| must be a |handle|.
-
-\todo[inline]{David:add functor interface text. This will involve updating the 
-footnote in this section (for example, the definition of continuing context in
-the footnote.  Also, the definition of continuing context may need to be
-updated in the glosary as well... Please check. } 
 
 %\lstDeleteShortInline{|}
