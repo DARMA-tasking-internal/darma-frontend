@@ -89,7 +89,7 @@
 
 \usepackage{import}
 % Packages required by doxygen
-%\usepackage{./doxygen-backend/latex/doxygen}
+\usepackage{./doxygen-backend/latex/doxygen}
 \usepackage{fixltx2e}
 \usepackage{calc}
 \usepackage[export]{adjustbox} % also loads graphicx
@@ -100,10 +100,10 @@
 \usepackage{textcomp}
 \usepackage[nointegrals]{wasysym}
 
-%\renewcommand{\DoxyLabelFont}{%
- %   \fontseries{bc}\selectfont%
- %       \color{darkgray}%
-%}
+\renewcommand{\DoxyLabelFont}{%
+    \fontseries{bc}\selectfont%
+        \color{darkgray}%
+}
 \newcommand{\+}{\discretionary{\mbox{\scriptsize$\hookleftarrow$}}{}{}}
 
 % Page & text layout
