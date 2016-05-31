@@ -57,7 +57,7 @@ work}. Each block of \gls{deferred work} can be considered a task (coarse-graine
 \gls{procedural} \gls{imperative} code),  which is not necessarily performed in program order.   Instead,
 \gls{deferred work} is performed asynchronously when all of its \glspl{data-flow dependency} are
 satisfied.  \Gls{task parallelism} is primarily achieved through permissions/access qualifiers
-on data that enable that enable a runtime to reason about which tasks can run in parallel and which tasks are strictly ordered.
+on data that enable a runtime to reason about which tasks can run in parallel and which tasks are strictly ordered.
 Task granularity is determined by the user and annotations are translated by \gls{DARMA}'s \gls{translation
 layer} through standard \CC\ constructs (e.g., \glspl{lambda}, \glspl{reference counted pointer}) and \gls{template metaprogramming} to
 expose \gls{task parallelism} inherent in the code.
