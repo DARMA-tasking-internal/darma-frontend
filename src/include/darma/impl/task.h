@@ -66,7 +66,6 @@
 
 #include <darma/interface/backend/types.h>
 #include <darma/interface/backend/runtime.h>
-#include <darma/interface/frontend/dependency_handle.h>
 #include <darma/interface/frontend/task.h>
 
 #include <darma/impl/util.h>
@@ -79,6 +78,7 @@
 
 
 #include <typeindex>
+#include <stdlib.h>
 
 
 namespace darma_runtime {
@@ -369,7 +369,8 @@ class TaskBase : public abstract::backend::runtime_t::task_t
 
     std::unique_ptr<RunnableBase> runnable_;
 
-    friend abstract::frontend::Task* unpack_task(void* packed_data);
+    friend types::unique_ptr_template<abstract::frontend::Task>
+    unpack_task(void* packed_data);
 
 };
 
@@ -380,7 +381,7 @@ class TopLevelTask
 
     void run() override {
       // Abort, as specified.  This should never be called.
-      abort();
+      assert(false);
     }
 
 };
