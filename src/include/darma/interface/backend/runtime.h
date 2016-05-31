@@ -184,6 +184,15 @@ class Runtime {
      *  @TODO document this
      */
     virtual Flow*
+    make_forwarding_flow(
+      Flow* from,
+      flow_propagation_purpose_t purpose
+    ) =0;
+
+    /**
+     *  @TODO document this
+     */
+    virtual Flow*
     make_next_flow(
       Flow* from,
       flow_propagation_purpose_t purpose
