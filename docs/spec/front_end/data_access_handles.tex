@@ -29,8 +29,8 @@ be read, or
 \item a handle to data produced by another process that needs to be overwritten or modified. 
 Note that this type of handle does not exist in the current version of the spec.
 \end{enumerate}
-Change this - dependency management and coordination/communication between
-ranks via the key value store
+\todo[inline]{Change this - dependency management and coordination/communication between
+ranks via the key value store}
 When publishing, the user must specify an \gls{access group}
 for that data.  Declaring an access group informs the runtime who currently needs or will need the data,  
 allowing garbage collection and \gls{anti-dependency} resolution.
@@ -42,17 +42,18 @@ future versions will support (asynchronous) phase barriers and read locks.
 Data \glspl{handle},
 \codetarget{AccessHandle<T>}, 
   of different access types to differentiate the various transactions. 
+\todo{sentence doesn't make sense}
 At the most basic level user code can declare 
 \begin{compactenum}
   \item a \gls{handle} to data that does not yet exist in the system
-but needs to be created, or
+but needs to be created,
 \item a \gls{handle} to data that already exists and needs to
-be read
+be read, or
 \item a \gls{handle} to data that it wants to overwrite or modify. 
   (Note that this type of handle does not exist in the \specVersion-spec.)
 \end{compactenum}
 
-
+\todo[inline]{Bring back the explanation of Type 1.  The code block below doesn't make sense without context.}
 \begin{CppCode}
 auto float_handle = initial_access<float>("float_key");
 create_work([=]{
@@ -86,13 +87,7 @@ Tasks should only ever request the privileges they need.
 Over-requesting privileges will limit the amount of available parallelism in the code.
 A task may be using a handle with read-write privileges created by \inlinecode{initial_access}
 and then create a subtask that requires only read privileges.
-
-
-Tasks should only ever request the privileges they need. 
-Over-requesting privileges will limit the amount of available parallelism in the code.
-A task may be using a handle with read-write privileges created by \inlinecode{initial_access}
-and then create a subtask that requires only read privileges.
-Tasks should only ever request the privileges they need. 
+\todo[inline]{The paragraph above would make more sense after discussing handle usage rules at least briefly.}
 
 \begin{CppCode}
 auto float_handle = read_write<float>("yet_another_float_key");
@@ -188,7 +183,7 @@ float_ha.publish(n_readers=1,
     version("alpha",42));
 \end{CppCode}
 \end{minipage}
-\begin{minipage}{0.45\textwidth}
+\begin{minipage}{0.46\textwidth}
 \begin{CppCode}
 /* Execution stream 1*/
 auto my_int =  read_access<int>(
@@ -238,7 +233,7 @@ We more rigorously divide permissions into two main categories:
 \item[a] {\it Scheduling}: Permissions a handle may use when instantiating tasks with \inlinecode{create_work}.
 These permissions apply independent of handle readiness. 
 Generally, this will be Read (handle may only used in read-only tasks) or Modify (handle may be used in read-only or read-write tasks). 
-\item[b] {\it Immediate}: Permissions that apply immediately, indicating the ``readiness'' of the handle.  Immediate privileges can ever be greater than Scheduling privileges.
+\item[b] {\it Immediate}: Permissions that apply immediately, indicating the ``readiness'' of the handle.  Immediate privileges can never be greater than Scheduling privileges.
 A task can never have greater permissions doing immediate work than it can for instantiating deferred work.
 \end{itemize}
 
@@ -391,7 +386,7 @@ create_work([=]{
 \end{table}
 
 
-To further illustrate, below is an \emph{incorrect} usage of modify privileges
+To further illustrate, below is an \emph{incorrect} usage of modify privileges.
 
 \begin{minipage}[t]{0.45\linewidth}
 \centering WRONG
@@ -416,7 +411,7 @@ create_work([=]{ //modify capture
 \end{minipage}
 
 
-Additionally, we demonstrate an \emph{incorrect} usage of read privileges
+Additionally, we demonstrate an \emph{incorrect} usage of read privileges.
 
 \begin{minipage}[t]{0.45\linewidth}
 \centering
