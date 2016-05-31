@@ -49,64 +49,28 @@ practices and existing systems still represent a variety of different \gls{progr
 
 \begin{compactdesc}
 \item[Programming model:]
-From a \gls{programming model} perspective,
-\gls{AMT} models all have some notion of decomposing applications into small,
-\gls{migratable} units of work. 
-\Gls{task parallelism} can be expressed in a \gls{fork-join}
-fashion, with users managing the \glspl{data-flow dependency} explicitly
-themselves.  Conversely, \glspl{data-flow dependency} can be managed explicitly within the associated \gls{runtime system}. 
-  In \gls{declarative} \gls{AMT} \glspl{programming model}, users must provide
-  the \gls{runtime system} with sufficient information to manage
-  \glspl{data-flow dependency}: this includes information regarding the
-  structure of the data and permissions/access requirements (e.g. \gls{RAW}/
-  \gls{WAR}).  In general, data-flow models are best suited for coarse-grained \gls{task
-parallelism}, as \gls{runtime system} overheads increase with the management of
-\glspl{data-flow dependency}.  
+From a \gls{programming model} perspective, \gls{AMT} models all have some notion of decomposing applications into small, \gls{migratable} units of work. 
+\Gls{task parallelism} can be expressed in a \gls{fork-join} fashion, with users managing control-flow explicitly themselves. 
+  In other \gls{AMT} \glspl{programming model}, the user expresses a step-by-step algorithm and, under some simplifying assumptions, the runtime derives the synchronizations required.
+  This often takes the form of read/write data access annotations under the assumption of sequential semantics enabling runtime dependency analysis.
+  Models leveraging runtime analysis are best suited for coarse-grained \gls{task parallelism}, as \gls{runtime system} overheads must be amortized.
 \item[Execution model:]
-  \gls{AMT} \glspl{execution model} can be viewed as the coarse-grained,
-  distributed memory analog of instruction-level parallelism. 
-  \gls{AMT} \glspl{runtime system} extend the concepts of \gls{data
-  prefetching}, out-of-order task execution based on dependency analysis (either performed
-    imperatively by the user, or deduced declaratively by the \gls{runtime
-    system}).     \Glspl{execution model} specify in part how \gls{concurrency} is
-    managed. For example, \gls{AMT} runtimes implement a variety of
-    \glspl{execution model}, including \gls{event-based}, \gls{fork-join} (either
-    \gls{fully strict} or \gls{terminally strict}), and the \gls{actor
-    model}. These different \glspl{execution model} can be categorized by four broad
-    categories: \gls{conservative execution}, \gls{phased execution}, 
-    \gls{copy-on-write data-flow execution}, and \gls{speculative execution}.
-    On one side of the spectrum lies \gls{conservative execution}, where the \gls{runtime system} only spawns tasks in parallel 
-    that are guaranteed not to conflict.  The application exposes \gls{RAW}/\gls{WAR} conflicts, allowing the
-    \gls{runtime system} to decide which tasks can safely run in parallel.  Independent threads do not need to explicitly synchronize; 
-    rather, execution begins with zero \gls{concurrency} and grows conservatively to the maximum allowed \gls{concurrency}.
-    Often this means that programs begin with a single top-level task that forks new tasks 
-    to increase \gls{concurrency}.  On the other side of the spectrum lies
-    \gls{phased execution}, where many parallel workers begin work simultaneously, (naturally supporting a \gls{spmd}
-    style of programming) and \glspl{phase barrier} guarantee safe execution. 
-    \todo[inline]{Jeremy: These terms were from the RESPA paper.  Do you want
-    to refine/change the messaging here? Or is it ok as is?}
-%     While \gls{AMT} models also naturally lend themselves to 
-%    \gls{speculative execution}, we are not aware
-%    of this feature being supported currently within any of the leading \gls{AMT} runtimes.
+  Execution models broadly cover how the algorithm and corresponding correctness and performance constraints specified in the programming model are translated to actual execution.
+  For example, \gls{AMT} runtimes implement a variety of \glspl{execution model}, including \gls{event-based}, \gls{fork-join} (either \gls{fully strict} or \gls{terminally strict}), \gls{actor model}, or ubiquitous CSP model.  More subtle details include whether a constant number of threads are always executing (e.g. pure MPI codes), new tasks are allocated to a thread pool, or if new threads are allocated (forked) for new tasks. These details will also affect the synchronizations required in an execution model. For example, fully strict fork-join models will generally not require barriers between sibling tasks. In contrast, CSP models will require barriers to synchronize parallel workers.
 \item[Memory model:]
-  \gls{HPC} \glspl{memory model} are either truly \gls{distributed memory
-  model} or some variant of a \gls{distributed shared memory model} (e.g., a \gls{PGAS}-like model).  In a
-     \gls{distributed memory model} each processor has its own private memory. 
-     Computational tasks can only operate on their local data. When remote data
+  \gls{HPC} \glspl{memory model} will have several properties including distributed or shared and coherent or incoherent. 
+  \glspl{distributed memory
+  model} covers message-passing models like MPI. Partitioned global address models (PGAS) have distinct address regions,
+  but are ``shared'' in the sense that any memory location can be accessed across the system by specifying both a pointer address AND process ID. 
+  In DARMA, computational tasks by default can only operate on their local data. When remote data
      is required, it is communicated between the remote and local tasks.
-     In a \gls{distributed shared memory model}, physically distinct memory can be accessed as one
-     logically shared address space.  \gls{PGAS} models fall in between, with a
-     logically global address space, with a portion remaining local/private to
-     a particular process.  Across the spectrum of memory models, memory can be
-    directly accessed directly via 1) its address, or 2) indirectly via a
-    \gls{coordination semantics}. In the second scenario, parallel workers never directly
-    communicate, rather they ``coordinate'' indirectly via a \gls{key-value
-    store} or \gls{tuple space}.  
+    Across the spectrum of memory models, memory locations are usually
+    accessed via address (put/get or send/recv), but key-value store (tuple-space) models identify data regions by key identifiers (coordination).
+    In coordination, parallel workers never directly communicate, instead `coordinating'' indirectly via a \gls{key-value store} or \gls{tuple space}.  
 \item[Data model:]
   In order for data-flow \gls{AMT} models to make effective data management
   decisions (e.g., \gls{slicing} the data and making copies to increase
-  parallelism  by minimizing hazards), they must have some knowledge of the
-  structure of the data.
+  parallelism), they must have some knowledge of the structure of the data.
   One option for providing structural information regarding data is to impose a
   \gls{data model}.  Another option is to require application developers to define
   \gls{serialization}, \gls{slicing}, and \glspl{interference test} for their data blocks. 
@@ -254,6 +218,36 @@ It is intended that these implementations will be external, drawing upon
 existing AMT technologies.  However,  a reference implementation will be provided
 in the \gls{DARMA} code distribution.
 
+The terms ``rank'', ``task'', and `process'' are loaded terms with many definitions across the literature. 
+Here we give special attention to define rigorous and limited definitions for special terms.
+We use ``process'' in the usual UNIX sense. Other terms are:
+\begin{compactdesc}
+\item [Task]: The work unit instantiated directly by the application developer. 
+Tasks are also the smallest granularity of \emph{migratable} work unit. 
+In the current spec, tasks cannot migrate after beginning execution.
+Tasks are guaranteed to make forward progress, but are interruptible.
+\item [Execution stream]: An execution stream will consist of a sequence of many tasks, and, like tasks, is guaranteed to make forward progress.
+All execution streams are tasks, but execution streams specifically have no parent task and are the root of an independent task-DAG.
+Each execution stream is guaranteed to have a unique stack and, any point time, will have a local context of variables.
+A physical process (in the UNIX sense) can be running many parallel execution streams.
+Allowing multiple execution streams per physical process is the basis for overdecomposition.
+Since several execution streams can exist in the same process address space, this introduces a strict requirement of no global variables.
+An execution stream is the DARMA generalization of a thread, except that extra privatization of variables is necessary since no assumption of shared memory between independent streams can be made (even if streams happen to be executing in the same process).
+Just as processes must perform special operations to exchange data between them (message-passing, mmap), independent execution streams must perform special key-value store operations to exchange data between them.
+Execution streams are always assigned a unique identifier by the runtime.
+\item [Operation]: Used synonymously with work unit. This is a unit of execution that is guaranteed to be non-interruptible. 
+An operation is not equivalent to a task since tasks are interruptible.  
+Operations are the smallest, schedulable units of work.  
+A task consists of a sequence of operations.
+While tasks are explicitly instantiated by the app developer, operations (individual portions of task) can be implicitly instantiated by the runtime.
+Tasks can yield at the beginning/end of its component operations, allowing the runtime to schedule new work units for execution.
+\item [Rank]: A unique integer ID for an execution stream. This matches the MPI notion of rank as an integer identifying a process within an MPI communicator.
+The term rank will often be used in the specification as a synonym for execution stream (more precisely, a metonymy for execution stream).
+Generally speaking, $N$ parallel execution streams are created in an SPMD launch (more in Section \ref{}).
+The runtime then assigns unique identifiers (rank IDs) $0$ through $N-1$ to each stream.
+Referring to ``rank 0'' will therefore function as shorthand for ``the execution stream that has been assigned rank ID 0 by the runtime in an SPMD launch.''
+Similarly, referring generically to a ``rank'' is shorthand for `an execution stream created by an SPMD launch with a particular rank ID.''
+\end{compactdesc} 
 
 
 \input{programming_model}

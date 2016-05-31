@@ -44,10 +44,12 @@ int darma_main(...) {
 }
 \end{CppCodeNumb}
 Even though this code snippet is substantially more verbose than the lambda
-version, it provides some useful advantages.  Most noticably, the functors
+version, it provides some useful advantages.  Most noticeably, the functors
 |SetTo42| and |PrintIntValue| are reusable, just like normal functions.  They
 can be implemented in different files or even different translation units for
-code cleanliness and modularization.  There are some more subtle differences
+code cleanliness and modularization.  
+
+There are some more subtle differences
 too, though.  Notice that in |PrintIntValue|, |AccessHandle::get_value()| never
 needs to be called.  As long as the type to which the |AccessHandle| refers is
 convertible to the formal parameter given in the functor call operator, DARMA
@@ -64,7 +66,7 @@ scheduling decisions.  To accomplish the same effect for a modify usage, we can
 give a formal parameter that is a non-|const| lvalue (e.g., |int&|).  The
 |SetTo42| functor could then be rewritten:
 \begin{CppCodeNumb}
-struct SetTo42Simpler {
+struct SetTo42 {
   void operator()(int& val) const {
     val = 42;
   }
@@ -75,7 +77,7 @@ As you can see, the functor code starts to look very much like regular C++ code.
 The lambda interface can still be mixed with the functor interface.  For
 instance,
 \begin{CppCodeNumb}
-struct SetTo42Differently {
+struct Compute42 {
   void operator()(AccessHandle<int> h) const {
     create_work([=]{
       h.set_value(21);
@@ -91,7 +93,7 @@ handle, we have to take an |AccessHandle<T>| as a formal
 parameter.\footnote{Equivalently, an lvalue reference or a \inlinecode{const}
 lvalue reference to an \inlinecode{AccessHandle} can be given. 
 \inlinecode{AccessHandle} objects ignore \inlinecode{const}, and the copy
-overhead is negligable (though giving a reference parameter will be {\it
+overhead is negligible (though giving a reference parameter will be {\it
 slightly} more efficient)}  If we want to pass on a read-only |AccessHandle|, we
 can do so by giving |ReadAccessHandle<T>|\footnote{Note that
 \inlinecode{ReadAccessHandle<T>} is identical to \inlinecode{AccessHandle<T>}
@@ -101,7 +103,7 @@ compile-time qualified \inlinecode{AccessHandle<T>} variant are castable to
 \inlinecode{AccessHandle<T>} (and to any other \inlinecode{AccessHandle<T>}
 variant with greater compile-time permissions)} and the formal parameter type:
 \begin{CppCodeNumb}
-struct PrintIntValueDifferently {
+struct PrintIntReadHandle {
   void operator()(ReadAccessHandle<int> h) const {
     create_work([=]{
       std::ofstream f("42.txt");
@@ -115,7 +117,7 @@ struct PrintIntValueDifferently {
 \end{CppCodeNumb}
 The nested tasks will request read permissions on |h|, just as if they had been
 created with |create_work(reads(h), ...)|.  Moreover, any attempts to call
-|h.set_value()| inside of |PrintIntValueDifferently| will result in a {\it
+|h.set_value()| inside of |PrintIntReadHandle| will result in a {\it
 compile-time} error (unlike in the pure lambda case), since DARMA knows at
 compile time that the |AccessHandle<T>| is read-only.  
 
@@ -127,18 +129,20 @@ These can, of course, be mixed (i.e., an invocation can take some
 since deferred execution can be tricky, there are some special rules involved with value arguments to |create_work|.
 \begin{itemize}
   \item When the formal parameter to the functor is a non-const lvalue
-  reference, deferred invocation of the functor cannot be make with a
-  non-|AccessHandle| as that argument.  For instance,
+  reference, deferred invocation of the functor can only be made
+  with an |AccessHandle| as that argument.  For instance,
 \begin{CppCodeNumb}
 int i;
 auto j = initial_access<int>("mykey");;
-create_work<SetTo42Simpler>(i); // $\no$ compile-error!
-create_work<SetTo42Simpler>(j); // $\yes$
+create_work<SetTo42S>(i); // $\no$ compile-error!
+create_work<SetTo42>(j); // $\yes$
 \end{CppCodeNumb}
   \item When the formal parameter is a |const| lvalue reference, the deferred
-  invocation cannot take a non-|AccessHandle<T>| lvalue.  This is because an
-  implicit copy would be required that isn't apparent from the syntax.  To do
-  this, you need to either use a value formal parameter or explicitly use
+  invocation must also take |AccessHandle<T>| as argument.  
+  References cannot be made to regular C++ variables for deferred execution since, by deferring,
+  the referred to variable may no longer exist.
+  An implicit copy would be required that isn't apparent from the syntax to make the variable permanent.  
+  To do this, you need to either use a value formal parameter or explicitly use
   |darma_runtime::darma_copy|:
 \begin{CppCodeNumb}
 struct PrintIntRef {
@@ -161,8 +165,8 @@ int darma_main(...) {
   been declared as |const int i = 42;|, line \ref{ln:badprintintref} would still
   be a compile-time error, since the reference may have expired by the time the
   deferred work actually runs and a copy needs to be made.
-  \item Normal arguments can't be implicitly converted to |AccessHandle| formal
-  parameters (whereas the reverse is allowed, and even encouraged).
+\item Normal arguments by default can not be implicitly converted to |AccessHandle| formal
+  parameters (whereas the reverse is allowed, and even encouraged when appropriate).
 \end{itemize}
 
 
@@ -181,7 +185,7 @@ int darma_main(...) {
   invocation of functors with templated call operators (the detection idiom we
   use woudn't work here, and besides, we wouldn't even know if the deduced type
   is supposed to be an AccessHandle or not!).  Limited support for this may be
-  available in the future.  Note that the functor itself can still be
+  available in the future.  Note that the functor class itself can still be
   templated, as long as the functor's template parameters are given explicitly
   at the invocation site:
 \begin{CppCodeNumb}

@@ -56,11 +56,11 @@ class MyClass {
 The simplest way to allow DARMA to interact with |MyClass| is to provide the
 a |serialize| method in the class definition:
 \begin{CppCodeNumb}
-using darma_runtime::serialization::SimplePackUnpackArchive;
+using Archive = darma_runtime::serialization::SimplePackUnpackArchive;
 class MyClass {
   public:
     /* ... */
-    void serialize(SimplePackUnpackArchive& ar) {
+    void serialize(Archive& ar) {
       ar | a_ | b_ | label_ | prod_sqrt_;
     }
 };
@@ -151,13 +151,9 @@ class MyClass {
 \end{CppCodeNumb}
 
 \subsection{Seperate Methods for Seperate Modes}
-The performance-concious reader may have noticed that the consecutive
-serialization of a large number of |MyClass| objects may involve a significant
-number of unnecessary extra branch instructions (i.e., |if|
-statements),\footnote{in many cases, an advanced optimizer or branch predictor
-{\it may} be able to coallesce some of these, but this isn't the general case}
-which can cause branch prediction misses and thus significantly reduce
-performance.  For this and other reasons, DARMA allows the user to specify
+If the logic for packing is significantly different from the logic for unpacking,
+the serialization of a |MyClass| object may involve a significant
+number of if statements. For this and other reasons, DARMA allows the user to specify
 seperate |pack|, |unpack|, and |compute_size| methods as needed.  Each takes an
 archive object as an argument, and the |pack| and |compute_size| methods must
 be |const|.  The first example that recomputes |prod_sqrt_| could then be
@@ -182,14 +178,13 @@ higher priority than |serialize|, so in this case DARMA will invoke |unpack|
 during the unpacking pass while still calling |serialize| in the sizing and
 packing passes.
 
-The {\it very} performance-concious reader may have further noticed that since
+The performance-concious reader may have further noticed that since
 the \inlinecode{operator|()} implementation must function in all three modes,
-there must be further branch instructions inside its implementation.  Thus, in a
-performance-critical context, the user may want to provide all three methods and
-use an operator that is specific to the phase in question.\footnote{This could
-also be accomplished (and may be in the future) by passing in different types
+there will be branches or switches based on the mode.  Thus, in a
+performance-critical context, the user may want operators that are specific to the phase in question.
+This could also be accomplished (and may be in the future) by passing in different types
 for the sizing, packing, and unpacking phases, which is yet another reason to
-use the templated versions of these methods instead.}  This can be done using
+use the templated versions of these methods instead. This can also be done using
 |operator<<()| for packing, |operator>>()| for unpacking, and |operator%| for
 sizing.  The final |serialize| with both the |prod_sqrt_| and |label_|
 optimizations could then be rewritten as:
@@ -221,10 +216,10 @@ class MyClass {
     }
 };
 \end{CppCodeNumb}
-%
-Besides being significantly more verbose, keep in mind that these optimizations
-have important implications for maintainability of your code.  If another member
-variable |c_| were added to |MyClass|, the serialization implementation in the
+Unless absolutely performance critical, these optimizations should be avoided.
+Besides being significantly more verbose, these optimizations
+affect code maintainability.  
+If another member variable |c_| were added to |MyClass|, the serialization implementation in the
 final example would have to be modified in {\it three} places, whereas the
 earlier examples, while potentially less performant, only have to be updated in
 one place.  Also, failure to ensure that the order of member variable
@@ -295,7 +290,7 @@ class YourClass {
     double get_product_sqrt() const;
 };
 \end{CppCodeNumb}
-Assuming |YourClass| is default constructible, way to specify a serialization
+Assuming |YourClass| is default constructible, a way to specify a serialization
 for |YourClass| non-intrusively is:
 \begin{CppCodeNumb}
 namespace darma_runtime { namespace serialization {
@@ -392,9 +387,9 @@ associated with that type and a given archive type --- a type T can be described
 as ``serializable with archive type A''.  We've been sloppy about this up to
 this point because it's usually clear from context which archive type we're
 referring to (or if we're referring to a generic archive type given as a
-template parameter).  This allows for the development of archive types that, for
+template parameter).  \todo{Wording here - I can't quite grasp meaning of this. This allows for the development of archive types that, for
 instance, only handle performance sensative types but in a highly performant
-manner.  
+manner. }
 
 \subsection{Implementations for Builtin and Standard Library Types}
 
@@ -404,8 +399,10 @@ the standard container \gls{concept} (for which the value types are also
 serializable), POD types, |std::pair| of serializable types, and
 compile-time sized arrays of serializable types.  Many of the implementations in
 the current backend are with respect to a generic archive type, but since
-|SimplePackUnpackArchive| is the only archive type currenly fully implemented,
+|SimplePackUnpackArchive| is the only archive type currently implemented,
 the code is only tested with this archive thus far.
+
+\todo{How do we serialize primitive types? And why can't a struct by default use same mechanism?}
 
 You can define a serialization for any bitwise copyable, POD type simply by
 specializing |darma_runtime::serialization::serialize_as_pod<T>| to inherit from
@@ -425,11 +422,11 @@ struct serialize_as_pod<MyPlainOldData> : std::true_type { };
 
 Deserialization into polymorphic base class pointers is currently not supported
 by the DARMA serialization interface.  If a type is to be used in a context that
-requires DARMA to deserialize it (most importantly, as the wrapped by an
+requires DARMA to deserialize it (most importantly, as wrapped by an
 |AccessHandle<T>| or the type of an argument passed to a
 functor-style |create_work| that could be migrated), the concrete type must be
-known at compile time.  Support for this may be forthcoming, but it is not a
-high priority.  There are a number of other patterns in the programming
+known at compile time.  Support for this will be forthcoming, but will likely require an intrusive interface.  
+There are a number of other patterns in the programming
 literature that can be used to mimic run-time polymorphism, and we suggest the
 user consider these if necessary.
 
