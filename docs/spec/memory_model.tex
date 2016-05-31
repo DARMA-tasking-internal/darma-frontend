@@ -20,7 +20,7 @@ When data needs to be made accessible off-\codelink{rank}, the application devel
 
 When publishing, the user must specify an \gls{access group} for that data.  
 Declaring an \gls{access group} informs the \gls{runtime system} that other
-\codelink{rank}s currently needs or will need the data,  
+\codelink{rank}s currently need or will need the data,  
 allowing garbage collection and \gls{anti-dependency} resolution.
 In most cases, the \gls{access group} will be declared as the number of readers (1, in the case of simple point-to-point send).
 Once all read \glspl{handle} are released (go out of scope in \CC{} terms),
@@ -28,7 +28,7 @@ Once all read \glspl{handle} are released (go out of scope in \CC{} terms),
 
 In addition to facilitating coordination between \codelink{rank}s, \gls{handle} data structures 
 support \gls{sequential semantics} (see Chapter~\ref{chap:translation_layer} for details).
-Within a \codelink{task}, \glspl{handle} identifiers are resolved to a
+Within a \codelink{task}, \gls{handle} identifiers are resolved to a
 specific local address and the standard \CC{} memory model applies.
 
 \todo{what is confusing?}
