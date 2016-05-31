@@ -87,7 +87,7 @@ class Task {
      *
      *  See description in Task and Use life cycle discussions.
      */
-    virtual types::handle_container_template<Use*>
+    virtual types::handle_container_template<Use*> const&
     get_dependencies() const =0;
 
     /** @brief Invoked by the backend to start the execution phase of the task's life cycle.

@@ -216,9 +216,7 @@ TaskBase::do_capture(
     } else {
       // ignored
       //captured.capturing_task = nullptr;
-      captured.dep_handle_.reset();
-      captured.read_only_holder_.reset();
-      captured.state_ = None_None;
+      captured.current_use_ = detail::HandleUse{};
     }
 
   });
