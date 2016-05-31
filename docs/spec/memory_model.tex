@@ -5,9 +5,9 @@ The memory model for \gls{DARMA} encompasses how variables are accessed %(e.g., 
   and when updates become visible to parallel threads (concurrency).  
 Within a \gls{DARMA} execution stream, memory is local or private, and the
 standard \CC{} memory model applies. 
-To share memory between execution streams, \gls{DARMA} uses a flat global memory space in
-which data is identified by unique \gls{tuple} identifiers, e.g. a \gls{key-value
-  store} or \gls{tuple space} abstraction.  
+To share data between execution streams, \gls{DARMA} uses a flat global memory space in
+which data is identified by unique \gls{tuple} identifiers, i.e. a \gls{key-value
+  store} in which keys exist in a \gls{tuple space}.
 Any object published into the \gls{tuple space} can be read/written by any thread/process. 
 
 In \gls{DARMA} a data \gls{handle} is conceptually a \gls{reference counted pointer} into the
@@ -17,39 +17,27 @@ complexities associated with \gls{task parallelism} and inter-\gls{rank} communi
 When data needs to be made accessible off-\codelink{rank}, the application developer 
 \codelink{publish}es the \gls{handle}.  Each \gls{handle} has a globally unique handle ID
 (e.g., a \codelink{key} into the \gls{tuple space}).  
+Before a \codelink{task} can begin, \glspl{handle} identifiers are resolved by the runtime to a
+specific local address. Within the task, the standard \CC{} memory model applies.
 
 When publishing, the user must specify an \gls{access group} for that data.  
 Declaring an \gls{access group} informs the \gls{runtime system} that other
 \codelink{rank}s currently needs or will need the data,  
-allowing garbage collection and \gls{anti-dependency} resolution.
+allowing the runtime to manage garbage collection and \gls{anti-dependency} resolution.
 In most cases, the \gls{access group} will be declared as the number of readers (1, in the case of simple point-to-point send).
 Once all read \glspl{handle} are released (go out of scope in \CC{} terms),
 \gls{garbage collection} or \gls{anti-dependency} resolution can occur.
 
+
 In addition to facilitating coordination between \codelink{rank}s, \gls{handle} data structures 
 support \gls{sequential semantics} (see Chapter~\ref{chap:translation_layer} for details).
-Within a \codelink{task}, \glspl{handle} identifiers are resolved to a
-specific local address and the standard \CC{} memory model applies.
-
-\todo{what is confusing?}
-%JEREMY: While the following is illustrative, some of the phrasing was a little
-%confusing
-%This is similar to UPC which provides a global address space, but data is always accessed by pointer address rather than tuple. 
-%This further contrasts with MPI 2-sided in which data are accessed by address, but there is no global memory space.  
-%Data within in an MPI process is ?private? and can only be exchanged via messages.  
-%DARMA , like UPC, further contrasts with PGAS (partitioned global address spaces) in that the global memory space is ?flat? and is not explicitly partitioned across processes.
-%The tuple space vs address space is only relevant for creating and managing coarse-grained tasks. 
-
-Also critical is concurrency in the \gls{memory model} and when/how updates data are made visible to parallel threads.  
+Here concurrency is critical to the \gls{memory model} and when/how updates data are made visible to parallel threads.  
 Again, within tasks, the \CC{} \gls{memory model} applies. 
 At the task level (coarse-grained), \gls{DARMA} ensures atomicity of all tasks. 
 The \gls{DARMA} scheduler enforces the \CC{} sequential consistency model at
 the level of tasks in the same way that \CC{} ensures sequential consistency at the level of instructions. 
 \gls{DARMA} understands read/write usages of tasks and ensures that writes are always visible to subsequent reads - and reads always complete before subsequent writes.  
-The use of \glspl{handle} enables this to happen automatically within a
-\codelink{rank} 
-(shared memory), but requires the application developer to use coordination
-for objects exchanged between \codelink{rank} to ensure data consistency.
+The use of \glspl{handle} enables this to happen automatically within an execution stream.
 
 
 
