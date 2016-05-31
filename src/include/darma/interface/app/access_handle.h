@@ -391,7 +391,6 @@ class AccessHandle : public detail::AccessHandleBase {
       return *static_cast<T*>(current_use_.data_);
     }
 
-
     template <
       typename _Ignored = void,
       typename... PublishExprParts
@@ -436,17 +435,9 @@ class AccessHandle : public detail::AccessHandleBase {
       };
 
       auto _pub_from_modify = [&] {
-        auto* flow_to_publish = detail::backend_runtime->make_next_flow(
+        auto* flow_to_publish = detail::backend_runtime->make_forwarding_flow(
           current_use_.in_flow_,
           abstract::backend::Runtime::FlowPropagationPurpose::ForwardingChanges
-        );
-
-        detail::PublicationDetails dets(
-          helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
-          helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
-        );
-        detail::backend_runtime->publish_flow(
-          flow_to_publish, &dets
         );
 
         auto* next_out = detail::backend_runtime->make_same_flow(
@@ -458,6 +449,13 @@ class AccessHandle : public detail::AccessHandleBase {
           abstract::backend::Runtime::FlowPropagationPurpose::Input
         );
 
+        detail::PublicationDetails dets(
+          helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
+          helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
+        );
+        detail::backend_runtime->publish_flow(
+          flow_to_publish, &dets
+        );
         detail::backend_runtime->release_published_flow(flow_to_publish);
 
         detail::HandleUse new_use(

@@ -66,6 +66,10 @@ TaskBase::do_capture(
   using abstract::frontend::Use::Permissions::None;
   using abstract::frontend::Use::Permissions::Read;
   using abstract::frontend::Use::Permissions::Modify;
+  using abstract::backend::Runtime::FlowPropagationPurpose::Input;
+  using abstract::backend::Runtime::FlowPropagationPurpose::Output;
+  using abstract::backend::Runtime::FlowPropagationPurpose::OutputFlowOfReadOperation;
+  using abstract::backend::Runtime::FlowPropagationPurpose::ForwardingChanges;
 
   typedef AccessHandleT1 AccessHandleT;
 
@@ -93,15 +97,6 @@ TaskBase::do_capture(
 
       // Unset the uncaptured bit
       source.captured_as_ &= ~AccessHandleBase::Uncaptured;
-
-      typedef enum State {
-        None_None,
-        Read_None,
-        Read_Read,
-        Modify_None,
-        Modify_Read,
-        Modify_Modify
-      } state_t;
 
       typename AccessHandleT::capture_op_t capture_type;
 
@@ -132,10 +127,40 @@ TaskBase::do_capture(
       ////////////////////////////////////////////////////////////////////////////////
 
       auto _ro_capture_non_mod_imm = [&]{
-
+        auto* captured_in_flow = detail::backend_runtime->make_same_flow(
+          source.current_use_.in_flow_, Input
+        );
+        auto* captured_out_flow = detail::backend_runtime->make_same_flow(
+          captured_in_flow, OutputFlowOfReadOperation
+        );
+        captured.current_use_ = HandleUse(source.var_handle_,
+          captured_in_flow, captured_out_flow, Read, Read
+        );
+        // Continuing use stays the same:  (as if:)
+        // continuing.current_use_ = source.current_use_
       };
 
       auto _ro_capture_mod_imm = [&]{
+        auto* captured_in_flow = detail::backend_runtime->make_forwarding_flow(
+          source.current_use_.in_flow_, ForwardingChanges
+        );
+        auto* captured_out_flow = detail::backend_runtime->make_same_flow(
+          captured_in_flow, OutputFlowOfReadOperation
+        );
+        auto* continuing_in_flow = detail::backend_runtime->make_same_flow(
+          captured_in_flow, Input
+        );
+        auto* continuing_out_flow = detail::backend_runtime->make_same_flow(
+          source.current_use_.out_flow_, Output
+        );
+
+        captured.current_use_ = HandleUse(source.var_handle_,
+          captured_in_flow, captured_out_flow, Read, Read
+        );
+        continuing._switch_to_new_use(HandleUse(source.var_handle_,
+          continuing_in_flow, continuing_out_flow,
+          source.current_use_.schedule_permissions_, Read
+        ));
 
       };
 
@@ -169,14 +194,8 @@ TaskBase::do_capture(
               break;
             }
           }; // end switch source.current_use_.schedule_permissions_
-          add_dependency(
-            captured.dep_handle_,
-            /*needs_read_data = */ true,
-            /*needs_write_data = */ false
-          );
           break;
         }
-        // TODO finish this
         case AccessHandleT::mod_capture: {
           switch (source.current_use_.schedule_permissions_) {
             case None: {
@@ -194,26 +213,62 @@ TaskBase::do_capture(
                 case None:
                 case Read: {
                   // TODO implement this
-
+                  // mod(MN) and mod(MR)
+                  auto* captured_in_flow = detail::backend_runtime->make_same_flow(
+                    source.current_use_.in_flow_, Input
+                  );
+                  auto* captured_out_flow = detail::backend_runtime->make_next_flow(
+                    source.current_use_.in_flow_, Output
+                  );
+                  auto* continuing_in_flow = detail::backend_runtime->make_same_flow(
+                    captured_out_flow, Input
+                  );
+                  auto* continuing_out_flow = detail::backend_runtime->make_same_flow(
+                    source.current_use_.out_flow_, Output
+                  );
+                  captured.current_use_ = HandleUse(source.var_handle_,
+                    captured_in_flow, captured_out_flow, Modify, Modify
+                  );
+                  continuing._switch_to_new_use(HandleUse(source.var_handle_,
+                    continuing_in_flow, continuing_out_flow, Modify,
+                    source.current_use_.immediate_permissions_
+                  ));
                   break;
                 }
                 case Modify: {
-                  // TODO implement this
+                  auto* captured_in_flow = detail::backend_runtime->make_forwarding_flow(
+                    source.current_use_.in_flow_, ForwardingChanges
+                  );
+                  auto* captured_out_flow = detail::backend_runtime->make_next_flow(
+                    captured_in_flow, Output
+                  );
+                  auto* continuing_in_flow = detail::backend_runtime->make_same_flow(
+                    captured_out_flow, Input
+                  );
+                  auto* continuing_out_flow = detail::backend_runtime->make_same_flow(
+                    source.current_use_.out_flow_, Output
+                  );
+                  captured.current_use_ = HandleUse(source.var_handle_,
+                    captured_in_flow, captured_out_flow, Modify, Modify
+                  );
+                  continuing._switch_to_new_use(HandleUse(source.var_handle_,
+                    continuing_in_flow, continuing_out_flow, Modify, Read
+                  ));
                   break;
                 }
-              }
+              } // end switch source.current_use_.immediate_permissions_
               break;
             }
           }; // end switch source.current_use_.schedule_permissions_
-          add_dependency(
-            captured.dep_handle_,
-            /*needs_read_data = */ captured.dep_handle_->get_version() != version_t(),
-            /*needs_write_data = */ true
-          );
           break;
         } // end mod_capture case
       } // end switch(capture_type)
-    } else {
+
+      // Now add the dependency
+      add_dependency(captured.current_use_);
+
+    }
+    else {
       // ignored
       //captured.capturing_task = nullptr;
       captured.current_use_ = detail::HandleUse{};
