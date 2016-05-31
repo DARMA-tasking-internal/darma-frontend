@@ -116,17 +116,14 @@ Furthermore, it is this ability to defer work and advance ahead that gives the \
 
 Although not yet supported in version \specVersion\ of the specification, several
 important features will play a role in the \gls{DARMA} \gls{programming model}:
-\todo[inline]{David/Jeremy: please vet/edit this list as appropriate}
+
 \begin{compactdesc}
 \item{\bf Expressive Underlying Abstract Machine Model:}
 Notions of \glspl{execution space} and \glspl{memory space} will be introduced
 formally in later
 versions of the specification.  These abstractions (or similar ones) appear in other runtime
-solutions, e.g. \cite{Kokkos, RAJA}, to
-  address deficiencies in the \gls{abstract machine model} used by 
-  \glspl{runtime system} that support \gls{spmd} parallelism (i.e., uniform compute elements, flat memory
-    spaces).  Using such abstractions
-1) facilitates performance portable application development across 
+solutions, e.g. \cite{Kokkos, RAJA}. 
+   Using such abstractions 1) facilitates performance portable application development across 
   a variety of \glspl{execution space}, and 2)
   provides finer-grained control and additional flexibility in the
   communication of policies regarding data locality and data movement. 
@@ -136,18 +133,23 @@ solutions, e.g. \cite{Kokkos, RAJA}, to
   performance \gls{introspection}. An important \gls{co-design} activity will include determining
   whether performance \gls{introspection} needs to factor into the
   application-level \gls{programming
-  model} on the \gls{front end} at all, or whether it purely belongs as part of the  \gls{back end}
+  model} on the \gls{front end} or whether it belongs only in the \gls{back end} 
   \gls{runtime system} \gls{API}.
 \item{\bf Expression of fine-grained deferred parallel patterns}.
   In future versions of the specification, \gls{DARMA} will 
   specify deferred fine-grained parallel patterns, e.g., deferred
   \inlinecode{parallel-for}, \inlinecode{parallel-scan}, etc.
-\item{\bf Field slicing in classes and class member functions as tasks}
-  \todo[inline]{David/Jeremy: please elaborate here - can we say something here about
-  the role we anticipate tasks as member functions to play.}
+\item{\bf Instantiating tasks in class member functions}
+ Due to idiosyncracies in C++ lambda capture, inline \cwork calls cannot operate on member variables
+ within a class member function. 
+ Mechanisms for circumventing this C++ limitation will be introduced in later versions.
+\item{\bf Subsetting/slicing handles}
+ Certain tasks may only access a subset of the data owned by a handle created with \inlinecode{initial_access}.
+ Using the handle in a task therefore overexpresses contraints, contrary to the philosophy of DARMA for avoiding unnecessary synchronizations and task preconditions.
+ Expressing subsets of classes/slices of arrays will be an important part of future specifications.
 \item {\bf Data Staging:}
 The memory and execution space concepts introduced above enable 1) performance portable tasks that can run in 
-multiple environments through a single code and 2) user-directed placement hints to tell the runtime where tasks should run
+multiple environments through a single code and 2) user-directed (or runtime-directed) asynchronous data movement to move data to compute devices.
 \item {\bf Collectives:}
   Some collectives will be supported by \gls{DARMA} in version 0.3.1 of
   the specification, including \inlinecode{all-reduce},

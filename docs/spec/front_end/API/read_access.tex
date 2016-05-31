@@ -33,13 +33,12 @@ with the key given by the arguments.
 This function creates a handle to data that already exists and 
 needs to be accessed with read-only privileges. 
 It takes as input the tuple of values uniquely 
-identifying the data that needs to be read.  \todo{finish this, talking about
-how corresponding publish has to happen at some point Read/None permissions }
+identifying the data that needs to be read.
+Immediately following this function, the handle will have Read scheduling permissions
+and None immediate permissions.
+The key-version requested must eventually match a \inlinecode{publish}.
 
-In general, it is used to access data that is migratable, i.e. data 
-that potentially is stored off node.
-\todo{anything missing? details?}
-
+In general, \inlinecode{read_access} data is migratable and potentially stored off-node.
 
 \paragraph{Code Snippet}\mbox{}\\
 \begin{figure}[!h]
