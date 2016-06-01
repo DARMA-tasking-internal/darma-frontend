@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                      handle.h
-//                         DARMA
+//                      extract_template.hpp
+//                         TINYMPL
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,34 +42,23 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_HANDLE_H
-#define DARMA_INTERFACE_FRONTEND_HANDLE_H
+#ifndef TINYMPL_EXTRACT_TEMPLATE_HPP
+#define TINYMPL_EXTRACT_TEMPLATE_HPP
 
-#include <darma/interface/frontend/serialization_manager.h>
-#include <darma_types.h>
+namespace tinympl {
 
-namespace darma_runtime {
-namespace abstract {
-namespace frontend {
+template <typename T>
+struct extract_template;
 
-/** @brief Encapsulates a named, mutable chunk of data which may be accessed by one or more tasks
- *  that use that data (or the privilege to schedule permissions on that data).
- *
- *  A Handle represents an entity conceptually similar to a variable in a serial program.
- */
-class Handle {
-  public:
-
-    virtual types::key_t const&
-      get_key() const =0;
-
-    virtual SerializationManager const*
-      get_serialization_manager() const =0;
-
+template <
+  template <class...> class templ,
+  class... Args
+>
+struct extract_template<templ<Args...>> {
+  template <typename... Ts>
+  using rebind = templ<Ts...>;
 };
 
-} // end namespace frontend
-} // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace tinympl
 
-#endif //DARMA_INTERFACE_FRONTEND_HANDLE_H
+#endif //TINYMPL_EXTRACT_TEMPLATE_HPP

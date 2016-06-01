@@ -63,13 +63,7 @@ TaskBase::do_capture(
   AccessHandleT2 const& source_and_continuing
 ) {
 
-  using abstract::frontend::Use::Permissions::None;
-  using abstract::frontend::Use::Permissions::Read;
-  using abstract::frontend::Use::Permissions::Modify;
-  using abstract::backend::Runtime::FlowPropagationPurpose::Input;
-  using abstract::backend::Runtime::FlowPropagationPurpose::Output;
-  using abstract::backend::Runtime::FlowPropagationPurpose::OutputFlowOfReadOperation;
-  using abstract::backend::Runtime::FlowPropagationPurpose::ForwardingChanges;
+  using purpose_t = abstract::backend::Runtime::FlowPropagationPurpose;
 
   typedef AccessHandleT1 AccessHandleT;
 
@@ -109,15 +103,15 @@ TaskBase::do_capture(
         // Deduce capture type from state
         assert(source.captured_as_ == AccessHandleBase::CapturedAsInfo::Normal);
         switch (source.current_use_.schedule_permissions_) {
-          case Read: {
+          case HandleUse::Read: {
             capture_type = AccessHandleT::ro_capture;
             break;
           }
-          case Modify: {
+          case HandleUse::Modify: {
             capture_type = AccessHandleT::mod_capture;
             break;
           }
-          case None: {
+          case HandleUse::None: {
             DARMA_ASSERT_MESSAGE(false, "Handle used after release");
             break;
           }
@@ -127,39 +121,39 @@ TaskBase::do_capture(
       ////////////////////////////////////////////////////////////////////////////////
 
       auto _ro_capture_non_mod_imm = [&]{
-        auto* captured_in_flow = detail::backend_runtime->make_same_flow(
-          source.current_use_.in_flow_, Input
+        auto captured_in_flow = detail::backend_runtime->make_same_flow(
+          source.current_use_.in_flow_, purpose_t::Input
         );
-        auto* captured_out_flow = detail::backend_runtime->make_same_flow(
-          captured_in_flow, OutputFlowOfReadOperation
+        auto captured_out_flow = detail::backend_runtime->make_same_flow(
+          captured_in_flow, purpose_t::OutputFlowOfReadOperation
         );
         captured.current_use_ = HandleUse(source.var_handle_,
-          captured_in_flow, captured_out_flow, Read, Read
+          captured_in_flow, captured_out_flow, HandleUse::Read, HandleUse::Read
         );
         // Continuing use stays the same:  (as if:)
         // continuing.current_use_ = source.current_use_
       };
 
       auto _ro_capture_mod_imm = [&]{
-        auto* captured_in_flow = detail::backend_runtime->make_forwarding_flow(
-          source.current_use_.in_flow_, ForwardingChanges
+        auto captured_in_flow = detail::backend_runtime->make_forwarding_flow(
+          source.current_use_.in_flow_, purpose_t::ForwardingChanges
         );
-        auto* captured_out_flow = detail::backend_runtime->make_same_flow(
-          captured_in_flow, OutputFlowOfReadOperation
+        auto captured_out_flow = detail::backend_runtime->make_same_flow(
+          captured_in_flow, purpose_t::OutputFlowOfReadOperation
         );
-        auto* continuing_in_flow = detail::backend_runtime->make_same_flow(
-          captured_in_flow, Input
+        auto continuing_in_flow = detail::backend_runtime->make_same_flow(
+          captured_in_flow, purpose_t::Input
         );
-        auto* continuing_out_flow = detail::backend_runtime->make_same_flow(
-          source.current_use_.out_flow_, Output
+        auto continuing_out_flow = detail::backend_runtime->make_same_flow(
+          source.current_use_.out_flow_, purpose_t::Output
         );
 
         captured.current_use_ = HandleUse(source.var_handle_,
-          captured_in_flow, captured_out_flow, Read, Read
+          captured_in_flow, captured_out_flow, HandleUse::Read, HandleUse::Read
         );
         continuing._switch_to_new_use(HandleUse(source.var_handle_,
           continuing_in_flow, continuing_out_flow,
-          source.current_use_.schedule_permissions_, Read
+          source.current_use_.schedule_permissions_, HandleUse::Read
         ));
 
       };
@@ -167,28 +161,28 @@ TaskBase::do_capture(
       switch (capture_type) {
         case AccessHandleT::ro_capture: {
           switch (source.current_use_.schedule_permissions_) {
-            case None: {
+            case HandleUse::None: {
               // Unreachable
               DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
               break;
             }
-            case Read: {
+            case HandleUse::Read: {
               switch (source.current_use_.immediate_permissions_) {
-                case None:
-                case Read:
+                case HandleUse::None:
+                case HandleUse::Read:
                   _ro_capture_non_mod_imm();
                   break;
-                case Modify:
+                case HandleUse::Modify:
                   _ro_capture_mod_imm();
               }
               break;
             }
-            case Modify: {
+            case HandleUse::Modify: {
               switch (source.current_use_.immediate_permissions_) {
-                case None:
-                case Read:
+                case HandleUse::None:
+                case HandleUse::Read:
                   _ro_capture_non_mod_imm();
-                case Modify:
+                case HandleUse::Modify:
                   _ro_capture_mod_imm();
               }
               break;
@@ -198,61 +192,61 @@ TaskBase::do_capture(
         }
         case AccessHandleT::mod_capture: {
           switch (source.current_use_.schedule_permissions_) {
-            case None: {
+            case HandleUse::None: {
               // Unreachable
               DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
               break;
             }
-            case Read: {
+            case HandleUse::Read: {
               DARMA_ASSERT_MESSAGE(false,
                 "Tried to schedule a modifying task of a handle with read-only schedule access"); // LCOV_EXCL_LINE
               break; // unreachable
             }
-            case Modify: {
+            case HandleUse::Modify: {
               switch (source.current_use_.immediate_permissions_) {
-                case None:
-                case Read: {
+                case HandleUse::None:
+                case HandleUse::Read: {
                   // TODO implement this
                   // mod(MN) and mod(MR)
-                  auto* captured_in_flow = detail::backend_runtime->make_same_flow(
-                    source.current_use_.in_flow_, Input
+                  auto captured_in_flow = detail::backend_runtime->make_same_flow(
+                    source.current_use_.in_flow_, purpose_t::Input
                   );
-                  auto* captured_out_flow = detail::backend_runtime->make_next_flow(
-                    source.current_use_.in_flow_, Output
+                  auto captured_out_flow = detail::backend_runtime->make_next_flow(
+                    source.current_use_.in_flow_, purpose_t::Output
                   );
-                  auto* continuing_in_flow = detail::backend_runtime->make_same_flow(
-                    captured_out_flow, Input
+                  auto continuing_in_flow = detail::backend_runtime->make_same_flow(
+                    captured_out_flow, purpose_t::Input
                   );
-                  auto* continuing_out_flow = detail::backend_runtime->make_same_flow(
-                    source.current_use_.out_flow_, Output
+                  auto continuing_out_flow = detail::backend_runtime->make_same_flow(
+                    source.current_use_.out_flow_, purpose_t::Output
                   );
                   captured.current_use_ = HandleUse(source.var_handle_,
-                    captured_in_flow, captured_out_flow, Modify, Modify
+                    captured_in_flow, captured_out_flow, HandleUse::Modify, HandleUse::Modify
                   );
                   continuing._switch_to_new_use(HandleUse(source.var_handle_,
-                    continuing_in_flow, continuing_out_flow, Modify,
+                    continuing_in_flow, continuing_out_flow, HandleUse::Modify,
                     source.current_use_.immediate_permissions_
                   ));
                   break;
                 }
-                case Modify: {
-                  auto* captured_in_flow = detail::backend_runtime->make_forwarding_flow(
-                    source.current_use_.in_flow_, ForwardingChanges
+                case HandleUse::Modify: {
+                  auto captured_in_flow = detail::backend_runtime->make_forwarding_flow(
+                    source.current_use_.in_flow_, purpose_t::ForwardingChanges
                   );
-                  auto* captured_out_flow = detail::backend_runtime->make_next_flow(
-                    captured_in_flow, Output
+                  auto captured_out_flow = detail::backend_runtime->make_next_flow(
+                    captured_in_flow, purpose_t::Output
                   );
-                  auto* continuing_in_flow = detail::backend_runtime->make_same_flow(
-                    captured_out_flow, Input
+                  auto continuing_in_flow = detail::backend_runtime->make_same_flow(
+                    captured_out_flow, purpose_t::Input
                   );
-                  auto* continuing_out_flow = detail::backend_runtime->make_same_flow(
-                    source.current_use_.out_flow_, Output
+                  auto continuing_out_flow = detail::backend_runtime->make_same_flow(
+                    source.current_use_.out_flow_, purpose_t::Output
                   );
                   captured.current_use_ = HandleUse(source.var_handle_,
-                    captured_in_flow, captured_out_flow, Modify, Modify
+                    captured_in_flow, captured_out_flow, HandleUse::Modify, HandleUse::Modify
                   );
                   continuing._switch_to_new_use(HandleUse(source.var_handle_,
-                    continuing_in_flow, continuing_out_flow, Modify, Read
+                    continuing_in_flow, continuing_out_flow, HandleUse::Modify, HandleUse::Read
                   ));
                   break;
                 }

@@ -119,6 +119,8 @@ class HandleUse
     HandleUse() = default;
     HandleUse(HandleUse const&) = default;
     HandleUse(HandleUse&&) = default;
+    HandleUse& operator=(HandleUse const&) = default;
+    HandleUse& operator=(HandleUse&&) = default;
 
 };
 
