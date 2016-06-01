@@ -28,29 +28,6 @@ be read, or
 \item a handle to data produced by another process that needs to be overwritten or modified. 
 Note that this type of handle does not exist in the current version of the spec.
 \end{enumerate}
-Change this - dependency management and coordination/communication between
-ranks via the key value store
-When publishing, the user must specify an \gls{access group}
-for that data.  Declaring an access group informs the runtime who currently needs or will need the data,  
-allowing garbage collection and \gls{anti-dependency} resolution.
-In most cases, the access group will be declared as the number of global read handles.
-Once all read handles are released (go out of scope in C++ terms), garbage collection or anti-dependency resolution can occur.
-In dynamic cases in which the number of readers is not known,
-future versions will support (asynchronous) phase barriers and read locks.
-
-Data \glspl{handle},
-\codetarget{AccessHandle<T>}, 
-  of different access types to differentiate the various transactions. 
-At the most basic level user code can declare 
-\begin{compactenum}
-  \item a \gls{handle} to data that does not yet exist in the system
-but needs to be created, or
-\item a \gls{handle} to data that already exists and needs to
-be read
-\item a \gls{handle} to data that it wants to overwrite or modify. 
-  (Note that this type of handle does not exist in the \specVersion-spec.)
-\end{compactenum}
-
 
 \begin{CppCode}
 auto float_handle = initial_access<float>("float_key");
@@ -109,6 +86,8 @@ In this case, subtasks are created that only need read access.
 Without the \inlinecode{reads} qualifier, these tasks could not run in parallel (or out-of-order) since they
 would by default request read-write privileges.
 Sequential semantics would then require them to write in-order sequentially.
+\todo[inline]{Jeremy/David: vet that the examples and text in this section are
+  accurate -- is there a readwrite access handle?}
 
 \subsection{Publish}
 \label{subsec:publish}

@@ -15,7 +15,7 @@ system architectures and be made resilient to the increased number of anticipate
 
 \gls{AMT} \glspl{programming model} and \glspl{runtime system} 
 are a significant shift away from the current \gls{CSP} programming model that
-show promise to mitigate these challenges associated with the shifts in \gls{HPC} system architectures.  
+show promise to mitigate these challenges associated with the changes in \gls{HPC} system architectures.  
 \gls{AMT} models strive to exploit all available \gls{task parallelism} and
 \gls{pipeline parallelism}, rather than rely solely on \gls{data parallelism}
 for \gls{concurrency}. The term {\em \gls{asynchronous}} encompasses the idea that 
@@ -52,20 +52,32 @@ practices and existing systems still represent a variety of different \gls{progr
 From a \gls{programming model} perspective, \gls{AMT} models all have some notion of decomposing applications into small, \gls{migratable} units of work. 
 \Gls{task parallelism} can be expressed in a \gls{fork-join} fashion, with users managing control-flow explicitly themselves. 
   In other \gls{AMT} \glspl{programming model}, the user expresses a step-by-step algorithm and, under some simplifying assumptions, the runtime derives the synchronizations required.
-  This often takes the form of read/write data access annotations under the assumption of sequential semantics enabling runtime dependency analysis.
+  This often takes the form of read/write data access annotations under the
+  assumption of \gls{sequential semantics} enabling runtime dependency analysis.
   Models leveraging runtime analysis are best suited for coarse-grained \gls{task parallelism}, as \gls{runtime system} overheads must be amortized.
 \item[Execution model:]
-  Execution models broadly cover how the algorithm and corresponding correctness and performance constraints specified in the programming model are translated to actual execution.
-  For example, \gls{AMT} runtimes implement a variety of \glspl{execution model}, including \gls{event-based}, \gls{fork-join} (either \gls{fully strict} or \gls{terminally strict}), \gls{actor model}, or ubiquitous CSP model.  More subtle details include whether a constant number of threads are always executing (e.g. pure MPI codes), new tasks are allocated to a thread pool, or if new threads are allocated (forked) for new tasks. These details will also affect the synchronizations required in an execution model. For example, fully strict fork-join models will generally not require barriers between sibling tasks. In contrast, CSP models will require barriers to synchronize parallel workers.
+  Execution models broadly cover how the algorithm and corresponding
+  correctness and performance constraints specified in the \gls{programming
+  model} are translated to actual execution.
+  For example, \gls{AMT} runtimes implement a variety of \glspl{execution
+  model}, including \gls{event-based}, \gls{fork-join} (either \gls{fully
+  strict} or \gls{terminally strict}), \gls{actor model}, or ubiquitous
+  \gls{CSP} model.  More subtle details include whether a constant number of
+  threads are always executing (e.g. pure MPI codes), new tasks are allocated
+  to a thread pool, or if new threads are allocated (forked) for new tasks.
+  These details will also affect the synchronizations required in an execution
+  model. For example, fully strict \gls{fork-join} models will generally not
+  require barriers between sibling tasks. In contrast, \gls{CSP} models will require barriers to synchronize parallel workers.
 \item[Memory model:]
   \gls{HPC} \glspl{memory model} will have several properties including distributed or shared and coherent or incoherent. 
-  \glspl{distributed memory
-  model} covers message-passing models like MPI. Partitioned global address models (PGAS) have distinct address regions,
+  \Glspl{distributed memory
+  model} include message-passing models like MPI. \gls{PGAS} models have distinct address regions,
   but are ``shared'' in the sense that any memory location can be accessed across the system by specifying both a pointer address AND process ID. 
-  In DARMA, computational tasks by default can only operate on their local data. When remote data
+  In \gls{DARMA}, computational tasks by default can only operate on their local data. When remote data
      is required, it is communicated between the remote and local tasks.
     Across the spectrum of memory models, memory locations are usually
-    accessed via address (put/get or send/recv), but key-value store (tuple-space) models identify data regions by key identifiers (coordination).
+    accessed via address (put/get or send/recv), but \gls{key-value store}
+    (\gls{tuple space}) models identify data regions by key identifiers (coordination).
     In coordination, parallel workers never directly communicate, instead `coordinating'' indirectly via a \gls{key-value store} or \gls{tuple space}.  
 \item[Data model:]
   In order for data-flow \gls{AMT} models to make effective data management
