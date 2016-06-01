@@ -421,15 +421,21 @@ class AccessHandle : public detail::AccessHandleBase {
           current_use_.in_flow_,
           abstract::backend::Runtime::FlowPropagationPurpose::Input
         );
+        detail::HandleUse use_to_publish(
+          var_handle_.get(),
+          flow_to_publish,
+          detail::backend_runtime->make_same_flow(
+            flow_to_publish, abstract::backend::Runtime::OutputFlowOfReadOperation
+          ),
+          detail::HandleUse::None, detail::HandleUse::Read
+        );
 
         detail::PublicationDetails dets(
           helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
           helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
         );
-        detail::backend_runtime->publish_flow(
-          flow_to_publish, &dets
-        );
-        detail::backend_runtime->release_published_flow(flow_to_publish);
+        detail::backend_runtime->publish_use(&use_to_publish, &dets);
+        detail::backend_runtime->release_use(&use_to_publish);
       };
 
       auto _pub_from_modify = [&] {
@@ -437,7 +443,6 @@ class AccessHandle : public detail::AccessHandleBase {
           current_use_.in_flow_,
           abstract::backend::Runtime::FlowPropagationPurpose::ForwardingChanges
         );
-
         auto next_out = detail::backend_runtime->make_same_flow(
           current_use_.out_flow_,
           abstract::backend::Runtime::FlowPropagationPurpose::Output
@@ -447,22 +452,30 @@ class AccessHandle : public detail::AccessHandleBase {
           abstract::backend::Runtime::FlowPropagationPurpose::Input
         );
 
-        detail::PublicationDetails dets(
-          helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
-          helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
+        detail::HandleUse use_to_publish(
+          var_handle_.get(),
+          flow_to_publish,
+          detail::backend_runtime->make_same_flow(
+            flow_to_publish, abstract::backend::Runtime::OutputFlowOfReadOperation
+          ),
+          detail::HandleUse::None, detail::HandleUse::Read
         );
-        detail::backend_runtime->publish_flow(
-          flow_to_publish, &dets
-        );
-        detail::backend_runtime->release_published_flow(flow_to_publish);
 
         detail::HandleUse new_use(
-          &var_handle_, next_in, next_out,
+          var_handle_.get(), next_in, next_out,
           current_use_.scheduling_permissions_,
           // Downgrade to read
           HandleUse::Read
         );
+
+        detail::PublicationDetails dets(
+          helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
+          helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
+        );
+        detail::backend_runtime->publish_use(&use_to_publish, &dets);
+
         _switch_to_new_use(new_use);
+        detail::backend_runtime->release_use(&use_to_publish);
       };
 
       switch(current_use_.scheduling_permissions_) {

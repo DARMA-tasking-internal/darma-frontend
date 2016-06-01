@@ -51,7 +51,7 @@ namespace backend {
 
 /** @brief A backend-allocated object representing the half (input or output) of the state at a
  *  given point in time of a use of a Handle object.
- *
+ *  @todo Update this for publish_use instead of publish_flow, and remove release_published_flow
  *  Put differently, a Flow represents half of the connection between the Use instance that
  *  writes a given version of a given piece of data and one of the Use objects that reads that
  *  data (with the other half being generated via a call to make_same()).

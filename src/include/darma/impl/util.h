@@ -129,11 +129,6 @@ struct smart_ptr_traits<std::shared_ptr<InTs...>>
   using shared_from_this_base = std::enable_shared_from_this<Ts...>;
 };
 
-
-//tinympl::extract_template<decltype(
-//types::shared_ptr_template<T>()
-//)>::template rebind
-
 template <typename T, typename... Args>
 auto
 make_shared(Args&&... args) {

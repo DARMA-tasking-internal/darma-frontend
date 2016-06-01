@@ -73,7 +73,6 @@ class TestInitialAccess
 TEST_F(TestInitialAccess, call_sequence) {
   using namespace ::testing;
   using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
 
   mock_backend::MockFlow f_in_1, f_out_1;
 
@@ -106,18 +105,17 @@ TEST_F(TestInitialAccess, call_sequence) {
 //TEST_F(TestInitialAccess, call_sequence_helper) {
 //  using namespace ::testing;
 //  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  Sequence s1;
-//  auto hm1 = make_same_handle_matcher();
-//  expect_handle_life_cycle(hm1, s1);
-//
+//  using namespace mock_backend;
+
+//  MockFlow f_in, f_out;
+
+//  std::tie(f_in, f_out) = flows_on_initial_access
+
+
 //  {
 //    auto tmp = initial_access<int>("hello");
-//    ASSERT_THAT(hm1.handle, NotNull());
-//    ASSERT_THAT(hm1.handle, Eq(detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp)));
 //  } // tmp deleted
-//
+
 //}
 
 
