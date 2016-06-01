@@ -52,18 +52,24 @@ namespace abstract {
 namespace frontend {
 
 /**
- *  @todo document this
+ *  @brief A class encapsulating the attributes of a particular publish operation
  */
 class PublicationDetails {
   public:
-    /**
-     *  @todo document this
+    /** @brief  Get the unique version (as a key) of the item being published.
+     *          This version will correspond to a Handle::get_key(). The combination
+     *          of Handle::get_key() and get_version_name() must be globally unique.
+     *  @return A unique version name for the current publication
      */
     virtual types::key_t const&
     get_version_name() const =0;
 
     /**
-     *  @todo document this
+     *  @brief  Get the number of unique fetches that will be performed.
+     *          All N fetches must be complete before the backend can
+     *          declaration a publication to be finished.
+     *  @return The number of read_access calls that will fetch the combination of key
+     *          of version given here.
      */
     virtual size_t
     get_n_fetchers() const =0;
