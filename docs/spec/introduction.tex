@@ -211,7 +211,7 @@ types of vertices - tasks $T$ and data $D$ that compose the complete set of vert
 Edges never directly connect two tasks and instead edges are only ever described between a task vertex, $t$, and a data vertex, $d$
 indicating that (depending on direction of the edge) data is either consumed or produced by a task.
 The \gls{task-DAG} indicating task-task precedence constraints can always be
-obtained form the \gls{CDAG}, which captures the data-flow task graph.
+obtained from the \gls{CDAG}, which captures the data-flow task graph.
 The \gls{CDAG} is thus more general, capturing additional information to
 enable runtime code transformations.\footnote{
 Although beyond the scope of this specification document, the interested reader
@@ -287,6 +287,7 @@ in upcoming versions.
 Appendix~\ref{chap:examples} provides a suite of examples that illustrate the
  \gls{front end} \gls{API} features. Appendix~\ref{chap:vasp} provides
 additional technical details regarding %\gls{vasps}.
+\todo[inline]{Add glossary entry for vasps and uncomment above.}
 Appendix~\ref{chap:DEP} provides information regarding how the broader
 community can shape the \gls{DARMA} specification and includes a template for 
 a \gls{DEP}. 

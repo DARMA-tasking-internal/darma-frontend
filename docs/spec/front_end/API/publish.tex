@@ -16,8 +16,9 @@ None.
 
 \paragraph{Keyword Arguments} \mbox{}\\
 \begin{compactitem}
-\item |n_readers=size_t| (optional): informs the runtime how many . If
-omitted, it defaults to 1.
+\item |n_readers=size_t| (optional): informs the runtime how many .
+\todo{Finish this sentence}
+If omitted, it defaults to 1.
 \item |version=KeyExpression| (or |version(KeyExpression...)|,
 see \S~\ref{sec:keyword} for multiple-right-hand-side keyword argument usage)
 (optional):
@@ -83,7 +84,7 @@ if(me == 0) {
 }
 else if (me == 1) {
   auto h3 = initial_access<int>("key", 1);
-  auto h4 = initial_access<int>("key", 0);
+  auto h4 = read_access<int>("key", 0);
   create_work([=]{ 
     h3.set_value(73);
     h3.publish();
