@@ -115,10 +115,11 @@ class TestFrontend
       int scheduling_permissions = -1,
       int immediate_permissions = -1
     ) {
+      using namespace mock_backend;
       return ::testing::Truly([=](use_t* use){
-        if(f_in != use->get_in_flow()) return false;
+        if(*f_in != *static_cast<MockFlow*>(use->get_in_flow())) return false;
         if(f_out != nullptr) {
-          if(f_out != use->get_out_flow()) return false;
+          if(*f_out != *static_cast<MockFlow*>(use->get_out_flow())) return false;
         }
         if(immediate_permissions != -1) {
           if(immediate_permissions != int(use->immediate_permissions())) return false;
@@ -128,6 +129,47 @@ class TestFrontend
         }
         return true;
       });
+    }
+
+
+    auto is_handle_with_key(
+      darma_runtime::types::key_t const& key
+    ) {
+      return ::testing::Truly([=](handle_t const* h) {
+        return h->get_key() == key;
+      });
+    }
+
+    template <typename... KeyParts>
+    auto expect_initial_access(
+      mock_backend::MockFlow& fin,
+      mock_backend::MockFlow& fout,
+      use_t*& use_ptr,
+      KeyParts&&... kparts
+    ) {
+      using namespace darma_runtime;
+      using namespace mock_backend;
+      using namespace ::testing;
+      auto key = make_key(std::forward<KeyParts>(kparts)...);
+
+      Sequence s1, s2;
+
+      EXPECT_CALL(*mock_runtime, make_initial_flow(is_handle_with_key(key)))
+        .Times(1).InSequence(s1)
+        .WillOnce(Return(&fin));
+      EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key)))
+        .Times(1).InSequence(s2)
+        .WillOnce(Return(&fout));
+
+      EXPECT_CALL(*mock_runtime, register_use(
+        is_use_with_flows(&fin, &fout, use_t::Modify, use_t::None)
+      )).Times(1).InSequence(s1, s2)
+        .WillOnce(SaveArg<0>(&use_ptr));
+
+      EXPECT_CALL(*mock_runtime, release_use(
+        is_use_with_flows(&fin, &fout, use_t::Modify, use_t::None)
+      )).Times(1).InSequence(s1)
+        .WillOnce(Assign(&use_ptr, nullptr));
     }
 
     void
@@ -142,6 +184,47 @@ class TestFrontend
     std::unique_ptr<mock_backend::MockRuntime> mock_runtime;
     bool mock_runtime_setup_done = false;
 };
+
+namespace _impl {
+
+std::string
+perm_to_string(TestFrontend::use_t::permissions_t per) {
+  switch(per) {
+#define _DARMA__perm_case(val) case darma_runtime::abstract::frontend::Use::Permissions::val: return #val;
+    _DARMA__perm_case(None)
+    _DARMA__perm_case(Read)
+    _DARMA__perm_case(Modify)
+    _DARMA__perm_case(Write)
+    _DARMA__perm_case(Reduce)
+#undef _DARMA__perm_case
+  }
+}
+
+} // end namespace _impl
+
+using namespace ::testing;
+MATCHER_P4(IsUseWithFlows, f_in, f_out, scheduling_permissions, immediate_permissions,
+  "arg->get_in_flow(): " + PrintToString(f_in) + ", arg->get_out_flow(): "
+  + PrintToString(f_out) + ", arg->scheduling_permissions(): " + _impl::perm_to_string(scheduling_permissions)
+  + ", arg->immediate_permissions(): " + _impl::perm_to_string(immediate_permissions)
+) {
+  *result_listener << "arg->get_in_flow(): " << PrintToString(arg->get_in_flow()) + ", arg->get_out_flow(): "
+    + PrintToString(arg->get_out_flow())
+    << ", arg->scheduling_permissions(): " << _impl::perm_to_string(arg->scheduling_permissions())
+    + ", arg->immediate_permissions(): " + _impl::perm_to_string(arg->immediate_permissions());
+  using namespace mock_backend;
+  if(*f_in != *static_cast<MockFlow*>(arg->get_in_flow())) return false;
+  if(f_out != nullptr) {
+    if(*f_out != *static_cast<MockFlow*>(arg->get_out_flow())) return false;
+  }
+  if(immediate_permissions != -1) {
+    if(immediate_permissions != int(arg->immediate_permissions())) return false;
+  }
+  if(scheduling_permissions != -1) {
+    if(scheduling_permissions != int(arg->scheduling_permissions())) return false;
+  }
+  return true;
+}
 
 //namespace _impl {
 //
