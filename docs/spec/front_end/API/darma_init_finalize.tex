@@ -51,7 +51,7 @@ None.
 \paragraph{Details}\mbox{} 
 Called to signify the end of the \gls{opaque context} that defines a DARMA
 \gls{rank}.  At
-least by the time this function returns, the backend guarentees that all work
+least by the time this function {\em returns}, the backend guarantees that all work
 (tasks) created between the corresponding \codelink{darma_init} call and this
 invocation, as well as all of the decendents of that work, must be
 completed.  No user-level DARMA operations are allowed after this call, though

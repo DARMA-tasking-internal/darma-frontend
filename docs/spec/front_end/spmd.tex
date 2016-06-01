@@ -15,19 +15,20 @@ The total number of \gls{spmd} units are queried with the call \inlinecode{darma
 and the rank is queried with \inlinecode{darma_spmd_rank()}. A typical user 
 written main program will look as follows:
 \begin{CppCode}
-int main(int argc, char**argv){
+int darma_main(int argc, char**argv){
   darma_init(argc, argv);
   size_t n_ranks = darma_spmd_size();
   size_t me = darma_spmd_rank();
   ...
   darma_finalize();
+  return 0;
 }
 \end{CppCode}
 
 The rank is a very useful concept to orchestrate dependencies in a \gls{spmd}
 model since data pertaining to a rank can be associated with keys that utilize
 the rank for uniqueness. The example below illustrates this concept, where
-the rank is integral to the key associated with data originating on that rank
+the rank is integral to the key associated with data originating on that rank.
 \begin{CppCode}
 size_t me = darma_spmd_rank();
 auto data_handle = initial_access<double>("data_key", me);

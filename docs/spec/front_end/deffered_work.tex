@@ -64,7 +64,7 @@ Rather than exchanging data through send/recv pairs, however, DARMA uses coordin
 Two execution streams never explicitly exchange data. Instead they put and get data from a key-value store.
 Coordinating (rather than communicating) abstracts physical data locations to better support task migration.
 Additionally, it removes message-ordering requirements to better support asynchronous data transfers.
-While they key-value store appears to be a centralized, global data store that copies data in/out,
+While the key-value store appears to be a centralized, global data store that copies data in/out,
 the key-value store can be implemented as a distributed hash table (DHT) that supports zero-copy transfers.
 Thus both sequential semantics and coordination semantics follow the same principle in DARMA.
 An intuitive programming model that simplifies reasoning about algorithms is transformed to a parallel, scalable execution by the translation layer and backend runtime.

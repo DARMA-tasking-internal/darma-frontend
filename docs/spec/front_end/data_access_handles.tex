@@ -9,6 +9,7 @@ The handles add a control block (metadata) that tracks uses of the handle and en
 \gls{sequential semantics}, analogous to smart pointers that wrap pointer types and provide a reference counting control block.
 Critically, this interface is non-intrusive, wrapping any type T without requiring that type to be modified.
 
+\todo[inline]{ahandle command, when not wrapped in inlinecode, doesn't leave space between AccessHandle and the word that follows.}
 Most critically, \inlinecode{AccessHandle} enables deferred access since \ahandle can exist in ready or pending states. 
 Ready and pending are not rigorously defined in the state table for \ahandle in Section \ref{}, but rather guiding concepts.
 Ready handles can be dereferenced (have their underlying values fetched) and be used immediately to perform work.
@@ -77,6 +78,8 @@ Tasks should only ever request the privileges they need.
 Over-requesting privileges will limit the amount of available parallelism in the code.
 A task may be using a handle with read-write privileges created by \inlinecode{initial_access}
 and then create a subtask that requires only read privileges.
+\todo[inline]{The paragraph above would make more sense after discussing handle usage rules at least briefly.}
+
 
 \begin{CppCode}
 auto float_handle = initial_access<float>("yet_another_float_key");
