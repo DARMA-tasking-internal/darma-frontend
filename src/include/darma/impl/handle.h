@@ -305,7 +305,7 @@ class VariableHandle
       const key_t &data_key
     ) : base_t(data_key) { }
 
-    virtual ~DependencyHandle() noexcept { }
+    virtual ~VariableHandle() noexcept { }
 
     // end Constructors and Destructor </editor-fold>
     ////////////////////////////////////////////////////////////
@@ -313,7 +313,7 @@ class VariableHandle
     ////////////////////////////////////////////////////////////
     // <editor-fold desc="abstract::frontend::DependencyHandle implmentation">
 
-    abstract::frontend::SerializationManager *
+    abstract::frontend::SerializationManager const*
     get_serialization_manager() const override {
       return this;
     }

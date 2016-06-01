@@ -60,6 +60,7 @@ class MockRuntime
 {
   public:
 
+    using task_t = darma_runtime::abstract::frontend::Task;
     using task_unique_ptr =
       darma_runtime::types::unique_ptr_template<darma_runtime::abstract::frontend::Task>;
     using runtime_t = darma_runtime::abstract::backend::Runtime;
@@ -88,13 +89,14 @@ class MockRuntime
 #endif
 
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
-    MOCK_CONST_METHOD0(get_running_task, task_t* const());
+    MOCK_CONST_METHOD0(get_running_task, task_t*());
     MOCK_METHOD0(finalize, void());
     MOCK_METHOD1(register_use, void(use_t*));
     MOCK_METHOD1(make_initial_flow, flow_t*(handle_t*));
     MOCK_METHOD2(make_fetching_flow, flow_t*(handle_t*, key_t const&));
     MOCK_METHOD1(make_null_flow, flow_t*(handle_t*));
     MOCK_METHOD2(make_same_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
+    MOCK_METHOD2(make_forwarding_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
     MOCK_METHOD2(make_next_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
     MOCK_METHOD1(release_use, void(use_t*));
     MOCK_METHOD2(publish_flow, void(flow_t*, publication_details_t*));

@@ -75,6 +75,7 @@
 #include <darma/impl/handle.h>
 #include <darma/impl/functor_traits.h>
 #include <darma/impl/serialization/nonintrusive.h>
+#include <darma/impl/use.h>
 
 
 #include <typeindex>
@@ -287,7 +288,7 @@ class TaskBase : public abstract::backend::runtime_t::task_t
     using key_t = types::key_t;
     using abstract_use_t = abstract::frontend::Use;
 
-    using get_deps_container_t = types::handle_container_template<abstract_use_t*>;
+    using get_deps_container_t = types::handle_container_template<abstract_use_t const*>;
 
     get_deps_container_t dependencies_;
 
