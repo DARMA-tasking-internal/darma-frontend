@@ -136,7 +136,10 @@ class Runtime {
      *  Use* u registered with write privileges that returns handle for u->get_handle()
      *  (or any other handle with an equivalent return for get_key() to the one passed in here)
      *  In most cases, this will derive from calls to initial_access in the application code
-     *  @param handle
+     *
+     *  @param handle A handle encapsulating a type and unique name (variable) for which the Flow
+     *                represents the initial state
+     *
      */
     virtual Flow*
     make_initial_flow(
@@ -174,9 +177,13 @@ class Runtime {
      */
     typedef enum FlowPropagationPurpose {
       Input, /*!< Two Flows are the same logical input to different uses */
-      Output /*!< The output flow from one Use will serve as the input Flow for another use */
-      ForwardingChanges,
-      OutputFlowOfReadOperation
+      Output, /*!< The output flow from one Use will serve as the input Flow for another use */
+      ForwardingChanges, /*!< Two Flows are logically the same. An output Flow 
+                            forwards its changes as the input of another task. In contrast to an Output,
+                            a Flow with a purpose of ForwardingChanges will not have immediate Modify privileges.
+                            Only ever used with make_forwarding_flow() */
+      OutputFlowOfReadOperation /*!< Two Flows are logically the same. The newly made output Flow 
+                                    marks the end of a read of an input Flow */
     } flow_propagation_purpose_t;
 
     /** @brief Make a flow that is logically identically to the input parameter
@@ -187,7 +194,7 @@ class Runtime {
      * The input Flow to make_same_flow must have been registered through a register_use call,
      * but not yet released through a release_use call.
      * There is no restriction on the number of times make_same_flow can be called with a given input.
-     * @param from    An already initialized flow (returned from make_*_flow and registered through a register_use)
+     * @param from    An already initialized flow returned from make_*_flow
      * @param purpose An enum indicating the relationship between logically identical flows (purpose of the function).
      *                For example, this indicates whether the two flows are both inputs to different tasks or whether
      *                the new flow is the sequential continuation of a previous write (forwarding changes)
@@ -200,7 +207,16 @@ class Runtime {
     ) =0;
 
     /**
-     *  @TODO document this
+     *  @brief Make a new input Flow receives forwarded changes from an output Flow
+     *
+     *  Indicates a logical equivalence between two Flow instances connecting
+     *  the output Flow from one Use to the input Flow of another Use.
+     *
+     *  @param from    An already initialized flow returned from make_*_flow
+     *  @param purpose An enum indicating the relationship between logically identical flows (purpose of the function).
+     *                 For example, this indicates whether the two flows are both inputs to different tasks or whether
+     *                 the new flow is the sequential continuation of a previous write (forwarding changes)
+     *                 In the current specification, this enum will always be ForwardingChanges
      */
     virtual Flow*
     make_forwarding_flow(
