@@ -119,11 +119,11 @@ class Runtime {
      *  the iterator returned by t.get_dependencies() for some task t.
      *  register_use will always be invoked before register_task for any task holding a Use u.
      *  Accessing a Use u through a task t is only valid 1) after register_task is called on t
-     *  and register_use is called on u and 2) before release_use is called on u
+     *  and register_use is called on u and 2) before release_use is called on u.
      *  No make_* functions may be invoked on either the input or output flows of a Use u
-     *  returned by get_input_flow() and get_output_flow() before calling register_use
+     *  returned by get_input_flow() and get_output_flow() before calling register_use.
      *  Additionally, no make_* functions may be invoked on the input or output flows of a Use u
-     *  after calling release_use
+     *  after calling release_use.
      */
     virtual void
     register_use(
@@ -134,8 +134,8 @@ class Runtime {
      *
      *  The initial Flow will be used as the return value of u->get_in_flow() for the first
      *  Use* u registered with write privileges that returns handle for u->get_handle()
-     *  (or any other handle with an equivalent return for get_key() to the one passed in here)
-     *  In most cases, this will derive from calls to initial_access in the application code
+     *  (or any other handle with an equivalent return for get_key() to the one passed in here).
+     *  In most cases, this will derive from calls to initial_access in the application code.
      *
      *  @param handle A handle encapsulating a type and unique name (variable) for which the Flow
      *                represents the initial state
@@ -149,7 +149,7 @@ class Runtime {
     /** @brief Make an fetching Flow to be associated with the handle given as an argument.
      *
      *  The fetching usage will be used as a return value of u->get_in_flow() for a Use* u
-     *  intended to fetch the data published with a particular handle key and version_key
+     *  intended to fetch the data published with a particular handle key and version_key.
      *  @param handle A handle object carrying the key identifer returned by get_key()
      *  @param version_key A unique version for the key returned by handle->get_key()
      */
@@ -186,13 +186,13 @@ class Runtime {
                                     marks the end of a read of an input Flow */
     } flow_propagation_purpose_t;
 
-    /** @brief Make a flow that is logically identically to the input parameter
+    /** @brief Make a flow that is logically identical to the input parameter
      *
-     * Calls to make_same_flow indicate a logical identity between Flows in different tasks
-     * make_same_flow may not return the original pointer passed in. Flow objects must be unique to a Use.
+     * Calls to make_same_flow() indicate a logical identity between Flows in different tasks.
+     * make_same_flow() may not return the original pointer passed in. Flow objects must be unique to a Use.
      * Flows are registered and released indirectly through calls to register_use/release_use.
-     * The input Flow to make_same_flow must have been registered through a register_use call,
-     * but not yet released through a release_use call.
+     * The input Flow to make_same_flow must have been registered through a register_use() call,
+     * but not yet released through a release_use() call.
      * There is no restriction on the number of times make_same_flow can be called with a given input.
      * @param from    An already initialized flow returned from make_*_flow
      * @param purpose An enum indicating the relationship between logically identical flows (purpose of the function).
@@ -207,7 +207,7 @@ class Runtime {
     ) =0;
 
     /**
-     *  @brief Make a new input Flow receives forwarded changes from an output Flow
+     *  @brief Make a new input Flow that receives forwarded changes from an output Flow
      *
      *  Indicates a logical equivalence between two Flow instances connecting
      *  the output Flow from one Use to the input Flow of another Use.
@@ -227,13 +227,13 @@ class Runtime {
     /**
      *  @brief Make a flow that will be the output of u->get_out_flow() for a Use u in a producer task.
      *
-     *  Calls to make_next_flow indicate a producer-consumer relationship between flows.
-     *  make_next_flow indicates that an operation consumes Flow* from and produces the returned Flow*.
-     *  Flows are registered and released indirectly through calls to register_use/release_use.
+     *  Calls to make_next_flow() indicate a producer-consumer relationship between flows.
+     *  make_next_flow() indicates that an operation consumes Flow* from and produces the returned Flow*.
+     *  Flows are registered and released indirectly through calls to register_use()/release_use().
      *  Flow instances cannot be shared across Use instances.
-     *  The input to make_next_flow must have been registered with register_use, but not yet released
-     *  through release_use.
-     *  @param from    The flow consumed by an operation to produce the Flow returned by make_next_flow.
+     *  The input to make_next_flow() must have been registered with register_use(), but not yet released
+     *  through release_use().
+     *  @param from    The flow consumed by an operation to produce the Flow returned by make_next_flow()
      *  @param purpose An enum indicating the purpose of the next flow
      *  @return A new Flow object indicating that new data will be produced by the data incoming from
      *          from the input Flow
