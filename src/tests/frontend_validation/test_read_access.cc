@@ -104,24 +104,25 @@ TEST_F(TestReadAccess, call_sequence) {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Same as call_sequence, but uses helper to verify that other uses of helper should be valid
-//TEST_F(TestReadAccess, call_sequence_helper) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  types::key_t my_version_tag = darma_runtime::make_key("my_version_tag");
-//
-//  auto hm1 = make_same_handle_matcher();
-//  Sequence s1;
-//  expect_handle_life_cycle(hm1, s1, /*read_only=*/true);
-//
-//  {
-//    auto tmp = read_access<int>("hello", version="my_version_tag");
-//    auto* tmp_handle = detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp);
-//    ASSERT_THAT(tmp_handle, Eq(hm1.handle));
-//  }
-//
-//}
+TEST_F(TestReadAccess, call_sequence_helper) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  MockFlow f_in, f_out;
+  use_t* use_ptr;
+
+  expect_read_access(f_in, f_out, use_ptr,
+    make_key("hello"),
+    make_key("my_version_tag")
+  );
+
+  {
+    auto tmp = read_access<int>("hello", version="my_version_tag");
+  }
+
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -179,49 +180,6 @@ TEST_F(TestReadAccess, call_sequence_assign) {
   } // tmp1
 
 }
-//TEST_F(TestReadAccess, call_sequence_assign) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-
-//  types::key_t my_version_tag = darma_runtime::make_key("my_version_tag");
-//  types::key_t other_version_tag = darma_runtime::make_key("other_version_tag");
-
-//  auto hm1 = make_same_handle_matcher();
-//  auto hm2 = make_same_handle_matcher();
-
-//  Sequence s;
-
-//  EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(hm1), Eq(my_version_tag)))
-//    .Times(Exactly(1))
-//    .InSequence(s);
-//  EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(hm2), Eq(other_version_tag)))
-//    .Times(Exactly(1))
-//    .InSequence(s);
-//  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
-//    .Times(Exactly(1))
-//    .InSequence(s);
-//  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
-//    .Times(Exactly(1))
-//    .InSequence(s);
-//  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2)))
-//    .Times(Exactly(1))
-//    .InSequence(s);
-//  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2)))
-//    .Times(Exactly(1))
-//    .InSequence(s);
-
-//  {
-//    auto tmp1 = read_access<int>("hello", version="my_version_tag");
-
-//    tmp1 = read_access<int>("world", version="other_version_tag");
-
-//    auto* tmp_handle = detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp1);
-
-//    ASSERT_THAT(tmp_handle, Eq(hm2.handle));
-//  }
-
-//}
 
 ////////////////////////////////////////////////////////////////////////////////
 
