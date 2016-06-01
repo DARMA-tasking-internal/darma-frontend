@@ -1,3 +1,9 @@
+\newglossaryentry{runtime systems}
+{
+  type=glossary,
+  name={runtime systems},
+  description={}
+}
 \newglossaryentry{API}
 {
   type=glossary,
@@ -7,6 +13,12 @@
   description={An application programmer interface (API) is set of functions and tools provided by a library developer to allow an application programmer to interact with a specific piece of software or allow a developer to utilize prebuilt functionality}
 }
 
+\newglossaryentry{concept}
+{
+  type=glossary,
+  name={concept},
+  description={\todo{fill out concept}}
+}
 \newglossaryentry{concurrency}
 {
   type=glossary,
@@ -118,6 +130,28 @@
     runtime},
 }
 
+\newglossaryentry{overdecomposition}
+{
+  type=glossary,
+  name=overdecomposition,
+  description={\todo{define}},
+}
+
+\newglossaryentry{execution stream}
+{
+  type=glossary,
+  name={execution stream},
+  description={\todo{define}},
+}
+
+\newglossaryentry{process}
+{
+  type=glossary,
+  name={process},
+  plural={processes},
+  description={\todo{define}},
+}
+
 \newglossaryentry{deferred execution}
 {
   type=glossary,
@@ -133,9 +167,15 @@
   description={Work
 performed by code inside the capturing lambda passed to the
 \codelink{create_work} construct (as well as other deferred constructs which
-may be added to future versions of the spec)},
+may be added to future versions of the specification)},
 }
 
+\newglossaryentry{deferred task}
+{
+  type=glossary,
+  name={deferred work},
+  description={\todo{define}}
+}
 
 \newglossaryentry{captured work}
 {
@@ -219,17 +259,15 @@ may be added to future versions of the spec)},
   type=glossary,
   name=rank,
   plural=ranks,
-  description={ The \gls{opaque context} between the invocation of
-    \codelink{darma\_init} and a corresponding invocation of \codelink{darma\_finalize}},
+  description={\todo{define} },
 }
 
-\newglossaryentry{opaque context}
+\newglossaryentry{operation}
 {
   type=glossary,
-  name={opaque context},
-  description={\todo{David: please write opaque context glossary entry}},
+  name=operation,
+  description={\todo{define} },
 }
-
 
 \newglossaryentry{PGAS}
 {
@@ -597,6 +635,13 @@ Execution begins with zero \gls{concurrency}
 and grows conservatively to the maximum allowed \gls{concurrency}}
 }
 
+\newglossaryentry{barrier}
+{
+  type=glossary,
+  name={barrier},
+  description={\todo{add desc}}
+}
+
 \newglossaryentry{phase barrier}
 {
   type=glossary,
@@ -609,14 +654,6 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
   been used in Legion~\cite{LegionThesis} and X10~\cite{X10Phasers}. Barriers may be local operations 
   or global collectives }
 }
-
-%\newglossaryentry{task}
-%{
-%  type=glossary,
-%  name=task,
-%  plural=tasks,
-%  description={\todo{task description}}
-%}
 
 \newglossaryentry{phased execution}
 {

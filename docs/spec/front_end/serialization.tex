@@ -53,20 +53,20 @@ class MyClass {
 };
 \end{CppCodeNumb}
 %
-The simplest way to allow DARMA to interact with |MyClass| is to provide the
+The simplest way to allow DARMA to interact with |MyClass| is to provide
 a |serialize| method in the class definition:
 \begin{CppCodeNumb}
-using darma_runtime::serialization::SimplePackUnpackArchive;
+using Archive = darma_runtime::serialization::SimplePackUnpackArchive;
 class MyClass {
   public:
     /* ... */
-    void serialize(SimplePackUnpackArchive& ar) {
+    void serialize(Archive& ar) {
       ar | a_ | b_ | label_ | prod_sqrt_;
     }
 };
 \end{CppCodeNumb}
 As you can see, the type |SimplePackUnpackArchive| has an overload for
-\inlinecode{operator|()} and takes a serializable type and returns itself (more
+\inlinecode{operator|()}, takes a serializable type, and returns itself (more
 on what constitues a ``serializable type'' later).
 
 \subsection{\texttt{SimplePackUnpackArchive}}
@@ -77,15 +77,15 @@ specification is |SimplePackUnpackArchive|, which performs serialization in the
 most basic and traditional way.  On the sender side, DARMA performs
 two serialization passes: one in sizing mode and one in packing mode.  The receiver
 only requires one pass: unpacking.  These modes can be queried using the archive
-object methods |is_sizing()|, |is_packing()|, and |is_unpacking()|.  (Exactly
-one of these will return true at any given time; also, all archive types
-implement these methods).
+object methods |is_sizing()|, |is_packing()|, and |is_unpacking()|, only
+one of which will return true at any given time.  All archive types
+implement these methods.
 
 \subsection{Generic Archive Serialization}
 
 As DARMA develops further and as more performance considerations are addressed,
 the DARMA team and our collaborators plan to provide other archive types which
-take a more advanced serialization strategies, such as enabling \gls{RDMA}
+take more advanced serialization strategies, such as enabling \gls{RDMA}
 access to pieces of a type.  In order to write code that can take advantage of
 these features when they become available, the vast majority of user types can
 simply provide a templated |serialize| method:
@@ -151,13 +151,9 @@ class MyClass {
 \end{CppCodeNumb}
 
 \subsection{Seperate Methods for Seperate Modes}
-The performance-concious reader may have noticed that the consecutive
-serialization of a large number of |MyClass| objects may involve a significant
-number of unnecessary extra branch instructions (i.e., |if|
-statements),\footnote{in many cases, an advanced optimizer or branch predictor
-{\it may} be able to coallesce some of these, but this isn't the general case}
-which can cause branch prediction misses and thus significantly reduce
-performance.  For this and other reasons, DARMA allows the user to specify
+If the logic for packing is significantly different from the logic for unpacking,
+the serialization of a |MyClass| object may involve a significant
+number of if statements. For this and other reasons, DARMA allows the user to specify
 seperate |pack|, |unpack|, and |compute_size| methods as needed.  Each takes an
 archive object as an argument, and the |pack| and |compute_size| methods must
 be |const|.  The first example that recomputes |prod_sqrt_| could then be
@@ -182,14 +178,13 @@ higher priority than |serialize|, so in this case DARMA will invoke |unpack|
 during the unpacking pass while still calling |serialize| in the sizing and
 packing passes.
 
-The {\it very} performance-concious reader may have further noticed that since
+The performance-concious reader may have further noticed that since
 the \inlinecode{operator|()} implementation must function in all three modes,
-there must be further branch instructions inside its implementation.  Thus, in a
-performance-critical context, the user may want to provide all three methods and
-use an operator that is specific to the phase in question.\footnote{This could
-also be accomplished (and may be in the future) by passing in different types
+there will be branches or switches based on the mode.  Thus, in a
+performance-critical context, the user may want operators that are specific to the phase in question.
+This could also be accomplished (and may be in the future) by passing in different types
 for the sizing, packing, and unpacking phases, which is yet another reason to
-use the templated versions of these methods instead.}  This can be done using
+use the templated versions of these methods instead. This can also be done using
 |operator<<()| for packing, |operator>>()| for unpacking, and |operator%| for
 sizing.  The final |serialize| with both the |prod_sqrt_| and |label_|
 optimizations could then be rewritten as:
@@ -221,10 +216,10 @@ class MyClass {
     }
 };
 \end{CppCodeNumb}
-%
-Besides being significantly more verbose, keep in mind that these optimizations
-have important implications for maintainability of your code.  If another member
-variable |c_| were added to |MyClass|, the serialization implementation in the
+Unless absolutely performance critical, these optimizations should be avoided.
+Besides being significantly more verbose, these optimizations
+affect code maintainability.  
+If another member variable |c_| were added to |MyClass|, the serialization implementation in the
 final example would have to be modified in {\it three} places, whereas the
 earlier examples, while potentially less performant, only have to be updated in
 one place.  Also, failure to ensure that the order of member variable
@@ -273,14 +268,13 @@ any of the other intrusive methods) for one reason or another can still be
 made serializable by defining a specialization (partial or full) of the class
 |darma_runtime::serialization::Serializer<T>| for the type in
 question.\footnote{Generic implementations requiring partial specialization
-with an enable_if clause should use
-\inlinecode{darma_runtime::serialization::detail::Serializer_enabled_if<T,
-Enable>}.  Consult source code for more details.}  Like the intrusive interface,
+  with an \inlinecode{enable_if} clause should use
+\inlinecode{darma_runtime::serialization::detail::Serializer_enabled_if<T, Enable>}.  Consult source code for more details.}  Like the intrusive interface,
 these classes can define a |serialize| method; individual |compute_size|,
 |pack|, and |unpack| methods; or some combination of these, with the specific
 versions having higher priority.  All of these methods must be |const| (the
 Serializer object itself isn't allowed to have state anyway; it's just a
-convenient mechanism for grouping functions for a class nonintrusively).  Their
+convenient mechanism for grouping functions for a class non-intrusively).  Their
 signatures are a bit different from the intrusive analogues.  Consider a
 slightly different version of |MyClass| from above, the public
 interface of which is specified as:
@@ -296,7 +290,7 @@ class YourClass {
     double get_product_sqrt() const;
 };
 \end{CppCodeNumb}
-Assuming |YourClass| is default constructible, way to specify a serialization
+Assuming |YourClass| is default constructible, a way to specify a serialization
 for |YourClass| non-intrusively is:
 \begin{CppCodeNumb}
 namespace darma_runtime { namespace serialization {
@@ -366,7 +360,7 @@ struct Serializer<YourClass> {
 };
 }} // end namespace darma_runtime::serialization
 \end{CppCodeNumb}
-The nonintrusive interface versions of |pack| and |compute_size| have similar
+The non-intrusive interface versions of |pack| and |compute_size| have similar
 signatures to that of |serialize|, except they take a |const| lvalue reference
 as their first argument:
 \begin{CppCodeNumb}
@@ -382,20 +376,20 @@ darma_runtime::serialization::Serializer<YourClass>::pack(
 
 The non-intrusive serialization interface has higher priority than the intrusive
 one, but in general the user should not define both or mixed intrusive and
-nonintrusive serializations
+non-intrusive serializations.
 
 \subsection{Definition of ``Serializable''}
 
 Having introduced the archive concept, the intrusive interface, and the
-nonintrusive interface, we're finally ready to formally define ``serializable''
+non-intrusive interface, we're finally ready to formally define ``serializable''
 as DARMA sees it.  DARMA views the serializability of a given type as a property
 associated with that type and a given archive type --- a type T can be described
 as ``serializable with archive type A''.  We've been sloppy about this up to
 this point because it's usually clear from context which archive type we're
 referring to (or if we're referring to a generic archive type given as a
-template parameter).  This allows for the development of archive types that, for
+template parameter).  \todo{Wording here - I can't quite grasp meaning of this. This allows for the development of archive types that, for
 instance, only handle performance sensative types but in a highly performant
-manner.  
+manner. }
 
 \subsection{Implementations for Builtin and Standard Library Types}
 
@@ -405,8 +399,10 @@ the standard container \gls{concept} (for which the value types are also
 serializable), POD types, |std::pair| of serializable types, and
 compile-time sized arrays of serializable types.  Many of the implementations in
 the current backend are with respect to a generic archive type, but since
-|SimplePackUnpackArchive| is the only archive type currenly fully implemented,
+|SimplePackUnpackArchive| is the only archive type currently implemented,
 the code is only tested with this archive thus far.
+
+\todo{How do we serialize primitive types? And why can't a struct by default use same mechanism?}
 
 You can define a serialization for any bitwise copyable, POD type simply by
 specializing |darma_runtime::serialization::serialize_as_pod<T>| to inherit from
@@ -426,18 +422,18 @@ struct serialize_as_pod<MyPlainOldData> : std::true_type { };
 
 Deserialization into polymorphic base class pointers is currently not supported
 by the DARMA serialization interface.  If a type is to be used in a context that
-requires DARMA to deserialize it (most importantly, as the wrapped by an
+requires DARMA to deserialize it (most importantly, as wrapped by an
 |AccessHandle<T>| or the type of an argument passed to a
 functor-style |create_work| that could be migrated), the concrete type must be
-known at compile time.  Support for this may be forthcoming, but it is not a
-high priority.  There are a number of other patterns in the programming
+known at compile time.  Support for this will be forthcoming, but will likely require an intrusive interface.  
+There are a number of other patterns in the programming
 literature that can be used to mimic run-time polymorphism, and we suggest the
 user consider these if necessary.
 
 \subsection{Serialization Pitfalls}
 
 \begin{itemize}
-  \item Because DARMA detects the various intrusive and nonintrusive
+  \item Because DARMA detects the various intrusive and non-intrusive
   |serialize|, |pack|, |unpack|, etc. methods, |const|-incorrectness or an
   otherwise incorrect signature can cause these methods to go undetected and
   lead to unexpected behavior.  For instance,

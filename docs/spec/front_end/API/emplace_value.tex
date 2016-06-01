@@ -2,7 +2,7 @@
 \label{ssec:api_fe_emplace_value}
 
 \paragraph{Summary}\mbox{}\\ 
-Construct an object of the type pointed to by an |AccessHandle<T>| object
+Construct an object of the type pointed to by an \ahandleT object
 (that is, |T|) in place by forwarding the arguments to the constructor
 for |T|.
 
@@ -47,6 +47,7 @@ create_work([=]{
 \end{figure}
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\ 
+\todo{Jeremy/David: Is this still an issue?  If so, remove ``0.2 only'', otherwise remove item completely}
 \begin{itemize}
   \item {\color{red}[0.2 only]} Because the 0.2 spec lacks a means of specifying
   the constructor of |T| to be called by default, the first usage of

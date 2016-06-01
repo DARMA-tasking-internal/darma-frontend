@@ -1,7 +1,7 @@
 \subsection{\texttt{initial\_access}}
 
 \paragraph{Summary}\mbox{}\\ 
-Create a handle to data that does not yet exist in the system 
+\codetarget{initial_access} creates a handle to data that does not yet exist in the system 
 but needs to be created.
 
 \paragraph{Syntax}\mbox{}\\ 
@@ -21,9 +21,9 @@ This construct creates a handle to data that does not yet
 exist but needs to be created.  The handle is created with {\it Modify}
 scheduling permissions and {\it None} immediate permissions.  The function takes
 as input an arbitrary tuple of values.
-Note that this key has to be unique (see discussion about keys and uniqueness
-elsewhere\todo{figure out where this should refer}).  One cannot define two
-handles with same the same key, even if they are created by different ranks.
+Note that this key has to be unique (see Section \ref{}).
+\todo{fix section ref}
+One cannot define two handles with same the same key, even if they are created by different ranks.
 One basic way to ensure this is the case is to always use the rank 
 as one component of the key. 
 
