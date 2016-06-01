@@ -25,8 +25,10 @@ logically distinct, and
  structures and dependencies, like classes with members that were also
  classes.  The first two of these issues are addressed in version \specVersion\ of the
  specification, and the third concern will be addressed in later releases of the specification.
-   
-\todo{Do we want to discuss 0.2 at all?}
+
+Version 0.2 of the specification existed for the purpose of building up reference backends
+and was not externally released.
+\todo{Janine, please tune this.}
 
 
 \section{New Features in \specVersion}
@@ -36,38 +38,39 @@ In version \specVersion\ of the specification we:
   % DSH: C++ doesn't really have ``introspection'', so I removed this
 \item leverage the \CC\ \gls{capture} mechanism to minimize verbosity of the \gls{front end}
     \gls{API},
+\item introduce a functor interface that is more feature rich than the lambda interface,
 \item provide \gls{sequential semantics} within a \gls{rank} to
     facilitate reasoning about program order,
 \item introduce the use of
     \gls{handle} variables to access data in the \gls{key-value store} to limit number of key-value operations for often-used data,
 \item require explicit publication of all data (potentially) required off-node, and
 \item implement implicit versioning within a task/scope based on sequential program order.
+\todo{check if this list is complete}
     \end{compactenum}
 
 
 \section{Planned Features in Future Releases}
 \label{sec:future}
-% DSH: Removed this TODO item.  This list will always be incomplete and/or in
-% flux.
-% \todo[inline]{Make sure list is accurate - change releases if necessary,
-% add missing things}
+\todo[inline]{Make sure list is accurate - change releases if necessary,
+add missing things}
+\todo[inline]{When is modification of fetched data going to be possible?}
+\todo[inline]{When is support for functors with templated call operators planned?}
+\todo[inline]{When is deserialization into polymorphic base class pointers going to be supported?}
+\todo[inline]{When is support for generalized ranks planned?}
 
 As part of the \gls{co-design} process, this specification will evolve quickly.
   Based on feedback thus far, there are already
 many additional features planned for future incarnations of the specification that
 will be released this calendar year (2016).  These are summarized below:
 
-\todo[inline]{Move 0.3.0-alpha stuff from 0.3 bullet below to previous section and update version label below to say 0.3.1 or whatever is appropriate}
-
 \begin{compactdesc}
-\item[0.3:]
+\item[0.3.1:]
+\todo{is this the right version number?}
 \begin{compactitem}
-\item support for \inlinecode{create_work()} within functors and/or
-function-like interface (i.e., not with lambdas)
-\item hierarchical \glspl{dependency} (e.g., classes that have dependencies as
+\item Hierarchical \glspl{dependency} (e.g., classes that have dependencies as
 member variables) and containment and aliasing management
-\item task creation within class member functions
-\item support for automatic data partitions and collectives
+\item Task creation within class member functions
+\item Support for automatic data partitions and collectives
 \end{compactitem}
 \item[0.4:]
 \begin{compactitem}
