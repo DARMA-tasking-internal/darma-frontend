@@ -59,7 +59,7 @@ completed.  No user-level \gls{DARMA} operations are allowed after this call, th
 the implicit invocation of the destructors of \codelink{AccessHandle<T>} objects
 (at, e.g., the final closing brace of \codelink{darma_main}) is allowed.  Must
 be called exactly once for each call of \codelink{darma_init} (which, in turn
-must be called exactly once in the current version of the spec).
+must be called exactly once per \gls{rank} in the current version of the spec).
 
 \paragraph{Code Snippet}\mbox{} \\
 \begin{figure}[!h]
