@@ -3,7 +3,7 @@
 \label{ssec:api_fe_read_access}
 
 \paragraph{Summary}\mbox{}\\
-Creates a handle with \text{read-only} access to data that has been or will be
+\codetarget{read_access} creates a handle with \text{read-only} access to data that has been or will be
 published elsewhere in the system.
 
 \paragraph{Syntax}\mbox{}\\
@@ -20,8 +20,10 @@ darma_runtime::read_access<T>(KeyParts..., version=KeyExpression);
 
 \paragraph{Keyword Arguments}\mbox{}\\
 \begin{itemize}
-  \item |version=KeyExpression| \todo{description of version keyword
-  argument}
+  \item |version=KeyExpression| (or |version(KeyExpression...)|,
+see \S~\ref{sec:keyword} for multiple-right-hand-side keyword argument usage):
+the version used to publish the data to be accessed.
+The value can be an arbitrary |KeyExpression|.
 \end{itemize}
 
 

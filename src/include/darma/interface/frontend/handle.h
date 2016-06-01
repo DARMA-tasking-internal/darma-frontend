@@ -60,11 +60,21 @@ namespace frontend {
 class Handle {
   public:
 
-    virtual types::key_t const&
-      get_key() const =0;
+  /**
+   * @brief get_key Returns a unique key. Multiple calls to this function on the same key object must
+   * always return the same value
+   * @return A unique key identifying the tuple.
+   */
+  virtual types::key_t const&
+  get_key() const =0;
 
-    virtual SerializationManager*
-      get_serialization_manager() const =0;
+  /**
+   * @brief get_serialization_manager Returns a type-specific serialization manager. The object returned
+   * will be persistent as long as the handle exists
+   * @return A type-specific serialization manager
+   */
+  virtual SerializationManager*
+  get_serialization_manager() const =0;
 
 };
 
