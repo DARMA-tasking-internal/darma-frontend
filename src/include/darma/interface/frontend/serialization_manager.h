@@ -58,7 +58,7 @@ namespace frontend {
  *  @class SerializationManager
  *
  *  @brief An immutable object allowing the backend to query various serialization sizes, offsets,
- *  behaviors, and data, known by the for a given handle and its associated data block.
+ *  behaviors, and data, for a given handle and its associated data block.
  *
  *  @remark The only method that is valid to invoke for the 0.2.0 spec implementation is get_metadata_size()
  *
