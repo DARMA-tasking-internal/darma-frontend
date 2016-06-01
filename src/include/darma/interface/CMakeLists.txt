@@ -19,7 +19,6 @@ defaults/version.h)
 
 set (frontend_HEADERS
 frontend/dependency_handle.h
-frontend/reduce_op.h
 frontend/serialization_manager.h
 frontend/task.h
 frontend/types.h)

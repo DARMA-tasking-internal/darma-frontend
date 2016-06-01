@@ -80,10 +80,12 @@ class Runtime {
      *
      *  See abstract::frontend::Task for details
      *
+     *  @param task A unique_ptr to a task object. Task is moved as r-value reference,
+                    indicating transfer of ownership to the backend.
      *  @sa abstract::frontend::Task
      */
     virtual void
-      register_task(
+    register_task(
       types::unique_ptr_template<frontend::Task>&& task
     ) = 0;
 
@@ -159,7 +161,7 @@ class Runtime {
      *  A null usage as a return value of u->get_out_flow() for some Use* u is
      *  intended to indicate that the data associated with that Use has no subsequent consumers
      *  and can safely be deleted.  See release_use().
-     *  @param handle
+     *  @param handle   The handle variable associate with the flow
      *
      */
     virtual Flow*
@@ -168,12 +170,12 @@ class Runtime {
     ) =0;
 
     /**
-     *  @TODO document this
+     *  @brief A set of enums identifying the relationship between two flows
      */
     typedef enum FlowPropagationPurpose {
-      Input,
-      Output,
-      ForwardingChanges
+      Input, /*!< Two Flows are the same logical input to different uses */
+      Output /*!< The output flow from one Use will serve as the input Flow for another use */
+      ForwardingChanges 
     } flow_propagation_purpose_t;
 
     /** @brief Make a flow that is logically identically to the input parameter
@@ -188,6 +190,7 @@ class Runtime {
      * @param purpose An enum indicating the relationship between logically identical flows (purpose of the function).
      *                For example, this indicates whether the two flows are both inputs to different tasks or whether
      *                the new flow is the sequential continuation of a previous write (forwarding changes)
+     * @param A new Flow object that is equivalent to the input flow
      */
     virtual Flow*
     make_same_flow(
@@ -206,6 +209,8 @@ class Runtime {
      *  through release_use.
      *  @param from    The flow consumed by an operation to produce the Flow returned by make_next_flow.
      *  @param purpose An enum indicating the purpose of the next flow
+     *  @return A new Flow object indicating that new data will be produced by the data incoming from
+     *          from the input Flow
      */
     virtual Flow*
     make_next_flow(
@@ -245,6 +250,8 @@ class Runtime {
      *  such that u2->get_in_flow() is equivalent to u->get_in_flow() (or u->get_out_flow(), depending on backend implementation)
      *  If u is the last use (there are no other Use* objects registered with u->get_in_flow() equivalent to u2->get_in_flow())
      *  then task t2 has its preconditions on u2 satisfied.
+     *
+     *  @param u The Use being released, which consequently releases an in and out flow with particular permissions.
      */
     virtual void
     release_use(
@@ -256,12 +263,14 @@ class Runtime {
      *  be accessible via a corresponding fetching usage with the same version_key.
      *
      *  See PublicationDetails for more information
+     *  @param u       The particular use being published
+     *  @param details This encapsulates at least a version_key and an n_readers
      *
      *  @sa PublicationDetails
      */
     virtual void
-    publish_flow(
-      Flow* f,
+    publish_use(
+      Use* u,
       frontend::PublicationDetails* details
     ) =0;
 
