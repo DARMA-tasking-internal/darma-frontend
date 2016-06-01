@@ -185,7 +185,6 @@ int darma_main(...) {
   invocation of functors with templated call operators (the detection idiom we
   use woudn't work here, and besides, we wouldn't even know if the deduced type
   is supposed to be an AccessHandle or not!).  Limited support for this may be
-\todo{decide if this is worth mentioning in spec evolution}
   available in the future.  Note that the functor class itself can still be
   templated, as long as the functor's template parameters are given explicitly
   at the invocation site:
