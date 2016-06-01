@@ -77,10 +77,6 @@ TaskBase::do_capture(
     auto& source = source_and_continuing;
     auto& continuing = source_and_continuing;
 
-    typedef typename AccessHandleT::dep_handle_ptr_maker_t dep_handle_ptr_maker_t;
-    typedef typename AccessHandleT::read_only_usage_holder_ptr_maker_t read_only_usage_holder_ptr_maker_t;
-
-    //bool ignored = ignored_handles.find(source.dep_handle_.get()) != ignored_handles.end();
     bool ignored = (source.captured_as_ & AccessHandleBase::Ignored) != 0;
 
     if (not ignored) {
@@ -102,7 +98,7 @@ TaskBase::do_capture(
       else {
         // Deduce capture type from state
         assert(source.captured_as_ == AccessHandleBase::CapturedAsInfo::Normal);
-        switch (source.current_use_->schedule_permissions_) {
+        switch (source.current_use_->scheduling_permissions_) {
           case HandleUse::Read: {
             capture_type = AccessHandleT::ro_capture;
             break;
@@ -127,7 +123,7 @@ TaskBase::do_capture(
         auto captured_out_flow = detail::backend_runtime->make_same_flow(
           captured_in_flow, purpose_t::OutputFlowOfReadOperation
         );
-        captured.current_use_ = HandleUse(source.var_handle_,
+        captured.current_use_ = detail::make_unique<HandleUse>(source.var_handle_.get(),
           captured_in_flow, captured_out_flow, HandleUse::Read, HandleUse::Read
         );
         // Continuing use stays the same:  (as if:)
@@ -148,19 +144,19 @@ TaskBase::do_capture(
           source.current_use_->out_flow_, purpose_t::Output
         );
 
-        captured.current_use_ = HandleUse(source.var_handle_,
+        captured.current_use_ = detail::make_unique<HandleUse>(source.var_handle_.get(),
           captured_in_flow, captured_out_flow, HandleUse::Read, HandleUse::Read
         );
-        continuing._switch_to_new_use(HandleUse(source.var_handle_,
+        continuing._switch_to_new_use(detail::make_unique<HandleUse>(source.var_handle_.get(),
           continuing_in_flow, continuing_out_flow,
-          source.current_use_->schedule_permissions_, HandleUse::Read
+          source.current_use_->scheduling_permissions_, HandleUse::Read
         ));
 
       };
 
       switch (capture_type) {
         case AccessHandleT::ro_capture: {
-          switch (source.current_use_->schedule_permissions_) {
+          switch (source.current_use_->scheduling_permissions_) {
             case HandleUse::None: {
               // Unreachable
               DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
@@ -187,11 +183,11 @@ TaskBase::do_capture(
               }
               break;
             }
-          }; // end switch source.current_use_->schedule_permissions_
+          }; // end switch source.current_use_->scheduling_permissions_
           break;
         }
         case AccessHandleT::mod_capture: {
-          switch (source.current_use_->schedule_permissions_) {
+          switch (source.current_use_->scheduling_permissions_) {
             case HandleUse::None: {
               // Unreachable
               DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
@@ -220,10 +216,10 @@ TaskBase::do_capture(
                   auto continuing_out_flow = detail::backend_runtime->make_same_flow(
                     source.current_use_->out_flow_, purpose_t::Output
                   );
-                  captured.current_use_ = HandleUse(source.var_handle_,
+                  captured.current_use_ = detail::make_unique<HandleUse>(source.var_handle_.get(),
                     captured_in_flow, captured_out_flow, HandleUse::Modify, HandleUse::Modify
                   );
-                  continuing._switch_to_new_use(HandleUse(source.var_handle_,
+                  continuing._switch_to_new_use(detail::make_unique<HandleUse>(source.var_handle_.get(),
                     continuing_in_flow, continuing_out_flow, HandleUse::Modify,
                     source.current_use_->immediate_permissions_
                   ));
@@ -242,10 +238,10 @@ TaskBase::do_capture(
                   auto continuing_out_flow = detail::backend_runtime->make_same_flow(
                     source.current_use_->out_flow_, purpose_t::Output
                   );
-                  captured.current_use_ = detail::make_unique<HandleUse>(source.var_handle_,
+                  captured.current_use_ = detail::make_unique<HandleUse>(source.var_handle_.get(),
                     captured_in_flow, captured_out_flow, HandleUse::Modify, HandleUse::Modify
                   );
-                  continuing._switch_to_new_use(detail::make_unique<HandleUse>(source.var_handle_,
+                  continuing._switch_to_new_use(detail::make_unique<HandleUse>(source.var_handle_.get(),
                     continuing_in_flow, continuing_out_flow, HandleUse::Modify, HandleUse::Read
                   ));
                   break;
@@ -253,7 +249,7 @@ TaskBase::do_capture(
               } // end switch source.current_use_->immediate_permissions_
               break;
             }
-          }; // end switch source.current_use_->schedule_permissions_
+          }; // end switch source.current_use_->scheduling_permissions_
           break;
         } // end mod_capture case
       } // end switch(capture_type)
@@ -265,7 +261,7 @@ TaskBase::do_capture(
     else {
       // ignored
       //captured.capturing_task = nullptr;
-      captured.current_use_ = detail::HandleUse{};
+      captured.current_use_ = nullptr;
     }
 
   });

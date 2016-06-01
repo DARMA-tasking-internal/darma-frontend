@@ -351,9 +351,9 @@ class AccessHandle : public detail::AccessHandleBase {
       using allocator_traits_t = std::allocator_traits<alloc_t>;
       alloc_t alloc;
       if (value_constructed_) {
-        allocator_traits_t::destroy(alloc, current_use_->data_);
+        allocator_traits_t::destroy(alloc, (T*)(current_use_->data_));
       }
-      allocator_traits_t::construct(alloc, current_use_->data_, std::forward<Args>(args)...);
+      allocator_traits_t::construct(alloc, (T*)(current_use_->data_), std::forward<Args>(args)...);
       value_constructed_ = true;
     }
 
@@ -374,7 +374,7 @@ class AccessHandle : public detail::AccessHandleBase {
 
     const key_t&
     get_key() const {
-      return var_handle_.get_key();
+      return var_handle_->get_key();
     }
 
     template <

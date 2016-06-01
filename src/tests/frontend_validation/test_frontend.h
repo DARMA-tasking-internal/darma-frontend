@@ -177,22 +177,30 @@ class TestFrontend
 
       Sequence s1, s2;
 
-      EXPECT_CALL(*mock_runtime, make_initial_flow(is_handle_with_key(key)))
-        .Times(1).InSequence(s1)
-        .WillOnce(Return(&fin));
-      EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key)))
-        .Times(1).InSequence(s2)
-        .WillOnce(Return(&fout));
+      std::map<std::string, Expectation> expectations;
 
-      EXPECT_CALL(*mock_runtime, register_use(
-        IsUseWithFlows(&fin, &fout, use_t::Modify, use_t::None)
-      )).Times(1).InSequence(s1, s2)
-        .WillOnce(SaveArg<0>(&use_ptr));
+      expectations["make in flow"] =
+        EXPECT_CALL(*mock_runtime, make_initial_flow(is_handle_with_key(key)))
+          .Times(1).InSequence(s1)
+          .WillOnce(Return(&fin));
+      expectations["make out flow"] =
+        EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key)))
+          .Times(1).InSequence(s2)
+          .WillOnce(Return(&fout));
 
-      EXPECT_CALL(*mock_runtime, release_use(
-        IsUseWithFlows(&fin, &fout, use_t::Modify, use_t::None)
-      )).Times(1).InSequence(s1)
-        .WillOnce(Assign(&use_ptr, nullptr));
+      expectations["register use"] =
+        EXPECT_CALL(*mock_runtime, register_use(
+          IsUseWithFlows(&fin, &fout, use_t::Modify, use_t::None)
+        )).Times(1).InSequence(s1, s2)
+          .WillOnce(SaveArg<0>(&use_ptr));
+
+      expectations["release use"] =
+        EXPECT_CALL(*mock_runtime, release_use(
+          IsUseWithFlows(&fin, &fout, use_t::Modify, use_t::None)
+        )).Times(1).InSequence(s1)
+          .WillOnce(Assign(&use_ptr, nullptr));
+
+      return expectations;
     }
 
     auto expect_read_access(
@@ -208,22 +216,30 @@ class TestFrontend
 
       Sequence s1;
 
-      EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(key), Eq(version_key)))
-        .Times(1).InSequence(s1)
-        .WillOnce(Return(&fin));
-      EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fin), Eq(MockRuntime::OutputFlowOfReadOperation)))
-        .Times(1).InSequence(s1)
-        .WillOnce(Return(&fout));
+      std::map<std::string, Expectation> expectations;
 
-      EXPECT_CALL(*mock_runtime, register_use(
-        IsUseWithFlows(&fin, &fout, use_t::Read, use_t::None)
-      )).Times(1).InSequence(s1)
-        .WillOnce(SaveArg<0>(&use_ptr));
+      expectations["make in flow"] =
+        EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(key), Eq(version_key)))
+          .Times(1).InSequence(s1)
+          .WillOnce(Return(&fin));
+      expectations["make out flow"] =
+        EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fin), Eq(MockRuntime::OutputFlowOfReadOperation)))
+          .Times(1).InSequence(s1)
+          .WillOnce(Return(&fout));
 
-      EXPECT_CALL(*mock_runtime, release_use(
-        IsUseWithFlows(&fin, &fout, use_t::Read, use_t::None)
-      )).Times(1).InSequence(s1)
-        .WillOnce(Assign(&use_ptr, nullptr));
+      expectations["register use"] =
+        EXPECT_CALL(*mock_runtime, register_use(
+          IsUseWithFlows(&fin, &fout, use_t::Read, use_t::None)
+        )).Times(1).InSequence(s1)
+          .WillOnce(SaveArg<0>(&use_ptr));
+
+      expectations["release use"] =
+        EXPECT_CALL(*mock_runtime, release_use(
+          IsUseWithFlows(&fin, &fout, use_t::Read, use_t::None)
+        )).Times(1).InSequence(s1)
+          .WillOnce(Assign(&use_ptr, nullptr));
+
+      return expectations;
     }
 
     void
