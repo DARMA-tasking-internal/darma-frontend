@@ -239,8 +239,10 @@ It is intended that these implementations will be external, drawing upon
 existing AMT technologies.  However,  a reference implementation will be provided
 in the \gls{DARMA} code distribution.
 
-The terms \gls{rank}, \gls{task}, and \gls{process} are loaded terms with many definitions across the literature. 
-Here we give special attention to define rigorous and limited definitions for special terms.
+There ar a number of terms, such as \gls{rank}, \gls{task}, and \gls{process}
+that are loaded with many definitions across the literature. 
+Here we give special attention to define rigorous and limited definitions for
+such terms used throughout the document.
 We use \gls{process} in the usual UNIX sense. Other terms are:
 \begin{compactdesc}
 \item [Task:] The work unit instantiated directly by the application developer. 
@@ -289,7 +291,34 @@ We use \gls{process} in the usual UNIX sense. Other terms are:
   in an \gls{spmd} launch.'' Similarly, referring generically to a
   ``\gls{rank}'' is shorthand for ``an \gls{execution stream} created by an
   \gls{spmd} launch with a particular \gls{rank} ID.''
-\end{compactdesc} 
+\item [Key-Value (KV) Store:] A \gls{key-value store} is an associative map from
+keys to values. In general, there are no restrictions on what keys or values are, although in many
+cases keys are strings.  The only thing required is that keys be comparable.
+For an unordered map implementation of a \gls{key-value store}, keys must usually be hashable.
+\item [Tuple Space]: A generalization of a \gls{key-value store} in which keys
+  are \glspl{tuple} of individually comparable values.
+%A tuple is a particular type of key in which comparison is performed on a
+%sequence (tuple) of values.
+  When this specification refers to a \gls{tuple space}, we are only referring to a particular type
+  the use of at \gls{tuple} as a key within a \gls{key-value store}.
+  Unlike other \gls{tuple space} languages (e.g. \gls{Linda}) we do not require
+  \glspl{tuple space} to implement wildcard (or any other operations), only the
+  comparison on fully-specified \glspl{tuple}.  Implementation of the
+  \gls{key-value store} as a \gls{tuple space} is not required.  
+  Even though variables must be constructed with a unique \gls{tuple}, a
+particular backend implementation may choose to convert
+\gls{tuple} into string representations and implement a simple string-based
+\gls{key-value store}.
+\item [Distributed Hash Table (DHT)]: A particular implementation of a
+  \gls{key-value store} for hashable key types.
+Intended to be scalable for large systems, the hash space is partitioned
+across distributed workers.
+This automatically (and predictably) scatters keys and corresponding
+values across the system.
+A \todo{Janine: add glossary entry here once Jeremy is done with pass on
+section} DHT implementation of a \gls{key-value store} is not required by the specification,
+but recommended for scalable execution.
+\end{compactdesc}
 
 
 \input{programming_model}
