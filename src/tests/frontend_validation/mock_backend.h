@@ -99,8 +99,7 @@ class MockRuntime
     MOCK_METHOD2(make_forwarding_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
     MOCK_METHOD2(make_next_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
     MOCK_METHOD1(release_use, void(use_t*));
-    MOCK_METHOD2(publish_flow, void(flow_t*, publication_details_t*));
-    MOCK_METHOD1(release_published_flow, void(flow_t*));
+    MOCK_METHOD2(publish_use, void(use_t*, publication_details_t*));
 
 
 #ifdef __clang__

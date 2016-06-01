@@ -54,6 +54,8 @@ namespace frontend {
 
 /** @brief Encapsulates the state, permissions, and data reference for a given use of a Handle at a given time.
  *
+ *  @todo update this to include publish_use
+ *
  *  Use objects have a life cycle with 3 strictly ordered phases.  For some Use instance ha,
  *    + Creation/registration -- &ha is passed as argument to
  *      register_handle_access().  At this time, ha.get_in_flow() and

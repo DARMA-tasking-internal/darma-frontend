@@ -232,7 +232,8 @@ class Runtime {
     ) =0;
 
 
-    /** @brief Indicate that the state of a Handle corresponding to a given Flow should
+    /** @todo Update this for publish_use instead of publish_flow
+     *  @brief Indicate that the state of a Handle corresponding to a given Flow should
      *  be accessible via a corresponding fetching usage with the same version_key.
      *
      *  See PublicationDetails for more information
@@ -240,21 +241,9 @@ class Runtime {
      *  @sa PublicationDetails
      */
     virtual void
-    publish_flow(
-      Flow* f,
+    publish_use(
+      frontend::Use* f,
       frontend::PublicationDetails* details
-    ) =0;
-
-    /** @brief Called on a usage that was used with publish_flow() (i.e., instead of being returned
-     *  by a Use instance's get_in_flow() or get_out_flow() methods)
-     *
-     *  See life cycle of Flow for more.
-     *
-     *  @sa Flow
-     */
-    virtual void
-    release_published_flow(
-      Flow* f
     ) =0;
 
 };
