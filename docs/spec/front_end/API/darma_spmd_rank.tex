@@ -6,10 +6,8 @@
 \subsection{\texttt{darma\_spmd\_rank}}
 
 \paragraph{Summary}\mbox{}\\
-\codetarget{darma_spmd_rank} returns the \gls{rank} index associated with the \gls{opaque context}
-\todo{David: Originally you had the term opaque rank context here, but everywhere else
-opaque context.  Please confirm this edit is ok} from which this
-function was invoked.
+\codetarget{darma_spmd_rank} returns the \gls{rank} index associated with the
+\gls{execution stream} from which this function was invoked.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
@@ -24,9 +22,8 @@ An object of unspecified type that may be treated as a \inlinecode{std::size_t}
 which is less than the value returned by \codelink{darma_spmd_size}.
 
 \paragraph{Details}\mbox{}\\
-This function returns the rank index of the calling DARMA \gls{rank}.  (Recall that a
-rank is the \gls{opaque context} between the invocation of \codelink{darma_init} and
-a corresponding invocation of \codelink{darma_finalize}).  If the value returned
+This function returns the rank index of the calling \gls{DARMA} \gls{execution
+stream}.  If the value returned
 by \codelink{darma_spmd_size} is convertible to a \inlinecode{std::size_t} with the
 value $N$, then the value returned by this function will be convertible to a
 \inlinecode{std::size_t} with the value $r$, which will always satisfy $0 <=
@@ -38,7 +35,8 @@ comparison with $0$ on exactly one rank.  The value returned by this function
 will be unique on every \gls{rank} (in the equality sense), and will be the same
 across multiple invocations of the function within a given \gls{rank}.  The value
 returned will also be the same at any asynchronous work invocation depth within
-a rank's \gls{opaque context}, regardless of whether that work gets stolen or
+a rank's \gls{execution stream}\todo{make sure this use of execution stream is
+  correct here, was changed from opaque context}, regardless of whether that work gets stolen or
 migrated.
 
 \paragraph{Code Snippet}\mbox{}\\ 
