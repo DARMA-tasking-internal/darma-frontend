@@ -22,7 +22,7 @@ requires {\it Modify} immediate permissions to invoke safely.  Unlike
 also be invoked on handles that only have {\it Read} immediate permissions.  In
 that case, it is up to the user to ensure that only |const| methods are
 called on the resulting object.  In other words,
-|AccessHandle<T>::operator->()| lets you ``shoot yourself in the foot''.
+|AccessHandle<T>::operator->()| lets you ``shoot yourself in the foot.''
 If more safety is desired, use the more  verbose forms with
 |set_value()| and |get_reference()|.
 

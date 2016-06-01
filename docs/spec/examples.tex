@@ -8,6 +8,7 @@
 
 
 \section{Basic functionalities for spec 0.2}
+\todo{Do we want to call this out as 0.2 even though we're not releasing 0.2?}
 
 \subsection{DARMA environment}
 Example showing how to initialize and finalize the DARMA environment.
@@ -46,8 +47,8 @@ Example showing how to issue a \texttt{create\_work} and constraining privileges
 Example for one possible implementation of ``hello world''. 
 There are three main parts involved: 
 \begin{enumerate}
-\item the DARMA environment is initialized. 
-\item each rank issues a task to store a greeting message into a string.
+\item the DARMA environment is initialized, 
+\item each rank issues a task to store a greeting message into a string, and
 \item each rank then creates a task to printing to standard output the message and its rank.
 \end{enumerate}
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/darma_hello/darma_hello.cc}
@@ -57,12 +58,11 @@ There are three main parts involved:
 
 \section{Key-Value Example}
 
-This example is to illustrate simple transactions with the keyvalue store, 
+This example is to illustrate simple transactions with the key-value store, 
 but in a distributed setting. We will ask each rank to publish a float to be
 read by two readers, a rank on the left and one on the right. Then we will ask
 each rank to get two floats, those published by the left and right neighbors
-and print to screen. Periodic logic for neighbors, and each rank publishes a 
-float that uniquely determines its rank.
+and print to screen. We use periodic logic for neighbors.
 
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/simple_kv/publish_get_parallel.cc}
 
@@ -88,13 +88,15 @@ data, publishing it, and then fetching the other rank's data.
 Lifetime of handles is tricky, particularly for \texttt{read\_access} type handles.  
 In the following example, we initialize data, publish it, fetch it from another rank, 
 modify the data, publish it again under a new version, and then fetch the new version from another rank. 
-The \texttt{create\_work} on lines $40-44$ can't execute until the back end knows the first fetched version is done.
-We put an extra set of \texttt{\{ \}} around the code in lines $28-36$ to tell the back end that 
-the \texttt{readHandle} is no longer needed and can go out-of-scope and the fetching is done.  
-Without the scoping \texttt{\{\}}, the code would deadlock. This is because the back end would not know that 
-the fetching is done until after \texttt{darma\_finalize()} is called. However, \texttt{darma\_finalize()} 
-can't return until after {\it all} the \texttt{create\_works} have completed.  And so the code would deadlock. 
-Scoping is in this case necessary, but it is only useful in other cases to improve efficiency and parallelism 
+The \texttt{create\_work} on lines $64-68$ can't execute until the back end knows the first fetched version is no longer in use.
+We put an extra set of \texttt{\{ \}} around the code in lines $40-61$ to tell the back end that 
+the \texttt{readHandle} is no longer needed and can go out-of-scope and the fetching is done.
+
+Without the scoping \texttt{\{\}}, the code would deadlock.
+\texttt{darma\_finalize()} cannot return until after {\it all} the \texttt{create\_works} have completed.
+However, without the additional scoping, the backend would not know that the first fetched version is no longer needed until \texttt{darma\_main()} returns, which requires \texttt{darma\_finalize()} to have already returned.
+
+While scoping is necessary in this case, there will be other cases where it only helps to improve efficiency and concurrency 
 in the scheduling and execution of tasks. Scoping is a good programming practice.
 
 
@@ -164,12 +166,12 @@ Also, our current version of the solver is
 such that on exit, the vector $d$ contains the solution.
 \end{enumerate}
 
-How to implement this in DARMA? 
+How do we implement this in DARMA? 
 For demonstration purposes, we limit our attention to the case 
-of a single rank. More complex examples involving multiple ranks will be shown below. 
+of a single rank. More complex examples involving multiple ranks will be shown later. 
 
 There are three main steps involved, namely initialization, 
-solution of the linear system, and error check. 
+solution of the linear system, and error checking. 
 The DARMA main file is as follows:
 \lstinputlisting[style=CppCodeNumbstyle]{../../examples/0.2/poisson_1d_thomasAlgorithm/single_rank/single_rank.cc}
 

@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          initial_access.h
-//                         dharma_new
+//                      extract_template.hpp
+//                         TINYMPL
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,43 +42,23 @@
 //@HEADER
 */
 
-#ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_INITIAL_ACCESS_H_
-#define SRC_INCLUDE_DARMA_INTERFACE_APP_INITIAL_ACCESS_H_
+#ifndef TINYMPL_EXTRACT_TEMPLATE_HPP
+#define TINYMPL_EXTRACT_TEMPLATE_HPP
 
-#include <tinympl/extract_template.hpp>
+namespace tinympl {
 
-#include <darma/interface/app/access_handle.h>
-#include <darma/impl/handle_attorneys.h>
-#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
-#include <darma/impl/util.h>
-
-namespace darma_runtime {
+template <typename T>
+struct extract_template;
 
 template <
-  typename T=void,
-  typename... KeyExprParts
+  template <class...> class templ,
+  class... Args
 >
-AccessHandle<T>
-initial_access(
-  KeyExprParts&&... parts
-) {
-  static_assert(detail::only_allowed_kwargs_given<
-    >::template apply<KeyExprParts...>::type::value,
-    "Unknown keyword argument given to initial_access"
-  );
-  types::key_t key = detail::access_expr_helper<KeyExprParts...>().get_key(
-    std::forward<KeyExprParts>(parts)...
-  );
-  auto var_h = detail::make_shared<detail::VariableHandle<T>>(key);
-  auto in_flow = detail::backend_runtime->make_initial_flow( var_h.get() );
-  auto out_flow = detail::backend_runtime->make_null_flow( var_h.get() );
+struct extract_template<templ<Args...>> {
+  template <typename... Ts>
+  using rebind = templ<Ts...>;
+};
 
-  return detail::access_attorneys::for_AccessHandle::construct_initial_access<T>(
-    var_h, in_flow, out_flow, detail::HandleUse::Modify, detail::HandleUse::None
-  );
-}
+} // end namespace tinympl
 
-} // end namespace darma_runtime
-
-
-#endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_INITIAL_ACCESS_H_ */
+#endif //TINYMPL_EXTRACT_TEMPLATE_HPP

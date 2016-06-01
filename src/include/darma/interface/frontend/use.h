@@ -46,12 +46,15 @@
 #define DARMA_IMPLEMENTATION_FRONTEND_USE_H
 
 #include <darma/interface/backend/flow.h>
+#include "handle.h"
 
 namespace darma_runtime {
 namespace abstract {
 namespace frontend {
 
 /** @brief Encapsulates the state, permissions, and data reference for a given use of a Handle at a given time.
+ *
+ *  @todo update this to include publish_use
  *
  *  Use objects have a life cycle with 3 strictly ordered phases.  For some Use instance ha,
  *    + Creation/registration -- &ha is passed as argument to
@@ -85,11 +88,11 @@ class Use {
 
     /** @brief Get the Flow that must be ready for use as a precondition for the Task t that depends on this Use
      */
-    virtual backend::Flow* get_in_flow() const =0;
+    virtual backend::Flow* get_in_flow() =0;
 
     /** @brief Get the Flow that is produced or made available when this Use is released
      */
-    virtual backend::Flow* get_out_flow() const =0;
+    virtual backend::Flow* get_out_flow() =0;
 
     /** Get the immediate permissions needed for the Flow returned by get_in_flow() to be ready as a precondition for this Use
      */

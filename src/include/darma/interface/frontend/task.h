@@ -48,7 +48,6 @@
 #include <darma_types.h>
 #include <darma/interface/frontend/types.h>
 
-#include "dependency_handle.h"
 #include "use.h"
 
 namespace darma_runtime {
@@ -88,7 +87,7 @@ class Task {
      *  See description in Task and Use life cycle discussions.
      *  @return An iterable container of Use objects whose availability are preconditions for task execution
      */
-    virtual types::handle_container_template<Use*>
+    virtual types::handle_container_template<Use const*> const&
     get_dependencies() const =0;
 
     //TODO would like to see this function

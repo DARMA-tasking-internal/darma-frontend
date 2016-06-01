@@ -10,12 +10,12 @@ enough from the current one that it is not included in this work.
 In this version of the specification:
 \begin{compactenum}
 \item all input and output dependencies had to be explicitly enumerated by the application
-developer;
-\item Data was passed to all tasks (even inline tasks) via function parameters
-\item all input and outputs were to each task were declared using \gls{coordination semantics}
+developer,
+\item data was passed to all tasks (even inline tasks) via function parameters,
+\item all inputs and outputs to each task were declared using \gls{coordination semantics},
 \item explicit versioning of inputs/outputs was required to keep data
-logically distinct;
-\item Sequential ordering of statements within DARMA has no significance for task ordering
+logically distinct, and
+\item sequential ordering of statements within DARMA had no significance for task ordering.
 \end{compactenum}
 
  Application developer concerns regarding version 0.1 of the specification
@@ -26,6 +26,7 @@ logically distinct;
  classes.  The first two of these issues are addressed in version \specVersion\ of the
  specification, and the third concern will be addressed in later releases of the specification.
    
+\todo{Do we want to discuss 0.2 at all?}
 
 
 \section{New Features in \specVersion}
@@ -34,14 +35,13 @@ In version \specVersion\ of the specification we:
   \begin{compactenum}
   % DSH: C++ doesn't really have ``introspection'', so I removed this
 \item leverage the \CC\ \gls{capture} mechanism to minimize verbosity of the \gls{front end}
-    \gls{API};  
+    \gls{API},
 \item provide \gls{sequential semantics} within a \gls{rank} to
-    facilitate reasoning about program order; 
+    facilitate reasoning about program order,
 \item introduce the use of
-    \gls{handle} variables to access data in the \gls{key-value store} to limit number of key-value operations for often-used data
-\item explicit publication of all (potentially) off-node communication
-operations
-\item implicit versioning within a task/scope based on sequential program order    
+    \gls{handle} variables to access data in the \gls{key-value store} to limit number of key-value operations for often-used data,
+\item require explicit publication of all data (potentially) required off-node, and
+\item implement implicit versioning within a task/scope based on sequential program order.
     \end{compactenum}
 
 
@@ -56,6 +56,8 @@ As part of the \gls{co-design} process, this specification will evolve quickly.
   Based on feedback thus far, there are already
 many additional features planned for future incarnations of the specification that
 will be released this calendar year (2016).  These are summarized below:
+
+\todo[inline]{Move 0.3.0-alpha stuff from 0.3 bullet below to previous section and update version label below to say 0.3.1 or whatever is appropriate}
 
 \begin{compactdesc}
 \item[0.3:]

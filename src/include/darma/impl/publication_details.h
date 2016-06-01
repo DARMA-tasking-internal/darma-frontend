@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          initial_access.h
-//                         dharma_new
+//                      publication_details.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,43 +42,43 @@
 //@HEADER
 */
 
-#ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_INITIAL_ACCESS_H_
-#define SRC_INCLUDE_DARMA_INTERFACE_APP_INITIAL_ACCESS_H_
+#ifndef DARMA_IMPL_PUBLICATION_DETAILS_H
+#define DARMA_IMPL_PUBLICATION_DETAILS_H
 
-#include <tinympl/extract_template.hpp>
-
-#include <darma/interface/app/access_handle.h>
-#include <darma/impl/handle_attorneys.h>
-#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
-#include <darma/impl/util.h>
+#include <darma/interface/frontend/publication_details.h>
 
 namespace darma_runtime {
+namespace detail {
 
-template <
-  typename T=void,
-  typename... KeyExprParts
->
-AccessHandle<T>
-initial_access(
-  KeyExprParts&&... parts
-) {
-  static_assert(detail::only_allowed_kwargs_given<
-    >::template apply<KeyExprParts...>::type::value,
-    "Unknown keyword argument given to initial_access"
-  );
-  types::key_t key = detail::access_expr_helper<KeyExprParts...>().get_key(
-    std::forward<KeyExprParts>(parts)...
-  );
-  auto var_h = detail::make_shared<detail::VariableHandle<T>>(key);
-  auto in_flow = detail::backend_runtime->make_initial_flow( var_h.get() );
-  auto out_flow = detail::backend_runtime->make_null_flow( var_h.get() );
+class PublicationDetails
+  : public darma_runtime::abstract::frontend::PublicationDetails
+{
+  public:
 
-  return detail::access_attorneys::for_AccessHandle::construct_initial_access<T>(
-    var_h, in_flow, out_flow, detail::HandleUse::Modify, detail::HandleUse::None
-  );
-}
+    types::key_t version_name;
+    size_t n_fetchers;
 
+    types::key_t const&
+    get_version_name() const override {
+      return version_name;
+    }
+
+    size_t
+    get_n_fetchers() const override {
+      return n_fetchers;
+    }
+
+    PublicationDetails(
+      types::key_t const& version_name_in,
+      size_t n_fetchers_in
+    ) : version_name(version_name_in),
+        n_fetchers(n_fetchers_in)
+    { }
+
+};
+
+
+} // end namespace detail
 } // end namespace darma_runtime
 
-
-#endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_INITIAL_ACCESS_H_ */
+#endif //DARMA_IMPL_PUBLICATION_DETAILS_H
