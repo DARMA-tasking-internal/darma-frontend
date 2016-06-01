@@ -19,7 +19,7 @@ Lookahead gives the runtime more complete knowledge of the task graph instead of
 By looking ahead, the runtime can reorder or migrate tasks to maximize data locality and improve load balance.
 The most critical conceptual change from standard C++ to DARMA are pending variables that enable lookahead, unlike conventional C++ variables that must always be ``ready''.
 
-Handles can be created three different ways.
+Handles can be created three different ways:
 \begin{enumerate}
 \item a handle to data that does not yet exist in the system
 but needs to be created, or
