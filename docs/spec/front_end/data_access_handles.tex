@@ -29,12 +29,27 @@ be read, or
 Note that this type of handle does not exist in the current version of the spec.
 \end{enumerate}
 
+Type 1 is denoted as \inlinecode{initial_access} in DARMA, 
+which informs the runtime that the data with the 
+specified key does not yet exist, and the user intends to 
+create this data.% and (potentially) publish it.
+Hence, an \inlinecode{initial_access} data handle is usually 
+followed by a memory allocation, and a value assignment. 
+Remark: Although we could explicitly write out \inlinecode{AccessHandle<T>} in the code below,
+we \emph{strongly encourage} programmers to use the C++ \inlinecode{auto} keyword.
+It will greatly increase code portability for future (potentially backwards-incompatible) versions of DARMA,
+with the additional benefit of decreasing code verbosity.
+
 \begin{CppCode}
 auto float_handle = initial_access<float>("float_key");
 create_work([=]{
   float_handle.set_value(3.14);
 });
 \end{CppCode}
+As stated above, DARMA provides two methods for expressing task preconditions: sequential semantics and coordination.
+\inlinecode{initial_access} is necessary in both methods.
+Once created, a handle can be passed along to subtasks within the same, sequential execution stream.
+A handle created by \inlinecode{initial_access} can also be published, making it available to other execution streams via key-value store coordination.
 
 Handles of Type 2 above request read-only access to data produced externally in the system through \inlinecode{read_access}. 
 As such, \inlinecode{read_acccess} is only relevant for applications that use coordination to express data flow.
@@ -63,15 +78,9 @@ Over-requesting privileges will limit the amount of available parallelism in the
 A task may be using a handle with read-write privileges created by \inlinecode{initial_access}
 and then create a subtask that requires only read privileges.
 
-
-Tasks should only ever request the privileges they need. 
-Over-requesting privileges will limit the amount of available parallelism in the code.
-A task may be using a handle with read-write privileges created by \inlinecode{initial_access}
-and then create a subtask that requires only read privileges.
-Tasks should only ever request the privileges they need. 
-
 \begin{CppCode}
-auto float_handle = read_write<float>("yet_another_float_key");
+auto float_handle = initial_access<float>("yet_another_float_key");
+....
 create_work(reads(float_handle), [=] {
   std::cout << "Value read with key yet_another_float_key is " 
           << float_handle.get_value() << std::endl;
@@ -86,8 +95,6 @@ In this case, subtasks are created that only need read access.
 Without the \inlinecode{reads} qualifier, these tasks could not run in parallel (or out-of-order) since they
 would by default request read-write privileges.
 Sequential semantics would then require them to write in-order sequentially.
-\todo[inline]{Jeremy/David: vet that the examples and text in this section are
-  accurate -- is there a readwrite access handle?}
 
 \subsection{Publish}
 \label{subsec:publish}
@@ -102,14 +109,13 @@ freeing the memory and resolving any anti-dependencies analogous to the
 destructor invocation in C++ when a class goes out of scope.  
 Unpublished data can leverage the sequential semantics of the application for garbage collection.  
 Published data, however, is globally visible to all workers and requires more ``permanence.''  
-In order to reclaim the data (garbage collect or resolve anti-dependence), publish data must know its access group.
+In order to reclaim the data (garbage collect or resolve anti-dependence), published data must know its access group.
 When all read handles within an access group have been deleted or released \emph{globally}, the published data can be reclaimed.
 The easiest way to declare an access group (and currently supported method) is
 to simply give the total number of additional read \inlinecode{AccessHandle<T>} objects that will be created referring to it.
 In future versions, hints will be supported about which specific tasks will need to read data.
 The publish/fetch mechanism replaces an analogous \inlinecode{MPI_Send/Recv} or even potentially an \inlinecode{MPI_Bcast}.
-In MPI, these function calls force an \inlinecode{MPI_Send} or \inlinecode{MPI_Wait} to block until the runtime guarantees that the data has
-been delivered.
+In MPI, these function calls force an \inlinecode{MPI_Send} or \inlinecode{MPI_Wait} to block until the runtime guarantees that the data has been delivered.
 An access group in DARMA provides a similar guarantee.
 Until all readers in an access group have received or released their data, DARMA cannot reclaim (garbage collect, clear anti-dependencies).
 
