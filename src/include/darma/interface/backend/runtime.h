@@ -80,6 +80,8 @@ class Runtime {
      *
      *  See abstract::frontend::Task for details
      *
+     *  @param task A unique_ptr to a task object. Task is moved as r-value reference,
+                    indicating transfer of ownership to the backend.
      *  @sa abstract::frontend::Task
      */
     virtual void
@@ -113,12 +115,15 @@ class Runtime {
 
     /** @brief Register a Use object
      *
-     *  This method registe a Use object to be used later as a possible dereference of
-     *  the iterator to the iterable returned by t.get_dependencies() for some task t registered
-     *  after this invocation of register_use() but before the corresponding
-     *  release_use().  This also indicates the beginning of the window in which make_next()
-     *  may be called on either the get_input_flow() or the get_output_flow() returns from the argument
-     *  (which also closes with the corresponding call to release_use()).
+     *  This method registers a Use object that can be accesses through the
+     *  the iterator returned by t.get_dependencies() for some task t.
+     *  register_use will always be invoked before register_task for any task holding a Use u.
+     *  Accessing a Use u through a task t is only valid 1) after register_task is called on t
+     *  and register_use is called on u and 2) before release_use is called on u
+     *  No make_* functions may be invoked on either the input or output flows of a Use u
+     *  returned by get_input_flow() and get_output_flow() before calling register_use
+     *  Additionally, no make_* functions may be invoked on the input or output flows of a Use u
+     *  after calling release_use
      */
     virtual void
     register_use(
@@ -127,9 +132,14 @@ class Runtime {
 
     /** @brief Make an initial Flow to be associated with the handle given as an argument.
      *
-     *  The initial Flow will be used as the return value of ha->get_in_flow() for the first
-     *  Use* ha registered with write privileges that returns handle for ha->get_handle()
+     *  The initial Flow will be used as the return value of u->get_in_flow() for the first
+     *  Use* u registered with write privileges that returns handle for u->get_handle()
      *  (or any other handle with an equivalent return for get_key() to the one passed in here)
+     *  In most cases, this will derive from calls to initial_access in the application code
+     *
+     *  @param handle A handle encapsulating a type and unique name (variable) for which the Flow
+     *                represents the initial state
+     *
      */
     virtual Flow*
     make_initial_flow(
@@ -138,10 +148,10 @@ class Runtime {
 
     /** @brief Make an fetching Flow to be associated with the handle given as an argument.
      *
-     *  The fetching usage will be used as a return value of ha->get_in_flow() for a Use*
-     *  ha intended to fetch the data published from a Flow associated with handle and published with
-     *  the version_key given in the second argument.
-     *
+     *  The fetching usage will be used as a return value of u->get_in_flow() for a Use* u
+     *  intended to fetch the data published with a particular handle key and version_key
+     *  @param handle A handle object carrying the key identifer returned by get_key()
+     *  @param version_key A unique version for the key returned by handle->get_key()
      */
     virtual Flow*
     make_fetching_flow(
@@ -149,11 +159,12 @@ class Runtime {
       types::key_t const& version_key
     ) =0;
 
-    /** @brief Make an null Flow to be associated with the handle given as an argument.
+    /** @brief Make a null Flow to be associated with the handle given as an argument.
      *
-     *  A null usage as a return value of ha->get_out_flow() for some Use* ha is
-     *  intended to indicate that the data associated with that Use has no consumers
+     *  A null usage as a return value of u->get_out_flow() for some Use* u is
+     *  intended to indicate that the data associated with that Use has no subsequent consumers
      *  and can safely be deleted.  See release_use().
+     *  @param handle   The handle variable associate with the flow
      *
      */
     virtual Flow*
@@ -162,17 +173,32 @@ class Runtime {
     ) =0;
 
     /**
-     *  @TODO document this
+     *  @brief A set of enums identifying the relationship between two flows
      */
     typedef enum FlowPropagationPurpose {
-      Input,
-      Output,
-      ForwardingChanges,
-      OutputFlowOfReadOperation
+      Input, /*!< Two Flows are the same logical input to different uses */
+      Output, /*!< The output flow from one Use will serve as the input Flow for another use */
+      ForwardingChanges, /*!< Two Flows are logically the same. An output Flow 
+                            forwards its changes as the input of another task. In contrast to an Output,
+                            a Flow with a purpose of ForwardingChanges will not have immediate Modify privileges.
+                            Only ever used with make_forwarding_flow() */
+      OutputFlowOfReadOperation /*!< Two Flows are logically the same. The newly made output Flow 
+                                    marks the end of a read of an input Flow */
     } flow_propagation_purpose_t;
 
-    /**
-     *  @TODO document this
+    /** @brief Make a flow that is logically identically to the input parameter
+     *
+     * Calls to make_same_flow indicate a logical identity between Flows in different tasks
+     * make_same_flow may not return the original pointer passed in. Flow objects must be unique to a Use.
+     * Flows are registered and released indirectly through calls to register_use/release_use.
+     * The input Flow to make_same_flow must have been registered through a register_use call,
+     * but not yet released through a release_use call.
+     * There is no restriction on the number of times make_same_flow can be called with a given input.
+     * @param from    An already initialized flow returned from make_*_flow
+     * @param purpose An enum indicating the relationship between logically identical flows (purpose of the function).
+     *                For example, this indicates whether the two flows are both inputs to different tasks or whether
+     *                the new flow is the sequential continuation of a previous write (forwarding changes)
+     * @param A new Flow object that is equivalent to the input flow
      */
     virtual Flow*
     make_same_flow(
@@ -181,7 +207,16 @@ class Runtime {
     ) =0;
 
     /**
-     *  @TODO document this
+     *  @brief Make a new input Flow receives forwarded changes from an output Flow
+     *
+     *  Indicates a logical equivalence between two Flow instances connecting
+     *  the output Flow from one Use to the input Flow of another Use.
+     *
+     *  @param from    An already initialized flow returned from make_*_flow
+     *  @param purpose An enum indicating the relationship between logically identical flows (purpose of the function).
+     *                 For example, this indicates whether the two flows are both inputs to different tasks or whether
+     *                 the new flow is the sequential continuation of a previous write (forwarding changes)
+     *                 In the current specification, this enum will always be ForwardingChanges
      */
     virtual Flow*
     make_forwarding_flow(
@@ -190,7 +225,18 @@ class Runtime {
     ) =0;
 
     /**
-     *  @TODO document this
+     *  @brief Make a flow that will be the output of u->get_out_flow() for a Use u in a producer task.
+     *
+     *  Calls to make_next_flow indicate a producer-consumer relationship between flows.
+     *  make_next_flow indicates that an operation consumes Flow* from and produces the returned Flow*.
+     *  Flows are registered and released indirectly through calls to register_use/release_use.
+     *  Flow instances cannot be shared across Use instances.
+     *  The input to make_next_flow must have been registered with register_use, but not yet released
+     *  through release_use.
+     *  @param from    The flow consumed by an operation to produce the Flow returned by make_next_flow.
+     *  @param purpose An enum indicating the purpose of the next flow
+     *  @return A new Flow object indicating that new data will be produced by the data incoming from
+     *          from the input Flow
      */
     virtual Flow*
     make_next_flow(
@@ -201,30 +247,37 @@ class Runtime {
 
     /** @brief Release a Use object previously registered with register_use.
      *
-     *  Upon release, if the Use has at least immediate_permissions() of Write, the data
-     *  in the location indicated by ha->get_data_pointer_reference() with size and layout characteristics
-     *  described by ha->get_handle()->get_serialization_manager() is the data that should be used for
-     *  any Use objects reporting immediate_permissions of Read (or greater) and reporting
-     *  a get_in_flow() that is the same as (by Flow sameness rules, see Flow documentation) or aliases (see below)
-     *  the Flow reported by ha->get_out_flow().  If the return value of ha->get_out_flow() is the same as
+     *  Upon release, if the Use* u has immediate_permissions() of at least Write, the
+     *  release allows the runtime to match the producer flow to pending Use instances
+     *  where u->get_out_flow() is equivalent to the consumer pending->get_in_flow()
+     *  (with equivalence for Flow defined in flow.h).
+     *  The location provided by u->get_data_pointer_reference() holds the data that satisfies
+     *  the pending->get_in_flow()
+     *
+     *  If the return value of u->get_out_flow() is the same as
      *  or aliases a Flow created with make_null_flow() at the time release_use() is invoked,
      *  the data at this location may be safely deleted.
      *
-     *  A Flow alias between ha->get_in_flow() and ha->get_out_flow() is established when a Use ha
-     *  for which an immediate Write use descendent was never created and for which no Use ha2 has been released
-     *  such that ha2->get_out_flow() is the same or aliases ha->get_in_flow().  The first of these is equivalent to
-     *  the condition that  make_next() was never called on ha->get_in_flow() in the lifetime of ha.   (TODO check the
-     *  previous statement).  Alias resolution should be implemented in constant time.  That is, if Flow a aliases b
+     *  If the Use* u has scheduling_permissions() of at least Write, but has no immediate permissions
+     *  the Use* is an "alias" use. As such, u->get_out_flow() only provides an alias for u->get_in_flow().
+     *  u->get_in_flow() is the actual producer flow that satisfies all tasks/uses dependeing on u->get_out_flow().
+     *  There will be some other task t2 with Use* u2 such that u2->get_out_flow() and u->get_in_flow()
+     *  are equivalent.  release_use(u2) may have already been called, may be in process, or may not have been called
+     *  when release_use(u) is invoked. The backend runtime is responsible for ensuring correct satisfaction of pending flows
+     *  and thread safety (atomicity) of release_use(...) with aliases.  An alias use can correspond to another alias use,
+     *  creating a chain of aliases that the backend runtime must resolve.
+     *
+     *  Alias resolution should be implemented in constant time.  That is, if Flow a aliases b
      *  and Flow b aliases c, the fact that a aliases c should be discernible without linear cost in the size of the
      *  set {a, b, c}.
      *
-     *  The evaluation of release_use() on a Use ha1 must be atomic with respect to the evaluation
-     *  of release_use() on another Use ha2 if either could establish an alias on the other's
-     *  get_out_flow() return value (this may also include get_in_flow() in future versions of the spec).  That is,
-     *  if the release of ha1 could establish an alias on the Flow returned by ha2.get_out_flow(), then the evaluation
-     *  of release_use(ha1) and release_use(ha2) must be atomic with respect to each other (whichever
-     *  evaluation starts first must finish before the other starts).
+     *  If the Use* u has immediate_permissions() of Read,
+     *  the release allows the runtime to clear anti-dependencies. For a task t2 with Write privileges on Use* u2
+     *  such that u2->get_in_flow() is equivalent to u->get_in_flow() (or u->get_out_flow(), depending on backend implementation)
+     *  If u is the last use (there are no other Use* objects registered with u->get_in_flow() equivalent to u2->get_in_flow())
+     *  then task t2 has its preconditions on u2 satisfied.
      *
+     *  @param u The Use being released, which consequently releases an in and out flow with particular permissions.
      */
     virtual void
     release_use(
@@ -237,6 +290,8 @@ class Runtime {
      *  be accessible via a corresponding fetching usage with the same version_key.
      *
      *  See PublicationDetails for more information
+     *  @param u       The particular use being published
+     *  @param details This encapsulates at least a version_key and an n_readers
      *
      *  @sa PublicationDetails
      */
