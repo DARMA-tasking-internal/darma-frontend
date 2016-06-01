@@ -28,8 +28,14 @@ Some quantities are repeated from previous sections.
 
 \begin{itemize}
 \item AccessHandle: a variable (templated on data type) that is used in the application as arguments to tasks and for reading/writing values in a data block.
-Each task has its own unique copy of AccessHandle. AccessHandles are never shared across tasks.\item Data Type: the type of a variable, e.g. \inlinecode{int}, \inlinecode{vector<double>}\item Data Layout: the layout or internal structure of a data type, usually telling whether a type is contiguous in memory and whether a type holds only data (e.g. double) or has lookup pointers\item Data Size: the total size a data block occupies in memory (number of bytes)
-\item Task Dependencies: A relationship between a task and data indicating the task depends on the data being available before the task can run\item Task Precedence Constraints:  A relationship between tasks indicating that an ordering constraint exists between tasks\item Access Permissions : access permissions (read,read-write,etc) for an AccessHandle within a task\item Address: A pointer through which data is accessed. 
+Each task has its own unique copy of AccessHandle. AccessHandles are never shared across tasks.
+\item Data Type: the type of a variable, e.g., \inlinecode{int}, \inlinecode{vector<double>}.
+\item Data Layout: the layout or internal structure of a data type, usually telling whether a type is contiguous in memory and whether a type holds only data (e.g., double) or has lookup pointers.
+\item Data Size: the total size a data block occupies in memory (number of bytes).
+\item Task Dependencies: a relationship between a task and data indicating the task depends on the data being available before the task can run.
+\item Task Precedence Constraints: a relationship between tasks indicating that an ordering constraint exists between tasks.
+\item Access Permissions: access permissions (read, read-write, etc.) for an AccessHandle within a task.
+\item Address: a pointer through which data is accessed.
 The pointer provides no information on the size or type of memory being accessed.
 It merely provides a means of accessing data at a particular memory location.
 \end{itemize}
@@ -39,19 +45,19 @@ These are quantities that are \emph{likely} to be used in a backend implementati
 As will be discussed in the backend section, all of these quantities (if used by a backend runtime),
 exist in an abstract class \inlinecode{Instance} that the translation layer interacts with.
 \begin{itemize}
-\item Handle ID: The generalization of a variable in C++. A globally unique ID identifying a block of data that represents the ``same'' quantity across time.  
+\item Handle ID: the generalization of a variable in C++. A globally unique ID identifying a block of data that represents the ``same'' quantity across time.  
 This corresponds to, e.g., values mesh that are updated iteratively.  
-This is NOT synonymous with an actual physical location.\item Generation: an ID that distinguishes logically distinct generations of the same Handle ID. 
+This is NOT synonymous with an actual physical location.
+\item Generation: an ID that distinguishes logically distinct generations of the same Handle ID. 
 Updating the values in a Data Handle changes the data and therefore progresses the generation. 
 Two data blocks with the same Handle ID that contain different logical times (usually different iterations) will be different generations.
 \item Data Blocks: the actual physical memory allocations where data lives. 
 Data blocks comprise not just an address, but potentially size and location information such as whether memory is DRAM, HBM, GPU, or remote.
-\item Logical ID: A tuple of Generation and Handle ID. 
-Two Data Handles with the same logical ID must access exactly the same values, but potentially different physical locations. 
-Data with the same ID are ?logically? the same. 
+\item Logical ID: a tuple of Generation and Handle ID. 
+Two Data Handles with the same logical ID must access exactly the same values, but potentially different physical locations, and thus are logically the same. 
 All objects with the same Logical ID are required to have the same Handle ID.
-Thus Logical ID equivalence is a stronger condition than Handle ID equivalence.
-\item Physical ID: A tuple of Address, Generation, and Handle ID (although not required to be implemented as a tuple). 
+Thus, Logical ID equivalence is a stronger condition than Handle ID equivalence.
+\item Physical ID: a tuple of Address, Generation, and Handle ID (although not required to be implemented as a tuple). 
 Two Data Handles with the same Physical ID not only access exactly the same values, but must also access exactly the same memory location. 
 Two logically distinct blocks that happen to access the same memory location at different times do NOT share a Physical ID. 
 All data handles with the same Physical ID must have the same Logical ID and therefore the same Handle ID. 
@@ -59,13 +65,17 @@ Physical ID equivalence is then a stronger condition than Logical ID or Handle I
 \end{itemize}
 
 The way in which quantities are used in each layer of the software stack can have several possibilities:
-\begin{itemize}\item Modifies: The layer both reads and manipulates the given quantity
-\item Creates: A subset of Modifies. The layer creates the initial version of something, but is not allowed to modify the quantity thereafter
-\item Reads: The layer reads and understand a quantity, but is not allowed to manipulate it\item Opaque Modify: The caller layer understands operations that need to be performed that will modify a struct, but the implementation details are hidden by an interface. 
+\begin{itemize}
+\item Modifies: The layer both reads and manipulates the given quantity.
+\item Creates: A subset of Modifies. The layer creates the initial version of something, but is not allowed to modify the quantity thereafter.
+\item Reads: The layer reads and understand a quantity, but is not allowed to manipulate it.
+\item Opaque Modify: The caller layer understands operations that need to be performed that will modify a struct, but the implementation details are hidden by an interface. 
 For example, a caller can pass a forward-declared struct by pointer to a function. 
 The function (callee) can modify integer members within the struct. 
-Even though the caller initiates the modification, the internal details of the struct are opaque to the caller and are only known to the callee (function).\item Opaque Pass: A caller provides values in a struct to be read by a callee function, but the values are opaque to the caller function. 
-Similar to Opaque Modify, but the callee function cannot modify the struct.\item DNE: The concept does not exist - it is neither manipulated nor read by a layer.
+Even though the caller initiates the modification, the internal details of the struct are opaque to the caller and are only known to the callee (function).
+\item Opaque Pass: A caller provides values in a struct to be read by a callee function, but the values are opaque to the caller function. 
+Similar to Opaque Modify, but the callee function cannot modify the struct.
+\item DNE: The concept does not exist - it is neither manipulated nor read by a layer.
 \end{itemize}
 We now summarize where quantities are created, modified, and read in Table \ref{tbl:conceptsInLayers}.
 
@@ -86,7 +96,7 @@ Generation & DNE & Opaque Modify & Creates \\
 Logical ID & DNE & Opaque Pass & Creates \\
 Physical ID & DNE & Opaque Pass & Modifies 
 \end{tabular}
-\caption{Which concepts are modified by a given layer, which exist opaquely, and finally which concepts do not exist (DNE).concepts are read but not modified, which concepts}
+\caption{Which concepts are modified by a given layer, which exist opaquely, and finally which concepts do not exist (DNE).}
 \label{tbl:conceptsInLayers}
 \end{table}
 
@@ -94,11 +104,11 @@ A critical part of the DARMA design avoids potential interference between layers
 Operations occurring in the backend must have guarantees that the app and translation layer are not creating conflicts.
 We must therefore define a life cycle for each task:
 \begin{itemize}
-\item Precursor: Dependencies are modified during the execution of a precursor task
-\item Initialization: The task is created and initialized before being passed to a scheduler or task queue
-\item Waiting:  The task has been created is waiting in a queue to be scheduled or run
-\item Running: The task has been popped from the queue and is actively running
-\item Deletion: The task has finished running and is releasing its resources
+\item Precursor: Dependencies are modified during the execution of a precursor task.
+\item Initialization: The task is created and initialized before being passed to a scheduler or task queue.
+\item Waiting:  The task has been created is waiting in a queue to be scheduled or run.
+\item Running: The task has been popped from the queue and is actively running.
+\item Deletion: The task has finished running and is releasing its resources.
 \end{itemize}
 
 \begin{table}
@@ -137,10 +147,11 @@ through the \CC11 lambda mechanism and the copy {\it capture-default} (that is,
 {\it capture-default} is given, any variables that are ODR-used\footnote{``one
 definition rule''-used.  See
 \url{http://en.cppreference.com/w/cpp/language/definition\#ODR-use} for
-details.} 
+details.
 As this source states, ``Informally, an object is odr-used if its address is
 taken, or a reference is bound to it, and a function is odr-used if a function
-call to it is made or its address is taken.'' inside of the lambda's scope but
+call to it is made or its address is taken.''}
+inside of the lambda's scope but
 defined outside of it\footnote{technically, defined in the lambdas
 ``reaching scope,'' which is also formally defined} are copied by value into
 that lambda's scope.  Furthermore, if a lambda with a copy {\it capture-default}

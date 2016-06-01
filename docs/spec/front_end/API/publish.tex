@@ -16,8 +16,9 @@ None.
 
 \paragraph{Keyword Arguments} \mbox{}\\
 \begin{compactitem}
-\item |n_readers=size_t| (optional): informs the runtime how many . If
-omitted, it defaults to 1.
+\item |n_readers=size_t| (optional): informs the runtime how many times
+\codelink{read_access} will be called in order to access this data.
+If omitted, it defaults to 1.
 \item |version=KeyExpression| (or |version(KeyExpression...)|,
 see \S~\ref{sec:keyword} for multiple-right-hand-side keyword argument usage)
 (optional):
@@ -38,8 +39,8 @@ the one given to the keyword argument to |publish()|.
 A |publish()| is a {\it read-only capture} operation (see
 \S~\ref{sec:handlerules}).
 
-\paragraph{Code Snippet} \mbox{}\\
-\begin{figure}[!h]
+%\paragraph{Code Snippet} \mbox{}\\
+%\begin{figure}[!h]
 \begin{CppCodeNumb}
 auto me = darma_spmd_rank();
 assert(darma_spmd_size() >= 2);
@@ -57,19 +58,16 @@ else if(me == 1) {
   });
 }
 \end{CppCodeNumb}
-\label{fig:fe_api_publish}
-\caption{Basic usage of \lstinline|publish()|.}
-\end{figure}
+%\label{fig:fe_api_publish}
+%\caption{Basic usage of \lstinline|publish()|.}
+%\end{figure}
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\
 \begin{compactitem}
-  \item |publish()| is one of the ways DARMA lets you ``shoot yourself in
-  the foot.''  While it is very difficult to create dependency loops, race
-  conditions, and deadlock using handles within a given rank and without
-  |publish()| operations, it is quite easy to do so with
-  |publish()|/|read_access()| pairs (just like, for instance,
-  with blocking sends and receives in MPI).  For instance, the following snippet
-  deadlocks:
+  \item |publish()| puts more burden on the programmer to avoid race conditions and deadlock, 
+  which are automatically avoided when relying entirely on sequential semantics.
+  This is similar to deadlock situations with sends and receives in MPI in which communicating processes block on a receive before sending to each other.  
+  For instance, the following snippet deadlocks:
   %\begin{center}
   \begin{CppCode}
 // This code deadlocks!
@@ -86,7 +84,7 @@ if(me == 0) {
 }
 else if (me == 1) {
   auto h3 = initial_access<int>("key", 1);
-  auto h4 = initial_access<int>("key", 0);
+  auto h4 = read_access<int>("key", 0);
   create_work([=]{ 
     h3.set_value(73);
     h3.publish();
@@ -98,14 +96,14 @@ else if (me == 1) {
   \end{CppCode}
   This snippet deadlocks because a dependency loop has been created between two
   |publish()|/|read_access()| pairs. While the deadlock is
-  relatively obvious here, it can be much more difficult to decypher in a more
+  relatively obvious here, it can be much more difficult to decipher in a more
   complex code, especially if, for instance, |h1| and |h2| are
   arguments to a function, or if the parts of the keys used to construct the
   handles are variables with values dependent on some previous computation.
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   \item It is particularly easy to create deadlock scenarios by publishing a
   handle and fetching it within the same rank.  For this reason, we recommend
-  extreme caution with this scenario could arise, and in general we suggest that
+  extreme caution when this scenario could arise, and in general we suggest that
   the user should avoid doing so if at all possible.
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   \item Since |publish()| is a {\it read-only capture} operation, it must
@@ -123,13 +121,11 @@ else if (me == 1) {
   create_work([=]{
     h.set_value(5);
     h.publish();
-    h.set_value(10); // $\no$ h has Read immediate permissions
+    h.set_value(10); // $\no$ h does not have Modify immediate permissions
   });
   \end{CppCode}
 %\end{minipage}
-  \item It is an error to call |publish()| on a handle with a given
-  name key (or any other handle with that same name key) more than once with
-  a given version key.
+  \item It is an error to call |publish()| on a handle with the same key and version more than once.
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   \item If |publish()| is called on a given handle without the
   |version| keyword argument, it is an error to call |publish()|
@@ -139,9 +135,6 @@ else if (me == 1) {
   the empty key (e.g., |h.publish(version())| or
   |h.publish(version=make_key())|) will lead to this same behavior.
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  \item {\color{red} [0.2 only]} Because the 0.2 spec does not include a
-  serialization interface, only handles with bitwise-copiable types may be
-  published, though some backends may support more functionality.
 \end{compactitem}
 
 
