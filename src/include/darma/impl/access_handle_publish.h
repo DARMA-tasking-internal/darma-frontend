@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          initial_access.h
-//                         dharma_new
+//                      access_handle_publish.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,43 +42,28 @@
 //@HEADER
 */
 
-#ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_INITIAL_ACCESS_H_
-#define SRC_INCLUDE_DARMA_INTERFACE_APP_INITIAL_ACCESS_H_
-
-#include <tinympl/extract_template.hpp>
+#ifndef DARMA_ACCESS_HANDLE_PUBLISH_H
+#define DARMA_ACCESS_HANDLE_PUBLISH_H
 
 #include <darma/interface/app/access_handle.h>
-#include <darma/impl/handle_attorneys.h>
-#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
-#include <darma/impl/util.h>
 
 namespace darma_runtime {
 
-template <
-  typename T=void,
-  typename... KeyExprParts
->
-AccessHandle<T>
-initial_access(
-  KeyExprParts&&... parts
-) {
-  static_assert(detail::only_allowed_kwargs_given<
-    >::template apply<KeyExprParts...>::type::value,
-    "Unknown keyword argument given to initial_access"
-  );
-  types::key_t key = detail::access_expr_helper<KeyExprParts...>().get_key(
-    std::forward<KeyExprParts>(parts)...
-  );
-  auto var_h = detail::make_shared<detail::VariableHandle<T>>(key);
-  auto in_flow = detail::backend_runtime->make_initial_flow( var_h.get() );
-  auto out_flow = detail::backend_runtime->make_null_flow( var_h.get() );
+//template <typename... AccessHandleArgs>
+//template <typename _Ignored = void,
+//  typename... PublishExprParts
+//>
+//std::enable_if_t<
+//  AccessHandle<AccessHandleArgs...>::is_compile_time_schedule_readable
+//    and std::is_same<_Ignored, void>::value
+//>
+//AccessHandle<AccessHandleArgs...>::publish<_Ignored, PublishExprParts...>(
+//  PublishExprParts&&... parts
+//) const {
+//
+//}
 
-  return detail::access_attorneys::for_AccessHandle::construct_initial_access<T>(
-    var_h, in_flow, out_flow, detail::HandleUse::Modify, detail::HandleUse::None
-  );
-}
 
 } // end namespace darma_runtime
 
-
-#endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_INITIAL_ACCESS_H_ */
+#endif //DARMA_ACCESS_HANDLE_PUBLISH_H

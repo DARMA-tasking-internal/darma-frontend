@@ -111,7 +111,7 @@ class Runtime {
     *  @sa abstract::frontend::Task
     */
     virtual abstract::frontend::Task*
-      get_running_task() const = 0;
+    get_running_task() const = 0;
 
     /** @brief Register a Use object
      *
@@ -139,7 +139,7 @@ class Runtime {
      *  @param handle
      */
     virtual Flow*
-      make_initial_flow(
+    make_initial_flow(
       frontend::Handle* handle
     ) =0;
 
@@ -175,7 +175,8 @@ class Runtime {
     typedef enum FlowPropagationPurpose {
       Input, /*!< Two Flows are the same logical input to different uses */
       Output /*!< The output flow from one Use will serve as the input Flow for another use */
-      ForwardingChanges 
+      ForwardingChanges,
+      OutputFlowOfReadOperation
     } flow_propagation_purpose_t;
 
     /** @brief Make a flow that is logically identically to the input parameter
@@ -196,7 +197,16 @@ class Runtime {
     make_same_flow(
       Flow* from,
       flow_propagation_purpose_t purpose
-    ) const =0;
+    ) =0;
+
+    /**
+     *  @TODO document this
+     */
+    virtual Flow*
+    make_forwarding_flow(
+      Flow* from,
+      flow_propagation_purpose_t purpose
+    ) =0;
 
     /**
      *  @brief Make a flow that will be the output of u->get_out_flow() for a Use u in a producer task.
@@ -216,7 +226,7 @@ class Runtime {
     make_next_flow(
       Flow* from,
       flow_propagation_purpose_t purpose
-    ) const =0;
+    ) =0;
 
 
     /** @brief Release a Use object previously registered with register_use.
@@ -259,7 +269,8 @@ class Runtime {
     ) =0;
 
 
-    /** @brief Indicate that the state of a Handle corresponding to a given Flow should
+    /** @todo Update this for publish_use instead of publish_flow
+     *  @brief Indicate that the state of a Handle corresponding to a given Flow should
      *  be accessible via a corresponding fetching usage with the same version_key.
      *
      *  See PublicationDetails for more information
@@ -270,7 +281,7 @@ class Runtime {
      */
     virtual void
     publish_use(
-      Use* u,
+      frontend::Use* f,
       frontend::PublicationDetails* details
     ) =0;
 

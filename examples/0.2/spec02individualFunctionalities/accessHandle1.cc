@@ -4,8 +4,8 @@ int darma_main(int argc, char** argv)
   using namespace darma_runtime;
 
   darma_init(argc, argv);
-  const int myRank = darma_spmd_rank();
-  const int size = darma_spmd_size();
+  const size_t myRank = darma_spmd_rank();
+  const size_t size = darma_spmd_size();
 
   // this just creates different handles for different types
   // NOTE: data does not exist yet, only handles!
@@ -14,10 +14,6 @@ int darma_main(int argc, char** argv)
 
   create_work([=]
   {
-    handle1.emplace_value(3.3);
-    handle1.set_value(3.4);
-    handle1.get_reference() = 3.6;
-
     // first, constructs data with default constructor
     handle1.emplace_value(3.3);
     handle2.emplace_value("Sky is blue");
