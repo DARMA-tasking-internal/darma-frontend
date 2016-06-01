@@ -79,23 +79,23 @@ class Use {
       Reduce=4, Modify=Read|Write
     } permissions_t;
 
-    /** @brief Return a pointer to the handle that this object encapsulates the use of.
+    /** @brief Return a pointer to the handle that this object encapsulates a use of.
      */
     virtual Handle const* get_handle() const =0;
 
-    /** @brief Get the usage object that this Use needs to be available with the appropriate permissions
+    /** @brief Get the Flow that must be ready for use as a precondition for the Task t that depends on this Use
      */
     virtual backend::Flow* get_in_flow() const =0;
 
-    /** @brief Get the usage object that this Use *makes* available when it is released
+    /** @brief Get the Flow that is produced or made available when this Use is released
      */
     virtual backend::Flow* get_out_flow() const =0;
 
-    /** Get the immediate permissions needed for the Flow returned by get_in_flow()
+    /** Get the immediate permissions needed for the Flow returned by get_in_flow() to be ready as a precondition for this Use
      */
     virtual permissions_t immediate_permissions() const =0;
 
-    /** Get the scheduling permissions needed for the Flow returned by get_in_flow()
+    /** Get the scheduling permissions needed for the Flow returned by get_in_flow() to be ready as a precondition for this Use
      */
     virtual permissions_t scheduling_permissions() const =0;
 
