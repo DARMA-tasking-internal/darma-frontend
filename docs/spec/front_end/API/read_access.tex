@@ -20,8 +20,10 @@ darma_runtime::read_access<T>(KeyParts..., version=KeyExpression);
 
 \paragraph{Keyword Arguments}\mbox{}\\
 \begin{itemize}
-  \item |version=KeyExpression| \todo{description of version keyword
-  argument}
+  \item |version=KeyExpression| (or |version(KeyExpression...)|,
+see \S~\ref{sec:keyword} for multiple-right-hand-side keyword argument usage):
+the version used to publish the data to be accessed.
+The value can be an arbitrary |KeyExpression|.
 \end{itemize}
 
 
