@@ -56,7 +56,7 @@ From a \gls{programming model} perspective, \gls{AMT} models all have some notio
   Models leveraging runtime analysis are best suited for coarse-grained \gls{task parallelism}, as \gls{runtime system} overheads must be amortized.
 \item[Execution model:]
   Execution models broadly cover how the algorithm and corresponding correctness and performance constraints specified in the programming model are translated to actual execution.
-  For example, \gls{AMT} runtimes implement a variety of \glspl{execution model}, including \gls{event-based}, \gls{fork-join} (either \gls{fully strict} or \gls{terminally strict}), \gls{actor model}, or ubiquitous CSP model.  More subtle details include whether a constant number of threads are always executing (e.g. pure MPI codes), new tasks are allocated to a thread pool, or if new threads are allocated (forked) for new tasks. These details will also affect the synchronizations required in an execution model. For example, fully strict fork-join models will generally not require barriers between sibling tasks. In contrast, CSP models will require barriers to synchronize parallel workers.
+  For example, \gls{AMT} runtimes implement a variety of \glspl{execution model}, including \gls{event-based}, \gls{fork-join} (either \gls{fully strict} or \gls{terminally strict}), \gls{actor model}, or ubiquitous CSP model.  More subtle details include whether a constant number of threads are always executing (e.g., pure MPI codes), new tasks are allocated to a thread pool, or if new threads are allocated (forked) for new tasks. These details will also affect the synchronizations required in an execution model. For example, fully strict fork-join models will generally not require barriers between sibling tasks. In contrast, CSP models will require barriers to synchronize parallel workers.
 \item[Memory model:]
   \gls{HPC} \glspl{memory model} will have several properties including distributed or shared and coherent or incoherent. 
   \glspl{distributed memory
@@ -66,7 +66,7 @@ From a \gls{programming model} perspective, \gls{AMT} models all have some notio
      is required, it is communicated between the remote and local tasks.
     Across the spectrum of memory models, memory locations are usually
     accessed via address (put/get or send/recv), but key-value store (tuple-space) models identify data regions by key identifiers (coordination).
-    In coordination, parallel workers never directly communicate, instead `coordinating'' indirectly via a \gls{key-value store} or \gls{tuple space}.  
+    In coordination, parallel workers never directly communicate, instead ``coordinating'' indirectly via a \gls{key-value store} or \gls{tuple space}.  
 \item[Data model:]
   In order for data-flow \gls{AMT} models to make effective data management
   decisions (e.g., \gls{slicing} the data and making copies to increase
@@ -199,7 +199,7 @@ types of vertices - tasks $T$ and data $D$ that compose the complete set of vert
 Edges never directly connect two tasks and instead edges are only ever described between a task vertex, $t$, and a data vertex, $d$
 indicating that (depending on direction of the edge) data is either consumed or produced by a task.
 The \gls{task-DAG} indicating task-task precedence constraints can always be
-obtained form the \gls{CDAG}, which captures the data-flow task graph.
+obtained from the \gls{CDAG}, which captures the data-flow task graph.
 The \gls{CDAG} is thus more general, capturing additional information to
 enable runtime code transformations.\footnote{
 Although beyond the scope of this specification document, the interested reader
@@ -275,6 +275,7 @@ in upcoming versions.
 Appendix~\ref{chap:examples} provides a suite of examples that illustrate the
  \gls{front end} \gls{API} features. Appendix~\ref{chap:vasp} provides
 additional technical details regarding %\gls{vasps}.
+\todo[inline]{Add glossary entry for vasps and uncomment above.}
 Appendix~\ref{chap:DEP} provides information regarding how the broader
 community can shape the \gls{DARMA} specification and includes a template for 
 a \gls{DEP}. 
