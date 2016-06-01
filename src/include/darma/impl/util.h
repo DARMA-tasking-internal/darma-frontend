@@ -55,11 +55,16 @@
 #include <map>
 #include <sstream>
 
+#include <tinympl/extract_template.hpp>
+
+#include <darma_types.h>
+
 #include <darma/impl/meta/metaprogramming.h>
 
 #include <darma/impl/darma_assert.h>
 #include <darma/impl/compatibility.h>
 #include <darma/impl/meta/largest_aligned.h>
+#include <src/include/darma/interface/defaults/pointers.h>
 
 // Borrowed from google test
 // Due to C++ preprocessor weirdness, we need double indirection to
@@ -90,12 +95,12 @@ constexpr const variadic_constructor_arg_t variadic_constructor_arg = { };
  *  shared_ptr<T>)
  */
 template <
-  template <class...> class smart_ptr
+  typename T
 >
-struct smart_ptr_traits { };
+struct smart_ptr_traits;
 
-template <>
-struct smart_ptr_traits<std::shared_ptr>
+template <typename... InTs>
+struct smart_ptr_traits<std::shared_ptr<InTs...>>
 {
   template <typename... Ts>
   struct maker {
@@ -124,7 +129,15 @@ struct smart_ptr_traits<std::shared_ptr>
   using shared_from_this_base = std::enable_shared_from_this<Ts...>;
 };
 
-// Borrowed from boost implementation and
+template <typename T, typename... Args>
+auto
+make_shared(Args&&... args) {
+  using ptr_maker_t = typename smart_ptr_traits<
+    types::shared_ptr_template<T>
+  >::template maker<T>;
+  return ptr_maker_t{}(std::forward<Args>(args)...);
+}
+
 //   http://stackoverflow.com/questions/2590677/how-do-i-combine-hash-values-in-c0x
 template <class T>
 inline void

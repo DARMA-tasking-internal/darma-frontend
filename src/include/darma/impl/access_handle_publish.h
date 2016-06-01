@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      publication_details.h.h
+//                      access_handle_publish.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,41 +42,28 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
-#define DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
+#ifndef DARMA_ACCESS_HANDLE_PUBLISH_H
+#define DARMA_ACCESS_HANDLE_PUBLISH_H
 
-#include <darma_types.h>
+#include <darma/interface/app/access_handle.h>
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
 
-/**
- *  @brief A class encapsulating the attributes of a particular publish operation
- */
-class PublicationDetails {
-  public:
-    /** @brief  Get the unique version (as a key) of the item being published.
-     *          This version will correspond to a Handle::get_key(). The combination
-     *          of Handle::get_key() and get_version_name() must be globally unique.
-     *  @return A unique version name for the current publication
-     */
-    virtual types::key_t const&
-    get_version_name() const =0;
+//template <typename... AccessHandleArgs>
+//template <typename _Ignored = void,
+//  typename... PublishExprParts
+//>
+//std::enable_if_t<
+//  AccessHandle<AccessHandleArgs...>::is_compile_time_schedule_readable
+//    and std::is_same<_Ignored, void>::value
+//>
+//AccessHandle<AccessHandleArgs...>::publish<_Ignored, PublishExprParts...>(
+//  PublishExprParts&&... parts
+//) const {
+//
+//}
 
-    /**
-     *  @brief  Get the number of unique fetches that will be performed.
-     *          All N fetches must be complete before the backend can
-     *          declaration a publication to be finished.
-     *  @return The number of read_access calls that will fetch the combination of key
-     *          of version given here.
-     */
-    virtual size_t
-    get_n_fetchers() const =0;
-};
 
-} // end namespace frontend
-} // end namespace abstract
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
+#endif //DARMA_ACCESS_HANDLE_PUBLISH_H

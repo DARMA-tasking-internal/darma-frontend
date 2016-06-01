@@ -1,6 +1,6 @@
 %!TEX root = sandReportSpec.tex
 
-\chapter{Back End API}
+\chapter{Backend}
 \label{chap:back_end}
 
 The back end API is organized into two namespaces:
@@ -19,5 +19,41 @@ the documentation for which is taken from the Doxygen-style comments in
 the source code itself.  As such, the source code may be a better resource for
 those interested in this part of the document, but we have included it here for
 completeness. \todo{DAVID: add coments here about key and version going away} 
+
+\section{Important Backend Concepts}
+Although some of this terminology was given in the introduction, we repeat definitions here.
+Some of the terms here have C++ classes that directly represent them.
+Other terms are only concepts, useful in understanding the use of other C++ classes.
+\begin{compactdesc}
+\item [Task]: The work unit instantiated directly by the application developer. 
+Tasks are guaranteed to make forward progress, but are interruptible.
+\item [Execution stream]: An execution stream will consist of a sequence of many tasks, and, like tasks, is guaranteed to make forward progress.
+All execution streams are tasks, but execution streams specifically have no parent task and are the root of an independent task-DAG.
+There is no class corresponding uniquely to an execution stream since all streams are tasks.
+\item [Operation]: This is a unit of execution that is guaranteed to be non-interruptible. 
+An operation is not equivalent to a task since tasks are interruptible.  
+Operations are the smallest, schedulable units of work.  
+A task consists of a sequence of operations.
+While tasks are explicitly instantiated by the app developer, operations (individual portions of task) can be implicitly instantiated by the runtime.
+There is no class provided corresponding directly to an operation.
+Since only one component operation of a task may be active at any given time, a task always corresponds uniquely to an operation.
+\item [Handle]: The DARMA generalization of a variable. Handle encapsulates both a unique immutable name (key) and an immutable type. 
+\item [Logical Time]: An abstract notion of time progressing as operations are performed on the values encapsulated by a Handle.
+There is no class corresponding to logical time. 
+The progression of logical time for Use objects is encapsulated in the input and output Flows (see below).
+\item [Use]: A Use corresponds to a Handle at a particular moment in logical time. 
+Uses are always unique to an operation.
+Operations cannot add or remove uses from its context.
+Tasks, being interruptible, can add and remove Use instances.
+Uses carry particular permissions and therefore have some intent of Read, Write, or Modify.
+\item [Flow]: A Flow encapsulates a data-task relationship. 
+An input Flow indicates that a Use requires a particular value before its corresponding operation begins.
+An output Flow indicates that a Use produces a particular value after being released at the end of its corresponding operation.
+A Modify Use will have an input Flow indicating the value consumed and an output Flow indicating the value produced.
+A Read Use is only required to have an input Flow while a Write Use will have an an output Flow.
+\item [Dependency]: Although Dependency is not a class in DARMA, a task will always have an initial set of Uses that must become
+available for the task to begin.
+This initial set of uses are the ``dependencies'' of a task.
+\end{compactdesc} 
 
 \subimport{./doxygen-backend/latex/}{refman}

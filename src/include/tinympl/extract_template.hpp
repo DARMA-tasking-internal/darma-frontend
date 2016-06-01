@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                      publication_details.h.h
-//                         DARMA
+//                      extract_template.hpp
+//                         TINYMPL
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,41 +42,23 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
-#define DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
+#ifndef TINYMPL_EXTRACT_TEMPLATE_HPP
+#define TINYMPL_EXTRACT_TEMPLATE_HPP
 
-#include <darma_types.h>
+namespace tinympl {
 
-namespace darma_runtime {
-namespace abstract {
-namespace frontend {
+template <typename T>
+struct extract_template;
 
-/**
- *  @brief A class encapsulating the attributes of a particular publish operation
- */
-class PublicationDetails {
-  public:
-    /** @brief  Get the unique version (as a key) of the item being published.
-     *          This version will correspond to a Handle::get_key(). The combination
-     *          of Handle::get_key() and get_version_name() must be globally unique.
-     *  @return A unique version name for the current publication
-     */
-    virtual types::key_t const&
-    get_version_name() const =0;
-
-    /**
-     *  @brief  Get the number of unique fetches that will be performed.
-     *          All N fetches must be complete before the backend can
-     *          declaration a publication to be finished.
-     *  @return The number of read_access calls that will fetch the combination of key
-     *          of version given here.
-     */
-    virtual size_t
-    get_n_fetchers() const =0;
+template <
+  template <class...> class templ,
+  class... Args
+>
+struct extract_template<templ<Args...>> {
+  template <typename... Ts>
+  using rebind = templ<Ts...>;
 };
 
-} // end namespace frontend
-} // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace tinympl
 
-#endif //DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
+#endif //TINYMPL_EXTRACT_TEMPLATE_HPP

@@ -42,8 +42,8 @@
 //@HEADER
 */
 
-#ifndef NEW_DEPENDENCY_H_
-#define NEW_DEPENDENCY_H_
+#ifndef DARMA_IMPL_HANDLE_H
+#define DARMA_IMPL_HANDLE_H
 
 #include <atomic>
 #include <cassert>
@@ -58,7 +58,6 @@
 
 #include <darma/impl/task_fwd.h>
 #include <darma/impl/runtime.h>
-#include <darma/interface/defaults/version.h>
 #include <darma/impl/util.h>
 #include <darma/impl/darma_assert.h>
 #include <darma/impl/serialization/archive.h>
@@ -66,7 +65,6 @@
 #include <darma/impl/serialization/traits.h>
 #include <darma/impl/serialization/allocation.h>
 
-#include <darma/interface/backend/data_block.h>
 #include <darma/impl/keyword_arguments/keyword_arguments.h>
 
 // TODO move these to appropriate header files in interface/app
@@ -74,6 +72,10 @@ DeclareDarmaTypeTransparentKeyword(publication, n_readers);
 DeclareDarmaTypeTransparentKeyword(publication, version);
 
 namespace darma_runtime {
+
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="expression helpers">
+
 
 namespace detail {
 
@@ -151,6 +153,12 @@ struct publish_expr_helper {
 
 } // end namespace detail
 
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="KeyedObject">
+
 namespace detail {
 
 template <typename key_type>
@@ -159,6 +167,8 @@ class KeyedObject
   public:
 
     typedef key_type key_t;
+
+    KeyedObject() : key_() { }
 
     KeyedObject(const key_type& key) : key_(key) { }
 
@@ -176,42 +186,15 @@ class KeyedObject
     key_t key_;
 };
 
-template <typename version_type>
-class VersionedObject
-{
-  public:
+} // end namespace detail
 
-    typedef version_type version_t;
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
 
-    VersionedObject(const version_type& v) : version_(v) { }
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="DependencyHandle attorneys">
 
-    const version_t&
-    get_version() const {
-      return version_;
-    }
-
-  public:
-
-    void push_subversion() {
-      version_.push_subversion();
-    }
-
-    void pop_subversion() {
-      version_.pop_subversion();
-    }
-
-    void increment_version() {
-      ++version_;
-    }
-
-    void
-    set_version(const version_t& v) {
-      version_ = v;
-    }
-
-    version_t version_;
-};
-
+namespace detail {
 
 namespace DependencyHandle_attorneys {
 
@@ -254,214 +237,84 @@ struct ArchiveAccess {
 
 } // end namespace DependencyHandle_attorneys
 
-////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="DependencyHandleBase">
-
-// Tag type for handle migration unpack
-struct handle_migration_unpack_t { };
-static constexpr handle_migration_unpack_t handle_migration_unpack = { };
-
-template <
-  typename key_type=types::key_t,
-  typename version_type=types::version_t
->
-class DependencyHandleBase
-  : public KeyedObject<key_type>,
-    public VersionedObject<version_type>,
-    public abstract::frontend::DependencyHandle<key_type, version_type>
-{
-  public:
-    typedef KeyedObject<key_type> keyed_base_t;
-    typedef typename keyed_base_t::key_t key_t;
-    typedef VersionedObject<version_type> versioned_base_t;
-    typedef typename versioned_base_t::version_t version_t;
-
-
-    const key_type&
-    get_key() const override {
-      return this->KeyedObject<key_type>::get_key();
-    }
-    const version_type&
-    get_version() const override {
-      return this->VersionedObject<version_type>::get_version();
-    }
-
-    template <typename ArchiveT>
-    explicit DependencyHandleBase(
-      handle_migration_unpack_t,
-      ArchiveT& ar
-    ) : keyed_base_t(key_t()),
-        versioned_base_t(version_t())
-    {
-      ar >> this->key_;
-      ar >> this->version_;
-      ar >> this->version_is_pending_;
-      backend_runtime->register_migrated_handle(this);
-    }
-
-    DependencyHandleBase(
-      const key_t& key,
-      const version_t& version
-    ) : keyed_base_t(key),
-        versioned_base_t(version)
-    { }
-
-    virtual ~DependencyHandleBase() noexcept { }
-
-    bool
-    is_satisfied() const override { return satisfied_; }
-
-    bool
-    is_writable() const override { return writable_; }
-
-    void
-    allow_writes() override { writable_ = true; }
-
-    bool
-    version_is_pending() const override { return version_is_pending_; }
-
-    void
-    set_version_is_pending(bool is_pending = true) {
-      version_is_pending_ = is_pending;
-    }
-
-    void
-    satisfy_with_data_block(
-      abstract::backend::DataBlock* const data
-    ) override {
-      this->data_ = data->get_data();
-      this->data_block_ = data;
-      this->satisfied_ = true;
-    }
-
-    abstract::backend::DataBlock*
-    get_data_block() const override {
-      return this->data_block_;
-    }
-
-    void set_version(const version_t& v) override {
-      assert(version_is_pending_);
-      this->version_ = v;
-      version_is_pending_ = false;
-    }
-
-  protected:
-    void* data_ = nullptr;
-    abstract::backend::DataBlock* data_block_ = nullptr;
-    bool satisfied_ = false;
-    bool writable_ = false;
-    bool version_is_pending_ = false;
-};
-
+} // end namespace detail
 
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
 
-template <
-  typename T,
-  typename key_type,
-  typename version_type
->
-class DependencyHandle
-  : public DependencyHandleBase<key_type, version_type>,
-    public abstract::frontend::SerializationManager
-{
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="DependencyHandleBase">
+
+namespace detail {
+
+// Tag type for handle migration unpack
+struct handle_migration_unpack_t { };
+static constexpr handle_migration_unpack_t handle_migration_unpack = {};
+
+class VariableHandleBase
+  : public KeyedObject<types::key_t>,
+    public abstract::frontend::Handle {
+  public:
+    typedef types::key_t key_t;
+    typedef KeyedObject<key_t> keyed_base_t;
+
+    const key_t &
+    get_key() const override {
+      return this->KeyedObject<key_t>::get_key();
+    }
+
+    explicit VariableHandleBase(
+      const key_t &key
+    ) : keyed_base_t(key) { }
+
+    VariableHandleBase() : keyed_base_t(key_t()) { }
+
+    virtual ~VariableHandleBase() noexcept { }
+
+};
+
+} // end namespace detail
+
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="VariableHandle">
+
+namespace detail {
+
+template <typename T>
+class VariableHandle
+  : public VariableHandleBase,
+    public abstract::frontend::SerializationManager {
   protected:
 
-    typedef DependencyHandleBase<key_type, version_type> base_t;
+    typedef VariableHandleBase base_t;
     typedef serialization::detail::serializability_traits<T> serdes_traits;
 
   public:
 
     typedef typename base_t::key_t key_t;
-    typedef typename base_t::version_t version_t;
 
     ////////////////////////////////////////////////////////////
     // Constructors and Destructor <editor-fold desc="Constructors and Destructor">
 
-    DependencyHandle(
-      const key_t& data_key,
-      const version_t& data_version
-    ) : base_t(data_key, data_version),
-        value_((T*&)this->base_t::data_)
-    {
-      backend_runtime->register_handle(this);
-    }
+    VariableHandle() : base_t() { }
 
-    DependencyHandle(
-      const key_t& data_key,
-      const key_t& user_version_tag,
-      bool write_access_allowed
-    ) : base_t(data_key, version_t()),
-        value_((T*&)this->base_t::data_)
-    {
-      assert(write_access_allowed == false);
-      this->set_version_is_pending(true);
-      backend_runtime->register_fetching_handle(this,
-        user_version_tag
-      );
-    }
+    VariableHandle(
+      const key_t &data_key
+    ) : base_t(data_key) { }
 
-    template <typename ArchiveT>
-    DependencyHandle(
-      handle_migration_unpack_t,
-      ArchiveT& ar
-    ) : base_t(handle_migration_unpack, ar),
-        value_((T*&)this->base_t::data_)
-    {
-    }
-
-    virtual ~DependencyHandle() {
-      backend_runtime->release_handle(this);
-    }
+    virtual ~VariableHandle() noexcept { }
 
     // end Constructors and Destructor </editor-fold>
     ////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////
-    // get_value, emplace_value, set_value, etc. <editor-fold desc="get_value, emplace_value, set_value, etc.">
-
-    template <typename... Args>
-    void
-    emplace_value(Args&&... args)
-    {
-      // TODO decide if this should happen here or where...
-      //if(value_ == nullptr) allocate_metadata(sizeof(T));
-      // for now, assume/assert it's allocated to be the right size by the backend:
-      assert(value_ != nullptr);
-      value_ = new (value_) T(
-        std::forward<Args>(args)...
-      );
-    }
-
-    template <typename U>
-    void
-    set_value(U&& val) {
-      // The enable-if is in Access handle
-      // TODO handle custom operator=() case (for instance)
-      emplace_value(std::forward<U>(val));
-    }
-
-    T& get_value() {
-      DARMA_ASSERT_MESSAGE(value_ != nullptr, "get_value() called on handle with null value");
-      return *value_;
-    }
-
-    const T& get_value() const {
-      DARMA_ASSERT_MESSAGE(value_ != nullptr, "get_value() called on handle with null value");
-      return *value_;
-    }
-
-    // end get_value, emplace_value, set_value, etc. </editor-fold>
-    ////////////////////////////////////////////////////////////
-
-    ////////////////////////////////////////////////////////////
     // <editor-fold desc="abstract::frontend::DependencyHandle implmentation">
 
-    // Most of this implementation is inherited from concrete base classes
-
-    abstract::frontend::SerializationManager*
-    get_serialization_manager() override {
+    abstract::frontend::SerializationManager const*
+    get_serialization_manager() const override {
       return this;
     }
 
@@ -482,31 +335,31 @@ class DependencyHandle
 
     size_t
     get_packed_data_size(
-      const void* const object_data
+      const void *const object_data
     ) const override {
       serialization::Serializer<T> s;
       serialization::SimplePackUnpackArchive ar;
       DependencyHandle_attorneys::ArchiveAccess::start_sizing(ar);
-      s.compute_size(*(T const* const)(object_data), ar);
+      s.compute_size(*(T const *const) (object_data), ar);
       return DependencyHandle_attorneys::ArchiveAccess::get_size(ar);
     }
 
     void
     pack_data(
-      const void* const object_data,
-      void* const serialization_buffer
+      const void *const object_data,
+      void *const serialization_buffer
     ) const override {
       serialization::Serializer<T> s;
       serialization::SimplePackUnpackArchive ar;
       DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, serialization_buffer);
       DependencyHandle_attorneys::ArchiveAccess::start_packing(ar);
-      s.pack(*(T const* const)(object_data), ar);
+      s.pack(*(T const *const) (object_data), ar);
     }
 
     void
     unpack_data(
-      void* const object_dest,
-      const void* const serialized_data
+      void *const object_dest,
+      const void *const serialized_data
     ) const override {
       serialization::Serializer<T> s;
       serialization::SimplePackUnpackArchive ar;
@@ -514,27 +367,26 @@ class DependencyHandle
       // a non-const buffer to be able to operate in pack mode (i.e., so that
       // the user can write one function for both serialization and deserialization)
       DependencyHandle_attorneys::ArchiveAccess::set_buffer(
-        ar, const_cast<void* const>(serialized_data)
+        ar, const_cast<void *const>(serialized_data)
       );
       DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);
       s.unpack(object_dest, ar);
     }
 
-    void*
-    allocate_data() const override {
-      serialization::SimplePackUnpackArchive ar;
-      return serialization::detail::allocation_traits<T>::allocate(ar, 1);
-    }
-
     // end SerializationManager implementation </editor-fold>
     ////////////////////////////////////////////////////////////
 
-  private:
-
-    T*& value_;
-
-
 };
+
+} // end namespace detail
+
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="assorted attorneys">
+
+namespace detail {
 
 namespace create_work_attorneys {
 
@@ -575,21 +427,19 @@ struct AccessHandleAccess {
 
 } // end namespace analogous_access_handle_attorneys
 
+} // end namespace detail
+
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
+
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="AccessHandleBase">
+
+namespace detail {
 
 class AccessHandleBase {
   public:
     virtual ~AccessHandleBase() = default;
-
-    typedef enum State {
-      None_None,
-      Read_None,
-      Read_Read,
-      Modify_None,
-      Modify_Read,
-      Modify_Modify
-    } state_t;
 
     typedef enum CaptureOp {
       ro_capture,
@@ -606,22 +456,7 @@ class AccessHandleBase {
       Uncaptured = 16
     } captured_as_info_t;
 
-    typedef typename abstract::backend::runtime_t::handle_t handle_t;
-
-  protected:
-
-    struct read_only_usage_holder {
-      handle_t* const handle_;
-      read_only_usage_holder(handle_t* const handle)
-        : handle_(handle)
-      { }
-      ~read_only_usage_holder() {
-        detail::backend_runtime->release_read_only_usage(handle_);
-      }
-    };
-
-    typedef typename detail::smart_ptr_traits<std::shared_ptr>::template maker<read_only_usage_holder>
-      read_only_usage_holder_ptr_maker_t;
+    typedef typename abstract::frontend::Handle handle_t;
 
 };
 
@@ -787,14 +622,16 @@ using make_access_handle_traits_t = typename make_access_handle_traits<modifiers
 } // end namespace detail
 
 
-
+// Forward declaration of AccessHandle
 template <
   typename T = void,
-  typename key_type = types::key_t,
-  typename version_type = types::version_t,
   typename traits = detail::access_handle_traits<>
 >
 class AccessHandle;
+
+
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="is_access_handle">
 
 namespace detail {
 
@@ -813,13 +650,13 @@ template <typename... Args>
 struct is_access_handle<AccessHandle<Args...>, void>
   : std::true_type { };
 
-
 } // end namespace detail
+
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
+
 
 } // end namespace darma_runtime
 
 
-
-
-
-#endif /* NEW_DEPENDENCY_H_ */
+#endif /* DARMA_IMPL_HANDLE_H_ */

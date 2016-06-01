@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      publication_details.h.h
+//                      publication_details.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,41 +42,43 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
-#define DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
+#ifndef DARMA_IMPL_PUBLICATION_DETAILS_H
+#define DARMA_IMPL_PUBLICATION_DETAILS_H
 
-#include <darma_types.h>
+#include <darma/interface/frontend/publication_details.h>
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
+namespace detail {
 
-/**
- *  @brief A class encapsulating the attributes of a particular publish operation
- */
-class PublicationDetails {
+class PublicationDetails
+  : public darma_runtime::abstract::frontend::PublicationDetails
+{
   public:
-    /** @brief  Get the unique version (as a key) of the item being published.
-     *          This version will correspond to a Handle::get_key(). The combination
-     *          of Handle::get_key() and get_version_name() must be globally unique.
-     *  @return A unique version name for the current publication
-     */
-    virtual types::key_t const&
-    get_version_name() const =0;
 
-    /**
-     *  @brief  Get the number of unique fetches that will be performed.
-     *          All N fetches must be complete before the backend can
-     *          declaration a publication to be finished.
-     *  @return The number of read_access calls that will fetch the combination of key
-     *          of version given here.
-     */
-    virtual size_t
-    get_n_fetchers() const =0;
+    types::key_t version_name;
+    size_t n_fetchers;
+
+    types::key_t const&
+    get_version_name() const override {
+      return version_name;
+    }
+
+    size_t
+    get_n_fetchers() const override {
+      return n_fetchers;
+    }
+
+    PublicationDetails(
+      types::key_t const& version_name_in,
+      size_t n_fetchers_in
+    ) : version_name(version_name_in),
+        n_fetchers(n_fetchers_in)
+    { }
+
 };
 
-} // end namespace frontend
-} // end namespace abstract
+
+} // end namespace detail
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
+#endif //DARMA_IMPL_PUBLICATION_DETAILS_H

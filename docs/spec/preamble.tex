@@ -2,6 +2,7 @@
 
 \PassOptionsToPackage{table}{xcolor}
 \usepackage[table]{xcolor} 
+\usepackage{float}
 \usepackage{tikz}
 \usepackage{xspace}
 \usepackage{amsmath}
@@ -90,7 +91,7 @@
 \usepackage{import}
 % Packages required by doxygen
 \usepackage{./doxygen-backend/latex/doxygen}
-\usepackage{fixltx2e}
+%\usepackage{fixltx2e}
 \usepackage{calc}
 \usepackage[export]{adjustbox} % also loads graphicx
 \usepackage[utf8]{inputenc}
@@ -188,8 +189,8 @@
 
 \newcommand{\codetarget}[1]{\hypertarget{#1}{\inlinecode{#1}}}
 \newcommand{\codelink}[1]{\hyperlink{#1}{\inlinecode{#1}}}
-\newcommand{\ahandle}{AccessHandle}
-\newcommand{\ahandleT}{AccessHandle<T>}
+\newcommand{\ahandle}{\inlinecode{AccessHandle} }
+\newcommand{\ahandleT}{\inlinecode{AccessHandle<T>} }
 \newcommand{\cwork}{\inlinecode{create_work}\xspace}
 
 \newcommand{\compilerReqs}{(gcc $>= 4.9$, clang $>= 3.5$, icc $>=16$)}
