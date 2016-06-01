@@ -73,30 +73,28 @@ class TestInitialAccess
 TEST_F(TestInitialAccess, call_sequence) {
   using namespace ::testing;
   using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  mock_backend::MockFlow f_in_1, f_out_1;
 
   Sequence s1;
 
-  auto hm1 = make_same_handle_matcher();
+  EXPECT_CALL(*mock_runtime, make_initial_flow(_))
+    .InSequence(s1)
+    .WillOnce(Return(&f_in_1));
 
-  EXPECT_CALL(*mock_runtime, register_handle(Truly(hm1)))
-    .Times(Exactly(1))
+  EXPECT_CALL(*mock_runtime, make_null_flow(_))
+    .InSequence(s1)
+    .WillOnce(Return(&f_out_1));
+
+  EXPECT_CALL(*mock_runtime, register_use(_))
     .InSequence(s1);
 
-  // Release read-only usage should happen immedately for initial access,
-  // i.e., before runnign the next line of code that triggers the next register_handle
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s1);
-
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s1);
+  EXPECT_CALL(*mock_runtime, release_use(
+    is_use_with_flows(&f_in_1, &f_out_1, use_t::Modify, use_t::None)
+  )).InSequence(s1);
 
   {
     auto tmp = initial_access<int>("hello");
-    ASSERT_THAT(hm1.handle, NotNull());
-    ASSERT_THAT(hm1.handle, Eq(detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp)));
   } // tmp deleted
 
 }
@@ -104,22 +102,21 @@ TEST_F(TestInitialAccess, call_sequence) {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Same as call_sequence, but uses helper to verify that other uses of helper should be valid
-TEST_F(TestInitialAccess, call_sequence_helper) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+//TEST_F(TestInitialAccess, call_sequence_helper) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace mock_backend;
 
-  Sequence s1;
-  auto hm1 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm1, s1);
+//  MockFlow f_in, f_out;
 
-  {
-    auto tmp = initial_access<int>("hello");
-    ASSERT_THAT(hm1.handle, NotNull());
-    ASSERT_THAT(hm1.handle, Eq(detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp)));
-  } // tmp deleted
+//  std::tie(f_in, f_out) = flows_on_initial_access
 
-}
+
+//  {
+//    auto tmp = initial_access<int>("hello");
+//  } // tmp deleted
+
+//}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -129,27 +126,44 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
 
-  Sequence s1, s2;
+  mock_backend::MockFlow f_in_1, f_out_1, f_in_2, f_out_2;
 
-  auto hm1 = make_same_handle_matcher();
-  auto hm2 = make_same_handle_matcher();
+  Sequence s1, s2, s3, s4, s5, s6;
 
-  EXPECT_CALL(*mock_runtime, register_handle(Truly(hm1)))
-    .InSequence(s1);
-  // Release read-only usage should happen immedately for initial access,
-  // i.e., before runnign the next line of code that triggers the next register_handle
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
-    .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, register_handle(AllOf(Truly(hm2), Not(Eq(hm1.handle)))))
-    .InSequence(s1);
-  // Release read-only usage should happen immedately for initial access,
-  // i.e., before runnign the next line of code that triggers the next register_handle
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2)))
-    .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
-    .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2)))
-    .InSequence(s1);
+
+  // These next two calls can come in either order
+  EXPECT_CALL(*mock_runtime, make_initial_flow(_))
+    .InSequence(s1, s5)
+    .WillOnce(Return(&f_in_1));
+  EXPECT_CALL(*mock_runtime, make_null_flow(_))
+    .InSequence(s2, s6)
+    .WillOnce(Return(&f_out_1));
+
+  // Must follow make_initial_flow and make_null_flow
+  EXPECT_CALL(*mock_runtime, register_use(_))
+    .InSequence(s1, s2, s5);
+
+  // This can come before or after the registration and setup of the new handle
+  EXPECT_CALL(*mock_runtime, release_use(
+    is_use_with_flows(&f_in_1, &f_out_1, use_t::Modify, use_t::None)
+  )).InSequence(s1, s2);
+
+
+  // These next two calls can come in either order
+  EXPECT_CALL(*mock_runtime, make_initial_flow(_))
+    .InSequence(s5, s3)
+    .WillOnce(Return(&f_in_2));
+  EXPECT_CALL(*mock_runtime, make_null_flow(_))
+    .InSequence(s6, s4)
+    .WillOnce(Return(&f_out_2));
+  // This must come after the registration and setup of the first handle
+  EXPECT_CALL(*mock_runtime, register_use(_))
+    .InSequence(s3, s4, s5);
+
+  // This must be the last thing in all sequences
+  EXPECT_CALL(*mock_runtime, release_use(
+    is_use_with_flows(&f_in_2, &f_out_2, use_t::Modify, use_t::None)
+  )).InSequence(s1, s2, s3, s4, s5);
 
   {
 

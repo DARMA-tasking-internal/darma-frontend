@@ -51,14 +51,14 @@
 #define DARMA_THREAD_LOCAL_BACKEND_RUNTIME thread_local
 #endif
 
+#include <darma/interface/defaults/pointers.h>
+
 #include <darma/impl/key/simple_key.h>
 
 namespace darma_runtime { namespace types {
   typedef darma_runtime::detail::SimpleKey key_t;
 }} // end namespace darma_runtime::types
 
-#include <darma/interface/defaults/version.h>
-#include <darma/interface/defaults/pointers.h>
 
 
 #endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */

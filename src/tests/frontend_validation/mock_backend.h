@@ -51,29 +51,29 @@
 
 #include <darma_types.h>
 #include <darma/interface/backend/runtime.h>
-#include <darma/interface/backend/data_block.h>
+#include <darma/interface/frontend/handle.h>
 
 namespace mock_backend {
 
 class MockRuntime
-  : public darma_runtime::abstract::backend::Runtime<
-      darma_runtime::types::key_t,
-      darma_runtime::types::version_t,
-      darma_runtime::types::shared_ptr_template,
-      darma_runtime::types::unique_ptr_template
-    >
+  : public darma_runtime::abstract::backend::Runtime
 {
   public:
 
-    typedef darma_runtime::types::key_t key_t;
-    typedef darma_runtime::types::version_t version_t;
-    typedef darma_runtime::abstract::frontend::DependencyHandle<key_t, version_t> handle_t;
-    typedef darma_runtime::abstract::frontend::Task task_t;
-    typedef darma_runtime::types::unique_ptr_template<task_t> task_unique_ptr;
-    typedef darma_runtime::types::unique_ptr_template<const task_t> task_const_unique_ptr;
+    using task_t = darma_runtime::abstract::frontend::Task;
+    using task_unique_ptr =
+      darma_runtime::types::unique_ptr_template<darma_runtime::abstract::frontend::Task>;
+    using runtime_t = darma_runtime::abstract::backend::Runtime;
+    using handle_t = darma_runtime::abstract::frontend::Handle;
+    using flow_t = darma_runtime::abstract::backend::Flow;
+    using use_t = darma_runtime::abstract::frontend::Use;
+    using key_t = darma_runtime::types::key_t;
+    using publication_details_t = darma_runtime::abstract::frontend::PublicationDetails;
 
     void
-    register_task(task_unique_ptr&& task) override {
+    register_task(
+       task_unique_ptr&& task
+    ) override {
       register_task_gmock_proxy(task.get());
       if(save_tasks) {
         registered_tasks.emplace_back(std::forward<task_unique_ptr>(task));
@@ -88,18 +88,19 @@ class MockRuntime
 #endif
 #endif
 
-    MOCK_CONST_METHOD0(get_running_task, task_t* const());
-    MOCK_METHOD1(register_handle, void(handle_t* const handle));
-    MOCK_METHOD2(register_fetching_handle, void(handle_t* const, key_t const&));
-    MOCK_METHOD1(release_read_only_usage, void(handle_t* const));
-    MOCK_METHOD1(release_handle, void(const handle_t* const));
-    MOCK_METHOD4(publish_handle, void(handle_t* const, key_t const&, size_t const, bool));
-    MOCK_METHOD0(finalize, void());
-
-    MOCK_METHOD1(register_migrated_handle, void(handle_t* const));
-    MOCK_METHOD1(release_migrated_handle, void(const handle_t* const));
-
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
+    MOCK_CONST_METHOD0(get_running_task, task_t*());
+    MOCK_METHOD0(finalize, void());
+    MOCK_METHOD1(register_use, void(use_t*));
+    MOCK_METHOD1(make_initial_flow, flow_t*(handle_t*));
+    MOCK_METHOD2(make_fetching_flow, flow_t*(handle_t*, key_t const&));
+    MOCK_METHOD1(make_null_flow, flow_t*(handle_t*));
+    MOCK_METHOD2(make_same_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
+    MOCK_METHOD2(make_forwarding_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
+    MOCK_METHOD2(make_next_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
+    MOCK_METHOD1(release_use, void(use_t*));
+    MOCK_METHOD2(publish_use, void(use_t*, publication_details_t*));
+
 
 #ifdef __clang__
 #if __has_warning("-Winconsistent-missing-override")
@@ -111,12 +112,12 @@ class MockRuntime
     std::deque<task_unique_ptr> registered_tasks;
 };
 
-class MockDataBlock
-  : public darma_runtime::abstract::backend::DataBlock
+
+class MockFlow
+  : public darma_runtime::abstract::backend::Flow
 {
   public:
 
-    MOCK_METHOD0(get_data, void*());
 };
 
 } // end namespace mock_backend

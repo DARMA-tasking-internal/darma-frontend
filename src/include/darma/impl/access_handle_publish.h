@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      handle.h
+//                      access_handle_publish.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,34 +42,28 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_HANDLE_H
-#define DARMA_INTERFACE_FRONTEND_HANDLE_H
+#ifndef DARMA_ACCESS_HANDLE_PUBLISH_H
+#define DARMA_ACCESS_HANDLE_PUBLISH_H
 
-#include <darma/interface/frontend/serialization_manager.h>
-#include <darma_types.h>
+#include <darma/interface/app/access_handle.h>
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
 
-/** @brief Encapsulates a named, mutable chunk of data which may be accessed by one or more tasks
- *  that use that data (or the privilege to schedule permissions on that data).
- *
- *  A Handle represents an entity conceptually similar to a variable in a serial program.
- */
-class Handle {
-  public:
+//template <typename... AccessHandleArgs>
+//template <typename _Ignored = void,
+//  typename... PublishExprParts
+//>
+//std::enable_if_t<
+//  AccessHandle<AccessHandleArgs...>::is_compile_time_schedule_readable
+//    and std::is_same<_Ignored, void>::value
+//>
+//AccessHandle<AccessHandleArgs...>::publish<_Ignored, PublishExprParts...>(
+//  PublishExprParts&&... parts
+//) const {
+//
+//}
 
-    virtual types::key_t const&
-      get_key() const =0;
 
-    virtual SerializationManager const*
-      get_serialization_manager() const =0;
-
-};
-
-} // end namespace frontend
-} // end namespace abstract
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_HANDLE_H
+#endif //DARMA_ACCESS_HANDLE_PUBLISH_H

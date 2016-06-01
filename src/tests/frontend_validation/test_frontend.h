@@ -65,10 +65,11 @@ class TestFrontend
 {
   public:
 
-    typedef typename darma_runtime::abstract::backend::runtime_t::handle_t handle_t;
-    typedef typename darma_runtime::abstract::backend::runtime_t::task_t task_t;
-    typedef typename darma_runtime::abstract::backend::runtime_t::version_t version_t;
-    typedef typename darma_runtime::abstract::backend::runtime_t::key_t key_t;
+    typedef darma_runtime::abstract::backend::runtime_t::task_t task_t;
+    typedef darma_runtime::types::key_t key_t;
+    using use_t = darma_runtime::abstract::frontend::Use;
+    using handle_t = darma_runtime::abstract::frontend::Handle;
+    using flow_t = mock_backend::MockFlow;
 
   protected:
 
@@ -105,128 +106,27 @@ class TestFrontend
         mock_runtime = nullptr;
         mock_runtime_setup_done = false;
       }
-      same_handles.clear();
-      same_keys.clear();
-      same_versions.clear();
 
     }
 
-    struct SameHandleMatcher {
-      SameHandleMatcher(
-        mock_backend::MockRuntime::handle_t*& handle_to_track,
-        darma_runtime::types::key_t& key_to_track,
-        darma_runtime::types::version_t& version_to_track
-      ) : handle(handle_to_track), key(key_to_track), version(version_to_track) { }
-      mock_backend::MockRuntime::handle_t*& handle;
-      darma_runtime::types::version_t& version;
-      darma_runtime::types::key_t& key;
-      bool operator()(
-        const mock_backend::MockRuntime::handle_t* in_handle
-      ) const {
-        if(handle != nullptr) {
-          return intptr_t(in_handle) == intptr_t(handle)
-              and key == in_handle->get_key()
-              and version == in_handle->get_version();
-        }
-        else {
-          // Just const_cast so that one matcher can handle both the const and non-const cases
-          handle = const_cast<mock_backend::MockRuntime::handle_t*>(in_handle);
-          key = handle->get_key();
-          version = handle->get_version();
-          return true;
-        }
-      }
-    };
-
-    SameHandleMatcher
-    make_same_handle_matcher() {
-      same_handles.push_back(nullptr);
-      same_keys.emplace_back();
-      same_versions.emplace_back();
-      return { same_handles.back(), same_keys.back(), same_versions.back() };
-    }
-
-
-    template <typename SameHandle>
-    void expect_handle_life_cycle(SameHandle&& same_handle,
-      ::testing::Sequence s = ::testing::Sequence(),
-      bool read_only = false
+    auto is_use_with_flows(
+      flow_t* f_in,
+      flow_t* f_out = nullptr,
+      int scheduling_permissions = -1,
+      int immediate_permissions = -1
     ) {
-      using namespace ::testing;
-
-      if(read_only) {
-        EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(same_handle), _))
-          .InSequence(s);
-      }
-      else {
-        EXPECT_CALL(*mock_runtime, register_handle(Truly(same_handle)))
-          .InSequence(s);
-      }
-
-      EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(same_handle)))
-        .InSequence(s);
-
-      EXPECT_CALL(*mock_runtime, release_handle(Truly(same_handle)))
-        .InSequence(s);
-
-    }
-
-    template <typename SameHandle>
-    auto in_get_dependencies(SameHandle&& same_handle) {
-      return ::testing::Truly([&handle=same_handle.handle](auto* task_arg) {
-        const auto& task_deps = task_arg->get_dependencies();
-        return task_deps.find(handle) != task_deps.end();
-      });
-    }
-
-    auto handle_in_get_dependencies(handle_t*& handle) {
-      return ::testing::Truly([&handle](task_t const * const task_arg) {
-        const auto& task_deps = task_arg->get_dependencies();
-        bool rv = task_deps.find(handle) != task_deps.end();
-#if DEBUG_CREATE_WORK_HANDLES
-        std::cout << "handle_in_get_dependencies(0x" << std::hex << intptr_t(handle)
-                  << ") for task " << std::hex << intptr_t(task_arg)
-                  << ": " << std::boolalpha << rv << std::endl;
-#endif
-        return rv;
-      });
-    }
-
-    template <typename SameHandle>
-    auto needs_read_of(SameHandle&& same_handle) {
-      return ::testing::Truly([&handle=same_handle.handle](auto* task_arg) {
-        return task_arg->needs_read_data(handle);
-      });
-    }
-
-    auto needs_read_handle(handle_t*& handle) {
-      return ::testing::Truly([&handle](task_t const * const task_arg) {
-        bool rv = task_arg->needs_read_data(handle);
-#if DEBUG_CREATE_WORK_HANDLES
-        std::cout << "needs_read_handle(0x" << std::hex << intptr_t(handle)
-                  << ") for task " << std::hex << intptr_t(task_arg)
-                  << ": " << std::boolalpha << rv << std::endl;
-#endif
-        return rv;
-      });
-    }
-
-    template <typename SameHandle>
-    auto needs_write_of(SameHandle&& same_handle) {
-      return ::testing::Truly([&handle=same_handle.handle](auto* task_arg) {
-        return task_arg->needs_write_data(handle);
-      });
-    }
-
-    auto needs_write_handle(handle_t*& handle) {
-      return ::testing::Truly([&handle](task_t const * const task_arg) {
-        bool rv = task_arg->needs_write_data(handle);
-#if DEBUG_CREATE_WORK_HANDLES
-        std::cout << "needs_write_handle(0x" << std::hex << intptr_t(handle)
-                  << ") for task " << std::hex << intptr_t(task_arg)
-                  << ": " << std::boolalpha << rv << std::endl;
-#endif
-        return rv;
+      return ::testing::Truly([=](use_t* use){
+        if(f_in != use->get_in_flow()) return false;
+        if(f_out != nullptr) {
+          if(f_out != use->get_out_flow()) return false;
+        }
+        if(immediate_permissions != -1) {
+          if(immediate_permissions != int(use->immediate_permissions())) return false;
+        }
+        if(scheduling_permissions != -1) {
+          if(scheduling_permissions != int(use->scheduling_permissions())) return false;
+        }
+        return true;
       });
     }
 
@@ -241,83 +141,81 @@ class TestFrontend
     mock_backend::MockRuntime::task_unique_ptr top_level_task;
     std::unique_ptr<mock_backend::MockRuntime> mock_runtime;
     bool mock_runtime_setup_done = false;
-    std::deque<mock_backend::MockRuntime::handle_t*> same_handles;
-    std::deque<darma_runtime::types::key_t> same_keys;
-    std::deque<darma_runtime::types::version_t> same_versions;
 };
 
-namespace _impl {
-
-using namespace darma_runtime;
-using namespace darma_runtime::detail;
-typedef typename abstract::backend::runtime_t::handle_t handle_t;
-
-template <typename Handle, typename Enable=void>
-struct assert_version_is_helper;
-
-template <>
-struct assert_version_is_helper<handle_t*> {
-  ::testing::AssertionResult
-  operator()(
-    const char* v1_expr,
-    const char* v2_expr,
-    handle_t* h,
-    darma_runtime::types::version_t v2,
-    bool exact=false
-  ) const {
-    auto& v1 = h->get_version();
-
-    bool success = v1 == v2;
-    if(success and exact) success = v1.depth() == v2.depth();
-
-    if(success) return ::testing::AssertionSuccess();
-
-    return ::testing::AssertionFailure()
-      << "Version associated with " << v1_expr << ", which is "
-      << v1 << ", is not"
-      << (exact ? std::string(" exactly ") : std::string(" "))
-      << "equal to expected value of " << v2 << " (from expression "
-      << v2_expr << ")";
-  }
-};
-
-template <typename... Args>
-struct assert_version_is_helper<AccessHandle<Args...>> {
-  ::testing::AssertionResult
-  operator()(
-    const char* v1_expr,
-    const char* v2_expr,
-    AccessHandle<Args...> const& ah,
-    darma_runtime::types::version_t v2,
-    bool exact=false
-  ) const {
-    using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
-    handle_t* handle = for_AccessHandle::get_dep_handle(ah);
-    return assert_version_is_helper<handle_t*>()(v1_expr, v2_expr, handle, v2);
-  }
-
-
-};
-
-} // end namespace _impl
-
-template <bool exact, typename VersionFrom>
-::testing::AssertionResult
-AssertHandleVersionIs(
-  const char* v1_expr,
-  const char* v2_expr,
-  VersionFrom&& vf,
-  darma_runtime::types::version_t v2
-) {
-  return _impl::assert_version_is_helper<std::decay_t<VersionFrom>>()(
-    v1_expr, v2_expr, std::forward<VersionFrom>(vf), v2, exact
-  );
-}
-
-#define EXPECT_VERSION_EQ(h, ...) EXPECT_PRED_FORMAT2(AssertHandleVersionIs<false>, h, TestFrontend::version_t(__VA_ARGS__))
-#define EXPECT_VERSION_EQ_EXACT(h, ...) EXPECT_PRED_FORMAT2(AssertHandleVersionIs<true>, h, TestFrontend::version_t(__VA_ARGS__))
-#define ASSERT_VERSION_EQ(h, ...) ASSERT_PRED_FORMAT2(AssertHandleVersionIs<false>, h, TestFrontend::version_t(__VA_ARGS__))
-#define ASSERT_VERSION_EQ_EXACT(h, ...) ASSERT_PRED_FORMAT2(AssertHandleVersionIs<true>, h, TestFrontend::version_t(__VA_ARGS__))
+//namespace _impl {
+//
+//
+//using namespace darma_runtime;
+//using namespace darma_runtime::detail;
+//typedef typename abstract::backend::runtime_t::handle_t handle_t;
+//
+//template <typename Handle, typename Enable=void>
+//struct assert_version_is_helper;
+//
+//template <>
+//struct assert_version_is_helper<handle_t*> {
+//  ::testing::AssertionResult
+//  operator()(
+//    const char* v1_expr,
+//    const char* v2_expr,
+//    handle_t* h,
+//    darma_runtime::types::version_t v2,
+//    bool exact=false
+//  ) const {
+//    auto& v1 = h->get_version();
+//
+//    bool success = v1 == v2;
+//    if(success and exact) success = v1.depth() == v2.depth();
+//
+//    if(success) return ::testing::AssertionSuccess();
+//
+//    return ::testing::AssertionFailure()
+//      << "Version associated with " << v1_expr << ", which is "
+//      << v1 << ", is not"
+//      << (exact ? std::string(" exactly ") : std::string(" "))
+//      << "equal to expected value of " << v2 << " (from expression "
+//      << v2_expr << ")";
+//  }
+//};
+//
+//template <typename... Args>
+//struct assert_version_is_helper<AccessHandle<Args...>> {
+//  ::testing::AssertionResult
+//  operator()(
+//    const char* v1_expr,
+//    const char* v2_expr,
+//    AccessHandle<Args...> const& ah,
+//    darma_runtime::types::version_t v2,
+//    bool exact=false
+//  ) const {
+//    using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+//    handle_t* handle = for_AccessHandle::get_dep_handle(ah);
+//    return assert_version_is_helper<handle_t*>()(v1_expr, v2_expr, handle, v2);
+//  }
+//
+//
+//};
+//
+//} // end namespace _impl
+//
+//template <bool exact, typename VersionFrom>
+//::testing::AssertionResult
+//AssertHandleVersionIs(
+//  const char* v1_expr,
+//  const char* v2_expr,
+//  VersionFrom&& vf,
+//  darma_runtime::types::version_t v2
+//) {
+//  return _impl::assert_version_is_helper<std::decay_t<VersionFrom>>()(
+//    v1_expr, v2_expr, std::forward<VersionFrom>(vf), v2, exact
+//  );
+//}
+//
+//#define EXPECT_VERSION_EQ(h, ...) EXPECT_PRED_FORMAT2(AssertHandleVersionIs<false>, h, TestFrontend::version_t(__VA_ARGS__))
+//#define EXPECT_VERSION_EQ_EXACT(h, ...) EXPECT_PRED_FORMAT2(AssertHandleVersionIs<true>, h, TestFrontend::version_t(__VA_ARGS__))
+//#define ASSERT_VERSION_EQ(h, ...) ASSERT_PRED_FORMAT2(AssertHandleVersionIs<false>, h, TestFrontend::version_t(__VA_ARGS__))
+//#define ASSERT_VERSION_EQ_EXACT(h, ...) ASSERT_PRED_FORMAT2(AssertHandleVersionIs<true>, h, TestFrontend::version_t(__VA_ARGS__))
 
 
 #endif /* SRC_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_H_ */
