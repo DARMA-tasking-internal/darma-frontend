@@ -5,10 +5,10 @@ int darma_main(int argc, char** argv)
   using namespace darma_runtime::keyword_arguments_for_publication;
 
   darma_init(argc, argv);
-  const int myRank = darma_spmd_rank();
-  const int size = darma_spmd_size();
+  const size_t myRank = darma_spmd_rank();
+  const size_t size = darma_spmd_size();
 
-  // supposed to be run with 2 ranks, so ignore the rest
+  // only run with 2 ranks
   if (size!=2) 
   {
     std::cerr << "# of ranks != 2, not supported!" << std::endl;
@@ -18,7 +18,7 @@ int darma_main(int argc, char** argv)
 
   // rank0 reads from source = rank1 
   // rank1 reads from source = rank0 
-  int source = myRank==0 ? 1 : 0;
+  size_t source = myRank==0 ? 1 : 0;
 
   // create data
   auto my_handle = initial_access<double>("data", myRank);
