@@ -47,6 +47,7 @@
 
 #include <darma/impl/task.h>
 #include <darma/impl/handle.h>
+#include "use.h"
 
 namespace darma_runtime {
 
@@ -61,6 +62,8 @@ TaskBase::do_capture(
   AccessHandleT1& captured,
   AccessHandleT2 const& source_and_continuing
 ) {
+
+  using purpose_t = abstract::backend::Runtime::FlowPropagationPurpose;
 
   typedef AccessHandleT1 AccessHandleT;
 
@@ -99,19 +102,16 @@ TaskBase::do_capture(
       else {
         // Deduce capture type from state
         assert(source.captured_as_ == AccessHandleBase::CapturedAsInfo::Normal);
-        switch (source.state_) {
-          case AccessHandleT::Read_None:
-          case AccessHandleT::Read_Read: {
+        switch (source.current_use_.schedule_permissions_) {
+          case HandleUse::Read: {
             capture_type = AccessHandleT::ro_capture;
             break;
           }
-          case AccessHandleT::Modify_None:
-          case AccessHandleT::Modify_Read:
-          case AccessHandleT::Modify_Modify: {
+          case HandleUse::Modify: {
             capture_type = AccessHandleT::mod_capture;
             break;
           }
-          case AccessHandleT::None_None: {
+          case HandleUse::None: {
             DARMA_ASSERT_MESSAGE(false, "Handle used after release");
             break;
           }
@@ -120,136 +120,152 @@ TaskBase::do_capture(
 
       ////////////////////////////////////////////////////////////////////////////////
 
+      auto _ro_capture_non_mod_imm = [&]{
+        auto captured_in_flow = detail::backend_runtime->make_same_flow(
+          source.current_use_.in_flow_, purpose_t::Input
+        );
+        auto captured_out_flow = detail::backend_runtime->make_same_flow(
+          captured_in_flow, purpose_t::OutputFlowOfReadOperation
+        );
+        captured.current_use_ = HandleUse(source.var_handle_,
+          captured_in_flow, captured_out_flow, HandleUse::Read, HandleUse::Read
+        );
+        // Continuing use stays the same:  (as if:)
+        // continuing.current_use_ = source.current_use_
+      };
+
+      auto _ro_capture_mod_imm = [&]{
+        auto captured_in_flow = detail::backend_runtime->make_forwarding_flow(
+          source.current_use_.in_flow_, purpose_t::ForwardingChanges
+        );
+        auto captured_out_flow = detail::backend_runtime->make_same_flow(
+          captured_in_flow, purpose_t::OutputFlowOfReadOperation
+        );
+        auto continuing_in_flow = detail::backend_runtime->make_same_flow(
+          captured_in_flow, purpose_t::Input
+        );
+        auto continuing_out_flow = detail::backend_runtime->make_same_flow(
+          source.current_use_.out_flow_, purpose_t::Output
+        );
+
+        captured.current_use_ = HandleUse(source.var_handle_,
+          captured_in_flow, captured_out_flow, HandleUse::Read, HandleUse::Read
+        );
+        continuing._switch_to_new_use(HandleUse(source.var_handle_,
+          continuing_in_flow, continuing_out_flow,
+          source.current_use_.schedule_permissions_, HandleUse::Read
+        ));
+
+      };
+
       switch (capture_type) {
         case AccessHandleT::ro_capture: {
-          switch (source.state_) {
-            case AccessHandleT::None_None: {
+          switch (source.current_use_.schedule_permissions_) {
+            case HandleUse::None: {
               // Unreachable
               DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
               break;
             }
-            case AccessHandleT::Read_None:
-            case AccessHandleT::Read_Read:
-            case AccessHandleT::Modify_None:
-            case AccessHandleT::Modify_Read: {
-              captured.dep_handle_ = source.dep_handle_;
-              captured.state_ = AccessHandleT::Read_Read;
-              captured.read_only_holder_ = source.read_only_holder_;
-
-              // Outer dep handle, state, read_only_holder stays the same
-
+            case HandleUse::Read: {
+              switch (source.current_use_.immediate_permissions_) {
+                case HandleUse::None:
+                case HandleUse::Read:
+                  _ro_capture_non_mod_imm();
+                  break;
+                case HandleUse::Modify:
+                  _ro_capture_mod_imm();
+              }
               break;
             }
-            case AccessHandleT::Modify_Modify: {
-              // We're creating a subsequent at the same version depth
-              version_t next_version = source.dep_handle_->get_version();
-              ++next_version;
-              captured.dep_handle_ = dep_handle_ptr_maker_t()(
-                source.dep_handle_->get_key(),
-                next_version
-              );
-              captured.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(
-                captured.dep_handle_.get()
-              );
-              captured.state_ = AccessHandleT::Read_Read;
-
-
-              continuing.dep_handle_ = captured.dep_handle_;
-              continuing.read_only_holder_ = captured.read_only_holder_;
-              continuing.state_ = AccessHandleT::Modify_Read;
-
+            case HandleUse::Modify: {
+              switch (source.current_use_.immediate_permissions_) {
+                case HandleUse::None:
+                case HandleUse::Read:
+                  _ro_capture_non_mod_imm();
+                case HandleUse::Modify:
+                  _ro_capture_mod_imm();
+              }
               break;
             }
-          }; // end switch outer.state_
-          add_dependency(
-            captured.dep_handle_,
-            /*needs_read_data = */ true,
-            /*needs_write_data = */ false
-          );
+          }; // end switch source.current_use_.schedule_permissions_
           break;
         }
         case AccessHandleT::mod_capture: {
-          switch (source.state_) {
-            case AccessHandleT::None_None: {
-              // Unreachable in 0.2
+          switch (source.current_use_.schedule_permissions_) {
+            case HandleUse::None: {
+              // Unreachable
               DARMA_ASSERT_MESSAGE(false, "Handle used after release"); // LCOV_EXCL_LINE
               break;
             }
-            case AccessHandleT::Read_None:
-            case AccessHandleT::Read_Read: {
-              // Unreachable in 0.2
+            case HandleUse::Read: {
               DARMA_ASSERT_MESSAGE(false,
                 "Tried to schedule a modifying task of a handle with read-only schedule access"); // LCOV_EXCL_LINE
               break; // unreachable
             }
-            case AccessHandleT::Modify_None:
-            case AccessHandleT::Modify_Read: {
-              version_t outer_version = source.dep_handle_->get_version();
-              ++outer_version;
-              captured.dep_handle_ = source.dep_handle_;
-              captured.read_only_holder_ = 0;
-              captured.state_ = AccessHandleT::Modify_Modify;
-              captured.dep_handle_->push_subversion();
-
-              continuing.dep_handle_ = dep_handle_ptr_maker_t()(
-                source.dep_handle_->get_key(),
-                outer_version
-              );
-              continuing.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(
-                continuing.dep_handle_.get()
-              );
-              continuing.state_ = AccessHandleT::Modify_None;
-
+            case HandleUse::Modify: {
+              switch (source.current_use_.immediate_permissions_) {
+                case HandleUse::None:
+                case HandleUse::Read: {
+                  // TODO implement this
+                  // mod(MN) and mod(MR)
+                  auto captured_in_flow = detail::backend_runtime->make_same_flow(
+                    source.current_use_.in_flow_, purpose_t::Input
+                  );
+                  auto captured_out_flow = detail::backend_runtime->make_next_flow(
+                    source.current_use_.in_flow_, purpose_t::Output
+                  );
+                  auto continuing_in_flow = detail::backend_runtime->make_same_flow(
+                    captured_out_flow, purpose_t::Input
+                  );
+                  auto continuing_out_flow = detail::backend_runtime->make_same_flow(
+                    source.current_use_.out_flow_, purpose_t::Output
+                  );
+                  captured.current_use_ = HandleUse(source.var_handle_,
+                    captured_in_flow, captured_out_flow, HandleUse::Modify, HandleUse::Modify
+                  );
+                  continuing._switch_to_new_use(HandleUse(source.var_handle_,
+                    continuing_in_flow, continuing_out_flow, HandleUse::Modify,
+                    source.current_use_.immediate_permissions_
+                  ));
+                  break;
+                }
+                case HandleUse::Modify: {
+                  auto captured_in_flow = detail::backend_runtime->make_forwarding_flow(
+                    source.current_use_.in_flow_, purpose_t::ForwardingChanges
+                  );
+                  auto captured_out_flow = detail::backend_runtime->make_next_flow(
+                    captured_in_flow, purpose_t::Output
+                  );
+                  auto continuing_in_flow = detail::backend_runtime->make_same_flow(
+                    captured_out_flow, purpose_t::Input
+                  );
+                  auto continuing_out_flow = detail::backend_runtime->make_same_flow(
+                    source.current_use_.out_flow_, purpose_t::Output
+                  );
+                  captured.current_use_ = HandleUse(source.var_handle_,
+                    captured_in_flow, captured_out_flow, HandleUse::Modify, HandleUse::Modify
+                  );
+                  continuing._switch_to_new_use(HandleUse(source.var_handle_,
+                    continuing_in_flow, continuing_out_flow, HandleUse::Modify, HandleUse::Read
+                  ));
+                  break;
+                }
+              } // end switch source.current_use_.immediate_permissions_
               break;
             }
-            case AccessHandleT::Modify_Modify: {
-              version_t outer_version = source.dep_handle_->get_version();
-              ++outer_version;
-              version_t captured_version = source.dep_handle_->get_version();
-              captured_version.push_subversion();
-              ++captured_version;
-
-              // We're creating a subsequent at the same version depth
-
-              // avoid releasing the old until these two are made
-              auto tmp = source.dep_handle_;
-              auto tmp_ro = source.read_only_holder_;
-
-              captured.dep_handle_ = dep_handle_ptr_maker_t()(
-                source.dep_handle_->get_key(), captured_version
-              );
-              // No read only uses of this new handle
-              captured.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(
-                captured.dep_handle_.get()
-              );
-              captured.read_only_holder_.reset();
-              captured.state_ = AccessHandleT::Modify_Modify;
-
-              continuing.dep_handle_ = dep_handle_ptr_maker_t()(
-                source.dep_handle_->get_key(), outer_version
-              );
-              continuing.read_only_holder_ = read_only_usage_holder_ptr_maker_t()(
-                continuing.dep_handle_.get()
-              );
-              continuing.state_ = AccessHandleT::Modify_None;
-
-              break;
-            }
-          } // end switch outer.state
-          add_dependency(
-            captured.dep_handle_,
-            /*needs_read_data = */ captured.dep_handle_->get_version() != version_t(),
-            /*needs_write_data = */ true
-          );
+          }; // end switch source.current_use_.schedule_permissions_
           break;
         } // end mod_capture case
       } // end switch(capture_type)
-    } else {
+
+      // Now add the dependency
+      add_dependency(captured.current_use_);
+
+    }
+    else {
       // ignored
       //captured.capturing_task = nullptr;
-      captured.dep_handle_.reset();
-      captured.read_only_holder_.reset();
-      captured.state_ = AccessHandleT::None_None;
+      captured.current_use_ = detail::HandleUse{};
     }
 
   });

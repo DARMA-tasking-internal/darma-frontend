@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      handle.h
+//                      publication_details.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,34 +42,43 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_HANDLE_H
-#define DARMA_INTERFACE_FRONTEND_HANDLE_H
+#ifndef DARMA_IMPL_PUBLICATION_DETAILS_H
+#define DARMA_IMPL_PUBLICATION_DETAILS_H
 
-#include <darma/interface/frontend/serialization_manager.h>
-#include <darma_types.h>
+#include <darma/interface/frontend/publication_details.h>
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
+namespace detail {
 
-/** @brief Encapsulates a named, mutable chunk of data which may be accessed by one or more tasks
- *  that use that data (or the privilege to schedule permissions on that data).
- *
- *  A Handle represents an entity conceptually similar to a variable in a serial program.
- */
-class Handle {
+class PublicationDetails
+  : public darma_runtime::abstract::frontend::PublicationDetails
+{
   public:
 
-    virtual types::key_t const&
-      get_key() const =0;
+    types::key_t version_name;
+    size_t n_fetchers;
 
-    virtual SerializationManager const*
-      get_serialization_manager() const =0;
+    types::key_t const&
+    get_version_name() const override {
+      return version_name;
+    }
+
+    size_t
+    get_n_fetchers() const override {
+      return n_fetchers;
+    }
+
+    PublicationDetails(
+      types::key_t const& version_name_in,
+      size_t n_fetchers_in
+    ) : version_name(version_name_in),
+        n_fetchers(n_fetchers_in)
+    { }
 
 };
 
-} // end namespace frontend
-} // end namespace abstract
+
+} // end namespace detail
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_HANDLE_H
+#endif //DARMA_IMPL_PUBLICATION_DETAILS_H
