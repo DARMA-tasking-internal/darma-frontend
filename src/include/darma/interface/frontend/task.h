@@ -90,6 +90,10 @@ class Task {
     virtual types::handle_container_template<Use*>
     get_dependencies() const =0;
 
+    //TODO would like to see this function
+    //virtual size_t
+    //n_dependencies() const =0;
+
     /** @brief Invoked by the backend to start the execution phase of the task's life cycle.
      */
     virtual void
@@ -127,16 +131,17 @@ class Task {
      *
      */
     virtual bool
-      is_migratable() const =0;
+    is_migratable() const =0;
 
     /**
-     *  @todo document this
+     *  @brief Returns the number of bytes required to store the task object.
+     *  Not relevant for current specification which does not support task migration.
      */
     virtual size_t
     get_packed_size() const =0;
 
     /**
-     *  @todo document this
+     *  @brief Pack a migratable serialization of the task object into the passed-in buffer
      */
     virtual void
     pack(void* allocated) const =0;
