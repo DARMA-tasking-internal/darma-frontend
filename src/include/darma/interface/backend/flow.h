@@ -49,45 +49,43 @@ namespace darma_runtime {
 namespace abstract {
 namespace backend {
 
-/** @brief A backend-allocated object representing the half (input or output) of the state at a
- *  given point in time of a use of a Handle object.
- *  @todo Update this for publish_use instead of publish_flow, and remove release_published_flow
- *  Put differently, a Flow represents half of the connection between the Use instance that
- *  writes a given version of a given piece of data and one of the Use objects that reads that
- *  data (with the other half being generated via a call to make_same()).
+/** @brief A backend-allocated object representing the input/output state of a Handle at the beginning/end of a task.
+ *  When executing tasks, data "flows" from one task to the next.
+ *  A precursor task produces data that will be consumed by a successor task.
+ *  Each task carries a unique Use variable. Each Use has an input flow and output flow.
+ *  This is true even of a read-only Use, with the output indicating the release of anti-dependence.
+ *  An equivalence relationship between output and input Flows is indicated by allocating the input Flow
+ *  with calls to make_same().  Equivalence must be defined within the backend.
+ *  The translation layer will never make an equivalence test itself.
  *
  *  The life-cycle of a Flow consists of 4 strictly ordered phases.  For some Flow instance u,
  *
- *  + Creation -- &u is a pointer returned by any of make_initial_flow(),
- *    make_fetching_flow(), Flow::make_same(), Flow::make_next().  Upon return
- *  + Exactly 1 Use *or* publication use:
- *    - Use use: &u is either a return value of
- *      Use::get_in_flow() or Use::get_out_flow() for some
- *      Use object ha that is an argument to register_handle_access() at
- *      some time after u was created but before it is released.  To ensure this
+ *  + Creation -- &flw is a pointer returned by any of make_initial_flow(),
+ *    make_fetching_flow(), make_same(), or make_next()
+ *  + Register -- Each flow is owned by a Use as either input or output. Each Flow will be registered
+ *      through Runtime::register_use() before being used in a task or publication.
+ *  + Exactly 1 Operation use *or* publication use:
+ *    - Operation use: &flw is either a return value of Use::get_in_flow() or Use::get_out_flow() for some
+ *      Use object usage that is an argument to register_use() at
+ *      some time after usage was created but before it is released.  To ensure this
  *      strict ordering of the Flow life-cycle, the runtime must enforce
- *      atomicity among register_handle_access(ha), u.make_next(), and
- *      release_handle_access(&ha) for any u that could be returned ha.get_in_flow() or
- *      ha.get_out_flow()
- *    - publication use: &u is the first argument to publish_flow(). To
+ *      atomicity among register_use(u), runtime.make_next(flw), and
+ *      release_use(&u) for any Flow that could be returned by usage.get_in_flow() or
+ *      usage.get_out_flow()
+ *    - Publication use: &flw is the first argument to publish_flow(). To
  *      ensure this strict ordering of the Flow life-cycle, the runtime must
- *      enforce atomicity among publish_flow(&u, ...), u.make_next(), and
- *      release_published_flow(&u) for any given u
- *  + At most one call to u.make_next(), which should happen after the one
- *    Use/publication use but before release
- *  + release -- Depending on whether the Flow was used for Use or publication:
- *     - If u was the return value of ha.get_in_flow() or ha.get_out_flow() for some
- *       ha passed to register_handle_access() in the lifetime of u, then u is released
- *       when release_handle_access(&ha) is called.
- *     - If u was the first argument to a call to publish_flow() in its lifetime, u is released
- *       by a call to release_published_flow(&u)
- *    Upon return from the release sequence (whether by release_handle_access() or
- *    release_published_flow()), it is no longer valid to call make_same() or make_next() on u
- *    or to dereference a pointer to u.  See atomicity constraints for release phase in Use/publication
- *    use description.
+ *      enforce atomicity among publish_flow(&flw, ...), runtime.make_next(flw), and
+ *      release_published_flow(&flw) for any given flw
+ *  + Release -- Each flow is owned by a Use as either input or output. Flows are released through 
+ *       to Runtime::release_use on the owning Use.  The Flow will never be used directly (or indirectly)
+ *       by the translation after calling release_use(). 
+ *  + At most one call to runtime.make_next(flw) can happen anytime after creation, but before release.
+ *    Any number of calls to runtime.make_same(flw) can happen anytime after creation, but before release.
  *
- *  Two Flow objects, a and b, are considered to be the same by Flow sameness rules, as used elsewhere in this
- *  documentation, if a was constructed using b.make_same() or if b was constructed using a.make_same().
+ *  Two Flow objects, a and b, are considered to consume or produce the same data
+ *  if a was constructed using make_same(b) or if b was constructed using make_same(a).
+ *  The flow returned by make_same(a), however, is a different object and is therefore
+ *  independently modifiable by the backend.
  */
 class Flow {
   public:
