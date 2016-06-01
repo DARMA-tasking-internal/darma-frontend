@@ -67,9 +67,9 @@ class PublicationDetails {
     /**
      *  @brief  Get the number of unique fetches that will be performed.
      *          All N fetches must be complete before the backend can
-     *          declaration a publication to be finished.
+     *          declare a publication to be finished.
      *  @return The number of read_access calls that will fetch the combination of key
-     *          of version given here.
+     *          and version given here.
      */
     virtual size_t
     get_n_fetchers() const =0;
