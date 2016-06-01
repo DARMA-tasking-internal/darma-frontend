@@ -3,8 +3,8 @@ int darma_main(int argc, char** argv)
 {
   using namespace darma_runtime;
   darma_init(argc, argv);
-  const int myRank = darma_spmd_rank();
-  const int size = darma_spmd_size();
+  const size_t myRank = darma_spmd_rank();
+  const size_t size = darma_spmd_size();
 
   // create handle to data
   auto my_handle1 = initial_access<std::vector<double>>("data", myRank);
