@@ -73,29 +73,30 @@ TEST_F(TestReadAccess, call_sequence) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
 
-  types::key_t my_version_tag = darma_runtime::make_key("my_version_tag");
-
-  auto hm1 = make_same_handle_matcher();
+  auto my_version_tag = darma_runtime::make_key("my_version_tag");
+  MockFlow f_in, f_out;
 
   Sequence s1, s2;
 
-  EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(hm1), Eq(my_version_tag)))
-    .Times(Exactly(1))
-    .InSequence(s1, s2);
+  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(make_key("hello")), Eq(my_version_tag)))
+    .InSequence(s1)
+    .WillOnce(Return(&f_in));
+  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&f_in), Eq(MockRuntime::OutputFlowOfReadOperation)))
+    .InSequence(s1)
+    .WillOnce(Return(&f_out));
 
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s2);
+  EXPECT_CALL(*mock_runtime, register_use(
+    IsUseWithFlows(&f_in, &f_out, use_t::Read, use_t::None)
+  )).InSequence(s1);
 
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s1, s2);
+  EXPECT_CALL(*mock_runtime, release_use(
+    IsUseWithFlows(&f_in, &f_out, use_t::Read, use_t::None)
+  )).InSequence(s1);
 
   {
-    auto tmp = read_access<int>("hello", version="my_version_tag");
-    auto* tmp_handle = detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp);
-    ASSERT_THAT(tmp_handle, Eq(hm1.handle));
+    auto tmp = read_access<int>("hello", version=my_version_tag);
   }
 
 }
@@ -103,24 +104,24 @@ TEST_F(TestReadAccess, call_sequence) {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Same as call_sequence, but uses helper to verify that other uses of helper should be valid
-TEST_F(TestReadAccess, call_sequence_helper) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  types::key_t my_version_tag = darma_runtime::make_key("my_version_tag");
-
-  auto hm1 = make_same_handle_matcher();
-  Sequence s1;
-  expect_handle_life_cycle(hm1, s1, /*read_only=*/true);
-
-  {
-    auto tmp = read_access<int>("hello", version="my_version_tag");
-    auto* tmp_handle = detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp);
-    ASSERT_THAT(tmp_handle, Eq(hm1.handle));
-  }
-
-}
+//TEST_F(TestReadAccess, call_sequence_helper) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//
+//  types::key_t my_version_tag = darma_runtime::make_key("my_version_tag");
+//
+//  auto hm1 = make_same_handle_matcher();
+//  Sequence s1;
+//  expect_handle_life_cycle(hm1, s1, /*read_only=*/true);
+//
+//  {
+//    auto tmp = read_access<int>("hello", version="my_version_tag");
+//    auto* tmp_handle = detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp);
+//    ASSERT_THAT(tmp_handle, Eq(hm1.handle));
+//  }
+//
+//}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -128,45 +129,99 @@ TEST_F(TestReadAccess, call_sequence_assign) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
 
-  types::key_t my_version_tag = darma_runtime::make_key("my_version_tag");
-  types::key_t other_version_tag = darma_runtime::make_key("other_version_tag");
+  mock_backend::MockFlow f_in_1, f_out_1, f_in_2, f_out_2;
 
-  auto hm1 = make_same_handle_matcher();
-  auto hm2 = make_same_handle_matcher();
+  Sequence s1, s2, s3, s4, s5, s6;
 
-  Sequence s;
 
-  EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(hm1), Eq(my_version_tag)))
-    .Times(Exactly(1))
-    .InSequence(s);
-  EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(hm2), Eq(other_version_tag)))
-    .Times(Exactly(1))
-    .InSequence(s);
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s);
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s);
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2)))
-    .Times(Exactly(1))
-    .InSequence(s);
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2)))
-    .Times(Exactly(1))
-    .InSequence(s);
+  // These next two calls can come in either order
+  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(make_key("hello")),
+    Eq(make_key("my_version_tag"))
+  )).InSequence(s1)
+    .WillOnce(Return(&f_in_1));
+
+  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&f_in_1), Eq(MockRuntime::OutputFlowOfReadOperation)))
+    .InSequence(s1)
+    .WillOnce(Return(&f_out_1));
+
+  EXPECT_CALL(*mock_runtime, register_use(
+    IsUseWithFlows(&f_in_1, &f_out_1, use_t::Read, use_t::None)
+  )).InSequence(s1, s2);
+
+  EXPECT_CALL(*mock_runtime, release_use(
+    IsUseWithFlows(&f_in_1, &f_out_1, use_t::Read, use_t::None)
+  )).InSequence(s1);
+
+  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(make_key("world")),
+    Eq(make_key("other_version_tag"))
+  )).InSequence(s2)
+    .WillOnce(Return(&f_in_2));
+
+  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&f_in_2), Eq(MockRuntime::OutputFlowOfReadOperation)))
+    .InSequence(s2)
+    .WillOnce(Return(&f_out_2));
+
+  EXPECT_CALL(*mock_runtime, register_use(
+    IsUseWithFlows(&f_in_2, &f_out_2, use_t::Read, use_t::None)
+  )).InSequence(s2);
+
+  EXPECT_CALL(*mock_runtime, release_use(
+    IsUseWithFlows(&f_in_2, &f_out_2, use_t::Read, use_t::None)
+  )).InSequence(s2);
 
   {
     auto tmp1 = read_access<int>("hello", version="my_version_tag");
 
     tmp1 = read_access<int>("world", version="other_version_tag");
 
-    auto* tmp_handle = detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp1);
-
-    ASSERT_THAT(tmp_handle, Eq(hm2.handle));
-  }
+  } // tmp1
 
 }
+//TEST_F(TestReadAccess, call_sequence_assign) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+
+//  types::key_t my_version_tag = darma_runtime::make_key("my_version_tag");
+//  types::key_t other_version_tag = darma_runtime::make_key("other_version_tag");
+
+//  auto hm1 = make_same_handle_matcher();
+//  auto hm2 = make_same_handle_matcher();
+
+//  Sequence s;
+
+//  EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(hm1), Eq(my_version_tag)))
+//    .Times(Exactly(1))
+//    .InSequence(s);
+//  EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(hm2), Eq(other_version_tag)))
+//    .Times(Exactly(1))
+//    .InSequence(s);
+//  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
+//    .Times(Exactly(1))
+//    .InSequence(s);
+//  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
+//    .Times(Exactly(1))
+//    .InSequence(s);
+//  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2)))
+//    .Times(Exactly(1))
+//    .InSequence(s);
+//  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2)))
+//    .Times(Exactly(1))
+//    .InSequence(s);
+
+//  {
+//    auto tmp1 = read_access<int>("hello", version="my_version_tag");
+
+//    tmp1 = read_access<int>("world", version="other_version_tag");
+
+//    auto* tmp_handle = detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp1);
+
+//    ASSERT_THAT(tmp_handle, Eq(hm2.handle));
+//  }
+
+//}
 
 ////////////////////////////////////////////////////////////////////////////////
 

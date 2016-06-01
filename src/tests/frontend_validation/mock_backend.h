@@ -116,9 +116,26 @@ class MockRuntime
 class MockFlow
   : public darma_runtime::abstract::backend::Flow
 {
+  private:
+    static size_t next_index;
+
+    size_t index_;
+
   public:
 
+    MockFlow() : index_(next_index++) { }
+
+    bool
+    operator==(MockFlow const& other) const {
+      return index_ == other.index_;
+    }
+    bool
+    operator!=(MockFlow const& other) const {
+      return not operator==(other);
+    }
 };
+
+size_t MockFlow::next_index = 0;
 
 } // end namespace mock_backend
 
