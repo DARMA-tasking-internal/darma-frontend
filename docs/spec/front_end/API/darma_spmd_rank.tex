@@ -22,7 +22,7 @@ An object of unspecified type that may be treated as a \inlinecode{std::size_t}
 which is less than the value returned by \codelink{darma_spmd_size}.
 
 \paragraph{Details}\mbox{}\\
-This function returns the rank index of the calling \gls{DARMA} \gls{execution
+This function returns the \gls{rank} index of the calling \gls{DARMA} \gls{execution
 stream}.  If the value returned
 by \codelink{darma_spmd_size} is convertible to a \inlinecode{std::size_t} with the
 value $N$, then the value returned by this function will be convertible to a
@@ -35,7 +35,7 @@ comparison with $0$ on exactly one rank.  The value returned by this function
 will be unique on every \gls{rank} (in the equality sense), and will be the same
 across multiple invocations of the function within a given \gls{rank}.  The value
 returned will also be the same at any asynchronous work invocation depth within
-a rank's \gls{execution stream}, regardless of whether that work gets stolen or
+a \gls{rank}'s \gls{execution stream}, regardless of whether that work gets stolen or
 migrated.
 
 \paragraph{Code Snippet}\mbox{}\\ 
