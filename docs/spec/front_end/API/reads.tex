@@ -2,8 +2,8 @@
 \label{ssec:api_fe_reads}
 
 \paragraph{Summary} \mbox{}\\
-Creates an argument to a |create_work| to constrain
-privileges of a set of handles to be read-only within that context.
+\codetarget{reads} is a \gls{keyword argument} for \codelink{create_work} that
+constrains permissions of a set of \glspl{handle} to be read-only within that \gls{task}.
 
 \paragraph{Syntax} \mbox{}\\
 \begin{CppCode}
@@ -20,11 +20,9 @@ create_work(reads(handles...), [=]{
 
 
 \paragraph{Details} \mbox{}\\
-Used as argument to a |create_work| to constrain
-privileges of a list of handles to be read-only within that context.
-It can contain a single handle or a list of handles.  See also
-\S~\ref{ssec:api_fe_cw} for more information on |create_work|.
-
+Used as a \gls{keyword argument} to a \codelink{create_work} to constrain
+permissions for a list of \glspl{handle} to be read-only within that \gls{task}.
+It can contain a single \gls{handle} or a list of \glspl{handle}.  
 
 \paragraph{Code Snippet} \mbox{}\\
 \begin{figure}[!h]
@@ -41,13 +39,13 @@ create_work(reads(my_handle), [=]{
 // ... 
 \end{CppCodeNumb}
 \label{fig:fe_api_reads}
-\caption{Basic usage of \lstinline|reads|.}
+\caption{Basic usage of \protect\codelink{reads}.}
 \end{figure}
 
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\
 \begin{itemize}
-  \item This can only be called as argument to |create_work|.  Use in
+  \item This can only be called as \gls{keyword argument} to \codelink{create_work}.  Use in
   other contexts will lead to compile-time errors, run-time errors, or
   undefined behavior.
 \end{itemize}

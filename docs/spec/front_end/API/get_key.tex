@@ -1,7 +1,8 @@
 \subsection{\texttt{get\_key}}
 
 \paragraph{Summary}\mbox{}\\ 
-Get the key identifying the data pointed to by the handle.
+\codetarget{get_key} gets the \codelink{key} identifying the data pointed to by
+the \gls{handle}.
 
 \paragraph{Syntax}\mbox{}\\ 
 \begin{CppCode}
@@ -12,11 +13,11 @@ darma_runtime::types::key_t const& AccessHandle<T>::get_key();
 None.
 
 \paragraph{Return}\mbox{}\\ 
-The key identifying the data.
+The \codelink{key} identifying the data.
 
 \paragraph{Details}\mbox{}\\ 
-This method can be called at any time after the handle is created.  It does not
-require any permissions, scheduling or immediate.
+This method can be called at any time after the \gls{handle} is created.  It does not
+require any \gls{scheduling permissions} nor \gls{immediate permissions}.
 
 \paragraph{Code Snippet}\mbox{}\\ 
 \begin{figure}[!h]
@@ -33,7 +34,7 @@ create_work([=]{
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_get_key}
-\caption{Basic usage of \lstinline|get_key|.}
+\caption{Basic usage of \protect\codelink{get_key}.}
 \end{figure}
 
 

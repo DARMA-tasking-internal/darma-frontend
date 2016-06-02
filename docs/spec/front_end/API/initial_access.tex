@@ -1,8 +1,8 @@
 \subsection{\texttt{initial\_access}}
 
 \paragraph{Summary}\mbox{}\\ 
-\codetarget{initial_access} creates a handle to data that does not yet exist in the system 
-but needs to be created.
+\codetarget{initial_access} creates a \gls{handle} to data that does not yet
+exist in the \gls{key-value store} but needs to be created.
 
 \paragraph{Syntax}\mbox{}\\ 
 \begin{CppCode}
@@ -10,21 +10,22 @@ AccessHandle<T> darma_runtime::initial_access<T>(arg1, arg2, ...);
 \end{CppCode}
 
 \paragraph{Positional Arguments}\mbox{}\\ 
-arg1, arg2, ...: arbitrary tuple of values defining the key of the data.
+arg1, arg2, ...: arbitrary \gls{tuple} of values defining the \codelink{key} of the data.
 
 \paragraph{Return}\mbox{}\\ 
-An object of unspecified type that may be treated as an |AccessHandle<T>|
-with the key given by the arguments.
+An object of unspecified type that may be treated as an \codelink{AccessHandle<T>}
+with the \codelink{key} given by the arguments.
 
 \paragraph{Details}\mbox{}\\ 
-This construct creates a handle to data that does not yet 
-exist but needs to be created.  The handle is created with {\it Modify}
-scheduling permissions and {\it None} immediate permissions.  The function takes
-as input an arbitrary tuple of values.
-Note that this key has to be unique (see Section \ref{subsec:keys}).
-One cannot define two handles with same the same key, even if they are created by different ranks.
-One basic way to ensure this is the case is to always use the rank 
-as one component of the key. 
+This construct creates a \gls{handle} to data that does not yet 
+exist but needs to be created.  The \gls{handle} is created with {\it Modify}
+\gls{scheduling permissions} and {\it None} \gls{immediate permissions}.  The function takes
+as input an arbitrary \gls{tuple} of values.
+Note that this \codelink{key} has to be unique (see Section \ref{subsec:keys}).
+One cannot define two \glspl{handle} with the same \codelink{key}, even if they
+are created by different \glspl{rank}.
+One basic way to ensure this is the case is to always use the \gls{rank} ID
+as one component of the \codelink{key}. 
 
 \paragraph{Code Snippet}\mbox{}\\
 \begin{figure}[!h]
@@ -33,7 +34,7 @@ as one component of the key.
   auto my_handle2 = initial_access<int>("data_key_2", myRank, "_online");
 \end{CppCodeNumb}
 \label{fig:fe_api_initialaccess}
-\caption{Basic usage of \lstinline|initial_access|.}
+\caption{Basic usage of \protect\codelink{initial_access}.}
 \end{figure}
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\ 
@@ -41,7 +42,7 @@ as one component of the key.
   \item Because the actual type returned by |initial_access<T>| is
   unspecified, you should generally use |auto| instead of naming the type on 
   the left hand side of the assignment (this is generally a good idea in modern
-  C++). In other words,
+  \CC{}). In other words,
   \begin{CppCode}
 	// $\yes$ good, preferred
 	auto my_handle1 = initial_access<double>("good"); 
