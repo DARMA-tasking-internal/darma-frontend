@@ -95,7 +95,7 @@ lvalue reference to an \codelink{AccessHandle} can be given.
 \codelink{AccessHandle} objects ignore \inlinecode{const}, and the copy
 overhead is negligible (though giving a reference parameter will be {\it
 slightly} more efficient)}  If we want to pass on a read-only \codelink{AccessHandle}, we
-can do so by giving ReadAccessHandle\footnote{Note that
+can do so by giving \codetarget{ReadAccessHandle}\footnote{Note that
 is identical to \codelink{AccessHandle}
 in every way except that it is known to be read-only at compile time, whereas
 \codelink{AccessHandle} has unknown compile-time permissions.  All

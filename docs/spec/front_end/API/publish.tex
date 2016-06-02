@@ -2,8 +2,8 @@
 \label{ssec:api_fe_publish}
 
 \paragraph{Summary} \mbox{}\\
-Publish the data pointed to by a given handle so that it can be retrieved on 
-other DARMA ranks.
+\codetarget{publish} the data pointed to by a given \gls{handle} so that it can be retrieved on 
+other \gls{DARMA} \glspl{rank}.
 
 \paragraph{Syntax} \mbox{}\\
 \begin{CppCode}
@@ -16,31 +16,32 @@ None.
 
 \paragraph{Keyword Arguments} \mbox{}\\
 \begin{compactitem}
-\item |n_readers=size_t| (optional): informs the runtime how many times
+\item |n_readers=size_t| (optional): informs the \gls{runtime system} how many times
 \codelink{read_access} will be called in order to access this data.
 If omitted, it defaults to 1.
 \item |version=KeyExpression| (or |version(KeyExpression...)|,
-see \S~\ref{sec:keyword} for multiple-right-hand-side keyword argument usage)
+  see \S~\ref{sec:keyword} for multiple-right-hand-side \gls{keyword argument} usage)
 (optional):
-informs the runtime what version to associate with the data being published. 
+informs the \gls{runtime system} what version to associate with the data being published. 
 The value can be an arbitrary |KeyExpression|.
-If omitted, the version defaults to an empty key (i.e., a key tuple with zero 
-components).  Omitting this keyword implicitly indicates to the runtime system
-that the handle (or any handle with the same name key) will not be published
+If omitted, the version defaults to an empty \codelink{key} (i.e., a
+\codelink{key} \gls{tuple} with zero 
+components).  Omitting this keyword implicitly indicates to the \gls{runtime
+system} that the \gls{handle} (or any \gls{handle} with the same name
+\codelink{key}) will not be published
 again in the remaining lifetime of the program.
 \end{compactitem}
 
 \paragraph{Details} \mbox{}\\
-
-Publish the data associated with a given handle |h| such that it can be
-retrieved |n_readers| times anywhere via a |read_access<T>| invocation
-that gives the same name key as |h| and the same |version| key as
-the one given to the keyword argument to |publish()|.
-A |publish()| is a {\it read-only capture} operation (see
+Publish the data associated with a given \gls{handle} |h| such that it can be
+retrieved \codelink{n_readers} times anywhere via a \codelink{read_access} invocation
+that gives the same name key as |h| and the same \codelink{version}
+\codelink{key} as the one given to the \gls{keyword argument} to \codelink{publish}.
+A \codelink{publish} is a {\it read-only capture} operation (see
 \S~\ref{sec:handlerules}).
 
-%\paragraph{Code Snippet} \mbox{}\\
-%\begin{figure}[!h]
+\paragraph{Code Snippet} \mbox{}\\
+\begin{figure}[!h]
 \begin{CppCodeNumb}
 auto me = darma_spmd_rank();
 assert(darma_spmd_size() >= 2);
@@ -58,15 +59,16 @@ else if(me == 1) {
   });
 }
 \end{CppCodeNumb}
-%\label{fig:fe_api_publish}
-%\caption{Basic usage of \lstinline|publish()|.}
-%\end{figure}
+\label{fig:fe_api_publish}
+\caption{Basic usage of \protect\codelink{publish}.}
+\end{figure}
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\
 \begin{compactitem}
-  \item |publish()| puts more burden on the programmer to avoid race conditions and deadlock, 
-  which are automatically avoided when relying entirely on sequential semantics.
-  This is similar to deadlock situations with sends and receives in MPI in which communicating processes block on a receive before sending to each other.  
+\item \codelink{publish} puts more burden on the programmer to avoid race conditions and deadlock, 
+  which are automatically avoided when relying entirely on \gls{sequential
+  semantics}.  This is similar to deadlock situations with sends and receives in MPI in 
+  which communicating processes block on a receive before sending to each other.  
   For instance, the following snippet deadlocks:
   %\begin{center}
   \begin{CppCode}
@@ -95,23 +97,24 @@ else if (me == 1) {
 // called): neither of the above create_work()s can ever run
   \end{CppCode}
   This snippet deadlocks because a dependency loop has been created between two
-  |publish()|/|read_access()| pairs. While the deadlock is
+  \codelink{publish}/\codelink{read_access} pairs. While the deadlock is
   relatively obvious here, it can be much more difficult to decipher in a more
   complex code, especially if, for instance, |h1| and |h2| are
-  arguments to a function, or if the parts of the keys used to construct the
-  handles are variables with values dependent on some previous computation.
+  arguments to a function, or if the parts of the \codelink{key}s used to construct the
+  \glspl{handle} are variables with values dependent on some previous computation.
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   \item It is particularly easy to create deadlock scenarios by publishing a
-  handle and fetching it within the same rank.  For this reason, we recommend
+    \gls{handle} and fetching it within the same \gls{rank}.  For this reason, we recommend
   extreme caution when this scenario could arise, and in general we suggest that
   the user should avoid doing so if at all possible.
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  \item Since |publish()| is a {\it read-only capture} operation, it must
-  have scheduling privileges of {\it Read} or {\it Modify}; calling publish on a
-  handle with other scheduling permissions is a runtime error.  Also, as with
-  all {\it read-only capture} operations, calling |publish()| on a
-  handle with {\it Modify} immediate permissions results in a handle with {\it
-  Read} immediate permissions in the continuing context.  See
+\item Since \codelink{publish} is a {\it read-only capture} operation, it must
+  have \gls{scheduling permissions} of {\it Read} or {\it Modify}; calling
+  \codelink{publish} on a \gls{handle} with other \gls{scheduling permissions} is a runtime error.  Also, as with
+  all {\it read-only capture} operations, calling \codelink{publish} on a
+  \gls{handle} with {\it Modify} \gls{immediate permissions} results in a
+  \gls{handle} with {\it Read} \gls{immediate permissions} in the
+  \gls{continuing context}.  See
   \S~\ref{sec:handlerules} for more details.  For example, the following code
   results in a runtime error at the marked line:
 %\begin{minipage}[t]{0.95\linewidth}%
@@ -125,14 +128,17 @@ else if (me == 1) {
   });
   \end{CppCode}
 %\end{minipage}
-  \item It is an error to call |publish()| on a handle with the same key and version more than once.
+\item It is an error to call \codelink{publish} on a \gls{handle} with the same 
+  codlink{key} and \codelink{version} more than once.
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  \item If |publish()| is called on a given handle without the
-  |version| keyword argument, it is an error to call |publish()|
-  again on that handle or any other handle with the same name key for the
+\item If \codelink{publish} is called on a given \gls{handle} without the
+  \codelink{version} \gls{keyword argument}, it is an error to call \codelink{publish}
+  again on that \gls{handle} or any other \gls{handle} with the same name
+  \codelink{key} for the
   remaining lifetime of the program.  Note that because of the default behavior
-  of the |version| keyword argument, giving an explicit version that is
-  the empty key (e.g., |h.publish(version())| or
+  of the \codelink{version} \gls{keyword argument}, giving an explicit
+  \codelink{version} that is
+  the empty \codelink{key} (e.g., |h.publish(version())| or
   |h.publish(version=make_key())|) will lead to this same behavior.
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \end{compactitem}
