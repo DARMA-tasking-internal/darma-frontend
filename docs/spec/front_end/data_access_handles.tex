@@ -18,6 +18,7 @@ Section~\ref{sec:handlerules}, but rather guiding concepts.
 \gls{fetch}ed) and be used immediately to perform work.
 \Gls{pending} \glspl{handle} cannot be dereferenced, but can still be used to \emph{schedule} or \emph{instantiate} work.
 Thus even if a \gls{handle} is carrying \gls{pending} or unresolved data, execution can advance thereby unrolling more of the task graph.
+
 This \emph{lookahead} is the key element that enables runtime optimizations.
 Lookahead gives the \gls{runtime system} more complete knowledge of the task graph instead of locally executing step-by-step.
 By looking ahead, the \gls{runtime system} can reorder or migrate \glspl{task} to maximize data locality and improve load balance.

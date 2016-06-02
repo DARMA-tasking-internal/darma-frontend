@@ -14,15 +14,12 @@ For inline \glspl{task} (as compared to functor-based \glspl{task}, more
 below), this utilizes the \CC{} \gls{lambda} \gls{capture} mechanism to yield the following syntax:
 
 \begin{CppCode}
-//parent task
+// <-- parent task
 create_work([=]{
-  // deferred work in captured context
+  // <-- deferred work in captured context
 });
-//continuing context in parent task
+// <-- continuing context in parent task
 \end{CppCode}
-\todo[inline]{Jeremy/David: I updated the last line in the example above to be 
-  "continuing context in parent task" rather than "continuing task in parent
-task". please revert if this is an error. ow just delete the todo.}
 
 \todo[inline]{David/Jeremy:this is a place to consolidate all of our use of interchangeable
 terms: task, deferred task, deferred work, captured work.  Let's make sure this
