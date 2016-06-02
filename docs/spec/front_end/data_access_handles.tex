@@ -486,5 +486,29 @@ create_work([=]{ // capture
 \end{vaspPseudo}
 \end{minipage}
 
+\subsection{Access Handles with Compile-time Checking}
+\label{ssec:ahtraits}
 
+The \ahandleT class actually has a second template argument,
+\inlinecode{traits}, that the translation layer uses to propagate static
+information about permissions, so that it can do as many compile-time checks as
+possible.  The user should never directly specify \inlinecode{traits} for an
+\ahandleT.  Rather, DARMA returns a type with the correct compile-time traits
+from \codelink{initial_access} and \codelink{read_access}.  DARMA also uses
+traits to implement the \codetarget{ReadAccessHandle<T>} type alias
+used as a formal parameter to functors that need read-only permissions on a
+handle\footnote{Note that \codelink{ReadAccessHandle<T>} is {\it not} the same
+as the return value of \codelink{read_access}.  The former specifies {\it
+requirements} for a functor parameter, while the latter specifies bounds on
+the {\it available permissions} for a handle.  The \inlinecode{traits} template
+parameter is different for these two, though the latter can be cast to the former.} (see
+\S~\ref{sec:functor} for details of the DARMA functor interface).  DARMA can
+take advantage of this to, for instance, raise a compile-time error if the user
+attempts to call \codelink{set_value} on a handle returned by
+\codelink{read_access}.  Note that this will only work if the user gives
+the \inlinecode{auto} type specifier for the left-hand side of the assignment. 
+The type \ahandleT itself (i.e., with default \inlinecode{traits} template
+parameter) has completely unrestricted compile-time permissions, and thus
+implies no compile-time checking.  However, unlike its more restricted analogs,
+it can hold handles with any permissions.
 
