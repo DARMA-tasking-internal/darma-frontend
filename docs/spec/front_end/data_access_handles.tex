@@ -4,8 +4,9 @@
 %\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
 \section{Data Access Handles}
 \label{sec:handles}
-\codetarget{AccessHandle<T>} objects are lightweight wrappers around the actual data structure of interest having type T. 
-The handles add a control block (metadata) that tracks uses of the handle and enforces
+\codetarget{AccessHandle<T>} objects are lightweight wrappers around the actual
+data structure of interest having type \inlinecode{T}. 
+The \glspl{handle} add a control block (metadata) that tracks uses of the handle and enforces
 \gls{sequential semantics}, analogous to smart pointers that wrap pointer types and provide a reference counting control block.
 Critically, this interface is non-intrusive, wrapping any type T without requiring that type to be modified.
 
