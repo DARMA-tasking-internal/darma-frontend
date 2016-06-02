@@ -152,7 +152,7 @@ In reality, the distinction is more subtle.
 The ``readiness'' and ``pendingness'' can be different for read usages and write usages.
 Thus a handle can be read-ready, but modify-pending.
 This will be the case after \codelink{publish} operations.
-\Gls{publish} operations are treated as asynchronous read operations --- that is,
+\codelink{publish} operations are treated as asynchronous read operations --- that is,
 \inlinecode{h.publish(...)} is equivalent to
 \begin{CppCode}
 create_work(reads(h), [=]{...});  
@@ -160,7 +160,7 @@ create_work(reads(h), [=]{...});
 This means that the same precautions should be taken as with asynchronous reads. 
 In particular, even if the handle was ready for modifying before
 \codelink{publish}, it is no longer valid to call \inlinecode{h.set_value()}
-after the \codlink{publish}.
+after the \codelink{publish}.
 The asynchronous read done by the \codelink{publish} may or may not have occurred yet.  
 In this scenario, one should use instead
 \begin{CppCode}
@@ -203,7 +203,7 @@ A \codelink{version} has similarities with an MPI tag, as they both ensure the u
 However, unlike MPI which uses a combination of message order and tag to
 uniquely identify messages and match \inlinecode{send/recv} pairs,
 the \gls{DARMA} asynchronous model does not allow implicit publication order to
-be used in matching \gls{publish}/\gls{fetch} pairs.
+be used in matching \codelink{publish}/\gls{fetch} pairs.
 Instead, all publications must uniquely identify each publication with a
 specific \codelink{version}.
 
@@ -212,7 +212,7 @@ specific \codelink{version}.
 \label{subsec:keys}
 In the examples in this section, the \codetarget{key} to the
 \ahandleT has always been a single string. 
-A \codelink{key} in DARMA 
+A \codelink{key} in \gls{DARMA} 
 can be an arbitrary \gls{tuple} of values.  This 
 makes it very easy for the application developer to create an expressive
 and descriptive \codelink{key} for each piece of data.  \Glspl{tuple} can comprise
@@ -239,12 +239,25 @@ The state of a \gls{handle} encompasses both its read/write permissions and its 
 \Gls{pending} \glspl{handle} can only be used for scheduling \glspl{task} while
 \gls{ready} \glspl{handle} can be immediately used to do work.
 Here we more rigorously divide permissions into two main categories: 
+\todo[inline]{Jeremy/David: I'm struggling some with the phrasing below.  I ist
+  permissions that may be applied to a handle when the application developer is
+instantiating tasks with create_work?}
 \begin{itemize}
-\item[a] {\it Scheduling}: Permissions a handle may use when instantiating tasks with \inlinecode{create_work}.
+  \item[a] {\it Scheduling}: Permissions a \gls{handle} may use when instantiating
+  tasks with \codelink{create_work}.
 These permissions apply independent of handle readiness. 
-Generally, this will be Read (handle may only used in read-only tasks) or Modify (handle may be used in read-only or read-write tasks). 
-\item[b] {\it Immediate}: Permissions that apply immediately, indicating the ``readiness'' of the handle.  Immediate privileges can ever be greater than Scheduling privileges.
-A task can never have greater permissions doing immediate work than it can for instantiating deferred work.
+Generally, this will be Read (\gls{handle} may only used in read-only
+\glspls{tasks}) or Modify (\gls{handle} may be used in read-only or read-write
+\gls{tasks}). 
+\item[b] {\it Immediate}: Permissions that apply immediately, indicating the
+  ``readiness'' of the \gls{handle}.  Immediate privileges can \todo{Jeremy:
+  this is a typo, right?} ever be greater than Scheduling privileges.
+  A \gls{task} can never have greater permissions doing immediate work than it can for instantiating deferred work.
+  \inline{Jeremy/David: againg confusing phrasing, is it the handle or the task
+  that has the permissions? Also, is it the task/application code applying the
+permissions? Or, the translation layer? IMO, phrasing is off here on
+the last sentence, becausa task should have permissions on one the work it is
+immediately doing?  If my questions aren't clear, we can follow up via phone.  }
 \end{itemize}
 
 For the two methods of creating handles, we have the following initializations.
