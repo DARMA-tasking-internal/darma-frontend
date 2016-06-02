@@ -10,10 +10,10 @@ Again, rather than rely entirely on \gls{sequential semantics} in cases of massi
 many independent parallel \glspl{execution stream} can begin simultaneously and
 coordinate via the \gls{key-value store}.
 Each \gls{execution stream} is assigned a unique \gls{rank} ID, analogous to the MPI rank assigned to processes in a MPI communicator.
-The initialization and termination of the runtime in each \gls{execution
-stream} is via the calls \codelink{darma_init} and \codelink{darma_finalize}. 
+The initialization and termination of the runtime in each \gls{execution stream} is via the calls \codelink{darma_init} 
+and \codelink{darma_finalize}. 
 The total number of \gls{spmd} \glspl{execution stream} are queried with the call \codelink{darma_spmd_size},
-and the \gls{rank} ID of a particular \gls{exectuion stream{ is queried with
+and the \gls{rank} ID of a particular \gls{execution stream} is queried with
     \codelink{darma_spmd_rank}. A typical user written main program will look as follows:
 \begin{CppCode}
 int darma_main(int argc, char**argv){
