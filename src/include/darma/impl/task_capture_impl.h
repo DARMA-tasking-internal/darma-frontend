@@ -126,6 +126,7 @@ TaskBase::do_capture(
         captured.current_use_ = detail::make_unique<HandleUse>(source.var_handle_.get(),
           captured_in_flow, captured_out_flow, HandleUse::Read, HandleUse::Read
         );
+        detail::backend_runtime->register_use(captured.current_use_.get());
         // Continuing use stays the same:  (as if:)
         // continuing.current_use_ = source.current_use_
       };
@@ -147,6 +148,7 @@ TaskBase::do_capture(
         captured.current_use_ = detail::make_unique<HandleUse>(source.var_handle_.get(),
           captured_in_flow, captured_out_flow, HandleUse::Read, HandleUse::Read
         );
+        detail::backend_runtime->register_use(captured.current_use_.get());
         continuing._switch_to_new_use(detail::make_unique<HandleUse>(source.var_handle_.get(),
           continuing_in_flow, continuing_out_flow,
           source.current_use_->scheduling_permissions_, HandleUse::Read
@@ -202,13 +204,12 @@ TaskBase::do_capture(
               switch (source.current_use_->immediate_permissions_) {
                 case HandleUse::None:
                 case HandleUse::Read: {
-                  // TODO implement this
                   // mod(MN) and mod(MR)
                   auto captured_in_flow = detail::backend_runtime->make_same_flow(
                     source.current_use_->in_flow_, purpose_t::Input
                   );
                   auto captured_out_flow = detail::backend_runtime->make_next_flow(
-                    source.current_use_->in_flow_, purpose_t::Output
+                    captured_in_flow, purpose_t::Output
                   );
                   auto continuing_in_flow = detail::backend_runtime->make_same_flow(
                     captured_out_flow, purpose_t::Input
@@ -219,6 +220,7 @@ TaskBase::do_capture(
                   captured.current_use_ = detail::make_unique<HandleUse>(source.var_handle_.get(),
                     captured_in_flow, captured_out_flow, HandleUse::Modify, HandleUse::Modify
                   );
+                  detail::backend_runtime->register_use(captured.current_use_.get());
                   continuing._switch_to_new_use(detail::make_unique<HandleUse>(source.var_handle_.get(),
                     continuing_in_flow, continuing_out_flow, HandleUse::Modify,
                     source.current_use_->immediate_permissions_
@@ -241,6 +243,7 @@ TaskBase::do_capture(
                   captured.current_use_ = detail::make_unique<HandleUse>(source.var_handle_.get(),
                     captured_in_flow, captured_out_flow, HandleUse::Modify, HandleUse::Modify
                   );
+                  detail::backend_runtime->register_use(captured.current_use_.get());
                   continuing._switch_to_new_use(detail::make_unique<HandleUse>(source.var_handle_.get(),
                     continuing_in_flow, continuing_out_flow, HandleUse::Modify, HandleUse::Read
                   ));
