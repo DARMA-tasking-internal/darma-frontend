@@ -37,8 +37,7 @@ auto data_handle = initial_access<double>("data_key", me);
 \end{CppCode}  
 Note that in \gls{DARMA}, \gls{spmd} \glspl{rank} are actually just a special
 kind of \gls{task} that happens to have a name containing the \gls{rank}, and can be treated as such. 
-\todo{Jeremy: Does this sentence about ranks being a special kind of task still make sense given the execution stream
-additions?}
+In most cases, these named tasks (ranks) will be \glspl{execution stream}, independent tasks with no parent.
 However, the similarity to traditional, MPI-style \gls{spmd} upon launch should improve the ease of porting and scalability significantly.
 
 We emphasize again that within \gls{DARMA}'s supprot for \gls{spmd}, 
