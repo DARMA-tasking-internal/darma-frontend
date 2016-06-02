@@ -6,9 +6,6 @@
 \codetarget{create_work} instantiates \gls{deferred work} to be executed by the \gls{runtime
 system}.
 
-\todo{Jeremy/David: Need to update all pargraphs to inlclude relevant syntax,
-argument changes, pitfalls, examples for functor interface}
-
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
 // Functionally:
@@ -22,9 +19,12 @@ create_work(
     // Code expressing deferred work goes here
   }
 );
+// or:
+create_work<FunctorType>(ArgumentsToFunctor...);
 
 // Formally:
 /* unspecified */ create_work(Arguments..., LambdaExpression);
+/* unspecified */ create_work<Functor>(Arguments...);
 \end{CppCode}
 
 
@@ -41,6 +41,12 @@ create_work(
   (see \S~\ref{ssec:api_fe_reads}), which indicates that only read operations
   are performed on a given \gls{handle} or \glspl{handle} within the
   \inlinecode{LambdaExpression} that follows.
+\item \inlinecode{ArgumentsToFunctor...} In the deferred functor invocation
+  version, these arguments are pattern-matched with the formal parameters of the
+  functor, causing the deferred invocation to invoke the call operator of
+  \inlinecode{FunctorType} with arguments derived from these as described in
+  \S~\ref{sec:functor}.  Constraint expressions may also be used in the
+  corresponding positional argument spots for a given \ahandleT argument.
 \end{compactitem}
 
 
@@ -50,10 +56,12 @@ type in future implementations.
 
 \paragraph{Details}\mbox{}\\
 This function expresses work to be executed by the \gls{runtime system}.  Any
-\codelink{AccessHandle} variables used in the \inlinecode{LambdaExpression} will be
-captured and made available inside the capturing context as if they were used in
-sequence with previous capture operations on the same \gls{handle}.  Depending on the
-scheduling permissions available to the \inlinecode{AccessHandle<T>} at the time of
+\codelink{AccessHandle} variables used in the \inlinecode{LambdaExpression} or
+given in \inlinecode{ArgumentsToFunctor...} will be captured and made available
+inside the capturing context or \inlinecode{FunctorType} call operator as if
+they were used in sequence with previous capture operations or deferred functor
+invocations with the same \gls{handle}.  Depending on the scheduling permissions
+available to the \inlinecode{AccessHandle<T>} at the time of
 \codelink{create_work} invocation and on the \inlinecode{ConstraintExpressions...}
 given as arguments, this function call expresses either a {\it read-only
 capture} or a {\it modify capture} operation on a given \gls{handle} (see
@@ -62,7 +70,9 @@ permissions when it is captured or if the explicit constraint expression
 \inlinecode{reads(h)} is given in the \inlinecode{ConstraintExpressions...} arguments,
 \codelink{create_work} functions as a {\it read-only capture} operation on that
 \gls{handle}.
-Otherwise, it functions as a {\it modify capture}.  
+Otherwise, it functions as a {\it modify capture}.  Formal parameters to the
+\inlinecode{FunctorType} call operator can also affect the type of capture
+operation that is performed, as discussed in \S~\ref{sec:functor}.
 
 Additional general discussion on use of \codelink{create_work} can be found in
 \S~\ref{sec:deferred}.
