@@ -12,7 +12,6 @@ Critically, this interface is non-intrusive, wrapping any type T without requiri
 Most critically, \ahandle enables deferred access since \ahandle can exist in ready or pending states. 
 Ready and pending are not rigorously defined in the state table for \ahandle in
 Section \ref{sec:handlerules},
-\todo{fix section ref}
 but rather guiding concepts.
 Ready handles can be dereferenced (have their underlying values fetched) and be used immediately to perform work.
 Pending handles cannot be dereferenced, but can still be used to \emph{schedule} or \emph{instantiate} work.
