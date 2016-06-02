@@ -13,12 +13,6 @@
   description={An application programmer interface (API) is set of functions and tools provided by a library developer to allow an application programmer to interact with a specific piece of software or allow a developer to utilize prebuilt functionality}
 }
 
-\newglossaryentry{concept}
-{
-  type=glossary,
-  name={concept},
-  description={\todo{fill out concept}}
-}
 \newglossaryentry{concurrency}
 {
   type=glossary,
@@ -134,14 +128,24 @@
 {
   type=glossary,
   name=overdecomposition,
-  description={\todo{define}},
+  description={A problem which is decomposed into more tasks than compute units. i
+  Usually applied to a data-parallel overdecomposition in which, e.g., an array
+  is broken in 4x times as many chunks as there are compute units.
+  Rather than have each compute unit execute one task of cost 4,
+  each compute units 4 tasks of cost 1.
+  The increased granularity enables dynamic load balancing at the cost of increased 
+  scheduling overheads.}
 }
 
 \newglossaryentry{execution stream}
 {
   type=glossary,
   name={execution stream},
-  description={\todo{define}},
+  description={A top-level task (no predecessors) that is guaranteed to make forward progress.
+  No other restrictions apply. An execution stream (being a \gls{task}) may communicate
+  and may be interrupted. Execution streams are often part of an SPMD launch and therefore
+  automatically given a unique integer ID for each particular stream. We use the term rank
+  for this unique ID to match MPI terminology.}
 }
 
 \newglossaryentry{process}
@@ -149,7 +153,8 @@
   type=glossary,
   name={process},
   plural={processes},
-  description={\todo{define}},
+  description={Used here as a process in the UNIX sense. Each process will have its own address space and global variables.
+    The process begins from a singly-defined int main(...) function.}
 }
 
 \newglossaryentry{deferred execution}
@@ -164,7 +169,7 @@
 {
   type=glossary,
   name={deferred work},
-  description={Work
+  description={See \gls{deferred task}. Work
 performed by code inside the capturing lambda passed to the
 \codelink{create_work} construct (as well as other deferred constructs which
 may be added to future versions of the specification)},
@@ -173,8 +178,13 @@ may be added to future versions of the specification)},
 \newglossaryentry{deferred task}
 {
   type=glossary,
-  name={deferred work},
-  description={\todo{define}}
+  name={deferred task},
+  description={See \gls{deferred work}. A \gls{task} instantiated in the application code
+  which, instead of executing immediately as would be done in a sequential C++ code,
+  is delayed while other tasks execute and are created.
+  The term is applied to tasks that, even once created, immediately execute.
+  A more precise term would be ``deferrable task'', but without ambiguity
+  we use the adjective deferred to match previous literature.}
 }
 
 \newglossaryentry{captured work}
@@ -195,8 +205,22 @@ may be added to future versions of the specification)},
 {
   type=glossary,
   name={continuing context},
-  description={the code after a \codelink{create_work}},
+  description={}
 }
+%\newglossaryentry{continuing context}
+%{
+%  type=glossary,
+%  name={continuing context},
+%  description={the code in the outer scope after a \codelink{create_work}},
+%  %\begin{verbatim}
+%  %//outer scope predecessor context
+%  %create_work([=]{
+%  %  //inner scope captured context
+%  %})
+%  %//outer scope continuing context
+%  %\end{verbatim}
+%  %},
+%}
 
 \newglossaryentry{deferred context}
 {
@@ -209,7 +233,8 @@ may be added to future versions of the specification)},
 {
   type={glossary},
   name={slicing},
-  description={\todo{yeah, something about data subsets}},
+  description={A subset of an array. The slice can either be across array indices or, if each array entry, a subset of the fields within each class.  Slices are defined only abstractly here, as slices may be in-place, referring to the original array data
+  or the slice may create a copy of values.}
 }
 
 \newglossaryentry{interference test}
@@ -217,7 +242,10 @@ may be added to future versions of the specification)},
   type={glossary},
   name={interference test},
   plural={interference tests},
-  description={\todo{yeah, something about data subsets}},
+  description={A test on two operations to see if they can safely run in parallel or if they conflict and must run in sequence.
+    Two operations on different data never interfere.
+    For operations on the same data, if the operation is read-only, there is no interference.
+    Operations writing and reading the same data do interfere.}
 }
 
 
@@ -225,7 +253,8 @@ may be added to future versions of the specification)},
 {
   type={glossary},
   name={access group},
-  description={\todo{yeah, something about send/recv, broadcast, scopes}},
+  description={An abstract (as of yet unspecified) concept. An access group is a group of tasks that \emph{may} read a particular piece of data. Until all tasks in the access group release read privileges on the data (or a copy is made),
+  the data can not be overwritten.}
 }
 
 \newglossaryentry{keyword argument}
@@ -259,14 +288,8 @@ may be added to future versions of the specification)},
   type=glossary,
   name=rank,
   plural=ranks,
-  description={\todo{define} },
-}
-
-\newglossaryentry{operation}
-{
-  type=glossary,
-  name=operation,
-  description={\todo{define} },
+  description={A unique integer identifier for an \gls{execution stream} created in an SPMD launch.
+  The term rank matches the MPI notion of a unique process ID in an MPI communicator.}
 }
 
 \newglossaryentry{PGAS}
@@ -296,6 +319,15 @@ may be added to future versions of the specification)},
     collection of key-value pairs, such that each possible key appears just
       once in the collection~\cite[associative-array]. Data is retrieved from an associative array
   via its key, rather than its address in the array},
+}
+
+\newglossaryentry{DHT}
+{
+  type=glossary,
+  name={DHT},
+  first={distributed hash table (DHT)},
+  description={An implementation of a key-value map (table) that relies a consistent hash of
+    keys and a partition of the key space to distribute storage of the table across a distributed system.}
 }
 
 \newglossaryentry{key-value store}
@@ -462,10 +494,8 @@ may be added to future versions of the specification)},
       programming model covers how an application \emph{expresses}
     \gls{concurrency}.
 In many cases, the \gls{execution model} and programming model are closely tied
-and therefore not distinguished. In these cases the non-specific term parallel
-model can be applied
-    \todo{Double check to see if we are using parallel vs concurrency correctly
-      in this description} }
+and the same term has been used to describe both an execution model and programming model, e.g.
+CSP (communicating sequential processes).}
 }
 
 \newglossaryentry{front end}
@@ -639,7 +669,8 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
 {
   type=glossary,
   name={barrier},
-  description={\todo{add desc}}
+  description={Generally a synonym for global barrier. A group of processes must reach a particular execution point
+  before any one process can continue.}
 }
 
 \newglossaryentry{phase barrier}
@@ -647,12 +678,9 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
   type=glossary,
   name={phase barrier},
   plural={phase barriers},
-  description={Where
-    \gls{RAW} or \gls{WAR} conflicts may 
-  exist, a \gls{phase barrier} is executed to guarantee safe execution. The
-  term \gls{phase barrier} has previously 
-  been used in Legion~\cite{LegionThesis} and X10~\cite{X10Phasers}. Barriers may be local operations 
-  or global collectives }
+  description={A fine-grained barrier used by a group of processes (potentially only two processes)
+    to agree that a particular phase of execution has completed. Phase barriers are not rigorously defined and
+    may be non-blocking and multiple phase barriers may be active at a given time.}
 }
 
 \newglossaryentry{phased execution}
@@ -823,14 +851,29 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
 {
   type=glossary,
   name={thread pool},
-  description={\todo[inline]{add entry for thread pool}}
+  description={A preallocated (usually already spawned) group of threads used for implementing thread-parallel applications.
+  Instead of allocating a new thread (with corresponding stack resources and initialization overheads),
+  a pool of ready and waiting threads are maintained.
+  Threads are chosen from the thread pool to execute new tasks.}
 }
 
 \newglossaryentry{task} %linked, defined
 {
   type=glossary,
   name={task},
-  description={\todo[inline]{add entry for task}}
+  description={The work unit explicitly instantiated by the application developer through \codelink{create_work}.
+  Currently a task has no restrictions on behavior, other than a gurantee of forward progress.
+  It can be interrupted and communicate (indirectly through coordination) with other tasks.
+  The fundamental (indivisible and interruptible) work unit (\gls{operation}) is not instantiated directly
+  in the application. Thus tasks are the more fundamental concept in the programming model.},
+}
+
+\newglossaryentry{operation} %linked, defined
+{
+  type=glossary,
+  name={operation},
+  description={The fundamental, indivisible (not-interruptible) work unit.
+  Operations are closed, unable to communicate with other operations and unable to add/release variables.}
 }
 
 \newglossaryentry{task parallelism} %linked, defined
@@ -1345,7 +1388,28 @@ facilitate AMT design space characterization and definition, accelerating the de
   in massively parallel computing}
 }
 
-\newglossaryentry{Concept}
+\newglossaryentry{vasp}
+{
+  type={glossary},
+  name={VASP},
+  first={versioned asynchronous smart pointer (VASP)},
+  description={a new concept introduced in DARMA. A lightweight wrapper around 
+   an C++ type that enables asynchronous, deferred, out-of-order execution of tasks that
+   use the VASP.  The VASP maintains version information to ensure a logically correct
+   ordering of tasks.}
+}
+
+\newglossaryentry{elastic task}
+{
+  type={glossary},
+  name={elastic task},
+  plural={elastic tasks},
+  description={a task with inherent parallelism, as opposed to a sequential task with no parallelism that will
+    execute serially.  These parallel tasks are termed elastic since they usually involve a flexible amount of parallelism,
+    executing faster as more processors are allocated to running the task.}
+}
+
+\newglossaryentry{concept}
 {
   type={glossary},
   name={concept},
