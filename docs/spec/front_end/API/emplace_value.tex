@@ -27,9 +27,10 @@ void AccessHandle<T>::emplace_value(Args&&... args);
 construction in standard library containers.  See, for instance,
 |std::vector<T>::emplace_back(...)|.  If in-place construction is
 unnecessary or undesired, |set_value()| can be used instead.  
-Note that
-calling |emplace_value()| on a handle requires {\it Modify} immediate
-permissions (see \S~\ref{sec:handlerules}).
+Note that calling |emplace_value()| on a handle requires {\it Modify} immediate
+permissions (see \S~\ref{sec:handlerules}).  If a previously constructed value
+exists (or a default constructed value, if possible) for the value held by the
+|AccessHandle<T>|, it will be destroyed via |T::~T()|.
 
 \paragraph{Code Snippet}\mbox{}\\ 
 \begin{figure}[!h]
@@ -47,18 +48,22 @@ create_work([=]{
 \end{figure}
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\ 
-\todo{Jeremy/David: Is this still an issue?  If so, remove ``0.2 only'', otherwise remove item completely}
 \begin{itemize}
-  \item {\color{red}[0.2 only]} Because the 0.2 spec lacks a means of specifying
-  the constructor of |T| to be called by default, the first usage of
-  every modifiable handle (i.e., the first {|create_work|} capturing the
-  handle) after being setup with |initial_access<T>| should call
-  |emplace_value()| or |set_value()| before performing any
-  operations on the pointed-to object.  In other words, the pointed-to object
-  contains uninitialized memory until the user invokes 
-  |emplace_value(...)| or |set_value()| to construct the object.
-  Failure to do so leads to undefined behavior (just as, for instance,
-  |int x; cout << x;| leads to undefined behavior in C). 
+  \item In the current version of the spec, types that are default constructible
+  will always be default constructed before first use.  For
+  non-default-constructible types, however, memory of the correct size (i.e.,
+  |sizeof(T)|) will only be allocated, but no constructor will be called.  The 
+  user must call |emplace_value(...)| before performing any operations on the data (or risk undefined behavior).
+  %\item {\color{red}[0.2 only]} Because the 0.2 spec lacks a means of
+  % specifying the constructor of |T| to be called by default, the first usage of
+  %every modifiable handle (i.e., the first {|create_work|} capturing the
+  %handle) after being setup with |initial_access<T>| should call
+  %|emplace_value()| or |set_value()| before performing any
+  %operations on the pointed-to object.  In other words, the pointed-to object
+  %contains uninitialized memory until the user invokes 
+  %|emplace_value(...)| or |set_value()| to construct the object.
+  %Failure to do so leads to undefined behavior (just as, for instance,
+  %|int x; cout << x;| leads to undefined behavior in C). 
 \end{itemize}
 
 
