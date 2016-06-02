@@ -387,9 +387,8 @@ associated with that type and a given archive type --- a type T can be described
 as ``serializable with archive type A''.  We've been sloppy about this up to
 this point because it's usually clear from context which archive type we're
 referring to (or if we're referring to a generic archive type given as a
-template parameter).  \todo{Wording here - I can't quite grasp meaning of this. This allows for the development of archive types that, for
-instance, only handle performance sensative types but in a highly performant
-manner. }
+template parameter).  This allows for the development of archive types that, for
+instance, only handle performance sensative types, but do so very efficiently.
 
 \subsection{Implementations for Builtin and Standard Library Types}
 
@@ -401,8 +400,6 @@ compile-time sized arrays of serializable types.  Many of the implementations in
 the current backend are with respect to a generic archive type, but since
 |SimplePackUnpackArchive| is the only archive type currently implemented,
 the code is only tested with this archive thus far.
-
-\todo{How do we serialize primitive types? And why can't a struct by default use same mechanism?}
 
 You can define a serialization for any bitwise copyable, POD type simply by
 specializing |darma_runtime::serialization::serialize_as_pod<T>| to inherit from

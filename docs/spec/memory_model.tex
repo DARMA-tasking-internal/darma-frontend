@@ -29,18 +29,20 @@ Once all read \glspl{handle} are released (go out of scope in \CC{} terms),
 \gls{garbage collection} or \gls{anti-dependency} resolution can occur.
 
 
-In addition to facilitating coordination between \glspl{rank}, \gls{handle} data structures 
-support \gls{sequential semantics} (see Chapter~\ref{chap:translation_layer} for details).
-Here concurrency is critical to the \gls{memory model} and when/how updates data are made visible to parallel threads.  
-Again, within \glspl{task}, the \CC{} \gls{memory model} applies. 
+In addition to facilitating coordination between \glspl{rank}, \gls{handle} data
+structures support \gls{sequential semantics} (see
+Chapter~\ref{chap:translation_layer} for details).
+Here concurrency is critical to the \gls{memory model} and when/how updates data
+are made visible to parallel threads.
+Again, within \glspl{task}, the \CC{} \gls{memory model} applies.
 At the \gls{task}-level (coarse-grained), \gls{DARMA} ensures atomicity of all
-\glspl{task}. 
-The \gls{DARMA} scheduler \todo{Jeremy/David: It seems to me like this sentence
-  should read "DARMA's translation layer enforces", since the runtime is makes
-    dynamic scheduling decisions that preserve data flow obtained by sequential
-    semantics.  }  enforces the \CC{} sequential consistency model at
-the level of \gls{task} in the same way that \CC{} ensures sequential consistency at the level of instructions. 
-\gls{DARMA} understands read/write usages of \glspl{task} and ensures that writes are always visible to subsequent reads - and reads always complete before subsequent writes.  
+\glspl{task}.
+The \gls{DARMA} translation layer enforces the \CC{} sequential consistency
+model at the level of \gls{task} in the same way that \CC{} ensures sequential
+consistency at the level of instructions.
+\gls{DARMA} understands read/write usages of \glspl{task} and ensures that
+writes are always visible to subsequent reads - and reads always complete before
+subsequent writes.
 The use of \glspl{handle} enables this to happen automatically within an
 \gls{execution stream}.
 
