@@ -18,8 +18,7 @@ void darma_runtime::darma_init(int& argc, char**& argv);
 \end{itemize}
 The input parameters are the command line argument count 
 and array arguments provided to main.  
-Note that the \todo{Jeremy/David: should the following be the 
-translation layer will process and remove...} back end will process and remove 
+Note that the back end will process and remove 
 any \gls{DARMA} \gls{back end}-specific arguments from these, leaving any
 application-specific arguments untouched.
 
@@ -51,9 +50,8 @@ None.
 
 \paragraph{Details}\mbox{} 
 Called to signify the end of the \gls{execution stream} that defines a
-\gls{DARMA} \gls{rank}.  At least by the time this function {\em returns}, the \todo{Jeremy/David: again,
-should the followign be the translation layer guarantees...} back end guarantees that all work
-(\glspl{task}) created between the corresponding \codelink{darma_init} call and this
+\gls{DARMA} \gls{rank}.  At least by the time this function {\em returns}, the
+back end guarantees that all work (\glspl{task}) created between the corresponding \codelink{darma_init} call and this
 invocation, as well as all of the decendents of that work, must be
 completed.  No user-level \gls{DARMA} operations are allowed after this call, though
 the implicit invocation of the destructors of \codelink{AccessHandle} objects
