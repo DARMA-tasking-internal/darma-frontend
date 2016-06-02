@@ -85,40 +85,56 @@ TEST_F(TestCreateWork, capture_initial_access) {
 
 
   MockFlow fl_in_1, fl_out_1;
-  use_t* use_1;
+  use_t* use_1, *use_2, *use_3;
 
-  auto ex_1 = expect_initial_access(fl_in_1, fl_out_1, use_1, "hello");
+  Sequence s0, s3;
+  auto ex_1 = expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("hello"), s0, s3);
 
-  // TODO express requirement that register of use2 and use3 must happen before use1 is released
-
-  Sequence s1, s2, s3, s4, s5, s6, s7;
+  Sequence s1, s2;
   MockFlow fl_in_2, fl_out_2;
   MockFlow fl_in_3, fl_out_3;
+
+  // mod-capture of MN
   EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_1), MockRuntime::Input))
-    .Times(1).InSequence(s1, s4)
+    .Times(1).InSequence(s1)
     .WillOnce(Return(&fl_in_2));
-  EXPECT_CALL(*mock_runtime, make_next_flow(Eq(&fl_in_1), MockRuntime::Output))
-    .Times(1).InSequence(s2, s5)
+  EXPECT_CALL(*mock_runtime, make_next_flow(Eq(&fl_in_2), MockRuntime::Output))
+    .Times(1).InSequence(s1)
     .WillOnce(Return(&fl_out_2));
   EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_2), MockRuntime::Input))
-    .Times(1).InSequence(s2, s6)
+    .Times(1).InSequence(s1)
     .WillOnce(Return(&fl_in_3));
   EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_1), MockRuntime::Output))
-    .Times(1).InSequence(s3, s7)
+    .Times(1).InSequence(s1, s2)
     .WillOnce(Return(&fl_out_3));
-  EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify)
-  )).Times(1).InSequence(s4, s5);
-  EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None)
-  )).Times(1).InSequence(s6, s7);
+  EXPECT_CALL(*mock_runtime, register_use(AllOf(
+    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify),
+    // expresses the requirement that register of use2 must
+    // happen before use1 is released
+    UseRefIsNonNull(ByRef(use_1))
+  ))).Times(1).InSequence(s1)
+    .WillOnce(SaveArg<0>(&use_2));
+
+
+  EXPECT_CALL(*mock_runtime, register_use(AllOf(
+    IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None),
+    // expresses the requirement that register of use3 must
+    // happen before use1 is released
+    UseRefIsNonNull(ByRef(use_1))
+  ))).Times(1).InSequence(s2)
+    .WillOnce(SaveArg<0>(&use_3));
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_2))))
+    .Times(1).InSequence(s1, s3);
 
   EXPECT_CALL(*mock_runtime, release_use(
     IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify)
-  )).Times(1).InSequence(s4, s5);
+  )).Times(1).InSequence(s1, s3)
+    .WillOnce(Assign(&use_2, nullptr));
   EXPECT_CALL(*mock_runtime, release_use(
     IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None)
-  )).Times(1).InSequence(s6, s7);
+  )).Times(1).InSequence(s2)
+    .WillOnce(Assign(&use_3, nullptr));
 
 
   {
@@ -137,106 +153,169 @@ TEST_F(TestCreateWork, capture_initial_access) {
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-//
-//TEST_F(TestCreateWork, capture_initial_access_vector) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  Sequence s1, s2, s3;
-//
-//  auto hm1_1 = make_same_handle_matcher();
-//  auto hm2_1 = make_same_handle_matcher();
-//  auto hm1_2 = make_same_handle_matcher();
-//  auto hm2_2 = make_same_handle_matcher();
-//
-//  mock_runtime->save_tasks = true;
-//
-//  EXPECT_CALL(*mock_runtime, register_handle(Truly(hm1_1)))
-//    .InSequence(s1);
-//  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1_1)))
-//    .InSequence(s1);
-//
-//  EXPECT_CALL(*mock_runtime, register_handle(AllOf(Truly(hm2_1), Not(Eq(hm1_1.handle)))))
-//    .InSequence(s1);
-//  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2_1)))
-//    .InSequence(s1, s2);
-//
-//  // Expect continuing context registrations.  Order not specified
-//  EXPECT_CALL(*mock_runtime, register_handle(AllOf(Truly(hm1_2), Not(Eq(hm1_1.handle)))))
-//    .InSequence(s1);
-//  EXPECT_CALL(*mock_runtime, register_handle(AllOf(Truly(hm2_2), Not(Eq(hm2_1.handle)))))
-//    .InSequence(s2);
-//
-//  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-//      in_get_dependencies(hm1_1), needs_write_of(hm1_1), Not(needs_read_of(hm1_1)),
-//      in_get_dependencies(hm2_1), needs_write_of(hm2_1), Not(needs_read_of(hm2_1))
-//  ))).InSequence(s1, s2, s3);
-//
-//  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1_2)))
-//    .InSequence(s1);
-//  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2_2)))
-//    .InSequence(s3);
-//
-//  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1_2)))
-//    .Times(Exactly(1))
-//    .InSequence(s1, s2);
-//  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2_2)))
-//    .Times(Exactly(1))
-//    .InSequence(s3);
-//
-//  {
-//    std::vector<AccessHandle<int>> handles;
-//
-//    handles.push_back(initial_access<int>("hello"));
-//    handles.emplace_back(initial_access<int>("world"));
-//
-//    create_work([=]{
-//      handles[0].set_value(5);
-//      FAIL() << "This code block shouldn't be running in this example";
-//    });
-//
-//  } // handles deleted
-//
-//  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1_1)))
-//    .Times(Exactly(1))
-//    .InSequence(s1);
-//  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2_1)))
-//    .Times(Exactly(1))
-//    .InSequence(s3);
-//
-//  mock_runtime->registered_tasks.clear();
-//}
-//
+
+// Same as the test above, but uses helper
+TEST_F(TestCreateWork, mod_capture_MN_helper) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
+
+  MockFlow fl_in_1, fl_out_1;
+  MockFlow fl_in_2, fl_out_2;
+  MockFlow fl_in_3, fl_out_3;
+  use_t *use_1, *use_2, *use_3;
+
+  Sequence s0, s3;
+  expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("hello"), s_reg_initial, s_release_initial);
+  expect_mod_capture_MN_or_MR(
+    fl_in_1, fl_out_1, use_1,
+    fl_in_2, fl_out_2, use_2,
+    fl_in_3, fl_out_3, use_3,
+    s_reg_captured, s_reg_continuing
+  );
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_2))))
+    .Times(1).InSequence(s_reg_captured, s_release_initial);
+
+  EXPECT_CALL(*mock_runtime, release_use(
+    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify)
+  )).Times(1).InSequence(s_reg_captured, s_reg_initial, s_release_initial);
+  EXPECT_CALL(*mock_runtime, release_use(
+    IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None)
+  )).Times(1).InSequence(s_reg_continuing);
+
+
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work([=]{
+      // This code doesn't run in this example
+      tmp.set_value(5);
+      FAIL() << "This code block shouldn't be running in this example";
+    });
+
+  } // tmp deleted
+
+  mock_runtime->registered_tasks.clear();
+}
+
 //////////////////////////////////////////////////////////////////////////////////
-//
-//TEST_F(TestCreateWork, ro_capture_RN) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  mock_runtime->save_tasks = true;
-//
-//  Sequence s_hm1;
-//  auto hm1 = make_same_handle_matcher();
-//  expect_handle_life_cycle(hm1, s_hm1, true);
-//
-//  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-//    in_get_dependencies(hm1), Not(needs_write_of(hm1)), needs_read_of(hm1)
-//  )));
-//
-//  {
-//    auto tmp = read_access<int>("hello", version="world");
-//    create_work([=]{
-//      std::cout << tmp.get_value();
-//      FAIL() << "This code block shouldn't be running in this example";
-//    });
-//  }
-//
-//  mock_runtime->registered_tasks.clear();
-//
-//}
-//
+
+TEST_F(TestCreateWork, capture_initial_access_vector) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  Sequence s0, s1;
+
+  MockFlow fl_in_0, fl_out_0;
+  MockFlow fl_in_1, fl_out_1;
+  MockFlow fl_in_cap_2, fl_out_cap_2, fl_in_cap_3, fl_out_cap_3;
+  MockFlow fl_in_con_2, fl_out_con_2, fl_in_con_3, fl_out_con_3;
+  use_t *use_0, *use_1, *use_cap_2, *use_con_2, *use_cap_3, *use_con_3;
+
+  expect_initial_access(fl_in_0, fl_out_0, use_0, make_key("hello"), s0);
+  expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("world"), s0);
+  expect_mod_capture_MN_or_MR(
+    fl_in_0, fl_out_0, use_0,
+    fl_in_cap_2, fl_out_cap_2, use_cap_2,
+    fl_in_con_2, fl_out_con_2, use_con_2,
+    s0, s1
+  );
+  expect_mod_capture_MN_or_MR(
+    fl_in_1, fl_out_1, use_1,
+    fl_in_cap_3, fl_out_cap_3, use_cap_3,
+    fl_in_con_3, fl_out_con_3, use_con_3,
+    s0, s1
+  );
+
+  EXPECT_CALL(*mock_runtime, release_use(
+    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::None)
+  )).Times(1).InSequence(s0);
+  EXPECT_CALL(*mock_runtime, release_use(
+    IsUseWithFlows(&fl_in_con_3, &fl_out_con_3, use_t::Modify, use_t::None)
+  )).Times(1);
+
+  {
+    std::vector<AccessHandle<int>> handles;
+
+    handles.push_back(initial_access<int>("hello"));
+    handles.emplace_back(initial_access<int>("world"));
+
+    create_work([=]{
+      handles[0].set_value(5);
+      FAIL() << "This code block shouldn't be running in this example";
+    });
+
+  } // handles deleted
+
+  EXPECT_CALL(*mock_runtime, release_use(
+    IsUseWithFlows(&fl_in_cap_2, &fl_out_cap_2, use_t::Modify, use_t::Modify)
+  )).Times(1).InSequence(s0);
+  EXPECT_CALL(*mock_runtime, release_use(
+    IsUseWithFlows(&fl_in_cap_3, &fl_out_cap_3, use_t::Modify, use_t::Modify)
+  )).Times(1);
+
+  mock_runtime->registered_tasks.clear();
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, ro_capture_RN) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  Sequence s1, s_release_read;
+
+  MockFlow fl_in_0, fl_out_0;
+  MockFlow fl_in_2, fl_out_2;
+  use_t* use_0, *use_1;
+  expect_read_access(fl_in_0, fl_out_0, use_0, make_key("hello"), make_key("world"), s1, s_release_read);
+
+  // ro-capture of RN
+  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_0), MockRuntime::Input))
+    .Times(1).InSequence(s1)
+    .WillOnce(Return(&fl_in_2));
+  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_2), MockRuntime::OutputFlowOfReadOperation))
+    .Times(1).InSequence(s1)
+    .WillOnce(Return(&fl_out_2));
+
+  EXPECT_CALL(*mock_runtime, register_use(
+    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Read, use_t::Read)
+  )).Times(1).InSequence(s1)
+    .WillOnce(SaveArg<0>(&use_1));
+
+
+  {
+    auto tmp = read_access<int>("hello", version="world");
+    create_work([=]{
+      std::cout << tmp.get_value();
+      FAIL() << "This code block shouldn't be running in this example";
+    });
+
+    ASSERT_THAT(use_0, NotNull());
+
+  }
+
+  // this should come after the read_access is released (and shouldn't happen until registered_tasks.clear())
+  EXPECT_CALL(*mock_runtime, release_use(
+    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Read, use_t::Read)
+  )).Times(1).InSequence(s1, s_release_read);
+
+  mock_runtime->registered_tasks.clear();
+
+}
+
 //////////////////////////////////////////////////////////////////////////////////
 //
 //#if defined(DEBUG) || !defined(NDEBUG)
