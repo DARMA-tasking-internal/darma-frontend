@@ -11,30 +11,18 @@
 {
   type=glossary,
   name={garbage collection},
-  description={\todo{fix me}},
+  description={Reclaiming (freeing) the memory associate with a variable after it is no longer required.
+    This can occur automatically for reference-counted variables.}
 }
 
 \newglossaryentry{subtask}
 {
   type=glossary,
   name=subtask,
-  description={\todo{fix me}},
+  description={Any task instantiated with \codelink{create_work} will be a subtask of the task running
+    at the time \codelink{create_work} was invoked.  For sequential semantics, a task cannot complete 
+    until all of its subtasks have completed.}
 }
-
-\newglossaryentry{pending}
-{
-  type=glossary,
-  name=pending,
-  description={\todo{fix me}},
-}
-
-\newglossaryentry{ready}
-{
-  type=glossary,
-  name=ready,
-  description={\todo{fix me}},
-}
-
 
 \newglossaryentry{asynchronous}
 {
