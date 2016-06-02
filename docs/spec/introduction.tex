@@ -253,7 +253,7 @@ We use \gls{process} in the usual UNIX sense. Other terms are:
   of many \glspl{task}, and, like \glspl{task}, is guaranteed to make forward progress.
   All \glspl{execution stream} are \glspl{task}, but \glspl{execution stream} specifically 
   have no parent \gls{task} and are the root of an independent \gls{task-DAG}
-  \todo{should this be CDAG?}.  Each \gls{execution stream} is guaranteed to 
+  \todo{Jeremy: should this be CDAG or task-dag?}  Each \gls{execution stream} is guaranteed to 
   have a unique stack and, any point time, will have a local context of variables.
   A physical \gls{process} (in the UNIX sense) can be running many parallel
   \glspl{execution stream}.  Allowing multiple \glspl{execution stream} per
@@ -336,7 +336,7 @@ Chapter~\ref{chap:translation_layer} we
 provide a description of the \gls{translation layer}, and in
 Chapter~\ref{chap:back_end} we provide the specifics regarding what must be
 supported by each of the \gls{back end} abstract classes in order to implement
-the DARMA specification. In Chapter~\ref{chap:requirements} we include a list
+the \gls{DARMA} specification. In Chapter~\ref{chap:requirements} we include a list
 of application requirements driving the specification (along with a list of the
     applications contributing to the requirements to date).
 We conclude this document with
@@ -344,10 +344,11 @@ Chapter~\ref{chap:evolution}, which includes a brief history of changes between
 previous versions of the specification, along with a list of the planned changes 
 in upcoming versions.
 Appendix~\ref{chap:examples} provides a suite of examples that illustrate the
- \gls{front end} \gls{API} features. Appendix~\ref{chap:vasp} provides
-additional technical details regarding %\gls{vasps}.
-\todo[inline]{Add glossary entry for vasps and uncomment above.}
-Appendix~\ref{chap:DEP} provides information regarding how the broader
+ \gls{front end} \gls{API} features. %Appendix~\ref{chap:vasp} provides
+%additional technical details regarding %\gls{vasps}.
+\todo[inline]{David/Jeremy: currently we are omitting vasp appendix. Just
+checking to make sure that is ok with you}
+Appendix~\ref{chap:dep_template} provides information regarding how the broader
 community can shape the \gls{DARMA} specification and includes a template for 
 a \gls{DEP}. 
 
