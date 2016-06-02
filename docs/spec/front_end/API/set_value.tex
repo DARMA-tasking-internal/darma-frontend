@@ -5,7 +5,8 @@ Set the value of the data pointed to by the handle.
 
 \paragraph{Syntax} \mbox{}\\
 \begin{CppCode}
-void AccessHandle<T>::set_value(value)
+template <typename U>
+void AccessHandle<T>::set_value(U&& value)
 \end{CppCode}
 
 \paragraph{Positional Arguments}\mbox{}\\
@@ -14,11 +15,10 @@ void AccessHandle<T>::set_value(value)
 \end{itemize}
 
 \paragraph{Details}\mbox{}\\
-\todo{Jeremy/David: Is this still true?  If so, remove ``0.2 only'', otherwise remove item completely.}
-{\color{red}[0.2 only]} In the 0.2 spec, this just directly forwards to
-|emplace_value()| so that the relevant copy constructor of {\tt T} is
-called.  Thus, all comments and examples for |emplace_value()| apply
-here.  See \S~\ref{ssec:api_fe_emplace_value} for more.
+This invokes |T::operator=(U&&)| (|T|'s assignment operator to
+a universal reference to |U|) with the argument |value|.  If the type |T| has no
+assignment operator for this type, calling |set_value| will be a compile-time
+error.  If you need to invoke an in-place constructor instead, use |emplace_value|.
 
 \paragraph{Code Snippet}\mbox{}\\
 \begin{figure}[!h]
