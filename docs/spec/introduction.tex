@@ -224,14 +224,13 @@ obtained from the \gls{CDAG}, which captures the data-flow task graph.
 The \gls{CDAG} is thus more general, capturing additional information to
 enable runtime code transformations.\footnote{
 Although beyond the scope of this specification document, the interested reader
-will find numerous works discussing heuristics and order-preserving convex
+will find numerous works discussing heuristics and order-preserving 
 transformations of task graphs that demonstrate the utility of a coarse-grained
 \gls{CDAG} for enabling dynamic runtime optimization of an
-algorithm~\cite{missingCitations}.}\todo{Jeremy: pointers to missing citations
-you added}
+algorithm~\cite{KwokStaticScheduling,VydyanathanMixedParallel,FauziaReuseDistance2013}.
 We reiterate that the \gls{CDAG} is only a concept guiding the design
 of the \gls{back end} \gls{API} and not strictly part of the \gls{DARMA}
-specification.
+specification.}
 
 Finally, we highlight that a \gls{DARMA} executable application must link to a \gls{runtime
   system} that implements the abstract \gls{back end} runtime \gls{API}.
@@ -250,8 +249,8 @@ We use \gls{process} in the usual UNIX sense. Other terms are:
 \item [Execution stream:] An \gls{execution stream} will consist of a sequence
   of many \glspl{task}, and, like \glspl{task}, is guaranteed to make forward progress.
   All \glspl{execution stream} are \glspl{task}, but \glspl{execution stream} specifically 
-  have no parent \gls{task} and are the root of an independent \gls{task-DAG}
-  \todo{should this be CDAG?}.  Each \gls{execution stream} is guaranteed to 
+  have no parent \gls{task} and are the root of an independent task graph.
+  Each \gls{execution stream} is guaranteed to 
   have a unique stack and, any point time, will have a local context of variables.
   A physical \gls{process} (in the UNIX sense) can be running many parallel
   \glspl{execution stream}.  Allowing multiple \glspl{execution stream} per
@@ -316,8 +315,7 @@ previous versions of the specification, along with a list of the planned changes
 in upcoming versions.
 Appendix~\ref{chap:examples} provides a suite of examples that illustrate the
  \gls{front end} \gls{API} features. Appendix~\ref{chap:vasp} provides
-additional technical details regarding %\gls{vasps}.
-\todo[inline]{Add glossary entry for vasps and uncomment above.}
+additional technical details regarding \gls{vasp} semantics.
 Appendix~\ref{chap:DEP} provides information regarding how the broader
 community can shape the \gls{DARMA} specification and includes a template for 
 a \gls{DEP}. 

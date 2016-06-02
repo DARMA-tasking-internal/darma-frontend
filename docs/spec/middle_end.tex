@@ -55,7 +55,6 @@ Two data blocks with the same Handle ID that contain different logical times (us
 Data blocks comprise not just an address, but potentially size and location information such as whether memory is DRAM, HBM, GPU, or remote.
 \item Logical ID: a tuple of Generation and Handle ID. 
 Two Data Handles with the same logical ID must access exactly the same values, but potentially different physical locations. 
-Data with the same ID are ?logically? \todo{``?logically?''} the same. 
 All objects with the same Logical ID are required to have the same Handle ID.
 Thus Logical ID equivalence is a stronger condition than Handle ID equivalence.
 \item Physical ID: a tuple of Address, Generation, and Handle ID (although not required to be implemented as a tuple). 
@@ -168,7 +167,6 @@ we can modify the handle that has been {\it copied from} to increment the
 version, so that later tasks will depend on the completion of earlier
 \inlinecode{create_work} calls that capture the same handle.  Thus, the capture
 mechanism can be used for both dependency detection and sequential semantics.
-\todo[inline]{add proof of concept example}
 
 \subsection{Keyword Arguments}
 \label{sec:kwargs}
