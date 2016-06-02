@@ -50,10 +50,10 @@ type in future implementations.
 
 \paragraph{Details}\mbox{}\\
 This function expresses work to be executed by the \gls{runtime system}.  Any
-\codelink{AccessHandle<T>} variables used in the \inlinecode{LambdaExpression} will be
+\codelink{AccessHandle} variables used in the \inlinecode{LambdaExpression} will be
 captured and made available inside the capturing context as if they were used in
 sequence with previous capture operations on the same \gls{handle}.  Depending on the
-scheduling permissions available to the \codelink{AccessHandle<T>} at the time of
+scheduling permissions available to the \inlinecode{AccessHandle<T>} at the time of
 \codelink{create_work} invocation and on the \inlinecode{ConstraintExpressions...}
 given as arguments, this function call expresses either a {\it read-only
 capture} or a {\it modify capture} operation on a given \gls{handle} (see

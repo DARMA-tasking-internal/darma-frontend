@@ -11,30 +11,18 @@
 {
   type=glossary,
   name={garbage collection},
-  description={\todo{fix me}},
+  description={Reclaiming (freeing) the memory associate with a variable after it is no longer required.
+    This can occur automatically for reference-counted variables.}
 }
 
 \newglossaryentry{subtask}
 {
   type=glossary,
   name=subtask,
-  description={\todo{fix me}},
+  description={Any task instantiated with \codelink{create_work} will be a subtask of the task running
+    at the time \codelink{create_work} was invoked.  For sequential semantics, a task cannot complete 
+    until all of its subtasks have completed.}
 }
-
-\newglossaryentry{pending}
-{
-  type=glossary,
-  name=pending,
-  description={\todo{fix me}},
-}
-
-\newglossaryentry{ready}
-{
-  type=glossary,
-  name=ready,
-  description={\todo{fix me}},
-}
-
 
 \newglossaryentry{asynchronous}
 {
@@ -66,7 +54,7 @@
 {
   type=glossary,
   name={leaf task},
-  description={\todo{fix me}}
+  description={A task with no direct successors, i.e. at the end of a task graph branch},
 }
 
 \newglossaryentry{child task}
@@ -83,14 +71,18 @@
 {
   type=glossary,
   name={scheduling permissions},
-  description={\todo{fix me} }
+  description={The permissions for a handle when scheduling new tasks,
+   but which may not apply immediately. A task may schedule further tasks with read privileges
+   in certain cases even if the data cannot be immediately read.}
 }
 
 \newglossaryentry{immediate permissions}
 {
   type=glossary,
   name={immediate permissions},
-  description={\todo{fix me} }
+  description={The permissions for a handle that applies immediately at the current point in execution.
+    For immediate Read permissions, \inlinecode{handle.get_value()} can be called.
+    For immediate Write permissions, \inlinecode{handle.set_value()} and \inlinecode{handle.get_reference()} can also be called.}
 }
 
 
@@ -193,7 +185,7 @@
 {
   type=glossary,
   name=archive,
-  description={\todo{fixme}}, 
+  description={In DARMA serialization, an object that performs either 1) packing operations, storing serialized values in the archive or 2) unpacking operations, deserializing values stored in the archive.},
 }
 
 \newglossaryentry{capture}
