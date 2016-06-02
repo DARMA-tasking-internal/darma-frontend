@@ -6,9 +6,9 @@
 The main focus of \gls{DARMA} is the \gls{programming model} and corresponding
 \gls{translation layer} that maps a program expressed via a combination of
 \gls{CSP} semantics, \gls{coordination semantics}, and additional \CC{}-embedded task annotations into a generic data-flow based
-description of an algorithm based on deferred tasks.
+description of an algorithm based on \glspl{deferred task}.
 \gls{DARMA} therefore prescribes very little about execution.
-For example, \gls{DARMA} prescribes nothing about the scheduling of tasks nor the implementation 
+For example, \gls{DARMA} prescribes nothing about the scheduling of \glspl{task} nor the implementation 
 of the data structures (e.g., \gls{key-value store}, \gls{tuple space}) required to support \gls{coordination semantics}.
 A \gls{back end} \gls{runtime system} scheduler is therefore free to use, for example,
 either depth-first or breadth-first priorities in deferred tasks (as captured
@@ -20,16 +20,18 @@ requiring that a \gls{back end} \gls{runtime system} preserve the
 \glspl{data-flow dependency} expressed in the application and derived by the
 \gls{translation layer}.
 
-\gls{DARMA} furthermore prescribes nothing about the internals of each task.
-\gls{DARMA} is fully compatible with parallel elastic tasks - tasks with flexible fine-grained parallelism, usually data parallelism.
+\gls{DARMA} furthermore prescribes nothing about the internals of each \gls{task}.
+\gls{DARMA} is fully compatible with parallel \glspl{elastic task} - \gls{task}
+with flexible fine-grained parallelism, usually \gls{data parallelism}.
 For example, depending on dynamic conditions, more or fewer threads may be requested for a GPU kernel.
 Although the \gls{DARMA} \gls{front end} \gls{API} currently only allows expressing task granularity and task data-flow,
-we plan for the \gls{API} to also express task elasticity in future versions.\todo{Janine: add gls about elastic tasks}
+we plan for the \gls{API} to also express \gls{task elasticity} in future versions.
 
-\gls{DARMA}-compliant \gls{back end} \gls{runtime systems} are required to enable an efficient
+\gls{DARMA}-compliant \gls{back end} \glspl{runtime system} are required to enable an efficient
 \gls{spmd} launch of their program, similar to an MPI launch.
 This is based off application developer feedback, which has indicated that 
-two of the most critical challenges for scientific applications with massive data parallelism in a task-based model
+two of the most critical challenges for scientific applications with massive
+\gls{data parallelism} in a task-based model
 include initial problem decomposition and distribution.
 \gls{DARMA}'s efficient \gls{spmd} runtime-based launch requirement 
 will be modified if solutions are developed to support massive \gls{spmd} launches
