@@ -61,27 +61,29 @@ namespace backend {
  *
  *  The life-cycle of a Flow consists of 4 strictly ordered phases.  For some Flow instance flw,
  *
- *  + Creation -- &flw is a pointer returned by any of make_initial_flow(),
- *    make_fetching_flow(), make_same(), or make_next()
- *  + Register -- Each flow is owned by a Use as either input or output. Each Flow will be registered
- *      through Runtime::register_use() before being used in a task or publication.
- *  + Exactly 1 Use association: &flw is either a return value of Use::get_in_flow() or Use::get_out_flow()
- *      for some Use object usage that is an argument to register_use() at
- *      some time after usage was created but before it is released.  To ensure this
- *      strict ordering of the Flow life-cycle, the runtime must enforce
- *      atomicity among register_use(u), runtime.make_next(flw), and
- *      release_use(&u) for any Flow that could be returned by usage.get_in_flow() or
- *      usage.get_out_flow()
- *  + Release -- Each flow is owned by a Use as either input or output. Flows are released through
- *       to Runtime::release_use on the owning Use.  The Flow will never be used directly (or indirectly)
- *       by the translation after calling release_use(). 
- *  + At most one call to runtime.make_next(flw) can happen anytime after creation, but before release.
- *    Any number of calls to runtime.make_same(flw) can happen anytime after creation, but before release.
+ *  + Creation -- `&flw` is a pointer returned by any of `make_initial_flow()`,
+ *      `make_fetching_flow()`, `make_null_flow()`, `make_same_flow()`, `make_forwarding_flow()`, or `make_next_flow()`
+ *  + Registration -- Each flow is owned by a Use as either input or output. Each Use will be registered
+ *      through `Runtime::register_use()` before being used in a task or publication.  All flows have exactly
+ *      one `Use` association in their lifetime; that is, `&flw` is either a return value of `Use::get_in_flow()`
+ *      or `Use::get_out_flow()` for some `Use` object that is an argument to `register_use()` at
+ *      some time after `flw` was created but before it is released.  To ensure this
+ *      strict ordering of the `Flow` life-cycle, the runtime must enforce
+ *      atomicity among `register_use(&u)`, `make_next_flow(&flw, ...)`/`make_forwarding_flow(&flw, ...)`/`make_same_flow(&flw, ...)`,
+ *      `release_use(&u)` for any `Flow` `flw` that could be returned by `u.get_in_flow()` or
+ *      `u.get_out_flow()` for some `Use` `u`.
+ *  + Release -- Each `Flow` is owned by a `Use` as either input or output. `Flow`s are released through
+ *       to `Runtime::release_use()` on the owning `Use`.  The `Flow` will never be used directly (or indirectly)
+ *       by the translation after calling `release_use()`.
+ *  + At most one call to `runtime.make_next_flow(&flw, ...)` can happen anytime after creation, but before release.
+ *       Any number of calls to `runtime.make_same_flow(&flw, ...)` can happen anytime after creation, but before release.
+ *       At most one call to `runtime.make_forwarding_flow(&flw, ...)` can be made in the lifetime of a `Flow` (and
+ *       this call does not preclude a `make_next_flow(&flw, ...)` call also being made)
  *
- *  Two Flow objects, a and b, are considered to consume or produce the same data
- *  if a was constructed using make_same(b) or if b was constructed using make_same(a).
- *  The flow returned by make_same(a), however, is a different object and is therefore
- *  independently modifiable by the backend.
+ *  Two Flow objects, `a` and `b`, are considered to consume or produce the same version of the same data
+ *  if `a` was constructed using `make_same(b)` or if `b` was constructed using `make_same(a)`.
+ *  The flow returned by `make_same(a)`, however, is a different object and is therefore
+ *  has an independent life cycle and is independently modifiable by the backend.
  */
 class Flow {
   public:
