@@ -3,41 +3,46 @@
 \label{sec:mem_model}
 The memory model for \gls{DARMA} encompasses how variables are accessed %(e.g., pointer, iterator, accessor) 
   and when updates become visible to parallel threads (concurrency).  
-Within a \gls{DARMA} execution stream, memory is local or private, and the
+Within a \gls{DARMA} \gls{execution stream}, memory is local or private, and the
 standard \CC{} memory model applies. 
-To share data between execution streams, \gls{DARMA} uses a flat global memory space in
-which data is identified by unique \gls{tuple} identifiers, i.e. a \gls{key-value
+To share data between \glspl{execution stream}, \gls{DARMA} uses a flat global
+\gls{memory space} in which data is identified by unique \gls{tuple} identifiers, i.e. a \gls{key-value
   store} in which keys exist in a \gls{tuple space}.
-Any object published into the \gls{tuple space} can be read/written by any thread/process. 
+Any object published into the \gls{key-value store} can be read/written by any thread/process. 
 
 In \gls{DARMA} a data \gls{handle} is conceptually a \gls{reference counted pointer} into the
-\gls{tuple space}.  
-Data \glspl{handle} are used to manage the
+\gls{key-value store}.  Data \glspl{handle} are used to manage the
 complexities associated with \gls{task parallelism} and inter-\gls{rank} communication.  
 When data needs to be made accessible off-\codelink{rank}, the application developer 
 \codelink{publish}es the \gls{handle}.  Each \gls{handle} has a globally unique handle ID
-(e.g., a \codelink{key} into the \gls{tuple space}).  
-Before a \codelink{task} can begin, \glspl{handle} identifiers are resolved by the runtime to a
-specific local address. Within the task, the standard \CC{} memory model applies.
+(i.e, a \codelink{key} that is an arbitrary \gls{tuple} of values into the
+ \gls{key-value store}).  
+Before a \codelink{task} can begin, \gls{handle} identifiers are resolved by
+the \gls{runtime system} to a specific local address. Within the task, the standard \CC{} memory model applies.
 
 When publishing, the user must specify an \gls{access group} for that data.  
 Declaring an \gls{access group} informs the \gls{runtime system} that other
-\codelink{rank}s currently need or will need the data,  
-allowing the runtime to manage garbage collection and \gls{anti-dependency} resolution.
+\glspl{rank} currently need or will need the data,  
+allowing the runtime to manage \gls{garbage collection} and \gls{anti-dependency} resolution.
 In most cases, the \gls{access group} will be declared as the number of readers (1, in the case of simple point-to-point send).
 Once all read \glspl{handle} are released (go out of scope in \CC{} terms),
 \gls{garbage collection} or \gls{anti-dependency} resolution can occur.
 
 
-In addition to facilitating coordination between \codelink{rank}s, \gls{handle} data structures 
+In addition to facilitating coordination between \glspl{rank}, \gls{handle} data structures 
 support \gls{sequential semantics} (see Chapter~\ref{chap:translation_layer} for details).
 Here concurrency is critical to the \gls{memory model} and when/how updates data are made visible to parallel threads.  
-Again, within tasks, the \CC{} \gls{memory model} applies. 
-At the task level (coarse-grained), \gls{DARMA} ensures atomicity of all tasks. 
-The \gls{DARMA} scheduler enforces the \CC{} sequential consistency model at
-the level of tasks in the same way that \CC{} ensures sequential consistency at the level of instructions. 
-\gls{DARMA} understands read/write usages of tasks and ensures that writes are always visible to subsequent reads - and reads always complete before subsequent writes.  
-The use of \glspl{handle} enables this to happen automatically within an execution stream.
+Again, within \glspl{task}, the \CC{} \gls{memory model} applies. 
+At the \gls{task}-level (coarse-grained), \gls{DARMA} ensures atomicity of all
+\glspl{task}. 
+The \gls{DARMA} scheduler \todo{Jeremy/David: It seems to me like this sentence
+  should read "DARMA's translation layer enforces", since the runtime is makes
+    dynamic scheduling decisions that preserve data flow obtained by sequential
+    semantics.  }  enforces the \CC{} sequential consistency model at
+the level of \gls{task} in the same way that \CC{} ensures sequential consistency at the level of instructions. 
+\gls{DARMA} understands read/write usages of \glspl{task} and ensures that writes are always visible to subsequent reads - and reads always complete before subsequent writes.  
+The use of \glspl{handle} enables this to happen automatically within an
+\gls{execution stream}.
 
 
 

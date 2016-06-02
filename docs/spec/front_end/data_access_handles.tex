@@ -4,14 +4,15 @@
 %\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
 \section{Data Access Handles}
 \label{sec:handles}
-\inlinecode{AccessHandle<T>} objects are lightweight wrappers around the actual data structure of interest having type T. 
+\codetarget{AccessHandle<T>} objects are lightweight wrappers around the actual data structure of interest having type T. 
 The handles add a control block (metadata) that tracks uses of the handle and enforces
 \gls{sequential semantics}, analogous to smart pointers that wrap pointer types and provide a reference counting control block.
 Critically, this interface is non-intrusive, wrapping any type T without requiring that type to be modified.
 
-\todo[inline]{ahandle command, when not wrapped in inlinecode, doesn't leave space between AccessHandle and the word that follows.}
-Most critically, \inlinecode{AccessHandle} enables deferred access since \ahandle can exist in ready or pending states. 
-Ready and pending are not rigorously defined in the state table for \ahandle in Section \ref{}, but rather guiding concepts.
+Most critically, \ahandle enables deferred access since \ahandle can exist in ready or pending states. 
+Ready and pending are not rigorously defined in the state table for \ahandle in Section \ref{},
+\todo{fix section ref}
+but rather guiding concepts.
 Ready handles can be dereferenced (have their underlying values fetched) and be used immediately to perform work.
 Pending handles cannot be dereferenced, but can still be used to \emph{schedule} or \emph{instantiate} work.
 Thus even if a handle is carrying pending or unresolved data, execution can advance thereby unrolling more of the task graph.
@@ -36,7 +37,7 @@ specified key does not yet exist, and the user intends to
 create this data.% and (potentially) publish it.
 Hence, an \inlinecode{initial_access} data handle is usually 
 followed by a memory allocation, and a value assignment. 
-Remark: Although we could explicitly write out \inlinecode{AccessHandle<T>} in the code below,
+Remark: Although we could explicitly write out \ahandleT in the code below,
 we \emph{strongly encourage} programmers to use the C++ \inlinecode{auto} keyword.
 It will greatly increase code portability for future (potentially backwards-incompatible) versions of DARMA,
 with the additional benefit of decreasing code verbosity.
@@ -103,7 +104,7 @@ Sequential semantics would then require them to write in-order sequentially.
 \label{subsec:publish}
 By default, unless explicitly published, data handles are visible only to tasks
 within the same scope (tasks that have a copy of the actual
-\inlinecode{AccessHandle<T>} object, created as discussed in
+\ahandleT object, created as discussed in
 Section \ref{sec:handles}).
 For data to be globally visible in the global memory space (key-value store),
 the application developer must explicitly \inlinecode{publish} data.  
@@ -115,7 +116,7 @@ Published data, however, is globally visible to all workers and requires more ``
 In order to reclaim the data (garbage collect or resolve anti-dependence), published data must know its access group.
 When all read handles within an access group have been deleted or released \emph{globally}, the published data can be reclaimed.
 The easiest way to declare an access group (and currently supported method) is
-to simply give the total number of additional read \inlinecode{AccessHandle<T>} objects that will be created referring to it.
+to simply give the total number of additional read \ahandleT objects that will be created referring to it.
 In future versions, hints will be supported about which specific tasks will need to read data.
 The publish/fetch mechanism replaces an analogous \inlinecode{MPI_Send/Recv} or even potentially an \inlinecode{MPI_Bcast}.
 In MPI, these function calls force an \inlinecode{MPI_Send} or \inlinecode{MPI_Wait} to block until the runtime guarantees that the data has been delivered.
@@ -194,7 +195,7 @@ Instead, all publications must uniquely identify each publication with a specifi
 \subsection{Keys}
 \label{subsec:keys}
 In the examples in this Section, the \inlinecode{key} to the
-\inlinecode{AccessHandle<T>} has always been a single string. 
+\ahandleT has always been a single string. 
 A \inlinecode{key} in DARMA 
 can be an arbitrary \gls{tuple} of values.  This 
 makes it very easy for the application developer to create an expressive
