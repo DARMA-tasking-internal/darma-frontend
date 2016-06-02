@@ -56,7 +56,7 @@ least by the time this function {\em returns}, the backend guarantees that all w
 (tasks) created between the corresponding \codelink{darma_init} call and this
 invocation, as well as all of the decendents of that work, must be
 completed.  No user-level \gls{DARMA} operations are allowed after this call, though
-the implicit invocation of the destructors of \codelink{AccessHandle<T>} objects
+the implicit invocation of the destructors of \codelink{AccessHandle} objects
 (at, e.g., the final closing brace of \codelink{darma_main}) is allowed.  Must
 be called exactly once for each call of \codelink{darma_init} (which, in turn
 must be called exactly once per \gls{rank} in the current version of the spec).

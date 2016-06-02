@@ -54,7 +54,7 @@
 {
   type=glossary,
   name={leaf task},
-  description={\todo{fix me}}
+  description={A task with no direct successors, i.e. at the end of a task graph branch},
 }
 
 \newglossaryentry{child task}
@@ -71,14 +71,18 @@
 {
   type=glossary,
   name={scheduling permissions},
-  description={\todo{fix me} }
+  description={The permissions for a handle when scheduling new tasks,
+   but which may not apply immediately. A task may schedule further tasks with read privileges
+   in certain cases even if the data cannot be immediately read.}
 }
 
 \newglossaryentry{immediate permissions}
 {
   type=glossary,
   name={immediate permissions},
-  description={\todo{fix me} }
+  description={The permissions for a handle that applies immediately at the current point in execution.
+    For immediate Read permissions, \inlinecode{handle.get_value()} can be called.
+    For immediate Write permissions, \inlinecode{handle.set_value()} and \inlinecode{handle.get_reference()} can also be called.}
 }
 
 

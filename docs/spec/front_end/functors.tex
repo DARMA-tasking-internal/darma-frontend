@@ -89,18 +89,18 @@ struct Compute42 {
 };
 \end{CppCodeNumb}
 As you can see, if we want to be able to schedule more deferred uses of a
-\gls{handle}, we have to take an \codelink{AccessHandle<T>} as a formal
+\gls{handle}, we have to take an \codelink{AccessHandle} as a formal
 parameter.\footnote{Equivalently, an lvalue reference or a \inlinecode{const}
 lvalue reference to an \codelink{AccessHandle} can be given. 
 \codelink{AccessHandle} objects ignore \inlinecode{const}, and the copy
 overhead is negligible (though giving a reference parameter will be {\it
 slightly} more efficient)}  If we want to pass on a read-only \codelink{AccessHandle}, we
-can do so by giving \codelink{ReadAccessHandle<T>}\footnote{Note that
-\codelink{ReadAccessHandle<T>} is identical to \codelink{AccessHandle<T>}
+can do so by giving ReadAccessHandle\footnote{Note that
+is identical to \codelink{AccessHandle}
 in every way except that it is known to be read-only at compile time, whereas
-\codelink{AccessHandle<T>} has unknown compile-time permissions.  All
-compile-time qualified \codelink{AccessHandle<T>} variants are castable to
-\codelink{AccessHandle<T>} (and to any other \codelink{AccessHandle<T>}
+\codelink{AccessHandle} has unknown compile-time permissions.  All
+compile-time qualified \codelink{AccessHandle} variants are castable to
+\codelink{AccessHandle} (and to any other \codelink{AccessHandle}
 variant with greater compile-time permissions)} and the formal parameter type:
 \begin{CppCodeNumb}
 struct PrintIntReadHandle {
@@ -138,7 +138,7 @@ create_work<SetTo42S>(i); // $\no$ compile-error!
 create_work<SetTo42>(j); // $\yes$
 \end{CppCodeNumb}
   \item When the formal parameter is a |const| lvalue reference, the deferred
-    invocation must also take \codelink{AccessHandle<T>} as argument.  
+    invocation must also take \codelink{AccessHandle} as argument.  
     References cannot be made to regular \CC{} variables for \gls{deferred
     execution} since, by deferring,
   the referred to variable may no longer exist.
@@ -178,9 +178,8 @@ int darma_main(...) {
     \gls{DARMA} functors, and doing so may lead to unexpected and/or undefined compile-time
     and/or runtime behavior.  This is related to how \gls{DARMA} detects attributes of
   the formal parameters for functors, but it's also redundant --- you can just
-  use a regular value parameter.  Value parameters can always be moved out of 
-  \todo{Jeremy/David: out of what?} 
-  and because of the way \gls{deferred execution} works, rvalues must be moved into
+  use a regular value parameter.  
+  Because of the way \gls{deferred execution} works, rvalues must be moved into
   storage until the actual invocation occurs anyway, so there is no savings
   from using an rvalue reference over a value parameter.
 \item The \gls{DARMA} functor interface doesn't currently support deferred
