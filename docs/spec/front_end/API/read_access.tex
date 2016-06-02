@@ -13,10 +13,6 @@ published elsewhere in the system.
 darma_runtime::read_access<T>(KeyParts..., version=KeyExpression);
 \end{CppCode}
 
-\todo[inline]{David/Jeremy: is this where we should be including a description of 
-  ReadAccessHandle<T>?  It is referenced in the functor.tex file, but is not
-  included in this section or in AccessHandle section.  It should be in one or
-the other at least}
 
 \paragraph{Positional Arguments}\mbox{}\\
 \begin{itemize}
@@ -36,7 +32,6 @@ The value can be an arbitrary |KeyExpression|.
 \paragraph{Return}\mbox{}\\
 An object of unspecified type that may be treated as an \codelink{AccessHandle<T>}
 with the key given by the arguments.
-\todo{David/Jeremy: should this be ReadAccessHandle<T>?}
 
 \paragraph{Details}\mbox{}\\
 This function creates a \gls{handle} to data that already exists and 
@@ -51,7 +46,6 @@ The \codelink{key}-\codelink{version} requested must eventually match that of a
 In general, \codetarget{read_access} data is migratable and potentially stored off-node.
 
 \paragraph{Code Snippet}\mbox{}\\
-\begin{figure}[!h]
 \begin{CppCodeNumb}
 /* on one rank: */
 auto my_handle1 = initial_access<double>("key_1");
@@ -62,13 +56,26 @@ my_handle1.publish(n_readers=1, version="final");
 
 //...
 
-/* on another rank: */
+/* potentially on another rank: */
 auto readHandle = read_access<double>("key_1", version="final");
 create_work([=]{
   std::cout << readHandle.get_value() << std::endl;
 });
 \end{CppCodeNumb}
-\label{fig:fe_api_readaccess}
-\caption{Basic usage of \protect\codelink{read_access}.}
-\end{figure}
 
+\paragraph{Restrictions and Pitfalls}\mbox{}\\ 
+\begin{itemize}
+  \item Because the actual type returned by |read_access<T>| is
+  unspecified, you should generally use |auto| instead of naming the type on 
+  the left hand side of the assignment (this is generally a good idea in modern
+  \CC{}). In other words,
+  \begin{CppCode}
+	// $\yes$ good, preferred
+	auto my_handle1 = read_access<double>("good", version=17); 
+
+	// $\no$ still compiles, but not preferred (may miss out
+	//  on some future optimizations and compile-time checks)
+	AccessHandle<double> my_handle1 = read_access<double>("bad", version="oops"); 
+  \end{CppCode}
+  For more, see \S~\ref{ssec:ahtraits}.
+\end{itemize}
