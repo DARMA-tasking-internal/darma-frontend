@@ -2,18 +2,19 @@
 
 \section{SPMD support}
 \label{sec:spmd}
-Most applications written in or ported to DARMA will likely have \gls{spmd} as
+Most applications written in or ported to \gls{DARMA} will likely have \gls{spmd} as
 the dominant form of parallelism.
-To simplify the implementation of SPMD-structured codes, the notion of 
+To simplify the implementation of \gls{spmd}-structured codes, the notion of 
 a \gls{rank} is maintained within the \gls{API}.   
-Again, rather than rely entirely on sequential semantics in cases of massive data parallelism,
-many independent parallel execution streams can begin simultaneously and coordinate via the key-value store.
-Each execution stream is assigned a unique rank ID, analogous to the MPI rank assigned to processes in a MPI communicator.
-The initialization and termination of the runtime in each unit 
-is via the calls \inlinecode{darma_init()} and \inlinecode{darma_finalize()}. 
-The total number of \gls{spmd} units are queried with the call \inlinecode{darma_spmd_size()},
-and the rank is queried with \inlinecode{darma_spmd_rank()}. A typical user 
-written main program will look as follows:
+Again, rather than rely entirely on \gls{sequential semantics} in cases of massive data parallelism,
+many independent parallel \glspl{execution stream} can begin simultaneously and
+coordinate via the \gls{key-value store}.
+Each \gls{execution stream} is assigned a unique \gls{rank} ID, analogous to the MPI rank assigned to processes in a MPI communicator.
+The initialization and termination of the runtime in each \gls{execution stream} is via the calls \codelink{darma_init} 
+and \codelink{darma_finalize}. 
+The total number of \gls{spmd} \glspl{execution stream} are queried with the call \codelink{darma_spmd_size},
+and the \gls{rank} ID of a particular \gls{execution stream} is queried with
+    \codelink{darma_spmd_rank}. A typical user written main program will look as follows:
 \begin{CppCode}
 int darma_main(int argc, char**argv){
   darma_init(argc, argv);
@@ -25,20 +26,24 @@ int darma_main(int argc, char**argv){
 }
 \end{CppCode}
 
-The rank is a very useful concept to orchestrate dependencies in a \gls{spmd}
-model since data pertaining to a rank can be associated with keys that utilize
-the rank for uniqueness. The example below illustrates this concept, where
-the rank is integral to the key associated with data originating on that rank.
+The \gls{rank} is a very useful concept to orchestrate dependencies in a \gls{spmd}
+model since data pertaining to a \gls{rank} can be associated with \codelink{key}s that utilize
+the \gls{rank} for uniqueness. The example below illustrates this concept, where
+the \gls{rank} is integral to the \codelink{key} associated with data
+originating on that \gls{rank}.
 \begin{CppCode}
 size_t me = darma_spmd_rank();
 auto data_handle = initial_access<double>("data_key", me);
 \end{CppCode}  
-Note that in DARMA, SPMD ranks are actually just a special kind of task that
-happens to have a name containing the rank, and can be treated as such. 
-However, the similarity to traditional, MPI-style SPMD upon launch should improve the ease of porting and scalability significantly.
+Note that in \gls{DARMA}, \gls{spmd} \glspl{rank} are actually just a special
+kind of \gls{task} that happens to have a name containing the \gls{rank}, and can be treated as such. 
+\todo{Jeremy: Does this sentence about ranks being a special kind of task still make sense given the execution stream
+additions?}
+However, the similarity to traditional, MPI-style \gls{spmd} upon launch should improve the ease of porting and scalability significantly.
 
-We emphasize again that coordinating (rather than communicating) abstracts physical data locations to better support task migration.
+We emphasize again that within \gls{DARMA}'s supprot for \gls{spmd}, 
+coordinating (rather than communicating) abstracts physical data locations to better support task migration.
 Additionally, it removes message-ordering requirements to better support asynchronous data transfers.
-We further reiterate that even though the key-value store appears a data store,
-it can be implemented in a scalable distributed fashion.
+We further reiterate that even though the \gls{key-value store} appears to the
+application developer to be a traditional data store, it can be implemented in a scalable distributed fashion.
 
