@@ -41,12 +41,12 @@ some_function(false, 42, true);
 some_function(arg_a="hello", 42, flag=true);
 \end{CppCode}
 The enabling of Python-like keyword arguments introduces no runtime overhead.
-For those interested in C++ details, keyword arguments are accomplished using \inlinecode{constexpr} class instances with overloaded assignment operator.  
+For those interested in C++ details, keyword arguments are accomplished using
+\inlinecode{constexpr} class instances with overloaded assignment operator,
 with arguments passed to the callable using perfect forwarding.
-\todo{Fix this sentence +fragment}
 More implementation details are given in Section \ref{sec:kwargs}.  
 
-\todo{Keywords and namespaces - I don't think we ever resolved this}
+%\todo{Keywords and namespaces - I don't think we ever resolved this}
 %The illusion of Python-like \glspl{keyword argument} is accomplished 
 %using \inlinecode{constexpr} instances
 %of a class with the assignment operator overloaded.  The arguments are passed to the 
