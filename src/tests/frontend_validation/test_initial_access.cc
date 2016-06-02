@@ -90,7 +90,7 @@ TEST_F(TestInitialAccess, call_sequence) {
     .InSequence(s1, s2);
 
   EXPECT_CALL(*mock_runtime, release_use(
-    is_use_with_flows(&f_in_1, &f_out_1, use_t::Modify, use_t::None)
+    IsUseWithFlows(&f_in_1, &f_out_1, use_t::Modify, use_t::None)
   )).InSequence(s1);
 
   {

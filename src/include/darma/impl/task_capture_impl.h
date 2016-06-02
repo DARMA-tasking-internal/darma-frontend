@@ -260,6 +260,8 @@ TaskBase::do_capture(
       // Now add the dependency
       add_dependency(captured.current_use_);
 
+      captured.var_handle_ = source.var_handle_;
+
     }
     else {
       // ignored

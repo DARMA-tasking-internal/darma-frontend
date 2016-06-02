@@ -147,9 +147,10 @@ struct Runnable : public RunnableBase
 {
   private:
   public:
+    // Force it to be an rvalue reference
     explicit
-    Runnable(Callable&& c)
-      : run_this_(std::forward<Callable>(c))
+    Runnable(std::remove_reference_t<Callable>&& c)
+      : run_this_(std::move(c))
     { }
     void run() override { run_this_(); }
 
@@ -164,7 +165,7 @@ struct Runnable : public RunnableBase
     size_t get_index() const override { return index_; }
 
   private:
-    Callable run_this_;
+    std::remove_reference_t<Callable> run_this_;
 };
 
 template <typename Callable>

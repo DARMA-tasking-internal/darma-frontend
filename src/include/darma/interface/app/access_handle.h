@@ -161,6 +161,7 @@ class AccessHandle : public detail::AccessHandleBase {
     operator=(AccessHandle &&other) const noexcept {
       std::swap(var_handle_, other.var_handle_);
       std::swap(current_use_, other.current_use_);
+      value_constructed_ = other.value_constructed_;
       return *this;
     }
 
@@ -251,6 +252,10 @@ class AccessHandle : public detail::AccessHandleBase {
     ////////////////////////////////////////
 
     AccessHandle(AccessHandle &&) noexcept = default;
+
+    AccessHandle(AccessHandle const&& other) noexcept
+      : AccessHandle(std::move(const_cast<AccessHandle&>(other)))
+    { }
 
     template <typename _Ignored=void,
       typename = std::enable_if_t<
@@ -599,6 +604,10 @@ class AccessHandle : public detail::AccessHandleBase {
     FRIEND_TEST(::TestAccessHandle, get_reference);
     FRIEND_TEST(::TestAccessHandle, publish_MN);
     FRIEND_TEST(::TestAccessHandle, publish_MM);
+#endif
+
+#ifdef DARMA_TEST_FRONTEND_VALIDATION_CREATE_WORK
+    FRIEND_TEST(::TestCreateWork, mod_capture_MM);
 #endif
 
 };
