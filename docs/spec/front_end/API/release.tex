@@ -1,7 +1,8 @@
 \subsection{\texttt{=0} or \texttt{release}}
 
 \paragraph{Summary} \mbox{}\\
-Releases the reference to the data held by the handle.
+\codetarget{release} or \codetarget{=0} releases the reference to the data held by the
+\gls{handle}.
 
 \paragraph{Syntax} \mbox{}\\
 These two are equivalent.
@@ -23,11 +24,11 @@ None.
 None.
 
 \paragraph{Details} \mbox{}\\
-Release the reference to the underlying data held by a given handle.  Note that
+Release the reference to the underlying data held by a given \gls{handle}.  Note that
 this effectively only decrements the reference count; the data itself will not
-be deleted unless there are no other existing handles referring to it.  Releasing
+be deleted unless there are no other existing \glspl{handle} referring to it.  Releasing
 at the earliest possible time can help avoid some deadlock situations,
-particularly with published data, and potentially increase concurrency.
+particularly with published data, and potentially increase \gls{concurrency}.
 
 \paragraph{Code Snippet} \mbox{}\\
 \begin{figure}[!h]
@@ -41,7 +42,7 @@ my_handle1.release();
 // ...
 \end{CppCodeNumb}
 \label{fig:fe_api_release}
-\caption{Basic usage of \lstinline|=0| or \lstinline|release|.}
+\caption{Basic usage of \protect\codelink{=0} or \protect\codelink{release}.}
 \end{figure}
 
 

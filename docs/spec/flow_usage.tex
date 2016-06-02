@@ -1,0 +1,87 @@
+%!TEX root = sandReportSpec.tex
+
+\chapter{Rules for Making Flows}
+To better illustrate when particular \inlinecode{make_X_flow} functions are called
+and which Uses they belong to, we provide an illustrative set of code samples.
+We denote permissions as scheduling/immediate e.g. Modify/Read means scheduling privileges of Modify,
+immediate privileges of Read.  We also indicate the Use object associated with a handle as Use(x,y)
+where x and y label the input and output Flow of the Use.
+
+\section{Modify Capture with Immediate-Modify Permissions}
+Consider the following code:
+\begin{CppCode}
+auto handle = initial_access<T>(...);
+...
+//handle has Use(a,b) and Modify/Modify privileges
+create_work([=]{ //modify capture
+  //handle has Use(c,d)
+})
+//handle has Use(e,f)
+\end{CppCode}
+In the code sample above, the Flow objects were created as follows:
+
+\begin{CppCode}
+c = make_forwarding_flow(a, ForwardingChanges);
+d = make_next_flow(c, Output);
+e = make_same_flow(d, Input);
+f = make_same_flow(b, Output);
+\end{CppCode}
+
+\section{Modify Capture without Immediate Privileges}
+\begin{CppCode}
+auto handle = initial_access<T>(...);
+...
+//handle has Use(a,b) and Modify/None privileges
+create_work([=]{ //modify capture
+  //handle has Use(c,d)
+})
+//handle has Use(e,f)
+\end{CppCode}
+In the code sample above, the Flow objects were created as follows:
+
+\begin{CppCode}
+c = make_same_flow(a, Input);
+d = make_next_flow(c, Output);
+e = make_same_flow(d, Input);
+f = make_same_flow(b, Output);
+\end{CppCode}
+
+\section{Read Capture with Immediate Modify Privileges}
+\begin{CppCode}
+auto handle = initial_access<T>(...);
+...
+//handle has Use(a,b) and Modify/Modify privileges
+create_work([=]{ //read capture
+  //handle has Use(c,d)
+})
+//handle has Use(e,f) and Modify/Read privileges
+\end{CppCode}
+In the code sample above, the Flow objects were created as follows:
+
+\begin{CppCode}
+c = make_forwarding_flow(a, ForwardingChanges);
+d = make_same_flow(c, OutputFlowOfReadOperation);
+e = make_same_flow(c, Input);
+f = make_same_flow(b, Output);
+\end{CppCode}
+
+\section{Read Capture with Immediate Read Privileges}
+\begin{CppCode}
+auto handle = initial_access<T>(...);
+...
+//handle has Use(a,b) and Read/Read privileges
+create_work([=]{ //read capture
+  //handle has Use(c,d)
+})
+//handle has Use(a,b) and Read/Read privileges
+\end{CppCode}
+In the code sample above, the Flow objects were created as follows:
+
+\begin{CppCode}
+c = make_same_flow(a, Input);
+d = make_same_flow(c, OutputFlowOfReadOperation);
+\end{CppCode}
+In contrast to previous cases, the newly created task does not create a new Use for the continuing context.
+The previous Use is considered to have continued.
+
+

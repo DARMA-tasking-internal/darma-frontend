@@ -5,31 +5,26 @@
 \section{Specification History}
 \label{sec:past}
 Version 0.1 of the specification existed in \gls{API} form only, and
-the documention of that version of the spec differs substantially
+the documention of that version of the specification differs substantially
 enough from the current one that it is not included in this work.
-In this version of the specification:
+In version 0.1 of the specification:
 \begin{compactenum}
 \item all input and output dependencies had to be explicitly enumerated by the application
 developer,
-\item data was passed to all tasks (even inline tasks) via function parameters,
-\item all inputs and outputs to each task were declared using \gls{coordination semantics},
+\item data was passed to all \glspl{task} (even inline \glspl{task}) via function parameters,
+\item all inputs and outputs to each \gls{task} were declared using \gls{coordination semantics},
 \item explicit versioning of inputs/outputs was required to keep data
 logically distinct, and
-\item sequential ordering of statements within DARMA had no significance for task ordering.
+\item sequential ordering of statements within \gls{DARMA} had no significance for task ordering.
 \end{compactenum}
 
  Application developer concerns regarding version 0.1 of the specification
  centered around the 1) verbosity of the approach, 2) the difficulty of
- reasoning about correct program order of tasks, and 3) the fact that 
- \inlinecode{create_work} functioned poorly in the contexts of hierarchical data
+ reasoning about correct program order of \glspl{task}, and 3) the fact that 
+ \codelink{create_work} functioned poorly in the contexts of hierarchical data
  structures and dependencies, like classes with members that were also
  classes.  The first two of these issues are addressed in version \specVersion\ of the
  specification, and the third concern will be addressed in later releases of the specification.
-
-Version 0.2 of the specification existed for the purpose of building up reference backends
-and was not externally released.
-\todo{Janine: please tune this}
-
 
 \section{New Features in \specVersion}
 \label{sec:current}
@@ -38,15 +33,16 @@ In version \specVersion\ of the specification we:
   % DSH: C++ doesn't really have ``introspection'', so I removed this
 \item leverage the \CC\ \gls{capture} mechanism to minimize verbosity of the \gls{front end}
     \gls{API},
-\item introduce a functor interface that is more feature rich than the lambda interface,
-\item provide \gls{sequential semantics} within a \gls{rank} to
+  \item introduce a functor interface that is more feature rich than the
+    \gls{lambda} interface,
+\item provide \gls{sequential semantics} within an \gls{execution stream} to
     facilitate reasoning about program order,
 \item introduce the use of
     \gls{handle} variables to access data in the \gls{key-value store} to limit number of key-value operations for often-used data,
-\item require explicit publication of all data (potentially) required off-node, and
-\item implement implicit versioning within a task/scope based on sequential program order.
-\todo{Jeremy/David: check if this list contains everything new in \specVersion}
-    \end{compactenum}
+\item require explicit publication of all data to the \gls{key-value store} for
+  data shared between \glspl{execution stream}.
+\end{compactenum}
+
 
 
 \section{Planned Features in Future Releases}
@@ -57,39 +53,37 @@ As part of the \gls{co-design} process, this specification will evolve quickly.
 many additional features planned for future incarnations of the specification that
 will be released this calendar year (2016).  These are summarized below:
 
-\todo[inline]{Jeremy/David: When is modification of fetched data going to be possible?}
-\todo[inline]{Jeremy/David: When is support for functors with templated call operators planned?}
-\todo[inline]{Jeremy/David: When is deserialization into polymorphic base class pointers going to be supported?}
-\todo[inline]{Jeremy/David: When is support for generalized ranks planned?}
-\todo[inline]{Jeremy/David: When is support planned for beginning to execute a task with some handles still in a pending state?}
-\todo[inline]{Jeremy: make sure features already listed are under the right spec version}
+%\todo[inline]{Jeremy/David: When is modification of fetched data going to be possible?}
+%\todo[inline]{Jeremy/David: When is support for functors with templated call operators planned?}
 \begin{compactdesc}
 \item[0.3.1:]
-\todo{Jeremy/David: is this the right version number?}
 \begin{compactitem}
 \item Hierarchical \glspl{dependency} (e.g., classes that have dependencies as
 member variables) and containment and aliasing management
 \item Task creation within class member functions
-\item Support for automatic data partitions and collectives
+\item Support for collectives
 \end{compactitem}
 \item[0.4:]
 \begin{compactitem}
-\item Full support for classes in an actor-model mode 
-% DSH: I removed this TODO.  We haven't elaborated on it here because we haven't
-% worked out the details yet.  It seems silly to put a todo in a list of what
-% are essentially todos anyway.
-% \todo[inline]{I don't know what this means - elaborate on this, add details regarding migratability tradeoffs}
-\end{compactitem}
-\item[0.5:]
-\begin{compactitem}
+\item Schedule-only \glspl{handle} for "branch" \glspl{task} that create many other
+  \glspl{task}, but do not read data
 \item Include support for expression of \inlinecode{execution space} and
 \inlinecode{memory space} and assignment of work among these abstract machine
 model concepts
 \item Custom data models supporting arbitrary data slicing/interference tests
 \item Data staging hooks to accompany custom slicing
 \end{compactitem}
+\item[0.5:]
+\begin{compactitem}
+\item \Gls{leaf task} optimizations for \glspl{task} that create no
+  \glspl{subtask}
+\item Load balancing hooks and hints to expose existing backend load balancing algorithms and hints to the user
+\item Serialization of polymorphic classes
+\end{compactitem}
 \item[0.6:]
 \begin{compactitem}
-\item Load balancing hooks and hints to expose existing backend load balancing algorithms and hints to the user
+\item Distributed containers (vectors and maps distributed across execution streams)
+\item Serialization of polymorphic classes
+\item \inlinecode{read_write_access} \gls{fetch}ing of published data
 \end{compactitem}
 \end{compactdesc}

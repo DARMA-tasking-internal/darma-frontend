@@ -5,13 +5,15 @@
 
 \lstMakeShortInline[style=CppCodeInlineStyle]{\|}
 
-The DARMA front end programming model provides an extremely flexible and
-extensible interface for describing serialization and/or layout of C++ types. 
+Any data that is migrated or moved across the network bewteen \glspl{memory space} must be
+first be serialized.
+The \gls{DARMA} \gls{front end} \gls{programming model} provides an extremely flexible and
+extensible interface for describing serialization and/or layout of \CC{} types. 
 In spite of this flexibility, the vast majority of use cases only require the
-understanding and use of one or two very basic abstractions.  However, the DARMA
-serialization interface provides a wide variety of features to handle complex
+understanding and use of one or two very basic abstractions.  However, the
+\gls{DARMA} serialization interface provides a wide variety of features to handle complex
 and corner cases, as well as features to tune and optimize performance-critical
-cases.  The following section describes the DARMA serialization interface,
+cases.  The following section describes the \gls{DARMA} serialization interface,
 beginning with abstractions that handle the vast majority of use cases and
 expanding to progressively more niche features later in the section.
 
@@ -25,9 +27,9 @@ associated sizes.  More details to follow.
 \label{ssec:serbasic}
 
 The most basic and straightforward way to specify serialization of a user type
-in DARMA, and the method that should be used in the vast majority of cases
+in \gls{DARMA}, and the method that should be used in the vast majority of cases
 (with, perhaps, one simple extension discussed below), is providing a publicly
-accessible\footnote{later versions of the spec may allow private
+accessible\footnote{later versions of the specification may allow private
 implementations with a \inlinecode{friend} specification} |serialize| method
 in the user class.  The |serialize| method provided for this purpose should be
 non-|const| and should take a single argument, which in the simplest case will
@@ -53,7 +55,7 @@ class MyClass {
 };
 \end{CppCodeNumb}
 %
-The simplest way to allow DARMA to interact with |MyClass| is to provide
+The simplest way to allow \gls{DARMA} to interact with |MyClass| is to provide
 a |serialize| method in the class definition:
 \begin{CppCodeNumb}
 using Archive = darma_runtime::serialization::SimplePackUnpackArchive;
@@ -71,20 +73,20 @@ on what constitues a ``serializable type'' later).
 
 \subsection{\texttt{SimplePackUnpackArchive}}
 
-DARMA encapsulates advanced serialization behaviors in the archive
-\gls{concept}.  The only archive type fully implemented in the current
+\gls{DARMA} encapsulates advanced serialization behaviors in the \gls{archive}
+\gls{concept}.  The only \gls{archive} type fully implemented in the current
 specification is |SimplePackUnpackArchive|, which performs serialization in the
-most basic and traditional way.  On the sender side, DARMA performs
+most basic and traditional way.  On the sender side, \gls{DARMA} performs
 two serialization passes: one in sizing mode and one in packing mode.  The receiver
 only requires one pass: unpacking.  These modes can be queried using the archive
 object methods |is_sizing()|, |is_packing()|, and |is_unpacking()|, only
-one of which will return true at any given time.  All archive types
+one of which will return true at any given time.  All \gls{archive} types
 implement these methods.
 
 \subsection{Generic Archive Serialization}
 
-As DARMA develops further and as more performance considerations are addressed,
-the DARMA team and our collaborators plan to provide other archive types which
+As \gls{DARMA} evolves and as more performance considerations are addressed,
+the \gls{DARMA} team and our collaborators plan to provide other \gls{archive} types which
 take more advanced serialization strategies, such as enabling \gls{RDMA}
 access to pieces of a type.  In order to write code that can take advantage of
 these features when they become available, the vast majority of user types can
@@ -153,9 +155,9 @@ class MyClass {
 \subsection{Seperate Methods for Seperate Modes}
 If the logic for packing is significantly different from the logic for unpacking,
 the serialization of a |MyClass| object may involve a significant
-number of if statements. For this and other reasons, DARMA allows the user to specify
+number of if statements. For this and other reasons, \gls{DARMA} allows the user to specify
 seperate |pack|, |unpack|, and |compute_size| methods as needed.  Each takes an
-archive object as an argument, and the |pack| and |compute_size| methods must
+\gls{archive} object as an argument, and the |pack| and |compute_size| methods must
 be |const|.  The first example that recomputes |prod_sqrt_| could then be
 rewritten as:
 \begin{CppCodeNumb}
@@ -174,7 +176,7 @@ class MyClass {
 };
 \end{CppCodeNumb}
 The more specialized |pack|, |unpack|, and |compute_size| methods always have
-higher priority than |serialize|, so in this case DARMA will invoke |unpack|
+higher priority than |serialize|, so in this case \gls{DARMA} will invoke |unpack|
 during the unpacking pass while still calling |serialize| in the sizing and
 packing passes.
 
@@ -229,7 +231,7 @@ performance-critical, inner-loop-like code.
 
 \subsection{Serializing Pointers and Ranges}
 
-DARMA also provides a convenient way to serialize iterables of serializable
+\gls{DARMA} also provides a convenient way to serialize iterables of serializable
 objects using |darma_runtime::serialization::range|.  As a simple example:
 \begin{CppCodeNumb}
 template <typename T>
@@ -264,7 +266,7 @@ class MyData {
 \subsection{Non-intrusive Interface}
 
 Classes for which the user cannot define an intrusive |serialize| method (or
-any of the other intrusive methods) for one reason or another can still be
+any of the other intrusive methods), for one reason or another, can still be
 made serializable by defining a specialization (partial or full) of the class
 |darma_runtime::serialization::Serializer<T>| for the type in
 question.\footnote{Generic implementations requiring partial specialization
@@ -329,7 +331,7 @@ argument to the non-intrusive |unpack| method is a pointer to the beginning of a
 chunk of memory of size |sizeof(YourClass)| allocated by the backend, but not
 constructed.  This allows for the unpacking of non-default-constructible
 classes.  The |unpack| method must construct the object at that memory
-location using the C++ placement new.  The syntax of placement new might be a
+location using the \CC{} placement new.  The syntax of placement new might be a
 little strange if you've never seen it before, but once you see it, its use is
 pretty straightforward.  The non-intrusive |Serializer| for |YourClass| can then
 be written as:
@@ -380,28 +382,29 @@ non-intrusive serializations.
 
 \subsection{Definition of ``Serializable''}
 
-Having introduced the archive concept, the intrusive interface, and the
+Having introduced the \gls{archive} \gls{concept}, the intrusive interface, and the
 non-intrusive interface, we're finally ready to formally define ``serializable''
-as DARMA sees it.  DARMA views the serializability of a given type as a property
-associated with that type and a given archive type --- a type T can be described
-as ``serializable with archive type A''.  We've been sloppy about this up to
-this point because it's usually clear from context which archive type we're
-referring to (or if we're referring to a generic archive type given as a
-template parameter).  This allows for the development of archive types that, for
+as \gls{DARMA} sees it.  \gls{DARMA} views the serializability of a given type as a property
+associated with that type and a given \gls{archive} type --- a type
+\inlinecode{T} can be described
+as ``serializable with \gls{archive} type A''.  We've been sloppy about this up to
+this point because it's usually clear from context which \gls{archive} type we're
+referring to (or if we're referring to a generic \gls{archive} type given as a
+template parameter).  This allows for the development of \gls{archive} types that, for
 instance, only handle performance sensative types, but do so very efficiently.
 
 \subsection{Implementations for Builtin and Standard Library Types}
 
-The DARMA translation layer has default |Serializer| implementations for many
+The \gls{DARMA} \gls{translation layer} has default |Serializer| implementations for many
 builtin and standard library types.  Currently this includes anything that meets
 the standard container \gls{concept} (for which the value types are also
-serializable), POD types, |std::pair| of serializable types, and
+serializable), \gls{POD} types, |std::pair| of serializable types, and
 compile-time sized arrays of serializable types.  Many of the implementations in
-the current backend are with respect to a generic archive type, but since
-|SimplePackUnpackArchive| is the only archive type currently implemented,
-the code is only tested with this archive thus far.
+the current backend are with respect to a generic \gls{archive} type, but since
+|SimplePackUnpackArchive| is the only \gls{archive} type currently implemented,
+the code is only tested with this \gls{archive} thus far.
 
-You can define a serialization for any bitwise copyable, POD type simply by
+You can define a serialization for any bitwise copyable, \gls{POD} type simply by
 specializing |darma_runtime::serialization::serialize_as_pod<T>| to inherit from
 |std::true_type|:
 \begin{CppCodeNumb}
@@ -418,10 +421,10 @@ struct serialize_as_pod<MyPlainOldData> : std::true_type { };
 \subsection{Polymorphism}
 
 Deserialization into polymorphic base class pointers is currently not supported
-by the DARMA serialization interface.  If a type is to be used in a context that
-requires DARMA to deserialize it (most importantly, as wrapped by an
-|AccessHandle<T>| or the type of an argument passed to a
-functor-style |create_work| that could be migrated), the concrete type must be
+by the \gls{DARMA} serialization interface.  If a type is to be used in a context that
+requires \gls{DARMA} to deserialize it (most importantly, as wrapped by an
+\codelink{AccessHandle<T>} or the type of an argument passed to a
+functor-style \codelink{create_work} that could be migrated), the concrete type must be
 known at compile time.  Support for this will be forthcoming, but will likely require an intrusive interface.  
 There are a number of other patterns in the programming
 literature that can be used to mimic run-time polymorphism, and we suggest the
@@ -430,7 +433,7 @@ user consider these if necessary.
 \subsection{Serialization Pitfalls}
 
 \begin{itemize}
-  \item Because DARMA detects the various intrusive and non-intrusive
+  \item Because \gls{DARMA} detects the various intrusive and non-intrusive
   |serialize|, |pack|, |unpack|, etc. methods, |const|-incorrectness or an
   otherwise incorrect signature can cause these methods to go undetected and
   lead to unexpected behavior.  For instance,
@@ -450,7 +453,7 @@ class MyClass {
 };
 \end{CppCodeNumb}
 would fail to ever define |prod_sqrt_| because the |unpack| method would not be
-detected and DARMA would fall back on |serialize| for the unpacking process. 
+detected and \gls{DARMA} would fall back on |serialize| for the unpacking process. 
 Most of the common mistakes we anticipate are checked with |static_assert|s, but
 it is impossible to check all possible mistakes.  Care should be taken when this
 issue could arise.  Note that if only |serialize| had been defined incorrectly,

@@ -2,7 +2,7 @@
 \label{ssec:api_fe_emplace_value}
 
 \paragraph{Summary}\mbox{}\\ 
-Construct an object of the type pointed to by an \ahandleT object
+\codetarget{emplace_value} constructs an object of the type pointed to by an \ahandleT object
 (that is, |T|) in place by forwarding the arguments to the constructor
 for |T|.
 
@@ -26,11 +26,11 @@ void AccessHandle<T>::emplace_value(Args&&... args);
 |AccessHandle<T>::emplace_value(...)| mimics the syntax for in-place
 construction in standard library containers.  See, for instance,
 |std::vector<T>::emplace_back(...)|.  If in-place construction is
-unnecessary or undesired, |set_value()| can be used instead.  
-Note that calling |emplace_value()| on a handle requires {\it Modify} immediate
-permissions (see \S~\ref{sec:handlerules}).  If a previously constructed value
+unnecessary or undesired, \codelink{set_value} can be used instead.  
+Note that calling \codelink{emplace_value} on a \gls{handle} requires {\it
+Modify} \gls{immediate permissions} (see \S~\ref{sec:handlerules}).  If a previously constructed value
 exists (or a default constructed value, if possible) for the value held by the
-|AccessHandle<T>|, it will be destroyed via |T::~T()|.
+\codelink{AccessHandle<T>}, it will be destroyed via |T::~T()|.
 
 \paragraph{Code Snippet}\mbox{}\\ 
 \begin{figure}[!h]
@@ -44,12 +44,12 @@ create_work([=]{
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_initialaccess}
-\caption{Basic usage of \lstinline|emplace_value|.}
+\caption{Basic usage of \protect\codelink{emplace_value}.}
 \end{figure}
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\ 
 \begin{itemize}
-  \item In the current version of the spec, types that are default constructible
+  \item In the current version of the specification, types that are default constructible
   will always be default constructed before first use.  For
   non-default-constructible types, however, memory of the correct size (i.e.,
   |sizeof(T)|) will only be allocated, but no constructor will be called.  The 
