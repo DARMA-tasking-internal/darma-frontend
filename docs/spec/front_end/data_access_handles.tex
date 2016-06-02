@@ -248,13 +248,30 @@ The handle can only be used for reads when instantiating deferred work.
 However, the handle is not necessarily initialized and as such cannot be used immediately.
 \end{itemize}
 
+To clarify, consider the following code:
+\begin{CppCode}
+//Predecessor outer state
+create_work([=]{
+  //Capture (inner) state
+})
+//Continuing outer state
+\end{CppCode}
 
-In the outer task, a handle will have an initial pair of scheduling/immediate privileges (predecessor state).
-After the call to create work, the handle's state will have changed, potentially losing some immediate privileges (continuing state).
-As specified currently, execution does not begin inside the deferred work block until a handle becomes ready.
-Inside the \cwork (capture state), the handle's immediate and scheduling privileges will therefore be the same.
+In the outer \gls{task}, a \gls{handle} will have an initial pair of
+scheduling/immediate permissions (predecessor state).
+After the call to \codelink{create_work}, the \gls{handle}'s state will have
+changed, potentially losing some \gls{immediate permissions} within the
+continuing outer state block.
+As specified currently, execution does not begin inside the \gls{captured work}
+block until the \glspl{handle} it uses become \gls{ready}.
+Inside the \cwork (capture state), the \gls{handle}'s immediate and scheduling
+permisssions will therefore remain the same as they were in the predecessor outer
+state block.
 
-Consider the following example:
+Table \ref{tab:immsimp} summarizes the state transitions involving these three handles following \cwork.
+
+To illustrate the importance of requesting the minimum permissions a \gls{task}
+requires, consider the following:
 \begin{CppCode}
 auto float_handle = initial_access<float>("yet_another_float_key");
 ....
@@ -268,7 +285,7 @@ create_work(reads(float_handle), [=] {
 })
 //read-write work down here
 \end{CppCode}
-In this case, subtasks are created that only need read access. 
+In this case, \glspl{subtask} are created that only need read access. 
 Without the \codelink{reads} qualifier, these \glspl{task} could not run in parallel (or out-of-order) since they
 would by default request read-write privileges.
 \Gls{sequential semantics} would then require them to write in-order sequentially.
@@ -277,14 +294,7 @@ Over-requesting privileges will limit the amount of available parallelism in the
 %A \gls{task} may be using a \gls{handle} with read-write privileges created by
 %\codelink{initial_access}
 %and then create a subtask that requires only read privileges.
-Table \ref{tab:immsimp} summarizes the state transitions involving these three handles following \cwork.
-\begin{CppCode}
-//Predecessor outer state
-create_work([=]{
-  //Capture (inner) state
-})
-//Continuing outer state
-\end{CppCode}
+
 
 The distinction between immediate and scheduling permissions is generally not explicit in the application.
 When a handle is created with \inlinecode{initial_acces} or \inlinecode{read_acces},
@@ -300,12 +310,12 @@ More more advances uses of DARMA (and features in future versions), an app devel
 \begin{tabular}{cc|cc|cc}
  \hline
  \multicolumn{2}{c|}{Predecessor State}
- & \multicolumn{2}{c|}{\inlinecode{get_value()}} 
+ & \multicolumn{2}{c|}{\codelink{get_value}} 
  & \multicolumn{2}{c}
  {
-    \specialcell{ \inlinecode{emplace_value()} \\ 
-                  \inlinecode{set_value()}\\
-                  \inlinecode{get_reference()}\\
+    \specialcell{ \codelink{emplace_value} \\ 
+                  \codelink{set_value}\\
+                  \codelink{get_reference}\\
                   } 
  } 
   \\
