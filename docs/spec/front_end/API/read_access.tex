@@ -3,14 +3,20 @@
 \label{ssec:api_fe_read_access}
 
 \paragraph{Summary}\mbox{}\\
-\codetarget{read_access} creates a handle with \text{read-only} access to data that has been or will be
+\codetarget{read_access<T>} creates a \gls{handle} with \text{read-only} access to data that has been or will be
 published elsewhere in the system.
+
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
 /* unspecified, convertible to AccessHandle<T> */
 darma_runtime::read_access<T>(KeyParts..., version=KeyExpression);
 \end{CppCode}
+
+\todo[inline]{David/Jeremy: is this where we should be including a description of 
+  ReadAccessHandle<T>?  It is referenced in the functor.tex file, but is not
+  included in this section or in AccessHandle section.  It should be in one or
+the other at least}
 
 \paragraph{Positional Arguments}\mbox{}\\
 \begin{itemize}
@@ -28,19 +34,21 @@ The value can be an arbitrary |KeyExpression|.
 
 
 \paragraph{Return}\mbox{}\\
-An object of unspecified type that may be treated as an |AccessHandle<T>|
+An object of unspecified type that may be treated as an \codelink{AccessHandle<T>}
 with the key given by the arguments.
+\todo{David/Jeremy: should this be ReadAccessHandle<T>?}
 
 \paragraph{Details}\mbox{}\\
-This function creates a handle to data that already exists and 
+This function creates a \gls{handle} to data that already exists and 
 needs to be accessed with read-only privileges. 
-It takes as input the tuple of values uniquely 
+It takes as input the \gls{tuple} of values uniquely 
 identifying the data that needs to be read.
-Immediately following this function, the handle will have Read scheduling permissions
-and None immediate permissions.
-The key-version requested must eventually match a \inlinecode{publish}.
+Immediately following this function, the \gls{handle} will have Read
+\gls{scheduling permissions} and None \gls{immediate permissions}.
+The \codelink{key}-\codelink{version} requested must eventually match that of a
+\codelink{key}-\codelink{version} that was \codelink{publish}ed.
 
-In general, \inlinecode{read_access} data is migratable and potentially stored off-node.
+In general, \codetarget{read_access} data is migratable and potentially stored off-node.
 
 \paragraph{Code Snippet}\mbox{}\\
 \begin{figure}[!h]
@@ -61,6 +69,6 @@ create_work([=]{
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_readaccess}
-\caption{Basic usage of \texttt{read\_access}.}
+\caption{Basic usage of \protect\codelink{read_access}.}
 \end{figure}
 

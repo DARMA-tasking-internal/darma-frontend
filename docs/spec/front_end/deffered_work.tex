@@ -14,16 +14,13 @@ For inline \glspl{task} (as compared to functor-based \glspl{task}, more
 below), this utilizes the \CC{} \gls{lambda} \gls{capture} mechanism to yield the following syntax:
 
 \begin{CppCode}
-// <-- parent task
+//outer task
 create_work([=]{
   // <-- deferred work in captured context
 });
-// <-- continuing context in parent task
+//continuing context in outer task
 \end{CppCode}
 
-\todo[inline]{David/Jeremy:this is a place to consolidate all of our use of interchangeable
-terms: task, deferred task, deferred work, captured work.  Let's make sure this
-list is complete and slim down the list as appropriate.}
 In \gls{DARMA}, \gls{deferred work} and \gls{task} are generic terms we use for work
 performed by code inside the capturing \gls{lambda}.
 This does not necessarily imply that the \gls{continuing context} (after the \codelink{create_work}) will be
@@ -31,11 +28,11 @@ executed before the \gls{captured work} (note that ``\gls{captured work}'' and
 ``\gls{captured context}'' are two other generic terms we use interchangeably
 with \gls{deferred work}).  
 We highlight here that \gls{deferred work} does not \emph{need} to be deferred.
+A more precise term may therefore be \emph{deferrable} work, but we use deferred to match previous literature.
 If a \gls{task}'s \glspl{precondition} are all satisfied (data is available with correct permissions),
 the \gls{runtime system} may execute it immediately.  
-In fact, the runtime need not execute either the parent continuing context or the child deferred context,
-\todo[inline]{Jeremy: How did you want to finish this sentence?, it was left
-dangling}
+In fact, the runtime may execute the outer continuing context, the inner deferred context, or another context entirely if there are pending tasks.
+
 % DSH merged [=]{ into one line for a couple of reasons; chief reason is we may
 % want to macro this at some point so that it can conditionally be compiled into
 % [=] __cuda_inline__ {  or something like that for GPU use.
@@ -85,7 +82,7 @@ the programmer must be aware of multiple parallel \glspl{execution stream}.
 \gls{DARMA} uses coordination data between parallel \glspl{execution stream},
 rather than exchanging data through \inlinecode{send/recv} pairs. 
 Two \glspl{execution stream} never explicitly exchange data. Instead they
-\codelink{publish} and fetch from a \gls{key-value store}.
+\codelink{publish} and \gls{fetch} from a \gls{key-value store}.
 Coordinating (rather than communicating) abstracts physical data locations to
 better support \gls{task} migration.
 Additionally, it removes message-ordering requirements to better support
@@ -103,31 +100,29 @@ In the example here, variables are not passed down from a \gls{parent task} to
 \glspl{child task}.
 Instead, one \gls{execution stream} produces a value and publishes it to a
 \gls{key-value store}.
-Another \gls{execution stream} reads the value by fetching it from a
+Another \gls{execution stream} reads the value by \gls{fetch}ing it from a
 \gls{key-value store}.
 The processes coordinate with \inlinecode{publish/fetch} pairs similar to
 \inlinecode{send/recv} pairs in
 the \gls{CSP} model of MPI.
 
-\todo[inline]{figure out how to deal with fetch: codelink, inlinecode, or gls with
- explanation that the fact that fetch are done with AccessHandles, do global
- search and update in the document for fetch accordingly}
 \begin{minipage}{0.45\textwidth}
 Execution Stream 0:
 \begin{CppCode}
-Some publish/fetch code
+auto sender = initial_access<int>("counter");
+sender.set_value(42);
+sender.publish(n_readers=1);
 \end{CppCode}
 \end{minipage}
 \begin{minipage}{0.45\textwidth}
 Execution Stream 1:
 \begin{CppCode}
-Some publish/fetch code
+auto recver = read_access<int>("counter");
 \end{CppCode}
 \end{minipage}
-\todo{Jeremy/David: finish this example}
 
 Instead of defining \gls{task} \glspl{precondition} implicitly via sequential order,
 \gls{task} \glspl{precondition} are specified more explicitly by requiring that
-a particular block of data be fetched from the \gls{key-value store}.
+a particular block of data be \gls{fetch}ed from the \gls{key-value store}.
 More on \gls{spmd} programs and parallel \glspl{execution stream} are given in
 Section~\ref{sec:spmd}.

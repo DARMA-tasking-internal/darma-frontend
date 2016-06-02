@@ -1,7 +1,8 @@
 \subsection{\texttt{get\_reference}}
 
 \paragraph{Summary}\mbox{}\\
-Get a non-constant reference to the data pointed to by the handle.
+\codetarget{get_reference} gets a non-constant reference to the data pointed to
+by the \gls{handle}.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
@@ -15,8 +16,8 @@ None.
 A non-constant reference to the data.  
 
 \paragraph{Details}\mbox{}\\
-This method requires {\it Modify} immediate permissions.  See
-\S~\ref{sec:handlerules} for more information on immediate permissions.
+This method requires {\it Modify} \gls{immediate permissions}.  See
+\S~\ref{sec:handlerules} for more information on \gls{immediate permissions}.
 
 \paragraph{Code Snippet}\mbox{}\\
 \begin{figure}[!h]
@@ -27,14 +28,14 @@ create_work([=]{
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_getreference}
-\caption{Basic usage of \lstinline|get_reference|.}
+\caption{Basic usage of \protect\codelink{get_reference}.}
 \end{figure}
 
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\ 
 \begin{itemize}
   \item Do not hold the reference returned by this method across an asyncronous
-  operation on the source handle.  For example, the following results in
+    operation on the source \gls{handle}.  For example, the following results in
   undefined behavior:
   \begin{CppCode}
 	auto h = initial_access<int>("my_key"); 

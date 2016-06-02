@@ -7,19 +7,85 @@
   description={An application programmer interface (API) is set of functions and tools provided by a library developer to allow an application programmer to interact with a specific piece of software or allow a developer to utilize prebuilt functionality}
 }
 
+\newglossaryentry{garbage collection}
+{
+  type=glossary,
+  name={garbage collection},
+  description={Reclaiming (freeing) the memory associate with a variable after it is no longer required.
+    This can occur automatically for reference-counted variables.}
+}
+
+\newglossaryentry{subtask}
+{
+  type=glossary,
+  name=subtask,
+  description={Any task instantiated with \codelink{create_work} will be a subtask of the task running
+    at the time \codelink{create_work} was invoked.  For sequential semantics, a task cannot complete 
+    until all of its subtasks have completed.}
+}
+
+\newglossaryentry{asynchronous}
+{
+  type=glossary,
+  name={asynchronous},
+  description={Asynchronous indicates two operations can happen independently without requirizing synchronization.},
+}
+
+\newglossaryentry{handle}
+{
+  type=glossary,
+  name={handle},
+  description={In DARMA, types are wrapped in a lightweight wrapper we term handle.
+    Handles replace conventional C++ variables as the means for accessing a data value.
+    The handle wrapper provides a control block used by DARMA in creating tasks.},
+}
+
 \newglossaryentry{parent task}
 {
   type=glossary,
   name={parent task},
-  description={\todo{fix me}}
+  description={A predecessor task in a task graph. Successors tasks are \glspl{child task}.
+    More rigorously, in a \gls{dag} representing task-order constraints,
+    parent task means there is a directed edge from parent to child
+    indicating a parent happens-before child relationship.}
+}
+
+\newglossaryentry{leaf task}
+{
+  type=glossary,
+  name={leaf task},
+  description={A task with no direct successors, i.e. at the end of a task graph branch},
 }
 
 \newglossaryentry{child task}
 {
   type=glossary,
   name={child task},
-  description={\todo{fix me}}
+  description={A successor task in a task graph. Predecessor tasks are \glspl{parent task}.
+    More rigorously, in a \gls{dag} representing task-order constraints,
+    child task means there is a directed edge from parent to child
+    indicating a parent happens-before child relationship.}
 }
+
+\newglossaryentry{scheduling permissions}
+{
+  type=glossary,
+  name={scheduling permissions},
+  description={The permissions for a handle when scheduling new tasks,
+   but which may not apply immediately. A task may schedule further tasks with read privileges
+   in certain cases even if the data cannot be immediately read.}
+}
+
+\newglossaryentry{immediate permissions}
+{
+  type=glossary,
+  name={immediate permissions},
+  description={The permissions for a handle that applies immediately at the current point in execution.
+    For immediate Read permissions, \inlinecode{handle.get_value()} can be called.
+    For immediate Write permissions, \inlinecode{handle.set_value()} and \inlinecode{handle.get_reference()} can also be called.}
+}
+
+
 
 \newglossaryentry{concurrency}
 {
@@ -113,6 +179,13 @@
   plural={closures},
   description={A closure is a record storing a function, together with an
     environment.  See~\cite{closure} for more detail},
+}
+
+\newglossaryentry{archive}
+{
+  type=glossary,
+  name=archive,
+  description={In DARMA serialization, an object that performs either 1) packing operations, storing serialized values in the archive or 2) unpacking operations, deserializing values stored in the archive.},
 }
 
 \newglossaryentry{capture}
@@ -213,22 +286,16 @@ may be added to future versions of the specification)},
 {
   type=glossary,
   name={continuing context},
-  description={\todo{fix me}}
+  description={the code in the outer scope after a \codelink{create_work}},
+%  \begin{verbatim}
+%  //outer scope predecessor context
+%  create_work([=]{
+%    //inner scope captured context
+%  })
+%  //outer scope continuing context
+%  \end{verbatim}
+%  },
 }
-%\newglossaryentry{continuing context}
-%{
-%  type=glossary,
-%  name={continuing context},
-%  description={the code in the outer scope after a \codelink{create_work}},
-%  %\begin{verbatim}
-%  %//outer scope predecessor context
-%  %create_work([=]{
-%  %  //inner scope captured context
-%  %})
-%  %//outer scope continuing context
-%  %\end{verbatim}
-%  %},
-%}
 
 \newglossaryentry{deferred context}
 {
@@ -380,21 +447,16 @@ may be added to future versions of the specification)},
   type=glossary,
   name=version,
   plural=versions,
-  description={\todo{fix me}},
-}
-\newglossaryentry{handle}
-{
-  type=glossary,
-  name=handle,
-  plural=handles,
-  description={\todo{fix me}},
+  description={In DARMA, version is specifically a unique tuple key specified by the user to label what
+    version of data is being \gls{publish}ed.}
 }
 
 \newglossaryentry{migratable}
 {
   type=glossary,
   name=migratable,
-  description={\todo{fix me}},
+  description={Migratable is used in DARMA to indicate that something can be serialized,
+   transported or to a remote process, deserialized, and used on that remote process.},
 }
 
 \newglossaryentry{serialization}
@@ -720,15 +782,9 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
       \gls{concurrency}.  
     Once running, tasks do not synchronize because there are no \gls{WAR} conflicts
     to avoid.  This approach often has higher memory requirements, and the
-    necessary \gls{garbage collection} adds complications}
+    necessary garbage collection adds complications}
 }
 
-\newglossaryentry{garbage collection} %linked,
-{
-  type=glossary,
-  name={garbage collection},
-  description={\todo{fix me}}
-}
 \newglossaryentry{runtime system} %linked,
 {
   type=glossary,
@@ -884,6 +940,13 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
   Operations are closed, unable to communicate with other operations and unable to add/release variables}
 }
 
+\newglossaryentry{fetch}
+{
+  type=glossary,
+  name={fetch},
+  description={A fetch operation reads values from the key-value store. Fetches are requests that must be satisfied with a matching publish into the key-value store. In DARMA, fetches implicitly occur when read-only handles are created through \codelink{read_access}.},
+}
+
 \newglossaryentry{precondition}
 {
   type=glossary,
@@ -935,12 +998,6 @@ indicating that (depending on direction of the edge) data is either consumed or 
 }
 }
 
-\newglossaryentry{asynchronous}
-{
-  type=glossary,
-  name=asynchronous,
-  description={\todo{fix me}}
-}
 
 \newglossaryentry{data prefetching}
 {
@@ -1325,7 +1382,7 @@ facilitate AMT design space characterization and definition, accelerating the de
 {
   type={glossary},
   name={POD},
-  first={plain old data},
+  first={plain old data (POD)},
   description={In \CC{}, POD stands for Plain Old Data---that is, a
   class or struct without constructors, destructors and virtual
   members functions and all data members of the class are also POD}
@@ -1442,8 +1499,8 @@ facilitate AMT design space characterization and definition, accelerating the de
   to be used in generic programming.  In C++, there is no language level support
   for concepts (yet), but the idea can still be applied to C++ templates and
   deduced types in the context of API specification.  DARMA performs most of
-  its concept checking using the \inlinecode{void_t} detection
-  idiom.\cite{voidt}} }
+  its concept checking using the \inlinecode{void_t} detection idiom~\cite{DetectionIdiom}.},
+}
 
 
 \newacronym{ACES}{ACES}{Advanced Computing at Extreme Scale}
