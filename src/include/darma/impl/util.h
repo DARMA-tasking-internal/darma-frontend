@@ -129,11 +129,36 @@ struct smart_ptr_traits<std::shared_ptr<InTs...>>
   using shared_from_this_base = std::enable_shared_from_this<Ts...>;
 };
 
+template <typename... InTs>
+struct smart_ptr_traits<std::unique_ptr<InTs...>>
+{
+  template <typename... Ts>
+  struct maker {
+    template <typename... Args>
+    inline auto
+    operator()(Args&&... args) const {
+      return std::make_unique<Ts...>(
+        std::forward<Args>(args)...
+      );
+    }
+  };
+
+};
+
 template <typename T, typename... Args>
 auto
 make_shared(Args&&... args) {
   using ptr_maker_t = typename smart_ptr_traits<
     types::shared_ptr_template<T>
+  >::template maker<T>;
+  return ptr_maker_t{}(std::forward<Args>(args)...);
+}
+
+template <typename T, typename... Args>
+auto
+make_unique(Args&&... args) {
+  using ptr_maker_t = typename smart_ptr_traits<
+    types::unique_ptr_template<T>
   >::template maker<T>;
   return ptr_maker_t{}(std::forward<Args>(args)...);
 }

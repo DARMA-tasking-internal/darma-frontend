@@ -57,9 +57,12 @@ namespace frontend {
 class PublicationDetails {
   public:
     /** @brief  Get the unique version (as a key) of the item being published.
-     *          This version will correspond to a Handle::get_key(). The combination
-     *          of Handle::get_key() and get_version_name() must be globally unique.
-     *  @return A unique version name for the current publication
+     *          The combination of h.get_key() and get_version_name()
+     *          must be globally unique
+     *          for a Handle `h` returned by Use::get_handle() for the use
+     *          given as the first argument to Runtime::publish_use() for which
+     *          this object is the second object
+     *  @return A unique version name for the current publication of a given Handle
      */
     virtual types::key_t const&
     get_version_name() const =0;
@@ -68,8 +71,9 @@ class PublicationDetails {
      *  @brief  Get the number of unique fetches that will be performed.
      *          All N fetches must be complete before the backend can
      *          declare a publication to be finished.
-     *  @return The number of read_access calls that will fetch the combination of key
-     *          and version given here.
+     *
+     *  @return The number of Runtime::make_fetching_flow() calls that will fetch the combination of key
+     *          and version given in the publish_use() call associated with this object
      */
     virtual size_t
     get_n_fetchers() const =0;
