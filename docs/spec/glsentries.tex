@@ -1,9 +1,3 @@
-\newglossaryentry{runtime systems}
-{
-  type=glossary,
-  name={runtime systems},
-  description={}
-}
 \newglossaryentry{API}
 {
   type=glossary,
@@ -11,6 +5,20 @@
   plural={APIs},
   first={application programmer interface (API)},
   description={An application programmer interface (API) is set of functions and tools provided by a library developer to allow an application programmer to interact with a specific piece of software or allow a developer to utilize prebuilt functionality}
+}
+
+\newglossaryentry{parent task}
+{
+  type=glossary,
+  name={parent task},
+  description={\todo{fix me}}
+}
+
+\newglossaryentry{child task}
+{
+  type=glossary,
+  name={child task},
+  description={\todo{fix me}}
 }
 
 \newglossaryentry{concurrency}
@@ -134,7 +142,7 @@
   Rather than have each compute unit execute one task of cost 4,
   each compute units 4 tasks of cost 1.
   The increased granularity enables dynamic load balancing at the cost of increased 
-  scheduling overheads.}
+  scheduling overheads}
 }
 
 \newglossaryentry{execution stream}
@@ -145,7 +153,7 @@
   No other restrictions apply. An execution stream (being a \gls{task}) may communicate
   and may be interrupted. Execution streams are often part of an SPMD launch and therefore
   automatically given a unique integer ID for each particular stream. We use the term rank
-  for this unique ID to match MPI terminology.}
+  for this unique ID to match MPI terminology}
 }
 
 \newglossaryentry{process}
@@ -154,7 +162,7 @@
   name={process},
   plural={processes},
   description={Used here as a process in the UNIX sense. Each process will have its own address space and global variables.
-    The process begins from a singly-defined int main(...) function.}
+    The process begins from a singly-defined int main(...) function}
 }
 
 \newglossaryentry{deferred execution}
@@ -162,7 +170,7 @@
   type=glossary,
   name={deferred execution},
   description={Execution of work is not performed until all dependencies are
-    met.}
+    met}
   }
 
 \newglossaryentry{deferred work}
@@ -184,7 +192,7 @@ may be added to future versions of the specification)},
   is delayed while other tasks execute and are created.
   The term is applied to tasks that, even once created, immediately execute.
   A more precise term would be ``deferrable task'', but without ambiguity
-  we use the adjective deferred to match previous literature.}
+  we use the adjective deferred to match previous literature}
 }
 
 \newglossaryentry{captured work}
@@ -205,7 +213,7 @@ may be added to future versions of the specification)},
 {
   type=glossary,
   name={continuing context},
-  description={}
+  description={\todo{fix me}}
 }
 %\newglossaryentry{continuing context}
 %{
@@ -234,7 +242,7 @@ may be added to future versions of the specification)},
   type={glossary},
   name={slicing},
   description={A subset of an array. The slice can either be across array indices or, if each array entry, a subset of the fields within each class.  Slices are defined only abstractly here, as slices may be in-place, referring to the original array data
-  or the slice may create a copy of values.}
+  or the slice may create a copy of values}
 }
 
 \newglossaryentry{interference test}
@@ -245,7 +253,7 @@ may be added to future versions of the specification)},
   description={A test on two operations to see if they can safely run in parallel or if they conflict and must run in sequence.
     Two operations on different data never interfere.
     For operations on the same data, if the operation is read-only, there is no interference.
-    Operations writing and reading the same data do interfere.}
+    Operations writing and reading the same data do interfere}
 }
 
 
@@ -254,7 +262,7 @@ may be added to future versions of the specification)},
   type={glossary},
   name={access group},
   description={An abstract (as of yet unspecified) concept. An access group is a group of tasks that \emph{may} read a particular piece of data. Until all tasks in the access group release read privileges on the data (or a copy is made),
-  the data can not be overwritten.}
+  the data can not be overwritten}
 }
 
 \newglossaryentry{keyword argument}
@@ -262,7 +270,7 @@ may be added to future versions of the specification)},
   type={glossary},
   name={keyword argument},
   plural={keyword arguments},
-  description={An argument that is passed to a function as a keyword=value.},
+  description={An argument that is passed to a function as a keyword=value},
 }
 
 \newglossaryentry{positional argument}
@@ -271,7 +279,7 @@ may be added to future versions of the specification)},
   name={positional argument},
   plural={positional arguments},
   description={An argument passed to a function, whose corresponding parameter
-    is inferred by the argument's position within the function call.},
+    is inferred by the argument's position within the function call},
 }
 
 \newglossaryentry{perfect forwarding}
@@ -289,7 +297,7 @@ may be added to future versions of the specification)},
   name=rank,
   plural=ranks,
   description={A unique integer identifier for an \gls{execution stream} created in an SPMD launch.
-  The term rank matches the MPI notion of a unique process ID in an MPI communicator.}
+  The term rank matches the MPI notion of a unique process ID in an MPI communicator}
 }
 
 \newglossaryentry{PGAS}
@@ -327,7 +335,7 @@ may be added to future versions of the specification)},
   name={DHT},
   first={distributed hash table (DHT)},
   description={An implementation of a key-value map (table) that relies a consistent hash of
-    keys and a partition of the key space to distribute storage of the table across a distributed system.}
+    keys and a partition of the key space to distribute storage of the table across a distributed system}
 }
 
 \newglossaryentry{key-value store}
@@ -372,21 +380,21 @@ may be added to future versions of the specification)},
   type=glossary,
   name=version,
   plural=versions,
-  description={},
+  description={\todo{fix me}},
 }
 \newglossaryentry{handle}
 {
   type=glossary,
   name=handle,
   plural=handles,
-  description={},
+  description={\todo{fix me}},
 }
 
 \newglossaryentry{migratable}
 {
   type=glossary,
   name=migratable,
-  description={},
+  description={\todo{fix me}},
 }
 
 \newglossaryentry{serialization}
@@ -495,7 +503,7 @@ may be added to future versions of the specification)},
     \gls{concurrency}.
 In many cases, the \gls{execution model} and programming model are closely tied
 and the same term has been used to describe both an execution model and programming model, e.g.
-CSP (communicating sequential processes).}
+CSP (communicating sequential processes)}
 }
 
 \newglossaryentry{front end}
@@ -670,7 +678,7 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
   type=glossary,
   name={barrier},
   description={Generally a synonym for global barrier. A group of processes must reach a particular execution point
-  before any one process can continue.}
+  before any one process can continue}
 }
 
 \newglossaryentry{phase barrier}
@@ -680,7 +688,7 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
   plural={phase barriers},
   description={A fine-grained barrier used by a group of processes (potentially only two processes)
     to agree that a particular phase of execution has completed. Phase barriers are not rigorously defined and
-    may be non-blocking and multiple phase barriers may be active at a given time.}
+    may be non-blocking and multiple phase barriers may be active at a given time}
 }
 
 \newglossaryentry{phased execution}
@@ -719,7 +727,7 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
 {
   type=glossary,
   name={garbage collection},
-  description={}
+  description={\todo{fix me}}
 }
 \newglossaryentry{runtime system} %linked,
 {
@@ -854,7 +862,7 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
   description={A preallocated (usually already spawned) group of threads used for implementing thread-parallel applications.
   Instead of allocating a new thread (with corresponding stack resources and initialization overheads),
   a pool of ready and waiting threads are maintained.
-  Threads are chosen from the thread pool to execute new tasks.}
+  Threads are chosen from the thread pool to execute new tasks}
 }
 
 \newglossaryentry{task} %linked, defined
@@ -865,7 +873,7 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
   Currently a task has no restrictions on behavior, other than a gurantee of forward progress.
   It can be interrupted and communicate (indirectly through coordination) with other tasks.
   The fundamental (indivisible and interruptible) work unit (\gls{operation}) is not instantiated directly
-  in the application. Thus tasks are the more fundamental concept in the programming model.},
+  in the application. Thus tasks are the more fundamental concept in the programming model},
 }
 
 \newglossaryentry{operation} %linked, defined
@@ -873,7 +881,7 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
   type=glossary,
   name={operation},
   description={The fundamental, indivisible (not-interruptible) work unit.
-  Operations are closed, unable to communicate with other operations and unable to add/release variables.}
+  Operations are closed, unable to communicate with other operations and unable to add/release variables}
 }
 
 \newglossaryentry{precondition}
@@ -882,7 +890,7 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
   name={precondition},
   description={When applied to tasks, preconditions are the set of events that must occur before a task can safely run,
     leading to the data the task operates on being in the correct state. Preconditions usually are either other tasks,
-    data staging or copying, or communication operations.}
+    data staging or copying, or communication operations}
 }
 
 \newglossaryentry{task parallelism} %linked, defined
@@ -931,7 +939,7 @@ indicating that (depending on direction of the edge) data is either consumed or 
 {
   type=glossary,
   name=asynchronous,
-  description={}
+  description={\todo{fix me}}
 }
 
 \newglossaryentry{data prefetching}
@@ -1405,7 +1413,14 @@ facilitate AMT design space characterization and definition, accelerating the de
   description={a new concept introduced in DARMA. A lightweight wrapper around 
    an C++ type that enables asynchronous, deferred, out-of-order execution of tasks that
    use the VASP.  The VASP maintains version information to ensure a logically correct
-   ordering of tasks.}
+   ordering of tasks}
+}
+
+\newglossaryentry{task elasticity}
+{
+  type={glossary},
+  name={task elasticity},
+  description={See \gls{elastic task}}
 }
 
 \newglossaryentry{elastic task}
@@ -1415,7 +1430,7 @@ facilitate AMT design space characterization and definition, accelerating the de
   plural={elastic tasks},
   description={a task with inherent parallelism, as opposed to a sequential task with no parallelism that will
     execute serially.  These parallel tasks are termed elastic since they usually involve a flexible amount of parallelism,
-    executing faster as more processors are allocated to running the task.}
+    executing faster as more processors are allocated to running the task}
 }
 
 \newglossaryentry{concept}
@@ -1427,8 +1442,7 @@ facilitate AMT design space characterization and definition, accelerating the de
   to be used in generic programming.  In C++, there is no language level support
   for concepts (yet), but the idea can still be applied to C++ templates and
   deduced types in the context of API specification.  DARMA performs most of
-  its concept checking using the \inlinecode{void_t} detection idiom [TODO
-  CITATION HERE].}
+  its concept checking using the \inlinecode{void_t} detection idiom \todo{ CITATION HERE}}
 }
 
 
