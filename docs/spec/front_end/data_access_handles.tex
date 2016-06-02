@@ -10,21 +10,19 @@ The \glspl{handle} add a control block (metadata) that tracks uses of the \gls{h
 \gls{sequential semantics}, analogous to smart pointers that wrap pointer types and provide a reference counting control block.
 Critically, this interface is non-intrusive, wrapping any type \inlinecode{T} without requiring that type to be modified.
 
-Most critically, \ahandle enables deferred access since \ahandle can exist in
-\gls{ready} or \gls{pending} states. 
-\Gls{ready} and \gls{pending} are not rigorously defined in the state table for \ahandle in
+Most critically, \ahandle enables deferred access since \ahandle can exist in ready or pending states. 
+Ready and pending are not rigorously defined in the state table for \ahandle in
 Section~\ref{sec:handlerules}, but rather guiding concepts.
-\Gls{ready} \glspl{handle} can be dereferenced (have their underlying values
+Ready \glspl{handle} can be dereferenced (have their underlying values
 \gls{fetch}ed) and be used immediately to perform work.
-\Gls{pending} \glspl{handle} cannot be dereferenced, but can still be used to \emph{schedule} or \emph{instantiate} work.
-Thus even if a \gls{handle} is carrying \gls{pending} or unresolved data, execution can advance thereby unrolling more of the task graph.
+Pending \glspl{handle} cannot be dereferenced, but can still be used to \emph{schedule} or \emph{instantiate} work.
+Thus even if a \gls{handle} is carrying pending or unresolved data, execution can advance thereby unrolling more of the task graph.
 
 This \emph{lookahead} is the key element that enables runtime optimizations.
 Lookahead gives the \gls{runtime system} more complete knowledge of the task graph instead of locally executing step-by-step.
 By looking ahead, the \gls{runtime system} can reorder or migrate \glspl{task} to maximize data locality and improve load balance.
 The most critical conceptual change from standard \CC{} to \gls{DARMA} are
-\gls{pending} variables that enable lookahead, unlike conventional \CC{}
-variables that must always be ``\gls{ready}''.
+pending variables that enable lookahead, unlike conventional \CC{} variables that must always be ``ready''.
 
 \Glspl{handle} can be created three different ways.
 \begin{enumerate}
@@ -76,14 +74,14 @@ create_work([=]{
 \end{CppCode}
 
 Immediately following the \codelink{read_access} function, the \ahandle will be
-\emph{\gls{pending}} instead of \emph{\gls{ready}}.
+\emph{pending} instead of \emph{ready}.
 To enable \codelink{get_value} to be called (put the \gls{handle} in a
-\gls{ready} state), the \gls{handle} must be used inside of a \codelink{create_work}.
+ready state), the \gls{handle} must be used inside of a \codelink{create_work}.
 \cwork defers execution of the code block until the \gls{key-value store}
 resolves the value of \inlinecode{float_handle} and converts it to a
-\gls{ready} state.  This might involve moving data if the \inlinecode{float} is on a remote node.
+ready state.  This might involve moving data if the \inlinecode{float} is on a remote node.
 Remark: future versions of \gls{DARMA} will enable \glspl{task} to begin
-optimistically with some \glspl{handle} still in a \gls{pending} state, but
+optimistically with some \glspl{handle} still in a pending state, but
 this is not supported in the current version of the specification.
 
 In general, any calls to \codelink{get_value} should occur 
@@ -103,32 +101,24 @@ the application developer must explicitly \codelink{publish} data.
 Unpublished data will be reclaimed once the last \gls{handle} referencing it goes out of scope (i.e refcount goes to zero),
 freeing the memory and resolving any anti-dependencies analogous to the
 destructor invocation in \CC{} when a class goes out of scope.  
-Unpublished data can leverage the \gls{sequential semantics} of the application
-for \gls{garbage collection}. \todo[inline]{Jeremy/David: can you update the
-  previous sentence.  Is it that the translation layer leverages sequential
-  semantics for garbage collection? Or, does the runtime system handle it?
-Either way the sentence doesn't quite make sense to me as is.}  
+
 Published data, however, is globally visible to all \glspl{execution stream} and requires more ``permanence.''  
-In order to reclaim the \todo{Jeremy/David, do you mean reclaim the memory
-associated with the data here?} data (garbage collect or resolve
-anti-dependence), published data must know its \gls{access group}.
+In order to resolve anti-dependencies associated with the publish or garbage collect the memory,
+published data must know its \gls{access group}.
 When all read \glspl{handle} within an \gls{access group} have been deleted or
-released \emph{globally}, the published \todo{Jeremy/David: again here, do you mean the
-memory associated with the data?} data can be reclaimed.
+released \emph{globally}, the memory holding the published data can be reclaimed.
 The easiest way to declare an \gls{access group} (and currently the only supported method) is
 to simply give the total number of additional read \ahandleT objects that will
 be created referring to it (recall that read \ahandleT objects cause a
 \gls{fetch} to be performed).
 In future versions, hints will be supported about which specific \glspl{task} will need to read data.
 This \codelink{publish}/\gls{fetch} mechanism replaces an analogous
-\inlinecode{MPI_Send/Recv} or even \todo{Jeremy/David: why the use of
-potentially here? If it supports it, then leave it in. If not, then can we add
-something more descriptive as to why just potentially?} potentially an \inlinecode{MPI_Bcast}.
+\inlinecode{MPI_Send/Recv} or, for a publish with many readers, replaces an \inlinecode{MPI_Bcast}.
 In MPI, these function calls force an \inlinecode{MPI_Send} or
 \inlinecode{MPI_Wait} to block until the \gls{runtime system} guarantees that the data has been delivered.
 An \gls{access group} in \gls{DARMA} provides a similar guarantee.
 Until all readers in an \gls{access group} have received or released their
-data, \gls{DARMA} cannot reclaim (garbage collect, clear anti-dependencies).
+data, \gls{DARMA} cannot garbage collect or clear anti-dependencies.
 
 \begin{CppCode}
 auto float_handle = initial_access<float>("float_key");
@@ -143,7 +133,7 @@ The \codelink{n_readers} specification in the \codelink{publish} call is a
 (associated with \inlinecode{float_key}) will only ever be read once, and hence can be safely garbage collected soon after.  
 This code provides similar functionality to an MPI \inlinecode{send/receive}.
 
-As discussed above, \glspl{handle} can either be \gls{ready} or \gls{pending}. 
+As discussed above, \glspl{handle} can either be ready or pending. 
 In reality, the distinction is more subtle. 
 The ``readiness'' and ``pendingness'' can be different for read usages and write usages.
 Thus a handle can be read-ready, but modify-pending.
@@ -162,7 +152,7 @@ In this scenario, one should use instead
 \begin{CppCode}
 create_work([=]{ h.set_value(...); });
 \end{CppCode}
-to force the \gls{handle} from a \gls{pending} state to a \gls{ready} state.
+to force the \gls{handle} from a pending state to a ready state.
 
 \subsubsection{Publication Versions}
 If a \gls{handle} is going to be published multiple times (or, more specifically, if
@@ -232,28 +222,19 @@ aribitrary \gls{tuple} as a \codelink{key}:
 As alluded to above, \glspl{handle} are assigned states, and these states change 
 based on the operations applied to them.  
 The state of a \gls{handle} encompasses both its read/write permissions and its ``readiness."
-\Gls{pending} \glspl{handle} can only be used for scheduling \glspl{task} while
-\gls{ready} \glspl{handle} can be immediately used to do work.
+Pending \glspl{handle} can only be used for scheduling \glspl{task} while
+ready \glspl{handle} can be immediately used to do work.
 Here we more rigorously divide permissions into two main categories: 
-\todo[inline]{Jeremy/David: I'm struggling some with the phrasing below.  I ist
-  permissions that may be applied to a handle when the application developer is
-instantiating tasks with creatework?}
 \begin{itemize}
   \item[a] {\it Scheduling}: Permissions a \gls{handle} may use when instantiating
   tasks with \codelink{create_work}.
-These permissions apply independent of handle readiness. 
+These permissions apply independent of handle readiness (immediate permissions). 
 Generally, this will be Read (\gls{handle} may only used in read-only
 \glspl{task}) or Modify (\gls{handle} may be used in read-only or read-write
 \glspl{task}). 
 \item[b] {\it Immediate}: Permissions that apply immediately, indicating the
-  ``readiness'' of the \gls{handle}.  Immediate privileges can \todo{Jeremy:
-  this is a typo, right?} ever be greater than Scheduling privileges.
-  A \gls{task} can never have greater permissions doing immediate work than it can for instantiating deferred work.
-  \todo{Jeremy/David: againg confusing phrasing, is it the handle or the task
-  that has the permissions? Also, is it the task/application code applying the
-permissions? Or, the translation layer? IMO, phrasing is off here on
-the last sentence, becausa task should have permissions on one the work it is
-immediately doing?  If my questions aren't clear, we can follow up via phone.  }
+  ``readiness'' of the \gls{handle}.  Immediate privileges can never be greater than Scheduling privileges.
+  A handle within a \gls{task} can never have greater permissions doing immediate work than it can for instantiating deferred work.
 \end{itemize}
 
 For the two methods of creating handles, we have the following initializations.
@@ -304,6 +285,14 @@ create_work([=]{
 })
 //Continuing outer state
 \end{CppCode}
+
+The distinction between immediate and scheduling permissions is generally not explicit in the application.
+When a handle is created with \inlinecode{initial_acces} or \inlinecode{read_acces},
+it is implicitly given immediate permissions of None.
+When a handle is used inside a task instantiated in the application with \inlinecode{create_work},
+the runtime (and translation layer) implicitly guarantees immediate permissions of Read or Write equal to the scheduling permissions.
+For simple cases, the app developer only needs to think of a single permission (not distinguishing scheduling/immediate).
+More more advances uses of DARMA (and features in future versions), an app developer will need to understand both scheduling and immediate permissions.
 
 \begin{table}[!t]
 \begin{center}
