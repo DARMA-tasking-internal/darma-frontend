@@ -876,6 +876,15 @@ and grows conservatively to the maximum allowed \gls{concurrency}}
   Operations are closed, unable to communicate with other operations and unable to add/release variables.}
 }
 
+\newglossaryentry{precondition}
+{
+  type=glossary,
+  name={precondition},
+  description={When applied to tasks, preconditions are the set of events that must occur before a task can safely run,
+    leading to the data the task operates on being in the correct state. Preconditions usually are either other tasks,
+    data staging or copying, or communication operations.}
+}
+
 \newglossaryentry{task parallelism} %linked, defined
 {
   type=glossary,

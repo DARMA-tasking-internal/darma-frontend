@@ -66,11 +66,11 @@ namespace frontend {
  *    + registration -- register_task() is called by moving a unique_ptr to t into the first argument.
  *      At registration time, all of the Use objects returned by the dereference of the iterator
  *      to the iterable returned by t.get_dependencies() must be registered and must not be released at least
- *      until the backend invokes t.run() method
- *    + execution -- the backend calls t.run() once all of the dependent Usees have their required
+ *      until the backend invokes t.run() method.
+ *    + execution -- the backend calls t.run() once all of the dependent Uses have their required
  *      permissions to their data.  By this point (and not necessarily sooner), the backend must have assigned
  *      the return of get_data_pointer_reference() to the beginning of the actual data for any Use
- *      dependencies requiring immediate permissions
+ *      dependencies requiring immediate permissions.
  *    + release -- when Task.run() returns, the task is ready to be released.  The backend may do this by deleting
  *      or resetting the unique_ptr passed to it during registration, which will in turn trigger the ~Task() virtual
  *      method invocation.  At this point (in the task destructor), the frontend is responsible for calling
@@ -114,8 +114,7 @@ class Task {
     virtual const types::key_t&
     get_name() const =0;
 
-    /** @brief returns the name of the task if one has been assigned with set_name(), or
-     *  a reference to a default-constructed Key if not
+    /** @brief sets the unique name of the task
      *
      *  In the current spec this is only used with the outermost task, which is named with
      *  a key of two size_t values: the SPMD rank and the SPMD size.  See darma_backend_initialize()

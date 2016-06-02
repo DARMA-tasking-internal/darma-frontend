@@ -25,7 +25,9 @@ None.
 \paragraph{Details} \mbox{}\\
 Release the reference to the underlying data held by a given handle.  Note that
 this effectively only decrements the reference count; the data itself will not
-be deleted unless there are no other existing handles referring to it.
+be deleted unless there are no other existing handles referring to it.  Releasing
+at the earliest possible time can help avoid some deadlock situations,
+particularly with published data, and potentially increase concurrency.
 
 \paragraph{Code Snippet} \mbox{}\\
 \begin{figure}[!h]
@@ -41,8 +43,5 @@ my_handle1.release();
 \label{fig:fe_api_release}
 \caption{Basic usage of \lstinline|=0| or \lstinline|release|.}
 \end{figure}
-
-\todo[inline]{Perhaps add a comment about why releasing is useful.}
-
 
 

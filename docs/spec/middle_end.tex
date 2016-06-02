@@ -54,9 +54,9 @@ Two data blocks with the same Handle ID that contain different logical times (us
 \item Data Blocks: the actual physical memory allocations where data lives. 
 Data blocks comprise not just an address, but potentially size and location information such as whether memory is DRAM, HBM, GPU, or remote.
 \item Logical ID: a tuple of Generation and Handle ID. 
-Two Data Handles with the same logical ID must access exactly the same values, but potentially different physical locations. 
+Two Data Handles with the same logical ID must access exactly the same values, but potentially different physical locations, and thus are logically the same. 
 All objects with the same Logical ID are required to have the same Handle ID.
-Thus Logical ID equivalence is a stronger condition than Handle ID equivalence.
+Thus, Logical ID equivalence is a stronger condition than Handle ID equivalence.
 \item Physical ID: a tuple of Address, Generation, and Handle ID (although not required to be implemented as a tuple). 
 Two Data Handles with the same Physical ID not only access exactly the same values, but must also access exactly the same memory location. 
 Two logically distinct blocks that happen to access the same memory location at different times do NOT share a Physical ID. 
