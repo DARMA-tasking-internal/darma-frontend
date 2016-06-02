@@ -54,26 +54,24 @@ namespace frontend {
 
 /** @brief Encapsulates the state, permissions, and data reference for a given use of a Handle at a given time.
  *
- *  @todo update this to include publish_use
- *
  *  Use objects have a life cycle with 3 strictly ordered phases.  For some Use instance u,
- *    + Creation/registration -- &u is passed as argument to
- *      register_u().  At this time, u.get_in_flow() and
+ *    + Creation/registration -- `&u` is passed as the argument to
+ *      register_use().  At this time, u.get_in_flow() and
  *      u.get_out_flow() must return unique, valid Flow objects.
  *    + Task or Publish use (up to once in lifetime):
- *      - Task use: For tasks, u can be accessed through the iterable
- *        returned by t.get_dependencies() for some Task object t passed 
- *        to register_task() after u is created and before u is released.
+ *      - Task use: For tasks, `&u` can be accessed through the iterable
+ *        returned by t.get_dependencies() for some Task object t` `passed
+ *        to register_task() after `u` is created and before `u` is released.
  *        At this time, u.immediate_permissions(), u.scheduling_permissions(), 
  *        and u.get_data_pointer_reference() must
  *        return valid values, and these values must remain valid until Runtime::release_use(u) is
  *        called (note that migration may change this time frame in future versions
  *        of the spec).
- *      - Publish use: A single call to Runtime::publish_use indicates may be made for any Use.
- *        There is no corresponding release following a publish.  The Use instance is not guaranteed
- *        to be valid after return from this function. If the publish is deferred,
- *        the backend runtime must extra the necessary Flow and key fields from the Use. 
- *    + Release -- Following a task use (but not a publish use), the translation layer will make 
+ *      - Publish use: A single call to Runtime::publish_use() may be made for any Use.
+ *        The frontend may immediately call release_use() after publish_use().
+ *        If the publish is deferred and has not completed by the time release_use() is called,
+ *        the backend runtime must extract the necessary Flow and key fields from the Use.
+ *    + Release -- Following a task use or a publish use, the translation layer will make
  *        a single call to Runtime::release_use. The Use instance may no longer be valid on return.
  *        The destructor of Use will NOT delete its input and output flow.
  *        The backend runtime is responsible for deleting Flow allocations, which may occur during release.

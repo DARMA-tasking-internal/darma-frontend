@@ -73,7 +73,7 @@ initial_access(
   auto in_flow = detail::backend_runtime->make_initial_flow( var_h.get() );
   auto out_flow = detail::backend_runtime->make_null_flow( var_h.get() );
 
-  return detail::access_attorneys::for_AccessHandle::construct_initial_access<T>(
+  return detail::access_attorneys::for_AccessHandle::construct_access<T>(
     var_h, in_flow, out_flow, detail::HandleUse::Modify, detail::HandleUse::None
   );
 }

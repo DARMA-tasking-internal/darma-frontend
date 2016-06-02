@@ -59,7 +59,7 @@ struct for_AccessHandle {
   // call the private constructors
   template <typename T>
   static AccessHandle<T>
-  construct_initial_access(
+  construct_access(
     types::shared_ptr_template<VariableHandle<T>> var_handle,
     abstract::backend::Flow* in_flow,
     abstract::backend::Flow* out_flow,
@@ -68,11 +68,6 @@ struct for_AccessHandle {
   ) {
     return { var_handle, in_flow, out_flow,
              scheduling_permissions, immediate_permissions };
-  }
-  template <typename T, typename Key>
-  static AccessHandle<T>
-  construct_read_access(Key const& key, Key const& user_version_tag) {
-    return { key, user_version_tag };
   }
 
 };

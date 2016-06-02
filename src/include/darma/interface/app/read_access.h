@@ -68,7 +68,17 @@ read_access(
   helper_t helper;
   types::key_t key = helper.get_key(std::forward<KeyExprParts>(parts)...);
   types::key_t user_version_tag = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
-  return detail::access_attorneys::for_AccessHandle::construct_read_access<U>(key, user_version_tag);
+
+  auto var_h = detail::make_shared<detail::VariableHandle<U>>(key);
+  auto in_flow = detail::backend_runtime->make_fetching_flow( var_h.get(), user_version_tag );
+  auto out_flow = detail::backend_runtime->make_same_flow(
+    in_flow, abstract::backend::Runtime::OutputFlowOfReadOperation
+  );
+
+  return detail::access_attorneys::for_AccessHandle::construct_access<U>(
+    var_h, in_flow, out_flow,
+    detail::HandleUse::Read, detail::HandleUse::None
+  );
 }
 
 

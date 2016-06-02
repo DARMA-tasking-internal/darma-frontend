@@ -59,7 +59,7 @@ class TestInitialAccess
   protected:
 
     virtual void SetUp() {
-      setup_mock_runtime<::testing::StrictMock>();
+      setup_mock_runtime<::testing::NiceMock>();
       TestFrontend::SetUp();
     }
 
@@ -76,18 +76,18 @@ TEST_F(TestInitialAccess, call_sequence) {
 
   mock_backend::MockFlow f_in_1, f_out_1;
 
-  Sequence s1;
+  Sequence s1, s2;
 
   EXPECT_CALL(*mock_runtime, make_initial_flow(_))
     .InSequence(s1)
     .WillOnce(Return(&f_in_1));
 
   EXPECT_CALL(*mock_runtime, make_null_flow(_))
-    .InSequence(s1)
+    .InSequence(s2)
     .WillOnce(Return(&f_out_1));
 
   EXPECT_CALL(*mock_runtime, register_use(_))
-    .InSequence(s1);
+    .InSequence(s1, s2);
 
   EXPECT_CALL(*mock_runtime, release_use(
     is_use_with_flows(&f_in_1, &f_out_1, use_t::Modify, use_t::None)
@@ -102,22 +102,23 @@ TEST_F(TestInitialAccess, call_sequence) {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Same as call_sequence, but uses helper to verify that other uses of helper should be valid
-//TEST_F(TestInitialAccess, call_sequence_helper) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace mock_backend;
+TEST_F(TestInitialAccess, call_sequence_helper) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
 
-//  MockFlow f_in, f_out;
+  MockFlow f_in, f_out;
+  use_t* use_ptr;
 
-//  std::tie(f_in, f_out) = flows_on_initial_access
+  expect_initial_access(f_in, f_out, use_ptr, "hello");
 
+  {
+    auto tmp = initial_access<int>("hello");
+    ASSERT_THAT(use_ptr->get_in_flow(), Eq(&f_in));
+    ASSERT_THAT(use_ptr->get_out_flow(), Eq(&f_out));
+  } // tmp deleted
 
-//  {
-//    auto tmp = initial_access<int>("hello");
-//  } // tmp deleted
-
-//}
-
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -145,7 +146,7 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
 
   // This can come before or after the registration and setup of the new handle
   EXPECT_CALL(*mock_runtime, release_use(
-    is_use_with_flows(&f_in_1, &f_out_1, use_t::Modify, use_t::None)
+    IsUseWithFlows(&f_in_1, &f_out_1, use_t::Modify, use_t::None)
   )).InSequence(s1, s2);
 
 
@@ -162,7 +163,7 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
 
   // This must be the last thing in all sequences
   EXPECT_CALL(*mock_runtime, release_use(
-    is_use_with_flows(&f_in_2, &f_out_2, use_t::Modify, use_t::None)
+    IsUseWithFlows(&f_in_2, &f_out_2, use_t::Modify, use_t::None)
   )).InSequence(s1, s2, s3, s4, s5);
 
   {
