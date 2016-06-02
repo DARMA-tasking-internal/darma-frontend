@@ -10,7 +10,8 @@ The handles add a control block (metadata) that tracks uses of the handle and en
 Critically, this interface is non-intrusive, wrapping any type T without requiring that type to be modified.
 
 Most critically, \ahandle enables deferred access since \ahandle can exist in ready or pending states. 
-Ready and pending are not rigorously defined in the state table for \ahandle in Section \ref{},
+Ready and pending are not rigorously defined in the state table for \ahandle in
+Section \ref{sec:handlerules},
 \todo{fix section ref}
 but rather guiding concepts.
 Ready handles can be dereferenced (have their underlying values fetched) and be used immediately to perform work.
