@@ -79,6 +79,7 @@ class AccessHandle : public detail::AccessHandleBase {
 
     using variable_handle_t = detail::VariableHandle<T>;
     using variable_handle_ptr = types::shared_ptr_template<detail::VariableHandle<T>>;
+    using handle_use_ptr = types::unique_ptr_template<detail::HandleUse>;
 
     using task_t = detail::TaskBase;
     using key_t = types::key_t;
@@ -178,14 +179,14 @@ class AccessHandle : public detail::AccessHandleBase {
 
       // Now check if we're in a capturing context:
       if (capturing_task != nullptr) {
-        // TODO !!! update this
         capturing_task->do_capture<AccessHandle>(*this, copied_from);
       } // end if capturing_task != nullptr
       else {
         // regular copy
         // TODO figure out how this works with respect to who is responsible for destruction
-        var_handle_ = copied_from.var_handle_;
-        current_use_ = copied_from.current_use_;
+        assert(false);  // Should never get here???!?!?!
+        //var_handle_ = copied_from.var_handle_;
+        //current_use_ = copied_from.current_use_;
       }
     }
 
@@ -240,8 +241,9 @@ class AccessHandle : public detail::AccessHandleBase {
       } // end if capturing_task != nullptr
       else {
         // regular copy
-        var_handle_ = copied_from.var_handle_;
-        current_use_ = copied_from.current_use_;
+        assert(false);  // Should never get here???!?!?!
+        //var_handle_ = copied_from.var_handle_;
+        //current_use_ = copied_from.current_use_;
       }
     }
 
@@ -263,7 +265,7 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     operator->() const {
       DARMA_ASSERT_MESSAGE(
-        current_use_.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
+        current_use_->immediate_permissions_ != abstract::frontend::Use::Permissions::None,
         "handle dereferenced in state without immediate access to data, with key: {" << get_key() << "}"
       );
       using return_t_decay = std::conditional_t<
@@ -271,7 +273,7 @@ class AccessHandle : public detail::AccessHandleBase {
         T const,
         T
       >;
-      return static_cast<return_t_decay*>(current_use_.data_);
+      return static_cast<return_t_decay*>(current_use_->data_);
     }
 
     template <typename _Ignored=void,
@@ -287,7 +289,7 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     operator*() const {
       DARMA_ASSERT_MESSAGE(
-        current_use_.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
+        current_use_->immediate_permissions_ != abstract::frontend::Use::Permissions::None,
         "handle dereferenced in state without immediate access to data, with key: {" << get_key() << "}"
       );
       using return_t_decay = std::conditional_t<
@@ -295,7 +297,7 @@ class AccessHandle : public detail::AccessHandleBase {
         T const,
         T
       >;
-      return *static_cast<return_t_decay*>(current_use_.data_);
+      return *static_cast<return_t_decay*>(current_use_->data_);
     }
 
     template <
@@ -313,8 +315,8 @@ class AccessHandle : public detail::AccessHandleBase {
         _can_be_released(),
         "release() called on handle not in releasable state (most likely, uninitialized or already released)"
       );
-      detail::backend_runtime->release_use(&current_use_);
-      current_use_ = detail::HandleUse{};
+      detail::backend_runtime->release_use(current_use_.get());
+      current_use_.reset();
     }
 
     template <
@@ -327,7 +329,7 @@ class AccessHandle : public detail::AccessHandleBase {
     void
     set_value(U&& val) const {
       DARMA_ASSERT_MESSAGE(
-        current_use_.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
+        current_use_->immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
         "set_value() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
       );
       emplace_value(std::forward<U>(val));
@@ -341,7 +343,7 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     emplace_value(Args&&... args) const {
       DARMA_ASSERT_MESSAGE(
-        current_use_.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
+        current_use_->immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
         "emplace_value() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
       );
       // TODO do this more uniformly and/or expose it to the frontend somehow
@@ -349,9 +351,9 @@ class AccessHandle : public detail::AccessHandleBase {
       using allocator_traits_t = std::allocator_traits<alloc_t>;
       alloc_t alloc;
       if (value_constructed_) {
-        allocator_traits_t::destroy(alloc, current_use_.data_);
+        allocator_traits_t::destroy(alloc, (T*)(current_use_->data_));
       }
-      allocator_traits_t::construct(alloc, current_use_.data_, std::forward<Args>(args)...);
+      allocator_traits_t::construct(alloc, (T*)(current_use_->data_), std::forward<Args>(args)...);
       value_constructed_ = true;
     }
 
@@ -364,15 +366,15 @@ class AccessHandle : public detail::AccessHandleBase {
     const T&
     get_value() const {
       DARMA_ASSERT_MESSAGE(
-        current_use_.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
+        current_use_->immediate_permissions_ != abstract::frontend::Use::Permissions::None,
         "get_value() called on handle not in immediately readable state, with key: {" << get_key() << "}"
       );
-      return *static_cast<T const *>(current_use_.data_);
+      return *static_cast<T const *>(current_use_->data_);
     }
 
     const key_t&
     get_key() const {
-      return var_handle_.get_key();
+      return var_handle_->get_key();
     }
 
     template <
@@ -384,10 +386,10 @@ class AccessHandle : public detail::AccessHandleBase {
     T&
     get_reference() const {
       DARMA_ASSERT_MESSAGE(
-        current_use_.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
+        current_use_->immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
         "get_reference() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
       );
-      return *static_cast<T*>(current_use_.data_);
+      return *static_cast<T*>(current_use_->data_);
     }
 
     template <
@@ -403,7 +405,7 @@ class AccessHandle : public detail::AccessHandleBase {
     ) const {
       using detail::HandleUse;
       DARMA_ASSERT_MESSAGE(
-        current_use_.scheduling_permissions_ != HandleUse::None,
+        current_use_->scheduling_permissions_ != HandleUse::None,
         "publish() called on handle that can't schedule at least read usage on data (most likely "
           "because it was already released"
       );
@@ -418,7 +420,7 @@ class AccessHandle : public detail::AccessHandleBase {
 
       auto _pub_same = [&] {
         auto flow_to_publish = detail::backend_runtime->make_same_flow(
-          current_use_.in_flow_,
+          current_use_->in_flow_,
           abstract::backend::Runtime::FlowPropagationPurpose::Input
         );
         detail::HandleUse use_to_publish(
@@ -430,6 +432,7 @@ class AccessHandle : public detail::AccessHandleBase {
           detail::HandleUse::None, detail::HandleUse::Read
         );
 
+        detail::backend_runtime->register_use(&use_to_publish);
         detail::PublicationDetails dets(
           helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
           helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
@@ -440,11 +443,11 @@ class AccessHandle : public detail::AccessHandleBase {
 
       auto _pub_from_modify = [&] {
         auto flow_to_publish = detail::backend_runtime->make_forwarding_flow(
-          current_use_.in_flow_,
+          current_use_->in_flow_,
           abstract::backend::Runtime::FlowPropagationPurpose::ForwardingChanges
         );
         auto next_out = detail::backend_runtime->make_same_flow(
-          current_use_.out_flow_,
+          current_use_->out_flow_,
           abstract::backend::Runtime::FlowPropagationPurpose::Output
         );
         auto next_in = detail::backend_runtime->make_same_flow(
@@ -461,31 +464,32 @@ class AccessHandle : public detail::AccessHandleBase {
           detail::HandleUse::None, detail::HandleUse::Read
         );
 
-        detail::HandleUse new_use(
+        auto new_use = detail::make_unique<detail::HandleUse>(
           var_handle_.get(), next_in, next_out,
-          current_use_.scheduling_permissions_,
+          current_use_->scheduling_permissions_,
           // Downgrade to read
           HandleUse::Read
         );
 
+        detail::backend_runtime->register_use(&use_to_publish);
         detail::PublicationDetails dets(
           helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
           helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
         );
         detail::backend_runtime->publish_use(&use_to_publish, &dets);
 
-        _switch_to_new_use(new_use);
+        _switch_to_new_use(std::move(new_use));
         detail::backend_runtime->release_use(&use_to_publish);
       };
 
-      switch(current_use_.scheduling_permissions_) {
+      switch(current_use_->scheduling_permissions_) {
         case HandleUse::None: {
           // Error message above
           break;
         }
 
         case HandleUse::Read: {
-          switch(current_use_.immediate_permissions_) {
+          switch(current_use_->immediate_permissions_) {
             case HandleUse::None:
             case HandleUse::Read: {
               // Make a new flow for the publication
@@ -501,7 +505,7 @@ class AccessHandle : public detail::AccessHandleBase {
           break;
         }
         case HandleUse::Modify: {
-          switch (current_use_.immediate_permissions_) {
+          switch (current_use_->immediate_permissions_) {
             case HandleUse::None:
             case HandleUse::Read: {
               _pub_same();
@@ -519,22 +523,22 @@ class AccessHandle : public detail::AccessHandleBase {
 
     ~AccessHandle() {
       if(_can_be_released()) {
-        detail::backend_runtime->release_use(&current_use_);
+        detail::backend_runtime->release_use(current_use_.get());
       }
     }
 
    private:
 
-    void _switch_to_new_use(detail::HandleUse& new_use) const {
-      detail::backend_runtime->register_use(&new_use);
+    void _switch_to_new_use(handle_use_ptr&& new_use) const {
+      detail::backend_runtime->register_use(new_use.get());
       std::swap(current_use_, new_use);
-      detail::backend_runtime->release_use(/* object swapped into */ &new_use);
+      detail::backend_runtime->release_use(/* object swapped into */ new_use.get());
     }
 
     bool _can_be_released() const {
       // There are more conditions that could be checked, (e.g., if the state
       // is None, None), but we'll just use this one for now
-      return current_use_.handle_ != nullptr;
+      return (bool)current_use_ && current_use_->handle_ != nullptr;
     }
 
     ////////////////////////////////////////
@@ -547,13 +551,13 @@ class AccessHandle : public detail::AccessHandleBase {
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions
     ) : var_handle_(var_handle),
-        current_use_(
+        current_use_(detail::make_unique<detail::HandleUse>(
           var_handle_.get(),
           in_flow, out_flow,
           scheduling_permissions, immediate_permissions
-        )
+        ))
     {
-      detail::backend_runtime->register_use(&current_use_);
+      detail::backend_runtime->register_use(current_use_.get());
     }
 
     ////////////////////////////////////////
@@ -561,7 +565,7 @@ class AccessHandle : public detail::AccessHandleBase {
 
     mutable unsigned captured_as_ = CapturedAsInfo::Normal;
     mutable variable_handle_ptr var_handle_;
-    mutable detail::HandleUse current_use_;
+    mutable handle_use_ptr current_use_;
     // TODO switch to everything has to be constructed requirement
     mutable bool value_constructed_ = false;
 

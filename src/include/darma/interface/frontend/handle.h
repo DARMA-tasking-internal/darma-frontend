@@ -70,10 +70,10 @@ class Handle {
 
   /**
    * @brief get_serialization_manager Returns a type-specific serialization manager. The object returned
-   * will be persistent as long as the handle exists
+   * will be persistent as long as the Handle exists
    * @return A type-specific serialization manager
    */
-  virtual SerializationManager*
+  virtual SerializationManager const*
   get_serialization_manager() const =0;
 
 };

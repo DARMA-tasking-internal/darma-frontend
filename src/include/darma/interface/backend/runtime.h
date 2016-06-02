@@ -78,22 +78,22 @@ class Runtime {
 
     /** @brief Register a task to be run at some future time by the runtime system.
      *
-     *  See abstract::frontend::Task for details
+     *  See frontend::Task for details
      *
-     *  @param task A unique_ptr to a task object. Task is moved as r-value reference,
+     *  @param task A unique_ptr to a task object. Task is moved as rvalue reference,
                     indicating transfer of ownership to the backend.
-     *  @sa abstract::frontend::Task
+     *  @sa frontend::Task
      */
     virtual void
     register_task(
       types::unique_ptr_template<frontend::Task>&& task
     ) = 0;
 
-    /** @brief Get a pointer to the \ref abstract::frontend::Task object
+    /** @brief Get a pointer to the \ref frontend::Task object
     *  currently running on the thread from which get_running_task() was
     *  invoked.
     *
-    *  @return A non-owning pointer to the \ref abstract::frontend::Task object
+    *  @return A non-owning pointer to the \ref frontend::Task object
     *  running on the invoking thread.  The returned pointer must be castable
     *  to the same concrete type as was passed to \ref Runtime::register_task()
     *  when the task was registered.
@@ -108,22 +108,22 @@ class Runtime {
     *  task's run() invocation, including child tasks, and thus it should not
     *  be dereferenced in any other context.
     *
-    *  @sa abstract::frontend::Task
+    *  @sa frontend::Task
     */
-    virtual abstract::frontend::Task*
+    virtual frontend::Task*
     get_running_task() const = 0;
 
-    /** @brief Register a Use object
+    /** @brief Register a frontend::Use object
      *
      *  This method registers a Use object that can be accesses through the
      *  the iterator returned by t.get_dependencies() for some task t.
-     *  register_use will always be invoked before register_task for any task holding a Use u.
-     *  Accessing a Use u through a task t is only valid 1) after register_task is called on t
-     *  and register_use is called on u and 2) before release_use is called on u.
-     *  No make_* functions may be invoked on either the input or output flows of a Use u
-     *  returned by get_input_flow() and get_output_flow() before calling register_use.
-     *  Additionally, no make_* functions may be invoked on the input or output flows of a Use u
-     *  after calling release_use.
+     *  register_use will always be invoked before register_task for any task holding a Use `u`.
+     *  Accessing a frontend::Use `u` through a frontend::Task `t` is only valid between the time
+     *  `register_use(&u)` is called and `release_use(&u)` returns.
+     *  No `make_*` functions may be invoked on either the input or output flows of a Use `u`
+     *  returned by Use::get_input_flow() and Use::get_output_flow() before calling register_use().
+     *  Additionally, no `make_*` functions may be invoked on the input or output flows of a Use `u`
+     *  after calling release_use().
      */
     virtual void
     register_use(
@@ -176,25 +176,27 @@ class Runtime {
      *  @brief A set of enums identifying the relationship between two flows
      */
     typedef enum FlowPropagationPurpose {
-      Input, /*!< Two Flows are the same logical input to different uses */
-      Output, /*!< The output flow from one Use will serve as the input Flow for another use */
-      ForwardingChanges, /*!< Two Flows are logically the same. An output Flow 
-                            forwards its changes as the input of another task. In contrast to an Output,
-                            a Flow with a purpose of ForwardingChanges will not have immediate Modify privileges.
+      Input, /*!< The new flow will be used as the input to another logical Use of the data*/
+      Output, /*!< The new flow will be used as the output for another logical Use of the data */
+      ForwardingChanges, /*!< The new flow will be used as an input to another logical Use of the
+                            data that incorporates changes made to data associated with an input Flow
+                            for which Modify immediate permissions were requested, thus "forwarding"
+                            the modifications to a new logical Use.
                             Only ever used with make_forwarding_flow() */
-      OutputFlowOfReadOperation /*!< Two Flows are logically the same. The newly made output Flow 
-                                    marks the end of a read of an input Flow */
+      OutputFlowOfReadOperation /*!< The new flow will be used as the corresponding return of get_out_flow()
+                                    for a read-only Use that returns a given flow for get_in_flow().
+                                */
     } flow_propagation_purpose_t;
 
     /** @brief Make a flow that is logically identical to the input parameter
      *
-     * Calls to make_same_flow() indicate a logical identity between Flows in different tasks.
+     * Calls to make_same_flow() indicate a logical identity between Flows in different Use instances.
      * make_same_flow() may not return the original pointer passed in. Flow objects must be unique to a Use.
-     * Flows are registered and released indirectly through calls to register_use/release_use.
-     * The input Flow to make_same_flow must have been registered through a register_use() call,
+     * Flows are registered and released indirectly through calls to register_use()/release_use().
+     * The input Flow to make_same_flow() must have been registered through a register_use() call,
      * but not yet released through a release_use() call.
-     * There is no restriction on the number of times make_same_flow can be called with a given input.
-     * @param from    An already initialized flow returned from make_*_flow
+     * There is no restriction on the number of times make_same_flow() can be called with a given input.
+     * @param from    An already initialized flow returned from `make_*_flow`
      * @param purpose An enum indicating the relationship between logically identical flows (purpose of the function).
      *                For example, this indicates whether the two flows are both inputs to different tasks or whether
      *                the new flow is the sequential continuation of a previous write (forwarding changes)
@@ -207,15 +209,11 @@ class Runtime {
     ) =0;
 
     /**
-     *  @brief Make a new input Flow that receives forwarded changes from an output Flow
-     *
-     *  Indicates a logical equivalence between two Flow instances connecting
-     *  the output Flow from one Use to the input Flow of another Use.
+     *  @brief Make a new input Flow that receives forwarded changes from another input Flow, the latter
+     *  of which is associated with a Use on which Modify immediate permissions were requested
      *
      *  @param from    An already initialized flow returned from make_*_flow
      *  @param purpose An enum indicating the relationship between logically identical flows (purpose of the function).
-     *                 For example, this indicates whether the two flows are both inputs to different tasks or whether
-     *                 the new flow is the sequential continuation of a previous write (forwarding changes)
      *                 In the current specification, this enum will always be ForwardingChanges
      */
     virtual Flow*
@@ -225,9 +223,9 @@ class Runtime {
     ) =0;
 
     /**
-     *  @brief Make a flow that will be the output of u->get_out_flow() for a Use u in a producer task.
+     *  @brief Make a flow that will be logically (not necessarily immediately) subsequent to another Flow
      *
-     *  Calls to make_next_flow() indicate a producer-consumer relationship between flows.
+     *  Calls to make_next_flow() indicate a producer-consumer relationship between Flows.
      *  make_next_flow() indicates that an operation consumes Flow* from and produces the returned Flow*.
      *  Flows are registered and released indirectly through calls to register_use()/release_use().
      *  Flow instances cannot be shared across Use instances.
@@ -235,8 +233,8 @@ class Runtime {
      *  through release_use().
      *  @param from    The flow consumed by an operation to produce the Flow returned by make_next_flow()
      *  @param purpose An enum indicating the purpose of the next flow
-     *  @return A new Flow object indicating that new data will be produced by the data incoming from
-     *          from the input Flow
+     *  @return A new Flow object indicating that new data will be produced by the data incoming
+     *          from the Flow given as a parameter
      */
     virtual Flow*
     make_next_flow(
@@ -285,8 +283,7 @@ class Runtime {
     ) =0;
 
 
-    /** @todo Update this for publish_use instead of publish_flow
-     *  @brief Indicate that the state of a Handle corresponding to a given Flow should
+    /** @brief Indicate that the state of a Handle corresponding to a given Use should
      *  be accessible via a corresponding fetching usage with the same version_key.
      *
      *  See PublicationDetails for more information
