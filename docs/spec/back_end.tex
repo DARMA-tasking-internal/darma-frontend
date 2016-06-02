@@ -50,8 +50,7 @@ Uses carry particular permissions and therefore have some intent of Read, Write,
 An input Flow indicates that a Use requires a particular value before its corresponding operation begins.
 An output Flow indicates that a Use produces a particular value after being released at the end of its corresponding operation.
 A Modify Use will have an input Flow indicating the value consumed and an output Flow indicating the value produced.
-A Read Use is only required to have an input Flow while a Write Use will also have an output Flow.
-\todo{Doxygen brief description for Flow says even Read Use requires an output Flow. Rephrase one or the other to clarify}
+A Read Use is will have an output Flow even though it produces no data since the ``output'' indicates the release of data and clearing of an anti-dependence.
 \item [Dependency]: Although Dependency is not a class in DARMA, a task will always have an initial set of Uses that must become
 available for the task to begin.
 This initial set of uses are the ``dependencies'' of a task.
