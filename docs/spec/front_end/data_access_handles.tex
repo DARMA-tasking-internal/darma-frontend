@@ -10,7 +10,7 @@ The \glspl{handle} add a control block (metadata) that tracks uses of the \gls{h
 \gls{sequential semantics}, analogous to smart pointers that wrap pointer types and provide a reference counting control block.
 Critically, this interface is non-intrusive, wrapping any type \inlinecode{T} without requiring that type to be modified.
 
-Most critically, \ahandle enables deferred access since \ahandle can exist in ready or pending states. 
+Most critically, an \codetarget{AccessHandle} enables deferred access since \ahandle can exist in ready or pending states. 
 Ready and pending are not rigorously defined in the state table for \ahandle in
 Section~\ref{sec:handlerules}, but rather guiding concepts.
 Ready \glspl{handle} can be dereferenced (have their underlying values
@@ -228,24 +228,25 @@ Here we more rigorously divide permissions into two main categories:
 \begin{itemize}
   \item[a] {\it Scheduling}: Permissions a \gls{handle} may use when instantiating
   tasks with \codelink{create_work}.
-These permissions apply independent of handle readiness (immediate permissions). 
-Generally, this will be Read (\gls{handle} may only used in read-only
+  These permissions apply independent of \gls{handle} readiness (\gls{immediate
+  permissions}).  Generally, this will be Read (\gls{handle} may only used in read-only
 \glspl{task}) or Modify (\gls{handle} may be used in read-only or read-write
 \glspl{task}). 
 \item[b] {\it Immediate}: Permissions that apply immediately, indicating the
-  ``readiness'' of the \gls{handle}.  Immediate privileges can never be greater than Scheduling privileges.
+  ``readiness'' of the \gls{handle}.  \Gls{immediate permissions} can never be
+  greater than \gls{scheduling permissions}.
   A handle within a \gls{task} can never have greater permissions doing immediate work than it can for instantiating deferred work.
 \end{itemize}
 
-For the two methods of creating handles, we have the following initializations.
+For the two methods of creating \glspl{handle}, we have the following initializations.
 \begin{itemize}
 \item \inlinecode{initial_access<T>}: Initialized with scheduling modify, immediate none. 
-The handle can be used in any mode when instantiating deferred work.
-However, the handle is not necessarily initialized and as such cannot be used immediately for reads or writes.
+  The \gls{handle} can be used in any mode when instantiating \gls{deferred work}.
+  However, the \gls{handle} is not necessarily initialized and as such cannot be used immediately for reads or writes.
 %
 \item \inlinecode{read_access<T>}: Initialized with scheduling read, immediate none.
-The handle can only be used for reads when instantiating deferred work.
-However, the handle is not necessarily initialized and as such cannot be used immediately.
+  The \gls{handle} can only be used for reads when instantiating \gls{deferred work}.
+  However, the \gls{handle} is not necessarily initialized and as such cannot be used immediately.
 \end{itemize}
 
 To clarify, consider the following code:
@@ -268,7 +269,8 @@ Inside the \cwork (capture state), the \gls{handle}'s immediate and scheduling
 permisssions will therefore remain the same as they were in the predecessor outer
 state block.
 
-Table \ref{tab:immsimp} summarizes the state transitions involving these three handles following \cwork.
+Table \ref{tab:immsimp} summarizes the state transitions involving these three
+\glspl{handle} following \cwork.
 
 To illustrate the importance of requesting the minimum permissions a \gls{task}
 requires, consider the following:
@@ -287,22 +289,26 @@ create_work(reads(float_handle), [=] {
 \end{CppCode}
 In this case, \glspl{subtask} are created that only need read access. 
 Without the \codelink{reads} qualifier, these \glspl{task} could not run in parallel (or out-of-order) since they
-would by default request read-write privileges.
+would by default request read-write permissions.
 \Gls{sequential semantics} would then require them to write in-order sequentially.
-This example highlights the importance that \glspl{task} only ever request the privileges they need. 
-Over-requesting privileges will limit the amount of available parallelism in the code.
-%A \gls{task} may be using a \gls{handle} with read-write privileges created by
+This example highlights the importance that \glspl{task} only ever request the
+permissionsthey need. 
+Over-requesting permissions will limit the amount of available parallelism in the code.
+%A \gls{task} may be using a \gls{handle} with read-write permissions created by
 %\codelink{initial_access}
-%and then create a subtask that requires only read privileges.
+%and then create a subtask that requires only read permissions.
 
 
-The distinction between immediate and scheduling permissions is generally not explicit in the application.
-When a handle is created with \inlinecode{initial_acces} or \inlinecode{read_acces},
-it is implicitly given immediate permissions of None.
-When a handle is used inside a task instantiated in the application with \inlinecode{create_work},
-the runtime (and translation layer) implicitly guarantees immediate permissions of Read or Write equal to the scheduling permissions.
-For simple cases, the app developer only needs to think of a single permission (not distinguishing scheduling/immediate).
-More more advances uses of DARMA (and features in future versions), an app developer will need to understand both scheduling and immediate permissions.
+The distinction between \gls{immediate permissions} and \gls{scheduling permissions} is generally not explicit in the application.
+When a \gls{handle} is created with \inlinecode{initial_acces} or \inlinecode{read_acces},
+it is implicitly given \gls{immediate permissions} of None.
+When a \gls{handle} is used inside a \gls{task} instantiated in the application with \inlinecode{create_work},
+the \gls{back end} \gls{runtime system} (and \gls{translation layer}) implicitly guarantees immediate 
+permissions of Read or Write equal to the \gls{scheduling permissions}.
+For simple cases, the application developer only needs to think of a single permission (not distinguishing scheduling/immediate).
+More more advances uses of \gls{DARMA} (and features in future versions of the
+specification), an application developer will need to understand both
+\gls{scheduling permissions} and \gls{immediate permissions}.
 
 \begin{table}[!t]
 \begin{center}
@@ -428,7 +434,7 @@ More more advances uses of DARMA (and features in future versions), an app devel
 \end{table}
 
 
-To further illustrate, below is an \emph{incorrect} usage of modify privileges
+To further illustrate, below is an \emph{incorrect} usage of modify permissions
 
 \begin{minipage}[t]{0.45\linewidth}
 \centering WRONG
@@ -453,7 +459,7 @@ create_work([=]{ //modify capture
 \end{minipage}
 
 
-Additionally, we demonstrate an \emph{incorrect} usage of read privileges
+Additionally, we demonstrate an \emph{incorrect} usage of read permissions
 
 \begin{minipage}[t]{0.45\linewidth}
 \centering
