@@ -308,14 +308,13 @@ For an unordered map implementation of a \gls{key-value store}, keys must usuall
 particular backend implementation may choose to convert
 \gls{tuple} into string representations and implement a simple string-based
 \gls{key-value store}.
-\item [Distributed Hash Table (DHT)]: A particular implementation of a
+\item [\gls{DHT}]: A particular implementation of a
   \gls{key-value store} for hashable key types.
 Intended to be scalable for large systems, the hash space is partitioned
 across distributed workers.
 This automatically (and predictably) scatters keys and corresponding
 values across the system.
-A \todo{Janine: add glossary entry here once Jeremy is done with pass on
-section} DHT implementation of a \gls{key-value store} is not required by the specification,
+A \gls{DHT} implementation of a \gls{key-value store} is not required by the specification,
 but recommended for scalable execution.
 \end{compactdesc}
 
