@@ -23,10 +23,10 @@ the \gls{runtime system} to a specific local address. Within the task, the stand
 When publishing, the user must specify an \gls{access group} for that data.  
 Declaring an \gls{access group} informs the \gls{runtime system} that other
 \glspl{rank} currently need or will need the data,  
-allowing the runtime to manage \gls{garbage collection} and \gls{anti-dependency} resolution.
+allowing the runtime to manage garbage collection and \gls{anti-dependency} resolution.
 In most cases, the \gls{access group} will be declared as the number of readers (1, in the case of simple point-to-point send).
 Once all read \glspl{handle} are released (go out of scope in \CC{} terms),
-\gls{garbage collection} or \gls{anti-dependency} resolution can occur.
+garbage collection or \gls{anti-dependency} resolution can occur.
 
 
 In addition to facilitating coordination between \glspl{rank}, \gls{handle} data

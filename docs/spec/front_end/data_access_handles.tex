@@ -90,12 +90,8 @@ In general, any calls to \codelink{get_value} should occur
 within a scoped code block to avoid dangling references to stale physical memory locations.
 %Even when it becomes possible to wait on the data associated with a handle (in
 %later versions of the spec), best practice is to access data via deferred tasks
-inside a \codelink{create_work} block when possible.
-\todo{Jeremy/David: this dangling sentence is part of a partially commented out
-sentences - please fix.}
-
-
-
+Calls to \inlinecode{get_value} should go inside a \inlinecode{create_work} block when possible 
+to guarantee availability of the data.
 
 \subsection{Publish}
 \label{subsec:publish}
@@ -241,19 +237,19 @@ The state of a \gls{handle} encompasses both its read/write permissions and its 
 Here we more rigorously divide permissions into two main categories: 
 \todo[inline]{Jeremy/David: I'm struggling some with the phrasing below.  I ist
   permissions that may be applied to a handle when the application developer is
-instantiating tasks with create_work?}
+instantiating tasks with creatework?}
 \begin{itemize}
   \item[a] {\it Scheduling}: Permissions a \gls{handle} may use when instantiating
   tasks with \codelink{create_work}.
 These permissions apply independent of handle readiness. 
 Generally, this will be Read (\gls{handle} may only used in read-only
-\glspls{tasks}) or Modify (\gls{handle} may be used in read-only or read-write
-\gls{tasks}). 
+\glspl{task}) or Modify (\gls{handle} may be used in read-only or read-write
+\glspl{task}). 
 \item[b] {\it Immediate}: Permissions that apply immediately, indicating the
   ``readiness'' of the \gls{handle}.  Immediate privileges can \todo{Jeremy:
   this is a typo, right?} ever be greater than Scheduling privileges.
   A \gls{task} can never have greater permissions doing immediate work than it can for instantiating deferred work.
-  \inline{Jeremy/David: againg confusing phrasing, is it the handle or the task
+  \todo{Jeremy/David: againg confusing phrasing, is it the handle or the task
   that has the permissions? Also, is it the task/application code applying the
 permissions? Or, the translation layer? IMO, phrasing is off here on
 the last sentence, becausa task should have permissions on one the work it is
@@ -272,7 +268,7 @@ However, the handle is not necessarily initialized and as such cannot be used im
 \end{itemize}
 
 
-In the parent task, a handle will have an initial pair of scheduling/immediate privileges (predecessor state).
+In the outer task, a handle will have an initial pair of scheduling/immediate privileges (predecessor state).
 After the call to create work, the handle's state will have changed, potentially losing some immediate privileges (continuing state).
 As specified currently, execution does not begin inside the deferred work block until a handle becomes ready.
 Inside the \cwork (capture state), the handle's immediate and scheduling privileges will therefore be the same.
@@ -302,11 +298,11 @@ Over-requesting privileges will limit the amount of available parallelism in the
 %and then create a subtask that requires only read privileges.
 Table \ref{tab:immsimp} summarizes the state transitions involving these three handles following \cwork.
 \begin{CppCode}
-//Predecessor parent state
+//Predecessor outer state
 create_work([=]{
-  //Capture state
+  //Capture (inner) state
 })
-//Continuing parent state
+//Continuing outer state
 \end{CppCode}
 
 \begin{table}[!t]

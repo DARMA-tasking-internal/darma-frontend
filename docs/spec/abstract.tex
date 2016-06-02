@@ -14,11 +14,11 @@ development of \gls{AMT} best practices.
 application-facing \gls{front end} \gls{API} and a \gls{runtime system} facing \gls{back end} 
 \gls{API}.    The application-facing user-level \gls{front end} \gls{API} 
 is an \gls{EDSL} in \CC,  inheriting the generic
-language constructs of \CC and adding \gls{semantics} that facilitate
-distributed asynchronous parallel programming. Though the \gls{EDSL} uses
-\CC constructs unfamiliar to many programmers to implement these semantics, 
+language constructs of \CC and adding \gls{semantics} that facilitate expressing
+distributed asynchronous parallel programs. Though the implementation of the \gls{EDSL} uses
+\CC constructs unfamiliar to many programmers to provide the front end semantics, 
 it is nonetheless fully embedded in the \CC language and
-requires a widely supported subset of \CC{}14 functionality \compilerReqs.
+leverages a widely supported subset of \CC{}14 functionality \compilerReqs.
 The \gls{translation layer} leverages \CC\ \gls{template
 metaprogramming} to map the user's code onto the \gls{back end} runtime \gls{API}.
 The \gls{back end} \gls{API} is a set of abstract classes and function
@@ -38,5 +38,5 @@ a brief history of changes between previous
 versions of the specification, and summary of the planned changes in upcoming
 versions of the specification.  Appendices walk the user through a more detailed set
 of examples of applications written in the \gls{DARMA} \gls{front end} \gls{API} and provide
-additional technical details for those who are interested.
+additional technical details for those the interested reader.
 
