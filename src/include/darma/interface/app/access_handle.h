@@ -138,16 +138,16 @@ class AccessHandle : public detail::AccessHandleBase {
     AccessHandle() = default;
 
     AccessHandle &
-      operator=(AccessHandle &other) = delete;
+    operator=(AccessHandle &other) = delete;
 
     const AccessHandle &
-      operator=(AccessHandle &other) const = delete;
+    operator=(AccessHandle &other) const = delete;
 
     AccessHandle &
-      operator=(AccessHandle const &other) = delete;
+    operator=(AccessHandle const &other) = delete;
 
     const AccessHandle &
-      operator=(AccessHandle const &other) const = delete;
+    operator=(AccessHandle const &other) const = delete;
 
     AccessHandle const &
     operator=(AccessHandle &&other) noexcept {
@@ -170,6 +170,8 @@ class AccessHandle : public detail::AccessHandleBase {
       release();
       return *this;
     }
+
+
 
     AccessHandle(AccessHandle const &copied_from) noexcept {
       // get the shared_ptr from the weak_ptr stored in the runtime object
@@ -247,6 +249,32 @@ class AccessHandle : public detail::AccessHandleBase {
         //current_use_ = copied_from.current_use_;
       }
     }
+
+    // Allow casting to a non-const reference
+    template <
+      typename AccessHandleT,
+      typename = std::enable_if_t<
+        // Check if it's an AccessHandle type that's not this type
+        detail::is_access_handle<AccessHandleT>::value
+          // Check if the conversion is allowed based on min permissions and max permissions
+          and (
+            not traits::max_immediate_permissions_given
+              or not AccessHandleT::traits::min_immediate_permissions_given
+              or traits::max_immediate_permissions <= AccessHandleT::traits::min_immediate_permissions
+          )
+            // same thing for schedule case
+          and (
+            not traits::max_schedule_permissions_given
+              or not AccessHandleT::traits::min_schedule_permissions_given
+              or traits::max_schedule_permissions <= AccessHandleT::traits::min_schedule_permissions
+          )
+      >
+    >
+    operator AccessHandleT&() const {
+      return *reinterpret_cast<AccessHandleT*>(
+        const_cast<AccessHandle*>(this)
+      );
+    };
 
     // end analogous type conversion constructor
     ////////////////////////////////////////
