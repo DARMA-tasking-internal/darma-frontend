@@ -289,7 +289,7 @@ class TaskBase : public abstract::backend::runtime_t::task_t
     using key_t = types::key_t;
     using abstract_use_t = abstract::frontend::Use;
 
-    using get_deps_container_t = types::handle_container_template<abstract_use_t const*>;
+    using get_deps_container_t = types::handle_container_template<abstract_use_t*>;
 
     get_deps_container_t dependencies_;
 

@@ -78,7 +78,7 @@ class TestCreateWork
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, capture_initial_access) {
+TEST_F(TestCreateWork, mod_capture_MN) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
@@ -209,7 +209,7 @@ TEST_F(TestCreateWork, mod_capture_MN_helper) {
 
 //////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, capture_initial_access_vector) {
+TEST_F(TestCreateWork, mod_capture_MN_vector) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
@@ -413,60 +413,153 @@ TEST_F(TestCreateWork, mod_capture_MM) {
 
 }
 
+//////////////////////////////////////////////////////////////////////////////////
 
-//////////////////////////////////////////////////////////////////////////////////
-//
-//#if defined(DEBUG) || !defined(NDEBUG)
-//TEST_F(TestCreateWork, death_ro_capture_unused) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  EXPECT_DEATH(
-//    {
-//      mock_runtime->save_tasks = false;
-//      auto tmp = initial_access<int>("hello");
-//      create_work([=]{
-//        std::cout << tmp.get_value();
-//        FAIL() << "This code block shouldn't be running in this example";
-//      });
-//      { create_work(reads(tmp), [=]{ }); }
-//    },
-//    "handle with key .* declared as read usage, but was actually unused"
-//  );
-//
-//  //mock_runtime->registered_tasks.clear();
-//
-//}
-//#endif
-//
-//////////////////////////////////////////////////////////////////////////////////
-//
-//#if defined(DEBUG) || !defined(NDEBUG)
-//TEST_F(TestCreateWork, death_ro_capture_MM_unused) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  {
-//    EXPECT_DEATH(
-//      {
-//        mock_runtime->save_tasks = true;
-//        auto tmp = initial_access<int>("hello");
-//        create_work([=] {
-//          create_work(reads(tmp), [=] { });
-//        });
-//        run_all_tasks();
-//      },
-//      "handle with key .* declared as read usage, but was actually unused"
-//    );
-//  }
-//
-//}
-//#endif
-//
-//////////////////////////////////////////////////////////////////////////////////
-//
+TEST_F(TestCreateWork, ro_capture_MM) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow fl_in_init, fl_out_init;
+  MockFlow fl_in_cap_1, fl_out_cap_1;
+  MockFlow fl_in_con_1, fl_out_con_1;
+  MockFlow fl_in_cap_2, fl_out_cap_2;
+  MockFlow fl_in_con_2, fl_out_con_2;
+  use_t* use_init, *use_cap_1, *use_con_1, *use_cap_2, *use_con_2;
+
+  Sequence s0, s1, s2;
+
+  expect_initial_access(fl_in_init, fl_out_init, use_init, make_key("hello"), s0);
+
+  expect_mod_capture_MN_or_MR(
+    fl_in_init, fl_out_init, use_init,
+    fl_in_cap_1, fl_out_cap_1, use_cap_1,
+    fl_in_con_1, fl_out_con_1, use_con_1,
+    s0
+  );
+
+  int value = 42;
+
+  abstract::frontend::Task* outer, *inner;
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_cap_1))))
+    .Times(1).InSequence(s0).WillOnce(SaveArg<0>(&outer));
+
+  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_con_1)),
+    IsUseWithFlows(&fl_in_con_1, &fl_out_con_1, use_t::Modify, use_t::None)
+  ))).Times(1).InSequence(s0, s1);
+
+
+  EXPECT_CALL(*mock_runtime, make_forwarding_flow(Eq(&fl_in_cap_1), Eq(MockRuntime::ForwardingChanges)))
+    .Times(1).InSequence(s0, s1).WillOnce(Return(&fl_in_cap_2));
+  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_cap_2), MockRuntime::OutputFlowOfReadOperation))
+    .Times(1).InSequence(s0).WillOnce(Return(&fl_out_cap_2));
+  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_cap_2), MockRuntime::Input))
+    .Times(1).InSequence(s1).WillOnce(Return(&fl_in_con_2));
+  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_cap_1), MockRuntime::Output))
+    .Times(1).InSequence(s2).WillOnce(Return(&fl_out_con_2));
+
+  EXPECT_CALL(*mock_runtime, register_use(
+    IsUseWithFlows(&fl_in_cap_2, &fl_out_cap_2, use_t::Read, use_t::Read)
+  )).Times(1).InSequence(s0, s1, s2).WillOnce(Invoke([&](use_t* u) {
+    u->get_data_pointer_reference() = (void*)(&value);
+    use_cap_2 = u;
+  }));
+
+
+  EXPECT_CALL(*mock_runtime, register_use(
+    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::Read)
+  )).Times(1).InSequence(s0).WillOnce(SaveArg<0>(&use_con_2));
+
+  EXPECT_CALL(*mock_runtime, release_use(
+    IsUseWithFlows(&fl_in_cap_1, &fl_out_cap_1, use_t::Modify, use_t::Modify)
+  )).Times(1).InSequence(s0);
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_cap_2))))
+    .Times(1).InSequence(s1).WillOnce(SaveArg<0>(&inner));
+
+  EXPECT_CALL(*mock_runtime, release_use(
+    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::Read)
+  )).Times(1).InSequence(s0, s1);
+
+  EXPECT_CALL(*mock_runtime, release_use(
+    IsUseWithFlows(&fl_in_cap_2, &fl_out_cap_2, use_t::Read, use_t::Read)
+  )).Times(1).InSequence(s0);
+
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work([=]{
+      create_work(reads(tmp), [=]{
+        ASSERT_THAT(tmp.get_value(), Eq(42));
+      });
+    });
+  }
+
+  ON_CALL(*mock_runtime, get_running_task())
+    .WillByDefault(Return(ByRef(outer)));
+
+  run_all_tasks();
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestCreateWork, death_ro_capture_unused) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  EXPECT_DEATH(
+    {
+      mock_runtime->save_tasks = false;
+      auto tmp = initial_access<int>("hello");
+      create_work([=]{
+        std::cout << tmp.get_value();
+        FAIL() << "This code block shouldn't be running in this example";
+      });
+      { create_work(reads(tmp), [=]{ }); }
+    },
+    "handle with key .* declared as read usage, but was actually unused"
+  );
+
+  //mock_runtime->registered_tasks.clear();
+
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestCreateWork, death_ro_capture_MM_unused) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  {
+    EXPECT_DEATH(
+      {
+        mock_runtime->save_tasks = true;
+        auto tmp = initial_access<int>("hello");
+        create_work([=] {
+          create_work(reads(tmp), [=] { });
+        });
+        run_all_tasks();
+      },
+      "handle with key .* declared as read usage, but was actually unused"
+    );
+  }
+
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+
 //TEST_F(TestCreateWork, capture_read_access_2) {
 //  using namespace ::testing;
 //  using namespace darma_runtime;
