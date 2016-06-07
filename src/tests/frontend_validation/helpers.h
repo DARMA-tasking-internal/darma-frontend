@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma_types.h
-//                         dharma_new
+//                      helpers.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,21 +42,24 @@
 //@HEADER
 */
 
-#ifndef SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
-#define SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
+#ifndef DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H
+#define DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H
 
-#define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
+#include <darma/interface/frontend/use.h>
 
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#define DARMA_THREAD_LOCAL_BACKEND_RUNTIME thread_local
-#endif
+#include <string>
 
-#include <darma/interface/defaults/pointers.h>
+inline std::string
+permissions_to_string(darma_runtime::abstract::frontend::Use::permissions_t per) {
+  switch(per) {
+#define _DARMA__perm_case(val) case darma_runtime::abstract::frontend::Use::Permissions::val: return #val;
+    _DARMA__perm_case(None)
+    _DARMA__perm_case(Read)
+    _DARMA__perm_case(Modify)
+    _DARMA__perm_case(Write)
+    _DARMA__perm_case(Reduce)
+#undef _DARMA__perm_case
+  }
+}
 
-#include <darma/impl/key/simple_key.h>
-
-namespace darma_runtime { namespace types {
-  typedef darma_runtime::detail::SimpleKey key_t;
-}} // end namespace darma_runtime::types
-
-#endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */
+#endif //DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H

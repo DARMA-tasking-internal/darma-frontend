@@ -145,5 +145,16 @@ bool _check_contains(const Key& k, const Container& c) {
   ), false)                                                                                         \
 )
 
+#define DARMA_ASSERT_UNREACHABLE_FAILURE(...) DARMA_ASSERT_MESSAGE( \
+  false, "DARMA encountered a failing piece of code that should be unreachable," \
+  << " most likely because an earlier error should have been thrown for the same reason.  " \
+  __VA_ARGS__ \
+)
+
+#define DARMA_ASSERT_NOT_IMPLEMENTED(...) DARMA_ASSERT_MESSAGE( \
+  false, "DARMA encountered a branch or feature that is not implemented in the current version" \
+  << " of the translation layer." \
+  __VA_ARGS__ \
+)
 
 #endif /* SRC_DARMA_ASSERT_H_ */
