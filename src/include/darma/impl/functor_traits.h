@@ -272,18 +272,17 @@ struct functor_call_traits {
 
         // If it's a nonconst conversion capture, make sure it's a leaf and has minimum
         // immediate permissions of modify
-        // TODO get this working.  For some reason it's being stubborn
         template <typename AccessHandleT>
         using _nonconst_conversion_capture_arg_tuple_entry_archetype =
-          typename std::decay_t<AccessHandleT>; //::template with_triats<
-            //typename std::decay_t<AccessHandleT>::traits
-            //  ::template with_min_immediate_permissions<detail::AccessHandlePermissions::Modify>::type
-            //  ::template with_max_schedule_permissions<detail::AccessHandlePermissions::None>::type
-            //  // Also set the min schedule permissions, in case they were higher before
-            //  ::template with_min_schedule_permissions<detail::AccessHandlePermissions::None>::type
-            //  // but the max immediate permissions should stay the same.  If they are given and less
-            //  // than Modify, we should get a compile-time error
-          //>;
+          typename std::decay_t<AccessHandleT>::template with_traits<
+            typename std::decay_t<AccessHandleT>::traits
+              ::template with_min_immediate_permissions<detail::AccessHandlePermissions::Modify>::type
+              ::template with_max_schedule_permissions<detail::AccessHandlePermissions::None>::type
+              // Also set the min schedule permissions, in case they were higher before
+              ::template with_min_schedule_permissions<detail::AccessHandlePermissions::None>::type
+              // but the max immediate permissions should stay the same.  If they are given and less
+              // than Modify, we should get a compile-time error
+          >;
 
         using _nonconst_conversion_capture_arg_tuple_entry = meta::detected_t<
           _nonconst_conversion_capture_arg_tuple_entry_archetype, CallArg
@@ -302,6 +301,7 @@ struct functor_call_traits {
               ::template with_max_immediate_permissions<detail::AccessHandlePermissions::Read>::type
               // Also set the min schedule permissions, in case they were higher before
               ::template with_min_immediate_permissions<detail::AccessHandlePermissions::Read>::type
+              ::template with_min_schedule_permissions<detail::AccessHandlePermissions::Read>::type
           >;
 
         using _read_only_handle_capture_arg_tuple_entry = meta::detected_t<
@@ -369,9 +369,17 @@ struct functor_call_traits {
         // Normal case, just pass through
         template <typename T>
         static std::enable_if_t<
-          (not _functor_traits_impl::decayed_is_access_handle<T>::value
-            or not is_conversion_capture)
-          //and not formal_arg_accepts_move
+          not _functor_traits_impl::decayed_is_access_handle<T>::value
+          or (
+            // Some AccessHandle cases need to be handled here
+            _functor_traits_impl::decayed_is_access_handle<T>::value
+            and (
+              // these are handled by the conversion capture versions below
+              not is_conversion_capture
+              // This case needs to be handled by moving in to the argument, below
+              and not formal_traits::is_by_value
+            )
+          )
           , T
         >
         get_converted_arg(T&& val) {
@@ -395,6 +403,17 @@ struct functor_call_traits {
         //  // since its a mess to try and expire some elements of a tuple and not others
         //  return std::move(val);
         //}
+
+        template <typename T>
+        static std::enable_if_t<
+          _functor_traits_impl::decayed_is_access_handle<T>::value
+            and formal_traits::is_by_value,
+          typename std::remove_reference_t<T>&&
+        >
+        get_converted_arg(T&& val) {
+          // Note that this should work this way even if T&& is an lvalue reference!
+          return std::move(val);
+        }
 
         template <typename T>
         static std::enable_if_t<

@@ -246,7 +246,10 @@ class AccessHandle : public detail::AccessHandleBase {
       } // end if capturing_task != nullptr
       else {
         // regular copy
-        assert(false);  // Should never get here???!?!?!
+        DARMA_ASSERT_FAILURE(
+          "Copying an AccessHandle<T> to an analogous type (e.g., ReadAccessHandle<T>) is not"
+          " allowed (except for the implicit copy that occurs when the handle is being captured)"
+        );
       }
     }
 
@@ -268,11 +271,18 @@ class AccessHandle : public detail::AccessHandleBase {
       typename AccessHandleT,
       typename = std::enable_if_t<
         // Check if this is convertible from AccessHandleT
-        is_convertible_from_access_handle<AccessHandleT>::value
-          and not std::is_same<AccessHandleT, AccessHandle>::value
+        is_convertible_from_access_handle<
+          std::decay_t<AccessHandleT>>::value
+          and not std::is_same<std::decay_t<AccessHandleT>, AccessHandle>::value
+          // also, turn this into a non-universal ref (i.e., only use for rvalue references)
+          // and ignore consts as well (they should go to the const move constructor below)
+          and std::is_same<
+            std::remove_const_t<std::remove_reference_t<AccessHandleT>>,
+            AccessHandleT
+          >::value
       >
     >
-    AccessHandle(AccessHandleT&& other) noexcept
+    AccessHandle(AccessHandleT&& /* note: not universal reference! */ other) noexcept
       : AccessHandle( reinterpret_cast<AccessHandle&&>(std::move(other)) )
     { }
 
@@ -285,8 +295,9 @@ class AccessHandle : public detail::AccessHandleBase {
       typename AccessHandleT,
       typename = std::enable_if_t<
         // Check if this is convertible from AccessHandleT
-        is_convertible_from_access_handle<AccessHandleT>::value
-          and not std::is_same<AccessHandleT, AccessHandle>::value
+        is_convertible_from_access_handle<
+          std::decay_t<AccessHandleT>>::value
+          and not std::is_same<std::decay_t<AccessHandleT>, AccessHandle>::value
       >
     >
     AccessHandle(AccessHandleT const && other) noexcept
@@ -619,8 +630,6 @@ class AccessHandle : public detail::AccessHandleBase {
 
     ////////////////////////////////////////
     // Analogs with different privileges are friends too
-    //friend CompileTimeReadAccessAnalog;
-    //friend CompileTimeModifiableAnalog;
     friend struct detail::analogous_access_handle_attorneys::AccessHandleAccess;
 
     // Allow implicit conversion to value in the invocation of the task
@@ -645,8 +654,9 @@ class AccessHandle : public detail::AccessHandleBase {
 template <typename T>
 using ReadAccessHandle = AccessHandle<
   T, typename detail::make_access_handle_traits<
-    detail::max_schedule_permissions<detail::AccessHandlePermissions::Read>,
-    detail::max_immediate_permissions<detail::AccessHandlePermissions::Read>
+    detail::min_immediate_permissions<detail::AccessHandlePermissions::Read>,
+    detail::max_immediate_permissions<detail::AccessHandlePermissions::Read>,
+    detail::min_schedule_permissions<detail::AccessHandlePermissions::Read>
   >::type
 >;
 

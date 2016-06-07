@@ -78,6 +78,10 @@ class TestCreateWork
 
 ////////////////////////////////////////////////////////////////////////////////
 
+typedef enum HelperUse {
+  No, Yes, YesWithArrays
+} helper_use_t;
+
 struct TestModCaptureMN
   : TestCreateWork,
     ::testing::WithParamInterface<bool>
@@ -244,7 +248,13 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
 
 //////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, ro_capture_RN) {
+
+struct TestRoCaptureRN
+  : TestCreateWork,
+    ::testing::WithParamInterface<bool>
+{ };
+
+TEST_P(TestRoCaptureRN, ro_capture_RN) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
@@ -255,23 +265,37 @@ TEST_F(TestCreateWork, ro_capture_RN) {
   Sequence s1, s_release_read;
 
   MockFlow fl_in_0, fl_out_0;
-  MockFlow fl_in_2, fl_out_2;
+  MockFlow fl_in_1, fl_out_1;
   use_t* use_0, *use_1;
   expect_read_access(fl_in_0, fl_out_0, use_0, make_key("hello"), make_key("world"), s1, s_release_read);
 
-  // ro-capture of RN
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_0), MockRuntime::Input))
-    .Times(1).InSequence(s1)
-    .WillOnce(Return(&fl_in_2));
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_2), MockRuntime::OutputFlowOfReadOperation))
-    .Times(1).InSequence(s1)
-    .WillOnce(Return(&fl_out_2));
+  bool use_helper = GetParam();
 
-  EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Read, use_t::Read)
-  )).Times(1).InSequence(s1)
-    .WillOnce(SaveArg<0>(&use_1));
+  if(use_helper) {
+    expect_ro_capture_RN_RR_MN_or_MR(
+      fl_in_0, fl_out_0, use_0,
+      fl_in_1, fl_out_1, use_1,
+      s1
+    );
+  }
+  else {
 
+    // ro-capture of RN
+    EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_0), MockRuntime::Input))
+      .Times(1).InSequence(s1)
+      .WillOnce(Return(&fl_in_1));
+    EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_1), MockRuntime::OutputFlowOfReadOperation))
+      .Times(1).InSequence(s1)
+      .WillOnce(Return(&fl_out_1));
+
+    EXPECT_CALL(*mock_runtime, register_use(
+      IsUseWithFlows(&fl_in_1, &fl_out_1, use_t::Read, use_t::Read)
+    )).Times(1).InSequence(s1)
+      .WillOnce(SaveArg<0>(&use_1));
+  }
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_1))))
+    .Times(1).InSequence(s1);
 
   {
     auto tmp = read_access<int>("hello", version="world");
@@ -286,12 +310,18 @@ TEST_F(TestCreateWork, ro_capture_RN) {
 
   // this should come after the read_access is released (and shouldn't happen until registered_tasks.clear())
   EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Read, use_t::Read)
+    IsUseWithFlows(&fl_in_1, &fl_out_1, use_t::Read, use_t::Read)
   )).Times(1).InSequence(s1, s_release_read);
 
   mock_runtime->registered_tasks.clear();
 
 }
+
+INSTANTIATE_TEST_CASE_P(
+  WithAndWithoutHelper,
+  TestRoCaptureRN,
+  ::testing::Bool()
+);
 
 //////////////////////////////////////////////////////////////////////////////////
 
