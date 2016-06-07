@@ -64,7 +64,7 @@ released at the end of its corresponding \gls{operation}.
 All Use objects have exactly two Flow objects --- one input and one output ---
 and each Flow is associated with exactly one Use.
 A Modify Use will have an input Flow indicating the value consumed and an output Flow indicating the value produced.
-A Read Use is will also have an output Flow even though it produces no data since the ``output'' indicates the release of data and clearing of an anti-dependence.
+A Read Use will also have an output Flow even though it produces no data since the ``output'' indicates the release of data and clearing of an anti-dependence.
 \item [Dependency:] Although Dependency is not a class in \gls{DARMA}, a
   \gls{task} will always have an initial set of Uses that must become
   available for the \gls{task} to begin.
