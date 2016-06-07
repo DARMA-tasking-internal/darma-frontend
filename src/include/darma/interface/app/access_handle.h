@@ -131,6 +131,22 @@ class AccessHandle : public detail::AccessHandleBase {
       "Tried to create handle with max_immediate_permissions < min_immediate_permissions"
     );
 
+    template <typename AccessHandleT>
+    using is_convertible_from_access_handle =  std::integral_constant<bool,
+      detail::is_access_handle<AccessHandleT>::value
+        // Check if the conversion is allowed based on min permissions and max permissions
+        and (
+          not traits::max_immediate_permissions_given
+          or not AccessHandleT::traits::min_immediate_permissions_given
+          or traits::max_immediate_permissions >= AccessHandleT::traits::min_immediate_permissions
+        )
+        // same thing for schedule case
+        and (
+          not traits::max_schedule_permissions_given
+          or not AccessHandleT::traits::min_schedule_permissions_given
+          or traits::max_schedule_permissions >= AccessHandleT::traits::min_schedule_permissions
+        )
+    >;
 
   private:
 
@@ -197,21 +213,9 @@ class AccessHandle : public detail::AccessHandleBase {
     template <
       typename AccessHandleT,
       typename = std::enable_if_t<
-        // Check if it's an AccessHandle type that's not this type
-        detail::is_access_handle<AccessHandleT>::value
+        // Check if it's a convertible AccessHandle type that's not this type
+        is_convertible_from_access_handle<AccessHandleT>::value
           and not std::is_same<AccessHandleT, AccessHandle>::value
-            // Check if the conversion is allowed based on min permissions and max permissions
-          and (
-            not traits::max_immediate_permissions_given
-              or not AccessHandleT::traits::min_immediate_permissions_given
-              or traits::max_immediate_permissions >= AccessHandleT::traits::min_immediate_permissions
-          )
-            // same thing for schedule case
-          and (
-            not traits::max_schedule_permissions_given
-              or not AccessHandleT::traits::min_schedule_permissions_given
-              or traits::max_schedule_permissions >= AccessHandleT::traits::min_schedule_permissions
-          )
       >
     >
     AccessHandle(
@@ -246,40 +250,51 @@ class AccessHandle : public detail::AccessHandleBase {
       }
     }
 
-    // Allow casting to a non-const reference
-    template <
-      typename AccessHandleT,
-      typename = std::enable_if_t<
-        // Check if it's an AccessHandle type that's not this type
-        detail::is_access_handle<AccessHandleT>::value
-          // Check if the conversion is allowed based on min permissions and max permissions
-          and (
-            not traits::max_immediate_permissions_given
-              or not AccessHandleT::traits::min_immediate_permissions_given
-              or traits::max_immediate_permissions <= AccessHandleT::traits::min_immediate_permissions
-          )
-            // same thing for schedule case
-          and (
-            not traits::max_schedule_permissions_given
-              or not AccessHandleT::traits::min_schedule_permissions_given
-              or traits::max_schedule_permissions <= AccessHandleT::traits::min_schedule_permissions
-          )
-      >
-    >
-    operator AccessHandleT&() const {
-      return *reinterpret_cast<AccessHandleT*>(
-        const_cast<AccessHandle*>(this)
-      );
-    };
-
     // end analogous type conversion constructor
     ////////////////////////////////////////
 
+    // Allow casting to a non-const reference
+    operator AccessHandle&() const {
+      return *const_cast<AccessHandle*>(this);
+    };
+
+    ////////////////////////////////////////
+    // <editor-fold desc="move constructors">
+
     AccessHandle(AccessHandle &&) noexcept = default;
+
+    // Analogous type move constructor
+    template <
+      typename AccessHandleT,
+      typename = std::enable_if_t<
+        // Check if this is convertible from AccessHandleT
+        is_convertible_from_access_handle<AccessHandleT>::value
+          and not std::is_same<AccessHandleT, AccessHandle>::value
+      >
+    >
+    AccessHandle(AccessHandleT&& other) noexcept
+      : AccessHandle( reinterpret_cast<AccessHandle&&>(std::move(other)) )
+    { }
 
     AccessHandle(AccessHandle const&& other) noexcept
       : AccessHandle(std::move(const_cast<AccessHandle&>(other)))
     { }
+
+    // Analogous type const move constructor
+    template <
+      typename AccessHandleT,
+      typename = std::enable_if_t<
+        // Check if this is convertible from AccessHandleT
+        is_convertible_from_access_handle<AccessHandleT>::value
+          and not std::is_same<AccessHandleT, AccessHandle>::value
+      >
+    >
+    AccessHandle(AccessHandleT const && other) noexcept
+      : AccessHandle(std::move(const_cast<AccessHandleT&>(other)))
+    { }
+
+    // </editor-fold> end move constructors
+    ////////////////////////////////////////
 
     template <typename _Ignored=void,
       typename = std::enable_if_t<
