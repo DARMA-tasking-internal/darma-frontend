@@ -59,6 +59,4 @@ namespace darma_runtime { namespace types {
   typedef darma_runtime::detail::SimpleKey key_t;
 }} // end namespace darma_runtime::types
 
-
-
 #endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */

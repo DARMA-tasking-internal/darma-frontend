@@ -439,7 +439,6 @@ namespace detail {
 
 class AccessHandleBase {
   public:
-    virtual ~AccessHandleBase() = default;
 
     typedef enum CaptureOp {
       ro_capture,
@@ -451,21 +450,23 @@ class AccessHandleBase {
       Ignored = 1,
       ReadOnly = 2,
       // Future use:
-      ScheduleOnly = 4,
+        ScheduleOnly = 4,
       Leaf = 8,
       Uncaptured = 16
     } captured_as_info_t;
 
     typedef typename abstract::frontend::Handle handle_t;
-
 };
+
+} // end namespace detail
 
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
 
-
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="access_handle_traits and helpers">
+
+namespace detail {
 
 typedef enum AccessHandlePermissions {
   NotGiven=-1,
@@ -615,12 +616,10 @@ using make_access_handle_traits_t = typename make_access_handle_traits<modifiers
 // </editor-fold>
 //------------------------------------------------------------
 
+} // end namespace detail
 
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
-
-} // end namespace detail
-
 
 // Forward declaration of AccessHandle
 template <
@@ -628,7 +627,6 @@ template <
   typename traits = detail::access_handle_traits<>
 >
 class AccessHandle;
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="is_access_handle">
@@ -639,6 +637,7 @@ template <typename T, typename Enable=void>
 struct is_access_handle
   : std::false_type { };
 
+// TODO decide if this is a good or bad idea
 template <typename T>
 struct is_access_handle<T,
   std::enable_if_t<not std::is_same<

@@ -297,8 +297,8 @@ class TaskBase : public abstract::backend::runtime_t::task_t
 
   public:
 
-    void add_dependency(types::unique_ptr_template<HandleUse> const& use) {
-      dependencies_.insert(use.get());
+    void add_dependency(HandleUse& use) {
+      dependencies_.insert(&use);
     }
 
     template <typename AccessHandleT1, typename AccessHandleT2>
