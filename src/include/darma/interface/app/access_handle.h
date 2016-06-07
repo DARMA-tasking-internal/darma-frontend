@@ -386,7 +386,11 @@ class AccessHandle : public detail::AccessHandleBase {
         current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
         "set_value() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
       );
-      emplace_value(std::forward<U>(val));
+      DARMA_ASSERT_MESSAGE(value_constructed_,
+        "Tried to call set_value on non-default-constructible type before calling emplace_value to construct"
+          " the initial instance"
+      );
+      *static_cast<T*>(current_use_->use.data_) = std::forward<U>(val);
     }
 
     template <typename _Ignored = void, typename... Args>
@@ -613,7 +617,7 @@ class AccessHandle : public detail::AccessHandleBase {
     mutable variable_handle_ptr var_handle_ = nullptr;
     mutable use_holder_ptr current_use_ = nullptr;
     // TODO switch to everything has to be constructed requirement
-    mutable bool value_constructed_ = false;
+    mutable bool value_constructed_ = std::is_default_constructible<T>::value;
 
     task_t* capturing_task = nullptr;
 
