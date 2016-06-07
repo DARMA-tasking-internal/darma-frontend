@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      helpers.h
+//                      simple_key_fwd.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,24 +42,17 @@
 //@HEADER
 */
 
-#ifndef DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H
-#define DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H
+#ifndef DARMA_IMPL_KEY_SIMPLE_KEY_FWD_H
+#define DARMA_IMPL_KEY_SIMPLE_KEY_FWD_H
 
-#include <darma/interface/frontend/use.h>
+namespace darma_runtime {
 
-#include <string>
+namespace detail {
 
-inline std::string
-permissions_to_string(darma_runtime::abstract::frontend::Use::permissions_t per) {
-  switch(per) {
-#define _DARMA__perm_case(val) case darma_runtime::abstract::frontend::Use::Permissions::val: return #val;
-    _DARMA__perm_case(None)
-    _DARMA__perm_case(Read)
-    _DARMA__perm_case(Modify)
-    _DARMA__perm_case(Write)
-    _DARMA__perm_case(Reduce)
-#undef _DARMA__perm_case
-  }
-}
+class SimpleKey;
 
-#endif //DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H
+} // end namespace detail
+
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_KEY_SIMPLE_KEY_FWD_H

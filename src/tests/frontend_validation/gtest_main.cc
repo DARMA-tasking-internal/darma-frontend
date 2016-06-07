@@ -44,6 +44,16 @@
 
 #include <gtest/gtest.h>
 
+#include <mock_backend.h>
+
+namespace mock_backend {
+
+size_t MockFlow::next_index = 0;
+
+} // end namespace mock_backend
+
+
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

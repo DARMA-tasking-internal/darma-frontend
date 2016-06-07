@@ -135,8 +135,6 @@ class MockFlow
     }
 };
 
-size_t MockFlow::next_index = 0;
-
 } // end namespace mock_backend
 
 #endif /* SRC_TESTS_FRONTEND_VALIDATION_MOCK_BACKEND_H_ */
