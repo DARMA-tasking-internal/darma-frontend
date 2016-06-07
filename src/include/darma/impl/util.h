@@ -79,7 +79,7 @@
 template <typename T>
 struct _____________________________TYPE_DISPLAY________________________________;
 #define _DARMA_HIDE_TYPE_DISPLAY() _____________________________TYPE_DISPLAY________________________________
-#define DARMA_TYPE_DISPLAY(...) _DARMA_HIDE_TYPE_DISPLAY()<__VA_ARGS__> _undef;
+#define DARMA_TYPE_DISPLAY(...) _DARMA_HIDE_TYPE_DISPLAY()<__VA_ARGS__> DARMA_CONCAT_TOKEN_(_undef_, __LINE__);
 
 namespace darma_runtime {
 

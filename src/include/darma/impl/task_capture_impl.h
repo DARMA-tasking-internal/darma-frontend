@@ -172,6 +172,7 @@ TaskBase::do_capture(
                   break;
                 case HandleUse::Modify:
                   _ro_capture_mod_imm();
+                  break;
               }
               break;
             }
@@ -180,8 +181,10 @@ TaskBase::do_capture(
                 case HandleUse::None:
                 case HandleUse::Read:
                   _ro_capture_non_mod_imm();
+                  break;
                 case HandleUse::Modify:
                   _ro_capture_mod_imm();
+                  break;
               }
               break;
             }
