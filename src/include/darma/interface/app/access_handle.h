@@ -188,7 +188,7 @@ class AccessHandle : public detail::AccessHandleBase {
     }
 
     explicit
-    AccessHandle(AccessHandle const &copied_from) noexcept {
+    AccessHandle(AccessHandle const & copied_from) noexcept {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase *running_task = detail::safe_static_cast<detail::TaskBase *const>(
         detail::backend_runtime->get_running_task()
@@ -320,6 +320,10 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     operator->() const {
       DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "handle dereferenced after release"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
         "handle dereferenced in state without immediate access to data, with key: {" << get_key() << "}"
       );
@@ -343,6 +347,10 @@ class AccessHandle : public detail::AccessHandleBase {
       T&
     >
     operator*() const {
+      DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "handle dereferenced after release"
+      );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
         "handle dereferenced in state without immediate access to data, with key: {" << get_key() << "}"
@@ -383,6 +391,10 @@ class AccessHandle : public detail::AccessHandleBase {
     void
     set_value(U&& val) const {
       DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "set_value() called on handle after release"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
         "set_value() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
       );
@@ -400,6 +412,10 @@ class AccessHandle : public detail::AccessHandleBase {
         and std::is_same<_Ignored, void>::value
     >
     emplace_value(Args&&... args) const {
+      DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "emplace_value() called on handle after release"
+      );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
         "emplace_value() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
@@ -424,6 +440,10 @@ class AccessHandle : public detail::AccessHandleBase {
     const T&
     get_value() const {
       DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "get_value() called on handle after release"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
         "get_value() called on handle not in immediately readable state, with key: {" << get_key() << "}"
       );
@@ -444,6 +464,10 @@ class AccessHandle : public detail::AccessHandleBase {
     T&
     get_reference() const {
       DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "get_reference() called on handle after release"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
         "get_reference() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
       );
@@ -462,6 +486,10 @@ class AccessHandle : public detail::AccessHandleBase {
       PublishExprParts&&... parts
     ) const {
       using detail::HandleUse;
+      DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "publish() called on handle after release"
+      );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.scheduling_permissions_ != HandleUse::None,
         "publish() called on handle that can't schedule at least read usage on data (most likely "
@@ -521,15 +549,15 @@ class AccessHandle : public detail::AccessHandleBase {
           ),
           detail::HandleUse::None, detail::HandleUse::Read
         );
+        detail::backend_runtime->register_use(&use_to_publish);
 
-        auto new_use = detail::make_unique<detail::HandleUse>(
+        auto new_use = detail::make_shared<detail::UseHolder>(HandleUse(
           var_handle_.get(), next_in, next_out,
           current_use_->use.scheduling_permissions_,
           // Downgrade to read
           HandleUse::Read
-        );
+        ));
 
-        detail::backend_runtime->register_use(&use_to_publish);
         detail::PublicationDetails dets(
           helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
           helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
