@@ -87,7 +87,7 @@ class Task {
      *  See description in Task and Use life cycle discussions.
      *  @return An iterable container of Use objects whose availability are preconditions for task execution
      */
-    virtual types::handle_container_template<Use const*> const&
+    virtual types::handle_container_template<Use*> const&
     get_dependencies() const =0;
 
     //TODO would like to see this function

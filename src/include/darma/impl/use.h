@@ -124,6 +124,23 @@ class HandleUse
 
 };
 
+// really belongs to AccessHandle, but we can't put this in impl/handle.h because of circular header dependencies
+struct UseHolder {
+  HandleUse use;
+
+  UseHolder(UseHolder&&) = delete;
+  UseHolder(UseHolder const &) = delete;
+
+  explicit
+  UseHolder(HandleUse&& in_use) : use(std::move(in_use)) {
+    detail::backend_runtime->register_use(&use);
+  }
+
+  ~UseHolder() {
+    detail::backend_runtime->release_use(&use);
+  }
+};
+
 } // end namespace detail
 
 } // end namespace darma_runtime
