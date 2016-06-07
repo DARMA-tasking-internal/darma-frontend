@@ -45,8 +45,6 @@
 #ifndef DARMA_IMPL_KEY_SIMPLE_KEY_H_H
 #define DARMA_IMPL_KEY_SIMPLE_KEY_H_H
 
-#include <darma/impl/util.h>
-
 #include <darma/impl/meta/tuple_for_each.h>
 #include <darma/impl/meta/splat_tuple.h>
 
@@ -59,13 +57,9 @@
 #include <darma/impl/key_concept.h>
 #include <darma/impl/darma_assert.h>
 
+#include "simple_key_fwd.h"
+
 namespace darma_runtime {
-
-namespace detail {
-
-class SimpleKey;
-
-} // end namespace detail
 
 namespace serialization {
 

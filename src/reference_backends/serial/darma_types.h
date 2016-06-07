@@ -55,7 +55,6 @@ namespace darma_runtime { namespace types {
 typedef darma_runtime::detail::SimpleKey key_t;
 }} // end namespace darma_runtime::types
 
-#include <darma/interface/defaults/version.h>
 #include <darma/interface/defaults/pointers.h>
 
 

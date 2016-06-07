@@ -147,9 +147,10 @@ struct Runnable : public RunnableBase
 {
   private:
   public:
+    // Force it to be an rvalue reference
     explicit
-    Runnable(Callable&& c)
-      : run_this_(std::forward<Callable>(c))
+    Runnable(std::remove_reference_t<Callable>&& c)
+      : run_this_(std::move(c))
     { }
     void run() override { run_this_(); }
 
@@ -164,7 +165,7 @@ struct Runnable : public RunnableBase
     size_t get_index() const override { return index_; }
 
   private:
-    Callable run_this_;
+    std::remove_reference_t<Callable> run_this_;
 };
 
 template <typename Callable>
@@ -288,7 +289,7 @@ class TaskBase : public abstract::backend::runtime_t::task_t
     using key_t = types::key_t;
     using abstract_use_t = abstract::frontend::Use;
 
-    using get_deps_container_t = types::handle_container_template<abstract_use_t const*>;
+    using get_deps_container_t = types::handle_container_template<abstract_use_t*>;
 
     get_deps_container_t dependencies_;
 
@@ -296,8 +297,8 @@ class TaskBase : public abstract::backend::runtime_t::task_t
 
   public:
 
-    void add_dependency(types::unique_ptr_template<HandleUse> const& use) {
-      dependencies_.insert(use.get());
+    void add_dependency(HandleUse& use) {
+      dependencies_.insert(&use);
     }
 
     template <typename AccessHandleT1, typename AccessHandleT2>

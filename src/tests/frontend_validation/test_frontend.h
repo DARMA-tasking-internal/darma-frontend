@@ -60,51 +60,9 @@
 #include "mock_backend.h"
 #include "darma_types.h"
 
-namespace _impl {
+#include "helpers.h"
+#include "matchers.h"
 
-std::string
-perm_to_string(darma_runtime::abstract::frontend::Use::permissions_t per) {
-  switch(per) {
-#define _DARMA__perm_case(val) case darma_runtime::abstract::frontend::Use::Permissions::val: return #val;
-    _DARMA__perm_case(None)
-    _DARMA__perm_case(Read)
-    _DARMA__perm_case(Modify)
-    _DARMA__perm_case(Write)
-    _DARMA__perm_case(Reduce)
-#undef _DARMA__perm_case
-  }
-}
-
-} // end namespace _impl
-
-using namespace ::testing;
-MATCHER_P4(IsUseWithFlows, f_in, f_out, scheduling_permissions, immediate_permissions,
-  "arg->get_in_flow(): " + PrintToString(f_in) + ", arg->get_out_flow(): "
-    + PrintToString(f_out) + ", arg->scheduling_permissions(): " + _impl::perm_to_string(scheduling_permissions)
-    + ", arg->immediate_permissions(): " + _impl::perm_to_string(immediate_permissions)
-) {
-  if(arg == nullptr) {
-    *result_listener << "arg is null";
-    return false;
-  }
-
-  *result_listener << "arg->get_in_flow(): " << PrintToString(arg->get_in_flow()) + ", arg->get_out_flow(): "
-    + PrintToString(arg->get_out_flow())
-    << ", arg->scheduling_permissions(): " << _impl::perm_to_string(arg->scheduling_permissions())
-    + ", arg->immediate_permissions(): " + _impl::perm_to_string(arg->immediate_permissions());
-  using namespace mock_backend;
-  if(*f_in != *static_cast<MockFlow*>(arg->get_in_flow())) return false;
-  if(f_out != nullptr) {
-    if(*f_out != *static_cast<MockFlow*>(arg->get_out_flow())) return false;
-  }
-  if(immediate_permissions != -1) {
-    if(immediate_permissions != int(arg->immediate_permissions())) return false;
-  }
-  if(scheduling_permissions != -1) {
-    if(scheduling_permissions != int(arg->scheduling_permissions())) return false;
-  }
-  return true;
-}
 
 class TestFrontend
   : public ::testing::Test
@@ -163,17 +121,20 @@ class TestFrontend
       });
     }
 
+    ////////////////////////////////////////
+
     template <typename... KeyParts>
     auto expect_initial_access(
       mock_backend::MockFlow& fin,
       mock_backend::MockFlow& fout,
       use_t*& use_ptr,
-      KeyParts&&... kparts
+      darma_runtime::types::key_t const& key,
+      ::testing::Sequence const& s_register = Sequence(),
+      ::testing::Sequence const& s_release = Sequence()
     ) {
       using namespace darma_runtime;
       using namespace mock_backend;
       using namespace ::testing;
-      auto key = make_key(std::forward<KeyParts>(kparts)...);
 
       Sequence s1, s2;
 
@@ -191,24 +152,28 @@ class TestFrontend
       expectations["register use"] =
         EXPECT_CALL(*mock_runtime, register_use(
           IsUseWithFlows(&fin, &fout, use_t::Modify, use_t::None)
-        )).Times(1).InSequence(s1, s2)
+        )).Times(1).InSequence(s1, s2, s_register)
           .WillOnce(SaveArg<0>(&use_ptr));
 
       expectations["release use"] =
         EXPECT_CALL(*mock_runtime, release_use(
           IsUseWithFlows(&fin, &fout, use_t::Modify, use_t::None)
-        )).Times(1).InSequence(s1)
+        )).Times(1).InSequence(s1, s_release)
           .WillOnce(Assign(&use_ptr, nullptr));
 
       return expectations;
     }
+
+    ////////////////////////////////////////
 
     auto expect_read_access(
       mock_backend::MockFlow& fin,
       mock_backend::MockFlow& fout,
       use_t*& use_ptr,
       darma_runtime::types::key_t const& key,
-      darma_runtime::types::key_t const& version_key
+      darma_runtime::types::key_t const& version_key,
+      ::testing::Sequence const& s_register = ::testing::Sequence(),
+      ::testing::Sequence const& s_release = ::testing::Sequence()
     ) {
       using namespace darma_runtime;
       using namespace mock_backend;
@@ -230,17 +195,66 @@ class TestFrontend
       expectations["register use"] =
         EXPECT_CALL(*mock_runtime, register_use(
           IsUseWithFlows(&fin, &fout, use_t::Read, use_t::None)
-        )).Times(1).InSequence(s1)
+        )).Times(1).InSequence(s1, s_register)
           .WillOnce(SaveArg<0>(&use_ptr));
 
       expectations["release use"] =
         EXPECT_CALL(*mock_runtime, release_use(
           IsUseWithFlows(&fin, &fout, use_t::Read, use_t::None)
-        )).Times(1).InSequence(s1)
+        )).Times(1).InSequence(s1, s_release)
           .WillOnce(Assign(&use_ptr, nullptr));
 
       return expectations;
     }
+
+
+    ////////////////////////////////////////
+
+    auto expect_mod_capture_MN_or_MR(
+      mock_backend::MockFlow& of_in_flow, mock_backend::MockFlow& of_out_flow, use_t*& of_use,
+      mock_backend::MockFlow& fin_capt, mock_backend::MockFlow& fout_capt, use_t*& use_ptr_capt,
+      mock_backend::MockFlow& fin_cont, mock_backend::MockFlow& fout_cont, use_t*& use_ptr_cont,
+      ::testing::Sequence const& s_register_capture = ::testing::Sequence(),
+      ::testing::Sequence const& s_register_continuing = ::testing::Sequence()
+    ) {
+
+      using namespace mock_backend;
+      Sequence s1, s2;
+
+      // mod-capture of MN
+      EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&of_in_flow), MockRuntime::Input))
+        .Times(1).InSequence(s1)
+        .WillOnce(Return(&fin_capt));
+      EXPECT_CALL(*mock_runtime, make_next_flow(Eq(&fin_capt), MockRuntime::Output))
+        .Times(1).InSequence(s1)
+        .WillOnce(Return(&fout_capt));
+      EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fout_capt), MockRuntime::Input))
+        .Times(1).InSequence(s1)
+        .WillOnce(Return(&fin_cont));
+      EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&of_out_flow), MockRuntime::Output))
+        .Times(1).InSequence(s1, s2)
+        .WillOnce(Return(&fout_cont));
+
+      EXPECT_CALL(*mock_runtime, register_use(AllOf(
+        IsUseWithFlows(&fin_capt, &fout_capt, use_t::Modify, use_t::Modify),
+        // expresses the requirement that register of use2 must
+        // happen before use1 is released
+        UseRefIsNonNull(ByRef(of_use))
+      ))).Times(1).InSequence(s1, s_register_capture)
+        .WillOnce(SaveArg<0>(&use_ptr_capt));
+
+
+      EXPECT_CALL(*mock_runtime, register_use(AllOf(
+        IsUseWithFlows(&fin_cont, &fout_cont, use_t::Modify, use_t::None),
+        // expresses the requirement that register of use3 must
+        // happen before use1 is released
+        UseRefIsNonNull(ByRef(of_use))
+      ))).Times(1).InSequence(s2, s_register_capture)
+        .WillOnce(SaveArg<0>(&use_ptr_cont));
+
+    }
+
+    ////////////////////////////////////////
 
     void
     run_all_tasks() {
