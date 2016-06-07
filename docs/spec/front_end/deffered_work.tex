@@ -109,7 +109,8 @@ the \gls{CSP} model of MPI.
 \begin{minipage}{0.45\textwidth}
 Execution Stream 0:
 \begin{CppCode}
-auto sender = initial_access<int>("counter");
+auto sender = 
+   initial_access<int>("counter");
 sender.set_value(42);
 sender.publish(n_readers=1);
 \end{CppCode}
@@ -117,7 +118,8 @@ sender.publish(n_readers=1);
 \begin{minipage}{0.45\textwidth}
 Execution Stream 1:
 \begin{CppCode}
-auto recver = read_access<int>("counter");
+auto recver = 
+   read_access<int>("counter");
 \end{CppCode}
 \end{minipage}
 
