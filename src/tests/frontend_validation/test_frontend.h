@@ -54,8 +54,8 @@
 #include <gtest/gtest.h>
 #include <darma/impl/task.h>
 #include <darma/impl/runtime.h>
-#include <src/include/darma/interface/app/access_handle.h>
-#include <src/include/darma/impl/handle_attorneys.h>
+#include <darma/interface/app/access_handle.h>
+#include <darma/impl/handle_attorneys.h>
 
 #include "mock_backend.h"
 #include "darma_types.h"
