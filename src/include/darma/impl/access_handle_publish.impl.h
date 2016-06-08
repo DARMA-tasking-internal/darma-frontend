@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      access_handle_publish.h
+//                      access_handle_publish.impl.h.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,8 +42,8 @@
 //@HEADER
 */
 
-#ifndef DARMA_ACCESS_HANDLE_PUBLISH_H
-#define DARMA_ACCESS_HANDLE_PUBLISH_H
+#ifndef DARMA_IMPL_ACCESS_HANDLE_PUBLISH_IMPL_H
+#define DARMA_IMPL_ACCESS_HANDLE_PUBLISH_IMPL_H
 
 #include <darma/interface/app/access_handle.h>
 
@@ -66,4 +66,5 @@ namespace darma_runtime {
 
 } // end namespace darma_runtime
 
-#endif //DARMA_ACCESS_HANDLE_PUBLISH_H
+
+#endif //DARMA_IMPL_ACCESS_HANDLE_PUBLISH_IMPL_H
