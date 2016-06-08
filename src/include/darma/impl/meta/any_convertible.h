@@ -58,9 +58,11 @@ namespace meta {
 
 struct any_arg {
   template <typename T>
-  operator T&();
+  operator T();
   template <typename T>
-  operator T&&();
+  operator T&() const;
+  template <typename T>
+  operator T&&() const;
 };
 
 struct ambiguous_if_by_value {
@@ -116,17 +118,20 @@ template <
   template <class...> class UnaryMetafunction
 >
 struct any_arg_conditional {
-  // Note that this first one is a non-const operator!  (This is the key to
-  // the whole thing working)
   template <typename T,
     typename = std::enable_if_t<UnaryMetafunction<T>::value>
   >
-  operator T&();
+  operator T();
 
   template <typename T,
-    typename = std::enable_if_t<UnaryMetafunction<T>::value>
+    typename = std::enable_if_t<UnaryMetafunction<T&>::value>
   >
-  operator T&&();
+  operator T&() const;
+
+  template <typename T,
+    typename = std::enable_if_t<UnaryMetafunction<T&&>::value>
+  >
+  operator T&&() const;
 };
 
 // </editor-fold>

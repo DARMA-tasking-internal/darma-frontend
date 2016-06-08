@@ -70,6 +70,11 @@ TaskBase::do_capture(
   typedef AccessHandleT1 AccessHandleT;
 
   DARMA_ASSERT_MESSAGE(
+    source_and_continuing.current_use_.get() != nullptr,
+    "Can't capture handle after it was released"
+  );
+
+  DARMA_ASSERT_MESSAGE(
     source_and_continuing.current_use_->use.scheduling_permissions_ != HandleUse::Permissions::None,
     "Can't do a capture of an AccessHandle with scheduling permissions of None"
   );
@@ -172,6 +177,7 @@ TaskBase::do_capture(
                   break;
                 case HandleUse::Modify:
                   _ro_capture_mod_imm();
+                  break;
               }
               break;
             }
@@ -180,8 +186,10 @@ TaskBase::do_capture(
                 case HandleUse::None:
                 case HandleUse::Read:
                   _ro_capture_non_mod_imm();
+                  break;
                 case HandleUse::Modify:
                   _ro_capture_mod_imm();
+                  break;
               }
               break;
             }

@@ -54,8 +54,8 @@
 #include <gtest/gtest.h>
 #include <darma/impl/task.h>
 #include <darma/impl/runtime.h>
-#include <src/include/darma/interface/app/access_handle.h>
-#include <src/include/darma/impl/handle_attorneys.h>
+#include <darma/interface/app/access_handle.h>
+#include <darma/impl/handle_attorneys.h>
 
 #include "mock_backend.h"
 #include "darma_types.h"
@@ -254,7 +254,57 @@ class TestFrontend
 
     }
 
+    auto expect_mod_capture_MN_or_MR(
+      mock_backend::MockFlow of_flows[2],
+      mock_backend::MockFlow f_capt[2],
+      mock_backend::MockFlow f_cont[2],
+      use_t* uses[3],
+      ::testing::Sequence const& s_register_capture = ::testing::Sequence(),
+      ::testing::Sequence const& s_register_continuing = ::testing::Sequence()
+    ) {
+      expect_mod_capture_MN_or_MR(
+        of_flows[0], of_flows[1], uses[0],
+        f_capt[0], f_capt[1], uses[1],
+        f_cont[0], f_cont[1], uses[2],
+        s_register_capture, s_register_continuing
+      );
+    }
+
     ////////////////////////////////////////
+
+    auto expect_ro_capture_RN_RR_MN_or_MR(
+      mock_backend::MockFlow& of_in_flow, mock_backend::MockFlow& of_out_flow, use_t*& of_use,
+      mock_backend::MockFlow& fin_capt, mock_backend::MockFlow& fout_capt, use_t*& use_ptr_capt,
+      ::testing::Sequence const& s_register_capture = ::testing::Sequence()
+    ) {
+      using namespace mock_backend;
+
+      Sequence s1;
+
+      // ro-capture of RN
+      EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&of_in_flow), MockRuntime::Input))
+        .Times(1).InSequence(s1)
+        .WillOnce(Return(&fin_capt));
+      EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fin_capt), MockRuntime::OutputFlowOfReadOperation))
+        .Times(1).InSequence(s1)
+        .WillOnce(Return(&fout_capt));
+
+      EXPECT_CALL(*mock_runtime, register_use(
+        IsUseWithFlows(&fin_capt, &fout_capt, use_t::Read, use_t::Read)
+      )).Times(1).InSequence(s1, s_register_capture)
+        .WillOnce(SaveArg<0>(&use_ptr_capt));
+    }
+
+    auto expect_ro_capture_RN_RR_MN_or_MR(
+      mock_backend::MockFlow of_flows[2], mock_backend::MockFlow fcapts[2], use_t* uses[2],
+      ::testing::Sequence const& s_register_capture = ::testing::Sequence()
+    ) {
+      return expect_ro_capture_RN_RR_MN_or_MR(
+        of_flows[0], of_flows[1], uses[0],
+        fcapts[0], fcapts[1], uses[1],
+        s_register_capture
+      );
+    }
 
     void
     run_all_tasks() {
