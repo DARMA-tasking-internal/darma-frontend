@@ -159,6 +159,10 @@ TEST_F(TestAccessHandle, get_reference) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+// TODO tests for conversion and cast operators once we rethink the read_access return values, etc
+
+////////////////////////////////////////////////////////////////////////////////
 //
 //TEST_F(TestAccessHandle, set_value) {
 //  using namespace ::testing;
@@ -314,320 +318,252 @@ TEST_F(TestAccessHandle, get_reference) {
 //
 //}
 //
-//////////////////////////////////////////////////////////////////////////////////
-//
-//#if defined(DEBUG) || !defined(NDEBUG)
-//TEST_F(TestAccessHandle, death_capture_released) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  mock_runtime->save_tasks = true;
-//
-//  EXPECT_DEATH(
-//    {
-//      auto tmp = initial_access<int>("hello");
-//
-//      tmp = 0;
-//
-//      create_work([=]{
-//        FAIL() << "should not be invoked in this test";
-//        tmp.set_value(2);
-//      });
-//
-//    },
-//    "[Hh]andle used after release"
-//  );
-//
-//}
-//#endif
-//
-//////////////////////////////////////////////////////////////////////////////////
-//
-//#if defined(DEBUG) || !defined(NDEBUG)
-//TEST_F(TestAccessHandle, death_publish_released) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  mock_runtime->save_tasks = true;
-//
-//  EXPECT_DEATH(
-//    {
-//      auto tmp = initial_access<int>("hello");
-//
-//      tmp = 0;
-//
-//      tmp.publish();
-//
-//    },
-//    "publish\\(\\) called on handle after release"
-//  );
-//
-//}
-//#endif
-//
-//////////////////////////////////////////////////////////////////////////////////
-//
-//#if defined(DEBUG) || !defined(NDEBUG)
-//TEST_F(TestAccessHandle, death_get_value) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  mock_runtime->save_tasks = true;
-//
-//  EXPECT_DEATH(
-//    {
-//      auto tmp = initial_access<int>("hello");
-//      tmp.get_value();
-//    },
-//    "get_value\\(\\) called on handle not in immediately readable state.*"
-//  );
-//
-//}
-//#endif
-//
-//////////////////////////////////////////////////////////////////////////////////
-//
-//#if defined(DEBUG) || !defined(NDEBUG)
-//TEST_F(TestAccessHandle, death_set_value) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  mock_runtime->save_tasks = true;
-//
-//  EXPECT_DEATH(
-//    {
-//      auto tmp = initial_access<int>("hello");
-//      tmp.set_value(10);
-//    },
-//    "set_value\\(\\) called on handle not in immediately modifiable state.*"
-//  );
-//
-//}
-//#endif
-//
-//////////////////////////////////////////////////////////////////////////////////
-//
-//#if defined(DEBUG) || !defined(NDEBUG)
-//TEST_F(TestAccessHandle, death_get_reference) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  mock_runtime->save_tasks = true;
-//
-//  EXPECT_DEATH(
-//    {
-//      auto tmp = initial_access<int>("hello");
-//      tmp.get_reference();
-//    },
-//    "get_reference\\(\\) called on handle not in immediately modifiable state.*"
-//  );
-//
-//}
-//#endif
-//
-//////////////////////////////////////////////////////////////////////////////////
-//
-//#if defined(DEBUG) || !defined(NDEBUG)
-//TEST_F(TestAccessHandle, death_set_value_2) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  EXPECT_DEATH(
-//    {
-//      mock_runtime->save_tasks = true;
-//
-//      auto tmp = initial_access<int>("hello");
-//      create_work(reads(tmp), [=]{
-//        tmp.set_value(10);
-//      });
-//
-//      run_all_tasks();
-//    },
-//    "set_value\\(\\) called on handle not in immediately modifiable state.*"
-//  );
-//
-//}
-//#endif
-//
-//////////////////////////////////////////////////////////////////////////////////
-//
-//#if defined(DEBUG) || !defined(NDEBUG)
-//TEST_F(TestAccessHandle, death_get_value_after_release) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  EXPECT_DEATH(
-//    {
-//      mock_runtime->save_tasks = true;
-//
-//      auto tmp = initial_access<int>("hello");
-//
-//      create_work([=]{
-//        tmp = 0;
-//        tmp.get_value();
-//      });
-//
-//      run_all_tasks();
-//    },
-//    "get_value\\(\\) called on handle after release"
-//  );
-//
-//}
-//#endif
-//
-//////////////////////////////////////////////////////////////////////////////////
-//
-//#if defined(DEBUG) || !defined(NDEBUG)
-//TEST_F(TestAccessHandle, death_emplace_value_after_release) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  EXPECT_DEATH(
-//    {
-//      mock_runtime->save_tasks = true;
-//
-//      auto tmp = initial_access<int>("hello");
-//
-//      create_work([=]{
-//        tmp = 0;
-//        tmp.emplace_value();
-//      });
-//
-//      run_all_tasks();
-//    },
-//    "emplace_value\\(\\) called on handle after release"
-//  );
-//
-//}
-//#endif
-//
-//////////////////////////////////////////////////////////////////////////////////
-//
-//#if defined(DEBUG) || !defined(NDEBUG)
-//TEST_F(TestAccessHandle, death_dereference) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  mock_runtime->save_tasks = true;
-//
-//  EXPECT_DEATH(
-//    {
-//      auto tmp = initial_access<int>("hello");
-//      *tmp = 5;
-//      std::cout << *tmp;
-//    },
-//    "handle dereferenced in state without immediate access to data"
-//  );
-//
-//}
-//#endif
-//
-//////////////////////////////////////////////////////////////////////////////////
-//
-//#if defined(DEBUG) || !defined(NDEBUG)
-//TEST_F(TestAccessHandle, death_dereference_arrow) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  mock_runtime->save_tasks = true;
-//
-//  EXPECT_DEATH(
-//    {
-//      auto tmp = initial_access<std::string>("hello");
-//      std::cout << tmp->size();
-//    },
-//    "handle dereferenced in state without immediate access to data"
-//  );
-//
-//}
-//#endif
-//
-//////////////////////////////////////////////////////////////////////////////////
-//
-//#if defined(DEBUG) || !defined(NDEBUG)
-//TEST_F(TestAccessHandle, death_get_key_after_release) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//
-//  mock_runtime->save_tasks = true;
-//
-//  EXPECT_DEATH(
-//    {
-//      auto tmp = initial_access<std::string>("hello");
-//      tmp = 0;
-//      tmp.get_key();
-//    },
-//    "get_key\\(\\) called on handle after release"
-//  );
-//
-//}
-//#endif
-//
-//////////////////////////////////////////////////////////////////////////////////
-//
-//// These shouldn't be failures!!!
-//
-////TEST_F(TestAccessHandle, death_release_read_only) {
-////  using namespace ::testing;
-////  using namespace darma_runtime;
-////  using namespace mock_backend;
-////  using namespace darma_runtime::keyword_arguments_for_publication;
-////
-////  mock_runtime->save_tasks = true;
-////
-////  EXPECT_DEATH(
-////    {
-////      auto tmp = read_access<std::string>("hello", version="world");
-////      create_work(reads(tmp), [=]{ tmp = 0; });
-////      run_all_tasks();
-////    },
-////    "release\\(\\) called on handle without Modify-schedule privileges"
-////  );
-////
-////}
-////
-////////////////////////////////////////////////////////////////////////////////////
-////
-////TEST_F(TestAccessHandle, death_release_read_only_2) {
-////  using namespace ::testing;
-////  using namespace darma_runtime;
-////  using namespace mock_backend;
-////  using namespace darma_runtime::keyword_arguments_for_publication;
-////
-////  mock_runtime->save_tasks = true;
-////
-////  EXPECT_DEATH(
-////    {
-////      auto tmp = initial_access<std::string>("hello");
-////      create_work(reads(tmp), [=]{ tmp = 0; });
-////      run_all_tasks();
-////    },
-////    "release\\(\\) called on handle without Modify-schedule privileges"
-////  );
-////
-////}
-//
-//////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestAccessHandle, death_capture_released) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  mock_runtime->save_tasks = true;
+
+  EXPECT_DEATH(
+    {
+      auto tmp = initial_access<int>("hello");
+
+      tmp = 0;
+
+      create_work([=]{
+        FAIL() << "should not be invoked in this test";
+        tmp.set_value(2);
+      });
+
+    },
+    "[Cc]an't capture handle after it was released"
+  );
+
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestAccessHandle, death_publish_released) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  mock_runtime->save_tasks = true;
+
+  EXPECT_DEATH(
+    {
+      auto tmp = initial_access<int>("hello");
+
+      tmp = 0;
+
+      tmp.publish();
+
+    },
+    "publish\\(\\) called on handle after release"
+  );
+
+}
+#endif
+
+//////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestAccessHandle, death_get_value) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  mock_runtime->save_tasks = true;
+
+  EXPECT_DEATH(
+    {
+      auto tmp = initial_access<int>("hello");
+      tmp.get_value();
+    },
+    "get_value\\(\\) called on handle not in immediately readable state.*"
+  );
+
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestAccessHandle, death_set_value) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  mock_runtime->save_tasks = true;
+
+  EXPECT_DEATH(
+    {
+      auto tmp = initial_access<int>("hello");
+      tmp.set_value(10);
+    },
+    "set_value\\(\\) called on handle not in immediately modifiable state.*"
+  );
+
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestAccessHandle, death_get_reference) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  mock_runtime->save_tasks = true;
+
+  EXPECT_DEATH(
+    {
+      auto tmp = initial_access<int>("hello");
+      tmp.get_reference();
+    },
+    "get_reference\\(\\) called on handle not in immediately modifiable state.*"
+  );
+
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestAccessHandle, death_set_value_2) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  EXPECT_DEATH(
+    {
+      mock_runtime->save_tasks = true;
+
+      auto tmp = initial_access<int>("hello");
+      create_work(reads(tmp), [=]{
+        tmp.set_value(10);
+      });
+
+      run_all_tasks();
+    },
+    "set_value\\(\\) called on handle not in immediately modifiable state.*"
+  );
+
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestAccessHandle, death_get_value_after_release) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  EXPECT_DEATH(
+    {
+      mock_runtime->save_tasks = true;
+
+      auto tmp = initial_access<int>("hello");
+
+      create_work([=]{
+        tmp = 0;
+        tmp.get_value();
+      });
+
+      run_all_tasks();
+    },
+    "get_value\\(\\) called on handle after release"
+  );
+
+}
+#endif
+
+//////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestAccessHandle, death_emplace_value_after_release) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  EXPECT_DEATH(
+    {
+      mock_runtime->save_tasks = true;
+
+      auto tmp = initial_access<int>("hello");
+
+      create_work([=]{
+        tmp = 0;
+        tmp.emplace_value();
+      });
+
+      run_all_tasks();
+    },
+    "emplace_value\\(\\) called on handle after release"
+  );
+
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestAccessHandle, death_dereference) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  mock_runtime->save_tasks = true;
+
+  EXPECT_DEATH(
+    {
+      auto tmp = initial_access<int>("hello");
+      *tmp = 5;
+      std::cout << *tmp;
+    },
+    "handle dereferenced in state without immediate access to data"
+  );
+
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestAccessHandle, death_dereference_arrow) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  mock_runtime->save_tasks = true;
+
+  EXPECT_DEATH(
+    {
+      auto tmp = initial_access<std::string>("hello");
+      std::cout << tmp->size();
+    },
+    "handle dereferenced in state without immediate access to data"
+  );
+
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////

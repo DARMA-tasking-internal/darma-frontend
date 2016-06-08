@@ -131,6 +131,22 @@ class AccessHandle : public detail::AccessHandleBase {
       "Tried to create handle with max_immediate_permissions < min_immediate_permissions"
     );
 
+    template <typename AccessHandleT>
+    using is_convertible_from_access_handle =  std::integral_constant<bool,
+      detail::is_access_handle<AccessHandleT>::value
+        // Check if the conversion is allowed based on min permissions and max permissions
+        and (
+          not traits::max_immediate_permissions_given
+          or not AccessHandleT::traits::min_immediate_permissions_given
+          or traits::max_immediate_permissions >= AccessHandleT::traits::min_immediate_permissions
+        )
+        // same thing for schedule case
+        and (
+          not traits::max_schedule_permissions_given
+          or not AccessHandleT::traits::min_schedule_permissions_given
+          or traits::max_schedule_permissions >= AccessHandleT::traits::min_schedule_permissions
+        )
+    >;
 
   private:
 
@@ -172,7 +188,7 @@ class AccessHandle : public detail::AccessHandleBase {
     }
 
     explicit
-    AccessHandle(AccessHandle const &copied_from) noexcept {
+    AccessHandle(AccessHandle const & copied_from) noexcept {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase *running_task = detail::safe_static_cast<detail::TaskBase *const>(
         detail::backend_runtime->get_running_task()
@@ -197,21 +213,9 @@ class AccessHandle : public detail::AccessHandleBase {
     template <
       typename AccessHandleT,
       typename = std::enable_if_t<
-        // Check if it's an AccessHandle type that's not this type
-        detail::is_access_handle<AccessHandleT>::value
+        // Check if it's a convertible AccessHandle type that's not this type
+        is_convertible_from_access_handle<AccessHandleT>::value
           and not std::is_same<AccessHandleT, AccessHandle>::value
-            // Check if the conversion is allowed based on min permissions and max permissions
-          and (
-            not traits::max_immediate_permissions_given
-              or not AccessHandleT::traits::min_immediate_permissions_given
-              or traits::max_immediate_permissions >= AccessHandleT::traits::min_immediate_permissions
-          )
-            // same thing for schedule case
-          and (
-            not traits::max_schedule_permissions_given
-              or not AccessHandleT::traits::min_schedule_permissions_given
-              or traits::max_schedule_permissions >= AccessHandleT::traits::min_schedule_permissions
-          )
       >
     >
     AccessHandle(
@@ -242,44 +246,66 @@ class AccessHandle : public detail::AccessHandleBase {
       } // end if capturing_task != nullptr
       else {
         // regular copy
-        assert(false);  // Should never get here???!?!?!
+        DARMA_ASSERT_FAILURE(
+          "Copying an AccessHandle<T> to an analogous type (e.g., ReadAccessHandle<T>) is not"
+          " allowed (except for the implicit copy that occurs when the handle is being captured)"
+        );
       }
     }
-
-    // Allow casting to a non-const reference
-    template <
-      typename AccessHandleT,
-      typename = std::enable_if_t<
-        // Check if it's an AccessHandle type that's not this type
-        detail::is_access_handle<AccessHandleT>::value
-          // Check if the conversion is allowed based on min permissions and max permissions
-          and (
-            not traits::max_immediate_permissions_given
-              or not AccessHandleT::traits::min_immediate_permissions_given
-              or traits::max_immediate_permissions <= AccessHandleT::traits::min_immediate_permissions
-          )
-            // same thing for schedule case
-          and (
-            not traits::max_schedule_permissions_given
-              or not AccessHandleT::traits::min_schedule_permissions_given
-              or traits::max_schedule_permissions <= AccessHandleT::traits::min_schedule_permissions
-          )
-      >
-    >
-    operator AccessHandleT&() const {
-      return *reinterpret_cast<AccessHandleT*>(
-        const_cast<AccessHandle*>(this)
-      );
-    };
 
     // end analogous type conversion constructor
     ////////////////////////////////////////
 
+    // Allow casting to a non-const reference
+    operator AccessHandle&() const {
+      return *const_cast<AccessHandle*>(this);
+    };
+
+    ////////////////////////////////////////
+    // <editor-fold desc="move constructors">
+
     AccessHandle(AccessHandle &&) noexcept = default;
+
+    // Analogous type move constructor
+    template <
+      typename AccessHandleT,
+      typename = std::enable_if_t<
+        // Check if this is convertible from AccessHandleT
+        is_convertible_from_access_handle<
+          std::decay_t<AccessHandleT>>::value
+          and not std::is_same<std::decay_t<AccessHandleT>, AccessHandle>::value
+          // also, turn this into a non-universal ref (i.e., only use for rvalue references)
+          // and ignore consts as well (they should go to the const move constructor below)
+          and std::is_same<
+            std::remove_const_t<std::remove_reference_t<AccessHandleT>>,
+            AccessHandleT
+          >::value
+      >
+    >
+    AccessHandle(AccessHandleT&& /* note: not universal reference! */ other) noexcept
+      : AccessHandle( reinterpret_cast<AccessHandle&&>(std::move(other)) )
+    { }
 
     AccessHandle(AccessHandle const&& other) noexcept
       : AccessHandle(std::move(const_cast<AccessHandle&>(other)))
     { }
+
+    // Analogous type const move constructor
+    template <
+      typename AccessHandleT,
+      typename = std::enable_if_t<
+        // Check if this is convertible from AccessHandleT
+        is_convertible_from_access_handle<
+          std::decay_t<AccessHandleT>>::value
+          and not std::is_same<std::decay_t<AccessHandleT>, AccessHandle>::value
+      >
+    >
+    AccessHandle(AccessHandleT const && other) noexcept
+      : AccessHandle(std::move(const_cast<AccessHandleT&>(other)))
+    { }
+
+    // </editor-fold> end move constructors
+    ////////////////////////////////////////
 
     template <typename _Ignored=void,
       typename = std::enable_if_t<
@@ -293,6 +319,10 @@ class AccessHandle : public detail::AccessHandleBase {
       T*
     >
     operator->() const {
+      DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "handle dereferenced after release"
+      );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
         "handle dereferenced in state without immediate access to data, with key: {" << get_key() << "}"
@@ -317,6 +347,10 @@ class AccessHandle : public detail::AccessHandleBase {
       T&
     >
     operator*() const {
+      DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "handle dereferenced after release"
+      );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
         "handle dereferenced in state without immediate access to data, with key: {" << get_key() << "}"
@@ -357,10 +391,18 @@ class AccessHandle : public detail::AccessHandleBase {
     void
     set_value(U&& val) const {
       DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "set_value() called on handle after release"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
         "set_value() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
       );
-      emplace_value(std::forward<U>(val));
+      DARMA_ASSERT_MESSAGE(value_constructed_,
+        "Tried to call set_value on non-default-constructible type before calling emplace_value to construct"
+          " the initial instance"
+      );
+      *static_cast<T*>(current_use_->use.data_) = std::forward<U>(val);
     }
 
     template <typename _Ignored = void, typename... Args>
@@ -370,6 +412,10 @@ class AccessHandle : public detail::AccessHandleBase {
         and std::is_same<_Ignored, void>::value
     >
     emplace_value(Args&&... args) const {
+      DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "emplace_value() called on handle after release"
+      );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
         "emplace_value() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
@@ -394,6 +440,10 @@ class AccessHandle : public detail::AccessHandleBase {
     const T&
     get_value() const {
       DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "get_value() called on handle after release"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
         "get_value() called on handle not in immediately readable state, with key: {" << get_key() << "}"
       );
@@ -414,140 +464,23 @@ class AccessHandle : public detail::AccessHandleBase {
     T&
     get_reference() const {
       DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "get_reference() called on handle after release"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
         "get_reference() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
       );
       return *static_cast<T*>(current_use_->use.data_);
     }
 
-    template <
-      typename _Ignored = void,
-      typename... PublishExprParts
-    >
+    template <typename... PublishExprParts>
     std::enable_if_t<
       is_compile_time_schedule_readable
-      and std::is_same<_Ignored, void>::value
     >
     publish(
       PublishExprParts&&... parts
-    ) const {
-      using detail::HandleUse;
-      DARMA_ASSERT_MESSAGE(
-        current_use_->use.scheduling_permissions_ != HandleUse::None,
-        "publish() called on handle that can't schedule at least read usage on data (most likely "
-          "because it was already released"
-      );
-      static_assert(detail::only_allowed_kwargs_given<
-          keyword_tags_for_publication::version,
-          keyword_tags_for_publication::n_readers
-        >::template apply<PublishExprParts...>::type::value,
-        "Unknown keyword argument given to AccessHandle<>::publish()"
-      );
-      detail::publish_expr_helper<PublishExprParts...> helper;
-
-
-      auto _pub_same = [&] {
-        auto flow_to_publish = detail::backend_runtime->make_same_flow(
-          current_use_->use.in_flow_,
-          abstract::backend::Runtime::FlowPropagationPurpose::Input
-        );
-        detail::HandleUse use_to_publish(
-          var_handle_.get(),
-          flow_to_publish,
-          detail::backend_runtime->make_same_flow(
-            flow_to_publish, abstract::backend::Runtime::OutputFlowOfReadOperation
-          ),
-          detail::HandleUse::None, detail::HandleUse::Read
-        );
-
-        detail::backend_runtime->register_use(&use_to_publish);
-        detail::PublicationDetails dets(
-          helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
-          helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
-        );
-        detail::backend_runtime->publish_use(&use_to_publish, &dets);
-        detail::backend_runtime->release_use(&use_to_publish);
-      };
-
-      auto _pub_from_modify = [&] {
-        auto flow_to_publish = detail::backend_runtime->make_forwarding_flow(
-          current_use_->use.in_flow_,
-          abstract::backend::Runtime::FlowPropagationPurpose::ForwardingChanges
-        );
-        auto next_out = detail::backend_runtime->make_same_flow(
-          current_use_->use.out_flow_,
-          abstract::backend::Runtime::FlowPropagationPurpose::Output
-        );
-        auto next_in = detail::backend_runtime->make_same_flow(
-          flow_to_publish,
-          abstract::backend::Runtime::FlowPropagationPurpose::Input
-        );
-
-        detail::HandleUse use_to_publish(
-          var_handle_.get(),
-          flow_to_publish,
-          detail::backend_runtime->make_same_flow(
-            flow_to_publish, abstract::backend::Runtime::OutputFlowOfReadOperation
-          ),
-          detail::HandleUse::None, detail::HandleUse::Read
-        );
-
-        auto new_use = detail::make_unique<detail::HandleUse>(
-          var_handle_.get(), next_in, next_out,
-          current_use_->use.scheduling_permissions_,
-          // Downgrade to read
-          HandleUse::Read
-        );
-
-        detail::backend_runtime->register_use(&use_to_publish);
-        detail::PublicationDetails dets(
-          helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
-          helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
-        );
-        detail::backend_runtime->publish_use(&use_to_publish, &dets);
-
-        _switch_to_new_use(std::move(new_use));
-        detail::backend_runtime->release_use(&use_to_publish);
-      };
-
-      switch(current_use_->use.scheduling_permissions_) {
-        case HandleUse::None: {
-          // Error message above
-          break;
-        }
-
-        case HandleUse::Read: {
-          switch(current_use_->use.immediate_permissions_) {
-            case HandleUse::None:
-            case HandleUse::Read: {
-              // Make a new flow for the publication
-              _pub_same();
-              break;
-            }
-            case HandleUse::Modify: {
-              // Don't know when anyone would have HandleUse::Read_Modify, but we still know what to do...
-              _pub_from_modify();
-              break;
-            }
-          }
-          break;
-        }
-        case HandleUse::Modify: {
-          switch (current_use_->use.immediate_permissions_) {
-            case HandleUse::None:
-            case HandleUse::Read: {
-              _pub_same();
-              break;
-            }
-            case HandleUse::Modify: {
-              _pub_from_modify();
-              break;
-            }
-          }
-          break;
-        }
-      }
-    }
+    ) const;
 
     ~AccessHandle() noexcept = default;
 
@@ -587,7 +520,7 @@ class AccessHandle : public detail::AccessHandleBase {
     mutable variable_handle_ptr var_handle_ = nullptr;
     mutable use_holder_ptr current_use_ = nullptr;
     // TODO switch to everything has to be constructed requirement
-    mutable bool value_constructed_ = false;
+    mutable bool value_constructed_ = std::is_default_constructible<T>::value;
 
     task_t* capturing_task = nullptr;
 
@@ -604,8 +537,6 @@ class AccessHandle : public detail::AccessHandleBase {
 
     ////////////////////////////////////////
     // Analogs with different privileges are friends too
-    //friend CompileTimeReadAccessAnalog;
-    //friend CompileTimeModifiableAnalog;
     friend struct detail::analogous_access_handle_attorneys::AccessHandleAccess;
 
     // Allow implicit conversion to value in the invocation of the task
@@ -630,8 +561,9 @@ class AccessHandle : public detail::AccessHandleBase {
 template <typename T>
 using ReadAccessHandle = AccessHandle<
   T, typename detail::make_access_handle_traits<
-    detail::max_schedule_permissions<detail::AccessHandlePermissions::Read>,
-    detail::max_immediate_permissions<detail::AccessHandlePermissions::Read>
+    detail::min_immediate_permissions<detail::AccessHandlePermissions::Read>,
+    detail::max_immediate_permissions<detail::AccessHandlePermissions::Read>,
+    detail::min_schedule_permissions<detail::AccessHandlePermissions::Read>
   >::type
 >;
 
@@ -681,5 +613,7 @@ using ReadAccessHandle = AccessHandle<
 //} // end namespace serialization
 
 } // end namespace darma_runtime
+
+#include <darma/impl/access_handle_publish.impl.h>
 
 #endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_ACCESS_HANDLE_H_ */
