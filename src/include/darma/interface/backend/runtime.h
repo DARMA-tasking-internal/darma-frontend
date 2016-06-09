@@ -89,6 +89,13 @@ class Runtime {
       types::unique_ptr_template<frontend::Task>&& task
     ) = 0;
 
+    /** @TODO document this
+     */
+    virtual bool
+    register_condition_task(
+      types::unique_ptr_template<frontend::Task>&& task
+    ) = 0;
+
     /** @brief Get a pointer to the \ref frontend::Task object
     *  currently running on the thread from which get_running_task() was
     *  invoked.
