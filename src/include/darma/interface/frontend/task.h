@@ -96,7 +96,7 @@ class Task {
 
     /** @brief Invoked by the backend to start the execution phase of the task's life cycle.
      */
-    virtual void
+    virtual bool
     run() =0;
 
     /** @brief returns the name of the task if one has been assigned with set_name(), or
@@ -161,7 +161,6 @@ class Task {
  */
 types::unique_ptr_template<Task>
 unpack_task(void* packed_data);
-
 
 } // end namespace frontend
 

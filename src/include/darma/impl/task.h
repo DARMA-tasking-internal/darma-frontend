@@ -76,6 +76,7 @@
 #include <darma/impl/functor_traits.h>
 #include <darma/impl/serialization/nonintrusive.h>
 #include <darma/impl/use.h>
+#include <darma/impl/util/smart_pointers.h>
 
 
 #include <typeindex>
@@ -137,7 +138,7 @@ register_runnable() {
 
 class RunnableBase {
   public:
-    virtual void run() =0;
+    virtual bool run() =0;
     virtual size_t get_index() const =0;
     virtual ~RunnableBase() { }
 };
@@ -152,7 +153,7 @@ struct Runnable : public RunnableBase
     Runnable(std::remove_reference_t<Callable>&& c)
       : run_this_(std::move(c))
     { }
-    void run() override { run_this_(); }
+    bool run() override { run_this_(); return false; }
 
     static const size_t index_;
 
@@ -171,6 +172,23 @@ struct Runnable : public RunnableBase
 template <typename Callable>
 const size_t Runnable<Callable>::index_ = register_runnable<Runnable<Callable>>();
 
+template <typename Callable>
+struct RunnableCondition : public RunnableBase
+{
+  // Don't force an rvalue; caller might want to trigger a copy by not forwarding
+  explicit
+  RunnableCondition(Callable&& c)
+    : run_this_(std::forward<Callable>(c))
+  { }
+
+  size_t get_index() const override { return 0; }
+
+  bool run() override { return run_this_(); }
+
+  std::remove_reference_t<Callable> run_this_;
+};
+
+
 template <
   typename Functor,
   typename... Args
@@ -179,8 +197,6 @@ class FunctorRunnable
   : public RunnableBase
 {
   public:
-
-
 
     typedef functor_traits<Functor> traits;
     typedef functor_call_traits<Functor, Args&&...> call_traits;
@@ -231,11 +247,12 @@ class FunctorRunnable
     ) : args_(std::forward<Args>(args)...)
     { }
 
-    void run() override {
+    bool run() override {
       meta::splat_tuple<AccessHandleBase>(
         _get_args_to_splat(),
         Functor()
       );
+      return false;
     }
 
 
@@ -298,6 +315,29 @@ class TaskBase : public abstract::backend::runtime_t::task_t
 
   public:
 
+    TaskBase() = default;
+
+    // Directly construct from a conditional callable
+    template <typename LambdaCallable,
+      typename = std::enable_if_t<
+        not std::is_base_of<std::decay_t<LambdaCallable>, TaskBase>::value
+      >
+    >
+    TaskBase(LambdaCallable&& bool_callable) {
+      TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
+        detail::backend_runtime->get_running_task()
+      );
+      parent_task->current_create_work_context = this;
+      runnable_ =
+        // *Intentionally* avoid perfect forwarding here, causing a copy to happen,
+        // which then triggers all of the captures.  We do this by adding an lvalue reference
+        // to the type and not forwarding the value
+        detail::make_unique<RunnableCondition<std::remove_reference_t<LambdaCallable>&>>(
+          bool_callable
+        );
+      parent_task->current_create_work_context = nullptr;
+    }
+
     void add_dependency(HandleUse& use) {
       dependencies_.insert(&use);
     }
@@ -311,12 +351,12 @@ class TaskBase : public abstract::backend::runtime_t::task_t
     ////////////////////////////////////////////////////////////////////////////////
     // Implementation of abstract::frontend::Task
 
-    get_deps_container_t const&
+    virtual get_deps_container_t const&
     get_dependencies() const override {
       return dependencies_;
     }
 
-    const key_t&
+    virtual const key_t&
     get_name() const override {
       return name_;
     }
@@ -332,11 +372,12 @@ class TaskBase : public abstract::backend::runtime_t::task_t
       return false;
     }
 
-    virtual void run() override {
+    bool run() override {
       assert(runnable_);
       pre_run_setup();
-      runnable_->run();
+      bool rv = runnable_->run();
       post_run_cleanup();
+      return rv;
     }
 
     size_t get_packed_size() const override {
@@ -382,9 +423,10 @@ class TopLevelTask
 {
   public:
 
-    void run() override {
+    bool run() override {
       // Abort, as specified.  This should never be called.
       assert(false);
+      return false;
     }
 
 };
