@@ -336,6 +336,7 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace mock_backend;
+  using task_t = abstract::backend::runtime_t::task_t;
   using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
 
   mock_runtime->save_tasks = true;
@@ -360,7 +361,7 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
 
   int value = 42;
 
-  abstract::frontend::Task* outer, *inner;
+  task_t* outer, *inner;
 
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_cap_1))))
     .Times(1).InSequence(s0).WillOnce(SaveArg<0>(&outer));
@@ -459,6 +460,7 @@ TEST_F(TestCreateWork, ro_capture_MM) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace mock_backend;
+  using task_t = abstract::backend::runtime_t::task_t;
   using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
 
   mock_runtime->save_tasks = true;
@@ -483,7 +485,7 @@ TEST_F(TestCreateWork, ro_capture_MM) {
 
   int value = 42;
 
-  abstract::frontend::Task* outer, *inner;
+  task_t* outer, *inner;
 
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_cap_1))))
     .Times(1).InSequence(s0).WillOnce(SaveArg<0>(&outer));

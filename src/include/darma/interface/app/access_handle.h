@@ -190,7 +190,7 @@ class AccessHandle : public detail::AccessHandleBase {
     explicit
     AccessHandle(AccessHandle const & copied_from) noexcept {
       // get the shared_ptr from the weak_ptr stored in the runtime object
-      detail::TaskBase *running_task = detail::safe_static_cast<detail::TaskBase *const>(
+      detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         detail::backend_runtime->get_running_task()
       );
       capturing_task = running_task->current_create_work_context;
@@ -223,7 +223,7 @@ class AccessHandle : public detail::AccessHandleBase {
     ) noexcept {
       using detail::analogous_access_handle_attorneys::AccessHandleAccess;
       // get the shared_ptr from the weak_ptr stored in the runtime object
-      detail::TaskBase *running_task = detail::safe_static_cast<detail::TaskBase *const>(
+      detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         detail::backend_runtime->get_running_task()
       );
       capturing_task = running_task->current_create_work_context;
@@ -474,9 +474,10 @@ class AccessHandle : public detail::AccessHandleBase {
       return *static_cast<T*>(current_use_->use.data_);
     }
 
-    template <typename... PublishExprParts>
+    template <typename _Ignored=void, typename... PublishExprParts>
     std::enable_if_t<
       is_compile_time_schedule_readable
+        and std::is_same<_Ignored, void>::value
     >
     publish(
       PublishExprParts&&... parts

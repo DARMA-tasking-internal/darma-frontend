@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          splat_tuple.h
-//                         dharma_new
+//                      frontend_fwd.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,53 +42,28 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_META_SPLAT_TUPLE_H_
-#define SRC_DARMA_META_SPLAT_TUPLE_H_
+#ifndef DARMA_INTERFACE_FRONTEND_FWD_H
+#define DARMA_INTERFACE_FRONTEND_FWD_H
 
-#include <type_traits>
-#include <tuple>
+namespace darma_runtime {
+namespace abstract {
+namespace frontend {
 
-#include <tinympl/tuple_as_sequence.hpp>
-#include <tinympl/at.hpp>
-#include <tinympl/size.hpp>
+template <typename ConcreteTask>
+class Task;
 
-namespace darma_runtime { namespace meta {
+class Handle;
 
-// Attorney pattern for splatted callables
-template <typename To>
-struct splat_tuple_access {
-  template <typename Callable, typename... Args>
-  inline constexpr decltype(auto)
-  operator()(Callable&& callable, Args&&... args) const {
-    return std::forward<Callable>(callable)(std::forward<Args>(args)...);
-  }
-};
+class PublicationDetails;
 
-namespace _splat_tuple_impl {
+class SerializationManager;
 
-template <typename AccessTo, size_t... Is, typename Tuple, typename Callable>
-constexpr decltype(auto)
-_helper(std::index_sequence<Is...>, Tuple&& tup, Callable&& callable) {
-  return splat_tuple_access<AccessTo>()(
-    std::forward<Callable>(callable),
-    std::get<Is>(std::forward<Tuple>(tup))...
-  );
-};
+class Use;
+// This will make a useful replacement when we go to CRTP for use
+typedef Use use_t;
 
-} // end namespace _splat_tuple_impl
+} // end namespace frontend
+} // end namespace abstract
+} // end namespace darma_runtime
 
-template <typename AccessTo=void, typename Callable, typename Tuple>
-inline decltype(auto)
-splat_tuple(Tuple&& tup, Callable&& callable) {
-  return _splat_tuple_impl::_helper<AccessTo>(
-    std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value>(),
-    std::forward<Tuple>(tup), std::forward<Callable>(callable)
-  );
-}
-
-
-}} // end namespace darma_runtime::meta
-
-
-
-#endif /* SRC_DARMA_META_SPLAT_TUPLE_H_ */
+#endif //DARMA_INTERFACE_FRONTEND_FWD_H

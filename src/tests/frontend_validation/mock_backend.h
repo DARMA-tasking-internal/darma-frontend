@@ -60,9 +60,8 @@ class MockRuntime
 {
   public:
 
-    using task_t = darma_runtime::abstract::frontend::Task;
-    using task_unique_ptr =
-      darma_runtime::types::unique_ptr_template<darma_runtime::abstract::frontend::Task>;
+    using task_t = darma_runtime::abstract::backend::runtime_t::task_t;
+    using task_unique_ptr = darma_runtime::abstract::backend::runtime_t::task_unique_ptr;
     using runtime_t = darma_runtime::abstract::backend::Runtime;
     using handle_t = darma_runtime::abstract::frontend::Handle;
     using flow_t = darma_runtime::abstract::backend::Flow;

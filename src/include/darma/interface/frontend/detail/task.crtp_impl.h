@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          splat_tuple.h
-//                         dharma_new
+//                      task.crtp_impl.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,53 +42,62 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_META_SPLAT_TUPLE_H_
-#define SRC_DARMA_META_SPLAT_TUPLE_H_
+#ifndef DARMA_TASK_CRTP_IMPL_H
+#define DARMA_TASK_CRTP_IMPL_H
 
-#include <type_traits>
-#include <tuple>
+#include <darma/interface/frontend/task.h>
+#include <darma/interface/frontend/use.h>
 
-#include <tinympl/tuple_as_sequence.hpp>
-#include <tinympl/at.hpp>
-#include <tinympl/size.hpp>
+#include <darma/interface/frontend/frontend_fwd.h>
 
-namespace darma_runtime { namespace meta {
+namespace darma_runtime {
+namespace abstract {
+namespace frontend {
 
-// Attorney pattern for splatted callables
-template <typename To>
-struct splat_tuple_access {
-  template <typename Callable, typename... Args>
-  inline constexpr decltype(auto)
-  operator()(Callable&& callable, Args&&... args) const {
-    return std::forward<Callable>(callable)(std::forward<Args>(args)...);
-  }
-};
-
-namespace _splat_tuple_impl {
-
-template <typename AccessTo, size_t... Is, typename Tuple, typename Callable>
-constexpr decltype(auto)
-_helper(std::index_sequence<Is...>, Tuple&& tup, Callable&& callable) {
-  return splat_tuple_access<AccessTo>()(
-    std::forward<Callable>(callable),
-    std::get<Is>(std::forward<Tuple>(tup))...
-  );
-};
-
-} // end namespace _splat_tuple_impl
-
-template <typename AccessTo=void, typename Callable, typename Tuple>
-inline decltype(auto)
-splat_tuple(Tuple&& tup, Callable&& callable) {
-  return _splat_tuple_impl::_helper<AccessTo>(
-    std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value>(),
-    std::forward<Tuple>(tup), std::forward<Callable>(callable)
-  );
+template <typename ConcreteTask>
+inline types::handle_container_template<use_t*> const&
+Task<ConcreteTask>::get_dependencies() const {
+  return static_cast<ConcreteTask const*>(this)->get_dependencies();
 }
 
+template <typename ConcreteTask>
+inline bool
+Task<ConcreteTask>::run() {
+  return static_cast<ConcreteTask*>(this)->run();
+}
 
-}} // end namespace darma_runtime::meta
+template <typename ConcreteTask>
+inline types::key_t const&
+Task<ConcreteTask>::get_name() const {
+  return static_cast<ConcreteTask const*>(this)->get_name();
+}
 
+template <typename ConcreteTask>
+inline void
+Task<ConcreteTask>::set_name(types::key_t const& name_key) {
+  return static_cast<ConcreteTask*>(this)->set_name(name_key);
+}
 
+template <typename ConcreteTask>
+inline bool
+Task<ConcreteTask>::is_migratable() const {
+  return static_cast<ConcreteTask const*>(this)->is_migratable();
+}
 
-#endif /* SRC_DARMA_META_SPLAT_TUPLE_H_ */
+template <typename ConcreteTask>
+inline size_t
+Task<ConcreteTask>::get_packed_size() const {
+  return static_cast<ConcreteTask const*>(this)->get_packed_size();
+}
+
+template <typename ConcreteTask>
+inline void
+Task<ConcreteTask>::pack(void* allocated) const {
+  return static_cast<ConcreteTask const*>(this)->pack(allocated);
+}
+
+} // end namespace frontend
+} // end namespace abstract
+} // end namespace darma_runtime
+
+#endif //DARMA_TASK_CRTP_IMPL_H
