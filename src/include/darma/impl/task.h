@@ -327,6 +327,8 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
         detail::backend_runtime->get_running_task()
       );
       parent_task->current_create_work_context = this;
+      default_capture_as_info |= AccessHandleBase::CapturedAsInfo::ReadOnly;
+      default_capture_as_info |= AccessHandleBase::CapturedAsInfo::Leaf;
       runnable_ =
         // *Intentionally* avoid perfect forwarding here, causing a copy to happen,
         // which then triggers all of the captures.  We do this by adding an lvalue reference
@@ -334,6 +336,7 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
         detail::make_unique<RunnableCondition<std::remove_reference_t<LambdaCallable>&>>(
           bool_callable
         );
+      default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
       parent_task->current_create_work_context = nullptr;
     }
 
@@ -350,12 +353,12 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
     ////////////////////////////////////////////////////////////////////////////////
     // Implementation of abstract::frontend::Task
 
-    virtual get_deps_container_t const&
+    get_deps_container_t const&
     get_dependencies() const {
       return dependencies_;
     }
 
-    virtual const key_t&
+    const key_t&
     get_name() const {
       return name_;
     }
@@ -371,13 +374,13 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
       return false;
     }
 
-    bool run()  {
+    template <typename ReturnType = void>
+    ReturnType run()  {
       assert(runnable_);
       pre_run_setup();
-      bool rv = runnable_->run();
-      post_run_cleanup();
-      return rv;
+      return _do_run<ReturnType>(typename std::is_void<ReturnType>::type{});
     }
+
 
     size_t get_packed_size() const  {
       // TODO
@@ -393,6 +396,27 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
     // end implementation of abstract::frontend::Task
     ////////////////////////////////////////////////////////////////////////////////
 
+  private:
+    template <typename ReturnType>
+    inline void
+    _do_run(std::true_type&&) {
+      runnable_->run();
+      post_run_cleanup();
+    }
+
+    template <typename ReturnType>
+    inline std::enable_if_t<
+      not std::is_void<ReturnType>::value,
+      ReturnType
+    >
+    _do_run(std::false_type&&) {
+      ReturnType rv = runnable_->run();
+      post_run_cleanup();
+      return rv;
+    }
+
+  public:
+
     void pre_run_setup() { }
 
     void post_run_cleanup() { }
@@ -407,6 +431,7 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
 
     std::vector<std::function<void()>> registrations_to_run;
     std::vector<std::function<void()>> post_registration_ops;
+    unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
 
   private:
 
@@ -414,6 +439,7 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
 
     friend types::unique_ptr_template<abstract::frontend::Task<TaskBase>>
     unpack_task(void* packed_data);
+
 
 };
 

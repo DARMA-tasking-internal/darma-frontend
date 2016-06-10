@@ -95,7 +95,7 @@ TEST_F(TestCreateCondition, ro_capture_MN) {
     UseInGetDependencies(ByRef(uses[1]))
   )).Times(1).WillOnce(Invoke([&](auto* cond_task) {
     uses[1]->get_data_pointer_reference() = (void*)&value;
-    return cond_task->run();
+    return cond_task->template run<bool>();
   }));
 
   EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[1])),

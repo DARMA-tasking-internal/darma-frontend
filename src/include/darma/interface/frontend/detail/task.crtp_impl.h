@@ -61,9 +61,10 @@ Task<ConcreteTask>::get_dependencies() const {
 }
 
 template <typename ConcreteTask>
-inline bool
+template <typename ReturnType>
+inline ReturnType
 Task<ConcreteTask>::run() {
-  return static_cast<ConcreteTask*>(this)->run();
+  return static_cast<ConcreteTask*>(this)->template run<ReturnType>();
 }
 
 template <typename ConcreteTask>
