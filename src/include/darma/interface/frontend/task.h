@@ -56,8 +56,6 @@ namespace abstract {
 
 namespace frontend {
 
-// TODO more devirtualization (using "abstract inherits from concrete" pattern)
-
 /** @brief A piece of work that acts on (accesses) zero or more Handle objects
  *  at a particular point in the apparently sequential uses of these Handle objects.
  *
@@ -97,7 +95,8 @@ class Task {
 
     /** @brief Invoked by the backend to start the execution phase of the task's life cycle.
      */
-    bool run();
+    template <typename ReturnType = void>
+    ReturnType run();
 
     /** @brief returns the name of the task if one has been assigned with set_name(), or
      *  a reference to a default-constructed Key if not.

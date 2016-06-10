@@ -92,6 +92,10 @@ create_condition(Args&&... args) {
     typename rest_vector_t::template push_front<lambda_t>::type, detail::create_condition_impl
   >::type helper_t;
 
+  static_assert(std::is_convertible<decltype(std::declval<lambda_t>()()), bool>::value,
+    "Lambda given to create_condition() must return a value convertible to bool"
+  );
+
   return helper_t()(
     std::forward<Args>(args)...
   );

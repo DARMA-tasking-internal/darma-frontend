@@ -79,6 +79,8 @@ TaskBase::do_capture(
     "Can't do a capture of an AccessHandle with scheduling permissions of None"
   );
 
+  source_and_continuing.captured_as_ |= default_capture_as_info;
+
   // Note: source_and_continuing is not functionally const, since
   // we modify it significantly (it just happens that those modifications
   // are to mutable member variables which have to be mutable because
