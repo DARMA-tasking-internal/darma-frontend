@@ -258,7 +258,6 @@ class FunctorRunnable
     static std::unique_ptr<RunnableBase>
     construct_from_bytes(void* data) {
       // TODO inplace rather than move construction?
-      // TODO !!! special treatment for handles
 
       // Make an archive from the void*
       serialization::SimplePackUnpackArchive ar;
@@ -275,10 +274,9 @@ class FunctorRunnable
       meta::tuple_for_each(
         args,
         [&ar](auto& arg) {
-          // TODO Remake this!!!
-          //ar.unpack_item(const_cast<
-          //  std::remove_const_t<std::remove_reference_t<decltype(arg)>>&
-          //>(arg));
+          ar.unpack_item(const_cast<
+            std::remove_const_t<std::remove_reference_t<decltype(arg)>>&
+          >(arg));
         }
       );
 
@@ -376,6 +374,9 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
 
     template <typename ReturnType = void>
     ReturnType run()  {
+      static_assert(std::is_same<ReturnType, bool>::value or std::is_void<ReturnType>::value,
+        "Only bool and void for ReturnType in Task::run<>() are currently supported"
+      );
       assert(runnable_);
       pre_run_setup();
       return _do_run<ReturnType>(typename std::is_void<ReturnType>::type{});

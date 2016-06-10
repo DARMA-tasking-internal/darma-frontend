@@ -99,11 +99,11 @@ class Use {
 
     /** @brief Get the Flow that must be ready for use as a precondition for the Task t that depends on this Use
      */
-    virtual backend::Flow* get_in_flow() =0;
+    virtual backend::Flow*& get_in_flow() =0;
 
     /** @brief Get the Flow that is produced or made available when this Use is released
      */
-    virtual backend::Flow* get_out_flow() =0;
+    virtual backend::Flow*& get_out_flow() =0;
 
     /** Get the immediate permissions needed for the Flow returned by get_in_flow() to be ready as a precondition for this Use
      */
