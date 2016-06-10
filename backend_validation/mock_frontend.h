@@ -146,12 +146,10 @@ class MockDependencyHandle
 };
 
 class MockTask
-  : public darma_runtime::abstract::frontend::Task
+  : public darma_runtime::abstract::frontend::Task<MockTask>
 {
   public:
     typedef darma_runtime::types::key_t key_t;
-    typedef darma_runtime::types::version_t version_t;
-    typedef darma_runtime::abstract::frontend::DependencyHandle<key_t, version_t> handle_t;
     typedef darma_runtime::types::handle_container_template<handle_t*> handle_container_t;
 
   private:

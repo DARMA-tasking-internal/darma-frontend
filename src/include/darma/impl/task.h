@@ -45,6 +45,8 @@
 #ifndef DARMA_RUNTIME_TASK_H_
 #define DARMA_RUNTIME_TASK_H_
 
+#include <typeindex>
+#include <cstdlib>
 #include <unordered_map>
 #include <unordered_set>
 #include <set>
@@ -78,10 +80,7 @@
 #include <darma/impl/use.h>
 #include <darma/impl/util/smart_pointers.h>
 
-
-#include <typeindex>
-#include <stdlib.h>
-
+#include <darma/interface/frontend/detail/task.crtp_impl.h>
 
 namespace darma_runtime {
 
@@ -153,7 +152,7 @@ struct Runnable : public RunnableBase
     Runnable(std::remove_reference_t<Callable>&& c)
       : run_this_(std::move(c))
     { }
-    bool run() override { run_this_(); return false; }
+    bool run()  { run_this_(); return false; }
 
     static const size_t index_;
 
@@ -163,7 +162,7 @@ struct Runnable : public RunnableBase
       assert(false);
     }
 
-    size_t get_index() const override { return index_; }
+    size_t get_index() const  { return index_; }
 
   private:
     std::remove_reference_t<Callable> run_this_;
@@ -181,9 +180,9 @@ struct RunnableCondition : public RunnableBase
     : run_this_(std::forward<Callable>(c))
   { }
 
-  size_t get_index() const override { return 0; }
+  size_t get_index() const  { return 0; }
 
-  bool run() override { return run_this_(); }
+  bool run()  { return run_this_(); }
 
   std::remove_reference_t<Callable> run_this_;
 };
@@ -247,7 +246,7 @@ class FunctorRunnable
     ) : args_(std::forward<Args>(args)...)
     { }
 
-    bool run() override {
+    bool run()  {
       meta::splat_tuple<AccessHandleBase>(
         _get_args_to_splat(),
         Functor()
@@ -287,7 +286,7 @@ class FunctorRunnable
       return std::make_unique<FunctorRunnable>(std::move(args));
     }
 
-    size_t get_index() const override { return index_; }
+    size_t get_index() const  { return index_; }
 };
 
 template <typename Functor, typename... Args>
@@ -300,7 +299,7 @@ const size_t FunctorRunnable<Functor, Args...>::index_ =
 
 // <editor-fold desc="TaskBase and its descendants">
 
-class TaskBase : public abstract::backend::runtime_t::task_t
+class TaskBase : public abstract::frontend::Task<TaskBase>
 {
   protected:
 
@@ -324,7 +323,7 @@ class TaskBase : public abstract::backend::runtime_t::task_t
       >
     >
     TaskBase(LambdaCallable&& bool_callable) {
-      TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
+      TaskBase* parent_task = static_cast<detail::TaskBase* const>(
         detail::backend_runtime->get_running_task()
       );
       parent_task->current_create_work_context = this;
@@ -352,27 +351,27 @@ class TaskBase : public abstract::backend::runtime_t::task_t
     // Implementation of abstract::frontend::Task
 
     virtual get_deps_container_t const&
-    get_dependencies() const override {
+    get_dependencies() const {
       return dependencies_;
     }
 
     virtual const key_t&
-    get_name() const override {
+    get_name() const {
       return name_;
     }
 
     void
-    set_name(const key_t& name) override {
+    set_name(const key_t& name) {
       name_ = name;
     }
 
     bool
-    is_migratable() const override {
+    is_migratable() const {
       // Ignored for now:
       return false;
     }
 
-    bool run() override {
+    bool run()  {
       assert(runnable_);
       pre_run_setup();
       bool rv = runnable_->run();
@@ -380,13 +379,13 @@ class TaskBase : public abstract::backend::runtime_t::task_t
       return rv;
     }
 
-    size_t get_packed_size() const override {
+    size_t get_packed_size() const  {
       // TODO
       assert(false);
       return 0;
     }
 
-    void pack(void* allocated) const override {
+    void pack(void* allocated) const  {
       // TODO
       assert(false);
     }
@@ -413,7 +412,7 @@ class TaskBase : public abstract::backend::runtime_t::task_t
 
     std::unique_ptr<RunnableBase> runnable_;
 
-    friend types::unique_ptr_template<abstract::frontend::Task>
+    friend types::unique_ptr_template<abstract::frontend::Task<TaskBase>>
     unpack_task(void* packed_data);
 
 };
@@ -423,7 +422,7 @@ class TopLevelTask
 {
   public:
 
-    bool run() override {
+    bool run()  {
       // Abort, as specified.  This should never be called.
       assert(false);
       return false;
@@ -444,7 +443,7 @@ namespace abstract {
 
 namespace frontend {
 
-inline types::unique_ptr_template<abstract::frontend::Task>
+inline backend::runtime_t::task_unique_ptr
 unpack_task(void* packed_data) {
   serialization::SimplePackUnpackArchive ar;
   detail::DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);

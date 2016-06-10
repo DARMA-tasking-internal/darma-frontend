@@ -45,6 +45,8 @@
 #ifndef DARMA_IMPLEMENTATION_FRONTEND_USE_H
 #define DARMA_IMPLEMENTATION_FRONTEND_USE_H
 
+#include <darma/interface/frontend/frontend_fwd.h>
+
 #include <darma/interface/backend/flow.h>
 #include "handle.h"
 
@@ -121,6 +123,7 @@ class Use {
     virtual void*& get_data_pointer_reference() =0;
 
 };
+
 
 } // end namespace frontend
 } // end namespace abstract

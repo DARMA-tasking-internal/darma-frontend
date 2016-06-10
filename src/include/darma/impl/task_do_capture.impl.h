@@ -122,6 +122,10 @@ TaskBase::do_capture(
             DARMA_ASSERT_UNREACHABLE_FAILURE(); // LCOV_EXCL_LINE
             break;
           }
+          default: {
+            DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+            break;
+          }
         };
       }
 
@@ -178,6 +182,10 @@ TaskBase::do_capture(
                 case HandleUse::Modify:
                   _ro_capture_mod_imm();
                   break;
+                default: {
+                  DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+                  break;
+                }
               }
               break;
             }
@@ -190,6 +198,10 @@ TaskBase::do_capture(
                 case HandleUse::Modify:
                   _ro_capture_mod_imm();
                   break;
+                default: {
+                  DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+                  break;
+                }
               }
               break;
             }
@@ -254,6 +266,10 @@ TaskBase::do_capture(
               continuing._switch_to_new_use(detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
                 continuing_in_flow, continuing_out_flow, HandleUse::Modify, HandleUse::Read
               )));
+              break;
+            }
+            default: {
+              DARMA_ASSERT_NOT_IMPLEMENTED();
               break;
             }
           } // end switch source.current_use_->use.scheduling_permissions_

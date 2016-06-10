@@ -45,7 +45,7 @@
 #ifndef SRC_ABSTRACT_BACKEND_RUNTIME_H_
 #define SRC_ABSTRACT_BACKEND_RUNTIME_H_
 
-#include "types.h"
+#include <darma/interface/backend/types.h>
 #include <darma/interface/frontend/types.h>
 
 #include <darma/interface/backend/flow.h>
@@ -74,7 +74,8 @@ namespace backend {
 class Runtime {
   public:
 
-    typedef frontend::Task task_t;
+    typedef frontend::Task<types::concrete_task_t> task_t;
+    typedef types::unique_ptr_template<task_t> task_unique_ptr;
 
     /** @brief Register a task to be run at some future time by the runtime system.
      *
@@ -85,16 +86,12 @@ class Runtime {
      *  @sa frontend::Task
      */
     virtual void
-    register_task(
-      types::unique_ptr_template<frontend::Task>&& task
-    ) = 0;
+    register_task( task_unique_ptr&& task ) = 0;
 
     /** @TODO document this
      */
     virtual bool
-    register_condition_task(
-      types::unique_ptr_template<frontend::Task>&& task
-    ) = 0;
+    register_condition_task( task_unique_ptr&& task ) = 0;
 
     /** @brief Get a pointer to the \ref frontend::Task object
     *  currently running on the thread from which get_running_task() was
@@ -117,7 +114,7 @@ class Runtime {
     *
     *  @sa frontend::Task
     */
-    virtual frontend::Task*
+    virtual task_t*
     get_running_task() const = 0;
 
     /** @brief Register a frontend::Use object
@@ -305,6 +302,22 @@ class Runtime {
       frontend::PublicationDetails* details
     ) =0;
 
+    /** @brief signifies the end of the outer SPMD task from which
+     *  darma_backend_initialize() was called.
+     *
+     *  @remark Note that after finalize() returns, the only valid methods that
+     *  may be invoked on this instance are release_read_only_usage() and
+     *  release_handle().  No handle released after finalize() returns may have
+     *  a subsequent.  However, when finalize is \b invoked, there may still be
+     *  pending tasks that schedule other tasks (the frontend has no way to
+     *  know this), and thus any method on this instance must be valid to call
+     *  \b between the invocation and return of finalize().
+     */
+    virtual void
+      finalize() =0;
+
+    virtual ~Runtime() noexcept = default;
+
 };
 
 typedef Runtime runtime_t;
@@ -369,7 +382,7 @@ extern void
   darma_backend_initialize(
   int& argc, char**& argv,
   runtime_t*& backend_runtime,
-  types::unique_ptr_template<typename runtime_t::task_t> top_level_task
+  runtime_t::task_unique_ptr&& top_level_task
 );
 
 } // end namespace backend
