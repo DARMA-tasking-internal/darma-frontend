@@ -76,12 +76,12 @@ class HandleUse
       return handle_;
     }
 
-    abstract::backend::Flow*
+    abstract::backend::Flow*&
     get_in_flow() override {
       return in_flow_;
     }
 
-    abstract::backend::Flow*
+    abstract::backend::Flow*&
     get_out_flow() override {
       return out_flow_;
     }
@@ -124,6 +124,9 @@ class HandleUse
 
 };
 
+struct migrated_use_arg_t { };
+static constexpr migrated_use_arg_t migrated_use_arg = { };
+
 // really belongs to AccessHandle, but we can't put this in impl/handle.h because of circular header dependencies
 struct UseHolder {
   HandleUse use;
@@ -134,6 +137,10 @@ struct UseHolder {
   explicit
   UseHolder(HandleUse&& in_use) : use(std::move(in_use)) {
     detail::backend_runtime->register_use(&use);
+  }
+
+  UseHolder(migrated_use_arg_t const&, HandleUse&& in_use) : use(std::move(in_use)) {
+    detail::backend_runtime->reregister_migrated_use(&use);
   }
 
   ~UseHolder() {

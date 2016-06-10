@@ -99,6 +99,7 @@ class MockRuntime
     MOCK_CONST_METHOD0(get_running_task, task_t*());
     MOCK_METHOD0(finalize, void());
     MOCK_METHOD1(register_use, void(use_t*));
+    MOCK_METHOD1(reregister_migrated_use, void(use_t*));
     MOCK_METHOD1(make_initial_flow, flow_t*(handle_t*));
     MOCK_METHOD2(make_fetching_flow, flow_t*(handle_t*, key_t const&));
     MOCK_METHOD1(make_null_flow, flow_t*(handle_t*));

@@ -134,6 +134,13 @@ class Runtime {
       frontend::Use* u
     ) =0;
 
+    /** @TODO document this
+     */
+    virtual void
+    reregister_migrated_use(
+      frontend::Use* u
+    ) =0;
+
     /** @brief Make an initial Flow to be associated with the handle given as an argument.
      *
      *  The initial Flow will be used as the return value of u->get_in_flow() for the first
