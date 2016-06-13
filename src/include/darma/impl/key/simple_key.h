@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      simple_key.h.h
+//                      simple_key.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //

@@ -50,8 +50,11 @@
 namespace darma_runtime {
 
 template < typename T, typename Traits >
-template < typename... PublishExprParts >
-std::enable_if_t< AccessHandle<T, Traits>::is_compile_time_schedule_readable >
+template < typename _Ignored, typename... PublishExprParts >
+std::enable_if_t<
+  AccessHandle<T, Traits>::is_compile_time_schedule_readable
+    and std::is_same<_Ignored, void>::value
+>
 AccessHandle<T, Traits>::publish(
   PublishExprParts&&... parts
 ) const {
@@ -158,6 +161,10 @@ AccessHandle<T, Traits>::publish(
           _pub_from_modify();
           break;
         }
+        default: {
+          DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+          break;
+        }
       }
       break;
     }
@@ -172,7 +179,15 @@ AccessHandle<T, Traits>::publish(
           _pub_from_modify();
           break;
         }
+        default: {
+          DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+          break;
+        }
       }
+      break;
+    }
+    default: {
+      DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
       break;
     }
   }

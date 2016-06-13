@@ -11,4 +11,5 @@ add_executable(test_logical_and  test_logical_and.cc)
 add_executable(test_logical_or  test_logical_or.cc)
 add_executable(test_min_max  test_min_max.cc)
 add_executable(test_splat  test_splat.cc)
+add_executable(test_partition test_partition.cc)
 

@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                      frontend_fwd.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,14 +42,28 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef DARMA_INTERFACE_FRONTEND_FWD_H
+#define DARMA_INTERFACE_FRONTEND_FWD_H
 
-#include <darma/impl/darma.h>
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/interface/app/create_condition.h>
-#include <darma/interface/app/access_handle.h>
+namespace darma_runtime {
+namespace abstract {
+namespace frontend {
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+template <typename ConcreteTask>
+class Task;
+
+class Handle;
+
+class PublicationDetails;
+
+class SerializationManager;
+
+class Use;
+// This will make a useful replacement when we go to CRTP for use
+typedef Use use_t;
+
+} // end namespace frontend
+} // end namespace abstract
+} // end namespace darma_runtime
+
+#endif //DARMA_INTERFACE_FRONTEND_FWD_H

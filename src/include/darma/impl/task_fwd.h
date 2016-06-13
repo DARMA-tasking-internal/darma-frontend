@@ -51,9 +51,6 @@ namespace detail {
 
 class TaskBase;
 
-template <typename Lambda, typename... Types>
-class Task;
-
 } // end namespace detail
 
 } // end namespace darma_runtime

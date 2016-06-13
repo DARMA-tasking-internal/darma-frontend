@@ -190,7 +190,7 @@ class AccessHandle : public detail::AccessHandleBase {
     explicit
     AccessHandle(AccessHandle const & copied_from) noexcept {
       // get the shared_ptr from the weak_ptr stored in the runtime object
-      detail::TaskBase *running_task = detail::safe_static_cast<detail::TaskBase *const>(
+      detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         detail::backend_runtime->get_running_task()
       );
       capturing_task = running_task->current_create_work_context;
@@ -223,7 +223,7 @@ class AccessHandle : public detail::AccessHandleBase {
     ) noexcept {
       using detail::analogous_access_handle_attorneys::AccessHandleAccess;
       // get the shared_ptr from the weak_ptr stored in the runtime object
-      detail::TaskBase *running_task = detail::safe_static_cast<detail::TaskBase *const>(
+      detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         detail::backend_runtime->get_running_task()
       );
       capturing_task = running_task->current_create_work_context;
@@ -474,9 +474,10 @@ class AccessHandle : public detail::AccessHandleBase {
       return *static_cast<T*>(current_use_->use.data_);
     }
 
-    template <typename... PublishExprParts>
+    template <typename _Ignored=void, typename... PublishExprParts>
     std::enable_if_t<
       is_compile_time_schedule_readable
+        and std::is_same<_Ignored, void>::value
     >
     publish(
       PublishExprParts&&... parts
@@ -512,6 +513,24 @@ class AccessHandle : public detail::AccessHandleBase {
           scheduling_permissions, immediate_permissions
         )))
     { }
+
+    template <typename Archive>
+    AccessHandle(
+      serialization::unpack_constructor_tag_t const&,
+      Archive& ar
+    ) {
+      key_t k;
+      ar >> k;
+      var_handle_ = detail::make_shared<detail::VariableHandle<T>>(k);
+      detail::HandleUse::permissions_t immed, sched;
+      ar >> sched >> immed;
+      current_use_ = std::make_shared<detail::UseHolder>(
+        detail::migrated_use_arg,
+        detail::HandleUse(
+          var_handle_.get(), nullptr, nullptr, sched, immed
+        )
+      );
+    }
 
     ////////////////////////////////////////
     // private members
@@ -567,50 +586,48 @@ using ReadAccessHandle = AccessHandle<
   >::type
 >;
 
-//namespace serialization {
+namespace serialization {
 
-//template <typename... Args>
-//struct Serializer<AccessHandle<Args...>> {
-//  private:
-//    using AccessHandleT = AccessHandle<Args...>;
+template <typename... Args>
+struct Serializer<AccessHandle<Args...>> {
+  private:
+    using AccessHandleT = AccessHandle<Args...>;
 
-//  public:
-//    template <typename ArchiveT>
-//    void compute_size(AccessHandleT const& val, ArchiveT& ar) const {
-//      auto const& dep_handle = val.dep_handle_;
-//      ar % dep_handle.get_key();
-//      ar % dep_handle.get_version();
-//      ar % dep_handle.version_is_pending();
-//      ar % val.state_;
-//      // Omit captured_as_; it should always be normal here
-//      assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
-//      // for whether or not the read-only holder is active
-//      ar % bool();
-//      // capturing_task will be replaced by task serialization, so we don't need to pack it here
-//    }
+  public:
+    template <typename ArchiveT>
+    void compute_size(AccessHandleT const& val, ArchiveT& ar) const {
+      if(ar.var_handle_.get() != nullptr) {
+        ar % true;
+        ar % val.var_handle_->get_key();
+        ar % val.current_use_->use.scheduling_permissions_;
+        ar % val.current_use_->use.immediate_permissions_;
+      }
+      // Omit captured_as_; it should always be normal here
+      assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
+      // capturing_task will be replaced by task serialization process, so we don't need to pack it here
+    }
 
-//    template <typename ArchiveT>
-//    void pack(AccessHandleT const& val, ArchiveT& ar) const {
-//      auto const& dep_handle = val.dep_handle_;
-//      ar << dep_handle.get_key();
-//      ar << dep_handle.get_version();
-//      ar << dep_handle.version_is_pending();
-//      ar << val.state_;
-//      // Omit captured_as_; it should always be normal here
-//      assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
-//      // only need to store whether or not the read-only holder is active
-//      ar << bool(val.read_only_holder_);
-//      // capturing_task will be replaced by task serialization, so we don't need to pack it here
-//    }
+    template <typename ArchiveT>
+    void pack(AccessHandleT const& val, ArchiveT& ar) const {
+      if(ar.var_handle_.get() != nullptr) {
+        ar << true;
+        ar << val.var_handle_->get_key();
+        ar << val.current_use_->use.scheduling_permissions_;
+        ar << val.current_use_->use.immediate_permissions_;
+      }
+      // Omit captured_as_; it should always be normal here
+      assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
+      // capturing_task will be replaced by task serialization, so we don't need to pack it here
+    }
 
-//    template <typename ArchiveT>
-//    void unpack(void* allocated, ArchiveT& ar) const {
-//      // Call an unpacking constructor
-//      new (allocated) AccessHandleT(serialization::unpack_constructor_tag, ar);
-//    }
-//};
+    template <typename ArchiveT>
+    void unpack(void* allocated, ArchiveT& ar) const {
+      // Call an unpacking constructor
+      new (allocated) AccessHandleT(serialization::unpack_constructor_tag, ar);
+    }
+};
 
-//} // end namespace serialization
+} // end namespace serialization
 
 } // end namespace darma_runtime
 

@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                      test_partition.cc
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,14 +42,31 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#include "metatest_helpers.h"
 
-#include <darma/impl/darma.h>
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/interface/app/create_condition.h>
-#include <darma/interface/app/access_handle.h>
+#include <utility>
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+#include <tinympl/partition.hpp>
+#include <tinympl/vector.hpp>
+
+using namespace tinympl;
+
+int main() {
+
+  static_assert_type_eq<
+    typename partition<2, vector<int[1], int[2], int[3], int[4], int[5], int[6]>>::type,
+    vector<vector<int[1], int[2]>, vector<int[3], int[4]>, vector<int[5], int[6]>>
+  >();
+
+  static_assert_type_eq<
+    typename partition<3, vector<int[1], int[2], int[3], int[4], int[5], int[6]>>::type,
+    vector<vector<int[1], int[2], int[3]>, vector<int[4], int[5], int[6]>>
+  >();
+
+  static_assert_type_eq<
+    typename partition<2, vector<int[1], int[2], int[3], int[4], int[5], int[6]>, std::pair>::type,
+    vector<std::pair<int[1], int[2]>, std::pair<int[3], int[4]>, std::pair<int[5], int[6]>>
+  >();
+
+}
+
