@@ -45,7 +45,14 @@
 #ifndef DARMA_IMPL_OO_CLASS_H
 #define DARMA_IMPL_OO_CLASS_H
 
+#include <type_traits>
+
 #include <tinympl/vector.hpp>
+#include <tinympl/is_instantiation_of.hpp>
+#include <tinympl/at.hpp>
+#include <tinympl/find_all_if.hpp>
+#include <tinympl/left_fold.hpp>
+#include <tinympl/partition.hpp>
 
 namespace darma_runtime {
 namespace oo {
@@ -104,7 +111,7 @@ struct darma_class_helper {
     _private_fields_index_list, _get_private_field_arg, tinympl::vector
   >::type;
 
-  using _private_fields_args_vector = typename tinympl::fold_left<
+  using _private_fields_args_vector = typename tinympl::left_fold<
     typename tinympl::push_front<
       typename tinympl::push_front<_private_fields_args_list, tinympl::vector<>>::type,
       tinympl::vector<>
