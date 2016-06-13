@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          range_c.hpp
-//                         darma_new
+//                      test_partition.cc
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,46 +42,31 @@
 //@HEADER
 */
 
-#ifndef SRC_META_TINYMPL_RANGE_C_HPP_
-#define SRC_META_TINYMPL_RANGE_C_HPP_
+#include "metatest_helpers.h"
 
-#include <type_traits>
+#include <utility>
 
-#include <tinympl/string.hpp>
-#include <tinympl/join.hpp>
-#include <tinympl/delay.hpp>
-#include <tinympl/identity.hpp>
+#include <tinympl/partition.hpp>
+#include <tinympl/vector.hpp>
 
-namespace tinympl {
+using namespace tinympl;
 
-template <
-  typename T, T Begin, T End
->
-struct make_range_c {
-  using type = typename std::conditional<
-    Begin >= End,
-    identity<tinympl::basic_string<T>>,
-    delay <
-      tinympl::join,
-      identity<tinympl::basic_string<T, Begin>>,
-      make_range_c<T, Begin + 1, End>
-    >
-  >::type::type;
-};
+int main() {
 
-//template <
-//  typename T, T...
-//>
-//using range_c = typename make_range_c<T, Begin, End>::type;
+  static_assert_type_eq<
+    typename partition<2, vector<int[1], int[2], int[3], int[4], int[5], int[6]>>::type,
+    vector<vector<int[1], int[2]>, vector<int[3], int[4]>, vector<int[5], int[6]>>
+  >();
 
-template <typename T, T... Indexes>
-struct range_c
-  : public basic_string<T, Indexes...>
-{ };
+  static_assert_type_eq<
+    typename partition<3, vector<int[1], int[2], int[3], int[4], int[5], int[6]>>::type,
+    vector<vector<int[1], int[2], int[3]>, vector<int[4], int[5], int[6]>>
+  >();
 
-} // end namespace tinympl
+  static_assert_type_eq<
+    typename partition<2, vector<int[1], int[2], int[3], int[4], int[5], int[6]>, std::pair>::type,
+    vector<std::pair<int[1], int[2]>, std::pair<int[3], int[4]>, std::pair<int[5], int[6]>>
+  >();
 
+}
 
-
-
-#endif /* SRC_META_TINYMPL_RANGE_C_HPP_ */

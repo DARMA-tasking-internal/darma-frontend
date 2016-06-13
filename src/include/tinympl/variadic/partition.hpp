@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          range_c.hpp
-//                         darma_new
+//                      partition.hpp
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,46 +42,78 @@
 //@HEADER
 */
 
-#ifndef SRC_META_TINYMPL_RANGE_C_HPP_
-#define SRC_META_TINYMPL_RANGE_C_HPP_
+#ifndef TINYMPL_VARIADIC_PARTITION_HPP
+#define TINYMPL_VARIADIC_PARTITION_HPP
 
-#include <type_traits>
+#include <cstddef>
 
-#include <tinympl/string.hpp>
+#include <tinympl/variadic/at.hpp>
+#include <tinympl/splat.hpp>
 #include <tinympl/join.hpp>
-#include <tinympl/delay.hpp>
-#include <tinympl/identity.hpp>
+#include <tinympl/transform.hpp>
+#include <tinympl/range_c.hpp>
+#include <tinympl/sequence.hpp>
+#include <tinympl/as_sequence.hpp>
 
 namespace tinympl {
+namespace variadic {
+
+namespace _impl {
 
 template <
-  typename T, T Begin, T End
+  std::size_t NPerGroup, std::size_t IGroup, std::size_t NGroups,
+  template <typename...> class InnerOut,
+  template <typename...> class OuterOut,
+  typename... Args
 >
-struct make_range_c {
-  using type = typename std::conditional<
-    Begin >= End,
-    identity<tinympl::basic_string<T>>,
-    delay <
-      tinympl::join,
-      identity<tinympl::basic_string<T, Begin>>,
-      make_range_c<T, Begin + 1, End>
-    >
-  >::type::type;
+struct _partition {
+  template <typename size_t_wrapped>
+  using get_arg_at = at<size_t_wrapped::value, Args...>;
+
+  using type = typename tinympl::join<
+    OuterOut<
+      typename tinympl::splat_to<
+        typename tinympl::transform<
+          tinympl::as_sequence_t<tinympl::range_c<std::size_t, IGroup*NPerGroup, (IGroup+1)*NPerGroup>>,
+          get_arg_at
+        >::type,
+        InnerOut
+      >::type
+    >,
+    typename _partition<
+      NPerGroup, IGroup+1, NGroups, InnerOut, OuterOut, Args...
+    >::type
+  >::type;
 };
 
-//template <
-//  typename T, T...
-//>
-//using range_c = typename make_range_c<T, Begin, End>::type;
+template <
+  std::size_t NPerGroup, std::size_t NGroups,
+  template <typename...> class InnerOut,
+  template <typename...> class OuterOut,
+  typename... Args
+>
+struct _partition<NPerGroup, NGroups, NGroups, InnerOut, OuterOut, Args...> {
+  using type = OuterOut<>;
+};
 
-template <typename T, T... Indexes>
-struct range_c
-  : public basic_string<T, Indexes...>
+} // end namespace _impl
+
+template <
+  std::size_t NPerGroup,
+  template <typename...> class InnerOut,
+  template <typename...> class OuterOut,
+  typename... Args
+>
+struct partition
+  : _impl::_partition<
+      NPerGroup, 0, sizeof...(Args)/NPerGroup,
+      InnerOut, OuterOut,
+      Args...
+    >
 { };
 
+} // end namespace variadic
 } // end namespace tinympl
 
 
-
-
-#endif /* SRC_META_TINYMPL_RANGE_C_HPP_ */
+#endif //TINYMPL_VARIADIC_PARTITION_HPP
