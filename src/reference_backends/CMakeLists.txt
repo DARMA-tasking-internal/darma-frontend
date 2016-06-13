@@ -41,12 +41,17 @@ include_directories( ${DARMA_FRONTEND_DIR}/include/tinympl )
 include_directories( ${DARMA_FRONTEND_DIR}/include/darma )
 
 option(SERIAL_BACKEND "Whether to compile/link debug serial backend" Off)
+option(THREADS_BACKEND "Whether to compile/link debug threads backend" Off)
 
 if (SERIAL_BACKEND)
 add_subdirectory(serial)
 endif()
 
-if (NOT SERIAL_BACKEND)
-message(FATAL_ERROR "Must build with -DSERIAL_BACKEND=On")
+if (THREADS_BACKEND)
+add_subdirectory(threads)
+endif()
+
+if (NOT SERIAL_BACKEND AND NOT THREADS_BACKEND)
+message(FATAL_ERROR "Must build with -DSERIAL_BACKEND=On or -DTHREADS_BACKEND=On")
 endif()
 
