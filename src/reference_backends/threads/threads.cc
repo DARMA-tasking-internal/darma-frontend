@@ -45,14 +45,6 @@
 #if !defined(_THREADS_BACKEND_RUNTIME_)
 #define _THREADS_BACKEND_RUNTIME_
 
-#define DEBUG_PRINT(fmt, arg...)
-
-// #define DEBUG_PRINT(fmt, arg...)				\
-//   do {								\
-//     printf("DEBUG threads: " fmt, ##arg);			\
-//     fflush(stdout);						\
-//   } while (0);
-
 #include <darma/interface/frontend/types.h>
 
 #include <darma/interface/backend/flow.h>
@@ -65,10 +57,24 @@
 
 #include <thread>
 #include <atomic>
+#include <mutex>
 
 #include <iostream>
 #include <deque>
 #include <utility>
+
+/*
+ * Debugging prints with mutex
+ */ 
+std::mutex __output_mutex;
+#define DEBUG_PRINT(fmt, arg...)					\
+  do {									\
+    std::unique_lock<std::mutex> __output_lg(__output_mutex);		\
+    printf("DEBUG threads: " fmt, ##arg);				\
+    fflush(stdout);							\
+  } while (0);
+
+//#define DEBUG_PRINT(fmt, arg...)
 
 namespace threads_backend {
   using namespace darma_runtime;
@@ -83,10 +89,6 @@ namespace threads_backend {
   __thread size_t this_rank = 0;
   __thread size_t num_ranks;
   
-  // TODO: fix any memory consistency bugs with data coordination we
-  // need a fence at the least
-  std::unordered_map<darma_runtime::abstract::frontend::Handle*, void*> data;
-
   size_t flow_label = 100;
 
   struct ThreadsFlow
@@ -136,6 +138,10 @@ namespace threads_backend {
   public:
     ThreadsRuntime(const ThreadsRuntime& tr) {}
 
+    // TODO: fix any memory consistency bugs with data coordination we
+    // need a fence at the least
+    std::unordered_map<darma_runtime::abstract::frontend::Handle*, void*> data;
+
     // TODO: multi-threaded half-implemented not working..
     std::vector<std::atomic<size_t>*> deque_counter;
     std::vector<std::mutex> deque_mutex;
@@ -172,13 +178,15 @@ namespace threads_backend {
       bool ready = true;
       
       for (auto&& dep : task->get_dependencies()) {
-	std::cout << dep << std::endl;
-
 	ThreadsFlow* f_in  = reinterpret_cast<ThreadsFlow*>(dep->get_in_flow());
 	ThreadsFlow* f_out = reinterpret_cast<ThreadsFlow*>(dep->get_out_flow());
-	std::cout << "Task dependency: " << std::endl;
-	std::cout << "\t FLOW in = "  << *f_in << std::endl;
-	std::cout << "\t FLOW out = " << *f_out << std::endl;
+
+	DEBUG_PRINT("Task dependency:\n");
+
+	#if 0
+	  std::cout << "\t FLOW in = "  << *f_in << std::endl;
+	  std::cout << "\t FLOW out = " << *f_out << std::endl;
+	#endif
 
 	// set readiness of this flow based on symmetric flow structure
 	const bool check_ready = f_in->check_ready();
@@ -212,9 +220,12 @@ namespace threads_backend {
       DEBUG_PRINT("register use\n");
       ThreadsFlow* f_in  = reinterpret_cast<ThreadsFlow*>(u->get_in_flow());
       ThreadsFlow* f_out = reinterpret_cast<ThreadsFlow*>(u->get_out_flow());
-      std::cout << "REGISTER Use with flows: " << std::endl;
-      std::cout << "\t FLOW in = "  << *f_in << std::endl;
-      std::cout << "\t FLOW out = " << *f_out << std::endl;
+      
+      #if 0
+        std::cout << "REGISTER Use with flows: " << std::endl;
+        std::cout << "\t FLOW in = "  << *f_in << std::endl;
+        std::cout << "\t FLOW out = " << *f_out << std::endl;
+      #endif
 
       darma_runtime::abstract::frontend::Handle* h =
 	const_cast<darma_runtime::abstract::frontend::Handle*>(u->get_handle());
@@ -234,7 +245,7 @@ namespace threads_backend {
       ThreadsFlow* f = new ThreadsFlow(handle);
       f->isInitialFlow = true;
       f->ready = true;
-      std::cout << "MAKE initial: " << "FLOW = "  << *f << std::endl;
+      //std::cout << "MAKE initial: " << "FLOW = "  << *f << std::endl;
 
       // allocate some space for this object
       const size_t sz = handle->get_serialization_manager()->get_metadata_size();
@@ -261,7 +272,7 @@ namespace threads_backend {
       DEBUG_PRINT("make null flow\n");
       ThreadsFlow* f = new ThreadsFlow(handle);
       f->isNullFlow = true;
-      std::cout << "MAKE null: " << "FLOW = "  << *f << std::endl;
+      //std::cout << "MAKE null: " << "FLOW = "  << *f << std::endl;
       return f;
     }
   
@@ -270,11 +281,11 @@ namespace threads_backend {
 		   flow_propagation_purpose_t purpose) {
       DEBUG_PRINT("make same flow: %d\n", purpose);
       ThreadsFlow* f  = reinterpret_cast<ThreadsFlow*>(from);
-      std::cout << "MAKE input (same): " << "FLOW = "  << *f << std::endl;
+      //std::cout << "MAKE input (same): " << "FLOW = "  << *f << std::endl;
 
       ThreadsFlow* f_same = new ThreadsFlow(0);
       f_same->same = f;
-      std::cout << "MAKE new flow with same: " << "FLOW = "  << f_same->label << std::endl;
+      //std::cout << "MAKE new flow with same: " << "FLOW = "  << f_same->label << std::endl;
       return f_same;
     }
 
@@ -284,12 +295,12 @@ namespace threads_backend {
       DEBUG_PRINT("make forwarding flow: %d\n", purpose);
 
       ThreadsFlow* f  = reinterpret_cast<ThreadsFlow*>(from);
-      std::cout << "MAKE input (forwarding): " << "FLOW = "  << *f << std::endl;
+      //std::cout << "MAKE input (forwarding): " << "FLOW = "  << *f << std::endl;
 
       ThreadsFlow* f_forward = new ThreadsFlow(0);
       f->forward = f_forward;
       f_forward->backward = f;
-      std::cout << "MAKE new flow with forward: " << "FLOW = "  << f_forward->label << std::endl;
+      //std::cout << "MAKE new flow with forward: " << "FLOW = "  << f_forward->label << std::endl;
       return f_forward;
     }
 
@@ -299,11 +310,11 @@ namespace threads_backend {
       DEBUG_PRINT("make next flow: %d\n", purpose);
 
       ThreadsFlow* f  = reinterpret_cast<ThreadsFlow*>(from);
-      std::cout << "MAKE input (next): " << "FLOW = "  << *f << std::endl;
+      //std::cout << "MAKE input (next): " << "FLOW = "  << *f << std::endl;
 
       ThreadsFlow* f_next = new ThreadsFlow(0);
       f->next = f_next;
-      std::cout << "MAKE new flow with next: " << "FLOW = "  << f_next->label << std::endl;
+      //std::cout << "MAKE new flow with next: " << "FLOW = "  << f_next->label << std::endl;
       return f_next;
     }
   
