@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          range_c.hpp
-//                         darma_new
+//                      partition.hpp
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,46 +42,40 @@
 //@HEADER
 */
 
-#ifndef SRC_META_TINYMPL_RANGE_C_HPP_
-#define SRC_META_TINYMPL_RANGE_C_HPP_
+#ifndef TINYMPL_PARTITION_HPP
+#define TINYMPL_PARTITION_HPP
 
-#include <type_traits>
-
-#include <tinympl/string.hpp>
-#include <tinympl/join.hpp>
-#include <tinympl/delay.hpp>
-#include <tinympl/identity.hpp>
+#include <tinympl/variadic/partition.hpp>
+#include <tinympl/as_sequence.hpp>
+#include <tinympl/sequence.hpp>
 
 namespace tinympl {
 
+/**
+ *  @brief e.g.,
+ *    partition<2, Seq<Arg1, Arg2, Arg3, Arg4, Arg5, Arg6>,
+ *      Inner, Outer
+ *    >::type = Outer<Inner<Arg1, Arg2>, Inner<Arg3, Arg4>, Inner<Arg5, Arg6>>
+ */
 template <
-  typename T, T Begin, T End
+  size_t NPerGroup,
+  typename Sequence,
+  template <class...> class InnerOut = as_sequence<Sequence>::template rebind,
+  template <class...> class OuterOut = as_sequence<Sequence>::template rebind
 >
-struct make_range_c {
-  using type = typename std::conditional<
-    Begin >= End,
-    identity<tinympl::basic_string<T>>,
-    delay <
-      tinympl::join,
-      identity<tinympl::basic_string<T, Begin>>,
-      make_range_c<T, Begin + 1, End>
-    >
-  >::type::type;
-};
+struct partition
+  : partition<NPerGroup, as_sequence_t<Sequence>, InnerOut, OuterOut> { };
 
-//template <
-//  typename T, T...
-//>
-//using range_c = typename make_range_c<T, Begin, End>::type;
+template <
+  size_t NPerGroup,
+  template <typename...> class InnerOut,
+  template <typename...> class OuterOut,
+  typename... Args
+>
+struct partition<NPerGroup, sequence<Args...>, InnerOut, OuterOut>
+  : tinympl::variadic::partition<NPerGroup, InnerOut, OuterOut, Args...> { };
 
-template <typename T, T... Indexes>
-struct range_c
-  : public basic_string<T, Indexes...>
-{ };
 
 } // end namespace tinympl
 
-
-
-
-#endif /* SRC_META_TINYMPL_RANGE_C_HPP_ */
+#endif //DARMA_PARTITION_HPP

@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          range_c.hpp
-//                         darma_new
+//                      util.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,46 +42,19 @@
 //@HEADER
 */
 
-#ifndef SRC_META_TINYMPL_RANGE_C_HPP_
-#define SRC_META_TINYMPL_RANGE_C_HPP_
+#ifndef DARMA_IMPL_OO_UTIL_H
+#define DARMA_IMPL_OO_UTIL_H
 
-#include <type_traits>
+namespace darma_runtime {
+namespace oo {
+namespace detail {
 
-#include <tinympl/string.hpp>
-#include <tinympl/join.hpp>
-#include <tinympl/delay.hpp>
-#include <tinympl/identity.hpp>
+struct empty_base {
 
-namespace tinympl {
-
-template <
-  typename T, T Begin, T End
->
-struct make_range_c {
-  using type = typename std::conditional<
-    Begin >= End,
-    identity<tinympl::basic_string<T>>,
-    delay <
-      tinympl::join,
-      identity<tinympl::basic_string<T, Begin>>,
-      make_range_c<T, Begin + 1, End>
-    >
-  >::type::type;
 };
 
-//template <
-//  typename T, T...
-//>
-//using range_c = typename make_range_c<T, Begin, End>::type;
+} // end namespace detail
+} // end namespace oo
+} // end namespace darma_runtime
 
-template <typename T, T... Indexes>
-struct range_c
-  : public basic_string<T, Indexes...>
-{ };
-
-} // end namespace tinympl
-
-
-
-
-#endif /* SRC_META_TINYMPL_RANGE_C_HPP_ */
+#endif //DARMA_IMPL_OO_UTIL_H
