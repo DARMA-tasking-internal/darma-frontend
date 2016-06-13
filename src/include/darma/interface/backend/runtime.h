@@ -298,6 +298,7 @@ class Runtime {
       frontend::PublicationDetails* details
     ) =0;
 
+    virtual void finalize() = 0;
 };
 
 typedef Runtime runtime_t;
