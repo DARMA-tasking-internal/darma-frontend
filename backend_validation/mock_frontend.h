@@ -155,22 +155,15 @@ class MockTask
     key_t get_name_return;
 
   public:
-    MockTask() { this->set_default_behavior(); }
+    MockTask() { /*this->set_default_behavior();*/ }
 
     template <
       typename T, typename = std::enable_if_t<not std::is_void<T>::value>
     >
     T run() {
-      run_gmock_proxy();
-      return T();
+      return run_gmock_proxy(), T{};
     }
 
-    template <
-      typename T, typename = std::enable_if_t<std::is_void<T>::value>
-    >
-    T run() {
-      run_gmock_proxy();
-    }
 
     MOCK_METHOD0(run_gmock_proxy, void());
     MOCK_CONST_METHOD0(get_dependencies, handle_container_t const&());
@@ -212,7 +205,7 @@ class MockHandle
 
     typedef darma_runtime::types::key_t key_t;
 
-    MOCK_CONST_METHOD0(get_key, key_t const&*());
+    MOCK_CONST_METHOD0(get_key, key_t const&());
     MOCK_CONST_METHOD0(get_serialization_manager, MockSerializationManager const*());
 
 };
@@ -228,8 +221,8 @@ class MockUse
     void* data;
 
     MOCK_CONST_METHOD0(get_handle, MockHandle const*());
-    MOCK_METHOD0(get_in_flow(), flow_t*&());
-    MOCK_METHOD0(get_out_flow(), flow_t*&());
+    MOCK_METHOD0(get_in_flow, flow_t*&());
+    MOCK_METHOD0(get_out_flow, flow_t*&());
     MOCK_CONST_METHOD0(immediate_permissions, permissions_t());
     MOCK_CONST_METHOD0(scheduling_permissions, permissions_t());
     MOCK_METHOD0(get_data_pointer_reference, void*&());

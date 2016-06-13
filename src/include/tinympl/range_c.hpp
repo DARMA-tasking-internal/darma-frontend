@@ -75,9 +75,7 @@ struct make_range_c {
 //using range_c = typename make_range_c<T, Begin, End>::type;
 
 template <typename T, T... Indexes>
-struct range_c
-  : public basic_string<T, Indexes...>
-{ };
+using range_c = tinympl::basic_string<T, Indexes...>;
 
 } // end namespace tinympl
 

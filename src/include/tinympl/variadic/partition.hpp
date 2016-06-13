@@ -74,7 +74,11 @@ struct _partition {
     OuterOut<
       typename tinympl::splat_to<
         typename tinympl::transform<
-          tinympl::as_sequence_t<tinympl::range_c<std::size_t, IGroup*NPerGroup, (IGroup+1)*NPerGroup>>,
+          tinympl::as_sequence_t<
+            typename tinympl::make_range_c<
+              std::size_t, IGroup*NPerGroup, (IGroup+1)*NPerGroup
+            >::type
+          >,
           get_arg_at
         >::type,
         InnerOut
@@ -106,7 +110,7 @@ template <
 >
 struct partition
   : _impl::_partition<
-      NPerGroup, 0, sizeof...(Args)/NPerGroup,
+      NPerGroup, 0ul, sizeof...(Args)/NPerGroup,
       InnerOut, OuterOut,
       Args...
     >

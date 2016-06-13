@@ -80,7 +80,6 @@
 #include <darma/impl/use.h>
 #include <darma/impl/util/smart_pointers.h>
 
-#include <darma/interface/frontend/detail/task.crtp_impl.h>
 
 namespace darma_runtime {
 

@@ -49,6 +49,7 @@
 #include <darma/interface/frontend/use.h>
 
 #include <darma/interface/frontend/frontend_fwd.h>
+#include <darma/impl/task.h>
 
 namespace darma_runtime {
 namespace abstract {
