@@ -321,7 +321,7 @@ class Runtime {
      *  \b between the invocation and return of finalize().
      */
     virtual void
-      finalize() =0;
+    finalize() =0;
 
     virtual ~Runtime() noexcept = default;
 
