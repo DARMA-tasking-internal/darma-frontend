@@ -66,16 +66,19 @@
 
 /*
  * Debugging prints with mutex
- */ 
+ */
+///#define __THREADS_BACKEND_DEBUG__ 1
+#if __THREADS_BACKEND_DEBUG__
 std::mutex __output_mutex;
 #define DEBUG_PRINT(fmt, arg...)					\
   do {									\
     std::unique_lock<std::mutex> __output_lg(__output_mutex);		\
-    printf("DEBUG threads: " fmt, ##arg);				\
+    printf("(%zu): DEBUG threads: " fmt, threads_backend::this_rank, ##arg); \
     fflush(stdout);							\
   } while (0);
-
-//#define DEBUG_PRINT(fmt, arg...)
+#else
+  #define DEBUG_PRINT(fmt, arg...)
+#endif
 
 // TODO: hack this in here for now
 namespace std {
@@ -101,9 +104,11 @@ namespace threads_backend {
   // TL state
   __thread abstract::frontend::Task* current_task = 0;
   __thread size_t this_rank = 0;
-  __thread size_t num_ranks;
   __thread size_t flow_label = 100;
 
+  // global
+  size_t n_ranks = 1;
+  
   struct PackedDataBlock {
     virtual void *get_data() { return data_; }
     size_t size_;
@@ -452,6 +457,17 @@ namespace threads_backend {
   
     virtual void finalize() {
       DEBUG_PRINT("finalize\n");
+
+      if (this_rank == 0) {
+	DEBUG_PRINT("total threads to join is %zu\n", threads_backend::live_ranks.size());
+    
+	// TODO: memory consistency bug on live_ranks size here..with relaxed ordering
+	for (size_t i = 0; i < threads_backend::live_ranks.size(); i++) {
+	  DEBUG_PRINT("main thread joining %zu\n", i);
+	  threads_backend::live_ranks[i].join();
+	  DEBUG_PRINT("join complete %zu\n", i);
+	}
+      }
     }
   };
 
@@ -496,14 +512,12 @@ start_thread_handler(const size_t thd, threads_backend::ThreadsRuntime* runtime)
 
 void
 start_rank_handler(const size_t rank,
-		   const size_t n_ranks,
 		   const int argc,
 		   char** argv) {
   DEBUG_PRINT("%ld: rank handler starting\n", rank);
 
   // set TL variables
   threads_backend::this_rank = rank;
-  threads_backend::num_ranks = n_ranks;
 
   // call into main
   const int ret = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
@@ -525,12 +539,6 @@ int main(int argc, char **argv) {
     }
   #endif
 
-  // TODO: memory consistency bug on live_ranks size here..with relaxed ordering
-  for (size_t i = 0; i < threads_backend::live_ranks.size(); i++) {
-    DEBUG_PRINT("main thread joining %zu\n", i);
-    threads_backend::live_ranks[i].join();
-  }
-  
   return ret;
 }
 
@@ -542,7 +550,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
     typename darma_runtime::abstract::backend::Runtime::task_t
   > top_level_task
 ) {
-  size_t n_ranks = 2, n_threads = 1;
+  size_t ranks = 2, n_threads = 1;
 
   detail::ArgParser args = {
     {"t", "threads", 1},
@@ -561,24 +569,33 @@ darma_runtime::abstract::backend::darma_backend_initialize(
 
   // read number of ranks from the command line
   if (args["ranks"].as<bool>()) {
-    n_ranks = args["ranks"].as<size_t>();
+    ranks = args["ranks"].as<size_t>();
 
-    assert(n_ranks > 0);
+    assert(ranks > 0);
     // TODO: write some other sanity assertions here about the size of ranks...
   }
 
-  DEBUG_PRINT("MY rank = %zu\n", threads_backend::this_rank);
+  if (threads_backend::this_rank == 0) {
+    threads_backend::n_ranks = ranks;
+  }
+  
+  DEBUG_PRINT("MY rank = %zu, n_ranks = %zu\n",
+	      threads_backend::this_rank,
+	      threads_backend::n_ranks);
   
   auto* runtime = new threads_backend::ThreadsRuntime();
   backend_runtime = runtime;
 
   if (threads_backend::this_rank == 0) {
-    DEBUG_PRINT("rank = %zu, ranks = %zu, threads = %zu\n", threads_backend::this_rank, n_ranks, n_threads);
+    DEBUG_PRINT("rank = %zu, ranks = %zu, threads = %zu\n",
+		threads_backend::this_rank,
+		threads_backend::n_ranks,
+		n_threads);
   
     // launch std::thread for each rank
-    threads_backend::live_ranks.resize(n_ranks - 1);
-    for (size_t i = 0; i < n_ranks - 1; ++i) {
-      threads_backend::live_ranks[i] = std::thread(start_rank_handler, i + 1, n_ranks, argc, argv);
+    threads_backend::live_ranks.resize(threads_backend::n_ranks - 1);
+    for (size_t i = 0; i < threads_backend::n_ranks - 1; ++i) {
+      threads_backend::live_ranks[i] = std::thread(start_rank_handler, i + 1, argc, argv);
     }
     
     #if defined(_BACKEND_MULTITHREADED_RUNTIME)
@@ -606,21 +623,14 @@ darma_runtime::abstract::backend::darma_backend_initialize(
         threads_backend::live_threads[i] = std::thread(start_thread_handler, i + 1, runtime);
       }
     #endif
-  } else {
-    
   }
 
   // setup root task
   runtime->top_level_task = std::move(top_level_task);
   runtime->top_level_task->set_name(darma_runtime::make_key(DARMA_BACKEND_SPMD_NAME_PREFIX,
 							    threads_backend::this_rank,
-							    n_ranks));
+							    threads_backend::n_ranks));
   threads_backend::current_task = runtime->top_level_task.get();
-  
-  // // main rank is `n_ranks - 1`
-  // threads_backend::this_rank = rank;
-
-  
 }
 
 #endif /* _THREADS_BACKEND_RUNTIME_ */
