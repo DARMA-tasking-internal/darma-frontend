@@ -84,7 +84,7 @@ namespace std {
   
   template<>
   struct hash<SimpleKey> {
-    size_t operator()(SimpleKey const& in) {
+    size_t operator()(SimpleKey const& in) const {
       return key_traits<SimpleKey>::hasher()(in);
     }
   };
@@ -178,7 +178,7 @@ namespace threads_backend {
 
     // TODO: fix any memory consistency bugs with data coordination we
     // need a fence at the least
-    std::unordered_map<darma_runtime::abstract::frontend::Handle*, void*> data;
+    std::unordered_map<types::key_t, void*> data;
 
     // TODO: multi-threaded half-implemented not working..
     std::vector<std::atomic<size_t>*> deque_counter;
@@ -265,16 +265,15 @@ namespace threads_backend {
         std::cout << "\t FLOW out = " << *f_out << std::endl;
       #endif
 
-      darma_runtime::abstract::frontend::Handle* h =
-	const_cast<darma_runtime::abstract::frontend::Handle*>(u->get_handle());
+      const auto& key = u->get_handle()->get_key();
 
       // ensure it exists in the hash
-      if (data.find(h) == data.end()) {
+      if (data.find(key) == data.end()) {
 	DEBUG_PRINT("Could not find data!!!!!!!\n");
 	exit(240);
       }
       
-      u->get_data_pointer_reference() = data[h];
+      u->get_data_pointer_reference() = data[key];
     }
   
     virtual Flow*
@@ -293,7 +292,8 @@ namespace threads_backend {
       void* const mem = malloc(sz);
 
       // save in hash
-      data[handle] = mem;
+      const auto& key = handle->get_key();
+      data[key] = mem;
       
       return f;
     }
@@ -319,13 +319,11 @@ namespace threads_backend {
 
 	    void* unpack_to = operator new(pub.data->size_);
 
+	    DEBUG_PRINT("unpacking data\n");
+	    
 	    handle->get_serialization_manager()->unpack_data(unpack_to, pub.data->data_);
-
-	    //auto* db = new PackedDataBlock();
-	    //db->data_ = unpack_to;
-	    //handle->satisfy_with_data_block(db);
-	    //handle->set_version(pdb.published_version);
-
+	    data[key] = unpack_to;
+	    
 	    assert(pub.expected > 0);
 
 	    ++(pub.done);
@@ -337,6 +335,8 @@ namespace threads_backend {
       } while (!found);
 
       ThreadsFlow* f = new ThreadsFlow(handle);
+      /// set it ready immediately
+      f->ready = true;
       return f;
     }
 
@@ -431,7 +431,9 @@ namespace threads_backend {
 
 	// set data block for published block
 	pub.data->data_ = operator new(size);
-	pub.data->size_ = size;
+	pub.data->size_ = handle
+	  ->get_serialization_manager()
+	  ->get_metadata_size();
 
 	// call pack method to put it inside the allocated buffer
 	handle
