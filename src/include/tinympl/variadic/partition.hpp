@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                      partition.hpp
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,14 +42,82 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef TINYMPL_VARIADIC_PARTITION_HPP
+#define TINYMPL_VARIADIC_PARTITION_HPP
 
-#include <darma/impl/darma.h>
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/interface/app/create_condition.h>
-#include <darma/interface/app/access_handle.h>
+#include <cstddef>
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+#include <tinympl/variadic/at.hpp>
+#include <tinympl/splat.hpp>
+#include <tinympl/join.hpp>
+#include <tinympl/transform.hpp>
+#include <tinympl/range_c.hpp>
+#include <tinympl/sequence.hpp>
+#include <tinympl/as_sequence.hpp>
+
+namespace tinympl {
+namespace variadic {
+
+namespace _impl {
+
+template <
+  std::size_t NPerGroup, std::size_t IGroup, std::size_t NGroups,
+  template <typename...> class InnerOut,
+  template <typename...> class OuterOut,
+  typename... Args
+>
+struct _partition {
+  template <typename size_t_wrapped>
+  using get_arg_at = at<size_t_wrapped::value, Args...>;
+
+  using type = typename tinympl::join<
+    OuterOut<
+      typename tinympl::splat_to<
+        typename tinympl::transform<
+          tinympl::as_sequence_t<
+            typename tinympl::make_range_c<
+              std::size_t, IGroup*NPerGroup, (IGroup+1)*NPerGroup
+            >::type
+          >,
+          get_arg_at
+        >::type,
+        InnerOut
+      >::type
+    >,
+    typename _partition<
+      NPerGroup, IGroup+1, NGroups, InnerOut, OuterOut, Args...
+    >::type
+  >::type;
+};
+
+template <
+  std::size_t NPerGroup, std::size_t NGroups,
+  template <typename...> class InnerOut,
+  template <typename...> class OuterOut,
+  typename... Args
+>
+struct _partition<NPerGroup, NGroups, NGroups, InnerOut, OuterOut, Args...> {
+  using type = OuterOut<>;
+};
+
+} // end namespace _impl
+
+template <
+  std::size_t NPerGroup,
+  template <typename...> class InnerOut,
+  template <typename...> class OuterOut,
+  typename... Args
+>
+struct partition
+  : _impl::_partition<
+      NPerGroup, 0ul, sizeof...(Args)/NPerGroup,
+      InnerOut, OuterOut,
+      Args...
+    >
+{ };
+
+} // end namespace variadic
+} // end namespace tinympl
+
+
+#endif //TINYMPL_VARIADIC_PARTITION_HPP

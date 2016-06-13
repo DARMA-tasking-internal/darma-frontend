@@ -42,21 +42,40 @@
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_TYPES_H_
-#define SRC_ABSTRACT_FRONTEND_TYPES_H_
+#ifndef DARMA_ABSTRACT_FRONTEND_TYPES_H_
+#define DARMA_ABSTRACT_FRONTEND_TYPES_H_
 
-#ifdef DARMA_FRONTEND_TYPES_INCLUDE
-#include DARMA_FRONTEND_TYPES_INCLUDE
-#endif
+#include <darma/interface/frontend/frontend_fwd.h>
 
-#ifndef DARMA_BACKEND_CUSTOM_HANDLE_CONTAINER
+#ifndef DARMA_CUSTOM_HANDLE_CONTAINER
 #include <unordered_set>
-namespace darma_runtime { namespace types {
+namespace darma_runtime {
+namespace types {
+
   template <typename... Ts>
   using handle_container_template = std::unordered_set<Ts...>;
-}} // end namespace darma_runtime::types
+
+} // end namespace types
+} // end namespace darma_runtime
 #endif
 
 
+////////////////////////////////////////
+// concrete_task_t typedef
 
-#endif /* SRC_ABSTRACT_FRONTEND_TYPES_H_ */
+#ifndef DARMA_CUSTOM_CONCRETE_TASK
+#include <darma/impl/task_fwd.h>
+
+namespace darma_runtime {
+namespace types {
+
+typedef darma_runtime::detail::TaskBase concrete_task_t;
+
+} // end namespace types
+} // end namespace darma_runtime
+#endif
+
+//
+////////////////////////////////////////
+
+#endif /* DARMA_ABSTRACT_FRONTEND_TYPES_H_ */

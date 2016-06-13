@@ -309,7 +309,7 @@ class TestFrontend
     void
     run_all_tasks() {
       while(not mock_runtime->registered_tasks.empty()) {
-        mock_runtime->registered_tasks.front()->run();
+        mock_runtime->registered_tasks.front()->run<void>();
         mock_runtime->registered_tasks.pop_front();
       }
     }

@@ -452,7 +452,7 @@ struct functor_call_traits {
   public:
 
     using args_tuple_t = typename tinympl::transform<
-      tinympl::as_sequence_t<typename tinympl::range_c<size_t, 0, sizeof...(CallArgs)>::type>,
+      tinympl::as_sequence_t<typename tinympl::make_range_c<size_t, 0, sizeof...(CallArgs)>::type>,
       _arg_traits_tuple_entry_wrapped,
       std::tuple
     >::type;

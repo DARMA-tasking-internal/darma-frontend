@@ -52,6 +52,7 @@
 namespace darma_runtime {
 
 // Key utility functions
+// TODO these should be somewhere else...
 
 template <typename... Args>
 inline types::key_t

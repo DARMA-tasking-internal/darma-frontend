@@ -77,5 +77,32 @@ struct never_evaluate_predicate
 
 }} // end namespace tinympl::test
 
+struct ___________________________expected__________________________________ {};
+struct ____________________to_be_the_same_type_as___________________________ {};
+struct _____________________________________________________________________ {};
+
+template <typename... Args>
+struct static_failure;
+
+template <typename T1, typename T2>
+struct static_assert_type_eq_ {
+  typename static_failure<
+    ___________________________expected__________________________________,
+    T1,
+    ____________________to_be_the_same_type_as___________________________,
+    T2,
+    _____________________________________________________________________
+  >::type __failed__;
+};
+
+template <typename T1>
+struct static_assert_type_eq_<T1, T1> { using type = void; };
+
+template <typename T1, typename T2>
+bool static_assert_type_eq() {
+  (void)typename static_assert_type_eq_<T1, T2>::type();
+  return true;
+}
+
 
 #endif /* META_TINYMPL_TEST_METATEST_HELPERS_H_ */
