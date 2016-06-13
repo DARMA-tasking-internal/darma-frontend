@@ -62,6 +62,7 @@
 #include <iostream>
 #include <deque>
 #include <utility>
+#include <unordered_map>
 
 /*
  * Debugging prints with mutex
@@ -76,6 +77,19 @@ std::mutex __output_mutex;
 
 //#define DEBUG_PRINT(fmt, arg...)
 
+// TODO: hack this in here for now
+namespace std {
+  using darma_runtime::detail::SimpleKey;
+  using darma_runtime::detail::key_traits;
+  
+  template<>
+  struct hash<SimpleKey> {
+    size_t operator()(SimpleKey const& in) {
+      return key_traits<SimpleKey>::hasher()(in);
+    }
+  };
+}
+
 namespace threads_backend {
   using namespace darma_runtime;
   using namespace darma_runtime::abstract::backend;
@@ -88,9 +102,33 @@ namespace threads_backend {
   __thread abstract::frontend::Task* current_task = 0;
   __thread size_t this_rank = 0;
   __thread size_t num_ranks;
-  
-  size_t flow_label = 100;
+  __thread size_t flow_label = 100;
 
+  struct PackedDataBlock {
+    virtual void *get_data() { return data_; }
+    size_t size_;
+    void *data_ = nullptr;
+  };
+  
+  struct PublishedBlock {
+    types::key_t key;
+    PackedDataBlock* data = nullptr;
+    std::atomic<size_t> expected = {0}, done = {0};
+
+    PublishedBlock(PublishedBlock&& other)
+      : data(std::move(other.data))
+      , expected(other.expected.load())
+      , done(other.done.load())
+      , key(std::move(other.key)) {
+    }
+
+    PublishedBlock() = default;
+  };
+
+  // global publish
+  std::mutex rank_publish;
+  std::unordered_map<std::pair<types::key_t, types::key_t>, PublishedBlock> published;
+  
   struct ThreadsFlow
     : public abstract::backend::Flow {
 
@@ -150,7 +188,7 @@ namespace threads_backend {
     std::atomic<size_t> ranks;
 
     types::unique_ptr_template<abstract::frontend::Task> top_level_task;
-    
+
     ThreadsRuntime() {
       std::atomic_init(&finished, false);
       std::atomic_init<size_t>(&ranks, 1);
@@ -264,7 +302,42 @@ namespace threads_backend {
     make_fetching_flow(darma_runtime::abstract::frontend::Handle* handle,
 		       types::key_t const& version_key) {
       DEBUG_PRINT("make fetching flow\n");
-      assert(0);
+
+      bool found = false;
+
+      do {
+	{
+	  // TODO: big lock to handling fetching
+	  std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
+	  
+	  const auto& key = handle->get_key();
+	  const auto& iter = published.find({version_key, key});
+	  
+	  if (iter != published.end()) {
+	    PublishedBlock* pub_ptr = &iter->second;
+	    auto &pub = *pub_ptr;
+
+	    void* unpack_to = operator new(pub.data->size_);
+
+	    handle->get_serialization_manager()->unpack_data(unpack_to, pub.data->data_);
+
+	    //auto* db = new PackedDataBlock();
+	    //db->data_ = unpack_to;
+	    //handle->satisfy_with_data_block(db);
+	    //handle->set_version(pdb.published_version);
+
+	    assert(pub.expected > 0);
+
+	    ++(pub.done);
+	    --(pub.expected);
+	    
+	    found = true;
+	  }
+	}
+      } while (!found);
+
+      ThreadsFlow* f = new ThreadsFlow(handle);
+      return f;
     }
 
     virtual Flow*
@@ -338,6 +411,41 @@ namespace threads_backend {
     publish_use(darma_runtime::abstract::frontend::Use* f,
 		darma_runtime::abstract::frontend::PublicationDetails* details) {
       DEBUG_PRINT("publish use\n");
+
+      {
+	// TODO: big lock to handling publishing
+	std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
+
+	const auto &expected = details->get_n_fetchers();
+	auto &key = details->get_version_name();
+
+	assert(expected >= 1);
+
+	const darma_runtime::abstract::frontend::Handle* handle = f->get_handle();
+	const size_t size = handle
+	  ->get_serialization_manager()
+	  ->get_packed_data_size(f->get_data_pointer_reference());
+
+	PublishedBlock pub;
+	pub.data = new PackedDataBlock();
+
+	// set data block for published block
+	pub.data->data_ = operator new(size);
+	pub.data->size_ = size;
+
+	// call pack method to put it inside the allocated buffer
+	handle
+	  ->get_serialization_manager()
+	  ->pack_data(f->get_data_pointer_reference(),
+		      pub.data->data_);
+
+	pub.expected = expected;
+	pub.key = handle->get_key();
+
+	published.emplace(std::piecewise_construct,
+			  std::forward_as_tuple(key, pub.key),
+			  std::forward_as_tuple(std::move(pub)));
+      }
     }
   
     virtual void finalize() {
