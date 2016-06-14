@@ -45,16 +45,14 @@
 #if !defined(_THREADS_BACKEND_RUNTIME_)
 #define _THREADS_BACKEND_RUNTIME_
 
-#include <darma.h>
+#include <darma/interface/frontend.h>
 
-#include <darma/interface/frontend/types.h>
+#ifndef DARMA_HAS_FRONTEND_TYPES_H
+#include <darma.h>
+#endif
 
 #include <darma/interface/backend/flow.h>
 #include <darma/interface/backend/runtime.h>
-#include <darma/interface/frontend/handle.h>
-#include <darma/interface/frontend/task.h>
-#include <darma/interface/frontend/use.h>
-#include <darma/interface/frontend/publication_details.h>
 #include <darma/interface/defaults/darma_main.h>
 
 #include <thread>
@@ -64,8 +62,6 @@
 #include <iostream>
 #include <deque>
 #include <utility>
-
-#include <darma/interface/frontend/detail/task.crtp_impl.h>
 
 /*
  * Debugging prints with mutex

@@ -49,59 +49,34 @@
 #  include TEST_BACKEND_INCLUDE
 #endif
 
+#include "test_backend.h"
 #include "mock_frontend.h"
 #include "helpers.h"
 
 using namespace darma_runtime;
 using namespace mock_frontend;
 
-//namespace {
-//
-//class RegisterTask
-//  : public ::testing::Test
-//{
-//  protected:
-//
-//    virtual void SetUp() {
-//
-//      // Emulate argc and argv
-//      argc_ = 1;
-//      argv_ = new char*[1];
-//      argv_[0] = new char[256];
-//      sprintf(argv_[0], "<mock frontend test>");
-//      // Make a mock task pointer
-//      std::unique_ptr<typename abstract::backend::runtime_t::task_t> top_level_task =
-//          std::make_unique<::testing::NiceMock<mock_frontend::MockTask>>();
-//
-//      abstract::backend::darma_backend_initialize(
-//        argc_, argv_, detail::backend_runtime,
-//        std::move(top_level_task)
-//      );
-//
-//      backend_finalized = false;
-//    }
-//
-//    virtual void TearDown() {
-//      if(!backend_finalized) {
-//        // Clean up from failed tests
-//        detail::backend_runtime->finalize();
-//      }
-//      delete detail::backend_runtime;
-//      detail::backend_runtime = 0;
-//      delete[] argv_[0];
-//      delete[] argv_;
-//    }
-//
-//    int argc_;
-//    char** argv_;
-//    std::string program_name;
-//    bool backend_finalized;
-//
-//    virtual ~RegisterTask() noexcept { }
-//};
-//
-//} // end anonymous namespace
-//
+class TestRegisterTask
+  : public TestBackend
+{
+  protected:
+
+    virtual void SetUp() {
+      TestBackend::SetUp();
+    }
+
+    virtual void TearDown() {
+      TestBackend::TearDown();
+    }
+
+};
+
+//////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestRegisterTask, initial_access_allocate) {
+
+}
+
 //////////////////////////////////////////////////////////////////////////////////
 //
 //// Try three different spots for release_only_usage(): before lambda created,

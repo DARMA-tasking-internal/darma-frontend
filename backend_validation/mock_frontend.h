@@ -45,14 +45,16 @@
 #ifndef TEST_GTEST_BACKEND_MOCK_FRONTEND_H_
 #define TEST_GTEST_BACKEND_MOCK_FRONTEND_H_
 
+#include <functional>
+
 #include <gmock/gmock.h>
+
+#include <darma_types.h>
 
 #include <darma/interface/frontend/task.h>
 #include <darma/interface/frontend/serialization_manager.h>
 #include <darma/interface/frontend/types.h>
 #include <darma/interface/backend/runtime.h>
-#include <darma_types.h>
-#include <functional>
 
 namespace mock_frontend {
 
@@ -157,15 +159,21 @@ class MockTask
   public:
     MockTask() { /*this->set_default_behavior();*/ }
 
-    template <
-      typename T, typename = std::enable_if_t<not std::is_void<T>::value>
-    >
-    T run() {
+    MOCK_METHOD0(run_gmock_proxy, void());
+
+    template < typename T >
+    std::enable_if_t<not std::is_same<T, void>::value, T>
+    run() {
       return run_gmock_proxy(), T{};
     }
 
+    template < typename T >
+    std::enable_if_t<std::is_void<T>::value, void>
+    run() {
+      return this->run_gmock_proxy();
+    }
 
-    MOCK_METHOD0(run_gmock_proxy, void());
+
     MOCK_CONST_METHOD0(get_dependencies, handle_container_t const&());
     MOCK_CONST_METHOD0(get_name, key_t const&());
     MOCK_METHOD1(set_name, void(key_t const& name_key));
@@ -198,6 +206,7 @@ class MockTask
 //    }
 };
 
+
 class MockHandle
   : public darma_runtime::abstract::frontend::Handle
 {
@@ -227,11 +236,10 @@ class MockUse
     MOCK_CONST_METHOD0(scheduling_permissions, permissions_t());
     MOCK_METHOD0(get_data_pointer_reference, void*&());
 
-
-
-
 };
 
 } // end namespace mock_frontend
+
+#include <darma/interface/frontend/detail/crtp_impl.h>
 
 #endif /* TEST_GTEST_BACKEND_MOCK_FRONTEND_H_ */
