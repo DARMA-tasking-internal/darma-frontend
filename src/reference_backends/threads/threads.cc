@@ -45,14 +45,14 @@
 #if !defined(_THREADS_BACKEND_RUNTIME_)
 #define _THREADS_BACKEND_RUNTIME_
 
-#include <darma/interface/frontend/types.h>
+#include <darma/interface/frontend.h>
+
+#ifndef DARMA_HAS_FRONTEND_TYPES_H
+#include <darma.h>
+#endif
 
 #include <darma/interface/backend/flow.h>
 #include <darma/interface/backend/runtime.h>
-#include <darma/interface/frontend/handle.h>
-#include <darma/interface/frontend/task.h>
-#include <darma/interface/frontend/use.h>
-#include <darma/interface/frontend/publication_details.h>
 #include <darma/interface/defaults/darma_main.h>
 
 #include <thread>
@@ -62,21 +62,37 @@
 #include <iostream>
 #include <deque>
 #include <utility>
-
-#include <darma/interface/frontend/detail/task.crtp_impl.h>
+#include <memory>
+#include <unordered_map>
 
 /*
  * Debugging prints with mutex
- */ 
+ */
+/// #define __THREADS_BACKEND_DEBUG__ 1
+#if __THREADS_BACKEND_DEBUG__
 std::mutex __output_mutex;
 #define DEBUG_PRINT(fmt, arg...)					\
   do {									\
     std::unique_lock<std::mutex> __output_lg(__output_mutex);		\
-    printf("DEBUG threads: " fmt, ##arg);				\
+    printf("(%zu): DEBUG threads: " fmt, threads_backend::this_rank, ##arg); \
     fflush(stdout);							\
   } while (0);
+#else
+  #define DEBUG_PRINT(fmt, arg...)
+#endif
 
-//#define DEBUG_PRINT(fmt, arg...)
+// TODO: hack this in here for now
+namespace std {
+  using darma_runtime::detail::SimpleKey;
+  using darma_runtime::detail::key_traits;
+  
+  template<>
+  struct hash<SimpleKey> {
+    size_t operator()(SimpleKey const& in) const {
+      return key_traits<SimpleKey>::hasher()(in);
+    }
+  };
+}
 
 namespace threads_backend {
   using namespace darma_runtime;
@@ -89,48 +105,102 @@ namespace threads_backend {
   // TL state
   __thread runtime_t::task_t* current_task = 0;
   __thread size_t this_rank = 0;
-  __thread size_t num_ranks;
+  __thread size_t flow_label = 100;
+
+  // global
+  size_t n_ranks = 1;
   
-  size_t flow_label = 100;
+  struct PackedDataBlock {
+    virtual void *get_data() { return data_; }
+    size_t size_;
+    void *data_ = nullptr;
+  };
+  
+  struct PublishedBlock {
+    types::key_t key;
+    PackedDataBlock* data = nullptr;
+    std::atomic<size_t> expected = {0}, done = {0};
 
-  struct ThreadsFlow
-    : public abstract::backend::Flow {
+    PublishedBlock(PublishedBlock&& other)
+      : data(std::move(other.data))
+      , expected(other.expected.load())
+      , done(other.done.load())
+      , key(std::move(other.key)) {
+    }
 
-    // save all kinds of unnecessary info about each that we probably
-    // do not need right now, along with inefficient explicit pointers
-    ThreadsFlow* same, *next, *forward, *backward;
-    darma_runtime::abstract::frontend::Handle* handle;
-    void* mem;
+    PublishedBlock() = default;
+  };
 
-    bool isNullFlow, isInitialFlow, ready;
-    size_t label;
+  // global publish
+  std::mutex rank_publish;
+  std::unordered_map<std::pair<types::key_t, types::key_t>, PublishedBlock> published;
 
-    ThreadsFlow(darma_runtime::abstract::frontend::Handle* handle_)
-      : same(0)
-      , next(0)
-      , forward(0)
-      , backward(0)
-      , handle(handle_)
-      , isNullFlow(false)
-      , isInitialFlow(false)
+  struct InnerFlow {
+    std::shared_ptr<InnerFlow> same, next, forward, backward;
+    bool ready;
+
+    InnerFlow(const InnerFlow& in) = default;
+    
+    InnerFlow()
+      : same(nullptr)
+      , next(nullptr)
+      , forward(nullptr)
+      , backward(nullptr)
       , ready(false)
-      , label(++flow_label)
     { }
 
     bool check_ready() { return ready || (same ? check_same() : false); }
     bool check_same()  { return same->check_ready(); }
   };
 
+  struct ThreadsFlow
+    : public abstract::backend::Flow {
+
+    std::shared_ptr<InnerFlow> inner;
+    
+    // save all kinds of unnecessary info about each that we probably
+    // do not need right now, along with inefficient explicit pointers
+    
+    darma_runtime::abstract::frontend::Handle* handle;
+    void* mem;
+
+    size_t label;
+
+    ThreadsFlow(darma_runtime::abstract::frontend::Handle* handle_)
+      : inner(std::make_shared<InnerFlow>())
+      , handle(handle_)
+      , label(++flow_label)
+    { }
+  };
+
+  struct DataBlock {
+    void* data;
+
+    DataBlock(const DataBlock& in) = delete;
+
+    DataBlock(void* data_)
+      : refs(1)
+      , data(data_)
+    { }
+    
+    DataBlock(int refs_, size_t sz)
+      : refs(refs_)
+      , data(malloc(sz))
+    { }
+
+    void ref() { refs++; }
+    int deref() { /*if (--refs == 1) free(data); */ return refs; }
+
+    virtual ~DataBlock() { free(data); }
+
+  private:
+    int refs;
+  };
+
   std::ostream& operator<<(std::ostream& st, const ThreadsFlow& f) {
     st <<
       "label = " << f.label << ", " <<
-      "null = " << f.isNullFlow  << ", " <<
-      "init = " << f.isInitialFlow  << ", " <<
-      "ready = " << f.ready << ", " <<
-      "same = " << (f.same ? f.same->label : 0) << ", " <<
-      "next = " << (f.next ? f.next->label : 0) << ", " <<
-      "forward = " << (f.forward ? f.forward->label : 0) << ", " <<
-      "backward = " << (f.backward ? f.backward->label : 0);
+      "ready = " << f.inner->ready;
     return st;
   }
   
@@ -142,7 +212,7 @@ namespace threads_backend {
 
     // TODO: fix any memory consistency bugs with data coordination we
     // need a fence at the least
-    std::unordered_map<darma_runtime::abstract::frontend::Handle*, void*> data;
+    std::unordered_map<types::key_t, DataBlock*> data;
 
     // TODO: multi-threaded half-implemented not working..
     std::vector<std::atomic<size_t>*> deque_counter;
@@ -201,14 +271,14 @@ namespace threads_backend {
 	#endif
 
 	// set readiness of this flow based on symmetric flow structure
-	const bool check_ready = f_in->check_ready();
+	const bool check_ready = f_in->inner->check_ready();
 
 	// try to set readiness if we can find a backward flow that is ready
-	const bool check_back_ready = f_in->backward ? f_in->backward->ready : false;
+	const bool check_back_ready = f_in->inner->backward ? f_in->inner->backward->ready : false;
 
-	f_in->ready = check_ready || check_back_ready;
+	f_in->inner->ready = check_ready || check_back_ready;
 	
-	ready &= f_in->ready;
+	ready &= f_in->inner->ready;
       }
 
       // the task is ready
@@ -239,35 +309,39 @@ namespace threads_backend {
         std::cout << "\t FLOW out = " << *f_out << std::endl;
       #endif
 
-      darma_runtime::abstract::frontend::Handle* h =
-	const_cast<darma_runtime::abstract::frontend::Handle*>(u->get_handle());
+      const auto& key = u->get_handle()->get_key();
 
       // ensure it exists in the hash
-      if (data.find(h) == data.end()) {
+      if (data.find(key) == data.end()) {
 	DEBUG_PRINT("Could not find data!!!!!!!\n");
 	exit(240);
       }
-      
-      u->get_data_pointer_reference() = data[h];
+
+      // increase reference count on data
+      data[key]->ref();
+      u->get_data_pointer_reference() = data[key]->data;
     }
   
     virtual Flow*
     make_initial_flow(darma_runtime::abstract::frontend::Handle* handle) {
-      DEBUG_PRINT("make initial flow\n");
       ThreadsFlow* f = new ThreadsFlow(handle);
-      f->isInitialFlow = true;
-      f->ready = true;
-      //std::cout << "MAKE initial: " << "FLOW = "  << *f << std::endl;
+      f->inner->ready = true;
 
       // allocate some space for this object
       const size_t sz = handle->get_serialization_manager()->get_metadata_size();
 
-      // TODO: we need to call "new" here or some memory pool or some
-      // type of managed pointer. leaks like hell and is unsafe!
-      void* const mem = malloc(sz);
+      DEBUG_PRINT("make initial flow: size = %ld\n", sz);
+
+      auto block = new DataBlock(1, sz);
+      
+      // default construct
+      handle
+	->get_serialization_manager()
+	->default_construct(block->data);
 
       // save in hash
-      data[handle] = mem;
+      const auto& key = handle->get_key();
+      data[key] = block;
       
       return f;
     }
@@ -276,15 +350,59 @@ namespace threads_backend {
     make_fetching_flow(darma_runtime::abstract::frontend::Handle* handle,
 		       types::key_t const& version_key) {
       DEBUG_PRINT("make fetching flow\n");
-      assert(0);
+
+      bool found = false;
+
+      do {
+	{
+	  // TODO: big lock to handling fetching
+	  std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
+	  
+	  const auto& key = handle->get_key();
+	  const auto& iter = published.find({version_key, key});
+	  
+	  if (iter != published.end()) {
+	    PublishedBlock* pub_ptr = &iter->second;
+	    auto &pub = *pub_ptr;
+
+	    void* unpack_to = malloc(pub.data->size_);
+
+	    DEBUG_PRINT("unpacking data\n");
+	    
+	    handle
+	      ->get_serialization_manager()
+	      ->unpack_data(unpack_to, pub.data->data_);
+
+	    data[key] = new DataBlock(unpack_to);
+	    data[key]->ref();
+	    
+	    assert(pub.expected > 0);
+
+	    ++(pub.done);
+	    --(pub.expected);
+
+	    // TODO: drop memory on the floor for now
+	    // free memory associated with publication
+	    // if (pub.expected == 0) {
+	      // data.erase(key);
+	    // }
+	    
+	    found = true;
+	  }
+	}
+      } while (!found);
+
+      ThreadsFlow* f = new ThreadsFlow(handle);
+
+      /// set it ready immediately
+      f->inner->ready = true;
+      return f;
     }
 
     virtual Flow*
     make_null_flow(darma_runtime::abstract::frontend::Handle* handle) {
       DEBUG_PRINT("make null flow\n");
       ThreadsFlow* f = new ThreadsFlow(handle);
-      f->isNullFlow = true;
-      //std::cout << "MAKE null: " << "FLOW = "  << *f << std::endl;
       return f;
     }
   
@@ -296,7 +414,10 @@ namespace threads_backend {
       //std::cout << "MAKE input (same): " << "FLOW = "  << *f << std::endl;
 
       ThreadsFlow* f_same = new ThreadsFlow(0);
-      f_same->same = f;
+
+      // skip list of same for constant lookup.
+      f_same->inner->same = f->inner->same ? f->inner->same : f->inner;
+
       //std::cout << "MAKE new flow with same: " << "FLOW = "  << f_same->label << std::endl;
       return f_same;
     }
@@ -310,8 +431,8 @@ namespace threads_backend {
       //std::cout << "MAKE input (forwarding): " << "FLOW = "  << *f << std::endl;
 
       ThreadsFlow* f_forward = new ThreadsFlow(0);
-      f->forward = f_forward;
-      f_forward->backward = f;
+      f->inner->forward = f_forward->inner;
+      f_forward->inner->backward = f->inner;
       //std::cout << "MAKE new flow with forward: " << "FLOW = "  << f_forward->label << std::endl;
       return f_forward;
     }
@@ -325,7 +446,7 @@ namespace threads_backend {
       //std::cout << "MAKE input (next): " << "FLOW = "  << *f << std::endl;
 
       ThreadsFlow* f_next = new ThreadsFlow(0);
-      f->next = f_next;
+      f->inner->next = f_next->inner;
       //std::cout << "MAKE new flow with next: " << "FLOW = "  << f_next->label << std::endl;
       return f_next;
     }
@@ -336,24 +457,83 @@ namespace threads_backend {
 
       ThreadsFlow* f_in  = reinterpret_cast<ThreadsFlow*>(u->get_in_flow());
       ThreadsFlow* f_out = reinterpret_cast<ThreadsFlow*>(u->get_out_flow());
-      
+
       // enable next forward flow
-      if (f_in->forward) {
-	f_in->forward->ready = true;
-      }
-      
+      if (f_in->inner->forward)
+	f_in->inner->forward->ready = true;
+
       // enable each out flow
-      f_out->ready = true;
+      f_out->inner->ready = true;
+
+      // free unused flows, shared ptrs take care of the inner flows
+      delete f_in;
+      delete f_out;
+
+      // free handle memory associated with use
+      const auto& key = u->get_handle()->get_key();
+      const auto refs = data[key]->deref();
+
+      DEBUG_PRINT("refs = %ld\n", refs);
+      
+      //if (refs == 1) data.erase(key);
     }
   
     virtual void
     publish_use(darma_runtime::abstract::frontend::Use* f,
 		darma_runtime::abstract::frontend::PublicationDetails* details) {
       DEBUG_PRINT("publish use\n");
+
+      {
+	// TODO: big lock to handling publishing
+	std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
+
+	const auto &expected = details->get_n_fetchers();
+	auto &key = details->get_version_name();
+
+	assert(expected >= 1);
+
+	const darma_runtime::abstract::frontend::Handle* handle = f->get_handle();
+	const size_t size = handle
+	  ->get_serialization_manager()
+	  ->get_packed_data_size(f->get_data_pointer_reference());
+
+	PublishedBlock pub;
+	pub.data = new PackedDataBlock();
+
+	// set data block for published block
+	pub.data->data_ = operator new(size);
+	pub.data->size_ = handle
+	  ->get_serialization_manager()
+	  ->get_metadata_size();
+
+	// call pack method to put it inside the allocated buffer
+	handle
+	  ->get_serialization_manager()
+	  ->pack_data(f->get_data_pointer_reference(),
+		      pub.data->data_);
+
+	pub.expected = expected;
+	pub.key = handle->get_key();
+
+	published.emplace(std::piecewise_construct,
+			  std::forward_as_tuple(key, pub.key),
+			  std::forward_as_tuple(std::move(pub)));
+      }
     }
   
     virtual void finalize() {
       DEBUG_PRINT("finalize\n");
+
+      if (this_rank == 0) {
+	DEBUG_PRINT("total threads to join is %zu\n", threads_backend::live_ranks.size());
+    
+	// TODO: memory consistency bug on live_ranks size here..with relaxed ordering
+	for (size_t i = 0; i < threads_backend::live_ranks.size(); i++) {
+	  DEBUG_PRINT("main thread joining %zu\n", i);
+	  threads_backend::live_ranks[i].join();
+	  DEBUG_PRINT("join complete %zu\n", i);
+	}
+      }
     }
   };
 
@@ -398,14 +578,12 @@ start_thread_handler(const size_t thd, threads_backend::ThreadsRuntime* runtime)
 
 void
 start_rank_handler(const size_t rank,
-		   const size_t n_ranks,
 		   const int argc,
 		   char** argv) {
   DEBUG_PRINT("%ld: rank handler starting\n", rank);
 
   // set TL variables
   threads_backend::this_rank = rank;
-  threads_backend::num_ranks = n_ranks;
 
   // call into main
   const int ret = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
@@ -427,12 +605,6 @@ int main(int argc, char **argv) {
     }
   #endif
 
-  // TODO: memory consistency bug on live_ranks size here..with relaxed ordering
-  for (size_t i = 0; i < threads_backend::live_ranks.size(); i++) {
-    DEBUG_PRINT("main thread joining %zu\n", i);
-    threads_backend::live_ranks[i].join();
-  }
-  
   return ret;
 }
 
@@ -444,7 +616,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
     typename darma_runtime::abstract::backend::Runtime::task_t
   >&& top_level_task
 ) {
-  size_t n_ranks = 2, n_threads = 1;
+  size_t ranks = 1, n_threads = 1;
 
   detail::ArgParser args = {
     {"t", "threads", 1},
@@ -463,24 +635,33 @@ darma_runtime::abstract::backend::darma_backend_initialize(
 
   // read number of ranks from the command line
   if (args["ranks"].as<bool>()) {
-    n_ranks = args["ranks"].as<size_t>();
+    ranks = args["ranks"].as<size_t>();
 
-    assert(n_ranks > 0);
+    assert(ranks > 0);
     // TODO: write some other sanity assertions here about the size of ranks...
   }
 
-  DEBUG_PRINT("MY rank = %zu\n", threads_backend::this_rank);
+  if (threads_backend::this_rank == 0) {
+    threads_backend::n_ranks = ranks;
+  }
+  
+  DEBUG_PRINT("MY rank = %zu, n_ranks = %zu\n",
+	      threads_backend::this_rank,
+	      threads_backend::n_ranks);
   
   auto* runtime = new threads_backend::ThreadsRuntime();
   backend_runtime = runtime;
 
   if (threads_backend::this_rank == 0) {
-    DEBUG_PRINT("rank = %zu, ranks = %zu, threads = %zu\n", threads_backend::this_rank, n_ranks, n_threads);
+    DEBUG_PRINT("rank = %zu, ranks = %zu, threads = %zu\n",
+		threads_backend::this_rank,
+		threads_backend::n_ranks,
+		n_threads);
   
     // launch std::thread for each rank
-    threads_backend::live_ranks.resize(n_ranks - 1);
-    for (size_t i = 0; i < n_ranks - 1; ++i) {
-      threads_backend::live_ranks[i] = std::thread(start_rank_handler, i + 1, n_ranks, argc, argv);
+    threads_backend::live_ranks.resize(threads_backend::n_ranks - 1);
+    for (size_t i = 0; i < threads_backend::n_ranks - 1; ++i) {
+      threads_backend::live_ranks[i] = std::thread(start_rank_handler, i + 1, argc, argv);
     }
     
     #if defined(_BACKEND_MULTITHREADED_RUNTIME)
@@ -508,21 +689,14 @@ darma_runtime::abstract::backend::darma_backend_initialize(
         threads_backend::live_threads[i] = std::thread(start_thread_handler, i + 1, runtime);
       }
     #endif
-  } else {
-    
   }
 
   // setup root task
   runtime->top_level_task = std::move(top_level_task);
   runtime->top_level_task->set_name(darma_runtime::make_key(DARMA_BACKEND_SPMD_NAME_PREFIX,
 							    threads_backend::this_rank,
-							    n_ranks));
+							    threads_backend::n_ranks));
   threads_backend::current_task = runtime->top_level_task.get();
-  
-  // // main rank is `n_ranks - 1`
-  // threads_backend::this_rank = rank;
-
-  
 }
 
 #endif /* _THREADS_BACKEND_RUNTIME_ */
