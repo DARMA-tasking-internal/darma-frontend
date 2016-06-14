@@ -62,12 +62,13 @@
 #include <iostream>
 #include <deque>
 #include <utility>
+#include <memory>
 #include <unordered_map>
 
 /*
  * Debugging prints with mutex
  */
-#define __THREADS_BACKEND_DEBUG__ 1
+//#define __THREADS_BACKEND_DEBUG__ 1
 #if __THREADS_BACKEND_DEBUG__
 std::mutex __output_mutex;
 #define DEBUG_PRINT(fmt, arg...)					\
@@ -133,45 +134,53 @@ namespace threads_backend {
   // global publish
   std::mutex rank_publish;
   std::unordered_map<std::pair<types::key_t, types::key_t>, PublishedBlock> published;
-  
-  struct ThreadsFlow
-    : public abstract::backend::Flow {
 
-    // save all kinds of unnecessary info about each that we probably
-    // do not need right now, along with inefficient explicit pointers
-    ThreadsFlow* same, *next, *forward, *backward;
-    darma_runtime::abstract::frontend::Handle* handle;
-    void* mem;
+  struct InnerFlow {
+    std::shared_ptr<InnerFlow> same, next, forward, backward;
+    bool ready;
 
-    bool isNullFlow, isInitialFlow, ready;
-    size_t label;
-
-    ThreadsFlow(darma_runtime::abstract::frontend::Handle* handle_)
-      : same(0)
-      , next(0)
-      , forward(0)
-      , backward(0)
-      , handle(handle_)
-      , isNullFlow(false)
-      , isInitialFlow(false)
+    InnerFlow(const InnerFlow& in) = default;
+    
+    InnerFlow()
+      : same(nullptr)
+      , next(nullptr)
+      , forward(nullptr)
+      , backward(nullptr)
       , ready(false)
-      , label(++flow_label)
     { }
 
     bool check_ready() { return ready || (same ? check_same() : false); }
     bool check_same()  { return same->check_ready(); }
   };
 
+  struct ThreadsFlow
+    : public abstract::backend::Flow {
+
+    std::shared_ptr<InnerFlow> inner;
+    
+    // save all kinds of unnecessary info about each that we probably
+    // do not need right now, along with inefficient explicit pointers
+    
+    darma_runtime::abstract::frontend::Handle* handle;
+    void* mem;
+
+    size_t label;
+
+    ThreadsFlow(darma_runtime::abstract::frontend::Handle* handle_)
+      : inner(std::make_shared<InnerFlow>())
+      , handle(handle_)
+      , label(++flow_label)
+    { }
+  };
+
   std::ostream& operator<<(std::ostream& st, const ThreadsFlow& f) {
     st <<
       "label = " << f.label << ", " <<
-      "null = " << f.isNullFlow  << ", " <<
-      "init = " << f.isInitialFlow  << ", " <<
-      "ready = " << f.ready << ", " <<
-      "same = " << (f.same ? f.same->label : 0) << ", " <<
-      "next = " << (f.next ? f.next->label : 0) << ", " <<
-      "forward = " << (f.forward ? f.forward->label : 0) << ", " <<
-      "backward = " << (f.backward ? f.backward->label : 0);
+      "ready = " << f.inner->ready << ", ";
+      // "same = " << (f.same ? f.same->label : 0) << ", " <<
+      // "next = " << (f.next ? f.next->label : 0) << ", " <<
+      // "forward = " << (f.forward ? f.forward->label : 0) << ", " <<
+      // "backward = " << (f.backward ? f.backward->label : 0);
     return st;
   }
   
@@ -242,14 +251,14 @@ namespace threads_backend {
 	#endif
 
 	// set readiness of this flow based on symmetric flow structure
-	const bool check_ready = f_in->check_ready();
+	const bool check_ready = f_in->inner->check_ready();
 
 	// try to set readiness if we can find a backward flow that is ready
-	const bool check_back_ready = f_in->backward ? f_in->backward->ready : false;
+	const bool check_back_ready = f_in->inner->backward ? f_in->inner->backward->ready : false;
 
-	f_in->ready = check_ready || check_back_ready;
+	f_in->inner->ready = check_ready || check_back_ready;
 	
-	ready &= f_in->ready;
+	ready &= f_in->inner->ready;
       }
 
       // the task is ready
@@ -294,9 +303,7 @@ namespace threads_backend {
     virtual Flow*
     make_initial_flow(darma_runtime::abstract::frontend::Handle* handle) {
       ThreadsFlow* f = new ThreadsFlow(handle);
-      f->isInitialFlow = true;
-      f->ready = true;
-      //std::cout << "MAKE initial: " << "FLOW = "  << *f << std::endl;
+      f->inner->ready = true;
 
       // allocate some space for this object
       const size_t sz = handle->get_serialization_manager()->get_metadata_size();
@@ -306,6 +313,9 @@ namespace threads_backend {
       // TODO: we need to call "new" here or some memory pool or some
       // type of managed pointer. leaks like hell and is unsafe!
       void* const mem = operator new(sz);
+
+      // default construct
+      handle->get_serialization_manager()->default_construct(mem);
 
       // save in hash
       const auto& key = handle->get_key();
@@ -344,6 +354,11 @@ namespace threads_backend {
 
 	    ++(pub.done);
 	    --(pub.expected);
+
+	    // free memory associated with publication
+	    if (pub.expected == 0) {
+	      ///data.erase(key);
+	    }
 	    
 	    found = true;
 	  }
@@ -351,8 +366,9 @@ namespace threads_backend {
       } while (!found);
 
       ThreadsFlow* f = new ThreadsFlow(handle);
+
       /// set it ready immediately
-      f->ready = true;
+      f->inner->ready = true;
       return f;
     }
 
@@ -360,8 +376,6 @@ namespace threads_backend {
     make_null_flow(darma_runtime::abstract::frontend::Handle* handle) {
       DEBUG_PRINT("make null flow\n");
       ThreadsFlow* f = new ThreadsFlow(handle);
-      f->isNullFlow = true;
-      //std::cout << "MAKE null: " << "FLOW = "  << *f << std::endl;
       return f;
     }
   
@@ -373,7 +387,10 @@ namespace threads_backend {
       //std::cout << "MAKE input (same): " << "FLOW = "  << *f << std::endl;
 
       ThreadsFlow* f_same = new ThreadsFlow(0);
-      f_same->same = f;
+
+      // skip list of same for constant lookup.
+      f_same->inner->same = f->inner->same ? f->inner->same : f->inner;
+
       //std::cout << "MAKE new flow with same: " << "FLOW = "  << f_same->label << std::endl;
       return f_same;
     }
@@ -387,8 +404,8 @@ namespace threads_backend {
       //std::cout << "MAKE input (forwarding): " << "FLOW = "  << *f << std::endl;
 
       ThreadsFlow* f_forward = new ThreadsFlow(0);
-      f->forward = f_forward;
-      f_forward->backward = f;
+      f->inner->forward = f_forward->inner;
+      f_forward->inner->backward = f->inner;
       //std::cout << "MAKE new flow with forward: " << "FLOW = "  << f_forward->label << std::endl;
       return f_forward;
     }
@@ -402,7 +419,7 @@ namespace threads_backend {
       //std::cout << "MAKE input (next): " << "FLOW = "  << *f << std::endl;
 
       ThreadsFlow* f_next = new ThreadsFlow(0);
-      f->next = f_next;
+      f->inner->next = f_next->inner;
       //std::cout << "MAKE new flow with next: " << "FLOW = "  << f_next->label << std::endl;
       return f_next;
     }
@@ -413,14 +430,21 @@ namespace threads_backend {
 
       ThreadsFlow* f_in  = reinterpret_cast<ThreadsFlow*>(u->get_in_flow());
       ThreadsFlow* f_out = reinterpret_cast<ThreadsFlow*>(u->get_out_flow());
-      
+
       // enable next forward flow
-      if (f_in->forward) {
-	f_in->forward->ready = true;
-      }
-      
+      if (f_in->inner->forward)
+	f_in->inner->forward->ready = true;
+
       // enable each out flow
-      f_out->ready = true;
+      f_out->inner->ready = true;
+
+      // free unused flows, shared ptrs take care of the inner flows
+      delete f_in;
+      delete f_out;
+
+      // free handle memory associated with use
+      const auto& key = u->get_handle()->get_key();
+      //data.erase(key);
     }
   
     virtual void
