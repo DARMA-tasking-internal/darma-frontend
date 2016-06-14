@@ -71,80 +71,6 @@ class MockSerializationManager
     MOCK_CONST_METHOD1(default_construct, void(void*));
 };
 
-//class MockDependencyHandle
-//  : public darma_runtime::abstract::frontend::DependencyHandle<
-//      darma_runtime::types::key_t,
-//      darma_runtime::types::version_t
-//    >
-//{
-//  public:
-//    typedef darma_runtime::types::key_t key_t;
-//    typedef darma_runtime::types::version_t version_t;
-//
-//    key_t get_key_return;
-//    version_t get_version_return;
-//    bool version_is_pending_return = false;
-//    bool is_satisfied_return = false;
-//    bool is_writable_return = false;
-//    darma_runtime::abstract::backend::DataBlock* get_data_block_return = nullptr;
-//
-//    MockDependencyHandle(){
-//      get_key_return = darma_runtime::make_key("key_not_specified");
-//      this->set_default_behavior();
-//    }
-//
-//    MOCK_CONST_METHOD0(get_key, key_t const&());
-//    MOCK_CONST_METHOD0(get_version, version_t const&());
-//    MOCK_METHOD1(set_version, void(version_t const& v));
-//    MOCK_CONST_METHOD0(version_is_pending, bool());
-//    MOCK_METHOD0(get_serialization_manager,
-//      darma_runtime::abstract::frontend::SerializationManager*()
-//    );
-//    MOCK_METHOD1(satisfy_with_data_block,
-//      void(darma_runtime::abstract::backend::DataBlock* data)
-//    );
-//    MOCK_CONST_METHOD0(get_data_block,
-//      darma_runtime::abstract::backend::DataBlock*()
-//    );
-//    MOCK_CONST_METHOD0(is_satisfied, bool());
-//    MOCK_METHOD0(allow_writes, void());
-//    MOCK_CONST_METHOD0(is_writable, bool());
-//
-//    void
-//    set_default_behavior() {
-//      using ::testing::_;
-//      using ::testing::Invoke;
-//      using ::testing::ReturnRef;
-//      using ::testing::ReturnPointee;
-//      ON_CALL(*this, get_key())
-//        .WillByDefault(ReturnRef(get_key_return));
-//      ON_CALL(*this, get_version())
-//        .WillByDefault(ReturnRef(get_version_return));
-//      ON_CALL(*this, set_version(_))
-//        .WillByDefault(Invoke([this](version_t const &v){
-//           get_version_return = v; version_is_pending_return = false; }));
-//      ON_CALL(*this, version_is_pending())
-//        .WillByDefault(ReturnPointee(&version_is_pending_return));
-//      ON_CALL(*this, satisfy_with_data_block(_))
-//        .WillByDefault(Invoke([this](darma_runtime::abstract::backend::DataBlock *db){
-//           get_data_block_return = db; is_satisfied_return = true; }));
-//      ON_CALL(*this, get_data_block())
-//        .WillByDefault(ReturnPointee(&get_data_block_return));
-//      ON_CALL(*this, is_satisfied())
-//        .WillByDefault(ReturnPointee(&is_satisfied_return));
-//      ON_CALL(*this, allow_writes())
-//        .WillByDefault(Invoke([this](){ is_writable_return = true; }));
-//      ON_CALL(*this, is_writable())
-//        .WillByDefault(ReturnPointee(&is_writable_return));
-//    }
-//
-//    void
-//    increase_version_depth(int cnt) {
-//      for (int i=0; i<cnt; i++)
-//        get_version_return.push_subversion();
-//    }
-//};
-
 class MockTask
   : public darma_runtime::abstract::frontend::Task<MockTask>
 {
@@ -171,13 +97,13 @@ class MockTask
     template < typename T >
     std::enable_if_t<std::is_void<T>::value, void>
     run() {
-      return this->run_gmock_proxy();
+      run_gmock_proxy();
     }
 
 
     MOCK_CONST_METHOD0(get_dependencies, handle_container_t const&());
     MOCK_CONST_METHOD0(get_name, key_t const&());
-    MOCK_METHOD1(set_name, void(key_t const& name_key));
+    MOCK_METHOD1(set_name, void(key_t const&));
     MOCK_CONST_METHOD0(is_migratable, bool());
     MOCK_CONST_METHOD0(get_packed_size, size_t());
     MOCK_CONST_METHOD1(pack, void(void*));
@@ -215,8 +141,57 @@ class MockHandle
 
     typedef darma_runtime::types::key_t key_t;
 
+    MockHandle() { set_default_behavior(); }
+
+    MockHandle(MockHandle&&) = default;
+
+    explicit
+    MockHandle(
+      key_t const& key
+    ) : key_(key), ser_man(
+      std::make_shared<::testing::NiceMock<MockSerializationManager>>()
+    )
+    { set_default_behavior(); }
+
+    template <typename T>
+    static MockHandle* create(key_t const& key) {
+      using namespace ::testing;
+      auto* rv = new NiceMock<MockHandle>(key);
+      ON_CALL(*rv->ser_man, get_metadata_size())
+        .WillByDefault(Return(sizeof(T)));
+      static_assert(std::is_fundamental<T>::value, "Only fundamental types supported in the mock for now");
+      ON_CALL(*rv->ser_man, get_packed_data_size(_))
+        .WillByDefault(Return(sizeof(T)));
+      ON_CALL(*rv->ser_man, pack_data(_, _))
+        .WillByDefault(Invoke([](const void* const data, void* const buff){
+          std::memcpy(buff, data, sizeof(T));
+        }));
+      ON_CALL(*rv->ser_man, unpack_data(_, _))
+        .WillByDefault(Invoke([](void* const data, const void* const buff){
+          std::memcpy(data, buff, sizeof(T));
+        }));
+      ON_CALL(*rv->ser_man, default_construct(_))
+        .WillByDefault(Invoke([](void* alloc){
+          new (alloc) T;
+        }));
+      return rv;
+    }
+
+
     MOCK_CONST_METHOD0(get_key, key_t const&());
     MOCK_CONST_METHOD0(get_serialization_manager, MockSerializationManager const*());
+
+    void
+    set_default_behavior() {
+      using namespace ::testing;
+      ON_CALL(*this, get_key())
+        .WillByDefault(ReturnRef(key_));
+      ON_CALL(*this, get_serialization_manager())
+        .WillByDefault(Return(ser_man.get()));
+    }
+
+    key_t key_;
+    std::shared_ptr<MockSerializationManager> ser_man;
 
 };
 
@@ -228,14 +203,54 @@ class MockUse
 
     using flow_t = darma_runtime::abstract::backend::Flow;
 
-    void* data;
+    MockUse() { set_default_behavior(); }
+
+    MockUse(
+      MockHandle* handle,
+      darma_runtime::abstract::backend::Flow* in_flow,
+      darma_runtime::abstract::backend::Flow* out_flow,
+      permissions_t scheduling_permissions,
+      permissions_t immediate_permissions
+    ) : handle_(handle), in_flow_(in_flow),
+        out_flow_(out_flow),
+        immediate_permissions_(immediate_permissions),
+        scheduling_permissions_(scheduling_permissions)
+    {
+      set_default_behavior();
+    }
+
 
     MOCK_CONST_METHOD0(get_handle, MockHandle const*());
     MOCK_METHOD0(get_in_flow, flow_t*&());
     MOCK_METHOD0(get_out_flow, flow_t*&());
-    MOCK_CONST_METHOD0(immediate_permissions, permissions_t());
-    MOCK_CONST_METHOD0(scheduling_permissions, permissions_t());
+    MOCK_CONST_METHOD0(immediate_permissions, permissions_t(void));
+    MOCK_CONST_METHOD0(scheduling_permissions, permissions_t(void));
     MOCK_METHOD0(get_data_pointer_reference, void*&());
+
+    void
+    set_default_behavior() {
+      using namespace ::testing;
+      ON_CALL(*this, get_handle())
+        .WillByDefault(Return(handle_));
+      ON_CALL(*this, get_in_flow())
+        .WillByDefault(ReturnRef(in_flow_));
+      ON_CALL(*this, get_out_flow())
+        .WillByDefault(ReturnRef(out_flow_));
+      ON_CALL(*this, immediate_permissions())
+        .WillByDefault(Return(immediate_permissions_));
+      ON_CALL(*this, scheduling_permissions())
+        .WillByDefault(Return(scheduling_permissions_));
+      ON_CALL(*this, get_data_pointer_reference())
+        .WillByDefault(ReturnRef(data_));
+    }
+
+    MockHandle* handle_ = nullptr;
+    darma_runtime::abstract::backend::Flow* in_flow_;
+    darma_runtime::abstract::backend::Flow* out_flow_;
+    permissions_t immediate_permissions_;
+    permissions_t scheduling_permissions_;
+    void* data_;
+
 
 };
 

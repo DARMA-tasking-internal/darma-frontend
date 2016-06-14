@@ -74,6 +74,51 @@ class TestRegisterTask
 //////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestRegisterTask, initial_access_allocate) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::detail;
+  using use_t = MockUse;
+  using runtime_t = darma_runtime::abstract::backend::Runtime;
+
+  Sequence s;
+
+  MockHandle* handle = MockHandle::create<int>(make_key("hello"));
+  NiceMock<MockUse> u_init(handle,
+    backend_runtime->make_initial_flow(handle),
+    backend_runtime->make_null_flow(handle),
+    use_t::Modify, use_t::None
+  );
+  auto* cap_in = backend_runtime->make_same_flow(u_init.in_flow_, runtime_t::Input);
+  auto* cap_out = backend_runtime->make_next_flow(cap_in, runtime_t::Output);
+  NiceMock<MockUse> u_cap( handle, cap_in, cap_out, use_t::Modify, use_t::Modify );
+  auto* con_in = backend_runtime->make_same_flow(u_cap.out_flow_, runtime_t::Input);
+  auto* con_out = backend_runtime->make_same_flow(u_init.out_flow_, runtime_t::Output);
+  NiceMock<MockUse> u_con( handle, con_in, con_out, use_t::Modify, use_t::None );
+
+  backend_runtime->register_use(&u_init);
+  backend_runtime->register_use(&u_cap);
+  backend_runtime->register_use(&u_con);
+  backend_runtime->release_use(&u_init);
+
+  types::handle_container_template<abstract::frontend::Use*> captured_uses = { &u_cap };
+  MockTask task;
+  EXPECT_CALL(task, get_dependencies())
+    .InSequence(s)
+    .WillRepeatedly(ReturnRef(captured_uses));
+
+  EXPECT_CALL(task, run_gmock_proxy())
+    .InSequence(s)
+    .WillOnce(Invoke([&]{
+      ASSERT_THAT(*(int*)u_cap.data_, Eq(0));
+      backend_runtime->release_use(&u_cap);
+    })
+  );
+
+  backend_runtime->release_use(&u_con);
+
+  delete handle;
+
+  backend_runtime->finalize();
 
 }
 
