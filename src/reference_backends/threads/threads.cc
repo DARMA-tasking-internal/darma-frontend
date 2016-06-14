@@ -620,7 +620,9 @@ darma_runtime::abstract::backend::darma_backend_initialize(
 
   detail::ArgParser args = {
     {"t", "threads", 1},
-    {"r", "ranks",   1}
+    {"r", "ranks",   1},
+    {"", "backend-n-ranks", 1},
+    {"", "serial-backend-n-ranks", 1}
   };
 
   args.parse(argc, argv);
@@ -631,6 +633,16 @@ darma_runtime::abstract::backend::darma_backend_initialize(
     
     // TODO: require this backend not to run with multiple threads per rank
     assert(n_threads == 1);
+  }
+
+  if (args["backend-n-ranks"].as<bool>()) {
+    ranks = args["backend-n-ranks"].as<size_t>();
+    assert(ranks > 0);
+  }
+
+  if (args["serial-backend-n-ranks"].as<bool>()) {
+    ranks = args["serial-backend-n-ranks"].as<size_t>();
+    assert(ranks > 0);
   }
 
   // read number of ranks from the command line
