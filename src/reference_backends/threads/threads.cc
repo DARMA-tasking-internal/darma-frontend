@@ -45,14 +45,14 @@
 #if !defined(_THREADS_BACKEND_RUNTIME_)
 #define _THREADS_BACKEND_RUNTIME_
 
-#include <darma/interface/frontend/types.h>
+#include <darma/interface/frontend.h>
+
+#ifndef DARMA_HAS_FRONTEND_TYPES_H
+#include <darma.h>
+#endif
 
 #include <darma/interface/backend/flow.h>
 #include <darma/interface/backend/runtime.h>
-#include <darma/interface/frontend/handle.h>
-#include <darma/interface/frontend/task.h>
-#include <darma/interface/frontend/use.h>
-#include <darma/interface/frontend/publication_details.h>
 #include <darma/interface/defaults/darma_main.h>
 
 #include <thread>
@@ -102,7 +102,7 @@ namespace threads_backend {
   std::vector<std::thread> live_ranks;
 
   // TL state
-  __thread abstract::frontend::Task* current_task = 0;
+  __thread runtime_t::task_t* current_task = 0;
   __thread size_t this_rank = 0;
   __thread size_t flow_label = 100;
 
@@ -188,12 +188,12 @@ namespace threads_backend {
     // TODO: multi-threaded half-implemented not working..
     std::vector<std::atomic<size_t>*> deque_counter;
     std::vector<std::mutex> deque_mutex;
-    std::vector<std::deque<types::unique_ptr_template<abstract::frontend::Task> > > deque;
+    std::vector<std::deque<types::unique_ptr_template<runtime_t::task_t> > > deque;
     std::atomic<bool> finished;
     std::atomic<size_t> ranks;
 
-    types::unique_ptr_template<abstract::frontend::Task> top_level_task;
-
+    types::unique_ptr_template<runtime_t::task_t> top_level_task;
+    
     ThreadsRuntime() {
       std::atomic_init(&finished, false);
       std::atomic_init<size_t>(&ranks, 1);
@@ -201,7 +201,7 @@ namespace threads_backend {
 
   protected:
     virtual void
-    register_task(types::unique_ptr_template<abstract::frontend::Task>&& task) {
+    register_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
       DEBUG_PRINT("register task\n");
 
       #if defined(_BACKEND_MULTITHREADED_RUNTIME)
@@ -217,7 +217,17 @@ namespace threads_backend {
       check_dep_task(std::move(task));
     }
 
-    void check_dep_task(types::unique_ptr_template<abstract::frontend::Task>&& task) {
+    bool register_condition_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
+      assert(false);
+      return true;
+    }
+
+    void reregister_migrated_use(darma_runtime::abstract::frontend::Use* u) {
+      assert(false);
+    }
+
+
+    void check_dep_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
       bool ready = true;
       
       for (auto&& dep : task->get_dependencies()) {
@@ -244,15 +254,15 @@ namespace threads_backend {
 
       // the task is ready
       if (ready) {
-	abstract::frontend::Task* prev = current_task;
-	types::unique_ptr_template<abstract::frontend::Task> cur = std::move(task);
+        runtime_t::task_t* prev = current_task;
+	types::unique_ptr_template<runtime_t::task_t> cur = std::move(task);
 	current_task = cur.get();
 	cur.get()->run();
 	current_task = prev;
       }
     }
 
-    virtual darma_runtime::abstract::frontend::Task*
+    virtual runtime_t::task_t*
     get_running_task() const {
       DEBUG_PRINT("get running task\n");
       return current_task;
@@ -549,7 +559,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   darma_runtime::abstract::backend::Runtime *&backend_runtime,
   types::unique_ptr_template<
     typename darma_runtime::abstract::backend::Runtime::task_t
-  > top_level_task
+  >&& top_level_task
 ) {
   size_t ranks = 2, n_threads = 1;
 

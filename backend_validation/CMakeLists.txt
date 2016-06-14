@@ -7,6 +7,10 @@ set (DarmaBackendValidation_VERSION_MINOR 2)
 
 enable_testing()
 
+# Let the compiler know that we have a custom frontend_types.h that replaces defines MockTask
+# as concrete_task_t
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_HAS_FRONTEND_TYPES_H=1")
+
 # Compiler-specific C++11 activation.
 set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} -std=c++1y")
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
@@ -38,10 +42,13 @@ set (backend_name mock)
 elseif (SERIAL_BACKEND)  
 set (backend_name serial)
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_SERIAL_BACKEND=1")
+elseif (THREADS_BACKEND)  
+set (backend_name threads)
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_THREADS_BACKEND=1")
 endif()
 set(backend_dir ${CMAKE_SOURCE_DIR}/src/reference_backends/${backend_name})
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${backend_dir}")
-set(DARMA_BACKEND_LIBNAME darma_${backend_name}_backend)
+set(DARMA_BACKEND_LIBNAME darma_${backend_name}_backend_with_mock_frontend)
 include_directories(${backend_dir})
 else() #built as standalone
 

@@ -60,7 +60,7 @@ struct DataArray
 typedef AccessHandle<DataArray<double>> dep_t;
 
 void copy_in_ghost_data(double* dest,
-  const dep_t left_ghost, const dep_t main, const dep_t right_ghost
+  dep_t left_ghost, dep_t main, dep_t right_ghost
 ) {
   if(left_ghost->size() > 0) {
     memcpy(dest, left_ghost->get(), left_ghost->size()*sizeof(double));

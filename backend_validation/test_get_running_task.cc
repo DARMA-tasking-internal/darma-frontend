@@ -55,119 +55,119 @@
 
 using namespace darma_runtime;
 
-namespace {
-
-class DARMAGetRunningTask
-  : public ::testing::Test
-{
-  protected:
-
-    virtual void SetUp() {
-      // Emulate argc and argv
-      argc_ = 1;
-      argv_ = new char*[1];
-      argv_[0] = new char[256];
-      sprintf(argv_[0], "<mock frontend test>");
-      backend_finalized = false;
-    }
-
-    virtual void TearDown() {
-      if(!backend_finalized) {
-        // Clean up from failed tests
-        detail::backend_runtime->finalize();
-      }
-      delete detail::backend_runtime;
-      detail::backend_runtime = 0;
-      delete[] argv_[0];
-      delete[] argv_;
-    }
-
-    int argc_;
-    char** argv_;
-    std::string program_name;
-
-    bool backend_finalized;
-
-    virtual ~DARMAGetRunningTask() { }
-};
-
-} // end anonymous namespace
-
-template <typename Lambda, bool IsNice=true>
-void register_child_task(const std::string &base, int which, Lambda&& lambda) {
-  using namespace ::testing;
-  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
-
-  auto task_a = std::make_unique<task_t>();
-  EXPECT_CALL(*task_a, set_name(_))
-    .Times(Exactly(1));  // if this fails, the test itself will malfunction
-  EXPECT_CALL(*task_a, get_dependencies())
-    .Times(AtLeast(1));
-  EXPECT_CALL(*task_a, run())
-    .Times(Exactly(1))
-    .WillOnce(Invoke(std::forward<Lambda>(lambda)));
-  task_a->set_name(make_key(base, which));
-  detail::backend_runtime->register_task(std::move(task_a));
-}
-
-// check that the top-level task's name is set correctly
-TEST_F(DARMAGetRunningTask, get_running_task) {
-  using namespace mock_frontend;
-  using namespace ::testing;
-  // Make a mock task pointer
-  std::unique_ptr<NiceMock<MockTask>> top_level_task =
-      std::make_unique<NiceMock<MockTask>>();
-
-  // runtime must call set_name
-  EXPECT_CALL(*top_level_task, set_name(_))
-    .Times(Exactly(1));
-
-  abstract::backend::darma_backend_initialize(
-    argc_, argv_, detail::backend_runtime,
-    std::move(top_level_task)
-  );
-  // Get the return of get_running_task()
-  typename abstract::backend::runtime_t::task_t* top_level_task_ptr =
-      detail::backend_runtime->get_running_task();
-  auto name = top_level_task_ptr->get_name();
-
-  // TODO: check that the name has the right number of parts
-
-  // Test that the first component must equal the specified prefix
-  ASSERT_EQ(
-    DARMA_BACKEND_SPMD_NAME_PREFIX,
-    name.component<0>().as<std::string>()
-  );
-
-  typedef typename std::conditional<false, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
-
-  std::string base("child");
-  int which = 0;
-  
-  register_child_task(base, which, [=]{
-    auto task = detail::backend_runtime->get_running_task();
-    auto taskname = task->get_name();
-
-    // TODO: check that the name has the right number of parts
-
-    // Make sure we get our own name back from the task returned by the runtime
-    ASSERT_TRUE(base.compare(taskname.component<0>().as<std::string>())==0);
-    ASSERT_EQ(taskname.component<1>().as<int>(), which);
-
-    int child_which = which+1;
-    register_child_task(base, child_which, [=]{
-      auto task = detail::backend_runtime->get_running_task();
-      auto taskname = task->get_name();
-
-      // TODO: check that the name has the right number of parts
-
-      // Make sure we get our own name back from the task returned by the runtime
-      ASSERT_TRUE(base.compare(taskname.component<0>().as<std::string>())==0);
-      ASSERT_EQ(taskname.component<1>().as<int>(), child_which);
-    });
-  });
-
-  detail::backend_runtime->finalize();
-  backend_finalized = true;
-}
+//namespace {
+//
+//class DARMAGetRunningTask
+//  : public ::testing::Test
+//{
+//  protected:
+//
+//    virtual void SetUp() {
+//      // Emulate argc and argv
+//      argc_ = 1;
+//      argv_ = new char*[1];
+//      argv_[0] = new char[256];
+//      sprintf(argv_[0], "<mock frontend test>");
+//      backend_finalized = false;
+//    }
+//
+//    virtual void TearDown() {
+//      if(!backend_finalized) {
+//        // Clean up from failed tests
+//        detail::backend_runtime->finalize();
+//      }
+//      delete detail::backend_runtime;
+//      detail::backend_runtime = 0;
+//      delete[] argv_[0];
+//      delete[] argv_;
+//    }
+//
+//    int argc_;
+//    char** argv_;
+//    std::string program_name;
+//
+//    bool backend_finalized;
+//
+//    virtual ~DARMAGetRunningTask() { }
+//};
+//
+//} // end anonymous namespace
+//
+//template <typename Lambda, bool IsNice=true>
+//void register_child_task(const std::string &base, int which, Lambda&& lambda) {
+//  using namespace ::testing;
+//  typedef typename std::conditional<IsNice, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+//
+//  auto task_a = std::make_unique<task_t>();
+//  EXPECT_CALL(*task_a, set_name(_))
+//    .Times(Exactly(1));  // if this fails, the test itself will malfunction
+//  EXPECT_CALL(*task_a, get_dependencies())
+//    .Times(AtLeast(1));
+//  EXPECT_CALL(*task_a, run())
+//    .Times(Exactly(1))
+//    .WillOnce(Invoke(std::forward<Lambda>(lambda)));
+//  task_a->set_name(make_key(base, which));
+//  detail::backend_runtime->register_task(std::move(task_a));
+//}
+//
+//// check that the top-level task's name is set correctly
+//TEST_F(DARMAGetRunningTask, get_running_task) {
+//  using namespace mock_frontend;
+//  using namespace ::testing;
+//  // Make a mock task pointer
+//  std::unique_ptr<NiceMock<MockTask>> top_level_task =
+//      std::make_unique<NiceMock<MockTask>>();
+//
+//  // runtime must call set_name
+//  EXPECT_CALL(*top_level_task, set_name(_))
+//    .Times(Exactly(1));
+//
+//  abstract::backend::darma_backend_initialize(
+//    argc_, argv_, detail::backend_runtime,
+//    std::move(top_level_task)
+//  );
+//  // Get the return of get_running_task()
+//  typename abstract::backend::runtime_t::task_t* top_level_task_ptr =
+//      detail::backend_runtime->get_running_task();
+//  auto name = top_level_task_ptr->get_name();
+//
+//  // TODO: check that the name has the right number of parts
+//
+//  // Test that the first component must equal the specified prefix
+//  ASSERT_EQ(
+//    DARMA_BACKEND_SPMD_NAME_PREFIX,
+//    name.component<0>().as<std::string>()
+//  );
+//
+//  typedef typename std::conditional<false, ::testing::NiceMock<MockTask>, MockTask>::type task_t;
+//
+//  std::string base("child");
+//  int which = 0;
+//
+//  register_child_task(base, which, [=]{
+//    auto task = detail::backend_runtime->get_running_task();
+//    auto taskname = task->get_name();
+//
+//    // TODO: check that the name has the right number of parts
+//
+//    // Make sure we get our own name back from the task returned by the runtime
+//    ASSERT_TRUE(base.compare(taskname.component<0>().as<std::string>())==0);
+//    ASSERT_EQ(taskname.component<1>().as<int>(), which);
+//
+//    int child_which = which+1;
+//    register_child_task(base, child_which, [=]{
+//      auto task = detail::backend_runtime->get_running_task();
+//      auto taskname = task->get_name();
+//
+//      // TODO: check that the name has the right number of parts
+//
+//      // Make sure we get our own name back from the task returned by the runtime
+//      ASSERT_TRUE(base.compare(taskname.component<0>().as<std::string>())==0);
+//      ASSERT_EQ(taskname.component<1>().as<int>(), child_which);
+//    });
+//  });
+//
+//  detail::backend_runtime->finalize();
+//  backend_finalized = true;
+//}
 

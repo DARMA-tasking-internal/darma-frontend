@@ -16,6 +16,18 @@ threads.cc
 
 include_directories( ${BACKENDS_ROOT}/threads )
 add_library( darma_threads_backend SHARED ${threads_SOURCES} ${threads_HEADERS} )
+if (GTEST_DIR)
+add_library( darma_threads_backend_with_mock_frontend
+        SHARED ${threads_SOURCES} ${threads_HEADERS} )
+target_compile_definitions(darma_threads_backend_with_mock_frontend PUBLIC DARMA_HAS_FRONTEND_TYPES_H)
+target_include_directories(darma_threads_backend_with_mock_frontend PUBLIC ${CMAKE_SOURCE_DIR}/backend_validation)
+target_include_directories(darma_threads_backend_with_mock_frontend PUBLIC ${GTEST_DIR}/include)
+find_library(GMOCK_LIB_PATH gmock ${GTEST_DIR}/lib)
+find_library(GTEST_LIB_PATH gtest ${GTEST_DIR}/lib)
+#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${GTEST_DIR}/lib")
+    #link_directories(${GTEST_DIR}/lib)
+target_link_libraries(darma_threads_backend_with_mock_frontend ${GMOCK_LIB_PATH} ${GTEST_LIB_PATH} pthread)
+endif()
 install (TARGETS darma_threads_backend EXPORT DarmaThreadsBackendDepends DESTINATION lib)
 install (FILES darma_types.h DESTINATION include)
 

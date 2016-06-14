@@ -109,7 +109,7 @@ class multiarg_typeless_kwarg_expression {
     inline constexpr T
     value_as() const {
       return value_as<T>(
-        tinympl::range_c<size_t, 0, sizeof...(Args)>()
+        tinympl::make_range_c<size_t, 0, sizeof...(Args)>()
       );
     }
 
@@ -136,7 +136,7 @@ class multiarg_typeless_kwarg_expression {
     value_converted(Converter&& conv) const {
       return value_converted(
         std::forward<Converter>(conv),
-        tinympl::range_c<size_t, 0, sizeof...(Args)>()
+        tinympl::make_range_c<size_t, 0, sizeof...(Args)>()
       );
     }
 };

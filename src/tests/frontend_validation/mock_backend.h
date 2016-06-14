@@ -60,9 +60,8 @@ class MockRuntime
 {
   public:
 
-    using task_t = darma_runtime::abstract::frontend::Task;
-    using task_unique_ptr =
-      darma_runtime::types::unique_ptr_template<darma_runtime::abstract::frontend::Task>;
+    using task_t = darma_runtime::abstract::backend::runtime_t::task_t;
+    using task_unique_ptr = darma_runtime::abstract::backend::runtime_t::task_unique_ptr;
     using runtime_t = darma_runtime::abstract::backend::Runtime;
     using handle_t = darma_runtime::abstract::frontend::Handle;
     using flow_t = darma_runtime::abstract::backend::Flow;
@@ -80,6 +79,13 @@ class MockRuntime
       }
     }
 
+    bool
+    register_condition_task(
+      task_unique_ptr&& task
+    ) override {
+      return register_condition_task_gmock_proxy(task.get());
+    }
+
 
 #ifdef __clang__
 #if __has_warning("-Winconsistent-missing-override")
@@ -89,9 +95,11 @@ class MockRuntime
 #endif
 
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
+    MOCK_METHOD1(register_condition_task_gmock_proxy, bool(task_t* task));
     MOCK_CONST_METHOD0(get_running_task, task_t*());
     MOCK_METHOD0(finalize, void());
     MOCK_METHOD1(register_use, void(use_t*));
+    MOCK_METHOD1(reregister_migrated_use, void(use_t*));
     MOCK_METHOD1(make_initial_flow, flow_t*(handle_t*));
     MOCK_METHOD2(make_fetching_flow, flow_t*(handle_t*, key_t const&));
     MOCK_METHOD1(make_null_flow, flow_t*(handle_t*));

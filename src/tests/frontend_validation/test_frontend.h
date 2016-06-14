@@ -52,6 +52,9 @@
 #include <iostream>
 
 #include <gtest/gtest.h>
+
+#include <darma.h>
+
 #include <darma/impl/task.h>
 #include <darma/impl/runtime.h>
 #include <darma/interface/app/access_handle.h>
@@ -309,7 +312,7 @@ class TestFrontend
     void
     run_all_tasks() {
       while(not mock_runtime->registered_tasks.empty()) {
-        mock_runtime->registered_tasks.front()->run();
+        mock_runtime->registered_tasks.front()->run<void>();
         mock_runtime->registered_tasks.pop_front();
       }
     }

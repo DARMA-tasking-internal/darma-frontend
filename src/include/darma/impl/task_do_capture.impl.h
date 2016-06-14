@@ -79,6 +79,8 @@ TaskBase::do_capture(
     "Can't do a capture of an AccessHandle with scheduling permissions of None"
   );
 
+  source_and_continuing.captured_as_ |= default_capture_as_info;
+
   // Note: source_and_continuing is not functionally const, since
   // we modify it significantly (it just happens that those modifications
   // are to mutable member variables which have to be mutable because
@@ -120,6 +122,10 @@ TaskBase::do_capture(
           }
           case HandleUse::None: {
             DARMA_ASSERT_UNREACHABLE_FAILURE(); // LCOV_EXCL_LINE
+            break;
+          }
+          default: {
+            DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
             break;
           }
         };
@@ -178,6 +184,10 @@ TaskBase::do_capture(
                 case HandleUse::Modify:
                   _ro_capture_mod_imm();
                   break;
+                default: {
+                  DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+                  break;
+                }
               }
               break;
             }
@@ -190,6 +200,10 @@ TaskBase::do_capture(
                 case HandleUse::Modify:
                   _ro_capture_mod_imm();
                   break;
+                default: {
+                  DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+                  break;
+                }
               }
               break;
             }
@@ -254,6 +268,10 @@ TaskBase::do_capture(
               continuing._switch_to_new_use(detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
                 continuing_in_flow, continuing_out_flow, HandleUse::Modify, HandleUse::Read
               )));
+              break;
+            }
+            default: {
+              DARMA_ASSERT_NOT_IMPLEMENTED();
               break;
             }
           } // end switch source.current_use_->use.scheduling_permissions_

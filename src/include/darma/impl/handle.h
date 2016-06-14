@@ -373,6 +373,12 @@ class VariableHandle
       s.unpack(object_dest, ar);
     }
 
+    void
+    default_construct(void* allocated) const {
+      // Will fail if T is not default constructible...
+      new (allocated) T;
+    }
+
     // end SerializationManager implementation </editor-fold>
     ////////////////////////////////////////////////////////////
 
