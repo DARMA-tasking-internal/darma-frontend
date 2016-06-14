@@ -97,7 +97,7 @@ class MockTask
     template < typename T >
     std::enable_if_t<std::is_void<T>::value, void>
     run() {
-      return this->run_gmock_proxy();
+      run_gmock_proxy();
     }
 
 

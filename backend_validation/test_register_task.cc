@@ -101,7 +101,7 @@ TEST_F(TestRegisterTask, initial_access_allocate) {
   backend_runtime->release_use(&u_init);
 
   types::handle_container_template<abstract::frontend::Use*> captured_uses = { &u_cap };
-  StrictMock<MockTask> task;
+  MockTask task;
   EXPECT_CALL(task, get_dependencies())
     .InSequence(s)
     .WillRepeatedly(ReturnRef(captured_uses));
