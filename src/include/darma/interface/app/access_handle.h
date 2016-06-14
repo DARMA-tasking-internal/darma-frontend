@@ -187,7 +187,6 @@ class AccessHandle : public detail::AccessHandleBase {
       return *this;
     }
 
-    explicit
     AccessHandle(AccessHandle const & copied_from) noexcept {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
@@ -215,7 +214,7 @@ class AccessHandle : public detail::AccessHandleBase {
       typename = std::enable_if_t<
         // Check if it's a convertible AccessHandle type that's not this type
         is_convertible_from_access_handle<AccessHandleT>::value
-          and not std::is_same<AccessHandleT, AccessHandle>::value
+          and not std::is_same<std::decay_t<AccessHandleT>, AccessHandle>::value
       >
     >
     AccessHandle(

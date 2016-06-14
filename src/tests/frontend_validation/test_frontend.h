@@ -52,6 +52,9 @@
 #include <iostream>
 
 #include <gtest/gtest.h>
+
+#include <darma.h>
+
 #include <darma/impl/task.h>
 #include <darma/impl/runtime.h>
 #include <darma/interface/app/access_handle.h>

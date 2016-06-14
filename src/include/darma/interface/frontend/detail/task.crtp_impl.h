@@ -45,11 +45,12 @@
 #ifndef DARMA_TASK_CRTP_IMPL_H
 #define DARMA_TASK_CRTP_IMPL_H
 
+#include <darma/interface/frontend/types.h>
+
 #include <darma/interface/frontend/task.h>
 #include <darma/interface/frontend/use.h>
 
 #include <darma/interface/frontend/frontend_fwd.h>
-#include <darma/impl/task.h>
 
 namespace darma_runtime {
 namespace abstract {

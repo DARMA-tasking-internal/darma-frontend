@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          types.h
-//                         darma_new
+//                      test_backend.h.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,45 +42,56 @@
 //@HEADER
 */
 
-#ifndef DARMA_ABSTRACT_FRONTEND_TYPES_H_
-#define DARMA_ABSTRACT_FRONTEND_TYPES_H_
+#ifndef DARMA_TEST_BACKEND_H_H
+#define DARMA_TEST_BACKEND_H_H
 
-#ifdef DARMA_HAS_FRONTEND_TYPES_H
-#include <frontend_types.h>
-#endif
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
-#include <darma_types.h>
-#include <darma/interface/frontend/frontend_fwd.h>
+#include "mock_frontend.h"
+#include "main.h"
 
-#ifndef DARMA_CUSTOM_HANDLE_CONTAINER
-#include <unordered_set>
-namespace darma_runtime {
-namespace types {
+struct TestBackend
+  : testing::Test
+{
+  protected:
+    virtual void SetUp() {
+      using namespace darma_runtime;
 
-  template <typename... Ts>
-  using handle_container_template = std::unordered_set<Ts...>;
+      // Emulate argc and argv
+      argc_ = 1;
+      argv_ = new char*[1];
+      argv_[0] = new char[256];
+      sprintf(argv_[0], "<mock frontend test>");
+      // Make a mock task pointer
+      std::unique_ptr<typename abstract::backend::runtime_t::task_t> top_level_task =
+          std::make_unique<::testing::NiceMock<mock_frontend::MockTask>>();
 
-} // end namespace types
-} // end namespace darma_runtime
-#endif
+      abstract::backend::darma_backend_initialize(
+        argc_, argv_, detail::backend_runtime,
+        std::move(top_level_task)
+      );
 
+      backend_finalized = false;
+    }
 
-////////////////////////////////////////
-// concrete_task_t typedef
+    virtual void TearDown() {
+      using namespace darma_runtime;
+      if(!backend_finalized) {
+        // Clean up from failed tests
+        detail::backend_runtime->finalize();
+      }
+      delete detail::backend_runtime;
+      detail::backend_runtime = 0;
+      delete[] argv_[0];
+      delete[] argv_;
+    }
 
-#ifndef DARMA_CUSTOM_CONCRETE_TASK
-#include <darma/impl/task_fwd.h>
+    int argc_;
+    char** argv_;
+    std::string program_name;
+    bool backend_finalized;
 
-namespace darma_runtime {
-namespace types {
+};
 
-typedef darma_runtime::detail::TaskBase concrete_task_t;
-
-} // end namespace types
-} // end namespace darma_runtime
-#endif
-
-//
-////////////////////////////////////////
-
-#endif /* DARMA_ABSTRACT_FRONTEND_TYPES_H_ */
+#endif //DARMA_TEST_BACKEND_H_H

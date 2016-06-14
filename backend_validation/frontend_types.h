@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          types.h
-//                         darma_new
+//                      frontend_types.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,45 +42,25 @@
 //@HEADER
 */
 
-#ifndef DARMA_ABSTRACT_FRONTEND_TYPES_H_
-#define DARMA_ABSTRACT_FRONTEND_TYPES_H_
+#ifndef DARMA_FRONTEND_TYPES_H
+#define DARMA_FRONTEND_TYPES_H
 
-#ifdef DARMA_HAS_FRONTEND_TYPES_H
-#include <frontend_types.h>
-#endif
+// Forward declare MockTask
+namespace mock_frontend {
 
-#include <darma_types.h>
-#include <darma/interface/frontend/frontend_fwd.h>
+struct MockTask;
 
-#ifndef DARMA_CUSTOM_HANDLE_CONTAINER
-#include <unordered_set>
+} // end namespace mock_frontend
+
+#define DARMA_CUSTOM_CONCRETE_TASK 1
 namespace darma_runtime {
 namespace types {
 
-  template <typename... Ts>
-  using handle_container_template = std::unordered_set<Ts...>;
+typedef mock_frontend::MockTask concrete_task_t;
 
 } // end namespace types
 } // end namespace darma_runtime
-#endif
 
+#include "mock_frontend.h"
 
-////////////////////////////////////////
-// concrete_task_t typedef
-
-#ifndef DARMA_CUSTOM_CONCRETE_TASK
-#include <darma/impl/task_fwd.h>
-
-namespace darma_runtime {
-namespace types {
-
-typedef darma_runtime::detail::TaskBase concrete_task_t;
-
-} // end namespace types
-} // end namespace darma_runtime
-#endif
-
-//
-////////////////////////////////////////
-
-#endif /* DARMA_ABSTRACT_FRONTEND_TYPES_H_ */
+#endif //DARMA_FRONTEND_TYPES_H
