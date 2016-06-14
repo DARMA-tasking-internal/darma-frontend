@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                      task.crtp_impl.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,14 +42,64 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef DARMA_TASK_CRTP_IMPL_H
+#define DARMA_TASK_CRTP_IMPL_H
 
-#include <darma/impl/darma.h>
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/interface/app/create_condition.h>
-#include <darma/interface/app/access_handle.h>
+#include <darma/interface/frontend/task.h>
+#include <darma/interface/frontend/use.h>
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+#include <darma/interface/frontend/frontend_fwd.h>
+#include <darma/impl/task.h>
+
+namespace darma_runtime {
+namespace abstract {
+namespace frontend {
+
+template <typename ConcreteTask>
+inline types::handle_container_template<use_t*> const&
+Task<ConcreteTask>::get_dependencies() const {
+  return static_cast<ConcreteTask const*>(this)->get_dependencies();
+}
+
+template <typename ConcreteTask>
+template <typename ReturnType>
+inline ReturnType
+Task<ConcreteTask>::run() {
+  return static_cast<ConcreteTask*>(this)->template run<ReturnType>();
+}
+
+template <typename ConcreteTask>
+inline types::key_t const&
+Task<ConcreteTask>::get_name() const {
+  return static_cast<ConcreteTask const*>(this)->get_name();
+}
+
+template <typename ConcreteTask>
+inline void
+Task<ConcreteTask>::set_name(types::key_t const& name_key) {
+  return static_cast<ConcreteTask*>(this)->set_name(name_key);
+}
+
+template <typename ConcreteTask>
+inline bool
+Task<ConcreteTask>::is_migratable() const {
+  return static_cast<ConcreteTask const*>(this)->is_migratable();
+}
+
+template <typename ConcreteTask>
+inline size_t
+Task<ConcreteTask>::get_packed_size() const {
+  return static_cast<ConcreteTask const*>(this)->get_packed_size();
+}
+
+template <typename ConcreteTask>
+inline void
+Task<ConcreteTask>::pack(void* allocated) const {
+  return static_cast<ConcreteTask const*>(this)->pack(allocated);
+}
+
+} // end namespace frontend
+} // end namespace abstract
+} // end namespace darma_runtime
+
+#endif //DARMA_TASK_CRTP_IMPL_H

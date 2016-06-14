@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                      util.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,14 +42,19 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef DARMA_IMPL_OO_UTIL_H
+#define DARMA_IMPL_OO_UTIL_H
 
-#include <darma/impl/darma.h>
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/interface/app/create_condition.h>
-#include <darma/interface/app/access_handle.h>
+namespace darma_runtime {
+namespace oo {
+namespace detail {
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+struct empty_base {
+
+};
+
+} // end namespace detail
+} // end namespace oo
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_OO_UTIL_H

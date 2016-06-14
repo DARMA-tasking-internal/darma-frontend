@@ -45,6 +45,8 @@
 #ifndef DARMA_IMPLEMENTATION_FRONTEND_USE_H
 #define DARMA_IMPLEMENTATION_FRONTEND_USE_H
 
+#include <darma/interface/frontend/frontend_fwd.h>
+
 #include <darma/interface/backend/flow.h>
 #include "handle.h"
 
@@ -97,11 +99,11 @@ class Use {
 
     /** @brief Get the Flow that must be ready for use as a precondition for the Task t that depends on this Use
      */
-    virtual backend::Flow* get_in_flow() =0;
+    virtual backend::Flow*& get_in_flow() =0;
 
     /** @brief Get the Flow that is produced or made available when this Use is released
      */
-    virtual backend::Flow* get_out_flow() =0;
+    virtual backend::Flow*& get_out_flow() =0;
 
     /** Get the immediate permissions needed for the Flow returned by get_in_flow() to be ready as a precondition for this Use
      */
@@ -121,6 +123,7 @@ class Use {
     virtual void*& get_data_pointer_reference() =0;
 
 };
+
 
 } // end namespace frontend
 } // end namespace abstract
