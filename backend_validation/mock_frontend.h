@@ -68,6 +68,7 @@ class MockSerializationManager
     MOCK_CONST_METHOD1(get_packed_data_size, size_t(const void* const));
     MOCK_CONST_METHOD2(pack_data, void(const void* const, void* const));
     MOCK_CONST_METHOD2(unpack_data, void(void* const, const void* const));
+    MOCK_CONST_METHOD1(default_construct, void(void*));
 };
 
 //class MockDependencyHandle
