@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                      partition.hpp
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,14 +42,40 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef TINYMPL_PARTITION_HPP
+#define TINYMPL_PARTITION_HPP
 
-#include <darma/impl/darma.h>
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/interface/app/create_condition.h>
-#include <darma/interface/app/access_handle.h>
+#include <tinympl/variadic/partition.hpp>
+#include <tinympl/as_sequence.hpp>
+#include <tinympl/sequence.hpp>
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+namespace tinympl {
+
+/**
+ *  @brief e.g.,
+ *    partition<2, Seq<Arg1, Arg2, Arg3, Arg4, Arg5, Arg6>,
+ *      Inner, Outer
+ *    >::type = Outer<Inner<Arg1, Arg2>, Inner<Arg3, Arg4>, Inner<Arg5, Arg6>>
+ */
+template <
+  size_t NPerGroup,
+  typename Sequence,
+  template <class...> class InnerOut = as_sequence<Sequence>::template rebind,
+  template <class...> class OuterOut = as_sequence<Sequence>::template rebind
+>
+struct partition
+  : partition<NPerGroup, as_sequence_t<Sequence>, InnerOut, OuterOut> { };
+
+template <
+  size_t NPerGroup,
+  template <typename...> class InnerOut,
+  template <typename...> class OuterOut,
+  typename... Args
+>
+struct partition<NPerGroup, sequence<Args...>, InnerOut, OuterOut>
+  : tinympl::variadic::partition<NPerGroup, InnerOut, OuterOut, Args...> { };
+
+
+} // end namespace tinympl
+
+#endif //DARMA_PARTITION_HPP

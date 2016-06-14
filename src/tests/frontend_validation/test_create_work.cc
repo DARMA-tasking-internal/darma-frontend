@@ -78,120 +78,91 @@ class TestCreateWork
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, mod_capture_MN) {
+typedef enum HelperUse {
+  No, Yes, YesWithArrays
+} helper_use_t;
+
+struct TestModCaptureMN
+  : TestCreateWork,
+    ::testing::WithParamInterface<bool>
+{ };
+
+TEST_P(TestModCaptureMN, mod_capture_MN) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
-
 
   MockFlow fl_in_1, fl_out_1;
   use_t* use_1, *use_2, *use_3;
 
-  Sequence s0, s3;
-  auto ex_1 = expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("hello"), s0, s3);
-
-  Sequence s1, s2;
-  MockFlow fl_in_2, fl_out_2;
-  MockFlow fl_in_3, fl_out_3;
-
-  // mod-capture of MN
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_1), MockRuntime::Input))
-    .Times(1).InSequence(s1)
-    .WillOnce(Return(&fl_in_2));
-  EXPECT_CALL(*mock_runtime, make_next_flow(Eq(&fl_in_2), MockRuntime::Output))
-    .Times(1).InSequence(s1)
-    .WillOnce(Return(&fl_out_2));
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_2), MockRuntime::Input))
-    .Times(1).InSequence(s1)
-    .WillOnce(Return(&fl_in_3));
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_1), MockRuntime::Output))
-    .Times(1).InSequence(s1, s2)
-    .WillOnce(Return(&fl_out_3));
-  EXPECT_CALL(*mock_runtime, register_use(AllOf(
-    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify),
-    // expresses the requirement that register of use2 must
-    // happen before use1 is released
-    UseRefIsNonNull(ByRef(use_1))
-  ))).Times(1).InSequence(s1)
-    .WillOnce(SaveArg<0>(&use_2));
-
-
-  EXPECT_CALL(*mock_runtime, register_use(AllOf(
-    IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None),
-    // expresses the requirement that register of use3 must
-    // happen before use1 is released
-    UseRefIsNonNull(ByRef(use_1))
-  ))).Times(1).InSequence(s2)
-    .WillOnce(SaveArg<0>(&use_3));
-
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_2))))
-    .Times(1).InSequence(s1, s3);
-
-  EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify)
-  )).Times(1).InSequence(s1, s3)
-    .WillOnce(Assign(&use_2, nullptr));
-  EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None)
-  )).Times(1).InSequence(s2)
-    .WillOnce(Assign(&use_3, nullptr));
-
-
-  {
-    auto tmp = initial_access<int>("hello");
-
-    create_work([=]{
-      // This code doesn't run in this example
-      tmp.set_value(5);
-      FAIL() << "This code block shouldn't be running in this example";
-    });
-
-  } // tmp deleted
-
-  mock_runtime->registered_tasks.clear();
-
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-
-// Same as the test above, but uses helper
-TEST_F(TestCreateWork, mod_capture_MN_helper) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace mock_backend;
-
-  mock_runtime->save_tasks = true;
-
   Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
+  auto ex_1 = expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("hello"),
+    s_reg_initial, s_release_initial);
 
-  MockFlow fl_in_1, fl_out_1;
+
   MockFlow fl_in_2, fl_out_2;
   MockFlow fl_in_3, fl_out_3;
-  use_t *use_1, *use_2, *use_3;
 
-  Sequence s0, s3;
-  expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("hello"), s_reg_initial, s_release_initial);
-  expect_mod_capture_MN_or_MR(
-    fl_in_1, fl_out_1, use_1,
-    fl_in_2, fl_out_2, use_2,
-    fl_in_3, fl_out_3, use_3,
-    s_reg_captured, s_reg_continuing
-  );
+  const bool use_helper = GetParam();
+
+  if(use_helper) {
+
+    expect_mod_capture_MN_or_MR(
+      fl_in_1, fl_out_1, use_1,
+      fl_in_2, fl_out_2, use_2,
+      fl_in_3, fl_out_3, use_3,
+      s_reg_captured, s_reg_continuing
+    );
+
+  }
+  else {
+    Sequence s1;
+
+    // mod-capture of MN
+    EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_1), MockRuntime::Input))
+      .Times(1).InSequence(s1)
+      .WillOnce(Return(&fl_in_2));
+    EXPECT_CALL(*mock_runtime, make_next_flow(Eq(&fl_in_2), MockRuntime::Output))
+      .Times(1).InSequence(s1)
+      .WillOnce(Return(&fl_out_2));
+    EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_2), MockRuntime::Input))
+      .Times(1).InSequence(s1)
+      .WillOnce(Return(&fl_in_3));
+    EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_1), MockRuntime::Output))
+      .Times(1).InSequence(s1, s_reg_continuing)
+      .WillOnce(Return(&fl_out_3));
+    EXPECT_CALL(*mock_runtime, register_use(AllOf(
+      IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify),
+      // expresses the requirement that register of use2 must
+      // happen before use1 is released
+      UseRefIsNonNull(ByRef(use_1))
+    ))).Times(1).InSequence(s1, s_reg_captured)
+      .WillOnce(SaveArg<0>(&use_2));
+
+    EXPECT_CALL(*mock_runtime, register_use(AllOf(
+      IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None),
+      // expresses the requirement that register of use3 must
+      // happen before use1 is released
+      UseRefIsNonNull(ByRef(use_1))
+    ))).Times(1).InSequence(s_reg_continuing)
+      .WillOnce(SaveArg<0>(&use_3));
+
+  }
 
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_2))))
     .Times(1).InSequence(s_reg_captured, s_release_initial);
 
-  EXPECT_CALL(*mock_runtime, release_use(
+  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_2)),
     IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify)
-  )).Times(1).InSequence(s_reg_captured, s_reg_initial, s_release_initial);
-  EXPECT_CALL(*mock_runtime, release_use(
+  ))).Times(1).InSequence(s_reg_captured, s_release_initial)
+    .WillOnce(Assign(&use_2, nullptr));
+  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_3)),
     IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None)
-  )).Times(1).InSequence(s_reg_continuing);
-
+  ))).Times(1).InSequence(s_reg_continuing)
+    .WillOnce(Assign(&use_3, nullptr));
 
   {
     auto tmp = initial_access<int>("hello");
@@ -205,7 +176,14 @@ TEST_F(TestCreateWork, mod_capture_MN_helper) {
   } // tmp deleted
 
   mock_runtime->registered_tasks.clear();
+
 }
+
+INSTANTIATE_TEST_CASE_P(
+  WithAndWithoutHelper,
+  TestModCaptureMN,
+  ::testing::Bool()
+);
 
 //////////////////////////////////////////////////////////////////////////////////
 
@@ -270,7 +248,13 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
 
 //////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, ro_capture_RN) {
+
+struct TestRoCaptureRN
+  : TestCreateWork,
+    ::testing::WithParamInterface<bool>
+{ };
+
+TEST_P(TestRoCaptureRN, ro_capture_RN) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
@@ -281,23 +265,37 @@ TEST_F(TestCreateWork, ro_capture_RN) {
   Sequence s1, s_release_read;
 
   MockFlow fl_in_0, fl_out_0;
-  MockFlow fl_in_2, fl_out_2;
+  MockFlow fl_in_1, fl_out_1;
   use_t* use_0, *use_1;
   expect_read_access(fl_in_0, fl_out_0, use_0, make_key("hello"), make_key("world"), s1, s_release_read);
 
-  // ro-capture of RN
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_0), MockRuntime::Input))
-    .Times(1).InSequence(s1)
-    .WillOnce(Return(&fl_in_2));
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_2), MockRuntime::OutputFlowOfReadOperation))
-    .Times(1).InSequence(s1)
-    .WillOnce(Return(&fl_out_2));
+  bool use_helper = GetParam();
 
-  EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Read, use_t::Read)
-  )).Times(1).InSequence(s1)
-    .WillOnce(SaveArg<0>(&use_1));
+  if(use_helper) {
+    expect_ro_capture_RN_RR_MN_or_MR(
+      fl_in_0, fl_out_0, use_0,
+      fl_in_1, fl_out_1, use_1,
+      s1
+    );
+  }
+  else {
 
+    // ro-capture of RN
+    EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_0), MockRuntime::Input))
+      .Times(1).InSequence(s1)
+      .WillOnce(Return(&fl_in_1));
+    EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_1), MockRuntime::OutputFlowOfReadOperation))
+      .Times(1).InSequence(s1)
+      .WillOnce(Return(&fl_out_1));
+
+    EXPECT_CALL(*mock_runtime, register_use(
+      IsUseWithFlows(&fl_in_1, &fl_out_1, use_t::Read, use_t::Read)
+    )).Times(1).InSequence(s1)
+      .WillOnce(SaveArg<0>(&use_1));
+  }
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_1))))
+    .Times(1).InSequence(s1);
 
   {
     auto tmp = read_access<int>("hello", version="world");
@@ -312,20 +310,33 @@ TEST_F(TestCreateWork, ro_capture_RN) {
 
   // this should come after the read_access is released (and shouldn't happen until registered_tasks.clear())
   EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Read, use_t::Read)
+    IsUseWithFlows(&fl_in_1, &fl_out_1, use_t::Read, use_t::Read)
   )).Times(1).InSequence(s1, s_release_read);
 
   mock_runtime->registered_tasks.clear();
 
 }
 
+INSTANTIATE_TEST_CASE_P(
+  WithAndWithoutHelper,
+  TestRoCaptureRN,
+  ::testing::Bool()
+);
+
 //////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, mod_capture_MM) {
+struct TestModCaptureMM
+  : TestCreateWork,
+    ::testing::WithParamInterface<bool>
+{ };
+
+TEST_P(TestModCaptureMM, mod_capture_MM) {
+
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace mock_backend;
+  using task_t = abstract::backend::runtime_t::task_t;
   using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
 
   mock_runtime->save_tasks = true;
@@ -350,7 +361,7 @@ TEST_F(TestCreateWork, mod_capture_MM) {
 
   int value = 42;
 
-  abstract::frontend::Task* outer, *inner;
+  task_t* outer, *inner;
 
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_cap_1))))
     .Times(1).InSequence(s0).WillOnce(SaveArg<0>(&outer));
@@ -396,7 +407,27 @@ TEST_F(TestCreateWork, mod_capture_MM) {
     IsUseWithFlows(&fl_in_cap_2, &fl_out_cap_2, use_t::Modify, use_t::Modify)
   )).Times(1).InSequence(s0);
 
-  {
+  bool use_vector = GetParam();
+
+  ////////////////////////////////////////////////////////////////////////////////
+
+  if(use_vector) {
+
+    std::vector<AccessHandle<int>> tmp;
+    tmp.push_back(initial_access<int>("hello"));
+
+    create_work([=] {
+      create_work([=] {
+        ASSERT_THAT(tmp[0].get_value(), Eq(42));
+      });
+    });
+
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////
+
+  else {
+
     auto tmp = initial_access<int>("hello");
 
     create_work([=]{
@@ -404,7 +435,10 @@ TEST_F(TestCreateWork, mod_capture_MM) {
         ASSERT_THAT(tmp.get_value(), Eq(42));
       });
     });
+
   }
+
+  ////////////////////////////////////////////////////////////////////////////////
 
   ON_CALL(*mock_runtime, get_running_task())
     .WillByDefault(Return(ByRef(outer)));
@@ -413,100 +447,11 @@ TEST_F(TestCreateWork, mod_capture_MM) {
 
 }
 
-//////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestCreateWork, mod_capture_MM_vector) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace mock_backend;
-  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
-
-  mock_runtime->save_tasks = true;
-
-  MockFlow fl_in_init, fl_out_init;
-  MockFlow fl_in_cap_1, fl_out_cap_1;
-  MockFlow fl_in_con_1, fl_out_con_1;
-  MockFlow fl_in_cap_2, fl_out_cap_2;
-  MockFlow fl_in_con_2, fl_out_con_2;
-  use_t* use_init, *use_cap_1, *use_con_1, *use_cap_2, *use_con_2;
-
-  Sequence s0, s1;
-
-  expect_initial_access(fl_in_init, fl_out_init, use_init, make_key("hello"), s0);
-
-  expect_mod_capture_MN_or_MR(
-    fl_in_init, fl_out_init, use_init,
-    fl_in_cap_1, fl_out_cap_1, use_cap_1,
-    fl_in_con_1, fl_out_con_1, use_con_1,
-    s0
-  );
-
-  int value = 42;
-
-  abstract::frontend::Task* outer, *inner;
-
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_cap_1))))
-    .Times(1).InSequence(s0).WillOnce(SaveArg<0>(&outer));
-
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_con_1)),
-    IsUseWithFlows(&fl_in_con_1, &fl_out_con_1, use_t::Modify, use_t::None)
-  ))).Times(1).InSequence(s0, s1);
-
-
-  EXPECT_CALL(*mock_runtime, make_forwarding_flow(Eq(&fl_in_cap_1), Eq(MockRuntime::ForwardingChanges)))
-    .Times(1).InSequence(s0).WillOnce(Return(&fl_in_cap_2));
-  EXPECT_CALL(*mock_runtime, make_next_flow(Eq(&fl_in_cap_2), MockRuntime::Output))
-    .Times(1).InSequence(s0).WillOnce(Return(&fl_out_cap_2));
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_cap_2), MockRuntime::Input))
-    .Times(1).InSequence(s0).WillOnce(Return(&fl_in_con_2));
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_cap_1), MockRuntime::Output))
-    .Times(1).InSequence(s1).WillOnce(Return(&fl_out_con_2));
-
-  EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(&fl_in_cap_2, &fl_out_cap_2, use_t::Modify, use_t::Modify)
-  )).Times(1).InSequence(s0, s1).WillOnce(Invoke([&](use_t* u) {
-    u->get_data_pointer_reference() = (void*)(&value);
-    use_cap_2 = u;
-  }));
-
-
-  EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::Read)
-  )).Times(1).InSequence(s0).WillOnce(SaveArg<0>(&use_con_2));
-
-  EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&fl_in_cap_1, &fl_out_cap_1, use_t::Modify, use_t::Modify)
-  )).Times(1).InSequence(s0);
-
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_cap_2))))
-    .Times(1).InSequence(s0).WillOnce(SaveArg<0>(&inner));
-
-  EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::Read)
-  )).Times(1).InSequence(s0);
-
-  EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&fl_in_cap_2, &fl_out_cap_2, use_t::Modify, use_t::Modify)
-  )).Times(1).InSequence(s0);
-
-  {
-    std::vector<AccessHandle<int>> tmp;
-    tmp.push_back(initial_access<int>("hello"));
-
-    create_work([=]{
-      create_work([=]{
-        ASSERT_THAT(tmp[0].get_value(), Eq(42));
-      });
-    });
-  }
-
-  ON_CALL(*mock_runtime, get_running_task())
-    .WillByDefault(Return(ByRef(outer)));
-
-  run_all_tasks();
-
-}
+INSTANTIATE_TEST_CASE_P(
+  WithAndWithoutVector,
+  TestModCaptureMM,
+  ::testing::Bool()
+);
 
 //////////////////////////////////////////////////////////////////////////////////
 
@@ -515,6 +460,7 @@ TEST_F(TestCreateWork, ro_capture_MM) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace mock_backend;
+  using task_t = abstract::backend::runtime_t::task_t;
   using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
 
   mock_runtime->save_tasks = true;
@@ -539,7 +485,7 @@ TEST_F(TestCreateWork, ro_capture_MM) {
 
   int value = 42;
 
-  abstract::frontend::Task* outer, *inner;
+  task_t* outer, *inner;
 
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_cap_1))))
     .Times(1).InSequence(s0).WillOnce(SaveArg<0>(&outer));

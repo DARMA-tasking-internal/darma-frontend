@@ -45,6 +45,8 @@
 #ifndef DARMA_RUNTIME_TASK_H_
 #define DARMA_RUNTIME_TASK_H_
 
+#include <typeindex>
+#include <cstdlib>
 #include <unordered_map>
 #include <unordered_set>
 #include <set>
@@ -76,10 +78,7 @@
 #include <darma/impl/functor_traits.h>
 #include <darma/impl/serialization/nonintrusive.h>
 #include <darma/impl/use.h>
-
-
-#include <typeindex>
-#include <stdlib.h>
+#include <darma/impl/util/smart_pointers.h>
 
 
 namespace darma_runtime {
@@ -137,7 +136,7 @@ register_runnable() {
 
 class RunnableBase {
   public:
-    virtual void run() =0;
+    virtual bool run() =0;
     virtual size_t get_index() const =0;
     virtual ~RunnableBase() { }
 };
@@ -152,7 +151,7 @@ struct Runnable : public RunnableBase
     Runnable(std::remove_reference_t<Callable>&& c)
       : run_this_(std::move(c))
     { }
-    void run() override { run_this_(); }
+    bool run()  { run_this_(); return false; }
 
     static const size_t index_;
 
@@ -162,7 +161,7 @@ struct Runnable : public RunnableBase
       assert(false);
     }
 
-    size_t get_index() const override { return index_; }
+    size_t get_index() const  { return index_; }
 
   private:
     std::remove_reference_t<Callable> run_this_;
@@ -170,6 +169,23 @@ struct Runnable : public RunnableBase
 
 template <typename Callable>
 const size_t Runnable<Callable>::index_ = register_runnable<Runnable<Callable>>();
+
+template <typename Callable>
+struct RunnableCondition : public RunnableBase
+{
+  // Don't force an rvalue; caller might want to trigger a copy by not forwarding
+  explicit
+  RunnableCondition(Callable&& c)
+    : run_this_(std::forward<Callable>(c))
+  { }
+
+  size_t get_index() const  { return 0; }
+
+  bool run()  { return run_this_(); }
+
+  std::remove_reference_t<Callable> run_this_;
+};
+
 
 template <
   typename Functor,
@@ -179,8 +195,6 @@ class FunctorRunnable
   : public RunnableBase
 {
   public:
-
-
 
     typedef functor_traits<Functor> traits;
     typedef functor_call_traits<Functor, Args&&...> call_traits;
@@ -231,18 +245,18 @@ class FunctorRunnable
     ) : args_(std::forward<Args>(args)...)
     { }
 
-    void run() override {
+    bool run()  {
       meta::splat_tuple<AccessHandleBase>(
         _get_args_to_splat(),
         Functor()
       );
+      return false;
     }
 
 
     static std::unique_ptr<RunnableBase>
     construct_from_bytes(void* data) {
       // TODO inplace rather than move construction?
-      // TODO !!! special treatment for handles
 
       // Make an archive from the void*
       serialization::SimplePackUnpackArchive ar;
@@ -269,7 +283,7 @@ class FunctorRunnable
       return std::make_unique<FunctorRunnable>(std::move(args));
     }
 
-    size_t get_index() const override { return index_; }
+    size_t get_index() const  { return index_; }
 };
 
 template <typename Functor, typename... Args>
@@ -282,7 +296,7 @@ const size_t FunctorRunnable<Functor, Args...>::index_ =
 
 // <editor-fold desc="TaskBase and its descendants">
 
-class TaskBase : public abstract::backend::runtime_t::task_t
+class TaskBase : public abstract::frontend::Task<TaskBase>
 {
   protected:
 
@@ -296,6 +310,32 @@ class TaskBase : public abstract::backend::runtime_t::task_t
     key_t name_;
 
   public:
+
+    TaskBase() = default;
+
+    // Directly construct from a conditional callable
+    template <typename LambdaCallable,
+      typename = std::enable_if_t<
+        not std::is_base_of<std::decay_t<LambdaCallable>, TaskBase>::value
+      >
+    >
+    TaskBase(LambdaCallable&& bool_callable) {
+      TaskBase* parent_task = static_cast<detail::TaskBase* const>(
+        detail::backend_runtime->get_running_task()
+      );
+      parent_task->current_create_work_context = this;
+      default_capture_as_info |= AccessHandleBase::CapturedAsInfo::ReadOnly;
+      default_capture_as_info |= AccessHandleBase::CapturedAsInfo::Leaf;
+      runnable_ =
+        // *Intentionally* avoid perfect forwarding here, causing a copy to happen,
+        // which then triggers all of the captures.  We do this by adding an lvalue reference
+        // to the type and not forwarding the value
+        detail::make_unique<RunnableCondition<std::remove_reference_t<LambdaCallable>&>>(
+          bool_callable
+        );
+      default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
+      parent_task->current_create_work_context = nullptr;
+    }
 
     void add_dependency(HandleUse& use) {
       dependencies_.insert(&use);
@@ -311,46 +351,71 @@ class TaskBase : public abstract::backend::runtime_t::task_t
     // Implementation of abstract::frontend::Task
 
     get_deps_container_t const&
-    get_dependencies() const override {
+    get_dependencies() const {
       return dependencies_;
     }
 
     const key_t&
-    get_name() const override {
+    get_name() const {
       return name_;
     }
 
     void
-    set_name(const key_t& name) override {
+    set_name(const key_t& name) {
       name_ = name;
     }
 
     bool
-    is_migratable() const override {
+    is_migratable() const {
       // Ignored for now:
       return false;
     }
 
-    virtual void run() override {
+    template <typename ReturnType = void>
+    ReturnType run()  {
+      static_assert(std::is_same<ReturnType, bool>::value or std::is_void<ReturnType>::value,
+        "Only bool and void for ReturnType in Task::run<>() are currently supported"
+      );
       assert(runnable_);
       pre_run_setup();
-      runnable_->run();
-      post_run_cleanup();
+      return _do_run<ReturnType>(typename std::is_void<ReturnType>::type{});
     }
 
-    size_t get_packed_size() const override {
+
+    size_t get_packed_size() const  {
       // TODO
       assert(false);
       return 0;
     }
 
-    void pack(void* allocated) const override {
+    void pack(void* allocated) const  {
       // TODO
       assert(false);
     }
 
     // end implementation of abstract::frontend::Task
     ////////////////////////////////////////////////////////////////////////////////
+
+  private:
+    template <typename ReturnType>
+    inline void
+    _do_run(std::true_type&&) {
+      runnable_->run();
+      post_run_cleanup();
+    }
+
+    template <typename ReturnType>
+    inline std::enable_if_t<
+      not std::is_void<ReturnType>::value,
+      ReturnType
+    >
+    _do_run(std::false_type&&) {
+      ReturnType rv = runnable_->run();
+      post_run_cleanup();
+      return rv;
+    }
+
+  public:
 
     void pre_run_setup() { }
 
@@ -366,13 +431,15 @@ class TaskBase : public abstract::backend::runtime_t::task_t
 
     std::vector<std::function<void()>> registrations_to_run;
     std::vector<std::function<void()>> post_registration_ops;
+    unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
 
   private:
 
     std::unique_ptr<RunnableBase> runnable_;
 
-    friend types::unique_ptr_template<abstract::frontend::Task>
+    friend types::unique_ptr_template<abstract::frontend::Task<TaskBase>>
     unpack_task(void* packed_data);
+
 
 };
 
@@ -381,9 +448,10 @@ class TopLevelTask
 {
   public:
 
-    void run() override {
+    bool run()  {
       // Abort, as specified.  This should never be called.
       assert(false);
+      return false;
     }
 
 };
@@ -401,7 +469,7 @@ namespace abstract {
 
 namespace frontend {
 
-inline types::unique_ptr_template<abstract::frontend::Task>
+inline backend::runtime_t::task_unique_ptr
 unpack_task(void* packed_data) {
   serialization::SimplePackUnpackArchive ar;
   detail::DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);
@@ -426,7 +494,7 @@ unpack_task(void* packed_data) {
 } // end namespace darma_runtime
 
 
-#include <darma/impl/task_capture_impl.h>
+#include <darma/impl/task_do_capture.impl.h>
 
 
 #endif /* DARMA_RUNTIME_TASK_H_ */

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      access_handle_publish.h
+//                      frontend_fwd.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,28 +42,28 @@
 //@HEADER
 */
 
-#ifndef DARMA_ACCESS_HANDLE_PUBLISH_H
-#define DARMA_ACCESS_HANDLE_PUBLISH_H
-
-#include <darma/interface/app/access_handle.h>
+#ifndef DARMA_INTERFACE_FRONTEND_FWD_H
+#define DARMA_INTERFACE_FRONTEND_FWD_H
 
 namespace darma_runtime {
+namespace abstract {
+namespace frontend {
 
-//template <typename... AccessHandleArgs>
-//template <typename _Ignored = void,
-//  typename... PublishExprParts
-//>
-//std::enable_if_t<
-//  AccessHandle<AccessHandleArgs...>::is_compile_time_schedule_readable
-//    and std::is_same<_Ignored, void>::value
-//>
-//AccessHandle<AccessHandleArgs...>::publish<_Ignored, PublishExprParts...>(
-//  PublishExprParts&&... parts
-//) const {
-//
-//}
+template <typename ConcreteTask>
+class Task;
 
+class Handle;
 
+class PublicationDetails;
+
+class SerializationManager;
+
+class Use;
+// This will make a useful replacement when we go to CRTP for use
+typedef Use use_t;
+
+} // end namespace frontend
+} // end namespace abstract
 } // end namespace darma_runtime
 
-#endif //DARMA_ACCESS_HANDLE_PUBLISH_H
+#endif //DARMA_INTERFACE_FRONTEND_FWD_H

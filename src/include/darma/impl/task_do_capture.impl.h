@@ -70,9 +70,16 @@ TaskBase::do_capture(
   typedef AccessHandleT1 AccessHandleT;
 
   DARMA_ASSERT_MESSAGE(
+    source_and_continuing.current_use_.get() != nullptr,
+    "Can't capture handle after it was released"
+  );
+
+  DARMA_ASSERT_MESSAGE(
     source_and_continuing.current_use_->use.scheduling_permissions_ != HandleUse::Permissions::None,
     "Can't do a capture of an AccessHandle with scheduling permissions of None"
   );
+
+  source_and_continuing.captured_as_ |= default_capture_as_info;
 
   // Note: source_and_continuing is not functionally const, since
   // we modify it significantly (it just happens that those modifications
@@ -115,6 +122,10 @@ TaskBase::do_capture(
           }
           case HandleUse::None: {
             DARMA_ASSERT_UNREACHABLE_FAILURE(); // LCOV_EXCL_LINE
+            break;
+          }
+          default: {
+            DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
             break;
           }
         };
@@ -172,6 +183,11 @@ TaskBase::do_capture(
                   break;
                 case HandleUse::Modify:
                   _ro_capture_mod_imm();
+                  break;
+                default: {
+                  DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+                  break;
+                }
               }
               break;
             }
@@ -180,8 +196,14 @@ TaskBase::do_capture(
                 case HandleUse::None:
                 case HandleUse::Read:
                   _ro_capture_non_mod_imm();
+                  break;
                 case HandleUse::Modify:
                   _ro_capture_mod_imm();
+                  break;
+                default: {
+                  DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+                  break;
+                }
               }
               break;
             }
@@ -246,6 +268,10 @@ TaskBase::do_capture(
               continuing._switch_to_new_use(detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
                 continuing_in_flow, continuing_out_flow, HandleUse::Modify, HandleUse::Read
               )));
+              break;
+            }
+            default: {
+              DARMA_ASSERT_NOT_IMPLEMENTED();
               break;
             }
           } // end switch source.current_use_->use.scheduling_permissions_
