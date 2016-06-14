@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         dharma_new
+//                      crtp_impl.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,11 +42,9 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_H_
-#define SRC_DARMA_H_
+#ifndef DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
+#define DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
 
-#include <darma/interface/app/darma.h>
+#include <darma/interface/frontend/detail/task.crtp_impl.h>
 
-#include <darma/interface/frontend/detail/crtp_impl.h>
-
-#endif /* SRC_DARMA_H_ */
+#endif //DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H

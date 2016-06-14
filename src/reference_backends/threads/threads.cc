@@ -45,6 +45,8 @@
 #if !defined(_THREADS_BACKEND_RUNTIME_)
 #define _THREADS_BACKEND_RUNTIME_
 
+#include <darma.h>
+
 #include <darma/interface/frontend/types.h>
 
 #include <darma/interface/backend/flow.h>

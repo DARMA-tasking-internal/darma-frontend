@@ -74,7 +74,7 @@ void copy_in_ghost_data(double* dest,
 }
 
 void copy_out_ghost_data(const double* src,
-  dep_t& send_left, dep_t& main, dep_t& send_right
+  dep_t const& send_left, dep_t const& main, dep_t const& send_right
 ) {
   memcpy(main->get(), src, main->size()*sizeof(double));
   memcpy(send_left->get(), main->get(), send_left->size());
