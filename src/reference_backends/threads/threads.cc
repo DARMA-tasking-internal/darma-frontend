@@ -68,7 +68,7 @@
 /*
  * Debugging prints with mutex
  */
-//#define __THREADS_BACKEND_DEBUG__ 1
+/// #define __THREADS_BACKEND_DEBUG__ 1
 #if __THREADS_BACKEND_DEBUG__
 std::mutex __output_mutex;
 #define DEBUG_PRINT(fmt, arg...)					\
@@ -173,14 +173,34 @@ namespace threads_backend {
     { }
   };
 
+  struct DataBlock {
+    void* data;
+
+    DataBlock(const DataBlock& in) = delete;
+
+    DataBlock(void* data_)
+      : refs(1)
+      , data(data_)
+    { }
+    
+    DataBlock(int refs_, size_t sz)
+      : refs(refs_)
+      , data(malloc(sz))
+    { }
+
+    void ref() { refs++; }
+    int deref() { /*if (--refs == 1) free(data); */ return refs; }
+
+    virtual ~DataBlock() { free(data); }
+
+  private:
+    int refs;
+  };
+
   std::ostream& operator<<(std::ostream& st, const ThreadsFlow& f) {
     st <<
       "label = " << f.label << ", " <<
-      "ready = " << f.inner->ready << ", ";
-      // "same = " << (f.same ? f.same->label : 0) << ", " <<
-      // "next = " << (f.next ? f.next->label : 0) << ", " <<
-      // "forward = " << (f.forward ? f.forward->label : 0) << ", " <<
-      // "backward = " << (f.backward ? f.backward->label : 0);
+      "ready = " << f.inner->ready;
     return st;
   }
   
@@ -192,7 +212,7 @@ namespace threads_backend {
 
     // TODO: fix any memory consistency bugs with data coordination we
     // need a fence at the least
-    std::unordered_map<types::key_t, void*> data;
+    std::unordered_map<types::key_t, DataBlock*> data;
 
     // TODO: multi-threaded half-implemented not working..
     std::vector<std::atomic<size_t>*> deque_counter;
@@ -296,8 +316,10 @@ namespace threads_backend {
 	DEBUG_PRINT("Could not find data!!!!!!!\n");
 	exit(240);
       }
-      
-      u->get_data_pointer_reference() = data[key];
+
+      // increase reference count on data
+      data[key]->ref();
+      u->get_data_pointer_reference() = data[key]->data;
     }
   
     virtual Flow*
@@ -310,16 +332,16 @@ namespace threads_backend {
 
       DEBUG_PRINT("make initial flow: size = %ld\n", sz);
 
-      // TODO: we need to call "new" here or some memory pool or some
-      // type of managed pointer. leaks like hell and is unsafe!
-      void* const mem = operator new(sz);
-
+      auto block = new DataBlock(1, sz);
+      
       // default construct
-      handle->get_serialization_manager()->default_construct(mem);
+      handle
+	->get_serialization_manager()
+	->default_construct(block->data);
 
       // save in hash
       const auto& key = handle->get_key();
-      data[key] = mem;
+      data[key] = block;
       
       return f;
     }
@@ -343,22 +365,27 @@ namespace threads_backend {
 	    PublishedBlock* pub_ptr = &iter->second;
 	    auto &pub = *pub_ptr;
 
-	    void* unpack_to = operator new(pub.data->size_);
+	    void* unpack_to = malloc(pub.data->size_);
 
 	    DEBUG_PRINT("unpacking data\n");
 	    
-	    handle->get_serialization_manager()->unpack_data(unpack_to, pub.data->data_);
-	    data[key] = unpack_to;
+	    handle
+	      ->get_serialization_manager()
+	      ->unpack_data(unpack_to, pub.data->data_);
+
+	    data[key] = new DataBlock(unpack_to);
+	    data[key]->ref();
 	    
 	    assert(pub.expected > 0);
 
 	    ++(pub.done);
 	    --(pub.expected);
 
+	    // TODO: drop memory on the floor for now
 	    // free memory associated with publication
-	    if (pub.expected == 0) {
-	      ///data.erase(key);
-	    }
+	    // if (pub.expected == 0) {
+	      // data.erase(key);
+	    // }
 	    
 	    found = true;
 	  }
@@ -444,7 +471,11 @@ namespace threads_backend {
 
       // free handle memory associated with use
       const auto& key = u->get_handle()->get_key();
-      //data.erase(key);
+      const auto refs = data[key]->deref();
+
+      DEBUG_PRINT("refs = %ld\n", refs);
+      
+      //if (refs == 1) data.erase(key);
     }
   
     virtual void
@@ -585,7 +616,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
     typename darma_runtime::abstract::backend::Runtime::task_t
   >&& top_level_task
 ) {
-  size_t ranks = 2, n_threads = 1;
+  size_t ranks = 1, n_threads = 1;
 
   detail::ArgParser args = {
     {"t", "threads", 1},
