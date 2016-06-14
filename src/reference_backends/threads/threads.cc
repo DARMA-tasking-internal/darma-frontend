@@ -67,7 +67,7 @@
 /*
  * Debugging prints with mutex
  */
-///#define __THREADS_BACKEND_DEBUG__ 1
+#define __THREADS_BACKEND_DEBUG__ 1
 #if __THREADS_BACKEND_DEBUG__
 std::mutex __output_mutex;
 #define DEBUG_PRINT(fmt, arg...)					\
@@ -283,7 +283,6 @@ namespace threads_backend {
   
     virtual Flow*
     make_initial_flow(darma_runtime::abstract::frontend::Handle* handle) {
-      DEBUG_PRINT("make initial flow\n");
       ThreadsFlow* f = new ThreadsFlow(handle);
       f->isInitialFlow = true;
       f->ready = true;
@@ -292,9 +291,11 @@ namespace threads_backend {
       // allocate some space for this object
       const size_t sz = handle->get_serialization_manager()->get_metadata_size();
 
+      DEBUG_PRINT("make initial flow: size = %ld\n", sz);
+
       // TODO: we need to call "new" here or some memory pool or some
       // type of managed pointer. leaks like hell and is unsafe!
-      void* const mem = malloc(sz);
+      void* const mem = operator new(sz);
 
       // save in hash
       const auto& key = handle->get_key();
