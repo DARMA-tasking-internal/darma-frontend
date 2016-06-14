@@ -129,6 +129,11 @@ class SerializationManager {
       const void* const serialized_data
     ) const =0;
 
+    /** @todo document this
+     */
+    virtual void
+    default_construct(void* allocated_buffer) const =0;
+
     //////////////////////////////////////////
 
     virtual ~SerializationManager() = default;

@@ -45,8 +45,8 @@
 #ifndef SRC_ABSTRACT_BACKEND_RUNTIME_H_
 #define SRC_ABSTRACT_BACKEND_RUNTIME_H_
 
-#include <darma/interface/backend/types.h>
 #include <darma/interface/frontend/types.h>
+#include <darma/interface/backend/types.h>
 
 #include <darma/interface/backend/flow.h>
 #include <darma/interface/frontend/handle.h>

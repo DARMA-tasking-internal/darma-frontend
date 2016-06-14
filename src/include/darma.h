@@ -45,7 +45,10 @@
 #ifndef SRC_DARMA_H_
 #define SRC_DARMA_H_
 
+#include <darma/interface/frontend.h>
+
 #include <darma/interface/app/darma.h>
 
+#include <darma/interface/frontend/detail/crtp_impl.h>
 
 #endif /* SRC_DARMA_H_ */
