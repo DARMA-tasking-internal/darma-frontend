@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          types.h
-//                         darma_new
+//                      test_partition.cc
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,45 +42,31 @@
 //@HEADER
 */
 
-#ifndef DARMA_ABSTRACT_FRONTEND_TYPES_H_
-#define DARMA_ABSTRACT_FRONTEND_TYPES_H_
+#include "metatest_helpers.h"
 
-#ifdef DARMA_HAS_FRONTEND_TYPES_H
-#include <frontend_types.h>
-#endif
+#include <utility>
 
-#include <darma_types.h>
-#include <darma/interface/frontend/frontend_fwd.h>
+#include <tinympl/partition.hpp>
+#include <tinympl/vector.hpp>
 
-#ifndef DARMA_CUSTOM_HANDLE_CONTAINER
-#include <unordered_set>
-namespace darma_runtime {
-namespace types {
+using namespace tinympl;
 
-  template <typename... Ts>
-  using handle_container_template = std::unordered_set<Ts...>;
+int main() {
 
-} // end namespace types
-} // end namespace darma_runtime
-#endif
+  static_assert_type_eq<
+    typename partition<2, vector<int[1], int[2], int[3], int[4], int[5], int[6]>>::type,
+    vector<vector<int[1], int[2]>, vector<int[3], int[4]>, vector<int[5], int[6]>>
+  >();
 
+  static_assert_type_eq<
+    typename partition<3, vector<int[1], int[2], int[3], int[4], int[5], int[6]>>::type,
+    vector<vector<int[1], int[2], int[3]>, vector<int[4], int[5], int[6]>>
+  >();
 
-////////////////////////////////////////
-// concrete_task_t typedef
+  static_assert_type_eq<
+    typename partition<2, vector<int[1], int[2], int[3], int[4], int[5], int[6]>, std::pair>::type,
+    vector<std::pair<int[1], int[2]>, std::pair<int[3], int[4]>, std::pair<int[5], int[6]>>
+  >();
 
-#ifndef DARMA_CUSTOM_CONCRETE_TASK
-#include <darma/impl/task_fwd.h>
+}
 
-namespace darma_runtime {
-namespace types {
-
-typedef darma_runtime::detail::TaskBase concrete_task_t;
-
-} // end namespace types
-} // end namespace darma_runtime
-#endif
-
-//
-////////////////////////////////////////
-
-#endif /* DARMA_ABSTRACT_FRONTEND_TYPES_H_ */

@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          types.h
-//                         darma_new
+//                      test_create_condition.cc
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,45 +42,73 @@
 //@HEADER
 */
 
-#ifndef DARMA_ABSTRACT_FRONTEND_TYPES_H_
-#define DARMA_ABSTRACT_FRONTEND_TYPES_H_
+#include <gtest/gtest.h>
 
-#ifdef DARMA_HAS_FRONTEND_TYPES_H
-#include <frontend_types.h>
-#endif
+#include "mock_backend.h"
+#include "test_frontend.h"
 
-#include <darma_types.h>
-#include <darma/interface/frontend/frontend_fwd.h>
+#include <darma/interface/app/initial_access.h>
+#include <darma/interface/app/read_access.h>
+#include <darma/interface/app/create_condition.h>
 
-#ifndef DARMA_CUSTOM_HANDLE_CONTAINER
-#include <unordered_set>
-namespace darma_runtime {
-namespace types {
+////////////////////////////////////////////////////////////////////////////////
 
-  template <typename... Ts>
-  using handle_container_template = std::unordered_set<Ts...>;
+class TestCreateCondition
+  : public TestFrontend
+{
+  protected:
 
-} // end namespace types
-} // end namespace darma_runtime
-#endif
+    virtual void SetUp() {
+      using namespace ::testing;
 
+      setup_mock_runtime<::testing::NiceMock>();
+      TestFrontend::SetUp();
+      ON_CALL(*mock_runtime, get_running_task())
+        .WillByDefault(Return(top_level_task.get()));
+    }
 
-////////////////////////////////////////
-// concrete_task_t typedef
+    virtual void TearDown() {
+      TestFrontend::TearDown();
+    }
 
-#ifndef DARMA_CUSTOM_CONCRETE_TASK
-#include <darma/impl/task_fwd.h>
+};
 
-namespace darma_runtime {
-namespace types {
+////////////////////////////////////////////////////////////////////////////////
 
-typedef darma_runtime::detail::TaskBase concrete_task_t;
+TEST_F(TestCreateCondition, ro_capture_MN) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
 
-} // end namespace types
-} // end namespace darma_runtime
-#endif
+  mock_runtime->save_tasks = true;
 
-//
-////////////////////////////////////////
+  MockFlow fl_init[2], fl_cap[2];
+  use_t* uses[2];
 
-#endif /* DARMA_ABSTRACT_FRONTEND_TYPES_H_ */
+  int value = 42;
+
+  expect_initial_access(fl_init[0], fl_init[1], uses[0], make_key("hello"));
+  expect_ro_capture_RN_RR_MN_or_MR(fl_init, fl_cap, uses);
+
+  EXPECT_CALL(*mock_runtime, register_condition_task_gmock_proxy(
+    UseInGetDependencies(ByRef(uses[1]))
+  )).Times(1).WillOnce(Invoke([&](auto* cond_task) {
+    uses[1]->get_data_pointer_reference() = (void*)&value;
+    return cond_task->template run<bool>();
+  }));
+
+  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[1])),
+    IsUseWithFlows(&fl_cap[0], &fl_cap[1], use_t::Read, use_t::Read)
+  ))).Times(1);
+
+  {
+    auto tmp = initial_access<int>("hello");
+
+    if(not create_condition([=]{ return tmp.get_value() == 42; })) {
+      FAIL() << "create_condition should have returned true";
+    }
+
+  }
+
+}

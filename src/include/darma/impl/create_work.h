@@ -85,7 +85,7 @@ struct reads_decorator_parser {
   inline decltype(auto)
   operator()(Args&&... args) const {
     using detail::create_work_attorneys::for_AccessHandle;
-    detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
+    detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
       detail::backend_runtime->get_running_task()
     );
     detail::TaskBase* task = parent_task->current_create_work_context;
@@ -178,7 +178,6 @@ struct reads_decorator_parser {
 
 template <typename Lambda, typename... Args>
 struct create_work_impl {
-  typedef detail::Task<Lambda> task_t;
   typedef detail::TaskBase task_base_t;
 
   inline auto
@@ -199,7 +198,7 @@ struct create_work_impl {
 inline types::unique_ptr_template<TaskBase>
 _start_create_work() {
   auto rv = std::make_unique<TaskBase>();
-  detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
+  detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
     detail::backend_runtime->get_running_task()
   );
   parent_task->current_create_work_context = rv.get();
@@ -220,7 +219,7 @@ struct _do_create_work_impl {
         std::forward<Args>(args)...
       )
     );
-    detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
+    detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
       detail::backend_runtime->get_running_task()
     );
     parent_task->current_create_work_context = nullptr;
@@ -244,6 +243,7 @@ struct _do_create_work_impl {
 
 template <>
 struct _do_create_work_impl<void> {
+
   template <typename... Args>
   inline void
   operator()(
@@ -259,7 +259,7 @@ struct _do_create_work_impl<void> {
       typename rest_vector_t::template push_front<lambda_t>::type, detail::create_work_impl
     >::type helper_t;
 
-    detail::TaskBase* parent_task = safe_static_cast<detail::TaskBase* const>(
+    detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
       detail::backend_runtime->get_running_task()
     );
     parent_task->current_create_work_context = nullptr;
@@ -278,6 +278,7 @@ struct _do_create_work_impl<void> {
       std::forward<Args>(args)...
     );
   }
+
 };
 
 struct _do_create_work {

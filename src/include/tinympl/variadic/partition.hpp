@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          types.h
-//                         darma_new
+//                      partition.hpp
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,45 +42,82 @@
 //@HEADER
 */
 
-#ifndef DARMA_ABSTRACT_FRONTEND_TYPES_H_
-#define DARMA_ABSTRACT_FRONTEND_TYPES_H_
+#ifndef TINYMPL_VARIADIC_PARTITION_HPP
+#define TINYMPL_VARIADIC_PARTITION_HPP
 
-#ifdef DARMA_HAS_FRONTEND_TYPES_H
-#include <frontend_types.h>
-#endif
+#include <cstddef>
 
-#include <darma_types.h>
-#include <darma/interface/frontend/frontend_fwd.h>
+#include <tinympl/variadic/at.hpp>
+#include <tinympl/splat.hpp>
+#include <tinympl/join.hpp>
+#include <tinympl/transform.hpp>
+#include <tinympl/range_c.hpp>
+#include <tinympl/sequence.hpp>
+#include <tinympl/as_sequence.hpp>
 
-#ifndef DARMA_CUSTOM_HANDLE_CONTAINER
-#include <unordered_set>
-namespace darma_runtime {
-namespace types {
+namespace tinympl {
+namespace variadic {
 
-  template <typename... Ts>
-  using handle_container_template = std::unordered_set<Ts...>;
+namespace _impl {
 
-} // end namespace types
-} // end namespace darma_runtime
-#endif
+template <
+  std::size_t NPerGroup, std::size_t IGroup, std::size_t NGroups,
+  template <typename...> class InnerOut,
+  template <typename...> class OuterOut,
+  typename... Args
+>
+struct _partition {
+  template <typename size_t_wrapped>
+  using get_arg_at = at<size_t_wrapped::value, Args...>;
+
+  using type = typename tinympl::join<
+    OuterOut<
+      typename tinympl::splat_to<
+        typename tinympl::transform<
+          tinympl::as_sequence_t<
+            typename tinympl::make_range_c<
+              std::size_t, IGroup*NPerGroup, (IGroup+1)*NPerGroup
+            >::type
+          >,
+          get_arg_at
+        >::type,
+        InnerOut
+      >::type
+    >,
+    typename _partition<
+      NPerGroup, IGroup+1, NGroups, InnerOut, OuterOut, Args...
+    >::type
+  >::type;
+};
+
+template <
+  std::size_t NPerGroup, std::size_t NGroups,
+  template <typename...> class InnerOut,
+  template <typename...> class OuterOut,
+  typename... Args
+>
+struct _partition<NPerGroup, NGroups, NGroups, InnerOut, OuterOut, Args...> {
+  using type = OuterOut<>;
+};
+
+} // end namespace _impl
+
+template <
+  std::size_t NPerGroup,
+  template <typename...> class InnerOut,
+  template <typename...> class OuterOut,
+  typename... Args
+>
+struct partition
+  : _impl::_partition<
+      NPerGroup, 0ul, sizeof...(Args)/NPerGroup,
+      InnerOut, OuterOut,
+      Args...
+    >
+{ };
+
+} // end namespace variadic
+} // end namespace tinympl
 
 
-////////////////////////////////////////
-// concrete_task_t typedef
-
-#ifndef DARMA_CUSTOM_CONCRETE_TASK
-#include <darma/impl/task_fwd.h>
-
-namespace darma_runtime {
-namespace types {
-
-typedef darma_runtime::detail::TaskBase concrete_task_t;
-
-} // end namespace types
-} // end namespace darma_runtime
-#endif
-
-//
-////////////////////////////////////////
-
-#endif /* DARMA_ABSTRACT_FRONTEND_TYPES_H_ */
+#endif //TINYMPL_VARIADIC_PARTITION_HPP

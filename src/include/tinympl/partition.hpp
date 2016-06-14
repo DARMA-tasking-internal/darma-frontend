@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          types.h
-//                         darma_new
+//                      partition.hpp
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,45 +42,40 @@
 //@HEADER
 */
 
-#ifndef DARMA_ABSTRACT_FRONTEND_TYPES_H_
-#define DARMA_ABSTRACT_FRONTEND_TYPES_H_
+#ifndef TINYMPL_PARTITION_HPP
+#define TINYMPL_PARTITION_HPP
 
-#ifdef DARMA_HAS_FRONTEND_TYPES_H
-#include <frontend_types.h>
-#endif
+#include <tinympl/variadic/partition.hpp>
+#include <tinympl/as_sequence.hpp>
+#include <tinympl/sequence.hpp>
 
-#include <darma_types.h>
-#include <darma/interface/frontend/frontend_fwd.h>
+namespace tinympl {
 
-#ifndef DARMA_CUSTOM_HANDLE_CONTAINER
-#include <unordered_set>
-namespace darma_runtime {
-namespace types {
+/**
+ *  @brief e.g.,
+ *    partition<2, Seq<Arg1, Arg2, Arg3, Arg4, Arg5, Arg6>,
+ *      Inner, Outer
+ *    >::type = Outer<Inner<Arg1, Arg2>, Inner<Arg3, Arg4>, Inner<Arg5, Arg6>>
+ */
+template <
+  size_t NPerGroup,
+  typename Sequence,
+  template <class...> class InnerOut = as_sequence<Sequence>::template rebind,
+  template <class...> class OuterOut = as_sequence<Sequence>::template rebind
+>
+struct partition
+  : partition<NPerGroup, as_sequence_t<Sequence>, InnerOut, OuterOut> { };
 
-  template <typename... Ts>
-  using handle_container_template = std::unordered_set<Ts...>;
+template <
+  size_t NPerGroup,
+  template <typename...> class InnerOut,
+  template <typename...> class OuterOut,
+  typename... Args
+>
+struct partition<NPerGroup, sequence<Args...>, InnerOut, OuterOut>
+  : tinympl::variadic::partition<NPerGroup, InnerOut, OuterOut, Args...> { };
 
-} // end namespace types
-} // end namespace darma_runtime
-#endif
 
+} // end namespace tinympl
 
-////////////////////////////////////////
-// concrete_task_t typedef
-
-#ifndef DARMA_CUSTOM_CONCRETE_TASK
-#include <darma/impl/task_fwd.h>
-
-namespace darma_runtime {
-namespace types {
-
-typedef darma_runtime::detail::TaskBase concrete_task_t;
-
-} // end namespace types
-} // end namespace darma_runtime
-#endif
-
-//
-////////////////////////////////////////
-
-#endif /* DARMA_ABSTRACT_FRONTEND_TYPES_H_ */
+#endif //DARMA_PARTITION_HPP

@@ -46,6 +46,7 @@
 #define SRC_DARMA_META_SPLAT_TUPLE_H_
 
 #include <type_traits>
+#include <tuple>
 
 #include <tinympl/tuple_as_sequence.hpp>
 #include <tinympl/at.hpp>

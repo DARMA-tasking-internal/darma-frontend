@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          types.h
-//                         darma_new
+//                      create_condition.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,45 +42,65 @@
 //@HEADER
 */
 
-#ifndef DARMA_ABSTRACT_FRONTEND_TYPES_H_
-#define DARMA_ABSTRACT_FRONTEND_TYPES_H_
+#ifndef DARMA_IMPL_CREATE_CONDITION_H
+#define DARMA_IMPL_CREATE_CONDITION_H
 
-#ifdef DARMA_HAS_FRONTEND_TYPES_H
-#include <frontend_types.h>
-#endif
+#include <tinympl/vector.hpp>
 
-#include <darma_types.h>
-#include <darma/interface/frontend/frontend_fwd.h>
-
-#ifndef DARMA_CUSTOM_HANDLE_CONTAINER
-#include <unordered_set>
-namespace darma_runtime {
-namespace types {
-
-  template <typename... Ts>
-  using handle_container_template = std::unordered_set<Ts...>;
-
-} // end namespace types
-} // end namespace darma_runtime
-#endif
-
-
-////////////////////////////////////////
-// concrete_task_t typedef
-
-#ifndef DARMA_CUSTOM_CONCRETE_TASK
-#include <darma/impl/task_fwd.h>
+#include <darma/impl/util/smart_pointers.h>
 
 namespace darma_runtime {
-namespace types {
 
-typedef darma_runtime::detail::TaskBase concrete_task_t;
+namespace detail {
 
-} // end namespace types
+template <typename Lambda, typename... Args>
+struct create_condition_impl {
+  inline bool
+  operator()(Args&&... args, Lambda&& lambda) const {
+    // TODO set default capture to read
+
+    auto task = detail::make_unique<TaskBase>(std::forward<Lambda>(lambda));
+
+    for(auto&& reg : task->registrations_to_run) {
+      reg();
+    }
+    task->registrations_to_run.clear();
+
+    for(auto&& post_reg_op : task->post_registration_ops) {
+      post_reg_op();
+    }
+    task->post_registration_ops.clear();
+
+    return detail::backend_runtime->register_condition_task(
+      std::move(task)
+    );
+
+  }
+};
+
+} // end namespace detail
+
+
+template <typename... Args>
+bool
+create_condition(Args&&... args) {
+  namespace m = tinympl;
+  // Pop off the last type and move it to the front
+  typedef typename m::vector<Args...>::back::type lambda_t;
+  typedef typename m::vector<Args...>::pop_back::type rest_vector_t;
+  typedef typename m::splat_to<
+    typename rest_vector_t::template push_front<lambda_t>::type, detail::create_condition_impl
+  >::type helper_t;
+
+  static_assert(std::is_convertible<decltype(std::declval<lambda_t>()()), bool>::value,
+    "Lambda given to create_condition() must return a value convertible to bool"
+  );
+
+  return helper_t()(
+    std::forward<Args>(args)...
+  );
+}
+
 } // end namespace darma_runtime
-#endif
 
-//
-////////////////////////////////////////
-
-#endif /* DARMA_ABSTRACT_FRONTEND_TYPES_H_ */
+#endif //DARMA_IMPL_CREATE_CONDITION_H
