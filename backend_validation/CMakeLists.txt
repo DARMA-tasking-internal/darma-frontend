@@ -7,6 +7,12 @@ set (DarmaBackendValidation_VERSION_MINOR 2)
 
 enable_testing()
 
+set (validation_HEADERS
+frontend_types.h
+mock_frontend.h)
+
+install (FILES ${validation_HEADERS} DESTINATION include/darma/backend_validation)
+
 # Let the compiler know that we have a custom frontend_types.h that replaces defines MockTask
 # as concrete_task_t
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_HAS_FRONTEND_TYPES_H=1")

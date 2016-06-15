@@ -20,7 +20,6 @@ if (GTEST_DIR)
 add_library( darma_threads_backend_with_mock_frontend
         SHARED ${threads_SOURCES} ${threads_HEADERS} )
 target_compile_definitions(darma_threads_backend_with_mock_frontend PUBLIC DARMA_HAS_FRONTEND_TYPES_H)
-target_include_directories(darma_threads_backend_with_mock_frontend PUBLIC ${CMAKE_SOURCE_DIR}/backend_validation)
 target_include_directories(darma_threads_backend_with_mock_frontend PUBLIC ${GTEST_DIR}/include)
 find_library(GMOCK_LIB_PATH gmock ${GTEST_DIR}/lib)
 find_library(GTEST_LIB_PATH gtest ${GTEST_DIR}/lib)
