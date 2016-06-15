@@ -121,19 +121,12 @@ namespace threads_backend {
     PackedDataBlock* data = nullptr;
     std::atomic<size_t> expected = {0}, done = {0};
 
-    PublishedBlock(PublishedBlock&& other)
-      : data(std::move(other.data))
-      , expected(other.expected.load())
-      , done(other.done.load())
-      , key(std::move(other.key)) {
-    }
-
     PublishedBlock() = default;
   };
 
   // global publish
   std::mutex rank_publish;
-  std::unordered_map<std::pair<types::key_t, types::key_t>, PublishedBlock> published;
+  std::unordered_map<std::pair<types::key_t, types::key_t>, PublishedBlock*> published;
 
   struct InnerFlow {
     std::shared_ptr<InnerFlow> same, next, forward, backward;
@@ -188,8 +181,9 @@ namespace threads_backend {
       , data(malloc(sz))
     { }
 
-    void ref() { refs++; }
-    int deref() { /*if (--refs == 1) free(data); */ return refs; }
+    int get_refs() const { return refs; }
+    void ref(int num = 1) { refs += num; }
+    void deref() { refs--; }
 
     virtual ~DataBlock() { free(data); }
 
@@ -320,6 +314,9 @@ namespace threads_backend {
       // increase reference count on data
       data[key]->ref();
       u->get_data_pointer_reference() = data[key]->data;
+
+      DEBUG_PRINT("use register, refs = %d, ptr = %p, key = %s\n",
+		  data[key]->get_refs(), data[key]->data, key.human_readable_string().c_str());
     }
   
     virtual Flow*
@@ -329,11 +326,8 @@ namespace threads_backend {
 
       // allocate some space for this object
       const size_t sz = handle->get_serialization_manager()->get_metadata_size();
-
-      DEBUG_PRINT("make initial flow: size = %ld\n", sz);
-
       auto block = new DataBlock(1, sz);
-      
+
       // default construct
       handle
 	->get_serialization_manager()
@@ -342,6 +336,9 @@ namespace threads_backend {
       // save in hash
       const auto& key = handle->get_key();
       data[key] = block;
+
+      DEBUG_PRINT("make initial flow: size = %ld, ptr = %p, key = %s\n",
+		  sz, block->data, key.human_readable_string().c_str());
       
       return f;
     }
@@ -360,9 +357,9 @@ namespace threads_backend {
 	  
 	  const auto& key = handle->get_key();
 	  const auto& iter = published.find({version_key, key});
-	  
+
 	  if (iter != published.end()) {
-	    PublishedBlock* pub_ptr = &iter->second;
+	    PublishedBlock* pub_ptr = iter->second;
 	    auto &pub = *pub_ptr;
 
 	    void* unpack_to = malloc(pub.data->size_);
@@ -373,20 +370,43 @@ namespace threads_backend {
 	      ->get_serialization_manager()
 	      ->unpack_data(unpack_to, pub.data->data_);
 
+	    bool hasPrev = false;
+	    int prev_refs = 0;
+
+	    // this is a data replacement
+	    if (data.find(key) != data.end()) {
+	      hasPrev = true;
+	      DataBlock* prev = data[key];
+	      prev_refs = prev->get_refs();
+	      data.erase(key);
+	      delete prev;
+	    }
+
 	    data[key] = new DataBlock(unpack_to);
-	    data[key]->ref();
+
+	    DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
+			key.human_readable_string().c_str(),
+			version_key.human_readable_string().c_str(),
+			pub.data->data_,
+			std::atomic_load<size_t>(&pub.expected),
+			unpack_to);
+
+	    if (hasPrev)
+	      data[key]->ref(prev_refs - 1);
 	    
 	    assert(pub.expected > 0);
 
 	    ++(pub.done);
 	    --(pub.expected);
 
-	    // TODO: drop memory on the floor for now
-	    // free memory associated with publication
-	    // if (pub.expected == 0) {
-	      // data.erase(key);
-	    // }
-	    
+	    if (std::atomic_load<size_t>(&pub.expected) == 0) {
+	      // remove from publication list
+	      published.erase({version_key, key});
+	      free(pub_ptr->data->data_);
+	      delete pub.data;
+	      delete pub_ptr;
+	    }
+
 	    found = true;
 	  }
 	}
@@ -471,11 +491,21 @@ namespace threads_backend {
 
       // free handle memory associated with use
       const auto& key = u->get_handle()->get_key();
-      const auto refs = data[key]->deref();
+      data[key]->deref();
 
-      DEBUG_PRINT("refs = %ld\n", refs);
+      const auto refs = data[key]->get_refs();
       
-      //if (refs == 1) data.erase(key);
+      DEBUG_PRINT("refs = %d, ptr = %p, key = %s\n",
+		  refs,
+		  data[key]->data,
+		  key.human_readable_string().c_str());
+
+      if (refs == 1) {
+	DataBlock* prev = data[key];
+	data.erase(key);
+	delete prev;
+	DEBUG_PRINT("use delete\n");
+      }
     }
   
     virtual void
@@ -497,12 +527,12 @@ namespace threads_backend {
 	  ->get_serialization_manager()
 	  ->get_packed_data_size(f->get_data_pointer_reference());
 
-	PublishedBlock pub;
-	pub.data = new PackedDataBlock();
+	PublishedBlock* pub = new PublishedBlock();
+	pub->data = new PackedDataBlock();
 
 	// set data block for published block
-	pub.data->data_ = operator new(size);
-	pub.data->size_ = handle
+	pub->data->data_ = malloc(size);
+	pub->data->size_ = handle
 	  ->get_serialization_manager()
 	  ->get_metadata_size();
 
@@ -510,14 +540,26 @@ namespace threads_backend {
 	handle
 	  ->get_serialization_manager()
 	  ->pack_data(f->get_data_pointer_reference(),
-		      pub.data->data_);
+		      pub->data->data_);
 
-	pub.expected = expected;
-	pub.key = handle->get_key();
+	pub->expected = expected;
+	pub->key = handle->get_key();
 
-	published.emplace(std::piecewise_construct,
-			  std::forward_as_tuple(key, pub.key),
-			  std::forward_as_tuple(std::move(pub)));
+	DEBUG_PRINT("publication: key = %s, version = %s, data = %p\n",
+		    pub->key.human_readable_string().c_str(),
+		    key.human_readable_string().c_str(),
+		    pub->data->data_);
+
+	// free any replacement of this publish version
+	if (published.find({key,pub->key}) != published.end()) {
+	  PublishedBlock* prev = published[{key,pub->key}];
+	  published.erase({key,pub->key});
+	  free(prev->data->data_);
+	  delete prev->data;
+	  delete prev;
+	}
+
+	published[{key,pub->key}] = pub;
       }
     }
   
