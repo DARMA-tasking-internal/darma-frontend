@@ -68,7 +68,7 @@
 /*
  * Debugging prints with mutex
  */
-/// #define __THREADS_BACKEND_DEBUG__ 1
+// #define __THREADS_BACKEND_DEBUG__ 1
 #if __THREADS_BACKEND_DEBUG__
 std::mutex __output_mutex;
 #define DEBUG_PRINT(fmt, arg...)					\
@@ -130,6 +130,7 @@ namespace threads_backend {
 
   struct InnerFlow {
     std::shared_ptr<InnerFlow> same, next, forward, backward;
+    types::key_t version_key;
     bool ready;
 
     InnerFlow(const InnerFlow& in) = default;
@@ -139,6 +140,7 @@ namespace threads_backend {
       , next(nullptr)
       , forward(nullptr)
       , backward(nullptr)
+      , version_key(darma_runtime::detail::SimpleKey())
       , ready(false)
     { }
 
@@ -191,7 +193,7 @@ namespace threads_backend {
 
     // TODO: fix any memory consistency bugs with data coordination we
     // need a fence at the least
-    std::unordered_map<types::key_t, DataBlock*> data;
+    std::unordered_map<std::pair<types::key_t,types::key_t>, DataBlock*> data;
 
     // TODO: multi-threaded half-implemented not working..
     std::vector<std::atomic<size_t>*> deque_counter;
@@ -289,19 +291,25 @@ namespace threads_backend {
       #endif
 
       const auto& key = u->get_handle()->get_key();
+      const auto version = f_in->inner->same ? f_in->inner->same->version_key : f_in->inner->version_key;
 
       // ensure it exists in the hash
-      if (data.find(key) == data.end()) {
+      if (data.find({version,key}) == data.end()) {
 	DEBUG_PRINT("Could not find data!!!!!!!\n");
 	exit(240);
       }
 
       // increase reference count on data
-      data[key]->ref();
-      u->get_data_pointer_reference() = data[key]->data;
+      data[{version,key}]->ref();
+      u->get_data_pointer_reference() = data[{version,key}]->data;
 
-      DEBUG_PRINT("use register, refs = %d, ptr = %p, key = %s\n",
-		  data[key]->get_refs(), data[key]->data, key.human_readable_string().c_str());
+      DEBUG_PRINT("use register, refs = %d, ptr = %p, key = %s, "
+		  "in version = %s, out version = %s\n",
+		  data[{version,key}]->get_refs(),
+		  data[{version,key}]->data,
+		  key.human_readable_string().c_str(),
+		  f_in->inner->version_key.human_readable_string().c_str(),
+		  f_out->inner->version_key.human_readable_string().c_str())
     }
   
     virtual Flow*
@@ -320,7 +328,8 @@ namespace threads_backend {
 
       // save in hash
       const auto& key = handle->get_key();
-      data[key] = block;
+      const auto& version = darma_runtime::detail::SimpleKey();
+      data[{version, key}] = block;
 
       DEBUG_PRINT("make initial flow: size = %ld, ptr = %p, key = %s\n",
 		  sz, block->data, key.human_readable_string().c_str());
@@ -359,15 +368,15 @@ namespace threads_backend {
 	    int prev_refs = 0;
 
 	    // this is a data replacement
-	    if (data.find(key) != data.end()) {
+	    if (data.find({version_key, key}) != data.end()) {
 	      hasPrev = true;
-	      DataBlock* prev = data[key];
+	      DataBlock* prev = data[{version_key, key}];
 	      prev_refs = prev->get_refs();
-	      data.erase(key);
+	      data.erase({version_key, key});
 	      delete prev;
 	    }
 
-	    data[key] = new DataBlock(unpack_to);
+	    data[{version_key, key}] = new DataBlock(unpack_to);
 
 	    DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
 			key.human_readable_string().c_str(),
@@ -377,7 +386,7 @@ namespace threads_backend {
 			unpack_to);
 
 	    if (hasPrev)
-	      data[key]->ref(prev_refs - 1);
+	      data[{version_key, key}]->ref(prev_refs - 1);
 	    
 	    assert(pub.expected > 0);
 
@@ -399,6 +408,7 @@ namespace threads_backend {
 
       ThreadsFlow* f = new ThreadsFlow(handle);
 
+      f->inner->version_key = version_key;
       /// set it ready immediately
       f->inner->ready = true;
       return f;
@@ -461,24 +471,28 @@ namespace threads_backend {
       // enable each out flow
       f_out->inner->ready = true;
 
+      // free handle memory associated with use
+      const auto version = //f_in->inner->version_key;
+	f_in->inner->same ? f_in->inner->same->version_key : f_in->inner->version_key;
+      const auto& key = u->get_handle()->get_key();
+
+      data[{version, key}]->deref();
+
       // free unused flows, shared ptrs take care of the inner flows
       delete f_in;
       delete f_out;
 
-      // free handle memory associated with use
-      const auto& key = u->get_handle()->get_key();
-      data[key]->deref();
-
-      const auto refs = data[key]->get_refs();
+      const auto refs = data[{version, key}]->get_refs();
       
-      DEBUG_PRINT("refs = %d, ptr = %p, key = %s\n",
+      DEBUG_PRINT("refs = %d, ptr = %p, key = %s, version = %s\n",
 		  refs,
-		  data[key]->data,
-		  key.human_readable_string().c_str());
+		  data[{version, key}]->data,
+		  key.human_readable_string().c_str(),
+		  version.human_readable_string().c_str());
 
       if (refs == 1) {
-	DataBlock* prev = data[key];
-	data.erase(key);
+	DataBlock* prev = data[{version, key}];
+	data.erase({version,key});
 	delete prev;
 	DEBUG_PRINT("use delete\n");
       }
