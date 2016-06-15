@@ -150,19 +150,11 @@ namespace threads_backend {
     : public abstract::backend::Flow {
 
     std::shared_ptr<InnerFlow> inner;
-    
-    // save all kinds of unnecessary info about each that we probably
-    // do not need right now, along with inefficient explicit pointers
-    
     darma_runtime::abstract::frontend::Handle* handle;
-    void* mem;
-
-    size_t label;
 
     ThreadsFlow(darma_runtime::abstract::frontend::Handle* handle_)
       : inner(std::make_shared<InnerFlow>())
       , handle(handle_)
-      , label(++flow_label)
     { }
   };
 
@@ -191,13 +183,6 @@ namespace threads_backend {
     int refs;
   };
 
-  std::ostream& operator<<(std::ostream& st, const ThreadsFlow& f) {
-    st <<
-      "label = " << f.label << ", " <<
-      "ready = " << f.inner->ready;
-    return st;
-  }
-  
   class ThreadsRuntime
     : public abstract::backend::Runtime {
 
@@ -431,14 +416,11 @@ namespace threads_backend {
 		   flow_propagation_purpose_t purpose) {
       DEBUG_PRINT("make same flow: %d\n", purpose);
       ThreadsFlow* f  = reinterpret_cast<ThreadsFlow*>(from);
-      //std::cout << "MAKE input (same): " << "FLOW = "  << *f << std::endl;
-
       ThreadsFlow* f_same = new ThreadsFlow(0);
 
       // skip list of same for constant lookup.
       f_same->inner->same = f->inner->same ? f->inner->same : f->inner;
 
-      //std::cout << "MAKE new flow with same: " << "FLOW = "  << f_same->label << std::endl;
       return f_same;
     }
 
@@ -448,12 +430,9 @@ namespace threads_backend {
       DEBUG_PRINT("make forwarding flow: %d\n", purpose);
 
       ThreadsFlow* f  = reinterpret_cast<ThreadsFlow*>(from);
-      //std::cout << "MAKE input (forwarding): " << "FLOW = "  << *f << std::endl;
-
       ThreadsFlow* f_forward = new ThreadsFlow(0);
       f->inner->forward = f_forward->inner;
       f_forward->inner->backward = f->inner;
-      //std::cout << "MAKE new flow with forward: " << "FLOW = "  << f_forward->label << std::endl;
       return f_forward;
     }
 
@@ -463,11 +442,8 @@ namespace threads_backend {
       DEBUG_PRINT("make next flow: %d\n", purpose);
 
       ThreadsFlow* f  = reinterpret_cast<ThreadsFlow*>(from);
-      //std::cout << "MAKE input (next): " << "FLOW = "  << *f << std::endl;
-
       ThreadsFlow* f_next = new ThreadsFlow(0);
       f->inner->next = f_next->inner;
-      //std::cout << "MAKE new flow with next: " << "FLOW = "  << f_next->label << std::endl;
       return f_next;
     }
   
