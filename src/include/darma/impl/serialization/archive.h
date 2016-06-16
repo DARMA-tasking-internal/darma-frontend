@@ -49,7 +49,7 @@
 #include <iterator>
 
 #include <tinympl/is_instantiation_of.hpp>
-#include <src/include/darma/impl/meta/is_container.h>
+#include <darma/impl/meta/is_container.h>
 
 #include "serialization_fwd.h"
 #include "nonintrusive.h"

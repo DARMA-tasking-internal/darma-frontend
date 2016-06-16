@@ -62,7 +62,7 @@
 #include <darma/impl/darma_assert.h>
 #include <darma/impl/compatibility.h>
 #include <darma/impl/meta/largest_aligned.h>
-#include <src/include/darma/interface/defaults/pointers.h>
+#include <darma/interface/defaults/pointers.h>
 
 // Borrowed from google test
 // Due to C++ preprocessor weirdness, we need double indirection to
