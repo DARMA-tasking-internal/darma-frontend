@@ -48,7 +48,9 @@
 #include <tinympl/vector.hpp>
 #include <tinympl/find_all_if.hpp>
 
-#include <darma/impl/oo/method.h>
+#include <darma/impl/oo/field.h>
+
+#include <darma/impl/handle.h> // is_access_handle
 
 namespace darma_runtime {
 
@@ -84,6 +86,7 @@ namespace detail {
 template <typename OfClass, typename... Args>
 struct darma_method_helper {
 
+  using of_class_t = OfClass;
   using _args_vector_t = tinympl::vector<Args...>;
 
   template <typename T>
@@ -155,12 +158,18 @@ struct darma_method_helper {
   using _reads_base_classes = typename decorated_with<reads_>::template chained_base_classes<
     _as_read_only_access_handle, _private_field_in_chain
   >;
+  using _reads_fields = typename decorated_with<reads_>::template chained_base_classes<
+    _as_read_only_access_handle, _field_tag_with_type
+  >;
 
   template <typename T>
   using _as_access_handle = tinympl::identity<darma_runtime::AccessHandle<T>>;
 
   using _modifies_base_classes = typename decorated_with<modifies_>::template chained_base_classes<
     _as_access_handle, _private_field_in_chain
+  >;
+  using _modifies_fields = typename decorated_with<modifies_>::template chained_base_classes<
+    _as_access_handle, _field_tag_with_type
   >;
 
   template <typename T>
@@ -169,12 +178,18 @@ struct darma_method_helper {
   using _reads_value_base_classes = typename decorated_with<reads_value_>::template chained_base_classes<
     _as_const_ref, _private_field_in_chain
   >;
+  using _reads_value_fields = typename decorated_with<reads_value_>::template chained_base_classes<
+    _as_const_ref, _field_tag_with_type
+  >;
 
   template <typename T>
   using _as_nonconst_ref = std::add_lvalue_reference<std::remove_const_t<T>>;
 
   using _modifies_value_base_classes = typename decorated_with<modifies_value_>::template chained_base_classes<
     _as_nonconst_ref, _private_field_in_chain
+  >;
+  using _modifies_value_fields = typename decorated_with<modifies_value_>::template chained_base_classes<
+    _as_nonconst_ref, _field_tag_with_type
   >;
 
   using base_class = typename chain_base_classes<
@@ -184,7 +199,14 @@ struct darma_method_helper {
     >::type
   >::type;
 
+  using fields = typename tinympl::join<
+    _reads_fields, _modifies_fields,
+    _reads_value_fields, _modifies_value_fields
+  >::type;
+
 };
+
+template <typename Method> struct deferred_method_call;
 
 } // end namespace detail
 
@@ -194,6 +216,13 @@ template <typename OfClass,
 struct darma_method
   : detail::darma_method_helper<OfClass, Args...>::base_class
 {
+  private:
+
+    template <typename T>
+    using _method_t_matches = std::is_same<typename T::method_t::darma_method, darma_method>;
+    template <typename T>
+    using method_t_matches = darma_runtime::meta::is_detected<_method_t_matches, T>;
+
   public:
     using helper_t = typename detail::darma_method_helper<OfClass, Args...>;
     using base_t = typename helper_t::base_class;
@@ -204,17 +233,111 @@ struct darma_method
     constexpr inline darma_method(darma_method&& val) = default;
 
     // Allow construction from the class that this is a method of
-    template <typename OfClassDeduced,
+//    template <typename OfClassDeduced,
+//      typename = std::enable_if_t<
+//        std::is_convertible<OfClassDeduced, OfClass>::value
+//      >
+//    >
+//    constexpr inline explicit
+//    darma_method(OfClassDeduced&& val)
+//      : base_t(std::forward<OfClassDeduced>(val))
+//    { }
+
+    // Allow construction from the class that this is a method of
+    template <typename DeferredCallDeduced,
       typename = std::enable_if_t<
-        std::is_convertible<OfClassDeduced, OfClass>::value
+        method_t_matches<std::decay_t<DeferredCallDeduced>>::value
       >
     >
     constexpr inline explicit
-    darma_method(OfClassDeduced&& val)
-      : base_t(std::forward<OfClassDeduced>(val))
+    darma_method(DeferredCallDeduced&& val)
+      : base_t(std::forward<DeferredCallDeduced>(val))
     { }
 
 };
+
+namespace detail {
+
+template <typename Method>
+struct deferred_method_call_helper {
+
+  template <typename Field>
+  using _access_handle_wrapped_base_class = tinympl::select_first<
+      darma_runtime::detail::is_access_handle<typename Field::value_type>
+    ,  /* : */ _public_field_in_chain<typename Field::value_type, typename Field::tag>
+    /* =============== */
+    , tinympl::and_<
+        std::is_lvalue_reference<typename Field::value_type>,
+        std::is_const<std::remove_reference_t<typename Field::value_type>>
+      >
+    , /* : */ _public_field_in_chain<
+        ReadAccessHandle< std::decay_t<typename Field::value_type> >,
+        typename Field::tag
+      >
+    /* =============== */
+    , tinympl::and_<
+        std::is_lvalue_reference< std::decay_t<typename Field::value_type> >,
+        tinympl::not_<std::is_const<std::remove_reference_t<typename Field::value_type>>>
+      >
+  >;
+
+  using base_class = typename chain_base_classes<typename tinympl::transform<
+    typename Method::darma_method::helper_t::fields, _access_handle_wrapped_base_class
+  >::type>::type;
+
+};
+
+template <typename Method>
+struct deferred_method_call
+  : deferred_method_call_helper<Method>::base_class
+{
+  using helper_t = deferred_method_call_helper<Method>;
+  using base_t = typename helper_t::base_class;
+  using tag_t = decltype( _darma__get_associated_method_template_tag(std::declval<Method&>()) );
+  using of_class_t = typename Method::darma_method::helper_t::of_class_t;
+  using method_t = Method;
+
+
+  // Allow construction from the class that this is a method of
+  template <typename OfClassDeduced,
+    typename = std::enable_if_t<
+      std::is_convertible<OfClassDeduced, of_class_t>::value
+    >
+  >
+  constexpr inline explicit
+  deferred_method_call(OfClassDeduced&& val)
+    : base_t(std::forward<OfClassDeduced>(val))
+  { }
+
+  void run() {
+    using invoker = typename tag_t::template run_method_invoker<void>;
+    invoker::run(Method(std::move(*this)));
+  }
+
+};
+
+template <typename Method, typename OfClassT>
+inline void
+_create_deferred_method_call(OfClassT&& cls) {
+  auto t = darma_runtime::detail::make_unique<darma_runtime::detail::TaskBase>();
+  darma_runtime::detail::TaskBase* parent_task = static_cast<darma_runtime::detail::TaskBase* const>(
+    darma_runtime::detail::backend_runtime->get_running_task()
+  );
+  parent_task->current_create_work_context = t.get();
+  // This should trigger the captures to happen in the access handle copy constructors
+  t->set_runnable(std::make_unique<darma_runtime::detail::MethodRunnable<
+    deferred_method_call<Method>
+  >>(
+    std::forward<OfClassT>(cls)
+  ));
+  parent_task->current_create_work_context = nullptr;
+
+  darma_runtime::detail::backend_runtime->register_task(
+    std::move(t)
+  );
+};
+
+} // end namespace detail
 
 } // end namespace oo
 

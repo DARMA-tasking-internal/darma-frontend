@@ -199,9 +199,17 @@ struct name##__as_public_method : Base { \
            std::declval< _darma__##name##_oo_tag_class & >()  \
         )) \
     ); \
-    method_struct_t(*static_cast<OfClass*>(this)).name( \
-      std::forward<Args>(args)... \
+    /* TODO forward arguments as well */ \
+    darma_runtime::oo::detail::_create_deferred_method_call<method_struct_t>( \
+      *static_cast<OfClass*>(this) \
     ); \
+  } \
+}; \
+template <typename ReturnType> \
+struct name##__run_method_invoker { \
+  template <typename T, typename... Args> \
+  static ReturnType run(T&& to_call, Args&&... args) { \
+    return std::forward<T>(to_call).name(std::forward<Args>(args)...); \
   } \
 }; \
 \
@@ -218,6 +226,8 @@ struct name { \
   using as_public_method_in_chain = name##__as_public_method<OfClass, Base>; \
   template <typename OfClass> \
   using as_public_method = name##__as_public_method<OfClass, darma_runtime::oo::detail::empty_base>; \
+  template <typename ReturnType> \
+  using run_method_invoker = name##__run_method_invoker<ReturnType>; \
 }
 
 #define DARMA_OO_DECLARE_CLASS(name) \
@@ -227,7 +237,9 @@ struct name { \
   /* Note that this method should always have no definition and should never be called */ \
   /* in an evaluated context. */ \
   template <typename Tag> \
-  name##_method<std::remove_reference_t<Tag>> _darma__get_associated_method_template_specialization(name&, Tag&);
+  name##_method<std::remove_reference_t<Tag>> _darma__get_associated_method_template_specialization(name&, Tag&); \
+  template <typename Tag> \
+  Tag _darma__get_associated_method_template_tag(name##_method<Tag>&);
 
 //template <typename T, typename Base>
 //struct name##__as_private_method : Base {
