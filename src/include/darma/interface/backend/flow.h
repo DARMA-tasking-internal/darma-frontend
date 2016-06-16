@@ -72,7 +72,7 @@ namespace backend {
  *      atomicity among `register_use(&u)`, `make_next_flow(&flw, ...)`/`make_forwarding_flow(&flw, ...)`/`make_same_flow(&flw, ...)`,
  *      `release_use(&u)` for any `Flow` `flw` that could be returned by `u.get_in_flow()` or
  *      `u.get_out_flow()` for some `Use` `u`.
- *  + Release -- Each `Flow` is owned by a `Use` as either input or output. `Flow`s are released through
+ *  + Release -- Each `Flow` is owned by a `Use` as either input or output. `Flow`s are released through a call
  *       to `Runtime::release_use()` on the owning `Use`.  The `Flow` will never be used directly (or indirectly)
  *       by the translation after calling `release_use()`.
  *  + At most one call to `runtime.make_next_flow(&flw, ...)` can happen anytime after creation, but before release.

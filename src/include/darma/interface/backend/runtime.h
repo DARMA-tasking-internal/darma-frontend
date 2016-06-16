@@ -157,7 +157,7 @@ class Runtime {
       frontend::Handle* handle
     ) =0;
 
-    /** @brief Make an fetching Flow to be associated with the handle given as an argument.
+    /** @brief Make a fetching Flow to be associated with the handle given as an argument.
      *
      *  The fetching usage will be used as a return value of u->get_in_flow() for a Use* u
      *  intended to fetch the data published with a particular handle key and version_key.
@@ -269,7 +269,7 @@ class Runtime {
      *
      *  If the Use* u has scheduling_permissions() of at least Write, but has no immediate permissions
      *  the Use* is an "alias" use. As such, u->get_out_flow() only provides an alias for u->get_in_flow().
-     *  u->get_in_flow() is the actual producer flow that satisfies all tasks/uses dependeing on u->get_out_flow().
+     *  u->get_in_flow() is the actual producer flow that satisfies all tasks/uses depending on u->get_out_flow().
      *  There will be some other task t2 with Use* u2 such that u2->get_out_flow() and u->get_in_flow()
      *  are equivalent.  release_use(u2) may have already been called, may be in process, or may not have been called
      *  when release_use(u) is invoked. The backend runtime is responsible for ensuring correct satisfaction of pending flows
@@ -305,7 +305,7 @@ class Runtime {
      */
     virtual void
     publish_use(
-      frontend::Use* f,
+      frontend::Use* u,
       frontend::PublicationDetails* details
     ) =0;
 

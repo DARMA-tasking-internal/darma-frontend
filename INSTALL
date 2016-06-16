@@ -10,12 +10,12 @@ as well as some very simple backends along with some simple examples.
 
 ===========================================================================
 
-To do an all-in-one build of the frontend, the reference serial backend,
+To do an all-in-one build of the frontend, the reference threads backend,
 and the examples, configure CMake with:
 
 cmake ${source} \
   -DCMAKE_INSTALL_PREFIX=${prefix} \
-  -DSERIAL_BACKEND=On
+  -DTHREADS_BACKEND=On
 
 ===========================================================================
 
@@ -27,11 +27,11 @@ cmake ${source}/src/include \
   -DCMAKE_INSTALL_PREFIX=${frontend_prefix}
 make install
 
-2) To build and install the reference serial backend:
+2) To build and install the reference threads backend:
 
 cmake ${source}/src/reference_backends \
   -DCMAKE_INSTALL_PREFIX=${backend_prefix} \
-  -DSERIAL_BACKEND=On \
+  -DTHREADS_BACKEND=On \
   -DDARMA_FRONTEND_DIR=${frontend_prefix}
 make install
 
@@ -43,7 +43,7 @@ cmake ${source}/examples \
   -DDARMA_BACKEND_PKG=${backend_package_name} \
   -D${backend_package_name}_DIR=${backend_prefix}/cmake
 
-For the serial backend, use backend_package_name=DarmaSerialBackend above.
+For the threads backend, use backend_package_name=DarmaThreadsBackend above.
 
 If the backend does not provide a CMake package:
 

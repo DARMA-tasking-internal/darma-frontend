@@ -61,7 +61,7 @@ class Handle {
   public:
 
   /**
-   * @brief get_key Returns a unique key. Multiple calls to this function on the same key object must
+   * @brief get_key Returns a unique key. Multiple calls to this function on the same handle object must
    * always return the same value
    * @return A unique key identifying the tuple.
    */

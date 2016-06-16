@@ -49,7 +49,7 @@
 #include <type_traits>
 
 #include <darma/impl/meta/callable_traits.h>
-#include <src/include/tinympl/select.hpp>
+#include <tinympl/select.hpp>
 #include "task.h"
 
 namespace darma_runtime {
