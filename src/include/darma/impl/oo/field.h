@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      test_partition.cc
+//                      field.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,31 +42,55 @@
 //@HEADER
 */
 
-#include "../metatest_helpers.h"
+#ifndef DARMA_IMPL_OO_FIELD_H
+#define DARMA_IMPL_OO_FIELD_H
 
-#include <utility>
+namespace darma_runtime {
 
-#include <tinympl/partition.hpp>
-#include <tinympl/vector.hpp>
+namespace oo {
 
-using namespace tinympl;
+template <typename... Args>
+struct private_fields {
+  using args_vector_t = tinympl::vector<Args...>;
+};
 
-int main() {
+template <typename... Args>
+struct public_fields {
+  using args_vector_t = tinympl::vector<Args...>;
+};
 
-  static_assert_type_eq<
-    typename partition<2, vector<int[1], int[2], int[3], int[4], int[5], int[6]>>::type,
-    vector<vector<int[1], int[2]>, vector<int[3], int[4]>, vector<int[5], int[6]>>
-  >();
+namespace detail {
 
-  static_assert_type_eq<
-    typename partition<3, vector<int[1], int[2], int[3], int[4], int[5], int[6]>>::type,
-    vector<vector<int[1], int[2], int[3]>, vector<int[4], int[5], int[6]>>
-  >();
+template <typename T, typename Tag>
+struct _field_tag_with_type {
+  using value_type = T;
+  using tag = Tag;
+};
 
-  static_assert_type_eq<
-    typename partition<2, vector<int[1], int[2], int[3], int[4], int[5], int[6]>, std::pair>::type,
-    vector<std::pair<int[1], int[2]>, std::pair<int[3], int[4]>, std::pair<int[5], int[6]>>
-  >();
+template <typename T, typename Tag>
+struct _private_field_in_chain {
+  using type = T;
+  using tag = Tag;
+  template <typename Base>
+  using link_in_chain = typename tag::template as_private_field_in_chain<
+    T, Base
+  >;
+};
 
-}
+template <typename T, typename Tag>
+struct _public_field_in_chain {
+  using type = T;
+  using tag = Tag;
+  template <typename Base>
+  using link_in_chain = typename tag::template as_public_field_in_chain<
+    T, Base
+  >;
+};
 
+} // end namespace detail
+
+} // end namespace oo
+
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_OO_FIELD_H
