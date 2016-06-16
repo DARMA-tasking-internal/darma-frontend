@@ -133,7 +133,7 @@ struct Simple_method<lisa>
     >
 {
   using darma_method::darma_method;
-  void lisa(int a, int b, int c) {
+  void lisa() {
     std::cout << moe << " == " << 42;
   }
 };
@@ -197,13 +197,13 @@ TEST_F(TestOO, static_assertions) {
 
   // Make sure the public method works like it should
   static_assert_type_eq<
-    decltype( std::declval<simple_oo_test::Simple>().lisa(1, 2, 3) ),
+    decltype( std::declval<simple_oo_test::Simple>().lisa() ),
     void
   >;
 
   simple_oo_test::Simple s;
   s.bart();
   //s.moe = 3.14;
-  s.lisa(1, 2, 3);
+  s.lisa();
 }
 
