@@ -114,7 +114,12 @@ struct partition
       InnerOut, OuterOut,
       Args...
     >
-{ };
+{
+  static_assert(sizeof...(Args) % NPerGroup == 0,
+    "invalid partition would create unequal sublists"
+  );
+};
+
 
 } // end namespace variadic
 } // end namespace tinympl
