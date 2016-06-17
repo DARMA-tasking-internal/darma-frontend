@@ -70,7 +70,7 @@
 /*
  * Debugging prints with mutex
  */
-#define __THREADS_BACKEND_DEBUG__         0
+#define __THREADS_BACKEND_DEBUG__         1
 #define __THREADS_BACKEND_DEBUG_VERBOSE__ 0
 
 std::mutex __output_mutex;
@@ -202,6 +202,7 @@ namespace threads_backend {
 
     bool check_ready() { return ready || (same ? check_same() : false); }
     bool check_same()  { return same->check_ready(); }
+    // bool release() 
   };
 
   struct ThreadsFlow
@@ -653,20 +654,16 @@ namespace threads_backend {
 		       types::key_t const& version_key) {
       DEBUG_VERBOSE_PRINT("make fetching flow\n");
 
-      bool found = false;
-
-      if (threads_backend::depthFirstExpand) {
-	fetch_block(handle, version_key);
-	found = true;
-      }
-
       ThreadsFlow* f = new ThreadsFlow(handle);
 
       f->inner->version_key = version_key;
-      f->inner->ready = found;
 
-      if (!threads_backend::depthFirstExpand) {
+      if (threads_backend::depthFirstExpand) {
+	fetch_block(handle, version_key);
+	f->inner->ready = true;
+      } else {
 	fetches.push_back(std::make_shared<FetchNode>(FetchNode{f->inner}));
+	f->inner->ready = false;
       }
 
       return f;
@@ -753,12 +750,13 @@ namespace threads_backend {
 	    DEBUG_PRINT("%p: release use: force publish of handle = %p\n", u, handle);
 
 	    std::shared_ptr<PublishNode> found;
-	    
+
 	    for (auto iter_pub = publishes.begin();
 		 iter_pub != publishes.end();
 		 ++iter_pub) {
 	      if ((*iter_pub)->pub == *delayed_pub) {
 		found = *iter_pub;
+		break;
 	      }
 	    }
 	    publishes.remove(found);
@@ -929,9 +927,9 @@ namespace threads_backend {
     void
     cyclic_schedule_work_until_done() {
       while (count_delayed_work() > 0) {
-	try_node(tasks);
-	try_node(publishes);
-	try_node(fetches);
+      	try_node(tasks);
+      	try_node(publishes);
+      	try_node(fetches);
       }
     }
 
