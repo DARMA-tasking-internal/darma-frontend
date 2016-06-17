@@ -228,52 +228,66 @@ namespace threads_backend {
   class ThreadsRuntime
     : public abstract::backend::Runtime {
 
+    template <typename ConcreteGraphNode>
     struct GraphNode {
       // execute the graph node
-      virtual void execute(ThreadsRuntime* runtime) = 0;
+      inline void execute(ThreadsRuntime* runtime) {
+	return static_cast<ConcreteGraphNode const*>(this)->execute(runtime);
+      }
       // check readiness of the node
-      virtual bool ready(ThreadsRuntime* runtime) = 0;
-      virtual ~GraphNode() {}
+      inline bool ready(ThreadsRuntime* runtime) {
+	return static_cast<ConcreteGraphNode const*>(this)->ready(runtime);
+      }
+      // post execution
+      inline void cleanup(ThreadsRuntime* runtime) {
+	return static_cast<ConcreteGraphNode const*>(this)->cleanup(runtime);
+      }
+      virtual ~GraphNode() = default;
     };
 
-    struct FetchNode : public GraphNode {
+    struct FetchNode : public GraphNode<FetchNode> {
       std::shared_ptr<InnerFlow> fetch;
       FetchNode(std::shared_ptr<InnerFlow> fetch_)
 	: fetch(fetch_)
       { }
-      virtual void execute(ThreadsRuntime* runtime) {
+      void execute(ThreadsRuntime* runtime) {
 	runtime->fetch(fetch->handle, fetch->version_key);
 	fetch->ready = true;
       }
-      virtual bool ready(ThreadsRuntime* runtime) {
+      void cleanup(ThreadsRuntime* runtime) {}
+      bool ready(ThreadsRuntime* runtime) {
 	return runtime->test_fetch(fetch->handle, fetch->version_key);
       }
       virtual ~FetchNode() { fetch = nullptr; }
     };
 
-    struct PublishNode : public GraphNode {
+    struct PublishNode : public GraphNode<PublishNode> {
       std::shared_ptr<DelayedPublish> pub;
       PublishNode(std::shared_ptr<DelayedPublish> pub_)
 	: pub(pub_)
       { }
-      virtual void execute(ThreadsRuntime* runtime) {
+      void execute(ThreadsRuntime* runtime) {
 	runtime->publish(pub);
       }
-      virtual bool ready(ThreadsRuntime* runtime) {
+      void cleanup(ThreadsRuntime* runtime) {
+	runtime->handle_pubs[pub->handle].remove(pub);
+      }
+      bool ready(ThreadsRuntime* runtime) {
 	return runtime->test_publish(pub);
       }
       virtual ~PublishNode() { pub = nullptr; }
     };
 
-    struct TaskNode : public GraphNode {
+    struct TaskNode : public GraphNode<TaskNode> {
       types::unique_ptr_template<runtime_t::task_t> task;
       TaskNode(types::unique_ptr_template<runtime_t::task_t>&& task_)
 	: task(std::move(task_))
       { }
-      virtual void execute(ThreadsRuntime* runtime) {
+      void execute(ThreadsRuntime* runtime) {
 	runtime->run_task(std::move(task));
       }
-      virtual bool ready(ThreadsRuntime* runtime) {
+      void cleanup(ThreadsRuntime* runtime) {}
+      bool ready(ThreadsRuntime* runtime) {
 	return runtime->check_dep_task(task);
       }
     };
@@ -294,13 +308,14 @@ namespace threads_backend {
 
     types::unique_ptr_template<runtime_t::task_t> top_level_task;
 
-    std::list<std::shared_ptr<GraphNode> > nodes;
+    std::list<std::shared_ptr<TaskNode>    > tasks;
+    std::list<std::shared_ptr<FetchNode>   > fetches;
     std::list<std::shared_ptr<PublishNode> > publishes;
 
     std::unordered_map<const darma_runtime::abstract::frontend::Handle*, int> handle_refs;
     std::unordered_map<const darma_runtime::abstract::frontend::Handle*,
 		         std::list<
-			   std::shared_ptr<PublishNode>
+			   std::shared_ptr<DelayedPublish>
 			 >
 		       > handle_pubs;
 
@@ -311,7 +326,7 @@ namespace threads_backend {
 
     size_t
     count_delayed_work() const {
-      return nodes.size() + publishes.size();
+      return tasks.size() + fetches.size() + publishes.size();
     }
 
     void schedule_over_breadth() {
@@ -340,7 +355,7 @@ namespace threads_backend {
 	assert(t->ready(this));
 	t->execute(this);
       } else {
-	nodes.push_back(t);
+	tasks.push_back(t);
 	schedule_over_breadth();
       }
     }
@@ -651,7 +666,7 @@ namespace threads_backend {
       f->inner->ready = found;
 
       if (!threads_backend::depthFirstExpand) {
-	nodes.push_back(std::make_shared<FetchNode>(FetchNode{f->inner}));
+	fetches.push_back(std::make_shared<FetchNode>(FetchNode{f->inner}));
       }
 
       return f;
@@ -729,15 +744,24 @@ namespace threads_backend {
 
       if (handle_refs[handle] == 0) {
 	if (handle_pubs.find(handle) != handle_pubs.end()) {
-	  for (auto delayed_pub = handle_pubs[handle].begin();
-	       delayed_pub != handle_pubs[handle].end();
+	  for (auto delayed_pub = handle_pubs[handle].begin(), end = handle_pubs[handle].end();
+	       delayed_pub != end;
 	       ++delayed_pub) {
 
-	    (*delayed_pub)->execute(this);
+	    publish(*delayed_pub);
 
 	    DEBUG_PRINT("%p: release use: force publish of handle = %p\n", u, handle);
 
-	    publishes.remove(*delayed_pub);
+	    std::shared_ptr<PublishNode> found;
+	    
+	    for (auto iter_pub = publishes.begin();
+		 iter_pub != publishes.end();
+		 ++iter_pub) {
+	      if ((*iter_pub)->pub == *delayed_pub) {
+		found = *iter_pub;
+	      }
+	    }
+	    publishes.remove(found);
 	  }
 	}
 
@@ -875,7 +899,7 @@ namespace threads_backend {
       if (!ready) {
 	publishes.push_back(p);
 	// insert into the set of delayed
-	handle_pubs[handle].push_back(p);
+	handle_pubs[handle].push_back(pub);
       } else {
 	p->execute(this);
       }
@@ -885,36 +909,29 @@ namespace threads_backend {
       schedule_over_breadth();
     }
 
+    template <typename Node>
+    void
+    try_node(std::list<std::shared_ptr<Node> >& nodes) {
+      if (nodes.size() > 0) {
+	auto n = nodes.back();
+	nodes.pop_back();
+	if (n->ready(this)) {
+	  n->execute(this);
+	  n->cleanup(this);
+	} else {
+	  nodes.push_front(n);
+	}
+      }
+    }
+    
     // implement a very slow scheduler that just loops over everything
     // possible to find something that can run
     void
     cyclic_schedule_work_until_done() {
-      while (nodes.size()     > 0 ||
-	     publishes.size() > 0) {
-	if (nodes.size() > 0) {
-	  //DEBUG_PRINT("nodes size = %ld\n", nodes.size());
-	  
-	  auto n = nodes.back();
-	  nodes.pop_back();
-	  if (n->ready(this)) {
-	    n->execute(this);
-	  } else {
-	    nodes.push_front(n);
-	  }
-	}
-
-	if (publishes.size() > 0) {
-	  //DEBUG_PRINT("publishes size = %ld\n", publishes.size());
-	  
-	  auto p = publishes.back();
-	  publishes.pop_back();
-	  if (p->ready(this)) {
-	    p->execute(this);
-	    handle_pubs[p->pub->handle].remove(p);
-	  } else {
-	    publishes.push_front(p);
-	  }
-	}
+      while (count_delayed_work() > 0) {
+	try_node(tasks);
+	try_node(publishes);
+	try_node(fetches);
       }
     }
 
