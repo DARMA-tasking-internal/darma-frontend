@@ -224,9 +224,59 @@ namespace threads_backend {
     types::key_t key;
     types::key_t version;
   };
-  
+
   class ThreadsRuntime
     : public abstract::backend::Runtime {
+
+    struct GraphNode {
+      // execute the graph node
+      virtual void execute(ThreadsRuntime* runtime) = 0;
+      // check readiness of the node
+      virtual bool ready(ThreadsRuntime* runtime) = 0;
+      virtual ~GraphNode() {}
+    };
+
+    struct FetchNode : public GraphNode {
+      std::shared_ptr<InnerFlow> fetch;
+      FetchNode(std::shared_ptr<InnerFlow> fetch_)
+	: fetch(fetch_)
+      { }
+      virtual void execute(ThreadsRuntime* runtime) {
+	runtime->fetch(fetch->handle, fetch->version_key);
+	fetch->ready = true;
+      }
+      virtual bool ready(ThreadsRuntime* runtime) {
+	return runtime->test_fetch(fetch->handle, fetch->version_key);
+      }
+      virtual ~FetchNode() { fetch = nullptr; }
+    };
+
+    struct PublishNode : public GraphNode {
+      std::shared_ptr<DelayedPublish> pub;
+      PublishNode(std::shared_ptr<DelayedPublish> pub_)
+	: pub(pub_)
+      { }
+      virtual void execute(ThreadsRuntime* runtime) {
+	runtime->publish(pub);
+      }
+      virtual bool ready(ThreadsRuntime* runtime) {
+	return runtime->test_publish(pub);
+      }
+      virtual ~PublishNode() { pub = nullptr; }
+    };
+
+    struct TaskNode : public GraphNode {
+      types::unique_ptr_template<runtime_t::task_t> task;
+      TaskNode(types::unique_ptr_template<runtime_t::task_t>&& task_)
+	: task(std::move(task_))
+      { }
+      virtual void execute(ThreadsRuntime* runtime) {
+	runtime->run_task(std::move(task));
+      }
+      virtual bool ready(ThreadsRuntime* runtime) {
+	return runtime->check_dep_task(task);
+      }
+    };
 
   public:
     ThreadsRuntime(const ThreadsRuntime& tr) {}
@@ -244,14 +294,13 @@ namespace threads_backend {
 
     types::unique_ptr_template<runtime_t::task_t> top_level_task;
 
-    std::list<types::unique_ptr_template<runtime_t::task_t> > tasks;
-    std::list<std::shared_ptr<InnerFlow> > fetches;
-    std::list<std::shared_ptr<DelayedPublish> > publishes;
+    std::list<std::shared_ptr<GraphNode> > nodes;
+    std::list<std::shared_ptr<PublishNode> > publishes;
 
     std::unordered_map<const darma_runtime::abstract::frontend::Handle*, int> handle_refs;
     std::unordered_map<const darma_runtime::abstract::frontend::Handle*,
 		         std::list<
-			   std::shared_ptr<DelayedPublish>
+			   std::shared_ptr<PublishNode>
 			 >
 		       > handle_pubs;
 
@@ -260,9 +309,15 @@ namespace threads_backend {
       std::atomic_init<size_t>(&ranks, 1);
     }
 
-  protected:
-    size_t count_delayed_work() const { return tasks.size() + fetches.size() + publishes.size(); }
-    void schedule_over_breadth() { if (count_delayed_work() > bwidth) cyclic_schedule_work_until_done(); }
+    size_t
+    count_delayed_work() const {
+      return nodes.size() + publishes.size();
+    }
+
+    void schedule_over_breadth() {
+      if (count_delayed_work() > bwidth)
+	cyclic_schedule_work_until_done();
+    }
     
     virtual void
     register_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
@@ -278,16 +333,14 @@ namespace threads_backend {
         std::atomic_fetch_add<size_t>(deque_counter[this_rank], 1);
       #endif
 
+      auto t = std::make_shared<TaskNode>(TaskNode{std::move(task)});
+
       // use depth-first scheduling policy
       if (threads_backend::depthFirstExpand) {
-	const bool task_ready = check_dep_task(task);
-
-	if (task_ready)
-	  run_task(std::move(task));
-
-	assert(task_ready);
+	assert(t->ready(this));
+	t->execute(this);
       } else {
-	tasks.emplace_back(std::move(task));
+	nodes.push_back(t);
 	schedule_over_breadth();
       }
     }
@@ -445,7 +498,7 @@ namespace threads_backend {
       {
 	// TODO: big lock to handling fetching
 	std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
-	  
+
 	const auto& key = handle->get_key();
 	const auto& iter = published.find({version_key, key});
 
@@ -499,24 +552,107 @@ namespace threads_backend {
 
       return found;
     }
+
+    bool
+    test_fetch(darma_runtime::abstract::frontend::Handle* handle,
+	       types::key_t const& version_key) {
+      bool found = false;
+      {
+	// TODO: unscalable lock to handling fetching
+	std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
+
+	const auto& key = handle->get_key();
+	const auto& iter = published.find({version_key, key});
+
+	found = iter != published.end();
+      }
+      return found;
+    }
+
+    void
+    fetch_block(darma_runtime::abstract::frontend::Handle* handle,
+		types::key_t const& version_key) {
+
+      DEBUG_PRINT("fetch_block: handle = %p\n", handle);
+
+      while (!test_fetch(handle, version_key)) ;
+      fetch(handle, version_key);
+    }
+
+    void
+    fetch(darma_runtime::abstract::frontend::Handle* handle,
+	  types::key_t const& version_key) {
+      {
+	// TODO: big lock to handling fetching
+	std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
+
+	const auto& key = handle->get_key();
+	const auto& iter = published.find({version_key, key});
+
+	assert(iter != published.end());
+
+	PublishedBlock* pub_ptr = iter->second;
+	auto &pub = *pub_ptr;
+
+	const bool buffer_exists = data.find({version_key,key}) != data.end();
+	void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
+
+	DEBUG_PRINT("try_fetch: unpacking data: buffer_exists = %s, handle = %p\n",
+		    buffer_exists ? "true" : "false",
+		    handle);
+
+	handle
+	  ->get_serialization_manager()
+	  ->unpack_data(unpack_to, pub.data->data_);
+
+	if (!buffer_exists) {
+	  data[{version_key,key}] = new DataBlock(unpack_to);
+	} else {
+	  data[{version_key,key}]->ref();
+	}
+
+	DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
+		    key.human_readable_string().c_str(),
+		    version_key.human_readable_string().c_str(),
+		    pub.data->data_,
+		    std::atomic_load<size_t>(&pub.expected),
+		    unpack_to);
+
+	assert(pub.expected > 0);
+
+	++(pub.done);
+	--(pub.expected);
+
+	if (std::atomic_load<size_t>(&pub.expected) == 0) {
+	  // remove from publication list
+	  published.erase({version_key, key});
+	  free(pub_ptr->data->data_);
+	  delete pub.data;
+	  delete pub_ptr;
+	}
+      }
+    }
     
     virtual Flow*
     make_fetching_flow(darma_runtime::abstract::frontend::Handle* handle,
 		       types::key_t const& version_key) {
       DEBUG_VERBOSE_PRINT("make fetching flow\n");
 
-      const bool found = try_fetch(handle, version_key);
+      bool found = false;
+
+      if (threads_backend::depthFirstExpand) {
+	fetch_block(handle, version_key);
+	found = true;
+      }
 
       ThreadsFlow* f = new ThreadsFlow(handle);
 
       f->inner->version_key = version_key;
       f->inner->ready = found;
 
-      if (!found) {
-	fetches.push_back(f->inner);
+      if (!threads_backend::depthFirstExpand) {
+	nodes.push_back(std::make_shared<FetchNode>(FetchNode{f->inner}));
       }
-
-      assert(found || !depthFirstExpand);
 
       return f;
     }
@@ -597,13 +733,11 @@ namespace threads_backend {
 	       delayed_pub != handle_pubs[handle].end();
 	       ++delayed_pub) {
 
-	    const bool result = try_publish(*delayed_pub, false);
+	    (*delayed_pub)->execute(this);
 
-	    DEBUG_PRINT("%p: release use: force publish of handle = %p, publish = %p\n",
-			u, handle, *delayed_pub);
-	  
+	    DEBUG_PRINT("%p: release use: force publish of handle = %p\n", u, handle);
+
 	    publishes.remove(*delayed_pub);
-	    assert(result);
 	  }
 	}
 
@@ -635,10 +769,14 @@ namespace threads_backend {
       }
     }
 
-    bool try_publish(std::shared_ptr<DelayedPublish> publish, const bool remove) {
-      const bool ready = publish->flow->check_ready();
+    bool
+    test_publish(std::shared_ptr<DelayedPublish> publish) {
+      return publish->flow->check_ready();
+    }
 
-      if (ready) {
+    void
+    publish(std::shared_ptr<DelayedPublish> publish) {
+      {
 	// TODO: big lock to handling publishing
 	std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
@@ -697,14 +835,7 @@ namespace threads_backend {
 	}
 
 	published[{key,pub->key}] = pub;
-
-	if (remove) {
-	  // remove from the set of delayed
-	  handle_pubs[handle].remove(publish);
-	}
       }
-      
-      return ready;
     }
 		     
     virtual void
@@ -737,12 +868,16 @@ namespace threads_backend {
 
       assert(f_in->inner->hasDeferred);
 
-      const bool ready = try_publish(pub, false);
+      auto p = std::make_shared<PublishNode>(PublishNode{pub});
+
+      const bool ready = p->ready(this);
 
       if (!ready) {
-	publishes.push_back(pub);
+	publishes.push_back(p);
 	// insert into the set of delayed
-	handle_pubs[handle].push_back(pub);
+	handle_pubs[handle].push_back(p);
+      } else {
+	p->execute(this);
       }
 
       assert(ready || !depthFirstExpand);
@@ -754,53 +889,30 @@ namespace threads_backend {
     // possible to find something that can run
     void
     cyclic_schedule_work_until_done() {
-      while (tasks.size()     > 0 ||
-	     publishes.size() > 0 ||
-	     fetches.size()   > 0) {
-	if (tasks.size() > 0) {
-	  DEBUG_VERBOSE_PRINT("tasks size = %lu\n", tasks.size());
-	
-	  types::unique_ptr_template<runtime_t::task_t> task = std::move(tasks.back());
-	  tasks.pop_back();
-	
-	  const bool ready = check_dep_task(task);
-
-	  DEBUG_VERBOSE_PRINT("task ready = %s\n", ready ? "true" : "false");
-	
-	  if (!ready)
-	    tasks.emplace_front(std::move(task));
-	  else
-	    run_task(std::move(task));
+      while (nodes.size()     > 0 ||
+	     publishes.size() > 0) {
+	if (nodes.size() > 0) {
+	  //DEBUG_PRINT("nodes size = %ld\n", nodes.size());
+	  
+	  auto n = nodes.back();
+	  nodes.pop_back();
+	  if (n->ready(this)) {
+	    n->execute(this);
+	  } else {
+	    nodes.push_front(n);
+	  }
 	}
 
 	if (publishes.size() > 0) {
-	  DEBUG_VERBOSE_PRINT("publishes size = %lu\n", publishes.size());
-
-	  auto pub = publishes.back();
+	  //DEBUG_PRINT("publishes size = %ld\n", publishes.size());
+	  
+	  auto p = publishes.back();
 	  publishes.pop_back();
-
-	  const bool ready = try_publish(pub, true);
-
-	  DEBUG_VERBOSE_PRINT("publish ready = %s\n", ready ? "true" : "false");
-	  
-	  if (!ready)
-	    publishes.push_front(pub);
-	}
-
-	if (fetches.size() > 0) {
-	  DEBUG_VERBOSE_PRINT("fetches size = %lu\n", fetches.size());
-
-	  auto fetch = fetches.back();
-	  fetches.pop_back();
-
-	  const bool ready = try_fetch(fetch->handle, fetch->version_key);
-
-	  DEBUG_VERBOSE_PRINT("fetch ready = %s\n", ready ? "true" : "false");
-	  
-	  if (!ready) {
-	    fetches.push_front(fetch);
+	  if (p->ready(this)) {
+	    p->execute(this);
+	    handle_pubs[p->pub->handle].remove(p);
 	  } else {
-	    fetch->ready = true;
+	    publishes.push_front(p);
 	  }
 	}
       }
