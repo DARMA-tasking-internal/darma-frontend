@@ -49,41 +49,81 @@ namespace darma_runtime {
 namespace abstract {
 namespace backend {
 
-/** @brief A backend-allocated object representing the input/output state of a Handle at the beginning/end of a task.
+/** @brief A backend-allocated object representing the input/output state of a
+ *  Handle at the beginning/end of an operation.
  *
- *  When executing tasks, data "flows" from one task to the next.
- *  A precursor task produces data that will be consumed by a successor task.
- *  Each task carries a unique Use variable for each Handle it uses. Each Use has an input flow and output flow.
- *  This is true even of a read-only Use, with the output indicating the release of anti-dependence.
- *  An equivalence relationship between two Flows `a` and `b` is indicated by allocating the Flow `a` with
- *  a call to `Runtime::make_same_flow(b)` or vice versa.  Equivalence must be defined within the backend.
- *  The translation layer will never make an equivalence test itself.
+ *  A Flow represents either the input or output state of a Handle at the
+ *  beginning or end, respectively, of an operation.  A Flow belongs to a single
+ *  Use object (containing both an input and output Flow) carried by a single
+ *  operation/task.  An input Flow indicates the value consumed by an operation.
+ *  All input flows for a task's initial set of Uses must become available for
+ *  the task to begin executing.  For a Modify Use only, the output Flow
+ *  indicates the value produced by the operation.  Interpretation of the output
+ *  Flow of a Read Use is described later.  Tasks may register additional Use
+ *  objects (with unique Flows) when access to a Handle is required at a later
+ *  point in logical time (e.g., after modification by a child task).
  *
- *  The life-cycle of a Flow consists of 4 strictly ordered phases.  For some Flow instance flw,
+ *  When executing tasks, data "flows" from the output Flow in a producer task's
+ *  Use to an equivalent input Flow in a consumer task's Use.  Pairing of an
+ *  input and output Flow within a Modify Use implies that, when
+ *  `Runtime::release_use()` is called, the input Flow should be used to satisfy
+ *  other Read Uses with input flows that are equivalent to the output Flow of
+ *  the Use being released.  See below for the definition of equivalence.
  *
- *  + Creation -- `&flw` is a pointer returned by any of `make_initial_flow()`,
- *      `make_fetching_flow()`, `make_null_flow()`, `make_same_flow()`, `make_forwarding_flow()`, or `make_next_flow()`
- *  + Registration -- Each flow is owned by a Use as either input or output. Each Use will be registered
- *      through `Runtime::register_use()` before being used in a task or publication.  All flows have exactly
- *      one `Use` association in their lifetime; that is, `&flw` is either a return value of `Use::get_in_flow()`
- *      or `Use::get_out_flow()` for some `Use` object that is an argument to `register_use()` at
- *      some time after `flw` was created but before it is released.  To ensure this
- *      strict ordering of the `Flow` life-cycle, the runtime must enforce
- *      atomicity among `register_use(&u)`, `make_next_flow(&flw, ...)`/`make_forwarding_flow(&flw, ...)`/`make_same_flow(&flw, ...)`,
- *      `release_use(&u)` for any `Flow` `flw` that could be returned by `u.get_in_flow()` or
- *      `u.get_out_flow()` for some `Use` `u`.
- *  + Release -- Each `Flow` is owned by a `Use` as either input or output. `Flow`s are released through a call
- *       to `Runtime::release_use()` on the owning `Use`.  The `Flow` will never be used directly (or indirectly)
- *       by the translation after calling `release_use()`.
- *  + At most one call to `runtime.make_next_flow(&flw, ...)` can happen anytime after creation, but before release.
- *       Any number of calls to `runtime.make_same_flow(&flw, ...)` can happen anytime after creation, but before release.
- *       At most one call to `runtime.make_forwarding_flow(&flw, ...)` can be made in the lifetime of a `Flow` (and
- *       this call does not preclude a `make_next_flow(&flw, ...)` call also being made)
+ *  The output Flow of a Read Use indicates the release of data and clearing of
+ *  an anti-dependence.  Modify Uses should only be satisfied after all
+ *  anti-dependencies have been cleared and it is no longer possible for
+ *  additional anti-dependencies to be created (all other Uses with Read or
+ *  greater scheduling or immediate permissions on equivalent Flows have been
+ *  released).
  *
- *  Two Flow objects, `a` and `b`, are considered to consume or produce the same version of the same data
- *  if `a` was constructed using `make_same(b)` or if `b` was constructed using `make_same(a)`.
- *  The flow returned by `make_same(a)`, however, is a different object and is therefore
- *  has an independent life cycle and is independently modifiable by the backend.
+ *  An equivalence relationship between two Flows `a` and `b` is indicated by
+ *  allocating the Flow `a` with a call to `Runtime::make_same_flow(b)` or vice
+ *  versa.  Equivalence must be defined within the backend; the translation
+ *  layer will never make an equivalence test itself.
+ *
+ *  The life-cycle of a Flow consists of 4 strictly ordered phases.  For some
+ *  Flow instance flw:
+ *
+ *  + Creation -- `&flw` is a pointer returned by any of
+ *    + `Runtime::make_initial_flow()`,
+ *    + `Runtime::make_fetching_flow()`,
+ *    + `Runtime::make_null_flow()`,
+ *    + `Runtime::make_same_flow()`,
+ *    + `Runtime::make_forwarding_flow()`, or
+ *    + `Runtime::make_next_flow()`.
+ *  + Registration -- Each Flow is owned by a Use as either input or output.
+ *      Each Use will be registered through `Runtime::register_use()` before
+ *      being used in a task or publication, indirectly registering its flows.
+ *      All flows have exactly one Use association in their lifetime; that is,
+ *      `&flw` is either a return value of `Use::get_in_flow()` or
+ *      `Use::get_out_flow()` for some Use object that is an argument to
+ *      `Runtime::register_use()` at some time after `flw` was created but
+ *      before that Use is released.
+ *  + Propagation -- After registration but before release, each instance can
+ *    have
+ *    + any number of calls to `Runtime::make_same_flow(&flw, ...)`,
+ *    + at most one call to `Runtime::make_next_flow(&flw, ...)`, and
+ *    + at most one call to `Runtime::make_forwarding_flow(&flw, ...)`.
+ *  + Release -- Flows are indirectly released through a call to
+ *       `Runtime::release_use()` on the owning Use.  The Flow will never be
+ *       used directly (or indirectly) by the translation layer after this call.
+ *       The backend is responsible for deleting the memory allocated to a Flow
+ *       at this time.
+ *
+ *  To ensure this strict ordering of the Flow life-cycle, the runtime must
+ *  enforce atomicity among `Runtime::register_use(&u)`,
+ *  `Runtime::make_next_flow(&flw, ...)`/ `make_forwarding_flow(&flw, ...)`/
+ *  `make_same_flow(&flw, ...)`, `Runtime::release_use(&u)` for any Flow `flw`
+ *  that could be returned by `u.get_in_flow()` or `u.get_out_flow()` for some
+ *  Use `u`.
+ *
+ *  Although two Flow objects, `a` and `b`, are considered to consume or produce
+ *  the same version of the same data if `a` was constructed using
+ *  `Runtime::make_same(b)` or if `b` was constructed using
+ *  `Runtime::make_same(a)`, the two flows are distinct objects and, therefore,
+ *  have independent life cycles and can be independently modifiable by the
+ *  backend.
  */
 class Flow {
   public:
