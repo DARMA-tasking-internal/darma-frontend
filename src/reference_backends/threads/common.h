@@ -86,11 +86,12 @@ std::mutex __output_mutex;
 #define PRINT_KEY(IN) ((IN.human_readable_string().c_str()))
 #define PRINT_LABEL(FLOW) (((FLOW)->inner->label))
 #define PRINT_LABEL_INNER(FLOW) (((FLOW)->label))
-#define PRINT_PURPOSE(IN) ((IN) == Input ? "Input" :			\
-			   ((IN) == Output ? "Output" :			\
-			    ((IN) == ForwardingChanges ? "ForwardingChanges" : \
-			     ((IN) == OutputFlowOfReadOperation ? "OutputFlowOfReadOperation" :	\
-			      "NONE"))))
+#define PRINT_PURPOSE(IN)						\
+  ((IN) == Input ? "Input" :						\
+   ((IN) == Output ? "Output" :						\
+    ((IN) == ForwardingChanges ? "ForwardingChanges" :			\
+     ((IN) == OutputFlowOfReadOperation ? "OutputFlowOfReadOperation" :	\
+      "NONE"))))
 
 #include <thread>
 #include <atomic>

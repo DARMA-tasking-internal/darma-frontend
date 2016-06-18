@@ -57,6 +57,7 @@
 #include <memory>
 #include <unordered_map>
 
+#include <threads_interface.h>
 #include <common.h>
 
 namespace std {
@@ -94,7 +95,8 @@ namespace threads_backend {
   };
   
   class ThreadsRuntime
-    : public abstract::backend::Runtime {
+    : public abstract::backend::Runtime
+    , public ThreadsInterface<ThreadsRuntime> {
 
   public:
     ThreadsRuntime(const ThreadsRuntime& tr);
@@ -209,6 +211,9 @@ namespace threads_backend {
 
     void
     publish(std::shared_ptr<DelayedPublish> publish);
+
+    void
+    publish_finished(std::shared_ptr<DelayedPublish> publish);
 		     
     virtual void
     publish_use(darma_runtime::abstract::frontend::Use* f,

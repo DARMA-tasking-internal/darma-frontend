@@ -49,20 +49,23 @@
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/defaults/darma_main.h>
 
+#include <threads_interface.h>
 #include <flow.h>
 
 namespace threads_backend {
   using namespace darma_runtime;
   using namespace darma_runtime::abstract::backend;
 
+  typedef ThreadsInterface<ThreadsRuntime> Runtime;
+  
   struct GraphNode
     : public std::enable_shared_from_this<GraphNode> {
 
-    ThreadsRuntime* runtime;
+    Runtime* runtime;
     size_t join_counter;
 
     GraphNode(size_t join_counter_,
-	      ThreadsRuntime* runtime_)
+	      Runtime* runtime_)
       : join_counter(join_counter_)
       , runtime(runtime_)
     { }
@@ -96,7 +99,7 @@ namespace threads_backend {
   {
     std::shared_ptr<InnerFlow> fetch;
 
-    FetchNode(ThreadsRuntime* rt, std::shared_ptr<InnerFlow> fetch_)
+    FetchNode(Runtime* rt, std::shared_ptr<InnerFlow> fetch_)
       : GraphNode(-1, rt)
       , fetch(fetch_)
     { }
@@ -125,7 +128,7 @@ namespace threads_backend {
   {
     std::shared_ptr<DelayedPublish> pub;
 
-    PublishNode(ThreadsRuntime* rt, std::shared_ptr<DelayedPublish> pub_)
+    PublishNode(Runtime* rt, std::shared_ptr<DelayedPublish> pub_)
       : GraphNode(-1, rt)
       , pub(pub_)
     { }
@@ -135,7 +138,7 @@ namespace threads_backend {
     }
 
     void cleanup() {
-      runtime->handle_pubs[pub->handle].remove(pub);
+      runtime->publish_finished(pub);
     }
 
     bool ready() {
@@ -152,7 +155,7 @@ namespace threads_backend {
   {
     types::unique_ptr_template<runtime_t::task_t> task;
 
-    TaskNode(ThreadsRuntime* rt,
+    TaskNode(Runtime* rt,
 	     types::unique_ptr_template<runtime_t::task_t>&& task_)
       : GraphNode(-1, rt)
       , task(std::move(task_))

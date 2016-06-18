@@ -754,7 +754,12 @@ namespace threads_backend {
       }
     }
   }
-		     
+
+  void
+  ThreadsRuntime::publish_finished(std::shared_ptr<DelayedPublish> publish) {
+    handle_pubs[publish->handle].remove(publish);
+  }
+  
   /*virtual*/
   void
   ThreadsRuntime::publish_use(darma_runtime::abstract::frontend::Use* f,
