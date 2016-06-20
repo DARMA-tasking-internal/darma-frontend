@@ -53,95 +53,153 @@
 #include <tinympl/find_all_if.hpp>
 #include <tinympl/left_fold.hpp>
 #include <tinympl/partition.hpp>
+#include <tinympl/lambda.hpp>
+
+#include <darma/impl/oo/field.h>
+#include <darma/impl/oo/util.h>
+
+#include <darma/interface/app/access_handle.h>
 
 namespace darma_runtime {
 namespace oo {
 
 template <typename... Args>
-struct private_fields {
+struct public_methods {
   using args_vector_t = tinympl::vector<Args...>;
 };
 
-
 namespace detail {
 
-template <typename Seq, std::size_t I, std::size_t N>
-struct _chain_base_classes_impl
-  : tinympl::at_t<Seq, I>::template link_in_chain<
-      _chain_base_classes_impl<Seq, I+1, N>
-    >
-{ };
-
-template <typename Seq>
-struct chain_base_classes {
-  using type = _chain_base_classes_impl<Seq, 0, tinympl::size<Seq>::value>;
-};
-
-template <typename T, typename Tag>
-struct _private_field_in_chain {
-  using type = T;
+template <typename OfClass, typename Tag>
+struct _public_method_in_chain {
   using tag = Tag;
   template <typename Base>
-  using link_in_chain = typename tag::template as_private_field_in_chain<T, Base>;
+  using link_in_chain = typename tag::template as_public_method_in_chain<
+    OfClass, Base
+  >;
+
 };
 
-template <typename... Args>
+template <typename ClassName, typename... Args>
 struct darma_class_helper {
 
   using _args_vector_t = tinympl::vector<Args...>;
   static constexpr auto n_args = sizeof...(Args);
 
-  ////////////////////////////////////////////////////////////////////////////////
-  // <editor-fold desc="Extract private_fields list(s)">
-
-  template <typename T>
-  using _is_instantiation_of_private_fields = typename tinympl::is_instantiation_of<
-    private_fields, T
-  >::type;
-
-  using _private_fields_index_list = typename tinympl::find_all_if<
-    _args_vector_t, _is_instantiation_of_private_fields
+  template <template <class...> class template_tag>
+  using _template_tag_index_list = typename tinympl::find_all_if<
+    _args_vector_t,
+    tinympl::make_is_instantiation_of<template_tag>::template apply_t
   >::type;
 
   template <typename int_const>
-  using _get_private_field_arg =
-  typename tinympl::variadic::at<int_const::value, Args...>::type;
+  using _get_template_tag_arg = tinympl::identity<
+    typename tinympl::extract_args<
+      typename tinympl::variadic::at<int_const::value, Args...>::type
+    >::template rebind<tinympl::vector>
+  >;
 
-  using _private_fields_args_list = typename tinympl::transform<
-    _private_fields_index_list, _get_private_field_arg, tinympl::vector
+  template <template <class...> class template_tag>
+  using _template_tag_args_list = typename tinympl::transform<
+    _template_tag_index_list<template_tag>,
+    _get_template_tag_arg, tinympl::vector
   >::type;
 
-  using _private_fields_args_vector = typename tinympl::left_fold<
-    typename tinympl::push_front<
-      typename tinympl::push_front<_private_fields_args_list, tinympl::vector<>>::type,
-      tinympl::vector<>
+  template <template <class...> class template_tag>
+  using _template_tag_args_vector_joined = typename tinympl::left_fold<
+    // prepend two empty lists so that the fold still works even if the args list is empty
+    typename tinympl::push_front<typename tinympl::push_front<
+      _template_tag_args_list<template_tag>,
+      tinympl::vector<>>::type, tinympl::vector<>
     >::type,
     tinympl::join
   >::type;
 
-  using _private_fields_vector = typename tinympl::partition<
-    2, _private_fields_args_list,
-    _private_field_in_chain, tinympl::vector
+  ////////////////////////////////////////////////////////////////////////////////
+  // <editor-fold desc="Extract private_fields and public_fields list(s)">
+
+  template <template <class...> class RewrapWith>
+  struct _make_access_handle_replacer {
+    template <typename field_in_chain>
+    using apply = tinympl::identity<RewrapWith<
+      darma_runtime::AccessHandle<typename field_in_chain::type>,
+      typename field_in_chain::tag
+    >>;
+  };
+
+  using _private_fields_vector = typename tinympl::transform<
+    typename tinympl::partition<
+      2, _template_tag_args_vector_joined<private_fields>,
+      _private_field_in_chain, tinympl::vector
+    >::type,
+    _make_access_handle_replacer<_private_field_in_chain>::template apply
   >::type;
 
-  using base_class = typename chain_base_classes<_private_fields_vector>::type;
+  using _public_fields_vector = typename tinympl::transform<
+    typename tinympl::partition<
+      2, _template_tag_args_vector_joined<public_fields>,
+      _public_field_in_chain, tinympl::vector
+    >::type,
+    _make_access_handle_replacer<_public_field_in_chain>::template apply
+  >::type;
+
+  using fields_with_types = typename tinympl::join<
+    typename tinympl::partition<
+      2, _template_tag_args_vector_joined<public_fields>,
+      _field_tag_with_type, tinympl::vector
+    >::type,
+    typename tinympl::partition<
+      2, _template_tag_args_vector_joined<private_fields>,
+      _field_tag_with_type, tinympl::vector
+    >::type
+  >::type;
+
+
+  // </editor-fold>
+  ////////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // <editor-fold desc="Extract public_methods list(s)">
+
+  template <typename Tag>
+  using _make_public_method_chain_part = tinympl::identity<
+    _public_method_in_chain<ClassName, Tag>
+  >;
+
+  using _public_methods_vector = typename tinympl::transform<
+    _template_tag_args_vector_joined<public_methods>,
+    _make_public_method_chain_part
+  >::type;
+
+  // </editor-fold>
+  ////////////////////////////////////////////////////////////////////////////////
+
+  using base_class = typename chain_base_classes<
+    typename tinympl::join<
+      _private_fields_vector,
+      _public_fields_vector,
+      _public_methods_vector
+    >::type
+  >::type;
 
 };
 
 } // end namespace detail
 
 
-template <typename... Args>
+template <typename ClassName, typename... Args>
 struct darma_class
-  : detail::darma_class_helper<Args...>::base_class
+  : detail::darma_class_helper<ClassName, Args...>::base_class
 {
   private:
 
-    using helper_t = detail::darma_class_helper<Args...>;
 
 
   public:
 
+    using helper_t = detail::darma_class_helper<ClassName, Args...>;
+
+    darma_class() = default;
 
 
 
