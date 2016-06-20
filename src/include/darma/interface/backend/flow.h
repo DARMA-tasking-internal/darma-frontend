@@ -55,19 +55,22 @@ namespace backend {
  *  A Flow represents either the input or output state of a Handle at the
  *  beginning or end, respectively, of an operation.  A Flow belongs to a single
  *  Use object (containing both an input and output Flow) carried by a single
- *  operation/task.  An input Flow indicates the value consumed by an operation.
+ *  operation (which, in turn, may be all or part of a Task).  An input Flow
+ *  indicates the logical state consumed by an operation.
  *  All input flows for a task's initial set of Uses must become available for
- *  the task to begin executing.  For a Modify Use only, the output Flow
- *  indicates the value produced by the operation.  Interpretation of the output
+ *  the task to begin executing.  For a Modify Use only (schedule Modify and/or
+ *  immediate modify), the output Flow indicates the value produced (i.e., made
+ *  available) by the operation.  Interpretation of the output
  *  Flow of a Read Use is described later.  Tasks may register additional Use
  *  objects (with unique Flows) when access to a Handle is required at a later
  *  point in logical time (e.g., after modification by a child task).
  *
- *  When executing tasks, data "flows" from the output Flow in a producer task's
- *  Use to an equivalent input Flow in a consumer task's Use.  Pairing of an
- *  input and output Flow within a Modify Use implies that, when
- *  `Runtime::release_use()` is called, the input Flow should be used to satisfy
- *  other Read Uses with input flows that are equivalent to the output Flow of
+ *  When executing tasks, logical state of data "flows" from the output Flow
+ *  in a producer task's Use to an equivalent input Flow(s) in consumer tasks' Uses.
+ *  Pairing of an input and output Flow within a Modify Use implies that, when
+ *  `Runtime::release_use()` is called, the state of the data associated with
+ *  input Flow should be used to satisfy
+ *  subsequent Uses with input flows that are equivalent to the output Flow of
  *  the Use being released.  See below for the definition of equivalence.
  *
  *  The output Flow of a Read Use indicates the release of data and clearing of
@@ -75,12 +78,20 @@ namespace backend {
  *  anti-dependencies have been cleared and it is no longer possible for
  *  additional anti-dependencies to be created (all other Uses with Read or
  *  greater scheduling or immediate permissions on equivalent Flows have been
- *  released).
+ *  released).  All of this information could be garnered from the input flow
+ *  in the Read operation; however the output flow of a Read use is included
+ *  for completeness, consistency, and for backend convenience (in case, for instance, the
+ *  backend wishes to destage data after the completion of a Read and wants to
+ *  use the output flow as the input of a backend-generated destage operation.
+ *  Backends that do not wish to do anything so complicated may safely return
+ *  a null pointer or similarly trivial object when the output flow of a Read
+ *  operation is created; the resulting flow will never be an argument to
+ *  `make_same_flow()` and friends).
  *
  *  An equivalence relationship between two Flows `a` and `b` is indicated by
- *  allocating the Flow `a` with a call to `Runtime::make_same_flow(b)` or vice
+ *  creating the Flow `a` with a call to `Runtime::make_same_flow(b)` or vice
  *  versa.  Equivalence must be defined within the backend; the translation
- *  layer will never make an equivalence test itself.
+ *  layer itself will test the equivalence of two flows.
  *
  *  The life-cycle of a Flow consists of 4 strictly ordered phases.  For some
  *  Flow instance flw:
@@ -117,6 +128,17 @@ namespace backend {
  *  `make_same_flow(&flw, ...)`, `Runtime::release_use(&u)` for any Flow `flw`
  *  that could be returned by `u.get_in_flow()` or `u.get_out_flow()` for some
  *  Use `u`.
+ *
+ *  Flow objects and the pointers to them are completely opaque to the translation
+ *  layer and will never be dereferenced or used in a context requiring their pointers
+ *  to be dereferencable.  The only reason the translation layer interacts with
+ *  `Flow*` objects rather than completely opaque `flow_t` objects is to indicate
+ *  that the translation layer may assume that copy and move semantics on the
+ *  return values of the flow creation methods are identical to those of pointers
+ *  (and thus, for instance, methods operating on those return values need not
+ *  take a `flow_t&` or a `flow_t const&`; nor do they need to worry about the
+ *  potential exception and thread safety of a theoretical `flow_t` copy or move
+ *  constructor).
  *
  *  Although two Flow objects, `a` and `b`, are considered to consume or produce
  *  the same version of the same data if `a` was constructed using

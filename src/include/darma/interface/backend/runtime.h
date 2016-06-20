@@ -226,7 +226,8 @@ class Runtime {
      *  of which is associated with a Use on which Modify immediate permissions were requested.
      *
      *  Flows are registered and released indirectly through calls to register_use()/release_use().
-     *  Flow instances cannot be shared across Use instances.
+     *  The translation layer will never share a given `Flow*` returned by the backend
+     *  across multiple Use instances.
      *  The input Flow to make_forwarding_flow() must have been registered through a register_use() call,
      *  but not yet released through a release_use() call.
      *  make_forwarding_flow() can be called at most once with a given input.
@@ -250,7 +251,8 @@ class Runtime {
      *  Calls to make_next_flow() indicate a producer-consumer relationship between Flows.
      *  make_next_flow() indicates that an operation consumes Flow* from and produces the returned Flow*.
      *  A direct subsequent relationship should not be inferred here; the direct subsequent of input flow
-     * `from` will be output flow within the same Use.
+     * `from` will only be the output flow within the same Use if no other subsequents of the input use are
+     *  created and registered in its lifetime.
      *  Flows are registered and released indirectly through calls to register_use()/release_use().
      *  Flow instances cannot be shared across Use instances.
      *  The input to make_next_flow() must have been registered with register_use(), but not yet released
@@ -276,16 +278,19 @@ class Runtime {
      *  Write and was not propagated into a Modify context, the release allows
      *  the runtime to match the producer flow to pending Use instances where
      *  u->get_out_flow() is equivalent to the consumer pending->get_in_flow()
-     *  (with equivalence for Flow defined in flow.h).  The location provided by
+     *  (with equivalence for Flow defined in flow.h).  The location provided to
      *  u->get_data_pointer_reference() holds the data that satisfies the
-     *  pending->get_in_flow().
+     *  pending->get_in_flow() if the Use requested immediate permissions of Write
+     *  or greater.
      *
      *  If the Use* u has scheduling_permissions() of at least Write but no
-     *  immediate permissions and was not propagated into a Modify context, the
+     *  immediate permissions and was not propagated into a Modify context by
+     *  the time it was released, the
      *  Use* is an "alias" use.  As such, u->get_out_flow() only provides an
      *  alias for u->get_in_flow().  u->get_in_flow() is the actual producer
      *  flow that satisfies all tasks/uses depending on u->get_out_flow().
-     *  There will be some other task t2 with Use* u2 such that
+     *  There will (almost always, unless the corresponding Handle is completely
+     *  unused in its lifetime) be some other task t2 with Use* u2 such that
      *  u2->get_out_flow() and u->get_in_flow() are equivalent.  release_use(u2)
      *  may have already been called, may be in process, or may not have been
      *  called when release_use(u) is invoked. The backend runtime is
@@ -296,7 +301,8 @@ class Runtime {
      *
      *  If the return value of u->get_out_flow() is the same as or aliases a
      *  Flow created with make_null_flow() at the time release_use() is invoked,
-     *  the data at this location may be safely deleted.
+     *  the data at this location may be safely deleted (unless the backend has
+     *  some other pending operations on that data, such as unfulfilled publishes).
      *
      *  If the Use* u has immediate_permissions() of Read, the release allows
      *  the runtime to clear anti-dependencies. For a task t2 with Write

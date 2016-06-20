@@ -52,10 +52,10 @@ time, a \gls{task} always corresponds uniquely to an \gls{operation}.
 There is no class corresponding to logical time. 
 The progression of logical time for Use objects is encapsulated in the input and output Flows (see below).
 \item [Use:] A Use represents intended access to a Handle at a particular moment in logical time. 
-Uses carry particular immediate and scheduling permissions and therefore have some intent of Read, Write, or Modify.
+Uses carry particular immediate and scheduling permissions and therefore have some intent of Read, Write, or Modify (and/or some intent to schedule tasks that require these).
   Uses are always unique to an \gls{operation}.
 Operations cannot add or remove Use instances from its context;
-however, tasks, being interruptible, can add and remove Use instances.
+however, tasks, being interruptible, can add and remove (i.e., create and release) Use instances.
 \item [Flow:] A Flow encapsulates a data-task relationship. 
 An input Flow indicates that a Use requires a particular value before its
 corresponding \gls{operation} begins.
