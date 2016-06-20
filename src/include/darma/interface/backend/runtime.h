@@ -121,7 +121,7 @@ class Runtime {
      *
      *  This method registers a Use object that can be accesses through the
      *  the iterator returned by t.get_dependencies() for some task t.
-     *  register_use will always be invoked before register_task for any task holding a Use `u`.
+     *  register_use() will always be invoked before register_task() for any task holding a Use `u`.
      *  Accessing a frontend::Use `u` through a frontend::Task `t` is only valid between the time
      *  `register_use(&u)` is called and `release_use(&u)` returns.
      *  No `make_*` functions may be invoked on either the input or output flows of a Use `u`
@@ -207,11 +207,13 @@ class Runtime {
      * The input Flow to make_same_flow() must have been registered through a register_use() call,
      * but not yet released through a release_use() call.
      * There is no restriction on the number of times make_same_flow() can be called with a given input.
-     * @param from    An already initialized flow returned from `make_*_flow`
+     *
+     * @param from    An already initialized and registered flow returned from `make_*_flow`
      * @param purpose An enum indicating the relationship between logically identical flows (purpose of the function).
      *                For example, this indicates whether the two flows are both inputs to different tasks or whether
-     *                the new flow is the sequential continuation of a previous write (forwarding changes)
-     * @param A new Flow object that is equivalent to the input flow
+     *                the new flow is the sequential continuation of a previous write (forwarding changes). This
+     *                information is provided for optimization purposes
+     * @return A new Flow object that is equivalent to the input flow
      */
     virtual Flow*
     make_same_flow(
@@ -221,11 +223,20 @@ class Runtime {
 
     /**
      *  @brief Make a new input Flow that receives forwarded changes from another input Flow, the latter
-     *  of which is associated with a Use on which Modify immediate permissions were requested
+     *  of which is associated with a Use on which Modify immediate permissions were requested.
      *
-     *  @param from    An already initialized flow returned from make_*_flow
-     *  @param purpose An enum indicating the relationship between logically identical flows (purpose of the function).
+     *  Flows are registered and released indirectly through calls to register_use()/release_use().
+     *  Flow instances cannot be shared across Use instances.
+     *  The input Flow to make_forwarding_flow() must have been registered through a register_use() call,
+     *  but not yet released through a release_use() call.
+     *  make_forwarding_flow() can be called at most once with a given input.
+     *
+     *  @param from    An already initialized and registered flow returned from `make_*_flow`
+     *  @param purpose An enum indicating the relationship between the flows (purpose of the function).
+     *                 This information is provided for optimization purposes.
      *                 In the current specification, this enum will always be ForwardingChanges
+     *  @return A new Flow object indicating that new data is the produced by immediate modifications
+     *          to the data from the Flow given as a parameter
      */
     virtual Flow*
     make_forwarding_flow(
@@ -238,12 +249,17 @@ class Runtime {
      *
      *  Calls to make_next_flow() indicate a producer-consumer relationship between Flows.
      *  make_next_flow() indicates that an operation consumes Flow* from and produces the returned Flow*.
+     *  A direct subsequent relationship should not be inferred here; the direct subsequent of input flow
+     * `from` will be output flow within the same Use.
      *  Flows are registered and released indirectly through calls to register_use()/release_use().
      *  Flow instances cannot be shared across Use instances.
      *  The input to make_next_flow() must have been registered with register_use(), but not yet released
      *  through release_use().
+     *  make_next_flow() can be called at most once with a given input.
+     *
      *  @param from    The flow consumed by an operation to produce the Flow returned by make_next_flow()
-     *  @param purpose An enum indicating the purpose of the next flow
+     *  @param purpose An enum indicating the purpose of the next flow.  This information is provided for
+     *                 optimization purposes
      *  @return A new Flow object indicating that new data will be produced by the data incoming
      *          from the Flow given as a parameter
      */
@@ -254,39 +270,48 @@ class Runtime {
     ) =0;
 
 
-    /** @brief Release a Use object previously registered with register_use.
+    /** @brief Release a Use object previously registered with register_use().
      *
-     *  Upon release, if the Use* u has immediate_permissions() of at least Write, the
-     *  release allows the runtime to match the producer flow to pending Use instances
-     *  where u->get_out_flow() is equivalent to the consumer pending->get_in_flow()
-     *  (with equivalence for Flow defined in flow.h).
-     *  The location provided by u->get_data_pointer_reference() holds the data that satisfies
-     *  the pending->get_in_flow()
+     *  Upon release, if the Use* u has immediate_permissions() of at least
+     *  Write and was not propagated into a Modify context, the release allows
+     *  the runtime to match the producer flow to pending Use instances where
+     *  u->get_out_flow() is equivalent to the consumer pending->get_in_flow()
+     *  (with equivalence for Flow defined in flow.h).  The location provided by
+     *  u->get_data_pointer_reference() holds the data that satisfies the
+     *  pending->get_in_flow().
      *
-     *  If the return value of u->get_out_flow() is the same as
-     *  or aliases a Flow created with make_null_flow() at the time release_use() is invoked,
+     *  If the Use* u has scheduling_permissions() of at least Write but no
+     *  immediate permissions and was not propagated into a Modify context, the
+     *  Use* is an "alias" use.  As such, u->get_out_flow() only provides an
+     *  alias for u->get_in_flow().  u->get_in_flow() is the actual producer
+     *  flow that satisfies all tasks/uses depending on u->get_out_flow().
+     *  There will be some other task t2 with Use* u2 such that
+     *  u2->get_out_flow() and u->get_in_flow() are equivalent.  release_use(u2)
+     *  may have already been called, may be in process, or may not have been
+     *  called when release_use(u) is invoked. The backend runtime is
+     *  responsible for ensuring correct satisfaction of pending flows and
+     *  thread safety (atomicity) of release_use(...) with aliases.  An alias
+     *  use can correspond to another alias use, creating a chain of aliases
+     *  that the backend runtime must resolve.
+     *
+     *  If the return value of u->get_out_flow() is the same as or aliases a
+     *  Flow created with make_null_flow() at the time release_use() is invoked,
      *  the data at this location may be safely deleted.
      *
-     *  If the Use* u has scheduling_permissions() of at least Write, but has no immediate permissions
-     *  the Use* is an "alias" use. As such, u->get_out_flow() only provides an alias for u->get_in_flow().
-     *  u->get_in_flow() is the actual producer flow that satisfies all tasks/uses depending on u->get_out_flow().
-     *  There will be some other task t2 with Use* u2 such that u2->get_out_flow() and u->get_in_flow()
-     *  are equivalent.  release_use(u2) may have already been called, may be in process, or may not have been called
-     *  when release_use(u) is invoked. The backend runtime is responsible for ensuring correct satisfaction of pending flows
-     *  and thread safety (atomicity) of release_use(...) with aliases.  An alias use can correspond to another alias use,
-     *  creating a chain of aliases that the backend runtime must resolve.
+     *  If the Use* u has immediate_permissions() of Read, the release allows
+     *  the runtime to clear anti-dependencies. For a task t2 with Write
+     *  privileges on Use* u2 such that u2->get_in_flow() is equivalent to
+     *  u->get_in_flow() (or u->get_out_flow(), depending on backend
+     *  implementation), if u is the last use (there are no other Use* objects
+     *  registered with u->get_in_flow() equivalent to u2->get_in_flow()) then
+     *  task t2 has its preconditions on u2 satisfied.
      *
-     *  Alias resolution should be implemented in constant time.  That is, if Flow a aliases b
-     *  and Flow b aliases c, the fact that a aliases c should be discernible without linear cost in the size of the
-     *  set {a, b, c}.
+     *  Alias resolution should be implemented in constant time.  That is, if
+     *  Flow a aliases b and Flow b aliases c, the fact that a aliases c should
+     *  be discernible without linear cost in the size of the set {a, b, c}.
      *
-     *  If the Use* u has immediate_permissions() of Read,
-     *  the release allows the runtime to clear anti-dependencies. For a task t2 with Write privileges on Use* u2
-     *  such that u2->get_in_flow() is equivalent to u->get_in_flow() (or u->get_out_flow(), depending on backend implementation)
-     *  If u is the last use (there are no other Use* objects registered with u->get_in_flow() equivalent to u2->get_in_flow())
-     *  then task t2 has its preconditions on u2 satisfied.
-     *
-     *  @param u The Use being released, which consequently releases an in and out flow with particular permissions.
+     *  @param u The Use being released, which consequently releases an in and
+     *  out flow with particular permissions.
      */
     virtual void
     release_use(
@@ -365,8 +390,8 @@ typedef Runtime runtime_t;
  *  should still behave as documented in the Runtime::get_running_task()
  *  method).  It is \a not valid to call Task::run() on this top-level task
  *  object [test: DARMABackendInitialize.top_level_run_not_called] (i.e., it is
- *  an error), and doing so will cause the frontend to abort.  Indeed (as of 0.2
- *  spec), the only valid methods for the backend to call on this object are
+ *  an error), and doing so will cause the frontend to abort.  Indeed,
+ *  the only valid methods for the backend to call on this object are
  *  Task::set_name() and Task::get_name().  At least before returning
  *  top_level_task from any calls to Runtime::get_running_task(), the backend
  *  runtime should assign a name to the top-level task with at least three
