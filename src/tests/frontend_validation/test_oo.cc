@@ -202,7 +202,9 @@ TEST_F(TestOO, static_assertions) {
   >;
 
   simple_oo_test::Simple s;
-  s.bart();
+  s.curly = initial_access<std::string>("s curly");
+  s.moe = initial_access<double>("s moe");
+  //s.bart();
   //s.moe = 3.14;
   s.lisa();
 }
