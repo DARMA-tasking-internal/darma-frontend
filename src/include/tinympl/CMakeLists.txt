@@ -23,9 +23,11 @@ copy_traits.hpp
 count.hpp
 count_if.hpp
 delay.hpp
+detection.hpp
 divides.hpp
 equal_to.hpp
 erase.hpp
+extract_template.hpp
 fill_n.hpp
 filter.hpp
 find_all.hpp
@@ -84,6 +86,7 @@ replace.hpp
 replace_if.hpp
 reverse.hpp
 right_fold.hpp
+select.hpp
 sequence.hpp
 set_difference.hpp
 set_intersection.hpp
@@ -93,6 +96,7 @@ size.hpp
 sizeof.hpp
 sort.hpp
 splat.hpp
+stl_integer_sequence.hpp
 string.hpp
 string_macro.hpp
 to_string.hpp
@@ -107,6 +111,7 @@ unordered_equal.hpp
 value_map.hpp
 variadic.hpp
 vector.hpp
+void_t.hpp
 zip.hpp)
 
 
