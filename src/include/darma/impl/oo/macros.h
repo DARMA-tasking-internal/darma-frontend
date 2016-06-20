@@ -186,7 +186,23 @@ template <typename ValueType, typename Base> \
 struct name##__as_public_field : Base { \
   _DARMA__OO_PASSTHROUGH_CONSTRUCTORS(name, __as_public_field) \
   ValueType name; \
-  friend struct _darma__##name##_oo_access_friend<std::decay_t<ValueType>>::type; \
+  /* Should be friends with both the access handle and non-access handle attorneys */ \
+  friend struct _darma__##name##__oo_access< \
+    std::conditional_t<::darma_runtime::detail::is_access_handle<std::decay_t<ValueType>>::value, \
+      ::darma_runtime::detail::value_type_if_access_handle_t<std::decay_t<ValueType>>, \
+      std::decay_t<ValueType> \
+    >, \
+    typename darma_runtime::detail::is_access_handle<std::decay_t<ValueType>>::type \
+  >; \
+  friend struct _darma__##name##__oo_access< \
+    std::conditional_t<::darma_runtime::detail::is_access_handle<std::decay_t<ValueType>>::value, \
+      ::darma_runtime::detail::value_type_if_access_handle_t<std::decay_t<ValueType>>, \
+      std::decay_t<ValueType> \
+    >, \
+    typename tinympl::not_< \
+       typename darma_runtime::detail::is_access_handle<std::decay_t<ValueType>>::type \
+     >::type \
+  >; \
 }; \
 \
 template <typename OfClass, typename Base> \
