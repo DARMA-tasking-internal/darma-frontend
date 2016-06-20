@@ -110,7 +110,8 @@ struct Simple
       >,
       public_methods<
         bart,
-        lisa
+        lisa,
+        homer
       >
     >
 { using darma_class::darma_class; };
@@ -137,6 +138,20 @@ struct Simple_method<lisa>
     std::cout << moe << " == " << 42;
   }
 };
+
+template <>
+struct Simple_method<homer>
+  : darma_method<Simple,
+      modifies_value_<moe>
+    >
+{
+  using darma_method::darma_method;
+  void homer() {
+    moe = 42;
+  }
+
+};
+
 
 
 } // end namespace simple_oo_test
@@ -201,11 +216,108 @@ TEST_F(TestOO, static_assertions) {
     void
   >;
 
-  simple_oo_test::Simple s;
-  s.curly = initial_access<std::string>("s curly");
-  s.moe = initial_access<double>("s moe");
-  //s.bart();
-  //s.moe = 3.14;
-  s.lisa();
+  static_assert_type_eq<
+    typename simple_oo_test::Simple_method<simple_oo_test::homer>
+      ::darma_method::helper_t
+      ::fields,
+    tinympl::vector<
+      _field_tag_with_type<double&, simple_oo_test::moe>
+    >
+  >();
+
+  static_assert_type_eq<
+    typename tinympl::at_t<0,
+      typename simple_oo_test::Simple_method<simple_oo_test::homer>
+        ::darma_method::helper_t
+        ::fields
+    >::value_type,
+    double&
+  >();
+
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestOO, simple_homer_lisa) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  use_t* use_1, *use_2, *use_3, *use_4;
+  MockFlow fl_in_1, fl_out_1;
+  MockFlow fl_in_2, fl_out_2;
+  MockFlow fl_in_3, fl_out_3;
+  MockFlow fl_in_4, fl_out_4;
+
+  Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
+
+  expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("moe", "s"),
+    s_reg_initial, s_release_initial);
+
+  expect_mod_capture_MN_or_MR(
+    fl_in_1, fl_out_1, use_1,
+    fl_in_2, fl_out_2, use_2,
+    fl_in_3, fl_out_3, use_3,
+    s_reg_captured, s_reg_continuing
+  );
+
+  double data = 0.0;
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_2))))
+    .Times(1).InSequence(s_reg_captured, s_release_initial)
+    .WillOnce(Invoke([&](auto* task){
+      use_2->get_data_pointer_reference() = (void*)&data;
+    }));
+
+
+  expect_ro_capture_RN_RR_MN_or_MR(
+    fl_in_3, fl_out_3, use_3,
+    fl_in_4, fl_out_4, use_4,
+    s_reg_continuing
+  );
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_4))))
+    .Times(1).InSequence(s_reg_captured, s_release_initial)
+    .WillOnce(Invoke([&](auto* task){
+      use_4->get_data_pointer_reference() = (void*)&data;
+    }));
+
+  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_3)),
+    IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None)
+  ))).Times(1).InSequence(s_reg_continuing)
+    .WillOnce(Assign(&use_3, nullptr));
+
+
+  {
+    simple_oo_test::Simple s;
+    s.moe = initial_access<double>("moe", "s");
+    s.homer();
+    s.lisa();
+  }
+
+  // Now expect the releases that have to happen after the tasks start running
+
+  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_2)),
+    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify)
+  ))).Times(1).InSequence(s_reg_captured, s_release_initial)
+    .WillOnce(Assign(&use_2, nullptr));
+
+  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_4)),
+    IsUseWithFlows(&fl_in_4, &fl_out_4, use_t::Read, use_t::Read)
+  ))).Times(1).InSequence(s_reg_continuing)
+    .WillOnce(Assign(&use_4, nullptr));
+
+  testing::internal::CaptureStdout();
+
+  run_all_tasks();
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "42 == 42"
+  );
+
+  ASSERT_EQ(data, 42);
+
+}

@@ -276,8 +276,12 @@ struct deferred_method_call_helper {
       >
     /* =============== */
     , tinympl::and_<
-        std::is_lvalue_reference< std::decay_t<typename Field::value_type> >,
+        std::is_lvalue_reference< typename Field::value_type >,
         tinympl::not_<std::is_const<std::remove_reference_t<typename Field::value_type>>>
+      >
+    , /* : */ _public_field_in_chain<
+        AccessHandle< std::decay_t<typename Field::value_type> >,
+        typename Field::tag
       >
   >;
 
@@ -331,6 +335,16 @@ _create_deferred_method_call(OfClassT&& cls) {
     std::forward<OfClassT>(cls)
   ));
   parent_task->current_create_work_context = nullptr;
+
+  for(auto&& reg : t->registrations_to_run) {
+    reg();
+  }
+  t->registrations_to_run.clear();
+
+  for(auto&& post_reg_op : t->post_registration_ops) {
+    post_reg_op();
+  }
+  t->post_registration_ops.clear();
 
   darma_runtime::detail::backend_runtime->register_task(
     std::move(t)
