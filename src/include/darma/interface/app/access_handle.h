@@ -464,7 +464,7 @@ class AccessHandle : public detail::AccessHandleBase {
     get_reference() const {
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
-        "get_reference() called on handle after release"
+        "get_reference() called on handle after release or before initialization"
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
