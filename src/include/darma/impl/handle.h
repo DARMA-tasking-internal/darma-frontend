@@ -655,6 +655,23 @@ template <typename... Args>
 struct is_access_handle<AccessHandle<Args...>, void>
   : std::true_type { };
 
+namespace _impl {
+
+template <typename T>
+using _value_type_archetype = typename T::value_type;
+
+} // end namespace _impl
+
+template <typename T, typename Otherwise=meta::nonesuch>
+using value_type_if_access_handle = std::conditional<
+  is_access_handle<T>::value,
+  meta::detected_t<_impl::_value_type_archetype, std::decay_t<T>>,
+  Otherwise
+>;
+
+template <typename T, typename Otherwise=meta::nonesuch>
+using value_type_if_access_handle_t = typename value_type_if_access_handle<T, Otherwise>::type;
+
 } // end namespace detail
 
 // </editor-fold>

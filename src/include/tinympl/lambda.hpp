@@ -99,6 +99,7 @@ struct lambda
   struct eval_value
   {
     static constexpr decltype(eval<Ts...>::type::value) value = eval<Ts...>::type::value;
+    using type = std::integral_constant<decltype(eval<Ts...>::type::value), value>;
   };
 
   template<class... Ts> using eval_t = typename eval<Ts...>::type;
@@ -133,6 +134,7 @@ struct lambda<F<Args...> >
   struct eval_value
   {
     static constexpr decltype(eval<Ts...>::type::value) value = eval<Ts...>::type::value;
+    using type = std::integral_constant<decltype(eval<Ts...>::type::value), value>;
   };
 
   template<class... Ts> using eval_t = typename eval<Ts...>::type;
