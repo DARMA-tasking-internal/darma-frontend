@@ -136,7 +136,7 @@ struct Simple_method<bart>
     >
 {
   using darma_method::darma_method;
-  void bart() {
+  void operator()() {
     this->immediate::lisa();
   }
 };
@@ -148,7 +148,7 @@ struct Simple_method<lisa>
     >
 {
   using darma_method::darma_method;
-  void lisa() {
+  void operator()() {
     std::cout << moe << " == " << 42;
   }
 };
@@ -160,7 +160,7 @@ struct Simple_method<homer>
     >
 {
   using darma_method::darma_method;
-  void homer() {
+  void operator()() {
     moe = 42;
     // Signal the end of the homer() method
     sequence_marker->mark_sequence("homer");
@@ -175,11 +175,11 @@ struct Simple_method<marge>
     >
 {
   using darma_method::darma_method;
-  void marge() {
+  void operator()() {
     if( moe.get_value() > 10 ) {
       moe.get_reference() /= 2.0;
       // recurse:
-      this->deferred_recursive_call::marge();
+      this->deferred::marge();
     }
     else {
       moe.set_value(3.14);
