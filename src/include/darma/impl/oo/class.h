@@ -70,14 +70,32 @@ struct public_methods {
 
 namespace detail {
 
-template <typename OfClass, typename Tag>
+template <typename OfClass, typename Tag, typename CastThisTo=OfClass>
 struct _public_method_in_chain {
   using tag = Tag;
   template <typename Base>
   using link_in_chain = typename tag::template as_public_method_in_chain<
-    OfClass, Base
+    OfClass, Base, CastThisTo
   >;
+};
 
+template <typename OfClass, typename Tag, typename CastThisTo=OfClass>
+struct _immediate_public_method_in_chain {
+  using tag = Tag;
+  template <typename Base>
+  using link_in_chain = typename tag::template as_immediate_public_method_in_chain<
+    OfClass, Base, CastThisTo
+  >;
+};
+
+template <typename OfClass, typename Tag>
+struct _public_method_with_tag {
+  using tag = Tag;
+  using of_class = OfClass;
+  template <typename CastTo>
+  using chain_item_with_cast_to = _public_method_in_chain<OfClass, Tag, CastTo>;
+  template <typename CastTo>
+  using immediate_chain_item_with_cast_to = _immediate_public_method_in_chain<OfClass, Tag, CastTo>;
 };
 
 template <typename ClassName, typename... Args>
@@ -166,9 +184,19 @@ struct darma_class_helper {
     _public_method_in_chain<ClassName, Tag>
   >;
 
-  using _public_methods_vector = typename tinympl::transform<
+  using _public_methods_base_class_vector = typename tinympl::transform<
     _template_tag_args_vector_joined<public_methods>,
     _make_public_method_chain_part
+  >::type;
+
+  template <typename Tag>
+  using _make_public_method_tags_part = tinympl::identity<
+    _public_method_with_tag<ClassName, Tag>
+  >;
+
+  using public_method_tags = typename tinympl::transform<
+    _template_tag_args_vector_joined<public_methods>,
+    _make_public_method_tags_part
   >::type;
 
   // </editor-fold>
@@ -178,7 +206,7 @@ struct darma_class_helper {
     typename tinympl::join<
       _private_fields_vector,
       _public_fields_vector,
-      _public_methods_vector
+      _public_methods_base_class_vector
     >::type
   >::type;
 
