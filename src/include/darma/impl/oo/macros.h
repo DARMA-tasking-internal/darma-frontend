@@ -276,7 +276,7 @@ struct name##__as_immediate_public_method : Base { \
            std::declval< _darma__##name##_oo_tag_class & >()  \
         )) \
     ); \
-    method_struct_t(*static_cast<CastThisTo*>(this)).name(); \
+    method_struct_t(*static_cast<CastThisTo*>(this))(std::forward<Args>(args)...); \
   } \
 }; \
 template <typename ReturnType> \

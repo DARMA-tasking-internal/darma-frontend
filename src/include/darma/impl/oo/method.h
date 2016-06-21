@@ -276,7 +276,6 @@ struct darma_method
       : base_t(std::forward<OfClassOrMethodDeduced>(val))
     { }
 
-
     // Allow construction from the class that this is a method of
     //template <typename DeferredCallDeduced,
     //  typename = std::enable_if_t<
@@ -359,8 +358,9 @@ struct deferred_method_call
   { }
 
   void run() {
-    using invoker = typename tag_t::template run_method_invoker<void>;
-    invoker::run(Method(std::move(*this)));
+    //using invoker = typename tag_t::template run_method_invoker<void>;
+    //invoker::run(Method(std::move(*this)));
+    Method(std::move(*this))();
   }
 
 };
