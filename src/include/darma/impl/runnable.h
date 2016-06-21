@@ -59,6 +59,7 @@
 #include <darma/impl/functor_traits.h>
 #include <darma/impl/util.h>
 #include <darma/impl/handle.h>
+#include <darma/impl/oo/oo_fwd.h>
 
 namespace darma_runtime {
 namespace detail {
@@ -278,7 +279,7 @@ const size_t FunctorRunnable<Functor, Args...>::index_ =
 
 
 template <
-  typename CaptureStruct
+  typename CaptureStruct, typename... Args
 >
 class MethodRunnable
   : public RunnableBase
@@ -295,6 +296,10 @@ class MethodRunnable
     template <typename OfClassDeduced,
       typename = std::enable_if_t<
         std::is_convertible<OfClassDeduced, typename CaptureStruct::of_class_t>::value
+        or darma_runtime::oo::detail::is_darma_method_of_class<
+          std::decay_t<OfClassDeduced>,
+          typename CaptureStruct::of_class_t
+        >::value
       >
     >
     constexpr inline explicit
