@@ -279,7 +279,7 @@ const size_t FunctorRunnable<Functor, Args...>::index_ =
 
 
 template <
-  typename CaptureStruct
+  typename CaptureStruct, typename... Args
 >
 class MethodRunnable
   : public RunnableBase

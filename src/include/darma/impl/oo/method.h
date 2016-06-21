@@ -365,9 +365,9 @@ struct deferred_method_call
 
 };
 
-template <typename Method, typename OfClassT>
+template <typename Method, typename ClassOrCallingMethodT, typename... Args>
 inline void
-_create_deferred_method_call(OfClassT&& cls) {
+_create_deferred_method_call(ClassOrCallingMethodT&& cls, Args&&... args) {
   auto t = darma_runtime::detail::make_unique<darma_runtime::detail::TaskBase>();
   darma_runtime::detail::TaskBase* parent_task = static_cast<darma_runtime::detail::TaskBase* const>(
     darma_runtime::detail::backend_runtime->get_running_task()
@@ -375,9 +375,10 @@ _create_deferred_method_call(OfClassT&& cls) {
   parent_task->current_create_work_context = t.get();
   // This should trigger the captures to happen in the access handle copy constructors
   t->set_runnable(std::make_unique<darma_runtime::detail::MethodRunnable<
-    deferred_method_call<Method>
+    deferred_method_call<Method>, Args...
   >>(
-    std::forward<OfClassT>(cls)
+    std::forward<ClassOrCallingMethodT>(cls),
+    std::forward<Args>(args)...
   ));
   parent_task->current_create_work_context = nullptr;
 
