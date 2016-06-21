@@ -67,6 +67,14 @@ template <typename T, \
     not std::is_same<std::decay_t<T>, name##ext>::value \
     and _darma__has_##name##_member_access<T, std::decay_t<ValueType>, ValueType>::value \
     and darma_runtime::oo::detail::is_chained_base_class<std::decay_t<T>>::value \
+    /* and std::is_convertible< \
+      decltype( \
+        _darma__##name##_oo_access_friend_t<std::decay_t<ValueType>>::template name<ValueType>( \
+          std::declval<T>() \
+        ) \
+      ), \
+      ValueType \
+    >::value */ \
   > \
 > \
 constexpr inline explicit \
@@ -205,8 +213,26 @@ struct name##__as_public_field : Base { \
   >; \
 }; \
 \
-template <typename OfClass, typename Base> \
+template <typename OfClass, typename Base, typename CastThisTo> \
 struct name##__as_public_method : Base { \
+  using deferred = name##__as_public_method; \
+  /* Explicitly default the copy, move, and default constructors */ \
+  constexpr inline name##__as_public_method() = default; \
+  constexpr inline name##__as_public_method(name##__as_public_method const& val) = default; \
+  constexpr inline name##__as_public_method(name##__as_public_method && val) = default; \
+  \
+  /* Forward to base class if it's not a copy or move constructor */ \
+  template <typename T, \
+    typename = std::enable_if_t< \
+      not std::is_same<std::decay_t<T>, name##__as_public_method>::value \
+        and ::darma_runtime::oo::detail::is_chained_base_class<std::decay_t<T>>::value \
+    > \
+  > \
+  constexpr inline explicit \
+  name##__as_public_method(T&& val) \
+    : Base(std::forward<T>(val)) \
+  { } \
+  \
   template <typename... Args> \
   void name(Args&&... args) { \
     using method_struct_t = decltype(  \
@@ -217,8 +243,40 @@ struct name##__as_public_method : Base { \
     ); \
     /* TODO forward arguments as well */ \
     darma_runtime::oo::detail::_create_deferred_method_call<method_struct_t>( \
-      *static_cast<OfClass*>(this) \
+      *static_cast<CastThisTo*>(this) \
     ); \
+  } \
+}; \
+\
+template <typename OfClass, typename Base, typename CastThisTo> \
+struct name##__as_immediate_public_method : Base { \
+  using immediate = name##__as_immediate_public_method; \
+  /* Explicitly default the copy, move, and default constructors */ \
+  constexpr inline name##__as_immediate_public_method() = default; \
+  constexpr inline name##__as_immediate_public_method(name##__as_immediate_public_method const& val) = default; \
+  constexpr inline name##__as_immediate_public_method(name##__as_immediate_public_method && val) = default; \
+  \
+  /* Forward to base class if it's not a copy or move constructor */ \
+  template <typename T, \
+    typename = std::enable_if_t< \
+      not std::is_same<std::decay_t<T>, name##__as_immediate_public_method>::value \
+        and ::darma_runtime::oo::detail::is_chained_base_class<std::decay_t<T>>::value \
+    > \
+  > \
+  constexpr inline explicit \
+  name##__as_immediate_public_method(T&& val) \
+    : Base(std::forward<T>(val)) \
+  { } \
+  \
+  template <typename... Args> \
+  void name(Args&&... args) { \
+    using method_struct_t = decltype(  \
+        (_darma__get_associated_method_template_specialization( \
+           std::declval<OfClass&>(), \
+           std::declval< _darma__##name##_oo_tag_class & >()  \
+        )) \
+    ); \
+    method_struct_t(*static_cast<CastThisTo*>(this)).name(); \
   } \
 }; \
 template <typename ReturnType> \
@@ -238,10 +296,14 @@ struct name { \
   using as_public_field_in_chain = name##__as_public_field<T, Base>; \
   template <typename T> \
   using as_public_field = name##__as_public_field<T, darma_runtime::oo::detail::empty_base>; \
-  template <typename OfClass, typename Base> \
-  using as_public_method_in_chain = name##__as_public_method<OfClass, Base>; \
+  template <typename OfClass, typename Base, typename CastThisTo=OfClass> \
+  using as_public_method_in_chain = name##__as_public_method<OfClass, Base, CastThisTo>; \
+  template <typename OfClass, typename Base, typename CastThisTo=OfClass> \
+  using as_immediate_public_method_in_chain = name##__as_immediate_public_method<OfClass, Base, CastThisTo>; \
   template <typename OfClass> \
-  using as_public_method = name##__as_public_method<OfClass, darma_runtime::oo::detail::empty_base>; \
+  using as_public_method = name##__as_public_method<OfClass, darma_runtime::oo::detail::empty_base, OfClass>; \
+  template <typename OfClass> \
+  using as_immediate_public_method = name##__as_immediate_public_method<OfClass, darma_runtime::oo::detail::empty_base, OfClass>; \
   template <typename ReturnType> \
   using run_method_invoker = name##__run_method_invoker<ReturnType>; \
 }

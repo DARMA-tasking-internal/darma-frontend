@@ -67,6 +67,18 @@
 #include "matchers.h"
 
 
+class AbstractSequenceMarker {
+  public:
+    virtual void mark_sequence(std::string const& marker) const =0;
+};
+
+class MockSequenceMarker {
+  public:
+    MOCK_CONST_METHOD1(mark_sequence, void(std::string const&));
+};
+
+static ::testing::StrictMock<MockSequenceMarker>* sequence_marker = nullptr;
+
 class TestFrontend
   : public ::testing::Test
 {
@@ -105,6 +117,7 @@ class TestFrontend
       if(not mock_runtime_setup_done) {
         setup_mock_runtime();
       }
+      sequence_marker = new StrictMock<MockSequenceMarker>();
     }
 
     virtual void TearDown() {
@@ -113,6 +126,8 @@ class TestFrontend
         mock_runtime = nullptr;
         mock_runtime_setup_done = false;
       }
+
+      delete sequence_marker;
 
     }
 

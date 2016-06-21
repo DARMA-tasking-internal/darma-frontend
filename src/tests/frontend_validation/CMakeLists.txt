@@ -29,6 +29,45 @@ add_unit_test(test_simple_key)
 add_unit_test(test_create_condition)
 add_unit_test(test_oo)
 
+function(add_oo_tag_generate_step target tag)
+    set(DEST_FOLDER ${PROJECT_BINARY_DIR}/include)
+    add_custom_command(
+            OUTPUT ${DEST_FOLDER}/ootag_${tag}.generated.h
+            COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/../scripts/generate_oo_header.py
+            --tag ${tag} --folder ${DEST_FOLDER}
+            DEPENDS
+            ${PROJECT_SOURCE_DIR}/include/darma/impl/oo/macros.h
+            ${PROJECT_SOURCE_DIR}/../scripts/generate_oo_header.py
+        )
+    add_custom_target(${target}_ootag_${tag}_generated_header
+            DEPENDS
+              ${DEST_FOLDER}/ootag_${tag}.generated.h
+            )
+    add_dependencies(${target} ${target}_ootag_${tag}_generated_header)
+endfunction()
+
+function(add_oo_class_generate_step target tag)
+    set(DEST_FOLDER ${PROJECT_BINARY_DIR}/include)
+    add_custom_target(${DEST_FOLDER}/oocls_${tag}.generated.h
+        COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/../scripts/generate_oo_header.py
+            --cls ${tag} --folder ${DEST_FOLDER}
+    )
+endfunction()
+
+# generate macro expansions for
+find_package(PythonInterp)
+if (PYTHONINTERP_FOUND)
+    add_oo_tag_generate_step(test_oo larry)
+    add_oo_tag_generate_step(test_oo curly)
+    add_oo_tag_generate_step(test_oo moe)
+    add_oo_tag_generate_step(test_oo bart)
+    add_oo_tag_generate_step(test_oo lisa)
+    add_oo_tag_generate_step(test_oo marge)
+    add_oo_tag_generate_step(test_oo homer)
+else()
+    target_compile_definitions(test_oo PUBLIC DARMA_CANNOT_GENERATE_TAG_HEADERS)
+endif()
+
 add_executable(run_all_frontend_tests ${frontendtestfiles})
 target_link_libraries(run_all_frontend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
 if (DARMA_COVERAGE)

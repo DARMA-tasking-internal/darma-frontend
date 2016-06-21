@@ -48,6 +48,7 @@
 #include <tinympl/vector.hpp>
 #include <tinympl/find_all_if.hpp>
 
+#include <darma/impl/oo/oo_fwd.h>
 #include <darma/impl/oo/field.h>
 
 #include <darma/impl/handle.h> // is_access_handle
@@ -83,7 +84,9 @@ struct modifies_value_ {
 
 namespace detail {
 
-template <typename OfClass, typename... Args>
+template <typename Method> struct deferred_method_call;
+
+template <typename OfClass, typename DarmaMethodT, typename... Args>
 struct darma_method_helper {
 
   using of_class_t = OfClass;
@@ -192,8 +195,25 @@ struct darma_method_helper {
     _as_nonconst_ref, _field_tag_with_type
   >;
 
+  template <typename MethodWithTag>
+  using _method_with_this = tinympl::identity<
+    typename MethodWithTag::template chain_item_with_cast_to<DarmaMethodT>
+  >;
+  template <typename MethodWithTag>
+  using _immediate_method_with_this = tinympl::identity<
+    typename MethodWithTag::template immediate_chain_item_with_cast_to<DarmaMethodT>
+  >;
+
   using base_class = typename chain_base_classes<
     typename tinympl::join<
+      // least derived base class comes first.  We want immediate versions to be base
+      // classes of deferred versions
+      typename tinympl::transform<typename of_class_t::helper_t::public_method_tags,
+        _immediate_method_with_this
+      >::type,
+      typename tinympl::transform<typename of_class_t::helper_t::public_method_tags,
+        _method_with_this
+      >::type,
       _reads_base_classes, _modifies_base_classes,
       _reads_value_base_classes, _modifies_value_base_classes
     >::type
@@ -203,6 +223,7 @@ struct darma_method_helper {
     _reads_fields, _modifies_fields,
     _reads_value_fields, _modifies_value_fields
   >::type;
+
 
 };
 
@@ -214,7 +235,7 @@ template <typename OfClass,
   typename... Args
 >
 struct darma_method
-  : detail::darma_method_helper<OfClass, Args...>::base_class
+  : detail::darma_method_helper<OfClass, darma_method<OfClass, Args...>, Args...>::base_class
 {
   private:
 
@@ -222,10 +243,21 @@ struct darma_method
     using _method_t_matches = std::is_same<typename T::method_t::darma_method, darma_method>;
     template <typename T>
     using method_t_matches = darma_runtime::meta::is_detected<_method_t_matches, T>;
+    template <typename T>
+    using _of_class_t_matches = std::is_same<typename T::of_class_t, OfClass>;
+    template <typename T>
+    using of_class_t_matches = darma_runtime::meta::is_detected<_of_class_t_matches, T>;
+
+  protected:
+
+    // Aliases allowing deferred recursion
+    using deferred_recursive_call = darma_method;
+    using deferred_recursive = darma_method;
 
   public:
-    using helper_t = typename detail::darma_method_helper<OfClass, Args...>;
+    using helper_t = typename detail::darma_method_helper<OfClass, darma_method, Args...>;
     using base_t = typename helper_t::base_class;
+    using of_class_t = OfClass;
 
     // Explicitly default the copy, move, and default constructors
     constexpr inline darma_method() = default;
@@ -233,30 +265,40 @@ struct darma_method
     constexpr inline darma_method(darma_method&& val) = default;
 
     // Allow construction from the class that this is a method of
-//    template <typename OfClassDeduced,
-//      typename = std::enable_if_t<
-//        std::is_convertible<OfClassDeduced, OfClass>::value
-//      >
-//    >
-//    constexpr inline explicit
-//    darma_method(OfClassDeduced&& val)
-//      : base_t(std::forward<OfClassDeduced>(val))
-//    { }
-
-    // Allow construction from the class that this is a method of
-    template <typename DeferredCallDeduced,
+    template <typename OfClassOrMethodDeduced,
       typename = std::enable_if_t<
-        method_t_matches<std::decay_t<DeferredCallDeduced>>::value
+        std::is_convertible<OfClassOrMethodDeduced, OfClass>::value
+        or of_class_t_matches<std::decay_t<OfClassOrMethodDeduced>>::value
       >
     >
     constexpr inline explicit
-    darma_method(DeferredCallDeduced&& val)
-      : base_t(std::forward<DeferredCallDeduced>(val))
+    darma_method(OfClassOrMethodDeduced&& val)
+      : base_t(std::forward<OfClassOrMethodDeduced>(val))
     { }
+
+
+    // Allow construction from the class that this is a method of
+    //template <typename DeferredCallDeduced,
+    //  typename = std::enable_if_t<
+    //    method_t_matches<std::decay_t<DeferredCallDeduced>>::value
+    //  >
+    //>
+    //constexpr inline explicit
+    //darma_method(DeferredCallDeduced&& val)
+    //  : base_t(std::forward<DeferredCallDeduced>(val))
+    //{ }
 
 };
 
 namespace detail {
+
+template <typename T, typename OfClass>
+struct is_darma_method_of_class : std::false_type { };
+
+template <typename OfClass, typename... Args>
+struct is_darma_method_of_class<darma_method<OfClass, Args...>, OfClass>
+  : std::true_type
+{ };
 
 template <typename Method>
 struct deferred_method_call_helper {
@@ -306,6 +348,9 @@ struct deferred_method_call
   template <typename OfClassDeduced,
     typename = std::enable_if_t<
       std::is_convertible<OfClassDeduced, of_class_t>::value
+      or is_darma_method_of_class<
+        std::decay_t<OfClassDeduced>, of_class_t
+      >::value
     >
   >
   constexpr inline explicit
@@ -320,9 +365,9 @@ struct deferred_method_call
 
 };
 
-template <typename Method, typename OfClassT>
+template <typename Method, typename ClassOrCallingMethodT, typename... Args>
 inline void
-_create_deferred_method_call(OfClassT&& cls) {
+_create_deferred_method_call(ClassOrCallingMethodT&& cls, Args&&... args) {
   auto t = darma_runtime::detail::make_unique<darma_runtime::detail::TaskBase>();
   darma_runtime::detail::TaskBase* parent_task = static_cast<darma_runtime::detail::TaskBase* const>(
     darma_runtime::detail::backend_runtime->get_running_task()
@@ -330,9 +375,10 @@ _create_deferred_method_call(OfClassT&& cls) {
   parent_task->current_create_work_context = t.get();
   // This should trigger the captures to happen in the access handle copy constructors
   t->set_runnable(std::make_unique<darma_runtime::detail::MethodRunnable<
-    deferred_method_call<Method>
+    deferred_method_call<Method>, Args...
   >>(
-    std::forward<OfClassT>(cls)
+    std::forward<ClassOrCallingMethodT>(cls),
+    std::forward<Args>(args)...
   ));
   parent_task->current_create_work_context = nullptr;
 
