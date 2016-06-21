@@ -84,10 +84,9 @@ class TestOO
 
 namespace simple_oo_test {
 
-using namespace darma_runtime::oo;
 
-
-
+// Generate these with python for testing/debugging purposes
+#ifdef DARMA_CANNOT_GENERATE_TAG_HEADERS
 DARMA_OO_DEFINE_TAG(larry);
 DARMA_OO_DEFINE_TAG(curly);
 DARMA_OO_DEFINE_TAG(moe);
@@ -96,6 +95,17 @@ DARMA_OO_DEFINE_TAG(bart);
 DARMA_OO_DEFINE_TAG(lisa);
 DARMA_OO_DEFINE_TAG(marge);
 DARMA_OO_DEFINE_TAG(homer);
+#else
+#include "ootag_larry.generated.h"
+#include "ootag_curly.generated.h"
+#include "ootag_moe.generated.h"
+#include "ootag_bart.generated.h"
+#include "ootag_lisa.generated.h"
+#include "ootag_marge.generated.h"
+#include "ootag_homer.generated.h"
+#endif
+
+using namespace darma_runtime::oo;
 
 DARMA_OO_DECLARE_CLASS(Simple);
 
@@ -111,7 +121,8 @@ struct Simple
       public_methods<
         bart,
         lisa,
-        homer
+        homer,
+        marge
       >
     >
 { using darma_class::darma_class; };
@@ -119,12 +130,15 @@ struct Simple
 template <>
 struct Simple_method<bart>
   : darma_method<Simple,
-      reads_<larry>,
-      modifies_<curly>
+      //reads_<larry>,
+      //modifies_<curly>,
+      reads_value_<moe>
     >
 {
   using darma_method::darma_method;
-  void bart() { }
+  void bart() {
+    this->immediate::lisa();
+  }
 };
 
 template <>
@@ -148,10 +162,30 @@ struct Simple_method<homer>
   using darma_method::darma_method;
   void homer() {
     moe = 42;
+    // Signal the end of the homer() method
+    sequence_marker->mark_sequence("homer");
   }
 
 };
 
+template <>
+struct Simple_method<marge>
+  : darma_method<Simple,
+      modifies_<moe>
+    >
+{
+  using darma_method::darma_method;
+  void marge() {
+    if( moe.get_value() > 10 ) {
+      moe.get_reference() /= 2.0;
+      // recurse:
+      this->deferred_recursive_call::marge();
+    }
+    else {
+      moe.set_value(3.14);
+    }
+  }
+};
 
 
 } // end namespace simple_oo_test
@@ -225,14 +259,11 @@ TEST_F(TestOO, static_assertions) {
     >
   >();
 
-  static_assert_type_eq<
-    typename tinympl::at_t<0,
-      typename simple_oo_test::Simple_method<simple_oo_test::homer>
-        ::darma_method::helper_t
-        ::fields
-    >::value_type,
-    double&
-  >();
+  static_assert(
+    is_darma_method_of_class<darma_method<simple_oo_test::Simple,
+      modifies_value_<simple_oo_test::moe>
+    >, simple_oo_test::Simple>::value, ""
+  );
 
 }
 
@@ -295,10 +326,12 @@ TEST_F(TestOO, simple_homer_lisa) {
     simple_oo_test::Simple s;
     s.moe = initial_access<double>("moe", "s");
     s.homer();
-    s.lisa();
+    s.bart(); // makes an "immediate" call to s.lisa();
   }
 
   // Now expect the releases that have to happen after the tasks start running
+  EXPECT_CALL(*sequence_marker, mark_sequence("homer"))
+    .Times(1).InSequence(s_reg_captured);
 
   EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_2)),
     IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify)
@@ -321,3 +354,4 @@ TEST_F(TestOO, simple_homer_lisa) {
   ASSERT_EQ(data, 42);
 
 }
+
