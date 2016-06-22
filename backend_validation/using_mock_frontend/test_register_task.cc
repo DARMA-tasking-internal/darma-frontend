@@ -120,6 +120,7 @@ TEST_F(TestRegisterTask, initial_access_allocate) {
 
   backend_runtime->finalize();
 
+  // FIXME: never called register_task()
 }
 
 //////////////////////////////////////////////////////////////////////////////////
