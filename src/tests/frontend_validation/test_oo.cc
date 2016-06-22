@@ -139,8 +139,8 @@ struct Simple_method<bart>
     >
 {
   using darma_method::darma_method;
-  void operator()() {
-    this->immediate::lisa();
+  void operator()(int value) {
+    this->immediate::lisa(value);
   }
 };
 STATIC_ASSERT_SIZE_IS( Simple_method<bart>, sizeof(double const&) );
@@ -152,8 +152,8 @@ struct Simple_method<lisa>
     >
 {
   using darma_method::darma_method;
-  void operator()() {
-    std::cout << moe << " == " << 42;
+  void operator()(int value) {
+    std::cout << moe << " == " << value;
   }
 };
 STATIC_ASSERT_SIZE_IS( Simple_method<lisa>, sizeof(double const&) );
@@ -337,7 +337,7 @@ TEST_F(TestOO, simple_homer_lisa) {
     simple_oo_test::Simple s;
     s.moe = initial_access<double>("moe", "s");
     s.homer();
-    s.bart(); // makes an "immediate" call to s.lisa();
+    s.bart(42); // makes an "immediate" call to s.lisa();
   }
 
   // Now expect the releases that have to happen after the tasks start running
@@ -357,7 +357,6 @@ TEST_F(TestOO, simple_homer_lisa) {
   testing::internal::CaptureStdout();
 
   run_all_tasks();
-
   ASSERT_EQ(testing::internal::GetCapturedStdout(),
     "42 == 42"
   );
