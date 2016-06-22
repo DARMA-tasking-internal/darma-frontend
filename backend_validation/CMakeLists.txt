@@ -54,7 +54,8 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_THREADS_BACKEND=1")
 endif()
 set(backend_dir ${CMAKE_SOURCE_DIR}/src/reference_backends/${backend_name})
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${backend_dir}")
-set(DARMA_BACKEND_LIBNAME darma_${backend_name}_backend_with_mock_frontend)
+#set(DARMA_BACKEND_LIBNAME darma_${backend_name}_backend_with_mock_frontend)
+set(DARMA_BACKEND_LIBNAME darma_${backend_name}_backend)
 include_directories(${backend_dir})
 else() #built as standalone
 
@@ -98,12 +99,12 @@ set_tests_properties(${test_name} PROPERTIES TIMEOUT 20
   PASS_REGULAR_EXPRESSION "PASSED")
 endfunction()
 #
-add_unit_test(test_darma_backend_initialize)
+#add_unit_test(test_darma_backend_initialize)
 add_unit_test(test_register_task)
-add_unit_test(test_runtime_release_handle)
-add_unit_test(test_get_running_task)
-add_unit_test(test_fetchers)
-add_unit_test(test_death)
+#add_unit_test(test_runtime_release_handle)
+#add_unit_test(test_get_running_task)
+#add_unit_test(test_fetchers)
+#add_unit_test(test_death)
 
 add_executable(run_all_backend_tests ${backendtestfiles})
 target_link_libraries(run_all_backend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
