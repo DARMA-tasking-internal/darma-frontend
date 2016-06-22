@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      method_runnable.h
+//                      constructor.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,72 +42,36 @@
 //@HEADER
 */
 
-#ifndef DARMA_METHOD_RUNNABLE_H
-#define DARMA_METHOD_RUNNABLE_H
-
-#include <darma/impl/runnable.h>
-#include <darma/impl/oo/oo_fwd.h>
+#ifndef DARMA_CONSTRUCTOR_H
+#define DARMA_CONSTRUCTOR_H
 
 namespace darma_runtime {
+
 namespace oo {
+
 namespace detail {
 
-template <
-  typename CaptureStruct, typename... Args
->
-class MethodRunnable
-  : public darma_runtime::detail::FunctorLikeRunnableBase<
-      typename CaptureStruct::method_t, Args...
-    >
-{
-  private:
+template <typename OfClass, typename... Args>
+struct darma_constructor_helper {
 
-    using method_t = typename CaptureStruct::method_t;
-    using base_t = darma_runtime::detail::FunctorLikeRunnableBase<
-      typename CaptureStruct::method_t, Args...
-    >;
-
-
-    CaptureStruct captured_;
-
-  public:
-
-    // Allow construction from the class that this is a method of
-    template <typename OfClassDeduced,
-      typename = std::enable_if_t<
-        std::is_convertible<OfClassDeduced, typename CaptureStruct::of_class_t>::value
-          or is_darma_method_of_class<
-            std::decay_t<OfClassDeduced>,
-        typename CaptureStruct::of_class_t
-      >::value
-    >
-    >
-    constexpr inline explicit
-    MethodRunnable(OfClassDeduced&& val, Args&&... args)
-      : base_t(
-          darma_runtime::detail::variadic_constructor_arg,
-          std::forward<Args>(args)...
-        ),
-        captured_(std::forward<OfClassDeduced>(val))
-    { }
-
-    bool run() override {
-      meta::splat_tuple(
-        base_t::_get_args_to_splat(),
-        [&](auto&&... args) {
-          captured_.run(std::forward<decltype(args)>(args)...);
-        }
-      );
-      return true;
-    }
-
-    // TODO implement this
-    size_t get_index() const override { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }
+  using base_class = OfClass;
 };
 
 } // end namespace detail
+
+template <typename OfClass, typename... Args>
+struct darma_constructors
+  : detail::darma_constructor_helper<OfClass, Args...>::base_class
+{
+  // this type can never be constructed, only cast to
+  darma_constructors() = delete;
+  darma_constructors(darma_constructors const&) = delete;
+  darma_constructors(darma_constructors&&) = delete;
+  ~darma_constructors() = delete;
+};
+
 } // end namespace oo
 
 } // end namespace darma_runtime
 
-#endif //DARMA_METHOD_RUNNABLE_H
+#endif //DARMA_CONSTRUCTOR_H

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      method_runnable.h
+//                      oo.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,72 +42,45 @@
 //@HEADER
 */
 
-#ifndef DARMA_METHOD_RUNNABLE_H
-#define DARMA_METHOD_RUNNABLE_H
-
-#include <darma/impl/runnable.h>
-#include <darma/impl/oo/oo_fwd.h>
+#ifndef DARMA_OO_H
+#define DARMA_OO_H
 
 namespace darma_runtime {
 namespace oo {
-namespace detail {
 
-template <
-  typename CaptureStruct, typename... Args
->
-class MethodRunnable
-  : public darma_runtime::detail::FunctorLikeRunnableBase<
-      typename CaptureStruct::method_t, Args...
-    >
-{
-  private:
+template <typename ClassName, typename... Args>
+struct darma_class;
 
-    using method_t = typename CaptureStruct::method_t;
-    using base_t = darma_runtime::detail::FunctorLikeRunnableBase<
-      typename CaptureStruct::method_t, Args...
-    >;
+template <typename OfClass, typename... Args>
+struct darma_method;
 
+template <typename... Args>
+struct public_methods;
 
-    CaptureStruct captured_;
+template <typename... Args>
+struct private_fields;
 
-  public:
+template <typename... Args>
+struct public_fields;
 
-    // Allow construction from the class that this is a method of
-    template <typename OfClassDeduced,
-      typename = std::enable_if_t<
-        std::is_convertible<OfClassDeduced, typename CaptureStruct::of_class_t>::value
-          or is_darma_method_of_class<
-            std::decay_t<OfClassDeduced>,
-        typename CaptureStruct::of_class_t
-      >::value
-    >
-    >
-    constexpr inline explicit
-    MethodRunnable(OfClassDeduced&& val, Args&&... args)
-      : base_t(
-          darma_runtime::detail::variadic_constructor_arg,
-          std::forward<Args>(args)...
-        ),
-        captured_(std::forward<OfClassDeduced>(val))
-    { }
+template <typename Tag, typename... Args>
+struct reads_;
 
-    bool run() override {
-      meta::splat_tuple(
-        base_t::_get_args_to_splat(),
-        [&](auto&&... args) {
-          captured_.run(std::forward<decltype(args)>(args)...);
-        }
-      );
-      return true;
-    }
+template <typename Tag, typename... Args>
+struct reads_value_;
 
-    // TODO implement this
-    size_t get_index() const override { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }
-};
+template <typename Tag, typename... Args>
+struct modifies_;
 
-} // end namespace detail
+template <typename Tag, typename... Args>
+struct modifies_value_;
+
 } // end namespace oo
-
 } // end namespace darma_runtime
 
-#endif //DARMA_METHOD_RUNNABLE_H
+#include <darma/impl/oo/class.h>
+#include <darma/impl/oo/method.h>
+#include <darma/impl/oo/field.h>
+#include <darma/impl/oo/macros.h>
+
+#endif //DARMA_OO_H

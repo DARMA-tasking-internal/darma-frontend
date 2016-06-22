@@ -559,4 +559,16 @@ class TestFrontend
 //#define ASSERT_VERSION_EQ_EXACT(h, ...) ASSERT_PRED_FORMAT2(AssertHandleVersionIs<true>, h, TestFrontend::version_t(__VA_ARGS__))
 
 
+namespace std {
+
+using use_t = darma_runtime::abstract::frontend::Use;
+
+inline std::ostream&
+operator<<(std::ostream& o, use_t const* const u) {
+  o << "<Use ptr for handle with key " << u->get_handle()->get_key() << ">";
+  return o;
+}
+
+} // end namespace std
+
 #endif /* SRC_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_H_ */

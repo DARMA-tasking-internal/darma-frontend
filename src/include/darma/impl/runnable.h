@@ -186,7 +186,7 @@ class FunctorLikeRunnableBase
 
     static_assert(
       sizeof...(Args) <= n_functor_args_max && sizeof...(Args) >= n_functor_args_min,
-      "Functor task created with wrong number of arguments"
+      "Functor or Method task created with wrong number of arguments"
     );
 
   protected:
