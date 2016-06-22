@@ -8,23 +8,14 @@ set (DarmaBackendValidation_VERSION_MINOR 2)
 enable_testing()
 
 set (validation_HEADERS
-frontend_types.h
 helpers.h
-main.h
-mock_frontend.h
 test_backend.h)
 
 install (FILES ${validation_HEADERS} DESTINATION
-  include/darma/backend_validation/using_mock_frontend)
+  include/darma/backend_validation/using_real_frontend)
 
-# Let the compiler know that we have a custom frontend_types.h that replaces defines MockTask
-# as concrete_task_t
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_HAS_FRONTEND_TYPES_H=1")
-
-set(DARMA_BACKEND_LIBNAME ${DARMA_BACKEND_LIBNAME}_with_mock_frontend)
-
-include_directories( ${VALIDATION_SRC_ROOT}/using_mock_frontend )
-include_directories( ${VALIDATION_BIN_ROOT}/using_mock_frontend )
+include_directories( ${VALIDATION_SRC_ROOT}/using_real_frontend )
+include_directories( ${VALIDATION_BIN_ROOT}/using_real_frontend )
 
 set(backendtestfiles main.cc )
 function(add_unit_test test_name)
@@ -37,7 +28,9 @@ set_tests_properties(${test_name} PROPERTIES TIMEOUT 20
   PASS_REGULAR_EXPRESSION "PASSED")
 endfunction()
 #
-add_unit_test(test_register_task)
+add_unit_test(test_init_be)
+add_unit_test(test_create_work_be)
+add_unit_test(test_publish_be)
 
-add_executable(run_all_isolated_backend_tests ${backendtestfiles})
-target_link_libraries(run_all_isolated_backend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
+add_executable(run_all_coupled_backend_tests ${backendtestfiles})
+target_link_libraries(run_all_coupled_backend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
