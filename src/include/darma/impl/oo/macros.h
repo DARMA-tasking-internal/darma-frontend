@@ -311,13 +311,15 @@ struct name { \
 #define DARMA_OO_DECLARE_CLASS(name) \
   struct name; \
   template <typename Tag> struct name##_method; \
+  struct name##_constructors; \
   /* A function to use with ADL to associate the name##_method template with name */ \
   /* Note that this method should always have no definition and should never be called */ \
   /* in an evaluated context. */ \
   template <typename Tag> \
   name##_method<std::remove_reference_t<Tag>> _darma__get_associated_method_template_specialization(name&, Tag&); \
   template <typename Tag> \
-  Tag _darma__get_associated_method_template_tag(name##_method<Tag>&);
+  Tag _darma__get_associated_method_template_tag(name##_method<Tag>&); \
+  name##_constructors& _darma__get_associated_constructor(name&);
 
 //template <typename T, typename Base>
 //struct name##__as_private_method : Base {
