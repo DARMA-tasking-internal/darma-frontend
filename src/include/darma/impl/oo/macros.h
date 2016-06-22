@@ -242,9 +242,8 @@ struct name##__as_public_method : Base { \
            std::declval< _darma__##name##_oo_tag_class & >()  \
         )) \
     ); \
-    /* TODO forward arguments as well */ \
     darma_runtime::oo::detail::_create_deferred_method_call<method_struct_t>( \
-      *static_cast<CastThisTo*>(this) \
+      *static_cast<CastThisTo*>(this), std::forward<Args>(args)... \
     ); \
   } \
 }; \

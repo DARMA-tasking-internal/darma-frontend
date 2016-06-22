@@ -360,10 +360,11 @@ struct deferred_method_call
     : base_t(std::forward<OfClassDeduced>(val))
   { }
 
-  void run() {
+  template <typename... Args>
+  void run(Args&&... args) {
     //using invoker = typename tag_t::template run_method_invoker<void>;
     //invoker::run(Method(std::move(*this)));
-    Method(std::move(*this))();
+    Method(std::move(*this))(std::forward<Args>(args)...);
   }
 
 };
