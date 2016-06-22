@@ -53,6 +53,8 @@
 
 #include <darma/impl/handle.h> // is_access_handle
 
+#include <darma/impl/oo/method_runnable.h>
+
 namespace darma_runtime {
 
 
@@ -214,6 +216,7 @@ struct darma_method_helper {
       typename tinympl::transform<typename of_class_t::helper_t::public_method_tags,
         _method_with_this
       >::type,
+      // Now include in the chain all of the classes with actual data members
       _reads_base_classes, _modifies_base_classes,
       _reads_value_base_classes, _modifies_value_base_classes
     >::type
@@ -374,7 +377,7 @@ _create_deferred_method_call(ClassOrCallingMethodT&& cls, Args&&... args) {
   );
   parent_task->current_create_work_context = t.get();
   // This should trigger the captures to happen in the access handle copy constructors
-  t->set_runnable(std::make_unique<darma_runtime::detail::MethodRunnable<
+  t->set_runnable(std::make_unique<MethodRunnable<
     deferred_method_call<Method>, Args...
   >>(
     std::forward<ClassOrCallingMethodT>(cls),

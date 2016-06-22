@@ -73,7 +73,7 @@ namespace _callable_traits_impl {
 // <editor-fold desc="is_callable_with_args">
 
 template <typename F, typename... Args>
-using callable_with_args_archetype = decltype( std::declval<F>()( std::declval<Args>()... ) );
+using callable_with_args_archetype = decltype( std::declval<std::add_lvalue_reference_t<F>>()( std::declval<Args>()... ) );
 template <typename F, typename... Args>
 using is_callable_with_args = is_detected<callable_with_args_archetype, F, Args...>;
 

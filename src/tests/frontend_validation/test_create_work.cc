@@ -389,7 +389,7 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
 
 
   EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::Read)
+    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::None)
   )).Times(1).InSequence(s0).WillOnce(SaveArg<0>(&use_con_2));
 
   EXPECT_CALL(*mock_runtime, release_use(
@@ -400,7 +400,7 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
     .Times(1).InSequence(s0).WillOnce(SaveArg<0>(&inner));
 
   EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::Read)
+    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::None)
   )).Times(1).InSequence(s0);
 
   EXPECT_CALL(*mock_runtime, release_use(
