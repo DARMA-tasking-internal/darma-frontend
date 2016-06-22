@@ -76,9 +76,9 @@ TEST_F(TestInitBE, rank_size){
   size_t rank = darma_spmd_rank();
   size_t size = darma_spmd_size();
 
-  ASSERT_TRUE(size > 0);
-  ASSERT_TRUE(rank >= 0);
-  ASSERT_TRUE(rank < size);
+  EXPECT_TRUE(size > 0);
+  EXPECT_TRUE(rank >= 0);
+  EXPECT_TRUE(rank < size);
 
   darma_finalize();
 }

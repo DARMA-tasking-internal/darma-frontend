@@ -87,7 +87,7 @@ TEST_F(TestCreateWorkBE, no_access){
   ASSERT_EQ(check->load(), 1);
 }
 
-// test task with write permissions
+// test task with write permissions (mod capture when MN)
 TEST_F(TestCreateWorkBE, initial_access_alloc){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -97,7 +97,7 @@ TEST_F(TestCreateWorkBE, initial_access_alloc){
     create_work([=]{
       (*check)++;
       // make sure the backend allocated data space
-      ASSERT_FALSE(&(h.get_reference()) == nullptr);
+      EXPECT_FALSE(&(h.get_reference()) == nullptr);
     });
     darma_finalize();
   }
@@ -107,7 +107,7 @@ TEST_F(TestCreateWorkBE, initial_access_alloc){
   ASSERT_EQ(check->load(), 1);
 }
 
-// test task with read permissions
+// test task with read permissions (ro capture when MN)
 TEST_F(TestCreateWorkBE, readonly){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -115,15 +115,15 @@ TEST_F(TestCreateWorkBE, readonly){
     auto h = initial_access<mydata>("dummy");
     create_work([=]{
       // make sure this task runs first
-      ASSERT_EQ((*check)++, 0);
+      EXPECT_EQ((*check)++, 0);
       h.set_value(7);
     });
     // task that reads data
     create_work(reads(h),[=]{
       // make sure this task runs second
-      ASSERT_EQ((*check)++, 1);
+      EXPECT_EQ((*check)++, 1);
       // make sure we see the correct initial value
-      ASSERT_EQ(h.get_value(), 7);
+      EXPECT_EQ(h.get_value(), 7);
     });
     darma_finalize();
   }
@@ -133,7 +133,7 @@ TEST_F(TestCreateWorkBE, readonly){
   ASSERT_EQ(check->load(), 2);
 }
 
-// test task with read-write permissions
+// test task with read-write permissions (mod capture when MN)
 TEST_F(TestCreateWorkBE, modify){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -141,23 +141,23 @@ TEST_F(TestCreateWorkBE, modify){
     auto h = initial_access<mydata>("dummy");
     create_work([=]{
       // make sure this task runs first
-      ASSERT_EQ((*check)++, 0);
+      EXPECT_EQ((*check)++, 0);
       h.set_value(7);
     });
     // task that modifies value
     create_work([=]{
       // make sure this task runs second
-      ASSERT_EQ((*check)++, 1);
+      EXPECT_EQ((*check)++, 1);
       // make sure we see the correct initial value
-      ASSERT_EQ(h.get_value(), 7);
+      EXPECT_EQ(h.get_value(), 7);
       // but then modify it
       h.set_value(21);
     });
     create_work(reads(h),[=]{
       // make sure this task runs third
-      ASSERT_EQ((*check)++, 2);
+      EXPECT_EQ((*check)++, 2);
       // make sure we see the modified value
-      ASSERT_EQ(h.get_value(), 21);
+      EXPECT_EQ(h.get_value(), 21);
     });
     darma_finalize();
   }
@@ -167,7 +167,7 @@ TEST_F(TestCreateWorkBE, modify){
   ASSERT_EQ(check->load(), 3);
 }
 
-// test nested task with read-write permissions
+// test nested task with read-write permissions (mod capture when MM)
 TEST_F(TestCreateWorkBE, modify_forwarded){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -175,31 +175,66 @@ TEST_F(TestCreateWorkBE, modify_forwarded){
     auto h = initial_access<mydata>("dummy");
     create_work([=]{
       // make sure this task runs first
-      ASSERT_EQ((*check)++, 0);
+      EXPECT_EQ((*check)++, 0);
       h.set_value(7);
     });
     create_work([=]{
       // make sure this task runs second
-      ASSERT_EQ((*check)++, 1);
+      EXPECT_EQ((*check)++, 1);
       // make sure we see the correct initial value
-      ASSERT_EQ(h.get_value(), 7);
+      EXPECT_EQ(h.get_value(), 7);
       // but then modify it
       h.set_value(21);
       // task that receives forwarded modifications
       create_work([=]{
         // make sure this task runs third
-        ASSERT_EQ((*check)++, 2);
+        EXPECT_EQ((*check)++, 2);
         // make sure we see the forwarded value
-        ASSERT_EQ(h.get_value(), 21);
+        EXPECT_EQ(h.get_value(), 21);
         // but then modify it
         h.set_value(4);
       });
     });
     create_work(reads(h),[=]{
       // make sure this task runs fourth
-      ASSERT_EQ((*check)++, 3);
+      EXPECT_EQ((*check)++, 3);
       // make sure we see the twice-modified value
-      ASSERT_EQ(h.get_value(), 4);
+      EXPECT_EQ(h.get_value(), 4);
+    });
+    darma_finalize();
+  }
+  // make sure tasks not still queued
+  ASSERT_TRUE(check.unique());
+  // make sure tasks actually ran
+  ASSERT_EQ(check->load(), 4);
+}
+
+// test write-after-read
+TEST_F(TestCreateWorkBE, modify_after_read){
+  std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
+  {
+    darma_init(argc_, argv_);
+    auto h = initial_access<mydata>("dummy");
+    create_work([=]{
+      // make sure this task runs first
+      EXPECT_EQ((*check)++, 0);
+      h.set_value(7);
+    });
+    create_work(reads(h),[=]{
+      // make sure this task runs second
+      EXPECT_EQ((*check)++, 1);
+      // make sure we see the original value
+      EXPECT_EQ(h.get_value(), 7);
+      // make sure the next task still hasn't started
+      EXPECT_EQ((*check)++, 2);
+    });
+    create_work([=]{
+      // make sure this task runs last
+      EXPECT_EQ((*check)++, 3);
+      // make sure we see the original value
+      EXPECT_EQ(h.get_value(), 7);
+      // but then modify it
+      h.set_value(21);
     });
     darma_finalize();
   }

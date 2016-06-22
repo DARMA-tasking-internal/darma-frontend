@@ -80,7 +80,7 @@ TEST_F(TestPublishBE, publish_in_cw){
     auto h = initial_access<mydata>("dummy");
     create_work([=]{
       // make sure this task runs first
-      ASSERT_EQ((*check)++, 0);
+      EXPECT_EQ((*check)++, 0);
       h.set_value(7);
       h.publish(version="a");
     });
@@ -88,9 +88,9 @@ TEST_F(TestPublishBE, publish_in_cw){
       auto h2 = read_access<mydata>("dummy", version="a");
       create_work([=]{
         // make sure this task runs second
-        ASSERT_EQ((*check)++, 1);
+        EXPECT_EQ((*check)++, 1);
         // make sure we fetched the right value
-        ASSERT_EQ(h2.get_value(), 7);
+        EXPECT_EQ(h2.get_value(), 7);
       });
     }
     darma_finalize();
@@ -109,7 +109,7 @@ TEST_F(TestPublishBE, publish_after_cw){
     auto h = initial_access<mydata>("dummy");
     create_work([=]{
       // make sure this task runs first
-      ASSERT_EQ((*check)++, 0);
+      EXPECT_EQ((*check)++, 0);
       h.set_value(7);
     });
     h.publish(version="a");
@@ -117,9 +117,9 @@ TEST_F(TestPublishBE, publish_after_cw){
       auto h2 = read_access<mydata>("dummy", version="a");
       create_work([=]{
         // make sure this task runs second
-        ASSERT_EQ((*check)++, 1);
+        EXPECT_EQ((*check)++, 1);
         // make sure we fetched the right value
-        ASSERT_EQ(h2.get_value(), 7);
+        EXPECT_EQ(h2.get_value(), 7);
       });
     }
     darma_finalize();
@@ -139,7 +139,7 @@ TEST_F(TestPublishBE, read_access_after_scope){
       auto h = initial_access<mydata>("dummy");
       create_work([=]{
         // make sure this task runs first
-        ASSERT_EQ((*check)++, 0);
+        EXPECT_EQ((*check)++, 0);
         h.set_value(7);
       });
       h.publish(version="a");
@@ -148,9 +148,9 @@ TEST_F(TestPublishBE, read_access_after_scope){
       auto h2 = read_access<mydata>("dummy", version="a");
       create_work([=]{
         // make sure this task runs second
-        ASSERT_EQ((*check)++, 1);
+        EXPECT_EQ((*check)++, 1);
         // make sure we fetched the right value
-        ASSERT_EQ(h2.get_value(), 7);
+        EXPECT_EQ(h2.get_value(), 7);
       });
     }
     darma_finalize();
@@ -159,6 +159,78 @@ TEST_F(TestPublishBE, read_access_after_scope){
   ASSERT_TRUE(check.unique());
   // make sure task actually ran
   ASSERT_EQ(check->load(), 2);
+}
+
+// make sure that modify waits until after the publish finishes
+TEST_F(TestPublishBE, modify_after_publish_nice){
+  std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
+  {
+    darma_init(argc_, argv_);
+    auto h = initial_access<mydata>("dummy");
+    create_work([=]{
+      // make sure this task runs first
+      EXPECT_EQ((*check)++, 0);
+      h.set_value(7);
+    });
+    h.publish(version="a");
+    {
+      auto h2 = read_access<mydata>("dummy", version="a");
+      create_work([=]{
+        // make sure this task runs second
+        EXPECT_EQ((*check)++, 1);
+        // make sure we fetched the original value
+        EXPECT_EQ(h2.get_value(), 7);
+        // make sure the modify task hasn't started yet
+        EXPECT_EQ((*check)++, 2);
+      });
+    }
+    create_work([=]{
+      // make sure this task runs last
+      EXPECT_EQ((*check)++, 3);
+      h.set_value(11);
+    });
+    darma_finalize();
+  }
+  // make sure task not still queued
+  ASSERT_TRUE(check.unique());
+  // make sure task actually ran
+  ASSERT_EQ(check->load(), 4);
+}
+
+// make sure that modify waits until after the publish finishes
+TEST_F(TestPublishBE, modify_after_publish_nasty){
+  std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
+  {
+    darma_init(argc_, argv_);
+    auto h = initial_access<mydata>("dummy");
+    create_work([=]{
+      // make sure this task runs first
+      EXPECT_EQ((*check)++, 0);
+      h.set_value(7);
+    });
+    h.publish(version="a");
+    create_work([=]{
+      // make sure this task runs last
+      EXPECT_EQ((*check)++, 3);
+      h.set_value(11);
+    });
+    {
+      auto h2 = read_access<mydata>("dummy", version="a");
+      create_work([=]{
+        // make sure this task runs second
+        EXPECT_EQ((*check)++, 1);
+        // make sure we fetched the original value
+        EXPECT_EQ(h2.get_value(), 7);
+        // make sure the modify task hasn't started yet
+        EXPECT_EQ((*check)++, 2);
+      });
+    }
+    darma_finalize();
+  }
+  // make sure task not still queued
+  ASSERT_TRUE(check.unique());
+  // make sure task actually ran
+  ASSERT_EQ(check->load(), 4);
 }
 
 //////////////////////////////////////////////////////////////////////////////////
