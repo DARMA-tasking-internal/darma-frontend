@@ -78,13 +78,9 @@ class TestCreateWork
 
 ////////////////////////////////////////////////////////////////////////////////
 
-typedef enum HelperUse {
-  No, Yes, YesWithArrays
-} helper_use_t;
-
 struct TestModCaptureMN
   : TestCreateWork,
-    ::testing::WithParamInterface<bool>
+    ::testing::WithParamInterface<std::tuple<bool, bool, bool>>
 { };
 
 TEST_P(TestModCaptureMN, mod_capture_MN) {
@@ -95,27 +91,57 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
 
   mock_runtime->save_tasks = true;
 
+  const bool use_helper = std::get<0>(GetParam());
+  const bool helper_does_release = std::get<1>(GetParam());
+  const bool use_arrays = std::get<2>(GetParam());
+
   MockFlow fl_in_1, fl_out_1;
   use_t* use_1, *use_2, *use_3;
-
-  Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
-  auto ex_1 = expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("hello"),
-    s_reg_initial, s_release_initial);
-
 
   MockFlow fl_in_2, fl_out_2;
   MockFlow fl_in_3, fl_out_3;
 
-  const bool use_helper = GetParam();
+  MockFlow fl_init[2], fl_capt[2], fl_cont[2];
+  use_t* uses[3];
+
+
+  Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
+
+  if(not use_arrays) {
+    expect_initial_access(
+      fl_in_1, fl_out_1, use_1, make_key("hello"),
+      s_reg_initial, s_release_initial
+    );
+  }
+  else {
+    expect_initial_access(
+      fl_init[0], fl_init[1], uses[0], make_key("hello"),
+      s_reg_initial, s_release_initial
+    );
+  }
 
   if(use_helper) {
 
-    expect_mod_capture_MN_or_MR(
-      fl_in_1, fl_out_1, use_1,
-      fl_in_2, fl_out_2, use_2,
-      fl_in_3, fl_out_3, use_3,
-      s_reg_captured, s_reg_continuing
-    );
+    if(not use_arrays) {
+
+      expect_mod_capture_MN_or_MR(
+        fl_in_1, fl_out_1, use_1,
+        fl_in_2, fl_out_2, use_2,
+        fl_in_3, fl_out_3, use_3,
+        s_reg_captured, s_reg_continuing,
+        helper_does_release
+      );
+
+    }
+    else {
+
+      expect_mod_capture_MN_or_MR(
+        fl_init, fl_capt, fl_cont, uses,
+        s_reg_captured, s_reg_continuing,
+        helper_does_release
+      );
+
+    }
 
   }
   else {
@@ -152,17 +178,35 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
 
   }
 
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_2))))
-    .Times(1).InSequence(s_reg_captured, s_release_initial);
+  if(not (use_helper and helper_does_release)) {
 
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_2)),
-    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify)
-  ))).Times(1).InSequence(s_reg_captured, s_release_initial)
-    .WillOnce(Assign(&use_2, nullptr));
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_3)),
-    IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None)
-  ))).Times(1).InSequence(s_reg_continuing)
-    .WillOnce(Assign(&use_3, nullptr));
+    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(
+      UseInGetDependencies(ByRef(use_arrays ? uses[1] : use_2))
+    )).Times(1).InSequence(s_reg_captured, s_release_initial);
+
+    EXPECT_CALL(*mock_runtime, release_use(
+      AllOf(
+        Eq(ByRef(use_arrays ? uses[1] : use_2)),
+        IsUseWithFlows(
+          use_arrays ? &fl_capt[0] : &fl_in_2,
+          use_arrays ? &fl_capt[1] : &fl_out_2,
+          use_t::Modify, use_t::Modify
+        )
+      )
+    )).Times(1).InSequence(s_reg_captured, s_release_initial)
+      .WillOnce(Assign(use_arrays ? &uses[1] : &use_2, nullptr));
+    EXPECT_CALL(*mock_runtime, release_use(
+      AllOf(
+        Eq(ByRef(use_arrays ? uses[2] : use_3)),
+        IsUseWithFlows(
+          use_arrays ? &fl_cont[0] : &fl_in_3,
+          use_arrays ? &fl_cont[1] : &fl_out_3,
+          use_t::Modify, use_t::None
+        )
+      )
+    )).Times(1).InSequence(s_reg_continuing)
+      .WillOnce(Assign(use_arrays ? &uses[2] : &use_3, nullptr));
+  }
 
   {
     auto tmp = initial_access<int>("hello");
@@ -182,7 +226,13 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
 INSTANTIATE_TEST_CASE_P(
   WithAndWithoutHelper,
   TestModCaptureMN,
-  ::testing::Bool()
+  ::testing::Values(
+    std::make_tuple(false, false, false), // no helpers
+    std::make_tuple(true, false, false), // helper but no task or release in helper
+    std::make_tuple(true, false, true), // helper but no task or release in helper, with arrays
+    std::make_tuple(true, true, false), // helper, with task and release in helper
+    std::make_tuple(true, true, true) // helper, with task and release in helper, with arrays
+  )
 );
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -389,7 +439,7 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
 
 
   EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::Read)
+    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::None)
   )).Times(1).InSequence(s0).WillOnce(SaveArg<0>(&use_con_2));
 
   EXPECT_CALL(*mock_runtime, release_use(
@@ -400,7 +450,7 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
     .Times(1).InSequence(s0).WillOnce(SaveArg<0>(&inner));
 
   EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::Read)
+    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::None)
   )).Times(1).InSequence(s0);
 
   EXPECT_CALL(*mock_runtime, release_use(

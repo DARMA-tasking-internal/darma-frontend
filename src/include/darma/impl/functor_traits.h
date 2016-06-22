@@ -164,7 +164,7 @@ struct functor_traits {
 
 };
 
-// TODO strictness specifiers
+// TODO user supplied strictness specifier typedefs
 template <
   typename Functor,
   typename... CallArgs
@@ -315,14 +315,14 @@ struct functor_call_traits {
           is_access_handle or
             (formal_traits::is_by_value or not std::is_lvalue_reference<CallArg>::value),
           "implicit copy of lvalue not allowed.  Either use darma_copy(), wrap the variable in"
-            " an AccessHandle<T>, or change the functor to take the argument by value"
+            " an AccessHandle<T>, or change the functor-style task to take the argument by value"
         );
 
         // disallow the T&& => T& case
         static_assert(
           is_access_handle or
             not (is_nonhandle_rvalue_reference and formal_traits::is_nonconst_lvalue_reference),
-          "cannot bind rvalue to non-const lvalue reference in functor invocation"
+          "cannot bind rvalue to non-const lvalue reference in functor-style task invocation"
         );
 
         // disallow {T&, T const&, T&&} => {AccessHandle<T>, AccessHandle<U>} cases, at least for now
@@ -330,14 +330,14 @@ struct functor_call_traits {
           is_access_handle or not formal_traits::is_access_handle,
           "implicit conversion of non-AccessHandle<T> argument to AccessHandle<T> is not yet supported."
             "  You must create an AccessHandle<T> and set its value to the argument before invoking this"
-            " functor."
+            " functor-style task."
         );
 
         // TODO disallow unconvertible with helpful error?
 
         static_assert(
           not (is_nonconst_conversion_capture and is_const_conversion_capture),
-          "internal error deducing type conversion for functor call"
+          "internal error deducing type conversion for functor-style task call"
         );
 
         using args_tuple_entry = tinympl::select_first_t<
