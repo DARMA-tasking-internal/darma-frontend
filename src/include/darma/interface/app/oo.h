@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                      oo.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,16 +42,45 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef DARMA_OO_H
+#define DARMA_OO_H
 
-#include <darma/impl/darma.h>
+namespace darma_runtime {
+namespace oo {
 
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/interface/app/create_condition.h>
-#include <darma/interface/app/access_handle.h>
-#include <darma/interface/app/oo.h>
+template <typename ClassName, typename... Args>
+struct darma_class;
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+template <typename OfClass, typename... Args>
+struct darma_method;
+
+template <typename... Args>
+struct public_methods;
+
+template <typename... Args>
+struct private_fields;
+
+template <typename... Args>
+struct public_fields;
+
+template <typename Tag, typename... Args>
+struct reads_;
+
+template <typename Tag, typename... Args>
+struct reads_value_;
+
+template <typename Tag, typename... Args>
+struct modifies_;
+
+template <typename Tag, typename... Args>
+struct modifies_value_;
+
+} // end namespace oo
+} // end namespace darma_runtime
+
+#include <darma/impl/oo/class.h>
+#include <darma/impl/oo/method.h>
+#include <darma/impl/oo/field.h>
+#include <darma/impl/oo/macros.h>
+
+#endif //DARMA_OO_H

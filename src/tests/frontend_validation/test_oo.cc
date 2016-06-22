@@ -52,9 +52,7 @@
 #include <darma/interface/app/create_work.h>
 #include <darma/interface/app/initial_access.h>
 
-#include <darma/impl/oo/class.h>
-#include <darma/impl/oo/method.h>
-#include <darma/impl/oo/macros.h>
+#include <darma/interface/app/oo.h>
 
 using namespace darma_runtime;
 
@@ -126,6 +124,7 @@ struct Simple
       >
     >
 { using darma_class::darma_class; };
+
 STATIC_ASSERT_SIZE_IS(Simple,
   sizeof(darma_runtime::AccessHandle<int>)
     + sizeof(darma_runtime::AccessHandle<std::string>)
@@ -152,7 +151,7 @@ struct Simple_method<lisa>
     >
 {
   using darma_method::darma_method;
-  void operator()(int value) {
+  void operator()(int& value) {
     std::cout << moe << " == " << value;
   }
 };
@@ -334,7 +333,7 @@ TEST_F(TestOO, simple_homer_lisa) {
 
 
   {
-    simple_oo_test::Simple s;
+    simple_oo_test::Simple s; //(make_key("larry", "key", 1, 2, 3));
     s.moe = initial_access<double>("moe", "s");
     s.homer();
     s.bart(42); // makes an "immediate" call to s.lisa();

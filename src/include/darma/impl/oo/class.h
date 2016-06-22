@@ -221,16 +221,11 @@ struct darma_class
 {
   private:
 
-
-
   public:
 
     using helper_t = detail::darma_class_helper<ClassName, Args...>;
 
     darma_class() = default;
-
-
-
 
 };
 
