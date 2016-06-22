@@ -72,7 +72,7 @@ namespace frontend {
  *    + release -- when Task.run() returns, the task is ready to be released.  The backend may do this by deleting
  *      or resetting the unique_ptr passed to it during registration, which will in turn trigger the ~Task() virtual
  *      method invocation.  At this point (in the task destructor), the frontend is responsible for calling
- *      release_handle_access() on any Use instances requested by the task and not explicitly released in the
+ *      release_use() on any Use instances requested by the task and not explicitly released in the
  *      task body by the user.
  *
  */
