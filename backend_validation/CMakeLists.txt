@@ -7,16 +7,6 @@ set (DarmaBackendValidation_VERSION_MINOR 2)
 
 enable_testing()
 
-set (validation_HEADERS
-frontend_types.h
-mock_frontend.h)
-
-install (FILES ${validation_HEADERS} DESTINATION include/darma/backend_validation)
-
-# Let the compiler know that we have a custom frontend_types.h that replaces defines MockTask
-# as concrete_task_t
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_HAS_FRONTEND_TYPES_H=1")
-
 # Compiler-specific C++11 activation.
 set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} -std=c++1y")
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
@@ -54,7 +44,6 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_THREADS_BACKEND=1")
 endif()
 set(backend_dir ${CMAKE_SOURCE_DIR}/src/reference_backends/${backend_name})
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${backend_dir}")
-#set(DARMA_BACKEND_LIBNAME darma_${backend_name}_backend_with_mock_frontend)
 set(DARMA_BACKEND_LIBNAME darma_${backend_name}_backend)
 include_directories(${backend_dir})
 else() #built as standalone
@@ -84,22 +73,7 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${GTEST_DIR}/lib")
 include_directories( ${DARMA_FRONTEND_DIR}/include )
 include_directories( ${DARMA_FRONTEND_DIR}/include/tinympl )
 include_directories( ${DARMA_FRONTEND_DIR}/include/darma )
-include_directories( ${VALIDATION_SRC_ROOT} )
-include_directories( ${VALIDATION_BIN_ROOT} )
 include_directories( ${GTEST_DIR}/include )
 
-set(backendtestfiles main.cc )
-function(add_unit_test test_name)
-set(backendtestfiles "${backendtestfiles};${test_name}.cc" PARENT_SCOPE)
-add_executable(${test_name} ${test_name}.cc main.cc)
-target_link_libraries(${test_name} ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
-add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name} "--gtest_repeat=3")
-set_tests_properties(${test_name} PROPERTIES TIMEOUT 20
-  FAIL_REGULAR_EXPRESSION "FAILED;should be deleted but never is;WARNING"
-  PASS_REGULAR_EXPRESSION "PASSED")
-endfunction()
-#
-add_unit_test(test_register_task)
+add_subdirectory(using_mock_frontend)
 
-add_executable(run_all_backend_tests ${backendtestfiles})
-target_link_libraries(run_all_backend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
