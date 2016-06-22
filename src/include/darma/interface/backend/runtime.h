@@ -275,13 +275,19 @@ class Runtime {
     /** @brief Release a Use object previously registered with register_use().
      *
      *  Upon release, if the Use* u has immediate_permissions() of at least
-     *  Write and was not propagated into a Modify context, the release allows
+     *  Write and was not propagated into a Modify context (defined below),
+     *  the release allows
      *  the runtime to match the producer flow to pending Use instances where
      *  u->get_out_flow() is equivalent to the consumer pending->get_in_flow()
      *  (with equivalence for Flow defined in flow.h).  The location provided to
      *  u->get_data_pointer_reference() holds the data that satisfies the
      *  pending->get_in_flow() if the Use requested immediate permissions of Write
      *  or greater.
+     *
+     *  The Use* u has been propagated into a Modify context if another Use* u2
+     *  whas been registered where u2->get_out_flow() was constructed from
+     *  either make_next(make_same(u1->get_in_flow())) or
+     *  make_next(make_forwarding(u1->get_in_flow())).
      *
      *  If the Use* u has scheduling_permissions() of at least Write but no
      *  immediate permissions and was not propagated into a Modify context by
