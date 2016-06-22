@@ -171,16 +171,16 @@ struct RunnableCondition : public RunnableBase
 // <editor-fold desc="FunctorRunnable">
 
 template <
-  typename Functor,
+  typename Callable,
   typename... Args
 >
-class FunctorRunnable
+class FunctorLikeRunnableBase
   : public RunnableBase
 {
   public:
 
-    typedef functor_traits<Functor> traits;
-    typedef functor_call_traits<Functor, Args&&...> call_traits;
+    typedef functor_traits<Callable> traits;
+    typedef functor_call_traits<Callable, Args&&...> call_traits;
     static constexpr auto n_functor_args_min = traits::n_args_min;
     static constexpr auto n_functor_args_max = traits::n_args_max;
 
@@ -189,13 +189,12 @@ class FunctorRunnable
       "Functor task created with wrong number of arguments"
     );
 
-  public:
+  protected:
+
     using args_tuple_t = typename call_traits::args_tuple_t;
-  private:
 
     args_tuple_t args_;
 
-    static const size_t index_;
 
     decltype(auto)
     _get_args_to_splat() {
@@ -203,9 +202,9 @@ class FunctorRunnable
         args_,
         typename tinympl::transform<
           std::make_index_sequence<std::tuple_size<args_tuple_t>::value>,
-        call_traits::template call_arg_traits_types_only,
-        std::tuple
-          >::type(),
+          call_traits::template call_arg_traits_types_only,
+          std::tuple
+        >::type(),
         [this](auto&& arg, auto&& call_arg_traits_i_val) -> decltype(auto) {
           using call_traits_i = std::decay_t<decltype(call_arg_traits_i_val)>;
           return call_traits_i::template get_converted_arg(
@@ -217,20 +216,37 @@ class FunctorRunnable
 
   public:
 
-    FunctorRunnable(
+    FunctorLikeRunnableBase(
       args_tuple_t&& args_tup
     ) : args_(std::forward<args_tuple_t>(args_tup))
-    { }
+      { }
 
-    FunctorRunnable(
+    FunctorLikeRunnableBase(
       variadic_constructor_arg_t const,
       Args&&... args
     ) : args_(std::forward<Args>(args)...)
     { }
+};
+
+template <typename Functor, typename... Args>
+class FunctorRunnable
+  : public FunctorLikeRunnableBase<Functor, Args...>
+{
+  private:
+
+    static const size_t index_;
+    using base_t = FunctorLikeRunnableBase<Functor, Args...>;
+
+    using args_tuple_t = typename base_t::args_tuple_t;
+
+  public:
+
+    using base_t::base_t;
+
 
     bool run()  {
       meta::splat_tuple<AccessHandleBase>(
-        _get_args_to_splat(),
+        this->base_t::_get_args_to_splat(),
         Functor()
       );
       return false;
