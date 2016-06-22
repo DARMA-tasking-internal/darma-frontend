@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                       run_all_tests.cc
-//                         dharma_new
+//                      macros.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,22 +42,27 @@
 //@HEADER
 */
 
-#include <gtest/gtest.h>
+#ifndef DARMA_MACROS_H
+#define DARMA_MACROS_H
 
-#include <mock_backend.h>
-#include "test_frontend.h"
+// Borrowed from google test
+// Due to C++ preprocessor weirdness, we need double indirection to
+// concatenate two tokens when one of them is __LINE__.  Writing
+//
+//   foo ## __LINE__
+//
+// will result in the token foo__LINE__, instead of foo followed by
+// the current line number.  For more details, see
+// https://isocpp.org/wiki/faq/misc-technical-issues#macros-with-token-pasting
+#define DARMA_CONCAT_TOKEN_(foo, bar) DARMA_CONCAT_TOKEN_IMPL_(foo, bar)
+#define DARMA_CONCAT_TOKEN_IMPL_(foo, bar) foo ## bar
 
-namespace mock_backend {
-
-size_t MockFlow::next_index = 0;
-
-} // end namespace mock_backend
-
-// Used for arbitrarily establishing ordering of specific lines of code
-::testing::StrictMock<MockSequenceMarker>* sequence_marker = nullptr;
+// Used for static debugging
+template <typename T>
+struct _____________________________TYPE_DISPLAY________________________________;
+#define _DARMA_HIDE_TYPE_DISPLAY() _____________________________TYPE_DISPLAY________________________________
+#define DARMA_TYPE_DISPLAY(...) \
+  _DARMA_HIDE_TYPE_DISPLAY()<__VA_ARGS__> DARMA_CONCAT_TOKEN_(_type_display_macro_on_line_, __LINE__);
 
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
+#endif //DARMA_MACROS_H

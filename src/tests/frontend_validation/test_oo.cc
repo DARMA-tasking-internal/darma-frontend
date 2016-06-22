@@ -126,20 +126,24 @@ struct Simple
       >
     >
 { using darma_class::darma_class; };
+STATIC_ASSERT_SIZE_IS(Simple,
+  sizeof(darma_runtime::AccessHandle<int>)
+    + sizeof(darma_runtime::AccessHandle<std::string>)
+    + sizeof(darma_runtime::AccessHandle<double>)
+);
 
 template <>
 struct Simple_method<bart>
   : darma_method<Simple,
-      //reads_<larry>,
-      //modifies_<curly>,
       reads_value_<moe>
     >
 {
   using darma_method::darma_method;
-  void bart() {
-    this->immediate::lisa();
+  void operator()(int value) {
+    this->immediate::lisa(value);
   }
 };
+STATIC_ASSERT_SIZE_IS( Simple_method<bart>, sizeof(double const&) );
 
 template <>
 struct Simple_method<lisa>
@@ -148,10 +152,11 @@ struct Simple_method<lisa>
     >
 {
   using darma_method::darma_method;
-  void lisa() {
-    std::cout << moe << " == " << 42;
+  void operator()(int value) {
+    std::cout << moe << " == " << value;
   }
 };
+STATIC_ASSERT_SIZE_IS( Simple_method<lisa>, sizeof(double const&) );
 
 template <>
 struct Simple_method<homer>
@@ -160,13 +165,14 @@ struct Simple_method<homer>
     >
 {
   using darma_method::darma_method;
-  void homer() {
+  void operator()() {
     moe = 42;
-    // Signal the end of the homer() method
+    // Signal the end of the homer() method (for testing purposes)
     sequence_marker->mark_sequence("homer");
   }
 
 };
+STATIC_ASSERT_SIZE_IS( Simple_method<homer>, sizeof(double&) );
 
 template <>
 struct Simple_method<marge>
@@ -175,17 +181,22 @@ struct Simple_method<marge>
     >
 {
   using darma_method::darma_method;
-  void marge() {
+  void operator()() {
     if( moe.get_value() > 10 ) {
       moe.get_reference() /= 2.0;
       // recurse:
-      this->deferred_recursive_call::marge();
+      this->deferred::marge();
+      marge();
+      deferred::marge();
+      // This works too:
+      immediate::marge();
     }
     else {
       moe.set_value(3.14);
     }
   }
 };
+STATIC_ASSERT_SIZE_IS( Simple_method<marge>, sizeof(AccessHandle<double>) );
 
 
 } // end namespace simple_oo_test
@@ -326,7 +337,7 @@ TEST_F(TestOO, simple_homer_lisa) {
     simple_oo_test::Simple s;
     s.moe = initial_access<double>("moe", "s");
     s.homer();
-    s.bart(); // makes an "immediate" call to s.lisa();
+    s.bart(42); // makes an "immediate" call to s.lisa();
   }
 
   // Now expect the releases that have to happen after the tasks start running
@@ -346,7 +357,6 @@ TEST_F(TestOO, simple_homer_lisa) {
   testing::internal::CaptureStdout();
 
   run_all_tasks();
-
   ASSERT_EQ(testing::internal::GetCapturedStdout(),
     "42 == 42"
   );

@@ -29,6 +29,7 @@ parser.add_argument('-f', '--folder', metavar='PATH', type=str, nargs=1,
                     help='Folder to put the generated files in.  Defaults to {}'.format(
                         darma_root
                     ))
+parser.add_argument('-v', '--verbose', type=bool, help="Be verbose")
 
 args = parser.parse_args()
 
@@ -72,7 +73,8 @@ if args.cls:
     for cls in args.cls:
         file_text += "DARMA_OO_DECLARE_CLASS(" + cls + ");\n"
 
-print("Generating file {} macro expansion of:\n{}".format(ofilename, file_text))
+if(args.verbose):
+    print("Generating file {} macro expansion of:\n{}".format(ofilename, file_text))
 
 m = True
 while m:
