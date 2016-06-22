@@ -269,19 +269,19 @@ TEST_F(TestOO, static_assertions) {
   static_assert_type_eq<
     decltype( std::declval<simple_oo_test::Simple>().curly ),
     AccessHandle<std::string>
-  >;
+  >();
 
   // Make sure the public method works like it should
   static_assert_type_eq<
     decltype( std::declval<simple_oo_test::Simple>().bart() ),
     void
-  >;
+  >();
 
   // Make sure the public method works like it should
   static_assert_type_eq<
     decltype( std::declval<simple_oo_test::Simple>().lisa() ),
     void
-  >;
+  >();
 
   static_assert_type_eq<
     typename simple_oo_test::Simple_method<simple_oo_test::homer>
@@ -302,21 +302,15 @@ TEST_F(TestOO, static_assertions) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// TODO split off copy constructor stuff into seperate test
-TEST_F(TestOO, simple_homer_lisa) {
+TEST_F(TestOO, simple_copy_ctor) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace mock_backend;
 
+  ::testing::StaticAssertTypeEq<int, int>();
+
   mock_runtime->save_tasks = true;
-
-
-  use_t* use_1, *use_2, *use_3, *use_4;
-  MockFlow fl_in_1, fl_out_1;
-  MockFlow fl_in_2, fl_out_2;
-  MockFlow fl_in_3, fl_out_3;
-  MockFlow fl_in_4, fl_out_4;
 
   MockFlow larry_flows[2];
   MockFlow larry_captured_flows[2];
@@ -357,6 +351,44 @@ TEST_F(TestOO, simple_homer_lisa) {
   EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(larry_copy_uses[1]))));
 
   /* end expectations in copy constructor */
+
+  {
+    simple_oo_test::Simple s("larry");
+    simple_oo_test::Simple t(s);
+  }
+
+  run_all_tasks();
+
+  ASSERT_EQ(larry_copy_value, 73);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestOO, simple_homer_lisa) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+
+  use_t* use_1, *use_2, *use_3, *use_4;
+  MockFlow fl_in_1, fl_out_1;
+  MockFlow fl_in_2, fl_out_2;
+  MockFlow fl_in_3, fl_out_3;
+  MockFlow fl_in_4, fl_out_4;
+
+  MockFlow larry_flows[2];
+  MockFlow larry_captured_flows[2];
+  use_t* larry_uses[2];
+
+
+  Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
+
+  /* expectation of things happening in string constructor */
+  expect_initial_access(larry_flows[0], larry_flows[1], larry_uses[0],
+    make_key("larry"), s_reg_initial);
 
   /* expectations for the method calls */
   expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("moe", "s"),
@@ -400,7 +432,6 @@ TEST_F(TestOO, simple_homer_lisa) {
 
   {
     simple_oo_test::Simple s("larry");
-    simple_oo_test::Simple t(s);
     s.moe = initial_access<double>("moe", "s");
     s.homer();
     s.bart(42); // makes an "immediate" call to s.lisa();
@@ -430,7 +461,6 @@ TEST_F(TestOO, simple_homer_lisa) {
     "42 == 42"
   );
 
-  ASSERT_EQ(larry_copy_value, 73);
 
   ASSERT_EQ(data, 42);
 
