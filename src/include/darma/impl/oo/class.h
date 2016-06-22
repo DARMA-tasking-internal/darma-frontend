@@ -57,6 +57,7 @@
 
 #include <darma/impl/oo/field.h>
 #include <darma/impl/oo/util.h>
+#include <darma/impl/oo/constructor.h>
 
 #include <darma/interface/app/access_handle.h>
 
@@ -221,13 +222,88 @@ struct darma_class
 {
   private:
 
+    template <typename T>
+    using _constructor_implementation_type = std::remove_reference_t<decltype(
+      _darma__get_associated_constructor(std::declval<ClassName&>())
+    )>;
+    template <typename T>
+    using _constructor_implementation_exists =
+      typename _constructor_implementation_type<T>::darma_constructor;
+    template <typename T>
+    using constructor_implementation_exists = darma_runtime::meta::is_detected<
+      _constructor_implementation_exists, T
+    >;
+    template <typename T, typename... _Ignored_but_needed_for_SFINAE_to_work>
+    using constructor_implementation_type = darma_runtime::meta::detected_t<
+      _constructor_implementation_type, T
+    >;
+    template <typename T, typename... CTorArgs>
+    using _constructor_implementation_callable = decltype(
+      std::declval<constructor_implementation_type<T>&>()(
+        std::declval<CTorArgs>()...
+      )
+    );
+    template <typename T, typename... CTorArgs>
+    using constructor_implementation_callable = darma_runtime::meta::is_detected_exact<
+      void, _constructor_implementation_callable, T, CTorArgs...
+    >;
+
   public:
 
     using helper_t = detail::darma_class_helper<ClassName, Args...>;
 
+    friend constructor_implementation_type<ClassName>;
+
     darma_class() = default;
+    darma_class(darma_class&&) = default;
+    darma_class(darma_class const&) = default;
+
+    // Forward to a constructor, if available
+    template <typename... CTorArgs,
+      typename = std::enable_if_t<
+        constructor_implementation_callable<ClassName, CTorArgs...>::value
+        and not std::is_same<
+          std::decay_t<typename std::conditional_t<
+            sizeof...(CTorArgs) == 0,
+            tinympl::identity<meta::nonesuch>,
+            tinympl::variadic::at<0, CTorArgs...>
+          >::type>,
+          ClassName
+        >::value
+      >
+    >
+    darma_class(CTorArgs&&... args) {
+      static_cast<constructor_implementation_type<ClassName>*>(this)->operator()(
+        std::forward<CTorArgs>(args)...
+      );
+    };
+
+    template <typename ClassTypeDeduced,
+      typename = std::enable_if_t<
+        std::is_same<std::decay_t<ClassTypeDeduced>, ClassName>::value
+        and constructor_implementation_callable<ClassName,
+          typename tinympl::copy_all_type_properties<ClassTypeDeduced>::template apply<
+            constructor_implementation_type<ClassName, ClassTypeDeduced>
+          >::type
+        >::value
+      >
+    >
+    darma_class(ClassTypeDeduced&& other) {
+      static_cast<constructor_implementation_type<ClassName>*>(this)->operator()(
+        static_cast<
+          typename tinympl::copy_all_type_properties<ClassTypeDeduced>::template apply<
+            constructor_implementation_type<ClassName, ClassTypeDeduced>
+          >::type
+        >(std::forward<ClassTypeDeduced>(other))
+      );
+    };
 
 };
+
+template <typename T>
+using darma_class_instance = decltype(
+  _darma__get_associated_constructor(std::declval<T&>())
+);
 
 } // end namespace oo
 } // end namespace darma_runtime

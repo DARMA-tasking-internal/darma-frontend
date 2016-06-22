@@ -125,6 +125,29 @@ struct Simple
     >
 { using darma_class::darma_class; };
 
+struct Simple_constructors
+  : darma_constructors<Simple>
+{
+  void operator()(std::string const& larry_key_string) {
+    larry = initial_access<int>(larry_key_string);
+  }
+  // example copy constructor
+  void operator()(darma_class_instance<Simple> const& other) {
+    larry = initial_access<int>(other.larry.get_key(), "copied");
+    {
+      // This is the weird syntax you have to use to use lambdas in
+      // a class context...
+      create_work(
+        reads(other.larry), [
+          larry=larry, other_larry=other.larry
+        ] {
+          larry.set_value(other_larry.get_value());
+        }
+      );
+    }
+  }
+};
+
 STATIC_ASSERT_SIZE_IS(Simple,
   sizeof(darma_runtime::AccessHandle<int>)
     + sizeof(darma_runtime::AccessHandle<std::string>)
@@ -279,6 +302,7 @@ TEST_F(TestOO, static_assertions) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// TODO split off copy constructor stuff into seperate test
 TEST_F(TestOO, simple_homer_lisa) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -287,14 +311,54 @@ TEST_F(TestOO, simple_homer_lisa) {
 
   mock_runtime->save_tasks = true;
 
+
   use_t* use_1, *use_2, *use_3, *use_4;
   MockFlow fl_in_1, fl_out_1;
   MockFlow fl_in_2, fl_out_2;
   MockFlow fl_in_3, fl_out_3;
   MockFlow fl_in_4, fl_out_4;
 
+  MockFlow larry_flows[2];
+  MockFlow larry_captured_flows[2];
+  use_t* larry_uses[2];
+  MockFlow larry_copy_flows[2];
+  MockFlow larry_copy_capt_flows[2];
+  MockFlow larry_copy_cont_flows[2];
+  use_t* larry_copy_uses[3];
+
   Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
 
+  /* expectation of things happening in string constructor */
+  expect_initial_access(larry_flows[0], larry_flows[1], larry_uses[0],
+    make_key("larry"), s_reg_initial);
+
+  /* expectations in copy constructor */
+  expect_initial_access(larry_copy_flows[0], larry_copy_flows[1], larry_copy_uses[0],
+    make_key("larry", "copied"), s_reg_initial);
+
+  expect_ro_capture_RN_RR_MN_or_MR(larry_flows, larry_captured_flows, larry_uses);
+  expect_mod_capture_MN_or_MR(larry_copy_flows,
+    larry_copy_capt_flows, larry_copy_cont_flows, larry_copy_uses
+  );
+
+  int larry_value = 73;
+  int larry_copy_value = 0;
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+    UseInGetDependencies(ByRef(larry_uses[1])),
+    UseInGetDependencies(ByRef(larry_copy_uses[1]))
+  ))).WillOnce(Invoke([&](auto&&...) {
+    larry_uses[1]->get_data_pointer_reference() = &larry_value;
+    larry_copy_uses[1]->get_data_pointer_reference() = &larry_copy_value;
+  }));
+
+  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(larry_copy_uses[2]))));
+  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(larry_uses[1]))));
+  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(larry_copy_uses[1]))));
+
+  /* end expectations in copy constructor */
+
+  /* expectations for the method calls */
   expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("moe", "s"),
     s_reg_initial, s_release_initial);
 
@@ -331,12 +395,17 @@ TEST_F(TestOO, simple_homer_lisa) {
   ))).Times(1).InSequence(s_reg_continuing)
     .WillOnce(Assign(&use_3, nullptr));
 
+  /* end expectations for the method calls */
+
 
   {
-    simple_oo_test::Simple s; //(make_key("larry", "key", 1, 2, 3));
+    simple_oo_test::Simple s("larry");
+    simple_oo_test::Simple t(s);
     s.moe = initial_access<double>("moe", "s");
     s.homer();
     s.bart(42); // makes an "immediate" call to s.lisa();
+
+    EXPECT_THAT(larry_uses[0], NotNull());
   }
 
   // Now expect the releases that have to happen after the tasks start running
@@ -356,9 +425,12 @@ TEST_F(TestOO, simple_homer_lisa) {
   testing::internal::CaptureStdout();
 
   run_all_tasks();
+
   ASSERT_EQ(testing::internal::GetCapturedStdout(),
     "42 == 42"
   );
+
+  ASSERT_EQ(larry_copy_value, 73);
 
   ASSERT_EQ(data, 42);
 
