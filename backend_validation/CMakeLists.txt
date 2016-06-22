@@ -99,9 +99,7 @@ set_tests_properties(${test_name} PROPERTIES TIMEOUT 20
   PASS_REGULAR_EXPRESSION "PASSED")
 endfunction()
 #
-#add_unit_test(test_darma_backend_initialize)
 add_unit_test(test_register_task)
-#add_unit_test(test_get_running_task)
 
 add_executable(run_all_backend_tests ${backendtestfiles})
 target_link_libraries(run_all_backend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
