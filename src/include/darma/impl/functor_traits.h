@@ -164,7 +164,7 @@ struct functor_traits {
 
 };
 
-// TODO strictness specifiers
+// TODO user supplied strictness specifier typedefs
 template <
   typename Functor,
   typename... CallArgs

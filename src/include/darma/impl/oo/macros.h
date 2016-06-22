@@ -67,7 +67,8 @@ template <typename T, \
     not std::is_same<std::decay_t<T>, name##ext>::value \
     and _darma__has_##name##_member_access<T, std::decay_t<ValueType>, ValueType>::value \
     and darma_runtime::oo::detail::is_chained_base_class<std::decay_t<T>>::value \
-    /* and std::is_convertible< \
+    /* Unnecessary for now; it basically just makes the error less readable \
+      and std::is_convertible< \
       decltype( \
         _darma__##name##_oo_access_friend_t<std::decay_t<ValueType>>::template name<ValueType>( \
           std::declval<T>() \

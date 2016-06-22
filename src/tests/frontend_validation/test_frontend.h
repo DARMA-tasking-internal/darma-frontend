@@ -67,6 +67,8 @@
 #include "matchers.h"
 
 
+// A mock and corresponding abstract base used for arbitrarily establishing
+// ordering of specific lines of code
 class AbstractSequenceMarker {
   public:
     virtual void mark_sequence(std::string const& marker) const =0;
@@ -77,7 +79,7 @@ class MockSequenceMarker {
     MOCK_CONST_METHOD1(mark_sequence, void(std::string const&));
 };
 
-static ::testing::StrictMock<MockSequenceMarker>* sequence_marker = nullptr;
+extern ::testing::StrictMock<MockSequenceMarker>* sequence_marker;
 
 class TestFrontend
   : public ::testing::Test

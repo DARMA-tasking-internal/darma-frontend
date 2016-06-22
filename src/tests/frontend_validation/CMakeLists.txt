@@ -29,6 +29,8 @@ add_unit_test(test_simple_key)
 add_unit_test(test_create_condition)
 add_unit_test(test_oo)
 
+add_executable(run_all_frontend_tests ${frontendtestfiles})
+
 function(add_oo_tag_generate_step target tag)
     set(DEST_FOLDER ${PROJECT_BINARY_DIR}/include)
     add_custom_command(
@@ -44,6 +46,7 @@ function(add_oo_tag_generate_step target tag)
               ${DEST_FOLDER}/ootag_${tag}.generated.h
             )
     add_dependencies(${target} ${target}_ootag_${tag}_generated_header)
+    add_dependencies(run_all_frontend_tests ${target}_ootag_${tag}_generated_header)
 endfunction()
 
 function(add_oo_class_generate_step target tag)
@@ -54,7 +57,8 @@ function(add_oo_class_generate_step target tag)
     )
 endfunction()
 
-# generate macro expansions for
+# generate macro expansions for test_oo
+# TODO make this only enabled if a special flag is given
 find_package(PythonInterp)
 if (PYTHONINTERP_FOUND)
     add_oo_tag_generate_step(test_oo larry)
@@ -68,7 +72,6 @@ else()
     target_compile_definitions(test_oo PUBLIC DARMA_CANNOT_GENERATE_TAG_HEADERS)
 endif()
 
-add_executable(run_all_frontend_tests ${frontendtestfiles})
 target_link_libraries(run_all_frontend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
 if (DARMA_COVERAGE)
 setup_target_for_coverage(frontend_coverage run_all_frontend_tests coverage)
