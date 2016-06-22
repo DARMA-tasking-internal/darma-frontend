@@ -117,27 +117,27 @@ struct static_assert_size_is_ {
 };
 
 template <typename T1>
-struct static_assert_type_eq_<T1, T1> { using type = int; };
+struct static_assert_type_eq_<T1, T1> { enum { value = true }; };
 
 template <typename T1, std::size_t size>
 struct static_assert_size_is_<T1, size,
   std::enable_if_t<sizeof(T1) == size>
-> { using type = int; };
+> { using type = bool; enum { value = true }; };
 
 template <typename T1, typename T2>
 bool static_assert_type_eq() {
-  (void)typename static_assert_type_eq_<T1, T2>::type();
+  (void)static_assert_type_eq_<T1, T2>();
   return true;
 }
 
 template <typename T1, std::size_t size>
 bool static_assert_size_is() {
-  (void)typename static_assert_size_is_<T1, size>::type();
+  (void)static_assert_size_is_<T1, size>();
   return true;
 }
 
-#define STATIC_ASSERT_TYPE_EQ(...) \
-  static typename static_assert_type_eq_<__VA_ARGS__>::type DARMA_CONCAT_TOKEN_(_type_eq_check_on_line_, __LINE__)
+//#define STATIC_ASSERT_TYPE_EQ(...) \
+//  static typename static_assert_type_eq_<__VA_ARGS__>::type DARMA_CONCAT_TOKEN_(_type_eq_check_on_line_, __LINE__)
 
 #define STATIC_ASSERT_SIZE_IS(...) \
   static typename static_assert_size_is_<__VA_ARGS__>::type DARMA_CONCAT_TOKEN_(_type_size_check_on_line_, __LINE__)

@@ -102,7 +102,7 @@ class MethodRunnable
     }
 
     // TODO implement this
-    size_t get_index() const  { DARMA_ASSERT_NOT_IMPLEMENTED(); }
+    size_t get_index() const override { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }
 };
 
 } // end namespace detail
