@@ -45,6 +45,8 @@
 #ifndef META_TINYMPL_TEST_METATEST_HELPERS_H_
 #define META_TINYMPL_TEST_METATEST_HELPERS_H_
 
+#include <darma/impl/util/macros.h>
+
 #define meta_assert(...) \
   static_assert(__VA_ARGS__, \
       "Metafunction test case failed, expression did not evaluate to true:\n   " #__VA_ARGS__ "\n" \
@@ -78,8 +80,13 @@ struct never_evaluate_predicate
 }} // end namespace tinympl::test
 
 struct ___________________________expected__________________________________ {};
+struct ____________________________size_of__________________________________ {};
+struct ___________________________which_is__________________________________ {};
 struct ____________________to_be_the_same_type_as___________________________ {};
+struct _______________________to_be_the_equal_to____________________________ {};
 struct _____________________________________________________________________ {};
+template <size_t size>
+struct ____size_t_value____ {};
 
 template <typename... Args>
 struct static_failure;
@@ -95,14 +102,45 @@ struct static_assert_type_eq_ {
   >::type __failed__;
 };
 
+template <typename T1, std::size_t size, typename Enable=void>
+struct static_assert_size_is_ {
+  typename static_failure<
+    ___________________________expected__________________________________,
+    ____________________________size_of__________________________________,
+    T1,
+    ___________________________which_is__________________________________,
+    ____size_t_value____<sizeof(T1)>,
+    _______________________to_be_the_equal_to____________________________,
+    ____size_t_value____<size>,
+    _____________________________________________________________________
+  >::type __failed__;
+};
+
 template <typename T1>
-struct static_assert_type_eq_<T1, T1> { using type = void; };
+struct static_assert_type_eq_<T1, T1> { using type = int; };
+
+template <typename T1, std::size_t size>
+struct static_assert_size_is_<T1, size,
+  std::enable_if_t<sizeof(T1) == size>
+> { using type = int; };
 
 template <typename T1, typename T2>
 bool static_assert_type_eq() {
   (void)typename static_assert_type_eq_<T1, T2>::type();
   return true;
 }
+
+template <typename T1, std::size_t size>
+bool static_assert_size_is() {
+  (void)typename static_assert_size_is_<T1, size>::type();
+  return true;
+}
+
+#define STATIC_ASSERT_TYPE_EQ(...) \
+  static typename static_assert_type_eq_<__VA_ARGS__>::type DARMA_CONCAT_TOKEN_(_type_eq_check_on_line_, __LINE__)
+
+#define STATIC_ASSERT_SIZE_IS(...) \
+  static typename static_assert_size_is_<__VA_ARGS__>::type DARMA_CONCAT_TOKEN_(_type_size_check_on_line_, __LINE__)
 
 
 #endif /* META_TINYMPL_TEST_METATEST_HELPERS_H_ */
