@@ -52,5 +52,6 @@
 #include <darma/interface/app/create_work.h>
 #include <darma/interface/app/create_condition.h>
 #include <darma/interface/app/access_handle.h>
+#include <darma/interface/app/oo.h>
 
 #endif /* SRC_INTERFACE_APP_DARMA_H_ */

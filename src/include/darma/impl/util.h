@@ -58,28 +58,12 @@
 #include <tinympl/extract_template.hpp>
 
 #include <darma/impl/meta/metaprogramming.h>
+#include <darma/impl/util/macros.h>
 
 #include <darma/impl/darma_assert.h>
 #include <darma/impl/compatibility.h>
 #include <darma/impl/meta/largest_aligned.h>
 #include <darma/interface/defaults/pointers.h>
-
-// Borrowed from google test
-// Due to C++ preprocessor weirdness, we need double indirection to
-// concatenate two tokens when one of them is __LINE__.  Writing
-//
-//   foo ## __LINE__
-//
-// will result in the token foo__LINE__, instead of foo followed by
-// the current line number.  For more details, see
-// https://isocpp.org/wiki/faq/misc-technical-issues#macros-with-token-pasting
-#define DARMA_CONCAT_TOKEN_(foo, bar) DARMA_CONCAT_TOKEN_IMPL_(foo, bar)
-#define DARMA_CONCAT_TOKEN_IMPL_(foo, bar) foo ## bar
-
-template <typename T>
-struct _____________________________TYPE_DISPLAY________________________________;
-#define _DARMA_HIDE_TYPE_DISPLAY() _____________________________TYPE_DISPLAY________________________________
-#define DARMA_TYPE_DISPLAY(...) _DARMA_HIDE_TYPE_DISPLAY()<__VA_ARGS__> DARMA_CONCAT_TOKEN_(_undef_, __LINE__);
 
 namespace darma_runtime {
 

@@ -266,7 +266,7 @@ TaskBase::do_capture(
                 captured_in_flow, captured_out_flow, HandleUse::Modify, HandleUse::Modify
               ));
               continuing._switch_to_new_use(detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
-                continuing_in_flow, continuing_out_flow, HandleUse::Modify, HandleUse::Read
+                continuing_in_flow, continuing_out_flow, HandleUse::Modify, HandleUse::None
               )));
               break;
             }

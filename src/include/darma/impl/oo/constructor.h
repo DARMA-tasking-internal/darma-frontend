@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                       run_all_tests.cc
-//                         dharma_new
+//                      constructor.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,36 @@
 //@HEADER
 */
 
-#include <gtest/gtest.h>
+#ifndef DARMA_CONSTRUCTOR_H
+#define DARMA_CONSTRUCTOR_H
 
-#include <mock_backend.h>
-#include "test_frontend.h"
+namespace darma_runtime {
 
-namespace mock_backend {
+namespace oo {
 
-size_t MockFlow::next_index = 0;
+namespace detail {
 
-} // end namespace mock_backend
+template <typename OfClass, typename... Args>
+struct darma_constructor_helper {
 
-// Used for arbitrarily establishing ordering of specific lines of code
-::testing::StrictMock<MockSequenceMarker>* sequence_marker = nullptr;
+  using base_class = OfClass;
+};
 
+} // end namespace detail
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  ::testing::InitGoogleMock(&argc, argv);
-  return RUN_ALL_TESTS();
-}
+template <typename OfClass, typename... Args>
+struct darma_constructors
+  : detail::darma_constructor_helper<OfClass, Args...>::base_class
+{
+  // this type can never be constructed, only cast to
+  darma_constructors() = delete;
+  darma_constructors(darma_constructors const&) = delete;
+  darma_constructors(darma_constructors&&) = delete;
+  ~darma_constructors() = delete;
+};
+
+} // end namespace oo
+
+} // end namespace darma_runtime
+
+#endif //DARMA_CONSTRUCTOR_H
