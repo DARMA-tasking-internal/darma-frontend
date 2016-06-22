@@ -56,13 +56,19 @@ template <
   typename CaptureStruct, typename... Args
 >
 class MethodRunnable
-  : public darma_runtime::detail::RunnableBase
+  : public darma_runtime::detail::FunctorLikeRunnableBase<
+      typename CaptureStruct::method_t, Args...
+    >
 {
   private:
 
-    CaptureStruct captured_;
+    using method_t = typename CaptureStruct::method_t;
+    using base_t = darma_runtime::detail::FunctorLikeRunnableBase<
+      typename CaptureStruct::method_t, Args...
+    >;
 
-    // TODO add method arguments
+
+    CaptureStruct captured_;
 
   public:
 
@@ -77,12 +83,21 @@ class MethodRunnable
     >
     >
     constexpr inline explicit
-    MethodRunnable(OfClassDeduced&& val)
-      : captured_(std::forward<OfClassDeduced>(val))
+    MethodRunnable(OfClassDeduced&& val, Args&&... args)
+      : base_t(
+          darma_runtime::detail::variadic_constructor_arg,
+          std::forward<Args>(args)...
+        ),
+        captured_(std::forward<OfClassDeduced>(val))
     { }
 
     bool run() override {
-      captured_.run();
+      meta::splat_tuple(
+        base_t::_get_args_to_splat(),
+        [&](auto&&... args) {
+          captured_.run(std::forward<decltype(args)>(args)...);
+        }
+      );
       return true;
     }
 
