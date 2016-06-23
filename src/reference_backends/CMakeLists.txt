@@ -28,7 +28,7 @@ if (DARMA_ALL_IN_ONE)
 set (DARMA_FRONTEND_DIR ${CMAKE_SOURCE_DIR}/src)
 set (BACKENDS_ROOT ${CMAKE_SOURCE_DIR}/src/reference_backends)
 include_directories( ${BACKENDS_ROOT} ${CMAKE_BINARY_DIR}/src/reference_backends )
-include_directories( ${CMAKE_SOURCE_DIR}/backend_validation )
+include_directories( ${CMAKE_SOURCE_DIR}/backend_validation/using_mock_frontend )
 else() #built as standalone
 set (BACKENDS_ROOT ${CMAKE_SOURCE_DIR})
 include_directories( ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} )
