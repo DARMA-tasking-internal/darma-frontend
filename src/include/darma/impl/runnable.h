@@ -136,6 +136,7 @@ struct Runnable : public RunnableBase
     construct_from_bytes(void* data) {
       // TODO write this
       assert(false);
+      return nullptr;
     }
 
     size_t get_index() const  { return index_; }
