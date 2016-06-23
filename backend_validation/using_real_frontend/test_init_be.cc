@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                       run_all_tests.cc
-//                         dharma_new
+//                   test_create_work_be.cc
+//                         darma
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -43,22 +43,45 @@
 */
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
+#include <memory>
+#include <atomic>
 
-#include <mock_backend.h>
-#include "test_frontend.h"
+#ifdef TEST_BACKEND_INCLUDE
+#  include TEST_BACKEND_INCLUDE
+#endif
 
-namespace mock_backend {
+#include "test_backend.h"
 
-size_t MockFlow::next_index = 0;
+using namespace darma_runtime;
 
-} // end namespace mock_backend
+class TestInitBE
+  : public TestBackend
+{
+ protected:
+  virtual void SetUp() {
+    TestBackend::SetUp();
+  }
 
-// Used for arbitrarily establishing ordering of specific lines of code
-::testing::StrictMock<MockSequenceMarker>* sequence_marker = nullptr;
+  virtual void TearDown() {
+    TestBackend::TearDown();
+  }
+};
 
+//////////////////////////////////////////////////////////////////////////////////
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  ::testing::InitGoogleMock(&argc, argv);
-  return RUN_ALL_TESTS();
+TEST_F(TestInitBE, rank_size){
+  darma_init(argc_, argv_);
+
+  size_t rank = darma_spmd_rank();
+  size_t size = darma_spmd_size();
+
+  EXPECT_TRUE(size > 0);
+  EXPECT_TRUE(rank >= 0);
+  EXPECT_TRUE(rank < size);
+
+  darma_finalize();
 }
+
+//////////////////////////////////////////////////////////////////////////////////
+

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                       run_all_tests.cc
+//                          test_darma_backend_initialize.cc
 //                         dharma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,23 +42,23 @@
 //@HEADER
 */
 
+#include "helpers.h"
+
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
+#include <atomic>
 
-#include <mock_backend.h>
-#include "test_frontend.h"
+#include <darma/interface/defaults/darma_main.h>
 
-namespace mock_backend {
+#include <darma.h>
 
-size_t MockFlow::next_index = 0;
+std::atomic<int> mydata::count_(0);
 
-} // end namespace mock_backend
-
-// Used for arbitrarily establishing ordering of specific lines of code
-::testing::StrictMock<MockSequenceMarker>* sequence_marker = nullptr;
-
-
-int main(int argc, char **argv) {
+int darma_main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::InitGoogleMock(&argc, argv);
-  return RUN_ALL_TESTS();
+  int ret = RUN_ALL_TESTS();
+  ::darma_runtime::detail::backend_runtime = 0;  // make sure main() doesn't double-delete
+  return ret;
 }
+
