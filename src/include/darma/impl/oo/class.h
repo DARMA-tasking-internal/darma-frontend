@@ -294,20 +294,48 @@ struct darma_class
     // This allows copy or move constructors
     template <typename ClassTypeDeduced,
       typename = std::enable_if_t<
-        tinympl::variadic::all_of<
-          tinympl::value_identity,
+        //--------------------------------------------------------------------------------
+        // The messy enable_if condition below enables a non-default copy constructor
+        // (with a `ClassName const&` parameter) if and only if
+        //   ClassName##_constructors::operator()(darma_class_instance<ClassName> const&)
+        // is defined (and similarly for the move constructor, as well as the more obscure
+        // non-const reference copy constructor and the const move constructor).
+        //
+        // This rats' nest below is necessary to prevent infinite template recursion.  We
+        // use the short-circuiting tinympl::variadic::all_of along with tinympl::delay
+        // in the second argument to prevent the second condition from being evaluated
+        // unless the first one evaluates to true.  Otherwise, the call to
+        // _darma__get_associated_constructor() wrapped by darma_class_instance_delayed
+        // re-triggers the generation of this constructor when ClassTypeDeduced
+        // is darma_class<ClassType,...> because it's trying to generate the conversion
+        // from darma_class<ClassName,...> to ClassName&, (where ClassName inherits
+        // this constructor via `using darma_class::darma_class;`) needed to resolve
+        // the argument to _darma__get_associated_constructor().  This isn't a problem
+        // for the case where std::decay_t<ClassTypeDeduced> is the same as ClassName
+        // because no conversion operation generation is necessary, since the argument
+        // is an exact match for the formal parameter.
+        tinympl::and_<  // note that this and_ is specially implemented to short-circuit
+          // condition 1:  only generate copy constructor if the decayed type matches the
+          // Class itself (exactly; conversion from it's base classes isn't relevant here)
           std::is_same<std::decay_t<ClassTypeDeduced>, ClassName>,
+          // condition 2 (only evaluated if condition 1 is true):  there has to be an
+          // operator() on ClassName##_constructor which takes one argument that decays
+          // to darma_class_instance<ClassName> and has the same constness and reference-ness
+          // as ClassTypeDeduced&&.
           tinympl::extract_bool_value_potentially_lazy<
             tinympl::delay<
               constructor_implementation_callable,
               tinympl::identity<ClassName>,
               tinympl::delay<
-                tinympl::copy_all_type_properties<ClassTypeDeduced>::template apply,
+                tinympl::copy_all_type_properties<ClassTypeDeduced&&>::template apply,
                 detail::darma_class_instance_delayed<std::decay_t<ClassTypeDeduced>&>
               >
             >
           >
+          // end of condition 2
         >::value
+        // end messy rats' nest described above
+        //--------------------------------------------------------------------------------
       >
     >
     darma_class(ClassTypeDeduced&& other) {
