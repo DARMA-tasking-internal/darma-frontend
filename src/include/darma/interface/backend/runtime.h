@@ -285,7 +285,7 @@ class Runtime {
      *  or greater.
      *
      *  The Use* u has been propagated into a Modify context if another Use* u2
-     *  whas been registered where u2->get_out_flow() was constructed from
+     *  has been registered where u2->get_out_flow() was constructed from
      *  either make_next(make_same(u1->get_in_flow())) or
      *  make_next(make_forwarding(u1->get_in_flow())).
      *
