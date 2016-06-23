@@ -59,5 +59,6 @@ size_t MockFlow::next_index = 0;
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
+  ::testing::InitGoogleMock(&argc, argv);
   return RUN_ALL_TESTS();
 }

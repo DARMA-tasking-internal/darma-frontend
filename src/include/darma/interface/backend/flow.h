@@ -85,7 +85,8 @@ namespace backend {
  *  use the output flow as the input of a backend-generated destage operation.
  *  Backends that do not wish to do anything so complicated may safely return
  *  a null pointer or similarly trivial object when the output flow of a Read
- *  operation is created; the resulting flow will never be an argument to
+ *  operation is created (by a call to `make_same_flow()` with purpose
+ *  OutputFlowOfReadOperation); the resulting flow will never be an argument to
  *  `make_same_flow()` and friends).
  *
  *  An equivalence relationship between two Flows `a` and `b` is indicated by
