@@ -197,6 +197,101 @@ TEST_F(TestPublishBE, modify_after_publish_nice){
   ASSERT_EQ(check->load(), 4);
 }
 
+// make sure that modify waits until after publish with n_readers>1 finishes
+TEST_F(TestPublishBE, modify_after_publish_nreaders_nice){
+  std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
+  {
+    darma_init(argc_, argv_);
+    auto h = initial_access<mydata>("dummy");
+    create_work([=]{
+      // make sure this task runs first
+      EXPECT_EQ((*check)++, 0);
+      h.set_value(7);
+    });
+    h.publish(version="a",n_readers=2);
+    {
+      auto h2 = read_access<mydata>("dummy", version="a");
+      create_work([=]{
+        // record that this task started
+        (*check)++;
+        // make sure we fetched the original value
+        EXPECT_EQ(h2.get_value(), 7);
+        // record that this task finished
+        (*check)++;
+      });
+    }
+    {
+      auto h3 = read_access<mydata>("dummy", version="a");
+      create_work([=]{
+        // record that this task started
+        (*check)++;
+        // make sure we fetched the original value
+        EXPECT_EQ(h3.get_value(), 7);
+        // record that this task finished
+        (*check)++;
+      });
+    }
+    create_work([=]{
+      // make sure this task runs last
+      EXPECT_EQ((*check)++, 5);
+      h.set_value(11);
+    });
+    darma_finalize();
+  }
+  // make sure task not still queued
+  ASSERT_TRUE(check.unique());
+  // make sure task actually ran
+  ASSERT_EQ(check->load(), 6);
+}
+
+// make sure that modify waits until after multiple publishes finish
+TEST_F(TestPublishBE, modify_after_multipublish_nice){
+  std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
+  {
+    darma_init(argc_, argv_);
+    auto h = initial_access<mydata>("dummy");
+    create_work([=]{
+      // make sure this task runs first
+      EXPECT_EQ((*check)++, 0);
+      h.set_value(7);
+    });
+    h.publish(version="a",n_readers=1);
+    h.publish(version="b",n_readers=1);
+    {
+      auto h2 = read_access<mydata>("dummy", version="a");
+      create_work([=]{
+        // record that this task started
+        (*check)++;
+        // make sure we fetched the original value
+        EXPECT_EQ(h2.get_value(), 7);
+        // record that this task finished
+        (*check)++;
+      });
+    }
+    {
+      auto h3 = read_access<mydata>("dummy", version="b");
+      create_work([=]{
+        // record that this task started
+        (*check)++;
+        // make sure we fetched the original value
+        EXPECT_EQ(h3.get_value(), 7);
+        // record that this task finished
+        (*check)++;
+      });
+    }
+    create_work([=]{
+      // make sure this task runs last
+      EXPECT_EQ((*check)++, 5);
+      h.set_value(11);
+    });
+    darma_finalize();
+  }
+  // make sure task not still queued
+  ASSERT_TRUE(check.unique());
+  // make sure task actually ran
+  ASSERT_EQ(check->load(), 6);
+}
+
 // make sure that modify waits until after the publish finishes
 TEST_F(TestPublishBE, modify_after_publish_nasty){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));

@@ -117,11 +117,13 @@ TEST_F(TestCreateWorkBE, readonly){
       // make sure this task runs first
       EXPECT_EQ((*check)++, 0);
       h.set_value(7);
+      // make sure other task didn't start running yet
+      EXPECT_EQ((*check)++, 1);
     });
     // task that reads data
     create_work(reads(h),[=]{
-      // make sure this task runs second
-      EXPECT_EQ((*check)++, 1);
+      // make sure this task runs last
+      EXPECT_EQ((*check)++, 2);
       // make sure we see the correct initial value
       EXPECT_EQ(h.get_value(), 7);
     });
@@ -130,7 +132,7 @@ TEST_F(TestCreateWorkBE, readonly){
   // make sure tasks not still queued
   ASSERT_TRUE(check.unique());
   // make sure tasks actually ran
-  ASSERT_EQ(check->load(), 2);
+  ASSERT_EQ(check->load(), 3);
 }
 
 // test task with read-write permissions (mod capture when MN)
@@ -152,10 +154,12 @@ TEST_F(TestCreateWorkBE, modify){
       EXPECT_EQ(h.get_value(), 7);
       // but then modify it
       h.set_value(21);
+      // make sure other task didn't start running yet
+      EXPECT_EQ((*check)++, 2);
     });
     create_work(reads(h),[=]{
-      // make sure this task runs third
-      EXPECT_EQ((*check)++, 2);
+      // make sure this task runs last
+      EXPECT_EQ((*check)++, 3);
       // make sure we see the modified value
       EXPECT_EQ(h.get_value(), 21);
     });
@@ -164,7 +168,7 @@ TEST_F(TestCreateWorkBE, modify){
   // make sure tasks not still queued
   ASSERT_TRUE(check.unique());
   // make sure tasks actually ran
-  ASSERT_EQ(check->load(), 3);
+  ASSERT_EQ(check->load(), 4);
 }
 
 // test nested task with read-write permissions (mod capture when MM)
@@ -193,11 +197,13 @@ TEST_F(TestCreateWorkBE, modify_forwarded){
         EXPECT_EQ(h.get_value(), 21);
         // but then modify it
         h.set_value(4);
+        // make sure other task didn't start running yet
+        EXPECT_EQ((*check)++, 3);
       });
     });
     create_work(reads(h),[=]{
-      // make sure this task runs fourth
-      EXPECT_EQ((*check)++, 3);
+      // make sure this task runs last
+      EXPECT_EQ((*check)++, 4);
       // make sure we see the twice-modified value
       EXPECT_EQ(h.get_value(), 4);
     });
@@ -206,7 +212,7 @@ TEST_F(TestCreateWorkBE, modify_forwarded){
   // make sure tasks not still queued
   ASSERT_TRUE(check.unique());
   // make sure tasks actually ran
-  ASSERT_EQ(check->load(), 4);
+  ASSERT_EQ(check->load(), 5);
 }
 
 // test write-after-read
