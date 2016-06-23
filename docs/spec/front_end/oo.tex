@@ -353,6 +353,29 @@ an attempt to modify a |const| value (or, in the case of |read_| instead of
 |ReadAccessHandle<T>|).
 
 \subsection{Methods Calling Other Methods}
+
+Just like traditional C++ methods, methods of DARMA classes can call other
+methods in the same class.  However, the callee's required permissions must be a
+(potentially trivial) subset of the permissions required by the caller.  If not,
+a compile-time error will result.  Furthermore, the caller must have scheduling
+permissions on all of the fields required by the callee (see
+\S~\ref{sec:handlerules} for details of scheduling and immediate permissions). 
+Since the |reads_value_| and |modifies_value_| templates don't expose an
+\ahandleT to a method (and thus, implicitly, do not request scheduling
+permissions), permissions requests with those templates do not allow a method to
+call another method requiring the given member.  Use |reads_| and |modifies_| instead for this purpose.
+
+\subsection{Controlling Invocation with \texttt{immediate} and
+\texttt{deferred}}
+
+TODO
+
+\subsection{Method Arguments}
+
+TODO
+
+\subsection{User-defined Constructors}
+
 TODO
 
 \lstDeleteShortInline{\|}
