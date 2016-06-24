@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      stl_pair.h
+//                      tuple.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,92 +42,112 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_SERIALIZATION_STL_PAIR_H
-#define DARMA_IMPL_SERIALIZATION_STL_PAIR_H
+#ifndef DARMA_TUPLE_H
+#define DARMA_TUPLE_H
 
 #include <type_traits>
-#include <iterator>
+#include <tuple>
+
+#include <darma/impl/meta/tuple_for_each.h>
 
 #include "nonintrusive.h"
+#include "traits.h"
 
 namespace darma_runtime {
 namespace serialization {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-template <typename T1, typename T2>
-struct Serializer<std::pair<T1, T2>> {
-
+template <typename... Args>
+struct Serializer<std::tuple<Args...>> {
   private:
 
-    typedef detail::serializability_traits<T1> T1_serdes_traits;
-    typedef typename T1_serdes_traits::serializer Ser1;
-    typedef detail::serializability_traits<T2> T2_serdes_traits;
-    typedef typename T2_serdes_traits::serializer Ser2;
+    using TupleT = std::tuple<Args...>;
+
+    template <typename ArchiveT>
+    struct _make_is_serializable_with_archive {
+      template <typename T>
+      using apply = typename detail::serializability_traits<T>
+        ::template is_serializable_with_archive<ArchiveT>;
+    };
 
     template <typename ArchiveT>
     using serializable_into = std::integral_constant<bool,
-      T1_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
-        and T2_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
+      tinympl::variadic::all_of<
+        _make_is_serializable_with_archive<ArchiveT>::template apply,
+        Args...
+      >::value
     >;
 
-    typedef std::pair<T1, T2> PairT;
+    using serializer_tuple = std::tuple<
+      typename detail::serializability_traits<Args>::serializer...
+    >;
 
   public:
 
-    ////////////////////////////////////////////////////////////
-    // <editor-fold desc="compute_size()">
+    template <typename ArchiveT>
+    std::enable_if_t<serializable_into<ArchiveT>::value>
+    compute_size(TupleT const& tup, ArchiveT& ar) const {
+      meta::tuple_for_each(tup, [&](auto const& item) {
+        ar.incorporate_size(item);
+      });
+    }
+
 
     template <typename ArchiveT>
     std::enable_if_t<serializable_into<ArchiveT>::value>
-    compute_size(PairT const& c, ArchiveT& ar) const {
-      assert(ar.is_sizing());
-      ar.incorporate_size(c.first);
-      ar.incorporate_size(c.second);
+    pack(TupleT const& tup, ArchiveT& ar) const {
+      meta::tuple_for_each(tup, [&](auto const& item) {
+        ar.pack_item(item);
+      });
     }
 
-    // </editor-fold>
-    ////////////////////////////////////////////////////////////
+  private:
 
-    ////////////////////////////////////////////////////////////
-    // <editor-fold desc="pack()">
+    template <typename ItemType, typename wrapped_index>
+    struct _ser_get_pair_for_item {
+      struct type {
+        template <typename Tuple>
+        decltype(auto) get(Tuple&& tup) {
+          return std::get<wrapped_index::value>(std::forward<Tuple>(tup));
+        }
+        using serializer =
+          typename detail::serializability_traits<ItemType>::serializer;
+      };
+    };
 
-    template <typename ArchiveT>
-    std::enable_if_t<serializable_into<ArchiveT>::value>
-    pack(PairT const& c, ArchiveT& ar) const {
-      assert(ar.is_packing());
-      ar.pack_item(c.first);
-      ar.pack_item(c.second);
-    }
-
-    // </editor-fold>
-    ////////////////////////////////////////////////////////////
-
-    ////////////////////////////////////////////////////////////
-    // <editor-fold desc="unpack()">
+  public:
 
     template <typename ArchiveT>
     std::enable_if_t<serializable_into<ArchiveT>::value>
     unpack(void* allocated, ArchiveT& ar) const {
-      assert(ar.is_unpacking());
-
-      // TODO make sure that it's okay to assume that the std::pair constructors
+      // TODO make sure that it's okay to assume that the tuple constructors
       //      don't do anything but call the constituent constructors. (should
       //      be fine in any implementation I can imagine, but I don't know
       //      if this is standards compliant)
-
-      Ser1().unpack( (void*)(&((*(PairT*)allocated).first)), ar );
-
-      Ser2().unpack( (void*)(&((*(PairT*)allocated).second)), ar );
-
+      meta::tuple_for_each(
+        typename tinympl::transform2<
+          TupleT, std::index_sequence_for<Args...>,
+          _ser_get_pair_for_item
+        >::type(),
+        [&](auto&& item_ser_get) {
+          typename std::decay_t<decltype(item_ser_get)>::serializer().unpack(
+            // This is safe because std::get on a lvalue reference is
+            // specified to return an lvalue reference, which we immediately
+            // take the address of and cast to a void* without ever
+            // dereferencing anything
+            (void*) &(item_ser_get.get(
+              static_cast<TupleT&>( *static_cast<TupleT*>(allocated) )
+            )), ar
+          );
+        }
+      );
     }
-
-    // </editor-fold>
-    ////////////////////////////////////////////////////////////
-
 };
+
+////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace serialization
 } // end namespace darma_runtime
 
-#endif //DARMA_IMPL_SERIALIZATION_STL_PAIR_H
+#endif //DARMA_TUPLE_H
