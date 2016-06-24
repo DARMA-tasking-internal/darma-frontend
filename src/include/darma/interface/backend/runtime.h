@@ -112,6 +112,8 @@ class Runtime {
     *  task's run() invocation, including child tasks, and thus it should not
     *  be dereferenced in any other context.
     *
+    *  @TODO decide what this should do if called before or after a migrated task runs
+    *
     *  @sa frontend::Task
     */
     virtual task_t*

@@ -53,6 +53,8 @@
 #include <darma/impl/oo/util.h> // detail::empty_base
 #include <darma/impl/meta/detection.h> // meta::is_detected
 #include <darma/impl/handle.h> // detail::is_access_handle
+#include <darma/impl/serialization/traits.h> // serializability_traits
+#include <darma/impl/serialization/serialization_fwd.h> // unpack_constructor_tag_t
 
 #define _DARMA__OO_PASSTHROUGH_CONSTRUCTORS(name, ext) \
 /* Explicitly default the copy, move, and default constructors */ \
@@ -85,7 +87,38 @@ _darma__##name##ext(T&& other) \
          std::forward<T>(other) \
        ) \
     ) \
-{ };
+{ } \
+/* allow construction from an Archive if ValueType is serializable with the archive */ \
+template <typename ArchiveT> \
+constexpr inline explicit \
+_darma__##name##ext( \
+  std::enable_if_t< \
+    ::darma_runtime::serialization::detail::serializability_traits<ValueType> \
+      ::template is_serializable_with_archive<ArchiveT>::value \
+    /* also has to be default constructible since we need to make it before */ \
+    /* unpacking into it. */ \
+    /* TODO this is inefficient, since the default constructor is called but */\
+    /* its result never used */ \
+    and std::is_default_constructible<ValueType>::value, \
+    ::darma_runtime::serialization::unpack_constructor_tag_t \
+  >, \
+  ArchiveT& ar \
+) : Base(::darma_runtime::serialization::unpack_constructor_tag, ar) \
+{ \
+  ar >> name; \
+} \
+/* pack and compute size functions, with protected names */ \
+template <typename ArchiveT> \
+void _darma__pack(ArchiveT& ar) const { \
+  Base::_darma__pack(ar); \
+  ar << name; \
+} \
+template <typename ArchiveT> \
+void _darma__compute_size(ArchiveT& ar) const { \
+  Base::_darma__compute_size(ar); \
+  ar << name; \
+} \
+
 
 #define DARMA_OO_DEFINE_TAG(name) \
 struct name; \
@@ -246,6 +279,14 @@ struct _darma__##name##__as_public_method : Base { \
       *static_cast<CastThisTo*>(this), std::forward<Args>(args)... \
     ); \
   } \
+  /* Forward the unpacking constructor to base */ \
+  template <typename ArchiveT> \
+  constexpr inline explicit \
+  _darma__##name##__as_public_method( \
+    serialization::unpack_constructor_tag_t, \
+    ArchiveT& ar \
+  ) : Base(serialization::unpack_constructor_tag, ar) \
+  { } \
 }; \
 \
 template <typename OfClass, typename Base, typename CastThisTo> \
@@ -276,6 +317,14 @@ struct _darma__##name##__as_immediate_public_method : Base { \
     : Base(std::forward<T>(val)) \
   { } \
   \
+  /* Forward the unpacking constructor to base */ \
+  template <typename ArchiveT> \
+  constexpr inline explicit \
+  _darma__##name##__as_immediate_public_method( \
+    serialization::unpack_constructor_tag_t, \
+    ArchiveT& ar \
+  ) : Base(serialization::unpack_constructor_tag, ar) \
+  { } \
   template <typename... Args> \
   void name(Args&&... args) { \
     using method_struct_t = decltype(  \
