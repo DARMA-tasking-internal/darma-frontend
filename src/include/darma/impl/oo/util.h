@@ -132,6 +132,14 @@ struct _chain_base_classes_impl<Seq, 0, N>
     serialization::unpack_constructor_tag_t,
     ArchiveT& ar
   ) : _chain_base_classes_impl() { }
+
+  template <typename ArchiveT>
+  constexpr inline void
+  _darma__pack(ArchiveT& ar) const { }
+
+  template <typename ArchiveT>
+  constexpr inline void
+  _darma__compute_size(ArchiveT& ar) const { }
 };
 
 template <typename Seq>

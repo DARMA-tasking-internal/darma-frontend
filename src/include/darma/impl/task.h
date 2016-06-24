@@ -185,8 +185,17 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
     }
 
     void pack(void* allocated) const  {
-      // TODO
-      assert(false);
+      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      serialization::SimplePackUnpackArchive ar;
+
+      ArchiveAccess::start_packing(ar);
+      ArchiveAccess::set_buffer(ar, allocated);
+
+      assert(runnable_.get() != nullptr);
+
+      ar << runnable_->get_index();
+
+      return runnable_->pack(ArchiveAccess::get_spot(ar));
     }
 
     // end implementation of abstract::frontend::Task

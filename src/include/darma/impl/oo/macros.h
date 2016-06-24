@@ -106,7 +106,18 @@ _darma__##name##ext( \
 ) : Base(::darma_runtime::serialization::unpack_constructor_tag, ar) \
 { \
   ar >> name; \
-}
+} \
+/* pack and compute size functions, with protected names */ \
+template <typename ArchiveT> \
+void _darma__pack(ArchiveT& ar) const { \
+  Base::_darma__pack(ar); \
+  ar << name; \
+} \
+template <typename ArchiveT> \
+void _darma__compute_size(ArchiveT& ar) const { \
+  Base::_darma__compute_size(ar); \
+  ar << name; \
+} \
 
 
 #define DARMA_OO_DEFINE_TAG(name) \

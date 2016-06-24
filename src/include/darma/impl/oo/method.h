@@ -370,11 +370,19 @@ struct deferred_method_call
   ) : base_t(serialization::unpack_constructor_tag, ar)
   { }
 
+  template <typename ArchiveT>
+  void compute_size(ArchiveT& ar) const {
+    base_t::_darma__compute_size(ar);
+  }
+
+  template <typename ArchiveT>
+  void pack(ArchiveT& ar) const {
+    base_t::_darma__pack(ar);
+  }
+
 
   template <typename... Args>
   void run(Args&&... args) {
-    //using invoker = typename tag_t::template run_method_invoker<void>;
-    //invoker::run(Method(std::move(*this)));
     Method(std::move(*this))(std::forward<Args>(args)...);
   }
 
