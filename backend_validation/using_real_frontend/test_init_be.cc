@@ -70,6 +70,10 @@ class TestInitBE
 
 //////////////////////////////////////////////////////////////////////////////////
 
+// test that rank and size are reasonable
+// calls darma_backend_initialize(), runtime::get_running_task(),
+//   and runtime::finalize()
+// requires that task::set_name() was called on top-level task
 TEST_F(TestInitBE, rank_size){
   darma_init(argc_, argv_);
 

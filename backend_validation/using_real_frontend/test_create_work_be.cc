@@ -71,6 +71,9 @@ class TestCreateWorkBE
 
 //////////////////////////////////////////////////////////////////////////////////
 
+// test task with no dependencies
+// builds upon TestInitBE::rank_size()
+// additionally calls runtime::register_task()
 TEST_F(TestCreateWorkBE, no_access){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -88,6 +91,10 @@ TEST_F(TestCreateWorkBE, no_access){
 }
 
 // test task with write permissions (mod capture when MN)
+// builds upon TestCreateWorkBE::no_access()
+// additionally calls runtime::make_initial_flow(), runtime::make_null_flow(),
+//   runtime::register_use(), runtime::make_same_flow(),
+//   runtime::make_next_flow(), runtime::release_use()
 TEST_F(TestCreateWorkBE, initial_access_alloc){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -108,6 +115,7 @@ TEST_F(TestCreateWorkBE, initial_access_alloc){
 }
 
 // test task with read permissions (ro capture when MN)
+// builds upon TestCreateWorkBE::initial_access_alloc()
 TEST_F(TestCreateWorkBE, readonly){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -136,6 +144,7 @@ TEST_F(TestCreateWorkBE, readonly){
 }
 
 // test task with read-write permissions (mod capture when MN)
+// builds upon TestCreateWorkBE::readonly()
 TEST_F(TestCreateWorkBE, modify){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -172,6 +181,7 @@ TEST_F(TestCreateWorkBE, modify){
 }
 
 // test nested task with read-write permissions (mod capture when MM)
+// builds upon TestCreateworkBE::modify()
 TEST_F(TestCreateWorkBE, modify_forwarded){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -216,6 +226,7 @@ TEST_F(TestCreateWorkBE, modify_forwarded){
 }
 
 // test write-after-read
+// builds upon TestCreateWorkBE::readonly()
 TEST_F(TestCreateWorkBE, modify_after_read){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {

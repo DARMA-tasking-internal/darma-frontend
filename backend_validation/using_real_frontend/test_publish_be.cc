@@ -73,6 +73,8 @@ class TestPublishBE
 //////////////////////////////////////////////////////////////////////////////////
 
 // test publish from create_work
+// builds upon TestCreateWorkBE::initial_access_alloc()
+// additionally calls runtime::publish_use() and runtime::make_fetching_flow()
 TEST_F(TestPublishBE, publish_in_cw){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -102,6 +104,8 @@ TEST_F(TestPublishBE, publish_in_cw){
 }
 
 // test publish after create_work
+// same as TestPublishBE::publish_in_cw() but with the call to
+//   runtime::publish_use() coming from the top-level task
 TEST_F(TestPublishBE, publish_after_cw){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -131,6 +135,9 @@ TEST_F(TestPublishBE, publish_after_cw){
 }
 
 // test read_access after handle goes out of scope
+// same as TestPublishBE::publish_after_cw() but with the call to
+//   runtime::release_use() on the published use coming before the
+//   runtime::make_fetching_flow() call
 TEST_F(TestPublishBE, read_access_after_scope){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -162,6 +169,7 @@ TEST_F(TestPublishBE, read_access_after_scope){
 }
 
 // make sure that modify waits until after the publish finishes
+// builds on TestPublishBE::publish_after_cw()
 TEST_F(TestPublishBE, modify_after_publish_nice){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -198,6 +206,7 @@ TEST_F(TestPublishBE, modify_after_publish_nice){
 }
 
 // make sure that modify waits until after publish with n_readers>1 finishes
+// builds on TestPublishBE::modify_after_publish_nice()
 TEST_F(TestPublishBE, modify_after_publish_nreaders_nice){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -245,6 +254,7 @@ TEST_F(TestPublishBE, modify_after_publish_nreaders_nice){
 }
 
 // make sure that modify waits until after multiple publishes finish
+// builds on TestPublishBE::modify_after_publish_nice()
 TEST_F(TestPublishBE, modify_after_multipublish_nice){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
@@ -293,7 +303,10 @@ TEST_F(TestPublishBE, modify_after_multipublish_nice){
 }
 
 // make sure that modify waits until after the publish finishes
-TEST_F(TestPublishBE, modify_after_publish_nasty){
+// similar to TestPublishBE::modify_after_publish_nice() but puts read_access
+//   after create_work that overwrites it (probably not legal within a single
+//   rank but could happen across ranks)
+TEST_F(TestPublishBE, DISABLED_modify_after_publish_nasty){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
     darma_init(argc_, argv_);
