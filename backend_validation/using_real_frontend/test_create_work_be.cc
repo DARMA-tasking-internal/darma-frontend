@@ -182,6 +182,7 @@ TEST_F(TestCreateWorkBE, modify){
 
 // test nested task with read-write permissions (mod capture when MM)
 // builds upon TestCreateworkBE::modify()
+// additionally calls runtime::make_forwarding_flow()
 TEST_F(TestCreateWorkBE, modify_forwarded){
   std::shared_ptr<std::atomic<int>> check(new std::atomic<int>(0));
   {
