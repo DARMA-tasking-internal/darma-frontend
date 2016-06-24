@@ -125,6 +125,8 @@ class RunnableBase {
   public:
     virtual bool run() =0;
     virtual size_t get_index() const =0;
+    virtual size_t get_packed_size() const =0;
+    virtual void pack(void* allocated) const =0;
     virtual ~RunnableBase() { }
 };
 
@@ -157,6 +159,9 @@ struct Runnable : public RunnableBase
       return nullptr;
     }
 
+    virtual size_t get_packed_size() const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
+    virtual void pack(void* allocated) const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
+
     size_t get_index() const  { return index_; }
 
   private:
@@ -176,7 +181,9 @@ struct RunnableCondition : public RunnableBase
     : run_this_(std::forward<Callable>(c))
   { }
 
-  size_t get_index() const  { return 0; }
+  size_t get_index() const  { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }
+  virtual size_t get_packed_size() const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
+  virtual void pack(void* allocated) const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
 
   bool run()  { return run_this_(); }
 
@@ -323,6 +330,29 @@ class FunctorLikeRunnableBase
 
   public:
 
+    size_t get_packed_size() const override {
+      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      serialization::SimplePackUnpackArchive ar;
+
+      ArchiveAccess::start_sizing(ar);
+
+      ar % args_;
+
+      return ArchiveAccess::get_size(ar);
+    }
+
+    void pack(void* allocated) const override {
+      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      serialization::SimplePackUnpackArchive ar;
+
+      ArchiveAccess::start_packing(ar);
+      ArchiveAccess::set_buffer(ar, allocated);
+
+      // pack the arguments
+      ar << args_;
+
+    }
+
     template <typename _used_only_for_SFINAE = void,
       typename = std::enable_if_t<
         std::is_default_constructible<args_tuple_t>::value
@@ -372,6 +402,7 @@ class FunctorRunnable
       );
       return false;
     }
+
 
     template <typename ArchiveT>
     static types::unique_ptr_template<RunnableBase>

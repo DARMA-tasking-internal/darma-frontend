@@ -74,6 +74,7 @@ class MethodRunnable
 
   public:
 
+    // Default constructible args case
     template <typename _Ignored_but_needed_for_SFINAE=void>
     MethodRunnable(
       std::enable_if_t<
@@ -89,6 +90,7 @@ class MethodRunnable
         captured_(std::move(cstr_movable))
     { }
 
+    // Non-default constructible args case
     template <typename _Ignored_but_needed_for_SFINAE=void>
     MethodRunnable(
       typename base_t::args_tuple_t&& args,
@@ -154,6 +156,32 @@ class MethodRunnable
     size_t get_index() const override {
       return index_;
     }
+
+    virtual size_t get_packed_size() const override {
+      using ::darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+      serialization::SimplePackUnpackArchive ar;
+
+      ArchiveAccess::start_sizing(ar);
+
+      // get the packed size of the captured members
+      captured_.compute_size(ar);
+
+      return base_t::get_packed_size() + ArchiveAccess::get_size(ar);
+    }
+
+    virtual void pack(void* allocated) const override {
+      using ::darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+      serialization::SimplePackUnpackArchive ar;
+
+      ArchiveAccess::start_packing(ar);
+      ArchiveAccess::set_buffer(ar, allocated);
+
+      // pack the captured members
+      captured_.pack(ar);
+
+      base_t::pack(ArchiveAccess::get_spot(ar));
+    }
+
 };
 
 template <typename CaptureType, typename... Args>
