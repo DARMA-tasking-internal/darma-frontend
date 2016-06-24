@@ -522,13 +522,20 @@ class AccessHandle : public detail::AccessHandleBase {
       ar >> k;
       var_handle_ = detail::make_shared<detail::VariableHandle<T>>(k);
       detail::HandleUse::permissions_t immed, sched;
+
+      #pragma clang diagnostic push
+      #pragma clang diagnostic ignored "-Wuninitialized"
+
       ar >> sched >> immed;
+
       current_use_ = std::make_shared<detail::UseHolder>(
         detail::migrated_use_arg,
         detail::HandleUse(
           var_handle_.get(), nullptr, nullptr, sched, immed
         )
       );
+
+      #pragma clang diagnostic pop
     }
 
     ////////////////////////////////////////
@@ -595,7 +602,7 @@ struct Serializer<AccessHandle<Args...>> {
   public:
     template <typename ArchiveT>
     void compute_size(AccessHandleT const& val, ArchiveT& ar) const {
-      if(ar.var_handle_.get() != nullptr) {
+      if(val.var_handle_.get() != nullptr) {
         ar % true;
         ar % val.var_handle_->get_key();
         ar % val.current_use_->use.scheduling_permissions_;
@@ -608,7 +615,7 @@ struct Serializer<AccessHandle<Args...>> {
 
     template <typename ArchiveT>
     void pack(AccessHandleT const& val, ArchiveT& ar) const {
-      if(ar.var_handle_.get() != nullptr) {
+      if(val.var_handle_.get() != nullptr) {
         ar << true;
         ar << val.var_handle_->get_key();
         ar << val.current_use_->use.scheduling_permissions_;

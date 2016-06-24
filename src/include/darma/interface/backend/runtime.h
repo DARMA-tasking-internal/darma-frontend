@@ -112,6 +112,8 @@ class Runtime {
     *  task's run() invocation, including child tasks, and thus it should not
     *  be dereferenced in any other context.
     *
+    *  @TODO decide what this should do if called before or after a migrated task runs
+    *
     *  @sa frontend::Task
     */
     virtual task_t*
@@ -135,6 +137,10 @@ class Runtime {
     ) =0;
 
     /** @TODO document this
+     *  @TODO DSH: I'm not very happy with how this works.  The backend would
+     *        have to somehow look up the flows it needs to unpack by the
+     *        Use's Handle's key or something.  Seems pretty inefficient,
+     *        but I'm rolling with it for now just to get something working
      */
     virtual void
     reregister_migrated_use(

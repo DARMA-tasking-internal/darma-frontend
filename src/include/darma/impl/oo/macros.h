@@ -53,18 +53,20 @@
 #include <darma/impl/oo/util.h> // detail::empty_base
 #include <darma/impl/meta/detection.h> // meta::is_detected
 #include <darma/impl/handle.h> // detail::is_access_handle
+#include <darma/impl/serialization/traits.h> // serializability_traits
+#include <darma/impl/serialization/serialization_fwd.h> // unpack_constructor_tag_t
 
 #define _DARMA__OO_PASSTHROUGH_CONSTRUCTORS(name, ext) \
 /* Explicitly default the copy, move, and default constructors */ \
-constexpr inline name##ext() = default; \
-constexpr inline name##ext(name##ext const&) = default; \
-constexpr inline name##ext(name##ext &&) = default; \
+constexpr inline _darma__##name##ext() = default; \
+constexpr inline _darma__##name##ext(_darma__##name##ext const&) = default; \
+constexpr inline _darma__##name##ext(_darma__##name##ext &&) = default; \
 \
 /* for types in a chained base hierarchy that have a member of the correct name */ \
 /* and type, extract that value and forward the object on to the base */ \
 template <typename T, \
   typename = std::enable_if_t< \
-    not std::is_same<std::decay_t<T>, name##ext>::value \
+    not std::is_same<std::decay_t<T>, _darma__##name##ext>::value \
     and _darma__has_##name##_member_access<T, std::decay_t<ValueType>, ValueType>::value \
     and darma_runtime::oo::detail::is_chained_base_class<std::decay_t<T>>::value \
     /* Unnecessary for now; it basically just makes the error less readable \
@@ -79,13 +81,44 @@ template <typename T, \
   > \
 > \
 constexpr inline explicit \
-name##ext(T&& other) \
+_darma__##name##ext(T&& other) \
   : Base(std::forward<T>(other)), name( \
        _darma__##name##_oo_access_friend_t<std::decay_t<ValueType>>::template name<ValueType>( \
          std::forward<T>(other) \
        ) \
     ) \
-{ };
+{ } \
+/* allow construction from an Archive if ValueType is serializable with the archive */ \
+template <typename ArchiveT> \
+constexpr inline explicit \
+_darma__##name##ext( \
+  std::enable_if_t< \
+    ::darma_runtime::serialization::detail::serializability_traits<ValueType> \
+      ::template is_serializable_with_archive<ArchiveT>::value \
+    /* also has to be default constructible since we need to make it before */ \
+    /* unpacking into it. */ \
+    /* TODO this is inefficient, since the default constructor is called but */\
+    /* its result never used */ \
+    and std::is_default_constructible<ValueType>::value, \
+    ::darma_runtime::serialization::unpack_constructor_tag_t \
+  >, \
+  ArchiveT& ar \
+) : Base(::darma_runtime::serialization::unpack_constructor_tag, ar) \
+{ \
+  ar >> name; \
+} \
+/* pack and compute size functions, with protected names */ \
+template <typename ArchiveT> \
+void _darma__pack(ArchiveT& ar) const { \
+  Base::_darma__pack(ar); \
+  ar << name; \
+} \
+template <typename ArchiveT> \
+void _darma__compute_size(ArchiveT& ar) const { \
+  Base::_darma__compute_size(ar); \
+  ar << name; \
+} \
+
 
 #define DARMA_OO_DEFINE_TAG(name) \
 struct name; \
@@ -168,7 +201,7 @@ using _darma__has_##name##_member_access = \
   >; \
 \
 template <typename ValueType, typename Base> \
-struct name##__as_private_field : Base { \
+struct _darma__##name##__as_private_field : Base { \
     _DARMA__OO_PASSTHROUGH_CONSTRUCTORS(name, __as_private_field) \
   protected: \
     ValueType name; \
@@ -192,7 +225,7 @@ struct name##__as_private_field : Base { \
 }; \
 \
 template <typename ValueType, typename Base> \
-struct name##__as_public_field : Base { \
+struct _darma__##name##__as_public_field : Base { \
   _DARMA__OO_PASSTHROUGH_CONSTRUCTORS(name, __as_public_field) \
   ValueType name; \
   /* Should be friends with both the access handle and non-access handle attorneys */ \
@@ -215,22 +248,22 @@ struct name##__as_public_field : Base { \
 }; \
 \
 template <typename OfClass, typename Base, typename CastThisTo> \
-struct name##__as_public_method : Base { \
-  using deferred = name##__as_public_method; \
+struct _darma__##name##__as_public_method : Base { \
+  using deferred = _darma__##name##__as_public_method; \
   /* Explicitly default the copy, move, and default constructors */ \
-  constexpr inline name##__as_public_method() = default; \
-  constexpr inline name##__as_public_method(name##__as_public_method const& val) = default; \
-  constexpr inline name##__as_public_method(name##__as_public_method && val) = default; \
+  constexpr inline _darma__##name##__as_public_method() = default; \
+  constexpr inline _darma__##name##__as_public_method(_darma__##name##__as_public_method const& val) = default; \
+  constexpr inline _darma__##name##__as_public_method(_darma__##name##__as_public_method && val) = default; \
   \
   /* Forward to base class if it's not a copy or move constructor */ \
   template <typename T, \
     typename = std::enable_if_t< \
-      not std::is_same<std::decay_t<T>, name##__as_public_method>::value \
+      not std::is_same<std::decay_t<T>, _darma__##name##__as_public_method>::value \
         and ::darma_runtime::oo::detail::is_chained_base_class<std::decay_t<T>>::value \
     > \
   > \
   constexpr inline explicit \
-  name##__as_public_method(T&& val) \
+  _darma__##name##__as_public_method(T&& val) \
     : Base(std::forward<T>(val)) \
   { } \
   \
@@ -246,28 +279,52 @@ struct name##__as_public_method : Base { \
       *static_cast<CastThisTo*>(this), std::forward<Args>(args)... \
     ); \
   } \
+  /* Forward the unpacking constructor to base */ \
+  template <typename ArchiveT> \
+  constexpr inline explicit \
+  _darma__##name##__as_public_method( \
+    serialization::unpack_constructor_tag_t, \
+    ArchiveT& ar \
+  ) : Base(serialization::unpack_constructor_tag, ar) \
+  { } \
 }; \
 \
 template <typename OfClass, typename Base, typename CastThisTo> \
-struct name##__as_immediate_public_method : Base { \
-  using immediate = name##__as_immediate_public_method; \
+struct _darma__##name##__as_immediate_public_method : Base { \
+  using immediate = _darma__##name##__as_immediate_public_method; \
   /* Explicitly default the copy, move, and default constructors */ \
-  constexpr inline name##__as_immediate_public_method() = default; \
-  constexpr inline name##__as_immediate_public_method(name##__as_immediate_public_method const& val) = default; \
-  constexpr inline name##__as_immediate_public_method(name##__as_immediate_public_method && val) = default; \
+  constexpr inline _darma__##name##__as_immediate_public_method() = default; \
+  constexpr inline _darma__##name##__as_immediate_public_method( \
+    _darma__##name##__as_immediate_public_method const& val \
+  ) = default; \
+  constexpr inline _darma__##name##__as_immediate_public_method( \
+    _darma__##name##__as_immediate_public_method && val \
+  ) = default; \
   \
   /* Forward to base class if it's not a copy or move constructor */ \
   template <typename T, \
     typename = std::enable_if_t< \
-      not std::is_same<std::decay_t<T>, name##__as_immediate_public_method>::value \
-        and ::darma_runtime::oo::detail::is_chained_base_class<std::decay_t<T>>::value \
+      not std::is_same<std::decay_t<T>, \
+          _darma__##name##__as_immediate_public_method \
+        >::value \
+        and ::darma_runtime::oo::detail::is_chained_base_class< \
+          std::decay_t<T> \
+        >::value \
     > \
   > \
   constexpr inline explicit \
-  name##__as_immediate_public_method(T&& val) \
+  _darma__##name##__as_immediate_public_method(T&& val) \
     : Base(std::forward<T>(val)) \
   { } \
   \
+  /* Forward the unpacking constructor to base */ \
+  template <typename ArchiveT> \
+  constexpr inline explicit \
+  _darma__##name##__as_immediate_public_method( \
+    serialization::unpack_constructor_tag_t, \
+    ArchiveT& ar \
+  ) : Base(serialization::unpack_constructor_tag, ar) \
+  { } \
   template <typename... Args> \
   void name(Args&&... args) { \
     using method_struct_t = decltype(  \
@@ -280,7 +337,7 @@ struct name##__as_immediate_public_method : Base { \
   } \
 }; \
 template <typename ReturnType> \
-struct name##__run_method_invoker { \
+struct _darma__##name##__run_method_invoker { \
   template <typename T, typename... Args> \
   static ReturnType run(T&& to_call, Args&&... args) { \
     return std::forward<T>(to_call).name(std::forward<Args>(args)...); \
@@ -288,24 +345,39 @@ struct name##__run_method_invoker { \
 }; \
 \
 struct name { \
+  name() = delete; \
+  name( name const& ) = delete; \
+  name( name && ) = delete; \
+  ~name() = delete; \
+  void operator=(name const&) = delete; \
   template <typename T, typename Base> \
-  using as_private_field_in_chain = name##__as_private_field<T, Base>; \
+  using as_private_field_in_chain = _darma__##name##__as_private_field<T, Base>; \
   template <typename T> \
-  using as_private_field = name##__as_private_field<T, darma_runtime::oo::detail::empty_base>; \
+  using as_private_field = \
+    _darma__##name##__as_private_field<T, darma_runtime::oo::detail::empty_base>; \
   template <typename T, typename Base> \
-  using as_public_field_in_chain = name##__as_public_field<T, Base>; \
+  using as_public_field_in_chain = _darma__##name##__as_public_field<T, Base>; \
   template <typename T> \
-  using as_public_field = name##__as_public_field<T, darma_runtime::oo::detail::empty_base>; \
+  using as_public_field = \
+    _darma__##name##__as_public_field<T, darma_runtime::oo::detail::empty_base>; \
   template <typename OfClass, typename Base, typename CastThisTo=OfClass> \
-  using as_public_method_in_chain = name##__as_public_method<OfClass, Base, CastThisTo>; \
+  using as_public_method_in_chain = \
+    _darma__##name##__as_public_method<OfClass, Base, CastThisTo>; \
   template <typename OfClass, typename Base, typename CastThisTo=OfClass> \
-  using as_immediate_public_method_in_chain = name##__as_immediate_public_method<OfClass, Base, CastThisTo>; \
+  using as_immediate_public_method_in_chain = \
+    _darma__##name##__as_immediate_public_method<OfClass, Base, CastThisTo>; \
   template <typename OfClass> \
-  using as_public_method = name##__as_public_method<OfClass, darma_runtime::oo::detail::empty_base, OfClass>; \
+  using as_public_method = \
+    _darma__##name##__as_public_method< \
+      OfClass, darma_runtime::oo::detail::empty_base, OfClass \
+    >; \
   template <typename OfClass> \
-  using as_immediate_public_method = name##__as_immediate_public_method<OfClass, darma_runtime::oo::detail::empty_base, OfClass>; \
+  using as_immediate_public_method = \
+    _darma__##name##__as_immediate_public_method< \
+      OfClass, darma_runtime::oo::detail::empty_base, OfClass \
+    >; \
   template <typename ReturnType> \
-  using run_method_invoker = name##__run_method_invoker<ReturnType>; \
+  using run_method_invoker = _darma__##name##__run_method_invoker<ReturnType>; \
 }
 
 #define DARMA_OO_DECLARE_CLASS(name) \

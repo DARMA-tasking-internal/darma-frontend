@@ -196,6 +196,7 @@ class KeyedObject
 
 namespace detail {
 
+// TODO rename this, and move some of this functionality
 namespace DependencyHandle_attorneys {
 
 struct ArchiveAccess {
@@ -205,6 +206,10 @@ struct ArchiveAccess {
     // a use case for that sort of thing comes up
     assert(ar.start == nullptr);
     ar.start = ar.spot = (char* const)buffer;
+  }
+  template <typename ArchiveT>
+  static void* get_spot(ArchiveT& ar) {
+    return ar.spot;
   }
   template <typename ArchiveT>
   static size_t get_size(ArchiveT& ar) {
@@ -232,6 +237,13 @@ struct ArchiveAccess {
   start_unpacking(ArchiveT& ar) {
     ar.mode = serialization::detail::SerializerMode::Unpacking;
     ar.spot = ar.start;
+  }
+
+  template <typename ArchiveT>
+  static inline void
+  start_unpacking_with_buffer(ArchiveT& ar, void* buffer) {
+    ar.mode = serialization::detail::SerializerMode::Unpacking;
+    ar.spot = ar.start = (char* const)buffer;
   }
 };
 
