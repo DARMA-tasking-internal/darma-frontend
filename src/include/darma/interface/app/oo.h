@@ -54,6 +54,13 @@ struct darma_class;
 template <typename OfClass, typename... Args>
 struct darma_method;
 
+template <typename OfClass, typename... Args>
+struct darma_constructors;
+
+// Useful alias
+template <typename OfClass, typename... Args>
+using darma_constructor = darma_constructors<OfClass, Args...>;
+
 template <typename... Args>
 struct public_methods;
 

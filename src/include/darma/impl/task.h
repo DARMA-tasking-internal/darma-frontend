@@ -168,7 +168,8 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
 
     template <typename ReturnType = void>
     ReturnType run()  {
-      static_assert(std::is_same<ReturnType, bool>::value or std::is_void<ReturnType>::value,
+      static_assert(
+        std::is_same<ReturnType, bool>::value or std::is_void<ReturnType>::value,
         "Only bool and void for ReturnType in Task::run<>() are currently supported"
       );
       assert(runnable_);
@@ -266,20 +267,24 @@ namespace frontend {
 
 inline backend::runtime_t::task_unique_ptr
 unpack_task(void* packed_data) {
+  using detail::DependencyHandle_attorneys::ArchiveAccess;
   serialization::SimplePackUnpackArchive ar;
-  detail::DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);
-  detail::DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, packed_data);
+
+  ArchiveAccess::start_unpacking(ar);
+  ArchiveAccess::set_buffer(ar, packed_data);
 
   std::size_t runnable_index;
   ar >> runnable_index;
 
-  // Now unpack the number of dependencies, their keys and versions
-  //std::vector<std::pair<types::key_t, types::version_t>> deps;
-  //ar >> deps;
+  auto rv = detail::make_unique<detail::TaskBase>();
 
-  // TODO
-  assert(false);
-  return nullptr;
+  rv->set_runnable(
+    darma_runtime::detail::get_runnable_registry().at(runnable_index)(
+      (void*)&ar
+    )
+  );
+
+  return std::move(rv);
 }
 
 } // end namespace frontend
