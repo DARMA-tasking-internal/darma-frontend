@@ -196,6 +196,7 @@ class KeyedObject
 
 namespace detail {
 
+// TODO rename this, and move some of this functionality
 namespace DependencyHandle_attorneys {
 
 struct ArchiveAccess {
@@ -232,6 +233,13 @@ struct ArchiveAccess {
   start_unpacking(ArchiveT& ar) {
     ar.mode = serialization::detail::SerializerMode::Unpacking;
     ar.spot = ar.start;
+  }
+
+  template <typename ArchiveT>
+  static inline void
+  start_unpacking_with_buffer(ArchiveT& ar, void* buffer) {
+    ar.mode = serialization::detail::SerializerMode::Unpacking;
+    ar.spot = ar.start = (char* const)buffer;
   }
 };
 
