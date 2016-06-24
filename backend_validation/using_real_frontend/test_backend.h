@@ -48,6 +48,9 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <atomic>
+#include <vector>
+#include <string>
+#include <iostream>
 
 #include "helpers.h"
 
@@ -60,11 +63,16 @@ struct TestBackend
   virtual void SetUp() {
     using namespace darma_runtime;
 
-    // Emulate argc and argv
-    argc_ = 1;
-    argv_ = new char*[1];
-    argv_[0] = new char[256];
-    sprintf(argv_[0], "<mock frontend test>");
+    // copy in argc and argv from command-line (after gtest and
+    // gmock pull off their stuff)
+    argc_ = orig_args_.size();
+    argv_ = new char*[argc_];
+    for (size_t i=0; i<argc_; i++){
+      const size_t len = orig_args_[i].size();
+      argv_[i] = new char[len+1];
+      argv_[i][len] = 0;
+      orig_args_[i].copy(argv_[i], len);
+    }
 
     // make it obvious if darma_init() wasn't called
     detail::backend_runtime = 0;
@@ -85,11 +93,22 @@ struct TestBackend
       delete detail::backend_runtime;
       detail::backend_runtime = 0;
     }
-    delete[] argv_[0];
-    delete[] argv_;
+
+    // clean up args
+    for (size_t i=0; i<argc_; i++){
+      delete [] argv_[i];
+    }
+    delete [] argv_;
+  }
+
+ public:
+  static void
+  store_cmdline_args(int argc, char **argv) {
+    orig_args_ = std::vector<std::string>(argv, argv+argc);
   }
 
  protected:
+  static std::vector<std::string> orig_args_;
   int argc_;
   char** argv_;
 };
