@@ -208,6 +208,10 @@ struct ArchiveAccess {
     ar.start = ar.spot = (char* const)buffer;
   }
   template <typename ArchiveT>
+  static void* get_spot(ArchiveT& ar) {
+    return ar.spot;
+  }
+  template <typename ArchiveT>
   static size_t get_size(ArchiveT& ar) {
     assert(ar.is_sizing());
     return ar.spot - ar.start;

@@ -70,17 +70,54 @@ class MethodRunnable
 
     CaptureStruct captured_;
 
+    static const size_t index_;
+
   public:
 
-    // Allow construction from the class that this is a method of
+    // Default constructible args case
+    template <typename _Ignored_but_needed_for_SFINAE=void>
+    MethodRunnable(
+      std::enable_if_t<
+        std::is_default_constructible<typename base_t::args_tuple_t>::value
+        // Add this to keep the SFINAE from being evaluated at class template
+        // generation time (even though it should always be true)
+        and std::is_void<_Ignored_but_needed_for_SFINAE>::value,
+        //------------------------------
+        // The actual type:
+        CaptureStruct&&
+      > cstr_movable
+    ) : base_t(),
+        captured_(std::move(cstr_movable))
+    { }
+
+    // Non-default constructible args case
+    template <typename _Ignored_but_needed_for_SFINAE=void>
+    MethodRunnable(
+      typename base_t::args_tuple_t&& args,
+      std::enable_if_t<
+        not std::is_default_constructible<typename base_t::args_tuple_t>::value
+        // Add this to keep the SFINAE from being evaluated at class template
+        // generation time (even though it should always be true)
+        and std::is_void<_Ignored_but_needed_for_SFINAE>::value,
+        //------------------------------
+        // The actual type:
+        CaptureStruct&&
+      > cstr_movable
+    ) : base_t(std::move(args)),
+        captured_(std::move(cstr_movable))
+    { }
+
+
+    // Allow construction from the class that this is a method of, or from
+    // another method of the same class
     template <typename OfClassDeduced,
       typename = std::enable_if_t<
         std::is_convertible<OfClassDeduced, typename CaptureStruct::of_class_t>::value
           or is_darma_method_of_class<
             std::decay_t<OfClassDeduced>,
-        typename CaptureStruct::of_class_t
-      >::value
-    >
+          typename CaptureStruct::of_class_t
+        >::value
+      >
     >
     constexpr inline explicit
     MethodRunnable(OfClassDeduced&& val, Args&&... args)
@@ -101,13 +138,58 @@ class MethodRunnable
       return true;
     }
 
-    // TODO implement this
-    size_t get_index() const override { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }
+    template <typename ArchiveT>
+    static types::unique_ptr_template<darma_runtime::detail::RunnableBase>
+    construct_from_archive(ArchiveT& ar) {
+      // Unpack the CaptureMethod first
+      CaptureStruct cstr(serialization::unpack_constructor_tag, ar);
+
+      // now unpack the arguments in the same way that the FunctorRunnable does
+      auto rv = base_t::template _construct_from_archive<
+        ArchiveT,
+        MethodRunnable<CaptureStruct, Args...>
+      >(ar, std::move(cstr));
+
+      return std::move(rv);
+    }
+
+    size_t get_index() const override {
+      return index_;
+    }
+
+    virtual size_t get_packed_size() const override {
+      using ::darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+      serialization::SimplePackUnpackArchive ar;
+
+      ArchiveAccess::start_sizing(ar);
+
+      // get the packed size of the captured members
+      captured_.compute_size(ar);
+
+      return base_t::get_packed_size() + ArchiveAccess::get_size(ar);
+    }
+
+    virtual void pack(void* allocated) const override {
+      using ::darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+      serialization::SimplePackUnpackArchive ar;
+
+      ArchiveAccess::start_packing(ar);
+      ArchiveAccess::set_buffer(ar, allocated);
+
+      // pack the captured members
+      captured_.pack(ar);
+
+      base_t::pack(ArchiveAccess::get_spot(ar));
+    }
+
 };
+
+template <typename CaptureType, typename... Args>
+const size_t MethodRunnable<CaptureType, Args...>::index_ =
+  darma_runtime::detail::register_runnable<MethodRunnable<CaptureType, Args...>>();
 
 } // end namespace detail
 } // end namespace oo
-
 } // end namespace darma_runtime
 
 #endif //DARMA_METHOD_RUNNABLE_H

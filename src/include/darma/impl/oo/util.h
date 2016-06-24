@@ -46,6 +46,7 @@
 #define DARMA_IMPL_OO_UTIL_H
 
 #include <darma/impl/meta/detection.h>
+#include <darma/impl/serialization/serialization_fwd.h> // unpack_constructor_tag_t
 
 namespace darma_runtime {
 namespace oo {
@@ -92,6 +93,15 @@ struct _chain_base_classes_impl
     : base_t(std::forward<T>(val))
   { }
 
+  // Forward the unpacking constructor
+  template <typename ArchiveT>
+  constexpr inline explicit
+  _chain_base_classes_impl(
+    serialization::unpack_constructor_tag_t,
+    ArchiveT& ar
+  ) : base_t(serialization::unpack_constructor_tag, ar)
+  { }
+
 };
 
 template <typename Seq, std::size_t N>
@@ -114,6 +124,22 @@ struct _chain_base_classes_impl<Seq, 0, N>
   >
   constexpr inline explicit
   _chain_base_classes_impl(T&&) : _chain_base_classes_impl() { }
+
+  // allow (and ignore) the unpacking constructor
+  template <typename ArchiveT>
+  constexpr inline explicit
+  _chain_base_classes_impl(
+    serialization::unpack_constructor_tag_t,
+    ArchiveT& ar
+  ) : _chain_base_classes_impl() { }
+
+  template <typename ArchiveT>
+  constexpr inline void
+  _darma__pack(ArchiveT& ar) const { }
+
+  template <typename ArchiveT>
+  constexpr inline void
+  _darma__compute_size(ArchiveT& ar) const { }
 };
 
 template <typename Seq>

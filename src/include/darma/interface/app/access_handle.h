@@ -602,7 +602,7 @@ struct Serializer<AccessHandle<Args...>> {
   public:
     template <typename ArchiveT>
     void compute_size(AccessHandleT const& val, ArchiveT& ar) const {
-      if(ar.var_handle_.get() != nullptr) {
+      if(val.var_handle_.get() != nullptr) {
         ar % true;
         ar % val.var_handle_->get_key();
         ar % val.current_use_->use.scheduling_permissions_;
@@ -615,7 +615,7 @@ struct Serializer<AccessHandle<Args...>> {
 
     template <typename ArchiveT>
     void pack(AccessHandleT const& val, ArchiveT& ar) const {
-      if(ar.var_handle_.get() != nullptr) {
+      if(val.var_handle_.get() != nullptr) {
         ar << true;
         ar << val.var_handle_->get_key();
         ar << val.current_use_->use.scheduling_permissions_;
