@@ -54,6 +54,7 @@
 #include <darma/impl/handle.h> // is_access_handle
 
 #include <darma/impl/oo/method_runnable.h>
+#include <darma/impl/serialization/serialization_fwd.h> // unpack_constructor_tag_t
 
 namespace darma_runtime {
 
@@ -345,6 +346,7 @@ struct deferred_method_call
   using of_class_t = typename Method::darma_method::helper_t::of_class_t;
   using method_t = Method;
 
+  deferred_method_call() = default;
 
   // Allow construction from the class that this is a method of
   template <typename OfClassDeduced,
@@ -360,10 +362,27 @@ struct deferred_method_call
     : base_t(std::forward<OfClassDeduced>(val))
   { }
 
+  template <typename ArchiveT>
+  constexpr inline explicit
+  deferred_method_call(
+    darma_runtime::serialization::unpack_constructor_tag_t,
+    ArchiveT& ar
+  ) : base_t(serialization::unpack_constructor_tag, ar)
+  { }
+
+  template <typename ArchiveT>
+  void compute_size(ArchiveT& ar) const {
+    base_t::_darma__compute_size(ar);
+  }
+
+  template <typename ArchiveT>
+  void pack(ArchiveT& ar) const {
+    base_t::_darma__pack(ar);
+  }
+
+
   template <typename... Args>
   void run(Args&&... args) {
-    //using invoker = typename tag_t::template run_method_invoker<void>;
-    //invoker::run(Method(std::move(*this)));
     Method(std::move(*this))(std::forward<Args>(args)...);
   }
 

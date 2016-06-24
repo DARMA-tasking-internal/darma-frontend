@@ -59,13 +59,16 @@
 #include <darma/impl/functor_traits.h>
 #include <darma/impl/util.h>
 #include <darma/impl/handle.h>
+#include <darma/impl/util/smart_pointers.h>
 
 namespace darma_runtime {
 namespace detail {
 
+// Forward declaration
 class RunnableBase;
 
 ////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="Runnable registry and helpers">
 
 typedef std::vector<std::function<std::unique_ptr<RunnableBase>(void*)>> runnable_registry_t;
 
@@ -85,8 +88,12 @@ struct RunnableRegistrar {
   RunnableRegistrar() {
     runnable_registry_t &reg = get_runnable_registry<>();
     index = reg.size();
-    reg.emplace_back([](void *data) -> std::unique_ptr<RunnableBase> {
-      return Runnable::construct_from_bytes(data);
+    reg.emplace_back([](void* archive_as_void) -> std::unique_ptr<RunnableBase> {
+      using ArchiveT = serialization::SimplePackUnpackArchive;
+
+      return Runnable::template construct_from_archive<
+        serialization::SimplePackUnpackArchive
+      >(*static_cast<serialization::SimplePackUnpackArchive*>(archive_as_void));
     });
   }
 };
@@ -107,12 +114,24 @@ register_runnable() {
   return _impl::RunnableRegistrarWrapper<Runnable>::registrar.index;
 }
 
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="RunnableBase">
+
 class RunnableBase {
   public:
     virtual bool run() =0;
     virtual size_t get_index() const =0;
+    virtual size_t get_packed_size() const =0;
+    virtual void pack(void* allocated) const =0;
     virtual ~RunnableBase() { }
 };
+
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -132,11 +151,16 @@ struct Runnable : public RunnableBase
 
     static const size_t index_;
 
+    template <typename ArchiveT>
     static std::unique_ptr<RunnableBase>
-    construct_from_bytes(void* data) {
-      // TODO write this
+    construct_from_archive(ArchiveT& data) {
+      // TODO write this (or don't...)
       assert(false);
+      return nullptr;
     }
+
+    virtual size_t get_packed_size() const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
+    virtual void pack(void* allocated) const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
 
     size_t get_index() const  { return index_; }
 
@@ -145,7 +169,8 @@ struct Runnable : public RunnableBase
 };
 
 template <typename Callable>
-const size_t Runnable<Callable>::index_ = register_runnable<Runnable<Callable>>();
+const size_t Runnable<Callable>::index_ =
+  register_runnable<Runnable<Callable>>();
 
 template <typename Callable>
 struct RunnableCondition : public RunnableBase
@@ -156,7 +181,9 @@ struct RunnableCondition : public RunnableBase
     : run_this_(std::forward<Callable>(c))
   { }
 
-  size_t get_index() const  { return 0; }
+  size_t get_index() const  { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }
+  virtual size_t get_packed_size() const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
+  virtual void pack(void* allocated) const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
 
   bool run()  { return run_this_(); }
 
@@ -195,7 +222,7 @@ class FunctorLikeRunnableBase
 
     args_tuple_t args_;
 
-
+    // TODO comment this
     decltype(auto)
     _get_args_to_splat() {
       return meta::tuple_for_each_zipped(
@@ -214,18 +241,141 @@ class FunctorLikeRunnableBase
       );
     }
 
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    // TODO there should also be a version of construct_from_archive where
+    //      all of the entries in args_tuple_t are in-place constructible
+    //      with an archive object (once we work out the syntax for expressing
+    //      this in-place constructibility).  That should be the preferred
+    //      mode of action.
+
+    // Things are a lot simpler if we can default construct all of the arguments
+    template <typename ArchiveT, typename RunnableToMake, typename... CTorArgs>
+    static types::unique_ptr_template<RunnableToMake>
+    _construct_from_archive(
+      std::enable_if_t<
+        std::is_default_constructible<args_tuple_t>::value,
+        ArchiveT&
+      > ar,
+      CTorArgs&&... ctor_args
+    ) {
+
+      // Default-construct args_ by calling the default constructor
+      auto rv = detail::make_unique<RunnableToMake>(
+        std::forward<CTorArgs>( ctor_args )...
+      );
+
+      ar >> rv->args_;
+
+      return std::move(rv);
+    };
+
+    // If args_tuple_t isn't default constructible, we need to do something
+    // a bit more messy
+    template <typename ArchiveT, typename RunnableToMake, typename... CTorArgs>
+    static types::unique_ptr_template<RunnableToMake>
+    _construct_from_archive(
+      std::enable_if_t<
+        not std::is_default_constructible<args_tuple_t>::value,
+        ArchiveT&
+      > ar,
+      CTorArgs&&... ctor_args
+    ) {
+      // If all of the args aren't default constructible, we have no choice but
+      // to move construct the arguments
+
+      // Reallocate
+      // TODO request this allocation from the backend instead
+      // (or make the default allocator such that it asks the backend for an
+      // allocation)
+      using tuple_alloc_traits =
+        serialization::detail::allocation_traits<args_tuple_t>;
+      void* args_tup_spot = tuple_alloc_traits::allocate(ar, 1);
+      args_tuple_t& args = *static_cast<args_tuple_t*>(args_tup_spot);
+
+      // Unpack each of the arguments
+      meta::tuple_for_each(
+        args,
+        [&ar](auto& arg) {
+          ar.unpack_item(
+            const_cast<
+              std::remove_const_t<std::remove_reference_t<decltype(arg)>>&
+              >(arg)
+          );
+        }
+      );
+
+      // now cast to xvalue and invoke the argument move constructor
+      auto rv = detail::make_unique<RunnableToMake>(
+        std::move(args),
+        std::forward<CTorArgs>(ctor_args)...
+      );
+
+      // now that the move has happened, call the destructors of the
+      // elements in the args tuple
+      tuple_alloc_traits::destroy(
+        ar, static_cast<args_tuple_t*>(args_tup_spot)
+      );
+      // And deallocate the memory
+      tuple_alloc_traits::deallocate(
+        ar, static_cast<args_tuple_t*>(args_tup_spot), 1
+      );
+
+      return std::move(rv);
+    }
+
+
+    ////////////////////////////////////////////////////////////////////////////
+
   public:
+
+    size_t get_packed_size() const override {
+      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      serialization::SimplePackUnpackArchive ar;
+
+      ArchiveAccess::start_sizing(ar);
+
+      ar % args_;
+
+      return ArchiveAccess::get_size(ar);
+    }
+
+    void pack(void* allocated) const override {
+      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      serialization::SimplePackUnpackArchive ar;
+
+      ArchiveAccess::start_packing(ar);
+      ArchiveAccess::set_buffer(ar, allocated);
+
+      // pack the arguments
+      ar << args_;
+
+    }
+
+    template <typename _used_only_for_SFINAE = void,
+      typename = std::enable_if_t<
+        std::is_default_constructible<args_tuple_t>::value
+        and std::is_void<_used_only_for_SFINAE>::value
+      >
+    >
+    FunctorLikeRunnableBase()
+      : args_()
+    { }
+
 
     FunctorLikeRunnableBase(
       args_tuple_t&& args_tup
     ) : args_(std::forward<args_tuple_t>(args_tup))
-      { }
+    { }
 
     FunctorLikeRunnableBase(
       variadic_constructor_arg_t const,
       Args&&... args
     ) : args_(std::forward<Args>(args)...)
     { }
+
+    ////////////////////////////////////////////////////////////////////////////
 };
 
 template <typename Functor, typename... Args>
@@ -241,6 +391,7 @@ class FunctorRunnable
 
   public:
 
+    // Use the base class constructors
     using base_t::base_t;
 
 
@@ -253,34 +404,14 @@ class FunctorRunnable
     }
 
 
-    static std::unique_ptr<RunnableBase>
-    construct_from_bytes(void* data) {
-      // TODO inplace rather than move construction?
-
-      // Make an archive from the void*
-      serialization::SimplePackUnpackArchive ar;
-      using DependencyHandle_attorneys::ArchiveAccess;
-      ArchiveAccess::start_unpacking(ar);
-      ArchiveAccess::set_buffer(ar, data);
-
-      // Reallocate
-      using tuple_alloc_traits = serialization::detail::allocation_traits<args_tuple_t>;
-      void* args_tup_spot = tuple_alloc_traits::allocate(ar, 1);
-      args_tuple_t& args = *static_cast<args_tuple_t*>(args_tup_spot);
-
-      // Unpack each of the arguments
-      meta::tuple_for_each(
-        args,
-        [&ar](auto& arg) {
-          ar.unpack_item(const_cast<
-            std::remove_const_t<std::remove_reference_t<decltype(arg)>>&
-            >(arg));
-        }
-      );
-
-      // now cast to xvalue and invoke the argument move constructor
-      return std::make_unique<FunctorRunnable>(std::move(args));
-    }
+    template <typename ArchiveT>
+    static types::unique_ptr_template<RunnableBase>
+    construct_from_archive(ArchiveT& ar) {
+      return base_t::template _construct_from_archive<
+        ArchiveT,
+        FunctorRunnable<Functor, Args...>
+      >(ar);
+    };
 
     size_t get_index() const  { return index_; }
 };
