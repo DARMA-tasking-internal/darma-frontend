@@ -253,14 +253,22 @@ struct _darma__##name##__as_immediate_public_method : Base { \
   using immediate = _darma__##name##__as_immediate_public_method; \
   /* Explicitly default the copy, move, and default constructors */ \
   constexpr inline _darma__##name##__as_immediate_public_method() = default; \
-  constexpr inline _darma__##name##__as_immediate_public_method(_darma__##name##__as_immediate_public_method const& val) = default; \
-  constexpr inline _darma__##name##__as_immediate_public_method(_darma__##name##__as_immediate_public_method && val) = default; \
+  constexpr inline _darma__##name##__as_immediate_public_method( \
+    _darma__##name##__as_immediate_public_method const& val \
+  ) = default; \
+  constexpr inline _darma__##name##__as_immediate_public_method( \
+    _darma__##name##__as_immediate_public_method && val \
+  ) = default; \
   \
   /* Forward to base class if it's not a copy or move constructor */ \
   template <typename T, \
     typename = std::enable_if_t< \
-      not std::is_same<std::decay_t<T>, _darma__##name##__as_immediate_public_method>::value \
-        and ::darma_runtime::oo::detail::is_chained_base_class<std::decay_t<T>>::value \
+      not std::is_same<std::decay_t<T>, \
+          _darma__##name##__as_immediate_public_method \
+        >::value \
+        and ::darma_runtime::oo::detail::is_chained_base_class< \
+          std::decay_t<T> \
+        >::value \
     > \
   > \
   constexpr inline explicit \
@@ -296,19 +304,29 @@ struct name { \
   template <typename T, typename Base> \
   using as_private_field_in_chain = _darma__##name##__as_private_field<T, Base>; \
   template <typename T> \
-  using as_private_field = _darma__##name##__as_private_field<T, darma_runtime::oo::detail::empty_base>; \
+  using as_private_field = \
+    _darma__##name##__as_private_field<T, darma_runtime::oo::detail::empty_base>; \
   template <typename T, typename Base> \
   using as_public_field_in_chain = _darma__##name##__as_public_field<T, Base>; \
   template <typename T> \
-  using as_public_field = _darma__##name##__as_public_field<T, darma_runtime::oo::detail::empty_base>; \
+  using as_public_field = \
+    _darma__##name##__as_public_field<T, darma_runtime::oo::detail::empty_base>; \
   template <typename OfClass, typename Base, typename CastThisTo=OfClass> \
-  using as_public_method_in_chain = _darma__##name##__as_public_method<OfClass, Base, CastThisTo>; \
+  using as_public_method_in_chain = \
+    _darma__##name##__as_public_method<OfClass, Base, CastThisTo>; \
   template <typename OfClass, typename Base, typename CastThisTo=OfClass> \
-  using as_immediate_public_method_in_chain = _darma__##name##__as_immediate_public_method<OfClass, Base, CastThisTo>; \
+  using as_immediate_public_method_in_chain = \
+    _darma__##name##__as_immediate_public_method<OfClass, Base, CastThisTo>; \
   template <typename OfClass> \
-  using as_public_method = _darma__##name##__as_public_method<OfClass, darma_runtime::oo::detail::empty_base, OfClass>; \
+  using as_public_method = \
+    _darma__##name##__as_public_method< \
+      OfClass, darma_runtime::oo::detail::empty_base, OfClass \
+    >; \
   template <typename OfClass> \
-  using as_immediate_public_method = _darma__##name##__as_immediate_public_method<OfClass, darma_runtime::oo::detail::empty_base, OfClass>; \
+  using as_immediate_public_method = \
+    _darma__##name##__as_immediate_public_method< \
+      OfClass, darma_runtime::oo::detail::empty_base, OfClass \
+    >; \
   template <typename ReturnType> \
   using run_method_invoker = _darma__##name##__run_method_invoker<ReturnType>; \
 }
