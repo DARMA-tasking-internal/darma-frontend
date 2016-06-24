@@ -234,6 +234,93 @@ class FunctorLikeRunnableBase
       );
     }
 
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    // TODO there should also be a version of construct_from_archive where
+    //      all of the entries in args_tuple_t are in-place constructible
+    //      with an archive object (once we work out the syntax for expressing
+    //      this in-place constructibility).  That should be the preferred
+    //      mode of action.
+
+    // Things are a lot simpler if we can default construct all of the arguments
+    template <typename ArchiveT, typename RunnableToMake, typename... CTorArgs>
+    static types::unique_ptr_template<RunnableToMake>
+    _construct_from_archive(
+      std::enable_if_t<
+        std::is_default_constructible<args_tuple_t>::value,
+        ArchiveT&
+      > ar,
+      CTorArgs&&... ctor_args
+    ) {
+
+      // Default-construct args_ by calling the default constructor
+      auto rv = detail::make_unique<RunnableToMake>(
+        std::forward<CTorArgs>( ctor_args )...
+      );
+
+      ar >> rv->args_;
+
+      return std::move(rv);
+    };
+
+    // If args_tuple_t isn't default constructible, we need to do something
+    // a bit more messy
+    template <typename ArchiveT, typename RunnableToMake, typename... CTorArgs>
+    static types::unique_ptr_template<RunnableToMake>
+    _construct_from_archive(
+      std::enable_if_t<
+        not std::is_default_constructible<args_tuple_t>::value,
+        ArchiveT&
+      > ar,
+      CTorArgs&&... ctor_args
+    ) {
+      // If all of the args aren't default constructible, we have no choice but
+      // to move construct the arguments
+
+      // Reallocate
+      // TODO request this allocation from the backend instead
+      // (or make the default allocator such that it asks the backend for an
+      // allocation)
+      using tuple_alloc_traits =
+        serialization::detail::allocation_traits<args_tuple_t>;
+      void* args_tup_spot = tuple_alloc_traits::allocate(ar, 1);
+      args_tuple_t& args = *static_cast<args_tuple_t*>(args_tup_spot);
+
+      // Unpack each of the arguments
+      meta::tuple_for_each(
+        args,
+        [&ar](auto& arg) {
+          ar.unpack_item(
+            const_cast<
+              std::remove_const_t<std::remove_reference_t<decltype(arg)>>&
+              >(arg)
+          );
+        }
+      );
+
+      // now cast to xvalue and invoke the argument move constructor
+      auto rv = detail::make_unique<RunnableToMake>(
+        std::move(args),
+        std::forward<CTorArgs>(ctor_args)...
+      );
+
+      // now that the move has happened, call the destructors of the
+      // elements in the args tuple
+      tuple_alloc_traits::destroy(
+        ar, static_cast<args_tuple_t*>(args_tup_spot)
+      );
+      // And deallocate the memory
+      tuple_alloc_traits::deallocate(
+        ar, static_cast<args_tuple_t*>(args_tup_spot), 1
+      );
+
+      return std::move(rv);
+    }
+
+
+    ////////////////////////////////////////////////////////////////////////////
+
   public:
 
     template <typename _used_only_for_SFINAE = void,
@@ -257,6 +344,8 @@ class FunctorLikeRunnableBase
       Args&&... args
     ) : args_(std::forward<Args>(args)...)
     { }
+
+    ////////////////////////////////////////////////////////////////////////////
 };
 
 template <typename Functor, typename... Args>
@@ -284,81 +373,14 @@ class FunctorRunnable
       return false;
     }
 
-    // TODO there should also be a version of construct_from_archive where
-    //      all of the entries in args_tuple_t are in-place constructible
-    //      with an archive object (once we work out the syntax for expressing
-    //      this in-place constructibility).  That should be the preferred
-    //      mode of action.
-
-    // Things are a lot simpler if we can default construct all of the arguments
     template <typename ArchiveT>
     static types::unique_ptr_template<RunnableBase>
-    construct_from_archive(
-      std::enable_if_t<
-        std::is_default_constructible<args_tuple_t>::value,
-        ArchiveT&
-      > ar
-    ) {
-
-      // Default-construct args_ by calling the default constructor
-      auto rv = detail::make_unique<FunctorRunnable>();
-
-      ar >> rv->args_;
-
-      return std::move(rv);
+    construct_from_archive(ArchiveT& ar) {
+      return base_t::template _construct_from_archive<
+        ArchiveT,
+        FunctorRunnable<Functor, Args...>
+      >(ar);
     };
-
-
-
-    // If args_tuple_t isn't default constructible, we need to do something
-    // a bit more messy
-    template <typename ArchiveT>
-    static types::unique_ptr_template<RunnableBase>
-    construct_from_archive(
-      std::enable_if_t<
-        not std::is_default_constructible<args_tuple_t>::value,
-        ArchiveT&
-      > ar
-    ) {
-      // If all of the args aren't default constructible, we have no choice but
-      // to move construct the arguments
-
-      // Reallocate
-      // TODO request this allocation from the backend instead
-      // (or make the default allocator such that it asks the backend for an
-      // allocation)
-      using tuple_alloc_traits =
-        serialization::detail::allocation_traits<args_tuple_t>;
-      void* args_tup_spot = tuple_alloc_traits::allocate(ar, 1);
-      args_tuple_t& args = *static_cast<args_tuple_t*>(args_tup_spot);
-
-      // Unpack each of the arguments
-      meta::tuple_for_each(
-        args,
-        [&ar](auto& arg) {
-          ar.unpack_item(
-            const_cast<
-              std::remove_const_t<std::remove_reference_t<decltype(arg)>>&
-            >(arg)
-          );
-        }
-      );
-
-      // now cast to xvalue and invoke the argument move constructor
-      auto rv = detail::make_unique<FunctorRunnable>(std::move(args));
-
-      // now that the move has happened, call the destructors of the
-      // elements in the args tuple
-      tuple_alloc_traits::destroy(
-        ar, static_cast<args_tuple_t*>(args_tup_spot)
-      );
-      // And deallocate the memory
-      tuple_alloc_traits::deallocate(
-        ar, static_cast<args_tuple_t*>(args_tup_spot), 1
-      );
-
-      return std::move(rv);
-    }
 
     size_t get_index() const  { return index_; }
 };
