@@ -43,6 +43,7 @@
 */
 
 #include "helpers.h"
+#include "test_backend.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -53,10 +54,12 @@
 #include <darma.h>
 
 std::atomic<int> mydata::count_(0);
+std::vector<std::string> TestBackend::orig_args_;
 
 int darma_main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::InitGoogleMock(&argc, argv);
+  TestBackend::store_cmdline_args(argc, argv);
   int ret = RUN_ALL_TESTS();
   ::darma_runtime::detail::backend_runtime = 0;  // make sure main() doesn't double-delete
   return ret;
