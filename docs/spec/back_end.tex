@@ -51,11 +51,11 @@ time, a \gls{task} always corresponds uniquely to an \gls{operation}.
   \glspl{operation} are performed on the values encapsulated by a Handle.
 There is no class corresponding to logical time. 
 The progression of logical time for Use objects is encapsulated in the input and output Flows (see below).
-\item [Use:] A Use corresponds to a Handle at a particular moment in logical time. 
+\item [Use:] A Use represents intended access to a Handle at a particular moment in logical time. 
+Uses carry particular immediate and scheduling permissions and therefore have some intent of Read, Write, or Modify (and/or some intent to schedule tasks that require these).
   Uses are always unique to an \gls{operation}.
-Operations cannot add or remove uses from its context.
-Tasks, being interruptible, can add and remove Use instances.
-Uses carry particular permissions and therefore have some intent of Read, Write, or Modify.
+Operations cannot add or remove Use instances from its context;
+however, tasks, being interruptible, can add and remove (i.e., create and release) Use instances.
 \item [Flow:] A Flow encapsulates a data-task relationship. 
 An input Flow indicates that a Use requires a particular value before its
 corresponding \gls{operation} begins.
@@ -66,7 +66,7 @@ and each Flow is associated with exactly one Use.
 A Modify Use will have an input Flow indicating the value consumed and an output Flow indicating the value produced.
 A Read Use will also have an output Flow even though it produces no data since the ``output'' indicates the release of data and clearing of an anti-dependence.
 \item [Dependency:] Although Dependency is not a class in \gls{DARMA}, a
-  \gls{task} will always have an initial set of Uses that must become
+  \gls{task} will always have an initial set of Uses whose input Flows must become
   available for the \gls{task} to begin.
   This initial set of uses are the ``dependencies'' of a \gls{task}.
 \end{compactdesc} 

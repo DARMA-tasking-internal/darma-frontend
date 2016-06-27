@@ -52,15 +52,27 @@ template <
   template <class...> class F,
   typename T
 >
-struct is_instantiation_of
-  : public std::false_type { };
+struct is_instantiation_of {
+  using type = std::false_type;
+  static constexpr auto value = type::value;
+};
 
 template <
   template <class...> class F,
   typename... Args
 >
-struct is_instantiation_of<F, F<Args...>>
-  : public std::true_type { };
+struct is_instantiation_of<F, F<Args...>> {
+  using type = std::true_type;
+  static constexpr auto value = type::value;
+};
+
+template <template <class...> class ExpectedTemplate>
+struct make_is_instantiation_of {
+  template <typename T>
+  using apply = tinympl::is_instantiation_of<ExpectedTemplate, T>;
+  template <typename T>
+  using apply_t = typename apply<T>::type;
+};
 
 
 } // end namespace tinympl

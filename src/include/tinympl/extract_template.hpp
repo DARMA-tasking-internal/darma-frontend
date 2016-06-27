@@ -59,6 +59,17 @@ struct extract_template<templ<Args...>> {
   using rebind = templ<Ts...>;
 };
 
+template <typename T>
+struct extract_args;
+
+template <
+  template <class...> class templ,
+  class... Args
+>
+struct extract_args<templ<Args...>> {
+  template <template <typename...> class new_templ>
+  using rebind = new_templ<Args...>;
+};
 } // end namespace tinympl
 
 #endif //TINYMPL_EXTRACT_TEMPLATE_HPP

@@ -48,8 +48,8 @@
 #include "test_frontend.h"
 
 #include <darma/interface/app/access_handle.h>
-#include <src/include/darma/interface/app/create_work.h>
-#include <src/include/darma/interface/app/initial_access.h>
+#include <darma/interface/app/create_work.h>
+#include <darma/interface/app/initial_access.h>
 
 using namespace darma_runtime;
 

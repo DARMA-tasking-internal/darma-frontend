@@ -196,6 +196,7 @@ class KeyedObject
 
 namespace detail {
 
+// TODO rename this, and move some of this functionality
 namespace DependencyHandle_attorneys {
 
 struct ArchiveAccess {
@@ -205,6 +206,10 @@ struct ArchiveAccess {
     // a use case for that sort of thing comes up
     assert(ar.start == nullptr);
     ar.start = ar.spot = (char* const)buffer;
+  }
+  template <typename ArchiveT>
+  static void* get_spot(ArchiveT& ar) {
+    return ar.spot;
   }
   template <typename ArchiveT>
   static size_t get_size(ArchiveT& ar) {
@@ -232,6 +237,13 @@ struct ArchiveAccess {
   start_unpacking(ArchiveT& ar) {
     ar.mode = serialization::detail::SerializerMode::Unpacking;
     ar.spot = ar.start;
+  }
+
+  template <typename ArchiveT>
+  static inline void
+  start_unpacking_with_buffer(ArchiveT& ar, void* buffer) {
+    ar.mode = serialization::detail::SerializerMode::Unpacking;
+    ar.spot = ar.start = (char* const)buffer;
   }
 };
 
@@ -374,7 +386,7 @@ class VariableHandle
     }
 
     void
-    default_construct(void* allocated) const {
+    default_construct(void* allocated) const override {
       // Will fail if T is not default constructible...
       new (allocated) T;
     }
@@ -654,6 +666,23 @@ struct is_access_handle<T,
 template <typename... Args>
 struct is_access_handle<AccessHandle<Args...>, void>
   : std::true_type { };
+
+namespace _impl {
+
+template <typename T>
+using _value_type_archetype = typename T::value_type;
+
+} // end namespace _impl
+
+template <typename T, typename Otherwise=meta::nonesuch>
+using value_type_if_access_handle = std::conditional<
+  is_access_handle<T>::value,
+  meta::detected_t<_impl::_value_type_archetype, std::decay_t<T>>,
+  Otherwise
+>;
+
+template <typename T, typename Otherwise=meta::nonesuch>
+using value_type_if_access_handle_t = typename value_type_if_access_handle<T, Otherwise>::type;
 
 } // end namespace detail
 

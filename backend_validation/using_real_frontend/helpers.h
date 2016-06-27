@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                       run_all_tests.cc
-//                         dharma_new
+//                      test_backend.h.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,32 @@
 //@HEADER
 */
 
-#include <gtest/gtest.h>
+#ifndef DARMA_BACKEND_VALIDATION_HELPERS_H
+#define DARMA_BACKEND_VALIDATION_HELPERS_H
 
-#include <mock_backend.h>
-#include "test_frontend.h"
+#include <atomic>
 
-namespace mock_backend {
+class mydata {
+ public:
+  mydata() : value_(0) { count_++; }
+  mydata(int val) : value_(val) { count_++; }
+  ~mydata() { count_--; }
 
-size_t MockFlow::next_index = 0;
+  mydata&
+  operator=(int val) { value_ = val; }
 
-} // end namespace mock_backend
+  bool
+  operator==(int comp) const { return value_ == comp; }
 
-// Used for arbitrarily establishing ordering of specific lines of code
-::testing::StrictMock<MockSequenceMarker>* sequence_marker = nullptr;
+  static void reset_leaked_count() { count_.store(0); }
+  static int num_leaked() { return count_.load(); }
 
+  template <typename Archive>
+  void serialize(Archive& ar) {}
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  ::testing::InitGoogleMock(&argc, argv);
-  return RUN_ALL_TESTS();
-}
+ private:
+  int value_;
+  static std::atomic<int> count_;
+};
+
+#endif //DARMA_BACKEND_VALIDATION_HELPERS_H
