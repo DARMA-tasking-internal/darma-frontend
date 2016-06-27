@@ -1,0 +1,391 @@
+
+\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
+
+\section{Object-Oriented Programming:  Classes with Deferred Methods in DARMA}
+
+The abstractions presented thus far are very useful for small-
+and medium-scale code development, and could certainly be used for
+large-scale development.  Most modern C++ codes, however, make heavy use of
+object-oriented (OO) programming to facilitate a scalable development process. 
+OO programming has a number of well-documented benefits, including, for
+instance, better encapsulation and code reuse than many other programming
+paradigms.  Though the features presented thus far can interact with basically
+any ``traditional'' C++ class, the standard use of OO in C++ does not provide
+the same support for asynchronous, declarative programming that the DARMA
+programming model encourages.  Analogous to the difference between a
+``traditional'' C++ function and the DARMA deferred functor interface (see
+\S~\ref{sec:functor}), the DARMA programming model provides an OO interface in
+which method invocations can be treated as deferred work creation and member
+variables are encapsulated in \ahandleT objects with deferred access to
+data.
+
+\subsection{A Demonstrative Example}
+\label{subsec:oodemon}
+
+Consider the following (albeit contrived) class with fields and methods that pay
+homage to the three stooges and the Simpsons, respectively:
+\begin{CppCodeNumb}
+class MyClassTraditional {
+  private:
+    int larry = 0;
+    
+  public:
+    double curly = 0.0;
+    string moe;
+
+    // writes larry, reads curly
+    void marge() {
+      larry = floor(sqrt(curly));
+    }
+
+    // takes a double argument and modifies curly
+    void homer(double a) {
+      curly = (a/2.0)*(a/3.0)
+        * (curly == 0.0 ? 1.0 : curly);
+    }
+
+    // takes a string argument, reads curly, modifies moe
+    void lisa(string const& new_moe) {
+      if(curly > 3.14) moe = "hello-" + moe;
+      else moe = new_moe;
+    }
+
+    // reads larry, modifies moe, calls lisa
+    void bart() {
+      if(larry < 0) lisa("bart-was-here");
+      else {
+        string old_moe = moe;
+        for(int i = 0; i < larry; ++i) moe += old_moe;
+      }
+    }
+
+};
+\end{CppCodeNumb}
+Even though it is obviously contrived, |MyClassTraditional| shares many
+characteristics with a lot of typical use cases of OO programming in C++.  It
+has some public and private data members and some methods that act on some or
+all of these data members.  These methods read and write specific data members
+of the class, and some even call other methods of the class.  Unfortunately, the
+C++ programming model currently provides no way to express {\it which} of these
+fields are read and written by a given method.  In fact, the C++ syntax only
+provides one piece of information in this regard:  a method can be marked
+|const| if it doesn't modify {\it any} of the members or call any non-|const|
+methods.\footnote{The \inlinecode{mutable} keyword, of course, creates
+exceptions to this rule, and \inlinecode{volatile} complicates things further,
+but we're ignoring those here for simplicity}  Otherwise, the method is assumed
+to modify {\it all} of the member variables in the class.  (The |const| method
+case isn't much more helpful: the method is considered to read {\it all} of the
+member variables).  
+
+For the purposes of exposing the maximum asynchrony to a modern AMT runtime,
+this programming model is woefully inadequate.  A much more helpful syntax might
+look something like
+\begin{CppCodeNumb}
+// Not real C++, but it would be nice if it were
+void marge() [[const(curly), nonconst(larry)]] {
+  larry = floor(sqrt(curly));
+}
+\end{CppCodeNumb}
+Short of writing C++ compiler extensions, we can't make this syntax available in
+DARMA.  Through some clever template metaprogramming tricks (see
+Chapter~\ref{chap:translation_layer}), though, we can expose an interface that 
+achieves the same effect and has a syntax that is almost as intuitive. To whet
+your appetite, here's an implementation of the |marge| method, from the example
+above, as part of an analogous class called |MyClassDARMA|:
+\begin{CppCodeNumb}
+// ...preceded by some other stuff to be explained later...
+template<>
+struct MyClassDARMA_method<marge>
+  : darma_method<MyClassDARMA,
+      reads_<curly>,
+      modifies_<larry>
+    >
+{
+  using darma_method::darma_method;
+  void operator()() {
+    larry.set_value(floor(sqrt(curly.get_value())));
+  }
+};
+\end{CppCodeNumb}
+Note that a few details were omitted above for brevity, such as namespaces and a
+few preprocessor macros (all explained below), but assuming the right
+declarations and `using` statements precede this snippet, the above code is
+actually what the definition of the |marge| method looks like when written in
+the DARMA OO interface.  More importantly, it works like you would expect it to
+from the given syntax.
+
+\subsection{Preprocessor Macros for Defining ``Name Tags''}
+\label{subsec:oomacros}
+
+Like much of the DARMA interface, the DARMA OO interface only requires very
+sparing use of preprocessor macros.\footnote{As DARMA develops, we may provide
+more ``convenience'' preprocessor macros, but our intention is that the user
+can use the vast majority of the functionality with only minimal use of
+preprocessor macros, if they want.  Additionally, we try to only hide code with
+macros that can be understood with just a moderate level of C++ expertise, such
+that the intermediate and advanced user can understand the purpose and function
+of the generated code with a little bit of work.  The macros in the OO
+interface are of this variety, and are explained in rough terms in
+Chapter~\ref{chap:translation_layer}.}  Users of the DARMA OO interface need
+only interact with two preprocessor macros --- |DARMA_OO_DEFINE_TAG()| and
+|DARMA_OO_DECLARE_CLASS()|.  While more details are given in
+Chapter~\ref{chap:translation_layer}, the basic function of these macros is
+pretty straightforward:  they allow subsequent code to use a given
+name\footnote{``symbol'' in typical C++ lingo} as a method or data member, in
+the former case, and as a class in the latter case.  Their use is very
+simpmle:
+\begin{CppCodeNumb}
+// Allow DARMA to use `larry` as a field name or a method name in *any*
+// DARMA class defined subsequently
+DARMA_OO_DEFINE_TAG(larry);
+
+// Declare all of the symbols necessary to define a class named `MyClassDARMA`
+DARMA_OO_DECLARE_CLASS(MyClassDARMA);
+\end{CppCodeNumb}
+
+\subsubsection{\texttt{DARMA\_OO\_DEFINE\_TAG}}
+
+The first thing to note about |DARMA_OO_DEFINE_TAG| is that just use of the
+macro is sufficient to define a name that can be used in multiple (potentially
+unrelated) classes.  Once defined, a name can be used as a field or a method in
+any class, and can have a different type or signature in each of
+them.\footnote{A tag can't be used as a method and as a field in the same class
+(just as you can't have a method and a field with the same name in a regular
+C++ class), but it is perfectly acceptable to use a tag as a data member
+(field) in one class and as a method in another)} Thus, in a large project, it
+may be useful to define all of the tags that the code will use (or at least all
+of the tags that will be used in a given namespace) in one place to avoid
+accidental naming clashes.  Also, like any class name or variable name in a
+large C++ project, it is important to properly protect the symbols declared this
+way in an appropriate namespace, particularly when they are used in a header file.
+
+The only publicly visible symbol this macro defines is the one given as the
+macro argument.  All other symbols are for internal use and prefixed with
+|_darma__| (recall that all symbols prefixed with |_darma__| are reserved for
+internal use by DARMA).
+
+\subsubsection{\texttt{DARMA\_OO\_DECLARE\_CLASS}}
+
+The easiest way to conceptualize the effect of |DARMA_OO_DECLARE_CLASS| is to
+think of it as a (albeit required) forward declaration of the class given as the
+macro argument.  Thus, for instance, this macro must be given in the same
+namespace that the class is defined and must come before that definition. 
+Unlike |DARMA_OO_DEFINE_TAG|, the declaration by |DARMA_OO_DECLARE_CLASS| cannot
+be reused in multiple contexts (again, just like an ordinary forward
+declaration of a class).
+
+In addition to forward declaring the class |Name| (supposing that |Name| is the
+argument to the macro), this macro defines the class |Name_constructors| and the
+template |Name_method<>|, both of which are discussed below.
+
+\subsection{Defining a Class}
+
+Equipped with the preprocessor macros from \S~\ref{subsec:oomacros}, we are now
+ready to define the structure of the class |MyClassDARMA|, a revised version of
+|MyClassTraditional| from \S~\ref{subsec:oodemon}.  The tags can be defined in
+the same file as the class if necessary, or in a header file for common use in a
+larger project.  Either way, the following lines of code need to somehow precede
+the definition of the class |MyClassDARMA|\footnote{Though they do not
+necessarily need to precede its {\it declaration}, via the macro
+\inlinecode{DARMA_OO_DECLARE_CLASS}}:
+\begin{CppCodeNumb}
+// Alphabetizing is a good idea, but (of course) not necessary
+DARMA_OO_DEFINE_TAG(bart);
+DARMA_OO_DEFINE_TAG(curly);
+DARMA_OO_DEFINE_TAG(homer);
+DARMA_OO_DEFINE_TAG(larry);
+DARMA_OO_DEFINE_TAG(lisa);
+DARMA_OO_DEFINE_TAG(marge);
+DARMA_OO_DEFINE_TAG(moe);
+\end{CppCodeNumb}
+Now we'll give the complete definition of the class |MyClassDARMA| and elaborate
+on the details below.  Brace yourself\ldots
+\begin{CppCodeNumb}
+// Forward declaration:
+DARMA_OO_DECLARE_CLASS(MyClassDARMA);
+
+// Class definition:
+struct MyClassDARMA
+  : darma_class<MyClassDARMA,
+      private_fields<
+        int, larry
+      >,
+      public_fields<
+        double, curly,
+        string, moe
+      >,
+      public_methods<
+        marge,
+        homer,
+        lisa,
+        bart
+      >
+    >
+{ using darma_class::darma_class; } $\label{ln:ootraditional}$
+\end{CppCodeNumb}
+If you're not used to heavy duty C++ template metaprogramming (or even if you
+are), the above code can be very intimidating to parse as C++, but don't panic:
+you don't really have to understand how it works to know what it means.  Even
+though it is proper C++, if it's helpful you can think of it as a new syntax
+for expressing classes.
+
+Once you get past the excessive angle brackets, the snippet reads pretty
+straightforwardly:  it defines a class with a private |int| field named |larry|,
+two public field (|double curly| and |string moe|), and four methods: |marge|,
+|homer|, |lisa|, and |bart|.  These methods' signatures and dependencies will be
+defined later, using the template |MyClassDARMA_method<>| (generated by the
+|DARMA_OO_DECLARE_CLASS| macro).
+
+Notice that, syntactically speaking, the only
+contents of the ``traditional'' C++ class (between the curly braces) is 
+|using darma_class::darma_class;|.  (This tells C++ to inherit constructors from
+the |darma_class| template, but you don't need to think of it this way.  Actual
+user-defined constructors for classes in the DARMA OO interface are discussed
+below.)  Note that having these contents of the ``traditional'' part of the C++
+class (line \ref{ln:ootraditional}) and nothing more is a hard requirement of
+the DARMA OO syntax.  Nothing else should go between the curly braces.
+
+The class templates |private_fields|, |public_fields|, and |public_methods|
+(along with most of the symbols in this section) are defined in the namespace
+|darma_runtime::oo|.  They can be given in any order and any number of times. 
+Multiple lists (for instance, multiple |public_fields|), given to the
+same |darma_class| template will be merged (though, of course, the same name
+still should not be given for more than one field or method).
+
+An instance of |MyClassDARMA| will hold an \ahandleT data member for each of the
+|public_fields| and |private_fields| given in the class's definition.  Just like
+a regular class, public members are accessible via the dot operator on an
+instance of the class:
+
+\begin{CppCodeNumb}
+MyClassDARMA my_instance;
+my_instance.curly = initial_access<double>("some", "key", "here");
+\end{CppCodeNumb}
+These members can be passed to work created using the functor interface like any
+other variable.  However, if they are to be used with the lambda interface, more
+care needs to be taken to avoid capturing the entire |MyClassDARMA| instance
+(and thus, all of its field)
+\begin{CppCodeNumb}
+MyClassDARMA my_instance;
+/* ...set up my_instance... */
+
+// $\no$ all members of my_instance captured
+// (works, but program is oversynchronized)
+create_work([=]{
+  my_instance.curly.set_value(3.14)
+});
+
+// $\yes$ captures only my_instance.curly
+// note the reference in auto& and enclosing scope to release the reference
+{
+  auto& my_curly = my_instance.curly;
+  create_work([=]{
+    my_curly.set_value(3.14);
+  });
+}
+
+// $\yes$ alternative syntax; doesn't require enclosing scope
+create_work([=,my_curly=my_instance.curly]{
+  my_curly.set_value(3.14);
+});
+\end{CppCodeNumb}
+
+\subsection{Methods}
+
+As previously alluded to, methods can of the class |MyClassDARMA| are defined by
+specializing the template |MyClassDARMA_method<>|.  As previewed in
+\S~\ref{subsec:oodemon}, the |marge| method for |MyClassDARMA| can be written as
+\begin{CppCodeNumb}
+template<>
+struct MyClassDARMA_method<marge>
+  : darma_method<MyClassDARMA,
+      reads_<curly>,
+      modifies_<larry>
+    >
+{
+  using darma_method::darma_method;
+  void operator()() {
+    larry.set_value(floor(sqrt(curly.get_value())));
+  }
+};
+\end{CppCodeNumb}
+We can now explain the details of this snippet more thoroughly.  Methods of
+DARMA classes specify their requirements by including a template specifying the
+access they need in the list of template arguments to the |darma_method|
+template that they inherit from.  As you would expect, the
+|reads_<>|\footnote{note the trailing underscore.  This is to distinguish it
+from the reads() decorator used with arguments to \inlinecode{create_work}. 
+(Even though these are in different namespaces, we thought it would be too
+confusing to have two different things with the same name like this). The other
+templates also have a trailing underscore for consistency.} template requests read-only permissions\footnote{Both immediate and scheduling permissions, to be more precise} on the given member, and the |modifies_<>| template requests read-write permissions.  The argument to these templates must
+be one of the fields listed in the |public_fields| or |private_fields| lists for
+the corresponding class (and thus, the class definition must precede any method
+definitions).  DARMA also provides the |reads_value_| and |modifies_value_|
+templates that automatically dereference the corresponding \ahandleT, similar to
+taking a reference formal parameter to the DARMA functor interface (see
+\S~\ref{sec:functor}).  Thus, the |marge| method could have been written more
+compactly as
+\begin{CppCodeNumb}
+template<>
+struct MyClassDARMA_method<marge>
+  : darma_method<MyClassDARMA,
+      reads_value_<curly>,
+      modifies_value_<larry> $\label{ln:modlarry}$
+    >
+{
+  using darma_method::darma_method;
+  void operator()() {
+    larry = floor(sqrt(curly));
+  }
+};
+\end{CppCodeNumb}
+
+While this syntax is a bit more verbose than the ``traditional'' C++ method
+syntax, the extra verbosity allows for substantially increased flexibility in
+terms of asynchrony.  It also provides for a substantial amount of compile-time
+checking.  If, for instance, the snippet above omitted line \ref{ln:modlarry}
+which indicates that |marge| modifies |larry|, a normal, standards-compliant C++
+compiler would refuse to compile the code because |marge| does not have access
+to the member |larry|.  Similarly, if |marge| had requested read-only access to
+|larry| instead of |modifies_value_|, a normal C++ compiler would complain about
+an attempt to modify a |const| value (or, in the case of |read_| instead of
+|modify_|, it would complain about trying to call |set_value| on a
+|ReadAccessHandle<T>|).
+
+\subsection{Methods Calling Other Methods}
+
+Just like traditional C++ methods, methods of DARMA classes can call other
+methods in the same class.  However, the callee's required permissions must be a
+(potentially trivial) subset of the permissions required by the caller.  If not,
+a compile-time error will result.  Furthermore, the caller must have scheduling
+permissions on all of the fields required by the callee (see
+\S~\ref{sec:handlerules} for details of scheduling and immediate permissions). 
+Since the |reads_value_| and |modifies_value_| templates don't expose an
+\ahandleT to a method (and thus, implicitly, do not request scheduling
+permissions), permissions requests with those templates do not allow a method to
+call another method requiring the given member.  Use |reads_| and |modifies_| instead for this purpose.
+
+\subsection{Controlling Invocation with \texttt{immediate} and
+\texttt{deferred}}
+
+TODO
+
+\subsection{Method Arguments}
+
+TODO
+
+\subsection{User-defined Constructors}
+
+TODO
+
+\lstDeleteShortInline{\|}
+
+ 
+
+
+
+
+
+
+
+

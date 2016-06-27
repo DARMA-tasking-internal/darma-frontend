@@ -71,6 +71,7 @@
 #include <darma/interface/frontend/task.h>
 
 #include <darma/impl/util.h>
+#include <darma/impl/runnable.h>
 #include <darma/impl/runtime.h>
 #include <darma/impl/handle_fwd.h>
 #include <darma/impl/meta/callable_traits.h>
@@ -85,212 +86,6 @@ namespace darma_runtime {
 
 namespace detail {
 
-class RunnableBase;
-
-////////////////////////////////////////////////////////////////////////////////
-
-typedef std::vector<std::function<std::unique_ptr<RunnableBase>(void*)>> runnable_registry_t;
-
-// TODO make sure this pattern works on all compilers at all optimization levels
-template <typename = void>
-runnable_registry_t&
-get_runnable_registry()  {
-  static runnable_registry_t reg;
-  return reg;
-}
-
-namespace _impl {
-
-template <typename Runnable>
-struct RunnableRegistrar {
-  size_t index;
-  RunnableRegistrar() {
-    runnable_registry_t &reg = get_runnable_registry<>();
-    index = reg.size();
-    reg.emplace_back([](void *data) -> std::unique_ptr<RunnableBase> {
-      return Runnable::construct_from_bytes(data);
-    });
-  }
-};
-
-template <typename Runnable>
-struct RunnableRegistrarWrapper {
-  static RunnableRegistrar<Runnable> registrar;
-};
-
-template <typename Runnable>
-RunnableRegistrar<Runnable> RunnableRegistrarWrapper<Runnable>::registrar = { };
-
-} // end namespace _impl
-
-template <typename Runnable>
-const size_t
-register_runnable() {
-  return _impl::RunnableRegistrarWrapper<Runnable>::registrar.index;
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-// <editor-fold desc="Runnable and RunnableBase">
-
-class RunnableBase {
-  public:
-    virtual bool run() =0;
-    virtual size_t get_index() const =0;
-    virtual ~RunnableBase() { }
-};
-
-template <typename Callable>
-struct Runnable : public RunnableBase
-{
-  private:
-  public:
-    // Force it to be an rvalue reference
-    explicit
-    Runnable(std::remove_reference_t<Callable>&& c)
-      : run_this_(std::move(c))
-    { }
-    bool run()  { run_this_(); return false; }
-
-    static const size_t index_;
-
-    static std::unique_ptr<RunnableBase>
-    construct_from_bytes(void* data) {
-      // TODO write this
-      assert(false);
-    }
-
-    size_t get_index() const  { return index_; }
-
-  private:
-    std::remove_reference_t<Callable> run_this_;
-};
-
-template <typename Callable>
-const size_t Runnable<Callable>::index_ = register_runnable<Runnable<Callable>>();
-
-template <typename Callable>
-struct RunnableCondition : public RunnableBase
-{
-  // Don't force an rvalue; caller might want to trigger a copy by not forwarding
-  explicit
-  RunnableCondition(Callable&& c)
-    : run_this_(std::forward<Callable>(c))
-  { }
-
-  size_t get_index() const  { return 0; }
-
-  bool run()  { return run_this_(); }
-
-  std::remove_reference_t<Callable> run_this_;
-};
-
-
-template <
-  typename Functor,
-  typename... Args
->
-class FunctorRunnable
-  : public RunnableBase
-{
-  public:
-
-    typedef functor_traits<Functor> traits;
-    typedef functor_call_traits<Functor, Args&&...> call_traits;
-    static constexpr auto n_functor_args_min = traits::n_args_min;
-    static constexpr auto n_functor_args_max = traits::n_args_max;
-
-    static_assert(
-      sizeof...(Args) <= n_functor_args_max && sizeof...(Args) >= n_functor_args_min,
-      "Functor task created with wrong number of arguments"
-    );
-
-  public:
-    using args_tuple_t = typename call_traits::args_tuple_t;
-  private:
-
-    args_tuple_t args_;
-
-    static const size_t index_;
-
-    decltype(auto)
-    _get_args_to_splat() {
-      return meta::tuple_for_each_zipped(
-        args_,
-        typename tinympl::transform<
-          std::make_index_sequence<std::tuple_size<args_tuple_t>::value>,
-          call_traits::template call_arg_traits_types_only,
-          std::tuple
-        >::type(),
-        [this](auto&& arg, auto&& call_arg_traits_i_val) -> decltype(auto) {
-          using call_traits_i = std::decay_t<decltype(call_arg_traits_i_val)>;
-          return call_traits_i::template get_converted_arg(
-            std::forward<decltype(arg)>(arg)
-          );
-        }
-      );
-    }
-
-  public:
-
-    FunctorRunnable(
-      args_tuple_t&& args_tup
-    ) : args_(std::forward<args_tuple_t>(args_tup))
-    { }
-
-    FunctorRunnable(
-      variadic_constructor_arg_t const,
-      Args&&... args
-    ) : args_(std::forward<Args>(args)...)
-    { }
-
-    bool run()  {
-      meta::splat_tuple<AccessHandleBase>(
-        _get_args_to_splat(),
-        Functor()
-      );
-      return false;
-    }
-
-
-    static std::unique_ptr<RunnableBase>
-    construct_from_bytes(void* data) {
-      // TODO inplace rather than move construction?
-
-      // Make an archive from the void*
-      serialization::SimplePackUnpackArchive ar;
-      using DependencyHandle_attorneys::ArchiveAccess;
-      ArchiveAccess::start_unpacking(ar);
-      ArchiveAccess::set_buffer(ar, data);
-
-      // Reallocate
-      using tuple_alloc_traits = serialization::detail::allocation_traits<args_tuple_t>;
-      void* args_tup_spot = tuple_alloc_traits::allocate(ar, 1);
-      args_tuple_t& args = *static_cast<args_tuple_t*>(args_tup_spot);
-
-      // Unpack each of the arguments
-      meta::tuple_for_each(
-        args,
-        [&ar](auto& arg) {
-          ar.unpack_item(const_cast<
-            std::remove_const_t<std::remove_reference_t<decltype(arg)>>&
-          >(arg));
-        }
-      );
-
-      // now cast to xvalue and invoke the argument move constructor
-      return std::make_unique<FunctorRunnable>(std::move(args));
-    }
-
-    size_t get_index() const  { return index_; }
-};
-
-template <typename Functor, typename... Args>
-const size_t FunctorRunnable<Functor, Args...>::index_ =
-  register_runnable<FunctorRunnable<Functor, Args...>>();
-
-// </editor-fold>
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -373,7 +168,8 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
 
     template <typename ReturnType = void>
     ReturnType run()  {
-      static_assert(std::is_same<ReturnType, bool>::value or std::is_void<ReturnType>::value,
+      static_assert(
+        std::is_same<ReturnType, bool>::value or std::is_void<ReturnType>::value,
         "Only bool and void for ReturnType in Task::run<>() are currently supported"
       );
       assert(runnable_);
@@ -389,8 +185,17 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
     }
 
     void pack(void* allocated) const  {
-      // TODO
-      assert(false);
+      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      serialization::SimplePackUnpackArchive ar;
+
+      ArchiveAccess::start_packing(ar);
+      ArchiveAccess::set_buffer(ar, allocated);
+
+      assert(runnable_.get() != nullptr);
+
+      ar << runnable_->get_index();
+
+      return runnable_->pack(ArchiveAccess::get_spot(ar));
     }
 
     // end implementation of abstract::frontend::Task
@@ -471,20 +276,24 @@ namespace frontend {
 
 inline backend::runtime_t::task_unique_ptr
 unpack_task(void* packed_data) {
+  using detail::DependencyHandle_attorneys::ArchiveAccess;
   serialization::SimplePackUnpackArchive ar;
-  detail::DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);
-  detail::DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, packed_data);
+
+  ArchiveAccess::start_unpacking(ar);
+  ArchiveAccess::set_buffer(ar, packed_data);
 
   std::size_t runnable_index;
   ar >> runnable_index;
 
-  // Now unpack the number of dependencies, their keys and versions
-  //std::vector<std::pair<types::key_t, types::version_t>> deps;
-  //ar >> deps;
+  auto rv = detail::make_unique<detail::TaskBase>();
 
-  // TODO
-  assert(false);
-  return nullptr;
+  rv->set_runnable(
+    darma_runtime::detail::get_runnable_registry().at(runnable_index)(
+      (void*)&ar
+    )
+  );
+
+  return std::move(rv);
 }
 
 } // end namespace frontend

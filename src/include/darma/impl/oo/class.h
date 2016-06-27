@@ -53,100 +53,305 @@
 #include <tinympl/find_all_if.hpp>
 #include <tinympl/left_fold.hpp>
 #include <tinympl/partition.hpp>
+#include <tinympl/lambda.hpp>
+
+#include <darma/impl/oo/field.h>
+#include <darma/impl/oo/util.h>
+#include <darma/impl/oo/constructor.h>
+
+#include <darma/interface/app/access_handle.h>
 
 namespace darma_runtime {
 namespace oo {
 
 template <typename... Args>
-struct private_fields {
+struct public_methods {
   using args_vector_t = tinympl::vector<Args...>;
 };
 
-
 namespace detail {
 
-template <typename Seq, std::size_t I, std::size_t N>
-struct _chain_base_classes_impl
-  : tinympl::at_t<Seq, I>::template link_in_chain<
-      _chain_base_classes_impl<Seq, I+1, N>
-    >
-{ };
-
-template <typename Seq>
-struct chain_base_classes {
-  using type = _chain_base_classes_impl<Seq, 0, tinympl::size<Seq>::value>;
-};
-
-template <typename T, typename Tag>
-struct _private_field_in_chain {
-  using type = T;
+template <typename OfClass, typename Tag, typename CastThisTo=OfClass>
+struct _public_method_in_chain {
   using tag = Tag;
   template <typename Base>
-  using link_in_chain = typename tag::template as_private_field_in_chain<T, Base>;
+  using link_in_chain = typename tag::template as_public_method_in_chain<
+    OfClass, Base, CastThisTo
+  >;
 };
 
-template <typename... Args>
+template <typename OfClass, typename Tag, typename CastThisTo=OfClass>
+struct _immediate_public_method_in_chain {
+  using tag = Tag;
+  template <typename Base>
+  using link_in_chain = typename tag::template as_immediate_public_method_in_chain<
+    OfClass, Base, CastThisTo
+  >;
+};
+
+template <typename OfClass, typename Tag>
+struct _public_method_with_tag {
+  using tag = Tag;
+  using of_class = OfClass;
+  template <typename CastTo>
+  using chain_item_with_cast_to = _public_method_in_chain<OfClass, Tag, CastTo>;
+  template <typename CastTo>
+  using immediate_chain_item_with_cast_to = _immediate_public_method_in_chain<OfClass, Tag, CastTo>;
+};
+
+template <typename ClassName, typename... Args>
 struct darma_class_helper {
 
   using _args_vector_t = tinympl::vector<Args...>;
   static constexpr auto n_args = sizeof...(Args);
 
-  ////////////////////////////////////////////////////////////////////////////////
-  // <editor-fold desc="Extract private_fields list(s)">
-
-  template <typename T>
-  using _is_instantiation_of_private_fields = typename tinympl::is_instantiation_of<
-    private_fields, T
-  >::type;
-
-  using _private_fields_index_list = typename tinympl::find_all_if<
-    _args_vector_t, _is_instantiation_of_private_fields
+  template <template <class...> class template_tag>
+  using _template_tag_index_list = typename tinympl::find_all_if<
+    _args_vector_t,
+    tinympl::make_is_instantiation_of<template_tag>::template apply_t
   >::type;
 
   template <typename int_const>
-  using _get_private_field_arg =
-  typename tinympl::variadic::at<int_const::value, Args...>::type;
+  using _get_template_tag_arg = tinympl::identity<
+    typename tinympl::extract_args<
+      typename tinympl::variadic::at<int_const::value, Args...>::type
+    >::template rebind<tinympl::vector>
+  >;
 
-  using _private_fields_args_list = typename tinympl::transform<
-    _private_fields_index_list, _get_private_field_arg, tinympl::vector
+  template <template <class...> class template_tag>
+  using _template_tag_args_list = typename tinympl::transform<
+    _template_tag_index_list<template_tag>,
+    _get_template_tag_arg, tinympl::vector
   >::type;
 
-  using _private_fields_args_vector = typename tinympl::left_fold<
-    typename tinympl::push_front<
-      typename tinympl::push_front<_private_fields_args_list, tinympl::vector<>>::type,
-      tinympl::vector<>
+  template <template <class...> class template_tag>
+  using _template_tag_args_vector_joined = typename tinympl::left_fold<
+    // prepend two empty lists so that the fold still works even if the args list is empty
+    typename tinympl::push_front<typename tinympl::push_front<
+      _template_tag_args_list<template_tag>,
+      tinympl::vector<>>::type, tinympl::vector<>
     >::type,
     tinympl::join
   >::type;
 
-  using _private_fields_vector = typename tinympl::partition<
-    2, _private_fields_args_list,
-    _private_field_in_chain, tinympl::vector
+  ////////////////////////////////////////////////////////////////////////////////
+  // <editor-fold desc="Extract private_fields and public_fields list(s)">
+
+  template <template <class...> class RewrapWith>
+  struct _make_access_handle_replacer {
+    template <typename field_in_chain>
+    using apply = tinympl::identity<RewrapWith<
+      darma_runtime::AccessHandle<typename field_in_chain::type>,
+      typename field_in_chain::tag
+    >>;
+  };
+
+  using _private_fields_vector = typename tinympl::transform<
+    typename tinympl::partition<
+      2, _template_tag_args_vector_joined<private_fields>,
+      _private_field_in_chain, tinympl::vector
+    >::type,
+    _make_access_handle_replacer<_private_field_in_chain>::template apply
   >::type;
 
-  using base_class = typename chain_base_classes<_private_fields_vector>::type;
+  using _public_fields_vector = typename tinympl::transform<
+    typename tinympl::partition<
+      2, _template_tag_args_vector_joined<public_fields>,
+      _public_field_in_chain, tinympl::vector
+    >::type,
+    _make_access_handle_replacer<_public_field_in_chain>::template apply
+  >::type;
 
+  using fields_with_types = typename tinympl::join<
+    typename tinympl::partition<
+      2, _template_tag_args_vector_joined<public_fields>,
+      _field_tag_with_type, tinympl::vector
+    >::type,
+    typename tinympl::partition<
+      2, _template_tag_args_vector_joined<private_fields>,
+      _field_tag_with_type, tinympl::vector
+    >::type
+  >::type;
+
+
+  // </editor-fold>
+  ////////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // <editor-fold desc="Extract public_methods list(s)">
+
+  template <typename Tag>
+  using _make_public_method_chain_part = tinympl::identity<
+    _public_method_in_chain<ClassName, Tag>
+  >;
+
+  using _public_methods_base_class_vector = typename tinympl::transform<
+    _template_tag_args_vector_joined<public_methods>,
+    _make_public_method_chain_part
+  >::type;
+
+  template <typename Tag>
+  using _make_public_method_tags_part = tinympl::identity<
+    _public_method_with_tag<ClassName, Tag>
+  >;
+
+  using public_method_tags = typename tinympl::transform<
+    _template_tag_args_vector_joined<public_methods>,
+    _make_public_method_tags_part
+  >::type;
+
+  // </editor-fold>
+  ////////////////////////////////////////////////////////////////////////////////
+
+  using base_class = typename chain_base_classes<
+    typename tinympl::join<
+      _private_fields_vector,
+      _public_fields_vector,
+      _public_methods_base_class_vector
+    >::type
+  >::type;
+
+};
+
+template <typename T>
+struct darma_class_instance_delayed {
+  using type = std::decay_t<decltype(
+    _darma__get_associated_constructor(std::declval<T&>())
+  )>;
 };
 
 } // end namespace detail
 
-
-template <typename... Args>
+template <typename ClassName, typename... Args>
 struct darma_class
-  : detail::darma_class_helper<Args...>::base_class
+  : detail::darma_class_helper<ClassName, Args...>::base_class
 {
   private:
 
-    using helper_t = detail::darma_class_helper<Args...>;
+    template <typename T, typename... _Ignored_SFINAE>
+    using _constructor_implementation_type = std::remove_reference_t<decltype(
+      _darma__get_associated_constructor(std::declval<T&>())
+    )>;
 
+    // Clang needs this extra layer of abstraction to make SFINAE work
+    // since ClassName##_constructors is an incomplete class
+    template <typename _Tp, typename... _Ignored_SFINAE>
+    struct _ctor_impl_exists {
+      using type = typename _constructor_implementation_type<_Tp, _Ignored_SFINAE...>::darma_constructor;
+    };
+    template <typename T, typename... _Ignored_SFINAE>
+    using _constructor_implementation_exists = typename _ctor_impl_exists<T, _Ignored_SFINAE...>::type;
+    template <typename T, typename... _Ignored_but_needed_for_SFINAE_to_work>
+    using constructor_implementation_exists = darma_runtime::meta::is_detected<
+      _constructor_implementation_exists, T, _Ignored_but_needed_for_SFINAE_to_work...
+    >;
+
+    template <typename T, typename... _Ignored_but_needed_for_SFINAE_to_work>
+    using constructor_implementation_type = darma_runtime::meta::detected_t<
+      _constructor_implementation_type, T, _Ignored_but_needed_for_SFINAE_to_work...
+    >;
+    template <typename T, typename... CTorArgs>
+    using _constructor_implementation_callable = decltype(
+      std::declval<constructor_implementation_type<T, CTorArgs...>&>()(
+        std::declval<CTorArgs>()...
+      )
+    );
+    template <typename T, typename... CTorArgs>
+    using constructor_implementation_callable = darma_runtime::meta::is_detected_exact<
+      void, _constructor_implementation_callable, T, CTorArgs...
+    >;
 
   public:
 
+    using helper_t = detail::darma_class_helper<ClassName, Args...>;
 
+    //friend constructor_implementation_type<ClassName>;
 
+    darma_class() = default;
+    darma_class(darma_class&&) = default;
+    darma_class(darma_class const&) = default;
 
+    // Forward to a constructor, if available
+    template <typename... CTorArgs,
+      typename = std::enable_if_t<
+        constructor_implementation_callable<ClassName, CTorArgs...>::value
+        and not std::is_same<
+          std::decay_t<typename std::conditional_t<
+            sizeof...(CTorArgs) == 0,
+            tinympl::identity<meta::nonesuch>,
+            tinympl::variadic::at<0, CTorArgs...>
+          >::type>,
+          ClassName
+        >::value
+      >
+    >
+    darma_class(CTorArgs&&... args) {
+      static_cast<constructor_implementation_type<ClassName>*>(this)->operator()(
+        std::forward<CTorArgs>(args)...
+      );
+    };
+
+    // This allows copy or move constructors
+    template <typename ClassTypeDeduced,
+      typename = std::enable_if_t<
+        //--------------------------------------------------------------------------------
+        // The messy enable_if condition below enables a non-default copy constructor
+        // (with a `ClassName const&` parameter) if and only if
+        //   ClassName##_constructors::operator()(darma_class_instance<ClassName> const&)
+        // is defined (and similarly for the move constructor, as well as the more obscure
+        // non-const reference copy constructor and the const move constructor).
+        //
+        // This rats' nest below is necessary to prevent infinite template recursion.  We
+        // use the short-circuiting tinympl::variadic::all_of along with tinympl::delay
+        // in the second argument to prevent the second condition from being evaluated
+        // unless the first one evaluates to true.  Otherwise, the call to
+        // _darma__get_associated_constructor() wrapped by darma_class_instance_delayed
+        // re-triggers the generation of this constructor when ClassTypeDeduced
+        // is darma_class<ClassType,...> because it's trying to generate the conversion
+        // from darma_class<ClassName,...> to ClassName&, (where ClassName inherits
+        // this constructor via `using darma_class::darma_class;`) needed to resolve
+        // the argument to _darma__get_associated_constructor().  This isn't a problem
+        // for the case where std::decay_t<ClassTypeDeduced> is the same as ClassName
+        // because no conversion operation generation is necessary, since the argument
+        // is an exact match for the formal parameter.
+        tinympl::and_<  // note that this and_ is specially implemented to short-circuit
+          // condition 1:  only generate copy constructor if the decayed type matches the
+          // Class itself (exactly; conversion from it's base classes isn't relevant here)
+          std::is_same<std::decay_t<ClassTypeDeduced>, ClassName>,
+          // condition 2 (only evaluated if condition 1 is true):  there has to be an
+          // operator() on ClassName##_constructor which takes one argument that decays
+          // to darma_class_instance<ClassName> and has the same constness and reference-ness
+          // as ClassTypeDeduced&&.
+          tinympl::extract_bool_value_potentially_lazy<
+            tinympl::delay<
+              constructor_implementation_callable,
+              tinympl::identity<ClassName>,
+              tinympl::delay<
+                tinympl::copy_all_type_properties<ClassTypeDeduced&&>::template apply,
+                detail::darma_class_instance_delayed<std::decay_t<ClassTypeDeduced>&>
+              >
+            >
+          >
+          // end of condition 2
+        >::value
+        // end messy rats' nest described above
+        //--------------------------------------------------------------------------------
+      >
+    >
+    darma_class(ClassTypeDeduced&& other) {
+      static_cast<constructor_implementation_type<ClassName>*>(this)->operator()(
+        static_cast<
+          typename tinympl::copy_all_type_properties<ClassTypeDeduced>::template apply<
+            constructor_implementation_type<ClassName>
+          >::type
+        >(std::forward<ClassTypeDeduced>(other))
+      );
+    };
 
 };
+
+template <typename T>
+using darma_class_instance = typename detail::darma_class_instance_delayed<T>::type;
 
 } // end namespace oo
 } // end namespace darma_runtime

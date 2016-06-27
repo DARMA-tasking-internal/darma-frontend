@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                       run_all_tests.cc
-//                         dharma_new
+//                      oo.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,52 @@
 //@HEADER
 */
 
-#include <gtest/gtest.h>
+#ifndef DARMA_OO_H
+#define DARMA_OO_H
 
-#include <mock_backend.h>
-#include "test_frontend.h"
+namespace darma_runtime {
+namespace oo {
 
-namespace mock_backend {
+template <typename ClassName, typename... Args>
+struct darma_class;
 
-size_t MockFlow::next_index = 0;
+template <typename OfClass, typename... Args>
+struct darma_method;
 
-} // end namespace mock_backend
+template <typename OfClass, typename... Args>
+struct darma_constructors;
 
-// Used for arbitrarily establishing ordering of specific lines of code
-::testing::StrictMock<MockSequenceMarker>* sequence_marker = nullptr;
+// Useful alias
+template <typename OfClass, typename... Args>
+using darma_constructor = darma_constructors<OfClass, Args...>;
 
+template <typename... Args>
+struct public_methods;
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  ::testing::InitGoogleMock(&argc, argv);
-  return RUN_ALL_TESTS();
-}
+template <typename... Args>
+struct private_fields;
+
+template <typename... Args>
+struct public_fields;
+
+template <typename Tag, typename... Args>
+struct reads_;
+
+template <typename Tag, typename... Args>
+struct reads_value_;
+
+template <typename Tag, typename... Args>
+struct modifies_;
+
+template <typename Tag, typename... Args>
+struct modifies_value_;
+
+} // end namespace oo
+} // end namespace darma_runtime
+
+#include <darma/impl/oo/class.h>
+#include <darma/impl/oo/method.h>
+#include <darma/impl/oo/field.h>
+#include <darma/impl/oo/macros.h>
+
+#endif //DARMA_OO_H

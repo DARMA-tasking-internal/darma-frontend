@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                       run_all_tests.cc
-//                         dharma_new
+//                      oo_fwd.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,22 @@
 //@HEADER
 */
 
-#include <gtest/gtest.h>
+#ifndef DARMA_OO_FWD_H
+#define DARMA_OO_FWD_H
 
-#include <mock_backend.h>
-#include "test_frontend.h"
+#include <type_traits>
 
-namespace mock_backend {
+namespace darma_runtime {
 
-size_t MockFlow::next_index = 0;
+namespace oo {
+namespace detail {
 
-} // end namespace mock_backend
+template <typename T, typename OfClass>
+struct is_darma_method_of_class;
 
-// Used for arbitrarily establishing ordering of specific lines of code
-::testing::StrictMock<MockSequenceMarker>* sequence_marker = nullptr;
+} // end namespace detail
+} // end namespace oo
 
+} // end namespace darma_runtime
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  ::testing::InitGoogleMock(&argc, argv);
-  return RUN_ALL_TESTS();
-}
+#endif //DARMA_OO_FWD_H

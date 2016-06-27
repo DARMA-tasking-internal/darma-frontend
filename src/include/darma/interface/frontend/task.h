@@ -72,7 +72,7 @@ namespace frontend {
  *    + release -- when Task.run() returns, the task is ready to be released.  The backend may do this by deleting
  *      or resetting the unique_ptr passed to it during registration, which will in turn trigger the ~Task() virtual
  *      method invocation.  At this point (in the task destructor), the frontend is responsible for calling
- *      release_handle_access() on any Use instances requested by the task and not explicitly released in the
+ *      release_use() on any Use instances requested by the task and not explicitly released in the
  *      task body by the user.
  *
  */
@@ -102,7 +102,8 @@ class Task {
      *  a reference to a default-constructed Key if not.
      *
      *  In the current spec this is only used with the outermost task, which is named with
-     *  a key of two size_t values: the SPMD rank and the SPMD size.  See darma_backend_initialize()
+     *  a key of one string and two size_t values: DARMA_BACKEND_SPMD_NAME_PREFIX,
+     *  the SPMD rank and the SPMD size.  See darma_backend_initialize()
      *  for more information
      *
      *  @return A key object giving a unique name to the task
@@ -115,7 +116,8 @@ class Task {
     /** @brief sets the unique name of the task
      *
      *  In the current spec this is only used with the outermost task, which is named with
-     *  a key of two size_t values: the SPMD rank and the SPMD size.  See darma_backend_initialize()
+     *  a key of one string and two size_t values: DARMA_BACKEND_SPMD_NAME_PREFIX,
+     *  the SPMD rank and the SPMD size.  See darma_backend_initialize()
      *  for more information
      *
      *  @param name_key A key object containing a unique name for the task

@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                       run_all_tests.cc
-//                         dharma_new
+//                      field.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,55 @@
 //@HEADER
 */
 
-#include <gtest/gtest.h>
+#ifndef DARMA_IMPL_OO_FIELD_H
+#define DARMA_IMPL_OO_FIELD_H
 
-#include <mock_backend.h>
-#include "test_frontend.h"
+namespace darma_runtime {
 
-namespace mock_backend {
+namespace oo {
 
-size_t MockFlow::next_index = 0;
+template <typename... Args>
+struct private_fields {
+  using args_vector_t = tinympl::vector<Args...>;
+};
 
-} // end namespace mock_backend
+template <typename... Args>
+struct public_fields {
+  using args_vector_t = tinympl::vector<Args...>;
+};
 
-// Used for arbitrarily establishing ordering of specific lines of code
-::testing::StrictMock<MockSequenceMarker>* sequence_marker = nullptr;
+namespace detail {
 
+template <typename T, typename Tag>
+struct _field_tag_with_type {
+  using value_type = T;
+  using tag = Tag;
+};
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  ::testing::InitGoogleMock(&argc, argv);
-  return RUN_ALL_TESTS();
-}
+template <typename T, typename Tag>
+struct _private_field_in_chain {
+  using type = T;
+  using tag = Tag;
+  template <typename Base>
+  using link_in_chain = typename tag::template as_private_field_in_chain<
+    T, Base
+  >;
+};
+
+template <typename T, typename Tag>
+struct _public_field_in_chain {
+  using type = T;
+  using tag = Tag;
+  template <typename Base>
+  using link_in_chain = typename tag::template as_public_field_in_chain<
+    T, Base
+  >;
+};
+
+} // end namespace detail
+
+} // end namespace oo
+
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_OO_FIELD_H

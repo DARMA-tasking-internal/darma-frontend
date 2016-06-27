@@ -42,7 +42,7 @@
 //@HEADER
 */
 
-#include "metatest_helpers.h"
+#include "../metatest_helpers.h"
 
 #include <utility>
 
