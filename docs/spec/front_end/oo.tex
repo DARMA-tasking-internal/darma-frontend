@@ -459,8 +459,46 @@ User-defined constructors of DARMA classes follow an analogous syntactic pattern
 to that of DARMA methods, with some notable differences.  For a class named
 |MyClassDARMA|, user-defined constructors are implemented in the overloads
 of the call operator of a class named |MyClassDARMA_constructors| that inherits
-from a specialization of |darma_constructors<>| on |MyClassDARMA|.
-TODO finish this
+from a specialization of |darma_constructors<>| on |MyClassDARMA|.  For
+instance, if we wanted to provide a constructor to |MyClassDARMA| that
+initializes the \ahandleT objects to have keys with variable names appended, we
+could do something like:
+\begin{CppCodeNumb}
+struct MyClassDARMA_constructors
+  : darma_constructors<MyClassDARMA>
+{
+  void operator()(darma_runtime::types::key_t& key_part) {
+    larry = initial_access<int>(key_part, "larry");
+    curly = initial_access<double>(key_part, "curly");
+    moe = initial_access<string>(key_part, "moe");
+  }
+};
+\end{CppCodeNumb}
+It is important that the implemenation of |MyClassDARMA_constructors|
+not contain {\it any} data members --- only methods.  The constructor will
+execute the code in the corresponding overload of the call operator.  Multiple
+overloads (with different arguments) of the call operator can be given, just as
+multiple constructors can be given for a traditional C++ class.
+
+One more caveat for DARMA class constructors:  if you wish to given a
+user-defined copy or move constructor, you have wrap the class type in the
+|darma_class_instance<>| template; the rest of the constructor signature remains
+the same:
+\begin{CppCodeNumb}
+struct MyClassDARMA_constructors
+  : darma_constructors<MyClassDARMA>
+{
+  /* ... */
+  // copy constructor:
+  void operator()(darma_class_instance<MyClassDARMA> const& other) {
+    // ... copy constructor stuff here ...
+  }
+  // move constructor:
+  void operator()(darma_class_instance<MyClassDARMA>&& other) {
+    // ... move constructor stuff here ...
+  }
+};
+\end{CppCodeNumb}
 
 \lstDeleteShortInline{\|}
 
