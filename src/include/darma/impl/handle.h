@@ -393,6 +393,7 @@ class VariableHandle
 
     void
     destroy(void* constructed_object) const override {
+      // TODO allocator awareness?
       ((T*)constructed_object)->~T();
     }
 
