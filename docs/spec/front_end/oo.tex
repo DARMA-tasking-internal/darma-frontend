@@ -365,18 +365,102 @@ Since the |reads_value_| and |modifies_value_| templates don't expose an
 permissions), permissions requests with those templates do not allow a method to
 call another method requiring the given member.  Use |reads_| and |modifies_| instead for this purpose.
 
+By way of example, consider the |bart| and |lisa| methods in
+|MyClassTraditional| from \S~\ref{subsec:oodemon}.  Their implementation in
+|MyClassDARMA| might look like:
+\begin{CppCodeNumb}
+template<>
+struct MyClassDARMA_method<lisa>
+  : darma_method<MyClassDARMA,
+      reads_value_<curly>,
+      modifies_value_<moe>
+    >
+{
+  using darma_method::darma_method;
+  void operator()(string const& new_moe) {
+    if(curly > 3.14) moe = "hello-" + moe;
+    else moe = new_moe;
+  }
+};
+
+template<>
+struct MyClassDARMA_method<bart>
+  : darma_method<MyClassDARMA,
+      modifies_<moe>,
+      reads_value_<larry>,
+      reads_<curly> // via lisa() invocation
+    >
+{
+  using darma_method::darma_method;
+  void operator()() {
+    if(larry < 0) lisa("bart-was-here");
+    else {
+      string old_moe = moe.get_value();
+      for(int i = 0; i < larry; ++i) 
+        moe.set_value(moe.get_value() + old_moe);
+    }
+  }
+};
+\end{CppCodeNumb}
+
 \subsection{Controlling Invocation with \texttt{immediate} and
 \texttt{deferred}}
 
-TODO
+By default, calling a method on an instance of a DARMA class enqueues a deferred
+invocation of that method --- analogous to calling |create_work<Functor>(...)|
+instead of |Functor()(...)|.  When a DARMA method requests the appropriate
+permissions to do so (e.g., member access on the callee must be a subset of
+member access on the caller, etc.), however, it can also make an immediate call
+to another method in the same class.  To do so, simply prefix the method
+invocation with |immediate::|.  For instance, if benchmarking determined that
+it was unnecessary to schedule |lisa| as a separate task in the above example,
+|bart| could have been implemented instead as
+\begin{CppCodeNumb}
+template<>
+struct MyClassDARMA_method<bart>
+  : darma_method<MyClassDARMA,
+      modifies_value_<moe>,
+      reads_value_<larry>,
+      reads_value_<curly>
+    >
+{
+  using darma_method::darma_method;
+  void operator()() {
+    if(larry < 0) this->immediate::lisa("bart-was-here");
+    else {
+      string old_moe = moe;
+      for(int i = 0; i < larry; ++i) moe += old_moe;
+    }
+  }
+};
+\end{CppCodeNumb}
+(Note that the |this->| is unnecessary in the above example, but was included
+for clarity.  |immediate::lisa(...)| would work just fine, but
+some may think of this as the syntax for static method invocation, which this
+is not a case of).  Notice that the definition of |bart| no longer requires
+scheduling permissions on |curly| and |moe|, since we are making an
+|immediate::| call to |lisa|, so we can use |modifies_value_| and |reads_value_|
+instead of |modifies_| and |reads_|.
 
 \subsection{Method Arguments}
 
-TODO
+Methods of DARMA classes handle arguments the same way that the DARMA functor
+interface does.  For instance, you can pass an |AccessHandle<int>| to a method
+that takes an |int&| as a formal parameter and DARMA will infer a request of
+modify permissions\footnote{technically, modify-leaf permissions} on that
+argument; or you can also pass an |AccessHandle<int>| to a method that takes a
+formal parameter of |ReadAccessHandle<long>| and DARMA will infer read
+permissions and perform the proper conversions.  For more information, see
+\S~\ref{sec:functor}.
 
 \subsection{User-defined Constructors}
 
-TODO
+User-defined constructors of DARMA classes follow an analogous syntactic pattern
+to that of DARMA methods, with some notable differences.  For a class named
+|MyClassDARMA|, user-defined constructors are implemented in the overloads
+of the call operator of a class named |MyClassDARMA_constructors| that inherits
+from a specialization of |darma_constructors<>| on |MyClassDARMA|.
+TODO finish this
 
 \lstDeleteShortInline{\|}
 
