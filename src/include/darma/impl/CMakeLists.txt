@@ -52,7 +52,6 @@ meta/is_container.h
 meta/is_streamable.h
 meta/largest_aligned.h
 meta/member_detector.h
-meta/metaprogramming.h
 meta/sentinal_type.h
 meta/splat_tuple.h
 meta/tuple_for_each.h
