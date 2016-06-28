@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                      extract_template.hpp
-//                         TINYMPL
+//                      errors.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,43 +42,21 @@
 //@HEADER
 */
 
-#ifndef TINYMPL_EXTRACT_TEMPLATE_HPP
-#define TINYMPL_EXTRACT_TEMPLATE_HPP
+#ifndef DARMA_IMPL_OO_ERRORS_H
+#define DARMA_IMPL_OO_ERRORS_H
 
-namespace tinympl {
+namespace darma_runtime {
+namespace oo {
+namespace detail {
 
-template <typename T>
-struct extract_template;
+template <typename ClassMissingUsing>
+struct __________you_forgot___using__darma_class__darma_class___in_definition_of_;
 
-template <
-  template <class...> class templ,
-  class... Args
->
-struct extract_template<templ<Args...>> {
-  template <typename... Ts>
-  using rebind = templ<Ts...>;
-};
+template <typename MethodMissingUsing, typename ClassMissing>
+struct __________you_forgot___using__darma_method__darma_method___in_definition_of_method_for_class_;
 
-template <typename T>
-struct extract_args;
+} // end namespace detail
+} // end namespace oo
+} // end namespace darma_runtime
 
-template <
-  template <class...> class templ,
-  class... Args
->
-struct extract_args<templ<Args...>> {
-  template <template <typename...> class new_templ>
-  using rebind = new_templ<Args...>;
-};
-
-template <size_t N, typename T>
-struct extract_arg_n;
-
-template <size_t N, template <class...> class templ, typename... Args>
-struct extract_arg_n<N, templ<Args...>> {
-  using type = tinympl::variadic::at_t<N, Args...>;
-};
-
-} // end namespace tinympl
-
-#endif //TINYMPL_EXTRACT_TEMPLATE_HPP
+#endif //DARMA_IMPL_OO_ERRORS_H
