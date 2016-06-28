@@ -580,6 +580,10 @@ namespace threads_backend {
 		PRINT_LABEL(f),
 		PRINT_LABEL(f_forward));
     
+    if (depthFirstExpand) {
+      f_forward->inner->ready = true;
+    }
+    
     f->inner->forward = f_forward->inner;
     f_forward->inner->backward = f->inner;
     return f_forward;
