@@ -88,7 +88,18 @@ class Runtime {
     virtual void
     register_task( task_unique_ptr&& task ) = 0;
 
-    /** @TODO document this
+    /** @brief Register a task with a run<bool>() method.
+     *
+     *  @param task A unique_ptr to a task object that implements the bool specialization
+     *              of the run() method template.  See register_task for more details
+     *
+     *  @return The value of the condition returned by the task when run, or
+     *          the speculated value if the backend wishes to implement speculative
+     *           execution
+     *
+     *  @sa frontend::Task
+     *  @sa Runtime::register_task
+     *
      */
     virtual bool
     register_condition_task( task_unique_ptr&& task ) = 0;
