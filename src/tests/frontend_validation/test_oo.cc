@@ -94,13 +94,13 @@ DARMA_OO_DEFINE_TAG(lisa);
 DARMA_OO_DEFINE_TAG(marge);
 DARMA_OO_DEFINE_TAG(homer);
 #else
-#include "ootag_larry.generated.h"
-#include "ootag_curly.generated.h"
-#include "ootag_moe.generated.h"
-#include "ootag_bart.generated.h"
-#include "ootag_lisa.generated.h"
-#include "ootag_marge.generated.h"
-#include "ootag_homer.generated.h"
+#include <ootag_larry.generated.h>
+#include <ootag_curly.generated.h>
+#include <ootag_moe.generated.h>
+#include <ootag_bart.generated.h>
+#include <ootag_lisa.generated.h>
+#include <ootag_marge.generated.h>
+#include <ootag_homer.generated.h>
 #endif
 
 using namespace darma_runtime::oo;
