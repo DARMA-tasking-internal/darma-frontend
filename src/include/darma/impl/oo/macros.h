@@ -57,67 +57,67 @@
 #include <darma/impl/serialization/serialization_fwd.h> // unpack_constructor_tag_t
 
 #define _DARMA__OO_PASSTHROUGH_CONSTRUCTORS(name, ext) \
-/* Explicitly default the copy, move, and default constructors */ \
-constexpr inline _darma__##name##ext() = default; \
-constexpr inline _darma__##name##ext(_darma__##name##ext const&) = default; \
-constexpr inline _darma__##name##ext(_darma__##name##ext &&) = default; \
-\
-/* for types in a chained base hierarchy that have a member of the correct name */ \
-/* and type, extract that value and forward the object on to the base */ \
-template <typename T, \
-  typename = std::enable_if_t< \
-    not std::is_same<std::decay_t<T>, _darma__##name##ext>::value \
-    and _darma__has_##name##_member_access<T, std::decay_t<ValueType>, ValueType>::value \
-    and darma_runtime::oo::detail::is_chained_base_class<std::decay_t<T>>::value \
-    /* Unnecessary for now; it basically just makes the error less readable \
-      and std::is_convertible< \
-      decltype( \
-        _darma__##name##_oo_access_friend_t<std::decay_t<ValueType>>::template name<ValueType>( \
-          std::declval<T>() \
-        ) \
-      ), \
-      ValueType \
-    >::value */ \
+  /* Explicitly default the copy, move, and default constructors */ \
+  constexpr inline _darma__##name##ext() = default; \
+  constexpr inline _darma__##name##ext(_darma__##name##ext const&) = default; \
+  constexpr inline _darma__##name##ext(_darma__##name##ext &&) = default; \
+  \
+  /* for types in a chained base hierarchy that have a member of the correct name */ \
+  /* and type, extract that value and forward the object on to the base */ \
+  template <typename T, \
+    typename = std::enable_if_t< \
+      not std::is_same<std::decay_t<T>, _darma__##name##ext>::value \
+      and _darma__has_##name##_member_access<T, std::decay_t<ValueType>, ValueType>::value \
+      and darma_runtime::oo::detail::is_chained_base_class<std::decay_t<T>>::value \
+      /* Unnecessary for now; it basically just makes the error less readable \
+        and std::is_convertible< \
+        decltype( \
+          _darma__##name##_oo_access_friend_t<std::decay_t<ValueType>>::template name<ValueType>( \
+            std::declval<T>() \
+          ) \
+        ), \
+        ValueType \
+      >::value */ \
+    > \
   > \
-> \
-constexpr inline explicit \
-_darma__##name##ext(T&& other) \
-  : Base(std::forward<T>(other)), name( \
-       _darma__##name##_oo_access_friend_t<std::decay_t<ValueType>>::template name<ValueType>( \
-         std::forward<T>(other) \
-       ) \
-    ) \
-{ } \
-/* allow construction from an Archive if ValueType is serializable with the archive */ \
-template <typename ArchiveT> \
-constexpr inline explicit \
-_darma__##name##ext( \
-  std::enable_if_t< \
-    ::darma_runtime::serialization::detail::serializability_traits<ValueType> \
-      ::template is_serializable_with_archive<ArchiveT>::value \
-    /* also has to be default constructible since we need to make it before */ \
-    /* unpacking into it. */ \
-    /* TODO this is inefficient, since the default constructor is called but */\
-    /* its result never used */ \
-    and std::is_default_constructible<ValueType>::value, \
-    ::darma_runtime::serialization::unpack_constructor_tag_t \
-  >, \
-  ArchiveT& ar \
-) : Base(::darma_runtime::serialization::unpack_constructor_tag, ar) \
-{ \
-  ar >> name; \
-} \
-/* pack and compute size functions, with protected names */ \
-template <typename ArchiveT> \
-void _darma__pack(ArchiveT& ar) const { \
-  Base::_darma__pack(ar); \
-  ar << name; \
-} \
-template <typename ArchiveT> \
-void _darma__compute_size(ArchiveT& ar) const { \
-  Base::_darma__compute_size(ar); \
-  ar << name; \
-} \
+  constexpr inline explicit \
+  _darma__##name##ext(T&& other) \
+    : Base(std::forward<T>(other)), name( \
+         _darma__##name##_oo_access_friend_t<std::decay_t<ValueType>>::template name<ValueType>( \
+           std::forward<T>(other) \
+         ) \
+      ) \
+  { } \
+  /* allow construction from an Archive if ValueType is serializable with the archive */ \
+  template <typename ArchiveT> \
+  constexpr inline explicit \
+  _darma__##name##ext( \
+    std::enable_if_t< \
+      ::darma_runtime::serialization::detail::serializability_traits<ValueType> \
+        ::template is_serializable_with_archive<ArchiveT>::value \
+      /* also has to be default constructible since we need to make it before */ \
+      /* unpacking into it. */ \
+      /* TODO this is inefficient, since the default constructor is called but */\
+      /* its result never used */ \
+      and std::is_default_constructible<ValueType>::value, \
+      ::darma_runtime::serialization::unpack_constructor_tag_t \
+    >, \
+    ArchiveT& ar \
+  ) : Base(::darma_runtime::serialization::unpack_constructor_tag, ar) \
+  { \
+    ar >> name; \
+  } \
+  /* pack and compute size functions, with protected names */ \
+  template <typename ArchiveT> \
+  void _darma__pack(ArchiveT& ar) const { \
+    Base::_darma__pack(ar); \
+    ar << name; \
+  } \
+  template <typename ArchiveT> \
+  void _darma__compute_size(ArchiveT& ar) const { \
+    Base::_darma__compute_size(ar); \
+    ar << name; \
+  } \
 
 
 #define DARMA_OO_DEFINE_TAG(name) \

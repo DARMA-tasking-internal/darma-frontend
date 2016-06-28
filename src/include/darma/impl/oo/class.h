@@ -58,6 +58,7 @@
 #include <darma/impl/oo/field.h>
 #include <darma/impl/oo/util.h>
 #include <darma/impl/oo/constructor.h>
+#include <darma/impl/oo/errors.h>
 
 #include <darma/interface/app/access_handle.h>
 
@@ -271,17 +272,20 @@ struct darma_class
     darma_class(darma_class&&) = default;
     darma_class(darma_class const&) = default;
 
+    // Only used in detection, so shouldn't be implemented
+    darma_class(detail::oo_sentinel_value_t const&);
+
     // Forward to a constructor, if available
     template <typename... CTorArgs,
       typename = std::enable_if_t<
         constructor_implementation_callable<ClassName, CTorArgs...>::value
         and not std::is_same<
-          std::decay_t<typename std::conditional_t<
-            sizeof...(CTorArgs) == 0,
-            tinympl::identity<meta::nonesuch>,
-            tinympl::variadic::at<0, CTorArgs...>
-          >::type>,
+          std::decay_t<tinympl::variadic::at_or_t<meta::nonesuch, 0, CTorArgs...>>,
           ClassName
+        >::value
+        and not std::is_same<
+          std::decay_t<tinympl::variadic::at_or_t<meta::nonesuch, 0, CTorArgs...>>,
+          detail::oo_sentinel_value_t
         >::value
       >
     >
@@ -315,6 +319,11 @@ struct darma_class
         // because no conversion operation generation is necessary, since the argument
         // is an exact match for the formal parameter.
         tinympl::and_<  // note that this and_ is specially implemented to short-circuit
+          // condition 0: ignore the sentinel value constructor used for detecting
+          // the presence of "using darma_class::darma_class;" in user's implementation
+          tinympl::not_<
+            std::is_same<std::decay_t<ClassTypeDeduced>, detail::oo_sentinel_value_t>
+          >,
           // condition 1:  only generate copy constructor if the decayed type matches the
           // Class itself (exactly; conversion from it's base classes isn't relevant here)
           std::is_same<std::decay_t<ClassTypeDeduced>, ClassName>,
