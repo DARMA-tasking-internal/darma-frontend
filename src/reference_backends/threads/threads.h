@@ -126,6 +126,8 @@ namespace threads_backend {
 			 >
 		       > handle_pubs;
 
+    size_t produced, consumed;
+    
     ThreadsRuntime();
 
     void
