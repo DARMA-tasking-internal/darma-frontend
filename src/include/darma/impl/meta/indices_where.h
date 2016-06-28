@@ -48,9 +48,6 @@
 #include <tuple>
 #include <type_traits>
 
-// TODO remove this when metaprogramming.h is fully split up
-#include "../meta/metaprogramming.h" // join_metalists, size_t_metavector
-
 namespace darma_mockup { namespace detail {
 
 ////////////////////////////////////////////////////////////////////////////////
