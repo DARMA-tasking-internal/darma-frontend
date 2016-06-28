@@ -95,6 +95,13 @@ struct darma_method_helper {
   using of_class_t = OfClass;
   using _args_vector_t = tinympl::vector<Args...>;
 
+  std::conditional_t<
+    std::is_convertible<oo_sentinel_value_t, of_class_t>::value,
+    oo_sentinel_value_t,
+    __________you_forgot___using__darma_class__darma_class___in_definition_of_<of_class_t>
+  > _detect_forgotten_using_darma_class = { };
+
+
   template <typename T>
   using _get_tag = tinympl::identity<typename T::tag>;
 
@@ -271,14 +278,20 @@ struct darma_method
     // Allow construction from the class that this is a method of
     template <typename OfClassOrMethodDeduced,
       typename = std::enable_if_t<
-        std::is_convertible<OfClassOrMethodDeduced, OfClass>::value
-        or of_class_t_matches<std::decay_t<OfClassOrMethodDeduced>>::value
+        (std::is_convertible<OfClassOrMethodDeduced, OfClass>::value
+          or of_class_t_matches<std::decay_t<OfClassOrMethodDeduced>>::value)
+        and not std::is_same<
+          std::decay_t<OfClassOrMethodDeduced>, detail::oo_sentinel_value_t
+        >::value
       >
     >
     constexpr inline explicit
     darma_method(OfClassOrMethodDeduced&& val)
       : base_t(std::forward<OfClassOrMethodDeduced>(val))
     { }
+
+    // For detection purposes only; should never be implemented
+    darma_method(detail::oo_sentinel_value_t const&);
 
     // Allow construction from the class that this is a method of
     //template <typename DeferredCallDeduced,
@@ -305,6 +318,14 @@ struct is_darma_method_of_class<darma_method<OfClass, Args...>, OfClass>
 
 template <typename Method>
 struct deferred_method_call_helper {
+
+  std::conditional_t<
+    std::is_convertible<oo_sentinel_value_t, Method>::value,
+    meta::nonesuch,
+    __________you_forgot___using__darma_method__darma_method___in_definition_of_method_for_class_<
+      typename tinympl::extract_arg_n<0, Method>::type, typename Method::of_class_t
+    >
+  > _detect_missing_using_darma_method = { };
 
   template <typename Field>
   using _access_handle_wrapped_base_class = tinympl::select_first<

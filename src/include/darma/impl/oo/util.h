@@ -54,6 +54,9 @@ namespace detail {
 
 struct empty_base { };
 
+struct oo_sentinel_value_t { };
+static constexpr oo_sentinel_value_t oo_sentinel_value = { };
+
 template <typename T>
 using _is_chained_base_class_archetype = typename T::_darma__is_chained_base_class;
 template <typename T>
