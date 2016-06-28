@@ -391,6 +391,11 @@ class VariableHandle
       new (allocated) T;
     }
 
+    void
+    destroy(void* constructed_object) const override {
+      ((T*)constructed_object)->~T();
+    }
+
     // end SerializationManager implementation </editor-fold>
     ////////////////////////////////////////////////////////////
 
