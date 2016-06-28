@@ -54,7 +54,7 @@ class mydata {
   ~mydata() { count_--; }
 
   mydata&
-  operator=(int val) { value_ = val; }
+  operator=(int val) { value_ = val; return *this; }
 
   bool
   operator==(int comp) const { return value_ == comp; }
@@ -63,7 +63,7 @@ class mydata {
   static int num_leaked() { return count_.load(); }
 
   template <typename Archive>
-  void serialize(Archive& ar) {}
+  void serialize(Archive& ar) { ar | value_; }
 
  private:
   int value_;
