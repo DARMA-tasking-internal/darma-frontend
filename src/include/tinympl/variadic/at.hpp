@@ -52,6 +52,7 @@
 
 #include <cstddef>
 #include <cstdlib>
+#include <type_traits>
 
 #include <tinympl/sequence.hpp>
 #include <tinympl/identity.hpp>
