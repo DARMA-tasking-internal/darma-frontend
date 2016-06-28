@@ -51,6 +51,7 @@
 #define TINYMPL_VARIADIC_AT_HPP
 
 #include <cstddef>
+#include <cstdlib>
 
 #include <tinympl/sequence.hpp>
 #include <tinympl/identity.hpp>
@@ -100,6 +101,19 @@ struct at : public tinympl::variadic::at<WrappedSpot::value, Args...>
 { };
 
 } // end namespace types_only
+
+template <typename Default, std::size_t i, typename... Args>
+struct at_or : tinympl::identity<
+  typename std::conditional_t<
+    i < sizeof...(Args),
+    tinympl::variadic::at<i, Args...>,
+    tinympl::identity<Default>
+  >::type
+> { };
+
+template <typename Default, std::size_t i, typename... Args>
+using at_or_t = typename at_or<Default, i, Args...>::type;
+
 
 } // namespace variadic
 } // namespace tinympl
