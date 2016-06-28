@@ -1,19 +1,3 @@
-# Compiler-specific C++11 activation.
-set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} -std=c++1y")
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
-  execute_process(
-  COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
-  if (NOT (GCC_VERSION VERSION_GREATER 4.8 OR GCC_VERSION VERSION_EQUAL 4.8))
-    message(FATAL_ERROR "${PROJECT_NAME} requires g++ 4.8 or greater.")
-  endif ()
-elseif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-  if (APPLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-  endif ()
-else ()
-  message(FATAL_ERROR "Your C++ compiler does not support C++11.")
-endif ()
-
 set (EXAMPLES_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 set (EXAMPLES_BIN_ROOT ${CMAKE_CURRENT_BINARY_DIR})
 
