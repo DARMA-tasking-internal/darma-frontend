@@ -47,7 +47,6 @@ meta/callable_traits.h
 meta/detection_archetypes.h
 meta/detection.h
 meta/filter_types.h
-meta/indices_where.h
 meta/is_container.h
 meta/is_streamable.h
 meta/largest_aligned.h
