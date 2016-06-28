@@ -222,10 +222,17 @@ class FunctorLikeRunnableBase
 
     args_tuple_t args_;
 
-    // TODO comment this
+    // This method makes the appropriate transformations of arguments from the
+    // types they are stored as to the types they need to by passed to the
+    // callable as.  For instance, a formal parameter of const T& will be
+    // stored as a ReadAccessHandle<T>, but needs to be passed to the callable
+    // as a const T& corresponding to the dereference of the ReadAccessHandle<T>
     decltype(auto)
     _get_args_to_splat() {
       return meta::tuple_for_each_zipped(
+        // iterate over the arguments yielding a pair of
+        // (argument, call_arg_traits) and call the lambda below for each
+        // pair
         args_,
         typename tinympl::transform<
           std::make_index_sequence<std::tuple_size<args_tuple_t>::value>,
@@ -233,12 +240,14 @@ class FunctorLikeRunnableBase
           std::tuple
         >::type(),
         [this](auto&& arg, auto&& call_arg_traits_i_val) -> decltype(auto) {
+          // Forward to the get_converted_arg function which does the appropriate
+          // conversion from stored arg type to call arg type
           using call_traits_i = std::decay_t<decltype(call_arg_traits_i_val)>;
           return call_traits_i::template get_converted_arg(
             std::forward<decltype(arg)>(arg)
           );
-        }
-      );
+        } // end lambda
+      ); // end tuple_for_each_zipped
     }
 
 
