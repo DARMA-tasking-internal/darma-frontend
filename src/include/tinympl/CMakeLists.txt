@@ -1,7 +1,7 @@
 set (tinympl_HEADERS
 accumulate.hpp
-algorithm.hpp
 algorithm_variadic.hpp
+algorithm.hpp
 all_of.hpp
 always_false.hpp
 always_true.hpp
@@ -16,12 +16,12 @@ bool.hpp
 char.hpp
 compatibility.hpp
 contains_placeholder.hpp
-copy.hpp
 copy_if.hpp
 copy_n.hpp
 copy_traits.hpp
-count.hpp
+copy.hpp
 count_if.hpp
+count.hpp
 delay.hpp
 detection.hpp
 divides.hpp
@@ -30,10 +30,10 @@ erase.hpp
 extract_template.hpp
 fill_n.hpp
 filter.hpp
-find_all.hpp
 find_all_if.hpp
-find.hpp
+find_all.hpp
 find_if.hpp
+find.hpp
 functional.hpp
 fused_map.hpp
 fused_value_map.hpp
@@ -45,15 +45,16 @@ if.hpp
 inherit.hpp
 insert.hpp
 int.hpp
-is_instantiation.hpp
 is_instantiation_of.hpp
+is_instantiation.hpp
 is_sequence.hpp
-is_suspension.hpp
 is_suspension_of.hpp
+is_suspension.hpp
 is_unique.hpp
 join.hpp
 lambda.hpp
 left_fold.hpp
+LEGAL.md
 less_equal.hpp
 less.hpp
 lexicographical_compare.hpp
@@ -74,16 +75,18 @@ none_of.hpp
 not_b.hpp
 not_equal_to.hpp
 or_b.hpp
+ORIGINAL_TINYMPL_LICENSE.txt
+partition.hpp
 plus.hpp
 pop_back.hpp
 pop_front.hpp
 range_c.hpp
 ratio.hpp
-remove.hpp
 remove_if.hpp
+remove.hpp
 repeat.hpp
-replace.hpp
 replace_if.hpp
+replace.hpp
 reverse.hpp
 right_fold.hpp
 select.hpp
@@ -97,13 +100,14 @@ sizeof.hpp
 sort.hpp
 splat.hpp
 stl_integer_sequence.hpp
-string.hpp
 string_macro.hpp
+string.hpp
+swap_headers.py
 to_string.hpp
 to_vector_c.hpp
-transform2.hpp
-transform.hpp
 transform_many.hpp
+transform.hpp
+transform2.hpp
 transpose.hpp
 tuple_as_sequence.hpp
 unique.hpp
@@ -114,25 +118,24 @@ vector.hpp
 void_t.hpp
 zip.hpp)
 
-
 set (variadic_HEADERS
 variadic/accumulate.hpp
 variadic/all_of.hpp
 variadic/any_of.hpp
 variadic/at.hpp
 variadic/back.hpp
-variadic/copy.hpp
 variadic/copy_if.hpp
 variadic/copy_n.hpp
-variadic/count.hpp
+variadic/copy.hpp
 variadic/count_if.hpp
+variadic/count.hpp
 variadic/erase.hpp
 variadic/fill_n.hpp
 variadic/filter.hpp
-variadic/find_all.hpp
 variadic/find_all_if.hpp
-variadic/find.hpp
+variadic/find_all.hpp
 variadic/find_if.hpp
+variadic/find.hpp
 variadic/generate_n.hpp
 variadic/insert.hpp
 variadic/is_unique.hpp
@@ -140,12 +143,13 @@ variadic/left_fold.hpp
 variadic/max_element.hpp
 variadic/min_element.hpp
 variadic/none_of.hpp
+variadic/partition.hpp
 variadic/pop_back.hpp
 variadic/pop_front.hpp
-variadic/remove.hpp
 variadic/remove_if.hpp
-variadic/replace.hpp
+variadic/remove.hpp
 variadic/replace_if.hpp
+variadic/replace.hpp
 variadic/reverse.hpp
 variadic/right_fold.hpp
 variadic/size.hpp
@@ -154,6 +158,7 @@ variadic/splat.hpp
 variadic/to_vector_c.hpp
 variadic/transform.hpp
 variadic/unique.hpp)
+
 
 install (FILES ${tinympl_HEADERS} DESTINATION include/tinympl)
 install (FILES ${variadic_HEADERS} DESTINATION include/tinympl/variadic)
