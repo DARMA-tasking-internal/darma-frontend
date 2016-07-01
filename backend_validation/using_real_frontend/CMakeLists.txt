@@ -32,6 +32,7 @@ add_unit_test(test_init_be)
 add_unit_test(test_flows_be)
 add_unit_test(test_create_work_be)
 add_unit_test(test_publish_be)
+add_unit_test(test_create_condition_be)
 
 add_executable(run_all_coupled_backend_tests ${backendtestfiles})
 target_link_libraries(run_all_coupled_backend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
