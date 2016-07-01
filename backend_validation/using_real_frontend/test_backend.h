@@ -85,7 +85,7 @@ struct TestBackend
     using namespace darma_runtime;
 
     // make sure we didn't leak mydata objects
-    EXPECT_EQ(mydata::num_leaked(), 0);
+    EXPECT_EQ(mydata::num_not_destructed(), 0);
 
     // delete the runtime at the end of EACH test
     if (detail::backend_runtime){

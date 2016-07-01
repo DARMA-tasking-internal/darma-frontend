@@ -60,7 +60,7 @@ class mydata {
   operator==(int comp) const { return value_ == comp; }
 
   static void reset_leaked_count() { count_.store(0); }
-  static int num_leaked() { return count_.load(); }
+  static int num_not_destructed() { return count_.load(); }
 
   template <typename Archive>
   void serialize(Archive& ar) { ar | value_; }
