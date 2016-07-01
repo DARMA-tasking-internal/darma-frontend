@@ -65,7 +65,7 @@ namespace threads_backend {
     size_t join_counter;
 
     GraphNode(size_t join_counter_,
-	      Runtime* runtime_)
+              Runtime* runtime_)
       : join_counter(join_counter_)
       , runtime(runtime_)
     { }
@@ -78,7 +78,7 @@ namespace threads_backend {
       DEBUG_PRINT("join counter is now %zu\n", join_counter - 1);
 
       if (--join_counter == 0) {
-	runtime->add_local(this->shared_from_this());
+        runtime->add_local(this->shared_from_this());
       }
     }
     
@@ -156,7 +156,7 @@ namespace threads_backend {
     types::unique_ptr_template<runtime_t::task_t> task;
 
     TaskNode(Runtime* rt,
-	     types::unique_ptr_template<runtime_t::task_t>&& task_)
+             types::unique_ptr_template<runtime_t::task_t>&& task_)
       : GraphNode(-1, rt)
       , task(std::move(task_))
     { }

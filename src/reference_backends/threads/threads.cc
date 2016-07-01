@@ -116,11 +116,11 @@ namespace threads_backend {
       inner->node->release();
     }
     for (auto dep = inner->deps.begin(),
-	   dep_end = inner->deps.end();
-	 dep != dep_end;
-	 ++dep) {
+           dep_end = inner->deps.end();
+         dep != dep_end;
+         ++dep) {
       if ((*dep)->node) {
-	(*dep)->node->release();
+        (*dep)->node->release();
       }
     }
     inner->deps.clear();
@@ -173,7 +173,7 @@ namespace threads_backend {
       this->consumed++;
     } else {
       if (t->ready()) {
-	ready_local.push_back(t);
+        ready_local.push_back(t);
       }
     }
   }
@@ -220,8 +220,8 @@ namespace threads_backend {
       ThreadsFlow* f_out = static_cast<ThreadsFlow*>(dep->get_out_flow());
 
       DEBUG_PRINT("check_dep_task: f_in = %lu, f_out = %lu\n",
-		  PRINT_LABEL(f_in),
-		  PRINT_LABEL(f_out));
+                  PRINT_LABEL(f_in),
+                  PRINT_LABEL(f_out));
       
       // set readiness of this flow based on symmetric flow structure
       const bool check_ready = f_in->inner->check_ready();
@@ -229,8 +229,8 @@ namespace threads_backend {
       f_in->inner->ready = check_ready;
 
       if (!f_in->inner->ready) {
-	f_in->inner->node = t;
-	dep_count++;
+        f_in->inner->node = t;
+        dep_count++;
       }
     }
 
@@ -267,12 +267,12 @@ namespace threads_backend {
     const bool data_exists = data.find({version,key}) != data.end();
 
     DEBUG_PRINT("%p: register use: ready = %s, data_exists = %s, key = %s, version = %s, handle = %p\n",
-		u,
-		PRINT_BOOL_STR(ready),
-		PRINT_BOOL_STR(data_exists),
-		PRINT_KEY(key),
-		PRINT_KEY(version),
-		handle);
+                u,
+                PRINT_BOOL_STR(ready),
+                PRINT_BOOL_STR(data_exists),
+                PRINT_KEY(key),
+                PRINT_KEY(version),
+                handle);
 
     if (data_exists) {
       // increase reference count on data
@@ -280,13 +280,13 @@ namespace threads_backend {
       u->get_data_pointer_reference() = data[{version,key}]->data;
 
       DEBUG_PRINT("%p: use register, refs = %d, ptr = %p, key = %s, "
-		  "in version = %s, out version = %s\n",
-		  u,
-		  data[{version,key}]->get_refs(),
-		  data[{version,key}]->data,
-		  PRINT_KEY(key),
-		  PRINT_KEY(f_in->inner->version_key),
-		  PRINT_KEY(f_out->inner->version_key));
+                  "in version = %s, out version = %s\n",
+                  u,
+                  data[{version,key}]->get_refs(),
+                  data[{version,key}]->data,
+                  PRINT_KEY(key),
+                  PRINT_KEY(f_in->inner->version_key),
+                  PRINT_KEY(f_out->inner->version_key));
     } else {
       // allocate new deferred data block for this use
       auto block = allocate_block(handle);
@@ -297,12 +297,12 @@ namespace threads_backend {
       u->get_data_pointer_reference() = block->data;
 
       DEBUG_PRINT("%p: use register: *deferred*: ptr = %p, key = %s, "
-		  "in version = %s, out version = %s\n",
-		  u,
-		  block->data,
-		  PRINT_KEY(key),
-		  PRINT_KEY(f_in->inner->version_key),
-		  PRINT_KEY(f_out->inner->version_key));
+                  "in version = %s, out version = %s\n",
+                  u,
+                  block->data,
+                  PRINT_KEY(key),
+                  PRINT_KEY(f_in->inner->version_key),
+                  PRINT_KEY(f_out->inner->version_key));
     }
 
     // count references to a given handle
@@ -320,7 +320,7 @@ namespace threads_backend {
     auto block = new DataBlock(1, sz);
 
     DEBUG_PRINT("allocating data block: size = %ld, ptr = %p\n",
-		sz, block->data);
+                sz, block->data);
       
     // call default constructor for data block
     handle
@@ -346,17 +346,17 @@ namespace threads_backend {
     data[{version,key}] = block;
 
     DEBUG_PRINT("make initial flow: ptr = %p, key = %s, handle = %p, flow = %lu\n",
-		block->data,
-		PRINT_KEY(key),
-		handle,
-		PRINT_LABEL(f));
+                block->data,
+                PRINT_KEY(key),
+                handle,
+                PRINT_LABEL(f));
 
     return f;
   }
 
   bool
   ThreadsRuntime::try_fetch(darma_runtime::abstract::frontend::Handle* handle,
-			    types::key_t const& version_key) {
+                            types::key_t const& version_key) {
     bool found = false;
 
   retry_fetch:
@@ -368,47 +368,47 @@ namespace threads_backend {
       const auto& iter = published.find({version_key, key});
 
       if (iter != published.end()) {
-	PublishedBlock* pub_ptr = iter->second;
-	auto &pub = *pub_ptr;
+        PublishedBlock* pub_ptr = iter->second;
+        auto &pub = *pub_ptr;
 
-	const bool buffer_exists = data.find({version_key,key}) != data.end();
-	void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
+        const bool buffer_exists = data.find({version_key,key}) != data.end();
+        void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
 
-	DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
-		    PRINT_BOOL_STR(buffer_exists),
-		    handle);
-	    
-	handle
-	  ->get_serialization_manager()
-	  ->unpack_data(unpack_to,pub.data->data_);
+        DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
+                    PRINT_BOOL_STR(buffer_exists),
+                    handle);
+            
+        handle
+          ->get_serialization_manager()
+          ->unpack_data(unpack_to,pub.data->data_);
 
-	if (!buffer_exists) {
-	  data[{version_key,key}] = new DataBlock(unpack_to);
-	} else {
-	  data[{version_key,key}]->ref();
-	}
+        if (!buffer_exists) {
+          data[{version_key,key}] = new DataBlock(unpack_to);
+        } else {
+          data[{version_key,key}]->ref();
+        }
 
-	DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
-		    PRINT_KEY(key),
-		    PRINT_KEY(version_key),
-		    pub.data->data_,
-		    std::atomic_load<size_t>(&pub.expected),
-		    unpack_to);
+        DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
+                    PRINT_KEY(key),
+                    PRINT_KEY(version_key),
+                    pub.data->data_,
+                    std::atomic_load<size_t>(&pub.expected),
+                    unpack_to);
 
-	assert(pub.expected > 0);
+        assert(pub.expected > 0);
 
-	++(pub.done);
-	--(pub.expected);
+        ++(pub.done);
+        --(pub.expected);
 
-	if (std::atomic_load<size_t>(&pub.expected) == 0) {
-	  // remove from publication list
-	  published.erase({version_key, key});
-	  free(pub_ptr->data->data_);
-	  delete pub.data;
-	  delete pub_ptr;
-	}
+        if (std::atomic_load<size_t>(&pub.expected) == 0) {
+          // remove from publication list
+          published.erase({version_key, key});
+          free(pub_ptr->data->data_);
+          delete pub.data;
+          delete pub_ptr;
+        }
 
-	found = true;
+        found = true;
       }
     }
 
@@ -420,8 +420,8 @@ namespace threads_backend {
 
   bool
   ThreadsRuntime::add_fetcher(std::shared_ptr<FetchNode> fetch,
-			      darma_runtime::abstract::frontend::Handle* handle,
-			      types::key_t const& version_key) {
+                              darma_runtime::abstract::frontend::Handle* handle,
+                              types::key_t const& version_key) {
     bool ready = false;
     {
       // TODO: unscalable lock to handling fetching
@@ -433,11 +433,11 @@ namespace threads_backend {
       const bool avail = found && std::atomic_load<bool>(&iter->second->ready); 
 
       if (!found) {
-	auto pub = new PublishedBlock();
-	pub->waiting.push_front(fetch);
-	published[{version_key,key}] = pub;
+        auto pub = new PublishedBlock();
+        pub->waiting.push_front(fetch);
+        published[{version_key,key}] = pub;
       } else if (found && !avail) {
-	published[{version_key,key}]->waiting.push_front(fetch);
+        published[{version_key,key}]->waiting.push_front(fetch);
       }
 
       ready = avail;
@@ -447,7 +447,7 @@ namespace threads_backend {
   
   bool
   ThreadsRuntime::test_fetch(darma_runtime::abstract::frontend::Handle* handle,
-			     types::key_t const& version_key) {
+                             types::key_t const& version_key) {
     bool ready = false;
     {
       // TODO: unscalable lock to handling fetching
@@ -457,15 +457,15 @@ namespace threads_backend {
       const auto& iter = published.find({version_key,key});
 
       ready =
-	iter != published.end() &&
-	std::atomic_load<bool>(&iter->second->ready);
+        iter != published.end() &&
+        std::atomic_load<bool>(&iter->second->ready);
     }
     return ready;
   }
 
   void
   ThreadsRuntime::blocking_fetch(darma_runtime::abstract::frontend::Handle* handle,
-				 types::key_t const& version_key) {
+                                 types::key_t const& version_key) {
 
     DEBUG_PRINT("fetch_block: handle = %p\n", handle);
 
@@ -475,7 +475,7 @@ namespace threads_backend {
 
   void
   ThreadsRuntime::fetch(darma_runtime::abstract::frontend::Handle* handle,
-			types::key_t const& version_key) {
+                        types::key_t const& version_key) {
     {
       // TODO: big lock to handling fetching
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
@@ -485,7 +485,7 @@ namespace threads_backend {
 
       // published block found and ready
       assert(iter != published.end() &&
-	     std::atomic_load<bool>(&iter->second->ready));
+             std::atomic_load<bool>(&iter->second->ready));
 
       PublishedBlock* pub_ptr = iter->second;
       auto &pub = *pub_ptr;
@@ -494,25 +494,25 @@ namespace threads_backend {
       void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
 
       DEBUG_PRINT("try_fetch: unpacking data: buffer_exists = %s, handle = %p\n",
-		  PRINT_BOOL_STR(buffer_exists),
-		  handle);
+                  PRINT_BOOL_STR(buffer_exists),
+                  handle);
 
       handle
-	->get_serialization_manager()
-	->unpack_data(unpack_to, pub.data->data_);
+        ->get_serialization_manager()
+        ->unpack_data(unpack_to, pub.data->data_);
 
       if (!buffer_exists) {
-	data[{version_key,key}] = new DataBlock(unpack_to);
+        data[{version_key,key}] = new DataBlock(unpack_to);
       } else {
-	data[{version_key,key}]->ref();
+        data[{version_key,key}]->ref();
       }
 
       DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
-		  PRINT_KEY(key),
-		  PRINT_KEY(version_key),
-		  pub.data->data_,
-		  std::atomic_load<size_t>(&pub.expected),
-		  unpack_to);
+                  PRINT_KEY(key),
+                  PRINT_KEY(version_key),
+                  pub.data->data_,
+                  std::atomic_load<size_t>(&pub.expected),
+                  unpack_to);
 
       assert(pub.expected > 0);
 
@@ -520,11 +520,11 @@ namespace threads_backend {
       --(pub.expected);
 
       if (std::atomic_load<size_t>(&pub.expected) == 0) {
-	// remove from publication list
-	published.erase({version_key, key});
-	free(pub_ptr->data->data_);
-	delete pub.data;
-	delete pub_ptr;
+        // remove from publication list
+        published.erase({version_key, key});
+        free(pub_ptr->data->data_);
+        delete pub.data;
+        delete pub_ptr;
       }
     }
   }
@@ -532,7 +532,7 @@ namespace threads_backend {
   /*virtual*/
   Flow*
   ThreadsRuntime::make_fetching_flow(darma_runtime::abstract::frontend::Handle* handle,
-				     types::key_t const& version_key) {
+                                     types::key_t const& version_key) {
     DEBUG_VERBOSE_PRINT("make fetching flow\n");
 
     ThreadsFlow* f = new ThreadsFlow(handle);
@@ -548,7 +548,7 @@ namespace threads_backend {
       this->produced++;
 
       if (ready) {
-	ready_local.push_back(node);
+        ready_local.push_back(node);
       }
       f->inner->ready = false;
     }
@@ -570,7 +570,7 @@ namespace threads_backend {
   /*virtual*/
   Flow*
   ThreadsRuntime::make_same_flow(Flow* from,
-				 flow_propagation_purpose_t purpose) {
+                                 flow_propagation_purpose_t purpose) {
     DEBUG_VERBOSE_PRINT("make same flow: %d\n", purpose);
     ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
     ThreadsFlow* f_same = new ThreadsFlow(0);
@@ -583,15 +583,15 @@ namespace threads_backend {
   /*virtual*/
   Flow*
   ThreadsRuntime::make_forwarding_flow(Flow* from,
-				       flow_propagation_purpose_t purpose) {
+                                       flow_propagation_purpose_t purpose) {
     DEBUG_VERBOSE_PRINT("make forwarding flow: %d\n", purpose);
 
     ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
     ThreadsFlow* f_forward = new ThreadsFlow(0);
 
     DEBUG_PRINT("forwarding flow from %lu to %lu\n",
-		PRINT_LABEL(f),
-		PRINT_LABEL(f_forward));
+                PRINT_LABEL(f),
+                PRINT_LABEL(f_forward));
     
     if (depthFirstExpand) {
       f_forward->inner->ready = true;
@@ -604,15 +604,15 @@ namespace threads_backend {
   /*virtual*/
   Flow*
   ThreadsRuntime::make_next_flow(Flow* from,
-				 flow_propagation_purpose_t purpose) {
+                                 flow_propagation_purpose_t purpose) {
     DEBUG_VERBOSE_PRINT("make next flow: %d\n", purpose);
 
     ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
     ThreadsFlow* f_next = new ThreadsFlow(0);
 
     DEBUG_PRINT("next flow from %lu to %lu\n",
-		PRINT_LABEL(f),
-		PRINT_LABEL(f_next));
+                PRINT_LABEL(f),
+                PRINT_LABEL(f_next));
 
     f->inner->next = f_next->inner;
     return f_next;
@@ -636,27 +636,27 @@ namespace threads_backend {
     const auto& key = handle->get_key();
 
     DEBUG_PRINT("%p: release use: hasDeferred = %s, handle = %p, version = %s, key = %s, data = %p\n",
-		u,
-		f_in->inner->hasDeferred ? "*** true" : "false",
-		handle,
-		PRINT_KEY(version),
-		PRINT_KEY(key),
-		data[{version,key}]->data);
+                u,
+                f_in->inner->hasDeferred ? "*** true" : "false",
+                handle,
+                PRINT_KEY(version),
+                PRINT_KEY(key),
+                data[{version,key}]->data);
 
     handle_refs[handle]--;
 
     if (handle_refs[handle] == 0) {
       if (handle_pubs.find(handle) != handle_pubs.end()) {
-      	for (auto delayed_pub = handle_pubs[handle].begin(), end = handle_pubs[handle].end();
-      	     delayed_pub != end;
-      	     ++delayed_pub) {
+        for (auto delayed_pub = handle_pubs[handle].begin(), end = handle_pubs[handle].end();
+             delayed_pub != end;
+             ++delayed_pub) {
 
-	  this->consumed++;
-      	  publish(*delayed_pub);
-	  (*delayed_pub)->finished = true;
+          this->consumed++;
+          publish(*delayed_pub);
+          (*delayed_pub)->finished = true;
 
-      	  DEBUG_PRINT("%p: release use: force publish of handle = %p\n", u, handle);
-      	}
+          DEBUG_PRINT("%p: release use: force publish of handle = %p\n", u, handle);
+        }
       }
 
       handle_pubs.erase(handle);
@@ -666,8 +666,8 @@ namespace threads_backend {
     data[{version,key}]->deref();
 
     DEBUG_PRINT("release_use: f_in %ld, f_out %ld\n",
-		PRINT_LABEL(f_in),
-		PRINT_LABEL(f_out));
+                PRINT_LABEL(f_in),
+                PRINT_LABEL(f_out));
     
     release_deps(f_out->inner);
 
@@ -678,12 +678,12 @@ namespace threads_backend {
     const auto refs = data[{version,key}]->get_refs();
       
     DEBUG_PRINT("%p: release use: refs = %d, ptr = %p, key = %s, version = %s, handle = %p\n",
-		u,
-		refs,
-		data[{version, key}]->data,
-		PRINT_KEY(key),
-		PRINT_KEY(version),
-		handle);
+                u,
+                refs,
+                data[{version, key}]->data,
+                PRINT_KEY(key),
+                PRINT_KEY(version),
+                handle);
 
     if (refs == 1) {
       DataBlock* prev = data[{version,key}];
@@ -714,45 +714,45 @@ namespace threads_backend {
       void* data_ptr = publish->data_ptr;
 
       const auto refs = publish->flow->deferred_data_ptr->get_refs();
-	
+        
       DEBUG_PRINT("publish: key = %s, version = %s, data ptr = %p, handle = %p, refs = %d\n",
-		  PRINT_KEY(key),
-		  PRINT_KEY(version),
-		  data_ptr,
-		  handle,
-		  refs);
-	
+                  PRINT_KEY(key),
+                  PRINT_KEY(version),
+                  data_ptr,
+                  handle,
+                  refs);
+        
       assert(expected >= 1);
 
       const size_t size = handle
-	->get_serialization_manager()
-	->get_packed_data_size(data_ptr);
+        ->get_serialization_manager()
+        ->get_packed_data_size(data_ptr);
 
       auto block = new PackedDataBlock();
 
       // set data block for published block
       block->data_ = malloc(size);
       block->size_ = handle
-	->get_serialization_manager()
-	->get_metadata_size();
+        ->get_serialization_manager()
+        ->get_metadata_size();
 
       // call pack method to put it inside the allocated buffer
       handle
-	->get_serialization_manager()
-	->pack_data(data_ptr,
-		    block->data_);
+        ->get_serialization_manager()
+        ->pack_data(data_ptr,
+                    block->data_);
 
       DEBUG_PRINT("publication: key = %s, version = %s, published data = %p, data ptr = %p\n",
-		  PRINT_KEY(key),
-	 	  PRINT_KEY(version),
-		  block->data_,
-		  data_ptr);
+                  PRINT_KEY(key),
+                  PRINT_KEY(version),
+                  block->data_,
+                  data_ptr);
 
       const bool publish_exists = published.find({version,key}) != published.end();
       const auto& publish = publish_exists ?
-	published[{version,key}] :
-	(published[{version,key}] = new PublishedBlock(),
-	 published[{version,key}]);
+        published[{version,key}] :
+        (published[{version,key}] = new PublishedBlock(),
+         published[{version,key}]);
 
       publish->expected = expected;
       publish->key = key;
@@ -760,13 +760,13 @@ namespace threads_backend {
       publish->data = block;
 
       if (publish_exists) {
-	for (auto iter = publish->waiting.begin(),
-	     iter_end = publish->waiting.end();
-	     iter != iter_end;
-	     ++iter) {
-	  (*iter)->activate();
-	}
-	publish->waiting.clear();
+        for (auto iter = publish->waiting.begin(),
+             iter_end = publish->waiting.end();
+             iter != iter_end;
+             ++iter) {
+          (*iter)->activate();
+        }
+        publish->waiting.clear();
       }
     }
   }
@@ -779,7 +779,7 @@ namespace threads_backend {
   /*virtual*/
   void
   ThreadsRuntime::publish_use(darma_runtime::abstract::frontend::Use* f,
-			      darma_runtime::abstract::frontend::PublicationDetails* details) {
+                              darma_runtime::abstract::frontend::PublicationDetails* details) {
 
     ThreadsFlow* f_in  = static_cast<ThreadsFlow*>(f->get_in_flow());
 
@@ -791,12 +791,12 @@ namespace threads_backend {
     // TODO: do not create this just to tear it down
     auto pub = std::make_shared<DelayedPublish>
       (DelayedPublish{f_in->inner,
-	  handle,
-	  f->get_data_pointer_reference(),
-	  details->get_n_fetchers(),
-	  key,
-	  details->get_version_name(),
-	  false
+          handle,
+          f->get_data_pointer_reference(),
+          details->get_n_fetchers(),
+          key,
+          details->get_version_name(),
+          false
        });
 
     assert(f_in->inner->hasDeferred);
@@ -806,15 +806,15 @@ namespace threads_backend {
     const bool ready = p->ready();
 
     DEBUG_PRINT("%p: publish_use: ptr = %p, hasDeferred = %s, key = %s, "
-		"version = %s, handle = %p, ready = %s, f_in = %lu\n",
-		f,
-		f->get_data_pointer_reference(),
-		PRINT_BOOL_STR(f_in->inner->hasDeferred),
-		PRINT_KEY(key),
-		PRINT_KEY(version),
-		handle,
-		PRINT_BOOL_STR(ready),
-		PRINT_LABEL(f_in));
+                "version = %s, handle = %p, ready = %s, f_in = %lu\n",
+                f,
+                f->get_data_pointer_reference(),
+                PRINT_BOOL_STR(f_in->inner->hasDeferred),
+                PRINT_KEY(key),
+                PRINT_KEY(version),
+                handle,
+                PRINT_BOOL_STR(ready),
+                PRINT_LABEL(f_in));
     
     if (!ready) {
       // publishes.push_back(p);
@@ -841,10 +841,10 @@ namespace threads_backend {
       auto n = nodes.back();
       nodes.pop_back();
       if (n->ready(this)) {
-	n->execute(this);
-	n->cleanup(this);
+        n->execute(this);
+        n->cleanup(this);
       } else {
-	nodes.push_front(n);
+        nodes.push_front(n);
       }
     }
   }
@@ -854,7 +854,7 @@ namespace threads_backend {
   ThreadsRuntime::schedule_from_deque(std::mutex* lock, std::deque<Node>& nodes) {
     if (nodes.size() > 0) {
       DEBUG_PRINT("scheduling from deque %p (local = %p): size = %lu\n",
-		  &nodes, &ready_local, nodes.size());
+                  &nodes, &ready_local, nodes.size());
 
       if (lock) lock->lock();
       auto node = nodes.front();
@@ -894,9 +894,9 @@ namespace threads_backend {
     
       // TODO: memory consistency bug on live_ranks size here..with relaxed ordering
       for (size_t i = 0; i < threads_backend::live_ranks.size(); i++) {
-	DEBUG_PRINT("main thread joining %zu\n", i);
-	threads_backend::live_ranks[i].join();
-	DEBUG_PRINT("join complete %zu\n", i);
+        DEBUG_PRINT("main thread joining %zu\n", i);
+        threads_backend::live_ranks[i].join();
+        DEBUG_PRINT("join complete %zu\n", i);
       }
     }
   }
@@ -915,14 +915,14 @@ scheduler_loop(size_t thd, threads_backend::ThreadsRuntime* runtime) {
   const size_t num_ranks = std::atomic_load<size_t>(&runtime->ranks);
 
   DEBUG_PRINT("starting scheduler for %zu, number of ranks %zu\n",
-	      local_rank, num_ranks);
+              local_rank, num_ranks);
   
   // spin on termination
   while (!std::atomic_load(&runtime->finished)) {
     if (std::atomic_load<size_t>(runtime->deque_counter[local_rank]) > 0) {
       // scoped lock for removal attempt
       {
-	std::lock_guard<std::mutex> guard(runtime->deque_mutex[local_rank]);
+        std::lock_guard<std::mutex> guard(runtime->deque_mutex[local_rank]);
       }
     }
   }
@@ -942,8 +942,8 @@ start_thread_handler(const size_t thd, threads_backend::ThreadsRuntime* runtime)
 
 void
 start_rank_handler(const size_t rank,
-		   const int argc,
-		   char** argv) {
+                   const int argc,
+                   char** argv) {
   DEBUG_PRINT("%ld: rank handler starting\n", rank);
 
   // set TL variables
@@ -1036,13 +1036,13 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   if (threads_backend::this_rank == 0) {
     if (threads_backend::depthFirstExpand) {
       STARTUP_PRINT("DARMA: number of ranks = %zu, "
-		    "DF-Sched mode (depth-first, rank-threaded scheduler)\n",
-		    threads_backend::n_ranks);
+                    "DF-Sched mode (depth-first, rank-threaded scheduler)\n",
+                    threads_backend::n_ranks);
     } else {
       STARTUP_PRINT("DARMA: number of ranks = %zu, "
-		    "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler)\n",
-		    threads_backend::n_ranks,
-		    threads_backend::bwidth);
+                    "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler)\n",
+                    threads_backend::n_ranks,
+                    threads_backend::bwidth);
     }
   }
   
@@ -1051,9 +1051,9 @@ darma_runtime::abstract::backend::darma_backend_initialize(
 
   if (threads_backend::this_rank == 0) {
     DEBUG_PRINT("rank = %zu, ranks = %zu, threads = %zu\n",
-		threads_backend::this_rank,
-		threads_backend::n_ranks,
-		n_threads);
+                threads_backend::this_rank,
+                threads_backend::n_ranks,
+                n_threads);
 
     // launch std::thread for each rank
     threads_backend::live_ranks.resize(threads_backend::n_ranks - 1);
@@ -1091,8 +1091,8 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   // setup root task
   runtime->top_level_task = std::move(top_level_task);
   runtime->top_level_task->set_name(darma_runtime::make_key(DARMA_BACKEND_SPMD_NAME_PREFIX,
-							    threads_backend::this_rank,
-							    threads_backend::n_ranks));
+                                                            threads_backend::this_rank,
+                                                            threads_backend::n_ranks));
   threads_backend::current_task = runtime->top_level_task.get();
 }
 
