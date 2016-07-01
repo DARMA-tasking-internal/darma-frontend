@@ -77,8 +77,6 @@ namespace threads_backend {
   using namespace darma_runtime;
   using namespace darma_runtime::abstract::backend;
 
-  // TODO: threads not implemented
-  std::vector<std::thread> live_threads;
   std::vector<std::thread> live_ranks;
 
   // TL state
@@ -153,16 +151,6 @@ namespace threads_backend {
   void
   ThreadsRuntime::register_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
     DEBUG_VERBOSE_PRINT("register task\n");
-
-    #if defined(_BACKEND_MULTITHREADED_RUNTIME)
-    // scoped lock for insertion
-    {
-      std::lock_guard<std::mutex> guard(deque_mutex[this_rank]);
-      deque[this_rank].emplace_front(std::move(task));
-    }
-
-    std::atomic_fetch_add<size_t>(deque_counter[this_rank], 1);
-    #endif
 
     auto t = std::make_shared<TaskNode>(TaskNode{this,std::move(task)});
     t->join_counter = check_dep_task(t);
@@ -902,33 +890,7 @@ namespace threads_backend {
       }
     }
   }
-
-  // HACK: put an instance of the backend runtime here for the main thread..
-  threads_backend::ThreadsRuntime* runtime_inst;
-  
 } // end namespace threads_backend
-
-// TODO: not used, for multi-threaded runtime
-void
-scheduler_loop(size_t thd, threads_backend::ThreadsRuntime* runtime) {
-  // read rank from TL variable
-  const size_t local_rank = threads_backend::this_rank;
-  // read number of ranks
-  const size_t num_ranks = std::atomic_load<size_t>(&runtime->ranks);
-
-  DEBUG_PRINT("starting scheduler for %zu, number of ranks %zu\n",
-              local_rank, num_ranks);
-  
-  // spin on termination
-  while (!std::atomic_load(&runtime->finished)) {
-    if (std::atomic_load<size_t>(runtime->deque_counter[local_rank]) > 0) {
-      // scoped lock for removal attempt
-      {
-        std::lock_guard<std::mutex> guard(runtime->deque_mutex[local_rank]);
-      }
-    }
-  }
-}
 
 void
 start_thread_handler(const size_t thd, threads_backend::ThreadsRuntime* runtime) {
@@ -961,15 +923,6 @@ int main(int argc, char **argv) {
   // if (darma_runtime::detail::backend_runtime) {
   //   delete darma_runtime::detail::backend_runtime;
   // }
-
-  //scheduler_loop(0, threads_backend::runtime_inst);
-
-  #if defined(_BACKEND_MULTITHREADED_RUNTIME)
-    for (size_t i = 0; i < threads_backend::live_threads.size(); i++) {
-      DEBUG_PRINT("main thread joining %zu\n", i);
-      threads_backend::live_threads[i].join();
-    }
-  #endif
 
   return ret;
 }
@@ -1062,32 +1015,6 @@ darma_runtime::abstract::backend::darma_backend_initialize(
     for (size_t i = 0; i < threads_backend::n_ranks - 1; ++i) {
       threads_backend::live_ranks[i] = std::thread(start_rank_handler, i + 1, argc, argv);
     }
-    
-    #if defined(_BACKEND_MULTITHREADED_RUNTIME)
-      // store the launched threads in a vector
-      threads_backend::live_threads.resize(n_threads - 1);
-      threads_backend::runtime_inst = runtime;
-    
-      // init atomics/deques used to coordinate threads
-      {
-        std::vector<std::mutex> local_mutex(n_threads);
-        runtime->deque_mutex.swap(local_mutex);
-      }
-    
-      runtime->deque_counter.resize(n_threads);
-      runtime->deque.resize(n_threads);
-      std::atomic_store(&runtime->ranks, n_threads);
-    
-      for (size_t i = 0; i < n_threads; ++i) {
-        runtime->deque_counter[i] = new std::atomic<size_t>();
-        std::atomic_init<size_t>(runtime->deque_counter[i], 0);
-      }
-    
-      // launch and save each std::thread
-      for (size_t i = 0; i < n_threads - 1; ++i) {
-        threads_backend::live_threads[i] = std::thread(start_thread_handler, i + 1, runtime);
-      }
-    #endif
   }
 
   // setup root task
