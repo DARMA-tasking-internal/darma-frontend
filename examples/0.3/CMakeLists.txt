@@ -82,5 +82,6 @@ endif()
 endmacro()
 
 add_subdirectory(darma_hello)
+add_subdirectory(poisson_1d_thomasAlgorithm)
 
 
