@@ -84,7 +84,10 @@ namespace threads_backend {
   // TL state
   __thread runtime_t::task_t* current_task = 0;
   __thread size_t this_rank = 0;
-  __thread size_t flow_label = 100;
+
+  #if __THREADS_DEBUG_MODE__
+    __thread size_t flow_label = 100;
+  #endif
 
   // global
   size_t n_ranks = 1;

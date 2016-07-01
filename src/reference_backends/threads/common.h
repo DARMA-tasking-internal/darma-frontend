@@ -50,6 +50,8 @@
  */
 #define __THREADS_BACKEND_DEBUG__	  0
 #define __THREADS_BACKEND_DEBUG_VERBOSE__ 0
+#define __THREADS_DEBUG_MODE__                                          \
+  (__THREADS_BACKEND_DEBUG__ || __THREADS_BACKEND_DEBUG_VERBOSE__)
 
 std::mutex __output_mutex;
 #define THREADS_PRINTER(fmt, arg...)					\

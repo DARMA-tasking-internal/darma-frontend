@@ -59,7 +59,10 @@ namespace threads_backend {
     darma_runtime::abstract::frontend::Handle* handle;
     bool ready, hasDeferred;
     DataBlock* deferred_data_ptr;
-    size_t label;
+
+    #if __THREADS_DEBUG_MODE__
+      size_t label;
+    #endif
 
     std::list<std::shared_ptr<InnerFlow> > deps;
     
@@ -74,7 +77,9 @@ namespace threads_backend {
       , ready(false)
       , hasDeferred(false)
       , deferred_data_ptr(nullptr)
+      #if __THREADS_DEBUG_MODE__
       , label(++flow_label)
+      #endif
       , node(nullptr)
     { }
 
