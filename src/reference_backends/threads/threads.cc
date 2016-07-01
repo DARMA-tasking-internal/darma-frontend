@@ -190,7 +190,27 @@ namespace threads_backend {
 
   bool
   ThreadsRuntime::register_condition_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
-    assert(false);
+    auto t = std::make_shared<TaskNode>(TaskNode{this,std::move(task)});
+    t->join_counter = check_dep_task(t);
+    this->produced++;
+
+    assert(threads_backend::depthFirstExpand);
+
+    if (threads_backend::depthFirstExpand) {
+      assert(t->ready());
+      DEBUG_VERBOSE_PRINT("running task\n");
+
+      this->consumed++;
+
+      runtime_t::task_t* prev = current_task;
+      types::unique_ptr_template<runtime_t::task_t> cur = std::move(t->task);
+      current_task = cur.get();
+      bool ret = cur.get()->run<bool>();
+      current_task = prev;
+
+      return ret;
+    }
+
     return true;
   }
 
