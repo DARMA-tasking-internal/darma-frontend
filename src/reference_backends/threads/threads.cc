@@ -225,10 +225,8 @@ namespace threads_backend {
       
       // set readiness of this flow based on symmetric flow structure
       const bool check_ready = f_in->inner->check_ready();
-      // try to set readiness if we can find a backward flow that is ready
-      const bool check_back_ready = f_in->inner->backward ? f_in->inner->backward->ready : false;
 
-      f_in->inner->ready = check_ready || check_back_ready;
+      f_in->inner->ready = check_ready;
 
       if (!f_in->inner->ready) {
 	f_in->inner->node = t;
@@ -263,7 +261,7 @@ namespace threads_backend {
 
     auto const handle = u->get_handle();
     const auto& key = handle->get_key();
-    const auto version = f_in->inner->same ? f_in->inner->same->version_key : f_in->inner->version_key;
+    const auto version = f_in->inner->version_key;
 
     const bool ready = f_in->inner->check_ready();
     const bool data_exists = data.find({version,key}) != data.end();
@@ -577,20 +575,7 @@ namespace threads_backend {
     ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
     ThreadsFlow* f_same = new ThreadsFlow(0);
 
-    // skip list of same for constant lookup. backward link.
-    f_same->inner->same = f->inner->same ? f->inner->same : f->inner;
-
-    // forward link
-    f_same->inner->same->deps.push_back(f_same->inner);
-
-    DEBUG_PRINT("same flow from %lu to %lu, skip to %lu, purpose = %s\n",
-		PRINT_LABEL(f),
-		PRINT_LABEL(f_same),
-		PRINT_LABEL_INNER(f_same->inner->same),
-		PRINT_PURPOSE(purpose));
-
-    if (f->inner->ready)
-      f_same->inner->ready = true;
+    f_same->inner = f->inner;
     
     return f_same;
   }
@@ -613,7 +598,6 @@ namespace threads_backend {
     }
     
     f->inner->forward = f_forward->inner;
-    f_forward->inner->backward = f->inner;
     return f_forward;
   }
 
@@ -648,8 +632,7 @@ namespace threads_backend {
     f_out->inner->ready = true;
 
     auto handle = u->get_handle();
-    const auto version =
-      f_in->inner->same ? f_in->inner->same->version_key : f_in->inner->version_key;
+    const auto version = f_in->inner->version_key;
     const auto& key = handle->get_key();
 
     DEBUG_PRINT("%p: release use: hasDeferred = %s, handle = %p, version = %s, key = %s, data = %p\n",

@@ -54,7 +54,7 @@ namespace threads_backend {
   extern __thread size_t flow_label;
   
   struct InnerFlow {
-    std::shared_ptr<InnerFlow> same, next, forward, backward;
+    std::shared_ptr<InnerFlow> next, forward;
     types::key_t version_key;
     darma_runtime::abstract::frontend::Handle* handle;
     bool ready, hasDeferred;
@@ -69,10 +69,8 @@ namespace threads_backend {
     InnerFlow(const InnerFlow& in) = default;
     
     InnerFlow()
-      : same(nullptr)
-      , next(nullptr)
+      : next(nullptr)
       , forward(nullptr)
-      , backward(nullptr)
       , version_key(darma_runtime::detail::SimpleKey())
       , ready(false)
       , hasDeferred(false)
@@ -81,8 +79,7 @@ namespace threads_backend {
       , node(nullptr)
     { }
 
-    bool check_ready() { return ready || (same ? check_same() : false); }
-    bool check_same()  { return same->check_ready(); }
+    bool check_ready() { return ready; }
   };
 
   struct ThreadsFlow
