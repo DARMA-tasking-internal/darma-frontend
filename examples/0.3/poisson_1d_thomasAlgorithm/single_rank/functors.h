@@ -1,3 +1,7 @@
+
+#ifndef POISSON1DFUNCTORS_H_
+#define POISSON1DFUNCTORS_H_
+
 struct initialize{
   void operator()(std::vector<double> & subD,
                   std::vector<double> & diag, 
@@ -57,3 +61,6 @@ struct checkFinalL1Error{
     assert( error < 1e-2 );
   }
 };
+
+
+#endif

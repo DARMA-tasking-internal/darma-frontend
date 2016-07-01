@@ -1,5 +1,5 @@
-#include "../common_poisson1d.h"
-#include "../constants.h"
+#include "../../../0.2/poisson_1d_thomasAlgorithm/common_poisson1d.h"
+#include "../../../0.2/poisson_1d_thomasAlgorithm/constants.h"
 #include <darma.h>
 using namespace darma_runtime; //here because headers below need this too
 #include "functors.h"
