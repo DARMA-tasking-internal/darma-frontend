@@ -77,6 +77,14 @@ class Runtime {
     typedef frontend::Task<types::concrete_task_t> task_t;
     typedef types::unique_ptr_template<task_t> task_unique_ptr;
 
+    /** @brief Return the SPMD rank of this backend instance. */
+    virtual size_t
+    get_spmd_rank() const = 0;
+
+    /** @brief Return the SPMD size. */
+    virtual size_t
+    get_spmd_size() const = 0;
+
     /** @brief Register a task to be run at some future time by the runtime system.
      *
      *  See frontend::Task for details
