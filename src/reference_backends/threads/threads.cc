@@ -614,7 +614,6 @@ namespace threads_backend {
                 PRINT_LABEL(f),
                 PRINT_LABEL(f_next));
 
-    f->inner->next = f_next->inner;
     return f_next;
   }
   
