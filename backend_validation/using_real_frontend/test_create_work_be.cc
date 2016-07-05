@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact Nicole Slattengren (nlslatt@sandia.gov)
 //
 // ************************************************************************
 //@HEADER
@@ -116,7 +116,7 @@ TEST_F(TestCreateWorkBE, initial_access_alloc){
 
 // test task with read permissions (ro capture when MN)
 // builds upon TestCreateWorkBE::initial_access_alloc()
-TEST_F(TestCreateWorkBE, readonly){
+TEST_F(TestCreateWorkBE, ro_capture_MN){
   std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   {
     darma_init(argc_, argv_);
@@ -144,8 +144,8 @@ TEST_F(TestCreateWorkBE, readonly){
 }
 
 // test task with read-write permissions (mod capture when MN)
-// builds upon TestCreateWorkBE::readonly()
-TEST_F(TestCreateWorkBE, modify){
+// builds upon TestCreateWorkBE::ro_capture_MN()
+TEST_F(TestCreateWorkBE, mod_capture_MN){
   std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   {
     darma_init(argc_, argv_);
@@ -181,9 +181,9 @@ TEST_F(TestCreateWorkBE, modify){
 }
 
 // test nested task with read-write permissions (mod capture when MM)
-// builds upon TestCreateworkBE::modify()
+// builds upon TestCreateworkBE::mod_capture_MN()
 // additionally calls runtime::make_forwarding_flow()
-TEST_F(TestCreateWorkBE, modify_forwarded){
+TEST_F(TestCreateWorkBE, mod_capture_MM){
   std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   {
     darma_init(argc_, argv_);
@@ -226,9 +226,218 @@ TEST_F(TestCreateWorkBE, modify_forwarded){
   ASSERT_EQ(execution_order_check->load(), 5);
 }
 
-// test write-after-read
-// builds upon TestCreateWorkBE::readonly()
-TEST_F(TestCreateWorkBE, modify_after_read){
+// test task with read permissions (ro capture when MM)
+// builds upon TestCreateWorkBE::mod_capture_MN()
+// additionally calls runtime::make_forwarding_flow()
+//   and runtime::make_same_flow(purpose=OutputFlowOfReadOperation)
+TEST_F(TestCreateWorkBE, ro_capture_MM){
+  std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  {
+    darma_init(argc_, argv_);
+    auto h = initial_access<mydata>("dummy");
+    create_work([=]{
+      // make sure this task runs first
+      EXPECT_EQ((*execution_order_check)++, 0);
+      h.set_value(7);
+    });
+    create_work([=]{
+      // make sure this task runs second
+      EXPECT_EQ((*execution_order_check)++, 1);
+      // make sure we see the correct initial value
+      EXPECT_EQ(h.get_value(), 7);
+      // but then modify it
+      h.set_value(21);
+      // task that reads modified value
+      create_work(reads(h),[=]{
+        // make sure this task runs last
+        EXPECT_EQ((*execution_order_check)++, 2);
+        // make sure we see the modified value
+        EXPECT_EQ(h.get_value(), 21);
+      });
+    });
+    darma_finalize();
+  }
+  // make sure tasks not still queued
+  ASSERT_TRUE(execution_order_check.unique());
+  // make sure tasks actually ran
+  ASSERT_EQ(execution_order_check->load(), 3);
+}
+
+// test task with read permissions (ro capture when MR)
+// builds upon TestCreateWorkBE::ro_capture_MM()
+TEST_F(TestCreateWorkBE, ro_capture_MR){
+  std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  {
+    darma_init(argc_, argv_);
+    auto h = initial_access<mydata>("dummy");
+    create_work([=]{
+      // make sure this task runs first
+      EXPECT_EQ((*execution_order_check)++, 0);
+      h.set_value(7);
+    });
+    create_work([=]{
+      // make sure this task runs second
+      EXPECT_EQ((*execution_order_check)++, 1);
+      // make sure we see the correct initial value
+      EXPECT_EQ(h.get_value(), 7);
+      // but then modify it
+      h.set_value(21);
+      create_work(reads(h),[=]{
+        // make sure this task runs
+        (*execution_order_check)++;
+        // make sure we see the modified value
+        EXPECT_EQ(h.get_value(), 21);
+      });
+      // task that also reads modified value
+      create_work(reads(h),[=]{
+        // make sure this task runs
+        (*execution_order_check)++;
+        // make sure we see the modified value
+        EXPECT_EQ(h.get_value(), 21);
+      });
+    });
+    darma_finalize();
+  }
+  // make sure tasks not still queued
+  ASSERT_TRUE(execution_order_check.unique());
+  // make sure tasks actually ran
+  ASSERT_EQ(execution_order_check->load(), 4);
+}
+
+// test task with read permissions (ro capture when RR)
+// builds upon TestCreateWorkBE::ro_capture_MM()
+TEST_F(TestCreateWorkBE, ro_capture_RR){
+  std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  {
+    darma_init(argc_, argv_);
+    auto h = initial_access<mydata>("dummy");
+    create_work([=]{
+      // make sure this task runs first
+      EXPECT_EQ((*execution_order_check)++, 0);
+      h.set_value(7);
+    });
+    create_work([=]{
+      // make sure this task runs second
+      EXPECT_EQ((*execution_order_check)++, 1);
+      // make sure we see the correct initial value
+      EXPECT_EQ(h.get_value(), 7);
+      // but then modify it
+      h.set_value(21);
+      create_work(reads(h),[=]{
+        // make sure this task runs third
+        EXPECT_EQ((*execution_order_check)++, 2);
+        // make sure we see the modified value
+        EXPECT_EQ(h.get_value(), 21);
+        // task that also reads modified value
+        create_work(reads(h),[=]{
+          // make sure this task runs last
+          EXPECT_EQ((*execution_order_check)++, 3);
+          // make sure we see the modified value
+          EXPECT_EQ(h.get_value(), 21);
+        });
+      });
+    });
+    darma_finalize();
+  }
+  // make sure tasks not still queued
+  ASSERT_TRUE(execution_order_check.unique());
+  // make sure tasks actually ran
+  ASSERT_EQ(execution_order_check->load(), 4);
+}
+
+// test write-after-read with MR permissions
+// builds upon TestCreateWorkBE::ro_capture_MM()
+TEST_F(TestCreateWorkBE, write_after_read_MR){
+  std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  {
+    darma_init(argc_, argv_);
+    auto h = initial_access<mydata>("dummy");
+    create_work([=]{
+      // make sure this task runs first
+      EXPECT_EQ((*execution_order_check)++, 0);
+      h.set_value(7);
+    });
+    create_work([=]{
+      // make sure this task runs second
+      EXPECT_EQ((*execution_order_check)++, 1);
+      // make sure we see the correct initial value
+      EXPECT_EQ(h.get_value(), 7);
+      // but then modify it
+      h.set_value(21);
+      create_work(reads(h),[=]{
+        // make sure this task runs third
+        EXPECT_EQ((*execution_order_check)++, 2);
+        // make sure we see the modified value
+        EXPECT_EQ(h.get_value(), 21);
+        // make sure the next task still hasn't started
+        EXPECT_EQ((*execution_order_check)++, 3);
+      });
+      create_work([=]{
+        // make sure this task runs last
+        EXPECT_EQ((*execution_order_check)++, 4);
+        // make sure we see the modified value
+        EXPECT_EQ(h.get_value(), 21);
+        // but then modify it again
+        h.set_value(4);
+      });
+    });
+    darma_finalize();
+  }
+  // make sure tasks not still queued
+  ASSERT_TRUE(execution_order_check.unique());
+  // make sure tasks actually ran
+  ASSERT_EQ(execution_order_check->load(), 5);
+}
+
+// test write-after-read with MM permissions
+// builds upon TestCreateWorkBE::ro_capture_MM()
+TEST_F(TestCreateWorkBE, write_after_read_MM){
+  std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  {
+    darma_init(argc_, argv_);
+    auto h = initial_access<mydata>("dummy");
+    create_work([=]{
+      // make sure this task runs first
+      EXPECT_EQ((*execution_order_check)++, 0);
+      h.set_value(7);
+    });
+    create_work([=]{
+      // make sure this task runs second
+      EXPECT_EQ((*execution_order_check)++, 1);
+      // make sure we see the correct initial value
+      EXPECT_EQ(h.get_value(), 7);
+      // but then modify it
+      h.set_value(21);
+      create_work(reads(h),[=]{
+        // make sure this task runs third
+        EXPECT_EQ((*execution_order_check)++, 2);
+        // make sure we see the modified value
+        EXPECT_EQ(h.get_value(), 21);
+        // make sure the next task still hasn't started
+        EXPECT_EQ((*execution_order_check)++, 3);
+      });
+      create_work([=]{
+        create_work([=]{
+          // make sure this task runs last
+          EXPECT_EQ((*execution_order_check)++, 4);
+          // make sure we see the modified value
+          EXPECT_EQ(h.get_value(), 21);
+          // but then modify it again
+          h.set_value(4);
+        });
+      });
+    });
+    darma_finalize();
+  }
+  // make sure tasks not still queued
+  ASSERT_TRUE(execution_order_check.unique());
+  // make sure tasks actually ran
+  ASSERT_EQ(execution_order_check->load(), 5);
+}
+
+// test write-after-read with MN permissions
+// builds upon TestCreateWorkBE::ro_capture_MN()
+TEST_F(TestCreateWorkBE, write_after_read_MN){
   std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   {
     darma_init(argc_, argv_);

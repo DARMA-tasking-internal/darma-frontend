@@ -97,9 +97,22 @@ namespace threads_backend {
 
   ThreadsRuntime::ThreadsRuntime(const ThreadsRuntime& tr) {}
   
-  ThreadsRuntime::ThreadsRuntime() {
+  ThreadsRuntime::ThreadsRuntime()
+    : produced(0)
+    , consumed(0)
+  {
     std::atomic_init(&finished, false);
     std::atomic_init<size_t>(&ranks, 1);
+  }
+
+  size_t
+  ThreadsRuntime::get_spmd_rank() const {
+    return this_rank;
+  }
+
+  size_t
+  ThreadsRuntime::get_spmd_size() const {
+    return n_ranks;
   }
 
   size_t
@@ -160,11 +173,14 @@ namespace threads_backend {
 
     auto t = std::make_shared<TaskNode>(TaskNode{this,std::move(task)});
     t->join_counter = check_dep_task(t);
+    this->produced++;
 
     // use depth-first scheduling policy
     if (threads_backend::depthFirstExpand) {
       assert(t->ready());
+      DEBUG_VERBOSE_PRINT("running task\n");
       t->execute();
+      this->consumed++;
     } else {
       if (t->ready()) {
 	ready_local.push_back(t);
@@ -174,7 +190,27 @@ namespace threads_backend {
 
   bool
   ThreadsRuntime::register_condition_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
-    assert(false);
+    auto t = std::make_shared<TaskNode>(TaskNode{this,std::move(task)});
+    t->join_counter = check_dep_task(t);
+    this->produced++;
+
+    assert(threads_backend::depthFirstExpand);
+
+    if (threads_backend::depthFirstExpand) {
+      assert(t->ready());
+      DEBUG_VERBOSE_PRINT("running task\n");
+
+      this->consumed++;
+
+      runtime_t::task_t* prev = current_task;
+      types::unique_ptr_template<runtime_t::task_t> cur = std::move(t->task);
+      current_task = cur.get();
+      bool ret = cur.get()->run<bool>();
+      current_task = prev;
+
+      return ret;
+    }
+
     return true;
   }
 
@@ -521,6 +557,8 @@ namespace threads_backend {
     } else {
       auto node = std::make_shared<FetchNode>(FetchNode{this,f->inner});
       const bool ready = add_fetcher(node,handle,version_key);
+      this->produced++;
+
       if (ready) {
 	ready_local.push_back(node);
       }
@@ -640,6 +678,7 @@ namespace threads_backend {
       	     delayed_pub != end;
       	     ++delayed_pub) {
 
+	  this->consumed++;
       	  publish(*delayed_pub);
 	  (*delayed_pub)->finished = true;
 
@@ -811,6 +850,7 @@ namespace threads_backend {
       p->set_join(1);
       f_in->inner->node = p;
 
+      this->produced++;
       handle_pubs[handle].push_back(pub);
     } else {
       p->execute();
@@ -849,6 +889,7 @@ namespace threads_backend {
       if (lock) lock->unlock();
 
       node->execute();
+      this->consumed++;
 
       return true;
     }
@@ -870,7 +911,8 @@ namespace threads_backend {
   ThreadsRuntime::finalize() {
     DEBUG_PRINT("finalize\n");
 
-    while (true) {
+    while (this->produced != this->consumed) {
+      //DEBUG_PRINT("produced = %ld, consumed = %ld\n", this->produced, this->consumed);
       schedule_next_unit();
     }
       

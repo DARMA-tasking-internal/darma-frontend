@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                      test_backend.h.h
-//                         DARMA
+//                      test_backend.h
+//                         darma
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact Nicole Slattengren (nlslatt@sandia.gov)
 //
 // ************************************************************************
 //@HEADER
@@ -85,8 +85,7 @@ struct TestBackend
     using namespace darma_runtime;
 
     // make sure we didn't leak mydata objects
-    // TODO: enable the line below when we properly call destructors
-    //EXPECT_EQ(mydata::num_leaked(), 0);
+    EXPECT_EQ(mydata::num_not_destructed(), 0);
 
     // delete the runtime at the end of EACH test
     if (detail::backend_runtime){

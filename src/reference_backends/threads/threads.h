@@ -126,7 +126,15 @@ namespace threads_backend {
 			 >
 		       > handle_pubs;
 
+    size_t produced, consumed;
+    
     ThreadsRuntime();
+
+    size_t
+    get_spmd_rank() const;
+
+    size_t
+    get_spmd_size() const;
 
     void
     release_deps(std::shared_ptr<InnerFlow> flow);
