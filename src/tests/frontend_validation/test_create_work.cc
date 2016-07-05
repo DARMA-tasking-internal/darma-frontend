@@ -148,18 +148,18 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
     Sequence s1;
 
     // mod-capture of MN
-    EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_1), MockRuntime::Input))
-      .Times(1).InSequence(s1)
-      .WillOnce(Return(&fl_in_2));
+    //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_1), MockRuntime::Input))
+    //  .Times(1).InSequence(s1)
+    //  .WillOnce(Return(&fl_in_2));
     EXPECT_CALL(*mock_runtime, make_next_flow(Eq(&fl_in_2), MockRuntime::Output))
       .Times(1).InSequence(s1)
       .WillOnce(Return(&fl_out_2));
-    EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_2), MockRuntime::Input))
-      .Times(1).InSequence(s1)
-      .WillOnce(Return(&fl_in_3));
-    EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_1), MockRuntime::Output))
-      .Times(1).InSequence(s1, s_reg_continuing)
-      .WillOnce(Return(&fl_out_3));
+    //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_2), MockRuntime::Input))
+    //  .Times(1).InSequence(s1)
+    //  .WillOnce(Return(&fl_in_3));
+    //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_1), MockRuntime::Output))
+    //  .Times(1).InSequence(s1, s_reg_continuing)
+    //  .WillOnce(Return(&fl_out_3));
     EXPECT_CALL(*mock_runtime, register_use(AllOf(
       IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify),
       // expresses the requirement that register of use2 must
@@ -168,13 +168,13 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
     ))).Times(1).InSequence(s1, s_reg_captured)
       .WillOnce(SaveArg<0>(&use_2));
 
-    EXPECT_CALL(*mock_runtime, register_use(AllOf(
-      IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None),
-      // expresses the requirement that register of use3 must
-      // happen before use1 is released
-      UseRefIsNonNull(ByRef(use_1))
-    ))).Times(1).InSequence(s_reg_continuing)
-      .WillOnce(SaveArg<0>(&use_3));
+    //EXPECT_CALL(*mock_runtime, register_use(AllOf(
+    //  IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None),
+    //  // expresses the requirement that register of use3 must
+    //  // happen before use1 is released
+    //  UseRefIsNonNull(ByRef(use_1))
+    //))).Times(1).InSequence(s_reg_continuing)
+    //  .WillOnce(SaveArg<0>(&use_3));
 
   }
 
@@ -331,12 +331,12 @@ TEST_P(TestRoCaptureRN, ro_capture_RN) {
   else {
 
     // ro-capture of RN
-    EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_0), MockRuntime::Input))
-      .Times(1).InSequence(s1)
-      .WillOnce(Return(&fl_in_1));
-    EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_1), MockRuntime::OutputFlowOfReadOperation))
-      .Times(1).InSequence(s1)
-      .WillOnce(Return(&fl_out_1));
+    //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_0), MockRuntime::Input))
+    //  .Times(1).InSequence(s1)
+    //  .WillOnce(Return(&fl_in_1));
+    //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_1), MockRuntime::OutputFlowOfReadOperation))
+    //  .Times(1).InSequence(s1)
+    //  .WillOnce(Return(&fl_out_1));
 
     EXPECT_CALL(*mock_runtime, register_use(
       IsUseWithFlows(&fl_in_1, &fl_out_1, use_t::Read, use_t::Read)
@@ -425,10 +425,10 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
     .Times(1).InSequence(s0).WillOnce(Return(&fl_in_cap_2));
   EXPECT_CALL(*mock_runtime, make_next_flow(Eq(&fl_in_cap_2), MockRuntime::Output))
     .Times(1).InSequence(s0).WillOnce(Return(&fl_out_cap_2));
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_cap_2), MockRuntime::Input))
-    .Times(1).InSequence(s0).WillOnce(Return(&fl_in_con_2));
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_cap_1), MockRuntime::Output))
-    .Times(1).InSequence(s1).WillOnce(Return(&fl_out_con_2));
+  //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_cap_2), MockRuntime::Input))
+  //  .Times(1).InSequence(s0).WillOnce(Return(&fl_in_con_2));
+  //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_cap_1), MockRuntime::Output))
+  //  .Times(1).InSequence(s1).WillOnce(Return(&fl_out_con_2));
 
   EXPECT_CALL(*mock_runtime, register_use(
     IsUseWithFlows(&fl_in_cap_2, &fl_out_cap_2, use_t::Modify, use_t::Modify)
@@ -438,9 +438,9 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
   }));
 
 
-  EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::None)
-  )).Times(1).InSequence(s0).WillOnce(SaveArg<0>(&use_con_2));
+  //EXPECT_CALL(*mock_runtime, register_use(
+  //  IsUseWithFlows(&fl_in_con_2, &fl_out_con_2, use_t::Modify, use_t::None)
+  //)).Times(1).InSequence(s0).WillOnce(SaveArg<0>(&use_con_2));
 
   EXPECT_CALL(*mock_runtime, release_use(
     IsUseWithFlows(&fl_in_cap_1, &fl_out_cap_1, use_t::Modify, use_t::Modify)
@@ -547,12 +547,12 @@ TEST_F(TestCreateWork, ro_capture_MM) {
 
   EXPECT_CALL(*mock_runtime, make_forwarding_flow(Eq(&fl_in_cap_1), Eq(MockRuntime::ForwardingChanges)))
     .Times(1).InSequence(s0, s1).WillOnce(Return(&fl_in_cap_2));
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_cap_2), MockRuntime::OutputFlowOfReadOperation))
-    .Times(1).InSequence(s0).WillOnce(Return(&fl_out_cap_2));
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_cap_2), MockRuntime::Input))
-    .Times(1).InSequence(s1).WillOnce(Return(&fl_in_con_2));
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_cap_1), MockRuntime::Output))
-    .Times(1).InSequence(s2).WillOnce(Return(&fl_out_con_2));
+  //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_cap_2), MockRuntime::OutputFlowOfReadOperation))
+  //  .Times(1).InSequence(s0).WillOnce(Return(&fl_out_cap_2));
+  //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_in_cap_2), MockRuntime::Input))
+  //  .Times(1).InSequence(s1).WillOnce(Return(&fl_in_con_2));
+  //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fl_out_cap_1), MockRuntime::Output))
+  //  .Times(1).InSequence(s2).WillOnce(Return(&fl_out_con_2));
 
   EXPECT_CALL(*mock_runtime, register_use(
     IsUseWithFlows(&fl_in_cap_2, &fl_out_cap_2, use_t::Read, use_t::Read)

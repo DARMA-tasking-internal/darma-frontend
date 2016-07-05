@@ -174,7 +174,7 @@ class AccessHandle : public detail::AccessHandleBase {
     }
 
     AccessHandle const &
-    operator=(AccessHandle &&other) const noexcept {
+    operator=(AccessHandle&& other) const noexcept {
       std::swap(var_handle_, other.var_handle_);
       std::swap(current_use_, other.current_use_);
       value_constructed_ = other.value_constructed_;
@@ -320,7 +320,7 @@ class AccessHandle : public detail::AccessHandleBase {
     operator->() const {
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
-        "handle dereferenced after release"
+        "handle dereferenced in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
@@ -348,7 +348,7 @@ class AccessHandle : public detail::AccessHandleBase {
     operator*() const {
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
-        "handle dereferenced after release"
+        "handle dereferenced in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
@@ -391,7 +391,7 @@ class AccessHandle : public detail::AccessHandleBase {
     set_value(U&& val) const {
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
-        "set_value() called on handle after release"
+        "set_value() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
@@ -413,7 +413,7 @@ class AccessHandle : public detail::AccessHandleBase {
     emplace_value(Args&&... args) const {
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
-        "emplace_value() called on handle after release"
+        "emplace_value() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
@@ -440,7 +440,7 @@ class AccessHandle : public detail::AccessHandleBase {
     get_value() const {
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
-        "get_value() called on handle after release"
+        "get_value() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
@@ -464,7 +464,7 @@ class AccessHandle : public detail::AccessHandleBase {
     get_reference() const {
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
-        "get_reference() called on handle after release or before initialization"
+        "get_reference() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
@@ -486,9 +486,9 @@ class AccessHandle : public detail::AccessHandleBase {
 
    private:
 
-    void _switch_to_new_use(use_holder_ptr&& new_use) const {
-      std::swap(current_use_, new_use);
-    }
+    //void _switch_to_new_use(use_holder_ptr&& new_use) const {
+    //  std::swap(current_use_, new_use);
+    //}
 
     bool _can_be_released() const {
       // There are more conditions that could be checked, (e.g., if the state
@@ -511,7 +511,9 @@ class AccessHandle : public detail::AccessHandleBase {
           in_flow, out_flow,
           scheduling_permissions, immediate_permissions
         )))
-    { }
+    {
+      current_use_->could_be_alias = true;
+    }
 
     template <typename Archive>
     AccessHandle(

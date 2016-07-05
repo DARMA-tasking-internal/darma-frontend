@@ -147,7 +147,6 @@ class TestFrontend
     auto expect_initial_access(
       mock_backend::MockFlow& fin,
       mock_backend::MockFlow& fout,
-      use_t*& use_ptr,
       darma_runtime::types::key_t const& key,
       ::testing::Sequence const& s_register = Sequence(),
       ::testing::Sequence const& s_release = Sequence()
@@ -169,17 +168,9 @@ class TestFrontend
           .Times(1).InSequence(s2)
           .WillOnce(Return(&fout));
 
-      expectations["register use"] =
-        EXPECT_CALL(*mock_runtime, register_use(
-          IsUseWithFlows(&fin, &fout, use_t::Modify, use_t::None)
-        )).Times(1).InSequence(s1, s2, s_register)
-          .WillOnce(SaveArg<0>(&use_ptr));
-
       expectations["release use"] =
-        EXPECT_CALL(*mock_runtime, release_use(
-          IsUseWithFlows(&fin, &fout, use_t::Modify, use_t::None)
-        )).Times(1).InSequence(s1, s_release)
-          .WillOnce(Assign(&use_ptr, nullptr));
+        EXPECT_CALL(*mock_runtime, establish_flow_alias(&fin, &fout))
+          .Times(1).InSequence(s1, s2, s_release);
 
       return expectations;
     }
@@ -207,10 +198,10 @@ class TestFrontend
         EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(key), Eq(version_key)))
           .Times(1).InSequence(s1)
           .WillOnce(Return(&fin));
-      expectations["make out flow"] =
-        EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fin), Eq(MockRuntime::OutputFlowOfReadOperation)))
-          .Times(1).InSequence(s1)
-          .WillOnce(Return(&fout));
+      //expectations["make out flow"] =
+      //  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fin), Eq(MockRuntime::OutputFlowOfReadOperation)))
+      //    .Times(1).InSequence(s1)
+      //    .WillOnce(Return(&fout));
 
       expectations["register use"] =
         EXPECT_CALL(*mock_runtime, register_use(
@@ -243,18 +234,18 @@ class TestFrontend
       Sequence s1, s2;
 
       // mod-capture of MN
-      EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&of_in_flow), MockRuntime::Input))
-        .Times(1).InSequence(s1)
-        .WillOnce(Return(&fin_capt));
+      //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&of_in_flow), MockRuntime::Input))
+      //  .Times(1).InSequence(s1)
+      //  .WillOnce(Return(&fin_capt));
       EXPECT_CALL(*mock_runtime, make_next_flow(Eq(&fin_capt), MockRuntime::Output))
         .Times(1).InSequence(s1)
         .WillOnce(Return(&fout_capt));
-      EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fout_capt), MockRuntime::Input))
-        .Times(1).InSequence(s1)
-        .WillOnce(Return(&fin_cont));
-      EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&of_out_flow), MockRuntime::Output))
-        .Times(1).InSequence(s1, s2)
-        .WillOnce(Return(&fout_cont));
+      //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fout_capt), MockRuntime::Input))
+      //  .Times(1).InSequence(s1)
+      //  .WillOnce(Return(&fin_cont));
+      //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&of_out_flow), MockRuntime::Output))
+      //  .Times(1).InSequence(s1, s2)
+      //  .WillOnce(Return(&fout_cont));
 
       EXPECT_CALL(*mock_runtime, register_use(AllOf(
         IsUseWithFlows(&fin_capt, &fout_capt, use_t::Modify, use_t::Modify),
@@ -323,12 +314,12 @@ class TestFrontend
       Sequence s1;
 
       // ro-capture of RN
-      EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&of_in_flow), MockRuntime::Input))
-        .Times(1).InSequence(s1)
-        .WillOnce(Return(&fin_capt));
-      EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fin_capt), MockRuntime::OutputFlowOfReadOperation))
-        .Times(1).InSequence(s1)
-        .WillOnce(Return(&fout_capt));
+      //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&of_in_flow), MockRuntime::Input))
+      //  .Times(1).InSequence(s1)
+      //  .WillOnce(Return(&fin_capt));
+      //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fin_capt), MockRuntime::OutputFlowOfReadOperation))
+      //  .Times(1).InSequence(s1)
+      //  .WillOnce(Return(&fout_capt));
 
       EXPECT_CALL(*mock_runtime, register_use(
         IsUseWithFlows(&fin_capt, &fout_capt, use_t::Read, use_t::Read)

@@ -86,12 +86,9 @@ TEST_F(TestInitialAccess, call_sequence) {
     .InSequence(s2)
     .WillOnce(Return(&f_out_1));
 
-  EXPECT_CALL(*mock_runtime, register_use(_))
-    .InSequence(s1, s2);
 
-  EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&f_in_1, &f_out_1, use_t::Modify, use_t::None)
-  )).InSequence(s1);
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_1, &f_out_1))
+    .InSequence(s1, s2);
 
   {
     auto tmp = initial_access<int>("hello");
@@ -108,14 +105,11 @@ TEST_F(TestInitialAccess, call_sequence_helper) {
   using namespace mock_backend;
 
   MockFlow f_in, f_out;
-  use_t* use_ptr;
 
-  expect_initial_access(f_in, f_out, use_ptr, make_key("hello"));
+  expect_initial_access(f_in, f_out, make_key("hello"));
 
   {
     auto tmp = initial_access<int>("hello");
-    ASSERT_THAT(use_ptr->get_in_flow(), Eq(&f_in));
-    ASSERT_THAT(use_ptr->get_out_flow(), Eq(&f_out));
   } // tmp deleted
 
 }
@@ -129,7 +123,7 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
 
   mock_backend::MockFlow f_in_1, f_out_1, f_in_2, f_out_2;
 
-  Sequence s1, s2, s3, s4, s5, s6;
+  Sequence s1, s2, s5, s6, s7;
 
 
   // These next two calls can come in either order
@@ -140,31 +134,21 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
     .InSequence(s2, s6)
     .WillOnce(Return(&f_out_1));
 
-  // Must follow make_initial_flow and make_null_flow
-  EXPECT_CALL(*mock_runtime, register_use(_))
-    .InSequence(s1, s2, s5);
-
-  // This can come before or after the registration and setup of the new handle
-  EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&f_in_1, &f_out_1, use_t::Modify, use_t::None)
-  )).InSequence(s1, s2);
-
-
   // These next two calls can come in either order
   EXPECT_CALL(*mock_runtime, make_initial_flow(_))
-    .InSequence(s5, s3)
+    .InSequence(s5, s1)
     .WillOnce(Return(&f_in_2));
   EXPECT_CALL(*mock_runtime, make_null_flow(_))
-    .InSequence(s6, s4)
+    .InSequence(s6, s2)
     .WillOnce(Return(&f_out_2));
-  // This must come after the registration and setup of the first handle
-  EXPECT_CALL(*mock_runtime, register_use(_))
-    .InSequence(s3, s4, s5);
 
   // This must be the last thing in all sequences
-  EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&f_in_2, &f_out_2, use_t::Modify, use_t::None)
-  )).InSequence(s1, s2, s3, s4, s5);
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_1, &f_out_1))
+    .InSequence(s1, s2, s7);
+
+  // This must be the last thing in all sequences
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_2, &f_out_2))
+    .InSequence(s5, s6, s7);
 
   {
 
