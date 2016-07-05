@@ -407,7 +407,8 @@ struct functor_call_traits {
         template <typename T>
         static std::enable_if_t<
           _functor_traits_impl::decayed_is_access_handle<T>::value
-            and formal_traits::is_by_value,
+            and formal_traits::is_by_value
+            and formal_traits::is_access_handle,
           typename std::remove_reference_t<T>&&
         >
         get_converted_arg(T&& val) {

@@ -303,8 +303,8 @@ class Runtime {
      *
      *  The Use* u has been propagated into a Modify context if another Use* u2
      *  has been registered where u2->get_out_flow() was constructed from
-     *  either make_next(make_same(u1->get_in_flow())) or
-     *  make_next(make_forwarding(u1->get_in_flow())).
+     *  either make_next_flow(make_same_flow(u->get_in_flow())) or
+     *  make_next_flow(make_forwarding_flow(u->get_in_flow())).
      *
      *  If the Use* u has scheduling_permissions() of at least Write but no
      *  immediate permissions and was not propagated into a Modify context by
