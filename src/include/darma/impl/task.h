@@ -179,9 +179,15 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
 
 
     size_t get_packed_size() const  {
-      // TODO
-      assert(false);
-      return 0;
+      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      serialization::SimplePackUnpackArchive ar;
+
+      ArchiveAccess::start_sizing(ar);
+
+      assert(runnable_.get() != nullptr);
+
+      ar % runnable_->get_index();
+      return runnable_->get_packed_size() + ArchiveAccess::get_size(ar);
     }
 
     void pack(void* allocated) const  {
