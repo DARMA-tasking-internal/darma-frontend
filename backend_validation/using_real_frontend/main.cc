@@ -62,6 +62,14 @@ int darma_main(int argc, char **argv) {
   TestBackend::store_cmdline_args(argc, argv);
   int ret = RUN_ALL_TESTS();
   ::darma_runtime::detail::backend_runtime = 0;  // make sure main() doesn't double-delete
+#ifdef DARMA_COVERAGE
+  // returning an error code prevents coverage from being computed
+  if (ret)
+    std::cerr << "WARNING: Actual error code is " << ret << "; "
+              << "however, returning 0 for coverage purposes\n";
+  return 0;
+#else
   return ret;
+#endif
 }
 
