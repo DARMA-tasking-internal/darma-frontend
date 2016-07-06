@@ -130,21 +130,42 @@ static constexpr migrated_use_arg_t migrated_use_arg = { };
 // really belongs to AccessHandle, but we can't put this in impl/handle.h because of circular header dependencies
 struct UseHolder {
   HandleUse use;
+  bool is_registered = false;
+  bool could_be_alias = false;
 
   UseHolder(UseHolder&&) = delete;
   UseHolder(UseHolder const &) = delete;
 
   explicit
-  UseHolder(HandleUse&& in_use) : use(std::move(in_use)) {
+  UseHolder(HandleUse&& in_use)
+    : use(std::move(in_use))
+  { }
+
+  void do_register() {
+    assert(!is_registered);
     detail::backend_runtime->register_use(&use);
+    is_registered = true;
   }
+
+  void do_release() {
+    assert(is_registered);
+    detail::backend_runtime->release_use(&use);
+    is_registered = false;
+  }
+
+
 
   UseHolder(migrated_use_arg_t const&, HandleUse&& in_use) : use(std::move(in_use)) {
     detail::backend_runtime->reregister_migrated_use(&use);
+    is_registered = true;
   }
 
   ~UseHolder() {
-    detail::backend_runtime->release_use(&use);
+    if(is_registered) do_release();
+    else if(could_be_alias) {
+      // okay, now we know it IS an alias
+      detail::backend_runtime->establish_flow_alias(use.in_flow_, use.out_flow_);
+    }
   }
 };
 

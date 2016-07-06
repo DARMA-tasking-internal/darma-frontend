@@ -77,6 +77,14 @@ class Runtime {
     typedef frontend::Task<types::concrete_task_t> task_t;
     typedef types::unique_ptr_template<task_t> task_unique_ptr;
 
+    /** @brief Return the SPMD rank of this backend instance. */
+    virtual size_t
+    get_spmd_rank() const = 0;
+
+    /** @brief Return the SPMD size. */
+    virtual size_t
+    get_spmd_size() const = 0;
+
     /** @brief Register a task to be run at some future time by the runtime system.
      *
      *  See frontend::Task for details
@@ -216,7 +224,8 @@ class Runtime {
                                 */
     } flow_propagation_purpose_t;
 
-    /** @brief Make a flow that is logically identical to the input parameter
+    /** @todo remove this!
+     *  @brief Make a flow that is logically identical to the input parameter
      *
      * Calls to make_same_flow() indicate a logical identity between Flows in different Use instances.
      * make_same_flow() may not return the original pointer passed in. Flow objects must be unique to a Use.
@@ -232,11 +241,11 @@ class Runtime {
      *                information is provided for optimization purposes
      * @return A new Flow object that is equivalent to the input flow
      */
-    virtual Flow*
-    make_same_flow(
-      Flow* from,
-      flow_propagation_purpose_t purpose
-    ) =0;
+    //virtual Flow*
+    //make_same_flow(
+    //  Flow* from,
+    //  flow_propagation_purpose_t purpose
+    //) =0;
 
     /**
      *  @brief Make a new input Flow that receives forwarded changes from another input Flow, the latter
@@ -288,6 +297,13 @@ class Runtime {
       flow_propagation_purpose_t purpose
     ) =0;
 
+    /** @todo document this
+     */
+    virtual void
+    establish_flow_alias(
+      Flow* from,
+      Flow* to
+    ) =0;
 
     /** @brief Release a Use object previously registered with register_use().
      *

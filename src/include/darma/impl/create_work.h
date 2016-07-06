@@ -136,46 +136,6 @@ struct reads_decorator_parser {
   }
 };
 
-// Removed from 0.2 spec
-//struct waits_decorator_return {
-//  typedef abstract::backend::runtime_t runtime_t;
-//  typedef runtime_t::key_t key_t;
-//  typedef runtime_t::version_t version_t;
-//  typedef runtime_t::handle_t handle_t;
-//  typedef types::shared_ptr_template<handle_t> handle_ptr;
-//  handle_ptr const& handle;
-//};
-//
-//template <typename... Args>
-//struct waits_decorator_parser {
-//  typedef waits_decorator_return return_type;
-//  // For now:
-//  static_assert(sizeof...(Args) == 1, "multi-args not yet implemented");
-//  return_type
-//  operator()(Args&&... args) {
-//    using namespace detail::create_work_attorneys;
-//    assert(false); // not implemented
-//    // TODO implement this
-//    return {
-//      for_AccessHandle::get_dep_handle_ptr(
-//        std::get<0>(std::forward_as_tuple(args...))
-//      )
-//    };
-//
-//  }
-//};
-//
-//template <typename... Args>
-//struct writes_decorator_parser {
-//  typedef /* TODO */ int return_type;
-//};
-//
-//template <typename... Args>
-//struct reads_writes_decorator_parser {
-//  typedef /* TODO */ int return_type;
-//};
-
-
 template <typename Lambda, typename... Args>
 struct create_work_impl {
   typedef detail::TaskBase task_base_t;
