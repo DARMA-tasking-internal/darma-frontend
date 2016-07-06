@@ -1,0 +1,16 @@
+get_spmd_rank
+get_spmd_size
+register_task
+register_condition_task
+get_running_task
+register_use
+reregister_migrated_use
+make_initial_flow
+make_fetching_flow
+make_null_flow
+make_same_flow
+make_forwarding_flow
+make_next_flow
+release_use
+publish_use
+finalize
