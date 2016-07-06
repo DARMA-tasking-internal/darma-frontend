@@ -180,7 +180,6 @@ class TestFrontend
     auto expect_read_access(
       mock_backend::MockFlow& fin,
       mock_backend::MockFlow& fout,
-      use_t*& use_ptr,
       darma_runtime::types::key_t const& key,
       darma_runtime::types::key_t const& version_key,
       ::testing::Sequence const& s_register = ::testing::Sequence(),
@@ -190,7 +189,7 @@ class TestFrontend
       using namespace mock_backend;
       using namespace ::testing;
 
-      Sequence s1;
+      Sequence s1, s2;
 
       std::map<std::string, Expectation> expectations;
 
@@ -198,22 +197,14 @@ class TestFrontend
         EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(key), Eq(version_key)))
           .Times(1).InSequence(s1)
           .WillOnce(Return(&fin));
-      //expectations["make out flow"] =
-      //  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fin), Eq(MockRuntime::OutputFlowOfReadOperation)))
-      //    .Times(1).InSequence(s1)
-      //    .WillOnce(Return(&fout));
-
-      expectations["register use"] =
-        EXPECT_CALL(*mock_runtime, register_use(
-          IsUseWithFlows(&fin, &fout, use_t::Read, use_t::None)
-        )).Times(1).InSequence(s1, s_register)
-          .WillOnce(SaveArg<0>(&use_ptr));
+      expectations["make out flow"] =
+        EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key)))
+          .Times(1).InSequence(s2)
+          .WillOnce(Return(&fout));
 
       expectations["release use"] =
-        EXPECT_CALL(*mock_runtime, release_use(
-          IsUseWithFlows(&fin, &fout, use_t::Read, use_t::None)
-        )).Times(1).InSequence(s1, s_release)
-          .WillOnce(Assign(&use_ptr, nullptr));
+        EXPECT_CALL(*mock_runtime, establish_flow_alias(&fin, &fout))
+          .Times(1).InSequence(s1, s2, s_release);
 
       return expectations;
     }
