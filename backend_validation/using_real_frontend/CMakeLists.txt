@@ -36,3 +36,7 @@ add_unit_test(test_create_condition_be)
 
 add_executable(run_all_coupled_backend_tests ${backendtestfiles})
 target_link_libraries(run_all_coupled_backend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
+
+if (DARMA_COVERAGE)
+setup_target_for_backend_coverage(backend_coupled_coverage run_all_coupled_backend_tests coverage_be_coupled)
+endif()
