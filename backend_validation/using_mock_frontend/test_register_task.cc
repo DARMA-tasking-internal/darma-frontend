@@ -101,26 +101,26 @@ TEST_F(TestRegisterTask, initial_access_allocate) {
   backend_runtime->release_use(&u_init);
 
   types::handle_container_template<abstract::frontend::Use*> captured_uses = { &u_cap };
-  MockTask task;
-  EXPECT_CALL(task, get_dependencies())
+  std::unique_ptr<MockTask> task(new MockTask);
+  EXPECT_CALL(*task, get_dependencies())
     .InSequence(s)
     .WillRepeatedly(ReturnRef(captured_uses));
 
-  EXPECT_CALL(task, run_gmock_proxy())
+  EXPECT_CALL(*task, run_gmock_proxy())
     .InSequence(s)
     .WillOnce(Invoke([&]{
-      ASSERT_THAT(*(int*)u_cap.data_, Eq(0));
+      ASSERT_FALSE(u_cap.data_ == nullptr);
       backend_runtime->release_use(&u_cap);
     })
   );
 
-  backend_runtime->release_use(&u_con);
+  backend_runtime->register_task(std::move(task));
 
-  delete handle;
+  backend_runtime->release_use(&u_con);
 
   backend_runtime->finalize();
 
-  // FIXME: never called register_task()
+  delete handle;
 }
 
 //////////////////////////////////////////////////////////////////////////////////

@@ -134,40 +134,29 @@ TaskBase::do_capture(
       ////////////////////////////////////////////////////////////////////////////////
 
       auto _ro_capture_non_mod_imm = [&]{
-        auto captured_in_flow = detail::backend_runtime->make_same_flow(
-          source.current_use_->use.in_flow_, purpose_t::Input
-        );
-        auto captured_out_flow = detail::backend_runtime->make_same_flow(
-          captured_in_flow, purpose_t::OutputFlowOfReadOperation
-        );
-        captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
-          captured_in_flow, captured_out_flow, HandleUse::Read, HandleUse::Read
+        captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
+          source.var_handle_.get(),
+          source.current_use_->use.in_flow_,
+          source.current_use_->use.in_flow_,
+          HandleUse::Read, HandleUse::Read
         ));
-        // Continuing use stays the same:  (as if:)
-        // continuing.current_use_ = source.current_use_
+        captured.current_use_->do_register();
+        // Continuing use stays the same
       };
 
       auto _ro_capture_mod_imm = [&]{
-        auto captured_in_flow = detail::backend_runtime->make_forwarding_flow(
+        auto forwarded_flow = detail::backend_runtime->make_forwarding_flow(
           source.current_use_->use.in_flow_, purpose_t::ForwardingChanges
         );
-        auto captured_out_flow = detail::backend_runtime->make_same_flow(
-          captured_in_flow, purpose_t::OutputFlowOfReadOperation
-        );
-        auto continuing_in_flow = detail::backend_runtime->make_same_flow(
-          captured_in_flow, purpose_t::Input
-        );
-        auto continuing_out_flow = detail::backend_runtime->make_same_flow(
-          source.current_use_->use.out_flow_, purpose_t::Output
-        );
-
         captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
-          captured_in_flow, captured_out_flow, HandleUse::Read, HandleUse::Read
+          forwarded_flow, forwarded_flow, HandleUse::Read, HandleUse::Read
         ));
-        continuing._switch_to_new_use(detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
-          continuing_in_flow, continuing_out_flow,
-          source.current_use_->use.scheduling_permissions_, HandleUse::Read
-        )));
+        captured.current_use_->do_register();
+        source.current_use_->do_release();
+        continuing.current_use_->use.immediate_permissions_ = HandleUse::Read;
+        continuing.current_use_->use.in_flow_ = forwarded_flow;
+        // out flow and scheduling permissions are unchanged
+        continuing.current_use_->could_be_alias = true;
 
       };
 
@@ -228,25 +217,18 @@ TaskBase::do_capture(
             case HandleUse::None:
             case HandleUse::Read: {
               // mod(MN) and mod(MR)
-              auto captured_in_flow = detail::backend_runtime->make_same_flow(
-                source.current_use_->use.in_flow_, purpose_t::Input
-              );
               auto captured_out_flow = detail::backend_runtime->make_next_flow(
-                captured_in_flow, purpose_t::Output
+                source.current_use_->use.in_flow_, purpose_t::Output
               );
-              auto continuing_in_flow = detail::backend_runtime->make_same_flow(
-                captured_out_flow, purpose_t::Input
-              );
-              auto continuing_out_flow = detail::backend_runtime->make_same_flow(
-                source.current_use_->use.out_flow_, purpose_t::Output
-              );
-              captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
-                captured_in_flow, captured_out_flow, HandleUse::Modify, HandleUse::Modify
+              captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
+                source.var_handle_.get(),
+                source.current_use_->use.in_flow_,
+                captured_out_flow,
+                HandleUse::Modify,
+                HandleUse::Modify
               ));
-              continuing._switch_to_new_use(detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
-                continuing_in_flow, continuing_out_flow, HandleUse::Modify,
-                source.current_use_->use.immediate_permissions_
-              )));
+              captured.current_use_->do_register();
+              continuing.current_use_->use.in_flow_ = captured_out_flow;
               break;
             }
             case HandleUse::Modify: {
@@ -256,18 +238,21 @@ TaskBase::do_capture(
               auto captured_out_flow = detail::backend_runtime->make_next_flow(
                 captured_in_flow, purpose_t::Output
               );
-              auto continuing_in_flow = detail::backend_runtime->make_same_flow(
-                captured_out_flow, purpose_t::Input
-              );
-              auto continuing_out_flow = detail::backend_runtime->make_same_flow(
-                source.current_use_->use.out_flow_, purpose_t::Output
-              );
-              captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
-                captured_in_flow, captured_out_flow, HandleUse::Modify, HandleUse::Modify
+              captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
+                source.var_handle_.get(),
+                captured_in_flow, captured_out_flow,
+                HandleUse::Modify, HandleUse::Modify
               ));
-              continuing._switch_to_new_use(detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
-                continuing_in_flow, continuing_out_flow, HandleUse::Modify, HandleUse::None
-              )));
+              captured.current_use_->do_register();
+
+              // Release the current use (from the source)
+              source.current_use_->do_release();
+              // And make the continuing context state correct
+              continuing.current_use_->use.scheduling_permissions_ = HandleUse::Modify;
+              continuing.current_use_->use.immediate_permissions_ = HandleUse::None;
+              continuing.current_use_->use.in_flow_ = captured_out_flow;
+              continuing.current_use_->could_be_alias = true;
+              // continuing out flow is unchanged
               break;
             }
             default: {

@@ -71,9 +71,7 @@ read_access(
 
   auto var_h = detail::make_shared<detail::VariableHandle<U>>(key);
   auto in_flow = detail::backend_runtime->make_fetching_flow( var_h.get(), user_version_tag );
-  auto out_flow = detail::backend_runtime->make_same_flow(
-    in_flow, abstract::backend::Runtime::OutputFlowOfReadOperation
-  );
+  auto out_flow = detail::backend_runtime->make_null_flow( var_h.get() );
 
   return detail::access_attorneys::for_AccessHandle::construct_access<U>(
     var_h, in_flow, out_flow,

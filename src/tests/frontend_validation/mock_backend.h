@@ -94,6 +94,8 @@ class MockRuntime
 #endif
 #endif
 
+    MOCK_CONST_METHOD0(get_spmd_rank, size_t());
+    MOCK_CONST_METHOD0(get_spmd_size, size_t());
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
     MOCK_METHOD1(register_condition_task_gmock_proxy, bool(task_t* task));
     MOCK_CONST_METHOD0(get_running_task, task_t*());
@@ -103,9 +105,10 @@ class MockRuntime
     MOCK_METHOD1(make_initial_flow, flow_t*(handle_t*));
     MOCK_METHOD2(make_fetching_flow, flow_t*(handle_t*, key_t const&));
     MOCK_METHOD1(make_null_flow, flow_t*(handle_t*));
-    MOCK_METHOD2(make_same_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
+    //MOCK_METHOD2(make_same_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
     MOCK_METHOD2(make_forwarding_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
     MOCK_METHOD2(make_next_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
+    MOCK_METHOD2(establish_flow_alias, void(flow_t*, flow_t*));
     MOCK_METHOD1(release_use, void(use_t*));
     MOCK_METHOD2(publish_use, void(use_t*, publication_details_t*));
 

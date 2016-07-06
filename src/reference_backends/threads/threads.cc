@@ -107,6 +107,16 @@ namespace threads_backend {
   }
 
   size_t
+  ThreadsRuntime::get_spmd_rank() const {
+    return this_rank;
+  }
+
+  size_t
+  ThreadsRuntime::get_spmd_size() const {
+    return n_ranks;
+  }
+
+  size_t
   ThreadsRuntime::count_delayed_work() const {
     return ready_local.size();
   }

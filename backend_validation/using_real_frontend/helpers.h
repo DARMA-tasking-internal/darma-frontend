@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                      test_backend.h.h
-//                         DARMA
+//                      helpers.h
+//                         darma
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact Nicole Slattengren (nlslatt@sandia.gov)
 //
 // ************************************************************************
 //@HEADER
@@ -60,7 +60,7 @@ class mydata {
   operator==(int comp) const { return value_ == comp; }
 
   static void reset_leaked_count() { count_.store(0); }
-  static int num_leaked() { return count_.load(); }
+  static int num_not_destructed() { return count_.load(); }
 
   template <typename Archive>
   void serialize(Archive& ar) { ar | value_; }

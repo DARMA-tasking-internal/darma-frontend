@@ -57,7 +57,6 @@
 
 #include <tinympl/extract_template.hpp>
 
-#include <darma/impl/meta/metaprogramming.h>
 #include <darma/impl/util/macros.h>
 
 #include <darma/impl/darma_assert.h>

@@ -13,6 +13,7 @@ handle_fwd.h
 handle.h
 key_concept.h
 publication_details.h
+runnable.h
 runtime.h
 spmd.h
 task_do_capture.impl.h
@@ -47,12 +48,10 @@ meta/callable_traits.h
 meta/detection_archetypes.h
 meta/detection.h
 meta/filter_types.h
-meta/indices_where.h
 meta/is_container.h
 meta/is_streamable.h
 meta/largest_aligned.h
 meta/member_detector.h
-meta/metaprogramming.h
 meta/sentinal_type.h
 meta/splat_tuple.h
 meta/tuple_for_each.h
@@ -63,14 +62,20 @@ meta/wrap_with_template.h)
 
 set (impl_oo_HEADERS
 oo/class.h
+oo/constructor.h
+oo/errors.h
+oo/field.h
 oo/macros.h
+oo/method_runnable.h
+oo/method.h
+oo/oo_fwd.h
 oo/util.h)
 
 set (impl_serialization_HEADERS
 serialization/allocation.h
-serialization/archive.h
 serialization/archive_mixins.h
 serialization/archive_passthrough.h
+serialization/archive.h
 serialization/array.h
 serialization/as_pod.h
 serialization/builtin.h
@@ -83,10 +88,12 @@ serialization/stl_containers.h
 serialization/stl_pair.h
 serialization/stl_vector.h
 serialization/traits.h
-serialization/unpack_contructor_access.h
-)
+serialization/tuple.h
+serialization/unpack_contructor_access.h)
+
 
 set (impl_util_HEADERS
+util/macros.h
 util/smart_pointers.h)
 
 install (FILES ${impl_HEADERS} DESTINATION include/darma/impl)

@@ -22,6 +22,7 @@ if (NOT DARMA_FRONTEND_DIR)
 message(FATAL_ERROR "Must define prefix install dir for frontend via -DDARMA_FRONTEND_DIR=")
 endif()
 include_directories( ${DARMA_FRONTEND_DIR}/include/darma/backend_validation )
+include_directories( ${DARMA_FRONTEND_DIR}/include/darma/backend_validation/using_mock_frontend )
 endif()
 
 include_directories( ${DARMA_FRONTEND_DIR}/include )

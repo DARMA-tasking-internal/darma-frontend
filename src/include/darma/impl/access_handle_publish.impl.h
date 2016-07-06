@@ -79,19 +79,12 @@ AccessHandle<T, Traits>::publish(
 
 
   auto _pub_same = [&] {
-    auto flow_to_publish = detail::backend_runtime->make_same_flow(
-      current_use_->use.in_flow_,
-      abstract::backend::Runtime::FlowPropagationPurpose::Input
-    );
     detail::HandleUse use_to_publish(
       var_handle_.get(),
-      flow_to_publish,
-      detail::backend_runtime->make_same_flow(
-        flow_to_publish, abstract::backend::Runtime::OutputFlowOfReadOperation
-      ),
+      current_use_->use.in_flow_,
+      current_use_->use.out_flow_,
       detail::HandleUse::None, detail::HandleUse::Read
     );
-
     detail::backend_runtime->register_use(&use_to_publish);
     detail::PublicationDetails dets(
       helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
@@ -106,31 +99,16 @@ AccessHandle<T, Traits>::publish(
       current_use_->use.in_flow_,
       abstract::backend::Runtime::FlowPropagationPurpose::ForwardingChanges
     );
-    auto next_out = detail::backend_runtime->make_same_flow(
-      current_use_->use.out_flow_,
-      abstract::backend::Runtime::FlowPropagationPurpose::Output
-    );
-    auto next_in = detail::backend_runtime->make_same_flow(
-      flow_to_publish,
-      abstract::backend::Runtime::FlowPropagationPurpose::Input
-    );
 
     detail::HandleUse use_to_publish(
       var_handle_.get(),
       flow_to_publish,
-      detail::backend_runtime->make_same_flow(
-        flow_to_publish, abstract::backend::Runtime::OutputFlowOfReadOperation
-      ),
+      flow_to_publish,
       detail::HandleUse::None, detail::HandleUse::Read
     );
     detail::backend_runtime->register_use(&use_to_publish);
 
-    auto new_use = detail::make_shared<detail::UseHolder>(HandleUse(
-      var_handle_.get(), next_in, next_out,
-      current_use_->use.scheduling_permissions_,
-      // Downgrade to read
-      HandleUse::Read
-    ));
+    current_use_->do_release();
 
     detail::PublicationDetails dets(
       helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
@@ -138,7 +116,11 @@ AccessHandle<T, Traits>::publish(
     );
     detail::backend_runtime->publish_use(&use_to_publish, &dets);
 
-    _switch_to_new_use(std::move(new_use));
+    current_use_->use.immediate_permissions_ = HandleUse::Read;
+    current_use_->use.in_flow_ = flow_to_publish;
+    // current_use_->use.out_flow_ and scheduling_permissions_ unchanged
+    current_use_->could_be_alias = true;
+
     detail::backend_runtime->release_use(&use_to_publish);
   };
 

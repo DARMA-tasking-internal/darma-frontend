@@ -83,17 +83,13 @@ TEST_F(TestReadAccess, call_sequence) {
   EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(make_key("hello")), Eq(my_version_tag)))
     .InSequence(s1)
     .WillOnce(Return(&f_in));
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&f_in), Eq(MockRuntime::OutputFlowOfReadOperation)))
+  EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(make_key("hello"))))
     .InSequence(s1)
     .WillOnce(Return(&f_out));
 
-  EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(&f_in, &f_out, use_t::Read, use_t::None)
-  )).InSequence(s1);
 
-  EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&f_in, &f_out, use_t::Read, use_t::None)
-  )).InSequence(s1);
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out))
+    .InSequence(s1);
 
   {
     auto tmp = read_access<int>("hello", version=my_version_tag);
@@ -111,9 +107,8 @@ TEST_F(TestReadAccess, call_sequence_helper) {
   using namespace mock_backend;
 
   MockFlow f_in, f_out;
-  use_t* use_ptr;
 
-  expect_read_access(f_in, f_out, use_ptr,
+  expect_read_access(f_in, f_out,
     make_key("hello"),
     make_key("my_version_tag")
   );
@@ -134,43 +129,13 @@ TEST_F(TestReadAccess, call_sequence_assign) {
 
   mock_backend::MockFlow f_in_1, f_out_1, f_in_2, f_out_2;
 
-  Sequence s1, s2, s3, s4, s5, s6;
+  Sequence s1, s2, s3;
 
+  expect_read_access(f_in_1, f_out_1, make_key("hello"),
+    make_key("my_version_tag"), s1, s2);
 
-  // These next two calls can come in either order
-  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(make_key("hello")),
-    Eq(make_key("my_version_tag"))
-  )).InSequence(s1)
-    .WillOnce(Return(&f_in_1));
-
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&f_in_1), Eq(MockRuntime::OutputFlowOfReadOperation)))
-    .InSequence(s1)
-    .WillOnce(Return(&f_out_1));
-
-  EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(&f_in_1, &f_out_1, use_t::Read, use_t::None)
-  )).InSequence(s1, s2);
-
-  EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&f_in_1, &f_out_1, use_t::Read, use_t::None)
-  )).InSequence(s1);
-
-  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(make_key("world")),
-    Eq(make_key("other_version_tag"))
-  )).InSequence(s2)
-    .WillOnce(Return(&f_in_2));
-
-  EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&f_in_2), Eq(MockRuntime::OutputFlowOfReadOperation)))
-    .InSequence(s2)
-    .WillOnce(Return(&f_out_2));
-
-  EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(&f_in_2, &f_out_2, use_t::Read, use_t::None)
-  )).InSequence(s2);
-
-  EXPECT_CALL(*mock_runtime, release_use(
-    IsUseWithFlows(&f_in_2, &f_out_2, use_t::Read, use_t::None)
-  )).InSequence(s2);
+  expect_read_access(f_in_2, f_out_2, make_key("world"),
+    make_key("other_version_tag"), s3, s2);
 
   {
     auto tmp1 = read_access<int>("hello", version="my_version_tag");

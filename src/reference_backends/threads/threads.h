@@ -130,6 +130,12 @@ namespace threads_backend {
     
     ThreadsRuntime();
 
+    size_t
+    get_spmd_rank() const;
+
+    size_t
+    get_spmd_size() const;
+
     void
     add_remote(std::shared_ptr<GraphNode> task);
 
