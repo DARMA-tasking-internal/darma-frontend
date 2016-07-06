@@ -24,6 +24,15 @@ option (DARMA_GENERATE_OO_MACRO_FILES
     OFF
 )
 
+option(DARMA_COVERAGE "Whether to setup coverage targets for tests" Off)
+
+if (DARMA_COVERAGE)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake-modules)
+include(CodeCoverage)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
+endif()
+
 add_subdirectory(src)
 
 if (GTEST_DIR)
