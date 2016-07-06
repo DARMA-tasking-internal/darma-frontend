@@ -105,9 +105,9 @@ namespace threads_backend {
     { }
 
     void execute() {
-      runtime->fetch(fetch->handle, fetch->version_key);
+      runtime->fetch(fetch->handle,fetch->version_key);
       fetch->ready = true;
-      runtime->release_deps(fetch);
+      //runtime->release_deps(fetch);
     }
 
     bool ready() {

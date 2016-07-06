@@ -55,7 +55,7 @@ namespace threads_backend {
   
   struct InnerFlow {
     std::shared_ptr<InnerFlow> forward;
-    types::key_t version_key;
+    types::key_t version_key, key;
     darma_runtime::abstract::frontend::Handle* handle;
     bool ready, hasDeferred;
     DataBlock* deferred_data_ptr;
@@ -64,8 +64,6 @@ namespace threads_backend {
       size_t label;
     #endif
 
-    std::list<std::shared_ptr<InnerFlow> > deps;
-    
     // node in the graph to activate
     std::shared_ptr<GraphNode> node;
     

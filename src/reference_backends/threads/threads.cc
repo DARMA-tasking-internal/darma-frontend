@@ -112,22 +112,6 @@ namespace threads_backend {
   }
 
   void
-  ThreadsRuntime::release_deps(std::shared_ptr<InnerFlow> inner) {
-    if (inner->node) {
-      inner->node->release();
-    }
-    for (auto dep = inner->deps.begin(),
-           dep_end = inner->deps.end();
-         dep != dep_end;
-         ++dep) {
-      if ((*dep)->node) {
-        (*dep)->node->release();
-      }
-    }
-    inner->deps.clear();
-  }
-  
-  void
   ThreadsRuntime::add_remote(std::shared_ptr<GraphNode> task) {
     // this may be called from other threads
     {
@@ -287,9 +271,10 @@ namespace threads_backend {
       block->ref();
       u->get_data_pointer_reference() = block->data;
 
-      DEBUG_PRINT("%p: use register: *deferred*: ptr = %p, key = %s, "
+      DEBUG_PRINT("%p: use register: *deferred*: refs = %d, ptr = %p, key = %s, "
                   "in version = %s, out version = %s\n",
                   u,
+                  data[{version,key}]->get_refs(),
                   block->data,
                   PRINT_KEY(key),
                   PRINT_KEY(f_in->inner->version_key),
@@ -423,6 +408,13 @@ namespace threads_backend {
       const bool found = iter != published.end();
       const bool avail = found && std::atomic_load<bool>(&iter->second->ready); 
 
+      DEBUG_PRINT("add_fetcher: key=%s, version=%s, found=%s, avail=%s\n",
+                  PRINT_KEY(key),
+                  PRINT_KEY(version_key),
+                  PRINT_BOOL_STR(found),
+                  PRINT_BOOL_STR(avail)
+                  );
+      
       if (!found) {
         auto pub = new PublishedBlock();
         pub->waiting.push_front(fetch);
@@ -447,6 +439,10 @@ namespace threads_backend {
       const auto& key = handle->get_key();
       const auto& iter = published.find({version_key,key});
 
+      DEBUG_PRINT("test_fetch: trying to find a publish, key=%s, version=%s\n",
+                  PRINT_KEY(key),
+                  PRINT_KEY(version_key));
+      
       ready =
         iter != published.end() &&
         std::atomic_load<bool>(&iter->second->ready);
@@ -474,6 +470,11 @@ namespace threads_backend {
       const auto& key = handle->get_key();
       const auto& iter = published.find({version_key,key});
 
+      DEBUG_PRINT("fetch: trying to find a publish, assume existance: handle=%p, key=%s, version=%s\n",
+                  handle,
+                  PRINT_KEY(key),
+                  PRINT_KEY(version_key));
+      
       // published block found and ready
       assert(iter != published.end() &&
              std::atomic_load<bool>(&iter->second->ready));
@@ -484,7 +485,7 @@ namespace threads_backend {
       const bool buffer_exists = data.find({version_key,key}) != data.end();
       void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
 
-      DEBUG_PRINT("try_fetch: unpacking data: buffer_exists = %s, handle = %p\n",
+      DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
                   PRINT_BOOL_STR(buffer_exists),
                   handle);
 
@@ -562,9 +563,13 @@ namespace threads_backend {
   Flow*
   ThreadsRuntime::make_same_flow(Flow* from,
                                  flow_propagation_purpose_t purpose) {
-    DEBUG_VERBOSE_PRINT("make same flow: %d\n", purpose);
     ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
     ThreadsFlow* f_same = new ThreadsFlow(0);
+
+    DEBUG_VERBOSE_PRINT("make same flow: purpose=%d, label=%ld, ready=%s\n",
+                        purpose,
+                        PRINT_LABEL(f),
+                        PRINT_BOOL_STR(f->inner->ready));
 
     f_same->inner = f->inner;
     
@@ -655,12 +660,17 @@ namespace threads_backend {
       
     data[{version,key}]->deref();
 
-    DEBUG_PRINT("release_use: f_in %ld, f_out %ld\n",
+    DEBUG_PRINT("release_use: f_in=[%ld,use_count=%ld], f_out=[%ld,use_count=%ld]\n",
                 PRINT_LABEL(f_in),
-                PRINT_LABEL(f_out));
-    
-    release_deps(f_out->inner);
+                f_in->inner.use_count(),
+                PRINT_LABEL(f_out),
+                f_out->inner.use_count());
 
+    // 2 refs for each f_in, and f_out, one for node
+    if (f_in->inner == f_out->inner && f_in->inner.use_count() == 3) {
+      f_out->inner->ready = true;
+    }
+    
     // free released flows, shared ptrs manage inner flows
     delete f_in;
     delete f_out;
@@ -875,7 +885,7 @@ namespace threads_backend {
     DEBUG_PRINT("finalize\n");
 
     while (this->produced != this->consumed) {
-      //DEBUG_PRINT("produced = %ld, consumed = %ld\n", this->produced, this->consumed);
+      DEBUG_PRINT("produced = %ld, consumed = %ld\n", this->produced, this->consumed);
       schedule_next_unit();
     }
       
@@ -892,6 +902,7 @@ namespace threads_backend {
   }
 } // end namespace threads_backend
 
+
 void
 start_thread_handler(const size_t thd, threads_backend::ThreadsRuntime* runtime) {
   //std::cout << "thread handler running" << std::endl;
@@ -899,9 +910,6 @@ start_thread_handler(const size_t thd, threads_backend::ThreadsRuntime* runtime)
 
   // set thread-local rank
   threads_backend::this_rank = thd;
-
-  // run scheduler, when this returns we have terminated!
-  scheduler_loop(thd, runtime);
 }
 
 void

@@ -131,9 +131,6 @@ namespace threads_backend {
     ThreadsRuntime();
 
     void
-    release_deps(std::shared_ptr<InnerFlow> flow);
-
-    void
     add_remote(std::shared_ptr<GraphNode> task);
 
     void

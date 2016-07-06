@@ -53,11 +53,6 @@ namespace threads_backend {
   template <typename Impl>
   class ThreadsInterface {
   public:
-    // dependency and deque management interface
-    inline void
-    release_deps(std::shared_ptr<InnerFlow> flow) {
-      return static_cast<Impl*>(this)->release_deps(flow);
-    }
     inline void
     add_remote(std::shared_ptr<GraphNode> task) {
       return static_cast<Impl*>(this)->add_remote(task);
@@ -70,12 +65,12 @@ namespace threads_backend {
     // fetch interface methods
     inline void
     fetch(darma_runtime::abstract::frontend::Handle* handle,
-	  types::key_t const& version_key) {
+          types::key_t const& version_key) {
       return static_cast<Impl*>(this)->fetch(handle, version_key);
     }
     inline bool
     test_fetch(darma_runtime::abstract::frontend::Handle* handle,
-	       types::key_t const& version_key) {
+               types::key_t const& version_key) {
       return static_cast<Impl*>(this)->test_fetch(handle, version_key);
     }
 
