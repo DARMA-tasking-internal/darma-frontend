@@ -283,9 +283,9 @@ struct _darma__##name##__as_public_method : Base { \
   template <typename ArchiveT> \
   constexpr inline explicit \
   _darma__##name##__as_public_method( \
-    serialization::unpack_constructor_tag_t, \
+    ::darma_runtime::serialization::unpack_constructor_tag_t, \
     ArchiveT& ar \
-  ) : Base(serialization::unpack_constructor_tag, ar) \
+  ) : Base(::darma_runtime::serialization::unpack_constructor_tag, ar) \
   { } \
 }; \
 \
@@ -321,9 +321,9 @@ struct _darma__##name##__as_immediate_public_method : Base { \
   template <typename ArchiveT> \
   constexpr inline explicit \
   _darma__##name##__as_immediate_public_method( \
-    serialization::unpack_constructor_tag_t, \
+    ::darma_runtime::serialization::unpack_constructor_tag_t, \
     ArchiveT& ar \
-  ) : Base(serialization::unpack_constructor_tag, ar) \
+  ) : Base(::darma_runtime::serialization::unpack_constructor_tag, ar) \
   { } \
   template <typename... Args> \
   void name(Args&&... args) { \
