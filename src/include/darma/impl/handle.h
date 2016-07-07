@@ -388,7 +388,7 @@ class VariableHandle
     void
     default_construct(void* allocated) const override {
       // Will fail if T is not default constructible...
-      new (allocated) T;
+      new (allocated) T();
     }
 
     void

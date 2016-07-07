@@ -94,6 +94,8 @@ class MockRuntime
 #endif
 #endif
 
+    MOCK_CONST_METHOD0(get_spmd_rank, size_t());
+    MOCK_CONST_METHOD0(get_spmd_size, size_t());
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
     MOCK_METHOD1(register_condition_task_gmock_proxy, bool(task_t* task));
     MOCK_CONST_METHOD0(get_running_task, task_t*());
