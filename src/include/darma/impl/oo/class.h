@@ -261,19 +261,37 @@ struct darma_class
     using constructor_implementation_callable = darma_runtime::meta::is_detected_exact<
       void, _constructor_implementation_callable, T, CTorArgs...
     >;
+    template <typename T, typename... IgnoredSFINAE>
+    using _default_constructor_implementation_callable = decltype(
+      std::declval<constructor_implementation_type<T, IgnoredSFINAE...>&>()()
+    );
+    template <typename T, typename... IgnoredSFINAE>
+    using default_constructor_implementation_callable = darma_runtime::meta::is_detected_exact<
+      void, _default_constructor_implementation_callable, T, IgnoredSFINAE...
+    >;
 
   public:
 
     using helper_t = detail::darma_class_helper<ClassName, Args...>;
+    using base_t = typename helper_t::base_class;
 
     //friend constructor_implementation_type<ClassName>;
 
-    darma_class() = default;
+    //darma_class() = default;
     darma_class(darma_class&&) = default;
     darma_class(darma_class const&) = default;
 
     // Only used in detection, so shouldn't be implemented
     darma_class(detail::oo_sentinel_value_t const&);
+
+    template <typename _IgnoredButNeededForSFINAE = void,
+      typename = std::enable_if_t<
+        not default_constructor_implementation_callable<ClassName, _IgnoredButNeededForSFINAE>::value
+        and std::is_void<_IgnoredButNeededForSFINAE>::value
+      >
+    >
+    darma_class() : base_t()
+    { }
 
     // Forward to a constructor, if available
     template <typename... CTorArgs,
