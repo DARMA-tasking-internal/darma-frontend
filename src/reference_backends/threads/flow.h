@@ -88,9 +88,11 @@ namespace threads_backend {
     : public abstract::backend::Flow {
 
     std::shared_ptr<InnerFlow> inner;
+    size_t ref;
 
     ThreadsFlow(darma_runtime::abstract::frontend::Handle* handle_)
       : inner(std::make_shared<InnerFlow>())
+      , ref(1)
     {
       inner->handle = handle_;
     }

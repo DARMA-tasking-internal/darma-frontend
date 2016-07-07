@@ -199,15 +199,16 @@ namespace threads_backend {
     make_null_flow(darma_runtime::abstract::frontend::Handle* handle);
  
     virtual Flow*
-    make_same_flow(Flow* from,
-		   flow_propagation_purpose_t purpose);
-
-    virtual Flow*
     make_forwarding_flow(Flow* from,
 			 flow_propagation_purpose_t purpose);
     virtual Flow*
     make_next_flow(Flow* from,
 		   flow_propagation_purpose_t purpose);
+
+    virtual void
+    establish_flow_alias(Flow* from,
+                         Flow* to);
+
     virtual void
     release_use(darma_runtime::abstract::frontend::Use* u);
 

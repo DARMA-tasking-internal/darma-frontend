@@ -244,6 +244,9 @@ namespace threads_backend {
     ThreadsFlow* f_in  = static_cast<ThreadsFlow*>(u->get_in_flow());
     ThreadsFlow* f_out = static_cast<ThreadsFlow*>(u->get_out_flow());
 
+    f_in->ref++;
+    f_out->ref++;
+    
     auto const handle = u->get_handle();
     const auto& key = handle->get_key();
     const auto version = f_in->inner->version_key;
@@ -251,7 +254,7 @@ namespace threads_backend {
     const bool ready = f_in->inner->check_ready();
     const bool data_exists = data.find({version,key}) != data.end();
 
-    DEBUG_PRINT("%p: register use: ready = %s, data_exists = %s, key = %s, version = %s, handle = %p\n",
+    DEBUG_PRINT("%p: register use: ready=%s, data_exists=%s, key=%s, version=%s, handle=%p\n",
                 u,
                 PRINT_BOOL_STR(ready),
                 PRINT_BOOL_STR(data_exists),
@@ -322,20 +325,22 @@ namespace threads_backend {
     ThreadsFlow* f = new ThreadsFlow(handle);
     f->inner->ready = true;
 
-    // allocate a new data block
-    auto block = allocate_block(handle);
+    // // allocate a new data block
+    // auto block = allocate_block(handle);
 
-    // insert new allocated block into the hash
-    const auto& key = handle->get_key();
-    const auto& version = darma_runtime::detail::SimpleKey();
+    // // insert new allocated block into the hash
+    // const auto& key = handle->get_key();
+    // const auto& version = darma_runtime::detail::SimpleKey();
 
-    data[{version,key}] = block;
+    // block->ref();
+    // data[{version,key}] = block;
 
-    DEBUG_PRINT("make initial flow: ptr = %p, key = %s, handle = %p, flow = %lu\n",
-                block->data,
-                PRINT_KEY(key),
-                handle,
-                PRINT_LABEL(f));
+    // DEBUG_PRINT("make initial flow: ptr=%p, key=%s, handle=%p, flow=%lu, outer flow=%p\n",
+    //             block->data,
+    //             PRINT_KEY(key),
+    //             handle,
+    //             PRINT_LABEL(f),
+    //             f);
 
     return f;
   }
@@ -571,23 +576,6 @@ namespace threads_backend {
   
   /*virtual*/
   Flow*
-  ThreadsRuntime::make_same_flow(Flow* from,
-                                 flow_propagation_purpose_t purpose) {
-    ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
-    ThreadsFlow* f_same = new ThreadsFlow(0);
-
-    DEBUG_VERBOSE_PRINT("make same flow: purpose=%d, label=%ld, ready=%s\n",
-                        purpose,
-                        PRINT_LABEL(f),
-                        PRINT_BOOL_STR(f->inner->ready));
-
-    f_same->inner = f->inner;
-    
-    return f_same;
-  }
-
-  /*virtual*/
-  Flow*
   ThreadsRuntime::make_forwarding_flow(Flow* from,
                                        flow_propagation_purpose_t purpose) {
     DEBUG_VERBOSE_PRINT("make forwarding flow: %d\n", purpose);
@@ -611,18 +599,34 @@ namespace threads_backend {
   Flow*
   ThreadsRuntime::make_next_flow(Flow* from,
                                  flow_propagation_purpose_t purpose) {
-    DEBUG_VERBOSE_PRINT("make next flow: %d\n", purpose);
+    DEBUG_VERBOSE_PRINT("make next flow: %d (from=%p)\n",
+                        purpose,
+                        from);
 
     ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
     ThreadsFlow* f_next = new ThreadsFlow(0);
 
-    DEBUG_PRINT("next flow from %lu to %lu\n",
+    DEBUG_PRINT("next flow from %lu (%p) to %lu (%p)\n",
                 PRINT_LABEL(f),
-                PRINT_LABEL(f_next));
+                f,
+                PRINT_LABEL(f_next),
+                f_next);
 
     return f_next;
   }
-  
+
+  /*virtual*/
+  void
+  ThreadsRuntime::establish_flow_alias(Flow* from,
+                                       Flow* to) {
+    ThreadsFlow* f_from  = static_cast<ThreadsFlow*>(from);
+    ThreadsFlow* f_to    = static_cast<ThreadsFlow*>(to);
+
+    DEBUG_PRINT("establish flow alias %lu to %lu\n",
+                PRINT_LABEL(f_from),
+                PRINT_LABEL(f_to));
+  }
+    
   /*virtual*/
   void
   ThreadsRuntime::release_use(darma_runtime::abstract::frontend::Use* u) {
@@ -670,24 +674,27 @@ namespace threads_backend {
       
     data[{version,key}]->deref();
 
+    // dereference flows
+    f_in->ref--;
+    f_out->ref--;
+    
     DEBUG_PRINT("release_use: f_in=[%ld,use_count=%ld], f_out=[%ld,use_count=%ld]\n",
                 PRINT_LABEL(f_in),
-                f_in->inner.use_count(),
+                f_in->ref,
                 PRINT_LABEL(f_out),
-                f_out->inner.use_count());
+                f_out->ref);
 
-    // 2 refs for each f_in, and f_out, one for node
-    if (f_in->inner == f_out->inner && f_in->inner.use_count() == 3) {
-      f_out->inner->ready = true;
+    // free released flows
+    if (f_in->ref == 0) {
+      delete f_in;
     }
-    
-    // free released flows, shared ptrs manage inner flows
-    delete f_in;
-    delete f_out;
+    if (f_out->ref == 0) {
+      delete f_out;
+    }
 
     const auto refs = data[{version,key}]->get_refs();
       
-    DEBUG_PRINT("%p: release use: refs = %d, ptr = %p, key = %s, version = %s, handle = %p\n",
+    DEBUG_PRINT("%p: release use: refs=%d, ptr=%p, key=%s, version=%s, handle=%p\n",
                 u,
                 refs,
                 data[{version, key}]->data,
@@ -695,7 +702,7 @@ namespace threads_backend {
                 PRINT_KEY(version),
                 handle);
 
-    if (refs == 1) {
+    if (refs == 0) {
       DataBlock* prev = data[{version,key}];
       data.erase({version,key});
       delete prev;
