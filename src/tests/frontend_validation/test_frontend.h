@@ -143,7 +143,6 @@ class TestFrontend
 
     ////////////////////////////////////////
 
-    template <typename... KeyParts>
     auto expect_initial_access(
       mock_backend::MockFlow& fin,
       mock_backend::MockFlow& fout,
@@ -161,16 +160,13 @@ class TestFrontend
 
       expectations["make in flow"] =
         EXPECT_CALL(*mock_runtime, make_initial_flow(is_handle_with_key(key)))
-          .Times(1).InSequence(s1)
+          .InSequence(s1)
           .WillOnce(Return(&fin));
       expectations["make out flow"] =
         EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key)))
-          .Times(1).InSequence(s2)
+          .InSequence(s2)
           .WillOnce(Return(&fout));
 
-      expectations["release use"] =
-        EXPECT_CALL(*mock_runtime, establish_flow_alias(&fin, &fout))
-          .Times(1).InSequence(s1, s2, s_release);
 
       return expectations;
     }
@@ -202,10 +198,6 @@ class TestFrontend
           .Times(1).InSequence(s2)
           .WillOnce(Return(&fout));
 
-      expectations["release use"] =
-        EXPECT_CALL(*mock_runtime, establish_flow_alias(&fin, &fout))
-          .Times(1).InSequence(s1, s2, s_release);
-
       return expectations;
     }
 
@@ -213,120 +205,35 @@ class TestFrontend
     ////////////////////////////////////////
 
     auto expect_mod_capture_MN_or_MR(
-      mock_backend::MockFlow& of_in_flow, mock_backend::MockFlow& of_out_flow, use_t*& of_use,
-      mock_backend::MockFlow& fin_capt, mock_backend::MockFlow& fout_capt, use_t*& use_ptr_capt,
-      mock_backend::MockFlow& fin_cont, mock_backend::MockFlow& fout_cont, use_t*& use_ptr_cont,
-      ::testing::Sequence const& s_register_capture = ::testing::Sequence(),
-      ::testing::Sequence const& s_register_continuing = ::testing::Sequence(),
-      bool expect_task_and_release = false
+      mock_backend::MockFlow& f_in, mock_backend::MockFlow& f_out, use_t*& use
     ) {
 
       using namespace mock_backend;
-      Sequence s1, s2;
 
-      // mod-capture of MN
-      //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&of_in_flow), MockRuntime::Input))
-      //  .Times(1).InSequence(s1)
-      //  .WillOnce(Return(&fin_capt));
-      EXPECT_CALL(*mock_runtime, make_next_flow(Eq(&fin_capt), MockRuntime::Output))
-        .Times(1).InSequence(s1)
-        .WillOnce(Return(&fout_capt));
-      //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fout_capt), MockRuntime::Input))
-      //  .Times(1).InSequence(s1)
-      //  .WillOnce(Return(&fin_cont));
-      //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&of_out_flow), MockRuntime::Output))
-      //  .Times(1).InSequence(s1, s2)
-      //  .WillOnce(Return(&fout_cont));
+      EXPECT_CALL(*mock_runtime, make_next_flow(&f_in))
+        .WillOnce(Return(&f_out));
 
-      EXPECT_CALL(*mock_runtime, register_use(AllOf(
-        IsUseWithFlows(&fin_capt, &fout_capt, use_t::Modify, use_t::Modify),
-        // expresses the requirement that register of use2 must
-        // happen before use1 is released
-        UseRefIsNonNull(ByRef(of_use))
-      ))).Times(1).InSequence(s1, s_register_capture)
-        .WillOnce(SaveArg<0>(&use_ptr_capt));
+      EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
+        &f_in, &f_out, use_t::Modify, use_t::Modify
+      ))).WillOnce(SaveArg<0>(&use));
 
 
-      EXPECT_CALL(*mock_runtime, register_use(AllOf(
-        IsUseWithFlows(&fin_cont, &fout_cont, use_t::Modify, use_t::None),
-        // expresses the requirement that register of use3 must
-        // happen before use1 is released
-        UseRefIsNonNull(ByRef(of_use))
-      ))).Times(1).InSequence(s2, s_register_continuing)
-        .WillOnce(SaveArg<0>(&use_ptr_cont));
-
-      if(expect_task_and_release) {
-        EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(
-            UseInGetDependencies(ByRef(use_ptr_capt))
-        )).Times(1).InSequence(s_register_capture);
-
-        EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_ptr_capt)),
-          IsUseWithFlows(&fin_capt, &fout_capt, use_t::Modify, use_t::Modify)
-        ))).Times(1)
-          .WillOnce(Assign(&use_ptr_capt, nullptr));
-
-        EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_ptr_cont)),
-          IsUseWithFlows(&fin_cont, &fout_cont, use_t::Modify, use_t::None)
-        ))).Times(1)
-          .WillOnce(Assign(&use_ptr_cont, nullptr));
-
-      }
-
-
-    }
-
-    auto expect_mod_capture_MN_or_MR(
-      mock_backend::MockFlow of_flows[2],
-      mock_backend::MockFlow f_capt[2],
-      mock_backend::MockFlow f_cont[2],
-      use_t* uses[3],
-      ::testing::Sequence const& s_register_capture = ::testing::Sequence(),
-      ::testing::Sequence const& s_register_continuing = ::testing::Sequence(),
-      bool expect_task_and_release = false
-    ) {
-      expect_mod_capture_MN_or_MR(
-        of_flows[0], of_flows[1], uses[0],
-        f_capt[0], f_capt[1], uses[1],
-        f_cont[0], f_cont[1], uses[2],
-        s_register_capture, s_register_continuing,
-        expect_task_and_release
-      );
     }
 
     ////////////////////////////////////////
 
     auto expect_ro_capture_RN_RR_MN_or_MR(
-      mock_backend::MockFlow& of_in_flow, mock_backend::MockFlow& of_out_flow, use_t*& of_use,
-      mock_backend::MockFlow& fin_capt, mock_backend::MockFlow& fout_capt, use_t*& use_ptr_capt,
-      ::testing::Sequence const& s_register_capture = ::testing::Sequence()
+      mock_backend::MockFlow& fread, use_t*& use_ptr_capt,
+      ::testing::Sequence const& seq = ::testing::Sequence()
     ) {
       using namespace mock_backend;
 
-      Sequence s1;
-
-      // ro-capture of RN
-      //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&of_in_flow), MockRuntime::Input))
-      //  .Times(1).InSequence(s1)
-      //  .WillOnce(Return(&fin_capt));
-      //EXPECT_CALL(*mock_runtime, make_same_flow(Eq(&fin_capt), MockRuntime::OutputFlowOfReadOperation))
-      //  .Times(1).InSequence(s1)
-      //  .WillOnce(Return(&fout_capt));
-
       EXPECT_CALL(*mock_runtime, register_use(
-        IsUseWithFlows(&fin_capt, &fout_capt, use_t::Read, use_t::Read)
-      )).Times(1).InSequence(s1, s_register_capture)
-        .WillOnce(SaveArg<0>(&use_ptr_capt));
-    }
+        IsUseWithFlows(
+          &fread, &fread, use_t::Read, use_t::Read
+        )
+      )).InSequence(seq).WillOnce(SaveArg<0>(&use_ptr_capt));
 
-    auto expect_ro_capture_RN_RR_MN_or_MR(
-      mock_backend::MockFlow of_flows[2], mock_backend::MockFlow fcapts[2], use_t* uses[2],
-      ::testing::Sequence const& s_register_capture = ::testing::Sequence()
-    ) {
-      return expect_ro_capture_RN_RR_MN_or_MR(
-        of_flows[0], of_flows[1], uses[0],
-        fcapts[0], fcapts[1], uses[1],
-        s_register_capture
-      );
     }
 
     ////////////////////////////////////////
@@ -546,8 +453,13 @@ namespace std {
 using use_t = darma_runtime::abstract::frontend::Use;
 
 inline std::ostream&
-operator<<(std::ostream& o, use_t const* const u) {
-  o << "<Use ptr for handle with key " << u->get_handle()->get_key() << ">";
+operator<<(std::ostream& o, use_t const* const& u) {
+  if(u == nullptr) {
+    o << "<null Use ptr>";
+  }
+  else {
+    o << "<Use ptr for handle with key " << u->get_handle()->get_key() << ">";
+  }
   return o;
 }
 
