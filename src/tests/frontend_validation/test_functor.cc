@@ -343,3 +343,47 @@ TEST_F(TestFunctor, simple_mod_convert) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+// TODO test that replecates the problem that caused this to not compile
+//#include <darma.h>
+//using namespace darma_runtime;
+//
+//// this works fine
+//struct storeMessage{
+//  void operator()(AccessHandle<std::string> h) const{
+//    h.set_value("hello world!");
+//  }
+//};
+//// this works fine
+//struct storeMessage2{
+//  void operator()(std::string & mess) const{
+//    mess = "hello world!";
+//  }
+//};
+//
+//// this work fine
+//struct printMessage{
+//  void operator()(ReadAccessHandle<std::string> h) const{
+//    std::cout << h.get_value() << std::endl;
+//  }
+//};
+//// this gives compile time error that is attached
+//struct printMessage2{
+//  void operator()(std::string mess) const{
+//    std::cout << mess << std::endl;
+//  }
+//};
+//
+//TEST_F(TestFunctor, francesco)
+//{
+//  using namespace darma_runtime;
+//
+//
+//  // create handle to string variable
+//  auto greeting = initial_access<std::string>("myName", 42);
+//  create_work<storeMessage>(greeting);    // ok
+//  create_work<storeMessage2>(greeting);    // ok
+//  create_work<printMessage>(greeting);    // ok
+//  create_work<printMessage2>(greeting);  // compile time error
+//
+//}
