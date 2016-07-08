@@ -65,8 +65,6 @@ TaskBase::do_capture(
   AccessHandleT2 const& source_and_continuing
 ) {
 
-  using purpose_t = abstract::backend::Runtime::FlowPropagationPurpose;
-
   typedef AccessHandleT1 AccessHandleT;
 
   DARMA_ASSERT_MESSAGE(
@@ -146,7 +144,7 @@ TaskBase::do_capture(
 
       auto _ro_capture_mod_imm = [&]{
         auto forwarded_flow = detail::backend_runtime->make_forwarding_flow(
-          source.current_use_->use.in_flow_, purpose_t::ForwardingChanges
+          source.current_use_->use.in_flow_
         );
         captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
           forwarded_flow, forwarded_flow, HandleUse::Read, HandleUse::Read
@@ -218,7 +216,7 @@ TaskBase::do_capture(
             case HandleUse::Read: {
               // mod(MN) and mod(MR)
               auto captured_out_flow = detail::backend_runtime->make_next_flow(
-                source.current_use_->use.in_flow_, purpose_t::Output
+                source.current_use_->use.in_flow_
               );
               captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
                 source.var_handle_.get(),
@@ -233,10 +231,10 @@ TaskBase::do_capture(
             }
             case HandleUse::Modify: {
               auto captured_in_flow = detail::backend_runtime->make_forwarding_flow(
-                source.current_use_->use.in_flow_, purpose_t::ForwardingChanges
+                source.current_use_->use.in_flow_
               );
               auto captured_out_flow = detail::backend_runtime->make_next_flow(
-                captured_in_flow, purpose_t::Output
+                captured_in_flow
               );
               captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
                 source.var_handle_.get(),
