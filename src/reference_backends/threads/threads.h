@@ -126,6 +126,8 @@ namespace threads_backend {
 			 >
 		       > handle_pubs;
 
+    std::unordered_map<ThreadsFlow*, ThreadsFlow*> alias;
+    
     size_t produced, consumed;
     
     ThreadsRuntime();
@@ -141,6 +143,12 @@ namespace threads_backend {
 
     void
     add_local(std::shared_ptr<GraphNode> task);
+
+    void
+    release_node(ThreadsFlow* flow);
+
+    void
+    release_alias(ThreadsFlow* flow);
     
     size_t
     count_delayed_work() const;

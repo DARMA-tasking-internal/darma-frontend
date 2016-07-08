@@ -150,6 +150,8 @@ namespace threads_backend {
     t->join_counter = check_dep_task(t);
     this->produced++;
 
+    DEBUG_VERBOSE_PRINT("task join counter: %ld\n", t->join_counter);
+    
     // use depth-first scheduling policy
     if (threads_backend::depthFirstExpand) {
       assert(t->ready());
@@ -204,7 +206,7 @@ namespace threads_backend {
       ThreadsFlow* f_in  = static_cast<ThreadsFlow*>(dep->get_in_flow());
       ThreadsFlow* f_out = static_cast<ThreadsFlow*>(dep->get_out_flow());
 
-      DEBUG_PRINT("check_dep_task: f_in = %lu, f_out = %lu\n",
+      DEBUG_PRINT("check_dep_task: f_in=%lu, f_out=%lu\n",
                   PRINT_LABEL(f_in),
                   PRINT_LABEL(f_out));
       
@@ -214,7 +216,11 @@ namespace threads_backend {
       f_in->inner->ready = check_ready;
 
       if (!f_in->inner->ready) {
-        f_in->inner->node = t;
+        if (f_in == f_out) {
+          f_in->inner->readers.push_back(t);
+        } else {
+          f_in->inner->node = t;
+        }
         dep_count++;
       }
     }
@@ -244,8 +250,8 @@ namespace threads_backend {
     ThreadsFlow* f_in  = static_cast<ThreadsFlow*>(u->get_in_flow());
     ThreadsFlow* f_out = static_cast<ThreadsFlow*>(u->get_out_flow());
 
-    f_in->ref++;
-    f_out->ref++;
+    f_in->uses++;
+    f_out->uses++;
     
     auto const handle = u->get_handle();
     const auto& key = handle->get_key();
@@ -254,13 +260,21 @@ namespace threads_backend {
     const bool ready = f_in->inner->check_ready();
     const bool data_exists = data.find({version,key}) != data.end();
 
-    DEBUG_PRINT("%p: register use: ready=%s, data_exists=%s, key=%s, version=%s, handle=%p\n",
+    DEBUG_PRINT("%p: register use: ready=%s, data_exists=%s, key=%s, version=%s, "
+                "handle=%p [in={%ld,use=%ld},out={%ld,use=%ld}], sched=%d, immed=%d\n",
                 u,
                 PRINT_BOOL_STR(ready),
                 PRINT_BOOL_STR(data_exists),
                 PRINT_KEY(key),
                 PRINT_KEY(version),
-                handle);
+                handle,
+                PRINT_LABEL(f_in),
+                f_in->ref,
+                PRINT_LABEL(f_out),
+                f_out->ref,
+                u->scheduling_permissions(),
+                u->immediate_permissions()
+               );
 
     if (data_exists) {
       // increase reference count on data
@@ -586,7 +600,9 @@ namespace threads_backend {
     DEBUG_PRINT("forwarding flow from %lu to %lu\n",
                 PRINT_LABEL(f),
                 PRINT_LABEL(f_forward));
-    
+
+    f->next->ref++;
+
     if (depthFirstExpand) {
       f_forward->inner->ready = true;
     }
@@ -606,6 +622,8 @@ namespace threads_backend {
     ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
     ThreadsFlow* f_next = new ThreadsFlow(0);
 
+    f->next = f_next;
+    
     DEBUG_PRINT("next flow from %lu (%p) to %lu (%p)\n",
                 PRINT_LABEL(f),
                 f,
@@ -625,8 +643,40 @@ namespace threads_backend {
     DEBUG_PRINT("establish flow alias %lu to %lu\n",
                 PRINT_LABEL(f_from),
                 PRINT_LABEL(f_to));
+
+    alias[f_from] = f_to;
   }
-    
+
+  void
+  ThreadsRuntime::release_alias(ThreadsFlow* flow) {
+    if (alias.find(flow) != alias.end()) {
+      alias[flow]->ref--;
+      if (alias[flow]->ref == 0) {
+        DEBUG_PRINT("release_use: releasing alias: %ld, ref = %ld, readers=%ld\n",
+                    PRINT_LABEL(alias[flow]),
+                    alias[flow]->ref,
+                    alias[flow]->inner->readers.size());
+        if (alias[flow]->inner->node) {
+          alias[flow]->inner->node->release();
+        }
+        release_alias(alias[flow]);
+      }
+    }
+  }
+
+  void
+  ThreadsRuntime::release_node(ThreadsFlow* flow) {
+    if (flow->ref == 0) {
+      DEBUG_PRINT("releasing flow: %ld, readers=%ld\n",
+                  PRINT_LABEL(flow),
+                  flow->inner->readers.size());
+
+      if (flow->inner->node) {
+        flow->inner->node->release();
+      }
+    }
+  }
+  
   /*virtual*/
   void
   ThreadsRuntime::release_use(darma_runtime::abstract::frontend::Use* u) {
@@ -644,7 +694,7 @@ namespace threads_backend {
     const auto version = f_in->inner->version_key;
     const auto& key = handle->get_key();
 
-    DEBUG_PRINT("%p: release use: hasDeferred = %s, handle = %p, version = %s, key = %s, data = %p\n",
+    DEBUG_PRINT("%p: release use: hasDeferred=%s, handle=%p, version=%s, key=%s, data=%p\n",
                 u,
                 f_in->inner->hasDeferred ? "*** true" : "false",
                 handle,
@@ -675,22 +725,36 @@ namespace threads_backend {
     data[{version,key}]->deref();
 
     // dereference flows
-    f_in->ref--;
-    f_out->ref--;
+    f_in->uses--;
+    f_out->uses--;
+
+    release_node(f_out);
     
-    DEBUG_PRINT("release_use: f_in=[%ld,use_count=%ld], f_out=[%ld,use_count=%ld]\n",
+    // if (f_out->ref == 0) {
+    //   DEBUG_PRINT("release_use: releasing out flow: %ld, readers=%ld\n",
+    //               PRINT_LABEL(f_out),
+    //               f_out->inner->readers.size());
+
+    //   if (f_out->inner->node) {
+    //     f_out->inner->node->release();
+    //   }
+    // }
+
+    release_alias(f_out);
+    
+    DEBUG_PRINT("release_use: f_in=[%ld,{use=%ld}], f_out=[%ld,{use=%ld}]\n",
                 PRINT_LABEL(f_in),
                 f_in->ref,
                 PRINT_LABEL(f_out),
                 f_out->ref);
 
-    // free released flows
-    if (f_in->ref == 0) {
-      delete f_in;
-    }
-    if (f_out->ref == 0) {
-      delete f_out;
-    }
+    // // free released flows
+    // if (f_in->uses == 0) {
+    //   delete f_in;
+    // }
+    // if (f_out->uses == 0) {
+    //   delete f_out;
+    // }
 
     const auto refs = data[{version,key}]->get_refs();
       
@@ -902,7 +966,7 @@ namespace threads_backend {
     DEBUG_PRINT("finalize\n");
 
     while (this->produced != this->consumed) {
-      DEBUG_PRINT("produced = %ld, consumed = %ld\n", this->produced, this->consumed);
+      /// DEBUG_PRINT("produced = %ld, consumed = %ld\n", this->produced, this->consumed);
       schedule_next_unit();
     }
       

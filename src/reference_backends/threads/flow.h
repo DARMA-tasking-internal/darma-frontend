@@ -52,7 +52,7 @@
 
 namespace threads_backend {
   extern __thread size_t flow_label;
-  
+
   struct InnerFlow {
     std::shared_ptr<InnerFlow> forward;
     types::key_t version_key, key;
@@ -64,6 +64,8 @@ namespace threads_backend {
       size_t label;
     #endif
 
+    size_t readers_jc;
+    std::vector<std::shared_ptr<GraphNode> > readers;
     // node in the graph to activate
     std::shared_ptr<GraphNode> node;
     
@@ -78,21 +80,27 @@ namespace threads_backend {
       #if __THREADS_DEBUG_MODE__
       , label(++flow_label)
       #endif
+      , readers_jc(0)
       , node(nullptr)
     { }
 
     bool check_ready() { return ready; }
   };
 
+  struct ThreadsFlow;
+  
   struct ThreadsFlow
     : public abstract::backend::Flow {
 
     std::shared_ptr<InnerFlow> inner;
+    struct ThreadsFlow* next;
+    size_t uses;
     size_t ref;
 
     ThreadsFlow(darma_runtime::abstract::frontend::Handle* handle_)
       : inner(std::make_shared<InnerFlow>())
-      , ref(1)
+      , next(nullptr)
+      , ref(0)
     {
       inner->handle = handle_;
     }
