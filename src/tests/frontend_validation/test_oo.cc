@@ -465,4 +465,3 @@ TEST_F(TestOO, simple_homer_lisa) {
   ASSERT_EQ(data, 42);
 
 }
-
