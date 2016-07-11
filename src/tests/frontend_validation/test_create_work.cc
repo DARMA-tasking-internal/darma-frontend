@@ -248,17 +248,19 @@ INSTANTIATE_TEST_CASE_P(
 
 //////////////////////////////////////////////////////////////////////////////////
 
-struct TestModCaptureMM
+struct TestCaptureMM
   : TestCreateWork,
-    ::testing::WithParamInterface<bool>
+    ::testing::WithParamInterface<std::tuple<bool, bool>>
 { };
 
-TEST_P(TestModCaptureMM, mod_capture_MM) {
-
+TEST_P(TestCaptureMM, capture_MM) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace mock_backend;
+
+  bool ro_capture = std::get<0>(GetParam());
+  bool use_vector = std::get<1>(GetParam());
 
   mock_runtime->save_tasks = true;
 
@@ -271,16 +273,20 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
   expect_mod_capture_MN_or_MR(finit, f_outer_out, use_outer);
 
   task_t* outer;
+  int value = 0;
+
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_outer))))
-    .WillOnce(SaveArg<0>(&outer));
+    .WillOnce(Invoke([&](auto* task) {
+      for(auto&& dep : task->get_dependencies()) {
+        dep->get_data_pointer_reference() = (void*)(&value);
+      }
+      outer = task;
+    }));
 
   Sequence s1;
 
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_outer_out, &fnull))
     .InSequence(s1);
-
-
-  bool use_vector = GetParam();
 
   ////////////////////////////////////////////////////////////////////////////////
 
@@ -289,10 +295,20 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
     std::vector<AccessHandle<int>> tmp;
     tmp.push_back(initial_access<int>("hello"));
 
-    create_work([=] {
-      create_work([=] {
+    create_work([=]{
+      tmp[0].set_value(42);
+      if(not ro_capture) {
+        create_work([=]{
+          ASSERT_THAT(tmp[0].get_value(), Eq(42));
+        });
+      }
+      else {
+        create_work(reads(tmp[0]), [=]{
+          ASSERT_THAT(tmp[0].get_value(), Eq(42));
+        });
+        // State is MR, should work...
         ASSERT_THAT(tmp[0].get_value(), Eq(42));
-      });
+      }
     });
 
   }
@@ -304,17 +320,24 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
     auto tmp = initial_access<int>("hello");
 
     create_work([=]{
-      create_work([=]{
+      tmp.set_value(42);
+      if(not ro_capture) {
+        create_work([=]{
+          ASSERT_THAT(tmp.get_value(), Eq(42));
+        });
+      }
+      else {
+        create_work(reads(tmp), [=]{
+          ASSERT_THAT(tmp.get_value(), Eq(42));
+        });
+        // State is MR, should work...
         ASSERT_THAT(tmp.get_value(), Eq(42));
-      });
+      }
     });
 
   }
 
   ////////////////////////////////////////////////////////////////////////////////
-
-
-  int value = 42;
 
   ON_CALL(*mock_runtime, get_running_task())
     .WillByDefault(Return(ByRef(outer)));
@@ -322,16 +345,28 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
   EXPECT_CALL(*mock_runtime, make_forwarding_flow(&finit))
     .WillOnce(Return(&f_forwarded));
 
-  EXPECT_CALL(*mock_runtime, make_next_flow(&f_forwarded))
-    .WillOnce(Return(&f_inner_out));
+  if(not ro_capture) {
+    EXPECT_CALL(*mock_runtime, make_next_flow(&f_forwarded))
+      .WillOnce(Return(&f_inner_out));
 
-  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
-    &f_forwarded, &f_inner_out, use_t::Modify, use_t::Modify
-  ))).InSequence(s1)
-    .WillOnce(Invoke([&](auto&& use){
-      use->get_data_pointer_reference() = (void*)(&value);
-      use_inner = use;
-    }));
+    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
+      &f_forwarded, &f_inner_out, use_t::Modify, use_t::Modify
+    ))).InSequence(s1)
+      .WillOnce(Invoke([&](auto&& use){
+        use->get_data_pointer_reference() = (void*)(&value);
+        use_inner = use;
+      }));
+  }
+
+  else {
+    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
+      &f_forwarded, &f_forwarded, use_t::Read, use_t::Read
+    ))).InSequence(s1)
+      .WillOnce(Invoke([&](auto&& use){
+        use->get_data_pointer_reference() = (void*)(&value);
+        use_inner = use;
+      }));
+  }
 
   EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(use_outer))))
     .InSequence(s1)
@@ -339,7 +374,12 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
 
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_inner))));
 
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_inner_out, &f_outer_out));
+  if(not ro_capture) {
+    EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_inner_out, &f_outer_out));
+  }
+  else{
+    EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_forwarded, &f_outer_out));
+  }
 
   EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(use_inner))))
     .InSequence(s1)
@@ -350,41 +390,27 @@ TEST_P(TestModCaptureMM, mod_capture_MM) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-  WithAndWithoutVector,
-  TestModCaptureMM,
-  ::testing::Bool()
+  ReadOrModWithAndWithoutVector,
+  TestCaptureMM,
+  ::testing::Combine(
+    ::testing::Bool(),
+    ::testing::Bool()
+  )
 );
 
 //////////////////////////////////////////////////////////////////////////////////
-/*
 
+/*
 TEST_F(TestCreateWork, ro_capture_MM) {
   using namespace ::testing;
   using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace mock_backend;
   using task_t = abstract::backend::runtime_t::task_t;
-  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
 
   mock_runtime->save_tasks = true;
 
-  MockFlow fl_in_init, fl_out_init;
-  MockFlow fl_in_cap_1, fl_out_cap_1;
-  MockFlow fl_in_con_1, fl_out_con_1;
-  MockFlow fl_in_cap_2, fl_out_cap_2;
-  MockFlow fl_in_con_2, fl_out_con_2;
-  use_t* use_init, *use_cap_1, *use_con_1, *use_cap_2, *use_con_2;
-
   Sequence s0, s1, s2;
 
-  expect_initial_access(fl_in_init, fl_out_init, use_init, make_key("hello"), s0);
-
-  expect_mod_capture_MN_or_MR(
-    fl_in_init, fl_out_init, use_init,
-    fl_in_cap_1, fl_out_cap_1, use_cap_1,
-    fl_in_con_1, fl_out_con_1, use_con_1,
-    s0
-  );
 
   int value = 42;
 
@@ -450,6 +476,7 @@ TEST_F(TestCreateWork, ro_capture_MM) {
   run_all_tasks();
 
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
