@@ -142,30 +142,25 @@ TEST_F(TestFunctor, simple) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow fl_init[2], fl_cap[2], fl_con[2];
-  use_t* uses[3];
+  MockFlow f_initial, f_null, f_task_out;
+  use_t* task_use;
 
-  expect_initial_access(fl_init[0], fl_init[1], uses[0], make_key("hello"));
-  expect_mod_capture_MN_or_MR(
-    fl_init, fl_cap, fl_con, uses
-  );
+  expect_initial_access(f_initial, f_null, make_key("hello"));
 
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(uses[1]))))
-    .Times(1);
+  expect_mod_capture_MN_or_MR(f_initial, f_task_out, task_use);
 
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[1])),
-    IsUseWithFlows(&fl_cap[0], &fl_cap[1], use_t::Modify, use_t::Modify)
-  ))).Times(1)
-    .WillOnce(Assign(&uses[1], nullptr));
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[2])),
-    IsUseWithFlows(&fl_con[0], &fl_con[1], use_t::Modify, use_t::None)
-  ))).Times(1)
-    .WillOnce(Assign(&uses[2], nullptr));
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(
+    UseInGetDependencies(ByRef(task_use))
+  ));
+
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_task_out, &f_null));
 
   {
     auto tmp = initial_access<int>("hello");
     create_work<SimpleFunctor>(15, tmp);
   }
+
+  EXPECT_CALL(*mock_runtime, release_use(task_use));
 
   run_all_tasks();
 
@@ -199,27 +194,32 @@ TEST_F(TestFunctor, simple_read) {
 
   mock_runtime->save_tasks = true;
 
-  Sequence s_register_cap;
 
-  MockFlow fl_init[2], fl_cap[2];
-  use_t* uses[2];
+  MockFlow fl_init, fl_null;
+  use_t* task_use;
 
-  expect_initial_access(fl_init[0], fl_init[1], uses[0], make_key("hello"), s_register_cap);
-  expect_ro_capture_RN_RR_MN_or_MR(fl_init, fl_cap, uses, s_register_cap);
+  Sequence s1;
+
+  expect_initial_access(fl_init, fl_null, make_key("hello"));
+  expect_ro_capture_RN_RR_MN_or_MR(fl_init, task_use);
+
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&fl_init, &fl_null))
+    .InSequence(s1);
 
   {
     auto tmp = initial_access<int>("hello");
     create_work<SimpleFunctor>(15, reads(tmp));
   }
 
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[1])),
-    IsUseWithFlows(&fl_cap[0], &fl_cap[1], use_t::Read, use_t::Read)
-  ))).Times(1).InSequence(s_register_cap);
+  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(task_use)),
+    IsUseWithFlows(&fl_init, &fl_init, use_t::Read, use_t::Read)
+  ))).Times(1).InSequence(s1);
 
   run_all_tasks();
 
 }
 
+/*
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestFunctor, simple_read_only) {
@@ -387,3 +387,4 @@ TEST_F(TestFunctor, simple_mod_convert) {
 //  create_work<printMessage2>(greeting);  // compile time error
 //
 //}
+ */
