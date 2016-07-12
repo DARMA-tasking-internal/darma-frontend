@@ -83,24 +83,27 @@ TEST_F(TestCreateCondition, ro_capture_MN) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow fl_init[2], fl_cap[2];
-  use_t* uses[2];
+  MockFlow fl_init, fl_null;
+  use_t* task_use;
 
   int value = 42;
 
-  expect_initial_access(fl_init[0], fl_init[1], uses[0], make_key("hello"));
-  expect_ro_capture_RN_RR_MN_or_MR(fl_init, fl_cap, uses);
+  expect_initial_access(fl_init, fl_null, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, register_use(
+    IsUseWithFlows(
+      &fl_init, &fl_init, use_t::None, use_t::Read
+    )
+  )).WillOnce(SaveArg<0>(&task_use));
 
   EXPECT_CALL(*mock_runtime, register_condition_task_gmock_proxy(
-    UseInGetDependencies(ByRef(uses[1]))
+    UseInGetDependencies(ByRef(task_use))
   )).Times(1).WillOnce(Invoke([&](auto* cond_task) {
-    uses[1]->get_data_pointer_reference() = (void*)&value;
+    task_use->get_data_pointer_reference() = (void*)&value;
     return cond_task->template run<bool>();
   }));
 
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[1])),
-    IsUseWithFlows(&fl_cap[0], &fl_cap[1], use_t::Read, use_t::Read)
-  ))).Times(1);
+  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(task_use))));
 
   {
     auto tmp = initial_access<int>("hello");
