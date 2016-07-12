@@ -247,27 +247,38 @@ struct darma_class
       _constructor_implementation_exists, T, _Ignored_but_needed_for_SFINAE_to_work...
     >;
 
+  public:
     template <typename T, typename... _Ignored_but_needed_for_SFINAE_to_work>
-    using constructor_implementation_type = darma_runtime::meta::detected_t<
-      _constructor_implementation_type, T, _Ignored_but_needed_for_SFINAE_to_work...
+    using constructor_implementation_type = tinympl::identity<
+      darma_runtime::meta::detected_t<
+        _constructor_implementation_type, T, _Ignored_but_needed_for_SFINAE_to_work...
+      >
     >;
+  private:
     template <typename T, typename... CTorArgs>
     using _constructor_implementation_callable = decltype(
-      std::declval<constructor_implementation_type<T, CTorArgs...>&>()(
+      std::declval<typename constructor_implementation_type<T, CTorArgs...>::type>()(
         std::declval<CTorArgs>()...
       )
     );
     template <typename T, typename... CTorArgs>
-    using constructor_implementation_callable = darma_runtime::meta::is_detected_exact<
-      void, _constructor_implementation_callable, T, CTorArgs...
+    using constructor_implementation_callable = tinympl::value_identity<
+      darma_runtime::meta::is_detected<
+        _constructor_implementation_callable, T, CTorArgs...
+      >
     >;
     template <typename T, typename... IgnoredSFINAE>
     using _default_constructor_implementation_callable = decltype(
-      std::declval<constructor_implementation_type<T, IgnoredSFINAE...>&>()()
+      std::declval<
+        typename constructor_implementation_type<T, IgnoredSFINAE...>::type
+      >().operator()()
     );
+  public:
     template <typename T, typename... IgnoredSFINAE>
-    using default_constructor_implementation_callable = darma_runtime::meta::is_detected_exact<
-      void, _default_constructor_implementation_callable, T, IgnoredSFINAE...
+    using default_constructor_implementation_callable = tinympl::value_identity<
+      darma_runtime::meta::is_detected<
+        _default_constructor_implementation_callable, T, IgnoredSFINAE...
+      >
     >;
 
   public:
@@ -277,26 +288,61 @@ struct darma_class
 
     //friend constructor_implementation_type<ClassName>;
 
-    //darma_class() = default;
+    darma_class() = default;
     darma_class(darma_class&&) = default;
     darma_class(darma_class const&) = default;
 
     // Only used in detection, so shouldn't be implemented
     darma_class(detail::oo_sentinel_value_t const&);
 
-    template <typename _IgnoredButNeededForSFINAE = void,
-      typename = std::enable_if_t<
-        not default_constructor_implementation_callable<ClassName, _IgnoredButNeededForSFINAE>::value
-        and std::is_void<_IgnoredButNeededForSFINAE>::value
-      >
-    >
-    darma_class() : base_t()
-    { }
+    //template <typename _IgnoredButNeededForSFINAE = void>
+    //darma_class(
+    //  std::enable_if_t<
+    //    constructor_implementation_exists<ClassName, _IgnoredButNeededForSFINAE>::value
+    //      and std::is_void<_IgnoredButNeededForSFINAE>::value,
+    //    detail::never_instantiate_this_t
+    //  > = detail::never_instantiate_this
+    //) : base_t()
+    //{
+    //  static_cast<typename constructor_implementation_type<ClassName>::type*>(this)->operator()();
+    //}
+
+
+    //template <typename _IgnoredButNeededForSFINAE = void>
+    //darma_class(
+    //  std::enable_if_t<
+    //    not default_constructor_implementation_callable<ClassName, _IgnoredButNeededForSFINAE>::value
+    //      and std::is_void<_IgnoredButNeededForSFINAE>::value,
+    //    detail::never_instantiate_this_t
+    //  > = detail::never_instantiate_this
+    //) : base_t()
+    //{ }
+
+    // Another attempt...
+    //template <typename _IgnoredButNeededForSFINAE = void,
+    //  typename = std::enable_if_t<
+    //    tinympl::and_<
+    //      tinympl::extract_bool_value_potentially_lazy<tinympl::delay<
+    //        std::is_void, tinympl::identity<_IgnoredButNeededForSFINAE>
+    //      >>,
+    //      tinympl::not_<
+    //        tinympl::extract_bool_value_potentially_lazy<tinympl::delay<
+    //          default_constructor_implementation_callable,
+    //          tinympl::identity<ClassName>,
+    //          tinympl::identity<_IgnoredButNeededForSFINAE>
+    //        >>
+    //      >
+    //    >::value
+    //  >
+    //>
+    //darma_class() : base_t()
+    //{ }
 
     // Forward to a constructor, if available
     template <typename... CTorArgs,
       typename = std::enable_if_t<
         constructor_implementation_callable<ClassName, CTorArgs...>::value
+        and sizeof...(CTorArgs) != 0
         and not std::is_same<
           std::decay_t<tinympl::variadic::at_or_t<meta::nonesuch, 0, CTorArgs...>>,
           ClassName
@@ -308,7 +354,7 @@ struct darma_class
       >
     >
     darma_class(CTorArgs&&... args) {
-      static_cast<constructor_implementation_type<ClassName>*>(this)->operator()(
+      static_cast<typename constructor_implementation_type<ClassName>::type*>(this)->operator()(
         std::forward<CTorArgs>(args)...
       );
     };
@@ -366,10 +412,10 @@ struct darma_class
       >
     >
     darma_class(ClassTypeDeduced&& other) {
-      static_cast<constructor_implementation_type<ClassName>*>(this)->operator()(
+      static_cast<typename constructor_implementation_type<ClassName>::type*>(this)->operator()(
         static_cast<
           typename tinympl::copy_all_type_properties<ClassTypeDeduced>::template apply<
-            constructor_implementation_type<ClassName>
+            typename constructor_implementation_type<ClassName>::type
           >::type
         >(std::forward<ClassTypeDeduced>(other))
       );
