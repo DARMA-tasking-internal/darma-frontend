@@ -113,6 +113,42 @@ struct SimpleReadOnlyFunctorConvert {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct SimpleReadOnlyFunctorConvertValue {
+  void
+  operator()(
+    int arg,
+    int handle
+  ) const {
+    // Do nothing for now...
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct SimpleReadOnlyFunctorConvertLong {
+  void
+  operator()(
+    int arg,
+    long handle
+  ) const {
+    // Do nothing for now...
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct SimpleReadOnlyFunctorConvertString {
+  void
+  operator()(
+    int arg,
+    std::string handle
+  ) const {
+    // Do nothing for now...
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct SimpleFunctorNonConstLvalue {
   void
   operator()(
@@ -132,6 +168,26 @@ struct SimplerFunctor {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestFunctor, simpler) {
+  using namespace ::testing;
+  testing::internal::CaptureStdout();
+
+  mock_runtime->save_tasks = true;
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(_))
+    .Times(1);
+
+  create_work<SimplerFunctor>();
+
+  run_all_tasks();
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "Hello World\n"
+  );
+}
+
+//////////////////////////////////////////////////////////////////////////////
 
 struct TestFunctorModCaptures
   : TestFunctor,
@@ -211,26 +267,6 @@ INSTANTIATE_TEST_CASE_P(
   )
 );
 
-//////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestFunctor, simpler) {
-  using namespace ::testing;
-  testing::internal::CaptureStdout();
-
-  mock_runtime->save_tasks = true;
-
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(_))
-    .Times(1);
-
-  create_work<SimplerFunctor>();
-
-  run_all_tasks();
-
-  ASSERT_EQ(testing::internal::GetCapturedStdout(),
-    "Hello World\n"
-  );
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 struct TestFunctorROCaptures
@@ -258,7 +294,7 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
   // Expect ro capture:
 
   use_t::permissions_t expected_scheduling_permissions;
-  if(test_type == "convert") {
+  if(test_type == "convert" || test_type == "convert_value") {
     expected_scheduling_permissions = use_t::None;
   }
   else {
@@ -285,15 +321,34 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
   //--------------------
 
   {
-    auto tmp = initial_access<int>("hello");
     if (test_type == "explicit_read") {
+      auto tmp = initial_access<int>("hello");
       create_work<SimpleFunctor>(15, reads(tmp));
     }
     else if (test_type == "read_only_handle") {
+      // Formal parameter is ReadOnlyAccessHandle<int>
+      auto tmp = initial_access<int>("hello");
       create_work<SimpleReadOnlyFunctor>(15, tmp);
     }
     else if (test_type == "convert") {
+      // Formal parameter is a const lvalue reference
+      auto tmp = initial_access<int>("hello");
       create_work<SimpleReadOnlyFunctorConvert>(15, tmp);
+    }
+    else if (test_type == "convert_value") {
+      // Formal parameter is by value
+      auto tmp = initial_access<int>("hello");
+      create_work<SimpleReadOnlyFunctorConvertValue>(15, tmp);
+    }
+    else if (test_type == "convert_long") {
+      // Formal parameter is by value and is of type long int
+      auto tmp = initial_access<int>("hello");
+      create_work<SimpleReadOnlyFunctorConvertLong>(15, tmp);
+    }
+    else if (test_type == "convert_string") {
+      // Formal parameter is by value
+      auto tmp = initial_access<std::string>("hello");
+      create_work<SimpleReadOnlyFunctorConvertString>(15, tmp);
     }
   }
 
@@ -311,95 +366,11 @@ INSTANTIATE_TEST_CASE_P(
   ::testing::Values(
     "explicit_read",
     "read_only_handle",
-    "convert"
+    "convert",
+    "convert_value",
+    "convert_long",
+    "convert_string"
   )
 );
 
-/*
 ////////////////////////////////////////////////////////////////////////////////
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestFunctor, simple_mod_convert) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace mock_backend;
-
-  mock_runtime->save_tasks = true;
-
-  MockFlow fl_init[2], fl_cap[2], fl_con[2];
-  use_t* uses[3];
-
-  expect_initial_access(fl_init[0], fl_init[1], uses[0], make_key("hello"));
-  expect_mod_capture_MN_or_MR(
-    fl_init, fl_cap, fl_con, uses
-  );
-
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(uses[1]))))
-    .Times(1);
-
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[1])),
-    IsUseWithFlows(&fl_cap[0], &fl_cap[1], use_t::Modify, use_t::Modify)
-  ))).Times(1)
-    .WillOnce(Assign(&uses[1], nullptr));
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[2])),
-    IsUseWithFlows(&fl_con[0], &fl_con[1], use_t::Modify, use_t::None)
-  ))).Times(1)
-    .WillOnce(Assign(&uses[2], nullptr));
-
-  {
-    auto tmp = initial_access<int>("hello");
-    create_work<SimpleFunctorNonConstLvalue>(tmp);
-  }
-
-  run_all_tasks();
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-// TODO test that replecates the problem that caused this to not compile
-//#include <darma.h>
-//using namespace darma_runtime;
-//
-//// this works fine
-//struct storeMessage{
-//  void operator()(AccessHandle<std::string> h) const{
-//    h.set_value("hello world!");
-//  }
-//};
-//// this works fine
-//struct storeMessage2{
-//  void operator()(std::string & mess) const{
-//    mess = "hello world!";
-//  }
-//};
-//
-//// this work fine
-//struct printMessage{
-//  void operator()(ReadAccessHandle<std::string> h) const{
-//    std::cout << h.get_value() << std::endl;
-//  }
-//};
-//// this gives compile time error that is attached
-//struct printMessage2{
-//  void operator()(std::string mess) const{
-//    std::cout << mess << std::endl;
-//  }
-//};
-//
-//TEST_F(TestFunctor, francesco)
-//{
-//  using namespace darma_runtime;
-//
-//
-//  // create handle to string variable
-//  auto greeting = initial_access<std::string>("myName", 42);
-//  create_work<storeMessage>(greeting);    // ok
-//  create_work<storeMessage2>(greeting);    // ok
-//  create_work<printMessage>(greeting);    // ok
-//  create_work<printMessage2>(greeting);  // compile time error
-//
-//}
- */
