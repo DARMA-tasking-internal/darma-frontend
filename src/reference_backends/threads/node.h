@@ -68,7 +68,9 @@ namespace threads_backend {
               Runtime* runtime_)
       : join_counter(join_counter_)
       , runtime(runtime_)
-    { }
+    {
+      runtime->produce();
+    }
 
     void set_join(size_t join_counter_) {
       join_counter = join_counter_;
@@ -83,7 +85,9 @@ namespace threads_backend {
     }
     
     // execute the graph node
-    virtual void execute() = 0;
+    virtual void execute() {
+      runtime->consume();
+    }
 
     // check readiness of the node
     virtual bool ready() = 0;
@@ -109,6 +113,7 @@ namespace threads_backend {
       fetch->ready = true;
       DEBUG_PRINT("finished executing fetch node\n");
       runtime->release_node(fetch);
+      GraphNode::execute();
     }
 
     bool ready() {
@@ -137,6 +142,7 @@ namespace threads_backend {
     void execute() {
       DEBUG_PRINT("executing publish node\n");
       runtime->publish(pub);
+      GraphNode::execute();
     }
 
     void cleanup() {
@@ -165,6 +171,7 @@ namespace threads_backend {
 
     void execute() {
       runtime->run_task(std::move(task));
+      GraphNode::execute();
     }
 
     bool ready() {

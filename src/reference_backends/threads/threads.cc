@@ -106,6 +106,12 @@ namespace threads_backend {
     std::atomic_init<size_t>(&ranks, 1);
   }
 
+  void
+  ThreadsRuntime::produce() { this->produced++; }
+
+  void
+  ThreadsRuntime::consume() { this->consumed++; }
+
   size_t
   ThreadsRuntime::get_spmd_rank() const {
     return this_rank;
@@ -148,7 +154,6 @@ namespace threads_backend {
 
     auto t = std::make_shared<TaskNode>(TaskNode{this,std::move(task)});
     t->join_counter = check_dep_task(t);
-    this->produced++;
 
     DEBUG_VERBOSE_PRINT("task join counter: %ld\n", t->join_counter);
     
@@ -157,12 +162,11 @@ namespace threads_backend {
       assert(t->ready());
       DEBUG_VERBOSE_PRINT("running task\n");
       t->execute();
-      this->consumed++;
     } else {
       if (t->ready()) {
         ready_local.push_back(t);
       }
-      schedule_next_unit();
+      //schedule_next_unit();
     }
   }
 
@@ -170,15 +174,12 @@ namespace threads_backend {
   ThreadsRuntime::register_condition_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
     auto t = std::make_shared<TaskNode>(TaskNode{this,std::move(task)});
     t->join_counter = check_dep_task(t);
-    this->produced++;
 
     assert(threads_backend::depthFirstExpand);
 
     if (threads_backend::depthFirstExpand) {
       assert(t->ready());
       DEBUG_VERBOSE_PRINT("running task\n");
-
-      this->consumed++;
 
       runtime_t::task_t* prev = current_task;
       types::unique_ptr_template<runtime_t::task_t> cur = std::move(t->task);
@@ -571,7 +572,6 @@ namespace threads_backend {
     } else {
       auto node = std::make_shared<FetchNode>(FetchNode{this,f->inner});
       const bool ready = add_fetcher(node,handle,version_key);
-      this->produced++;
 
       if (ready) {
         ready_local.push_back(node);
@@ -588,6 +588,8 @@ namespace threads_backend {
     DEBUG_VERBOSE_PRINT("make null flow\n");
     ThreadsFlow* f = new ThreadsFlow(handle);
 
+    f->inner->isNull = true;
+    
     DEBUG_PRINT("null flow %lu\n", PRINT_LABEL(f));
 
     return f;
@@ -654,9 +656,11 @@ namespace threads_backend {
                 f_to->inner->uses);
 
     alias[f_from->inner] = f_to->inner;
-
+    
     if (f_from->inner->uses == 0) {
       f_to->inner->ref = 0;
+    } else {
+      //alias[f_from->inner] = f_to->inner;
     }
   }
 
@@ -677,7 +681,12 @@ namespace threads_backend {
                     PRINT_LABEL_INNER(alias[flow]),
                     alias[flow]->ref,
                     alias[flow]->readers_jc);
+
         release_alias(alias[flow], readers);
+
+        if (flow->readers_jc == 0 && flow->ref == 0) {
+          alias.erase(alias.find(flow));
+        }
       }
     }
   }
@@ -734,16 +743,24 @@ namespace threads_backend {
   ThreadsRuntime::release_alias_p2(std::shared_ptr<InnerFlow> flow) {
     if (alias.find(flow) != alias.end()) {
       alias[flow]->readers_jc--;
+
       DEBUG_PRINT("release_use: releasing alias: %ld, ref=%ld, readers_jc=%ld\n",
                   PRINT_LABEL_INNER(alias[flow]),
                   alias[flow]->ref,
                   alias[flow]->readers_jc);
+
       // assert(alias[flow]->ref == 0 &&
       //        "Alias flow must have been ready for readers to have been released");
+
       if (alias[flow]->readers_jc == 0) {
         alias[flow]->node->release();
       }
+
       release_alias_p2(alias[flow]);
+      
+      if (flow->readers_jc == 0) {
+        alias.erase(alias.find(flow));
+      }
     }
   }
   
@@ -780,7 +797,6 @@ namespace threads_backend {
              delayed_pub != end;
              ++delayed_pub) {
 
-          this->consumed++;
           publish(*delayed_pub);
           (*delayed_pub)->finished = true;
 
@@ -800,9 +816,9 @@ namespace threads_backend {
 
     DEBUG_PRINT("release_use: f_in=[%ld,{use=%ld}], f_out=[%ld,{use=%ld}]\n",
                 PRINT_LABEL(f_in),
-                f_in->inner->ref,
+                f_in->inner->uses,
                 PRINT_LABEL(f_out),
-                f_out->inner->ref);
+                f_out->inner->uses);
 
     if (f_in == f_out) {
       release_node_p2(f_out->inner);
@@ -812,12 +828,14 @@ namespace threads_backend {
       release_alias(f_out->inner, readers);
     }
 
-    // // free released flows
-    // if (f_in->uses == 0) {
+    // free released flows
+    // if (f_in->inner->uses == 0) {
     //   delete f_in;
     // }
-    // if (f_out->uses == 0) {
-    //   delete f_out;
+    // if (f_in != f_out) {
+    //   if (f_out->inner->uses == 0) {
+    //     delete f_out;
+    //   }
     // }
 
     const auto refs = data[{version,key}]->get_refs();
@@ -970,7 +988,6 @@ namespace threads_backend {
       p->set_join(1);
       f_in->inner->node = p;
 
-      this->produced++;
       handle_pubs[handle].push_back(pub);
     } else {
       p->execute();
@@ -1009,7 +1026,6 @@ namespace threads_backend {
       if (lock) lock->unlock();
 
       node->execute();
-      this->consumed++;
 
       return true;
     }
@@ -1031,9 +1047,21 @@ namespace threads_backend {
   ThreadsRuntime::finalize() {
     DEBUG_PRINT("finalize\n");
 
-    while (1){//this->produced != this->consumed) {
+    while (this->produced != this->consumed) {
       /// DEBUG_PRINT("produced = %ld, consumed = %ld\n", this->produced, this->consumed);
       schedule_next_unit();
+    }
+
+    DEBUG_PRINT("work units produced=%ld, consumed=%ld\n",
+                this->produced,
+                this->consumed);
+    
+    for (auto iter = alias.begin();
+         iter != alias.end();
+         ++iter) {
+      DEBUG_PRINT("alias flow[%ld] = %ld\n",
+                  PRINT_LABEL_INNER(iter->first),
+                  PRINT_LABEL_INNER(iter->second));
     }
       
     if (this_rank == 0) {

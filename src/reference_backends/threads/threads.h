@@ -135,6 +135,12 @@ namespace threads_backend {
     
     ThreadsRuntime();
 
+    void
+    produce();
+
+    void
+    consume();
+    
     size_t
     get_spmd_rank() const;
 

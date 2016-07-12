@@ -53,6 +53,9 @@ namespace threads_backend {
   template <typename Impl>
   class ThreadsInterface {
   public:
+    inline void produce() { return static_cast<Impl*>(this)->produce(); }
+    inline void consume() { return static_cast<Impl*>(this)->consume(); }
+    
     inline size_t
     release_node(std::shared_ptr<InnerFlow> flow) {
       return static_cast<Impl*>(this)->release_node(flow);
