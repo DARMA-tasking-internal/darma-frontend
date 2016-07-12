@@ -239,7 +239,13 @@ class AccessHandle : public detail::AccessHandleBase {
           ) {
           AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::ReadOnly;
         }
-        // TODO mark leaf, schedule-only, etc
+        if (
+          // If this type doesn't have scheduling permissions, mark it as a leaf
+          traits::max_schedule_permissions == detail::AccessHandlePermissions::None
+        ) {
+          AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::Leaf;
+        }
+        // TODO schedule-only, etc
         // TODO require dynamic modify from RHS if this class is static modify
         capturing_task->do_capture<AccessHandle>(*this, copied_from);
       } // end if capturing_task != nullptr

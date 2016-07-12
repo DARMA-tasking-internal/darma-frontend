@@ -300,6 +300,7 @@ TEST_F(TestOO, static_assertions) {
 
 }
 
+/*
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestOO, simple_copy_ctor) {
@@ -362,6 +363,7 @@ TEST_F(TestOO, simple_copy_ctor) {
   ASSERT_EQ(larry_copy_value, 73);
 }
 
+#if 0
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestOO, simple_homer_lisa) {
@@ -386,11 +388,11 @@ TEST_F(TestOO, simple_homer_lisa) {
 
   Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
 
-  /* expectation of things happening in string constructor */
+  // expectation of things happening in string constructor
   expect_initial_access(larry_flows[0], larry_flows[1], larry_uses[0],
     make_key("larry"), s_reg_initial);
 
-  /* expectations for the method calls */
+  // expectations for the method calls
   expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("moe", "s"),
     s_reg_initial, s_release_initial);
 
@@ -427,7 +429,7 @@ TEST_F(TestOO, simple_homer_lisa) {
   ))).Times(1).InSequence(s_reg_continuing)
     .WillOnce(Assign(&use_3, nullptr));
 
-  /* end expectations for the method calls */
+  // end expectations for the method calls
 
 
   {
@@ -465,3 +467,4 @@ TEST_F(TestOO, simple_homer_lisa) {
   ASSERT_EQ(data, 42);
 
 }
+#endif

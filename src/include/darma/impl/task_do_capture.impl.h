@@ -69,7 +69,7 @@ TaskBase::do_capture(
 
   DARMA_ASSERT_MESSAGE(
     source_and_continuing.current_use_.get() != nullptr,
-    "Can't capture handle after it was released"
+    "Can't capture handle after it was released or before it was initialized"
   );
 
   DARMA_ASSERT_MESSAGE(
@@ -108,7 +108,7 @@ TaskBase::do_capture(
       }
       else {
         // Deduce capture type from state
-        assert(source.captured_as_ == AccessHandleBase::CapturedAsInfo::Normal);
+        assert((source.captured_as_ & AccessHandleBase::ReadOnly) == 0);
         switch (source.current_use_->use.scheduling_permissions_) {
           case HandleUse::Read: {
             capture_type = AccessHandleT::ro_capture;
@@ -136,7 +136,9 @@ TaskBase::do_capture(
           source.var_handle_.get(),
           source.current_use_->use.in_flow_,
           source.current_use_->use.in_flow_,
-          HandleUse::Read, HandleUse::Read
+          source.captured_as_ & AccessHandleBase::Leaf ?
+            HandleUse::None : HandleUse::Read,
+          HandleUse::Read
         ));
         captured.current_use_->do_register();
         // Continuing use stays the same
@@ -147,7 +149,10 @@ TaskBase::do_capture(
           source.current_use_->use.in_flow_
         );
         captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
-          forwarded_flow, forwarded_flow, HandleUse::Read, HandleUse::Read
+          forwarded_flow, forwarded_flow,
+          source.captured_as_ & AccessHandleBase::Leaf ?
+            HandleUse::None : HandleUse::Read,
+          HandleUse::Read
         ));
         captured.current_use_->do_register();
         source.current_use_->do_release();
@@ -222,7 +227,8 @@ TaskBase::do_capture(
                 source.var_handle_.get(),
                 source.current_use_->use.in_flow_,
                 captured_out_flow,
-                HandleUse::Modify,
+                source.captured_as_ & AccessHandleBase::Leaf ?
+                  HandleUse::None : HandleUse::Modify,
                 HandleUse::Modify
               ));
               captured.current_use_->do_register();
@@ -239,7 +245,9 @@ TaskBase::do_capture(
               captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
                 source.var_handle_.get(),
                 captured_in_flow, captured_out_flow,
-                HandleUse::Modify, HandleUse::Modify
+                source.captured_as_ & AccessHandleBase::Leaf ?
+                  HandleUse::None : HandleUse::Modify,
+                HandleUse::Modify
               ));
               captured.current_use_->do_register();
 
@@ -265,6 +273,9 @@ TaskBase::do_capture(
 
       // Now add the dependency
       add_dependency(captured.current_use_->use);
+
+      // Indicate that we've processed the "leaf" information by resetting the flag
+      source.captured_as_ &= ~AccessHandleBase::Leaf;
 
       captured.var_handle_ = source.var_handle_;
 
