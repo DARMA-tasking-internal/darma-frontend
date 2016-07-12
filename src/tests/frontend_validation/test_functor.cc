@@ -133,7 +133,12 @@ struct SimplerFunctor {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestFunctor, simple) {
+struct TestFunctorModCaptures
+  : TestFunctor,
+    ::testing::WithParamInterface<std::string>
+{ };
+
+TEST_P(TestFunctorModCaptures, Parametrized) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace mock_backend;
@@ -142,12 +147,32 @@ TEST_F(TestFunctor, simple) {
 
   mock_runtime->save_tasks = true;
 
+  std::string test_type = GetParam();
+
   MockFlow f_initial, f_null, f_task_out;
-  use_t* task_use;
+  use_t* task_use = nullptr;
 
   expect_initial_access(f_initial, f_null, make_key("hello"));
 
-  expect_mod_capture_MN_or_MR(f_initial, f_task_out, task_use);
+  //--------------------
+  // Expect mod capture:
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(&f_initial))
+    .WillOnce(Return(&f_task_out));
+
+  use_t::permissions_t expected_scheduling_permissions;
+  if(test_type == "simple_handle") {
+    expected_scheduling_permissions = use_t::Modify;
+  }
+  else {
+    expected_scheduling_permissions = use_t::None;
+  }
+
+  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
+    &f_initial, &f_task_out,
+    expected_scheduling_permissions,
+    use_t::Modify
+  ))).WillOnce(SaveArg<0>(&task_use));
 
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(
     UseInGetDependencies(ByRef(task_use))
@@ -155,9 +180,20 @@ TEST_F(TestFunctor, simple) {
 
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_task_out, &f_null));
 
+  // End expect mod capture
+  //--------------------
+
   {
     auto tmp = initial_access<int>("hello");
-    create_work<SimpleFunctor>(15, tmp);
+    if(test_type == "simple_handle") {
+      create_work<SimpleFunctor>(15, tmp);
+    }
+    else if(test_type == "convert") {
+      create_work<SimpleFunctorNonConstLvalue>(tmp);
+    }
+    else {
+      FAIL() << "unknown test type: " << test_type;
+    }
   }
 
   EXPECT_CALL(*mock_runtime, release_use(task_use));
@@ -165,6 +201,15 @@ TEST_F(TestFunctor, simple) {
   run_all_tasks();
 
 }
+
+INSTANTIATE_TEST_CASE_P(
+  Parameterized,
+  TestFunctorModCaptures,
+  ::testing::Values(
+    "simple_handle",
+    "convert"
+  )
+);
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -188,7 +233,12 @@ TEST_F(TestFunctor, simpler) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestFunctor, simple_read) {
+struct TestFunctorROCaptures
+  : TestFunctor,
+    ::testing::WithParamInterface<std::string>
+{ };
+
+TEST_P(TestFunctorROCaptures, Parameterized) {
   using namespace ::testing;
   using namespace mock_backend;
 
@@ -196,19 +246,55 @@ TEST_F(TestFunctor, simple_read) {
 
 
   MockFlow fl_init, fl_null;
-  use_t* task_use;
+  use_t* task_use = nullptr;
+
+  std::string test_type = GetParam();
 
   Sequence s1;
 
   expect_initial_access(fl_init, fl_null, make_key("hello"));
-  expect_ro_capture_RN_RR_MN_or_MR(fl_init, task_use);
+
+  //--------------------
+  // Expect ro capture:
+
+  use_t::permissions_t expected_scheduling_permissions;
+  if(test_type == "convert") {
+    expected_scheduling_permissions = use_t::None;
+  }
+  else {
+    expected_scheduling_permissions = use_t::Read;
+  }
+
+  EXPECT_CALL(*mock_runtime, register_use(
+    IsUseWithFlows(
+      &fl_init, &fl_init,
+      expected_scheduling_permissions,
+      use_t::Read
+    )
+  )).InSequence(s1).WillOnce(SaveArg<0>(&task_use));
+
+
+  EXPECT_CALL(*mock_runtime,
+    register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use)))
+  ).InSequence(s1);
 
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&fl_init, &fl_null))
     .InSequence(s1);
 
+  // End expect ro capture
+  //--------------------
+
   {
     auto tmp = initial_access<int>("hello");
-    create_work<SimpleFunctor>(15, reads(tmp));
+    if (test_type == "explicit_read") {
+      create_work<SimpleFunctor>(15, reads(tmp));
+    }
+    else if (test_type == "read_only_handle") {
+      create_work<SimpleReadOnlyFunctor>(15, tmp);
+    }
+    else if (test_type == "convert") {
+      create_work<SimpleReadOnlyFunctorConvert>(15, tmp);
+    }
   }
 
   EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(task_use)),
@@ -219,90 +305,19 @@ TEST_F(TestFunctor, simple_read) {
 
 }
 
+INSTANTIATE_TEST_CASE_P(
+  Parameterized,
+  TestFunctorROCaptures,
+  ::testing::Values(
+    "explicit_read",
+    "read_only_handle",
+    "convert"
+  )
+);
+
 /*
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestFunctor, simple_read_only) {
-  using namespace ::testing;
-  using namespace mock_backend;
-  using namespace darma_runtime;
-  using namespace darma_runtime::detail;
-
-  mock_runtime->save_tasks = true;
-
-  Sequence s_register_cap;
-
-  MockFlow fl_init[2], fl_cap[2];
-  use_t* uses[2];
-
-  expect_initial_access(fl_init[0], fl_init[1], uses[0], make_key("hello"), s_register_cap);
-  expect_ro_capture_RN_RR_MN_or_MR(fl_init, fl_cap, uses, s_register_cap);
-
-
-  {
-    auto tmp = initial_access<int>("hello");
-
-    // Static assert that the correct arg_tuple_entry is deduced
-    StaticAssertTypeEq<
-      typename functor_call_traits<SimpleReadOnlyFunctor, decltype((15)), decltype((tmp))>
-        ::template call_arg_traits<1>::args_tuple_entry,
-      ReadAccessHandle<int>
-    >();
-
-    create_work<SimpleReadOnlyFunctor>(15, tmp);
-  }
-
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[1])),
-    IsUseWithFlows(&fl_cap[0], &fl_cap[1], use_t::Read, use_t::Read)
-  ))).Times(1).InSequence(s_register_cap);
-
-  run_all_tasks();
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestFunctor, simple_read_only_convert) {
-  using namespace ::testing;
-  using namespace mock_backend;
-  using namespace darma_runtime;
-  using namespace darma_runtime::detail;
-
-  mock_runtime->save_tasks = true;
-
-  Sequence s_register_cap;
-
-  MockFlow fl_init[2], fl_cap[2];
-  use_t* uses[2];
-
-  expect_initial_access(fl_init[0], fl_init[1], uses[0], make_key("hello"), s_register_cap);
-  expect_ro_capture_RN_RR_MN_or_MR(fl_init, fl_cap, uses, s_register_cap);
-
-  {
-    auto tmp = initial_access<int>("hello");
-
-    // Static assert that the correct arg_tuple_entry is deduced
-    StaticAssertTypeEq<
-      typename functor_call_traits<SimpleReadOnlyFunctorConvert, decltype((15)), decltype((tmp))>
-      ::template call_arg_traits<1>::args_tuple_entry,
-      typename ReadAccessHandle<int>::template with_traits<
-        // Also a leaf...
-        typename ReadAccessHandle<int>::traits
-          ::template with_min_schedule_permissions<AccessHandlePermissions::None>::type
-          ::template with_max_schedule_permissions<AccessHandlePermissions::None>::type
-      >
-    >();
-
-    create_work<SimpleReadOnlyFunctorConvert>(15, tmp);
-  }
-
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[1])),
-    IsUseWithFlows(&fl_cap[0], &fl_cap[1], use_t::Read, use_t::Read)
-  ))).Times(1).InSequence(s_register_cap);
-
-  run_all_tasks();
-
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 

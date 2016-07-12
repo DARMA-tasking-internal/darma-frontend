@@ -101,6 +101,7 @@ TEST_F(TestAccessHandle, function_call) {
 
 //////////////////////////////////////////////////////////////////////////////
 
+/*
 TEST_F(TestAccessHandle, get_reference) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -157,6 +158,8 @@ TEST_F(TestAccessHandle, get_reference) {
   }
 
 }
+
+*/
 
 ////////////////////////////////////////////////////////////////////////////////
 
