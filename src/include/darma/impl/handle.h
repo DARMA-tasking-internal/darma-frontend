@@ -475,7 +475,7 @@ class AccessHandleBase {
       Ignored = 1,
       ReadOnly = 2,
       // Future use:
-        ScheduleOnly = 4,
+      ScheduleOnly = 4,
       Leaf = 8,
       Uncaptured = 16
     } captured_as_info_t;
