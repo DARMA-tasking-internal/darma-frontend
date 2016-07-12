@@ -347,7 +347,9 @@ struct MyClass_constructors
   template <typename AccessHandleT>
   std::enable_if_t<darma_runtime::detail::is_access_handle<AccessHandleT>::value>
   operator()(AccessHandleT&& private_handle) {
-    some_private_field = std::forward<AccessHandleT>(private_handle);
+    // TODO decide if this is allowed
+    some_private_field = darma_runtime::darma_copy(std::forward<AccessHandleT>(private_handle));
+    std::cout << "hello world" << std::endl;
   }
   void operator()(types::key_t const& private_key, types::key_t const& public_key) {
     some_private_field = initial_access<std::string>(private_key);
@@ -416,18 +418,28 @@ TEST_F(TestOO, private_key_ctor) {
   }
 }
 
-//TEST_F(TestOOCTors, handle) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace mock_backend;
-//
-//  MockFlow f_init, f_null;
-//
-//  expect_initial_access(f_init, f_null, make_key("hello"));
-//
-//
-//}
-//
+TEST_F(TestOOCTors, handle) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  testing::internal::CaptureStdout();
+
+  MockFlow f_init, f_null;
+
+  expect_initial_access(f_init, f_null, make_key("hello"));
+  {
+    auto tmp = initial_access<std::string>("hello");
+    MyClass my(tmp);
+  }
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "hello world\n"
+  );
+
+}
+
+
 TEST_F(TestOOCTors, both_keys) {
   using namespace ::testing;
   using namespace darma_runtime;
