@@ -107,7 +107,8 @@ namespace threads_backend {
     void execute() {
       runtime->fetch(fetch->handle,fetch->version_key);
       fetch->ready = true;
-      //runtime->release_deps(fetch);
+      DEBUG_PRINT("finished executing fetch node\n");
+      runtime->release_node(fetch);
     }
 
     bool ready() {
@@ -134,6 +135,7 @@ namespace threads_backend {
     { }
 
     void execute() {
+      DEBUG_PRINT("executing publish node\n");
       runtime->publish(pub);
     }
 

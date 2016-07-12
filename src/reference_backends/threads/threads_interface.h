@@ -53,6 +53,11 @@ namespace threads_backend {
   template <typename Impl>
   class ThreadsInterface {
   public:
+    inline size_t
+    release_node(std::shared_ptr<InnerFlow> flow) {
+      return static_cast<Impl*>(this)->release_node(flow);
+    }
+
     inline void
     add_remote(std::shared_ptr<GraphNode> task) {
       return static_cast<Impl*>(this)->add_remote(task);
