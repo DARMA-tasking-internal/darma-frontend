@@ -490,7 +490,7 @@ TEST_F(TestAccessHandle, death_get_value_after_release) {
 
       run_all_tasks();
     },
-    "get_value\\(\\) called on handle after release"
+    "get_value\\(\\) called on handle in context without immediate permissions"
   );
 
 }
@@ -518,7 +518,7 @@ TEST_F(TestAccessHandle, death_emplace_value_after_release) {
 
       run_all_tasks();
     },
-    "emplace_value\\(\\) called on handle after release"
+    "emplace_value\\(\\) called on handle in context without immediate permissions"
   );
 
 }

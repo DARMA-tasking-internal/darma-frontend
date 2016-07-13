@@ -137,18 +137,6 @@ struct SimpleReadOnlyFunctorConvertLong {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct SimpleReadOnlyFunctorConvertString {
-  void
-  operator()(
-    int arg,
-    std::string handle
-  ) const {
-    // Do nothing for now...
-  }
-};
-
-////////////////////////////////////////////////////////////////////////////////
-
 struct SimpleFunctorNonConstLvalue {
   void
   operator()(
@@ -294,12 +282,15 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
   // Expect ro capture:
 
   use_t::permissions_t expected_scheduling_permissions;
-  if(test_type == "convert" || test_type == "convert_value") {
+  if(test_type == "convert" || test_type == "convert_value"
+    || test_type == "convert_long" || test_type == "convert_string") {
     expected_scheduling_permissions = use_t::None;
   }
   else {
     expected_scheduling_permissions = use_t::Read;
   }
+
+  int data = 0;
 
   EXPECT_CALL(*mock_runtime, register_use(
     IsUseWithFlows(
@@ -307,7 +298,12 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
       expected_scheduling_permissions,
       use_t::Read
     )
-  )).InSequence(s1).WillOnce(SaveArg<0>(&task_use));
+  )).InSequence(s1).WillOnce(
+    Invoke([&](auto* use) {
+      use->get_data_pointer_reference() = (void*)(&data);
+      task_use = use;
+    })
+  );
 
 
   EXPECT_CALL(*mock_runtime,
@@ -345,16 +341,9 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
       auto tmp = initial_access<int>("hello");
       create_work<SimpleReadOnlyFunctorConvertLong>(15, tmp);
     }
-    else if (test_type == "convert_string") {
-      // Formal parameter is by value
-      auto tmp = initial_access<std::string>("hello");
-      create_work<SimpleReadOnlyFunctorConvertString>(15, tmp);
-    }
   }
 
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(task_use)),
-    IsUseWithFlows(&fl_init, &fl_init, use_t::Read, use_t::Read)
-  ))).Times(1).InSequence(s1);
+  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(task_use)))).InSequence(s1);
 
   run_all_tasks();
 
@@ -368,8 +357,7 @@ INSTANTIATE_TEST_CASE_P(
     "read_only_handle",
     "convert",
     "convert_value",
-    "convert_long",
-    "convert_string"
+    "convert_long"
   )
 );
 

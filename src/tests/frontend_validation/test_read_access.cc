@@ -113,6 +113,8 @@ TEST_F(TestReadAccess, call_sequence_helper) {
     make_key("my_version_tag")
   );
 
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out));
+
   {
     auto tmp = read_access<int>("hello", version="my_version_tag");
   }
