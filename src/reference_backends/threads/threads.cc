@@ -671,13 +671,38 @@ namespace threads_backend {
       f_to->inner->ref = 0;
       release_node(f_to->inner);
     }
+
+    if (f_from->inner->uses == 0) {
+      DEBUG_PRINT("remove alias %ld to %ld\n",
+                  PRINT_LABEL_INNER(f_from->inner),
+                  PRINT_LABEL_INNER(alias[f_from->inner]));
+
+      alias.erase(alias.find(f_from->inner));
+      DEBUG_PRINT("establish deleting: %ld\n",
+                  PRINT_LABEL(f_from));
+      delete f_from;
+    }
+
+    if (f_to->inner->isNull) {
+      DEBUG_PRINT("establish deleting null: %ld\n",
+                  PRINT_LABEL(f_to));
+      delete f_to;
+    }
   }
 
-  void
+  bool
   ThreadsRuntime::release_alias(std::shared_ptr<InnerFlow> flow,
                                 size_t readers) {
     if (alias.find(flow) != alias.end()) {
-      if (alias[flow]->isNull) return;
+      if (flow->uses == 0 &&
+          alias[flow]->isNull) {
+        DEBUG_PRINT("remove alias %ld to %ld\n",
+                    PRINT_LABEL_INNER(flow),
+                    PRINT_LABEL_INNER(alias[flow]));
+
+        alias.erase(alias.find(flow));
+        return true;
+      }
       
       DEBUG_PRINT("release_use: releasing alias: %ld, ref=%ld, readers_jc=%ld\n",
                   PRINT_LABEL_INNER(alias[flow]),
@@ -696,10 +721,16 @@ namespace threads_backend {
         release_alias(alias[flow], readers);
 
         if (flow->readers_jc == 0 && flow->ref == 0) {
+          DEBUG_PRINT("remove alias %ld to %ld\n",
+                      PRINT_LABEL_INNER(flow),
+                      PRINT_LABEL_INNER(alias[flow]));
+
           alias.erase(alias.find(flow));
         }
       }
+      return true;
     }
+    return false;
   }
 
   size_t
@@ -750,17 +781,27 @@ namespace threads_backend {
     }
   }
 
-  void
+  bool
   ThreadsRuntime::release_alias_p2(std::shared_ptr<InnerFlow> flow) {
+    DEBUG_PRINT("release_use: try find alias\n");
+    
     if (alias.find(flow) != alias.end()) {
-      if (alias[flow]->isNull) return;
-      
-      alias[flow]->readers_jc--;
-
       DEBUG_PRINT("release_use: releasing alias: %ld, ref=%ld, readers_jc=%ld\n",
                   PRINT_LABEL_INNER(alias[flow]),
                   alias[flow]->ref,
                   alias[flow]->readers_jc);
+
+      if (flow->uses == 0 &&
+          alias[flow]->isNull) {
+        DEBUG_PRINT("remove alias %ld to %ld\n",
+                    PRINT_LABEL_INNER(flow),
+                    PRINT_LABEL_INNER(alias[flow]));
+
+        alias.erase(alias.find(flow));
+        return true;
+      }
+      
+      alias[flow]->readers_jc--;
 
       // TODO: does this assertion ever break?
       assert(alias[flow]->ref == 0 &&
@@ -773,9 +814,14 @@ namespace threads_backend {
       release_alias_p2(alias[flow]);
       
       if (flow->readers_jc == 0) {
+        DEBUG_PRINT("remove alias %ld to %ld\n",
+                    PRINT_LABEL_INNER(flow),
+                    PRINT_LABEL_INNER(alias[flow]));
         alias.erase(alias.find(flow));
       }
+      return true;
     }
+    return false;
   }
   
   /*virtual*/
@@ -834,23 +880,49 @@ namespace threads_backend {
                 PRINT_LABEL(f_out),
                 f_out->inner->uses);
 
+    const bool same = f_in == f_out;
+    bool deleted = false;
+    bool markOutDelete = false;
+
+    if (f_out->inner->uses == 0 &&
+        !same &&
+        !f_out->inner->isNull &&
+        alias.find(f_out->inner) != alias.end()) {
+      DEBUG_PRINT("deleting: %ld\n", PRINT_LABEL(f_out));
+      markOutDelete = true;
+    }
+
     if (f_in == f_out) {
       release_node_p2(f_out->inner);
-      release_alias_p2(f_out->inner);
+      const bool hasAlias = release_alias_p2(f_out->inner);
+      if (hasAlias && f_in->inner->uses == 0) {
+        DEBUG_PRINT("deleting redirect: %ld\n", PRINT_LABEL(f_in));
+        delete f_in;
+        deleted = true;
+      }
     } else {
       const size_t readers = release_node(f_out->inner);
-      release_alias(f_out->inner, readers);
+      const bool hasAlias = release_alias(f_out->inner, readers);
+      if (hasAlias && f_in->inner->uses == 0) {
+        DEBUG_PRINT("deleting redirect: %ld\n", PRINT_LABEL(f_in));
+        delete f_in;
+        deleted = true;
+      }
     }
 
     // free released flows
-    // if (f_in->inner->uses == 0) {
-    //   delete f_in;
-    // }
-    // if (f_in != f_out) {
-    //   if (f_out->inner->uses == 0) {
-    //     delete f_out;
-    //   }
-    // }
+    if (!deleted) {
+      if (f_in->inner->uses == 0 &&
+          !same &&
+          f_in->inner->next == f_out->inner) {
+        DEBUG_PRINT("deleting: %ld\n", PRINT_LABEL(f_in));
+        delete f_in;
+      }
+    }
+
+    if (markOutDelete) {
+      delete f_out;
+    }
 
     const auto refs = data[{version,key}]->get_refs();
       

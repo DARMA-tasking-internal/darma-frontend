@@ -156,10 +156,10 @@ namespace threads_backend {
     size_t
     release_node(std::shared_ptr<InnerFlow> flow);
 
-    void
+    bool
     release_alias(std::shared_ptr<InnerFlow>,
                   size_t readers);
-    void
+    bool
     release_alias_p2(std::shared_ptr<InnerFlow> flow);
 
     void
