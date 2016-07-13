@@ -123,7 +123,7 @@ namespace threads_backend {
   }
 
   size_t
-  ThreadsRuntime::count_delayed_work() const {
+  ThreadsRuntime::count_ready_work() const {
     return ready_local.size();
   }
 
@@ -143,7 +143,7 @@ namespace threads_backend {
   
   void
   ThreadsRuntime::schedule_over_breadth() {
-    if (count_delayed_work() > bwidth)
+    if (this->produced - this->consumed > bwidth)
       schedule_next_unit();
   }
     
@@ -166,8 +166,9 @@ namespace threads_backend {
       if (t->ready()) {
         ready_local.push_back(t);
       }
-      //schedule_next_unit();
     }
+
+    schedule_over_breadth();
   }
 
   bool
@@ -220,13 +221,21 @@ namespace threads_backend {
       if (f_in == f_out) {
         f_in->inner->readers_jc++;
       }
-      
+
       if (!f_in->inner->ready) {
         if (f_in == f_out) {
           f_in->inner->readers.push_back(t);
         } else {
           f_in->inner->node = t;
         }
+        dep_count++;
+      }
+
+      // wait for anti-dep
+      if (f_in->inner->ready &&
+          f_in->inner->readers_jc != 0 &&
+          f_in != f_out) {
+        f_in->inner->node = t;
         dep_count++;
       }
     }
@@ -657,10 +666,10 @@ namespace threads_backend {
 
     alias[f_from->inner] = f_to->inner;
     
-    if (f_from->inner->uses == 0) {
+    if (f_from->inner->uses == 0 ||
+        f_from->inner->ready) {
       f_to->inner->ref = 0;
-    } else {
-      //alias[f_from->inner] = f_to->inner;
+      release_node(f_to->inner);
     }
   }
 
@@ -749,8 +758,8 @@ namespace threads_backend {
                   alias[flow]->ref,
                   alias[flow]->readers_jc);
 
-      // assert(alias[flow]->ref == 0 &&
-      //        "Alias flow must have been ready for readers to have been released");
+      assert(alias[flow]->ref == 0 &&
+             "Alias flow must have been ready for readers to have been released");
 
       if (alias[flow]->readers_jc == 0) {
         alias[flow]->node->release();
@@ -1045,7 +1054,9 @@ namespace threads_backend {
   /*virtual*/
   void
   ThreadsRuntime::finalize() {
-    DEBUG_PRINT("finalize\n");
+    DEBUG_PRINT("finalize:  produced=%ld, consumed=%ld\n",
+                this->produced,
+                this->consumed);
 
     while (this->produced != this->consumed) {
       /// DEBUG_PRINT("produced = %ld, consumed = %ld\n", this->produced, this->consumed);

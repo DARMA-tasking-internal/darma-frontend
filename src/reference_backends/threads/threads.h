@@ -166,7 +166,7 @@ namespace threads_backend {
     release_node_p2(std::shared_ptr<InnerFlow> flow);
     
     size_t
-    count_delayed_work() const;
+    count_ready_work() const;
 
     void
     schedule_over_breadth();
