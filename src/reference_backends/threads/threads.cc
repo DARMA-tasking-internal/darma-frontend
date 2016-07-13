@@ -677,6 +677,8 @@ namespace threads_backend {
   ThreadsRuntime::release_alias(std::shared_ptr<InnerFlow> flow,
                                 size_t readers) {
     if (alias.find(flow) != alias.end()) {
+      if (alias[flow]->isNull) return;
+      
       DEBUG_PRINT("release_use: releasing alias: %ld, ref=%ld, readers_jc=%ld\n",
                   PRINT_LABEL_INNER(alias[flow]),
                   alias[flow]->ref,
@@ -751,6 +753,8 @@ namespace threads_backend {
   void
   ThreadsRuntime::release_alias_p2(std::shared_ptr<InnerFlow> flow) {
     if (alias.find(flow) != alias.end()) {
+      if (alias[flow]->isNull) return;
+      
       alias[flow]->readers_jc--;
 
       DEBUG_PRINT("release_use: releasing alias: %ld, ref=%ld, readers_jc=%ld\n",
@@ -758,6 +762,7 @@ namespace threads_backend {
                   alias[flow]->ref,
                   alias[flow]->readers_jc);
 
+      // TODO: does this assertion ever break?
       assert(alias[flow]->ref == 0 &&
              "Alias flow must have been ready for readers to have been released");
 
