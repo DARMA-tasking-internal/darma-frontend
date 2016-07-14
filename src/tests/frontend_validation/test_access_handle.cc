@@ -101,6 +101,7 @@ TEST_F(TestAccessHandle, function_call) {
 
 //////////////////////////////////////////////////////////////////////////////
 
+/*
 TEST_F(TestAccessHandle, get_reference) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -157,6 +158,8 @@ TEST_F(TestAccessHandle, get_reference) {
   }
 
 }
+
+*/
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -487,7 +490,7 @@ TEST_F(TestAccessHandle, death_get_value_after_release) {
 
       run_all_tasks();
     },
-    "get_value\\(\\) called on handle after release"
+    "get_value\\(\\) called on handle in context without immediate permissions"
   );
 
 }
@@ -515,7 +518,7 @@ TEST_F(TestAccessHandle, death_emplace_value_after_release) {
 
       run_all_tasks();
     },
-    "emplace_value\\(\\) called on handle after release"
+    "emplace_value\\(\\) called on handle in context without immediate permissions"
   );
 
 }

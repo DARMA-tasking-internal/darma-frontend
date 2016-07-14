@@ -113,6 +113,8 @@ TEST_F(TestReadAccess, call_sequence_helper) {
     make_key("my_version_tag")
   );
 
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out));
+
   {
     auto tmp = read_access<int>("hello", version="my_version_tag");
   }
@@ -136,6 +138,12 @@ TEST_F(TestReadAccess, call_sequence_assign) {
 
   expect_read_access(f_in_2, f_out_2, make_key("world"),
     make_key("other_version_tag"), s3, s2);
+
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_1, &f_out_1))
+    .Times(1).InSequence(s2);
+
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_2, &f_out_2))
+    .Times(1).InSequence(s2);
 
   {
     auto tmp1 = read_access<int>("hello", version="my_version_tag");
