@@ -136,8 +136,9 @@ bool static_assert_size_is() {
   return true;
 }
 
-//#define STATIC_ASSERT_TYPE_EQ(...) \
-//  static typename static_assert_type_eq_<__VA_ARGS__>::type DARMA_CONCAT_TOKEN_(_type_eq_check_on_line_, __LINE__)
+#define STATIC_ASSERT_TYPE_EQ(...) \
+  static constexpr int DARMA_CONCAT_TOKEN_(_type_eq_check_on_line_, __LINE__) = \
+    static_assert_type_eq_<__VA_ARGS__>::value;
 
 #define STATIC_ASSERT_SIZE_IS(...) \
   static typename static_assert_size_is_<__VA_ARGS__>::type DARMA_CONCAT_TOKEN_(_type_size_check_on_line_, __LINE__)
