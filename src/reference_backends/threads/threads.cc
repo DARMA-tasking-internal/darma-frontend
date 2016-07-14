@@ -89,6 +89,7 @@ namespace threads_backend {
 
   // global
   size_t n_ranks = 1;
+  bool traceMode = false;
   bool depthFirstExpand = true;
   size_t bwidth = 100;
   
@@ -96,14 +97,13 @@ namespace threads_backend {
   std::mutex rank_publish;
   std::unordered_map<std::pair<types::key_t, types::key_t>, PublishedBlock*> published;
 
-  ThreadsRuntime::ThreadsRuntime(const ThreadsRuntime& tr) {}
-  
   ThreadsRuntime::ThreadsRuntime()
     : produced(0)
     , consumed(0)
   {
     std::atomic_init(&finished, false);
     std::atomic_init<size_t>(&ranks, 1);
+    trace = traceMode ? new TraceModule{this_rank,n_ranks,"base"} : nullptr;
   }
 
   void
@@ -1153,7 +1153,14 @@ namespace threads_backend {
                 "\n",
                 handle_refs.size(),
                 handle_pubs.size());
-      
+
+    // should call destructor for trace module if it exists to write
+    // out the logs
+    if (trace) {
+      delete trace;
+      trace = nullptr;
+    }
+    
     if (this_rank == 0) {
       DEBUG_PRINT("total threads to join is %zu\n", threads_backend::live_ranks.size());
     
@@ -1214,6 +1221,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   detail::ArgParser args = {
     {"t", "threads", 1},
     {"r", "ranks",   1},
+    {"m", "trace",   1},
     {"", "backend-n-ranks", 1},
     {"", "serial-backend-n-ranks", 1},
     {"", "bf",   1}
@@ -1247,6 +1255,13 @@ darma_runtime::abstract::backend::darma_backend_initialize(
     // TODO: write some other sanity assertions here about the size of ranks...
   }
 
+  if (args["trace"].as<bool>()) {
+    size_t traceInt = args["trace"].as<size_t>();
+    if (traceInt) {
+      threads_backend::traceMode = true;
+    }
+  }
+  
   // read number of ranks from the command line
   if (args["bf"].as<bool>()) {
     auto bf = args["bf"].as<size_t>() != 0;
@@ -1264,13 +1279,15 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   if (threads_backend::this_rank == 0) {
     if (threads_backend::depthFirstExpand) {
       STARTUP_PRINT("DARMA: number of ranks = %zu, "
-                    "DF-Sched mode (depth-first, rank-threaded scheduler)\n",
-                    threads_backend::n_ranks);
+                    "DF-Sched mode (depth-first, rank-threaded scheduler): Tracing=%s\n",
+                    threads_backend::n_ranks,
+                    threads_backend::traceMode ? "ON" : "OFF");
     } else {
       STARTUP_PRINT("DARMA: number of ranks = %zu, "
-                    "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler)\n",
+                    "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler), Tracing=%s\n",
                     threads_backend::n_ranks,
-                    threads_backend::bwidth);
+                    threads_backend::bwidth,
+                    threads_backend::traceMode ? "ON" : "OFF");
     }
   }
   

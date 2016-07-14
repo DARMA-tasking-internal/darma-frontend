@@ -59,6 +59,7 @@
 
 #include <threads_interface.h>
 #include <common.h>
+#include <trace.h>
 
 namespace std {
   using darma_runtime::detail::SimpleKey;
@@ -99,7 +100,7 @@ namespace threads_backend {
     , public ThreadsInterface<ThreadsRuntime> {
 
   public:
-    ThreadsRuntime(const ThreadsRuntime& tr);
+    ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
     // TODO: fix any memory consistency bugs with data coordination we
     // need a fence at the least
@@ -130,7 +131,9 @@ namespace threads_backend {
       std::shared_ptr<InnerFlow>,
       std::shared_ptr<InnerFlow>
     > alias;
-    
+
+    TraceModule* trace;
+
     size_t produced, consumed;
     
     ThreadsRuntime();
