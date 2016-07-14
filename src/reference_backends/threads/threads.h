@@ -157,7 +157,8 @@ namespace threads_backend {
     cleanup_handle(std::shared_ptr<InnerFlow> flow);
     
     void
-    delete_handle_data(types::key_t version,
+    delete_handle_data(darma_runtime::abstract::frontend::Handle const* const handle,
+                       types::key_t version,
                        types::key_t key);
     
     bool
@@ -232,11 +233,10 @@ namespace threads_backend {
     make_null_flow(darma_runtime::abstract::frontend::Handle* handle);
  
     virtual Flow*
-    make_forwarding_flow(Flow* from,
-			 flow_propagation_purpose_t purpose);
+    make_forwarding_flow(Flow* from);
+    
     virtual Flow*
-    make_next_flow(Flow* from,
-		   flow_propagation_purpose_t purpose);
+    make_next_flow(Flow* from);
 
     virtual void
     establish_flow_alias(Flow* from,

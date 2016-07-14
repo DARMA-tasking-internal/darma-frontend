@@ -584,9 +584,8 @@ namespace threads_backend {
   
   /*virtual*/
   Flow*
-  ThreadsRuntime::make_forwarding_flow(Flow* from,
-                                       flow_propagation_purpose_t purpose) {
-    DEBUG_VERBOSE_PRINT("make forwarding flow: %d\n", purpose);
+  ThreadsRuntime::make_forwarding_flow(Flow* from) {
+    DEBUG_VERBOSE_PRINT("make forwarding flow\n");
 
     ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
     ThreadsFlow* f_forward = new ThreadsFlow(0);
@@ -608,10 +607,8 @@ namespace threads_backend {
 
   /*virtual*/
   Flow*
-  ThreadsRuntime::make_next_flow(Flow* from,
-                                 flow_propagation_purpose_t purpose) {
+  ThreadsRuntime::make_next_flow(Flow* from) {
     DEBUG_VERBOSE_PRINT("make next flow: %d (from=%p)\n",
-                        purpose,
                         from);
 
     ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
@@ -657,18 +654,24 @@ namespace threads_backend {
 
         handle_pubs.erase(handle);
       }
-      delete_handle_data(flow->version_key,
+      delete_handle_data(handle,
+                         flow->version_key,
                          handle->get_key());
       handle_refs.erase(handle);
     }
   }
 
   void
-  ThreadsRuntime::delete_handle_data(types::key_t version,
+  ThreadsRuntime::delete_handle_data(darma_runtime::abstract::frontend::Handle const* const handle,
+                                     types::key_t version,
                                      types::key_t key) {
     DEBUG_PRINT("delete handle data\n");
     DataBlock* prev = data[{version,key}];
     data.erase({version,key});
+    // call the destructor
+    handle
+      ->get_serialization_manager()
+      ->destroy(prev->data);
     delete prev;
   }
   
