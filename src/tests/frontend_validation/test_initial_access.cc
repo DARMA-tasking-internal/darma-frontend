@@ -108,6 +108,8 @@ TEST_F(TestInitialAccess, call_sequence_helper) {
 
   expect_initial_access(f_in, f_out, make_key("hello"));
 
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out));
+
   {
     auto tmp = initial_access<int>("hello");
   } // tmp deleted

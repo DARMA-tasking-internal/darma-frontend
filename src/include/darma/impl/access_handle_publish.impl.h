@@ -96,8 +96,7 @@ AccessHandle<T, Traits>::publish(
 
   auto _pub_from_modify = [&] {
     auto flow_to_publish = detail::backend_runtime->make_forwarding_flow(
-      current_use_->use.in_flow_,
-      abstract::backend::Runtime::FlowPropagationPurpose::ForwardingChanges
+      current_use_->use.in_flow_
     );
 
     detail::HandleUse use_to_publish(

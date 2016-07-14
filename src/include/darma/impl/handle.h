@@ -388,7 +388,7 @@ class VariableHandle
     void
     default_construct(void* allocated) const override {
       // Will fail if T is not default constructible...
-      new (allocated) T;
+      new (allocated) T();
     }
 
     void
@@ -469,12 +469,13 @@ class AccessHandleBase {
       mod_capture
     } capture_op_t;
 
+    // TODO figure out if this as efficient as a bitfield (it's definitely more readable)
     typedef enum CapturedAsInfo {
       Normal = 0,
       Ignored = 1,
       ReadOnly = 2,
       // Future use:
-        ScheduleOnly = 4,
+      ScheduleOnly = 4,
       Leaf = 8,
       Uncaptured = 16
     } captured_as_info_t;
