@@ -108,6 +108,15 @@ using namespace darma_runtime::oo;
 
 DARMA_OO_DECLARE_CLASS(Simple);
 
+static_assert(is_darma_class<Simple>::value,
+  "metafunction is_darma_class should return true_type for class Simple"
+);
+
+struct Foo;
+static_assert(not darma_runtime::oo::detail::is_complete_darma_class_from_context<Simple, Foo>::value,
+  "metafunction is_complete_darma_class_from_context should return false_type for class Simple before definition"
+);
+
 struct Simple
   : darma_class<Simple,
       private_fields<
@@ -125,6 +134,12 @@ struct Simple
       >
     >
 { using darma_class::darma_class; };
+
+struct Foo2;
+static_assert(darma_runtime::oo::detail::is_complete_darma_class_from_context<Simple, Foo2>::value,
+  "metafunction is_complete_darma_class_from_context should return true_type for class Simple after definition"
+);
+
 
 struct Simple_constructors
   : darma_constructors<Simple>
@@ -154,6 +169,8 @@ STATIC_ASSERT_SIZE_IS(Simple,
     + sizeof(darma_runtime::AccessHandle<std::string>)
     + sizeof(darma_runtime::AccessHandle<double>)
 );
+
+using namespace darma_runtime::oo::detail;
 
 template <>
 struct Simple_method<bart>
@@ -305,15 +322,23 @@ TEST_F(TestOO, static_assertions) {
 
 DARMA_OO_DEFINE_TAG(some_private_field);
 DARMA_OO_DEFINE_TAG(some_public_field);
+DARMA_OO_DEFINE_TAG(field_that_is_darma_class);
 
 DARMA_OO_DEFINE_TAG(my_mod_value);
 DARMA_OO_DEFINE_TAG(my_mod);
 DARMA_OO_DEFINE_TAG(my_read_value);
 DARMA_OO_DEFINE_TAG(my_read);
 
+static_assert(darma_runtime::oo::detail::is_oo_name_tag<some_private_field>::value,
+  "metafunction is_oo_name_tag should return true_type for class some_private_field"
+);
+
 DARMA_OO_DECLARE_CLASS(MyClass);
+DARMA_OO_DECLARE_CLASS(MyOtherClass);
 
 using namespace darma_runtime::oo;
+
+
 
 struct MyClass
   : darma_class<MyClass,
@@ -328,6 +353,17 @@ struct MyClass
         my_mod,
         my_read_value,
         my_read
+      >
+    >
+{ using darma_class::darma_class; };
+
+struct MyOtherClass
+  : darma_class<MyOtherClass,
+      public_fields<
+        MyClass, field_that_is_darma_class
+      >,
+      public_methods<
+        my_mod
       >
     >
 { using darma_class::darma_class; };
@@ -359,16 +395,93 @@ struct MyClass_constructors
 
 //----------------------------------------------------------------------------//
 
+template <>
+struct MyClass_method<my_mod>
+  : darma_method<MyClass,
+      modifies_<some_private_field, some_public_field>
+    >
+{
+  using darma_method::darma_method;
+  void operator()(){
+    some_private_field.set_value("hello");
+    some_public_field.set_value(42);
+  }
+};
+
 //////////////////////////////////////////////////////////////////////////////////
 
-template <typename T>
-using _empty_call_op_callable = decltype(
-  std::declval<T>()()
-);
 
-struct TestOOCTors
-  : TestOO
-{ };
+//----------------------------------------------------------------------------//
+
+template <>
+struct MyOtherClass_method<my_mod>
+  : darma_method<MyOtherClass,
+      modifies_<field_that_is_darma_class>::subfield<some_public_field>
+    >
+{
+  using darma_method::darma_method;
+  void operator()(){
+    field_that_is_darma_class.some_public_field.set_value(42);
+  }
+
+};
+
+TEST_F(TestOO, field_slicing_simple) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  MockFlow f_init_priv, f_null_priv;
+  MockFlow f_init_pub, f_null_pub;
+
+  expect_initial_access(f_init_priv, f_null_priv, make_key("hello"));
+  expect_initial_access(f_init_pub, f_null_pub, make_key("world"));
+
+  {
+    MyOtherClass my;
+    my.field_that_is_darma_class = MyClass(make_key("hello"), make_key("world"));
+  }
+
+}
+
+TEST_F(TestOO, field_slicing_method) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  MockFlow f_init_priv, f_null_priv;
+  MockFlow f_init_pub, f_null_pub, f_task_pub;
+  use_t* task_use;
+
+  expect_initial_access(f_init_priv, f_null_priv, make_key("hello"));
+  expect_initial_access(f_init_pub, f_null_pub, make_key("world"));
+  expect_mod_capture_MN_or_MR(f_init_pub, f_task_pub, task_use);
+
+  int value = 0;
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use))))
+    .WillOnce(Invoke([&](auto* task){
+      for(auto&& use : task->get_dependencies()) {
+        use->get_data_pointer_reference() = (void*)(&value);
+      }
+    }));
+
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_task_pub, &f_null_pub));
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_init_priv, &f_null_priv));
+
+  {
+    MyOtherClass my;
+    my.field_that_is_darma_class = MyClass(make_key("hello"), make_key("world"));
+
+    my.my_mod();
+
+  }
+
+  run_all_tasks();
+
+  ASSERT_THAT(value, Eq(42));
+
+}
 
 // Not supported
 //TEST_F(TestOO, default_ctor) {
@@ -418,7 +531,7 @@ TEST_F(TestOO, private_key_ctor) {
   }
 }
 
-TEST_F(TestOOCTors, handle) {
+TEST_F(TestOO, handle) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace mock_backend;
@@ -440,7 +553,7 @@ TEST_F(TestOOCTors, handle) {
 }
 
 
-TEST_F(TestOOCTors, both_keys) {
+TEST_F(TestOO, both_keys) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace mock_backend;
@@ -459,8 +572,23 @@ TEST_F(TestOOCTors, both_keys) {
 
 //////////////////////////////////////////////////////////////////////////////////
 
+using namespace darma_runtime::oo::detail;
+using namespace simple_oo_test;
+typedef typename reads_<larry>::template subfield<curly>::template subfield<moe> subfield_desc;
+STATIC_ASSERT_TYPE_EQ(
+  subfield_desc,
+  subfields_path<outermost_decorator<reads_>,
+    tinympl::vector<larry>,
+    tinympl::vector<curly>,
+    tinympl::vector<moe>
+  >
+);
 
-
+//typedef typename reads_<larry>::template subfield<curly> subfield_desc;
+//STATIC_ASSERT_TYPE_EQ(
+//  typename subfield_desc::apply_outermost_decorator,
+//  reads_<larry>::subfield<curly>
+//);
 
 //#if 0
 //////////////////////////////////////////////////////////////////////////////////
