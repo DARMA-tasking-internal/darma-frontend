@@ -208,45 +208,7 @@ class Runtime {
       frontend::Handle* handle
     ) =0;
 
-    /**
-     *  @brief A set of enums identifying the relationship between two flows
-     */
-    typedef enum FlowPropagationPurpose {
-      Input, /*!< The new flow will be used as the input to another logical Use of the data*/
-      Output, /*!< The new flow will be used as the output for another logical Use of the data */
-      ForwardingChanges, /*!< The new flow will be used as an input to another logical Use of the
-                            data that incorporates changes made to data associated with an input Flow
-                            for which Modify immediate permissions were requested, thus "forwarding"
-                            the modifications to a new logical Use.
-                            Only ever used with make_forwarding_flow() */
-      OutputFlowOfReadOperation /*!< The new flow will be used as the corresponding return of get_out_flow()
-                                    for a read-only Use that returns a given flow for get_in_flow().
-                                */
-    } flow_propagation_purpose_t;
-
-    /** @brief Make a flow that is logically identical to the input parameter
-     *
-     * Calls to make_same_flow() indicate a logical identity between Flows in different Use instances.
-     * make_same_flow() may not return the original pointer passed in. Flow objects must be unique to a Use.
-     * Flows are registered and released indirectly through calls to register_use()/release_use().
-     * The input Flow to make_same_flow() must have been registered through a register_use() call,
-     * but not yet released through a release_use() call.
-     * There is no restriction on the number of times make_same_flow() can be called with a given input.
-     *
-     * @param from    An already initialized and registered flow returned from `make_*_flow`
-     * @param purpose An enum indicating the relationship between logically identical flows (purpose of the function).
-     *                For example, this indicates whether the two flows are both inputs to different tasks or whether
-     *                the new flow is the sequential continuation of a previous write (forwarding changes). This
-     *                information is provided for optimization purposes
-     * @return A new Flow object that is equivalent to the input flow
-     */
-    virtual Flow*
-    make_same_flow(
-      Flow* from,
-      flow_propagation_purpose_t purpose
-    ) =0;
-
-    /**
+    /** @todo update this
      *  @brief Make a new input Flow that receives forwarded changes from another input Flow, the latter
      *  of which is associated with a Use on which Modify immediate permissions were requested.
      *
@@ -266,11 +228,10 @@ class Runtime {
      */
     virtual Flow*
     make_forwarding_flow(
-      Flow* from,
-      flow_propagation_purpose_t purpose
+      Flow* from
     ) =0;
 
-    /**
+    /** @todo update this
      *  @brief Make a flow that will be logically (not necessarily immediately) subsequent to another Flow
      *
      *  Calls to make_next_flow() indicate a producer-consumer relationship between Flows.
@@ -292,12 +253,19 @@ class Runtime {
      */
     virtual Flow*
     make_next_flow(
-      Flow* from,
-      flow_propagation_purpose_t purpose
+      Flow* from
     ) =0;
 
+    /** @todo document this
+     */
+    virtual void
+    establish_flow_alias(
+      Flow* from,
+      Flow* to
+    ) =0;
 
-    /** @brief Release a Use object previously registered with register_use().
+    /** @todo update this
+     *  @brief Release a Use object previously registered with register_use().
      *
      *  Upon release, if the Use* u has immediate_permissions() of at least
      *  Write and was not propagated into a Modify context (defined below),
