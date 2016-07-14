@@ -277,14 +277,18 @@ struct field_slice_helper {
 
   //////////////////////////////////////////////////////////////////////////////
 
+  // TODO: This should propogate the read-only-ness!
   template <typename T>
-  using _as_read_only_access_handle = tinympl::identity<darma_runtime::ReadAccessHandle<T>>;
+  using _as_read_only_access_handle_if_not_darma_class = std::conditional<
+    is_darma_class<T>::value,
+    T, darma_runtime::ReadAccessHandle<T>
+  >;
 
   using _reads_base_classes = typename decorated_with<reads_, of_class_t, _args_vector_t>::template chained_base_classes<
-    _as_read_only_access_handle, _public_field_in_chain
+    _as_read_only_access_handle_if_not_darma_class, _public_field_in_chain
   >;
   using _reads_fields = typename decorated_with<reads_, of_class_t, _args_vector_t>::template chained_base_classes<
-    _as_read_only_access_handle, _field_tag_with_type
+    _as_read_only_access_handle_if_not_darma_class, _field_tag_with_type
   >;
 
   template <typename T>
