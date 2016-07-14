@@ -283,6 +283,8 @@ struct darma_class
 
   public:
 
+    using _darma__type_is_a_darma_class = std::true_type;
+
     using helper_t = detail::darma_class_helper<ClassName, Args...>;
     using base_t = typename helper_t::base_class;
 
