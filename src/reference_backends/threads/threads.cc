@@ -155,6 +155,8 @@ namespace threads_backend {
     auto t = std::make_shared<TaskNode>(TaskNode{this,std::move(task)});
     t->join_counter = check_dep_task(t);
 
+    trace->eventStart(0.1, "task");
+
     DEBUG_VERBOSE_PRINT("task join counter: %ld\n", t->join_counter);
     
     // use depth-first scheduling policy
@@ -167,6 +169,8 @@ namespace threads_backend {
         ready_local.push_back(t);
       }
     }
+
+    trace->eventStop(0.1, "task");
 
     schedule_over_breadth();
   }

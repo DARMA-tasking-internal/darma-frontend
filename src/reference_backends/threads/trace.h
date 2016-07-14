@@ -58,9 +58,9 @@
 
 namespace threads_backend {
   enum EventType {
-    GROUP_BEGIN,
-    GROUP_END,
-    NON_GROUP
+    GROUP_BEGIN=2,
+    GROUP_END=3,
+    NON_GROUP=1
   };
 
   typedef std::string EventName;
@@ -81,10 +81,12 @@ namespace threads_backend {
     TraceEvents() = default;
     
     Event findEventID(const EventName& event) {
+      // TODO: fix this. registry must not be locked
+      // per-thd registry with rank resolution at end
+      std::lock_guard<std::mutex> guard(event_lock);
       if (eventNames.find(event) != eventNames.end()) {
         return eventNames[event];
       } else {
-        std::lock_guard<std::mutex> guard(event_lock);
         eventNames[event] = nextEvent++;
         return eventNames[event];
       }
@@ -164,12 +166,12 @@ namespace threads_backend {
       , flushSize(flushSize_)
       , stackMaxDepth(stackMaxDepth_)
       , startTime(timer.currentTime())
-      , traces(10000)
       , enabled(true)
     {
       DEBUG_TRACE("TraceModule starting: name=\"%s\", rank=%ld\n",
                   trace_name.c_str(),
                   rank);
+      traces.reserve(10000);
     }
 
     virtual ~TraceModule() {
@@ -180,10 +182,33 @@ namespace threads_backend {
       writeTracesDisk();
     }
 
+    void writeLogDisk(std::ofstream& file) {
+      for (auto&& log : traces) {
+        const double convertedTime = TraceModule::time2long(log->time - startTime);
+
+        switch (log->type) {
+        case GROUP_BEGIN:
+          file << log->type << " 0 "
+               << log->event << " "
+               << convertedTime << " "
+               << "0 0 0 0 0 0 0 0 0 0\n";
+          break;
+        case GROUP_END:
+          break;
+        case NON_GROUP:
+          break;
+        default:
+          DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+        }
+      }
+      traces.empty();
+    }
+    
     void writeTracesDisk() {
       std::ofstream file;
       file.open(trace_name);
       TraceModule::outputHeader(rank,startTime,file);
+      writeLogDisk(file);
       TraceModule::outputFooter(rank,startTime,file);
       file.close();
 
@@ -210,8 +235,10 @@ namespace threads_backend {
     }
     
     void logEvent(TraceLog* const log) {
-      if (!enabled) return;
-      
+      if (!enabled) {
+        return;
+      }      
+
       auto grouped_begin = [&]{
         if (!open.empty()) {
           traces.push_back(new TraceLog{log->time - 0.0000001,
@@ -234,7 +261,7 @@ namespace threads_backend {
         traces.push_back(log);
         
         if (!open.empty()) {
-          traces.push_back(new TraceLog{log->time + 0.0000002,
+          traces.push_back(new TraceLog{log->time + 0.0000001,
                                         open.top()->event,
                                         GROUP_BEGIN});
         }
