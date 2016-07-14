@@ -66,6 +66,7 @@ namespace threads_backend {
 
     size_t readers_jc, ref, uses;
     std::vector<std::shared_ptr<GraphNode> > readers;
+
     // node in the graph to activate
     std::shared_ptr<GraphNode> node;
     

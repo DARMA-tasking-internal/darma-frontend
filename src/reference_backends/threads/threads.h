@@ -153,6 +153,16 @@ namespace threads_backend {
     void
     add_local(std::shared_ptr<GraphNode> task);
 
+    void
+    cleanup_handle(std::shared_ptr<InnerFlow> flow);
+    
+    void
+    delete_handle_data(types::key_t version,
+                       types::key_t key);
+    
+    bool
+    test_alias_null(std::shared_ptr<InnerFlow> flow);
+    
     size_t
     release_node(std::shared_ptr<InnerFlow> flow);
 

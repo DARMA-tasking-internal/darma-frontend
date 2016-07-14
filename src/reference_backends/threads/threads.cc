@@ -292,14 +292,11 @@ namespace threads_backend {
                );
 
     if (data_exists) {
-      // increase reference count on data
-      data[{version,key}]->ref();
       u->get_data_pointer_reference() = data[{version,key}]->data;
 
-      DEBUG_PRINT("%p: use register, refs = %d, ptr = %p, key = %s, "
-                  "in version = %s, out version = %s\n",
+      DEBUG_PRINT("%p: use register, ptr=%p, key=%s, "
+                  "in version=%s, out version=%s\n",
                   u,
-                  data[{version,key}]->get_refs(),
                   data[{version,key}]->data,
                   PRINT_KEY(key),
                   PRINT_KEY(f_in->inner->version_key),
@@ -310,13 +307,11 @@ namespace threads_backend {
 
       // insert into the hash
       data[{version,key}] = block;
-      block->ref();
       u->get_data_pointer_reference() = block->data;
 
-      DEBUG_PRINT("%p: use register: *deferred*: refs = %d, ptr = %p, key = %s, "
-                  "in version = %s, out version = %s\n",
+      DEBUG_PRINT("%p: use register: ptr=%p, key=%s, "
+                  "in version=%s, out version=%s\n",
                   u,
-                  data[{version,key}]->get_refs(),
                   block->data,
                   PRINT_KEY(key),
                   PRINT_KEY(f_in->inner->version_key),
@@ -353,24 +348,8 @@ namespace threads_backend {
   ThreadsRuntime::make_initial_flow(darma_runtime::abstract::frontend::Handle* handle) {
     ThreadsFlow* f = new ThreadsFlow(handle);
     f->inner->ready = true;
-
-    // // allocate a new data block
-    // auto block = allocate_block(handle);
-
-    // // insert new allocated block into the hash
-    // const auto& key = handle->get_key();
-    // const auto& version = darma_runtime::detail::SimpleKey();
-
-    // block->ref();
-    // data[{version,key}] = block;
-
-    // DEBUG_PRINT("make initial flow: ptr=%p, key=%s, handle=%p, flow=%lu, outer flow=%p\n",
-    //             block->data,
-    //             PRINT_KEY(key),
-    //             handle,
-    //             PRINT_LABEL(f),
-    //             f);
-
+    f->inner->handle = handle;
+    handle_refs[handle]++;
     return f;
   }
 
@@ -404,8 +383,6 @@ namespace threads_backend {
 
         if (!buffer_exists) {
           data[{version_key,key}] = new DataBlock(unpack_to);
-        } else {
-          data[{version_key,key}]->ref();
         }
 
         DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
@@ -539,8 +516,6 @@ namespace threads_backend {
 
       if (!buffer_exists) {
         data[{version_key,key}] = new DataBlock(unpack_to);
-      } else {
-        data[{version_key,key}]->ref();
       }
 
       DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
@@ -573,6 +548,8 @@ namespace threads_backend {
 
     ThreadsFlow* f = new ThreadsFlow(handle);
 
+    handle_refs[handle]++;
+    f->inner->handle = handle;
     f->inner->version_key = version_key;
 
     if (threads_backend::depthFirstExpand) {
@@ -598,6 +575,7 @@ namespace threads_backend {
     ThreadsFlow* f = new ThreadsFlow(handle);
 
     f->inner->isNull = true;
+    f->inner->handle = handle;
     
     DEBUG_PRINT("null flow %lu\n", PRINT_LABEL(f));
 
@@ -624,6 +602,7 @@ namespace threads_backend {
     }
     
     f->inner->forward = f_forward->inner;
+    f_forward->inner->handle = f->inner->handle;
     return f_forward;
   }
 
@@ -639,6 +618,7 @@ namespace threads_backend {
     ThreadsFlow* f_next = new ThreadsFlow(0);
 
     f->inner->next = f_next->inner;
+    f_next->inner->handle = f->inner->handle;
     
     DEBUG_PRINT("next flow from %lu (%p) to %lu (%p)\n",
                 PRINT_LABEL(f),
@@ -649,6 +629,49 @@ namespace threads_backend {
     return f_next;
   }
 
+  void
+  ThreadsRuntime::cleanup_handle(std::shared_ptr<InnerFlow> flow) {
+    auto const* const handle = flow->handle;
+
+    handle_refs[handle]--;
+
+    assert(handle == alias[flow]->handle);
+    assert(handle_refs[handle] >= 0);
+
+    DEBUG_PRINT("cleanup_handle identity: %p to %p: refs=%d\n",
+                flow->handle,
+                alias[flow]->handle,
+                handle_refs[handle]);
+    
+    if (handle_refs[handle] == 0) {
+      if (handle_pubs.find(handle) != handle_pubs.end()) {
+        for (auto delayed_pub = handle_pubs[handle].begin(), end = handle_pubs[handle].end();
+             delayed_pub != end;
+             ++delayed_pub) {
+
+          publish(*delayed_pub);
+          (*delayed_pub)->finished = true;
+
+          DEBUG_PRINT("cleanup handle: force publish of handle = %p\n", handle);
+        }
+
+        handle_pubs.erase(handle);
+      }
+      delete_handle_data(flow->version_key,
+                         handle->get_key());
+      handle_refs.erase(handle);
+    }
+  }
+
+  void
+  ThreadsRuntime::delete_handle_data(types::key_t version,
+                                     types::key_t key) {
+    DEBUG_PRINT("delete handle data\n");
+    DataBlock* prev = data[{version,key}];
+    data.erase({version,key});
+    delete prev;
+  }
+  
   /*virtual*/
   void
   ThreadsRuntime::establish_flow_alias(Flow* from,
@@ -672,6 +695,11 @@ namespace threads_backend {
       release_node(f_to->inner);
     }
 
+    if (f_from->inner->uses == 0 &&
+        f_to->inner->isNull) {
+      cleanup_handle(f_from->inner);
+    }
+
     if (f_from->inner->uses == 0) {
       DEBUG_PRINT("remove alias %ld to %ld\n",
                   PRINT_LABEL_INNER(f_from->inner),
@@ -691,16 +719,24 @@ namespace threads_backend {
   }
 
   bool
+  ThreadsRuntime::test_alias_null(std::shared_ptr<InnerFlow> flow) {
+    if (flow->uses == 0 &&
+        alias[flow]->isNull) {
+      DEBUG_PRINT("remove alias to null %ld to %ld\n",
+                  PRINT_LABEL_INNER(flow),
+                  PRINT_LABEL_INNER(alias[flow]));
+      cleanup_handle(flow);
+      alias.erase(alias.find(flow));
+      return true;
+    }
+    return false;
+  }
+  
+  bool
   ThreadsRuntime::release_alias(std::shared_ptr<InnerFlow> flow,
                                 size_t readers) {
     if (alias.find(flow) != alias.end()) {
-      if (flow->uses == 0 &&
-          alias[flow]->isNull) {
-        DEBUG_PRINT("remove alias %ld to %ld\n",
-                    PRINT_LABEL_INNER(flow),
-                    PRINT_LABEL_INNER(alias[flow]));
-
-        alias.erase(alias.find(flow));
+      if (test_alias_null(flow)) {
         return true;
       }
       
@@ -791,13 +827,7 @@ namespace threads_backend {
                   alias[flow]->ref,
                   alias[flow]->readers_jc);
 
-      if (flow->uses == 0 &&
-          alias[flow]->isNull) {
-        DEBUG_PRINT("remove alias %ld to %ld\n",
-                    PRINT_LABEL_INNER(flow),
-                    PRINT_LABEL_INNER(alias[flow]));
-
-        alias.erase(alias.find(flow));
+      if (test_alias_null(flow)) {
         return true;
       }
       
@@ -851,94 +881,53 @@ namespace threads_backend {
 
     handle_refs[handle]--;
 
-    if (handle_refs[handle] == 0) {
-      if (handle_pubs.find(handle) != handle_pubs.end()) {
-        for (auto delayed_pub = handle_pubs[handle].begin(), end = handle_pubs[handle].end();
-             delayed_pub != end;
-             ++delayed_pub) {
-
-          publish(*delayed_pub);
-          (*delayed_pub)->finished = true;
-
-          DEBUG_PRINT("%p: release use: force publish of handle = %p\n", u, handle);
-        }
-      }
-
-      handle_pubs.erase(handle);
-      handle_refs.erase(handle);
-    }
-      
-    data[{version,key}]->deref();
-
     // dereference flows
     f_in->inner->uses--;
     f_out->inner->uses--;
 
-    DEBUG_PRINT("release_use: f_in=[%ld,{use=%ld}], f_out=[%ld,{use=%ld}]\n",
+    DEBUG_PRINT("release_use: f_in=[%ld,{use=%ld}], f_out=[%ld,{use=%ld}]: handle_refs=%d\n",
                 PRINT_LABEL(f_in),
                 f_in->inner->uses,
                 PRINT_LABEL(f_out),
-                f_out->inner->uses);
+                f_out->inner->uses,
+                handle_refs[handle]);
 
     const bool same = f_in == f_out;
-    bool deleted = false;
-    bool markOutDelete = false;
-
-    if (f_out->inner->uses == 0 &&
-        !same &&
-        !f_out->inner->isNull &&
-        alias.find(f_out->inner) != alias.end()) {
-      DEBUG_PRINT("deleting: %ld\n", PRINT_LABEL(f_out));
-      markOutDelete = true;
-    }
+    bool deleted_out = false;
 
     if (f_in == f_out) {
       release_node_p2(f_out->inner);
       const bool hasAlias = release_alias_p2(f_out->inner);
-      if (hasAlias && f_in->inner->uses == 0) {
-        DEBUG_PRINT("deleting redirect: %ld\n", PRINT_LABEL(f_in));
-        delete f_in;
-        deleted = true;
+      if (hasAlias &&
+          f_out->inner->uses == 0) {
+        DEBUG_PRINT("deleting redirect: %ld\n", PRINT_LABEL(f_out));
+        delete f_out;
+        deleted_out = true;
       }
     } else {
       const size_t readers = release_node(f_out->inner);
       const bool hasAlias = release_alias(f_out->inner, readers);
-      if (hasAlias && f_in->inner->uses == 0) {
-        DEBUG_PRINT("deleting redirect: %ld\n", PRINT_LABEL(f_in));
-        delete f_in;
-        deleted = true;
+      if (hasAlias &&
+          f_out->inner->uses == 0) {
+        DEBUG_PRINT("deleting redirect: %ld\n", PRINT_LABEL(f_out));
+        delete f_out;
+        deleted_out = true;
       }
     }
 
-    // free released flows
-    if (!deleted) {
-      if (f_in->inner->uses == 0 &&
-          !same &&
-          f_in->inner->next == f_out->inner) {
-        DEBUG_PRINT("deleting: %ld\n", PRINT_LABEL(f_in));
-        delete f_in;
-      }
-    }
-
-    if (markOutDelete) {
+    if (!deleted_out &&
+        f_out->inner->uses == 0 &&
+        (f_out->inner->next || f_out->inner->forward)) {
+      DEBUG_PRINT("deleting: %ld\n", PRINT_LABEL(f_out));
       delete f_out;
+      deleted_out = true;
     }
 
-    const auto refs = data[{version,key}]->get_refs();
-      
-    DEBUG_PRINT("%p: release use: refs=%d, ptr=%p, key=%s, version=%s, handle=%p\n",
-                u,
-                refs,
-                data[{version, key}]->data,
-                PRINT_KEY(key),
-                PRINT_KEY(version),
-                handle);
-
-    if (refs == 0) {
-      DataBlock* prev = data[{version,key}];
-      data.erase({version,key});
-      delete prev;
-      DEBUG_PRINT("use delete\n");
+    if ((!same || !deleted_out) &&
+        (f_in->inner->next || f_in->inner->forward) &&
+        f_in->inner->uses == 0) {
+      DEBUG_PRINT("deleting: %ld\n", PRINT_LABEL(f_in));
+      delete f_in;
     }
   }
 
@@ -962,14 +951,11 @@ namespace threads_backend {
       const darma_runtime::abstract::frontend::Handle* handle = publish->handle;
       void* data_ptr = publish->data_ptr;
 
-      const auto refs = publish->flow->deferred_data_ptr->get_refs();
-        
-      DEBUG_PRINT("publish: key = %s, version = %s, data ptr = %p, handle = %p, refs = %d\n",
+      DEBUG_PRINT("publish: key = %s, version = %s, data ptr = %p, handle = %p\n",
                   PRINT_KEY(key),
                   PRINT_KEY(version),
                   data_ptr,
-                  handle,
-                  refs);
+                  handle);
         
       assert(expected >= 1);
 
@@ -1022,6 +1008,8 @@ namespace threads_backend {
 
   void
   ThreadsRuntime::publish_finished(std::shared_ptr<DelayedPublish> publish) {
+    DEBUG_PRINT("publish finished, removing from handle %p\n",
+                publish->handle);
     handle_pubs[publish->handle].remove(publish);
   }
   
@@ -1112,6 +1100,7 @@ namespace threads_backend {
       if (lock) lock->unlock();
 
       node->execute();
+      node->cleanup();
 
       return true;
     }
@@ -1140,10 +1129,14 @@ namespace threads_backend {
       schedule_next_unit();
     }
 
-    DEBUG_PRINT("work units produced=%ld, consumed=%ld\n",
-                this->produced,
-                this->consumed);
+    assert(ready_local.size() == 0 &&
+           ready_remote.size() == 0 &&
+           "TD failed if queues have work units in them.");
     
+    STARTUP_PRINT("work units: produced=%ld, consumed=%ld\n",
+                  this->produced,
+                  this->consumed);
+
     for (auto iter = alias.begin();
          iter != alias.end();
          ++iter) {
@@ -1151,6 +1144,12 @@ namespace threads_backend {
                   PRINT_LABEL_INNER(iter->first),
                   PRINT_LABEL_INNER(iter->second));
     }
+
+    DEBUG_PRINT("handle_refs=%ld, "
+                "handle_pubs=%ld, "
+                "\n",
+                handle_refs.size(),
+                handle_pubs.size());
       
     if (this_rank == 0) {
       DEBUG_PRINT("total threads to join is %zu\n", threads_backend::live_ranks.size());
