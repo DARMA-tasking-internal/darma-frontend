@@ -105,9 +105,9 @@ class MockRuntime
     MOCK_METHOD1(make_initial_flow, flow_t*(handle_t*));
     MOCK_METHOD2(make_fetching_flow, flow_t*(handle_t*, key_t const&));
     MOCK_METHOD1(make_null_flow, flow_t*(handle_t*));
-    MOCK_METHOD2(make_same_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
-    MOCK_METHOD2(make_forwarding_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
-    MOCK_METHOD2(make_next_flow, flow_t*(flow_t*, runtime_t::flow_propagation_purpose_t));
+    MOCK_METHOD1(make_forwarding_flow, flow_t*(flow_t*));
+    MOCK_METHOD1(make_next_flow, flow_t*(flow_t*));
+    MOCK_METHOD2(establish_flow_alias, void(flow_t*, flow_t*));
     MOCK_METHOD1(release_use, void(use_t*));
     MOCK_METHOD2(publish_use, void(use_t*, publication_details_t*));
 
