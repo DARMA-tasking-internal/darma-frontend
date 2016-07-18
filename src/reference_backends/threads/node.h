@@ -53,6 +53,8 @@
 #include <flow.h>
 
 namespace threads_backend {
+  extern __thread size_t task_label;
+
   using namespace darma_runtime;
   using namespace darma_runtime::abstract::backend;
 
@@ -170,7 +172,21 @@ namespace threads_backend {
     { }
 
     void execute() {
+      // start trace event
+      std::string genName = "task-" + std::to_string(task_label++);
+      if (runtime->getTrace()) {
+        if (task->get_name() == darma_runtime::detail::SimpleKey()) {
+          runtime->getTrace()->eventStartNow(genName);
+        }
+      }
+
       runtime->run_task(std::move(task));
+
+      // end trace event
+      if (runtime->getTrace()) {
+        runtime->getTrace()->eventStopNow(genName);
+      }
+
       GraphNode::execute();
     }
 

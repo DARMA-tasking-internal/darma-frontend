@@ -45,6 +45,8 @@
 #if !defined(_THREADS_INTERFACE_BACKEND_RUNTIME_H_)
 #define _THREADS_INTERFACE_BACKEND_RUNTIME_H_
 
+#include <trace.h>
+
 namespace threads_backend {
   struct InnerFlow;
   struct GraphNode;
@@ -55,6 +57,11 @@ namespace threads_backend {
   public:
     inline void produce() { return static_cast<Impl*>(this)->produce(); }
     inline void consume() { return static_cast<Impl*>(this)->consume(); }
+
+    inline TraceModule*
+    getTrace() {
+      return static_cast<Impl*>(this)->getTrace();
+    }
     
     inline size_t
     release_node(std::shared_ptr<InnerFlow> flow) {

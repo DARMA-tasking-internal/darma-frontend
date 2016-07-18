@@ -85,6 +85,7 @@ namespace threads_backend {
 
   #if __THREADS_DEBUG_MODE__
     __thread size_t flow_label = 100;
+    __thread size_t task_label = 100;
   #endif
 
   // global
@@ -112,6 +113,9 @@ namespace threads_backend {
   void
   ThreadsRuntime::consume() { this->consumed++; }
 
+  TraceModule*
+  ThreadsRuntime::getTrace() { return trace; }
+  
   size_t
   ThreadsRuntime::get_spmd_rank() const {
     return this_rank;
@@ -155,22 +159,19 @@ namespace threads_backend {
     auto t = std::make_shared<TaskNode>(TaskNode{this,std::move(task)});
     t->join_counter = check_dep_task(t);
 
-    trace->eventStart(0.1, "task");
-
     DEBUG_VERBOSE_PRINT("task join counter: %ld\n", t->join_counter);
     
     // use depth-first scheduling policy
     if (threads_backend::depthFirstExpand) {
       assert(t->ready());
       DEBUG_VERBOSE_PRINT("running task\n");
+
       t->execute();
     } else {
       if (t->ready()) {
         ready_local.push_back(t);
       }
     }
-
-    trace->eventStop(0.1, "task");
 
     schedule_over_breadth();
   }

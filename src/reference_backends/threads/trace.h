@@ -55,6 +55,11 @@
 #include <stack>
 #include <iostream>
 #include <fstream>
+#include <chrono>
+
+using std::chrono::high_resolution_clock;
+using std::chrono::time_point;
+using std::chrono::duration;
 
 namespace threads_backend {
   enum EventType {
@@ -67,11 +72,18 @@ namespace threads_backend {
   typedef size_t Event;
   
   struct TraceLog {
-    double time;
+    time_point<high_resolution_clock> time;
     Event event;
     EventType type;
   };
 
+  struct EventCompare {
+    bool operator()(const std::pair<EventName,Event> &lhs,
+                    const std::pair<EventName,Event> &rhs) {
+      return lhs.second < rhs.second;
+    }
+  };
+  
   struct TraceEvents {
     std::mutex event_lock;
     std::unordered_map<EventName, Event> eventNames;
@@ -100,11 +112,17 @@ namespace threads_backend {
            << "MACHINE unknown\n"
            << "PROCESSORS " << numRanks << "\n"
            << "TOTAL_CHARES " << eventNames.size() << "\n"
-           << "TOTAL_EPS"     << eventNames.size() << "\n"
+           << "TOTAL_EPS "    << eventNames.size() << "\n"
            << "TOTAL_MSGS 0\n"
            << "TOTAL_PSEUDOS 0\n"
-           << "TOTAL_EVENTS 0\n"
+           << "TOTAL_EVENTS 0"
            << std::endl;
+
+      // std::vector<std::pair<EventName,Event> > sort(eventNames.begin(),
+      //                                               eventNames.end());
+      // std::partial_sort(sort.begin(),
+      //                   sort.begin() + sort.size(),
+      //                   sort.end(), EventCompare());
 
       for (auto&& event : eventNames) {
         file << "CHARE "
@@ -132,14 +150,14 @@ namespace threads_backend {
   };
 
   struct TraceTimer {
-    double currentTime() {
-      return 0.0;
+    time_point<high_resolution_clock> currentTime() {
+      return high_resolution_clock::now();
     }
   };
 
   static TraceTimer timer;
   static TraceEvents eventReg;
-  
+
   struct TraceModule {
     const size_t rank;
     const size_t nranks;
@@ -147,7 +165,7 @@ namespace threads_backend {
     const std::string name;
     const size_t flushSize;
     const size_t stackMaxDepth;
-    double startTime;
+    const time_point<high_resolution_clock> startTime;
 
     std::vector<TraceLog*> traces;
     std::stack<TraceLog*> open;
@@ -184,16 +202,20 @@ namespace threads_backend {
 
     void writeLogDisk(std::ofstream& file) {
       for (auto&& log : traces) {
-        const double convertedTime = TraceModule::time2long(log->time - startTime);
+        const long convertedTime = time2long(computeDiff(log->time,startTime));
 
         switch (log->type) {
         case GROUP_BEGIN:
           file << log->type << " 0 "
                << log->event << " "
                << convertedTime << " "
-               << "0 0 0 0 0 0 0 0 0 0\n";
+               << "0 0 0 0 0 0 0 0 0\n";
           break;
         case GROUP_END:
+          file << log->type << " 0 "
+               << log->event << " "
+               << convertedTime << " "
+               << "0 0 0 0 0 0 0 0 0\n";
           break;
         case NON_GROUP:
           break;
@@ -219,15 +241,23 @@ namespace threads_backend {
         file.close();
       }
     }
+
+    void eventStartNow(const EventName& event) {
+      eventStart(timer.currentTime(), event);
+    }
+
+    void eventStopNow(const EventName& event) {
+      eventStop(timer.currentTime(), event);
+    }
     
-    void eventStart(const double time,
+    void eventStart(const time_point<high_resolution_clock> time,
                     const EventName event) {
       logEvent(new TraceLog{time,
                             eventReg.findEventID(event),
                             GROUP_BEGIN});
     }
 
-    void eventStop(const double time,
+    void eventStop(const time_point<high_resolution_clock> time,
                    const EventName event) {
       logEvent(new TraceLog{time,
                             eventReg.findEventID(event),
@@ -241,7 +271,7 @@ namespace threads_backend {
 
       auto grouped_begin = [&]{
         if (!open.empty()) {
-          traces.push_back(new TraceLog{log->time - 0.0000001,
+          traces.push_back(new TraceLog{log->time,// - 0.0000001,
                                         open.top()->event,
                                         GROUP_END});
         }
@@ -261,7 +291,7 @@ namespace threads_backend {
         traces.push_back(log);
         
         if (!open.empty()) {
-          traces.push_back(new TraceLog{log->time + 0.0000001,
+          traces.push_back(new TraceLog{log->time,// + 0.0000001,
                                         open.top()->event,
                                         GROUP_BEGIN});
         }
@@ -295,7 +325,7 @@ namespace threads_backend {
     }
 
     static void outputHeader(const size_t rank,
-                             const double startTime,
+                             const time_point<high_resolution_clock> startTime,
                              std::ofstream& file) {
       // Output header for projections file
       file << "PROJECTIONS-RECORD 0"
@@ -303,22 +333,28 @@ namespace threads_backend {
       // '6' means COMPUTATION_BEGIN to Projections: this starts a
       // trace
       file << "6 "
-           << TraceModule::time2long(startTime)
+           << 0
            << std::endl;
     }
 
     static void outputFooter(const size_t rank,
-                             const double startTime,
+                             const time_point<high_resolution_clock> startTime,
                              std::ofstream& file) {
       /// Output footer for projections file, '7' means
       /// COMPUTATION_END to Projections
       file << "7 "
-           << TraceModule::time2long(timer.currentTime() - startTime)
+           << time2long(computeDiff(timer.currentTime(),startTime))
            << std::endl;
     }
 
-    static long time2long(const double time) {
-      return (long)(time * 1e6);
+    static duration<double> computeDiff(const time_point<high_resolution_clock> t0,
+                                        const time_point<high_resolution_clock> t1) {
+      duration<double> dur(t0-t1);
+      return dur;
+    }
+    
+    static long time2long(const duration<double> time) {
+      return (long)(time.count() * 1e6);
     }
     
   private:

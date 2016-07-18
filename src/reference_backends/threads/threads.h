@@ -138,6 +138,8 @@ namespace threads_backend {
     
     ThreadsRuntime();
 
+    TraceModule* getTrace();
+    
     void
     produce();
 
