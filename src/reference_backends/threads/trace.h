@@ -65,7 +65,7 @@ namespace threads_backend {
   enum EventType {
     GROUP_BEGIN=2,
     GROUP_END=3,
-    NON_GROUP=1
+    DEP_CREATE=1
   };
 
   typedef std::string EventName;
@@ -117,12 +117,6 @@ namespace threads_backend {
            << "TOTAL_PSEUDOS 0\n"
            << "TOTAL_EVENTS 0"
            << std::endl;
-
-      // std::vector<std::pair<EventName,Event> > sort(eventNames.begin(),
-      //                                               eventNames.end());
-      // std::partial_sort(sort.begin(),
-      //                   sort.begin() + sort.size(),
-      //                   sort.end(), EventCompare());
 
       for (auto&& event : eventNames) {
         file << "CHARE "
@@ -217,7 +211,7 @@ namespace threads_backend {
                << convertedTime << " "
                << "0 0 0 0 0 0 0 0 0\n";
           break;
-        case NON_GROUP:
+        case DEP_CREATE:
           break;
         default:
           DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
@@ -308,7 +302,7 @@ namespace threads_backend {
       case GROUP_END:
         grouped_end();
         break;
-      case NON_GROUP:
+      case DEP_CREATE:
         nongroup();
         break;
       default:
