@@ -132,6 +132,13 @@ namespace threads_backend {
       std::shared_ptr<InnerFlow>
     > alias;
 
+    // used for tracing to follow the dependency back to the proper
+    // traced block
+    std::unordered_map<
+      std::shared_ptr<InnerFlow>,
+      std::shared_ptr<InnerFlow>
+    > inverse_alias;
+    
     std::unordered_map<
       std::shared_ptr<InnerFlow>,
       TraceLog*
@@ -175,6 +182,9 @@ namespace threads_backend {
     delete_handle_data(darma_runtime::abstract::frontend::Handle const* const handle,
                        types::key_t version,
                        types::key_t key);
+
+    std::shared_ptr<InnerFlow>
+    followInverse(std::shared_ptr<InnerFlow> flow);
     
     bool
     test_alias_null(std::shared_ptr<InnerFlow> flow);

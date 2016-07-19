@@ -85,8 +85,9 @@ namespace threads_backend {
 
   #if __THREADS_DEBUG_MODE__
     __thread size_t flow_label = 100;
-    __thread size_t task_label = 100;
   #endif
+
+  __thread size_t task_label = 100;
 
   // global
   size_t n_ranks = 1;
@@ -204,6 +205,16 @@ namespace threads_backend {
     assert(false);
   }
 
+  std::shared_ptr<InnerFlow>
+  ThreadsRuntime::followInverse(std::shared_ptr<InnerFlow> flow) {
+    if (inverse_alias.find(flow) !=
+        inverse_alias.end()) {
+      return followInverse(inverse_alias[flow]);
+    } else {
+      return flow;
+    }
+  }
+  
   void
   ThreadsRuntime::addTraceDeps(TaskNode* node,
                                TraceLog* thisLog) {
@@ -218,7 +229,18 @@ namespace threads_backend {
 
       // find dependency for f_in
       if (taskTrace.find(f_in->inner) != taskTrace.end()) {
-        const auto& parent = taskTrace[f_in->inner];
+        std::shared_ptr<InnerFlow> prev = f_in->inner;
+
+        if (inverse_alias.find(f_in->inner) !=
+            inverse_alias.end()) {
+          const auto& inverse = followInverse(f_in->inner);
+          prev = inverse;
+          DEBUG_TRACE("f_in=%ld, inverse alias=%ld\n",
+                      PRINT_LABEL_INNER(f_in->inner),
+                      PRINT_LABEL_INNER(inverse));
+        }
+
+        const auto& parent = taskTrace[prev];
         auto dep = getTrace()->depCreate(parent->end ? parent->end->time : parent->time,
                                          thisLog->entry);
         dep->event = thisLog->event;
@@ -636,8 +658,7 @@ namespace threads_backend {
   /*virtual*/
   Flow*
   ThreadsRuntime::make_next_flow(Flow* from) {
-    DEBUG_VERBOSE_PRINT("make next flow: %d (from=%p)\n",
-                        from);
+    DEBUG_VERBOSE_PRINT("make next flow: (from=%p)\n", from);
 
     ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
     ThreadsFlow* f_next = new ThreadsFlow(0);
@@ -719,6 +740,13 @@ namespace threads_backend {
                 f_to->inner->uses);
 
     alias[f_from->inner] = f_to->inner;
+
+    // build inverse alias map tracing
+    // TODO: free/remove entries from
+    // this inverted alias map when appropiate
+    if (getTrace()) {
+      inverse_alias[f_to->inner] = f_from->inner;
+    }
     
     if (f_from->inner->uses == 0 ||
         f_from->inner->ready) {
