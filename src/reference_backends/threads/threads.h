@@ -59,6 +59,7 @@
 
 #include <threads_interface.h>
 #include <common.h>
+#include <trace.h>
 
 namespace std {
   using darma_runtime::detail::SimpleKey;
@@ -99,7 +100,7 @@ namespace threads_backend {
     , public ThreadsInterface<ThreadsRuntime> {
 
   public:
-    ThreadsRuntime(const ThreadsRuntime& tr);
+    ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
     // TODO: fix any memory consistency bugs with data coordination we
     // need a fence at the least
@@ -126,10 +127,42 @@ namespace threads_backend {
 			 >
 		       > handle_pubs;
 
+    std::unordered_map<
+      std::shared_ptr<InnerFlow>,
+      std::shared_ptr<InnerFlow>
+    > alias;
+
+    // used for tracing to follow the dependency back to the proper
+    // traced block
+    std::unordered_map<
+      std::shared_ptr<InnerFlow>,
+      std::shared_ptr<InnerFlow>
+    > inverse_alias;
+    
+    std::unordered_map<
+      std::shared_ptr<InnerFlow>,
+      TraceLog*
+    > taskTrace;
+
+    TraceModule* trace;
+
     size_t produced, consumed;
     
     ThreadsRuntime();
 
+    void
+    addTraceDeps(TaskNode* node,
+                 TraceLog* log);
+    
+    TraceModule*
+    getTrace();
+    
+    void
+    produce();
+
+    void
+    consume();
+    
     size_t
     get_spmd_rank() const;
 
@@ -137,16 +170,39 @@ namespace threads_backend {
     get_spmd_size() const;
 
     void
-    release_deps(std::shared_ptr<InnerFlow> flow);
-
-    void
     add_remote(std::shared_ptr<GraphNode> task);
 
     void
     add_local(std::shared_ptr<GraphNode> task);
+
+    void
+    cleanup_handle(std::shared_ptr<InnerFlow> flow);
+    
+    void
+    delete_handle_data(darma_runtime::abstract::frontend::Handle const* const handle,
+                       types::key_t version,
+                       types::key_t key);
+
+    std::shared_ptr<InnerFlow>
+    followInverse(std::shared_ptr<InnerFlow> flow);
+    
+    bool
+    test_alias_null(std::shared_ptr<InnerFlow> flow);
     
     size_t
-    count_delayed_work() const;
+    release_node(std::shared_ptr<InnerFlow> flow);
+
+    bool
+    release_alias(std::shared_ptr<InnerFlow>,
+                  size_t readers);
+    bool
+    release_alias_p2(std::shared_ptr<InnerFlow> flow);
+
+    void
+    release_node_p2(std::shared_ptr<InnerFlow> flow);
+    
+    size_t
+    count_ready_work() const;
 
     void
     schedule_over_breadth();
@@ -202,15 +258,15 @@ namespace threads_backend {
     make_null_flow(darma_runtime::abstract::frontend::Handle* handle);
  
     virtual Flow*
-    make_same_flow(Flow* from,
-		   flow_propagation_purpose_t purpose);
+    make_forwarding_flow(Flow* from);
+    
+    virtual Flow*
+    make_next_flow(Flow* from);
 
-    virtual Flow*
-    make_forwarding_flow(Flow* from,
-			 flow_propagation_purpose_t purpose);
-    virtual Flow*
-    make_next_flow(Flow* from,
-		   flow_propagation_purpose_t purpose);
+    virtual void
+    establish_flow_alias(Flow* from,
+                         Flow* to);
+
     virtual void
     release_use(darma_runtime::abstract::frontend::Use* u);
 

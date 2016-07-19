@@ -77,17 +77,21 @@ namespace threads_backend {
   using namespace darma_runtime;
   using namespace darma_runtime::abstract::backend;
 
-  // TODO: threads not implemented
-  std::vector<std::thread> live_threads;
   std::vector<std::thread> live_ranks;
 
   // TL state
   __thread runtime_t::task_t* current_task = 0;
   __thread size_t this_rank = 0;
-  __thread size_t flow_label = 100;
+
+  #if __THREADS_DEBUG_MODE__
+    __thread size_t flow_label = 100;
+  #endif
+
+  __thread size_t task_label = 100;
 
   // global
   size_t n_ranks = 1;
+  bool traceMode = false;
   bool depthFirstExpand = true;
   size_t bwidth = 100;
   
@@ -95,16 +99,24 @@ namespace threads_backend {
   std::mutex rank_publish;
   std::unordered_map<std::pair<types::key_t, types::key_t>, PublishedBlock*> published;
 
-  ThreadsRuntime::ThreadsRuntime(const ThreadsRuntime& tr) {}
-  
   ThreadsRuntime::ThreadsRuntime()
     : produced(0)
     , consumed(0)
   {
     std::atomic_init(&finished, false);
     std::atomic_init<size_t>(&ranks, 1);
+    trace = traceMode ? new TraceModule{this_rank,n_ranks,"base"} : nullptr;
   }
 
+  void
+  ThreadsRuntime::produce() { this->produced++; }
+
+  void
+  ThreadsRuntime::consume() { this->consumed++; }
+
+  TraceModule*
+  ThreadsRuntime::getTrace() { return trace; }
+  
   size_t
   ThreadsRuntime::get_spmd_rank() const {
     return this_rank;
@@ -116,26 +128,10 @@ namespace threads_backend {
   }
 
   size_t
-  ThreadsRuntime::count_delayed_work() const {
+  ThreadsRuntime::count_ready_work() const {
     return ready_local.size();
   }
 
-  void
-  ThreadsRuntime::release_deps(std::shared_ptr<InnerFlow> inner) {
-    if (inner->node) {
-      inner->node->release();
-    }
-    for (auto dep = inner->deps.begin(),
-	   dep_end = inner->deps.end();
-	 dep != dep_end;
-	 ++dep) {
-      if ((*dep)->node) {
-	(*dep)->node->release();
-      }
-    }
-    inner->deps.clear();
-  }
-  
   void
   ThreadsRuntime::add_remote(std::shared_ptr<GraphNode> task) {
     // this may be called from other threads
@@ -152,7 +148,7 @@ namespace threads_backend {
   
   void
   ThreadsRuntime::schedule_over_breadth() {
-    if (count_delayed_work() > bwidth)
+    if (this->produced - this->consumed > bwidth)
       schedule_next_unit();
   }
     
@@ -161,46 +157,36 @@ namespace threads_backend {
   ThreadsRuntime::register_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
     DEBUG_VERBOSE_PRINT("register task\n");
 
-    #if defined(_BACKEND_MULTITHREADED_RUNTIME)
-    // scoped lock for insertion
-    {
-      std::lock_guard<std::mutex> guard(deque_mutex[this_rank]);
-      deque[this_rank].emplace_front(std::move(task));
-    }
-
-    std::atomic_fetch_add<size_t>(deque_counter[this_rank], 1);
-    #endif
-
     auto t = std::make_shared<TaskNode>(TaskNode{this,std::move(task)});
     t->join_counter = check_dep_task(t);
-    this->produced++;
 
+    DEBUG_VERBOSE_PRINT("task join counter: %ld\n", t->join_counter);
+    
     // use depth-first scheduling policy
     if (threads_backend::depthFirstExpand) {
       assert(t->ready());
       DEBUG_VERBOSE_PRINT("running task\n");
+
       t->execute();
-      this->consumed++;
     } else {
       if (t->ready()) {
-	ready_local.push_back(t);
+        ready_local.push_back(t);
       }
     }
+
+    schedule_over_breadth();
   }
 
   bool
   ThreadsRuntime::register_condition_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
     auto t = std::make_shared<TaskNode>(TaskNode{this,std::move(task)});
     t->join_counter = check_dep_task(t);
-    this->produced++;
 
     assert(threads_backend::depthFirstExpand);
 
     if (threads_backend::depthFirstExpand) {
       assert(t->ready());
       DEBUG_VERBOSE_PRINT("running task\n");
-
-      this->consumed++;
 
       runtime_t::task_t* prev = current_task;
       types::unique_ptr_template<runtime_t::task_t> cur = std::move(t->task);
@@ -219,6 +205,50 @@ namespace threads_backend {
     assert(false);
   }
 
+  std::shared_ptr<InnerFlow>
+  ThreadsRuntime::followInverse(std::shared_ptr<InnerFlow> flow) {
+    if (inverse_alias.find(flow) !=
+        inverse_alias.end()) {
+      return followInverse(inverse_alias[flow]);
+    } else {
+      return flow;
+    }
+  }
+  
+  void
+  ThreadsRuntime::addTraceDeps(TaskNode* node,
+                               TraceLog* thisLog) {
+    for (auto&& dep : node->task->get_dependencies()) {
+      ThreadsFlow const* const f_in  = static_cast<ThreadsFlow*>(dep->get_in_flow());
+      ThreadsFlow const* const f_out = static_cast<ThreadsFlow*>(dep->get_out_flow());
+
+      // create new trace dependency
+      if (f_in != f_out) {
+        taskTrace[f_out->inner] = thisLog;
+      }
+
+      // find dependency for f_in
+      if (taskTrace.find(f_in->inner) != taskTrace.end()) {
+        std::shared_ptr<InnerFlow> prev = f_in->inner;
+
+        if (inverse_alias.find(f_in->inner) !=
+            inverse_alias.end()) {
+          const auto& inverse = followInverse(f_in->inner);
+          prev = inverse;
+          DEBUG_TRACE("f_in=%ld, inverse alias=%ld\n",
+                      PRINT_LABEL_INNER(f_in->inner),
+                      PRINT_LABEL_INNER(inverse));
+        }
+
+        const auto& parent = taskTrace[prev];
+        auto dep = getTrace()->depCreate(parent->end ? parent->end->time : parent->time,
+                                         thisLog->entry);
+        dep->event = thisLog->event;
+        parent->deps.push_back(dep);
+      }
+    }
+  }
+  
   size_t
   ThreadsRuntime::check_dep_task(std::shared_ptr<TaskNode> t) {
     DEBUG_VERBOSE_PRINT("check_dep_task\n");
@@ -226,23 +256,37 @@ namespace threads_backend {
     size_t dep_count = 0;
 
     for (auto&& dep : t->task->get_dependencies()) {
-      ThreadsFlow* f_in  = static_cast<ThreadsFlow*>(dep->get_in_flow());
-      ThreadsFlow* f_out = static_cast<ThreadsFlow*>(dep->get_out_flow());
+      ThreadsFlow* const f_in  = static_cast<ThreadsFlow*>(dep->get_in_flow());
+      ThreadsFlow* const f_out = static_cast<ThreadsFlow*>(dep->get_out_flow());
 
-      DEBUG_PRINT("check_dep_task: f_in = %lu, f_out = %lu\n",
-		  PRINT_LABEL(f_in),
-		  PRINT_LABEL(f_out));
+      DEBUG_PRINT("check_dep_task: f_in=%lu, f_out=%lu\n",
+                  PRINT_LABEL(f_in),
+                  PRINT_LABEL(f_out));
       
       // set readiness of this flow based on symmetric flow structure
       const bool check_ready = f_in->inner->check_ready();
-      // try to set readiness if we can find a backward flow that is ready
-      const bool check_back_ready = f_in->inner->backward ? f_in->inner->backward->ready : false;
 
-      f_in->inner->ready = check_ready || check_back_ready;
+      f_in->inner->ready = check_ready;
+
+      if (f_in == f_out) {
+        f_in->inner->readers_jc++;
+      }
 
       if (!f_in->inner->ready) {
-	f_in->inner->node = t;
-	dep_count++;
+        if (f_in == f_out) {
+          f_in->inner->readers.push_back(t);
+        } else {
+          f_in->inner->node = t;
+        }
+        dep_count++;
+      }
+
+      // wait for anti-dep
+      if (f_in->inner->ready &&
+          f_in->inner->readers_jc != 0 &&
+          f_in != f_out) {
+        f_in->inner->node = t;
+        dep_count++;
       }
     }
 
@@ -271,50 +315,57 @@ namespace threads_backend {
     ThreadsFlow* f_in  = static_cast<ThreadsFlow*>(u->get_in_flow());
     ThreadsFlow* f_out = static_cast<ThreadsFlow*>(u->get_out_flow());
 
+    f_in->inner->uses++;
+    f_out->inner->uses++;
+    
     auto const handle = u->get_handle();
     const auto& key = handle->get_key();
-    const auto version = f_in->inner->same ? f_in->inner->same->version_key : f_in->inner->version_key;
+    const auto version = f_in->inner->version_key;
 
     const bool ready = f_in->inner->check_ready();
     const bool data_exists = data.find({version,key}) != data.end();
 
-    DEBUG_PRINT("%p: register use: ready = %s, data_exists = %s, key = %s, version = %s, handle = %p\n",
-		u,
-		PRINT_BOOL_STR(ready),
-		PRINT_BOOL_STR(data_exists),
-		PRINT_KEY(key),
-		PRINT_KEY(version),
-		handle);
+    DEBUG_PRINT("%p: register use: ready=%s, data_exists=%s, key=%s, version=%s, "
+                "handle=%p [in={%ld,use=%ld},out={%ld,use=%ld}], sched=%d, immed=%d\n",
+                u,
+                PRINT_BOOL_STR(ready),
+                PRINT_BOOL_STR(data_exists),
+                PRINT_KEY(key),
+                PRINT_KEY(version),
+                handle,
+                PRINT_LABEL(f_in),
+                f_in->inner->ref,
+                PRINT_LABEL(f_out),
+                f_out->inner->ref,
+                u->scheduling_permissions(),
+                u->immediate_permissions()
+               );
 
     if (data_exists) {
-      // increase reference count on data
-      data[{version,key}]->ref();
       u->get_data_pointer_reference() = data[{version,key}]->data;
 
-      DEBUG_PRINT("%p: use register, refs = %d, ptr = %p, key = %s, "
-		  "in version = %s, out version = %s\n",
-		  u,
-		  data[{version,key}]->get_refs(),
-		  data[{version,key}]->data,
-		  PRINT_KEY(key),
-		  PRINT_KEY(f_in->inner->version_key),
-		  PRINT_KEY(f_out->inner->version_key));
+      DEBUG_PRINT("%p: use register, ptr=%p, key=%s, "
+                  "in version=%s, out version=%s\n",
+                  u,
+                  data[{version,key}]->data,
+                  PRINT_KEY(key),
+                  PRINT_KEY(f_in->inner->version_key),
+                  PRINT_KEY(f_out->inner->version_key));
     } else {
       // allocate new deferred data block for this use
       auto block = allocate_block(handle);
 
       // insert into the hash
       data[{version,key}] = block;
-      block->ref();
       u->get_data_pointer_reference() = block->data;
 
-      DEBUG_PRINT("%p: use register: *deferred*: ptr = %p, key = %s, "
-		  "in version = %s, out version = %s\n",
-		  u,
-		  block->data,
-		  PRINT_KEY(key),
-		  PRINT_KEY(f_in->inner->version_key),
-		  PRINT_KEY(f_out->inner->version_key));
+      DEBUG_PRINT("%p: use register: ptr=%p, key=%s, "
+                  "in version=%s, out version=%s\n",
+                  u,
+                  block->data,
+                  PRINT_KEY(key),
+                  PRINT_KEY(f_in->inner->version_key),
+                  PRINT_KEY(f_out->inner->version_key));
     }
 
     // count references to a given handle
@@ -332,7 +383,7 @@ namespace threads_backend {
     auto block = new DataBlock(1, sz);
 
     DEBUG_PRINT("allocating data block: size = %ld, ptr = %p\n",
-		sz, block->data);
+                sz, block->data);
       
     // call default constructor for data block
     handle
@@ -347,28 +398,14 @@ namespace threads_backend {
   ThreadsRuntime::make_initial_flow(darma_runtime::abstract::frontend::Handle* handle) {
     ThreadsFlow* f = new ThreadsFlow(handle);
     f->inner->ready = true;
-
-    // allocate a new data block
-    auto block = allocate_block(handle);
-
-    // insert new allocated block into the hash
-    const auto& key = handle->get_key();
-    const auto& version = darma_runtime::detail::SimpleKey();
-
-    data[{version,key}] = block;
-
-    DEBUG_PRINT("make initial flow: ptr = %p, key = %s, handle = %p, flow = %lu\n",
-		block->data,
-		PRINT_KEY(key),
-		handle,
-		PRINT_LABEL(f));
-
+    f->inner->handle = handle;
+    handle_refs[handle]++;
     return f;
   }
 
   bool
   ThreadsRuntime::try_fetch(darma_runtime::abstract::frontend::Handle* handle,
-			    types::key_t const& version_key) {
+                            types::key_t const& version_key) {
     bool found = false;
 
   retry_fetch:
@@ -380,47 +417,45 @@ namespace threads_backend {
       const auto& iter = published.find({version_key, key});
 
       if (iter != published.end()) {
-	PublishedBlock* pub_ptr = iter->second;
-	auto &pub = *pub_ptr;
+        PublishedBlock* pub_ptr = iter->second;
+        auto &pub = *pub_ptr;
 
-	const bool buffer_exists = data.find({version_key,key}) != data.end();
-	void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
+        const bool buffer_exists = data.find({version_key,key}) != data.end();
+        void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
 
-	DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
-		    PRINT_BOOL_STR(buffer_exists),
-		    handle);
-	    
-	handle
-	  ->get_serialization_manager()
-	  ->unpack_data(unpack_to,pub.data->data_);
+        DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
+                    PRINT_BOOL_STR(buffer_exists),
+                    handle);
+            
+        handle
+          ->get_serialization_manager()
+          ->unpack_data(unpack_to,pub.data->data_);
 
-	if (!buffer_exists) {
-	  data[{version_key,key}] = new DataBlock(unpack_to);
-	} else {
-	  data[{version_key,key}]->ref();
-	}
+        if (!buffer_exists) {
+          data[{version_key,key}] = new DataBlock(unpack_to);
+        }
 
-	DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
-		    PRINT_KEY(key),
-		    PRINT_KEY(version_key),
-		    pub.data->data_,
-		    std::atomic_load<size_t>(&pub.expected),
-		    unpack_to);
+        DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
+                    PRINT_KEY(key),
+                    PRINT_KEY(version_key),
+                    pub.data->data_,
+                    std::atomic_load<size_t>(&pub.expected),
+                    unpack_to);
 
-	assert(pub.expected > 0);
+        assert(pub.expected > 0);
 
-	++(pub.done);
-	--(pub.expected);
+        ++(pub.done);
+        --(pub.expected);
 
-	if (std::atomic_load<size_t>(&pub.expected) == 0) {
-	  // remove from publication list
-	  published.erase({version_key, key});
-	  free(pub_ptr->data->data_);
-	  delete pub.data;
-	  delete pub_ptr;
-	}
+        if (std::atomic_load<size_t>(&pub.expected) == 0) {
+          // remove from publication list
+          published.erase({version_key, key});
+          free(pub_ptr->data->data_);
+          delete pub.data;
+          delete pub_ptr;
+        }
 
-	found = true;
+        found = true;
       }
     }
 
@@ -432,8 +467,8 @@ namespace threads_backend {
 
   bool
   ThreadsRuntime::add_fetcher(std::shared_ptr<FetchNode> fetch,
-			      darma_runtime::abstract::frontend::Handle* handle,
-			      types::key_t const& version_key) {
+                              darma_runtime::abstract::frontend::Handle* handle,
+                              types::key_t const& version_key) {
     bool ready = false;
     {
       // TODO: unscalable lock to handling fetching
@@ -444,12 +479,19 @@ namespace threads_backend {
       const bool found = iter != published.end();
       const bool avail = found && std::atomic_load<bool>(&iter->second->ready); 
 
+      DEBUG_PRINT("add_fetcher: key=%s, version=%s, found=%s, avail=%s\n",
+                  PRINT_KEY(key),
+                  PRINT_KEY(version_key),
+                  PRINT_BOOL_STR(found),
+                  PRINT_BOOL_STR(avail)
+                  );
+      
       if (!found) {
-	auto pub = new PublishedBlock();
-	pub->waiting.push_front(fetch);
-	published[{version_key,key}] = pub;
+        auto pub = new PublishedBlock();
+        pub->waiting.push_front(fetch);
+        published[{version_key,key}] = pub;
       } else if (found && !avail) {
-	published[{version_key,key}]->waiting.push_front(fetch);
+        published[{version_key,key}]->waiting.push_front(fetch);
       }
 
       ready = avail;
@@ -459,7 +501,7 @@ namespace threads_backend {
   
   bool
   ThreadsRuntime::test_fetch(darma_runtime::abstract::frontend::Handle* handle,
-			     types::key_t const& version_key) {
+                             types::key_t const& version_key) {
     bool ready = false;
     {
       // TODO: unscalable lock to handling fetching
@@ -468,16 +510,20 @@ namespace threads_backend {
       const auto& key = handle->get_key();
       const auto& iter = published.find({version_key,key});
 
+      DEBUG_PRINT("test_fetch: trying to find a publish, key=%s, version=%s\n",
+                  PRINT_KEY(key),
+                  PRINT_KEY(version_key));
+      
       ready =
-	iter != published.end() &&
-	std::atomic_load<bool>(&iter->second->ready);
+        iter != published.end() &&
+        std::atomic_load<bool>(&iter->second->ready);
     }
     return ready;
   }
 
   void
   ThreadsRuntime::blocking_fetch(darma_runtime::abstract::frontend::Handle* handle,
-				 types::key_t const& version_key) {
+                                 types::key_t const& version_key) {
 
     DEBUG_PRINT("fetch_block: handle = %p\n", handle);
 
@@ -487,7 +533,7 @@ namespace threads_backend {
 
   void
   ThreadsRuntime::fetch(darma_runtime::abstract::frontend::Handle* handle,
-			types::key_t const& version_key) {
+                        types::key_t const& version_key) {
     {
       // TODO: big lock to handling fetching
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
@@ -495,9 +541,14 @@ namespace threads_backend {
       const auto& key = handle->get_key();
       const auto& iter = published.find({version_key,key});
 
+      DEBUG_PRINT("fetch: trying to find a publish, assume existance: handle=%p, key=%s, version=%s\n",
+                  handle,
+                  PRINT_KEY(key),
+                  PRINT_KEY(version_key));
+      
       // published block found and ready
       assert(iter != published.end() &&
-	     std::atomic_load<bool>(&iter->second->ready));
+             std::atomic_load<bool>(&iter->second->ready));
 
       PublishedBlock* pub_ptr = iter->second;
       auto &pub = *pub_ptr;
@@ -505,26 +556,24 @@ namespace threads_backend {
       const bool buffer_exists = data.find({version_key,key}) != data.end();
       void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
 
-      DEBUG_PRINT("try_fetch: unpacking data: buffer_exists = %s, handle = %p\n",
-		  PRINT_BOOL_STR(buffer_exists),
-		  handle);
+      DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
+                  PRINT_BOOL_STR(buffer_exists),
+                  handle);
 
       handle
-	->get_serialization_manager()
-	->unpack_data(unpack_to, pub.data->data_);
+        ->get_serialization_manager()
+        ->unpack_data(unpack_to, pub.data->data_);
 
       if (!buffer_exists) {
-	data[{version_key,key}] = new DataBlock(unpack_to);
-      } else {
-	data[{version_key,key}]->ref();
+        data[{version_key,key}] = new DataBlock(unpack_to);
       }
 
       DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
-		  PRINT_KEY(key),
-		  PRINT_KEY(version_key),
-		  pub.data->data_,
-		  std::atomic_load<size_t>(&pub.expected),
-		  unpack_to);
+                  PRINT_KEY(key),
+                  PRINT_KEY(version_key),
+                  pub.data->data_,
+                  std::atomic_load<size_t>(&pub.expected),
+                  unpack_to);
 
       assert(pub.expected > 0);
 
@@ -532,11 +581,11 @@ namespace threads_backend {
       --(pub.expected);
 
       if (std::atomic_load<size_t>(&pub.expected) == 0) {
-	// remove from publication list
-	published.erase({version_key, key});
-	free(pub_ptr->data->data_);
-	delete pub.data;
-	delete pub_ptr;
+        // remove from publication list
+        published.erase({version_key, key});
+        free(pub_ptr->data->data_);
+        delete pub.data;
+        delete pub_ptr;
       }
     }
   }
@@ -544,11 +593,13 @@ namespace threads_backend {
   /*virtual*/
   Flow*
   ThreadsRuntime::make_fetching_flow(darma_runtime::abstract::frontend::Handle* handle,
-				     types::key_t const& version_key) {
+                                     types::key_t const& version_key) {
     DEBUG_VERBOSE_PRINT("make fetching flow\n");
 
     ThreadsFlow* f = new ThreadsFlow(handle);
 
+    handle_refs[handle]++;
+    f->inner->handle = handle;
     f->inner->version_key = version_key;
 
     if (threads_backend::depthFirstExpand) {
@@ -557,10 +608,9 @@ namespace threads_backend {
     } else {
       auto node = std::make_shared<FetchNode>(FetchNode{this,f->inner});
       const bool ready = add_fetcher(node,handle,version_key);
-      this->produced++;
 
       if (ready) {
-	ready_local.push_back(node);
+        ready_local.push_back(node);
       }
       f->inner->ready = false;
     }
@@ -574,6 +624,9 @@ namespace threads_backend {
     DEBUG_VERBOSE_PRINT("make null flow\n");
     ThreadsFlow* f = new ThreadsFlow(handle);
 
+    f->inner->isNull = true;
+    f->inner->handle = handle;
+    
     DEBUG_PRINT("null flow %lu\n", PRINT_LABEL(f));
 
     return f;
@@ -581,67 +634,285 @@ namespace threads_backend {
   
   /*virtual*/
   Flow*
-  ThreadsRuntime::make_same_flow(Flow* from,
-				 flow_propagation_purpose_t purpose) {
-    DEBUG_VERBOSE_PRINT("make same flow: %d\n", purpose);
-    ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
-    ThreadsFlow* f_same = new ThreadsFlow(0);
-
-    // skip list of same for constant lookup. backward link.
-    f_same->inner->same = f->inner->same ? f->inner->same : f->inner;
-
-    // forward link
-    f_same->inner->same->deps.push_back(f_same->inner);
-
-    DEBUG_PRINT("same flow from %lu to %lu, skip to %lu, purpose = %s\n",
-		PRINT_LABEL(f),
-		PRINT_LABEL(f_same),
-		PRINT_LABEL_INNER(f_same->inner->same),
-		PRINT_PURPOSE(purpose));
-
-    if (f->inner->ready)
-      f_same->inner->ready = true;
-    
-    return f_same;
-  }
-
-  /*virtual*/
-  Flow*
-  ThreadsRuntime::make_forwarding_flow(Flow* from,
-				       flow_propagation_purpose_t purpose) {
-    DEBUG_VERBOSE_PRINT("make forwarding flow: %d\n", purpose);
+  ThreadsRuntime::make_forwarding_flow(Flow* from) {
+    DEBUG_VERBOSE_PRINT("make forwarding flow\n");
 
     ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
     ThreadsFlow* f_forward = new ThreadsFlow(0);
 
     DEBUG_PRINT("forwarding flow from %lu to %lu\n",
-		PRINT_LABEL(f),
-		PRINT_LABEL(f_forward));
-    
+                PRINT_LABEL(f),
+                PRINT_LABEL(f_forward));
+
+    f->inner->next->ref++;
+
     if (depthFirstExpand) {
       f_forward->inner->ready = true;
     }
     
     f->inner->forward = f_forward->inner;
-    f_forward->inner->backward = f->inner;
+    f_forward->inner->handle = f->inner->handle;
     return f_forward;
   }
 
   /*virtual*/
   Flow*
-  ThreadsRuntime::make_next_flow(Flow* from,
-				 flow_propagation_purpose_t purpose) {
-    DEBUG_VERBOSE_PRINT("make next flow: %d\n", purpose);
+  ThreadsRuntime::make_next_flow(Flow* from) {
+    DEBUG_VERBOSE_PRINT("make next flow: (from=%p)\n", from);
 
     ThreadsFlow* f  = static_cast<ThreadsFlow*>(from);
     ThreadsFlow* f_next = new ThreadsFlow(0);
 
-    DEBUG_PRINT("next flow from %lu to %lu\n",
-		PRINT_LABEL(f),
-		PRINT_LABEL(f_next));
-
     f->inner->next = f_next->inner;
+    f_next->inner->handle = f->inner->handle;
+    
+    DEBUG_PRINT("next flow from %lu (%p) to %lu (%p)\n",
+                PRINT_LABEL(f),
+                f,
+                PRINT_LABEL(f_next),
+                f_next);
+
     return f_next;
+  }
+
+  void
+  ThreadsRuntime::cleanup_handle(std::shared_ptr<InnerFlow> flow) {
+    auto const* const handle = flow->handle;
+
+    handle_refs[handle]--;
+
+    assert(handle == alias[flow]->handle);
+    assert(handle_refs[handle] >= 0);
+
+    DEBUG_PRINT("cleanup_handle identity: %p to %p: refs=%d\n",
+                flow->handle,
+                alias[flow]->handle,
+                handle_refs[handle]);
+    
+    if (handle_refs[handle] == 0) {
+      if (handle_pubs.find(handle) != handle_pubs.end()) {
+        for (auto delayed_pub = handle_pubs[handle].begin(), end = handle_pubs[handle].end();
+             delayed_pub != end;
+             ++delayed_pub) {
+
+          publish(*delayed_pub);
+          (*delayed_pub)->finished = true;
+
+          DEBUG_PRINT("cleanup handle: force publish of handle = %p\n", handle);
+        }
+
+        handle_pubs.erase(handle);
+      }
+      delete_handle_data(handle,
+                         flow->version_key,
+                         handle->get_key());
+      handle_refs.erase(handle);
+    }
+  }
+
+  void
+  ThreadsRuntime::delete_handle_data(darma_runtime::abstract::frontend::Handle const* const handle,
+                                     types::key_t version,
+                                     types::key_t key) {
+    DEBUG_PRINT("delete handle data\n");
+    DataBlock* prev = data[{version,key}];
+    data.erase({version,key});
+    // call the destructor
+    handle
+      ->get_serialization_manager()
+      ->destroy(prev->data);
+    delete prev;
+  }
+  
+  /*virtual*/
+  void
+  ThreadsRuntime::establish_flow_alias(Flow* from,
+                                       Flow* to) {
+    ThreadsFlow* f_from  = static_cast<ThreadsFlow*>(from);
+    ThreadsFlow* f_to    = static_cast<ThreadsFlow*>(to);
+
+    DEBUG_PRINT("establish flow alias %lu (ref=%ld,uses=%ld) to %lu (ref=%ld,uses=%ld)\n",
+                PRINT_LABEL(f_from),
+                f_from->inner->ref,
+                f_from->inner->uses,
+                PRINT_LABEL(f_to),
+                f_to->inner->ref,
+                f_to->inner->uses);
+
+    alias[f_from->inner] = f_to->inner;
+
+    // build inverse alias map tracing
+    // TODO: free/remove entries from
+    // this inverted alias map when appropiate
+    if (getTrace()) {
+      inverse_alias[f_to->inner] = f_from->inner;
+    }
+    
+    if (f_from->inner->uses == 0 ||
+        f_from->inner->ready) {
+      f_to->inner->ref = 0;
+      release_node(f_to->inner);
+    }
+
+    if (f_from->inner->uses == 0 &&
+        f_to->inner->isNull) {
+      cleanup_handle(f_from->inner);
+    }
+
+    if (f_from->inner->uses == 0) {
+      DEBUG_PRINT("remove alias %ld to %ld\n",
+                  PRINT_LABEL_INNER(f_from->inner),
+                  PRINT_LABEL_INNER(alias[f_from->inner]));
+
+      alias.erase(alias.find(f_from->inner));
+      DEBUG_PRINT("establish deleting: %ld\n",
+                  PRINT_LABEL(f_from));
+      delete f_from;
+    }
+
+    if (f_to->inner->isNull) {
+      DEBUG_PRINT("establish deleting null: %ld\n",
+                  PRINT_LABEL(f_to));
+      delete f_to;
+    }
+  }
+
+  bool
+  ThreadsRuntime::test_alias_null(std::shared_ptr<InnerFlow> flow) {
+    if (flow->uses == 0 &&
+        alias[flow]->isNull) {
+      DEBUG_PRINT("remove alias to null %ld to %ld\n",
+                  PRINT_LABEL_INNER(flow),
+                  PRINT_LABEL_INNER(alias[flow]));
+      cleanup_handle(flow);
+      alias.erase(alias.find(flow));
+      return true;
+    }
+    return false;
+  }
+  
+  bool
+  ThreadsRuntime::release_alias(std::shared_ptr<InnerFlow> flow,
+                                size_t readers) {
+    if (alias.find(flow) != alias.end()) {
+      if (test_alias_null(flow)) {
+        return true;
+      }
+      
+      DEBUG_PRINT("release_use: releasing alias: %ld, ref=%ld, readers_jc=%ld\n",
+                  PRINT_LABEL_INNER(alias[flow]),
+                  alias[flow]->ref,
+                  alias[flow]->readers_jc);
+
+      alias[flow]->ref--;
+      if (alias[flow]->ref == 0) {
+        const size_t alias_readers = release_node(alias[flow]);
+        alias[flow]->readers_jc += readers;
+        DEBUG_PRINT("release_use: releasing alias: %ld, ref=%ld, readers_jc=%ld\n",
+                    PRINT_LABEL_INNER(alias[flow]),
+                    alias[flow]->ref,
+                    alias[flow]->readers_jc);
+
+        release_alias(alias[flow], readers);
+
+        if (flow->readers_jc == 0 && flow->ref == 0) {
+          DEBUG_PRINT("remove alias %ld to %ld\n",
+                      PRINT_LABEL_INNER(flow),
+                      PRINT_LABEL_INNER(alias[flow]));
+
+          alias.erase(alias.find(flow));
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  size_t
+  ThreadsRuntime::release_node(std::shared_ptr<InnerFlow> flow) {
+    DEBUG_PRINT("releasing flow: %ld, readers=%ld, reader_jc=%ld, ref=%ld\n",
+                PRINT_LABEL_INNER(flow),
+                flow->readers.size(),
+                flow->readers_jc,
+                flow->ref);
+
+    if (flow->ref == 0) {
+      if (flow->readers_jc == 0) {
+        if (flow->node) {
+          flow->node->release();
+        }
+      } else {
+        const size_t size = flow->readers.size();
+        for (auto iter = flow->readers.begin(),
+             iter_end = flow->readers.end();
+             iter != iter_end;
+             ++iter) {
+          DEBUG_PRINT("releasing READER on flow %ld, readers=%ld\n",
+                      PRINT_LABEL_INNER(flow),
+                      flow->readers.size());
+          (*iter)->release();
+        }
+        flow->readers.clear();
+        return size;
+      }
+    }
+    return 0;
+  }
+
+  void
+  ThreadsRuntime::release_node_p2(std::shared_ptr<InnerFlow> flow) {
+    flow->readers_jc--;
+    DEBUG_PRINT("releasing node p2: %ld, readers=%ld, reader_jc=%ld, ref=%ld\n",
+                PRINT_LABEL_INNER(flow),
+                flow->readers.size(),
+                flow->readers_jc,
+                flow->ref);
+    assert(flow->ref == 0 &&
+           "Flow must have been ready for readers to have been released");
+    if (flow->readers_jc == 0) {
+      if (flow->node) {
+        flow->node->release();
+      }
+    }
+  }
+
+  bool
+  ThreadsRuntime::release_alias_p2(std::shared_ptr<InnerFlow> flow) {
+    DEBUG_PRINT("release_use: try find alias\n");
+    
+    if (alias.find(flow) != alias.end()) {
+      DEBUG_PRINT("release_use: releasing alias: %ld, ref=%ld, readers_jc=%ld\n",
+                  PRINT_LABEL_INNER(alias[flow]),
+                  alias[flow]->ref,
+                  alias[flow]->readers_jc);
+
+      if (test_alias_null(flow)) {
+        return true;
+      }
+      
+      alias[flow]->readers_jc--;
+
+      // TODO: does this assertion ever break?
+      assert(alias[flow]->ref == 0 &&
+             "Alias flow must have been ready for readers to have been released");
+
+      if (alias[flow]->readers_jc == 0) {
+        if (alias[flow]->node) {
+          alias[flow]->node->release();
+        }
+      }
+
+      release_alias_p2(alias[flow]);
+      
+      if (flow->readers_jc == 0) {
+        DEBUG_PRINT("remove alias %ld to %ld\n",
+                    PRINT_LABEL_INNER(flow),
+                    PRINT_LABEL_INNER(alias[flow]));
+        alias.erase(alias.find(flow));
+      }
+      return true;
+    }
+    return false;
   }
   
   /*virtual*/
@@ -658,65 +929,68 @@ namespace threads_backend {
     f_out->inner->ready = true;
 
     auto handle = u->get_handle();
-    const auto version =
-      f_in->inner->same ? f_in->inner->same->version_key : f_in->inner->version_key;
+    const auto version = f_in->inner->version_key;
     const auto& key = handle->get_key();
 
-    DEBUG_PRINT("%p: release use: hasDeferred = %s, handle = %p, version = %s, key = %s, data = %p\n",
-		u,
-		f_in->inner->hasDeferred ? "*** true" : "false",
-		handle,
-		PRINT_KEY(version),
-		PRINT_KEY(key),
-		data[{version,key}]->data);
+    DEBUG_PRINT("%p: release use: hasDeferred=%s, handle=%p, version=%s, key=%s, data=%p\n",
+                u,
+                f_in->inner->hasDeferred ? "*** true" : "false",
+                handle,
+                PRINT_KEY(version),
+                PRINT_KEY(key),
+                data[{version,key}]->data);
 
     handle_refs[handle]--;
 
-    if (handle_refs[handle] == 0) {
-      if (handle_pubs.find(handle) != handle_pubs.end()) {
-      	for (auto delayed_pub = handle_pubs[handle].begin(), end = handle_pubs[handle].end();
-      	     delayed_pub != end;
-      	     ++delayed_pub) {
+    // dereference flows
+    f_in->inner->uses--;
+    f_out->inner->uses--;
 
-	  this->consumed++;
-      	  publish(*delayed_pub);
-	  (*delayed_pub)->finished = true;
+    DEBUG_PRINT("release_use: f_in=[%ld,{use=%ld}], f_out=[%ld,{use=%ld}]: handle_refs=%d\n",
+                PRINT_LABEL(f_in),
+                f_in->inner->uses,
+                PRINT_LABEL(f_out),
+                f_out->inner->uses,
+                handle_refs[handle]);
 
-      	  DEBUG_PRINT("%p: release use: force publish of handle = %p\n", u, handle);
-      	}
+    const bool same = f_in == f_out;
+    bool deleted_out = false;
+
+    if (f_in == f_out) {
+      release_node_p2(f_out->inner);
+      const bool hasAlias = release_alias_p2(f_out->inner);
+      if (hasAlias &&
+          f_out->inner->uses == 0) {
+        DEBUG_PRINT("deleting redirect: %ld\n", PRINT_LABEL(f_out));
+        delete f_out;
+        deleted_out = true;
       }
-
-      handle_pubs.erase(handle);
-      handle_refs.erase(handle);
+    } else {
+      const size_t readers = release_node(f_out->inner);
+      if (f_out->inner->ref == 0) {
+        const bool hasAlias = release_alias(f_out->inner, readers);
+        if (hasAlias &&
+            f_out->inner->uses == 0) {
+          DEBUG_PRINT("deleting redirect: %ld\n", PRINT_LABEL(f_out));
+          delete f_out;
+          deleted_out = true;
+        }
+      }
     }
-      
-    data[{version,key}]->deref();
 
-    DEBUG_PRINT("release_use: f_in %ld, f_out %ld\n",
-		PRINT_LABEL(f_in),
-		PRINT_LABEL(f_out));
-    
-    release_deps(f_out->inner);
+    if (!deleted_out &&
+        f_out->inner->uses == 0 &&
+        (f_out->inner->next || f_out->inner->forward)) {
+      DEBUG_PRINT("deleting: %ld\n", PRINT_LABEL(f_out));
+      delete f_out;
+      deleted_out = true;
+    }
 
-    // free released flows, shared ptrs manage inner flows
-    delete f_in;
-    delete f_out;
-
-    const auto refs = data[{version,key}]->get_refs();
-      
-    DEBUG_PRINT("%p: release use: refs = %d, ptr = %p, key = %s, version = %s, handle = %p\n",
-		u,
-		refs,
-		data[{version, key}]->data,
-		PRINT_KEY(key),
-		PRINT_KEY(version),
-		handle);
-
-    if (refs == 1) {
-      DataBlock* prev = data[{version,key}];
-      data.erase({version,key});
-      delete prev;
-      DEBUG_PRINT("use delete\n");
+    if ((!same || !deleted_out) &&
+        (f_in->inner->next || f_in->inner->forward) &&
+        f_in->inner->uses == 0) {
+      DEBUG_PRINT("deleting: %ld\n", PRINT_LABEL(f_in));
+      delete f_in;
     }
   }
 
@@ -740,46 +1014,43 @@ namespace threads_backend {
       const darma_runtime::abstract::frontend::Handle* handle = publish->handle;
       void* data_ptr = publish->data_ptr;
 
-      const auto refs = publish->flow->deferred_data_ptr->get_refs();
-	
-      DEBUG_PRINT("publish: key = %s, version = %s, data ptr = %p, handle = %p, refs = %d\n",
-		  PRINT_KEY(key),
-		  PRINT_KEY(version),
-		  data_ptr,
-		  handle,
-		  refs);
-	
+      DEBUG_PRINT("publish: key = %s, version = %s, data ptr = %p, handle = %p\n",
+                  PRINT_KEY(key),
+                  PRINT_KEY(version),
+                  data_ptr,
+                  handle);
+        
       assert(expected >= 1);
 
       const size_t size = handle
-	->get_serialization_manager()
-	->get_packed_data_size(data_ptr);
+        ->get_serialization_manager()
+        ->get_packed_data_size(data_ptr);
 
       auto block = new PackedDataBlock();
 
       // set data block for published block
       block->data_ = malloc(size);
       block->size_ = handle
-	->get_serialization_manager()
-	->get_metadata_size();
+        ->get_serialization_manager()
+        ->get_metadata_size();
 
       // call pack method to put it inside the allocated buffer
       handle
-	->get_serialization_manager()
-	->pack_data(data_ptr,
-		    block->data_);
+        ->get_serialization_manager()
+        ->pack_data(data_ptr,
+                    block->data_);
 
       DEBUG_PRINT("publication: key = %s, version = %s, published data = %p, data ptr = %p\n",
-		  PRINT_KEY(key),
-	 	  PRINT_KEY(version),
-		  block->data_,
-		  data_ptr);
+                  PRINT_KEY(key),
+                  PRINT_KEY(version),
+                  block->data_,
+                  data_ptr);
 
       const bool publish_exists = published.find({version,key}) != published.end();
       const auto& publish = publish_exists ?
-	published[{version,key}] :
-	(published[{version,key}] = new PublishedBlock(),
-	 published[{version,key}]);
+        published[{version,key}] :
+        (published[{version,key}] = new PublishedBlock(),
+         published[{version,key}]);
 
       publish->expected = expected;
       publish->key = key;
@@ -787,28 +1058,31 @@ namespace threads_backend {
       publish->data = block;
 
       if (publish_exists) {
-	for (auto iter = publish->waiting.begin(),
-	     iter_end = publish->waiting.end();
-	     iter != iter_end;
-	     ++iter) {
-	  (*iter)->activate();
-	}
-	publish->waiting.clear();
+        for (auto iter = publish->waiting.begin(),
+             iter_end = publish->waiting.end();
+             iter != iter_end;
+             ++iter) {
+          (*iter)->activate();
+        }
+        publish->waiting.clear();
       }
     }
   }
 
   void
   ThreadsRuntime::publish_finished(std::shared_ptr<DelayedPublish> publish) {
+    DEBUG_PRINT("publish finished, removing from handle %p\n",
+                publish->handle);
     handle_pubs[publish->handle].remove(publish);
   }
   
   /*virtual*/
   void
   ThreadsRuntime::publish_use(darma_runtime::abstract::frontend::Use* f,
-			      darma_runtime::abstract::frontend::PublicationDetails* details) {
+                              darma_runtime::abstract::frontend::PublicationDetails* details) {
 
     ThreadsFlow* f_in  = static_cast<ThreadsFlow*>(f->get_in_flow());
+    ThreadsFlow* f_out = static_cast<ThreadsFlow*>(f->get_out_flow());
 
     const darma_runtime::abstract::frontend::Handle* handle = f->get_handle();
 
@@ -818,12 +1092,12 @@ namespace threads_backend {
     // TODO: do not create this just to tear it down
     auto pub = std::make_shared<DelayedPublish>
       (DelayedPublish{f_in->inner,
-	  handle,
-	  f->get_data_pointer_reference(),
-	  details->get_n_fetchers(),
-	  key,
-	  details->get_version_name(),
-	  false
+          handle,
+          f->get_data_pointer_reference(),
+          details->get_n_fetchers(),
+          key,
+          details->get_version_name(),
+          false
        });
 
     assert(f_in->inner->hasDeferred);
@@ -832,16 +1106,17 @@ namespace threads_backend {
 
     const bool ready = p->ready();
 
-    DEBUG_PRINT("%p: publish_use: ptr = %p, hasDeferred = %s, key = %s, "
-		"version = %s, handle = %p, ready = %s, f_in = %lu\n",
-		f,
-		f->get_data_pointer_reference(),
-		PRINT_BOOL_STR(f_in->inner->hasDeferred),
-		PRINT_KEY(key),
-		PRINT_KEY(version),
-		handle,
-		PRINT_BOOL_STR(ready),
-		PRINT_LABEL(f_in));
+    DEBUG_PRINT("%p: publish_use: ptr=%p, hasDeferred=%s, key=%s, "
+                "version=%s, handle=%p, ready=%s, f_in=%lu, f_out=%lu\n",
+                f,
+                f->get_data_pointer_reference(),
+                PRINT_BOOL_STR(f_in->inner->hasDeferred),
+                PRINT_KEY(key),
+                PRINT_KEY(version),
+                handle,
+                PRINT_BOOL_STR(ready),
+                PRINT_LABEL(f_in),
+                PRINT_LABEL(f_out));
     
     if (!ready) {
       // publishes.push_back(p);
@@ -850,7 +1125,6 @@ namespace threads_backend {
       p->set_join(1);
       f_in->inner->node = p;
 
-      this->produced++;
       handle_pubs[handle].push_back(pub);
     } else {
       p->execute();
@@ -868,10 +1142,10 @@ namespace threads_backend {
       auto n = nodes.back();
       nodes.pop_back();
       if (n->ready(this)) {
-	n->execute(this);
-	n->cleanup(this);
+        n->execute(this);
+        n->cleanup(this);
       } else {
-	nodes.push_front(n);
+        nodes.push_front(n);
       }
     }
   }
@@ -881,7 +1155,7 @@ namespace threads_backend {
   ThreadsRuntime::schedule_from_deque(std::mutex* lock, std::deque<Node>& nodes) {
     if (nodes.size() > 0) {
       DEBUG_PRINT("scheduling from deque %p (local = %p): size = %lu\n",
-		  &nodes, &ready_local, nodes.size());
+                  &nodes, &ready_local, nodes.size());
 
       if (lock) lock->lock();
       auto node = nodes.front();
@@ -889,7 +1163,7 @@ namespace threads_backend {
       if (lock) lock->unlock();
 
       node->execute();
-      this->consumed++;
+      node->cleanup();
 
       return true;
     }
@@ -909,51 +1183,57 @@ namespace threads_backend {
   /*virtual*/
   void
   ThreadsRuntime::finalize() {
-    DEBUG_PRINT("finalize\n");
+    DEBUG_PRINT("finalize:  produced=%ld, consumed=%ld\n",
+                this->produced,
+                this->consumed);
 
     while (this->produced != this->consumed) {
-      //DEBUG_PRINT("produced = %ld, consumed = %ld\n", this->produced, this->consumed);
+      /// DEBUG_PRINT("produced = %ld, consumed = %ld\n", this->produced, this->consumed);
       schedule_next_unit();
     }
-      
+
+    assert(ready_local.size() == 0 &&
+           ready_remote.size() == 0 &&
+           "TD failed if queues have work units in them.");
+    
+    STARTUP_PRINT("work units: produced=%ld, consumed=%ld\n",
+                  this->produced,
+                  this->consumed);
+
+    for (auto iter = alias.begin();
+         iter != alias.end();
+         ++iter) {
+      DEBUG_PRINT("alias flow[%ld] = %ld\n",
+                  PRINT_LABEL_INNER(iter->first),
+                  PRINT_LABEL_INNER(iter->second));
+    }
+
+    DEBUG_PRINT("handle_refs=%ld, "
+                "handle_pubs=%ld, "
+                "\n",
+                handle_refs.size(),
+                handle_pubs.size());
+
+    // should call destructor for trace module if it exists to write
+    // out the logs
+    if (trace) {
+      delete trace;
+      trace = nullptr;
+    }
+    
     if (this_rank == 0) {
       DEBUG_PRINT("total threads to join is %zu\n", threads_backend::live_ranks.size());
     
       // TODO: memory consistency bug on live_ranks size here..with relaxed ordering
       for (size_t i = 0; i < threads_backend::live_ranks.size(); i++) {
-	DEBUG_PRINT("main thread joining %zu\n", i);
-	threads_backend::live_ranks[i].join();
-	DEBUG_PRINT("join complete %zu\n", i);
+        DEBUG_PRINT("main thread joining %zu\n", i);
+        threads_backend::live_ranks[i].join();
+        DEBUG_PRINT("join complete %zu\n", i);
       }
     }
   }
-
-  // HACK: put an instance of the backend runtime here for the main thread..
-  threads_backend::ThreadsRuntime* runtime_inst;
-  
 } // end namespace threads_backend
 
-// TODO: not used, for multi-threaded runtime
-void
-scheduler_loop(size_t thd, threads_backend::ThreadsRuntime* runtime) {
-  // read rank from TL variable
-  const size_t local_rank = threads_backend::this_rank;
-  // read number of ranks
-  const size_t num_ranks = std::atomic_load<size_t>(&runtime->ranks);
-
-  DEBUG_PRINT("starting scheduler for %zu, number of ranks %zu\n",
-	      local_rank, num_ranks);
-  
-  // spin on termination
-  while (!std::atomic_load(&runtime->finished)) {
-    if (std::atomic_load<size_t>(runtime->deque_counter[local_rank]) > 0) {
-      // scoped lock for removal attempt
-      {
-	std::lock_guard<std::mutex> guard(runtime->deque_mutex[local_rank]);
-      }
-    }
-  }
-}
 
 void
 start_thread_handler(const size_t thd, threads_backend::ThreadsRuntime* runtime) {
@@ -962,15 +1242,12 @@ start_thread_handler(const size_t thd, threads_backend::ThreadsRuntime* runtime)
 
   // set thread-local rank
   threads_backend::this_rank = thd;
-
-  // run scheduler, when this returns we have terminated!
-  scheduler_loop(thd, runtime);
 }
 
 void
 start_rank_handler(const size_t rank,
-		   const int argc,
-		   char** argv) {
+                   const int argc,
+                   char** argv) {
   DEBUG_PRINT("%ld: rank handler starting\n", rank);
 
   // set TL variables
@@ -986,15 +1263,6 @@ int main(int argc, char **argv) {
   // if (darma_runtime::detail::backend_runtime) {
   //   delete darma_runtime::detail::backend_runtime;
   // }
-
-  //scheduler_loop(0, threads_backend::runtime_inst);
-
-  #if defined(_BACKEND_MULTITHREADED_RUNTIME)
-    for (size_t i = 0; i < threads_backend::live_threads.size(); i++) {
-      DEBUG_PRINT("main thread joining %zu\n", i);
-      threads_backend::live_threads[i].join();
-    }
-  #endif
 
   return ret;
 }
@@ -1013,6 +1281,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   detail::ArgParser args = {
     {"t", "threads", 1},
     {"r", "ranks",   1},
+    {"m", "trace",   1},
     {"", "backend-n-ranks", 1},
     {"", "serial-backend-n-ranks", 1},
     {"", "bf",   1}
@@ -1046,6 +1315,13 @@ darma_runtime::abstract::backend::darma_backend_initialize(
     // TODO: write some other sanity assertions here about the size of ranks...
   }
 
+  if (args["trace"].as<bool>()) {
+    size_t traceInt = args["trace"].as<size_t>();
+    if (traceInt) {
+      threads_backend::traceMode = true;
+    }
+  }
+  
   // read number of ranks from the command line
   if (args["bf"].as<bool>()) {
     auto bf = args["bf"].as<size_t>() != 0;
@@ -1063,13 +1339,15 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   if (threads_backend::this_rank == 0) {
     if (threads_backend::depthFirstExpand) {
       STARTUP_PRINT("DARMA: number of ranks = %zu, "
-		    "DF-Sched mode (depth-first, rank-threaded scheduler)\n",
-		    threads_backend::n_ranks);
+                    "DF-Sched mode (depth-first, rank-threaded scheduler): Tracing=%s\n",
+                    threads_backend::n_ranks,
+                    threads_backend::traceMode ? "ON" : "OFF");
     } else {
       STARTUP_PRINT("DARMA: number of ranks = %zu, "
-		    "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler)\n",
-		    threads_backend::n_ranks,
-		    threads_backend::bwidth);
+                    "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler), Tracing=%s\n",
+                    threads_backend::n_ranks,
+                    threads_backend::bwidth,
+                    threads_backend::traceMode ? "ON" : "OFF");
     }
   }
   
@@ -1078,48 +1356,22 @@ darma_runtime::abstract::backend::darma_backend_initialize(
 
   if (threads_backend::this_rank == 0) {
     DEBUG_PRINT("rank = %zu, ranks = %zu, threads = %zu\n",
-		threads_backend::this_rank,
-		threads_backend::n_ranks,
-		n_threads);
+                threads_backend::this_rank,
+                threads_backend::n_ranks,
+                n_threads);
 
     // launch std::thread for each rank
     threads_backend::live_ranks.resize(threads_backend::n_ranks - 1);
     for (size_t i = 0; i < threads_backend::n_ranks - 1; ++i) {
       threads_backend::live_ranks[i] = std::thread(start_rank_handler, i + 1, argc, argv);
     }
-    
-    #if defined(_BACKEND_MULTITHREADED_RUNTIME)
-      // store the launched threads in a vector
-      threads_backend::live_threads.resize(n_threads - 1);
-      threads_backend::runtime_inst = runtime;
-    
-      // init atomics/deques used to coordinate threads
-      {
-        std::vector<std::mutex> local_mutex(n_threads);
-        runtime->deque_mutex.swap(local_mutex);
-      }
-    
-      runtime->deque_counter.resize(n_threads);
-      runtime->deque.resize(n_threads);
-      std::atomic_store(&runtime->ranks, n_threads);
-    
-      for (size_t i = 0; i < n_threads; ++i) {
-        runtime->deque_counter[i] = new std::atomic<size_t>();
-        std::atomic_init<size_t>(runtime->deque_counter[i], 0);
-      }
-    
-      // launch and save each std::thread
-      for (size_t i = 0; i < n_threads - 1; ++i) {
-        threads_backend::live_threads[i] = std::thread(start_thread_handler, i + 1, runtime);
-      }
-    #endif
   }
 
   // setup root task
   runtime->top_level_task = std::move(top_level_task);
   runtime->top_level_task->set_name(darma_runtime::make_key(DARMA_BACKEND_SPMD_NAME_PREFIX,
-							    threads_backend::this_rank,
-							    threads_backend::n_ranks));
+                                                            threads_backend::this_rank,
+                                                            threads_backend::n_ranks));
   threads_backend::current_task = runtime->top_level_task.get();
 }
 

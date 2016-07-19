@@ -48,8 +48,12 @@
 /*
  * Debugging prints with mutex
  */
-#define __THREADS_BACKEND_DEBUG__         0
+#define __THREADS_BACKEND_DEBUG__	  0
 #define __THREADS_BACKEND_DEBUG_VERBOSE__ 0
+#define __THREADS_BACKEND_DEBUG_TRACE__   0
+#define __THREADS_DEBUG_MODE__ (__THREADS_BACKEND_DEBUG__         ||    \
+                                __THREADS_BACKEND_DEBUG_VERBOSE__ ||    \
+                                __THREADS_BACKEND_DEBUG_TRACE__)
 
 std::mutex __output_mutex;
 #define THREADS_PRINTER(fmt, arg...)					\
@@ -66,6 +70,12 @@ std::mutex __output_mutex;
     printf("(%zu) THREADS : " fmt, threads_backend::this_rank, ##arg);	\
     fflush(stdout);							\
   } while (0);
+
+#if __THREADS_BACKEND_DEBUG_TRACE__
+  #define DEBUG_TRACE(fmt, arg...)         THREADS_PRINTER(fmt, ##arg)
+#else
+  #define DEBUG_TRACE(fmt, arg...)
+#endif
 
 #if __THREADS_BACKEND_DEBUG_VERBOSE__
   #define DEBUG_VERBOSE_PRINT(fmt, arg...) THREADS_PRINTER(fmt, ##arg)
@@ -108,23 +118,14 @@ namespace threads_backend {
     DataBlock(const DataBlock& in) = delete;
 
     DataBlock(void* data_)
-      : refs(1)
-      , data(data_)
+      : data(data_)
     { }
     
     DataBlock(int refs_, size_t sz)
-      : refs(refs_)
-      , data(malloc(sz))
+      : data(malloc(sz))
     { }
 
-    int get_refs() const { return refs; }
-    void ref(int num = 1) { refs += num; }
-    void deref() { refs--; }
-
     virtual ~DataBlock() { free(data); }
-
-  private:
-    int refs;
   };
 }
 

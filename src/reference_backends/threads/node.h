@@ -53,6 +53,8 @@
 #include <flow.h>
 
 namespace threads_backend {
+  extern __thread size_t task_label;
+
   using namespace darma_runtime;
   using namespace darma_runtime::abstract::backend;
 
@@ -65,10 +67,12 @@ namespace threads_backend {
     size_t join_counter;
 
     GraphNode(size_t join_counter_,
-	      Runtime* runtime_)
+              Runtime* runtime_)
       : join_counter(join_counter_)
       , runtime(runtime_)
-    { }
+    {
+      runtime->produce();
+    }
 
     void set_join(size_t join_counter_) {
       join_counter = join_counter_;
@@ -78,12 +82,14 @@ namespace threads_backend {
       DEBUG_PRINT("join counter is now %zu\n", join_counter - 1);
 
       if (--join_counter == 0) {
-	runtime->add_local(this->shared_from_this());
+        runtime->add_local(this->shared_from_this());
       }
     }
     
     // execute the graph node
-    virtual void execute() = 0;
+    virtual void execute() {
+      runtime->consume();
+    }
 
     // check readiness of the node
     virtual bool ready() = 0;
@@ -105,9 +111,11 @@ namespace threads_backend {
     { }
 
     void execute() {
-      runtime->fetch(fetch->handle, fetch->version_key);
+      runtime->fetch(fetch->handle,fetch->version_key);
       fetch->ready = true;
-      runtime->release_deps(fetch);
+      DEBUG_PRINT("finished executing fetch node\n");
+      runtime->release_node(fetch);
+      GraphNode::execute();
     }
 
     bool ready() {
@@ -134,7 +142,9 @@ namespace threads_backend {
     { }
 
     void execute() {
+      DEBUG_PRINT("executing publish node\n");
       runtime->publish(pub);
+      GraphNode::execute();
     }
 
     void cleanup() {
@@ -156,13 +166,34 @@ namespace threads_backend {
     types::unique_ptr_template<runtime_t::task_t> task;
 
     TaskNode(Runtime* rt,
-	     types::unique_ptr_template<runtime_t::task_t>&& task_)
+             types::unique_ptr_template<runtime_t::task_t>&& task_)
       : GraphNode(-1, rt)
       , task(std::move(task_))
     { }
 
     void execute() {
+      // start trace event
+      std::string genName = "";
+      if (runtime->getTrace()) {
+        TraceLog* log = nullptr;
+        if (task->get_name() == darma_runtime::detail::SimpleKey()) {
+          genName = "task-" + std::to_string(task_label++);
+        } else {
+          // TODO: write conversion to some type of string or hash code
+          // genName = task->get_name();
+        }
+        log = runtime->getTrace()->eventStartNow(genName);
+        runtime->addTraceDeps(this,log);
+      }
+
       runtime->run_task(std::move(task));
+
+      // end trace event
+      if (runtime->getTrace()) {
+        runtime->getTrace()->eventStopNow(genName);
+      }
+
+      GraphNode::execute();
     }
 
     bool ready() {
