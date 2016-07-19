@@ -233,6 +233,15 @@ namespace threads_backend {
 
         // recursive call to unfold trace structure
         if (log->deps.size() > 0) {
+          // TODO: hackish block to space out send events
+          {
+            size_t cur = 0;
+            for (auto&& sublog : log->deps) {
+              sublog->time -= std::chrono::nanoseconds(1000 * cur);
+              cur++;
+            }
+          }
+          
           writeLogDisk(file,log->deps);
         }
       }

@@ -137,7 +137,7 @@ namespace threads_backend {
     std::unordered_map<
       std::shared_ptr<InnerFlow>,
       std::shared_ptr<InnerFlow>
-    > inverse_alias;
+    > inverse_alias, task_forwards;
     
     std::unordered_map<
       std::shared_ptr<InnerFlow>,
@@ -183,8 +183,10 @@ namespace threads_backend {
                        types::key_t version,
                        types::key_t key);
 
-    std::shared_ptr<InnerFlow>
-    followInverse(std::shared_ptr<InnerFlow> flow);
+    template <typename Key>
+    Key
+    follow(const std::unordered_map<Key, Key>& map,
+                           const Key& flow);
     
     bool
     test_alias_null(std::shared_ptr<InnerFlow> flow);

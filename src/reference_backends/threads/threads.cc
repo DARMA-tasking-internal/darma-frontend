@@ -205,16 +205,17 @@ namespace threads_backend {
     assert(false);
   }
 
-  std::shared_ptr<InnerFlow>
-  ThreadsRuntime::followInverse(std::shared_ptr<InnerFlow> flow) {
-    if (inverse_alias.find(flow) !=
-        inverse_alias.end()) {
-      return followInverse(inverse_alias[flow]);
+  template <typename Key>
+  Key
+  ThreadsRuntime::follow(const std::unordered_map<Key, Key>& map,
+                         const Key& flow) {
+    if (map.find(flow) != map.end()) {
+      return follow(map, map.find(flow)->second);
     } else {
       return flow;
     }
   }
-  
+
   void
   ThreadsRuntime::addTraceDeps(TaskNode* node,
                                TraceLog* thisLog) {
@@ -233,14 +234,24 @@ namespace threads_backend {
 
         if (inverse_alias.find(f_in->inner) !=
             inverse_alias.end()) {
-          const auto& inverse = followInverse(f_in->inner);
+          const auto& inverse = follow(inverse_alias, f_in->inner);
           prev = inverse;
           DEBUG_TRACE("f_in=%ld, inverse alias=%ld\n",
                       PRINT_LABEL_INNER(f_in->inner),
                       PRINT_LABEL_INNER(inverse));
         }
 
+        assert(taskTrace.find(prev) != taskTrace.end());
+        
         const auto& parent = taskTrace[prev];
+        auto dep = getTrace()->depCreate(parent->end ? parent->end->time : parent->time,
+                                         thisLog->entry);
+        dep->event = thisLog->event;
+        parent->deps.push_back(dep);
+      } else if (task_forwards.find(f_in->inner) !=
+                 task_forwards.end()) {
+        assert(taskTrace.find(task_forwards[f_in->inner]->next) != taskTrace.end());
+        const auto& parent = taskTrace[task_forwards[f_in->inner]->next];
         auto dep = getTrace()->depCreate(parent->end ? parent->end->time : parent->time,
                                          thisLog->entry);
         dep->event = thisLog->event;
@@ -648,6 +659,10 @@ namespace threads_backend {
 
     if (depthFirstExpand) {
       f_forward->inner->ready = true;
+    }
+
+    if (getTrace()) {
+      task_forwards[f_forward->inner] = f->inner;
     }
     
     f->inner->forward = f_forward->inner;
