@@ -869,7 +869,9 @@ namespace threads_backend {
              "Alias flow must have been ready for readers to have been released");
 
       if (alias[flow]->readers_jc == 0) {
-        alias[flow]->node->release();
+        if (alias[flow]->node) {
+          alias[flow]->node->release();
+        }
       }
 
       release_alias_p2(alias[flow]);
@@ -937,12 +939,14 @@ namespace threads_backend {
       }
     } else {
       const size_t readers = release_node(f_out->inner);
-      const bool hasAlias = release_alias(f_out->inner, readers);
-      if (hasAlias &&
-          f_out->inner->uses == 0) {
-        DEBUG_PRINT("deleting redirect: %ld\n", PRINT_LABEL(f_out));
-        delete f_out;
-        deleted_out = true;
+      if (f_out->inner->ref == 0) {
+        const bool hasAlias = release_alias(f_out->inner, readers);
+        if (hasAlias &&
+            f_out->inner->uses == 0) {
+          DEBUG_PRINT("deleting redirect: %ld\n", PRINT_LABEL(f_out));
+          delete f_out;
+          deleted_out = true;
+        }
       }
     }
 
