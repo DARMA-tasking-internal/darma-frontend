@@ -86,13 +86,6 @@ namespace threads_backend {
     Event event;
   };
 
-  struct EntryCompare {
-    bool operator()(const std::pair<EntryName,Entry> &lhs,
-                    const std::pair<EntryName,Entry> &rhs) {
-      return lhs.second < rhs.second;
-    }
-  };
-  
   struct TraceEntrys {
     std::mutex event_lock;
     std::unordered_map<EntryName, Entry> eventNames;
