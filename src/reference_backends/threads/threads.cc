@@ -219,6 +219,10 @@ namespace threads_backend {
   void
   ThreadsRuntime::addTraceDeps(TaskNode* node,
                                TraceLog* thisLog) {
+    if (threads_backend::depthFirstExpand) {
+      return;
+    }
+    
     for (auto&& dep : node->task->get_dependencies()) {
       ThreadsFlow const* const f_in  = static_cast<ThreadsFlow*>(dep->get_in_flow());
       ThreadsFlow const* const f_out = static_cast<ThreadsFlow*>(dep->get_out_flow());
@@ -732,11 +736,14 @@ namespace threads_backend {
     DEBUG_PRINT("delete handle data\n");
     DataBlock* prev = data[{version,key}];
     data.erase({version,key});
-    // call the destructor
-    handle
-      ->get_serialization_manager()
-      ->destroy(prev->data);
-    delete prev;
+    // TODO: is this correct
+    if (prev) {
+      // call the destructor
+      handle
+        ->get_serialization_manager()
+        ->destroy(prev->data);
+      delete prev;
+    }
   }
   
   /*virtual*/
