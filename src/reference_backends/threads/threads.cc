@@ -204,6 +204,29 @@ namespace threads_backend {
     assert(false);
   }
 
+  void
+  ThreadsRuntime::addTraceDeps(TaskNode* node,
+                               TraceLog* thisLog) {
+    for (auto&& dep : node->task->get_dependencies()) {
+      ThreadsFlow const* const f_in  = static_cast<ThreadsFlow*>(dep->get_in_flow());
+      ThreadsFlow const* const f_out = static_cast<ThreadsFlow*>(dep->get_out_flow());
+
+      // create new trace dependency
+      if (f_in != f_out) {
+        taskTrace[f_out->inner] = thisLog;
+      }
+
+      // find dependency for f_in
+      if (taskTrace.find(f_in->inner) != taskTrace.end()) {
+        const auto& parent = taskTrace[f_in->inner];
+        auto dep = getTrace()->depCreate(parent->end ? parent->end->time : parent->time,
+                                         thisLog->entry);
+        dep->event = thisLog->event;
+        parent->deps.push_back(dep);
+      }
+    }
+  }
+  
   size_t
   ThreadsRuntime::check_dep_task(std::shared_ptr<TaskNode> t) {
     DEBUG_VERBOSE_PRINT("check_dep_task\n");
@@ -211,8 +234,8 @@ namespace threads_backend {
     size_t dep_count = 0;
 
     for (auto&& dep : t->task->get_dependencies()) {
-      ThreadsFlow* f_in  = static_cast<ThreadsFlow*>(dep->get_in_flow());
-      ThreadsFlow* f_out = static_cast<ThreadsFlow*>(dep->get_out_flow());
+      ThreadsFlow* const f_in  = static_cast<ThreadsFlow*>(dep->get_in_flow());
+      ThreadsFlow* const f_out = static_cast<ThreadsFlow*>(dep->get_out_flow());
 
       DEBUG_PRINT("check_dep_task: f_in=%lu, f_out=%lu\n",
                   PRINT_LABEL(f_in),

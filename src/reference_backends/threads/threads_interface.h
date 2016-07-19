@@ -50,14 +50,25 @@
 namespace threads_backend {
   struct InnerFlow;
   struct GraphNode;
+  struct TaskNode;
   struct DelayedPublish;
 
   template <typename Impl>
   class ThreadsInterface {
   public:
-    inline void produce() { return static_cast<Impl*>(this)->produce(); }
-    inline void consume() { return static_cast<Impl*>(this)->consume(); }
+    inline void
+    produce() {
+      return static_cast<Impl*>(this)->produce();
+    }
+    inline void
+    consume() {
+      return static_cast<Impl*>(this)->consume();
+    }
 
+    inline void
+    addTraceDeps(TaskNode* node, TraceLog* log) {
+      return static_cast<Impl*>(this)->addTraceDeps(node,log);
+    }
     inline TraceModule*
     getTrace() {
       return static_cast<Impl*>(this)->getTrace();

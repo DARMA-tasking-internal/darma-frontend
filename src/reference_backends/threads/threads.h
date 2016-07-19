@@ -132,13 +132,23 @@ namespace threads_backend {
       std::shared_ptr<InnerFlow>
     > alias;
 
+    std::unordered_map<
+      std::shared_ptr<InnerFlow>,
+      TraceLog*
+    > taskTrace;
+
     TraceModule* trace;
 
     size_t produced, consumed;
     
     ThreadsRuntime();
 
-    TraceModule* getTrace();
+    void
+    addTraceDeps(TaskNode* node,
+                 TraceLog* log);
+    
+    TraceModule*
+    getTrace();
     
     void
     produce();

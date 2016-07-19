@@ -173,11 +173,17 @@ namespace threads_backend {
 
     void execute() {
       // start trace event
-      std::string genName = "task-" + std::to_string(task_label++);
+      std::string genName = "";
       if (runtime->getTrace()) {
+        TraceLog* log = nullptr;
         if (task->get_name() == darma_runtime::detail::SimpleKey()) {
-          runtime->getTrace()->eventStartNow(genName);
+          genName = "task-" + std::to_string(task_label++);
+        } else {
+          // TODO: write conversion to some type of string or hash code
+          // genName = task->get_name();
         }
+        log = runtime->getTrace()->eventStartNow(genName);
+        runtime->addTraceDeps(this,log);
       }
 
       runtime->run_task(std::move(task));

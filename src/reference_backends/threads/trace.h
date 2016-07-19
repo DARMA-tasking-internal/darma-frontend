@@ -68,38 +68,47 @@ namespace threads_backend {
     DEP_CREATE=1
   };
 
-  typedef std::string EventName;
+  typedef size_t Entry;
   typedef size_t Event;
+  typedef std::string EntryName;
   
   struct TraceLog {
     time_point<high_resolution_clock> time;
-    Event event;
+    Entry entry;
     EventType type;
+
+    // pointers to end and begin
+    TraceLog* end   = nullptr;
+    TraceLog* begin = nullptr;
+
+    // post creation of log
+    std::vector<TraceLog*> deps;
+    Event event;
   };
 
-  struct EventCompare {
-    bool operator()(const std::pair<EventName,Event> &lhs,
-                    const std::pair<EventName,Event> &rhs) {
+  struct EntryCompare {
+    bool operator()(const std::pair<EntryName,Entry> &lhs,
+                    const std::pair<EntryName,Entry> &rhs) {
       return lhs.second < rhs.second;
     }
   };
   
-  struct TraceEvents {
+  struct TraceEntrys {
     std::mutex event_lock;
-    std::unordered_map<EventName, Event> eventNames;
-    Event nextEvent = 0;
+    std::unordered_map<EntryName, Entry> eventNames;
+    Entry nextEntry = 0;
 
-    TraceEvents(const TraceEvents& other) = delete;
-    TraceEvents() = default;
+    TraceEntrys(const TraceEntrys& other) = delete;
+    TraceEntrys() = default;
     
-    Event findEventID(const EventName& event) {
+    Entry findEntryID(const EntryName& event) {
       // TODO: fix this. registry must not be locked
       // per-thd registry with rank resolution at end
       std::lock_guard<std::mutex> guard(event_lock);
       if (eventNames.find(event) != eventNames.end()) {
         return eventNames[event];
       } else {
-        eventNames[event] = nextEvent++;
+        eventNames[event] = nextEntry++;
         return eventNames[event];
       }
     }
@@ -150,7 +159,7 @@ namespace threads_backend {
   };
 
   static TraceTimer timer;
-  static TraceEvents eventReg;
+  static TraceEntrys entryReg;
 
   struct TraceModule {
     const size_t rank;
@@ -194,27 +203,44 @@ namespace threads_backend {
       writeTracesDisk();
     }
 
-    void writeLogDisk(std::ofstream& file) {
+    void
+    writeLogDisk(std::ofstream& file,
+                 std::vector<TraceLog*> traces) {
       for (auto&& log : traces) {
         const long convertedTime = time2long(computeDiff(log->time,startTime));
 
         switch (log->type) {
         case GROUP_BEGIN:
           file << log->type << " 0 "
-               << log->event << " "
+               << log->entry << " "
                << convertedTime << " "
-               << "0 0 0 0 0 0 0 0 0\n";
+               << log->event << " "
+               << rank << " "
+               << "0 0 0 0 0 0 0\n";
           break;
         case GROUP_END:
           file << log->type << " 0 "
-               << log->event << " "
+               << log->entry << " "
                << convertedTime << " "
-               << "0 0 0 0 0 0 0 0 0\n";
+               << log->event << " "
+               << rank << " "
+               << "0 0 0 0 0 0 0 0\n";
           break;
         case DEP_CREATE:
+          file << log->type << " 0 "
+               << log->entry << " "
+               << convertedTime << " "
+               << log->event << " "
+               << rank << " "
+               << "0 0 0 0 0 0 0 0\n";
           break;
         default:
           DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+        }
+
+        // recursive call to unfold trace structure
+        if (log->deps.size() > 0) {
+          writeLogDisk(file,log->deps);
         }
       }
       traces.empty();
@@ -224,89 +250,127 @@ namespace threads_backend {
       std::ofstream file;
       file.open(trace_name);
       TraceModule::outputHeader(rank,startTime,file);
-      writeLogDisk(file);
+      writeLogDisk(file,traces);
       TraceModule::outputFooter(rank,startTime,file);
       file.close();
 
       if (rank == 0) {
         std::ofstream file;
         file.open(name + ".sts");
-        eventReg.outputControlFile(nranks,file);
+        entryReg.outputControlFile(nranks,file);
         file.close();
       }
     }
 
-    void eventStartNow(const EventName& event) {
-      eventStart(timer.currentTime(), event);
+    inline TraceLog*
+    eventStartNow(const EntryName& entry) {
+      return eventStart(timer.currentTime(), entry);
     }
 
-    void eventStopNow(const EventName& event) {
-      eventStop(timer.currentTime(), event);
+    inline TraceLog*
+    eventStopNow(const EntryName& entry) {
+      return eventStop(timer.currentTime(), entry);
     }
     
-    void eventStart(const time_point<high_resolution_clock> time,
-                    const EventName event) {
-      logEvent(new TraceLog{time,
-                            eventReg.findEventID(event),
-                            GROUP_BEGIN});
+    TraceLog*
+    eventStart(const time_point<high_resolution_clock> time,
+               const EntryName entry) {
+      auto log = new TraceLog{time,
+                              entryReg.findEntryID(entry),
+                              GROUP_BEGIN};
+      logEvent(log);
+      return log;
     }
 
-    void eventStop(const time_point<high_resolution_clock> time,
-                   const EventName event) {
-      logEvent(new TraceLog{time,
-                            eventReg.findEventID(event),
-                            GROUP_END});
+    TraceLog*
+    eventStop(const time_point<high_resolution_clock> time,
+              const EntryName entry) {
+      auto log = new TraceLog{time,
+                              entryReg.findEntryID(entry),
+                              GROUP_END};
+      logEvent(log);
+      return log;
+    }
+
+    TraceLog*
+    depCreate(const time_point<high_resolution_clock> time,
+              const Entry entry) {
+      auto log = new TraceLog{time,
+                              entry,
+                              DEP_CREATE};
+      return log;
     }
     
-    void logEvent(TraceLog* const log) {
+    size_t logEvent(TraceLog* const log) {
       if (!enabled) {
-        return;
+        return 0;
       }      
 
       auto grouped_begin = [&]{
         if (!open.empty()) {
           traces.push_back(new TraceLog{log->time,// - 0.0000001,
-                                        open.top()->event,
+                                        open.top()->entry,
                                         GROUP_END});
         }
         // push on open stack.
         open.push(log);
         traces.push_back(log);
+
+        const auto event = traces.size() - 1;
+        log->event = event;
+
+        return event;
       };
 
       auto grouped_end = [&]{
         // sanity assertions
         assert(!open.empty());
-        assert(open.top()->event == log->event &&
+        assert(open.top()->entry == log->entry &&
                open.top()->type == GROUP_BEGIN);
 
+        // match event with the one that this ends
+        log->event = open.top()->event;
+
+        // set up begin/end links
+        open.top()->end = log;
+        log->begin = open.top();
+        
         open.pop();
 
         traces.push_back(log);
         
         if (!open.empty()) {
           traces.push_back(new TraceLog{log->time,// + 0.0000001,
-                                        open.top()->event,
+                                        open.top()->entry,
                                         GROUP_BEGIN});
         }
+
+        return log->event;
       };
 
-      auto nongroup = [&]{
+      auto dep_create = [&]{
         traces.push_back(log);
+
+        const auto event = traces.size() - 1;
+        log->event = event;
+        
+        return event;
       };
 
       switch (log->type) {
       case GROUP_BEGIN:
-        grouped_begin();
+        return grouped_begin();
         break;
       case GROUP_END:
-        grouped_end();
+        return grouped_end();
         break;
       case DEP_CREATE:
-        nongroup();
+        return dep_create();
         break;
       default:
         DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+        return 0;
+        break;
       }
     }
     
