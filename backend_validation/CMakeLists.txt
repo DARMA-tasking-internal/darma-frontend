@@ -62,6 +62,6 @@ include_directories( ${DARMA_FRONTEND_DIR}/include/tinympl )
 include_directories( ${DARMA_FRONTEND_DIR}/include/darma )
 include_directories( ${GTEST_DIR}/include )
 
-add_subdirectory(using_mock_frontend)
+#add_subdirectory(using_mock_frontend)
 add_subdirectory(using_real_frontend)
 
