@@ -93,6 +93,7 @@ namespace threads_backend {
     types::key_t key;
     types::key_t version;
     bool finished;
+    std::shared_ptr<PublishNode> node;
   };
 
   class ThreadsRuntime

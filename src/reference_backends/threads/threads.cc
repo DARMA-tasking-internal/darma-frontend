@@ -228,8 +228,10 @@ namespace threads_backend {
     }
 
     if (pub_log) {
-      auto dep = getTrace()->depCreate(pub_log->end->time,
-                                       thisLog->entry);
+      const auto& time = pub_log->end ? pub_log->end->time : pub_log->time;
+      const auto& entry = thisLog->entry;
+      auto dep = getTrace()->depCreate(time,entry);
+
       dep->rank = this_rank;
       dep->event = thisLog->event;
       thisLog->rank = pub_log->rank;
@@ -757,9 +759,11 @@ namespace threads_backend {
              delayed_pub != end;
              ++delayed_pub) {
 
-          // TODO: need to call the publish node here
-          publish(*delayed_pub,nullptr);
+          (*delayed_pub)->node->execute();
           (*delayed_pub)->finished = true;
+
+          // explicitly don't call clean up because we do it manually
+          // TODO: fix this problem with iterator
 
           DEBUG_PRINT("cleanup handle: force publish of handle = %p\n", handle);
         }
@@ -1171,6 +1175,9 @@ namespace threads_backend {
     assert(f_in->inner->hasDeferred);
 
     auto p = std::make_shared<PublishNode>(PublishNode{this,pub});
+
+    // set the node for early release
+    pub->node = p;
 
     const bool ready = p->ready();
 

@@ -165,21 +165,23 @@ namespace threads_backend {
     void execute() {
       DEBUG_PRINT("executing publish node\n");
 
-      std::string genName = "";
-      TraceLog* log = nullptr;
-      if (runtime->getTrace()) {
-        genName = "publish-" + std::to_string(publish_label++);
-        log = runtime->getTrace()->eventStartNow(genName);
-        runtime->addPublishDeps(this,log);
+      if (!pub->finished) {
+        std::string genName = "";
+        TraceLog* log = nullptr;
+        if (runtime->getTrace()) {
+          genName = "publish-" + std::to_string(publish_label++);
+          log = runtime->getTrace()->eventStartNow(genName);
+          runtime->addPublishDeps(this,log);
+        }
+
+        runtime->publish(pub,log);
+
+        if (runtime->getTrace()) {
+          runtime->getTrace()->eventStopNow(genName);
+        }
+
+        GraphNode::execute();
       }
-
-      runtime->publish(pub,log);
-
-      if (runtime->getTrace()) {
-        runtime->getTrace()->eventStopNow(genName);
-      }
-
-      GraphNode::execute();
     }
 
     void cleanup() {
