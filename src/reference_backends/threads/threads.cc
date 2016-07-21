@@ -228,15 +228,15 @@ namespace threads_backend {
     }
 
     if (pub_log) {
-      const auto& time = pub_log->end ? pub_log->end->time : pub_log->time;
+      const auto& end = std::atomic_load<TraceLog*>(&pub_log->end);
+      const auto& time = end != nullptr ? end->time : pub_log->time;
       const auto& entry = thisLog->entry;
       auto dep = getTrace()->depCreate(time,entry);
 
       dep->rank = this_rank;
       dep->event = thisLog->event;
       thisLog->rank = pub_log->rank;
-      // TODO: this needs a lock or some synchronization
-      pub_log->deps.push_back(dep);
+      pub_log->insertDep(dep);
     }
   }
 
@@ -270,18 +270,20 @@ namespace threads_backend {
       assert(taskTrace.find(prev) != taskTrace.end());
 
       const auto& parent = taskTrace[prev];
-      auto dep = getTrace()->depCreate(parent->end ? parent->end->time : parent->time,
+      const auto& end = std::atomic_load<TraceLog*>(&parent->end);
+      auto dep = getTrace()->depCreate(end != nullptr ? end->time : parent->time,
                                        thisLog->entry);
       dep->event = thisLog->event;
-      parent->deps.push_back(dep);
+      parent->insertDep(dep);
     } else if (task_forwards.find(flow) !=
                task_forwards.end()) {
       assert(taskTrace.find(task_forwards[flow]->next) != taskTrace.end());
       const auto& parent = taskTrace[task_forwards[flow]->next];
-      auto dep = getTrace()->depCreate(parent->end ? parent->end->time : parent->time,
+      const auto& end = std::atomic_load<TraceLog*>(&parent->end);
+      auto dep = getTrace()->depCreate(end != nullptr ? end->time : parent->time,
                                        thisLog->entry);
       dep->event = thisLog->event;
-      parent->deps.push_back(dep);
+      parent->insertDep(dep);
     }
   }
 

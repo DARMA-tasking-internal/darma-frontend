@@ -76,15 +76,38 @@ namespace threads_backend {
     time_point<high_resolution_clock> time;
     Entry entry;
     EventType type;
+    std::mutex lock;
 
     // pointers to end and begin
-    TraceLog* end   = nullptr;
-    TraceLog* begin = nullptr;
+    std::atomic<TraceLog*> end   = {nullptr};
+    std::atomic<TraceLog*> begin = {nullptr};
 
     // post creation of log
-    std::vector<TraceLog*> deps;
     Event event;
     size_t rank;
+
+    TraceLog(const TraceLog& other) = delete;
+
+    TraceLog(time_point<high_resolution_clock> time_,
+             Entry entry_,
+             EventType type_)
+      : time(time_)
+      , entry(entry_)
+      , type(type_)
+    { }
+
+    void insertDep(TraceLog* const dep) {
+      {
+        std::lock_guard<std::mutex> guard(lock);
+        deps.push_back(dep);
+      }
+    }
+
+    friend struct TraceModule;
+
+  private:
+    // this might be modified by multiple threads
+    std::vector<TraceLog*> deps;
   };
 
   struct TraceEntrys {
