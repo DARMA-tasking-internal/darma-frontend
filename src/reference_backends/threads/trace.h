@@ -71,7 +71,7 @@ namespace threads_backend {
   typedef size_t Entry;
   typedef size_t Event;
   typedef std::string EntryName;
-  
+
   struct TraceLog {
     time_point<high_resolution_clock> time;
     Entry entry;
@@ -94,7 +94,7 @@ namespace threads_backend {
 
     TraceEntrys(const TraceEntrys& other) = delete;
     TraceEntrys() = default;
-    
+
     Entry findEntryID(const EntryName& event) {
       // TODO: fix this. registry must not be locked
       // per-thd registry with rank resolution at end
@@ -120,7 +120,7 @@ namespace threads_backend {
            << "TOTAL_PSEUDOS 0\n"
            << "TOTAL_EVENTS 0"
            << std::endl;
-      
+
       for (auto&& event : eventNames) {
         file << "CHARE "
              << event.second << " "
@@ -131,7 +131,7 @@ namespace threads_backend {
       for (auto&& event : eventNames) {
         const auto& name = event.first;
         const auto& id = event.second;
-        
+
         file << "ENTRY CHARE "
              << id << " "
              << name << " "
@@ -242,13 +242,13 @@ namespace threads_backend {
               cur++;
             }
           }
-          
+
           writeLogDisk(file,log->deps);
         }
       }
       traces.empty();
     }
-    
+
     void writeTracesDisk() {
       std::ofstream file;
       file.open(trace_name);
@@ -274,7 +274,7 @@ namespace threads_backend {
     eventStopNow(const EntryName& entry) {
       return eventStop(timer.currentTime(), entry);
     }
-    
+
     TraceLog*
     eventStart(const time_point<high_resolution_clock> time,
                const EntryName entry) {
@@ -306,11 +306,11 @@ namespace threads_backend {
       log->rank = this_rank;
       return log;
     }
-    
+
     size_t logEvent(TraceLog* const log) {
       if (!enabled) {
         return 0;
-      }      
+      }
 
       auto grouped_begin = [&]{
         if (!open.empty()) {
@@ -340,11 +340,11 @@ namespace threads_backend {
         // set up begin/end links
         open.top()->end = log;
         log->begin = open.top();
-        
+
         open.pop();
 
         traces.push_back(log);
-        
+
         if (!open.empty()) {
           traces.push_back(new TraceLog{log->time,// + 0.0000001,
                                         open.top()->entry,
@@ -359,7 +359,7 @@ namespace threads_backend {
 
         const auto event = traces.size() - 1;
         log->event = event;
-        
+
         return event;
       };
 
@@ -379,7 +379,7 @@ namespace threads_backend {
         break;
       }
     }
-    
+
     void start() {
       enabled = true;
     }
@@ -416,11 +416,11 @@ namespace threads_backend {
       duration<double> dur(t0-t1);
       return dur;
     }
-    
+
     static long time2long(const duration<double> time) {
       return (long)(time.count() * 1e6);
     }
-    
+
   private:
     bool enabled;
   };

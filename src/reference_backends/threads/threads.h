@@ -64,7 +64,7 @@
 namespace std {
   using darma_runtime::detail::SimpleKey;
   using darma_runtime::detail::key_traits;
-  
+
   template<>
   struct hash<SimpleKey> {
     size_t operator()(SimpleKey const& in) const {
@@ -84,7 +84,7 @@ namespace threads_backend {
   struct TaskNode;
   struct FetchNode;
   struct PublishNode;
-  
+
   struct DelayedPublish {
     std::shared_ptr<InnerFlow> flow;
     const darma_runtime::abstract::frontend::Handle* handle;
@@ -94,7 +94,7 @@ namespace threads_backend {
     types::key_t version;
     bool finished;
   };
-  
+
   class ThreadsRuntime
     : public abstract::backend::Runtime
     , public ThreadsInterface<ThreadsRuntime> {
@@ -104,7 +104,11 @@ namespace threads_backend {
 
     // TODO: fix any memory consistency bugs with data coordination we
     // need a fence at the least
-    std::unordered_map<std::pair<types::key_t,types::key_t>, DataBlock*> data;
+    std::unordered_map<
+      std::pair<types::key_t,
+                types::key_t>,
+      DataBlock*
+    > data;
 
     // TODO: multi-threaded half-implemented not working..
     std::vector<std::atomic<size_t>*> deque_counter;
@@ -121,11 +125,12 @@ namespace threads_backend {
     std::deque<std::shared_ptr<GraphNode> > ready_remote;
 
     std::unordered_map<const darma_runtime::abstract::frontend::Handle*, int> handle_refs;
-    std::unordered_map<const darma_runtime::abstract::frontend::Handle*,
-		         std::list<
-			   std::shared_ptr<DelayedPublish>
-			 >
-		       > handle_pubs;
+    std::unordered_map<
+      const darma_runtime::abstract::frontend::Handle*,
+      std::list<
+        std::shared_ptr<DelayedPublish>
+      >
+    > handle_pubs;
 
     std::unordered_map<
       std::shared_ptr<InnerFlow>,
@@ -138,7 +143,7 @@ namespace threads_backend {
       std::shared_ptr<InnerFlow>,
       std::shared_ptr<InnerFlow>
     > inverse_alias, task_forwards;
-    
+
     std::unordered_map<
       std::shared_ptr<InnerFlow>,
       TraceLog*
@@ -147,7 +152,7 @@ namespace threads_backend {
     TraceModule* trace;
 
     size_t produced, consumed;
-    
+
     ThreadsRuntime();
 
     void
@@ -160,16 +165,16 @@ namespace threads_backend {
     addFetchDeps(FetchNode* node,
                  TraceLog* log,
                  TraceLog* pub_log);
-    
+
     TraceModule*
     getTrace();
-    
+
     void
     produce();
 
     void
     consume();
-    
+
     size_t
     get_spmd_rank() const;
 
@@ -184,7 +189,7 @@ namespace threads_backend {
 
     void
     cleanup_handle(std::shared_ptr<InnerFlow> flow);
-    
+
     void
     delete_handle_data(darma_runtime::abstract::frontend::Handle const* const handle,
                        types::key_t version,
@@ -193,15 +198,15 @@ namespace threads_backend {
     void
     findAddTraceDep(std::shared_ptr<InnerFlow> flow,
                     TraceLog* thisLog);
-    
+
     template <typename Key>
     Key
     follow(const std::unordered_map<Key, Key>& map,
                            const Key& flow);
-    
+
     bool
     test_alias_null(std::shared_ptr<InnerFlow> flow);
-    
+
     size_t
     release_node(std::shared_ptr<InnerFlow> flow);
 
@@ -213,13 +218,13 @@ namespace threads_backend {
 
     void
     release_node_p2(std::shared_ptr<InnerFlow> flow);
-    
+
     size_t
     count_ready_work() const;
 
     void
     schedule_over_breadth();
-    
+
     virtual void
     register_task(types::unique_ptr_template<runtime_t::task_t>&& task);
 
@@ -243,7 +248,7 @@ namespace threads_backend {
 
     DataBlock*
     allocate_block(darma_runtime::abstract::frontend::Handle const* handle);
-    
+
     virtual Flow*
     make_initial_flow(darma_runtime::abstract::frontend::Handle* handle);
 
@@ -269,10 +274,10 @@ namespace threads_backend {
 		       types::key_t const& version_key);
     virtual Flow*
     make_null_flow(darma_runtime::abstract::frontend::Handle* handle);
- 
+
     virtual Flow*
     make_forwarding_flow(Flow* from);
-    
+
     virtual Flow*
     make_next_flow(Flow* from);
 
@@ -292,7 +297,7 @@ namespace threads_backend {
 
     void
     publish_finished(std::shared_ptr<DelayedPublish> publish);
-		     
+
     virtual void
     publish_use(darma_runtime::abstract::frontend::Use* f,
 		darma_runtime::abstract::frontend::PublicationDetails* details);
@@ -306,7 +311,7 @@ namespace threads_backend {
 
     template <typename... Args>
     void try_release(Args... args);
-    
+
     void
     schedule_next_unit();
 

@@ -69,9 +69,9 @@ namespace threads_backend {
 
     // node in the graph to activate
     std::shared_ptr<GraphNode> node;
-    
+
     InnerFlow(const InnerFlow& in) = default;
-    
+
     InnerFlow()
       : forward(nullptr)
       , next(nullptr)

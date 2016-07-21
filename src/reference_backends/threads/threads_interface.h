@@ -83,7 +83,7 @@ namespace threads_backend {
     getTrace() {
       return static_cast<Impl*>(this)->getTrace();
     }
-    
+
     inline size_t
     release_node(std::shared_ptr<InnerFlow> flow) {
       return static_cast<Impl*>(this)->release_node(flow);
@@ -124,7 +124,7 @@ namespace threads_backend {
     publish_finished(std::shared_ptr<DelayedPublish> publish) {
       return static_cast<Impl*>(this)->publish_finished(publish);
     }
-    
+
     // task interface methods
     inline void
     run_task(types::unique_ptr_template<runtime_t::task_t>&& task) {

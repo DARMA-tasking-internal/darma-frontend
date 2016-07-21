@@ -60,7 +60,7 @@ namespace threads_backend {
     size_t size_;
     void *data_ = nullptr;
   };
-  
+
   struct PublishedBlock {
     TraceLog* pub_log = nullptr;
     std::atomic<bool> ready = {false};

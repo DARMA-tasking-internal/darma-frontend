@@ -62,7 +62,7 @@ namespace threads_backend {
   using namespace darma_runtime::abstract::backend;
 
   typedef ThreadsInterface<ThreadsRuntime> Runtime;
-  
+
   struct GraphNode
     : public std::enable_shared_from_this<GraphNode> {
 
@@ -80,7 +80,7 @@ namespace threads_backend {
     void set_join(size_t join_counter_) {
       join_counter = join_counter_;
     }
-    
+
     virtual void release()  {
       DEBUG_PRINT("join counter is now %zu\n", join_counter - 1);
 
@@ -88,7 +88,7 @@ namespace threads_backend {
         runtime->add_local(this->shared_from_this());
       }
     }
-    
+
     // execute the graph node
     virtual void execute() {
       runtime->consume();
