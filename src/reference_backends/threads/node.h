@@ -53,7 +53,10 @@
 #include <flow.h>
 
 namespace threads_backend {
+  // tracing externs for automatic labeling
   extern __thread size_t task_label;
+  extern __thread size_t publish_label;
+  extern __thread size_t fetch_label;
 
   using namespace darma_runtime;
   using namespace darma_runtime::abstract::backend;
@@ -111,7 +114,24 @@ namespace threads_backend {
     { }
 
     void execute() {
-      runtime->fetch(fetch->handle,fetch->version_key);
+      std::string genName = "";
+
+      TraceLog* log = nullptr;
+      if (runtime->getTrace()) {
+        genName = "fetch-" + std::to_string(fetch_label++);
+        log = runtime->getTrace()->eventStartNow(genName);
+      }
+
+      TraceLog* pub_log = runtime->fetch(fetch->handle,fetch->version_key);
+
+      if (runtime->getTrace()) {
+        runtime->addFetchDeps(this,log,pub_log);
+      }
+
+      if (runtime->getTrace()) {
+        runtime->getTrace()->eventStopNow(genName);
+      }
+
       fetch->ready = true;
       DEBUG_PRINT("finished executing fetch node\n");
       runtime->release_node(fetch);
@@ -136,14 +156,29 @@ namespace threads_backend {
   {
     std::shared_ptr<DelayedPublish> pub;
 
-    PublishNode(Runtime* rt, std::shared_ptr<DelayedPublish> pub_)
+    PublishNode(Runtime* rt,
+                std::shared_ptr<DelayedPublish> pub_)
       : GraphNode(-1, rt)
       , pub(pub_)
     { }
 
     void execute() {
       DEBUG_PRINT("executing publish node\n");
-      runtime->publish(pub);
+
+      std::string genName = "";
+      TraceLog* log = nullptr;
+      if (runtime->getTrace()) {
+        genName = "publish-" + std::to_string(publish_label++);
+        log = runtime->getTrace()->eventStartNow(genName);
+        runtime->addPublishDeps(this,log);
+      }
+
+      runtime->publish(pub,log);
+
+      if (runtime->getTrace()) {
+        runtime->getTrace()->eventStopNow(genName);
+      }
+
       GraphNode::execute();
     }
 
@@ -179,8 +214,7 @@ namespace threads_backend {
         if (task->get_name() == darma_runtime::detail::SimpleKey()) {
           genName = "task-" + std::to_string(task_label++);
         } else {
-          // TODO: write conversion to some type of string or hash code
-          // genName = task->get_name();
+          genName = task->get_name().human_readable_string();
         }
         log = runtime->getTrace()->eventStartNow(genName);
         runtime->addTraceDeps(this,log);

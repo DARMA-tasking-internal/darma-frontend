@@ -87,7 +87,10 @@ namespace threads_backend {
     __thread size_t flow_label = 100;
   #endif
 
-  __thread size_t task_label = 100;
+  // tracing TL state for unique labeling
+  __thread size_t task_label = 1;
+  __thread size_t publish_label = 1;
+  __thread size_t fetch_label = 1;
 
   // global
   size_t n_ranks = 1;
@@ -217,6 +220,70 @@ namespace threads_backend {
   }
 
   void
+  ThreadsRuntime::addFetchDeps(FetchNode* node,
+                               TraceLog* thisLog,
+                               TraceLog* pub_log) {
+    if (threads_backend::depthFirstExpand) {
+      return;
+    }
+
+    if (pub_log) {
+      auto dep = getTrace()->depCreate(pub_log->end->time,
+                                       thisLog->entry);
+      dep->rank = this_rank;
+      dep->event = thisLog->event;
+      thisLog->rank = pub_log->rank;
+      // TODO: this needs a lock or some synchronization
+      pub_log->deps.push_back(dep);
+    }
+  }
+  
+  void
+  ThreadsRuntime::addPublishDeps(PublishNode* node,
+                                 TraceLog* thisLog) {
+    if (threads_backend::depthFirstExpand) {
+      return;
+    }
+
+    const auto& flow = node->pub->flow;
+    findAddTraceDep(flow,thisLog);
+  }
+
+  void
+  ThreadsRuntime::findAddTraceDep(std::shared_ptr<InnerFlow> flow,
+                                  TraceLog* thisLog) {
+    // find dependency for flow
+    if (taskTrace.find(flow) != taskTrace.end()) {
+      std::shared_ptr<InnerFlow> prev = flow;
+
+      if (inverse_alias.find(flow) !=
+          inverse_alias.end()) {
+        const auto& inverse = follow(inverse_alias, flow);
+        prev = inverse;
+        DEBUG_TRACE("f_in=%ld, inverse alias=%ld\n",
+                    PRINT_LABEL_INNER(flow),
+                    PRINT_LABEL_INNER(inverse));
+      }
+
+      assert(taskTrace.find(prev) != taskTrace.end());
+        
+      const auto& parent = taskTrace[prev];
+      auto dep = getTrace()->depCreate(parent->end ? parent->end->time : parent->time,
+                                       thisLog->entry);
+      dep->event = thisLog->event;
+      parent->deps.push_back(dep);
+    } else if (task_forwards.find(flow) !=
+               task_forwards.end()) {
+      assert(taskTrace.find(task_forwards[flow]->next) != taskTrace.end());
+      const auto& parent = taskTrace[task_forwards[flow]->next];
+      auto dep = getTrace()->depCreate(parent->end ? parent->end->time : parent->time,
+                                       thisLog->entry);
+      dep->event = thisLog->event;
+      parent->deps.push_back(dep);
+    }
+  }
+  
+  void
   ThreadsRuntime::addTraceDeps(TaskNode* node,
                                TraceLog* thisLog) {
     if (threads_backend::depthFirstExpand) {
@@ -232,35 +299,7 @@ namespace threads_backend {
         taskTrace[f_out->inner] = thisLog;
       }
 
-      // find dependency for f_in
-      if (taskTrace.find(f_in->inner) != taskTrace.end()) {
-        std::shared_ptr<InnerFlow> prev = f_in->inner;
-
-        if (inverse_alias.find(f_in->inner) !=
-            inverse_alias.end()) {
-          const auto& inverse = follow(inverse_alias, f_in->inner);
-          prev = inverse;
-          DEBUG_TRACE("f_in=%ld, inverse alias=%ld\n",
-                      PRINT_LABEL_INNER(f_in->inner),
-                      PRINT_LABEL_INNER(inverse));
-        }
-
-        assert(taskTrace.find(prev) != taskTrace.end());
-        
-        const auto& parent = taskTrace[prev];
-        auto dep = getTrace()->depCreate(parent->end ? parent->end->time : parent->time,
-                                         thisLog->entry);
-        dep->event = thisLog->event;
-        parent->deps.push_back(dep);
-      } else if (task_forwards.find(f_in->inner) !=
-                 task_forwards.end()) {
-        assert(taskTrace.find(task_forwards[f_in->inner]->next) != taskTrace.end());
-        const auto& parent = taskTrace[task_forwards[f_in->inner]->next];
-        auto dep = getTrace()->depCreate(parent->end ? parent->end->time : parent->time,
-                                         thisLog->entry);
-        dep->event = thisLog->event;
-        parent->deps.push_back(dep);
-      }
+      findAddTraceDep(f_in->inner,thisLog);
     }
   }
   
@@ -543,10 +582,11 @@ namespace threads_backend {
     DEBUG_PRINT("fetch_block: handle = %p\n", handle);
 
     while (!test_fetch(handle, version_key)) ;
+
     fetch(handle, version_key);
   }
 
-  void
+  TraceLog*
   ThreadsRuntime::fetch(darma_runtime::abstract::frontend::Handle* handle,
                         types::key_t const& version_key) {
     {
@@ -567,6 +607,7 @@ namespace threads_backend {
 
       PublishedBlock* pub_ptr = iter->second;
       auto &pub = *pub_ptr;
+      auto traceLog = pub.pub_log;
 
       const bool buffer_exists = data.find({version_key,key}) != data.end();
       void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
@@ -602,6 +643,8 @@ namespace threads_backend {
         delete pub.data;
         delete pub_ptr;
       }
+
+      return traceLog;
     }
   }
     
@@ -714,7 +757,8 @@ namespace threads_backend {
              delayed_pub != end;
              ++delayed_pub) {
 
-          publish(*delayed_pub);
+          // TODO: need to call the publish node here
+          publish(*delayed_pub,nullptr);
           (*delayed_pub)->finished = true;
 
           DEBUG_PRINT("cleanup handle: force publish of handle = %p\n", handle);
@@ -1022,7 +1066,8 @@ namespace threads_backend {
   }
 
   void
-  ThreadsRuntime::publish(std::shared_ptr<DelayedPublish> publish) {
+  ThreadsRuntime::publish(std::shared_ptr<DelayedPublish> publish,
+                          TraceLog* const log) {
     if (publish->finished) return;
     
     {
@@ -1078,6 +1123,7 @@ namespace threads_backend {
       publish->key = key;
       publish->ready = true;
       publish->data = block;
+      publish->pub_log = log;
 
       if (publish_exists) {
         for (auto iter = publish->waiting.begin(),
@@ -1174,7 +1220,8 @@ namespace threads_backend {
 
   template <typename Node>
   bool
-  ThreadsRuntime::schedule_from_deque(std::mutex* lock, std::deque<Node>& nodes) {
+  ThreadsRuntime::schedule_from_deque(std::mutex* lock,
+                                      std::deque<Node>& nodes) {
     if (nodes.size() > 0) {
       DEBUG_PRINT("scheduling from deque %p (local = %p): size = %lu\n",
                   &nodes, &ready_local, nodes.size());

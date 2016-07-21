@@ -153,6 +153,13 @@ namespace threads_backend {
     void
     addTraceDeps(TaskNode* node,
                  TraceLog* log);
+    void
+    addPublishDeps(PublishNode* node,
+                   TraceLog* log);
+    void
+    addFetchDeps(FetchNode* node,
+                 TraceLog* log,
+                 TraceLog* pub_log);
     
     TraceModule*
     getTrace();
@@ -183,6 +190,10 @@ namespace threads_backend {
                        types::key_t version,
                        types::key_t key);
 
+    void
+    findAddTraceDep(std::shared_ptr<InnerFlow> flow,
+                    TraceLog* thisLog);
+    
     template <typename Key>
     Key
     follow(const std::unordered_map<Key, Key>& map,
@@ -249,7 +260,7 @@ namespace threads_backend {
     void
     blocking_fetch(darma_runtime::abstract::frontend::Handle* handle,
 		   types::key_t const& version_key);
-    void
+    TraceLog*
     fetch(darma_runtime::abstract::frontend::Handle* handle,
 	  types::key_t const& version_key);
 
@@ -276,7 +287,8 @@ namespace threads_backend {
     test_publish(std::shared_ptr<DelayedPublish> publish);
 
     void
-    publish(std::shared_ptr<DelayedPublish> publish);
+    publish(std::shared_ptr<DelayedPublish> publish,
+            TraceLog* const log);
 
     void
     publish_finished(std::shared_ptr<DelayedPublish> publish);

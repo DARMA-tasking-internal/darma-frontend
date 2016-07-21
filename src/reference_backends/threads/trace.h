@@ -84,6 +84,7 @@ namespace threads_backend {
     // post creation of log
     std::vector<TraceLog*> deps;
     Event event;
+    size_t rank;
   };
 
   struct TraceEntrys {
@@ -119,7 +120,7 @@ namespace threads_backend {
            << "TOTAL_PSEUDOS 0\n"
            << "TOTAL_EVENTS 0"
            << std::endl;
-
+      
       for (auto&& event : eventNames) {
         file << "CHARE "
              << event.second << " "
@@ -208,7 +209,7 @@ namespace threads_backend {
                << log->entry << " "
                << convertedTime << " "
                << log->event << " "
-               << rank << " "
+               << log->rank << " "
                << "0 0 0 0 0 0 0\n";
           break;
         case GROUP_END:
@@ -216,7 +217,7 @@ namespace threads_backend {
                << log->entry << " "
                << convertedTime << " "
                << log->event << " "
-               << rank << " "
+               << log->rank << " "
                << "0 0 0 0 0 0 0 0\n";
           break;
         case DEP_CREATE:
@@ -224,7 +225,7 @@ namespace threads_backend {
                << log->entry << " "
                << convertedTime << " "
                << log->event << " "
-               << rank << " "
+               << log->rank << " "
                << "0 0 0 0 0 0 0 0\n";
           break;
         default:
@@ -280,6 +281,7 @@ namespace threads_backend {
       auto log = new TraceLog{time,
                               entryReg.findEntryID(entry),
                               GROUP_BEGIN};
+      log->rank = this_rank;
       logEvent(log);
       return log;
     }
@@ -290,6 +292,7 @@ namespace threads_backend {
       auto log = new TraceLog{time,
                               entryReg.findEntryID(entry),
                               GROUP_END};
+      log->rank = this_rank;
       logEvent(log);
       return log;
     }
@@ -300,6 +303,7 @@ namespace threads_backend {
       auto log = new TraceLog{time,
                               entry,
                               DEP_CREATE};
+      log->rank = this_rank;
       return log;
     }
     

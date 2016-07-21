@@ -51,6 +51,8 @@ namespace threads_backend {
   struct InnerFlow;
   struct GraphNode;
   struct TaskNode;
+  struct FetchNode;
+  struct PublishNode;
   struct DelayedPublish;
 
   template <typename Impl>
@@ -65,6 +67,14 @@ namespace threads_backend {
       return static_cast<Impl*>(this)->consume();
     }
 
+    inline void
+    addFetchDeps(FetchNode* node, TraceLog* log, TraceLog* pub_log) {
+      return static_cast<Impl*>(this)->addFetchDeps(node,log,pub_log);
+    }
+    inline void
+    addPublishDeps(PublishNode* node, TraceLog* log) {
+      return static_cast<Impl*>(this)->addPublishDeps(node,log);
+    }
     inline void
     addTraceDeps(TaskNode* node, TraceLog* log) {
       return static_cast<Impl*>(this)->addTraceDeps(node,log);
@@ -89,7 +99,7 @@ namespace threads_backend {
     }
 
     // fetch interface methods
-    inline void
+    inline TraceLog*
     fetch(darma_runtime::abstract::frontend::Handle* handle,
           types::key_t const& version_key) {
       return static_cast<Impl*>(this)->fetch(handle, version_key);
@@ -106,8 +116,9 @@ namespace threads_backend {
       return static_cast<Impl*>(this)->test_publish(publish);
     }
     inline void
-    publish(std::shared_ptr<DelayedPublish> publish) {
-      return static_cast<Impl*>(this)->publish(publish);
+    publish(std::shared_ptr<DelayedPublish> publish,
+            TraceLog* const log) {
+      return static_cast<Impl*>(this)->publish(publish,log);
     }
     inline void
     publish_finished(std::shared_ptr<DelayedPublish> publish) {
