@@ -42,7 +42,8 @@
 //@HEADER
 */
 
-#pragma once
+#if !defined(_THREADS_PUBLISH_BACKEND_RUNTIME_H_)
+#define _THREADS_PUBLISH_BACKEND_RUNTIME_H_
 
 #include <common.h>
 #include <node.h>
@@ -59,8 +60,9 @@ namespace threads_backend {
     size_t size_;
     void *data_ = nullptr;
   };
-  
+
   struct PublishedBlock {
+    TraceLog* pub_log = nullptr;
     std::atomic<bool> ready = {false};
 
     types::key_t key;
@@ -72,3 +74,5 @@ namespace threads_backend {
     PublishedBlock() = default;
   };
 }
+
+#endif

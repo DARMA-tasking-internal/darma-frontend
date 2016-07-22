@@ -71,19 +71,43 @@ namespace threads_backend {
   typedef size_t Entry;
   typedef size_t Event;
   typedef std::string EntryName;
-  
+
   struct TraceLog {
     time_point<high_resolution_clock> time;
     Entry entry;
     EventType type;
+    std::mutex lock;
 
     // pointers to end and begin
-    TraceLog* end   = nullptr;
-    TraceLog* begin = nullptr;
+    std::atomic<TraceLog*> end   = {nullptr};
+    std::atomic<TraceLog*> begin = {nullptr};
 
     // post creation of log
-    std::vector<TraceLog*> deps;
     Event event;
+    size_t rank;
+
+    TraceLog(const TraceLog& other) = delete;
+
+    TraceLog(time_point<high_resolution_clock> time_,
+             Entry entry_,
+             EventType type_)
+      : time(time_)
+      , entry(entry_)
+      , type(type_)
+    { }
+
+    void insertDep(TraceLog* const dep) {
+      {
+        std::lock_guard<std::mutex> guard(lock);
+        deps.push_back(dep);
+      }
+    }
+
+    friend struct TraceModule;
+
+  private:
+    // this might be modified by multiple threads
+    std::vector<TraceLog*> deps;
   };
 
   struct TraceEntrys {
@@ -93,7 +117,7 @@ namespace threads_backend {
 
     TraceEntrys(const TraceEntrys& other) = delete;
     TraceEntrys() = default;
-    
+
     Entry findEntryID(const EntryName& event) {
       // TODO: fix this. registry must not be locked
       // per-thd registry with rank resolution at end
@@ -130,7 +154,7 @@ namespace threads_backend {
       for (auto&& event : eventNames) {
         const auto& name = event.first;
         const auto& id = event.second;
-        
+
         file << "ENTRY CHARE "
              << id << " "
              << name << " "
@@ -208,7 +232,7 @@ namespace threads_backend {
                << log->entry << " "
                << convertedTime << " "
                << log->event << " "
-               << rank << " "
+               << log->rank << " "
                << "0 0 0 0 0 0 0\n";
           break;
         case GROUP_END:
@@ -216,7 +240,7 @@ namespace threads_backend {
                << log->entry << " "
                << convertedTime << " "
                << log->event << " "
-               << rank << " "
+               << log->rank << " "
                << "0 0 0 0 0 0 0 0\n";
           break;
         case DEP_CREATE:
@@ -224,7 +248,7 @@ namespace threads_backend {
                << log->entry << " "
                << convertedTime << " "
                << log->event << " "
-               << rank << " "
+               << log->rank << " "
                << "0 0 0 0 0 0 0 0\n";
           break;
         default:
@@ -233,12 +257,21 @@ namespace threads_backend {
 
         // recursive call to unfold trace structure
         if (log->deps.size() > 0) {
+          // TODO: hackish block to space out send events
+          {
+            size_t cur = 0;
+            for (auto&& sublog : log->deps) {
+              sublog->time -= std::chrono::nanoseconds(1000 * cur);
+              cur++;
+            }
+          }
+
           writeLogDisk(file,log->deps);
         }
       }
       traces.empty();
     }
-    
+
     void writeTracesDisk() {
       std::ofstream file;
       file.open(trace_name);
@@ -264,13 +297,14 @@ namespace threads_backend {
     eventStopNow(const EntryName& entry) {
       return eventStop(timer.currentTime(), entry);
     }
-    
+
     TraceLog*
     eventStart(const time_point<high_resolution_clock> time,
                const EntryName entry) {
       auto log = new TraceLog{time,
                               entryReg.findEntryID(entry),
                               GROUP_BEGIN};
+      log->rank = this_rank;
       logEvent(log);
       return log;
     }
@@ -281,6 +315,7 @@ namespace threads_backend {
       auto log = new TraceLog{time,
                               entryReg.findEntryID(entry),
                               GROUP_END};
+      log->rank = this_rank;
       logEvent(log);
       return log;
     }
@@ -291,13 +326,14 @@ namespace threads_backend {
       auto log = new TraceLog{time,
                               entry,
                               DEP_CREATE};
+      log->rank = this_rank;
       return log;
     }
-    
+
     size_t logEvent(TraceLog* const log) {
       if (!enabled) {
         return 0;
-      }      
+      }
 
       auto grouped_begin = [&]{
         if (!open.empty()) {
@@ -327,11 +363,11 @@ namespace threads_backend {
         // set up begin/end links
         open.top()->end = log;
         log->begin = open.top();
-        
+
         open.pop();
 
         traces.push_back(log);
-        
+
         if (!open.empty()) {
           traces.push_back(new TraceLog{log->time,// + 0.0000001,
                                         open.top()->entry,
@@ -346,7 +382,7 @@ namespace threads_backend {
 
         const auto event = traces.size() - 1;
         log->event = event;
-        
+
         return event;
       };
 
@@ -366,7 +402,7 @@ namespace threads_backend {
         break;
       }
     }
-    
+
     void start() {
       enabled = true;
     }
@@ -403,11 +439,11 @@ namespace threads_backend {
       duration<double> dur(t0-t1);
       return dur;
     }
-    
+
     static long time2long(const duration<double> time) {
       return (long)(time.count() * 1e6);
     }
-    
+
   private:
     bool enabled;
   };

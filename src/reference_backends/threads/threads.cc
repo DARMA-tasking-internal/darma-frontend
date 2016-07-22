@@ -87,14 +87,17 @@ namespace threads_backend {
     __thread size_t flow_label = 100;
   #endif
 
-  __thread size_t task_label = 100;
+  // tracing TL state for unique labeling
+  __thread size_t task_label = 1;
+  __thread size_t publish_label = 1;
+  __thread size_t fetch_label = 1;
 
   // global
   size_t n_ranks = 1;
   bool traceMode = false;
   bool depthFirstExpand = true;
   size_t bwidth = 100;
-  
+
   // global publish
   std::mutex rank_publish;
   std::unordered_map<std::pair<types::key_t, types::key_t>, PublishedBlock*> published;
@@ -116,7 +119,7 @@ namespace threads_backend {
 
   TraceModule*
   ThreadsRuntime::getTrace() { return trace; }
-  
+
   size_t
   ThreadsRuntime::get_spmd_rank() const {
     return this_rank;
@@ -145,13 +148,13 @@ namespace threads_backend {
   ThreadsRuntime::add_local(std::shared_ptr<GraphNode> task) {
     ready_local.push_back(task);
   }
-  
+
   void
   ThreadsRuntime::schedule_over_breadth() {
     if (this->produced - this->consumed > bwidth)
       schedule_next_unit();
   }
-    
+
   /*virtual*/
   void
   ThreadsRuntime::register_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
@@ -161,7 +164,7 @@ namespace threads_backend {
     t->join_counter = check_dep_task(t);
 
     DEBUG_VERBOSE_PRINT("task join counter: %ld\n", t->join_counter);
-    
+
     // use depth-first scheduling policy
     if (threads_backend::depthFirstExpand) {
       assert(t->ready());
@@ -205,19 +208,92 @@ namespace threads_backend {
     assert(false);
   }
 
-  std::shared_ptr<InnerFlow>
-  ThreadsRuntime::followInverse(std::shared_ptr<InnerFlow> flow) {
-    if (inverse_alias.find(flow) !=
-        inverse_alias.end()) {
-      return followInverse(inverse_alias[flow]);
+  template <typename Key>
+  Key
+  ThreadsRuntime::follow(const std::unordered_map<Key, Key>& map,
+                         const Key& flow) {
+    if (map.find(flow) != map.end()) {
+      return follow(map, map.find(flow)->second);
     } else {
       return flow;
     }
   }
-  
+
+  void
+  ThreadsRuntime::addFetchDeps(FetchNode* node,
+                               TraceLog* thisLog,
+                               TraceLog* pub_log) {
+    if (threads_backend::depthFirstExpand) {
+      return;
+    }
+
+    if (pub_log) {
+      const auto& end = std::atomic_load<TraceLog*>(&pub_log->end);
+      const auto& time = end != nullptr ? end->time : pub_log->time;
+      const auto& entry = thisLog->entry;
+      auto dep = getTrace()->depCreate(time,entry);
+
+      dep->rank = this_rank;
+      dep->event = thisLog->event;
+      thisLog->rank = pub_log->rank;
+      pub_log->insertDep(dep);
+    }
+  }
+
+  void
+  ThreadsRuntime::addPublishDeps(PublishNode* node,
+                                 TraceLog* thisLog) {
+    if (threads_backend::depthFirstExpand) {
+      return;
+    }
+
+    const auto& flow = node->pub->flow;
+    findAddTraceDep(flow,thisLog);
+  }
+
+  void
+  ThreadsRuntime::findAddTraceDep(std::shared_ptr<InnerFlow> flow,
+                                  TraceLog* thisLog) {
+    // find dependency for flow
+    if (taskTrace.find(flow) != taskTrace.end()) {
+      std::shared_ptr<InnerFlow> prev = flow;
+
+      if (inverse_alias.find(flow) !=
+          inverse_alias.end()) {
+        const auto& inverse = follow(inverse_alias, flow);
+        prev = inverse;
+        DEBUG_TRACE("f_in=%ld, inverse alias=%ld\n",
+                    PRINT_LABEL_INNER(flow),
+                    PRINT_LABEL_INNER(inverse));
+      }
+
+      assert(taskTrace.find(prev) != taskTrace.end());
+
+      const auto& parent = taskTrace[prev];
+      const auto& end = std::atomic_load<TraceLog*>(&parent->end);
+      auto dep = getTrace()->depCreate(end != nullptr ? end->time : parent->time,
+                                       thisLog->entry);
+      dep->event = thisLog->event;
+      parent->insertDep(dep);
+    } else if (task_forwards.find(flow) !=
+               task_forwards.end()) {
+      assert(taskTrace.find(task_forwards[flow]->next) != taskTrace.end());
+      const auto& parent = taskTrace[task_forwards[flow]->next];
+      const auto& end = std::atomic_load<TraceLog*>(&parent->end);
+      auto dep = getTrace()->depCreate(end != nullptr ? end->time : parent->time,
+                                       thisLog->entry);
+      dep->event = thisLog->event;
+      parent->insertDep(dep);
+    }
+  }
+
   void
   ThreadsRuntime::addTraceDeps(TaskNode* node,
                                TraceLog* thisLog) {
+    if (threads_backend::depthFirstExpand) {
+      return;
+    }
+
     for (auto&& dep : node->task->get_dependencies()) {
       ThreadsFlow const* const f_in  = static_cast<ThreadsFlow*>(dep->get_in_flow());
       ThreadsFlow const* const f_out = static_cast<ThreadsFlow*>(dep->get_out_flow());
@@ -227,28 +303,10 @@ namespace threads_backend {
         taskTrace[f_out->inner] = thisLog;
       }
 
-      // find dependency for f_in
-      if (taskTrace.find(f_in->inner) != taskTrace.end()) {
-        std::shared_ptr<InnerFlow> prev = f_in->inner;
-
-        if (inverse_alias.find(f_in->inner) !=
-            inverse_alias.end()) {
-          const auto& inverse = followInverse(f_in->inner);
-          prev = inverse;
-          DEBUG_TRACE("f_in=%ld, inverse alias=%ld\n",
-                      PRINT_LABEL_INNER(f_in->inner),
-                      PRINT_LABEL_INNER(inverse));
-        }
-
-        const auto& parent = taskTrace[prev];
-        auto dep = getTrace()->depCreate(parent->end ? parent->end->time : parent->time,
-                                         thisLog->entry);
-        dep->event = thisLog->event;
-        parent->deps.push_back(dep);
-      }
+      findAddTraceDep(f_in->inner,thisLog);
     }
   }
-  
+
   size_t
   ThreadsRuntime::check_dep_task(std::shared_ptr<TaskNode> t) {
     DEBUG_VERBOSE_PRINT("check_dep_task\n");
@@ -262,7 +320,7 @@ namespace threads_backend {
       DEBUG_PRINT("check_dep_task: f_in=%lu, f_out=%lu\n",
                   PRINT_LABEL(f_in),
                   PRINT_LABEL(f_out));
-      
+
       // set readiness of this flow based on symmetric flow structure
       const bool check_ready = f_in->inner->check_ready();
 
@@ -317,7 +375,7 @@ namespace threads_backend {
 
     f_in->inner->uses++;
     f_out->inner->uses++;
-    
+
     auto const handle = u->get_handle();
     const auto& key = handle->get_key();
     const auto version = f_in->inner->version_key;
@@ -384,7 +442,7 @@ namespace threads_backend {
 
     DEBUG_PRINT("allocating data block: size = %ld, ptr = %p\n",
                 sz, block->data);
-      
+
     // call default constructor for data block
     handle
       ->get_serialization_manager()
@@ -426,7 +484,7 @@ namespace threads_backend {
         DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
                     PRINT_BOOL_STR(buffer_exists),
                     handle);
-            
+
         handle
           ->get_serialization_manager()
           ->unpack_data(unpack_to,pub.data->data_);
@@ -477,7 +535,7 @@ namespace threads_backend {
       const auto& key = handle->get_key();
       const auto& iter = published.find({version_key,key});
       const bool found = iter != published.end();
-      const bool avail = found && std::atomic_load<bool>(&iter->second->ready); 
+      const bool avail = found && std::atomic_load<bool>(&iter->second->ready);
 
       DEBUG_PRINT("add_fetcher: key=%s, version=%s, found=%s, avail=%s\n",
                   PRINT_KEY(key),
@@ -485,7 +543,7 @@ namespace threads_backend {
                   PRINT_BOOL_STR(found),
                   PRINT_BOOL_STR(avail)
                   );
-      
+
       if (!found) {
         auto pub = new PublishedBlock();
         pub->waiting.push_front(fetch);
@@ -498,7 +556,7 @@ namespace threads_backend {
     }
     return ready;
   }
-  
+
   bool
   ThreadsRuntime::test_fetch(darma_runtime::abstract::frontend::Handle* handle,
                              types::key_t const& version_key) {
@@ -513,7 +571,7 @@ namespace threads_backend {
       DEBUG_PRINT("test_fetch: trying to find a publish, key=%s, version=%s\n",
                   PRINT_KEY(key),
                   PRINT_KEY(version_key));
-      
+
       ready =
         iter != published.end() &&
         std::atomic_load<bool>(&iter->second->ready);
@@ -528,10 +586,11 @@ namespace threads_backend {
     DEBUG_PRINT("fetch_block: handle = %p\n", handle);
 
     while (!test_fetch(handle, version_key)) ;
+
     fetch(handle, version_key);
   }
 
-  void
+  TraceLog*
   ThreadsRuntime::fetch(darma_runtime::abstract::frontend::Handle* handle,
                         types::key_t const& version_key) {
     {
@@ -545,13 +604,14 @@ namespace threads_backend {
                   handle,
                   PRINT_KEY(key),
                   PRINT_KEY(version_key));
-      
+
       // published block found and ready
       assert(iter != published.end() &&
              std::atomic_load<bool>(&iter->second->ready));
 
       PublishedBlock* pub_ptr = iter->second;
       auto &pub = *pub_ptr;
+      auto traceLog = pub.pub_log;
 
       const bool buffer_exists = data.find({version_key,key}) != data.end();
       void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
@@ -587,9 +647,11 @@ namespace threads_backend {
         delete pub.data;
         delete pub_ptr;
       }
+
+      return traceLog;
     }
   }
-    
+
   /*virtual*/
   Flow*
   ThreadsRuntime::make_fetching_flow(darma_runtime::abstract::frontend::Handle* handle,
@@ -626,12 +688,12 @@ namespace threads_backend {
 
     f->inner->isNull = true;
     f->inner->handle = handle;
-    
+
     DEBUG_PRINT("null flow %lu\n", PRINT_LABEL(f));
 
     return f;
   }
-  
+
   /*virtual*/
   Flow*
   ThreadsRuntime::make_forwarding_flow(Flow* from) {
@@ -649,7 +711,11 @@ namespace threads_backend {
     if (depthFirstExpand) {
       f_forward->inner->ready = true;
     }
-    
+
+    if (getTrace()) {
+      task_forwards[f_forward->inner] = f->inner;
+    }
+
     f->inner->forward = f_forward->inner;
     f_forward->inner->handle = f->inner->handle;
     return f_forward;
@@ -665,7 +731,7 @@ namespace threads_backend {
 
     f->inner->next = f_next->inner;
     f_next->inner->handle = f->inner->handle;
-    
+
     DEBUG_PRINT("next flow from %lu (%p) to %lu (%p)\n",
                 PRINT_LABEL(f),
                 f,
@@ -688,15 +754,18 @@ namespace threads_backend {
                 flow->handle,
                 alias[flow]->handle,
                 handle_refs[handle]);
-    
+
     if (handle_refs[handle] == 0) {
       if (handle_pubs.find(handle) != handle_pubs.end()) {
         for (auto delayed_pub = handle_pubs[handle].begin(), end = handle_pubs[handle].end();
              delayed_pub != end;
              ++delayed_pub) {
 
-          publish(*delayed_pub);
+          (*delayed_pub)->node->execute();
           (*delayed_pub)->finished = true;
+
+          // explicitly don't call clean up because we do it manually
+          // TODO: fix this problem with iterator
 
           DEBUG_PRINT("cleanup handle: force publish of handle = %p\n", handle);
         }
@@ -717,13 +786,16 @@ namespace threads_backend {
     DEBUG_PRINT("delete handle data\n");
     DataBlock* prev = data[{version,key}];
     data.erase({version,key});
-    // call the destructor
-    handle
-      ->get_serialization_manager()
-      ->destroy(prev->data);
-    delete prev;
+    // TODO: is this correct
+    if (prev) {
+      // call the destructor
+      handle
+        ->get_serialization_manager()
+        ->destroy(prev->data);
+      delete prev;
+    }
   }
-  
+
   /*virtual*/
   void
   ThreadsRuntime::establish_flow_alias(Flow* from,
@@ -747,7 +819,7 @@ namespace threads_backend {
     if (getTrace()) {
       inverse_alias[f_to->inner] = f_from->inner;
     }
-    
+
     if (f_from->inner->uses == 0 ||
         f_from->inner->ready) {
       f_to->inner->ref = 0;
@@ -790,7 +862,7 @@ namespace threads_backend {
     }
     return false;
   }
-  
+
   bool
   ThreadsRuntime::release_alias(std::shared_ptr<InnerFlow> flow,
                                 size_t readers) {
@@ -798,7 +870,7 @@ namespace threads_backend {
       if (test_alias_null(flow)) {
         return true;
       }
-      
+
       DEBUG_PRINT("release_use: releasing alias: %ld, ref=%ld, readers_jc=%ld\n",
                   PRINT_LABEL_INNER(alias[flow]),
                   alias[flow]->ref,
@@ -879,7 +951,7 @@ namespace threads_backend {
   bool
   ThreadsRuntime::release_alias_p2(std::shared_ptr<InnerFlow> flow) {
     DEBUG_PRINT("release_use: try find alias\n");
-    
+
     if (alias.find(flow) != alias.end()) {
       DEBUG_PRINT("release_use: releasing alias: %ld, ref=%ld, readers_jc=%ld\n",
                   PRINT_LABEL_INNER(alias[flow]),
@@ -889,7 +961,7 @@ namespace threads_backend {
       if (test_alias_null(flow)) {
         return true;
       }
-      
+
       alias[flow]->readers_jc--;
 
       // TODO: does this assertion ever break?
@@ -903,7 +975,7 @@ namespace threads_backend {
       }
 
       release_alias_p2(alias[flow]);
-      
+
       if (flow->readers_jc == 0) {
         DEBUG_PRINT("remove alias %ld to %ld\n",
                     PRINT_LABEL_INNER(flow),
@@ -914,7 +986,7 @@ namespace threads_backend {
     }
     return false;
   }
-  
+
   /*virtual*/
   void
   ThreadsRuntime::release_use(darma_runtime::abstract::frontend::Use* u) {
@@ -1000,9 +1072,10 @@ namespace threads_backend {
   }
 
   void
-  ThreadsRuntime::publish(std::shared_ptr<DelayedPublish> publish) {
+  ThreadsRuntime::publish(std::shared_ptr<DelayedPublish> publish,
+                          TraceLog* const log) {
     if (publish->finished) return;
-    
+
     {
       // TODO: big lock to handling publishing
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
@@ -1019,7 +1092,7 @@ namespace threads_backend {
                   PRINT_KEY(version),
                   data_ptr,
                   handle);
-        
+
       assert(expected >= 1);
 
       const size_t size = handle
@@ -1056,6 +1129,7 @@ namespace threads_backend {
       publish->key = key;
       publish->ready = true;
       publish->data = block;
+      publish->pub_log = log;
 
       if (publish_exists) {
         for (auto iter = publish->waiting.begin(),
@@ -1075,7 +1149,7 @@ namespace threads_backend {
                 publish->handle);
     handle_pubs[publish->handle].remove(publish);
   }
-  
+
   /*virtual*/
   void
   ThreadsRuntime::publish_use(darma_runtime::abstract::frontend::Use* f,
@@ -1104,6 +1178,9 @@ namespace threads_backend {
 
     auto p = std::make_shared<PublishNode>(PublishNode{this,pub});
 
+    // set the node for early release
+    pub->node = p;
+
     const bool ready = p->ready();
 
     DEBUG_PRINT("%p: publish_use: ptr=%p, hasDeferred=%s, key=%s, "
@@ -1117,7 +1194,7 @@ namespace threads_backend {
                 PRINT_BOOL_STR(ready),
                 PRINT_LABEL(f_in),
                 PRINT_LABEL(f_out));
-    
+
     if (!ready) {
       // publishes.push_back(p);
       // insert into the set of delayed
@@ -1152,7 +1229,8 @@ namespace threads_backend {
 
   template <typename Node>
   bool
-  ThreadsRuntime::schedule_from_deque(std::mutex* lock, std::deque<Node>& nodes) {
+  ThreadsRuntime::schedule_from_deque(std::mutex* lock,
+                                      std::deque<Node>& nodes) {
     if (nodes.size() > 0) {
       DEBUG_PRINT("scheduling from deque %p (local = %p): size = %lu\n",
                   &nodes, &ready_local, nodes.size());
@@ -1195,7 +1273,7 @@ namespace threads_backend {
     assert(ready_local.size() == 0 &&
            ready_remote.size() == 0 &&
            "TD failed if queues have work units in them.");
-    
+
     STARTUP_PRINT("work units: produced=%ld, consumed=%ld\n",
                   this->produced,
                   this->consumed);
@@ -1220,10 +1298,10 @@ namespace threads_backend {
       delete trace;
       trace = nullptr;
     }
-    
+
     if (this_rank == 0) {
       DEBUG_PRINT("total threads to join is %zu\n", threads_backend::live_ranks.size());
-    
+
       // TODO: memory consistency bug on live_ranks size here..with relaxed ordering
       for (size_t i = 0; i < threads_backend::live_ranks.size(); i++) {
         DEBUG_PRINT("main thread joining %zu\n", i);
@@ -1288,11 +1366,11 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   };
 
   args.parse(argc, argv);
-  
+
   // read number of threads from the command line
   if (args["threads"].as<bool>()) {
     n_threads = args["threads"].as<size_t>();
-    
+
     // TODO: require this backend not to run with multiple threads per rank
     assert(n_threads == 1);
   }
@@ -1321,7 +1399,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
       threads_backend::traceMode = true;
     }
   }
-  
+
   // read number of ranks from the command line
   if (args["bf"].as<bool>()) {
     auto bf = args["bf"].as<size_t>() != 0;
@@ -1350,7 +1428,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
                     threads_backend::traceMode ? "ON" : "OFF");
     }
   }
-  
+
   auto* runtime = new threads_backend::ThreadsRuntime();
   backend_runtime = runtime;
 

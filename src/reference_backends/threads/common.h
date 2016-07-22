@@ -111,7 +111,7 @@ namespace threads_backend {
   using namespace darma_runtime::abstract::backend;
 
   extern __thread size_t this_rank;
-  
+
   struct DataBlock {
     void* data;
 
@@ -120,7 +120,7 @@ namespace threads_backend {
     DataBlock(void* data_)
       : data(data_)
     { }
-    
+
     DataBlock(int refs_, size_t sz)
       : data(malloc(sz))
     { }
