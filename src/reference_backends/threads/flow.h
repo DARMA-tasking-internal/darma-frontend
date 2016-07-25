@@ -52,37 +52,44 @@
 
 namespace threads_backend {
   extern __thread size_t flow_label;
-  
-  struct InnerFlow {
-    std::shared_ptr<InnerFlow> same, next, forward, backward;
-    types::key_t version_key;
-    darma_runtime::abstract::frontend::Handle* handle;
-    bool ready, hasDeferred;
-    DataBlock* deferred_data_ptr;
-    size_t label;
 
-    std::list<std::shared_ptr<InnerFlow> > deps;
-    
+  struct InnerFlow {
+    std::shared_ptr<InnerFlow> forward, next;
+    types::key_t version_key, key;
+    darma_runtime::abstract::frontend::Handle* handle;
+    bool ready, hasDeferred, isNull;
+    DataBlock* deferred_data_ptr;
+
+    #if __THREADS_DEBUG_MODE__
+      size_t label;
+    #endif
+
+    size_t readers_jc, ref, uses;
+    std::vector<std::shared_ptr<GraphNode> > readers;
+
     // node in the graph to activate
     std::shared_ptr<GraphNode> node;
-    
+
     InnerFlow(const InnerFlow& in) = default;
-    
+
     InnerFlow()
-      : same(nullptr)
+      : forward(nullptr)
       , next(nullptr)
-      , forward(nullptr)
-      , backward(nullptr)
       , version_key(darma_runtime::detail::SimpleKey())
       , ready(false)
       , hasDeferred(false)
+      , isNull(false)
       , deferred_data_ptr(nullptr)
+      #if __THREADS_DEBUG_MODE__
       , label(++flow_label)
+      #endif
+      , readers_jc(0)
+      , ref(0)
+      , uses(0)
       , node(nullptr)
     { }
 
-    bool check_ready() { return ready || (same ? check_same() : false); }
-    bool check_same()  { return same->check_ready(); }
+    bool check_ready() { return ready; }
   };
 
   struct ThreadsFlow

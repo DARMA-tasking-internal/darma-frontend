@@ -45,19 +45,50 @@
 #if !defined(_THREADS_INTERFACE_BACKEND_RUNTIME_H_)
 #define _THREADS_INTERFACE_BACKEND_RUNTIME_H_
 
+#include <trace.h>
+
 namespace threads_backend {
   struct InnerFlow;
   struct GraphNode;
+  struct TaskNode;
+  struct FetchNode;
+  struct PublishNode;
   struct DelayedPublish;
 
   template <typename Impl>
   class ThreadsInterface {
   public:
-    // dependency and deque management interface
     inline void
-    release_deps(std::shared_ptr<InnerFlow> flow) {
-      return static_cast<Impl*>(this)->release_deps(flow);
+    produce() {
+      return static_cast<Impl*>(this)->produce();
     }
+    inline void
+    consume() {
+      return static_cast<Impl*>(this)->consume();
+    }
+
+    inline void
+    addFetchDeps(FetchNode* node, TraceLog* log, TraceLog* pub_log) {
+      return static_cast<Impl*>(this)->addFetchDeps(node,log,pub_log);
+    }
+    inline void
+    addPublishDeps(PublishNode* node, TraceLog* log) {
+      return static_cast<Impl*>(this)->addPublishDeps(node,log);
+    }
+    inline void
+    addTraceDeps(TaskNode* node, TraceLog* log) {
+      return static_cast<Impl*>(this)->addTraceDeps(node,log);
+    }
+    inline TraceModule*
+    getTrace() {
+      return static_cast<Impl*>(this)->getTrace();
+    }
+
+    inline size_t
+    release_node(std::shared_ptr<InnerFlow> flow) {
+      return static_cast<Impl*>(this)->release_node(flow);
+    }
+
     inline void
     add_remote(std::shared_ptr<GraphNode> task) {
       return static_cast<Impl*>(this)->add_remote(task);
@@ -68,14 +99,14 @@ namespace threads_backend {
     }
 
     // fetch interface methods
-    inline void
+    inline TraceLog*
     fetch(darma_runtime::abstract::frontend::Handle* handle,
-	  types::key_t const& version_key) {
+          types::key_t const& version_key) {
       return static_cast<Impl*>(this)->fetch(handle, version_key);
     }
     inline bool
     test_fetch(darma_runtime::abstract::frontend::Handle* handle,
-	       types::key_t const& version_key) {
+               types::key_t const& version_key) {
       return static_cast<Impl*>(this)->test_fetch(handle, version_key);
     }
 
@@ -85,14 +116,15 @@ namespace threads_backend {
       return static_cast<Impl*>(this)->test_publish(publish);
     }
     inline void
-    publish(std::shared_ptr<DelayedPublish> publish) {
-      return static_cast<Impl*>(this)->publish(publish);
+    publish(std::shared_ptr<DelayedPublish> publish,
+            TraceLog* const log) {
+      return static_cast<Impl*>(this)->publish(publish,log);
     }
     inline void
     publish_finished(std::shared_ptr<DelayedPublish> publish) {
       return static_cast<Impl*>(this)->publish_finished(publish);
     }
-    
+
     // task interface methods
     inline void
     run_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
