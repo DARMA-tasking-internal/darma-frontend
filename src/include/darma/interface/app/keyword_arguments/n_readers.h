@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      oo.h
+//                      publication.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,56 +42,11 @@
 //@HEADER
 */
 
-#ifndef DARMA_OO_H
-#define DARMA_OO_H
+#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_READERS_H
+#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_READERS_H
 
-namespace darma_runtime {
-namespace oo {
+#include <darma/impl/keyword_arguments/macros.h>
 
-template <typename ClassName, typename... Args>
-struct darma_class;
+DeclareDarmaTypeTransparentKeyword(publication, n_readers);
 
-template <typename OfClass, typename... Args>
-struct darma_method;
-
-template <typename OfClass, typename... Args>
-struct darma_constructors;
-
-// Useful alias
-template <typename OfClass, typename... Args>
-using darma_constructor = darma_constructors<OfClass, Args...>;
-
-template <typename... Args>
-struct public_methods;
-
-template <typename... Args>
-struct private_fields;
-
-template <typename... Args>
-struct public_fields;
-
-template <typename... Args>
-struct reads_;
-
-template <typename... Args>
-struct reads_value_;
-template <typename... Args>
-using reads_values_ = reads_value_<Args...>;
-
-template <typename... Args>
-struct modifies_;
-
-template <typename... Args>
-struct modifies_value_;
-template <typename... Args>
-using modifies_values_ = modifies_value_<Args...>;
-
-} // end namespace oo
-} // end namespace darma_runtime
-
-#include <darma/impl/oo/class.h>
-#include <darma/impl/oo/method.h>
-#include <darma/impl/oo/field.h>
-#include <darma/impl/oo/macros.h>
-
-#endif //DARMA_OO_H
+#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_READERS_H

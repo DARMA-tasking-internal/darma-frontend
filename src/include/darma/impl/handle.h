@@ -66,10 +66,9 @@
 #include <darma/impl/serialization/allocation.h>
 
 #include <darma/impl/keyword_arguments/keyword_arguments.h>
+#include <darma/interface/app/keyword_arguments/n_readers.h>
+#include <darma/interface/app/keyword_arguments/version.h>
 
-// TODO move these to appropriate header files in interface/app
-DeclareDarmaTypeTransparentKeyword(publication, n_readers);
-DeclareDarmaTypeTransparentKeyword(publication, version);
 
 namespace darma_runtime {
 

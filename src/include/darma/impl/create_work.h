@@ -62,9 +62,10 @@
 #include <darma/impl/task.h>
 #include <darma/impl/util.h>
 
-// TODO move these to their own files in interface/app when they become part of the spec
-DeclareDarmaTypeTransparentKeyword(create_work_decorators, unless);
-DeclareDarmaTypeTransparentKeyword(create_work_decorators, only_if);
+#include <darma/interface/app/keyword_arguments/unless.h>
+#include <darma/interface/app/keyword_arguments/only_if.h>
+#include <darma/interface/app/keyword_arguments/name.h>
+
 
 
 namespace darma_runtime {
@@ -253,15 +254,30 @@ struct _do_create_work {
   operator()(Args&&... args) {
     // Check for allowed keywords
     static_assert(detail::only_allowed_kwargs_given<
-        // No allowed keywords yet
+        darma_runtime::keyword_tags_for_task_creation::name
       >::template apply<Args...>::type::value,
       "Unknown keyword argument given to create_work()"
     );
 
+    auto name_key = get_typeless_kwarg_with_converter_and_default<
+      darma_runtime::keyword_tags_for_task_creation::name
+    >([](auto&&... key_parts){
+      return make_key(std::forward<decltype(key_parts)>(key_parts)...);
+    }, types::key_t(), std::forward<Args>(args)...);
+
+    if(not detail::key_traits<types::key_t>::key_equal()(name_key, types::key_t())) {
+      task_->set_name(name_key);
+    }
+
     // forward to the appropriate specialization (Lambda or functor)
-    return _do_create_work_impl<Functor>()(
-      std::move(task_),
-      std::forward<Args>(args)...
+    meta::splat_tuple(
+      get_positional_arg_tuple(std::forward<Args>(args)...),
+      [&](auto&&... pos_args) {
+        _do_create_work_impl<Functor>()(
+          std::move(task_),
+          std::forward<decltype(pos_args)>(pos_args)...
+        );
+      }
     );
   }
 
