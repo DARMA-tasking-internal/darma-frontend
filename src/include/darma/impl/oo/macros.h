@@ -61,6 +61,7 @@
   constexpr inline _darma__##name##ext() = default; \
   constexpr inline _darma__##name##ext(_darma__##name##ext const&) = default; \
   constexpr inline _darma__##name##ext(_darma__##name##ext &&) = default; \
+  constexpr inline _darma__##name##ext& operator=(_darma__##name##ext&&) = default; \
   \
   /* for types in a chained base hierarchy that have a member of the correct name */ \
   /* and type, extract that value and forward the object on to the base */ \
@@ -254,6 +255,7 @@ struct _darma__##name##__as_public_method : Base { \
   constexpr inline _darma__##name##__as_public_method() = default; \
   constexpr inline _darma__##name##__as_public_method(_darma__##name##__as_public_method const& val) = default; \
   constexpr inline _darma__##name##__as_public_method(_darma__##name##__as_public_method && val) = default; \
+  constexpr inline _darma__##name##__as_public_method& operator=(_darma__##name##__as_public_method&&) = default; \
   \
   /* Forward to base class if it's not a copy or move constructor */ \
   template <typename T, \
@@ -300,6 +302,8 @@ struct _darma__##name##__as_immediate_public_method : Base { \
   constexpr inline _darma__##name##__as_immediate_public_method( \
     _darma__##name##__as_immediate_public_method && val \
   ) = default; \
+  constexpr inline _darma__##name##__as_immediate_public_method& \
+    operator=(_darma__##name##__as_immediate_public_method&&) = default; \
   \
   /* Forward to base class if it's not a copy or move constructor */ \
   template <typename T, \
@@ -378,6 +382,7 @@ struct name { \
     >; \
   template <typename ReturnType> \
   using run_method_invoker = _darma__##name##__run_method_invoker<ReturnType>; \
+  using _darma__is_oo_name_tag = std::true_type; \
 }
 
 #define DARMA_OO_DECLARE_CLASS(name) \
@@ -391,7 +396,8 @@ struct name { \
   name##_method<std::remove_reference_t<Tag>> _darma__get_associated_method_template_specialization(name&, Tag&); \
   template <typename Tag> \
   Tag _darma__get_associated_method_template_tag(name##_method<Tag>&); \
-  name##_constructors& _darma__get_associated_constructor(name&);
+  name##_constructors& _darma__get_associated_constructor(name&); \
+  ::std::true_type _darma__is_darma_class_ADL_helper(name&);
 
 //template <typename T, typename Base>
 //struct name##__as_private_method : Base {

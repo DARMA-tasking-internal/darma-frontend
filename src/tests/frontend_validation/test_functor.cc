@@ -175,6 +175,27 @@ TEST_F(TestFunctor, simpler) {
   );
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestFunctor, simpler_named) {
+  using namespace ::testing;
+  testing::internal::CaptureStdout();
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+
+  mock_runtime->save_tasks = true;
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(HasName(make_key("hello_task"))))
+    .Times(1);
+
+  create_work<SimplerFunctor>(name="hello_task");
+
+  run_all_tasks();
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "Hello World\n"
+  );
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
 struct TestFunctorModCaptures
