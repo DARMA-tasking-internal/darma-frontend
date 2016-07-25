@@ -216,7 +216,7 @@ namespace threads_backend {
         if (task->get_name() == darma_runtime::detail::SimpleKey()) {
           genName = "task-" + std::to_string(task_label++);
         } else {
-          genName = task->get_name().human_readable_string();
+          genName = task->get_name().human_readable_string("_","","");
         }
         log = runtime->getTrace()->eventStartNow(genName);
         runtime->addTraceDeps(this,log);
