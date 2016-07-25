@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                      name.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,17 +42,11 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_NAME_H
+#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_NAME_H
 
-#include <darma/impl/darma.h>
+#include <darma/impl/keyword_arguments/macros.h>
 
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/interface/app/create_condition.h>
-#include <darma/interface/app/access_handle.h>
-#include <darma/interface/app/oo.h>
-#include <darma/interface/app/keyword_arguments/all_keyword_arguments.h>
+DeclareDarmaTypeTransparentKeyword(task_creation, name);
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_NAME_H
