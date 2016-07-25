@@ -263,7 +263,7 @@ struct darma_class_instance_delayed {
   >;
 };
 
-} // end namespace detail;
+} // end namespace detail
 
 template <typename T>
 using darma_class_instance = typename detail::darma_class_instance_delayed<T>::type;

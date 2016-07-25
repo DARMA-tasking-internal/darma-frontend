@@ -422,6 +422,7 @@ struct MyOtherClass_method<my_mod>
   using darma_method::darma_method;
   void operator()(){
     field_that_is_darma_class.some_public_field.set_value(42);
+
   }
 
 };
