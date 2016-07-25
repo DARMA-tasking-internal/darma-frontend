@@ -407,10 +407,10 @@ TEST_F(TestCreateWork, named_task) {
   using namespace darma_runtime::keyword_arguments_for_task_creation;
   using namespace mock_backend;
 
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(HasName(make_key("hello_task"))));
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(HasName(make_key("hello_task", "world", 42))));
 
   {
-    create_work(name="hello_task",
+    create_work( name("hello_task", "world", 42),
       [=] {
         // This code doesn't run in this example
         FAIL() << "This code block shouldn't be running in this example";
