@@ -273,7 +273,6 @@ struct serializability_traits {
     // </editor-fold>
     ////////////////////////////////////////////////////////////////////////////////
 
-
     ////////////////////////////////////////////////////////////////////////////////
     // <editor-fold desc="is_serializable_with_archive">
 
@@ -288,10 +287,29 @@ struct serializability_traits {
       >
     >;
 
-    typedef Serializer<_clean_T> serializer;
+    using serializer = Serializer<_clean_T>;
 
     // </editor-fold>
     ////////////////////////////////////////////////////////////////////////////////
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // <editor-fold desc="other traits">
+
+  private:
+
+    template <typename U>
+    using _is_directly_serializable_archetype = typename U::directly_serializable;
+
+  public:
+
+    static constexpr bool is_directly_serializable = meta::detected_or_t<
+      std::false_type, _is_directly_serializable_archetype, serializer
+    >::type::value;
+
+
+    // </editor-fold>
+    ////////////////////////////////////////////////////////////////////////////////
+
 
     template <typename ArchiveT>
     static

@@ -109,7 +109,7 @@ class multiarg_typeless_kwarg_expression {
     inline constexpr T
     value_as() const {
       return value_as<T>(
-        tinympl::make_range_c<size_t, 0, sizeof...(Args)>()
+        typename tinympl::make_range_c<size_t, 0, sizeof...(Args)>::type()
       );
     }
 
@@ -119,7 +119,7 @@ class multiarg_typeless_kwarg_expression {
 
     template <typename T, size_t... Idxs>
     inline constexpr T
-    value_as(tinympl::basic_string<size_t, Idxs...>) const {
+    value_as(tinympl::range_c<size_t, Idxs...>) const {
       return { std::get<Idxs>(std::forward<std::tuple<Args&&...>>(rhs_args_))... };
     }
 

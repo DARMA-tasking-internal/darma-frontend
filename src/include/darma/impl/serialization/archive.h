@@ -79,7 +79,6 @@ class SimplePackUnpackArchive
     byte* start = nullptr;
     byte* spot = nullptr;
 
-
   public:
 
     inline void add_to_size(size_t size) {
@@ -106,21 +105,20 @@ class SimplePackUnpackArchive
 
     template <typename ReinterpretCastableValueType, typename OutputIterator>
     inline void unpack_contiguous(OutputIterator dest, size_t n_items) {
-      // Check that OutputIterator is an input iterator
+      // Check that OutputIterator is an output iterator
       static_assert(meta::is_output_iterator<OutputIterator>::value,
         "OutputIterator must be an output iterator."
       );
       assert(is_unpacking());
 
-      // TODO a mode where moving out of this isn't allowed?
-      std::move(
+      // TODO move here instead?
+      std::copy(
         reinterpret_cast<ReinterpretCastableValueType*>(spot),
         reinterpret_cast<ReinterpretCastableValueType*>(spot)+n_items,
         dest
       );
       spot += n_items * sizeof(ReinterpretCastableValueType);
     }
-
 
   private:
 

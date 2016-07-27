@@ -47,9 +47,14 @@
 
 #include <type_traits>
 #include <iterator>
+
+#include <darma/impl/meta/is_contiguous.h>
+
 #include "allocation.h"
+#include "traits.h"
 
 namespace darma_runtime {
+
 namespace serialization {
 
 namespace detail {
@@ -67,6 +72,13 @@ struct SerDesRange<
     RandomAccessIterator end_;
 
   public:
+
+    using value_type = decltype( * std::declval<RandomAccessIterator>() );
+
+    static constexpr auto is_contiguous =
+      meta::is_contiguous_iterator<RandomAccessIterator>::value;
+    static constexpr auto value_is_trivially_packable =
+      serializability_traits<value_type>::is_directly_serializable;
 
     typedef RandomAccessIterator iterator;
     typedef std::iterator_traits<RandomAccessIterator> iterator_traits;

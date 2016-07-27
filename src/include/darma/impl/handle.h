@@ -384,6 +384,12 @@ class VariableHandle
       s.unpack(object_dest, ar);
     }
 
+    //bool
+    //is_directly_serializable() const override {
+    //  return serdes_traits::is_directly_serializable;
+    //}
+
+
     void
     default_construct(void* allocated) const override {
       // Will fail if T is not default constructible...
