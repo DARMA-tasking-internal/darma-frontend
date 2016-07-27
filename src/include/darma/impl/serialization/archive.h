@@ -96,8 +96,8 @@ class SimplePackUnpackArchive
       );
       assert(is_packing());
 
-      //typedef typename std::iterator_traits<InputIterator>::value_type value_type;
-      typedef std::remove_cv_t<std::remove_reference_t<decltype(*begin)>> value_type;
+      using value_type =
+        std::remove_const_t<std::remove_reference_t<decltype(*begin)>>;
       std::copy(begin, end, reinterpret_cast<value_type*>(spot));
       const size_t sz = sizeof(value_type);
       spot += std::distance(begin, end) * sizeof(value_type);
@@ -111,8 +111,7 @@ class SimplePackUnpackArchive
       );
       assert(is_unpacking());
 
-      // TODO move here instead?
-      std::copy(
+      std::move(
         reinterpret_cast<ReinterpretCastableValueType*>(spot),
         reinterpret_cast<ReinterpretCastableValueType*>(spot)+n_items,
         dest
@@ -122,6 +121,7 @@ class SimplePackUnpackArchive
 
   private:
 
+    // TODO get rid of these?!?!?
     friend class Serializer_attorneys::ArchiveAccess;
     friend class darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
 
