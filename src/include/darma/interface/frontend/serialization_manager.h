@@ -137,6 +137,9 @@ class SerializationManager {
     virtual void
     destroy(void* constructed_object) const =0;
 
+    //virtual bool
+    //is_directly_serializable() const =0;
+
 
     //////////////////////////////////////////
 

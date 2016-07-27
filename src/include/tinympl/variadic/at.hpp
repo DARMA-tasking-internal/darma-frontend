@@ -89,7 +89,7 @@ struct _at_impl
  * \param i The index to extract
  */
 template <std::size_t i, class... Args>
-using at = typename detail::_at_impl<i, Args...>;
+using at = detail::_at_impl<i, Args...>;
 
 template<std::size_t i, class... Args>
 using at_t = typename at<i, Args...>::type;

@@ -88,32 +88,52 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
   private:
     template <typename T>
     using enable_condition = tinympl::is_instantiation_of<SerDesRange, T>;
-
-  public:
     template <typename T, typename ReturnValue = void>
     using enabled_version = enable_if_t<enable_condition<T>::value, ReturnValue>;
     template <typename T, typename ReturnValue = void>
     using disabled_version = enable_if_t<not enable_condition<T>::value, ReturnValue>;
 
+    template <typename T>
+    inline void
+    _unpack_contiguous_if_possible(T&& range, ArchiveT& ar, size_t size, std::true_type) {
+      ar.unpack_contiguous(range.begin(), size);
+    }
+
+    template <typename T>
+    inline void
+    _unpack_contiguous_if_possible(T&& range, ArchiveT& ar, size_t size, std::false_type) {
+      for(auto&& item : range) {
+        ar.unpack_item(item);
+      }
+    }
+
+  public:
+
     // operator>> does the unpacking
     template <typename T>
     inline enabled_version<T, ArchiveT&>
-    operator>>(T &&val) {
+    operator>>(T&& val) {
       typedef typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type size_type;
       typedef typename T::iterator_traits::value_type value_type;
       typedef allocation_traits<value_type> value_allocation_traits;
-      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
+
+      ArchiveT* this_archive = static_cast<ArchiveT*>(this);
       assert(this_archive->is_unpacking());
+
       // initialize to prevent e.g. spurious valgrind errors and perhaps compiler warnings
       size_type size = 0;
       this_archive->unpack_item(size);
+
       val.begin() = value_allocation_traits::allocate(*this_archive, size);
       val.end() = val.begin() + size;
-      for(auto&& item : val) {
-        this_archive->unpack_item(item);
-      }
+
+      _unpack_contiguous_if_possible(std::forward<T>(val), *this_archive, size,
+        std::integral_constant<bool, std::decay_t<T>::is_contiguous>()
+      );
+
       return *this_archive;
     }
+
     template <typename T>
     inline disabled_version<T, ArchiveT&>
     operator>>(T &&val) { return this->MoreGeneralMixin::template operator>>(std::forward<T>(val)); }

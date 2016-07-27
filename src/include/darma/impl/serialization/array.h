@@ -59,8 +59,28 @@ struct Serializer<T[N]> {
 
     typedef detail::serializability_traits<T> serdes_traits;
 
+  public:
+
+    using directly_serializable = std::integral_constant<bool,
+      serdes_traits::is_directly_serializable
+    >;
+
+  private:
+
     template <typename Archive>
     using enable_if_ser = std::enable_if_t<
+      serdes_traits::template is_serializable_with_archive<Archive>::value
+    >;
+
+    template <typename Archive>
+    using enable_if_ser_direct = std::enable_if_t<
+      directly_serializable::value and
+      serdes_traits::template is_serializable_with_archive<Archive>::value
+    >;
+
+    template <typename Archive>
+    using enable_if_ser_indirect = std::enable_if_t<
+      not directly_serializable::value and
       serdes_traits::template is_serializable_with_archive<Archive>::value
     >;
 
@@ -75,7 +95,13 @@ struct Serializer<T[N]> {
     }
 
     template <typename Archive>
-    enable_if_ser<Archive>
+    enable_if_ser_direct<Archive>
+    pack(const T val[N], Archive& ar) const {
+      ar.pack_contiguous(val, val+N);
+    }
+
+    template <typename Archive>
+    enable_if_ser_indirect<Archive>
     pack(const T val[N], Archive& ar) const {
       for(int i = 0; i < N; ++i) {
         ar.pack_item(val[i]);
@@ -83,7 +109,13 @@ struct Serializer<T[N]> {
     }
 
     template <typename Archive>
-    enable_if_ser<Archive>
+    enable_if_ser_direct<Archive>
+    unpack(void* allocated, Archive& ar) const {
+      ar.unpack_contiguous( (T*)allocated, N );
+    }
+
+    template <typename Archive>
+    enable_if_ser_indirect<Archive>
     unpack(void* allocated, Archive& ar) const {
       for(int i = 0; i < N; ++i) {
         ar.unpack_item(((T*)allocated)[i]);

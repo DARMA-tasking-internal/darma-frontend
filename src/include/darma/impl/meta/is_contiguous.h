@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      as_pod.h
+//                      is_contiguous.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,66 +42,46 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_SERIALIZATION_AS_POD_H
-#define DARMA_IMPL_SERIALIZATION_AS_POD_H
+#ifndef DARMA_IMPL_META_IS_CONTIGUOUS_H
+#define DARMA_IMPL_META_IS_CONTIGUOUS_H
 
 #include <type_traits>
-#include "nonintrusive.h"
+#include <array>
 
 namespace darma_runtime {
-
-namespace serialization {
-
-template <typename T, typename Enable=void>
-struct serialize_as_pod_if : std::false_type { };
-
-template <typename T>
-struct serialize_as_pod : serialize_as_pod_if<T> { };
+namespace meta {
 
 namespace detail {
 
-template <typename T>
-struct Serializer_enabled_if<T, std::enable_if_t<serialize_as_pod<T>::value>> {
-
-  static_assert(
-    std::is_trivially_constructible<T>::value,
-    "Values serialized as POD must be trivially constructable"
-  );
-  static_assert(
-    std::is_standard_layout<T>::value,
-    "Values serialized as POD must be standard layout types"
-  );
-
-  using directly_serializable = std::true_type;
-
-  template <typename Archive>
-  void compute_size(T const &val, Archive &ar) {
-    assert(ar.is_sizing());
-    ar.add_to_size(sizeof(T));
-  }
-
-  template <typename Archive>
-  void pack(T const &val, Archive &ar) {
-    assert(ar.is_packing());
-    // most optimizers can coalesce consecutive small copies, so this should be pretty fast
-    ar.pack_contiguous(&val, &val + 1);
-  }
-
-  template <typename ArchiveT>
-  void
-  unpack(void *val, ArchiveT &ar) const {
-    // This approach should be valid for trivially-constructible, standard layout types
-    assert(ar.is_unpacking());
-    // most optimizers can coalesce consecutive copies, so this should be pretty fast
-    ar.template unpack_contiguous<T>(reinterpret_cast<T*>(val), 1);
-  }
-};
+template <typename T, typename Enable = void>
+struct is_contiguous_iterator_enabled_if
+  : std::false_type
+{ };
 
 } // end namespace detail
 
-} // end namespace serialization
+/** @brief True if an iterator can be statically determined to be contiguous
+ *
+ *  We can't tell this for sure until C++17 (and maybe not even then?), but
+ *  we can enumerate some simple cases that are definitely contiguous, like
+ *  raw pointers.
+ */
+template <typename T>
+struct is_contiguous_iterator
+  : detail::is_contiguous_iterator_enabled_if<T>
+{ };
 
+template <typename T>
+struct is_contiguous_iterator<T*>
+  : std::true_type
+{ };
+
+template <typename T>
+struct is_contiguous_iterator<T* const>
+  : std::true_type
+{ };
+
+} // end namespace meta
 } // end namespace darma_runtime
 
-
-#endif //DARMA_IMPL_SERIALIZATION_AS_POD_H
+#endif //DARMA_IMPL_META_IS_CONTIGUOUS_H
