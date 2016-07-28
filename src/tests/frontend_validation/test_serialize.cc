@@ -180,3 +180,9 @@ TEST_F(TestSerialize, unordered_map_simple) {
 
   ASSERT_THAT(v_unpacked, ContainerEq(value));
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::string, SimplePackUnpackArchive,
+  "String should be serializable"
+);

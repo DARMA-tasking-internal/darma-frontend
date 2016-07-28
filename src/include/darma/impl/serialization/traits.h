@@ -96,6 +96,11 @@ struct serializability_traits {
 
     typedef _clean_T value_type;
 
+    template <typename ArchiveT>
+    using default_allocator_with_archive = decltype(
+      allocation_traits<_clean_T>::make_allocator(std::declval<ArchiveT&>())
+    );
+
     ////////////////////////////////////////////////////////////////////////////////
     // <editor-fold desc="Detection of presence of intrusive serialization methods">
 
@@ -269,7 +274,8 @@ struct serializability_traits {
     template <typename U, typename ArchiveT, typename AllocatorT>
     using has_nonintrusive_allocator_aware_unpack_archetype = decltype(
       declval<Serializer<U>>().unpack(
-        declval<void*>(), declval<remove_const_t<ArchiveT>&>(), declval<AllocatorT>()
+        declval<void*>(), declval<remove_const_t<ArchiveT>&>(),
+        declval<std::add_lvalue_reference_t<AllocatorT>>()
       )
     );
 
@@ -279,7 +285,7 @@ struct serializability_traits {
     using has_nonintrusive_unpack =
       is_detected<has_nonintrusive_unpack_archetype, _clean_T, ArchiveT>;
 
-    template <typename ArchiveT, typename AllocatorT>
+    template <typename ArchiveT, typename AllocatorT=default_allocator_with_archive<ArchiveT>>
     using has_nonintrusive_allocator_aware_unpack = std::integral_constant<bool,
       is_detected<has_nonintrusive_allocator_aware_unpack_archetype,
         _clean_T, ArchiveT, AllocatorT
@@ -292,10 +298,6 @@ struct serializability_traits {
     // </editor-fold>
     ////////////////////////////////////////////////////////////////////////////////
 
-    template <typename ArchiveT>
-    using default_allocator_with_archive = decltype(
-      allocation_traits<T>::make_allocator(std::declval<ArchiveT&>())
-    );
 
     ////////////////////////////////////////////////////////////////////////////////
     // <editor-fold desc="is_serializable_with_archive">
@@ -392,11 +394,22 @@ struct serializability_traits {
     template <typename ArchiveT, typename AllocatorT>
     static
     std::enable_if_t<
-      has_nonintrusive_unpack<ArchiveT>::value
-      and has_nonintrusive_allocator_aware_unpack<ArchiveT, AllocatorT>::value
+      has_nonintrusive_allocator_aware_unpack<ArchiveT, AllocatorT>::value
     >
     unpack(void* allocated, ArchiveT& ar, AllocatorT&& alloc) {
       serializer().unpack(allocated, ar, std::forward<AllocatorT>(alloc));
+    }
+
+    template <typename ArchiveT, typename AllocatorT>
+    static
+    std::enable_if_t<
+      not has_nonintrusive_allocator_aware_unpack<ArchiveT, AllocatorT>::value
+        and has_nonintrusive_unpack<ArchiveT>::value
+    >
+    unpack(void* allocated, ArchiveT& ar, AllocatorT&&) {
+      // Don't propagate the allocator, since the child serializer doesn't know
+      // how to use it
+      serializer().unpack(allocated, ar);
     }
 
     template <typename ArchiveT>
@@ -458,7 +471,8 @@ struct serializability_traits {
       __VA_ARGS__ ":  Cannot generate valid Serializer::pack() method for type/archive combination" \
   ); \
   static_assert( \
-    ::darma_runtime::serialization::detail::serializability_traits<type>::template has_nonintrusive_unpack<artype>::value, \
+    ::darma_runtime::serialization::detail::serializability_traits<type>::template has_nonintrusive_unpack<artype>::value\
+    or ::darma_runtime::serialization::detail::serializability_traits<type>::template has_nonintrusive_allocator_aware_unpack<artype>::value, \
     __VA_ARGS__ ":  Cannot generate valid Serializer::unpack() method for type/archive combination" \
   );
 
