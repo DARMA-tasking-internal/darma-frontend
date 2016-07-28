@@ -108,17 +108,17 @@ struct Serializer<T[N]> {
       }
     }
 
-    template <typename Archive>
+    template <typename Archive, typename AllocatorT>
     enable_if_ser_direct<Archive>
-    unpack(void* allocated, Archive& ar) const {
-      ar.unpack_contiguous( (T*)allocated, N );
+    unpack(void* allocated, Archive& ar, AllocatorT&&) const {
+      ar.template unpack_contiguous<T>( (T*)allocated, N );
     }
 
-    template <typename Archive>
+    template <typename Archive, typename AllocatorT>
     enable_if_ser_indirect<Archive>
-    unpack(void* allocated, Archive& ar) const {
+    unpack(void* allocated, Archive& ar, AllocatorT&& alloc) const {
       for(int i = 0; i < N; ++i) {
-        ar.unpack_item(((T*)allocated)[i]);
+        ar.unpack_item(((T*)allocated, std::forward<AllocatorT>(alloc))[i]);
       }
     }
 };

@@ -59,7 +59,7 @@ namespace serialization {
  */
 template <typename T, typename BaseAllocator = std::allocator<T>>
 struct darma_allocator
-  : BaseAllocator
+  : std::allocator_traits<BaseAllocator>::template rebind_alloc<T>
 {
   private:
 
@@ -71,7 +71,7 @@ struct darma_allocator
 
     using const_void_pointer =
       typename std::allocator_traits<base_t>::const_void_pointer;
-    using size_type = std::allocator_traits<base_t>::size_type;
+    using size_type = typename std::allocator_traits<base_t>::size_type;
     using pointer =
       typename std::allocator_traits<base_t>::pointer;
 

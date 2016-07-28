@@ -105,6 +105,18 @@ class ArchivePassthroughMixin {
       );
     }
 
+    template <typename T, typename AllocatorT>
+    std::enable_if_t<is_serializable_with_this<T>::value>
+    unpack_item(T& val, AllocatorT&& alloc) {
+      traits<T>::unpack(
+        // May need to cast away constness if T is deduced to be const
+        // TODO figure out where T is being deduced as const.  It shouldn't be
+        const_cast<void*>(static_cast<const void*>(&val)),
+        *static_cast<ArchiveT*>(this),
+        std::forward<AllocatorT>(alloc)
+      );
+    }
+
     template <typename T>
     std::enable_if_t<
       is_serializable_with_this<T>::value and not has_only_serialize<T>::value

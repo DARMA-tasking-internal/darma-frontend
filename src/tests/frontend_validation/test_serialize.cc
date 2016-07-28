@@ -75,17 +75,17 @@ class TestSerialize
       SimplePackUnpackArchive ar;
 
       ArchiveAccess::start_sizing(ar);
-      ser.compute_size(val, ar);
+      ar % val;
       size_t size = ArchiveAccess::get_size(ar);
 
       char data[size];
       ArchiveAccess::set_buffer(ar, data);
       ArchiveAccess::start_packing(ar);
-      ser.pack(val, ar);
+      ar << val;
 
       char rv[sizeof(T)];
       ArchiveAccess::start_unpacking(ar);
-      ser.unpack(&rv, ar);
+      ar >> (*reinterpret_cast<T*>(rv));
 
 
       // Return by copy, so memory shouldn't be an issue

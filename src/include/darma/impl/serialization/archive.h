@@ -88,6 +88,15 @@ class SimplePackUnpackArchive
     }
 
     template <typename InputIterator>
+    inline void add_to_size_contiguous(
+      InputIterator begin, size_t N
+    ) {
+      assert(is_sizing());
+      using value_type = std::remove_reference_t<decltype(*begin)>;
+      spot += N * sizeof(value_type);
+    }
+
+    template <typename InputIterator>
     inline void pack_contiguous(InputIterator begin, InputIterator end) {
       // Check that InputIterator is an input iterator
       static_assert(std::is_base_of<std::input_iterator_tag,
@@ -104,7 +113,7 @@ class SimplePackUnpackArchive
       spot += std::distance(begin, end) * sizeof(value_type);
     }
 
-    template <typename ReinterpretCastableValueType, typename OutputIterator>
+    template <typename DirectlySerializableType, typename OutputIterator>
     inline void unpack_contiguous(OutputIterator dest, size_t n_items) {
       // Check that OutputIterator is an output iterator
       static_assert(meta::is_output_iterator<OutputIterator>::value,
@@ -113,11 +122,11 @@ class SimplePackUnpackArchive
       assert(is_unpacking());
 
       std::move(
-        reinterpret_cast<ReinterpretCastableValueType*>(spot),
-        reinterpret_cast<ReinterpretCastableValueType*>(spot)+n_items,
+        reinterpret_cast<DirectlySerializableType*>(spot),
+        reinterpret_cast<DirectlySerializableType*>(spot)+n_items,
         dest
       );
-      spot += n_items * sizeof(ReinterpretCastableValueType);
+      spot += n_items * sizeof(DirectlySerializableType);
     }
 
   private:

@@ -45,9 +45,57 @@
 #ifndef DARMA_INTERFACE_APP_CONTAINERS_H
 #define DARMA_INTERFACE_APP_CONTAINERS_H
 
+#include <memory>
+#include <vector>
+#include <map>
+#include <unordered_set>
+#include <unordered_map>
+#include <darma/impl/serialization/allocator.h>
+
 namespace darma {
 
-template <typename
+template <typename T, typename OtherAllocator=std::allocator<T>>
+using vector = std::vector<T,
+  ::darma_runtime::serialization::darma_allocator<T, OtherAllocator>
+>;
+
+template <typename Key, typename T,
+  typename Compare = std::less<Key>,
+  typename OtherAllocator=std::allocator<std::pair<const Key, T>>
+>
+using map = std::map<Key, T,
+  ::darma_runtime::serialization::darma_allocator<
+      std::pair<const Key, T>, OtherAllocator
+  >
+>;
+
+template <
+  class Key,
+  class Hash = std::hash<Key>,
+  class KeyEqual = std::equal_to<Key>,
+  class OtherAllocator=std::allocator<Key>
+>
+using unordered_set = std::unordered_set<Key, Hash, KeyEqual,
+  ::darma_runtime::serialization::darma_allocator<
+    Key, OtherAllocator
+  >
+>;
+
+template <
+  class Key,
+  class T,
+  class Hash = std::hash<Key>,
+  class KeyEqual = std::equal_to<Key>,
+  class OtherAllocator=std::allocator<std::pair<const Key, T>>
+>
+using unordered_map = std::unordered_map<Key, T, Hash, KeyEqual,
+  ::darma_runtime::serialization::darma_allocator<
+    std::pair<const Key, T>, OtherAllocator
+  >
+>;
+
+// TODO the rest of the allocator aware containers (see list at
+//   http://en.cppreference.com/w/cpp/concept/AllocatorAwareContainer)
 
 } // end namespace darma
 

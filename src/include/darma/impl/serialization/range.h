@@ -64,7 +64,7 @@ struct SerDesRange;
 
 template <typename Iterator>
 struct SerDesRangeBase {
-  using value_type = decltype( * std::declval<Iterator>() );
+  using value_type = typename std::iterator_traits<Iterator>::value_type;
 
   static constexpr auto is_contiguous =
     meta::is_contiguous_iterator<Iterator>::value;
@@ -89,7 +89,33 @@ struct SerDesRange<
     typedef RandomAccessIterator iterator;
     typedef std::iterator_traits<RandomAccessIterator> iterator_traits;
 
-    SerDesRange(RandomAccessIterator& in_begin, RandomAccessIterator in_end)
+    SerDesRange(RandomAccessIterator& in_begin, RandomAccessIterator&& in_end)
+      : begin_(in_begin), end_(in_end) { }
+
+    RandomAccessIterator&
+    begin() { return begin_; }
+
+    RandomAccessIterator const&
+    begin() const { return begin_; }
+
+    RandomAccessIterator const&
+    end() const { return end_; }
+};
+
+template <typename RandomAccessIterator>
+struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&>
+  : SerDesRangeBase<RandomAccessIterator>
+{
+  private:
+    RandomAccessIterator& begin_;
+    RandomAccessIterator& end_;
+
+  public:
+
+    typedef RandomAccessIterator iterator;
+    typedef std::iterator_traits<RandomAccessIterator> iterator_traits;
+
+    SerDesRange(RandomAccessIterator& in_begin, RandomAccessIterator& in_end)
       : begin_(in_begin), end_(in_end) { }
 
     RandomAccessIterator&
@@ -106,23 +132,25 @@ struct SerDesRange<
 };
 
 template <typename RandomAccessIterator>
-struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&> {
+struct SerDesRange<RandomAccessIterator, RandomAccessIterator>
+  : SerDesRangeBase<RandomAccessIterator>
+{
   private:
-    RandomAccessIterator& begin_;
-    RandomAccessIterator& end_;
+    RandomAccessIterator begin_;
+    RandomAccessIterator end_;
 
   public:
 
     typedef RandomAccessIterator iterator;
     typedef std::iterator_traits<RandomAccessIterator> iterator_traits;
 
-    SerDesRange(RandomAccessIterator& in_begin, RandomAccessIterator& in_end)
+    SerDesRange(RandomAccessIterator&& in_begin, RandomAccessIterator&& in_end)
       : begin_(in_begin), end_(in_end) { }
 
-    RandomAccessIterator&
+    RandomAccessIterator const&
     begin() const { return begin_; }
 
-    RandomAccessIterator&
+    RandomAccessIterator const&
     end() const { return end_; }
 };
 

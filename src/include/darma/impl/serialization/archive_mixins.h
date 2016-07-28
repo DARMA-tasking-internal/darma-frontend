@@ -63,16 +63,16 @@ class ArchiveOperatorsMixin {
 
     template <typename T>
     inline ArchiveT&
-    operator>>(T &&val) {
-      static_cast<ArchiveT *>(this)->unpack_item(std::forward<T>(val));
-      return *static_cast<ArchiveT *>(this);
+    operator>>(T&& val) {
+      static_cast<ArchiveT*>(this)->unpack_item(std::forward<T>(val));
+      return *static_cast<ArchiveT*>(this);
     }
 
     template <typename T>
     inline ArchiveT&
-    operator%(T &&val) {
-      static_cast<ArchiveT *>(this)->incorporate_size(std::forward<T>(val));
-      return *static_cast<ArchiveT *>(this);
+    operator%(T&& val) {
+      static_cast<ArchiveT*>(this)->incorporate_size(std::forward<T>(val));
+      return *static_cast<ArchiveT*>(this);
     }
 
     template <typename T>
@@ -98,7 +98,9 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
     _unpack_contiguous_if_possible(
       T&& range, ArchiveT& ar, size_t size, std::true_type
     ) {
-      ar.unpack_contiguous(range.begin(), size);
+      ar.template unpack_contiguous<typename std::decay_t<T>::value_type>(
+        range.begin(), size
+      );
     }
 
     template <typename T>
@@ -137,9 +139,7 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
     template <typename T>
     inline enabled_version<T, ArchiveT&>
     operator>>(T&& val) {
-      using size_type =
-        typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type;
-      using value_type = std::decay_t<decltype( *std::declval<T>().begin() )>;
+      using value_type = typename std::decay_t<T>::value_type;
       using value_allocation_traits =
         typename allocation_traits<value_type>::template allocator_traits<ArchiveT>;
 
@@ -147,7 +147,7 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
       assert(this_archive->is_unpacking());
 
       // initialize to prevent e.g. spurious valgrind errors and perhaps compiler warnings
-      size_type size = 0;
+      size_t size = 0;
       this_archive->unpack_item(size);
 
       val.begin() = value_allocation_traits::allocate(*this_archive, size);
@@ -172,17 +172,13 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
     template <typename T>
     inline enabled_version<T, ArchiveT&>
     operator<<(T&& val) {
-      using size_type =
-        typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type;
-      using value_type = std::decay_t<decltype( *std::declval<T>().begin() )>;
-      using value_allocation_traits =
-        typename allocation_traits<value_type>::template allocator_traits<ArchiveT>;
+      using value_type = typename std::decay_t<T>::value_type;
 
-      size_type size = val.end() - val.begin();
+      size_t size = std::distance(val.begin(), val.end());
       ArchiveT* this_archive = static_cast<ArchiveT*>(this);
       this_archive->pack_item(size);
 
-      _pack_contiguous_if_possible(std::forward<T>(val), *this_archive, size,
+      _pack_contiguous_if_possible(std::forward<T>(val), *this_archive,
         std::integral_constant<bool, std::decay_t<T>::is_contiguous
           and std::decay_t<T>::value_is_directly_serializable
         >()
@@ -201,10 +197,7 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
     template <typename T>
     inline enabled_version<T, ArchiveT&>
     operator%(T&& val) {
-      using size_type =
-        typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type;
-
-      size_type size = val.end() - val.begin();
+      size_t size = std::distance(val.begin(), val.end());
       ArchiveT* this_archive = static_cast<ArchiveT *>(this);
       this_archive->incorporate_size(size);
 
@@ -224,9 +217,6 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
     template <typename T>
     inline enabled_version<T, ArchiveT&>
     operator|(T&& val) {
-      using size_type =
-        typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type;
-
       ArchiveT* this_archive = static_cast<ArchiveT*>(this);
       if(this_archive->is_unpacking()) {
         this->operator>>(std::forward<T>(val));

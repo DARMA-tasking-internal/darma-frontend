@@ -73,13 +73,11 @@ namespace _impl {
 typedef enum _function_t {
   IntrusiveWithArchive = 0,
   Intrusive = 1,
-  NonintrusiveWithArchive = 2,
-  Nonintrusive = 3,
-  Default = 4
+  Default = 2
 } _function_style_t;
 
 template <typename FallbackAllocator,
-  typename T, typename SerializerT,
+  typename T,
   _function_style_t AllocateStyle,
   _function_style_t ConstructStyle,
   _function_style_t DestroyStyle,
@@ -113,26 +111,6 @@ struct _check_functions_alloc_traits
   >
   allocate(ArchiveT& ar, size_type n = 1) {
     return T::allocate(n);
-  }
-
-  template <typename ArchiveT>
-  static enable_if_t<
-    AllocateStyle == NonintrusiveWithArchive
-      and tinympl::always_true<ArchiveT>::value,
-    pointer
-  >
-  allocate(ArchiveT& ar, size_type n = 1) {
-    return SerializerT().allocate(ar, n);
-  }
-
-  template <typename ArchiveT>
-  static enable_if_t<
-    AllocateStyle == Nonintrusive
-      and tinympl::always_true<ArchiveT>::value,
-    pointer
-  >
-  allocate(ArchiveT& ar, size_type n = 1) {
-    return SerializerT().allocate(n);
   }
 
   template <typename ArchiveT>
@@ -171,24 +149,6 @@ struct _check_functions_alloc_traits
 
   template <typename ArchiveT>
   static enable_if_t<
-    DeallocateStyle == NonintrusiveWithArchive
-      and tinympl::always_true<ArchiveT>::value
-  >
-  deallocate(ArchiveT& ar, pointer p, size_type n = 1) {
-    return SerializerT().deallocate(ar, p, n);
-  }
-
-  template <typename ArchiveT>
-  static enable_if_t<
-    DeallocateStyle == Nonintrusive
-      and tinympl::always_true<ArchiveT>::value
-  >
-  deallocate(ArchiveT&, pointer p, size_type n = 1) {
-    return SerializerT().deallocate(p, n);
-  }
-
-  template <typename ArchiveT>
-  static enable_if_t<
     DeallocateStyle == Default
       and tinympl::always_true<ArchiveT>::value
   >
@@ -218,24 +178,6 @@ struct _check_functions_alloc_traits
   >
   construct(ArchiveT&, U* p, Args&&... args) {
     return T::construct(p, std::forward<Args>(args)...);
-  }
-
-  template <typename ArchiveT, typename U, typename... Args>
-  static enable_if_t<
-    ConstructStyle == NonintrusiveWithArchive
-      and tinympl::always_true<ArchiveT>::value
-  >
-  construct(ArchiveT& ar, U* p, Args&&... args) {
-    return SerializerT().construct(ar, p, std::forward<Args>(args)...);
-  }
-
-  template <typename ArchiveT, typename U, typename... Args>
-  static enable_if_t<
-    ConstructStyle == Nonintrusive
-      and tinympl::always_true<ArchiveT>::value
-  >
-  construct(ArchiveT&, U* p, Args&&... args) {
-    return SerializerT().construct(p, std::forward<Args>(args)...);
   }
 
   template <typename ArchiveT, typename U, typename... Args>
@@ -273,24 +215,6 @@ struct _check_functions_alloc_traits
 
   template <typename ArchiveT, typename U, typename... Args>
   static enable_if_t<
-    DestroyStyle == NonintrusiveWithArchive
-      and tinympl::always_true<ArchiveT>::value
-  >
-  destroy(ArchiveT& ar, U* p, Args&&... args) {
-    return SerializerT().destroy(ar, p);
-  }
-
-  template <typename ArchiveT, typename U, typename... Args>
-  static enable_if_t<
-    DestroyStyle == Nonintrusive
-      and tinympl::always_true<ArchiveT>::value
-  >
-  destroy(ArchiveT&, U* p, Args&&... args) {
-    return SerializerT().destroy(p);
-  }
-
-  template <typename ArchiveT, typename U, typename... Args>
-  static enable_if_t<
     DestroyStyle == Default
       and tinympl::always_true<ArchiveT>::value
   >
@@ -312,8 +236,6 @@ class allocation_traits {
   private:
 
     typedef serializability_traits<T, void> serdes_traits;
-
-    typedef typename serdes_traits::serializer serializer;
 
     // see serializability_traits for more
     using _T = typename serdes_traits::_T;
@@ -387,13 +309,6 @@ class allocation_traits {
     using has_intrusive_make_allocator = is_detected<
       has_intrusive_make_allocator_archetype, _T
     >;
-    template <typename ArchiveT>
-    using has_nonintrusive_make_allocator_with_archive = is_detected<
-      has_nonintrusive_make_allocator_with_archive_archetype, serializer, ArchiveT
-    >;
-    using has_nonintrusive_make_allocator = is_detected<
-      has_nonintrusive_make_allocator_archetype, serializer
-    >;
 
     // TODO get default allocator from darma_types.h instead
     /* Priority order for getting allocator:
@@ -416,13 +331,9 @@ class allocation_traits {
         has_intrusive_make_allocator::value,
         typename has_intrusive_make_allocator::type,
         conditional_t<
-          has_nonintrusive_make_allocator_with_archive<ArchiveT>::value,
-          typename has_nonintrusive_make_allocator_with_archive<ArchiveT>::type,
-          conditional_t<
-            has_intrusive_make_allocator::value,
-            typename has_intrusive_make_allocator::type,
-            std::allocator<T>
-          >
+          has_intrusive_make_allocator::value,
+          typename has_intrusive_make_allocator::type,
+          std::allocator<T>
         >
       >
     >;
@@ -436,8 +347,7 @@ class allocation_traits {
         tinympl::vector_c<bool,
           has_intrusive_make_allocator_with_archive<ArchiveT>::value,
           has_intrusive_make_allocator::value,
-          has_nonintrusive_make_allocator_with_archive<ArchiveT>::value,
-          has_intrusive_make_allocator::value
+          true
         >::template find_c<true>::value
       )
     >;
@@ -465,22 +375,6 @@ class allocation_traits {
       typename allocator_traits<ArchiveT>::pointer
     >
     make_allocator(ArchiveT& ar) { return T::make_allocator(); };
-
-    template <typename ArchiveT>
-    static inline
-    std::enable_if_t<
-      _make_alloc_style<ArchiveT>::value == _impl::NonintrusiveWithArchive,
-      allocator_type<ArchiveT>
-    >
-    make_allocator(ArchiveT& ar) { return serializer().make_allocator(ar); };
-
-    template <typename ArchiveT>
-    static inline
-    std::enable_if_t<
-      _make_alloc_style<ArchiveT>::value == _impl::Nonintrusive,
-      allocator_type<ArchiveT>
-    >
-    make_allocator(ArchiveT& ar) { return serializer().make_allocator(); };
 
     template <typename ArchiveT>
     static inline
@@ -541,13 +435,6 @@ class allocation_traits {
     using has_intrusive_allocate = is_detected<
       has_intrusive_allocate_archetype, _T
     >;
-    template <typename ArchiveT>
-    using has_nonintrusive_allocate_with_archive = is_detected<
-      has_nonintrusive_allocate_with_archive_archetype, serializer, ArchiveT
-    >;
-    using has_nonintrusive_allocate = is_detected<
-      has_nonintrusive_allocate_archetype, serializer
-    >;
 
   private:
 
@@ -557,8 +444,7 @@ class allocation_traits {
         tinympl::vector_c<bool,
           has_intrusive_allocate_with_archive<ArchiveT>::value,
           has_intrusive_allocate::value,
-          has_nonintrusive_allocate_with_archive<ArchiveT>::value,
-          has_intrusive_allocate::value
+          true
         >::template find_c<true>::value
       )
     >;
@@ -616,13 +502,6 @@ class allocation_traits {
     using has_intrusive_deallocate = is_detected<
       has_intrusive_deallocate_archetype, _T
     >;
-    template <typename ArchiveT>
-    using has_nonintrusive_deallocate_with_archive = is_detected<
-      has_nonintrusive_deallocate_with_archive_archetype, serializer, ArchiveT
-    >;
-    using has_nonintrusive_deallocate = is_detected<
-      has_nonintrusive_deallocate_archetype, serializer
-    >;
 
   private:
 
@@ -631,8 +510,6 @@ class allocation_traits {
       static_cast<_impl::_function_style_t>(
         tinympl::vector_c<bool,
           has_intrusive_deallocate_with_archive<ArchiveT>::value,
-          has_intrusive_deallocate::value,
-          has_nonintrusive_deallocate_with_archive<ArchiveT>::value,
           has_intrusive_deallocate::value
         >::template find_c<true>::value
       )
@@ -687,13 +564,6 @@ class allocation_traits {
     using has_intrusive_destroy = is_detected<
       has_intrusive_destroy_archetype, _T
     >;
-    template <typename ArchiveT>
-    using has_nonintrusive_destroy_with_archive = is_detected<
-      has_nonintrusive_destroy_with_archive_archetype, serializer, ArchiveT
-    >;
-    using has_nonintrusive_destroy = is_detected<
-      has_nonintrusive_destroy_archetype, serializer
-    >;
 
   private:
 
@@ -702,8 +572,6 @@ class allocation_traits {
       static_cast<_impl::_function_style_t>(
         tinympl::vector_c<bool,
           has_intrusive_destroy_with_archive<ArchiveT>::value,
-          has_intrusive_destroy::value,
-          has_nonintrusive_destroy_with_archive<ArchiveT>::value,
           has_intrusive_destroy::value
         >::template find_c<true>::value
       )
@@ -760,13 +628,6 @@ class allocation_traits {
     using has_intrusive_construct = is_detected<
       has_intrusive_construct_archetype, _T
     >;
-    template <typename ArchiveT>
-    using has_nonintrusive_construct_with_archive = is_detected<
-      has_nonintrusive_construct_with_archive_archetype, serializer, ArchiveT
-    >;
-    using has_nonintrusive_construct = is_detected<
-      has_nonintrusive_construct_archetype, serializer
-    >;
 
   private:
 
@@ -776,8 +637,7 @@ class allocation_traits {
         tinympl::vector_c<bool,
           has_intrusive_construct_with_archive<ArchiveT>::value,
           has_intrusive_construct::value,
-          has_nonintrusive_construct_with_archive<ArchiveT>::value,
-          has_intrusive_construct::value
+          true
         >::template find_c<true>::value
       )
     >;
@@ -790,7 +650,7 @@ class allocation_traits {
     template <typename ArchiveT>
     using check_functions_alloc_t = _impl::_check_functions_alloc_traits<
       allocator_type<ArchiveT>,
-      _T, serializer,
+      _T,
       _allocate_style<ArchiveT>::value,
       _construct_style<ArchiveT>::value,
       _deallocate_style<ArchiveT>::value,

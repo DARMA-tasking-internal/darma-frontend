@@ -93,7 +93,7 @@ struct Serializer_enabled_if<T, std::enable_if_t<serialize_as_pod<T>::value>> {
     // This approach should be valid for trivially-constructible, standard layout types
     assert(ar.is_unpacking());
     // most optimizers can coalesce consecutive copies, so this should be pretty fast
-    ar.template unpack_contiguous<T>(reinterpret_cast<T*>(val), 1);
+    ar.template unpack_contiguous<T>(reinterpret_cast<T *>(val), 1);
   }
 };
 
