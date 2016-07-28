@@ -75,6 +75,11 @@ struct darma_allocator
     using pointer =
       typename std::allocator_traits<base_t>::pointer;
 
+    using propagate_on_container_copy_assignment = std::true_type;
+    using propagate_on_container_move_assignment = std::true_type;
+    using propagate_on_container_swap = std::true_type;
+    using is_always_equal = std::false_type;
+
     template <typename U>
     struct rebind { using other = darma_allocator<U>; };
 
