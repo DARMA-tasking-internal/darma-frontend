@@ -81,7 +81,9 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
       )
     );
     template <typename T>
-    using reservable_archetype = decltype( std::declval<T>().reserve( std::declval<size_t>() ) );
+    using reservable_archetype = decltype( std::declval<T>().reserve(
+      std::declval<typename C::size_type>()
+    ) );
     template <typename T>
     using has_emplace_back_default_archetype =
       decltype( std::declval<T>().emplace_back() );
@@ -97,13 +99,13 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
 
     template <typename _Ignored = void>
     inline std::enable_if_t<is_reservable and std::is_same<_Ignored, void>::value>
-    _unpack_prepare(C& val, size_t to_reserve) const {
+    _unpack_prepare(C& val, typename C::size_type to_reserve) const {
       val.reserve(to_reserve);
     };
 
     template <typename _Ignored = void>
     inline std::enable_if_t<not is_reservable and std::is_same<_Ignored, void>::value>
-    _unpack_prepare(C& val, size_t to_reserve) const {
+    _unpack_prepare(C& val, typename C::size_type to_reserve) const {
       /* do nothing */
     };
 
@@ -164,8 +166,7 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
     std::enable_if_t<value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value>
     compute_size(C const& c, ArchiveT& ar) const {
       assert(ar.is_sizing());
-      ar.incorporate_size(c.size());
-      for(auto&& item : c) ar.incorporate_size(item);
+      ar % serialization::range(c.begin(), c.end());
     }
 
     // </editor-fold>
@@ -178,8 +179,7 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
     std::enable_if_t<value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value>
     pack(C const& c, ArchiveT& ar) const {
       assert(ar.is_packing());
-      ar.pack_item(c.size());
-      for(auto&& item : c) ar.pack_item(item);
+      ar << serialization::range(c.begin(), c.end());
     }
 
     // </editor-fold>
@@ -188,20 +188,18 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
     ////////////////////////////////////////////////////////////
     // <editor-fold desc="unpack()">
 
-    // TODO optimization for contiguous containers
-
-    template <typename ArchiveT>
+    template <typename ArchiveT, typename AllocatorT>
     std::enable_if_t<
       value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
         and is_back_insertable
     >
-    unpack(void* allocated, ArchiveT& ar) const {
+    unpack(void* allocated, ArchiveT& ar, AllocatorT&& alloc) const {
       assert(ar.is_unpacking());
       // call default constructor
       C* c = new (allocated) C;
 
       // and start unpacking
-      size_t n_items = 0;
+      typename C::size_type n_items = 0;
       ar.unpack_item(n_items);
       _unpack_prepare(*c, n_items);
 
@@ -226,7 +224,7 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
       // call default constructor
       C* c = new (allocated) C;
       // and start unpacking
-      size_t n_items = 0;
+      typename C::size_type n_items = 0;
       ar.unpack_item(n_items);
       _unpack_prepare(*c, n_items);
 
@@ -251,7 +249,7 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
       // call default constructor
       C* c = new (allocated) C;
       // and start unpacking
-      size_t n_items = 0;
+      typename C::size_type n_items = 0;
       ar.unpack_item(n_items);
       _unpack_prepare(*c, n_items);
 

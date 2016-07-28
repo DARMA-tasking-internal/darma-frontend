@@ -66,6 +66,16 @@ struct delay {
 };
 
 template <
+  template <class...> class F,
+  typename... Types
+>
+struct delay_instantiate {
+  using type = F<
+    typename Types::type...
+  >;
+};
+
+template <
   template <class...> class Delayed
 >
 struct undelay {

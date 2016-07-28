@@ -63,6 +63,8 @@ template <typename T>
 using is_forward_iterator = std::true_type; // TODO implement this
 template <typename T>
 using is_copy_insertable = std::true_type; // TODO implement this
+template <typename T>
+using is_allocator = std::true_type; // TODO implement this
 
 template <typename Iterator>
 struct is_iterator {
