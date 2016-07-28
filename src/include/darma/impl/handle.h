@@ -349,7 +349,7 @@ class VariableHandle
       const void *const object_data,
       abstract::backend::SerializationPolicy* ser_pol
     ) const override {
-      serialization::Serializer<T> s;
+      serialization::Serializer<T> s{};
       serialization::SimplePackUnpackArchive ar;
       DependencyHandle_attorneys::ArchiveAccess::start_sizing(ar);
       s.compute_size(*(T const *const) (object_data), ar);
@@ -362,7 +362,7 @@ class VariableHandle
       void *const serialization_buffer,
       abstract::backend::SerializationPolicy* ser_pol
     ) const override {
-      serialization::Serializer<T> s;
+      serialization::Serializer<T> s{};
       serialization::SimplePackUnpackArchive ar;
       DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, serialization_buffer);
       DependencyHandle_attorneys::ArchiveAccess::start_packing(ar);
@@ -376,7 +376,7 @@ class VariableHandle
       abstract::backend::SerializationPolicy* ser_pol,
       abstract::backend::AllocationPolicy* alloc_pol
     ) const override {
-      serialization::Serializer<T> s;
+      serialization::Serializer<T> s{};
       serialization::SimplePackUnpackArchive ar;
       // Need to cast away constness of the buffer because the Archive requires
       // a non-const buffer to be able to operate in pack mode (i.e., so that

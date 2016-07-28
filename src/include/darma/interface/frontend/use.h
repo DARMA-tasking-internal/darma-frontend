@@ -140,6 +140,7 @@ class Use {
     virtual void*&
     get_data_pointer_reference() =0;
 
+    // TODO discuss whether this should be a shared pointer or something
     /** @todo document this
      *
      *  @param alloc_policy
