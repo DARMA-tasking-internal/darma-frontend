@@ -352,7 +352,9 @@ class VariableHandle
       serialization::Serializer<T> s{};
       serialization::SimplePackUnpackArchive ar;
       DependencyHandle_attorneys::ArchiveAccess::start_sizing(ar);
-      s.compute_size(*(T const *const) (object_data), ar);
+      serialization::detail::serializability_traits<T>::compute_size(
+        *static_cast<T const* const>(object_data), ar
+      );
       return DependencyHandle_attorneys::ArchiveAccess::get_size(ar);
     }
 
@@ -362,11 +364,12 @@ class VariableHandle
       void *const serialization_buffer,
       abstract::backend::SerializationPolicy* ser_pol
     ) const override {
-      serialization::Serializer<T> s{};
       serialization::SimplePackUnpackArchive ar;
       DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, serialization_buffer);
       DependencyHandle_attorneys::ArchiveAccess::start_packing(ar);
-      s.pack(*(T const *const) (object_data), ar);
+      serialization::detail::serializability_traits<T>::pack(
+        *static_cast<T const* const>(object_data), ar
+      );
     }
 
     void
@@ -376,7 +379,6 @@ class VariableHandle
       abstract::backend::SerializationPolicy* ser_pol,
       abstract::backend::AllocationPolicy* alloc_pol
     ) const override {
-      serialization::Serializer<T> s{};
       serialization::SimplePackUnpackArchive ar;
       // Need to cast away constness of the buffer because the Archive requires
       // a non-const buffer to be able to operate in pack mode (i.e., so that
@@ -385,18 +387,13 @@ class VariableHandle
         ar, const_cast<void *const>(serialized_data)
       );
       DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);
-      s.unpack(object_dest, ar);
+      serialization::detail::serializability_traits<T>::unpack(object_dest, ar);
     }
-
-    //bool
-    //is_directly_serializable() const override {
-    //  return serdes_traits::is_directly_serializable;
-    //}
-
 
     void
     default_construct(void* allocated) const override {
       // Will fail if T is not default constructible...
+      // TODO allocator awareness?
       new (allocated) T();
     }
 

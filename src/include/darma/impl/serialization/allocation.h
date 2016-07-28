@@ -235,12 +235,10 @@ template <typename T, typename Enable>
 class allocation_traits {
   private:
 
-    typedef serializability_traits<T, void> serdes_traits;
-
     // see serializability_traits for more
-    using _T = typename serdes_traits::_T;
-    using _const_T = typename serdes_traits::_const_T;
-    using _clean_T = typename serdes_traits::_clean_T;
+    using _T = remove_const_t<T>;
+    using _const_T = add_const_t<T>;
+    using _clean_T = remove_const_t<std::remove_reference_t<T>>;
 
     ////////////////////////////////////////////////////////////////////////////////
     // <editor-fold desc="Allocator awareness detection">

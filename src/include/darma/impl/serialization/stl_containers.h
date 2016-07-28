@@ -136,6 +136,19 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
       return Alloc_traits::allocate(alloc, 1);
     };
 
+    template <typename ArchiveT>
+    inline std::enable_if_t<has_allocator and not std::is_void<ArchiveT>::value>
+    _call_unpack_item(ArchiveT& ar, void* loc, C const& c) const {
+      auto alloc = c.get_allocator();
+      ar.template unpack_item<value_type>(loc, alloc);
+    };
+
+    template <typename ArchiveT>
+    inline std::enable_if_t<not has_allocator and std::is_void<ArchiveT>::value>
+    _call_unpack_item(ArchiveT& ar, void* loc, C const&) const {
+      ar.template unpack_item<value_type>(loc);
+    };
+
     // UNUSED:
     //template <typename... Args>
     //inline std::enable_if_t<has_allocator>
@@ -188,15 +201,20 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
     ////////////////////////////////////////////////////////////
     // <editor-fold desc="unpack()">
 
-    template <typename ArchiveT, typename AllocatorT>
+    template <typename ArchiveT, typename ParentAllocatorT>
     std::enable_if_t<
       value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
         and is_back_insertable
     >
-    unpack(void* allocated, ArchiveT& ar, AllocatorT&& alloc) const {
+    unpack(void* allocated, ArchiveT& ar, ParentAllocatorT&& parent_alloc) const {
       assert(ar.is_unpacking());
+
       // call default constructor
-      C* c = new (allocated) C;
+      std::allocator_traits<std::decay_t<ParentAllocatorT>>::construct(
+        parent_alloc, // intentionally not forwarded
+        static_cast<C*>(allocated)
+      );
+      C* c = static_cast<C*>(allocated);
 
       // and start unpacking
       typename C::size_type n_items = 0;
@@ -208,21 +226,27 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
         // Allocate the data for the item
         void *tmp = _allocate_item(*c);
         // unpack into it
-        ar.unpack_item(*(value_type*)tmp);
+        _call_unpack_item(ar, tmp, *c);
         // put it in the container
         back_iter = *(value_type*)tmp;
       }
     }
 
-    template <typename ArchiveT>
+    template <typename ArchiveT, typename ParentAllocatorT>
     std::enable_if_t<
       value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
         and is_insertable and not is_back_insertable
     >
-    unpack(void* allocated, ArchiveT& ar) const {
+    unpack(void* allocated, ArchiveT& ar, ParentAllocatorT&& parent_alloc) const {
       assert(ar.is_unpacking());
+
       // call default constructor
-      C* c = new (allocated) C;
+      std::allocator_traits<std::decay_t<ParentAllocatorT>>::construct(
+        parent_alloc, // intentionally not forwarded
+        static_cast<C*>(allocated)
+      );
+      C* c = static_cast<C*>(allocated);
+
       // and start unpacking
       typename C::size_type n_items = 0;
       ar.unpack_item(n_items);
@@ -233,32 +257,32 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
         // Allocate the data for the item
         void *tmp = _allocate_item(*c);
         // unpack into it
-        ar.unpack_item(*(value_type*)tmp);
+        _call_unpack_item(ar, tmp, *c);
         // put it in the container
         ins_iter = *(value_type*)tmp;
       }
     }
 
-    template <typename ArchiveT>
-    std::enable_if_t<
-      value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value and
-        has_emplace_back_default and not is_insertable and not is_back_insertable
-    >
-    unpack(void* allocated, ArchiveT& ar) const {
-      assert(ar.is_unpacking());
-      // call default constructor
-      C* c = new (allocated) C;
-      // and start unpacking
-      typename C::size_type n_items = 0;
-      ar.unpack_item(n_items);
-      _unpack_prepare(*c, n_items);
+    //template <typename ArchiveT>
+    //std::enable_if_t<
+    //  value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value and
+    //    has_emplace_back_default and not is_insertable and not is_back_insertable
+    //>
+    //unpack(void* allocated, ArchiveT& ar) const {
+    //  assert(ar.is_unpacking());
+    //  // call default constructor
+    //  C* c = new (allocated) C;
+    //  // and start unpacking
+    //  typename C::size_type n_items = 0;
+    //  ar.unpack_item(n_items);
+    //  _unpack_prepare(*c, n_items);
 
-      for(typename C::size_type i = 0; i < n_items; ++i) {
-        c->emplace_back();
-        // unpack into it
-        ar.unpack_item(c->back());
-      }
-    }
+    //  for(typename C::size_type i = 0; i < n_items; ++i) {
+    //    c->emplace_back();
+    //    // unpack into it
+    //    ar.unpack_item(c->back());
+    //  }
+    //}
 
     // </editor-fold>
     ////////////////////////////////////////////////////////////
