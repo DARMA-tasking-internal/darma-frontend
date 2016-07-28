@@ -82,10 +82,13 @@ class SerializationManager {
      *  when unpacked ("could be used" is a user-defined concept here, but basically means that
      *  operations performed on the object must yield results and side-effects "as-if" the serialization
      *  had never happened).
+     *
+     *  @param ser_policy TODO
      */
     virtual size_t
     get_packed_data_size(
-      const void* const object_data
+      const void* const object_data,
+      backend::SerializationPolicy* ser_policy
     ) const =0;
 
     /** @brief Packs the object data into the serialization buffer
@@ -93,9 +96,11 @@ class SerializationManager {
      *  @param object_data pointer to the start of the C++ object to be serialized.  Must be in the
      *  exact same state as when get_packed_data_size() was invoked with the same object.
      *
-     *  @param serialization_buffer the buffer into which the data should be packed.  The backend
+     *  @param pack_buffer the buffer into which the data should be packed.  The backend
      *  must preallocate this buffer to be the size returned by get_packed_data_size() when invoked
      *  *immediately* prior to pack_data() with the same object_data pointer
+     *
+     *  @param ser_policy TODO
      *
      *  @remark The backend must ensure that no running task has write access to the object_data between the
      *  time get_packed_data_size() is called and pack_data() returns, such that the state of object_data
@@ -105,7 +110,8 @@ class SerializationManager {
     virtual void
     pack_data(
       const void* const object_data,
-      void* const serialization_buffer
+      void* const pack_buffer,
+      backend::SerializationPolicy* ser_policy
     ) const =0;
 
     /** @brief Unpacks the object data from the serialization buffer into object_dest
@@ -120,14 +126,20 @@ class SerializationManager {
      *  @param object_dest backend-allocated buffer of size get_metadata_size() into which the
      *  object should be constructed and deserialized
      *
-     *  @param serialized_data a pointer to the beginning of a buffer of the same size and
+     *  @param packed_buffer a pointer to the beginning of a buffer of the same size and
      *  state as the second argument to pack_data() upon return of pack_data() for the corresponding
      *  object to be unpacked.
+     *
+     *  @param ser_policy TODO
+     *
+     *  @param alloc_policy TODO
      */
     virtual void
     unpack_data(
       void* const object_dest,
-      const void* const serialized_data
+      const void* const packed_buffer,
+      backend::SerializationPolicy* ser_policy,
+      backend::AllocationPolicy* alloc_policy
     ) const =0;
 
     /** @todo document this

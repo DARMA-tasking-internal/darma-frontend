@@ -48,6 +48,8 @@
 #include <darma/interface/frontend/frontend_fwd.h>
 
 #include <darma/interface/backend/flow.h>
+#include <darma/interface/backend/allocation_policy.h>
+
 #include "handle.h"
 
 namespace darma_runtime {
@@ -95,32 +97,57 @@ class Use {
 
     /** @brief Return a pointer to the handle that this object encapsulates a use of.
      */
-    virtual Handle const* get_handle() const =0;
+    virtual Handle const*
+    get_handle() const =0;
 
-    /** @brief Get the Flow that must be ready for use as a precondition for the Task t that depends on this Use
+    /** @brief Get the Flow that must be ready for use as a precondition for the
+     *  Task t that depends on this Use
      */
-    virtual backend::Flow*& get_in_flow() =0;
+    virtual backend::Flow*&
+    get_in_flow() =0;
 
-    /** @brief Get the Flow that is produced or made available when this Use is released
+    /** @brief Get the Flow that is produced or made available when this Use is
+     *  released
      */
-    virtual backend::Flow*& get_out_flow() =0;
+    virtual backend::Flow*&
+    get_out_flow() =0;
 
-    /** @brief Get the immediate permissions needed for the Flow returned by get_in_flow() to be ready as a precondition for this Use
-     */
-    virtual permissions_t immediate_permissions() const =0;
-
-    /** @brief Get the scheduling permissions needed for the Flow returned by get_in_flow() to be ready as a precondition for this Use
-     */
-    virtual permissions_t scheduling_permissions() const =0;
-
-    /** @brief Get a reference to the data pointer on which the requested immediate permissions have been granted.
+    /** @brief Get the immediate permissions needed for the Flow returned by
+     *  get_in_flow() to be ready as a precondition for this Use
      *
-     *  For a Use requesting immediate permissions, the runtime will set the value of the reference
-     *  returned by this function to the beginning of the data requested at least by the time the backend
-     *  calls Task::run() on the task requesting this Use
+     *  @return
+     */
+    virtual permissions_t
+    immediate_permissions() const =0;
+
+    /** @brief Get the scheduling permissions needed for the Flow returned by
+     *  get_in_flow() to be ready as a precondition for this Use
+     *
+     *  @return
+     */
+    virtual permissions_t
+    scheduling_permissions() const =0;
+
+    /** @brief Get a reference to the data pointer on which the requested
+     *  immediate permissions have been granted.
+     *
+     *  For a Use requesting immediate permissions, the runtime will set the
+     *  value of the reference returned by this function to the beginning of the
+     *  data requested at least by the time the backend calls Task::run() on the
+     *  task requesting this Use
      *
      */
-    virtual void*& get_data_pointer_reference() =0;
+    virtual void*&
+    get_data_pointer_reference() =0;
+
+    /** @todo document this
+     *
+     *  @param alloc_policy
+     */
+    virtual void
+    set_allocation_policy(
+      backend::AllocationPolicy* alloc_policy
+    ) =0;
 
 };
 
