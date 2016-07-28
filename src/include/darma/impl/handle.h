@@ -346,7 +346,8 @@ class VariableHandle
 
     size_t
     get_packed_data_size(
-      const void *const object_data
+      const void *const object_data,
+      abstract::backend::SerializationPolicy* ser_pol
     ) const override {
       serialization::Serializer<T> s;
       serialization::SimplePackUnpackArchive ar;
@@ -358,7 +359,8 @@ class VariableHandle
     void
     pack_data(
       const void *const object_data,
-      void *const serialization_buffer
+      void *const serialization_buffer,
+      abstract::backend::SerializationPolicy* ser_pol
     ) const override {
       serialization::Serializer<T> s;
       serialization::SimplePackUnpackArchive ar;
@@ -370,7 +372,9 @@ class VariableHandle
     void
     unpack_data(
       void *const object_dest,
-      const void *const serialized_data
+      const void *const serialized_data,
+      abstract::backend::SerializationPolicy* ser_pol,
+      abstract::backend::AllocationPolicy* alloc_pol
     ) const override {
       serialization::Serializer<T> s;
       serialization::SimplePackUnpackArchive ar;
