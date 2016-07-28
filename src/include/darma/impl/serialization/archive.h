@@ -50,6 +50,7 @@
 
 #include <tinympl/is_instantiation_of.hpp>
 #include <darma/impl/meta/is_container.h>
+#include <darma/interface/backend/serialization_policy.h>
 
 #include "serialization_fwd.h"
 #include "nonintrusive.h"
