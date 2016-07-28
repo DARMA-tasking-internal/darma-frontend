@@ -84,14 +84,15 @@ struct darma_allocator
     { }
 
     pointer
-    allocate(size_type n, const_void_pointer=nullptr) {
-      assert(policy_ != nullptr);
-      policy_->allocate( sizeof(T) * n );
+    allocate(size_type n, const_void_pointer _ignored=nullptr) {
+      if(policy_) policy_->allocate( sizeof(T) * n );
+      else this->base_t::allocate(n, _ignored);
     }
 
     void
     deallocate(pointer ptr, size_type n) noexcept {
-      policy_->deallocate( ptr, sizeof(T) * n );
+      if(policy_) policy_->deallocate( ptr, sizeof(T) * n );
+      else this->base_t::deallocate(ptr, n);
     }
 
 };
