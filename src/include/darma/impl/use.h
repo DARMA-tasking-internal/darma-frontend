@@ -160,8 +160,6 @@ struct UseHolder {
     is_registered = false;
   }
 
-
-
   UseHolder(migrated_use_arg_t const&, HandleUse&& in_use) : use(std::move(in_use)) {
     detail::backend_runtime->reregister_migrated_use(&use);
     is_registered = true;
