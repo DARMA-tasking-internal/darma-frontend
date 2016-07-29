@@ -88,11 +88,15 @@ class ArchivePassthroughMixin {
       traits<T>::compute_size(val, *static_cast<ArchiveT*>(this));
     }
 
+    //--------------------------------------------------------------------------
+
     template <typename T>
     std::enable_if_t<is_serializable_with_this<T>::value>
     pack_item(T const& val) {
       traits<T>::template pack(val, *static_cast<ArchiveT*>(this));
     }
+
+    //--------------------------------------------------------------------------
 
     template <typename T>
     std::enable_if_t<is_serializable_with_this<T>::value>
@@ -128,6 +132,8 @@ class ArchivePassthroughMixin {
         std::forward<AllocatorT>(alloc)
       );
     }
+
+    //--------------------------------------------------------------------------
 
     template <typename T>
     std::enable_if_t<
