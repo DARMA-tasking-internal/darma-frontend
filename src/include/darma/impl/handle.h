@@ -61,6 +61,7 @@
 #include <darma/impl/util.h>
 #include <darma/impl/darma_assert.h>
 #include <darma/impl/serialization/archive.h>
+#include <darma/impl/serialization/policy_aware_archive.h>
 #include <darma/impl/serialization/nonintrusive.h>
 #include <darma/impl/serialization/traits.h>
 #include <darma/impl/serialization/allocation.h>

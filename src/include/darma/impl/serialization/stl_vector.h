@@ -118,7 +118,7 @@ struct Serializer<std::vector<T, Allocator>>
               ::template rebind_alloc<std::array<char, sizeof(value_type)>>
           >*
         >(allocated),
-        size, Allocator()
+        size, ar.template get_unpack_allocator<T>(Allocator())
       );
       vector_t& v = *static_cast<vector_t*>(allocated);
       _unpack_contiguous_if_possible(
