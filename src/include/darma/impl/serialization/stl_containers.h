@@ -179,7 +179,7 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
     std::enable_if_t<value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value>
     compute_size(C const& c, ArchiveT& ar) const {
       assert(ar.is_sizing());
-      ar % serialization::range(c.begin(), c.end());
+      auto arnew = ar % serialization::range(c.begin(), c.end());
     }
 
     // </editor-fold>

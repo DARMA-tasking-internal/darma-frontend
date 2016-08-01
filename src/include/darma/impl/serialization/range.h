@@ -62,23 +62,11 @@ namespace detail {
 template <typename BeginIterator, typename EndIterator>
 struct SerDesRange;
 
-template <typename Iterator>
-struct SerDesRangeBase {
-  using value_type = typename std::iterator_traits<Iterator>::value_type;
-
-  static constexpr auto is_contiguous =
-    meta::is_contiguous_iterator<Iterator>::value;
-
-  static constexpr auto value_is_directly_serializable =
-    serializability_traits<value_type>::is_directly_serializable;
-
-};
-
 template <typename RandomAccessIterator>
 struct SerDesRange<
   RandomAccessIterator&,
   RandomAccessIterator
-> : SerDesRangeBase<RandomAccessIterator>
+>
 {
   private:
     RandomAccessIterator& begin_;
@@ -88,6 +76,14 @@ struct SerDesRange<
 
     typedef RandomAccessIterator iterator;
     typedef std::iterator_traits<RandomAccessIterator> iterator_traits;
+
+    using value_type = typename std::iterator_traits<RandomAccessIterator>::value_type;
+
+    static constexpr auto is_contiguous =
+      meta::is_contiguous_iterator<std::remove_cv_t<RandomAccessIterator>>::value;
+
+    static constexpr auto value_is_directly_serializable =
+      serializability_traits<value_type>::is_directly_serializable;
 
     SerDesRange(RandomAccessIterator& in_begin, RandomAccessIterator&& in_end)
       : begin_(in_begin), end_(in_end) { }
@@ -104,7 +100,6 @@ struct SerDesRange<
 
 template <typename RandomAccessIterator>
 struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&>
-  : SerDesRangeBase<RandomAccessIterator>
 {
   private:
     RandomAccessIterator& begin_;
@@ -114,6 +109,14 @@ struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&>
 
     typedef RandomAccessIterator iterator;
     typedef std::iterator_traits<RandomAccessIterator> iterator_traits;
+
+    using value_type = typename std::iterator_traits<RandomAccessIterator>::value_type;
+
+    static constexpr auto is_contiguous =
+      meta::is_contiguous_iterator<std::remove_cv_t<RandomAccessIterator>>::value;
+
+    static constexpr auto value_is_directly_serializable =
+      serializability_traits<value_type>::is_directly_serializable;
 
     SerDesRange(RandomAccessIterator& in_begin, RandomAccessIterator& in_end)
       : begin_(in_begin), end_(in_end) { }
@@ -133,13 +136,20 @@ struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&>
 
 template <typename RandomAccessIterator>
 struct SerDesRange<RandomAccessIterator, RandomAccessIterator>
-  : SerDesRangeBase<RandomAccessIterator>
 {
   private:
     RandomAccessIterator begin_;
     RandomAccessIterator end_;
 
   public:
+
+    using value_type = typename std::iterator_traits<RandomAccessIterator>::value_type;
+
+    static constexpr auto is_contiguous =
+      meta::is_contiguous_iterator<std::remove_cv_t<RandomAccessIterator>>::value;
+
+    static constexpr auto value_is_directly_serializable =
+      serializability_traits<value_type>::is_directly_serializable;
 
     typedef RandomAccessIterator iterator;
     typedef std::iterator_traits<RandomAccessIterator> iterator_traits;

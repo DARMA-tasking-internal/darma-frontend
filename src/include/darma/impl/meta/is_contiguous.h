@@ -60,54 +60,90 @@ struct is_contiguous_iterator_enabled_if
   : std::false_type
 { };
 
-// vector specialization
-template <typename Iterator>
-struct is_contiguous_iterator_enabled_if<Iterator,
-  std::enable_if_t<
-    std::is_same<
-      typename std::vector<
-        std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>
-      >::iterator,
-      Iterator
-    >::value
-  >
-> : std::true_type
-{ };
-
 template <typename T>
 struct _get_iterator {
   using type = typename T::iterator;
 };
+template <typename T>
+struct _get_const_iterator {
+  using type = typename T::const_iterator;
+};
 
-// string specialization
+// vector specialization
 template <typename Iterator>
 struct is_contiguous_iterator_enabled_if<Iterator,
   std::enable_if_t<
-    tinympl::and_<
-      std::is_pod<
-        std::decay_t<typename std::iterator_traits<Iterator>::value_type>
+    tinympl::or_<
+      //------------------------------------------------------------------------
+      // vector specialization:
+      std::is_same<
+        typename std::vector<
+          std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>
+        >::iterator,
+        Iterator
       >,
-      // std::string has a static_assert that the character type must be POD,
-      // so we can't just evaluate this willy-nilly.  This mess is a delayed
-      // evaluation of the second condition (analogous to the one in the vector
-      // specialization above)
-      tinympl::extract_value_potentially_lazy<
-        tinympl::delay<
-          std::is_same,
+      std::is_same<
+        typename std::vector<
+          std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>
+        >::const_iterator,
+        Iterator
+      >,
+      //------------------------------------------------------------------------
+      // std::basic_string specialization
+      tinympl::and_<
+        std::is_pod<
+          std::decay_t<typename std::iterator_traits<Iterator>::value_type>
+        >,
+        // std::string has a static_assert that the character type must be POD,
+        // so we can't just evaluate this willy-nilly.  This mess is a delayed
+        // evaluation of the second condition (analogous to the one in the vector
+        // specialization above)
+        tinympl::extract_value_potentially_lazy<
           tinympl::delay<
-            _get_iterator,
-            tinympl::delay_instantiate<
-              std::basic_string,
-              std::remove_const<typename std::iterator_traits<Iterator>::value_type>,
+            std::is_same,
+            tinympl::delay<
+              _get_iterator,
               tinympl::delay_instantiate<
-                std::char_traits,
-                std::remove_const<typename std::iterator_traits<Iterator>::value_type>
+                std::basic_string,
+                std::remove_const<typename std::iterator_traits<Iterator>::value_type>,
+                tinympl::delay_instantiate<
+                  std::char_traits,
+                  std::remove_const<typename std::iterator_traits<Iterator>::value_type>
+                >
               >
-            >
-          >,
-          tinympl::identity<Iterator>
+            >,
+            tinympl::identity<Iterator>
+          >
+        >
+      >,
+      // Same as above, but with const_iterator instead
+      tinympl::and_<
+        std::is_pod<
+          std::decay_t<typename std::iterator_traits<Iterator>::value_type>
+        >,
+        // std::string has a static_assert that the character type must be POD,
+        // so we can't just evaluate this willy-nilly.  This mess is a delayed
+        // evaluation of the second condition (analogous to the one in the vector
+        // specialization above)
+        tinympl::extract_value_potentially_lazy<
+          tinympl::delay<
+            std::is_same,
+            tinympl::delay<
+              _get_const_iterator,
+              tinympl::delay_instantiate<
+                std::basic_string,
+                std::remove_const<typename std::iterator_traits<Iterator>::value_type>,
+                tinympl::delay_instantiate<
+                  std::char_traits,
+                  std::remove_const<typename std::iterator_traits<Iterator>::value_type>
+                >
+              >
+            >,
+            tinympl::identity<Iterator>
+          >
         >
       >
+      //------------------------------------------------------------------------
     >::value
   >
 > : std::true_type
@@ -136,10 +172,15 @@ struct is_contiguous_iterator<T* const>
   : std::true_type
 { };
 
-//static_assert(
-//  is_contiguous_iterator<typename std::vector<long>::iterator>::value,
-//  "std::vector iterator should be contiguous"
-//);
+static_assert(
+  is_contiguous_iterator<typename std::vector<long>::iterator>::value,
+  "std::vector iterator should be contiguous"
+);
+
+static_assert(
+  is_contiguous_iterator<typename std::vector<const long>::iterator>::value,
+  "std::vector const_iterator should be contiguous"
+);
 
 } // end namespace meta
 } // end namespace darma_runtime

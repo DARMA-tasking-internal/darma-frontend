@@ -145,6 +145,27 @@ class MockFlow
     }
 };
 
+class MockSerializationPolicy
+  : public darma_runtime::abstract::backend::SerializationPolicy
+{
+  public:
+
+    MOCK_CONST_METHOD2(packed_size_contribution_for_blob, size_t(void const*, size_t));
+    MOCK_CONST_METHOD3(pack_blob, void(void*&, void const*, size_t));
+    MOCK_CONST_METHOD3(unpack_blob, void(void*&, void*, size_t));
+
+};
+
+class MockAllocationPolicy
+  : public darma_runtime::abstract::backend::AllocationPolicy
+{
+  public:
+
+    MOCK_METHOD1(allocate, void*(size_t));
+    MOCK_METHOD2(deallocate, void(void*, size_t));
+
+};
+
 } // end namespace mock_backend
 
 #endif /* SRC_TESTS_FRONTEND_VALIDATION_MOCK_BACKEND_H_ */

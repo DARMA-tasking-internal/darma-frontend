@@ -317,6 +317,9 @@ class PolicyAwareArchive
         std::forward<WrappedAllocator>(alloc)
       );
     }
+
+    friend class Serializer_attorneys::ArchiveAccess;
+    friend class darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
 };
 
 } // end namespace serialization
