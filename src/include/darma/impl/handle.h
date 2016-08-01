@@ -66,10 +66,9 @@
 #include <darma/impl/serialization/allocation.h>
 
 #include <darma/impl/keyword_arguments/keyword_arguments.h>
+#include <darma/interface/app/keyword_arguments/n_readers.h>
+#include <darma/interface/app/keyword_arguments/version.h>
 
-// TODO move these to appropriate header files in interface/app
-DeclareDarmaTypeTransparentKeyword(publication, n_readers);
-DeclareDarmaTypeTransparentKeyword(publication, version);
 
 namespace darma_runtime {
 
@@ -469,12 +468,13 @@ class AccessHandleBase {
       mod_capture
     } capture_op_t;
 
+    // TODO figure out if this as efficient as a bitfield (it's definitely more readable)
     typedef enum CapturedAsInfo {
       Normal = 0,
       Ignored = 1,
       ReadOnly = 2,
       // Future use:
-        ScheduleOnly = 4,
+      ScheduleOnly = 4,
       Leaf = 8,
       Uncaptured = 16
     } captured_as_info_t;

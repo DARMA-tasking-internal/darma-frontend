@@ -93,6 +93,7 @@ DARMA_OO_DEFINE_TAG(bart);
 DARMA_OO_DEFINE_TAG(lisa);
 DARMA_OO_DEFINE_TAG(marge);
 DARMA_OO_DEFINE_TAG(homer);
+
 #else
 #include <ootag_larry.generated.h>
 #include <ootag_curly.generated.h>
@@ -106,6 +107,15 @@ DARMA_OO_DEFINE_TAG(homer);
 using namespace darma_runtime::oo;
 
 DARMA_OO_DECLARE_CLASS(Simple);
+
+static_assert(is_darma_class<Simple>::value,
+  "metafunction is_darma_class should return true_type for class Simple"
+);
+
+struct Foo;
+static_assert(not darma_runtime::oo::detail::is_complete_darma_class_from_context<Simple, Foo>::value,
+  "metafunction is_complete_darma_class_from_context should return false_type for class Simple before definition"
+);
 
 struct Simple
   : darma_class<Simple,
@@ -124,6 +134,12 @@ struct Simple
       >
     >
 { using darma_class::darma_class; };
+
+struct Foo2;
+static_assert(darma_runtime::oo::detail::is_complete_darma_class_from_context<Simple, Foo2>::value,
+  "metafunction is_complete_darma_class_from_context should return true_type for class Simple after definition"
+);
+
 
 struct Simple_constructors
   : darma_constructors<Simple>
@@ -153,6 +169,8 @@ STATIC_ASSERT_SIZE_IS(Simple,
     + sizeof(darma_runtime::AccessHandle<std::string>)
     + sizeof(darma_runtime::AccessHandle<double>)
 );
+
+using namespace darma_runtime::oo::detail;
 
 template <>
 struct Simple_method<bart>
@@ -300,168 +318,443 @@ TEST_F(TestOO, static_assertions) {
 
 }
 
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestOO, simple_copy_ctor) {
+DARMA_OO_DEFINE_TAG(some_private_field);
+DARMA_OO_DEFINE_TAG(some_public_field);
+DARMA_OO_DEFINE_TAG(field_that_is_darma_class);
+
+DARMA_OO_DEFINE_TAG(my_mod_value);
+DARMA_OO_DEFINE_TAG(my_mod);
+DARMA_OO_DEFINE_TAG(my_read_value);
+DARMA_OO_DEFINE_TAG(my_read);
+
+static_assert(darma_runtime::oo::detail::is_oo_name_tag<some_private_field>::value,
+  "metafunction is_oo_name_tag should return true_type for class some_private_field"
+);
+
+DARMA_OO_DECLARE_CLASS(MyClass);
+DARMA_OO_DECLARE_CLASS(MyOtherClass);
+
+using namespace darma_runtime::oo;
+
+
+
+struct MyClass
+  : darma_class<MyClass,
+      private_fields<
+        std::string, some_private_field
+      >,
+      public_fields<
+        int, some_public_field
+      >,
+      public_methods<
+        my_mod_value,
+        my_mod,
+        my_read_value,
+        my_read
+      >
+    >
+{ using darma_class::darma_class; };
+
+struct MyOtherClass
+  : darma_class<MyOtherClass,
+      public_fields<
+        MyClass, field_that_is_darma_class
+      >,
+      public_methods<
+        my_mod
+      >
+    >
+{ using darma_class::darma_class; };
+
+//----------------------------------------------------------------------------//
+
+struct MyClass_constructors
+  : darma_constructors<MyClass>
+{
+  using darma_constructors::darma_constructors;
+  //void operator()() {
+  //  some_private_field = initial_access<std::string>("default_private_key");
+  //}
+  void operator()(types::key_t const& private_key) {
+    some_private_field = initial_access<std::string>(private_key);
+  }
+  template <typename AccessHandleT>
+  std::enable_if_t<darma_runtime::detail::is_access_handle<AccessHandleT>::value>
+  operator()(AccessHandleT&& private_handle) {
+    // TODO decide if this is allowed
+    some_private_field = darma_runtime::darma_copy(std::forward<AccessHandleT>(private_handle));
+    std::cout << "hello world" << std::endl;
+  }
+  void operator()(types::key_t const& private_key, types::key_t const& public_key) {
+    some_private_field = initial_access<std::string>(private_key);
+    some_public_field = initial_access<int>(public_key);
+  }
+};
+
+//----------------------------------------------------------------------------//
+
+template <>
+struct MyClass_method<my_mod>
+  : darma_method<MyClass,
+      modifies_<some_private_field, some_public_field>
+    >
+{
+  using darma_method::darma_method;
+  void operator()(){
+    some_private_field.set_value("hello");
+    some_public_field.set_value(42);
+  }
+};
+
+//////////////////////////////////////////////////////////////////////////////////
+
+
+//----------------------------------------------------------------------------//
+
+template <>
+struct MyOtherClass_method<my_mod>
+  : darma_method<MyOtherClass,
+      modifies_<field_that_is_darma_class>::subfield<some_public_field>
+    >
+{
+  using darma_method::darma_method;
+  void operator()(){
+    field_that_is_darma_class.some_public_field.set_value(42);
+
+  }
+
+};
+
+TEST_F(TestOO, field_slicing_simple) {
   using namespace ::testing;
   using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace mock_backend;
 
-  ::testing::StaticAssertTypeEq<int, int>();
+  MockFlow f_init_priv, f_null_priv;
+  MockFlow f_init_pub, f_null_pub;
 
-  mock_runtime->save_tasks = true;
-
-  MockFlow larry_flows[2];
-  MockFlow larry_captured_flows[2];
-  use_t* larry_uses[2];
-  MockFlow larry_copy_flows[2];
-  MockFlow larry_copy_capt_flows[2];
-  MockFlow larry_copy_cont_flows[2];
-  use_t* larry_copy_uses[3];
-
-  Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
-
-  /* expectation of things happening in string constructor */
-  expect_initial_access(larry_flows[0], larry_flows[1], larry_uses[0],
-    make_key("larry"), s_reg_initial);
-
-  /* expectations in copy constructor */
-  expect_initial_access(larry_copy_flows[0], larry_copy_flows[1], larry_copy_uses[0],
-    make_key("larry", "copied"), s_reg_initial);
-
-  expect_ro_capture_RN_RR_MN_or_MR(larry_flows, larry_captured_flows, larry_uses);
-  expect_mod_capture_MN_or_MR(larry_copy_flows,
-    larry_copy_capt_flows, larry_copy_cont_flows, larry_copy_uses
-  );
-
-  int larry_value = 73;
-  int larry_copy_value = 0;
-
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-    UseInGetDependencies(ByRef(larry_uses[1])),
-    UseInGetDependencies(ByRef(larry_copy_uses[1]))
-  ))).WillOnce(Invoke([&](auto&&...) {
-    larry_uses[1]->get_data_pointer_reference() = &larry_value;
-    larry_copy_uses[1]->get_data_pointer_reference() = &larry_copy_value;
-  }));
-
-  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(larry_copy_uses[2]))));
-  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(larry_uses[1]))));
-  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(larry_copy_uses[1]))));
-
-  /* end expectations in copy constructor */
+  expect_initial_access(f_init_priv, f_null_priv, make_key("hello"));
+  expect_initial_access(f_init_pub, f_null_pub, make_key("world"));
 
   {
-    simple_oo_test::Simple s("larry");
-    simple_oo_test::Simple t(s);
+    MyOtherClass my;
+    my.field_that_is_darma_class = MyClass(make_key("hello"), make_key("world"));
+  }
+
+}
+
+TEST_F(TestOO, field_slicing_method) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  MockFlow f_init_priv, f_null_priv;
+  MockFlow f_init_pub, f_null_pub, f_task_pub;
+  use_t* task_use;
+
+  expect_initial_access(f_init_priv, f_null_priv, make_key("hello"));
+  expect_initial_access(f_init_pub, f_null_pub, make_key("world"));
+  expect_mod_capture_MN_or_MR(f_init_pub, f_task_pub, task_use);
+
+  int value = 0;
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use))))
+    .WillOnce(Invoke([&](auto* task){
+      for(auto&& use : task->get_dependencies()) {
+        use->get_data_pointer_reference() = (void*)(&value);
+      }
+    }));
+
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_task_pub, &f_null_pub));
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_init_priv, &f_null_priv));
+
+  {
+    MyOtherClass my;
+    my.field_that_is_darma_class = MyClass(make_key("hello"), make_key("world"));
+
+    my.my_mod();
+
   }
 
   run_all_tasks();
 
-  ASSERT_EQ(larry_copy_value, 73);
+  ASSERT_THAT(value, Eq(42));
+
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// Not supported
+//TEST_F(TestOO, default_ctor) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace mock_backend;
+//
+//  //static_assert_type_eq<
+//  //  typename MyClass::darma_class
+//  //    ::template constructor_implementation_type<MyClass>::type,
+//  //  MyClass_constructors
+//  //>();
+//  //static_assert(
+//  //  meta::is_detected<_empty_call_op_callable, MyClass_constructors>::value, ""
+//  //);
+//
+//  static_assert(
+//    MyClass::darma_class::template default_constructor_implementation_callable<MyClass>::type::value,
+//    "MyClass default constructor should be callable"
+//  );
+//
+//  MockFlow f_init, f_null;
+//
+//  expect_initial_access(f_init, f_null, make_key("default_private_key"));
+//
+//  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_init, &f_null));
+//
+//  {
+//    //MyClass my;
+//  }
+//
+//}
 
-TEST_F(TestOO, simple_homer_lisa) {
+TEST_F(TestOO, private_key_ctor) {
   using namespace ::testing;
   using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace mock_backend;
 
-  mock_runtime->save_tasks = true;
+  MockFlow f_init, f_null;
 
+  expect_initial_access(f_init, f_null, make_key("hello"));
 
-  use_t* use_1, *use_2, *use_3, *use_4;
-  MockFlow fl_in_1, fl_out_1;
-  MockFlow fl_in_2, fl_out_2;
-  MockFlow fl_in_3, fl_out_3;
-  MockFlow fl_in_4, fl_out_4;
-
-  MockFlow larry_flows[2];
-  MockFlow larry_captured_flows[2];
-  use_t* larry_uses[2];
-
-
-  Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
-
-  /* expectation of things happening in string constructor */
-  expect_initial_access(larry_flows[0], larry_flows[1], larry_uses[0],
-    make_key("larry"), s_reg_initial);
-
-  /* expectations for the method calls */
-  expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("moe", "s"),
-    s_reg_initial, s_release_initial);
-
-  expect_mod_capture_MN_or_MR(
-    fl_in_1, fl_out_1, use_1,
-    fl_in_2, fl_out_2, use_2,
-    fl_in_3, fl_out_3, use_3,
-    s_reg_captured, s_reg_continuing
-  );
-
-  double data = 0.0;
-
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_2))))
-    .Times(1).InSequence(s_reg_captured, s_release_initial)
-    .WillOnce(Invoke([&](auto* task){
-      use_2->get_data_pointer_reference() = (void*)&data;
-    }));
-
-
-  expect_ro_capture_RN_RR_MN_or_MR(
-    fl_in_3, fl_out_3, use_3,
-    fl_in_4, fl_out_4, use_4,
-    s_reg_continuing
-  );
-
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_4))))
-    .Times(1).InSequence(s_reg_captured, s_release_initial)
-    .WillOnce(Invoke([&](auto* task){
-      use_4->get_data_pointer_reference() = (void*)&data;
-    }));
-
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_3)),
-    IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None)
-  ))).Times(1).InSequence(s_reg_continuing)
-    .WillOnce(Assign(&use_3, nullptr));
-
-  /* end expectations for the method calls */
-
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_init, &f_null));
 
   {
-    simple_oo_test::Simple s("larry");
-    s.moe = initial_access<double>("moe", "s");
-    s.homer();
-    s.bart(42); // makes an "immediate" call to s.lisa();
-
-    EXPECT_THAT(larry_uses[0], NotNull());
+    MyClass my(make_key("hello"));
   }
+}
 
-  // Now expect the releases that have to happen after the tasks start running
-  EXPECT_CALL(*sequence_marker, mark_sequence("homer"))
-    .Times(1).InSequence(s_reg_captured);
-
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_2)),
-    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify)
-  ))).Times(1).InSequence(s_reg_captured, s_release_initial)
-    .WillOnce(Assign(&use_2, nullptr));
-
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_4)),
-    IsUseWithFlows(&fl_in_4, &fl_out_4, use_t::Read, use_t::Read)
-  ))).Times(1).InSequence(s_reg_continuing)
-    .WillOnce(Assign(&use_4, nullptr));
+TEST_F(TestOO, handle) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
 
   testing::internal::CaptureStdout();
 
-  run_all_tasks();
+  MockFlow f_init, f_null;
+
+  expect_initial_access(f_init, f_null, make_key("hello"));
+  {
+    auto tmp = initial_access<std::string>("hello");
+    MyClass my(tmp);
+  }
 
   ASSERT_EQ(testing::internal::GetCapturedStdout(),
-    "42 == 42"
+    "hello world\n"
   );
 
+}
 
-  ASSERT_EQ(data, 42);
+
+TEST_F(TestOO, both_keys) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  MockFlow f_init_priv, f_null_priv;
+  MockFlow f_init_pub, f_null_pub;
+
+  expect_initial_access(f_init_priv, f_null_priv, make_key("hello"));
+  expect_initial_access(f_init_pub, f_null_pub, make_key("world"));
+
+  {
+    MyClass my(make_key("hello"), make_key("world"));
+  }
 
 }
+
+//////////////////////////////////////////////////////////////////////////////////
+
+using namespace darma_runtime::oo::detail;
+using namespace simple_oo_test;
+typedef typename reads_<larry>::template subfield<curly>::template subfield<moe> subfield_desc;
+STATIC_ASSERT_TYPE_EQ(
+  subfield_desc,
+  subfields_path<outermost_decorator<reads_>,
+    tinympl::vector<larry>,
+    tinympl::vector<curly>,
+    tinympl::vector<moe>
+  >
+);
+
+//typedef typename reads_<larry>::template subfield<curly> subfield_desc;
+//STATIC_ASSERT_TYPE_EQ(
+//  typename subfield_desc::apply_outermost_decorator,
+//  reads_<larry>::subfield<curly>
+//);
+
+//#if 0
+//////////////////////////////////////////////////////////////////////////////////
+//
+//TEST_F(TestOO, simple_copy_ctor) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//  using namespace mock_backend;
+//
+//  ::testing::StaticAssertTypeEq<int, int>();
+//
+//  mock_runtime->save_tasks = true;
+//
+//  MockFlow larry_flows[2];
+//  MockFlow larry_captured_flows[2];
+//  use_t* larry_uses[2];
+//  MockFlow larry_copy_flows[2];
+//  MockFlow larry_copy_capt_flows[2];
+//  MockFlow larry_copy_cont_flows[2];
+//  use_t* larry_copy_uses[3];
+//
+//  Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
+//
+//  /* expectation of things happening in string constructor */
+//  expect_initial_access(larry_flows[0], larry_flows[1], larry_uses[0],
+//    make_key("larry"), s_reg_initial);
+//
+//  /* expectations in copy constructor */
+//  expect_initial_access(larry_copy_flows[0], larry_copy_flows[1], larry_copy_uses[0],
+//    make_key("larry", "copied"), s_reg_initial);
+//
+//  expect_ro_capture_RN_RR_MN_or_MR(larry_flows, larry_captured_flows, larry_uses);
+//  expect_mod_capture_MN_or_MR(larry_copy_flows,
+//    larry_copy_capt_flows, larry_copy_cont_flows, larry_copy_uses
+//  );
+//
+//  int larry_value = 73;
+//  int larry_copy_value = 0;
+//
+//  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+//    UseInGetDependencies(ByRef(larry_uses[1])),
+//    UseInGetDependencies(ByRef(larry_copy_uses[1]))
+//  ))).WillOnce(Invoke([&](auto&&...) {
+//    larry_uses[1]->get_data_pointer_reference() = &larry_value;
+//    larry_copy_uses[1]->get_data_pointer_reference() = &larry_copy_value;
+//  }));
+//
+//  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(larry_copy_uses[2]))));
+//  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(larry_uses[1]))));
+//  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(larry_copy_uses[1]))));
+//
+//  /* end expectations in copy constructor */
+//
+//  {
+//    simple_oo_test::Simple s("larry");
+//    simple_oo_test::Simple t(s);
+//  }
+//
+//  run_all_tasks();
+//
+//  ASSERT_EQ(larry_copy_value, 73);
+//}
+//
+//////////////////////////////////////////////////////////////////////////////////
+//
+//TEST_F(TestOO, simple_homer_lisa) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//  using namespace mock_backend;
+//
+//  mock_runtime->save_tasks = true;
+//
+//
+//  use_t* use_1, *use_2, *use_3, *use_4;
+//  MockFlow fl_in_1, fl_out_1;
+//  MockFlow fl_in_2, fl_out_2;
+//  MockFlow fl_in_3, fl_out_3;
+//  MockFlow fl_in_4, fl_out_4;
+//
+//  MockFlow larry_flows[2];
+//  MockFlow larry_captured_flows[2];
+//  use_t* larry_uses[2];
+//
+//
+//  Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
+//
+//  // expectation of things happening in string constructor
+//  expect_initial_access(larry_flows[0], larry_flows[1], larry_uses[0],
+//    make_key("larry"), s_reg_initial);
+//
+//  // expectations for the method calls
+//  expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("moe", "s"),
+//    s_reg_initial, s_release_initial);
+//
+//  expect_mod_capture_MN_or_MR(
+//    fl_in_1, fl_out_1, use_1,
+//    fl_in_2, fl_out_2, use_2,
+//    fl_in_3, fl_out_3, use_3,
+//    s_reg_captured, s_reg_continuing
+//  );
+//
+//  double data = 0.0;
+//
+//  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_2))))
+//    .Times(1).InSequence(s_reg_captured, s_release_initial)
+//    .WillOnce(Invoke([&](auto* task){
+//      use_2->get_data_pointer_reference() = (void*)&data;
+//    }));
+//
+//
+//  expect_ro_capture_RN_RR_MN_or_MR(
+//    fl_in_3, fl_out_3, use_3,
+//    fl_in_4, fl_out_4, use_4,
+//    s_reg_continuing
+//  );
+//
+//  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_4))))
+//    .Times(1).InSequence(s_reg_captured, s_release_initial)
+//    .WillOnce(Invoke([&](auto* task){
+//      use_4->get_data_pointer_reference() = (void*)&data;
+//    }));
+//
+//  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_3)),
+//    IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None)
+//  ))).Times(1).InSequence(s_reg_continuing)
+//    .WillOnce(Assign(&use_3, nullptr));
+//
+//  // end expectations for the method calls
+//
+//
+//  {
+//    simple_oo_test::Simple s("larry");
+//    s.moe = initial_access<double>("moe", "s");
+//    s.homer();
+//    s.bart(42); // makes an "immediate" call to s.lisa();
+//
+//    EXPECT_THAT(larry_uses[0], NotNull());
+//  }
+//
+//  // Now expect the releases that have to happen after the tasks start running
+//  EXPECT_CALL(*sequence_marker, mark_sequence("homer"))
+//    .Times(1).InSequence(s_reg_captured);
+//
+//  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_2)),
+//    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify)
+//  ))).Times(1).InSequence(s_reg_captured, s_release_initial)
+//    .WillOnce(Assign(&use_2, nullptr));
+//
+//  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_4)),
+//    IsUseWithFlows(&fl_in_4, &fl_out_4, use_t::Read, use_t::Read)
+//  ))).Times(1).InSequence(s_reg_continuing)
+//    .WillOnce(Assign(&use_4, nullptr));
+//
+//  testing::internal::CaptureStdout();
+//
+//  run_all_tasks();
+//
+//  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+//    "42 == 42"
+//  );
+//
+//
+//  ASSERT_EQ(data, 42);
+//
+//}
+//#endif

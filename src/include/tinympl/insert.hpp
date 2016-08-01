@@ -90,11 +90,17 @@ class insert<Pos, sequence<SubSeqArgs...>, sequence<SeqArgs...>, Out> {
 
 template <typename Sequence, typename Arg>
 using push_front = insert<0, sequence<Arg>, Sequence>;
+template <typename Sequence, typename Arg>
+using push_front_t = typename push_front<Sequence, Arg>::type;
+
 template <typename Sequence, typename SubSeq>
 using extend_front = insert<0, as_sequence_t<SubSeq>, Sequence>;
 
 template <typename Sequence, typename Arg>
 using push_back = insert<size<Sequence>::value, sequence<Arg>, Sequence>;
+template <typename Sequence, typename Arg>
+using push_back_t = typename  push_back<Sequence, Arg>::type;
+
 template <typename Sequence, typename SubSeq>
 using extend_back = insert<size<Sequence>::value, as_sequence_t<SubSeq>, Sequence>;
 
