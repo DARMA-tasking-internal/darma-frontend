@@ -66,33 +66,33 @@ struct SerializationPolicy {
     virtual std::size_t
     packed_size_contribution_for_blob(
       void const* data_begin, std::size_t n_bytes
-    ) =0;
+    ) const =0;
 
     /** @todo document this
      *
-     * @param md_pack_buffer
+     * @param indirect_pack_buffer
      * @param data_begin
      * @param n_bytes
      */
     virtual void
     pack_blob(
-      void*& md_pack_buffer,
+      void*& indirect_pack_buffer,
       void const* data_begin,
       std::size_t n_bytes
-    ) =0;
+    ) const =0;
 
     /** @todo document this
      *
-     * @param md_packed_buffer
+     * @param indirect_packed_buffer
      * @param dest
      * @param n_bytes
      */
     virtual void
     unpack_blob(
-      void const*& md_packed_buffer,
+      void*& indirect_packed_buffer,
       void* dest,
       std::size_t n_bytes
-    ) =0;
+    ) const =0;
 
 };
 

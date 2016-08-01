@@ -86,7 +86,7 @@ struct Serializer<std::vector<T, Allocator>>
     _unpack_contiguous_if_possible(
       std::true_type, ArchiveT& ar, vector_t& v, size_t& size
     ) const {
-      ar.template unpack_contiguous<value_type>(v.data(), size);
+      ar.template unpack_direct<value_type>(v.data(), size);
     }
 
     template <typename ArchiveT>

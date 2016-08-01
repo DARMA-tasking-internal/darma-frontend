@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      policy_aware_archive.h
+//                      test_compressed_pair.cc
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,37 +42,43 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_SERIALIZATION_POLICY_AWARE_ARCHIVE_H
-#define DARMA_IMPL_SERIALIZATION_POLICY_AWARE_ARCHIVE_H
+#include <gtest/gtest.h>
 
-#include <darma/impl/serialization/archive.h>
+#include <darma/impl/util/compressed_pair.h>
 
-namespace darma_runtime {
-namespace serialization {
+#include "../metatest_helpers.h"
 
-class PolicyAwareArchive
-  : public detail::ArchivePassthroughMixin<PolicyAwareArchive>,
-    public detail::ArchiveRangesMixin<PolicyAwareArchive,
-      detail::ArchiveOperatorsMixin<PolicyAwareArchive>
-    >
-{
-  private:
+using namespace darma_runtime::detail;
 
-    template <typename T>
-    using traits = detail::serializability_traits<T>;
-    template <typename T>
-    using enable_if_serializable = std::enable_if_t<
-      typename traits<T>::template is_serializable_with_archive<PolicyAwareArchive>::value
-    >;
+struct Empty { };
 
-  public:
-
-    // Need an AllocationPolicy-aware
+STATIC_ASSERT_SIZE_IS(compressed_pair<Empty, int>, sizeof(int));
+STATIC_ASSERT_SIZE_IS(compressed_pair<int, Empty>, sizeof(int));
+STATIC_ASSERT_SIZE_IS(compressed_pair<int, int>, 2*sizeof(int));
 
 
-};
+TEST(TestCompressedPair, empty_int) {
+  compressed_pair<Empty, int> cp1;
+  cp1.second() = 25;
+  ASSERT_EQ(cp1.second(), 25);
+}
 
-} // end namespace serialization
-} // end namespace darma_runtime
+TEST(TestCompressedPair, int_empty) {
+  compressed_pair<int, Empty> cp2(
+    std::piecewise_construct,
+    std::forward_as_tuple(25),
+    std::forward_as_tuple()
+  );
+  ASSERT_EQ(cp2.first(), 25);
+}
 
-#endif //DARMA_IMPL_SERIALIZATION_POLICY_AWARE_ARCHIVE_H
+TEST(TestCompressedPair, int_int) {
+  compressed_pair<int, int> cp3(25, 42);
+  ASSERT_EQ(cp3.first(), 25);
+  ASSERT_EQ(cp3.second(), 42);
+}
+
+TEST(TestCompressedPair, empty_empty) {
+  compressed_pair<Empty, Empty> cp4;
+}
+
