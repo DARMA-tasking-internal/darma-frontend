@@ -86,8 +86,19 @@ struct Serializer<T[N]> {
 
   public:
 
+    // Note: compile-time sized arrays of objects should be packed indirectly.
+    // To pack/unpack large contiguous buffers of array types, the parent
+    // type's serializer should call pack_direct
+    // should call the archive's *_direct() methods itself
+
     template <typename Archive>
-    enable_if_ser<Archive>
+    enable_if_ser_direct<Archive>
+    compute_size(const T val[N], Archive& ar) const {
+      ar.add_to_size_indirect(sizeof(T) * N);
+    }
+
+    template <typename Archive>
+    enable_if_ser_indirect<Archive>
     compute_size(const T val[N], Archive& ar) const {
       for(int i = 0; i < N; ++i) {
         ar.incorporate_size(val[i]);
@@ -97,7 +108,7 @@ struct Serializer<T[N]> {
     template <typename Archive>
     enable_if_ser_direct<Archive>
     pack(const T val[N], Archive& ar) const {
-      ar.pack_contiguous(val, val+N);
+      ar.pack_indirect(val, val+N);
     }
 
     template <typename Archive>
@@ -111,7 +122,7 @@ struct Serializer<T[N]> {
     template <typename Archive, typename AllocatorT>
     enable_if_ser_direct<Archive>
     unpack(void* allocated, Archive& ar, AllocatorT&&) const {
-      ar.template unpack_contiguous<T>( (T*)allocated, N );
+      ar.template unpack_indirect<T>( (T*)allocated, N );
     }
 
     template <typename Archive, typename AllocatorT>

@@ -49,6 +49,7 @@
 #include <cassert>
 
 #include <darma/interface/backend/allocation_policy.h>
+#include <darma/impl/util/compressed_pair.h>
 
 namespace darma_runtime {
 
@@ -63,9 +64,11 @@ struct darma_allocator
 {
   private:
 
-    abstract::backend::AllocationPolicy* policy_ = nullptr;
+    using base_t = typename std::allocator_traits<BaseAllocator>::template rebind_alloc<T>;
 
-    using base_t = BaseAllocator;
+    abstract::backend::AllocationPolicy* policy_;
+
+    using base_traits_t = std::allocator_traits<base_t>;
 
   public:
 
@@ -88,10 +91,18 @@ struct darma_allocator
       : policy_(policy)
     { }
 
+    template <typename BaseAllocatorConvertible>
+    darma_allocator(
+      abstract::backend::AllocationPolicy* policy,
+      BaseAllocatorConvertible&& base_allocator
+    ) : policy_(policy),
+        base_t(std::forward<BaseAllocatorConvertible>(base_allocator))
+    { }
+
     pointer
     allocate(size_type n, const_void_pointer _ignored=nullptr) {
-      if(policy_) policy_->allocate( sizeof(T) * n );
-      else this->base_t::allocate(n, _ignored);
+      if(policy()) policy()->allocate( sizeof(T) * n );
+      else base_traits_t::allocate(*static_cast<base_t*>(this), n, _ignored);
     }
 
     void
@@ -100,7 +111,21 @@ struct darma_allocator
       else this->base_t::deallocate(ptr, n);
     }
 
+    abstract::backend::AllocationPolicy* policy() { return policy_; }
+    void set_policy(abstract::backend::AllocationPolicy* new_policy)
+    { policy_ = new_policy; }
+
 };
+
+namespace detail {
+
+template <typename T>
+struct is_darma_allocator : std::false_type { };
+
+template <typename... Args>
+struct is_darma_allocator<darma_allocator<Args...>> : std::true_type { };
+
+} // end namespace detail
 
 } // end namespace serialization
 

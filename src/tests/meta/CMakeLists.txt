@@ -28,6 +28,7 @@ add_unit_test(test_splat_tuple)
 add_unit_test(test_tuple_zip)
 add_unit_test(test_kwargs)
 add_unit_test(test_callable_traits)
+add_unit_test(test_compressed_pair)
 
 add_executable(run_all_meta_tests ${metatestfiles})
 target_link_libraries(run_all_meta_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)

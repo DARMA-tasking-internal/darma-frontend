@@ -53,6 +53,8 @@
 #include "create_work.h"
 #include <darma/interface/defaults/darma_main.h>
 
+#include <darma/impl/serialization/policy_aware_archive.h>
+
 
 #endif /* SRC_DARMA_DARMA_H_ */
 

@@ -82,13 +82,17 @@ class SimplePackUnpackArchive
 
   public:
 
-    inline void add_to_size(size_t size) {
+    //------------------------------------------------------------------------//
+
+    inline void add_to_size_indirect(size_t size) {
       assert(is_sizing());
       spot += size;
     }
 
+    //------------------------------------------------------------------------//
+
     template <typename InputIterator>
-    inline void add_to_size_contiguous(
+    inline void add_to_size_direct(
       InputIterator begin, size_t N
     ) {
       assert(is_sizing());
@@ -96,8 +100,10 @@ class SimplePackUnpackArchive
       spot += N * sizeof(value_type);
     }
 
+    //------------------------------------------------------------------------//
+
     template <typename InputIterator>
-    inline void pack_contiguous(InputIterator begin, InputIterator end) {
+    inline void pack_indirect(InputIterator begin, InputIterator end) {
       // Check that InputIterator is an input iterator
       static_assert(std::is_base_of<std::input_iterator_tag,
           typename std::iterator_traits<InputIterator>::iterator_category
@@ -113,8 +119,18 @@ class SimplePackUnpackArchive
       spot += std::distance(begin, end) * sizeof(value_type);
     }
 
+    //------------------------------------------------------------------------//
+
+    template <typename InputIterator>
+    inline void pack_direct(InputIterator begin, InputIterator end) {
+      // SimplePackUnpackArchive doesn't do any direct packing
+      pack_indirect(begin, end);
+    }
+
+    //------------------------------------------------------------------------//
+
     template <typename DirectlySerializableType, typename OutputIterator>
-    inline void unpack_contiguous(OutputIterator dest, size_t n_items) {
+    inline void unpack_indirect(OutputIterator dest, size_t n_items) {
       // Check that OutputIterator is an output iterator
       static_assert(meta::is_output_iterator<OutputIterator>::value,
         "OutputIterator must be an output iterator."
@@ -128,6 +144,16 @@ class SimplePackUnpackArchive
       );
       spot += n_items * sizeof(DirectlySerializableType);
     }
+
+    //------------------------------------------------------------------------//
+
+    template <typename DirectlySerializableType, typename OutputIterator>
+    inline void unpack_direct(OutputIterator dest, size_t n_items) {
+      // SimplePackUnpackArchive doesn't do any direct packing
+      unpack_indirect<DirectlySerializableType>(dest, n_items);
+    };
+
+    //------------------------------------------------------------------------//
 
     template <typename T>
     auto get_unpack_allocator() {
