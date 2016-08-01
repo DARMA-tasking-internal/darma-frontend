@@ -70,17 +70,21 @@ struct private_fields;
 template <typename... Args>
 struct public_fields;
 
-template <typename Tag, typename... Args>
+template <typename... Args>
 struct reads_;
 
-template <typename Tag, typename... Args>
+template <typename... Args>
 struct reads_value_;
+template <typename... Args>
+using reads_values_ = reads_value_<Args...>;
 
-template <typename Tag, typename... Args>
+template <typename... Args>
 struct modifies_;
 
-template <typename Tag, typename... Args>
+template <typename... Args>
 struct modifies_value_;
+template <typename... Args>
+using modifies_values_ = modifies_value_<Args...>;
 
 } // end namespace oo
 } // end namespace darma_runtime

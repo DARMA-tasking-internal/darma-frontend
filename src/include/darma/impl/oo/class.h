@@ -65,6 +65,36 @@
 namespace darma_runtime {
 namespace oo {
 
+namespace detail {
+
+namespace _impl {
+
+template <typename T>
+using _is_darma_class_archetype = decltype(
+  _darma__is_darma_class_ADL_helper(std::declval<T&>())
+);
+
+template <typename T, typename Context>
+using _is_complete_darma_class_from_archetype = typename T::_darma__this_is_a_complete_darma_class;
+
+} // end namespace _impl
+
+// Note that using this metafunction from multiple places with the same Context will
+// alway return the value retrieved from the first one!!!
+template <typename T, typename Context>
+using is_complete_darma_class_from_context = meta::detected_or_t<std::false_type,
+  _impl::_is_complete_darma_class_from_archetype, T, Context
+>;
+
+} // end namespace detail
+
+template <typename T>
+using is_darma_class = meta::detected_or_t<std::false_type,
+  detail::_impl::_is_darma_class_archetype, T
+>;
+
+
+
 template <typename... Args>
 struct public_methods {
   using args_vector_t = tinympl::vector<Args...>;
@@ -97,7 +127,11 @@ struct _public_method_with_tag {
   template <typename CastTo>
   using chain_item_with_cast_to = _public_method_in_chain<OfClass, Tag, CastTo>;
   template <typename CastTo>
-  using immediate_chain_item_with_cast_to = _immediate_public_method_in_chain<OfClass, Tag, CastTo>;
+  using immediate_chain_item_with_cast_to = _immediate_public_method_in_chain<
+    OfClass,
+    Tag,
+    CastTo
+  >;
 };
 
 template <typename ClassName, typename... Args>
@@ -128,9 +162,10 @@ struct darma_class_helper {
   template <template <class...> class template_tag>
   using _template_tag_args_vector_joined = typename tinympl::left_fold<
     // prepend two empty lists so that the fold still works even if the args list is empty
-    typename tinympl::push_front<typename tinympl::push_front<
-      _template_tag_args_list<template_tag>,
-      tinympl::vector<>>::type, tinympl::vector<>
+    typename tinympl::push_front<
+      typename tinympl::push_front<
+        _template_tag_args_list<template_tag>,
+        tinympl::vector<>>::type, tinympl::vector<>
     >::type,
     tinympl::join
   >::type;
@@ -141,10 +176,15 @@ struct darma_class_helper {
   template <template <class...> class RewrapWith>
   struct _make_access_handle_replacer {
     template <typename field_in_chain>
-    using apply = tinympl::identity<RewrapWith<
-      darma_runtime::AccessHandle<typename field_in_chain::type>,
-      typename field_in_chain::tag
-    >>;
+    using apply = tinympl::identity<
+      RewrapWith<
+        std::conditional_t<
+          is_darma_class<typename field_in_chain::type>::value,
+          typename field_in_chain::type,
+          darma_runtime::AccessHandle<typename field_in_chain::type>
+        >,
+        typename field_in_chain::tag
+      >>;
   };
 
   using _private_fields_vector = typename tinympl::transform<
@@ -216,12 +256,17 @@ struct darma_class_helper {
 
 template <typename T>
 struct darma_class_instance_delayed {
-  using type = std::decay_t<decltype(
-    _darma__get_associated_constructor(std::declval<T&>())
-  )>;
+  using type = std::decay_t<
+    decltype(
+      _darma__get_associated_constructor(std::declval<T&>())
+    )
+  >;
 };
 
 } // end namespace detail
+
+template <typename T>
+using darma_class_instance = typename detail::darma_class_instance_delayed<T>::type;
 
 template <typename ClassName, typename... Args>
 struct darma_class
@@ -235,7 +280,7 @@ struct darma_class
     )>;
 
     // Clang needs this extra layer of abstraction to make SFINAE work
-    // since ClassName##_constructors is an incomplete class
+    // since ClassName##_constructors could be an incomplete class
     template <typename _Tp, typename... _Ignored_SFINAE>
     struct _ctor_impl_exists {
       using type = typename _constructor_implementation_type<_Tp, _Ignored_SFINAE...>::darma_constructor;
@@ -248,55 +293,59 @@ struct darma_class
     >;
 
     template <typename T, typename... _Ignored_but_needed_for_SFINAE_to_work>
-    using constructor_implementation_type = darma_runtime::meta::detected_t<
-      _constructor_implementation_type, T, _Ignored_but_needed_for_SFINAE_to_work...
+    using constructor_implementation_type = tinympl::identity<
+      darma_runtime::meta::detected_t<
+        _constructor_implementation_type, T, _Ignored_but_needed_for_SFINAE_to_work...
+      >
     >;
+
     template <typename T, typename... CTorArgs>
     using _constructor_implementation_callable = decltype(
-      std::declval<constructor_implementation_type<T, CTorArgs...>&>()(
+      std::declval<typename constructor_implementation_type<T, CTorArgs...>::type>()(
         std::declval<CTorArgs>()...
       )
     );
     template <typename T, typename... CTorArgs>
-    using constructor_implementation_callable = darma_runtime::meta::is_detected_exact<
-      void, _constructor_implementation_callable, T, CTorArgs...
-    >;
-    template <typename T, typename... IgnoredSFINAE>
-    using _default_constructor_implementation_callable = decltype(
-      std::declval<constructor_implementation_type<T, IgnoredSFINAE...>&>()()
-    );
-    template <typename T, typename... IgnoredSFINAE>
-    using default_constructor_implementation_callable = darma_runtime::meta::is_detected_exact<
-      void, _default_constructor_implementation_callable, T, IgnoredSFINAE...
+    using constructor_implementation_callable = tinympl::value_identity<
+      darma_runtime::meta::is_detected<
+        _constructor_implementation_callable, T, CTorArgs...
+      >
     >;
 
+    //template <typename T, typename... IgnoredSFINAE>
+    //using _default_constructor_implementation_callable = decltype(
+    //  std::declval<
+    //    typename constructor_implementation_type<T, IgnoredSFINAE...>::type
+    //  >().operator()()
+    //);
+    //template <typename T, typename... IgnoredSFINAE>
+    //using default_constructor_implementation_callable = tinympl::value_identity<
+    //  darma_runtime::meta::is_detected<
+    //    _default_constructor_implementation_callable, T, IgnoredSFINAE...
+    //  >
+    //>;
+
   public:
+
+    using _darma__this_is_a_complete_darma_class = std::true_type;
 
     using helper_t = detail::darma_class_helper<ClassName, Args...>;
     using base_t = typename helper_t::base_class;
 
-    //friend constructor_implementation_type<ClassName>;
-
-    //darma_class() = default;
+    darma_class() = default;
     darma_class(darma_class&&) = default;
     darma_class(darma_class const&) = default;
+    darma_class& operator=(darma_class&&) = default;
+    darma_class& operator=(darma_class const&) = default;
 
     // Only used in detection, so shouldn't be implemented
     darma_class(detail::oo_sentinel_value_t const&);
-
-    template <typename _IgnoredButNeededForSFINAE = void,
-      typename = std::enable_if_t<
-        not default_constructor_implementation_callable<ClassName, _IgnoredButNeededForSFINAE>::value
-        and std::is_void<_IgnoredButNeededForSFINAE>::value
-      >
-    >
-    darma_class() : base_t()
-    { }
 
     // Forward to a constructor, if available
     template <typename... CTorArgs,
       typename = std::enable_if_t<
         constructor_implementation_callable<ClassName, CTorArgs...>::value
+        and sizeof...(CTorArgs) != 0
         and not std::is_same<
           std::decay_t<tinympl::variadic::at_or_t<meta::nonesuch, 0, CTorArgs...>>,
           ClassName
@@ -308,7 +357,7 @@ struct darma_class
       >
     >
     darma_class(CTorArgs&&... args) {
-      static_cast<constructor_implementation_type<ClassName>*>(this)->operator()(
+      static_cast<typename constructor_implementation_type<ClassName>::type*>(this)->operator()(
         std::forward<CTorArgs>(args)...
       );
     };
@@ -366,19 +415,16 @@ struct darma_class
       >
     >
     darma_class(ClassTypeDeduced&& other) {
-      static_cast<constructor_implementation_type<ClassName>*>(this)->operator()(
+      static_cast<typename constructor_implementation_type<ClassName>::type*>(this)->operator()(
         static_cast<
           typename tinympl::copy_all_type_properties<ClassTypeDeduced>::template apply<
-            constructor_implementation_type<ClassName>
+            typename constructor_implementation_type<ClassName>::type
           >::type
         >(std::forward<ClassTypeDeduced>(other))
       );
     };
 
 };
-
-template <typename T>
-using darma_class_instance = typename detail::darma_class_instance_delayed<T>::type;
 
 } // end namespace oo
 } // end namespace darma_runtime

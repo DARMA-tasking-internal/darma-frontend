@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      test_create_condition.cc
+//                      all_keyword_arguments.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,76 +42,13 @@
 //@HEADER
 */
 
-#include <gtest/gtest.h>
+#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ALL_KEYWORD_ARGUMENTS_H
+#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ALL_KEYWORD_ARGUMENTS_H
 
-#include "mock_backend.h"
-#include "test_frontend.h"
+#include <darma/interface/app/keyword_arguments/version.h>
+#include <darma/interface/app/keyword_arguments/n_readers.h>
+#include <darma/interface/app/keyword_arguments/name.h>
+#include <darma/interface/app/keyword_arguments/unless.h>
+#include <darma/interface/app/keyword_arguments/only_if.h>
 
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_condition.h>
-
-////////////////////////////////////////////////////////////////////////////////
-
-class TestCreateCondition
-  : public TestFrontend
-{
-  protected:
-
-    virtual void SetUp() {
-      using namespace ::testing;
-
-      setup_mock_runtime<::testing::NiceMock>();
-      TestFrontend::SetUp();
-      ON_CALL(*mock_runtime, get_running_task())
-        .WillByDefault(Return(top_level_task.get()));
-    }
-
-    virtual void TearDown() {
-      TestFrontend::TearDown();
-    }
-
-};
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestCreateCondition, ro_capture_MN) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace mock_backend;
-
-  mock_runtime->save_tasks = true;
-
-  MockFlow fl_init, fl_null;
-  use_t* task_use;
-
-  int value = 42;
-
-  expect_initial_access(fl_init, fl_null, make_key("hello"));
-
-  EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(
-      &fl_init, &fl_init, use_t::None, use_t::Read
-    )
-  )).WillOnce(SaveArg<0>(&task_use));
-
-  EXPECT_CALL(*mock_runtime, register_condition_task_gmock_proxy(
-    UseInGetDependencies(ByRef(task_use))
-  )).Times(1).WillOnce(Invoke([&](auto* cond_task) {
-    task_use->get_data_pointer_reference() = (void*)&value;
-    return cond_task->template run<bool>();
-  }));
-
-  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(task_use))));
-
-  {
-    auto tmp = initial_access<int>("hello");
-
-    if(not create_condition([=]{ return tmp.get_value() == 42; })) {
-      FAIL() << "create_condition should have returned true";
-    }
-
-  }
-
-}
+#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ALL_KEYWORD_ARGUMENTS_H

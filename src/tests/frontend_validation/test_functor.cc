@@ -113,6 +113,30 @@ struct SimpleReadOnlyFunctorConvert {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct SimpleReadOnlyFunctorConvertValue {
+  void
+  operator()(
+    int arg,
+    int handle
+  ) const {
+    // Do nothing for now...
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct SimpleReadOnlyFunctorConvertLong {
+  void
+  operator()(
+    int arg,
+    long handle
+  ) const {
+    // Do nothing for now...
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct SimpleFunctorNonConstLvalue {
   void
   operator()(
@@ -132,46 +156,6 @@ struct SimplerFunctor {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestFunctor, simple) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace mock_backend;
-
-  static_assert(std::is_convertible<meta::any_arg, AccessHandle<int>>::value, "any_arg not convertible!");
-
-  mock_runtime->save_tasks = true;
-
-  MockFlow fl_init[2], fl_cap[2], fl_con[2];
-  use_t* uses[3];
-
-  expect_initial_access(fl_init[0], fl_init[1], uses[0], make_key("hello"));
-  expect_mod_capture_MN_or_MR(
-    fl_init, fl_cap, fl_con, uses
-  );
-
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(uses[1]))))
-    .Times(1);
-
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[1])),
-    IsUseWithFlows(&fl_cap[0], &fl_cap[1], use_t::Modify, use_t::Modify)
-  ))).Times(1)
-    .WillOnce(Assign(&uses[1], nullptr));
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[2])),
-    IsUseWithFlows(&fl_con[0], &fl_con[1], use_t::Modify, use_t::None)
-  ))).Times(1)
-    .WillOnce(Assign(&uses[2], nullptr));
-
-  {
-    auto tmp = initial_access<int>("hello");
-    create_work<SimpleFunctor>(15, tmp);
-  }
-
-  run_all_tasks();
-
-}
-
-//////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestFunctor, simpler) {
   using namespace ::testing;
@@ -193,197 +177,209 @@ TEST_F(TestFunctor, simpler) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestFunctor, simple_read) {
+TEST_F(TestFunctor, simpler_named) {
   using namespace ::testing;
-  using namespace mock_backend;
+  testing::internal::CaptureStdout();
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
 
   mock_runtime->save_tasks = true;
 
-  Sequence s_register_cap;
-
-  MockFlow fl_init[2], fl_cap[2];
-  use_t* uses[2];
-
-  expect_initial_access(fl_init[0], fl_init[1], uses[0], make_key("hello"), s_register_cap);
-  expect_ro_capture_RN_RR_MN_or_MR(fl_init, fl_cap, uses, s_register_cap);
-
-  {
-    auto tmp = initial_access<int>("hello");
-    create_work<SimpleFunctor>(15, reads(tmp));
-  }
-
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[1])),
-    IsUseWithFlows(&fl_cap[0], &fl_cap[1], use_t::Read, use_t::Read)
-  ))).Times(1).InSequence(s_register_cap);
-
-  run_all_tasks();
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestFunctor, simple_read_only) {
-  using namespace ::testing;
-  using namespace mock_backend;
-  using namespace darma_runtime;
-  using namespace darma_runtime::detail;
-
-  mock_runtime->save_tasks = true;
-
-  Sequence s_register_cap;
-
-  MockFlow fl_init[2], fl_cap[2];
-  use_t* uses[2];
-
-  expect_initial_access(fl_init[0], fl_init[1], uses[0], make_key("hello"), s_register_cap);
-  expect_ro_capture_RN_RR_MN_or_MR(fl_init, fl_cap, uses, s_register_cap);
-
-
-  {
-    auto tmp = initial_access<int>("hello");
-
-    // Static assert that the correct arg_tuple_entry is deduced
-    StaticAssertTypeEq<
-      typename functor_call_traits<SimpleReadOnlyFunctor, decltype((15)), decltype((tmp))>
-        ::template call_arg_traits<1>::args_tuple_entry,
-      ReadAccessHandle<int>
-    >();
-
-    create_work<SimpleReadOnlyFunctor>(15, tmp);
-  }
-
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[1])),
-    IsUseWithFlows(&fl_cap[0], &fl_cap[1], use_t::Read, use_t::Read)
-  ))).Times(1).InSequence(s_register_cap);
-
-  run_all_tasks();
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestFunctor, simple_read_only_convert) {
-  using namespace ::testing;
-  using namespace mock_backend;
-  using namespace darma_runtime;
-  using namespace darma_runtime::detail;
-
-  mock_runtime->save_tasks = true;
-
-  Sequence s_register_cap;
-
-  MockFlow fl_init[2], fl_cap[2];
-  use_t* uses[2];
-
-  expect_initial_access(fl_init[0], fl_init[1], uses[0], make_key("hello"), s_register_cap);
-  expect_ro_capture_RN_RR_MN_or_MR(fl_init, fl_cap, uses, s_register_cap);
-
-  {
-    auto tmp = initial_access<int>("hello");
-
-    // Static assert that the correct arg_tuple_entry is deduced
-    StaticAssertTypeEq<
-      typename functor_call_traits<SimpleReadOnlyFunctorConvert, decltype((15)), decltype((tmp))>
-      ::template call_arg_traits<1>::args_tuple_entry,
-      typename ReadAccessHandle<int>::template with_traits<
-        // Also a leaf...
-        typename ReadAccessHandle<int>::traits
-          ::template with_min_schedule_permissions<AccessHandlePermissions::None>::type
-          ::template with_max_schedule_permissions<AccessHandlePermissions::None>::type
-      >
-    >();
-
-    create_work<SimpleReadOnlyFunctorConvert>(15, tmp);
-  }
-
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[1])),
-    IsUseWithFlows(&fl_cap[0], &fl_cap[1], use_t::Read, use_t::Read)
-  ))).Times(1).InSequence(s_register_cap);
-
-  run_all_tasks();
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestFunctor, simple_mod_convert) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace mock_backend;
-
-  mock_runtime->save_tasks = true;
-
-  MockFlow fl_init[2], fl_cap[2], fl_con[2];
-  use_t* uses[3];
-
-  expect_initial_access(fl_init[0], fl_init[1], uses[0], make_key("hello"));
-  expect_mod_capture_MN_or_MR(
-    fl_init, fl_cap, fl_con, uses
-  );
-
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(uses[1]))))
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(HasName(make_key("hello_task"))))
     .Times(1);
 
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[1])),
-    IsUseWithFlows(&fl_cap[0], &fl_cap[1], use_t::Modify, use_t::Modify)
-  ))).Times(1)
-    .WillOnce(Assign(&uses[1], nullptr));
-  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(uses[2])),
-    IsUseWithFlows(&fl_con[0], &fl_con[1], use_t::Modify, use_t::None)
-  ))).Times(1)
-    .WillOnce(Assign(&uses[2], nullptr));
+  create_work<SimplerFunctor>(name="hello_task");
+
+  run_all_tasks();
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "Hello World\n"
+  );
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+struct TestFunctorModCaptures
+  : TestFunctor,
+    ::testing::WithParamInterface<std::string>
+{ };
+
+TEST_P(TestFunctorModCaptures, Parametrized) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  static_assert(std::is_convertible<meta::any_arg, AccessHandle<int>>::value, "any_arg not convertible!");
+
+  mock_runtime->save_tasks = true;
+
+  std::string test_type = GetParam();
+
+  MockFlow f_initial, f_null, f_task_out;
+  use_t* task_use = nullptr;
+
+  expect_initial_access(f_initial, f_null, make_key("hello"));
+
+  //--------------------
+  // Expect mod capture:
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(&f_initial))
+    .WillOnce(Return(&f_task_out));
+
+  use_t::permissions_t expected_scheduling_permissions;
+  if(test_type == "simple_handle") {
+    expected_scheduling_permissions = use_t::Modify;
+  }
+  else {
+    expected_scheduling_permissions = use_t::None;
+  }
+
+  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
+    &f_initial, &f_task_out,
+    expected_scheduling_permissions,
+    use_t::Modify
+  ))).WillOnce(SaveArg<0>(&task_use));
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(
+    UseInGetDependencies(ByRef(task_use))
+  ));
+
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_task_out, &f_null));
+
+  // End expect mod capture
+  //--------------------
 
   {
     auto tmp = initial_access<int>("hello");
-    create_work<SimpleFunctorNonConstLvalue>(tmp);
+    if(test_type == "simple_handle") {
+      create_work<SimpleFunctor>(15, tmp);
+    }
+    else if(test_type == "convert") {
+      create_work<SimpleFunctorNonConstLvalue>(tmp);
+    }
+    else {
+      FAIL() << "unknown test type: " << test_type;
+    }
   }
+
+  EXPECT_CALL(*mock_runtime, release_use(task_use));
 
   run_all_tasks();
 
 }
 
+INSTANTIATE_TEST_CASE_P(
+  Parameterized,
+  TestFunctorModCaptures,
+  ::testing::Values(
+    "simple_handle",
+    "convert"
+  )
+);
+
 ////////////////////////////////////////////////////////////////////////////////
 
-// TODO test that replecates the problem that caused this to not compile
-//#include <darma.h>
-//using namespace darma_runtime;
-//
-//// this works fine
-//struct storeMessage{
-//  void operator()(AccessHandle<std::string> h) const{
-//    h.set_value("hello world!");
-//  }
-//};
-//// this works fine
-//struct storeMessage2{
-//  void operator()(std::string & mess) const{
-//    mess = "hello world!";
-//  }
-//};
-//
-//// this work fine
-//struct printMessage{
-//  void operator()(ReadAccessHandle<std::string> h) const{
-//    std::cout << h.get_value() << std::endl;
-//  }
-//};
-//// this gives compile time error that is attached
-//struct printMessage2{
-//  void operator()(std::string mess) const{
-//    std::cout << mess << std::endl;
-//  }
-//};
-//
-//TEST_F(TestFunctor, francesco)
-//{
-//  using namespace darma_runtime;
-//
-//
-//  // create handle to string variable
-//  auto greeting = initial_access<std::string>("myName", 42);
-//  create_work<storeMessage>(greeting);    // ok
-//  create_work<storeMessage2>(greeting);    // ok
-//  create_work<printMessage>(greeting);    // ok
-//  create_work<printMessage2>(greeting);  // compile time error
-//
-//}
+struct TestFunctorROCaptures
+  : TestFunctor,
+    ::testing::WithParamInterface<std::string>
+{ };
+
+TEST_P(TestFunctorROCaptures, Parameterized) {
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+
+  MockFlow fl_init, fl_null;
+  use_t* task_use = nullptr;
+
+  std::string test_type = GetParam();
+
+  Sequence s1;
+
+  expect_initial_access(fl_init, fl_null, make_key("hello"));
+
+  //--------------------
+  // Expect ro capture:
+
+  use_t::permissions_t expected_scheduling_permissions;
+  if(test_type == "convert" || test_type == "convert_value"
+    || test_type == "convert_long" || test_type == "convert_string") {
+    expected_scheduling_permissions = use_t::None;
+  }
+  else {
+    expected_scheduling_permissions = use_t::Read;
+  }
+
+  int data = 0;
+
+  EXPECT_CALL(*mock_runtime, register_use(
+    IsUseWithFlows(
+      &fl_init, &fl_init,
+      expected_scheduling_permissions,
+      use_t::Read
+    )
+  )).InSequence(s1).WillOnce(
+    Invoke([&](auto* use) {
+      use->get_data_pointer_reference() = (void*)(&data);
+      task_use = use;
+    })
+  );
+
+
+  EXPECT_CALL(*mock_runtime,
+    register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use)))
+  ).InSequence(s1);
+
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&fl_init, &fl_null))
+    .InSequence(s1);
+
+  // End expect ro capture
+  //--------------------
+
+  {
+    if (test_type == "explicit_read") {
+      auto tmp = initial_access<int>("hello");
+      create_work<SimpleFunctor>(15, reads(tmp));
+    }
+    else if (test_type == "read_only_handle") {
+      // Formal parameter is ReadOnlyAccessHandle<int>
+      auto tmp = initial_access<int>("hello");
+      create_work<SimpleReadOnlyFunctor>(15, tmp);
+    }
+    else if (test_type == "convert") {
+      // Formal parameter is a const lvalue reference
+      auto tmp = initial_access<int>("hello");
+      create_work<SimpleReadOnlyFunctorConvert>(15, tmp);
+    }
+    else if (test_type == "convert_value") {
+      // Formal parameter is by value
+      auto tmp = initial_access<int>("hello");
+      create_work<SimpleReadOnlyFunctorConvertValue>(15, tmp);
+    }
+    else if (test_type == "convert_long") {
+      // Formal parameter is by value and is of type long int
+      auto tmp = initial_access<int>("hello");
+      create_work<SimpleReadOnlyFunctorConvertLong>(15, tmp);
+    }
+  }
+
+  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(task_use)))).InSequence(s1);
+
+  run_all_tasks();
+
+}
+
+INSTANTIATE_TEST_CASE_P(
+  Parameterized,
+  TestFunctorROCaptures,
+  ::testing::Values(
+    "explicit_read",
+    "read_only_handle",
+    "convert",
+    "convert_value",
+    "convert_long"
+  )
+);
+
+////////////////////////////////////////////////////////////////////////////////
