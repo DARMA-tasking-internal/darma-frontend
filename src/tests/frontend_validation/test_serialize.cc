@@ -53,6 +53,8 @@
 #include <darma/impl/serialization/archive.h>
 #include <darma/impl/handle.h>
 
+#include "mock_backend.h"
+
 
 using namespace darma_runtime;
 using namespace darma_runtime::detail;
@@ -186,3 +188,56 @@ TEST_F(TestSerialize, unordered_map_simple) {
 STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::string, SimplePackUnpackArchive,
   "String should be serializable"
 );
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSerialize, vector_policy) {
+  using namespace std;
+  using namespace ::testing;
+  using namespace mock_backend;
+  using namespace darma_runtime;
+  using namespace darma_runtime::serialization;
+  using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+
+  vector<int> value = { 3, 1, 4, 1, 5, 9, 2, 6 };
+
+  // Simulate a zero-copy transfer as facilitated by the backend
+
+  MockSerializationPolicy ser_pol;
+  MockAllocationPolicy alloc_pol;
+
+  PolicyAwareArchive ar(&ser_pol, &alloc_pol);
+
+  EXPECT_CALL(ser_pol, packed_size_contribution_for_blob(value.data(), 8*sizeof(int)))
+    .WillOnce(Return(0));
+
+  ArchiveAccess::start_sizing(ar);
+  ar.incorporate_size(value);
+  size_t size = ArchiveAccess::get_size(ar);
+  ASSERT_THAT(size, Eq(sizeof(size_t)));
+
+  char buffer[8*sizeof(int)];
+
+  EXPECT_CALL(ser_pol, pack_blob(_, value.data(), 8*sizeof(int)))
+    .WillOnce(Invoke([&](void*& indirect_buff, void const* data, size_t nbytes){
+      memcpy(buffer, data, nbytes);
+    }));
+
+  char indirect_buff[256];
+  ArchiveAccess::set_buffer(ar, indirect_buff);
+  ArchiveAccess::start_packing(ar);
+  ar << value;
+
+  vector<int> value2;
+
+  EXPECT_CALL(ser_pol, unpack_blob(_, _, 8*sizeof(int)))
+    .WillOnce(Invoke([&](void*& indirect_buff, void* data, size_t nbytes){
+      memcpy(data, buffer, nbytes);
+    }));
+
+  ArchiveAccess::start_unpacking_with_buffer(ar, indirect_buff);
+  ar >> value2;
+
+  ASSERT_THAT(value2, ContainerEq(value));
+
+}

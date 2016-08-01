@@ -56,29 +56,29 @@ class ArchiveOperatorsMixin {
   public:
     template <typename T>
     inline ArchiveT&
-    operator<<(T &&val) {
-      static_cast<ArchiveT *>(this)->pack_item(std::forward<T>(val));
+    operator<<(T&& val) {
+      static_cast<ArchiveT *>(this)->pack_item(val);
       return *static_cast<ArchiveT *>(this);
     }
 
     template <typename T>
     inline ArchiveT&
     operator>>(T&& val) {
-      static_cast<ArchiveT*>(this)->unpack_item(std::forward<T>(val));
+      static_cast<ArchiveT*>(this)->unpack_item(val);
       return *static_cast<ArchiveT*>(this);
     }
 
     template <typename T>
     inline ArchiveT&
     operator%(T&& val) {
-      static_cast<ArchiveT*>(this)->incorporate_size(std::forward<T>(val));
+      static_cast<ArchiveT*>(this)->incorporate_size(val);
       return *static_cast<ArchiveT*>(this);
     }
 
     template <typename T>
     inline ArchiveT&
     operator|(T&& val) {
-      static_cast<ArchiveT *>(this)->serialize_item(std::forward<T>(val));
+      static_cast<ArchiveT *>(this)->serialize_item(val);
       return *static_cast<ArchiveT *>(this);
     }
 };
@@ -96,12 +96,12 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
     template <typename T>
     inline void
     _unpack_direct_if_possible(
-      T&& range, ArchiveT& ar, size_t size, std::true_type
+      T const& range, ArchiveT& ar, size_t size, std::true_type
     ) {
       // Assert that we have a contiguous iterator
       assert(
-        static_cast<typename std::decay_t<T>::value_type*>(std::addressof(*(range.end())))
-          - static_cast<typename std::decay_t<T>::value_type*>(std::addressof(*(range.begin())))
+        static_cast<typename std::decay_t<T>::value_type const*>(std::addressof(*(range.end())))
+          - static_cast<typename std::decay_t<T>::value_type const*>(std::addressof(*(range.begin())))
           == std::distance(range.begin(), range.end())
       );
       ar.template unpack_direct<typename std::decay_t<T>::value_type>(
@@ -112,7 +112,7 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
     template <typename T>
     inline void
     _unpack_direct_if_possible(
-      T&& range, ArchiveT& ar, size_t size, std::false_type
+      T const& range, ArchiveT& ar, size_t size, std::false_type
     ) {
       for(auto&& item : range) {
         ar.unpack_item(item);
@@ -122,12 +122,12 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
     template <typename T>
     inline void
     _pack_direct_if_possible(
-      T&& range, ArchiveT& ar, std::true_type
+      T const& range, ArchiveT& ar, std::true_type
     ) {
       // Assert that we have a contiguous iterator
       assert(
-        static_cast<typename std::decay_t<T>::value_type*>(std::addressof(*(range.end())))
-          - static_cast<typename std::decay_t<T>::value_type*>(std::addressof(*(range.begin())))
+        static_cast<typename std::decay_t<T>::value_type const*>(std::addressof(*(range.end())))
+          - static_cast<typename std::decay_t<T>::value_type const*>(std::addressof(*(range.begin())))
         == std::distance(range.begin(), range.end())
       );
       ar.pack_direct(range.begin(), range.end());
@@ -136,7 +136,7 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
     template <typename T>
     inline void
     _pack_direct_if_possible(
-      T&& range, ArchiveT& ar, std::false_type
+      T const& range, ArchiveT& ar, std::false_type
     ) {
       for(auto&& item : range) {
         ar.pack_item(item);
@@ -162,7 +162,7 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
       size_t size = 0;
       this_archive->unpack_item(size);
 
-      val.begin() = value_allocation_traits::allocate(*this_archive, size);
+      val.begin() = this_archive->template get_unpack_allocator<value_type>();
       val.end() = val.begin() + size;
 
       _unpack_direct_if_possible(std::forward<T>(val), *this_archive, size,
@@ -210,10 +210,12 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
     inline enabled_version<T, ArchiveT&>
     operator%(T&& val) {
       size_t size = std::distance(val.begin(), val.end());
-      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
+      ArchiveT* this_archive = static_cast<ArchiveT*>(this);
+      this_archive->incorporate_size(size);
+
       // This is really a "constexpr if"
       if(std::decay_t<T>::value_is_directly_serializable and std::decay_t<T>::is_contiguous) {
-        this_archive->add_to_size_direct(val.begin(), std::distance(val.begin(), val.end()));
+        this_archive->add_to_size_direct(val.begin(), size);
       }
       else {
         for(auto&& item : val) {

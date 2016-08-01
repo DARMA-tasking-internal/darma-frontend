@@ -205,7 +205,7 @@ struct ArchiveAccess {
     // Assert that we're not overwriting a buffer, at least until
     // a use case for that sort of thing comes up
     assert(ar.start == nullptr);
-    ar.start = ar.spot = (char* const)buffer;
+    (char*&)(ar.start) = (char*&)(ar.spot) = (char* const)buffer;
   }
   template <typename ArchiveT>
   static void* get_spot(ArchiveT& ar) {
@@ -214,7 +214,7 @@ struct ArchiveAccess {
   template <typename ArchiveT>
   static size_t get_size(ArchiveT& ar) {
     assert(ar.is_sizing());
-    return ar.spot - ar.start;
+    return static_cast<char*>(ar.spot) - static_cast<char*>(ar.start);
   }
   template <typename ArchiveT>
   static inline void
