@@ -47,6 +47,8 @@
 
 #include <type_traits>
 
+#include <tinympl/bool.hpp>
+
 #include "archive.h"
 #include <darma/interface/backend/allocation_policy.h>
 #include <darma/impl/serialization/allocator.h>
@@ -77,7 +79,6 @@ class PolicyAwareArchive
     using enable_if_serializable_and_not_darma_allocator = enable_if_serializable_and<T,
       not detail::is_darma_allocator<AllocatorT>::value
     >;
-
     template <typename T, typename AllocatorT>
     using enable_if_serializable_and_is_darma_allocator = enable_if_serializable_and<T,
       detail::is_darma_allocator<AllocatorT>::value
@@ -275,7 +276,7 @@ class PolicyAwareArchive
     template <typename T, typename WrappedAllocator>
     decltype(auto) get_unpack_allocator(WrappedAllocator&& alloc) {
       return _get_unpack_allocator_impl<T>(
-        std::integral_constant<bool,
+        tinympl::bool_<
           sizeof(darma_allocator<T, WrappedAllocator>) == sizeof(darma_allocator<void>)
             and std::is_empty<WrappedAllocator>::value
         >(),
@@ -288,9 +289,9 @@ class PolicyAwareArchive
 
   private:
 
-    template <typename T, typename WrappedAllocator, typename IgnoredCondition>
+    template <typename T, typename WrappedAllocator, typename _IgnoredCondition>
     auto& _get_unpack_allocator_impl(
-      std::true_type, IgnoredCondition,
+      std::true_type, _IgnoredCondition,
       WrappedAllocator&& alloc
     ) {
       return *reinterpret_cast<darma_allocator<T, WrappedAllocator>*>(&template_allocator_);

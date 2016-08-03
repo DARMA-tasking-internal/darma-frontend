@@ -50,10 +50,15 @@
 #include <vector>
 #include <string>
 
+#include <tinympl/logical_or.hpp>
+#include <tinympl/logical_and.hpp>
+#include <tinympl/delay.hpp>
+
 namespace darma_runtime {
 namespace meta {
 
 namespace detail {
+
 
 template <typename T, typename Enable = void>
 struct is_contiguous_iterator_enabled_if
@@ -69,7 +74,10 @@ struct _get_const_iterator {
   using type = typename T::const_iterator;
 };
 
-// vector specialization
+using tinympl::lazy;
+using tinympl::lazy_get_value;
+
+// vector and specializations
 template <typename Iterator>
 struct is_contiguous_iterator_enabled_if<Iterator,
   std::enable_if_t<
@@ -98,24 +106,19 @@ struct is_contiguous_iterator_enabled_if<Iterator,
         // so we can't just evaluate this willy-nilly.  This mess is a delayed
         // evaluation of the second condition (analogous to the one in the vector
         // specialization above)
-        tinympl::extract_value_potentially_lazy<
-          tinympl::delay<
-            std::is_same,
-            tinympl::delay<
-              _get_iterator,
-              tinympl::delay_instantiate<
-                std::basic_string,
-                std::remove_const<typename std::iterator_traits<Iterator>::value_type>,
-                tinympl::delay_instantiate<
-                  std::char_traits,
-                  std::remove_const<typename std::iterator_traits<Iterator>::value_type>
+        lazy_get_value<
+          lazy<std::is_same>::applied_to<Iterator,
+            lazy<_get_iterator>::applied_to<
+              lazy<std::basic_string>::instantiated_with<
+                std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>,
+                lazy<std::char_traits>::instantiated_with<
+                  std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>
                 >
-              >
-            >,
-            tinympl::identity<Iterator>
-          >
-        >
-      >,
+              > // end lazy string instantiation to get around static assertion
+            > // end lazy _get_iterator
+          > // end lazy is_same
+        > // end lazy_get_value
+      >, // end basic_string iterator case
       // Same as above, but with const_iterator instead
       tinympl::and_<
         std::is_pod<
@@ -125,24 +128,19 @@ struct is_contiguous_iterator_enabled_if<Iterator,
         // so we can't just evaluate this willy-nilly.  This mess is a delayed
         // evaluation of the second condition (analogous to the one in the vector
         // specialization above)
-        tinympl::extract_value_potentially_lazy<
-          tinympl::delay<
-            std::is_same,
-            tinympl::delay<
-              _get_const_iterator,
-              tinympl::delay_instantiate<
-                std::basic_string,
-                std::remove_const<typename std::iterator_traits<Iterator>::value_type>,
-                tinympl::delay_instantiate<
-                  std::char_traits,
-                  std::remove_const<typename std::iterator_traits<Iterator>::value_type>
+        lazy_get_value<
+          lazy<std::is_same>::applied_to<Iterator,
+            lazy<_get_const_iterator>::applied_to<
+              lazy<std::basic_string>::instantiated_with<
+                std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>,
+                lazy<std::char_traits>::instantiated_with<
+                  std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>
                 >
-              >
-            >,
-            tinympl::identity<Iterator>
-          >
-        >
-      >
+              > // end lazy string instantiation to get around static assertion
+            > // end lazy _get_iterator
+          > // end lazy is_same
+        > // end lazy_get_value
+      > // end basic_string iterator case
       //------------------------------------------------------------------------
     >::value
   >
@@ -171,16 +169,6 @@ template <typename T>
 struct is_contiguous_iterator<T* const>
   : std::true_type
 { };
-
-static_assert(
-  is_contiguous_iterator<typename std::vector<long>::iterator>::value,
-  "std::vector iterator should be contiguous"
-);
-
-static_assert(
-  is_contiguous_iterator<typename std::vector<const long>::iterator>::value,
-  "std::vector const_iterator should be contiguous"
-);
 
 } // end namespace meta
 } // end namespace darma_runtime

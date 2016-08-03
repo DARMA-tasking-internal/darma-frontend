@@ -57,7 +57,10 @@ namespace tinympl {
 
 //! \ingroup NewTypes
 //! Compile time bool
-template<bool i> using bool_ = std::integral_constant<bool,i>;
+template<bool i> using bool_ = std::integral_constant<bool, i>;
+
+template <bool i>
+using bool_constant = std::integral_constant<bool, i>;
 
 } // namespace tinympl
 

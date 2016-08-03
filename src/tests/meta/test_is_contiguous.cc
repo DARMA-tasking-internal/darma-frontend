@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          detection.hpp
-//                         tinympl
+//                      is_contiguous.cpp
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,68 +42,40 @@
 //@HEADER
 */
 
-#ifndef TINYMPL_DETECTION_H_
-#define TINYMPL_DETECTION_H_
+#include <vector>
+#include <string>
+#include <map>
 
-#include <type_traits>
+#include <darma/impl/meta/is_contiguous.h>
 
-#include <tinympl/void_t.hpp>
+using namespace darma_runtime::meta;
 
-namespace tinympl {
+static_assert(
+  is_contiguous_iterator<typename std::vector<long>::iterator>::value,
+  "std::vector iterator should be contiguous"
+);
 
-// Large pieces taken or adapted from http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4436.pdf
+static_assert(
+  is_contiguous_iterator<typename std::vector<const long>::iterator>::value,
+  "std::vector const_iterator should be contiguous"
+);
 
-// primary template handles all types not supporting the archetypal Op
-template <
-  class Default,
-  class _always_void,
-  template <class...> class Op,
-  class... Args
->
-struct detector {
-  constexpr static auto value = false;
-  using type = Default;
-};
+static_assert(
+  is_contiguous_iterator<typename std::string::iterator>::value,
+  "std::vector iterator should be contiguous"
+);
 
-// specialization recognizes and handles only types supporting Op
-template <
-  class Default,
-  template <class...> class Op,
-  class... Args
->
-struct detector<Default, void_t<Op<Args...>>, Op, Args...> {
-  constexpr static auto value = true;
-  using type = Op<Args...>;
-};
+static_assert(
+  is_contiguous_iterator<typename std::vector<const long>::iterator>::value,
+  "std::vector const_iterator should be contiguous"
+);
 
-struct nonesuch {
-  nonesuch() = delete;
-  ~nonesuch() = delete;
-  nonesuch(nonesuch const&) = delete;
-  void operator=(nonesuch const&) = delete;
-};
+static_assert(
+  not is_contiguous_iterator<typename std::map<int, int>::iterator>::value,
+  "std::map iterators should not be contiguous"
+);
 
-template <template <class...> class Op, class... Args>
-using is_detected = detector<nonesuch, void, Op, Args...>;
-
-template <template <class...> class Op, class... Args>
-using detected_t = typename is_detected<Op, Args...>::type;
-
-template <class Default, template <class...> class Op, class... Args>
-using detected_or = detector<Default, void, Op, Args...>;
-
-template <class Default, template <class...> class Op, class... Args>
-using detected_or_t = typename detected_or<Default, Op, Args...>::type;
-
-template <class Expected, template<class...> class Op, class... Args>
-using is_detected_exact = std::is_same<Expected, detected_t<Op, Args...>>;
-
-template <class To, template <class...> class Op, class... Args>
-using is_detected_convertible = std::is_convertible<detected_t<Op, Args...>, To>;
-
-
-} // end namespace tinympl
-
-
-
-#endif /* TINYMPL_DETECTION_H_ */
+static_assert(
+  is_contiguous_iterator<int*>::value,
+  "int* should be contiguous"
+);
