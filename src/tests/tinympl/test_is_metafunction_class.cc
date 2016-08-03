@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          detection.hpp
-//                         tinympl
+//                      test_is_metafunction_class.cc
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,68 +42,40 @@
 //@HEADER
 */
 
-#ifndef TINYMPL_DETECTION_H_
-#define TINYMPL_DETECTION_H_
+#include <tinympl/is_metafunction_class.hpp>
+#include <tinympl/vector.hpp>
+#include <tinympl/identity.hpp>
 
-#include <type_traits>
+#include "../metatest_helpers.h"
 
-#include <tinympl/void_t.hpp>
+#include <util/empty_main.h>
 
-namespace tinympl {
+using namespace tinympl;
 
-// Large pieces taken or adapted from http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4436.pdf
 
-// primary template handles all types not supporting the archetypal Op
-template <
-  class Default,
-  class _always_void,
-  template <class...> class Op,
-  class... Args
->
-struct detector {
-  constexpr static auto value = false;
-  using type = Default;
+struct MyTest {
+  template <typename... Args>
+  using apply = identity<void>;
 };
 
-// specialization recognizes and handles only types supporting Op
-template <
-  class Default,
-  template <class...> class Op,
-  class... Args
->
-struct detector<Default, void_t<Op<Args...>>, Op, Args...> {
-  constexpr static auto value = true;
-  using type = Op<Args...>;
+struct MyTest2 {
+  template <typename... Args>
+  using apply = identity<vector<Args...>>;
 };
 
-struct nonesuch {
-  nonesuch() = delete;
-  ~nonesuch() = delete;
-  nonesuch(nonesuch const&) = delete;
-  void operator=(nonesuch const&) = delete;
-};
+struct MyTest3 { };
 
-template <template <class...> class Op, class... Args>
-using is_detected = detector<nonesuch, void, Op, Args...>;
+static_assert(
+  is_metafunction_class<MyTest>::value,
+  "MyTest should be a metafunction class"
+);
 
-template <template <class...> class Op, class... Args>
-using detected_t = typename is_detected<Op, Args...>::type;
+static_assert(
+  is_metafunction_class<MyTest2>::value,
+  "MyTest2 should be a metafunction class"
+);
 
-template <class Default, template <class...> class Op, class... Args>
-using detected_or = detector<Default, void, Op, Args...>;
-
-template <class Default, template <class...> class Op, class... Args>
-using detected_or_t = typename detected_or<Default, Op, Args...>::type;
-
-template <class Expected, template<class...> class Op, class... Args>
-using is_detected_exact = std::is_same<Expected, detected_t<Op, Args...>>;
-
-template <class To, template <class...> class Op, class... Args>
-using is_detected_convertible = std::is_convertible<detected_t<Op, Args...>, To>;
-
-
-} // end namespace tinympl
-
-
-
-#endif /* TINYMPL_DETECTION_H_ */
+static_assert(
+  not is_metafunction_class<MyTest3>::value,
+  "MyTest3 should not be a metafunction class"
+);

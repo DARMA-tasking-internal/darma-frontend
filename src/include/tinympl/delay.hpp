@@ -47,6 +47,11 @@
 
 #include <tinympl/detection.hpp>
 #include <tinympl/identity.hpp>
+#include <tinympl/insert.hpp>
+#include <tinympl/vector.hpp>
+#include <tinympl/wrap.hpp>
+#include "is_instantiation_of.hpp"
+#include "is_metafunction_class.hpp"
 
 namespace tinympl {
 
@@ -64,6 +69,143 @@ struct delay {
     typename Types::type...
   >::type type;
 };
+
+template <typename... Args>
+struct delayed_arguments {
+  template <template <class...> class Metafunction>
+  struct apply_metafunction {
+    using type = typename Metafunction<Args...>::type;
+  };
+  template <typename MetafunctionClass>
+  struct apply_metafunction_class {
+    using type = typename MetafunctionClass::template apply<Args...>::type;
+  };
+  using type = tinympl::vector<Args...>;
+};
+
+
+
+namespace _impl {
+
+template <typename T>
+using _is_delayed_application_archetype = bool_< T::_tinympl__is_delayed_application >;
+
+template <typename T>
+using is_delayed_application = detected_or<std::false_type,
+  _is_delayed_application_archetype, T
+>;
+
+template <typename OuterMFC, typename UnwrappedArgsVector, typename... Args>
+struct _delay_all_helper;
+
+template <
+  typename OuterMFC, typename UnwrappedArgsVector,
+  typename InnerMFCOrNormalArg, typename PotentiallyWrappedDelayedArgs,
+  typename... Args
+>
+struct _delay_all_helper<
+  OuterMFC, UnwrappedArgsVector,
+  InnerMFCOrNormalArg, PotentiallyWrappedDelayedArgs, Args...
+>
+{
+  template <typename NormalArg, typename NextArg, typename Enable=void>
+  struct next_helper {
+    using type = typename _delay_all_helper<OuterMFC,
+      push_back_t<UnwrappedArgsVector, NormalArg>, NextArg, Args...
+    >::type;
+  };
+
+  template <typename DelayedArg, typename NextArg>
+  struct next_helper<DelayedArg, NextArg,
+    std::enable_if_t<is_delayed_application<DelayedArg>::value>
+  >
+  {
+    using type = typename _delay_all_helper<OuterMFC,
+      push_back_t<UnwrappedArgsVector, typename DelayedArg::type>,
+      NextArg, Args...
+    >::type;
+  };
+
+  template <typename InnerMFC, typename... WrappedArgs>
+  struct next_helper<InnerMFC, delayed_arguments<WrappedArgs...>> {
+    // TODO decide if it's a good idea to static_assert here, since it short-circuits SFINAE
+    static_assert(
+      is_metafunction_class<InnerMFC>::value,
+      "delayed_arguments given without a valid metafunction class preceding it"
+    );
+    using type = typename _delay_all_helper<OuterMFC,
+      push_back_t<UnwrappedArgsVector,
+        typename _delay_all_helper<InnerMFC, tinympl::vector<>,
+          WrappedArgs...
+        >::type
+      >, Args...
+    >::type;
+  };
+
+  using type = typename next_helper<
+    InnerMFCOrNormalArg, PotentiallyWrappedDelayedArgs
+  >::type;
+
+};
+
+template < typename OuterMFC, typename UnwrappedArgsVector, typename LastArg >
+struct _delay_all_helper<
+  OuterMFC, UnwrappedArgsVector, LastArg
+>
+{
+  using type = typename _delay_all_helper<OuterMFC,
+    push_back_t<UnwrappedArgsVector, LastArg>
+  >::type;
+};
+
+template <
+  typename OuterMFC, typename... UnwrappedArgs
+>
+struct _delay_all_helper<OuterMFC, tinympl::vector<UnwrappedArgs...>> {
+  using type = typename OuterMFC::template apply<UnwrappedArgs...>::type;
+};
+
+
+} // end namespace _impl
+
+template <typename MetafunctionClass, typename... WrappedArgs>
+struct delay_all {
+  using type = typename _impl::_delay_all_helper<
+    MetafunctionClass, tinympl::vector<>,
+    WrappedArgs...
+  >::type;
+};
+
+template <template <class...> class F>
+struct delayed_metafunction {
+  template <typename... Args>
+  struct applied_to {
+    static constexpr auto _tinympl__is_delayed_application = true;
+    using type = typename delay_all<
+      metafunction_wrap<F>, Args...
+    >::type;
+  };
+  template <typename... Args> using on = applied_to<Args...>;
+  template <typename... Args>
+  struct instantiated_with {
+    static constexpr auto _tinympl__is_delayed_application = true;
+    using type = typename delay_all<
+      wrap_instantiation<F>, Args...
+    >::type;
+  };
+  template <typename... Args> using of = instantiated_with<Args...>;
+};
+template <template <class...> class F>
+using lazy = delayed_metafunction<F>;
+
+template <typename T>
+struct delayed {
+  struct applied {
+    using type = typename T::type;
+  };
+  using lazy_get_type = applied;
+};
+
 
 template <
   template <class...> class F,
@@ -126,6 +268,8 @@ struct extract_value_potentially_lazy {
     using type = std::integral_constant<decltype(value), value>;
 
 };
+template <typename T>
+using lazy_get_value = extract_value_potentially_lazy<T>;
 
 template <typename T>
 struct extract_bool_value_potentially_lazy {

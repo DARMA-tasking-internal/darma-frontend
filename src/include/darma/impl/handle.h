@@ -51,6 +51,7 @@
 
 #include <tinympl/variadic/find_if.hpp>
 #include <tinympl/bind.hpp>
+#include <tinympl/identity.hpp>
 #include <tinympl/lambda.hpp>
 #include <tinympl/filter.hpp>
 #include <tinympl/logical_not.hpp>
@@ -216,6 +217,7 @@ struct ArchiveAccess {
     assert(ar.is_sizing());
     return static_cast<char*>(ar.spot) - static_cast<char*>(ar.start);
   }
+
   template <typename ArchiveT>
   static inline void
   start_sizing(ArchiveT& ar) {
@@ -345,13 +347,50 @@ class VariableHandle
       return sizeof(T);
     }
 
+  private:
+
+
+    using best_compatible_archive_t = tinympl::select_first_t<
+      typename serdes_traits::template is_serializable_with_archive<serialization::PolicyAwareArchive>,
+      serialization::PolicyAwareArchive,
+      typename serdes_traits::template is_serializable_with_archive<serialization::SimplePackUnpackArchive>,
+      serialization::SimplePackUnpackArchive
+    >;
+
+    serialization::PolicyAwareArchive
+    _get_best_compatible_archive(
+      tinympl::identity<serialization::PolicyAwareArchive>,
+      abstract::backend::SerializationPolicy* ser_pol,
+      abstract::backend::AllocationPolicy* alloc_pol = nullptr
+    ) const {
+      if(alloc_pol) {
+        return serialization::PolicyAwareArchive(ser_pol, alloc_pol);
+      } else {
+        return serialization::PolicyAwareArchive(ser_pol);
+      }
+    };
+
+    serialization::SimplePackUnpackArchive
+    _get_best_compatible_archive(
+      tinympl::identity<serialization::SimplePackUnpackArchive,
+      abstract::backend::SerializationPolicy* ser_pol,
+      abstract::backend::AllocationPolicy* alloc_pol = nullptr
+    ) const {
+      return serialization::SimplePackUnpackArchive{};
+    };
+
+
+  public:
+
     size_t
     get_packed_data_size(
       const void *const object_data,
       abstract::backend::SerializationPolicy* ser_pol
     ) const override {
-      serialization::Serializer<T> s{};
-      serialization::SimplePackUnpackArchive ar;
+      auto ar = _get_best_compatible_archive(
+        tinympl::identity<best_compatible_archive_t>,
+        ser_pol
+      );
       DependencyHandle_attorneys::ArchiveAccess::start_sizing(ar);
       serialization::detail::serializability_traits<T>::compute_size(
         *static_cast<T const* const>(object_data), ar
@@ -365,7 +404,10 @@ class VariableHandle
       void *const serialization_buffer,
       abstract::backend::SerializationPolicy* ser_pol
     ) const override {
-      serialization::SimplePackUnpackArchive ar;
+      auto ar = _get_best_compatible_archive(
+        tinympl::identity<best_compatible_archive_t>,
+        ser_pol
+      );
       DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, serialization_buffer);
       DependencyHandle_attorneys::ArchiveAccess::start_packing(ar);
       serialization::detail::serializability_traits<T>::pack(
@@ -380,7 +422,10 @@ class VariableHandle
       abstract::backend::SerializationPolicy* ser_pol,
       abstract::backend::AllocationPolicy* alloc_pol
     ) const override {
-      serialization::SimplePackUnpackArchive ar;
+      auto ar = _get_best_compatible_archive(
+        tinympl::identity<best_compatible_archive_t>,
+        ser_pol, alloc_pol
+      );
       // Need to cast away constness of the buffer because the Archive requires
       // a non-const buffer to be able to operate in pack mode (i.e., so that
       // the user can write one function for both serialization and deserialization)
