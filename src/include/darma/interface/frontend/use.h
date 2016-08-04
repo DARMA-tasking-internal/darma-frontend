@@ -48,7 +48,6 @@
 #include <darma/interface/frontend/frontend_fwd.h>
 
 #include <darma/interface/backend/flow.h>
-#include <darma/interface/backend/allocation_policy.h>
 
 #include "handle.h"
 

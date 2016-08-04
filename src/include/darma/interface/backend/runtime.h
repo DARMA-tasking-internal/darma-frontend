@@ -339,6 +339,29 @@ class Runtime {
       frontend::PublicationDetails* details
     ) =0;
 
+    /** @todo document this
+     *
+     * @param n_bytes
+     * @param details
+     * @return
+     */
+    virtual void*
+    allocate(
+      size_t n_bytes,
+      frontend::AllocationDetails const& details
+    ) =0;
+
+    /** @todo document this
+     *
+     * @param ptr
+     * @param n_bytes
+     */
+    virtual void
+    deallocate(
+      void* ptr,
+      size_t n_bytes
+    ) =0;
+
     /** @brief signifies the end of the outer SPMD task from which
      *  darma_backend_initialize() was called.
      *

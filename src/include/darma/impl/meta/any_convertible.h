@@ -45,6 +45,10 @@
 #ifndef DARMA_IMPL_META_ANY_CONVERTIBLE_H
 #define DARMA_IMPL_META_ANY_CONVERTIBLE_H
 
+#include <tinympl/bool.hpp>
+
+#include "is_callable.h"
+
 namespace darma_runtime {
 
 namespace meta {
@@ -56,6 +60,7 @@ namespace meta {
 //   http://stackoverflow.com/questions/36581303/counting-arguments-of-an-arbitrary-callable-with-the-c-detection-idiom
 // for this solution
 
+// Works for anything.  Used for counting
 struct any_arg {
   template <typename T>
   operator T();
@@ -65,6 +70,7 @@ struct any_arg {
   operator T&&() const;
 };
 
+// Should *ONLY* be ambiguous for value parameters
 struct ambiguous_if_by_value {
   template <typename T>
   operator T();
@@ -72,51 +78,17 @@ struct ambiguous_if_by_value {
   operator T&();
 };
 
-// Note that by value arguments (e.g., j in void foo(int j);) can be deduced from this
-// in clang, but cannot be deduced from this in gcc, so be super careful with this
-// (this is a known bug in gcc)
+// Note that by value arguments (e.g., j in void foo(int j);) can be deduced
+// from this in clang, but cannot be deduced from this in gcc, so be super
+// careful with this (this is a known bug in gcc)
 struct any_const_reference {
   template <typename T>
   operator const T&() const;
 };
 
-// Be careful!  This doesn't work with things like is_const or is_reference
-//template <
-//  template <class...> class UnaryMetafunction
-//>
-//struct any_arg_conditional {
-//  // Note that this first one is a non-const operator!  (This is the key to
-//  // the whole thing working)
-//  template <typename T,
-//    typename = std::enable_if_t<UnaryMetafunction<T>::value>
-//  >
-//  operator T();
-//
-//  template <typename T,
-//    typename = std::enable_if_t<UnaryMetafunction<const T>::value>
-//  >
-//  operator const T() const;
-//
-//  template <typename T,
-//    typename = std::enable_if_t<UnaryMetafunction<T&>::value>
-//  >
-//  operator T&() volatile;
-//
-//  template <typename T,
-//    typename = std::enable_if_t<UnaryMetafunction<const T&>::value>
-//  >
-//  operator const T&() const volatile;
-//
-//  template <typename T,
-//    // for now, leave off the rvalue reference for consistency between gcc and clang
-//    typename = std::enable_if_t<UnaryMetafunction<T>::value>
-//  >
-//  operator T&&() const volatile;
-//};
-
-template <
-  template <class...> class UnaryMetafunction
->
+// If unary metafunction is always_true, works for everything (but we separate
+// it from any_arg above for simplicity and compilation time efficiency)
+template < template <class...> class UnaryMetafunction >
 struct any_arg_conditional {
   template <typename T,
     typename = std::enable_if_t<UnaryMetafunction<T>::value>
@@ -133,6 +105,50 @@ struct any_arg_conditional {
   >
   operator T&&() const;
 };
+
+// Compiler bug workaround:
+namespace _impl {
+
+struct maybe_ambiguous_for_rvalue {
+  template <typename T>
+  operator T();
+  template <typename T>
+  operator T&&();
+};
+
+void _darma__unimplemented_test(int&&);
+
+using rvalue_ref_operator_needs_const_t = tinympl::bool_<not
+  is_callable_with_args<
+    decltype(_darma__unimplemented_test),
+    maybe_ambiguous_for_rvalue
+  >::value
+>;
+
+
+} // end namespace _impl
+
+struct any_nonconst_rvalue_reference {
+  template <typename T>
+  operator T();
+
+  template <typename T,
+    typename=std::enable_if_t<
+      not std::is_const<std::remove_reference_t<T>>::value
+        and _impl::rvalue_ref_operator_needs_const_t::value
+    >
+  >
+  operator const T&&();
+
+  template <typename T,
+    typename=std::enable_if_t<
+      not std::is_const<std::remove_reference_t<T>>::value
+      and not _impl::rvalue_ref_operator_needs_const_t::value
+    >
+  >
+  operator T&&();
+};
+
 
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////

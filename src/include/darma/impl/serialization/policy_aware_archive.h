@@ -50,8 +50,9 @@
 #include <tinympl/bool.hpp>
 
 #include "archive.h"
-#include <darma/interface/backend/allocation_policy.h>
+
 #include <darma/impl/serialization/allocator.h>
+#include <darma/impl/util/compressed_pair.h>
 
 namespace darma_runtime {
 namespace serialization {
@@ -84,9 +85,12 @@ class PolicyAwareArchive
       detail::is_darma_allocator<AllocatorT>::value
     >;
 
-    abstract::backend::SerializationPolicy const* serialization_policy_;
+    darma_runtime::detail::compressed_pair<
+      abstract::backend::SerializationPolicy const*,
+      darma_allocator<void>
+    > serialization_policy_and_allocator_;
 
-    darma_allocator<void> template_allocator_;
+
 
     void* start;
     void* spot;
@@ -96,18 +100,9 @@ class PolicyAwareArchive
     //------------------------------------------------------------------------//
 
     PolicyAwareArchive(
-      abstract::backend::SerializationPolicy* ser_pol,
-      abstract::backend::AllocationPolicy* alloc_policy
-    ) : serialization_policy_(ser_pol),
-      template_allocator_(alloc_policy)
-    { }
-
-    explicit
-    PolicyAwareArchive(
       abstract::backend::SerializationPolicy* ser_pol
-    ) : PolicyAwareArchive(ser_pol, nullptr)
+    ) : serialization_policy_and_allocator_(ser_pol, darma_allocator<void>())
     { }
-
 
     //------------------------------------------------------------------------//
 
