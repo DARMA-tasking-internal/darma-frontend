@@ -110,7 +110,8 @@ class MockRuntime
     MOCK_METHOD2(establish_flow_alias, void(flow_t*, flow_t*));
     MOCK_METHOD1(release_use, void(use_t*));
     MOCK_METHOD2(publish_use, void(use_t*, publication_details_t*));
-    MOCK_METHOD2(allocate, void*(size_t, frontend::MemoryRequirementDetails const&));
+    MOCK_METHOD2(allocate, void*(size_t,
+      darma_runtime::abstract::frontend::MemoryRequirementDetails const&));
     MOCK_METHOD2(deallocate, void(void*, size_t));
 
 

@@ -204,9 +204,8 @@ TEST_F(TestSerialize, vector_policy) {
   // Simulate a zero-copy transfer as facilitated by the backend
 
   MockSerializationPolicy ser_pol;
-  MockAllocationPolicy alloc_pol;
 
-  PolicyAwareArchive ar(&ser_pol, &alloc_pol);
+  PolicyAwareArchive ar(&ser_pol);
 
   EXPECT_CALL(ser_pol, packed_size_contribution_for_blob(value.data(), 8*sizeof(int)))
     .WillOnce(Return(0));

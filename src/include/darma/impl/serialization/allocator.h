@@ -54,8 +54,45 @@ namespace darma_runtime {
 
 namespace serialization {
 
-/** @brief a abstract::backend::AllocationPolicy-aware allocator
- *
+namespace detail {
+
+template <
+  abstract::frontend::MemoryRequirementDetails::memory_type_hint_t type_hint,
+  abstract::frontend::MemoryRequirementDetails
+    ::memory_accessibility_importance_hint_t read_importance,
+  abstract::frontend::MemoryRequirementDetails
+    ::memory_accessibility_importance_hint_t write_importance
+>
+struct StaticMemoryRequirementDetails
+  : abstract::frontend::MemoryRequirementDetails
+{
+  memory_type_hint_t
+  get_type_hint() const override {
+    return type_hint;
+  }
+  memory_accessibility_importance_hint_t
+  get_read_accessibility_importance() const override {
+    return read_importance;
+  }
+  memory_accessibility_importance_hint_t
+  get_write_accessibility_importance() const override {
+    return write_importance;
+  }
+};
+
+using DefaultMemoryRequirementDetails = StaticMemoryRequirementDetails<
+  abstract::frontend::MemoryRequirementDetails::MemoryTypeHint::CPUMemory,
+  abstract::frontend::MemoryRequirementDetails
+    ::MemoryAccessibilityImportanceHint::Normal,
+  abstract::frontend::MemoryRequirementDetails
+    ::MemoryAccessibilityImportanceHint::Normal
+>;
+
+} // end namespace detail
+
+/** @brief An allocator that calls DARMA backend runtime allocate() and
+ *  deallocate() methods and defers to some other allocator for the rest
+ *  of the allocation functionality (by default, defers to std::allocator<T>)
  */
 template <typename T, typename BaseAllocator = std::allocator<T>>
 struct darma_allocator
@@ -86,7 +123,7 @@ struct darma_allocator
     pointer
     allocate(size_type n, const_void_pointer _ignored=nullptr) {
       darma_runtime::detail::backend_runtime->allocate(
-        n /* TODO allocation details */
+        n, detail::DefaultMemoryRequirementDetails{}
       );
     }
 
@@ -96,10 +133,6 @@ struct darma_allocator
         static_cast<void*>(ptr), n
       );
     }
-
-    abstract::backend::AllocationPolicy* policy() { return policy_; }
-    void set_policy(abstract::backend::AllocationPolicy* new_policy)
-    { policy_ = new_policy; }
 
 };
 
