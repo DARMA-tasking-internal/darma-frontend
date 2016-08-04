@@ -83,7 +83,9 @@ namespace frontend {
 class Use {
   public:
 
-    /** @brief An enumeration of the allowed values that immediate_permissions() and scheduling_permissions() can return
+    /**
+     * @brief An enumeration of the allowed values that immediate_permissions()
+     * and scheduling_permissions() can return
      */
     typedef enum Permissions {
       None=0,   /*!< A Use may not perform any operations (read or write). Usually only immediate_permissions will be None */
@@ -138,16 +140,6 @@ class Use {
      */
     virtual void*&
     get_data_pointer_reference() =0;
-
-    // TODO discuss whether this should be a shared pointer or something
-    /** @todo document this
-     *
-     *  @param alloc_policy
-     */
-    virtual void
-    set_allocation_policy(
-      backend::AllocationPolicy* alloc_policy
-    ) =0;
 
 };
 
