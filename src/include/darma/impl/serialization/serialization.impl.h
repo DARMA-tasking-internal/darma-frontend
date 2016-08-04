@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma_types.h
-//                         dharma_new
+//                      serialization.impl.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,9 @@
 //@HEADER
 */
 
-#ifndef SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
-#define SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
+#ifndef DARMA_IMPL_SERIALIZATION_SERIALIZATION_IMPL_H
+#define DARMA_IMPL_SERIALIZATION_SERIALIZATION_IMPL_H
 
-#define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
+#include "allocator.impl.h"
 
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#define DARMA_THREAD_LOCAL_BACKEND_RUNTIME thread_local
-#endif
-
-#include <darma/interface/defaults/pointers.h>
-
-#include <darma/impl/key/simple_key_fwd.h>
-
-namespace darma_runtime { namespace types {
-  typedef darma_runtime::detail::SimpleKey key_t;
-}} // end namespace darma_runtime::types
-
-#include <darma/impl/key/simple_key.h>
-
-#endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */
+#endif //DARMA_IMPL_SERIALIZATION_SERIALIZATION_IMPL_H

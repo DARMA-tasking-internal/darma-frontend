@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma_types.h
-//                         dharma_new
+//                      allocator.impl.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,38 @@
 //@HEADER
 */
 
-#ifndef SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
-#define SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
+#ifndef DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H
+#define DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H
 
-#define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
+#include <darma/impl/runtime.h>
 
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#define DARMA_THREAD_LOCAL_BACKEND_RUNTIME thread_local
-#endif
+#include "allocator.h"
 
-#include <darma/interface/defaults/pointers.h>
+namespace darma_runtime {
+namespace serialization {
 
-#include <darma/impl/key/simple_key_fwd.h>
+template <typename T, typename BaseAllocator>
+typename darma_allocator<T, BaseAllocator>::pointer
+darma_allocator<T, BaseAllocator>::allocate(
+  size_type n, const_void_pointer _ignored
+) {
+  darma_runtime::detail::backend_runtime->allocate(
+    n*sizeof(T), detail::DefaultMemoryRequirementDetails{}
+  );
+};
 
-namespace darma_runtime { namespace types {
-  typedef darma_runtime::detail::SimpleKey key_t;
-}} // end namespace darma_runtime::types
+template <typename T, typename BaseAllocator>
+void
+darma_allocator<T, BaseAllocator>::deallocate(
+  pointer ptr, size_type n
+) noexcept {
+  darma_runtime::detail::backend_runtime->deallocate(
+    static_cast<void*>(ptr), n*sizeof(T)
+  );
+};
 
-#include <darma/impl/key/simple_key.h>
+} // end namespace serialization
+} // end namespace darma_runtime
 
-#endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */
+
+#endif //DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H

@@ -88,10 +88,14 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
   private:
     template <typename T>
     using enable_condition = tinympl::is_instantiation_of<SerDesRange, T>;
+
     template <typename T, typename ReturnValue = void>
-    using enabled_version = enable_if_t<enable_condition<T>::value, ReturnValue>;
+    using enabled_version =
+      std::enable_if_t<enable_condition<T>::value, ReturnValue>;
+
     template <typename T, typename ReturnValue = void>
-    using disabled_version = enable_if_t<not enable_condition<T>::value, ReturnValue>;
+    using disabled_version =
+      std::enable_if_t<not enable_condition<T>::value, ReturnValue>;
 
     template <typename T>
     inline void
@@ -100,9 +104,11 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
     ) {
       // Assert that we have a contiguous iterator
       assert(
-        static_cast<typename std::decay_t<T>::value_type const*>(std::addressof(*(range.end())))
-          - static_cast<typename std::decay_t<T>::value_type const*>(std::addressof(*(range.begin())))
-          == std::distance(range.begin(), range.end())
+        static_cast<typename std::decay_t<T>::value_type const*>(
+          std::addressof(*(range.end()))
+        ) - static_cast<typename std::decay_t<T>::value_type const*>(
+          std::addressof(*(range.begin()))
+        ) == std::distance(range.begin(), range.end())
       );
       ar.template unpack_direct<typename std::decay_t<T>::value_type>(
         range.begin(), size

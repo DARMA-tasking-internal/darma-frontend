@@ -50,6 +50,8 @@
 
 #include <darma/impl/util/compressed_pair.h>
 
+#include <darma/interface/frontend/memory_requirement_details.h>
+
 namespace darma_runtime {
 
 namespace serialization {
@@ -121,18 +123,10 @@ struct darma_allocator
     struct rebind { using other = darma_allocator<U>; };
 
     pointer
-    allocate(size_type n, const_void_pointer _ignored=nullptr) {
-      darma_runtime::detail::backend_runtime->allocate(
-        n, detail::DefaultMemoryRequirementDetails{}
-      );
-    }
+    allocate(size_type n, const_void_pointer _ignored=nullptr);
 
     void
-    deallocate(pointer ptr, size_type n) noexcept {
-      darma_runtime::detail::backend_runtime->deallocate(
-        static_cast<void*>(ptr), n
-      );
-    }
+    deallocate(pointer ptr, size_type n) noexcept;
 
 };
 
