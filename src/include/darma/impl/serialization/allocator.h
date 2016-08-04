@@ -48,7 +48,6 @@
 #include <memory>
 #include <cassert>
 
-#include <darma/interface/backend/allocation_policy.h>
 #include <darma/impl/util/compressed_pair.h>
 
 namespace darma_runtime {
@@ -65,8 +64,6 @@ struct darma_allocator
   private:
 
     using base_t = typename std::allocator_traits<BaseAllocator>::template rebind_alloc<T>;
-
-    abstract::backend::AllocationPolicy* policy_;
 
     using base_traits_t = std::allocator_traits<base_t>;
 
@@ -86,29 +83,18 @@ struct darma_allocator
     template <typename U>
     struct rebind { using other = darma_allocator<U>; };
 
-    explicit
-    darma_allocator(abstract::backend::AllocationPolicy* policy)
-      : policy_(policy)
-    { }
-
-    template <typename BaseAllocatorConvertible>
-    darma_allocator(
-      abstract::backend::AllocationPolicy* policy,
-      BaseAllocatorConvertible&& base_allocator
-    ) : policy_(policy),
-        base_t(std::forward<BaseAllocatorConvertible>(base_allocator))
-    { }
-
     pointer
     allocate(size_type n, const_void_pointer _ignored=nullptr) {
-      if(policy()) policy()->allocate( sizeof(T) * n );
-      else base_traits_t::allocate(*static_cast<base_t*>(this), n, _ignored);
+      darma_runtime::detail::backend_runtime->allocate(
+        n /* TODO allocation details */
+      );
     }
 
     void
     deallocate(pointer ptr, size_type n) noexcept {
-      if(policy_) policy_->deallocate( ptr, sizeof(T) * n );
-      else this->base_t::deallocate(ptr, n);
+      darma_runtime::detail::backend_runtime->deallocate(
+        static_cast<void*>(ptr), n
+      );
     }
 
     abstract::backend::AllocationPolicy* policy() { return policy_; }

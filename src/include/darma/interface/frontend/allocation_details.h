@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      allocation_policy.h
+//                      allocation_details.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,44 +42,19 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_BACKEND_ALLOCATION_POLICY_H
-#define DARMA_INTERFACE_BACKEND_ALLOCATION_POLICY_H
+#ifndef DARMA_INTERFACE_FRONTEND_ALLOCATION_DETAILS_H
+#define DARMA_INTERFACE_FRONTEND_ALLOCATION_DETAILS_H
 
 namespace darma_runtime {
 namespace abstract {
-namespace backend {
+namespace frontend {
 
-/** @todo document this
- *
- */
-struct AllocationPolicy {
-  public:
+struct AllocationDetails {
 
-    /** @todo document this
-     *
-     * @param n_bytes
-     * @return
-     */
-    virtual void*
-    allocate(
-      std::size_t n_bytes
-    ) =0;
-
-    /** @todo document this
-     *
-     * @param data
-     * @param nbytes
-     */
-    virtual void
-    deallocate(
-      void* data,
-      std::size_t nbytes
-    ) =0;
 };
 
-
-} // end namespace backend
+} // end namespace frontend
 } // end namespace abstract
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_BACKEND_ALLOCATION_POLICY_H
+#endif //DARMA_INTERFACE_FRONTEND_ALLOCATION_DETAILS_H

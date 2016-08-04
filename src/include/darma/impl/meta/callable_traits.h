@@ -61,25 +61,13 @@
 #include <darma/impl/util.h>
 
 #include "any_convertible.h"
+#include "is_callable.h"
 
 namespace darma_runtime {
 
 namespace meta {
 
 namespace _callable_traits_impl {
-
-
-////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="is_callable_with_args">
-
-template <typename F, typename... Args>
-using callable_with_args_archetype = decltype( std::declval<std::add_lvalue_reference_t<F>>()( std::declval<Args>()... ) );
-template <typename F, typename... Args>
-using is_callable_with_args = is_detected<callable_with_args_archetype, F, Args...>;
-
-// </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="count_min_args">
@@ -245,7 +233,6 @@ struct _callable_traits_maybe_min_eq_max<Callable, NArgs, NArgs> {
 
 // TODO make these work (or at least fail reasonably) for templated Callables and universal references
 
-// Note:: Not valid for lvalue references
 template <typename Callable>
 struct callable_traits
   : _callable_traits_impl::_callable_traits_maybe_min_eq_max<Callable,
@@ -260,6 +247,16 @@ struct callable_traits
     > base_t;
 
   public:
+
+    template <size_t N>
+    struct arg_n_is_nonconst_rvalue_reference
+      : _callable_traits_impl::is_callable_replace_arg_n<Callable,
+          any_nonconst_rvalue_reference,
+          any_arg,
+          N, 0, base_t::n_args_max
+        >
+    { };
+
 
     template <size_t N>
     struct arg_n_is_by_reference
@@ -318,7 +315,9 @@ struct callable_traits
     struct arg_n_is_nonconst_lvalue_reference
       // Process of elimination: it's a reference but it doesn't take a const reference
       : std::integral_constant<bool,
-          arg_n_is_by_reference<N>::value and not arg_n_accepts_const_reference<N>::value
+          arg_n_is_by_reference<N>::value
+            and not arg_n_accepts_const_reference<N>::value
+            and not arg_n_is_nonconst_rvalue_reference<N>::value
         >
     { };
 
