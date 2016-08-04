@@ -349,7 +349,6 @@ class VariableHandle
 
   private:
 
-
     using best_compatible_archive_t = tinympl::select_first_t<
       typename serdes_traits::template is_serializable_with_archive<serialization::PolicyAwareArchive>,
       serialization::PolicyAwareArchive,
@@ -360,25 +359,18 @@ class VariableHandle
     serialization::PolicyAwareArchive
     _get_best_compatible_archive(
       tinympl::identity<serialization::PolicyAwareArchive>,
-      abstract::backend::SerializationPolicy* ser_pol,
-      abstract::backend::AllocationPolicy* alloc_pol = nullptr
+      abstract::backend::SerializationPolicy* ser_pol
     ) const {
-      if(alloc_pol) {
-        return serialization::PolicyAwareArchive(ser_pol, alloc_pol);
-      } else {
-        return serialization::PolicyAwareArchive(ser_pol);
-      }
+      return serialization::PolicyAwareArchive(ser_pol);
     };
 
     serialization::SimplePackUnpackArchive
     _get_best_compatible_archive(
-      tinympl::identity<serialization::SimplePackUnpackArchive,
-      abstract::backend::SerializationPolicy* ser_pol,
-      abstract::backend::AllocationPolicy* alloc_pol = nullptr
+      tinympl::identity<serialization::SimplePackUnpackArchive>,
+      abstract::backend::SerializationPolicy* ser_pol
     ) const {
       return serialization::SimplePackUnpackArchive{};
     };
-
 
   public:
 
@@ -388,8 +380,7 @@ class VariableHandle
       abstract::backend::SerializationPolicy* ser_pol
     ) const override {
       auto ar = _get_best_compatible_archive(
-        tinympl::identity<best_compatible_archive_t>,
-        ser_pol
+        tinympl::identity<best_compatible_archive_t>{}, ser_pol
       );
       DependencyHandle_attorneys::ArchiveAccess::start_sizing(ar);
       serialization::detail::serializability_traits<T>::compute_size(
@@ -405,8 +396,7 @@ class VariableHandle
       abstract::backend::SerializationPolicy* ser_pol
     ) const override {
       auto ar = _get_best_compatible_archive(
-        tinympl::identity<best_compatible_archive_t>,
-        ser_pol
+        tinympl::identity<best_compatible_archive_t>{}, ser_pol
       );
       DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, serialization_buffer);
       DependencyHandle_attorneys::ArchiveAccess::start_packing(ar);
@@ -419,12 +409,10 @@ class VariableHandle
     unpack_data(
       void *const object_dest,
       const void *const serialized_data,
-      abstract::backend::SerializationPolicy* ser_pol,
-      abstract::backend::AllocationPolicy* alloc_pol
+      abstract::backend::SerializationPolicy* ser_pol
     ) const override {
       auto ar = _get_best_compatible_archive(
-        tinympl::identity<best_compatible_archive_t>,
-        ser_pol, alloc_pol
+        tinympl::identity<best_compatible_archive_t>{}, ser_pol
       );
       // Need to cast away constness of the buffer because the Archive requires
       // a non-const buffer to be able to operate in pack mode (i.e., so that

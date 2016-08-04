@@ -90,6 +90,11 @@ class PolicyAwareArchive
       darma_allocator<void>
     > serialization_policy_and_allocator_;
 
+    abstract::backend::SerializationPolicy const*
+    policy() { return serialization_policy_and_allocator_.first(); }
+
+    darma_allocator<void>&
+    template_allocator() { return serialization_policy_and_allocator_.second(); }
 
 
     void* start;
@@ -101,7 +106,7 @@ class PolicyAwareArchive
 
     PolicyAwareArchive(
       abstract::backend::SerializationPolicy* ser_pol
-    ) : serialization_policy_and_allocator_(ser_pol, darma_allocator<void>())
+    ) : serialization_policy_and_allocator_(ser_pol, darma_allocator<void>{})
     { }
 
     //------------------------------------------------------------------------//
@@ -178,7 +183,7 @@ class PolicyAwareArchive
     ) {
       assert(is_sizing());
       using value_type = typename std::iterator_traits<ContiguousIterator>::value_type;
-      size_t to_add = serialization_policy_->packed_size_contribution_for_blob(
+      size_t to_add = policy()->packed_size_contribution_for_blob(
         static_cast<void const*>(std::addressof(*begin)), N*sizeof(value_type)
       );
       spot = static_cast<char*>(spot) + to_add;
@@ -220,7 +225,7 @@ class PolicyAwareArchive
 
       using value_type = typename std::iterator_traits<ContiguousIterator>::value_type;
 
-      serialization_policy_->pack_blob(spot,
+      policy()->pack_blob(spot,
         static_cast<void const*>(std::addressof(*begin)),
         std::distance(begin, end) * sizeof(value_type)
       );
@@ -238,7 +243,7 @@ class PolicyAwareArchive
 
       using value_type = typename std::iterator_traits<ContiguousOutputIterator>::value_type;
 
-      serialization_policy_->unpack_blob(spot,
+      policy()->unpack_blob(spot,
         static_cast<void*>(std::addressof(*dest)),
         n_items * sizeof(value_type)
       );
@@ -253,7 +258,7 @@ class PolicyAwareArchive
     >
     auto&
     get_unpack_allocator() {
-      return *reinterpret_cast<darma_allocator<T>*>(&template_allocator_);
+      return *reinterpret_cast<darma_allocator<T>*>(&template_allocator());
     }
 
     template <typename T,
@@ -265,7 +270,7 @@ class PolicyAwareArchive
     get_unpack_allocator() {
       // Not safe to reinterpret-cast (could be specialized); need to create a
       // new instance
-      return darma_allocator<T>(template_allocator_.policy());
+      return darma_allocator<T>();
     }
 
     template <typename T, typename WrappedAllocator>
@@ -289,7 +294,7 @@ class PolicyAwareArchive
       std::true_type, _IgnoredCondition,
       WrappedAllocator&& alloc
     ) {
-      return *reinterpret_cast<darma_allocator<T, WrappedAllocator>*>(&template_allocator_);
+      return *reinterpret_cast<darma_allocator<T, WrappedAllocator>*>(&template_allocator());
     }
 
     template <typename T, typename WrappedAllocator>
@@ -297,9 +302,7 @@ class PolicyAwareArchive
       std::false_type, std::true_type,
       WrappedAllocator&& alloc
     ) {
-      // we just need a copy with a different policy
-      WrappedAllocator rv = std::forward<WrappedAllocator>(alloc);
-      rv.set_policy(template_allocator_.policy());
+      WrappedAllocator rv(std::forward<WrappedAllocator>(alloc));
       return rv;
     }
 
@@ -309,7 +312,7 @@ class PolicyAwareArchive
       WrappedAllocator&& alloc
     ) {
       // worst case, we have to make completely new one
-      return darma_allocator<T>(template_allocator_.policy(),
+      return darma_allocator<T>(
         std::forward<WrappedAllocator>(alloc)
       );
     }

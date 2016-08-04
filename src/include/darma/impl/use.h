@@ -101,13 +101,6 @@ class HandleUse
       return data_;
     }
 
-    void
-    set_allocation_policy(
-      abstract::backend::AllocationPolicy* pol
-    ) override {
-      abort();
-    }
-
     // </editor-fold>
     ////////////////////////////////////////
 
