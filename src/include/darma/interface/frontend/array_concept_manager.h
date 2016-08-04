@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      handle.h
+//                      array_concept_manager.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,46 +42,66 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_HANDLE_H
-#define DARMA_INTERFACE_FRONTEND_HANDLE_H
+#ifndef DARMA_INTERFACE_FRONTEND_ARRAY_CONCEPT_MANAGER_H
+#define DARMA_INTERFACE_FRONTEND_ARRAY_CONCEPT_MANAGER_H
 
-#include <darma/interface/frontend/serialization_manager.h>
-#include <darma/interface/frontend/array_concept_manager.h>
-#include <darma/interface/frontend/array_movement_manager.h>
-#include <darma_types.h>
+#include "element_range.h"
 
 namespace darma_runtime {
 namespace abstract {
 namespace frontend {
 
-/** @brief Encapsulates a named, mutable chunk of data which may be accessed by one or more tasks
- *  that use that data (or the privilege to schedule permissions on that data).
+/** @todo document this
  *
- *  A Handle represents an entity conceptually similar to a variable in a serial program.
  */
-class Handle {
+class ArrayConceptManager {
   public:
 
-  /**
-   * @brief get_key Returns a unique key. Multiple calls to this function on the same handle object must
-   * always return the same value
-   * @return A unique key identifying the tuple.
-   */
-  virtual types::key_t const&
-  get_key() const =0;
+    /** @todo
+     *
+     * @param obj
+     * @return
+     */
+    virtual size_t
+    n_elements(void const* obj) const =0;
 
-  /**
-   * @brief get_serialization_manager Returns a type-specific serialization manager. The object returned
-   * will be persistent as long as the Handle exists
-   * @return A type-specific serialization manager
-   */
-  virtual SerializationManager const*
-  get_serialization_manager() const =0;
+    /** @todo
+     *
+     * @param obj
+     * @param offset
+     * @param n_elem
+     * @return
+     */
+    virtual ElementRange
+    get_element_range(
+      void const* obj,
+      size_t offset, size_t n_elem
+    ) const =0;
 
+    /** @todo
+     *
+     * @param obj
+     * @param range
+     * @param offset
+     * @param size
+     */
+    virtual void
+    set_element_range(
+      void* obj,
+      ElementRange const& range,
+      size_t offset, size_t size
+    ) const =0;
+
+    /** @todo
+     *
+     * @return
+     */
+    virtual SerializationManager const*
+    get_element_serialization_manager() const =0;
 };
 
 } // end namespace frontend
 } // end namespace abstract
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_HANDLE_H
+#endif //DARMA_INTERFACE_FRONTEND_ARRAY_CONCEPT_MANAGER_H
