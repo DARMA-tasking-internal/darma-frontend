@@ -101,7 +101,9 @@ class ArchivePassthroughMixin {
     template <typename T>
     std::enable_if_t<is_serializable_with_this<T>::value>
     unpack_item(void* val) {
-      traits<T>::unpack( val, *static_cast<ArchiveT*>(this) );
+      traits<T>::unpack( val, *static_cast<ArchiveT*>(this),
+        darma_allocator<T>()
+      );
     }
 
     template <typename T, typename AllocatorT>
@@ -119,7 +121,8 @@ class ArchivePassthroughMixin {
         // May need to cast away constness if T is deduced to be const
         // TODO figure out where T is being deduced as const.  It shouldn't be
         const_cast<void*>(static_cast<const void*>(&val)),
-        *static_cast<ArchiveT*>(this)
+        *static_cast<ArchiveT*>(this),
+        darma_allocator<T>()
       );
     }
 

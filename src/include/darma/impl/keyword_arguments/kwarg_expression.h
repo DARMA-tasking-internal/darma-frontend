@@ -58,8 +58,7 @@ namespace darma_runtime {
 namespace detail {
 
 ////////////////////////////////////////////////////////////////////////////////
-
-/* typeless_kwarg_expression                                             {{{1 */ #if 1 // begin fold
+// <editor-fold desc="typeless_kwarg_expression">
 
 template <
   typename Rhs, typename KWArgName
@@ -141,14 +140,12 @@ class multiarg_typeless_kwarg_expression {
     }
 };
 
-/*                                                                            */ #endif // end fold
-
+// </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
 
 
 ////////////////////////////////////////////////////////////////////////////////
-
-/* is_kwarg_expression and is_kwarg_expression_with_tag                  {{{1 */ #if 1 // begin fold
+// <editor-fold desc="is_kwarg_expression and is_kwarg_expression_with_tag">
 
 template <class T>
 struct is_kwarg_expression
@@ -197,12 +194,11 @@ struct is_kwarg_expression_with_tag<
 > : public std::true_type
 { };
 
-/*                                                                            */ #endif // end fold
-
+// </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace detail
-} // end namespace darma_mockup
+} // end namespace darma_runtime
 
 
 

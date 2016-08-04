@@ -107,19 +107,27 @@ struct Serializer<std::vector<T, Allocator>>
       // The unpack corresponding to the SerDesRange-based pack
       size_t size = 0;
       ar.unpack_item(size);
+
       // Construct as a std::vector of char arrays of the right size so that
       // the memory gets allocated but the constructors don't get invoked
       // (the element unpacks will do this)
-      std::allocator_traits<std::decay_t<ParentAllocator>>::construct(
-        p_alloc, static_cast<
-          std::vector<
-            std::array<char, sizeof(value_type)>,
-            typename std::allocator_traits<Allocator>
-              ::template rebind_alloc<std::array<char, sizeof(value_type)>>
-          >*
-        >(allocated),
-        size, ar.template get_unpack_allocator<T>(Allocator())
+      using value_type_as_bytes = std::array<char, sizeof(value_type)>;
+      using allocator_of_bytes = typename std::allocator_traits<Allocator>
+        ::template rebind_alloc<value_type_as_bytes>;
+      using vector_of_bytes = std::vector<
+        value_type_as_bytes, allocator_of_bytes
+      >;
+      using parent_allocator = std::decay_t<ParentAllocator>;
+      // Don't rebind the parent allocator to vector_of_bytes, since the
+      // Allocator concept implies that the type of the argument pointer
+      // (rather than the allocator's value_type) should be used for
+      // construction.
+      // TODO handle all of the propagate_on_* typedefs from the standard
+      std::allocator_traits<parent_allocator>::construct(
+        p_alloc, static_cast<vector_of_bytes*>(allocated),
+        size, Allocator()
       );
+
       vector_t& v = *static_cast<vector_t*>(allocated);
       _unpack_contiguous_if_possible(
         std::integral_constant<bool, value_type_is_directly_serializable>(),

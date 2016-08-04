@@ -54,6 +54,7 @@
 #include <darma/impl/serialization/allocator.h>
 #include <darma/impl/util/compressed_pair.h>
 
+
 namespace darma_runtime {
 namespace serialization {
 
@@ -97,6 +98,7 @@ class PolicyAwareArchive
     template_allocator() { return serialization_policy_and_allocator_.second(); }
 
 
+
     void* start;
     void* spot;
 
@@ -108,63 +110,6 @@ class PolicyAwareArchive
       abstract::backend::SerializationPolicy* ser_pol
     ) : serialization_policy_and_allocator_(ser_pol, darma_allocator<void>{})
     { }
-
-    //------------------------------------------------------------------------//
-
-    // Need an AllocationPolicy-aware unpack_item
-
-    template <typename T>
-    enable_if_serializable<T>
-    unpack_item(void* val) {
-      traits<T>::unpack( val, *this, get_unpack_allocator<T>());
-    }
-
-    template <typename T, typename AllocatorT>
-    enable_if_serializable_and_not_darma_allocator<T, AllocatorT>
-    unpack_item(void* val, AllocatorT&& in_alloc) {
-      traits<T>::unpack( val, *this,
-        get_unpack_allocator<T>(std::forward<AllocatorT>(in_alloc))
-      );
-    };
-
-    template <typename T, typename AllocatorT>
-    enable_if_serializable_and_is_darma_allocator<T, AllocatorT>
-    unpack_item(void* val, AllocatorT&& in_alloc) {
-      // if the other's allocation policy is different, just use the other one,
-      // since someone who did this probably knows what they're doing
-      traits<T>::unpack( val, *this, std::forward<AllocatorT>(in_alloc) );
-    };
-
-    // Deduced overloads
-
-    template <typename T>
-    enable_if_serializable<T>
-    unpack_item(T& val) {
-      traits<T>::unpack(
-        const_cast<void*>(static_cast<const void*>(&val)),
-        *this, get_unpack_allocator<T>()
-      );
-    }
-
-    template <typename T, typename AllocatorT>
-    enable_if_serializable_and_not_darma_allocator<T, AllocatorT>
-    unpack_item(T& val, AllocatorT&& in_alloc) {
-      traits<T>::unpack(
-        const_cast<void*>(static_cast<const void*>(&val)),
-        *this, get_unpack_allocator<T>(std::forward<AllocatorT>(in_alloc))
-      );
-    };
-
-    template <typename T, typename AllocatorT>
-    enable_if_serializable_and_is_darma_allocator<T, AllocatorT>
-    unpack_item(T& val, AllocatorT&& in_alloc) {
-      // if the other's allocation policy is different, just use the other one,
-      // since someone who did this probably knows what they're doing
-      traits<T>::unpack(
-        const_cast<void*>(static_cast<const void*>(&val)),
-        *this, std::forward<AllocatorT>(in_alloc)
-      );
-    };
 
     //------------------------------------------------------------------------//
 
@@ -250,73 +195,6 @@ class PolicyAwareArchive
     }
 
     //------------------------------------------------------------------------//
-
-    template <typename T,
-      typename=std::enable_if_t<
-        sizeof(darma_allocator<T>) == sizeof(darma_allocator<void>)
-      >
-    >
-    auto&
-    get_unpack_allocator() {
-      return *reinterpret_cast<darma_allocator<T>*>(&template_allocator());
-    }
-
-    template <typename T,
-      typename=std::enable_if_t<
-        sizeof(darma_allocator<T>) != sizeof(darma_allocator<void>)
-      >
-    >
-    auto
-    get_unpack_allocator() {
-      // Not safe to reinterpret-cast (could be specialized); need to create a
-      // new instance
-      return darma_allocator<T>();
-    }
-
-    template <typename T, typename WrappedAllocator>
-    decltype(auto) get_unpack_allocator(WrappedAllocator&& alloc) {
-      return _get_unpack_allocator_impl<T>(
-        tinympl::bool_<
-          sizeof(darma_allocator<T, std::decay_t<WrappedAllocator>>)
-            == sizeof(darma_allocator<void>)
-          and std::is_empty<std::decay_t<WrappedAllocator>>::value
-        >(),
-        std::integral_constant<bool,
-          detail::is_darma_allocator<std::decay_t<WrappedAllocator>>::value
-        >(),
-        std::forward<WrappedAllocator>(alloc)
-      );
-    }
-
-  private:
-
-    template <typename T, typename WrappedAllocator, typename _IgnoredCondition>
-    auto& _get_unpack_allocator_impl(
-      std::true_type, _IgnoredCondition,
-      WrappedAllocator&& alloc
-    ) {
-      return *reinterpret_cast<darma_allocator<T, WrappedAllocator>*>(&template_allocator());
-    }
-
-    template <typename T, typename WrappedAllocator>
-    auto _get_unpack_allocator_impl(
-      std::false_type, std::true_type,
-      WrappedAllocator&& alloc
-    ) {
-      WrappedAllocator rv(std::forward<WrappedAllocator>(alloc));
-      return rv;
-    }
-
-    template <typename T, typename WrappedAllocator>
-    auto _get_unpack_allocator_impl(
-      std::false_type, std::false_type,
-      WrappedAllocator&& alloc
-    ) {
-      // worst case, we have to make completely new one
-      return darma_allocator<T>(
-        std::forward<WrappedAllocator>(alloc)
-      );
-    }
 
     friend class Serializer_attorneys::ArchiveAccess;
     friend class darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;

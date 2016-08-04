@@ -155,16 +155,6 @@ class SimplePackUnpackArchive
 
     //------------------------------------------------------------------------//
 
-    template <typename T>
-    auto get_unpack_allocator() {
-      return detail::allocation_traits<T>::make_allocator(*this);
-    }
-
-    template <typename T, typename WrappingAllocator>
-    decltype(auto) get_unpack_allocator(WrappingAllocator&& alloc) {
-      return std::forward<WrappingAllocator>(alloc);
-    }
-
   private:
 
     // TODO get rid of these?!?!?
