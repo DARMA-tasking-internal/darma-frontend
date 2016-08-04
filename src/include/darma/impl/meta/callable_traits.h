@@ -151,8 +151,8 @@ struct is_callable_replace_arg_n<F,
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="arg_n_is">
 
-// Be careful!  Things like is_const and is_reference don't work here because they
-// can choose another cast operator
+// Be careful!  Things like is_const and is_reference don't work here because
+// they can choose another cast operator
 template <
   template <class...> class UnaryMetafunction,
   typename F, size_t N
@@ -219,10 +219,11 @@ struct _callable_traits_maybe_min_eq_max<Callable, NArgs, NArgs> {
   static constexpr auto n_args_max = NArgs;
   static constexpr auto n_args = NArgs;
   static_assert(n_args != DARMA_META_MAX_CALLABLE_ARGS+1,
-    "callable_traits<> used with callable having an invalid parameter (e.g., deleted"
-      " copy constructor for a value parameter)"
-      " (or, much less likely, you may need to increase DARMA_META_MAX_CALLABLE_ARGS, but "
-      "this is very unlikely to be the problem)"
+    "callable_traits<> used with callable having an invalid parameter (e.g.,"
+      " deleted copy and move constructor for a value parameter)"
+      " (or, much less likely, you may need to increase"
+      " DARMA_META_MAX_CALLABLE_ARGS, but this is very unlikely to be the"
+      " problem)"
   );
 };
 
@@ -268,7 +269,8 @@ struct callable_traits
     {
       static_assert(
         N < base_t::n_args_max,
-        "N given to arg_n_is_by_reference is out of range for number of arguments to F"
+        "N given to arg_n_is_by_reference is out of range for number of"
+        " arguments to F"
       );
     };
 
@@ -278,16 +280,18 @@ struct callable_traits
     {
       static_assert(
         N < base_t::n_args_max,
-        "N given to arg_n_is_by_value is out of range for number of arguments to F"
+        "N given to arg_n_is_by_value is out of range for number of"
+        " arguments to F"
       );
     };
 
     template <size_t N>
     struct arg_n_accepts_const_reference
-      // The logical_or here is necessary to resolve an ambiguity between g++ and clang++.
-      // With clang++, only the part is necessary, but g++ doesn't allow the first cast
-      // to resolve for by-value arguments, so the second one is necessary in that case
-      // Specifically, this works around bug #63217 in gcc.
+      // The logical_or here is necessary to resolve an ambiguity between g++
+      // and clang++. With clang++, only the part is necessary, but g++ doesn't
+      // allow the first cast to resolve for by-value arguments, so the second
+      // one is necessary in that case.  Specifically, this works around bug
+      // #63217 in gcc.
       : tinympl::logical_or<
           _callable_traits_impl::is_callable_replace_arg_n<Callable,
             any_const_reference,
@@ -299,7 +303,8 @@ struct callable_traits
     {
       static_assert(
         N < base_t::n_args_max,
-        "N given to arg_accepts_const_reference is out of range for number of arguments to F"
+        "N given to arg_accepts_const_reference is out of range for number of"
+        " arguments to F"
       );
     };
 
@@ -313,7 +318,8 @@ struct callable_traits
 
     template <size_t N>
     struct arg_n_is_nonconst_lvalue_reference
-      // Process of elimination: it's a reference but it doesn't take a const reference
+      // Process of elimination: it's a reference but it doesn't take a const
+      // reference
       : std::integral_constant<bool,
           arg_n_is_by_reference<N>::value
             and not arg_n_accepts_const_reference<N>::value

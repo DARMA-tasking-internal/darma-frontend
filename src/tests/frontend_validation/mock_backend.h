@@ -110,6 +110,8 @@ class MockRuntime
     MOCK_METHOD2(establish_flow_alias, void(flow_t*, flow_t*));
     MOCK_METHOD1(release_use, void(use_t*));
     MOCK_METHOD2(publish_use, void(use_t*, publication_details_t*));
+    MOCK_METHOD2(allocate, void*(size_t, frontend::MemoryRequirementDetails const&));
+    MOCK_METHOD2(deallocate, void(void*, size_t));
 
 
 #ifdef __clang__
@@ -153,16 +155,6 @@ class MockSerializationPolicy
     MOCK_CONST_METHOD2(packed_size_contribution_for_blob, size_t(void const*, size_t));
     MOCK_CONST_METHOD3(pack_blob, void(void*&, void const*, size_t));
     MOCK_CONST_METHOD3(unpack_blob, void(void*&, void*, size_t));
-
-};
-
-class MockAllocationPolicy
-  : public darma_runtime::abstract::backend::AllocationPolicy
-{
-  public:
-
-    MOCK_METHOD1(allocate, void*(size_t));
-    MOCK_METHOD2(deallocate, void(void*, size_t));
 
 };
 
