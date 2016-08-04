@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      handle.h
+//                      array_movement_manager.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,46 +42,69 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_HANDLE_H
-#define DARMA_INTERFACE_FRONTEND_HANDLE_H
+#ifndef DARMA_INTERFACE_FRONTEND_ARRAY_MOVEMENT_MANAGER_H
+#define DARMA_INTERFACE_FRONTEND_ARRAY_MOVEMENT_MANAGER_H
 
-#include <darma/interface/frontend/serialization_manager.h>
-#include <darma/interface/frontend/array_concept_manager.h>
-#include <darma/interface/frontend/array_movement_manager.h>
-#include <darma_types.h>
+#include <darma/interface/backend/serialization_policy.h>
 
 namespace darma_runtime {
 namespace abstract {
 namespace frontend {
 
-/** @brief Encapsulates a named, mutable chunk of data which may be accessed by one or more tasks
- *  that use that data (or the privilege to schedule permissions on that data).
+/** @todo document this
  *
- *  A Handle represents an entity conceptually similar to a variable in a serial program.
  */
-class Handle {
+class ArrayMovementManager {
   public:
+    /** @todo
+     *
+     * @param obj
+     * @param offset
+     * @param n_elem
+     * @param ser_pol
+     * @return
+     */
+    virtual size_t
+    get_packed_size(
+      void const* obj,
+      size_t offset, size_t n_elem,
+      backend::SerializationPolicy* ser_pol
+    ) const =0;
 
-  /**
-   * @brief get_key Returns a unique key. Multiple calls to this function on the same handle object must
-   * always return the same value
-   * @return A unique key identifying the tuple.
-   */
-  virtual types::key_t const&
-  get_key() const =0;
+    /** @todo
+     *
+     * @param obj
+     * @param buffer
+     * @param offset
+     * @param n_elem
+     * @param ser_pol
+     */
+    virtual void
+    pack_elements(
+      void const* obj, void* buffer,
+      size_t offset, size_t n_elem,
+      backend::SerializationPolicy* ser_pol
+    ) const =0;
 
-  /**
-   * @brief get_serialization_manager Returns a type-specific serialization manager. The object returned
-   * will be persistent as long as the Handle exists
-   * @return A type-specific serialization manager
-   */
-  virtual SerializationManager const*
-  get_serialization_manager() const =0;
-
+    /** @todo
+     *
+     * @param obj
+     * @param buffer
+     * @param offset
+     * @param n_elem
+     * @param ser_pol
+     */
+    virtual void
+    unpack_elements(
+      void* obj, void const* buffer,
+      size_t offset, size_t n_elem,
+      backend::SerializationPolicy* ser_pol
+    ) const =0;
 };
 
 } // end namespace frontend
 } // end namespace abstract
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_HANDLE_H
+
+#endif //DARMA_INTERFACE_FRONTEND_ARRAY_MOVEMENT_MANAGER_H

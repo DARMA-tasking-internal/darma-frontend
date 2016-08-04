@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      handle.h
+//                      element_range.h.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,46 +42,63 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_HANDLE_H
-#define DARMA_INTERFACE_FRONTEND_HANDLE_H
+#ifndef DARMA_INTERFACE_FRONTEND_ELEMENT_RANGE_H
+#define DARMA_INTERFACE_FRONTEND_ELEMENT_RANGE_H
 
-#include <darma/interface/frontend/serialization_manager.h>
-#include <darma/interface/frontend/array_concept_manager.h>
-#include <darma/interface/frontend/array_movement_manager.h>
-#include <darma_types.h>
+#include <cstdlib>
+
+#include "frontend_fwd.h"
+
+#include "serialization_manager.h"
+#include "array_concept_manager.h"
 
 namespace darma_runtime {
 namespace abstract {
 namespace frontend {
 
-/** @brief Encapsulates a named, mutable chunk of data which may be accessed by one or more tasks
- *  that use that data (or the privilege to schedule permissions on that data).
+/** @todo document this
  *
- *  A Handle represents an entity conceptually similar to a variable in a serial program.
  */
-class Handle {
+class ElementRange {
   public:
 
-  /**
-   * @brief get_key Returns a unique key. Multiple calls to this function on the same handle object must
-   * always return the same value
-   * @return A unique key identifying the tuple.
-   */
-  virtual types::key_t const&
-  get_key() const =0;
+    /** @todo
+     *
+     * @return
+     */
+    virtual size_t
+    get_data_buffer_size() const =0;
 
-  /**
-   * @brief get_serialization_manager Returns a type-specific serialization manager. The object returned
-   * will be persistent as long as the Handle exists
-   * @return A type-specific serialization manager
-   */
-  virtual SerializationManager const*
-  get_serialization_manager() const =0;
+    /** @todo
+     *
+     */
+    virtual void
+    setup() =0;
 
+    /** @todo
+     *
+     * @return
+     */
+    virtual bool
+    is_deep_copy() const =0;
+
+    /** @todo
+     *
+     * @return
+     */
+    virtual SerializationManager const*
+    get_serialization_manager() const =0;
+
+    /** @todo
+     *
+     * @return
+     */
+    virtual ArrayConceptManager const*
+    get_array_concept_manager() const =0;
 };
 
 } // end namespace frontend
 } // end namespace abstract
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_HANDLE_H
+#endif //DARMA_INTERFACE_FRONTEND_ELEMENT_RANGE_H
