@@ -48,8 +48,10 @@
 #include <type_traits>
 #include <iterator>
 
-#include "nonintrusive.h"
 #include <darma/impl/meta/is_container.h>
+
+#include "nonintrusive.h"
+#include "range.h"
 
 namespace darma_runtime {
 namespace serialization {

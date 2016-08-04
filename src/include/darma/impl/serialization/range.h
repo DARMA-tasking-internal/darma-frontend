@@ -50,7 +50,6 @@
 
 #include <darma/impl/meta/is_contiguous.h>
 
-#include "allocation.h"
 #include "traits.h"
 
 namespace darma_runtime {

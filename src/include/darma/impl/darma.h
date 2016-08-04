@@ -55,6 +55,7 @@
 
 #include <darma/impl/serialization/policy_aware_archive.h>
 
+#include "serialization/serialization.impl.h"
 
 #endif /* SRC_DARMA_DARMA_H_ */
 

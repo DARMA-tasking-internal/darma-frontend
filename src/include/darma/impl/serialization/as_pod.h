@@ -46,7 +46,8 @@
 #define DARMA_IMPL_SERIALIZATION_AS_POD_H
 
 #include <type_traits>
-#include "nonintrusive.h"
+
+#include "serialization_fwd.h"
 
 namespace darma_runtime {
 
