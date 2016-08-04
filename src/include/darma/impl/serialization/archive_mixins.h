@@ -168,7 +168,7 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
       size_t size = 0;
       this_archive->unpack_item(size);
 
-      val.begin() = this_archive->template get_unpack_allocator<value_type>();
+      val.begin() = val.get_allocator().allocate(size);
       val.end() = val.begin() + size;
 
       _unpack_direct_if_possible(std::forward<T>(val), *this_archive, size,

@@ -58,18 +58,21 @@ namespace serialization {
 
 namespace detail {
 
-template <typename BeginIterator, typename EndIterator>
+template <typename BeginIterator, typename EndIterator, typename Allocator>
 struct SerDesRange;
 
-template <typename RandomAccessIterator>
+template <typename RandomAccessIterator, typename Allocator>
 struct SerDesRange<
   RandomAccessIterator&,
-  RandomAccessIterator
+  RandomAccessIterator,
+  Allocator
 >
 {
   private:
     RandomAccessIterator& begin_;
     RandomAccessIterator end_;
+
+    Allocator alloc_;
 
   public:
 
@@ -84,8 +87,10 @@ struct SerDesRange<
     static constexpr auto value_is_directly_serializable =
       serializability_traits<value_type>::is_directly_serializable;
 
-    SerDesRange(RandomAccessIterator& in_begin, RandomAccessIterator&& in_end)
-      : begin_(in_begin), end_(in_end) { }
+    SerDesRange(
+      RandomAccessIterator& in_begin, RandomAccessIterator&& in_end,
+      Allocator& alloc
+    ) : begin_(in_begin), end_(in_end), alloc_(alloc) { }
 
     RandomAccessIterator&
     begin() { return begin_; }
@@ -95,14 +100,19 @@ struct SerDesRange<
 
     RandomAccessIterator const&
     end() const { return end_; }
+
+    Allocator&
+    get_allocator() { return alloc_; }
 };
 
-template <typename RandomAccessIterator>
-struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&>
+template <typename RandomAccessIterator, typename Allocator>
+struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&, Allocator>
 {
   private:
     RandomAccessIterator& begin_;
     RandomAccessIterator& end_;
+
+    Allocator alloc_;
 
   public:
 
@@ -117,8 +127,10 @@ struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&>
     static constexpr auto value_is_directly_serializable =
       serializability_traits<value_type>::is_directly_serializable;
 
-    SerDesRange(RandomAccessIterator& in_begin, RandomAccessIterator& in_end)
-      : begin_(in_begin), end_(in_end) { }
+    SerDesRange(
+      RandomAccessIterator& in_begin, RandomAccessIterator&& in_end,
+      Allocator& alloc
+    ) : begin_(in_begin), end_(in_end), alloc_(alloc) { }
 
     RandomAccessIterator&
     begin() { return begin_; }
@@ -131,14 +143,19 @@ struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&>
 
     RandomAccessIterator const&
     end() const { return end_; }
+
+    Allocator&
+    get_allocator() { return alloc_; }
 };
 
-template <typename RandomAccessIterator>
-struct SerDesRange<RandomAccessIterator, RandomAccessIterator>
+template <typename RandomAccessIterator, typename Allocator>
+struct SerDesRange<RandomAccessIterator, RandomAccessIterator, Allocator>
 {
   private:
     RandomAccessIterator begin_;
     RandomAccessIterator end_;
+
+    Allocator alloc_;
 
   public:
 
@@ -153,8 +170,9 @@ struct SerDesRange<RandomAccessIterator, RandomAccessIterator>
     typedef RandomAccessIterator iterator;
     typedef std::iterator_traits<RandomAccessIterator> iterator_traits;
 
-    SerDesRange(RandomAccessIterator&& in_begin, RandomAccessIterator&& in_end)
-      : begin_(in_begin), end_(in_end) { }
+    SerDesRange(RandomAccessIterator&& in_begin, RandomAccessIterator&& in_end,
+      Allocator& alloc
+    ) : begin_(in_begin), end_(in_end), alloc_(alloc) { }
 
     RandomAccessIterator const&
     begin() const { return begin_; }
@@ -167,12 +185,21 @@ struct SerDesRange<RandomAccessIterator, RandomAccessIterator>
 
 ////////////////////////////////////////////////////////////////////////////////
 
-template <typename BeginIter, typename EndIter>
+template <typename BeginIter, typename EndIter,
+  typename Allocator=darma_allocator<
+    typename std::iterator_traits<std::decay_t<BeginIter>>::value_type
+  >
+>
 auto
-range(BeginIter&& begin, EndIter&& end) {
-  return detail::SerDesRange<BeginIter, EndIter>(
+range(BeginIter&& begin, EndIter&& end, Allocator alloc=
+  darma_allocator<
+    typename std::iterator_traits<std::decay_t<BeginIter>>::value_type
+  >()
+) {
+  return detail::SerDesRange<BeginIter, EndIter, Allocator>(
     std::forward<BeginIter>(begin),
-    std::forward<EndIter>(end)
+    std::forward<EndIter>(end),
+    alloc
   );
 }
 
