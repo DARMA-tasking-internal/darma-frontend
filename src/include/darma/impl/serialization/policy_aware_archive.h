@@ -277,8 +277,9 @@ class PolicyAwareArchive
     decltype(auto) get_unpack_allocator(WrappedAllocator&& alloc) {
       return _get_unpack_allocator_impl<T>(
         tinympl::bool_<
-          sizeof(darma_allocator<T, WrappedAllocator>) == sizeof(darma_allocator<void>)
-            and std::is_empty<WrappedAllocator>::value
+          sizeof(darma_allocator<T, std::decay_t<WrappedAllocator>>)
+            == sizeof(darma_allocator<void>)
+          and std::is_empty<std::decay_t<WrappedAllocator>>::value
         >(),
         std::integral_constant<bool,
           detail::is_darma_allocator<std::decay_t<WrappedAllocator>>::value
