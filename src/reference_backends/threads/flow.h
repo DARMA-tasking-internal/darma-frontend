@@ -57,7 +57,7 @@ namespace threads_backend {
     std::shared_ptr<InnerFlow> forward, next;
     types::key_t version_key, key;
     darma_runtime::abstract::frontend::Handle* handle;
-    bool ready, hasDeferred, isNull;
+    bool ready, hasDeferred, isNull, isFetch;
     DataBlock* deferred_data_ptr;
 
     #if __THREADS_DEBUG_MODE__
@@ -79,6 +79,7 @@ namespace threads_backend {
       , ready(false)
       , hasDeferred(false)
       , isNull(false)
+      , isFetch(false)
       , deferred_data_ptr(nullptr)
       #if __THREADS_DEBUG_MODE__
       , label(++flow_label)
