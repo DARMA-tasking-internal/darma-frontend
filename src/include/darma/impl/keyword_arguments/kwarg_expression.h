@@ -136,7 +136,7 @@ class multiarg_typeless_kwarg_expression {
     value_converted(Converter&& conv) const {
       return value_converted(
         std::forward<Converter>(conv),
-        tinympl::make_range_c<size_t, 0, sizeof...(Args)>()
+        typename tinympl::make_range_c<size_t, 0, sizeof...(Args)>::type()
       );
     }
 };
