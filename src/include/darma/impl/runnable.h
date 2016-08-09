@@ -340,7 +340,7 @@ class FunctorLikeRunnableBase
   public:
 
     size_t get_packed_size() const override {
-      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       serialization::SimplePackUnpackArchive ar;
 
       ArchiveAccess::start_sizing(ar);
@@ -351,7 +351,7 @@ class FunctorLikeRunnableBase
     }
 
     void pack(void* allocated) const override {
-      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       serialization::SimplePackUnpackArchive ar;
 
       ArchiveAccess::start_packing(ar);

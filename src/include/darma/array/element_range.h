@@ -47,16 +47,20 @@
 
 #include <darma/interface/frontend/element_range.h>
 #include <darma/interface/frontend/serialization_manager.h>
+#include <darma/interface/frontend/array_concept_manager.h>
+
 #include "index_decomposition.h"
 #include "indexable.h"
 
 namespace darma_runtime {
 namespace detail {
 
+// Simple implies subset object is always the same type as parent
 template <typename T>
 class SimpleElementRange
   : public abstract::frontend::ElementRange,
-    public abstract::frontend::SerializationManager
+    public abstract::frontend::SerializationManager,
+    public abstract::frontend::ArrayConceptManager
 {
   private:
 
@@ -83,11 +87,43 @@ class SimpleElementRange
       abort();
     }
 
+    abstract::frontend::SerializationManager const*
+    get_serialization_manager() const {
+      return this;
+    }
 
+    abstract::frontend::ArrayConceptManager const*
+    get_array_concept_manager() const {
+      return this;
+    }
 
     // end abstract::frontend::ElementRange implementation </editor-fold>
     ////////////////////////////////////////////////////////////////////////////
 
+    ////////////////////////////////////////////////////////////////////////////
+    // <editor-fold desc="abstract::frontend::SerializationManager implementation">
+
+    size_t
+    get_metadata_size() const override {
+      return sizeof(T);
+    }
+
+    size_t
+    get_packed_data_size(
+      const void* const object_data
+      abstract::backend::SerializationPolicy* ser_policy
+    ) const override {
+      // TODO
+    }
+
+    // end abstract::frontend::SerializationManager implementation </editor-fold>
+    ////////////////////////////////////////////////////////////////////////////
+
+    ////////////////////////////////////////////////////////////////////////////
+    // <editor-fold desc="abstract::frontend::ArrayConceptManager implementation">
+
+    // end abstract::frontend::ArrayConceptManager implementation </editor-fold>
+    ////////////////////////////////////////////////////////////////////////////
 
   private:
 

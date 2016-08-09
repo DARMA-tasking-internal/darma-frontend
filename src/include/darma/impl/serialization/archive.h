@@ -159,7 +159,7 @@ class SimplePackUnpackArchive
 
     // TODO get rid of these?!?!?
     friend class Serializer_attorneys::ArchiveAccess;
-    friend class darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+    friend class darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 
 };
 
