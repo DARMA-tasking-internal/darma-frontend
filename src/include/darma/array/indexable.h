@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      element_range.h.h
+//                      indexable.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,60 +42,85 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_ELEMENT_RANGE_H
-#define DARMA_INTERFACE_FRONTEND_ELEMENT_RANGE_H
+#ifndef DARMA_IMPL_ARRAY_INDEXABLE_H
+#define DARMA_IMPL_ARRAY_INDEXABLE_H
 
-#include <cstdlib>
+#include <darma/impl/serialization/traits.h>
 
-#include "frontend_fwd.h"
+#include "index_decomposition.h"
 
-#include "serialization_manager.h"
-#include "array_concept_manager.h"
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
 
-/** @todo document this
- *
- */
-class ElementRange {
+namespace detail {
+
+template <typename T>
+struct IndexingTraits {
+
   public:
 
-    // TODO Figure out constness here?
-    // TODO figure out if it's reasonable to make this a void*& to allow
-    //      assigning of the buffer to the parent (i.e., not when the subset is
-    //      not even a shallow copy)
-    /** @todo
-     *
-     */
-    virtual void
-    setup(void* md_buffer) =0;
+    using decomposition = IndexDecomposition<T>;
+    using const_decomposition = IndexDecomposition<std::add_const_t<T>>;
 
-    /** @todo
-     *
-     * @return
-     */
-    virtual bool
-    is_deep_copy() const =0;
+  private:
 
-    /** @todo
-     *
-     * @return
-     */
-    virtual SerializationManager const*
-    get_serialization_manager() const =0;
+    using _get_element_range_return_type = decltype(
+      std::declval<decomposition>().get_element_range(
+        std::declval<T&>(), size_t(), size_t()
+      )
+    );
 
-    /** @todo
-     *
-     * @return
-     */
-    virtual ArrayConceptManager const*
-    get_array_concept_manager() const =0;
+    using ser_des_traits = serialization::detail::serializability_traits<T>;
+
+  public:
+
+    template <typename SubobjectType = T>
+    static inline void
+    make_subobject(
+      void* allocd, T const& parent,
+      size_t offset, size_t n_elem
+    ) {
+      const_decomposition().get_element_range(allocd, parent, offset, n_elem);
+    }
+
+    // TODO these shouldn't reconstruct the sub-object except as a last resort
+
+    template <typename ArchiveT>
+    static inline void
+    get_packed_size(
+      T const& obj, ArchiveT& ar,
+      size_t offset, size_t n_elem
+    ) {
+      // Simplest default: make an object with an element range and pack it
+      ar % const_decomposition().get_element_range(obj, offset, n_elem);
+    }
+
+    template <typename ArchiveT>
+    static inline void
+    pack_elements(
+      T const& obj, ArchiveT& ar,
+      size_t offset, size_t n_elem
+    ) {
+      // Simplest default: make an object with an element range and pack it
+      ar << const_decomposition().get_element_range(obj, offset, n_elem);
+    }
+
+    template <typename ArchiveT>
+    static inline void
+    unpack_elements(
+      T& obj, ArchiveT& ar,
+      size_t offset, size_t n_elem
+    ) {
+      // Simplest default: reconstruct the object, then
+      std::remove_reference_t<_get_element_range_return_type> subobj;
+      ar >> subobj;
+      decomposition().set_element_range(obj, subobj, offset, n_elem);
+    }
+
 };
 
-} // end namespace frontend
-} // end namespace abstract
+} // end namespace detail
+
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_ELEMENT_RANGE_H
+#endif //DARMA_IMPL_ARRAY_INDEXABLE_H

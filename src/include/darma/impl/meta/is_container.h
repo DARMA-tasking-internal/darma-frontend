@@ -52,6 +52,7 @@
 #include "detection.h"
 #include "detection_archetypes.h"
 #include "any_convertible.h"
+#include "is_equality_comparable.h"
 
 namespace darma_runtime {
 namespace meta {
@@ -117,18 +118,6 @@ struct is_output_iterator {
     >;
     static constexpr auto value = type::value;
 };
-
-template <typename T>
-struct is_equality_comparable {
-  private:
-    template <typename U>
-    using equality_comparable_archetype = decltype( std::declval<U>() == std::declval<U>() );
-  public:
-    static constexpr auto value =
-      is_detected_convertible<bool, equality_comparable_archetype, T>::value;
-    using type = std::integral_constant<bool, value>;
-};
-
 
 // Concept checking for stl container types
 

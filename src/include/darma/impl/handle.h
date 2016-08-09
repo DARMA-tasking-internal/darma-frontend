@@ -70,6 +70,7 @@
 #include <darma/impl/keyword_arguments/keyword_arguments.h>
 #include <darma/interface/app/keyword_arguments/n_readers.h>
 #include <darma/interface/app/keyword_arguments/version.h>
+#include <darma/array/indexable.h>
 
 
 namespace darma_runtime {
@@ -236,6 +237,13 @@ struct ArchiveAccess {
 
   template <typename ArchiveT>
   static inline void
+  start_packing_with_buffer(ArchiveT& ar, void* const buffer) {
+    ar.mode = serialization::detail::SerializerMode::Packing;
+    ar.spot = ar.start = buffer;
+  }
+
+  template <typename ArchiveT>
+  static inline void
   start_unpacking(ArchiveT& ar) {
     ar.mode = serialization::detail::SerializerMode::Unpacking;
     ar.spot = ar.start;
@@ -243,7 +251,7 @@ struct ArchiveAccess {
 
   template <typename ArchiveT>
   static inline void
-  start_unpacking_with_buffer(ArchiveT& ar, void* buffer) {
+  start_unpacking_with_buffer(ArchiveT& ar, void const* buffer) {
     ar.mode = serialization::detail::SerializerMode::Unpacking;
     ar.spot = ar.start = (char* const)buffer;
   }
@@ -300,7 +308,10 @@ namespace detail {
 template <typename T>
 class VariableHandle
   : public VariableHandleBase,
-    public abstract::frontend::SerializationManager {
+    public abstract::frontend::SerializationManager,
+    public abstract::frontend::ArrayMovementManager
+
+{
   protected:
 
     typedef VariableHandleBase base_t;
@@ -325,10 +336,15 @@ class VariableHandle
     ////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////
-    // <editor-fold desc="abstract::frontend::DependencyHandle implmentation">
+    // <editor-fold desc="abstract::frontend::Handle implmentation">
 
     abstract::frontend::SerializationManager const*
     get_serialization_manager() const override {
+      return this;
+    }
+
+    abstract::frontend::ArrayMovementManager const*
+    get_array_movement_manager() const override {
       return this;
     }
 
@@ -438,6 +454,69 @@ class VariableHandle
     }
 
     // end SerializationManager implementation </editor-fold>
+    ////////////////////////////////////////////////////////////
+
+    ////////////////////////////////////////////////////////////
+    // ArrayMovementManager implementation <editor-fold desc="ArrayMovementManager implementation">
+
+    size_t
+    get_packed_size(
+      void const* obj,
+      size_t offset, size_t n_elem,
+      abstract::backend::SerializationPolicy* ser_pol
+    ) const override {
+      auto ar = _get_best_compatible_archive(
+        tinympl::identity<best_compatible_archive_t>(),
+        ser_pol
+      );
+      DependencyHandle_attorneys::ArchiveAccess::start_sizing(ar);
+      IndexingTraits<T>::get_packed_size(
+        *static_cast<T const*>(obj), ar, offset, n_elem
+      );
+      return DependencyHandle_attorneys::ArchiveAccess::get_size(ar);
+    }
+
+    void
+    pack_elements(
+      void const* obj, void* buffer,
+      size_t offset, size_t n_elem,
+      abstract::backend::SerializationPolicy* ser_pol
+    ) const override
+    {
+      auto ar = _get_best_compatible_archive(
+        tinympl::identity<best_compatible_archive_t>(),
+        ser_pol
+      );
+      DependencyHandle_attorneys::ArchiveAccess::start_packing_with_buffer(
+        ar, buffer
+      );
+      IndexingTraits<T>::pack_elements(
+        *static_cast<T const*>(obj), ar,
+        offset, n_elem
+      );
+    }
+
+    void
+    unpack_elements(
+      void* obj, void const* buffer,
+      size_t offset, size_t n_elem,
+      abstract::backend::SerializationPolicy* ser_pol
+    ) const override
+    {
+      auto ar = _get_best_compatible_archive(
+        tinympl::identity<best_compatible_archive_t>(),
+        ser_pol
+      );
+      DependencyHandle_attorneys::ArchiveAccess::start_unpacking_with_buffer(
+        ar, buffer
+      );
+      IndexingTraits<T>::unpack_elements(
+        *static_cast<T*>(obj), ar,
+        offset, n_elem
+      );
+    }
+
+    // end ArrayMovementManager implementation </editor-fold>
     ////////////////////////////////////////////////////////////
 
 };
