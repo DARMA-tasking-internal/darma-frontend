@@ -321,6 +321,12 @@ namespace threads_backend {
                   PRINT_LABEL(f_in),
                   PRINT_LABEL(f_out));
 
+      if (f_in->inner->isFetch) {
+        assert(threads_backend::depthFirstExpand);
+        blocking_fetch(f_in->inner->handle, f_in->inner->version_key);
+        f_in->inner->ready = true;
+      }
+
       // set readiness of this flow based on symmetric flow structure
       const bool check_ready = f_in->inner->check_ready();
 
@@ -665,8 +671,12 @@ namespace threads_backend {
     f->inner->version_key = version_key;
 
     if (threads_backend::depthFirstExpand) {
-      blocking_fetch(handle, version_key);
-      f->inner->ready = true;
+      //blocking_fetch(handle, version_key);
+      //f->inner->ready = true;
+      f->inner->handle = handle;
+      f->inner->version_key = version_key;
+      f->inner->isFetch = true;
+      f->inner->ready = false;
     } else {
       auto node = std::make_shared<FetchNode>(FetchNode{this,f->inner});
       const bool ready = add_fetcher(node,handle,version_key);
