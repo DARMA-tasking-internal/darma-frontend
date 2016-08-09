@@ -179,7 +179,7 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
 
 
     size_t get_packed_size() const  {
-      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       serialization::SimplePackUnpackArchive ar;
 
       ArchiveAccess::start_sizing(ar);
@@ -191,7 +191,7 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
     }
 
     void pack(void* allocated) const  {
-      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       serialization::SimplePackUnpackArchive ar;
 
       ArchiveAccess::start_packing(ar);
@@ -282,7 +282,7 @@ namespace frontend {
 
 inline backend::runtime_t::task_unique_ptr
 unpack_task(void* packed_data) {
-  using detail::DependencyHandle_attorneys::ArchiveAccess;
+  using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
   serialization::SimplePackUnpackArchive ar;
 
   ArchiveAccess::start_unpacking(ar);

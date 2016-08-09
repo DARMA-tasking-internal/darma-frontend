@@ -98,14 +98,15 @@ struct ArchiveAccess;
 
 } // end namespace Serializer_attorneys
 
-} // end namespace serialization
-
 namespace detail {
 namespace DependencyHandle_attorneys {
 
 struct ArchiveAccess;
 
 } // end namespace DependencyHandle_attorneys
+
+} // end namespace serialization
+
 } // end namespace detail
 
 

@@ -72,7 +72,7 @@ class TestSerialize
 
     template <typename T, typename Archive=SimplePackUnpackArchive>
     T do_serdes(T const& val) const {
-      using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+      using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       Ser<T> ser;
       SimplePackUnpackArchive ar;
 
@@ -106,7 +106,7 @@ class TestSerialize
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSerialize, fundamental) {
-  using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 
   {
     int value = 42;
@@ -122,7 +122,7 @@ TEST_F(TestSerialize, fundamental) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSerialize, fundamental_chain) {
-  using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 
   int value = 42;
   constexpr int n_reps = 10;
@@ -140,7 +140,7 @@ TEST_F(TestSerialize, fundamental_chain) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSerialize, vector_simple) {
-  using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
   using namespace std;
   using namespace ::testing;
 
@@ -197,7 +197,7 @@ TEST_F(TestSerialize, vector_policy) {
   using namespace mock_backend;
   using namespace darma_runtime;
   using namespace darma_runtime::serialization;
-  using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 
   vector<int> value = { 3, 1, 4, 1, 5, 9, 2, 6 };
 
