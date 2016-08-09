@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      handle.h
+//                      is_equality_comparable.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,52 +42,67 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_HANDLE_H
-#define DARMA_INTERFACE_FRONTEND_HANDLE_H
+#ifndef DARMA_IMPL_META_IS_EQUALITY_COMPARABLE_H
+#define DARMA_IMPL_META_IS_EQUALITY_COMPARABLE_H
 
-#include <darma/interface/frontend/serialization_manager.h>
-#include <darma/interface/frontend/array_concept_manager.h>
-#include <darma/interface/frontend/array_movement_manager.h>
-#include <darma_types.h>
+#include <type_traits>
+#include <cassert>
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
 
-/** @brief Encapsulates a named, mutable chunk of data which may be accessed by one or more tasks
- *  that use that data (or the privilege to schedule permissions on that data).
- *
- *  A Handle represents an entity conceptually similar to a variable in a serial program.
- */
-class Handle {
+namespace meta {
+
+template <typename T>
+struct is_equality_comparable {
+
+  private:
+
+    template <typename U, typename V>
+    using _equality_comparable_archetype = decltype(
+    std::declval<U>() == std::declval<V>()
+    );
+
   public:
 
-  /**
-   * @brief get_key Returns a unique key. Multiple calls to this function on the same handle object must
-   * always return the same value
-   * @return A unique key identifying the tuple.
-   */
-  virtual types::key_t const&
-  get_key() const =0;
+    static constexpr auto value =
+      meta::is_detected_convertible<bool,
+        _equality_comparable_archetype, T, std::add_const_t<T>
+      >::value
+        and meta::is_detected_convertible<bool,
+          _equality_comparable_archetype, std::add_const_t<T>, T
+        >::value
+        and meta::is_detected_convertible<bool,
+          _equality_comparable_archetype, T, T
+        >::value
+        and meta::is_detected_convertible<bool,
+          _equality_comparable_archetype, std::add_const_t<T>, std::add_const_t<T>
+        >::value
+    ;
 
-  /**
-   * @brief get_serialization_manager Returns a type-specific serialization manager. The object returned
-   * will be persistent as long as the Handle exists
-   * @return A type-specific serialization manager
-   */
-  virtual SerializationManager const*
-  get_serialization_manager() const =0;
+    using type = std::integral_constant<decltype(value), value>;
 
-  /** @brief TODO
-   *
-   */
-  virtual ArrayMovementManager const*
-  get_array_movement_manager() const =0;
+    static inline void
+    assert_requirements(T& a, T& b) {
+      assert(a == a);
+      assert(b == b);
+      // "not ( X xor Y )" is the same as "X iff Y"
+      assert(not ((a == b) xor (b == a)));
+    }
+
+    static inline void
+    assert_requirements(T& a, T& b, T& c) {
+      assert_requirements(a, b);
+      assert_requirements(b, c);
+      assert_requirements(a, c);
+      // "not ( X xor Y )" is the same as "X iff Y"
+      assert(not ((a == b and b == c) xor (a == c)));
+      assert(not ((a == c and c == b) xor (a == b)));
+    }
 
 };
 
-} // end namespace frontend
-} // end namespace abstract
+} // end namespace meta
+
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_HANDLE_H
+#endif //DARMA_IMPL_META_IS_EQUALITY_COMPARABLE_H

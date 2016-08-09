@@ -30,6 +30,7 @@ add_unit_test(test_kwargs)
 add_unit_test(test_callable_traits)
 add_unit_test(test_compressed_pair)
 add_unit_test(test_is_contiguous)
+add_unit_test(test_is_iterator)
 add_unit_test(test_any_convertible)
 
 add_executable(run_all_meta_tests ${metatestfiles})

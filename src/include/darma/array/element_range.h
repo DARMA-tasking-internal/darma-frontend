@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      handle.h
+//                      element_range.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,52 +42,64 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_HANDLE_H
-#define DARMA_INTERFACE_FRONTEND_HANDLE_H
+#ifndef DARMA_IMPL_ARRAY_ELEMENT_RANGE_H
+#define DARMA_IMPL_ARRAY_ELEMENT_RANGE_H
 
+#include <darma/interface/frontend/element_range.h>
 #include <darma/interface/frontend/serialization_manager.h>
-#include <darma/interface/frontend/array_concept_manager.h>
-#include <darma/interface/frontend/array_movement_manager.h>
-#include <darma_types.h>
+#include "index_decomposition.h"
+#include "indexable.h"
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
+namespace detail {
 
-/** @brief Encapsulates a named, mutable chunk of data which may be accessed by one or more tasks
- *  that use that data (or the privilege to schedule permissions on that data).
- *
- *  A Handle represents an entity conceptually similar to a variable in a serial program.
- */
-class Handle {
+template <typename T>
+class SimpleElementRange
+  : public abstract::frontend::ElementRange,
+    public abstract::frontend::SerializationManager
+{
+  private:
+
+    using _idx_traits = IndexingTraits<T>;
+
   public:
 
-  /**
-   * @brief get_key Returns a unique key. Multiple calls to this function on the same handle object must
-   * always return the same value
-   * @return A unique key identifying the tuple.
-   */
-  virtual types::key_t const&
-  get_key() const =0;
+    SimpleElementRange(T& parent, size_t offset, size_t n_elem)
+      : parent_(parent), offset_(offset), n_elem_(n_elem)
+    { }
 
-  /**
-   * @brief get_serialization_manager Returns a type-specific serialization manager. The object returned
-   * will be persistent as long as the Handle exists
-   * @return A type-specific serialization manager
-   */
-  virtual SerializationManager const*
-  get_serialization_manager() const =0;
+    ////////////////////////////////////////////////////////////////////////////
+    // <editor-fold desc="abstract::frontend::ElementRange implementation">
 
-  /** @brief TODO
-   *
-   */
-  virtual ArrayMovementManager const*
-  get_array_movement_manager() const =0;
+
+    void
+    setup(void* md_buffer) override {
+      _idx_traits::make_subobject(md_buffer, parent_, offset_, n_elem_);
+    }
+
+    bool
+    is_deep_copy() const override {
+      // TODO
+      abort();
+    }
+
+
+
+    // end abstract::frontend::ElementRange implementation </editor-fold>
+    ////////////////////////////////////////////////////////////////////////////
+
+
+  private:
+
+    T& parent_;
+
+    size_t offset_;
+    size_t n_elem_;
 
 };
 
-} // end namespace frontend
-} // end namespace abstract
+
+} // end namespace detail
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_HANDLE_H
+#endif //DARMA_IMPL_ARRAY_ELEMENT_RANGE_H
