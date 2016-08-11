@@ -70,13 +70,6 @@ struct any_arg {
   operator T&&() const;
 };
 
-// Should *ONLY* be ambiguous for value parameters
-struct ambiguous_if_by_value {
-  template <typename T>
-  operator T();
-  template <typename T>
-  operator T&();
-};
 
 // Note that by value arguments (e.g., j in void foo(int j);) can be deduced
 // from this in clang, but cannot be deduced from this in gcc, so be super
@@ -128,6 +121,7 @@ using rvalue_ref_operator_needs_const_t = tinympl::bool_<not
 
 } // end namespace _impl
 
+
 struct any_nonconst_rvalue_reference {
   template <typename T>
   operator T();
@@ -149,6 +143,30 @@ struct any_nonconst_rvalue_reference {
   operator T&&();
 };
 
+// Should *ONLY* be ambiguous for value parameters
+struct ambiguous_if_by_value {
+  template <typename T>
+  operator T();
+  template <typename T>
+  operator T&();
+  // similar to in any_nonconst_rvalue_reference, we need to enable this for
+  // gcc, since it prefers operator T&&() for a formal parameter of the form T&&
+  // or const T&& (and thus T and T& is ambiguous for rvalue references as well
+  // as values), but in clang operator T() and operator T&&() are somehow
+  // equally valid for conversion to arguments of that form
+  template <typename T,
+    typename=std::enable_if_t<
+      // It turns out that the condition we used for the
+      // any_nonconst_rvalue_reference disambiguation of the same nature also
+      // works here
+      not _impl::rvalue_ref_operator_needs_const_t::value
+      // an always true condition to make this SFINAE resolve at substitution
+      // time and not at class definition time
+      and not std::is_void<T>::value
+    >
+  >
+  operator T&&();
+};
 
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
