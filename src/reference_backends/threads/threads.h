@@ -103,13 +103,11 @@ namespace threads_backend {
   public:
     ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
-    // TODO: fix any memory consistency bugs with data coordination we
-    // need a fence at the least
     std::unordered_map<
       std::pair<types::key_t,
                 types::key_t>,
       DataBlock*
-    > data;
+    > data, fetched_data;
 
     // TODO: multi-threaded half-implemented not working..
     std::vector<std::atomic<size_t>*> deque_counter;
@@ -193,8 +191,9 @@ namespace threads_backend {
 
     void
     delete_handle_data(darma_runtime::abstract::frontend::Handle const* const handle,
-                       types::key_t version,
-                       types::key_t key);
+                       const types::key_t version,
+                       const types::key_t key,
+                       const bool fromFetch);
 
     void
     findAddTraceDep(std::shared_ptr<InnerFlow> flow,
