@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      indexable.h
+//                      array_fwd.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,85 +42,18 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_ARRAY_INDEXABLE_H
-#define DARMA_IMPL_ARRAY_INDEXABLE_H
-
-#include <darma/impl/serialization/traits.h>
-
-#include "index_decomposition.h"
-
+#ifndef DARMA_IMPL_ARRAY_ARRAY_FWD_H
+#define DARMA_IMPL_ARRAY_ARRAY_FWD_H
 
 namespace darma_runtime {
 
 namespace detail {
 
 template <typename T>
-struct IndexingTraits {
-
-  public:
-
-    using decomposition = IndexDecomposition<T>;
-    using const_decomposition = IndexDecomposition<std::add_const_t<T>>;
-
-  private:
-
-    using _get_element_range_return_type = decltype(
-      std::declval<decomposition>().get_element_range(
-        std::declval<T&>(), size_t(), size_t()
-      )
-    );
-
-    using ser_des_traits = serialization::detail::serializability_traits<T>;
-
-  public:
-
-    template <typename SubobjectType = T>
-    static inline void
-    make_subobject(
-      void* allocd, T const& parent,
-      size_t offset, size_t n_elem
-    ) {
-      const_decomposition().get_element_range(allocd, parent, offset, n_elem);
-    }
-
-    // TODO these shouldn't reconstruct the sub-object except as a last resort
-
-    template <typename ArchiveT>
-    static inline void
-    get_packed_size(
-      T const& obj, ArchiveT& ar,
-      size_t offset, size_t n_elem
-    ) {
-      // Simplest default: make an object with an element range and pack it
-      ar % const_decomposition().get_element_range(obj, offset, n_elem);
-    }
-
-    template <typename ArchiveT>
-    static inline void
-    pack_elements(
-      T const& obj, ArchiveT& ar,
-      size_t offset, size_t n_elem
-    ) {
-      // Simplest default: make an object with an element range and pack it
-      ar << const_decomposition().get_element_range(obj, offset, n_elem);
-    }
-
-    template <typename ArchiveT>
-    static inline void
-    unpack_elements(
-      T& obj, ArchiveT& ar,
-      size_t offset, size_t n_elem
-    ) {
-      // Simplest default: reconstruct the object, then
-      std::remove_reference_t<_get_element_range_return_type> subobj;
-      ar >> subobj;
-      decomposition().set_element_range(obj, subobj, offset, n_elem);
-    }
-
-};
+class SimpleElementRange;
 
 } // end namespace detail
 
 } // end namespace darma_runtime
 
-#endif //DARMA_IMPL_ARRAY_INDEXABLE_H
+#endif //DARMA_IMPL_ARRAY_ARRAY_FWD_H

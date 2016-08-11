@@ -116,7 +116,7 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
     >
     TaskBase(LambdaCallable&& bool_callable) {
       TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-        detail::backend_runtime->get_running_task()
+        abstract::backend::get_backend_context()->get_running_task()
       );
       parent_task->current_create_work_context = this;
       default_capture_as_info |= AccessHandleBase::CapturedAsInfo::ReadOnly;

@@ -49,6 +49,8 @@
 #include <darma/impl/handle.h>
 #include <darma/impl/util/smart_pointers.h>
 
+#include <thread>
+
 #include "use.h"
 
 namespace darma_runtime {
@@ -84,6 +86,8 @@ TaskBase::do_capture(
   // are to mutable member variables which have to be mutable because
   // of the [=] capture behavior)
   registrations_to_run.emplace_back([&]{
+
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
 
     auto& source = source_and_continuing;
     auto& continuing = source_and_continuing;
@@ -145,7 +149,7 @@ TaskBase::do_capture(
       };
 
       auto _ro_capture_mod_imm = [&]{
-        auto forwarded_flow = detail::backend_runtime->make_forwarding_flow(
+        auto forwarded_flow = backend_runtime->make_forwarding_flow(
           source.current_use_->use.in_flow_
         );
         captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
@@ -220,7 +224,7 @@ TaskBase::do_capture(
             case HandleUse::None:
             case HandleUse::Read: {
               // mod(MN) and mod(MR)
-              auto captured_out_flow = detail::backend_runtime->make_next_flow(
+              auto captured_out_flow = backend_runtime->make_next_flow(
                 source.current_use_->use.in_flow_
               );
               captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
@@ -236,10 +240,10 @@ TaskBase::do_capture(
               break;
             }
             case HandleUse::Modify: {
-              auto captured_in_flow = detail::backend_runtime->make_forwarding_flow(
+              auto captured_in_flow = backend_runtime->make_forwarding_flow(
                 source.current_use_->use.in_flow_
               );
-              auto captured_out_flow = detail::backend_runtime->make_next_flow(
+              auto captured_out_flow = backend_runtime->make_next_flow(
                 captured_in_flow
               );
               captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(

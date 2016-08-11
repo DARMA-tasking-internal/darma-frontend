@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      allocator.impl.h
+//                      concept.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,38 +42,60 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H
-#define DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H
+#ifndef DARMA_IMPL_ARRAY_CONCEPT_H
+#define DARMA_IMPL_ARRAY_CONCEPT_H
 
-#include <darma/impl/runtime.h>
+#include <darma/interface/frontend/array_concept_manager.h>
+#include <darma/impl/util/smart_pointers.h>
 
-#include "allocator.h"
+#include "indexable.h"
 
 namespace darma_runtime {
-namespace serialization {
+namespace detail {
 
-template <typename T, typename BaseAllocator>
-typename darma_allocator<T, BaseAllocator>::pointer
-darma_allocator<T, BaseAllocator>::allocate(
-  size_type n, const_void_pointer _ignored
-) {
-  darma_runtime::abstract::backend::get_backend_memory_manager()->allocate(
-    n*sizeof(T), detail::DefaultMemoryRequirementDetails{}
-  );
+template <typename T, typename ElementRangeT>
+class ArrayConceptManagerForType
+  : public abstract::frontend::ArrayConceptManager
+{
+  private:
+
+    using _idx_traits = IndexingTraits<T>;
+
+  public:
+
+    size_t
+    n_elements(void const* obj) const override {
+      return _idx_traits::n_elements(*static_cast<T const*>(obj));
+    }
+
+    types::unique_ptr_template<abstract::frontend::ElementRange>
+    get_element_range(
+      void const* obj,
+      size_t offset, size_t n_elem
+    ) const override;
+
+    void
+    set_element_range(
+      void* obj,
+      abstract::frontend::ElementRange const& range,
+      size_t offset, size_t size
+    ) const override {
+      void const* sub_object =
+        static_cast<ElementRangeT const&>(range).get_buffer();
+      _idx_traits::set_element_range(
+        *static_cast<T*>(obj),
+        *static_cast<typename _idx_traits::subset_object_type const*>(
+          sub_object
+        ),
+        offset, size
+      );
+    }
+
+
 };
 
-template <typename T, typename BaseAllocator>
-void
-darma_allocator<T, BaseAllocator>::deallocate(
-  pointer ptr, size_type n
-) noexcept {
-  darma_runtime::abstract::backend::get_backend_memory_manager()->deallocate(
-    static_cast<void*>(ptr), n*sizeof(T)
-  );
-};
 
-} // end namespace serialization
+} // end namespace detail
 } // end namespace darma_runtime
 
-
-#endif //DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H
+#endif //DARMA_IMPL_ARRAY_CONCEPT_H

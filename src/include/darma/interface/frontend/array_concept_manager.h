@@ -46,6 +46,8 @@
 #define DARMA_INTERFACE_FRONTEND_ARRAY_CONCEPT_MANAGER_H
 
 #include "element_range.h"
+#include "darma_types.h"
+#include "index_range.h"
 
 namespace darma_runtime {
 namespace abstract {
@@ -72,11 +74,29 @@ class ArrayConceptManager {
      * @param n_elem
      * @return
      */
-    virtual ElementRange
+    virtual types::unique_ptr_template<ElementRange>
     get_element_range(
       void const* obj,
       size_t offset, size_t n_elem
     ) const =0;
+
+    /** @todo
+     *
+     * @param obj
+     * @param idx_range
+     * @return
+     */
+    virtual types::unique_ptr_template<ElementRange>
+    get_element_range(
+      void const* obj,
+      IndexRange const* idx_range
+    ) const {
+      // If this method is unimplemented, range must be contiguous
+      assert(idx_range->contiguous());
+      return get_element_range(
+        obj, idx_range->offset(), idx_range->size()
+      );
+    }
 
     /** @todo
      *
@@ -94,10 +114,29 @@ class ArrayConceptManager {
 
     /** @todo
      *
-     * @return
+     * @param obj
+     * @param range
+     * @param idx_range
      */
-    virtual SerializationManager const*
-    get_element_serialization_manager() const =0;
+    virtual void
+    set_element_range(
+      void* obj,
+      ElementRange const& range,
+      IndexRange const* idx_range
+    ) const {
+      // If this method is unimplemented, range must be contiguous
+      assert(idx_range->contiguous());
+      set_element_range(
+        obj, range, idx_range->offset(), idx_range->size()
+      );
+    }
+
+//    /** @todo
+//     *
+//     * @return
+//     */
+//    virtual SerializationManager const*
+//    get_element_serialization_manager() const =0;
 };
 
 } // end namespace frontend

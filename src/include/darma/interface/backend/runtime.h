@@ -78,13 +78,6 @@ class Runtime {
     typedef frontend::Task<types::concrete_task_t> task_t;
     typedef types::unique_ptr_template<task_t> task_unique_ptr;
 
-    /** @brief Return the SPMD rank of this backend instance. */
-    virtual size_t
-    get_spmd_rank() const = 0;
-
-    /** @brief Return the SPMD size. */
-    virtual size_t
-    get_spmd_size() const = 0;
 
     /** @brief Register a task to be run at some future time by the runtime
      * system.
@@ -115,32 +108,6 @@ class Runtime {
      */
     virtual bool
     register_condition_task( task_unique_ptr&& task ) = 0;
-
-    /** @brief Get a pointer to the \ref frontend::Task object currently running
-     * on the thread from which get_running_task() was invoked.
-    *
-    *  @return A non-owning pointer to the \ref frontend::Task object running on
-    *  the invoking thread.  The returned pointer must be castable to the same
-    *  concrete type as was passed to \ref Runtime::register_task() when the
-    *  task was registered.
-    *
-    *  @remark If the runtime implements context switching, it must ensure that
-    *  the behavior of Runtime::get_running_task() is consistent and correct for
-    *  a given running thread as though the switching never occurred.
-    *
-    *  @remark The pointer returned here is guaranteed to be valid until
-    *  Task::run() returns for the returned task.  However, to allow context
-    *  switching, it is not guaranteed to be valid in the context of any other
-    *  task's run() invocation, including child tasks, and thus it should not be
-    *  dereferenced in any other context.
-    *
-    *  @TODO decide what this should do if called before or after a migrated
-    *  task runs
-    *
-    *  @sa frontend::Task
-    */
-    virtual task_t*
-    get_running_task() const = 0;
 
     /** @brief Register a frontend::Use object
      *
@@ -345,6 +312,79 @@ class Runtime {
       frontend::PublicationDetails* details
     ) =0;
 
+    /** @brief signifies the end of the outer SPMD task from which
+     *  darma_backend_initialize() was called.
+     *
+     *  @remark Note that after finalize() returns, the only valid methods that
+     *  may be invoked on this instance are release_read_only_usage() and
+     *  release_handle().  No handle released after finalize() returns may have
+     *  a subsequent.  However, when finalize is \b invoked, there may still be
+     *  pending tasks that schedule other tasks (the frontend has no way to
+     *  know this), and thus any method on this instance must be valid to call
+     *  \b between the invocation and return of finalize().
+     */
+    virtual void
+    finalize() =0;
+
+
+
+    virtual ~Runtime() noexcept = default;
+
+};
+
+
+class Context {
+  public:
+
+    typedef frontend::Task<types::concrete_task_t> task_t;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Context
+
+    /** @brief Return the SPMD rank of this backend instance. */
+    virtual size_t
+    get_spmd_rank() const = 0;
+
+    /** @brief Return the SPMD size. */
+    virtual size_t
+    get_spmd_size() const = 0;
+
+    /** @brief Get a pointer to the \ref frontend::Task object currently running
+     * on the thread from which get_running_task() was invoked.
+    *
+    *  @return A non-owning pointer to the \ref frontend::Task object running on
+    *  the invoking thread.  The returned pointer must be castable to the same
+    *  concrete type as was passed to \ref Runtime::register_task() when the
+    *  task was registered.
+    *
+    *  @remark If the runtime implements context switching, it must ensure that
+    *  the behavior of Runtime::get_running_task() is consistent and correct for
+    *  a given running thread as though the switching never occurred.
+    *
+    *  @remark The pointer returned here is guaranteed to be valid until
+    *  Task::run() returns for the returned task.  However, to allow context
+    *  switching, it is not guaranteed to be valid in the context of any other
+    *  task's run() invocation, including child tasks, and thus it should not be
+    *  dereferenced in any other context.
+    *
+    *  @TODO decide what this should do if called before or after a migrated
+    *  task runs
+    *
+    *  @sa frontend::Task
+    */
+    virtual task_t*
+    get_running_task() const = 0;
+
+    //
+    ////////////////////////////////////////////////////////////////////////////
+};
+
+class MemoryManager {
+  public:
+
+    ////////////////////////////////////////////////////////////////////////////
+    // MemoryManager
+
     /** @brief Request that the backend allocate a contiguous piece of memory
      *  of size `n_bytes` and with the hinted attributes described by `details`.
      *
@@ -384,23 +424,34 @@ class Runtime {
       size_t n_bytes
     ) =0;
 
-    /** @brief signifies the end of the outer SPMD task from which
-     *  darma_backend_initialize() was called.
-     *
-     *  @remark Note that after finalize() returns, the only valid methods that
-     *  may be invoked on this instance are release_read_only_usage() and
-     *  release_handle().  No handle released after finalize() returns may have
-     *  a subsequent.  However, when finalize is \b invoked, there may still be
-     *  pending tasks that schedule other tasks (the frontend has no way to
-     *  know this), and thus any method on this instance must be valid to call
-     *  \b between the invocation and return of finalize().
-     */
-    virtual void
-    finalize() =0;
+    ////////////////////////////////////////////////////////////////////////////
 
-    virtual ~Runtime() noexcept = default;
+    virtual ~MemoryManager() noexcept = default;
 
 };
+
+
+/** @todo
+ *
+ * @return
+ */
+Context*
+get_backend_context();
+
+/** @todo
+ *
+ * @return
+ */
+MemoryManager*
+get_backend_memory_manager();
+
+/** @todo
+ *
+ * @return
+ */
+Runtime*
+get_backend_runtime();
+
 
 typedef Runtime runtime_t;
 
@@ -461,9 +512,9 @@ typedef Runtime runtime_t;
  *
  */
 extern void
-  darma_backend_initialize(
+darma_backend_initialize(
   int& argc, char**& argv,
-  runtime_t*& backend_runtime,
+  //runtime_t*& backend_runtime,
   runtime_t::task_unique_ptr&& top_level_task
 );
 
