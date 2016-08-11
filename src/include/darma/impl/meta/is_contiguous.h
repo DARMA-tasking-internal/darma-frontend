@@ -77,6 +77,14 @@ struct _get_const_iterator {
 using tinympl::lazy;
 using tinympl::lazy_get_value;
 
+namespace _impl {
+
+template <typename Iterator>
+using _val_t =
+  std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>;
+
+} // end namespace _impl
+
 // vector and specializations
 template <typename Iterator>
 struct is_contiguous_iterator_enabled_if<Iterator,
@@ -85,23 +93,17 @@ struct is_contiguous_iterator_enabled_if<Iterator,
       //------------------------------------------------------------------------
       // vector specialization:
       std::is_same<
-        typename std::vector<
-          std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>
-        >::iterator,
+        typename std::vector< _impl::_val_t<Iterator> >::iterator,
         Iterator
       >,
       std::is_same<
-        typename std::vector<
-          std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>
-        >::const_iterator,
+        typename std::vector< _impl::_val_t<Iterator> >::const_iterator,
         Iterator
       >,
       //------------------------------------------------------------------------
       // std::basic_string specialization
       tinympl::and_<
-        std::is_pod<
-          std::decay_t<typename std::iterator_traits<Iterator>::value_type>
-        >,
+        std::is_pod< _impl::_val_t<Iterator> >,
         // std::string has a static_assert that the character type must be POD,
         // so we can't just evaluate this willy-nilly.  This mess is a delayed
         // evaluation of the second condition (analogous to the one in the vector
@@ -110,10 +112,7 @@ struct is_contiguous_iterator_enabled_if<Iterator,
           lazy<std::is_same>::applied_to<Iterator,
             lazy<_get_iterator>::applied_to<
               lazy<std::basic_string>::instantiated_with<
-                std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>,
-                lazy<std::char_traits>::instantiated_with<
-                  std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>
-                >
+                _impl::_val_t<Iterator>
               > // end lazy string instantiation to get around static assertion
             > // end lazy _get_iterator
           > // end lazy is_same
@@ -121,9 +120,7 @@ struct is_contiguous_iterator_enabled_if<Iterator,
       >, // end basic_string iterator case
       // Same as above, but with const_iterator instead
       tinympl::and_<
-        std::is_pod<
-          std::decay_t<typename std::iterator_traits<Iterator>::value_type>
-        >,
+        std::is_pod< _impl::_val_t<Iterator> >,
         // std::string has a static_assert that the character type must be POD,
         // so we can't just evaluate this willy-nilly.  This mess is a delayed
         // evaluation of the second condition (analogous to the one in the vector
@@ -132,10 +129,7 @@ struct is_contiguous_iterator_enabled_if<Iterator,
           lazy<std::is_same>::applied_to<Iterator,
             lazy<_get_const_iterator>::applied_to<
               lazy<std::basic_string>::instantiated_with<
-                std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>,
-                lazy<std::char_traits>::instantiated_with<
-                  std::remove_const_t<typename std::iterator_traits<Iterator>::value_type>
-                >
+                _impl::_val_t<Iterator>
               > // end lazy string instantiation to get around static assertion
             > // end lazy _get_iterator
           > // end lazy is_same

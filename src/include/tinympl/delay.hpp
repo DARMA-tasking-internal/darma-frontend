@@ -153,9 +153,24 @@ struct _delay_all_helper<
   OuterMFC, UnwrappedArgsVector, LastArg
 >
 {
-  using type = typename _delay_all_helper<OuterMFC,
-    push_back_t<UnwrappedArgsVector, LastArg>
-  >::type;
+  template <typename NormalArg, typename Enable=void>
+  struct next_helper {
+    using type = typename _delay_all_helper<OuterMFC,
+      push_back_t<UnwrappedArgsVector, NormalArg>
+    >::type;
+  };
+
+  template <typename DelayedArg>
+  struct next_helper<DelayedArg,
+    std::enable_if_t<is_delayed_application<DelayedArg>::value>
+  >
+  {
+    using type = typename _delay_all_helper<OuterMFC,
+      push_back_t<UnwrappedArgsVector, typename DelayedArg::type>
+    >::type;
+  };
+
+  using type = typename next_helper<LastArg>::type;
 };
 
 template <

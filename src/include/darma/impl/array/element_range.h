@@ -88,8 +88,9 @@ class SimpleElementRange
 
     bool
     is_deep_copy() const override {
-      // TODO
-      abort();
+      return _idx_traits::is_deep_copy(
+        *static_cast<T const*>(md_buffer_)
+      );
     }
 
     abstract::frontend::SerializationManager const*

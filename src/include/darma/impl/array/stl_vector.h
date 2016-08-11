@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      is_contiguous.cpp
+//                      stl_vector.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,40 +42,25 @@
 //@HEADER
 */
 
-#include <vector>
-#include <string>
-#include <map>
+#ifndef DARMA_IMPL_ARRAY_STL_VECTOR_H
+#define DARMA_IMPL_ARRAY_STL_VECTOR_H
 
-#include <darma/impl/meta/is_contiguous.h>
+namespace darma {
 
-using namespace darma_runtime::meta;
+// TODO
+template <typename T>
+struct vector_view;
 
-static_assert(
-  is_contiguous_iterator<typename std::vector<long>::iterator>::value,
-  "std::vector iterator should be contiguous"
-);
+} // end namespace darma
 
-static_assert(
-  is_contiguous_iterator<typename std::vector<long>::const_iterator>::value,
-  "std::vector const_iterator should be contiguous"
-);
+namespace darma_runtime {
 
-static_assert(
-  is_contiguous_iterator<typename std::string::iterator>::value,
-  "std::string iterator should be contiguous"
-);
 
-static_assert(
-  is_contiguous_iterator<typename std::vector<long>::const_iterator>::value,
-  "std::vector const_iterator should be contiguous"
-);
+// TODO IndexDecomposition specialization for std::vector that creates a view
 
-static_assert(
-  not is_contiguous_iterator<typename std::map<int, int>::iterator>::value,
-  "std::map iterators should not be contiguous"
-);
 
-static_assert(
-  is_contiguous_iterator<int*>::value,
-  "int* should be contiguous"
-);
+
+
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_ARRAY_STL_VECTOR_H
