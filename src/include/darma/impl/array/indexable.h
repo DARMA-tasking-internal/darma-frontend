@@ -100,7 +100,10 @@ struct IndexingTraits {
       decomposition().set_element_range(object, subset, offset, n_elem);
     }
 
-
+    static inline bool
+    is_deep_copy(T const& object) {
+      return const_decomposition().is_deep_copy(object);
+    }
 
     // TODO these shouldn't reconstruct the sub-object except as a last resort
 

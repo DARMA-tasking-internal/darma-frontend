@@ -82,6 +82,7 @@ class ArrayConceptManagerForType
     ) const override {
       void const* sub_object =
         static_cast<ElementRangeT const&>(range).get_buffer();
+
       _idx_traits::set_element_range(
         *static_cast<T*>(obj),
         *static_cast<typename _idx_traits::subset_object_type const*>(

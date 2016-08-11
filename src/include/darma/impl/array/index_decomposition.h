@@ -69,7 +69,7 @@ struct IndexDecomposition_enabled_if {
     return 1;
   }
 
-  T& get_element(T& obj, size_t i) const {
+  T get_element(T& obj, size_t i) const {
     assert(i == 0);
     return obj;
   }
@@ -85,7 +85,12 @@ struct IndexDecomposition_enabled_if {
     new (allocd) T(parent);
   }
 
-  // TODO figure out if we can or can't assume this is a deep copy...
+  // TODO make this not a deep copy if possible
+  // TODO generalization to types that don't deep copy their data
+  bool
+  is_deep_copy(T& obj) const {
+    return true;
+  }
 
   void
   set_element_range(T& obj, T const& data, size_t offset, size_t size) const {
@@ -126,6 +131,11 @@ struct IndexDecomposition_enabled_if<T,
   get_element_range(void* allocd, T& parent, size_t offset, size_t sz) const {
     assert(offset + sz < n_elements(parent));
     new (allocd) T(begin(parent) + offset, begin(parent) + offset + sz);
+  }
+
+  bool
+  is_deep_copy(T& obj) const {
+    return true;
   }
 
   void
