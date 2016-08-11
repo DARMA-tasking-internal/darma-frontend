@@ -177,7 +177,8 @@ class SerializationManagerForType
       auto ar = _get_best_compatible_archive(
         tinympl::identity<best_compatible_archive_t>{}, ser_pol
       );
-      detail::DependencyHandle_attorneys::ArchiveAccess::start_sizing(ar);
+      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      ArchiveAccess::start_sizing(ar);
       serialization::detail::serializability_traits<T>::compute_size(
         *static_cast<T const* const>(object_data), ar
       );
@@ -193,8 +194,9 @@ class SerializationManagerForType
       auto ar = _get_best_compatible_archive(
         tinympl::identity<best_compatible_archive_t>{}, ser_pol
       );
-      detail::DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, serialization_buffer);
-      detail::DependencyHandle_attorneys::ArchiveAccess::start_packing(ar);
+      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      ArchiveAccess::set_buffer(ar, serialization_buffer);
+      ArchiveAccess::start_packing(ar);
       serialization::detail::serializability_traits<T>::pack(
         *static_cast<T const* const>(object_data), ar
       );
@@ -209,13 +211,15 @@ class SerializationManagerForType
       auto ar = _get_best_compatible_archive(
         tinympl::identity<best_compatible_archive_t>{}, ser_pol
       );
+      using detail::DependencyHandle_attorneys::ArchiveAccess;
       // Need to cast away constness of the buffer because the Archive requires
       // a non-const buffer to be able to operate in pack mode (i.e., so that
-      // the user can write one function for both serialization and deserialization)
-      detail::DependencyHandle_attorneys::ArchiveAccess::set_buffer(
+      // the user can write one function for both serialization and
+      // deserialization)
+      ArchiveAccess::set_buffer(
         ar, const_cast<void *const>(serialized_data)
       );
-      detail::DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);
+      ArchiveAccess::start_unpacking(ar);
       serialization::detail::serializability_traits<T>::unpack(object_dest, ar);
     }
 

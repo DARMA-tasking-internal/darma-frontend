@@ -71,7 +71,8 @@
 #include <darma/impl/keyword_arguments/keyword_arguments.h>
 #include <darma/interface/app/keyword_arguments/n_readers.h>
 #include <darma/interface/app/keyword_arguments/version.h>
-#include <darma/array/indexable.h>
+#include <darma/impl/array/indexable.h>
+#include <darma/impl/array/concept.h>
 
 
 namespace darma_runtime {
@@ -240,6 +241,7 @@ template <typename T>
 class VariableHandle
   : public VariableHandleBase,
     public serialization::detail::SerializationManagerForType<T>,
+    public ArrayConceptManagerForType<T, SimpleElementRange<T>>,
     public abstract::frontend::ArrayMovementManager
 
 {
@@ -280,6 +282,11 @@ class VariableHandle
       return this;
     }
 
+    abstract::frontend::ArrayConceptManager const*
+    get_array_concept_manager() const override {
+      return this;
+    }
+
     // </editor-fold>
     ////////////////////////////////////////////////////////////
 
@@ -292,15 +299,16 @@ class VariableHandle
       size_t offset, size_t n_elem,
       abstract::backend::SerializationPolicy* ser_pol
     ) const override {
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       auto ar = _ser_man_impl_t::_get_best_compatible_archive(
         tinympl::identity<typename _ser_man_impl_t::best_compatible_archive_t>(),
         ser_pol
       );
-      serialization::detail::DependencyHandle_attorneys::ArchiveAccess::start_sizing(ar);
+      ArchiveAccess::start_sizing(ar);
       IndexingTraits<T>::get_packed_size(
         *static_cast<T const*>(obj), ar, offset, n_elem
       );
-      return serialization::detail::DependencyHandle_attorneys::ArchiveAccess::get_size(ar);
+      return ArchiveAccess::get_size(ar);
     }
 
     void
@@ -310,11 +318,12 @@ class VariableHandle
       abstract::backend::SerializationPolicy* ser_pol
     ) const override
     {
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       auto ar = _ser_man_impl_t::_get_best_compatible_archive(
         tinympl::identity<typename _ser_man_impl_t::best_compatible_archive_t>(),
         ser_pol
       );
-      serialization::detail::DependencyHandle_attorneys::ArchiveAccess::start_packing_with_buffer(
+      ArchiveAccess::start_packing_with_buffer(
         ar, buffer
       );
       IndexingTraits<T>::pack_elements(
@@ -330,11 +339,12 @@ class VariableHandle
       abstract::backend::SerializationPolicy* ser_pol
     ) const override
     {
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       auto ar = _ser_man_impl_t::_get_best_compatible_archive(
         tinympl::identity<typename _ser_man_impl_t::best_compatible_archive_t>(),
         ser_pol
       );
-      serialization::detail::DependencyHandle_attorneys::ArchiveAccess::start_unpacking_with_buffer(
+      ArchiveAccess::start_unpacking_with_buffer(
         ar, buffer
       );
       IndexingTraits<T>::unpack_elements(

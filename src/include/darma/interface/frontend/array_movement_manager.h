@@ -46,6 +46,7 @@
 #define DARMA_INTERFACE_FRONTEND_ARRAY_MOVEMENT_MANAGER_H
 
 #include <darma/interface/backend/serialization_policy.h>
+#include <darma/interface/frontend/index_range.h>
 
 namespace darma_runtime {
 namespace abstract {
@@ -56,6 +57,7 @@ namespace frontend {
  */
 class ArrayMovementManager {
   public:
+
     /** @todo
      *
      * @param obj
@@ -70,6 +72,26 @@ class ArrayMovementManager {
       size_t offset, size_t n_elem,
       backend::SerializationPolicy* ser_pol
     ) const =0;
+
+    /** @todo
+     *
+     * @param obj
+     * @param idx_range
+     * @param ser_pol
+     * @return
+     */
+    virtual size_t
+    get_packed_size(
+      void const* obj,
+      IndexRange const* idx_range,
+      backend::SerializationPolicy* ser_pol
+    ) const {
+      // If this method is unimplemented, range must be contiguous
+      assert(idx_range->contiguous());
+      return get_packed_size(
+        obj, idx_range->offset(), idx_range->size(), ser_pol
+      );
+    }
 
     /** @todo
      *
@@ -90,6 +112,26 @@ class ArrayMovementManager {
      *
      * @param obj
      * @param buffer
+     * @param idx_range
+     * @param ser_pol
+     */
+    virtual void
+    pack_elements(
+      void const* obj, void* buffer,
+      IndexRange const* idx_range,
+      backend::SerializationPolicy* ser_pol
+    ) const {
+      // If this method is unimplemented, range must be contiguous
+      assert(idx_range->contiguous());
+      pack_elements(
+        obj, buffer, idx_range->offset(), idx_range->size(), ser_pol
+      );
+    }
+
+    /** @todo
+     *
+     * @param obj
+     * @param buffer
      * @param offset
      * @param n_elem
      * @param ser_pol
@@ -100,6 +142,26 @@ class ArrayMovementManager {
       size_t offset, size_t n_elem,
       backend::SerializationPolicy* ser_pol
     ) const =0;
+
+    /** @todo
+     *
+     * @param obj
+     * @param buffer
+     * @param idx_range
+     * @param ser_pol
+     */
+    virtual void
+    unpack_elements(
+      void* obj, void const* buffer,
+      IndexRange const* idx_range,
+      backend::SerializationPolicy* ser_pol
+    ) const {
+      // If this method is unimplemented, range must be contiguous
+      assert(idx_range->contiguous());
+      unpack_elements(
+        obj, buffer, idx_range->offset(), idx_range->size(), ser_pol
+      );
+    }
 };
 
 } // end namespace frontend

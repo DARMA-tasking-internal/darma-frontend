@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      allocator.impl.h
+//                      array.impl.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,38 +42,9 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H
-#define DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H
+#ifndef DARMA_IMPL_ARRAY_ARRAY_IMPL_H
+#define DARMA_IMPL_ARRAY_ARRAY_IMPL_H
 
-#include <darma/impl/runtime.h>
+#include "concept.impl.h"
 
-#include "allocator.h"
-
-namespace darma_runtime {
-namespace serialization {
-
-template <typename T, typename BaseAllocator>
-typename darma_allocator<T, BaseAllocator>::pointer
-darma_allocator<T, BaseAllocator>::allocate(
-  size_type n, const_void_pointer _ignored
-) {
-  darma_runtime::abstract::backend::get_backend_memory_manager()->allocate(
-    n*sizeof(T), detail::DefaultMemoryRequirementDetails{}
-  );
-};
-
-template <typename T, typename BaseAllocator>
-void
-darma_allocator<T, BaseAllocator>::deallocate(
-  pointer ptr, size_type n
-) noexcept {
-  darma_runtime::abstract::backend::get_backend_memory_manager()->deallocate(
-    static_cast<void*>(ptr), n*sizeof(T)
-  );
-};
-
-} // end namespace serialization
-} // end namespace darma_runtime
-
-
-#endif //DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H
+#endif //DARMA_IMPL_ARRAY_ARRAY_IMPL_H

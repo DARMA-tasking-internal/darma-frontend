@@ -143,18 +143,18 @@ struct UseHolder {
 
   void do_register() {
     assert(!is_registered);
-    detail::backend_runtime->register_use(&use);
+    abstract::backend::get_backend_runtime()->register_use(&use);
     is_registered = true;
   }
 
   void do_release() {
     assert(is_registered);
-    detail::backend_runtime->release_use(&use);
+    abstract::backend::get_backend_runtime()->release_use(&use);
     is_registered = false;
   }
 
   UseHolder(migrated_use_arg_t const&, HandleUse&& in_use) : use(std::move(in_use)) {
-    detail::backend_runtime->reregister_migrated_use(&use);
+    abstract::backend::get_backend_runtime()->reregister_migrated_use(&use);
     is_registered = true;
   }
 
@@ -162,7 +162,7 @@ struct UseHolder {
     if(is_registered) do_release();
     else if(could_be_alias) {
       // okay, now we know it IS an alias
-      detail::backend_runtime->establish_flow_alias(use.in_flow_, use.out_flow_);
+      abstract::backend::get_backend_runtime()->establish_flow_alias(use.in_flow_, use.out_flow_);
     }
   }
 };

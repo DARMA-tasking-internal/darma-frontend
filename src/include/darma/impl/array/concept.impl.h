@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      allocator.impl.h
+//                      concept.impl.h.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,38 +42,29 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H
-#define DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H
+#ifndef DARMA_IMPL_ARRAY_CONCEPT_IMPL_H
+#define DARMA_IMPL_ARRAY_CONCEPT_IMPL_H
 
-#include <darma/impl/runtime.h>
-
-#include "allocator.h"
+#include "concept.h"
+#include "element_range.h"
 
 namespace darma_runtime {
-namespace serialization {
+namespace detail {
 
-template <typename T, typename BaseAllocator>
-typename darma_allocator<T, BaseAllocator>::pointer
-darma_allocator<T, BaseAllocator>::allocate(
-  size_type n, const_void_pointer _ignored
-) {
-  darma_runtime::abstract::backend::get_backend_memory_manager()->allocate(
-    n*sizeof(T), detail::DefaultMemoryRequirementDetails{}
-  );
-};
+template <typename T, typename ElementRangeT>
+types::unique_ptr_template<abstract::frontend::ElementRange>
+ArrayConceptManagerForType<T, ElementRangeT>::get_element_range(
+  void const* obj,
+  size_t offset, size_t n_elem
+) const {
+  types::unique_ptr_template<abstract::frontend::ElementRange> rv =
+    detail::make_unique<ElementRangeT>(
+      *static_cast<T const*>(obj), offset, n_elem
+    );
+  return rv;
+}
 
-template <typename T, typename BaseAllocator>
-void
-darma_allocator<T, BaseAllocator>::deallocate(
-  pointer ptr, size_type n
-) noexcept {
-  darma_runtime::abstract::backend::get_backend_memory_manager()->deallocate(
-    static_cast<void*>(ptr), n*sizeof(T)
-  );
-};
-
-} // end namespace serialization
+} // end namespace detail
 } // end namespace darma_runtime
 
-
-#endif //DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H
+#endif //DARMA_IMPL_ARRAY_CONCEPT_IMPL_H

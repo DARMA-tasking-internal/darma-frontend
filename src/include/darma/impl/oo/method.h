@@ -780,7 +780,7 @@ inline void
 _create_deferred_method_call(ClassOrCallingMethodT&& cls, Args&&... args) {
   auto t = darma_runtime::detail::make_unique<darma_runtime::detail::TaskBase>();
   darma_runtime::detail::TaskBase* parent_task = static_cast<darma_runtime::detail::TaskBase* const>(
-    darma_runtime::detail::backend_runtime->get_running_task()
+    darma_runtime::abstract::backend::get_backend_context()->get_running_task()
   );
   parent_task->current_create_work_context = t.get();
   // This should trigger the captures to happen in the access handle copy constructors
@@ -802,7 +802,7 @@ _create_deferred_method_call(ClassOrCallingMethodT&& cls, Args&&... args) {
   }
   t->post_registration_ops.clear();
 
-  darma_runtime::detail::backend_runtime->register_task(
+  darma_runtime::abstract::backend::get_backend_runtime()->register_task(
     std::move(t)
   );
 };

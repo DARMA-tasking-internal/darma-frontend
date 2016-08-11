@@ -60,6 +60,9 @@ template <typename T, typename Enable=void>
 struct IndexDecomposition_enabled_if {
   // Trivial index decomposition case
 
+  using subset_object_type = T;
+  using element_type = T;
+
   // TODO this only works for copy-constructible types
 
   size_t n_elements(T const& obj) const {
@@ -85,7 +88,7 @@ struct IndexDecomposition_enabled_if {
   // TODO figure out if we can or can't assume this is a deep copy...
 
   void
-  set_element_range(T& obj, T& data, size_t offset, size_t size) const {
+  set_element_range(T& obj, T const& data, size_t offset, size_t size) const {
     assert(offset == 0 and size == 1);
     obj = data;
   }
@@ -100,6 +103,7 @@ struct IndexDecomposition_enabled_if<T,
   >
 > {
 
+  using subset_object_type = T;
   using element_type = typename meta::iterable_traits<T>::element_type;
 
   size_t n_elements(T const& obj) const {

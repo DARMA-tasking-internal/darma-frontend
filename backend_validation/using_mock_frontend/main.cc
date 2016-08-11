@@ -52,7 +52,7 @@ int darma_main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::InitGoogleMock(&argc, argv);
   int ret = RUN_ALL_TESTS();
-  ::darma_runtime::detail::backend_runtime = 0;  // make sure main() doesn't double-delete
+  //::darma_runtime::detail::backend_runtime = 0;  // make sure main() doesn't double-delete
   return ret;
 }
 

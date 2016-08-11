@@ -68,7 +68,7 @@ struct TestBackend
           std::make_unique<::testing::NiceMock<mock_frontend::MockTask>>();
 
       abstract::backend::darma_backend_initialize(
-        argc_, argv_, detail::backend_runtime,
+        argc_, argv_,
         std::move(top_level_task)
       );
 
@@ -79,10 +79,10 @@ struct TestBackend
       using namespace darma_runtime;
       if(!backend_finalized) {
         // Clean up from failed tests
-        detail::backend_runtime->finalize();
+        abstract::backend::get_backend_runtime()->finalize();
       }
-      delete detail::backend_runtime;
-      detail::backend_runtime = 0;
+      // Just for testing purposes
+      delete abstract::backend::get_backend_runtime();
       delete[] argv_[0];
       delete[] argv_;
     }

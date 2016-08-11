@@ -87,7 +87,7 @@ struct reads_decorator_parser {
   operator()(Args&&... args) const {
     using detail::create_work_attorneys::for_AccessHandle;
     detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-      detail::backend_runtime->get_running_task()
+      abstract::backend::get_backend_context()->get_running_task()
     );
     detail::TaskBase* task = parent_task->current_create_work_context;
 
@@ -149,7 +149,7 @@ struct create_work_impl {
     task_base->set_runnable(
       std::make_unique<Runnable<Lambda>>(std::forward<Lambda>(lambda))
     );
-    return detail::backend_runtime->register_task(
+    return abstract::backend::get_backend_runtime()->register_task(
       std::move(task_base)
     );
   }
@@ -160,7 +160,7 @@ inline types::unique_ptr_template<TaskBase>
 _start_create_work() {
   auto rv = std::make_unique<TaskBase>();
   detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-    detail::backend_runtime->get_running_task()
+    abstract::backend::get_backend_context()->get_running_task()
   );
   parent_task->current_create_work_context = rv.get();
   return std::move(rv);
@@ -181,7 +181,7 @@ struct _do_create_work_impl {
       )
     );
     detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-      detail::backend_runtime->get_running_task()
+      abstract::backend::get_backend_context()->get_running_task()
     );
     parent_task->current_create_work_context = nullptr;
 
@@ -195,7 +195,7 @@ struct _do_create_work_impl {
     }
     task_base->post_registration_ops.clear();
 
-    return detail::backend_runtime->register_task(
+    return abstract::backend::get_backend_runtime()->register_task(
       std::move(task_base)
     );
 
@@ -221,7 +221,7 @@ struct _do_create_work_impl<void> {
     >::type helper_t;
 
     detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-      detail::backend_runtime->get_running_task()
+      abstract::backend::get_backend_context()->get_running_task()
     );
     parent_task->current_create_work_context = nullptr;
 

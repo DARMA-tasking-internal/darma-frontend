@@ -48,9 +48,12 @@
 #include <darma/interface/frontend/element_range.h>
 #include <darma/interface/frontend/serialization_manager.h>
 #include <darma/interface/frontend/array_concept_manager.h>
+#include <darma/interface/frontend/array_movement_manager.h>
+#include <darma/impl/serialization/manager.h>
 
 #include "index_decomposition.h"
 #include "indexable.h"
+#include "concept.h"
 
 namespace darma_runtime {
 namespace detail {
@@ -59,8 +62,9 @@ namespace detail {
 template <typename T>
 class SimpleElementRange
   : public abstract::frontend::ElementRange,
-    public abstract::frontend::SerializationManager,
-    public abstract::frontend::ArrayConceptManager
+    public serialization::detail::SerializationManagerForType<T>,
+    public ArrayConceptManagerForType<T, SimpleElementRange<T>> //,
+    //public abstract::frontend::ArrayMovementManager
 {
   private:
 
@@ -68,7 +72,7 @@ class SimpleElementRange
 
   public:
 
-    SimpleElementRange(T& parent, size_t offset, size_t n_elem)
+    SimpleElementRange(T const& parent, size_t offset, size_t n_elem)
       : parent_(parent), offset_(offset), n_elem_(n_elem)
     { }
 
@@ -78,6 +82,7 @@ class SimpleElementRange
 
     void
     setup(void* md_buffer) override {
+      md_buffer_ = md_buffer;
       _idx_traits::make_subobject(md_buffer, parent_, offset_, n_elem_);
     }
 
@@ -88,52 +93,38 @@ class SimpleElementRange
     }
 
     abstract::frontend::SerializationManager const*
-    get_serialization_manager() const {
+    get_serialization_manager() const override {
       return this;
     }
 
     abstract::frontend::ArrayConceptManager const*
-    get_array_concept_manager() const {
+    get_array_concept_manager() const override {
       return this;
     }
+
+    // TODO array movement manager for a simple element range
+//    abstract::frontend::ArrayMovementManager const*
+//    get_array_movement_manager() const override {
+//      return this;
+//    }
 
     // end abstract::frontend::ElementRange implementation </editor-fold>
     ////////////////////////////////////////////////////////////////////////////
 
-    ////////////////////////////////////////////////////////////////////////////
-    // <editor-fold desc="abstract::frontend::SerializationManager implementation">
+    void* get_buffer() { return md_buffer_; }
 
-    size_t
-    get_metadata_size() const override {
-      return sizeof(T);
-    }
-
-    size_t
-    get_packed_data_size(
-      const void* const object_data
-      abstract::backend::SerializationPolicy* ser_policy
-    ) const override {
-      // TODO
-    }
-
-    // end abstract::frontend::SerializationManager implementation </editor-fold>
-    ////////////////////////////////////////////////////////////////////////////
-
-    ////////////////////////////////////////////////////////////////////////////
-    // <editor-fold desc="abstract::frontend::ArrayConceptManager implementation">
-
-    // end abstract::frontend::ArrayConceptManager implementation </editor-fold>
-    ////////////////////////////////////////////////////////////////////////////
+    void const* get_buffer() const { return md_buffer_; }
 
   private:
 
-    T& parent_;
+    void* md_buffer_ = nullptr;
+
+    T const& parent_;
 
     size_t offset_;
     size_t n_elem_;
 
 };
-
 
 } // end namespace detail
 } // end namespace darma_runtime

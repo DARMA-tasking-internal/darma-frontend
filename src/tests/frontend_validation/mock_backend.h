@@ -56,7 +56,9 @@
 namespace mock_backend {
 
 class MockRuntime
-  : public darma_runtime::abstract::backend::Runtime
+  : public darma_runtime::abstract::backend::Runtime,
+    public darma_runtime::abstract::backend::Context,
+    public darma_runtime::abstract::backend::MemoryManager
 {
   public:
 
