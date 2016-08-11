@@ -423,6 +423,7 @@ namespace threads_backend {
                     PRINT_KEY(key),
                     PRINT_KEY(f_in->inner->version_key),
                     PRINT_KEY(f_out->inner->version_key));
+        data[{version,key}]->refs++;
       } else {
         // allocate new deferred data block for this use
         auto block = allocate_block(handle);
@@ -438,11 +439,13 @@ namespace threads_backend {
                     PRINT_KEY(key),
                     PRINT_KEY(f_in->inner->version_key),
                     PRINT_KEY(f_out->inner->version_key));
+        block->refs++;
       }
     } else {
       const bool data_exists = fetched_data.find({version,key}) != fetched_data.end();
       if (data_exists) {
         u->get_data_pointer_reference() = fetched_data[{version,key}]->data;
+        fetched_data[{version,key}]->refs++;
       } else {
         // FIXME: copy-paste of above code...
 
@@ -451,19 +454,14 @@ namespace threads_backend {
         // insert into the hash
         fetched_data[{version,key}] = block;
         u->get_data_pointer_reference() = block->data;
+        block->refs++;
       }
     }
 
     // count references to a given handle
     handle_refs[handle]++;
 
-    // save the data pointer for this use for future reference
-    if (!f_in->inner->fromFetch) {
-      f_in->inner->deferred_data_ptr = data[{version,key}];
-    } else {
-      f_in->inner->deferred_data_ptr = fetched_data[{version,key}];
-    }
-
+    // TODO: delete this everywhere
     f_in->inner->hasDeferred = true;
   }
 
@@ -811,18 +809,32 @@ namespace threads_backend {
                                      const types::key_t version,
                                      const types::key_t key,
                                      const bool fromFetch) {
-    DEBUG_PRINT("delete handle data\n");
     DataBlock* prev = nullptr;
+    size_t ref = 0;
+
     if (fromFetch) {
       prev = fetched_data[{version,key}];
-      fetched_data.erase({version,key});
+      if (prev) {
+        ref = prev->refs;
+      }
+      if (prev && ref == 0) {
+        fetched_data.erase({version,key});
+      }
     } else {
       prev = data[{version,key}];
-      data.erase({version,key});
+      if (prev) {
+        ref = prev->refs;
+      }
+      if (prev && ref == 0) {
+        data.erase({version,key});
+      }
     }
 
-    // TODO: is this correct
-    if (prev) {
+    DEBUG_PRINT("delete handle data: fromFetch=%s, refs=%ld\n",
+                PRINT_BOOL_STR(fromFetch),
+                ref);
+
+    if (prev && ref == 0) {
       // call the destructor
       handle
         ->get_serialization_manager()
@@ -1047,6 +1059,12 @@ namespace threads_backend {
                 PRINT_KEY(key));
 
     handle_refs[handle]--;
+
+    if (!f_in->inner->fromFetch) {
+      data[{version,key}]->refs--;
+    } else {
+      fetched_data[{version,key}]->refs--;
+    }
 
     // dereference flows
     f_in->inner->uses--;
@@ -1325,9 +1343,13 @@ namespace threads_backend {
 
     DEBUG_PRINT("handle_refs=%ld, "
                 "handle_pubs=%ld, "
+                "data=%ld, "
+                "fetched data=%ld, "
                 "\n",
                 handle_refs.size(),
-                handle_pubs.size());
+                handle_pubs.size(),
+                data.size(),
+                fetched_data.size());
 
     // should call destructor for trace module if it exists to write
     // out the logs
