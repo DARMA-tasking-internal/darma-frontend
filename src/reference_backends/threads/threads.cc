@@ -321,10 +321,18 @@ namespace threads_backend {
                   PRINT_LABEL(f_in),
                   PRINT_LABEL(f_out));
 
-      if (f_in->inner->isFetch) {
-        assert(threads_backend::depthFirstExpand);
+      if (f_in->inner->isFetch &&
+          threads_backend::depthFirstExpand) {
         blocking_fetch(f_in->inner->handle, f_in->inner->version_key);
         f_in->inner->ready = true;
+      } else if (f_in->inner->isFetch) {
+        auto node = std::make_shared<FetchNode>(FetchNode{this,f_in->inner});
+        const bool ready = add_fetcher(node,
+                                       f_in->inner->handle,
+                                       f_in->inner->version_key);
+        if (ready) {
+          ready_local.push_back(node);
+        }
       }
 
       // set readiness of this flow based on symmetric flow structure
@@ -387,13 +395,11 @@ namespace threads_backend {
     const auto version = f_in->inner->version_key;
 
     const bool ready = f_in->inner->check_ready();
-    const bool data_exists = data.find({version,key}) != data.end();
 
-    DEBUG_PRINT("%p: register use: ready=%s, data_exists=%s, key=%s, version=%s, "
+    DEBUG_PRINT("%p: register use: ready=%s, key=%s, version=%s, "
                 "handle=%p [in={%ld,use=%ld},out={%ld,use=%ld}], sched=%d, immed=%d\n",
                 u,
                 PRINT_BOOL_STR(ready),
-                PRINT_BOOL_STR(data_exists),
                 PRINT_KEY(key),
                 PRINT_KEY(version),
                 handle,
@@ -405,38 +411,57 @@ namespace threads_backend {
                 u->immediate_permissions()
                );
 
-    if (data_exists) {
-      u->get_data_pointer_reference() = data[{version,key}]->data;
+    if (!f_in->inner->fromFetch) {
+      const bool data_exists = data.find({version,key}) != data.end();
+      if (data_exists) {
+        u->get_data_pointer_reference() = data[{version,key}]->data;
 
-      DEBUG_PRINT("%p: use register, ptr=%p, key=%s, "
-                  "in version=%s, out version=%s\n",
-                  u,
-                  data[{version,key}]->data,
-                  PRINT_KEY(key),
-                  PRINT_KEY(f_in->inner->version_key),
-                  PRINT_KEY(f_out->inner->version_key));
+        DEBUG_PRINT("%p: use register, ptr=%p, key=%s, "
+                    "in version=%s, out version=%s\n",
+                    u,
+                    data[{version,key}]->data,
+                    PRINT_KEY(key),
+                    PRINT_KEY(f_in->inner->version_key),
+                    PRINT_KEY(f_out->inner->version_key));
+        data[{version,key}]->refs++;
+      } else {
+        // allocate new deferred data block for this use
+        auto block = allocate_block(handle);
+
+        // insert into the hash
+        data[{version,key}] = block;
+        u->get_data_pointer_reference() = block->data;
+
+        DEBUG_PRINT("%p: use register: ptr=%p, key=%s, "
+                    "in version=%s, out version=%s\n",
+                    u,
+                    block->data,
+                    PRINT_KEY(key),
+                    PRINT_KEY(f_in->inner->version_key),
+                    PRINT_KEY(f_out->inner->version_key));
+        block->refs++;
+      }
     } else {
-      // allocate new deferred data block for this use
-      auto block = allocate_block(handle);
+      const bool data_exists = fetched_data.find({version,key}) != fetched_data.end();
+      if (data_exists) {
+        u->get_data_pointer_reference() = fetched_data[{version,key}]->data;
+        fetched_data[{version,key}]->refs++;
+      } else {
+        // FIXME: copy-paste of above code...
 
-      // insert into the hash
-      data[{version,key}] = block;
-      u->get_data_pointer_reference() = block->data;
-
-      DEBUG_PRINT("%p: use register: ptr=%p, key=%s, "
-                  "in version=%s, out version=%s\n",
-                  u,
-                  block->data,
-                  PRINT_KEY(key),
-                  PRINT_KEY(f_in->inner->version_key),
-                  PRINT_KEY(f_out->inner->version_key));
+        // allocate new deferred data block for this use
+        auto block = allocate_block(handle);
+        // insert into the hash
+        fetched_data[{version,key}] = block;
+        u->get_data_pointer_reference() = block->data;
+        block->refs++;
+      }
     }
 
     // count references to a given handle
     handle_refs[handle]++;
 
-    // save the data pointer for this use for future reference
-    f_in->inner->deferred_data_ptr = data[{version,key}];
+    // TODO: delete this everywhere
     f_in->inner->hasDeferred = true;
   }
 
@@ -484,8 +509,8 @@ namespace threads_backend {
         PublishedBlock* pub_ptr = iter->second;
         auto &pub = *pub_ptr;
 
-        const bool buffer_exists = data.find({version_key,key}) != data.end();
-        void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
+        const bool buffer_exists = fetched_data.find({version_key,key}) != fetched_data.end();
+        void* unpack_to = buffer_exists ? fetched_data[{version_key,key}]->data : malloc(pub.data->size_);
 
         DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
                     PRINT_BOOL_STR(buffer_exists),
@@ -496,7 +521,7 @@ namespace threads_backend {
           ->unpack_data(unpack_to,pub.data->data_);
 
         if (!buffer_exists) {
-          data[{version_key,key}] = new DataBlock(unpack_to);
+          fetched_data[{version_key,key}] = new DataBlock(unpack_to);
         }
 
         DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
@@ -619,8 +644,8 @@ namespace threads_backend {
       auto &pub = *pub_ptr;
       auto traceLog = pub.pub_log;
 
-      const bool buffer_exists = data.find({version_key,key}) != data.end();
-      void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
+      const bool buffer_exists = fetched_data.find({version_key,key}) != fetched_data.end();
+      void* unpack_to = buffer_exists ? fetched_data[{version_key,key}]->data : malloc(pub.data->size_);
 
       DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
                   PRINT_BOOL_STR(buffer_exists),
@@ -631,7 +656,7 @@ namespace threads_backend {
         ->unpack_data(unpack_to, pub.data->data_);
 
       if (!buffer_exists) {
-        data[{version_key,key}] = new DataBlock(unpack_to);
+        fetched_data[{version_key,key}] = new DataBlock(unpack_to);
       }
 
       DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
@@ -667,25 +692,12 @@ namespace threads_backend {
     ThreadsFlow* f = new ThreadsFlow(handle);
 
     handle_refs[handle]++;
+
     f->inner->handle = handle;
     f->inner->version_key = version_key;
-
-    if (threads_backend::depthFirstExpand) {
-      //blocking_fetch(handle, version_key);
-      //f->inner->ready = true;
-      f->inner->handle = handle;
-      f->inner->version_key = version_key;
-      f->inner->isFetch = true;
-      f->inner->ready = false;
-    } else {
-      auto node = std::make_shared<FetchNode>(FetchNode{this,f->inner});
-      const bool ready = add_fetcher(node,handle,version_key);
-
-      if (ready) {
-        ready_local.push_back(node);
-      }
-      f->inner->ready = false;
-    }
+    f->inner->isFetch = true;
+    f->inner->fromFetch = true;
+    f->inner->ready = false;
 
     return f;
   }
@@ -728,6 +740,7 @@ namespace threads_backend {
 
     f->inner->forward = f_forward->inner;
     f_forward->inner->handle = f->inner->handle;
+    f_forward->inner->fromFetch = f->inner->fromFetch;
     return f_forward;
   }
 
@@ -741,6 +754,7 @@ namespace threads_backend {
 
     f->inner->next = f_next->inner;
     f_next->inner->handle = f->inner->handle;
+    f_next->inner->fromFetch = f->inner->fromFetch;
 
     DEBUG_PRINT("next flow from %lu (%p) to %lu (%p)\n",
                 PRINT_LABEL(f),
@@ -784,20 +798,43 @@ namespace threads_backend {
       }
       delete_handle_data(handle,
                          flow->version_key,
-                         handle->get_key());
+                         handle->get_key(),
+                         flow->fromFetch);
       handle_refs.erase(handle);
     }
   }
 
   void
   ThreadsRuntime::delete_handle_data(darma_runtime::abstract::frontend::Handle const* const handle,
-                                     types::key_t version,
-                                     types::key_t key) {
-    DEBUG_PRINT("delete handle data\n");
-    DataBlock* prev = data[{version,key}];
-    data.erase({version,key});
-    // TODO: is this correct
-    if (prev) {
+                                     const types::key_t version,
+                                     const types::key_t key,
+                                     const bool fromFetch) {
+    DataBlock* prev = nullptr;
+    size_t ref = 0;
+
+    if (fromFetch) {
+      prev = fetched_data[{version,key}];
+      if (prev) {
+        ref = prev->refs;
+      }
+      if (prev && ref == 0) {
+        fetched_data.erase({version,key});
+      }
+    } else {
+      prev = data[{version,key}];
+      if (prev) {
+        ref = prev->refs;
+      }
+      if (prev && ref == 0) {
+        data.erase({version,key});
+      }
+    }
+
+    DEBUG_PRINT("delete handle data: fromFetch=%s, refs=%ld\n",
+                PRINT_BOOL_STR(fromFetch),
+                ref);
+
+    if (prev && ref == 0) {
       // call the destructor
       handle
         ->get_serialization_manager()
@@ -1014,15 +1051,20 @@ namespace threads_backend {
     const auto version = f_in->inner->version_key;
     const auto& key = handle->get_key();
 
-    DEBUG_PRINT("%p: release use: hasDeferred=%s, handle=%p, version=%s, key=%s, data=%p\n",
+    DEBUG_PRINT("%p: release use: hasDeferred=%s, handle=%p, version=%s, key=%s\n",
                 u,
                 f_in->inner->hasDeferred ? "*** true" : "false",
                 handle,
                 PRINT_KEY(version),
-                PRINT_KEY(key),
-                data[{version,key}]->data);
+                PRINT_KEY(key));
 
     handle_refs[handle]--;
+
+    if (!f_in->inner->fromFetch) {
+      data[{version,key}]->refs--;
+    } else {
+      fetched_data[{version,key}]->refs--;
+    }
 
     // dereference flows
     f_in->inner->uses--;
@@ -1275,13 +1317,16 @@ namespace threads_backend {
                 this->produced,
                 this->consumed);
 
-    while (this->produced != this->consumed) {
-      /// DEBUG_PRINT("produced = %ld, consumed = %ld\n", this->produced, this->consumed);
+    do {
       schedule_next_unit();
-    }
+      DEBUG_PRINT("produced = %ld, consumed = %ld\n", this->produced, this->consumed);
+    } while (this->produced != this->consumed
+             || ready_local.size() != 0
+             || ready_remote.size() != 0);
 
     assert(ready_local.size() == 0 &&
            ready_remote.size() == 0 &&
+           this->produced == this->consumed &&
            "TD failed if queues have work units in them.");
 
     STARTUP_PRINT("work units: produced=%ld, consumed=%ld\n",
@@ -1298,9 +1343,13 @@ namespace threads_backend {
 
     DEBUG_PRINT("handle_refs=%ld, "
                 "handle_pubs=%ld, "
+                "data=%ld, "
+                "fetched data=%ld, "
                 "\n",
                 handle_refs.size(),
-                handle_pubs.size());
+                handle_pubs.size(),
+                data.size(),
+                fetched_data.size());
 
     // should call destructor for trace module if it exists to write
     // out the logs

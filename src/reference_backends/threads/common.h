@@ -114,6 +114,7 @@ namespace threads_backend {
 
   struct DataBlock {
     void* data;
+    size_t refs = 0;
 
     DataBlock(const DataBlock& in) = delete;
 
