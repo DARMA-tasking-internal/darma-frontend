@@ -61,6 +61,8 @@ class TestCollectives
     virtual void SetUp() {
       setup_mock_runtime<::testing::NiceMock>();
       TestFrontend::SetUp();
+      ON_CALL(*mock_runtime, get_running_task())
+        .WillByDefault(Return(top_level_task.get()));
     }
 
     virtual void TearDown() {
@@ -79,8 +81,8 @@ TEST_F(TestCollectives, simple_allreduce) {
   mock_runtime->save_tasks = true;
 
   MockFlow f_init, f_null, f_task_out, f_collect_out;
-  use_t* task_use;
-  use_t* reduce_use;
+  use_t* task_use = nullptr;
+  use_t* reduce_use = nullptr;
 
   expect_initial_access(f_init, f_null, make_key("hello"));
 

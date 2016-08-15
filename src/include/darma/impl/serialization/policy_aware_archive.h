@@ -99,8 +99,8 @@ class PolicyAwareArchive
 
 
 
-    void* start;
-    void* spot;
+    void* start = nullptr;
+    void* spot = nullptr;
 
   public:
 
