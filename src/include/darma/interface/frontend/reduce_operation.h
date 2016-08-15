@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
+//                      reduce_operation.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,22 +42,58 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMA_INTERFACE_FRONTEND_REDUCE_OPERATION_H
+#define DARMA_INTERFACE_FRONTEND_REDUCE_OPERATION_H
 
-#include <darma_types.h>
-#include "handle.h"
-#include "task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "create_work.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/interface/defaults/darma_main.h>
+#include <cstdlib>
 
-#include <darma/impl/serialization/policy_aware_archive.h>
+namespace darma_runtime {
+namespace abstract {
+namespace frontend {
 
-#include "serialization/serialization.impl.h"
-#include "array/array.impl.h"
+class ReduceOp {
+  public:
 
-#endif /* SRC_DARMA_DARMA_H_ */
+    virtual void
+    reduce_unpacked_into_unpacked(
+      void const* unpacked_piece,
+      void * unpacked_dest,
+      size_t offset, size_t n_elem
+    ) const =0;
 
+    virtual bool
+    reduce_packed_into_unpacked(
+      void const* packed_piece,
+      void * unpacked_dest,
+      size_t offset, size_t n_elem
+    ) const {
+      // Default to unimplemented
+      return false;
+    }
+
+    virtual bool
+    reduce_unpacked_into_packed(
+      void const* unpacked_piece,
+      void * packed_dest,
+      size_t offset, size_t n_elem
+    ) const {
+      // Default to unimplemented
+      return false;
+    }
+
+    virtual bool
+    reduce_packed_into_packed(
+      void const* packed_piece,
+      void * packed_dest,
+      size_t offset, size_t n_elem
+    ) const {
+      // Default to unimplemented
+      return false;
+    }
+};
+
+} // end namespace frontend
+} // end namespace abstract
+} // end namespace darma_runtime
+
+#endif //DARMA_INTERFACE_FRONTEND_REDUCE_OPERATION_H

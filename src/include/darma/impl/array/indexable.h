@@ -92,6 +92,21 @@ struct IndexingTraits {
       return const_decomposition().n_elements(obj);
     }
 
+    static inline element_type&
+    get_element(
+      T& object, size_t i
+    ) {
+      return decomposition().get_element(object, i);
+    }
+
+    static inline T
+    get_element_range(
+      T& object,
+      size_t offset, size_t n_elem
+    ) {
+      return decomposition().get_element_range(object, offset, n_elem);
+    }
+
     static inline void
     set_element_range(
       T& object, subset_object_type const& subset,

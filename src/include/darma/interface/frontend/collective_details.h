@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
+//                      collective_details.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,22 +42,38 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
+#define DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
 
-#include <darma_types.h>
-#include "handle.h"
-#include "task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "create_work.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/interface/defaults/darma_main.h>
+#include <cstdlib>
 
-#include <darma/impl/serialization/policy_aware_archive.h>
+#include "reduce_operation.h"
 
-#include "serialization/serialization.impl.h"
-#include "array/array.impl.h"
+namespace darma_runtime {
+namespace abstract {
+namespace frontend {
 
-#endif /* SRC_DARMA_DARMA_H_ */
 
+class CollectiveDetails {
+  public:
+
+    static constexpr size_t unknown_contribution =
+      std::numeric_limits<size_t>::max();
+
+    virtual size_t
+    this_contribution() const =0;
+
+    virtual size_t
+    n_contributions() const =0;
+
+    virtual ReduceOp const*
+    reduce_operation() const =0;
+
+};
+
+
+} // end namespace frontend
+} // end namespace abstract
+} // end namespace darma_runtime
+
+#endif //DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H

@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
+//                      details.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,22 +42,48 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMA_IMPL_COLLECTIVE_DETAILS_H
+#define DARMA_IMPL_COLLECTIVE_DETAILS_H
 
-#include <darma_types.h>
-#include "handle.h"
-#include "task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "create_work.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/interface/defaults/darma_main.h>
+#include <darma/interface/frontend/collective_details.h>
+#include <darma/impl/util/compressed_pair.h>
 
-#include <darma/impl/serialization/policy_aware_archive.h>
+#include "reduce_op.h"
 
-#include "serialization/serialization.impl.h"
-#include "array/array.impl.h"
+namespace darma_runtime {
+namespace detail {
 
-#endif /* SRC_DARMA_DARMA_H_ */
+template <typename ReduceOp>
+class SimpleCollectiveDetails
+  : public abstract::frontend::CollectiveDetails
 
+{
+  private:
+
+    size_t piece_;
+    compressed_pair<size_t, ReduceOp> n_pieces_;
+
+  public:
+
+    SimpleCollectiveDetails(size_t piece, size_t n_pieces)
+      : piece_(piece), n_pieces_(n_pieces, ReduceOp())
+    { }
+
+    size_t
+    this_contribution() const override { return piece_; }
+
+    size_t
+    n_contributions() const override { return n_pieces_.first(); }
+
+    abstract::frontend::ReduceOp const*
+    reduce_operation() const override {
+      return n_pieces_.second();
+    }
+
+
+};
+
+} // end namespace detail
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_COLLECTIVE_DETAILS_H

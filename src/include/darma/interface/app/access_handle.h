@@ -568,6 +568,8 @@ class AccessHandle : public detail::AccessHandleBase {
     // TaskBase is also a friend
     friend class detail::TaskBase;
 
+    friend struct detail::all_reduce_impl;
+
     ////////////////////////////////////////
     // Analogs with different privileges are friends too
     friend struct detail::analogous_access_handle_attorneys::AccessHandleAccess;
