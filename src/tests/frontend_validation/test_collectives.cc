@@ -88,6 +88,8 @@ TEST_F(TestCollectives, simple_allreduce) {
 
   expect_mod_capture_MN_or_MR(f_init, f_task_out, task_use);
 
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use))));
+
   EXPECT_CALL(*mock_runtime, make_next_flow(&f_task_out))
     .WillOnce(Return(&f_collect_out));
 
@@ -98,10 +100,11 @@ TEST_F(TestCollectives, simple_allreduce) {
   // TODO check piece and n_pieces
 
   EXPECT_CALL(*mock_runtime, allreduce_use(
-    Eq(ByRef(reduce_use)), Eq(ByRef(reduce_use)), _
+    Eq(ByRef(reduce_use)), Eq(ByRef(reduce_use)), _, Eq(make_key("world"))
   ));
 
-  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(reduce_use))));
+  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(reduce_use))))
+    .WillOnce(Invoke([&](auto&&...){ reduce_use = nullptr; }));
 
   {
     auto tmp = initial_access<int>("hello");
@@ -110,9 +113,12 @@ TEST_F(TestCollectives, simple_allreduce) {
       tmp.set_value(42);
     });
 
-    allreduce(tmp, piece=0, n_pieces=10);
+    allreduce(tmp, piece=0, n_pieces=10, tag="world");
 
   }
+
+  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(task_use))))
+    .WillOnce(Invoke([&](auto&&...){ task_use = nullptr; }));
 
   mock_runtime->registered_tasks.clear();
 
