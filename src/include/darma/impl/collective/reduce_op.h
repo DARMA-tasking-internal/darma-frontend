@@ -56,17 +56,16 @@
 
 namespace darma_runtime {
 
-template <typename Op>
+template <typename Op, typename value_type>
 class ReduceOp
   : public abstract::frontend::ReduceOp
 {
 
   private:
 
-    using value_type = typename Op::value_type;
     using idx_traits = detail::IndexingTraits<value_type>;
+    using const_idx_traits = detail::IndexingTraits<std::add_const_t<value_type>>;
     using element_type = typename idx_traits::element_type;
-
 
     template <typename T>
     using _has_element_type_reduce_archetype = decltype(
@@ -75,10 +74,6 @@ class ReduceOp
         std::declval<std::add_lvalue_reference_t<element_type>>()
       )
     );
-
-    using _has_element_type_reduce = tinympl::bool_<meta::is_detected<
-      _has_element_type_reduce_archetype, Op
-    >::value>;
 
     template <typename T>
     using _has_value_type_reduce_archetype = decltype(
@@ -89,9 +84,6 @@ class ReduceOp
       )
     );
 
-    using _has_value_type_reduce = tinympl::bool_<meta::is_detected<
-      _has_value_type_reduce_archetype, Op
-    >::value>;
 
     template <typename ValueTypeDeduced, typename _IgnoredCondition>
     void _do_reduce(
@@ -119,8 +111,8 @@ class ReduceOp
     ) const {
       for(size_t i = 0; i < n_elem; ++i) {
         Op().reduce(
-          idx_traits::get_element(dest, i+offset),
-          idx_traits::get_element(piece, i)
+          const_idx_traits::get_element(piece, i),
+          idx_traits::get_element(dest, i+offset)
         );
       }
     }
@@ -133,11 +125,20 @@ class ReduceOp
       void const* piece, void* dest,
       size_t offset, size_t n_elem
     ) const override {
+
+      using _has_element_type_reduce = tinympl::bool_<meta::is_detected<
+        _has_element_type_reduce_archetype, Op
+      >::value>;
+
+      using _has_value_type_reduce = tinympl::bool_<meta::is_detected<
+        _has_value_type_reduce_archetype, Op
+      >::value>;
+
       _do_reduce(
         _has_value_type_reduce{},
         _has_element_type_reduce{},
-        *static_cast<T const*>(piece),
-        *static_cast<T*>(dest),
+        *static_cast<value_type const*>(piece),
+        *static_cast<value_type*>(dest),
         offset, n_elem
       );
     };
@@ -146,13 +147,13 @@ class ReduceOp
 
 struct Add {
   template <typename T>
-  struct Op : public abstract::frontend::ReduceOp {
+  struct Op : public ReduceOp<Op<T>, T> {
 
     using value_type = T;
 
     template <typename U, typename V,
       typename=std::enable_if_t<
-        meta::has_plus_equal<U, V>::value
+        meta::has_plus_equal<V, U>::value
       >
     >
     void reduce(U&& src_element , V& dest_element) {

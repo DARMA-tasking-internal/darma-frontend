@@ -53,6 +53,9 @@
 #include <darma/impl/keyword_arguments/get_kwarg.h>
 #include <darma/interface/frontend/collective_details.h>
 
+#include <darma/impl/handle.h> // is_access_handle
+#include <darma/impl/use.h> // HandleUse
+
 
 #include "details.h"
 
@@ -136,6 +139,23 @@ struct all_reduce_impl {
     InputHandle&& input, OutputHandle&& output, argument_not_given,
     size_t piece, size_t n_pieces
   ) {
+    DARMA_ASSERT_MESSAGE(
+      input.current_use_->use.scheduling_permissions_ != HandleUse::None,
+      "allreduce() called on handle that can't schedule at least read usage on "
+        "data (most likely because it was already released"
+    );
+    DARMA_ASSERT_MESSAGE(
+      output.current_use_->use.scheduling_permissions_ != HandleUse::None,
+      "allreduce() called on handle that can't schedule at least read usage on "
+        "data (most likely because it was already released"
+    );
+    // TODO !!!!! write this
+
+
+    // This is a read capture of the InputHandle and a write capture of the
+    // output handle
+
+    abort();
 
   };
 
@@ -175,7 +195,7 @@ struct all_reduce_impl {
     > details(piece, n_pieces);
 
     // This is a mod capture.  Need special behavior if we have modify
-    // immediate permissions
+    // immediate permissions (i.e., forwarding)
 
     switch (in_out.current_use_->use.immediate_permissions_) {
       case HandleUse::None:
@@ -186,7 +206,7 @@ struct all_reduce_impl {
         );
 
         // Make the use to be given to the collective
-        auto collective_use = HandleUse(
+        HandleUse collective_use(
           in_out.var_handle_.get(),
           in_out.current_use_->use.in_flow_,
           captured_out_flow,
@@ -200,18 +220,54 @@ struct all_reduce_impl {
         in_out.current_use_->use.in_flow_ = captured_out_flow;
 
 
+        // Call the allreduce
         backend_runtime->allreduce_use(
           &collective_use,
           &collective_use,
           &details
         );
 
+        // Release the use
         backend_runtime->release_use(&collective_use);
 
         break;
       }
       case HandleUse::Modify: {
-        // TODO
+
+        auto collective_in_flow = backend_runtime->make_forwarding_flow(
+          in_out.current_use_->use.in_flow_
+        );
+        auto collective_out_flow = backend_runtime->make_next_flow(
+          collective_in_flow
+        );
+
+        HandleUse collective_use(
+          in_out.var_handle_.get(),
+          collective_in_flow, collective_out_flow,
+          HandleUse::None, HandleUse::Modify
+        );
+
+        backend_runtime->register_use(&collective_use);
+
+        in_out.current_use_->do_release();
+
+        // Call the allreduce
+        backend_runtime->allreduce_use(
+          &collective_use,
+          &collective_use,
+          &details
+        );
+
+        in_out.current_use_->use.in_flow_ = collective_out_flow;
+        // Should be current state (asserted above)
+        // in_out.current_use_->use.scheduling_permissions_ = HandleUse::Modify;
+        in_out.current_use_->use.immediate_permissions_ = HandleUse::None;
+        // out flow remains unchanged
+
+        in_out.current_use_->could_be_alias = true;
+
+        backend_runtime->release_use(&collective_use);
+
         break;
       }
       default:
@@ -249,7 +305,7 @@ void allreduce(
   size_t piece = detail::get_typeless_kwarg_with_default_as<
     darma_runtime::keyword_tags_for_collectives::piece, size_t
   >(
-    abstract::frontend::CollectiveDetails::unknown_contribution,
+    abstract::frontend::CollectiveDetails::unknown_contribution(),
     std::forward<KWArgs>(kwargs)...
   );
 
@@ -257,15 +313,11 @@ void allreduce(
   size_t n_pieces = detail::get_typeless_kwarg_with_default_as<
     darma_runtime::keyword_tags_for_collectives::n_pieces, size_t
   >(
-    abstract::frontend::CollectiveDetails::unknown_contribution,
+    abstract::frontend::CollectiveDetails::unknown_contribution(),
     std::forward<KWArgs>(kwargs)...
   );
 
-  using n_positional_args_t = std::integral_constant<size_t,
-    std::tuple_size<
-      std::decay_t<decltype(detail::get_positional_arg_tuple(kwargs...))>
-    >::value
-  >;
+  using n_positional_args_t = typename detail::n_positional_args<KWArgs...>::type;
 
   // forms to handle: (not counting piece and n_pieces, which are kwarg-only)
   // allreduce(input_arg, output_arg);
@@ -277,7 +329,7 @@ void allreduce(
   using tinympl::bool_;
 
   decltype(auto) output_handle = detail::_get_potentially_positional_handle_arg<
-    2, darma_runtime::keyword_tags_for_collectives::output
+    1, darma_runtime::keyword_tags_for_collectives::output
   >(
     detail::has_kwarg<
       darma_runtime::keyword_tags_for_collectives::output, KWArgs...
@@ -287,7 +339,7 @@ void allreduce(
   );
 
   decltype(auto) input_handle = detail::_get_potentially_positional_handle_arg<
-    1, darma_runtime::keyword_tags_for_collectives::input
+    0, darma_runtime::keyword_tags_for_collectives::input
   >(
     detail::has_kwarg<
       darma_runtime::keyword_tags_for_collectives::input, KWArgs...
@@ -305,7 +357,7 @@ void allreduce(
   );
 
   decltype(auto) in_out_handle = detail::_get_potentially_positional_handle_arg<
-    1, darma_runtime::keyword_tags_for_collectives::in_out
+    0, darma_runtime::keyword_tags_for_collectives::in_out
   >(
     detail::has_kwarg<
       darma_runtime::keyword_tags_for_collectives::in_out, KWArgs...
@@ -316,7 +368,7 @@ void allreduce(
     std::forward<KWArgs>(kwargs)...
   );
 
-  detail::all_reduce_impl::_do_allreduce(
+  detail::all_reduce_impl::_do_allreduce<Op>(
     std::forward<decltype(input_handle)>(input_handle),
     std::forward<decltype(output_handle)>(output_handle),
     std::forward<decltype(in_out_handle)>(in_out_handle),

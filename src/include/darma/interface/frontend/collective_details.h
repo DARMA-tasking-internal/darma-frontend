@@ -57,8 +57,10 @@ namespace frontend {
 class CollectiveDetails {
   public:
 
-    static constexpr size_t unknown_contribution =
-      std::numeric_limits<size_t>::max();
+    static inline constexpr size_t
+    unknown_contribution() {
+      return std::numeric_limits<size_t>::max();
+    }
 
     virtual size_t
     this_contribution() const =0;

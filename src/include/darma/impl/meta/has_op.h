@@ -73,6 +73,7 @@ struct has_plus_equal
     >
 { };
 
+
 } // end namespace meta
 } // end namespace darma_runtime
 

@@ -62,6 +62,13 @@
 
 namespace darma_runtime {
 
+namespace detail {
+
+// forward declaration
+struct all_reduce_impl;
+
+} // end namespace detail
+
 
 // todo move this to a more appropriate place
 template <typename T>

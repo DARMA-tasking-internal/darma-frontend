@@ -317,7 +317,7 @@ class Runtime {
     allreduce_use(
       frontend::Use* use_in,
       frontend::Use* use_out,
-      frontend::CollectiveDetails* details
+      frontend::CollectiveDetails const* details
     ) =0;
 
 
