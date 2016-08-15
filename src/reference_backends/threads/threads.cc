@@ -92,6 +92,8 @@ namespace threads_backend {
   __thread size_t publish_label = 1;
   __thread size_t fetch_label = 1;
 
+  __thread ThreadsRuntime* cur_runtime = nullptr;
+
   // global
   size_t n_ranks = 1;
   bool traceMode = false;
@@ -516,9 +518,12 @@ namespace threads_backend {
                     PRINT_BOOL_STR(buffer_exists),
                     handle);
 
+        auto policy = new SerializationPolicy();
         handle
           ->get_serialization_manager()
-          ->unpack_data(unpack_to,pub.data->data_);
+          ->unpack_data(unpack_to,pub.data->data_,
+                        policy);
+        delete policy;
 
         if (!buffer_exists) {
           fetched_data[{version_key,key}] = new DataBlock(unpack_to);
@@ -651,9 +656,13 @@ namespace threads_backend {
                   PRINT_BOOL_STR(buffer_exists),
                   handle);
 
+      auto policy = new SerializationPolicy();
       handle
         ->get_serialization_manager()
-        ->unpack_data(unpack_to, pub.data->data_);
+        ->unpack_data(unpack_to,
+                      pub.data->data_,
+                      policy);
+      delete policy;
 
       if (!buffer_exists) {
         fetched_data[{version_key,key}] = new DataBlock(unpack_to);
@@ -1147,9 +1156,10 @@ namespace threads_backend {
 
       assert(expected >= 1);
 
+      auto policy = new SerializationPolicy();
       const size_t size = handle
         ->get_serialization_manager()
-        ->get_packed_data_size(data_ptr);
+        ->get_packed_data_size(data_ptr, policy);
 
       auto block = new PackedDataBlock();
 
@@ -1163,7 +1173,9 @@ namespace threads_backend {
       handle
         ->get_serialization_manager()
         ->pack_data(data_ptr,
-                    block->data_);
+                    block->data_,
+                    policy);
+      delete policy;
 
       DEBUG_PRINT("publication: key = %s, version = %s, published data = %p, data ptr = %p\n",
                   PRINT_KEY(key),
@@ -1407,7 +1419,7 @@ int main(int argc, char **argv) {
 void
 darma_runtime::abstract::backend::darma_backend_initialize(
   int &argc, char **&argv,
-  darma_runtime::abstract::backend::Runtime *&backend_runtime,
+  //darma_runtime::abstract::backend::Runtime *&backend_runtime,
   types::unique_ptr_template<
     typename darma_runtime::abstract::backend::Runtime::task_t
   >&& top_level_task
@@ -1489,7 +1501,6 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   }
 
   auto* runtime = new threads_backend::ThreadsRuntime();
-  backend_runtime = runtime;
 
   if (threads_backend::this_rank == 0) {
     DEBUG_PRINT("rank = %zu, ranks = %zu, threads = %zu\n",
@@ -1510,6 +1521,23 @@ darma_runtime::abstract::backend::darma_backend_initialize(
                                                             threads_backend::this_rank,
                                                             threads_backend::n_ranks));
   threads_backend::current_task = runtime->top_level_task.get();
+}
+
+namespace darma_runtime {
+  abstract::backend::Context*
+  abstract::backend::get_backend_context() {
+    return threads_backend::cur_runtime;
+  }
+
+  abstract::backend::MemoryManager*
+  abstract::backend::get_backend_memory_manager() {
+    return threads_backend::cur_runtime;
+  }
+
+  abstract::backend::Runtime*
+  abstract::backend::get_backend_runtime() {
+    return threads_backend::cur_runtime;
+  }
 }
 
 #endif /* _THREADS_BACKEND_RUNTIME_ */

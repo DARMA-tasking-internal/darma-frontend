@@ -56,6 +56,7 @@
 #include <utility>
 #include <memory>
 #include <unordered_map>
+#include <cstring>
 
 #include <threads_interface.h>
 #include <common.h>
@@ -85,6 +86,32 @@ namespace threads_backend {
   struct FetchNode;
   struct PublishNode;
 
+  struct SerializationPolicy :
+    darma_runtime::abstract::backend::SerializationPolicy
+  {
+    virtual std::size_t
+    packed_size_contribution_for_blob(void const* data_begin,
+                                      std::size_t n_bytes) const override {
+      return n_bytes;
+    }
+
+    virtual void
+    pack_blob(void*& indirect_pack_buffer,
+              void const* data_begin,
+              std::size_t n_bytes) const override {
+      std::memcpy(indirect_pack_buffer, data_begin, n_bytes);
+      (char*&)indirect_pack_buffer += n_bytes;
+    }
+
+    virtual void
+    unpack_blob(void*& indirect_packed_buffer,
+                void* dest,
+                std::size_t n_bytes) const override {
+      std::memcpy(dest, indirect_packed_buffer, n_bytes);
+      (char*&)indirect_packed_buffer += n_bytes;
+    }
+  };
+
   struct DelayedPublish {
     std::shared_ptr<InnerFlow> flow;
     const darma_runtime::abstract::frontend::Handle* handle;
@@ -98,6 +125,8 @@ namespace threads_backend {
 
   class ThreadsRuntime
     : public abstract::backend::Runtime
+    , public abstract::backend::Context
+    , public abstract::backend::MemoryManager
     , public ThreadsInterface<ThreadsRuntime> {
 
   public:
@@ -317,6 +346,17 @@ namespace threads_backend {
 
     virtual void
     finalize();
+
+    virtual void*
+    allocate(size_t n_bytes,
+             abstract::frontend::MemoryRequirementDetails const& details) {
+      return malloc(n_bytes);
+    }
+
+    virtual void
+    deallocate(void* ptr, size_t n_bytes) {
+      free(ptr);
+    }
   };
 }
 
