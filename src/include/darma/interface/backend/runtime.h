@@ -53,7 +53,8 @@
 #include <darma/interface/frontend/task.h>
 #include <darma/interface/frontend/use.h>
 #include <darma/interface/frontend/publication_details.h>
-#include <src/include/darma/interface/frontend/memory_requirement_details.h>
+#include <darma/interface/frontend/memory_requirement_details.h>
+#include <darma/interface/frontend/collective_details.h>
 
 namespace darma_runtime {
 
@@ -311,6 +312,14 @@ class Runtime {
       frontend::Use* u,
       frontend::PublicationDetails* details
     ) =0;
+
+    virtual void
+    allreduce_use(
+      frontend::Use* use_in,
+      frontend::Use* use_out,
+      frontend::CollectiveDetails* details
+    ) =0;
+
 
     /** @brief signifies the end of the outer SPMD task from which
      *  darma_backend_initialize() was called.

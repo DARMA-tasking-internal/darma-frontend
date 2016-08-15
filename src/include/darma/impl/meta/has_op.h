@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
+//                      has_op.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,22 +42,38 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMA_IMPL_META_HAS_OP_H
+#define DARMA_IMPL_META_HAS_OP_H
 
-#include <darma_types.h>
-#include "handle.h"
-#include "task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "create_work.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/interface/defaults/darma_main.h>
+#include <type_traits>
+#include "detection.h"
 
-#include <darma/impl/serialization/policy_aware_archive.h>
 
-#include "serialization/serialization.impl.h"
-#include "array/array.impl.h"
+namespace darma_runtime {
+namespace meta {
 
-#endif /* SRC_DARMA_DARMA_H_ */
+namespace _impl {
 
+template <typename T, typename U>
+using _has_plus_equal_archetype = decltype(
+  std::declval<std::add_lvalue_reference_t<T>>() += std::declval<U>()
+);
+
+template <typename T, typename U>
+using _has_plus_equal = meta::is_detected<
+  _has_plus_equal_archetype, T, U
+>;
+
+} // end namespace _impl
+
+template <typename T, typename U>
+struct has_plus_equal
+  : std::integral_constant<bool,
+      _impl::_has_plus_equal<T, U>::value
+    >
+{ };
+
+} // end namespace meta
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_META_HAS_OP_H
