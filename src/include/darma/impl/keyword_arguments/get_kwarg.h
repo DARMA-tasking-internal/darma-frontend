@@ -252,11 +252,11 @@ struct _typeless_default_select_impl {
     );
   }
   inline constexpr decltype(auto)
-  _impl(std::true_type, ForwardedArgsTuple&& tup) {
+  _impl(std::true_type, ForwardedArgsTuple&& tup) const {
     return std::get<spot>(std::forward<ForwardedArgsTuple>(tup)).template value();
   }
   inline constexpr decltype(auto)
-  _impl(std::false_type, ForwardedArgsTuple&& tup) {
+  _impl(std::false_type, ForwardedArgsTuple&& tup) const {
     return std::get<spot>(std::forward<ForwardedArgsTuple>(tup)).template value_as<ReturnType>();
   }
 };
@@ -290,7 +290,7 @@ struct _typeless_kwarg_with_default_as_getter {
 
 } // end namespace _get_kwarg_impl
 
-template <typename Tag, typename AsTypeConvertible, typename AsType=void, typename... Args>
+template <typename Tag, typename AsType, typename AsTypeConvertible, typename... Args>
 inline constexpr
 decltype(auto)
 get_typeless_kwarg_with_default_as(
@@ -298,6 +298,19 @@ get_typeless_kwarg_with_default_as(
   Args&&... args
 ) {
   return _get_kwarg_impl::_typeless_kwarg_with_default_as_getter<Tag, AsType>()(
+    std::forward<AsTypeConvertible>(default_val),
+    std::forward<Args>(args)...
+  );
+}
+
+template <typename Tag, typename AsTypeConvertible, typename... Args>
+inline constexpr
+decltype(auto)
+get_typeless_kwarg_with_default(
+  AsTypeConvertible&& default_val,
+  Args&&... args
+) {
+  return _get_kwarg_impl::_typeless_kwarg_with_default_as_getter<Tag, void>()(
     std::forward<AsTypeConvertible>(default_val),
     std::forward<Args>(args)...
   );
@@ -514,6 +527,11 @@ struct _positional_arg_tuple_getter {
   public:
 
     template <typename... Args>
+    using n_pos_t = typename
+      tinympl::size<typename _pos_arg_spots<Args...>::type>::type;
+
+
+    template <typename... Args>
     inline constexpr auto
     operator()(Args&&... args) const {
       return _impl(
@@ -542,6 +560,12 @@ get_positional_arg_tuple(Args&&... args)
   return _get_kwarg_impl::_positional_arg_tuple_getter()(std::forward<Args>(args)...);
 }
 
+template <typename... Args>
+struct n_positional_args
+  : std::integral_constant<size_t,
+      _get_kwarg_impl::_positional_arg_tuple_getter::template n_pos_t<Args...>::value
+    >
+{ };
 
 /*                                                                            */ #endif // end fold
 

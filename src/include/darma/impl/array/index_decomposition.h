@@ -69,7 +69,7 @@ struct IndexDecomposition_enabled_if {
     return 1;
   }
 
-  T get_element(T& obj, size_t i) const {
+  T& get_element(T& obj, size_t i) const {
     assert(i == 0);
     return obj;
   }

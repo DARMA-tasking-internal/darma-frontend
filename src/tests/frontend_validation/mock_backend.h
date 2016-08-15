@@ -115,6 +115,9 @@ class MockRuntime
     MOCK_METHOD2(allocate, void*(size_t,
       darma_runtime::abstract::frontend::MemoryRequirementDetails const&));
     MOCK_METHOD2(deallocate, void(void*, size_t));
+    MOCK_METHOD3(allreduce_use, void(use_t*, use_t*,
+      darma_runtime::abstract::frontend::CollectiveDetails const*
+    ));
 
 
 #ifdef __clang__

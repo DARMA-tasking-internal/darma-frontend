@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      details.h
+//                      test_collectives.cc
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,48 +42,76 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_COLLECTIVE_DETAILS_H
-#define DARMA_IMPL_COLLECTIVE_DETAILS_H
 
-#include <darma/interface/frontend/collective_details.h>
-#include <darma/impl/util/compressed_pair.h>
+#include <gtest/gtest.h>
 
-#include "reduce_op.h"
+#include <vector>
 
-namespace darma_runtime {
-namespace detail {
+#include <darma/impl/collective/allreduce.h>
 
-template <typename ReduceOp>
-class SimpleCollectiveDetails
-  : public abstract::frontend::CollectiveDetails
+#include "test_frontend.h"
 
+////////////////////////////////////////////////////////////////////////////////
+
+class TestCollectives
+  : public TestFrontend
 {
-  private:
+  protected:
 
-    size_t piece_;
-    compressed_pair<size_t, ReduceOp> n_pieces_;
-
-  public:
-
-    SimpleCollectiveDetails(size_t piece, size_t n_pieces)
-      : piece_(piece), n_pieces_(n_pieces, ReduceOp())
-    { }
-
-    size_t
-    this_contribution() const override { return piece_; }
-
-    size_t
-    n_contributions() const override { return n_pieces_.first(); }
-
-    abstract::frontend::ReduceOp const*
-    reduce_operation() const override {
-      return &(n_pieces_.second());
+    virtual void SetUp() {
+      setup_mock_runtime<::testing::StrictMock>();
+      TestFrontend::SetUp();
     }
 
-
+    virtual void TearDown() {
+      TestFrontend::TearDown();
+    }
 };
 
-} // end namespace detail
-} // end namespace darma_runtime
+////////////////////////////////////////////////////////////////////////////////
 
-#endif //DARMA_IMPL_COLLECTIVE_DETAILS_H
+TEST_F(TestCollectives, simple_allreduce) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_collectives;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow f_init, f_null, f_task_out, f_collect_out;
+  use_t* task_use;
+  use_t* reduce_use;
+
+  expect_initial_access(f_init, f_null, make_key("hello"));
+
+  expect_mod_capture_MN_or_MR(f_init, f_task_out, task_use);
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(&f_task_out))
+    .WillOnce(Return(&f_collect_out));
+
+  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
+    &f_task_out, &f_collect_out, use_t::None, use_t::Modify
+  ))).WillOnce(SaveArg<0>(&reduce_use));
+
+  // TODO check piece and n_pieces
+
+  EXPECT_CALL(*mock_runtime, allreduce_use(
+    Eq(ByRef(reduce_use)), Eq(ByRef(reduce_use)), _
+  ));
+
+  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(reduce_use))));
+
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work([=]{
+      tmp.set_value(42);
+    });
+
+    allreduce(tmp, piece=0, n_pieces=10);
+
+  }
+
+  mock_runtime->registered_tasks.clear();
+
+}
