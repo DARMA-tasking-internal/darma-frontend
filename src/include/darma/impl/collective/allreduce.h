@@ -210,7 +210,7 @@ struct all_reduce_impl {
           in_out.var_handle_.get(),
           in_out.current_use_->use.in_flow_,
           captured_out_flow,
-          in_out.current_use_->use.scheduling_permissions_,
+          HandleUse::None,
           HandleUse::Modify
         );
         backend_runtime->register_use(&collective_use);

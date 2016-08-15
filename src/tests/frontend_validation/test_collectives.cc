@@ -59,7 +59,7 @@ class TestCollectives
   protected:
 
     virtual void SetUp() {
-      setup_mock_runtime<::testing::StrictMock>();
+      setup_mock_runtime<::testing::NiceMock>();
       TestFrontend::SetUp();
     }
 
