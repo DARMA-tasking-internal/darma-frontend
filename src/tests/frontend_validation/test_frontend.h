@@ -479,7 +479,13 @@ operator<<(std::ostream& o, use_t const* const& u) {
     o << "<null Use ptr>";
   }
   else {
-    o << "<Use ptr for handle with key " << u->get_handle()->get_key() << ">";
+    auto handle = u->get_handle();
+    if(handle) {
+      o << "<Use ptr for handle with key " << handle->get_key() << ">";
+    }
+    else {
+      o << "<Use ptr with null handle>";
+    }
   }
   return o;
 }

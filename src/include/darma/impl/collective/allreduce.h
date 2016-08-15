@@ -65,6 +65,7 @@ DeclareDarmaTypeTransparentKeyword(collectives, output);
 DeclareDarmaTypeTransparentKeyword(collectives, in_out);
 DeclareDarmaTypeTransparentKeyword(collectives, piece);
 DeclareDarmaTypeTransparentKeyword(collectives, n_pieces);
+DeclareDarmaTypeTransparentKeyword(collectives, tag);
 
 namespace darma_runtime {
 
@@ -137,7 +138,7 @@ struct all_reduce_impl {
   >
   _do_allreduce(
     InputHandle&& input, OutputHandle&& output, argument_not_given,
-    size_t piece, size_t n_pieces
+    size_t piece, size_t n_pieces, types::key_t const& tag
   ) {
     DARMA_ASSERT_MESSAGE(
       input.current_use_->use.scheduling_permissions_ != HandleUse::None,
@@ -169,7 +170,7 @@ struct all_reduce_impl {
   >
   _do_allreduce(
     argument_not_given, argument_not_given, InOutHandle&& in_out,
-    size_t piece, size_t n_pieces
+    size_t piece, size_t n_pieces, types::key_t const& tag
   ) {
     DARMA_ASSERT_MESSAGE(
       in_out.current_use_->use.scheduling_permissions_ != HandleUse::None,
@@ -224,7 +225,7 @@ struct all_reduce_impl {
         backend_runtime->allreduce_use(
           &collective_use,
           &collective_use,
-          &details
+          &details, tag
         );
 
         // Release the use
@@ -255,7 +256,7 @@ struct all_reduce_impl {
         backend_runtime->allreduce_use(
           &collective_use,
           &collective_use,
-          &details
+          &details, tag
         );
 
         in_out.current_use_->use.in_flow_ = collective_out_flow;
@@ -292,7 +293,8 @@ void allreduce(
       darma_runtime::keyword_tags_for_collectives::output,
       darma_runtime::keyword_tags_for_collectives::in_out,
       darma_runtime::keyword_tags_for_collectives::piece,
-      darma_runtime::keyword_tags_for_collectives::n_pieces
+      darma_runtime::keyword_tags_for_collectives::n_pieces,
+      darma_runtime::keyword_tags_for_collectives::tag
     >::template apply<KWArgs...>::type::value,
     "Unknown keyword argument given to create_work()"
   );
@@ -314,6 +316,18 @@ void allreduce(
     darma_runtime::keyword_tags_for_collectives::n_pieces, size_t
   >(
     abstract::frontend::CollectiveDetails::unknown_contribution(),
+    std::forward<KWArgs>(kwargs)...
+  );
+
+  // Keyword argument only:
+  auto tag = detail::get_typeless_kwarg_with_converter_and_default<
+    darma_runtime::keyword_tags_for_collectives::tag
+  >([](auto&&... key_parts) {
+      return darma_runtime::make_key(
+        std::forward<decltype(key_parts)>(key_parts)...
+      );
+    },
+    types::key_t(),
     std::forward<KWArgs>(kwargs)...
   );
 
@@ -372,7 +386,7 @@ void allreduce(
     std::forward<decltype(input_handle)>(input_handle),
     std::forward<decltype(output_handle)>(output_handle),
     std::forward<decltype(in_out_handle)>(in_out_handle),
-    piece, n_pieces
+    piece, n_pieces, tag
   );
 
 
