@@ -142,23 +142,128 @@ struct all_reduce_impl {
   ) {
     DARMA_ASSERT_MESSAGE(
       input.current_use_->use.scheduling_permissions_ != HandleUse::None,
-      "allreduce() called on handle that can't schedule at least read usage on "
-        "data (most likely because it was already released"
+      "allreduce() called on handle that can't schedule at least Read usage on "
+        "data"
     );
     DARMA_ASSERT_MESSAGE(
-      output.current_use_->use.scheduling_permissions_ != HandleUse::None,
-      "allreduce() called on handle that can't schedule at least read usage on "
-        "data (most likely because it was already released"
+      output.current_use_->use.scheduling_permissions_ != HandleUse::None
+      and output.current_use_->use.scheduling_permissions_ != HandleUse::Read,
+      "allreduce() called on handle that can't schedule at least Write usage on "
+        "data"
     );
 
     // TODO !!!!! write this
     DARMA_ASSERT_NOT_IMPLEMENTED("collectives with separate input and output");
+
+    detail::HandleUse* input_use, *output_use;
+    input_use = output_use = nullptr;
+    bool release_input_use = false;
+    bool release_output_use = false;
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
+
 
 
     // This is a read capture of the InputHandle and a write capture of the
     // output handle
 
     // First do the read capture of the input handle
+    switch(input.current_use_->use.immediate_permissions_) {
+      case HandleUse::None:
+      case HandleUse::Read: {
+        // Note that scheduling permissions assertion is above, so we don't
+        // need to mess with it here
+        input_use = new HandleUse(
+          input.var_handle_.get(),
+          input->use.in_flow_,
+          input->use.in_flow_,
+          HandleUse::None,
+          HandleUse::Read
+        );
+
+        backend_runtime->register_use(input_use);
+
+        release_input_use = true;
+
+        break;
+      }
+      case HandleUse::Modify: {
+        DARMA_ASSERT_NOT_IMPLEMENTED();
+        break;
+      }
+      default:
+        DARMA_ASSERT_NOT_IMPLEMENTED("Collectives with input handles and"
+          " different immediate permissions ");
+    }
+
+    // Now do the write capture of the output handle
+    switch(output.current_use_->use.immediate_permissions_) {
+      case HandleUse::None: {
+        auto write_outflow = backend_runtime->make_next_flow(
+          output->use.in_flow_
+        );
+        // Note that scheduling permissions assertion is above, so we don't
+        // need to mess with it here
+        output_use = new HandleUse(
+          output.var_handle_.get(),
+          output->use.in_flow_,
+          write_outflow,
+          HandleUse::None,
+          HandleUse::Write
+        );
+
+        output.current_use_->use.in_flow_ = write_outflow;
+        // output.current_use_->use.out_flow_ unchanged
+        // output.current_use_ permissions unchanged
+        output.current_use_->could_be_alias = true;
+
+        backend_runtime->register_use(output_use);
+
+        release_output_use = true;
+
+        break;
+      }
+      case HandleUse::Read: {
+        DARMA_ASSERT_NOT_IMPLEMENTED();
+        break;
+      }
+      case HandleUse::Modify: {
+        DARMA_ASSERT_NOT_IMPLEMENTED();
+        break;
+      }
+      default:
+        DARMA_ASSERT_NOT_IMPLEMENTED("Collectives with input handles and"
+          " different immediate permissions ");
+    } // end switch on output immediate permissions
+
+    {
+      // Umm... this will probably need to change if the value types of InHandle and
+      // OutHandle differ...
+      SimpleCollectiveDetails<
+        std::conditional_t<
+          std::is_same<Op, op_not_given>::value,
+          typename darma_runtime::default_reduce_op<
+            typename std::decay_t<OutputHandle>::value_type
+          >::type,
+          Op
+        >
+      > details(piece, n_pieces);
+
+      backend_runtime->allreduce_use(
+        input_use, output_use, &details, tag
+      );
+
+    } // delete details
+
+
+    if(release_input_use) {
+      backend_runtime->release_use(input_use);
+      delete input_use;
+    }
+    if(release_output_use) {
+      backend_runtime->release_use(output_use);
+      delete output_use;
+    }
+
 
   };
 
