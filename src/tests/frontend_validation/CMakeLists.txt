@@ -29,6 +29,7 @@ add_unit_test(test_simple_key)
 add_unit_test(test_create_condition)
 add_unit_test(test_oo)
 add_unit_test(test_collectives)
+add_unit_test(test_array)
 
 add_executable(run_all_frontend_tests ${frontendtestfiles})
 

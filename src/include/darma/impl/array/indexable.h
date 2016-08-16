@@ -99,7 +99,7 @@ struct IndexingTraits {
       return decomposition().get_element(object, i);
     }
 
-    static inline T
+    static inline subset_object_type
     get_element_range(
       T& object,
       size_t offset, size_t n_elem
@@ -117,7 +117,7 @@ struct IndexingTraits {
 
     static inline bool
     is_deep_copy(T const& object) {
-      return const_decomposition().is_deep_copy(object);
+      return const_decomposition().subset_is_deep_copy(object);
     }
 
     // TODO these shouldn't reconstruct the sub-object except as a last resort
@@ -149,7 +149,7 @@ struct IndexingTraits {
       size_t offset, size_t n_elem
     ) {
       // Simplest default: reconstruct the object, then
-      std::remove_reference_t<_get_element_range_return_type> subobj;
+      T subobj;
       ar >> subobj;
       decomposition().set_element_range(obj, subobj, offset, n_elem);
     }

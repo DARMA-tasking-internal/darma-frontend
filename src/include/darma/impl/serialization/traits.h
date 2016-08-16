@@ -297,21 +297,35 @@ struct serializability_traits {
     ////////////////////////////////////////////////////////////////////////////////
     // <editor-fold desc="is_serializable_with_archive">
 
-    // Use of tinympl::logical_and here should short-circuit and save a tiny bit of compilation time
     template <typename ArchiveT>
-    using is_serializable_with_archive = tinympl::logical_or<
+    using is_sizable_with_archive = tinympl::logical_or<
       has_nonintrusive_serialize<ArchiveT>,
-      tinympl::logical_and<
-        has_nonintrusive_compute_size<ArchiveT>,
-        has_nonintrusive_pack<ArchiveT>,
-        tinympl::logical_or<
-          has_nonintrusive_unpack<ArchiveT>,
-          has_nonintrusive_allocator_aware_unpack<ArchiveT,
-            darma_allocator<_clean_T>
-          >
-        >
+      has_nonintrusive_compute_size<ArchiveT>
+    >;
+
+    template <typename ArchiveT>
+    using is_packable_with_archive = tinympl::logical_or<
+      has_nonintrusive_serialize<ArchiveT>,
+      has_nonintrusive_pack<ArchiveT>
+    >;
+
+    template <typename ArchiveT>
+    using is_unpackable_with_archive = tinympl::logical_or<
+      has_nonintrusive_serialize<ArchiveT>,
+      has_nonintrusive_unpack<ArchiveT>,
+      has_nonintrusive_allocator_aware_unpack<ArchiveT,
+        darma_allocator<_clean_T>
       >
     >;
+
+    // Use of tinympl::logical_and here should short-circuit and save a tiny bit of compilation time
+    template <typename ArchiveT>
+    using is_serializable_with_archive = tinympl::logical_and<
+      is_sizable_with_archive<ArchiveT>,
+      is_packable_with_archive<ArchiveT>,
+      is_unpackable_with_archive<ArchiveT>
+    >;
+
 
     using serializer = Serializer<_clean_T>;
 
