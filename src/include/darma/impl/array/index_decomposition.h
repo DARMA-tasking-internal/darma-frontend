@@ -155,4 +155,6 @@ struct IndexDecomposition
 
 } // end namespace darma_runtime
 
+#include "stl_vector.h"
+
 #endif //DARMA_IMPL_ARRAY_INDEX_DECOMPOSITION_H

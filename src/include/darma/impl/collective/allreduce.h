@@ -156,6 +156,8 @@ struct all_reduce_impl {
     // This is a read capture of the InputHandle and a write capture of the
     // output handle
 
+    // First do the read capture of the input handle
+
     abort();
 
   };

@@ -47,9 +47,19 @@
 
 namespace darma {
 
-// TODO
 template <typename T>
-struct vector_view;
+class vector_view {
+
+  private:
+
+    T* data_;
+    size_t size_;
+
+  public:
+
+    // TODO finish this
+
+};
 
 } // end namespace darma
 
