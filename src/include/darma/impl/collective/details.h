@@ -53,6 +53,20 @@
 namespace darma_runtime {
 namespace detail {
 
+namespace _impl {
+
+template <typename ReduceOp>
+ReduceOp const*
+_get_static_reduce_op_instance() {
+  static const ReduceOp instance = { };
+  return &instance;
+}
+
+} // end namespace _impl
+
+
+
+
 template <typename ReduceOp>
 class SimpleCollectiveDetails
   : public abstract::frontend::CollectiveDetails
@@ -61,23 +75,23 @@ class SimpleCollectiveDetails
   private:
 
     size_t piece_;
-    compressed_pair<size_t, ReduceOp> n_pieces_;
+    size_t n_pieces_;
 
   public:
 
     SimpleCollectiveDetails(size_t piece, size_t n_pieces)
-      : piece_(piece), n_pieces_(n_pieces, ReduceOp())
+      : piece_(piece), n_pieces_(n_pieces)
     { }
 
     size_t
     this_contribution() const override { return piece_; }
 
     size_t
-    n_contributions() const override { return n_pieces_.first(); }
+    n_contributions() const override { return n_pieces_; }
 
     abstract::frontend::ReduceOp const*
     reduce_operation() const override {
-      return &(n_pieces_.second());
+      return _impl::_get_static_reduce_op_instance<ReduceOp>();
     }
 
 

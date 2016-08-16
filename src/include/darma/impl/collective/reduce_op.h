@@ -145,6 +145,7 @@ class ReduceOp
 
 };
 
+
 struct Add {
   template <typename T>
   struct Op : public ReduceOp<Op<T>, T> {
