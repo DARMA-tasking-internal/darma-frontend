@@ -54,10 +54,22 @@ namespace _void_t_impl {
 template <class... >
 struct make_void { using type = void; };
 
+
 } // end namepace _void_t_impl
 
 template <class... T>
 using void_t = typename _void_t_impl::make_void<T...>::type;
+
+namespace _void_t_impl {
+
+template <template <class...> class F>
+struct make_void_template { using type = void; };
+
+} // end namepace _void_t_impl
+
+template <template <class...> class F>
+using void_template_t = typename _void_t_impl::make_void_template<F>::type;
+
 
 } // end namespace tinympl
 

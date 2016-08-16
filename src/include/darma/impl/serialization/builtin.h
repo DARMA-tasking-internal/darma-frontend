@@ -48,7 +48,7 @@
 #include <type_traits>
 #include <cstddef>
 
-#include "nonintrusive.h"
+#include "as_pod.h"
 
 namespace darma_runtime {
 namespace serialization {

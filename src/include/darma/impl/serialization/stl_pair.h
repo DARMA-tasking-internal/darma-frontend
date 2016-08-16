@@ -73,7 +73,13 @@ struct Serializer<std::pair<T1, T2>> {
 
     typedef std::pair<T1, T2> PairT;
 
+
   public:
+
+    using directly_serializable = std::integral_constant<bool,
+      T1_serdes_traits::is_directly_serializable
+        and T2_serdes_traits::is_directly_serializable
+    >;
 
     ////////////////////////////////////////////////////////////
     // <editor-fold desc="compute_size()">

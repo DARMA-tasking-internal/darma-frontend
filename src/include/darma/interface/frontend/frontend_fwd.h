@@ -58,6 +58,12 @@ class PublicationDetails;
 
 class SerializationManager;
 
+class ElementRange;
+
+class ArrayConceptManager;
+
+class MemoryRequirementDetails;
+
 class Use;
 // This will make a useful replacement when we go to CRTP for use
 typedef Use use_t;

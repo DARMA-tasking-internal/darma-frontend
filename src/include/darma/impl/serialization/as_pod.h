@@ -46,7 +46,8 @@
 #define DARMA_IMPL_SERIALIZATION_AS_POD_H
 
 #include <type_traits>
-#include "nonintrusive.h"
+
+#include "serialization_fwd.h"
 
 namespace darma_runtime {
 
@@ -72,26 +73,29 @@ struct Serializer_enabled_if<T, std::enable_if_t<serialize_as_pod<T>::value>> {
     "Values serialized as POD must be standard layout types"
   );
 
+  using directly_serializable = std::true_type;
+
+  // Note: individual POD objects should be packed indirectly.  To pack/unpack
+  // large contiguous buffers of POD objects, the serializer of the parent object
+  // should call the archive's *_direct() methods itself
+
   template <typename Archive>
   void compute_size(T const &val, Archive &ar) {
     assert(ar.is_sizing());
-    ar.add_to_size(sizeof(T));
+    ar.add_to_size_indirect(sizeof(T));
   }
 
   template <typename Archive>
   void pack(T const &val, Archive &ar) {
     assert(ar.is_packing());
-    // most optimizers can coalesce consecutive small copies, so this should be pretty fast
-    ar.pack_contiguous(&val, &val + 1);
+    ar.pack_indirect(&val, &val + 1);
   }
 
   template <typename ArchiveT>
   void
   unpack(void *val, ArchiveT &ar) const {
-    // This approach should be valid for trivially-constructible, standard layout types
     assert(ar.is_unpacking());
-    // most optimizers can coalesce consecutive copies, so this should be pretty fast
-    ar.template unpack_contiguous<T>(reinterpret_cast<T *>(val), 1);
+    ar.template unpack_indirect<T>(reinterpret_cast<T *>(val), 1);
   }
 };
 

@@ -62,6 +62,13 @@
 
 namespace darma_runtime {
 
+namespace detail {
+
+// forward declaration
+struct all_reduce_impl;
+
+} // end namespace detail
+
 
 // todo move this to a more appropriate place
 template <typename T>
@@ -190,7 +197,7 @@ class AccessHandle : public detail::AccessHandleBase {
     AccessHandle(AccessHandle const & copied_from) noexcept {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
-        detail::backend_runtime->get_running_task()
+        abstract::backend::get_backend_context()->get_running_task()
       );
       capturing_task = running_task->current_create_work_context;
 
@@ -223,7 +230,7 @@ class AccessHandle : public detail::AccessHandleBase {
       using detail::analogous_access_handle_attorneys::AccessHandleAccess;
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
-        detail::backend_runtime->get_running_task()
+        abstract::backend::get_backend_context()->get_running_task()
       );
       capturing_task = running_task->current_create_work_context;
 
@@ -567,6 +574,8 @@ class AccessHandle : public detail::AccessHandleBase {
     ////////////////////////////////////////
     // TaskBase is also a friend
     friend class detail::TaskBase;
+
+    friend struct detail::all_reduce_impl;
 
     ////////////////////////////////////////
     // Analogs with different privileges are friends too
