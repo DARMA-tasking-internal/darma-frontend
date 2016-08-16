@@ -79,9 +79,21 @@ struct Serializer<T[N]> {
     >;
 
     template <typename Archive>
-    using enable_if_ser_indirect = std::enable_if_t<
+    using enable_if_sizable_indirect = std::enable_if_t<
       not directly_serializable::value and
-      serdes_traits::template is_serializable_with_archive<Archive>::value
+        serdes_traits::template is_sizable_with_archive<Archive>::value
+    >;
+
+    template <typename Archive>
+    using enable_if_packable_indirect = std::enable_if_t<
+      not directly_serializable::value and
+        serdes_traits::template is_packable_with_archive<Archive>::value
+    >;
+
+    template <typename Archive>
+    using enable_if_unpackable_indirect = std::enable_if_t<
+      not directly_serializable::value and
+        serdes_traits::template is_unpackable_with_archive<Archive>::value
     >;
 
   public:
@@ -98,7 +110,7 @@ struct Serializer<T[N]> {
     }
 
     template <typename Archive>
-    enable_if_ser_indirect<Archive>
+    enable_if_sizable_indirect<Archive>
     compute_size(const T val[N], Archive& ar) const {
       for(int i = 0; i < N; ++i) {
         ar.incorporate_size(val[i]);
@@ -112,7 +124,7 @@ struct Serializer<T[N]> {
     }
 
     template <typename Archive>
-    enable_if_ser_indirect<Archive>
+    enable_if_packable_indirect<Archive>
     pack(const T val[N], Archive& ar) const {
       for(int i = 0; i < N; ++i) {
         ar.pack_item(val[i]);
@@ -126,7 +138,7 @@ struct Serializer<T[N]> {
     }
 
     template <typename Archive, typename AllocatorT>
-    enable_if_ser_indirect<Archive>
+    enable_if_unpackable_indirect<Archive>
     unpack(void* allocated, Archive& ar, AllocatorT&& alloc) const {
       for(int i = 0; i < N; ++i) {
         ar.unpack_item(((T*)allocated, std::forward<AllocatorT>(alloc))[i]);

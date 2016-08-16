@@ -100,7 +100,7 @@ struct ArchiveAccess {
   static inline void
   start_packing_with_buffer(ArchiveT& ar, void* const buffer) {
     ar.mode = serialization::detail::SerializerMode::Packing;
-    ar.spot = ar.start = buffer;
+    ar.spot = ar.start = (char* const)(buffer);
   }
 
   template <typename ArchiveT>

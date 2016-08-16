@@ -150,15 +150,15 @@ struct all_reduce_impl {
       "allreduce() called on handle that can't schedule at least read usage on "
         "data (most likely because it was already released"
     );
+
     // TODO !!!!! write this
+    DARMA_ASSERT_NOT_IMPLEMENTED("collectives with separate input and output");
 
 
     // This is a read capture of the InputHandle and a write capture of the
     // output handle
 
     // First do the read capture of the input handle
-
-    abort();
 
   };
 

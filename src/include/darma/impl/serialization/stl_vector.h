@@ -66,8 +66,8 @@ struct Serializer<std::vector<T, Allocator>>
     using value_traits = detail::serializability_traits<T>;
 
     template <typename ArchiveT>
-    using value_type_is_serializable =
-      typename value_traits::template is_serializable_with_archive<ArchiveT>;
+    using value_type_is_unpackable =
+      typename value_traits::template is_unpackable_with_archive<ArchiveT>;
 
     static constexpr auto value_type_is_directly_serializable =
       value_traits::is_directly_serializable;
@@ -77,12 +77,12 @@ struct Serializer<std::vector<T, Allocator>>
     using allocator_t = Allocator;
 
     template <typename ArchiveT>
-    using enable_if_serializable = std::enable_if_t<
-      value_type_is_serializable<ArchiveT>::value
+    using enable_if_unpackable = std::enable_if_t<
+      value_type_is_unpackable<ArchiveT>::value
     >;
 
     template <typename ArchiveT>
-    inline enable_if_serializable<ArchiveT>
+    inline enable_if_unpackable<ArchiveT>
     _unpack_contiguous_if_possible(
       std::true_type, ArchiveT& ar, vector_t& v, size_t& size
     ) const {
@@ -90,7 +90,7 @@ struct Serializer<std::vector<T, Allocator>>
     }
 
     template <typename ArchiveT>
-    inline enable_if_serializable<ArchiveT>
+    inline enable_if_unpackable<ArchiveT>
     _unpack_contiguous_if_possible(
       std::false_type, ArchiveT& ar, vector_t& v, size_t& size
     ) const {
@@ -102,7 +102,7 @@ struct Serializer<std::vector<T, Allocator>>
   public:
 
     template <typename ArchiveT, typename ParentAllocator>
-    enable_if_serializable<ArchiveT>
+    enable_if_unpackable<ArchiveT>
     unpack(void* allocated, ArchiveT& ar, ParentAllocator&& p_alloc) const {
       // The unpack corresponding to the SerDesRange-based pack
       size_t size = 0;

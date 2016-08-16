@@ -178,7 +178,7 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
     // <editor-fold desc="compute_size()">
 
     template <typename ArchiveT>
-    std::enable_if_t<value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value>
+    std::enable_if_t<value_serdes_traits::template is_sizable_with_archive<ArchiveT>::value>
     compute_size(C const& c, ArchiveT& ar) const {
       assert(ar.is_sizing());
       auto arnew = ar % serialization::range(c.begin(), c.end());
@@ -191,7 +191,7 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
     // <editor-fold desc="pack()">
 
     template <typename ArchiveT>
-    std::enable_if_t<value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value>
+    std::enable_if_t<value_serdes_traits::template is_packable_with_archive<ArchiveT>::value>
     pack(C const& c, ArchiveT& ar) const {
       assert(ar.is_packing());
       ar << serialization::range(c.begin(), c.end());
@@ -205,7 +205,7 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
 
     template <typename ArchiveT, typename ParentAllocatorT>
     std::enable_if_t<
-      value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
+      value_serdes_traits::template is_unpackable_with_archive<ArchiveT>::value
         and is_back_insertable
     >
     unpack(void* allocated, ArchiveT& ar, ParentAllocatorT&& parent_alloc) const {
@@ -236,7 +236,7 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
 
     template <typename ArchiveT, typename ParentAllocatorT>
     std::enable_if_t<
-      value_serdes_traits::template is_serializable_with_archive<ArchiveT>::value
+      value_serdes_traits::template is_unpackable_with_archive<ArchiveT>::value
         and is_insertable and not is_back_insertable
     >
     unpack(void* allocated, ArchiveT& ar, ParentAllocatorT&& parent_alloc) const {

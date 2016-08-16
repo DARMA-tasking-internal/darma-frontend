@@ -63,6 +63,15 @@ class ArchivePassthroughMixin {
     template <typename T>
     using is_serializable_with_this =
       typename traits<T>::template is_serializable_with_archive<ArchiveT>;
+    template <typename T>
+    using is_sizable_with_this =
+      typename traits<T>::template is_sizable_with_archive<ArchiveT>;
+    template <typename T>
+    using is_packable_with_this =
+      typename traits<T>::template is_packable_with_archive<ArchiveT>;
+    template <typename T>
+    using is_unpackable_with_this =
+      typename traits<T>::template is_unpackable_with_archive<ArchiveT>;
 
     template <typename T>
     using has_only_serialize = std::integral_constant<bool,
@@ -83,7 +92,7 @@ class ArchivePassthroughMixin {
     bool is_unpacking() const { return mode == detail::SerializerMode::Unpacking; }
 
     template <typename T>
-    std::enable_if_t<is_serializable_with_this<T>::value>
+    std::enable_if_t<is_sizable_with_this<T>::value>
     incorporate_size(T const& val) {
       traits<T>::compute_size(val, *static_cast<ArchiveT*>(this));
     }
@@ -91,7 +100,7 @@ class ArchivePassthroughMixin {
     //--------------------------------------------------------------------------
 
     template <typename T>
-    std::enable_if_t<is_serializable_with_this<T>::value>
+    std::enable_if_t<is_packable_with_this<T>::value>
     pack_item(T const& val) {
       traits<T>::template pack(val, *static_cast<ArchiveT*>(this));
     }
@@ -99,7 +108,7 @@ class ArchivePassthroughMixin {
     //--------------------------------------------------------------------------
 
     template <typename T>
-    std::enable_if_t<is_serializable_with_this<T>::value>
+    std::enable_if_t<is_unpackable_with_this<T>::value>
     unpack_item(void* val) {
       traits<T>::unpack( val, *static_cast<ArchiveT*>(this),
         darma_allocator<T>()
@@ -107,7 +116,7 @@ class ArchivePassthroughMixin {
     }
 
     template <typename T, typename AllocatorT>
-    std::enable_if_t<is_serializable_with_this<T>::value>
+    std::enable_if_t<is_unpackable_with_this<T>::value>
     unpack_item(void* val, AllocatorT&& alloc) {
       traits<T>::unpack( val, *static_cast<ArchiveT*>(this),
         std::forward<AllocatorT>(alloc)
@@ -115,7 +124,7 @@ class ArchivePassthroughMixin {
     }
 
     template <typename T>
-    std::enable_if_t<is_serializable_with_this<T>::value>
+    std::enable_if_t<is_unpackable_with_this<T>::value>
     unpack_item(T& val) {
       traits<T>::unpack(
         // May need to cast away constness if T is deduced to be const
@@ -127,7 +136,7 @@ class ArchivePassthroughMixin {
     }
 
     template <typename T, typename AllocatorT>
-    std::enable_if_t<is_serializable_with_this<T>::value>
+    std::enable_if_t<is_unpackable_with_this<T>::value>
     unpack_item(T& val, AllocatorT&& alloc) {
       traits<T>::unpack(
         const_cast<void*>(static_cast<const void*>(&val)),
