@@ -48,6 +48,8 @@
 #include <type_traits>
 #include <tuple>
 
+#include <tinympl/transform2.hpp>
+
 #include <darma/impl/meta/tuple_for_each.h>
 
 #include "nonintrusive.h"

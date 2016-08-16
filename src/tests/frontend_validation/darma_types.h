@@ -53,10 +53,12 @@
 
 #include <darma/interface/defaults/pointers.h>
 
-#include <darma/impl/key/simple_key.h>
+#include <darma/impl/key/simple_key_fwd.h>
 
 namespace darma_runtime { namespace types {
   typedef darma_runtime::detail::SimpleKey key_t;
 }} // end namespace darma_runtime::types
+
+#include <darma/impl/key/simple_key.h>
 
 #endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */

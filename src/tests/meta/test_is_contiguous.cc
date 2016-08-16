@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          test_darma_backend_initialize.cc
-//                         dharma_new
+//                      is_contiguous.cpp
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,17 +42,40 @@
 //@HEADER
 */
 
-#include "main.h"
+#include <vector>
+#include <string>
+#include <map>
 
-#include <gtest/gtest.h>
-#include <darma/interface/defaults/darma_main.h>
-#include "mock_frontend.h"
+#include <darma/impl/meta/is_contiguous.h>
 
-int darma_main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  ::testing::InitGoogleMock(&argc, argv);
-  int ret = RUN_ALL_TESTS();
-  ::darma_runtime::detail::backend_runtime = 0;  // make sure main() doesn't double-delete
-  return ret;
-}
+using namespace darma_runtime::meta;
 
+static_assert(
+  is_contiguous_iterator<typename std::vector<long>::iterator>::value,
+  "std::vector iterator should be contiguous"
+);
+
+static_assert(
+  is_contiguous_iterator<typename std::vector<long>::const_iterator>::value,
+  "std::vector const_iterator should be contiguous"
+);
+
+static_assert(
+  is_contiguous_iterator<typename std::string::iterator>::value,
+  "std::string iterator should be contiguous"
+);
+
+static_assert(
+  is_contiguous_iterator<typename std::vector<long>::const_iterator>::value,
+  "std::vector const_iterator should be contiguous"
+);
+
+static_assert(
+  not is_contiguous_iterator<typename std::map<int, int>::iterator>::value,
+  "std::map iterators should not be contiguous"
+);
+
+static_assert(
+  is_contiguous_iterator<int*>::value,
+  "int* should be contiguous"
+);

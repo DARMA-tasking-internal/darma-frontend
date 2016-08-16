@@ -159,8 +159,13 @@ struct Runnable : public RunnableBase
       return nullptr;
     }
 
-    virtual size_t get_packed_size() const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
-    virtual void pack(void* allocated) const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
+    virtual size_t get_packed_size() const {
+      DARMA_ASSERT_NOT_IMPLEMENTED();
+      return 0;
+    }
+    virtual void pack(void* allocated) const {
+      DARMA_ASSERT_NOT_IMPLEMENTED();
+    }
 
     size_t get_index() const  { return index_; }
 
@@ -182,7 +187,10 @@ struct RunnableCondition : public RunnableBase
   { }
 
   size_t get_index() const  { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }
-  virtual size_t get_packed_size() const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
+  virtual size_t get_packed_size() const {
+    DARMA_ASSERT_NOT_IMPLEMENTED();
+    return 0; // Unreachable; silence missing return warnings
+  }
   virtual void pack(void* allocated) const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
 
   bool run()  { return run_this_(); }
@@ -340,7 +348,7 @@ class FunctorLikeRunnableBase
   public:
 
     size_t get_packed_size() const override {
-      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       serialization::SimplePackUnpackArchive ar;
 
       ArchiveAccess::start_sizing(ar);
@@ -351,7 +359,7 @@ class FunctorLikeRunnableBase
     }
 
     void pack(void* allocated) const override {
-      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       serialization::SimplePackUnpackArchive ar;
 
       ArchiveAccess::start_packing(ar);

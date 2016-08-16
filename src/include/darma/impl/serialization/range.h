@@ -47,32 +47,90 @@
 
 #include <type_traits>
 #include <iterator>
-#include "allocation.h"
+
+#include <darma/impl/meta/is_contiguous.h>
+
+#include "traits.h"
 
 namespace darma_runtime {
+
 namespace serialization {
 
 namespace detail {
 
-template <typename BeginIterator, typename EndIterator>
+template <typename BeginIterator, typename EndIterator, typename Allocator>
 struct SerDesRange;
 
-template <typename RandomAccessIterator>
+template <typename RandomAccessIterator, typename Allocator>
 struct SerDesRange<
   RandomAccessIterator&,
-  RandomAccessIterator
-> {
+  RandomAccessIterator,
+  Allocator
+>
+{
   private:
     RandomAccessIterator& begin_;
     RandomAccessIterator end_;
+
+    Allocator alloc_;
 
   public:
 
     typedef RandomAccessIterator iterator;
     typedef std::iterator_traits<RandomAccessIterator> iterator_traits;
 
-    SerDesRange(RandomAccessIterator& in_begin, RandomAccessIterator in_end)
-      : begin_(in_begin), end_(in_end) { }
+    using value_type = typename std::iterator_traits<RandomAccessIterator>::value_type;
+
+    static constexpr auto is_contiguous =
+      meta::is_contiguous_iterator<std::remove_cv_t<RandomAccessIterator>>::value;
+
+    static constexpr auto value_is_directly_serializable =
+      serializability_traits<value_type>::is_directly_serializable;
+
+    SerDesRange(
+      RandomAccessIterator& in_begin, RandomAccessIterator&& in_end,
+      Allocator& alloc
+    ) : begin_(in_begin), end_(in_end), alloc_(alloc) { }
+
+    RandomAccessIterator&
+    begin() { return begin_; }
+
+    RandomAccessIterator const&
+    begin() const { return begin_; }
+
+    RandomAccessIterator const&
+    end() const { return end_; }
+
+    Allocator&
+    get_allocator() { return alloc_; }
+};
+
+template <typename RandomAccessIterator, typename Allocator>
+struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&, Allocator>
+{
+  private:
+    RandomAccessIterator& begin_;
+    RandomAccessIterator& end_;
+
+    Allocator alloc_;
+
+  public:
+
+    typedef RandomAccessIterator iterator;
+    typedef std::iterator_traits<RandomAccessIterator> iterator_traits;
+
+    using value_type = typename std::iterator_traits<RandomAccessIterator>::value_type;
+
+    static constexpr auto is_contiguous =
+      meta::is_contiguous_iterator<std::remove_cv_t<RandomAccessIterator>>::value;
+
+    static constexpr auto value_is_directly_serializable =
+      serializability_traits<value_type>::is_directly_serializable;
+
+    SerDesRange(
+      RandomAccessIterator& in_begin, RandomAccessIterator&& in_end,
+      Allocator& alloc
+    ) : begin_(in_begin), end_(in_end), alloc_(alloc) { }
 
     RandomAccessIterator&
     begin() { return begin_; }
@@ -85,26 +143,41 @@ struct SerDesRange<
 
     RandomAccessIterator const&
     end() const { return end_; }
+
+    Allocator&
+    get_allocator() { return alloc_; }
 };
 
-template <typename RandomAccessIterator>
-struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&> {
+template <typename RandomAccessIterator, typename Allocator>
+struct SerDesRange<RandomAccessIterator, RandomAccessIterator, Allocator>
+{
   private:
-    RandomAccessIterator& begin_;
-    RandomAccessIterator& end_;
+    RandomAccessIterator begin_;
+    RandomAccessIterator end_;
+
+    Allocator alloc_;
 
   public:
+
+    using value_type = typename std::iterator_traits<RandomAccessIterator>::value_type;
+
+    static constexpr auto is_contiguous =
+      meta::is_contiguous_iterator<std::remove_cv_t<RandomAccessIterator>>::value;
+
+    static constexpr auto value_is_directly_serializable =
+      serializability_traits<value_type>::is_directly_serializable;
 
     typedef RandomAccessIterator iterator;
     typedef std::iterator_traits<RandomAccessIterator> iterator_traits;
 
-    SerDesRange(RandomAccessIterator& in_begin, RandomAccessIterator& in_end)
-      : begin_(in_begin), end_(in_end) { }
+    SerDesRange(RandomAccessIterator&& in_begin, RandomAccessIterator&& in_end,
+      Allocator& alloc
+    ) : begin_(in_begin), end_(in_end), alloc_(alloc) { }
 
-    RandomAccessIterator&
+    RandomAccessIterator const&
     begin() const { return begin_; }
 
-    RandomAccessIterator&
+    RandomAccessIterator const&
     end() const { return end_; }
 };
 
@@ -112,75 +185,25 @@ struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-template <typename BeginIter, typename EndIter>
+template <typename BeginIter, typename EndIter,
+  typename Allocator=darma_allocator<
+    typename std::iterator_traits<std::decay_t<BeginIter>>::value_type
+  >
+>
 auto
-range(BeginIter&& begin, EndIter&& end) {
-  return detail::SerDesRange<BeginIter, EndIter>(
+range(BeginIter&& begin, EndIter&& end, Allocator alloc=
+  darma_allocator<
+    typename std::iterator_traits<std::decay_t<BeginIter>>::value_type
+  >()
+) {
+  return detail::SerDesRange<BeginIter, EndIter, Allocator>(
     std::forward<BeginIter>(begin),
-    std::forward<EndIter>(end)
+    std::forward<EndIter>(end),
+    alloc
   );
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-//
-//template <typename RandomAccessIterator>
-//struct Serializer<detail::SerDesRange<RandomAccessIterator>> {
-//  private:
-//    typedef detail::SerDesRange<RandomAccessIterator> range_t;
-//    typedef typename std::iterator_traits<RandomAccessIterator>::difference_type difference_type;
-//    typedef typename std::iterator_traits<RandomAccessIterator>::value_type value_type;
-//    using value_allocation_traits = detail::allocation_traits<value_type>;
-//
-//  public:
-//    template <typename Archive>
-//    void
-//    compute_size(range_t const& range, Archive& ar) const {
-//      for(auto const& v : range) {
-//        ar.incorporate_size(v);
-//      }
-//    }
-//
-//    template <typename Archive>
-//    void
-//    pack(range_t const& range, Archive& ar) const {
-//      // cast just to be safe, but that should be the return value of the subtraction operator
-//      ar.pack_item(static_cast<difference_type>(range.end() - range.begin()));
-//      for(auto const& v : range) {
-//        ar.pack_item(v);
-//      }
-//    }
-//
-//    template <typename Archive>
-//    range_t*
-//    allocate(Archive& ar) const {
-//      if(ar.is_unpacking()) {
-//        // We want to allocate the actual data, not the range object
-//        // "peek" at the item without advancing the archive
-//        difference_type const& n_items = *static_cast<difference_type*>(
-//          Serializer_attorneys::ArchiveAccess::spot(ar)
-//        );
-//        return value_allocation_traits::template allocate(ar, n_items);
-//      }
-//      else {
-//        // otherwise, we're allocating the actual range object itself in some other context
-//        auto alloc = std::allocator<range_t>();
-//        return std::allocator_traits<decltype(alloc)>::allocate(alloc, 1);
-//      }
-//    }
-//
-//    template <typename Archive>
-//    void
-//    unpack(void* allocated, Archive& ar) const {
-//      difference_type n_items = 0;
-//      ar.unpack_item(n_items);
-//      for(difference_type i = 0; i < n_items; ++i) {
-//        ar.unpack_item((value_type*)allocated);
-//        allocated = (char*)allocated + sizeof(value_type);
-//      }
-//
-//    }
-
-//};
 
 } // end namespace serialization
 } // end namespace darma_runtime

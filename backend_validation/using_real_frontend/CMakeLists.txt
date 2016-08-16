@@ -1,10 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
 
-project (DarmaBackendValidation)
-# The version number.
-set (DarmaBackendValidation_VERSION_MAJOR 0)
-set (DarmaBackendValidation_VERSION_MINOR 2)
-
 enable_testing()
 
 set (validation_HEADERS

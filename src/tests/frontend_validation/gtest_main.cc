@@ -56,6 +56,8 @@ size_t MockFlow::next_index = 0;
 // Used for arbitrarily establishing ordering of specific lines of code
 ::testing::StrictMock<MockSequenceMarker>* sequence_marker = nullptr;
 
+std::unique_ptr<mock_backend::MockRuntime> mock_runtime { nullptr };
+
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);

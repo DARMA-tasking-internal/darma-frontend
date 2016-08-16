@@ -65,36 +65,23 @@ darma_init(
   std::unique_ptr<typename darma_runtime::abstract::backend::runtime_t::task_t> moved_from =
       std::make_unique<detail::TopLevelTask>();
   abstract::backend::darma_backend_initialize(
-    argc, argv, detail::backend_runtime, std::move(moved_from)
+    argc, argv, std::move(moved_from)
   );
 }
 
 inline darma_rank_t
 darma_spmd_rank() {
-  DARMA_ASSERT_NOT_NULL(detail::backend_runtime);
-  DARMA_ASSERT_NOT_NULL(detail::backend_runtime->get_running_task());
-
-  DARMA_ASSERT_EQUAL(
-    std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>()),
-    DARMA_BACKEND_SPMD_NAME_PREFIX
-  );
-  return detail::backend_runtime
-      ->get_running_task()->get_name().component<1>().as<darma_rank_t>();
+  return abstract::backend::get_backend_context()->get_spmd_rank();
 }
 
 inline darma_rank_t
 darma_spmd_size() {
-  DARMA_ASSERT_EQUAL(
-    std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>()),
-    DARMA_BACKEND_SPMD_NAME_PREFIX
-  );
-  return detail::backend_runtime
-      ->get_running_task()->get_name().component<2>().as<darma_rank_t>();
+  return abstract::backend::get_backend_context()->get_spmd_size();
 }
 
 inline void
 darma_finalize() {
-  detail::backend_runtime->finalize();
+  abstract::backend::get_backend_runtime()->finalize();
 }
 
 } // end namespace darma_runtime

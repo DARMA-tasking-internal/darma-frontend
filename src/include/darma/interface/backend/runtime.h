@@ -53,6 +53,8 @@
 #include <darma/interface/frontend/task.h>
 #include <darma/interface/frontend/use.h>
 #include <darma/interface/frontend/publication_details.h>
+#include <darma/interface/frontend/memory_requirement_details.h>
+#include <darma/interface/frontend/collective_details.h>
 
 namespace darma_runtime {
 
@@ -77,78 +79,49 @@ class Runtime {
     typedef frontend::Task<types::concrete_task_t> task_t;
     typedef types::unique_ptr_template<task_t> task_unique_ptr;
 
-    /** @brief Return the SPMD rank of this backend instance. */
-    virtual size_t
-    get_spmd_rank() const = 0;
 
-    /** @brief Return the SPMD size. */
-    virtual size_t
-    get_spmd_size() const = 0;
-
-    /** @brief Register a task to be run at some future time by the runtime system.
+    /** @brief Register a task to be run at some future time by the runtime
+     * system.
      *
      *  See frontend::Task for details
      *
-     *  @param task A unique_ptr to a task object. Task is moved as rvalue reference,
-                    indicating transfer of ownership to the backend.
+     *  @param task A unique_ptr to a task object. Task is moved as rvalue
+     *  reference, indicating transfer of ownership to the backend.
+     *
      *  @sa frontend::Task
      */
     virtual void
     register_task( task_unique_ptr&& task ) = 0;
 
-    /** @brief Register a task with a run<bool>() method.
+    /** @brief register a task with a run<bool>() method.
      *
-     *  @param task A unique_ptr to a task object that implements the bool specialization
-     *              of the run() method template.  See register_task for more details
+     *  @param task a unique_ptr to a task object that implements the bool
+     *  specialization of the run() method template.  see register_task for more
+     *  details
      *
-     *  @return The value of the condition returned by the task when run, or
-     *          the speculated value if the backend wishes to implement speculative
-     *           execution
+     *  @return the value of the condition returned by the task when run, or the
+     *  speculated value if the backend wishes to implement speculative
+     *  execution
      *
-     *  @sa frontend::Task
-     *  @sa Runtime::register_task
+     *
+     *  @sa frontend::task @sa runtime::register_task
      *
      */
     virtual bool
     register_condition_task( task_unique_ptr&& task ) = 0;
 
-    /** @brief Get a pointer to the \ref frontend::Task object
-    *  currently running on the thread from which get_running_task() was
-    *  invoked.
-    *
-    *  @return A non-owning pointer to the \ref frontend::Task object
-    *  running on the invoking thread.  The returned pointer must be castable
-    *  to the same concrete type as was passed to \ref Runtime::register_task()
-    *  when the task was registered.
-    *
-    *  @remark If the runtime implements context switching, it must ensure that
-    *  the behavior of Runtime::get_running_task() is consistent and correct
-    *  for a given running thread as though the switching never occurred.
-    *
-    *  @remark The pointer returned here is guaranteed to be valid until
-    *  Task::run() returns for the returned task.  However, to allow context
-    *  switching, it is not guaranteed to be valid in the context of any other
-    *  task's run() invocation, including child tasks, and thus it should not
-    *  be dereferenced in any other context.
-    *
-    *  @TODO decide what this should do if called before or after a migrated task runs
-    *
-    *  @sa frontend::Task
-    */
-    virtual task_t*
-    get_running_task() const = 0;
-
     /** @brief Register a frontend::Use object
      *
      *  This method registers a Use object that can be accesses through the
-     *  the iterator returned by t.get_dependencies() for some task t.
-     *  register_use() will always be invoked before register_task() for any task holding a Use `u`.
-     *  Accessing a frontend::Use `u` through a frontend::Task `t` is only valid between the time
-     *  `register_use(&u)` is called and `release_use(&u)` returns.
-     *  No `make_*` functions may be invoked on either the input or output flows of a Use `u`
-     *  returned by Use::get_input_flow() and Use::get_output_flow() before calling register_use().
-     *  Additionally, no `make_*` functions may be invoked on the input or output flows of a Use `u`
-     *  after calling release_use().
+     *  iterator returned by t.get_dependencies() for some task t.
+     *  register_use() will always be invoked before register_task() for any
+     *  task holding a Use `u`. Accessing a frontend::Use `u` through a
+     *  frontend::Task `t` is only valid between the time `register_use(&u)` is
+     *  called and `release_use(&u)` returns. No `make_*` functions may be
+     *  invoked on either the input or output flows of a Use `u` returned by
+     *  Use::get_input_flow() and Use::get_output_flow() before calling
+     *  register_use(). Additionally, no `make_*` functions may be invoked on
+     *  the input or output flows of a Use `u` after calling release_use().
      */
     virtual void
     register_use(
@@ -324,8 +297,9 @@ class Runtime {
     ) =0;
 
 
-    /** @brief Indicate that the state of a Handle corresponding to a given Use should
-     *  be accessible via a corresponding fetching usage with the same version_key.
+    /** @brief Indicate that the state of a Handle corresponding to a given Use
+     *  should be accessible via a corresponding fetching usage with the same
+     *  version_key.
      *
      *  See PublicationDetails for more information
      *  @param u       The particular use being published
@@ -338,6 +312,15 @@ class Runtime {
       frontend::Use* u,
       frontend::PublicationDetails* details
     ) =0;
+
+    virtual void
+    allreduce_use(
+      frontend::Use* use_in,
+      frontend::Use* use_out,
+      frontend::CollectiveDetails const* details,
+      types::key_t const& tag
+    ) =0;
+
 
     /** @brief signifies the end of the outer SPMD task from which
      *  darma_backend_initialize() was called.
@@ -353,9 +336,132 @@ class Runtime {
     virtual void
     finalize() =0;
 
+
+
     virtual ~Runtime() noexcept = default;
 
 };
+
+
+class Context {
+  public:
+
+    typedef frontend::Task<types::concrete_task_t> task_t;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Context
+
+    /** @brief Return the SPMD rank of this backend instance. */
+    virtual size_t
+    get_spmd_rank() const = 0;
+
+    /** @brief Return the SPMD size. */
+    virtual size_t
+    get_spmd_size() const = 0;
+
+    /** @brief Get a pointer to the \ref frontend::Task object currently running
+     * on the thread from which get_running_task() was invoked.
+    *
+    *  @return A non-owning pointer to the \ref frontend::Task object running on
+    *  the invoking thread.  The returned pointer must be castable to the same
+    *  concrete type as was passed to \ref Runtime::register_task() when the
+    *  task was registered.
+    *
+    *  @remark If the runtime implements context switching, it must ensure that
+    *  the behavior of Runtime::get_running_task() is consistent and correct for
+    *  a given running thread as though the switching never occurred.
+    *
+    *  @remark The pointer returned here is guaranteed to be valid until
+    *  Task::run() returns for the returned task.  However, to allow context
+    *  switching, it is not guaranteed to be valid in the context of any other
+    *  task's run() invocation, including child tasks, and thus it should not be
+    *  dereferenced in any other context.
+    *
+    *  @TODO decide what this should do if called before or after a migrated
+    *  task runs
+    *
+    *  @sa frontend::Task
+    */
+    virtual task_t*
+    get_running_task() const = 0;
+
+    //
+    ////////////////////////////////////////////////////////////////////////////
+};
+
+class MemoryManager {
+  public:
+
+    ////////////////////////////////////////////////////////////////////////////
+    // MemoryManager
+
+    /** @brief Request that the backend allocate a contiguous piece of memory
+     *  of size `n_bytes` and with the hinted attributes described by `details`.
+     *
+     *  @remark The backend is free to block, raise an exception, or even abort
+     *  if the allocation is not possible.  However, it must not return an
+     *  invalid pointer.
+     *
+     *  @param n_bytes The number of bytes to allocate
+     *  @param details Catagorical hints (for performance purposes) about the way
+     *  the memory to be allocated will be used in its lifetime
+     *  @return A pointer to the beginning of the allocated region.  Any accesses
+     *  to memory in the region `[rv, rv+n_bytes)` (where `rv` is the returned
+     *  pointer) must be valid until deallocated is called with the `rv` and the
+     *  same `n_bytes` argument
+     */
+    virtual void*
+    allocate(
+      size_t n_bytes,
+      frontend::MemoryRequirementDetails const& details
+    ) =0;
+
+    /** @brief Release memory allocated by a previous call to
+     *  `Runtime::allocate()`.
+     *
+     *  @param ptr A pointer returned by a previous call to
+     *  `Runtime::allocate()`.  It is an error if the pointer refers to memory
+     *  allocated by any other means.
+     *  @param n_bytes The same `n_bytes` argument passed to the
+     *  `Runtime::allocate()` call that returned `ptr`.  If a different
+     *  value than the one passed to the corresponding allocate is given for
+     *  this argument, the backend is allowed to either raise an error or
+     *  have undefined behavior occur.
+     */
+    virtual void
+    deallocate(
+      void* ptr,
+      size_t n_bytes
+    ) =0;
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    virtual ~MemoryManager() noexcept = default;
+
+};
+
+
+/** @todo
+ *
+ * @return
+ */
+Context*
+get_backend_context();
+
+/** @todo
+ *
+ * @return
+ */
+MemoryManager*
+get_backend_memory_manager();
+
+/** @todo
+ *
+ * @return
+ */
+Runtime*
+get_backend_runtime();
+
 
 typedef Runtime runtime_t;
 
@@ -416,9 +522,9 @@ typedef Runtime runtime_t;
  *
  */
 extern void
-  darma_backend_initialize(
+darma_backend_initialize(
   int& argc, char**& argv,
-  runtime_t*& backend_runtime,
+  //runtime_t*& backend_runtime,
   runtime_t::task_unique_ptr&& top_level_task
 );
 

@@ -213,6 +213,7 @@ class SimpleKey {
     print_human_readable(
       const char* sep = ", ", std::ostream& o = std::cout
     ) const {
+      // TODO this should work for empty keys
       for(size_t i = 0; i < n_components(); ++i) {
         const auto* md = &(types_[i]);
         if(md->is_string_like) {

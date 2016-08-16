@@ -89,6 +89,18 @@ using seq_tag_spot = m::find_if<
 } // end namespace _get_kwarg_impl
 
 ////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="has_kwarg">
+
+template <typename Tag, typename... Args>
+struct has_kwarg : std::integral_constant<bool,
+  _get_kwarg_impl::var_tag_spot<Tag, Args...>::value < sizeof...(Args)
+> { };
+
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
 
 /* get_typed_kwarg                                                       {{{1 */ #if 1 // begin fold
 
@@ -115,8 +127,7 @@ struct get_typed_kwarg {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-
-/* get_typed_kwarg_with_default                                          {{{1 */ #if 1 // begin fold
+// <editor-fold desc="get_typed_kwarg_with_default">
 
 namespace _get_kwarg_impl {
 
@@ -164,25 +175,34 @@ struct get_typed_kwarg_with_default {
 
 };
 
-/*                                                                            */ #endif // end fold
-
+// </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
 
 
 ////////////////////////////////////////////////////////////////////////////////
-
-/* get_typeless_kwarg_as                                                 {{{1 */ #if 1 // begin fold
+// <editor-fold desc="get_typeless_kwarg_as">
 
 namespace _get_kwarg_impl {
 
 template <typename Tag, typename AsType>
 struct _typeless_kwarg_as_getter {
   template <typename... Args>
-  inline constexpr AsType
+  inline constexpr decltype(auto)
   operator()(Args&&... args) const {
     constexpr size_t spot = _get_kwarg_impl::var_tag_spot<Tag, Args...>::value;
-    // TODO error message readability and compile-time debugability
     static_assert(spot < sizeof...(Args), "missing required keyword argument");
+    return _impl(std::is_void<AsType>(), std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  inline constexpr decltype(auto)
+  _impl(std::true_type /* AsType is void */, Args&&... args) const {
+    constexpr size_t spot = _get_kwarg_impl::var_tag_spot<Tag, Args...>::value;
+    return std::get<spot>(std::forward_as_tuple(args...)).value();
+  }
+  template <typename... Args>
+  inline constexpr decltype(auto)
+  _impl(std::false_type /* AsType not void */, Args&&... args) const {
+    constexpr size_t spot = _get_kwarg_impl::var_tag_spot<Tag, Args...>::value;
     return std::get<spot>(std::forward_as_tuple(args...)).template value_as<AsType>();
   }
 };
@@ -190,7 +210,7 @@ struct _typeless_kwarg_as_getter {
 } // end namespace _get_kwarg_impl
 
 template <typename Tag, typename AsType, typename... Args>
-inline constexpr AsType
+inline constexpr decltype(auto)
 get_typeless_kwarg_as(
   Args&&... args
 ) {
@@ -199,14 +219,22 @@ get_typeless_kwarg_as(
   );
 }
 
-/*                                                                            */ #endif // end fold
+template <typename Tag, typename... Args>
+inline constexpr decltype(auto)
+get_typeless_kwarg(
+  Args&&... args
+) {
+  return _get_kwarg_impl::_typeless_kwarg_as_getter<Tag, void>()(
+    std::forward<Args>(args)...
+  );
+}
 
+// </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
 
 
 ////////////////////////////////////////////////////////////////////////////////
-
-/* get_typeless_kwarg_with_default_as                                    {{{1 */ #if 1 // begin fold
+// <editor-fold desc="get_typeless_kwarg_with_default_as">
 
 namespace _get_kwarg_impl {
 
@@ -217,8 +245,18 @@ template <
 struct _typeless_default_select_impl {
   static constexpr size_t spot = seq_tag_spot<Tag, ArgsTuple>::value;
   template <typename ReturnTypeCastable>
-  inline constexpr ReturnType
-  operator()(ReturnTypeCastable&& default_val, ForwardedArgsTuple&& tup) const {
+  inline constexpr decltype(auto)
+  operator()(ReturnTypeCastable&&, ForwardedArgsTuple&& tup) const {
+    return _impl(typename std::is_void<ReturnType>::type{},
+      std::forward<ForwardedArgsTuple>(tup)
+    );
+  }
+  inline constexpr decltype(auto)
+  _impl(std::true_type, ForwardedArgsTuple&& tup) const {
+    return std::get<spot>(std::forward<ForwardedArgsTuple>(tup)).template value();
+  }
+  inline constexpr decltype(auto)
+  _impl(std::false_type, ForwardedArgsTuple&& tup) const {
     return std::get<spot>(std::forward<ForwardedArgsTuple>(tup)).template value_as<ReturnType>();
   }
 };
@@ -229,7 +267,7 @@ struct _typeless_default_select_impl<
   std::enable_if_t<seq_tag_spot<Tag, ArgsTuple>::value == m::size<ArgsTuple>::value>
 > {
   template <typename ReturnTypeCastable>
-  inline constexpr ReturnType
+  inline constexpr decltype(auto)
   operator()(ReturnTypeCastable&& default_val, ForwardedArgsTuple&& tup) const {
     return std::forward<ReturnTypeCastable>(default_val);
   }
@@ -238,7 +276,7 @@ struct _typeless_default_select_impl<
 template <typename Tag, typename AsType>
 struct _typeless_kwarg_with_default_as_getter {
   template <typename AsTypeConvertible, typename... Args>
-  inline constexpr AsType
+  inline constexpr decltype(auto)
   operator()(AsTypeConvertible&& default_val, Args&&... args) const {
     return _get_kwarg_impl::_typeless_default_select_impl<
       Tag, std::tuple<Args...>,
@@ -254,7 +292,7 @@ struct _typeless_kwarg_with_default_as_getter {
 
 template <typename Tag, typename AsType, typename AsTypeConvertible, typename... Args>
 inline constexpr
-AsType  //std::enable_if_t<std::is_literal_type<AsType>::value, AsType>
+decltype(auto)
 get_typeless_kwarg_with_default_as(
   AsTypeConvertible&& default_val,
   Args&&... args
@@ -265,9 +303,21 @@ get_typeless_kwarg_with_default_as(
   );
 }
 
+template <typename Tag, typename AsTypeConvertible, typename... Args>
+inline constexpr
+decltype(auto)
+get_typeless_kwarg_with_default(
+  AsTypeConvertible&& default_val,
+  Args&&... args
+) {
+  return _get_kwarg_impl::_typeless_kwarg_with_default_as_getter<Tag, void>()(
+    std::forward<AsTypeConvertible>(default_val),
+    std::forward<Args>(args)...
+  );
+}
 
-/*                                                                            */ #endif // end fold
 
+// </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
 
 
@@ -477,6 +527,11 @@ struct _positional_arg_tuple_getter {
   public:
 
     template <typename... Args>
+    using n_pos_t = typename
+      tinympl::size<typename _pos_arg_spots<Args...>::type>::type;
+
+
+    template <typename... Args>
     inline constexpr auto
     operator()(Args&&... args) const {
       return _impl(
@@ -505,6 +560,12 @@ get_positional_arg_tuple(Args&&... args)
   return _get_kwarg_impl::_positional_arg_tuple_getter()(std::forward<Args>(args)...);
 }
 
+template <typename... Args>
+struct n_positional_args
+  : std::integral_constant<size_t,
+      _get_kwarg_impl::_positional_arg_tuple_getter::template n_pos_t<Args...>::value
+    >
+{ };
 
 /*                                                                            */ #endif // end fold
 

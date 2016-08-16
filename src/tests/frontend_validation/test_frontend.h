@@ -81,6 +81,28 @@ class MockSequenceMarker {
 
 extern ::testing::StrictMock<MockSequenceMarker>* sequence_marker;
 
+extern std::unique_ptr<mock_backend::MockRuntime> mock_runtime;
+
+namespace darma_runtime {
+namespace abstract {
+namespace backend {
+
+inline Runtime* get_backend_runtime() {
+  return mock_runtime.get();
+}
+
+inline Context* get_backend_context() {
+  return mock_runtime.get();
+}
+
+inline MemoryManager* get_backend_memory_manager() {
+  return mock_runtime.get();
+}
+
+} // end namespace backend
+} // end namespace abstract
+} // end namespace darma_runtime
+
 class TestFrontend
   : public ::testing::Test
 {
@@ -107,11 +129,11 @@ class TestFrontend
         setup_top_level_task();
       }
 
+      assert(mock_runtime == nullptr);
       mock_runtime = std::make_unique<Strictness<mock_backend::MockRuntime>>();
       ON_CALL(*mock_runtime, get_running_task())
         .WillByDefault(Return(top_level_task.get()));
 
-      darma_runtime::detail::backend_runtime = mock_runtime.get();
       mock_runtime_setup_done = true;
     }
 
@@ -251,7 +273,6 @@ class TestFrontend
     ////////////////////////////////////////
 
     mock_backend::MockRuntime::task_unique_ptr top_level_task;
-    std::unique_ptr<mock_backend::MockRuntime> mock_runtime;
     bool mock_runtime_setup_done = false;
 };
 
@@ -458,7 +479,13 @@ operator<<(std::ostream& o, use_t const* const& u) {
     o << "<null Use ptr>";
   }
   else {
-    o << "<Use ptr for handle with key " << u->get_handle()->get_key() << ">";
+    auto handle = u->get_handle();
+    if(handle) {
+      o << "<Use ptr for handle with key " << handle->get_key() << ">";
+    }
+    else {
+      o << "<Use ptr with null handle>";
+    }
   }
   return o;
 }

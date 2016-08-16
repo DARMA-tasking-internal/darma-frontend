@@ -1,5 +1,10 @@
 cmake_minimum_required (VERSION 2.8)
 
+# Silence an error about the version option to project
+# this will need to be changed if we ever bump the version to 3.0 and put thee
+# version stuff in the project command itself
+cmake_policy(SET CMP0048 OLD)
+
 project (DarmaBackendValidation)
 # The version number.
 set (DarmaBackendValidation_VERSION_MAJOR 0)
@@ -62,6 +67,5 @@ include_directories( ${DARMA_FRONTEND_DIR}/include/tinympl )
 include_directories( ${DARMA_FRONTEND_DIR}/include/darma )
 include_directories( ${GTEST_DIR}/include )
 
-add_subdirectory(using_mock_frontend)
 add_subdirectory(using_real_frontend)
 

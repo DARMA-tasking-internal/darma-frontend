@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          test_darma_backend_initialize.cc
-//                         dharma_new
+//                      test_compressed_pair.cc
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,36 +42,43 @@
 //@HEADER
 */
 
-#ifndef DARMA_BACKEND_VALIDATION_MAIN_H
-#define DARMA_BACKEND_VALIDATION_MAIN_H
+#include <gtest/gtest.h>
 
-#include "mock_frontend.h"
+#include <darma/impl/util/compressed_pair.h>
 
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#endif
+#include "../metatest_helpers.h"
 
-namespace darma_runtime {
+using namespace darma_runtime::detail;
 
-namespace detail {
+struct Empty { };
 
-template <typename __ignored = void>
-abstract::backend::runtime_t*&
-_gen_backend_runtime_ptr() {
-  static_assert(std::is_same<__ignored, void>::value, "");
-  static DARMA_THREAD_LOCAL_BACKEND_RUNTIME abstract::backend::runtime_t* rv;
-  return rv;
+STATIC_ASSERT_SIZE_IS(compressed_pair<Empty, int>, sizeof(int));
+STATIC_ASSERT_SIZE_IS(compressed_pair<int, Empty>, sizeof(int));
+STATIC_ASSERT_SIZE_IS(compressed_pair<int, int>, 2*sizeof(int));
+
+
+TEST(TestCompressedPair, empty_int) {
+  compressed_pair<Empty, int> cp1;
+  cp1.second() = 25;
+  ASSERT_EQ(cp1.second(), 25);
 }
 
-namespace {
-
-DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-abstract::backend::runtime_t*& backend_runtime = _gen_backend_runtime_ptr<>();
-
+TEST(TestCompressedPair, int_empty) {
+  compressed_pair<int, Empty> cp2(
+    std::piecewise_construct,
+    std::forward_as_tuple(25),
+    std::forward_as_tuple()
+  );
+  ASSERT_EQ(cp2.first(), 25);
 }
 
-} // end namespace backend
+TEST(TestCompressedPair, int_int) {
+  compressed_pair<int, int> cp3(25, 42);
+  ASSERT_EQ(cp3.first(), 25);
+  ASSERT_EQ(cp3.second(), 42);
+}
 
-} // end namespace darma_runtime
+TEST(TestCompressedPair, empty_empty) {
+  compressed_pair<Empty, Empty> cp4;
+}
 
-#endif

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      test_backend.h.h
+//                      allocator.impl.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,56 +42,38 @@
 //@HEADER
 */
 
-#ifndef DARMA_TEST_BACKEND_H_H
-#define DARMA_TEST_BACKEND_H_H
+#ifndef DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H
+#define DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#include <darma/impl/runtime.h>
 
-#include "mock_frontend.h"
-#include "main.h"
+#include "allocator.h"
 
-struct TestBackend
-  : testing::Test
-{
-  protected:
-    virtual void SetUp() {
-      using namespace darma_runtime;
+namespace darma_runtime {
+namespace serialization {
 
-      // Emulate argc and argv
-      argc_ = 1;
-      argv_ = new char*[1];
-      argv_[0] = new char[256];
-      sprintf(argv_[0], "<mock frontend test>");
-      // Make a mock task pointer
-      std::unique_ptr<typename abstract::backend::runtime_t::task_t> top_level_task =
-          std::make_unique<::testing::NiceMock<mock_frontend::MockTask>>();
-
-      abstract::backend::darma_backend_initialize(
-        argc_, argv_, detail::backend_runtime,
-        std::move(top_level_task)
-      );
-
-      backend_finalized = false;
-    }
-
-    virtual void TearDown() {
-      using namespace darma_runtime;
-      if(!backend_finalized) {
-        // Clean up from failed tests
-        detail::backend_runtime->finalize();
-      }
-      delete detail::backend_runtime;
-      detail::backend_runtime = 0;
-      delete[] argv_[0];
-      delete[] argv_;
-    }
-
-    int argc_;
-    char** argv_;
-    std::string program_name;
-    bool backend_finalized;
-
+template <typename T, typename BaseAllocator>
+typename darma_allocator<T, BaseAllocator>::pointer
+darma_allocator<T, BaseAllocator>::allocate(
+  size_type n, const_void_pointer _ignored
+) {
+  darma_runtime::abstract::backend::get_backend_memory_manager()->allocate(
+    n*sizeof(T), detail::DefaultMemoryRequirementDetails{}
+  );
 };
 
-#endif //DARMA_TEST_BACKEND_H_H
+template <typename T, typename BaseAllocator>
+void
+darma_allocator<T, BaseAllocator>::deallocate(
+  pointer ptr, size_type n
+) noexcept {
+  darma_runtime::abstract::backend::get_backend_memory_manager()->deallocate(
+    static_cast<void*>(ptr), n*sizeof(T)
+  );
+};
+
+} // end namespace serialization
+} // end namespace darma_runtime
+
+
+#endif //DARMA_IMPL_SERIALIZATION_ALLOCATOR_IMPL_H

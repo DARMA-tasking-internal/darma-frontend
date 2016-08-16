@@ -51,6 +51,7 @@
 
 #include <tinympl/variadic/find_if.hpp>
 #include <tinympl/bind.hpp>
+#include <tinympl/identity.hpp>
 #include <tinympl/lambda.hpp>
 #include <tinympl/filter.hpp>
 #include <tinympl/logical_not.hpp>
@@ -61,13 +62,17 @@
 #include <darma/impl/util.h>
 #include <darma/impl/darma_assert.h>
 #include <darma/impl/serialization/archive.h>
+#include <darma/impl/serialization/policy_aware_archive.h>
 #include <darma/impl/serialization/nonintrusive.h>
 #include <darma/impl/serialization/traits.h>
 #include <darma/impl/serialization/allocation.h>
+#include <darma/impl/serialization/manager.h>
 
 #include <darma/impl/keyword_arguments/keyword_arguments.h>
 #include <darma/interface/app/keyword_arguments/n_readers.h>
 #include <darma/interface/app/keyword_arguments/version.h>
+#include <darma/impl/array/indexable.h>
+#include <darma/impl/array/concept.h>
 
 
 namespace darma_runtime {
@@ -190,68 +195,6 @@ class KeyedObject
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
 
-////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="DependencyHandle attorneys">
-
-namespace detail {
-
-// TODO rename this, and move some of this functionality
-namespace DependencyHandle_attorneys {
-
-struct ArchiveAccess {
-  template <typename ArchiveT>
-  static void set_buffer(ArchiveT& ar, void* const buffer) {
-    // Assert that we're not overwriting a buffer, at least until
-    // a use case for that sort of thing comes up
-    assert(ar.start == nullptr);
-    ar.start = ar.spot = (char* const)buffer;
-  }
-  template <typename ArchiveT>
-  static void* get_spot(ArchiveT& ar) {
-    return ar.spot;
-  }
-  template <typename ArchiveT>
-  static size_t get_size(ArchiveT& ar) {
-    assert(ar.is_sizing());
-    return ar.spot - ar.start;
-  }
-  template <typename ArchiveT>
-  static inline void
-  start_sizing(ArchiveT& ar) {
-    assert(not ar.is_sizing()); // for now, to avoid accidental resets
-    ar.start = nullptr;
-    ar.spot = nullptr;
-    ar.mode = serialization::detail::SerializerMode::Sizing;
-  }
-
-  template <typename ArchiveT>
-  static inline void
-  start_packing(ArchiveT& ar) {
-    ar.mode = serialization::detail::SerializerMode::Packing;
-    ar.spot = ar.start;
-  }
-
-  template <typename ArchiveT>
-  static inline void
-  start_unpacking(ArchiveT& ar) {
-    ar.mode = serialization::detail::SerializerMode::Unpacking;
-    ar.spot = ar.start;
-  }
-
-  template <typename ArchiveT>
-  static inline void
-  start_unpacking_with_buffer(ArchiveT& ar, void* buffer) {
-    ar.mode = serialization::detail::SerializerMode::Unpacking;
-    ar.spot = ar.start = (char* const)buffer;
-  }
-};
-
-} // end namespace DependencyHandle_attorneys
-
-} // end namespace detail
-
-// </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="DependencyHandleBase">
@@ -297,11 +240,16 @@ namespace detail {
 template <typename T>
 class VariableHandle
   : public VariableHandleBase,
-    public abstract::frontend::SerializationManager {
+    public serialization::detail::SerializationManagerForType<T>,
+    public ArrayConceptManagerForType<T, SimpleElementRange<T>>,
+    public abstract::frontend::ArrayMovementManager
+
+{
   protected:
 
     typedef VariableHandleBase base_t;
-    typedef serialization::detail::serializability_traits<T> serdes_traits;
+
+    using _ser_man_impl_t = serialization::detail::SerializationManagerForType<T>;
 
   public:
 
@@ -322,10 +270,20 @@ class VariableHandle
     ////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////
-    // <editor-fold desc="abstract::frontend::DependencyHandle implmentation">
+    // <editor-fold desc="abstract::frontend::Handle implmentation">
 
     abstract::frontend::SerializationManager const*
     get_serialization_manager() const override {
+      return this;
+    }
+
+    abstract::frontend::ArrayMovementManager const*
+    get_array_movement_manager() const override {
+      return this;
+    }
+
+    abstract::frontend::ArrayConceptManager const*
+    get_array_concept_manager() const override {
       return this;
     }
 
@@ -333,70 +291,69 @@ class VariableHandle
     ////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////
-    // SerializationManager implementation <editor-fold desc="SerializationManager implementation">
-
-    STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(T, serialization::SimplePackUnpackArchive,
-      "Handles to non-serializable types not yet supported"
-    );
+    // ArrayMovementManager implementation <editor-fold desc="ArrayMovementManager implementation">
 
     size_t
-    get_metadata_size() const override {
-      return sizeof(T);
-    }
-
-    size_t
-    get_packed_data_size(
-      const void *const object_data
+    get_packed_size(
+      void const* obj,
+      size_t offset, size_t n_elem,
+      abstract::backend::SerializationPolicy* ser_pol
     ) const override {
-      serialization::Serializer<T> s;
-      serialization::SimplePackUnpackArchive ar;
-      DependencyHandle_attorneys::ArchiveAccess::start_sizing(ar);
-      s.compute_size(*(T const *const) (object_data), ar);
-      return DependencyHandle_attorneys::ArchiveAccess::get_size(ar);
-    }
-
-    void
-    pack_data(
-      const void *const object_data,
-      void *const serialization_buffer
-    ) const override {
-      serialization::Serializer<T> s;
-      serialization::SimplePackUnpackArchive ar;
-      DependencyHandle_attorneys::ArchiveAccess::set_buffer(ar, serialization_buffer);
-      DependencyHandle_attorneys::ArchiveAccess::start_packing(ar);
-      s.pack(*(T const *const) (object_data), ar);
-    }
-
-    void
-    unpack_data(
-      void *const object_dest,
-      const void *const serialized_data
-    ) const override {
-      serialization::Serializer<T> s;
-      serialization::SimplePackUnpackArchive ar;
-      // Need to cast away constness of the buffer because the Archive requires
-      // a non-const buffer to be able to operate in pack mode (i.e., so that
-      // the user can write one function for both serialization and deserialization)
-      DependencyHandle_attorneys::ArchiveAccess::set_buffer(
-        ar, const_cast<void *const>(serialized_data)
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+      auto ar = _ser_man_impl_t::_get_best_compatible_archive(
+        tinympl::identity<typename _ser_man_impl_t::best_compatible_archive_t>(),
+        ser_pol
       );
-      DependencyHandle_attorneys::ArchiveAccess::start_unpacking(ar);
-      s.unpack(object_dest, ar);
+      ArchiveAccess::start_sizing(ar);
+      IndexingTraits<T>::get_packed_size(
+        *static_cast<T const*>(obj), ar, offset, n_elem
+      );
+      return ArchiveAccess::get_size(ar);
     }
 
     void
-    default_construct(void* allocated) const override {
-      // Will fail if T is not default constructible...
-      new (allocated) T();
+    pack_elements(
+      void const* obj, void* buffer,
+      size_t offset, size_t n_elem,
+      abstract::backend::SerializationPolicy* ser_pol
+    ) const override
+    {
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+      auto ar = _ser_man_impl_t::_get_best_compatible_archive(
+        tinympl::identity<typename _ser_man_impl_t::best_compatible_archive_t>(),
+        ser_pol
+      );
+      ArchiveAccess::start_packing_with_buffer(
+        ar, buffer
+      );
+      IndexingTraits<T>::pack_elements(
+        *static_cast<T const*>(obj), ar,
+        offset, n_elem
+      );
     }
 
     void
-    destroy(void* constructed_object) const override {
-      // TODO allocator awareness?
-      ((T*)constructed_object)->~T();
+    unpack_elements(
+      void* obj, void const* buffer,
+      size_t offset, size_t n_elem,
+      abstract::backend::SerializationPolicy* ser_pol
+    ) const override
+    {
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+      auto ar = _ser_man_impl_t::_get_best_compatible_archive(
+        tinympl::identity<typename _ser_man_impl_t::best_compatible_archive_t>(),
+        ser_pol
+      );
+      ArchiveAccess::start_unpacking_with_buffer(
+        ar, buffer
+      );
+      IndexingTraits<T>::unpack_elements(
+        *static_cast<T*>(obj), ar,
+        offset, n_elem
+      );
     }
 
-    // end SerializationManager implementation </editor-fold>
+    // end ArrayMovementManager implementation </editor-fold>
     ////////////////////////////////////////////////////////////
 
 };
