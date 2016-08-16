@@ -83,7 +83,7 @@ AccessHandle<T, Traits>::publish(
     detail::HandleUse use_to_publish(
       var_handle_.get(),
       current_use_->use.in_flow_,
-      current_use_->use.out_flow_,
+      current_use_->use.out_flow_, /* TODO shouldn't this be in_flow_ ? */
       detail::HandleUse::None, detail::HandleUse::Read
     );
     backend_runtime->register_use(&use_to_publish);
