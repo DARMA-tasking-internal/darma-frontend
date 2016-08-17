@@ -103,6 +103,45 @@ inline MemoryManager* get_backend_memory_manager() {
 } // end namespace abstract
 } // end namespace darma_runtime
 
+namespace _impl {
+
+template <typename Expectation, typename Lambda>
+struct InSequenceWrapper {
+  InSequenceWrapper(Expectation&& exp, Lambda&& lamb)
+    : exp_(exp), lambda(lamb)
+  { }
+  InSequenceWrapper(InSequenceWrapper&& other)
+    : exp_(other.exp_), lambda(other.lambda)
+  { other.invoked_ = true; }
+  template <typename... Args>
+  decltype(auto)
+  InSequence(Args&&... args) && {
+    assert(not invoked_);
+    invoked_ = true;
+    return lambda(
+      exp_.InSequence(::testing::Sequence(), std::forward<Args>(args)...)
+    );
+  }
+  operator ::testing::Expectation() && {
+    invoked_ = true;
+    return lambda(std::forward<Expectation>(exp_));
+  }
+  ~InSequenceWrapper() { if(not invoked_) lambda(std::forward<Expectation>(exp_)); }
+  Expectation&& exp_;
+  Lambda lambda;
+  bool invoked_ = false;
+};
+
+template <typename Expectation, typename Lambda>
+InSequenceWrapper<Expectation, Lambda>
+in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
+  return InSequenceWrapper<Expectation, Lambda>(
+    std::forward<Expectation>(exp), std::forward<Lambda>(lambda)
+  );
+};
+
+} // end namespace _impl
+
 #define EXPECT_MOD_CAPTURE_MN_OR_MR(f_in, f_out, use) { \
   EXPECT_CALL(*mock_runtime, make_next_flow(&f_in)) \
     .WillOnce(::testing::Return(&f_out)); \
@@ -117,13 +156,24 @@ inline MemoryManager* get_backend_memory_manager() {
     .WillOnce(::testing::Return(&fout)); \
 }
 #define EXPECT_RELEASE_USE(use_ptr) \
-  EXPECT_CALL(*mock_runtime, release_use( \
-    ::testing::Eq(::testing::ByRef(use_ptr))\
-  )).WillOnce(::testing::Assign(&use_ptr, nullptr))
-#define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed) \
-  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
-    &fin, &fout, use_t::sched, use_t::immed \
-  ))).WillOnce(SaveArg<0>(&use_ptr))
+  ::_impl::in_sequence_wrapper( \
+    EXPECT_CALL(*mock_runtime, release_use( \
+      ::testing::Eq(::testing::ByRef(use_ptr))\
+    )), [&](auto&& exp) -> decltype(auto) { \
+      return exp.WillOnce(::testing::Assign(&use_ptr, nullptr)); \
+  })
+
+#define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed, ...) \
+  ::_impl::in_sequence_wrapper( \
+    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+      &fin, &fout, use_t::sched, use_t::immed \
+    ))), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce(SaveArg<0>(&use_ptr)); } \
+  )
+
+#define EXPECT_REGISTER_TASK(...) \
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy( \
+    UsesInGetDependencies(VectorOfPtrsToArgs(__VA_ARGS__)) \
+  ))
 
 class TestFrontend
   : public ::testing::Test
