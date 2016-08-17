@@ -160,6 +160,16 @@ class SerializationManager {
     virtual void
     destroy(void* constructed_object) const =0;
 
+    virtual bool
+    has_deep_copy(void const* unpacked_object) const {
+      return false;
+    }
+
+    virtual void
+    deep_copy(void const* unpacked_object, void* allocated_buffer) const {
+      assert(not has_deep_copy(unpacked_object));
+    }
+
     //////////////////////////////////////////
 
     virtual ~SerializationManager() = default;

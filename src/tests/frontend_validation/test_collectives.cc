@@ -53,6 +53,46 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
+
+MATCHER_P2(IsCollectiveDetailsWith, this_contribution, n_contributions,
+  "is CollectiveDetails pointer with this_contribution()=[%(this_contribution)s]"
+    " and n_contributions()=[%(n_contributions)s]"
+) {
+  using namespace ::testing;
+  if(arg == nullptr) {
+    *result_listener << "is null";
+    return false;
+  }
+
+  *result_listener << "is CollectiveDetails pointer with this_contribution()="
+                   << arg->this_contribution() << " and n_contributions()="
+                   << arg->n_contributions();
+  return arg->this_contribution() == this_contribution
+    and arg->n_contributions() == n_contributions;
+}
+
+MATCHER_P3(IsCollectiveDetailsWithReduceOp,
+  this_contribution, n_contributions, reduce_op,
+  "is CollectiveDetails pointer with this_contribution()=[%(this_contribution)s]"
+    ", n_contributions()=[%(n_contributions)s], and reduce_operation()=[%(reduce_op)s]"
+) {
+  using namespace ::testing;
+  if(arg == nullptr) {
+    *result_listener << "is null";
+    return false;
+  }
+
+  *result_listener << "is CollectiveDetails pointer with this_contribution="
+                   << arg->this_contribution() << ", n_contributions="
+                   << arg->n_contributions() << ", and reduce_operation()="
+                   << PrintToString(arg->reduce_operation());
+  return arg->this_contribution() == this_contribution
+    and arg->n_contributions() == n_contributions
+    and (intptr_t)arg->reduce_operation() == (intptr_t)reduce_op;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 class TestCollectives
   : public TestFrontend
 {
@@ -86,22 +126,20 @@ TEST_F(TestCollectives, simple_allreduce) {
 
   expect_initial_access(f_init, f_null, make_key("hello"));
 
-  expect_mod_capture_MN_or_MR(f_init, f_task_out, task_use);
+  EXPECT_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use);
 
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use))));
 
   EXPECT_CALL(*mock_runtime, make_next_flow(&f_task_out))
     .WillOnce(Return(&f_collect_out));
 
-  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
-    &f_task_out, &f_collect_out, use_t::None, use_t::Modify
-  ))).WillOnce(SaveArg<0>(&reduce_use));
-
-  // TODO check piece and n_pieces
+  EXPECT_REGISTER_USE(reduce_use, f_task_out, f_collect_out, None, Modify);
 
   EXPECT_CALL(*mock_runtime, allreduce_use(
-    Eq(ByRef(reduce_use)), Eq(ByRef(reduce_use)), _, Eq(make_key("world"))
-  ));
+    Eq(ByRef(reduce_use)), Eq(ByRef(reduce_use)),
+    IsCollectiveDetailsWith(0, 10),
+    Eq(make_key("world")
+  )));
 
   EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(reduce_use))))
     .WillOnce(Invoke([&](auto&&...){ reduce_use = nullptr; }));
@@ -115,10 +153,74 @@ TEST_F(TestCollectives, simple_allreduce) {
 
     allreduce(tmp, piece=0, n_pieces=10, tag="world");
 
+    // TODO check expectations on continuing context
+
   }
 
   EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(task_use))))
     .WillOnce(Invoke([&](auto&&...){ task_use = nullptr; }));
+
+  mock_runtime->registered_tasks.clear();
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCollectives, allreduce_different_input_output) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_collectives;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow f_init, f_out_init, f_null, f_out_null, f_task_out, f_collect_out;
+  use_t* task_use = nullptr;
+  use_t* reduce_in_use = nullptr;
+  use_t* reduce_out_use = nullptr;
+
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("in"));
+  EXPECT_INITIAL_ACCESS(f_out_init, f_out_null, make_key("out"));
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use);
+
+  EXPECT_CALL(*mock_runtime,
+    register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use)))
+  );
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(&f_out_init))
+    .WillOnce(Return(&f_collect_out));
+
+  EXPECT_REGISTER_USE(reduce_in_use, f_task_out, f_task_out, None, Read);
+
+  EXPECT_REGISTER_USE(reduce_out_use, f_out_init, f_collect_out, None, Write);
+
+  EXPECT_CALL(*mock_runtime, allreduce_use(
+    Eq(ByRef(reduce_in_use)), Eq(ByRef(reduce_out_use)),
+    IsCollectiveDetailsWith(0, 10),
+    Eq(make_key("world")
+  )));
+
+  EXPECT_RELEASE_USE(reduce_in_use);
+  EXPECT_RELEASE_USE(reduce_out_use);
+
+  {
+    auto tmp_in = initial_access<int>("in");
+    auto tmp_out = initial_access<int>("out");
+
+    create_work([=]{
+      tmp_in.set_value(42);
+    });
+
+    allreduce(input=tmp_in, output=tmp_out,
+      piece=0, n_pieces=10, tag="world"
+    );
+
+    // TODO check expectations on continuing context
+
+  }
+
+  EXPECT_RELEASE_USE(task_use);
 
   mock_runtime->registered_tasks.clear();
 
