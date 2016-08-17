@@ -103,6 +103,28 @@ inline MemoryManager* get_backend_memory_manager() {
 } // end namespace abstract
 } // end namespace darma_runtime
 
+#define EXPECT_MOD_CAPTURE_MN_OR_MR(f_in, f_out, use) { \
+  EXPECT_CALL(*mock_runtime, make_next_flow(&f_in)) \
+    .WillOnce(::testing::Return(&f_out)); \
+  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+    &f_in, &f_out, use_t::Modify, use_t::Modify \
+  ))).WillOnce(::testing::SaveArg<0>(&use)); \
+}
+#define EXPECT_INITIAL_ACCESS(fin, fout, key) { \
+  EXPECT_CALL(*mock_runtime, make_initial_flow(is_handle_with_key(key))) \
+    .WillOnce(::testing::Return(&fin)); \
+  EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key))) \
+    .WillOnce(::testing::Return(&fout)); \
+}
+#define EXPECT_RELEASE_USE(use_ptr) \
+  EXPECT_CALL(*mock_runtime, release_use( \
+    ::testing::Eq(::testing::ByRef(use_ptr))\
+  )).WillOnce(::testing::Assign(&use_ptr, nullptr))
+#define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed) \
+  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+    &fin, &fout, use_t::sched, use_t::immed \
+  ))).WillOnce(SaveArg<0>(&use_ptr))
+
 class TestFrontend
   : public ::testing::Test
 {
