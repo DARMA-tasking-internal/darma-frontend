@@ -123,6 +123,18 @@ _get_potentially_positional_handle_arg(
 }
 
 
+// Umm... this will probably need to change if the value types of InHandle and
+// OutHandle differ...
+template <typename Op, typename InputHandle, typename OutputHandle>
+using _get_reduce_op_t = std::conditional_t<
+  std::is_same<Op, op_not_given>::value,
+  typename darma_runtime::default_reduce_op<
+    typename std::decay_t<OutputHandle>::value_type
+  >::type,
+  Op
+>;
+
+
 struct all_reduce_impl {
 
   // TODO generalize the use/flow handling here to be used by other collectives
@@ -283,16 +295,8 @@ struct all_reduce_impl {
     } // end switch on output immediate permissions
 
     {
-      // Umm... this will probably need to change if the value types of InHandle and
-      // OutHandle differ...
       SimpleCollectiveDetails<
-        std::conditional_t<
-          std::is_same<Op, op_not_given>::value,
-          typename darma_runtime::default_reduce_op<
-            typename std::decay_t<OutputHandle>::value_type
-          >::type,
-          Op
-        >
+        _get_reduce_op_t<Op, std::decay_t<InputHandle>, std::decay_t<OutputHandle>>
       > details(piece, n_pieces);
 
       backend_runtime->allreduce_use(
@@ -336,13 +340,7 @@ struct all_reduce_impl {
     auto* backend_runtime = abstract::backend::get_backend_runtime();
 
     SimpleCollectiveDetails<
-      std::conditional_t<
-        std::is_same<Op, op_not_given>::value,
-        typename darma_runtime::default_reduce_op<
-          typename std::decay_t<InOutHandle>::value_type
-        >::type,
-        Op
-      >
+      _get_reduce_op_t<Op, InOutHandle, InOutHandle>
     > details(piece, n_pieces);
 
     // This is a mod capture.  Need special behavior if we have modify
