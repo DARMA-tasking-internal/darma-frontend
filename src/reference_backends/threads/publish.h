@@ -55,12 +55,6 @@ namespace threads_backend {
   using namespace darma_runtime;
   using namespace darma_runtime::abstract::backend;
 
-  struct PackedDataBlock {
-    virtual void *get_data() { return data_; }
-    size_t size_;
-    void *data_ = nullptr;
-  };
-
   struct PublishedBlock {
     TraceLog* pub_log = nullptr;
     std::atomic<bool> ready = {false};

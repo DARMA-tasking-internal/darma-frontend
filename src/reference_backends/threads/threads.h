@@ -85,6 +85,24 @@ namespace threads_backend {
   struct TaskNode;
   struct FetchNode;
   struct PublishNode;
+  struct CollectiveNode;
+
+  enum CollectiveType {
+    AllReduce = 0
+  };
+
+  struct CollectiveState {
+    size_t n_pieces{0};
+    std::atomic<size_t> current_pieces{0};
+    void* cur_buf = nullptr;
+    std::list<std::shared_ptr<CollectiveNode>> activations;
+  };
+
+  struct PackedDataBlock {
+    virtual void *get_data() { return data_; }
+    size_t size_;
+    void *data_ = nullptr;
+  };
 
   struct SerializationPolicy :
     darma_runtime::abstract::backend::SerializationPolicy
@@ -121,6 +139,20 @@ namespace threads_backend {
     types::key_t version;
     bool finished;
     std::shared_ptr<PublishNode> node;
+  };
+
+  struct CollectiveInfo {
+    std::shared_ptr<InnerFlow> flow, flow_out;
+    CollectiveType type;
+    types::key_t tag;
+    abstract::frontend::ReduceOp const* op;
+    size_t this_piece;
+    size_t num_pieces;
+    void* data_ptr_in;
+    void* data_ptr_out;
+    const darma_runtime::abstract::frontend::Handle* handle;
+    bool incorporated_local;
+    std::shared_ptr<CollectiveNode> node;
   };
 
   class ThreadsRuntime
@@ -208,6 +240,15 @@ namespace threads_backend {
 
     size_t
     get_spmd_size() const;
+
+    void
+    de_serialize(darma_runtime::abstract::frontend::Handle const* const handle,
+                 void* packed,
+                 void* unpack_to);
+
+    PackedDataBlock*
+    serialize(darma_runtime::abstract::frontend::Handle const* const handle,
+              void* unpacked);
 
     void
     add_remote(std::shared_ptr<GraphNode> task);
@@ -316,6 +357,21 @@ namespace threads_backend {
 
     virtual void
     release_use(darma_runtime::abstract::frontend::Use* u);
+
+    virtual void
+    allreduce_use(darma_runtime::abstract::frontend::Use* use_in,
+                  darma_runtime::abstract::frontend::Use* use_out,
+                  darma_runtime::abstract::frontend::CollectiveDetails const* details,
+                  types::key_t const& tag);
+
+    bool
+    collective(std::shared_ptr<CollectiveInfo> info);
+
+    void
+    blocking_collective(std::shared_ptr<CollectiveInfo> info);
+
+    void
+    collective_finish(std::shared_ptr<CollectiveInfo> info);
 
     bool
     test_publish(std::shared_ptr<DelayedPublish> publish);
