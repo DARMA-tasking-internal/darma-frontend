@@ -56,8 +56,11 @@
 
 namespace darma_runtime {
 
+namespace detail {
+
+
 template <typename Op, typename value_type>
-class ReduceOp
+class ReduceOperationWrapper
   : public abstract::frontend::ReduceOp
 {
 
@@ -145,11 +148,11 @@ class ReduceOp
 
 };
 
+} // end namespace detail
 
 struct Add {
   template <typename T>
-  struct Op : public ReduceOp<Op<T>, T> {
-
+  struct Op {
     using value_type = T;
 
     template <typename U, typename V,
@@ -163,6 +166,7 @@ struct Add {
 
   };
 };
+
 
 // Can be overridden
 template <typename T>
