@@ -112,7 +112,12 @@ class TestCollectives
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCollectives, simple_allreduce) {
+struct Test_simple_allreduce
+  : TestCollectives,
+    ::testing::WithParamInterface<int>
+{ };
+
+TEST_P(Test_simple_allreduce, overloads) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_collectives;
@@ -124,25 +129,32 @@ TEST_F(TestCollectives, simple_allreduce) {
   use_t* task_use = nullptr;
   use_t* reduce_use = nullptr;
 
+  int overload = GetParam();
+  ASSERT_THAT(overload, Lt(2));
+
   expect_initial_access(f_init, f_null, make_key("hello"));
 
   EXPECT_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use);
 
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use))));
+  EXPECT_REGISTER_TASK(task_use);
 
   EXPECT_CALL(*mock_runtime, make_next_flow(&f_task_out))
     .WillOnce(Return(&f_collect_out));
 
-  EXPECT_REGISTER_USE(reduce_use, f_task_out, f_collect_out, None, Modify);
+  { // scope for sequence
+    InSequence seq;
 
-  EXPECT_CALL(*mock_runtime, allreduce_use(
-    Eq(ByRef(reduce_use)), Eq(ByRef(reduce_use)),
-    IsCollectiveDetailsWith(0, 10),
-    Eq(make_key("world")
-  )));
+    EXPECT_REGISTER_USE(reduce_use, f_task_out, f_collect_out, None, Modify);
 
-  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(reduce_use))))
-    .WillOnce(Invoke([&](auto&&...){ reduce_use = nullptr; }));
+    EXPECT_CALL(*mock_runtime, allreduce_use(
+      Eq(ByRef(reduce_use)), Eq(ByRef(reduce_use)),
+      IsCollectiveDetailsWith(0, 10),
+      Eq(make_key("world")
+    )));
+
+    EXPECT_RELEASE_USE(reduce_use);
+  } // end of sequence
+
 
   {
     auto tmp = initial_access<int>("hello");
@@ -151,28 +163,48 @@ TEST_F(TestCollectives, simple_allreduce) {
       tmp.set_value(42);
     });
 
-    allreduce(tmp, piece=0, n_pieces=10, tag="world");
+
+    if(overload == 0)
+      allreduce(tmp, piece=0, n_pieces=10, tag="world");
+    else if(overload == 1)
+      allreduce(in_out=tmp, piece=0, n_pieces=10, tag="world");
+
 
     // TODO check expectations on continuing context
 
   }
 
-  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(task_use))))
-    .WillOnce(Invoke([&](auto&&...){ task_use = nullptr; }));
+  EXPECT_RELEASE_USE(task_use);
 
   mock_runtime->registered_tasks.clear();
 
 }
 
+INSTANTIATE_TEST_CASE_P(
+  AllOverloads,
+  Test_simple_allreduce,
+  ::testing::Range(0, 2);
+);
+
+
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCollectives, allreduce_different_input_output) {
+struct Test_different_inout_allreduce
+  : TestCollectives,
+    ::testing::WithParamInterface<int>
+{ };
+
+TEST_P(Test_different_inout_allreduce, overload) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_collectives;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
+
+  int overload = GetParam();
+
+  ASSERT_THAT(overload, Lt(3));
 
   MockFlow f_init, f_out_init, f_null, f_out_null, f_task_out, f_collect_out;
   use_t* task_use = nullptr;
@@ -184,25 +216,26 @@ TEST_F(TestCollectives, allreduce_different_input_output) {
 
   EXPECT_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use);
 
-  EXPECT_CALL(*mock_runtime,
-    register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use)))
-  );
+  EXPECT_REGISTER_TASK(task_use);
 
   EXPECT_CALL(*mock_runtime, make_next_flow(&f_out_init))
     .WillOnce(Return(&f_collect_out));
 
-  EXPECT_REGISTER_USE(reduce_in_use, f_task_out, f_task_out, None, Read);
+  Sequence s1, s2;
 
-  EXPECT_REGISTER_USE(reduce_out_use, f_out_init, f_collect_out, None, Write);
+  EXPECT_REGISTER_USE(reduce_in_use, f_task_out, f_task_out, None, Read)
+    .InSequence(s1);
+  EXPECT_REGISTER_USE(reduce_out_use, f_out_init, f_collect_out, None, Write)
+    .InSequence(s2);
 
   EXPECT_CALL(*mock_runtime, allreduce_use(
     Eq(ByRef(reduce_in_use)), Eq(ByRef(reduce_out_use)),
     IsCollectiveDetailsWith(0, 10),
     Eq(make_key("world")
-  )));
+  ))).InSequence(s1, s2);
 
-  EXPECT_RELEASE_USE(reduce_in_use);
-  EXPECT_RELEASE_USE(reduce_out_use);
+  EXPECT_RELEASE_USE(reduce_in_use).InSequence(s1);
+  EXPECT_RELEASE_USE(reduce_out_use).InSequence(s2);
 
   {
     auto tmp_in = initial_access<int>("in");
@@ -212,9 +245,22 @@ TEST_F(TestCollectives, allreduce_different_input_output) {
       tmp_in.set_value(42);
     });
 
-    allreduce(input=tmp_in, output=tmp_out,
-      piece=0, n_pieces=10, tag="world"
-    );
+    if(overload == 0) {
+      allreduce(
+        input=tmp_in, output=tmp_out,
+        piece=0, n_pieces=10, tag="world"
+      );
+    } else if(overload == 1) {
+      allreduce(
+        tmp_in, output=tmp_out,
+        piece=0, n_pieces=10, tag="world"
+      );
+    } else if(overload == 2) {
+      allreduce(
+        tmp_in, tmp_out,
+        piece=0, n_pieces=10, tag="world"
+      );
+    }
 
     // TODO check expectations on continuing context
 
@@ -225,3 +271,9 @@ TEST_F(TestCollectives, allreduce_different_input_output) {
   mock_runtime->registered_tasks.clear();
 
 }
+
+INSTANTIATE_TEST_CASE_P(
+  AllOverloads,
+  Test_different_inout_allreduce,
+  ::testing::Range(0, 3);
+);

@@ -528,6 +528,14 @@ void allreduce(
     >(),
     bool_<
       n_positional_args_t::value >= 1
+      and (
+        not (
+          detail::has_kwarg<
+            darma_runtime::keyword_tags_for_collectives::output, KWArgs...
+          >::value
+          or n_positional_args_t::value >= 2
+        )
+      )
     >(),
     std::forward<KWArgs>(kwargs)...
   );
