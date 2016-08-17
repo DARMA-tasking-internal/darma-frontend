@@ -68,6 +68,9 @@ class CollectiveDetails {
     virtual size_t
     n_contributions() const =0;
 
+    virtual bool
+    is_indexed() const =0;
+
     virtual ReduceOp const*
     reduce_operation() const =0;
 
