@@ -1109,8 +1109,10 @@ namespace threads_backend {
     // set the node
     info->node = node;
 
-    f_out->inner->ready = false;
-    f_out->inner->ref++;
+    if (!depthFirstExpand) {
+      f_out->inner->ready = false;
+      f_out->inner->ref++;
+    }
 
     const auto& ready = node->ready();
 
@@ -1297,8 +1299,10 @@ namespace threads_backend {
 
         delete block;
 
-        info->flow_out->ref--;
-        release_node(info->flow_out);
+        if (!depthFirstExpand) {
+          info->flow_out->ref--;
+          release_node(info->flow_out);
+        }
       }
       break;
     default:
