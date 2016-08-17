@@ -67,7 +67,7 @@ _get_static_reduce_op_instance() {
 
 
 
-template <typename ReduceOp>
+template <typename ReduceOp, typename T>
 class SimpleCollectiveDetails
   : public abstract::frontend::CollectiveDetails
 
@@ -92,7 +92,7 @@ class SimpleCollectiveDetails
     abstract::frontend::ReduceOp const*
     reduce_operation() const override {
       return _impl::_get_static_reduce_op_instance<
-        detail::ReduceOperationWrapper<ReduceOp, typename ReduceOp::value_type>
+        detail::ReduceOperationWrapper<ReduceOp, T>
       >();
     }
 
