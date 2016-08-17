@@ -91,7 +91,9 @@ class SimpleCollectiveDetails
 
     abstract::frontend::ReduceOp const*
     reduce_operation() const override {
-      return _impl::_get_static_reduce_op_instance<ReduceOp>();
+      return _impl::_get_static_reduce_op_instance<
+        detail::ReduceOperationWrapper<ReduceOp, typename ReduceOp::value_type>
+      >();
     }
 
 
