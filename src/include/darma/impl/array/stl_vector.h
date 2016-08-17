@@ -68,7 +68,7 @@ struct vector_index_decomposition_base {
   }
 
   element_type&
-  get_element(vector_t const& obj, size_t i) const {
+  get_element(vector_t& obj, size_t i) const {
     return obj[i];
   }
 
@@ -78,7 +78,7 @@ struct vector_index_decomposition_base {
     return subset_object_type(obj, offset, size);
   }
 
-  subset_object_type
+  void
   get_element_range(
     void* allocd, vector_t& parent, size_t offset, size_t sz
   ) const {
@@ -96,11 +96,12 @@ struct vector_index_decomposition_base {
     vector_t& obj,
     subset_object_type const& data, size_t offset, size_t size
   ) const {
+    if(size == 0) return;
     DARMA_ASSERT_EQUAL(data.size(), size);
     DARMA_ASSERT_RELATED_VERBOSE(obj.size(), >=, offset + size);
     if(not (
-      obj.begin() + offset == data.begin()
-        and obj.begin() + offset + size == data.end()
+      obj.data() + offset == data.begin()
+        and obj.data() + offset + size == data.end()
     )) {
       auto change_spot = obj.begin() + offset;
       std::copy(data.begin(), data.end(), change_spot);
@@ -132,10 +133,6 @@ class IndexDecomposition<std::vector<T, Allocator>>
     >
 {
 
-  private:
-
-    using vector_t = std::vector<T, Allocator>;
-
   public:
 
     using subset_object_type = darma::vector_view<T>;
@@ -151,6 +148,11 @@ class IndexDecomposition<std::vector<T, Allocator> const>
       const T
     >
 {
+
+  public:
+
+    using subset_object_type = darma::vector_view<const T>;
+    using element_type = const T;
 
 };
 

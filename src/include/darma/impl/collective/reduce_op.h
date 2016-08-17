@@ -151,19 +151,13 @@ class ReduceOperationWrapper
 } // end namespace detail
 
 struct Add {
-  template <typename T>
-  struct Op {
-    using value_type = T;
-
-    template <typename U, typename V,
-      typename=std::enable_if_t<
-        meta::has_plus_equal<V, U>::value
-      >
+  template <typename U, typename V,
+    typename=std::enable_if_t<
+      meta::has_plus_equal<V, U>::value
     >
-    void reduce(U&& src_element , V& dest_element) {
-      dest_element += src_element;
-    };
-
+  >
+  void reduce(U&& src_element , V& dest_element) {
+    dest_element += src_element;
   };
 };
 
@@ -171,7 +165,7 @@ struct Add {
 // Can be overridden
 template <typename T>
 struct default_reduce_op
-  : tinympl::identity<typename Add::template Op<T>>
+  : tinympl::identity<Add>
 { };
 
 } // end namespace darma_runtime

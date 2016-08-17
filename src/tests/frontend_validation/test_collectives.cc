@@ -148,7 +148,12 @@ TEST_P(Test_simple_allreduce, overloads) {
 
     EXPECT_CALL(*mock_runtime, allreduce_use(
       Eq(ByRef(reduce_use)), Eq(ByRef(reduce_use)),
-      IsCollectiveDetailsWith(0, 10),
+      IsCollectiveDetailsWithReduceOp(0, 10,
+        // Check that the correct reduce op is getting used also...
+        detail::_impl::_get_static_reduce_op_instance<
+          detail::ReduceOperationWrapper<Add, std::vector<int>>
+        >()
+      ),
       Eq(make_key("world")
     )));
 
@@ -157,10 +162,10 @@ TEST_P(Test_simple_allreduce, overloads) {
 
 
   {
-    auto tmp = initial_access<int>("hello");
+    auto tmp = initial_access<std::vector<int>>("hello");
 
     create_work([=]{
-      tmp.set_value(42);
+      tmp.set_value(std::vector<int>{5, 6, 7});
     });
 
 
@@ -277,3 +282,24 @@ INSTANTIATE_TEST_CASE_P(
   Test_different_inout_allreduce,
   ::testing::Range(0, 3);
 );
+
+////////////////////////////////////////////////////////////////////////////////
+
+//TEST(TestReduceOp, string) {
+//  using namespace darma_runtime;
+//  using namespace darma_runtime::detail;
+//
+//  auto* reduce_op = _impl::_get_static_reduce_op_instance<
+//    detail::ReduceOperationWrapper< Add, std::string >
+//  >();
+//
+//  std::string hello = "hello";
+//  std::string _world = " world";
+//
+//  std::string result = hello;
+//
+//  reduce_op->reduce_unpacked_into_unpacked(
+//    &_world, &hello, 0, 1
+//  );
+//
+//}
