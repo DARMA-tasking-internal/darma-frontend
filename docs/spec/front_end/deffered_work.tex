@@ -50,7 +50,7 @@ all of its \glspl{precondition} are satisfied.
 implicitly based on sequential usage of \codelink{AccessHandle} objects, discussed in detail below.
 For example, to satisfy \gls{sequential semantics} the following code should print ``first: 42, second: 84'':
 \begin{CppCode}
-auto my_handle = initial_access("some_data_key");
+auto my_handle = initial_access<int>("some_data_key");
 create_work([=]{
   my_handle.set_value(42);
 });
