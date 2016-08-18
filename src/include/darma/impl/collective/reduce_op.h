@@ -120,8 +120,17 @@ class ReduceOperationWrapper
       }
     }
 
+    template <typename T>
+    using _is_indexed_archetype = std::integral_constant<bool, T::is_indexed>;
+
+    using is_indexed_t = meta::detected_or_t<std::true_type,
+      _is_indexed_archetype, Op
+    >;
 
   public:
+
+    static constexpr auto is_indexed = is_indexed_t::value;
+
 
     void
     reduce_unpacked_into_unpacked(
@@ -131,11 +140,13 @@ class ReduceOperationWrapper
 
       using _has_element_type_reduce = tinympl::bool_<meta::is_detected<
         _has_element_type_reduce_archetype, Op
-      >::value>;
+      >::value and is_indexed>;
 
       using _has_value_type_reduce = tinympl::bool_<meta::is_detected<
         _has_value_type_reduce_archetype, Op
       >::value>;
+
+      assert(is_indexed or (offset == 0 and n_elem == 1));
 
       _do_reduce(
         _has_value_type_reduce{},
