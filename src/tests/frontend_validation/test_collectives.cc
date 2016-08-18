@@ -235,7 +235,12 @@ TEST_P(Test_different_inout_allreduce, overload) {
 
   EXPECT_CALL(*mock_runtime, allreduce_use(
     Eq(ByRef(reduce_in_use)), Eq(ByRef(reduce_out_use)),
-    IsCollectiveDetailsWith(0, 10),
+    IsCollectiveDetailsWithReduceOp(0, 10,
+      // Check that the correct reduce op is getting used also...
+      detail::_impl::_get_static_reduce_op_instance<
+        detail::ReduceOperationWrapper<Union, std::set<int>>
+      >()
+    ),
     Eq(make_key("world")
   ))).InSequence(s1, s2);
 
@@ -243,11 +248,11 @@ TEST_P(Test_different_inout_allreduce, overload) {
   EXPECT_RELEASE_USE(reduce_out_use).InSequence(s2);
 
   {
-    auto tmp_in = initial_access<int>("in");
-    auto tmp_out = initial_access<int>("out");
+    auto tmp_in = initial_access<std::set<int>>("in");
+    auto tmp_out = initial_access<std::set<int>>("out");
 
     create_work([=]{
-      tmp_in.set_value(42);
+      tmp_in->insert(42);
     });
 
     if(overload == 0) {
