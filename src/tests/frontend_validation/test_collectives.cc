@@ -266,7 +266,8 @@ TEST_P(Test_different_inout_allreduce, overload) {
         piece=0, n_pieces=10, tag="world"
       );
     } else if(overload == 2) {
-      allreduce(
+      // test out the explicitly specified version also
+      allreduce<Union>(
         tmp_in, tmp_out,
         piece=0, n_pieces=10, tag="world"
       );
