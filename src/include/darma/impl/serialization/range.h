@@ -128,7 +128,7 @@ struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&, Allocator>
       serializability_traits<value_type>::is_directly_serializable;
 
     SerDesRange(
-      RandomAccessIterator& in_begin, RandomAccessIterator&& in_end,
+      RandomAccessIterator& in_begin, RandomAccessIterator& in_end,
       Allocator& alloc
     ) : begin_(in_begin), end_(in_end), alloc_(alloc) { }
 

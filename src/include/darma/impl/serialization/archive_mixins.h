@@ -158,8 +158,6 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
     inline enabled_version<T, ArchiveT&>
     operator>>(T&& val) {
       using value_type = typename std::decay_t<T>::value_type;
-      using value_allocation_traits =
-        typename allocation_traits<value_type>::template allocator_traits<ArchiveT>;
 
       ArchiveT* this_archive = static_cast<ArchiveT*>(this);
       assert(this_archive->is_unpacking());

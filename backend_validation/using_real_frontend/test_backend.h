@@ -75,7 +75,7 @@ struct TestBackend
     }
 
     // make it obvious if darma_init() wasn't called
-    detail::backend_runtime = 0;
+    //detail::backend_runtime = 0;
 
     // track how many mydata objects leaked in this test
     mydata::reset_leaked_count();
@@ -88,10 +88,10 @@ struct TestBackend
     EXPECT_EQ(mydata::num_not_destructed(), 0);
 
     // delete the runtime at the end of EACH test
-    if (detail::backend_runtime){
-      delete detail::backend_runtime;
-      detail::backend_runtime = 0;
-    }
+    //if (detail::backend_runtime){
+    //  delete detail::backend_runtime;
+    //  detail::backend_runtime = 0;
+    //}
 
     // clean up args
     for (size_t i=0; i<argc_; i++){

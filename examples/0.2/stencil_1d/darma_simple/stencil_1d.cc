@@ -40,9 +40,10 @@ struct DataArray
 
     template <typename ArchiveT>
     void serialize(ArchiveT& ar) {
-      using darma_runtime::serialization::range;
-      ar | data_size_;
-      ar | range(data_, data_ + data_size_);
+      T* end = nullptr;
+      if(!ar.is_unpacking()) end = data_ + data_size_;
+      ar | darma_runtime::serialization::range(data_, end);
+      if(ar.is_unpacking()) data_size_ = end - data_;
     }
 
 
