@@ -563,7 +563,7 @@ get_positional_arg_tuple(Args&&... args)
 template <typename... Args>
 struct n_positional_args
   : std::integral_constant<size_t,
-      _get_kwarg_impl::_positional_arg_tuple_getter::template n_pos_t<Args...>::value
+      _get_kwarg_impl::_positional_arg_tuple_getter::n_pos_t<Args...>::value
     >
 { };
 
