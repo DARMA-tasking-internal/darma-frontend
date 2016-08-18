@@ -560,7 +560,6 @@ typedef Runtime runtime_t;
 extern void
 darma_backend_initialize(
   int& argc, char**& argv,
-  //runtime_t*& backend_runtime,
   runtime_t::task_unique_ptr&& top_level_task
 );
 
