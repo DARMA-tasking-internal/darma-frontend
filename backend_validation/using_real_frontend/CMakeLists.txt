@@ -24,7 +24,7 @@ set_tests_properties(${test_name} PROPERTIES TIMEOUT 20
 endfunction()
 #
 add_unit_test(test_init_be)
-add_unit_test(test_flows_be)
+#add_unit_test(test_flows_be)
 add_unit_test(test_create_work_be)
 add_unit_test(test_publish_be)
 add_unit_test(test_create_condition_be)

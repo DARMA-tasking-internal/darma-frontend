@@ -248,11 +248,19 @@ TEST_P(Test_different_inout_allreduce, overload) {
   EXPECT_RELEASE_USE(reduce_out_use).InSequence(s2);
 
   {
+<<<<<<< HEAD
     auto tmp_in = initial_access<std::set<int>>("in");
     auto tmp_out = initial_access<std::set<int>>("out");
 
     create_work([=]{
       tmp_in->insert(42);
+=======
+    auto tmp_in = initial_access<int>("in");
+    auto tmp_out = initial_access<int>("out");
+
+    create_work([=]{
+      tmp_in.set_value(42);
+>>>>>>> darma/0.3-devel
     });
 
     if(overload == 0) {

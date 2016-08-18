@@ -92,6 +92,8 @@ namespace threads_backend {
   __thread size_t publish_label = 1;
   __thread size_t fetch_label = 1;
 
+  __thread ThreadsRuntime* cur_runtime = nullptr;
+
   // global
   size_t n_ranks = 1;
   bool traceMode = false;
@@ -101,6 +103,13 @@ namespace threads_backend {
   // global publish
   std::mutex rank_publish;
   std::unordered_map<std::pair<types::key_t, types::key_t>, PublishedBlock*> published;
+
+  // global collective
+  std::mutex rank_collective;
+  std::unordered_map<
+    std::pair<CollectiveType, types::key_t>,
+    CollectiveState
+  > collective_state;
 
   ThreadsRuntime::ThreadsRuntime()
     : produced(0)
@@ -317,12 +326,34 @@ namespace threads_backend {
       ThreadsFlow* const f_in  = static_cast<ThreadsFlow*>(dep->get_in_flow());
       ThreadsFlow* const f_out = static_cast<ThreadsFlow*>(dep->get_out_flow());
 
-      DEBUG_PRINT("check_dep_task: f_in=%lu, f_out=%lu\n",
-                  PRINT_LABEL(f_in),
-                  PRINT_LABEL(f_out));
+      if (f_in->inner->isFetch &&
+          threads_backend::depthFirstExpand) {
+        blocking_fetch(f_in->inner->handle, f_in->inner->version_key);
+        f_in->inner->ready = true;
+      } else if (f_in->inner->isFetch) {
+        auto node = std::make_shared<FetchNode>(FetchNode{this,f_in->inner});
+        const bool ready = add_fetcher(node,
+                                       f_in->inner->handle,
+                                       f_in->inner->version_key);
+        if (ready) {
+          ready_local.push_back(node);
+        }
+      }
+
+      if (f_in->inner->isCollective &&
+          threads_backend::depthFirstExpand) {
+        if (!f_in->inner->dfsColNode->finished) {
+          f_in->inner->dfsColNode->block_execute();
+        }
+      }
 
       // set readiness of this flow based on symmetric flow structure
       const bool check_ready = f_in->inner->check_ready();
+
+      DEBUG_PRINT("check_dep_task: f_in=%lu (ready=%s), f_out=%lu\n",
+                  PRINT_LABEL(f_in),
+                  PRINT_BOOL_STR(check_ready),
+                  PRINT_LABEL(f_out));
 
       f_in->inner->ready = check_ready;
 
@@ -381,13 +412,11 @@ namespace threads_backend {
     const auto version = f_in->inner->version_key;
 
     const bool ready = f_in->inner->check_ready();
-    const bool data_exists = data.find({version,key}) != data.end();
 
-    DEBUG_PRINT("%p: register use: ready=%s, data_exists=%s, key=%s, version=%s, "
+    DEBUG_PRINT("%p: register use: ready=%s, key=%s, version=%s, "
                 "handle=%p [in={%ld,use=%ld},out={%ld,use=%ld}], sched=%d, immed=%d\n",
                 u,
                 PRINT_BOOL_STR(ready),
-                PRINT_BOOL_STR(data_exists),
                 PRINT_KEY(key),
                 PRINT_KEY(version),
                 handle,
@@ -399,39 +428,55 @@ namespace threads_backend {
                 u->immediate_permissions()
                );
 
-    if (data_exists) {
-      u->get_data_pointer_reference() = data[{version,key}]->data;
+    if (!f_in->inner->fromFetch) {
+      const bool data_exists = data.find({version,key}) != data.end();
+      if (data_exists) {
+        u->get_data_pointer_reference() = data[{version,key}]->data;
 
-      DEBUG_PRINT("%p: use register, ptr=%p, key=%s, "
-                  "in version=%s, out version=%s\n",
-                  u,
-                  data[{version,key}]->data,
-                  PRINT_KEY(key),
-                  PRINT_KEY(f_in->inner->version_key),
-                  PRINT_KEY(f_out->inner->version_key));
+        DEBUG_PRINT("%p: use register, ptr=%p, key=%s, "
+                    "in version=%s, out version=%s\n",
+                    u,
+                    data[{version,key}]->data,
+                    PRINT_KEY(key),
+                    PRINT_KEY(f_in->inner->version_key),
+                    PRINT_KEY(f_out->inner->version_key));
+        data[{version,key}]->refs++;
+      } else {
+        // allocate new deferred data block for this use
+        auto block = allocate_block(handle);
+
+        // insert into the hash
+        data[{version,key}] = block;
+        u->get_data_pointer_reference() = block->data;
+
+        DEBUG_PRINT("%p: use register: ptr=%p, key=%s, "
+                    "in version=%s, out version=%s\n",
+                    u,
+                    block->data,
+                    PRINT_KEY(key),
+                    PRINT_KEY(f_in->inner->version_key),
+                    PRINT_KEY(f_out->inner->version_key));
+        block->refs++;
+      }
     } else {
-      // allocate new deferred data block for this use
-      auto block = allocate_block(handle);
+      const bool data_exists = fetched_data.find({version,key}) != fetched_data.end();
+      if (data_exists) {
+        u->get_data_pointer_reference() = fetched_data[{version,key}]->data;
+        fetched_data[{version,key}]->refs++;
+      } else {
+        // FIXME: copy-paste of above code...
 
-      // insert into the hash
-      data[{version,key}] = block;
-      u->get_data_pointer_reference() = block->data;
-
-      DEBUG_PRINT("%p: use register: ptr=%p, key=%s, "
-                  "in version=%s, out version=%s\n",
-                  u,
-                  block->data,
-                  PRINT_KEY(key),
-                  PRINT_KEY(f_in->inner->version_key),
-                  PRINT_KEY(f_out->inner->version_key));
+        // allocate new deferred data block for this use
+        auto block = allocate_block(handle);
+        // insert into the hash
+        fetched_data[{version,key}] = block;
+        u->get_data_pointer_reference() = block->data;
+        block->refs++;
+      }
     }
 
     // count references to a given handle
     handle_refs[handle]++;
-
-    // save the data pointer for this use for future reference
-    f_in->inner->deferred_data_ptr = data[{version,key}];
-    f_in->inner->hasDeferred = true;
   }
 
   DataBlock*
@@ -461,6 +506,47 @@ namespace threads_backend {
     return f;
   }
 
+  PackedDataBlock*
+  ThreadsRuntime::serialize(darma_runtime::abstract::frontend::Handle const* const handle,
+                            void* unpacked) {
+    auto policy = new SerializationPolicy();
+    const size_t size = handle
+      ->get_serialization_manager()
+      ->get_packed_data_size(unpacked,
+                             policy);
+
+    auto block = new PackedDataBlock();
+
+    // set data block for published block
+    block->data_ = malloc(size);
+    block->size_ = handle
+      ->get_serialization_manager()
+      ->get_metadata_size();
+
+    // call pack method to put it inside the allocated buffer
+    handle
+      ->get_serialization_manager()
+      ->pack_data(unpacked,
+                  block->data_,
+                  policy);
+    delete policy;
+
+    return block;
+  }
+
+  void
+  ThreadsRuntime::de_serialize(darma_runtime::abstract::frontend::Handle const* const handle,
+                               void* packed,
+                               void* unpack_to) {
+    auto policy = new SerializationPolicy();
+    handle
+      ->get_serialization_manager()
+      ->unpack_data(unpack_to,
+                    packed,
+                    policy);
+    delete policy;
+  }
+
   bool
   ThreadsRuntime::try_fetch(darma_runtime::abstract::frontend::Handle* handle,
                             types::key_t const& version_key) {
@@ -478,19 +564,19 @@ namespace threads_backend {
         PublishedBlock* pub_ptr = iter->second;
         auto &pub = *pub_ptr;
 
-        const bool buffer_exists = data.find({version_key,key}) != data.end();
-        void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
+        const bool buffer_exists = fetched_data.find({version_key,key}) != fetched_data.end();
+        void* unpack_to = buffer_exists ? fetched_data[{version_key,key}]->data : malloc(pub.data->size_);
 
         DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
                     PRINT_BOOL_STR(buffer_exists),
                     handle);
 
-        handle
-          ->get_serialization_manager()
-          ->unpack_data(unpack_to,pub.data->data_);
+        de_serialize(handle,
+                     pub.data->data_,
+                     unpack_to);
 
         if (!buffer_exists) {
-          data[{version_key,key}] = new DataBlock(unpack_to);
+          fetched_data[{version_key,key}] = new DataBlock(unpack_to);
         }
 
         DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
@@ -613,19 +699,19 @@ namespace threads_backend {
       auto &pub = *pub_ptr;
       auto traceLog = pub.pub_log;
 
-      const bool buffer_exists = data.find({version_key,key}) != data.end();
-      void* unpack_to = buffer_exists ? data[{version_key,key}]->data : malloc(pub.data->size_);
+      const bool buffer_exists = fetched_data.find({version_key,key}) != fetched_data.end();
+      void* unpack_to = buffer_exists ? fetched_data[{version_key,key}]->data : malloc(pub.data->size_);
 
       DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
                   PRINT_BOOL_STR(buffer_exists),
                   handle);
 
-      handle
-        ->get_serialization_manager()
-        ->unpack_data(unpack_to, pub.data->data_);
+      de_serialize(handle,
+                   pub.data->data_,
+                   unpack_to);
 
       if (!buffer_exists) {
-        data[{version_key,key}] = new DataBlock(unpack_to);
+        fetched_data[{version_key,key}] = new DataBlock(unpack_to);
       }
 
       DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
@@ -661,21 +747,12 @@ namespace threads_backend {
     ThreadsFlow* f = new ThreadsFlow(handle);
 
     handle_refs[handle]++;
+
     f->inner->handle = handle;
     f->inner->version_key = version_key;
-
-    if (threads_backend::depthFirstExpand) {
-      blocking_fetch(handle, version_key);
-      f->inner->ready = true;
-    } else {
-      auto node = std::make_shared<FetchNode>(FetchNode{this,f->inner});
-      const bool ready = add_fetcher(node,handle,version_key);
-
-      if (ready) {
-        ready_local.push_back(node);
-      }
-      f->inner->ready = false;
-    }
+    f->inner->isFetch = true;
+    f->inner->fromFetch = true;
+    f->inner->ready = false;
 
     return f;
   }
@@ -718,6 +795,7 @@ namespace threads_backend {
 
     f->inner->forward = f_forward->inner;
     f_forward->inner->handle = f->inner->handle;
+    f_forward->inner->fromFetch = f->inner->fromFetch;
     return f_forward;
   }
 
@@ -731,6 +809,7 @@ namespace threads_backend {
 
     f->inner->next = f_next->inner;
     f_next->inner->handle = f->inner->handle;
+    f_next->inner->fromFetch = f->inner->fromFetch;
 
     DEBUG_PRINT("next flow from %lu (%p) to %lu (%p)\n",
                 PRINT_LABEL(f),
@@ -757,12 +836,9 @@ namespace threads_backend {
 
     if (handle_refs[handle] == 0) {
       if (handle_pubs.find(handle) != handle_pubs.end()) {
-        for (auto delayed_pub = handle_pubs[handle].begin(), end = handle_pubs[handle].end();
-             delayed_pub != end;
-             ++delayed_pub) {
-
-          (*delayed_pub)->node->execute();
-          (*delayed_pub)->finished = true;
+        for (auto pub : handle_pubs[handle]) {
+          pub->node->execute();
+          pub->finished = true;
 
           // explicitly don't call clean up because we do it manually
           // TODO: fix this problem with iterator
@@ -774,20 +850,43 @@ namespace threads_backend {
       }
       delete_handle_data(handle,
                          flow->version_key,
-                         handle->get_key());
+                         handle->get_key(),
+                         flow->fromFetch);
       handle_refs.erase(handle);
     }
   }
 
   void
   ThreadsRuntime::delete_handle_data(darma_runtime::abstract::frontend::Handle const* const handle,
-                                     types::key_t version,
-                                     types::key_t key) {
-    DEBUG_PRINT("delete handle data\n");
-    DataBlock* prev = data[{version,key}];
-    data.erase({version,key});
-    // TODO: is this correct
-    if (prev) {
+                                     const types::key_t version,
+                                     const types::key_t key,
+                                     const bool fromFetch) {
+    DataBlock* prev = nullptr;
+    size_t ref = 0;
+
+    if (fromFetch) {
+      prev = fetched_data[{version,key}];
+      if (prev) {
+        ref = prev->refs;
+      }
+      if (prev && ref == 0) {
+        fetched_data.erase({version,key});
+      }
+    } else {
+      prev = data[{version,key}];
+      if (prev) {
+        ref = prev->refs;
+      }
+      if (prev && ref == 0) {
+        data.erase({version,key});
+      }
+    }
+
+    DEBUG_PRINT("delete handle data: fromFetch=%s, refs=%ld\n",
+                PRINT_BOOL_STR(fromFetch),
+                ref);
+
+    if (prev && ref == 0) {
       // call the destructor
       handle
         ->get_serialization_manager()
@@ -822,24 +921,7 @@ namespace threads_backend {
 
     if (f_from->inner->uses == 0 ||
         f_from->inner->ready) {
-      f_to->inner->ref = 0;
-      release_node(f_to->inner);
-    }
-
-    if (f_from->inner->uses == 0 &&
-        f_to->inner->isNull) {
-      cleanup_handle(f_from->inner);
-    }
-
-    if (f_from->inner->uses == 0) {
-      DEBUG_PRINT("remove alias %ld to %ld\n",
-                  PRINT_LABEL_INNER(f_from->inner),
-                  PRINT_LABEL_INNER(alias[f_from->inner]));
-
-      alias.erase(alias.find(f_from->inner));
-      DEBUG_PRINT("establish deleting: %ld\n",
-                  PRINT_LABEL(f_from));
-      delete f_from;
+      release_alias(f_from->inner, f_from->inner->readers_jc);
     }
 
     if (f_to->inner->isNull) {
@@ -909,20 +991,18 @@ namespace threads_backend {
                 flow->ref);
 
     if (flow->ref == 0) {
+      flow->ready = true;
       if (flow->readers_jc == 0) {
         if (flow->node) {
           flow->node->release();
         }
       } else {
         const size_t size = flow->readers.size();
-        for (auto iter = flow->readers.begin(),
-             iter_end = flow->readers.end();
-             iter != iter_end;
-             ++iter) {
+        for (auto reader : flow->readers) {
           DEBUG_PRINT("releasing READER on flow %ld, readers=%ld\n",
                       PRINT_LABEL_INNER(flow),
                       flow->readers.size());
-          (*iter)->release();
+          reader->release();
         }
         flow->readers.clear();
         return size;
@@ -989,30 +1069,280 @@ namespace threads_backend {
 
   /*virtual*/
   void
+  ThreadsRuntime::allreduce_use(
+    darma_runtime::abstract::frontend::Use* use_in,
+    darma_runtime::abstract::frontend::Use* use_out,
+    darma_runtime::abstract::frontend::CollectiveDetails const* details,
+    types::key_t const& tag) {
+
+    ThreadsFlow const* const f_in  = static_cast<ThreadsFlow*>(use_in->get_in_flow());
+    ThreadsFlow const* const f_out = static_cast<ThreadsFlow*>(use_in->get_out_flow());
+
+    const auto this_piece = details->this_contribution();
+    const auto num_pieces = details->n_contributions();
+
+    // TODO: relax this assumption
+    // use_in != use_out
+    assert(f_in->inner != f_out->inner);
+
+    f_out->inner->isCollective = true;
+
+    auto info = std::make_shared<CollectiveInfo>
+      (CollectiveInfo{
+        f_in->inner,
+        f_out->inner,
+        CollectiveType::AllReduce,
+        tag,
+        details->reduce_operation(),
+        this_piece,
+        num_pieces,
+        //use_in->get_handle()->get_key(),
+        //f_out->inner->version_key, // should be the out for use_out
+        use_in->get_data_pointer_reference(),
+        use_out->get_data_pointer_reference(),
+        use_in->get_handle(),
+        false
+    });
+
+    auto node = std::make_shared<CollectiveNode>(CollectiveNode{this,info});
+
+    // set the node
+    info->node = node;
+
+    if (!depthFirstExpand) {
+      f_out->inner->ready = false;
+      f_out->inner->ref++;
+    }
+
+    const auto& ready = node->ready();
+
+    DEBUG_PRINT("allreduce_use: ready=%s, flow in=%ld, flow out=%ld\n",
+                PRINT_BOOL_STR(ready),
+                PRINT_LABEL_INNER(f_in->inner),
+                PRINT_LABEL_INNER(f_out->inner));
+
+    if (depthFirstExpand) {
+      f_out->inner->dfsColNode = node;
+    }
+
+    if (ready) {
+      node->execute();
+    } else {
+      node->set_join(1);
+      f_in->inner->node = node;
+    }
+  }
+
+  bool
+  ThreadsRuntime::collective(std::shared_ptr<CollectiveInfo> info) {
+    DEBUG_PRINT("collective operation, type=%d, flow in=%ld, flow out=%ld\n",
+                info->type,
+                PRINT_LABEL_INNER(info->flow),
+                PRINT_LABEL_INNER(info->flow_out));
+
+    switch (info->type) {
+    case CollectiveType::AllReduce:
+      {
+        std::pair<CollectiveType,types::key_t> key = {CollectiveType::AllReduce,
+                                                      info->tag};
+
+        std::list<std::shared_ptr<CollectiveNode>>* act = nullptr;
+        bool finished = false;
+        {
+          std::lock_guard<std::mutex> guard(threads_backend::rank_collective);
+
+          if (collective_state.find(key) == collective_state.end()) {
+            collective_state[key];
+            collective_state[key].n_pieces = info->num_pieces;
+          }
+
+          auto& state = collective_state[key];
+
+          // make sure that all contributions have the same expectation
+          assert(state.n_pieces == info->num_pieces);
+          assert(info->incorporated_local == false);
+
+          if (state.current_pieces == 0) {
+            assert(state.cur_buf == nullptr);
+
+            auto block = serialize(info->handle,
+                                   info->data_ptr_in);
+
+            const size_t sz = info
+              ->handle
+              ->get_serialization_manager()
+              ->get_metadata_size();
+
+            // TODO: memory leaks here
+            state.cur_buf = malloc(sz);
+
+            de_serialize(info->handle,
+                         block->data_,
+                         state.cur_buf);
+          } else {
+            DEBUG_PRINT("performing op on data\n");
+
+            // TODO: offset might be wrong
+            const size_t n_elem = info
+              ->handle
+              ->get_array_concept_manager()
+              ->n_elements(info->data_ptr_in);
+
+            info->op->reduce_unpacked_into_unpacked(info->data_ptr_in,
+                                                    state.cur_buf,
+                                                    0,
+                                                    n_elem);
+          }
+
+          info->incorporated_local = true;
+          state.current_pieces++;
+
+          finished = state.current_pieces == state.n_pieces;
+
+          if (!finished) {
+            if (!depthFirstExpand) {
+              state.activations.push_back(info->node);
+            }
+          } else {
+            act = &state.activations;
+          }
+        }
+
+        if (finished) {
+          collective_finish(info);
+
+          for (auto&& n : *act) {
+            n->activate();
+          }
+          return true;
+        }
+      }
+      break;
+    default:
+      DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+    }
+
+    return false;
+  }
+
+  void
+  ThreadsRuntime::blocking_collective(std::shared_ptr<CollectiveInfo> info) {
+    switch (info->type) {
+    case CollectiveType::AllReduce:
+      {
+        CollectiveState* state = nullptr;
+
+        std::pair<CollectiveType,types::key_t> key = {CollectiveType::AllReduce,
+                                                      info->tag};
+
+      block_try_again:
+        {
+          std::lock_guard<std::mutex> guard(threads_backend::rank_collective);
+          assert(collective_state.find(key) != collective_state.end());
+          state = &collective_state[key];
+
+          if (state->current_pieces != state->n_pieces) {
+            goto block_try_again;
+          }
+        }
+
+        assert(state != nullptr);
+        assert(state->current_pieces == state->n_pieces);
+
+        const auto& handle = info->handle;
+        auto block = serialize(handle,
+                               state->cur_buf);
+
+        de_serialize(handle,
+                     block->data_,
+                     info->data_ptr_out);
+
+        DEBUG_PRINT("result = %d\n", *(int*)info->data_ptr_out);
+
+        delete block;
+
+        //info->flow_out->ref--;
+        //release_node(info->flow_out);
+      }
+      break;
+    default:
+      DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+    }
+  }
+
+  void
+  ThreadsRuntime::collective_finish(std::shared_ptr<CollectiveInfo> info) {
+    switch (info->type) {
+    case CollectiveType::AllReduce:
+      {
+        CollectiveState* state = nullptr;
+
+        std::pair<CollectiveType,types::key_t> key = {CollectiveType::AllReduce,
+                                                      info->tag};
+
+        {
+          std::lock_guard<std::mutex> guard(threads_backend::rank_collective);
+          assert(collective_state.find(key) != collective_state.end());
+          state = &collective_state[key];
+        }
+
+        assert(state != nullptr);
+        assert(state->current_pieces == state->n_pieces);
+
+        const auto& handle = info->handle;
+        auto block = serialize(handle,
+                               state->cur_buf);
+
+        de_serialize(handle,
+                     block->data_,
+                     info->data_ptr_out);
+
+        delete block;
+
+        if (!depthFirstExpand) {
+          info->flow_out->ref--;
+          release_node(info->flow_out);
+        }
+      }
+      break;
+    default:
+      DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+    }
+  }
+
+  /*virtual*/
+  void
   ThreadsRuntime::release_use(darma_runtime::abstract::frontend::Use* u) {
     ThreadsFlow* f_in  = static_cast<ThreadsFlow*>(u->get_in_flow());
     ThreadsFlow* f_out = static_cast<ThreadsFlow*>(u->get_out_flow());
 
     // enable next forward flow
-    if (f_in->inner->forward)
+    if (f_in->inner->forward) {
       f_in->inner->forward->ready = true;
+    }
 
     // enable each out flow
-    f_out->inner->ready = true;
+    if (depthFirstExpand) {
+      f_out->inner->ready = true;
+    }
 
     auto handle = u->get_handle();
     const auto version = f_in->inner->version_key;
     const auto& key = handle->get_key();
 
-    DEBUG_PRINT("%p: release use: hasDeferred=%s, handle=%p, version=%s, key=%s, data=%p\n",
+    DEBUG_PRINT("%p: release use: handle=%p, version=%s, key=%s\n",
                 u,
-                f_in->inner->hasDeferred ? "*** true" : "false",
                 handle,
                 PRINT_KEY(version),
-                PRINT_KEY(key),
-                data[{version,key}]->data);
+                PRINT_KEY(key));
 
     handle_refs[handle]--;
+
+    if (!f_in->inner->fromFetch) {
+      data[{version,key}]->refs--;
+    } else {
+      fetched_data[{version,key}]->refs--;
+    }
 
     // dereference flows
     f_in->inner->uses--;
@@ -1095,23 +1425,8 @@ namespace threads_backend {
 
       assert(expected >= 1);
 
-      const size_t size = handle
-        ->get_serialization_manager()
-        ->get_packed_data_size(data_ptr);
-
-      auto block = new PackedDataBlock();
-
-      // set data block for published block
-      block->data_ = malloc(size);
-      block->size_ = handle
-        ->get_serialization_manager()
-        ->get_metadata_size();
-
-      // call pack method to put it inside the allocated buffer
-      handle
-        ->get_serialization_manager()
-        ->pack_data(data_ptr,
-                    block->data_);
+      auto block = serialize(handle,
+                             data_ptr);
 
       DEBUG_PRINT("publication: key = %s, version = %s, published data = %p, data ptr = %p\n",
                   PRINT_KEY(key),
@@ -1132,11 +1447,8 @@ namespace threads_backend {
       publish->pub_log = log;
 
       if (publish_exists) {
-        for (auto iter = publish->waiting.begin(),
-             iter_end = publish->waiting.end();
-             iter != iter_end;
-             ++iter) {
-          (*iter)->activate();
+        for (auto pub : publish->waiting) {
+          pub->activate();
         }
         publish->waiting.clear();
       }
@@ -1174,8 +1486,6 @@ namespace threads_backend {
           false
        });
 
-    assert(f_in->inner->hasDeferred);
-
     auto p = std::make_shared<PublishNode>(PublishNode{this,pub});
 
     // set the node for early release
@@ -1183,11 +1493,10 @@ namespace threads_backend {
 
     const bool ready = p->ready();
 
-    DEBUG_PRINT("%p: publish_use: ptr=%p, hasDeferred=%s, key=%s, "
+    DEBUG_PRINT("%p: publish_use: ptr=%p, key=%s, "
                 "version=%s, handle=%p, ready=%s, f_in=%lu, f_out=%lu\n",
                 f,
                 f->get_data_pointer_reference(),
-                PRINT_BOOL_STR(f_in->inner->hasDeferred),
                 PRINT_KEY(key),
                 PRINT_KEY(version),
                 handle,
@@ -1265,19 +1574,25 @@ namespace threads_backend {
                 this->produced,
                 this->consumed);
 
-    while (this->produced != this->consumed) {
-      /// DEBUG_PRINT("produced = %ld, consumed = %ld\n", this->produced, this->consumed);
+    do {
       schedule_next_unit();
-    }
+      DEBUG_PRINT("produced = %ld, consumed = %ld\n",
+                  this->produced,
+                  this->consumed);
+    } while (this->produced != this->consumed
+             || ready_local.size() != 0
+             || ready_remote.size() != 0);
 
     assert(ready_local.size() == 0 &&
            ready_remote.size() == 0 &&
+           this->produced == this->consumed &&
            "TD failed if queues have work units in them.");
 
     STARTUP_PRINT("work units: produced=%ld, consumed=%ld\n",
                   this->produced,
                   this->consumed);
 
+    #if __THREADS_BACKEND_DEBUG__
     for (auto iter = alias.begin();
          iter != alias.end();
          ++iter) {
@@ -1285,12 +1600,17 @@ namespace threads_backend {
                   PRINT_LABEL_INNER(iter->first),
                   PRINT_LABEL_INNER(iter->second));
     }
+    #endif
 
     DEBUG_PRINT("handle_refs=%ld, "
                 "handle_pubs=%ld, "
+                "data=%ld, "
+                "fetched data=%ld, "
                 "\n",
                 handle_refs.size(),
-                handle_pubs.size());
+                handle_pubs.size(),
+                data.size(),
+                fetched_data.size());
 
     // should call destructor for trace module if it exists to write
     // out the logs
@@ -1348,7 +1668,7 @@ int main(int argc, char **argv) {
 void
 darma_runtime::abstract::backend::darma_backend_initialize(
   int &argc, char **&argv,
-  darma_runtime::abstract::backend::Runtime *&backend_runtime,
+  //darma_runtime::abstract::backend::Runtime *&backend_runtime,
   types::unique_ptr_template<
     typename darma_runtime::abstract::backend::Runtime::task_t
   >&& top_level_task
@@ -1430,7 +1750,7 @@ darma_runtime::abstract::backend::darma_backend_initialize(
   }
 
   auto* runtime = new threads_backend::ThreadsRuntime();
-  backend_runtime = runtime;
+  threads_backend::cur_runtime = runtime;
 
   if (threads_backend::this_rank == 0) {
     DEBUG_PRINT("rank = %zu, ranks = %zu, threads = %zu\n",
@@ -1451,6 +1771,23 @@ darma_runtime::abstract::backend::darma_backend_initialize(
                                                             threads_backend::this_rank,
                                                             threads_backend::n_ranks));
   threads_backend::current_task = runtime->top_level_task.get();
+}
+
+namespace darma_runtime {
+  abstract::backend::Context*
+  abstract::backend::get_backend_context() {
+    return threads_backend::cur_runtime;
+  }
+
+  abstract::backend::MemoryManager*
+  abstract::backend::get_backend_memory_manager() {
+    return threads_backend::cur_runtime;
+  }
+
+  abstract::backend::Runtime*
+  abstract::backend::get_backend_runtime() {
+    return threads_backend::cur_runtime;
+  }
 }
 
 #endif /* _THREADS_BACKEND_RUNTIME_ */

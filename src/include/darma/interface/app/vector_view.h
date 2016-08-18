@@ -56,20 +56,21 @@ namespace darma {
 
 namespace detail {
 
-// TODO move this?!?
 template <typename T>
 class basic_vector_view {
 
   private:
 
     // i.e., vector of T with default allocator
-    using simple_vector_t = std::vector<T>;
+    using simple_vector_t = std::vector<
+      std::remove_const_t<T>, std::allocator<std::remove_const_t<T>>
+    >;
 
 
   public:
 
-    using reference = typename simple_vector_t::reference;
-    using const_reference = typename simple_vector_t::const_reference;
+    using reference = T&;
+    using const_reference = std::add_const_t<T>&;
     using iterator = T*;
     using const_iterator = std::add_const_t<T>*;
     using size_type = typename simple_vector_t::size_type;
@@ -204,8 +205,7 @@ class offset_vector_view
       std::vector<T, Allocator>& v,
       size_type offset,
       size_type size
-    ) noexcept(base_t(v, offset, size))
-      : base_t(v, offset, size), offset_(offset)
+    ) : base_t(v, offset, size), offset_(offset)
     { }
 
     template <typename Allocator>
