@@ -77,25 +77,26 @@ AccessHandle<T, Traits>::publish(
   );
   detail::publish_expr_helper<PublishExprParts...> helper;
 
+  auto* backend_runtime = abstract::backend::get_backend_runtime();
 
   auto _pub_same = [&] {
     detail::HandleUse use_to_publish(
       var_handle_.get(),
       current_use_->use.in_flow_,
-      current_use_->use.out_flow_,
+      current_use_->use.out_flow_, /* TODO shouldn't this be in_flow_ ? */
       detail::HandleUse::None, detail::HandleUse::Read
     );
-    detail::backend_runtime->register_use(&use_to_publish);
+    backend_runtime->register_use(&use_to_publish);
     detail::PublicationDetails dets(
       helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
       helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
     );
-    detail::backend_runtime->publish_use(&use_to_publish, &dets);
-    detail::backend_runtime->release_use(&use_to_publish);
+    backend_runtime->publish_use(&use_to_publish, &dets);
+    backend_runtime->release_use(&use_to_publish);
   };
 
   auto _pub_from_modify = [&] {
-    auto flow_to_publish = detail::backend_runtime->make_forwarding_flow(
+    auto flow_to_publish = backend_runtime->make_forwarding_flow(
       current_use_->use.in_flow_
     );
 
@@ -105,7 +106,7 @@ AccessHandle<T, Traits>::publish(
       flow_to_publish,
       detail::HandleUse::None, detail::HandleUse::Read
     );
-    detail::backend_runtime->register_use(&use_to_publish);
+    backend_runtime->register_use(&use_to_publish);
 
     current_use_->do_release();
 
@@ -113,14 +114,14 @@ AccessHandle<T, Traits>::publish(
       helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
       helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
     );
-    detail::backend_runtime->publish_use(&use_to_publish, &dets);
+    backend_runtime->publish_use(&use_to_publish, &dets);
 
     current_use_->use.immediate_permissions_ = HandleUse::Read;
     current_use_->use.in_flow_ = flow_to_publish;
     // current_use_->use.out_flow_ and scheduling_permissions_ unchanged
     current_use_->could_be_alias = true;
 
-    detail::backend_runtime->release_use(&use_to_publish);
+    backend_runtime->release_use(&use_to_publish);
   };
 
   switch(current_use_->use.scheduling_permissions_) {

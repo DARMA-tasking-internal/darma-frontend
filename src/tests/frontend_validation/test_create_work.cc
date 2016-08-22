@@ -137,7 +137,7 @@ INSTANTIATE_TEST_CASE_P(
   ::testing::Bool()
 );
 
-//////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWork, mod_capture_MN_vector) {
   using namespace ::testing;
@@ -184,7 +184,7 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
   mock_runtime->registered_tasks.clear();
 }
 
-//////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 
 struct TestRoCaptureRN
@@ -246,7 +246,7 @@ INSTANTIATE_TEST_CASE_P(
   ::testing::Bool()
 );
 
-//////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 struct TestCaptureMM
   : TestCreateWork,
@@ -398,7 +398,28 @@ INSTANTIATE_TEST_CASE_P(
   )
 );
 
-//////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, named_task) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace mock_backend;
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(HasName(make_key("hello_task", "world", 42))));
+
+  {
+    create_work( name("hello_task", "world", 42),
+      [=] {
+        // This code doesn't run in this example
+        FAIL() << "This code block shouldn't be running in this example";
+      }
+    );
+  }
+
+  mock_runtime->registered_tasks.clear();
+}
 
 /*
 TEST_F(TestCreateWork, ro_capture_MM) {

@@ -56,7 +56,9 @@
 namespace mock_backend {
 
 class MockRuntime
-  : public darma_runtime::abstract::backend::Runtime
+  : public darma_runtime::abstract::backend::Runtime,
+    public darma_runtime::abstract::backend::Context,
+    public darma_runtime::abstract::backend::MemoryManager
 {
   public:
 
@@ -110,6 +112,13 @@ class MockRuntime
     MOCK_METHOD2(establish_flow_alias, void(flow_t*, flow_t*));
     MOCK_METHOD1(release_use, void(use_t*));
     MOCK_METHOD2(publish_use, void(use_t*, publication_details_t*));
+    MOCK_METHOD2(allocate, void*(size_t,
+      darma_runtime::abstract::frontend::MemoryRequirementDetails const&));
+    MOCK_METHOD2(deallocate, void(void*, size_t));
+    MOCK_METHOD4(allreduce_use, void(use_t*, use_t*,
+      darma_runtime::abstract::frontend::CollectiveDetails const*,
+      key_t const&
+    ));
 
 
 #ifdef __clang__
@@ -143,6 +152,17 @@ class MockFlow
     operator!=(MockFlow const& other) const {
       return not operator==(other);
     }
+};
+
+class MockSerializationPolicy
+  : public darma_runtime::abstract::backend::SerializationPolicy
+{
+  public:
+
+    MOCK_CONST_METHOD2(packed_size_contribution_for_blob, size_t(void const*, size_t));
+    MOCK_CONST_METHOD3(pack_blob, void(void*&, void const*, size_t));
+    MOCK_CONST_METHOD3(unpack_blob, void(void*&, void*, size_t));
+
 };
 
 } // end namespace mock_backend

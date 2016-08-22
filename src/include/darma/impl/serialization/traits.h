@@ -48,7 +48,10 @@
 #include <tinympl/logical_and.hpp>
 #include <tinympl/logical_or.hpp>
 
+#include <darma/impl/meta/is_container.h>
+
 #include "serialization_fwd.h"
+#include "allocator.h"
 
 namespace darma_runtime {
 
@@ -70,6 +73,8 @@ template <typename T, typename Enable>
 struct serializability_traits {
 
   private:
+
+    //friend class allocation_traits<T>;
 
     // Define some type aliases that aid in correctly detecting traits for deduced
     // types that may have qualifiers on them not recognized by the template
@@ -261,11 +266,26 @@ struct serializability_traits {
       )
     );
 
+    template <typename U, typename ArchiveT, typename AllocatorT>
+    using has_nonintrusive_allocator_aware_unpack_archetype = decltype(
+      declval<Serializer<U>>().unpack(
+        declval<void*>(), declval<remove_const_t<ArchiveT>&>(),
+        declval<std::add_lvalue_reference_t<AllocatorT>>()
+      )
+    );
+
   public:
 
     template <typename ArchiveT>
     using has_nonintrusive_unpack =
       is_detected<has_nonintrusive_unpack_archetype, _clean_T, ArchiveT>;
+
+    template <typename ArchiveT, typename AllocatorT=darma_allocator<_clean_T>>
+    using has_nonintrusive_allocator_aware_unpack = std::integral_constant<bool,
+      is_detected<has_nonintrusive_allocator_aware_unpack_archetype,
+        _clean_T, ArchiveT, AllocatorT
+      >::value and meta::is_allocator<std::decay_t<AllocatorT>>::value
+    >;
 
     // </editor-fold>
     //----------------------------------------
@@ -277,21 +297,68 @@ struct serializability_traits {
     ////////////////////////////////////////////////////////////////////////////////
     // <editor-fold desc="is_serializable_with_archive">
 
-    // Use of tinympl::logical_and here should short-circuit and save a tiny bit of compilation time
     template <typename ArchiveT>
-    using is_serializable_with_archive = tinympl::logical_or<
+    using is_sizable_with_archive = tinympl::logical_or<
       has_nonintrusive_serialize<ArchiveT>,
-      tinympl::logical_and<
-        has_nonintrusive_compute_size<ArchiveT>,
-        has_nonintrusive_pack<ArchiveT>,
-        has_nonintrusive_unpack<ArchiveT>
+      has_nonintrusive_compute_size<ArchiveT>
+    >;
+
+    template <typename ArchiveT>
+    using is_packable_with_archive = tinympl::logical_or<
+      has_nonintrusive_serialize<ArchiveT>,
+      has_nonintrusive_pack<ArchiveT>
+    >;
+
+    template <typename ArchiveT>
+    using is_unpackable_with_archive = tinympl::logical_or<
+      has_nonintrusive_serialize<ArchiveT>,
+      has_nonintrusive_unpack<ArchiveT>,
+      has_nonintrusive_allocator_aware_unpack<ArchiveT,
+        darma_allocator<_clean_T>
       >
     >;
 
-    typedef Serializer<_clean_T> serializer;
+    // Use of tinympl::logical_and here should short-circuit and save a tiny bit of compilation time
+    template <typename ArchiveT>
+    using is_serializable_with_archive = tinympl::logical_and<
+      is_sizable_with_archive<ArchiveT>,
+      is_packable_with_archive<ArchiveT>,
+      is_unpackable_with_archive<ArchiveT>
+    >;
+
+
+    using serializer = Serializer<_clean_T>;
 
     // </editor-fold>
     ////////////////////////////////////////////////////////////////////////////////
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // <editor-fold desc="other traits">
+
+  private:
+
+    template <typename U>
+    using _is_directly_serializable_archetype = typename U::directly_serializable;
+
+  public:
+
+    /**
+     *  Directly serializable implies that you can (from Teuchos documentation)
+     *   1. reinterpret_cast a pointer to an instance of T into an array of char
+     *      (which array has length dependent only on the type T and not on the
+     *      specific T instance),
+     *   2. serialize the resulting array of char, and finally
+     *   3. deserialize by reading in the array of char and doing a
+     *      reinterpret_cast back into a T.
+     */
+    static constexpr bool is_directly_serializable = meta::detected_or_t<
+      std::false_type, _is_directly_serializable_archetype, serializer
+    >::type::value;
+
+
+    // </editor-fold>
+    ////////////////////////////////////////////////////////////////////////////////
+
 
     template <typename ArchiveT>
     static
@@ -311,6 +378,8 @@ struct serializability_traits {
       serializer().serialize(const_cast<T&>(val), ar);
     }
 
+    //--------------------------------------------------------------------------
+
     template <typename ArchiveT>
     static
     std::enable_if_t<has_nonintrusive_pack<ArchiveT>::value>
@@ -329,25 +398,69 @@ struct serializability_traits {
       serializer().serialize(const_cast<T&>(val), ar);
     }
 
-    template <typename ArchiveT>
+    //--------------------------------------------------------------------------
+
+    template <typename ArchiveT, typename AllocatorT>
     static
-    std::enable_if_t<has_nonintrusive_unpack<ArchiveT>::value>
-    unpack(void* allocated, ArchiveT& ar) {
+    std::enable_if_t<
+      has_nonintrusive_allocator_aware_unpack<ArchiveT, AllocatorT>::value
+    >
+    unpack(void* allocated, ArchiveT& ar, AllocatorT&& alloc) {
+      serializer().unpack(allocated, ar, std::forward<AllocatorT>(alloc));
+    }
+
+    template <typename ArchiveT, typename AllocatorT>
+    static
+    std::enable_if_t<
+      not has_nonintrusive_allocator_aware_unpack<ArchiveT, AllocatorT>::value
+        and has_nonintrusive_unpack<ArchiveT>::value
+    >
+    unpack(void* allocated, ArchiveT& ar, AllocatorT&&) {
+      // Don't propagate the allocator, since the child serializer doesn't know
+      // how to use it
       serializer().unpack(allocated, ar);
     }
 
     template <typename ArchiveT>
     static
     std::enable_if_t<
-      not has_nonintrusive_unpack<ArchiveT>::value
+        has_nonintrusive_allocator_aware_unpack<ArchiveT,
+          darma_allocator<_clean_T>
+        >::value
+    >
+    unpack(void* allocated, ArchiveT& ar) {
+      // Don't propagate the allocator, since the child serializer doesn't know
+      // how to use it
+      serializer().unpack(allocated, ar, darma_allocator<_clean_T>());
+    }
+
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<
+      has_nonintrusive_unpack<ArchiveT>::value
+        and not has_nonintrusive_allocator_aware_unpack<ArchiveT,
+          darma_allocator<_clean_T>
+        >::value
+    >
+    unpack(void* allocated, ArchiveT& ar) {
+      // Don't propagate the allocator, since the child serializer doesn't know
+      // how to use it
+      serializer().unpack(allocated, ar);
+    }
+
+    template <typename ArchiveT>
+    static
+    std::enable_if_t<
+      not has_nonintrusive_allocator_aware_unpack<ArchiveT,
+        darma_allocator<_clean_T>
+      >::value
+      and not has_nonintrusive_unpack<ArchiveT>::value
         and has_nonintrusive_serialize<ArchiveT>::value
     >
     unpack(void* allocated, ArchiveT& ar) {
       T* val = new (allocated) T;
       serializer().serialize(*val, ar);
     }
-
-    friend class allocation_traits<T, void>;
 
 };
 
@@ -367,7 +480,8 @@ struct serializability_traits {
       __VA_ARGS__ ":  Cannot generate valid Serializer::pack() method for type/archive combination" \
   ); \
   static_assert( \
-    ::darma_runtime::serialization::detail::serializability_traits<type>::template has_nonintrusive_unpack<artype>::value, \
+    ::darma_runtime::serialization::detail::serializability_traits<type>::template has_nonintrusive_unpack<artype>::value\
+    or ::darma_runtime::serialization::detail::serializability_traits<type>::template has_nonintrusive_allocator_aware_unpack<artype>::value, \
     __VA_ARGS__ ":  Cannot generate valid Serializer::unpack() method for type/archive combination" \
   );
 

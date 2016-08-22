@@ -71,7 +71,7 @@ struct create_condition_impl {
     }
     task->post_registration_ops.clear();
 
-    return detail::backend_runtime->register_condition_task(
+    return abstract::backend::get_backend_runtime()->register_condition_task(
       std::move(task)
     );
 

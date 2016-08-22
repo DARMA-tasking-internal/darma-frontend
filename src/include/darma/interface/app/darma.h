@@ -53,5 +53,8 @@
 #include <darma/interface/app/create_condition.h>
 #include <darma/interface/app/access_handle.h>
 #include <darma/interface/app/oo.h>
+#include <darma/interface/app/keyword_arguments/all_keyword_arguments.h>
+
+#include <darma/interface/app/containers.h>
 
 #endif /* SRC_INTERFACE_APP_DARMA_H_ */

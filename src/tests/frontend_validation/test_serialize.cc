@@ -53,6 +53,8 @@
 #include <darma/impl/serialization/archive.h>
 #include <darma/impl/handle.h>
 
+#include "mock_backend.h"
+
 
 using namespace darma_runtime;
 using namespace darma_runtime::detail;
@@ -70,22 +72,22 @@ class TestSerialize
 
     template <typename T, typename Archive=SimplePackUnpackArchive>
     T do_serdes(T const& val) const {
-      using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+      using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       Ser<T> ser;
       SimplePackUnpackArchive ar;
 
       ArchiveAccess::start_sizing(ar);
-      ser.compute_size(val, ar);
+      ar % val;
       size_t size = ArchiveAccess::get_size(ar);
 
       char data[size];
       ArchiveAccess::set_buffer(ar, data);
       ArchiveAccess::start_packing(ar);
-      ser.pack(val, ar);
+      ar << val;
 
       char rv[sizeof(T)];
       ArchiveAccess::start_unpacking(ar);
-      ser.unpack(&rv, ar);
+      ar >> (*reinterpret_cast<T*>(rv));
 
 
       // Return by copy, so memory shouldn't be an issue
@@ -104,7 +106,7 @@ class TestSerialize
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSerialize, fundamental) {
-  using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 
   {
     int value = 42;
@@ -120,7 +122,7 @@ TEST_F(TestSerialize, fundamental) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSerialize, fundamental_chain) {
-  using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 
   int value = 42;
   constexpr int n_reps = 10;
@@ -138,7 +140,7 @@ TEST_F(TestSerialize, fundamental_chain) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSerialize, vector_simple) {
-  using darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
   using namespace std;
   using namespace ::testing;
 
@@ -179,4 +181,62 @@ TEST_F(TestSerialize, unordered_map_simple) {
   auto v_unpacked = do_serdes(value);
 
   ASSERT_THAT(v_unpacked, ContainerEq(value));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::string, SimplePackUnpackArchive,
+  "String should be serializable"
+);
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSerialize, vector_policy) {
+  using namespace std;
+  using namespace ::testing;
+  using namespace mock_backend;
+  using namespace darma_runtime;
+  using namespace darma_runtime::serialization;
+  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+
+  vector<int> value = { 3, 1, 4, 1, 5, 9, 2, 6 };
+
+  // Simulate a zero-copy transfer as facilitated by the backend
+
+  MockSerializationPolicy ser_pol;
+
+  PolicyAwareArchive ar(&ser_pol);
+
+  EXPECT_CALL(ser_pol, packed_size_contribution_for_blob(value.data(), 8*sizeof(int)))
+    .WillOnce(Return(0));
+
+  ArchiveAccess::start_sizing(ar);
+  ar.incorporate_size(value);
+  size_t size = ArchiveAccess::get_size(ar);
+  ASSERT_THAT(size, Eq(sizeof(size_t)));
+
+  char buffer[8*sizeof(int)];
+
+  EXPECT_CALL(ser_pol, pack_blob(_, value.data(), 8*sizeof(int)))
+    .WillOnce(Invoke([&](void*& indirect_buff, void const* data, size_t nbytes){
+      memcpy(buffer, data, nbytes);
+    }));
+
+  char indirect_buff[256];
+  ArchiveAccess::set_buffer(ar, indirect_buff);
+  ArchiveAccess::start_packing(ar);
+  ar << value;
+
+  vector<int> value2;
+
+  EXPECT_CALL(ser_pol, unpack_blob(_, _, 8*sizeof(int)))
+    .WillOnce(Invoke([&](void*& indirect_buff, void* data, size_t nbytes){
+      memcpy(data, buffer, nbytes);
+    }));
+
+  ArchiveAccess::start_unpacking_with_buffer(ar, indirect_buff);
+  ar >> value2;
+
+  ASSERT_THAT(value2, ContainerEq(value));
+
 }
