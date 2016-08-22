@@ -57,7 +57,7 @@ typename darma_allocator<T, BaseAllocator>::pointer
 darma_allocator<T, BaseAllocator>::allocate(
   size_type n, const_void_pointer _ignored
 ) {
-  darma_runtime::abstract::backend::get_backend_memory_manager()->allocate(
+  return darma_runtime::abstract::backend::get_backend_memory_manager()->allocate(
     n*sizeof(T), detail::DefaultMemoryRequirementDetails{}
   );
 };
