@@ -77,6 +77,9 @@ class SimpleCollectiveDetails
     size_t piece_;
     size_t n_pieces_;
 
+    using wrapper_t = detail::ReduceOperationWrapper<ReduceOp, T>;
+
+
   public:
 
     SimpleCollectiveDetails(size_t piece, size_t n_pieces)
@@ -89,11 +92,14 @@ class SimpleCollectiveDetails
     size_t
     n_contributions() const override { return n_pieces_; }
 
+    bool
+    is_indexed() const override {
+      return wrapper_t::is_indexed;
+    }
+
     abstract::frontend::ReduceOp const*
     reduce_operation() const override {
-      return _impl::_get_static_reduce_op_instance<
-        detail::ReduceOperationWrapper<ReduceOp, T>
-      >();
+      return _impl::_get_static_reduce_op_instance<wrapper_t>();
     }
 
 
