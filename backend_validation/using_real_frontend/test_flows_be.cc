@@ -54,7 +54,7 @@
 #include "test_backend.h"
 
 using namespace darma_runtime;
-using darma_runtime::detail::backend_runtime;
+using namespace darma_runtime::abstract::backend;
 typedef darma_runtime::abstract::backend::Flow flow_t;
 typedef darma_runtime::detail::VariableHandle<int> handle_t;
 typedef darma_runtime::detail::HandleUse use_t;
@@ -78,6 +78,7 @@ class TestFlows
 // test making an initial flow that we never bother to register
 TEST_F(TestFlows, make_initial){
   darma_init(argc_, argv_);
+  runtime_t *backend_runtime = get_backend_runtime();
 
   types::key_t k = make_key("a");
   handle_t handle(k);
@@ -91,6 +92,7 @@ TEST_F(TestFlows, make_initial){
 // test making a null flow that we never bother to register
 TEST_F(TestFlows, make_null){
   darma_init(argc_, argv_);
+  runtime_t *backend_runtime = get_backend_runtime();
 
   types::key_t k = make_key("a");
   handle_t handle(k);
@@ -105,6 +107,7 @@ TEST_F(TestFlows, make_null){
 // builds upon TestFlows::make_initial() and TestFlows::make_null()
 TEST_F(TestFlows, register_initial_use){
   darma_init(argc_, argv_);
+  runtime_t *backend_runtime = get_backend_runtime();
 
   types::key_t k = make_key("a");
   handle_t handle(k);
@@ -128,6 +131,7 @@ TEST_F(TestFlows, register_initial_use){
 // builds upon TestFlows::register_initial_use()
 TEST_F(TestFlows, make_next){
   darma_init(argc_, argv_);
+  runtime_t *backend_runtime = get_backend_runtime();
 
   types::key_t k = make_key("a");
   handle_t handle(k);
@@ -154,6 +158,7 @@ TEST_F(TestFlows, make_next){
 TEST_F(TestFlows, register_next_use){
   // FIXME: this test contains no expectations
   darma_init(argc_, argv_);
+  runtime_t *backend_runtime = get_backend_runtime();
 
   types::key_t k = make_key("a");
   handle_t handle(k);
@@ -180,6 +185,7 @@ TEST_F(TestFlows, register_next_use){
 // builds upon TestFlows::register_next_use()
 TEST_F(TestFlows, make_forwarding){
   darma_init(argc_, argv_);
+  runtime_t *backend_runtime = get_backend_runtime();
 
   types::key_t k = make_key("a");
   handle_t handle(k);
@@ -215,6 +221,7 @@ TEST_F(TestFlows, make_forwarding){
 TEST_F(TestFlows, register_forwarding_use){
   // FIXME: this test contains no expectations
   darma_init(argc_, argv_);
+  runtime_t *backend_runtime = get_backend_runtime();
 
   types::key_t k = make_key("a");
   handle_t handle(k);
@@ -249,6 +256,7 @@ TEST_F(TestFlows, register_forwarding_use){
 // builds upon TestFlows::make_forwarding()
 TEST_F(TestFlows, make_same_read_output){
   darma_init(argc_, argv_);
+  runtime_t *backend_runtime = get_backend_runtime();
 
   types::key_t k = make_key("a");
   handle_t handle(k);
@@ -281,6 +289,7 @@ TEST_F(TestFlows, make_same_read_output){
 TEST_F(TestFlows, register_read_only_use){
   // FIXME: this test contains no expectations
   darma_init(argc_, argv_);
+  runtime_t *backend_runtime = get_backend_runtime();
 
   types::key_t k = make_key("a");
   handle_t handle(k);
