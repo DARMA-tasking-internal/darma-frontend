@@ -103,30 +103,31 @@ inline MemoryManager* get_backend_memory_manager() {
 } // end namespace abstract
 } // end namespace darma_runtime
 
+//==============================================================================
+// <editor-fold desc="wrapper to make EXPECT_*().InSequence() work as expected">
+
 namespace _impl {
 
 template <typename Expectation, typename Lambda>
 struct InSequenceWrapper {
   InSequenceWrapper(Expectation&& exp, Lambda&& lamb)
-    : exp_(exp), lambda(lamb)
-  { }
+    : exp_(exp), lambda(lamb) {}
   InSequenceWrapper(InSequenceWrapper&& other)
-    : exp_(other.exp_), lambda(other.lambda)
-  { other.invoked_ = true; }
+    : exp_(other.exp_), lambda(other.lambda) { other.invoked_ = true; }
   template <typename... Args>
   decltype(auto)
-  InSequence(Args&&... args) && {
+  InSequence(Args&& ... args)&& {
     assert(not invoked_);
     invoked_ = true;
     return lambda(
       exp_.InSequence(::testing::Sequence(), std::forward<Args>(args)...)
     );
   }
-  operator ::testing::Expectation() && {
+  operator ::testing::Expectation()&& {
     invoked_ = true;
     return lambda(std::forward<Expectation>(exp_));
   }
-  ~InSequenceWrapper() { if(not invoked_) lambda(std::forward<Expectation>(exp_)); }
+  ~InSequenceWrapper() { if (not invoked_) lambda(std::forward<Expectation>(exp_)); }
   Expectation&& exp_;
   Lambda lambda;
   bool invoked_ = false;
@@ -141,6 +142,16 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
 };
 
 } // end namespace _impl
+
+// </editor-fold> end wrapper to make EXPECT_*().InSequence() work as expected
+//==============================================================================
+
+
+//==============================================================================
+// <editor-fold desc="Special EXPECT_* macros for DARMA">
+
+// Note that these can't just be functions or methods (like they used to be
+// because the line numbers get screwed up and debugging is much harder
 
 #define EXPECT_MOD_CAPTURE_MN_OR_MR(f_in, f_out, use) { \
   EXPECT_CALL(*mock_runtime, make_next_flow(&f_in)) \
@@ -174,6 +185,9 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy( \
     UsesInGetDependencies(VectorOfPtrsToArgs(__VA_ARGS__)) \
   ))
+
+// </editor-fold> end Special EXPECT_* macros for DARMA
+//==============================================================================
 
 class TestFrontend
   : public ::testing::Test

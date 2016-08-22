@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma_types.h
-//                         dharma_new
+//                      test_frontend_fwd.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,56 +42,12 @@
 //@HEADER
 */
 
-#ifndef SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
-#define SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
+#ifndef DARMA_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_FWD_H
+#define DARMA_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_FWD_H
 
-#define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
+// Forward declarations
+class TestFrontend;
+class TestInitialAccess;
 
-#include "test_frontend_fwd.h"
 
-namespace mock_backend {
-// Forward declaration
-class MockFlow {
-  private:
-
-    static size_t next_index;
-    size_t index_;
-
-  public:
-
-    MockFlow() : index_(next_index++) { }
-
-    MockFlow(nullptr_t) : index_(std::numeric_limits<size_t>::max()) { }
-
-    bool
-    operator==(MockFlow const& other) const {
-      return index_ == other.index_;
-    }
-    bool
-    operator!=(MockFlow const& other) const {
-      return not operator==(other);
-    }
-
-    // Make all of the old tests (from when types::flow_t had to be Flow*) work
-    MockFlow& operator&() {
-      return *this;
-    }
-
-};
-} // end namespace mock_backend
-
-#include <darma/interface/defaults/pointers.h>
-
-namespace darma_runtime { namespace types {
-typedef ::mock_backend::MockFlow flow_t;
-}} // end namespace darma_runtime::types
-
-#include <darma/impl/key/simple_key_fwd.h>
-
-namespace darma_runtime { namespace types {
-  typedef darma_runtime::detail::SimpleKey key_t;
-}} // end namespace darma_runtime::types
-
-#include <darma/impl/key/simple_key.h>
-
-#endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */
+#endif //DARMA_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_FWD_H

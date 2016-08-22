@@ -62,8 +62,8 @@ class HandleUse
 
     VariableHandleBase* handle_ = nullptr;
 
-    abstract::backend::Flow* in_flow_ = nullptr;
-    abstract::backend::Flow* out_flow_ = nullptr;
+    types::flow_t in_flow_;
+    types::flow_t out_flow_;
 
     abstract::frontend::Use::permissions_t immediate_permissions_ = None;
     abstract::frontend::Use::permissions_t scheduling_permissions_ = None;
@@ -76,12 +76,12 @@ class HandleUse
       return handle_;
     }
 
-    abstract::backend::Flow*&
+    types::flow_t
     get_in_flow() override {
       return in_flow_;
     }
 
-    abstract::backend::Flow*&
+    types::flow_t
     get_out_flow() override {
       return out_flow_;
     }
@@ -107,8 +107,8 @@ class HandleUse
 
     HandleUse(
       VariableHandleBase* handle,
-      abstract::backend::Flow* in_flow,
-      abstract::backend::Flow* out_flow,
+      types::flow_t const& in_flow,
+      types::flow_t const& out_flow,
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions
     ) : handle_(handle), in_flow_(in_flow), out_flow_(out_flow),
