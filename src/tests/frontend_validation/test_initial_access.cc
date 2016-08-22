@@ -106,7 +106,7 @@ TEST_F(TestInitialAccess, call_sequence_helper) {
 
   MockFlow f_in, f_out;
 
-  expect_initial_access(f_in, f_out, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_in, f_out, make_key("hello"));
 
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out));
 
