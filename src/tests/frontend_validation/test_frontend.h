@@ -160,11 +160,12 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
     &f_in, &f_out, use_t::Modify, use_t::Modify \
   ))).WillOnce(::testing::SaveArg<0>(&use)); \
 }
+
 #define EXPECT_INITIAL_ACCESS(fin, fout, key) { \
   EXPECT_CALL(*mock_runtime, make_initial_flow(is_handle_with_key(key))) \
-    .WillOnce(::testing::Return(&fin)); \
+    .WillOnce(::testing::Return(fin)); \
   EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key))) \
-    .WillOnce(::testing::Return(&fout)); \
+    .WillOnce(::testing::Return(fout)); \
 }
 #define EXPECT_RELEASE_USE(use_ptr) \
   ::_impl::in_sequence_wrapper( \
@@ -173,6 +174,16 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
     )), [&](auto&& exp) -> decltype(auto) { \
       return exp.WillOnce(::testing::Assign(&use_ptr, nullptr)); \
   })
+
+
+#define EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(fread, use_ptr) \
+  ::_impl::in_sequence_wrapper( \
+    EXPECT_CALL(*mock_runtime, register_use( \
+        IsUseWithFlows( \
+          &fread, &fread, use_t::Read, use_t::Read \
+        ) \
+    )), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce(SaveArg<0>(&use_ptr)); } \
+  )
 
 #define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed, ...) \
   ::_impl::in_sequence_wrapper( \

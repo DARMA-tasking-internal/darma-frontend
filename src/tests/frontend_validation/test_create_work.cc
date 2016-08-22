@@ -96,10 +96,11 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
   MockFlow f_initial, f_null, f_task_out;
   use_t* task_use;
 
-  expect_initial_access(f_initial, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_initial, f_null, make_key("hello"));
+
 
   if(use_helper) {
-    expect_mod_capture_MN_or_MR(f_initial, f_task_out, task_use);
+    EXPECT_MOD_CAPTURE_MN_OR_MR(f_initial, f_task_out, task_use);
   }
   else {
     EXPECT_CALL(*mock_runtime, make_next_flow(&f_initial))
@@ -110,7 +111,7 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
     ))).WillOnce(SaveArg<0>(&task_use));
   }
 
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use))));
+  EXPECT_REGISTER_TASK(task_use);
 
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_task_out, &f_null));
 
@@ -125,7 +126,7 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
 
   } // tmp deleted
 
-  EXPECT_CALL(*mock_runtime, release_use(task_use));
+  EXPECT_RELEASE_USE(task_use);
 
   mock_runtime->registered_tasks.clear();
 
@@ -152,15 +153,13 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
   MockFlow fout1, fout2;
   use_t *use_1, *use_2;
 
-  expect_initial_access(finit1, fnull1, make_key("hello"));
-  expect_initial_access(finit2, fnull2, make_key("world"));
+  EXPECT_INITIAL_ACCESS(finit1, fnull1, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(finit2, fnull2, make_key("world"));
 
-  expect_mod_capture_MN_or_MR(finit1, fout1, use_1);
-  expect_mod_capture_MN_or_MR(finit2, fout2, use_2);
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit1, fout1, use_1);
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit2, fout2, use_2);
 
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-    UseInGetDependencies(ByRef(use_1)), UseInGetDependencies(ByRef(use_2))
-  )));
+  EXPECT_REGISTER_TASK(use_1, use_2);
 
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&fout1, &fnull1));
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&fout2, &fnull2));
@@ -178,8 +177,8 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
 
   } // handles deleted
 
-  EXPECT_CALL(*mock_runtime, release_use(use_1));
-  EXPECT_CALL(*mock_runtime, release_use(use_2));
+  EXPECT_RELEASE_USE(use_1);
+  EXPECT_RELEASE_USE(use_2);
 
   mock_runtime->registered_tasks.clear();
 }
@@ -209,7 +208,7 @@ TEST_P(TestRoCaptureRN, ro_capture_RN) {
   bool use_helper = GetParam();
 
   if(use_helper) {
-    expect_ro_capture_RN_RR_MN_or_MR(f_fetch, read_use);
+    EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(f_fetch, read_use);
   }
   else {
 
