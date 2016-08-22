@@ -46,6 +46,8 @@
 #define DARMA_INTERFACE_FRONTEND_HANDLE_H
 
 #include <darma/interface/frontend/serialization_manager.h>
+#include <darma/interface/frontend/array_concept_manager.h>
+#include <darma/interface/frontend/array_movement_manager.h>
 #include <darma_types.h>
 
 namespace darma_runtime {
@@ -69,13 +71,26 @@ class Handle {
   get_key() const =0;
 
   /**
-   * @brief get_serialization_manager Returns a type-specific serialization manager. The object returned
-   * will be persistent as long as the Handle exists
+   * @brief get_serialization_manager Returns a type-specific serialization
+   * manager. The object returned will be persistent as long as the Handle
+   * exists
+   *
    * @return A type-specific serialization manager
    */
   virtual SerializationManager const*
   get_serialization_manager() const =0;
 
+  /** @brief TODO
+   *
+   */
+  virtual ArrayMovementManager const*
+  get_array_movement_manager() const =0;
+
+  /** @brief TODO
+   *
+   */
+  virtual ArrayConceptManager const*
+  get_array_concept_manager() const =0;
 };
 
 } // end namespace frontend

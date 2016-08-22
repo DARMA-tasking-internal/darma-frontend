@@ -47,36 +47,39 @@
 
 #include <darma/interface/backend/runtime.h>
 
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#endif
-
-namespace darma_runtime {
-
-namespace detail {
-
-template <typename __ignored = void>
-abstract::backend::runtime_t*&
-_gen_backend_runtime_ptr() {
-  static_assert(std::is_same<__ignored, void>::value, "");
-  static DARMA_THREAD_LOCAL_BACKEND_RUNTIME abstract::backend::runtime_t* rv;
-  return rv;
-}
-
-template <typename _ignored=void>
-struct backend_ptr_wrapper {
-  static DARMA_THREAD_LOCAL_BACKEND_RUNTIME abstract::backend::runtime_t*& wrapped;
-};
-template <typename _ignored>
-DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-abstract::backend::runtime_t*& backend_ptr_wrapper<_ignored>::wrapped = _gen_backend_runtime_ptr<>();
-
-static DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-abstract::backend::runtime_t*& backend_runtime = backend_ptr_wrapper<void>::wrapped;
-
-} // end namespace backend
-
-} // end namespace darma_runtime
+//#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+//#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+//#endif
+//
+//namespace darma_runtime {
+//
+//namespace detail {
+//
+//template <typename _ignored = void>
+//abstract::backend::runtime_t*&
+//_gen_backend_runtime_ptr() {
+//  static_assert(std::is_same<_ignored, void>::value, "");
+//  static DARMA_THREAD_LOCAL_BACKEND_RUNTIME abstract::backend::runtime_t* rv;
+//  return rv;
+//}
+//
+//template <typename _ignored=void>
+//struct backend_ptr_wrapper {
+//  static DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+//  abstract::backend::runtime_t*& wrapped;
+//};
+//template <typename _ignored>
+//DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+//abstract::backend::runtime_t*& backend_ptr_wrapper<_ignored>::wrapped =
+//  _gen_backend_runtime_ptr<>();
+//
+//static DARMA_THREAD_LOCAL_BACKEND_RUNTIME
+//abstract::backend::runtime_t*& backend_runtime =
+//  backend_ptr_wrapper<void>::wrapped;
+//
+//} // end namespace backend
+//
+//} // end namespace darma_runtime
 
 
 

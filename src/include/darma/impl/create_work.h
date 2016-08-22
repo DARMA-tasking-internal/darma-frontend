@@ -62,9 +62,10 @@
 #include <darma/impl/task.h>
 #include <darma/impl/util.h>
 
-// TODO move these to their own files in interface/app when they become part of the spec
-DeclareDarmaTypeTransparentKeyword(create_work_decorators, unless);
-DeclareDarmaTypeTransparentKeyword(create_work_decorators, only_if);
+#include <darma/interface/app/keyword_arguments/unless.h>
+#include <darma/interface/app/keyword_arguments/only_if.h>
+#include <darma/interface/app/keyword_arguments/name.h>
+
 
 
 namespace darma_runtime {
@@ -86,7 +87,7 @@ struct reads_decorator_parser {
   operator()(Args&&... args) const {
     using detail::create_work_attorneys::for_AccessHandle;
     detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-      detail::backend_runtime->get_running_task()
+      abstract::backend::get_backend_context()->get_running_task()
     );
     detail::TaskBase* task = parent_task->current_create_work_context;
 
@@ -148,7 +149,7 @@ struct create_work_impl {
     task_base->set_runnable(
       std::make_unique<Runnable<Lambda>>(std::forward<Lambda>(lambda))
     );
-    return detail::backend_runtime->register_task(
+    return abstract::backend::get_backend_runtime()->register_task(
       std::move(task_base)
     );
   }
@@ -159,7 +160,7 @@ inline types::unique_ptr_template<TaskBase>
 _start_create_work() {
   auto rv = std::make_unique<TaskBase>();
   detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-    detail::backend_runtime->get_running_task()
+    abstract::backend::get_backend_context()->get_running_task()
   );
   parent_task->current_create_work_context = rv.get();
   return std::move(rv);
@@ -180,7 +181,7 @@ struct _do_create_work_impl {
       )
     );
     detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-      detail::backend_runtime->get_running_task()
+      abstract::backend::get_backend_context()->get_running_task()
     );
     parent_task->current_create_work_context = nullptr;
 
@@ -194,7 +195,7 @@ struct _do_create_work_impl {
     }
     task_base->post_registration_ops.clear();
 
-    return detail::backend_runtime->register_task(
+    return abstract::backend::get_backend_runtime()->register_task(
       std::move(task_base)
     );
 
@@ -220,7 +221,7 @@ struct _do_create_work_impl<void> {
     >::type helper_t;
 
     detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-      detail::backend_runtime->get_running_task()
+      abstract::backend::get_backend_context()->get_running_task()
     );
     parent_task->current_create_work_context = nullptr;
 
@@ -253,15 +254,30 @@ struct _do_create_work {
   operator()(Args&&... args) {
     // Check for allowed keywords
     static_assert(detail::only_allowed_kwargs_given<
-        // No allowed keywords yet
+        darma_runtime::keyword_tags_for_task_creation::name
       >::template apply<Args...>::type::value,
       "Unknown keyword argument given to create_work()"
     );
 
+    auto name_key = get_typeless_kwarg_with_converter_and_default<
+      darma_runtime::keyword_tags_for_task_creation::name
+    >([](auto&&... key_parts){
+      return make_key(std::forward<decltype(key_parts)>(key_parts)...);
+    }, types::key_t(), std::forward<Args>(args)...);
+
+    if(not detail::key_traits<types::key_t>::key_equal()(name_key, types::key_t())) {
+      task_->set_name(name_key);
+    }
+
     // forward to the appropriate specialization (Lambda or functor)
-    return _do_create_work_impl<Functor>()(
-      std::move(task_),
-      std::forward<Args>(args)...
+    meta::splat_tuple(
+      get_positional_arg_tuple(std::forward<Args>(args)...),
+      [&](auto&&... pos_args) {
+        _do_create_work_impl<Functor>()(
+          std::move(task_),
+          std::forward<decltype(pos_args)>(pos_args)...
+        );
+      }
     );
   }
 

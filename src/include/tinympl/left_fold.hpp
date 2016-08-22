@@ -72,6 +72,9 @@ struct left_fold : left_fold< as_sequence_t<Sequence>, F> {};
 template<class ... Ts, template<class ...> class F>
 struct left_fold<sequence<Ts...>, F> : variadic::left_fold<F, Ts...> {};
 
+template <class Sequence, template <class...> class F>
+using left_fold_t = typename left_fold<Sequence, F>::type;
+
 } // namespace tinympl
 
 #endif // TINYMPL_LEFT_FOLD_HPP

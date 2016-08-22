@@ -57,18 +57,20 @@ namespace threads_backend {
     std::shared_ptr<InnerFlow> forward, next;
     types::key_t version_key, key;
     darma_runtime::abstract::frontend::Handle* handle;
-    bool ready, hasDeferred, isNull;
-    DataBlock* deferred_data_ptr;
+    bool ready, isNull, isFetch, fromFetch, isCollective;
 
     #if __THREADS_DEBUG_MODE__
       size_t label;
     #endif
 
     size_t readers_jc, ref, uses;
-    std::vector<std::shared_ptr<GraphNode> > readers;
+    std::vector<std::shared_ptr<GraphNode>> readers;
 
     // node in the graph to activate
     std::shared_ptr<GraphNode> node;
+
+    // hack to put dfs info in here
+    std::shared_ptr<CollectiveNode> dfsColNode;
 
     InnerFlow(const InnerFlow& in) = default;
 
@@ -77,9 +79,10 @@ namespace threads_backend {
       , next(nullptr)
       , version_key(darma_runtime::detail::SimpleKey())
       , ready(false)
-      , hasDeferred(false)
       , isNull(false)
-      , deferred_data_ptr(nullptr)
+      , isFetch(false)
+      , fromFetch(false)
+      , isCollective(false)
       #if __THREADS_DEBUG_MODE__
       , label(++flow_label)
       #endif

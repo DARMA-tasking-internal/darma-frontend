@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          test_darma_backend_initialize.cc
-//                         dharma_new
+//                      name.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,17 +42,11 @@
 //@HEADER
 */
 
-#include "main.h"
+#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_NAME_H
+#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_NAME_H
 
-#include <gtest/gtest.h>
-#include <darma/interface/defaults/darma_main.h>
-#include "mock_frontend.h"
+#include <darma/impl/keyword_arguments/macros.h>
 
-int darma_main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  ::testing::InitGoogleMock(&argc, argv);
-  int ret = RUN_ALL_TESTS();
-  ::darma_runtime::detail::backend_runtime = 0;  // make sure main() doesn't double-delete
-  return ret;
-}
+DeclareDarmaTypeTransparentKeyword(task_creation, name);
 
+#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_NAME_H

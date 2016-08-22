@@ -109,4 +109,47 @@ MATCHER_P(UseInGetDependencies, use, "task->get_dependencies() contains " + Prin
   }
 }
 
+template <typename Arg, typename... Args>
+auto
+VectorOfPtrsToArgs(Arg& arg, Args&... args) {
+  return std::vector<std::add_pointer_t<Arg>>{ &arg, &args... };
+}
+
+MATCHER_P(UsesInGetDependencies, uses,
+  "task->get_dependencies() contains all of [%(uses)s]"
+) {
+  if(arg == nullptr) {
+    *result_listener << "task is null";
+    return false;
+  }
+  auto deps = arg->get_dependencies();
+  bool rv = true;
+  for(auto&& use : uses) {
+    if (deps.find(*use) == deps.end()) {
+      *result_listener << PrintToString(*use) << "not found; ";
+      rv = false;
+
+    }
+  }
+  *result_listener << "task->get_dependencies() contains: ";
+  bool is_first = true;
+  for (auto&& dep : deps) {
+    if (not is_first) *result_listener << ", ";
+    is_first = false;
+    *result_listener << PrintToString(dep);
+  }
+  return rv;
+}
+
+MATCHER_P(HasName, name_key, "object has name key " + PrintToString(name_key)) {
+  auto arg_name = arg->get_name();
+  if(darma_runtime::detail::key_traits<darma_runtime::types::key_t>::key_equal()(arg_name, name_key)) {
+    return true;
+  }
+  else {
+    *result_listener << "object has name key: " << arg_name;
+    return false;
+  }
+}
+
 #endif //DARMA_TESTS_FRONTEND_VALIDATION_MATCHERS_H

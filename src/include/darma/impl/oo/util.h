@@ -86,6 +86,7 @@ struct _chain_base_classes_impl
   constexpr inline _chain_base_classes_impl() = default;
   constexpr inline _chain_base_classes_impl(_chain_base_classes_impl const& val) = default;
   constexpr inline _chain_base_classes_impl(_chain_base_classes_impl&& val) = default;
+  constexpr inline _chain_base_classes_impl& operator=(_chain_base_classes_impl&&) = default;
 
   // Forward to base class if it's not a copy or move constructor
   template <typename T,
@@ -119,6 +120,7 @@ struct _chain_base_classes_impl<Seq, 0, N>
   constexpr inline _chain_base_classes_impl() = default;
   constexpr inline _chain_base_classes_impl(_chain_base_classes_impl&&) = default;
   constexpr inline _chain_base_classes_impl(_chain_base_classes_impl const&) = default;
+  constexpr inline _chain_base_classes_impl& operator=(_chain_base_classes_impl&&) = default;
 
   // forward other constructors taking types that have chained bases to the default
   // constructor, since there are no more members to transfer
@@ -154,6 +156,19 @@ struct chain_base_classes {
     tinympl::size<Seq>::value, tinympl::size<Seq>::value
   >;
 };
+
+
+namespace _impl {
+
+template <typename T>
+using _is_oo_name_tag_archetype = typename T::_darma__is_oo_name_tag;
+
+} // end namespace _impl
+
+template <typename T>
+using is_oo_name_tag = meta::detected_or_t<std::false_type,
+  _impl::_is_oo_name_tag_archetype, T
+>;
 
 } // end namespace detail
 } // end namespace oo

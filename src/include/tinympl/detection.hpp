@@ -101,6 +101,7 @@ using is_detected_exact = std::is_same<Expected, detected_t<Op, Args...>>;
 template <class To, template <class...> class Op, class... Args>
 using is_detected_convertible = std::is_convertible<detected_t<Op, Args...>, To>;
 
+
 } // end namespace tinympl
 
 

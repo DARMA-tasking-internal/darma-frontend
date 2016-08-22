@@ -59,15 +59,58 @@ struct Serializer<T[N]> {
 
     typedef detail::serializability_traits<T> serdes_traits;
 
+  public:
+
+    using directly_serializable = std::integral_constant<bool,
+      serdes_traits::is_directly_serializable
+    >;
+
+  private:
+
     template <typename Archive>
     using enable_if_ser = std::enable_if_t<
       serdes_traits::template is_serializable_with_archive<Archive>::value
     >;
 
-  public:
+    template <typename Archive>
+    using enable_if_ser_direct = std::enable_if_t<
+      directly_serializable::value and
+      serdes_traits::template is_serializable_with_archive<Archive>::value
+    >;
 
     template <typename Archive>
-    enable_if_ser<Archive>
+    using enable_if_sizable_indirect = std::enable_if_t<
+      not directly_serializable::value and
+        serdes_traits::template is_sizable_with_archive<Archive>::value
+    >;
+
+    template <typename Archive>
+    using enable_if_packable_indirect = std::enable_if_t<
+      not directly_serializable::value and
+        serdes_traits::template is_packable_with_archive<Archive>::value
+    >;
+
+    template <typename Archive>
+    using enable_if_unpackable_indirect = std::enable_if_t<
+      not directly_serializable::value and
+        serdes_traits::template is_unpackable_with_archive<Archive>::value
+    >;
+
+  public:
+
+    // Note: compile-time sized arrays of objects should be packed indirectly.
+    // To pack/unpack large contiguous buffers of array types, the parent
+    // type's serializer should call pack_direct
+    // should call the archive's *_direct() methods itself
+
+    template <typename Archive>
+    enable_if_ser_direct<Archive>
+    compute_size(const T val[N], Archive& ar) const {
+      ar.add_to_size_indirect(sizeof(T) * N);
+    }
+
+    template <typename Archive>
+    enable_if_sizable_indirect<Archive>
     compute_size(const T val[N], Archive& ar) const {
       for(int i = 0; i < N; ++i) {
         ar.incorporate_size(val[i]);
@@ -75,18 +118,30 @@ struct Serializer<T[N]> {
     }
 
     template <typename Archive>
-    enable_if_ser<Archive>
+    enable_if_ser_direct<Archive>
+    pack(const T val[N], Archive& ar) const {
+      ar.pack_indirect(val, val+N);
+    }
+
+    template <typename Archive>
+    enable_if_packable_indirect<Archive>
     pack(const T val[N], Archive& ar) const {
       for(int i = 0; i < N; ++i) {
         ar.pack_item(val[i]);
       }
     }
 
-    template <typename Archive>
-    enable_if_ser<Archive>
-    unpack(void* allocated, Archive& ar) const {
+    template <typename Archive, typename AllocatorT>
+    enable_if_ser_direct<Archive>
+    unpack(void* allocated, Archive& ar, AllocatorT&&) const {
+      ar.template unpack_indirect<T>( (T*)allocated, N );
+    }
+
+    template <typename Archive, typename AllocatorT>
+    enable_if_unpackable_indirect<Archive>
+    unpack(void* allocated, Archive& ar, AllocatorT&& alloc) const {
       for(int i = 0; i < N; ++i) {
-        ar.unpack_item(((T*)allocated)[i]);
+        ar.unpack_item(((T*)allocated, std::forward<AllocatorT>(alloc))[i]);
       }
     }
 };

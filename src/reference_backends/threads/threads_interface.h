@@ -54,6 +54,7 @@ namespace threads_backend {
   struct FetchNode;
   struct PublishNode;
   struct DelayedPublish;
+  struct CollectiveInfo;
 
   template <typename Impl>
   class ThreadsInterface {
@@ -108,6 +109,20 @@ namespace threads_backend {
     test_fetch(darma_runtime::abstract::frontend::Handle* handle,
                types::key_t const& version_key) {
       return static_cast<Impl*>(this)->test_fetch(handle, version_key);
+    }
+
+    // collective interface
+    inline bool
+    collective(std::shared_ptr<CollectiveInfo> info) {
+      return static_cast<Impl*>(this)->collective(info);
+    }
+    inline void
+    collective_finish(std::shared_ptr<CollectiveInfo> info) {
+      return static_cast<Impl*>(this)->collective_finish(info);
+    }
+    inline void
+    blocking_collective(std::shared_ptr<CollectiveInfo> info) {
+      return static_cast<Impl*>(this)->blocking_collective(info);
     }
 
     // publish interface methods

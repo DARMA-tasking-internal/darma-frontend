@@ -61,7 +61,7 @@ int darma_main(int argc, char **argv) {
   ::testing::InitGoogleMock(&argc, argv);
   TestBackend::store_cmdline_args(argc, argv);
   int ret = RUN_ALL_TESTS();
-  ::darma_runtime::detail::backend_runtime = 0;  // make sure main() doesn't double-delete
+  //::darma_runtime::detail::backend_runtime = 0;  // make sure main() doesn't double-delete
 #ifdef DARMA_COVERAGE
   // returning an error code prevents coverage from being computed
   if (ret)

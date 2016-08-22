@@ -116,7 +116,7 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
     >
     TaskBase(LambdaCallable&& bool_callable) {
       TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-        detail::backend_runtime->get_running_task()
+        abstract::backend::get_backend_context()->get_running_task()
       );
       parent_task->current_create_work_context = this;
       default_capture_as_info |= AccessHandleBase::CapturedAsInfo::ReadOnly;
@@ -179,7 +179,7 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
 
 
     size_t get_packed_size() const  {
-      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       serialization::SimplePackUnpackArchive ar;
 
       ArchiveAccess::start_sizing(ar);
@@ -191,7 +191,7 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
     }
 
     void pack(void* allocated) const  {
-      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       serialization::SimplePackUnpackArchive ar;
 
       ArchiveAccess::start_packing(ar);
@@ -282,7 +282,7 @@ namespace frontend {
 
 inline backend::runtime_t::task_unique_ptr
 unpack_task(void* packed_data) {
-  using detail::DependencyHandle_attorneys::ArchiveAccess;
+  using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
   serialization::SimplePackUnpackArchive ar;
 
   ArchiveAccess::start_unpacking(ar);

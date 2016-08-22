@@ -100,6 +100,9 @@ namespace threads_backend {
     // post execution
     virtual void cleanup() { }
 
+    // another thread waking this
+    virtual void activate() { }
+
     virtual ~GraphNode() = default;
   };
 
@@ -113,7 +116,7 @@ namespace threads_backend {
       , fetch(fetch_)
     { }
 
-    void execute() {
+    void execute() override {
       std::string genName = "";
 
       TraceLog* log = nullptr;
@@ -138,7 +141,7 @@ namespace threads_backend {
       GraphNode::execute();
     }
 
-    bool ready() {
+    bool ready() override {
       return runtime->test_fetch(fetch->handle, fetch->version_key);
     }
 
@@ -146,7 +149,7 @@ namespace threads_backend {
       fetch = nullptr;
     }
 
-    void activate() {
+    void activate() override {
       runtime->add_remote(this->shared_from_this());
     }
   };
@@ -197,6 +200,49 @@ namespace threads_backend {
     }
   };
 
+  struct CollectiveNode
+    : GraphNode {
+
+    std::shared_ptr<CollectiveInfo> info;
+    bool finished = false;
+
+    CollectiveNode(Runtime* rt,
+                   std::shared_ptr<CollectiveInfo> info)
+      : GraphNode(-1, rt)
+      , info(info)
+    { }
+
+    void block_execute() {
+      runtime->blocking_collective(info);
+      GraphNode::execute();
+      finished = true;
+    }
+
+    void execute() override {
+      if (!info->incorporated_local) {
+        const bool isFinished = runtime->collective(info);
+        if (isFinished) {
+          GraphNode::execute();
+          finished = true;
+        }
+      } else {
+        runtime->collective_finish(info);
+        GraphNode::execute();
+        finished = true;
+      }
+    }
+
+    bool ready() override {
+      return info->flow->check_ready();
+    }
+
+    virtual ~CollectiveNode() { }
+
+    void activate() override {
+      runtime->add_remote(this->shared_from_this());
+    }
+  };
+
   struct TaskNode
     : public GraphNode
   {
@@ -216,7 +262,7 @@ namespace threads_backend {
         if (task->get_name() == darma_runtime::detail::SimpleKey()) {
           genName = "task-" + std::to_string(task_label++);
         } else {
-          genName = task->get_name().human_readable_string();
+          genName = task->get_name().human_readable_string("_","","");
         }
         log = runtime->getTrace()->eventStartNow(genName);
         runtime->addTraceDeps(this,log);

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      frontend_types.h
+//                      array_fwd.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,25 +42,18 @@
 //@HEADER
 */
 
-#ifndef DARMA_FRONTEND_TYPES_H
-#define DARMA_FRONTEND_TYPES_H
+#ifndef DARMA_IMPL_ARRAY_ARRAY_FWD_H
+#define DARMA_IMPL_ARRAY_ARRAY_FWD_H
 
-// Forward declare MockTask
-namespace mock_frontend {
-
-struct MockTask;
-
-} // end namespace mock_frontend
-
-#define DARMA_CUSTOM_CONCRETE_TASK 1
 namespace darma_runtime {
-namespace types {
 
-typedef mock_frontend::MockTask concrete_task_t;
+namespace detail {
 
-} // end namespace types
+template <typename T>
+class SimpleElementRange;
+
+} // end namespace detail
+
 } // end namespace darma_runtime
 
-#include "mock_frontend.h"
-
-#endif //DARMA_FRONTEND_TYPES_H
+#endif //DARMA_IMPL_ARRAY_ARRAY_FWD_H

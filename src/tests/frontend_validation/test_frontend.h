@@ -81,6 +81,100 @@ class MockSequenceMarker {
 
 extern ::testing::StrictMock<MockSequenceMarker>* sequence_marker;
 
+extern std::unique_ptr<mock_backend::MockRuntime> mock_runtime;
+
+namespace darma_runtime {
+namespace abstract {
+namespace backend {
+
+inline Runtime* get_backend_runtime() {
+  return mock_runtime.get();
+}
+
+inline Context* get_backend_context() {
+  return mock_runtime.get();
+}
+
+inline MemoryManager* get_backend_memory_manager() {
+  return mock_runtime.get();
+}
+
+} // end namespace backend
+} // end namespace abstract
+} // end namespace darma_runtime
+
+namespace _impl {
+
+template <typename Expectation, typename Lambda>
+struct InSequenceWrapper {
+  InSequenceWrapper(Expectation&& exp, Lambda&& lamb)
+    : exp_(exp), lambda(lamb)
+  { }
+  InSequenceWrapper(InSequenceWrapper&& other)
+    : exp_(other.exp_), lambda(other.lambda)
+  { other.invoked_ = true; }
+  template <typename... Args>
+  decltype(auto)
+  InSequence(Args&&... args) && {
+    assert(not invoked_);
+    invoked_ = true;
+    return lambda(
+      exp_.InSequence(::testing::Sequence(), std::forward<Args>(args)...)
+    );
+  }
+  operator ::testing::Expectation() && {
+    invoked_ = true;
+    return lambda(std::forward<Expectation>(exp_));
+  }
+  ~InSequenceWrapper() { if(not invoked_) lambda(std::forward<Expectation>(exp_)); }
+  Expectation&& exp_;
+  Lambda lambda;
+  bool invoked_ = false;
+};
+
+template <typename Expectation, typename Lambda>
+InSequenceWrapper<Expectation, Lambda>
+in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
+  return InSequenceWrapper<Expectation, Lambda>(
+    std::forward<Expectation>(exp), std::forward<Lambda>(lambda)
+  );
+};
+
+} // end namespace _impl
+
+#define EXPECT_MOD_CAPTURE_MN_OR_MR(f_in, f_out, use) { \
+  EXPECT_CALL(*mock_runtime, make_next_flow(&f_in)) \
+    .WillOnce(::testing::Return(&f_out)); \
+  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+    &f_in, &f_out, use_t::Modify, use_t::Modify \
+  ))).WillOnce(::testing::SaveArg<0>(&use)); \
+}
+#define EXPECT_INITIAL_ACCESS(fin, fout, key) { \
+  EXPECT_CALL(*mock_runtime, make_initial_flow(is_handle_with_key(key))) \
+    .WillOnce(::testing::Return(&fin)); \
+  EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key))) \
+    .WillOnce(::testing::Return(&fout)); \
+}
+#define EXPECT_RELEASE_USE(use_ptr) \
+  ::_impl::in_sequence_wrapper( \
+    EXPECT_CALL(*mock_runtime, release_use( \
+      ::testing::Eq(::testing::ByRef(use_ptr))\
+    )), [&](auto&& exp) -> decltype(auto) { \
+      return exp.WillOnce(::testing::Assign(&use_ptr, nullptr)); \
+  })
+
+#define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed, ...) \
+  ::_impl::in_sequence_wrapper( \
+    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+      &fin, &fout, use_t::sched, use_t::immed \
+    ))), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce(SaveArg<0>(&use_ptr)); } \
+  )
+
+#define EXPECT_REGISTER_TASK(...) \
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy( \
+    UsesInGetDependencies(VectorOfPtrsToArgs(__VA_ARGS__)) \
+  ))
+
 class TestFrontend
   : public ::testing::Test
 {
@@ -107,11 +201,11 @@ class TestFrontend
         setup_top_level_task();
       }
 
+      assert(mock_runtime == nullptr);
       mock_runtime = std::make_unique<Strictness<mock_backend::MockRuntime>>();
       ON_CALL(*mock_runtime, get_running_task())
         .WillByDefault(Return(top_level_task.get()));
 
-      darma_runtime::detail::backend_runtime = mock_runtime.get();
       mock_runtime_setup_done = true;
     }
 
@@ -251,7 +345,6 @@ class TestFrontend
     ////////////////////////////////////////
 
     mock_backend::MockRuntime::task_unique_ptr top_level_task;
-    std::unique_ptr<mock_backend::MockRuntime> mock_runtime;
     bool mock_runtime_setup_done = false;
 };
 
@@ -458,7 +551,13 @@ operator<<(std::ostream& o, use_t const* const& u) {
     o << "<null Use ptr>";
   }
   else {
-    o << "<Use ptr for handle with key " << u->get_handle()->get_key() << ">";
+    auto handle = u->get_handle();
+    if(handle) {
+      o << "<Use ptr for handle with key " << handle->get_key() << ">";
+    }
+    else {
+      o << "<Use ptr with null handle>";
+    }
   }
   return o;
 }

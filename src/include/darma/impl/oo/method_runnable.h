@@ -158,7 +158,7 @@ class MethodRunnable
     }
 
     virtual size_t get_packed_size() const override {
-      using ::darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+      using ::darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       serialization::SimplePackUnpackArchive ar;
 
       ArchiveAccess::start_sizing(ar);
@@ -170,7 +170,7 @@ class MethodRunnable
     }
 
     virtual void pack(void* allocated) const override {
-      using ::darma_runtime::detail::DependencyHandle_attorneys::ArchiveAccess;
+      using ::darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       serialization::SimplePackUnpackArchive ar;
 
       ArchiveAccess::start_packing(ar);

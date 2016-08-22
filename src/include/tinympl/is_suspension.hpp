@@ -53,53 +53,14 @@
 
 namespace tinympl {
 
-// TODO generalize this pattern and move it to its own file?
-
 namespace _impl {
 
-namespace __1 {
+template <typename T>
+using _has_member_named_type_archetype = typename T::type;
 
-template <class T, typename Enable=void>
-struct _has_member_type_named_type
-  : std::false_type
-{ };
-
-template <class T>
-struct _has_member_type_named_type<T,
-  typename std::enable_if<
-    not std::is_fundamental<T>::value
-    and std::is_object<T>::value
-  >::type
-> {
-
-  // Member type detector idiom.
-  // Adapted from https://en.wikibooks.org/wiki/More_C%2B%2B_Idioms/Member_Detector
-
-  private:
-    using yes = char[2];
-    using no = char[1];
-    struct _fallback { struct type { }; };
-    struct _derived : T, _fallback { };
-
-    template <typename U>
-    static no& test(typename U::type*);
-    template <typename U>
-    static yes& test(U*);
-
-  public:
-
-    static constexpr bool value = sizeof(test<_derived>(nullptr)) == sizeof(yes);
-
-};
-
-} // end namespace __1
-
-template <class T>
-struct _has_member_type_named_type
-  : std::integral_constant<bool,
-      __1::_has_member_type_named_type<T>::value
-    >
-{ };
+template <typename T>
+using _has_member_type_named_type =
+  is_detected<_has_member_named_type_archetype, T>;
 
 } // end namespace _impl
 

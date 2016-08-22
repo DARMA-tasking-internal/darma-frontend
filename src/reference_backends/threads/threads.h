@@ -56,6 +56,7 @@
 #include <utility>
 #include <memory>
 #include <unordered_map>
+#include <cstring>
 
 #include <threads_interface.h>
 #include <common.h>
@@ -84,6 +85,64 @@ namespace threads_backend {
   struct TaskNode;
   struct FetchNode;
   struct PublishNode;
+  struct CollectiveNode;
+
+  enum CollectiveType {
+    AllReduce = 0
+  };
+}
+
+namespace std {
+  template<>
+  struct hash<threads_backend::CollectiveType> {
+    size_t operator()(threads_backend::CollectiveType const& in) {
+      return std::hash<
+        std::common_type_t<size_t, threads_backend::CollectiveType>
+      >()(in);
+    }
+  };
+}
+
+
+namespace threads_backend {
+  struct CollectiveState {
+    size_t n_pieces{0};
+    std::atomic<size_t> current_pieces{0};
+    void* cur_buf = nullptr;
+    std::list<std::shared_ptr<CollectiveNode>> activations;
+  };
+
+  struct PackedDataBlock {
+    virtual void *get_data() { return data_; }
+    size_t size_;
+    void *data_ = nullptr;
+  };
+
+  struct SerializationPolicy :
+    darma_runtime::abstract::backend::SerializationPolicy
+  {
+    virtual std::size_t
+    packed_size_contribution_for_blob(void const* data_begin,
+                                      std::size_t n_bytes) const override {
+      return n_bytes;
+    }
+
+    virtual void
+    pack_blob(void*& indirect_pack_buffer,
+              void const* data_begin,
+              std::size_t n_bytes) const override {
+      std::memcpy(indirect_pack_buffer, data_begin, n_bytes);
+      (char*&)indirect_pack_buffer += n_bytes;
+    }
+
+    virtual void
+    unpack_blob(void*& indirect_packed_buffer,
+                void* dest,
+                std::size_t n_bytes) const override {
+      std::memcpy(dest, indirect_packed_buffer, n_bytes);
+      (char*&)indirect_packed_buffer += n_bytes;
+    }
+  };
 
   struct DelayedPublish {
     std::shared_ptr<InnerFlow> flow;
@@ -96,20 +155,34 @@ namespace threads_backend {
     std::shared_ptr<PublishNode> node;
   };
 
+  struct CollectiveInfo {
+    std::shared_ptr<InnerFlow> flow, flow_out;
+    CollectiveType type;
+    types::key_t tag;
+    abstract::frontend::ReduceOp const* op;
+    size_t this_piece;
+    size_t num_pieces;
+    void* data_ptr_in;
+    void* data_ptr_out;
+    const darma_runtime::abstract::frontend::Handle* handle;
+    bool incorporated_local;
+    std::shared_ptr<CollectiveNode> node;
+  };
+
   class ThreadsRuntime
     : public abstract::backend::Runtime
+    , public abstract::backend::Context
+    , public abstract::backend::MemoryManager
     , public ThreadsInterface<ThreadsRuntime> {
 
   public:
     ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
-    // TODO: fix any memory consistency bugs with data coordination we
-    // need a fence at the least
     std::unordered_map<
       std::pair<types::key_t,
                 types::key_t>,
       DataBlock*
-    > data;
+    > data, fetched_data;
 
     // TODO: multi-threaded half-implemented not working..
     std::vector<std::atomic<size_t>*> deque_counter;
@@ -183,6 +256,15 @@ namespace threads_backend {
     get_spmd_size() const;
 
     void
+    de_serialize(darma_runtime::abstract::frontend::Handle const* const handle,
+                 void* packed,
+                 void* unpack_to);
+
+    PackedDataBlock*
+    serialize(darma_runtime::abstract::frontend::Handle const* const handle,
+              void* unpacked);
+
+    void
     add_remote(std::shared_ptr<GraphNode> task);
 
     void
@@ -193,8 +275,9 @@ namespace threads_backend {
 
     void
     delete_handle_data(darma_runtime::abstract::frontend::Handle const* const handle,
-                       types::key_t version,
-                       types::key_t key);
+                       const types::key_t version,
+                       const types::key_t key,
+                       const bool fromFetch);
 
     void
     findAddTraceDep(std::shared_ptr<InnerFlow> flow,
@@ -289,6 +372,21 @@ namespace threads_backend {
     virtual void
     release_use(darma_runtime::abstract::frontend::Use* u);
 
+    virtual void
+    allreduce_use(darma_runtime::abstract::frontend::Use* use_in,
+                  darma_runtime::abstract::frontend::Use* use_out,
+                  darma_runtime::abstract::frontend::CollectiveDetails const* details,
+                  types::key_t const& tag);
+
+    bool
+    collective(std::shared_ptr<CollectiveInfo> info);
+
+    void
+    blocking_collective(std::shared_ptr<CollectiveInfo> info);
+
+    void
+    collective_finish(std::shared_ptr<CollectiveInfo> info);
+
     bool
     test_publish(std::shared_ptr<DelayedPublish> publish);
 
@@ -318,6 +416,17 @@ namespace threads_backend {
 
     virtual void
     finalize();
+
+    virtual void*
+    allocate(size_t n_bytes,
+             abstract::frontend::MemoryRequirementDetails const& details) {
+      return malloc(n_bytes);
+    }
+
+    virtual void
+    deallocate(void* ptr, size_t n_bytes) {
+      free(ptr);
+    }
   };
 }
 

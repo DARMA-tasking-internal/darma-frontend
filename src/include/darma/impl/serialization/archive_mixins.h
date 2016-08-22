@@ -56,29 +56,29 @@ class ArchiveOperatorsMixin {
   public:
     template <typename T>
     inline ArchiveT&
-    operator<<(T &&val) {
-      static_cast<ArchiveT *>(this)->pack_item(std::forward<T>(val));
+    operator<<(T&& val) {
+      static_cast<ArchiveT *>(this)->pack_item(val);
       return *static_cast<ArchiveT *>(this);
     }
 
     template <typename T>
     inline ArchiveT&
-    operator>>(T &&val) {
-      static_cast<ArchiveT *>(this)->unpack_item(std::forward<T>(val));
-      return *static_cast<ArchiveT *>(this);
+    operator>>(T&& val) {
+      static_cast<ArchiveT*>(this)->unpack_item(val);
+      return *static_cast<ArchiveT*>(this);
     }
 
     template <typename T>
     inline ArchiveT&
-    operator%(T &&val) {
-      static_cast<ArchiveT *>(this)->incorporate_size(std::forward<T>(val));
-      return *static_cast<ArchiveT *>(this);
+    operator%(T&& val) {
+      static_cast<ArchiveT*>(this)->incorporate_size(val);
+      return *static_cast<ArchiveT*>(this);
     }
 
     template <typename T>
     inline ArchiveT&
     operator|(T&& val) {
-      static_cast<ArchiveT *>(this)->serialize_item(std::forward<T>(val));
+      static_cast<ArchiveT *>(this)->serialize_item(val);
       return *static_cast<ArchiveT *>(this);
     }
 };
@@ -89,95 +89,171 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
     template <typename T>
     using enable_condition = tinympl::is_instantiation_of<SerDesRange, T>;
 
+    template <typename T, typename ReturnValue = void>
+    using enabled_version =
+      std::enable_if_t<enable_condition<T>::value, ReturnValue>;
+
+    template <typename T, typename ReturnValue = void>
+    using disabled_version =
+      std::enable_if_t<not enable_condition<T>::value, ReturnValue>;
+
+    template <typename T>
+    inline void
+    _unpack_direct_if_possible(
+      T const& range, ArchiveT& ar, size_t size, std::true_type
+    ) {
+      // Assert that we have a contiguous iterator
+      assert(
+        static_cast<typename std::decay_t<T>::value_type const*>(
+          std::addressof(*(range.end()))
+        ) - static_cast<typename std::decay_t<T>::value_type const*>(
+          std::addressof(*(range.begin()))
+        ) == std::distance(range.begin(), range.end())
+      );
+      ar.template unpack_direct<typename std::decay_t<T>::value_type>(
+        range.begin(), size
+      );
+    }
+
+    template <typename T>
+    inline void
+    _unpack_direct_if_possible(
+      T const& range, ArchiveT& ar, size_t size, std::false_type
+    ) {
+      for(auto&& item : range) {
+        ar.unpack_item(item);
+      }
+    }
+
+    template <typename T>
+    inline void
+    _pack_direct_if_possible(
+      T const& range, ArchiveT& ar, std::true_type
+    ) {
+      // Assert that we have a contiguous iterator
+      assert(
+        static_cast<typename std::decay_t<T>::value_type const*>(std::addressof(*(range.end())))
+          - static_cast<typename std::decay_t<T>::value_type const*>(std::addressof(*(range.begin())))
+        == std::distance(range.begin(), range.end())
+      );
+      ar.pack_direct(range.begin(), range.end());
+    }
+
+    template <typename T>
+    inline void
+    _pack_direct_if_possible(
+      T const& range, ArchiveT& ar, std::false_type
+    ) {
+      for(auto&& item : range) {
+        ar.pack_item(item);
+      }
+    }
+
   public:
-    template <typename T, typename ReturnValue = void>
-    using enabled_version = enable_if_t<enable_condition<T>::value, ReturnValue>;
-    template <typename T, typename ReturnValue = void>
-    using disabled_version = enable_if_t<not enable_condition<T>::value, ReturnValue>;
+
+    //--------------------------------------------------------------------------
 
     // operator>> does the unpacking
     template <typename T>
     inline enabled_version<T, ArchiveT&>
-    operator>>(T &&val) {
-      typedef typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type size_type;
-      typedef typename T::iterator_traits::value_type value_type;
-      typedef allocation_traits<value_type> value_allocation_traits;
-      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
+    operator>>(T&& val) {
+      using value_type = typename std::decay_t<T>::value_type;
+
+      ArchiveT* this_archive = static_cast<ArchiveT*>(this);
       assert(this_archive->is_unpacking());
+
       // initialize to prevent e.g. spurious valgrind errors and perhaps compiler warnings
-      size_type size = 0;
+      size_t size = 0;
       this_archive->unpack_item(size);
-      val.begin() = value_allocation_traits::allocate(*this_archive, size);
+
+      val.begin() = val.get_allocator().allocate(size);
       val.end() = val.begin() + size;
-      for(auto&& item : val) {
-        this_archive->unpack_item(item);
-      }
+
+      _unpack_direct_if_possible(std::forward<T>(val), *this_archive, size,
+        std::integral_constant<bool, std::decay_t<T>::is_contiguous
+          and std::decay_t<T>::value_is_directly_serializable
+        >()
+      );
+
       return *this_archive;
     }
+
     template <typename T>
     inline disabled_version<T, ArchiveT&>
-    operator>>(T &&val) { return this->MoreGeneralMixin::template operator>>(std::forward<T>(val)); }
+    operator>>(T&& val) { return this->MoreGeneralMixin::template operator>>(std::forward<T>(val)); }
+
+    //--------------------------------------------------------------------------
 
     // operator<< does the packing
     template <typename T>
     inline enabled_version<T, ArchiveT&>
-    operator<<(T &&val) {
-      typedef typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type size_type;
-      typedef typename T::iterator_traits::value_type value_type;
-      typedef typename allocation_traits<value_type>::template allocator_traits<ArchiveT> value_allocator_traits;
-      size_type size = val.end() - val.begin();
-      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
+    operator<<(T&& val) {
+      using value_type = typename std::decay_t<T>::value_type;
+
+      size_t size = std::distance(val.begin(), val.end());
+      ArchiveT* this_archive = static_cast<ArchiveT*>(this);
       this_archive->pack_item(size);
-      for(auto&& item : val) {
-        this_archive->pack_item(item);
-      }
+
+      _pack_direct_if_possible(std::forward<T>(val), *this_archive,
+        std::integral_constant<bool, std::decay_t<T>::is_contiguous
+          and std::decay_t<T>::value_is_directly_serializable
+        >()
+      );
+
       return *static_cast<ArchiveT *>(this);
     }
+
     template <typename T>
     inline disabled_version<T, ArchiveT&>
-    operator<<(T &&val) { return this->MoreGeneralMixin::template operator<<(std::forward<T>(val)); }
+    operator<<(T&& val) { return this->MoreGeneralMixin::template operator<<(std::forward<T>(val)); }
+
+    //--------------------------------------------------------------------------
 
     // operator% does sizing (rarely used)
     template <typename T>
     inline enabled_version<T, ArchiveT&>
-    operator%(T &&val) {
-      typedef typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type size_type;
-      typedef typename T::iterator_traits::value_type value_type;
-      typedef typename allocation_traits<value_type>::template allocator_traits<ArchiveT> value_allocator_traits;
-      size_type size = val.end() - val.begin();
-      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
+    operator%(T&& val) {
+      size_t size = std::distance(val.begin(), val.end());
+      ArchiveT* this_archive = static_cast<ArchiveT*>(this);
       this_archive->incorporate_size(size);
-      for(auto&& item : val) {
-        this_archive->incorporate_size(item);
+
+      // This is really a "constexpr if"
+      if(std::decay_t<T>::value_is_directly_serializable and std::decay_t<T>::is_contiguous) {
+        this_archive->add_to_size_direct(val.begin(), size);
       }
-      return *static_cast<ArchiveT *>(this);
+      else {
+        for(auto&& item : val) {
+          this_archive->incorporate_size(item);
+        }
+      }
+      return *this_archive;
     }
+
     template <typename T>
     inline disabled_version<T, ArchiveT&>
-    operator%(T &&val) { return this->MoreGeneralMixin::template operator%(std::forward<T>(val)); }
+    operator%(T&& val) { return this->MoreGeneralMixin::template operator%(std::forward<T>(val)); }
+
+    //--------------------------------------------------------------------------
 
     template <typename T>
     inline enabled_version<T, ArchiveT&>
     operator|(T&& val) {
-      typedef typename allocation_traits<T>::template allocator_traits<ArchiveT>::size_type size_type;
-      typedef typename T::iterator_traits::value_type value_type;
-      typedef typename allocation_traits<value_type>::template allocator_traits<ArchiveT> value_allocator_traits;
-      ArchiveT* this_archive = static_cast<ArchiveT *>(this);
+      ArchiveT* this_archive = static_cast<ArchiveT*>(this);
       if(this_archive->is_unpacking()) {
         this->operator>>(std::forward<T>(val));
       }
-      else {
-        size_type size = val.end() - val.begin();
-        this_archive->serialize_item(size);
-        for(auto&& item : val) {
-          this_archive->serialize_item(item);
-        }
+      else if(this_archive->is_packing()){
+        this->operator<<(std::forward<T>(val));
       }
-      return *static_cast<ArchiveT *>(this);
+      else { // sizing
+        this->operator%(std::forward<T>(val));
+      }
+      return *static_cast<ArchiveT*>(this);
     }
+
     template <typename T>
     inline disabled_version<T, ArchiveT&>
-    operator|(T &&val) { return this->MoreGeneralMixin::template operator|(std::forward<T>(val)); }
+    operator|(T&& val) { return this->MoreGeneralMixin::template operator|(std::forward<T>(val)); }
 };
 
 } // end namespace detail

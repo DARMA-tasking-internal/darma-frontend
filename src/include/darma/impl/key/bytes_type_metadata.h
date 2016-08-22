@@ -47,11 +47,11 @@
 
 #include <cassert>
 #include <cstdint>
-
-#include <darma/impl/serialization/nonintrusive.h>
 #include <vector>
 #include <unordered_map>
 #include <typeindex>
+
+#include <darma/impl/serialization/as_pod.h>
 
 
 namespace darma_runtime {
@@ -140,15 +140,15 @@ struct alignas(1) int_like_type_metadata {
   // stop here and cast to enum_like_type_metadata
   bool is_negative : 1; // whether or not the value is negative.  0 is never negative
   uint8_t int_size_exponent : 4; // the exponent N of the number of bytes, 2**N
-  // occupied by the int when its absolute value
-  // is packed into an integer number of bytes giving
-  // the smallest N possible without overflow.
-  // For instance, if the value is -243, N = 0
-  // If the value x is 83,246, N = 2 (x > 2**16, so
-  // this requires a 32-bit integer)
-  // With this format, the maximum integer that can
-  // be used in a key is 2**(8*(2**4-1))-1, or 1.15E77,
-  // which should be sufficient for most purposes.
+                                 // occupied by the int when its absolute value
+                                 // is packed into an integer number of bytes giving
+                                 // the smallest N possible without overflow.
+                                 // For instance, if the value is -243, N = 0
+                                 // If the value x is 83,246, N = 2 (x > 2**16, so
+                                 // this requires a 32-bit integer)
+                                 // With this format, the maximum integer that can
+                                 // be used in a key is 2**(8*(2**4-1))-1, or 1.15E77,
+                                 // which should be sufficient for most purposes.
   static constexpr uint8_t max_int_size_exponent = 15;
 };
 static_assert(sizeof(int_like_type_metadata) == 1,
@@ -159,9 +159,9 @@ struct alignas(1) enum_like_type_metadata {
   bool _always_true_1 : 1; // the bit indicating this is int-like
   bool _always_true_2 : 1; // the bit indicating this is an enum
   uint8_t enum_category : 5; // the index of the enum *type* being used here
-  // if the index is 31 or greater, this value will
-  // be 31 (== use_extension_byte_for_category) and the
-  // next byte will contain the category
+                             // if the index is 31 or greater, this value will
+                             // be 31 (== use_extension_byte_for_category) and the
+                             // next byte will contain the category
   static constexpr uint8_t use_extension_byte_for_category = 31;
 };
 static_assert(sizeof(enum_like_type_metadata) == 1,
@@ -181,11 +181,11 @@ struct alignas(1) user_defined_type_metadata {
   bool _always_false_2 : 1; // the bit indicating this is int-like
   bool _always_false_3 : 1; // the bit indicating this is float-like
   bool _always_true : 1; // the bit indicating this describes a user-defined
-  // type category.
+                         // type category.
   uint8_t user_category : 4; // the index in the registry of the user-defined type
-  // category.  If the index is 15 or greater, the value
-  // will be 15 (==use_extension_byte_for_category) and the
-  // next byte will contain the category
+                             // category.  If the index is 15 or greater, the value
+                             // will be 15 (==use_extension_byte_for_category) and the
+                             // next byte will contain the category
   static constexpr uint8_t use_extension_byte_for_category = 15;
 };
 static_assert(sizeof(float_like_type_metadata) == 1,
