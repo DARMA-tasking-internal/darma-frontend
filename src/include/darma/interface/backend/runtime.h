@@ -227,7 +227,7 @@ class Runtime {
      *  for which the Flow represents the initial state
      *
      */
-    virtual Flow*
+    virtual types::flow_t
     make_initial_flow(
       frontend::Handle* handle
     ) =0;
@@ -245,7 +245,7 @@ class Runtime {
      *  @param version_key A unique version for the key returned by
      *  handle->get_key()
      */
-    virtual Flow*
+    virtual types::flow_t
     make_fetching_flow(
       frontend::Handle* handle,
       types::key_t const& version_key
@@ -261,7 +261,7 @@ class Runtime {
      *  @param handle   The handle variable associate with the flow
      *
      */
-    virtual Flow*
+    virtual types::flow_t
     make_null_flow(
       frontend::Handle* handle
     ) =0;
@@ -289,9 +289,9 @@ class Runtime {
      *  @return A new Flow object indicating that new data is the produced by
      *  immediate modifications to the data from the Flow given as a parameter
      */
-    virtual Flow*
+    virtual types::flow_t
     make_forwarding_flow(
-      Flow* from
+      types::flow_t& from
     ) =0;
 
     /** @todo update this
@@ -320,17 +320,17 @@ class Runtime {
      *  @return A new Flow object indicating that new data will be produced by
      *  the data incoming from the Flow given as a parameter
      */
-    virtual Flow*
+    virtual types::flow_t
     make_next_flow(
-      Flow* from
+      types::flow_t& from
     ) =0;
 
     /** @todo document this
      */
     virtual void
     establish_flow_alias(
-      Flow* from,
-      Flow* to
+      types::flow_t& from,
+      types::flow_t& to
     ) =0;
 
     // </editor-fold> end flow handling

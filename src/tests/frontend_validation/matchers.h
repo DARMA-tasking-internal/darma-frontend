@@ -69,10 +69,8 @@ MATCHER_P4(IsUseWithFlows, f_in, f_out, scheduling_permissions, immediate_permis
       + ", arg->immediate_permissions(): " + permissions_to_string(arg->immediate_permissions());
 
   using namespace mock_backend;
-  if(*f_in != *static_cast<MockFlow*>(arg->get_in_flow())) return false;
-  if(f_out != nullptr) {
-    if(*f_out != *static_cast<MockFlow*>(arg->get_out_flow())) return false;
-  }
+  if(f_in != arg->get_in_flow()) return false;
+  if(f_out != arg->get_out_flow()) return false;
   if(immediate_permissions != -1) {
     if(immediate_permissions != int(arg->immediate_permissions())) return false;
   }

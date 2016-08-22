@@ -514,8 +514,8 @@ class AccessHandle : public detail::AccessHandleBase {
 
     AccessHandle(
       variable_handle_ptr var_handle,
-      abstract::backend::Flow* in_flow,
-      abstract::backend::Flow* out_flow,
+      types::flow_t const& in_flow,
+      types::flow_t const& out_flow,
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions
     ) : var_handle_(var_handle),
