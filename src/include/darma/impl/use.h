@@ -45,9 +45,12 @@
 #ifndef DARMA_IMPL_USE_H
 #define DARMA_IMPL_USE_H
 
+#include <darma_types.h>
+
 #include <darma/interface/frontend/use.h>
 #include <darma/interface/backend/flow.h>
 #include <darma/impl/handle.h>
+#include <darma/impl/flow_handling.h>
 
 namespace darma_runtime {
 
@@ -62,8 +65,8 @@ class HandleUse
 
     VariableHandleBase* handle_ = nullptr;
 
-    types::flow_t in_flow_;
-    types::flow_t out_flow_;
+    flow_ptr in_flow_;
+    flow_ptr out_flow_;
 
     abstract::frontend::Use::permissions_t immediate_permissions_ = None;
     abstract::frontend::Use::permissions_t scheduling_permissions_ = None;
@@ -76,14 +79,14 @@ class HandleUse
       return handle_;
     }
 
-    types::flow_t
-    get_in_flow() override {
-      return in_flow_;
+    types::flow_t const&
+    get_in_flow() const override {
+      return *(in_flow_.get());
     }
 
-    types::flow_t
-    get_out_flow() override {
-      return out_flow_;
+    types::flow_t const&
+    get_out_flow() const override {
+      return *(out_flow_.get());
     }
 
     abstract::frontend::Use::permissions_t
@@ -107,13 +110,15 @@ class HandleUse
 
     HandleUse(
       VariableHandleBase* handle,
-      types::flow_t const& in_flow,
-      types::flow_t const& out_flow,
+      flow_ptr const& in_flow,
+      flow_ptr const& out_flow,
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions
-    ) : handle_(handle), in_flow_(in_flow), out_flow_(out_flow),
+    ) : handle_(handle),
         immediate_permissions_(immediate_permissions),
-        scheduling_permissions_(scheduling_permissions)
+        scheduling_permissions_(scheduling_permissions),
+        in_flow_(in_flow),
+        out_flow_(out_flow)
     { }
 
     HandleUse() = default;
@@ -124,10 +129,12 @@ class HandleUse
 
 };
 
+
 struct migrated_use_arg_t { };
 static constexpr migrated_use_arg_t migrated_use_arg = { };
 
-// really belongs to AccessHandle, but we can't put this in impl/handle.h because of circular header dependencies
+// really belongs to AccessHandle, but we can't put this in impl/handle.h
+// because of circular header dependencies
 struct UseHolder {
   HandleUse use;
   bool is_registered = false;
@@ -162,7 +169,10 @@ struct UseHolder {
     if(is_registered) do_release();
     else if(could_be_alias) {
       // okay, now we know it IS an alias
-      abstract::backend::get_backend_runtime()->establish_flow_alias(use.in_flow_, use.out_flow_);
+      abstract::backend::get_backend_runtime()->establish_flow_alias(
+        *(use.in_flow_.get()),
+        *(use.out_flow_.get())
+      );
     }
   }
 };

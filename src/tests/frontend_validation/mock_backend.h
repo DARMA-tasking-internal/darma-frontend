@@ -121,6 +121,7 @@ class MockRuntime
       darma_runtime::abstract::frontend::CollectiveDetails const*,
       key_t const&
     ));
+    MOCK_METHOD1(release_flow, void(flow_t&));
 
 
 #ifdef __clang__

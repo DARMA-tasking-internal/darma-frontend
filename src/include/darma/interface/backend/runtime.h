@@ -333,6 +333,13 @@ class Runtime {
       types::flow_t& to
     ) =0;
 
+    /** @todo document this
+     */
+    virtual void
+    release_flow(
+      types::flow_t& to_release
+    ) =0;
+
     // </editor-fold> end flow handling
     //==========================================================================
 
