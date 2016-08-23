@@ -55,6 +55,8 @@ namespace darma_runtime {
 namespace abstract {
 namespace frontend {
 
+// TODO remove size, offset, contiguous, strided, and stride; the backend doesn't need them
+
 /** @todo
  *
  */
@@ -67,6 +69,37 @@ class IndexRange {
      */
     virtual SerializationManager const*
     get_serialization_manager() const =0;
+
+
+    /** @todo
+     *
+     * @return
+     */
+    virtual size_t size() const =0;
+
+    /** @todo
+     *
+     * @return
+     */
+    virtual size_t offset() const =0;
+
+    /** @todo
+     *
+     * @return
+     */
+    virtual bool contiguous() const =0;
+
+    /** @todo
+     *
+     * @return
+     */
+    virtual bool strided() const =0;
+
+    /** @todo
+     *
+     * @return
+     */
+    virtual size_t stride() const =0;
 
 };
 
