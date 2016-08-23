@@ -46,6 +46,7 @@
 #define DARMA_IMPL_ACCESS_HANDLE_PUBLISH_IMPL_H
 
 //#include <darma/interface/app/access_handle.h>
+#include <darma/impl/flow_handling.h>
 
 namespace darma_runtime {
 
@@ -83,7 +84,7 @@ AccessHandle<T, Traits>::publish(
     detail::HandleUse use_to_publish(
       var_handle_.get(),
       current_use_->use.in_flow_,
-      current_use_->use.out_flow_, /* TODO shouldn't this be in_flow_ ? */
+      current_use_->use.in_flow_,
       detail::HandleUse::None, detail::HandleUse::Read
     );
     backend_runtime->register_use(&use_to_publish);
@@ -96,8 +97,8 @@ AccessHandle<T, Traits>::publish(
   };
 
   auto _pub_from_modify = [&] {
-    auto flow_to_publish = backend_runtime->make_forwarding_flow(
-      current_use_->use.in_flow_
+    auto flow_to_publish = detail::make_forwarding_flow_ptr(
+      current_use_->use.in_flow_, backend_runtime
     );
 
     detail::HandleUse use_to_publish(

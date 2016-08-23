@@ -121,14 +121,14 @@ class Use {
     /** @brief Get the Flow that must be ready for use as a precondition for the
      *  Task t that depends on this Use
      */
-    virtual types::flow_t
-    get_in_flow() =0;
+    virtual types::flow_t const&
+    get_in_flow() const =0;
 
     /** @brief Get the Flow that is produced or made available when this Use is
      *  released
      */
-    virtual types::flow_t
-    get_out_flow() =0;
+    virtual types::flow_t const&
+    get_out_flow() const =0;
 
     /** @brief Get the immediate permissions needed for the Flow returned by
      *  get_in_flow() to be ready as a precondition for this Use

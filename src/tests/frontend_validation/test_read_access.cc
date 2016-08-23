@@ -57,12 +57,12 @@ class TestReadAccess
 {
   protected:
 
-    virtual void SetUp() {
+    virtual void SetUp() override {
       setup_mock_runtime<::testing::StrictMock>();
       TestFrontend::SetUp();
     }
 
-    virtual void TearDown() {
+    virtual void TearDown() override {
       TestFrontend::TearDown();
     }
 };
@@ -91,6 +91,9 @@ TEST_F(TestReadAccess, call_sequence) {
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out))
     .InSequence(s1);
 
+  EXPECT_RELEASE_FLOW(f_in);
+  EXPECT_RELEASE_FLOW(f_out);
+
   {
     auto tmp = read_access<int>("hello", version=my_version_tag);
   }
@@ -108,12 +111,15 @@ TEST_F(TestReadAccess, call_sequence_helper) {
 
   MockFlow f_in, f_out;
 
-  expect_read_access(f_in, f_out,
+  EXPECT_READ_ACCESS(f_in, f_out,
     make_key("hello"),
     make_key("my_version_tag")
   );
 
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out));
+
+  EXPECT_RELEASE_FLOW(f_in);
+  EXPECT_RELEASE_FLOW(f_out);
 
   {
     auto tmp = read_access<int>("hello", version="my_version_tag");
@@ -131,19 +137,28 @@ TEST_F(TestReadAccess, call_sequence_assign) {
 
   mock_backend::MockFlow f_in_1, f_out_1, f_in_2, f_out_2;
 
-  Sequence s1, s2, s3;
 
-  expect_read_access(f_in_1, f_out_1, make_key("hello"),
-    make_key("my_version_tag"), s1, s2);
+  EXPECT_READ_ACCESS(f_in_1, f_out_1, make_key("hello"),
+    make_key("my_version_tag")
+  );
 
-  expect_read_access(f_in_2, f_out_2, make_key("world"),
-    make_key("other_version_tag"), s3, s2);
+  EXPECT_READ_ACCESS(f_in_2, f_out_2, make_key("world"),
+    make_key("other_version_tag")
+  );
 
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_1, &f_out_1))
-    .Times(1).InSequence(s2);
+  Expectation alias1 =
+    EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_1, &f_out_1));
 
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_2, &f_out_2))
-    .Times(1).InSequence(s2);
+  Expectation release_fin1 = EXPECT_RELEASE_FLOW(f_in_1).After(alias1);
+  Expectation release_fout1 = EXPECT_RELEASE_FLOW(f_out_1).After(alias1);
+
+  Expectation alias2 =
+    EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_2, &f_out_2))
+      .After(release_fin1, release_fout1);
+
+  EXPECT_RELEASE_FLOW(f_in_2).After(alias2);
+  EXPECT_RELEASE_FLOW(f_out_2).After(alias2);
+
 
   {
     auto tmp1 = read_access<int>("hello", version="my_version_tag");

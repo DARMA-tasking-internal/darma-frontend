@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          initial_access.h
-//                         dharma_new
+//                      flow_handling.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,50 +42,57 @@
 //@HEADER
 */
 
-#ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_INITIAL_ACCESS_H_
-#define SRC_INCLUDE_DARMA_INTERFACE_APP_INITIAL_ACCESS_H_
+#ifndef DARMA_IMPL_FLOW_HANDLING_H
+#define DARMA_IMPL_FLOW_HANDLING_H
 
-#include <tinympl/extract_template.hpp>
+#include <memory>
 
-#include <darma/interface/app/access_handle.h>
-#include <darma/impl/handle_attorneys.h>
-#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
-#include <darma/impl/util.h>
-#include <darma/impl/flow_handling.h>
+#include <darma_types.h>
+
+#include <darma/interface/backend/runtime.h>
 
 namespace darma_runtime {
+namespace detail {
 
-template <
-  typename T=void,
-  typename... KeyExprParts
->
-AccessHandle<T>
-initial_access(
-  KeyExprParts&&... parts
-) {
-  static_assert(detail::only_allowed_kwargs_given<
-    >::template apply<KeyExprParts...>::type::value,
-    "Unknown keyword argument given to initial_access"
-  );
-  types::key_t key = detail::access_expr_helper<KeyExprParts...>().get_key(
-    std::forward<KeyExprParts>(parts)...
-  );
+using flow_ptr = std::shared_ptr<types::flow_t>;
 
-  auto* backend_runtime = abstract::backend::get_backend_runtime();
-  auto var_h = detail::make_shared<detail::VariableHandle<T>>(key);
-  auto in_flow = detail::make_flow_ptr(
-    backend_runtime->make_initial_flow( var_h.get() )
-  );
-  auto out_flow = detail::make_flow_ptr(
-    backend_runtime->make_null_flow( var_h.get() )
-  );
+struct FlowDeleter {
+  inline void
+  operator()(types::flow_t* f) const {
+    abstract::backend::get_backend_runtime()->release_flow(*f);
+    delete f;
+  }
+};
 
-  return detail::access_attorneys::for_AccessHandle::construct_access<T>(
-    var_h, in_flow, out_flow, detail::HandleUse::Modify, detail::HandleUse::None
+inline auto
+make_flow_ptr(types::flow_t const& f) {
+  // This seems a little inefficient, but I can't think of a better way to do it
+  return flow_ptr(
+    new types::flow_t(f), FlowDeleter()
   );
 }
 
+inline auto
+make_next_flow_ptr(
+  flow_ptr const& fp,
+  abstract::backend::Runtime* const rt
+) {
+  return make_flow_ptr(
+    rt->make_next_flow(*(fp.get()))
+  );
+}
+
+inline auto
+make_forwarding_flow_ptr(
+  flow_ptr const& fp,
+  abstract::backend::Runtime* const rt
+) {
+  return make_flow_ptr(
+    rt->make_forwarding_flow(*(fp.get()))
+  );
+}
+
+} // end namespace detail
 } // end namespace darma_runtime
 
-
-#endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_INITIAL_ACCESS_H_ */
+#endif //DARMA_IMPL_FLOW_HANDLING_H

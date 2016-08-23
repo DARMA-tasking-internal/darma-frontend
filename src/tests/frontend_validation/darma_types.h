@@ -56,16 +56,36 @@ class MockFlow {
 
     static size_t next_index;
     size_t index_;
+    std::string name_;
 
   public:
 
-    MockFlow() : index_(next_index++) { }
+    MockFlow()
+      : index_(next_index++),
+        name_("%##unnamed##%")
+    { }
 
-    MockFlow(nullptr_t) : index_(std::numeric_limits<size_t>::max()) { }
+    MockFlow(const char* str)
+      : index_(std::numeric_limits<size_t>::max()),
+        name_(str)
+    { }
+
+    MockFlow(nullptr_t)
+      : index_(std::numeric_limits<size_t>::max()),
+        name_("%##unnamed##%")
+    { }
 
     bool
     operator==(MockFlow const& other) const {
-      return index_ == other.index_;
+      if(index_ == std::numeric_limits<size_t>::max()) {
+        if(name_ == "%##unnamed##%") return false;
+        else {
+          return name_ == other.name_;
+        }
+      }
+      else {
+        return index_ == other.index_;
+      }
     }
     bool
     operator!=(MockFlow const& other) const {
@@ -75,6 +95,20 @@ class MockFlow {
     // Make all of the old tests (from when types::flow_t had to be Flow*) work
     MockFlow& operator&() {
       return *this;
+    }
+
+    friend std::ostream&
+    operator<<(std::ostream& o, MockFlow const& f) {
+      if(f.name_ != "%##unnamed##%") {
+        o << "<flow named \"" << f.name_ << "\">";
+      }
+      else if(f.index_ != std::numeric_limits<size_t>::max()) {
+        o << "<flow #" << f.index_ << ">";
+      }
+      else {
+        o << "<nullptr flow>";
+      }
+      return o;
     }
 
 };

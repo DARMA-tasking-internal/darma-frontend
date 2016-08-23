@@ -113,7 +113,10 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
 
   EXPECT_REGISTER_TASK(task_use);
 
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_task_out, &f_null));
+  EXPECT_FLOW_ALIAS(f_task_out, f_null);
+
+  EXPECT_RELEASE_FLOW(f_task_out);
+  EXPECT_RELEASE_FLOW(f_null);
 
   {
     auto tmp = initial_access<int>("hello");
@@ -127,6 +130,8 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
   } // tmp deleted
 
   EXPECT_RELEASE_USE(task_use);
+
+  EXPECT_RELEASE_FLOW(f_initial);
 
   mock_runtime->registered_tasks.clear();
 
@@ -148,9 +153,9 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
 
   Sequence s0, s1;
 
-  MockFlow finit1, finit2;
-  MockFlow fnull1, fnull2;
-  MockFlow fout1, fout2;
+  MockFlow finit1("init1"), finit2("init2");
+  MockFlow fnull1("null1"), fnull2("null2");
+  MockFlow fout1("out1"), fout2("out2");
   use_t *use_1, *use_2;
 
   EXPECT_INITIAL_ACCESS(finit1, fnull1, make_key("hello"));
@@ -161,8 +166,16 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
 
   EXPECT_REGISTER_TASK(use_1, use_2);
 
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&fout1, &fnull1));
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&fout2, &fnull2));
+  Expectation fa1 = EXPECT_FLOW_ALIAS(fout1, fnull1);
+
+  EXPECT_RELEASE_FLOW(fout1).After(fa1);
+  EXPECT_RELEASE_FLOW(fnull1).After(fa1);
+
+  Expectation fa2 = EXPECT_FLOW_ALIAS(fout2, fnull2);
+
+  EXPECT_RELEASE_FLOW(fout2).After(fa2);
+  EXPECT_RELEASE_FLOW(fnull2).After(fa2);
+
 
   {
     std::vector<AccessHandle<int>> handles;
@@ -177,8 +190,11 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
 
   } // handles deleted
 
-  EXPECT_RELEASE_USE(use_1);
-  EXPECT_RELEASE_USE(use_2);
+  Expectation rel1 = EXPECT_RELEASE_USE(use_1);
+  Expectation rel2 = EXPECT_RELEASE_USE(use_2);
+
+  EXPECT_RELEASE_FLOW(finit1).After(rel1);
+  EXPECT_RELEASE_FLOW(finit2).After(rel2);
 
   mock_runtime->registered_tasks.clear();
 }
@@ -219,21 +235,24 @@ TEST_P(TestRoCaptureRN, ro_capture_RN) {
 
   }
 
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(read_use))));
-
+  EXPECT_REGISTER_TASK(read_use);
 
   {
+
     auto tmp = read_access<int>("hello", version="world");
     create_work([=]{
       std::cout << tmp.get_value();
       FAIL() << "This code block shouldn't be running in this example";
     });
 
-    EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_fetch, &f_null));
+    Expectation fa1 = EXPECT_FLOW_ALIAS(f_fetch, f_null);
+    EXPECT_RELEASE_FLOW(f_null).After(fa1);
 
   }
 
-  EXPECT_CALL(*mock_runtime, release_use(read_use));
+  Expectation rel_read = EXPECT_RELEASE_USE(read_use);
+
+  EXPECT_RELEASE_FLOW(f_fetch).After(rel_read);
 
   mock_runtime->registered_tasks.clear();
 
@@ -257,6 +276,8 @@ TEST_P(TestCaptureMM, capture_MM) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace mock_backend;
+
+  // TODO release_flow expectations
 
   bool ro_capture = std::get<0>(GetParam());
   bool use_vector = std::get<1>(GetParam());
@@ -406,7 +427,9 @@ TEST_F(TestCreateWork, named_task) {
   using namespace darma_runtime::keyword_arguments_for_task_creation;
   using namespace mock_backend;
 
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(HasName(make_key("hello_task", "world", 42))));
+  EXPECT_CALL(*mock_runtime,
+    register_task_gmock_proxy(HasName(make_key("hello_task", "world", 42)))
+  );
 
   {
     create_work( name("hello_task", "world", 42),
