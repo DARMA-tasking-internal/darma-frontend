@@ -49,6 +49,8 @@
 
 #include <darma_types.h>
 
+#include "serialization_manager.h"
+
 namespace darma_runtime {
 namespace abstract {
 namespace frontend {
@@ -63,31 +65,8 @@ class IndexRange {
      *
      * @return
      */
-    virtual size_t size() const =0;
-
-    /** @todo
-     *
-     * @return
-     */
-    virtual size_t offset() const =0;
-
-    /** @todo
-     *
-     * @return
-     */
-    virtual bool contiguous() const =0;
-
-    /** @todo
-     *
-     * @return
-     */
-    virtual bool strided() const =0;
-
-    /** @todo
-     *
-     * @return
-     */
-    virtual size_t stride() const =0;
+    virtual SerializationManager const*
+    get_serialization_manager() const =0;
 
 };
 
