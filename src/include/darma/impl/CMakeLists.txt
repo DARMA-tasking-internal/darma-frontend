@@ -20,6 +20,12 @@ FILE(GLOB impl_serialization_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
 FILE(GLOB impl_util_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/util/*.h")
 
+FILE(GLOB impl_array_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/array/*.h")
+
+FILE(GLOB impl_collective_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/collective/*.h")
+
 
 install (FILES ${impl_HEADERS} DESTINATION include/darma/impl)
 install (FILES ${impl_key_HEADERS} DESTINATION include/darma/impl/key)
@@ -28,6 +34,9 @@ install (FILES ${impl_meta_HEADERS} DESTINATION include/darma/impl/meta)
 install (FILES ${impl_oo_HEADERS} DESTINATION include/darma/impl/oo)
 install (FILES ${impl_serialization_HEADERS} DESTINATION include/darma/impl/serialization)
 install (FILES ${impl_util_HEADERS} DESTINATION include/darma/impl/util)
+install (FILES ${impl_array_HEADERS} DESTINATION include/darma/impl/array)
+install (FILES ${impl_collective_HEADERS} DESTINATION include/darma/impl/collective)
+
 
 include (CheckCXXSourceCompiles)
 check_cxx_source_compiles("
