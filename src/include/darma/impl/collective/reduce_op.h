@@ -48,6 +48,8 @@
 
 #include <cstdlib>
 #include <type_traits>
+#include <set>
+#include <unordered_set>
 
 #include <darma/interface/frontend/reduce_operation.h>
 
@@ -87,26 +89,50 @@ class ReduceOperationWrapper
       )
     );
 
+    template <typename T>
+    using _has_unindexed_value_type_reduce_archetype = decltype(
+      std::declval<T>().reduce(
+        std::declval<value_type>(),
+        std::declval<std::add_lvalue_reference_t<value_type>>()
+      )
+    );
 
-    template <typename ValueTypeDeduced, typename _IgnoredCondition>
+    template <typename ValueTypeDeduced, typename _IgnoredCondition, typename _Ignored2>
     void _do_reduce(
-      std::true_type, // no value_type reduce
-      _IgnoredCondition, // has element_type reduce
+      _IgnoredCondition, // has value_type reduce
+      std::true_type, // has unindexed value_type reduce
+      std::false_type, // is_indexed
+      _Ignored2, // has element_type reduce
+      ValueTypeDeduced const& piece,
+      ValueTypeDeduced& dest,
+      size_t, size_t
+    ) const {
+      Op().reduce(
+        piece, dest
+      );
+    }
+
+    template <typename ValueTypeDeduced, typename _IgnoredCondition, typename _Ignored2>
+    void _do_reduce(
+      std::true_type, // has value_type reduce
+      _IgnoredCondition, // has unindexed value_type reduce
+      std::true_type, // is_indexed
+      _Ignored2, // has element_type reduce
       ValueTypeDeduced const& piece,
       ValueTypeDeduced& dest,
       size_t offset, size_t n_elem
     ) const {
-      auto sub_dest = idx_traits::get_element_range(dest, offset, n_elem);
       Op().reduce(
-        piece, sub_dest
+        piece, dest, offset, n_elem
       );
-      idx_traits::set_element_range(dest, sub_dest, offset, n_elem);
     }
 
     // avoid generation at class definition time
-    template <typename ValueTypeDeduced>
+    template <typename ValueTypeDeduced, typename _IgnoredCondition>
     void _do_reduce(
-      std::false_type, // no value_type reduce
+      std::false_type, // no indexed value_type reduce
+      _IgnoredCondition, // unindexed value_type reduce doesn't matter
+      std::true_type, // is_indexed
       std::true_type, // has element_type reduce
       ValueTypeDeduced const& piece,
       ValueTypeDeduced& dest,
@@ -146,10 +172,16 @@ class ReduceOperationWrapper
         _has_value_type_reduce_archetype, Op
       >::value>;
 
+      using _has_unindexed_value_type_reduce = tinympl::bool_<meta::is_detected<
+        _has_unindexed_value_type_reduce_archetype, Op
+      >::value>;
+
       assert(is_indexed or (offset == 0 and n_elem == 1));
 
       _do_reduce(
         _has_value_type_reduce{},
+        _has_unindexed_value_type_reduce{},
+        is_indexed_t{},
         _has_element_type_reduce{},
         *static_cast<value_type const*>(piece),
         *static_cast<value_type*>(dest),
@@ -173,10 +205,42 @@ struct Add {
 };
 
 
+struct Union {
+
+  static constexpr auto is_indexed = false;
+
+  template <typename T>
+  void reduce(std::set<T> const& src, std::set<T>& dest) const {
+    // This is horribly inefficient, but it's the only way I know to do it in place
+    for(auto&& elem : src) {
+      dest.insert(elem);
+    }
+  }
+
+  template <typename T>
+  void reduce(std::unordered_set<T> const& src, std::unordered_set<T>& dest) const {
+    // This is horribly inefficient, but it's the only way I know to do it in place
+    for(auto&& elem : src) {
+      dest.insert(elem);
+    }
+  }
+};
+
+
 // Can be overridden
 template <typename T>
 struct default_reduce_op
   : tinympl::identity<Add>
+{ };
+
+template <typename T>
+struct default_reduce_op<std::set<T>>
+  : tinympl::identity<Union>
+{ };
+
+template <typename T>
+struct default_reduce_op<std::unordered_set<T>>
+  : tinympl::identity<Union>
 { };
 
 } // end namespace darma_runtime
