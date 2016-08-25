@@ -1460,6 +1460,10 @@ namespace threads_backend {
     DEBUG_PRINT("publish finished, removing from handle %p\n",
                 publish->handle);
     handle_pubs[publish->handle].remove(publish);
+
+    if (!depthFirstExpand) {
+      release_node_p2(publish->flow);
+    }
   }
 
   /*virtual*/
@@ -1509,7 +1513,8 @@ namespace threads_backend {
       // insert into the set of delayed
 
       p->set_join(1);
-      f_in->inner->node = p;
+      f_in->inner->readers.push_back(p);
+      f_in->inner->readers_jc++;
 
       handle_pubs[handle].push_back(pub);
     } else {
@@ -1576,9 +1581,9 @@ namespace threads_backend {
 
     do {
       schedule_next_unit();
-      DEBUG_PRINT("produced = %ld, consumed = %ld\n",
-                  this->produced,
-                  this->consumed);
+      // DEBUG_PRINT("produced = %ld, consumed = %ld\n",
+      //             this->produced,
+      //             this->consumed);
     } while (this->produced != this->consumed
              || ready_local.size() != 0
              || ready_remote.size() != 0);
