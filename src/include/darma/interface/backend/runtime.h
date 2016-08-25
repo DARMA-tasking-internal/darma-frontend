@@ -79,6 +79,8 @@ class Runtime {
     typedef frontend::Task<types::concrete_task_t> task_t;
     typedef types::unique_ptr_template<task_t> task_unique_ptr;
 
+    //==========================================================================
+    // <editor-fold desc="Task handling">
 
     /** @brief Register a task to be run at some future time by the runtime
      * system.
@@ -91,7 +93,7 @@ class Runtime {
      *  @sa frontend::Task
      */
     virtual void
-    register_task( task_unique_ptr&& task ) = 0;
+    register_task(task_unique_ptr&& task) = 0;
 
     /** @brief register a task with a run<bool>() method.
      *
@@ -108,7 +110,14 @@ class Runtime {
      *
      */
     virtual bool
-    register_condition_task( task_unique_ptr&& task ) = 0;
+    register_condition_task(task_unique_ptr&& task) = 0;
+
+    // </editor-fold> end Task handling
+    //==========================================================================
+
+
+    //==========================================================================
+    // <editor-fold desc="Use handling">
 
     /** @brief Register a frontend::Use object
      *
@@ -139,142 +148,44 @@ class Runtime {
       frontend::Use* u
     ) =0;
 
-    /** @brief Make an initial Flow to be associated with the handle given as an argument.
-     *
-     *  The initial Flow will be used as the return value of u->get_in_flow() for the first
-     *  Use* u registered with write privileges that returns handle for u->get_handle()
-     *  (or any other handle with an equivalent return for get_key() to the one passed in here).
-     *  In most cases, this will derive from calls to initial_access in the application code.
-     *
-     *  @param handle A handle encapsulating a type and unique name (variable) for which the Flow
-     *                represents the initial state
-     *
-     */
-    virtual Flow*
-    make_initial_flow(
-      frontend::Handle* handle
-    ) =0;
-
-    /** @brief Make a fetching Flow to be associated with the handle given as an argument.
-     *
-     *  The fetching usage will be used as a return value of u->get_in_flow() for a Use* u
-     *  intended to fetch the data published with a particular handle key and version_key.
-     *  @param handle A handle object carrying the key identifer returned by get_key()
-     *  @param version_key A unique version for the key returned by handle->get_key()
-     */
-    virtual Flow*
-    make_fetching_flow(
-      frontend::Handle* handle,
-      types::key_t const& version_key
-    ) =0;
-
-    /** @brief Make a null Flow to be associated with the handle given as an argument.
-     *
-     *  A null usage as a return value of u->get_out_flow() for some Use* u is
-     *  intended to indicate that the data associated with that Use has no subsequent consumers
-     *  and can safely be deleted.  See release_use().
-     *  @param handle   The handle variable associate with the flow
-     *
-     */
-    virtual Flow*
-    make_null_flow(
-      frontend::Handle* handle
-    ) =0;
-
-    /** @todo update this
-     *  @brief Make a new input Flow that receives forwarded changes from another input Flow, the latter
-     *  of which is associated with a Use on which Modify immediate permissions were requested.
-     *
-     *  Flows are registered and released indirectly through calls to register_use()/release_use().
-     *  The translation layer will never share a given `Flow*` returned by the backend
-     *  across multiple Use instances.
-     *  The input Flow to make_forwarding_flow() must have been registered through a register_use() call,
-     *  but not yet released through a release_use() call.
-     *  make_forwarding_flow() can be called at most once with a given input.
-     *
-     *  @param from    An already initialized and registered flow returned from `make_*_flow`
-     *  @param purpose An enum indicating the relationship between the flows (purpose of the function).
-     *                 This information is provided for optimization purposes.
-     *                 In the current specification, this enum will always be ForwardingChanges
-     *  @return A new Flow object indicating that new data is the produced by immediate modifications
-     *          to the data from the Flow given as a parameter
-     */
-    virtual Flow*
-    make_forwarding_flow(
-      Flow* from
-    ) =0;
-
-    /** @todo update this
-     *  @brief Make a flow that will be logically (not necessarily immediately) subsequent to another Flow
-     *
-     *  Calls to make_next_flow() indicate a producer-consumer relationship between Flows.
-     *  make_next_flow() indicates that an operation consumes Flow* from and produces the returned Flow*.
-     *  A direct subsequent relationship should not be inferred here; the direct subsequent of input flow
-     * `from` will only be the output flow within the same Use if no other subsequents of the input use are
-     *  created and registered in its lifetime.
-     *  Flows are registered and released indirectly through calls to register_use()/release_use().
-     *  Flow instances cannot be shared across Use instances.
-     *  The input to make_next_flow() must have been registered with register_use(), but not yet released
-     *  through release_use().
-     *  make_next_flow() can be called at most once with a given input.
-     *
-     *  @param from    The flow consumed by an operation to produce the Flow returned by make_next_flow()
-     *  @param purpose An enum indicating the purpose of the next flow.  This information is provided for
-     *                 optimization purposes
-     *  @return A new Flow object indicating that new data will be produced by the data incoming
-     *          from the Flow given as a parameter
-     */
-    virtual Flow*
-    make_next_flow(
-      Flow* from
-    ) =0;
-
-    /** @todo document this
-     */
-    virtual void
-    establish_flow_alias(
-      Flow* from,
-      Flow* to
-    ) =0;
-
     /** @todo update this
      *  @brief Release a Use object previously registered with register_use().
      *
      *  Upon release, if the Use* u has immediate_permissions() of at least
-     *  Write and was not propagated into a Modify context (defined below),
-     *  the release allows
-     *  the runtime to match the producer flow to pending Use instances where
-     *  u->get_out_flow() is equivalent to the consumer pending->get_in_flow()
-     *  (with equivalence for Flow defined in flow.h).  The location provided to
-     *  u->get_data_pointer_reference() holds the data that satisfies the
-     *  pending->get_in_flow() if the Use requested immediate permissions of Write
-     *  or greater.
+     *  Write and was not propagated into a Modify context (defined below), the
+     *  release allows the runtime to match the producer flow to pending Use
+     *  instances where u->get_out_flow() is equivalent to the consumer
+     *  pending->get_in_flow() (with equivalence for Flow defined in flow.h).
+     *  The location provided to u->get_data_pointer_reference() holds the data
+     *  that satisfies the pending->get_in_flow() if the Use requested immediate
+     *  permissions of Write or greater.
      *
      *  The Use* u has been propagated into a Modify context if another Use* u2
-     *  has been registered where u2->get_out_flow() was constructed from
-     *  either make_next_flow(make_same_flow(u->get_in_flow())) or
+     *  has been registered where u2->get_out_flow() was constructed from either
+     *  make_next_flow(make_same_flow(u->get_in_flow())) or
      *  make_next_flow(make_forwarding_flow(u->get_in_flow())).
      *
      *  If the Use* u has scheduling_permissions() of at least Write but no
      *  immediate permissions and was not propagated into a Modify context by
-     *  the time it was released, the
-     *  Use* is an "alias" use.  As such, u->get_out_flow() only provides an
-     *  alias for u->get_in_flow().  u->get_in_flow() is the actual producer
-     *  flow that satisfies all tasks/uses depending on u->get_out_flow().
-     *  There will (almost always, unless the corresponding Handle is completely
-     *  unused in its lifetime) be some other task t2 with Use* u2 such that
-     *  u2->get_out_flow() and u->get_in_flow() are equivalent.  release_use(u2)
-     *  may have already been called, may be in process, or may not have been
-     *  called when release_use(u) is invoked. The backend runtime is
-     *  responsible for ensuring correct satisfaction of pending flows and
-     *  thread safety (atomicity) of release_use(...) with aliases.  An alias
-     *  use can correspond to another alias use, creating a chain of aliases
-     *  that the backend runtime must resolve.
+     *  the time it was released, the Use* is an "alias" use.  As such,
+     *  u->get_out_flow() only provides an alias for u->get_in_flow().
+     *  u->get_in_flow() is the actual producer flow that satisfies all
+     *  tasks/uses depending on u->get_out_flow(). There will (almost always,
+     *  unless the corresponding Handle is completely unused in its lifetime) be
+     *  some other task t2 with Use* u2 such that u2->get_out_flow() and
+     *  u->get_in_flow() are equivalent.  release_use(u2) may have already been
+     *  called, may be in process, or may not have been called when
+     *  release_use(u) is invoked. The backend runtime is responsible for
+     *  ensuring correct satisfaction of pending flows and thread safety
+     *  (atomicity) of release_use(...) with aliases.  An alias use can
+     *  correspond to another alias use, creating a chain of aliases that the
+     *  backend runtime must resolve.
      *
      *  If the return value of u->get_out_flow() is the same as or aliases a
      *  Flow created with make_null_flow() at the time release_use() is invoked,
      *  the data at this location may be safely deleted (unless the backend has
-     *  some other pending operations on that data, such as unfulfilled publishes).
+     *  some other pending operations on that data, such as unfulfilled
+     *  publishes).
      *
      *  If the Use* u has immediate_permissions() of Read, the release allows
      *  the runtime to clear anti-dependencies. For a task t2 with Write
@@ -296,6 +207,138 @@ class Runtime {
       frontend::Use* u
     ) =0;
 
+    // </editor-fold> end Use handling
+    //==========================================================================
+
+
+    //==========================================================================
+    // <editor-fold desc="Flow handling">
+
+    /** @brief Make an initial Flow to be associated with the handle given as an
+     *  argument.
+     *
+     *  The initial Flow will be used as the return value of u->get_in_flow()
+     *  for the first Use* u registered with write privileges that returns
+     *  handle for u->get_handle() (or any other handle with an equivalent
+     *  return for get_key() to the one passed in here). In most cases, this
+     *  will derive from calls to initial_access in the application code.
+     *
+     *  @param handle A handle encapsulating a type and unique name (variable)
+     *  for which the Flow represents the initial state
+     *
+     */
+    virtual Flow*
+    make_initial_flow(
+      frontend::Handle* handle
+    ) =0;
+
+    /** @brief Make a fetching Flow to be associated with the handle given as an
+     *  argument.
+     *
+     *  The fetching usage will be used as a return value of u->get_in_flow()
+     *  for a Use* u intended to fetch the data published with a particular
+     *  handle key and version_key.
+     *
+     *  @param handle A handle object carrying the key identifer returned by
+     *  get_key()
+     *
+     *  @param version_key A unique version for the key returned by
+     *  handle->get_key()
+     */
+    virtual Flow*
+    make_fetching_flow(
+      frontend::Handle* handle,
+      types::key_t const& version_key
+    ) =0;
+
+    /** @brief Make a null Flow to be associated with the handle given as an
+     *  argument.
+     *
+     *  A null usage as a return value of u->get_out_flow() for some Use* u is
+     *  intended to indicate that the data associated with that Use has no
+     *  subsequent consumers and can safely be deleted.  See release_use().
+     *
+     *  @param handle   The handle variable associate with the flow
+     *
+     */
+    virtual Flow*
+    make_null_flow(
+      frontend::Handle* handle
+    ) =0;
+
+    /** @todo update this
+     *  @brief Make a new input Flow that receives forwarded changes from
+     *  another input Flow, the latter of which is associated with a Use on
+     *  which Modify immediate permissions were requested.
+     *
+     *  Flows are registered and released indirectly through calls to
+     *  register_use()/release_use(). The translation layer will never share a
+     *  given `Flow*` returned by the backend across multiple Use instances. The
+     *  input Flow to make_forwarding_flow() must have been registered through a
+     *  register_use() call, but not yet released through a release_use() call.
+     *  make_forwarding_flow() can be called at most once with a given input.
+     *
+     *  @param from An already initialized and registered flow returned from
+     *  `make_*_flow`
+     *
+     *  @param purpose An enum indicating the relationship between the flows
+     *  (purpose of the function). This information is provided for optimization
+     *  purposes. In the current specification, this enum will always be
+     *  ForwardingChanges
+     *
+     *  @return A new Flow object indicating that new data is the produced by
+     *  immediate modifications to the data from the Flow given as a parameter
+     */
+    virtual Flow*
+    make_forwarding_flow(
+      Flow* from
+    ) =0;
+
+    /** @todo update this
+     *
+     *  @brief Make a flow that will be logically (not necessarily immediately)
+     *  subsequent to another Flow
+     *
+     *  Calls to make_next_flow() indicate a producer-consumer relationship
+     *  between Flows. make_next_flow() indicates that an operation consumes
+     *  Flow* from and produces the returned Flow*. A direct subsequent
+     *  relationship should not be inferred here; the direct subsequent of input
+     *  flow `from` will only be the output flow within the same Use if no other
+     *  subsequents of the input use are created and registered in its lifetime.
+     *  Flows are registered and released indirectly through calls to
+     *  register_use()/release_use(). Flow instances cannot be shared across Use
+     *  instances. The input to make_next_flow() must have been registered with
+     *  register_use(), but not yet released through release_use().
+     *  make_next_flow() can be called at most once with a given input.
+     *
+     *  @param from    The flow consumed by an operation to produce the Flow
+     *  returned by make_next_flow()
+     *
+     *  @param purpose An enum indicating the purpose of the next flow.  This
+     *  information is provided for optimization purposes
+     *
+     *  @return A new Flow object indicating that new data will be produced by
+     *  the data incoming from the Flow given as a parameter
+     */
+    virtual Flow*
+    make_next_flow(
+      Flow* from
+    ) =0;
+
+    /** @todo document this
+     */
+    virtual void
+    establish_flow_alias(
+      Flow* from,
+      Flow* to
+    ) =0;
+
+    // </editor-fold> end flow handling
+    //==========================================================================
+
+
+    //==========================================================================
+    // <editor-fold desc="publication, collectives, etc">
 
     /** @brief Indicate that the state of a Handle corresponding to a given Use
      *  should be accessible via a corresponding fetching usage with the same
@@ -321,6 +364,8 @@ class Runtime {
       types::key_t const& tag
     ) =0;
 
+    // </editor-fold> end publication, collectives, etc
+    //==========================================================================
 
     /** @brief signifies the end of the outer SPMD task from which
      *  darma_backend_initialize() was called.
@@ -336,8 +381,6 @@ class Runtime {
     virtual void
     finalize() =0;
 
-
-
     virtual ~Runtime() noexcept = default;
 
 };
@@ -347,9 +390,6 @@ class Context {
   public:
 
     typedef frontend::Task<types::concrete_task_t> task_t;
-
-    ////////////////////////////////////////////////////////////////////////////
-    // Context
 
     /** @brief Return the SPMD rank of this backend instance. */
     virtual size_t
@@ -385,30 +425,28 @@ class Context {
     virtual task_t*
     get_running_task() const = 0;
 
-    //
-    ////////////////////////////////////////////////////////////////////////////
+    virtual ~Context() noexcept = default;
 };
 
 class MemoryManager {
   public:
 
-    ////////////////////////////////////////////////////////////////////////////
-    // MemoryManager
-
-    /** @brief Request that the backend allocate a contiguous piece of memory
-     *  of size `n_bytes` and with the hinted attributes described by `details`.
+    /** @brief Request that the backend allocate a contiguous piece of memory of
+     *  size `n_bytes` and with the hinted attributes described by `details`.
      *
      *  @remark The backend is free to block, raise an exception, or even abort
      *  if the allocation is not possible.  However, it must not return an
      *  invalid pointer.
      *
      *  @param n_bytes The number of bytes to allocate
-     *  @param details Catagorical hints (for performance purposes) about the way
-     *  the memory to be allocated will be used in its lifetime
-     *  @return A pointer to the beginning of the allocated region.  Any accesses
-     *  to memory in the region `[rv, rv+n_bytes)` (where `rv` is the returned
-     *  pointer) must be valid until deallocated is called with the `rv` and the
-     *  same `n_bytes` argument
+     *
+     *  @param details Catagorical hints (for performance purposes) about the
+     *  way the memory to be allocated will be used in its lifetime
+     *
+     *  @return A pointer to the beginning of the allocated region.  Any
+     *  accesses to memory in the region `[rv, rv+n_bytes)` (where `rv` is the
+     *  returned pointer) must be valid until deallocated is called with the
+     *  `rv` and the same `n_bytes` argument
      */
     virtual void*
     allocate(
@@ -433,8 +471,6 @@ class MemoryManager {
       void* ptr,
       size_t n_bytes
     ) =0;
-
-    ////////////////////////////////////////////////////////////////////////////
 
     virtual ~MemoryManager() noexcept = default;
 
@@ -524,7 +560,6 @@ typedef Runtime runtime_t;
 extern void
 darma_backend_initialize(
   int& argc, char**& argv,
-  //runtime_t*& backend_runtime,
   runtime_t::task_unique_ptr&& top_level_task
 );
 

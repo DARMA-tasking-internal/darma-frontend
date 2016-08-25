@@ -90,7 +90,21 @@ namespace threads_backend {
   enum CollectiveType {
     AllReduce = 0
   };
+}
 
+namespace std {
+  template<>
+  struct hash<threads_backend::CollectiveType> {
+    size_t operator()(threads_backend::CollectiveType const& in) {
+      return std::hash<
+        std::common_type_t<size_t, threads_backend::CollectiveType>
+      >()(in);
+    }
+  };
+}
+
+
+namespace threads_backend {
   struct CollectiveState {
     size_t n_pieces{0};
     std::atomic<size_t> current_pieces{0};

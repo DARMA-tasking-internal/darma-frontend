@@ -1,0 +1,4 @@
+add_executable(single_rank_03 main.cc)
+target_link_libraries(single_rank_03 ${DARMA_BACKEND_LIBNAME})
+add_test_for_example(poisson_1d_thomasAlgorithm__single_rank_03 ${CMAKE_CURRENT_BINARY_DIR}/single_rank_03)
+
