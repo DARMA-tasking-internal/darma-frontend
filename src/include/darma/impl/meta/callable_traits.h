@@ -69,6 +69,34 @@ namespace meta {
 
 namespace _callable_traits_impl {
 
+template <size_t N, typename Callable>
+struct get_param_N
+  : get_param_N<N, decltype(&Callable::operator())>
+{ };
+
+template <size_t N, typename ReturnType, typename... Args>
+struct get_param_N<N, ReturnType (*)(Args...)>
+  : tinympl::identity<typename tinympl::variadic::at_t<N, Args...>>
+{ };
+
+template <size_t N, typename ClassType, typename ReturnType, typename... Args>
+struct get_param_N<N, ReturnType (ClassType::*)(Args...)>
+  : tinympl::identity<typename tinympl::variadic::at_t<N, Args...>>
+{ };
+
+// remove cv qualifiers from instance method callables
+template <size_t N, typename ClassType, typename ReturnType, typename... Args>
+struct get_param_N<N, ReturnType (ClassType::*)(Args...) const>
+  : get_param_N<N, ReturnType (ClassType::*)(Args...)> { };
+template <size_t N, typename ClassType, typename ReturnType, typename... Args>
+struct get_param_N<N, ReturnType (ClassType::*)(Args...) const volatile>
+  : get_param_N<N, ReturnType (ClassType::*)(Args...)> { };
+template <size_t N, typename ClassType, typename ReturnType, typename... Args>
+struct get_param_N<N, ReturnType (ClassType::*)(Args...) volatile>
+  : get_param_N<N, ReturnType (ClassType::*)(Args...)> { };
+
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="count_min_args">
 
