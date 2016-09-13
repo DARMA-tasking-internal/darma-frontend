@@ -94,28 +94,10 @@ void test_it_1(Callable&& c) {
       >
     >::template apply_value
   >::value, meta_fail);
-  // THESE ARE KNOWN TO NOT WORK (you have to do something more complicated for const)
-  //static_assert(callable_traits<Callable>::template arg_n_matches<deref_is_const, 2>::value, meta_fail);
-  //static_assert(callable_traits<Callable>::template arg_n_matches<deref_is_nonconst, 2>::value, meta_fail);
-  //static_assert(callable_traits<Callable>::template arg_n_matches<
-  //  lambda< std::is_const< std::remove_reference<_> > >::template apply_value, 2
-  //>::value, meta_fail);
-  //static_assert(callable_traits<Callable>::template arg_n_matches<
-  //  lambda<
-  //    not_< std::is_const< std::remove_reference<_>  >>
-  //  >::template apply_value, 2>::value, meta_fail
-  //);
-  //static_assert(lambda<
-  //    not_<std::is_const<_>>
-  //  >::template apply_value<int>::value,
-  //  "oops"
-  //);
-  //static_assert(not lambda<
-  //    not_<std::is_const<std::remove_reference<_>>>
-  //  >::template apply_value<int const&>::value,
-  //  "oops"
-  //);
-
+  static_assert(callable_traits<Callable>::template arg_n_matches<deref_is_const, 2>::value, meta_fail);
+  static_assert(callable_traits<Callable>::template arg_n_matches<
+    lambda< std::is_const< std::remove_reference<_> > >::template apply_value, 2
+  >::value, meta_fail);
 }
 
 template <typename Callable>
@@ -211,6 +193,8 @@ struct SomeBitField {
   uint8_t j : 6;
   bool k : 1;
 };
+
+static_assert(_callable_traits_impl::is_non_functor_callable<decltype(F<int>::by_value)>::value, meta_fail);
 
 TEST(TestCallableTraits, static2) {
   // With int
