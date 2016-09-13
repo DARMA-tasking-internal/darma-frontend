@@ -24,10 +24,15 @@ set_tests_properties(${test_name} PROPERTIES TIMEOUT 20
 endfunction()
 #
 add_unit_test(test_init_be)
-#add_unit_test(test_flows_be)
+add_unit_test(test_flows_be)
 add_unit_test(test_create_work_be)
 add_unit_test(test_publish_be)
 add_unit_test(test_create_condition_be)
 
 add_executable(run_all_coupled_backend_tests ${backendtestfiles})
+set_target_properties(run_all_coupled_backend_tests PROPERTIES COMPILE_DEFINITIONS "DARMA_COVERAGE")
 target_link_libraries(run_all_coupled_backend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
+
+if (DARMA_COVERAGE)
+setup_target_for_backend_coverage(backend_coupled_coverage run_all_coupled_backend_tests coverage_be_coupled)
+endif()

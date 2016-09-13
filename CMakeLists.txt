@@ -3,7 +3,9 @@ cmake_minimum_required (VERSION 2.8)
 # Silence an error about the version option to project
 # this will need to be changed if we ever bump the version to 3.0 and put thee
 # version stuff in the project command itself
-cmake_policy(SET CMP0048 OLD)
+if (NOT CMAKE_VERSION VERSION_LESS 3.0)
+  cmake_policy(SET CMP0048 OLD)
+endif()
 
 project (Darma)
 # The version number.
@@ -28,6 +30,15 @@ option (DARMA_GENERATE_OO_MACRO_FILES
     "Generate OO macro expansions for testing and debugging purposes in test_oo"
     OFF
 )
+
+option(DARMA_COVERAGE "Whether to setup coverage targets for tests" Off)
+
+if (DARMA_COVERAGE)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake-modules)
+include(CodeCoverage)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
+endif()
 
 add_subdirectory(src)
 

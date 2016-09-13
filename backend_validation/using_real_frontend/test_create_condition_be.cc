@@ -114,7 +114,7 @@ TEST_F(TestCreateConditionBE, trivial_false){
 }
 
 // test create_condition with an access handle
-// builds upon TestCreateWorkBE::ro_capture_MN()
+// builds upon TestCreateWorkBE::initial_access_alloc()
 TEST_F(TestCreateConditionBE, read_access){
   std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   {
@@ -129,6 +129,38 @@ TEST_F(TestCreateConditionBE, read_access){
     });
     // schedule a condition task
     bool ret = create_condition(reads(h),[=]{
+      // make sure this task runs last
+      EXPECT_EQ((*execution_order_check)++, 2);
+      // make sure we see the correct initial value
+      EXPECT_EQ(h.get_value(), 7);
+      return (h.get_value() == 7);
+    });
+    // check the return value for correctness
+    EXPECT_TRUE(ret);
+    darma_finalize();
+  }
+  // make sure condition task not still queued
+  ASSERT_TRUE(execution_order_check.unique());
+  // make sure condition task actually ran
+  ASSERT_EQ(execution_order_check->load(), 3);
+}
+
+// test create_condition with an access handle
+// builds upon TestCreateWorkBE::initial_access_alloc()
+TEST_F(TestCreateConditionBE, rw_access){
+  std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  {
+    darma_init(argc_, argv_);
+    auto h = initial_access<mydata>("a");
+    create_work([=]{
+      // make sure this task runs first
+      EXPECT_EQ((*execution_order_check)++, 0);
+      h.set_value(7);
+      // make sure other task didn't start running yet
+      EXPECT_EQ((*execution_order_check)++, 1);
+    });
+    // schedule a condition task
+    bool ret = create_condition([=]{
       // make sure this task runs last
       EXPECT_EQ((*execution_order_check)++, 2);
       // make sure we see the correct initial value
