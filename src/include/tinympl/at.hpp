@@ -74,6 +74,13 @@ struct at<I, sequence<Args...> > : variadic::at<I, Args...> {};
 template<std::size_t I, class Sequence>
 using at_t = typename at<I, as_sequence_t<Sequence> >::type;
 
+namespace types_only {
+
+template <typename WrappedSize, class Sequence>
+using at = tinympl::at<WrappedSize::value, Sequence>;
+
+} // end namespace types_only
+
 template <class Sequence>
 using front = at<0, Sequence>;
 template <class Sequence>
