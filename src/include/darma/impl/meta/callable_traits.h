@@ -69,44 +69,52 @@ namespace meta {
 
 namespace _callable_traits_impl {
 
+//==============================================================================
+// <editor-fold desc="get_param_N">
+
 template <size_t N, typename Callable>
 struct get_param_N
-  : get_param_N<N, decltype(&Callable::operator())>
-{ };
+  : get_param_N<N, decltype(&Callable::operator())> {
+};
 
 template <size_t N, typename ReturnType, typename... Args>
 struct get_param_N<N, ReturnType (*)(Args...)>
-  : tinympl::identity<typename tinympl::variadic::at_t<N, Args...>>
-{ };
+  : tinympl::identity<typename tinympl::variadic::at_t<N, Args...>> {
+};
 
 template <size_t N, typename ClassType, typename ReturnType, typename... Args>
 struct get_param_N<N, ReturnType (ClassType::*)(Args...)>
-  : tinympl::identity<typename tinympl::variadic::at_t<N, Args...>>
-{ };
+  : tinympl::identity<typename tinympl::variadic::at_t<N, Args...>> {
+};
 
 // remove cv qualifiers from instance method callables
 template <size_t N, typename ClassType, typename ReturnType, typename... Args>
 struct get_param_N<N, ReturnType (ClassType::*)(Args...) const>
-  : get_param_N<N, ReturnType (ClassType::*)(Args...)> { };
+  : get_param_N<N, ReturnType (ClassType::*)(Args...)> {
+};
 template <size_t N, typename ClassType, typename ReturnType, typename... Args>
 struct get_param_N<N, ReturnType (ClassType::*)(Args...) const volatile>
-  : get_param_N<N, ReturnType (ClassType::*)(Args...)> { };
+  : get_param_N<N, ReturnType (ClassType::*)(Args...)> {
+};
 template <size_t N, typename ClassType, typename ReturnType, typename... Args>
 struct get_param_N<N, ReturnType (ClassType::*)(Args...) volatile>
-  : get_param_N<N, ReturnType (ClassType::*)(Args...)> { };
+  : get_param_N<N, ReturnType (ClassType::*)(Args...)> {
+};
+
+// </editor-fold> end get_param_N
+//==============================================================================
 
 
-
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 // <editor-fold desc="count_min_args">
 
 template <typename F, size_t I = 0,  typename... Args>
 struct count_min_args
   // Double "::type" short-circuits recursion when possible
   : std::conditional_t<
-    is_callable_with_args<F, Args...>::value,
-    std::integral_constant<size_t, I>,
-    count_min_args<F, I+1, Args..., any_arg>
+      is_callable_with_args<F, Args...>::value,
+      std::integral_constant<size_t, I>,
+      count_min_args<F, I+1, Args..., any_arg>
     >::type
 { };
 
@@ -115,10 +123,10 @@ struct count_min_args<F, DARMA_META_MAX_CALLABLE_ARGS, Args...>
   : std::integral_constant<size_t, DARMA_META_MAX_CALLABLE_ARGS+1> { };
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
 
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 // <editor-fold desc="count_max_args">
 
 template <typename F, size_t I = 0, bool min_found = false, typename... Args>
@@ -140,10 +148,32 @@ struct count_max_args<F, DARMA_META_MAX_CALLABLE_ARGS, min_found, Args...>
   : std::integral_constant<size_t, DARMA_META_MAX_CALLABLE_ARGS+1> { };
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
 
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
+// <editor-fold desc="call_operator_is_overloaded">
+
+template <typename Functor>
+using call_operator_exists = tinympl::bool_<
+  count_min_args<Functor>::value != DARMA_META_MAX_CALLABLE_ARGS+1
+>;
+
+template <typename Functor>
+using fails_for_overloaded_functor_call_archetype = decltype(&Functor::operator());
+
+template <typename Functor>
+using call_operator_is_overloaded = tinympl::bool_<
+  call_operator_exists<Functor>::value
+  and not is_detected<fails_for_overloaded_functor_call_archetype, Functor>::value
+>;
+
+// </editor-fold>
+//==============================================================================
+
+
+
+//==============================================================================
 // <editor-fold desc="is_callable_replace_arg_n">
 
 template <typename F,
@@ -174,9 +204,9 @@ struct is_callable_replace_arg_n<F,
 { };
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 // <editor-fold desc="arg_n_is">
 
 // Be careful!  Things like is_const and is_reference don't work here because
@@ -193,10 +223,10 @@ struct arg_n_is
 { };
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
 
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 // <editor-fold desc="all_args_match">
 
 template <
@@ -221,10 +251,10 @@ struct all_args_match_impl<
 { };
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
 
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 // <editor-fold desc="_callable_traits_maybe_min_eq_max">
 
 
@@ -256,11 +286,12 @@ struct _callable_traits_maybe_min_eq_max<Callable, NArgs, NArgs> {
 };
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
 } // end namespace _callable_traits_impl
 
-// TODO make these work (or at least fail reasonably) for templated Callables and universal references
+//==============================================================================
+// <editor-fold desc="callable_traits">
 
 template <typename Callable>
 struct callable_traits
@@ -380,6 +411,9 @@ struct callable_traits
     { };
 
 };
+
+// </editor-fold>
+//==============================================================================
 
 } // end namespace meta
 

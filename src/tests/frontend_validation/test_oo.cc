@@ -391,6 +391,12 @@ struct MyClass_constructors
     some_private_field = initial_access<std::string>(private_key);
     some_public_field = initial_access<int>(public_key);
   }
+  // copy ctor
+  void operator()(darma_runtime::oo::darma_class_instance<MyClass> const& other) {
+    // copy ctor
+    FAIL() << "Copy ctor shouldn't be called; it's just defined to make MyClass"
+           << " copy constructible for detection test";
+  }
 };
 
 //----------------------------------------------------------------------------//
@@ -583,6 +589,17 @@ STATIC_ASSERT_TYPE_EQ(
     tinympl::vector<curly>,
     tinympl::vector<moe>
   >
+);
+
+//////////////////////////////////////////////////////////////////////////////////
+
+static_assert(
+  std::is_convertible<darma_runtime::meta::any_arg, MyClass>::value,
+  "any_arg should be convertible to a DARMA class type MyClass"
+);
+static_assert(
+  std::is_convertible<darma_runtime::meta::any_arg, MyOtherClass>::value,
+  "any_arg should be convertible to a DARMA class type MyOtherClass"
 );
 
 //typedef typename reads_<larry>::template subfield<curly> subfield_desc;
