@@ -75,7 +75,7 @@ namespace _callable_traits_impl {
 
 template <size_t N, typename Callable>
 struct get_param_N
-  : get_param_N<N, decltype(&Callable::operator())> { };
+  : get_param_N<N+1, decltype(&Callable::operator())> { };
 
 // function version
 template <size_t N, typename ReturnType, typename... Args>
@@ -92,20 +92,44 @@ template <size_t N, typename ReturnType, typename... Args>
 struct get_param_N<N, ReturnType (&)(Args...)>
   : get_param_N<N, ReturnType (*)(Args...)> { };
 
+// pointer-to-method callables
+template <size_t N, typename ClassParamType, typename... Args>
+struct _get_ptm_param_N
+  : std::conditional<
+      N == 0, tinympl::identity<ClassParamType>,
+      // delayed evaluation...
+      typename tinympl::lazy<tinympl::variadic::types_only::at>::template applied_to<
+        std::integral_constant<size_t, N-1>,
+        Args...
+      >
+    >::type
+{ };
+
+// remove cv qualifiers from pointer-to-method callables
 template <size_t N, typename ClassType, typename ReturnType, typename... Args>
 struct get_param_N<N, ReturnType (ClassType::*)(Args...)>
-  : tinympl::identity<typename tinympl::variadic::at_t<N, Args...>> { };
+  : _get_ptm_param_N<N, ClassType*, Args...> { };
 
-// remove cv qualifiers from instance method callables
 template <size_t N, typename ClassType, typename ReturnType, typename... Args>
 struct get_param_N<N, ReturnType (ClassType::*)(Args...) const>
-  : get_param_N<N, ReturnType (ClassType::*)(Args...)> { };
+  : _get_ptm_param_N<N, ClassType const*, Args...> { };
+
 template <size_t N, typename ClassType, typename ReturnType, typename... Args>
 struct get_param_N<N, ReturnType (ClassType::*)(Args...) const volatile>
-  : get_param_N<N, ReturnType (ClassType::*)(Args...)> { };
+  : _get_ptm_param_N<N, ClassType const volatile*, Args...> { };
+
 template <size_t N, typename ClassType, typename ReturnType, typename... Args>
 struct get_param_N<N, ReturnType (ClassType::*)(Args...) volatile>
-  : get_param_N<N, ReturnType (ClassType::*)(Args...)> { };
+  : _get_ptm_param_N<N, ClassType volatile*, Args...> { };
+
+// pointer-to-member callables
+template <size_t N, typename ClassType, typename ReturnType>
+struct get_param_N<N, ReturnType (ClassType::*)>
+  : tinympl::identity<ClassType>
+{
+  static_assert(N == 0, "Can't get argument other than the first one of a"
+    " pointer-to-data-member callable");
+};
 
 // </editor-fold> end get_param_N
 //==============================================================================
