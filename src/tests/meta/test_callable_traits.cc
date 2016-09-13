@@ -76,6 +76,7 @@ void test_it_1(Callable&& c) {
   using tinympl::not_;
   using tinympl::or_;
   static_assert(callable_traits<Callable>::n_args_min == 8, meta_fail);
+  //DARMA_TYPE_DISPLAY(typename callable_traits<Callable>::template arg_n<0>::type);
   static_assert(callable_traits<Callable>::template arg_n_matches<decay_is_integral, 0>::value, meta_fail);
   static_assert(callable_traits<Callable>::template arg_n_matches<decay_is_integral, 1>::value, meta_fail);
   static_assert(callable_traits<Callable>::template arg_n_matches<decay_is_integral, 2>::value, meta_fail);
@@ -157,8 +158,8 @@ struct fun2 {
 };
 
 TEST(TestCallableTraits, static1) {
-  test_it_1(fun1);
   test_it_1(fun2());
+  test_it_1(fun1);
   test_it_1([&](
     int, int&, int const&, int&&, std::string, std::string&, std::string const&, std::string&&
   ){ });
