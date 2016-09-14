@@ -2,6 +2,12 @@
 FILE(GLOB impl_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
 
+FILE(GLOB impl_array_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/array/*.h")
+
+FILE(GLOB impl_collective_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/collective/*.h")
+
 FILE(GLOB impl_key_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/key/*.h")
 
@@ -22,6 +28,8 @@ FILE(GLOB impl_util_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
 
 
 install (FILES ${impl_HEADERS} DESTINATION include/darma/impl)
+install (FILES ${impl_array_HEADERS} DESTINATION include/darma/impl/array)
+install (FILES ${impl_collective_HEADERS} DESTINATION include/darma/impl/collective)
 install (FILES ${impl_key_HEADERS} DESTINATION include/darma/impl/key)
 install (FILES ${impl_keyword_arguments_HEADERS} DESTINATION include/darma/impl/keyword_arguments)
 install (FILES ${impl_meta_HEADERS} DESTINATION include/darma/impl/meta)
