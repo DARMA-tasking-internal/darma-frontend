@@ -14,19 +14,11 @@ FILE(GLOB backend_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
 FILE(GLOB default_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/defaults/*.h")
 
+FILE(GLOB frontend_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/frontend/*.h")
 
-set (frontend_HEADERS
-frontend/frontend_fwd.h
-frontend/handle.h
-frontend/publication_details.h
-frontend/serialization_manager.h
-frontend/task.h
-frontend/types.h
-frontend/use.h)
-
-set (frontend_detail_HEADERS
-frontend/detail/crtp_impl.h
-frontend/detail/task.crtp_impl.h)
+FILE(GLOB frontend_detail_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/frontend/detail/*.h")
 
 
 install (FILES ${main_HEADERS} DESTINATION include/darma/interface)
