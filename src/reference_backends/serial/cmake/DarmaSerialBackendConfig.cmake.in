@@ -12,8 +12,8 @@ IF (EXISTS "${DARMA_BACKEND_CMAKE_DIR}/CMakeCache.txt")
    # In build tree, which is undesirable
    MESSAGE(FATAL_ERROR "FIND_PACKAGE found build tree instead of install tree.  Use -DDarmaSerialBackend_DIR= to point cmake to the install tree.")
 ELSE ()
-   SET (DARMA_BACKEND_INCLUDE_DIRS "${DARMA_BACKEND_CMAKE_DIR}/../include")
-   SET (DARMA_BACKEND_LIBRARY_DIRS "${DARMA_BACKEND_CMAKE_DIR}/../lib")
+   SET (DARMA_BACKEND_INCLUDE_DIRS ${DARMA_BACKEND_CMAKE_DIR}/../include @DARMA_FRONTEND_INSTALL_INCLUDE_DIR@)
+   SET (DARMA_BACKEND_LIBRARY_DIRS ${DARMA_BACKEND_CMAKE_DIR}/../lib)
 ENDIF ()
 
 # Get compiler and flags
