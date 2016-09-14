@@ -92,6 +92,8 @@ template <size_t N, typename ReturnType, typename... Args>
 struct get_param_N<N, ReturnType (&)(Args...)>
   : get_param_N<N, ReturnType (*)(Args...)> { };
 
+// Match the std::invoke argument numbering
+
 // pointer-to-method callables
 template <size_t N, typename ClassParamType, typename... Args>
 struct _get_ptm_param_N
