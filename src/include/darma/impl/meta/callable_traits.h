@@ -176,23 +176,23 @@ namespace _callable_traits_impl {
 //==============================================================================
 // <editor-fold desc="count_min_args">
 
-template <typename F, size_t MaxToTry = DARMA_META_MAX_CALLABLE_ARGS,
+template <typename F, size_t MaxToTryPlus1 = DARMA_META_MAX_CALLABLE_ARGS,
   // These should never be non-defaulted in calling code (only in recursion
   // from the implementation here)
-  typename... Args
+  size_t I = 0, typename... Args
 >
 struct count_min_args
   // Double "::type" short-circuits recursion when possible
   : std::conditional_t<
       is_callable_with_args<F, Args...>::value,
-      std::integral_constant<size_t, sizeof...(Args)>,
-      count_min_args<F, MaxToTry, Args..., any_arg>
+      std::integral_constant<size_t, I>,
+      count_min_args<F, MaxToTryPlus1, I+1, Args..., any_arg>
     >::type
 { };
 
-template <typename F, typename... Args>
-struct count_min_args<F, sizeof...(Args)-1, Args...>
-  : std::integral_constant<size_t, sizeof...(Args)> { };
+template <typename F, size_t MaxToTryPlus1, typename... Args>
+struct count_min_args<F, MaxToTryPlus1, MaxToTryPlus1, Args...>
+  : std::integral_constant<size_t, MaxToTryPlus1+1> { };
 
 // </editor-fold>
 //==============================================================================
@@ -291,7 +291,7 @@ struct callable_traits {
 
     static constexpr auto n_params_max = params_vector::size;
     static constexpr auto n_params_min =
-      _callable_traits_impl::count_min_args<Callable, n_params_max>::value;
+      _callable_traits_impl::count_min_args<Callable, n_params_max+1>::value;
 
     static_assert(n_params_min <= n_params_max,
       "Can't determine minimum number of parameters for Callable.  Check for"
