@@ -191,3 +191,49 @@ FUNCTION(SETUP_TARGET_FOR_COVERAGE_COBERTURA _targetname _testrunner _outputname
 	)
 
 ENDFUNCTION() # SETUP_TARGET_FOR_COVERAGE_COBERTURA
+
+# Param _targetname     The name of new the custom make target
+# Param _testrunner     The name of the target which runs the tests.
+#						MUST return ZERO always, even on errors.
+#						If not, no coverage report will be created!
+# Param _outputname     lcov output is generated as _outputname.info
+#                       HTML report is generated in _outputname/index.html
+# Optional fourth parameter is passed as arguments to _testrunner
+#   Pass them in list form, e.g.: "-j;2" for -j 2
+FUNCTION(SETUP_TARGET_FOR_BACKEND_COVERAGE _targetname _testrunner _outputname)
+
+	IF(NOT LCOV_PATH)
+		MESSAGE(FATAL_ERROR "lcov not found! Aborting...")
+	ENDIF() # NOT LCOV_PATH
+
+	IF(NOT GENHTML_PATH)
+		MESSAGE(FATAL_ERROR "genhtml not found! Aborting...")
+	ENDIF() # NOT GENHTML_PATH
+
+	# Setup target
+	ADD_CUSTOM_TARGET(${_targetname}
+
+		# Cleanup lcov
+		${LCOV_PATH} --directory . --zerocounters
+
+		# Run tests
+		COMMAND ${_testrunner} ${ARGV3}
+
+		# Capturing lcov counters and generating report
+		COMMAND ${LCOV_PATH} --directory . --capture --output-file ${_outputname}.info
+                COMMAND ${LCOV_PATH} --extract ${_outputname}.info '*/reference_backends/*' --output-file ${_outputname}.info.cleaned
+		COMMAND ${GENHTML_PATH} -o ${_outputname} ${_outputname}.info.cleaned
+		COMMAND ${CMAKE_COMMAND} -E remove ${_outputname}.info ${_outputname}.info.cleaned
+
+		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+		COMMENT "Resetting code coverage counters to zero.\nProcessing code coverage counters and generating report."
+	)
+
+	# Show info where to find the report
+	ADD_CUSTOM_COMMAND(TARGET ${_targetname} POST_BUILD
+		COMMAND ;
+		COMMENT "Open ./${_outputname}/index.html in your browser to view the coverage report."
+	)
+
+ENDFUNCTION() # SETUP_TARGET_FOR_BACKEND_COVERAGE
+
