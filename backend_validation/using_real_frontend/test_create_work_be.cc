@@ -93,8 +93,7 @@ TEST_F(TestCreateWorkBE, no_access){
 // test task with write permissions (mod capture when MN)
 // builds upon TestCreateWorkBE::no_access()
 // additionally calls runtime::make_initial_flow(), runtime::make_null_flow(),
-//   runtime::register_use(), runtime::make_same_flow(),
-//   runtime::make_next_flow(), runtime::release_use()
+//   runtime::register_use(), runtime::make_next_flow(), runtime::release_use()
 TEST_F(TestCreateWorkBE, initial_access_alloc){
   std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   {
@@ -229,7 +228,6 @@ TEST_F(TestCreateWorkBE, mod_capture_MM){
 // test task with read permissions (ro capture when MM)
 // builds upon TestCreateWorkBE::mod_capture_MN()
 // additionally calls runtime::make_forwarding_flow()
-//   and runtime::make_same_flow(purpose=OutputFlowOfReadOperation)
 TEST_F(TestCreateWorkBE, ro_capture_MM){
   std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   {
