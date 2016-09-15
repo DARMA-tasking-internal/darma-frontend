@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 2.8)
 # Silence an error about the version option to project
 # this will need to be changed if we ever bump the version to 3.0 and put thee
 # version stuff in the project command itself
-cmake_policy(SET CMP0048 OLD)
+cmake_policy(VERSION 2.8)
 
 project (DarmaBackendValidation)
 # The version number.
