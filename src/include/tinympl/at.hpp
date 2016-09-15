@@ -66,13 +66,23 @@ namespace tinympl {
  * \param Seq The input sequence
 */
 template<std::size_t I, class Sequence>
-struct at : at <I, as_sequence_t<Sequence> > {};
+struct at : at<I, as_sequence_t<Sequence>> {};
 
-template<std::size_t I, class ... Args>
+template<std::size_t I, class... Args>
 struct at<I, sequence<Args...> > : variadic::at<I, Args...> {};
 
 template<std::size_t I, class Sequence>
 using at_t = typename at<I, as_sequence_t<Sequence> >::type;
+
+template <class Default, std::size_t I, class Sequence>
+struct at_or : at_or<Default, I, as_sequence_t<Sequence>> {};
+
+template <class Default, std::size_t I, class... Args>
+struct at_or<Default, I, sequence<Args...>>
+  : variadic::at_or<Default, I, Args...> {};
+
+template <class Default, std::size_t I, class... Args>
+using at_or_t = typename at_or<Default, I, Args...>::type;
 
 namespace types_only {
 

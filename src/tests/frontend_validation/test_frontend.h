@@ -198,7 +198,7 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
     )), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce(SaveArg<0>(&use_ptr)); } \
   )
 
-#define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed, ...) \
+#define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed) \
   ::_impl::in_sequence_wrapper( \
     EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
       &fin, &fout, use_t::sched, use_t::immed \

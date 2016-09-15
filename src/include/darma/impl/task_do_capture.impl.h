@@ -102,19 +102,21 @@ TaskBase::do_capture(
 
       // Determine the capture type
 
-      // Unset the uncaptured bit
+      // Indicate that we've processed the uncaptured bit by resetting it
       source.captured_as_ &= ~AccessHandleBase::Uncaptured;
 
       typename AccessHandleT::capture_op_t capture_type;
 
       // first check for any explicit permissions
       bool is_marked_read_capture = (source.captured_as_ & AccessHandleBase::ReadOnly) != 0;
+      // Indicate that we've processed the ReadOnly bit by resetting it
+      source.captured_as_ &= ~AccessHandleBase::ReadOnly;
+
       if (is_marked_read_capture) {
         capture_type = AccessHandleT::ro_capture;
       }
       else {
         // Deduce capture type from state
-        assert((source.captured_as_ & AccessHandleBase::ReadOnly) == 0);
         switch (source.current_use_->use.scheduling_permissions_) {
           case HandleUse::Read: {
             capture_type = AccessHandleT::ro_capture;
@@ -286,11 +288,17 @@ TaskBase::do_capture(
 
       captured.var_handle_ = source.var_handle_;
 
+
     }
     else {
       // ignored
       captured.current_use_ = nullptr;
     }
+
+    // Assert that all of the captured_as info has been handled:
+    assert(source.captured_as_ == AccessHandleBase::Normal);
+    // And, just for good measure, that there aren't any flags set on captured
+    assert(captured.captured_as_ == AccessHandleBase::Normal);
 
   });
 }
