@@ -956,15 +956,19 @@ namespace threads_backend {
     auto const& key = handle->get_key();
     DataBlock* block = flow->fromFetch ? fetched_data[{version,key}] : data[{version,key}];
 
-    DEBUG_PRINT("force_destruct on flow %ld, state=%s\n",
-                PRINT_LABEL(flow),
-                PRINT_STATE(flow));
+    //assert(!block->forceDestruct);
 
-    handle
-      ->get_serialization_manager()
-      ->destroy(block->data);
+    if (!block->forceDestruct) {
+      DEBUG_PRINT("force_destruct on flow %ld, state=%s\n",
+                  PRINT_LABEL(flow),
+                  PRINT_STATE(flow));
 
-    block->forceDestruct = true;
+      handle
+        ->get_serialization_manager()
+        ->destroy(block->data);
+
+      block->forceDestruct = true;
+    }
   }
 
   void
@@ -1650,12 +1654,16 @@ namespace threads_backend {
                 handle_refs[handle]);
 
     if (handle_refs[handle] == 1) {
-      force_publish(
-        f_in
-      );
-      force_destruct(
-        f_in
-      );
+      // this logic is a hackish. essentially a publish is a necessary condition
+      // for a force_*
+      if (handle_pubs.find(handle) != handle_pubs.end()) {
+        force_publish(
+          f_in
+        );
+        force_destruct(
+          f_in
+        );
+      }
     }
 
     auto const flows_match = f_in == f_out;
