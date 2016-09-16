@@ -221,6 +221,11 @@ namespace threads_backend {
     > inverse_alias, task_forwards;
 
     std::unordered_map<
+      darma_runtime::abstract::frontend::Use*,
+      bool
+    > publish_uses;
+
+    std::unordered_map<
       std::shared_ptr<InnerFlow>,
       TraceLog*
     > taskTrace;

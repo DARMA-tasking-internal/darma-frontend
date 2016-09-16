@@ -168,7 +168,7 @@ namespace threads_backend {
     { }
 
     void execute() {
-      DEBUG_PRINT("executing publish node\n");
+      DEBUG_PRINT("=== EXECUTING === publish node\n");
 
       if (!pub->finished) {
         std::string genName = "";

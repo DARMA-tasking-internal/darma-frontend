@@ -388,6 +388,10 @@ namespace threads_backend {
   ) {
     flow->readers_jc++;
 
+    DEBUG_PRINT("add_reader_to_flow: %ld, state=%s\n",
+                PRINT_LABEL(flow),
+                PRINT_STATE(flow));
+
     if (flow->state == FlowWaiting) {
       flow->readers.push_back(node);
       // shared is incremented when readers are released
@@ -398,6 +402,10 @@ namespace threads_backend {
       assert(flow->shared_reader_count != nullptr);
       (*flow->shared_reader_count)++;
       // readers already released
+
+      DEBUG_PRINT("add_reader_to_flow: %ld INCREMENT shared\n",
+                  PRINT_LABEL_INNER(flow));
+
       return true;
     }
   }
@@ -1055,7 +1063,14 @@ namespace threads_backend {
         // increment shared count
         assert(flow->shared_reader_count != nullptr);
         (*flow->shared_reader_count)++;
+
+        DEBUG_PRINT("try_release_to_read: %ld INCREMENT shared\n",
+                    PRINT_LABEL_INNER(flow));
       }
+
+      DEBUG_PRINT("try_release_to_read: %ld, shared=%ld\n",
+                  PRINT_LABEL(flow),
+                  (*flow->shared_reader_count));
 
       flow->readers.clear();
       return true;
@@ -1188,6 +1203,9 @@ namespace threads_backend {
 
     flow->readers_jc--;
     (*flow->shared_reader_count)--;
+
+    DEBUG_PRINT("finish read: %ld DECREMENT shared\n",
+                PRINT_LABEL_INNER(flow));
 
     return flow->readers_jc == 0 && *flow->shared_reader_count == 0;
   }
@@ -1558,6 +1576,10 @@ namespace threads_backend {
 
     auto const flows_match = f_in == f_out;
 
+    if (publish_uses.find(u) != publish_uses.end()) {
+      return;
+    }
+
     if (flows_match &&
         f_out->state == FlowWaiting) {
       // do nothing
@@ -1670,9 +1692,10 @@ namespace threads_backend {
 
     const bool ready = p->ready();
 
-    DEBUG_PRINT("%p: publish_use: ptr=%p, key=%s, "
+    DEBUG_PRINT("%p: publish_use: shared=%ld, ptr=%p, key=%s, "
                 "version=%s, handle=%p, ready=%s, f_in=%lu, f_out=%lu\n",
                 f,
+                *f_in->shared_reader_count,
                 f->get_data_pointer_reference(),
                 PRINT_KEY(key),
                 PRINT_KEY(version),
@@ -1683,16 +1706,23 @@ namespace threads_backend {
 
     assert(f_in == f_out);
 
+    // save that this use is a publish so the release is meaningless
+    publish_uses[f] = true;
+
     auto const flow_in_reading = add_reader_to_flow(
       p,
       f_in
     );
 
+    // always add this so we can call cleanup regardless of when the publish
+    // node is executed
+    handle_pubs[handle].push_back(pub);
+
     if (flow_in_reading) {
       p->execute();
+      p->cleanup();
     } else {
       p->set_join(1);
-      handle_pubs[handle].push_back(pub);
     }
 
     assert(ready || !depthFirstExpand);
