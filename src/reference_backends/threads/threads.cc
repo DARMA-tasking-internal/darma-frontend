@@ -413,7 +413,8 @@ namespace threads_backend {
     const bool ready = f_in->ready;
 
     DEBUG_PRINT("%p: register use: ready=%s, key=%s, version=%s, "
-                "handle=%p [in={%ld,ref=%ld,state=%s},out={%ld,ref=%ld,state=%s}], sched=%d, immed=%d\n",
+                "handle=%p [in={%ld,ref=%ld,state=%s},out={%ld,ref=%ld,state=%s}], "
+                "sched=%d, immed=%d\n",
                 u,
                 PRINT_BOOL_STR(ready),
                 PRINT_KEY(key),
@@ -428,6 +429,11 @@ namespace threads_backend {
                 u->scheduling_permissions(),
                 u->immediate_permissions()
                );
+
+    if (f_in->isForward) {
+      auto const flows_match = f_in == f_out;
+      f_in->isWriteForward = !flows_match;
+    }
 
     if (!f_in->fromFetch) {
       const bool data_exists = data.find({version,key}) != data.end();
@@ -461,6 +467,7 @@ namespace threads_backend {
       }
 
       f_in->shared_reader_count = &data[{version,key}]->shared_ref_count;
+      f_out->shared_reader_count = &data[{version,key}]->shared_ref_count;
     } else {
       const bool data_exists = fetched_data.find({version,key}) != fetched_data.end();
       if (data_exists) {
@@ -478,7 +485,12 @@ namespace threads_backend {
       }
 
       f_in->shared_reader_count = &fetched_data[{version,key}]->shared_ref_count;
+      f_out->shared_reader_count = &fetched_data[{version,key}]->shared_ref_count;
     }
+
+    DEBUG_PRINT("flow %ld, shared_reader_count=%p\n",
+                PRINT_LABEL(f_in),
+                f_in->shared_reader_count);
 
     // count references to a given handle
     handle_refs[handle]++;
@@ -808,6 +820,8 @@ namespace threads_backend {
     }
 
     f->forward = f_forward;
+
+    f_forward->isForward = true;
     f_forward->handle = f->handle;
     f_forward->fromFetch = f->fromFetch;
     return f_forward;
@@ -1545,8 +1559,7 @@ namespace threads_backend {
 
     // enable next forward flow
     if (f_in->forward) {
-      // todo: work this out
-      f_in->forward->state = FlowWriteReady;
+      f_in->forward->state = f_in->forward->isWriteForward ? FlowWriteReady : FlowReadReady;
       f_in->forward->ready = true;
     }
 
