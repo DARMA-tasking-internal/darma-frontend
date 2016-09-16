@@ -1660,13 +1660,20 @@ namespace threads_backend {
 
     auto const flows_match = f_in == f_out;
 
+    // track release of publish uses so that they do not count toward a read
+    // release
     if (publish_uses.find(u) != publish_uses.end()) {
-      // TODO: remove these
+      assert(publish_uses[u] > 0);
+      publish_uses[u]--;
+      if (publish_uses[u] == 0) {
+        publish_uses.erase(publish_uses.find(u));
+      }
       return;
     }
 
     if (flows_match &&
         f_out->state == FlowWaiting) {
+      assert(0);
       // do nothing
       // in the case it's a publish that will transition itself
     } else if (flows_match) {
@@ -1792,7 +1799,7 @@ namespace threads_backend {
     assert(f_in == f_out);
 
     // save that this use is a publish so the release is meaningless
-    publish_uses[f] = true;
+    publish_uses[f]++;
 
     auto const flow_in_reading = add_reader_to_flow(
       p,

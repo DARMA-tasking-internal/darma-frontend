@@ -217,7 +217,7 @@ namespace threads_backend {
 
     std::unordered_map<
       darma_runtime::abstract::frontend::Use*,
-      bool
+      size_t
     > publish_uses;
 
     std::unordered_map<
