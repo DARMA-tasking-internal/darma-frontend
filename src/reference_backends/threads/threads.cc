@@ -518,6 +518,10 @@ namespace threads_backend {
       f_out->shared_reader_count = &fetched_data[{version,key}]->shared_ref_count;
     }
 
+    // save keys
+    f_in->key = key;
+    f_out->key = key;
+
     DEBUG_PRINT("flow %ld, shared_reader_count=%p\n",
                 PRINT_LABEL(f_in),
                 f_in->shared_reader_count);
@@ -919,46 +923,83 @@ namespace threads_backend {
   }
 
   void
-  ThreadsRuntime::cleanup_handle(std::shared_ptr<InnerFlow> flow) {
+  ThreadsRuntime::force_publish(
+    std::shared_ptr<InnerFlow> flow
+  ) {
+    auto const* const handle = flow->handle;
+
+    assert(handle_refs[handle] == 1);
+
+    if (handle_pubs.find(handle) != handle_pubs.end()) {
+      for (auto pub : handle_pubs[handle]) {
+        pub->node->execute();
+        pub->finished = true;
+
+        // explicitly don't call clean up because we do it manually
+        // TODO: fix this problem with iterator
+
+        DEBUG_PRINT("force_publish: flow %ld, state=%s, handle=%p\n",
+                    PRINT_LABEL(flow),
+                    PRINT_STATE(flow),
+                    handle);
+      }
+      handle_pubs.erase(handle);
+    }
+  }
+
+  void
+  ThreadsRuntime::force_destruct(
+    std::shared_ptr<InnerFlow> flow
+  ) {
+    auto const* const handle = flow->handle;
+    auto const& version = flow->version_key;
+    auto const& key = handle->get_key();
+    DataBlock* block = flow->fromFetch ? fetched_data[{version,key}] : data[{version,key}];
+
+    DEBUG_PRINT("force_destruct on flow %ld, state=%s\n",
+                PRINT_LABEL(flow),
+                PRINT_STATE(flow));
+
+    handle
+      ->get_serialization_manager()
+      ->destroy(block->data);
+
+    block->forceDestruct = true;
+  }
+
+  void
+  ThreadsRuntime::cleanup_handle(
+    std::shared_ptr<InnerFlow> flow
+  ) {
     auto const* const handle = flow->handle;
 
     handle_refs[handle]--;
 
     DEBUG_PRINT("cleanup_handle identity: %p to %p: refs=%d\n",
                 flow->handle,
-                flow->alias->handle,
+                flow->alias ? flow->alias->handle : nullptr,
                 handle_refs[handle]);
 
-    assert(handle == flow->alias->handle);
     assert(handle_refs[handle] >= 0);
 
     if (handle_refs[handle] == 0) {
-      if (handle_pubs.find(handle) != handle_pubs.end()) {
-        for (auto pub : handle_pubs[handle]) {
-          pub->node->execute();
-          pub->finished = true;
-
-          // explicitly don't call clean up because we do it manually
-          // TODO: fix this problem with iterator
-
-          DEBUG_PRINT("cleanup handle: force publish of handle = %p\n", handle);
-        }
-
-        handle_pubs.erase(handle);
-      }
-      delete_handle_data(handle,
-                         flow->version_key,
-                         handle->get_key(),
-                         flow->fromFetch);
+      delete_handle_data(
+        handle,
+        flow->version_key,
+        flow->key,
+        flow->fromFetch
+      );
       handle_refs.erase(handle);
     }
   }
 
   void
-  ThreadsRuntime::delete_handle_data(darma_runtime::abstract::frontend::Handle const* const handle,
-                                     const types::key_t version,
-                                     const types::key_t key,
-                                     const bool fromFetch) {
+  ThreadsRuntime::delete_handle_data(
+    darma_runtime::abstract::frontend::Handle const* const handle,
+    types::key_t const& version,
+    types::key_t const& key,
+    bool const fromFetch
+  ) {
     DataBlock* prev = nullptr;
     size_t ref = 0;
 
@@ -981,14 +1022,17 @@ namespace threads_backend {
     }
 
     if (prev && ref == 0) {
-      DEBUG_PRINT("delete handle data: fromFetch=%s, refs=%ld\n",
+      DEBUG_PRINT("delete handle data: fromFetch=%s, refs=%ld, forcedDestruct=%s\n",
                   PRINT_BOOL_STR(fromFetch),
-                  ref);
+                  ref,
+                  PRINT_BOOL_STR(prev->forceDestruct));
 
-      // call the destructor
-      handle
-        ->get_serialization_manager()
-        ->destroy(prev->data);
+      if (!prev->forceDestruct) {
+        // call the destructor
+        handle
+          ->get_serialization_manager()
+          ->destroy(prev->data);
+      }
       delete prev;
     }
   }
@@ -1605,9 +1649,19 @@ namespace threads_backend {
                 PRINT_STATE(f_out),
                 handle_refs[handle]);
 
+    if (handle_refs[handle] == 1) {
+      force_publish(
+        f_in
+      );
+      force_destruct(
+        f_in
+      );
+    }
+
     auto const flows_match = f_in == f_out;
 
     if (publish_uses.find(u) != publish_uses.end()) {
+      // TODO: remove these
       return;
     }
 

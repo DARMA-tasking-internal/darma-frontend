@@ -124,6 +124,7 @@ namespace threads_backend {
     void* data;
     size_t shared_ref_count = 0;
     size_t refs = 0;
+    bool forceDestruct = false;
 
     DataBlock(const DataBlock& in) = delete;
 

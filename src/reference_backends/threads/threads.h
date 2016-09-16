@@ -273,13 +273,27 @@ namespace threads_backend {
     add_local(std::shared_ptr<GraphNode> task);
 
     void
-    cleanup_handle(std::shared_ptr<InnerFlow> flow);
+    cleanup_handle(
+      std::shared_ptr<InnerFlow> flow
+    );
 
     void
-    delete_handle_data(darma_runtime::abstract::frontend::Handle const* const handle,
-                       const types::key_t version,
-                       const types::key_t key,
-                       const bool fromFetch);
+    force_publish(
+      std::shared_ptr<InnerFlow> flow
+    );
+
+    void
+    force_destruct(
+      std::shared_ptr<InnerFlow> flow
+    );
+
+    void
+    delete_handle_data(
+      darma_runtime::abstract::frontend::Handle const* const handle,
+      types::key_t const& version,
+      types::key_t const& key,
+      bool const fromFetch
+    );
 
     void
     findAddTraceDep(std::shared_ptr<InnerFlow> flow,

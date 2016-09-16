@@ -65,7 +65,8 @@ namespace threads_backend {
     std::shared_ptr<InnerFlow> forward, next;
     types::key_t version_key, key;
     darma_runtime::abstract::frontend::Handle* handle = nullptr;
-    bool ready, isNull, isFetch, fromFetch, isCollective, isForward, isWriteForward, fetcherAdded;
+    bool ready, isNull, isFetch, fromFetch, isCollective, isForward;
+    bool  isWriteForward, fetcherAdded;
 
     size_t* shared_reader_count = nullptr;
 
