@@ -546,7 +546,11 @@ namespace threads_backend {
   /*virtual*/
   flow_t
   ThreadsRuntime::make_initial_flow(darma_runtime::abstract::frontend::Handle* handle) {
-    auto f = std::make_shared<InnerFlow>(handle);
+    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [](InnerFlow* flow){
+      DEBUG_PRINT("make_initial_flow: deleter running %ld\n",
+                  PRINT_LABEL(flow));
+      delete flow;
+    });
     f->state = FlowWriteReady;
     f->ready = true;
     f->handle = handle;
@@ -794,7 +798,11 @@ namespace threads_backend {
                                      types::key_t const& version_key) {
     DEBUG_VERBOSE_PRINT("make fetching flow\n");
 
-    auto f = std::make_shared<InnerFlow>(handle);
+    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [](InnerFlow* flow){
+      DEBUG_PRINT("make_fetching_flow: deleter running %ld\n",
+                  PRINT_LABEL(flow));
+      delete flow;
+    });
 
     handle_refs[handle]++;
 
@@ -812,7 +820,12 @@ namespace threads_backend {
   flow_t
   ThreadsRuntime::make_null_flow(darma_runtime::abstract::frontend::Handle* handle) {
     DEBUG_VERBOSE_PRINT("make null flow\n");
-    auto f = std::make_shared<InnerFlow>(handle);
+
+    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [](InnerFlow* flow){
+      DEBUG_PRINT("make_null_flow: deleter running %ld\n",
+                  PRINT_LABEL(flow));
+      delete flow;
+    });
 
     f->isNull = true;
     f->handle = handle;
@@ -835,7 +848,11 @@ namespace threads_backend {
   ThreadsRuntime::make_forwarding_flow(flow_t& f) {
     DEBUG_VERBOSE_PRINT("make forwarding flow\n");
 
-    auto f_forward = std::make_shared<InnerFlow>(nullptr);
+    auto f_forward = std::shared_ptr<InnerFlow>(new InnerFlow(nullptr), [](InnerFlow* flow){
+      DEBUG_PRINT("make_forwarding_flow: deleter running %ld\n",
+                  PRINT_LABEL(flow));
+      delete flow;
+    });
 
     DEBUG_PRINT("forwarding flow from %lu to %lu\n",
                 PRINT_LABEL(f),
@@ -885,7 +902,11 @@ namespace threads_backend {
   ThreadsRuntime::make_next_flow(flow_t& f) {
     DEBUG_VERBOSE_PRINT("make next flow: (from=%p)\n", from);
 
-    auto f_next = std::make_shared<InnerFlow>(nullptr);
+    auto f_next = std::shared_ptr<InnerFlow>(new InnerFlow(nullptr), [](InnerFlow* flow){
+      DEBUG_PRINT("make_next_flow: deleter running %ld\n",
+                  PRINT_LABEL(flow));
+      delete flow;
+    });
 
     f->next = f_next;
     f_next->handle = f->handle;
@@ -908,10 +929,10 @@ namespace threads_backend {
 
     DEBUG_PRINT("cleanup_handle identity: %p to %p: refs=%d\n",
                 flow->handle,
-                alias[flow]->handle,
+                flow->alias->handle,
                 handle_refs[handle]);
 
-    assert(handle == alias[flow]->handle);
+    assert(handle == flow->alias->handle);
     assert(handle_refs[handle] >= 0);
 
     if (handle_refs[handle] == 0) {
@@ -985,7 +1006,8 @@ namespace threads_backend {
                 PRINT_LABEL(f_to),
                 f_to->ref);
 
-    alias[f_from] = f_to;
+    f_from->alias = f_to;
+    //alias[f_from] = f_to;
 
     if (getTrace()) {
       inverse_alias[f_to] = f_from;
@@ -1032,10 +1054,10 @@ namespace threads_backend {
 
   bool
   ThreadsRuntime::test_alias_null(std::shared_ptr<InnerFlow> flow) {
-    if (alias[flow]->isNull) {
+    if (flow->alias->isNull) {
       // DEBUG_PRINT("remove alias to null %ld to %ld\n",
       //             PRINT_LABEL_INNER(flow),
-      //             PRINT_LABEL_INNER(alias[flow]));
+      //             PRINT_LABEL_INNER(flow->alias));
       if (*flow->shared_reader_count == 0) {
         // TODO: GC
         cleanup_handle(flow);
@@ -1096,7 +1118,8 @@ namespace threads_backend {
   ThreadsRuntime::flow_has_alias(
     std::shared_ptr<InnerFlow> flow
   ) {
-    return alias.find(flow) != alias.end();
+    return flow->alias != nullptr;
+    //return alias.find(flow) != alias.end();
   }
 
   std::tuple<
@@ -1118,27 +1141,27 @@ namespace threads_backend {
     if (flow_has_alias(flow)) {
       // TODO: swtich to test_null
       if (test_alias_null(flow)) {
-        return {alias[flow],false};
+        return {flow->alias,false};
       }
 
       assert(flow->state == FlowReadOnlyReady);
 
       DEBUG_PRINT("try_release_alias_to_read: aliased flow=%ld, state=%s, ref=%ld\n",
-                  PRINT_LABEL(alias[flow]),
-                  PRINT_STATE(alias[flow]),
-                  alias[flow]->ref);
+                  PRINT_LABEL(flow->alias),
+                  PRINT_STATE(flow->alias),
+                  flow->alias->ref);
 
-      if (alias[flow]->state == FlowWaiting) {
-        assert(alias[flow]->state == FlowWaiting);
-        assert(alias[flow]->ref > 0);
+      if (flow->alias->state == FlowWaiting) {
+        assert(flow->alias->state == FlowWaiting);
+        assert(flow->alias->ref > 0);
 
-        alias[flow]->ref--;
+        flow->alias->ref--;
 
         // is conditional needed here on ref?
-        assert(alias[flow]->ref == 0);
+        assert(flow->alias->ref == 0);
 
-        auto const has_read_phase = try_release_to_read(alias[flow]);
-        auto const ret = try_release_alias_to_read(alias[flow]);
+        auto const has_read_phase = try_release_to_read(flow->alias);
+        auto const ret = try_release_alias_to_read(flow->alias);
         return
           {
             std::get<0>(ret),
@@ -1146,15 +1169,15 @@ namespace threads_backend {
           };
       } else {
         assert(
-          alias[flow]->state == FlowReadOnlyReady ||
-          alias[flow]->state == FlowReadReady
+          flow->alias->state == FlowReadOnlyReady ||
+          flow->alias->state == FlowReadReady
         );
-        assert(alias[flow]->shared_reader_count != nullptr);
+        assert(flow->alias->shared_reader_count != nullptr);
 
         auto const has_outstanding_reads =
-          alias[flow]->readers_jc != 0 &&
-          *alias[flow]->shared_reader_count == 0;
-        auto const ret = try_release_alias_to_read(alias[flow]);
+          flow->alias->readers_jc != 0 &&
+          *flow->alias->shared_reader_count == 0;
+        auto const ret = try_release_alias_to_read(flow->alias);
 
         return
           {
@@ -1472,16 +1495,16 @@ namespace threads_backend {
   ThreadsRuntime::cleanup_alias(
     std::shared_ptr<InnerFlow> flow
   ) {
-    auto const has_alias = flow_has_alias(flow);
+    // auto const has_alias = flow_has_alias(flow);
 
-    DEBUG_PRINT("cleanup_alias: %ld, has_alias=%s\n",
-                PRINT_LABEL(flow),
-                PRINT_BOOL_STR(has_alias));
+    // DEBUG_PRINT("cleanup_alias: %ld, has_alias=%s\n",
+    //             PRINT_LABEL(flow),
+    //             PRINT_BOOL_STR(has_alias));
 
-    if (has_alias) {
-      cleanup_alias(alias[flow]);
-      alias.erase(alias.find(flow));
-    }
+    // if (has_alias) {
+    //   cleanup_alias(alias[flow]);
+    //   alias.erase(alias.find(flow));
+    // }
   }
 
   void

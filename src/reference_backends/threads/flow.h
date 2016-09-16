@@ -84,6 +84,8 @@ namespace threads_backend {
     // hack to put dfs info in here
     std::shared_ptr<CollectiveNode> dfsColNode;
 
+    std::shared_ptr<InnerFlow> alias = nullptr;
+
     InnerFlow(const InnerFlow& in) = default;
 
     InnerFlow(darma_runtime::abstract::frontend::Handle* handle_)
