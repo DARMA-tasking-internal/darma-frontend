@@ -1540,6 +1540,7 @@ namespace threads_backend {
     if (flows_match &&
         f_out->state == FlowWaiting) {
       // do nothing
+      // in the case it's a publish that will transition itself
     } else if (flows_match) {
       transition_after_read(f_out);
     } else {
@@ -1666,6 +1667,9 @@ namespace threads_backend {
     assert(f_in == f_out);
 
     if (flow_in_read) {
+      f_in->readers_jc++;
+      assert(f_in->shared_reader_count != nullptr);
+      (*f_in->shared_reader_count)++;
       p->execute();
     } else {
       f_in->readers_jc++;
