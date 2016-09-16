@@ -360,14 +360,13 @@ namespace threads_backend {
       auto const flows_match = f_in == f_out;
 
       if (flows_match) {
-        f_in->readers_jc++;
-        if (f_in->state == FlowWaiting) {
-          f_in->readers.push_back(t);
+        auto const flow_in_reading = add_reader_to_flow(
+          t,
+          f_in
+        );
+
+        if (!flow_in_reading) {
           dep_count++;
-        } else {
-          // increment shared count
-          assert(f_in->shared_reader_count != nullptr);
-          (*f_in->shared_reader_count)++;
         }
       } else {
         if (f_in->state == FlowWaiting ||
@@ -379,6 +378,28 @@ namespace threads_backend {
     }
 
     return dep_count;
+  }
+
+  template <typename NodeType>
+  bool
+  ThreadsRuntime::add_reader_to_flow(
+    std::shared_ptr<NodeType> node,
+    std::shared_ptr<InnerFlow> flow
+  ) {
+    flow->readers_jc++;
+
+    if (flow->state == FlowWaiting) {
+      flow->readers.push_back(node);
+      // shared is incremented when readers are released
+      return false;
+    } else {
+      assert(flow->state == FlowReadReady ||
+             flow->state == FlowReadOnlyReady);
+      assert(flow->shared_reader_count != nullptr);
+      (*flow->shared_reader_count)++;
+      // readers already released
+      return true;
+    }
   }
 
   void
@@ -1660,20 +1681,16 @@ namespace threads_backend {
                 PRINT_LABEL(f_in),
                 PRINT_LABEL(f_out));
 
-    auto const flow_in_read =
-      f_in->state == FlowReadReady ||
-      f_in->state == FlowReadOnlyReady;
-
     assert(f_in == f_out);
 
-    if (flow_in_read) {
-      f_in->readers_jc++;
-      assert(f_in->shared_reader_count != nullptr);
-      (*f_in->shared_reader_count)++;
+    auto const flow_in_reading = add_reader_to_flow(
+      p,
+      f_in
+    );
+
+    if (flow_in_reading) {
       p->execute();
     } else {
-      f_in->readers_jc++;
-      f_in->readers.push_back(p);
       p->set_join(1);
       handle_pubs[handle].push_back(pub);
     }

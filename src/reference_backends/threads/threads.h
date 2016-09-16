@@ -308,6 +308,13 @@ namespace threads_backend {
       std::shared_ptr<InnerFlow> flow
     );
 
+    template <typename NodeType>
+    bool
+    add_reader_to_flow(
+      std::shared_ptr<NodeType> node,
+      std::shared_ptr<InnerFlow> flow
+    );
+
     void
     transition_after_read(
       std::shared_ptr<InnerFlow> flow
