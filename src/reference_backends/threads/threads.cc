@@ -364,6 +364,10 @@ namespace threads_backend {
         if (f_in->state == FlowWaiting) {
           f_in->readers.push_back(t);
           dep_count++;
+        } else {
+          // increment shared count
+          assert(f_in->shared_reader_count != nullptr);
+          (*f_in->shared_reader_count)++;
         }
       } else {
         if (f_in->state == FlowWaiting ||
@@ -455,6 +459,8 @@ namespace threads_backend {
                     PRINT_KEY(f_out->version_key));
         block->refs++;
       }
+
+      f_in->shared_reader_count = &data[{version,key}]->shared_ref_count;
     } else {
       const bool data_exists = fetched_data.find({version,key}) != fetched_data.end();
       if (data_exists) {
@@ -470,6 +476,8 @@ namespace threads_backend {
         u->get_data_pointer_reference() = block->data;
         block->refs++;
       }
+
+      f_in->shared_reader_count = &fetched_data[{version,key}]->shared_ref_count;
     }
 
     // count references to a given handle
@@ -926,12 +934,7 @@ namespace threads_backend {
       f_to->alias++;
     }
 
-    // build inverse alias map tracing
-    // TODO: free/remove entries from
-    // this inverted alias map when appropiate
-    if (getTrace()) {
-      inverse_alias[f_to] = f_from;
-    }
+    inverse_alias[f_to] = f_from;
 
     // creating subsequent allowing release
     if (f_from->state == FlowReadReady &&
@@ -1052,6 +1055,10 @@ namespace threads_backend {
                     PRINT_LABEL_INNER(flow),
                     flow->readers.size());
         reader->release();
+
+        // increment shared count
+        assert(flow->shared_reader_count != nullptr);
+        (*flow->shared_reader_count)++;
       }
 
       flow->readers.clear();
@@ -1216,20 +1223,23 @@ namespace threads_backend {
     assert(flow->readers_jc > 0);
     assert(flow->ref == 0);
     assert(flow->readers.size() == 0);
+    assert(flow->shared_reader_count != nullptr);
     assert(
       flow->state == FlowReadReady ||
       flow->state == FlowReadOnlyReady
     );
 
-    DEBUG_PRINT("finish read: %ld, reader_jc=%ld, ref=%ld, state=%s\n",
+    DEBUG_PRINT("finish read: %ld, reader_jc=%ld, ref=%ld, state=%s, shared=%ld\n",
                 PRINT_LABEL_INNER(flow),
                 flow->readers_jc,
                 flow->ref,
-                PRINT_STATE(flow));
+                PRINT_STATE(flow),
+                *flow->shared_reader_count);
 
     flow->readers_jc--;
+    (*flow->shared_reader_count)--;
 
-    return flow->readers_jc == 0;
+    return flow->readers_jc == 0 && *flow->shared_reader_count == 0;
   }
 
   bool
@@ -1586,8 +1596,31 @@ namespace threads_backend {
       auto const last_found_alias = try_release_alias_to_read(f_out);
       auto const alias_part = std::get<0>(last_found_alias);
 
+      // /////////////////
+      // // put this in a function
+      // bool found = false;
+      // auto cur = f_out;
+      // do {
+      //   DEBUG_PRINT("cur = %ld\n", PRINT_LABEL(cur));
+      //   if (inverse_alias.find(cur) != inverse_alias.end()) {
+      //     DEBUG_PRINT("cur = %ld inverse found %ld\n",
+      //                 PRINT_LABEL(cur),
+      //                 PRINT_LABEL(inverse_alias[cur]));
+      //     if (inverse_alias[cur]->readers_jc == 0) {
+      //       cur = inverse_alias[cur];
+      //     } else {
+      //       found = true;
+      //     }
+      //   } else {
+      //     DEBUG_PRINT("cur = %ld no inverse\n", PRINT_LABEL(cur));
+      //     break;
+      //   }
+      // } while (0);
+      // ///////////////
+
       if (finishedAllReads &&
-          std::get<1>(last_found_alias) == false) {
+          std::get<1>(last_found_alias) == false /*&&*/
+          /*!found*/) {
         auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
         if (has_subsequent) {
           release_to_write(

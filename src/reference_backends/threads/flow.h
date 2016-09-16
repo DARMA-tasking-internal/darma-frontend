@@ -67,6 +67,8 @@ namespace threads_backend {
     darma_runtime::abstract::frontend::Handle* handle = nullptr;
     bool ready, isNull, isFetch, fromFetch, isCollective;
 
+    size_t* shared_reader_count = nullptr;
+
     FlowState state{};
 
     #if __THREADS_DEBUG_MODE__
@@ -87,6 +89,7 @@ namespace threads_backend {
     InnerFlow(darma_runtime::abstract::frontend::Handle* handle_)
       : forward(nullptr)
       , next(nullptr)
+      , shared_reader_count(nullptr)
       , version_key(darma_runtime::detail::SimpleKey())
       , isNull(false)
       , isFetch(false)
