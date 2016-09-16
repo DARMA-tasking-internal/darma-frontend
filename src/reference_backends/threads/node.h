@@ -82,7 +82,9 @@ namespace threads_backend {
     }
 
     virtual void release()  {
-      DEBUG_PRINT("join counter is now %zu\n", join_counter - 1);
+      DEBUG_PRINT("%p join counter is now %zu\n",
+                  this,
+                  join_counter - 1);
 
       if (--join_counter == 0) {
         runtime->add_local(this->shared_from_this());

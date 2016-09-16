@@ -53,17 +53,26 @@
 namespace threads_backend {
   extern __thread size_t flow_label;
 
+  enum FlowState {
+    FlowWaiting,
+    FlowWriteReady,
+    FlowReadReady,
+    FlowAntiReady
+  };
+
   struct InnerFlow {
     std::shared_ptr<InnerFlow> forward, next;
     types::key_t version_key, key;
-    darma_runtime::abstract::frontend::Handle* handle;
-    bool ready, isNull, isFetch, fromFetch, isCollective;
+    darma_runtime::abstract::frontend::Handle* handle = nullptr;
+    bool isNull, isFetch, fromFetch, isCollective;
+
+    FlowState state{};
 
     #if __THREADS_DEBUG_MODE__
       size_t label;
     #endif
 
-    size_t readers_jc, ref, uses;
+    size_t readers_jc, ref, uses, alias;
     std::vector<std::shared_ptr<GraphNode>> readers;
 
     // node in the graph to activate
@@ -74,11 +83,10 @@ namespace threads_backend {
 
     InnerFlow(const InnerFlow& in) = default;
 
-    InnerFlow()
+    InnerFlow(darma_runtime::abstract::frontend::Handle* handle_)
       : forward(nullptr)
       , next(nullptr)
       , version_key(darma_runtime::detail::SimpleKey())
-      , ready(false)
       , isNull(false)
       , isFetch(false)
       , fromFetch(false)
@@ -88,23 +96,12 @@ namespace threads_backend {
       #endif
       , readers_jc(0)
       , ref(0)
+      , alias(0)
       , uses(0)
       , node(nullptr)
+      , handle(handle_)
+      , state(FlowWaiting)
     { }
-
-    bool check_ready() { return ready; }
-  };
-
-  struct ThreadsFlow
-    : public abstract::backend::Flow {
-
-    std::shared_ptr<InnerFlow> inner;
-
-    ThreadsFlow(darma_runtime::abstract::frontend::Handle* handle_)
-      : inner(std::make_shared<InnerFlow>())
-    {
-      inner->handle = handle_;
-    }
   };
 }
 

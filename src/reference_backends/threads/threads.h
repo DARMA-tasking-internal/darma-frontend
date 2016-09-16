@@ -105,6 +105,8 @@ namespace std {
 
 
 namespace threads_backend {
+  using flow_t = darma_runtime::types::flow_t;
+
   struct CollectiveState {
     size_t n_pieces{0};
     std::atomic<size_t> current_pieces{0};
@@ -291,7 +293,7 @@ namespace threads_backend {
     bool
     test_alias_null(std::shared_ptr<InnerFlow> flow);
 
-    size_t
+    bool
     release_node(std::shared_ptr<InnerFlow> flow);
 
     bool
@@ -300,7 +302,7 @@ namespace threads_backend {
     bool
     release_alias_p2(std::shared_ptr<InnerFlow> flow);
 
-    void
+    bool
     release_node_p2(std::shared_ptr<InnerFlow> flow);
 
     size_t
@@ -333,7 +335,7 @@ namespace threads_backend {
     DataBlock*
     allocate_block(darma_runtime::abstract::frontend::Handle const* handle);
 
-    virtual Flow*
+    virtual flow_t
     make_initial_flow(darma_runtime::abstract::frontend::Handle* handle);
 
     bool
@@ -353,21 +355,26 @@ namespace threads_backend {
     fetch(darma_runtime::abstract::frontend::Handle* handle,
 	  types::key_t const& version_key);
 
-    virtual Flow*
+    virtual flow_t
     make_fetching_flow(darma_runtime::abstract::frontend::Handle* handle,
 		       types::key_t const& version_key);
-    virtual Flow*
+    virtual flow_t
     make_null_flow(darma_runtime::abstract::frontend::Handle* handle);
 
-    virtual Flow*
-    make_forwarding_flow(Flow* from);
+    virtual flow_t
+    make_forwarding_flow(flow_t& from);
 
-    virtual Flow*
-    make_next_flow(Flow* from);
+    virtual flow_t
+    make_next_flow(flow_t& from);
 
     virtual void
-    establish_flow_alias(Flow* from,
-                         Flow* to);
+    establish_flow_alias(flow_t& from,
+                         flow_t& to);
+
+    virtual void
+    release_flow(
+      flow_t& to_release
+    );
 
     virtual void
     release_use(darma_runtime::abstract::frontend::Use* u);
@@ -407,6 +414,9 @@ namespace threads_backend {
 
     template <typename Node>
     bool schedule_from_deque(std::mutex* lock, std::deque<Node>& nodes);
+
+    template <typename Node>
+    void shuffle_deque(std::mutex* lock, std::deque<Node>& nodes);
 
     template <typename... Args>
     void try_release(Args... args);
