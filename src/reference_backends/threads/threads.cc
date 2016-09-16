@@ -934,7 +934,9 @@ namespace threads_backend {
       f_to->alias++;
     }
 
-    inverse_alias[f_to] = f_from;
+    if (getTrace()) {
+      inverse_alias[f_to] = f_from;
+    }
 
     // creating subsequent allowing release
     if (f_from->state == FlowReadReady &&
@@ -1124,8 +1126,11 @@ namespace threads_backend {
           alias[flow]->state == FlowReadOnlyReady ||
           alias[flow]->state == FlowReadReady
         );
+        assert(alias[flow]->shared_reader_count != nullptr);
 
-        auto const has_outstanding_reads = alias[flow]->readers_jc != 0;
+        auto const has_outstanding_reads =
+          alias[flow]->readers_jc != 0 &&
+          *alias[flow]->shared_reader_count == 0;
         auto const ret = try_release_alias_to_read(alias[flow]);
         return
           {
@@ -1145,6 +1150,8 @@ namespace threads_backend {
     assert(flow->ref == 0);
     assert(flow->readers_jc == 0);
     assert(flow->readers.size() == flow->readers_jc);
+    assert(flow->shared_reader_count != nullptr);
+    assert(*flow->shared_reader_count == 0);
 
     DEBUG_PRINT("release_to_write: %ld, readers=%ld, reader_jc=%ld, ref=%ld, alias=%ld\n",
                 PRINT_LABEL_INNER(flow),
@@ -1596,31 +1603,8 @@ namespace threads_backend {
       auto const last_found_alias = try_release_alias_to_read(f_out);
       auto const alias_part = std::get<0>(last_found_alias);
 
-      // /////////////////
-      // // put this in a function
-      // bool found = false;
-      // auto cur = f_out;
-      // do {
-      //   DEBUG_PRINT("cur = %ld\n", PRINT_LABEL(cur));
-      //   if (inverse_alias.find(cur) != inverse_alias.end()) {
-      //     DEBUG_PRINT("cur = %ld inverse found %ld\n",
-      //                 PRINT_LABEL(cur),
-      //                 PRINT_LABEL(inverse_alias[cur]));
-      //     if (inverse_alias[cur]->readers_jc == 0) {
-      //       cur = inverse_alias[cur];
-      //     } else {
-      //       found = true;
-      //     }
-      //   } else {
-      //     DEBUG_PRINT("cur = %ld no inverse\n", PRINT_LABEL(cur));
-      //     break;
-      //   }
-      // } while (0);
-      // ///////////////
-
       if (finishedAllReads &&
-          std::get<1>(last_found_alias) == false /*&&*/
-          /*!found*/) {
+          std::get<1>(last_found_alias) == false) {
         auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
         if (has_subsequent) {
           release_to_write(
