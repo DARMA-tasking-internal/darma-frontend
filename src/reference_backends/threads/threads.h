@@ -315,15 +315,6 @@ namespace threads_backend {
     bool
     try_release_to_read(std::shared_ptr<InnerFlow> flow);
 
-    bool
-    release_alias(std::shared_ptr<InnerFlow>,
-                  size_t readers);
-    bool
-    release_alias_p2(std::shared_ptr<InnerFlow> flow);
-
-    bool
-    release_node_p2(std::shared_ptr<InnerFlow> flow);
-
     size_t
     count_ready_work() const;
 

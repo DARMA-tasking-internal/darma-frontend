@@ -1002,49 +1002,6 @@ namespace threads_backend {
   }
 
   bool
-  ThreadsRuntime::release_alias(std::shared_ptr<InnerFlow> flow,
-                                size_t readers) {
-    assert(0 && "release_alias");
-
-    if (alias.find(flow) != alias.end()) {
-      if (test_alias_null(flow)) {
-        return true;
-      }
-
-      DEBUG_PRINT("release_use: releasing alias: %ld, ref=%ld, readers_jc=%ld, alias=%ld\n",
-                  PRINT_LABEL_INNER(alias[flow]),
-                  alias[flow]->ref,
-                  alias[flow]->readers_jc,
-                  alias[flow]->alias);
-
-      alias[flow]->ref--;
-
-      if (alias[flow]->ref == 0) {
-        //alias[flow]->alias++;
-
-        ///const size_t alias_readers = release_node(alias[flow]);
-        ///alias[flow]->readers_jc += readers;
-        DEBUG_PRINT("release_use: releasing alias: %ld, ref=%ld, readers_jc=%ld\n",
-                    PRINT_LABEL_INNER(alias[flow]),
-                    alias[flow]->ref,
-                    alias[flow]->readers_jc);
-
-        release_alias(alias[flow], readers);
-
-        if (flow->readers_jc == 0 && flow->ref == 0) {
-          DEBUG_PRINT("remove alias %ld to %ld\n",
-                      PRINT_LABEL_INNER(flow),
-                      PRINT_LABEL_INNER(alias[flow]));
-
-          alias.erase(alias.find(flow));
-        }
-      }
-      return true;
-    }
-    return false;
-  }
-
-  bool
   ThreadsRuntime::try_release_to_read(
     std::shared_ptr<InnerFlow> flow
   ) {
@@ -1202,49 +1159,12 @@ namespace threads_backend {
   }
 
   bool
-  ThreadsRuntime::release_node_p2(std::shared_ptr<InnerFlow> flow) {
-    assert(0 && "release_node_p2");
-
-    DEBUG_PRINT("release node p2: %ld, reader_jc=%ld, ref=%ld, state=%s\n",
-                PRINT_LABEL_INNER(flow),
-                flow->readers_jc,
-                flow->ref,
-                PRINT_STATE(flow));
-
-    // if (flow->node == nullptr) {
-    //   return flow->readers_jc == 0;;
-    // }
-
-    flow->readers_jc--;
-
-    DEBUG_PRINT("releasing node p2: %ld, readers=%ld, reader_jc=%ld, ref=%ld, alias=%ld\n",
-                PRINT_LABEL_INNER(flow),
-                flow->readers.size(),
-                flow->readers_jc,
-                flow->ref,
-                flow->alias);
-
-    assert(flow->ref == 0 &&
-           "Flow must have been ready for readers to have been released");
-
-    if (flow->readers_jc == 0 && flow->alias == 0) {
-      if (flow->node) {
-        flow->node->release();
-        flow->node = nullptr;
-      } else if (flow->next) {
-        //release_node(flow->next);
-      }
-      return true;
-    }
-    return false;
-  }
-
-  bool
   ThreadsRuntime::finish_read(std::shared_ptr<InnerFlow> flow) {
     assert(flow->readers_jc > 0);
     assert(flow->ref == 0);
     assert(flow->readers.size() == 0);
     assert(flow->shared_reader_count != nullptr);
+    assert(*flow->shared_reader_count > 0);
     assert(
       flow->state == FlowReadReady ||
       flow->state == FlowReadOnlyReady
@@ -1261,50 +1181,6 @@ namespace threads_backend {
     (*flow->shared_reader_count)--;
 
     return flow->readers_jc == 0 && *flow->shared_reader_count == 0;
-  }
-
-  bool
-  ThreadsRuntime::release_alias_p2(std::shared_ptr<InnerFlow> flow) {
-    assert(0 && "release_alias_p2");
-
-    DEBUG_PRINT("release_use: try find alias\n");
-
-    if (alias.find(flow) != alias.end()) {
-      DEBUG_PRINT("release_use: releasing alias p2: %ld, ref=%ld, readers_jc=%ld, alias=%ld\n",
-                  PRINT_LABEL_INNER(alias[flow]),
-                  alias[flow]->ref,
-                  alias[flow]->readers_jc,
-                  alias[flow]->alias);
-
-      if (test_alias_null(flow)) {
-        return true;
-      }
-
-      alias[flow]->alias--;
-
-      if (alias[flow]->alias == 0 && alias[flow]->readers_jc == 0) {
-        // TODO: does this assertion ever break?
-        assert(alias[flow]->ref == 0 &&
-               "Alias flow must have been ready for readers to have been released");
-
-        if (alias[flow]->node) {
-          alias[flow]->node->release();
-          alias[flow]->node = nullptr;
-        }
-        release_alias_p2(alias[flow]);
-      }
-
-      //
-
-      if (alias[flow]->readers_jc == 0) {
-        // DEBUG_PRINT("remove alias %ld to %ld\n",
-        //             PRINT_LABEL_INNER(flow),
-        //             PRINT_LABEL_INNER(alias[flow]));
-        // alias.erase(alias.find(flow));
-      }
-      return true;
-    }
-    return false;
   }
 
   /*virtual*/
