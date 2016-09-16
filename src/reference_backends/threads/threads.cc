@@ -117,8 +117,8 @@ namespace threads_backend {
     : produced(0)
     , consumed(0)
   {
-    srand48(2918279);//time(NULL));
-    //srand48(time(NULL));
+    //srand48(2918279);
+    srand48(time(NULL));
     std::atomic_init(&finished, false);
     std::atomic_init<size_t>(&ranks, 1);
     trace = traceMode ? new TraceModule{this_rank,n_ranks,"base"} : nullptr;
@@ -790,7 +790,9 @@ namespace threads_backend {
   /*virtual*/
   void
   ThreadsRuntime::release_flow(flow_t& to_release) {
-    
+    DEBUG_VERBOSE_PRINT("release_flow %ld: state=%s\n",
+                        PRINT_LABEL(to_release),
+                        PRINT_STATE(to_release));
   }
 
   /*virtual*/
@@ -824,6 +826,22 @@ namespace threads_backend {
     return f_forward;
   }
 
+  void
+  ThreadsRuntime::create_next_subsequent(
+    std::shared_ptr<InnerFlow> f
+  ) {
+    // creating subsequent allowing release
+    if (f->state == FlowReadReady &&
+        f->readers_jc == 0 &&
+        *f->shared_reader_count == 0) {
+      // can't have alias if has next subsequent
+      assert(flow_has_alias(f) == false);
+      release_to_write(
+        f
+      );
+    }
+  }
+
   /*virtual*/
   flow_t
   ThreadsRuntime::make_next_flow(flow_t& f) {
@@ -839,15 +857,7 @@ namespace threads_backend {
                 PRINT_LABEL(f),
                 PRINT_LABEL(f_next));
 
-    // creating subsequent allowing release
-    if (f->state == FlowReadReady &&
-        f->readers_jc == 0) {
-      // can't have alias if has next subsequent
-      assert(flow_has_alias(f) == false);
-      release_to_write(
-        f
-      );
-    }
+    create_next_subsequent(f);
 
     return f_next;
   }
@@ -858,13 +868,13 @@ namespace threads_backend {
 
     handle_refs[handle]--;
 
-    assert(handle == alias[flow]->handle);
-    assert(handle_refs[handle] >= 0);
-
     DEBUG_PRINT("cleanup_handle identity: %p to %p: refs=%d\n",
                 flow->handle,
                 alias[flow]->handle,
                 handle_refs[handle]);
+
+    assert(handle == alias[flow]->handle);
+    assert(handle_refs[handle] >= 0);
 
     if (handle_refs[handle] == 0) {
       if (handle_pubs.find(handle) != handle_pubs.end()) {
@@ -914,11 +924,11 @@ namespace threads_backend {
       }
     }
 
-    DEBUG_PRINT("delete handle data: fromFetch=%s, refs=%ld\n",
-                PRINT_BOOL_STR(fromFetch),
-                ref);
-
     if (prev && ref == 0) {
+      DEBUG_PRINT("delete handle data: fromFetch=%s, refs=%ld\n",
+                  PRINT_BOOL_STR(fromFetch),
+                  ref);
+
       // call the destructor
       handle
         ->get_serialization_manager()
@@ -985,8 +995,10 @@ namespace threads_backend {
       // DEBUG_PRINT("remove alias to null %ld to %ld\n",
       //             PRINT_LABEL_INNER(flow),
       //             PRINT_LABEL_INNER(alias[flow]));
-      // cleanup_handle(flow);
-      // alias.erase(alias.find(flow));
+      if (*flow->shared_reader_count == 0) {
+        cleanup_handle(flow);
+      }
+      //alias.erase(alias.find(flow));
       return true;
     }
     return false;
@@ -1403,6 +1415,84 @@ namespace threads_backend {
     }
   }
 
+  void
+  ThreadsRuntime::transition_after_read(
+    std::shared_ptr<InnerFlow> flow
+  ) {
+    assert(
+      flow->state == FlowReadReady ||
+      flow->state == FlowReadOnlyReady
+   );
+
+    DEBUG_PRINT("transition_after_read, current state %ld is state=%s\n",
+                PRINT_LABEL(flow),
+                PRINT_STATE(flow));
+
+    auto const finishedAllReads = finish_read(flow);
+    auto const last_found_alias = try_release_alias_to_read(flow);
+    auto const alias_part = std::get<0>(last_found_alias);
+
+    if (finishedAllReads &&
+        std::get<1>(last_found_alias) == false) {
+      auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
+      if (has_subsequent) {
+        release_to_write(
+          alias_part
+        );
+      } else {
+        DEBUG_PRINT("transition_after_read, %ld in state=%s does not have *subsequent*\n",
+                    PRINT_LABEL(alias_part),
+                    PRINT_STATE(alias_part));
+      }
+    }
+  }
+
+  void
+  ThreadsRuntime::transition_after_write(
+    std::shared_ptr<InnerFlow> f_in,
+    std::shared_ptr<InnerFlow> f_out
+  ) {
+    assert(f_in->state == FlowWriteReady);
+    assert(f_out->state == FlowWaiting);
+
+    f_in->state = FlowAntiReady;
+
+    DEBUG_PRINT("transition_after_write, transition in=%ld to state=%s\n",
+                PRINT_LABEL(f_in),
+                PRINT_STATE(f_in));
+
+    if (f_out->ref == 0) {
+      auto const has_read_phase = try_release_to_read(f_out);
+      auto const last_found_alias = try_release_alias_to_read(f_out);
+      auto const alias_part = std::get<0>(last_found_alias);
+
+      DEBUG_PRINT("transition_after_write, transition out=%ld to last_found_alias=%ld, state=%s\n",
+                  PRINT_LABEL(f_out),
+                  PRINT_LABEL(std::get<0>(last_found_alias)),
+                  PRINT_STATE(std::get<0>(last_found_alias)));
+
+      // out flow from release is ready to go
+      if (!has_read_phase &&
+          std::get<1>(last_found_alias) == false) {
+
+        auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
+        if (has_subsequent) {
+          release_to_write(
+            alias_part
+          );
+        } else {
+          DEBUG_PRINT("transition_after_write, %ld in state=%s does not have *subsequent*\n",
+                      PRINT_LABEL(alias_part),
+                      PRINT_STATE(alias_part));
+        }
+      }
+    }
+
+    DEBUG_PRINT("release_use write, transition out=%ld to state=%s\n",
+                PRINT_LABEL(f_out),
+                PRINT_STATE(f_out));
+  }
+
   /*virtual*/
   void
   ThreadsRuntime::release_use(darma_runtime::abstract::frontend::Use* u) {
@@ -1447,73 +1537,13 @@ namespace threads_backend {
 
     auto const flows_match = f_in == f_out;
 
-    if (flows_match) {
-      assert(
-        f_out->state == FlowReadReady ||
-        f_out->state == FlowReadOnlyReady
-     );
-
-      DEBUG_PRINT("release_use read, current state %ld is state=%s\n",
-                  PRINT_LABEL(f_out),
-                  PRINT_STATE(f_out));
-
-      auto const finishedAllReads = finish_read(f_out);
-      auto const last_found_alias = try_release_alias_to_read(f_out);
-      auto const alias_part = std::get<0>(last_found_alias);
-
-      if (finishedAllReads &&
-          std::get<1>(last_found_alias) == false) {
-        auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
-        if (has_subsequent) {
-          release_to_write(
-            alias_part
-          );
-        } else {
-          DEBUG_PRINT("release_use read, %ld in state=%s does not have *subsequent*\n",
-                      PRINT_LABEL(alias_part),
-                      PRINT_STATE(alias_part));
-        }
-      }
+    if (flows_match &&
+        f_out->state == FlowWaiting) {
+      // do nothing
+    } else if (flows_match) {
+      transition_after_read(f_out);
     } else {
-      assert(f_in->state == FlowWriteReady);
-      assert(f_out->state == FlowWaiting);
-
-      f_in->state = FlowAntiReady;
-
-      DEBUG_PRINT("release_use write, transition in=%ld to state=%s\n",
-                  PRINT_LABEL(f_in),
-                  PRINT_STATE(f_in));
-
-      if (f_out->ref == 0) {
-        auto const has_read_phase = try_release_to_read(f_out);
-        auto const last_found_alias = try_release_alias_to_read(f_out);
-        auto const alias_part = std::get<0>(last_found_alias);
-
-        DEBUG_PRINT("release_use write, transition out=%ld to last_found_alias=%ld, state=%s\n",
-                    PRINT_LABEL(f_out),
-                    PRINT_LABEL(std::get<0>(last_found_alias)),
-                    PRINT_STATE(std::get<0>(last_found_alias)));
-
-        // out flow from release is ready to go
-        if (!has_read_phase &&
-            std::get<1>(last_found_alias) == false) {
-
-          auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
-          if (has_subsequent) {
-            release_to_write(
-              alias_part
-            );
-          } else {
-            DEBUG_PRINT("release_use write, %ld in state=%s does not have *subsequent*\n",
-                        PRINT_LABEL(alias_part),
-                        PRINT_STATE(alias_part));
-          }
-        }
-      }
-
-      DEBUG_PRINT("release_use write, transition out=%ld to state=%s\n",
-                  PRINT_LABEL(f_out),
-                  PRINT_STATE(f_out));
+      transition_after_write(f_in, f_out);
     }
   }
 
@@ -1581,6 +1611,10 @@ namespace threads_backend {
     DEBUG_PRINT("publish finished, removing from handle %p\n",
                 publish->handle);
     handle_pubs[publish->handle].remove(publish);
+
+    transition_after_read(
+      publish->flow
+    );
   }
 
   /*virtual*/
@@ -1625,17 +1659,19 @@ namespace threads_backend {
                 PRINT_LABEL(f_in),
                 PRINT_LABEL(f_out));
 
-    if (!ready) {
-      // publishes.push_back(p);
-      // insert into the set of delayed
+    auto const flow_in_read =
+      f_in->state == FlowReadReady ||
+      f_in->state == FlowReadOnlyReady;
 
-      p->set_join(1);
-      f_in->readers_jc++;
-      f_in->node = p;
+    assert(f_in == f_out);
 
-      handle_pubs[handle].push_back(pub);
-    } else {
+    if (flow_in_read) {
       p->execute();
+    } else {
+      f_in->readers_jc++;
+      f_in->readers.push_back(p);
+      p->set_join(1);
+      handle_pubs[handle].push_back(pub);
     }
 
     assert(ready || !depthFirstExpand);
