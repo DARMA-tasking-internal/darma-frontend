@@ -331,16 +331,20 @@ namespace threads_backend {
       auto const f_out = dep->get_out_flow();
 
       if (f_in->isFetch &&
-          threads_backend::depthFirstExpand) {
+          threads_backend::depthFirstExpand &&
+          !f_in->fetcherAdded) {
         blocking_fetch(f_in->handle, f_in->version_key);
-        f_in->state = FlowWriteReady;
+        f_in->fetcherAdded = true;
+        f_in->state = FlowReadReady;
         f_in->ready = true;
-      } else if (f_in->isFetch) {
+      } else if (f_in->isFetch &&
+                 !f_in->fetcherAdded) {
         auto node = std::make_shared<FetchNode>(FetchNode{this,f_in});
         const bool ready = add_fetcher(node,
                                        f_in->handle,
                                        f_in->version_key);
         if (ready) {
+          DEBUG_PRINT("check_dep_task: adding fetch node to deque\n");
           ready_local.push_back(node);
         }
       }
@@ -666,6 +670,8 @@ namespace threads_backend {
       const auto& iter = published.find({version_key,key});
       const bool found = iter != published.end();
       const bool avail = found && std::atomic_load<bool>(&iter->second->ready);
+
+      fetch->fetch->fetcherAdded = true;
 
       DEBUG_PRINT("add_fetcher: key=%s, version=%s, found=%s, avail=%s\n",
                   PRINT_KEY(key),
@@ -1025,7 +1031,8 @@ namespace threads_backend {
       //             PRINT_LABEL_INNER(flow),
       //             PRINT_LABEL_INNER(alias[flow]));
       if (*flow->shared_reader_count == 0) {
-        cleanup_handle(flow);
+        // TODO: GC
+        //cleanup_handle(flow);
       }
       //alias.erase(alias.find(flow));
       return true;

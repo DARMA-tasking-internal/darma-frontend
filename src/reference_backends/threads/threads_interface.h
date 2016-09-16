@@ -85,9 +85,9 @@ namespace threads_backend {
       return static_cast<Impl*>(this)->getTrace();
     }
 
-    inline size_t
-    release_node(std::shared_ptr<InnerFlow> flow) {
-      return static_cast<Impl*>(this)->release_node(flow);
+    inline bool
+    try_release_to_read(std::shared_ptr<InnerFlow> flow) {
+      return static_cast<Impl*>(this)->try_release_to_read(flow);
     }
 
     inline void

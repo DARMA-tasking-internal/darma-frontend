@@ -138,8 +138,11 @@ namespace threads_backend {
       }
 
       fetch->ready = true;
-      DEBUG_PRINT("finished executing fetch node\n");
-      runtime->release_node(fetch);
+
+      DEBUG_PRINT("=== EXECUTING === fetch node\n");
+
+      runtime->try_release_to_read(fetch);
+
       GraphNode::execute();
     }
 
@@ -152,6 +155,7 @@ namespace threads_backend {
     }
 
     void activate() override {
+      DEBUG_PRINT("=== ACTIVATING === fetch node\n");
       runtime->add_remote(this->shared_from_this());
     }
   };
