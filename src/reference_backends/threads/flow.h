@@ -55,8 +55,9 @@ namespace threads_backend {
 
   enum FlowState {
     FlowWaiting,
-    FlowWriteReady,
     FlowReadReady,
+    FlowReadOnlyReady,
+    FlowWriteReady,
     FlowAntiReady
   };
 
@@ -64,7 +65,7 @@ namespace threads_backend {
     std::shared_ptr<InnerFlow> forward, next;
     types::key_t version_key, key;
     darma_runtime::abstract::frontend::Handle* handle = nullptr;
-    bool isNull, isFetch, fromFetch, isCollective;
+    bool ready, isNull, isFetch, fromFetch, isCollective;
 
     FlowState state{};
 
@@ -91,6 +92,7 @@ namespace threads_backend {
       , isFetch(false)
       , fromFetch(false)
       , isCollective(false)
+      , ready(false)
       #if __THREADS_DEBUG_MODE__
       , label(++flow_label)
       #endif

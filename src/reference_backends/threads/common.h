@@ -71,6 +71,14 @@ std::mutex __output_mutex;
     fflush(stdout);							\
   } while (0);
 
+#define PRINT_STATE(FLOW)                                               \
+  ((FLOW->state) == FlowWaiting ? "FlowWaiting" :                       \
+   ((FLOW->state) == FlowWriteReady ? "FlowWriteReady" :                \
+    ((FLOW->state) == FlowReadReady ? "FlowReadReady" :                 \
+     ((FLOW->state) == FlowReadOnlyReady ? "FlowReadOnlyReady" :        \
+      ((FLOW->state) == FlowAntiReady ? "FlowAntiReady" :               \
+       "InvalidFlowState")))))
+
 #if __THREADS_BACKEND_DEBUG_TRACE__
   #define DEBUG_TRACE(fmt, arg...)         THREADS_PRINTER(fmt, ##arg)
 #else

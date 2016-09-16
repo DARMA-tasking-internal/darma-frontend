@@ -293,8 +293,27 @@ namespace threads_backend {
     bool
     test_alias_null(std::shared_ptr<InnerFlow> flow);
 
+    void
+    release_to_write(std::shared_ptr<InnerFlow> flow);
+
     bool
-    release_node(std::shared_ptr<InnerFlow> flow);
+    finish_read(std::shared_ptr<InnerFlow> flow);
+
+    bool
+    flow_has_alias(
+      std::shared_ptr<InnerFlow> flow
+    );
+
+    std::tuple<
+      std::shared_ptr<InnerFlow>,
+      bool
+    >
+    try_release_alias_to_read(
+      std::shared_ptr<InnerFlow> flow
+    );
+
+    bool
+    try_release_to_read(std::shared_ptr<InnerFlow> flow);
 
     bool
     release_alias(std::shared_ptr<InnerFlow>,

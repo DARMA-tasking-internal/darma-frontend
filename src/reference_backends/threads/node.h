@@ -235,7 +235,7 @@ namespace threads_backend {
     }
 
     bool ready() override {
-      return info->flow->check_ready();
+      return info->flow->ready;
     }
 
     virtual ~CollectiveNode() { }
