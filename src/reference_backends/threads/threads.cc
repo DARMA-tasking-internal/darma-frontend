@@ -842,9 +842,9 @@ namespace threads_backend {
   /*virtual*/
   void
   ThreadsRuntime::release_flow(flow_t& to_release) {
-    DEBUG_VERBOSE_PRINT("release_flow %ld: state=%s\n",
-                        PRINT_LABEL(to_release),
-                        PRINT_STATE(to_release));
+    DEBUG_PRINT("release_flow %ld: state=%s\n",
+                PRINT_LABEL(to_release),
+                PRINT_STATE(to_release));
   }
 
   /*virtual*/
