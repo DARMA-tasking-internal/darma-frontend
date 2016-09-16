@@ -403,9 +403,6 @@ namespace threads_backend {
     auto f_in  = u->get_in_flow();
     auto f_out = u->get_out_flow();
 
-    f_in->uses++;
-    f_out->uses++;
-
     auto const handle = u->get_handle();
     const auto& key = handle->get_key();
     const auto version = f_in->version_key;
@@ -934,19 +931,13 @@ namespace threads_backend {
   void
   ThreadsRuntime::establish_flow_alias(flow_t& f_from,
                                        flow_t& f_to) {
-    DEBUG_PRINT("establish flow alias %lu (ref=%ld,uses=%ld) to %lu (ref=%ld,uses=%ld)\n",
+    DEBUG_PRINT("establish flow alias %lu (ref=%ld) to %lu (ref=%ld)\n",
                 PRINT_LABEL(f_from),
                 f_from->ref,
-                f_from->uses,
                 PRINT_LABEL(f_to),
-                f_to->ref,
-                f_to->uses);
+                f_to->ref);
 
     alias[f_from] = f_to;
-
-    if (f_from->readers_jc != 0) {
-      f_to->alias++;
-    }
 
     if (getTrace()) {
       inverse_alias[f_to] = f_from;
@@ -1009,12 +1000,11 @@ namespace threads_backend {
     assert(flow->ref == 0);
     assert(flow->readers.size() == flow->readers_jc);
 
-    DEBUG_PRINT("try_release_to_read: %ld, readers=%ld, reader_jc=%ld, ref=%ld, alias=%ld\n",
+    DEBUG_PRINT("try_release_to_read: %ld, readers=%ld, reader_jc=%ld, ref=%ld\n",
                 PRINT_LABEL_INNER(flow),
                 flow->readers.size(),
                 flow->readers_jc,
-                flow->ref,
-                flow->alias);
+                flow->ref);
 
     flow->state = flow_has_alias(flow) ? FlowReadOnlyReady : FlowReadReady;
 
@@ -1083,15 +1073,16 @@ namespace threads_backend {
 
         alias[flow]->ref--;
 
-        if (alias[flow]->ref == 0) {
-          auto const has_read_phase = try_release_to_read(alias[flow]);
-          auto const ret = try_release_alias_to_read(alias[flow]);
-          return
-            {
-              std::get<0>(ret),
-              std::get<1>(ret) || has_read_phase
-            };
-        }
+        // is conditional needed here on ref?
+        assert(alias[flow]->ref == 0);
+
+        auto const has_read_phase = try_release_to_read(alias[flow]);
+        auto const ret = try_release_alias_to_read(alias[flow]);
+        return
+          {
+            std::get<0>(ret),
+            std::get<1>(ret) || has_read_phase
+          };
       } else {
         assert(
           alias[flow]->state == FlowReadOnlyReady ||
@@ -1124,12 +1115,11 @@ namespace threads_backend {
     assert(flow->shared_reader_count != nullptr);
     assert(*flow->shared_reader_count == 0);
 
-    DEBUG_PRINT("release_to_write: %ld, readers=%ld, reader_jc=%ld, ref=%ld, alias=%ld\n",
+    DEBUG_PRINT("release_to_write: %ld, readers=%ld, reader_jc=%ld, ref=%ld\n",
                 PRINT_LABEL_INNER(flow),
                 flow->readers.size(),
                 flow->readers_jc,
-                flow->ref,
-                flow->alias);
+                flow->ref);
 
     flow->state = FlowWriteReady;
     flow->ready = true;
@@ -1142,20 +1132,6 @@ namespace threads_backend {
       flow->node->release();
       flow->node = nullptr;
     }
-
-    //   } else {
-    //     const size_t size = flow->readers.size();
-    //     for (auto reader : flow->readers) {
-    //       DEBUG_PRINT("releasing READER on flow %ld, readers=%ld\n",
-    //                   PRINT_LABEL_INNER(flow),
-    //                   flow->readers.size());
-    //       reader->release();
-    //     }
-    //     flow->readers.clear();
-    //     return true;
-    //   }
-    // }
-    // return false;
   }
 
   bool
@@ -1441,7 +1417,6 @@ namespace threads_backend {
 
     // enable each out flow
     if (depthFirstExpand) {
-      f_out->state = FlowWriteReady;
       f_out->ready = true;
     }
 
@@ -1463,16 +1438,10 @@ namespace threads_backend {
       fetched_data[{version,key}]->refs--;
     }
 
-    // dereference flows
-    f_in->uses--;
-    f_out->uses--;
-
-    DEBUG_PRINT("release_use: f_in=[%ld,{use=%ld},state=%s], f_out=[%ld,{use=%ld},state=%s]: handle_refs=%d\n",
+    DEBUG_PRINT("release_use: f_in=[%ld,state=%s], f_out=[%ld,state=%s]: handle_refs=%d\n",
                 PRINT_LABEL(f_in),
-                f_in->uses,
                 PRINT_STATE(f_in),
                 PRINT_LABEL(f_out),
-                f_out->uses,
                 PRINT_STATE(f_out),
                 handle_refs[handle]);
 

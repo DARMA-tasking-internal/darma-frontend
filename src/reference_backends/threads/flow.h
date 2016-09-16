@@ -75,7 +75,7 @@ namespace threads_backend {
       size_t label;
     #endif
 
-    size_t readers_jc, ref, uses, alias;
+    size_t readers_jc, ref;
     std::vector<std::shared_ptr<GraphNode>> readers;
 
     // node in the graph to activate
@@ -103,8 +103,6 @@ namespace threads_backend {
       #endif
       , readers_jc(0)
       , ref(0)
-      , alias(0)
-      , uses(0)
       , node(nullptr)
       , handle(handle_)
       , state(FlowWaiting)
