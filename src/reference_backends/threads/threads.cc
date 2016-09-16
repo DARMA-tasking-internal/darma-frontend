@@ -871,6 +871,9 @@ namespace threads_backend {
         *f->shared_reader_count == 0) {
       // can't have alias if has next subsequent
       assert(flow_has_alias(f) == false);
+      cleanup_alias(
+        f
+      );
       release_to_write(
         f
       );
@@ -1003,6 +1006,9 @@ namespace threads_backend {
                     PRINT_STATE(alias_part));
 
         if (has_subsequent) {
+          cleanup_alias(
+            f_from
+          );
           release_to_write(
             alias_part
           );
@@ -1032,7 +1038,7 @@ namespace threads_backend {
       //             PRINT_LABEL_INNER(alias[flow]));
       if (*flow->shared_reader_count == 0) {
         // TODO: GC
-        //cleanup_handle(flow);
+        cleanup_handle(flow);
       }
       //alias.erase(alias.find(flow));
       return true;
@@ -1149,6 +1155,7 @@ namespace threads_backend {
           alias[flow]->readers_jc != 0 &&
           *alias[flow]->shared_reader_count == 0;
         auto const ret = try_release_alias_to_read(alias[flow]);
+
         return
           {
             std::get<0>(ret),
@@ -1462,6 +1469,22 @@ namespace threads_backend {
   }
 
   void
+  ThreadsRuntime::cleanup_alias(
+    std::shared_ptr<InnerFlow> flow
+  ) {
+    auto const has_alias = flow_has_alias(flow);
+
+    DEBUG_PRINT("cleanup_alias: %ld, has_alias=%s\n",
+                PRINT_LABEL(flow),
+                PRINT_BOOL_STR(has_alias));
+
+    if (has_alias) {
+      cleanup_alias(alias[flow]);
+      alias.erase(alias.find(flow));
+    }
+  }
+
+  void
   ThreadsRuntime::transition_after_read(
     std::shared_ptr<InnerFlow> flow
   ) {
@@ -1482,6 +1505,9 @@ namespace threads_backend {
         std::get<1>(last_found_alias) == false) {
       auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
       if (has_subsequent) {
+        cleanup_alias(
+          flow
+        );
         release_to_write(
           alias_part
         );
@@ -1523,6 +1549,9 @@ namespace threads_backend {
 
         auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
         if (has_subsequent) {
+          cleanup_alias(
+            f_out
+          );
           release_to_write(
             alias_part
           );
@@ -1840,9 +1869,11 @@ namespace threads_backend {
     for (auto iter = alias.begin();
          iter != alias.end();
          ++iter) {
-      DEBUG_PRINT("alias flow[%ld] = %ld\n",
+      DEBUG_PRINT("alias flow[{%ld,state=%s}] = {%ld,state=%s}\n",
                   PRINT_LABEL_INNER(iter->first),
-                  PRINT_LABEL_INNER(iter->second));
+                  PRINT_STATE(iter->first),
+                  PRINT_LABEL_INNER(iter->second),
+                  PRINT_STATE(iter->second));
     }
     #endif
 

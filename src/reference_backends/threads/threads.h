@@ -326,6 +326,11 @@ namespace threads_backend {
     );
 
     void
+    cleanup_alias(
+      std::shared_ptr<InnerFlow> flow
+    );
+
+    void
     transition_after_write(
       std::shared_ptr<InnerFlow> f_in,
       std::shared_ptr<InnerFlow> f_out
