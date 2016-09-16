@@ -888,9 +888,6 @@ namespace threads_backend {
         *f->shared_reader_count == 0) {
       // can't have alias if has next subsequent
       assert(flow_has_alias(f) == false);
-      cleanup_alias(
-        f
-      );
       release_to_write(
         f
       );
@@ -1028,9 +1025,6 @@ namespace threads_backend {
                     PRINT_STATE(alias_part));
 
         if (has_subsequent) {
-          cleanup_alias(
-            f_from
-          );
           release_to_write(
             alias_part
           );
@@ -1492,22 +1486,6 @@ namespace threads_backend {
   }
 
   void
-  ThreadsRuntime::cleanup_alias(
-    std::shared_ptr<InnerFlow> flow
-  ) {
-    // auto const has_alias = flow_has_alias(flow);
-
-    // DEBUG_PRINT("cleanup_alias: %ld, has_alias=%s\n",
-    //             PRINT_LABEL(flow),
-    //             PRINT_BOOL_STR(has_alias));
-
-    // if (has_alias) {
-    //   cleanup_alias(alias[flow]);
-    //   alias.erase(alias.find(flow));
-    // }
-  }
-
-  void
   ThreadsRuntime::transition_after_read(
     std::shared_ptr<InnerFlow> flow
   ) {
@@ -1528,9 +1506,6 @@ namespace threads_backend {
         std::get<1>(last_found_alias) == false) {
       auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
       if (has_subsequent) {
-        cleanup_alias(
-          flow
-        );
         release_to_write(
           alias_part
         );
@@ -1572,9 +1547,6 @@ namespace threads_backend {
 
         auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
         if (has_subsequent) {
-          cleanup_alias(
-            f_out
-          );
           release_to_write(
             alias_part
           );
@@ -1888,18 +1860,6 @@ namespace threads_backend {
                   this->produced,
                   this->consumed);
 
-    #if __THREADS_BACKEND_DEBUG__
-    for (auto iter = alias.begin();
-         iter != alias.end();
-         ++iter) {
-      DEBUG_PRINT("alias flow[{%ld,state=%s}] = {%ld,state=%s}\n",
-                  PRINT_LABEL_INNER(iter->first),
-                  PRINT_STATE(iter->first),
-                  PRINT_LABEL_INNER(iter->second),
-                  PRINT_STATE(iter->second));
-    }
-    #endif
-
     DEBUG_PRINT("handle_refs=%ld, "
                 "handle_pubs=%ld, "
                 "data=%ld, "
@@ -1959,6 +1919,8 @@ int main(int argc, char **argv) {
   // if (darma_runtime::detail::backend_runtime) {
   //   delete darma_runtime::detail::backend_runtime;
   // }
+
+  delete threads_backend::cur_runtime;
 
   return ret;
 }

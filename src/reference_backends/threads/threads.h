@@ -208,11 +208,6 @@ namespace threads_backend {
       >
     > handle_pubs;
 
-    std::unordered_map<
-      std::shared_ptr<InnerFlow>,
-      std::shared_ptr<InnerFlow>
-    > alias;
-
     // used for tracing to follow the dependency back to the proper
     // traced block
     std::unordered_map<
@@ -322,11 +317,6 @@ namespace threads_backend {
 
     void
     transition_after_read(
-      std::shared_ptr<InnerFlow> flow
-    );
-
-    void
-    cleanup_alias(
       std::shared_ptr<InnerFlow> flow
     );
 
