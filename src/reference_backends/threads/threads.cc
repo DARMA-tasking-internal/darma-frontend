@@ -117,8 +117,10 @@ namespace threads_backend {
     : produced(0)
     , consumed(0)
   {
-    //srand48(2918279);
-    srand48(time(NULL));
+    #if __THREADS_BACKEND_DEBUG__ || __THREADS_BACKEND_SHUFFLE__
+      //srand48(2918279);
+      srand48(time(NULL));
+    #endif
     std::atomic_init(&finished, false);
     std::atomic_init<size_t>(&ranks, 1);
     trace = traceMode ? new TraceModule{this_rank,n_ranks,"base"} : nullptr;
@@ -1052,7 +1054,6 @@ namespace threads_backend {
                 f_to->ref);
 
     f_from->alias = f_to;
-    //alias[f_from] = f_to;
 
     if (getTrace()) {
       inverse_alias[f_to] = f_from;
@@ -1346,22 +1347,37 @@ namespace threads_backend {
 
     if (depthFirstExpand) {
       f_out->dfsColNode = node;
-    }
-
-    if (ready) {
       node->execute();
     } else {
-      node->set_join(1);
-      f_in->node = node;
+
+      publish_uses[use_in]++;
+
+      if (f_in->state == FlowWaiting ||
+          f_in->state == FlowReadReady) {
+        f_in->node = node;
+        node->set_join(1);
+      } else {
+        node->execute();
+      }
     }
+
+    // TODO: for the future this should be two-stage starting with a read
+    // auto const flow_in_reading = add_reader_to_flow(
+    //   node,
+    //   f_in
+    // );
   }
 
   bool
   ThreadsRuntime::collective(std::shared_ptr<CollectiveInfo> info) {
-    DEBUG_PRINT("collective operation, type=%d, flow in=%ld, flow out=%ld\n",
+    DEBUG_PRINT("collective operation, type=%d, flow in={%ld,state=%s}, "
+                "flow out={%ld,state=%s}\n",
                 info->type,
-                PRINT_LABEL_INNER(info->flow),
-                PRINT_LABEL_INNER(info->flow_out));
+                PRINT_LABEL(info->flow),
+                PRINT_STATE(info->flow),
+                PRINT_LABEL(info->flow_out),
+                PRINT_STATE(info->flow_out)
+                );
 
     switch (info->type) {
     case CollectiveType::AllReduce:
@@ -1483,9 +1499,6 @@ namespace threads_backend {
         DEBUG_PRINT("result = %d\n", *(int*)info->data_ptr_out);
 
         delete block;
-
-        //info->flow_out->ref--;
-        //release_node(info->flow_out);
       }
       break;
     default:
@@ -1502,6 +1515,15 @@ namespace threads_backend {
 
         std::pair<CollectiveType,types::key_t> key = {CollectiveType::AllReduce,
                                                       info->tag};
+
+        DEBUG_PRINT("collective finish, type=%d, flow in={%ld,state=%s}, "
+                    "flow out={%ld,state=%s}\n",
+                    info->type,
+                    PRINT_LABEL(info->flow),
+                    PRINT_STATE(info->flow),
+                    PRINT_LABEL(info->flow_out),
+                    PRINT_STATE(info->flow_out)
+                    );
 
         {
           std::lock_guard<std::mutex> guard(threads_backend::rank_collective);
@@ -1524,7 +1546,10 @@ namespace threads_backend {
 
         if (!depthFirstExpand) {
           info->flow_out->ref--;
-          release_to_write(info->flow_out);
+          transition_after_write(
+            info->flow,
+            info->flow_out
+          );
         }
       }
       break;
@@ -1606,7 +1631,7 @@ namespace threads_backend {
       }
     }
 
-    DEBUG_PRINT("release_use write, transition out=%ld to state=%s\n",
+    DEBUG_PRINT("transition_after_write, transition out=%ld to state=%s\n",
                 PRINT_LABEL(f_out),
                 PRINT_STATE(f_out));
   }
@@ -1679,15 +1704,15 @@ namespace threads_backend {
       return;
     }
 
-    if (flows_match &&
-        f_out->state == FlowWaiting) {
-      assert(0);
-      // do nothing
-      // in the case it's a publish that will transition itself
-    } else if (flows_match) {
-      transition_after_read(f_out);
+    if (flows_match) {
+      transition_after_read(
+        f_out
+      );
     } else {
-      transition_after_write(f_in, f_out);
+      transition_after_write(
+        f_in,
+        f_out
+      );
     }
   }
 
@@ -1897,7 +1922,9 @@ namespace threads_backend {
 
   void
   ThreadsRuntime::schedule_next_unit() {
-    shuffle_deque(nullptr, ready_local);
+    #if __THREADS_BACKEND_DEBUG__ || __THREADS_BACKEND_SHUFFLE__
+      shuffle_deque(nullptr, ready_local);
+    #endif
 
     // check local deque
     const int found = schedule_from_deque(nullptr, ready_local);
