@@ -48,8 +48,8 @@
 /*
  * Debugging prints with mutex
  */
-#define __THREADS_BACKEND_DEBUG__	  1
-#define __THREADS_BACKEND_SHUFFLE__	  1
+#define __THREADS_BACKEND_DEBUG__	  0
+#define __THREADS_BACKEND_SHUFFLE__	  0
 #define __THREADS_BACKEND_DEBUG_VERBOSE__ 0
 #define __THREADS_BACKEND_DEBUG_TRACE__   0
 #define __THREADS_DEBUG_MODE__ (__THREADS_BACKEND_DEBUG__         ||    \
