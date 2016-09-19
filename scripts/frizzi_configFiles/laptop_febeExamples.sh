@@ -9,8 +9,6 @@ fe_src=${DARMA_SRC}
 fe_pfx=${DARMA_BLD}/fend_install
 be_src=${DARMA_SRC}/src/reference_backends
 be_pfx=${DARMA_BLD}/be_th_install
-
-SRCPATH=${DARMA_SRC}
 buildPfx=${DARMA_BLD}/darma_ex
 
 ###################
@@ -19,7 +17,8 @@ buildPfx=${DARMA_BLD}/darma_ex
 rm -rf ${fe_pfx}/* && mkdir build_fe && cd build_fe
 cmake ${fe_src}/src/include -DCMAKE_INSTALL_PREFIX=${fe_pfx}
 make install
-cd .. && rm -rf build_fe
+cd .. 
+rm -rf build_fe
 
 ###########################
 #install THREADS back end
@@ -37,7 +36,8 @@ cmake \
 	${be_src}
 make -j 8
 make install 
-cd .. && rm -rf build_be
+cd .. 
+rm -rf build_be
 
 ###########################
 # examples
@@ -52,6 +52,6 @@ cmake \
  	-D DARMA_BACKEND_DIR=${be_pfx} \
   	-D DARMA_BACKEND_LIBNAME=libdarma_threads_backend.dylib \
 	-D CMAKE_VERBOSE_MAKEFILE:BOOL=on \
-  	${SRCPATH}
+  	${DARMA_SRC}
 make -j 6
 cd ..
