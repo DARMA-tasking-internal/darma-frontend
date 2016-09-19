@@ -1,5 +1,4 @@
 
-
 export CXX=/opt/local/bin/g++-mp-5
 export CC=/opt/local/bin/gcc-mp-5
 
