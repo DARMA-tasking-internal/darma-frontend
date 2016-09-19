@@ -49,6 +49,7 @@
  * Debugging prints with mutex
  */
 #define __THREADS_BACKEND_DEBUG__	  0
+#define __THREADS_BACKEND_SHUFFLE__	  0
 #define __THREADS_BACKEND_DEBUG_VERBOSE__ 0
 #define __THREADS_BACKEND_DEBUG_TRACE__   0
 #define __THREADS_DEBUG_MODE__ (__THREADS_BACKEND_DEBUG__         ||    \
@@ -70,6 +71,14 @@ std::mutex __output_mutex;
     printf("(%zu) THREADS : " fmt, threads_backend::this_rank, ##arg);	\
     fflush(stdout);							\
   } while (0);
+
+#define PRINT_STATE(FLOW)                                               \
+  ((FLOW->state) == FlowWaiting ? "FlowWaiting" :                       \
+   ((FLOW->state) == FlowWriteReady ? "FlowWriteReady" :                \
+    ((FLOW->state) == FlowReadReady ? "FlowReadReady" :                 \
+     ((FLOW->state) == FlowReadOnlyReady ? "FlowReadOnlyReady" :        \
+      ((FLOW->state) == FlowAntiReady ? "FlowAntiReady" :               \
+       "InvalidFlowState")))))
 
 #if __THREADS_BACKEND_DEBUG_TRACE__
   #define DEBUG_TRACE(fmt, arg...)         THREADS_PRINTER(fmt, ##arg)
@@ -94,7 +103,7 @@ std::mutex __output_mutex;
 
 #define PRINT_BOOL_STR(IN) (((IN) ? "true" : "false"))
 #define PRINT_KEY(IN) ((IN.human_readable_string().c_str()))
-#define PRINT_LABEL(FLOW) (((FLOW)->inner->label))
+#define PRINT_LABEL(FLOW) (((FLOW)->label))
 #define PRINT_LABEL_INNER(FLOW) (((FLOW)->label))
 #define PRINT_PURPOSE(IN)						\
   ((IN) == Input ? "Input" :						\
@@ -114,7 +123,9 @@ namespace threads_backend {
 
   struct DataBlock {
     void* data;
+    size_t shared_ref_count = 0;
     size_t refs = 0;
+    bool forceDestruct = false;
 
     DataBlock(const DataBlock& in) = delete;
 

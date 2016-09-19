@@ -105,6 +105,8 @@ namespace std {
 
 
 namespace threads_backend {
+  using flow_t = darma_runtime::types::flow_t;
+
   struct CollectiveState {
     size_t n_pieces{0};
     std::atomic<size_t> current_pieces{0};
@@ -206,17 +208,17 @@ namespace threads_backend {
       >
     > handle_pubs;
 
-    std::unordered_map<
-      std::shared_ptr<InnerFlow>,
-      std::shared_ptr<InnerFlow>
-    > alias;
-
     // used for tracing to follow the dependency back to the proper
     // traced block
     std::unordered_map<
       std::shared_ptr<InnerFlow>,
       std::shared_ptr<InnerFlow>
     > inverse_alias, task_forwards;
+
+    std::unordered_map<
+      darma_runtime::abstract::frontend::Use*,
+      size_t
+    > publish_uses;
 
     std::unordered_map<
       std::shared_ptr<InnerFlow>,
@@ -271,13 +273,27 @@ namespace threads_backend {
     add_local(std::shared_ptr<GraphNode> task);
 
     void
-    cleanup_handle(std::shared_ptr<InnerFlow> flow);
+    cleanup_handle(
+      std::shared_ptr<InnerFlow> flow
+    );
 
     void
-    delete_handle_data(darma_runtime::abstract::frontend::Handle const* const handle,
-                       const types::key_t version,
-                       const types::key_t key,
-                       const bool fromFetch);
+    force_publish(
+      std::shared_ptr<InnerFlow> flow
+    );
+
+    void
+    force_destruct(
+      std::shared_ptr<InnerFlow> flow
+    );
+
+    void
+    delete_handle_data(
+      darma_runtime::abstract::frontend::Handle const* const handle,
+      types::key_t const& version,
+      types::key_t const& key,
+      bool const fromFetch
+    );
 
     void
     findAddTraceDep(std::shared_ptr<InnerFlow> flow,
@@ -291,17 +307,54 @@ namespace threads_backend {
     bool
     test_alias_null(std::shared_ptr<InnerFlow> flow);
 
-    size_t
-    release_node(std::shared_ptr<InnerFlow> flow);
+    void
+    release_to_write(
+      std::shared_ptr<InnerFlow> flow
+    );
 
     bool
-    release_alias(std::shared_ptr<InnerFlow>,
-                  size_t readers);
-    bool
-    release_alias_p2(std::shared_ptr<InnerFlow> flow);
+    finish_read(
+      std::shared_ptr<InnerFlow> flow
+    );
 
     void
-    release_node_p2(std::shared_ptr<InnerFlow> flow);
+    create_next_subsequent(
+      std::shared_ptr<InnerFlow> flow
+    );
+
+    template <typename NodeType>
+    bool
+    add_reader_to_flow(
+      std::shared_ptr<NodeType> node,
+      std::shared_ptr<InnerFlow> flow
+    );
+
+    void
+    transition_after_read(
+      std::shared_ptr<InnerFlow> flow
+    );
+
+    void
+    transition_after_write(
+      std::shared_ptr<InnerFlow> f_in,
+      std::shared_ptr<InnerFlow> f_out
+    );
+
+    bool
+    flow_has_alias(
+      std::shared_ptr<InnerFlow> flow
+    );
+
+    std::tuple<
+      std::shared_ptr<InnerFlow>,
+      bool
+    >
+    try_release_alias_to_read(
+      std::shared_ptr<InnerFlow> flow
+    );
+
+    bool
+    try_release_to_read(std::shared_ptr<InnerFlow> flow);
 
     size_t
     count_ready_work() const;
@@ -333,7 +386,7 @@ namespace threads_backend {
     DataBlock*
     allocate_block(darma_runtime::abstract::frontend::Handle const* handle);
 
-    virtual Flow*
+    virtual flow_t
     make_initial_flow(darma_runtime::abstract::frontend::Handle* handle);
 
     bool
@@ -353,21 +406,26 @@ namespace threads_backend {
     fetch(darma_runtime::abstract::frontend::Handle* handle,
 	  types::key_t const& version_key);
 
-    virtual Flow*
+    virtual flow_t
     make_fetching_flow(darma_runtime::abstract::frontend::Handle* handle,
 		       types::key_t const& version_key);
-    virtual Flow*
+    virtual flow_t
     make_null_flow(darma_runtime::abstract::frontend::Handle* handle);
 
-    virtual Flow*
-    make_forwarding_flow(Flow* from);
+    virtual flow_t
+    make_forwarding_flow(flow_t& from);
 
-    virtual Flow*
-    make_next_flow(Flow* from);
+    virtual flow_t
+    make_next_flow(flow_t& from);
 
     virtual void
-    establish_flow_alias(Flow* from,
-                         Flow* to);
+    establish_flow_alias(flow_t& from,
+                         flow_t& to);
+
+    virtual void
+    release_flow(
+      flow_t& to_release
+    );
 
     virtual void
     release_use(darma_runtime::abstract::frontend::Use* u);
@@ -407,6 +465,9 @@ namespace threads_backend {
 
     template <typename Node>
     bool schedule_from_deque(std::mutex* lock, std::deque<Node>& nodes);
+
+    template <typename Node>
+    void shuffle_deque(std::mutex* lock, std::deque<Node>& nodes);
 
     template <typename... Args>
     void try_release(Args... args);
