@@ -80,6 +80,6 @@ endmacro()
 
 add_subdirectory(darma_hello)
 add_subdirectory(poisson_1d_thomasAlgorithm)
-add_subdirectory(heat_1d)
+#add_subdirectory(heat_1d)
 add_subdirectory(create_condition)
 
