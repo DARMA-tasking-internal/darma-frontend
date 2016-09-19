@@ -58,6 +58,7 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include <condition_variable>
 
 #include <iostream>
 #include <deque>
@@ -1184,7 +1185,10 @@ namespace threads_backend {
     if (flow_has_alias(flow)) {
       // TODO: swtich to test_null
       if (test_alias_null(flow)) {
-        return {flow->alias,false};
+        return std::make_tuple(
+          flow->alias,
+          false
+        );
       }
 
       assert(flow->state == FlowReadOnlyReady);
@@ -1206,10 +1210,10 @@ namespace threads_backend {
         auto const has_read_phase = try_release_to_read(flow->alias);
         auto const ret = try_release_alias_to_read(flow->alias);
         return
-          {
+          std::make_tuple(
             std::get<0>(ret),
             std::get<1>(ret) || has_read_phase
-          };
+          );
       } else {
         assert(
           flow->alias->state == FlowReadOnlyReady ||
@@ -1223,13 +1227,16 @@ namespace threads_backend {
         auto const ret = try_release_alias_to_read(flow->alias);
 
         return
-          {
+          std::make_tuple(
             std::get<0>(ret),
             std::get<1>(ret) || has_outstanding_reads
-          };
+          );
       }
     }
-    return {flow,false};
+    return std::make_tuple(
+      flow,
+      false
+    );
   }
 
   void
