@@ -1579,20 +1579,22 @@ namespace threads_backend {
                 PRINT_STATE(flow));
 
     auto const finishedAllReads = finish_read(flow);
-    auto const last_found_alias = try_release_alias_to_read(flow);
-    auto const alias_part = std::get<0>(last_found_alias);
 
-    if (finishedAllReads &&
-        std::get<1>(last_found_alias) == false) {
-      auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
-      if (has_subsequent) {
-        release_to_write(
-          alias_part
-        );
-      } else {
-        DEBUG_PRINT("transition_after_read, %ld in state=%s does not have *subsequent*\n",
-                    PRINT_LABEL(alias_part),
-                    PRINT_STATE(alias_part));
+    if (finishedAllReads) {
+      auto const last_found_alias = try_release_alias_to_read(flow);
+      auto const alias_part = std::get<0>(last_found_alias);
+
+      if (std::get<1>(last_found_alias) == false) {
+        auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
+        if (has_subsequent) {
+          release_to_write(
+            alias_part
+          );
+        } else {
+          DEBUG_PRINT("transition_after_read, %ld in state=%s does not have *subsequent*\n",
+                      PRINT_LABEL(alias_part),
+                      PRINT_STATE(alias_part));
+        }
       }
     }
   }
