@@ -90,6 +90,9 @@ TEST_F(TestInitialAccess, call_sequence) {
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_1, &f_out_1))
     .InSequence(s1, s2);
 
+  EXPECT_RELEASE_FLOW(f_in_1);
+  EXPECT_RELEASE_FLOW(f_out_1);
+
   {
     auto tmp = initial_access<int>("hello");
   } // tmp deleted
@@ -106,9 +109,12 @@ TEST_F(TestInitialAccess, call_sequence_helper) {
 
   MockFlow f_in, f_out;
 
-  expect_initial_access(f_in, f_out, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_in, f_out, make_key("hello"));
 
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out));
+
+  EXPECT_RELEASE_FLOW(f_in);
+  EXPECT_RELEASE_FLOW(f_out);
 
   {
     auto tmp = initial_access<int>("hello");
@@ -148,9 +154,15 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_1, &f_out_1))
     .InSequence(s1, s2, s7);
 
+  EXPECT_RELEASE_FLOW(f_in_1).InSequence(s1);
+  EXPECT_RELEASE_FLOW(f_out_1).InSequence(s2);
+
   // This must be the last thing in all sequences
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_2, &f_out_2))
     .InSequence(s5, s6, s7);
+
+  EXPECT_RELEASE_FLOW(f_in_2).InSequence(s5);
+  EXPECT_RELEASE_FLOW(f_out_2).InSequence(s6);
 
   {
 

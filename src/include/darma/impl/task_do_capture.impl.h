@@ -49,6 +49,8 @@
 #include <darma/impl/handle.h>
 #include <darma/impl/util/smart_pointers.h>
 
+#include <darma/impl/flow_handling.h>
+
 #include <thread>
 
 #include "use.h"
@@ -100,19 +102,21 @@ TaskBase::do_capture(
 
       // Determine the capture type
 
-      // Unset the uncaptured bit
+      // Indicate that we've processed the uncaptured bit by resetting it
       source.captured_as_ &= ~AccessHandleBase::Uncaptured;
 
       typename AccessHandleT::capture_op_t capture_type;
 
       // first check for any explicit permissions
       bool is_marked_read_capture = (source.captured_as_ & AccessHandleBase::ReadOnly) != 0;
+      // Indicate that we've processed the ReadOnly bit by resetting it
+      source.captured_as_ &= ~AccessHandleBase::ReadOnly;
+
       if (is_marked_read_capture) {
         capture_type = AccessHandleT::ro_capture;
       }
       else {
         // Deduce capture type from state
-        assert((source.captured_as_ & AccessHandleBase::ReadOnly) == 0);
         switch (source.current_use_->use.scheduling_permissions_) {
           case HandleUse::Read: {
             capture_type = AccessHandleT::ro_capture;
@@ -149,10 +153,11 @@ TaskBase::do_capture(
       };
 
       auto _ro_capture_mod_imm = [&]{
-        auto forwarded_flow = backend_runtime->make_forwarding_flow(
-          source.current_use_->use.in_flow_
+        auto forwarded_flow = make_forwarding_flow_ptr(
+          source.current_use_->use.in_flow_, backend_runtime
         );
-        captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
+        captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
+          source.var_handle_.get(),
           forwarded_flow, forwarded_flow,
           source.captured_as_ & AccessHandleBase::Leaf ?
             HandleUse::None : HandleUse::Read,
@@ -224,8 +229,8 @@ TaskBase::do_capture(
             case HandleUse::None:
             case HandleUse::Read: {
               // mod(MN) and mod(MR)
-              auto captured_out_flow = backend_runtime->make_next_flow(
-                source.current_use_->use.in_flow_
+              auto captured_out_flow = make_next_flow_ptr(
+                  source.current_use_->use.in_flow_, backend_runtime
               );
               captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
                 source.var_handle_.get(),
@@ -240,11 +245,11 @@ TaskBase::do_capture(
               break;
             }
             case HandleUse::Modify: {
-              auto captured_in_flow = backend_runtime->make_forwarding_flow(
-                source.current_use_->use.in_flow_
+              auto captured_in_flow = make_forwarding_flow_ptr(
+                source.current_use_->use.in_flow_, backend_runtime
               );
-              auto captured_out_flow = backend_runtime->make_next_flow(
-                captured_in_flow
+              auto captured_out_flow = make_next_flow_ptr(
+                captured_in_flow, backend_runtime
               );
               captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
                 source.var_handle_.get(),
@@ -283,11 +288,17 @@ TaskBase::do_capture(
 
       captured.var_handle_ = source.var_handle_;
 
+
     }
     else {
       // ignored
       captured.current_use_ = nullptr;
     }
+
+    // Assert that all of the captured_as info has been handled:
+    assert(source.captured_as_ == AccessHandleBase::Normal);
+    // And, just for good measure, that there aren't any flags set on captured
+    assert(captured.captured_as_ == AccessHandleBase::Normal);
 
   });
 }

@@ -42,6 +42,7 @@
 //@HEADER
 */
 
+
 #ifndef SRC_TESTS_FRONTEND_VALIDATION_MOCK_BACKEND_H_
 #define SRC_TESTS_FRONTEND_VALIDATION_MOCK_BACKEND_H_
 
@@ -50,6 +51,7 @@
 #include <gmock/gmock.h>
 
 #include <darma_types.h>
+
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/frontend/handle.h>
 
@@ -66,10 +68,10 @@ class MockRuntime
     using task_unique_ptr = darma_runtime::abstract::backend::runtime_t::task_unique_ptr;
     using runtime_t = darma_runtime::abstract::backend::Runtime;
     using handle_t = darma_runtime::abstract::frontend::Handle;
-    using flow_t = darma_runtime::abstract::backend::Flow;
     using use_t = darma_runtime::abstract::frontend::Use;
     using key_t = darma_runtime::types::key_t;
     using publication_details_t = darma_runtime::abstract::frontend::PublicationDetails;
+    using flow_t = darma_runtime::types::flow_t;
 
     void
     register_task(
@@ -104,12 +106,12 @@ class MockRuntime
     MOCK_METHOD0(finalize, void());
     MOCK_METHOD1(register_use, void(use_t*));
     MOCK_METHOD1(reregister_migrated_use, void(use_t*));
-    MOCK_METHOD1(make_initial_flow, flow_t*(handle_t*));
-    MOCK_METHOD2(make_fetching_flow, flow_t*(handle_t*, key_t const&));
-    MOCK_METHOD1(make_null_flow, flow_t*(handle_t*));
-    MOCK_METHOD1(make_forwarding_flow, flow_t*(flow_t*));
-    MOCK_METHOD1(make_next_flow, flow_t*(flow_t*));
-    MOCK_METHOD2(establish_flow_alias, void(flow_t*, flow_t*));
+    MOCK_METHOD1(make_initial_flow, flow_t(handle_t*));
+    MOCK_METHOD2(make_fetching_flow, flow_t(handle_t*, key_t const&));
+    MOCK_METHOD1(make_null_flow, flow_t(handle_t*));
+    MOCK_METHOD1(make_forwarding_flow, flow_t(flow_t&));
+    MOCK_METHOD1(make_next_flow, flow_t(flow_t&));
+    MOCK_METHOD2(establish_flow_alias, void(flow_t&, flow_t&));
     MOCK_METHOD1(release_use, void(use_t*));
     MOCK_METHOD2(publish_use, void(use_t*, publication_details_t*));
     MOCK_METHOD2(allocate, void*(size_t,
@@ -119,6 +121,7 @@ class MockRuntime
       darma_runtime::abstract::frontend::CollectiveDetails const*,
       key_t const&
     ));
+    MOCK_METHOD1(release_flow, void(flow_t&));
 
 
 #ifdef __clang__
@@ -132,27 +135,6 @@ class MockRuntime
 };
 
 
-class MockFlow
-  : public darma_runtime::abstract::backend::Flow
-{
-  private:
-    static size_t next_index;
-
-    size_t index_;
-
-  public:
-
-    MockFlow() : index_(next_index++) { }
-
-    bool
-    operator==(MockFlow const& other) const {
-      return index_ == other.index_;
-    }
-    bool
-    operator!=(MockFlow const& other) const {
-      return not operator==(other);
-    }
-};
 
 class MockSerializationPolicy
   : public darma_runtime::abstract::backend::SerializationPolicy
