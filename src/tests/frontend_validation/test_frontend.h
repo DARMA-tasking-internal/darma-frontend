@@ -103,30 +103,31 @@ inline MemoryManager* get_backend_memory_manager() {
 } // end namespace abstract
 } // end namespace darma_runtime
 
+//==============================================================================
+// <editor-fold desc="wrapper to make EXPECT_*().InSequence() work as expected">
+
 namespace _impl {
 
 template <typename Expectation, typename Lambda>
 struct InSequenceWrapper {
   InSequenceWrapper(Expectation&& exp, Lambda&& lamb)
-    : exp_(exp), lambda(lamb)
-  { }
+    : exp_(exp), lambda(lamb) {}
   InSequenceWrapper(InSequenceWrapper&& other)
-    : exp_(other.exp_), lambda(other.lambda)
-  { other.invoked_ = true; }
+    : exp_(other.exp_), lambda(other.lambda) { other.invoked_ = true; }
   template <typename... Args>
   decltype(auto)
-  InSequence(Args&&... args) && {
+  InSequence(Args&& ... args)&& {
     assert(not invoked_);
     invoked_ = true;
     return lambda(
       exp_.InSequence(::testing::Sequence(), std::forward<Args>(args)...)
     );
   }
-  operator ::testing::Expectation() && {
+  operator ::testing::Expectation()&& {
     invoked_ = true;
     return lambda(std::forward<Expectation>(exp_));
   }
-  ~InSequenceWrapper() { if(not invoked_) lambda(std::forward<Expectation>(exp_)); }
+  ~InSequenceWrapper() { if (not invoked_) lambda(std::forward<Expectation>(exp_)); }
   Expectation&& exp_;
   Lambda lambda;
   bool invoked_ = false;
@@ -142,19 +143,43 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
 
 } // end namespace _impl
 
-#define EXPECT_MOD_CAPTURE_MN_OR_MR(f_in, f_out, use) { \
-  EXPECT_CALL(*mock_runtime, make_next_flow(&f_in)) \
-    .WillOnce(::testing::Return(&f_out)); \
+// </editor-fold> end wrapper to make EXPECT_*().InSequence() work as expected
+//==============================================================================
+
+
+//==============================================================================
+// <editor-fold desc="Special EXPECT_* macros for DARMA">
+
+// Note that these can't just be functions or methods (like they used to be
+// because the line numbers get screwed up and debugging is much harder
+
+#define EXPECT_MOD_CAPTURE_MN_OR_MR(f_in, f_out, use) \
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_in)) \
+    .WillOnce(::testing::Return(f_out)); \
   EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
-    &f_in, &f_out, use_t::Modify, use_t::Modify \
+    f_in, f_out, use_t::Modify, use_t::Modify \
   ))).WillOnce(::testing::SaveArg<0>(&use)); \
-}
-#define EXPECT_INITIAL_ACCESS(fin, fout, key) { \
+
+
+/* eventually expect release of flow */ \
+/* EXPECT_CALL(*mock_runtime, release_flow(::testing::Eq(f_out))); */ \
+
+#define EXPECT_INITIAL_ACCESS(fin, fout, key) \
   EXPECT_CALL(*mock_runtime, make_initial_flow(is_handle_with_key(key))) \
-    .WillOnce(::testing::Return(&fin)); \
+    .WillOnce(::testing::Return(fin)); \
   EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key))) \
-    .WillOnce(::testing::Return(&fout)); \
-}
+    .WillOnce(::testing::Return(fout)); \
+
+/* eventually expect release of flow */ \
+/* EXPECT_CALL(*mock_runtime, release_flow(::testing::Eq(f_in))); */ \
+/* EXPECT_CALL(*mock_runtime, release_flow(::testing::Eq(f_out))); */ \
+
+#define EXPECT_READ_ACCESS(f_init, f_null, key, version_key) \
+  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(key), ::testing::Eq(version_key))) \
+    .WillOnce(Return(f_init)); \
+  EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key))) \
+    .WillOnce(Return(f_null));
+
 #define EXPECT_RELEASE_USE(use_ptr) \
   ::_impl::in_sequence_wrapper( \
     EXPECT_CALL(*mock_runtime, release_use( \
@@ -162,6 +187,16 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
     )), [&](auto&& exp) -> decltype(auto) { \
       return exp.WillOnce(::testing::Assign(&use_ptr, nullptr)); \
   })
+
+
+#define EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(fread, use_ptr) \
+  ::_impl::in_sequence_wrapper( \
+    EXPECT_CALL(*mock_runtime, register_use( \
+        IsUseWithFlows( \
+          &fread, &fread, use_t::Read, use_t::Read \
+        ) \
+    )), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce(SaveArg<0>(&use_ptr)); } \
+  )
 
 #define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed, ...) \
   ::_impl::in_sequence_wrapper( \
@@ -174,6 +209,15 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy( \
     UsesInGetDependencies(VectorOfPtrsToArgs(__VA_ARGS__)) \
   ))
+
+#define EXPECT_RELEASE_FLOW(...) \
+  EXPECT_CALL(*mock_runtime, release_flow(::testing::Eq(__VA_ARGS__)))
+
+#define EXPECT_FLOW_ALIAS(f1, f2) \
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(::testing::Eq(f1), ::testing::Eq(f2)))
+
+// </editor-fold> end Special EXPECT_* macros for DARMA
+//==============================================================================
 
 class TestFrontend
   : public ::testing::Test
@@ -237,6 +281,7 @@ class TestFrontend
 
     ////////////////////////////////////////
 
+    // DEPRECATED!!!
     auto expect_initial_access(
       mock_backend::MockFlow& fin,
       mock_backend::MockFlow& fout,
@@ -267,6 +312,7 @@ class TestFrontend
 
     ////////////////////////////////////////
 
+    // DEPRECATED!!!
     auto expect_read_access(
       mock_backend::MockFlow& fin,
       mock_backend::MockFlow& fout,
@@ -298,6 +344,7 @@ class TestFrontend
 
     ////////////////////////////////////////
 
+    // DEPRECATED!!!
     auto expect_mod_capture_MN_or_MR(
       mock_backend::MockFlow& f_in, mock_backend::MockFlow& f_out, use_t*& use
     ) {
@@ -316,6 +363,7 @@ class TestFrontend
 
     ////////////////////////////////////////
 
+    // DEPRECATED!!!
     auto expect_ro_capture_RN_RR_MN_or_MR(
       mock_backend::MockFlow& fread, use_t*& use_ptr_capt,
       ::testing::Sequence const& seq = ::testing::Sequence()

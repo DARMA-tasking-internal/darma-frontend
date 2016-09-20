@@ -49,6 +49,8 @@
 #include <darma/impl/handle.h>
 #include <darma/impl/util/smart_pointers.h>
 
+#include <darma/impl/flow_handling.h>
+
 #include <thread>
 
 #include "use.h"
@@ -149,10 +151,11 @@ TaskBase::do_capture(
       };
 
       auto _ro_capture_mod_imm = [&]{
-        auto forwarded_flow = backend_runtime->make_forwarding_flow(
-          source.current_use_->use.in_flow_
+        auto forwarded_flow = make_forwarding_flow_ptr(
+          source.current_use_->use.in_flow_, backend_runtime
         );
-        captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(source.var_handle_.get(),
+        captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
+          source.var_handle_.get(),
           forwarded_flow, forwarded_flow,
           source.captured_as_ & AccessHandleBase::Leaf ?
             HandleUse::None : HandleUse::Read,
@@ -224,8 +227,8 @@ TaskBase::do_capture(
             case HandleUse::None:
             case HandleUse::Read: {
               // mod(MN) and mod(MR)
-              auto captured_out_flow = backend_runtime->make_next_flow(
-                source.current_use_->use.in_flow_
+              auto captured_out_flow = make_next_flow_ptr(
+                  source.current_use_->use.in_flow_, backend_runtime
               );
               captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
                 source.var_handle_.get(),
@@ -240,11 +243,11 @@ TaskBase::do_capture(
               break;
             }
             case HandleUse::Modify: {
-              auto captured_in_flow = backend_runtime->make_forwarding_flow(
-                source.current_use_->use.in_flow_
+              auto captured_in_flow = make_forwarding_flow_ptr(
+                source.current_use_->use.in_flow_, backend_runtime
               );
-              auto captured_out_flow = backend_runtime->make_next_flow(
-                captured_in_flow
+              auto captured_out_flow = make_next_flow_ptr(
+                captured_in_flow, backend_runtime
               );
               captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
                 source.var_handle_.get(),

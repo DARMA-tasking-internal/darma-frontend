@@ -60,15 +60,17 @@ class ContiguousIndexRange
 
   public:
 
-    size_t size() const override { return size_; }
+    // TODO serialization manager
 
-    size_t offset() const override { return offset_; }
+    size_t size() const { return size_; }
 
-    bool contiguous() const override { return true; }
+    size_t offset() const { return offset_; }
 
-    bool strided() const override { return false; }
+    bool contiguous() const { return true; }
 
-    size_t stride() const override { return 1; }
+    bool strided() const { return false; }
+
+    size_t stride() const { return 1; }
 
 };
 
