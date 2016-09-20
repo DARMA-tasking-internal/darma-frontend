@@ -70,7 +70,7 @@ class MockFlow {
         name_(str)
     { }
 
-    MockFlow(nullptr_t)
+    MockFlow(std::nullptr_t)
       : index_(std::numeric_limits<size_t>::max()),
         name_("%##unnamed##%")
     { }
