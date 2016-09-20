@@ -20,7 +20,6 @@ FILE(GLOB frontend_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
 FILE(GLOB frontend_detail_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/frontend/detail/*.h")
 
-
 install (FILES ${main_HEADERS} DESTINATION include/darma/interface)
 install (FILES ${app_HEADERS} DESTINATION include/darma/interface/app)
 install (FILES ${backend_HEADERS} DESTINATION include/darma/interface/backend)

@@ -26,7 +26,7 @@ struct initialize{
       rhs[i] = rhsEval(x) * dx*dx;  
 
       // correction to RHS due to known BC
-      if (i==1)
+      if (i==0)
         rhs[i] -= BC(xL);
       if (i==nInn-1)
         rhs[i] -= BC(xR);

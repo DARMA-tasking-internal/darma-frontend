@@ -31,7 +31,7 @@ void initialize(AccessHandle<std::vector<double>> & subD,
       ptrD4[i] = rhsEval(x) * dx*dx;  
 
       // correction to RHS due to known BC
-      if (i==1)
+      if (i==0)
         ptrD4[i] -= BC(xL);
       if (i==nInn-1)
         ptrD4[i] -= BC(xR);
