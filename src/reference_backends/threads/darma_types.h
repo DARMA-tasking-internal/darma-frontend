@@ -47,15 +47,23 @@
 
 #define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
 
-#define DARMA_THREAD_LOCAL_BACKEND_RUNTIME thread_local
+namespace threads_backend {
+  // forward declaration
+  struct InnerFlow;
+} // end namespace threads_backend
+
+
 
 #include <darma/impl/key/simple_key.h>
 
 namespace darma_runtime { namespace types {
-typedef darma_runtime::detail::SimpleKey key_t;
+  typedef darma_runtime::detail::SimpleKey key_t;
 }} // end namespace darma_runtime::types
 
 #include <darma/interface/defaults/pointers.h>
 
+namespace darma_runtime { namespace types {
+  typedef types::shared_ptr_template<::threads_backend::InnerFlow> flow_t;
+}} // end namespace darma_runtime::types
 
 #endif /* BACKENDS_SERIAL_DARMA_TYPES_H_ */

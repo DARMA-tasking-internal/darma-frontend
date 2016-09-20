@@ -49,15 +49,27 @@
 
 #include <darma_types.h>
 
+#include "serialization_manager.h"
+
 namespace darma_runtime {
 namespace abstract {
 namespace frontend {
+
+// TODO remove size, offset, contiguous, strided, and stride; the backend doesn't need them
 
 /** @todo
  *
  */
 class IndexRange {
   public:
+
+    /** @todo
+     *
+     * @return
+     */
+    virtual SerializationManager const*
+    get_serialization_manager() const =0;
+
 
     /** @todo
      *

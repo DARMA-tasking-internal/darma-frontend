@@ -58,6 +58,9 @@
 #include <tinympl/identity.hpp>
 #include "fill_n.hpp"
 
+#include <future>
+#include <condition_variable>
+
 namespace tinympl {
 namespace variadic {
 

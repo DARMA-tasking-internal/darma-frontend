@@ -361,9 +361,9 @@ struct functor_call_traits {
           //std::integral_constant<bool, formal_arg_accepts_move and not is_access_handle>,
           //  /* => */ std::remove_cv_t<std::remove_reference_t<CallArg>>,
           //------------------------------------------------------------
-          // For other cases, require const non-reference
+          // For other cases, require non-reference
           std::true_type,
-            /* => */ std::remove_cv_t<std::remove_reference_t<CallArg>> const
+            /* => */ std::remove_reference_t<CallArg>
         >;
 
         // Normal case, just pass through

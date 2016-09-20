@@ -89,6 +89,6 @@ add_subdirectory(darma_hello)
 add_subdirectory(heat_1d)
 add_subdirectory(poisson_1d_thomasAlgorithm)
 add_subdirectory(simple_kv)
-add_subdirectory(stencil_1d)
+#add_subdirectory(stencil_1d)
 
 

@@ -51,7 +51,7 @@ int main(int argc, char** argv)
 
 		d[i] = rhsEval(x) * dx*dx;
 
-		if (i==1)
+		if (i==0)
 			d[i] -= trueSolution(xL);
 		if (i==nInn-1)
 			d[i] -= trueSolution(xR);

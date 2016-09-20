@@ -391,6 +391,12 @@ struct MyClass_constructors
     some_private_field = initial_access<std::string>(private_key);
     some_public_field = initial_access<int>(public_key);
   }
+  // copy ctor
+  void operator()(darma_runtime::oo::darma_class_instance<MyClass> const& other) {
+    // copy ctor
+    FAIL() << "Copy ctor shouldn't be called; it's just defined to make MyClass"
+           << " copy constructible for detection test";
+  }
 };
 
 //----------------------------------------------------------------------------//
@@ -585,176 +591,231 @@ STATIC_ASSERT_TYPE_EQ(
   >
 );
 
-//typedef typename reads_<larry>::template subfield<curly> subfield_desc;
-//STATIC_ASSERT_TYPE_EQ(
-//  typename subfield_desc::apply_outermost_decorator,
-//  reads_<larry>::subfield<curly>
-//);
+//////////////////////////////////////////////////////////////////////////////////
 
-//#if 0
+static_assert(
+  std::is_convertible<darma_runtime::meta::any_arg, MyClass>::value,
+  "any_arg should be convertible to a DARMA class type MyClass"
+);
+static_assert(
+  std::is_convertible<darma_runtime::meta::any_arg, MyOtherClass>::value,
+  "any_arg should be convertible to a DARMA class type MyOtherClass"
+);
+
 //////////////////////////////////////////////////////////////////////////////////
-//
-//TEST_F(TestOO, simple_copy_ctor) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//  using namespace mock_backend;
-//
-//  ::testing::StaticAssertTypeEq<int, int>();
-//
-//  mock_runtime->save_tasks = true;
-//
-//  MockFlow larry_flows[2];
-//  MockFlow larry_captured_flows[2];
-//  use_t* larry_uses[2];
-//  MockFlow larry_copy_flows[2];
-//  MockFlow larry_copy_capt_flows[2];
-//  MockFlow larry_copy_cont_flows[2];
-//  use_t* larry_copy_uses[3];
-//
-//  Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
-//
-//  /* expectation of things happening in string constructor */
-//  expect_initial_access(larry_flows[0], larry_flows[1], larry_uses[0],
-//    make_key("larry"), s_reg_initial);
-//
-//  /* expectations in copy constructor */
-//  expect_initial_access(larry_copy_flows[0], larry_copy_flows[1], larry_copy_uses[0],
-//    make_key("larry", "copied"), s_reg_initial);
-//
-//  expect_ro_capture_RN_RR_MN_or_MR(larry_flows, larry_captured_flows, larry_uses);
-//  expect_mod_capture_MN_or_MR(larry_copy_flows,
-//    larry_copy_capt_flows, larry_copy_cont_flows, larry_copy_uses
-//  );
-//
-//  int larry_value = 73;
-//  int larry_copy_value = 0;
-//
-//  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-//    UseInGetDependencies(ByRef(larry_uses[1])),
-//    UseInGetDependencies(ByRef(larry_copy_uses[1]))
-//  ))).WillOnce(Invoke([&](auto&&...) {
-//    larry_uses[1]->get_data_pointer_reference() = &larry_value;
-//    larry_copy_uses[1]->get_data_pointer_reference() = &larry_copy_value;
-//  }));
-//
-//  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(larry_copy_uses[2]))));
-//  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(larry_uses[1]))));
-//  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(larry_copy_uses[1]))));
-//
-//  /* end expectations in copy constructor */
-//
-//  {
-//    simple_oo_test::Simple s("larry");
-//    simple_oo_test::Simple t(s);
-//  }
-//
-//  run_all_tasks();
-//
-//  ASSERT_EQ(larry_copy_value, 73);
-//}
-//
+
+TEST_F(TestOO, simple_copy_ctor) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  MockFlow finit_s, fnull_s;
+  MockFlow finit_t, fnull_t, f_task_out_t;
+  use_t* s_read_use, *t_mod_use;
+
+  /* expectation of things happening in string constructor */
+  EXPECT_INITIAL_ACCESS(finit_s, fnull_s, make_key("larry"));
+
+  /* expectations in copy constructor */
+  EXPECT_INITIAL_ACCESS(finit_t, fnull_t, make_key("larry", "copied"));
+
+  EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(finit_s, s_read_use);
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit_t, f_task_out_t, t_mod_use);
+
+  int larry_value = 73;
+  int larry_copy_value = 0;
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+    UseInGetDependencies(ByRef(s_read_use)),
+    UseInGetDependencies(ByRef(t_mod_use))
+  ))).WillOnce(Invoke([&](auto&&...) {
+    s_read_use->get_data_pointer_reference() = &larry_value;
+    t_mod_use->get_data_pointer_reference() = &larry_copy_value;
+  }));
+
+  /* end expectations in copy constructor */
+
+  {
+    simple_oo_test::Simple s("larry");
+    simple_oo_test::Simple t(s);
+  }
+
+  // only expect releases after tasks run
+  EXPECT_RELEASE_USE(s_read_use);
+  EXPECT_RELEASE_USE(t_mod_use);
+
+  run_all_tasks();
+
+  ASSERT_EQ(larry_copy_value, 73);
+}
+
 //////////////////////////////////////////////////////////////////////////////////
-//
-//TEST_F(TestOO, simple_homer_lisa) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//  using namespace mock_backend;
-//
-//  mock_runtime->save_tasks = true;
-//
-//
-//  use_t* use_1, *use_2, *use_3, *use_4;
-//  MockFlow fl_in_1, fl_out_1;
-//  MockFlow fl_in_2, fl_out_2;
-//  MockFlow fl_in_3, fl_out_3;
-//  MockFlow fl_in_4, fl_out_4;
-//
-//  MockFlow larry_flows[2];
-//  MockFlow larry_captured_flows[2];
-//  use_t* larry_uses[2];
-//
-//
-//  Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
-//
-//  // expectation of things happening in string constructor
-//  expect_initial_access(larry_flows[0], larry_flows[1], larry_uses[0],
-//    make_key("larry"), s_reg_initial);
-//
-//  // expectations for the method calls
-//  expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("moe", "s"),
-//    s_reg_initial, s_release_initial);
-//
-//  expect_mod_capture_MN_or_MR(
-//    fl_in_1, fl_out_1, use_1,
-//    fl_in_2, fl_out_2, use_2,
-//    fl_in_3, fl_out_3, use_3,
-//    s_reg_captured, s_reg_continuing
-//  );
-//
-//  double data = 0.0;
-//
-//  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_2))))
-//    .Times(1).InSequence(s_reg_captured, s_release_initial)
-//    .WillOnce(Invoke([&](auto* task){
-//      use_2->get_data_pointer_reference() = (void*)&data;
-//    }));
-//
-//
-//  expect_ro_capture_RN_RR_MN_or_MR(
-//    fl_in_3, fl_out_3, use_3,
-//    fl_in_4, fl_out_4, use_4,
-//    s_reg_continuing
-//  );
-//
-//  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_4))))
-//    .Times(1).InSequence(s_reg_captured, s_release_initial)
-//    .WillOnce(Invoke([&](auto* task){
-//      use_4->get_data_pointer_reference() = (void*)&data;
-//    }));
-//
-//  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_3)),
-//    IsUseWithFlows(&fl_in_3, &fl_out_3, use_t::Modify, use_t::None)
-//  ))).Times(1).InSequence(s_reg_continuing)
-//    .WillOnce(Assign(&use_3, nullptr));
-//
-//  // end expectations for the method calls
-//
-//
-//  {
-//    simple_oo_test::Simple s("larry");
-//    s.moe = initial_access<double>("moe", "s");
-//    s.homer();
-//    s.bart(42); // makes an "immediate" call to s.lisa();
-//
-//    EXPECT_THAT(larry_uses[0], NotNull());
-//  }
-//
-//  // Now expect the releases that have to happen after the tasks start running
-//  EXPECT_CALL(*sequence_marker, mark_sequence("homer"))
-//    .Times(1).InSequence(s_reg_captured);
-//
-//  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_2)),
-//    IsUseWithFlows(&fl_in_2, &fl_out_2, use_t::Modify, use_t::Modify)
-//  ))).Times(1).InSequence(s_reg_captured, s_release_initial)
-//    .WillOnce(Assign(&use_2, nullptr));
-//
-//  EXPECT_CALL(*mock_runtime, release_use(AllOf(Eq(ByRef(use_4)),
-//    IsUseWithFlows(&fl_in_4, &fl_out_4, use_t::Read, use_t::Read)
-//  ))).Times(1).InSequence(s_reg_continuing)
-//    .WillOnce(Assign(&use_4, nullptr));
-//
-//  testing::internal::CaptureStdout();
-//
-//  run_all_tasks();
-//
-//  ASSERT_EQ(testing::internal::GetCapturedStdout(),
-//    "42 == 42"
-//  );
-//
-//
-//  ASSERT_EQ(data, 42);
-//
-//}
-//#endif
+
+
+DARMA_OO_DECLARE_CLASS(darma_vector);
+
+DARMA_OO_DEFINE_TAG(myData_);
+DARMA_OO_DEFINE_TAG(initialize);
+DARMA_OO_DEFINE_TAG(print);
+DARMA_OO_DEFINE_TAG(scalarMultiply);
+
+using namespace darma_runtime;
+using namespace darma_runtime::oo;
+
+struct darma_vector : darma_class<darma_vector,
+  private_fields<std::vector<double>, myData_>,
+  public_methods<initialize>,
+  public_methods<print>,
+  public_methods<scalarMultiply>
+>
+{ using darma_class::darma_class; };
+
+struct darma_vector_constructors
+  : darma_constructors<darma_vector>
+{
+  using darma_constructors::darma_constructors;
+  void operator()(int me) {
+    myData_ = initial_access<std::vector<double>>(me, "v_my data");
+  }
+};
+
+template <>
+struct darma_vector_method<initialize>
+  : darma_method<darma_vector,
+      modifies_value_<myData_>
+    >
+{
+  using darma_method::darma_method;
+  void operator()(int size, double last_value) {
+    myData_ = std::vector<double>(size, 0.0);
+    myData_[size-1] = last_value;
+  }
+};
+
+template <>
+struct darma_vector_method<print>
+  : darma_method<darma_vector,
+      reads_value_<myData_>
+    >
+{
+  using darma_method::darma_method;
+  void operator()(int index) {
+    std::cout << index << " : " << std::setprecision(3) << myData_[index]
+              << std::endl;
+  }
+};
+
+template <>
+struct darma_vector_method<scalarMultiply>
+  : darma_method<darma_vector,
+    modifies_value_<myData_>
+  >
+{
+  using darma_method::darma_method;
+  void operator()(double scale) {
+    for(auto& val : myData_) {
+      val *= scale;
+    }
+  }
+};
+
+TEST_F(TestOO, use_darma_vector) {
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  ::testing::internal::CaptureStdout();
+
+  MockFlow finit, fnull, f_initialize_out, f_scale_out;
+  use_t* initialize_use, *print_use, *scale_use, *print_2_use;
+  initialize_use = print_use = scale_use = print_2_use = nullptr;
+
+  Sequence s1;
+
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key(5, "v_my data"));
+
+  std::vector<double> my_data_value;
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, f_initialize_out, initialize_use);
+
+  EXPECT_REGISTER_TASK(initialize_use)
+    .InSequence(s1)
+    .WillOnce(Invoke([&](auto&&...){
+      initialize_use->get_data_pointer_reference() = &my_data_value;
+    }));
+
+  EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(f_initialize_out, print_use).InSequence(s1);
+
+  EXPECT_REGISTER_TASK(print_use)
+    .InSequence(s1)
+    .WillOnce(Invoke([&](auto&&...){
+      print_use->get_data_pointer_reference() = &my_data_value;
+    }));
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR(f_initialize_out, f_scale_out, scale_use);
+
+  EXPECT_REGISTER_TASK(scale_use)
+    .InSequence(s1)
+    .WillOnce(Invoke([&](auto&&...){
+      scale_use->get_data_pointer_reference() = &my_data_value;
+    }));
+
+  EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(f_scale_out, print_2_use).InSequence(s1);
+
+  EXPECT_REGISTER_TASK(print_2_use)
+    .InSequence(s1)
+    .WillOnce(Invoke([&](auto&&...){
+      print_2_use->get_data_pointer_reference() = &my_data_value;
+    }));
+
+  EXPECT_FLOW_ALIAS(f_scale_out, fnull).InSequence(s1);
+
+  EXPECT_RELEASE_FLOW(fnull).InSequence(s1);
+
+  //============================================================================
+  // Code being tested
+  {
+
+    darma_vector vect(5);
+
+    vect.initialize(20, 3.14);
+
+    vect.print(19);
+
+    vect.scalarMultiply(2.0);
+
+    vect.print(19);
+  }
+  //============================================================================
+
+  {
+    InSequence seq;
+
+    EXPECT_RELEASE_USE(initialize_use);
+    EXPECT_RELEASE_FLOW(finit);
+
+    EXPECT_RELEASE_USE(print_use);
+
+    EXPECT_RELEASE_USE(scale_use);
+
+    EXPECT_RELEASE_FLOW(f_initialize_out);
+
+    EXPECT_RELEASE_USE(print_2_use);
+
+    EXPECT_RELEASE_FLOW(f_scale_out);
+  }
+
+  run_all_tasks();
+
+  EXPECT_THAT(my_data_value.size(), Eq(20));
+  EXPECT_THAT(my_data_value[19], Eq(double(3.14) * double(2.0)));
+
+  ASSERT_EQ(::testing::internal::GetCapturedStdout(),
+    "19 : 3.14\n"
+    "19 : 6.28\n"
+  );
+
+}

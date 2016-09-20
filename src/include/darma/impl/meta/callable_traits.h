@@ -56,6 +56,7 @@
 #include <tinympl/always_true.hpp>
 #include <tinympl/logical_or.hpp>
 #include <tinympl/logical_not.hpp>
+#include <tinympl/range_c.hpp>
 
 #include <darma/impl/meta/detection.h>
 #include <darma/impl/util.h>
@@ -67,30 +68,137 @@ namespace darma_runtime {
 
 namespace meta {
 
+//==============================================================================
+// <editor-fold desc="get_params">
+
+
+// The default version just gets the parameters to the Callable::operator()
+// method (meaning that we can assume it's a functor-like callable, since
+// all of the other cases are handled in specializations), but we have to
+// pop off the first parameter since the std::invoke (C++17) numbering for
+// instance method callables assumes that the first parameter is an instance
+// of the class itself (or a pointer to it, or a base class, or a
+// std::reference_wrapper, but we'll ignore these for our purposes).  For more
+// details, see http://en.cppreference.com/w/cpp/utility/functional/invoke
+template <typename Callable>
+struct get_params
+  : get_params<decltype(&Callable::operator())>::type::pop_front { };
+
+// function version
+template <typename ReturnType, typename... Args>
+struct get_params<ReturnType (Args...)>
+  : get_params<ReturnType (*)(Args...)> { };
+
+// pointer-to-function version
+template <typename ReturnType, typename... Args>
+struct get_params<ReturnType (*)(Args...)>
+  : tinympl::identity<tinympl::vector<Args...>> { };
+
+// reference-to-function version
+template <typename ReturnType, typename... Args>
+struct get_params<ReturnType (&)(Args...)>
+  : get_params<ReturnType (*)(Args...)> { };
+
+// Instance member functions have class type as their first argument, according
+// to std::invoke (C++17) parameter ordering
+template <typename ClassType, typename ReturnType, typename... Args>
+struct get_params<ReturnType (ClassType::*)(Args...)>
+  : tinympl::identity<tinympl::vector<ClassType, Args...>> { };
+
+// versions that remove cv qualifiers from pointer-to-method callables
+// all of them just forward to the unqualified version above
+template <typename ClassType, typename ReturnType, typename... Args>
+struct get_params<ReturnType (ClassType::*)(Args...) const>
+  : get_params<ReturnType (ClassType::*)(Args...)> { };
+template <typename ClassType, typename ReturnType, typename... Args>
+struct get_params<ReturnType (ClassType::*)(Args...) const volatile>
+  : get_params<ReturnType (ClassType::*)(Args...)> { };
+template <typename ClassType, typename ReturnType, typename... Args>
+struct get_params<ReturnType (ClassType::*)(Args...) volatile>
+  : get_params<ReturnType (ClassType::*)(Args...)> { };
+
+// pointer-to-member callable
+template <typename ClassType, typename ReturnType>
+struct get_params<ReturnType (ClassType::*)>
+  : tinympl::identity<tinympl::vector<ClassType>> { };
+
+// a more verbose alias
+template <typename Callable>
+using get_parameters = get_params<Callable>;
+
+// the *_t versions of the above
+template <typename Callable>
+using get_params_t = typename get_params<Callable>::type;
+template <typename Callable>
+using get_parameters_t = typename get_params<Callable>::type;
+
+// </editor-fold> end get_params
+//==============================================================================
+
+
+//==============================================================================
+// <editor-fold desc="get_param_N">
+
+template <size_t N, typename Callable>
+struct get_param_N {
+  private:
+    using _params = get_params_t<Callable>;
+  public:
+    static_assert(N < _params::size, "parameter index out of range");
+    using type = tinympl::at_t<N, _params>;
+};
+
+// a more verbose alias
+template <size_t N, typename Callable>
+using get_parameter_N = get_param_N<N, Callable>;
+
+// the *_t versions of the above
+template <size_t N, typename Callable>
+using get_param_N_t = typename get_param_N<N, Callable>::type;
+template <size_t N, typename Callable>
+using get_parameter_N_t = typename get_param_N<N, Callable>::type;
+
+// An SFINAE-friendly version, without the static_assert
+template <size_t N, typename Callable, typename Enable=void>
+struct get_param_N_SFINAE { }; // substitution failure case
+
+// substitution success case:
+template <size_t N, typename Callable>
+struct get_param_N_SFINAE<N, Callable,
+  std::enable_if_t<N+1 <= get_params_t<Callable>::size>
+> : get_param_N<N, Callable> { };
+
+// </editor-fold> end get_param_N
+//==============================================================================
+
 namespace _callable_traits_impl {
 
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 // <editor-fold desc="count_min_args">
 
-template <typename F, size_t I = 0,  typename... Args>
+template <typename F, size_t MaxToTryPlus1 = DARMA_META_MAX_CALLABLE_ARGS,
+  // These should never be non-defaulted in calling code (only in recursion
+  // from the implementation here)
+  size_t I = 0, typename... Args
+>
 struct count_min_args
   // Double "::type" short-circuits recursion when possible
   : std::conditional_t<
-    is_callable_with_args<F, Args...>::value,
-    std::integral_constant<size_t, I>,
-    count_min_args<F, I+1, Args..., any_arg>
+      is_callable_with_args<F, Args...>::value,
+      std::integral_constant<size_t, I>,
+      count_min_args<F, MaxToTryPlus1, I+1, Args..., any_arg>
     >::type
 { };
 
-template <typename F, typename... Args>
-struct count_min_args<F, DARMA_META_MAX_CALLABLE_ARGS, Args...>
-  : std::integral_constant<size_t, DARMA_META_MAX_CALLABLE_ARGS+1> { };
+template <typename F, size_t MaxToTryPlus1, typename... Args>
+struct count_min_args<F, MaxToTryPlus1, MaxToTryPlus1, Args...>
+  : std::integral_constant<size_t, MaxToTryPlus1+1> { };
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
 
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 // <editor-fold desc="count_max_args">
 
 template <typename F, size_t I = 0, bool min_found = false, typename... Args>
@@ -112,246 +220,284 @@ struct count_max_args<F, DARMA_META_MAX_CALLABLE_ARGS, min_found, Args...>
   : std::integral_constant<size_t, DARMA_META_MAX_CALLABLE_ARGS+1> { };
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
 
-////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="is_callable_replace_arg_n">
+//==============================================================================
+// <editor-fold desc="call_operator_is_overloaded">
 
-template <typename F,
-  typename ArgNReplacement, typename OtherArgsType,
-  size_t N, size_t I, size_t NTotal,
-  typename... Args
->
-struct is_callable_replace_arg_n
-  : std::conditional_t<
-      N >= NTotal,
-      std::false_type,
-      is_callable_replace_arg_n<F,
-        ArgNReplacement, OtherArgsType,
-        N, I+1, NTotal, Args...,
-        std::conditional_t< I == N, ArgNReplacement, OtherArgsType >
-      >
-    >
-{ };
+template <typename Functor>
+using call_operator_exists = tinympl::bool_<
+  count_min_args<Functor>::value != DARMA_META_MAX_CALLABLE_ARGS+1
+>;
 
-template <typename F,
-  typename ArgNReplacement, typename OtherArgsType,
-  size_t N, size_t NTotal,
-  typename... Args
->
-struct is_callable_replace_arg_n<F,
-  ArgNReplacement, OtherArgsType, N, NTotal, NTotal, Args...
-> : is_callable_with_args<F, Args...>
-{ };
+template <typename Functor>
+using fails_for_overloaded_functor_call_archetype = decltype(&Functor::operator());
 
-// </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+// anything else...
+template <typename T>
+struct is_non_functor_callable : std::false_type { };
+// pointer-to-member function
+template <typename T, typename U, typename... Args>
+struct is_non_functor_callable<U (T::*)(Args...)> : std::true_type { };
+template <typename T, typename U, typename... Args>
+struct is_non_functor_callable<U (T::*)(Args...) const> : std::true_type { };
+template <typename T, typename U, typename... Args>
+struct is_non_functor_callable<U (T::*)(Args...) const volatile> : std::true_type { };
+template <typename T, typename U, typename... Args>
+struct is_non_functor_callable<U (T::*)(Args...) volatile> : std::true_type { };
+// function pointer
+template <typename T, typename... Args>
+struct is_non_functor_callable<T (*)(Args...)> : std::true_type { };
+// function reference
+template <typename T, typename... Args>
+struct is_non_functor_callable<T (&)(Args...)> : std::true_type { };
+// "just a function"
+template <typename T, typename... Args>
+struct is_non_functor_callable<T (Args...)> : std::true_type { };
+// Pointer-to-data-member
+template <typename T, typename U>
+struct is_non_functor_callable<U (T::*)> : std::true_type { };
 
-////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="arg_n_is">
 
-// Be careful!  Things like is_const and is_reference don't work here because
-// they can choose another cast operator
-template <
-  template <class...> class UnaryMetafunction,
-  typename F, size_t N
->
-struct arg_n_is
-  : is_callable_replace_arg_n<F,
-      any_arg_conditional<UnaryMetafunction>, any_arg,
-      N, 0, count_max_args<F>::value
-    >
-{ };
+template <typename Functor>
+using call_operator_is_overloaded = tinympl::bool_<
+  call_operator_exists<Functor>::value
+  and (not is_detected<fails_for_overloaded_functor_call_archetype, Functor>::value)
+  and (not is_non_functor_callable<Functor>::value)
+>;
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
-
-
-////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="all_args_match">
-
-template <
-  template <class...> class UnaryMetafunction,
-  typename F, size_t I, size_t NTotal,
-  typename... Args
->
-struct all_args_match_impl
-  : all_args_match_impl<
-      UnaryMetafunction, F, I+1, NTotal, Args..., any_arg_conditional<UnaryMetafunction>
-  >
-{ };
-
-template <
-  template <class...> class UnaryMetafunction,
-  typename F, size_t NTotal,
-  typename... Args
->
-struct all_args_match_impl<
-  UnaryMetafunction, F, NTotal, NTotal, Args...
-> : is_callable_with_args<F, Args...>
-{ };
-
-// </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
-
-
-////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="_callable_traits_maybe_min_eq_max">
-
-
-template <typename Callable, size_t NArgsMin, size_t NArgsMax>
-struct _callable_traits_maybe_min_eq_max {
-  static constexpr auto n_args_min = NArgsMin;
-  static constexpr auto n_args_max = NArgsMax;
-  static_assert(n_args_min != DARMA_META_MAX_CALLABLE_ARGS+1
-    and n_args_max != DARMA_META_MAX_CALLABLE_ARGS+1,
-    "callable_traits<> used with callable having an invalid parameter (e.g., deleted"
-      " copy constructor for a value parameter)"
-      " (or, much less likely, you may need to increase DARMA_META_MAX_CALLABLE_ARGS, but "
-      "this is very unlikely to be the problem)"
-  );
-};
-
-template <typename Callable, size_t NArgs>
-struct _callable_traits_maybe_min_eq_max<Callable, NArgs, NArgs> {
-  static constexpr auto n_args_min = NArgs;
-  static constexpr auto n_args_max = NArgs;
-  static constexpr auto n_args = NArgs;
-  static_assert(n_args != DARMA_META_MAX_CALLABLE_ARGS+1,
-    "callable_traits<> used with callable having an invalid parameter (e.g.,"
-      " deleted copy and move constructor for a value parameter)"
-      " (or, much less likely, you may need to increase"
-      " DARMA_META_MAX_CALLABLE_ARGS, but this is very unlikely to be the"
-      " problem)"
-  );
-};
-
-// </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
 } // end namespace _callable_traits_impl
 
-// TODO make these work (or at least fail reasonably) for templated Callables and universal references
+//==============================================================================
+// <editor-fold desc="callable_traits">
 
 template <typename Callable>
-struct callable_traits
-  : _callable_traits_impl::_callable_traits_maybe_min_eq_max<Callable,
-       _callable_traits_impl::count_min_args<Callable>::value,
-       _callable_traits_impl::count_max_args<Callable>::value
-    >
-{
+struct callable_traits {
   private:
-    typedef _callable_traits_impl::_callable_traits_maybe_min_eq_max<Callable,
-       _callable_traits_impl::count_min_args<Callable>::value,
-       _callable_traits_impl::count_max_args<Callable>::value
-    > base_t;
+
+    static_assert(
+      not _callable_traits_impl::call_operator_is_overloaded<Callable>::value,
+      "Can't handle functors with overloaded call operators"
+    );
 
   public:
 
+    using params_vector = get_params_t<Callable>;
+    using args_vector = params_vector;
+
+    static constexpr auto n_params_max = params_vector::size;
+    static constexpr auto n_params_min =
+      _callable_traits_impl::count_min_args<Callable, n_params_max+1>::value;
+
+    static_assert(n_params_min <= n_params_max,
+      "Can't determine minimum number of parameters for Callable.  Check for"
+        " by-value parameters with deleted copy and move constructors, or for"
+        " crazy parameter types that can't be detected, like pointer-to-member"
+        " types, etc."
+    );
+
+    // Deprecated naming convention:
+    static constexpr auto n_args_min = n_params_min;
+    static constexpr auto n_args_max = n_params_max;
+
+
     template <size_t N>
-    struct arg_n_is_nonconst_rvalue_reference
-      : _callable_traits_impl::is_callable_replace_arg_n<Callable,
-          any_nonconst_rvalue_reference,
-          any_arg,
-          N, 0, base_t::n_args_max
-        >
+    struct param_n
+      : tinympl::at<N, params_vector>
     { };
 
-
+    // Deprecated naming convention:
     template <size_t N>
-    struct arg_n_is_by_reference
-      : _callable_traits_impl::is_callable_replace_arg_n<Callable,
-          ambiguous_if_by_value,
-          any_arg,
-          N, 0, base_t::n_args_max
+    using arg_n = param_n<N>;
+
+    // *_t aliases
+    template <size_t N>
+    using param_n_t = typename param_n<N>::type;
+    template <size_t N>
+    using arg_n_t = typename param_n<N>::type;
+
+    //--------------------------------------------------------------------------
+
+    template <size_t N,
+      // convenience; should never be given as a template parameter
+      typename _Param = tinympl::at_t<N, params_vector>
+    >
+    struct param_n_is_nonconst_rvalue_reference
+      : tinympl::bool_<
+          std::is_rvalue_reference<_Param>::value
+          and not std::is_const<std::remove_reference_t<_Param>>::value
         >
     {
-      static_assert(
-        N < base_t::n_args_max,
-        "N given to arg_n_is_by_reference is out of range for number of"
-        " arguments to F"
+      static_assert(std::is_same<_Param, tinympl::at_t<N, params_vector>>::value,
+        "Can't give value for convenience positional default template parameter"
       );
     };
-
+    // Deprecated naming convention:
     template <size_t N>
-    struct arg_n_is_by_value
-      : std::integral_constant< bool, not arg_n_is_by_reference<N>::value >
-    {
-      static_assert(
-        N < base_t::n_args_max,
-        "N given to arg_n_is_by_value is out of range for number of"
-        " arguments to F"
-      );
-    };
+    using arg_n_is_nonconst_rvalue_reference = param_n_is_nonconst_rvalue_reference<N>;
 
-    template <size_t N>
-    struct arg_n_accepts_const_reference
-      // The logical_or here is necessary to resolve an ambiguity between g++
-      // and clang++. With clang++, only the part is necessary, but g++ doesn't
-      // allow the first cast to resolve for by-value arguments, so the second
-      // one is necessary in that case.  Specifically, this works around bug
-      // #63217 in gcc.
-      : tinympl::logical_or<
-          _callable_traits_impl::is_callable_replace_arg_n<Callable,
-            any_const_reference,
-            any_arg,
-            N, 0, base_t::n_args_max
-          >,
-          arg_n_is_by_value<N>
-        >::type
-    {
-      static_assert(
-        N < base_t::n_args_max,
-        "N given to arg_accepts_const_reference is out of range for number of"
-        " arguments to F"
-      );
-    };
+    //--------------------------------------------------------------------------
 
-    template <size_t N>
-    struct arg_n_is_const_lvalue_reference
-      : tinympl::logical_and<
-          arg_n_accepts_const_reference<N>,
-          tinympl::not_<arg_n_is_by_value<N>>
-        >::type
-    { };
-
-    template <size_t N>
-    struct arg_n_is_nonconst_lvalue_reference
-      // Process of elimination: it's a reference but it doesn't take a const
-      // reference
-      : std::integral_constant<bool,
-          arg_n_is_by_reference<N>::value
-            and not arg_n_accepts_const_reference<N>::value
-            and not arg_n_is_nonconst_rvalue_reference<N>::value
+    template <size_t N,
+      // convenience; should never be given as a template parameter
+      typename _Param = tinympl::at_t<N, params_vector>
+    >
+    struct param_n_is_by_reference
+      : tinympl::bool_<
+          std::is_reference<_Param>::value
         >
-    { };
+    {
+      static_assert(std::is_same<_Param, tinympl::at_t<N, params_vector>>::value,
+        "Can't give value for convenience positional default template parameter"
+      );
+    };
+    // Deprecated naming convention:
+    template <size_t N>
+    using arg_n_is_by_reference = param_n_is_by_reference<N>;
 
+    //--------------------------------------------------------------------------
+
+    template <size_t N,
+      // convenience; should never be given as a template parameter
+      typename _Param = tinympl::at_t<N, params_vector>
+    >
+    struct param_n_is_by_value
+      : tinympl::bool_<
+          not std::is_reference<_Param>::value
+        >
+    {
+      static_assert(std::is_same<_Param, tinympl::at_t<N, params_vector>>::value,
+        "Can't give value for convenience positional default template parameter"
+      );
+    };
+    // Deprecated naming convention:
+    template <size_t N>
+    using arg_n_is_by_value = param_n_is_by_value<N>;
+
+    //--------------------------------------------------------------------------
+
+    template <size_t N,
+      // convenience; should never be given as a template parameter
+      typename _Param = tinympl::at_t<N, params_vector>
+    >
+    struct param_n_is_const_lvalue_reference
+      : tinympl::bool_<
+          std::is_lvalue_reference<_Param>::value
+          and std::is_const<std::remove_reference_t<_Param>>::value
+        >
+    {
+      static_assert(std::is_same<_Param, tinympl::at_t<N, params_vector>>::value,
+        "Can't give value for convenience positional default template parameter"
+      );
+    };
+    // Deprecated naming convention:
+    template <size_t N>
+    using arg_n_is_const_lvalue_reference = param_n_is_const_lvalue_reference<N>;
+
+    //--------------------------------------------------------------------------
+
+    template <size_t N,
+      // convenience; should never be given as a template parameter
+      typename _Param = tinympl::at_t<N, params_vector>
+    >
+    struct param_n_accepts_const_reference
+      : tinympl::bool_<
+          param_n_is_by_value<N>::value
+            or param_n_is_const_lvalue_reference<N>::value
+        >
+    {
+      static_assert(std::is_same<_Param, tinympl::at_t<N, params_vector>>::value,
+        "Can't give value for convenience positional default template parameter"
+      );
+    };
+    // Deprecated naming convention:
+    template <size_t N>
+    using arg_n_accepts_const_reference = param_n_accepts_const_reference<N>;
+
+    //--------------------------------------------------------------------------
+
+    template <size_t N,
+      // convenience; should never be given as a template parameter
+      typename _Param = tinympl::at_t<N, params_vector>
+    >
+    struct param_n_is_nonconst_lvalue_reference
+      : tinympl::bool_<
+          std::is_lvalue_reference<_Param>::value
+            and not std::is_const<std::remove_reference_t<_Param>>::value
+        >
+    {
+      static_assert(std::is_same<_Param, tinympl::at_t<N, params_vector>>::value,
+        "Can't give value for convenience positional default template parameter"
+      );
+    };
+    // Deprecated naming convention:
+    template <size_t N>
+    using arg_n_is_nonconst_lvalue_reference = param_n_is_nonconst_lvalue_reference<N>;
+
+    //--------------------------------------------------------------------------
+
+    template <size_t N, typename U,
+      // convenience; should never be given as a template parameter
+      typename _Param = tinympl::at_t<N, params_vector>
+    >
+    struct param_n_is_implicitly_convertible_from
+      : tinympl::bool_<
+          std::is_convertible<U, _Param>::value
+        >
+    {
+      static_assert(std::is_same<_Param, tinympl::at_t<N, params_vector>>::value,
+        "Can't give value for convenience positional default template parameter"
+      );
+    };
+    // Deprecated naming convention:
     template <size_t N, typename U>
-    struct arg_n_is_implicitly_convertible_from
-      : _callable_traits_impl::is_callable_replace_arg_n<Callable,
-          U, any_arg, N, 0, base_t::n_args_max
-        >
-    { };
+    using arg_n_is_implicitly_convertible_from =
+      param_n_is_implicitly_convertible_from<N, U>;
+
+    //--------------------------------------------------------------------------
 
     template <
       template <class...> class UnaryMetafunction,
       size_t N
     >
-    struct arg_n_matches
-      : _callable_traits_impl::arg_n_is<UnaryMetafunction, Callable, N>
+    struct param_n_matches
+      : tinympl::and_<
+          tinympl::bool_< N+1 <= n_params_max>,
+          // Lazily evaluate the UnaryMetafunction, in case it's not
+          // SFINAE-friendly
+          tinympl::extract_value_potentially_lazy<
+            typename tinympl::lazy<UnaryMetafunction>::template instantiated_with<
+              // Evaluate the at with a default in case it's not valid (checked
+              // by the first condition
+              tinympl::at_or_t<meta::nonesuch, N, params_vector>
+            > // end lazy<UnaryMetafunction>
+          > // end extract_value_potentially_lazy
+        > // end and_ (that short circuits if necessary)
     { };
+    // Deprecated naming convention:
+    template <template <class...> class UnaryMetafunction, size_t N>
+    using arg_n_matches = param_n_matches<UnaryMetafunction, N>;
+
+    //--------------------------------------------------------------------------
 
     template <
       template <class...> class UnaryMetafunction
     >
-    struct all_args_match
-      : _callable_traits_impl::all_args_match_impl<
-        UnaryMetafunction, Callable, 0, base_t::n_args_max
-      >
+    struct allparams_vector_match
+      : tinympl::all_of<params_vector, UnaryMetafunction>
     { };
+    // Deprecated naming convention:
+    template < template <class...> class UnaryMetafunction >
+    using all_args_match = allparams_vector_match<UnaryMetafunction>;
 
 };
+
+// </editor-fold>
+//==============================================================================
 
 } // end namespace meta
 

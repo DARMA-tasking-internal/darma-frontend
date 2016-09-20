@@ -83,7 +83,7 @@ TEST_F(TestFlows, make_initial){
   types::key_t k = make_key("a");
   handle_t handle(k);
 
-  flow_t *f1 = backend_runtime->make_initial_flow(&handle);
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(&handle));
   EXPECT_FALSE(f1 == nullptr);
 
   darma_finalize();
@@ -97,7 +97,7 @@ TEST_F(TestFlows, make_null){
   types::key_t k = make_key("a");
   handle_t handle(k);
 
-  flow_t *f1 = backend_runtime->make_null_flow(&handle);
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_null_flow(&handle));
   EXPECT_FALSE(f1 == nullptr);
 
   darma_finalize();
@@ -112,10 +112,10 @@ TEST_F(TestFlows, register_initial_use){
   types::key_t k = make_key("a");
   handle_t handle(k);
 
-  flow_t *f1 = backend_runtime->make_initial_flow(&handle);
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(&handle));
   EXPECT_FALSE(f1 == nullptr);
 
-  flow_t *f2 = backend_runtime->make_null_flow(&handle);
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(&handle));
   EXPECT_FALSE(f2 == nullptr);
 
   EXPECT_FALSE(f2 == f1);
@@ -136,14 +136,14 @@ TEST_F(TestFlows, make_next){
   types::key_t k = make_key("a");
   handle_t handle(k);
 
-  flow_t *f1 = backend_runtime->make_initial_flow(&handle);
-  flow_t *f2 = backend_runtime->make_null_flow(&handle);
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(&handle));
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(&handle));
 
   use_t use(&handle, f1, f2, use_t::Modify, use_t::None);
   backend_runtime->register_use(&use);
 
-  flow_t *f3 = f1;
-  flow_t *f4 = backend_runtime->make_next_flow(f3);
+  auto f3 = f1;
+  auto f4 = detail::make_next_flow_ptr(f3, backend_runtime);
   EXPECT_FALSE(f4 == nullptr);
 
   EXPECT_FALSE(f4 == f3);
@@ -163,14 +163,14 @@ TEST_F(TestFlows, register_next_use){
   types::key_t k = make_key("a");
   handle_t handle(k);
 
-  flow_t *f1 = backend_runtime->make_initial_flow(&handle);
-  flow_t *f2 = backend_runtime->make_null_flow(&handle);
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(&handle));
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(&handle));
 
   use_t use(&handle, f1, f2, use_t::Modify, use_t::None);
   backend_runtime->register_use(&use);
 
-  flow_t *f3 = f1;
-  flow_t *f4 = backend_runtime->make_next_flow(f3);
+  auto f3 = f1;
+  auto f4 = detail::make_next_flow_ptr(f3, backend_runtime);
 
   use_t next_use(&handle, f3, f4, use_t::Modify, use_t::Modify);
   backend_runtime->register_use(&next_use);
@@ -190,20 +190,20 @@ TEST_F(TestFlows, make_forwarding){
   types::key_t k = make_key("a");
   handle_t handle(k);
 
-  flow_t *f1 = backend_runtime->make_initial_flow(&handle);
-  flow_t *f2 = backend_runtime->make_null_flow(&handle);
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(&handle));
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(&handle));
 
   use_t use(&handle, f1, f2, use_t::Modify, use_t::None);
   backend_runtime->register_use(&use);
 
-  flow_t *f3 = f1;
-  flow_t *f4 = backend_runtime->make_next_flow(f3);
+  auto f3 = f1;
+  auto f4 = detail::make_next_flow_ptr(f3, backend_runtime);
 
   use_t next_use(&handle, f3, f4, use_t::Modify, use_t::Modify);
   backend_runtime->register_use(&next_use);
 
-  flow_t *f5 = backend_runtime->make_forwarding_flow(f3);
-  flow_t *f6 = backend_runtime->make_next_flow(f5);
+  auto f5 = detail::make_forwarding_flow_ptr(f3, backend_runtime);
+  auto f6 = detail::make_next_flow_ptr(f5, backend_runtime);
   EXPECT_FALSE(f5 == nullptr);
   EXPECT_FALSE(f6 == nullptr);
 
@@ -226,21 +226,21 @@ TEST_F(TestFlows, register_forwarding_use){
   types::key_t k = make_key("a");
   handle_t handle(k);
 
-  flow_t *f1 = backend_runtime->make_initial_flow(&handle);
-  flow_t *f2 = backend_runtime->make_null_flow(&handle);
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(&handle));
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(&handle));
 
   use_t use(&handle, f1, f2, use_t::Modify, use_t::None);
   backend_runtime->register_use(&use);
 
-  flow_t *f3 = f1;
-  flow_t *f4 = backend_runtime->make_next_flow(f3);
+  auto f3 = f1;
+  auto f4 = detail::make_next_flow_ptr(f3, backend_runtime);
 
   use_t next_use(&handle, f3, f4, use_t::Modify, use_t::Modify);
   backend_runtime->register_use(&next_use);
   backend_runtime->release_use(&use);
 
-  flow_t *f5 = backend_runtime->make_forwarding_flow(f3);
-  flow_t *f6 = backend_runtime->make_next_flow(f5);
+  auto f5 = detail::make_forwarding_flow_ptr(f3, backend_runtime);
+  auto f6 = detail::make_next_flow_ptr(f5, backend_runtime);
 
   use_t fwd_use(&handle, f5, f6, use_t::Modify, use_t::Modify);
   backend_runtime->register_use(&fwd_use);
@@ -261,21 +261,21 @@ TEST_F(TestFlows, make_same_read_output){
   types::key_t k = make_key("a");
   handle_t handle(k);
 
-  flow_t *f1 = backend_runtime->make_initial_flow(&handle);
-  flow_t *f2 = backend_runtime->make_null_flow(&handle);
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(&handle));
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(&handle));
 
   use_t use(&handle, f1, f2, use_t::Modify, use_t::None);
   backend_runtime->register_use(&use);
 
-  flow_t *f3 = f1;
-  flow_t *f4 = backend_runtime->make_next_flow(f3);
+  auto f3 = f1;
+  auto f4 = detail::make_next_flow_ptr(f3, backend_runtime);
 
   use_t next_use(&handle, f3, f4, use_t::Modify, use_t::Modify);
   backend_runtime->register_use(&next_use);
   backend_runtime->release_use(&use);
 
-  flow_t *f5 = backend_runtime->make_forwarding_flow(f3);
-  flow_t *f6 = f5;
+  auto f5 = detail::make_forwarding_flow_ptr(f3, backend_runtime);
+  auto f6 = f5;
   EXPECT_FALSE(f5 == nullptr);
 
   backend_runtime->release_use(&next_use);
@@ -294,21 +294,21 @@ TEST_F(TestFlows, register_read_only_use){
   types::key_t k = make_key("a");
   handle_t handle(k);
 
-  flow_t *f1 = backend_runtime->make_initial_flow(&handle);
-  flow_t *f2 = backend_runtime->make_null_flow(&handle);
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(&handle));
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(&handle));
 
   use_t use(&handle, f1, f2, use_t::Modify, use_t::None);
   backend_runtime->register_use(&use);
 
-  flow_t *f3 = f1;
-  flow_t *f4 = backend_runtime->make_next_flow(f3);
+  auto f3 = f1;
+  auto f4 = detail::make_next_flow_ptr(f3, backend_runtime);
 
   use_t next_use(&handle, f3, f4, use_t::Modify, use_t::Modify);
   backend_runtime->register_use(&next_use);
   backend_runtime->release_use(&use);
 
-  flow_t *f5 = backend_runtime->make_forwarding_flow(f3);
-  flow_t *f6 = f5;
+  auto f5 = detail::make_forwarding_flow_ptr(f3, backend_runtime);
+  auto f6 = f5;
 
   use_t read_use(&handle, f5, f6, use_t::Modify, use_t::Read);
   backend_runtime->register_use(&read_use);
