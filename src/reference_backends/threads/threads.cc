@@ -468,6 +468,9 @@ namespace threads_backend {
       f_in->isWriteForward = !flows_match;
     }
 
+    f_in->uses++;
+    f_out->uses++;
+
     if (!f_in->fromFetch) {
       const bool data_exists = data.find({version,key}) != data.end();
       if (data_exists) {
@@ -1271,11 +1274,11 @@ namespace threads_backend {
 
   bool
   ThreadsRuntime::finish_read(std::shared_ptr<InnerFlow> flow) {
+    assert(flow->shared_reader_count != nullptr);
+    assert(*flow->shared_reader_count > 0);
     assert(flow->readers_jc > 0);
     assert(flow->ref == 0);
     assert(flow->readers.size() == 0);
-    assert(flow->shared_reader_count != nullptr);
-    assert(*flow->shared_reader_count > 0);
     assert(
       flow->state == FlowReadReady ||
       flow->state == FlowReadOnlyReady
@@ -1578,7 +1581,7 @@ namespace threads_backend {
                 PRINT_LABEL(flow),
                 PRINT_STATE(flow));
 
-    auto const finishedAllReads = finish_read(flow);
+    auto const finishedAllReads = *flow->shared_reader_count == 0 || finish_read(flow);
 
     if (finishedAllReads) {
       auto const last_found_alias = try_release_alias_to_read(flow);
@@ -1700,6 +1703,9 @@ namespace threads_backend {
       }
     }
 
+    f_in->uses--;
+    f_out->uses--;
+
     auto const flows_match = f_in == f_out;
 
     // track release of publish uses so that they do not count toward a read
@@ -1718,10 +1724,12 @@ namespace threads_backend {
         f_out
       );
     } else {
-      transition_after_write(
-        f_in,
-        f_out
-      );
+      if (f_in->uses == 0) {
+        transition_after_write(
+          f_in,
+          f_out
+        );
+      }
     }
   }
 

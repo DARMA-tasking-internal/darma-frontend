@@ -69,6 +69,7 @@ namespace threads_backend {
     bool  isWriteForward, fetcherAdded;
 
     size_t* shared_reader_count = nullptr;
+    size_t uses = 0;
 
     FlowState state{};
 
