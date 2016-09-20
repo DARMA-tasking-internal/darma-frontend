@@ -59,6 +59,7 @@
 #include <darma/impl/serialization/traits.h>
 #include <darma/impl/use.h>
 #include <darma/impl/publication_details.h>
+#include <darma/impl/flow_handling.h>
 
 namespace darma_runtime {
 
@@ -514,8 +515,8 @@ class AccessHandle : public detail::AccessHandleBase {
 
     AccessHandle(
       variable_handle_ptr var_handle,
-      abstract::backend::Flow* in_flow,
-      abstract::backend::Flow* out_flow,
+      detail::flow_ptr const& in_flow,
+      detail::flow_ptr const& out_flow,
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions
     ) : var_handle_(var_handle),

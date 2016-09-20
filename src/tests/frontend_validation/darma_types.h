@@ -47,11 +47,78 @@
 
 #define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
 
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#define DARMA_THREAD_LOCAL_BACKEND_RUNTIME thread_local
-#endif
+#include "test_frontend_fwd.h"
+
+namespace mock_backend {
+// Forward declaration
+class MockFlow {
+  private:
+
+    static size_t next_index;
+    size_t index_;
+    std::string name_;
+
+  public:
+
+    MockFlow()
+      : index_(next_index++),
+        name_("%##unnamed##%")
+    { }
+
+    MockFlow(const char* str)
+      : index_(std::numeric_limits<size_t>::max()),
+        name_(str)
+    { }
+
+    MockFlow(nullptr_t)
+      : index_(std::numeric_limits<size_t>::max()),
+        name_("%##unnamed##%")
+    { }
+
+    bool
+    operator==(MockFlow const& other) const {
+      if(index_ == std::numeric_limits<size_t>::max()) {
+        if(name_ == "%##unnamed##%") return false;
+        else {
+          return name_ == other.name_;
+        }
+      }
+      else {
+        return index_ == other.index_;
+      }
+    }
+    bool
+    operator!=(MockFlow const& other) const {
+      return not operator==(other);
+    }
+
+    // Make all of the old tests (from when types::flow_t had to be Flow*) work
+    MockFlow& operator&() {
+      return *this;
+    }
+
+    friend std::ostream&
+    operator<<(std::ostream& o, MockFlow const& f) {
+      if(f.name_ != "%##unnamed##%") {
+        o << "<flow named \"" << f.name_ << "\">";
+      }
+      else if(f.index_ != std::numeric_limits<size_t>::max()) {
+        o << "<flow #" << f.index_ << ">";
+      }
+      else {
+        o << "<nullptr flow>";
+      }
+      return o;
+    }
+
+};
+} // end namespace mock_backend
 
 #include <darma/interface/defaults/pointers.h>
+
+namespace darma_runtime { namespace types {
+typedef ::mock_backend::MockFlow flow_t;
+}} // end namespace darma_runtime::types
 
 #include <darma/impl/key/simple_key_fwd.h>
 

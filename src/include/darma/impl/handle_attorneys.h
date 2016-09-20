@@ -45,8 +45,11 @@
 #ifndef SRC_INCLUDE_DARMA_IMPL_HANDLE_ATTORNEYS_H_
 #define SRC_INCLUDE_DARMA_IMPL_HANDLE_ATTORNEYS_H_
 
+#include <darma_types.h> // needed for types::flow_t
+
 #include <darma/impl/handle.h>
 #include <darma/interface/app/access_handle.h>
+#include <darma/impl/flow_handling.h>
 
 
 namespace darma_runtime {
@@ -61,8 +64,8 @@ struct for_AccessHandle {
   static AccessHandle<T>
   construct_access(
     types::shared_ptr_template<VariableHandle<T>> var_handle,
-    abstract::backend::Flow* in_flow,
-    abstract::backend::Flow* out_flow,
+    flow_ptr const& in_flow,
+    flow_ptr const& out_flow,
     abstract::frontend::Use::permissions_t scheduling_permissions,
     abstract::frontend::Use::permissions_t immediate_permissions
   ) {

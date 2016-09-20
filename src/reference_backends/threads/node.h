@@ -82,7 +82,9 @@ namespace threads_backend {
     }
 
     virtual void release()  {
-      DEBUG_PRINT("join counter is now %zu\n", join_counter - 1);
+      DEBUG_PRINT("%p join counter is now %zu\n",
+                  this,
+                  join_counter - 1);
 
       if (--join_counter == 0) {
         runtime->add_local(this->shared_from_this());
@@ -136,8 +138,11 @@ namespace threads_backend {
       }
 
       fetch->ready = true;
-      DEBUG_PRINT("finished executing fetch node\n");
-      runtime->release_node(fetch);
+
+      DEBUG_PRINT("=== EXECUTING === fetch node\n");
+
+      runtime->try_release_to_read(fetch);
+
       GraphNode::execute();
     }
 
@@ -150,6 +155,7 @@ namespace threads_backend {
     }
 
     void activate() override {
+      DEBUG_PRINT("=== ACTIVATING === fetch node\n");
       runtime->add_remote(this->shared_from_this());
     }
   };
@@ -166,7 +172,7 @@ namespace threads_backend {
     { }
 
     void execute() {
-      DEBUG_PRINT("executing publish node\n");
+      DEBUG_PRINT("=== EXECUTING === publish node\n");
 
       if (!pub->finished) {
         std::string genName = "";
@@ -233,7 +239,7 @@ namespace threads_backend {
     }
 
     bool ready() override {
-      return info->flow->check_ready();
+      return info->flow->ready;
     }
 
     virtual ~CollectiveNode() { }

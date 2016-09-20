@@ -203,8 +203,8 @@ struct all_reduce_impl {
       }
       case HandleUse::Modify: {
 
-        auto inflow = backend_runtime->make_forwarding_flow(
-          input.current_use_->use.in_flow_
+        auto inflow = make_forwarding_flow_ptr(
+          input.current_use_->use.in_flow_, backend_runtime
         );
 
         input_use = new HandleUse(
@@ -232,8 +232,8 @@ struct all_reduce_impl {
     switch(output.current_use_->use.immediate_permissions_) {
       case HandleUse::None:
       case HandleUse::Read: {
-        auto write_outflow = backend_runtime->make_next_flow(
-          output.current_use_->use.in_flow_
+        auto write_outflow = make_next_flow_ptr(
+          output.current_use_->use.in_flow_, backend_runtime
         );
         // Note that scheduling permissions assertion is above, so we don't
         // need to mess with it here
@@ -270,8 +270,8 @@ struct all_reduce_impl {
         // TODO doing this doesn't make a lot of sense, so it should probably be
         //      a warning in some "safe" mode or "strict" mode
 
-        auto write_outflow = backend_runtime->make_next_flow(
-          output.current_use_->use.in_flow_
+        auto write_outflow = make_next_flow_ptr(
+          output.current_use_->use.in_flow_, backend_runtime
         );
 
         output_use = new HandleUse(
@@ -353,8 +353,8 @@ struct all_reduce_impl {
       case HandleUse::None:
       case HandleUse::Read: {
         // Make a next flow to hold the changes
-        auto captured_out_flow = backend_runtime->make_next_flow(
-          in_out.current_use_->use.in_flow_
+        auto captured_out_flow = make_next_flow_ptr(
+          in_out.current_use_->use.in_flow_, backend_runtime
         );
 
         // Make the use to be given to the collective
@@ -386,11 +386,11 @@ struct all_reduce_impl {
       }
       case HandleUse::Modify: {
 
-        auto collective_in_flow = backend_runtime->make_forwarding_flow(
-          in_out.current_use_->use.in_flow_
+        auto collective_in_flow = make_forwarding_flow_ptr(
+          in_out.current_use_->use.in_flow_, backend_runtime
         );
-        auto collective_out_flow = backend_runtime->make_next_flow(
-          collective_in_flow
+        auto collective_out_flow = make_next_flow_ptr(
+          collective_in_flow, backend_runtime
         );
 
         HandleUse collective_use(
