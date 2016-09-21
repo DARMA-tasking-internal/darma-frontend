@@ -49,7 +49,7 @@ namespace darma_runtime {
 
 // TODO single-copy create_condition using a macro and the comma operator to enforce evaluation ordering
 
-template <typename... Args>
+template <typename Functor=void, typename... Args>
 bool
 create_condition(Args&&... args);
 
