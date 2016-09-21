@@ -86,10 +86,12 @@ struct reads_decorator_parser {
   inline decltype(auto)
   operator()(Args&&... args) const {
     using detail::create_work_attorneys::for_AccessHandle;
-    detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-      abstract::backend::get_backend_context()->get_running_task()
-    );
-    detail::TaskBase* task = parent_task->current_create_work_context;
+    //detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
+    //  abstract::backend::get_backend_context()->get_running_task()
+    //);
+    //assert(parent_task != nullptr);
+    //detail::TaskBase* task = parent_task->current_create_work_context;
+    // NOTE: task may be null
 
     // See if all of these arguments are supposed to be ignored
     // NOTE: This is a post-0.2 feature
@@ -116,45 +118,36 @@ struct reads_decorator_parser {
         }
         for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::ReadOnly;
 
+        //if(task == nullptr) {
+        //  // if we don't have a task object to add the registration op to, we need to
+        //}
 
         // Set the flags back after registration
-        task->post_registration_ops.emplace_back([&]{
-          DARMA_ASSERT_MESSAGE(
-            (for_AccessHandle::captured_as_info(ah) & AccessHandleBase::Uncaptured) == 0,
-            "handle with key { " << ah.get_key() << " } declared as read usage, but was actually unused"
-          );
-          // Reset everything
-          for_AccessHandle::captured_as_info(ah) = AccessHandleBase::Normal;
-        });
+        // This resetting happens in the capture implementation now, so shouldn't be needed
+        //task->post_registration_ops.emplace_back([&]{
+        //  DARMA_ASSERT_MESSAGE(
+        //    (for_AccessHandle::captured_as_info(ah) & AccessHandleBase::Uncaptured) == 0,
+        //    "handle with key { " << ah.get_key() << " } declared as read usage, but was actually unused"
+        //  );
+        //  // Reset everything
+        //  for_AccessHandle::captured_as_info(ah) = AccessHandleBase::Normal;
+        //});
 
       }
     );
 
     // Return the argument as a passthrough
+    // TODO the outer std::forward should never need to be there (right?)
     return std::forward<mv::at_t<0, Args...>>(
       std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...))
     );
   }
 };
 
-template <typename Lambda, typename... Args>
-struct create_work_impl {
-  typedef detail::TaskBase task_base_t;
 
-  inline auto
-  operator()(
-    std::unique_ptr<TaskBase>&& task_base,
-    Args&&... args, Lambda&& lambda
-  ) const {
-    task_base->set_runnable(
-      std::make_unique<Runnable<Lambda>>(std::forward<Lambda>(lambda))
-    );
-    return abstract::backend::get_backend_runtime()->register_task(
-      std::move(task_base)
-    );
-  }
-};
 
+//==============================================================================
+// <editor-fold desc="_start_create_work">
 
 inline types::unique_ptr_template<TaskBase>
 _start_create_work() {
@@ -166,13 +159,20 @@ _start_create_work() {
   return std::move(rv);
 }
 
+// </editor-fold> end _start_create_work
+//==============================================================================
+
+
+//==============================================================================
+// <editor-fold desc="_do_create_work_impl, functor version">
+
 template <typename Functor>
 struct _do_create_work_impl {
+
   template <typename... Args>
-  inline void
-  operator()(
+  inline auto operator()(
     types::unique_ptr_template<TaskBase>&& task_base,
-    Args&&... args
+    Args&& ... args
   ) {
     task_base->set_runnable(
       std::make_unique<FunctorRunnable<Functor, Args...>>(
@@ -185,12 +185,14 @@ struct _do_create_work_impl {
     );
     parent_task->current_create_work_context = nullptr;
 
-    for(auto&& reg : task_base->registrations_to_run) {
+    for (auto&& reg : task_base->registrations_to_run
+      ) {
       reg();
     }
     task_base->registrations_to_run.clear();
 
-    for(auto&& post_reg_op : task_base->post_registration_ops) {
+    for (auto&& post_reg_op : task_base->post_registration_ops
+      ) {
       post_reg_op();
     }
     task_base->post_registration_ops.clear();
@@ -202,45 +204,77 @@ struct _do_create_work_impl {
   }
 };
 
+// </editor-fold> end _do_create_work_impl, functor version
+//==============================================================================
+
+//==============================================================================
+// <editor-fold desc="_do_create_work_impl, lambda version">
+
 template <>
 struct _do_create_work_impl<void> {
 
+  template <typename Lambda, typename... Args>
+  struct _reorder_template_args_helper {
+    inline auto operator()(
+      std::unique_ptr<TaskBase>&& task_base,
+      Args&&... args, Lambda&& lambda
+    ) const {
+      task_base->set_runnable(
+        std::make_unique<Runnable<Lambda>>(std::forward<Lambda>(lambda))
+      );
+      return abstract::backend::get_backend_runtime()->register_task(
+        std::move(task_base)
+      );
+    }
+  };
+
   template <typename... Args>
-  inline void
+  inline auto
   operator()(
     types::unique_ptr_template<TaskBase>&& task,
     Args&&... args
-  ) {
+  ) const {
 
-    namespace m = tinympl;
-    // Pop off the last type and move it to the front
-    typedef typename m::vector<Args...>::back::type lambda_t;
-    typedef typename m::vector<Args...>::pop_back::type rest_vector_t;
-    typedef typename m::splat_to<
-      typename rest_vector_t::template push_front<lambda_t>::type, detail::create_work_impl
-    >::type helper_t;
-
+    // At this point, the copy constructors of the captured handles have been
+    // invoked (by the [=] itself), so we can reset the current_create_work_contenxt
+    // so as to not confuse any future copy constructor invocations
     detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
       abstract::backend::get_backend_context()->get_running_task()
     );
     parent_task->current_create_work_context = nullptr;
 
+    // Now we need to run all of the registrations that were created during capture
     for(auto&& reg : task->registrations_to_run) {
       reg();
     }
     task->registrations_to_run.clear();
 
+    // ... and the post registration ops that were created during capture
+    // (might not be needed any more?!?
     for(auto&& post_reg_op : task->post_registration_ops) {
       post_reg_op();
     }
     task->post_registration_ops.clear();
 
+    // call the helper with the template parameters reordered
+    // this does the actual task->set_callable and registration
+    namespace m = tinympl;
+    // Pop off the last type and move it to the front
+    typedef typename m::vector<Args...>::back::type lambda_t;
+    typedef typename m::vector<Args...>::pop_back::type rest_vector_t;
+    typedef typename m::splat_to<
+      typename rest_vector_t::template push_front<lambda_t>::type,
+      _reorder_template_args_helper
+    >::type helper_t;
     return helper_t()(std::forward<types::unique_ptr_template<TaskBase>>(task),
       std::forward<Args>(args)...
     );
   }
 
 };
+
+// </editor-fold> end _do_create_work_impl, lambda version
+//==============================================================================
 
 struct _do_create_work {
 
@@ -252,12 +286,17 @@ struct _do_create_work {
   template <typename Functor=void, typename... Args>
   inline void
   operator()(Args&&... args) {
+
+    //--------------------------------------------------------------------------
     // Check for allowed keywords
     static_assert(detail::only_allowed_kwargs_given<
         darma_runtime::keyword_tags_for_task_creation::name
       >::template apply<Args...>::type::value,
       "Unknown keyword argument given to create_work()"
     );
+
+    //--------------------------------------------------------------------------
+    // Handle the name kwarg
 
     auto name_key = get_typeless_kwarg_with_converter_and_default<
       darma_runtime::keyword_tags_for_task_creation::name
@@ -269,7 +308,9 @@ struct _do_create_work {
       task_->set_name(name_key);
     }
 
+    //--------------------------------------------------------------------------
     // forward to the appropriate specialization (Lambda or functor)
+
     meta::splat_tuple(
       get_positional_arg_tuple(std::forward<Args>(args)...),
       [&](auto&&... pos_args) {
@@ -291,7 +332,8 @@ template <typename... Args>
 decltype(auto)
 reads(Args&&... args) {
   static_assert(detail::only_allowed_kwargs_given<
-      keyword_tags_for_create_work_decorators::unless
+      keyword_tags_for_create_work_decorators::unless,
+      keyword_tags_for_create_work_decorators::only_if
     >::template apply<Args...>::type::value,
     "Unknown keyword argument given to reads() decorator for create_work()"
   );
