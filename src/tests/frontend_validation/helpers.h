@@ -62,4 +62,16 @@ permissions_to_string(darma_runtime::abstract::frontend::Use::permissions_t per)
   }
 }
 
+inline std::string
+permissions_to_string(testing::internal::AnythingMatcher) {
+  return "<any permissions>";
+}
+
+inline std::string
+permissions_to_string(int i) {
+  if(i == -1) return "<any permissions>";
+  else return "<unknown/invalid permissions specification>";
+}
+
+
 #endif //DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H

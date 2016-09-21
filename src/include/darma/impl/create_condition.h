@@ -57,10 +57,11 @@ template <typename Callable, typename... Args>
 struct _create_condition_impl {
   // TODO clean this up.  there's a lot of copied code here
 
-  static_assert(
-    std::is_convertible<decltype(std::declval<Callable>()()), bool>::value,
-    "Callable given to create_condition() must return a value convertible to bool"
-  );
+  // TODO do this check!!!
+  //static_assert(
+  //  std::is_convertible<decltype(std::declval<Callable>()()), bool>::value,
+  //  "Callable given to create_condition() must return a value convertible to bool"
+  //);
 
   // Functor version
   inline bool
