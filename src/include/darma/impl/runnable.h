@@ -239,6 +239,11 @@ class FunctorLikeRunnableBase
     // as a const T& corresponding to the dereference of the ReadAccessHandle<T>
     decltype(auto)
     _get_args_to_splat() {
+      return static_get_args_to_splat(args_);
+    }
+
+    static decltype(auto)
+    static_get_args_to_splat(args_tuple_t& args_) {
       return meta::tuple_for_each_zipped(
         // iterate over the arguments yielding a pair of
         // (argument, call_arg_traits) and call the lambda below for each
@@ -249,7 +254,7 @@ class FunctorLikeRunnableBase
           call_traits::template call_arg_traits_types_only,
           std::tuple
         >::type(),
-        [this](auto&& arg, auto&& call_arg_traits_i_val) -> decltype(auto) {
+        [&](auto&& arg, auto&& call_arg_traits_i_val) -> decltype(auto) {
           // Forward to the get_converted_arg function which does the appropriate
           // conversion from stored arg type to call arg type
           using call_traits_i = std::decay_t<decltype(call_arg_traits_i_val)>;
@@ -260,6 +265,9 @@ class FunctorLikeRunnableBase
       ); // end tuple_for_each_zipped
     }
 
+    using get_args_splat_tuple_t = decltype(static_get_args_to_splat(
+      std::declval<args_tuple_t&>()
+    ));
 
     ////////////////////////////////////////////////////////////////////////////
 
@@ -408,18 +416,61 @@ class FunctorRunnable
 
     using args_tuple_t = typename base_t::args_tuple_t;
 
+    template <typename... FArgs>
+    using _return_of_functor_t = std::result_of_t<Functor(FArgs...)>;
+
+    using splat_args_t = typename base_t::get_args_splat_tuple_t;
+
+
   public:
 
     // Use the base class constructors
     using base_t::base_t;
 
 
-    bool run()  {
+  private:
+
+    template <typename _Ignored=void>
+    std::enable_if_t<
+      std::is_void<_Ignored>::value
+        and std::is_void<
+          typename tinympl::splat_to<
+            splat_args_t,
+            _return_of_functor_t
+          >::type
+        >::value,
+      bool
+    >
+    do_run() {
       meta::splat_tuple<AccessHandleBase>(
         this->base_t::_get_args_to_splat(),
         Functor()
       );
-      return false;
+      return false; /* should be ignored */
+    }
+
+    template <typename _Ignored=void>
+    std::enable_if_t<
+      std::is_void<_Ignored>::value
+      and not std::is_void<
+        typename tinympl::splat_to<
+          splat_args_t,
+          _return_of_functor_t
+        >::type
+      >::value,
+      bool
+    >
+    do_run() {
+      return meta::splat_tuple<AccessHandleBase>(
+        this->base_t::_get_args_to_splat(),
+        Functor()
+      );
+    }
+
+  public:
+
+    bool run() override {
+      return do_run();
     }
 
 
@@ -432,7 +483,7 @@ class FunctorRunnable
       >(ar);
     };
 
-    size_t get_index() const  { return index_; }
+    size_t get_index() const override { return index_; }
 };
 
 template <typename Functor, typename... Args>
