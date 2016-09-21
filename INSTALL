@@ -99,12 +99,13 @@ cmake ${source}/examples \
   -DDARMA_BACKEND_DIR=${backend_prefix} \
   -DDARMA_BACKEND_LIBNAME=${backend_libname}
 
-For the threads backend, this would be:
+For the threads backend, this would be something like:
 
 cmake ${source}/examples \
   -DDARMA_FRONTEND_DIR=${frontend_prefix} \
   -DDARMA_BACKEND_DIR=${backend_prefix} \
-  -DDARMA_BACKEND_LIBNAME=darma_threads_backend
+  -DDARMA_BACKEND_LIBNAME=darma_threads_backend \
+  -DCMAKE_EXE_LINKER_FLAGS=-lpthread
 
 A template configure script is provided in
 config_templates/threads_backend/darma-examples-without-cmake-package.sh .
