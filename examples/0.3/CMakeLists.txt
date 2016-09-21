@@ -68,7 +68,7 @@ endif() #DARMA_ALL_IN_ONE
 include_directories( ${EXAMPLES_SRC_ROOT} )
 include_directories( ${EXAMPLES_BIN_ROOT} )
 
-include (../../SetDarmaCompilerFlags.cmake)
+include (../../cmake-modules/SetDarmaCompilerFlags.cmake)
 set_darma_compiler_flags()
 
 # all extra arguments to add_test_for_example are used as arguments for

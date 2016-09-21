@@ -14,7 +14,7 @@ set (DarmaBackendValidation_VERSION_MINOR 2)
 
 enable_testing()
 
-include (../SetDarmaCompilerFlags.cmake)
+include (../cmake-modules/SetDarmaCompilerFlags.cmake)
 set_darma_compiler_flags()
 
 set (VALIDATION_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
