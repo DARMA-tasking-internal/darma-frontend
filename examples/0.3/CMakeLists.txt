@@ -5,18 +5,15 @@ if (DARMA_ALL_IN_ONE)
 	set (DARMA_FRONTEND_DIR ${CMAKE_SOURCE_DIR}/src)
 	#figure out which backend
 	include_directories( ${CMAKE_SOURCE_DIR}/src/reference_backends )
-	if (STL_THREADS_BACKEND) 
-	set (backend_name stl_threads)
-	elseif (MOCK_BACKEND)    
-	set (backend_name mock)
-	elseif (SERIAL_BACKEND)  
+	if (SERIAL_BACKEND)  
 	set (backend_name serial)
 	elseif (THREADS_BACKEND)
 	set (backend_name threads)
+	find_package ( Threads REQUIRED )
 	endif()
 	set(backend_dir ${CMAKE_SOURCE_DIR}/src/reference_backends/${backend_name})
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${backend_dir}")
-	set(DARMA_BACKEND_LIBNAME darma_${backend_name}_backend)
+	set(DARMA_BACKEND_LIBNAME darma_${backend_name}_backend ${CMAKE_THREAD_LIBS_INIT})
 	include_directories(${backend_dir})
 	include_directories( ${DARMA_FRONTEND_DIR}/include )
 	include_directories( ${DARMA_FRONTEND_DIR}/include/tinympl )
@@ -47,6 +44,8 @@ else() #built as standalone
 		    "Must define backend package via -DDARMA_BACKEND_PKG= or give library name for backend (e.g. for libdarma_backend_test.a give -DDARMA_BACKEND_LIBNAME=darma_backend_test)")
 		endif()
 
+		set (DARMA_BACKEND_LIBNAME ${DARMA_BACKEND_LIBNAME} ${CMAKE_THREAD_LIBS_INIT})
+
 		if (NOT DARMA_FRONTEND_DIR)
 		message(FATAL_ERROR "Must define prefix install dir for frontend via -DDARMA_FRONTEND_DIR=")
 		endif()
@@ -68,7 +67,7 @@ endif() #DARMA_ALL_IN_ONE
 include_directories( ${EXAMPLES_SRC_ROOT} )
 include_directories( ${EXAMPLES_BIN_ROOT} )
 
-include (../../SetDarmaCompilerFlags.cmake)
+include (../../cmake-modules/SetDarmaCompilerFlags.cmake)
 set_darma_compiler_flags()
 
 # all extra arguments to add_test_for_example are used as arguments for
@@ -76,7 +75,7 @@ set_darma_compiler_flags()
 macro(add_test_for_example test_name test_exec)
 if (NOT CTEST_SKIP_EXAMPLES)
 add_test(${test_name} ${test_exec} ${ARGN})
-set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
+set_tests_properties(${test_name} PROPERTIES TIMEOUT 60
   FAIL_REGULAR_EXPRESSION "FAILED;WARNING")
 endif()
 endmacro()

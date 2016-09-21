@@ -6,6 +6,8 @@ set (DarmaThreadsBackend_VERSION_PATCH 0)
 set (DarmaThreadsBackend_VERSION
   ${DarmaThreadsBackend_VERSION_MAJOR}.${DarmaThreadsBackend_VERSION_MINOR}.${DarmaThreadsBackend_VERSION_PATCH})
 
+find_package ( Threads REQUIRED )
+
 set (threads_HEADERS
 darma_types.h
 )
@@ -25,7 +27,7 @@ find_library(GMOCK_LIB_PATH gmock ${GTEST_DIR}/lib)
 find_library(GTEST_LIB_PATH gtest ${GTEST_DIR}/lib)
 #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${GTEST_DIR}/lib")
     #link_directories(${GTEST_DIR}/lib)
-target_link_libraries(darma_threads_backend_with_mock_frontend ${GMOCK_LIB_PATH} ${GTEST_LIB_PATH} pthread)
+target_link_libraries(darma_threads_backend_with_mock_frontend ${GMOCK_LIB_PATH} ${GTEST_LIB_PATH} ${CMAKE_THREAD_LIBS_INIT})
 endif()
 install (TARGETS darma_threads_backend EXPORT DarmaThreadsBackendDepends DESTINATION lib)
 install (FILES darma_types.h DESTINATION include)

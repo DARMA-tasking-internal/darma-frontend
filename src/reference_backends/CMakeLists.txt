@@ -7,7 +7,7 @@ set (DarmaDebugBackends_VERSION_MINOR 2)
 
 set (CMAKE_MACOSX_RPATH On)
 
-include (../../SetDarmaCompilerFlags.cmake)
+include (../../cmake-modules/SetDarmaCompilerFlags.cmake)
 set_darma_compiler_flags()
 
 if (DARMA_ALL_IN_ONE)

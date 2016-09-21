@@ -2,6 +2,8 @@ cmake_minimum_required (VERSION 2.8)
 
 enable_testing()
 
+find_package ( Threads REQUIRED )
+
 set (validation_HEADERS
 helpers.h
 test_backend.h)
@@ -16,9 +18,9 @@ set(backendtestfiles main.cc )
 function(add_unit_test test_name)
 set(backendtestfiles "${backendtestfiles};${test_name}.cc" PARENT_SCOPE)
 add_executable(${test_name} ${test_name}.cc main.cc)
-target_link_libraries(${test_name} ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
+target_link_libraries(${test_name} ${DARMA_BACKEND_LIBNAME} gtest gmock ${CMAKE_THREAD_LIBS_INIT})
 add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name} "--gtest_repeat=3")
-set_tests_properties(${test_name} PROPERTIES TIMEOUT 20
+set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
   FAIL_REGULAR_EXPRESSION "FAILED;should be deleted but never is;WARNING"
   PASS_REGULAR_EXPRESSION "PASSED")
 endfunction()
@@ -31,7 +33,7 @@ add_unit_test(test_create_condition_be)
 
 add_executable(run_all_coupled_backend_tests ${backendtestfiles})
 set_target_properties(run_all_coupled_backend_tests PROPERTIES COMPILE_DEFINITIONS "DARMA_COVERAGE")
-target_link_libraries(run_all_coupled_backend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
+target_link_libraries(run_all_coupled_backend_tests ${DARMA_BACKEND_LIBNAME} gtest gmock ${CMAKE_THREAD_LIBS_INIT})
 
 if (DARMA_COVERAGE)
 setup_target_for_backend_coverage(backend_coupled_coverage run_all_coupled_backend_tests coverage_be_coupled)

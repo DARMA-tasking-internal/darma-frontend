@@ -169,9 +169,14 @@ TEST_F(TestPublishBE, read_access_after_scope){
 }
 
 // make sure that modify waits until after the publish finishes
+// or makes a copy
 // builds on TestPublishBE::publish_after_cw()
 TEST_F(TestPublishBE, modify_after_publish_nice){
   std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  std::shared_ptr<int> rt1(new int);
+  std::shared_ptr<int> rt2(new int);
+  std::shared_ptr<int> mt1(new int);
+  std::shared_ptr<int> mt2(new int);
   {
     darma_init(argc_, argv_);
     auto h = initial_access<mydata>("dummy");
@@ -184,31 +189,44 @@ TEST_F(TestPublishBE, modify_after_publish_nice){
     {
       auto h2 = read_access<mydata>("dummy", version="a");
       create_work([=]{
-        // make sure this task runs second
-        EXPECT_EQ((*execution_order_check)++, 1);
+        // record that this task started
+        *rt1 = (*execution_order_check)++;
         // make sure we fetched the original value
         EXPECT_EQ(h2.get_value(), 7);
-        // make sure the modify task hasn't started yet
-        EXPECT_EQ((*execution_order_check)++, 2);
+        // record that this task finished
+        *rt2 = (*execution_order_check)++;
       });
     }
     create_work([=]{
-      // make sure this task runs last
-      EXPECT_EQ((*execution_order_check)++, 3);
+      // record that this task started
+      *mt1 = (*execution_order_check)++;
       h.set_value(11);
+      // record that this task finished
+      *mt2 = (*execution_order_check)++;
     });
     darma_finalize();
   }
   // make sure task not still queued
   ASSERT_TRUE(execution_order_check.unique());
   // make sure task actually ran
-  ASSERT_EQ(execution_order_check->load(), 4);
+  ASSERT_EQ(execution_order_check->load(), 5);
+  // if tasks ran simultaneously, test was inconclusive
+  if (!(*mt2 < *rt1) && !(*rt2 < *mt1))
+    std::cout << "A pass for this test should be considered inconclusive"
+              << "due to a race condition in the test.\n";
 }
 
 // make sure that modify waits until after publish with n_readers>1 finishes
+// or makes a copy
 // builds on TestPublishBE::modify_after_publish_nice()
 TEST_F(TestPublishBE, modify_after_publish_nreaders_nice){
   std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  std::shared_ptr<int> rt1(new int);
+  std::shared_ptr<int> rt2(new int);
+  std::shared_ptr<int> rt3(new int);
+  std::shared_ptr<int> rt4(new int);
+  std::shared_ptr<int> mt1(new int);
+  std::shared_ptr<int> mt2(new int);
   {
     darma_init(argc_, argv_);
     auto h = initial_access<mydata>("dummy");
@@ -222,41 +240,54 @@ TEST_F(TestPublishBE, modify_after_publish_nreaders_nice){
       auto h2 = read_access<mydata>("dummy", version="a");
       create_work([=]{
         // record that this task started
-        (*execution_order_check)++;
+        *rt1 = (*execution_order_check)++;
         // make sure we fetched the original value
         EXPECT_EQ(h2.get_value(), 7);
         // record that this task finished
-        (*execution_order_check)++;
+        *rt2 = (*execution_order_check)++;
       });
     }
     {
       auto h3 = read_access<mydata>("dummy", version="a");
       create_work([=]{
         // record that this task started
-        (*execution_order_check)++;
+        *rt3 = (*execution_order_check)++;
         // make sure we fetched the original value
         EXPECT_EQ(h3.get_value(), 7);
         // record that this task finished
-        (*execution_order_check)++;
+        *rt4 = (*execution_order_check)++;
       });
     }
     create_work([=]{
-      // make sure this task runs last
-      EXPECT_EQ((*execution_order_check)++, 5);
+      // record that this task started
+      *mt1 = (*execution_order_check)++;
       h.set_value(11);
+      // record that this task finished
+      *mt2 = (*execution_order_check)++;
     });
     darma_finalize();
   }
   // make sure task not still queued
   ASSERT_TRUE(execution_order_check.unique());
   // make sure task actually ran
-  ASSERT_EQ(execution_order_check->load(), 6);
+  ASSERT_EQ(execution_order_check->load(), 7);
+  // if tasks ran simultaneously, test was inconclusive
+  if (!(*mt2 < *rt1) && !(*mt2 < *rt3) && !((*rt2 < *mt1) && (*rt4 < *mt1)))
+    std::cout << "A pass for this test should be considered inconclusive"
+              << "due to a race condition in the test.\n";
 }
 
 // make sure that modify waits until after multiple publishes finish
+// or makes a copy
 // builds on TestPublishBE::modify_after_publish_nice()
 TEST_F(TestPublishBE, modify_after_multipublish_nice){
   std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  std::shared_ptr<int> rt1(new int);
+  std::shared_ptr<int> rt2(new int);
+  std::shared_ptr<int> rt3(new int);
+  std::shared_ptr<int> rt4(new int);
+  std::shared_ptr<int> mt1(new int);
+  std::shared_ptr<int> mt2(new int);
   {
     darma_init(argc_, argv_);
     auto h = initial_access<mydata>("dummy");
@@ -271,43 +302,54 @@ TEST_F(TestPublishBE, modify_after_multipublish_nice){
       auto h2 = read_access<mydata>("dummy", version="a");
       create_work([=]{
         // record that this task started
-        (*execution_order_check)++;
+        *rt1 = (*execution_order_check)++;
         // make sure we fetched the original value
         EXPECT_EQ(h2.get_value(), 7);
         // record that this task finished
-        (*execution_order_check)++;
+        *rt2 = (*execution_order_check)++;
       });
     }
     {
       auto h3 = read_access<mydata>("dummy", version="b");
       create_work([=]{
         // record that this task started
-        (*execution_order_check)++;
+        *rt3 = (*execution_order_check)++;
         // make sure we fetched the original value
         EXPECT_EQ(h3.get_value(), 7);
         // record that this task finished
-        (*execution_order_check)++;
+        *rt4 = (*execution_order_check)++;
       });
     }
     create_work([=]{
-      // make sure this task runs last
-      EXPECT_EQ((*execution_order_check)++, 5);
+      // record that this task started
+      *mt1 = (*execution_order_check)++;
       h.set_value(11);
+      // record that this task finished
+      *mt2 = (*execution_order_check)++;
     });
     darma_finalize();
   }
   // make sure task not still queued
   ASSERT_TRUE(execution_order_check.unique());
   // make sure task actually ran
-  ASSERT_EQ(execution_order_check->load(), 6);
+  ASSERT_EQ(execution_order_check->load(), 7);
+  // if tasks ran simultaneously, test was inconclusive
+  if (!(*mt2 < *rt1) && !(*mt2 < *rt3) && !((*rt2 < *mt1) && (*rt4 < *mt1)))
+    std::cout << "A pass for this test should be considered inconclusive"
+              << "due to a race condition in the test.\n";
 }
 
 // make sure that modify waits until after the publish finishes
+// or makes a copy
 // similar to TestPublishBE::modify_after_publish_nice() but puts read_access
 //   after create_work that overwrites it (probably not legal within a single
 //   rank but could happen across ranks)
 TEST_F(TestPublishBE, DISABLED_modify_after_publish_nasty){
   std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  std::shared_ptr<int> rt1(new int);
+  std::shared_ptr<int> rt2(new int);
+  std::shared_ptr<int> mt1(new int);
+  std::shared_ptr<int> mt2(new int);
   {
     darma_init(argc_, argv_);
     auto h = initial_access<mydata>("dummy");
@@ -318,19 +360,21 @@ TEST_F(TestPublishBE, DISABLED_modify_after_publish_nasty){
     });
     h.publish(version="a");
     create_work([=]{
-      // make sure this task runs last
-      EXPECT_EQ((*execution_order_check)++, 3);
+      // record that this task started
+      *mt1 = (*execution_order_check)++;
       h.set_value(11);
+      // record that this task finished
+      *mt2 = (*execution_order_check)++;
     });
     {
       auto h2 = read_access<mydata>("dummy", version="a");
       create_work([=]{
-        // make sure this task runs second
-        EXPECT_EQ((*execution_order_check)++, 1);
+        // record that this task started
+        *rt1 = (*execution_order_check)++;
         // make sure we fetched the original value
         EXPECT_EQ(h2.get_value(), 7);
-        // make sure the modify task hasn't started yet
-        EXPECT_EQ((*execution_order_check)++, 2);
+        // record that this task finished
+        *rt2 = (*execution_order_check)++;
       });
     }
     darma_finalize();
@@ -338,7 +382,11 @@ TEST_F(TestPublishBE, DISABLED_modify_after_publish_nasty){
   // make sure task not still queued
   ASSERT_TRUE(execution_order_check.unique());
   // make sure task actually ran
-  ASSERT_EQ(execution_order_check->load(), 4);
+  ASSERT_EQ(execution_order_check->load(), 5);
+  // if tasks ran simultaneously, test was inconclusive
+  if (!(*mt2 < *rt1) && !(*rt2 < *mt1))
+    std::cout << "A pass for this test should be considered inconclusive"
+              << "due to a race condition in the test.\n";
 }
 
 //////////////////////////////////////////////////////////////////////////////////

@@ -1,1 +1,7 @@
-Here is the start of a README
+The DARMA repository contains:
+1) the DARMA spec document,
+2) the DARMA frontend header-only library,
+3) a reference backend for debugging purposes, and
+4) simple example apps.
+
+For instructions on how to build and install DARMA, please see the INSTALL file.

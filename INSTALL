@@ -1,60 +1,113 @@
-To build a DARMA program, you must do the following:
+DARMA BUILD AND INSTALL INSTRUCTIONS
 
-1) Install the DARMA front-end header-only library
-2) Build a backend runtime library, pointing at the header install in #1
-3) Build an actual application, including the frontend/backend headers 
-   and linking to the library built in #2
+If you choose to use a reference backend, you can do an all-one-one
+build of the frontend, reference backend, and examples.  Only the
+frontend and reference backend will be installed.  Please see the
+all-in-one build section below for more details.
 
-For debugging purposes, this repo includes the complete front-end
-as well as some very simple backends along with some simple examples.
+If you would like to use a non-reference backend, you must build the
+frontend and backend separately.  Please see the individual component
+build section below for more details.
 
 ===========================================================================
 
-To do an all-in-one build of the frontend, the reference threads backend,
-and the examples, configure CMake with:
+DARMA ALL-IN-ONE BUILD
+
+To build the frontend, reference backend, and examples all in one
+step, configure cmake with:
 
 cmake ${source} \
   -DCMAKE_INSTALL_PREFIX=${prefix} \
-  -DTHREADS_BACKEND=On
+  -DTHREADS_BACKEND=ON
+
+A template configure script is provided in
+config_templates/threads_backend/darma-all-in-one.sh .
+
+After configuring, run make install to install only the frontend headers
+and the reference backend.  You can point your own build system to ${prefix}
+and link against the darma_threads_backend library.
+
+The frontend and backend validation tests require the DEVELOPMENT version
+of googletest/googlemock.  Release 1.7.0 is NOT sufficient.  Specify the
+path to them to cmake by adding -DGTEST_DIR=${gtest_install_prefix} to the
+configure command above.
 
 ===========================================================================
 
-If building components individually, do the following:
+DARMA INDIVIDUAL COMPONENT BUILD
 
-1) To install the frontend (header-only):
+First you must install the frontend headers, then a backend, and then build
+either the examples or your own application against the installed frontend
+and backend.
+
+1) Install the frontend (header-only):
 
 cmake ${source}/src/include \
   -DCMAKE_INSTALL_PREFIX=${frontend_prefix}
 make install
 
-2) To build and install the reference threads backend:
+A template configure script is provided in
+config_templates/threads_backend/darma-frontend-headers.sh .
+
+2) Build and install a backend.  This procedure will vary depending which
+backend you use (and who provided it).
+
+For the reference threads backend:
 
 cmake ${source}/src/reference_backends \
   -DCMAKE_INSTALL_PREFIX=${backend_prefix} \
-  -DTHREADS_BACKEND=On \
+  -DTHREADS_BACKEND=ON \
   -DDARMA_FRONTEND_DIR=${frontend_prefix}
 make install
 
-3) To build the examples against some installed backend:
+A template configure script is provided in
+config_templates/threads_backend/darma-threads-backend.sh .
 
-If the backend provides a CMake package:
+3) Build the examples or your own application.
+
+You can point your own build system to ${frontend_prefix} and
+${backend_prefix} and link against the backend library (e.g.,
+darma_threads_backend).
+
+There are two approaches to building the examples against the installed
+reference threads backend.  The first approach is to use the provided
+cmake package so that you will not need to specify the compiler or
+compiler flags, nor will you need to give the path to the frontend
+headers.  Instead, the values used for the build of the reference backend
+will be re-used.
+
+If the backend provides a cmake package:
 
 cmake ${source}/examples \
   -DDARMA_BACKEND_PKG=${backend_package_name} \
   -D${backend_package_name}_DIR=${backend_prefix}/cmake
 
-For the threads backend, use backend_package_name=DarmaThreadsBackend above.
+For the threads backend, use backend_package_name=DarmaThreadsBackend, i.e.,
 
-If the backend does not provide a CMake package:
+cmake ${source}/examples \
+  -DDARMA_BACKEND_PKG=DarmaThreadsBackend \
+  -DDarmaThreadsBackend_DIR=${backend_prefix}/cmake
+
+A template configure script is provided in
+config_templates/threads_backend/darma-examples-using-cmake-package.sh .
+
+If the backend does not provide a CMake package or if you choose not to
+use it:
 
 cmake ${source}/examples \
   -DDARMA_FRONTEND_DIR=${frontend_prefix} \
   -DDARMA_BACKEND_DIR=${backend_prefix} \
   -DDARMA_BACKEND_LIBNAME=${backend_libname}
 
+For the threads backend, this would be something like:
+
+cmake ${source}/examples \
+  -DDARMA_FRONTEND_DIR=${frontend_prefix} \
+  -DDARMA_BACKEND_DIR=${backend_prefix} \
+  -DDARMA_BACKEND_LIBNAME=darma_threads_backend \
+  -DCMAKE_EXE_LINKER_FLAGS=-lpthread
+
+A template configure script is provided in
+config_templates/threads_backend/darma-examples-without-cmake-package.sh .
+
 ===========================================================================
-
-The frontend and backend validation tests require the DEVELOPMENT version
-of googletest/googlemock.  Release 1.7.0 is NOT sufficient.  Specify the
-path to them to cmake using -DGTEST_DIR=.
-
