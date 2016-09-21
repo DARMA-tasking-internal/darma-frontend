@@ -403,7 +403,8 @@ namespace threads_backend {
                 PRINT_LABEL(flow),
                 PRINT_STATE(flow));
 
-    if (flow->state == FlowWaiting) {
+    if (flow->state == FlowWaiting ||
+        flow->state == FlowWriteReady) {
       flow->readers.push_back(node);
       // shared is incremented when readers are released
       return false;
@@ -575,7 +576,7 @@ namespace threads_backend {
                   PRINT_LABEL(flow));
       delete flow;
     });
-    f->state = FlowWriteReady;
+    f->state = FlowReadReady;
     f->ready = true;
     f->handle = handle;
     handle_refs[handle]++;
@@ -913,7 +914,8 @@ namespace threads_backend {
     // creating subsequent allowing release
     if (f->state == FlowReadReady &&
         f->readers_jc == 0 &&
-        *f->shared_reader_count == 0) {
+        (f->shared_reader_count == nullptr ||
+         *f->shared_reader_count == 0)) {
       // can't have alias if has next subsequent
       assert(flow_has_alias(f) == false);
       release_to_write(
@@ -1273,8 +1275,8 @@ namespace threads_backend {
     assert(flow->ref == 0);
     assert(flow->readers_jc == 0);
     assert(flow->readers.size() == flow->readers_jc);
-    assert(flow->shared_reader_count != nullptr);
-    assert(*flow->shared_reader_count == 0);
+    assert(flow->shared_reader_count == nullptr ||
+           *flow->shared_reader_count == 0);
 
     DEBUG_PRINT("release_to_write: %ld, readers=%ld, reader_jc=%ld, ref=%ld\n",
                 PRINT_LABEL_INNER(flow),
