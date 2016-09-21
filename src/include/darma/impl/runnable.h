@@ -147,6 +147,8 @@ struct Runnable : public RunnableBase
     Runnable(std::remove_reference_t<Callable>&& c)
       : run_this_(std::move(c))
     { }
+
+
     bool run()  { run_this_(); return false; }
 
     static const size_t index_;
@@ -180,10 +182,10 @@ const size_t Runnable<Callable>::index_ =
 template <typename Callable>
 struct RunnableCondition : public RunnableBase
 {
-  // Don't force an rvalue; caller might want to trigger a copy by not forwarding
+  // Force this one to be an lvalue reference
   explicit
-  RunnableCondition(Callable&& c)
-    : run_this_(std::forward<Callable>(c))
+  RunnableCondition(std::remove_reference_t<Callable>& c)
+    : run_this_(c)
   { }
 
   size_t get_index() const  { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }

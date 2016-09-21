@@ -242,6 +242,7 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
 
     std::vector<std::function<void()>> registrations_to_run;
     std::vector<std::function<void()>> post_registration_ops;
+    bool is_double_copy_capture = false;
     unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
 
   private:
