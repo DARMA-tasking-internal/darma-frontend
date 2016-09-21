@@ -24,5 +24,5 @@ SET (DARMA_BACKEND_CXX_FLAGS "@CMAKE_CXX_FLAGS@")
 INCLUDE ("${DARMA_BACKEND_CMAKE_DIR}/DarmaThreadsBackendDepends.cmake")
  
 # These are IMPORTED targets created by DarmaThreadsBackendDepends.cmake
-SET (DARMA_BACKEND_LIBRARIES darma_threads_backend)
+SET (DARMA_BACKEND_LIBRARIES darma_threads_backend @CMAKE_THREAD_LIBS_INIT@)
 
