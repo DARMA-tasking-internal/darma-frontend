@@ -53,19 +53,99 @@ namespace darma_runtime {
 
 namespace detail {
 
-template <typename Lambda, typename... Args>
-struct create_condition_impl {
+template <typename Callable, typename... Args>
+struct _create_condition_impl {
+  // TODO clean this up.  there's a lot of copied code here
+
+  static_assert(
+    std::is_convertible<decltype(std::declval<Callable>()()), bool>::value,
+    "Callable given to create_condition() must return a value convertible to bool"
+  );
+
+  // Functor version
   inline bool
-  operator()(Args&&... args, Lambda&& lambda) const {
-    // TODO set default capture to read
+  operator()(Args&&... args) const {
+    detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
+      abstract::backend::get_backend_context()->get_running_task()
+    );
+    assert(parent_task != nullptr);
 
-    auto task = detail::make_unique<TaskBase>(std::forward<Lambda>(lambda));
+    //auto task = detail::make_unique<TaskBase>(std::forward<Callable>(callable));
+    auto task = detail::make_unique<TaskBase>();
+    task->default_capture_as_info |= AccessHandleBase::ReadOnly;
+    parent_task->current_create_work_context = task.get();
 
+    // Now trigger the capture by setting the runnable:
+    task->set_runnable(
+      std::make_unique<FunctorRunnable<Callable, Args...>>(
+        variadic_constructor_arg,
+        std::forward<Args>(args)...
+      )
+    );
+
+    // Reset the default_capture_as_info that we changed
+    task->default_capture_as_info &= ~AccessHandleBase::ReadOnly;
+
+    // And set the current create_work context to null
+    parent_task->current_create_work_context = nullptr;
+
+    // Now we need to run all of the registrations that were created during capture
     for(auto&& reg : task->registrations_to_run) {
       reg();
     }
     task->registrations_to_run.clear();
 
+    // ... and the post registration ops that were created during capture
+    for(auto&& post_reg_op : task->post_registration_ops) {
+      post_reg_op();
+    }
+    task->post_registration_ops.clear();
+
+    return abstract::backend::get_backend_runtime()->register_condition_task(
+      std::move(task)
+    );
+
+  }
+
+  // Lambda version
+  inline bool
+  operator()(Args&&... args, Callable&& callable) const {
+    detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
+      abstract::backend::get_backend_context()->get_running_task()
+    );
+    assert(parent_task != nullptr);
+
+    //auto task = detail::make_unique<TaskBase>(std::forward<Callable>(callable));
+    auto task = detail::make_unique<TaskBase>();
+    task->default_capture_as_info |= AccessHandleBase::ReadOnly;
+    parent_task->current_create_work_context = task.get();
+
+    // Indicate that this is a "double copy" capture and the AccessHandle copy ctor
+    // needs to follow a back pointer to get the outer context (continuing) handle
+    task->is_double_copy_capture = true;
+
+    // Now trigger the capture by doing a copy and making a lambda runnable that
+    // works on that copy
+    task->set_runnable(std::make_unique<RunnableCondition<Callable>>(
+      // Note: copied, not moved!!!
+      callable
+    ));
+
+    // TODO we actually want to destroy the original callable ASAP (perhaps by ending the function here?)
+
+    // Reset the default_capture_as_info that we changed
+    task->default_capture_as_info &= ~AccessHandleBase::ReadOnly;
+
+    // And set the current create_work context to null
+    parent_task->current_create_work_context = nullptr;
+
+    // Now we need to run all of the registrations that were created during capture
+    for(auto&& reg : task->registrations_to_run) {
+      reg();
+    }
+    task->registrations_to_run.clear();
+
+    // ... and the post registration ops that were created during capture
     for(auto&& post_reg_op : task->post_registration_ops) {
       post_reg_op();
     }
@@ -78,25 +158,44 @@ struct create_condition_impl {
   }
 };
 
+// Functor version
+template <typename Functor, typename... Args>
+struct _create_condition_select_functor {
+  bool operator()(Args&&... args) const {
+    return _create_condition_impl<Functor, Args...>()(
+      std::forward<Args>(args)...
+    );
+  }
+};
+
+// Lambda version
+template <typename... Args>
+struct _create_condition_select_functor<void, Args...> {
+  bool operator()(Args&&... args) const {
+    namespace m = tinympl;
+    // Pop off the last type and move it to the front
+    using lambda_t = typename m::vector<Args...>::back::type;
+    using rest_vector_t = typename m::vector<Args...>::pop_back::type;
+    using helper_t = typename m::splat_to<
+      typename rest_vector_t::template push_front<lambda_t>::type,
+      _create_condition_impl
+    >::type;
+
+    return helper_t()(std::forward<Args>(args)...);
+  }
+};
+
 } // end namespace detail
 
 
-template <typename... Args>
+template <
+  // Defaulted to void in forward declaration
+  typename Functor /*=void*/,
+  typename... Args
+>
 bool
 create_condition(Args&&... args) {
-  namespace m = tinympl;
-  // Pop off the last type and move it to the front
-  typedef typename m::vector<Args...>::back::type lambda_t;
-  typedef typename m::vector<Args...>::pop_back::type rest_vector_t;
-  typedef typename m::splat_to<
-    typename rest_vector_t::template push_front<lambda_t>::type, detail::create_condition_impl
-  >::type helper_t;
-
-  static_assert(std::is_convertible<decltype(std::declval<lambda_t>()()), bool>::value,
-    "Lambda given to create_condition() must return a value convertible to bool"
-  );
-
-  return helper_t()(
+  return detail::_create_condition_select_functor<Functor, Args...>()(
     std::forward<Args>(args)...
   );
 }

@@ -204,13 +204,23 @@ class AccessHandle : public detail::AccessHandleBase {
 
       // Now check if we're in a capturing context:
       if (capturing_task != nullptr) {
-        capturing_task->do_capture<AccessHandle>(*this, copied_from);
+        if(capturing_task->is_double_copy_capture) {
+          assert(copied_from.prev_copied_from != nullptr);
+          capturing_task->do_capture<AccessHandle>(*this, *copied_from.prev_copied_from);
+        }
+        else {
+          capturing_task->do_capture<AccessHandle>(*this, copied_from);
+        }
       } // end if capturing_task != nullptr
       else {
         // regular copy
         // TODO figure out how this works with respect to who is responsible for destruction
         var_handle_ = copied_from.var_handle_;
         current_use_ = copied_from.current_use_;
+        // Also, save prev copied from in case this is a double capture, like in
+        // create_condition.  This is the only time that the prev_copied_from ptr
+        // should be valid
+        prev_copied_from = &copied_from;
       }
     }
 
@@ -564,6 +574,7 @@ class AccessHandle : public detail::AccessHandleBase {
     mutable bool value_constructed_ = std::is_default_constructible<T>::value;
 
     task_t* capturing_task = nullptr;
+    AccessHandle const* prev_copied_from = nullptr;
 
    public:
 
