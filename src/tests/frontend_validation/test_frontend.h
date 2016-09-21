@@ -193,7 +193,7 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
   ::_impl::in_sequence_wrapper( \
     EXPECT_CALL(*mock_runtime, register_use( \
         IsUseWithFlows( \
-          &fread, &fread, use_t::Read, use_t::Read \
+          &fread, &fread, -1, use_t::Read \
         ) \
     )), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce(SaveArg<0>(&use_ptr)); } \
   )
