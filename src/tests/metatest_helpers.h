@@ -57,6 +57,8 @@
   )
 
 #include <tuple>
+#include <type_traits>
+#include <cstddef>
 
 namespace tinympl { namespace test {
 
