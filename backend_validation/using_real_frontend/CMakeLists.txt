@@ -18,7 +18,7 @@ set(backendtestfiles "${backendtestfiles};${test_name}.cc" PARENT_SCOPE)
 add_executable(${test_name} ${test_name}.cc main.cc)
 target_link_libraries(${test_name} ${DARMA_BACKEND_LIBNAME} gtest gmock pthread)
 add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name} "--gtest_repeat=3")
-set_tests_properties(${test_name} PROPERTIES TIMEOUT 20
+set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
   FAIL_REGULAR_EXPRESSION "FAILED;should be deleted but never is;WARNING"
   PASS_REGULAR_EXPRESSION "PASSED")
 endfunction()

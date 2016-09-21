@@ -79,7 +79,7 @@ set_darma_compiler_flags()
 macro(add_test_for_example test_name test_exec)
 if (NOT CTEST_SKIP_EXAMPLES)
 add_test(${test_name} ${test_exec} ${ARGN})
-set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
+set_tests_properties(${test_name} PROPERTIES TIMEOUT 60
   FAIL_REGULAR_EXPRESSION "FAILED;WARNING")
 endif()
 endmacro()
