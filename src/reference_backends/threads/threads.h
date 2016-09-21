@@ -384,7 +384,10 @@ namespace threads_backend {
     register_use(darma_runtime::abstract::frontend::Use* u);
 
     DataBlock*
-    allocate_block(darma_runtime::abstract::frontend::Handle const* handle);
+    allocate_block(
+      darma_runtime::abstract::frontend::Handle const* handle,
+      bool fromFetch = false
+    );
 
     virtual flow_t
     make_initial_flow(darma_runtime::abstract::frontend::Handle* handle);

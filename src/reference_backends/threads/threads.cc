@@ -447,7 +447,7 @@ namespace threads_backend {
 
     DEBUG_PRINT("%p: register use: ready=%s, key=%s, version=%s, "
                 "handle=%p [in={%ld,ref=%ld,state=%s},out={%ld,ref=%ld,state=%s}], "
-                "sched=%d, immed=%d\n",
+                "sched=%d, immed=%d, fromFetch=%s\n",
                 u,
                 PRINT_BOOL_STR(ready),
                 PRINT_KEY(key),
@@ -460,7 +460,8 @@ namespace threads_backend {
                 f_out->ref,
                 PRINT_STATE(f_out),
                 u->scheduling_permissions(),
-                u->immediate_permissions()
+                u->immediate_permissions(),
+                PRINT_BOOL_STR(f_in->fromFetch)
                );
 
     if (f_in->isForward) {
@@ -513,7 +514,7 @@ namespace threads_backend {
         // FIXME: copy-paste of above code...
 
         // allocate new deferred data block for this use
-        auto block = allocate_block(handle);
+        auto block = allocate_block(handle, f_in->fromFetch);
         // insert into the hash
         fetched_data[{version,key}] = block;
         u->get_data_pointer_reference() = block->data;
@@ -528,27 +529,36 @@ namespace threads_backend {
     f_in->key = key;
     f_out->key = key;
 
-    DEBUG_PRINT("flow %ld, shared_reader_count=%p\n",
+    DEBUG_PRINT("flow %ld, shared_reader_count=%p [%ld]\n",
                 PRINT_LABEL(f_in),
-                f_in->shared_reader_count);
+                f_in->shared_reader_count,
+                *f_in->shared_reader_count
+                );
 
     // count references to a given handle
     handle_refs[handle]++;
   }
 
   DataBlock*
-  ThreadsRuntime::allocate_block(darma_runtime::abstract::frontend::Handle const* handle) {
+  ThreadsRuntime::allocate_block(
+    darma_runtime::abstract::frontend::Handle const* handle,
+    bool fromFetch
+  ) {
     // allocate some space for this object
     const size_t sz = handle->get_serialization_manager()->get_metadata_size();
     auto block = new DataBlock(1, sz);
 
-    DEBUG_PRINT("allocating data block: size = %ld, ptr = %p\n",
-                sz, block->data);
+    DEBUG_PRINT("allocating data block: size=%ld, ptr=%p, block=%p\n",
+                sz,
+                block->data,
+                block);
 
-    // call default constructor for data block
-    handle
-      ->get_serialization_manager()
-      ->default_construct(block->data);
+    if (!fromFetch) {
+      // call default constructor for data block
+      handle
+        ->get_serialization_manager()
+        ->default_construct(block->data);
+    }
 
     return block;
   }
@@ -652,6 +662,8 @@ namespace threads_backend {
 
         ++(pub.done);
         --(pub.expected);
+
+        DEBUG_PRINT("expected=%ld\n", pub.expected.load());
 
         if (std::atomic_load<size_t>(&pub.expected) == 0) {
           // remove from publication list
@@ -789,6 +801,8 @@ namespace threads_backend {
 
       ++(pub.done);
       --(pub.expected);
+
+      DEBUG_PRINT("expected=%ld\n", pub.expected.load());
 
       if (std::atomic_load<size_t>(&pub.expected) == 0) {
         // remove from publication list
@@ -965,7 +979,8 @@ namespace threads_backend {
     //assert(!block->forceDestruct);
 
     if (!block->forceDestruct) {
-      DEBUG_PRINT("force_destruct on flow %ld, state=%s\n",
+      DEBUG_PRINT("force destructor (%p) on flow %ld, state=%s\n",
+                  block,
                   PRINT_LABEL(flow),
                   PRINT_STATE(flow));
 
@@ -1032,12 +1047,16 @@ namespace threads_backend {
     }
 
     if (prev && ref == 0) {
-      DEBUG_PRINT("delete handle data: fromFetch=%s, refs=%ld, forcedDestruct=%s\n",
+      DEBUG_PRINT("delete handle data (%p): fromFetch=%s, refs=%ld, forcedDestruct=%s\n",
+                  prev,
                   PRINT_BOOL_STR(fromFetch),
                   ref,
                   PRINT_BOOL_STR(prev->forceDestruct));
 
       if (!prev->forceDestruct) {
+        DEBUG_PRINT("calling destructor (%p)\n",
+                    prev)
+
         // call the destructor
         handle
           ->get_serialization_manager()
