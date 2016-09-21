@@ -88,13 +88,9 @@ TEST_F(TestCreateCondition, ro_capture_MN) {
 
   int value = 42;
 
-  expect_initial_access(fl_init, fl_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(fl_init, fl_null, make_key("hello"));
 
-  EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(
-      &fl_init, &fl_init, use_t::None, use_t::Read
-    )
-  )).WillOnce(SaveArg<0>(&task_use));
+  EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(fl_init, task_use);
 
   EXPECT_CALL(*mock_runtime, register_condition_task_gmock_proxy(
     UseInGetDependencies(ByRef(task_use))
@@ -105,13 +101,60 @@ TEST_F(TestCreateCondition, ro_capture_MN) {
 
   EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(task_use))));
 
+  //============================================================================
+  // Actual code being tested
   {
     auto tmp = initial_access<int>("hello");
 
-    if(not create_condition([=]{ return tmp.get_value() == 42; })) {
+    if(not create_condition([=]{
+      return tmp.get_value() == 42;
+    })) {
       FAIL() << "create_condition should have returned true";
     }
 
   }
+  //============================================================================
 
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateCondition, explicit_ro_capture_MN) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow fl_init, fl_null;
+  use_t* task_use;
+
+  int value = 42;
+
+  EXPECT_INITIAL_ACCESS(fl_init, fl_null, make_key("hello"));
+
+  EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(fl_init, task_use);
+
+  EXPECT_CALL(*mock_runtime, register_condition_task_gmock_proxy(
+    UseInGetDependencies(ByRef(task_use))
+  )).Times(1).WillOnce(Invoke([&](auto* cond_task) {
+    task_use->get_data_pointer_reference() = (void*)&value;
+    return cond_task->template run<bool>();
+  }));
+
+  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(task_use))));
+
+  //============================================================================
+  // Actual code being tested
+  {
+    auto tmp = initial_access<int>("hello");
+
+    if(not create_condition(reads(tmp), [=]{ return tmp.get_value() == 42; })) {
+      FAIL() << "create_condition should have returned true";
+    }
+  }
+  //============================================================================
+
+  mock_runtime->registered_tasks.clear();
 }
