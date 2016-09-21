@@ -198,6 +198,8 @@ namespace threads_backend {
 
   bool
   ThreadsRuntime::register_condition_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
+    DEBUG_PRINT("register condition task\n");
+
     auto t = std::make_shared<TaskNode>(TaskNode{this,std::move(task)});
     t->join_counter = check_dep_task(t);
 
@@ -211,6 +213,8 @@ namespace threads_backend {
       types::unique_ptr_template<runtime_t::task_t> cur = std::move(t->task);
       current_task = cur.get();
       bool ret = cur.get()->run<bool>();
+      this->consumed++;
+      DEBUG_PRINT("calling run on task\n");
       current_task = prev;
 
       return ret;
