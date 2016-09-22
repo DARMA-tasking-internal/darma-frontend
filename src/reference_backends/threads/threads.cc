@@ -122,8 +122,6 @@ namespace threads_backend {
       //srand48(2918279);
       srand48(time(NULL));
     #endif
-    std::atomic_init(&finished, false);
-    std::atomic_init<size_t>(&ranks, 1);
     trace = traceMode ? new TraceModule{this_rank,n_ranks,"base"} : nullptr;
   }
 
