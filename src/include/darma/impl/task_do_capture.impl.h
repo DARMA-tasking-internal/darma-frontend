@@ -80,6 +80,7 @@ TaskBase::do_capture(
     source_and_continuing.current_use_->use.scheduling_permissions_ != HandleUse::Permissions::None,
     "Can't do a capture of an AccessHandle with scheduling permissions of None"
   );
+  //DARMA_ASSERT_MESSAGE()
 
   source_and_continuing.captured_as_ |= default_capture_as_info;
 
@@ -96,14 +97,15 @@ TaskBase::do_capture(
 
     bool ignored = (source.captured_as_ & AccessHandleBase::Ignored) != 0;
 
+    // Indicate that we've processed the uncaptured bit by resetting it
+    source.captured_as_ &= ~AccessHandleBase::CapturedButNotHandled;
+
     if (not ignored) {
 
       ////////////////////////////////////////////////////////////////////////////////
 
       // Determine the capture type
 
-      // Indicate that we've processed the uncaptured bit by resetting it
-      source.captured_as_ &= ~AccessHandleBase::Uncaptured;
 
       typename AccessHandleT::capture_op_t capture_type;
 

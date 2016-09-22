@@ -433,10 +433,17 @@ class AccessHandleBase {
       // Future use:
       ScheduleOnly = 4,
       Leaf = 8,
-      Uncaptured = 16
+      CapturedButNotHandled = 16
     } captured_as_info_t;
 
-    typedef typename abstract::frontend::Handle handle_t;
+    using handle_t = typename abstract::frontend::Handle;
+
+  protected:
+    using task_t = detail::TaskBase;
+
+    mutable unsigned captured_as_ = CapturedAsInfo::Normal;
+    task_t* capturing_task = nullptr;
+
 };
 
 } // end namespace detail
