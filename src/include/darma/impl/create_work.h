@@ -111,12 +111,12 @@ struct reads_decorator_parser {
         static_assert(is_access_handle<std::decay_t<decltype(ah)>>::value,
           "Non-AccessHandle<> argument passed to reads() decorator"
         );
-        if(ignored) for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::Ignored;
-        else {
-          // Mark it as uncaptured for now; the capture operation will set this flag back to 0
-          for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::Uncaptured;
+        if(ignored) {
+          for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::Ignored;
         }
-        for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::ReadOnly;
+        else {
+          for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::ReadOnly;
+        }
 
         //if(task == nullptr) {
         //  // if we don't have a task object to add the registration op to, we need to

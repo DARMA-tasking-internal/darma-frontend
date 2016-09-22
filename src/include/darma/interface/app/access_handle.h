@@ -89,7 +89,6 @@ class AccessHandle : public detail::AccessHandleBase {
     using variable_handle_ptr = types::shared_ptr_template<detail::VariableHandle<T>>;
     using use_holder_ptr = types::shared_ptr_template<detail::UseHolder>;
 
-    using task_t = detail::TaskBase;
     using key_t = types::key_t;
 
   public:
@@ -204,13 +203,24 @@ class AccessHandle : public detail::AccessHandleBase {
 
       // Now check if we're in a capturing context:
       if (capturing_task != nullptr) {
+        AccessHandle const* source = &copied_from;
         if(capturing_task->is_double_copy_capture) {
           assert(copied_from.prev_copied_from != nullptr);
-          capturing_task->do_capture<AccessHandle>(*this, *copied_from.prev_copied_from);
+          source = copied_from.prev_copied_from;
         }
-        else {
-          capturing_task->do_capture<AccessHandle>(*this, copied_from);
-        }
+        // We need to assert that the CapturedButNotHandled bit isn't set (since
+        // we don't allow handles to be captured multiple times
+        DARMA_ASSERT_MESSAGE(not (source->captured_as_ & CapturedButNotHandled),
+          "Handle with key " << var_handle_->get_key()
+          << " captured twice for the same task (either as different variables"
+             " to a lambda, different arguments to a functor, or different member"
+             " requirements to a method"
+        );
+        // Now set the "captured but not handled" bit to make sure it doesn't
+        // get captured twice
+        source->captured_as_ |= CapturedButNotHandled;
+
+        capturing_task->do_capture<AccessHandle>(*this, *source);
       } // end if capturing_task != nullptr
       else {
         // regular copy
@@ -219,7 +229,7 @@ class AccessHandle : public detail::AccessHandleBase {
         current_use_ = copied_from.current_use_;
         // Also, save prev copied from in case this is a double capture, like in
         // create_condition.  This is the only time that the prev_copied_from ptr
-        // should be valid
+        // should be valid (i.e., when task->is_double_copy_capture is set to true)
         prev_copied_from = &copied_from;
       }
     }
@@ -567,13 +577,11 @@ class AccessHandle : public detail::AccessHandleBase {
     ////////////////////////////////////////
     // private members
 
-    mutable unsigned captured_as_ = CapturedAsInfo::Normal;
     mutable variable_handle_ptr var_handle_ = nullptr;
     mutable use_holder_ptr current_use_ = nullptr;
     // TODO switch to everything has to be constructed requirement
     mutable bool value_constructed_ = std::is_default_constructible<T>::value;
 
-    task_t* capturing_task = nullptr;
     AccessHandle const* prev_copied_from = nullptr;
 
    public:
