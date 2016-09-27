@@ -186,13 +186,6 @@ namespace threads_backend {
       DataBlock*
     > data, fetched_data;
 
-    // TODO: multi-threaded half-implemented not working..
-    std::vector<std::atomic<size_t>*> deque_counter;
-    std::vector<std::mutex> deque_mutex;
-    std::vector<std::deque<types::unique_ptr_template<runtime_t::task_t> > > deque;
-    std::atomic<bool> finished;
-    std::atomic<size_t> ranks;
-
     types::unique_ptr_template<runtime_t::task_t> top_level_task;
 
     std::deque<std::shared_ptr<GraphNode> > ready_local;

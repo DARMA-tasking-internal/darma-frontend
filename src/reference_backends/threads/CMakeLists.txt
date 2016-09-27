@@ -9,11 +9,18 @@ set (DarmaThreadsBackend_VERSION
 find_package ( Threads REQUIRED )
 
 set (threads_HEADERS
-darma_types.h
+  darma_types.h
+  common.h
+  flow.h
+  node.h
+  publish.h
+  threads.h
+  threads_interface.h
+  trace.h
 )
 
-set (threads_SOURCES 
-threads.cc
+set (threads_SOURCES
+  threads.cc
 )
 
 include_directories( ${BACKENDS_ROOT}/threads )
@@ -30,7 +37,7 @@ find_library(GTEST_LIB_PATH gtest ${GTEST_DIR}/lib)
 target_link_libraries(darma_threads_backend_with_mock_frontend ${GMOCK_LIB_PATH} ${GTEST_LIB_PATH} ${CMAKE_THREAD_LIBS_INIT})
 endif()
 install (TARGETS darma_threads_backend EXPORT DarmaThreadsBackendDepends DESTINATION lib)
-install (FILES darma_types.h DESTINATION include)
+install (FILES ${threads_HEADERS} DESTINATION include)
 
 # Add all targets to be installed to the build-tree export set
 export (TARGETS darma_threads_backend
