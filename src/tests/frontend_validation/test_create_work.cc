@@ -443,6 +443,53 @@ TEST_F(TestCreateWork, named_task) {
   mock_runtime->registered_tasks.clear();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, handle_aliasing) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow finit, fnull, fcapt;
+  use_t* use_capt;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, fcapt, use_capt);
+
+  EXPECT_REGISTER_TASK(use_capt);
+
+  EXPECT_FLOW_ALIAS(fcapt, fnull);
+
+  //============================================================================
+  // actual code being tested
+  {
+    auto call_me = [](AccessHandle<int> a, AccessHandle<int> b) {
+      create_work([=]{
+        std::cout << (a.get_value() * b.get_value()) << std::endl;
+      });
+    };
+
+    auto tmp = initial_access<int>("hello");
+
+    call_me(tmp, tmp);
+
+  }
+  //============================================================================
+
+  EXPECT_RELEASE_USE(use_capt);
+
+  mock_runtime->registered_tasks.clear();
+
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 /*
 TEST_F(TestCreateWork, ro_capture_MM) {
   using namespace ::testing;

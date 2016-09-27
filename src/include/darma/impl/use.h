@@ -139,6 +139,7 @@ struct UseHolder {
   HandleUse use;
   bool is_registered = false;
   bool could_be_alias = false;
+  bool captured_but_not_handled = false;
 
   UseHolder(UseHolder&&) = delete;
   UseHolder(UseHolder const &) = delete;

@@ -95,6 +95,9 @@ TaskBase::do_capture(
     auto& source = source_and_continuing;
     auto& continuing = source_and_continuing;
 
+    // note the fact that we're handling the capture now
+    source.current_use_->captured_but_not_handled = false;
+
     bool ignored = (source.captured_as_ & AccessHandleBase::Ignored) != 0;
 
     // Indicate that we've processed the uncaptured bit by resetting it
