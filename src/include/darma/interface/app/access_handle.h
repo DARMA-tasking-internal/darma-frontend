@@ -219,8 +219,22 @@ class AccessHandle : public detail::AccessHandleBase {
         // Now set the "captured but not handled" bit to make sure it doesn't
         // get captured twice
         source->captured_as_ |= CapturedButNotHandled;
+        // Do the same thing in the UseHolder...
+        // Ignore this for now...
+        //DARMA_ASSERT_MESSAGE(not source->current_use_->captured_but_not_handled,
+        //  "Handle with key " << var_handle_->get_key()
+        //                     << " captured twice for the same task (either as different variables"
+        //                       " to a lambda, different arguments to a functor, or different member"
+        //                       " requirements to a method"
+        //);
 
-        capturing_task->do_capture<AccessHandle>(*this, *source);
+
+        // make sure we haven't already captured this...
+        if(not source->current_use_->captured_but_not_handled) {
+          capturing_task->do_capture<AccessHandle>(*this, *source);
+        }
+        // Only capture once...
+        source->current_use_->captured_but_not_handled = true;
       } // end if capturing_task != nullptr
       else {
         // regular copy
