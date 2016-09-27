@@ -463,13 +463,13 @@ TEST_F(TestCreateWork, handle_aliasing) {
 
   EXPECT_REGISTER_TASK(use_capt);
 
-  EXPECT_FLOW_ALIAS(fcapt, fnull);
+  //EXPECT_FLOW_ALIAS(fcapt, fnull);
 
   //============================================================================
   // actual code being tested
   {
     auto call_me = [](AccessHandle<int> a, AccessHandle<int> b) {
-      create_work([=]{
+      create_work(allow_aliasing=true, [=]{
         std::cout << (a.get_value() * b.get_value()) << std::endl;
       });
     };

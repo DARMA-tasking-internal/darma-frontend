@@ -125,13 +125,16 @@ struct tag_data<darma_runtime::keyword_tags_for_##argument_for::name>           
     __DARMA_declare_keyword_tag_stuff(argument_for, name, argtype)                                 \
     __DARMA_declare_keyword_tag_data(argument_for, name, argtype)                                  \
 
+// DEPRECATED
 #define DeclareDarmaKeyword(argument_for, name, ...)                                               \
     __DARMA_declare_keyword_helper(argument_for, name, (__VA_ARGS__))
 
+// This is the only way we should declare keyword arguments from now on
 #define DeclareDarmaTypeTransparentKeyword(argument_for, name)                                               \
     __DARMA_declare_keyword_tag_typeless(argument_for, name) \
     __DARMA_declare_keyword_tag_data(argument_for, name, (darma_runtime::detail::unknown_type))
 
+// DEPRECATED
 #define DeclareDarmaArgumentWithDefaultGetter(argument_for, name, arg_type, ...)                   \
     __DARMA_declare_keyword_tag_stuff(argument_for, name, (arg_type))                              \
     namespace darma_runtime {                                                                      \
@@ -148,6 +151,7 @@ struct tag_data<darma_runtime::keyword_tags_for_##argument_for::name>           
     } /* end namespace detail */                                                                    \
     } /* end namespace darma_runtime */
 
+// DEPRECATED
 #define DeclareDarmaArgumentWithDefault(argument_for, name, arg_type, ...)                         \
   DeclareDarmaArgumentWithDefaultGetter(argument_for, name, arg_type, { return __VA_ARGS__; })
 

@@ -238,6 +238,39 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
 
     virtual ~TaskBase() noexcept { }
 
+    //==========================================================================
+    // allowed_aliasing_description
+
+    struct allowed_aliasing_description {
+      static constexpr struct allowed_aliasing_description_ctor_tag_t { }
+        allowed_aliasing_description_ctor_tag { };
+
+      allowed_aliasing_description(
+        allowed_aliasing_description_ctor_tag_t,
+        bool all_or_nothing
+      ) : is_all_or_nothing(true), all_allowed(all_or_nothing)
+      { }
+
+      template <typename AccessHandleT>
+      bool aliasing_is_allowed_for(AccessHandleT&& ah, TaskBase*) {
+        if(is_all_or_nothing) {
+          return all_allowed;
+        }
+        else {
+          DARMA_ASSERT_NOT_IMPLEMENTED(
+            "more specific aliasing allowed specifications than just true or false"
+          );
+        }
+      }
+
+      bool is_all_or_nothing = true;
+      bool all_allowed = false;
+    };
+
+    std::unique_ptr<allowed_aliasing_description> allowed_aliasing = nullptr;
+
+    //==========================================================================
+
     TaskBase* current_create_work_context = nullptr;
 
     std::vector<std::function<void()>> registrations_to_run;

@@ -2,13 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                                all_of.hpp                               
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                      errors.h
+//                         DARMA
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,42 +43,20 @@
 */
 
 
-#ifndef TINYMPL_VARIADIC_ALL_OF_HPP
-#define TINYMPL_VARIADIC_ALL_OF_HPP
+#ifndef DARMA_IMPL_KEYWORD_ARGUMENTS_ERRORS_H
+#define DARMA_IMPL_KEYWORD_ARGUMENTS_ERRORS_H
 
-#include <type_traits>
+namespace darma_runtime {
 
-namespace tinympl {
-namespace variadic {
+namespace detail {
+namespace _DARMA__error__ {
 
-/**
- * \ingroup VarNonModAlgs
- * \class all_of
- * \brief Determines whether every element in the sequence satisfies the given
-predicate
- * \param F the predicate, `F<T>::type::value` must be convertible to `bool`
- * \return `all_of<...>::type` is a `std::integral_constant<bool,v>` where `v`
-is true iff all the elements in the sequence satisfy the predicate `F`
- * \sa tinympl::all_of
- */
-template< template<class ... T> class F, class ... Args> struct all_of;
+template <typename UnknownKWTag>
+struct __________Unknown_keyword_argument_;
 
-// Double ::type::type needed to ensure correct short-circuit behavior
-template< template<class ... T> class F, class Head, class ... Args>
-struct all_of<F, Head, Args...> :
-  std::conditional<
-    F<Head>::value,
-    all_of<F, Args...>,
-    std::integral_constant<bool, false>
-  >::type::type
-{};
+} // end namespace _DARMA____error____
+} // end namespace detail
 
-template <template <class... T> class F>
-struct all_of<F>
-  : std::integral_constant<bool, true>
-{};
+} // end namespace darma_runtime
 
-} // namespace variadic
-} // namespace tinympl
-
-#endif // TINYMPL_VARIADIC_ALL_OF_HPP
+#endif //DARMA_IMPL_KEYWORD_ARGUMENTS_ERRORS_H
