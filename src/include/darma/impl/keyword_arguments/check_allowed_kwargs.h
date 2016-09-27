@@ -51,6 +51,7 @@
 
 #include "../meta/detection.h"
 #include "kwarg_expression.h"
+#include "errors.h"
 
 namespace darma_runtime {
 namespace detail {
@@ -84,8 +85,46 @@ struct only_allowed_kwargs_given {
           std::true_type,
           mv::all_of<_allowed_arg, Args...>
       >::type::type type;
-
   };
+
+  template <typename KWTag>
+  struct bad_keyword_argument_assert {
+    _DARMA__error__::__________Unknown_keyword_argument_<KWTag> bad_keyword_argument;
+  };
+
+  template <typename... Args>
+  struct static_assert_correct {
+    template <typename KWArg>
+    using _kwarg_not_found = tinympl::and_<
+      is_kwarg_expression<KWArg>,
+      tinympl::bool_<
+        tinympl::variadic::find<
+          typename is_kwarg_expression<KWArg>::tag, KWTags...
+        >::value == sizeof...(KWTags)
+      >
+    >;
+
+    template <typename Arg>
+    using _bad_arg = bad_keyword_argument_assert<
+      typename is_kwarg_expression<Arg>::tag
+    >;
+
+    template <typename Arg>
+    using _good_arg = tinympl::identity<Arg>;
+
+    template <typename Arg>
+    using _kwarg_test = std::conditional_t<
+      _kwarg_not_found<Arg>::value,
+      _bad_arg<Arg>,
+      _good_arg<Arg>
+    >;
+
+    template <typename... Tested>
+    static int _do_test(Tested&&...) { };
+
+    using type = decltype(static_assert_correct::_do_test(_kwarg_test<Args>()...));
+  };
+
 };
 
 

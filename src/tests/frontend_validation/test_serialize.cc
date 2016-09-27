@@ -153,6 +153,10 @@ TEST_F(TestSerialize, vector_simple) {
   ASSERT_THAT(value, ElementsAre(3, 1, 4, 1, 5, 9, 2, 6));
 }
 
+STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::vector<double>, PolicyAwareArchive,
+  "std::vector<double> should be serializable with PolicyAwareArchive"
+);
+
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSerialize, map_simple) {

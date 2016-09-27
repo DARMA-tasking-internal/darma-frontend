@@ -432,8 +432,7 @@ class AccessHandleBase {
       ReadOnly = 2,
       // Future use:
       ScheduleOnly = 4,
-      Leaf = 8,
-      CapturedButNotHandled = 16
+      Leaf = 8
     } captured_as_info_t;
 
     using handle_t = typename abstract::frontend::Handle;

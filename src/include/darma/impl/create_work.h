@@ -61,14 +61,17 @@
 #include <darma/impl/runtime.h>
 #include <darma/impl/task.h>
 #include <darma/impl/util.h>
+#include <darma/impl/keyword_arguments/macros.h>
 
 #include <darma/interface/app/keyword_arguments/unless.h>
 #include <darma/interface/app/keyword_arguments/only_if.h>
 #include <darma/interface/app/keyword_arguments/name.h>
 
-
+// TODO move this once it becomes part of the specified interface
+DeclareDarmaTypeTransparentKeyword(task_creation, allow_aliasing);
 
 namespace darma_runtime {
+
 
 namespace detail {
 
@@ -248,6 +251,8 @@ struct _do_create_work_impl<void> {
 
 struct _do_create_work {
 
+
+
   explicit
   _do_create_work(types::unique_ptr_template<TaskBase>&& tsk_base)
     : task_(std::move(tsk_base))
@@ -259,11 +264,10 @@ struct _do_create_work {
 
     //--------------------------------------------------------------------------
     // Check for allowed keywords
-    static_assert(detail::only_allowed_kwargs_given<
-        darma_runtime::keyword_tags_for_task_creation::name
-      >::template apply<Args...>::type::value,
-      "Unknown keyword argument given to create_work()"
-    );
+    using _check_kwargs_asserting_t = typename detail::only_allowed_kwargs_given<
+      darma_runtime::keyword_tags_for_task_creation::name,
+      darma_runtime::keyword_tags_for_task_creation::allow_aliasing
+    >::template static_assert_correct<Args...>::type;
 
     //--------------------------------------------------------------------------
     // Handle the name kwarg
@@ -277,6 +281,21 @@ struct _do_create_work {
     if(not detail::key_traits<types::key_t>::key_equal()(name_key, types::key_t())) {
       task_->set_name(name_key);
     }
+
+    bool found_aliasing_description = get_typeless_kwarg_with_converter_and_default<
+      darma_runtime::keyword_tags_for_task_creation::allow_aliasing
+    >([&](auto&&... args) {
+        // forward to the allowed_aliasing_description constructor
+        task_->allowed_aliasing = std::make_unique<TaskBase::allowed_aliasing_description>(
+          TaskBase::allowed_aliasing_description::allowed_aliasing_description_ctor_tag_t(),
+          std::forward<decltype(args)>(args)...
+        );
+        return true;
+      }, false /* return value is ignored anyway */, std::forward<Args>(args)...
+    );
+
+    //--------------------------------------------------------------------------
+    // Handle the allow_aliasing keyword argument
 
     //--------------------------------------------------------------------------
     // forward to the appropriate specialization (Lambda or functor)

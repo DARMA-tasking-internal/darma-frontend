@@ -80,7 +80,8 @@ TaskBase::do_capture(
     source_and_continuing.current_use_->use.scheduling_permissions_ != HandleUse::Permissions::None,
     "Can't do a capture of an AccessHandle with scheduling permissions of None"
   );
-  //DARMA_ASSERT_MESSAGE()
+
+  bool check_aliasing = source_and_continuing.current_use_->captured_but_not_handled;
 
   source_and_continuing.captured_as_ |= default_capture_as_info;
 
@@ -88,20 +89,34 @@ TaskBase::do_capture(
   // we modify it significantly (it just happens that those modifications
   // are to mutable member variables which have to be mutable because
   // of the [=] capture behavior)
-  registrations_to_run.emplace_back([&]{
+  registrations_to_run.emplace_back([&,check_aliasing=check_aliasing]{
 
     auto* backend_runtime = abstract::backend::get_backend_runtime();
 
     auto& source = source_and_continuing;
     auto& continuing = source_and_continuing;
 
+    if(check_aliasing) {
+      if(allowed_aliasing and allowed_aliasing->aliasing_is_allowed_for(source, this)) {
+        // Short-circuit rather than capturing twice...
+        // TODO get the maximum permissions and pass those on
+        return;
+      }
+      else {
+        // Unallowed alias...
+        DARMA_ASSERT_FAILURE(
+          "Captured the same handle (with key = " << source_and_continuing.get_key()
+          << ") via different variables without explicitly allowing aliasing in"
+            " create_work call (using the keyword_arguments_for_task_creation::allow_aliasing"
+            " keyword argument)."
+        );
+      }
+    }
+
     // note the fact that we're handling the capture now
     source.current_use_->captured_but_not_handled = false;
 
     bool ignored = (source.captured_as_ & AccessHandleBase::Ignored) != 0;
-
-    // Indicate that we've processed the uncaptured bit by resetting it
-    source.captured_as_ &= ~AccessHandleBase::CapturedButNotHandled;
 
     if (not ignored) {
 

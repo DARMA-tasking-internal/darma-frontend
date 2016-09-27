@@ -55,6 +55,13 @@ namespace darma_runtime {
 namespace abstract {
 namespace frontend {
 
+class Index { };
+
+struct IndexIterator {
+  virtual Index& operator*() =0;
+  virtual IndexIterator& operator++() =0;
+};
+
 // TODO remove size, offset, contiguous, strided, and stride; the backend doesn't need them
 
 /** @todo
@@ -101,7 +108,14 @@ class IndexRange {
      */
     virtual size_t stride() const =0;
 
+    virtual IndexIterator&
+    begin() =0;
+
+    virtual IndexIterator&
+    end() =0;
 };
+
+class CompactIndexRange; // TODO
 
 } // end namespace frontend
 } // end namespace abstract

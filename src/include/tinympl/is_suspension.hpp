@@ -60,7 +60,7 @@ using _has_member_named_type_archetype = typename T::type;
 
 template <typename T>
 using _has_member_type_named_type =
-  is_detected<_has_member_named_type_archetype, T>;
+  detected_or<nonesuch, _has_member_named_type_archetype, T>;
 
 } // end namespace _impl
 
