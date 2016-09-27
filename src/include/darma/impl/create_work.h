@@ -74,26 +74,12 @@ namespace detail {
 
 namespace mv = tinympl::variadic;
 
-//template <typename... Args>
-//struct create_work_parser {
-//  // For now, return void
-//  typedef void return_type;
-//  typedef typename mv::back<Args...>::type lambda_type;
-//};
-
 template <typename... Args>
 struct reads_decorator_parser {
   inline decltype(auto)
   operator()(Args&&... args) const {
     using detail::create_work_attorneys::for_AccessHandle;
-    //detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-    //  abstract::backend::get_backend_context()->get_running_task()
-    //);
-    //assert(parent_task != nullptr);
-    //detail::TaskBase* task = parent_task->current_create_work_context;
-    // NOTE: task may be null
 
-    // See if all of these arguments are supposed to be ignored
     // NOTE: This is a post-0.2 feature
     bool ignored = not get_typeless_kwarg_with_default_as<
         darma_runtime::keyword_tags_for_create_work_decorators::unless,
@@ -117,22 +103,6 @@ struct reads_decorator_parser {
         else {
           for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::ReadOnly;
         }
-
-        //if(task == nullptr) {
-        //  // if we don't have a task object to add the registration op to, we need to
-        //}
-
-        // Set the flags back after registration
-        // This resetting happens in the capture implementation now, so shouldn't be needed
-        //task->post_registration_ops.emplace_back([&]{
-        //  DARMA_ASSERT_MESSAGE(
-        //    (for_AccessHandle::captured_as_info(ah) & AccessHandleBase::Uncaptured) == 0,
-        //    "handle with key { " << ah.get_key() << " } declared as read usage, but was actually unused"
-        //  );
-        //  // Reset everything
-        //  for_AccessHandle::captured_as_info(ah) = AccessHandleBase::Normal;
-        //});
-
       }
     );
 
