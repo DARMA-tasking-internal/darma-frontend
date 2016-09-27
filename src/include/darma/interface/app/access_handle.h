@@ -161,16 +161,16 @@ class AccessHandle : public detail::AccessHandleBase {
     AccessHandle() = default;
 
     AccessHandle &
-    operator=(AccessHandle &other) = delete;
+    operator=(AccessHandle &other) = default;
 
-    const AccessHandle &
-    operator=(AccessHandle &other) const = delete;
+    //AccessHandle &
+    //operator=(AccessHandle &other) const = default;
 
     AccessHandle &
-    operator=(AccessHandle const &other) = delete;
+    operator=(AccessHandle const &other) = default;
 
-    const AccessHandle &
-    operator=(AccessHandle const &other) const = delete;
+    //AccessHandle &
+    //operator=(AccessHandle const &other) const = default;
 
     AccessHandle const &
     operator=(AccessHandle &&other) noexcept {

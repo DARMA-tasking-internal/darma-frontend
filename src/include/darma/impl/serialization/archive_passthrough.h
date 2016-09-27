@@ -92,7 +92,7 @@ class ArchivePassthroughMixin {
     bool is_unpacking() const { return mode == detail::SerializerMode::Unpacking; }
 
     template <typename T>
-    std::enable_if_t<is_sizable_with_this<T>::value>
+    void //std::enable_if_t<is_sizable_with_this<T>::value>
     incorporate_size(T const& val) {
       traits<T>::compute_size(val, *static_cast<ArchiveT*>(this));
     }
