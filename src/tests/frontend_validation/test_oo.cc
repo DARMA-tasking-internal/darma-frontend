@@ -659,15 +659,17 @@ DARMA_OO_DEFINE_TAG(myData_);
 DARMA_OO_DEFINE_TAG(initialize);
 DARMA_OO_DEFINE_TAG(print);
 DARMA_OO_DEFINE_TAG(scalarMultiply);
+DARMA_OO_DEFINE_TAG(plusEquals);
 
 using namespace darma_runtime;
 using namespace darma_runtime::oo;
 
 struct darma_vector : darma_class<darma_vector,
-  private_fields<std::vector<double>, myData_>,
+  public_fields<std::vector<double>, myData_>,
   public_methods<initialize>,
   public_methods<print>,
-  public_methods<scalarMultiply>
+  public_methods<scalarMultiply>,
+  public_methods<plusEquals>
 >
 { using darma_class::darma_class; };
 
@@ -677,6 +679,9 @@ struct darma_vector_constructors
   using darma_constructors::darma_constructors;
   void operator()(int me) {
     myData_ = initial_access<std::vector<double>>(me, "v_my data");
+  }
+  void operator()(darma_class_instance<darma_vector> const& other) {
+    myData_ = other.myData_;
   }
 };
 
@@ -719,6 +724,23 @@ struct darma_vector_method<scalarMultiply>
     }
   }
 };
+
+template <>
+struct darma_vector_method<plusEquals>
+  : darma_method<darma_vector,
+    modifies_value_<myData_>
+  >
+{
+  using darma_method::darma_method;
+  void operator()(darma_vector other) {
+    int i = 0;
+    for(auto& val : myData_) {
+      val += other.myData_.get_value()[i++];
+    }
+  }
+};
+
+//////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestOO, use_darma_vector) {
   using namespace ::testing;
@@ -788,6 +810,8 @@ TEST_F(TestOO, use_darma_vector) {
     vect.scalarMultiply(2.0);
 
     vect.print(19);
+
+    darma_vector v2 = vect;
   }
   //============================================================================
 
@@ -819,3 +843,129 @@ TEST_F(TestOO, use_darma_vector) {
   );
 
 }
+
+// TODO not working yet
+////////////////////////////////////////////////////////////////////////////////////
+//
+//static_assert(is_darma_class<darma_vector>::value, "");
+//
+//TEST_F(TestOO, darma_vector_plus_equals) {
+//  using namespace ::testing;
+//  using namespace mock_backend;
+//
+//  mock_runtime->save_tasks = true;
+//
+//  ::testing::internal::CaptureStdout();
+//
+//  MockFlow finit, fnull, finit2, fnull2, f_init_out1, f_init_out2, fplus1, fplus2;
+//  use_t* initialize_use, *initialize_use2;
+//  use_t* plus_use, *plus_use2;
+//  initialize_use = initialize_use2 = plus_use = plus_use2 = nullptr;
+//
+//  Sequence s1;
+//
+//  EXPECT_INITIAL_ACCESS(finit, fnull, make_key(5, "v_my data"));
+//  EXPECT_INITIAL_ACCESS(finit2, fnull2, make_key(6, "v_my data"));
+//
+//  std::vector<double> my_data_value;
+//  std::vector<double> my_data_value_2;
+//
+//  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, f_init_out1, initialize_use);
+//  EXPECT_MOD_CAPTURE_MN_OR_MR(finit2, f_init_out2, initialize_use2);
+//
+//  EXPECT_REGISTER_TASK(initialize_use)
+//    .WillOnce(Invoke([&](auto&&...){
+//      initialize_use->get_data_pointer_reference() = &my_data_value;
+//    }));
+//  EXPECT_REGISTER_TASK(initialize_use2)
+//    .WillOnce(Invoke([&](auto&&...){
+//      initialize_use2->get_data_pointer_reference() = &my_data_value_2;
+//    }));
+//
+//  EXPECT_MOD_CAPTURE_MN_OR_MR(f_init_out1, fplus1, plus_use);
+//  EXPECT_MOD_CAPTURE_MN_OR_MR(f_init_out2, fplus2, plus_use2);
+//  EXPECT_REGISTER_TASK(plus_use)
+//    .WillOnce(Invoke([&](auto&&...){
+//      plus_use->get_data_pointer_reference() = &my_data_value;
+//    }));
+//  EXPECT_REGISTER_TASK(plus_use2)
+//    .WillOnce(Invoke([&](auto&&...){
+//      plus_use2->get_data_pointer_reference() = &my_data_value_2;
+//    }));
+//
+//  //EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(f_initialize_out, print_use).InSequence(s1);
+//
+//  //EXPECT_REGISTER_TASK(print_use)
+//  //  .InSequence(s1)
+//  //  .WillOnce(Invoke([&](auto&&...){
+//  //    print_use->get_data_pointer_reference() = &my_data_value;
+//  //  }));
+//
+//  //EXPECT_MOD_CAPTURE_MN_OR_MR(f_initialize_out, f_scale_out, scale_use);
+//
+//  //EXPECT_REGISTER_TASK(scale_use)
+//  //  .InSequence(s1)
+//  //  .WillOnce(Invoke([&](auto&&...){
+//  //    scale_use->get_data_pointer_reference() = &my_data_value;
+//  //  }));
+//
+//  //EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(f_scale_out, print_2_use).InSequence(s1);
+//
+//  //EXPECT_REGISTER_TASK(print_2_use)
+//  //  .InSequence(s1)
+//  //  .WillOnce(Invoke([&](auto&&...){
+//  //    print_2_use->get_data_pointer_reference() = &my_data_value;
+//  //  }));
+//
+//  EXPECT_FLOW_ALIAS(fplus1, fnull);
+//  EXPECT_FLOW_ALIAS(fplus2, fnull2);
+//
+//  EXPECT_RELEASE_FLOW(fnull);
+//  EXPECT_RELEASE_FLOW(fnull2);
+//
+//  //============================================================================
+//  // Code being tested
+//  {
+//
+//    darma_vector vect(5);
+//    darma_vector v2(6);
+//
+//    vect.initialize(20, 3.5);
+//    v2.initialize(20, 2.3);
+//
+//    v2.plusEquals(vect);
+//
+//
+//    //v2.print(19);
+//
+//  }
+//  //============================================================================
+//
+//  //{
+//  //  InSequence seq;
+//
+//  //  EXPECT_RELEASE_USE(initialize_use);
+//  //  EXPECT_RELEASE_FLOW(finit);
+//
+//  //  EXPECT_RELEASE_USE(print_use);
+//
+//  //  EXPECT_RELEASE_USE(scale_use);
+//
+//  //  EXPECT_RELEASE_FLOW(f_initialize_out);
+//
+//  //  EXPECT_RELEASE_USE(print_2_use);
+//
+//  //  EXPECT_RELEASE_FLOW(f_scale_out);
+//  //}
+//
+//  run_all_tasks();
+//
+//  EXPECT_THAT(my_data_value.size(), Eq(20));
+//  EXPECT_THAT(my_data_value_2[19], Eq(double(3.5) + double(2.3)));
+//
+//  ASSERT_EQ(::testing::internal::GetCapturedStdout(),
+//    "19 : 3.14\n"
+//      "19 : 6.28\n"
+//  );
+//
+//}

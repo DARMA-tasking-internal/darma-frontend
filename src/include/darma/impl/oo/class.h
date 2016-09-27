@@ -331,6 +331,7 @@ struct darma_class
 
     using helper_t = detail::darma_class_helper<ClassName, Args...>;
     using base_t = typename helper_t::base_class;
+    using darma_class_t = darma_class;
 
     darma_class() = default;
     darma_class(darma_class&&) = default;
@@ -360,7 +361,7 @@ struct darma_class
       static_cast<typename constructor_implementation_type<ClassName>::type*>(this)->operator()(
         std::forward<CTorArgs>(args)...
       );
-    };
+    }
 
     // This allows copy or move constructors
     template <typename ClassTypeDeduced,
@@ -422,11 +423,57 @@ struct darma_class
           >::type
         >(std::forward<ClassTypeDeduced>(other))
       );
-    };
+    }
+
+    template <typename ArchiveT>
+    constexpr inline explicit
+    darma_class(
+      darma_runtime::serialization::unpack_constructor_tag_t,
+      ArchiveT& ar
+    ) : base_t(serialization::unpack_constructor_tag, ar)
+    { }
+
+    template <typename ArchiveT>
+    void compute_size(ArchiveT& ar) const {
+      base_t::_darma__compute_size(ar);
+    }
+
+    template <typename ArchiveT>
+    void pack(ArchiveT& ar) const {
+      base_t::_darma__pack(ar);
+    }
 
 };
 
 } // end namespace oo
+
+namespace serialization {
+
+namespace detail {
+
+template <typename T>
+struct Serializer_enabled_if<T, std::enable_if_t<darma_runtime::oo::is_darma_class<T>::value>> {
+  template <typename ArchiveT>
+  void
+  compute_size(T const& darma_obj, ArchiveT& ar) const {
+    static_cast<typename T::darma_class_t const&>(darma_obj).compute_size(ar);
+  }
+  template <typename ArchiveT>
+  void
+  pack(T const& darma_obj, ArchiveT& ar) const {
+    static_cast<typename T::darma_class_t const&>(darma_obj).pack(ar);
+  }
+  template <typename ArchiveT>
+  void
+  unpack(void* allocated, ArchiveT& ar) const {
+    new (allocated) T(unpack_constructor_tag, ar);
+  }
+};
+
+} // end namespace detail
+
+} // end namespace serialization
+
 } // end namespace darma_runtime
 
 #endif //DARMA_IMPL_OO_CLASS_H

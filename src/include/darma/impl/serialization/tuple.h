@@ -67,11 +67,42 @@ struct Serializer<std::tuple<Args...>> {
     using TupleT = std::tuple<Args...>;
 
     template <typename ArchiveT>
+    struct _make_is_sizable_with_archive {
+      template <typename T>
+      using apply = typename detail::serializability_traits<T>
+        ::template is_sizable_with_archive<ArchiveT>;
+    };
+
+
+    template <typename ArchiveT>
     struct _make_is_serializable_with_archive {
       template <typename T>
       using apply = typename detail::serializability_traits<T>
         ::template is_serializable_with_archive<ArchiveT>;
     };
+
+    template <typename ArchiveT>
+    struct _make_is_packable_with_archive {
+      template <typename T>
+      using apply = typename detail::serializability_traits<T>
+        ::template is_packable_with_archive<ArchiveT>;
+    };
+
+    template <typename ArchiveT>
+    using sizable_into = std::integral_constant<bool,
+      tinympl::variadic::all_of<
+        _make_is_sizable_with_archive<ArchiveT>::template apply,
+        Args...
+      >::value
+    >;
+
+    template <typename ArchiveT>
+    using packable_into = std::integral_constant<bool,
+      tinympl::variadic::all_of<
+        _make_is_packable_with_archive<ArchiveT>::template apply,
+        Args...
+      >::value
+    >;
 
     template <typename ArchiveT>
     using serializable_into = std::integral_constant<bool,
@@ -88,7 +119,7 @@ struct Serializer<std::tuple<Args...>> {
   public:
 
     template <typename ArchiveT>
-    std::enable_if_t<serializable_into<ArchiveT>::value>
+    std::enable_if_t<sizable_into<ArchiveT>::value>
     compute_size(TupleT const& tup, ArchiveT& ar) const {
       meta::tuple_for_each(tup, [&](auto const& item) {
         ar.incorporate_size(item);
@@ -97,7 +128,7 @@ struct Serializer<std::tuple<Args...>> {
 
 
     template <typename ArchiveT>
-    std::enable_if_t<serializable_into<ArchiveT>::value>
+    std::enable_if_t<packable_into<ArchiveT>::value>
     pack(TupleT const& tup, ArchiveT& ar) const {
       meta::tuple_for_each(tup, [&](auto const& item) {
         ar.pack_item(item);
