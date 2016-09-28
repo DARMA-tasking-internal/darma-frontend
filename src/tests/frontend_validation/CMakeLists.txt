@@ -32,6 +32,7 @@ add_unit_test(test_create_condition)
 add_unit_test(test_oo)
 add_unit_test(test_collectives)
 add_unit_test(test_array)
+add_unit_test(test_index_range)
 
 add_executable(run_all_frontend_tests ${frontendtestfiles})
 

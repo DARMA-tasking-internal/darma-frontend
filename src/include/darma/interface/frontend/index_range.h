@@ -49,7 +49,7 @@
 
 #include <darma_types.h>
 
-#include "serialization_manager.h"
+#include "polymorphic_serializable_object.h"
 
 namespace darma_runtime {
 namespace abstract {
@@ -60,23 +60,25 @@ class Index { };
 struct IndexIterator {
   virtual Index& operator*() =0;
   virtual IndexIterator& operator++() =0;
+  virtual ~IndexIterator() = default;
 };
-
-// TODO remove size, offset, contiguous, strided, and stride; the backend doesn't need them
 
 /** @todo
  *
  */
-class IndexRange {
+class IndexRange : public PolymorphicSerializableObject<IndexRange> {
   public:
 
-    /** @todo
-     *
-     * @return
-     */
-    virtual SerializationManager const*
-    get_serialization_manager() const =0;
+    virtual std::unique_ptr<IndexIterator>
+    begin() =0;
 
+    virtual std::unique_ptr<IndexIterator>
+    end() =0;
+};
+
+class CompactIndexRange : public IndexRange
+{
+  public:
 
     /** @todo
      *
@@ -108,14 +110,20 @@ class IndexRange {
      */
     virtual size_t stride() const =0;
 
-    virtual IndexIterator&
-    begin() =0;
-
-    virtual IndexIterator&
-    end() =0;
 };
 
-class CompactIndexRange; // TODO
+template <typename FromRange, typename ToRange>
+struct IndexMapping : PolymorphicSerializableObject<IndexMapping<FromRange, ToRange>> {
+
+  virtual std::unique_ptr<ToRange const>
+  map_forward(FromRange const& from) const =0;
+
+  virtual std::unique_ptr<FromRange const>
+  map_reverse(ToRange const& from) const =0;
+
+};
+
+
 
 } // end namespace frontend
 } // end namespace abstract

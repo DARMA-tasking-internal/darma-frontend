@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
+//                      concurrent_region.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,41 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMA_IMPL_CONCURRENT_REGION_H
+#define DARMA_IMPL_CONCURRENT_REGION_H
 
-#include <darma_types.h>
-#include "handle.h"
-#include "task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "create_work.h"
-#include "concurrent_region.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/interface/defaults/darma_main.h>
+#include <darma/interface/app/create_concurrent_region.h>
 
-#include <darma/impl/serialization/policy_aware_archive.h>
+namespace darma_runtime {
 
-#include "serialization/serialization.impl.h"
-#include "array/array.impl.h"
+namespace detail {
 
-#endif /* SRC_DARMA_DARMA_H_ */
+template <typename Functor>
+struct _create_concurrent_region_impl {
+  template <typename... Args>
+  void operator()(Args&&... args) const {
 
+  }
+};
+
+template <>
+struct _create_concurrent_region_impl<void> {
+  template <typename Return, typename... FuncParams, typename... Args>
+  void operator()(Return (*func)(FuncParams...), Args&&... args) const {
+
+  }
+};
+
+} // end namespace detail
+
+template <typename Functor, typename... Args>
+auto
+create_concurrent_region(Args&&... args) {
+  return detail::_create_concurrent_region_impl<Functor>()(
+    std::forward<Args>(args)...
+  );
+};
+
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_CONCURRENT_REGION_H
