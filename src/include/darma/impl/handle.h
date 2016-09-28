@@ -57,8 +57,10 @@
 #include <tinympl/logical_not.hpp>
 #include <tinympl/copy_traits.hpp>
 
+#include <darma/interface/frontend/handle.h>
+#include <darma/interface/backend/types.h>
+
 #include <darma/impl/task_fwd.h>
-#include <darma/impl/runtime.h>
 #include <darma/impl/util.h>
 #include <darma/impl/darma_assert.h>
 #include <darma/impl/serialization/archive.h>
