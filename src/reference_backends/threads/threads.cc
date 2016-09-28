@@ -82,6 +82,10 @@ namespace threads_backend {
 
   std::vector<std::thread> live_ranks;
 
+  // TL state
+  __thread runtime_t::task_t* current_task = 0;
+  __thread size_t this_rank = 0;
+
   #if __THREADS_DEBUG_MODE__
     __thread size_t flow_label = 100;
   #endif
@@ -110,14 +114,9 @@ namespace threads_backend {
     CollectiveState
   > collective_state;
 
-  ThreadsRuntime::ThreadsRuntime(
-    size_t const in_inside_rank,
-    size_t const in_inside_num_ranks
-  )
+  ThreadsRuntime::ThreadsRuntime()
     : produced(0)
     , consumed(0)
-    , inside_rank(in_inside_rank)
-    , inside_num_ranks(in_inside_num_ranks)
   {
     #if __THREADS_BACKEND_DEBUG__ || __THREADS_BACKEND_SHUFFLE__
       //srand48(2918279);
@@ -136,8 +135,13 @@ namespace threads_backend {
   ThreadsRuntime::getTrace() { return trace; }
 
   size_t
+  ThreadsRuntime::get_spmd_rank() const {
+    return this_rank;
+  }
+
+  size_t
   ThreadsRuntime::get_spmd_size() const {
-    return inside_num_ranks;
+    return n_ranks;
   }
 
   size_t
@@ -247,7 +251,7 @@ namespace threads_backend {
       const auto& entry = thisLog->entry;
       auto dep = getTrace()->depCreate(time,entry);
 
-      dep->rank = inside_rank;
+      dep->rank = this_rank;
       dep->event = thisLog->event;
       thisLog->rank = pub_log->rank;
       pub_log->insertDep(dep);
@@ -2010,7 +2014,7 @@ namespace threads_backend {
       trace = nullptr;
     }
 
-    if (inside_rank == 0) {
+    if (this_rank == 0) {
       DEBUG_PRINT("total threads to join is %zu\n", threads_backend::live_ranks.size());
 
       // TODO: memory consistency bug on live_ranks size here..with relaxed ordering
@@ -2025,35 +2029,44 @@ namespace threads_backend {
 
 
 void
+start_thread_handler(const size_t thd, threads_backend::ThreadsRuntime* runtime) {
+  //std::cout << "thread handler running" << std::endl;
+  DEBUG_PRINT("%ld: thread handler starting\n", thd);
+
+  // set thread-local rank
+  threads_backend::this_rank = thd;
+}
+
+void
 start_rank_handler(const size_t rank,
                    const int argc,
                    char** argv) {
   DEBUG_PRINT("%ld: rank handler starting\n", rank);
+
+  // set TL variables
+  threads_backend::this_rank = rank;
 
   // call into main
   const int ret = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
 }
 
 int main(int argc, char **argv) {
-  ArgsHolder args_holder(argc, argv);
-  args.parse(argc, argv);
+  auto map = threads_backend::backend_parse_arguments(&argc, &argv);
 
-  threads_backend::backend_parse_arguments(args_holder);
+  assert(map.find("system-rank") != map.end());
 
-  //args_holder.exists("system-rank")
-
-  auto const system_rank = args_holder["system-rank"];
-  auto const num_system_ranks = args_holder["num-system-ranks"];
+  auto const system_rank = map["system-rank"];
+  auto const num_system_ranks = map["num-system-ranks"];
 
   if (system_rank == 0) {
     auto task = darma_setup(argc, argv);
-    std::make_unique<threads_backend::ThreadsRuntime>(
+    std::make_shared<threads_backend::ThreadsRuntime>(
       num_system_ranks,
       system_rank,
       task
     );
   } else {
-    std::make_unique<threads_backend::ThreadsRuntime>(
+    std::make_shared<threads_backend::ThreadsRuntime>(
       num_system_ranks,
       system_rank
     );
@@ -2062,20 +2075,74 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-namespace threads_backend {
-
 void
-backend_parse_arguments(
-  ArgsHolder& holder
+darma_runtime::abstract::backend::darma_backend_initialize(
+  int &argc, char **&argv,
+  //darma_runtime::abstract::backend::Runtime *&backend_runtime,
+  types::unique_ptr_template<
+    typename darma_runtime::abstract::backend::Runtime::task_t
+  >&& top_level_task
 ) {
-  bool depth = true, trace = false;
-  size_t ranks = 1, n_threads = 1, bwidth;
+  bool depth = true;
+  size_t ranks = 1, n_threads = 1;
 
-  n_threads = args.exists("threads") ? args<size_t>["threads"] : 1;
-  n_ranks = args.exists("ranks") ? args<size_t>["ranks"] : 1;
-  trace = args.exists("trace") ? static_cast<bool>(args<size_t>["trace"]) : false;
-  bwidth = args.exists("bf") ? args<size_t>["bf"] : 0;
-  depth = bwidth == 0 ? true : false;
+  detail::ArgParser args = {
+    {"t", "threads", 1},
+    {"r", "ranks",   1},
+    {"m", "trace",   1},
+    {"", "backend-n-ranks", 1},
+    {"", "serial-backend-n-ranks", 1},
+    {"", "bf",   1}
+  };
+
+  args.parse(argc, argv);
+
+  // read number of threads from the command line
+  if (args["threads"].as<bool>()) {
+    n_threads = args["threads"].as<size_t>();
+
+    // TODO: require this backend not to run with multiple threads per rank
+    assert(n_threads == 1);
+  }
+
+  if (args["backend-n-ranks"].as<bool>()) {
+    ranks = args["backend-n-ranks"].as<size_t>();
+    assert(ranks > 0);
+  }
+
+  if (args["serial-backend-n-ranks"].as<bool>()) {
+    ranks = args["serial-backend-n-ranks"].as<size_t>();
+    assert(ranks > 0);
+  }
+
+  // read number of ranks from the command line
+  if (args["ranks"].as<bool>()) {
+    ranks = args["ranks"].as<size_t>();
+
+    assert(ranks > 0);
+    // TODO: write some other sanity assertions here about the size of ranks...
+  }
+
+  if (args["trace"].as<bool>()) {
+    size_t traceInt = args["trace"].as<size_t>();
+    if (traceInt) {
+      threads_backend::traceMode = true;
+    }
+  }
+
+  // read number of ranks from the command line
+  if (args["bf"].as<bool>()) {
+    auto bf = args["bf"].as<size_t>() != 0;
+    if (threads_backend::this_rank == 0) {
+      threads_backend::bwidth = args["bf"].as<size_t>();
+    }
+    depth = not bf;
+  }
+
+  if (threads_backend::this_rank == 0) {
+    threads_backend::n_ranks = ranks;
+    threads_backend::depthFirstExpand = depth;
+  }
 
   if (threads_backend::this_rank == 0) {
     if (threads_backend::depthFirstExpand) {
