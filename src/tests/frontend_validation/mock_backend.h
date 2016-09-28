@@ -52,6 +52,8 @@
 
 #include <darma_types.h>
 
+#include <darma/impl/task.h>
+
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/frontend/handle.h>
 
@@ -66,6 +68,8 @@ class MockRuntime
 
     using task_t = darma_runtime::abstract::backend::runtime_t::task_t;
     using task_unique_ptr = darma_runtime::abstract::backend::runtime_t::task_unique_ptr;
+    using condition_task_t = darma_runtime::abstract::backend::runtime_t::condition_task_t;
+    using condition_task_unique_ptr = darma_runtime::abstract::backend::runtime_t::condition_task_unique_ptr;
     using runtime_t = darma_runtime::abstract::backend::Runtime;
     using handle_t = darma_runtime::abstract::frontend::Handle;
     using use_t = darma_runtime::abstract::frontend::Use;
@@ -85,9 +89,10 @@ class MockRuntime
 
     bool
     register_condition_task(
-      task_unique_ptr&& task
+      condition_task_unique_ptr&& task
     ) override {
-      return register_condition_task_gmock_proxy(task.get());
+      auto rv = register_condition_task_gmock_proxy(task.get());
+      return rv;
     }
 
 
@@ -101,7 +106,7 @@ class MockRuntime
     MOCK_CONST_METHOD0(get_spmd_rank, size_t());
     MOCK_CONST_METHOD0(get_spmd_size, size_t());
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
-    MOCK_METHOD1(register_condition_task_gmock_proxy, bool(task_t* task));
+    MOCK_METHOD1(register_condition_task_gmock_proxy, bool(condition_task_t* task));
     MOCK_CONST_METHOD0(get_running_task, task_t*());
     MOCK_METHOD0(finalize, void());
     MOCK_METHOD1(register_use, void(use_t*));

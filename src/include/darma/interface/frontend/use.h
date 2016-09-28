@@ -115,7 +115,7 @@ class Use {
     /** @brief Return a pointer to the handle that this object encapsulates a
      *  use of.
      */
-    virtual Handle const*
+    virtual std::shared_ptr<Handle const>
     get_handle() const =0;
 
     /** @brief Get the Flow that must be ready for use as a precondition for the

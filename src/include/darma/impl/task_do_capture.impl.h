@@ -161,7 +161,7 @@ TaskBase::do_capture(
 
       auto _ro_capture_non_mod_imm = [&]{
         captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
-          source.var_handle_.get(),
+          source.var_handle_,
           source.current_use_->use.in_flow_,
           source.current_use_->use.in_flow_,
           source.captured_as_ & AccessHandleBase::Leaf ?
@@ -177,7 +177,7 @@ TaskBase::do_capture(
           source.current_use_->use.in_flow_, backend_runtime
         );
         captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
-          source.var_handle_.get(),
+          source.var_handle_,
           forwarded_flow, forwarded_flow,
           source.captured_as_ & AccessHandleBase::Leaf ?
             HandleUse::None : HandleUse::Read,
@@ -253,7 +253,7 @@ TaskBase::do_capture(
                   source.current_use_->use.in_flow_, backend_runtime
               );
               captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
-                source.var_handle_.get(),
+                source.var_handle_,
                 source.current_use_->use.in_flow_,
                 captured_out_flow,
                 source.captured_as_ & AccessHandleBase::Leaf ?
@@ -272,7 +272,7 @@ TaskBase::do_capture(
                 captured_in_flow, backend_runtime
               );
               captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
-                source.var_handle_.get(),
+                source.var_handle_,
                 captured_in_flow, captured_out_flow,
                 source.captured_as_ & AccessHandleBase::Leaf ?
                   HandleUse::None : HandleUse::Modify,

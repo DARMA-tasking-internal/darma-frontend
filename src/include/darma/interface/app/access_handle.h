@@ -533,7 +533,7 @@ class AccessHandle : public detail::AccessHandleBase {
       abstract::frontend::Use::permissions_t immediate_permissions
     ) : var_handle_(var_handle),
         current_use_(detail::make_shared<detail::UseHolder>(detail::HandleUse(
-          var_handle_.get(),
+          var_handle_,
           in_flow, out_flow,
           scheduling_permissions, immediate_permissions
         )))
@@ -559,7 +559,7 @@ class AccessHandle : public detail::AccessHandleBase {
       current_use_ = std::make_shared<detail::UseHolder>(
         detail::migrated_use_arg,
         detail::HandleUse(
-          var_handle_.get(), nullptr, nullptr, sched, immed
+          var_handle_, nullptr, nullptr, sched, immed
         )
       );
 

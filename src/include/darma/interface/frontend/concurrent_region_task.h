@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      crtp_impl.h
+//                      concurrent_region_task.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,10 +42,23 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
-#define DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
+#ifndef DARMA_ABSTRACT_FRONTEND_CONCURRENT_REGION_TASK_H
+#define DARMA_ABSTRACT_FRONTEND_CONCURRENT_REGION_TASK_H
 
-#include <darma/interface/frontend/detail/task.crtp_impl.h>
-#include <darma/interface/frontend/detail/condition_task.crtp_impl.h>
+namespace darma_runtime {
+namespace abstract {
+namespace frontend {
 
-#endif //DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
+template <typename TaskImpl>
+struct ConcurrentRegionTask : TaskImpl {
+  public:
+
+    virtual void set_index(Index& index) =0;
+
+};
+
+} // end namespace frontend
+} // end namespace abstract
+} // end namespace darma_runtime
+
+#endif //DARMA_ABSTRACT_FRONTEND_CONCURRENT_REGION_TASK_H

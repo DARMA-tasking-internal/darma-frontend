@@ -52,8 +52,6 @@ namespace darma_runtime {
 namespace detail {
 
 
-namespace _impl {
-
 // TODO move this
 template <typename Index=size_t>
 class counting_iterator : public abstract::frontend::IndexIterator {
@@ -156,8 +154,6 @@ operator+(
   );
 }
 
-} // end namespace _impl
-
 class IndexRangeBase
   : public abstract::frontend::IndexRange
 { };
@@ -224,12 +220,12 @@ class ContiguousIndexRange
 
     std::unique_ptr<abstract::frontend::IndexIterator>
     begin() override {
-      return std::make_unique<_impl::counting_iterator<size_t>>(offset());
+      return std::make_unique<counting_iterator<size_t>>(offset());
     }
 
     std::unique_ptr<abstract::frontend::IndexIterator>
     end() override {
-      return std::make_unique<_impl::counting_iterator<size_t>>(offset() + size());
+      return std::make_unique<counting_iterator<size_t>>(offset() + size());
     }
 
 

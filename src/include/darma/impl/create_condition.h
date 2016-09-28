@@ -49,6 +49,8 @@
 
 #include <darma/impl/util/smart_pointers.h>
 
+#include <darma/impl/condition_task.h>
+
 namespace darma_runtime {
 
 namespace detail {
@@ -72,7 +74,7 @@ struct _create_condition_impl {
     assert(parent_task != nullptr);
 
     //auto task = detail::make_unique<TaskBase>(std::forward<Callable>(callable));
-    auto task = detail::make_unique<TaskBase>();
+    auto task = detail::make_unique<ConditionTaskImpl>();
     task->default_capture_as_info |= AccessHandleBase::ReadOnly;
     parent_task->current_create_work_context = task.get();
 
@@ -117,7 +119,7 @@ struct _create_condition_impl {
     assert(parent_task != nullptr);
 
     //auto task = detail::make_unique<TaskBase>(std::forward<Callable>(callable));
-    auto task = detail::make_unique<TaskBase>();
+    auto task = detail::make_unique<ConditionTaskImpl>();
     task->default_capture_as_info |= AccessHandleBase::ReadOnly;
     parent_task->current_create_work_context = task.get();
 
