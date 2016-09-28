@@ -115,9 +115,7 @@ struct access_expr_helper {
 
 };
 
-template <
-  typename... Args
->
+template <typename... Args>
 struct publish_expr_helper {
 
   inline constexpr size_t
