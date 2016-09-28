@@ -84,7 +84,7 @@ TEST_F(TestCreateCondition, ro_capture_MN) {
   mock_runtime->save_tasks = true;
 
   MockFlow fl_init, fl_null;
-  use_t* task_use;
+  use_t* task_use = nullptr;
 
   int value = 42;
 
@@ -94,10 +94,12 @@ TEST_F(TestCreateCondition, ro_capture_MN) {
 
   EXPECT_CALL(*mock_runtime, register_condition_task_gmock_proxy(
     UseInGetDependencies(ByRef(task_use))
-  )).Times(1).WillOnce(Invoke([&](auto* cond_task) {
-    task_use->get_data_pointer_reference() = (void*)&value;
-    return cond_task->template run<bool>();
-  }));
+  )).Times(1)
+    .WillOnce(Invoke([&](auto* cond_task) {
+      task_use->get_data_pointer_reference() = (void*)&value;
+      cond_task->run();
+      return cond_task->get_result();
+    }));
 
   EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(task_use))));
 
@@ -140,7 +142,8 @@ TEST_F(TestCreateCondition, explicit_ro_capture_MN) {
     UseInGetDependencies(ByRef(task_use))
   )).Times(1).WillOnce(Invoke([&](auto* cond_task) {
     task_use->get_data_pointer_reference() = (void*)&value;
-    return cond_task->template run<bool>();
+    cond_task->run();
+    return cond_task->get_result();
   }));
 
   EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(task_use))));
@@ -188,7 +191,8 @@ TEST_F(TestCreateCondition, functor_ro_capture_MN) {
     UseInGetDependencies(ByRef(task_use))
   )).Times(1).WillOnce(Invoke([&](auto* cond_task) {
     task_use->get_data_pointer_reference() = (void*)&value;
-    return cond_task->template run<bool>();
+    cond_task->run();
+    return cond_task->get_result();
   }));
 
   EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(task_use))));
@@ -202,7 +206,7 @@ TEST_F(TestCreateCondition, functor_ro_capture_MN) {
       FAIL() << "create_condition should have returned true";
     }
   }
-  //============================================================================
+//============================================================================
 
   mock_runtime->registered_tasks.clear();
 }

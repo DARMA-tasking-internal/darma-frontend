@@ -76,7 +76,6 @@ namespace frontend {
  *      task body by the user.
  *
  */
-template <typename ConcreteTask>
 class Task {
   public:
 
@@ -86,13 +85,12 @@ class Task {
      *  See description in Task and Use life cycle discussions.
      *  @return An iterable container of Use objects whose availability are preconditions for task execution
      */
-    types::handle_container_template<Use*> const&
-    get_dependencies() const;
+    virtual types::handle_container_template<Use*> const&
+    get_dependencies() const =0;
 
     /** @brief Invoked by the backend to start the execution phase of the task's life cycle.
      */
-    template <typename ReturnType = void>
-    ReturnType run();
+    virtual void run() =0;
 
     /** @brief returns the name of the task if one has been assigned with set_name(), or
      *  a reference to a default-constructed Key if not.
@@ -107,7 +105,7 @@ class Task {
      *  @todo >0.3.1 spec: user task naming interface
      *
      */
-    const types::key_t& get_name() const;
+    virtual const types::key_t& get_name() const =0;
 
     /** @brief sets the unique name of the task
      *
@@ -119,7 +117,7 @@ class Task {
      *  @param name_key A key object containing a unique name for the task
      *  @todo >0.3.1 spec: user task naming interface
      */
-    void set_name(const types::key_t& name_key);
+    virtual void set_name(const types::key_t& name_key) =0;
 
     /** @brief returns true iff the task can be migrated
      *  
@@ -127,21 +125,21 @@ class Task {
      *  additional hooks for migration
      *  @return Whether the task is migratable.
      */
-    bool is_migratable() const;
+    virtual bool is_migratable() const =0;
 
     /**
      *  @brief Returns the number of bytes required to store the task object.
      *  Not relevant for current specification which does not support task migration.
      *  @return The size in bytes need to pack the task into a serialization buffer
      */
-    size_t get_packed_size() const;
+    virtual size_t get_packed_size() const =0;
 
     /**
      *  @brief Pack a migratable serialization of the task object into the passed-in buffer
      *  @param allocated The pointer to region of memory guaranteed to be large enough to hold
      *                    the serialization of the class
      */
-    void pack(void* allocated) const;
+    virtual void pack(void* allocated) const =0;
 
     virtual ~Task() = default;
 
@@ -152,8 +150,7 @@ class Task {
  *  @param A buffer containing the serialized task
  *  @return A clone of the task object that was serialized into packed_data
  */
-template <typename ConcreteTask>
-types::unique_ptr_template<Task<ConcreteTask>>
+types::unique_ptr_template<Task>
 unpack_task(void* packed_data);
 
 } // end namespace frontend

@@ -91,7 +91,7 @@ namespace detail {
 
 // <editor-fold desc="TaskBase and its descendants">
 
-class TaskBase : public abstract::frontend::Task<TaskBase>
+class TaskBase : public abstract::frontend::Task
 {
   protected:
 
@@ -145,40 +145,36 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
     ////////////////////////////////////////////////////////////////////////////////
     // Implementation of abstract::frontend::Task
 
-    get_deps_container_t const&
-    get_dependencies() const {
+    virtual get_deps_container_t const&
+    get_dependencies() const override {
       return dependencies_;
     }
 
     const key_t&
-    get_name() const {
+    get_name() const override {
       return name_;
     }
 
     void
-    set_name(const key_t& name) {
+    set_name(const key_t& name) override {
       name_ = name;
     }
 
     bool
-    is_migratable() const {
+    is_migratable() const override {
       // Ignored for now:
       return false;
     }
 
-    template <typename ReturnType = void>
-    ReturnType run()  {
-      static_assert(
-        std::is_same<ReturnType, bool>::value or std::is_void<ReturnType>::value,
-        "Only bool and void for ReturnType in Task::run<>() are currently supported"
-      );
+    virtual void run() override {
       assert(runnable_);
       pre_run_setup();
-      return _do_run<ReturnType>(typename std::is_void<ReturnType>::type{});
+      runnable_->run();
+      post_run_cleanup();
     }
 
 
-    size_t get_packed_size() const  {
+    size_t get_packed_size() const override {
       using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       serialization::SimplePackUnpackArchive ar;
 
@@ -190,7 +186,7 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
       return runnable_->get_packed_size() + ArchiveAccess::get_size(ar);
     }
 
-    void pack(void* allocated) const  {
+    void pack(void* allocated) const override {
       using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
       serialization::SimplePackUnpackArchive ar;
 
@@ -206,25 +202,6 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
 
     // end implementation of abstract::frontend::Task
     ////////////////////////////////////////////////////////////////////////////////
-
-  private:
-    template <typename ReturnType>
-    inline void
-    _do_run(std::true_type&&) {
-      runnable_->run();
-      post_run_cleanup();
-    }
-
-    template <typename ReturnType>
-    inline std::enable_if_t<
-      not std::is_void<ReturnType>::value,
-      ReturnType
-    >
-    _do_run(std::false_type&&) {
-      ReturnType rv = runnable_->run();
-      post_run_cleanup();
-      return rv;
-    }
 
   public:
 
@@ -278,11 +255,11 @@ class TaskBase : public abstract::frontend::Task<TaskBase>
     bool is_double_copy_capture = false;
     unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
 
-  private:
+  protected:
 
     std::unique_ptr<RunnableBase> runnable_;
 
-    friend types::unique_ptr_template<abstract::frontend::Task<TaskBase>>
+    friend types::unique_ptr_template<abstract::frontend::Task>
     unpack_task(void* packed_data);
 
 
@@ -293,10 +270,9 @@ class TopLevelTask
 {
   public:
 
-    bool run()  {
+    void run()  {
       // Abort, as specified.  This should never be called.
       assert(false);
-      return false;
     }
 
 };

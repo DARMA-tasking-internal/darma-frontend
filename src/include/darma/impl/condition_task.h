@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      crtp_impl.h
+//                      condition_task.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,10 +42,45 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
-#define DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
+#ifndef DARMA_IMPL_CONDITION_TASK_H
+#define DARMA_IMPL_CONDITION_TASK_H
 
-#include <darma/interface/frontend/detail/task.crtp_impl.h>
-#include <darma/interface/frontend/detail/condition_task.crtp_impl.h>
+#include "task.h"
 
-#endif //DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
+#include <darma/interface/frontend/condition_task.h>
+
+namespace darma_runtime {
+namespace detail {
+
+struct ConditionTaskImpl
+  : abstract::frontend::ConditionTask<TaskBase>
+{
+  private:
+    bool result_ = false;
+
+  public:
+
+    using base_t = abstract::frontend::ConditionTask<TaskBase>;
+
+    using base_t::base_t;
+
+    bool get_result() const override {
+      return result_;
+    }
+
+    virtual void run() override {
+      assert(runnable_);
+      pre_run_setup();
+      result_ = runnable_->run();
+      post_run_cleanup();
+    }
+
+    template <typename Callable, typename... Args>
+    friend struct _create_condition_impl;
+
+};
+
+} // end namespace detail
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_CONDITION_TASK_H

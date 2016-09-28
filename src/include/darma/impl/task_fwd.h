@@ -51,6 +51,12 @@ namespace detail {
 
 class TaskBase;
 
+class ConditionTaskImpl;
+
+class TopLevelTaskImpl;
+
+class ConcurrentRegionTaskImpl;
+
 } // end namespace detail
 
 } // end namespace darma_runtime

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      crtp_impl.h
+//                      concrete_task_t.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,10 +42,17 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
-#define DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
+#ifndef DARMA_INTERFACE_FRONTEND_TYPES_CONDITION_TASK_T_H
+#define DARMA_INTERFACE_FRONTEND_TYPES_CONDITION_TASK_T_H
 
-#include <darma/interface/frontend/detail/task.crtp_impl.h>
-#include <darma/interface/frontend/detail/condition_task.crtp_impl.h>
+#include <darma/impl/task_fwd.h>
 
-#endif //DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
+namespace darma_runtime {
+namespace types {
+
+typedef darma_runtime::detail::ConditionTaskImpl concrete_condition_task_t;
+
+} // end namespace types
+} // end namespace darma_runtime
+
+#endif //DARMA_INTERFACE_FRONTEND_TYPES_CONDITION_TASK_T_H
