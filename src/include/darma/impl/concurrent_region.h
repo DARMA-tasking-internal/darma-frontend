@@ -64,6 +64,8 @@ struct ConcurrentRegionTaskImpl
 
   public:
 
+    using base_t = abstract::frontend::ConcurrentRegionTask<TaskBase>;
+
     void set_index(abstract::frontend::Index& idx) override {
       index_ = static_cast<typename counting_iterator<size_t>::template IndexWrapper<size_t>&>(idx);
     }
