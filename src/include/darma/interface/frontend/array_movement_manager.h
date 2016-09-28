@@ -87,9 +87,10 @@ class ArrayMovementManager {
       backend::SerializationPolicy* ser_pol
     ) const {
       // If this method is unimplemented, range must be contiguous
-      assert(idx_range->contiguous());
+      CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
+      assert(cir and cir->contiguous());
       return get_packed_size(
-        obj, idx_range->offset(), idx_range->size(), ser_pol
+        obj, cir->offset(), cir->size(), ser_pol
       );
     }
 
@@ -122,9 +123,10 @@ class ArrayMovementManager {
       backend::SerializationPolicy* ser_pol
     ) const {
       // If this method is unimplemented, range must be contiguous
-      assert(idx_range->contiguous());
+      CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
+      assert(cir and cir->contiguous());
       pack_elements(
-        obj, buffer, idx_range->offset(), idx_range->size(), ser_pol
+        obj, buffer, cir->offset(), cir->size(), ser_pol
       );
     }
 
@@ -157,9 +159,10 @@ class ArrayMovementManager {
       backend::SerializationPolicy* ser_pol
     ) const {
       // If this method is unimplemented, range must be contiguous
-      assert(idx_range->contiguous());
+      CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
+      assert(cir and cir->contiguous());
       unpack_elements(
-        obj, buffer, idx_range->offset(), idx_range->size(), ser_pol
+        obj, buffer, cir->offset(), cir->size(), ser_pol
       );
     }
 };

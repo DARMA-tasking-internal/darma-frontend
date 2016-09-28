@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
+//                      create_concurrent_region.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,15 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMA_INTERFACE_APP_CREATE_CONCURRENT_REGION_H
+#define DARMA_INTERFACE_APP_CREATE_CONCURRENT_REGION_H
 
-#include <darma_types.h>
-#include "handle.h"
-#include "task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "create_work.h"
-#include "concurrent_region.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/interface/defaults/darma_main.h>
+namespace darma_runtime {
 
-#include <darma/impl/serialization/policy_aware_archive.h>
+template <typename Functor=void, typename... Args>
+auto
+create_concurrent_region(Args&&... args);
 
-#include "serialization/serialization.impl.h"
-#include "array/array.impl.h"
+} // end namespace darma_runtime
 
-#endif /* SRC_DARMA_DARMA_H_ */
-
+#endif //DARMA_INTERFACE_APP_CREATE_CONCURRENT_REGION_H

@@ -92,9 +92,10 @@ class ArrayConceptManager {
       IndexRange const* idx_range
     ) const {
       // If this method is unimplemented, range must be contiguous
-      assert(idx_range->contiguous());
+      CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
+      assert(cir and cir->contiguous());
       return get_element_range(
-        obj, idx_range->offset(), idx_range->size()
+        obj, cir->offset(), cir->size()
       );
     }
 
@@ -125,9 +126,10 @@ class ArrayConceptManager {
       IndexRange const* idx_range
     ) const {
       // If this method is unimplemented, range must be contiguous
-      assert(idx_range->contiguous());
+      CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
+      assert(cir and cir->contiguous());
       set_element_range(
-        obj, range, idx_range->offset(), idx_range->size()
+        obj, range, cir->offset(), cir->size()
       );
     }
 

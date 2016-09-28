@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
+//                      test_index_range.cc
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,37 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
-#include <darma_types.h>
-#include "handle.h"
-#include "task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "create_work.h"
-#include "concurrent_region.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/interface/defaults/darma_main.h>
+#include <darma/impl/array/index_range.h>
 
-#include <darma/impl/serialization/policy_aware_archive.h>
+using namespace darma_runtime;
+using namespace darma_runtime::detail;
 
-#include "serialization/serialization.impl.h"
-#include "array/array.impl.h"
+TEST(TestIndexRange, pack_unpack_contiguous) {
 
-#endif /* SRC_DARMA_DARMA_H_ */
+  ContiguousIndexRange crange1(20, 5);
+
+  abstract::frontend::CompactIndexRange& crange_base = crange1;
+
+  size_t size = crange_base.get_packed_size();
+  char* buffer = new char[size];
+
+  crange_base.pack(buffer);
+
+  auto crange_base_ptr_2 =
+    abstract::frontend::PolymorphicSerializableObject<abstract::frontend::CompactIndexRange>::unpack(
+      buffer, size
+    );
+
+  delete[] buffer;
+
+  ASSERT_EQ(crange_base_ptr_2->size(), 20);
+  ASSERT_EQ(crange_base_ptr_2->offset(), 5);
+  ASSERT_EQ(crange_base_ptr_2->contiguous(), true);
+  ASSERT_EQ(crange_base_ptr_2->strided(), false);
+
+
+}
 

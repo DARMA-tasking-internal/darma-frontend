@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
+//                      polymorphic_serializable_object.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,23 +42,30 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMA_ABSTRACT_FRONTEND_POLYMORPHIC_SERIALIZABLE_OBJECT_H
+#define DARMA_ABSTRACT_FRONTEND_POLYMORPHIC_SERIALIZABLE_OBJECT_H
 
-#include <darma_types.h>
-#include "handle.h"
-#include "task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "create_work.h"
-#include "concurrent_region.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/interface/defaults/darma_main.h>
+#include <memory> // std::unique_ptr
 
-#include <darma/impl/serialization/policy_aware_archive.h>
+namespace darma_runtime {
+namespace abstract {
+namespace frontend {
 
-#include "serialization/serialization.impl.h"
-#include "array/array.impl.h"
+template <typename AbstractType>
+struct PolymorphicSerializableObject {
 
-#endif /* SRC_DARMA_DARMA_H_ */
+  virtual size_t get_packed_size() const =0;
 
+  virtual void pack(char* buffer) const =0;
+
+  static
+  std::unique_ptr<AbstractType>
+  unpack(char const* buffer, size_t size);
+
+};
+
+} // end namespace frontend
+} // end namespace abstract
+} // end namespace darma_runtime
+
+#endif //DARMA_ABSTRACT_FRONTEND_POLYMORPHIC_SERIALIZABLE_OBJECT_H

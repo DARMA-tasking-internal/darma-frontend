@@ -89,10 +89,6 @@ class Task {
     types::handle_container_template<Use*> const&
     get_dependencies() const;
 
-    //TODO would like to see this function
-    //virtual size_t
-    //n_dependencies() const =0;
-
     /** @brief Invoked by the backend to start the execution phase of the task's life cycle.
      */
     template <typename ReturnType = void>
