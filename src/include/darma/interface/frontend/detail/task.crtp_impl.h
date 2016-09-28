@@ -56,49 +56,6 @@ namespace darma_runtime {
 namespace abstract {
 namespace frontend {
 
-template <typename ConcreteTask>
-inline types::handle_container_template<use_t*> const&
-Task<ConcreteTask>::get_dependencies() const {
-  return static_cast<ConcreteTask const*>(this)->get_dependencies();
-}
-
-template <typename ConcreteTask>
-template <typename ReturnType>
-inline ReturnType
-Task<ConcreteTask>::run() {
-  return static_cast<ConcreteTask*>(this)->template run<ReturnType>();
-}
-
-template <typename ConcreteTask>
-inline types::key_t const&
-Task<ConcreteTask>::get_name() const {
-  return static_cast<ConcreteTask const*>(this)->get_name();
-}
-
-template <typename ConcreteTask>
-inline void
-Task<ConcreteTask>::set_name(types::key_t const& name_key) {
-  return static_cast<ConcreteTask*>(this)->set_name(name_key);
-}
-
-template <typename ConcreteTask>
-inline bool
-Task<ConcreteTask>::is_migratable() const {
-  return static_cast<ConcreteTask const*>(this)->is_migratable();
-}
-
-template <typename ConcreteTask>
-inline size_t
-Task<ConcreteTask>::get_packed_size() const {
-  return static_cast<ConcreteTask const*>(this)->get_packed_size();
-}
-
-template <typename ConcreteTask>
-inline void
-Task<ConcreteTask>::pack(void* allocated) const {
-  return static_cast<ConcreteTask const*>(this)->pack(allocated);
-}
-
 } // end namespace frontend
 } // end namespace abstract
 } // end namespace darma_runtime

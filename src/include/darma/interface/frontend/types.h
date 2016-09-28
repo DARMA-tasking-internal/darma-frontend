@@ -64,23 +64,6 @@ namespace types {
 } // end namespace darma_runtime
 #endif
 
-
-////////////////////////////////////////
-// concrete_task_t typedef
-
-#ifndef DARMA_CUSTOM_CONCRETE_TASK
-#include <darma/impl/task_fwd.h>
-
-namespace darma_runtime {
-namespace types {
-
-typedef darma_runtime::detail::TaskBase concrete_task_t;
-
-} // end namespace types
-} // end namespace darma_runtime
-#endif
-
-//
-////////////////////////////////////////
+#include <darma/interface/frontend/types/concrete_task_t.h>
 
 #endif /* DARMA_ABSTRACT_FRONTEND_TYPES_H_ */

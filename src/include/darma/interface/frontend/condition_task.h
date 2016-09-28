@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      crtp_impl.h
+//                      condition_task.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,10 +42,27 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
-#define DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
+#ifndef DARMA_INTERFACE_FRONTEND_CONDITION_TASK_H
+#define DARMA_INTERFACE_FRONTEND_CONDITION_TASK_H
 
-#include <darma/interface/frontend/detail/task.crtp_impl.h>
-#include <darma/interface/frontend/detail/condition_task.crtp_impl.h>
+#include <darma/interface/frontend/types/concrete_task_t.h>
+#include "task.h"
 
-#endif //DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
+namespace darma_runtime {
+namespace abstract {
+namespace frontend {
+
+template <typename TaskImpl>
+struct ConditionTask : TaskImpl {
+  public:
+
+    using TaskImpl::TaskImpl;
+
+    virtual bool get_result() const =0;
+};
+
+} // end namespace frontend
+} // end namespace abstract
+} // end namespace darma_runtime
+
+#endif //DARMA_INTERFACE_FRONTEND_CONDITION_TASK_H
