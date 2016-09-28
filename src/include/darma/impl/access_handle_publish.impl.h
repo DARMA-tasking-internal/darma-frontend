@@ -82,7 +82,7 @@ AccessHandle<T, Traits>::publish(
 
   auto _pub_same = [&] {
     detail::HandleUse use_to_publish(
-      var_handle_.get(),
+      var_handle_,
       current_use_->use.in_flow_,
       current_use_->use.in_flow_,
       detail::HandleUse::None, detail::HandleUse::Read
@@ -102,7 +102,7 @@ AccessHandle<T, Traits>::publish(
     );
 
     detail::HandleUse use_to_publish(
-      var_handle_.get(),
+      var_handle_,
       flow_to_publish,
       flow_to_publish,
       detail::HandleUse::None, detail::HandleUse::Read

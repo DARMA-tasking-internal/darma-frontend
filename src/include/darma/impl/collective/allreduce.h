@@ -190,7 +190,7 @@ struct all_reduce_impl {
         // need to mess with it here
 
         input_use = new HandleUse(
-          input.var_handle_.get(),
+          input.var_handle_,
           input.current_use_->use.in_flow_,
           input.current_use_->use.in_flow_,
           /* scheduling_permissions= */ HandleUse::None,
@@ -208,7 +208,7 @@ struct all_reduce_impl {
         );
 
         input_use = new HandleUse(
-          input.var_handle_.get(),
+          input.var_handle_,
           inflow, inflow,
           /* scheduling_permissions= */ HandleUse::None,
           /* immediate_permissions = */ HandleUse::Read
@@ -238,7 +238,7 @@ struct all_reduce_impl {
         // Note that scheduling permissions assertion is above, so we don't
         // need to mess with it here
         output_use = new HandleUse(
-          output.var_handle_.get(),
+          output.var_handle_,
           output.current_use_->use.in_flow_,
           write_outflow,
           /* scheduling_permissions= */ HandleUse::None,
@@ -275,7 +275,7 @@ struct all_reduce_impl {
         );
 
         output_use = new HandleUse(
-          output.var_handle_.get(),
+          output.var_handle_,
           output.current_use_->use.in_flow_,
           write_outflow,
           /* scheduling_permissions= */ HandleUse::None,
@@ -359,7 +359,7 @@ struct all_reduce_impl {
 
         // Make the use to be given to the collective
         HandleUse collective_use(
-          in_out.var_handle_.get(),
+          in_out.var_handle_,
           in_out.current_use_->use.in_flow_,
           captured_out_flow,
           /* scheduling_permissions= */ HandleUse::None,
@@ -394,7 +394,7 @@ struct all_reduce_impl {
         );
 
         HandleUse collective_use(
-          in_out.var_handle_.get(),
+          in_out.var_handle_,
           collective_in_flow, collective_out_flow,
           HandleUse::None, HandleUse::Modify
         );

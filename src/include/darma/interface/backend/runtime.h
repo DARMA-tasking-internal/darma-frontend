@@ -55,6 +55,8 @@
 #include <darma/interface/frontend/publication_details.h>
 #include <darma/interface/frontend/memory_requirement_details.h>
 #include <darma/interface/frontend/collective_details.h>
+#include <darma/interface/frontend/types/concrete_condition_task_t.h>
+#include <darma/interface/frontend/condition_task.h>
 
 namespace darma_runtime {
 
@@ -76,8 +78,10 @@ namespace backend {
 class Runtime {
   public:
 
-    typedef frontend::Task<types::concrete_task_t> task_t;
-    typedef types::unique_ptr_template<task_t> task_unique_ptr;
+    using task_t = frontend::Task;
+    using condition_task_t = frontend::ConditionTask<types::concrete_task_t>;
+    using task_unique_ptr = types::unique_ptr_template<task_t>;
+    using condition_task_unique_ptr = types::unique_ptr_template<condition_task_t>;
 
     //==========================================================================
     // <editor-fold desc="Task handling">
@@ -95,7 +99,8 @@ class Runtime {
     virtual void
     register_task(task_unique_ptr&& task) = 0;
 
-    /** @brief register a task with a run<bool>() method.
+    /** @brief register a task with a run() method that has a bool get_result(),
+     *  which is valid after to call after run() returns.
      *
      *  @param task a unique_ptr to a task object that implements the bool
      *  specialization of the run() method template.  see register_task for more
@@ -110,7 +115,7 @@ class Runtime {
      *
      */
     virtual bool
-    register_condition_task(task_unique_ptr&& task) = 0;
+    register_condition_task(condition_task_unique_ptr&& task) = 0;
 
     // </editor-fold> end Task handling
     //==========================================================================
@@ -396,7 +401,7 @@ class Runtime {
 class Context {
   public:
 
-    typedef frontend::Task<types::concrete_task_t> task_t;
+    typedef frontend::Task task_t;
 
     /** @brief Return the SPMD rank of this backend instance. */
     virtual size_t

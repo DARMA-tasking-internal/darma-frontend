@@ -49,7 +49,6 @@ namespace darma_runtime {
 namespace abstract {
 namespace frontend {
 
-template <typename ConcreteTask>
 class Task;
 
 class Handle;

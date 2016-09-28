@@ -63,7 +63,7 @@ class HandleUse
 
     void* data_ = nullptr;
 
-    VariableHandleBase* handle_ = nullptr;
+    std::shared_ptr<VariableHandleBase> handle_ = nullptr;
 
     flow_ptr in_flow_;
     flow_ptr out_flow_;
@@ -74,7 +74,7 @@ class HandleUse
     ////////////////////////////////////////
     // <editor-fold desc="abstract::frontend::Use implementation">
 
-    VariableHandleBase const*
+    std::shared_ptr<abstract::frontend::Handle const>
     get_handle() const override {
       return handle_;
     }
@@ -109,7 +109,7 @@ class HandleUse
 
 
     HandleUse(
-      VariableHandleBase* handle,
+      std::shared_ptr<VariableHandleBase> handle,
       flow_ptr const& in_flow,
       flow_ptr const& out_flow,
       abstract::frontend::Use::permissions_t scheduling_permissions,

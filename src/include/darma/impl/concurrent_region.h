@@ -46,10 +46,36 @@
 #define DARMA_IMPL_CONCURRENT_REGION_H
 
 #include <darma/interface/app/create_concurrent_region.h>
+#include <darma/interface/frontend/concurrent_region_task.h>
+#include <darma/impl/array/index_range.h>
+
+#include "task.h"
 
 namespace darma_runtime {
 
 namespace detail {
+
+struct ConcurrentRegionTaskImpl
+  : abstract::frontend::ConcurrentRegionTask<TaskBase>
+{
+  private:
+
+    size_t index_; // for now
+
+  public:
+
+    using base_t = abstract::frontend::ConcurrentRegionTask<TaskBase>;
+
+    void set_index(abstract::frontend::Index& idx) override {
+      index_ = static_cast<typename counting_iterator<size_t>::template IndexWrapper<size_t>&>(idx);
+    }
+
+    void run() override {
+      // TODO implement this
+    }
+
+};
+
 
 template <typename Functor>
 struct _create_concurrent_region_impl {
