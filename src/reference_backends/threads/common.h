@@ -141,4 +141,53 @@ namespace threads_backend {
   };
 }
 
+struct ArgsHolder {
+  std::unordered_map<std::string, std::string> args;
+
+  ArgsHolder(int argc, char** argv) {
+    for (auto i = 0; i < argc; i++) {
+      //printf("parsing arg: %s\n", argv[i]);
+      if (strlen(argv[i]) > 1 &&
+          argv[i][0] == '-' &&
+          argv[i][1] == '-' &&
+          i+1 < argc &&
+          argv[i+1][0] != '-') {
+        //printf("parsing arg value: %s\n", argv[i+1]);
+        args[std::string(argv[i])] = std::string(argv[i+1]);
+        i++;
+      } else {
+        args[std::string(argv[i])];
+      }
+    }
+  }
+
+  bool
+  exists(std::string const& str) {
+    return args.find(str) != args.end();
+  }
+
+  std::string
+  get(std::string const& str) {
+    return args[str];
+  }
+
+  template <typename T>
+  T operator[](std::string const& str) {
+    return get(str);
+  }
+
+  template <typename T>
+  T get(std::string const& str) {
+    T val;
+    assert(args.find(str) != args.end() &&
+           "Could not find argument");
+    std::stringstream stream(args[str]);
+    stream >> val;
+    if (!stream) {
+      assert(0 && "Could not parse correctly");
+    }
+    return val;
+  }
+};
+
 #endif /* _THREADS_COMMON_BACKEND_RUNTIME_H_ */
