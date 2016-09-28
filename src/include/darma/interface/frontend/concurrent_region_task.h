@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      concurrent_region.h
+//                      concurrent_region_task.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,65 +42,23 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_CONCURRENT_REGION_H
-#define DARMA_IMPL_CONCURRENT_REGION_H
-
-#include <darma/interface/app/create_concurrent_region.h>
-#include <darma/interface/frontend/concurrent_region_task.h>
-#include <darma/impl/array/index_range.h>
-
-#include "task.h"
+#ifndef DARMA_ABSTRACT_FRONTEND_CONCURRENT_REGION_TASK_H
+#define DARMA_ABSTRACT_FRONTEND_CONCURRENT_REGION_TASK_H
 
 namespace darma_runtime {
+namespace abstract {
+namespace frontend {
 
-namespace detail {
-
-struct ConcurrentRegionTaskImpl
-  : abstract::frontend::ConcurrentRegionTask<TaskBase>
-{
-  private:
-
-    size_t index_; // for now
-
+template <typename TaskImpl>
+struct ConcurrentRegionTask : TaskImpl {
   public:
 
-    void set_index(abstract::frontend::Index& idx) override {
-      index_ = static_cast<typename counting_iterator<size_t>::template IndexWrapper<size_t>&>(idx);
-    }
-
-    void run() override {
-      // TODO implement this
-    }
+    virtual void set_index(Index& index) =0;
 
 };
 
-
-template <typename Functor>
-struct _create_concurrent_region_impl {
-  template <typename... Args>
-  void operator()(Args&&... args) const {
-
-  }
-};
-
-template <>
-struct _create_concurrent_region_impl<void> {
-  template <typename Return, typename... FuncParams, typename... Args>
-  void operator()(Return (*func)(FuncParams...), Args&&... args) const {
-
-  }
-};
-
-} // end namespace detail
-
-template <typename Functor, typename... Args>
-auto
-create_concurrent_region(Args&&... args) {
-  return detail::_create_concurrent_region_impl<Functor>()(
-    std::forward<Args>(args)...
-  );
-};
-
+} // end namespace frontend
+} // end namespace abstract
 } // end namespace darma_runtime
 
-#endif //DARMA_IMPL_CONCURRENT_REGION_H
+#endif //DARMA_ABSTRACT_FRONTEND_CONCURRENT_REGION_TASK_H
