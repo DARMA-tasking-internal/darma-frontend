@@ -45,6 +45,8 @@
 #ifndef DARMA_ABSTRACT_FRONTEND_CONCURRENT_REGION_TASK_H
 #define DARMA_ABSTRACT_FRONTEND_CONCURRENT_REGION_TASK_H
 
+#include <darma/interface/backend/backend_fwd.h>
+
 namespace darma_runtime {
 namespace abstract {
 namespace frontend {
@@ -53,7 +55,9 @@ template <typename TaskImpl>
 struct ConcurrentRegionTask : TaskImpl {
   public:
 
-    virtual void set_region_context(std::shared_ptr<RegionContextHandle> const&) =0;
+    virtual void set_region_context(
+      std::shared_ptr<ConcurrentRegionContextHandle> const&
+    ) =0;
 
 };
 
