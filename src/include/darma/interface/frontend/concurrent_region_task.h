@@ -53,7 +53,7 @@ template <typename TaskImpl>
 struct ConcurrentRegionTask : TaskImpl {
   public:
 
-    virtual void set_index(Index& index) =0;
+    virtual void set_region_context(std::shared_ptr<RegionContextHandle> const&) =0;
 
 };
 

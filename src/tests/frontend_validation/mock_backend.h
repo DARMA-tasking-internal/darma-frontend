@@ -76,6 +76,9 @@ class MockRuntime
     using key_t = darma_runtime::types::key_t;
     using publication_details_t = darma_runtime::abstract::frontend::PublicationDetails;
     using flow_t = darma_runtime::types::flow_t;
+    using mapping_t = std::unique_ptr<darma_runtime::abstract::frontend::IndexMapping<
+      darma_runtime::abstract::frontend::IndexRange, darma_runtime::abstract::frontend::CompactIndexRange
+    >>;
 
     void
     register_task(
