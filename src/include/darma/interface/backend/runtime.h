@@ -57,12 +57,19 @@
 #include <darma/interface/frontend/collective_details.h>
 #include <darma/interface/frontend/types/concrete_condition_task_t.h>
 #include <darma/interface/frontend/condition_task.h>
+#include <darma/interface/frontend/concurrent_region_task.h>
 
 namespace darma_runtime {
 
 namespace abstract {
 
 namespace backend {
+
+struct RegionContextHandle {
+  virtual std::shared_ptr<abstract::frontend::Index> get_index() =0;
+};
+
+struct KeyValueStoreHandle { };
 
 /**
  *  @ingroup abstract
@@ -80,9 +87,11 @@ class Runtime {
 
     using task_t = frontend::Task;
     using condition_task_t = frontend::ConditionTask<types::concrete_task_t>;
+    using concurrent_region_task_t = frontend::ConcurrentRegionTask<types::concrete_task_t>;
     using task_unique_ptr = types::unique_ptr_template<task_t>;
     using condition_task_unique_ptr = types::unique_ptr_template<condition_task_t>;
     using handle_t = frontend::Handle;
+    using concurrent_region_task_unique_ptr = std::unique_ptr<concurrent_region_task_t>;
 
     //==========================================================================
     // <editor-fold desc="Task handling">
@@ -117,6 +126,35 @@ class Runtime {
      */
     virtual bool
     register_condition_task(condition_task_unique_ptr&& task) = 0;
+
+    virtual void
+    register_concurrent_region(
+      std::unique_ptr<abstract::frontend::IndexRange>&& user_indices,
+      std::unique_ptr<abstract::frontend::IndexMapping<
+        abstract::frontend::IndexRange, abstract::frontend::CompactIndexRange
+      >>&& index_mapping,
+      concurrent_region_task_unique_ptr&& task,
+      std::shared_ptr<KeyValueStoreHandle> const& kv_store = nullptr
+    ) =0;
+
+    //virtual std::shared_ptr<RegionContextHandle>
+    //register_concurrent_region(
+    //  std::unique_ptr<abstract::frontend::IndexRange>&& user_indices,
+    //  std::unique_ptr<abstract::frontend::IndexMapping<
+    //    abstract::frontend::IndexRange, abstract::frontend::CompactIndexRange
+    //  >>&& index_mapping,
+    //  concurrent_region_task_unique_ptr&& task,
+    //  std::shared_ptr<RegionContextHandle> const& unaligned_predecessor,
+    //  std::unique_ptr<abstract::frontend::IndexMapping<
+    //    abstract::frontend::CompactIndexRange, abstract::frontend::CompactIndexRange
+    //  >>&& predecessor_to_this_mapping,
+    //  std::shared_ptr<KeyValueStoreHandle> const& kv_store = nullptr
+    //) =0;
+
+    virtual std::shared_ptr<KeyValueStoreHandle>
+    make_key_value_store() =0;
+
+
 
     // </editor-fold> end Task handling
     //==========================================================================
@@ -366,7 +404,9 @@ class Runtime {
     virtual void
     publish_use(
       frontend::Use* u,
-      frontend::PublicationDetails* details
+      frontend::PublicationDetails* details,
+      bool within_concurrent_region = true,
+      std::shared_ptr<KeyValueStoreHandle> const& kv_store = nullptr
     ) =0;
 
     virtual void
@@ -374,7 +414,8 @@ class Runtime {
       frontend::Use* use_in,
       frontend::Use* use_out,
       frontend::CollectiveDetails const* details,
-      types::key_t const& tag
+      types::key_t const& tag,
+      std::shared_ptr<RegionContextHandle> const& reg_ctxt = nullptr
     ) =0;
 
     // </editor-fold> end publication, collectives, etc
