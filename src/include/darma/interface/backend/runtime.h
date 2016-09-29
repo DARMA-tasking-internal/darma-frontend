@@ -132,8 +132,6 @@ class Runtime {
 
     virtual void
     register_concurrent_region(
-      std::unique_ptr<abstract::frontend::IndexRange>&& user_indices,
-      generic_to_compact_index_mapping_unique_ptr&& index_mapping,
       concurrent_region_task_unique_ptr&& task,
       std::shared_ptr<DataStoreHandle> const& data_store = nullptr
     ) =0;

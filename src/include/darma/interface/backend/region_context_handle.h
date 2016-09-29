@@ -53,9 +53,9 @@ namespace darma_runtime {
 namespace abstract {
 namespace backend {
 
-struct RegionContextHandle {
+struct ConcurrentRegionContextHandle {
   public:
-    virtual std::shared_ptr<frontend::Index> get_index() =0;
+    virtual size_t get_backend_index() =0;
 };
 
 } // end namespace backend

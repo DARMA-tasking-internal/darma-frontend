@@ -60,10 +60,10 @@
 
 namespace darma_runtime {
 
+namespace detail {
+
 template <typename T1, typename T2>
 class compressed_pair;
-
-namespace detail {
 
 namespace _impl {
 
