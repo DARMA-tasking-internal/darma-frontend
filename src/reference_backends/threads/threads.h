@@ -157,7 +157,6 @@ namespace threads_backend {
     types::key_t key;
     types::key_t version;
     bool finished;
-    std::shared_ptr<PublishNode> node;
   };
 
   struct CollectiveInfo {
@@ -186,9 +185,8 @@ namespace threads_backend {
     ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
     std::unordered_map<
-      std::pair<types::key_t,
-                types::key_t>,
-      DataBlock*
+      std::pair<types::key_t, types::key_t>,
+      std::shared_ptr<DataBlock>
     > data, fetched_data;
 
     types::unique_ptr_template<runtime_t::task_t> top_level_task;
@@ -197,14 +195,6 @@ namespace threads_backend {
 
     std::mutex lock_remote;
     std::deque<std::shared_ptr<GraphNode> > ready_remote;
-
-    // std::unordered_map<const std::shared_ptr<handle_t>, int> handle_refs;
-    // std::unordered_map<
-    //   const std::shared_ptr<handle_t>,
-    //   std::list<
-    //     std::shared_ptr<DelayedPublish>
-    //   >
-    // > handle_pubs;
 
     // used for tracing to follow the dependency back to the proper
     // traced block
@@ -223,11 +213,13 @@ namespace threads_backend {
       TraceLog*
     > taskTrace;
 
-    TraceModule* trace;
+    TraceModule* trace = nullptr;
 
     size_t produced, consumed;
 
     ThreadsRuntime();
+
+    virtual ~ThreadsRuntime() {}
 
     template <typename TaskType>
     void addTraceDeps(
@@ -391,7 +383,7 @@ namespace threads_backend {
     virtual void
     register_use(darma_runtime::abstract::frontend::Use* u);
 
-    DataBlock*
+    std::shared_ptr<DataBlock>
     allocate_block(
       std::shared_ptr<handle_t const> handle,
       bool fromFetch = false

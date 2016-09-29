@@ -492,6 +492,7 @@ namespace threads_backend {
     if (!f_in->fromFetch) {
       const bool data_exists = data.find({version,key}) != data.end();
       if (data_exists) {
+        f_in->data_block = data[{version,key}];
         u->get_data_pointer_reference() = data[{version,key}]->data;
 
         DEBUG_PRINT("%p: use register, ptr=%p, key=%s, "
@@ -501,13 +502,13 @@ namespace threads_backend {
                     PRINT_KEY(key),
                     PRINT_KEY(f_in->version_key),
                     PRINT_KEY(f_out->version_key));
-        data[{version,key}]->refs++;
       } else {
         // allocate new deferred data block for this use
         auto block = allocate_block(handle);
 
         // insert into the hash
         data[{version,key}] = block;
+        f_in->data_block = block;
         u->get_data_pointer_reference() = block->data;
 
         DEBUG_PRINT("%p: use register: ptr=%p, key=%s, "
@@ -517,7 +518,6 @@ namespace threads_backend {
                     PRINT_KEY(key),
                     PRINT_KEY(f_in->version_key),
                     PRINT_KEY(f_out->version_key));
-        block->refs++;
       }
 
       f_in->shared_reader_count = &data[{version,key}]->shared_ref_count;
@@ -525,17 +525,17 @@ namespace threads_backend {
     } else {
       const bool data_exists = fetched_data.find({version,key}) != fetched_data.end();
       if (data_exists) {
+        f_in->data_block = fetched_data[{version,key}];
         u->get_data_pointer_reference() = fetched_data[{version,key}]->data;
-        fetched_data[{version,key}]->refs++;
       } else {
         // FIXME: copy-paste of above code...
 
         // allocate new deferred data block for this use
         auto block = allocate_block(handle, f_in->fromFetch);
+        f_in->data_block = block;
         // insert into the hash
         fetched_data[{version,key}] = block;
         u->get_data_pointer_reference() = block->data;
-        block->refs++;
       }
 
       f_in->shared_reader_count = &fetched_data[{version,key}]->shared_ref_count;
@@ -556,19 +556,25 @@ namespace threads_backend {
     //handle_refs[handle]++;
   }
 
-  DataBlock*
+  std::shared_ptr<DataBlock>
   ThreadsRuntime::allocate_block(
     std::shared_ptr<handle_t const> handle,
     bool fromFetch
   ) {
     // allocate some space for this object
     const size_t sz = handle->get_serialization_manager()->get_metadata_size();
-    auto block = new DataBlock(1, sz);
+    auto data_block = new DataBlock(1, sz);
+    auto block = std::shared_ptr<DataBlock>(data_block, [handle](DataBlock* block) {
+      handle
+        ->get_serialization_manager()
+        ->destroy(block->data);
+      delete block;
+    });
 
     DEBUG_PRINT("allocating data block: size=%ld, ptr=%p, block=%p\n",
                 sz,
                 block->data,
-                block);
+                block.get());
 
     if (!fromFetch) {
       // call default constructor for data block
@@ -602,11 +608,12 @@ namespace threads_backend {
     handle_t const* handle,
     void* unpacked
   ) {
-    auto policy = new SerializationPolicy();
+    auto policy = std::make_unique<SerializationPolicy>();
+
     const size_t size = handle
       ->get_serialization_manager()
       ->get_packed_data_size(unpacked,
-                             policy);
+                             policy.get());
 
     auto block = new PackedDataBlock();
 
@@ -621,8 +628,7 @@ namespace threads_backend {
       ->get_serialization_manager()
       ->pack_data(unpacked,
                   block->data_,
-                  policy);
-    delete policy;
+                  policy.get());
 
     return block;
   }
@@ -633,13 +639,13 @@ namespace threads_backend {
     void* packed,
     void* unpack_to
   ) {
-    auto policy = new SerializationPolicy();
+    auto policy = std::make_unique<SerializationPolicy>();
+
     handle
       ->get_serialization_manager()
       ->unpack_data(unpack_to,
                     packed,
-                    policy);
-    delete policy;
+                    policy.get());
   }
 
   bool
@@ -671,7 +677,7 @@ namespace threads_backend {
                      unpack_to);
 
         if (!buffer_exists) {
-          fetched_data[{version_key,key}] = new DataBlock(unpack_to);
+          fetched_data[{version_key,key}] = std::make_shared<DataBlock>(unpack_to);
         }
 
         DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
@@ -799,7 +805,11 @@ namespace threads_backend {
       auto traceLog = pub.pub_log;
 
       const bool buffer_exists = fetched_data.find({version_key,key}) != fetched_data.end();
-      void* unpack_to = buffer_exists ? fetched_data[{version_key,key}]->data : malloc(pub.data->size_);
+      auto block = buffer_exists ? fetched_data[{version_key,key}] : std::make_shared<DataBlock>(0, pub.data->size_);
+
+      if (!buffer_exists) {
+        fetched_data[{version_key,key}] = block;
+      }
 
       DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
                   PRINT_BOOL_STR(buffer_exists),
@@ -807,18 +817,15 @@ namespace threads_backend {
 
       de_serialize(handle,
                    pub.data->data_,
-                   unpack_to);
+                   block->data);
 
-      if (!buffer_exists) {
-        fetched_data[{version_key,key}] = new DataBlock(unpack_to);
-      }
 
       DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
                   PRINT_KEY(key),
                   PRINT_KEY(version_key),
                   pub.data->data_,
                   std::atomic_load<size_t>(&pub.expected),
-                  unpack_to);
+                  block->data);
 
       assert(pub.expected > 0);
 
@@ -999,25 +1006,25 @@ namespace threads_backend {
   ThreadsRuntime::force_destruct(
     std::shared_ptr<InnerFlow> flow
   ) {
-    auto handle = flow->handle;
-    auto const& version = flow->version_key;
-    auto const& key = handle->get_key();
-    DataBlock* block = flow->fromFetch ? fetched_data[{version,key}] : data[{version,key}];
+    // auto handle = flow->handle;
+    // auto const& version = flow->version_key;
+    // auto const& key = handle->get_key();
+    // DataBlock* block = flow->fromFetch ? fetched_data[{version,key}] : data[{version,key}];
 
-    //assert(!block->forceDestruct);
+    // //assert(!block->forceDestruct);
 
-    if (!block->forceDestruct) {
-      DEBUG_PRINT("force destructor (%p) on flow %ld, state=%s\n",
-                  block,
-                  PRINT_LABEL(flow),
-                  PRINT_STATE(flow));
+    // if (!block->forceDestruct) {
+    //   DEBUG_PRINT("force destructor (%p) on flow %ld, state=%s\n",
+    //               block,
+    //               PRINT_LABEL(flow),
+    //               PRINT_STATE(flow));
 
-      handle
-        ->get_serialization_manager()
-        ->destroy(block->data);
+    //   handle
+    //     ->get_serialization_manager()
+    //     ->destroy(block->data);
 
-      block->forceDestruct = true;
-    }
+    //   block->forceDestruct = true;
+    // }
   }
 
   void
@@ -1026,24 +1033,16 @@ namespace threads_backend {
   ) {
     auto handle = flow->handle;
 
-    //handle_refs[handle]--;
-
-    DEBUG_PRINT("cleanup_handle identity: %p to %p: refs=%d\n",
+    DEBUG_PRINT("cleanup_handle identity: %p to %p\n",
                 flow->handle,
-                flow->alias ? flow->alias->handle : nullptr,
-                handle_refs[handle]);
+                flow->alias ? flow->alias->handle : nullptr)
 
-    //assert(handle_refs[handle] >= 0);
-
-    //if (handle_refs[handle] == 0) {
-      delete_handle_data(
-        handle,
-        flow->version_key,
-        flow->key,
-        flow->fromFetch
-      );
-      //handle_refs.erase(handle);
-      //}
+    delete_handle_data(
+      handle,
+      flow->version_key,
+      flow->key,
+      flow->fromFetch
+    );
   }
 
   void
@@ -1053,44 +1052,21 @@ namespace threads_backend {
     types::key_t const& key,
     bool const fromFetch
   ) {
-    DataBlock* prev = nullptr;
-    size_t ref = 0;
+    auto& data_store = fromFetch ? fetched_data : data;
 
-    if (fromFetch) {
-      prev = fetched_data[{version,key}];
-      if (prev) {
-        ref = prev->refs;
-      }
-      if (prev && ref == 0) {
-        fetched_data.erase({version,key});
-      }
-    } else {
-      prev = data[{version,key}];
-      if (prev) {
-        ref = prev->refs;
-      }
-      if (prev && ref == 0) {
-        data.erase({version,key});
-      }
-    }
-
-    if (prev && ref == 0) {
-      DEBUG_PRINT("delete handle data (%p): fromFetch=%s, refs=%ld, forcedDestruct=%s\n",
-                  prev,
-                  PRINT_BOOL_STR(fromFetch),
-                  ref,
-                  PRINT_BOOL_STR(prev->forceDestruct));
-
-      if (!prev->forceDestruct) {
-        DEBUG_PRINT("calling destructor (%p)\n",
-                    prev)
-
-        // call the destructor
-        handle
-          ->get_serialization_manager()
-          ->destroy(prev->data);
-      }
-      delete prev;
+    if (data_store.find({version,key}) !=
+        data_store.end()) {
+      auto const& item = data_store[{version,key}];
+      DEBUG_PRINT("item use count = %ld\n", item.use_count());
+      // if (item.use_count() == 2) {
+      //   // call the destructor
+      //   handle
+      //     ->get_serialization_manager()
+      //     ->destroy(item->data);
+        data_store.erase(
+          data_store.find({version,key})
+        );
+      //}
     }
   }
 
@@ -1137,12 +1113,6 @@ namespace threads_backend {
       }
     } else if (f_from->state == FlowReadReady) {
       f_from->state = FlowReadOnlyReady;
-    }
-
-    if (f_to->isNull) {
-      // TODO!
-      DEBUG_PRINT("establish deleting null: %ld\n",
-                  PRINT_LABEL(f_to));
     }
   }
 
@@ -1719,7 +1689,7 @@ namespace threads_backend {
 
     DEBUG_PRINT("%p: release use: handle=%p, version=%s, key=%s\n",
                 u,
-                handle,
+                handle.get(),
                 PRINT_KEY(version),
                 PRINT_KEY(key));
 
@@ -1736,20 +1706,7 @@ namespace threads_backend {
                 PRINT_STATE(f_in),
                 PRINT_LABEL(f_out),
                 PRINT_STATE(f_out)
-                /*handle_refs[handle]*/);
-
-    // if (handle_refs[handle] == 1) {
-    //   // this logic is a hackish. essentially a publish is a necessary condition
-    //   // for a force_*
-    //   if (handle_pubs.find(handle) != handle_pubs.end()) {
-    //     force_publish(
-    //       f_in
-    //     );
-    //     force_destruct(
-    //       f_in
-    //     );
-    //   }
-    // }
+                );
 
     f_in->uses--;
     f_out->uses--;
@@ -1806,7 +1763,7 @@ namespace threads_backend {
                   PRINT_KEY(key),
                   PRINT_KEY(version),
                   data_ptr,
-                  handle);
+                  handle.get());
 
       assert(expected >= 1);
 
@@ -1843,7 +1800,7 @@ namespace threads_backend {
   void
   ThreadsRuntime::publish_finished(std::shared_ptr<DelayedPublish> publish) {
     DEBUG_PRINT("publish finished, removing from handle %p\n",
-                publish->handle);
+                publish->handle.get());
     ///handle_pubs[publish->handle].remove(publish);
 
     transition_after_read(
@@ -1858,9 +1815,7 @@ namespace threads_backend {
 
     auto f_in  = f->get_in_flow();
     auto f_out = f->get_out_flow();
-
     auto handle = f->get_handle();
-
     auto version = details->get_version_name();
     auto key = handle->get_key();
 
@@ -1877,9 +1832,6 @@ namespace threads_backend {
 
     auto p = std::make_shared<PublishNode>(PublishNode{this,pub});
 
-    // set the node for early release
-    pub->node = p;
-
     const bool ready = p->ready();
 
     DEBUG_PRINT("%p: publish_use: shared=%ld, ptr=%p, key=%s, "
@@ -1889,7 +1841,7 @@ namespace threads_backend {
                 f->get_data_pointer_reference(),
                 PRINT_KEY(key),
                 PRINT_KEY(version),
-                handle,
+                handle.get(),
                 PRINT_BOOL_STR(ready),
                 PRINT_LABEL(f_in),
                 PRINT_LABEL(f_out));
@@ -1903,10 +1855,6 @@ namespace threads_backend {
       p,
       f_in
     );
-
-    // always add this so we can call cleanup regardless of when the publish
-    // node is executed
-    ///handle_pubs[handle].push_back(pub);
 
     if (flow_in_reading) {
       p->execute();
@@ -2068,6 +2016,8 @@ start_rank_handler(const size_t rank,
 
   // call into main
   const int ret = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
+
+  delete threads_backend::cur_runtime;
 }
 
 int main(int argc, char **argv) {

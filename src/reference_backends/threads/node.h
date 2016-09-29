@@ -158,7 +158,9 @@ namespace threads_backend {
     }
 
     virtual ~FetchNode() {
-      fetch = nullptr;
+      DEBUG_PRINT("destructing fetch node, flow=%ld\n",
+                  PRINT_LABEL(fetch)
+                  );
     }
 
     void activate() override {

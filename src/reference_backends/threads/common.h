@@ -122,10 +122,9 @@ namespace threads_backend {
   extern __thread size_t this_rank;
 
   struct DataBlock {
-    void* data;
+    void* data = nullptr;
     size_t shared_ref_count = 0;
     size_t refs = 0;
-    bool forceDestruct = false;
 
     DataBlock(const DataBlock& in) = delete;
 

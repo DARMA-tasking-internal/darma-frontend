@@ -65,6 +65,7 @@ namespace threads_backend {
     using handle_t = Runtime::handle_t;
 
     std::shared_ptr<InnerFlow> forward, next;
+    std::shared_ptr<DataBlock> data_block = nullptr;
     types::key_t version_key, key;
     handle_t* handle = nullptr;
     bool ready, isNull, isFetch, fromFetch, isCollective, isForward;
@@ -116,6 +117,19 @@ namespace threads_backend {
       , handle(handle_)
       , state(FlowWaiting)
     { }
+
+    virtual ~InnerFlow() {
+      if (next != nullptr) {
+        DEBUG_PRINT("flow %ld: has next %ld, count=%ld, unique=%s\n",
+                    PRINT_LABEL(this),
+                    PRINT_LABEL(next),
+                    next.use_count(),
+                    PRINT_BOOL_STR(next.unique()));
+      } else {
+        DEBUG_PRINT("flow %ld: does not have next\n",
+                    PRINT_LABEL(this));
+      }
+    }
   };
 }
 
