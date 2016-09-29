@@ -82,7 +82,8 @@ namespace threads_backend {
   struct ThreadsFlow;
 
   struct GraphNode;
-  struct TaskNode;
+  // template <typename TaskType>
+  // struct TaskNode;
   struct FetchNode;
   struct PublishNode;
   struct CollectiveNode;
@@ -147,8 +148,10 @@ namespace threads_backend {
   };
 
   struct DelayedPublish {
+    using handle_t = Runtime::handle_t;
+
     std::shared_ptr<InnerFlow> flow;
-    const darma_runtime::abstract::frontend::Handle* handle;
+    std::shared_ptr<handle_t const> handle;
     void* data_ptr;
     size_t fetchers;
     types::key_t key;
@@ -158,6 +161,8 @@ namespace threads_backend {
   };
 
   struct CollectiveInfo {
+    using handle_t = Runtime::handle_t;
+
     std::shared_ptr<InnerFlow> flow, flow_out;
     CollectiveType type;
     types::key_t tag;
@@ -166,7 +171,7 @@ namespace threads_backend {
     size_t num_pieces;
     void* data_ptr_in;
     void* data_ptr_out;
-    const darma_runtime::abstract::frontend::Handle* handle;
+    std::shared_ptr<handle_t const> handle;
     bool incorporated_local;
     std::shared_ptr<CollectiveNode> node;
   };
@@ -193,13 +198,13 @@ namespace threads_backend {
     std::mutex lock_remote;
     std::deque<std::shared_ptr<GraphNode> > ready_remote;
 
-    std::unordered_map<const darma_runtime::abstract::frontend::Handle*, int> handle_refs;
-    std::unordered_map<
-      const darma_runtime::abstract::frontend::Handle*,
-      std::list<
-        std::shared_ptr<DelayedPublish>
-      >
-    > handle_pubs;
+    // std::unordered_map<const std::shared_ptr<handle_t>, int> handle_refs;
+    // std::unordered_map<
+    //   const std::shared_ptr<handle_t>,
+    //   std::list<
+    //     std::shared_ptr<DelayedPublish>
+    //   >
+    // > handle_pubs;
 
     // used for tracing to follow the dependency back to the proper
     // traced block
@@ -224,9 +229,12 @@ namespace threads_backend {
 
     ThreadsRuntime();
 
-    void
-    addTraceDeps(TaskNode* node,
-                 TraceLog* log);
+    template <typename TaskType>
+    void addTraceDeps(
+      TaskNode<TaskType>* node,
+      TraceLog* log
+    );
+
     void
     addPublishDeps(PublishNode* node,
                    TraceLog* log);
@@ -251,12 +259,12 @@ namespace threads_backend {
     get_spmd_size() const;
 
     void
-    de_serialize(darma_runtime::abstract::frontend::Handle const* const handle,
+    de_serialize(handle_t const* handle,
                  void* packed,
                  void* unpack_to);
 
     PackedDataBlock*
-    serialize(darma_runtime::abstract::frontend::Handle const* const handle,
+    serialize(handle_t const* handle,
               void* unpacked);
 
     void
@@ -282,7 +290,7 @@ namespace threads_backend {
 
     void
     delete_handle_data(
-      darma_runtime::abstract::frontend::Handle const* const handle,
+      handle_t const* handle,
       types::key_t const& version,
       types::key_t const& key,
       bool const fromFetch
@@ -356,16 +364,23 @@ namespace threads_backend {
     schedule_over_breadth();
 
     virtual void
-    register_task(types::unique_ptr_template<runtime_t::task_t>&& task);
+    register_task(
+      types::unique_ptr_template<runtime_t::task_t>&& task
+    );
 
     bool
-    register_condition_task(types::unique_ptr_template<runtime_t::task_t>&& task);
+    register_condition_task(
+      condition_task_unique_ptr&& task
+    );
 
     void
     reregister_migrated_use(darma_runtime::abstract::frontend::Use* u);
 
+    template <typename TaskType>
     size_t
-    check_dep_task(std::shared_ptr<TaskNode> t);
+    check_dep_task(
+      std::shared_ptr<TaskNode<TaskType>> t
+    );
 
     void
     run_task(types::unique_ptr_template<runtime_t::task_t>&& task);
@@ -378,35 +393,42 @@ namespace threads_backend {
 
     DataBlock*
     allocate_block(
-      darma_runtime::abstract::frontend::Handle const* handle,
+      std::shared_ptr<handle_t const> handle,
       bool fromFetch = false
     );
 
     virtual flow_t
-    make_initial_flow(darma_runtime::abstract::frontend::Handle* handle);
+    make_initial_flow(
+      handle_t* handle
+    );
 
     bool
     add_fetcher(std::shared_ptr<FetchNode> fetch,
-		darma_runtime::abstract::frontend::Handle* handle,
+		handle_t* handle,
 		types::key_t const& version_key);
     bool
-    try_fetch(darma_runtime::abstract::frontend::Handle* handle,
+    try_fetch(handle_t* handle,
 	      types::key_t const& version_key);
     bool
-    test_fetch(darma_runtime::abstract::frontend::Handle* handle,
+    test_fetch(handle_t* handle,
 	       types::key_t const& version_key);
     void
-    blocking_fetch(darma_runtime::abstract::frontend::Handle* handle,
+    blocking_fetch(handle_t* handle,
 		   types::key_t const& version_key);
     TraceLog*
-    fetch(darma_runtime::abstract::frontend::Handle* handle,
+    fetch(handle_t* handle,
 	  types::key_t const& version_key);
 
     virtual flow_t
-    make_fetching_flow(darma_runtime::abstract::frontend::Handle* handle,
-		       types::key_t const& version_key);
+    make_fetching_flow(
+      handle_t* handle,
+      types::key_t const& version_key
+    );
+
     virtual flow_t
-    make_null_flow(darma_runtime::abstract::frontend::Handle* handle);
+    make_null_flow(
+      handle_t* handle
+    );
 
     virtual flow_t
     make_forwarding_flow(flow_t& from);

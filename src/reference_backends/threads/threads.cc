@@ -171,10 +171,15 @@ namespace threads_backend {
 
   /*virtual*/
   void
-  ThreadsRuntime::register_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
+  ThreadsRuntime::register_task(
+    types::unique_ptr_template<runtime_t::task_t>&& task
+  ) {
     DEBUG_VERBOSE_PRINT("register task\n");
 
-    auto t = std::make_shared<TaskNode>(TaskNode{this,std::move(task)});
+    auto t = std::make_shared<TaskNode<task_t>>(
+      TaskNode<task_t>{this,std::move(task)}
+    );
+
     t->join_counter = check_dep_task(t);
 
     DEBUG_VERBOSE_PRINT("task join counter: %ld\n", t->join_counter);
@@ -195,10 +200,14 @@ namespace threads_backend {
   }
 
   bool
-  ThreadsRuntime::register_condition_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
+  ThreadsRuntime::register_condition_task(
+    condition_task_unique_ptr&& task
+  ) {
     DEBUG_PRINT("register condition task\n");
 
-    auto t = std::make_shared<TaskNode>(TaskNode{this,std::move(task)});
+    auto t = std::make_shared<TaskNode<condition_task_t>>(
+      TaskNode<condition_task_t>{this,std::move(task)}
+    );
     t->join_counter = check_dep_task(t);
 
     assert(threads_backend::depthFirstExpand);
@@ -208,9 +217,10 @@ namespace threads_backend {
       DEBUG_VERBOSE_PRINT("running task\n");
 
       runtime_t::task_t* prev = current_task;
-      types::unique_ptr_template<runtime_t::task_t> cur = std::move(t->task);
+      condition_task_unique_ptr cur = std::move(t->task);
       current_task = cur.get();
-      bool ret = cur.get()->run<bool>();
+      cur.get()->run();
+      bool ret = cur.get()->get_result();
       this->consumed++;
       DEBUG_PRINT("calling run on task\n");
       current_task = prev;
@@ -305,8 +315,9 @@ namespace threads_backend {
     }
   }
 
+  template <typename TaskType>
   void
-  ThreadsRuntime::addTraceDeps(TaskNode* node,
+  ThreadsRuntime::addTraceDeps(TaskNode<TaskType>* node,
                                TraceLog* thisLog) {
     if (threads_backend::depthFirstExpand) {
       return;
@@ -325,8 +336,11 @@ namespace threads_backend {
     }
   }
 
+  template <typename TaskType>
   size_t
-  ThreadsRuntime::check_dep_task(std::shared_ptr<TaskNode> t) {
+  ThreadsRuntime::check_dep_task(
+    std::shared_ptr<TaskNode<TaskType>> t
+  ) {
     DEBUG_VERBOSE_PRINT("check_dep_task\n");
 
     size_t dep_count = 0;
@@ -442,7 +456,7 @@ namespace threads_backend {
     auto f_in  = u->get_in_flow();
     auto f_out = u->get_out_flow();
 
-    auto const handle = u->get_handle();
+    auto handle = u->get_handle();
     const auto& key = handle->get_key();
     const auto version = f_in->version_key;
 
@@ -455,7 +469,7 @@ namespace threads_backend {
                 PRINT_BOOL_STR(ready),
                 PRINT_KEY(key),
                 PRINT_KEY(version),
-                handle,
+                handle.get(),
                 PRINT_LABEL(f_in),
                 f_in->ref,
                 PRINT_STATE(f_in),
@@ -539,12 +553,12 @@ namespace threads_backend {
                 );
 
     // count references to a given handle
-    handle_refs[handle]++;
+    //handle_refs[handle]++;
   }
 
   DataBlock*
   ThreadsRuntime::allocate_block(
-    darma_runtime::abstract::frontend::Handle const* handle,
+    std::shared_ptr<handle_t const> handle,
     bool fromFetch
   ) {
     // allocate some space for this object
@@ -568,7 +582,9 @@ namespace threads_backend {
 
   /*virtual*/
   flow_t
-  ThreadsRuntime::make_initial_flow(darma_runtime::abstract::frontend::Handle* handle) {
+  ThreadsRuntime::make_initial_flow(
+    handle_t* handle
+  ) {
     auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [](InnerFlow* flow){
       DEBUG_PRINT("make_initial_flow: deleter running %ld\n",
                   PRINT_LABEL(flow));
@@ -577,13 +593,15 @@ namespace threads_backend {
     f->state = FlowReadReady;
     f->ready = true;
     f->handle = handle;
-    handle_refs[handle]++;
+    ///handle_refs[handle]++;
     return f;
   }
 
   PackedDataBlock*
-  ThreadsRuntime::serialize(darma_runtime::abstract::frontend::Handle const* const handle,
-                            void* unpacked) {
+  ThreadsRuntime::serialize(
+    handle_t const* handle,
+    void* unpacked
+  ) {
     auto policy = new SerializationPolicy();
     const size_t size = handle
       ->get_serialization_manager()
@@ -610,9 +628,11 @@ namespace threads_backend {
   }
 
   void
-  ThreadsRuntime::de_serialize(darma_runtime::abstract::frontend::Handle const* const handle,
-                               void* packed,
-                               void* unpack_to) {
+  ThreadsRuntime::de_serialize(
+    handle_t const* handle,
+    void* packed,
+    void* unpack_to
+  ) {
     auto policy = new SerializationPolicy();
     handle
       ->get_serialization_manager()
@@ -623,7 +643,7 @@ namespace threads_backend {
   }
 
   bool
-  ThreadsRuntime::try_fetch(darma_runtime::abstract::frontend::Handle* handle,
+  ThreadsRuntime::try_fetch(handle_t* handle,
                             types::key_t const& version_key) {
     bool found = false;
 
@@ -688,7 +708,7 @@ namespace threads_backend {
 
   bool
   ThreadsRuntime::add_fetcher(std::shared_ptr<FetchNode> fetch,
-                              darma_runtime::abstract::frontend::Handle* handle,
+                              handle_t* handle,
                               types::key_t const& version_key) {
     bool ready = false;
     {
@@ -723,7 +743,7 @@ namespace threads_backend {
   }
 
   bool
-  ThreadsRuntime::test_fetch(darma_runtime::abstract::frontend::Handle* handle,
+  ThreadsRuntime::test_fetch(handle_t* handle,
                              types::key_t const& version_key) {
     bool ready = false;
     {
@@ -745,7 +765,7 @@ namespace threads_backend {
   }
 
   void
-  ThreadsRuntime::blocking_fetch(darma_runtime::abstract::frontend::Handle* handle,
+  ThreadsRuntime::blocking_fetch(handle_t* handle,
                                  types::key_t const& version_key) {
 
     DEBUG_PRINT("fetch_block: handle = %p\n", handle);
@@ -756,7 +776,7 @@ namespace threads_backend {
   }
 
   TraceLog*
-  ThreadsRuntime::fetch(darma_runtime::abstract::frontend::Handle* handle,
+  ThreadsRuntime::fetch(handle_t* handle,
                         types::key_t const& version_key) {
     {
       // TODO: big lock to handling fetching
@@ -821,8 +841,10 @@ namespace threads_backend {
 
   /*virtual*/
   flow_t
-  ThreadsRuntime::make_fetching_flow(darma_runtime::abstract::frontend::Handle* handle,
-                                     types::key_t const& version_key) {
+  ThreadsRuntime::make_fetching_flow(
+    handle_t* handle,
+    types::key_t const& version_key
+  ) {
     DEBUG_VERBOSE_PRINT("make fetching flow\n");
 
     auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [](InnerFlow* flow){
@@ -831,7 +853,7 @@ namespace threads_backend {
       delete flow;
     });
 
-    handle_refs[handle]++;
+    ///handle_refs[handle]++;
 
     f->handle = handle;
     f->version_key = version_key;
@@ -845,7 +867,9 @@ namespace threads_backend {
 
   /*virtual*/
   flow_t
-  ThreadsRuntime::make_null_flow(darma_runtime::abstract::frontend::Handle* handle) {
+  ThreadsRuntime::make_null_flow(
+    handle_t* handle
+ ) {
     DEBUG_VERBOSE_PRINT("make null flow\n");
 
     auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [](InnerFlow* flow){
@@ -950,32 +974,32 @@ namespace threads_backend {
   ThreadsRuntime::force_publish(
     std::shared_ptr<InnerFlow> flow
   ) {
-    auto const* const handle = flow->handle;
+    // auto const* const handle = flow->handle;
 
-    assert(handle_refs[handle] == 1);
+    // ///assert(handle_refs[handle] == 1);
 
-    if (handle_pubs.find(handle) != handle_pubs.end()) {
-      for (auto pub : handle_pubs[handle]) {
-        pub->node->execute();
-        pub->finished = true;
+    // if (handle_pubs.find(handle) != handle_pubs.end()) {
+    //   for (auto pub : handle_pubs[handle]) {
+    //     pub->node->execute();
+    //     pub->finished = true;
 
-        // explicitly don't call clean up because we do it manually
-        // TODO: fix this problem with iterator
+    //     // explicitly don't call clean up because we do it manually
+    //     // TODO: fix this problem with iterator
 
-        DEBUG_PRINT("force_publish: flow %ld, state=%s, handle=%p\n",
-                    PRINT_LABEL(flow),
-                    PRINT_STATE(flow),
-                    handle);
-      }
-      handle_pubs.erase(handle);
-    }
+    //     DEBUG_PRINT("force_publish: flow %ld, state=%s, handle=%p\n",
+    //                 PRINT_LABEL(flow),
+    //                 PRINT_STATE(flow),
+    //                 handle);
+    //   }
+    //   handle_pubs.erase(handle);
+    // }
   }
 
   void
   ThreadsRuntime::force_destruct(
     std::shared_ptr<InnerFlow> flow
   ) {
-    auto const* const handle = flow->handle;
+    auto handle = flow->handle;
     auto const& version = flow->version_key;
     auto const& key = handle->get_key();
     DataBlock* block = flow->fromFetch ? fetched_data[{version,key}] : data[{version,key}];
@@ -1000,31 +1024,31 @@ namespace threads_backend {
   ThreadsRuntime::cleanup_handle(
     std::shared_ptr<InnerFlow> flow
   ) {
-    auto const* const handle = flow->handle;
+    auto handle = flow->handle;
 
-    handle_refs[handle]--;
+    //handle_refs[handle]--;
 
     DEBUG_PRINT("cleanup_handle identity: %p to %p: refs=%d\n",
                 flow->handle,
                 flow->alias ? flow->alias->handle : nullptr,
                 handle_refs[handle]);
 
-    assert(handle_refs[handle] >= 0);
+    //assert(handle_refs[handle] >= 0);
 
-    if (handle_refs[handle] == 0) {
+    //if (handle_refs[handle] == 0) {
       delete_handle_data(
         handle,
         flow->version_key,
         flow->key,
         flow->fromFetch
       );
-      handle_refs.erase(handle);
-    }
+      //handle_refs.erase(handle);
+      //}
   }
 
   void
   ThreadsRuntime::delete_handle_data(
-    darma_runtime::abstract::frontend::Handle const* const handle,
+    handle_t const* handle,
     types::key_t const& version,
     types::key_t const& key,
     bool const fromFetch
@@ -1438,7 +1462,7 @@ namespace threads_backend {
           if (state.current_pieces == 0) {
             assert(state.cur_buf == nullptr);
 
-            auto block = serialize(info->handle,
+            auto block = serialize(info->handle.get(),
                                    info->data_ptr_in);
 
             const size_t sz = info
@@ -1449,7 +1473,7 @@ namespace threads_backend {
             // TODO: memory leaks here
             state.cur_buf = malloc(sz);
 
-            de_serialize(info->handle,
+            de_serialize(info->handle.get(),
                          block->data_,
                          state.cur_buf);
           } else {
@@ -1523,10 +1547,10 @@ namespace threads_backend {
         assert(state->current_pieces == state->n_pieces);
 
         const auto& handle = info->handle;
-        auto block = serialize(handle,
+        auto block = serialize(handle.get(),
                                state->cur_buf);
 
-        de_serialize(handle,
+        de_serialize(handle.get(),
                      block->data_,
                      info->data_ptr_out);
 
@@ -1569,10 +1593,10 @@ namespace threads_backend {
         assert(state->current_pieces == state->n_pieces);
 
         const auto& handle = info->handle;
-        auto block = serialize(handle,
+        auto block = serialize(handle.get(),
                                state->cur_buf);
 
-        de_serialize(handle,
+        de_serialize(handle.get(),
                      block->data_,
                      info->data_ptr_out);
 
@@ -1699,7 +1723,7 @@ namespace threads_backend {
                 PRINT_KEY(version),
                 PRINT_KEY(key));
 
-    handle_refs[handle]--;
+    //handle_refs[handle]--;
 
     if (!f_in->fromFetch) {
       data[{version,key}]->refs--;
@@ -1707,25 +1731,25 @@ namespace threads_backend {
       fetched_data[{version,key}]->refs--;
     }
 
-    DEBUG_PRINT("release_use: f_in=[%ld,state=%s], f_out=[%ld,state=%s]: handle_refs=%d\n",
+    DEBUG_PRINT("release_use: f_in=[%ld,state=%s], f_out=[%ld,state=%s]\n",
                 PRINT_LABEL(f_in),
                 PRINT_STATE(f_in),
                 PRINT_LABEL(f_out),
-                PRINT_STATE(f_out),
-                handle_refs[handle]);
+                PRINT_STATE(f_out)
+                /*handle_refs[handle]*/);
 
-    if (handle_refs[handle] == 1) {
-      // this logic is a hackish. essentially a publish is a necessary condition
-      // for a force_*
-      if (handle_pubs.find(handle) != handle_pubs.end()) {
-        force_publish(
-          f_in
-        );
-        force_destruct(
-          f_in
-        );
-      }
-    }
+    // if (handle_refs[handle] == 1) {
+    //   // this logic is a hackish. essentially a publish is a necessary condition
+    //   // for a force_*
+    //   if (handle_pubs.find(handle) != handle_pubs.end()) {
+    //     force_publish(
+    //       f_in
+    //     );
+    //     force_destruct(
+    //       f_in
+    //     );
+    //   }
+    // }
 
     f_in->uses--;
     f_out->uses--;
@@ -1775,7 +1799,7 @@ namespace threads_backend {
       const auto& version = publish->version;
       const auto& key = publish->key;
 
-      const darma_runtime::abstract::frontend::Handle* handle = publish->handle;
+      auto handle = publish->handle;
       void* data_ptr = publish->data_ptr;
 
       DEBUG_PRINT("publish: key = %s, version = %s, data ptr = %p, handle = %p\n",
@@ -1786,7 +1810,7 @@ namespace threads_backend {
 
       assert(expected >= 1);
 
-      auto block = serialize(handle,
+      auto block = serialize(handle.get(),
                              data_ptr);
 
       DEBUG_PRINT("publication: key = %s, version = %s, published data = %p, data ptr = %p\n",
@@ -1820,7 +1844,7 @@ namespace threads_backend {
   ThreadsRuntime::publish_finished(std::shared_ptr<DelayedPublish> publish) {
     DEBUG_PRINT("publish finished, removing from handle %p\n",
                 publish->handle);
-    handle_pubs[publish->handle].remove(publish);
+    ///handle_pubs[publish->handle].remove(publish);
 
     transition_after_read(
       publish->flow
@@ -1835,7 +1859,7 @@ namespace threads_backend {
     auto f_in  = f->get_in_flow();
     auto f_out = f->get_out_flow();
 
-    const darma_runtime::abstract::frontend::Handle* handle = f->get_handle();
+    auto handle = f->get_handle();
 
     auto version = details->get_version_name();
     auto key = handle->get_key();
@@ -1882,7 +1906,7 @@ namespace threads_backend {
 
     // always add this so we can call cleanup regardless of when the publish
     // node is executed
-    handle_pubs[handle].push_back(pub);
+    ///handle_pubs[handle].push_back(pub);
 
     if (flow_in_reading) {
       p->execute();
@@ -1997,13 +2021,9 @@ namespace threads_backend {
                   this->produced,
                   this->consumed);
 
-    DEBUG_PRINT("handle_refs=%ld, "
-                "handle_pubs=%ld, "
-                "data=%ld, "
+    DEBUG_PRINT("data=%ld, "
                 "fetched data=%ld, "
                 "\n",
-                handle_refs.size(),
-                handle_pubs.size(),
                 data.size(),
                 fetched_data.size());
 

@@ -50,6 +50,7 @@
 namespace threads_backend {
   struct InnerFlow;
   struct GraphNode;
+  template <typename TaskType>
   struct TaskNode;
   struct FetchNode;
   struct PublishNode;
@@ -76,8 +77,9 @@ namespace threads_backend {
     addPublishDeps(PublishNode* node, TraceLog* log) {
       return static_cast<Impl*>(this)->addPublishDeps(node,log);
     }
+    template <typename TaskType>
     inline void
-    addTraceDeps(TaskNode* node, TraceLog* log) {
+    addTraceDeps(TaskNode<TaskType>* node, TraceLog* log) {
       return static_cast<Impl*>(this)->addTraceDeps(node,log);
     }
     inline TraceModule*
@@ -101,12 +103,12 @@ namespace threads_backend {
 
     // fetch interface methods
     inline TraceLog*
-    fetch(darma_runtime::abstract::frontend::Handle* handle,
+    fetch(Runtime::handle_t* handle,
           types::key_t const& version_key) {
       return static_cast<Impl*>(this)->fetch(handle, version_key);
     }
     inline bool
-    test_fetch(darma_runtime::abstract::frontend::Handle* handle,
+    test_fetch(Runtime::handle_t* handle,
                types::key_t const& version_key) {
       return static_cast<Impl*>(this)->test_fetch(handle, version_key);
     }

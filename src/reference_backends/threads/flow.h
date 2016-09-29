@@ -62,9 +62,11 @@ namespace threads_backend {
   };
 
   struct InnerFlow {
+    using handle_t = Runtime::handle_t;
+
     std::shared_ptr<InnerFlow> forward, next;
     types::key_t version_key, key;
-    darma_runtime::abstract::frontend::Handle* handle = nullptr;
+    handle_t* handle = nullptr;
     bool ready, isNull, isFetch, fromFetch, isCollective, isForward;
     bool  isWriteForward, fetcherAdded;
 
@@ -90,7 +92,9 @@ namespace threads_backend {
 
     InnerFlow(const InnerFlow& in) = default;
 
-    InnerFlow(darma_runtime::abstract::frontend::Handle* handle_)
+    InnerFlow(
+      handle_t* handle_
+    )
       : forward(nullptr)
       , next(nullptr)
       , shared_reader_count(nullptr)
