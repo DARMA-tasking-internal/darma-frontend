@@ -58,6 +58,9 @@
 #include <darma/interface/frontend/types/concrete_condition_task_t.h>
 #include <darma/interface/frontend/condition_task.h>
 #include <darma/interface/frontend/concurrent_region_task.h>
+#include <darma/interface/backend/data_store_handle.h>
+
+#include "backend_fwd.h"
 
 namespace darma_runtime {
 
@@ -65,11 +68,6 @@ namespace abstract {
 
 namespace backend {
 
-struct RegionContextHandle {
-  virtual std::shared_ptr<abstract::frontend::Index> get_index() =0;
-};
-
-struct KeyValueStoreHandle { };
 
 /**
  *  @ingroup abstract
@@ -91,6 +89,11 @@ class Runtime {
     using task_unique_ptr = types::unique_ptr_template<task_t>;
     using condition_task_unique_ptr = types::unique_ptr_template<condition_task_t>;
     using concurrent_region_task_unique_ptr = std::unique_ptr<concurrent_region_task_t>;
+    using generic_to_compact_index_mapping_t = abstract::frontend::IndexMapping<
+      abstract::frontend::IndexRange, abstract::frontend::CompactIndexRange
+    >;
+    using generic_to_compact_index_mapping_unique_ptr =
+      std::unique_ptr<generic_to_compact_index_mapping_t>;
 
     //==========================================================================
     // <editor-fold desc="Task handling">
@@ -129,11 +132,9 @@ class Runtime {
     virtual void
     register_concurrent_region(
       std::unique_ptr<abstract::frontend::IndexRange>&& user_indices,
-      std::unique_ptr<abstract::frontend::IndexMapping<
-        abstract::frontend::IndexRange, abstract::frontend::CompactIndexRange
-      >>&& index_mapping,
+      generic_to_compact_index_mapping_unique_ptr&& index_mapping,
       concurrent_region_task_unique_ptr&& task,
-      std::shared_ptr<KeyValueStoreHandle> const& kv_store = nullptr
+      std::shared_ptr<DataStoreHandle> const& data_store = nullptr
     ) =0;
 
     //virtual std::shared_ptr<RegionContextHandle>
@@ -150,8 +151,8 @@ class Runtime {
     //  std::shared_ptr<KeyValueStoreHandle> const& kv_store = nullptr
     //) =0;
 
-    virtual std::shared_ptr<KeyValueStoreHandle>
-    make_key_value_store() =0;
+    virtual std::shared_ptr<DataStoreHandle>
+    make_data_store() =0;
 
 
 
@@ -272,7 +273,7 @@ class Runtime {
      */
     virtual types::flow_t
     make_initial_flow(
-      frontend::Handle* handle
+      std::shared_ptr<frontend::Handle> const& handle
     ) =0;
 
     /** @brief Make a fetching Flow to be associated with the handle given as an
@@ -290,7 +291,7 @@ class Runtime {
      */
     virtual types::flow_t
     make_fetching_flow(
-      frontend::Handle* handle,
+      std::shared_ptr<frontend::Handle> const& handle,
       types::key_t const& version_key
     ) =0;
 
@@ -306,7 +307,7 @@ class Runtime {
      */
     virtual types::flow_t
     make_null_flow(
-      frontend::Handle* handle
+      std::shared_ptr<frontend::Handle> const& handle
     ) =0;
 
     /** @todo update this
@@ -403,9 +404,9 @@ class Runtime {
     virtual void
     publish_use(
       frontend::Use* u,
-      frontend::PublicationDetails* details,
-      bool within_concurrent_region = true,
-      std::shared_ptr<KeyValueStoreHandle> const& kv_store = nullptr
+      frontend::PublicationDetails* details
+      //bool within_concurrent_region = true,
+      //std::shared_ptr<KeyValueStoreHandle> const& kv_store = nullptr
     ) =0;
 
     virtual void

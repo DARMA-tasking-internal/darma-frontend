@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      publication_details.h.h
+//                      data_store_handle.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,62 +42,24 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
-#define DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
+#ifndef DARMA_INTERFACE_BACKEND_DATA_STORE_HANDLE_H
+#define DARMA_INTERFACE_BACKEND_DATA_STORE_HANDLE_H
 
-#include <darma_types.h>
-
-#include <darma/interface/backend/backend_fwd.h> // fwd decl of backend::DataStoreHandle
-
+#include "backend_fwd.h"
 
 namespace darma_runtime {
 namespace abstract {
-namespace frontend {
+namespace backend {
 
-/**
- *  @brief A class encapsulating the attributes of a particular publish operation
+/** @TODO document this
+ *
  */
-class PublicationDetails {
-  public:
-    /** @brief  Get the unique version (as a key) of the item being published.
-     *          The combination of h.get_key() and get_version_name()
-     *          must be globally unique
-     *          for a Handle `h` returned by Use::get_handle() for the use
-     *          given as the first argument to Runtime::publish_use() for which
-     *          this object is the second object
-     *  @return A unique version name for the current publication of a given Handle
-     */
-    virtual types::key_t const&
-    get_version_name() const =0;
+struct DataStoreHandle {
 
-    /**
-     *  @brief  Get the number of unique fetches that will be performed.
-     *          All N fetches must be complete before the backend can
-     *          declare a publication to be finished.
-     *
-     *  @return The number of Runtime::make_fetching_flow() calls that will fetch the combination of key
-     *          and version given in the publish_use() call associated with this object
-     */
-    virtual size_t
-    get_n_fetchers() const =0;
-
-    /** @todo
-     *
-     * @return
-     */
-    virtual bool
-    is_within_concurrent_region() const =0;
-
-    /** @todo
-     *
-     * @return
-     */
-    virtual std::shared_ptr<backend::DataStoreHandle>
-    get_data_store() const =0;
 };
 
-} // end namespace frontend
+} // end namespace backend
 } // end namespace abstract
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
+#endif //DARMA_INTERFACE_BACKEND_DATA_STORE_HANDLE_H
