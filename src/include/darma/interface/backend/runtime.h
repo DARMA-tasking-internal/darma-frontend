@@ -88,6 +88,7 @@ class Runtime {
     using concurrent_region_task_t = frontend::ConcurrentRegionTask<types::concrete_task_t>;
     using task_unique_ptr = types::unique_ptr_template<task_t>;
     using condition_task_unique_ptr = types::unique_ptr_template<condition_task_t>;
+    using handle_t = frontend::Handle;
     using concurrent_region_task_unique_ptr = std::unique_ptr<concurrent_region_task_t>;
     using generic_to_compact_index_mapping_t = abstract::frontend::IndexMapping<
       abstract::frontend::IndexRange, abstract::frontend::CompactIndexRange
@@ -443,8 +444,6 @@ class Runtime {
 class Context {
   public:
 
-    typedef frontend::Task task_t;
-
     /** @brief Return the SPMD rank of this backend instance. */
     virtual size_t
     get_spmd_rank() const = 0;
@@ -476,7 +475,7 @@ class Context {
     *
     *  @sa frontend::Task
     */
-    virtual task_t*
+    virtual Runtime::task_t*
     get_running_task() const = 0;
 
     virtual ~Context() noexcept = default;

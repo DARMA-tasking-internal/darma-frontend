@@ -113,7 +113,8 @@ namespace threads_backend {
   {
     std::shared_ptr<InnerFlow> fetch;
 
-    FetchNode(Runtime* rt, std::shared_ptr<InnerFlow> fetch_)
+    FetchNode(Runtime* rt,
+              std::shared_ptr<InnerFlow> fetch_)
       : GraphNode(-1, rt)
       , fetch(fetch_)
     { }
@@ -127,7 +128,10 @@ namespace threads_backend {
         log = runtime->getTrace()->eventStartNow(genName);
       }
 
-      TraceLog* pub_log = runtime->fetch(fetch->handle,fetch->version_key);
+      TraceLog* pub_log = runtime->fetch(
+        fetch->handle,
+        fetch->version_key
+      );
 
       if (runtime->getTrace()) {
         runtime->addFetchDeps(this,log,pub_log);
@@ -147,11 +151,16 @@ namespace threads_backend {
     }
 
     bool ready() override {
-      return runtime->test_fetch(fetch->handle, fetch->version_key);
+      return runtime->test_fetch(
+        fetch->handle,
+        fetch->version_key
+      );
     }
 
     virtual ~FetchNode() {
-      fetch = nullptr;
+      DEBUG_PRINT("destructing fetch node, flow=%ld\n",
+                  PRINT_LABEL(fetch)
+                  );
     }
 
     void activate() override {
@@ -249,18 +258,19 @@ namespace threads_backend {
     }
   };
 
+  template <typename TaskType>
   struct TaskNode
     : public GraphNode
   {
-    types::unique_ptr_template<runtime_t::task_t> task;
+    types::unique_ptr_template<TaskType> task;
 
     TaskNode(Runtime* rt,
-             types::unique_ptr_template<runtime_t::task_t>&& task_)
+             types::unique_ptr_template<TaskType>&& task_)
       : GraphNode(-1, rt)
       , task(std::move(task_))
     { }
 
-    void execute() {
+    virtual void execute() {
       // start trace event
       std::string genName = "";
       if (runtime->getTrace()) {
@@ -284,10 +294,22 @@ namespace threads_backend {
       GraphNode::execute();
     }
 
-    bool ready() {
+    virtual bool ready() {
       return join_counter == 0;
     }
   };
+
+  // struct ConditionTaskNode
+  //   : TaskNode
+  // {
+  //   ThreadsRuntime::condition_task_unique_ptr task;
+
+  //   ConditionTaskNode(Runtime* rt,
+  //                     ThreadsRuntime::condition_task_unique_ptr&& task_)
+  //     : GraphNode(-1, rt)
+  //     , task(std::move(task_))
+  //   { }
+  // };
 }
 
 #endif /* _THREADS_NODE_BACKEND_RUNTIME_H_ */
