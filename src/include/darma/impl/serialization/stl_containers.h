@@ -130,12 +130,26 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
     };
 
     template <typename _Ignored = void>
+    inline std::enable_if_t<has_allocator and std::is_same<_Ignored, void>::value>
+    _deallocate_item(C const& c, void* ptr) const {
+      auto alloc = c.get_allocator();
+      Alloc_traits::deallocate(alloc, static_cast<char*>(ptr), 1);
+    };
+
+    template <typename _Ignored = void>
     inline std::enable_if_t<not has_allocator and std::is_same<_Ignored, void>::value,
       value_type*
     >
     _allocate_item(C const&) const {
       allocator_t alloc;
       return Alloc_traits::allocate(alloc, 1);
+    };
+
+    template <typename _Ignored = void>
+    inline std::enable_if_t<not has_allocator and std::is_same<_Ignored, void>::value>
+    _deallocate_item(C const& c, void* ptr) const {
+      allocator_t alloc;
+      Alloc_traits::deallocate(alloc, static_cast<char*>(ptr), 1);
     };
 
     template <typename ArchiveT>
@@ -231,6 +245,8 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
         _call_unpack_item(ar, tmp, *c);
         // put it in the container
         back_iter = *(value_type*)tmp;
+
+        _deallocate_item(*c, tmp);
       }
     }
 
@@ -262,6 +278,8 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
         _call_unpack_item(ar, tmp, *c);
         // put it in the container
         ins_iter = *(value_type*)tmp;
+
+        _deallocate_item(*c, tmp);
       }
     }
 
