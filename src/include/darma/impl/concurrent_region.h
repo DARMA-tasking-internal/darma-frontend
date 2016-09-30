@@ -247,7 +247,8 @@ struct _make_runnable_t_wrapper {
 
 template <typename Callable, typename RangeT, typename DataStoreT, typename ArgsTuple>
 void _do_register_concurrent_region(
-  typename RangeT::mapping_to_dense_t mapping, DataStoreT&& dstore, ArgsTuple&& args_tup
+  RangeT&& range,
+  typename std::decay_t<RangeT>::mapping_to_dense_t mapping, DataStoreT&& dstore, ArgsTuple&& args_tup
 ) {
   detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
     abstract::backend::get_backend_context()->get_running_task()
@@ -285,12 +286,12 @@ void _do_register_concurrent_region(
 
   if(not dstore.is_default()) {
     abstract::backend::get_backend_runtime()->register_concurrent_region(
-      std::move(task_ptr), detail::DataStoreAttorney::get_handle(dstore)
+      std::move(task_ptr), range.size(), detail::DataStoreAttorney::get_handle(dstore)
     );
   }
   else {
     abstract::backend::get_backend_runtime()->register_concurrent_region(
-      std::move(task_ptr)
+      std::move(task_ptr), range.size()
     );
   }
 
@@ -366,6 +367,27 @@ struct _create_concurrent_region_impl {
     std::enable_if_t<
       std::is_same<std::decay_t<ArgForwarded>, Arg>::value
         and (pos_arg_is_index_range and pos_arg_has_mapping_to_dense),
+      index_range_t
+    >
+    get_range(ArgForwarded&& arg) {
+      return std::forward<ArgForwarded>(arg);
+    }
+
+
+    template <typename ArgForwarded>
+    std::enable_if_t<
+      std::is_same<std::decay_t<ArgForwarded>, Arg>::value
+        and (kwarg_is_index_range and kwarg_has_mapping_to_dense),
+      index_range_t
+    >
+    get_range(ArgForwarded&& arg) {
+      return arg.value();
+    }
+
+    template <typename ArgForwarded>
+    std::enable_if_t<
+      std::is_same<std::decay_t<ArgForwarded>, Arg>::value
+        and (pos_arg_is_index_range and pos_arg_has_mapping_to_dense),
       pos_arg_mapping_to_dense
     >
     get_mapping(ArgForwarded&& arg) {
@@ -386,12 +408,30 @@ struct _create_concurrent_region_impl {
     }
   };
 
+
   template <typename... Args>
-  using extracted_range_t = typename parse_for_mapping_argument<
-    tinympl::variadic::at_t<tinympl::variadic::find_if<
+  auto _extract_range(Args&&... args) const {
+    static constexpr auto arg_idx_mapping_derived_from = tinympl::variadic::find_if<
       parse_for_mapping_argument, Args...
-    >::value, Args...>
-  >::index_range_t;
+    >::value;
+    static_assert(arg_idx_mapping_derived_from < sizeof...(Args),
+      "Cannot determine IndexRange over which to create_concurrent_region and/or"
+        " the mapping of that IndexRange to dense indices"
+    );
+    using found_arg_or_kwarg_t = tinympl::variadic::at_t<arg_idx_mapping_derived_from, Args...>;
+    // TODO check that the range is valid if the range keyword argument is given
+    static_assert(arg_idx_mapping_derived_from == 0 or
+        not parse_for_mapping_argument<found_arg_or_kwarg_t>::from_positional_arg,
+      "create_concurrent_region IndexRange must be given as first positional argument"
+        " or as the keyword argument"
+        " darma_runtime::keyword_arguments_for_create_concurrent_region::index_range"
+    );
+    return parse_for_mapping_argument<found_arg_or_kwarg_t>().get_range(
+      std::get<arg_idx_mapping_derived_from>(
+        std::forward_as_tuple(std::forward<Args>(args)...)
+      )
+    );
+  }
 
   template <typename... Args>
   auto _extract_mapping(Args&&... args) const {
@@ -456,7 +496,8 @@ struct _create_concurrent_region_impl {
 
   template <typename... Args>
   void operator()(Args&&... args) const {
-    _do_register_concurrent_region<Functor, extracted_range_t<Args...>> (
+    _do_register_concurrent_region<Functor> (
+      _extract_range(std::forward<Args>(args)...),
       _extract_mapping(std::forward<Args>(args)...),
       _extract_dstore(std::forward<Args>(args)...),
       _extract_remaining_args_tuple(std::forward<Args>(args)...)

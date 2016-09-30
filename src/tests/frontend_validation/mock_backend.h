@@ -92,10 +92,10 @@ class MockRuntime
 
     void
     register_concurrent_region(
-      concurrent_region_task_unique_ptr&& task,
+      concurrent_region_task_unique_ptr&& task, size_t n_idxs,
       std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle> const& ds
     ) override {
-      register_concurrent_region_gmock_proxy(task.get(), ds.get());
+      register_concurrent_region_gmock_proxy(task.get(), n_idxs, ds.get());
     }
 
     bool
@@ -119,8 +119,8 @@ class MockRuntime
 
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
     MOCK_METHOD1(register_condition_task_gmock_proxy, bool(condition_task_t* task));
-    MOCK_METHOD2(register_concurrent_region_gmock_proxy, void(
-      concurrent_region_task_t*,
+    MOCK_METHOD3(register_concurrent_region_gmock_proxy, void(
+      concurrent_region_task_t*, size_t,
       darma_runtime::abstract::backend::DataStoreHandle*
     ));
     MOCK_METHOD0(make_data_store,
