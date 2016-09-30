@@ -98,7 +98,7 @@ TEST_F(TestCreateConcurrentRegion, simple_2d) {
 
   EXPECT_CALL(*mock_runtime, make_data_store()).WillOnce(Return(ds));
 
-  EXPECT_CALL(*mock_runtime, register_concurrent_region_gmock_proxy(_, ds.get()));
+  EXPECT_CALL(*mock_runtime, register_concurrent_region_gmock_proxy(_, 35, ds.get()));
 
   //============================================================================
   // actual code to be tested

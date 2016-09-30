@@ -83,7 +83,7 @@ struct DataStore {
     explicit
     DataStore(default_data_store_tag_t) : ds_handle_(nullptr) { }
 
-    bool is_default() const { return bool(ds_handle_); }
+    bool is_default() const { return not bool(ds_handle_); }
 
 };
 

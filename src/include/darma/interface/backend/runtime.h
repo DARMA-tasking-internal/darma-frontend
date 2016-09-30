@@ -133,7 +133,7 @@ class Runtime {
     virtual void
     register_concurrent_region(
       concurrent_region_task_unique_ptr&& task,
-      std::shared_ptr<DataStoreHandle> const& data_store = nullptr
+      size_t n_indices, std::shared_ptr<DataStoreHandle> const& data_store = nullptr
     ) =0;
 
     //virtual std::shared_ptr<RegionContextHandle>
