@@ -55,8 +55,10 @@ namespace darma_runtime {
 namespace abstract {
 namespace frontend {
 
+// TODO deprecate this
 class Index { };
 
+// TODO deprecate this
 struct IndexIterator {
   virtual Index& operator*() =0;
   virtual IndexIterator& operator++() =0;
@@ -66,16 +68,11 @@ struct IndexIterator {
 /** @todo
  *
  */
-class IndexRange : public PolymorphicSerializableObject<IndexRange> {
-  public:
+class IndexRange
+  : public PolymorphicSerializableObject<IndexRange>
+{ };
 
-    virtual std::unique_ptr<IndexIterator>
-    begin() =0;
-
-    virtual std::unique_ptr<IndexIterator>
-    end() =0;
-};
-
+// TODO deprecate this
 class CompactIndexRange : public IndexRange
 {
   public:
@@ -112,6 +109,7 @@ class CompactIndexRange : public IndexRange
 
 };
 
+// TODO deprecate this
 template <typename FromRange, typename ToRange>
 struct IndexMapping : PolymorphicSerializableObject<IndexMapping<FromRange, ToRange>> {
 

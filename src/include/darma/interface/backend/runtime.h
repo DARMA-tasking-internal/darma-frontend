@@ -404,8 +404,6 @@ class Runtime {
     publish_use(
       frontend::Use* u,
       frontend::PublicationDetails* details
-      //bool within_concurrent_region = true,
-      //std::shared_ptr<KeyValueStoreHandle> const& kv_store = nullptr
     ) =0;
 
     virtual void
@@ -413,8 +411,7 @@ class Runtime {
       frontend::Use* use_in,
       frontend::Use* use_out,
       frontend::CollectiveDetails const* details,
-      types::key_t const& tag,
-      std::shared_ptr<RegionContextHandle> const& reg_ctxt = nullptr
+      types::key_t const& tag
     ) =0;
 
     // </editor-fold> end publication, collectives, etc

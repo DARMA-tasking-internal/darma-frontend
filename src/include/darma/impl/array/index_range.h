@@ -218,15 +218,15 @@ class ContiguousIndexRange
 
     size_t stride() const override { return 1; }
 
-    std::unique_ptr<abstract::frontend::IndexIterator>
-    begin() override {
-      return std::make_unique<counting_iterator<size_t>>(offset());
-    }
+    //std::unique_ptr<abstract::frontend::IndexIterator>
+    //begin() override {
+    //  return std::make_unique<counting_iterator<size_t>>(offset());
+    //}
 
-    std::unique_ptr<abstract::frontend::IndexIterator>
-    end() override {
-      return std::make_unique<counting_iterator<size_t>>(offset() + size());
-    }
+    //std::unique_ptr<abstract::frontend::IndexIterator>
+    //end() override {
+    //  return std::make_unique<counting_iterator<size_t>>(offset() + size());
+    //}
 
 
 };

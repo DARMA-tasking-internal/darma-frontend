@@ -56,7 +56,7 @@ struct ConcurrentRegionTask : TaskImpl {
   public:
 
     virtual void set_region_context(
-      std::shared_ptr<ConcurrentRegionContextHandle> const&
+      std::shared_ptr<backend::ConcurrentRegionContextHandle> const&
     ) =0;
 
 };

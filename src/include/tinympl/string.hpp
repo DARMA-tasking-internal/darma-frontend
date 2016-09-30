@@ -293,7 +293,7 @@ template <typename T, T... Vals>
 using vector_c = basic_string<T, Vals...>;
 
 template <size_t... Sizes>
-using size_t_vector = basic_string<size_t, Sizes...>;
+using size_t_vector = std::integer_sequence<size_t, Sizes...>;
 
 
 /** @} */
