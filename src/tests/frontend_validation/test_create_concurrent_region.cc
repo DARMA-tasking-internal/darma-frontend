@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      publication_details.h.h
+//                      test_create_concurrent_region.cc
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,62 +42,70 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
-#define DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
-
-#include <darma_types.h>
-
-#include <darma/interface/backend/backend_fwd.h> // fwd decl of backend::DataStoreHandle
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 
-namespace darma_runtime {
-namespace abstract {
-namespace frontend {
+#include "mock_backend.h"
+#include "test_frontend.h"
 
-/**
- *  @brief A class encapsulating the attributes of a particular publish operation
- */
-class PublicationDetails {
-  public:
-    /** @brief  Get the unique version (as a key) of the item being published.
-     *          The combination of h.get_key() and get_version_name()
-     *          must be globally unique
-     *          for a Handle `h` returned by Use::get_handle() for the use
-     *          given as the first argument to Runtime::publish_use() for which
-     *          this object is the second object
-     *  @return A unique version name for the current publication of a given Handle
-     */
-    virtual types::key_t const&
-    get_version_name() const =0;
+#include <darma/interface/app/initial_access.h>
+#include <darma/interface/app/read_access.h>
+#include <darma/interface/app/create_work.h>
+#include <darma/impl/data_store.h>
+#include <darma/impl/array/range_2d.h>
 
-    /**
-     *  @brief  Get the number of unique fetches that will be performed.
-     *          All N fetches must be complete before the backend can
-     *          declare a publication to be finished.
-     *
-     *  @return The number of Runtime::make_fetching_flow() calls that will fetch the combination of key
-     *          and version given in the publish_use() call associated with this object
-     */
-    virtual size_t
-    get_n_fetchers() const =0;
+////////////////////////////////////////////////////////////////////////////////
 
-    /** @todo
-     *
-     * @return
-     */
-    virtual bool
-    is_within_concurrent_region() const { return true; }
+class TestCreateConcurrentRegion
+  : public TestFrontend
+{
+  protected:
 
-    /** @todo
-     *
-     * @return
-     */
-    virtual std::shared_ptr<backend::DataStoreHandle>
-    get_data_store() const { return nullptr; }
+    virtual void SetUp() {
+      using namespace ::testing;
+
+      setup_mock_runtime<::testing::NiceMock>();
+      TestFrontend::SetUp();
+      ON_CALL(*mock_runtime, get_running_task())
+        .WillByDefault(Return(top_level_task.get()));
+    }
+
+    virtual void TearDown() {
+      TestFrontend::TearDown();
+    }
+
 };
 
-} // end namespace frontend
-} // end namespace abstract
-} // end namespace darma_runtime
+////////////////////////////////////////////////////////////////////////////////
 
-#endif //DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
+struct MyCR {
+
+  void operator()(
+    darma_runtime::ConcurrentRegionContext<darma_runtime::Range2D<int>> context
+  ) const {
+
+  }
+};
+
+TEST_F(TestCreateConcurrentRegion, simple_2d) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_create_concurrent_region;
+  using namespace mock_backend;
+
+  //============================================================================
+  // actual code to be tested
+  {
+
+    auto my_ds = create_data_store();
+
+    create_concurrent_region<MyCR>(
+      Range2D<int>(5, 7), data_store=my_ds
+    );
+
+  }
+  //============================================================================
+
+
+}

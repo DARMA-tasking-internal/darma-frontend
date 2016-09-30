@@ -56,6 +56,7 @@
 
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/frontend/handle.h>
+#include <darma/interface/backend/region_context_handle.h>
 
 namespace mock_backend {
 
@@ -76,9 +77,8 @@ class MockRuntime
     using key_t = darma_runtime::types::key_t;
     using publication_details_t = darma_runtime::abstract::frontend::PublicationDetails;
     using flow_t = darma_runtime::types::flow_t;
-    using mapping_t = std::unique_ptr<darma_runtime::abstract::frontend::IndexMapping<
-      darma_runtime::abstract::frontend::IndexRange, darma_runtime::abstract::frontend::CompactIndexRange
-    >>;
+    using concurrent_region_task_t = runtime_t::concurrent_region_task_t;
+    using concurrent_region_task_unique_ptr = runtime_t::concurrent_region_task_unique_ptr;
 
     void
     register_task(
@@ -88,6 +88,14 @@ class MockRuntime
       if(save_tasks) {
         registered_tasks.emplace_back(std::forward<task_unique_ptr>(task));
       }
+    }
+
+    void
+    register_concurrent_region(
+      concurrent_region_task_unique_ptr&& task,
+      std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle> const& ds
+    ) override {
+      register_concurrent_region_gmock_proxy(task.get(), ds.get());
     }
 
     bool
@@ -108,15 +116,24 @@ class MockRuntime
 
     MOCK_CONST_METHOD0(get_spmd_rank, size_t());
     MOCK_CONST_METHOD0(get_spmd_size, size_t());
+
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
     MOCK_METHOD1(register_condition_task_gmock_proxy, bool(condition_task_t* task));
+    MOCK_METHOD2(register_concurrent_region_gmock_proxy, void(
+      concurrent_region_task_t*,
+      darma_runtime::abstract::backend::DataStoreHandle*
+    ));
+    MOCK_METHOD0(make_data_store,
+      std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle>()
+    );
+
     MOCK_CONST_METHOD0(get_running_task, task_t*());
     MOCK_METHOD0(finalize, void());
     MOCK_METHOD1(register_use, void(use_t*));
     MOCK_METHOD1(reregister_migrated_use, void(use_t*));
-    MOCK_METHOD1(make_initial_flow, flow_t(handle_t*));
-    MOCK_METHOD2(make_fetching_flow, flow_t(handle_t*, key_t const&));
-    MOCK_METHOD1(make_null_flow, flow_t(handle_t*));
+    MOCK_METHOD1(make_initial_flow, flow_t(std::shared_ptr<handle_t> const&));
+    MOCK_METHOD2(make_fetching_flow, flow_t(std::shared_ptr<handle_t> const&, key_t const&));
+    MOCK_METHOD1(make_null_flow, flow_t(std::shared_ptr<handle_t> const&));
     MOCK_METHOD1(make_forwarding_flow, flow_t(flow_t&));
     MOCK_METHOD1(make_next_flow, flow_t(flow_t&));
     MOCK_METHOD2(establish_flow_alias, void(flow_t&, flow_t&));
@@ -152,6 +169,19 @@ class MockSerializationPolicy
     MOCK_CONST_METHOD2(packed_size_contribution_for_blob, size_t(void const*, size_t));
     MOCK_CONST_METHOD3(pack_blob, void(void*&, void const*, size_t));
     MOCK_CONST_METHOD3(unpack_blob, void(void*&, void*, size_t));
+
+};
+
+struct MockConcurrentRegionContextHandle
+  : public darma_runtime::abstract::backend::ConcurrentRegionContextHandle
+{
+  public:
+    MOCK_CONST_METHOD0(get_backend_index, size_t());
+};
+
+struct MockDataStoreHandle
+  : public darma_runtime::abstract::backend::DataStoreHandle
+{
 
 };
 

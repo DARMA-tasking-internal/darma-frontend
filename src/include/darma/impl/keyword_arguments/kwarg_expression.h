@@ -47,6 +47,7 @@
 
 #include <tinympl/string.hpp>
 #include <tinympl/range_c.hpp>
+#include <tinympl/vector.hpp>
 
 #include "keyword_argument_name.h"
 #include "../meta/sentinal_type.h"
@@ -152,12 +153,14 @@ struct is_kwarg_expression
   : public std::false_type
 {
   typedef meta::nonesuch tag;
+  using argument_type = meta::nonesuch;
 };
 
 template <typename T, typename KWArgName>
 struct is_kwarg_expression<typeless_kwarg_expression<T, KWArgName>>
   : public std::true_type
 {
+  using argument_type = T;
   typedef typename KWArgName::tag tag;
 };
 
@@ -165,34 +168,46 @@ template <typename KWArgName, typename... Args>
 struct is_kwarg_expression<multiarg_typeless_kwarg_expression<KWArgName, Args...>>
   : public std::true_type
 {
+  using argument_type = tinympl::vector<Args...>;
+  using argument_type_vector = tinympl::vector<Args...>;
   typedef typename KWArgName::tag tag;
 };
 
 template <class T, class Tag>
 struct is_kwarg_expression_with_tag
   : public std::false_type
-{ };
+{
+  using argument_type = meta::nonesuch;
+};
 
+// DEPRECATED
 template <class T, typename Tag, typename U, bool rhs_is_lvalue>
 struct is_kwarg_expression_with_tag<
   kwarg_expression<T, keyword_argument_name<U, Tag>, rhs_is_lvalue>,
   Tag
 > : public std::true_type
-{ };
+{
+  using argument_type = U;
+};
 
 template <class T, typename Tag>
 struct is_kwarg_expression_with_tag<
   typeless_kwarg_expression<T, typeless_keyword_argument_name<Tag>>,
   Tag
 > : public std::true_type
-{ };
+{
+  using argument_type = T;
+};
 
 template <typename Tag, class... Ts>
 struct is_kwarg_expression_with_tag<
   multiarg_typeless_kwarg_expression<typeless_keyword_argument_name<Tag>, Ts...>,
   Tag
 > : public std::true_type
-{ };
+{
+  using argument_type = tinympl::vector<Ts...>;
+  using argument_type_vector = tinympl::vector<Ts...>;
+};
 
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////

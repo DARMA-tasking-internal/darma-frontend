@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      publication_details.h.h
+//                      data_store.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,62 +42,67 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
-#define DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
 
-#include <darma_types.h>
+#ifndef DARMA_IMPL_DATA_STORE_H
+#define DARMA_IMPL_DATA_STORE_H
 
-#include <darma/interface/backend/backend_fwd.h> // fwd decl of backend::DataStoreHandle
+#include <memory>
 
+#include <darma/interface/backend/data_store_handle.h>
+#include <darma/interface/backend/runtime.h>
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
 
-/**
- *  @brief A class encapsulating the attributes of a particular publish operation
- */
-class PublicationDetails {
+struct DataStore;
+
+namespace detail {
+struct DataStoreAttorney {
+  static inline std::shared_ptr<abstract::backend::DataStoreHandle>&
+  get_handle(DataStore&);
+};
+} // end namespace detail
+
+struct DataStore {
+  private:
+
+    std::shared_ptr<abstract::backend::DataStoreHandle> ds_handle_ = nullptr;
+
+    explicit
+    DataStore(std::shared_ptr<abstract::backend::DataStoreHandle> const& h)
+      : ds_handle_(h)
+    { }
+
+    friend DataStore create_data_store();
+
+    friend class detail::DataStoreAttorney;
+
   public:
-    /** @brief  Get the unique version (as a key) of the item being published.
-     *          The combination of h.get_key() and get_version_name()
-     *          must be globally unique
-     *          for a Handle `h` returned by Use::get_handle() for the use
-     *          given as the first argument to Runtime::publish_use() for which
-     *          this object is the second object
-     *  @return A unique version name for the current publication of a given Handle
-     */
-    virtual types::key_t const&
-    get_version_name() const =0;
 
-    /**
-     *  @brief  Get the number of unique fetches that will be performed.
-     *          All N fetches must be complete before the backend can
-     *          declare a publication to be finished.
-     *
-     *  @return The number of Runtime::make_fetching_flow() calls that will fetch the combination of key
-     *          and version given in the publish_use() call associated with this object
-     */
-    virtual size_t
-    get_n_fetchers() const =0;
+    static constexpr struct default_data_store_tag_t { } default_data_store_tag { };
 
-    /** @todo
-     *
-     * @return
-     */
-    virtual bool
-    is_within_concurrent_region() const { return true; }
+    explicit
+    DataStore(default_data_store_tag_t) : ds_handle_(nullptr) { }
 
-    /** @todo
-     *
-     * @return
-     */
-    virtual std::shared_ptr<backend::DataStoreHandle>
-    get_data_store() const { return nullptr; }
+    bool is_default() const { return bool(ds_handle_); }
+
 };
 
-} // end namespace frontend
-} // end namespace abstract
+
+inline DataStore create_data_store() {
+  return DataStore(abstract::backend::get_backend_runtime()->make_data_store());
+}
+
+namespace detail {
+
+inline std::shared_ptr<abstract::backend::DataStoreHandle>&
+DataStoreAttorney::get_handle(DataStore& ds) {
+  return ds.ds_handle_;
+}
+
+} // end namespace detail
+
+
+
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H
+#endif //DARMA_IMPL_DATA_STORE_H
