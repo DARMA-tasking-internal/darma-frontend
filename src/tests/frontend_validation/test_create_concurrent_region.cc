@@ -94,6 +94,12 @@ TEST_F(TestCreateConcurrentRegion, simple_2d) {
   using namespace darma_runtime::keyword_arguments_for_create_concurrent_region;
   using namespace mock_backend;
 
+  std::shared_ptr<MockDataStoreHandle> ds = std::make_shared<MockDataStoreHandle>();
+
+  EXPECT_CALL(*mock_runtime, make_data_store()).WillOnce(Return(ds));
+
+  EXPECT_CALL(*mock_runtime, register_concurrent_region_gmock_proxy(_, ds.get()));
+
   //============================================================================
   // actual code to be tested
   {
