@@ -60,7 +60,7 @@ struct find_all
   : public find_all_if<
       lambda<equal_to<tinympl::placeholders::_, T>>::template apply,
       Args...
-    >::type
+    >
 { };
 
 
