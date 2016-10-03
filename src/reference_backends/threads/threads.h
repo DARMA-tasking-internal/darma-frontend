@@ -184,6 +184,8 @@ namespace threads_backend {
   public:
     ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
+    size_t data_store_counter = 0;
+
     std::unordered_map<
       std::pair<types::key_t, types::key_t>,
       std::shared_ptr<DataBlock>
@@ -267,16 +269,6 @@ namespace threads_backend {
 
     void
     cleanup_handle(
-      std::shared_ptr<InnerFlow> flow
-    );
-
-    void
-    force_publish(
-      std::shared_ptr<InnerFlow> flow
-    );
-
-    void
-    force_destruct(
       std::shared_ptr<InnerFlow> flow
     );
 
@@ -383,6 +375,15 @@ namespace threads_backend {
     virtual void
     register_use(darma_runtime::abstract::frontend::Use* u);
 
+    virtual void
+    register_concurrent_region(
+      concurrent_region_task_unique_ptr&& task,
+      size_t n_indices, std::shared_ptr<DataStoreHandle> const& data_store = nullptr
+    );
+
+    virtual std::shared_ptr<DataStoreHandle>
+    make_data_store();
+
     std::shared_ptr<DataBlock>
     allocate_block(
       std::shared_ptr<handle_t const> handle,
@@ -391,7 +392,7 @@ namespace threads_backend {
 
     virtual flow_t
     make_initial_flow(
-      handle_t* handle
+      std::shared_ptr<handle_t> const& handle
     );
 
     bool
@@ -413,13 +414,13 @@ namespace threads_backend {
 
     virtual flow_t
     make_fetching_flow(
-      handle_t* handle,
+      std::shared_ptr<handle_t> const& handle,
       types::key_t const& version_key
     );
 
     virtual flow_t
     make_null_flow(
-      handle_t* handle
+      std::shared_ptr<handle_t> const& handle
     );
 
     virtual flow_t
