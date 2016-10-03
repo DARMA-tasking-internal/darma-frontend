@@ -528,7 +528,7 @@ struct _positional_arg_tuple_getter {
 
     template <typename... Args>
     using n_pos_t = typename
-      tinympl::size<typename _pos_arg_spots<Args...>::type>::type;
+      tinympl::size<_pos_arg_spots<Args...>>::type;
 
 
     template <typename... Args>
@@ -543,7 +543,7 @@ struct _positional_arg_tuple_getter {
   private:
     template <typename... Args, size_t... Spots>
     inline constexpr auto
-    _impl(m::vector_c<std::size_t, Spots...>, Args&&... args) const {
+    _impl(std::integer_sequence<std::size_t, Spots...>, Args&&... args) const {
       return std::forward_as_tuple(
         std::get<Spots>(std::forward_as_tuple(std::forward<Args>(args)...))...
       );

@@ -133,7 +133,9 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
     inline std::enable_if_t<has_allocator and std::is_same<_Ignored, void>::value>
     _deallocate_item(C const& c, void* ptr) const {
       auto alloc = c.get_allocator();
-      Alloc_traits::deallocate(alloc, static_cast<char*>(ptr), 1);
+      Alloc_traits::deallocate(alloc,
+        static_cast<typename Alloc_traits::pointer>(ptr), 1
+      );
     };
 
     template <typename _Ignored = void>
@@ -149,7 +151,7 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
     inline std::enable_if_t<not has_allocator and std::is_same<_Ignored, void>::value>
     _deallocate_item(C const& c, void* ptr) const {
       allocator_t alloc;
-      Alloc_traits::deallocate(alloc, static_cast<char*>(ptr), 1);
+      Alloc_traits::deallocate(alloc, static_cast<typename Alloc_traits::pointer>(ptr), 1);
     };
 
     template <typename ArchiveT>

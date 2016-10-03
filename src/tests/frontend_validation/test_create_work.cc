@@ -219,7 +219,7 @@ TEST_P(TestRoCaptureRN, ro_capture_RN) {
 
   MockFlow f_fetch, f_null;
   use_t* read_use;
-  expect_read_access(f_fetch, f_null, make_key("hello"), make_key("world"));
+  EXPECT_READ_ACCESS(f_fetch, f_null, make_key("hello"), make_key("world"));
 
   bool use_helper = GetParam();
 
@@ -288,9 +288,9 @@ TEST_P(TestCaptureMM, capture_MM) {
   use_t* use_outer, *use_inner;
   use_outer = use_inner = nullptr;
 
-  expect_initial_access(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
 
-  expect_mod_capture_MN_or_MR(finit, f_outer_out, use_outer);
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, f_outer_out, use_outer);
 
   task_t* outer;
   int value = 0;

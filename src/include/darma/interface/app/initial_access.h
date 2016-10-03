@@ -74,10 +74,10 @@ initial_access(
   auto* backend_runtime = abstract::backend::get_backend_runtime();
   auto var_h = detail::make_shared<detail::VariableHandle<T>>(key);
   auto in_flow = detail::make_flow_ptr(
-    backend_runtime->make_initial_flow( var_h.get() )
+    backend_runtime->make_initial_flow( var_h )
   );
   auto out_flow = detail::make_flow_ptr(
-    backend_runtime->make_null_flow( var_h.get() )
+    backend_runtime->make_null_flow( var_h )
   );
 
   return detail::access_attorneys::for_AccessHandle::construct_access<T>(

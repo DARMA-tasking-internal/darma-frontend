@@ -132,7 +132,7 @@ TEST_P(Test_simple_allreduce, overloads) {
   int overload = GetParam();
   ASSERT_THAT(overload, Lt(2));
 
-  expect_initial_access(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
 
   EXPECT_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use);
 
