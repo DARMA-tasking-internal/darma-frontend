@@ -89,6 +89,16 @@ class HandleUse
       return *(out_flow_.get());
     }
 
+    void
+    set_in_flow(types::flow_t const& flow) override {
+      in_flow_ = make_flow_ptr(flow);
+    }
+
+    void
+    set_out_flow(types::flow_t const& flow) override {
+      out_flow_ = make_flow_ptr(flow);
+    }
+
     abstract::frontend::Use::permissions_t
     immediate_permissions() const override {
       return immediate_permissions_;

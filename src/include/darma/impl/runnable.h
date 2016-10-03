@@ -411,7 +411,6 @@ class FunctorRunnable
 {
   private:
 
-    static const size_t index_;
     using base_t = FunctorLikeRunnableBase<Functor, Args...>;
 
     using args_tuple_t = typename base_t::args_tuple_t;
@@ -483,12 +482,12 @@ class FunctorRunnable
       >(ar);
     };
 
-    size_t get_index() const override { return index_; }
+    size_t get_index() const override { return register_runnable<FunctorRunnable>(); }
 };
 
-template <typename Functor, typename... Args>
-const size_t FunctorRunnable<Functor, Args...>::index_ =
-  register_runnable<FunctorRunnable<Functor, Args...>>();
+//template <typename Functor, typename... Args>
+//const size_t FunctorRunnable<Functor, Args...>::index_ =
+//  register_runnable<FunctorRunnable<Functor, Args...>>();
 
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////

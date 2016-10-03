@@ -303,8 +303,9 @@ unpack_task(void* packed_data) {
 
   auto rv = detail::make_unique<detail::TaskBase>();
 
+  auto& reg = darma_runtime::detail::get_runnable_registry();
   rv->set_runnable(
-    darma_runtime::detail::get_runnable_registry().at(runnable_index)(
+    reg.at(runnable_index)(
       (void*)&ar
     )
   );
