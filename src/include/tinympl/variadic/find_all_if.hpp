@@ -54,6 +54,7 @@
 #include "../plus.hpp"
 #include "../to_vector_c.hpp"
 #include "../logical_not.hpp"
+#include "../stl_integer_sequence.hpp"
 
 namespace tinympl {
 namespace variadic {

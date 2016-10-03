@@ -60,7 +60,7 @@ meta_assert_same(
     vector<float, int, int, float, double>,
     float
   >::type,
-  vector_c<size_t, 0, 3>
+  std::integer_sequence<size_t, 0, 3>
 );
 
 meta_assert_same(
@@ -68,7 +68,7 @@ meta_assert_same(
     vector<float, int, int, float, double>,
     std::is_integral
   >::type,
-  vector_c<size_t, 1, 2>
+  std::integer_sequence<size_t, 1, 2>
 );
 
 
@@ -77,7 +77,7 @@ meta_assert_same(
     vector<float>,
     std::is_integral
   >::type,
-  vector_c<size_t>
+  std::integer_sequence<size_t>
 );
 
 meta_assert_same(
@@ -85,7 +85,7 @@ meta_assert_same(
     vector<>,
     std::is_integral
   >::type,
-  vector_c<size_t>
+  std::integer_sequence<size_t>
 );
 
 meta_assert_same(
@@ -93,5 +93,5 @@ meta_assert_same(
     vector<int>,
     std::is_integral
   >::type,
-  vector_c<size_t, 0>
+  std::integer_sequence<size_t, 0>
 );
