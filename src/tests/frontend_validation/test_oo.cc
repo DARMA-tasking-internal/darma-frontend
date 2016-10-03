@@ -441,8 +441,8 @@ TEST_F(TestOO, field_slicing_simple) {
   MockFlow f_init_priv, f_null_priv;
   MockFlow f_init_pub, f_null_pub;
 
-  expect_initial_access(f_init_priv, f_null_priv, make_key("hello"));
-  expect_initial_access(f_init_pub, f_null_pub, make_key("world"));
+  EXPECT_INITIAL_ACCESS(f_init_priv, f_null_priv, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init_pub, f_null_pub, make_key("world"));
 
   {
     MyOtherClass my;
@@ -460,9 +460,9 @@ TEST_F(TestOO, field_slicing_method) {
   MockFlow f_init_pub, f_null_pub, f_task_pub;
   use_t* task_use;
 
-  expect_initial_access(f_init_priv, f_null_priv, make_key("hello"));
-  expect_initial_access(f_init_pub, f_null_pub, make_key("world"));
-  expect_mod_capture_MN_or_MR(f_init_pub, f_task_pub, task_use);
+  EXPECT_INITIAL_ACCESS(f_init_priv, f_null_priv, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init_pub, f_null_pub, make_key("world"));
+  EXPECT_MOD_CAPTURE_MN_OR_MR(f_init_pub, f_task_pub, task_use);
 
   int value = 0;
 
@@ -512,7 +512,7 @@ TEST_F(TestOO, field_slicing_method) {
 //
 //  MockFlow f_init, f_null;
 //
-//  expect_initial_access(f_init, f_null, make_key("default_private_key"));
+//  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("default_private_key"));
 //
 //  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_init, &f_null));
 //
@@ -529,7 +529,7 @@ TEST_F(TestOO, private_key_ctor) {
 
   MockFlow f_init, f_null;
 
-  expect_initial_access(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
 
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_init, &f_null));
 
@@ -547,7 +547,7 @@ TEST_F(TestOO, handle) {
 
   MockFlow f_init, f_null;
 
-  expect_initial_access(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
   {
     auto tmp = initial_access<std::string>("hello");
     MyClass my(tmp);
@@ -568,8 +568,8 @@ TEST_F(TestOO, both_keys) {
   MockFlow f_init_priv, f_null_priv;
   MockFlow f_init_pub, f_null_pub;
 
-  expect_initial_access(f_init_priv, f_null_priv, make_key("hello"));
-  expect_initial_access(f_init_pub, f_null_pub, make_key("world"));
+  EXPECT_INITIAL_ACCESS(f_init_priv, f_null_priv, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init_pub, f_null_pub, make_key("world"));
 
   {
     MyClass my(make_key("hello"), make_key("world"));

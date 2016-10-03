@@ -217,6 +217,14 @@ class VariableHandleBase
       return this->KeyedObject<key_t>::get_key();
     }
 
+    bool
+    has_user_defined_key() const override { return true; /* for now */ }
+
+    void
+    set_key(key_t const& generated_key) override {
+      return this->KeyedObject<key_t>::set_key(generated_key);
+    }
+
     explicit VariableHandleBase(
       const key_t &key
     ) : keyed_base_t(key) { }

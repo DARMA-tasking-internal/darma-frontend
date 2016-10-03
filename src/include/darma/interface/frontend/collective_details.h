@@ -48,6 +48,7 @@
 #include <cstdlib>
 
 #include "reduce_operation.h"
+#include <darma/interface/backend/region_context_handle.h>
 
 namespace darma_runtime {
 namespace abstract {

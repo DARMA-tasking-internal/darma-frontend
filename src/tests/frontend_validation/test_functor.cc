@@ -217,7 +217,7 @@ TEST_P(TestFunctorModCaptures, Parametrized) {
   MockFlow f_initial, f_null, f_task_out;
   use_t* task_use = nullptr;
 
-  expect_initial_access(f_initial, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_initial, f_null, make_key("hello"));
 
   //--------------------
   // Expect mod capture:
@@ -297,7 +297,7 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
 
   Sequence s1;
 
-  expect_initial_access(fl_init, fl_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(fl_init, fl_null, make_key("hello"));
 
   //--------------------
   // Expect ro capture:
@@ -384,12 +384,6 @@ INSTANTIATE_TEST_CASE_P(
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct FunctorHandleRef {
-  void
-  operator()( AccessHandle<int>& ) const {
-    std::cout << "Hello World" << std::endl;
-  }
-};
 
 TEST_F(TestFunctor, simple_handle_ref) {
   using namespace ::testing;
@@ -415,6 +409,13 @@ TEST_F(TestFunctor, simple_handle_ref) {
   {
     auto tmp = initial_access<int>("hello");
 
+    struct FunctorHandleRef {
+      void
+      operator()( AccessHandle<int>& ) const {
+        std::cout << "Hello World" << std::endl;
+      }
+    };
+
     create_work<FunctorHandleRef>(tmp);
 
   }
@@ -430,3 +431,45 @@ TEST_F(TestFunctor, simple_handle_ref) {
     "Hello World\n"
   );
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+//TEST_F(TestFunctor, simple_handle_ref) {
+//  using namespace ::testing;
+//  using namespace mock_backend;
+//
+//  testing::internal::CaptureStdout();
+//
+//  mock_runtime->save_tasks = true;
+//
+//  MockFlow f_init, f_task_out, f_null;
+//  use_t* task_use;
+//
+//  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+//
+//  EXPECT_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use);
+//
+//  EXPECT_FLOW_ALIAS(f_task_out, f_null);
+//
+//  EXPECT_RELEASE_FLOW(f_null);
+//
+//  //============================================================================
+//  // Code to actually be tested
+//  {
+//    auto tmp = initial_access<int>("hello");
+//
+//    create_work<FunctorHandleRef>(tmp);
+//
+//  }
+//  //============================================================================
+//
+//  EXPECT_RELEASE_USE(task_use);
+//  EXPECT_RELEASE_FLOW(f_init);
+//  EXPECT_RELEASE_FLOW(f_task_out);
+//
+//  run_all_tasks();
+//
+//  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+//    "Hello World\n"
+//  );
+//}

@@ -271,6 +271,14 @@ class TestFrontend
 
     }
 
+    auto is_handle_with_key(
+      darma_runtime::types::key_t const& key
+    ) {
+      return ::testing::Truly([=](auto&& h) {
+        return h->get_key() == key;
+      });
+    }
+
     ////////////////////////////////////////
 
     void

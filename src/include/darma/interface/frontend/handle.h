@@ -105,7 +105,7 @@ class Handle {
      *  should return from get_key()
      */
     virtual void
-    set_key(types::key_t const& generated_key) const =0;
+    set_key(types::key_t const& generated_key) =0;
 
     /**
      * @brief get_serialization_manager Returns a type-specific serialization
