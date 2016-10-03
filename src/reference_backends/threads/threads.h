@@ -271,16 +271,6 @@ namespace threads_backend {
     );
 
     void
-    force_publish(
-      std::shared_ptr<InnerFlow> flow
-    );
-
-    void
-    force_destruct(
-      std::shared_ptr<InnerFlow> flow
-    );
-
-    void
     delete_handle_data(
       handle_t const* handle,
       types::key_t const& version,
@@ -391,7 +381,7 @@ namespace threads_backend {
 
     virtual flow_t
     make_initial_flow(
-      handle_t* handle
+      std::shared_ptr<handle_t> const& handle
     );
 
     bool
@@ -413,13 +403,13 @@ namespace threads_backend {
 
     virtual flow_t
     make_fetching_flow(
-      handle_t* handle,
+      std::shared_ptr<handle_t> const& handle,
       types::key_t const& version_key
     );
 
     virtual flow_t
     make_null_flow(
-      handle_t* handle
+      std::shared_ptr<handle_t> const& handle
     );
 
     virtual flow_t

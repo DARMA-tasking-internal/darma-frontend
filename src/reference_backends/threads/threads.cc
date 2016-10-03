@@ -352,7 +352,7 @@ namespace threads_backend {
       if (f_in->isFetch &&
           threads_backend::depthFirstExpand &&
           !f_in->fetcherAdded) {
-        blocking_fetch(f_in->handle, f_in->version_key);
+        blocking_fetch(f_in->handle.get(), f_in->version_key);
         f_in->fetcherAdded = true;
         f_in->state = FlowReadReady;
         f_in->ready = true;
@@ -360,7 +360,7 @@ namespace threads_backend {
                  !f_in->fetcherAdded) {
         auto node = std::make_shared<FetchNode>(FetchNode{this,f_in});
         const bool ready = add_fetcher(node,
-                                       f_in->handle,
+                                       f_in->handle.get(),
                                        f_in->version_key);
         if (ready) {
           DEBUG_PRINT("check_dep_task: adding fetch node to deque\n");
@@ -551,9 +551,6 @@ namespace threads_backend {
                 f_in->shared_reader_count,
                 *f_in->shared_reader_count
                 );
-
-    // count references to a given handle
-    //handle_refs[handle]++;
   }
 
   std::shared_ptr<DataBlock>
@@ -589,7 +586,7 @@ namespace threads_backend {
   /*virtual*/
   flow_t
   ThreadsRuntime::make_initial_flow(
-    handle_t* handle
+    std::shared_ptr<handle_t> const& handle
   ) {
     auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [](InnerFlow* flow){
       DEBUG_PRINT("make_initial_flow: deleter running %ld\n",
@@ -599,7 +596,6 @@ namespace threads_backend {
     f->state = FlowReadReady;
     f->ready = true;
     f->handle = handle;
-    ///handle_refs[handle]++;
     return f;
   }
 
@@ -849,7 +845,7 @@ namespace threads_backend {
   /*virtual*/
   flow_t
   ThreadsRuntime::make_fetching_flow(
-    handle_t* handle,
+    std::shared_ptr<handle_t> const& handle,
     types::key_t const& version_key
   ) {
     DEBUG_VERBOSE_PRINT("make fetching flow\n");
@@ -860,9 +856,6 @@ namespace threads_backend {
       delete flow;
     });
 
-    ///handle_refs[handle]++;
-
-    f->handle = handle;
     f->version_key = version_key;
     f->isFetch = true;
     f->fromFetch = true;
@@ -875,7 +868,7 @@ namespace threads_backend {
   /*virtual*/
   flow_t
   ThreadsRuntime::make_null_flow(
-    handle_t* handle
+    std::shared_ptr<handle_t> const& handle
  ) {
     DEBUG_VERBOSE_PRINT("make null flow\n");
 
@@ -886,7 +879,6 @@ namespace threads_backend {
     });
 
     f->isNull = true;
-    f->handle = handle;
 
     DEBUG_PRINT("null flow %lu\n", PRINT_LABEL(f));
 
@@ -978,56 +970,6 @@ namespace threads_backend {
   }
 
   void
-  ThreadsRuntime::force_publish(
-    std::shared_ptr<InnerFlow> flow
-  ) {
-    // auto const* const handle = flow->handle;
-
-    // ///assert(handle_refs[handle] == 1);
-
-    // if (handle_pubs.find(handle) != handle_pubs.end()) {
-    //   for (auto pub : handle_pubs[handle]) {
-    //     pub->node->execute();
-    //     pub->finished = true;
-
-    //     // explicitly don't call clean up because we do it manually
-    //     // TODO: fix this problem with iterator
-
-    //     DEBUG_PRINT("force_publish: flow %ld, state=%s, handle=%p\n",
-    //                 PRINT_LABEL(flow),
-    //                 PRINT_STATE(flow),
-    //                 handle);
-    //   }
-    //   handle_pubs.erase(handle);
-    // }
-  }
-
-  void
-  ThreadsRuntime::force_destruct(
-    std::shared_ptr<InnerFlow> flow
-  ) {
-    // auto handle = flow->handle;
-    // auto const& version = flow->version_key;
-    // auto const& key = handle->get_key();
-    // DataBlock* block = flow->fromFetch ? fetched_data[{version,key}] : data[{version,key}];
-
-    // //assert(!block->forceDestruct);
-
-    // if (!block->forceDestruct) {
-    //   DEBUG_PRINT("force destructor (%p) on flow %ld, state=%s\n",
-    //               block,
-    //               PRINT_LABEL(flow),
-    //               PRINT_STATE(flow));
-
-    //   handle
-    //     ->get_serialization_manager()
-    //     ->destroy(block->data);
-
-    //   block->forceDestruct = true;
-    // }
-  }
-
-  void
   ThreadsRuntime::cleanup_handle(
     std::shared_ptr<InnerFlow> flow
   ) {
@@ -1038,7 +980,7 @@ namespace threads_backend {
                 flow->alias ? flow->alias->handle : nullptr)
 
     delete_handle_data(
-      handle,
+      handle.get(),
       flow->version_key,
       flow->key,
       flow->fromFetch
@@ -1056,17 +998,9 @@ namespace threads_backend {
 
     if (data_store.find({version,key}) !=
         data_store.end()) {
-      auto const& item = data_store[{version,key}];
-      DEBUG_PRINT("item use count = %ld\n", item.use_count());
-      // if (item.use_count() == 2) {
-      //   // call the destructor
-      //   handle
-      //     ->get_serialization_manager()
-      //     ->destroy(item->data);
-        data_store.erase(
-          data_store.find({version,key})
-        );
-      //}
+      data_store.erase(
+        data_store.find({version,key})
+      );
     }
   }
 
@@ -1693,8 +1627,6 @@ namespace threads_backend {
                 PRINT_KEY(version),
                 PRINT_KEY(key));
 
-    //handle_refs[handle]--;
-
     if (!f_in->fromFetch) {
       data[{version,key}]->refs--;
     } else {
@@ -1801,8 +1733,6 @@ namespace threads_backend {
   ThreadsRuntime::publish_finished(std::shared_ptr<DelayedPublish> publish) {
     DEBUG_PRINT("publish finished, removing from handle %p\n",
                 publish->handle.get());
-    ///handle_pubs[publish->handle].remove(publish);
-
     transition_after_read(
       publish->flow
     );

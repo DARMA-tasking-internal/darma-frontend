@@ -67,7 +67,7 @@ namespace threads_backend {
     std::shared_ptr<InnerFlow> forward, next;
     std::shared_ptr<DataBlock> data_block = nullptr;
     types::key_t version_key, key;
-    handle_t* handle = nullptr;
+    std::shared_ptr<handle_t> handle = nullptr;
     bool ready, isNull, isFetch, fromFetch, isCollective, isForward;
     bool  isWriteForward, fetcherAdded;
 
@@ -94,7 +94,7 @@ namespace threads_backend {
     InnerFlow(const InnerFlow& in) = default;
 
     InnerFlow(
-      handle_t* handle_
+      std::shared_ptr<handle_t> handle_
     )
       : forward(nullptr)
       , next(nullptr)

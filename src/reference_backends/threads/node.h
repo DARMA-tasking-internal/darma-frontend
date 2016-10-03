@@ -129,7 +129,7 @@ namespace threads_backend {
       }
 
       TraceLog* pub_log = runtime->fetch(
-        fetch->handle,
+        fetch->handle.get(),
         fetch->version_key
       );
 
@@ -152,7 +152,7 @@ namespace threads_backend {
 
     bool ready() override {
       return runtime->test_fetch(
-        fetch->handle,
+        fetch->handle.get(),
         fetch->version_key
       );
     }
