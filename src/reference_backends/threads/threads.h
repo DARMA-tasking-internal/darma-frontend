@@ -184,6 +184,8 @@ namespace threads_backend {
   public:
     ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
+    size_t data_store_counter = 0;
+
     std::unordered_map<
       std::pair<types::key_t, types::key_t>,
       std::shared_ptr<DataBlock>
@@ -372,6 +374,15 @@ namespace threads_backend {
 
     virtual void
     register_use(darma_runtime::abstract::frontend::Use* u);
+
+    virtual void
+    register_concurrent_region(
+      concurrent_region_task_unique_ptr&& task,
+      size_t n_indices, std::shared_ptr<DataStoreHandle> const& data_store = nullptr
+    );
+
+    virtual std::shared_ptr<DataStoreHandle>
+    make_data_store();
 
     std::shared_ptr<DataBlock>
     allocate_block(

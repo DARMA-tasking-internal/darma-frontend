@@ -138,6 +138,20 @@ namespace threads_backend {
 
     virtual ~DataBlock() { free(data); }
   };
+
+  struct DataStore
+    : DataStoreHandle {
+    size_t rank = 0;
+    size_t handle_id = 0;
+
+    DataStore(size_t in_rank,
+              size_t in_handle_id)
+      : rank(in_rank)
+      , handle_id(in_handle_id)
+    { }
+
+    DataStore(DataStore const& other) = default;
+  };
 }
 
 #endif /* _THREADS_COMMON_BACKEND_RUNTIME_H_ */

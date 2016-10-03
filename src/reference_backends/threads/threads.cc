@@ -1740,6 +1740,25 @@ namespace threads_backend {
 
   /*virtual*/
   void
+  ThreadsRuntime::register_concurrent_region(
+    concurrent_region_task_unique_ptr&& task,
+    size_t n_indices,
+    std::shared_ptr<DataStoreHandle> const& data_store
+  ) {
+
+  }
+
+  /*virtual*/
+  std::shared_ptr<DataStoreHandle>
+  ThreadsRuntime::make_data_store() {
+    return std::make_shared<DataStore>(
+      this_rank,
+      data_store_counter++
+    );
+  }
+
+  /*virtual*/
+  void
   ThreadsRuntime::publish_use(darma_runtime::abstract::frontend::Use* f,
                               darma_runtime::abstract::frontend::PublicationDetails* details) {
 
