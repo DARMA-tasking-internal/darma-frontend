@@ -124,11 +124,17 @@ class Use {
     virtual types::flow_t const&
     get_in_flow() const =0;
 
+    virtual void
+    set_in_flow(types::flow_t const&) =0;
+
     /** @brief Get the Flow that is produced or made available when this Use is
      *  released
      */
     virtual types::flow_t const&
     get_out_flow() const =0;
+
+    virtual void
+    set_out_flow(types::flow_t const&) =0;
 
     /** @brief Get the immediate permissions needed for the Flow returned by
      *  get_in_flow() to be ready as a precondition for this Use

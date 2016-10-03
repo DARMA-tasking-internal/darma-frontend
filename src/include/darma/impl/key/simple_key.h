@@ -451,7 +451,7 @@ struct Serializer<darma_runtime::detail::SimpleKey> {
   }
   template <typename ArchiveT>
   void pack(darma_runtime::detail::SimpleKey const& val, ArchiveT& ar) const {
-    ar << (size_t)val.types_.size();
+    ar << static_cast<size_t>(val.types_.size());
     for(auto&& t : val.types_) ar << t;
     for(auto&& c : val.components_) {
       ar << c.get_size();

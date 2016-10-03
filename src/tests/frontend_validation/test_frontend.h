@@ -160,6 +160,30 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
     f_in, f_out, use_t::Modify, use_t::Modify \
   ))).WillOnce(::testing::SaveArg<0>(&use)); \
 
+#define EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(f_in, f_out, use, value) \
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_in)) \
+    .WillOnce(::testing::Return(f_out)); \
+  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+    f_in, f_out, use_t::Modify, use_t::Modify \
+  ))).WillOnce(Invoke([&](auto&& use_arg){ \
+    use = use_arg; use->get_data_pointer_reference() = &value; \
+  }));
+
+#define EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR(f_in, f_out, use) \
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_in)) \
+    .WillOnce(::testing::Return(f_out)); \
+  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+    f_in, f_out, use_t::None, use_t::Modify \
+  ))).WillOnce(::testing::SaveArg<0>(&use)); \
+
+#define EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(f_in, f_out, use, value) \
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_in)) \
+    .WillOnce(::testing::Return(f_out)); \
+  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+    f_in, f_out, use_t::None, use_t::Modify \
+  ))).WillOnce(Invoke([&](auto&& use_arg){ \
+    use = use_arg; use->get_data_pointer_reference() = &value; \
+  }));
 
 /* eventually expect release of flow */ \
 /* EXPECT_CALL(*mock_runtime, release_flow(::testing::Eq(f_out))); */ \
@@ -196,6 +220,19 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
           &fread, &fread, -1, use_t::Read \
         ) \
     )), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce(SaveArg<0>(&use_ptr)); } \
+  )
+
+#define EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(fread, use_ptr, value) \
+  ::_impl::in_sequence_wrapper( \
+    EXPECT_CALL(*mock_runtime, register_use( \
+        IsUseWithFlows( \
+          &fread, &fread, -1, use_t::Read \
+        ) \
+    )), [&](auto&& exp) -> decltype(auto) { \
+          return exp.WillOnce(::testing::Invoke([&](auto&& use_arg) { \
+            use_ptr = use_arg; use_ptr->get_data_pointer_reference() = &value; \
+          })); \
+        } \
   )
 
 #define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed) \

@@ -42,38 +42,8 @@
 //@HEADER
 */
 
-#include <gtest/gtest.h>
+#include "test_functor.h"
 
-#include "mock_backend.h"
-#include "test_frontend.h"
-
-#include <darma/interface/app/access_handle.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/interface/app/initial_access.h>
-
-using namespace darma_runtime;
-
-////////////////////////////////////////////////////////////////////////////////
-
-class TestFunctor
-  : public TestFrontend
-{
-  protected:
-
-    virtual void SetUp() {
-      using namespace ::testing;
-
-      setup_mock_runtime<::testing::NiceMock>();
-      TestFrontend::SetUp();
-      ON_CALL(*mock_runtime, get_running_task())
-        .WillByDefault(Return(top_level_task.get()));
-    }
-
-    virtual void TearDown() {
-      TestFrontend::TearDown();
-    }
-
-};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -432,44 +402,3 @@ TEST_F(TestFunctor, simple_handle_ref) {
   );
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
-//TEST_F(TestFunctor, simple_handle_ref) {
-//  using namespace ::testing;
-//  using namespace mock_backend;
-//
-//  testing::internal::CaptureStdout();
-//
-//  mock_runtime->save_tasks = true;
-//
-//  MockFlow f_init, f_task_out, f_null;
-//  use_t* task_use;
-//
-//  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
-//
-//  EXPECT_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use);
-//
-//  EXPECT_FLOW_ALIAS(f_task_out, f_null);
-//
-//  EXPECT_RELEASE_FLOW(f_null);
-//
-//  //============================================================================
-//  // Code to actually be tested
-//  {
-//    auto tmp = initial_access<int>("hello");
-//
-//    create_work<FunctorHandleRef>(tmp);
-//
-//  }
-//  //============================================================================
-//
-//  EXPECT_RELEASE_USE(task_use);
-//  EXPECT_RELEASE_FLOW(f_init);
-//  EXPECT_RELEASE_FLOW(f_task_out);
-//
-//  run_all_tasks();
-//
-//  ASSERT_EQ(testing::internal::GetCapturedStdout(),
-//    "Hello World\n"
-//  );
-//}
