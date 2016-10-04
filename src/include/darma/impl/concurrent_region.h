@@ -105,7 +105,7 @@ struct ConcurrentRegionContext {
     index() {
       if(not index_computed_) {
         assert(context_handle_);
-        index_and_mapping_.first() = index_and_mapping_.second().map_backward(
+        index_and_mapping_.first() = index_and_mapping_.second().map_reverse(
           context_handle_->get_backend_index()
         );
         index_computed_ = true;
