@@ -558,6 +558,22 @@ create_concurrent_region(Args&&... args) {
   );
 };
 
+namespace abstract {
+
+namespace frontend {
+
+template <>
+inline backend::runtime_t::concurrent_region_task_unique_ptr
+unpack_concurrent_region_task(void* packed_data) {
+  return detail::_unpack_task<
+    darma_runtime::detail::ConcurrentRegionTaskImpl
+  >(packed_data);
+}
+
+} // end namespace frontend
+
+} // end namespace abstract
+
 } // end namespace darma_runtime
 
 #endif //DARMA_IMPL_CONCURRENT_REGION_H

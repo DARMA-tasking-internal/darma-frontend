@@ -329,7 +329,7 @@ class TestFrontend
     ////////////////////////////////////////
 
     void
-    run_one_cr_rank() {
+    run_one_cr_rank(bool do_move = true) {
       using namespace mock_backend;
       auto& cr = mock_runtime->concurrent_regions.front();
       std::shared_ptr<MockConcurrentRegionContextHandle> ctxt =
@@ -337,9 +337,20 @@ class TestFrontend
       EXPECT_CALL(*ctxt, get_backend_index())
         .Times(AtLeast(0))
         .WillRepeatedly(Return(cr.n_run_so_far));
-      mock_runtime->concurrent_regions.front().task->set_region_context(ctxt);
-      cr.task->set_region_context(ctxt);
-      cr.task->run();
+
+      // do SerDes on the task object so that the same instance doesn't get
+      // run multiple times, in keeping with task life cycle
+      size_t task_size = cr.task->get_packed_size();
+      char buffer[task_size];
+      cr.task->pack(buffer);
+
+      auto task_copy =
+        darma_runtime::abstract::frontend::unpack_concurrent_region_task<
+          darma_runtime::types::concrete_task_t
+        >(buffer);
+
+      task_copy->set_region_context(ctxt);
+      task_copy->run();
     }
 
     void
