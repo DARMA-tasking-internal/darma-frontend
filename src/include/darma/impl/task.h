@@ -290,8 +290,11 @@ namespace abstract {
 
 namespace frontend {
 
-inline backend::runtime_t::task_unique_ptr
-unpack_task(void* packed_data) {
+namespace detail {
+
+template <typename ConcreteTaskT>
+inline std::unique_ptr<ConcreteTaskT>
+_unpack_task(void* packed_data) {
   using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
   serialization::SimplePackUnpackArchive ar;
 
@@ -301,7 +304,7 @@ unpack_task(void* packed_data) {
   std::size_t runnable_index;
   ar >> runnable_index;
 
-  auto rv = detail::make_unique<detail::TaskBase>();
+  auto rv = std::make_unique<ConcreteTaskT>();
 
   auto& reg = darma_runtime::detail::get_runnable_registry();
   rv->set_runnable(
@@ -312,6 +315,14 @@ unpack_task(void* packed_data) {
 
   return std::move(rv);
 }
+
+} // end namespace detail
+
+inline backend::runtime_t::task_unique_ptr
+unpack_task(void* packed_data) {
+  return detail::_unpack_task<darma_runtime::detail::TaskBase>(packed_data);
+}
+
 
 } // end namespace frontend
 

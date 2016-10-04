@@ -61,6 +61,11 @@ struct ConcurrentRegionTask : TaskImpl {
 
 };
 
+template <typename TaskImpl>
+std::unique_ptr<ConcurrentRegionTask<TaskImpl>>
+unpack_concurrent_region_task(void* buffer);
+
+
 } // end namespace frontend
 } // end namespace abstract
 } // end namespace darma_runtime
