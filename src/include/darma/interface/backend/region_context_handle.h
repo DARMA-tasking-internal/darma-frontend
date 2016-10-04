@@ -55,7 +55,7 @@ namespace backend {
 
 struct ConcurrentRegionContextHandle {
   public:
-    virtual size_t get_backend_index() =0;
+    virtual size_t get_backend_index() const =0;
 };
 
 } // end namespace backend

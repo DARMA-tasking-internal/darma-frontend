@@ -58,7 +58,7 @@ struct Index2D {
     Integer idxs[2];
   public:
     Index2D() = default;
-    Index2D(Integer const& in_x, Integer const& in_y) : idxs{in_x,in_y} { }
+    Index2D(Integer const& in_x, Integer const& in_y) { idxs[0] = in_x; idxs[1] = in_y; }
     Integer const& x() const { return idxs[0]; }
     Integer const& y() const { return idxs[1]; }
     Integer const& component(int i) const {
@@ -91,15 +91,22 @@ struct Range2D : abstract::frontend::IndexRange {
 
     Range2D() = default;
 
-    Range2D(Integer end1, Integer end2)
-      : begin_{Integer(0), Integer(0)}, end_{end1, end2}
-    { }
+    Range2D(Integer end1, Integer end2) {
+      begin_[0] = Integer(0);
+      begin_[1] = Integer(0);
+      end_[0] = end1;
+      end_[1] = end2;
+    }
 
     Range2D(
       Integer begin1, Integer end1,
       Integer begin2, Integer end2
-    ) : begin_{begin1, begin2}, end_{end1, end2}
-    { }
+    ) {
+      begin_[0] = begin1;
+      begin_[1] = end1;
+      end_[0] = end1;
+      end_[1] = end2;
+    }
 
     Integer const&
     begin_of_dimension(int i) const {
@@ -193,11 +200,11 @@ struct Range2DDenseMapping {
     }
 
     from_index_t map_reverse(to_index_t const& to_idx) const {
-      const Integer x_size = full_range.end_of_dimension(0) - full_range.begin_of_dimension(0);
+      const Integer y_size = full_range.end_of_dimension(1) - full_range.begin_of_dimension(1);
       assert(full_range.size() != 0);
       return Index2D<Integer>(
-        (to_idx / x_size) + full_range.begin_of_dimension(0),
-        (to_idx % x_size) + full_range.begin_of_dimension(1)
+        (to_idx / y_size) + full_range.begin_of_dimension(0),
+        (to_idx % y_size) + full_range.begin_of_dimension(1)
       );
     }
 

@@ -84,7 +84,7 @@ struct MyCR {
   void operator()(
     darma_runtime::ConcurrentRegionContext<darma_runtime::Range2D<int>> context
   ) const {
-
+    std::cout << "(" << context.index().x() << ", " << context.index().y() << ") ";
   }
 };
 
@@ -94,11 +94,13 @@ TEST_F(TestCreateConcurrentRegion, simple_2d) {
   using namespace darma_runtime::keyword_arguments_for_create_concurrent_region;
   using namespace mock_backend;
 
+  testing::internal::CaptureStdout();
+
   std::shared_ptr<MockDataStoreHandle> ds = std::make_shared<MockDataStoreHandle>();
 
   EXPECT_CALL(*mock_runtime, make_data_store()).WillOnce(Return(ds));
 
-  EXPECT_CALL(*mock_runtime, register_concurrent_region_gmock_proxy(_, 35, ds.get()));
+  EXPECT_CALL(*mock_runtime, register_concurrent_region_gmock_proxy(_, 6, ds.get()));
 
   //============================================================================
   // actual code to be tested
@@ -107,11 +109,16 @@ TEST_F(TestCreateConcurrentRegion, simple_2d) {
     auto my_ds = create_data_store();
 
     create_concurrent_region<MyCR>(
-      Range2D<int>(5, 7), data_store=my_ds
+      Range2D<int>(3, 2), data_store=my_ds
     );
 
   }
   //============================================================================
 
+  run_all_cr_ranks_for_one_region_in_serial();
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "(0, 0) (0, 1) (1, 0) (1, 1) (2, 0) (2, 1) "
+  );
 
 }
