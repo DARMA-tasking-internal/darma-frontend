@@ -80,6 +80,13 @@ class MockRuntime
     using concurrent_region_task_t = runtime_t::concurrent_region_task_t;
     using concurrent_region_task_unique_ptr = runtime_t::concurrent_region_task_unique_ptr;
 
+    struct CRTaskDetails {
+      concurrent_region_task_unique_ptr task;
+      size_t n_indices;
+      std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle> data_store_handle;
+      size_t n_run_so_far = 0;
+    };
+
     void
     register_task(
        task_unique_ptr&& task
@@ -96,6 +103,7 @@ class MockRuntime
       std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle> const& ds
     ) override {
       register_concurrent_region_gmock_proxy(task.get(), n_idxs, ds.get());
+      concurrent_regions.emplace_back(CRTaskDetails{std::move(task), n_idxs, ds, 0});
     }
 
     bool
@@ -155,8 +163,10 @@ class MockRuntime
 #endif
 #endif
 
+
     bool save_tasks = true;
     std::deque<task_unique_ptr> registered_tasks;
+    std::deque<CRTaskDetails> concurrent_regions;
 };
 
 

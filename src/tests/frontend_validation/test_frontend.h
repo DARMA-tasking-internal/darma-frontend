@@ -328,6 +328,30 @@ class TestFrontend
 
     ////////////////////////////////////////
 
+    void
+    run_one_cr_rank() {
+      using namespace mock_backend;
+      auto& cr = mock_runtime->concurrent_regions.front();
+      std::shared_ptr<MockConcurrentRegionContextHandle> ctxt =
+        std::make_shared<MockConcurrentRegionContextHandle>();
+      EXPECT_CALL(*ctxt, get_backend_index())
+        .Times(AtLeast(0))
+        .WillRepeatedly(Return(cr.n_run_so_far));
+      mock_runtime->concurrent_regions.front().task->set_region_context(ctxt);
+      cr.task->set_region_context(ctxt);
+      cr.task->run();
+    }
+
+    void
+    run_all_cr_ranks_for_one_region_in_serial() {
+      auto& cr = mock_runtime->concurrent_regions.front();
+      while(cr.n_run_so_far < cr.n_indices) {
+        run_one_cr_rank();
+        ++cr.n_run_so_far;
+      }
+      mock_runtime->concurrent_regions.pop_front();
+    }
+
     ////////////////////////////////////////
 
     mock_backend::MockRuntime::task_unique_ptr top_level_task;
