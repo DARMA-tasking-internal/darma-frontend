@@ -436,9 +436,7 @@ struct _create_concurrent_region_impl {
       kwarg_mapping_to_dense
     >
     get_mapping(ArgForwarded&& arg) {
-      return get_mapping_to_dense(
-        std::forward<ArgForwarded>(arg.value())
-      );
+      return get_mapping_to_dense( std::forward<ArgForwarded>(arg).value() );
     }
   };
 

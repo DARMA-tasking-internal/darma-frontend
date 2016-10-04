@@ -61,6 +61,8 @@
 #include <darma/impl/handle.h>
 #include <darma/impl/util/smart_pointers.h>
 
+#include <darma/impl/util/static_assertions.h>
+
 namespace darma_runtime {
 namespace detail {
 
@@ -220,6 +222,8 @@ class FunctorLikeRunnableBase
     typedef functor_call_traits<Callable, Args&&...> call_traits;
     static constexpr auto n_functor_args_min = traits::n_args_min;
     static constexpr auto n_functor_args_max = traits::n_args_max;
+
+    STATIC_ASSERT_VALUE_LESS_EQUAL(sizeof...(Args), n_functor_args_max);
 
     static_assert(
       sizeof...(Args) <= n_functor_args_max && sizeof...(Args) >= n_functor_args_min,

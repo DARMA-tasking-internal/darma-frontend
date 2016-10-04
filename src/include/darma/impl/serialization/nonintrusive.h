@@ -205,5 +205,6 @@ struct Serializer
 #include "range.h"
 #include "stl_vector.h"
 #include "tuple.h"
+#include "string.h"
 
 #endif /* DARMA_IMPL_SERIALIZATION_NONINTRUSIVE_H_ */

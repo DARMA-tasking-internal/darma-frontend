@@ -364,7 +364,8 @@ struct functor_call_traits {
           //------------------------------------------------------------
           // For other cases, require non-reference
           std::true_type,
-            /* => */ std::remove_reference_t<CallArg>
+            /* => */ //std::remove_reference_t<CallArg>
+            /* => */ std::decay_t<CallArg>
         >;
 
         // Normal case, just pass through
