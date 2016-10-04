@@ -80,8 +80,6 @@ struct Range2D : abstract::frontend::IndexRange {
 
     Integer begin_[2], end_[2];
 
-    Range2D() = default;
-
     template <typename, typename>
     friend class Range2DDenseMapping;
 
@@ -90,6 +88,8 @@ struct Range2D : abstract::frontend::IndexRange {
     using is_index_range_t = std::true_type;
     using mapping_to_dense_t = Range2DDenseMapping<Integer>;
     using index_t = Index2D<Integer>;
+
+    Range2D() = default;
 
     Range2D(Integer end1, Integer end2)
       : begin_{Integer(0), Integer(0)}, end_{end1, end2}
@@ -149,6 +149,11 @@ struct Range2D : abstract::frontend::IndexRange {
       return rv;
     }
 
+    template <typename ArchiveT>
+    void serialize(ArchiveT& ar) {
+      ar | begin_ | end_;
+    }
+
     size_t size() const override {
       return (end_[1] - begin_[1]) * (end_[0] - begin_[0]);
     }
@@ -196,6 +201,10 @@ struct Range2DDenseMapping {
       );
     }
 
+    template <typename ArchiveT>
+    void serialize(ArchiveT& ar) {
+      ar | full_range;
+    }
 };
 
 

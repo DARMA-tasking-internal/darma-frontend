@@ -191,16 +191,48 @@ struct CRTaskRunnable
   static types::unique_ptr_template<RunnableBase>
   construct_from_archive(ArchiveT& ar) {
     // don't need to worry about reconstructing context_, since it must be null
-    return base_t::template _construct_from_archive<
+    typename RangeT::mapping_to_dense_t mapping;
+    ar >> mapping;
+    auto rv = base_t::template _construct_from_archive<
       ArchiveT, CRTaskRunnable
     >(ar);
+    rv->context_.index_and_mapping_.second() = mapping;
+    return rv;
   };
+
+  void pack(void* allocated) const override {
+    using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+    serialization::SimplePackUnpackArchive ar;
+
+    ArchiveAccess::start_packing(ar);
+    ArchiveAccess::set_buffer(ar, allocated);
+
+    ar << context_.index_and_mapping_.second();
+
+    base_t::pack(ArchiveAccess::get_spot(ar));
+  }
+
+  size_t get_packed_size() const override {
+    using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+    serialization::SimplePackUnpackArchive ar;
+
+    ArchiveAccess::start_sizing(ar);
+
+    ar % context_.index_and_mapping_.second();
+
+    return base_t::get_packed_size() + ArchiveAccess::get_size(ar);
+  }
 
   void
   set_context_handle(
     std::shared_ptr<abstract::backend::ConcurrentRegionContextHandle> const& ctxt
   ) override {
     context_.context_handle_ = ctxt;
+  }
+
+  template <typename MappingConvertible>
+  void set_mapping(MappingConvertible&& m) {
+    context_.index_and_mapping_.second() = std::forward<MappingConvertible>(m);
   }
 
 
@@ -265,10 +297,12 @@ void _do_register_concurrent_region(
   meta::splat_tuple(
     std::forward<ArgsTuple>(args_tup),
     [&](auto&&... args){
-      task_ptr->set_runnable(std::make_unique<runnable_t>(
+      auto runnable = std::make_unique<runnable_t>(
         variadic_constructor_arg,
         std::forward<decltype(args)>(args)...
-      ));
+      );
+      runnable->set_mapping(mapping);
+      task_ptr->set_runnable(std::move(runnable));
     }
   );
 
