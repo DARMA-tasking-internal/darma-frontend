@@ -2020,10 +2020,15 @@ int main(int argc, char **argv) {
   if (system_rank == 0) {
     auto task = darma_setup(argc, argv);
     std::make_shared<threads_backend::ThreadsRuntime>(
-      num_system_ranks, system_rank, task
+      num_system_ranks,
+      system_rank,
+      task
     );
   } else {
-    std::make_shared<threads_backend::ThreadsRuntime>(num_system_ranks, system_rank);
+    std::make_shared<threads_backend::ThreadsRuntime>(
+      num_system_ranks,
+      system_rank
+    );
   }
 
   return 0;
