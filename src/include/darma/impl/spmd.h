@@ -53,36 +53,9 @@
 #include <darma/impl/task.h>
 
 
+// Whole file is deprecated
+
 namespace darma_runtime {
-
-typedef size_t darma_rank_t;
-
-inline void
-darma_init(
-  int& argc,
-  char**& argv
-) {
-  std::unique_ptr<typename darma_runtime::abstract::backend::runtime_t::task_t> moved_from =
-      std::make_unique<detail::TopLevelTask>();
-  abstract::backend::darma_backend_initialize(
-    argc, argv, std::move(moved_from)
-  );
-}
-
-inline darma_rank_t
-darma_spmd_rank() {
-  return abstract::backend::get_backend_context()->get_spmd_rank();
-}
-
-inline darma_rank_t
-darma_spmd_size() {
-  return abstract::backend::get_backend_context()->get_spmd_size();
-}
-
-inline void
-darma_finalize() {
-  abstract::backend::get_backend_runtime()->finalize();
-}
 
 } // end namespace darma_runtime
 
