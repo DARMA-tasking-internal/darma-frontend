@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
+//                      concrete_top_level_task_t.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,24 +42,17 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMA_INTEFACE_FRONTEND_TYPES_CONCRETE_TOP_LEVEL_TASK_T_H
+#define DARMA_INTEFACE_FRONTEND_TYPES_CONCRETE_TOP_LEVEL_TASK_T_H
 
-#include <darma_types.h>
-#include "handle.h"
-#include "task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "create_work.h"
-#include "concurrent_region.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/impl/top_level.h>
-#include <darma/interface/defaults/darma_main.h>
+#include <darma/impl/task_fwd.h>
 
-#include <darma/impl/serialization/policy_aware_archive.h>
+namespace darma_runtime {
+namespace types {
 
-#include "serialization/serialization.impl.h"
-#include "array/array.impl.h"
+typedef darma_runtime::detail::TopLevelTaskImpl concrete_top_level_task_t;
 
-#endif /* SRC_DARMA_DARMA_H_ */
+} // end namespace types
+} // end namespace darma_runtime
 
+#endif //DARMA_INTEFACE_FRONTEND_TYPES_CONCRETE_TOP_LEVEL_TASK_T_H
