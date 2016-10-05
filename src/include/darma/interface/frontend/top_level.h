@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
+//                      top_level.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,24 +42,22 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMA_INTERFACE_FRONTEND_TOP_LEVEL_H
+#define DARMA_INTERFACE_FRONTEND_TOP_LEVEL_H
 
-#include <darma_types.h>
-#include "handle.h"
-#include "task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "create_work.h"
-#include "concurrent_region.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/impl/top_level.h>
-#include <darma/interface/defaults/darma_main.h>
+#include <memory>
+#include "top_level_task.h"
+#include "types/concrete_task_t.h"
 
-#include <darma/impl/serialization/policy_aware_archive.h>
+namespace darma_runtime {
 
-#include "serialization/serialization.impl.h"
-#include "array/array.impl.h"
+namespace frontend {
 
-#endif /* SRC_DARMA_DARMA_H_ */
+extern
+std::unique_ptr<abstract::frontend::TopLevelTask<types::concrete_task_t>>
+darma_top_level_setup(int& argc, char**& argv);
 
+} // end namespace frontend
+} // end namespace darma_runtime
+
+#endif //DARMA_INTERFACE_FRONTEND_TOP_LEVEL_H
