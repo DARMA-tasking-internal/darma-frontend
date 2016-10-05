@@ -248,9 +248,6 @@ namespace threads_backend {
     consume();
 
     size_t
-    get_spmd_rank() const;
-
-    size_t
     get_spmd_size() const;
 
     void
