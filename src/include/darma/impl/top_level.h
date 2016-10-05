@@ -91,11 +91,11 @@ struct TopLevelCallableRegistrar<ReturnType (*)(Args...)> {
 } // end namespace _impl
 
 #define DARMA_REGISTER_TOP_LEVEL_FUNCTOR(...) \
-  static constexpr auto DARMA_CONCAT_TOKEN(_darma__ignore_this, __LINE__) \
+  static const auto _darma__top_level_task_registration \
     = ::darma_runtime::detail::_impl::TopLevelCallableRegistrar<__VA_ARGS__>();
 #define DARMA_REGISTER_TOP_LEVEL_FUNCTION(...) \
-  static constexpr auto DARMA_CONCAT_TOKEN(_darma__ignore_this, __LINE__) \
-    = ::darma_runtime::detail::_impl::TopLevelCallableRegistrar<decltype(__VA_ARGS__)>(__VA_ARGS__);
+  static const auto _darma__top_level_task_registration \
+    = ::darma_runtime::detail::_impl::TopLevelCallableRegistrar<decltype(&(__VA_ARGS__))>(&(__VA_ARGS__));
 
 
 struct TopLevelTaskImpl
@@ -120,7 +120,7 @@ struct TopLevelTaskImpl
 
 namespace frontend {
 
-extern
+inline
 std::unique_ptr<abstract::frontend::TopLevelTask<darma_runtime::detail::TaskBase>>
 darma_top_level_setup(int& argc, char**& argv) {
   std::vector<std::string> cl_args(argc);

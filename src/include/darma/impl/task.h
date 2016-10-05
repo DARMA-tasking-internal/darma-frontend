@@ -265,17 +265,17 @@ class TaskBase : public abstract::frontend::Task
 
 };
 
-class TopLevelTask
-  : public TaskBase
-{
-  public:
-
-    void run()  {
-      // Abort, as specified.  This should never be called.
-      assert(false);
-    }
-
-};
+//class TopLevelTask
+//  : public TaskBase
+//{
+//  public:
+//
+//    void run()  {
+//      // Abort, as specified.  This should never be called.
+//      assert(false);
+//    }
+//
+//};
 
 
 // </editor-fold>

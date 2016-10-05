@@ -59,6 +59,7 @@
 #include <darma/interface/frontend/condition_task.h>
 #include <darma/interface/frontend/concurrent_region_task.h>
 #include <darma/interface/backend/data_store_handle.h>
+#include <darma/interface/frontend/top_level_task.h>
 
 #include "backend_fwd.h"
 
@@ -95,6 +96,9 @@ class Runtime {
     >;
     using generic_to_compact_index_mapping_unique_ptr =
       std::unique_ptr<generic_to_compact_index_mapping_t>;
+    using top_level_task_t = abstract::frontend::TopLevelTask<types::concrete_task_t>;
+    using top_level_task_unique_ptr = std::unique_ptr<top_level_task_t>;
+
 
     //==========================================================================
     // <editor-fold desc="Task handling">

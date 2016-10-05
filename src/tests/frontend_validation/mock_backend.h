@@ -79,6 +79,8 @@ class MockRuntime
     using flow_t = darma_runtime::types::flow_t;
     using concurrent_region_task_t = runtime_t::concurrent_region_task_t;
     using concurrent_region_task_unique_ptr = runtime_t::concurrent_region_task_unique_ptr;
+    using top_level_task_t = darma_runtime::abstract::backend::runtime_t::top_level_task_t;
+    using top_level_task_unique_ptr = darma_runtime::abstract::backend::runtime_t::top_level_task_unique_ptr;
 
     struct CRTaskDetails {
       concurrent_region_task_unique_ptr task;
@@ -140,7 +142,9 @@ class MockRuntime
     MOCK_METHOD1(register_use, void(use_t*));
     MOCK_METHOD1(reregister_migrated_use, void(use_t*));
     MOCK_METHOD1(make_initial_flow, flow_t(std::shared_ptr<handle_t> const&));
-    MOCK_METHOD2(make_fetching_flow, flow_t(std::shared_ptr<handle_t> const&, key_t const&));
+    MOCK_METHOD3(make_fetching_flow, flow_t(std::shared_ptr<handle_t> const&, key_t const&,
+      std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle> const&
+    ));
     MOCK_METHOD1(make_null_flow, flow_t(std::shared_ptr<handle_t> const&));
     MOCK_METHOD1(make_forwarding_flow, flow_t(flow_t&));
     MOCK_METHOD1(make_next_flow, flow_t(flow_t&));

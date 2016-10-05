@@ -58,9 +58,17 @@ size_t MockFlow::next_index = 0;
 
 std::unique_ptr<mock_backend::MockRuntime> mock_runtime { nullptr };
 
+static int main_return_value = 0;
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::InitGoogleMock(&argc, argv);
-  return RUN_ALL_TESTS();
+  main_return_value = RUN_ALL_TESTS();
+  return main_return_value;
 }
+
+void darma_top_level(std::vector<std::string>) {
+  // do nothing in here for now
+}
+
+DARMA_REGISTER_TOP_LEVEL_FUNCTION(darma_top_level);
