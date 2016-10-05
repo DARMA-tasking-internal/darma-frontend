@@ -59,6 +59,7 @@
 #include <darma/interface/frontend/condition_task.h>
 #include <darma/interface/frontend/concurrent_region_task.h>
 #include <darma/interface/backend/data_store_handle.h>
+#include <darma/interface/frontend/top_level_task.h>
 
 #include "backend_fwd.h"
 
@@ -95,6 +96,9 @@ class Runtime {
     >;
     using generic_to_compact_index_mapping_unique_ptr =
       std::unique_ptr<generic_to_compact_index_mapping_t>;
+    using top_level_task_t = abstract::frontend::TopLevelTask<types::concrete_task_t>;
+    using top_level_task_unique_ptr = std::unique_ptr<top_level_task_t>;
+
 
     //==========================================================================
     // <editor-fold desc="Task handling">
@@ -291,7 +295,8 @@ class Runtime {
     virtual types::flow_t
     make_fetching_flow(
       std::shared_ptr<frontend::Handle> const& handle,
-      types::key_t const& version_key
+      types::key_t const& version_key,
+      std::shared_ptr<DataStoreHandle> const& data_store = nullptr
     ) =0;
 
     /** @brief Make a null Flow to be associated with the handle given as an
@@ -548,68 +553,6 @@ get_backend_runtime();
 
 
 typedef Runtime runtime_t;
-
-/** @brief initialize the backend::Runtime instance
- *
- *  @todo update this for the new backend
- *
- *  @remark This should be called once per top-level task.  Only one top-level
- *  task is allowed per process.
- *
- *  @pre The frontend should do nothing that interacts with the backend before
- *  this function is called.
- *
- *  @post Upon return, the (output) parameter backend_runtime should point to a
- *  valid instance of backend::Runtime.  All methods of backend_runtime should
- *  be invocable from any thread with access to the pointer backend_runtime
- *  until that thread returns from a call to Runtime::finalize() on that
- *  instance.  The runtime should assume control of the (owning) pointer passed
- *  in through top_level_task and should not delete it before
- *  Runtime::finalize() is invoked on the backend_runtime object.  The top-level
- *  task object should be setup as described below.
- *
- *  @param argc An lvalue reference to the argc passed into main().
- *  @param argv An lvalue reference to the argv passed into main().
- *
- *  @param backend_runtime The input value of this parameter is ignored.  On
- *  return, it should point to a properly initialized instance of
- *  backend::Runtime.  The backend owns this instance and should delete it
- *  after darma_main() returns, at which point Runtime::finalize() should have
- *  returned.
- *
- *  @param top_level_task The task object to be returned by
- *  Runtime::get_running_task() if that method is invoked (on the instance
- *  pointed to by backend_runtime upon return) from the outermost task context
- *  within which darma_backend_initialize() was invoked.  (Inside of any task
- *  context created by an invocation of Task::run(), of course, the runtime
- *  should still behave as documented in the Runtime::get_running_task()
- *  method).  It is \a not valid to call Task::run() on this top-level task
- *  object [test: DARMABackendInitialize.top_level_run_not_called] (i.e., it is
- *  an error), and doing so will cause the frontend to abort.  Indeed,
- *  the only valid methods for the backend to call on this object are
- *  Task::set_name() and Task::get_name().  At least before returning
- *  top_level_task from any calls to Runtime::get_running_task(), the backend
- *  runtime should assign a name to the top-level task with at least three
- *  parts, the first three of which must be: a string constant defined by the
- *  preprocessor macro DARMA_BACKEND_SPMD_KEY_PREFIX, a std::size_t for the rank
- *  of the SPMD-like top-level task from which initialize was invoked, and a
- *  std::size_t givin the total number of ranks in the SPMD launch (which must
- *  be known at launch time; SPMD ranks cannot be dynamically allocated)
- *  [test: DARMABackendInitialize.rank_size].  In other words, the backend
- *  should make a call of the form:
- *  top_level_task->set_name(DARMA_BACKEND_SPMD_NAME_PREFIX, rank, size);
- *
- *  @remark The backend is free to extract backend-specific command-line
- *  arguments provided it updates argc and argv.  When
- *  darma_backend_initialize() returns, backend-specific parameters must no
- *  longer be in argc and argv.
- *
- */
-extern void
-darma_backend_initialize(
-  int& argc, char**& argv,
-  runtime_t::task_unique_ptr&& top_level_task
-);
 
 } // end namespace backend
 

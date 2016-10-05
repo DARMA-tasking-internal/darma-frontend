@@ -443,8 +443,6 @@ class AccessHandleBase {
       Leaf = 8
     } captured_as_info_t;
 
-    using handle_t = typename abstract::frontend::Handle;
-
   protected:
     using task_t = detail::TaskBase;
 

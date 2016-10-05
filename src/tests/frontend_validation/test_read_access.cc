@@ -80,8 +80,9 @@ TEST_F(TestReadAccess, call_sequence) {
 
   Sequence s1, s2;
 
-  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(make_key("hello")), Eq(my_version_tag)))
-    .InSequence(s1)
+  EXPECT_CALL(*mock_runtime, make_fetching_flow(
+    is_handle_with_key(make_key("hello")), Eq(my_version_tag), Eq(nullptr)
+  )).InSequence(s1)
     .WillOnce(Return(&f_in));
   EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(make_key("hello"))))
     .InSequence(s1)

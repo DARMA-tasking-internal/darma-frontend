@@ -177,9 +177,10 @@ struct polymorphic_serialization_details {
     static void
     add_registry_frontmatter_in_place(char* buffer) {
       new (buffer) uint8_t(static_cast<uint8_t>(sizeof...(AbstractBases)));
-      new (buffer+sizeof(uint8_t)) std::array<
+      char* off_buffer = buffer + sizeof(uint8_t);
+      new (off_buffer) std::array<
         std::pair<size_t, size_t>, sizeof...(AbstractBases)
-      >{
+      >({
         std::make_pair(
           get_abstract_type_index<AbstractBases>(),
           _impl::PolymorphicUnpackRegistrarWrapper<
@@ -187,7 +188,7 @@ struct polymorphic_serialization_details {
             ConcreteType
           >::registrar.index
         )...
-      };
+      });
     }
     static constexpr auto registry_frontmatter_size = sizeof(uint8_t)
       + sizeof(std::array<std::pair<size_t, size_t>, sizeof...(AbstractBases)>);
