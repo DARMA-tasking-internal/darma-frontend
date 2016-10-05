@@ -83,7 +83,7 @@ TEST_F(TestFlows, make_initial){
   types::key_t k = make_key("a");
   auto handle = std::make_shared<handle_t>(k);
 
-  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle.get()));
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle));
   EXPECT_FALSE(f1 == nullptr);
 
   darma_finalize();
@@ -97,7 +97,7 @@ TEST_F(TestFlows, make_null){
   types::key_t k = make_key("a");
   auto handle = std::make_shared<handle_t>(k);
 
-  auto f1 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle.get()));
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle));
   EXPECT_FALSE(f1 == nullptr);
 
   darma_finalize();
@@ -112,10 +112,10 @@ TEST_F(TestFlows, register_initial_use){
   types::key_t k = make_key("a");
   auto handle = std::make_shared<handle_t>(k);
 
-  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle.get()));
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle));
   EXPECT_FALSE(f1 == nullptr);
 
-  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle.get()));
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle));
   EXPECT_FALSE(f2 == nullptr);
 
   EXPECT_FALSE(f2 == f1);
@@ -136,8 +136,8 @@ TEST_F(TestFlows, make_next){
   types::key_t k = make_key("a");
   auto handle = std::make_shared<handle_t>(k);
 
-  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle.get()));
-  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle.get()));
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle));
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle));
 
   use_t use(handle, f1, f2, use_t::Modify, use_t::None);
   backend_runtime->register_use(&use);
@@ -163,8 +163,8 @@ TEST_F(TestFlows, register_next_use){
   types::key_t k = make_key("a");
   auto handle = std::make_shared<handle_t>(k);
 
-  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle.get()));
-  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle.get()));
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle));
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle));
 
   use_t use(handle, f1, f2, use_t::Modify, use_t::None);
   backend_runtime->register_use(&use);
@@ -190,8 +190,8 @@ TEST_F(TestFlows, make_forwarding){
   types::key_t k = make_key("a");
   auto handle = std::make_shared<handle_t>(k);
 
-  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle.get()));
-  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle.get()));
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle));
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle));
 
   use_t use(handle, f1, f2, use_t::Modify, use_t::None);
   backend_runtime->register_use(&use);
@@ -226,8 +226,8 @@ TEST_F(TestFlows, register_forwarding_use){
   types::key_t k = make_key("a");
   auto handle = std::make_shared<handle_t>(k);
 
-  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle.get()));
-  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle.get()));
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle));
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle));
 
   use_t use(handle, f1, f2, use_t::Modify, use_t::None);
   backend_runtime->register_use(&use);
@@ -261,8 +261,8 @@ TEST_F(TestFlows, make_same_read_output){
   types::key_t k = make_key("a");
   auto handle = std::make_shared<handle_t>(k);
 
-  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle.get()));
-  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle.get()));
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle));
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle));
 
   use_t use(handle, f1, f2, use_t::Modify, use_t::None);
   backend_runtime->register_use(&use);
@@ -294,8 +294,8 @@ TEST_F(TestFlows, register_read_only_use){
   types::key_t k = make_key("a");
   auto handle = std::make_shared<handle_t>(k);
 
-  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle.get()));
-  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle.get()));
+  auto f1 = detail::make_flow_ptr(backend_runtime->make_initial_flow(handle));
+  auto f2 = detail::make_flow_ptr(backend_runtime->make_null_flow(handle));
 
   use_t use(handle, f1, f2, use_t::Modify, use_t::None);
   backend_runtime->register_use(&use);

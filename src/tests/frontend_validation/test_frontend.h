@@ -199,7 +199,7 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
 /* EXPECT_CALL(*mock_runtime, release_flow(::testing::Eq(f_out))); */ \
 
 #define EXPECT_READ_ACCESS(f_init, f_null, key, version_key) \
-  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(key), ::testing::Eq(version_key))) \
+  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(key), ::testing::Eq(version_key), ::testing::Eq(nullptr))) \
     .WillOnce(Return(f_init)); \
   EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key))) \
     .WillOnce(Return(f_null));
@@ -271,7 +271,12 @@ class TestFrontend
 
 
     void setup_top_level_task() {
-      top_level_task = std::make_unique<darma_runtime::detail::TopLevelTask>();
+      int argc = 1;
+      char const* args[] = { "<launched from gtest>" };
+      char** argv = const_cast<char**>(&args[0]);
+      top_level_task = darma_runtime::frontend::darma_top_level_setup(
+        argc, argv
+      );
     }
 
     template <template <class...> class Strictness = ::testing::StrictMock>
@@ -365,7 +370,7 @@ class TestFrontend
 
     ////////////////////////////////////////
 
-    mock_backend::MockRuntime::task_unique_ptr top_level_task;
+    mock_backend::MockRuntime::top_level_task_unique_ptr top_level_task;
     bool mock_runtime_setup_done = false;
 };
 

@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                       metatest_helpers.h
-//                         darma_mockup
+//                      concrete_top_level_task_t.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,45 +42,17 @@
 //@HEADER
 */
 
-#ifndef META_TINYMPL_TEST_METATEST_HELPERS_H_
-#define META_TINYMPL_TEST_METATEST_HELPERS_H_
+#ifndef DARMA_INTEFACE_FRONTEND_TYPES_CONCRETE_TOP_LEVEL_TASK_T_H
+#define DARMA_INTEFACE_FRONTEND_TYPES_CONCRETE_TOP_LEVEL_TASK_T_H
 
-#include <darma/impl/util/macros.h>
+#include <darma/impl/task_fwd.h>
 
-#define meta_assert(...) \
-  static_assert(__VA_ARGS__, \
-      "Metafunction test case failed, expression did not evaluate to true:\n   " #__VA_ARGS__ "\n" \
-  )
-#define meta_assert_same(...) \
-  static_assert(std::is_same<__VA_ARGS__>::value, \
-      "Metafunction test case failed, types are not the same:\n    " #__VA_ARGS__ "\n" \
-  )
+namespace darma_runtime {
+namespace types {
 
-#include <tuple>
-#include <type_traits>
-#include <cstddef>
+typedef darma_runtime::detail::TopLevelTaskImpl concrete_top_level_task_t;
 
-namespace tinympl { namespace test {
+} // end namespace types
+} // end namespace darma_runtime
 
-// Utility types for ensuring short-circuit actually happens
-
-template <typename... T>
-struct invalid_for_int {
-  typedef typename std::tuple_element<0, std::tuple<T...>>::type type;
-};
-
-template <typename... T>
-struct invalid_for_int<int, T...>;
-
-template <typename... T>
-struct never_evaluate_predicate
-{
-  typedef typename invalid_for_int<int, T...>::type type;
-  static constexpr bool value = type::value; // shouldn't be usable
-};
-
-}} // end namespace tinympl::test
-
-#include <darma/impl/util/static_assertions.h>
-
-#endif /* META_TINYMPL_TEST_METATEST_HELPERS_H_ */
+#endif //DARMA_INTEFACE_FRONTEND_TYPES_CONCRETE_TOP_LEVEL_TASK_T_H

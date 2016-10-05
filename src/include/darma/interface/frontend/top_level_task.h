@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                       metatest_helpers.h
-//                         darma_mockup
+//                      top_level_task.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,45 +42,28 @@
 //@HEADER
 */
 
-#ifndef META_TINYMPL_TEST_METATEST_HELPERS_H_
-#define META_TINYMPL_TEST_METATEST_HELPERS_H_
+#ifndef DARMA_INTERFACE_FRONTEND_TOP_LEVEL_TASK_H
+#define DARMA_INTERFACE_FRONTEND_TOP_LEVEL_TASK_H
 
-#include <darma/impl/util/macros.h>
+namespace darma_runtime {
 
-#define meta_assert(...) \
-  static_assert(__VA_ARGS__, \
-      "Metafunction test case failed, expression did not evaluate to true:\n   " #__VA_ARGS__ "\n" \
-  )
-#define meta_assert_same(...) \
-  static_assert(std::is_same<__VA_ARGS__>::value, \
-      "Metafunction test case failed, types are not the same:\n    " #__VA_ARGS__ "\n" \
-  )
+namespace abstract {
 
-#include <tuple>
-#include <type_traits>
-#include <cstddef>
+namespace frontend {
 
-namespace tinympl { namespace test {
+template <typename ConcreteBasicTask>
+struct TopLevelTask: ConcreteBasicTask {
+  public:
 
-// Utility types for ensuring short-circuit actually happens
+    virtual void run() =0;
 
-template <typename... T>
-struct invalid_for_int {
-  typedef typename std::tuple_element<0, std::tuple<T...>>::type type;
+    bool is_migratable() const override { return false; }
 };
 
-template <typename... T>
-struct invalid_for_int<int, T...>;
+} // end namespace frontend
 
-template <typename... T>
-struct never_evaluate_predicate
-{
-  typedef typename invalid_for_int<int, T...>::type type;
-  static constexpr bool value = type::value; // shouldn't be usable
-};
+} // end namespace abstract
 
-}} // end namespace tinympl::test
+} // end namespace darma_runtime
 
-#include <darma/impl/util/static_assertions.h>
-
-#endif /* META_TINYMPL_TEST_METATEST_HELPERS_H_ */
+#endif //DARMA_INTERFACE_FRONTEND_TOP_LEVEL_TASK_H
