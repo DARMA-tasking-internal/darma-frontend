@@ -304,7 +304,7 @@ namespace threads_backend {
       auto log = new TraceLog{time,
                               entryReg.findEntryID(entry),
                               GROUP_BEGIN};
-      log->rank = this_rank;
+      log->rank = 0;//this_rank;
       logEvent(log);
       return log;
     }
@@ -315,7 +315,7 @@ namespace threads_backend {
       auto log = new TraceLog{time,
                               entryReg.findEntryID(entry),
                               GROUP_END};
-      log->rank = this_rank;
+      log->rank = 0;//this_rank;
       logEvent(log);
       return log;
     }
@@ -326,7 +326,7 @@ namespace threads_backend {
       auto log = new TraceLog{time,
                               entry,
                               DEP_CREATE};
-      log->rank = this_rank;
+      log->rank = 0;//this_rank;
       return log;
     }
 

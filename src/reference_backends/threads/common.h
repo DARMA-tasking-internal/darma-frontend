@@ -61,14 +61,14 @@ std::mutex __output_mutex;
   do {									\
     std::unique_lock<std::mutex> __output_lg(__output_mutex);		\
     printf("(%zu): DEBUG threads: " fmt,				\
-	   threads_backend::this_rank, ##arg);				\
+	   inside_rank, ##arg);                                         \
     fflush(stdout);							\
   } while (0);
 
 #define STARTUP_PRINT(fmt, arg...)					\
   do {									\
     std::unique_lock<std::mutex> __output_lg(__output_mutex);		\
-    printf("(%zu) THREADS : " fmt, threads_backend::this_rank, ##arg);	\
+    printf("THREADS : " fmt, ##arg);                                    \
     fflush(stdout);							\
   } while (0);
 
@@ -118,8 +118,6 @@ std::mutex __output_mutex;
 namespace threads_backend {
   using namespace darma_runtime;
   using namespace darma_runtime::abstract::backend;
-
-  extern __thread size_t this_rank;
 
   struct DataBlock {
     void* data = nullptr;
@@ -203,11 +201,6 @@ struct ArgsHolder {
   std::string
   get(std::string const& str) {
     return args[str];
-  }
-
-  template <typename T>
-  T operator[](std::string const& str) {
-    return get(str);
   }
 
   template <typename T>

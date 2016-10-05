@@ -196,7 +196,7 @@ namespace threads_backend {
       std::shared_ptr<DataBlock>
     > data, fetched_data;
 
-    std::unique_ptr<runtime_t::task_t> top_level_task;
+    top_level_task_unique_ptr top_level_task;
 
     std::deque<std::shared_ptr<GraphNode> > ready_local;
 
@@ -227,6 +227,7 @@ namespace threads_backend {
     ThreadsRuntime(
       size_t const in_inside_rank,
       size_t const in_inside_num_ranks,
+      top_level_task_unique_ptr&& in_top_level_task = nullptr
     );
 
     virtual ~ThreadsRuntime() {}
@@ -256,6 +257,9 @@ namespace threads_backend {
 
     size_t
     get_spmd_size() const;
+
+    size_t
+    get_spmd_rank() const;
 
     void
     de_serialize(handle_t const* handle,

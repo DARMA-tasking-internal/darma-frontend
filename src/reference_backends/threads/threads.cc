@@ -115,18 +115,20 @@ namespace threads_backend {
 
   ThreadsRuntime::ThreadsRuntime(
     size_t const in_inside_rank,
-    size_t const in_inside_num_ranks
+    size_t const in_inside_num_ranks,
+    top_level_task_unique_ptr&& in_top_level_task
   )
     : produced(0)
     , consumed(0)
     , inside_rank(in_inside_rank)
     , inside_num_ranks(in_inside_num_ranks)
+    , top_level_task(in_top_level_task ? std::move(in_top_level_task) : nullptr)
   {
     #if __THREADS_BACKEND_DEBUG__ || __THREADS_BACKEND_SHUFFLE__
       //srand48(2918279);
       srand48(time(NULL));
     #endif
-    trace = traceMode ? new TraceModule{this_rank,n_ranks,"base"} : nullptr;
+    trace = traceMode ? new TraceModule{inside_rank,n_ranks,"base"} : nullptr;
   }
 
   void
@@ -141,6 +143,11 @@ namespace threads_backend {
   size_t
   ThreadsRuntime::get_spmd_size() const {
     return inside_num_ranks;
+  }
+
+  size_t
+  ThreadsRuntime::get_spmd_rank() const {
+    return inside_rank;
   }
 
   size_t
@@ -1282,7 +1289,8 @@ namespace threads_backend {
     darma_runtime::abstract::frontend::Use* use_in,
     darma_runtime::abstract::frontend::Use* use_out,
     darma_runtime::abstract::frontend::CollectiveDetails const* details,
-    types::key_t const& tag) {
+    types::key_t const& tag
+  ) {
 
     auto f_in = use_in->get_in_flow();
     auto f_out = use_in->get_out_flow();
@@ -1786,7 +1794,7 @@ namespace threads_backend {
   std::shared_ptr<DataStoreHandle>
   ThreadsRuntime::make_data_store() {
     return std::make_shared<DataStore>(
-      this_rank,
+      inside_rank,
       data_store_counter++
     );
   }
@@ -1982,34 +1990,89 @@ namespace threads_backend {
 
 
 void
-start_rank_handler(const size_t rank,
-                   const int argc,
-                   char** argv) {
-  DEBUG_PRINT("%ld: rank handler starting\n", rank);
+start_rank_handler(
+  size_t const system_rank,
+  size_t const num_system_ranks
+) {
+  DEBUG_PRINT(
+    "%ld: rank handler starting\n",
+    system_rank
+  );
 
-  // call into main
-  const int ret = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
+  std::make_unique<threads_backend::ThreadsRuntime>(
+    num_system_ranks,
+    system_rank
+  );
+}
 
-  delete threads_backend::cur_runtime;
+namespace threads_backend {
+void
+backend_parse_arguments(
+  ArgsHolder& holder
+) {
+
+  size_t const system_rank = holder.exists("system-rank") ? holder.get<size_t>("system-rank") : 0;
+  size_t const num_system_ranks = holder.exists("num-system-rank") ? holder.get<size_t>("num-system-ranks") : 1;
+  size_t const n_threads = holder.exists("threads") ? holder.get<size_t>("threads") : 1;
+  size_t const n_ranks = holder.exists("ranks") ? holder.get<size_t>("ranks") : 1;
+  bool const trace = holder.exists("trace") ? static_cast<bool>(holder.get<size_t>("trace")) : false;
+  size_t const bwidth = holder.exists("bf") ? holder.get<size_t>("bf") : 0;
+  bool const depth = bwidth == 0 ? true : false;
+
+  if (system_rank == 0) {
+    if (threads_backend::depthFirstExpand) {
+      STARTUP_PRINT(
+        "DARMA: number of ranks = %zu, "
+        "DF-Sched mode (depth-first, rank-threaded scheduler): Tracing=%s\n",
+        n_ranks,
+        trace ? "ON" : "OFF"
+      );
+    } else {
+      STARTUP_PRINT(
+        "DARMA: number of ranks = %zu, "
+        "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler), Tracing=%s\n",
+        n_ranks,
+        bwidth,
+        trace ? "ON" : "OFF"
+      );
+    }
+
+    DEBUG_PRINT(
+      "rank = %zu, ranks = %zu, threads = %zu\n",
+      system_rank,
+      n_ranks,
+      n_threads
+    );
+
+    // launch std::thread for each rank
+    threads_backend::live_ranks.resize(n_ranks - 1);
+    for (size_t i = 0; i < n_ranks - 1; ++i) {
+      threads_backend::live_ranks[i] = std::thread(
+        start_rank_handler,
+        i + 1,
+        n_ranks
+      );
+    }
+  }
+}
 }
 
 int main(int argc, char **argv) {
   ArgsHolder args_holder(argc, argv);
-  args.parse(argc, argv);
 
   threads_backend::backend_parse_arguments(args_holder);
 
   //args_holder.exists("system-rank")
 
-  auto const system_rank = args_holder["system-rank"];
-  auto const num_system_ranks = args_holder["num-system-ranks"];
+  auto const system_rank = args_holder.get<size_t>("system-rank");
+  auto const num_system_ranks = args_holder.get<size_t>("num-system-ranks");
 
   if (system_rank == 0) {
-    auto task = darma_setup(argc, argv);
+    auto task = darma_runtime::frontend::darma_top_level_setup(argc, argv);
     std::make_unique<threads_backend::ThreadsRuntime>(
       num_system_ranks,
       system_rank,
-      task
+      std::move(task)
     );
   } else {
     std::make_unique<threads_backend::ThreadsRuntime>(
@@ -2021,59 +2084,6 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-namespace threads_backend {
-
-void
-backend_parse_arguments(
-  ArgsHolder& holder
-) {
-  bool depth = true, trace = false;
-  size_t ranks = 1, n_threads = 1, bwidth;
-
-  n_threads = args.exists("threads") ? args<size_t>["threads"] : 1;
-  n_ranks = args.exists("ranks") ? args<size_t>["ranks"] : 1;
-  trace = args.exists("trace") ? static_cast<bool>(args<size_t>["trace"]) : false;
-  bwidth = args.exists("bf") ? args<size_t>["bf"] : 0;
-  depth = bwidth == 0 ? true : false;
-
-  if (threads_backend::this_rank == 0) {
-    if (threads_backend::depthFirstExpand) {
-      STARTUP_PRINT("DARMA: number of ranks = %zu, "
-                    "DF-Sched mode (depth-first, rank-threaded scheduler): Tracing=%s\n",
-                    threads_backend::n_ranks,
-                    threads_backend::traceMode ? "ON" : "OFF");
-    } else {
-      STARTUP_PRINT("DARMA: number of ranks = %zu, "
-                    "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler), Tracing=%s\n",
-                    threads_backend::n_ranks,
-                    threads_backend::bwidth,
-                    threads_backend::traceMode ? "ON" : "OFF");
-    }
-  }
-
-  auto* runtime = new threads_backend::ThreadsRuntime();
-  threads_backend::cur_runtime = runtime;
-
-  if (threads_backend::this_rank == 0) {
-    DEBUG_PRINT("rank = %zu, ranks = %zu, threads = %zu\n",
-                threads_backend::this_rank,
-                threads_backend::n_ranks,
-                n_threads);
-
-    // launch std::thread for each rank
-    threads_backend::live_ranks.resize(threads_backend::n_ranks - 1);
-    for (size_t i = 0; i < threads_backend::n_ranks - 1; ++i) {
-      threads_backend::live_ranks[i] = std::thread(start_rank_handler, i + 1, argc, argv);
-    }
-  }
-
-  // setup root task
-  runtime->top_level_task = std::move(top_level_task);
-  runtime->top_level_task->set_name(darma_runtime::make_key(DARMA_BACKEND_SPMD_NAME_PREFIX,
-                                                            threads_backend::this_rank,
-                                                            threads_backend::n_ranks));
-  threads_backend::current_task = runtime->top_level_task.get();
-}
 
 namespace darma_runtime {
   abstract::backend::Context*
