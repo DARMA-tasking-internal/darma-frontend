@@ -131,6 +131,11 @@ namespace threads_backend {
     trace = traceMode ? new TraceModule{inside_rank,n_ranks,"base"} : nullptr;
   }
 
+  /*virtual*/
+  ThreadsRuntime::~ThreadsRuntime() {
+    this->finalize();
+  }
+
   void
   ThreadsRuntime::produce() { this->produced++; }
 
@@ -603,7 +608,7 @@ namespace threads_backend {
   ThreadsRuntime::make_initial_flow(
     std::shared_ptr<handle_t> const& handle
   ) {
-    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [](InnerFlow* flow){
+    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [this](InnerFlow* flow){
       DEBUG_PRINT("make_initial_flow: deleter running %ld\n",
                   PRINT_LABEL(flow));
       delete flow;
@@ -881,7 +886,7 @@ namespace threads_backend {
   ) {
     DEBUG_VERBOSE_PRINT("make fetching flow\n");
 
-    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [](InnerFlow* flow){
+    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [this](InnerFlow* flow){
       DEBUG_PRINT("make_fetching_flow: deleter running %ld\n",
                   PRINT_LABEL(flow));
       delete flow;
@@ -904,7 +909,7 @@ namespace threads_backend {
  ) {
     DEBUG_VERBOSE_PRINT("make null flow\n");
 
-    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [](InnerFlow* flow){
+    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [this](InnerFlow* flow){
       DEBUG_PRINT("make_null_flow: deleter running %ld\n",
                   PRINT_LABEL(flow));
       delete flow;
@@ -930,7 +935,7 @@ namespace threads_backend {
   ThreadsRuntime::make_forwarding_flow(flow_t& f) {
     DEBUG_VERBOSE_PRINT("make forwarding flow\n");
 
-    auto f_forward = std::shared_ptr<InnerFlow>(new InnerFlow(nullptr), [](InnerFlow* flow){
+    auto f_forward = std::shared_ptr<InnerFlow>(new InnerFlow(nullptr), [this](InnerFlow* flow){
       DEBUG_PRINT("make_forwarding_flow: deleter running %ld\n",
                   PRINT_LABEL(flow));
       delete flow;
@@ -982,7 +987,7 @@ namespace threads_backend {
   ThreadsRuntime::make_next_flow(flow_t& f) {
     DEBUG_VERBOSE_PRINT("make next flow: (from=%p)\n", from);
 
-    auto f_next = std::shared_ptr<InnerFlow>(new InnerFlow(nullptr), [](InnerFlow* flow){
+    auto f_next = std::shared_ptr<InnerFlow>(new InnerFlow(nullptr), [this](InnerFlow* flow){
       DEBUG_PRINT("make_next_flow: deleter running %ld\n",
                   PRINT_LABEL(flow));
       delete flow;
@@ -1008,8 +1013,8 @@ namespace threads_backend {
     auto handle = flow->handle;
 
     DEBUG_PRINT("cleanup_handle identity: %p to %p\n",
-                flow->handle,
-                flow->alias ? flow->alias->handle : nullptr)
+                flow->handle.get(),
+                flow->alias ? flow->alias->handle.get() : nullptr)
 
     delete_handle_data(
       handle.get(),
@@ -1943,6 +1948,14 @@ namespace threads_backend {
   /*virtual*/
   void
   ThreadsRuntime::finalize() {
+    if (top_level_task) {
+      auto t = std::make_shared<TaskNode<top_level_task_t>>(
+        TaskNode<top_level_task_t>{this,std::move(top_level_task)}
+      );
+      add_local(t);
+      top_level_task = nullptr;
+    }
+
     DEBUG_PRINT("finalize:  produced=%ld, consumed=%ld\n",
                 this->produced,
                 this->consumed);
@@ -1994,7 +2007,7 @@ start_rank_handler(
   size_t const system_rank,
   size_t const num_system_ranks
 ) {
-  DEBUG_PRINT(
+  STARTUP_PRINT(
     "%ld: rank handler starting\n",
     system_rank
   );
@@ -2003,6 +2016,8 @@ start_rank_handler(
     num_system_ranks,
     system_rank
   );
+
+  return;
 }
 
 namespace threads_backend {
@@ -2010,14 +2025,22 @@ void
 backend_parse_arguments(
   ArgsHolder& holder
 ) {
+  size_t const system_rank =
+    holder.exists("system-rank") ? holder.get<size_t>("system-rank") : 0;
+  size_t const num_system_ranks =
+    holder.exists("num-system-rank") ? holder.get<size_t>("num-system-ranks") : 1;
+  size_t const n_threads =
+    holder.exists("threads") ? holder.get<size_t>("threads") : 1;
+  size_t const n_ranks =
+    holder.exists("ranks") ? holder.get<size_t>("ranks") : 1;
+  bool const trace =
+    holder.exists("trace") ? static_cast<bool>(holder.get<size_t>("trace")) : false;
+  size_t const bwidth =
+    holder.exists("bf") ? holder.get<size_t>("bf") : 0;
+  bool const depth =
+    bwidth == 0 ? true : false;
 
-  size_t const system_rank = holder.exists("system-rank") ? holder.get<size_t>("system-rank") : 0;
-  size_t const num_system_ranks = holder.exists("num-system-rank") ? holder.get<size_t>("num-system-ranks") : 1;
-  size_t const n_threads = holder.exists("threads") ? holder.get<size_t>("threads") : 1;
-  size_t const n_ranks = holder.exists("ranks") ? holder.get<size_t>("ranks") : 1;
-  bool const trace = holder.exists("trace") ? static_cast<bool>(holder.get<size_t>("trace")) : false;
-  size_t const bwidth = holder.exists("bf") ? holder.get<size_t>("bf") : 0;
-  bool const depth = bwidth == 0 ? true : false;
+  threads_backend::depthFirstExpand = depth;
 
   if (system_rank == 0) {
     if (threads_backend::depthFirstExpand) {
@@ -2037,7 +2060,7 @@ backend_parse_arguments(
       );
     }
 
-    DEBUG_PRINT(
+    STARTUP_PRINT(
       "rank = %zu, ranks = %zu, threads = %zu\n",
       system_rank,
       n_ranks,
@@ -2062,23 +2085,50 @@ int main(int argc, char **argv) {
 
   threads_backend::backend_parse_arguments(args_holder);
 
-  //args_holder.exists("system-rank")
+  auto const system_rank =
+    args_holder.exists("system-rank") ?
+    args_holder.get<size_t>("system-rank") : 0;
+  auto const num_system_ranks =
+    args_holder.exists("num-system-ranks") ?
+    args_holder.get<size_t>("num-system-ranks") : 1;
 
-  auto const system_rank = args_holder.get<size_t>("system-rank");
-  auto const num_system_ranks = args_holder.get<size_t>("num-system-ranks");
+  ArgsRemover remover(
+    argc, argv,
+    "system-rank",
+    "num-system-ranks",
+    "ranks",
+    "threads",
+    "trace",
+    "bf"
+  );
+
+  auto lst = remover.new_args;
 
   if (system_rank == 0) {
-    auto task = darma_runtime::frontend::darma_top_level_setup(argc, argv);
-    std::make_unique<threads_backend::ThreadsRuntime>(
+    int argc_new = lst.size();
+    char* argv_new[argc_new];
+    int i = 0;
+    for (auto&& item : lst) {
+      argv_new[i] = const_cast<char*>(item.c_str());
+      i++;
+    }
+    char** argv_new_c = static_cast<char**>(argv_new);
+    auto task = darma_runtime::frontend::darma_top_level_setup(
+      argc_new,
+      argv_new_c
+    );
+    auto runtime = std::make_unique<threads_backend::ThreadsRuntime>(
       num_system_ranks,
       system_rank,
       std::move(task)
     );
+    threads_backend::cur_runtime = runtime.get();
   } else {
-    std::make_unique<threads_backend::ThreadsRuntime>(
+    auto runtime = std::make_unique<threads_backend::ThreadsRuntime>(
       num_system_ranks,
       system_rank
     );
+    threads_backend::cur_runtime = runtime.get();
   }
 
   return 0;

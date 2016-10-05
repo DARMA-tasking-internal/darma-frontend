@@ -198,10 +198,10 @@ namespace threads_backend {
 
     top_level_task_unique_ptr top_level_task;
 
-    std::deque<std::shared_ptr<GraphNode> > ready_local;
+    std::deque<std::shared_ptr<GraphNode>> ready_local;
 
     std::mutex lock_remote;
-    std::deque<std::shared_ptr<GraphNode> > ready_remote;
+    std::deque<std::shared_ptr<GraphNode>> ready_remote;
 
     // used for tracing to follow the dependency back to the proper
     // traced block
@@ -230,7 +230,7 @@ namespace threads_backend {
       top_level_task_unique_ptr&& in_top_level_task = nullptr
     );
 
-    virtual ~ThreadsRuntime() {}
+    virtual ~ThreadsRuntime();
 
     template <typename TaskType>
     void addTraceDeps(
@@ -504,7 +504,7 @@ namespace threads_backend {
 
     template <typename Node>
     void
-    try_node(std::list<std::shared_ptr<Node> >& nodes);
+    try_node(std::list<std::shared_ptr<Node>>& nodes);
 
     template <typename Node>
     bool schedule_from_deque(std::mutex* lock, std::deque<Node>& nodes);

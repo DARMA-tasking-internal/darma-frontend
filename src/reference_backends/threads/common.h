@@ -48,7 +48,7 @@
 /*
  * Debugging prints with mutex
  */
-#define __THREADS_BACKEND_DEBUG__	  0
+#define __THREADS_BACKEND_DEBUG__	  1
 #define __THREADS_BACKEND_SHUFFLE__	  0
 #define __THREADS_BACKEND_DEBUG_VERBOSE__ 0
 #define __THREADS_BACKEND_DEBUG_TRACE__   0
@@ -62,6 +62,14 @@ std::mutex __output_mutex;
     std::unique_lock<std::mutex> __output_lg(__output_mutex);		\
     printf("(%zu): DEBUG threads: " fmt,				\
 	   inside_rank, ##arg);                                         \
+    fflush(stdout);							\
+  } while (0);
+
+#define THREADS_PRINTER_THD(thd, fmt, arg...)                           \
+  do {									\
+    std::unique_lock<std::mutex> __output_lg(__output_mutex);		\
+    printf("(%zu): DEBUG threads: " fmt,				\
+	   thd, ##arg);                                                 \
     fflush(stdout);							\
   } while (0);
 
@@ -89,15 +97,18 @@ std::mutex __output_mutex;
 #if __THREADS_BACKEND_DEBUG_VERBOSE__
   #define DEBUG_VERBOSE_PRINT(fmt, arg...) THREADS_PRINTER(fmt, ##arg)
   #define DEBUG_PRINT(fmt, arg...)         THREADS_PRINTER(fmt, ##arg)
+  #define DEBUG_PRINT_THD(thd, fmt, arg...) THREADS_PRINTER(fmt, ##arg)
 #else
   #define DEBUG_VERBOSE_PRINT(fmt, arg...)
 #endif
 
 #if !defined(DEBUG_PRINT)
   #if __THREADS_BACKEND_DEBUG__
-    #define DEBUG_PRINT(fmt, arg...) THREADS_PRINTER(fmt, ##arg)
+    #define DEBUG_PRINT(fmt, arg...)          THREADS_PRINTER(fmt, ##arg)
+    #define DEBUG_PRINT_THD(thd, fmt, arg...) THREADS_PRINTER_THD(thd, fmt, ##arg)
   #else
     #define DEBUG_PRINT(fmt, arg...)
+    #define DEBUG_PRINT_THD(thd, fmt, arg...)
   #endif
 #endif
 
@@ -173,6 +184,50 @@ namespace threads_backend {
   };
 }
 
+struct ArgsRemover {
+  template <typename... Args>
+  ArgsRemover(
+    int& argc,
+    char**& argv,
+    Args&&... args
+  ) {
+    iterate(argc, argv, {args...});
+  }
+
+  std::list<std::string> new_args;
+
+  void
+  iterate(
+    int& argc,
+    char**& argv,
+    std::initializer_list<std::string> args
+  ) {
+    std::list<std::string> arg_list, arg_list_new;
+    for (auto i = 0; i < argc; i++) {
+      arg_list.push_back(argv[i]);
+    }
+
+    for (auto&& arg : args) {
+      bool remove_next = false;
+      //std::cout << "iterate: arg = " << arg << std::endl;
+      for (auto&& item : arg_list) {
+        if ("--" + arg == item) {
+          remove_next = true;
+        } else if (!remove_next) {
+          arg_list_new.push_back(item);
+        } else {
+          remove_next = false;
+        }
+      }
+      arg_list = arg_list_new;
+      arg_list_new.clear();
+    }
+
+    new_args = arg_list;
+  }
+
+};
+
 struct ArgsHolder {
   std::unordered_map<std::string, std::string> args;
 
@@ -195,7 +250,7 @@ struct ArgsHolder {
 
   bool
   exists(std::string const& str) {
-    return args.find(str) != args.end();
+    return args.find("--" + str) != args.end();
   }
 
   std::string
@@ -206,9 +261,9 @@ struct ArgsHolder {
   template <typename T>
   T get(std::string const& str) {
     T val;
-    assert(args.find(str) != args.end() &&
+    assert(args.find("--" + str) != args.end() &&
            "Could not find argument");
-    std::stringstream stream(args[str]);
+    std::stringstream stream(args["--" + str]);
     stream >> val;
     if (!stream) {
       assert(0 && "Could not parse correctly");

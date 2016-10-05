@@ -101,6 +101,11 @@ namespace threads_backend {
       return static_cast<Impl*>(this)->add_local(task);
     }
 
+    inline size_t
+    get_rank() {
+      return static_cast<Impl*>(this)->inside_rank;
+    }
+
     // fetch interface methods
     inline TraceLog*
     fetch(
