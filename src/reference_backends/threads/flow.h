@@ -70,6 +70,7 @@ namespace threads_backend {
     std::shared_ptr<handle_t> handle = nullptr;
     bool ready, isNull, isFetch, fromFetch, isCollective, isForward;
     bool  isWriteForward, fetcherAdded;
+    std::shared_ptr<DataStoreHandle> data_store = nullptr;
 
     size_t* shared_reader_count = nullptr;
     size_t uses = 0;

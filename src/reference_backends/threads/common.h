@@ -150,7 +150,28 @@ namespace threads_backend {
       , handle_id(in_handle_id)
     { }
 
+    bool
+    operator==(DataStore const& other) {
+      return other.rank == rank && other.handle_id == handle_id;
+    }
+
     DataStore(DataStore const& other) = default;
+  };
+
+  struct ConcurrentRegionContext
+    : ConcurrentRegionContextHandle {
+    size_t index = 0;
+
+    ConcurrentRegionContext(
+      size_t const in_index
+    )
+      : index(in_index)
+    { }
+
+    size_t
+    get_backend_index() const {
+      return index;
+    }
   };
 }
 

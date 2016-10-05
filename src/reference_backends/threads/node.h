@@ -130,7 +130,8 @@ namespace threads_backend {
 
       TraceLog* pub_log = runtime->fetch(
         fetch->handle.get(),
-        fetch->version_key
+        fetch->version_key,
+        fetch->data_store
       );
 
       if (runtime->getTrace()) {
@@ -153,7 +154,8 @@ namespace threads_backend {
     bool ready() override {
       return runtime->test_fetch(
         fetch->handle.get(),
-        fetch->version_key
+        fetch->version_key,
+        fetch->data_store
       );
     }
 
@@ -262,10 +264,10 @@ namespace threads_backend {
   struct TaskNode
     : public GraphNode
   {
-    types::unique_ptr_template<TaskType> task;
+    std::unique_ptr<TaskType> task;
 
     TaskNode(Runtime* rt,
-             types::unique_ptr_template<TaskType>&& task_)
+             std::unique_ptr<TaskType>&& task_)
       : GraphNode(-1, rt)
       , task(std::move(task_))
     { }
@@ -284,7 +286,7 @@ namespace threads_backend {
         runtime->addTraceDeps(this,log);
       }
 
-      runtime->run_task(std::move(task));
+      runtime->run_task(task.get());
 
       // end trace event
       if (runtime->getTrace()) {
@@ -298,18 +300,6 @@ namespace threads_backend {
       return join_counter == 0;
     }
   };
-
-  // struct ConditionTaskNode
-  //   : TaskNode
-  // {
-  //   ThreadsRuntime::condition_task_unique_ptr task;
-
-  //   ConditionTaskNode(Runtime* rt,
-  //                     ThreadsRuntime::condition_task_unique_ptr&& task_)
-  //     : GraphNode(-1, rt)
-  //     , task(std::move(task_))
-  //   { }
-  // };
 }
 
 #endif /* _THREADS_NODE_BACKEND_RUNTIME_H_ */
