@@ -2010,15 +2010,23 @@ start_rank_handler(const size_t rank,
 }
 
 int main(int argc, char **argv) {
-  int ret = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
-  // TODO: check if runtime finalized before deleting
-  // if (darma_runtime::detail::backend_runtime) {
-  //   delete darma_runtime::detail::backend_runtime;
-  // }
+  auto map = threads_backend::backend_parse_arguments(&argc, &argv);
 
-  delete threads_backend::cur_runtime;
+  assert(map.find("system-rank") != map.end());
 
-  return ret;
+  auto const system_rank = map["system-rank"];
+  auto const num_system_ranks = map["num-system-ranks"];
+
+  if (system_rank == 0) {
+    auto task = darma_setup(argc, argv);
+    std::make_shared<threads_backend::ThreadsRuntime>(
+      num_system_ranks, system_rank, task
+    );
+  } else {
+    std::make_shared<threads_backend::ThreadsRuntime>(num_system_ranks, system_rank);
+  }
+
+  return 0;
 }
 
 void
