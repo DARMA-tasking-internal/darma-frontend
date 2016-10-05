@@ -183,6 +183,10 @@ namespace threads_backend {
     , public ThreadsInterface<ThreadsRuntime> {
 
   public:
+    size_t inside_rank = 0;
+    size_t inside_num_ranks = 0;
+    runtime_t::task_t* current_task = nullptr;
+
     ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
     size_t data_store_counter = 0;
@@ -218,9 +222,12 @@ namespace threads_backend {
 
     TraceModule* trace = nullptr;
 
-    size_t produced, consumed;
+    size_t produced = 0, consumed = 0;
 
-    ThreadsRuntime();
+    ThreadsRuntime(
+      size_t const in_inside_rank,
+      size_t const in_inside_num_ranks,
+    );
 
     virtual ~ThreadsRuntime() {}
 
