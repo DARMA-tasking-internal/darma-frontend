@@ -99,6 +99,9 @@ class Runtime {
     using top_level_task_t = abstract::frontend::TopLevelTask<types::concrete_task_t>;
     using top_level_task_unique_ptr = std::unique_ptr<top_level_task_t>;
 
+    //==========================================================================
+
+    virtual size_t get_execution_resource_count(size_t depth) const =0;
 
     //==========================================================================
     // <editor-fold desc="Task handling">
@@ -443,14 +446,6 @@ class Runtime {
 
 class Context {
   public:
-
-    /** @brief Return the SPMD rank of this backend instance. */
-    virtual size_t
-    get_spmd_rank() const = 0;
-
-    /** @brief Return the SPMD size. */
-    virtual size_t
-    get_spmd_size() const = 0;
 
     /** @brief Get a pointer to the \ref frontend::Task object currently running
      * on the thread from which get_running_task() was invoked.

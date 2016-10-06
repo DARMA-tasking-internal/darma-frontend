@@ -118,13 +118,13 @@ class typeless_keyword_argument_name
     constexpr typeless_keyword_argument_name() { }
 
     template <typename Rhs>
-    inline constexpr kwarg_expr<Rhs>
+    inline kwarg_expr<Rhs>
     operator=(Rhs&& val) const {
       return { std::forward<Rhs>(val) };
     }
 
     template <typename Rhs>
-    inline constexpr kwarg_expr<Rhs>
+    inline kwarg_expr<Rhs>
     operator()(Rhs&& val) const {
       return { std::forward<Rhs>(val) };
     }

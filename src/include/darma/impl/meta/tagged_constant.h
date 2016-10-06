@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
+//                      tagged_constant.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,21 +42,63 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef DARMA_IMPL_META_TAGGED_CONSTANT_H
+#define DARMA_IMPL_META_TAGGED_CONSTANT_H
 
-#include <darma/impl/darma.h>
+#include <cstdlib>
 
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/interface/app/create_condition.h>
-#include <darma/interface/app/access_handle.h>
-#include <darma/interface/app/oo.h>
-#include <darma/interface/app/create_concurrent_region.h>
-#include <darma/interface/app/keyword_arguments/all_keyword_arguments.h>
-#include <darma/interface/app/resource_count.h>
+namespace darma_runtime {
 
-#include <darma/interface/app/containers.h>
+namespace meta {
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+struct tagged_constant { };
+
+namespace detail {
+
+template <typename T /* = tagged_constant (always...) */>
+std::size_t& _get_tagged_constant_index_offset() {
+  static std::size_t _value = 0;
+  return _value;
+}
+
+template <typename Catagory>
+std::size_t& _get_catagory_index() {
+  static std::size_t _cat_value = 0;
+  return _cat_value;
+}
+
+template <typename Tag, typename Catagory>
+std::size_t _get_tagged_constant_value_for_catagory() {
+  static std::size_t _this_value = _get_catagory_index<Catagory>()++;
+  return _this_value;
+};
+
+template <typename Tag>
+std::size_t _get_tagged_constant_value() {
+  static std::size_t _this_value = _get_tagged_constant_index_offset<meta::tagged_constant>()++;
+  return _this_value;
+};
+
+} // end namespace detail
+
+} // end namespace meta
+
+} // end namespace darma_runtime
+
+#define DARMA_CREATE_TAGGED_CONSTANT(constant, catagory) \
+  namespace detail { \
+    struct constant##_tag_t : catagory { \
+      static ::std::size_t value_in_catagory() { \
+        return ::darma_runtime::meta::detail::_get_tagged_constant_value_for_catagory<constant##_tag_t, catagory>(); \
+      } \
+      static ::std::size_t value() { \
+        return ::darma_runtime::meta::detail::_get_tagged_constant_value<constant##_tag_t>(); \
+      } \
+    }; \
+  } /* end namespace detail */ \
+  static constexpr detail::constant##_tag_t constant = { }
+
+#define DARMA_CREATE_TAGGED_CONSTANT_CATAGORY(catagory) \
+  struct catagory : ::darma_runtime::meta::tagged_constant { }
+
+#endif //DARMA_IMPL_META_TAGGED_CONSTANT_H
