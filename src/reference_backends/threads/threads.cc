@@ -82,10 +82,6 @@ namespace threads_backend {
 
   std::vector<std::thread> live_ranks;
 
-  // TL state
-  __thread runtime_t::task_t* current_task = 0;
-  __thread size_t this_rank = 0;
-
   #if __THREADS_DEBUG_MODE__
     __thread size_t flow_label = 100;
   #endif
@@ -105,7 +101,10 @@ namespace threads_backend {
 
   // global publish
   std::mutex rank_publish;
-  std::unordered_map<std::pair<types::key_t, types::key_t>, PublishedBlock*> published;
+  std::unordered_map<
+    std::tuple<std::shared_ptr<DataStoreHandle>, types::key_t, types::key_t>,
+    PublishedBlock*
+  > published;
 
   // global collective
   std::mutex rank_collective;
@@ -114,15 +113,27 @@ namespace threads_backend {
     CollectiveState
   > collective_state;
 
-  ThreadsRuntime::ThreadsRuntime()
+  ThreadsRuntime::ThreadsRuntime(
+    size_t const in_inside_rank,
+    size_t const in_inside_num_ranks,
+    top_level_task_unique_ptr&& in_top_level_task
+  )
     : produced(0)
     , consumed(0)
+    , inside_rank(in_inside_rank)
+    , inside_num_ranks(in_inside_num_ranks)
+    , top_level_task(in_top_level_task ? std::move(in_top_level_task) : nullptr)
   {
     #if __THREADS_BACKEND_DEBUG__ || __THREADS_BACKEND_SHUFFLE__
       //srand48(2918279);
       srand48(time(NULL));
     #endif
-    trace = traceMode ? new TraceModule{this_rank,n_ranks,"base"} : nullptr;
+    trace = traceMode ? new TraceModule{inside_rank,n_ranks,"base"} : nullptr;
+  }
+
+  /*virtual*/
+  ThreadsRuntime::~ThreadsRuntime() {
+    this->finalize();
   }
 
   void
@@ -135,13 +146,13 @@ namespace threads_backend {
   ThreadsRuntime::getTrace() { return trace; }
 
   size_t
-  ThreadsRuntime::get_spmd_rank() const {
-    return this_rank;
+  ThreadsRuntime::get_spmd_size() const {
+    return inside_num_ranks;
   }
 
   size_t
-  ThreadsRuntime::get_spmd_size() const {
-    return n_ranks;
+  ThreadsRuntime::get_spmd_rank() const {
+    return inside_rank;
   }
 
   size_t
@@ -261,7 +272,7 @@ namespace threads_backend {
       const auto& entry = thisLog->entry;
       auto dep = getTrace()->depCreate(time,entry);
 
-      dep->rank = this_rank;
+      dep->rank = inside_rank;
       dep->event = thisLog->event;
       thisLog->rank = pub_log->rank;
       pub_log->insertDep(dep);
@@ -352,16 +363,23 @@ namespace threads_backend {
       if (f_in->isFetch &&
           threads_backend::depthFirstExpand &&
           !f_in->fetcherAdded) {
-        blocking_fetch(f_in->handle.get(), f_in->version_key);
+        blocking_fetch(
+          f_in->handle.get(),
+          f_in->version_key,
+          f_in->data_store
+        );
         f_in->fetcherAdded = true;
         f_in->state = FlowReadReady;
         f_in->ready = true;
       } else if (f_in->isFetch &&
                  !f_in->fetcherAdded) {
         auto node = std::make_shared<FetchNode>(FetchNode{this,f_in});
-        const bool ready = add_fetcher(node,
-                                       f_in->handle.get(),
-                                       f_in->version_key);
+        const bool ready = add_fetcher(
+          node,
+          f_in->handle.get(),
+          f_in->version_key,
+          f_in->data_store
+        );
         if (ready) {
           DEBUG_PRINT("check_dep_task: adding fetch node to deque\n");
           ready_local.push_back(node);
@@ -434,12 +452,14 @@ namespace threads_backend {
     }
   }
 
+  template <typename TaskType>
   void
-  ThreadsRuntime::run_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
-    runtime_t::task_t* prev = current_task;
-    types::unique_ptr_template<runtime_t::task_t> cur = std::move(task);
-    current_task = cur.get();
-    cur.get()->run();
+  ThreadsRuntime::run_task(
+    TaskType* in_task
+  ) {
+    auto* prev = current_task;
+    current_task = in_task;
+    in_task->run();
     current_task = prev;
   }
 
@@ -588,7 +608,7 @@ namespace threads_backend {
   ThreadsRuntime::make_initial_flow(
     std::shared_ptr<handle_t> const& handle
   ) {
-    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [](InnerFlow* flow){
+    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [this](InnerFlow* flow){
       DEBUG_PRINT("make_initial_flow: deleter running %ld\n",
                   PRINT_LABEL(flow));
       delete flow;
@@ -645,8 +665,11 @@ namespace threads_backend {
   }
 
   bool
-  ThreadsRuntime::try_fetch(handle_t* handle,
-                            types::key_t const& version_key) {
+  ThreadsRuntime::try_fetch(
+    handle_t* handle,
+    types::key_t const& version_key,
+    std::shared_ptr<DataStoreHandle> const& store
+  ) {
     bool found = false;
 
   retry_fetch:
@@ -655,7 +678,7 @@ namespace threads_backend {
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find({version_key, key});
+      const auto& iter = published.find({store,version_key, key});
 
       if (iter != published.end()) {
         PublishedBlock* pub_ptr = iter->second;
@@ -692,7 +715,7 @@ namespace threads_backend {
 
         if (std::atomic_load<size_t>(&pub.expected) == 0) {
           // remove from publication list
-          published.erase({version_key, key});
+          published.erase({store,version_key,key});
           free(pub_ptr->data->data_);
           delete pub.data;
           delete pub_ptr;
@@ -709,16 +732,19 @@ namespace threads_backend {
   }
 
   bool
-  ThreadsRuntime::add_fetcher(std::shared_ptr<FetchNode> fetch,
-                              handle_t* handle,
-                              types::key_t const& version_key) {
+  ThreadsRuntime::add_fetcher(
+    std::shared_ptr<FetchNode> fetch,
+    handle_t* handle,
+    types::key_t const& version_key,
+    std::shared_ptr<DataStoreHandle> const& store
+  ) {
     bool ready = false;
     {
       // TODO: unscalable lock to handling fetching
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find({version_key,key});
+      const auto& iter = published.find({store,version_key,key});
       const bool found = iter != published.end();
       const bool avail = found && std::atomic_load<bool>(&iter->second->ready);
 
@@ -734,9 +760,9 @@ namespace threads_backend {
       if (!found) {
         auto pub = new PublishedBlock();
         pub->waiting.push_front(fetch);
-        published[{version_key,key}] = pub;
+        published[{store,version_key,key}] = pub;
       } else if (found && !avail) {
-        published[{version_key,key}]->waiting.push_front(fetch);
+        published[{store,version_key,key}]->waiting.push_front(fetch);
       }
 
       ready = avail;
@@ -745,15 +771,18 @@ namespace threads_backend {
   }
 
   bool
-  ThreadsRuntime::test_fetch(handle_t* handle,
-                             types::key_t const& version_key) {
+  ThreadsRuntime::test_fetch(
+    handle_t* handle,
+    types::key_t const& version_key,
+    std::shared_ptr<DataStoreHandle> const& store
+  ) {
     bool ready = false;
     {
       // TODO: unscalable lock to handling fetching
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find({version_key,key});
+      const auto& iter = published.find({store,version_key,key});
 
       DEBUG_PRINT("test_fetch: trying to find a publish, key=%s, version=%s\n",
                   PRINT_KEY(key),
@@ -767,25 +796,31 @@ namespace threads_backend {
   }
 
   void
-  ThreadsRuntime::blocking_fetch(handle_t* handle,
-                                 types::key_t const& version_key) {
+  ThreadsRuntime::blocking_fetch(
+    handle_t* handle,
+    types::key_t const& version_key,
+    std::shared_ptr<DataStoreHandle> const& store
+  ) {
 
     DEBUG_PRINT("fetch_block: handle = %p\n", handle);
 
-    while (!test_fetch(handle, version_key)) ;
+    while (!test_fetch(handle, version_key, store)) ;
 
-    fetch(handle, version_key);
+    fetch(handle, version_key, store);
   }
 
   TraceLog*
-  ThreadsRuntime::fetch(handle_t* handle,
-                        types::key_t const& version_key) {
+  ThreadsRuntime::fetch(
+    handle_t* handle,
+    types::key_t const& version_key,
+    std::shared_ptr<DataStoreHandle> const& store
+  ) {
     {
       // TODO: big lock to handling fetching
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find({version_key,key});
+      const auto& iter = published.find({store,version_key,key});
 
       DEBUG_PRINT("fetch: trying to find a publish, assume existance: handle=%p, key=%s, version=%s\n",
                   handle,
@@ -832,7 +867,7 @@ namespace threads_backend {
 
       if (std::atomic_load<size_t>(&pub.expected) == 0) {
         // remove from publication list
-        published.erase({version_key, key});
+        published.erase({store,version_key,key});
         free(pub_ptr->data->data_);
         delete pub.data;
         delete pub_ptr;
@@ -846,11 +881,12 @@ namespace threads_backend {
   flow_t
   ThreadsRuntime::make_fetching_flow(
     std::shared_ptr<handle_t> const& handle,
-    types::key_t const& version_key
+    types::key_t const& version_key,
+    std::shared_ptr<DataStoreHandle> const& data_store
   ) {
     DEBUG_VERBOSE_PRINT("make fetching flow\n");
 
-    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [](InnerFlow* flow){
+    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [this](InnerFlow* flow){
       DEBUG_PRINT("make_fetching_flow: deleter running %ld\n",
                   PRINT_LABEL(flow));
       delete flow;
@@ -861,6 +897,7 @@ namespace threads_backend {
     f->fromFetch = true;
     f->state = FlowWaiting;
     f->ready = false;
+    f->data_store = data_store;
 
     return f;
   }
@@ -872,7 +909,7 @@ namespace threads_backend {
  ) {
     DEBUG_VERBOSE_PRINT("make null flow\n");
 
-    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [](InnerFlow* flow){
+    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [this](InnerFlow* flow){
       DEBUG_PRINT("make_null_flow: deleter running %ld\n",
                   PRINT_LABEL(flow));
       delete flow;
@@ -898,7 +935,7 @@ namespace threads_backend {
   ThreadsRuntime::make_forwarding_flow(flow_t& f) {
     DEBUG_VERBOSE_PRINT("make forwarding flow\n");
 
-    auto f_forward = std::shared_ptr<InnerFlow>(new InnerFlow(nullptr), [](InnerFlow* flow){
+    auto f_forward = std::shared_ptr<InnerFlow>(new InnerFlow(nullptr), [this](InnerFlow* flow){
       DEBUG_PRINT("make_forwarding_flow: deleter running %ld\n",
                   PRINT_LABEL(flow));
       delete flow;
@@ -950,7 +987,7 @@ namespace threads_backend {
   ThreadsRuntime::make_next_flow(flow_t& f) {
     DEBUG_VERBOSE_PRINT("make next flow: (from=%p)\n", from);
 
-    auto f_next = std::shared_ptr<InnerFlow>(new InnerFlow(nullptr), [](InnerFlow* flow){
+    auto f_next = std::shared_ptr<InnerFlow>(new InnerFlow(nullptr), [this](InnerFlow* flow){
       DEBUG_PRINT("make_next_flow: deleter running %ld\n",
                   PRINT_LABEL(flow));
       delete flow;
@@ -976,8 +1013,8 @@ namespace threads_backend {
     auto handle = flow->handle;
 
     DEBUG_PRINT("cleanup_handle identity: %p to %p\n",
-                flow->handle,
-                flow->alias ? flow->alias->handle : nullptr)
+                flow->handle.get(),
+                flow->alias ? flow->alias->handle.get() : nullptr)
 
     delete_handle_data(
       handle.get(),
@@ -996,8 +1033,7 @@ namespace threads_backend {
   ) {
     auto& data_store = fromFetch ? fetched_data : data;
 
-    if (data_store.find({version,key}) !=
-        data_store.end()) {
+    if (data_store.find({version,key}) != data_store.end()) {
       data_store.erase(
         data_store.find({version,key})
       );
@@ -1258,7 +1294,8 @@ namespace threads_backend {
     darma_runtime::abstract::frontend::Use* use_in,
     darma_runtime::abstract::frontend::Use* use_out,
     darma_runtime::abstract::frontend::CollectiveDetails const* details,
-    types::key_t const& tag) {
+    types::key_t const& tag
+  ) {
 
     auto f_in = use_in->get_in_flow();
     auto f_out = use_in->get_out_flow();
@@ -1687,6 +1724,7 @@ namespace threads_backend {
       const auto& expected = publish->fetchers;
       const auto& version = publish->version;
       const auto& key = publish->key;
+      const auto& store = publish->data_store;
 
       auto handle = publish->handle;
       void* data_ptr = publish->data_ptr;
@@ -1708,11 +1746,12 @@ namespace threads_backend {
                   block->data_,
                   data_ptr);
 
-      const bool publish_exists = published.find({version,key}) != published.end();
-      const auto& publish = publish_exists ?
-        published[{version,key}] :
-        (published[{version,key}] = new PublishedBlock(),
-         published[{version,key}]);
+      auto const key_tup = std::make_tuple(store,version,key);
+      auto const publish_exists = published.find(key_tup) != published.end();
+      auto const& publish = publish_exists ?
+        published[key_tup] :
+        (published[key_tup] = new PublishedBlock(),
+         published[key_tup]);
 
       publish->expected = expected;
       publish->key = key;
@@ -1745,14 +1784,22 @@ namespace threads_backend {
     size_t n_indices,
     std::shared_ptr<DataStoreHandle> const& data_store
   ) {
-
+    concurrent_region_task_unique_ptr cr_task = std::move(task);
+    // simple implementation that runs it on this rank immediately
+    for (auto index = 0; index < n_indices; ++index) {
+      auto context = std::make_shared<ConcurrentRegionContext>(index);
+      cr_task->set_region_context(
+        context
+      );
+      run_task(cr_task.get());
+    }
   }
 
   /*virtual*/
   std::shared_ptr<DataStoreHandle>
   ThreadsRuntime::make_data_store() {
     return std::make_shared<DataStore>(
-      this_rank,
+      inside_rank,
       data_store_counter++
     );
   }
@@ -1767,6 +1814,7 @@ namespace threads_backend {
     auto handle = f->get_handle();
     auto version = details->get_version_name();
     auto key = handle->get_key();
+    auto const& store = details->get_data_store();
 
     // TODO: do not create this just to tear it down
     auto pub = std::make_shared<DelayedPublish>
@@ -1776,7 +1824,8 @@ namespace threads_backend {
           details->get_n_fetchers(),
           key,
           details->get_version_name(),
-          false
+          false,
+          store
        });
 
     auto p = std::make_shared<PublishNode>(PublishNode{this,pub});
@@ -1899,6 +1948,14 @@ namespace threads_backend {
   /*virtual*/
   void
   ThreadsRuntime::finalize() {
+    if (top_level_task) {
+      auto t = std::make_shared<TaskNode<top_level_task_t>>(
+        TaskNode<top_level_task_t>{this,std::move(top_level_task)}
+      );
+      add_local(t);
+      top_level_task = nullptr;
+    }
+
     DEBUG_PRINT("finalize:  produced=%ld, consumed=%ld\n",
                 this->produced,
                 this->consumed);
@@ -1931,7 +1988,7 @@ namespace threads_backend {
       trace = nullptr;
     }
 
-    if (this_rank == 0) {
+    if (inside_rank == 0) {
       DEBUG_PRINT("total threads to join is %zu\n", threads_backend::live_ranks.size());
 
       // TODO: memory consistency bug on live_ranks size here..with relaxed ordering
@@ -1946,148 +2003,137 @@ namespace threads_backend {
 
 
 void
-start_thread_handler(const size_t thd, threads_backend::ThreadsRuntime* runtime) {
-  //std::cout << "thread handler running" << std::endl;
-  DEBUG_PRINT("%ld: thread handler starting\n", thd);
+start_rank_handler(
+  size_t const system_rank,
+  size_t const num_system_ranks
+) {
+  STARTUP_PRINT(
+    "%ld: rank handler starting\n",
+    system_rank
+  );
 
-  // set thread-local rank
-  threads_backend::this_rank = thd;
+  std::make_unique<threads_backend::ThreadsRuntime>(
+    num_system_ranks,
+    system_rank
+  );
+
+  return;
 }
 
+namespace threads_backend {
 void
-start_rank_handler(const size_t rank,
-                   const int argc,
-                   char** argv) {
-  DEBUG_PRINT("%ld: rank handler starting\n", rank);
+backend_parse_arguments(
+  ArgsHolder& holder
+) {
+  size_t const system_rank =
+    holder.exists("system-rank") ? holder.get<size_t>("system-rank") : 0;
+  size_t const num_system_ranks =
+    holder.exists("num-system-rank") ? holder.get<size_t>("num-system-ranks") : 1;
+  size_t const n_threads =
+    holder.exists("threads") ? holder.get<size_t>("threads") : 1;
+  size_t const n_ranks =
+    holder.exists("ranks") ? holder.get<size_t>("ranks") : 1;
+  bool const trace =
+    holder.exists("trace") ? static_cast<bool>(holder.get<size_t>("trace")) : false;
+  size_t const bwidth =
+    holder.exists("bf") ? holder.get<size_t>("bf") : 0;
+  bool const depth =
+    bwidth == 0 ? true : false;
 
-  // set TL variables
-  threads_backend::this_rank = rank;
+  threads_backend::depthFirstExpand = depth;
 
-  // call into main
-  const int ret = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
+  if (system_rank == 0) {
+    if (threads_backend::depthFirstExpand) {
+      STARTUP_PRINT(
+        "DARMA: number of ranks = %zu, "
+        "DF-Sched mode (depth-first, rank-threaded scheduler): Tracing=%s\n",
+        n_ranks,
+        trace ? "ON" : "OFF"
+      );
+    } else {
+      STARTUP_PRINT(
+        "DARMA: number of ranks = %zu, "
+        "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler), Tracing=%s\n",
+        n_ranks,
+        bwidth,
+        trace ? "ON" : "OFF"
+      );
+    }
 
-  delete threads_backend::cur_runtime;
+    STARTUP_PRINT(
+      "rank = %zu, ranks = %zu, threads = %zu\n",
+      system_rank,
+      n_ranks,
+      n_threads
+    );
+
+    // launch std::thread for each rank
+    threads_backend::live_ranks.resize(n_ranks - 1);
+    for (size_t i = 0; i < n_ranks - 1; ++i) {
+      threads_backend::live_ranks[i] = std::thread(
+        start_rank_handler,
+        i + 1,
+        n_ranks
+      );
+    }
+  }
+}
 }
 
 int main(int argc, char **argv) {
-  int ret = (*(darma_runtime::detail::_darma__generate_main_function_ptr<>()))(argc, argv);
-  // TODO: check if runtime finalized before deleting
-  // if (darma_runtime::detail::backend_runtime) {
-  //   delete darma_runtime::detail::backend_runtime;
-  // }
+  ArgsHolder args_holder(argc, argv);
 
-  delete threads_backend::cur_runtime;
+  threads_backend::backend_parse_arguments(args_holder);
 
-  return ret;
+  auto const system_rank =
+    args_holder.exists("system-rank") ?
+    args_holder.get<size_t>("system-rank") : 0;
+  auto const num_system_ranks =
+    args_holder.exists("num-system-ranks") ?
+    args_holder.get<size_t>("num-system-ranks") : 1;
+
+  ArgsRemover remover(
+    argc, argv,
+    "system-rank",
+    "num-system-ranks",
+    "ranks",
+    "threads",
+    "trace",
+    "bf"
+  );
+
+  auto lst = remover.new_args;
+
+  if (system_rank == 0) {
+    int argc_new = lst.size();
+    char* argv_new[argc_new];
+    int i = 0;
+    for (auto&& item : lst) {
+      argv_new[i] = const_cast<char*>(item.c_str());
+      i++;
+    }
+    char** argv_new_c = static_cast<char**>(argv_new);
+    auto task = darma_runtime::frontend::darma_top_level_setup(
+      argc_new,
+      argv_new_c
+    );
+    auto runtime = std::make_unique<threads_backend::ThreadsRuntime>(
+      num_system_ranks,
+      system_rank,
+      std::move(task)
+    );
+    threads_backend::cur_runtime = runtime.get();
+  } else {
+    auto runtime = std::make_unique<threads_backend::ThreadsRuntime>(
+      num_system_ranks,
+      system_rank
+    );
+    threads_backend::cur_runtime = runtime.get();
+  }
+
+  return 0;
 }
 
-void
-darma_runtime::abstract::backend::darma_backend_initialize(
-  int &argc, char **&argv,
-  //darma_runtime::abstract::backend::Runtime *&backend_runtime,
-  types::unique_ptr_template<
-    typename darma_runtime::abstract::backend::Runtime::task_t
-  >&& top_level_task
-) {
-  bool depth = true;
-  size_t ranks = 1, n_threads = 1;
-
-  detail::ArgParser args = {
-    {"t", "threads", 1},
-    {"r", "ranks",   1},
-    {"m", "trace",   1},
-    {"", "backend-n-ranks", 1},
-    {"", "serial-backend-n-ranks", 1},
-    {"", "bf",   1}
-  };
-
-  args.parse(argc, argv);
-
-  // read number of threads from the command line
-  if (args["threads"].as<bool>()) {
-    n_threads = args["threads"].as<size_t>();
-
-    // TODO: require this backend not to run with multiple threads per rank
-    assert(n_threads == 1);
-  }
-
-  if (args["backend-n-ranks"].as<bool>()) {
-    ranks = args["backend-n-ranks"].as<size_t>();
-    assert(ranks > 0);
-  }
-
-  if (args["serial-backend-n-ranks"].as<bool>()) {
-    ranks = args["serial-backend-n-ranks"].as<size_t>();
-    assert(ranks > 0);
-  }
-
-  // read number of ranks from the command line
-  if (args["ranks"].as<bool>()) {
-    ranks = args["ranks"].as<size_t>();
-
-    assert(ranks > 0);
-    // TODO: write some other sanity assertions here about the size of ranks...
-  }
-
-  if (args["trace"].as<bool>()) {
-    size_t traceInt = args["trace"].as<size_t>();
-    if (traceInt) {
-      threads_backend::traceMode = true;
-    }
-  }
-
-  // read number of ranks from the command line
-  if (args["bf"].as<bool>()) {
-    auto bf = args["bf"].as<size_t>() != 0;
-    if (threads_backend::this_rank == 0) {
-      threads_backend::bwidth = args["bf"].as<size_t>();
-    }
-    depth = not bf;
-  }
-
-  if (threads_backend::this_rank == 0) {
-    threads_backend::n_ranks = ranks;
-    threads_backend::depthFirstExpand = depth;
-  }
-
-  if (threads_backend::this_rank == 0) {
-    if (threads_backend::depthFirstExpand) {
-      STARTUP_PRINT("DARMA: number of ranks = %zu, "
-                    "DF-Sched mode (depth-first, rank-threaded scheduler): Tracing=%s\n",
-                    threads_backend::n_ranks,
-                    threads_backend::traceMode ? "ON" : "OFF");
-    } else {
-      STARTUP_PRINT("DARMA: number of ranks = %zu, "
-                    "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler), Tracing=%s\n",
-                    threads_backend::n_ranks,
-                    threads_backend::bwidth,
-                    threads_backend::traceMode ? "ON" : "OFF");
-    }
-  }
-
-  auto* runtime = new threads_backend::ThreadsRuntime();
-  threads_backend::cur_runtime = runtime;
-
-  if (threads_backend::this_rank == 0) {
-    DEBUG_PRINT("rank = %zu, ranks = %zu, threads = %zu\n",
-                threads_backend::this_rank,
-                threads_backend::n_ranks,
-                n_threads);
-
-    // launch std::thread for each rank
-    threads_backend::live_ranks.resize(threads_backend::n_ranks - 1);
-    for (size_t i = 0; i < threads_backend::n_ranks - 1; ++i) {
-      threads_backend::live_ranks[i] = std::thread(start_rank_handler, i + 1, argc, argv);
-    }
-  }
-
-  // setup root task
-  runtime->top_level_task = std::move(top_level_task);
-  runtime->top_level_task->set_name(darma_runtime::make_key(DARMA_BACKEND_SPMD_NAME_PREFIX,
-                                                            threads_backend::this_rank,
-                                                            threads_backend::n_ranks));
-  threads_backend::current_task = runtime->top_level_task.get();
-}
 
 namespace darma_runtime {
   abstract::backend::Context*

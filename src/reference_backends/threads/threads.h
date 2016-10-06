@@ -157,6 +157,7 @@ namespace threads_backend {
     types::key_t key;
     types::key_t version;
     bool finished;
+    std::shared_ptr<DataStoreHandle> data_store;
   };
 
   struct CollectiveInfo {
@@ -182,6 +183,10 @@ namespace threads_backend {
     , public ThreadsInterface<ThreadsRuntime> {
 
   public:
+    size_t inside_rank = 0;
+    size_t inside_num_ranks = 0;
+    runtime_t::task_t* current_task = nullptr;
+
     ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
     size_t data_store_counter = 0;
@@ -191,12 +196,12 @@ namespace threads_backend {
       std::shared_ptr<DataBlock>
     > data, fetched_data;
 
-    types::unique_ptr_template<runtime_t::task_t> top_level_task;
+    top_level_task_unique_ptr top_level_task;
 
-    std::deque<std::shared_ptr<GraphNode> > ready_local;
+    std::deque<std::shared_ptr<GraphNode>> ready_local;
 
     std::mutex lock_remote;
-    std::deque<std::shared_ptr<GraphNode> > ready_remote;
+    std::deque<std::shared_ptr<GraphNode>> ready_remote;
 
     // used for tracing to follow the dependency back to the proper
     // traced block
@@ -217,11 +222,15 @@ namespace threads_backend {
 
     TraceModule* trace = nullptr;
 
-    size_t produced, consumed;
+    size_t produced = 0, consumed = 0;
 
-    ThreadsRuntime();
+    ThreadsRuntime(
+      size_t const in_inside_rank,
+      size_t const in_inside_num_ranks,
+      top_level_task_unique_ptr&& in_top_level_task = nullptr
+    );
 
-    virtual ~ThreadsRuntime() {}
+    virtual ~ThreadsRuntime();
 
     template <typename TaskType>
     void addTraceDeps(
@@ -247,10 +256,10 @@ namespace threads_backend {
     consume();
 
     size_t
-    get_spmd_rank() const;
+    get_spmd_size() const;
 
     size_t
-    get_spmd_size() const;
+    get_spmd_rank() const;
 
     void
     de_serialize(handle_t const* handle,
@@ -366,8 +375,11 @@ namespace threads_backend {
       std::shared_ptr<TaskNode<TaskType>> t
     );
 
+    template <typename TaskType>
     void
-    run_task(types::unique_ptr_template<runtime_t::task_t>&& task);
+    run_task(
+      TaskType* task
+    );
 
     virtual runtime_t::task_t*
     get_running_task() const;
@@ -396,26 +408,46 @@ namespace threads_backend {
     );
 
     bool
-    add_fetcher(std::shared_ptr<FetchNode> fetch,
-		handle_t* handle,
-		types::key_t const& version_key);
+    add_fetcher(
+      std::shared_ptr<FetchNode> fetch,
+      handle_t* handle,
+      types::key_t const& version_key,
+      std::shared_ptr<DataStoreHandle> const& store
+    );
+
     bool
-    try_fetch(handle_t* handle,
-	      types::key_t const& version_key);
+    try_fetch(
+      handle_t* handle,
+      types::key_t const& version_key,
+      std::shared_ptr<DataStoreHandle> const& store
+    );
+
     bool
-    test_fetch(handle_t* handle,
-	       types::key_t const& version_key);
+    test_fetch(
+      handle_t* handle,
+      types::key_t const& version_key,
+      std::shared_ptr<DataStoreHandle> const& store
+    );
+
     void
-    blocking_fetch(handle_t* handle,
-		   types::key_t const& version_key);
+    blocking_fetch(
+      handle_t* handle,
+      types::key_t const& version_key,
+      std::shared_ptr<DataStoreHandle> const& store
+    );
+
     TraceLog*
-    fetch(handle_t* handle,
-	  types::key_t const& version_key);
+    fetch(
+      handle_t* handle,
+      types::key_t const& version_key,
+      std::shared_ptr<DataStoreHandle> const& store
+    );
 
     virtual flow_t
     make_fetching_flow(
       std::shared_ptr<handle_t> const& handle,
-      types::key_t const& version_key
+      types::key_t const& version_key,
+      std::shared_ptr<DataStoreHandle> const& data_store
     );
 
     virtual flow_t
@@ -472,7 +504,7 @@ namespace threads_backend {
 
     template <typename Node>
     void
-    try_node(std::list<std::shared_ptr<Node> >& nodes);
+    try_node(std::list<std::shared_ptr<Node>>& nodes);
 
     template <typename Node>
     bool schedule_from_deque(std::mutex* lock, std::deque<Node>& nodes);

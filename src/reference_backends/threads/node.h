@@ -64,8 +64,7 @@ namespace threads_backend {
   typedef ThreadsInterface<ThreadsRuntime> Runtime;
 
   struct GraphNode
-    : public std::enable_shared_from_this<GraphNode> {
-
+    : std::enable_shared_from_this<GraphNode> {
     Runtime* runtime;
     size_t join_counter;
 
@@ -82,9 +81,12 @@ namespace threads_backend {
     }
 
     virtual void release()  {
-      DEBUG_PRINT("%p join counter is now %zu\n",
-                  this,
-                  join_counter - 1);
+      DEBUG_PRINT_THD(
+        runtime->get_rank(),
+        "%p: join counter is now %zu\n",
+        this,
+        join_counter - 1
+      );
 
       if (--join_counter == 0) {
         runtime->add_local(this->shared_from_this());
@@ -109,7 +111,7 @@ namespace threads_backend {
   };
 
   struct FetchNode
-    : public GraphNode
+    : GraphNode
   {
     std::shared_ptr<InnerFlow> fetch;
 
@@ -130,7 +132,8 @@ namespace threads_backend {
 
       TraceLog* pub_log = runtime->fetch(
         fetch->handle.get(),
-        fetch->version_key
+        fetch->version_key,
+        fetch->data_store
       );
 
       if (runtime->getTrace()) {
@@ -143,7 +146,10 @@ namespace threads_backend {
 
       fetch->ready = true;
 
-      DEBUG_PRINT("=== EXECUTING === fetch node\n");
+      DEBUG_PRINT_THD(
+        runtime->get_rank(),
+        "=== EXECUTING === fetch node\n"
+      );
 
       runtime->try_release_to_read(fetch);
 
@@ -153,24 +159,30 @@ namespace threads_backend {
     bool ready() override {
       return runtime->test_fetch(
         fetch->handle.get(),
-        fetch->version_key
+        fetch->version_key,
+        fetch->data_store
       );
     }
 
     virtual ~FetchNode() {
-      DEBUG_PRINT("destructing fetch node, flow=%ld\n",
-                  PRINT_LABEL(fetch)
-                  );
+      DEBUG_PRINT_THD(
+        runtime->get_rank(),
+        "destructing fetch node, flow=%ld\n",
+        PRINT_LABEL(fetch)
+      );
     }
 
     void activate() override {
-      DEBUG_PRINT("=== ACTIVATING === fetch node\n");
+      DEBUG_PRINT_THD(
+        runtime->get_rank(),
+        "=== ACTIVATING === fetch node\n"
+      );
       runtime->add_remote(this->shared_from_this());
     }
   };
 
   struct PublishNode
-    : public GraphNode
+    : GraphNode
   {
     std::shared_ptr<DelayedPublish> pub;
 
@@ -181,7 +193,10 @@ namespace threads_backend {
     { }
 
     void execute() {
-      DEBUG_PRINT("=== EXECUTING === publish node\n");
+      DEBUG_PRINT_THD(
+        runtime->get_rank(),
+        "=== EXECUTING === publish node\n"
+      );
 
       if (!pub->finished) {
         std::string genName = "";
@@ -216,8 +231,8 @@ namespace threads_backend {
   };
 
   struct CollectiveNode
-    : GraphNode {
-
+    : GraphNode
+  {
     std::shared_ptr<CollectiveInfo> info;
     bool finished = false;
 
@@ -260,12 +275,12 @@ namespace threads_backend {
 
   template <typename TaskType>
   struct TaskNode
-    : public GraphNode
+    : GraphNode
   {
-    types::unique_ptr_template<TaskType> task;
+    std::unique_ptr<TaskType> task;
 
     TaskNode(Runtime* rt,
-             types::unique_ptr_template<TaskType>&& task_)
+             std::unique_ptr<TaskType>&& task_)
       : GraphNode(-1, rt)
       , task(std::move(task_))
     { }
@@ -284,7 +299,7 @@ namespace threads_backend {
         runtime->addTraceDeps(this,log);
       }
 
-      runtime->run_task(std::move(task));
+      runtime->run_task(task.get());
 
       // end trace event
       if (runtime->getTrace()) {
@@ -298,18 +313,6 @@ namespace threads_backend {
       return join_counter == 0;
     }
   };
-
-  // struct ConditionTaskNode
-  //   : TaskNode
-  // {
-  //   ThreadsRuntime::condition_task_unique_ptr task;
-
-  //   ConditionTaskNode(Runtime* rt,
-  //                     ThreadsRuntime::condition_task_unique_ptr&& task_)
-  //     : GraphNode(-1, rt)
-  //     , task(std::move(task_))
-  //   { }
-  // };
 }
 
 #endif /* _THREADS_NODE_BACKEND_RUNTIME_H_ */

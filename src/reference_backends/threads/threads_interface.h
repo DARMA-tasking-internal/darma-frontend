@@ -101,16 +101,35 @@ namespace threads_backend {
       return static_cast<Impl*>(this)->add_local(task);
     }
 
+    inline size_t
+    get_rank() {
+      return static_cast<Impl*>(this)->inside_rank;
+    }
+
     // fetch interface methods
     inline TraceLog*
-    fetch(Runtime::handle_t* handle,
-          types::key_t const& version_key) {
-      return static_cast<Impl*>(this)->fetch(handle, version_key);
+    fetch(
+      Runtime::handle_t* handle,
+      types::key_t const& version_key,
+      std::shared_ptr<DataStoreHandle> const& store
+    ) {
+      return static_cast<Impl*>(this)->fetch(
+        handle,
+        version_key,
+        store
+      );
     }
     inline bool
-    test_fetch(Runtime::handle_t* handle,
-               types::key_t const& version_key) {
-      return static_cast<Impl*>(this)->test_fetch(handle, version_key);
+    test_fetch(
+      Runtime::handle_t* handle,
+      types::key_t const& version_key,
+      std::shared_ptr<DataStoreHandle> const& store
+    ) {
+      return static_cast<Impl*>(this)->test_fetch(
+        handle,
+        version_key,
+        store
+      );
     }
 
     // collective interface
@@ -143,9 +162,10 @@ namespace threads_backend {
     }
 
     // task interface methods
+    template <typename TaskType>
     inline void
-    run_task(types::unique_ptr_template<runtime_t::task_t>&& task) {
-      return static_cast<Impl*>(this)->run_task(std::forward<types::unique_ptr_template<runtime_t::task_t>>(task));
+    run_task(TaskType* task) {
+      return static_cast<Impl*>(this)->run_task(task);
     }
   };
 }
