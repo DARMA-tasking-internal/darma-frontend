@@ -137,6 +137,7 @@ class MockRuntime
       std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle>()
     );
 
+    MOCK_CONST_METHOD1(get_execution_resource_count, size_t(size_t));
     MOCK_CONST_METHOD0(get_running_task, task_t*());
     MOCK_METHOD0(finalize, void());
     MOCK_METHOD1(register_use, void(use_t*));

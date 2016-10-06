@@ -54,6 +54,7 @@
 #include "variadic/find_if.hpp"
 #include "as_sequence.hpp"
 #include "sequence.hpp"
+#include "reverse.hpp"
 
 namespace tinympl {
 
@@ -74,6 +75,27 @@ struct find_if : find_if<as_sequence_t<Sequence>, F > {};
 
 template<template<class ... T> class F, class ... Args>
 struct find_if<sequence<Args...>, F> : variadic::find_if<F, Args...> {};
+
+template<class Sequence, template<class ... T> class F>
+struct find_last_if : find_last_if<as_sequence_t<Sequence>, F > {};
+
+template<template<class ... T> class F, class ... Args>
+struct find_last_if<sequence<Args...>, F>
+{
+  private:
+    using rev_seq = typename tinympl::reverse<sequence<Args...>>::type;
+    static constexpr auto found_rev = find_if<rev_seq, F>::value;
+
+  public:
+
+    using type = std::conditional_t<
+      found_rev == sizeof...(Args),
+      std::integral_constant<size_t, sizeof...(Args)>,
+      std::integral_constant<size_t, sizeof...(Args) - found_rev - 1>
+    >;
+
+    static constexpr auto value = type::value;
+};
 
 } // namespace tinympl
 

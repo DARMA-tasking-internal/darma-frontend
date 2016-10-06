@@ -55,7 +55,7 @@ template <typename ConcreteBasicTask>
 struct TopLevelTask: ConcreteBasicTask {
   public:
 
-    virtual void run() =0;
+    virtual void run() override =0;
 
     bool is_migratable() const override { return false; }
 };

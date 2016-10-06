@@ -123,7 +123,8 @@ namespace frontend {
 inline
 std::unique_ptr<abstract::frontend::TopLevelTask<darma_runtime::detail::TaskBase>>
 darma_top_level_setup(int& argc, char**& argv) {
-  std::vector<std::string> cl_args(argc);
+  std::vector<std::string> cl_args;
+  cl_args.reserve(argc);
   for(int i = 0; i < argc; ++i) cl_args.emplace_back(argv[i]);
   auto tlt = std::make_unique<darma_runtime::detail::TopLevelTaskImpl>();
   tlt->set_command_line_arguments(std::move(cl_args));
