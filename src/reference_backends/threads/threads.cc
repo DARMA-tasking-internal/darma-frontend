@@ -157,6 +157,12 @@ namespace threads_backend {
     return inside_num_ranks;
   }
 
+  /*virtual*/
+  size_t
+  ThreadsRuntime::get_execution_resource_count(size_t depth) const {
+    return inside_num_ranks;
+  }
+
   size_t
   ThreadsRuntime::get_spmd_rank() const {
     return inside_rank;

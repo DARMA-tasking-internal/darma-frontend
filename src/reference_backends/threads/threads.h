@@ -202,6 +202,9 @@ namespace threads_backend {
     std::mutex lock_remote{};
     std::deque<std::shared_ptr<GraphNode>> ready_remote;
 
+    virtual size_t
+    get_execution_resource_count(size_t depth) const;
+
     // used for tracing to follow the dependency back to the proper
     // traced block
     std::unordered_map<
