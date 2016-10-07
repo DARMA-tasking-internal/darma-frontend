@@ -104,7 +104,6 @@ namespace std {
   };
 }
 
-
 namespace threads_backend {
   using flow_t = darma_runtime::types::flow_t;
 
@@ -200,7 +199,7 @@ namespace threads_backend {
 
     std::deque<std::shared_ptr<GraphNode>> ready_local;
 
-    std::mutex lock_remote;
+    std::mutex lock_remote{};
     std::deque<std::shared_ptr<GraphNode>> ready_remote;
 
     // used for tracing to follow the dependency back to the proper

@@ -67,6 +67,7 @@
 #include <utility>
 #include <memory>
 #include <unordered_map>
+#include <algorithm>
 
 #include <common.h>
 #include <threads.h>
@@ -81,6 +82,8 @@ namespace threads_backend {
   using flow_t = darma_runtime::types::flow_t;
 
   std::vector<std::thread> live_ranks;
+  std::vector<ThreadsRuntime*> shared_ranks;
+  std::atomic<int> terminate_counter = {0};
 
   #if __THREADS_DEBUG_MODE__
     __thread size_t flow_label = 100;
@@ -92,6 +95,10 @@ namespace threads_backend {
   __thread size_t fetch_label = 1;
 
   __thread ThreadsRuntime* cur_runtime = nullptr;
+
+  size_t start_barrier = 0;
+  std::condition_variable cv_start_barrier{};
+  std::mutex mutex_start_barrier{};
 
   // global
   size_t n_ranks = 1;
@@ -133,7 +140,7 @@ namespace threads_backend {
 
   /*virtual*/
   ThreadsRuntime::~ThreadsRuntime() {
-    this->finalize();
+    DEBUG_PRINT("TERMIANTED: calling the destructor on runtime\n");
   }
 
   void
@@ -176,6 +183,10 @@ namespace threads_backend {
 
   void
   ThreadsRuntime::schedule_over_breadth() {
+    DEBUG_PRINT("schedule_over_breadth: prod=%ld, cons=%ld, bwidth=%ld\n",
+                this->produced,
+                this->consumed,
+                bwidth);
     if (this->produced - this->consumed > bwidth)
       schedule_next_unit();
   }
@@ -1785,13 +1796,40 @@ namespace threads_backend {
     std::shared_ptr<DataStoreHandle> const& data_store
   ) {
     concurrent_region_task_unique_ptr cr_task = std::move(task);
-    // simple implementation that runs it on this rank immediately
-    for (auto index = 0; index < n_indices; ++index) {
-      auto context = std::make_shared<ConcurrentRegionContext>(index);
-      cr_task->set_region_context(
-        context
-      );
-      run_task(cr_task.get());
+
+    int const blocks = n_indices;
+    int const ranks = inside_num_ranks;
+    int const num_per_rank = std::max(1, blocks / ranks);
+
+    for (auto cur = 0; cur < std::max(blocks,num_per_rank*ranks); cur += num_per_rank) {
+      int const rank = (cur / num_per_rank) % ranks;
+
+      for (auto i = cur; i < std::min(cur+num_per_rank,blocks); i++) {
+        //std::cout << "rank " << rank << ": index = " << i << std::endl;
+        auto const size = cr_task->get_packed_size();
+        void* packed_task = malloc(size);
+        cr_task->pack(packed_task);
+        auto new_task =
+          darma_runtime::abstract::frontend::unpack_concurrent_region_task<types::concrete_task_t>(
+            packed_task
+          );
+        free(packed_task);
+
+        auto context = std::make_shared<ConcurrentRegionContext>(i);
+        new_task->set_region_context(
+          context
+        );
+        auto task_node = std::make_shared<TaskNode<concurrent_region_task_t>>(
+          rank == inside_rank ? this : shared_ranks[rank],
+          std::move(new_task)
+        );
+
+        if (rank == inside_rank) {
+          add_local(task_node);
+        } else {
+          shared_ranks[rank]->add_remote(task_node);
+        }
+      }
     }
   }
 
@@ -1960,11 +1998,37 @@ namespace threads_backend {
                 this->produced,
                 this->consumed);
 
+    bool first = true;
     do {
-      schedule_next_unit();
-    } while (this->produced != this->consumed
-             || ready_local.size() != 0
-             || ready_remote.size() != 0);
+      if (!first) {
+        terminate_counter--;
+        // DEBUG_PRINT("decrementing terminate counter = %d\n",
+        //           terminate_counter.load());
+      }
+
+      do {
+        schedule_next_unit();
+      } while (
+        this->produced != this->consumed ||
+        ready_local.size() != 0 ||
+        ready_remote.size() != 0
+      );
+
+      std::this_thread::yield();
+
+      first = false;
+      terminate_counter++;
+
+      // DEBUG_PRINT("incrementing terminate counter = %d\n",
+      //             terminate_counter.load());
+    } while (
+      terminate_counter.load() != inside_num_ranks ||
+      this->produced != this->consumed ||
+      ready_local.size() != 0 ||
+      ready_remote.size() != 0
+    );
+
+    DEBUG_PRINT("thread is TERMIANTED\n");
 
     assert(ready_local.size() == 0 &&
            ready_remote.size() == 0 &&
@@ -2001,21 +2065,42 @@ namespace threads_backend {
   }
 } // end namespace threads_backend
 
+void barrier(size_t const rank) {
+  DEBUG_PRINT("start barrier rank=%ld\n", rank);
+  {
+    std::unique_lock<std::mutex> _lock1(threads_backend::mutex_start_barrier);
+    threads_backend::start_barrier++;
+  }
+  threads_backend::cv_start_barrier.notify_all();
+  {
+    std::unique_lock<std::mutex> _lock1(threads_backend::mutex_start_barrier);
+    threads_backend::cv_start_barrier.wait(_lock1, []{
+      return threads_backend::start_barrier == threads_backend::n_ranks;
+    });
+  }
+}
 
 void
 start_rank_handler(
   size_t const system_rank,
   size_t const num_system_ranks
 ) {
-  STARTUP_PRINT(
+  DEBUG_PRINT_THD(
+    system_rank,
     "%ld: rank handler starting\n",
     system_rank
   );
 
-  std::make_unique<threads_backend::ThreadsRuntime>(
-    num_system_ranks,
-    system_rank
+  auto runtime = std::make_unique<threads_backend::ThreadsRuntime>(
+    system_rank,
+    num_system_ranks
   );
+  threads_backend::cur_runtime = runtime.get();
+  threads_backend::shared_ranks[system_rank] = runtime.get();
+
+  barrier(system_rank);
+
+  runtime->finalize();
 
   return;
 }
@@ -2041,6 +2126,8 @@ backend_parse_arguments(
     bwidth == 0 ? true : false;
 
   threads_backend::depthFirstExpand = depth;
+  threads_backend::bwidth = bwidth;
+  threads_backend::n_ranks = n_ranks;
 
   if (system_rank == 0) {
     if (threads_backend::depthFirstExpand) {
@@ -2060,14 +2147,16 @@ backend_parse_arguments(
       );
     }
 
-    STARTUP_PRINT(
-      "rank = %zu, ranks = %zu, threads = %zu\n",
+    DEBUG_PRINT_THD(
+      system_rank,
+      "rank=%zu, ranks=%zu, threads=%zu\n",
       system_rank,
       n_ranks,
       n_threads
     );
 
     // launch std::thread for each rank
+    threads_backend::shared_ranks.resize(n_ranks);
     threads_backend::live_ranks.resize(n_ranks - 1);
     for (size_t i = 0; i < n_ranks - 1; ++i) {
       threads_backend::live_ranks[i] = std::thread(
@@ -2090,7 +2179,10 @@ int main(int argc, char **argv) {
     args_holder.get<size_t>("system-rank") : 0;
   auto const num_system_ranks =
     args_holder.exists("num-system-ranks") ?
-    args_holder.get<size_t>("num-system-ranks") : 1;
+    args_holder.get<size_t>("num-system-ranks") : (
+      args_holder.exists("ranks") ?
+      args_holder.get<size_t>("ranks") : 1
+    );
 
   ArgsRemover remover(
     argc, argv,
@@ -2118,17 +2210,23 @@ int main(int argc, char **argv) {
       argv_new_c
     );
     auto runtime = std::make_unique<threads_backend::ThreadsRuntime>(
-      num_system_ranks,
       system_rank,
+      num_system_ranks,
       std::move(task)
     );
     threads_backend::cur_runtime = runtime.get();
+    threads_backend::shared_ranks[system_rank] = runtime.get();
+
+    barrier(system_rank);
+
+    runtime->finalize();
   } else {
     auto runtime = std::make_unique<threads_backend::ThreadsRuntime>(
-      num_system_ranks,
-      system_rank
+      system_rank,
+      num_system_ranks
     );
     threads_backend::cur_runtime = runtime.get();
+    runtime->finalize();
   }
 
   return 0;
