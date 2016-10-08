@@ -74,6 +74,7 @@ namespace threads_backend {
       , runtime(runtime_)
     {
       runtime->produce();
+      threads_backend::global_produce();
     }
 
     void set_join(size_t join_counter_) {
@@ -96,6 +97,7 @@ namespace threads_backend {
     // execute the graph node
     virtual void execute() {
       runtime->consume();
+      threads_backend::global_consume();
     }
 
     // check readiness of the node

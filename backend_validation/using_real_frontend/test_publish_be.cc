@@ -76,27 +76,32 @@ class TestPublishBE
 // builds upon TestCreateWorkBE::initial_access_alloc()
 // additionally calls runtime::publish_use() and runtime::make_fetching_flow()
 TEST_F(TestPublishBE, publish_in_cw){
-  std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
-  {
-    darma_init(argc_, argv_);
-    auto h = initial_access<mydata>("dummy");
-    create_work([=]{
-      // make sure this task runs first
-      EXPECT_EQ((*execution_order_check)++, 0);
-      h.set_value(7);
-      h.publish(version="a");
-    });
-    {
-      auto h2 = read_access<mydata>("dummy", version="a");
-      create_work([=]{
-        // make sure this task runs second
-        EXPECT_EQ((*execution_order_check)++, 1);
-        // make sure we fetched the right value
-        EXPECT_EQ(h2.get_value(), 7);
-      });
+  static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  struct test_task {
+    void operator()(std::vector<std::string> args) {
+      {
+        auto h = initial_access<mydata>("dummy");
+        create_work([=]{
+          // make sure this task runs first
+          EXPECT_EQ((*execution_order_check)++, 0);
+          h.set_value(7);
+          h.publish(version="a");
+        });
+        {
+          auto h2 = read_access<mydata>("dummy", version="a");
+          create_work([=]{
+            // make sure this task runs second
+            EXPECT_EQ((*execution_order_check)++, 1);
+            // make sure we fetched the right value
+            EXPECT_EQ(h2.get_value(), 7);
+          });
+        }
+
+      }
     }
-    darma_finalize();
-  }
+  };
+  DARMA_REGISTER_TOP_LEVEL_FUNCTOR(test_task);
+  backend_init_finalize(argc_, argv_);
   // make sure task not still queued
   ASSERT_TRUE(execution_order_check.unique());
   // make sure task actually ran
@@ -107,27 +112,32 @@ TEST_F(TestPublishBE, publish_in_cw){
 // same as TestPublishBE::publish_in_cw() but with the call to
 //   runtime::publish_use() coming from the top-level task
 TEST_F(TestPublishBE, publish_after_cw){
-  std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
-  {
-    darma_init(argc_, argv_);
-    auto h = initial_access<mydata>("dummy");
-    create_work([=]{
-      // make sure this task runs first
-      EXPECT_EQ((*execution_order_check)++, 0);
-      h.set_value(7);
-    });
-    h.publish(version="a");
-    {
-      auto h2 = read_access<mydata>("dummy", version="a");
-      create_work([=]{
-        // make sure this task runs second
-        EXPECT_EQ((*execution_order_check)++, 1);
-        // make sure we fetched the right value
-        EXPECT_EQ(h2.get_value(), 7);
-      });
+  static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  struct test_task {
+    void operator()(std::vector<std::string> args) {
+      {
+        auto h = initial_access<mydata>("dummy");
+        create_work([=]{
+          // make sure this task runs first
+          EXPECT_EQ((*execution_order_check)++, 0);
+          h.set_value(7);
+        });
+        h.publish(version="a");
+        {
+          auto h2 = read_access<mydata>("dummy", version="a");
+          create_work([=]{
+            // make sure this task runs second
+            EXPECT_EQ((*execution_order_check)++, 1);
+            // make sure we fetched the right value
+            EXPECT_EQ(h2.get_value(), 7);
+          });
+        }
+
+      }
     }
-    darma_finalize();
-  }
+  };
+  DARMA_REGISTER_TOP_LEVEL_FUNCTOR(test_task);
+  backend_init_finalize(argc_, argv_);
   // make sure task not still queued
   ASSERT_TRUE(execution_order_check.unique());
   // make sure task actually ran
@@ -139,29 +149,31 @@ TEST_F(TestPublishBE, publish_after_cw){
 //   runtime::release_use() on the published use coming before the
 //   runtime::make_fetching_flow() call
 TEST_F(TestPublishBE, read_access_after_scope){
-  std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
-  {
-    darma_init(argc_, argv_);
-    {
-      auto h = initial_access<mydata>("dummy");
-      create_work([=]{
-        // make sure this task runs first
-        EXPECT_EQ((*execution_order_check)++, 0);
-        h.set_value(7);
-      });
-      h.publish(version="a");
+  static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  struct test_task {
+    void operator()(std::vector<std::string> args) {
+      {
+        auto h = initial_access<mydata>("dummy");
+        create_work([=]{
+          // make sure this task runs first
+          EXPECT_EQ((*execution_order_check)++, 0);
+          h.set_value(7);
+        });
+        h.publish(version="a");
+      }
+      {
+        auto h2 = read_access<mydata>("dummy", version="a");
+        create_work([=]{
+          // make sure this task runs second
+          EXPECT_EQ((*execution_order_check)++, 1);
+          // make sure we fetched the right value
+          EXPECT_EQ(h2.get_value(), 7);
+        });
+      }
     }
-    {
-      auto h2 = read_access<mydata>("dummy", version="a");
-      create_work([=]{
-        // make sure this task runs second
-        EXPECT_EQ((*execution_order_check)++, 1);
-        // make sure we fetched the right value
-        EXPECT_EQ(h2.get_value(), 7);
-      });
-    }
-    darma_finalize();
-  }
+  };
+  DARMA_REGISTER_TOP_LEVEL_FUNCTOR(test_task);
+  backend_init_finalize(argc_, argv_);
   // make sure task not still queued
   ASSERT_TRUE(execution_order_check.unique());
   // make sure task actually ran
@@ -172,40 +184,44 @@ TEST_F(TestPublishBE, read_access_after_scope){
 // or makes a copy
 // builds on TestPublishBE::publish_after_cw()
 TEST_F(TestPublishBE, modify_after_publish_nice){
-  std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
-  std::shared_ptr<int> rt1(new int);
-  std::shared_ptr<int> rt2(new int);
-  std::shared_ptr<int> mt1(new int);
-  std::shared_ptr<int> mt2(new int);
-  {
-    darma_init(argc_, argv_);
-    auto h = initial_access<mydata>("dummy");
-    create_work([=]{
-      // make sure this task runs first
-      EXPECT_EQ((*execution_order_check)++, 0);
-      h.set_value(7);
-    });
-    h.publish(version="a");
-    {
-      auto h2 = read_access<mydata>("dummy", version="a");
-      create_work([=]{
-        // record that this task started
-        *rt1 = (*execution_order_check)++;
-        // make sure we fetched the original value
-        EXPECT_EQ(h2.get_value(), 7);
-        // record that this task finished
-        *rt2 = (*execution_order_check)++;
-      });
+  static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  static std::shared_ptr<int> rt1(new int);
+  static std::shared_ptr<int> rt2(new int);
+  static std::shared_ptr<int> mt1(new int);
+  static std::shared_ptr<int> mt2(new int);
+  struct test_task {
+    void operator()(std::vector<std::string> args) {
+      {
+        auto h = initial_access<mydata>("dummy");
+        create_work([=]{
+          // make sure this task runs first
+          EXPECT_EQ((*execution_order_check)++, 0);
+          h.set_value(7);
+        });
+        h.publish(version="a");
+        {
+          auto h2 = read_access<mydata>("dummy", version="a");
+          create_work([=]{
+            // record that this task started
+            *rt1 = (*execution_order_check)++;
+            // make sure we fetched the original value
+            EXPECT_EQ(h2.get_value(), 7);
+            // record that this task finished
+            *rt2 = (*execution_order_check)++;
+          });
+        }
+        create_work([=]{
+          // record that this task started
+          *mt1 = (*execution_order_check)++;
+          h.set_value(11);
+          // record that this task finished
+          *mt2 = (*execution_order_check)++;
+        });
+      }
     }
-    create_work([=]{
-      // record that this task started
-      *mt1 = (*execution_order_check)++;
-      h.set_value(11);
-      // record that this task finished
-      *mt2 = (*execution_order_check)++;
-    });
-    darma_finalize();
-  }
+  };
+  DARMA_REGISTER_TOP_LEVEL_FUNCTOR(test_task);
+  backend_init_finalize(argc_, argv_);
   // make sure task not still queued
   ASSERT_TRUE(execution_order_check.unique());
   // make sure task actually ran
@@ -220,53 +236,58 @@ TEST_F(TestPublishBE, modify_after_publish_nice){
 // or makes a copy
 // builds on TestPublishBE::modify_after_publish_nice()
 TEST_F(TestPublishBE, modify_after_publish_nreaders_nice){
-  std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
-  std::shared_ptr<int> rt1(new int);
-  std::shared_ptr<int> rt2(new int);
-  std::shared_ptr<int> rt3(new int);
-  std::shared_ptr<int> rt4(new int);
-  std::shared_ptr<int> mt1(new int);
-  std::shared_ptr<int> mt2(new int);
-  {
-    darma_init(argc_, argv_);
-    auto h = initial_access<mydata>("dummy");
-    create_work([=]{
-      // make sure this task runs first
-      EXPECT_EQ((*execution_order_check)++, 0);
-      h.set_value(7);
-    });
-    h.publish(version="a",n_readers=2);
-    {
-      auto h2 = read_access<mydata>("dummy", version="a");
-      create_work([=]{
-        // record that this task started
-        *rt1 = (*execution_order_check)++;
-        // make sure we fetched the original value
-        EXPECT_EQ(h2.get_value(), 7);
-        // record that this task finished
-        *rt2 = (*execution_order_check)++;
-      });
+  static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  static std::shared_ptr<int> rt1(new int);
+  static std::shared_ptr<int> rt2(new int);
+  static std::shared_ptr<int> rt3(new int);
+  static std::shared_ptr<int> rt4(new int);
+  static std::shared_ptr<int> mt1(new int);
+  static std::shared_ptr<int> mt2(new int);
+  struct test_task {
+    void operator()(std::vector<std::string> args) {
+      {
+        auto h = initial_access<mydata>("dummy");
+        create_work([=]{
+          // make sure this task runs first
+          EXPECT_EQ((*execution_order_check)++, 0);
+          h.set_value(7);
+        });
+        h.publish(version="a",n_readers=2);
+        {
+          auto h2 = read_access<mydata>("dummy", version="a");
+          create_work([=]{
+            // record that this task started
+            *rt1 = (*execution_order_check)++;
+            // make sure we fetched the original value
+            EXPECT_EQ(h2.get_value(), 7);
+            // record that this task finished
+            *rt2 = (*execution_order_check)++;
+          });
+        }
+        {
+          auto h3 = read_access<mydata>("dummy", version="a");
+          create_work([=]{
+            // record that this task started
+            *rt3 = (*execution_order_check)++;
+            // make sure we fetched the original value
+            EXPECT_EQ(h3.get_value(), 7);
+            // record that this task finished
+            *rt4 = (*execution_order_check)++;
+          });
+        }
+        create_work([=]{
+          // record that this task started
+          *mt1 = (*execution_order_check)++;
+          h.set_value(11);
+          // record that this task finished
+          *mt2 = (*execution_order_check)++;
+        });
+
+      }
     }
-    {
-      auto h3 = read_access<mydata>("dummy", version="a");
-      create_work([=]{
-        // record that this task started
-        *rt3 = (*execution_order_check)++;
-        // make sure we fetched the original value
-        EXPECT_EQ(h3.get_value(), 7);
-        // record that this task finished
-        *rt4 = (*execution_order_check)++;
-      });
-    }
-    create_work([=]{
-      // record that this task started
-      *mt1 = (*execution_order_check)++;
-      h.set_value(11);
-      // record that this task finished
-      *mt2 = (*execution_order_check)++;
-    });
-    darma_finalize();
-  }
+  };
+  DARMA_REGISTER_TOP_LEVEL_FUNCTOR(test_task);
+  backend_init_finalize(argc_, argv_);
   // make sure task not still queued
   ASSERT_TRUE(execution_order_check.unique());
   // make sure task actually ran
@@ -281,54 +302,59 @@ TEST_F(TestPublishBE, modify_after_publish_nreaders_nice){
 // or makes a copy
 // builds on TestPublishBE::modify_after_publish_nice()
 TEST_F(TestPublishBE, modify_after_multipublish_nice){
-  std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
-  std::shared_ptr<int> rt1(new int);
-  std::shared_ptr<int> rt2(new int);
-  std::shared_ptr<int> rt3(new int);
-  std::shared_ptr<int> rt4(new int);
-  std::shared_ptr<int> mt1(new int);
-  std::shared_ptr<int> mt2(new int);
-  {
-    darma_init(argc_, argv_);
-    auto h = initial_access<mydata>("dummy");
-    create_work([=]{
-      // make sure this task runs first
-      EXPECT_EQ((*execution_order_check)++, 0);
-      h.set_value(7);
-    });
-    h.publish(version="a",n_readers=1);
-    h.publish(version="b",n_readers=1);
-    {
-      auto h2 = read_access<mydata>("dummy", version="a");
-      create_work([=]{
-        // record that this task started
-        *rt1 = (*execution_order_check)++;
-        // make sure we fetched the original value
-        EXPECT_EQ(h2.get_value(), 7);
-        // record that this task finished
-        *rt2 = (*execution_order_check)++;
-      });
+  static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  static std::shared_ptr<int> rt1(new int);
+  static std::shared_ptr<int> rt2(new int);
+  static std::shared_ptr<int> rt3(new int);
+  static std::shared_ptr<int> rt4(new int);
+  static std::shared_ptr<int> mt1(new int);
+  static std::shared_ptr<int> mt2(new int);
+  struct test_task {
+    void operator()(std::vector<std::string> args) {
+      {
+        auto h = initial_access<mydata>("dummy");
+        create_work([=]{
+          // make sure this task runs first
+          EXPECT_EQ((*execution_order_check)++, 0);
+          h.set_value(7);
+        });
+        h.publish(version="a",n_readers=1);
+        h.publish(version="b",n_readers=1);
+        {
+          auto h2 = read_access<mydata>("dummy", version="a");
+          create_work([=]{
+            // record that this task started
+            *rt1 = (*execution_order_check)++;
+            // make sure we fetched the original value
+            EXPECT_EQ(h2.get_value(), 7);
+            // record that this task finished
+            *rt2 = (*execution_order_check)++;
+          });
+        }
+        {
+          auto h3 = read_access<mydata>("dummy", version="b");
+          create_work([=]{
+            // record that this task started
+            *rt3 = (*execution_order_check)++;
+            // make sure we fetched the original value
+            EXPECT_EQ(h3.get_value(), 7);
+            // record that this task finished
+            *rt4 = (*execution_order_check)++;
+          });
+        }
+        create_work([=]{
+          // record that this task started
+          *mt1 = (*execution_order_check)++;
+          h.set_value(11);
+          // record that this task finished
+          *mt2 = (*execution_order_check)++;
+        });
+
+      }
     }
-    {
-      auto h3 = read_access<mydata>("dummy", version="b");
-      create_work([=]{
-        // record that this task started
-        *rt3 = (*execution_order_check)++;
-        // make sure we fetched the original value
-        EXPECT_EQ(h3.get_value(), 7);
-        // record that this task finished
-        *rt4 = (*execution_order_check)++;
-      });
-    }
-    create_work([=]{
-      // record that this task started
-      *mt1 = (*execution_order_check)++;
-      h.set_value(11);
-      // record that this task finished
-      *mt2 = (*execution_order_check)++;
-    });
-    darma_finalize();
-  }
+  };
+  DARMA_REGISTER_TOP_LEVEL_FUNCTOR(test_task);
+  backend_init_finalize(argc_, argv_);
   // make sure task not still queued
   ASSERT_TRUE(execution_order_check.unique());
   // make sure task actually ran
@@ -345,40 +371,45 @@ TEST_F(TestPublishBE, modify_after_multipublish_nice){
 //   after create_work that overwrites it (probably not legal within a single
 //   rank but could happen across ranks)
 TEST_F(TestPublishBE, DISABLED_modify_after_publish_nasty){
-  std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
-  std::shared_ptr<int> rt1(new int);
-  std::shared_ptr<int> rt2(new int);
-  std::shared_ptr<int> mt1(new int);
-  std::shared_ptr<int> mt2(new int);
-  {
-    darma_init(argc_, argv_);
-    auto h = initial_access<mydata>("dummy");
-    create_work([=]{
-      // make sure this task runs first
-      EXPECT_EQ((*execution_order_check)++, 0);
-      h.set_value(7);
-    });
-    h.publish(version="a");
-    create_work([=]{
-      // record that this task started
-      *mt1 = (*execution_order_check)++;
-      h.set_value(11);
-      // record that this task finished
-      *mt2 = (*execution_order_check)++;
-    });
-    {
-      auto h2 = read_access<mydata>("dummy", version="a");
-      create_work([=]{
-        // record that this task started
-        *rt1 = (*execution_order_check)++;
-        // make sure we fetched the original value
-        EXPECT_EQ(h2.get_value(), 7);
-        // record that this task finished
-        *rt2 = (*execution_order_check)++;
-      });
+  static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
+  static std::shared_ptr<int> rt1(new int);
+  static std::shared_ptr<int> rt2(new int);
+  static std::shared_ptr<int> mt1(new int);
+  static std::shared_ptr<int> mt2(new int);
+  struct test_task {
+    void operator()(std::vector<std::string> args) {
+      {
+        auto h = initial_access<mydata>("dummy");
+        create_work([=]{
+          // make sure this task runs first
+          EXPECT_EQ((*execution_order_check)++, 0);
+          h.set_value(7);
+        });
+        h.publish(version="a");
+        create_work([=]{
+          // record that this task started
+          *mt1 = (*execution_order_check)++;
+          h.set_value(11);
+          // record that this task finished
+          *mt2 = (*execution_order_check)++;
+        });
+        {
+          auto h2 = read_access<mydata>("dummy", version="a");
+          create_work([=]{
+            // record that this task started
+            *rt1 = (*execution_order_check)++;
+            // make sure we fetched the original value
+            EXPECT_EQ(h2.get_value(), 7);
+            // record that this task finished
+            *rt2 = (*execution_order_check)++;
+          });
+        }
+
+      }
     }
-    darma_finalize();
-  }
+  };
+  DARMA_REGISTER_TOP_LEVEL_FUNCTOR(test_task);
+  backend_init_finalize(argc_, argv_);
   // make sure task not still queued
   ASSERT_TRUE(execution_order_check.unique());
   // make sure task actually ran

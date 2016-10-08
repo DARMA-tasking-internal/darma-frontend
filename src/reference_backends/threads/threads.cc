@@ -68,6 +68,7 @@
 #include <memory>
 #include <unordered_map>
 #include <algorithm>
+#include <chrono>
 
 #include <common.h>
 #include <threads.h>
@@ -99,6 +100,12 @@ namespace threads_backend {
   size_t start_barrier = 0;
   std::condition_variable cv_start_barrier{};
   std::mutex mutex_start_barrier{};
+
+  std::atomic<size_t> global_produced{};
+  std::atomic<size_t> global_consumed{};
+
+  void global_produce() { global_produced++; }
+  void global_consume() { global_consumed++; }
 
   // global
   size_t n_ranks = 1;
@@ -178,6 +185,7 @@ namespace threads_backend {
     // this may be called from other threads
     {
       std::lock_guard<std::mutex> lock(lock_remote);
+      cv_remote_awake.notify_one();
       ready_remote.push_back(task);
     }
   }
@@ -193,8 +201,12 @@ namespace threads_backend {
                 this->produced,
                 this->consumed,
                 bwidth);
-    if (this->produced - this->consumed > bwidth)
+    // ensure that the scheduler does not reenter recursively, which will stack
+    // overflow
+    if (!inScheduler &&
+        this->produced - this->consumed > bwidth) {
       schedule_next_unit();
+    }
   }
 
   /*virtual*/
@@ -250,6 +262,7 @@ namespace threads_backend {
       cur.get()->run();
       bool ret = cur.get()->get_result();
       this->consumed++;
+      global_consume();
       DEBUG_PRINT("calling run on task\n");
       current_task = prev;
 
@@ -1977,6 +1990,7 @@ namespace threads_backend {
 
   void
   ThreadsRuntime::schedule_next_unit() {
+    inScheduler = true;
     #if __THREADS_BACKEND_DEBUG__ || __THREADS_BACKEND_SHUFFLE__
       shuffle_deque(nullptr, ready_local);
     #endif
@@ -1987,11 +2001,14 @@ namespace threads_backend {
     if (!found) {
       schedule_from_deque(&lock_remote, ready_remote);
     }
+    inScheduler = false;
   }
 
   /*virtual*/
   void
   ThreadsRuntime::finalize() {
+    using namespace std::chrono_literals;
+
     if (top_level_task) {
       auto t = std::make_shared<TaskNode<top_level_task_t>>(
         TaskNode<top_level_task_t>{this,std::move(top_level_task)}
@@ -2004,14 +2021,7 @@ namespace threads_backend {
                 this->produced,
                 this->consumed);
 
-    bool first = true;
     do {
-      if (!first) {
-        terminate_counter--;
-        // DEBUG_PRINT("decrementing terminate counter = %d\n",
-        //           terminate_counter.load());
-      }
-
       do {
         schedule_next_unit();
       } while (
@@ -2020,18 +2030,23 @@ namespace threads_backend {
         ready_remote.size() != 0
       );
 
-      std::this_thread::yield();
+      //std::this_thread::yield();
 
-      first = false;
-      terminate_counter++;
+      {
+        std::unique_lock<std::mutex> _lock1(lock_remote);
+        auto now = std::chrono::system_clock::now();
+        cv_remote_awake.wait_until(
+          _lock1,
+          now + 10ms,
+          [this]{
+            return ready_remote.size() > 0;
+          }
+        );
+      }
 
-      // DEBUG_PRINT("incrementing terminate counter = %d\n",
-      //             terminate_counter.load());
     } while (
-      terminate_counter.load() != inside_num_ranks ||
-      this->produced != this->consumed ||
-      ready_local.size() != 0 ||
-      ready_remote.size() != 0
+      global_produced.load() < 1 ||
+      global_produced.load() != global_consumed.load()
     );
 
     DEBUG_PRINT("thread is TERMIANTED\n");
@@ -2067,12 +2082,19 @@ namespace threads_backend {
         threads_backend::live_ranks[i].join();
         DEBUG_PRINT("join complete %zu\n", i);
       }
+
+      // reset barrier
+      threads_backend::start_barrier = 0;
+      terminate_counter = 0;
     }
   }
 } // end namespace threads_backend
 
 void barrier(size_t const rank) {
-  DEBUG_PRINT("start barrier rank=%ld\n", rank);
+  DEBUG_PRINT_THD(
+    rank,
+    "start barrier rank=%ld\n", rank
+  );
   {
     std::unique_lock<std::mutex> _lock1(threads_backend::mutex_start_barrier);
     threads_backend::start_barrier++;
@@ -2175,7 +2197,7 @@ backend_parse_arguments(
 }
 }
 
-int main(int argc, char **argv) {
+void backend_init_finalize(int argc, char **argv) {
   ArgsHolder args_holder(argc, argv);
 
   threads_backend::backend_parse_arguments(args_holder);
@@ -2234,7 +2256,11 @@ int main(int argc, char **argv) {
     threads_backend::cur_runtime = runtime.get();
     runtime->finalize();
   }
+}
 
+
+int main(int argc, char **argv) {
+  backend_init_finalize(argc, argv);
   return 0;
 }
 

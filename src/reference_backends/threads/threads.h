@@ -107,6 +107,9 @@ namespace std {
 namespace threads_backend {
   using flow_t = darma_runtime::types::flow_t;
 
+  void global_produce();
+  void global_consume();
+
   struct CollectiveState {
     size_t n_pieces{0};
     std::atomic<size_t> current_pieces{0};
@@ -188,6 +191,8 @@ namespace threads_backend {
 
     ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
+    std::condition_variable cv_remote_awake{};
+
     size_t data_store_counter = 0;
 
     std::unordered_map<
@@ -221,6 +226,8 @@ namespace threads_backend {
       std::shared_ptr<InnerFlow>,
       TraceLog*
     > taskTrace;
+
+    bool inScheduler = false;
 
     TraceModule* trace = nullptr;
 
