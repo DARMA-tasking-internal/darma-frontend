@@ -568,5 +568,6 @@ typedef Runtime runtime_t;
  *
  */
 int main(int argc, char **argv);
+void backend_init_finalize(int argc, char** argv);
 
 #endif /* SRC_ABSTRACT_BACKEND_RUNTIME_H_ */
