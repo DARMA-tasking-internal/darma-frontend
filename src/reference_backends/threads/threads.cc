@@ -1125,15 +1125,10 @@ namespace threads_backend {
   bool
   ThreadsRuntime::test_alias_null(std::shared_ptr<InnerFlow> flow) {
     if (flow->alias->isNull) {
-      // DEBUG_PRINT("remove alias to null %ld to %ld\n",
-      //             PRINT_LABEL_INNER(flow),
-      //             PRINT_LABEL_INNER(flow->alias));
       if (flow->shared_reader_count != nullptr &&
           *flow->shared_reader_count == 0) {
-        // TODO: GC
         cleanup_handle(flow);
       }
-      //alias.erase(alias.find(flow));
       return true;
     }
     return false;
@@ -1190,7 +1185,6 @@ namespace threads_backend {
     std::shared_ptr<InnerFlow> flow
   ) {
     return flow->alias != nullptr;
-    //return alias.find(flow) != alias.end();
   }
 
   std::tuple<
