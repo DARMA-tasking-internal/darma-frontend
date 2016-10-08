@@ -1,5 +1,8 @@
 #include <darma.h>
+#include <darma/impl/array/range_2d.h>
+
 using namespace darma_runtime;
+using keyword_arguments_for_create_concurrent_region::index_range;
 
 struct storeMessage{
   void operator()(std::string & mess) const{
@@ -13,20 +16,14 @@ struct printMessage{
   }
 };
 
-
-int darma_main(int argc, char** argv)
-{
+void darma_main_task(std::vector<std::string> args) {
   using namespace darma_runtime;
 
-  darma_init(argc, argv);
-  size_t me = darma_spmd_rank();
-  size_t n_ranks = darma_spmd_size();
-
   // create handle to string variable
-  auto greeting = initial_access<std::string>("myName", me);
+  auto greeting = initial_access<std::string>("myName");
+
   create_work<storeMessage>(greeting);
   create_work<printMessage>(greeting);
-
-  darma_finalize();
-  return 0;
 }
+
+DARMA_REGISTER_TOP_LEVEL_FUNCTION(darma_main_task);
