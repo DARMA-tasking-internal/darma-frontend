@@ -78,6 +78,7 @@ TEST_F(TestCreateWorkBE, no_access){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       // task with no access handles involved
       create_work([=]{
         (*execution_order_check)++;
@@ -101,6 +102,7 @@ TEST_F(TestCreateWorkBE, initial_access_alloc){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       auto h = initial_access<mydata>("dummy");
       // task that initializes data
       create_work([=]{
@@ -124,6 +126,7 @@ TEST_F(TestCreateWorkBE, ro_capture_MN){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       auto h = initial_access<mydata>("dummy");
       create_work([=]{
         // make sure this task runs first
@@ -155,6 +158,7 @@ TEST_F(TestCreateWorkBE, mod_capture_MN){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       auto h = initial_access<mydata>("dummy");
       create_work([=]{
         // make sure this task runs first
@@ -196,6 +200,7 @@ TEST_F(TestCreateWorkBE, mod_capture_MM){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       auto h = initial_access<mydata>("dummy");
       create_work([=]{
         // make sure this task runs first
@@ -244,6 +249,7 @@ TEST_F(TestCreateWorkBE, ro_capture_MM){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       auto h = initial_access<mydata>("dummy");
       create_work([=]{
         // make sure this task runs first
@@ -281,6 +287,7 @@ TEST_F(TestCreateWorkBE, ro_capture_MR){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       auto h = initial_access<mydata>("dummy");
       create_work([=]{
         // make sure this task runs first
@@ -324,6 +331,7 @@ TEST_F(TestCreateWorkBE, ro_capture_RR){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       auto h = initial_access<mydata>("dummy");
       create_work([=]{
         // make sure this task runs first
@@ -367,6 +375,7 @@ TEST_F(TestCreateWorkBE, write_after_read_MR){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       auto h = initial_access<mydata>("dummy");
       create_work([=]{
         // make sure this task runs first
@@ -413,6 +422,7 @@ TEST_F(TestCreateWorkBE, write_after_read_MM){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       auto h = initial_access<mydata>("dummy");
       create_work([=]{
         // make sure this task runs first
@@ -461,6 +471,7 @@ TEST_F(TestCreateWorkBE, write_after_read_MN){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       auto h = initial_access<mydata>("dummy");
       create_work([=]{
         // make sure this task runs first

@@ -79,6 +79,7 @@ TEST_F(TestPublishBE, publish_in_cw){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       {
         auto h = initial_access<mydata>("dummy");
         create_work([=]{
@@ -115,6 +116,7 @@ TEST_F(TestPublishBE, publish_after_cw){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       {
         auto h = initial_access<mydata>("dummy");
         create_work([=]{
@@ -152,6 +154,7 @@ TEST_F(TestPublishBE, read_access_after_scope){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       {
         auto h = initial_access<mydata>("dummy");
         create_work([=]{
@@ -191,6 +194,11 @@ TEST_F(TestPublishBE, modify_after_publish_nice){
   static std::shared_ptr<int> mt2(new int);
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
+      *rt1 = 0;
+      *rt2 = 0;
+      *mt1 = 0;
+      *mt2 = 0;
       {
         auto h = initial_access<mydata>("dummy");
         create_work([=]{
@@ -245,6 +253,13 @@ TEST_F(TestPublishBE, modify_after_publish_nreaders_nice){
   static std::shared_ptr<int> mt2(new int);
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
+      *rt1 = 0;
+      *rt2 = 0;
+      *rt3 = 0;
+      *rt4 = 0;
+      *mt1 = 0;
+      *mt2 = 0;
       {
         auto h = initial_access<mydata>("dummy");
         create_work([=]{
@@ -311,6 +326,13 @@ TEST_F(TestPublishBE, modify_after_multipublish_nice){
   static std::shared_ptr<int> mt2(new int);
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
+      *rt1 = 0;
+      *rt2 = 0;
+      *rt3 = 0;
+      *rt4 = 0;
+      *mt1 = 0;
+      *mt2 = 0;
       {
         auto h = initial_access<mydata>("dummy");
         create_work([=]{
@@ -349,7 +371,6 @@ TEST_F(TestPublishBE, modify_after_multipublish_nice){
           // record that this task finished
           *mt2 = (*execution_order_check)++;
         });
-
       }
     }
   };
@@ -378,6 +399,11 @@ TEST_F(TestPublishBE, DISABLED_modify_after_publish_nasty){
   static std::shared_ptr<int> mt2(new int);
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
+      *rt1 = 0;
+      *rt2 = 0;
+      *mt1 = 0;
+      *mt2 = 0;
       {
         auto h = initial_access<mydata>("dummy");
         create_work([=]{

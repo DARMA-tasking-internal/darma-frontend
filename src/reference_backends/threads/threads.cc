@@ -866,7 +866,13 @@ namespace threads_backend {
       auto traceLog = pub.pub_log;
 
       const bool buffer_exists = fetched_data.find({version_key,key}) != fetched_data.end();
-      auto block = buffer_exists ? fetched_data[{version_key,key}] : std::make_shared<DataBlock>(0, pub.data->size_);
+      auto block = buffer_exists ? fetched_data[{version_key,key}] :
+        std::shared_ptr<DataBlock>(new DataBlock(0, pub.data->size_), [handle](DataBlock* b) {
+          handle
+            ->get_serialization_manager()
+            ->destroy(b->data);
+          delete b;
+       });
 
       if (!buffer_exists) {
         fetched_data[{version_key,key}] = block;

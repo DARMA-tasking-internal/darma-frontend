@@ -77,6 +77,7 @@ TEST_F(TestCreateConditionBE, trivial_true){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       {
         // schedule a trivial condition task
         bool ret = create_condition([=]{
@@ -102,6 +103,7 @@ TEST_F(TestCreateConditionBE, trivial_false){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       {
         // schedule a trivial condition task
         bool ret = create_condition([=]{
@@ -127,6 +129,7 @@ TEST_F(TestCreateConditionBE, read_access){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       {
         auto h = initial_access<mydata>("a");
         create_work([=]{
@@ -163,6 +166,7 @@ TEST_F(TestCreateConditionBE, rw_access){
   static std::shared_ptr<std::atomic<int>> execution_order_check(new std::atomic<int>(0));
   struct test_task {
     void operator()(std::vector<std::string> args) {
+      *execution_order_check = 0;
       {
         auto h = initial_access<mydata>("a");
         create_work([=]{
