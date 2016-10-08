@@ -273,7 +273,7 @@ namespace threads_backend {
   }
 
   void
-  ThreadsRuntime::reregister_migrated_use(darma_runtime::abstract::frontend::Use* u) {
+  ThreadsRuntime::reregister_migrated_use(use_t* u) {
     assert(false);
   }
 
@@ -502,7 +502,7 @@ namespace threads_backend {
 
   /*virtual*/
   void
-  ThreadsRuntime::register_use(darma_runtime::abstract::frontend::Use* u) {
+  ThreadsRuntime::register_use(use_t* u) {
     auto f_in  = u->get_in_flow();
     auto f_out = u->get_out_flow();
 
@@ -1321,9 +1321,9 @@ namespace threads_backend {
   /*virtual*/
   void
   ThreadsRuntime::allreduce_use(
-    darma_runtime::abstract::frontend::Use* use_in,
-    darma_runtime::abstract::frontend::Use* use_out,
-    darma_runtime::abstract::frontend::CollectiveDetails const* details,
+    use_t* use_in,
+    use_t* use_out,
+    collective_details_t const* details,
     types::key_t const& tag
   ) {
 
@@ -1669,7 +1669,7 @@ namespace threads_backend {
 
   /*virtual*/
   void
-  ThreadsRuntime::release_use(darma_runtime::abstract::frontend::Use* u) {
+  ThreadsRuntime::release_use(use_t* u) {
     auto f_in  = u->get_in_flow();
     auto f_out = u->get_out_flow();
 
@@ -1738,13 +1738,17 @@ namespace threads_backend {
   }
 
   bool
-  ThreadsRuntime::test_publish(std::shared_ptr<DelayedPublish> publish) {
+  ThreadsRuntime::test_publish(
+    std::shared_ptr<DelayedPublish> publish
+  ) {
     return publish->flow->ready;
   }
 
   void
-  ThreadsRuntime::publish(std::shared_ptr<DelayedPublish> publish,
-                          TraceLog* const log) {
+  ThreadsRuntime::publish(
+    std::shared_ptr<DelayedPublish> publish,
+    TraceLog* const log
+  ) {
     if (publish->finished) return;
 
     {
@@ -1863,8 +1867,10 @@ namespace threads_backend {
 
   /*virtual*/
   void
-  ThreadsRuntime::publish_use(darma_runtime::abstract::frontend::Use* f,
-                              darma_runtime::abstract::frontend::PublicationDetails* details) {
+  ThreadsRuntime::publish_use(
+    use_t* f,
+    pub_details_t* details
+  ) {
 
     auto f_in  = f->get_in_flow();
     auto f_out = f->get_out_flow();
@@ -1925,7 +1931,9 @@ namespace threads_backend {
 
   template <typename Node>
   void
-  ThreadsRuntime::try_node(std::list<std::shared_ptr<Node> >& nodes) {
+  ThreadsRuntime::try_node(
+    std::list<std::shared_ptr<Node> >& nodes
+  ) {
     if (nodes.size() > 0) {
       auto n = nodes.back();
       nodes.pop_back();
@@ -1940,8 +1948,10 @@ namespace threads_backend {
 
   template <typename Node>
   void
-  ThreadsRuntime::shuffle_deque(std::mutex* lock,
-                                std::deque<Node>& nodes) {
+  ThreadsRuntime::shuffle_deque(
+    std::mutex* lock,
+    std::deque<Node>& nodes
+  ) {
     if (lock) lock->lock();
 
     if (nodes.size() > 0) {
@@ -1965,8 +1975,10 @@ namespace threads_backend {
 
   template <typename Node>
   bool
-  ThreadsRuntime::schedule_from_deque(std::mutex* lock,
-                                      std::deque<Node>& nodes) {
+  ThreadsRuntime::schedule_from_deque(
+    std::mutex* lock,
+    std::deque<Node>& nodes
+  ) {
     if (lock) lock->lock();
 
     if (nodes.size() > 0) {
