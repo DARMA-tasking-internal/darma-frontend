@@ -425,20 +425,6 @@ class Runtime {
     // </editor-fold> end publication, collectives, etc
     //==========================================================================
 
-    /** @brief signifies the end of the outer SPMD task from which
-     *  darma_backend_initialize() was called.
-     *
-     *  @remark Note that after finalize() returns, the only valid methods that
-     *  may be invoked on this instance are release_read_only_usage() and
-     *  release_handle().  No handle released after finalize() returns may have
-     *  a subsequent.  However, when finalize is \b invoked, there may still be
-     *  pending tasks that schedule other tasks (the frontend has no way to
-     *  know this), and thus any method on this instance must be valid to call
-     *  \b between the invocation and return of finalize().
-     */
-    virtual void
-    finalize() =0;
-
     virtual ~Runtime() noexcept = default;
 
 };
