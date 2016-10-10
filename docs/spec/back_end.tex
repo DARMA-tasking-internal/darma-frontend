@@ -60,7 +60,9 @@ until the end of the program).  In the current specification, these
 include |make_initial_flow()|, |make_fetching_flow()|, |make_null_flow()|, |make_next_flow()|,
 and |make_forwarding_flow()|.  Its life cycle ends with a call by the translation layer to
 the |release_flow()| method of |Runtime|, the invocation of which must be preceded by the 
-a 
+end of the lifetime of any |Use|s that use that |Flow| and any (zero or one) {\it aliases}
+established on that |Flow| (both of these will be explained in more detail below, after the
+introduction of |Use|s).
 
 %\section{Important Backend Concepts}
 %Although some of this terminology was given in the introduction, we repeat definitions here.
