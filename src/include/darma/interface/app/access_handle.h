@@ -508,6 +508,20 @@ class AccessHandle : public detail::AccessHandleBase {
       PublishExprParts&&... parts
     ) const;
 
+    template <typename _Ignored=void, typename... PublishExprParts>
+    std::enable_if_t<
+      is_compile_time_schedule_readable
+        and std::is_same<_Ignored, void>::value
+    >
+    publish_out(
+      PublishExprParts&&... parts
+    ) const {
+      return publish(
+        std::forward<PublishExprParts>(parts)...,
+        darma_runtime::keyword_arguments_for_publication::out = true
+      );
+    };
+
     ~AccessHandle() noexcept = default;
 
    private:
