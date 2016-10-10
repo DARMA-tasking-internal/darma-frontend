@@ -57,6 +57,7 @@ class PublicationDetails
 
     types::key_t version_name;
     size_t n_fetchers;
+    bool within_region = true;
 
     types::key_t const&
     get_version_name() const override {
@@ -68,11 +69,18 @@ class PublicationDetails
       return n_fetchers;
     }
 
+    bool
+    is_within_concurrent_region() const override {
+      return within_region;
+    }
+
     PublicationDetails(
       types::key_t const& version_name_in,
-      size_t n_fetchers_in
+      size_t n_fetchers_in,
+      bool is_within_region = true
     ) : version_name(version_name_in),
-        n_fetchers(n_fetchers_in)
+        n_fetchers(n_fetchers_in),
+        within_region(is_within_region)
     { }
 
 };

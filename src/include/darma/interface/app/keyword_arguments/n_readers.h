@@ -48,5 +48,6 @@
 #include <darma/impl/keyword_arguments/macros.h>
 
 DeclareDarmaTypeTransparentKeyword(publication, n_readers);
+DeclareDarmaTypeTransparentKeyword(publication, out);
 
 #endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_READERS_H

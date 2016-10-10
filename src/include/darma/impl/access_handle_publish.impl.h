@@ -70,15 +70,21 @@ AccessHandle<T, Traits>::publish(
     "publish() called on handle that can't schedule at least read usage on data (most likely "
       "because it was already released"
   );
-  static_assert(detail::only_allowed_kwargs_given<
-      keyword_tags_for_publication::version,
-      keyword_tags_for_publication::n_readers
-    >::template apply<PublishExprParts...>::type::value,
-    "Unknown keyword argument given to AccessHandle<>::publish()"
-  );
+  using _check_kwargs_asserting_t = typename detail::only_allowed_kwargs_given<
+    keyword_tags_for_publication::version,
+    keyword_tags_for_publication::n_readers,
+    keyword_tags_for_publication::out
+  >::template static_assert_correct<PublishExprParts...>::type;
+
   detail::publish_expr_helper<PublishExprParts...> helper;
 
   auto* backend_runtime = abstract::backend::get_backend_runtime();
+
+  bool is_publish_out = detail::get_typeless_kwarg_with_default<
+    keyword_tags_for_publication::out
+  >(
+    false, std::forward<PublishExprParts>(parts)...
+  );
 
   auto _pub_same = [&] {
     detail::HandleUse use_to_publish(
@@ -90,7 +96,8 @@ AccessHandle<T, Traits>::publish(
     backend_runtime->register_use(&use_to_publish);
     detail::PublicationDetails dets(
       helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
-      helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
+      helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
+      not is_publish_out
     );
     backend_runtime->publish_use(&use_to_publish, &dets);
     backend_runtime->release_use(&use_to_publish);
@@ -111,11 +118,14 @@ AccessHandle<T, Traits>::publish(
 
     current_use_->do_release();
 
+
     detail::PublicationDetails dets(
       helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
-      helper.get_n_readers(std::forward<PublishExprParts>(parts)...)
+      helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
+      not is_publish_out
     );
     backend_runtime->publish_use(&use_to_publish, &dets);
+
 
     current_use_->use.immediate_permissions_ = HandleUse::Read;
     current_use_->use.in_flow_ = flow_to_publish;
