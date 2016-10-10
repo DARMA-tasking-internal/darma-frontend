@@ -67,6 +67,8 @@
 #include <utility>
 #include <memory>
 #include <unordered_map>
+#include <algorithm>
+#include <chrono>
 
 #include <common.h>
 #include <threads.h>
@@ -81,6 +83,8 @@ namespace threads_backend {
   using flow_t = darma_runtime::types::flow_t;
 
   std::vector<std::thread> live_ranks;
+  std::vector<ThreadsRuntime*> shared_ranks;
+  std::atomic<int> terminate_counter = {0};
 
   #if __THREADS_DEBUG_MODE__
     __thread size_t flow_label = 100;
@@ -92,6 +96,16 @@ namespace threads_backend {
   __thread size_t fetch_label = 1;
 
   __thread ThreadsRuntime* cur_runtime = nullptr;
+
+  size_t start_barrier = 0;
+  std::condition_variable cv_start_barrier{};
+  std::mutex mutex_start_barrier{};
+
+  std::atomic<size_t> global_produced{};
+  std::atomic<size_t> global_consumed{};
+
+  void global_produce() { global_produced++; }
+  void global_consume() { global_consumed++; }
 
   // global
   size_t n_ranks = 1;
@@ -133,7 +147,7 @@ namespace threads_backend {
 
   /*virtual*/
   ThreadsRuntime::~ThreadsRuntime() {
-    this->finalize();
+    DEBUG_PRINT("TERMIANTED: calling the destructor on runtime\n");
   }
 
   void
@@ -147,6 +161,12 @@ namespace threads_backend {
 
   size_t
   ThreadsRuntime::get_spmd_size() const {
+    return inside_num_ranks;
+  }
+
+  /*virtual*/
+  size_t
+  ThreadsRuntime::get_execution_resource_count(size_t depth) const {
     return inside_num_ranks;
   }
 
@@ -165,6 +185,7 @@ namespace threads_backend {
     // this may be called from other threads
     {
       std::lock_guard<std::mutex> lock(lock_remote);
+      cv_remote_awake.notify_one();
       ready_remote.push_back(task);
     }
   }
@@ -176,8 +197,16 @@ namespace threads_backend {
 
   void
   ThreadsRuntime::schedule_over_breadth() {
-    if (this->produced - this->consumed > bwidth)
+    DEBUG_PRINT("schedule_over_breadth: prod=%ld, cons=%ld, bwidth=%ld\n",
+                this->produced,
+                this->consumed,
+                bwidth);
+    // ensure that the scheduler does not reenter recursively, which will stack
+    // overflow
+    if (!inScheduler &&
+        this->produced - this->consumed > bwidth) {
       schedule_next_unit();
+    }
   }
 
   /*virtual*/
@@ -233,6 +262,7 @@ namespace threads_backend {
       cur.get()->run();
       bool ret = cur.get()->get_result();
       this->consumed++;
+      global_consume();
       DEBUG_PRINT("calling run on task\n");
       current_task = prev;
 
@@ -243,7 +273,7 @@ namespace threads_backend {
   }
 
   void
-  ThreadsRuntime::reregister_migrated_use(darma_runtime::abstract::frontend::Use* u) {
+  ThreadsRuntime::reregister_migrated_use(use_t* u) {
     assert(false);
   }
 
@@ -472,7 +502,7 @@ namespace threads_backend {
 
   /*virtual*/
   void
-  ThreadsRuntime::register_use(darma_runtime::abstract::frontend::Use* u) {
+  ThreadsRuntime::register_use(use_t* u) {
     auto f_in  = u->get_in_flow();
     auto f_out = u->get_out_flow();
 
@@ -836,7 +866,13 @@ namespace threads_backend {
       auto traceLog = pub.pub_log;
 
       const bool buffer_exists = fetched_data.find({version_key,key}) != fetched_data.end();
-      auto block = buffer_exists ? fetched_data[{version_key,key}] : std::make_shared<DataBlock>(0, pub.data->size_);
+      auto block = buffer_exists ? fetched_data[{version_key,key}] :
+        std::shared_ptr<DataBlock>(new DataBlock(0, pub.data->size_), [handle](DataBlock* b) {
+          handle
+            ->get_serialization_manager()
+            ->destroy(b->data);
+          delete b;
+       });
 
       if (!buffer_exists) {
         fetched_data[{version_key,key}] = block;
@@ -1089,15 +1125,10 @@ namespace threads_backend {
   bool
   ThreadsRuntime::test_alias_null(std::shared_ptr<InnerFlow> flow) {
     if (flow->alias->isNull) {
-      // DEBUG_PRINT("remove alias to null %ld to %ld\n",
-      //             PRINT_LABEL_INNER(flow),
-      //             PRINT_LABEL_INNER(flow->alias));
       if (flow->shared_reader_count != nullptr &&
           *flow->shared_reader_count == 0) {
-        // TODO: GC
         cleanup_handle(flow);
       }
-      //alias.erase(alias.find(flow));
       return true;
     }
     return false;
@@ -1154,7 +1185,6 @@ namespace threads_backend {
     std::shared_ptr<InnerFlow> flow
   ) {
     return flow->alias != nullptr;
-    //return alias.find(flow) != alias.end();
   }
 
   std::tuple<
@@ -1291,9 +1321,9 @@ namespace threads_backend {
   /*virtual*/
   void
   ThreadsRuntime::allreduce_use(
-    darma_runtime::abstract::frontend::Use* use_in,
-    darma_runtime::abstract::frontend::Use* use_out,
-    darma_runtime::abstract::frontend::CollectiveDetails const* details,
+    use_t* use_in,
+    use_t* use_out,
+    collective_details_t const* details,
     types::key_t const& tag
   ) {
 
@@ -1639,7 +1669,7 @@ namespace threads_backend {
 
   /*virtual*/
   void
-  ThreadsRuntime::release_use(darma_runtime::abstract::frontend::Use* u) {
+  ThreadsRuntime::release_use(use_t* u) {
     auto f_in  = u->get_in_flow();
     auto f_out = u->get_out_flow();
 
@@ -1708,13 +1738,17 @@ namespace threads_backend {
   }
 
   bool
-  ThreadsRuntime::test_publish(std::shared_ptr<DelayedPublish> publish) {
+  ThreadsRuntime::test_publish(
+    std::shared_ptr<DelayedPublish> publish
+  ) {
     return publish->flow->ready;
   }
 
   void
-  ThreadsRuntime::publish(std::shared_ptr<DelayedPublish> publish,
-                          TraceLog* const log) {
+  ThreadsRuntime::publish(
+    std::shared_ptr<DelayedPublish> publish,
+    TraceLog* const log
+  ) {
     if (publish->finished) return;
 
     {
@@ -1785,13 +1819,40 @@ namespace threads_backend {
     std::shared_ptr<DataStoreHandle> const& data_store
   ) {
     concurrent_region_task_unique_ptr cr_task = std::move(task);
-    // simple implementation that runs it on this rank immediately
-    for (auto index = 0; index < n_indices; ++index) {
-      auto context = std::make_shared<ConcurrentRegionContext>(index);
-      cr_task->set_region_context(
-        context
-      );
-      run_task(cr_task.get());
+
+    int const blocks = n_indices;
+    int const ranks = inside_num_ranks;
+    int const num_per_rank = std::max(1, blocks / ranks);
+
+    for (auto cur = 0; cur < std::max(blocks,num_per_rank*ranks); cur += num_per_rank) {
+      int const rank = (cur / num_per_rank) % ranks;
+
+      for (auto i = cur; i < std::min(cur+num_per_rank,blocks); i++) {
+        //std::cout << "rank " << rank << ": index = " << i << std::endl;
+        auto const size = cr_task->get_packed_size();
+        void* packed_task = malloc(size);
+        cr_task->pack(packed_task);
+        auto new_task =
+          darma_runtime::abstract::frontend::unpack_concurrent_region_task<types::concrete_task_t>(
+            packed_task
+          );
+        free(packed_task);
+
+        auto context = std::make_shared<ConcurrentRegionContext>(i);
+        new_task->set_region_context(
+          context
+        );
+        auto task_node = std::make_shared<TaskNode<concurrent_region_task_t>>(
+          rank == inside_rank ? this : shared_ranks[rank],
+          std::move(new_task)
+        );
+
+        if (rank == inside_rank) {
+          add_local(task_node);
+        } else {
+          shared_ranks[rank]->add_remote(task_node);
+        }
+      }
     }
   }
 
@@ -1806,8 +1867,10 @@ namespace threads_backend {
 
   /*virtual*/
   void
-  ThreadsRuntime::publish_use(darma_runtime::abstract::frontend::Use* f,
-                              darma_runtime::abstract::frontend::PublicationDetails* details) {
+  ThreadsRuntime::publish_use(
+    use_t* f,
+    pub_details_t* details
+  ) {
 
     auto f_in  = f->get_in_flow();
     auto f_out = f->get_out_flow();
@@ -1868,7 +1931,9 @@ namespace threads_backend {
 
   template <typename Node>
   void
-  ThreadsRuntime::try_node(std::list<std::shared_ptr<Node> >& nodes) {
+  ThreadsRuntime::try_node(
+    std::list<std::shared_ptr<Node> >& nodes
+  ) {
     if (nodes.size() > 0) {
       auto n = nodes.back();
       nodes.pop_back();
@@ -1883,8 +1948,10 @@ namespace threads_backend {
 
   template <typename Node>
   void
-  ThreadsRuntime::shuffle_deque(std::mutex* lock,
-                                std::deque<Node>& nodes) {
+  ThreadsRuntime::shuffle_deque(
+    std::mutex* lock,
+    std::deque<Node>& nodes
+  ) {
     if (lock) lock->lock();
 
     if (nodes.size() > 0) {
@@ -1908,8 +1975,10 @@ namespace threads_backend {
 
   template <typename Node>
   bool
-  ThreadsRuntime::schedule_from_deque(std::mutex* lock,
-                                      std::deque<Node>& nodes) {
+  ThreadsRuntime::schedule_from_deque(
+    std::mutex* lock,
+    std::deque<Node>& nodes
+  ) {
     if (lock) lock->lock();
 
     if (nodes.size() > 0) {
@@ -1933,6 +2002,7 @@ namespace threads_backend {
 
   void
   ThreadsRuntime::schedule_next_unit() {
+    inScheduler = true;
     #if __THREADS_BACKEND_DEBUG__ || __THREADS_BACKEND_SHUFFLE__
       shuffle_deque(nullptr, ready_local);
     #endif
@@ -1943,11 +2013,14 @@ namespace threads_backend {
     if (!found) {
       schedule_from_deque(&lock_remote, ready_remote);
     }
+    inScheduler = false;
   }
 
   /*virtual*/
   void
   ThreadsRuntime::finalize() {
+    using namespace std::chrono_literals;
+
     if (top_level_task) {
       auto t = std::make_shared<TaskNode<top_level_task_t>>(
         TaskNode<top_level_task_t>{this,std::move(top_level_task)}
@@ -1961,10 +2034,34 @@ namespace threads_backend {
                 this->consumed);
 
     do {
-      schedule_next_unit();
-    } while (this->produced != this->consumed
-             || ready_local.size() != 0
-             || ready_remote.size() != 0);
+      do {
+        schedule_next_unit();
+      } while (
+        this->produced != this->consumed ||
+        ready_local.size() != 0 ||
+        ready_remote.size() != 0
+      );
+
+      //std::this_thread::yield();
+
+      {
+        std::unique_lock<std::mutex> _lock1(lock_remote);
+        auto now = std::chrono::system_clock::now();
+        cv_remote_awake.wait_until(
+          _lock1,
+          now + 10ms,
+          [this]{
+            return ready_remote.size() > 0;
+          }
+        );
+      }
+
+    } while (
+      global_produced.load() < 1 ||
+      global_produced.load() != global_consumed.load()
+    );
+
+    DEBUG_PRINT("thread is TERMIANTED\n");
 
     assert(ready_local.size() == 0 &&
            ready_remote.size() == 0 &&
@@ -1997,25 +2094,53 @@ namespace threads_backend {
         threads_backend::live_ranks[i].join();
         DEBUG_PRINT("join complete %zu\n", i);
       }
+
+      // reset barrier
+      threads_backend::start_barrier = 0;
+      terminate_counter = 0;
     }
   }
 } // end namespace threads_backend
 
+void barrier(size_t const rank) {
+  DEBUG_PRINT_THD(
+    rank,
+    "start barrier rank=%ld\n", rank
+  );
+  {
+    std::unique_lock<std::mutex> _lock1(threads_backend::mutex_start_barrier);
+    threads_backend::start_barrier++;
+  }
+  threads_backend::cv_start_barrier.notify_all();
+  {
+    std::unique_lock<std::mutex> _lock1(threads_backend::mutex_start_barrier);
+    threads_backend::cv_start_barrier.wait(_lock1, []{
+      return threads_backend::start_barrier == threads_backend::n_ranks;
+    });
+  }
+}
 
 void
 start_rank_handler(
   size_t const system_rank,
   size_t const num_system_ranks
 ) {
-  STARTUP_PRINT(
+  DEBUG_PRINT_THD(
+    system_rank,
     "%ld: rank handler starting\n",
     system_rank
   );
 
-  std::make_unique<threads_backend::ThreadsRuntime>(
-    num_system_ranks,
-    system_rank
+  auto runtime = std::make_unique<threads_backend::ThreadsRuntime>(
+    system_rank,
+    num_system_ranks
   );
+  threads_backend::cur_runtime = runtime.get();
+  threads_backend::shared_ranks[system_rank] = runtime.get();
+
+  barrier(system_rank);
+
+  runtime->finalize();
 
   return;
 }
@@ -2041,6 +2166,8 @@ backend_parse_arguments(
     bwidth == 0 ? true : false;
 
   threads_backend::depthFirstExpand = depth;
+  threads_backend::bwidth = bwidth;
+  threads_backend::n_ranks = n_ranks;
 
   if (system_rank == 0) {
     if (threads_backend::depthFirstExpand) {
@@ -2060,14 +2187,16 @@ backend_parse_arguments(
       );
     }
 
-    STARTUP_PRINT(
-      "rank = %zu, ranks = %zu, threads = %zu\n",
+    DEBUG_PRINT_THD(
+      system_rank,
+      "rank=%zu, ranks=%zu, threads=%zu\n",
       system_rank,
       n_ranks,
       n_threads
     );
 
     // launch std::thread for each rank
+    threads_backend::shared_ranks.resize(n_ranks);
     threads_backend::live_ranks.resize(n_ranks - 1);
     for (size_t i = 0; i < n_ranks - 1; ++i) {
       threads_backend::live_ranks[i] = std::thread(
@@ -2080,7 +2209,7 @@ backend_parse_arguments(
 }
 }
 
-int main(int argc, char **argv) {
+void backend_init_finalize(int argc, char **argv) {
   ArgsHolder args_holder(argc, argv);
 
   threads_backend::backend_parse_arguments(args_holder);
@@ -2090,7 +2219,10 @@ int main(int argc, char **argv) {
     args_holder.get<size_t>("system-rank") : 0;
   auto const num_system_ranks =
     args_holder.exists("num-system-ranks") ?
-    args_holder.get<size_t>("num-system-ranks") : 1;
+    args_holder.get<size_t>("num-system-ranks") : (
+      args_holder.exists("ranks") ?
+      args_holder.get<size_t>("ranks") : 1
+    );
 
   ArgsRemover remover(
     argc, argv,
@@ -2118,19 +2250,29 @@ int main(int argc, char **argv) {
       argv_new_c
     );
     auto runtime = std::make_unique<threads_backend::ThreadsRuntime>(
-      num_system_ranks,
       system_rank,
+      num_system_ranks,
       std::move(task)
     );
     threads_backend::cur_runtime = runtime.get();
+    threads_backend::shared_ranks[system_rank] = runtime.get();
+
+    barrier(system_rank);
+
+    runtime->finalize();
   } else {
     auto runtime = std::make_unique<threads_backend::ThreadsRuntime>(
-      num_system_ranks,
-      system_rank
+      system_rank,
+      num_system_ranks
     );
     threads_backend::cur_runtime = runtime.get();
+    runtime->finalize();
   }
+}
 
+
+int main(int argc, char **argv) {
+  backend_init_finalize(argc, argv);
   return 0;
 }
 

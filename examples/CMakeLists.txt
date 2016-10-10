@@ -9,3 +9,4 @@ enable_testing()
 
 add_subdirectory(0.2)
 add_subdirectory(0.3)
+add_subdirectory(0.4)

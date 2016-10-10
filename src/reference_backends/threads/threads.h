@@ -104,9 +104,11 @@ namespace std {
   };
 }
 
-
 namespace threads_backend {
   using flow_t = darma_runtime::types::flow_t;
+
+  void global_produce();
+  void global_consume();
 
   struct CollectiveState {
     size_t n_pieces{0};
@@ -189,6 +191,8 @@ namespace threads_backend {
 
     ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
+    std::condition_variable cv_remote_awake{};
+
     size_t data_store_counter = 0;
 
     std::unordered_map<
@@ -200,8 +204,11 @@ namespace threads_backend {
 
     std::deque<std::shared_ptr<GraphNode>> ready_local;
 
-    std::mutex lock_remote;
+    std::mutex lock_remote{};
     std::deque<std::shared_ptr<GraphNode>> ready_remote;
+
+    virtual size_t
+    get_execution_resource_count(size_t depth) const;
 
     // used for tracing to follow the dependency back to the proper
     // traced block
@@ -211,7 +218,7 @@ namespace threads_backend {
     > inverse_alias, task_forwards;
 
     std::unordered_map<
-      darma_runtime::abstract::frontend::Use*,
+      use_t*,
       size_t
     > publish_uses;
 
@@ -219,6 +226,8 @@ namespace threads_backend {
       std::shared_ptr<InnerFlow>,
       TraceLog*
     > taskTrace;
+
+    bool inScheduler = false;
 
     TraceModule* trace = nullptr;
 
@@ -367,7 +376,7 @@ namespace threads_backend {
     );
 
     void
-    reregister_migrated_use(darma_runtime::abstract::frontend::Use* u);
+    reregister_migrated_use(use_t* u);
 
     template <typename TaskType>
     size_t
@@ -385,7 +394,7 @@ namespace threads_backend {
     get_running_task() const;
 
     virtual void
-    register_use(darma_runtime::abstract::frontend::Use* u);
+    register_use(use_t* u);
 
     virtual void
     register_concurrent_region(
@@ -471,12 +480,12 @@ namespace threads_backend {
     );
 
     virtual void
-    release_use(darma_runtime::abstract::frontend::Use* u);
+    release_use(use_t* u);
 
     virtual void
-    allreduce_use(darma_runtime::abstract::frontend::Use* use_in,
-                  darma_runtime::abstract::frontend::Use* use_out,
-                  darma_runtime::abstract::frontend::CollectiveDetails const* details,
+    allreduce_use(use_t* use_in,
+                  use_t* use_out,
+                  collective_details_t const* details,
                   types::key_t const& tag);
 
     bool
@@ -499,21 +508,28 @@ namespace threads_backend {
     publish_finished(std::shared_ptr<DelayedPublish> publish);
 
     virtual void
-    publish_use(darma_runtime::abstract::frontend::Use* f,
-		darma_runtime::abstract::frontend::PublicationDetails* details);
+    publish_use(
+      use_t* f,
+      pub_details_t* details
+    );
 
     template <typename Node>
     void
-    try_node(std::list<std::shared_ptr<Node>>& nodes);
+    try_node(
+      std::list<std::shared_ptr<Node>>& nodes
+    );
 
     template <typename Node>
-    bool schedule_from_deque(std::mutex* lock, std::deque<Node>& nodes);
+    bool schedule_from_deque(
+      std::mutex* lock,
+      std::deque<Node>& nodes
+    );
 
     template <typename Node>
-    void shuffle_deque(std::mutex* lock, std::deque<Node>& nodes);
-
-    template <typename... Args>
-    void try_release(Args... args);
+    void shuffle_deque(
+      std::mutex* lock,
+      std::deque<Node>& nodes
+    );
 
     void
     schedule_next_unit();
@@ -522,13 +538,18 @@ namespace threads_backend {
     finalize();
 
     virtual void*
-    allocate(size_t n_bytes,
-             abstract::frontend::MemoryRequirementDetails const& details) {
+    allocate(
+      size_t n_bytes,
+      memory_details_t const& details
+    ) {
       return malloc(n_bytes);
     }
 
     virtual void
-    deallocate(void* ptr, size_t n_bytes) {
+    deallocate(
+      void* ptr,
+      size_t n_bytes
+    ) {
       free(ptr);
     }
   };

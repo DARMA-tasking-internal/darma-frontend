@@ -71,21 +71,24 @@ class TestInitBE
 //////////////////////////////////////////////////////////////////////////////////
 
 // test that rank and size are reasonable
-// calls darma_backend_initialize(), runtime::get_running_task(),
+// calls darma_backend_init_finalizeialize(), runtime::get_running_task(),
 //   and runtime::finalize()
 // requires that task::set_name() was called on top-level task
 TEST_F(TestInitBE, rank_size){
-  darma_init(argc_, argv_);
-
-  size_t rank = darma_spmd_rank();
-  size_t size = darma_spmd_size();
-
-  EXPECT_TRUE(size > 0);
-  EXPECT_TRUE(rank >= 0);
-  EXPECT_TRUE(rank < size);
-
-  darma_finalize();
+  struct test_task {
+    void operator()(std::vector<std::string> args) {
+      using darma_runtime::constants_for_resource_count::Processes;
+      size_t const size = darma_runtime::resource_count(Processes);
+      EXPECT_TRUE(size > 0);
+    }
+  };
+  DARMA_REGISTER_TOP_LEVEL_FUNCTOR(test_task);
+  backend_init_finalize(argc_, argv_);
 }
+
+
+
+
 
 //////////////////////////////////////////////////////////////////////////////////
 

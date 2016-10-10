@@ -98,6 +98,10 @@ class Runtime {
       std::unique_ptr<generic_to_compact_index_mapping_t>;
     using top_level_task_t = abstract::frontend::TopLevelTask<types::concrete_task_t>;
     using top_level_task_unique_ptr = std::unique_ptr<top_level_task_t>;
+    using use_t = frontend::Use;
+    using pub_details_t = darma_runtime::abstract::frontend::PublicationDetails;
+    using collective_details_t = darma_runtime::abstract::frontend::CollectiveDetails;
+    using memory_details_t = abstract::frontend::MemoryRequirementDetails;
 
     //==========================================================================
 
@@ -554,5 +558,6 @@ typedef Runtime runtime_t;
  *
  */
 int main(int argc, char **argv);
+void backend_init_finalize(int argc, char** argv);
 
 #endif /* SRC_ABSTRACT_BACKEND_RUNTIME_H_ */

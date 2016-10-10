@@ -1,14 +1,14 @@
 #include <darma.h>
-int darma_main(int argc, char** argv)
-{
-  using namespace darma_runtime;
 
-  darma_init(argc, argv);
-  size_t me = darma_spmd_rank();
-  size_t n_ranks = darma_spmd_size();
+void darma_main_task(std::vector<std::string>) {
+  using namespace darma_runtime;
+  using darma_runtime::constants_for_resource_count::Processes;
+
+  size_t const num_processes = darma_runtime::resource_count(Processes);
 
   // create handle to string variable
-  auto greeting = initial_access<std::string>("myName", me);
+  auto greeting = initial_access<std::string>("myName");
+
   // set the value
   create_work([=]{
     greeting.set_value("hello world!");
@@ -16,10 +16,9 @@ int darma_main(int argc, char** argv)
 
   // print the value
   create_work([=]{
-    std::cout << "DARMA rank " << me 
+    std::cout << "DARMA running with procs=" << num_processes
               << " says: " << greeting.get_value() << std::endl;
   });
-
-  darma_finalize();
-  return 0;
 }
+
+DARMA_REGISTER_TOP_LEVEL_FUNCTION(darma_main_task);

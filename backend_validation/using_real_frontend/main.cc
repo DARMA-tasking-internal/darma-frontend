@@ -56,7 +56,7 @@
 std::atomic<int> mydata::count_(0);
 std::vector<std::string> TestBackend::orig_args_;
 
-int darma_main(int argc, char **argv) {
+int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::InitGoogleMock(&argc, argv);
   TestBackend::store_cmdline_args(argc, argv);
@@ -72,4 +72,3 @@ int darma_main(int argc, char **argv) {
   return ret;
 #endif
 }
-
