@@ -303,7 +303,8 @@ class Runtime {
     make_fetching_flow(
       std::shared_ptr<frontend::Handle> const& handle,
       types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& data_store = nullptr
+      std::shared_ptr<DataStoreHandle> const& data_store = nullptr,
+      bool acquired = false
     ) =0;
 
     /** @brief Make a null Flow to be associated with the handle given as an

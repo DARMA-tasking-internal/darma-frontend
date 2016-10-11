@@ -81,7 +81,7 @@ TEST_F(TestReadAccess, call_sequence) {
   Sequence s1, s2;
 
   EXPECT_CALL(*mock_runtime, make_fetching_flow(
-    is_handle_with_key(make_key("hello")), Eq(my_version_tag), Eq(nullptr)
+    is_handle_with_key(make_key("hello")), Eq(my_version_tag), Eq(nullptr), Eq(false)
   )).InSequence(s1)
     .WillOnce(Return(&f_in));
   EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(make_key("hello"))))
@@ -172,3 +172,27 @@ TEST_F(TestReadAccess, call_sequence_assign) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+TEST_F(TestReadAccess, acquire_ownership) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  MockFlow f_init, f_null;
+
+  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(make_key("hello")),
+    Eq(make_key("my_version_tag")), Eq(nullptr), Eq(true))
+  ).WillOnce(Return(f_init));
+  EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(make_key("hello"))))
+    .WillOnce(Return(f_null));
+
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_init, &f_null));
+
+  EXPECT_RELEASE_FLOW(f_init);
+  EXPECT_RELEASE_FLOW(f_null);
+
+  {
+    auto tmp = acquire_ownership<int>("hello", version="my_version_tag");
+  }
+
+}

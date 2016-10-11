@@ -143,8 +143,9 @@ class MockRuntime
     MOCK_METHOD1(register_use, void(use_t*));
     MOCK_METHOD1(reregister_migrated_use, void(use_t*));
     MOCK_METHOD1(make_initial_flow, flow_t(std::shared_ptr<handle_t> const&));
-    MOCK_METHOD3(make_fetching_flow, flow_t(std::shared_ptr<handle_t> const&, key_t const&,
-      std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle> const&
+    MOCK_METHOD4(make_fetching_flow, flow_t(std::shared_ptr<handle_t> const&, key_t const&,
+      std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle> const&,
+      bool
     ));
     MOCK_METHOD1(make_null_flow, flow_t(std::shared_ptr<handle_t> const&));
     MOCK_METHOD1(make_forwarding_flow, flow_t(flow_t&));
