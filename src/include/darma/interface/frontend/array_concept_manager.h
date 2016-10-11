@@ -91,12 +91,13 @@ class ArrayConceptManager {
       void const* obj,
       IndexRange const* idx_range
     ) const {
+      DARMA_ASSERT_NOT_IMPLEMENTED("get_element_range() in ArrayConceptManager");
       // If this method is unimplemented, range must be contiguous
-      CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
-      assert(cir and cir->contiguous());
-      return get_element_range(
-        obj, cir->offset(), cir->size()
-      );
+      //CompacIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
+      //assert(cir and cir->contiguous());
+      //return get_element_range(
+      //  obj, cir->offset(), cir->size()
+      //);
     }
 
     /** @todo
@@ -125,12 +126,13 @@ class ArrayConceptManager {
       ElementRange const& range,
       IndexRange const* idx_range
     ) const {
+      DARMA_ASSERT_NOT_IMPLEMENTED("get_element_range() in ArrayConceptManager");
       // If this method is unimplemented, range must be contiguous
-      CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
-      assert(cir and cir->contiguous());
-      set_element_range(
-        obj, range, cir->offset(), cir->size()
-      );
+      //CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
+      //assert(cir and cir->contiguous());
+      //set_element_range(
+      //  obj, range, cir->offset(), cir->size()
+      //);
     }
 
 //    /** @todo

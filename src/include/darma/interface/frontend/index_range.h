@@ -55,16 +55,6 @@ namespace darma_runtime {
 namespace abstract {
 namespace frontend {
 
-// TODO deprecate this
-class Index { };
-
-// TODO deprecate this
-struct IndexIterator {
-  virtual Index& operator*() =0;
-  virtual IndexIterator& operator++() =0;
-  virtual ~IndexIterator() = default;
-};
-
 /** @todo
  *
  */
@@ -79,51 +69,6 @@ class IndexRange
     virtual size_t size() const =0;
 
 };
-
-// TODO deprecate this
-class CompactIndexRange : public IndexRange
-{
-  public:
-
-
-    /** @todo
-     *
-     * @return
-     */
-    virtual size_t offset() const =0;
-
-    /** @todo
-     *
-     * @return
-     */
-    virtual bool contiguous() const =0;
-
-    /** @todo
-     *
-     * @return
-     */
-    virtual bool strided() const =0;
-
-    /** @todo
-     *
-     * @return
-     */
-    virtual size_t stride() const =0;
-
-};
-
-// TODO deprecate this
-template <typename FromRange, typename ToRange>
-struct IndexMapping : PolymorphicSerializableObject<IndexMapping<FromRange, ToRange>> {
-
-  virtual std::unique_ptr<ToRange const>
-  map_forward(FromRange const& from) const =0;
-
-  virtual std::unique_ptr<FromRange const>
-  map_reverse(ToRange const& from) const =0;
-
-};
-
 
 
 } // end namespace frontend

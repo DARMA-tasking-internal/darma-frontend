@@ -74,7 +74,9 @@ template <typename Integer, typename DenseIndex = size_t>
 struct Range2DDenseMapping;
 
 template <typename Integer>
-struct Range2D : abstract::frontend::IndexRange {
+struct Range2D : detail::PolymorphicSerializationAdapter<
+  Range2D<Integer>, abstract::frontend::IndexRange
+> {
 
   private:
 
@@ -118,42 +120,6 @@ struct Range2D : abstract::frontend::IndexRange {
     end_of_dimension(int i) const {
       assert(i == 0 || i == 1);
       return end_[i];
-    }
-
-    using polymorphic_details = typename
-      detail::polymorphic_serialization_details<Range2D>
-        ::template with_abstract_bases<abstract::frontend::IndexRange>;
-
-    size_t get_packed_size() const override {
-      return polymorphic_details::registry_frontmatter_size
-        + sizeof(begin_) + sizeof(end_);
-    }
-
-    void pack(char* buffer) const override {
-      polymorphic_details::add_registry_frontmatter_in_place(buffer);
-      buffer += polymorphic_details::registry_frontmatter_size;
-      *reinterpret_cast<size_t*>(buffer) = begin_[0];
-      buffer += sizeof(Integer);
-      *reinterpret_cast<size_t*>(buffer) = begin_[1];
-      buffer += sizeof(Integer);
-      *reinterpret_cast<size_t*>(buffer) = end_[0];
-      buffer += sizeof(Integer);
-      *reinterpret_cast<size_t*>(buffer) = end_[1];
-    }
-
-    static
-    std::unique_ptr<abstract::frontend::IndexRange>
-    unpack(char const* buffer, size_t size) {
-      std::unique_ptr<Range2D> rv;
-      rv = std::make_unique<Range2D>(0, 0);
-      rv->begin_[0] = *reinterpret_cast<Integer const*>(buffer);
-      buffer += sizeof(Integer);
-      rv->begin_[1] = *reinterpret_cast<Integer const*>(buffer);
-      buffer += sizeof(Integer);
-      rv->end_[0] = *reinterpret_cast<Integer const*>(buffer);
-      buffer += sizeof(Integer);
-      rv->end_[1] = *reinterpret_cast<Integer const*>(buffer);
-      return rv;
     }
 
     template <typename ArchiveT>

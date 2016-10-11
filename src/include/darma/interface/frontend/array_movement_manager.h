@@ -86,12 +86,13 @@ class ArrayMovementManager {
       IndexRange const* idx_range,
       backend::SerializationPolicy* ser_pol
     ) const {
+      DARMA_ASSERT_NOT_IMPLEMENTED("get_packed_size() in ArrayMovementManager");
       // If this method is unimplemented, range must be contiguous
-      CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
-      assert(cir and cir->contiguous());
-      return get_packed_size(
-        obj, cir->offset(), cir->size(), ser_pol
-      );
+      //CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
+      //assert(cir and cir->contiguous());
+      //return get_packed_size(
+      //  obj, cir->offset(), cir->size(), ser_pol
+      //);
     }
 
     /** @todo
@@ -122,12 +123,13 @@ class ArrayMovementManager {
       IndexRange const* idx_range,
       backend::SerializationPolicy* ser_pol
     ) const {
+      DARMA_ASSERT_NOT_IMPLEMENTED("pack_elements() in ArrayMovementManager");
       // If this method is unimplemented, range must be contiguous
-      CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
-      assert(cir and cir->contiguous());
-      pack_elements(
-        obj, buffer, cir->offset(), cir->size(), ser_pol
-      );
+      //CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
+      //assert(cir and cir->contiguous());
+      //pack_elements(
+      //  obj, buffer, cir->offset(), cir->size(), ser_pol
+      //);
     }
 
     /** @todo
@@ -158,12 +160,13 @@ class ArrayMovementManager {
       IndexRange const* idx_range,
       backend::SerializationPolicy* ser_pol
     ) const {
+      DARMA_ASSERT_NOT_IMPLEMENTED("unpack_elements() in ArrayMovementManager");
       // If this method is unimplemented, range must be contiguous
-      CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
-      assert(cir and cir->contiguous());
-      unpack_elements(
-        obj, buffer, cir->offset(), cir->size(), ser_pol
-      );
+      //CompactIndexRange const* cir = dynamic_cast<CompactIndexRange const*>(idx_range);
+      //assert(cir and cir->contiguous());
+      //unpack_elements(
+      //  obj, buffer, cir->offset(), cir->size(), ser_pol
+      //);
     }
 };
 
