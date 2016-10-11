@@ -308,7 +308,10 @@ namespace threads_backend {
                            const Key& flow);
 
     bool
-    test_alias_null(std::shared_ptr<InnerFlow> flow);
+    test_alias_null(
+      std::shared_ptr<InnerFlow> flow,
+      std::shared_ptr<InnerFlow> alias
+    );
 
     void
     release_to_write(

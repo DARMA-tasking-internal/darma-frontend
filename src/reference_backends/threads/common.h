@@ -48,7 +48,7 @@
 /*
  * Debugging prints with mutex
  */
-#define __THREADS_BACKEND_DEBUG__	  0
+#define __THREADS_BACKEND_DEBUG__	  1
 #define __THREADS_BACKEND_SHUFFLE__	  0
 #define __THREADS_BACKEND_DEBUG_VERBOSE__ 0
 #define __THREADS_BACKEND_DEBUG_TRACE__   0
@@ -271,5 +271,45 @@ struct ArgsHolder {
     return val;
   }
 };
+
+namespace union_find {
+  template <typename UFArchetype>
+  void make_set(
+    UFArchetype const& node
+  ) {
+    node->alias = nullptr;
+    node->uf_size = 1;
+  }
+
+  template <typename UFArchetype>
+  void union_nodes(
+    UFArchetype node1,
+    UFArchetype node2
+  ) {
+    DEBUG_PRINT_THD(0, "union_nodes: sz = %ld, sz2 = %ld\n", node1->uf_size, node2->uf_size);
+    // optimization to pick the larger subtree 
+    // if (node1->uf_size < node2->uf_size) {
+    //   node1.swap(node2);
+    // }
+    node2->alias = node1;
+    node1->uf_size += node2->uf_size;
+  }
+
+  template <typename UFArchetype, typename Callable>
+  UFArchetype find_call(
+    UFArchetype const& node,
+    Callable&& callable
+  ) {
+    if (node->alias != nullptr) {
+      callable(node->alias);
+      node->alias = find_call(
+        node->alias,
+        callable
+      );
+    }
+    return node->alias ? node->alias : node;
+  }
+}
+
 
 #endif /* _THREADS_COMMON_BACKEND_RUNTIME_H_ */
