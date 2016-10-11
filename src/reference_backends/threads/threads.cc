@@ -918,7 +918,8 @@ namespace threads_backend {
   ThreadsRuntime::make_fetching_flow(
     std::shared_ptr<handle_t> const& handle,
     types::key_t const& version_key,
-    std::shared_ptr<DataStoreHandle> const& data_store
+    std::shared_ptr<DataStoreHandle> const& data_store,
+    bool acquired
   ) {
     DEBUG_VERBOSE_PRINT("make fetching flow\n");
 
@@ -1086,7 +1087,7 @@ namespace threads_backend {
                 PRINT_LABEL(f_to),
                 f_to->ref);
 
-    f_from->alias = f_to;
+    union_find::union_nodes(f_to, f_from);
 
     if (getTrace()) {
       inverse_alias[f_to] = f_from;
@@ -1123,8 +1124,11 @@ namespace threads_backend {
   }
 
   bool
-  ThreadsRuntime::test_alias_null(std::shared_ptr<InnerFlow> flow) {
-    if (flow->alias->isNull) {
+  ThreadsRuntime::test_alias_null(
+    std::shared_ptr<InnerFlow> flow,
+    std::shared_ptr<InnerFlow> alias
+  ) {
+    if (alias->isNull) {
       if (flow->shared_reader_count != nullptr &&
           *flow->shared_reader_count == 0) {
         cleanup_handle(flow);
@@ -1199,65 +1203,52 @@ namespace threads_backend {
       flow->state == FlowReadOnlyReady
     );
 
-    DEBUG_PRINT("try_release_alias_to_read: parent flow=%ld, state=%s\n",
+    DEBUG_PRINT("try_release_alias_to_read: parent flow=%ld, state=%s, alias=%p\n",
                 PRINT_LABEL(flow),
-                PRINT_STATE(flow));
+                PRINT_STATE(flow),
+                flow->alias ? flow->alias.get() : nullptr);
 
     if (flow_has_alias(flow)) {
-      // TODO: swtich to test_null
-      if (test_alias_null(flow)) {
-        return std::make_tuple(
-          flow->alias,
-          false
-        );
-      }
+      bool has_read_phase = false;
+      auto aliased = union_find::find_call(flow, [&](std::shared_ptr<InnerFlow> alias){
+        if (alias->isNull) {
+          return;
+        } else if (alias->state == FlowWaiting) {
+          assert(alias->state == FlowWaiting);
+          assert(alias->ref > 0);
 
-      assert(flow->state == FlowReadOnlyReady);
+          alias->ref--;
+
+          assert(alias->ref == 0);
+
+          has_read_phase |= try_release_to_read(alias);
+        } else {
+          assert(
+            alias->state == FlowReadOnlyReady ||
+            alias->state == FlowReadReady
+          );
+          assert(alias->shared_reader_count != nullptr);
+
+          auto const has_outstanding_reads =
+          alias->readers_jc != 0 &&
+          *alias->shared_reader_count == 0;
+
+          has_read_phase |= has_outstanding_reads;
+        }
+      });
 
       DEBUG_PRINT("try_release_alias_to_read: aliased flow=%ld, state=%s, ref=%ld\n",
-                  PRINT_LABEL(flow->alias),
-                  PRINT_STATE(flow->alias),
-                  flow->alias->ref);
+                  PRINT_LABEL(aliased),
+                  PRINT_STATE(aliased),
+                  aliased->ref);
 
-      if (flow->alias->state == FlowWaiting) {
-        assert(flow->alias->state == FlowWaiting);
-        assert(flow->alias->ref > 0);
-
-        flow->alias->ref--;
-
-        // is conditional needed here on ref?
-        assert(flow->alias->ref == 0);
-
-        auto const has_read_phase = try_release_to_read(flow->alias);
-        auto const ret = try_release_alias_to_read(flow->alias);
-        return
-          std::make_tuple(
-            std::get<0>(ret),
-            std::get<1>(ret) || has_read_phase
-          );
+      if (test_alias_null(flow, aliased)) {
+        return std::make_tuple(aliased,false);
       } else {
-        assert(
-          flow->alias->state == FlowReadOnlyReady ||
-          flow->alias->state == FlowReadReady
-        );
-        assert(flow->alias->shared_reader_count != nullptr);
-
-        auto const has_outstanding_reads =
-          flow->alias->readers_jc != 0 &&
-          *flow->alias->shared_reader_count == 0;
-        auto const ret = try_release_alias_to_read(flow->alias);
-
-        return
-          std::make_tuple(
-            std::get<0>(ret),
-            std::get<1>(ret) || has_outstanding_reads
-          );
+        return std::make_tuple(aliased, has_read_phase);
       }
     }
-    return std::make_tuple(
-      flow,
-      false
-    );
+    return std::make_tuple(flow,false);
   }
 
   void
@@ -1982,8 +1973,10 @@ namespace threads_backend {
     if (lock) lock->lock();
 
     if (nodes.size() > 0) {
-      DEBUG_PRINT("scheduling from deque %p (local = %p): size = %lu\n",
-                  &nodes, &ready_local, nodes.size());
+      DEBUG_PRINT("scheduling from deque %p (local = %p): size = %lu, prod=%ld, cons=%ld\n",
+                  &nodes, &ready_local, nodes.size(),
+                  this->produced,
+                  this->consumed);
 
       auto node = nodes.front();
       nodes.pop_front();
