@@ -48,8 +48,8 @@
 /*
  * Debugging prints with mutex
  */
-#define __THREADS_BACKEND_DEBUG__	  1
-#define __THREADS_BACKEND_SHUFFLE__	  1
+#define __THREADS_BACKEND_DEBUG__	  0
+#define __THREADS_BACKEND_SHUFFLE__	  0
 #define __THREADS_BACKEND_DEBUG_VERBOSE__ 0
 #define __THREADS_BACKEND_DEBUG_TRACE__   0
 #define __THREADS_DEBUG_MODE__ (__THREADS_BACKEND_DEBUG__         ||    \
@@ -292,7 +292,8 @@ namespace union_find {
       node1->uf_size,
       node2->uf_size
     );
-    // optimization to pick the larger subtree 
+    // optimization to pick the larger subtree
+    // does not apply to this problem due to ordering problem
     // if (node1->uf_size < node2->uf_size) {
     //   node1.swap(node2);
     // }
@@ -305,6 +306,12 @@ namespace union_find {
     UFArchetype const& node,
     Callable&& callable
   ) {
+    DEBUG_PRINT_THD(
+      0,
+      "find_call: node=%ld, alias=%ld, callable=%p\n",
+      PRINT_LABEL(node),
+      node->alias ? PRINT_LABEL(node->alias) : 0
+    );
     if (node->alias != nullptr) {
       callable(node->alias);
       node->alias = find_call(

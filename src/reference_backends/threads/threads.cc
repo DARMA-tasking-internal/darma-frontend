@@ -1086,19 +1086,7 @@ namespace threads_backend {
                 PRINT_LABEL(f_to),
                 f_to->ref);
 
-    DEBUG_PRINT("establish flow alias BEFORE %lu (alias=%ld) to %lu (alias=%ld)\n",
-                PRINT_LABEL(f_from),
-                f_from->alias ? PRINT_LABEL(f_from->alias.get()) : 0,
-                PRINT_LABEL(f_to),
-                f_to->alias ? PRINT_LABEL(f_to->alias.get()) : 0);
-
     union_find::union_nodes(f_to, f_from);
-
-    DEBUG_PRINT("establish flow alias AFTER %lu (alias=%ld) to %lu (alias=%ld)\n",
-                PRINT_LABEL(f_from),
-                f_from->alias ? PRINT_LABEL(f_from->alias.get()) : 0,
-                PRINT_LABEL(f_to),
-                f_to->alias ? PRINT_LABEL(f_to->alias.get()) : 0);
 
     if (getTrace()) {
       inverse_alias[f_to] = f_from;
@@ -1248,18 +1236,16 @@ namespace threads_backend {
         }
       });
 
+      DEBUG_PRINT("try_release_alias_to_read: aliased flow=%ld, state=%s, ref=%ld\n",
+                  PRINT_LABEL(aliased),
+                  PRINT_STATE(aliased),
+                  aliased->ref);
+
       if (test_alias_null(flow, aliased)) {
         return std::make_tuple(aliased,false);
       } else {
         return std::make_tuple(aliased, has_read_phase);
       }
-
-      assert(flow->state == FlowReadOnlyReady);
-
-      DEBUG_PRINT("try_release_alias_to_read: aliased flow=%ld, state=%s, ref=%ld\n",
-                  PRINT_LABEL(aliased),
-                  PRINT_STATE(aliased),
-                  aliased->ref);
     }
     return std::make_tuple(flow,false);
   }
