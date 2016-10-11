@@ -46,6 +46,9 @@
 #define DARMA_STATIC_ASSERTIONS_H
 
 #include <cstdlib>
+
+#include <darma/impl/util/macros.h>
+
 struct ___________________________expected__________________________________ {};
 struct ____________________________size_of__________________________________ {};
 struct ___________________________which_is__________________________________ {};
@@ -169,6 +172,37 @@ typename std::common_type<T, U>::type _get_constant_type(T, U);
 #define STATIC_ASSERT_VALUE_LESS(...) \
   static constexpr int DARMA_CONCAT_TOKEN_(_type_eq_check_on_line_, __LINE__) = \
     static_assert_value_less_< \
+      decltype(::darma_runtime::detail::_impl::_get_constant_type(__VA_ARGS__)), \
+      __VA_ARGS__ \
+    >::value
+
+// </editor-fold> end static_assert_value_less
+//==============================================================================
+
+//==============================================================================
+// <editor-fold desc="static_assert_value_less">
+
+template <typename T, T v1, T v2, typename Enable=void>
+struct static_assert_value_equal_ {
+  typename _darma__static_failure<
+    ___________________________expected__________________________________,
+    ____constant_value____<T, v1>,
+    _______________________to_be_the_equal_to____________________________,
+    ____constant_value____<T, v2>,
+    _____________________________________________________________________
+  >::type __failed__;
+};
+
+template <typename T, T v1, T v2>
+struct static_assert_value_equal_<T, v1, v2, std::enable_if_t<(v1 == v2)>> {
+  enum {
+    value = true
+  };
+};
+
+#define STATIC_ASSERT_VALUE_EQUAL(...) \
+  static constexpr int DARMA_CONCAT_TOKEN_(_type_eq_check_on_line_, __LINE__) = \
+    static_assert_value_equal_< \
       decltype(::darma_runtime::detail::_impl::_get_constant_type(__VA_ARGS__)), \
       __VA_ARGS__ \
     >::value
