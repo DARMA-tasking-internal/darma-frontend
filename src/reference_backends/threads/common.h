@@ -49,7 +49,7 @@
  * Debugging prints with mutex
  */
 #define __THREADS_BACKEND_DEBUG__	  1
-#define __THREADS_BACKEND_SHUFFLE__	  0
+#define __THREADS_BACKEND_SHUFFLE__	  1
 #define __THREADS_BACKEND_DEBUG_VERBOSE__ 0
 #define __THREADS_BACKEND_DEBUG_TRACE__   0
 #define __THREADS_DEBUG_MODE__ (__THREADS_BACKEND_DEBUG__         ||    \
@@ -286,7 +286,12 @@ namespace union_find {
     UFArchetype node1,
     UFArchetype node2
   ) {
-    DEBUG_PRINT_THD(0, "union_nodes: sz = %ld, sz2 = %ld\n", node1->uf_size, node2->uf_size);
+    DEBUG_PRINT_THD(
+      0,
+      "union_nodes: sz = %ld, sz2 = %ld\n",
+      node1->uf_size,
+      node2->uf_size
+    );
     // optimization to pick the larger subtree 
     // if (node1->uf_size < node2->uf_size) {
     //   node1.swap(node2);

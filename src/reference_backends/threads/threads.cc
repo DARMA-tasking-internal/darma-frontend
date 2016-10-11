@@ -1220,12 +1220,38 @@ namespace threads_backend {
                 flow->alias ? flow->alias.get() : nullptr);
 
     if (flow_has_alias(flow)) {
-      auto aliased = union_find::find_call(flow, [](std::shared_ptr<InnerFlow> alias){
-        // todo write traversal code
+      bool has_read_phase = false;
+      auto aliased = union_find::find_call(flow, [&](std::shared_ptr<InnerFlow> alias){
+        if (alias->isNull) {
+          return;
+        } else if (alias->state == FlowWaiting) {
+          assert(alias->state == FlowWaiting);
+          assert(alias->ref > 0);
+
+          alias->ref--;
+
+          assert(alias->ref == 0);
+
+          has_read_phase |= try_release_to_read(alias);
+        } else {
+          assert(
+            alias->state == FlowReadOnlyReady ||
+            alias->state == FlowReadReady
+          );
+          assert(alias->shared_reader_count != nullptr);
+
+          auto const has_outstanding_reads =
+          alias->readers_jc != 0 &&
+          *alias->shared_reader_count == 0;
+
+          has_read_phase |= has_outstanding_reads;
+        }
       });
 
       if (test_alias_null(flow, aliased)) {
         return std::make_tuple(aliased,false);
+      } else {
+        return std::make_tuple(aliased, has_read_phase);
       }
 
       assert(flow->state == FlowReadOnlyReady);
@@ -1234,30 +1260,6 @@ namespace threads_backend {
                   PRINT_LABEL(aliased),
                   PRINT_STATE(aliased),
                   aliased->ref);
-
-      if (aliased->state == FlowWaiting) {
-        assert(aliased->state == FlowWaiting);
-        assert(aliased->ref > 0);
-
-        aliased->ref--;
-
-        assert(aliased->ref == 0);
-
-        auto const has_read_phase = try_release_to_read(aliased);
-        return std::make_tuple(aliased, has_read_phase);
-      } else {
-        assert(
-          aliased->state == FlowReadOnlyReady ||
-          aliased->state == FlowReadReady
-        );
-        assert(aliased->shared_reader_count != nullptr);
-
-        auto const has_outstanding_reads =
-          aliased->readers_jc != 0 &&
-          *aliased->shared_reader_count == 0;
-
-        return std::make_tuple(aliased,has_outstanding_reads);
-      }
     }
     return std::make_tuple(flow,false);
   }
