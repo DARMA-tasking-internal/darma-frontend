@@ -91,11 +91,6 @@ class Runtime {
     using condition_task_unique_ptr = types::unique_ptr_template<condition_task_t>;
     using handle_t = frontend::Handle;
     using concurrent_region_task_unique_ptr = std::unique_ptr<concurrent_region_task_t>;
-    using generic_to_compact_index_mapping_t = abstract::frontend::IndexMapping<
-      abstract::frontend::IndexRange, abstract::frontend::CompactIndexRange
-    >;
-    using generic_to_compact_index_mapping_unique_ptr =
-      std::unique_ptr<generic_to_compact_index_mapping_t>;
     using top_level_task_t = abstract::frontend::TopLevelTask<types::concrete_task_t>;
     using top_level_task_unique_ptr = std::unique_ptr<top_level_task_t>;
     using use_t = frontend::Use;
@@ -146,20 +141,6 @@ class Runtime {
       concurrent_region_task_unique_ptr&& task,
       size_t n_indices, std::shared_ptr<DataStoreHandle> const& data_store = nullptr
     ) =0;
-
-    //virtual std::shared_ptr<RegionContextHandle>
-    //register_concurrent_region(
-    //  std::unique_ptr<abstract::frontend::IndexRange>&& user_indices,
-    //  std::unique_ptr<abstract::frontend::IndexMapping<
-    //    abstract::frontend::IndexRange, abstract::frontend::CompactIndexRange
-    //  >>&& index_mapping,
-    //  concurrent_region_task_unique_ptr&& task,
-    //  std::shared_ptr<RegionContextHandle> const& unaligned_predecessor,
-    //  std::unique_ptr<abstract::frontend::IndexMapping<
-    //    abstract::frontend::CompactIndexRange, abstract::frontend::CompactIndexRange
-    //  >>&& predecessor_to_this_mapping,
-    //  std::shared_ptr<KeyValueStoreHandle> const& kv_store = nullptr
-    //) =0;
 
     virtual std::shared_ptr<DataStoreHandle>
     make_data_store() =0;

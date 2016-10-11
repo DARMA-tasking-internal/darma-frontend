@@ -83,6 +83,8 @@ struct ConcurrentRegionContext {
     bool index_computed_ = false;
 
 
+    // TODO use a std::optional (or pre-C++17 equivalent) to store the uninitialized mapping so that
+    // ConcurrentRegionContext is still default constructible
     // Stateful mapping ctor
     explicit
     ConcurrentRegionContext(IndexMappingT const& mapping)
@@ -90,6 +92,12 @@ struct ConcurrentRegionContext {
     { }
 
     // Stateless mapping ctor
+    template <typename _Ignored=void,
+      typename=std::enable_if_t<
+        std::is_void<_Ignored>::value and
+        std::is_default_constructible<IndexMappingT>::value
+      >
+    >
     ConcurrentRegionContext()
       : index_and_mapping_(IndexT(), IndexMappingT())
     { }

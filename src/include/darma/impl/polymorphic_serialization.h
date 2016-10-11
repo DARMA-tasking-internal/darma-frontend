@@ -195,6 +195,58 @@ struct polymorphic_serialization_details {
   };
 };
 
+
+template <typename ConcreteT, typename AbstractT>
+struct PolymorphicSerializationAdapter : AbstractT {
+
+  using polymorphic_details = typename
+    polymorphic_serialization_details<ConcreteT>
+      ::template with_abstract_bases<AbstractT>;
+
+
+  size_t get_packed_size() const override {
+    serialization::SimplePackUnpackArchive ar;
+    using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+    ArchiveAccess::start_sizing(ar);
+    serialization::Serializer<ConcreteT>().compute_size(
+      *static_cast<ConcreteT const*>(this),
+      ar
+    );
+    return ArchiveAccess::get_size(ar) + polymorphic_details::registry_frontmatter_size;
+  }
+
+  void pack(char* buffer) const override {
+    polymorphic_details::add_registry_frontmatter_in_place(buffer);
+    buffer += polymorphic_details::registry_frontmatter_size;
+    serialization::SimplePackUnpackArchive ar;
+    using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+    ArchiveAccess::start_packing_with_buffer(ar, buffer);
+    serialization::Serializer<ConcreteT>().pack(
+      *static_cast<ConcreteT const*>(this), ar
+    );
+  }
+
+  static
+  std::unique_ptr<AbstractT>
+  unpack(char const* buffer, size_t size) {
+    serialization::SimplePackUnpackArchive ar;
+    using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+    ArchiveAccess::start_unpacking_with_buffer(ar, buffer);
+
+    // TODO do allocation (and, consequently, deletion) through the backend
+    void* allocated_spot = ::operator new(sizeof(ConcreteT));
+
+    serialization::Serializer<ConcreteT>().unpack(
+      allocated_spot, ar
+    );
+    std::unique_ptr<ConcreteT> rv(reinterpret_cast<ConcreteT*>(allocated_spot));
+
+    return std::move(rv);
+  }
+
+};
+
+
 } // end namespace detail
 
 namespace abstract {

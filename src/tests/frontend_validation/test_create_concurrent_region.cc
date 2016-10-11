@@ -171,3 +171,42 @@ TEST_F(TestCreateConcurrentRegion, simple_2d_argument) {
   );
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateConcurrentRegion, simple_1d) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_create_concurrent_region;
+  using namespace mock_backend;
+
+  testing::internal::CaptureStdout();
+
+  EXPECT_CALL(*mock_runtime, register_concurrent_region_gmock_proxy(_, 6, nullptr));
+
+  //============================================================================
+  // actual code to be tested
+  {
+    struct MyCR1D {
+
+      void operator()(
+        darma_runtime::ConcurrentRegionContext<darma_runtime::Range1D<int>> context
+      ) const {
+        std::cout << context.index().value;
+      }
+    };
+
+    create_concurrent_region<MyCR1D>(
+      index_range=Range1D<int>(6)
+    );
+
+  }
+  //============================================================================
+
+  run_all_cr_ranks_for_one_region_in_serial();
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "012345"
+  );
+
+}
