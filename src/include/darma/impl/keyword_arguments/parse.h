@@ -48,6 +48,8 @@
 #include <type_traits>
 
 #include <tinympl/stl_integer_sequence.hpp>
+#include <tinympl/select.hpp>
+#include <tinympl/bool.hpp>
 
 #include "kwarg_expression.h"
 
@@ -150,78 +152,219 @@ struct arg_with_index {
   static constexpr auto index = WrappedIndex::value;
   using argument_type = Arg;
   using type = Arg;
+  using decayed_type = std::decay_t<Arg>;
 };
 
 template <typename ArgsWithIdxs, typename ArgDescsWithIdxs>
 struct _overload_desc_is_valid_impl {
-  private:
-    template <typename pair>
-    using _is_positional_description = typename pair::type::can_be_positional;
 
-    template <typename descpair>
-    struct _make_kwarg_tag_matches {
-      template <typename argpair>
-      using apply = std::is_same<typename descpair::tag,
-        typename is_kwarg_expression<typename argpair::type>::tag
-      >;
-    };
+  //==============================================================================
+  // <editor-fold desc="make the template parameters visible to the outside for debugging">
 
-    template <typename descpair>
-    using _matching_kwarg_given = tinympl::any_of<
-      ArgsWithIdxs, _make_kwarg_tag_matches<descpair>::template apply
+  using _args_with_idxs = ArgsWithIdxs;
+  using _arg_descs_with_idxs = ArgDescsWithIdxs;
+
+
+  // </editor-fold> end make the template parameters visible to the outside for debugging
+  //==============================================================================
+
+
+  //============================================================================
+  // <editor-fold desc="unary helpers">
+
+  template <typename dpair>
+  using _is_positional_description = typename dpair::type::can_be_positional;
+
+  template <typename dpair>
+  using _is_kwarg_description = typename dpair::type::can_be_keyword;
+
+  template <typename dpair>
+  using _is_pos_or_kwarg_description = tinympl::bool_<
+    dpair::type::can_be_keyword::value
+    and dpair::type::can_be_positional::value
+  >;
+
+  template <typename dpair>
+  using _is_kwarg_only_description = tinympl::bool_<
+    dpair::type::can_be_keyword::value
+      and not dpair::type::can_be_positional::value
+  >;
+
+  template <typename descpair>
+  struct _make_kwarg_tag_matches {
+    template <typename argpair>
+    using apply = tinympl::bool_<
+      std::is_same<typename descpair::type::tag,
+        typename is_kwarg_expression<typename argpair::decayed_type>::tag
+      >::value
     >;
+  };
 
-    template <typename pair>
-    using _desc_for = tinympl::at_t<pair::index, ArgDescsWithIdxs>;
+  template <typename descpair>
+  using _matching_kwarg_given = tinympl::any_of<
+    ArgsWithIdxs, _make_kwarg_tag_matches<descpair>::template apply
+  >;
 
-    template <typename pair>
-    using _is_positional_arg = tinympl::bool_<not is_kwarg_expression<
-      typename pair::type
-    >::value>;
-    template <typename pair>
-    using _is_keyword_arg = tinympl::bool_<is_kwarg_expression<typename pair::type>::value>;
+  template <typename argpair>
+  using _is_positional_arg = tinympl::bool_<not is_kwarg_expression<
+    typename argpair::decayed_type
+  >::value>;
 
-    static constexpr auto try_last_allowed_positional = tinympl::find_last_if<
-      ArgDescsWithIdxs, _is_positional_description
-    >::value;
+  template <typename argpair>
+  using _is_keyword_arg = is_kwarg_expression<
+    typename argpair::decayed_type
+  >;
 
-    static constexpr auto arg_count = ArgDescsWithIdxs::size::value;
+  template <typename descpair,
+    /* convenience default param used as alias */
+    typename argpair=typename ArgsWithIdxs::template at_or_t<
+      arg_with_index<std::integral_constant<size_t, 0 /*ignored*/>, meta::nonesuch>,
+      tinympl::find_if<ArgsWithIdxs,
+        _make_kwarg_tag_matches<descpair>::template apply
+      >::value
+    >
+  >
+  using _given_kwarg_type_compatible = tinympl::and_<
+    _is_keyword_arg<argpair>,
+    typename descpair::type::template argument_is_compatible<typename argpair::type>
+  >;
 
-    static constexpr auto positional_args_end =
-      (try_last_allowed_positional == arg_count) ? 0 : try_last_allowed_positional + 1;
 
-    template <typename WrappedEndIndex>
-    using given_kwargs_consumed_before_position = typename tinympl::count_if<
-      typename ArgDescsWithIdxs::template erase<WrappedEndIndex::index, arg_count>::type,
-      _matching_kwarg_given
-    >::type;
+  template <typename argpair>
+  using _desc_for = tinympl::at_t<argpair::index, ArgDescsWithIdxs>;
 
+  template <typename argpair>
+  using _pos_arg_is_convertible = tinympl::and_<
+    _is_positional_arg<argpair>,
+    typename _desc_for<argpair>::type
+      ::template argument_is_compatible<typename argpair::type>
+  >;
 
-    template <typename ArgWithIdx>
-    using arg_is_valid = tinympl::select_first_t<
-      // if it's a positional argument after the last allowed positional argument,
-      // it's not valid
-      tinympl::bool_<
-        (_is_positional_arg<ArgWithIdx>::value)
-          and (ArgWithIdx::index >=
-            positional_args_end - given_kwargs_consumed_before_position<typename ArgWithIdx::index_t>::value
-          )
-      >, /* => */ std::false_type,
-      // if it's positional and not off the end, it has to be compatible with
-      // the corresponding positional argument description
-      _is_positional_arg<ArgWithIdx>,
-        /* => */ typename tinympl::at_or_t<positional_only_argument<meta::nonesuch>,
-          ArgWithIdx::index + given_kwargs_consumed_before_position<typename ArgWithIdx::index_t>::value,
-          ArgDescsWithIdxs
-        >::template argument_is_compatible<ArgWithIdx>
-      // if it's a keyword argument
-        // TODO FINISH THIS
-    >;
+  // </editor-fold> end unary helpers
+  //============================================================================
 
-    // TODO finish this
+  static constexpr auto first_kwarg_only_desc = tinympl::find_if<
+    ArgDescsWithIdxs, _is_kwarg_only_description
+  >::type::value;
 
-  public:
+  static constexpr auto first_desc_given_as_kwarg = tinympl::find_if<
+    ArgDescsWithIdxs, _matching_kwarg_given
+  >::type::value;
 
+  static constexpr auto n_positional_given = tinympl::count_if<
+    ArgsWithIdxs, _is_positional_arg
+  >::value;
+
+  static constexpr auto first_kwarg_given = tinympl::find_if<
+    ArgsWithIdxs, _is_keyword_arg
+  >::value;
+
+  // If n_positional_given is greater than the index of the first kwarg given,
+  // then there are keyword arguments given before the last positional
+  static constexpr auto kwarg_given_before_last_positional =
+    n_positional_given > first_kwarg_given;
+
+  // Sanity check: either a kwarg was given before the last positional, or
+  // the first kwarg given index should be exactly the same as the number of
+  // positional arguments
+  static_assert(
+    kwarg_given_before_last_positional
+    or n_positional_given == first_kwarg_given,
+    "metaprogramming logic error"
+  );
+
+  // The number of positional arguments that can be given and still have the
+  // overload be valid is the minimum of the first argument description index that
+  // must be keyword only and the index of the first positional-or-keyword argument
+  // that has been given as a keyword argument (either of which could be none of
+  // them, so it could be the number of arguments)
+  static constexpr auto n_positional_args_good =
+    first_kwarg_only_desc < first_desc_given_as_kwarg ?
+      first_kwarg_only_desc : first_desc_given_as_kwarg;
+
+  static constexpr auto too_many_positional =
+    n_positional_given > n_positional_args_good;
+
+  // Sanity check: if too many positional is false and
+  // kwarg_given_before_last_positional is also false, the number of positional
+  // arguments given should be less than or equal to the number of "good"
+  // positional args (the less than happens when only positional arguments are given)
+  static_assert(
+    too_many_positional or kwarg_given_before_last_positional
+      or n_positional_given <= n_positional_args_good,
+    "metaprogramming logic error"
+  );
+
+  // At this point we can assume that all of the positional arguments are
+  // "allowed" to be positional, so we can just check to see if the type
+  // is allowed
+  static constexpr auto all_positional_args_convertible = tinympl::all_of<
+    typename ArgsWithIdxs::template erase<
+      n_positional_given, ArgsWithIdxs::size
+    >::type,
+    _pos_arg_is_convertible
+  >::value;
+
+  // The rest should be given as keyword arguments.  If any arg desc after
+  // n_pos_given is not given as a keyword argument, this overload doesn't match
+  static constexpr auto all_kwargs_found = tinympl::all_of<
+    typename ArgDescsWithIdxs::template erase<0, n_positional_given>::type,
+    _matching_kwarg_given
+  >::value;
+
+  static constexpr auto all_kwargs_convertible = tinympl::all_of<
+    typename ArgDescsWithIdxs::template erase<0, n_positional_given>::type,
+    _given_kwarg_type_compatible
+  >::value;
+
+  static constexpr auto value =
+    not (
+      kwarg_given_before_last_positional
+        or too_many_positional
+    )
+    and all_positional_args_convertible
+    and all_kwargs_found
+    and all_kwargs_convertible;
+
+  using type = tinympl::bool_<value>;
+
+  template <size_t Position, typename ForwardedArgsTuple>
+  decltype(auto)
+  _get_invoke_arg(
+    /* given as positional (i.e., position less than n_positional_given) */
+    std::true_type,
+    ForwardedArgsTuple&& tup
+  ) const {
+    return std::get<Position>(std::forward<ForwardedArgsTuple>(tup));
+  };
+
+  template <size_t Position, typename ForwardedArgsTuple>
+  decltype(auto)
+  _get_invoke_arg(
+    /* given as positional (i.e., position less than n_positional_given) */
+    std::false_type,
+    ForwardedArgsTuple&& tup
+  ) const {
+    return std::get<
+      tinympl::find_if<
+        ArgsWithIdxs,
+        _make_kwarg_tag_matches<
+          typename ArgDescsWithIdxs::template at_t<Position>
+        >::template apply
+      >::value
+    >(
+      std::forward<ForwardedArgsTuple>(tup)
+    ).value();
+  };
+
+  template <size_t Position, typename ForwardedArgsTuple>
+  decltype(auto)
+  get_invoke_arg(ForwardedArgsTuple&& tup) const {
+    return _get_invoke_arg<Position>(
+      typename tinympl::bool_<(Position < n_positional_given)>::type{},
+      std::forward<ForwardedArgsTuple>(tup)
+    );
+  };
 
 
 };
@@ -232,27 +375,50 @@ struct _overload_desc_is_valid_impl {
 
 template <typename... ArgumentDescriptions>
 struct overload_description {
-  private:
 
-    template <typename... Args>
-    using _make_args_with_indices = typename tinympl::zip<
-      tinympl::vector, _impl::arg_with_index,
-      std::index_sequence_for<Args...>,
-      tinympl::vector<Args...>
-    >::type;
+  template <typename... Args>
+  using _make_args_with_indices = typename tinympl::zip<
+    tinympl::vector, _impl::arg_with_index,
+    std::index_sequence_for<Args...>,
+    tinympl::vector<Args...>
+  >::type;
 
-  public:
+  template <typename... Args>
+  using _helper = _impl::_overload_desc_is_valid_impl<
+    _make_args_with_indices<Args...>,
+    _make_args_with_indices<ArgumentDescriptions...>
+  >;
 
-    template <typename... Args>
-    using is_valid_for_args = std::conditional_t<
-      sizeof...(Args) != sizeof...(ArgumentDescriptions),
-      std::false_type,
-      _impl::_overload_desc_is_valid_impl<
-        _make_args_with_indices<Args...>,
-        _make_args_with_indices<ArgumentDescriptions...>
-      >
-    >;
+  template <typename... Args>
+  using is_valid_for_args = std::conditional_t<
+    sizeof...(Args) != sizeof...(ArgumentDescriptions),
+    std::false_type, _helper<Args...>
+  >;
 
+  template <typename Callable, typename ForwardedArgsTuple, typename Helper, size_t... Idxs>
+  decltype(auto)
+  _invoke_impl(Callable&& C,
+    std::integer_sequence<size_t, Idxs...>,
+    Helper h,
+    ForwardedArgsTuple&& tup
+  ) const {
+    return std::forward<Callable>(C)(
+      h.template get_invoke_arg<Idxs>(
+        std::forward<ForwardedArgsTuple>(tup)
+      )...
+    );
+  };
+
+  template <typename Callable, typename... Args>
+  decltype(auto)
+  invoke(Callable&& C, Args&&... args) const {
+    return _invoke_impl(
+      std::forward<Callable>(C),
+      std::index_sequence_for<Args...>(),
+      _helper<Args...>{},
+      std::forward_as_tuple(std::forward<Args>(args)...)
+    );
+  };
 
 
 };
@@ -270,11 +436,26 @@ struct kwarg_parser {
 
 
   public:
+
     template <typename... Args>
     using invocation_is_valid = typename tinympl::variadic::any_of<
       _make_overload_is_valid<Args...>::template apply, OverloadDescriptions...
     >::type;
 
+    template <typename Callable, typename... Args>
+    decltype(auto)
+    invoke(Callable&& C, Args&&... args) const {
+      return tinympl::variadic::at_t<
+        tinympl::variadic::find_if<
+          _make_overload_is_valid<Args...>::template apply,
+          OverloadDescriptions...
+        >::value,
+        OverloadDescriptions...
+      >().invoke(
+        std::forward<Callable>(C),
+        std::forward<Args>(args)...
+      );
+    };
 };
 
 

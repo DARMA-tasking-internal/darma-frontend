@@ -91,6 +91,19 @@ struct vector
     typedef typename variadic::at<i,Args...>::type type;
   };
 
+  template<std::size_t i>
+  using at_t = typename at<i>::type;
+
+  //! Access the i-th element, but safe protected
+  template<typename Default, std::size_t i>
+  struct at_or
+  {
+    typedef typename variadic::at_or<Default, i, Args...>::type type;
+  };
+
+  template<typename Default, std::size_t i>
+  using at_or_t = typename at_or<Default, i>::type;
+
   //! Return a new vector constructed by inserting `T` on the back of the current vector
   template<class T>
   struct push_back
