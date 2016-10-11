@@ -918,7 +918,8 @@ namespace threads_backend {
   ThreadsRuntime::make_fetching_flow(
     std::shared_ptr<handle_t> const& handle,
     types::key_t const& version_key,
-    std::shared_ptr<DataStoreHandle> const& data_store
+    std::shared_ptr<DataStoreHandle> const& data_store,
+    bool acquired
   ) {
     DEBUG_VERBOSE_PRINT("make fetching flow\n");
 
