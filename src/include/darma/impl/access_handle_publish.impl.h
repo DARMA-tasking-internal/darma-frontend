@@ -135,6 +135,16 @@ AccessHandle<T, Traits>::publish(
     backend_runtime->release_use(&use_to_publish);
   };
 
+  if(is_publish_out) {
+    // If we're publishing "out", reduce permissions in continuing context
+    current_use_->use.immediate_permissions_ =
+      current_use_->use.immediate_permissions_ == HandleUse::None ?
+        HandleUse::None : HandleUse::Read;
+    current_use_->use.scheduling_permissions_ =
+      current_use_->use.scheduling_permissions_ == HandleUse::None ?
+        HandleUse::None : HandleUse::Read;
+  }
+
   switch(current_use_->use.scheduling_permissions_) {
     case HandleUse::None: {
       // Error message above

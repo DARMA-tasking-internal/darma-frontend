@@ -61,11 +61,10 @@ AccessHandle<U>
 read_access(
   KeyExprParts&&... parts
 ) {
-  static_assert(detail::only_allowed_kwargs_given<
-      keyword_tags_for_publication::version
-    >::template apply<KeyExprParts...>::type::value,
-    "Unknown keyword argument given to read_access"
-  );
+  using _check_kwargs_assert_t = typename detail::only_allowed_kwargs_given<
+    keyword_tags_for_publication::version
+  >::template static_assert_correct<KeyExprParts...>::type;
+
   typedef detail::access_expr_helper<KeyExprParts...> helper_t;
   helper_t helper;
   types::key_t key = helper.get_key(std::forward<KeyExprParts>(parts)...);
@@ -86,6 +85,44 @@ read_access(
   );
 }
 
+template <
+  typename U=void,
+  typename... KeyExprParts
+>
+AccessHandle<U>
+acquire_ownership(
+  KeyExprParts&&... parts
+) {
+  using _check_kwargs_assert_t = typename detail::only_allowed_kwargs_given<
+    keyword_tags_for_publication::version,
+    keyword_tags_for_acquire_ownership::from_data_store
+  >::template static_assert_correct<KeyExprParts...>::type;
+
+  typedef detail::access_expr_helper<KeyExprParts...> helper_t;
+  helper_t helper;
+  types::key_t key = helper.get_key(std::forward<KeyExprParts>(parts)...);
+  types::key_t user_version_tag = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
+
+  auto ds_ptr = detail::get_typeless_kwarg_with_converter_and_default<
+    keyword_tags_for_acquire_ownership::from_data_store
+  >([&](auto&& ds_arg) {
+    return detail::DataStoreAttorney::get_handle(ds_arg);
+  }, nullptr, std::forward<KeyExprParts>(parts)...);
+
+  auto backend_runtime = abstract::backend::get_backend_runtime();
+  auto var_h = detail::make_shared<detail::VariableHandle<U>>(key);
+  auto in_flow = detail::make_flow_ptr(
+    backend_runtime->make_fetching_flow( var_h, user_version_tag, ds_ptr, true )
+  );
+  auto out_flow = detail::make_flow_ptr(
+    backend_runtime->make_null_flow( var_h )
+  );
+
+  return detail::access_attorneys::for_AccessHandle::construct_access<U>(
+    var_h, in_flow, out_flow,
+    detail::HandleUse::Modify, detail::HandleUse::None
+  );
+}
 
 
 } // end namespace darma_runtime
