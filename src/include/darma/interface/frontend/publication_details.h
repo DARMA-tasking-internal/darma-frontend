@@ -59,6 +59,10 @@ namespace frontend {
  */
 class PublicationDetails {
   public:
+
+    static constexpr size_t unknown_reader = std::numeric_limits<size_t>::max();
+
+
     /** @brief  Get the unique version (as a key) of the item being published.
      *          The combination of h.get_key() and get_version_name()
      *          must be globally unique
@@ -87,6 +91,9 @@ class PublicationDetails {
      */
     virtual bool
     is_within_concurrent_region() const { return true; }
+
+    virtual size_t
+    reader_hint() const { return unknown_reader; }
 
     /** @todo
      *

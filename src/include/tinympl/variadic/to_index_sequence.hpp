@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      publication_details.h
+//                      to_index_sequence.hpp
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,57 +42,25 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_PUBLICATION_DETAILS_H
-#define DARMA_IMPL_PUBLICATION_DETAILS_H
+#ifndef TINYMPL_VARIADIC_TO_INDEX_SEQUENCE_HPP
+#define TINYMPL_VARIADIC_TO_INDEX_SEQUENCE_HPP
 
-#include <darma/interface/frontend/publication_details.h>
+#include <tinympl/identity.hpp>
+#include <utility> // std::index_sequence
 
-namespace darma_runtime {
-namespace detail {
+namespace tinympl {
+namespace variadic {
 
-class PublicationDetails
-  : public darma_runtime::abstract::frontend::PublicationDetails
-{
-  public:
+template <typename... Args>
+struct to_index_sequence
+  : tinympl::identity<std::index_sequence<Args::value...>>
+{ };
 
-    types::key_t version_name;
-    size_t n_fetchers;
-    bool within_region = true;
-    size_t reader_hint_ = darma_runtime::abstract::frontend::PublicationDetails::unknown_reader;
-
-    types::key_t const&
-    get_version_name() const override {
-      return version_name;
-    }
-
-    size_t
-    get_n_fetchers() const override {
-      return n_fetchers;
-    }
-
-    bool
-    is_within_concurrent_region() const override {
-      return within_region;
-    }
-
-    size_t
-    reader_hint() const override {
-      return reader_hint_;
-    }
-
-    PublicationDetails(
-      types::key_t const& version_name_in,
-      size_t n_fetchers_in,
-      bool is_within_region = true
-    ) : version_name(version_name_in),
-        n_fetchers(n_fetchers_in),
-        within_region(is_within_region)
-    { }
-
-};
+template <typename... Args>
+using to_index_sequence_t = typename to_index_sequence<Args...>::type;
 
 
-} // end namespace detail
-} // end namespace darma_runtime
+} // end namespace variadic
+} // end namespace tinympl
 
-#endif //DARMA_IMPL_PUBLICATION_DETAILS_H
+#endif //TINYMPL_VARIADIC_TO_INDEX_SEQUENCE_HPP

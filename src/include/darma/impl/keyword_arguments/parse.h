@@ -97,6 +97,11 @@ namespace darma_runtime {
 
 namespace detail {
 
+template <typename Converter>
+struct converted_parameter {
+  using converter_t = Converter;
+};
+
 struct deduced_parameter {
   template <typename T>
   T&& get_argument(T&& val) { return std::forward<T>(val); }
@@ -104,11 +109,24 @@ struct deduced_parameter {
 
 template <typename ParameterType>
 struct _argument_description_base {
+
+  // TODO finish this
+  //template <typename ConvertedParam, typename KWArg>
+  //using converter_is_valid_archetype = meta::callable_traits<
+  //  typename ConvertedParam::
+
+
   template <typename T>
-  using _type_is_compatible = std::conditional_t<
-    std::is_same<ParameterType, deduced_parameter>::value,
+  using _type_is_compatible = tinympl::select_first_t<
+    //==========================================================================
+    std::is_same<ParameterType, deduced_parameter>,
+    /* => */ std::true_type,
+    //==========================================================================
+    tinympl::is_instantiation_of<converted_parameter, T>,
+    /* => */ std::true_type,
+    //==========================================================================
     std::true_type,
-    std::is_convertible<T, ParameterType>
+    /* => */ std::is_convertible<T, ParameterType>
   >;
 
 };
@@ -244,6 +262,9 @@ struct _optional_impl<positional_or_keyword_argument<Parameter, KWArgTag, false>
 
 template <typename T>
 using _optional = typename _impl::_optional_impl<T>::type;
+
+template <typename ParamType, typename KWArgTag, bool Optional=false>
+using _optional_keyword = _keyword<ParamType, KWArgTag, true>;
 
 namespace _impl {
 
