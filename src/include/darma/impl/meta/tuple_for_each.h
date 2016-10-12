@@ -55,7 +55,6 @@
 #include <tinympl/at.hpp>
 #include <tinympl/is_instantiation_of.hpp>
 #include <tinympl/identity.hpp>
-#include <tinympl/delay.hpp>
 #include <tinympl/repeat.hpp>
 #include <tinympl/pop_back.hpp>
 #include <tinympl/pop_front.hpp>

@@ -53,9 +53,7 @@
 
 #include <tinympl/greater.hpp>
 #include <tinympl/int.hpp>
-#include <tinympl/delay.hpp>
 #include <tinympl/identity.hpp>
-#include <tinympl/delay.hpp>
 #include <tinympl/at.hpp>
 #include <tinympl/erase.hpp>
 #include <tinympl/bind.hpp>

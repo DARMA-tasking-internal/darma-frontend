@@ -69,16 +69,25 @@ namespace detail {
 
 template <typename T> struct _element_at;
 
-template <class... Ts>
-struct _element_at<sequence<Ts...>> {
+template <std::size_t... Idxs>
+struct _element_at<std::integer_sequence<std::size_t, Idxs...>> {
   template <class T>
-  static identity<T> at(Ts..., identity<T>*, ...);
+  static identity<T> at(
+    typename tinympl::ignore_value_argument<std::size_t, Idxs, void const*>::type...,
+    identity<T>*,
+    ...
+  );
 };
 
 template <std::size_t i, typename... Args>
 struct _at_impl
   : decltype(
-      _element_at<fill_n<i, void const*, sequence>>::at( static_cast<identity<Args>*>(nullptr)... )
+      // Since std::make_index_sequence is implemented in constant "time" via
+      // a compiler extension in most implementations, this implementation of at
+      // operates in constant (meta-)time also
+      _element_at<std::make_index_sequence<i>>::at(
+        static_cast<identity<Args>*>(nullptr)...
+      )
     )
 { };
 

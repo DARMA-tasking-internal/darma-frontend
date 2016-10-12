@@ -162,6 +162,7 @@ decltype(auto) invoke_arg(Args&&... args) {
     return std::get<i>(std::forward_as_tuple(std::forward<decltype(args)>(args)...));
   };
   return OverloadDescription().invoke(
+    std::forward_as_tuple(),
     _forward_through_arg, std::forward<Args>(args)...
   );
 };
@@ -321,7 +322,50 @@ TEST_F(TestKeywordArguments, static_tests) {
   //assert_valid<parser>("hello", 6);
   // should fail gracefully at compile time:
   //assert_valid<parser>(test_kwarg_1=5, test_kwarg_3=6);
-  test_function(test_kwarg_1=5, test_kwarg_3=6);
+  // should fail gracefully, useful as an example of what a user might see...
+  //test_function(test_kwarg_1=5, test_kwarg_3=6);
+
+  //============================================================================
+
+  // Adding on optional arguments...
+  using odesc6 = overload_description<
+    _positional<int>,
+    _positional_or_keyword<int, kw::test_kwarg_1>,
+    _keyword<int, kw::test_kwarg_2>,
+    _optional<_keyword<int, kw::test_kwarg_3>>
+  >;
+
+  desc_should_pass<odesc6>(3, 4, test_kwarg_2=5);
+  desc_should_pass<odesc6>(3, 4, test_kwarg_3=6, test_kwarg_2=5);
+  desc_should_pass<odesc6>(3, test_kwarg_3=6, test_kwarg_2=5, test_kwarg_1=4);
+
+  desc_should_fail<odesc6>(3, 4, test_kwarg_3=6);
+  desc_should_fail<odesc6>(3, test_kwarg_3=6);
+  desc_should_fail<odesc6>(3, test_kwarg_3=6, test_kwarg_1=7);
+  desc_should_fail<odesc6>(3, 4, 5, 6, 7);
+  desc_should_fail<odesc6>();
+  desc_should_fail<odesc6>(test_kwarg_3=6);
+
+  // only optional arguments...
+  using odesc7 = overload_description<
+    _optional<_keyword<int, kw::test_kwarg_2>>,
+    _optional<_keyword<int, kw::test_kwarg_3>>
+  >;
+  desc_should_pass<odesc7>(test_kwarg_3=6, test_kwarg_2=5);
+  desc_should_pass<odesc7>(test_kwarg_3=6);
+  desc_should_pass<odesc7>(test_kwarg_2=6);
+  desc_should_pass<odesc7>();
+
+  desc_should_fail<odesc7>(42);
+  desc_should_fail<odesc7>(test_kwarg_1=6);
+  desc_should_fail<odesc7>(test_kwarg_2="hello");
+
+  // only positional and optional arguments...
+  //using odesc8 = overload_description<
+  //  _positional<int>,
+  //  _optional<_keyword<int, kw::test_kwarg_2>>,
+  //  _optional<_keyword<int, kw::test_kwarg_3>>
+  //>;
 
 }
 
@@ -351,6 +395,11 @@ struct MyOverloads {
     ASSERT_EQ(v1.value, 3);
     ASSERT_EQ(v2, 4);
     ASSERT_EQ(v3.value, 5.0);
+  }
+
+  void operator()(double pi) {
+    ASSERT_EQ(overload_number, 4);
+    ASSERT_EQ(pi, (double)3.14);
   }
 };
 
@@ -399,3 +448,18 @@ TEST_F(TestKeywordArguments, overload_tests) {
 ////////////////////////////////////////////////////////////////////////////////
 
 
+TEST_F(TestKeywordArguments, overload_with_defaults_tests) {
+
+  using namespace darma_runtime::detail;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_testing;
+
+  using parser = kwarg_parser<
+    overload_description<
+      _optional<_keyword<double, kw::test_kwarg_1>>
+    >
+  >;
+  parser().invoke(MyOverloads(4), test_kwarg_1=3.14);
+  parser::with_defaults(test_kwarg_1=3.14).invoke(MyOverloads(4));
+  parser::with_defaults(test_kwarg_1=6.28).invoke(MyOverloads(4), test_kwarg_1=3.14);
+}

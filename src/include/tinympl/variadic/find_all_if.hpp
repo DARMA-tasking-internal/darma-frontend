@@ -45,16 +45,18 @@
 #ifndef SRC_META_TINYMPL_VARIADIC_FIND_ALL_IF_HPP_
 #define SRC_META_TINYMPL_VARIADIC_FIND_ALL_IF_HPP_
 
-#include "../string.hpp"
+#include <type_traits> // std::integral_constant, etc
+#include <utility> // std::index_sequence
+
 #include "../join.hpp"
 #include "../transform.hpp"
 #include "../as_sequence.hpp"
 #include "../lambda.hpp"
 #include "../bind.hpp"
 #include "../plus.hpp"
-#include "../to_vector_c.hpp"
-#include "../logical_not.hpp"
+#include "../to_index_sequence.hpp"
 #include "../stl_integer_sequence.hpp"
+#include "../logical_not.hpp"
 
 namespace tinympl {
 namespace variadic {
@@ -72,32 +74,32 @@ template <
 struct find_all_if<UnaryPredicate, Arg1, Args...> {
   private:
     template <typename T>
-    using _add_one = typename plus<T, std::integral_constant<std::size_t, (std::size_t)1>>::type;
+    using _add_one = typename plus<
+      T,
+      std::integral_constant<std::size_t, (std::size_t)1>
+    >::type;
 
   public:
-    typedef typename join<
-      typename std::conditional<
+    using type = typename join<
+      typename std::conditional_t<
         UnaryPredicate<Arg1>::type::value,
-        size_t_vector<0>,
-        size_t_vector<>
-      >::type,
-      typename tinympl::to_vector_c<
+        std::index_sequence<0>,
+        std::index_sequence<>
+      >,
+      typename tinympl::to_index_sequence<
         typename tinympl::transform<
-          typename as_sequence<
-            typename find_all_if<UnaryPredicate, Args...>::type
-          >::type,
+          typename find_all_if<UnaryPredicate, Args...>::type,
           _add_one
-        >::type,
-        std::size_t
-      >::type
-    >::type type;
+        >::type // end transform
+      >::type // end to_index_sequence
+    >::type;
 };
 
 template <
   template <class...> class UnaryPredicate
 >
 struct find_all_if<UnaryPredicate> {
-  typedef size_t_vector<> type;
+  using type = std::index_sequence<>;
 };
 
 template <
@@ -106,7 +108,7 @@ template <
 >
 struct find_all_if_not
   : public find_all_if<
-      lambda<not_<UnaryPredicate<tinympl::placeholders::_>>>::template apply,
+      negate_metafunction<UnaryPredicate>::template apply,
       Args...
     >
 { };

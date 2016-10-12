@@ -68,6 +68,24 @@ template<class T> struct logical_not {
 };
 template<class T> using not_ = logical_not<T>;
 
+/**
+ * \ingroup Logical
+ * \class negate
+ * \brief Metafunction class that produces (via template apply) a metafunction
+ * that returns the negation of the original metafunction
+ * \param F a metafunction for which, given type parameters Args..., the
+ * expression `not F<Args...>::value` is valid
+ */
+template <
+  template <class...> class F
+>
+struct negate_metafunction {
+  template <typename... Args>
+  struct apply : std::integral_constant<bool, not F<Args...>::value> { };
+};
+
+
+
 } // namespace tinympl
 
 #endif // TINYMPL_LOGICAL_NOT_HPP

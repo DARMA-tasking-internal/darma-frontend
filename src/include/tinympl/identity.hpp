@@ -71,6 +71,28 @@ struct value_identity {
   static constexpr decltype(type::value) value = type::value;
 };
 
+/**
+ * \ingroup Functional
+ * \class ignore_argument
+ * \brief ignores the first argument and instead returns the second argument,
+ * which defaults to void
+ */
+template <typename /* ignored */, typename ReturnType=void>
+struct ignore_argument {
+  using type = ReturnType;
+};
+
+/**
+ * \ingroup Functional
+ * \class ignore_value_argument
+ * \brief ignores the non-type argument (of type T) and instead returns
+ * the third argument, which defaults to void
+ */
+template <typename T, T /*ignored*/, typename ReturnType=void>
+struct ignore_value_argument {
+  using type = ReturnType;
+};
+
 } // namespace tinympl
 
 #endif // TINYMPL_IDENTITY_HPP
