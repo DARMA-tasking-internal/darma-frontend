@@ -69,6 +69,7 @@ class typeless_kwarg_expression
   public:
     typedef typename KWArgName::tag tag;
     typedef KWArgName name_t;
+    using argument_type = Rhs&&;
 
     constexpr
     typeless_kwarg_expression(Rhs&& rhs)
@@ -99,6 +100,7 @@ class multiarg_typeless_kwarg_expression {
   public:
     typedef typename KWArgName::tag tag;
     typedef KWArgName name_t;
+    using argument_type = std::tuple<Args&&...>;
 
     constexpr
     multiarg_typeless_kwarg_expression(Args&&... rhs_args)
