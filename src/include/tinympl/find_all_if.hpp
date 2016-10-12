@@ -72,6 +72,9 @@ struct find_all_if<sequence<Args...>, F>
   : public variadic::find_all_if<F, Args...>
 { };
 
+template <class Sequence, template <class... T> class F>
+using find_all_if_t = typename find_all_if<Sequence, F>::type;
+
 } // namespace tinympl
 
 #endif // TINYMPL_FIND_ALL_IF_HPP

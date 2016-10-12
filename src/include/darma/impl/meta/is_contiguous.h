@@ -52,7 +52,7 @@
 
 #include <tinympl/logical_or.hpp>
 #include <tinympl/logical_and.hpp>
-#include <tinympl/delay.hpp>
+#include <tinympl/delay_all.hpp>
 
 namespace darma_runtime {
 namespace meta {

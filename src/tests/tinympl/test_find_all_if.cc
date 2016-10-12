@@ -42,20 +42,21 @@
 //@HEADER
 */
 
+
 #include <tinympl/find_all.hpp>
 #include <tinympl/find_all_if.hpp>
 #include <util/empty_main.h>
-
-#include "metatest_helpers.h"
 
 #include <type_traits>
 
 #include <tinympl/vector.hpp>
 #include <tinympl/string.hpp>
 
+#include <darma/impl/util/static_assertions.h>
+
 using namespace tinympl;
 
-meta_assert_same(
+STATIC_ASSERT_TYPE_EQ(
   typename find_all<
     vector<float, int, int, float, double>,
     float
@@ -63,7 +64,7 @@ meta_assert_same(
   std::integer_sequence<size_t, 0, 3>
 );
 
-meta_assert_same(
+STATIC_ASSERT_TYPE_EQ(
   typename find_all_if<
     vector<float, int, int, float, double>,
     std::is_integral
@@ -72,7 +73,7 @@ meta_assert_same(
 );
 
 
-meta_assert_same(
+STATIC_ASSERT_TYPE_EQ(
   typename find_all_if<
     vector<float>,
     std::is_integral
@@ -80,7 +81,7 @@ meta_assert_same(
   std::integer_sequence<size_t>
 );
 
-meta_assert_same(
+STATIC_ASSERT_TYPE_EQ(
   typename find_all_if<
     vector<>,
     std::is_integral
@@ -88,7 +89,7 @@ meta_assert_same(
   std::integer_sequence<size_t>
 );
 
-meta_assert_same(
+STATIC_ASSERT_TYPE_EQ(
   typename find_all_if<
     vector<int>,
     std::is_integral

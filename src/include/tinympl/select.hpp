@@ -46,7 +46,7 @@
 #define TINYMPL_SELECT_HPP
 
 #include <type_traits>
-#include <tinympl/delay.hpp>
+#include <tinympl/delay_all.hpp>
 
 namespace tinympl {
 

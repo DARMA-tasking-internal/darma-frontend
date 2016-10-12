@@ -47,7 +47,7 @@
 
 #include <iterator>
 
-#include <tinympl/delay.hpp>
+#include <tinympl/delay_all.hpp>
 
 #include <darma/impl/meta/detection.h>
 #include <darma/impl/meta/is_iterator.h>

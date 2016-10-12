@@ -46,6 +46,7 @@
 #include <vector>
 
 #include <tinympl/delay.hpp>
+#include <tinympl/delay_all.hpp>
 #include <tinympl/identity.hpp>
 #include <tinympl/wrap.hpp>
 #include "../metatest_helpers.h"

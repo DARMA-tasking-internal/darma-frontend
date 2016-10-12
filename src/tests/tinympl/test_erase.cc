@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                              transform.hpp                              
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                      test_erase.cc
+//                         DARMA
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,53 +42,26 @@
 //@HEADER
 */
 
+#include <type_traits> // std::integer_sequence
 
-#ifndef TINYMPL_TRANSFORM_HPP
-#define TINYMPL_TRANSFORM_HPP
+#include <tinympl/erase.hpp>
+#include <tinympl/stl_integer_sequence.hpp>
+#include <darma/impl/util/static_assertions.h>
+#include <tinympl/bool.hpp> // tinympl::bool_
 
-#include "variadic/transform.hpp"
-#include "as_sequence.hpp"
-#include "sequence.hpp"
+#include <util/empty_main.h>
 
-namespace tinympl {
+using namespace tinympl;
 
-/**
- * \ingroup SeqModAlgs
- * \class transform
- * \brief Transform an input sequence using a transform function
- * \param Sequence the input sequence
- * \param F The transform function. `F<T>::type` must be a valid expression
- * \param Out The output sequence type, defaults to the same kind of the input
-sequence
- * \return `transform<...>::type` is a type templated from `Out` which contains
-the transformed types
- * \sa variadic::transform
- */
-template<
-  class Sequence,
-  template<class ... T> class F,
-  template<class ... > class Out = as_sequence<Sequence>::template rebind
->
-struct transform
-  : public transform<as_sequence_t<Sequence>, F, Out>
-{ };
+template <typename WrappedIndex>
+using is_even = bool_<WrappedIndex::value % 2 == 0>;
 
-template<
-  template<class ... T> class F,
-  template<class ... > class Out,
-  class... Args
->
-struct transform<sequence<Args...>, F, Out>
-  : public variadic::transform<F, Out, Args...>
-{ };
+STATIC_ASSERT_TYPE_EQ(
+  erase_if_t<std::make_index_sequence<5>, is_even>,
+  std::index_sequence<1, 3>
+);
 
-template<
-  class Sequence,
-  template<class ... T> class F,
-  template<class ... > class Out = as_sequence<Sequence>::template rebind
->
-using transform_t = typename transform<Sequence, F, Out>::type;
-
-} // namespace tinympl
-
-#endif // TINYMPL_TRANSFORM_HPP
+STATIC_ASSERT_TYPE_EQ(
+  erase_unless_t<std::make_index_sequence<5>, is_even>,
+  std::index_sequence<0, 2, 4>
+);

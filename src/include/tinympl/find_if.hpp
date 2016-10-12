@@ -76,6 +76,9 @@ struct find_if : find_if<as_sequence_t<Sequence>, F > {};
 template<template<class ... T> class F, class ... Args>
 struct find_if<sequence<Args...>, F> : variadic::find_if<F, Args...> {};
 
+template <class Sequence, template <class... T> class F>
+using find_if_t = typename find_if<Sequence, F>::type;
+
 template<class Sequence, template<class ... T> class F>
 struct find_last_if : find_last_if<as_sequence_t<Sequence>, F > {};
 
@@ -96,6 +99,9 @@ struct find_last_if<sequence<Args...>, F>
 
     static constexpr auto value = type::value;
 };
+
+template <class Sequence, template <class... T> class F>
+using find_last_if_t = typename find_last_if<Sequence, F>::type;
 
 } // namespace tinympl
 
