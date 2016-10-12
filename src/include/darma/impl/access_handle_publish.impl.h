@@ -103,11 +103,10 @@ AccessHandle<T, Traits>::publish(
     false, std::forward<PublishExprParts>(parts)...
   );
 
+  auto unknown_reader_idx = abstract::frontend::PublicationDetails::unknown_reader;
   auto reader_hint_ = detail::get_typeless_kwarg_with_default<
     keyword_tags_for_publication::reader_hint
-  >(abstract::frontend::PublicationDetails::unknown_reader,
-    std::forward<PublishExprParts>(parts)...
-  );
+  >(unknown_reader_idx, std::forward<PublishExprParts>(parts)...);
 
   auto _pub_same = [&] {
     detail::HandleUse use_to_publish(

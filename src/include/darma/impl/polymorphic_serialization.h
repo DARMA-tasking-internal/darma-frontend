@@ -53,6 +53,8 @@
 #include <darma/interface/frontend/polymorphic_serializable_object.h>
 #include <cassert>
 #include <darma/impl/meta/detection.h>
+#include <darma/impl/serialization/archive.h>
+#include <darma/impl/serialization/manager.h>
 
 //#ifndef DARMA_INITIAL_ABSTRACT_BASE_REGISTRY_SIZE
 //#define DARMA_INITIAL_ABSTRACT_BASE_REGISTRY_SIZE 32
