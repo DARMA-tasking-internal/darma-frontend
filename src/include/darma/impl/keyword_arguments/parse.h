@@ -55,6 +55,7 @@
 #include "kwarg_expression.h"
 
 // TODO figure out how to replace "tags" with "arguments" in error message?!?
+// TODO optional keyword arguments
 
 namespace _darma__errors {
 template <typename... Args>
@@ -112,7 +113,7 @@ struct _argument_description_base {
 
 };
 
-template <typename ParameterType, typename KWArgTag>
+template <typename ParameterType, typename KWArgTag, bool Optional=false>
 struct positional_or_keyword_argument : _argument_description_base<ParameterType> {
   public:
     using parameter_type = ParameterType;
@@ -129,6 +130,7 @@ struct positional_or_keyword_argument : _argument_description_base<ParameterType
     >;
 
   public:
+    using is_optional = tinympl::bool_<Optional>;
     using can_be_positional = std::true_type;
     using can_be_keyword = std::true_type;
 
@@ -152,10 +154,11 @@ struct positional_or_keyword_argument : _argument_description_base<ParameterType
 
 };
 
-template <typename ParameterType>
+template <typename ParameterType, bool Optional=false>
 struct positional_only_argument : _argument_description_base<ParameterType> {
 
   public:
+    using is_optional = tinympl::bool_<Optional>;
     using base_t = _argument_description_base<ParameterType>;
     using can_be_positional = std::true_type;
     using can_be_keyword = std::false_type;
@@ -171,7 +174,7 @@ struct positional_only_argument : _argument_description_base<ParameterType> {
     >;
 };
 
-template <typename ParameterType, typename KWArgTag>
+template <typename ParameterType, typename KWArgTag, bool Optional=false>
 struct keyword_only_argument : _argument_description_base<ParameterType> {
   private:
     using base_t = _argument_description_base<ParameterType>;
@@ -187,6 +190,7 @@ struct keyword_only_argument : _argument_description_base<ParameterType> {
     using parameter_type = ParameterType;
     using tag = KWArgTag;
 
+    using is_optional = tinympl::bool_<Optional>;
     using can_be_positional = std::false_type;
     using can_be_keyword = std::true_type;
 
@@ -202,8 +206,30 @@ struct keyword_only_argument : _argument_description_base<ParameterType> {
         KWArgTag
       >::template _convertible_to_<ParameterType>
     >;
-
 };
+
+namespace _impl {
+
+template <typename T> struct _optional_impl;
+
+template <typename Parameter>
+struct _optional_impl<positional_only_argument<Parameter, false>> {
+  using type = positional_only_argument<Parameter, true>;
+};
+
+template <typename Parameter, typename KWArgTag>
+struct _optional_impl<keyword_only_argument<Parameter, KWArgTag, false>> {
+  using type = keyword_only_argument<Parameter, KWArgTag, true>;
+};
+
+template <typename Parameter, typename KWArgTag>
+struct _optional_impl<positional_or_keyword_argument<Parameter, KWArgTag, false>> {
+  using type = positional_or_keyword_argument<Parameter, KWArgTag, true>;
+};
+} // end namespace _impl
+
+template <typename T>
+using _optional = typename _impl::_optional_impl<T>::type;
 
 namespace _impl {
 
@@ -216,18 +242,13 @@ struct arg_with_index {
   using decayed_type = std::decay_t<Arg>;
 };
 
-template <typename ArgsWithIdxs, typename ArgDescsWithIdxs>
+template <typename In_ArgsWithIdxs, typename In_ArgDescsWithIdxs,
+  typename In_OptionalArgDescs
+>
 struct _overload_desc_is_valid_impl {
 
-  //==============================================================================
-  // <editor-fold desc="make the template parameters visible to the outside for debugging">
-
-  using _args_with_idxs = ArgsWithIdxs;
-  using _arg_descs_with_idxs = ArgDescsWithIdxs;
-
-
-  // </editor-fold> end make the template parameters visible to the outside for debugging
-  //==============================================================================
+  using ArgsWithIdxs = In_ArgsWithIdxs;
+  using ArgDescsWithIdxs = In_ArgDescsWithIdxs;
 
 
   //============================================================================
@@ -437,17 +458,35 @@ struct _overload_desc_is_valid_impl {
 template <typename... ArgumentDescriptions>
 struct overload_description {
 
+  template <typename T>
+  using _is_required = tinympl::bool_<not T::is_optional::value>;
+
+  using _required_descs_idxs = typename tinympl::variadic::find_all_if<
+    _is_required, ArgumentDescriptions...
+  >::type;
+  template <typename WrappedIdx>
+  using _arg_desc_at = tinympl::variadic::at<WrappedIdx::value, ArgumentDescriptions...>;
+
+  using _required_arg_descs = typename tinympl::transform<
+    _required_descs_idxs,
+    _arg_desc_at, tinympl::vector
+  >::type;
+
+
   template <typename... Args>
   using _make_args_with_indices = typename tinympl::zip<
     tinympl::vector, _impl::arg_with_index,
-    std::index_sequence_for<Args...>,
+    std::make_index_sequence<sizeof...(Args)>,
     tinympl::vector<Args...>
   >::type;
 
   template <typename... Args>
   using _helper = _impl::_overload_desc_is_valid_impl<
     _make_args_with_indices<Args...>,
-    _make_args_with_indices<ArgumentDescriptions...>
+    typename tinympl::zip<tinympl::vector, _impl::arg_with_index,
+      std::make_index_sequence<_required_arg_descs::size>, _required_arg_descs
+    >::type,
+    tinympl::vector<>
   >;
 
   template <typename... Args>
@@ -485,8 +524,6 @@ struct overload_description {
     _darma__errors::_____overload_candidate_with__<
       typename ArgumentDescriptions::_pretty_printed_error_t...
     >;
-
-
 
 };
 
