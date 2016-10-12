@@ -45,8 +45,11 @@
 #ifndef DARMA_IMPL_ACCESS_HANDLE_PUBLISH_IMPL_H
 #define DARMA_IMPL_ACCESS_HANDLE_PUBLISH_IMPL_H
 
+#include <cstdlib> // size_t
+
 //#include <darma/interface/app/access_handle.h>
 #include <darma/impl/flow_handling.h>
+#include <darma/impl/keyword_arguments/parse.h>
 
 namespace darma_runtime {
 
@@ -70,10 +73,24 @@ AccessHandle<T, Traits>::publish(
     "publish() called on handle that can't schedule at least read usage on data (most likely "
       "because it was already released"
   );
+
+
+  // TODO formal parser here
+  //using namespace darma_runtime::detail;
+  //using parser = detail::kwargs_parser<
+  //  overload_description<
+  //    _optional_keyword<types::key_t, keyword_tags_for_publication::version>,
+  //    _optional_keyword<std::size_t, keyword_tags_for_publication::n_readers>,
+  //    _optional_keyword<bool, keyword_tags_for_publication::out>
+  //  >
+  //>;
+
+
   using _check_kwargs_asserting_t = typename detail::only_allowed_kwargs_given<
     keyword_tags_for_publication::version,
     keyword_tags_for_publication::n_readers,
-    keyword_tags_for_publication::out
+    keyword_tags_for_publication::out,
+    keyword_tags_for_publication::reader_hint
   >::template static_assert_correct<PublishExprParts...>::type;
 
   detail::publish_expr_helper<PublishExprParts...> helper;
@@ -84,6 +101,12 @@ AccessHandle<T, Traits>::publish(
     keyword_tags_for_publication::out
   >(
     false, std::forward<PublishExprParts>(parts)...
+  );
+
+  auto reader_hint_ = detail::get_typeless_kwarg_with_default<
+    keyword_tags_for_publication::reader_hint
+  >(abstract::frontend::PublicationDetails::unknown_reader,
+    std::forward<PublishExprParts>(parts)...
   );
 
   auto _pub_same = [&] {
@@ -99,6 +122,7 @@ AccessHandle<T, Traits>::publish(
       helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
       not is_publish_out
     );
+    dets.reader_hint_ = reader_hint_;
     backend_runtime->publish_use(&use_to_publish, &dets);
     backend_runtime->release_use(&use_to_publish);
   };
@@ -124,6 +148,7 @@ AccessHandle<T, Traits>::publish(
       helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
       not is_publish_out
     );
+    dets.reader_hint_ = reader_hint_;
     backend_runtime->publish_use(&use_to_publish, &dets);
 
 

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      publication_details.h
+//                      to_index_sequence.hpp
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,57 +42,30 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_PUBLICATION_DETAILS_H
-#define DARMA_IMPL_PUBLICATION_DETAILS_H
+#ifndef TINYMPL_TO_INDEX_SEQUENCE_HPP
+#define TINYMPL_TO_INDEX_SEQUENCE_HPP
 
-#include <darma/interface/frontend/publication_details.h>
+#include <type_traits> // std::index_sequence
 
-namespace darma_runtime {
-namespace detail {
+#include "variadic/to_index_sequence.hpp"
+#include "as_sequence.hpp"
+#include "stl_integer_sequence.hpp"
 
-class PublicationDetails
-  : public darma_runtime::abstract::frontend::PublicationDetails
-{
-  public:
+namespace tinympl {
 
-    types::key_t version_name;
-    size_t n_fetchers;
-    bool within_region = true;
-    size_t reader_hint_ = darma_runtime::abstract::frontend::PublicationDetails::unknown_reader;
+template <typename Seq>
+struct to_index_sequence
+  : to_index_sequence<typename as_sequence<Seq>::type>
+{ };
 
-    types::key_t const&
-    get_version_name() const override {
-      return version_name;
-    }
+template <typename... Args>
+struct to_index_sequence<sequence<Args...>>
+  : variadic::to_index_sequence<Args...>
+{ };
 
-    size_t
-    get_n_fetchers() const override {
-      return n_fetchers;
-    }
+template <typename Seq>
+using to_index_sequence_t = typename to_index_sequence<Seq>::type;
 
-    bool
-    is_within_concurrent_region() const override {
-      return within_region;
-    }
+} // end namespace tinympl
 
-    size_t
-    reader_hint() const override {
-      return reader_hint_;
-    }
-
-    PublicationDetails(
-      types::key_t const& version_name_in,
-      size_t n_fetchers_in,
-      bool is_within_region = true
-    ) : version_name(version_name_in),
-        n_fetchers(n_fetchers_in),
-        within_region(is_within_region)
-    { }
-
-};
-
-
-} // end namespace detail
-} // end namespace darma_runtime
-
-#endif //DARMA_IMPL_PUBLICATION_DETAILS_H
+#endif //TINYMPL_TO_INDEX_SEQUENCE_HPP
