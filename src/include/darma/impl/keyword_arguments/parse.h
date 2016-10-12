@@ -46,12 +46,51 @@
 #define DARMA_IMPL_KEYWORD_ARGUMENTS_PARSE_H
 
 #include <type_traits>
+#include <darma/impl/util/static_assertions.h>
 
 #include <tinympl/stl_integer_sequence.hpp>
 #include <tinympl/select.hpp>
 #include <tinympl/bool.hpp>
 
 #include "kwarg_expression.h"
+
+// TODO figure out how to replace "tags" with "arguments" in error message?!?
+
+namespace _darma__errors {
+template <typename... Args>
+struct __________no_matching_function_call_with__ { };
+template <typename Arg>
+struct ____positional_argument____ { };
+template <typename Tag>
+struct ____keyword_argument____ {
+  template <typename Arg>
+  struct _equals_ { };
+};
+struct __________candidate_overloads_are__ { };
+template <typename... Args>
+struct _____overload_candidate_with__ { };
+
+template <typename Tag>
+struct ___expected_positional_or_keyword_ {
+  template <typename Arg>
+  struct _convertible_to_ { };
+  struct _with_deduced_type { };
+};
+
+template <typename Tag>
+struct ___expected_keyword_argument_only_ {
+  template <typename Arg>
+  struct _convertible_to_ { };
+  struct _with_deduced_type { };
+};
+
+struct ___expected_positional_argument_only_ {
+  template <typename Arg>
+  struct _convertible_to_ { };
+  struct _with_deduced_type { };
+};
+
+} // end namespace _darma__errors
 
 namespace darma_runtime {
 
@@ -103,6 +142,14 @@ struct positional_or_keyword_argument : _argument_description_base<ParameterType
       /* default => */ typename base_t::template _type_is_compatible<Argument>
     >;
 
+    using _pretty_printed_error_t = std::conditional_t<
+      std::is_same<ParameterType, deduced_parameter>::value,
+      typename _darma__errors::___expected_positional_or_keyword_<KWArgTag>::_with_deduced_type,
+      typename _darma__errors::___expected_positional_or_keyword_<
+        KWArgTag
+      >::template _convertible_to_<ParameterType>
+    >;
+
 };
 
 template <typename ParameterType>
@@ -116,6 +163,12 @@ struct positional_only_argument : _argument_description_base<ParameterType> {
 
     template <typename Argument>
     using argument_is_compatible = typename base_t::template _type_is_compatible<Argument>;
+
+    using _pretty_printed_error_t = std::conditional_t<
+      std::is_same<ParameterType, deduced_parameter>::value,
+      _darma__errors::___expected_positional_argument_only_::_with_deduced_type,
+      _darma__errors::___expected_positional_argument_only_::template _convertible_to_<ParameterType>
+    >;
 };
 
 template <typename ParameterType, typename KWArgTag>
@@ -140,6 +193,14 @@ struct keyword_only_argument : _argument_description_base<ParameterType> {
     template <typename Argument>
     using argument_is_compatible = typename base_t::template _type_is_compatible<
       _value_type_if_kwarg<Argument>
+    >;
+
+    using _pretty_printed_error_t = std::conditional_t<
+      std::is_same<ParameterType, deduced_parameter>::value,
+      typename _darma__errors::___expected_keyword_argument_only_<KWArgTag>::_with_deduced_type,
+      typename _darma__errors::___expected_keyword_argument_only_<
+        KWArgTag
+      >::template _convertible_to_<ParameterType>
     >;
 
 };
@@ -420,8 +481,15 @@ struct overload_description {
     );
   };
 
+  using _pretty_printed_error_t =
+    _darma__errors::_____overload_candidate_with__<
+      typename ArgumentDescriptions::_pretty_printed_error_t...
+    >;
+
+
 
 };
+
 
 template <typename... OverloadDescriptions>
 struct kwarg_parser {
@@ -433,7 +501,21 @@ struct kwarg_parser {
       using apply = typename Overload::template is_valid_for_args<Args...>;
     };
 
+    // readability
+    template <bool cond, typename A, typename B>
+    using ______see_calling_context_below_____ = typename std::conditional_t<cond, A, B>::type;
 
+    template <typename Arg, typename Enable=void>
+    struct readable_argument_description {
+      using type = _darma__errors::____positional_argument____<Arg>;
+    };
+    template <typename Arg>
+    struct readable_argument_description<
+      Arg, std::enable_if_t<is_kwarg_expression<std::decay_t<Arg>>::value>
+    > {
+      using type = typename _darma__errors::____keyword_argument____<typename Arg::tag>
+        ::template _equals_<typename Arg::argument_type>;
+    };
 
   public:
 
@@ -441,6 +523,26 @@ struct kwarg_parser {
     using invocation_is_valid = typename tinympl::variadic::any_of<
       _make_overload_is_valid<Args...>::template apply, OverloadDescriptions...
     >::type;
+
+    template <typename... Args>
+    using static_assert_valid_invocation = decltype(
+      ______see_calling_context_below_____<
+        invocation_is_valid<Args...>::value,
+        tinympl::identity<int>,
+        _darma__static_failure<
+          _____________________________________________________________________,
+          _____________________________________________________________________,
+          _darma__errors::__________no_matching_function_call_with__<
+            typename readable_argument_description<Args>::type...
+          >,
+          _____________________________________________________________________,
+          _____________________________________________________________________,
+          _darma__errors::__________candidate_overloads_are__,
+          typename OverloadDescriptions::_pretty_printed_error_t...,
+          _____________________________________________________________________,
+          _____________________________________________________________________
+        >
+      >());
 
     template <typename Callable, typename... Args>
     decltype(auto)
