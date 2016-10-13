@@ -53,6 +53,62 @@
 
 namespace darma_runtime {
 
+namespace detail {
+
+namespace _impl {
+
+struct _parse_reader_hint {
+
+  template <typename... Args>
+  size_t _helper(
+    std::true_type,
+    Args&&... args
+  ) const {
+    auto const& context = get_typeless_kwarg<
+      keyword_tags_for_publication::region_context
+    >(std::forward<Args>(args)...);
+
+    auto const& idx = get_typeless_kwarg<
+      keyword_tags_for_publication::reader_hint
+    >(std::forward<Args>(args)...);
+
+    return context.get_backend_index(idx);
+  }
+
+  template <typename... Args>
+  size_t _helper(
+    std::false_type,
+    Args&&... args
+  ) const {
+    return abstract::frontend::PublicationDetails::unknown_reader;
+  }
+
+  template <typename T>
+  using _is_region_context_arg = detail::is_kwarg_expression_with_tag<
+    T, keyword_tags_for_publication::region_context
+  >;
+  template <typename T>
+  using _is_reader_hint_arg = detail::is_kwarg_expression_with_tag<
+    T, keyword_tags_for_publication::reader_hint
+  >;
+
+  template <typename... Args>
+  size_t operator()(Args&&... args) const {
+    return _helper(
+      typename tinympl::and_<
+        tinympl::variadic::any_of<_is_region_context_arg, std::decay_t<Args>...>,
+        tinympl::variadic::any_of<_is_reader_hint_arg, std::decay_t<Args>...>
+      >::type(),
+      std::forward<Args>(args)...
+    );
+
+  }
+};
+
+} // end namespace _impl
+
+} // end namespace detail
+
 template < typename T, typename Traits >
 template < typename _Ignored, typename... PublishExprParts >
 std::enable_if_t<
@@ -90,7 +146,8 @@ AccessHandle<T, Traits>::publish(
     keyword_tags_for_publication::version,
     keyword_tags_for_publication::n_readers,
     keyword_tags_for_publication::out,
-    keyword_tags_for_publication::reader_hint
+    keyword_tags_for_publication::reader_hint,
+    keyword_tags_for_publication::region_context
   >::template static_assert_correct<PublishExprParts...>::type;
 
   detail::publish_expr_helper<PublishExprParts...> helper;
@@ -103,10 +160,9 @@ AccessHandle<T, Traits>::publish(
     false, std::forward<PublishExprParts>(parts)...
   );
 
-  auto unknown_reader_idx = abstract::frontend::PublicationDetails::unknown_reader;
-  auto reader_hint_ = detail::get_typeless_kwarg_with_default<
-    keyword_tags_for_publication::reader_hint
-  >(unknown_reader_idx, std::forward<PublishExprParts>(parts)...);
+  auto reader_backend_index = detail::_impl::_parse_reader_hint()(
+    std::forward<PublishExprParts>(parts)...
+  );
 
   auto _pub_same = [&] {
     detail::HandleUse use_to_publish(
@@ -121,7 +177,7 @@ AccessHandle<T, Traits>::publish(
       helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
       not is_publish_out
     );
-    dets.reader_hint_ = reader_hint_;
+    dets.reader_hint_ = reader_backend_index;
     backend_runtime->publish_use(&use_to_publish, &dets);
     backend_runtime->release_use(&use_to_publish);
   };
@@ -147,7 +203,7 @@ AccessHandle<T, Traits>::publish(
       helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
       not is_publish_out
     );
-    dets.reader_hint_ = reader_hint_;
+    dets.reader_hint_ = reader_backend_index;
     backend_runtime->publish_use(&use_to_publish, &dets);
 
 

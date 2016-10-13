@@ -49,6 +49,7 @@
 
 DeclareDarmaTypeTransparentKeyword(publication, version);
 DeclareDarmaTypeTransparentKeyword(publication, reader_hint);
+DeclareDarmaTypeTransparentKeyword(publication, region_context);
 DeclareDarmaTypeTransparentKeyword(acquire_ownership, from_data_store);
 
 #endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_VERSION_H
