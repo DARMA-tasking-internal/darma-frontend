@@ -65,26 +65,66 @@ struct SquareRoots {
     int min_per_iter, int max_per_iter
   ) const {
 
-    clobber();
+    using darma_runtime::keyword_arguments_for_publication::version;
+    using darma_runtime::keyword_arguments_for_publication::region_context;
+    using darma_runtime::keyword_arguments_for_publication::reader_hint;
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    gen.seed(context.index().value * context.index().max_value + iteration/change_interval);
-    std::uniform_int_distribution<> dis(min_per_iter, max_per_iter);
-    std::uniform_real_distribution<> value_dis(1.0, 2.0);
-    int n_sqrts = dis(gen);
+    AccessHandle<double> averaged;
+    if(iteration == 0) averaged = initial_access<double>(context.index().value, "average");
+    else averaged = acquire_ownership<double>(context.index().value, "average", version=iteration);
 
-    std::vector<double> results;
-    for(int i = 0; i < n_sqrts; ++i) {
-      results.push_back(
-        std::sqrt(value_dis(gen))
+    create_work([=]{
+      std::random_device rd;
+      std::mt19937 gen(rd());
+      gen.seed(context.index().value * context.index().max_value + iteration/change_interval);
+      std::uniform_int_distribution<> dis(min_per_iter, max_per_iter);
+      std::uniform_real_distribution<> value_dis(1.0, 2.0);
+      int n_sqrts = dis(gen);
+
+      double results_accumulated = 0.0;
+      for(int i = 0; i < n_sqrts; ++i) {
+        results_accumulated += std::sqrt(value_dis(gen));
+      }
+
+      averaged.set_value(
+        ((averaged.get_value() * iteration) + results_accumulated/n_sqrts) / (iteration+1)
       );
-    }
 
-    // TODO publish out some summary of results to make persistent data part of the problem
+    });
 
+    averaged.publish_out(reader_hint=context.index(),
+      region_context=context, version=iteration+1
+    );
 
   }
+};
+
+struct GatherResults {
+  void operator()(
+    ConcurrentRegionContext<Range1D<int>> context,
+    int num_iters
+  ) const {
+
+    using darma_runtime::keyword_arguments_for_collectives::in_out;
+    using darma_runtime::keyword_arguments_for_collectives::piece;
+    using darma_runtime::keyword_arguments_for_collectives::n_pieces;
+    using darma_runtime::keyword_arguments_for_publication::version;
+
+    auto averaged = acquire_ownership<double>(context.index().value, "average",
+      version=num_iters
+    );
+
+    int n_idxs = context.index().max_value;
+
+    allreduce(in_out=averaged, piece=context.index().value, n_pieces=n_idxs);
+
+    if(context.index().value == 0) {
+      create_work(reads(averaged), [=]{
+        std::cout << "Final average: " << (averaged.get_value() / n_idxs) << std::endl;
+      });
+    }
+  }
+
 };
 
 void darma_main_task(std::vector<std::string> args) {
@@ -103,6 +143,9 @@ void darma_main_task(std::vector<std::string> args) {
       index_range = Range1D<int>(num_ranks)
     );
   }
+  create_concurrent_region<GatherResults>(num_iters,
+    index_range = Range1D<int>(num_ranks)
+  );
 }
 
 DARMA_REGISTER_TOP_LEVEL_FUNCTION(darma_main_task);
