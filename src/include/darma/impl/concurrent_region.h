@@ -102,10 +102,6 @@ struct ConcurrentRegionContext {
       : index_and_mapping_(IndexT(), IndexMappingT())
     { }
 
-    size_t
-    get_backend_index(IndexT const& idx) {
-      return index_and_mapping_.second().map_forward(idx);
-    }
 
   public:
 
@@ -119,6 +115,12 @@ struct ConcurrentRegionContext {
         index_computed_ = true;
       }
       return index_and_mapping_.first();
+    }
+
+    // not really public, but for now...
+    size_t
+    get_backend_index(IndexT const& idx) {
+      return index_and_mapping_.second().map_forward(idx);
     }
 
   private:

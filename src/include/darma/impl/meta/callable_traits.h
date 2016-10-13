@@ -57,6 +57,7 @@
 #include <tinympl/logical_or.hpp>
 #include <tinympl/logical_not.hpp>
 #include <tinympl/range_c.hpp>
+#include <tinympl/delay_all.hpp>
 
 #include <darma/impl/meta/detection.h>
 #include <darma/impl/util.h>
