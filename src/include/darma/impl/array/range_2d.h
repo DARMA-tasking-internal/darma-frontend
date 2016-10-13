@@ -158,9 +158,9 @@ struct Range2DDenseMapping {
     using from_index_t = Index2D<Integer>;
     using to_index_t = DenseIndex;
 
-    to_index_t map_forwards(from_index_t const& from) const {
+    to_index_t map_forward(from_index_t const& from) const {
       return (from.x() - full_range.begin_of_dimension(0))
-        * (full_range.end_of_dimension(0) - full_range.begin_of_dimension(0))
+        * (full_range.end_of_dimension(1) - full_range.begin_of_dimension(1))
           + (from.y() - full_range.begin_of_dimension(1));
 
     }

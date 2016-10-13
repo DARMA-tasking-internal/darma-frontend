@@ -210,3 +210,55 @@ TEST_F(TestCreateConcurrentRegion, simple_1d) {
   );
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+TEST_F(TestCreateConcurrentRegion, simple_2d_reader_hint) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_create_concurrent_region;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  std::shared_ptr<MockDataStoreHandle> ds = std::make_shared<MockDataStoreHandle>();
+
+  EXPECT_CALL(*mock_runtime, make_data_store()).WillOnce(Return(ds));
+
+  EXPECT_CALL(*mock_runtime, register_concurrent_region_gmock_proxy(_, 6, ds.get()));
+
+  //============================================================================
+  // actual code to be tested
+  {
+    struct MyCR {
+
+      void operator()(
+        darma_runtime::ConcurrentRegionContext<darma_runtime::Range2D<int>> context
+      ) const {
+        auto ah = initial_access<int>(context.index().x(), context.index().y());
+        ah.publish(region_context=context, reader_hint=context.index(), out=true);
+      }
+    };
+
+    auto my_ds = create_data_store();
+
+    create_concurrent_region<MyCR>(
+      Range2D<int>(3, 2), data_store=my_ds
+    );
+
+  }
+  //============================================================================
+
+  for(int i = 0; i < 3; ++i) {
+    for(int j = 0; j < 2; ++j) {
+      EXPECT_CALL(*mock_runtime, publish_use(_, Truly([=](auto* pub_dets){
+        return pub_dets->reader_hint() == i * 2 + j;
+      })));
+    }
+  }
+
+  run_all_cr_ranks_for_one_region_in_serial();
+
+}
+
+////////////////////////////////////////////////////////////////////////////////

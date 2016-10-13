@@ -78,9 +78,9 @@ struct ConcurrentRegionContext {
     std::shared_ptr<abstract::backend::ConcurrentRegionContextHandle>
       context_handle_ = nullptr;
 
-    detail::compressed_pair<IndexT, IndexMappingT> index_and_mapping_;
+    mutable detail::compressed_pair<IndexT, IndexMappingT> index_and_mapping_;
 
-    bool index_computed_ = false;
+    mutable bool index_computed_ = false;
 
 
     // TODO use a std::optional (or pre-C++17 equivalent) to store the uninitialized mapping so that
@@ -106,7 +106,7 @@ struct ConcurrentRegionContext {
   public:
 
     IndexT const&
-    index() {
+    index() const {
       if(not index_computed_) {
         assert(context_handle_);
         index_and_mapping_.first() = index_and_mapping_.second().map_reverse(
@@ -119,7 +119,7 @@ struct ConcurrentRegionContext {
 
     // not really public, but for now...
     size_t
-    get_backend_index(IndexT const& idx) {
+    get_backend_index(IndexT const& idx) const {
       return index_and_mapping_.second().map_forward(idx);
     }
 

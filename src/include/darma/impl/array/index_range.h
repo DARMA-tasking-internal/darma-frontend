@@ -130,7 +130,7 @@ struct ContiguousIndexMapping {
     using from_index_t = ContiguousIndex<Integer>;
     using to_index_t = DenseIndex;
 
-    to_index_t map_forwards(from_index_t const& from) const {
+    to_index_t map_forward(from_index_t const& from) const {
       return from.value - from.min_value;
     }
 
