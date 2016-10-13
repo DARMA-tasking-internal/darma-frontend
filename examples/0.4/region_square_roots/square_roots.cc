@@ -57,12 +57,17 @@ static void clobber() {
   asm volatile("" : : : "memory");
 }
 
+// The parameter to the imbalance chi-squared distribution
+static constexpr double imbalance_param = 3.0;
+
+// Truncate the imbalance distribution at this multiplier
+static constexpr double max_imbalance = 100.0;
 
 struct SquareRoots {
   void operator()(
     ConcurrentRegionContext<Range1D<int>> context,
     int iteration, int change_interval,
-    int min_per_iter, int max_per_iter
+    int average_n_sqrts
   ) const {
 
     clobber();
@@ -70,9 +75,15 @@ struct SquareRoots {
     std::random_device rd;
     std::mt19937 gen(rd());
     gen.seed(context.index().value * context.index().max_value + iteration/change_interval);
-    std::uniform_int_distribution<> dis(min_per_iter, max_per_iter);
     std::uniform_real_distribution<> value_dis(1.0, 2.0);
-    int n_sqrts = dis(gen);
+    std::chi_squared_distribution<> imbalance_dis(3.0);
+    // The chi-squared distribution has a mean equal to it's parameter, so
+    // if we divide out the parameter, we'll get a mean at the average number of
+    // square roots requested
+    int n_sqrts = (int)((
+      double(average_n_sqrts) * std::min(max_imbalance, imbalance_dis(gen))
+    ) / imbalance_param);
+
 
     std::vector<double> results;
     for(int i = 0; i < n_sqrts; ++i) {
@@ -93,12 +104,11 @@ void darma_main_task(std::vector<std::string> args) {
   size_t const num_ranks = std::atoi(args[1].c_str());
   size_t const num_iters = std::atoi(args[2].c_str());
   size_t const change_interval = std::atoi(args[3].c_str());
-  size_t const min_per_iter = std::atoi(args[4].c_str());
-  size_t const max_per_iter = std::atoi(args[5].c_str());
+  size_t const average_per_iter = std::atoi(args[4].c_str());
 
   for(size_t iter = 0; iter < num_iters; ++iter) {
     create_concurrent_region<SquareRoots>(
-      iter, change_interval, min_per_iter, max_per_iter,
+      iter, change_interval, average_per_iter
       index_range = Range1D<int>(num_ranks)
     );
   }
