@@ -76,14 +76,13 @@ struct SquareRoots {
     std::mt19937 gen(rd());
     gen.seed(context.index().value * context.index().max_value + iteration/change_interval);
     std::uniform_real_distribution<> value_dis(1.0, 2.0);
-    std::chi_squared_distribution<> imbalance_dis(3.0);
+    std::chi_squared_distribution<> imbalance_dis(1.0);
     // The chi-squared distribution has a mean equal to it's parameter, so
     // if we divide out the parameter, we'll get a mean at the average number of
     // square roots requested
     int n_sqrts = (int)((
       double(average_n_sqrts) * std::min(max_imbalance, imbalance_dis(gen))
     ) / imbalance_param);
-
 
     std::vector<double> results;
     for(int i = 0; i < n_sqrts; ++i) {
@@ -99,7 +98,8 @@ struct SquareRoots {
 
 void darma_main_task(std::vector<std::string> args) {
   using darma_runtime::keyword_arguments_for_create_concurrent_region::index_range;
-  assert(args.size() == 6);
+
+  assert(args.size() == 5);
 
   size_t const num_ranks = std::atoi(args[1].c_str());
   size_t const num_iters = std::atoi(args[2].c_str());
@@ -108,8 +108,8 @@ void darma_main_task(std::vector<std::string> args) {
 
   for(size_t iter = 0; iter < num_iters; ++iter) {
     create_concurrent_region<SquareRoots>(
-      iter, change_interval, average_per_iter
-      index_range = Range1D<int>(num_ranks)
+      iter, change_interval, average_per_iter,
+      index_range=Range1D<int>(num_ranks)
     );
   }
 }
