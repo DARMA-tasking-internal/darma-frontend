@@ -84,4 +84,5 @@ add_subdirectory(fib)
 add_subdirectory(fib_region)
 add_subdirectory(region_square_roots)
 add_subdirectory(persistent_square_roots)
+add_subdirectory(simple_reduce)
 
