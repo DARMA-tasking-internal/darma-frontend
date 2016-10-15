@@ -116,6 +116,7 @@ namespace threads_backend {
     : GraphNode
   {
     std::shared_ptr<InnerFlow> fetch;
+    bool acquire = false;
 
     FetchNode(Runtime* rt,
               std::shared_ptr<InnerFlow> fetch_)
@@ -154,6 +155,9 @@ namespace threads_backend {
       );
 
       runtime->try_release_to_read(fetch);
+      if (acquire) {
+        runtime->release_to_write(fetch);
+      }
 
       GraphNode::execute();
     }

@@ -75,6 +75,7 @@ namespace threads_backend {
     size_t* shared_reader_count = nullptr;
     size_t uses = 0;
     size_t uf_size = 1;
+    bool acquire = false;
 
     FlowState state{};
 

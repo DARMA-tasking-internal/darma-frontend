@@ -399,11 +399,16 @@ namespace threads_backend {
           f_in->data_store
         );
         f_in->fetcherAdded = true;
-        f_in->state = FlowReadReady;
+        if (f_in->acquire) {
+          f_in->state = FlowWriteReady;
+        } else {
+          f_in->state = FlowReadReady;
+        }
         f_in->ready = true;
       } else if (f_in->isFetch &&
                  !f_in->fetcherAdded) {
         auto node = std::make_shared<FetchNode>(FetchNode{this,f_in});
+        node->acquire = f_in->acquire;
         const bool ready = add_fetcher(
           node,
           f_in->handle.get(),
@@ -934,6 +939,7 @@ namespace threads_backend {
     f->fromFetch = true;
     f->state = FlowWaiting;
     f->ready = false;
+    f->acquire = true;
     f->data_store = data_store;
 
     return f;

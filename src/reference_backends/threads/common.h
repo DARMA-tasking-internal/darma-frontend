@@ -287,7 +287,7 @@ namespace union_find {
     UFArchetype node2
   ) {
     DEBUG_PRINT_THD(
-      0,
+      (size_t)0,
       "union_nodes: sz = %ld, sz2 = %ld\n",
       node1->uf_size,
       node2->uf_size
@@ -307,8 +307,8 @@ namespace union_find {
     Callable&& callable
   ) {
     DEBUG_PRINT_THD(
-      0,
-      "find_call: node=%ld, alias=%ld, callable=%p\n",
+      (size_t)0,
+      "find_call: node=%ld, alias=%ld\n",
       PRINT_LABEL(node),
       node->alias ? PRINT_LABEL(node->alias) : 0
     );
