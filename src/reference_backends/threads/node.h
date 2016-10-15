@@ -154,8 +154,8 @@ namespace threads_backend {
         "=== EXECUTING === fetch node\n"
       );
 
-      runtime->try_release_to_read(fetch);
-      if (acquire) {
+      auto const has_read_phase = runtime->try_release_to_read(fetch);
+      if (acquire && !has_read_phase) {
         runtime->release_to_write(fetch);
       }
 

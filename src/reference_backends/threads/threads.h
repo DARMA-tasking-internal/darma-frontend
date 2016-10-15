@@ -231,7 +231,7 @@ namespace threads_backend {
 
     TraceModule* trace = nullptr;
 
-    size_t produced = 0, consumed = 0;
+    size_t produced = {0}, consumed = {0};
 
     ThreadsRuntime(
       size_t const in_inside_rank,
@@ -284,6 +284,11 @@ namespace threads_backend {
 
     void
     add_local(std::shared_ptr<GraphNode> task);
+
+    void
+    add_fetch_node_flow(
+      std::shared_ptr<InnerFlow> f_in
+    );
 
     void
     cleanup_handle(

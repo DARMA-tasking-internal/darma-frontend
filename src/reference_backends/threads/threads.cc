@@ -377,6 +377,42 @@ namespace threads_backend {
     }
   }
 
+  void
+  ThreadsRuntime::add_fetch_node_flow(
+    std::shared_ptr<InnerFlow> f_in
+  ) {
+    if (f_in->isFetch &&
+        threads_backend::depthFirstExpand &&
+        !f_in->fetcherAdded) {
+      blocking_fetch(
+        f_in->handle.get(),
+        f_in->version_key,
+        f_in->data_store
+      );
+      f_in->fetcherAdded = true;
+      if (f_in->acquire) {
+        f_in->state = FlowWriteReady;
+      } else {
+        f_in->state = FlowReadReady;
+      }
+      f_in->ready = true;
+    } else if (f_in->isFetch &&
+               !f_in->fetcherAdded) {
+      auto node = std::make_shared<FetchNode>(FetchNode{this,f_in});
+      node->acquire = f_in->acquire;
+      const bool ready = add_fetcher(
+        node,
+        f_in->handle.get(),
+        f_in->version_key,
+        f_in->data_store
+      );
+      if (ready) {
+        DEBUG_PRINT("check_dep_task: adding fetch node to deque\n");
+        ready_local.push_back(node);
+      }
+    }
+  }
+
   template <typename TaskType>
   size_t
   ThreadsRuntime::check_dep_task(
@@ -390,36 +426,7 @@ namespace threads_backend {
       auto const f_in  = dep->get_in_flow();
       auto const f_out = dep->get_out_flow();
 
-      if (f_in->isFetch &&
-          threads_backend::depthFirstExpand &&
-          !f_in->fetcherAdded) {
-        blocking_fetch(
-          f_in->handle.get(),
-          f_in->version_key,
-          f_in->data_store
-        );
-        f_in->fetcherAdded = true;
-        if (f_in->acquire) {
-          f_in->state = FlowWriteReady;
-        } else {
-          f_in->state = FlowReadReady;
-        }
-        f_in->ready = true;
-      } else if (f_in->isFetch &&
-                 !f_in->fetcherAdded) {
-        auto node = std::make_shared<FetchNode>(FetchNode{this,f_in});
-        node->acquire = f_in->acquire;
-        const bool ready = add_fetcher(
-          node,
-          f_in->handle.get(),
-          f_in->version_key,
-          f_in->data_store
-        );
-        if (ready) {
-          DEBUG_PRINT("check_dep_task: adding fetch node to deque\n");
-          ready_local.push_back(node);
-        }
-      }
+      add_fetch_node_flow(f_in);
 
       if (f_in->isCollective &&
           threads_backend::depthFirstExpand) {
@@ -512,10 +519,10 @@ namespace threads_backend {
     auto f_out = u->get_out_flow();
 
     auto handle = u->get_handle();
-    const auto& key = handle->get_key();
-    const auto version = f_in->version_key;
+    auto const& key = handle->get_key();
+    auto const version = f_in->version_key;
 
-    const bool ready = f_in->ready;
+    bool const ready = f_in->ready;
 
     DEBUG_PRINT("%p: register use: ready=%s, key=%s, version=%s, "
                 "handle=%p [in={%ld,ref=%ld,state=%s},out={%ld,ref=%ld,state=%s}], "
@@ -551,10 +558,8 @@ namespace threads_backend {
         u->get_data_pointer_reference() = data[{version,key}]->data;
 
         DEBUG_PRINT("%p: use register, ptr=%p, key=%s, "
-                    "in version=%s, out version=%s\n",
-                    u,
-                    data[{version,key}]->data,
-                    PRINT_KEY(key),
+                    "in version=%s, out version=%s, data exists\n",
+                    u, data[{version,key}]->data, PRINT_KEY(key),
                     PRINT_KEY(f_in->version_key),
                     PRINT_KEY(f_out->version_key));
       } else {
@@ -568,9 +573,7 @@ namespace threads_backend {
 
         DEBUG_PRINT("%p: use register: ptr=%p, key=%s, "
                     "in version=%s, out version=%s\n",
-                    u,
-                    block->data,
-                    PRINT_KEY(key),
+                    u, block->data, PRINT_KEY(key),
                     PRINT_KEY(f_in->version_key),
                     PRINT_KEY(f_out->version_key));
       }
@@ -582,6 +585,9 @@ namespace threads_backend {
       if (data_exists) {
         f_in->data_block = fetched_data[{version,key}];
         u->get_data_pointer_reference() = fetched_data[{version,key}]->data;
+
+        DEBUG_PRINT("register_use: data exists: ptr=%p\n",
+                    fetched_data[{version,key}]->data);
       } else {
         // FIXME: copy-paste of above code...
 
@@ -591,6 +597,9 @@ namespace threads_backend {
         // insert into the hash
         fetched_data[{version,key}] = block;
         u->get_data_pointer_reference() = block->data;
+
+        DEBUG_PRINT("register_use: data does not exist: ptr=%p\n",
+                    block->data);
       }
 
       f_in->shared_reader_count = &fetched_data[{version,key}]->shared_ref_count;
@@ -1039,6 +1048,7 @@ namespace threads_backend {
     f->next = f_next;
     f_next->handle = f->handle;
     f_next->fromFetch = f->fromFetch;
+    f_next->version_key = f->version_key;
 
     DEBUG_PRINT("next flow from %lu to %lu\n",
                 PRINT_LABEL(f),
@@ -1378,6 +1388,8 @@ namespace threads_backend {
 
       publish_uses[use_in]++;
 
+      add_fetch_node_flow(f_in);
+
       if (f_in->state == FlowWaiting ||
           f_in->state == FlowReadReady) {
         f_in->node = node;
@@ -1427,36 +1439,47 @@ namespace threads_backend {
           assert(state.n_pieces == info->num_pieces);
           assert(info->incorporated_local == false);
 
+          DEBUG_PRINT("collective: current_pieces = %ld\n",
+                      state.current_pieces.load());
+
           if (state.current_pieces == 0) {
             assert(state.cur_buf == nullptr);
 
-            auto block = serialize(info->handle.get(),
-                                   info->data_ptr_in);
+            auto block = serialize(
+              info->handle.get(),
+              info->data_ptr_in
+            );
 
             const size_t sz = info
               ->handle
               ->get_serialization_manager()
               ->get_metadata_size();
 
+            DEBUG_PRINT("collective: size = %ld\n", sz);
+
             // TODO: memory leaks here
             state.cur_buf = malloc(sz);
 
-            de_serialize(info->handle.get(),
-                         block->data_,
-                         state.cur_buf);
+            de_serialize(
+              info->handle.get(),
+              block->data_,
+              state.cur_buf
+            );
           } else {
             DEBUG_PRINT("performing op on data\n");
 
             // TODO: offset might be wrong
-            const size_t n_elem = info
+            size_t const n_elem = info
               ->handle
               ->get_array_concept_manager()
               ->n_elements(info->data_ptr_in);
 
-            info->op->reduce_unpacked_into_unpacked(info->data_ptr_in,
-                                                    state.cur_buf,
-                                                    0,
-                                                    n_elem);
+            info->op->reduce_unpacked_into_unpacked(
+              info->data_ptr_in,
+              state.cur_buf,
+              0,
+              n_elem
+            );
           }
 
           info->incorporated_local = true;
@@ -1514,15 +1537,18 @@ namespace threads_backend {
         assert(state != nullptr);
         assert(state->current_pieces == state->n_pieces);
 
-        const auto& handle = info->handle;
-        auto block = serialize(handle.get(),
-                               state->cur_buf);
+        auto const& handle = info->handle;
 
-        de_serialize(handle.get(),
-                     block->data_,
-                     info->data_ptr_out);
+        auto block = serialize(
+          handle.get(),
+          state->cur_buf
+        );
 
-        DEBUG_PRINT("result = %d\n", *(int*)info->data_ptr_out);
+        de_serialize(
+          handle.get(),
+          block->data_,
+          info->data_ptr_out
+        );
 
         delete block;
       }
@@ -1539,8 +1565,10 @@ namespace threads_backend {
       {
         CollectiveState* state = nullptr;
 
-        std::pair<CollectiveType,types::key_t> key = {CollectiveType::AllReduce,
-                                                      info->tag};
+        std::pair<CollectiveType,types::key_t> key = {
+          CollectiveType::AllReduce,
+          info->tag
+        };
 
         DEBUG_PRINT("collective finish, type=%d, flow in={%ld,state=%s}, "
                     "flow out={%ld,state=%s}\n",
@@ -1560,13 +1588,18 @@ namespace threads_backend {
         assert(state != nullptr);
         assert(state->current_pieces == state->n_pieces);
 
-        const auto& handle = info->handle;
-        auto block = serialize(handle.get(),
-                               state->cur_buf);
+        auto const& handle = info->handle;
 
-        de_serialize(handle.get(),
-                     block->data_,
-                     info->data_ptr_out);
+        auto block = serialize(
+          handle.get(),
+          state->cur_buf
+        );
+
+        de_serialize(
+          handle.get(),
+          block->data_,
+          info->data_ptr_out
+        );
 
         delete block;
 
