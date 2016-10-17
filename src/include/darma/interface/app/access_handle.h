@@ -69,6 +69,9 @@ namespace detail {
 template <typename Op>
 struct all_reduce_impl;
 
+template <typename AccessHandleT>
+struct _publish_impl;
+
 } // end namespace detail
 
 
@@ -604,6 +607,9 @@ class AccessHandle : public detail::AccessHandleBase {
 
     template <typename Op>
     friend struct detail::all_reduce_impl;
+
+    template <typename AccessHandleT>
+    friend struct detail::_publish_impl;
 
     ////////////////////////////////////////
     // Analogs with different privileges are friends too
