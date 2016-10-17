@@ -66,6 +66,7 @@ namespace darma_runtime {
 namespace detail {
 
 // forward declaration
+template <typename Op>
 struct all_reduce_impl;
 
 } // end namespace detail
@@ -601,6 +602,7 @@ class AccessHandle : public detail::AccessHandleBase {
     // TaskBase is also a friend
     friend class detail::TaskBase;
 
+    template <typename Op>
     friend struct detail::all_reduce_impl;
 
     ////////////////////////////////////////
