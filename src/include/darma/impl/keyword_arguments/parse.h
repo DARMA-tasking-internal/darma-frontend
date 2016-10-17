@@ -97,10 +97,9 @@ namespace darma_runtime {
 
 namespace detail {
 
-template <typename Converter>
-struct converted_parameter {
-  using converter_t = Converter;
-};
+//==============================================================================
+
+struct converted_parameter { };
 
 struct deduced_parameter {
   template <typename T>
@@ -110,7 +109,7 @@ struct deduced_parameter {
 template <typename ParameterType>
 struct _argument_description_base {
 
-  // TODO finish this
+  // TODO finish this (maybe?)
   //template <typename ConvertedParam, typename KWArg>
   //using converter_is_valid_archetype = meta::callable_traits<
   //  typename ConvertedParam::
@@ -122,7 +121,7 @@ struct _argument_description_base {
     std::is_same<ParameterType, deduced_parameter>,
     /* => */ std::true_type,
     //==========================================================================
-    tinympl::is_instantiation_of<converted_parameter, T>,
+    std::is_same<ParameterType, converted_parameter>,
     /* => */ std::true_type,
     //==========================================================================
     std::true_type,
@@ -130,6 +129,8 @@ struct _argument_description_base {
   >;
 
 };
+
+//==============================================================================
 
 template <typename ParameterType, typename KWArgTag, bool Optional=false>
 struct positional_or_keyword_argument : _argument_description_base<ParameterType> {
@@ -151,6 +152,7 @@ struct positional_or_keyword_argument : _argument_description_base<ParameterType
     using is_optional = tinympl::bool_<Optional>;
     using can_be_positional = std::true_type;
     using can_be_keyword = std::true_type;
+    using is_converted = std::is_same<ParameterType, converted_parameter>;
 
     static_assert(not Optional,
       "Optional positional arguments not yet implemented"
@@ -178,6 +180,8 @@ struct positional_or_keyword_argument : _argument_description_base<ParameterType
 template <typename ParameterType, typename KWArgTag, bool Optional=false>
 using _positional_or_keyword = positional_or_keyword_argument<ParameterType, KWArgTag, Optional>;
 
+//==============================================================================
+
 template <typename ParameterType, bool Optional=false>
 struct positional_only_argument : _argument_description_base<ParameterType> {
 
@@ -187,6 +191,7 @@ struct positional_only_argument : _argument_description_base<ParameterType> {
     using can_be_positional = std::true_type;
     using can_be_keyword = std::false_type;
     using tag = /* some value that will never accidentally match*/ tinympl::int_<42>;
+    using is_converted = std::is_same<ParameterType, converted_parameter>;
 
     static_assert(not Optional,
       "Optional positional arguments not yet implemented"
@@ -203,6 +208,8 @@ struct positional_only_argument : _argument_description_base<ParameterType> {
 };
 template <typename ParameterType, bool Optional=false>
 using _positional = positional_only_argument<ParameterType, Optional>;
+
+//==============================================================================
 
 template <typename ParameterType, typename KWArgTag, bool Optional=false>
 struct keyword_only_argument : _argument_description_base<ParameterType> {
@@ -223,6 +230,7 @@ struct keyword_only_argument : _argument_description_base<ParameterType> {
     using is_optional = tinympl::bool_<Optional>;
     using can_be_positional = std::false_type;
     using can_be_keyword = std::true_type;
+    using is_converted = std::is_same<ParameterType, converted_parameter>;
 
     template <typename Argument>
     using argument_is_compatible = typename base_t::template _type_is_compatible<
@@ -239,6 +247,8 @@ struct keyword_only_argument : _argument_description_base<ParameterType> {
 };
 template <typename ParameterType, typename KWArgTag, bool Optional=false>
 using _keyword = keyword_only_argument<ParameterType, KWArgTag, Optional>;
+
+//==============================================================================
 
 namespace _impl {
 
@@ -260,13 +270,19 @@ struct _optional_impl<positional_or_keyword_argument<Parameter, KWArgTag, false>
 };
 } // end namespace _impl
 
+//==============================================================================
+
 template <typename T>
 using _optional = typename _impl::_optional_impl<T>::type;
 
 template <typename ParamType, typename KWArgTag, bool Optional=false>
 using _optional_keyword = _keyword<ParamType, KWArgTag, true>;
 
+//==============================================================================
+
 namespace _impl {
+
+//==============================================================================
 
 template <typename WrappedIndex, typename Arg>
 struct arg_with_index {
@@ -276,6 +292,8 @@ struct arg_with_index {
   using type = Arg;
   using decayed_type = std::decay_t<Arg>;
 };
+
+//==============================================================================
 
 template <typename In_ArgsWithIdxs, typename In_ArgDescsWithIdxs,
   typename In_OptionalArgDescsWithIdxs
@@ -444,6 +462,9 @@ struct _overload_desc_is_valid_impl {
     std::true_type
   >;
 
+  template <typename argpair>
+  using _is_converted_param = typename argpair::type::is_converted;
+
   // </editor-fold> end unary helpers
   //============================================================================
 
@@ -579,8 +600,110 @@ struct _overload_desc_is_valid_impl {
 
   using type = tinympl::bool_<value>;
 
+  //============================================================================
+
+  // This could probably be done faster...
+  template <typename descpair>
+  using _converter_index = typename tinympl::count_if<
+    typename ArgDescsWithIdxs
+      ::template extend_t<OptionalArgDescsWithIdxs>
+      ::template erase<
+        descpair::index,
+        ArgDescsWithIdxs::size + OptionalArgDescsWithIdxs::size
+      >::type,
+    _is_converted_param
+  >::type;
+
+
+  template <
+    typename ArgDescPair,
+    typename ArgForwarded,
+    typename ConvertersTuple
+  >
+  decltype(auto)
+  _get_kwarg_value_impl(
+    /* a parameter with a converter */
+    std::true_type,
+    /* not a multi-arg */
+    std::false_type,
+    ArgForwarded&& arg,
+    ConvertersTuple&& converters
+  ) const {
+    return std::get<_converter_index<ArgDescPair>::value>(
+      std::forward<ConvertersTuple>(converters)
+    )(
+      std::forward<ArgForwarded>(arg).value()
+    );
+  }
+
+  template <
+    typename ArgDescPair,
+    typename ArgForwarded,
+    typename ConvertersTuple
+  >
+  decltype(auto)
+  _get_kwarg_value_impl(
+    /* a parameter with a converter */
+    std::true_type,
+    /* a multi-arg */
+    std::true_type,
+    ArgForwarded&& arg,
+    ConvertersTuple&& converters
+  ) const {
+    return std::forward<ArgForwarded>(arg).value_converted(
+      std::get<_converter_index<ArgDescPair>::value>(
+        std::forward<ConvertersTuple>(converters)
+      )
+    );
+  }
+
+  template <
+    typename ArgDescPair,
+    typename ArgForwarded,
+    typename ConvertersTuple
+  >
+  decltype(auto)
+  _get_kwarg_value_impl(
+    /* not a parameter with a converter */
+    std::false_type,
+    /* not a multi-arg */
+    std::false_type,
+    ArgForwarded&& arg,
+    ConvertersTuple&& converters
+  ) const {
+    return std::forward<ArgForwarded>(arg).value();
+  }
+
+  //============================================================================
+
+  template <
+    typename ArgDescPair,
+    typename ArgForwarded,
+    typename ConvertersTuple
+  >
+  decltype(auto)
+  _get_kwarg_value(
+    ArgForwarded&& arg,
+    ConvertersTuple&& converters
+  ) const {
+    return _get_kwarg_value_impl<
+      ArgDescPair, ArgForwarded, ConvertersTuple
+    >(
+      typename ArgDescPair::type::is_converted{},
+      typename tinympl::is_instantiation_of<
+        multiarg_typeless_kwarg_expression, std::decay_t<ArgForwarded>
+      >::type{},
+      std::forward<ArgForwarded>(arg),
+      std::forward<ConvertersTuple>(converters)
+    );
+
+  }
+
+  //============================================================================
+
   template <size_t Position,
     typename DefaultKWArgsTuple,
+    typename ConvertersTuple,
     typename ForwardedArgsTuple
   >
   decltype(auto)
@@ -590,6 +713,7 @@ struct _overload_desc_is_valid_impl {
     /* not an optional argument */
     std::false_type,
     DefaultKWArgsTuple&& defaults,
+    ConvertersTuple&& converters,
     ForwardedArgsTuple&& tup
   ) const {
     return std::get<Position>(std::forward<ForwardedArgsTuple>(tup));
@@ -597,6 +721,7 @@ struct _overload_desc_is_valid_impl {
 
   template <size_t Position,
     typename DefaultKWArgsTuple,
+    typename ConvertersTuple,
     typename ForwardedArgsTuple
   >
   decltype(auto)
@@ -606,23 +731,27 @@ struct _overload_desc_is_valid_impl {
     /* not an optional argument */
     std::false_type,
     DefaultKWArgsTuple&& defaults,
+    ConvertersTuple&& converters,
     ForwardedArgsTuple&& tup
   ) const {
-    return std::get<
-      tinympl::find_if<
-        ArgsWithIdxs,
-        _make_kwarg_desc_tag_matches<
-          typename ArgDescsWithIdxs::template at_t<Position>
-        >::template apply
-      >::value
-    >(
-      std::forward<ForwardedArgsTuple>(tup)
-    ).value();
+    using arg_desc_t = typename ArgDescsWithIdxs::template at_t<Position>;
+    return _get_kwarg_value<arg_desc_t>(
+      std::get<
+        tinympl::find_if<
+          ArgsWithIdxs,
+          _make_kwarg_desc_tag_matches<arg_desc_t>::template apply
+        >::value
+      >(
+        std::forward<ForwardedArgsTuple>(tup)
+      ),
+      std::forward<ConvertersTuple>(converters)
+    );
   };
 
 
   template <size_t OptionalPosition,
     typename DefaultKWArgsTuple,
+    typename ConvertersTuple,
     typename ForwardedArgsTuple
   >
   decltype(auto)
@@ -630,22 +759,25 @@ struct _overload_desc_is_valid_impl {
     /* argument given by user */
     std::true_type,
     DefaultKWArgsTuple&& defaults,
+    ConvertersTuple&& converters,
     ForwardedArgsTuple&& tup
   ) const {
+    using arg_desc_t = typename OptionalArgDescsWithIdxs::template at_t<OptionalPosition>;
     static constexpr auto user_arg_desc_idx = tinympl::find_if<
       ArgsWithIdxs,
-      _make_kwarg_desc_tag_matches<
-        typename OptionalArgDescsWithIdxs::template at_t<OptionalPosition>
-      >::template apply
+      _make_kwarg_desc_tag_matches<arg_desc_t>::template apply
     >::value;
-    return std::get<user_arg_desc_idx>(
-      std::forward<ForwardedArgsTuple>(tup)
-    ).value();
-
+    return _get_kwarg_value<arg_desc_t>(
+      std::get<user_arg_desc_idx>(
+        std::forward<ForwardedArgsTuple>(tup)
+      ),
+      std::forward<ConvertersTuple>(converters)
+    );
   };
 
   template <size_t OptionalPosition,
     typename DefaultKWArgsTuple,
+    typename ConvertersTuple,
     typename ForwardedArgsTuple
   >
   decltype(auto)
@@ -653,8 +785,10 @@ struct _overload_desc_is_valid_impl {
     /* fall back to default */
     std::false_type,
     DefaultKWArgsTuple&& defaults,
+    ConvertersTuple&& converters,
     ForwardedArgsTuple&& tup
   ) const {
+    using arg_desc_t = typename OptionalArgDescsWithIdxs::template at_t<OptionalPosition>;
     static constexpr auto default_desc_idx = tinympl::find_if<
       typename tinympl::zip<
         tinympl::vector,
@@ -664,18 +798,20 @@ struct _overload_desc_is_valid_impl {
         >,
         std::decay_t<DefaultKWArgsTuple>
       >::type,
-      _make_kwarg_desc_tag_matches<
-        typename OptionalArgDescsWithIdxs::template at_t<OptionalPosition>
-      >::template apply
+      _make_kwarg_desc_tag_matches<arg_desc_t>::template apply
     >::value;
-    return std::get<default_desc_idx>(
-      std::forward<DefaultKWArgsTuple>(defaults)
-    ).value();
+    return _get_kwarg_value<arg_desc_t>(
+      std::get<default_desc_idx>(
+        std::forward<DefaultKWArgsTuple>(defaults)
+      ),
+      std::forward<ConvertersTuple>(converters)
+    );
 
   };
 
   template <size_t Position,
     typename DefaultKWArgsTuple,
+    typename ConvertersTuple,
     typename ForwardedArgsTuple
   >
   decltype(auto)
@@ -685,6 +821,7 @@ struct _overload_desc_is_valid_impl {
     /* optional argument */
     std::true_type,
     DefaultKWArgsTuple&& defaults,
+    ConvertersTuple&& converters,
     ForwardedArgsTuple&& tup
   ) const {
     static constexpr auto optional_position = Position - ArgDescsWithIdxs::size;
@@ -697,23 +834,27 @@ struct _overload_desc_is_valid_impl {
     return _get_invoke_optional_arg<optional_position>(
       std::integral_constant<bool, (user_arg_desc_idx < ArgsWithIdxs::size)>(),
       std::forward<DefaultKWArgsTuple>(defaults),
+      std::forward<ConvertersTuple>(converters),
       std::forward<ForwardedArgsTuple>(tup)
     );
   };
 
   template <size_t Position,
     typename DefaultKWArgsTuple,
+    typename ConvertersTuple,
     typename ForwardedArgsTuple
   >
   decltype(auto)
   get_invoke_arg(
     DefaultKWArgsTuple&& defaults,
+    ConvertersTuple&& converters,
     ForwardedArgsTuple&& tup
   ) const {
     return _get_invoke_arg<Position>(
       typename tinympl::bool_<(Position < n_positional_given)>::type{},
       typename tinympl::bool_<(Position >= ArgDescsWithIdxs::size)>::type{},
       std::forward<DefaultKWArgsTuple>(defaults),
+      std::forward<ConvertersTuple>(converters),
       std::forward<ForwardedArgsTuple>(tup)
     );
   };
@@ -721,9 +862,11 @@ struct _overload_desc_is_valid_impl {
 
 };
 
-
+//==============================================================================
 
 } // end namespace _impl
+
+//==============================================================================
 
 template <typename... ArgumentDescriptions>
 struct overload_description {
@@ -808,12 +951,16 @@ struct overload_description {
 
   template <
     typename DefaultKWArgsTuple,
-    typename Callable, typename ForwardedArgsTuple,
-    typename Helper, size_t... Idxs
+    typename ConvertersTuple,
+    typename Callable,
+    typename ForwardedArgsTuple,
+    typename Helper,
+    size_t... Idxs
   >
   decltype(auto)
   _invoke_impl(
     DefaultKWArgsTuple&& defaults,
+    ConvertersTuple&& converters,
     Callable&& C,
     std::integer_sequence<size_t, Idxs...>,
     Helper h,
@@ -822,27 +969,35 @@ struct overload_description {
     return std::forward<Callable>(C)(
       h.template get_invoke_arg<Idxs>(
         std::forward<DefaultKWArgsTuple>(defaults),
+        std::forward<ConvertersTuple>(converters),
         std::forward<ForwardedArgsTuple>(tup)
       )...
     );
   };
 
-  template <typename DefaultKWArgsTuple, typename Callable, typename... Args>
+  template <
+    typename DefaultKWArgsTuple,
+    typename ConvertersTuple,
+    typename Callable,
+    typename ArgsTuple
+  >
   decltype(auto)
   invoke(
     DefaultKWArgsTuple&& defaults,
+    ConvertersTuple&& converters,
     Callable&& C,
-    Args&&... args
+    ArgsTuple&& args
   ) const {
-    using helper_t = _helper<Args...>;
+    using helper_t = tinympl::splat_to_t<ArgsTuple, _helper>;
     return _invoke_impl(
       std::forward<DefaultKWArgsTuple>(defaults),
+      std::forward<ConvertersTuple>(converters),
       std::forward<Callable>(C),
       std::make_index_sequence<
         helper_t::ArgDescsWithIdxs::size + helper_t::OptionalArgDescsWithIdxs::size
       >(),
       helper_t{},
-      std::forward_as_tuple(std::forward<Args>(args)...)
+      std::forward<ArgsTuple>(args)
     );
   };
 
@@ -889,6 +1044,15 @@ struct kwarg_parser {
     >::type;
 
     template <typename... Args>
+    using _valid_overload_desc_t = tinympl::variadic::at_t<
+      tinympl::variadic::find_if<
+        _make_overload_is_valid<Args...>::template apply,
+        OverloadDescriptions...
+      >::value,
+      OverloadDescriptions...
+    >;
+
+    template <typename... Args>
     using static_assert_valid_invocation = decltype(
       ______see_calling_context_below_____<
         invocation_is_valid<Args...>::value,
@@ -908,40 +1072,195 @@ struct kwarg_parser {
         >
       >());
 
+    template <
+      typename DefaultsTuple,
+      typename ConvertersTuple,
+      typename ArgsTuple,
+      typename OverloadDesc
+    >
+    struct _parsed_invoke {
+      DefaultsTuple def_tup;
+      ConvertersTuple convs_tup;
+      ArgsTuple args_tup;
 
-
-    template <typename DefaultKWArgsForwardedTuple>
-    struct _with_defaults_invoker {
-      DefaultKWArgsForwardedTuple fwd_tup;
-      explicit _with_defaults_invoker(DefaultKWArgsForwardedTuple&& tup)
-        : fwd_tup(std::forward<DefaultKWArgsForwardedTuple>(tup))
+      _parsed_invoke(
+        DefaultsTuple&& indef_tup,
+        ConvertersTuple&& inconvs_tup,
+        ArgsTuple&& inargs_tup
+      ) : def_tup(std::forward<DefaultsTuple>(indef_tup)),
+          convs_tup(std::forward<ConvertersTuple>(inconvs_tup)),
+          args_tup(std::forward<ArgsTuple>(inargs_tup))
       { }
-      template <typename Callable, typename... Args>
+
+      template <typename Callable>
       decltype(auto)
-      invoke(Callable&& C, Args&&... args) const && {
-        return tinympl::variadic::at_t<
-          tinympl::variadic::find_if<
-            _make_overload_is_valid<Args...>::template apply,
-            OverloadDescriptions...
-          >::value,
-          OverloadDescriptions...
-        >().invoke(
-          std::move(fwd_tup),
-          std::forward<Callable>(C),
-          std::forward<Args>(args)...
+      invoke(
+        Callable&& callable
+      ) && {
+        return OverloadDesc().invoke(
+          std::move(def_tup),
+          std::move(convs_tup),
+          std::forward<Callable>(callable),
+          std::move(args_tup)
         );
-      };
+      }
     };
 
 
+
+    template <typename DefaultsTuple, typename ConvertersTuple=std::tuple<>>
+    struct _with_defaults_invoker;
+
+    template <typename ConvertersTuple, typename DefaultsTuple=std::tuple<>>
+    struct _with_converters_invoker {
+      ConvertersTuple conv_tup;
+      DefaultsTuple def_tup;
+      template <typename _Ignored=void,
+        typename=std::enable_if_t<
+          std::is_void<_Ignored>::value and std::is_same<DefaultsTuple, std::tuple<>>::value
+        >
+      >
+      explicit _with_converters_invoker(ConvertersTuple&& tup)
+        : conv_tup(std::forward<ConvertersTuple>(tup)),
+          def_tup()
+      { }
+      explicit _with_converters_invoker(ConvertersTuple&& tup, DefaultsTuple&& defs)
+        : conv_tup(std::forward<ConvertersTuple>(tup)),
+          def_tup(std::forward<DefaultsTuple>(defs))
+      { }
+
+      template <typename... DefaultKWArgs>
+      auto
+      with_defaults(DefaultKWArgs&&... dkws) && {
+        static_assert(std::is_same<DefaultsTuple, std::tuple<>>::value, "internal error");
+        return _with_defaults_invoker<
+          decltype(std::forward_as_tuple(std::forward<DefaultKWArgs>(dkws)...)),
+          ConvertersTuple
+        >(
+          std::forward_as_tuple(std::forward<DefaultKWArgs>(dkws)...),
+          std::move(conv_tup)
+        );
+      }
+
+      template <typename Callable, typename... Args>
+      decltype(auto)
+      invoke(Callable&& C, Args&&... args) && {
+        return _parsed_invoke<
+          DefaultsTuple, ConvertersTuple,
+          decltype(std::forward_as_tuple(std::forward<Args>(args)...)),
+          _valid_overload_desc_t<Args...>
+        >(
+          std::move(def_tup),
+          std::move(conv_tup),
+          std::forward_as_tuple(std::forward<Args>(args)...)
+        ).invoke(
+          std::forward<Callable>(C)
+        );
+      };
+
+      template <typename... Args>
+      auto
+      parse_args(Args&&... args) {
+        return _parsed_invoke<
+          DefaultsTuple, ConvertersTuple,
+          decltype(std::forward_as_tuple(std::forward<Args>(args)...)),
+          _valid_overload_desc_t<Args...>
+        >(
+          std::move(def_tup),
+          std::move(conv_tup),
+          std::forward_as_tuple(std::forward<Args>(args)...)
+        );
+      }
+
+    };
+
+    template <typename DefaultsTuple, typename ConvertersTuple /*=std::tuple<>*/>
+    struct _with_defaults_invoker {
+      DefaultsTuple def_tup;
+      ConvertersTuple conv_tup;
+      template <typename _Ignored=void,
+        typename=std::enable_if_t<
+          std::is_void<_Ignored>::value and std::is_same<ConvertersTuple, std::tuple<>>::value
+        >
+      >
+      explicit _with_defaults_invoker(DefaultsTuple&& tup)
+        : def_tup(std::forward<DefaultsTuple>(tup)), conv_tup()
+      { }
+      explicit _with_defaults_invoker(DefaultsTuple&& defs, ConvertersTuple&& tup)
+        : conv_tup(std::forward<ConvertersTuple>(tup)),
+          def_tup(std::forward<DefaultsTuple>(defs))
+      { }
+
+      template <typename... Converters>
+      auto
+      with_converters(Converters&&... convs) && {
+        static_assert(std::is_same<ConvertersTuple, std::tuple<>>::value, "internal error");
+        return _with_converters_invoker<
+          decltype(std::forward_as_tuple(std::forward<Converters>(convs)...)),
+          DefaultsTuple
+        >(
+          std::forward_as_tuple(std::forward<Converters>(convs)...),
+          std::move(def_tup)
+        );
+      }
+
+      template <typename Callable, typename... Args>
+      decltype(auto)
+      invoke(Callable&& C, Args&&... args) && {
+        return _parsed_invoke<
+          DefaultsTuple, ConvertersTuple,
+          decltype(std::forward_as_tuple(std::forward<Args>(args)...)),
+          _valid_overload_desc_t<Args...>
+        >(
+          std::move(def_tup),
+          std::move(conv_tup),
+          std::forward_as_tuple(std::forward<Args>(args)...)
+        ).invoke(
+          std::forward<Callable>(C)
+        );
+      }
+
+      template <typename... Args>
+      auto
+      parse_args(Args&&... args) {
+        return _parsed_invoke<
+          DefaultsTuple, ConvertersTuple,
+          decltype(std::forward_as_tuple(std::forward<Args>(args)...)),
+          _valid_overload_desc_t<Args...>
+        >(
+          std::move(def_tup),
+          std::move(conv_tup),
+          std::forward_as_tuple(std::forward<Args>(args)...)
+        );
+      }
+
+    };
+
+
+
     template <typename... DefaultKWArgs>
-    static auto with_defaults(
+    auto
+    with_defaults(
       DefaultKWArgs&&... dkws
-    ) {
+    ) const {
       return _with_defaults_invoker<
-        decltype(std::forward_as_tuple(std::forward<DefaultKWArgs>(dkws)...))
+        decltype(std::forward_as_tuple(std::forward<DefaultKWArgs>(dkws)...)),
+        std::tuple<>
       >(
         std::forward_as_tuple(std::forward<DefaultKWArgs>(dkws)...)
+      );
+    }
+
+    template <typename... Converters>
+    auto
+    with_converters(
+      Converters&&... convs
+    ) const {
+      return _with_converters_invoker<
+        decltype(std::forward_as_tuple(std::forward<Converters>(convs)...)),
+        std::tuple<>
+      >(
+        std::forward_as_tuple(std::forward<Converters>(convs)...)
       );
     }
 

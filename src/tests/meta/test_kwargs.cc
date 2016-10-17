@@ -162,8 +162,8 @@ decltype(auto) invoke_arg(Args&&... args) {
     return std::get<i>(std::forward_as_tuple(std::forward<decltype(args)>(args)...));
   };
   return OverloadDescription().invoke(
-    std::forward_as_tuple(),
-    _forward_through_arg, std::forward<Args>(args)...
+    std::forward_as_tuple(), std::forward_as_tuple(),
+    _forward_through_arg, std::forward_as_tuple(std::forward<Args>(args)...)
   );
 };
 
@@ -401,6 +401,11 @@ struct MyOverloads {
     ASSERT_EQ(overload_number, 4);
     ASSERT_EQ(pi, (double)3.14);
   }
+
+  void operator()(B v1) {
+    ASSERT_EQ(overload_number, 5);
+    ASSERT_EQ(v1.value, (double)3.14);
+  }
 };
 
 
@@ -460,6 +465,56 @@ TEST_F(TestKeywordArguments, overload_with_defaults_tests) {
     >
   >;
   parser().invoke(MyOverloads(4), test_kwarg_1=3.14);
-  parser::with_defaults(test_kwarg_1=3.14).invoke(MyOverloads(4));
-  parser::with_defaults(test_kwarg_1=6.28).invoke(MyOverloads(4), test_kwarg_1=3.14);
+  parser().with_defaults(test_kwarg_1=3.14).invoke(MyOverloads(4));
+  parser().with_defaults(test_kwarg_1=6.28).invoke(MyOverloads(4), test_kwarg_1=3.14);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+TEST_F(TestKeywordArguments, converter) {
+
+  using namespace darma_runtime::detail;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_testing;
+
+  using parser = kwarg_parser<
+    overload_description<
+      _optional<_keyword<converted_parameter, kw::test_kwarg_1>>
+    >
+  >;
+  parser()
+    .with_defaults(test_kwarg_1=3.14)
+    .with_converters([](auto&& val) { B rv; rv.value = val; return rv; })
+    .invoke(MyOverloads(5));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+TEST_F(TestKeywordArguments, invoke_lambda) {
+
+  using namespace darma_runtime::detail;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_testing;
+
+  using parser = kwarg_parser<
+    overload_description<
+      _optional<_keyword<converted_parameter, kw::test_kwarg_1>>
+    >
+  >;
+  parser()
+    .with_defaults(test_kwarg_1=6.28)
+    .with_converters([](auto&& val) { B rv; rv.value = val; return rv; })
+    .parse_args(test_kwarg_1=3.14)
+    .invoke([](B val) {
+      ASSERT_EQ(val.value, 3.14);
+    });
+  parser()
+    .with_converters([](auto&& val) { B rv; rv.value = val; return rv; })
+    .with_defaults(test_kwarg_1=6.28)
+    .parse_args(test_kwarg_1=3.14)
+    .invoke([](B val) {
+      ASSERT_EQ(val.value, 3.14);
+    });
 }
