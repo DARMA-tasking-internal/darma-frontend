@@ -105,7 +105,107 @@ struct _parse_reader_hint {
   }
 };
 
+
+
 } // end namespace _impl
+
+template <typename AccessHandleT>
+struct _publish_impl {
+
+  AccessHandleT const& this_;
+
+  explicit _publish_impl(AccessHandleT const& ah) : this_(ah) { }
+
+  void operator()(
+    types::key_t version, size_t n_readers, bool out
+  ) {
+    _impl(
+      version, n_readers, out,
+      abstract::frontend::PublicationDetails::unknown_reader
+    );
+  }
+
+  template <typename ReaderIndex, typename RegionContext>
+  void operator()(
+    ReaderIndex&& idx, RegionContext&& reg_ctxt,
+    types::key_t version, size_t n_readers, bool out
+  ) {
+    _impl(
+      version, n_readers, out,
+      reg_ctxt.get_backend_index(idx)
+    );
+  }
+
+  void _impl(
+    types::key_t version, size_t n_readers, bool is_publish_out,
+    size_t reader_backend_idx
+  ) {
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
+    detail::PublicationDetails dets(version, n_readers, not is_publish_out);
+    dets.reader_hint_ = reader_backend_idx;
+
+    switch(this_.current_use_->use.immediate_permissions_) {
+      case HandleUse::None:
+      case HandleUse::Read: {
+        // No need to check that scheduling permissions are greater than None;
+        // an error message above checks this
+        detail::HandleUse use_to_publish(
+          this_.var_handle_,
+          this_.current_use_->use.in_flow_,
+          this_.current_use_->use.in_flow_,
+          detail::HandleUse::None, detail::HandleUse::Read
+        );
+        backend_runtime->register_use(&use_to_publish);
+        backend_runtime->publish_use(&use_to_publish, &dets);
+        backend_runtime->release_use(&use_to_publish);
+        break;
+      }
+      case HandleUse::Modify: {
+        // No need to check that scheduling permissions are greater than None;
+        // an error message above checks this
+        auto flow_to_publish = detail::make_forwarding_flow_ptr(
+          this_.current_use_->use.in_flow_, backend_runtime
+        );
+
+        detail::HandleUse use_to_publish(
+          this_.var_handle_,
+          flow_to_publish,
+          flow_to_publish,
+          detail::HandleUse::None, detail::HandleUse::Read
+        );
+        backend_runtime->register_use(&use_to_publish);
+
+        this_.current_use_->do_release();
+
+        dets.reader_hint_ = reader_backend_idx;
+        backend_runtime->publish_use(&use_to_publish, &dets);
+
+        this_.current_use_->use.immediate_permissions_ = HandleUse::Read;
+        this_.current_use_->use.in_flow_ = flow_to_publish;
+        // current_use_->use.out_flow_ and scheduling_permissions_ unchanged
+        this_.current_use_->could_be_alias = true;
+
+        backend_runtime->release_use(&use_to_publish);
+      }
+      default: {
+        DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+        break;
+      }
+    }
+
+    if(is_publish_out) {
+      // If we're publishing "out", reduce permissions in continuing context
+      this_.current_use_->use.immediate_permissions_ =
+        this_.current_use_->use.immediate_permissions_ == HandleUse::None ?
+          HandleUse::None : HandleUse::Read;
+      this_.current_use_->use.scheduling_permissions_ =
+        this_.current_use_->use.scheduling_permissions_ == HandleUse::None ?
+          HandleUse::None : HandleUse::Read;
+    }
+
+  }
+};
+
 
 } // end namespace detail
 
@@ -131,149 +231,171 @@ AccessHandle<T, Traits>::publish(
   );
 
 
-  // TODO formal parser here
-  //using namespace darma_runtime::detail;
-  //using parser = detail::kwargs_parser<
-  //  overload_description<
-  //    _optional_keyword<types::key_t, keyword_tags_for_publication::version>,
-  //    _optional_keyword<std::size_t, keyword_tags_for_publication::n_readers>,
-  //    _optional_keyword<bool, keyword_tags_for_publication::out>
-  //  >
-  //>;
+  using namespace darma_runtime::detail;
+  using parser = detail::kwarg_parser<
+    overload_description<
+      _optional_keyword<converted_parameter, keyword_tags_for_publication::version>,
+      _optional_keyword<std::size_t, keyword_tags_for_publication::n_readers>,
+      _optional_keyword<bool, keyword_tags_for_publication::out>
+    >,
+    overload_description<
+      _keyword<deduced_parameter, keyword_tags_for_publication::reader_hint>,
+      _keyword<deduced_parameter, keyword_tags_for_publication::region_context>,
+      _optional_keyword<converted_parameter, keyword_tags_for_publication::version>,
+      _optional_keyword<std::size_t, keyword_tags_for_publication::n_readers>,
+      _optional_keyword<bool, keyword_tags_for_publication::out>
+    >
+  >;
 
-
-  using _check_kwargs_asserting_t = typename detail::only_allowed_kwargs_given<
-    keyword_tags_for_publication::version,
-    keyword_tags_for_publication::n_readers,
-    keyword_tags_for_publication::out,
-    keyword_tags_for_publication::reader_hint,
-    keyword_tags_for_publication::region_context
-  >::template static_assert_correct<PublishExprParts...>::type;
-
-  detail::publish_expr_helper<PublishExprParts...> helper;
-
-  auto* backend_runtime = abstract::backend::get_backend_runtime();
-
-  bool is_publish_out = detail::get_typeless_kwarg_with_default<
-    keyword_tags_for_publication::out
-  >(
-    false, std::forward<PublishExprParts>(parts)...
-  );
-
-  auto reader_backend_index = detail::_impl::_parse_reader_hint()(
-    std::forward<PublishExprParts>(parts)...
-  );
-
-  auto _pub_same = [&] {
-    detail::HandleUse use_to_publish(
-      var_handle_,
-      current_use_->use.in_flow_,
-      current_use_->use.in_flow_,
-      detail::HandleUse::None, detail::HandleUse::Read
-    );
-    backend_runtime->register_use(&use_to_publish);
-    detail::PublicationDetails dets(
-      helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
-      helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
-      not is_publish_out
-    );
-    dets.reader_hint_ = reader_backend_index;
-    backend_runtime->publish_use(&use_to_publish, &dets);
-    backend_runtime->release_use(&use_to_publish);
-  };
-
-  auto _pub_from_modify = [&] {
-    auto flow_to_publish = detail::make_forwarding_flow_ptr(
-      current_use_->use.in_flow_, backend_runtime
-    );
-
-    detail::HandleUse use_to_publish(
-      var_handle_,
-      flow_to_publish,
-      flow_to_publish,
-      detail::HandleUse::None, detail::HandleUse::Read
-    );
-    backend_runtime->register_use(&use_to_publish);
-
-    current_use_->do_release();
-
-
-    detail::PublicationDetails dets(
-      helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
-      helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
-      not is_publish_out
-    );
-    dets.reader_hint_ = reader_backend_index;
-    backend_runtime->publish_use(&use_to_publish, &dets);
-
-
-    current_use_->use.immediate_permissions_ = HandleUse::Read;
-    current_use_->use.in_flow_ = flow_to_publish;
-    // current_use_->use.out_flow_ and scheduling_permissions_ unchanged
-    current_use_->could_be_alias = true;
-
-    backend_runtime->release_use(&use_to_publish);
-  };
-
-  if(is_publish_out) {
-    // If we're publishing "out", reduce permissions in continuing context
-    current_use_->use.immediate_permissions_ =
-      current_use_->use.immediate_permissions_ == HandleUse::None ?
-        HandleUse::None : HandleUse::Read;
-    current_use_->use.scheduling_permissions_ =
-      current_use_->use.scheduling_permissions_ == HandleUse::None ?
-        HandleUse::None : HandleUse::Read;
-  }
-
-  switch(current_use_->use.scheduling_permissions_) {
-    case HandleUse::None: {
-      // Error message above
-      break;
-    }
-
-    case HandleUse::Read: {
-      switch(current_use_->use.immediate_permissions_) {
-        case HandleUse::None:
-        case HandleUse::Read: {
-          // Make a new flow for the publication
-          _pub_same();
-          break;
-        }
-        case HandleUse::Modify: {
-          // Don't know when anyone would have HandleUse::Read_Modify, but we still know what to do...
-          _pub_from_modify();
-          break;
-        }
-        default: {
-          DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
-          break;
-        }
+  parser()
+    .with_defaults(
+      keyword_arguments_for_publication::version=make_key(),
+      keyword_arguments_for_publication::n_readers=1ul,
+      keyword_arguments_for_publication::out=false
+    )
+    .with_converters(
+      [](auto&&... key_parts) {
+        return make_key(std::forward<decltype(key_parts)>(key_parts)...);
       }
-      break;
-    }
-    case HandleUse::Modify: {
-      switch (current_use_->use.immediate_permissions_) {
-        case HandleUse::None:
-        case HandleUse::Read: {
-          _pub_same();
-          break;
-        }
-        case HandleUse::Modify: {
-          _pub_from_modify();
-          break;
-        }
-        default: {
-          DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
-          break;
-        }
-      }
-      break;
-    }
-    default: {
-      DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
-      break;
-    }
-  }
+    )
+    .parse_args(std::forward<PublishExprParts>(parts)...)
+    .invoke(detail::_publish_impl<AccessHandle>(*this));
+
+
+
+  //using _check_kwargs_asserting_t = typename detail::only_allowed_kwargs_given<
+  //  keyword_tags_for_publication::version,
+  //  keyword_tags_for_publication::n_readers,
+  //  keyword_tags_for_publication::out,
+  //  keyword_tags_for_publication::reader_hint,
+  //  keyword_tags_for_publication::region_context
+  //>::template static_assert_correct<PublishExprParts...>::type;
+
+
+//  detail::publish_expr_helper<PublishExprParts...> helper;
+//
+//  auto* backend_runtime = abstract::backend::get_backend_runtime();
+//
+//  bool is_publish_out = detail::get_typeless_kwarg_with_default<
+//    keyword_tags_for_publication::out
+//  >(
+//    false, std::forward<PublishExprParts>(parts)...
+//  );
+//
+//  auto reader_backend_index = detail::_impl::_parse_reader_hint()(
+//    std::forward<PublishExprParts>(parts)...
+//  );
+//
+//  auto _pub_same = [&] {
+//    detail::HandleUse use_to_publish(
+//      var_handle_,
+//      current_use_->use.in_flow_,
+//      current_use_->use.in_flow_,
+//      detail::HandleUse::None, detail::HandleUse::Read
+//    );
+//    backend_runtime->register_use(&use_to_publish);
+//    detail::PublicationDetails dets(
+//      helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
+//      helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
+//      not is_publish_out
+//    );
+//    dets.reader_hint_ = reader_backend_index;
+//    backend_runtime->publish_use(&use_to_publish, &dets);
+//    backend_runtime->release_use(&use_to_publish);
+//  };
+//
+//  auto _pub_from_modify = [&] {
+//    auto flow_to_publish = detail::make_forwarding_flow_ptr(
+//      current_use_->use.in_flow_, backend_runtime
+//    );
+//
+//    detail::HandleUse use_to_publish(
+//      var_handle_,
+//      flow_to_publish,
+//      flow_to_publish,
+//      detail::HandleUse::None, detail::HandleUse::Read
+//    );
+//    backend_runtime->register_use(&use_to_publish);
+//
+//    current_use_->do_release();
+//
+//
+//    detail::PublicationDetails dets(
+//      helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
+//      helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
+//      not is_publish_out
+//    );
+//    dets.reader_hint_ = reader_backend_index;
+//    backend_runtime->publish_use(&use_to_publish, &dets);
+//
+//
+//    current_use_->use.immediate_permissions_ = HandleUse::Read;
+//    current_use_->use.in_flow_ = flow_to_publish;
+//    // current_use_->use.out_flow_ and scheduling_permissions_ unchanged
+//    current_use_->could_be_alias = true;
+//
+//    backend_runtime->release_use(&use_to_publish);
+//  };
+//
+//  if(is_publish_out) {
+//    // If we're publishing "out", reduce permissions in continuing context
+//    current_use_->use.immediate_permissions_ =
+//      current_use_->use.immediate_permissions_ == HandleUse::None ?
+//        HandleUse::None : HandleUse::Read;
+//    current_use_->use.scheduling_permissions_ =
+//      current_use_->use.scheduling_permissions_ == HandleUse::None ?
+//        HandleUse::None : HandleUse::Read;
+//  }
+//
+//  switch(current_use_->use.scheduling_permissions_) {
+//    case HandleUse::None: {
+//      // Error message above
+//      break;
+//    }
+//
+//    case HandleUse::Read: {
+//      switch(current_use_->use.immediate_permissions_) {
+//        case HandleUse::None:
+//        case HandleUse::Read: {
+//          // Make a new flow for the publication
+//          _pub_same();
+//          break;
+//        }
+//        case HandleUse::Modify: {
+//          // Don't know when anyone would have HandleUse::Read_Modify, but we still know what to do...
+//          _pub_from_modify();
+//          break;
+//        }
+//        default: {
+//          DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+//          break;
+//        }
+//      }
+//      break;
+//    }
+//    case HandleUse::Modify: {
+//      switch (current_use_->use.immediate_permissions_) {
+//        case HandleUse::None:
+//        case HandleUse::Read: {
+//          _pub_same();
+//          break;
+//        }
+//        case HandleUse::Modify: {
+//          _pub_from_modify();
+//          break;
+//        }
+//        default: {
+//          DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+//          break;
+//        }
+//      }
+//      break;
+//    }
+//    default: {
+//      DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+//      break;
+//    }
+//  }
 
 }
 
