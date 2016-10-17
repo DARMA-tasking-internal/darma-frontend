@@ -55,60 +55,6 @@ namespace darma_runtime {
 
 namespace detail {
 
-namespace _impl {
-
-struct _parse_reader_hint {
-
-  template <typename... Args>
-  size_t _helper(
-    std::true_type,
-    Args&&... args
-  ) const {
-    auto const& context = get_typeless_kwarg<
-      keyword_tags_for_publication::region_context
-    >(std::forward<Args>(args)...);
-
-    auto const& idx = get_typeless_kwarg<
-      keyword_tags_for_publication::reader_hint
-    >(std::forward<Args>(args)...);
-
-    return context.get_backend_index(idx);
-  }
-
-  template <typename... Args>
-  size_t _helper(
-    std::false_type,
-    Args&&... args
-  ) const {
-    return abstract::frontend::PublicationDetails::unknown_reader;
-  }
-
-  template <typename T>
-  using _is_region_context_arg = detail::is_kwarg_expression_with_tag<
-    T, keyword_tags_for_publication::region_context
-  >;
-  template <typename T>
-  using _is_reader_hint_arg = detail::is_kwarg_expression_with_tag<
-    T, keyword_tags_for_publication::reader_hint
-  >;
-
-  template <typename... Args>
-  size_t operator()(Args&&... args) const {
-    return _helper(
-      typename tinympl::and_<
-        tinympl::variadic::any_of<_is_region_context_arg, std::decay_t<Args>...>,
-        tinympl::variadic::any_of<_is_reader_hint_arg, std::decay_t<Args>...>
-      >::type(),
-      std::forward<Args>(args)...
-    );
-
-  }
-};
-
-
-
-} // end namespace _impl
-
 template <typename AccessHandleT>
 struct _publish_impl {
 
@@ -247,6 +193,8 @@ AccessHandle<T, Traits>::publish(
     >
   >;
 
+  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<PublishExprParts...>;
+
   parser()
     .with_defaults(
       keyword_arguments_for_publication::version=make_key(),
@@ -260,142 +208,6 @@ AccessHandle<T, Traits>::publish(
     )
     .parse_args(std::forward<PublishExprParts>(parts)...)
     .invoke(detail::_publish_impl<AccessHandle>(*this));
-
-
-
-  //using _check_kwargs_asserting_t = typename detail::only_allowed_kwargs_given<
-  //  keyword_tags_for_publication::version,
-  //  keyword_tags_for_publication::n_readers,
-  //  keyword_tags_for_publication::out,
-  //  keyword_tags_for_publication::reader_hint,
-  //  keyword_tags_for_publication::region_context
-  //>::template static_assert_correct<PublishExprParts...>::type;
-
-
-//  detail::publish_expr_helper<PublishExprParts...> helper;
-//
-//  auto* backend_runtime = abstract::backend::get_backend_runtime();
-//
-//  bool is_publish_out = detail::get_typeless_kwarg_with_default<
-//    keyword_tags_for_publication::out
-//  >(
-//    false, std::forward<PublishExprParts>(parts)...
-//  );
-//
-//  auto reader_backend_index = detail::_impl::_parse_reader_hint()(
-//    std::forward<PublishExprParts>(parts)...
-//  );
-//
-//  auto _pub_same = [&] {
-//    detail::HandleUse use_to_publish(
-//      var_handle_,
-//      current_use_->use.in_flow_,
-//      current_use_->use.in_flow_,
-//      detail::HandleUse::None, detail::HandleUse::Read
-//    );
-//    backend_runtime->register_use(&use_to_publish);
-//    detail::PublicationDetails dets(
-//      helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
-//      helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
-//      not is_publish_out
-//    );
-//    dets.reader_hint_ = reader_backend_index;
-//    backend_runtime->publish_use(&use_to_publish, &dets);
-//    backend_runtime->release_use(&use_to_publish);
-//  };
-//
-//  auto _pub_from_modify = [&] {
-//    auto flow_to_publish = detail::make_forwarding_flow_ptr(
-//      current_use_->use.in_flow_, backend_runtime
-//    );
-//
-//    detail::HandleUse use_to_publish(
-//      var_handle_,
-//      flow_to_publish,
-//      flow_to_publish,
-//      detail::HandleUse::None, detail::HandleUse::Read
-//    );
-//    backend_runtime->register_use(&use_to_publish);
-//
-//    current_use_->do_release();
-//
-//
-//    detail::PublicationDetails dets(
-//      helper.get_version_tag(std::forward<PublishExprParts>(parts)...),
-//      helper.get_n_readers(std::forward<PublishExprParts>(parts)...),
-//      not is_publish_out
-//    );
-//    dets.reader_hint_ = reader_backend_index;
-//    backend_runtime->publish_use(&use_to_publish, &dets);
-//
-//
-//    current_use_->use.immediate_permissions_ = HandleUse::Read;
-//    current_use_->use.in_flow_ = flow_to_publish;
-//    // current_use_->use.out_flow_ and scheduling_permissions_ unchanged
-//    current_use_->could_be_alias = true;
-//
-//    backend_runtime->release_use(&use_to_publish);
-//  };
-//
-//  if(is_publish_out) {
-//    // If we're publishing "out", reduce permissions in continuing context
-//    current_use_->use.immediate_permissions_ =
-//      current_use_->use.immediate_permissions_ == HandleUse::None ?
-//        HandleUse::None : HandleUse::Read;
-//    current_use_->use.scheduling_permissions_ =
-//      current_use_->use.scheduling_permissions_ == HandleUse::None ?
-//        HandleUse::None : HandleUse::Read;
-//  }
-//
-//  switch(current_use_->use.scheduling_permissions_) {
-//    case HandleUse::None: {
-//      // Error message above
-//      break;
-//    }
-//
-//    case HandleUse::Read: {
-//      switch(current_use_->use.immediate_permissions_) {
-//        case HandleUse::None:
-//        case HandleUse::Read: {
-//          // Make a new flow for the publication
-//          _pub_same();
-//          break;
-//        }
-//        case HandleUse::Modify: {
-//          // Don't know when anyone would have HandleUse::Read_Modify, but we still know what to do...
-//          _pub_from_modify();
-//          break;
-//        }
-//        default: {
-//          DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
-//          break;
-//        }
-//      }
-//      break;
-//    }
-//    case HandleUse::Modify: {
-//      switch (current_use_->use.immediate_permissions_) {
-//        case HandleUse::None:
-//        case HandleUse::Read: {
-//          _pub_same();
-//          break;
-//        }
-//        case HandleUse::Modify: {
-//          _pub_from_modify();
-//          break;
-//        }
-//        default: {
-//          DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
-//          break;
-//        }
-//      }
-//      break;
-//    }
-//    default: {
-//      DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
-//      break;
-//    }
-//  }
 
 }
 
