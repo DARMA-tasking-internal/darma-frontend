@@ -51,6 +51,7 @@
 #include <darma/impl/keyword_arguments/keyword_argument_name.h>
 #include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 #include <darma/impl/keyword_arguments/get_kwarg.h>
+#include <darma/impl/keyword_arguments/parse.h>
 #include <darma/interface/frontend/collective_details.h>
 
 #include <darma/impl/handle.h> // is_access_handle
@@ -138,24 +139,24 @@ using _get_collective_details_t = SimpleCollectiveDetails<
 >;
 
 
+template<typename Op>
 struct all_reduce_impl {
 
   // TODO generalize the use/flow handling here to be used by other collectives
 
   template <
-    typename Op,
     typename InputHandle,
     typename OutputHandle
   >
-  static inline
+  inline
   std::enable_if_t<
     is_access_handle<std::decay_t<InputHandle>>::value
       and is_access_handle<std::decay_t<OutputHandle>>::value
   >
-  _do_allreduce(
-    InputHandle&& input, OutputHandle&& output, argument_not_given,
-    size_t piece, size_t n_pieces, types::key_t const& tag
-  ) {
+  operator()(
+    InputHandle&& input, OutputHandle&& output, types::key_t const& tag,
+    size_t piece, size_t n_pieces
+  ) const {
     DARMA_ASSERT_MESSAGE(
       input.current_use_->use.scheduling_permissions_ != HandleUse::None,
       "allreduce() called on handle that can't schedule at least Read usage on "
@@ -318,17 +319,16 @@ struct all_reduce_impl {
   }
 
   template <
-    typename Op,
     typename InOutHandle
   >
-  static inline
+  inline
   std::enable_if_t<
     is_access_handle<std::decay_t<InOutHandle>>::value
   >
-  _do_allreduce(
-    argument_not_given, argument_not_given, InOutHandle&& in_out,
-    size_t piece, size_t n_pieces, types::key_t const& tag
-  ) {
+  operator()(
+    InOutHandle&& in_out, types::key_t const& tag,
+    size_t piece, size_t n_pieces
+  ) const {
     DARMA_ASSERT_MESSAGE(
       in_out.current_use_->use.scheduling_permissions_ != HandleUse::None,
       "allreduce() called on handle that can't schedule at least read usage on "
@@ -439,114 +439,151 @@ template <typename Op = detail::op_not_given, typename... KWArgs>
 void allreduce(
   KWArgs&&... kwargs
 ) {
-  static_assert(detail::only_allowed_kwargs_given<
-      darma_runtime::keyword_tags_for_collectives::input,
-      darma_runtime::keyword_tags_for_collectives::output,
-      darma_runtime::keyword_tags_for_collectives::in_out,
-      darma_runtime::keyword_tags_for_collectives::piece,
-      darma_runtime::keyword_tags_for_collectives::n_pieces,
-      darma_runtime::keyword_tags_for_collectives::tag
-    >::template apply<KWArgs...>::type::value,
-    "Unknown keyword argument given to create_work()"
-  );
+  //static_assert(detail::only_allowed_kwargs_given<
+  //    darma_runtime::keyword_tags_for_collectives::input,
+  //    darma_runtime::keyword_tags_for_collectives::output,
+  //    darma_runtime::keyword_tags_for_collectives::in_out,
+  //    darma_runtime::keyword_tags_for_collectives::piece,
+  //    darma_runtime::keyword_tags_for_collectives::n_pieces,
+  //    darma_runtime::keyword_tags_for_collectives::tag
+  //  >::template apply<KWArgs...>::type::value,
+  //  "Unknown keyword argument given to create_work()"
+  //);
 
-  decltype(auto) positional_args = detail::get_positional_arg_tuple(
-    std::forward<KWArgs>(kwargs)...
-  );
+  using namespace darma_runtime::detail;
+  using parser = detail::kwarg_parser<
+    overload_description<
+      _positional_or_keyword<deduced_parameter, keyword_tags_for_collectives::input>,
+      _positional_or_keyword<deduced_parameter, keyword_tags_for_collectives::output>,
+      _optional_keyword<converted_parameter, keyword_tags_for_collectives::tag>,
+      _optional_keyword<size_t, keyword_tags_for_collectives::piece>,
+      _optional_keyword<size_t, keyword_tags_for_collectives::n_pieces>
+    >,
+    overload_description<
+      _positional_or_keyword<deduced_parameter, keyword_tags_for_collectives::in_out>,
+      _optional_keyword<converted_parameter, keyword_tags_for_collectives::tag>,
+      _optional_keyword<size_t, keyword_tags_for_collectives::piece>,
+      _optional_keyword<size_t, keyword_tags_for_collectives::n_pieces>
+    >
+  >;
 
-  // Keyword argument only:
-  size_t piece = detail::get_typeless_kwarg_with_default_as<
-    darma_runtime::keyword_tags_for_collectives::piece, size_t
-  >(
-    abstract::frontend::CollectiveDetails::unknown_contribution(),
-    std::forward<KWArgs>(kwargs)...
-  );
+  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<KWArgs...>;
 
-  // Keyword argument only:
-  size_t n_pieces = detail::get_typeless_kwarg_with_default_as<
-    darma_runtime::keyword_tags_for_collectives::n_pieces, size_t
-  >(
-    abstract::frontend::CollectiveDetails::unknown_contribution(),
-    std::forward<KWArgs>(kwargs)...
-  );
+  parser()
+    .with_defaults(
+      keyword_arguments_for_collectives::tag=make_key(),
+      keyword_arguments_for_collectives::piece=abstract::frontend::CollectiveDetails::unknown_contribution(),
+      keyword_arguments_for_collectives::n_pieces=abstract::frontend::CollectiveDetails::unknown_contribution()
+    )
+    .with_converters(
+      [](auto&&... key_parts) {
+        return make_key(std::forward<decltype(key_parts)>(key_parts)...);
+      }
+    )
+    .parse_args(
+      std::forward<KWArgs>(kwargs)...
+    )
+    .invoke(detail::all_reduce_impl<Op>());
 
-  // Keyword argument only:
-  auto tag = detail::get_typeless_kwarg_with_converter_and_default<
-    darma_runtime::keyword_tags_for_collectives::tag
-  >([](auto&&... key_parts) {
-      return darma_runtime::make_key(
-        std::forward<decltype(key_parts)>(key_parts)...
-      );
-    },
-    types::key_t(),
-    std::forward<KWArgs>(kwargs)...
-  );
 
-  using n_positional_args_t = typename detail::n_positional_args<KWArgs...>::type;
 
-  // forms to handle: (not counting piece and n_pieces, which are kwarg-only)
-  // allreduce(input_arg, output_arg);
-  // allreduce(input_arg, output=output_arg);
-  // allreduce(input=input_arg, output=output_arg);
-  // allreduce(inout_arg);
-  // allreduce(in_out=inout_arg)
+  //decltype(auto) positional_args = detail::get_positional_arg_tuple(
+  //  std::forward<KWArgs>(kwargs)...
+  //);
 
-  using tinympl::bool_;
+  //// Keyword argument only:
+  //size_t piece = detail::get_typeless_kwarg_with_default_as<
+  //  darma_runtime::keyword_tags_for_collectives::piece, size_t
+  //>(
+  //  abstract::frontend::CollectiveDetails::unknown_contribution(),
+  //  std::forward<KWArgs>(kwargs)...
+  //);
 
-  decltype(auto) output_handle = detail::_get_potentially_positional_handle_arg<
-    1, darma_runtime::keyword_tags_for_collectives::output
-  >(
-    detail::has_kwarg<
-      darma_runtime::keyword_tags_for_collectives::output, KWArgs...
-    >(),
-    bool_< n_positional_args_t::value >= 2 >(),
-    std::forward<KWArgs>(kwargs)...
-  );
+  //// Keyword argument only:
+  //size_t n_pieces = detail::get_typeless_kwarg_with_default_as<
+  //  darma_runtime::keyword_tags_for_collectives::n_pieces, size_t
+  //>(
+  //  abstract::frontend::CollectiveDetails::unknown_contribution(),
+  //  std::forward<KWArgs>(kwargs)...
+  //);
 
-  decltype(auto) input_handle = detail::_get_potentially_positional_handle_arg<
-    0, darma_runtime::keyword_tags_for_collectives::input
-  >(
-    detail::has_kwarg<
-      darma_runtime::keyword_tags_for_collectives::input, KWArgs...
-    >(),
-    bool_<
-      n_positional_args_t::value >= 2
-      or (
-        n_positional_args_t::value >= 1
-        and detail::has_kwarg<
-          darma_runtime::keyword_tags_for_collectives::output, KWArgs...
-        >::value
-      )
-    >(),
-    std::forward<KWArgs>(kwargs)...
-  );
+  //// Keyword argument only:
+  //auto tag = detail::get_typeless_kwarg_with_converter_and_default<
+  //  darma_runtime::keyword_tags_for_collectives::tag
+  //>([](auto&&... key_parts) {
+  //    return darma_runtime::make_key(
+  //      std::forward<decltype(key_parts)>(key_parts)...
+  //    );
+  //  },
+  //  types::key_t(),
+  //  std::forward<KWArgs>(kwargs)...
+  //);
 
-  decltype(auto) in_out_handle = detail::_get_potentially_positional_handle_arg<
-    0, darma_runtime::keyword_tags_for_collectives::in_out
-  >(
-    detail::has_kwarg<
-      darma_runtime::keyword_tags_for_collectives::in_out, KWArgs...
-    >(),
-    bool_<
-      n_positional_args_t::value >= 1
-      and (
-        not (
-          detail::has_kwarg<
-            darma_runtime::keyword_tags_for_collectives::output, KWArgs...
-          >::value
-          or n_positional_args_t::value >= 2
-        )
-      )
-    >(),
-    std::forward<KWArgs>(kwargs)...
-  );
+  //using n_positional_args_t = typename detail::n_positional_args<KWArgs...>::type;
 
-  detail::all_reduce_impl::_do_allreduce<Op>(
-    std::forward<decltype(input_handle)>(input_handle),
-    std::forward<decltype(output_handle)>(output_handle),
-    std::forward<decltype(in_out_handle)>(in_out_handle),
-    piece, n_pieces, tag
-  );
+  //// forms to handle: (not counting piece and n_pieces, which are kwarg-only)
+  //// allreduce(input_arg, output_arg);
+  //// allreduce(input_arg, output=output_arg);
+  //// allreduce(input=input_arg, output=output_arg);
+  //// allreduce(inout_arg);
+  //// allreduce(in_out=inout_arg)
+
+  //using tinympl::bool_;
+
+  //decltype(auto) output_handle = detail::_get_potentially_positional_handle_arg<
+  //  1, darma_runtime::keyword_tags_for_collectives::output
+  //>(
+  //  detail::has_kwarg<
+  //    darma_runtime::keyword_tags_for_collectives::output, KWArgs...
+  //  >(),
+  //  bool_< n_positional_args_t::value >= 2 >(),
+  //  std::forward<KWArgs>(kwargs)...
+  //);
+
+  //decltype(auto) input_handle = detail::_get_potentially_positional_handle_arg<
+  //  0, darma_runtime::keyword_tags_for_collectives::input
+  //>(
+  //  detail::has_kwarg<
+  //    darma_runtime::keyword_tags_for_collectives::input, KWArgs...
+  //  >(),
+  //  bool_<
+  //    n_positional_args_t::value >= 2
+  //    or (
+  //      n_positional_args_t::value >= 1
+  //      and detail::has_kwarg<
+  //        darma_runtime::keyword_tags_for_collectives::output, KWArgs...
+  //      >::value
+  //    )
+  //  >(),
+  //  std::forward<KWArgs>(kwargs)...
+  //);
+
+  //decltype(auto) in_out_handle = detail::_get_potentially_positional_handle_arg<
+  //  0, darma_runtime::keyword_tags_for_collectives::in_out
+  //>(
+  //  detail::has_kwarg<
+  //    darma_runtime::keyword_tags_for_collectives::in_out, KWArgs...
+  //  >(),
+  //  bool_<
+  //    n_positional_args_t::value >= 1
+  //    and (
+  //      not (
+  //        detail::has_kwarg<
+  //          darma_runtime::keyword_tags_for_collectives::output, KWArgs...
+  //        >::value
+  //        or n_positional_args_t::value >= 2
+  //      )
+  //    )
+  //  >(),
+  //  std::forward<KWArgs>(kwargs)...
+  //);
+
+  //detail::all_reduce_impl::_do_allreduce<Op>(
+  //  std::forward<decltype(input_handle)>(input_handle),
+  //  std::forward<decltype(output_handle)>(output_handle),
+  //  std::forward<decltype(in_out_handle)>(in_out_handle),
+  //  piece, n_pieces, tag
+  //);
 
 
 };
