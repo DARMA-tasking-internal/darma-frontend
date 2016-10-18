@@ -138,7 +138,7 @@ namespace kw = darma_runtime::keyword_tags_for_testing;
 template <typename OverloadDescription, typename... Args>
 void desc_should_fail(Args&&...) {
   static_assert(
-    not OverloadDescription::template is_valid_for_args<Args...>::value,
+    not OverloadDescription::var_helper_t::template is_valid_for_args<Args...>::value,
     "Expected description to be invalid for arguments"
   );
 };
@@ -146,14 +146,14 @@ void desc_should_fail(Args&&...) {
 template <typename OverloadDescription, typename... Args>
 void desc_should_pass(Args&&...) {
   static_assert(
-    OverloadDescription::template is_valid_for_args<Args...>::value,
+    OverloadDescription::var_helper_t::template is_valid_for_args<Args...>::value,
     "Expected description to be valid for arguments"
   );
 };
 
 template <typename OverloadDescription, typename... Args>
 auto desc_helper(Args&&... arg) {
-  return typename OverloadDescription::template _helper<Args...>{};
+  return typename OverloadDescription::var_helper_t::template _helper<Args...>{};
 };
 
 template <typename OverloadDescription, size_t i, typename... Args>
@@ -356,6 +356,10 @@ TEST_F(TestKeywordArguments, static_tests) {
   desc_should_pass<odesc7>(test_kwarg_2=6);
   desc_should_pass<odesc7>();
 
+  using odesc7_helper_1 = decltype(desc_helper<odesc7>(42));
+  STATIC_ASSERT_VALUE_EQUAL(odesc7_helper_1::n_variadic_given, 1);
+  STATIC_ASSERT_VALUE_EQUAL(odesc7_helper_1::variadic_args_allowed, false);
+
   desc_should_fail<odesc7>(42);
   desc_should_fail<odesc7>(test_kwarg_1=6);
   desc_should_fail<odesc7>(test_kwarg_2="hello");
@@ -516,5 +520,43 @@ TEST_F(TestKeywordArguments, invoke_lambda) {
     .parse_args(test_kwarg_1=3.14)
     .invoke([](B val) {
       ASSERT_EQ(val.value, 3.14);
+    });
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+TEST_F(TestKeywordArguments, variadic_simple) {
+
+  using namespace darma_runtime::detail;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_testing;
+
+  using odesc1 = variadic_positional_overload_description<
+    _optional_keyword<converted_parameter, kw::test_kwarg_1>
+  >;
+
+  using parser = kwarg_parser<odesc1>;
+
+  desc_should_pass<odesc1>(test_kwarg_1=3.14);
+
+  using odesc1_helper_1 = decltype(desc_helper<odesc1>(1, test_kwarg_1=3.14));
+
+  STATIC_ASSERT_VALUE_EQUAL(not odesc1_helper_1::kwarg_given_before_last_positional, true);
+  STATIC_ASSERT_VALUE_EQUAL(not odesc1_helper_1::too_many_positional, true);
+
+  parser()
+    .with_defaults(test_kwarg_1=6.28)
+    .with_converters([](auto&& val) { B rv; rv.value = val; return rv; })
+    .parse_args(1, 2, 3, 4, test_kwarg_1=3.14)
+    .invoke([](B val, variadic_arguments_begin_tag, auto&&... args) {
+      ASSERT_EQ(val.value, 3.14);
+      auto test = [](int a, int b, int c, int d) {
+        ASSERT_EQ(a, 1);
+        ASSERT_EQ(b, 2);
+        ASSERT_EQ(c, 3);
+        ASSERT_EQ(d, 4);
+      };
+      test(args...);
     });
 }

@@ -103,6 +103,8 @@ struct _publish_impl {
         );
         backend_runtime->register_use(&use_to_publish);
         backend_runtime->publish_use(&use_to_publish, &dets);
+
+        // TODO Remove release_use here when Jonathan is ready for it
         backend_runtime->release_use(&use_to_publish);
         break;
       }
@@ -123,7 +125,6 @@ struct _publish_impl {
 
         this_.current_use_->do_release();
 
-        dets.reader_hint_ = reader_backend_idx;
         backend_runtime->publish_use(&use_to_publish, &dets);
 
         this_.current_use_->use.immediate_permissions_ = HandleUse::Read;
@@ -131,6 +132,7 @@ struct _publish_impl {
         // current_use_->use.out_flow_ and scheduling_permissions_ unchanged
         this_.current_use_->could_be_alias = true;
 
+        // TODO Remove release_use here when Jonathan is ready for it
         backend_runtime->release_use(&use_to_publish);
       }
       default: {

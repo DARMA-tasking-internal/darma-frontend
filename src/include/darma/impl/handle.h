@@ -115,46 +115,6 @@ struct access_expr_helper {
 
 };
 
-template <typename... Args>
-struct publish_expr_helper {
-
-  inline constexpr size_t
-  get_n_readers(
-    Args&&... args
-  ) const {
-    return get_typeless_kwarg_with_default_as<
-      keyword_tags_for_publication::n_readers,
-      size_t
-    >(1, std::forward<Args>(args)...);
-
-  }
-
-  inline
-  types::key_t
-  get_version_tag(
-    Args&&... args
-  ) const {
-    return get_typeless_kwarg_with_converter_and_default<
-      keyword_tags_for_publication::version
-    >(
-      [](auto&&... key_parts){
-        return make_key(std::forward<decltype(key_parts)>(key_parts)...);
-      },
-      types::key_t(),
-      std::forward<Args>(args)...
-    );
-  }
-
-
-  inline bool
-  version_tag_is_final(
-    Args&&... args
-  ) const {
-    return get_version_tag(std::forward<Args>(args)...) == types::key_t();
-  }
-};
-
-
 } // end namespace detail
 
 // </editor-fold>
