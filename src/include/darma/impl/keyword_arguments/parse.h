@@ -45,6 +45,7 @@
 #ifndef DARMA_IMPL_KEYWORD_ARGUMENTS_PARSE_H
 #define DARMA_IMPL_KEYWORD_ARGUMENTS_PARSE_H
 
+#include <cassert>
 #include <type_traits>
 #include <darma/impl/util/static_assertions.h>
 
@@ -55,7 +56,7 @@
 #include "kwarg_expression.h"
 
 // TODO figure out how to replace "tags" with "arguments" in error message?!?
-// TODO optional keyword arguments
+// TODO readable errors for variadic positional arguments
 
 namespace _darma__errors {
 template <typename... Args>
@@ -101,10 +102,11 @@ namespace detail {
 
 struct converted_parameter { };
 
-struct deduced_parameter {
-  template <typename T>
-  T&& get_argument(T&& val) { return std::forward<T>(val); }
-};
+struct deduced_parameter { };
+
+struct variadic_arguments_begin_tag { };
+
+//==============================================================================
 
 template <typename ParameterType>
 struct _argument_description_base {
@@ -250,6 +252,26 @@ using _keyword = keyword_only_argument<ParameterType, KWArgTag, Optional>;
 
 //==============================================================================
 
+// TODO finish this
+//struct variadic_positional_arguments {
+//  using parameter_type = converted_parameter;
+//  using tag = /* some value that will never accidentally match*/ tinympl::int_<73>;
+//
+//  using is_optional = std::false_type;
+//  using can_be_positional = std::true_type;
+//  using can_be_keyword = std::false_type;
+//  using is_converted = std::true_type;
+//
+//  template <typename Argument>
+//  using argument_is_compatible = std::true_type;
+//
+//  // TODO _pretty_printed_error_t
+//  // TODO Handle this parameter type below
+//
+//};
+
+//==============================================================================
+
 namespace _impl {
 
 template <typename T> struct _optional_impl;
@@ -296,13 +318,15 @@ struct arg_with_index {
 //==============================================================================
 
 template <typename In_ArgsWithIdxs, typename In_ArgDescsWithIdxs,
-  typename In_OptionalArgDescsWithIdxs
+  typename In_OptionalArgDescsWithIdxs, bool AllowVariadicArgs=false
 >
 struct _overload_desc_is_valid_impl {
 
   using ArgsWithIdxs = In_ArgsWithIdxs;
   using ArgDescsWithIdxs = In_ArgDescsWithIdxs;
   using OptionalArgDescsWithIdxs = In_OptionalArgDescsWithIdxs;
+
+  static constexpr auto variadic_args_allowed = AllowVariadicArgs;
 
   // placeholder for failed finds
   template <
@@ -480,9 +504,21 @@ struct _overload_desc_is_valid_impl {
     ArgsWithIdxs, _is_positional_arg
   >::value;
 
+  static constexpr auto n_described_positional_given =
+    n_positional_given < first_kwarg_only_desc ?
+      n_positional_given : first_kwarg_only_desc;
+
   static constexpr auto first_kwarg_given = tinympl::find_if<
     ArgsWithIdxs, _is_keyword_arg
   >::value;
+
+  static constexpr auto n_variadic_given =
+    n_positional_given - n_described_positional_given;
+
+  static constexpr auto variadics_given = n_variadic_given > 0;
+
+  static constexpr auto variadics_given_but_not_allowed =
+    variadics_given and not variadic_args_allowed;
 
   // If n_positional_given is greater than the index of the first kwarg given,
   // then there are keyword arguments given before the last positional
@@ -507,7 +543,7 @@ struct _overload_desc_is_valid_impl {
     first_kwarg_only_desc < first_desc_given_as_kwarg ?
       first_kwarg_only_desc : first_desc_given_as_kwarg;
 
-  static constexpr auto too_many_positional =
+  static constexpr auto too_many_positional = not variadic_args_allowed and
     n_positional_given > n_positional_args_good;
 
   // Sanity check: if too many positional is false and
@@ -515,7 +551,7 @@ struct _overload_desc_is_valid_impl {
   // arguments given should be less than or equal to the number of "good"
   // positional args (the less than happens when only positional arguments are given)
   static_assert(
-    too_many_positional or kwarg_given_before_last_positional
+    too_many_positional or kwarg_given_before_last_positional or variadic_args_allowed
       or n_positional_given <= n_positional_args_good,
     "metaprogramming logic error"
   );
@@ -530,7 +566,7 @@ struct _overload_desc_is_valid_impl {
     std::false_type,
     tinympl::all_of<
       typename ArgsWithIdxs::template erase<
-        n_positional_given, ArgsWithIdxs::size
+        n_described_positional_given, ArgsWithIdxs::size
       >::type,
       _pos_arg_is_convertible
     >
@@ -541,12 +577,15 @@ struct _overload_desc_is_valid_impl {
   // n_pos_given is not given as a keyword argument, this overload doesn't match
 
   using _req_kwarg_descs_with_idxs = typename std::conditional_t<
-    too_many_positional or kwarg_given_before_last_positional,
+    (
+      (too_many_positional or kwarg_given_before_last_positional)
+      and n_positional_given > 0
+    ),
     // if there are too many positional arguments, then we've already failed,
     // so just put an empty vector here
     tinympl::identity<tinympl::vector<>>,
     typename ArgDescsWithIdxs
-      ::template erase<0, n_positional_given>
+      ::template erase<0, n_described_positional_given>
   >::type;
 
   using _kwargs_with_idxs = typename std::conditional_t<
@@ -589,6 +628,7 @@ struct _overload_desc_is_valid_impl {
     not (
       kwarg_given_before_last_positional
         or too_many_positional
+        or variadics_given_but_not_allowed
     )
     and all_positional_args_convertible
     and all_kwargs_found
@@ -701,54 +741,6 @@ struct _overload_desc_is_valid_impl {
 
   //============================================================================
 
-  template <size_t Position,
-    typename DefaultKWArgsTuple,
-    typename ConvertersTuple,
-    typename ForwardedArgsTuple
-  >
-  decltype(auto)
-  _get_invoke_arg(
-    /* given as positional (i.e., position less than n_positional_given) */
-    std::true_type,
-    /* not an optional argument */
-    std::false_type,
-    DefaultKWArgsTuple&& defaults,
-    ConvertersTuple&& converters,
-    ForwardedArgsTuple&& tup
-  ) const {
-    return std::get<Position>(std::forward<ForwardedArgsTuple>(tup));
-  };
-
-  template <size_t Position,
-    typename DefaultKWArgsTuple,
-    typename ConvertersTuple,
-    typename ForwardedArgsTuple
-  >
-  decltype(auto)
-  _get_invoke_arg(
-    /* not given as positional (i.e., position less than n_positional_given) */
-    std::false_type,
-    /* not an optional argument */
-    std::false_type,
-    DefaultKWArgsTuple&& defaults,
-    ConvertersTuple&& converters,
-    ForwardedArgsTuple&& tup
-  ) const {
-    using arg_desc_t = typename ArgDescsWithIdxs::template at_t<Position>;
-    return _get_kwarg_value<arg_desc_t>(
-      std::get<
-        tinympl::find_if<
-          ArgsWithIdxs,
-          _make_kwarg_desc_tag_matches<arg_desc_t>::template apply
-        >::value
-      >(
-        std::forward<ForwardedArgsTuple>(tup)
-      ),
-      std::forward<ConvertersTuple>(converters)
-    );
-  };
-
-
   template <size_t OptionalPosition,
     typename DefaultKWArgsTuple,
     typename ConvertersTuple,
@@ -809,6 +801,21 @@ struct _overload_desc_is_valid_impl {
 
   };
 
+  //============================================================================
+
+  typedef enum {
+    DescribedPositional,
+    RequiredKeyword,
+    OptionalKeyword,
+    VariadicTag,
+    VariadicPositional
+  } argument_catagory_dispatch_tag;
+
+  //============================================================================
+
+  template <argument_catagory_dispatch_tag Tag>
+  using argument_catagory_t = std::integral_constant<argument_catagory_dispatch_tag, Tag>;
+
   template <size_t Position,
     typename DefaultKWArgsTuple,
     typename ConvertersTuple,
@@ -816,10 +823,48 @@ struct _overload_desc_is_valid_impl {
   >
   decltype(auto)
   _get_invoke_arg(
-    /* not given as positional (i.e., position less than n_positional_given) */
-    std::false_type,
-    /* optional argument */
-    std::true_type,
+    argument_catagory_t<DescribedPositional>,
+    DefaultKWArgsTuple&& defaults,
+    ConvertersTuple&& converters,
+    ForwardedArgsTuple&& tup
+  ) const {
+    return std::get<Position>(std::forward<ForwardedArgsTuple>(tup));
+  };
+
+  template <size_t Position,
+    typename DefaultKWArgsTuple,
+    typename ConvertersTuple,
+    typename ForwardedArgsTuple
+  >
+  decltype(auto)
+  _get_invoke_arg(
+    argument_catagory_t<RequiredKeyword>,
+    DefaultKWArgsTuple&& defaults,
+    ConvertersTuple&& converters,
+    ForwardedArgsTuple&& tup
+  ) const {
+    using arg_desc_t = typename ArgDescsWithIdxs::template at_t<Position>;
+    return _get_kwarg_value<arg_desc_t>(
+      std::get<
+        tinympl::find_if<
+          ArgsWithIdxs,
+          _make_kwarg_desc_tag_matches<arg_desc_t>::template apply
+        >::value
+      >(
+        std::forward<ForwardedArgsTuple>(tup)
+      ),
+      std::forward<ConvertersTuple>(converters)
+    );
+  };
+
+  template <size_t Position,
+    typename DefaultKWArgsTuple,
+    typename ConvertersTuple,
+    typename ForwardedArgsTuple
+  >
+  decltype(auto)
+  _get_invoke_arg(
+    argument_catagory_t<OptionalKeyword>,
     DefaultKWArgsTuple&& defaults,
     ConvertersTuple&& converters,
     ForwardedArgsTuple&& tup
@@ -845,14 +890,71 @@ struct _overload_desc_is_valid_impl {
     typename ForwardedArgsTuple
   >
   decltype(auto)
+  _get_invoke_arg(
+    argument_catagory_t<VariadicPositional>,
+    DefaultKWArgsTuple&& defaults,
+    ConvertersTuple&& converters,
+    ForwardedArgsTuple&& tup
+  ) const {
+    static constexpr auto variadic_offset = Position - (ArgDescsWithIdxs::size
+      + OptionalArgDescsWithIdxs::size + 1);
+    return std::get<n_described_positional_given + variadic_offset>(
+      std::forward<ForwardedArgsTuple>(tup)
+    );
+  };
+
+  template <size_t Position,
+    typename DefaultKWArgsTuple,
+    typename ConvertersTuple,
+    typename ForwardedArgsTuple
+  >
+  decltype(auto)
+  _get_invoke_arg(
+    argument_catagory_t<VariadicTag>,
+    DefaultKWArgsTuple&& defaults,
+    ConvertersTuple&& converters,
+    ForwardedArgsTuple&& tup
+  ) const {
+    return variadic_arguments_begin_tag{};
+  };
+
+  //============================================================================
+
+  template <size_t Position,
+    typename DefaultKWArgsTuple,
+    typename ConvertersTuple,
+    typename ForwardedArgsTuple
+  >
+  decltype(auto)
   get_invoke_arg(
     DefaultKWArgsTuple&& defaults,
     ConvertersTuple&& converters,
     ForwardedArgsTuple&& tup
   ) const {
+    using dispatch_tag_t = tinympl::select_first_t<
+      tinympl::bool_<(Position < n_described_positional_given)>,
+      /* => */ argument_catagory_t<DescribedPositional>,
+      tinympl::bool_<(
+        Position >= n_described_positional_given
+        and Position < ArgDescsWithIdxs::size
+      )>,
+      /* => */ argument_catagory_t<RequiredKeyword>,
+      tinympl::bool_<(
+        Position >= ArgDescsWithIdxs::size
+        and Position < ArgDescsWithIdxs::size + OptionalArgDescsWithIdxs::size
+      )>,
+      /* => */ argument_catagory_t<OptionalKeyword>,
+      tinympl::bool_<(
+        Position == ArgDescsWithIdxs::size + OptionalArgDescsWithIdxs::size
+      )>,
+      /* => */ argument_catagory_t<VariadicTag>,
+      tinympl::bool_<(
+        Position > ArgDescsWithIdxs::size + OptionalArgDescsWithIdxs::size
+      )>,
+      /* => */ argument_catagory_t<VariadicPositional>
+    >;
     return _get_invoke_arg<Position>(
-      typename tinympl::bool_<(Position < n_positional_given)>::type{},
-      typename tinympl::bool_<(Position >= ArgDescsWithIdxs::size)>::type{},
+      dispatch_tag_t{},
       std::forward<DefaultKWArgsTuple>(defaults),
       std::forward<ConvertersTuple>(converters),
       std::forward<ForwardedArgsTuple>(tup)
@@ -864,12 +966,11 @@ struct _overload_desc_is_valid_impl {
 
 //==============================================================================
 
-} // end namespace _impl
 
 //==============================================================================
 
-template <typename... ArgumentDescriptions>
-struct overload_description {
+template <bool AllowVariadics, typename... ArgumentDescriptions>
+struct _overload_description_maybe_variadic {
 
   using _arg_desc_vector = tinympl::vector<ArgumentDescriptions...>;
 
@@ -943,7 +1044,8 @@ struct overload_description {
   using _helper = _impl::_overload_desc_is_valid_impl<
     _make_args_with_indices<tinympl::vector<Args...>>,
     _make_args_with_indices<_required_arg_descs>,
-    _make_args_with_indices<_optional_arg_descs, _required_arg_descs::size>
+    _make_args_with_indices<_optional_arg_descs, _required_arg_descs::size>,
+    AllowVariadics
   >;
 
   template <typename... Args>
@@ -975,6 +1077,21 @@ struct overload_description {
     );
   };
 
+  using _pretty_printed_error_t =
+    _darma__errors::_____overload_candidate_with__<
+      typename ArgumentDescriptions::_pretty_printed_error_t...
+    >;
+
+};
+
+} // end namespace _impl
+
+template <typename... ArgumentDescriptions>
+struct overload_description {
+
+  using var_helper_t =
+    _impl::_overload_description_maybe_variadic<false, ArgumentDescriptions...>;
+
   template <
     typename DefaultKWArgsTuple,
     typename ConvertersTuple,
@@ -988,8 +1105,8 @@ struct overload_description {
     Callable&& C,
     ArgsTuple&& args
   ) const {
-    using helper_t = tinympl::splat_to_t<ArgsTuple, _helper>;
-    return _invoke_impl(
+    using helper_t = tinympl::splat_to_t<ArgsTuple, var_helper_t::template _helper>;
+    return var_helper_t()._invoke_impl(
       std::forward<DefaultKWArgsTuple>(defaults),
       std::forward<ConvertersTuple>(converters),
       std::forward<Callable>(C),
@@ -1001,13 +1118,46 @@ struct overload_description {
     );
   };
 
-  using _pretty_printed_error_t =
-    _darma__errors::_____overload_candidate_with__<
-      typename ArgumentDescriptions::_pretty_printed_error_t...
-    >;
+  using _pretty_printed_error_t = typename var_helper_t::_pretty_printed_error_t;
 
 };
 
+template <typename... ArgumentDescriptions>
+struct variadic_positional_overload_description {
+
+  using var_helper_t =
+    _impl::_overload_description_maybe_variadic<true, ArgumentDescriptions...>;
+
+  template <
+    typename DefaultKWArgsTuple,
+    typename ConvertersTuple,
+    typename Callable,
+    typename ArgsTuple
+  >
+  decltype(auto)
+  invoke(
+    DefaultKWArgsTuple&& defaults,
+    ConvertersTuple&& converters,
+    Callable&& C,
+    ArgsTuple&& args
+  ) const {
+    using helper_t = tinympl::splat_to_t<ArgsTuple, var_helper_t::template _helper>;
+    return var_helper_t()._invoke_impl(
+      std::forward<DefaultKWArgsTuple>(defaults),
+      std::forward<ConvertersTuple>(converters),
+      std::forward<Callable>(C),
+      std::make_index_sequence<
+        helper_t::ArgDescsWithIdxs::size + helper_t::OptionalArgDescsWithIdxs::size
+        + helper_t::n_variadic_given + 1
+      >(),
+      helper_t{},
+      std::forward<ArgsTuple>(args)
+    );
+  };
+
+  using _pretty_printed_error_t = typename var_helper_t::_pretty_printed_error_t;
+
+};
 
 template <typename... OverloadDescriptions>
 struct kwarg_parser {
@@ -1016,7 +1166,7 @@ struct kwarg_parser {
     template <typename... Args>
     struct _make_overload_is_valid {
       template <typename Overload>
-      using apply = typename Overload::template is_valid_for_args<Args...>;
+      using apply = typename Overload::var_helper_t::template is_valid_for_args<Args...>;
     };
 
     // readability
@@ -1271,12 +1421,9 @@ struct kwarg_parser {
         std::forward<Callable>(C),
         std::forward<Args>(args)...
       );
-    };
-
-
+    }
 
 };
-
 
 } // end namespace detail
 
