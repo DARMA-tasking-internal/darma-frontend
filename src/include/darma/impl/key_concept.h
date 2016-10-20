@@ -127,15 +127,15 @@ struct meets_key_concept {
     template <typename Traits>
     using traits_maker_archetype = typename Traits::maker;
     typedef meta::detected_t<traits_maker_archetype, traits_t> maker_t;
-    template <typename Traits>
-    using traits_maker_from_tuple_archetype = typename Traits::maker_from_tuple;
-    typedef meta::detected_t<traits_maker_from_tuple_archetype, traits_t> maker_from_tuple_t;
+    //template <typename Traits>
+    //using traits_maker_from_tuple_archetype = typename Traits::maker_from_tuple;
+    //typedef meta::detected_t<traits_maker_from_tuple_archetype, traits_t> maker_from_tuple_t;
 
   public:
     static constexpr auto has_maker =
         meta::is_detected<traits_maker_archetype, traits_t>::value;
-    static constexpr auto has_maker_from_tuple =
-        meta::is_detected<traits_maker_from_tuple_archetype, traits_t>::value;
+    //static constexpr auto has_maker_from_tuple =
+    //    meta::is_detected<traits_maker_from_tuple_archetype, traits_t>::value;
 
   // This probably needs stronger concept support to do formally, since we need a KeyPart concept
   //public:
@@ -213,7 +213,7 @@ struct meets_key_concept {
       && has_hasher
       && hasher_works
       && has_maker
-      && has_maker_from_tuple
+      //&& has_maker_from_tuple
       && has_component_method
       && key_component_method_works
     ;
@@ -254,14 +254,15 @@ operator<<(std::ostream& o, Key const& k) {
     "key_traits<" #K ">::hasher does work as expected"); \
   static_assert(darma_runtime::detail::meets_key_concept<K>::has_maker, \
     "key_traits<" #K "> specialization missing maker member type"); \
-  static_assert(darma_runtime::detail::meets_key_concept<K>::has_maker_from_tuple, \
-    "key_traits<" #K "> specialization missing maker_from_tuple member type"); \
   static_assert(darma_runtime::detail::meets_key_concept<K>::has_component_method, \
     #K " is missing template method component<N>()"); \
   static_assert(darma_runtime::detail::meets_key_concept<K>::key_component_method_works, \
     "return value of component<N>() for " #K " does not have an as<>() method that returns the component as a type"); \
 
-static_assert(not darma_runtime::detail::meets_key_concept<int>::value,
-  "oops, int shouldn't be a valid key");
+//  static_assert(darma_runtime::detail::meets_key_concept<K>::has_maker_from_tuple, \
+//    "key_traits<" #K "> specialization missing maker_from_tuple member type"); \
+
+//static_assert(not darma_runtime::detail::meets_key_concept<int>::value,
+//  "oops, int shouldn't be a valid key");
 
 #endif /* FRONTEND_INCLUDE_DARMA_KEY_CONCEPT_H_ */

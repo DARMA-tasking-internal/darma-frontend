@@ -60,17 +60,11 @@ make_key(Args&&... args) {
   return darma_runtime::detail::key_traits<types::key_t>::maker()(std::forward<Args>(args)...);
 }
 
-template <typename... Args>
-inline types::key_t
-make_partition_key(int rank, Args&&... args){
-  return darma_runtime::detail::key_traits<types::key_t>::maker()(rank, std::forward<Args>(args)...);
-}
-
-template <typename TupleType>
-inline types::key_t
-make_key_from_tuple(TupleType&& tup) {
-  return darma_runtime::detail::key_traits<types::key_t>::maker_from_tuple()(std::forward<TupleType>(tup));
-}
+//template <typename TupleType>
+//inline types::key_t
+//make_key_from_tuple(TupleType&& tup) {
+//  return darma_runtime::detail::key_traits<types::key_t>::maker_from_tuple()(std::forward<TupleType>(tup));
+//}
 
 } // end namespace darma_runtime
 

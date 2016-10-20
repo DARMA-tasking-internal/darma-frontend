@@ -124,6 +124,8 @@ class SimpleKey {
     template <typename... Args>
     SimpleKey(variadic_constructor_arg_t const, Args&&... args);
 
+    struct backend_assigned_key_t { };
+
 
   public:
 
@@ -196,7 +198,6 @@ class SimpleKey {
       rv.has_internal_last_component = propagate_internal_data;
       return std::move(rv);
     }
-
 
     std::string
     human_readable_string(const char* sep = ", ",

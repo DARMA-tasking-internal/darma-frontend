@@ -107,13 +107,26 @@ struct bytes_convert<std::basic_string<CharT, Traits, Allocator>> {
   }
 
   inline string_t
-  get_value(bytes_type_metadata const* md, void* data, size_t size) const {
+  get_value(bytes_type_metadata const* md, void const* data, size_t size) const {
     DARMA_ASSERT_EQUAL(
       (int)reinterpret_cast<const string_like_type_metadata*>(md)->size, (int)(size / sizeof(CharT))
     );
     return string_t((CharT*)data, size / sizeof(CharT));
   }
 };
+
+template <typename CharT, typename Traits, typename Allocator>
+struct bytes_convert<const std::basic_string<CharT, Traits, Allocator>>
+  : bytes_convert<std::basic_string<CharT, Traits, Allocator>>
+{ };
+template <typename CharT, typename Traits, typename Allocator>
+struct bytes_convert<const volatile std::basic_string<CharT, Traits, Allocator>>
+  : bytes_convert<std::basic_string<CharT, Traits, Allocator>>
+{ };
+template <typename CharT, typename Traits, typename Allocator>
+struct bytes_convert<volatile std::basic_string<CharT, Traits, Allocator>>
+  : bytes_convert<std::basic_string<CharT, Traits, Allocator>>
+{ };
 
 // </editor-fold>
 //----------------------------------------
@@ -167,7 +180,8 @@ struct bytes_convert; // {
 template <typename T>
 struct bytes_convert<T,
   // I think is_integral returns false for enums anyway, but just in case
-  std::enable_if_t<std::is_integral<T>::value and not std::is_enum<T>::value>
+  std::enable_if_t<std::is_integral<std::remove_cv_t<T>>::value
+    and not std::is_enum<std::remove_cv_t<T>>::value>
 > {
   private:
     uint8_t get_min_bytes_exponent(T const& val) const {
@@ -239,7 +253,7 @@ struct bytes_convert<T,
     }
 
     inline T
-    get_value(bytes_type_metadata const* md, void* data, size_t size) const {
+    get_value(bytes_type_metadata const* md, void const* data, size_t size) const {
       const auto* md_int = reinterpret_cast<const int_like_type_metadata*>(md);
       DARMA_ASSERT_MESSAGE(md_int->_always_true, "Bad conversion to integral type from data stored as non-integer");
       DARMA_ASSERT_MESSAGE(not md_int->_always_false, "Bad conversion to integral type from data stored as non-integer");
@@ -278,7 +292,7 @@ struct bytes_convert<T,
 
 template <typename T>
 struct bytes_convert<T,
-  std::enable_if_t<std::is_enum<T>::value>
+  std::enable_if_t<std::is_enum<std::remove_cv_t<T>>::value>
 >
 {
   inline void
@@ -308,7 +322,7 @@ struct bytes_convert<T,
   }
 
   inline T
-  get_value(bytes_type_metadata const* md, void* data, size_t size) const {
+  get_value(bytes_type_metadata const* md, void const* data, size_t size) const {
     size_t correct_index = get_registered_enum_index(T());
     const auto* md_enum = reinterpret_cast<enum_like_type_metadata const*>(md);
     DARMA_ASSERT_MESSAGE(md_enum->_always_true_1, "Bad conversion to enumerated type from data stored as non-enum");
@@ -327,7 +341,7 @@ struct bytes_convert<T,
 
 template <typename T>
 struct bytes_convert<T,
-  std::enable_if_t<std::is_floating_point<T>::value>
+  std::enable_if_t<std::is_floating_point<std::remove_cv_t<T>>::value>
 >
 {
   inline void
@@ -355,13 +369,13 @@ struct bytes_convert<T,
   }
 
   inline T
-  get_value(bytes_type_metadata const* md, void* data, size_t size) const {
+  get_value(bytes_type_metadata const* md, void const* data, size_t size) const {
     size_t correct_index = get_registered_enum_index(T());
     const auto* md_float = reinterpret_cast<float_like_type_metadata const*>(md);
     DARMA_ASSERT_MESSAGE(md_float->_always_true, "Bad conversion to floating point type from data stored as non-floating point");
     DARMA_ASSERT_MESSAGE(not md_float->_always_false_1, "Bad conversion to floating point type from data stored as non-floating point");
     DARMA_ASSERT_MESSAGE(not md_float->_always_false_2, "Bad conversion to floating point type from data stored as non-floating point");
-    return (T)*static_cast<double*>(data);
+    return (T)*static_cast<double*>(const_cast<void*>(data));
   }
 
 };
@@ -449,9 +463,15 @@ struct bytes_convert<CharT*,
 
 template <typename CharT, size_t N>
 struct bytes_convert<CharT[N],
-  std::enable_if_t<has_char_traits<std::remove_cv_t<CharT>>::value>
+  std::enable_if_t<
+    has_char_traits<std::remove_cv_t<CharT>>::value
+    and not std::is_const<CharT>::value
+  >
 > {
   static_assert(sizeof(CharT) == 1, "wide characters not yet implemeneted");
+  static_assert(N < std::numeric_limits<uint8_t>::max(),
+    "Too many characters in string given to key"
+  );
   inline void
   get_bytes_type_metadata(bytes_type_metadata* md, CharT const* val) const {
     assert(get_size(val) <= string_like_type_metadata::max_string_size);
@@ -471,6 +491,46 @@ struct bytes_convert<CharT[N],
   inline size_t
   get_size(CharT const val[N]) const {
     return traits_t::length(val);
+  }
+
+  inline constexpr void
+  operator()(CharT const val[N], void* dest, const size_t n_bytes, const size_t offset) const {
+    const size_t size = get_size(val);
+    ::memcpy(dest, ((char*)val) + offset, n_bytes);
+  }
+  // Can't be converted back
+};
+
+template <typename CharT, size_t N>
+struct bytes_convert<const CharT[N],
+  std::enable_if_t<has_char_traits<std::remove_cv_t<CharT>>::value>
+> {
+  static_assert(sizeof(CharT) == 1, "wide characters not yet implemeneted");
+  static_assert(N > 0, "don't know what to do with a zero-sized char array");
+  static_assert(N < std::numeric_limits<uint8_t>::max(),
+    "Too many characters in string given to key"
+  );
+  inline void
+  get_bytes_type_metadata(bytes_type_metadata* md, CharT const* val) const {
+    assert(get_size(val) <= string_like_type_metadata::max_string_size);
+    auto* md_string = reinterpret_cast<string_like_type_metadata*>(md);
+    md_string->_always_true = 1;
+    md_string->size = (uint8_t)(N-1);
+  }
+
+  inline uint32_t
+  get_extension_byte_value() const {
+    assert(false); // should never be called
+    return 0;
+  }
+
+  static constexpr bool size_known_statically = true;
+  static constexpr auto static_size = (N-1) * sizeof(CharT);
+  typedef std::char_traits<std::remove_cv_t<CharT>> traits_t;
+  inline size_t
+  get_size(CharT const val[N]) const {
+    assert(traits_t::length(val) == static_size);
+    return static_size;
   }
 
   inline constexpr void
@@ -503,7 +563,7 @@ using convertible_to_bytes = meta::is_detected<_impl::convertible_to_bytes_arche
 namespace _impl {
 template<typename T>
 using convertible_from_bytes_archetype = decltype(std::declval<bytes_convert<T>>().get_value(
-  std::declval<void *>(), size_t(0)
+  std::declval<void const *>(), size_t(0)
 ));
 } // end namespace _impl
 template <typename T>
