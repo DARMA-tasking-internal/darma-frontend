@@ -198,10 +198,10 @@ AccessHandle<T, Traits>::publish(
   using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<PublishExprParts...>;
 
   parser()
-    .with_defaults(
-      keyword_arguments_for_publication::version=make_key(),
-      keyword_arguments_for_publication::n_readers=1ul,
-      keyword_arguments_for_publication::out=false
+    .with_default_generators(
+      keyword_arguments_for_publication::version=[]{ return make_key(); },
+      keyword_arguments_for_publication::n_readers=[]{ return 1ul; },
+      keyword_arguments_for_publication::out=[]{ return false; }
     )
     .with_converters(
       [](auto&&... key_parts) {

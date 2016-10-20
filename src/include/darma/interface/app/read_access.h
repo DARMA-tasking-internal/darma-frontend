@@ -75,9 +75,8 @@ read_access(
         return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
       }
     )
-    .with_defaults(
-      // TODO this should be deferred invocation for performance reasons
-      keyword_arguments_for_publication::version=make_key()
+    .with_default_generators(
+      keyword_arguments_for_publication::version=[]{ return make_key(); }
     )
     .parse_args(std::forward<KeyExprParts>(parts)...)
     .invoke([](
@@ -137,11 +136,11 @@ acquire_ownership(
         return detail::DataStoreAttorney::get_handle(ds_arg);
       }
     )
-    .with_defaults(
-      // TODO this should be deferred invocation for performance reasons
-      keyword_arguments_for_publication::version=make_key(),
-      keyword_arguments_for_acquire_ownership::from_data_store=
-        darma_runtime::DataStore(DataStore::default_data_store_tag)
+    .with_default_generators(
+      keyword_arguments_for_publication::version=[]{ return make_key(); },
+      keyword_arguments_for_acquire_ownership::from_data_store=[]{
+        return std::shared_ptr<abstract::backend::DataStoreHandle>(nullptr);
+      }
     )
     .parse_args(
       std::forward<KeyExprParts>(parts)...
@@ -171,30 +170,6 @@ acquire_ownership(
       }
     );
 
-//  typedef detail::access_expr_helper<KeyExprParts...> helper_t;
-//  helper_t helper;
-//  types::key_t key = helper.get_key(std::forward<KeyExprParts>(parts)...);
-//  types::key_t user_version_tag = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
-//
-//  auto ds_ptr = detail::get_typeless_kwarg_with_converter_and_default<
-//    keyword_tags_for_acquire_ownership::from_data_store
-//  >([&](auto&& ds_arg) {
-//    return detail::DataStoreAttorney::get_handle(ds_arg);
-//  }, nullptr, std::forward<KeyExprParts>(parts)...);
-//
-//  auto backend_runtime = abstract::backend::get_backend_runtime();
-//  auto var_h = detail::make_shared<detail::VariableHandle<U>>(key);
-//  auto in_flow = detail::make_flow_ptr(
-//    backend_runtime->make_fetching_flow( var_h, user_version_tag, ds_ptr, true )
-//  );
-//  auto out_flow = detail::make_flow_ptr(
-//    backend_runtime->make_null_flow( var_h )
-//  );
-//
-//  return detail::access_attorneys::for_AccessHandle::construct_access<U>(
-//    var_h, in_flow, out_flow,
-//    detail::HandleUse::Modify, detail::HandleUse::None
-//  );
 }
 
 
