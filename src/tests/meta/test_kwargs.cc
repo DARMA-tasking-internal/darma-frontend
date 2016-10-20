@@ -477,7 +477,7 @@ TEST_F(TestKeywordArguments, overload_tests) {
 ////////////////////////////////////////////////////////////////////////////////
 
 
-TEST_F(TestKeywordArguments, overload_with_defaults_tests) {
+TEST_F(TestKeywordArguments, overload_with_default_generators_tests) {
 
   using namespace darma_runtime::detail;
   using namespace darma_runtime;
@@ -489,8 +489,8 @@ TEST_F(TestKeywordArguments, overload_with_defaults_tests) {
     >
   >;
   parser().invoke(MyOverloads(4), test_kwarg_1=3.14);
-  parser().with_defaults(test_kwarg_1=3.14).invoke(MyOverloads(4));
-  parser().with_defaults(test_kwarg_1=6.28).invoke(MyOverloads(4), test_kwarg_1=3.14);
+  parser().with_default_generators(test_kwarg_1=[]{ return 3.14; }).invoke(MyOverloads(4));
+  parser().with_default_generators(test_kwarg_1=[]{ return 6.28; }).invoke(MyOverloads(4), test_kwarg_1=3.14);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -508,7 +508,7 @@ TEST_F(TestKeywordArguments, converter) {
     >
   >;
   parser()
-    .with_defaults(test_kwarg_1=3.14)
+    .with_default_generators(test_kwarg_1=[]{ B rv; rv.value = 3.14; return rv; })
     .with_converters([](auto&& val) { B rv; rv.value = val; return rv; })
     .invoke(MyOverloads(5));
 }
@@ -528,7 +528,7 @@ TEST_F(TestKeywordArguments, invoke_lambda) {
     >
   >;
   parser()
-    .with_defaults(test_kwarg_1=6.28)
+    .with_default_generators(test_kwarg_1=[]{ return 6.28; })
     .with_converters([](auto&& val) { B rv; rv.value = val; return rv; })
     .parse_args(test_kwarg_1=3.14)
     .invoke([](B val) {
@@ -536,7 +536,7 @@ TEST_F(TestKeywordArguments, invoke_lambda) {
     });
   parser()
     .with_converters([](auto&& val) { B rv; rv.value = val; return rv; })
-    .with_defaults(test_kwarg_1=6.28)
+    .with_default_generators(test_kwarg_1=[]{ return 6.28; })
     .parse_args(test_kwarg_1=3.14)
     .invoke([](B val) {
       ASSERT_EQ(val.value, 3.14);
@@ -566,7 +566,7 @@ TEST_F(TestKeywordArguments, variadic_simple) {
   STATIC_ASSERT_VALUE_EQUAL(not odesc1_helper_1::too_many_positional, true);
 
   parser()
-    .with_defaults(test_kwarg_1=6.28)
+    .with_default_generators(test_kwarg_1=[]{ return 6.28; })
     .with_converters([](auto&& val) { B rv; rv.value = val; return rv; })
     .parse_args(1, 2, 3, 4, test_kwarg_1=3.14)
     .invoke([](B val, variadic_arguments_begin_tag, auto&&... args) {
