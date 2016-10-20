@@ -190,6 +190,24 @@ void test_function(Args&&... args) {
   using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
 }
 
+template <typename... Args>
+void test_function_variadics(Args&&... args) {
+
+  using namespace darma_runtime::detail;
+  using parser = kwarg_parser<
+    variadic_positional_overload_description<
+      positional_or_keyword_argument<int, kw::test_kwarg_1>,
+      positional_or_keyword_argument<double, kw::test_kwarg_2>,
+      keyword_only_argument<double, kw::test_kwarg_3>
+    >,
+    overload_description<
+      positional_only_argument<int>,
+      positional_only_argument<int>
+    >
+  >;
+  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
+}
+
 struct A { int value = 0; };
 struct ConvToA {
   int value = 0;
@@ -324,6 +342,8 @@ TEST_F(TestKeywordArguments, static_tests) {
   //assert_valid<parser>(test_kwarg_1=5, test_kwarg_3=6);
   // should fail gracefully, useful as an example of what a user might see...
   //test_function(test_kwarg_1=5, test_kwarg_3=6);
+  // should fail gracefully, useful as an example of what a user might see...
+  //test_function_variadics(test_kwarg_1=5, test_kwarg_3=6);
 
   //============================================================================
 

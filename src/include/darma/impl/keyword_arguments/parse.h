@@ -58,7 +58,12 @@
 // TODO figure out how to replace "tags" with "arguments" in error message?!?
 // TODO readable errors for variadic positional arguments
 
+#ifndef DARMA_NO_PRETTY_PRINT_COMPILE_TIME_ERRORS
+#define DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
+#endif
+
 namespace _darma__errors {
+#ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
 template <typename... Args>
 struct __________no_matching_function_call_with__ { };
 template <typename Arg>
@@ -71,6 +76,8 @@ struct ____keyword_argument____ {
 struct __________candidate_overloads_are__ { };
 template <typename... Args>
 struct _____overload_candidate_with__ { };
+
+struct ___expected_zero_or_more_variadic_positional_arguments_ { };
 
 template <typename Tag>
 struct ___expected_positional_or_keyword_ {
@@ -91,7 +98,9 @@ struct ___expected_positional_argument_only_ {
   struct _convertible_to_ { };
   struct _with_deduced_type { };
 };
-
+#else
+struct __________use_dash_D_DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS__to_see_a_better_error_message { };
+#endif
 } // end namespace _darma__errors
 
 namespace darma_runtime {
@@ -103,6 +112,8 @@ namespace detail {
 struct converted_parameter { };
 
 struct deduced_parameter { };
+
+//==============================================================================
 
 struct variadic_arguments_begin_tag { };
 
@@ -170,6 +181,7 @@ struct positional_or_keyword_argument : _argument_description_base<ParameterType
       /* default => */ typename base_t::template _type_is_compatible<Argument>
     >;
 
+#ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
     using _pretty_printed_error_t = std::conditional_t<
       std::is_same<ParameterType, deduced_parameter>::value,
       typename _darma__errors::___expected_positional_or_keyword_<KWArgTag>::_with_deduced_type,
@@ -177,6 +189,7 @@ struct positional_or_keyword_argument : _argument_description_base<ParameterType
         KWArgTag
       >::template _convertible_to_<ParameterType>
     >;
+#endif
 
 };
 template <typename ParameterType, typename KWArgTag, bool Optional=false>
@@ -202,11 +215,13 @@ struct positional_only_argument : _argument_description_base<ParameterType> {
     template <typename Argument>
     using argument_is_compatible = typename base_t::template _type_is_compatible<Argument>;
 
+#ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
     using _pretty_printed_error_t = std::conditional_t<
       std::is_same<ParameterType, deduced_parameter>::value,
       _darma__errors::___expected_positional_argument_only_::_with_deduced_type,
       _darma__errors::___expected_positional_argument_only_::template _convertible_to_<ParameterType>
     >;
+#endif
 };
 template <typename ParameterType, bool Optional=false>
 using _positional = positional_only_argument<ParameterType, Optional>;
@@ -239,6 +254,7 @@ struct keyword_only_argument : _argument_description_base<ParameterType> {
       _value_type_if_kwarg<Argument>
     >;
 
+#ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
     using _pretty_printed_error_t = std::conditional_t<
       std::is_same<ParameterType, deduced_parameter>::value,
       typename _darma__errors::___expected_keyword_argument_only_<KWArgTag>::_with_deduced_type,
@@ -246,29 +262,10 @@ struct keyword_only_argument : _argument_description_base<ParameterType> {
         KWArgTag
       >::template _convertible_to_<ParameterType>
     >;
+#endif
 };
 template <typename ParameterType, typename KWArgTag, bool Optional=false>
 using _keyword = keyword_only_argument<ParameterType, KWArgTag, Optional>;
-
-//==============================================================================
-
-// TODO finish this
-//struct variadic_positional_arguments {
-//  using parameter_type = converted_parameter;
-//  using tag = /* some value that will never accidentally match*/ tinympl::int_<73>;
-//
-//  using is_optional = std::false_type;
-//  using can_be_positional = std::true_type;
-//  using can_be_keyword = std::false_type;
-//  using is_converted = std::true_type;
-//
-//  template <typename Argument>
-//  using argument_is_compatible = std::true_type;
-//
-//  // TODO _pretty_printed_error_t
-//  // TODO Handle this parameter type below
-//
-//};
 
 //==============================================================================
 
@@ -291,8 +288,6 @@ struct _optional_impl<positional_or_keyword_argument<Parameter, KWArgTag, false>
   using type = positional_or_keyword_argument<Parameter, KWArgTag, true>;
 };
 } // end namespace _impl
-
-//==============================================================================
 
 template <typename T>
 using _optional = typename _impl::_optional_impl<T>::type;
@@ -624,6 +619,8 @@ struct _overload_desc_is_valid_impl {
     >
   >::type::value;
 
+  //============================================================================
+
   static constexpr auto value =
     not (
       kwarg_given_before_last_positional
@@ -654,6 +651,8 @@ struct _overload_desc_is_valid_impl {
     _is_converted_param
   >::type;
 
+  //============================================================================
+  // <editor-fold desc="get_invoke_arg() and helpers">
 
   template <
     typename ArgDescPair,
@@ -811,8 +810,6 @@ struct _overload_desc_is_valid_impl {
     VariadicPositional
   } argument_catagory_dispatch_tag;
 
-  //============================================================================
-
   template <argument_catagory_dispatch_tag Tag>
   using argument_catagory_t = std::integral_constant<argument_catagory_dispatch_tag, Tag>;
 
@@ -961,11 +958,10 @@ struct _overload_desc_is_valid_impl {
     );
   };
 
+  // </editor-fold>
+  //============================================================================
 
 };
-
-//==============================================================================
-
 
 //==============================================================================
 
@@ -1077,14 +1073,25 @@ struct _overload_description_maybe_variadic {
     );
   };
 
+#ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
   using _pretty_printed_error_t =
-    _darma__errors::_____overload_candidate_with__<
-      typename ArgumentDescriptions::_pretty_printed_error_t...
+    std::conditional_t<
+      AllowVariadics,
+      _darma__errors::_____overload_candidate_with__<
+        typename ArgumentDescriptions::_pretty_printed_error_t...,
+        _darma__errors::___expected_zero_or_more_variadic_positional_arguments_
+      >,
+      _darma__errors::_____overload_candidate_with__<
+        typename ArgumentDescriptions::_pretty_printed_error_t...
+      >
     >;
+#endif
 
 };
 
 } // end namespace _impl
+
+//==============================================================================
 
 template <typename... ArgumentDescriptions>
 struct overload_description {
@@ -1118,7 +1125,9 @@ struct overload_description {
     );
   };
 
+#ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
   using _pretty_printed_error_t = typename var_helper_t::_pretty_printed_error_t;
+#endif
 
 };
 
@@ -1155,9 +1164,13 @@ struct variadic_positional_overload_description {
     );
   };
 
+#ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
   using _pretty_printed_error_t = typename var_helper_t::_pretty_printed_error_t;
+#endif
 
 };
+
+//==============================================================================
 
 template <typename... OverloadDescriptions>
 struct kwarg_parser {
@@ -1173,6 +1186,7 @@ struct kwarg_parser {
     template <bool cond, typename A, typename B>
     using ______see_calling_context_below_____ = typename std::conditional_t<cond, A, B>::type;
 
+#ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
     template <typename Arg, typename Enable=void>
     struct readable_argument_description {
       using type = _darma__errors::____positional_argument____<Arg>;
@@ -1184,6 +1198,7 @@ struct kwarg_parser {
       using type = typename _darma__errors::____keyword_argument____<typename Arg::tag>
         ::template _equals_<typename Arg::argument_type>;
     };
+#endif
 
 
   public:
@@ -1208,6 +1223,7 @@ struct kwarg_parser {
         invocation_is_valid<Args...>::value,
         tinympl::identity<int>,
         _darma__static_failure<
+#ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
           _____________________________________________________________________,
           _____________________________________________________________________,
           _darma__errors::__________no_matching_function_call_with__<
@@ -1219,6 +1235,9 @@ struct kwarg_parser {
           typename OverloadDescriptions::_pretty_printed_error_t...,
           _____________________________________________________________________,
           _____________________________________________________________________
+#else
+          _darma__errors::__________use_dash_D_DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS__to_see_a_better_error_message
+#endif
         >
       >());
 
