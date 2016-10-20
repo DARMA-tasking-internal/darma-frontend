@@ -1,0 +1,447 @@
+/*
+//@HEADER
+// ************************************************************************
+//
+//                      SSO_key.h
+//                         DARMA
+//              Copyright (C) 2016 Sandia Corporation
+//
+// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// the U.S. Government retains certain rights in this software.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+// 1. Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright
+// notice, this list of conditions and the following disclaimer in the
+// documentation and/or other materials provided with the distribution.
+//
+// 3. Neither the name of the Corporation nor the names of the
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY SANDIA CORPORATION "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+// PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SANDIA CORPORATION OR THE
+// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+//
+// ************************************************************************
+//@HEADER
+*/
+
+#ifndef DARMA_IMPL_KEY_SSO_KEY_H
+#define DARMA_IMPL_KEY_SSO_KEY_H
+
+#include <string>
+#include <darma/impl/util.h>
+
+#include <tinympl/vector.hpp>
+
+#include <darma/impl/key_concept.h>
+#include <darma/impl/key/bytes_convert.h>
+#include <darma/impl/meta/tuple_for_each.h>
+#include "SSO_key_fwd.h"
+
+namespace darma_runtime {
+
+namespace detail {
+
+namespace _impl {
+
+
+template <typename...> struct _do_sum;
+
+// Need to pop off the back to be left-associative
+template <typename TN, typename Arg0, typename... Args>
+struct _do_sum<TN, tinympl::vector<Arg0, Args...>> {
+  using _rest_vector_t = tinympl::vector<Arg0, Args...>;
+  inline auto
+  operator()(Arg0&& arg0, Args&&... args, TN&& vn) const {
+    return _do_sum<
+      typename _rest_vector_t::back::type,
+      typename _rest_vector_t::pop_back::type
+    >()(std::forward<Arg0>(arg0), std::forward<Args>(args)...) + vn;
+  }
+};
+
+template <typename TN>
+struct _do_sum<TN, tinympl::vector<>> {
+  inline auto
+  operator()(TN&& vn) const {
+    return vn;
+  }
+};
+
+
+// TODO move this somewhere more logical
+template <typename Arg0, typename... Args>
+inline auto _sum(Arg0&& arg0, Args&&... args) {
+  using _rest_vector_t = tinympl::vector<Arg0, Args...>;
+  return _do_sum<
+    typename _rest_vector_t::back::type,
+    typename _rest_vector_t::pop_back::type
+  >()(std::forward<Arg0>(arg0), std::forward<Args>(args)...);
+
+}
+
+} // end namespace _impl
+
+// A key that employs an optimization similar to the short-string optimization in std::string
+template <
+  /* default allows it to fit in a cache line */
+  size_t BufferSize /* = 64 - sizeof(size_t) - sizeof(_impl::sso_key_mode_t) */,
+  typename BackendAssignedKeyType /*= size_t */,
+  typename PieceSizeOrdinal /*= uint8_t */,
+  typename ComponentCountOrdinal /*= uint8_t */
+>
+class SSOKey {
+  private:
+
+    //template <typename... Args>
+    //friend detail::SSOKey<buffer_size> darma_runtime::make_key(Args&&...);
+
+    struct backend_assigned_key_tag { };
+    struct request_backend_assigned_key_tag { };
+
+
+    struct _short {
+      size_t size;
+      char data[BufferSize];
+    };
+
+    struct _long {
+      size_t size;
+      char* data;
+    };
+
+    struct _backend_assigned {
+      BackendAssignedKeyType backend_assigned_key;
+    };
+
+    struct alignas(8) _repr {
+      _repr() = default;
+      union {
+        _long as_long;
+        _short as_short;
+        _backend_assigned as_backend_assigned;
+      };
+    };
+
+    alignas(8) _impl::sso_key_mode_t mode = _impl::Long;
+    alignas(8) _repr repr;
+
+
+    bool needs_backend_assigned_key() const {
+      return mode == _impl::Long and repr.as_long.data == nullptr;
+    }
+
+    explicit SSOKey(request_backend_assigned_key_tag) {
+      // both values are defaults, but just for readability...
+      repr.as_long.data = nullptr;
+    }
+
+    SSOKey(
+      backend_assigned_key_tag,
+      BackendAssignedKeyType const& value
+    ) : mode(_impl::BackendAssigned)
+    {
+      repr.as_backend_assigned = _backend_assigned{ value };
+    }
+
+    SSOKey(
+      backend_assigned_key_tag,
+      BackendAssignedKeyType&& value
+    ) : mode(_impl::BackendAssigned)
+    {
+      repr.as_backend_assigned = _backend_assigned{ std::move(value) };
+    }
+
+    template <typename... Args>
+    SSOKey(
+      variadic_constructor_arg_t,
+      Args&&... args
+    ) {
+      static_assert(sizeof...(Args) < std::numeric_limits<ComponentCountOrdinal>::max(),
+        "Too many components given to SSO Key"
+      );
+      size_t buffer_size = _impl::_sum(
+        bytes_convert<std::remove_reference_t<Args>>().get_size(
+          std::forward<Args>(args)
+        )...
+      ) + sizeof...(Args)*(sizeof(PieceSizeOrdinal)+sizeof(bytes_type_metadata))
+        + sizeof(ComponentCountOrdinal);
+      char* buffer;
+      if(buffer_size < BufferSize) {
+        // Employ SSO
+        mode = _impl::Short;
+        repr.as_short = _short();
+        repr.as_short.size = buffer_size;
+        buffer = repr.as_short.data;
+      }
+      else {
+        // use large buffer
+        mode = _impl::Long;
+        repr.as_long = _long();
+        repr.as_long.size = buffer_size;
+        repr.as_long.data = buffer = new char[buffer_size];
+      }
+      // Put the number of components in first
+      *reinterpret_cast<ComponentCountOrdinal*>(buffer) = sizeof...(Args);
+      buffer += sizeof(ComponentCountOrdinal);
+      meta::tuple_for_each(
+        std::forward_as_tuple(std::forward<Args>(args)...),
+        [&](auto&& arg) {
+          bytes_convert<std::remove_reference_t<decltype(arg)>> bc;
+          DARMA_ASSERT_RELATED_VERBOSE(
+            bc.get_size(arg), <=, std::numeric_limits<PieceSizeOrdinal>::max()
+          );
+          const PieceSizeOrdinal size = bc.get_size(arg);
+          *reinterpret_cast<PieceSizeOrdinal*>(buffer) = size;
+          buffer += sizeof(PieceSizeOrdinal);
+          bc.get_bytes_type_metadata(reinterpret_cast<bytes_type_metadata*>(buffer), arg);
+          DARMA_ASSERT_MESSAGE(not has_category_extension_byte(reinterpret_cast<bytes_type_metadata*>(buffer)),
+            "Extended enum support not yet available; bug the developers if you need this (too many different enum types used with keys in your program)"
+          );
+          buffer += sizeof(bytes_type_metadata);
+          bc(std::forward<decltype(arg)>(arg), buffer, size, 0);
+          buffer += size;
+        }
+      );
+    }
+
+    bool _is_long() const { return mode == _impl::Long; }
+    bool _is_short() const { return mode == _impl::Short; }
+    bool _is_backend_assigned() const { return mode == _impl::BackendAssigned; }
+
+    size_t _data_size() const {
+      switch(mode) {
+        case _impl::BackendAssigned: return sizeof(BackendAssignedKeyType);
+        case _impl::Short: return repr.as_short.size;
+        case _impl::Long: return repr.as_long.size;
+      }
+    }
+
+    char const* _data_pointer() const {
+      switch(mode) {
+        case _impl::BackendAssigned:
+          return reinterpret_cast<const char*>(&repr.as_backend_assigned.backend_assigned_key);
+        case _impl::Short:
+          return repr.as_short.data;
+        case _impl::Long:
+          return repr.as_long.data;
+      }
+    }
+
+    friend struct key_traits<SSOKey>;
+
+    struct SSOKeyComponent {
+      private:
+
+        char const* data;
+        PieceSizeOrdinal size;
+        bytes_type_metadata const* md;
+
+      public:
+
+        SSOKeyComponent(char const* data, const PieceSizeOrdinal size, bytes_type_metadata const* md)
+          : data(data), size(size), md(md)
+        { }
+
+
+        template <typename T>
+        T as() const {
+          return bytes_convert<std::remove_reference_t<T>>().get_value(
+            md, data, size
+          );
+
+        }
+    };
+
+    static constexpr uint8_t not_given = std::numeric_limits<uint8_t>::max();
+
+  public:
+
+    SSOKey() : SSOKey(request_backend_assigned_key_tag{}) { }
+
+    ~SSOKey() {
+      if(mode == _impl::Long and repr.as_long.data != nullptr) {
+        delete[] repr.as_long.data;
+      }
+    }
+
+    size_t n_components() const {
+      if(mode == _impl::BackendAssigned) return 0;
+      else {
+        return *reinterpret_cast<ComponentCountOrdinal const*>(_data_pointer());
+      }
+    }
+
+    std::string
+    human_readable_string(const char* sep = ", ",
+      const char* left_paren = "{", const char* right_paren = "}"
+    ) const {
+      std::ostringstream sstr;
+      sstr << left_paren;
+      print_human_readable(sep, sstr);
+      sstr << right_paren;
+      return sstr.str();
+    }
+
+    void
+    print_human_readable(
+      const char* sep = ", ", std::ostream& o = std::cout
+    ) const {
+      if(_is_backend_assigned()) {
+        o << "<generated key: " << repr.as_backend_assigned.backend_assigned_key << ">";
+        return;
+      }
+
+      char const* buffer = _data_pointer() + sizeof(ComponentCountOrdinal);
+      const size_t n_comps = n_components();
+      for(size_t i = 0; i < n_comps; ++i) {
+        const PieceSizeOrdinal piece_size = *reinterpret_cast<PieceSizeOrdinal const*>(buffer);
+        buffer += sizeof(PieceSizeOrdinal);
+        const auto* md = reinterpret_cast<bytes_type_metadata const*>(buffer);
+        buffer += sizeof(bytes_type_metadata);
+        if(md->is_string_like) {
+          o << bytes_convert<std::string>().get_value(md, buffer, piece_size);
+        }
+        else if(md->is_int_like_type) {
+          if(not reinterpret_cast<const int_like_type_metadata*>(md)->is_enumerated) {
+            o << bytes_convert<intmax_t>().get_value(md, buffer, piece_size);
+          }
+          else {
+            // TODO more enum verbosity
+            o << "<enum>";
+          }
+        }
+        else if(md->is_floating_point_like_type) {
+          o << bytes_convert<double>().get_value(md, buffer, piece_size);
+        }
+        else {
+          assert(false); // not implemented
+        }
+        buffer += piece_size;
+
+        if(i != n_components()) o << sep;
+      }
+    }
+
+
+    template <uint8_t N=not_given>
+    SSOKeyComponent
+    component(size_t N_dynamic=not_given) const {
+      assert(N_dynamic == not_given || N_dynamic < (size_t)std::numeric_limits<ComponentCountOrdinal>::max());
+      static_assert(N == not_given || N < std::numeric_limits<ComponentCountOrdinal>::max(),
+        "tried to get key component greater than max_num_parts");
+      assert(N == not_given xor N_dynamic == not_given);
+      const uint8_t actual_N = N == not_given ? (uint8_t)N_dynamic : N;
+      DARMA_ASSERT_RELATED_VERBOSE((int)actual_N, <, n_components());
+      DARMA_ASSERT_MESSAGE(mode != _impl::BackendAssigned,
+        "Can't get component of backend-assigned key"
+      );
+      char const* buffer = _data_pointer() + sizeof(ComponentCountOrdinal);
+      for(int i = 0; i < actual_N; ++i) {
+        PieceSizeOrdinal psize = *reinterpret_cast<PieceSizeOrdinal const*>(buffer);
+        buffer += sizeof(PieceSizeOrdinal) + psize + sizeof(bytes_type_metadata);
+      }
+      return SSOKeyComponent(
+        buffer + sizeof(PieceSizeOrdinal) + sizeof(bytes_type_metadata),
+        *reinterpret_cast<PieceSizeOrdinal const*>(buffer),
+        reinterpret_cast<bytes_type_metadata const*>(buffer + sizeof(PieceSizeOrdinal))
+      );
+    }
+
+};
+
+template <
+  size_t BufferSize,
+  typename BackendAssignedKeyType,
+  typename PieceSizeOrdinal,
+  typename ComponentCountOrdinal
+>
+struct key_traits<
+  SSOKey<
+    BufferSize,
+    BackendAssignedKeyType,
+    PieceSizeOrdinal,
+    ComponentCountOrdinal
+  >
+> {
+  using sso_key_t = SSOKey<
+    BufferSize,
+    BackendAssignedKeyType,
+    PieceSizeOrdinal,
+    ComponentCountOrdinal
+  >;
+
+  struct maker {
+    template <typename... Args>
+    inline sso_key_t
+    operator()(Args&&... args) const {
+      return sso_key_t(
+        variadic_constructor_arg,
+        std::forward<Args>(args)...
+      );
+    }
+  };
+
+  struct backend_maker {
+    inline sso_key_t
+    operator()(BackendAssignedKeyType const& k) const {
+      return sso_key_t(
+        typename sso_key_t::backend_assigned_key_tag{}, k
+      );
+    }
+    inline sso_key_t
+    operator()(BackendAssignedKeyType&& k) const {
+      return sso_key_t(
+        typename sso_key_t::backend_assigned_key_tag{}, std::move(k)
+      );
+    }
+  };
+
+  struct key_equal {
+    inline bool
+    operator()(sso_key_t const& k1, sso_key_t const& k2) const {
+      return
+        // also check that they are not mismatched with respect to backend-assigned-ness
+        not (k1.mode == _impl::BackendAssigned xor k2.mode == _impl::BackendAssigned)
+        and detail::equal_as_bytes(
+          k1._data_pointer(), k1._data_size(),
+          k2._data_pointer(), k2._data_size()
+        );
+    }
+  };
+
+  struct hasher {
+    inline size_t
+    operator()(sso_key_t const& k) const {
+      return hash_as_bytes(k._data_pointer(), k._data_size());
+    }
+  };
+
+};
+
+
+} // end namespace detail
+
+
+
+
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_KEY_SSO_KEY_H

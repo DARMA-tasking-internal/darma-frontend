@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                      extract_template.hpp
-//                         TINYMPL
+//                      SSO_key_fwd.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,45 +42,32 @@
 //@HEADER
 */
 
-#ifndef TINYMPL_EXTRACT_TEMPLATE_HPP
-#define TINYMPL_EXTRACT_TEMPLATE_HPP
+#ifndef DARMA_IMPL_KEY_SSO_KEY_FWD_H
+#define DARMA_IMPL_KEY_SSO_KEY_FWD_H
 
-#include <tinympl/variadic/at.hpp>
+namespace darma_runtime {
+namespace detail {
 
-namespace tinympl {
+namespace _impl {
 
-template <typename T>
-struct extract_template;
+typedef enum {
+  Long = (uint8_t)0,
+  Short = (uint8_t)1,
+  BackendAssigned = (uint8_t)2
+} sso_key_mode_t;
 
-template <
-  template <class...> class templ,
-  class... Args
->
-struct extract_template<templ<Args...>> {
-  template <typename... Ts>
-  using rebind = templ<Ts...>;
-};
-
-template <typename T>
-struct extract_args;
+} // end namespace _impl
 
 template <
-  template <class...> class templ,
-  class... Args
+  /* default allows it to fit in a cache line */
+  size_t BufferSize = 64 - sizeof(size_t) - 8,
+  typename BackendAssignedKeyType = size_t,
+  typename PieceSizeOrdinal = uint8_t,
+  typename ComponentCountOrdinal = uint8_t
 >
-struct extract_args<templ<Args...>> {
-  template <template <typename...> class new_templ>
-  using rebind = new_templ<Args...>;
-};
+class SSOKey;
 
-template <size_t N, typename T>
-struct extract_arg_n;
+} // end namespace detail
+} // end namespace darma_runtime
 
-template <size_t N, template <class...> class templ, typename... Args>
-struct extract_arg_n<N, templ<Args...>> {
-  using type = tinympl::variadic::at_t<N, Args...>;
-};
-
-} // end namespace tinympl
-
-#endif //TINYMPL_EXTRACT_TEMPLATE_HPP
+#endif //DARMA_IMPL_KEY_SSO_KEY_FWD_H
