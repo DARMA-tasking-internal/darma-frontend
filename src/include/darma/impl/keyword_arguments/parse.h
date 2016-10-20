@@ -1414,6 +1414,23 @@ struct kwarg_parser {
       );
     }
 
+    template <typename... Args>
+    auto
+    parse_args(
+      Args&&... args
+    ) const {
+      return _parsed_invoke<
+        std::tuple<>,
+        std::tuple<>,
+        decltype(std::forward_as_tuple(std::forward<Args>(args)...)),
+        _valid_overload_desc_t<Args...>
+      >(
+        std::forward_as_tuple(),
+        std::forward_as_tuple(),
+        std::forward_as_tuple(std::forward<Args>(args)...)
+      );
+    }
+
     template <typename Callable, typename... Args>
     decltype(auto)
     invoke(Callable&& C, Args&&... args) const {

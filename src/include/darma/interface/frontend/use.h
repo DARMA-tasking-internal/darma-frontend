@@ -60,6 +60,8 @@ namespace frontend {
 /** @brief Encapsulates the state, permissions, and data reference for a Handle
  *  at a given point in logical time as required by an operation.
  *
+ *  @todo update this.
+ *
  *  Use objects have a life cycle with 3 strictly ordered phases.  For some Use
  *  instance u,
  *    + Creation/registration -- `&u` is passed as the argument to
@@ -84,7 +86,7 @@ namespace frontend {
  *      no longer be valid on return. The destructor of Use will NOT delete its
  *      input and output flow. The backend runtime is responsible for deleting
  *      Flow allocations, which may occur during release.
- *        
+ *
  */
 class Use {
   public:
@@ -124,6 +126,9 @@ class Use {
     virtual types::flow_t const&
     get_in_flow() const =0;
 
+    /** @todo document this
+     *  @remark backend is only allowed to call this during reregister_migrated_use
+     */
     virtual void
     set_in_flow(types::flow_t const&) =0;
 
@@ -133,6 +138,9 @@ class Use {
     virtual types::flow_t const&
     get_out_flow() const =0;
 
+    /** @todo document this
+     *  @remark backend is only allowed to call this during reregister_migrated_use
+     */
     virtual void
     set_out_flow(types::flow_t const&) =0;
 

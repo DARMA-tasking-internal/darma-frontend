@@ -50,6 +50,7 @@
 #include <darma/interface/app/access_handle.h>
 #include <darma/impl/handle_attorneys.h>
 #include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
+#include <darma/impl/keyword_arguments/parse.h>
 #include <darma/impl/util.h>
 #include <darma/impl/flow_handling.h>
 
@@ -63,26 +64,31 @@ AccessHandle<T>
 initial_access(
   KeyExprParts&&... parts
 ) {
-  static_assert(detail::only_allowed_kwargs_given<
-    >::template apply<KeyExprParts...>::type::value,
-    "Unknown keyword argument given to initial_access"
-  );
-  types::key_t key = detail::access_expr_helper<KeyExprParts...>().get_key(
-    std::forward<KeyExprParts>(parts)...
-  );
+  using namespace darma_runtime::detail;
+  using parser = detail::kwarg_parser<
+    variadic_positional_overload_description<>
+  >;
+  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<KeyExprParts...>;
 
-  auto* backend_runtime = abstract::backend::get_backend_runtime();
-  auto var_h = detail::make_shared<detail::VariableHandle<T>>(key);
-  auto in_flow = detail::make_flow_ptr(
-    backend_runtime->make_initial_flow( var_h )
-  );
-  auto out_flow = detail::make_flow_ptr(
-    backend_runtime->make_null_flow( var_h )
-  );
+  return parser()
+    .parse_args(std::forward<KeyExprParts>(parts)...)
+    .invoke([](variadic_arguments_begin_tag, auto&&... args) -> decltype(auto) {
+      types::key_t key = darma_runtime::make_key(std::forward<decltype(args)>(args)...);
 
-  return detail::access_attorneys::for_AccessHandle::construct_access<T>(
-    var_h, in_flow, out_flow, detail::HandleUse::Modify, detail::HandleUse::None
-  );
+      auto* backend_runtime = abstract::backend::get_backend_runtime();
+      auto var_h = detail::make_shared<detail::VariableHandle<T>>(key);
+      auto in_flow = detail::make_flow_ptr(
+        backend_runtime->make_initial_flow( var_h )
+      );
+      auto out_flow = detail::make_flow_ptr(
+        backend_runtime->make_null_flow( var_h )
+      );
+
+      return detail::access_attorneys::for_AccessHandle::construct_access<T>(
+        var_h, in_flow, out_flow, detail::HandleUse::Modify, detail::HandleUse::None
+      );
+
+    });
 }
 
 } // end namespace darma_runtime
