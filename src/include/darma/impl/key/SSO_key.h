@@ -53,6 +53,7 @@
 #include <darma/impl/key_concept.h>
 #include <darma/impl/key/bytes_convert.h>
 #include <darma/impl/meta/tuple_for_each.h>
+#include <darma/impl/serialization/range.h>
 #include "SSO_key_fwd.h"
 
 namespace darma_runtime {
@@ -121,6 +122,18 @@ struct SSOKeyAttorney {
   ) {
     return key.mode;
   }
+  template <typename SSOKeyT>
+  static
+  typename SSOKeyT::piece_size_ordinal_t
+  _get_piece_size_ordinal_t();
+  template <typename SSOKeyT>
+  using piece_size_ordinal_t = decltype(_get_piece_size_ordinal_t<SSOKeyT>());
+  template <typename SSOKeyT>
+  static
+  typename SSOKeyT::component_count_ordinal_t
+  _get_component_count_ordinal_t();
+  template <typename SSOKeyT>
+  using component_count_ordinal_t = decltype(_get_component_count_ordinal_t<SSOKeyT>());
 };
 
 template <
@@ -188,6 +201,7 @@ inline auto _sum(Arg0&& arg0, Args&&... args) {
 
 } // end namespace _impl
 
+
 // A key that employs an optimization similar to the short-string optimization in std::string
 template <
   /* default allows it to fit in a cache line */
@@ -198,6 +212,9 @@ template <
 >
 class SSOKey {
   private:
+
+    using piece_size_ordinal_t = PieceSizeOrdinal;
+    using component_count_ordinal_t = ComponentCountOrdinal;
 
     //template <typename... Args>
     //friend detail::SSOKey<buffer_size> darma_runtime::make_key(Args&&...);
@@ -353,6 +370,8 @@ class SSOKey {
     friend struct key_traits<SSOKey>;
     friend struct bytes_convert<SSOKey, void>;
     friend struct _impl::SSOKeyAttorney;
+    friend struct serialization::Serializer<SSOKey>;
+    friend struct serialization::Serializer<const SSOKey>;
 
   public:
 
@@ -454,37 +473,22 @@ class SSOKey {
 
 };
 
-template <
-  size_t BufferSize,
-  typename BackendAssignedKeyType,
-  typename PieceSizeOrdinal,
-  typename ComponentCountOrdinal
->
-struct bytes_convert<
-  SSOKey<
-    BufferSize,
-    BackendAssignedKeyType,
-    PieceSizeOrdinal,
-    ComponentCountOrdinal
-  >,
-  void
+template <typename SSOKeyT>
+struct bytes_convert<SSOKeyT,
+  std::enable_if_t<_impl::is_sso_key<std::decay_t<SSOKeyT>>::value>
 > {
-  using sso_key_t = SSOKey<
-    BufferSize,
-    BackendAssignedKeyType,
-    PieceSizeOrdinal,
-    ComponentCountOrdinal
-  >;
-  int get_size(sso_key_t const& key) const {
+  int get_size(std::add_const_t<SSOKeyT>& key) const {
     // subtract off the extra PieceSizeOrdinal and bytes_type_metadata that were
     // allocated for this as if it were a single component rather that multiple
     // (these are included in _data_size() already for each piece of key)
     // Also subtract off the ComponentCount slot
-    return (int)key._data_size() - sizeof(PieceSizeOrdinal) - sizeof(bytes_type_metadata)
-      - sizeof(ComponentCountOrdinal);
+    return (int)_impl::SSOKeyAttorney::get_data_size(key)
+      - sizeof(typename _impl::SSOKeyAttorney::template piece_size_ordinal_t<SSOKeyT>)
+      - sizeof(bytes_type_metadata)
+      - sizeof(typename _impl::SSOKeyAttorney::template component_count_ordinal_t<SSOKeyT>);
   }
-
 };
+
 
 template <
   size_t BufferSize,
@@ -562,6 +566,95 @@ struct key_traits<
 
 } // end namespace detail
 
+namespace serialization {
+
+template <
+  /* default allows it to fit in a cache line */
+  size_t BufferSize /* = 64 - sizeof(size_t) - sizeof(_impl::sso_key_mode_t) */,
+  typename BackendAssignedKeyType /*= size_t */,
+  typename PieceSizeOrdinal /*= uint8_t */,
+  typename ComponentCountOrdinal /*= uint8_t */
+>
+struct Serializer<darma_runtime::detail::SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal>>
+{
+  using sso_key_t = darma_runtime::detail::SSOKey<
+    BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal
+  >;
+
+  template <typename ArchiveT>
+  void compute_size(sso_key_t const& val, ArchiveT& ar) const {
+    ar % val.mode;
+    switch(val.mode) {
+      case darma_runtime::detail::_impl::BackendAssigned:
+        ar % val.repr.as_backend_assigned.backend_assigned_key;
+        break;
+      case darma_runtime::detail::_impl::Short:
+        ar % val.repr.as_short.size;
+        // This could be smaller...
+        ar % val.repr.as_short.data;
+        break;
+      case darma_runtime::detail::_impl::Long:
+        // don't really need to store size since range does it
+        ar % val.repr.as_long.size;
+        ar % serialization::range(
+          (const_cast<char*&>(val.repr.as_long.data)),
+          val.repr.as_long.data + val.repr.as_long.size
+        );
+        break;
+    }
+  }
+
+  template <typename ArchiveT>
+  void pack(sso_key_t const& val, ArchiveT& ar) const {
+    ar << val.mode;
+    switch(val.mode) {
+      case darma_runtime::detail::_impl::BackendAssigned:
+        ar << val.repr.as_backend_assigned.backend_assigned_key;
+        break;
+      case darma_runtime::detail::_impl::Short:
+        ar << val.repr.as_short.size;
+        // This could be smaller...
+        ar << val.repr.as_short.data;
+        break;
+      case darma_runtime::detail::_impl::Long:
+        // don't really need to store size since range does it
+        ar << val.repr.as_long.size;
+        ar << serialization::range(
+          (const_cast<char*&>(val.repr.as_long.data)),
+          val.repr.as_long.data + val.repr.as_long.size
+        );
+        break;
+    }
+  }
+
+  template <typename ArchiveT>
+  void unpack(void* allocated, ArchiveT& ar) const {
+    auto& val = *(new (allocated) sso_key_t);
+    ar >> val.mode;
+    switch(val.mode) {
+      case darma_runtime::detail::_impl::BackendAssigned:
+        ar >> val.repr.as_backend_assigned.backend_assigned_key;
+        break;
+      case darma_runtime::detail::_impl::Short:
+        ar >> val.repr.as_short.size;
+        // This could be smaller...
+        ar >> val.repr.as_short.data;
+        break;
+      case darma_runtime::detail::_impl::Long:
+        // don't really need to store size since range does it
+        ar >> val.repr.as_long.size;
+        auto* range_end = val.repr.as_long.data + val.repr.as_long.size;
+        ar >> serialization::range(
+          val.repr.as_long.data,
+          range_end
+        );
+        assert(range_end - val.repr.as_long.data == val.repr.as_long.size);
+        break;
+    }
+  }
+};
+
+} // end namespace serialization
 
 
 
