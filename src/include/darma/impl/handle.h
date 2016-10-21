@@ -137,7 +137,9 @@ class VariableHandleBase
     }
 
     bool
-    has_user_defined_key() const override { return true; /* for now */ }
+    has_user_defined_key() const override {
+      return not _impl::SSOKeyAttorney::is_awaiting_backend_key(key_);
+    }
 
     void
     set_key(key_t const& generated_key) override {
