@@ -206,6 +206,7 @@ struct bytes_convert<T,
       auto* md_int = reinterpret_cast<int_like_type_metadata*>(md);
       md_int->_always_false = false;
       md_int->_always_true = true;
+      md_int->is_enumerated = false;
       md_int->is_negative = val < 0;
       md_int->int_size_exponent = get_min_bytes_exponent(val);
     }

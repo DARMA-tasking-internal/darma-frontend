@@ -61,6 +61,95 @@ namespace detail {
 
 namespace _impl {
 
+template <typename T> struct is_sso_key : std::false_type { };
+template <
+  size_t BufferSize,
+  typename BackendAssignedKeyType,
+  typename PieceSizeOrdinal,
+  typename ComponentCountOrdinal
+>
+struct is_sso_key<SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal>>
+  : std::true_type { };
+
+template <
+  typename T,
+  size_t BufferSize,
+  typename BackendAssignedKeyType,
+  typename PieceSizeOrdinal,
+  typename ComponentCountOrdinal
+>
+size_t sso_key_add(
+  SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal>& key,
+  std::enable_if_t<not is_sso_key<std::decay_t<T>>::value, char*&> buffer,
+  T&& arg
+) {
+
+  bytes_convert<std::remove_reference_t<T>> bc;
+  DARMA_ASSERT_RELATED_VERBOSE(
+    bc.get_size(arg), <=, std::numeric_limits<PieceSizeOrdinal>::max()
+  );
+  const PieceSizeOrdinal size = bc.get_size(arg);
+  *reinterpret_cast<PieceSizeOrdinal*>(buffer) = size;
+  buffer += sizeof(PieceSizeOrdinal);
+  auto* md = reinterpret_cast<bytes_type_metadata*>(buffer);
+  bc.get_bytes_type_metadata(md, arg);
+  DARMA_ASSERT_MESSAGE(not has_category_extension_byte(md),
+    "Extended enum support not yet available; bug the developers if you need this (too many different enum types used with keys in your program)"
+  );
+  buffer += sizeof(bytes_type_metadata);
+  bc(std::forward<decltype(arg)>(arg), buffer, size, 0);
+  buffer += size;
+  return 1;
+}
+
+struct SSOKeyAttorney {
+  template <typename SSOKeyT>
+  static const char* get_data_pointer(
+    SSOKeyT const& key
+  ) {
+    return key._data_pointer();
+  }
+  template <typename SSOKeyT>
+  static size_t get_data_size(
+    SSOKeyT const& key
+  ) {
+    return key._data_size();
+  }
+  template <typename SSOKeyT>
+  static _impl::sso_key_mode_t get_mode(
+    SSOKeyT const& key
+  ) {
+    return key.mode;
+  }
+};
+
+template <
+  size_t BufferSize,
+  typename BackendAssignedKeyType,
+  typename PieceSizeOrdinal,
+  typename ComponentCountOrdinal
+>
+size_t sso_key_add(
+  SSOKey<
+    BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal
+  >& key,
+  char*& buffer,
+  SSOKey<
+    BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal
+  > const& add_key
+) {
+  DARMA_ASSERT_MESSAGE(
+    SSOKeyAttorney::get_mode(add_key) != _impl::BackendAssigned,
+    "Combining a backend generated key into a user generated key is not allowed"
+  );
+  const char* add_buffer = SSOKeyAttorney::get_data_pointer(add_key);
+  auto n_comps = *reinterpret_cast<ComponentCountOrdinal const*>(add_buffer);
+  add_buffer += sizeof(ComponentCountOrdinal);
+  ::memcpy(buffer, add_buffer,
+    SSOKeyAttorney::get_data_size(add_key) - sizeof(ComponentCountOrdinal));
+  buffer += SSOKeyAttorney::get_data_size(add_key) - sizeof(ComponentCountOrdinal);
+  return n_comps;
+}
 
 template <typename...> struct _do_sum;
 
@@ -183,43 +272,33 @@ class SSOKey {
         )...
       ) + sizeof...(Args)*(sizeof(PieceSizeOrdinal)+sizeof(bytes_type_metadata))
         + sizeof(ComponentCountOrdinal);
-      char* buffer;
+      char* buffer, *buffer_start;
       if(buffer_size < BufferSize) {
         // Employ SSO
         mode = _impl::Short;
         repr.as_short = _short();
         repr.as_short.size = buffer_size;
-        buffer = repr.as_short.data;
+        buffer = buffer_start = repr.as_short.data;
       }
       else {
         // use large buffer
         mode = _impl::Long;
         repr.as_long = _long();
         repr.as_long.size = buffer_size;
-        repr.as_long.data = buffer = new char[buffer_size];
+        repr.as_long.data = buffer = buffer_start = new char[buffer_size];
       }
-      // Put the number of components in first
-      *reinterpret_cast<ComponentCountOrdinal*>(buffer) = sizeof...(Args);
+      // Skip over the number of components; we'll come back to it
       buffer += sizeof(ComponentCountOrdinal);
+      ComponentCountOrdinal actual_component_count = 0;
       meta::tuple_for_each(
         std::forward_as_tuple(std::forward<Args>(args)...),
         [&](auto&& arg) {
-          bytes_convert<std::remove_reference_t<decltype(arg)>> bc;
-          DARMA_ASSERT_RELATED_VERBOSE(
-            bc.get_size(arg), <=, std::numeric_limits<PieceSizeOrdinal>::max()
-          );
-          const PieceSizeOrdinal size = bc.get_size(arg);
-          *reinterpret_cast<PieceSizeOrdinal*>(buffer) = size;
-          buffer += sizeof(PieceSizeOrdinal);
-          bc.get_bytes_type_metadata(reinterpret_cast<bytes_type_metadata*>(buffer), arg);
-          DARMA_ASSERT_MESSAGE(not has_category_extension_byte(reinterpret_cast<bytes_type_metadata*>(buffer)),
-            "Extended enum support not yet available; bug the developers if you need this (too many different enum types used with keys in your program)"
-          );
-          buffer += sizeof(bytes_type_metadata);
-          bc(std::forward<decltype(arg)>(arg), buffer, size, 0);
-          buffer += size;
+          actual_component_count +=
+            _impl::sso_key_add(*this, buffer, std::forward<decltype(arg)>(arg));
         }
       );
+      *reinterpret_cast<ComponentCountOrdinal*>(buffer_start) = actual_component_count;
+
     }
 
     bool _is_long() const { return mode == _impl::Long; }
@@ -245,7 +324,6 @@ class SSOKey {
       }
     }
 
-    friend struct key_traits<SSOKey>;
 
     struct SSOKeyComponent {
       private:
@@ -272,6 +350,10 @@ class SSOKey {
 
     static constexpr uint8_t not_given = std::numeric_limits<uint8_t>::max();
 
+    friend struct key_traits<SSOKey>;
+    friend struct bytes_convert<SSOKey, void>;
+    friend struct _impl::SSOKeyAttorney;
+
   public:
 
     SSOKey() : SSOKey(request_backend_assigned_key_tag{}) { }
@@ -285,9 +367,12 @@ class SSOKey {
     size_t n_components() const {
       if(mode == _impl::BackendAssigned) return 0;
       else {
+        assert(_data_pointer() != nullptr);
         return *reinterpret_cast<ComponentCountOrdinal const*>(_data_pointer());
       }
     }
+
+    bool is_backend_generated() const { return _is_backend_assigned(); }
 
     std::string
     human_readable_string(const char* sep = ", ",
@@ -308,6 +393,7 @@ class SSOKey {
         o << "<generated key: " << repr.as_backend_assigned.backend_assigned_key << ">";
         return;
       }
+      assert(_data_pointer() != nullptr);
 
       char const* buffer = _data_pointer() + sizeof(ComponentCountOrdinal);
       const size_t n_comps = n_components();
@@ -353,6 +439,7 @@ class SSOKey {
       DARMA_ASSERT_MESSAGE(mode != _impl::BackendAssigned,
         "Can't get component of backend-assigned key"
       );
+      assert(_data_pointer() != nullptr);
       char const* buffer = _data_pointer() + sizeof(ComponentCountOrdinal);
       for(int i = 0; i < actual_N; ++i) {
         PieceSizeOrdinal psize = *reinterpret_cast<PieceSizeOrdinal const*>(buffer);
@@ -364,6 +451,38 @@ class SSOKey {
         reinterpret_cast<bytes_type_metadata const*>(buffer + sizeof(PieceSizeOrdinal))
       );
     }
+
+};
+
+template <
+  size_t BufferSize,
+  typename BackendAssignedKeyType,
+  typename PieceSizeOrdinal,
+  typename ComponentCountOrdinal
+>
+struct bytes_convert<
+  SSOKey<
+    BufferSize,
+    BackendAssignedKeyType,
+    PieceSizeOrdinal,
+    ComponentCountOrdinal
+  >,
+  void
+> {
+  using sso_key_t = SSOKey<
+    BufferSize,
+    BackendAssignedKeyType,
+    PieceSizeOrdinal,
+    ComponentCountOrdinal
+  >;
+  int get_size(sso_key_t const& key) const {
+    // subtract off the extra PieceSizeOrdinal and bytes_type_metadata that were
+    // allocated for this as if it were a single component rather that multiple
+    // (these are included in _data_size() already for each piece of key)
+    // Also subtract off the ComponentCount slot
+    return (int)key._data_size() - sizeof(PieceSizeOrdinal) - sizeof(bytes_type_metadata)
+      - sizeof(ComponentCountOrdinal);
+  }
 
 };
 
@@ -389,6 +508,10 @@ struct key_traits<
   >;
 
   struct maker {
+    inline sso_key_t
+    operator()() const {
+      return sso_key_t(typename sso_key_t::request_backend_assigned_key_tag{});
+    }
     template <typename... Args>
     inline sso_key_t
     operator()(Args&&... args) const {
