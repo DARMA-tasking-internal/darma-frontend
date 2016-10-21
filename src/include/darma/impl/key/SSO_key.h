@@ -134,6 +134,13 @@ struct SSOKeyAttorney {
   _get_component_count_ordinal_t();
   template <typename SSOKeyT>
   using component_count_ordinal_t = decltype(_get_component_count_ordinal_t<SSOKeyT>());
+  template <typename SSOKeyT>
+  static bool is_awaiting_backend_key(
+    SSOKeyT const& key
+  ) {
+    return key._needs_backend_assigned_key();
+  }
+
 };
 
 template <
@@ -250,7 +257,7 @@ class SSOKey {
     alignas(8) _repr repr;
 
 
-    bool needs_backend_assigned_key() const {
+    bool _needs_backend_assigned_key() const {
       return mode == _impl::Long and repr.as_long.data == nullptr;
     }
 
