@@ -195,3 +195,18 @@ TEST_F(TestSSOKey, enums) {
   EXPECT_EQ(kB1, kB2);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSSOKey, equal_key_key) {
+  using namespace darma_runtime::detail;
+  auto maker = typename key_traits<sso_key_t>::maker{};
+  sso_key_t k1 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+  sso_key_t k2 = maker(k1);
+  ASSERT_TRUE(key_traits<sso_key_t>::key_equal()(k1, k2));
+  sso_key_t k3 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?", "done");
+  sso_key_t k4 = maker(k1, "done");
+  sso_key_t k5 = maker(k2, "done");
+  ASSERT_TRUE(key_traits<sso_key_t>::key_equal()(k3, k4));
+  ASSERT_TRUE(key_traits<sso_key_t>::key_equal()(k3, k5));
+
+}

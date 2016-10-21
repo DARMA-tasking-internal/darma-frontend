@@ -80,47 +80,6 @@
 namespace darma_runtime {
 
 ////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="expression helpers">
-
-
-namespace detail {
-
-namespace m = tinympl;
-namespace mv = tinympl::variadic;
-namespace mp = tinympl::placeholders;
-
-template <
-  typename... Args
->
-struct access_expr_helper {
-  inline types::key_t
-  get_key(
-    Args&&... args
-  ) const {
-    return make_key_from_tuple(
-      get_positional_arg_tuple(std::forward<Args>(args)...)
-    );
-  }
-
-  inline types::key_t
-  get_version_tag(
-    Args&&... args
-  ) const {
-    return get_typeless_kwarg_with_converter_and_default<
-      darma_runtime::keyword_tags_for_publication::version
-    >([](auto&&... key_parts){
-      return make_key(std::forward<decltype(key_parts)>(key_parts)...);
-    }, types::key_t(), std::forward<Args>(args)...);
-  }
-
-};
-
-} // end namespace detail
-
-// </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="KeyedObject">
 
 namespace detail {
