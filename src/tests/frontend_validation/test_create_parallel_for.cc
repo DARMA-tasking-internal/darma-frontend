@@ -116,14 +116,21 @@ TEST_F(TestCreateParallelFor, simple_lambda_capture) {
 
   EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, fcapt, use_capt, five_items);
 
-  EXPECT_REGISTER_TASK(use_capt);
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(
+    AllOf(
+      UseInGetDependencies(ByRef(use_capt)),
+      Truly([&](auto* task) {
+        return task->is_parallel_for_task();
+      })
+    )
+  ));
 
   //============================================================================
   // actual code being tested
   {
     auto tmp = initial_access<std::vector<int>>("hello");
 
-    create_parallel_for(n_iterations=10, [=](int i) {
+    create_parallel_for(n_iterations=5, [=](int i) {
       (*tmp)[i] = i;
     });
   }
@@ -132,5 +139,110 @@ TEST_F(TestCreateParallelFor, simple_lambda_capture) {
   run_all_tasks();
 
   EXPECT_THAT(five_items, ElementsAre(0, 1, 2, 3, 4));
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateParallelFor, simple_functor) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  //============================================================================
+  // actual code being tested
+  {
+    struct Simple {
+      void operator()(int i) const {
+        ASSERT_EQ(i, 0);
+      }
+    };
+
+    create_parallel_for<Simple>(n_iterations=1);
+  }
+  //============================================================================
+
+  run_all_tasks();
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateParallelFor, simple_functor_args) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  //============================================================================
+  // actual code being tested
+  {
+    struct Simple {
+      void operator()(int i, int j) const {
+        ASSERT_EQ(i, 0);
+        ASSERT_EQ(j, 42);
+      }
+    };
+
+    create_parallel_for<Simple>(42, n_iterations=1);
+  }
+  //============================================================================
+
+  run_all_tasks();
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateParallelFor, functor_args) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow finit, fnull, fcapt;
+  use_t* use_capt;
+
+  std::vector<int> five_items{0, 0, 0, 0, 0};
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+
+  EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, fcapt, use_capt, five_items);
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(
+    AllOf(
+      UseInGetDependencies(ByRef(use_capt)),
+      Truly([&](auto* task) {
+        return task->is_parallel_for_task();
+      })
+    )
+  ));
+
+  //============================================================================
+  // actual code being tested
+  {
+    struct Simple {
+      void operator()(int i, std::vector<int>& vect) {
+        vect[i] = i;
+      }
+    };
+
+    auto tmp = initial_access<std::vector<int>>("hello");
+
+    create_parallel_for<Simple>(tmp, n_iterations=5);
+  }
+  //============================================================================
+
+  run_all_tasks();
+
+  EXPECT_THAT(five_items, ElementsAre(0, 1, 2, 3, 4));
+  mock_runtime->save_tasks = true;
 
 }

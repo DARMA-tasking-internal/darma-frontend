@@ -141,6 +141,8 @@ class Task {
      */
     virtual void pack(void* allocated) const =0;
 
+    virtual bool is_parallel_for_task() const =0;
+
     virtual ~Task() = default;
 
 };

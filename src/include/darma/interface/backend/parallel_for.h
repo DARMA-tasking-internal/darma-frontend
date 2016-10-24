@@ -51,9 +51,9 @@ namespace backend {
 
 // TODO add more context via some other parameters
 
-template <typename Ordinal, typename UnaryCallable>
+template <typename Ordinal, typename UnaryCallable, typename... Args>
 void execute_parallel_for(
-  Ordinal n_iters, UnaryCallable&& f
+  Ordinal n_iters, UnaryCallable&& f, Args&&... args
 )
 #ifdef DARMA_CUSTOM_PARALLEL_FOR
 ;
@@ -61,7 +61,9 @@ void execute_parallel_for(
 {
 #pragma ivdep
   for(Ordinal i = 0; i < n_iters; ++i) {
-    f(i);
+    // Don't perfect forward args because they will be used more than once and
+    // move semantics are incorrect here
+    f(i, args...);
   }
 }
 #endif
