@@ -2034,8 +2034,10 @@ namespace threads_backend {
                   this->produced,
                   this->consumed);
 
-      auto node = nodes.front();
-      nodes.pop_front();
+      largest_deque_size = std::max(largest_deque_size, nodes.size());
+
+      auto node = nodes.back();
+      nodes.pop_back();
 
       if (lock) lock->unlock();
 
@@ -2117,9 +2119,10 @@ namespace threads_backend {
            this->produced == this->consumed &&
            "TD failed if queues have work units in them.");
 
-    STARTUP_PRINT("work units: produced=%ld, consumed=%ld\n",
+    STARTUP_PRINT("work units: produced=%ld, consumed=%ld, max deque count=%ld\n",
                   this->produced,
-                  this->consumed);
+                  this->consumed,
+                  largest_deque_size);
 
     DEBUG_PRINT("data=%ld, "
                 "fetched data=%ld, "

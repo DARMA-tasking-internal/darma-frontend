@@ -192,6 +192,9 @@ namespace threads_backend {
     runtime_t::task_t* current_task = nullptr;
     std::atomic<size_t> assigned_key_offset = { 0 };
 
+    // for debugging purposes
+    size_t largest_deque_size = 0;
+
     ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
     std::condition_variable cv_remote_awake{};
