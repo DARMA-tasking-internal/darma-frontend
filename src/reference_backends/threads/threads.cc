@@ -647,11 +647,28 @@ namespace threads_backend {
     return block;
   }
 
+  void
+  ThreadsRuntime::assign_key(
+    std::shared_ptr<handle_t> const& handle
+  ) {
+    // For now, cram things into a uint64_t
+    assert(inside_rank < std::numeric_limits<uint16_t>::max());
+    assert(assigned_key_offset < (1ull<<48ull));
+    handle->set_key(
+      darma_runtime::detail::key_traits<darma_runtime::types::key_t>::backend_maker()(
+        ((uint64_t)(inside_rank) << 48ull) ^ (uint64_t)(assigned_key_offset++)
+      )
+    );
+  }
+
   /*virtual*/
   flow_t
   ThreadsRuntime::make_initial_flow(
     std::shared_ptr<handle_t> const& handle
   ) {
+    if(not handle->has_user_defined_key()) {
+      assign_key(handle);
+    }
     auto f = std::shared_ptr<InnerFlow>(new InnerFlow(handle), [this](InnerFlow* flow){
       DEBUG_PRINT("make_initial_flow: deleter running %ld\n",
                   PRINT_LABEL(flow));
@@ -722,7 +739,7 @@ namespace threads_backend {
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find({store,version_key, key});
+      const auto& iter = published.find(std::make_tuple(store,version_key, key));
 
       if (iter != published.end()) {
         PublishedBlock* pub_ptr = iter->second;
@@ -759,7 +776,7 @@ namespace threads_backend {
 
         if (std::atomic_load<size_t>(&pub.expected) == 0) {
           // remove from publication list
-          published.erase({store,version_key,key});
+          published.erase(std::make_tuple(store,version_key,key));
           free(pub_ptr->data->data_);
           delete pub.data;
           delete pub_ptr;
@@ -788,7 +805,7 @@ namespace threads_backend {
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find({store,version_key,key});
+      const auto& iter = published.find(std::make_tuple(store,version_key,key));
       const bool found = iter != published.end();
       const bool avail = found && std::atomic_load<bool>(&iter->second->ready);
 
@@ -804,9 +821,9 @@ namespace threads_backend {
       if (!found) {
         auto pub = new PublishedBlock();
         pub->waiting.push_front(fetch);
-        published[{store,version_key,key}] = pub;
+        published[std::make_tuple(store,version_key,key)] = pub;
       } else if (found && !avail) {
-        published[{store,version_key,key}]->waiting.push_front(fetch);
+        published[std::make_tuple(store,version_key,key)]->waiting.push_front(fetch);
       }
 
       ready = avail;
@@ -826,7 +843,7 @@ namespace threads_backend {
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find({store,version_key,key});
+      const auto& iter = published.find(std::make_tuple(store,version_key,key));
 
       DEBUG_PRINT("test_fetch: trying to find a publish, key=%s, version=%s\n",
                   PRINT_KEY(key),
@@ -864,7 +881,7 @@ namespace threads_backend {
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find({store,version_key,key});
+      const auto& iter = published.find(std::make_tuple(store,version_key,key));
 
       DEBUG_PRINT("fetch: trying to find a publish, assume existance: handle=%p, key=%s, version=%s\n",
                   handle,
@@ -917,7 +934,7 @@ namespace threads_backend {
 
       if (std::atomic_load<size_t>(&pub.expected) == 0) {
         // remove from publication list
-        published.erase({store,version_key,key});
+        published.erase(std::make_tuple(store,version_key,key));
         free(pub_ptr->data->data_);
         delete pub.data;
         delete pub_ptr;

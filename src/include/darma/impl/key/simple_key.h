@@ -430,6 +430,18 @@ struct key_traits<SimpleKey> {
     }
   };
 
+  struct backend_maker {
+    inline SimpleKey
+    operator()(SimpleKey const& k) const {
+      return k;
+    }
+  };
+
+  static bool
+  needs_backend_key(SimpleKey const& key) {
+    return false; // backend key not implemented for SimpleKey
+  }
+
   typedef _simple_key_impl::_traits_impl internal_use_access;
 };
 

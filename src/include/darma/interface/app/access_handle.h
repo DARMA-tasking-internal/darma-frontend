@@ -204,6 +204,7 @@ class AccessHandle : public detail::AccessHandleBase {
         abstract::backend::get_backend_context()->get_running_task()
       );
       capturing_task = running_task->current_create_work_context;
+      var_handle_ = copied_from.var_handle_;
 
       // Now check if we're in a capturing context:
       if (capturing_task != nullptr) {
@@ -221,7 +222,6 @@ class AccessHandle : public detail::AccessHandleBase {
       else {
         // regular copy
         // TODO figure out how this works with respect to who is responsible for destruction
-        var_handle_ = copied_from.var_handle_;
         current_use_ = copied_from.current_use_;
         // Also, save prev copied from in case this is a double capture, like in
         // create_condition.  This is the only time that the prev_copied_from ptr
@@ -250,6 +250,7 @@ class AccessHandle : public detail::AccessHandleBase {
         abstract::backend::get_backend_context()->get_running_task()
       );
       capturing_task = running_task->current_create_work_context;
+      var_handle_ = copied_from.var_handle_;
 
       // Now check if we're in a capturing context:
       if (capturing_task != nullptr) {

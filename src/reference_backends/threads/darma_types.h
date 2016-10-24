@@ -47,6 +47,8 @@
 
 #define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
 
+#include <utility> // std::pair
+
 namespace threads_backend {
   // forward declaration
   struct InnerFlow;
@@ -54,11 +56,21 @@ namespace threads_backend {
 
 
 
-#include <darma/impl/key/simple_key.h>
+//#include <darma/impl/key/simple_key.h>
+#include <darma/impl/key/SSO_key_fwd.h>
+
+#ifndef DARMA_KEY_STACK_SIZE
+#define DARMA_KEY_STACK_SIZE 64
+#endif
 
 namespace darma_runtime { namespace types {
-  typedef darma_runtime::detail::SimpleKey key_t;
+  typedef darma_runtime::detail::SSOKey<
+    DARMA_KEY_STACK_SIZE - 16,
+    uint64_t
+  > key_t;
 }} // end namespace darma_runtime::types
+
+#include <darma/impl/key/SSO_key.h>
 
 #include <darma/interface/defaults/pointers.h>
 

@@ -210,3 +210,19 @@ TEST_F(TestSSOKey, equal_key_key) {
   ASSERT_TRUE(key_traits<sso_key_t>::key_equal()(k3, k5));
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSSOKey, equal_backend_assigned) {
+  using namespace darma_runtime::detail;
+  using namespace ::testing;
+  auto maker = typename key_traits<sso_key_t>::maker{};
+  sso_key_t backendk1 = maker();
+  sso_key_t backendk2 = maker();
+  ASSERT_EQ(backendk1, backendk2);
+  auto backend_maker = typename key_traits<sso_key_t>::backend_maker{};
+  auto backendk3 = backend_maker(0);
+  auto backendk4 = backend_maker(1);
+  ASSERT_THAT(backendk3, Not(Eq(backendk4)));
+  ASSERT_THAT(backendk2, Not(Eq(backendk4)));
+}

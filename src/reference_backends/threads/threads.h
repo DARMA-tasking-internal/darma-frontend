@@ -62,14 +62,16 @@
 #include <common.h>
 #include <trace.h>
 
+#include <darma_types.h>
+
 namespace std {
-  using darma_runtime::detail::SimpleKey;
-  using darma_runtime::detail::key_traits;
 
   template<>
-  struct hash<SimpleKey> {
-    size_t operator()(SimpleKey const& in) const {
-      return key_traits<SimpleKey>::hasher()(in);
+  struct hash<darma_runtime::types::key_t> {
+    size_t operator()(darma_runtime::types::key_t const& in) const {
+      return darma_runtime::detail::key_traits<
+        darma_runtime::types::key_t
+      >::hasher()(in);
     }
   };
 }
@@ -188,6 +190,7 @@ namespace threads_backend {
     size_t inside_rank = 0;
     size_t inside_num_ranks = 0;
     runtime_t::task_t* current_task = nullptr;
+    std::atomic<size_t> assigned_key_offset = { 0 };
 
     ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
@@ -284,6 +287,10 @@ namespace threads_backend {
 
     void
     add_local(std::shared_ptr<GraphNode> task);
+
+    void
+    assign_key(std::shared_ptr<handle_t> const& handle);
+
 
     void
     add_fetch_node_flow(

@@ -57,6 +57,8 @@
 #include <tinympl/logical_not.hpp>
 #include <tinympl/copy_traits.hpp>
 
+#include <darma_types.h>
+
 #include <darma/interface/frontend/handle.h>
 #include <darma/interface/backend/types.h>
 
@@ -75,6 +77,7 @@
 #include <darma/interface/app/keyword_arguments/version.h>
 #include <darma/impl/array/indexable.h>
 #include <darma/impl/array/concept.h>
+
 
 
 namespace darma_runtime {
@@ -138,7 +141,7 @@ class VariableHandleBase
 
     bool
     has_user_defined_key() const override {
-      return not _impl::SSOKeyAttorney::is_awaiting_backend_key(key_);
+      return not key_traits<types::key_t>::needs_backend_key(key_);
     }
 
     void
@@ -159,9 +162,9 @@ class VariableHandleBase
 } // end namespace detail
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 // <editor-fold desc="VariableHandle">
 
 namespace detail {
@@ -290,9 +293,9 @@ class VariableHandle
 } // end namespace detail
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 // <editor-fold desc="assorted attorneys">
 
 namespace detail {
@@ -339,9 +342,9 @@ struct AccessHandleAccess {
 } // end namespace detail
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 // <editor-fold desc="AccessHandleBase">
 
 namespace detail {
@@ -375,9 +378,9 @@ class AccessHandleBase {
 } // end namespace detail
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 // <editor-fold desc="access_handle_traits and helpers">
 
 namespace detail {
@@ -533,7 +536,7 @@ using make_access_handle_traits_t = typename make_access_handle_traits<modifiers
 } // end namespace detail
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
 // Forward declaration of AccessHandle
 template <
@@ -542,7 +545,7 @@ template <
 >
 class AccessHandle;
 
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 // <editor-fold desc="is_access_handle">
 
 namespace detail {
@@ -583,7 +586,7 @@ using value_type_if_access_handle_t = typename value_type_if_access_handle<T, Ot
 } // end namespace detail
 
 // </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================================
 
 
 } // end namespace darma_runtime

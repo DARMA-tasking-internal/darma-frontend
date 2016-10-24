@@ -102,7 +102,7 @@ namespace threads_backend {
       : forward(nullptr)
       , next(nullptr)
       , shared_reader_count(nullptr)
-      , version_key(darma_runtime::detail::SimpleKey())
+      , version_key(darma_runtime::types::key_t())
       , isNull(false)
       , isFetch(false)
       , fetcherAdded(false)

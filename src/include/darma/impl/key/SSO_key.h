@@ -72,6 +72,7 @@ template <
 struct is_sso_key<SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal>>
   : std::true_type { };
 
+
 template <
   typename T,
   size_t BufferSize,
@@ -103,6 +104,9 @@ size_t sso_key_add(
   return 1;
 }
 
+//==============================================================================
+// <editor-fold desc="SSOKeyAttorney">
+
 struct SSOKeyAttorney {
   template <typename SSOKeyT>
   static const char* get_data_pointer(
@@ -133,7 +137,9 @@ struct SSOKeyAttorney {
   typename SSOKeyT::component_count_ordinal_t
   _get_component_count_ordinal_t();
   template <typename SSOKeyT>
-  using component_count_ordinal_t = decltype(_get_component_count_ordinal_t<SSOKeyT>());
+  using component_count_ordinal_t = decltype(_get_component_count_ordinal_t<
+    SSOKeyT
+  >());
   template <typename SSOKeyT>
   static bool is_awaiting_backend_key(
     SSOKeyT const& key
@@ -142,6 +148,9 @@ struct SSOKeyAttorney {
   }
 
 };
+
+// </editor-fold> end SSOKeyAttorney
+//==============================================================================
 
 template <
   size_t BufferSize,
@@ -209,6 +218,9 @@ inline auto _sum(Arg0&& arg0, Args&&... args) {
 } // end namespace _impl
 
 
+//==============================================================================
+// <editor-fold desc="SSOKey implementation">
+
 // A key that employs an optimization similar to the short-string optimization in std::string
 template <
   /* default allows it to fit in a cache line */
@@ -226,8 +238,10 @@ class SSOKey {
     //template <typename... Args>
     //friend detail::SSOKey<buffer_size> darma_runtime::make_key(Args&&...);
 
-    struct backend_assigned_key_tag { };
-    struct request_backend_assigned_key_tag { };
+    struct backend_assigned_key_tag {
+    };
+    struct request_backend_assigned_key_tag {
+    };
 
 
     struct _short {
@@ -269,42 +283,42 @@ class SSOKey {
     SSOKey(
       backend_assigned_key_tag,
       BackendAssignedKeyType const& value
-    ) : mode(_impl::BackendAssigned)
-    {
-      repr.as_backend_assigned = _backend_assigned{ value };
+    )
+      : mode(_impl::BackendAssigned) {
+      repr.as_backend_assigned = _backend_assigned{value};
     }
 
     SSOKey(
       backend_assigned_key_tag,
       BackendAssignedKeyType&& value
-    ) : mode(_impl::BackendAssigned)
-    {
-      repr.as_backend_assigned = _backend_assigned{ std::move(value) };
+    ) : mode(_impl::BackendAssigned) {
+      repr.as_backend_assigned = _backend_assigned{std::move(value)};
     }
 
     template <typename... Args>
     SSOKey(
       variadic_constructor_arg_t,
-      Args&&... args
+      Args&& ... args
     ) {
-      static_assert(sizeof...(Args) < std::numeric_limits<ComponentCountOrdinal>::max(),
+      static_assert(
+        sizeof...(Args) < std::numeric_limits<ComponentCountOrdinal>::max(),
         "Too many components given to SSO Key"
       );
       size_t buffer_size = _impl::_sum(
         bytes_convert<std::remove_reference_t<Args>>().get_size(
           std::forward<Args>(args)
         )...
-      ) + sizeof...(Args)*(sizeof(PieceSizeOrdinal)+sizeof(bytes_type_metadata))
+      ) + sizeof...(Args)
+        * (sizeof(PieceSizeOrdinal) + sizeof(bytes_type_metadata))
         + sizeof(ComponentCountOrdinal);
-      char* buffer, *buffer_start;
-      if(buffer_size < BufferSize) {
+      char* buffer, * buffer_start;
+      if (buffer_size < BufferSize) {
         // Employ SSO
         mode = _impl::Short;
         repr.as_short = _short();
         repr.as_short.size = buffer_size;
         buffer = buffer_start = repr.as_short.data;
-      }
-      else {
+      } else {
         // use large buffer
         mode = _impl::Long;
         repr.as_long = _long();
@@ -321,7 +335,8 @@ class SSOKey {
             _impl::sso_key_add(*this, buffer, std::forward<decltype(arg)>(arg));
         }
       );
-      *reinterpret_cast<ComponentCountOrdinal*>(buffer_start) = actual_component_count;
+      *reinterpret_cast<ComponentCountOrdinal*>(buffer_start) =
+        actual_component_count;
 
     }
 
@@ -330,15 +345,18 @@ class SSOKey {
     bool _is_backend_assigned() const { return mode == _impl::BackendAssigned; }
 
     size_t _data_size() const {
-      switch(mode) {
-        case _impl::BackendAssigned: return sizeof(BackendAssignedKeyType);
-        case _impl::Short: return repr.as_short.size;
-        case _impl::Long: return repr.as_long.size;
+      switch (mode) {
+        case _impl::BackendAssigned:
+          return sizeof(BackendAssignedKeyType);
+        case _impl::Short:
+          return repr.as_short.size;
+        case _impl::Long:
+          return repr.as_long.size;
       }
     }
 
     char const* _data_pointer() const {
-      switch(mode) {
+      switch (mode) {
         case _impl::BackendAssigned:
           return reinterpret_cast<const char*>(&repr.as_backend_assigned.backend_assigned_key);
         case _impl::Short:
@@ -358,9 +376,12 @@ class SSOKey {
 
       public:
 
-        SSOKeyComponent(char const* data, const PieceSizeOrdinal size, bytes_type_metadata const* md)
-          : data(data), size(size), md(md)
-        { }
+        SSOKeyComponent(
+          char const* data,
+          const PieceSizeOrdinal size,
+          bytes_type_metadata const* md
+        )
+          : data(data), size(size), md(md) {}
 
 
         template <typename T>
@@ -382,16 +403,17 @@ class SSOKey {
 
   public:
 
-    SSOKey() : SSOKey(request_backend_assigned_key_tag{}) { }
+    SSOKey()
+      : SSOKey(request_backend_assigned_key_tag{}) {}
 
     ~SSOKey() {
-      if(mode == _impl::Long and repr.as_long.data != nullptr) {
+      if (mode == _impl::Long and repr.as_long.data != nullptr) {
         delete[] repr.as_long.data;
       }
     }
 
     size_t n_components() const {
-      if(mode == _impl::BackendAssigned) return 0;
+      if (mode == _impl::BackendAssigned) return 0;
       else {
         assert(_data_pointer() != nullptr);
         return *reinterpret_cast<ComponentCountOrdinal const*>(_data_pointer());
@@ -401,7 +423,8 @@ class SSOKey {
     bool is_backend_generated() const { return _is_backend_assigned(); }
 
     std::string
-    human_readable_string(const char* sep = ", ",
+    human_readable_string(
+      const char* sep = ", ",
       const char* left_paren = "{", const char* right_paren = "}"
     ) const {
       std::ostringstream sstr;
@@ -415,50 +438,58 @@ class SSOKey {
     print_human_readable(
       const char* sep = ", ", std::ostream& o = std::cout
     ) const {
-      if(_is_backend_assigned()) {
-        o << "<generated key: " << repr.as_backend_assigned.backend_assigned_key << ">";
+      if (_is_backend_assigned()) {
+        o << "<generated key: " << repr.as_backend_assigned.backend_assigned_key
+          << ">";
         return;
       }
+
+      if(_needs_backend_assigned_key()) {
+        o << "<key pending backend assignment>";
+        return;
+      }
+
       assert(_data_pointer() != nullptr);
 
       char const* buffer = _data_pointer() + sizeof(ComponentCountOrdinal);
       const size_t n_comps = n_components();
-      for(size_t i = 0; i < n_comps; ++i) {
-        const PieceSizeOrdinal piece_size = *reinterpret_cast<PieceSizeOrdinal const*>(buffer);
+      for (size_t i = 0; i < n_comps; ++i
+        ) {
+        const PieceSizeOrdinal
+          piece_size = *reinterpret_cast<PieceSizeOrdinal const*>(buffer);
         buffer += sizeof(PieceSizeOrdinal);
         const auto* md = reinterpret_cast<bytes_type_metadata const*>(buffer);
         buffer += sizeof(bytes_type_metadata);
-        if(md->is_string_like) {
+        if (md->is_string_like) {
           o << bytes_convert<std::string>().get_value(md, buffer, piece_size);
-        }
-        else if(md->is_int_like_type) {
-          if(not reinterpret_cast<const int_like_type_metadata*>(md)->is_enumerated) {
+        } else if (md->is_int_like_type) {
+          if (not reinterpret_cast<const int_like_type_metadata*>(md)->is_enumerated) {
             o << bytes_convert<intmax_t>().get_value(md, buffer, piece_size);
-          }
-          else {
+          } else {
             // TODO more enum verbosity
             o << "<enum>";
           }
-        }
-        else if(md->is_floating_point_like_type) {
+        } else if (md->is_floating_point_like_type) {
           o << bytes_convert<double>().get_value(md, buffer, piece_size);
-        }
-        else {
+        } else {
           assert(false); // not implemented
         }
         buffer += piece_size;
 
-        if(i != n_components()) o << sep;
+        if (i != n_components()) o << sep;
       }
     }
 
 
-    template <uint8_t N=not_given>
+    template <uint8_t N = not_given>
     SSOKeyComponent
-    component(size_t N_dynamic=not_given) const {
-      assert(N_dynamic == not_given || N_dynamic < (size_t)std::numeric_limits<ComponentCountOrdinal>::max());
-      static_assert(N == not_given || N < std::numeric_limits<ComponentCountOrdinal>::max(),
-        "tried to get key component greater than max_num_parts");
+    component(size_t N_dynamic = not_given) const {
+      assert(N_dynamic == not_given || N_dynamic
+        < (size_t)std::numeric_limits<ComponentCountOrdinal>::max());
+      static_assert(
+        N == not_given || N < std::numeric_limits<ComponentCountOrdinal>::max(),
+        "tried to get key component greater than max_num_parts"
+      );
       assert(N == not_given xor N_dynamic == not_given);
       const uint8_t actual_N = N == not_given ? (uint8_t)N_dynamic : N;
       DARMA_ASSERT_RELATED_VERBOSE((int)actual_N, <, n_components());
@@ -467,21 +498,36 @@ class SSOKey {
       );
       assert(_data_pointer() != nullptr);
       char const* buffer = _data_pointer() + sizeof(ComponentCountOrdinal);
-      for(int i = 0; i < actual_N; ++i) {
-        PieceSizeOrdinal psize = *reinterpret_cast<PieceSizeOrdinal const*>(buffer);
-        buffer += sizeof(PieceSizeOrdinal) + psize + sizeof(bytes_type_metadata);
+      for (int i = 0; i < actual_N; ++i
+        ) {
+        PieceSizeOrdinal
+          psize = *reinterpret_cast<PieceSizeOrdinal const*>(buffer);
+        buffer +=
+          sizeof(PieceSizeOrdinal) + psize + sizeof(bytes_type_metadata);
       }
       return SSOKeyComponent(
         buffer + sizeof(PieceSizeOrdinal) + sizeof(bytes_type_metadata),
         *reinterpret_cast<PieceSizeOrdinal const*>(buffer),
-        reinterpret_cast<bytes_type_metadata const*>(buffer + sizeof(PieceSizeOrdinal))
+        reinterpret_cast<bytes_type_metadata const*>(buffer
+          + sizeof(PieceSizeOrdinal))
       );
     }
 
 };
 
+
+// </editor-fold> end SSOKey implementation
+//==============================================================================
+
+
+//==============================================================================
+// <editor-fold desc="Partial bytes_convert specialization for SSOKey">
+
+// Note: only get_size is specialized, since the other parts should be unnecessary
+
 template <typename SSOKeyT>
-struct bytes_convert<SSOKeyT,
+struct bytes_convert<
+  SSOKeyT,
   std::enable_if_t<_impl::is_sso_key<std::decay_t<SSOKeyT>>::value>
 > {
   int get_size(std::add_const_t<SSOKeyT>& key) const {
@@ -490,12 +536,22 @@ struct bytes_convert<SSOKeyT,
     // (these are included in _data_size() already for each piece of key)
     // Also subtract off the ComponentCount slot
     return (int)_impl::SSOKeyAttorney::get_data_size(key)
-      - sizeof(typename _impl::SSOKeyAttorney::template piece_size_ordinal_t<SSOKeyT>)
+      - sizeof(typename _impl::SSOKeyAttorney::template piece_size_ordinal_t<
+        SSOKeyT
+      >)
       - sizeof(bytes_type_metadata)
-      - sizeof(typename _impl::SSOKeyAttorney::template component_count_ordinal_t<SSOKeyT>);
+      - sizeof(typename _impl::SSOKeyAttorney::template component_count_ordinal_t<
+        SSOKeyT
+      >);
   }
 };
 
+// </editor-fold> end Partial bytes_convert specialization for SSOKey
+//==============================================================================
+
+
+//==============================================================================
+// <editor-fold desc="key_traits<SSOKey> implementation">
 
 template <
   size_t BufferSize,
@@ -525,7 +581,7 @@ struct key_traits<
     }
     template <typename... Args>
     inline sso_key_t
-    operator()(Args&&... args) const {
+    operator()(Args&& ... args) const {
       return sso_key_t(
         variadic_constructor_arg,
         std::forward<Args>(args)...
@@ -551,27 +607,48 @@ struct key_traits<
   struct key_equal {
     inline bool
     operator()(sso_key_t const& k1, sso_key_t const& k2) const {
-      return
-        // also check that they are not mismatched with respect to backend-assigned-ness
-        not (k1.mode == _impl::BackendAssigned xor k2.mode == _impl::BackendAssigned)
-        and detail::equal_as_bytes(
-          k1._data_pointer(), k1._data_size(),
-          k2._data_pointer(), k2._data_size()
-        );
+      // TODO we need to think about how we can speed this up...
+      if(k1._needs_backend_assigned_key() and k2._needs_backend_assigned_key())
+        return true;
+      else if(k1._needs_backend_assigned_key() xor k2._needs_backend_assigned_key())
+        return false;
+      else
+        return
+          // also check that they are not mismatched with respect to backend-assigned-ness
+          not(k1.mode == _impl::BackendAssigned
+            xor k2.mode == _impl::BackendAssigned)
+            and detail::equal_as_bytes(
+              k1._data_pointer(), k1._data_size(),
+              k2._data_pointer(), k2._data_size()
+            );
     }
   };
 
   struct hasher {
     inline size_t
     operator()(sso_key_t const& k) const {
+      // "empty" key hashes to 0...
+      if(k._needs_backend_assigned_key()) { return 0; }
       return hash_as_bytes(k._data_pointer(), k._data_size());
     }
   };
 
+  // This is for frontend use only; backend should use
+  // abstract::frontend::Handle::has_user_defined_key()
+  static bool
+  needs_backend_key(sso_key_t const& key) {
+    return key._needs_backend_assigned_key();
+  }
+
 };
 
+// </editor-fold> end key_traits<SSOKey> implementation
+//==============================================================================
 
 } // end namespace detail
+
+//==============================================================================
+// <editor-fold desc="Serializer specialization for SSOKey">
 
 namespace serialization {
 
@@ -582,8 +659,12 @@ template <
   typename PieceSizeOrdinal /*= uint8_t */,
   typename ComponentCountOrdinal /*= uint8_t */
 >
-struct Serializer<darma_runtime::detail::SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal>>
-{
+struct Serializer<
+  darma_runtime::detail::SSOKey<
+    BufferSize,
+    BackendAssignedKeyType,
+    PieceSizeOrdinal,
+    ComponentCountOrdinal>> {
   using sso_key_t = darma_runtime::detail::SSOKey<
     BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal
   >;
@@ -591,7 +672,7 @@ struct Serializer<darma_runtime::detail::SSOKey<BufferSize, BackendAssignedKeyTy
   template <typename ArchiveT>
   void compute_size(sso_key_t const& val, ArchiveT& ar) const {
     ar % val.mode;
-    switch(val.mode) {
+    switch (val.mode) {
       case darma_runtime::detail::_impl::BackendAssigned:
         ar % val.repr.as_backend_assigned.backend_assigned_key;
         break;
@@ -614,7 +695,7 @@ struct Serializer<darma_runtime::detail::SSOKey<BufferSize, BackendAssignedKeyTy
   template <typename ArchiveT>
   void pack(sso_key_t const& val, ArchiveT& ar) const {
     ar << val.mode;
-    switch(val.mode) {
+    switch (val.mode) {
       case darma_runtime::detail::_impl::BackendAssigned:
         ar << val.repr.as_backend_assigned.backend_assigned_key;
         break;
@@ -636,9 +717,9 @@ struct Serializer<darma_runtime::detail::SSOKey<BufferSize, BackendAssignedKeyTy
 
   template <typename ArchiveT>
   void unpack(void* allocated, ArchiveT& ar) const {
-    auto& val = *(new (allocated) sso_key_t);
+    auto& val = *(new(allocated) sso_key_t);
     ar >> val.mode;
-    switch(val.mode) {
+    switch (val.mode) {
       case darma_runtime::detail::_impl::BackendAssigned:
         ar >> val.repr.as_backend_assigned.backend_assigned_key;
         break;
@@ -662,6 +743,9 @@ struct Serializer<darma_runtime::detail::SSOKey<BufferSize, BackendAssignedKeyTy
 };
 
 } // end namespace serialization
+
+// </editor-fold> end Serializer specialization for SSOKey
+//==============================================================================
 
 
 

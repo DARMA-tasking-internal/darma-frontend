@@ -98,6 +98,7 @@ class ArrayConceptManager {
       //return get_element_range(
       //  obj, cir->offset(), cir->size()
       //);
+      return nullptr; // unreachable
     }
 
     /** @todo
