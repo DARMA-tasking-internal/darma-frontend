@@ -110,19 +110,40 @@ equal_as_bytes(T const& a, U const& b) {
 inline bool
 equal_as_bytes(const char* a, size_t a_size, const char* b, size_t b_size) {
   if(a_size != b_size) return false;
-  for(int i = 0; i < a_size; ++i, ++a, ++b) {
-    if(*a != *b) return false;
+  if(a_size % sizeof(uint64_t) == 0) {
+    const uint64_t* a_64 = reinterpret_cast<uint64_t const*>(a);
+    const uint64_t* b_64 = reinterpret_cast<uint64_t const*>(b);
+    const size_t n_iter = a_size / sizeof(uint64_t);
+    for(int i = 0; i < n_iter; ++i, ++a_64, ++b_64) {
+      if(*a_64 != *b_64) return false;
+    }
+  }
+  else {
+    for (int i = 0; i < a_size; ++i, ++a, ++b) {
+      if (*a != *b) return false;
+    }
   }
   return true;
 }
 
 inline size_t
 hash_as_bytes(const char* a, size_t a_size) {
-  size_t rv = 0;
-  for(int i = 0; i < a_size; ++i, ++a) {
-    hash_combine(rv, *a);
+  if(a_size % sizeof(uint64_t) == 0) {
+    size_t rv = 0;
+    const uint64_t* a_64 = reinterpret_cast<uint64_t const*>(a);
+    const size_t n_iter = a_size / sizeof(uint64_t);
+    for(int i = 0; i < n_iter; ++i, ++a_64) {
+      hash_combine(rv, *a_64);
+    }
+    return rv;
   }
-  return rv;
+  else {
+    size_t rv = 0;
+    for(int i = 0; i < a_size; ++i, ++a) {
+      hash_combine(rv, *a);
+    }
+    return rv;
+  }
 }
 
 
