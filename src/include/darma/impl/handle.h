@@ -327,6 +327,11 @@ struct AccessHandleAccess {
   }
   template <typename AccessHandleT>
   static auto&
+  var_handle(AccessHandleT& ah) {
+    return ah.var_handle_;
+  }
+  template <typename AccessHandleT>
+  static auto&
   read_only_holder(AccessHandleT& ah) {
     return ah.read_only_holder_;
   }
