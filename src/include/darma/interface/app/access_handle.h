@@ -250,7 +250,7 @@ class AccessHandle : public detail::AccessHandleBase {
         abstract::backend::get_backend_context()->get_running_task()
       );
       capturing_task = running_task->current_create_work_context;
-      var_handle_ = copied_from.var_handle_;
+      var_handle_ = AccessHandleAccess::var_handle(copied_from);
 
       // Now check if we're in a capturing context:
       if (capturing_task != nullptr) {
