@@ -93,6 +93,7 @@ class ArrayMovementManager {
       //return get_packed_size(
       //  obj, cir->offset(), cir->size(), ser_pol
       //);
+      return 0; // unreachable
     }
 
     /** @todo

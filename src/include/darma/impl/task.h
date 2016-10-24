@@ -235,6 +235,7 @@ class TaskBase : public abstract::frontend::Task
           DARMA_ASSERT_NOT_IMPLEMENTED(
             "more specific aliasing allowed specifications than just true or false"
           );
+          return false; // unreachable
         }
       }
 

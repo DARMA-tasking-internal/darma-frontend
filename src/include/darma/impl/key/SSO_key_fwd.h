@@ -45,6 +45,9 @@
 #ifndef DARMA_IMPL_KEY_SSO_KEY_FWD_H
 #define DARMA_IMPL_KEY_SSO_KEY_FWD_H
 
+#include <cstdint>
+#include <cstdlib>
+
 namespace darma_runtime {
 namespace detail {
 
@@ -60,8 +63,8 @@ typedef enum {
 
 template <
   /* default allows it to fit in a cache line */
-  size_t BufferSize = 64 - sizeof(size_t) - 8,
-  typename BackendAssignedKeyType = size_t,
+  std::size_t BufferSize = 64 - sizeof(std::size_t) - 8,
+  typename BackendAssignedKeyType = std::size_t,
   typename PieceSizeOrdinal = uint8_t,
   typename ComponentCountOrdinal = uint8_t
 >
