@@ -168,28 +168,17 @@ struct CRTaskRunnableBase {
   ) =0;
 };
 
-// Trick the detection into thinking the first parameter isn't part of the formal parameters
-// (for code reuse purposes)
-template <typename Callable>
-struct functor_without_first_param_adapter {
-  using other_args_vector = typename meta::callable_traits<Callable>::params_vector::pop_front::type;
-  template <typename... Args>
-  struct functor_with_args {
-    void operator()(Args...) const { DARMA_ASSERT_UNREACHABLE_FAILURE("Something went wrong with metaprogramming"); }
-  };
-  using type = typename tinympl::splat_to<other_args_vector, functor_with_args>::type;
-};
 
 template <typename Callable, typename RangeT, typename... Args>
 struct CRTaskRunnable
   : FunctorLikeRunnableBase<
-      typename functor_without_first_param_adapter<Callable>::type,
+      typename meta::functor_without_first_param_adapter<Callable>::type,
       Args...
     >,
     CRTaskRunnableBase
 {
   using base_t = FunctorLikeRunnableBase<
-    typename functor_without_first_param_adapter<Callable>::type,
+    typename meta::functor_without_first_param_adapter<Callable>::type,
     Args...
   >;
 

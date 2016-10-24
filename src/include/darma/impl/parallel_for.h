@@ -56,30 +56,6 @@ namespace darma_runtime {
 
 namespace detail {
 
-// TODO add arguments
-template <typename Callable>
-struct paralell_for_task_wrapper {
-
-};
-
-template <typename Lambda>
-struct paralell_for_lambda_task_wrapper {
-  std::remove_reference_t<Lambda> lambda_;
-  int64_t n_iters_;
-  // Force copy to happen here so that the captures are detected
-  paralell_for_lambda_task_wrapper(std::remove_reference_t<Lambda>&& lambda, int64_t n_iters)
-    : lambda_(lambda), n_iters_(n_iters)
-  { }
-  paralell_for_lambda_task_wrapper(paralell_for_lambda_task_wrapper const&) = delete;
-  paralell_for_lambda_task_wrapper(paralell_for_lambda_task_wrapper&& other)
-    : lambda_(std::move(other.lambda_)), n_iters_(other.n_iters_)
-  { }
-  void operator()() const {
-    backend::execute_parallel_for(n_iters_, lambda_);
-  }
-
-};
-
 template <typename Lambda>
 struct ParallelForLambdaRunnable
   : RunnableBase
@@ -103,6 +79,47 @@ struct ParallelForLambdaRunnable
 
   int64_t n_iters_;
   std::remove_reference_t<Lambda> run_this_;
+};
+
+template <typename Callable, typename... Args>
+struct ParallelForFunctorRunnable
+  : FunctorLikeRunnableBase<
+      typename meta::functor_without_first_param_adapter<Callable>::type,
+      Args...
+    >
+{
+  using base_t = FunctorLikeRunnableBase<
+    typename meta::functor_without_first_param_adapter<Callable>::type,
+    Args...
+  >;
+
+  using base_t::base_t;
+
+  void set_n_iters(int64_t n_iters) { n_iters_ = n_iters; }
+
+  bool run() override {
+    meta::splat_tuple(
+      this->base_t::_get_args_to_splat(),
+      [this](auto&&... args) {
+        backend::execute_parallel_for(
+          n_iters_,
+          Callable(),
+          std::forward<decltype(args)>(args)...
+        );
+      }
+    );
+    return false; // ignored
+  }
+
+  // TODO migratability
+  size_t get_index() const  { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }
+  virtual size_t get_packed_size() const {
+    DARMA_ASSERT_NOT_IMPLEMENTED();
+    return 0; // Unreachable; silence missing return warnings
+  }
+  virtual void pack(void* allocated) const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
+
+  int64_t n_iters_;
 };
 
 
@@ -153,6 +170,8 @@ struct _do_create_parallel_for<
 
         parent_task->current_create_work_context = nullptr;
 
+        task->is_parallel_for_task_ = true;
+
         for (auto&& reg : task->registrations_to_run) {
           reg();
         }
@@ -168,6 +187,66 @@ struct _do_create_parallel_for<
 // </editor-fold> end Lambda version
 //==============================================================================
 
+//==============================================================================
+// <editor-fold desc="Functor version">
+
+// Lambda version
+
+template <typename Callable, typename... Args>
+struct _do_create_parallel_for<
+  true, Callable, tinympl::vector<Args...>
+> {
+  void operator()(Args&& ... args) const {
+    using parser = kwarg_parser<
+      variadic_positional_overload_description<
+        _keyword<size_t, keyword_tags_for_parallel_for::n_iterations>
+      >
+    >;
+
+    using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
+
+    return parser()
+      // For some reason, this doesn't work with zero variadics, so we can give it a
+      // random one since they're ignored anyway
+      .parse_args(std::forward<Args>(args)...)
+      .invoke([&](
+        size_t n_iters,
+        variadic_arguments_begin_tag,
+        auto&&... args_to_fwd
+      ) {
+        auto task = std::make_unique<TaskBase>();
+        detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
+          abstract::backend::get_backend_context()->get_running_task()
+        );
+        parent_task->current_create_work_context = task.get();
+
+        auto runnable = std::make_unique<
+          ParallelForFunctorRunnable<Callable, decltype(args_to_fwd)...>
+        >(
+          variadic_constructor_arg,
+          std::forward<decltype(args_to_fwd)>(args_to_fwd)...
+        );
+        runnable->set_n_iters(n_iters);
+        task->set_runnable(std::move(runnable));
+
+        parent_task->current_create_work_context = nullptr;
+
+        task->is_parallel_for_task_ = true;
+
+        for (auto&& reg : task->registrations_to_run) {
+          reg();
+        }
+        task->registrations_to_run.clear();
+
+        return abstract::backend::get_backend_runtime()->register_task(
+          std::move(task)
+        );
+      });
+  }
+};
+
+// </editor-fold> end Lambda version
+//==============================================================================
 
 
 } // end namespace detail
@@ -198,9 +277,6 @@ void create_parallel_for(
   >()(
     std::forward<Args>(args)...
   );
-
-
-
 }
 
 } // end namespace darma_runtime
