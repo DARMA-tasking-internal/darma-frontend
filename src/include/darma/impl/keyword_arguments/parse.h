@@ -57,6 +57,7 @@
 
 // TODO figure out how to replace "tags" with "arguments" in error message?!?
 // TODO specificity of pretty printed errors on why an overload failed (e.g., bad keyword argument, etc.)
+// TODO fix the zero variadics case?
 
 #ifndef DARMA_NO_PRETTY_PRINT_COMPILE_TIME_ERRORS
 #define DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
