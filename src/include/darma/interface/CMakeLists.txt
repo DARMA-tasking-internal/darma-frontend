@@ -20,6 +20,9 @@ FILE(GLOB frontend_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
 FILE(GLOB frontend_detail_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/frontend/detail/*.h")
 
+FILE(GLOB frontend_types_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/frontend/types/*.h")
+
 install (FILES ${main_HEADERS} DESTINATION include/darma/interface)
 install (FILES ${app_HEADERS} DESTINATION include/darma/interface/app)
 install (FILES ${backend_HEADERS} DESTINATION include/darma/interface/backend)
@@ -27,6 +30,7 @@ install (FILES ${default_HEADERS} DESTINATION include/darma/interface/defaults)
 install (FILES ${frontend_HEADERS} DESTINATION include/darma/interface/frontend)
 install (FILES ${frontend_detail_HEADERS} DESTINATION include/darma/interface/frontend/detail)
 install (FILES ${app_key_HEADERS} DESTINATION include/darma/interface/app/keyword_arguments)
+install (FILES ${frontend_types_HEADERS} DESTINATION include/darma/interface/frontend/types)
 
 
 
