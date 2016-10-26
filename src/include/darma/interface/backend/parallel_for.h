@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
+//                      parallel_for.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,25 +42,34 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMA_INTERFACE_BACKEND_PARALLEL_FOR_H
+#define DARMA_INTERFACE_BACKEND_PARALLEL_FOR_H
 
-#include <darma_types.h>
-#include "handle.h"
-#include "task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "create_work.h"
-#include "concurrent_region.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/impl/top_level.h>
-#include <darma/interface/defaults/darma_main.h>
-#include "parallel_for.h"
+namespace darma_runtime {
 
-#include <darma/impl/serialization/policy_aware_archive.h>
+namespace backend {
 
-#include "serialization/serialization.impl.h"
-#include "array/array.impl.h"
+// TODO add more context via some other parameters
 
-#endif /* SRC_DARMA_DARMA_H_ */
+template <typename Ordinal, typename UnaryCallable, typename... Args>
+void execute_parallel_for(
+  Ordinal n_iters, UnaryCallable&& f, Args&&... args
+)
+#ifdef DARMA_CUSTOM_PARALLEL_FOR
+;
+#else
+{
+#pragma ivdep
+  for(Ordinal i = 0; i < n_iters; ++i) {
+    // Don't perfect forward args because they will be used more than once and
+    // move semantics are incorrect here
+    f(i, args...);
+  }
+}
+#endif
 
+} // end namespace backend
+
+} // end namespace darma_runtime
+
+#endif //DARMA_INTERFACE_BACKEND_PARALLEL_FOR_H
