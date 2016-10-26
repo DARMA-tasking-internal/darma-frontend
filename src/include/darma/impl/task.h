@@ -211,6 +211,10 @@ class TaskBase : public abstract::frontend::Task
       runnable_ = std::move(r);
     }
 
+    bool is_parallel_for_task() const override {
+      return is_parallel_for_task_;
+    }
+
     virtual ~TaskBase() noexcept { }
 
     //==========================================================================
@@ -253,6 +257,7 @@ class TaskBase : public abstract::frontend::Task
     std::vector<std::function<void()>> post_registration_ops;
     bool is_double_copy_capture = false;
     unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
+    bool is_parallel_for_task_ = false;
 
   protected:
 

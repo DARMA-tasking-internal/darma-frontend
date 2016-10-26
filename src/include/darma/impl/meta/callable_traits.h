@@ -500,6 +500,18 @@ struct callable_traits {
 // </editor-fold>
 //==============================================================================
 
+// Trick the detection into thinking the first parameter isn't part of the formal parameters
+// (for code reuse purposes)
+template <typename Callable>
+struct functor_without_first_param_adapter {
+  using other_args_vector = typename callable_traits<Callable>::params_vector::pop_front::type;
+  template <typename... Args>
+  struct functor_with_args {
+    void operator()(Args...) const { DARMA_ASSERT_UNREACHABLE_FAILURE("Something went wrong with metaprogramming"); }
+  };
+  using type = typename tinympl::splat_to<other_args_vector, functor_with_args>::type;
+};
+
 } // end namespace meta
 
 } // end namespace darma_runtime
