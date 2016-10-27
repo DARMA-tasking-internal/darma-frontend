@@ -47,8 +47,6 @@
 
 #include <cstdlib> // size_t
 
-#include <darma_types.h>
-
 #include "polymorphic_serializable_object.h"
 
 namespace darma_runtime {
