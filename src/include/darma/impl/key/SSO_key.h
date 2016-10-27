@@ -54,7 +54,10 @@
 #include <darma/impl/key/bytes_convert.h>
 #include <darma/impl/meta/tuple_for_each.h>
 #include <darma/impl/serialization/range.h>
+#include <darma/impl/serialization/manager.h>
+#include <darma/impl/serialization/allocator.h>
 #include "SSO_key_fwd.h"
+
 
 namespace darma_runtime {
 
@@ -226,10 +229,16 @@ template <
   /* default allows it to fit in a cache line */
   size_t BufferSize /* = 64 - sizeof(size_t) - sizeof(_impl::sso_key_mode_t) */,
   typename BackendAssignedKeyType /*= size_t */,
+  // TODO this could be removed because the size each piece is redundant information
   typename PieceSizeOrdinal /*= uint8_t */,
   typename ComponentCountOrdinal /*= uint8_t */
 >
-class SSOKey {
+class SSOKey
+    // TODO Optimize this out at some point.  This base has nonzero size because it inherits from SerializationManager.
+  : public serialization::detail::SerializationManagerForType<
+      SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal>
+    >
+{
   private:
 
     using piece_size_ordinal_t = PieceSizeOrdinal;
@@ -238,10 +247,8 @@ class SSOKey {
     //template <typename... Args>
     //friend detail::SSOKey<buffer_size> darma_runtime::make_key(Args&&...);
 
-    struct backend_assigned_key_tag {
-    };
-    struct request_backend_assigned_key_tag {
-    };
+    struct backend_assigned_key_tag { };
+    struct request_backend_assigned_key_tag { };
 
 
     struct _short {
@@ -299,46 +306,7 @@ class SSOKey {
     SSOKey(
       variadic_constructor_arg_t,
       Args&& ... args
-    ) {
-      static_assert(
-        sizeof...(Args) < std::numeric_limits<ComponentCountOrdinal>::max(),
-        "Too many components given to SSO Key"
-      );
-      size_t buffer_size = _impl::_sum(
-        bytes_convert<std::remove_reference_t<Args>>().get_size(
-          std::forward<Args>(args)
-        )...
-      ) + sizeof...(Args)
-        * (sizeof(PieceSizeOrdinal) + sizeof(bytes_type_metadata))
-        + sizeof(ComponentCountOrdinal);
-      char* buffer, * buffer_start;
-      if (buffer_size < BufferSize) {
-        // Employ SSO
-        mode = _impl::Short;
-        repr.as_short = _short();
-        repr.as_short.size = buffer_size;
-        buffer = buffer_start = repr.as_short.data;
-      } else {
-        // use large buffer
-        mode = _impl::Long;
-        repr.as_long = _long();
-        repr.as_long.size = buffer_size;
-        repr.as_long.data = buffer = buffer_start = new char[buffer_size];
-      }
-      // Skip over the number of components; we'll come back to it
-      buffer += sizeof(ComponentCountOrdinal);
-      ComponentCountOrdinal actual_component_count = 0;
-      meta::tuple_for_each(
-        std::forward_as_tuple(std::forward<Args>(args)...),
-        [&](auto&& arg) {
-          actual_component_count +=
-            _impl::sso_key_add(*this, buffer, std::forward<decltype(arg)>(arg));
-        }
-      );
-      *reinterpret_cast<ComponentCountOrdinal*>(buffer_start) =
-        actual_component_count;
-
-    }
+    );
 
     bool _is_long() const { return mode == _impl::Long; }
     bool _is_short() const { return mode == _impl::Short; }
@@ -406,11 +374,9 @@ class SSOKey {
     SSOKey()
       : SSOKey(request_backend_assigned_key_tag{}) {}
 
-    ~SSOKey() {
-      if (mode == _impl::Long and repr.as_long.data != nullptr) {
-        delete[] repr.as_long.data;
-      }
-    }
+    // TODO efficient move constructor
+
+    ~SSOKey();
 
     size_t n_components() const {
       if (mode == _impl::BackendAssigned) return 0;
@@ -511,6 +477,11 @@ class SSOKey {
         reinterpret_cast<bytes_type_metadata const*>(buffer
           + sizeof(PieceSizeOrdinal))
       );
+    }
+
+    abstract::frontend::SerializationManager const*
+    get_serialization_manager() const {
+      return this;
     }
 
 };
@@ -749,6 +720,86 @@ struct Serializer<
 
 
 
+} // end namespace darma_runtime
+
+//==============================================================================
+// Implementation of ctor
+
+#include <darma/interface/backend/runtime.h>
+
+namespace darma_runtime {
+namespace detail {
+
+template <
+  size_t BufferSize,
+  typename BackendAssignedKeyType,
+  typename PieceSizeOrdinal,
+  typename ComponentCountOrdinal
+>
+template <typename... Args>
+SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal>::SSOKey(
+  variadic_constructor_arg_t,
+  Args&&... args
+) {
+
+  static_assert(
+    sizeof...(Args) < std::numeric_limits<ComponentCountOrdinal>::max(),
+    "Too many components given to SSO Key"
+  );
+  size_t buffer_size = _impl::_sum(
+    bytes_convert<std::remove_reference_t<Args>>().get_size(
+      std::forward<Args>(args)
+    )...
+  ) + sizeof...(Args)
+    * (sizeof(PieceSizeOrdinal) + sizeof(bytes_type_metadata))
+    + sizeof(ComponentCountOrdinal);
+  char* buffer, * buffer_start;
+  if (buffer_size < BufferSize) {
+    // Employ SSO
+    mode = _impl::Short;
+    repr.as_short = _short();
+    repr.as_short.size = buffer_size;
+    buffer = buffer_start = repr.as_short.data;
+  } else {
+    // use large buffer
+    mode = _impl::Long;
+    repr.as_long = _long();
+    repr.as_long.size = buffer_size;
+    repr.as_long.data = buffer = buffer_start = static_cast<char*>(
+      abstract::backend::get_backend_memory_manager()->allocate(
+        buffer_size, serialization::detail::DefaultMemoryRequirementDetails{}
+      )
+    );
+  }
+  // Skip over the number of components; we'll come back to it
+  buffer += sizeof(ComponentCountOrdinal);
+  ComponentCountOrdinal actual_component_count = 0;
+  meta::tuple_for_each(
+    std::forward_as_tuple(std::forward<Args>(args)...),
+    [&](auto&& arg) {
+      actual_component_count +=
+        _impl::sso_key_add(*this, buffer, std::forward<decltype(arg)>(arg));
+    }
+  );
+  *reinterpret_cast<ComponentCountOrdinal*>(buffer_start) =
+    actual_component_count;
+}
+
+template <
+  size_t BufferSize,
+  typename BackendAssignedKeyType,
+  typename PieceSizeOrdinal,
+  typename ComponentCountOrdinal
+>
+SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal>::~SSOKey() {
+  if (mode == _impl::Long and repr.as_long.data != nullptr) {
+    abstract::backend::get_backend_memory_manager()->deallocate(
+      repr.as_long.data, repr.as_long.size
+    );
+  }
+};
+
+} // end namespace detail
 } // end namespace darma_runtime
 
 #endif //DARMA_IMPL_KEY_SSO_KEY_H

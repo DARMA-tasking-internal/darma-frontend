@@ -291,6 +291,18 @@ class TestFrontend
       mock_runtime = std::make_unique<Strictness<mock_backend::MockRuntime>>();
       ON_CALL(*mock_runtime, get_running_task())
         .WillByDefault(Return(top_level_task.get()));
+      ON_CALL(*mock_runtime, allocate(_, _))
+        .WillByDefault(Invoke([](auto size, auto const& details) {
+          return ::operator new(size);
+        }));
+      ON_CALL(*mock_runtime, deallocate(_, _))
+        .WillByDefault(Invoke([](auto* ptr, auto size) {
+#if defined(__cpp_sized_deallocation)
+          ::operator delete(ptr, size);
+#else
+          ::operator delete(ptr);
+#endif
+        }));
 
       mock_runtime_setup_done = true;
     }
