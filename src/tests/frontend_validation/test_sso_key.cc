@@ -299,6 +299,8 @@ TEST_F(TestSSOKey, serialize_serman_long) {
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestSSOKey, serialize_serman_small) {
   using namespace darma_runtime::detail;
   using namespace darma_runtime::serialization;
@@ -314,11 +316,30 @@ TEST_F(TestSSOKey, serialize_serman_small) {
   k1.pack_data(&k1, buffer, &ser_pol);
 
   char allocated[k1.get_metadata_size()];
-  // expect allocation from the indirect deserializer
-  //EXPECT_CALL(*mock_runtime, allocate(_, _))
-  //  .WillOnce(Invoke([](auto alloc_size, auto&&...){
-  //    return ::operator new(alloc_size);
-  //  }));
+  k1.unpack_data(allocated, buffer, &ser_pol);
+  auto& k2 = *reinterpret_cast<sso_key_t*>(allocated);
+
+  ASSERT_TRUE(key_traits<sso_key_t>::key_equal()(k1, k2));
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSSOKey, serialize_serman_backend_assigned) {
+  using namespace darma_runtime::detail;
+  using namespace darma_runtime::serialization;
+  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+  auto maker = typename key_traits<sso_key_t>::backend_maker{};
+  sso_key_t k1 = maker(314ul);
+
+  // Use the default which uses indirect in place of direct
+  auto ser_pol = abstract::backend::SerializationPolicy{};
+  auto size = k1.get_packed_data_size(&k1, &ser_pol);
+
+  char buffer[size];
+  k1.pack_data(&k1, buffer, &ser_pol);
+
+  char allocated[k1.get_metadata_size()];
   k1.unpack_data(allocated, buffer, &ser_pol);
   auto& k2 = *reinterpret_cast<sso_key_t*>(allocated);
 
