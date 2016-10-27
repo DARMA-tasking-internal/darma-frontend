@@ -63,7 +63,7 @@ typedef enum {
 
 template <
   /* default allows it to fit in a cache line */
-  std::size_t BufferSize = 64 - sizeof(std::size_t) - 8,
+  std::size_t BufferSize = 64 - sizeof(std::size_t) - 8 - 8,
   typename BackendAssignedKeyType = std::size_t,
   typename PieceSizeOrdinal = uint8_t,
   typename ComponentCountOrdinal = uint8_t

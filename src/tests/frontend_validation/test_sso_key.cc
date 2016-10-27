@@ -45,9 +45,17 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "test_frontend.h"
+#include "mock_backend.h"
+
 #include <darma/impl/key/SSO_key.h>
 #include <darma/impl/key_concept.h>
 #include <darma/impl/util/static_assertions.h>
+#include <darma/impl/serialization/policy_aware_archive.h>
+#include <darma/impl/serialization/manager.h>
+
+
+#include <darma/impl/darma.h>
 
 using namespace darma_runtime;
 using namespace darma_runtime::detail;
@@ -63,15 +71,18 @@ using sso_key_t = SSOKey<>;
 ////////////////////////////////////////////////////////////////////////////////
 
 class TestSSOKey
-  : public ::testing::Test
+  : public TestFrontend
 {
   protected:
 
     virtual void SetUp() {
       using namespace ::testing;
+      setup_mock_runtime<::testing::NiceMock>();
+      TestFrontend::SetUp();
     }
 
     virtual void TearDown() {
+      TestFrontend::TearDown();
     }
 
 };
@@ -225,4 +236,92 @@ TEST_F(TestSSOKey, equal_backend_assigned) {
   auto backendk4 = backend_maker(1);
   ASSERT_THAT(backendk3, Not(Eq(backendk4)));
   ASSERT_THAT(backendk2, Not(Eq(backendk4)));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+//TEST_F(TestSSOKey, serialize_long) {
+//  using namespace darma_runtime::detail;
+//  using namespace darma_runtime::serialization;
+//  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+//  auto maker = typename key_traits<sso_key_t>::maker{};
+//  sso_key_t k1 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+//
+//  // Use the default which uses indirect in place of direct
+//  auto ser_pol = abstract::backend::SerializationPolicy{};
+//  serialization::PolicyAwareArchive ar(&ser_pol);
+//  serialization::Serializer<sso_key_t> ser;
+//
+//  ArchiveAccess::start_sizing(ar);
+//  ser.compute_size(k1, ar);
+//  size_t size = ArchiveAccess::get_size(ar);
+//
+//  char buffer[size];
+//  ArchiveAccess::start_packing_with_buffer(ar, buffer);
+//  ser.pack(k1, ar);
+//
+//  char allocated[sizeof(sso_key_t)];
+//  ArchiveAccess::start_unpacking_with_buffer(ar, buffer);
+//  ser.unpack(allocated, ar);
+//  sso_key_t& k2 = *reinterpret_cast<sso_key_t*>(&(allocated[0]));
+//
+//  ASSERT_TRUE(key_traits<sso_key_t>::key_equal()(k1, k2));
+//
+//}
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+TEST_F(TestSSOKey, serialize_serman_long) {
+  using namespace darma_runtime::detail;
+  using namespace darma_runtime::serialization;
+  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+  auto maker = typename key_traits<sso_key_t>::maker{};
+  sso_key_t k1 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
+
+  // Use the default which uses indirect in place of direct
+  auto ser_pol = abstract::backend::SerializationPolicy{};
+  auto size = k1.get_packed_data_size(&k1, &ser_pol);
+
+  char buffer[size];
+  k1.pack_data(&k1, buffer, &ser_pol);
+
+  char allocated[k1.get_metadata_size()];
+  // expect allocation from the indirect deserializer
+  EXPECT_CALL(*mock_runtime, allocate(_, _))
+    .WillOnce(Invoke([](auto alloc_size, auto&&...){
+      return ::operator new(alloc_size);
+    }));
+  k1.unpack_data(allocated, buffer, &ser_pol);
+  auto& k2 = *reinterpret_cast<sso_key_t*>(allocated);
+
+  ASSERT_TRUE(key_traits<sso_key_t>::key_equal()(k1, k2));
+
+}
+
+TEST_F(TestSSOKey, serialize_serman_small) {
+  using namespace darma_runtime::detail;
+  using namespace darma_runtime::serialization;
+  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+  auto maker = typename key_traits<sso_key_t>::maker{};
+  sso_key_t k1 = maker("me", 2);
+
+  // Use the default which uses indirect in place of direct
+  auto ser_pol = abstract::backend::SerializationPolicy{};
+  auto size = k1.get_packed_data_size(&k1, &ser_pol);
+
+  char buffer[size];
+  k1.pack_data(&k1, buffer, &ser_pol);
+
+  char allocated[k1.get_metadata_size()];
+  // expect allocation from the indirect deserializer
+  //EXPECT_CALL(*mock_runtime, allocate(_, _))
+  //  .WillOnce(Invoke([](auto alloc_size, auto&&...){
+  //    return ::operator new(alloc_size);
+  //  }));
+  k1.unpack_data(allocated, buffer, &ser_pol);
+  auto& k2 = *reinterpret_cast<sso_key_t*>(allocated);
+
+  ASSERT_TRUE(key_traits<sso_key_t>::key_equal()(k1, k2));
+
 }

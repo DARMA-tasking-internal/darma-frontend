@@ -66,7 +66,12 @@ struct SerializationPolicy {
     virtual std::size_t
     packed_size_contribution_for_blob(
       void const* data_begin, std::size_t n_bytes
-    ) const =0;
+    ) const {
+      // default implementation just does an indirect pack
+      // (so return the size here so that it gets included in
+      // the indirect buffer's allocation)
+      return n_bytes;
+    }
 
     /** @todo document this
      *
@@ -79,7 +84,15 @@ struct SerializationPolicy {
       void*& indirect_pack_buffer,
       void const* data_begin,
       std::size_t n_bytes
-    ) const =0;
+    ) const {
+      // default implementation just does an indirect pack/unpack
+      std::copy(
+        static_cast<char const*>(data_begin),
+        static_cast<char const*>(data_begin) + n_bytes,
+        static_cast<char*>(indirect_pack_buffer)
+      );
+      reinterpret_cast<char*&>(indirect_pack_buffer) += n_bytes;
+    }
 
     /** @todo document this
      *
@@ -92,7 +105,16 @@ struct SerializationPolicy {
       void*& indirect_packed_buffer,
       void* dest,
       std::size_t n_bytes
-    ) const =0;
+    ) const {
+      // default implementation just does an indirect pack/unpack
+      std::copy(
+        static_cast<char*>(indirect_packed_buffer),
+        static_cast<char*>(indirect_packed_buffer) + n_bytes,
+        static_cast<char*>(dest)
+      );
+      reinterpret_cast<char*&>(indirect_packed_buffer) += n_bytes;
+
+    }
 
 };
 
