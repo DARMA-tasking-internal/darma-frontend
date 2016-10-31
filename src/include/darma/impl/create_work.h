@@ -147,8 +147,19 @@ struct _do_create_work_impl {
     types::unique_ptr_template<TaskBase>&& task_base,
     Args&& ... args
   ) {
+
+    using runnable_t = FunctorRunnable<Functor, Args...>;
+
+    //--------------------------------------------------------------------------
+    // Check that the arguments are serializable
+
+    // Don't wrap this line; it's on one line for compiler spew readability
+    using _______________see_calling_context_below________________ = typename runnable_t::template static_assert_all_args_serializable<>;
+
+    //--------------------------------------------------------------------------
+
     task_base->set_runnable(
-      std::make_unique<FunctorRunnable<Functor, Args...>>(
+      std::make_unique<runnable_t>(
         variadic_constructor_arg,
         std::forward<Args>(args)...
       )
@@ -328,32 +339,6 @@ reads(Args&&... args) {
   );
   return detail::reads_decorator_parser<Args...>()(std::forward<Args>(args)...);
 }
-
-// Removed from 0.2 spec
-//template <typename... Args>
-//typename detail::waits_decorator_parser<Args...>::return_type
-//waits(Args&&... args) {
-//  // TODO implement this
-//  return typename detail::waits_decorator_parser<Args...>::return_type();
-//}
-
-// Removed from 0.2 spec
-//template <typename... Args>
-//typename detail::writes_decorator_parser<Args...>::return_type
-//writes(Args&&... args) {
-//  // TODO implement this
-//  assert(false); // not implemented
-//  return typename detail::writes_decorator_parser<Args...>::return_type();
-//}
-
-// Removed from 0.2 spec
-//template <typename... Args>
-//typename detail::reads_writes_decorator_parser<Args...>::return_type
-//reads_writes(Args&&... args) {
-//  // TODO implement this
-//  assert(false); // not implemented
-//  return typename detail::reads_writes_decorator_parser<Args...>::return_type();
-//}
 
 } // end namespace darma_runtime
 

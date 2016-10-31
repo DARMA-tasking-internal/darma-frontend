@@ -101,6 +101,12 @@ struct Serializer<std::vector<T, Allocator>>
 
   public:
 
+    template <typename ArchiveT>
+    enable_if_unpackable<ArchiveT>
+    unpack(void* allocated, ArchiveT& ar) const {
+      return unpack(allocated, ar, darma_allocator<std::vector<T, Allocator>>());
+    }
+
     template <typename ArchiveT, typename ParentAllocator>
     enable_if_unpackable<ArchiveT>
     unpack(void* allocated, ArchiveT& ar, ParentAllocator&& p_alloc) const {

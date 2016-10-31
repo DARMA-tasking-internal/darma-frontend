@@ -65,17 +65,17 @@ struct ParallelForLambdaRunnable
     : run_this_(lambda), n_iters_(n_iters)
   { }
 
-  bool run() {
+  bool run() override {
     backend::execute_parallel_for(n_iters_, run_this_);
     return false;
   }
 
-  size_t get_index() const  { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }
-  virtual size_t get_packed_size() const {
+  size_t get_index() const override { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }
+  virtual size_t get_packed_size() const override {
     DARMA_ASSERT_NOT_IMPLEMENTED();
     return 0; // Unreachable; silence missing return warnings
   }
-  virtual void pack(void* allocated) const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
+  virtual void pack(void* allocated) const override { DARMA_ASSERT_NOT_IMPLEMENTED(); }
 
   int64_t n_iters_;
   std::remove_reference_t<Lambda> run_this_;
@@ -112,12 +112,12 @@ struct ParallelForFunctorRunnable
   }
 
   // TODO migratability
-  size_t get_index() const  { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }
-  virtual size_t get_packed_size() const {
+  size_t get_index() const override { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }
+  virtual size_t get_packed_size() const override {
     DARMA_ASSERT_NOT_IMPLEMENTED();
     return 0; // Unreachable; silence missing return warnings
   }
-  virtual void pack(void* allocated) const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
+  virtual void pack(void* allocated) const override { DARMA_ASSERT_NOT_IMPLEMENTED(); }
 
   int64_t n_iters_;
 };
