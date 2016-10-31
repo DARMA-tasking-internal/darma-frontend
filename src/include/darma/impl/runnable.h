@@ -51,6 +51,10 @@
 #include <type_traits>
 #include <cassert>
 
+#include <tinympl/all_of.hpp>
+#include <tinympl/logical_or.hpp>
+#include <tinympl/tuple_as_sequence.hpp>
+
 #include <darma/interface/backend/types.h>
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/frontend/task.h>
@@ -63,11 +67,28 @@
 
 #include <darma/impl/util/static_assertions.h>
 
+//==============================================================================
+// <editor-fold desc="Errors for calls with unserializable arguments">
+
+namespace _darma__errors {
+
+template <typename Functor>
+struct __________asynchronous_call_to_functor__ {
+  template <typename ArgType>
+  struct _____with_unserializable_argument_of_type__ { };
+};
+
+} // end namespace _darma__errors
+
+// </editor-fold> end Errors for calls with unserializable arguments
+//==============================================================================
+
 namespace darma_runtime {
 namespace detail {
 
 // Forward declaration
 class RunnableBase;
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="Runnable registry and helpers">
@@ -230,9 +251,9 @@ class FunctorLikeRunnableBase
       "Functor or Method task created with wrong number of arguments"
     );
 
-  protected:
-
     using args_tuple_t = typename call_traits::args_tuple_t;
+
+  protected:
 
     args_tuple_t args_;
 
@@ -418,6 +439,49 @@ class FunctorRunnable
     using base_t = FunctorLikeRunnableBase<Functor, Args...>;
 
     using args_tuple_t = typename base_t::args_tuple_t;
+
+    template <typename T>
+    using _arg_is_serializable = tinympl::or_<
+      typename serialization::detail::serializability_traits<T>
+        ::template is_serializable_with_archive<
+          serialization::PolicyAwareArchive
+        >,
+      typename serialization::detail::serializability_traits<T>
+        ::template is_serializable_with_archive<
+          serialization::SimplePackUnpackArchive
+        >
+    >;
+
+
+  public:
+
+    template <
+      /* convenience */
+      typename _first_unserializable =
+        tinympl::at_or_t<int /* ignored*/,
+          tinympl::find_if<
+            args_tuple_t,
+            tinympl::negate_metafunction<_arg_is_serializable>::template apply
+          >::type::value,
+          args_tuple_t
+        >
+    >
+    using static_assert_all_args_serializable = decltype(std::conditional_t<
+      tinympl::all_of<args_tuple_t, _arg_is_serializable>::value,
+      tinympl::identity<int>,
+      _darma__static_failure<
+        _____________________________________________________________________,
+        _____________________________________________________________________,
+        typename _darma__errors::__________asynchronous_call_to_functor__<Functor>
+          ::template _____with_unserializable_argument_of_type__<
+            _first_unserializable
+          >,
+        _____________________________________________________________________,
+        _____________________________________________________________________
+      >
+    >());
+
+  private:
 
     template <typename... FArgs>
     using _return_of_functor_t = std::result_of_t<Functor(FArgs...)>;

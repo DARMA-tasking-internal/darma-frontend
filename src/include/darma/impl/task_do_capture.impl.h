@@ -92,6 +92,7 @@ TaskBase::do_capture(
   registrations_to_run.emplace_back([&,check_aliasing=check_aliasing]{
 
     auto* backend_runtime = abstract::backend::get_backend_runtime();
+    //std::cout << backend_runtime->get_execution_resource_count(0) << std::endl;
 
     auto& source = source_and_continuing;
     auto& continuing = source_and_continuing;

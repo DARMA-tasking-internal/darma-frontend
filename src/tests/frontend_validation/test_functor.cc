@@ -402,3 +402,69 @@ TEST_F(TestFunctor, simple_handle_ref) {
   );
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestFunctor, lvalue_argument_copy) {
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  //============================================================================
+  // Code to actually be tested
+  {
+
+    struct ArgumentCopy {
+      void operator()(std::vector<int> val) const {
+        ASSERT_THAT(val, ElementsAre(1, 2, 3));
+      }
+    };
+
+    std::vector<int> my_var = { 1, 2, 3 };
+
+    create_work<ArgumentCopy>(my_var);
+
+    // Change something to make sure the copy happens
+    my_var[1] = 42;
+
+  }
+  //============================================================================
+
+  run_all_tasks();
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Should fail gracefully at compile time if uncommented
+//TEST_F(TestFunctor, lvalue_argument_copy) {
+//  using namespace ::testing;
+//  using namespace mock_backend;
+//
+//  {
+//    struct MyClassUnserializable {
+//      private:
+//        int a;
+//      public:
+//        explicit MyClassUnserializable(int aval) : a(aval) { }
+//    };
+//
+//    struct ArgumentCopy {
+//      void operator()(MyClassUnserializable val) const { }
+//    };
+//
+//    MyClassUnserializable unser(42);
+//    //std::vector<int> my_var = { 1, 2, 3 };
+//
+//    create_work<ArgumentCopy>(unser);
+//
+//    // Change something to make sure the copy happens
+//    //my_var[1] = 42;
+//
+//  }
+//  //============================================================================
+//
+//  run_all_tasks();
+//
+//}
+
