@@ -270,8 +270,8 @@ TaskBase::do_capture(
                 HandleUse::Modify
               ));
               captured.current_use_->do_register();
-              continuing.current_use_->use.in_flow_ = captured_out_flow;
               if(source.current_use_->is_registered) source.current_use_->do_release();
+              continuing.current_use_->use.in_flow_ = captured_out_flow;
               break;
             }
             case HandleUse::Modify: {
