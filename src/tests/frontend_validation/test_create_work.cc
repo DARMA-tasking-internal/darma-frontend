@@ -284,8 +284,10 @@ TEST_P(TestCaptureMM, capture_MM) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow finit, fnull, f_outer_out, f_forwarded, f_inner_out;
-  use_t* use_outer, *use_inner;
+  MockFlow finit("finit"), fnull("fnull"),
+    f_outer_out("f_outer_out"), f_forwarded("f_forwarded"),
+    f_inner_out("f_inner_out");
+  use_t* use_outer, *use_inner, *use_continuing;
   use_outer = use_inner = nullptr;
 
   EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
@@ -308,8 +310,8 @@ TEST_P(TestCaptureMM, capture_MM) {
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_outer_out, &fnull))
     .InSequence(s1);
 
-  ////////////////////////////////////////////////////////////////////////////////
-
+  //============================================================================
+  // Actual code being tested
   if(use_vector) {
 
     std::vector<AccessHandle<int>> tmp;
@@ -333,7 +335,7 @@ TEST_P(TestCaptureMM, capture_MM) {
 
   }
 
-  ////////////////////////////////////////////////////////////////////////////////
+  //----------------------------------------------------------------------------
 
   else {
 
@@ -356,8 +358,7 @@ TEST_P(TestCaptureMM, capture_MM) {
     });
 
   }
-
-  ////////////////////////////////////////////////////////////////////////////////
+  //============================================================================
 
   ON_CALL(*mock_runtime, get_running_task())
     .WillByDefault(Return(ByRef(outer)));
@@ -386,6 +387,15 @@ TEST_P(TestCaptureMM, capture_MM) {
         use->get_data_pointer_reference() = (void*)(&value);
         use_inner = use;
       }));
+    // Expect the continuing context use to be registered after the captured context
+    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
+      &f_forwarded, &f_outer_out, use_t::Modify, use_t::Read
+    ))).InSequence(s1)
+      .WillOnce(Invoke([&](auto&& use){
+        // Shouldn't be necessary
+        // use->get_data_pointer_reference() = (void*)(&value);
+        use_continuing = use;
+      }));
   }
 
   EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(use_outer))))
@@ -398,7 +408,9 @@ TEST_P(TestCaptureMM, capture_MM) {
     EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_inner_out, &f_outer_out));
   }
   else{
+    // Note: Currently there is no ordering requirement on these two
     EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_forwarded, &f_outer_out));
+    EXPECT_RELEASE_USE(use_continuing);
   }
 
   EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(use_inner))))

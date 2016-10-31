@@ -178,7 +178,7 @@ struct UseHolder {
 
   ~UseHolder() {
     if(is_registered) do_release();
-    else if(could_be_alias) {
+    if(could_be_alias) {
       // okay, now we know it IS an alias
       abstract::backend::get_backend_runtime()->establish_flow_alias(
         *(use.in_flow_.get()),
