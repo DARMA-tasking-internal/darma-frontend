@@ -49,7 +49,7 @@
 #include <frontend_types.h>
 #endif
 
-#include <darma_types.h>
+//#include <darma_types.h>
 
 #include <darma/interface/frontend/frontend_fwd.h>
 
