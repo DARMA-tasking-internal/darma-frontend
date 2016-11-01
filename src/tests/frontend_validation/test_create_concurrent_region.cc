@@ -262,3 +262,38 @@ TEST_F(TestCreateConcurrentRegion, simple_2d_reader_hint) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+struct MyCRTemplate {
+  template <typename Context>
+  void operator()(Context context) const {
+    std::cout << context.index().value;
+  }
+};
+
+
+TEST_F(TestCreateConcurrentRegion, simple_templated) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_create_concurrent_region;
+  using namespace mock_backend;
+
+  testing::internal::CaptureStdout();
+
+  EXPECT_CALL(*mock_runtime, register_concurrent_region_gmock_proxy(_, 6, nullptr));
+
+  //============================================================================
+  // actual code to be tested
+  {
+    create_concurrent_region<MyCRTemplate>(
+      index_range=Range1D<int>(6)
+    );
+  }
+  //============================================================================
+
+  run_all_cr_ranks_for_one_region_in_serial();
+
+  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+    "012345"
+  );
+
+}
