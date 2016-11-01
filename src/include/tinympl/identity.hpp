@@ -82,6 +82,12 @@ struct ignore_argument {
   using type = ReturnType;
 };
 
+template <typename ReturnType>
+struct make_ignore_argument {
+  template <typename /* ignored */>
+  using apply = tinympl::identity<ReturnType>;
+};
+
 /**
  * \ingroup Functional
  * \class ignore_value_argument
