@@ -183,6 +183,14 @@ class Runtime {
       frontend::Use* u
     ) =0;
 
+    virtual void
+    register_use_copy(
+      frontend::Use* u
+    ) {
+      // By default, just pass through to register_use()
+      return register_use(u);
+    }
+
     /** @todo update this
      *  @brief Release a Use object previously registered with register_use().
      *

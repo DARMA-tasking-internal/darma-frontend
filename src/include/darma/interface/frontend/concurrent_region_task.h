@@ -59,6 +59,21 @@ struct ConcurrentRegionTask : TaskImpl {
       std::shared_ptr<backend::ConcurrentRegionContextHandle> const&
     ) =0;
 
+    /** Makes a copy of the task.  All Use objects returned by get_dependencies
+     *  will be registered via Runtime::register_use_copy (and the task copy
+     *  returned here will call release_use on these copies at least before
+     *  the task copy's destructor returns).  The data underlying the Use pointers
+     *  are, of course, not copied and must be set up again before calling run().
+     *
+     *  @remark It is only valid to call deep_copy() on a concurrent region
+     *  task before its run() method has been invoked.
+     *
+     *  @return
+     */
+    virtual
+    std::unique_ptr<ConcurrentRegionTask>
+    deep_copy() const =0;
+
 };
 
 } // end namespace frontend
