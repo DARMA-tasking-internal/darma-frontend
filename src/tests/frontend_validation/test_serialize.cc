@@ -193,6 +193,16 @@ STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::string, SimplePackUnpackArchive,
   "String should be serializable"
 );
 
+STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::vector<std::vector<int>>, SimplePackUnpackArchive,
+  "vector<vector<int>> should be serializable should be serializable"
+);
+STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::vector<std::vector<int>>, PolicyAwareArchive,
+  "vector<vector<int>> should be serializable should be serializable"
+);
+STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::vector<std::string>, PolicyAwareArchive,
+  "vector<vector<int>> should be serializable should be serializable"
+);
+
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSerialize, vector_policy) {
@@ -243,4 +253,37 @@ TEST_F(TestSerialize, vector_policy) {
 
   ASSERT_THAT(value2, ContainerEq(value));
 
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSerialize, vector_string) {
+  using namespace std;
+  using namespace ::testing;
+
+  static_assert(meta::is_container<unordered_map<int, int>>::value, "unordered_map must be a Container");
+
+  std::vector<std::string> value = { "hello", "world", "!", "test"};
+
+  auto v_unpacked = do_serdes(value);
+
+  ASSERT_THAT(v_unpacked, ContainerEq(value));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSerialize, map_map) {
+  using namespace std;
+  using namespace ::testing;
+
+  static_assert(meta::is_container<unordered_map<int, int>>::value, "unordered_map must be a Container");
+
+  std::map<int,std::map<int, float>> value;
+  for(int i = 0; i < 5; ++i) {
+    value[i] = std::map<int, float>{ {i, i+1.0 }, { i*i, i*i + 1.0 } };
+  }
+
+  auto v_unpacked = do_serdes(value);
+
+  ASSERT_THAT(v_unpacked, ContainerEq(value));
 }

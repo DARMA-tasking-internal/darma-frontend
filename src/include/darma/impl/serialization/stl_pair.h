@@ -122,9 +122,13 @@ struct Serializer<std::pair<T1, T2>> {
       //      be fine in any implementation I can imagine, but I don't know
       //      if this is standards compliant)
 
-      Ser1().unpack( (void*)(&((*(PairT*)allocated).first)), ar );
+      detail::serializability_traits<T1>::unpack(
+        (void*)(&((*(PairT*)allocated).first)), ar
+      );
 
-      Ser2().unpack( (void*)(&((*(PairT*)allocated).second)), ar );
+      detail::serializability_traits<T2>::unpack(
+        (void*)(&((*(PairT*)allocated).second)), ar
+      );
 
     }
 
