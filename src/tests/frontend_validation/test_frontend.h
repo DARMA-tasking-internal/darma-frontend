@@ -362,9 +362,7 @@ class TestFrontend
       cr.task->pack(buffer);
 
       auto task_copy =
-        darma_runtime::abstract::frontend::unpack_concurrent_region_task<
-          darma_runtime::types::concrete_task_t
-        >(buffer);
+        darma_runtime::frontend::unpack_concurrent_region_task(buffer);
 
       task_copy->set_region_context(ctxt);
       task_copy->run();

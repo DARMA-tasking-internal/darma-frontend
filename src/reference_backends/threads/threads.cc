@@ -1880,7 +1880,7 @@ namespace threads_backend {
         void* packed_task = malloc(size);
         cr_task->pack(packed_task);
         auto new_task =
-          darma_runtime::abstract::frontend::unpack_concurrent_region_task<types::concrete_task_t>(
+          darma_runtime::frontend::unpack_concurrent_region_task(
             packed_task
           );
         free(packed_task);
