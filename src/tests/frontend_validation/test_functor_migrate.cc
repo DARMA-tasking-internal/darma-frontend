@@ -44,6 +44,8 @@
 
 #include "test_functor.h"
 
+#include <darma/interface/frontend/unpack_task.h>
+
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestFunctor, simple_migrate) {
@@ -123,7 +125,7 @@ TEST_F(TestFunctor, simple_migrate) {
       migrated_use = rereg_use;
     }));
 
-  auto migrated_task = darma_runtime::abstract::frontend::unpack_task(buffer);
+  auto migrated_task = darma_runtime::frontend::unpack_task(buffer);
 
   EXPECT_RELEASE_USE(migrated_use);
 

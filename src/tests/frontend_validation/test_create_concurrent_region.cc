@@ -109,7 +109,7 @@ TEST_F(TestCreateConcurrentRegion, simple_2d) {
     auto my_ds = create_data_store();
 
     create_concurrent_region<MyCR>(
-      Range2D<int>(3, 2), data_store=my_ds
+      index_range=Range2D<int>(3, 2), data_store=my_ds
     );
 
   }
@@ -243,7 +243,7 @@ TEST_F(TestCreateConcurrentRegion, simple_2d_reader_hint) {
     auto my_ds = create_data_store();
 
     create_concurrent_region<MyCR>(
-      Range2D<int>(3, 2), data_store=my_ds
+      index_range=Range2D<int>(3, 2), data_store=my_ds
     );
 
   }

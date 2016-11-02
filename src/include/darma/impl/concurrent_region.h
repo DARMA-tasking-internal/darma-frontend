@@ -525,14 +525,17 @@ struct _create_concurrent_region_impl {
     return _extract_other_helper(other_idxs_t(), std::forward<Args>(args)...);
   }
 
+
   template <typename... Args>
   void operator()(Args&&... args) const {
-    _do_register_concurrent_region<Functor> (
-      _extract_range(std::forward<Args>(args)...),
-      _extract_mapping(std::forward<Args>(args)...),
-      _extract_dstore(std::forward<Args>(args)...),
-      _extract_remaining_args_tuple(std::forward<Args>(args)...)
-    );
+
+
+    //_do_register_concurrent_region<Functor> (
+    //  _extract_range(std::forward<Args>(args)...),
+    //  _extract_mapping(std::forward<Args>(args)...),
+    //  _extract_dstore(std::forward<Args>(args)...),
+    //  _extract_remaining_args_tuple(std::forward<Args>(args)...)
+    //);
   }
 };
 
@@ -545,31 +548,70 @@ struct _create_concurrent_region_impl<void> {
   }
 };
 
+template <typename T>
+using _is_index_range_archetype = typename T::is_index_range_t;
+template <typename Arg>
+using is_index_range = meta::is_detected<_is_index_range_archetype, Arg>;
+template <typename Arg>
+using decayed_is_index_range = is_index_range<std::decay_t<Arg>>;
+
 } // end namespace detail
 
 template <typename Functor, typename... Args>
 auto
 create_concurrent_region(Args&&... args) {
-  return detail::_create_concurrent_region_impl<Functor>()(
-    std::forward<Args>(args)...
-  );
-};
+  using namespace darma_runtime::detail;
 
-namespace abstract {
+  using parser = kwarg_parser<
+    variadic_positional_overload_description<
+      _keyword<parameter_such_that<decayed_is_index_range>,
+        keyword_tags_for_create_concurrent_region::index_range
+      >,
+      _optional_keyword<DataStore,
+        keyword_tags_for_create_concurrent_region::data_store
+      >
+    >
+  >;
+
+  // This is on one line for readability of compiler error; don't respace it please!
+  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
+
+  parser()
+    .with_default_generators(
+      keyword_arguments_for_create_concurrent_region::data_store=[]{
+        return DataStore(DataStore::default_data_store_tag);
+      }
+    )
+    .parse_args(std::forward<Args>(args)...)
+    .invoke(
+      [](
+        auto&& index_range, DataStore dstore,
+        variadic_arguments_begin_tag,
+        auto&&... args
+      ) {
+        detail::_do_register_concurrent_region<Functor>(
+          std::forward<decltype(index_range)>(index_range),
+          get_mapping_to_dense(index_range), // not forwarded because the
+                                             // function get_mapping_to_dense
+                                             // shouldn't take possession of
+                                             // index_range
+          dstore,
+          std::forward_as_tuple(std::forward<decltype(args)>(args)...)
+        );
+      }
+    );
+};
 
 namespace frontend {
 
-template <>
-inline backend::runtime_t::concurrent_region_task_unique_ptr
+inline abstract::backend::runtime_t::concurrent_region_task_unique_ptr
 unpack_concurrent_region_task(void* packed_data) {
-  return detail::_unpack_task<
+  return darma_runtime::detail::_unpack_task<
     darma_runtime::detail::ConcurrentRegionTaskImpl
   >(packed_data);
 }
 
 } // end namespace frontend
-
-} // end namespace abstract
 
 } // end namespace darma_runtime
 

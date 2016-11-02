@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      concurrent_region_task.h
+//                      unpack_task.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,27 +42,27 @@
 //@HEADER
 */
 
-#ifndef DARMA_ABSTRACT_FRONTEND_CONCURRENT_REGION_TASK_H
-#define DARMA_ABSTRACT_FRONTEND_CONCURRENT_REGION_TASK_H
+#ifndef DARMA_INTERFACE_FRONTEND_UNPACK_TASK_H
+#define DARMA_INTERFACE_FRONTEND_UNPACK_TASK_H
 
-#include <darma/interface/backend/backend_fwd.h>
+#include <darma/interface/frontend/concurrent_region_task.h>
+#include <darma/interface/frontend/types/concrete_task_t.h>
 
 namespace darma_runtime {
-namespace abstract {
 namespace frontend {
 
-template <typename TaskImpl>
-struct ConcurrentRegionTask : TaskImpl {
-  public:
+/**
+ *  @brief Function for unpacking a deserialized task into a Task object.
+ *  @param A buffer containing the serialized task
+ *  @return A clone of the task object that was serialized into packed_data
+ */
+types::unique_ptr_template<abstract::frontend::Task>
+unpack_task(void* packed_data);
 
-    virtual void set_region_context(
-      std::shared_ptr<backend::ConcurrentRegionContextHandle> const&
-    ) =0;
-
-};
+std::unique_ptr<abstract::frontend::ConcurrentRegionTask<types::concrete_task_t>>
+unpack_concurrent_region_task(void* buffer);
 
 } // end namespace frontend
-} // end namespace abstract
 } // end namespace darma_runtime
 
-#endif //DARMA_ABSTRACT_FRONTEND_CONCURRENT_REGION_TASK_H
+#endif //DARMA_INTERFACE_FRONTEND_UNPACK_TASK_H

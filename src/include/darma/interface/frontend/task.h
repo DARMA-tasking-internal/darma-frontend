@@ -147,14 +147,6 @@ class Task {
 
 };
 
-/**
- *  @brief Function for unpacking a deserialized task into a Task object. 
- *  @param A buffer containing the serialized task
- *  @return A clone of the task object that was serialized into packed_data
- */
-types::unique_ptr_template<Task>
-unpack_task(void* packed_data);
-
 } // end namespace frontend
 
 } // end namespace abstract

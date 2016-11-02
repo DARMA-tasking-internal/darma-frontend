@@ -495,7 +495,6 @@ TEST_F(TestKeywordArguments, overload_with_default_generators_tests) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
 TEST_F(TestKeywordArguments, converter) {
 
   using namespace darma_runtime::detail;
@@ -510,6 +509,38 @@ TEST_F(TestKeywordArguments, converter) {
   parser()
     .with_default_generators(test_kwarg_1=[]{ B rv; rv.value = 3.14; return rv; })
     .with_converters([](auto&& val) { B rv; rv.value = val; return rv; })
+    .invoke(MyOverloads(5));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+template <typename T>
+struct is_B_impl : std::false_type { };
+
+template <>
+struct is_B_impl<B> : std::true_type { };
+
+template <typename T>
+using is_B = typename is_B_impl<std::decay_t<T>>::type;
+
+TEST_F(TestKeywordArguments, metafunction_predicate) {
+
+  using namespace darma_runtime::detail;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_testing;
+
+  using parser = kwarg_parser<
+    overload_description<
+      _optional<_keyword<parameter_such_that<is_B>, kw::test_kwarg_1>>
+    >
+  >;
+
+  B b;
+  b.value = 3.14;
+
+  parser()
+    .with_default_generators(test_kwarg_1=[]{ B rv; rv.value = 6.28; return rv; })
+    .parse_args(test_kwarg_1=b)
     .invoke(MyOverloads(5));
 }
 
