@@ -196,7 +196,7 @@ struct CRTaskRunnable
       ArchiveT, CRTaskRunnable
     >(ar);
     rv->context_.index_and_mapping_.second() = mapping;
-    return rv;
+    return std::move(rv);
   };
 
   void pack(void* allocated) const override {
