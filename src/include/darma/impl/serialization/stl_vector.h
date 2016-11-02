@@ -95,7 +95,7 @@ struct Serializer<std::vector<T, Allocator>>
       std::false_type, ArchiveT& ar, vector_t& v, size_t& size
     ) const {
       for(size_t i = 0; i < size; ++i) {
-        value_traits::unpack(v.data()[i], ar, Allocator());
+        value_traits::unpack(&(v.data()[i]), ar, Allocator());
       }
     }
 
