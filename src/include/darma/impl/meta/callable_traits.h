@@ -61,6 +61,7 @@
 
 #include <darma/impl/meta/detection.h>
 #include <darma/impl/util.h>
+#include <darma/impl/util/static_assertions.h>
 
 #include "any_convertible.h"
 #include "is_callable.h"
@@ -378,14 +379,16 @@ struct callable_traits {
 
     static constexpr auto n_params_max = params_vector::size;
     static constexpr auto n_params_min = params_vector::size; // for now
-//      _callable_traits_impl::count_min_args<Callable, n_params_max+1>::value;
-//
-//    static_assert(n_params_min <= n_params_max,
-//      "Can't determine minimum number of parameters for Callable.  Check for"
-//        " by-value parameters with deleted copy and move constructors, or for"
-//        " crazy parameter types that can't be detected, like pointer-to-member"
-//        " types, etc."
-//    );
+      //_callable_traits_impl::count_min_args<callable_t, n_params_max+1>::value;
+
+    //STATIC_ASSERT_VALUE_LESS_EQUAL(n_params_min, n_params_max);
+
+    //static_assert(n_params_min <= n_params_max,
+    //  "Can't determine minimum number of parameters for Callable.  Check for"
+    //    " by-value parameters with deleted copy and move constructors, or for"
+    //    " crazy parameter types that can't be detected, like pointer-to-member"
+    //    " types, etc."
+    //);
 
     // Deprecated naming convention:
     static constexpr auto n_args_min = n_params_min;
