@@ -45,12 +45,13 @@ struct concurrent_fib {
 };
 
 void darma_main_task(std::vector<std::string> args) {
+  using darma_runtime::keyword_arguments_for_create_concurrent_region::index_range;
   assert(args.size() > 1);
 
   size_t const num = atoi(args[1].c_str());
 
   create_concurrent_region<concurrent_fib>(
-    Range2D<int>(num, 1)
+    index_range=Range2D<int>(num, 1)
   );
 }
 
