@@ -54,6 +54,11 @@ namespace threads_backend {
   struct InnerFlow;
 } // end namespace threads_backend
 
+#include <darma/interface/defaults/pointers.h>
+
+namespace darma_runtime { namespace types {
+typedef types::shared_ptr_template<::threads_backend::InnerFlow> flow_t;
+}} // end namespace darma_runtime::types
 
 
 //#include <darma/impl/key/simple_key.h>
@@ -73,8 +78,6 @@ namespace darma_runtime { namespace types {
     uint64_t
   > key_t;
 }} // end namespace darma_runtime::types
-
-#include <darma/interface/defaults/pointers.h>
 
 #include <darma/impl/key/SSO_key.h>
 
