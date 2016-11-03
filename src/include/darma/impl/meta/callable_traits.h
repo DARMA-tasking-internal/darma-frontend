@@ -296,6 +296,11 @@ struct callable_traits {
     using _functor_with_template_args_archtype = decltype(
       &F::template operator()<template_args...>
     );
+    // Maybe something like this would work for GCC?  Don't know.  Might be a waste of time...
+    //template <typename F, typename... template_args>
+    //using _functor_with_template_args_archtype = decltype(
+    //  &std::declval<decltype(F::template operator()<template_args...>)>()
+    //);
     template <typename... Args>
     using _functor_allowed_with_template_args = tinympl::extract_bool_value_potentially_lazy<
       meta::is_detected<
