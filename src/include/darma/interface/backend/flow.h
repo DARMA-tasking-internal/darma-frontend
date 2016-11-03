@@ -148,10 +148,7 @@ namespace backend {
  *  have independent life cycles and can be independently modifiable by the
  *  backend.
  */
-class Flow {
-  public:
-
-};
+class Flow { };
 
 
 } // end namespace backend

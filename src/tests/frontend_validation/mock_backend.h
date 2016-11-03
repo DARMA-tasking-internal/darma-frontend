@@ -162,6 +162,11 @@ class MockRuntime
     ));
     MOCK_METHOD1(release_flow, void(flow_t&));
 
+    MOCK_METHOD1(get_packed_flow_size, size_t(flow_t const&));
+    MOCK_METHOD2(pack_flow, void(flow_t&, void*&));
+    MOCK_METHOD1(make_unpacked_flow, flow_t(void const*&));
+    MOCK_METHOD1(reregister_use_copy, void(use_t*));
+
 
 #ifdef __clang__
 #if __has_warning("-Winconsistent-missing-override")

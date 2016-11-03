@@ -173,10 +173,9 @@ class Runtime {
     ) =0;
 
     /** @TODO document this
-     *  @TODO DSH: I'm not very happy with how this works.  The backend would
-     *        have to somehow look up the flows it needs to unpack by the
-     *        Use's Handle's key or something.  Seems pretty inefficient,
-     *        but I'm rolling with it for now just to get something working
+     *  @remark on entry, the in_flow and out_flow of `u` already be set up
+     *  via calls to make_unpacked_flow() on the buffers created by pack_flow()
+     *  on the sender side
      */
     virtual void
     reregister_migrated_use(
@@ -368,6 +367,34 @@ class Runtime {
     virtual types::flow_t
     make_next_flow(
       types::flow_t& from
+    ) =0;
+
+    virtual size_t
+    get_packed_flow_size(
+      types::flow_t const& f
+    ) =0;
+
+    /** @todo document this
+     *
+     *  @remark this method should advance the buffer to after the end of the
+     *  packed storage used for `f`
+     */
+    virtual void
+    pack_flow(
+      types::flow_t& f, void*& buffer
+    ) =0;
+
+    /** @todo document this
+     *
+     *  @remark this method should advance the buffer to after the end of the
+     *  packed data used to recreate the return value
+     *
+     *  @param buffer
+     *  @return
+     */
+    virtual types::flow_t
+    make_unpacked_flow(
+      void const*& buffer
     ) =0;
 
     /** @todo document this

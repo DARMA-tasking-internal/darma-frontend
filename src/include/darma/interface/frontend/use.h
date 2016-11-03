@@ -127,7 +127,9 @@ class Use {
     get_in_flow() const =0;
 
     /** @todo document this
-     *  @remark backend is only allowed to call this during reregister_migrated_use
+     *  @remark This may be deprecated in favor of making the return value of
+     *  get_out_flow() a non-const reference
+     *  @remark this should no longer be
      */
     virtual void
     set_in_flow(types::flow_t const&) =0;
@@ -139,7 +141,8 @@ class Use {
     get_out_flow() const =0;
 
     /** @todo document this
-     *  @remark backend is only allowed to call this during reregister_migrated_use
+     *  @remark This may be deprecated in favor of making the return value of
+     *  get_out_flow() a non-const reference
      */
     virtual void
     set_out_flow(types::flow_t const&) =0;

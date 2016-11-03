@@ -434,6 +434,26 @@ namespace threads_backend {
       std::shared_ptr<handle_t> const& handle
     );
 
+    size_t
+    get_packed_flow_size(flow_t const& f) {
+      // TODO implement this
+      assert(false); // not implemented
+      return 0;
+    }
+
+    void
+    pack_flow(flow_t& f, void*& buffer) {
+      // TODO implement this
+      assert(false); // not implemented
+    }
+
+    flow_t
+    make_unpacked_flow(void const*& buffer) {
+      // TODO implement this
+      assert(false); // not implemented
+      return nullptr;
+    }
+
     bool
     add_fetcher(
       std::shared_ptr<FetchNode> fetch,
