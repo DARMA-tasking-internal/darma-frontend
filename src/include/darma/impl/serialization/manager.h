@@ -71,8 +71,12 @@ struct ArchiveAccess {
     (char*&)(ar.start) = (char*&)(ar.spot) = (char* const)buffer;
   }
   template <typename ArchiveT>
-  static void* get_spot(ArchiveT& ar) {
-    return ar.spot;
+  static void*& get_spot(ArchiveT& ar) {
+    return reinterpret_cast<void*&>(ar.spot);
+  }
+  template <typename ArchiveT>
+  static void const*& get_const_spot(ArchiveT& ar) {
+    return const_cast<void const*&>(reinterpret_cast<void*&>(ar.spot));
   }
   template <typename ArchiveT>
   static size_t get_size(ArchiveT& ar) {

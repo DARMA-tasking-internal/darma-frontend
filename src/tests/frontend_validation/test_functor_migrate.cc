@@ -56,7 +56,7 @@ TEST_F(TestFunctor, simple_migrate) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow f_init, f_set_42_out, f_null;
+  MockFlow f_init, f_set_42_out, f_null, f_set_42_out_migrated;
   use_t* set_42_use, *hello_use, *migrated_use;
   set_42_use = hello_use = migrated_use = nullptr;
 
@@ -105,9 +105,30 @@ TEST_F(TestFunctor, simple_migrate) {
 
   // Now migrate the task...
   auto& task_to_migrate = mock_runtime->registered_tasks.front();
+
+  EXPECT_CALL(*mock_runtime, get_packed_flow_size(f_set_42_out))
+    .Times(2).WillRepeatedly(Return(sizeof(MockFlow)));
+
   size_t task_packed_size = task_to_migrate->get_packed_size();
 
   char buffer[task_packed_size];
+
+  EXPECT_CALL(*mock_runtime, pack_flow(f_set_42_out, Truly(
+    // GCC doesn't like it if I capture buffer by reference, so...
+    [buffer=&(buffer[0]), task_packed_size](auto&& flow_buff) {
+      // expect that the buffer given here is part of the buffer from above
+      return
+        (intptr_t(&(buffer[0])) <= intptr_t(flow_buff))
+        and (intptr_t(&(buffer[0])+task_packed_size) > intptr_t(flow_buff));
+    }
+  ))).Times(2).WillRepeatedly(Invoke([&](auto&& flow, void*& buffer) {
+    // memcpy the flow directly into the buffer.  We'll just use it for
+    // comparison purposes later to make sure the translation layer is
+    // delivering the correct buffer to make_unpacked_flow
+    ::memcpy(buffer, (void*)(std::addressof(flow)), sizeof(MockFlow));
+    // and advance the buffer
+    reinterpret_cast<char*&>(buffer) += sizeof(MockFlow);
+  }));
 
   task_to_migrate->pack(buffer);
 
@@ -116,11 +137,17 @@ TEST_F(TestFunctor, simple_migrate) {
   // Release the task on the "origin node"
   task_to_migrate = nullptr;
 
-  EXPECT_CALL(*mock_runtime, reregister_migrated_use(_))
-    .WillOnce(Invoke([&](auto&& rereg_use) {
-      // Set up the flows again...
-      rereg_use->set_in_flow(f_set_42_out);
-      rereg_use->set_out_flow(f_set_42_out);
+  EXPECT_CALL(*mock_runtime, make_unpacked_flow(Truly([&](void const* buff){
+    return *reinterpret_cast<MockFlow const*>(buff) == f_set_42_out;
+  }))).Times(2).WillRepeatedly(Invoke([&](void const*& buff) {
+    reinterpret_cast<char const*&>(buff) += sizeof(MockFlow);
+    return f_set_42_out_migrated;
+  }));
+
+  EXPECT_CALL(*mock_runtime, reregister_migrated_use(IsUseWithFlows(
+    f_set_42_out_migrated, f_set_42_out_migrated,
+    use_t::None, use_t::Read
+  ))).WillOnce(Invoke([&](auto&& rereg_use) {
       rereg_use->get_data_pointer_reference() = &value;
       migrated_use = rereg_use;
     }));
