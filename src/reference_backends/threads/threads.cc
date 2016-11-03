@@ -69,6 +69,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 
 #include <common.h>
 #include <threads.h>
@@ -2197,25 +2198,79 @@ start_rank_handler(
   return;
 }
 
+enum ValidArgs {
+  SystemRank,
+  NumSystemRanks,
+  Ranks,
+  Threads,
+  Trace,
+  BreadthFirst,
+  Help,
+  AppArgv
+};
+
+static ArgsConfig arg_config[] = {
+  {SystemRank, NO_SHORT_NAME, "system_rank", REQUIRED_VALUE, "the system rank (system-use only)"},
+  {NumSystemRanks, NO_SHORT_NAME, "num_system_ranks", REQUIRED_VALUE, "the number of system ranks (system-use only)"},
+  {Ranks, 'r', "ranks", REQUIRED_VALUE, "the number of ranks to launch for concurrent regions - data partition only, no reference to physical resources"},
+  {Threads, 't', "threads", REQUIRED_VALUE, "the number of physical threads to run"},
+  {BreadthFirst, 'b', "bf", REQUIRED_VALUE, "the degree of breadth-first looakead in the scheduler - not required, will use system default if unspecified"},
+  {Trace, NO_SHORT_NAME, "trace", NO_VALUE, "whether to activate DAG tracing"},
+  {Help, 'h', "help", NO_VALUE, "print usage of application command-line flags"},
+  {AppArgv, 'a', "app-argv", REQUIRED_VALUE, "the list of arguments to be used by the application - must be quoted as a single string"},
+  {0, 0, nullptr, 0}
+};
+
 namespace threads_backend {
-void
+
+/**
+ * Parse command line arguments
+ * @param argc The number of arguments
+ * @param argv The array of string arguments
+ * @param system_rank [out] The rank being initialized
+ * @param num_system_ranks [out] The total number of ranks being initialized
+ * @return A string containing the command line arguments for the application
+ */
+char*
 backend_parse_arguments(
-  ArgsHolder& holder
+  int argc, char** argv,
+  size_t& system_rank,
+  size_t& num_system_ranks
 ) {
-  size_t const system_rank =
-    holder.exists("system-rank") ? holder.get<size_t>("system-rank") : 0;
-  size_t const num_system_ranks =
-    holder.exists("num-system-rank") ? holder.get<size_t>("num-system-ranks") : 1;
-  size_t const n_threads =
-    holder.exists("threads") ? holder.get<size_t>("threads") : 1;
-  size_t const n_ranks =
-    holder.exists("ranks") ? holder.get<size_t>("ranks") : 1;
-  bool const trace =
-    holder.exists("trace") ? static_cast<bool>(holder.get<size_t>("trace")) : false;
-  size_t const bwidth =
-    holder.exists("bf") ? holder.get<size_t>("bf") : 0;
-  bool const depth =
-    bwidth == 0 ? true : false;
+  size_t n_threads = 1;
+  size_t n_ranks = 1;
+  bool trace = false;
+  size_t bwidth = 0;
+  static const char* null_argv = "";
+  char* app_argv = const_cast<char*>(null_argv);
+  bool const depth =  bwidth == 0 ? true : false;
+  ArgsHolder holder(arg_config);
+  holder.parse(argc, argv);
+  for (auto& entry : holder){
+    switch (entry.argEnum){
+      case SystemRank:
+        entry.get<size_t>(system_rank);
+        break;
+      case NumSystemRanks:
+        entry.get<size_t>(num_system_ranks);
+        break;
+      case Ranks:
+        entry.get<size_t>(n_ranks);
+        break;
+      case Threads:
+        entry.get<size_t>(n_threads);
+        break;
+      case BreadthFirst:
+        entry.get<size_t>(bwidth);
+        break;
+      case Help:
+        holder.usage(std::cout);
+        _Exit(0);
+      case AppArgv:
+        app_argv = const_cast<char*>(entry.get());
+        break;
+    }
+  }
 
   threads_backend::depthFirstExpand = depth;
   threads_backend::bwidth = bwidth;
@@ -2258,48 +2313,37 @@ backend_parse_arguments(
       );
     }
   }
+  return app_argv;
 }
 }
+
+
 
 void backend_init_finalize(int argc, char **argv) {
-  ArgsHolder args_holder(argc, argv);
+  size_t system_rank = 0;
+  size_t num_system_ranks = 1;
+  char* app_argv_str = threads_backend::backend_parse_arguments(argc, argv, system_rank, num_system_ranks);
+  size_t len = strlen(app_argv_str);
+  int char_idx = 0;
+  int argv_idx = 1;
+  char** app_argv = new char*[len]; //just optimistically allocate enough
+  app_argv[0] = argv[0];
+  while (char_idx < len){
+    if (app_argv_str[char_idx] == ' '){
+      while (app_argv_str[char_idx] == ' ' && char_idx < len) char_idx++;
+      ++argv_idx;
+    } else {
+      app_argv[argv_idx] = &app_argv_str[char_idx];
+      while (app_argv_str[char_idx] != ' ' && char_idx < len) char_idx++;
+    }
+  }
+  int app_argc = argv_idx;
 
-  threads_backend::backend_parse_arguments(args_holder);
-
-  auto const system_rank =
-    args_holder.exists("system-rank") ?
-    args_holder.get<size_t>("system-rank") : 0;
-  auto const num_system_ranks =
-    args_holder.exists("num-system-ranks") ?
-    args_holder.get<size_t>("num-system-ranks") : (
-      args_holder.exists("ranks") ?
-      args_holder.get<size_t>("ranks") : 1
-    );
-
-  ArgsRemover remover(
-    argc, argv,
-    "system-rank",
-    "num-system-ranks",
-    "ranks",
-    "threads",
-    "trace",
-    "bf"
-  );
-
-  auto lst = remover.new_args;
 
   if (system_rank == 0) {
-    int argc_new = lst.size();
-    char* argv_new[argc_new];
-    int i = 0;
-    for (auto&& item : lst) {
-      argv_new[i] = const_cast<char*>(item.c_str());
-      i++;
-    }
-    char** argv_new_c = static_cast<char**>(argv_new);
     auto task = darma_runtime::frontend::darma_top_level_setup(
-      argc_new,
-      argv_new_c
+      app_argc,
+      app_argv
     );
     auto runtime = std::make_unique<threads_backend::ThreadsRuntime>(
       system_rank,

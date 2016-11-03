@@ -80,6 +80,7 @@ set_tests_properties(${test_name} PROPERTIES TIMEOUT 60
 endif()
 endmacro()
 
+add_subdirectory(darma_hello)
 add_subdirectory(fib)
 add_subdirectory(fib_region)
 add_subdirectory(fib_nokey)
