@@ -221,8 +221,6 @@ struct all_reduce_impl {
 } // end namespace detail
 
 
-// TODO generalize the argument parsing here
-
 template <typename Op = detail::op_not_given, typename... KWArgs>
 void allreduce(
   KWArgs&&... kwargs

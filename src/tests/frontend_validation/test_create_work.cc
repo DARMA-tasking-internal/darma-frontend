@@ -501,3 +501,85 @@ TEST_F(TestCreateWork, handle_aliasing) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+TEST_F(TestCreateWork, schedule_only) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow finit, fnull, fcapt, f_sched_out, f_immed_out;
+  use_t *use_immed_capt, *use_sched_capt, *use_read_capt, *use_sched_contin;
+  use_read_capt = use_immed_capt = use_sched_capt = nullptr;
+
+  int value = 0;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+
+  // First, expect the task that does a schedule-only capture
+
+  // Expect a schedule-only mod capture
+  EXPECT_CALL(*mock_runtime, make_next_flow(finit))
+    .WillOnce(Return(f_sched_out));
+  Expectation reg_sched =
+    EXPECT_REGISTER_USE(use_sched_capt, finit, f_sched_out, Modify, None);
+  EXPECT_REGISTER_TASK(use_sched_capt).After(reg_sched);
+
+  // Then expect the task that does a read-only capture
+  EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(f_sched_out, use_read_capt, value);
+  EXPECT_REGISTER_TASK(use_read_capt);
+
+  EXPECT_FLOW_ALIAS(f_sched_out, fnull);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp = initial_access<int>("hello");
+
+    create_work(schedule_only(tmp), [=]{
+      create_work([=]{
+        tmp.set_value(42);
+      });
+    });
+
+    create_work(reads(tmp), [=]{
+      EXPECT_THAT(tmp.get_value(), Eq(42));
+    });
+
+  }
+  //============================================================================
+
+  // Now expect the mod-immediate task to be registered once the first task is run
+  // TODO technically I should change the return value of get_running_task here...
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, f_immed_out, use_immed_capt, value);
+  EXPECT_REGISTER_TASK(use_immed_capt);
+
+  // Also, a replacement schedule-only use should be registered
+  EXPECT_REGISTER_USE(use_sched_contin, f_immed_out, f_sched_out, Modify, None);
+
+  EXPECT_RELEASE_USE(use_sched_contin);
+  EXPECT_FLOW_ALIAS(f_immed_out, f_sched_out);
+
+  EXPECT_RELEASE_USE(use_sched_capt);
+
+  mock_runtime->registered_tasks.front()->run();
+  mock_runtime->registered_tasks.pop_front();
+
+  EXPECT_RELEASE_USE(use_immed_capt);
+
+  // now the inner task should be on the back, so run it next
+  mock_runtime->registered_tasks.back()->run();
+  mock_runtime->registered_tasks.pop_back();
+
+  EXPECT_RELEASE_USE(use_read_capt);
+
+  // and finally the read task
+  mock_runtime->registered_tasks.front()->run();
+  mock_runtime->registered_tasks.pop_front();
+  EXPECT_TRUE(mock_runtime->registered_tasks.empty());
+
+}

@@ -63,6 +63,12 @@ make_captured_use_holder(
   std::shared_ptr<UseHolder>& source_and_continuing_holder
 ) {
 
+  // source scheduling permissions shouldn't be None at this point
+  DARMA_ASSERT_MESSAGE(
+    source_and_continuing_holder->use.scheduling_permissions_ != HandleUse::None,
+    "Can't schedule a task on a handle with leaf permissions"
+  );
+
   auto* backend_runtime = abstract::backend::get_backend_runtime();
 
   std::shared_ptr<UseHolder> captured_use_holder;
@@ -70,16 +76,184 @@ make_captured_use_holder(
   switch(requested_immediate_permissions) {
     //==========================================================================
     case HandleUse::None: {
-      // TODO these are schedule-only use cases
-      DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+
+      // schedule-only cases
+
+      switch(source_and_continuing_holder->use.immediate_permissions_) {
+
+        //----------------------------------------------------------------------
+
+        case HandleUse::None: {
+
+          // This feels like it should be the dominant use case...
+          // switch on the requested scheduling permissions...
+          switch(requested_scheduling_permissions) {
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            case HandleUse::None: {
+              // Well, what the heck are you doing with it, then...?
+              // Shouldn't be reachable from the current front end, anyway
+              DARMA_ASSERT_NOT_IMPLEMENTED();                                   // LCOV_EXCL_LINE
+              break;                                                            // LCOV_EXCL_LINE
+            } // end case None requested scheduling permissions
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            case HandleUse::Read: {
+
+              // We still need to create a new use, because it's a separate task
+              captured_use_holder = detail::make_shared<UseHolder>(HandleUse(
+                var_handle,
+                source_and_continuing_holder->use.in_flow_,
+                source_and_continuing_holder->use.in_flow_,
+                /* Scheduling permissions */
+                HandleUse::Read,
+                /* Immediate permissions */
+                HandleUse::None
+              ));
+              captured_use_holder->do_register();
+
+              break;
+            } // end case Read requested scheduling permissions
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            case HandleUse::Modify: {
+
+              // Modify schedule-only permissions on a handle with no immediate
+              // permissions.
+
+              DARMA_ASSERT_MESSAGE(
+                source_and_continuing_holder->use.scheduling_permissions_ == HandleUse::Modify,
+                "Can't schedule a (schedule-only) Modify task on a handle without"
+                  " modify schedule permissions"
+              );
+
+              // We still need to make a next flow...
+              // ...actually, this is basically just a regular modify capture with
+              // some small exceptions
+              auto captured_out_flow = make_next_flow_ptr(
+                source_and_continuing_holder->use.in_flow_, backend_runtime
+              );
+
+              captured_use_holder = detail::make_shared<UseHolder>(HandleUse(
+                var_handle,
+                source_and_continuing_holder->use.in_flow_,
+                captured_out_flow,
+                /* Scheduling permissions */
+                HandleUse::Modify,
+                /* Immediate permissions */
+                HandleUse::None
+              ));
+
+              captured_use_holder->do_register();
+
+              // Note that this next part is almost exactly the same as the logic for
+              // the immediate modify case
+
+              // if the source use was registered, we need to release it now
+              if(source_and_continuing_holder->is_registered) {
+
+                // We need to register a new use here, though, since the
+                // continuing context will have different flows from the
+                // already-registered capturing context
+
+                // copy the use holder so that it can be released after we register
+                // the new use in the continuing context
+                auto source_use_holder = source_and_continuing_holder;
+
+                // Make a new use for the continuing context (since, for some reason
+                // or another, we needed one in the source context)
+                source_and_continuing_holder = detail::make_shared<UseHolder>(HandleUse(
+                  var_handle,
+                  captured_out_flow,
+                  source_use_holder->use.out_flow_,
+                  /* Scheduling permissions */
+                  HandleUse::Modify,
+                  /* Immediate permissions */
+                  HandleUse::None // This is a schedule-only use
+                ));
+                // Register our new use
+                source_and_continuing_holder->do_register();
+
+                // This new use could establish an alias if no additional tasks are
+                // scheduled on it...
+                source_and_continuing_holder->could_be_alias = true;
+
+                // now that we've created a continuing context use holder, the source
+                // should NOT establish an alias (the continuing use holder will do
+                // it instead), so flip the flag here
+                source_use_holder->could_be_alias = false;
+                // Now we can release the source use
+                source_use_holder->do_release();
+
+              }
+              else {
+                // otherwise, we can just reuse the existing use holder
+
+                // ...but the in_flow needs to be set to the out_flow of the captured
+                // Use for the purposes of the next task
+                source_and_continuing_holder->use.in_flow_ = captured_out_flow;
+                // Out flow should be unchanged, but it will still establish an alias
+                // when it goes away if no other tasks are asigned to it
+                source_and_continuing_holder->could_be_alias = true;
+              }
+
+              break;
+            } // end case Modify requested scheduling permissions
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            default: {
+              DARMA_ASSERT_NOT_IMPLEMENTED();                                   // LCOV_EXCL_LINE
+            } // end default
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+          } // end switch on requested scheduling permissions
+
+          break;
+        } // end case None source immediate permissions
+
+        //----------------------------------------------------------------------
+
+        case HandleUse::Read: {
+          DARMA_ASSERT_NOT_IMPLEMENTED(
+            "Schedule-only permissions on handles that already have immediate"
+              " Read permissions."
+          );                                                                    // LCOV_EXCL_LINE
+          break;                                                                // LCOV_EXCL_LINE
+        }
+
+        //----------------------------------------------------------------------
+
+        case HandleUse::Modify: {
+          DARMA_ASSERT_NOT_IMPLEMENTED(
+            "Schedule-only permissions on handles that already have immediate"
+              " Modify permissions."
+          );                                                                    // LCOV_EXCL_LINE
+          break;                                                                // LCOV_EXCL_LINE
+        }
+
+        //----------------------------------------------------------------------
+
+        default: {
+          DARMA_ASSERT_NOT_IMPLEMENTED();                                       // LCOV_EXCL_LINE
+        } // end default
+
+        //----------------------------------------------------------------------
+      } // end switch on source immediate permissions
+
       break;
-    } // end case None
+
+    } // end case None requested immediate permissions
     //==========================================================================
     case HandleUse::Read: {
+
       DARMA_ASSERT_MESSAGE(
         (source_and_continuing_holder->use.scheduling_permissions_ & HandleUse::Read) != 0,
-        "Can't schedule a read on a handle without Read schedule permissions"
+        "Can't schedule a read on a handle without at least Read schedule permissions"
       );
+      DARMA_ASSERT_MESSAGE(
+        requested_scheduling_permissions != HandleUse::Modify,
+        "Modify scheduling permissions on with Read immediate permissions is not implemented"
+      );
+      DARMA_ASSERT_MESSAGE(
+        requested_scheduling_permissions != HandleUse::Write,
+        "Write scheduling permissions on with Read immediate permissions is not implemented"
+      );
+
       switch(source_and_continuing_holder->use.immediate_permissions_) {
         //----------------------------------------------------------------------
         case HandleUse::None:
@@ -177,7 +351,8 @@ make_captured_use_holder(
       } // end switch on source immediate permissions
 
       break;
-    } // end case Read
+
+    } // end case Read requested immediate permissions
     //==========================================================================
     case HandleUse::Modify: {
 
@@ -230,6 +405,8 @@ make_captured_use_holder(
               /* Immediate permissions */
               HandleUse::None // This is a schedule-only use
             ));
+            // and register then new use
+            source_and_continuing_holder->do_register();
 
             // This new use could establish an alias if no additional tasks are
             // scheduled on it...
@@ -316,7 +493,7 @@ make_captured_use_holder(
       } // end switch on source immediate permissions
 
       break;
-    } // end case Modify
+    } // end case Modify requested immediate permissions
 
     //==========================================================================
 

@@ -124,7 +124,7 @@ MATCHER_P(UsesInGetDependencies, uses,
   bool rv = true;
   for(auto&& use : uses) {
     if (deps.find(*use) == deps.end()) {
-      *result_listener << PrintToString(*use) << "not found; ";
+      *result_listener << PrintToString(*use) << " not found; ";
       rv = false;
 
     }
@@ -134,7 +134,9 @@ MATCHER_P(UsesInGetDependencies, uses,
   for (auto&& dep : deps) {
     if (not is_first) *result_listener << ", ";
     is_first = false;
-    *result_listener << PrintToString(dep);
+    *result_listener << "0x"
+      << std::hex << intptr_t(dep) << "--"
+      << PrintToString(dep);
   }
   return rv;
 }
