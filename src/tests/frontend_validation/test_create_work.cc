@@ -501,7 +501,12 @@ TEST_F(TestCreateWork, handle_aliasing) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, schedule_only) {
+struct TestScheduleOnly
+  : TestCreateWork,
+    ::testing::WithParamInterface<bool>
+{ };
+
+TEST_P(TestScheduleOnly, schedule_only) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
@@ -511,10 +516,14 @@ TEST_F(TestCreateWork, schedule_only) {
   mock_runtime->save_tasks = true;
 
   MockFlow finit, fnull, fcapt, f_sched_out, f_immed_out;
-  use_t *use_immed_capt, *use_sched_capt, *use_read_capt, *use_sched_contin;
+  use_t *use_immed_capt, *use_sched_capt, *use_read_capt, *use_sched_contin,
+    *use_ro_sched;
   use_read_capt = use_immed_capt = use_sched_capt = nullptr;
+  use_ro_sched = nullptr;
 
   int value = 0;
+
+  bool sched_capture_read = GetParam();
 
   EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
 
@@ -527,9 +536,16 @@ TEST_F(TestCreateWork, schedule_only) {
     EXPECT_REGISTER_USE(use_sched_capt, finit, f_sched_out, Modify, None);
   EXPECT_REGISTER_TASK(use_sched_capt).After(reg_sched);
 
-  // Then expect the task that does a read-only capture
-  EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(f_sched_out, use_read_capt, value);
-  EXPECT_REGISTER_TASK(use_read_capt);
+  if(not sched_capture_read) {
+    // Then expect the task that does a read-only capture
+    EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(f_sched_out, use_read_capt, value);
+    EXPECT_REGISTER_TASK(use_read_capt);
+  }
+  else {
+    // Expect a schedule-only ro capture
+    EXPECT_REGISTER_USE(use_ro_sched, f_sched_out, f_sched_out, Read, None);
+    EXPECT_REGISTER_TASK(use_ro_sched);
+  }
 
   EXPECT_FLOW_ALIAS(f_sched_out, fnull);
 
@@ -545,9 +561,19 @@ TEST_F(TestCreateWork, schedule_only) {
       });
     });
 
-    create_work(reads(tmp), [=]{
-      EXPECT_THAT(tmp.get_value(), Eq(42));
-    });
+    if(not sched_capture_read) {
+      create_work(reads(tmp), [=] {
+        EXPECT_THAT(tmp.get_value(), Eq(42));
+      });
+    }
+    else {
+      create_work(schedule_only(reads(tmp)), [=] {
+        create_work(reads(tmp), [=] {
+          EXPECT_THAT(tmp.get_value(), Eq(42));
+        });
+      });
+
+    }
 
   }
   //============================================================================
@@ -575,6 +601,18 @@ TEST_F(TestCreateWork, schedule_only) {
   mock_runtime->registered_tasks.back()->run();
   mock_runtime->registered_tasks.pop_back();
 
+
+  if(sched_capture_read) {
+    // The outer task will be on the front now
+    EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(f_sched_out, use_read_capt, value);
+    EXPECT_REGISTER_TASK(use_read_capt);
+
+    EXPECT_RELEASE_USE(use_ro_sched);
+
+    mock_runtime->registered_tasks.front()->run();
+    mock_runtime->registered_tasks.pop_front();
+  }
+
   EXPECT_RELEASE_USE(use_read_capt);
 
   // and finally the read task
@@ -583,3 +621,9 @@ TEST_F(TestCreateWork, schedule_only) {
   EXPECT_TRUE(mock_runtime->registered_tasks.empty());
 
 }
+
+INSTANTIATE_TEST_CASE_P(
+  schedule_only,
+  TestScheduleOnly,
+  ::testing::Bool()
+);
