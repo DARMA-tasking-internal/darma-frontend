@@ -77,7 +77,7 @@ make_captured_use_holder(
     //==========================================================================
     case HandleUse::Read: {
       DARMA_ASSERT_MESSAGE(
-        source_and_continuing_holder->use.scheduling_permissions_ & HandleUse::Read != 0,
+        (source_and_continuing_holder->use.scheduling_permissions_ & HandleUse::Read) != 0,
         "Can't schedule a read on a handle without Read schedule permissions"
       );
       switch(source_and_continuing_holder->use.immediate_permissions_) {
@@ -310,18 +310,21 @@ make_captured_use_holder(
         } // end case Modify source immediate permissions
         //----------------------------------------------------------------------
         default: {
-          DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+          DARMA_ASSERT_NOT_IMPLEMENTED();                                       // LCOV_EXCL_LINE
         } // end default
         //----------------------------------------------------------------------
       } // end switch on source immediate permissions
 
       break;
     } // end case Modify
-    //========================================================================
+
+    //==========================================================================
+
     default: {
-      DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+      DARMA_ASSERT_NOT_IMPLEMENTED();                                           // LCOV_EXCL_LINE
     } // end default
-    //========================================================================
+
+    //==========================================================================
   } // end switch requested immediate permissions
 
   return captured_use_holder;
