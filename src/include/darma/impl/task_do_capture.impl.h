@@ -50,11 +50,11 @@
 #include <darma/impl/util/smart_pointers.h>
 
 #include <darma/impl/flow_handling.h>
-#include <darma/impl/capture.h>
 
 #include <thread>
 
 #include "use.h"
+#include "capture.h"
 
 namespace darma_runtime {
 
@@ -181,7 +181,7 @@ TaskBase::do_capture(
 
       // Now make the captured use holder (and set up the continuing use holder,
       // if necessary)
-      captured.current_use_ = make_captured_use_holder(
+      captured.current_use_ = detail::make_captured_use_holder(
         source.var_handle_,
         /* requested scheduling permissions */
         requested_schedule_permissions,
