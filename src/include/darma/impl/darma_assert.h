@@ -157,7 +157,7 @@ bool _check_contains(const Key& k, const Container& c) {
 
 #define DARMA_ASSERT_NOT_IMPLEMENTED(...) DARMA_ASSERT_FAILURE( \
   "DARMA encountered a branch or feature that is not implemented in the current version" \
-  << " of the translation layer." \
+  << " of the translation layer.  " \
   __VA_ARGS__ \
 )
 
