@@ -50,6 +50,7 @@
 #include <darma/impl/util/smart_pointers.h>
 
 #include <darma/impl/flow_handling.h>
+#include <darma/impl/capture.h>
 
 #include <thread>
 
@@ -125,26 +126,36 @@ TaskBase::do_capture(
 
       // Determine the capture type
 
-
-      typename AccessHandleT::capture_op_t capture_type;
+      HandleUse::permissions_t requested_schedule_permissions, requested_immediate_permissions;
 
       // first check for any explicit permissions
       bool is_marked_read_capture = (source.captured_as_ & AccessHandleBase::ReadOnly) != 0;
       // Indicate that we've processed the ReadOnly bit by resetting it
       source.captured_as_ &= ~AccessHandleBase::ReadOnly;
 
+      // And also schedule-only:
+      bool is_marked_schedule_only = (source.captured_as_ & AccessHandleBase::ScheduleOnly) != 0;
+      // Indicate that we've processed the ScheduleOnly bit by resetting it
+      source.captured_as_ &= ~AccessHandleBase::ScheduleOnly;
+
+      // And also schedule-only:
+      bool is_marked_leaf = (source.captured_as_ & AccessHandleBase::Leaf) != 0;
+      // Indicate that we've processed the Leaf bit by resetting it
+      source.captured_as_ &= ~AccessHandleBase::Leaf;
+
+
       if (is_marked_read_capture) {
-        capture_type = AccessHandleT::ro_capture;
+        requested_schedule_permissions = requested_immediate_permissions = HandleUse::Read;
       }
       else {
-        // Deduce capture type from state
+        // By default, use the strongest permissions we can schedule to
         switch (source.current_use_->use.scheduling_permissions_) {
           case HandleUse::Read: {
-            capture_type = AccessHandleT::ro_capture;
+            requested_schedule_permissions = requested_immediate_permissions = HandleUse::Read;
             break;
           }
           case HandleUse::Modify: {
-            capture_type = AccessHandleT::mod_capture;
+            requested_immediate_permissions = requested_schedule_permissions = HandleUse::Modify;
             break;
           }
           case HandleUse::None: {
@@ -155,172 +166,38 @@ TaskBase::do_capture(
             DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
             break;
           }
-        };
+        } // end switch on source permissions
       }
 
-      ////////////////////////////////////////////////////////////////////////////////
+      // if it's marked schedule-only, set the requested immediate permissions to None
+      if(is_marked_schedule_only) {
+        requested_immediate_permissions = HandleUse::None;
+      }
 
-      auto _ro_capture_mod_imm = [&]{
+      // if it's marked as a leaf, set the requested scheduling permissions to None
+      if(is_marked_leaf) {
+        requested_schedule_permissions = HandleUse::None;
+      }
 
-      };
-
-      switch (capture_type) {
-        ////////////////////////////////////////////////////////////////////////////////
-        case AccessHandleT::ro_capture: {
-          // We don't need to worry about scheduling permissions for now, until
-          // we introduce modes like write or reduce, since we already check for
-          // None above, and the behavior is the same for Modify scheduling permissions
-          // and Read scheduling permissions (for now, anyway.  There may be
-          // a way to pass on Modify scheduling permissions while requesting
-          // Read immediate permissions at some point in the future.
-          switch (source.current_use_->use.immediate_permissions_) {
-            case HandleUse::None:
-            case HandleUse::Read: {
-              captured.current_use_ = detail::make_shared<UseHolder>(
-                HandleUse(
-                  source.var_handle_,
-                  source.current_use_->use.in_flow_,
-                  source.current_use_->use.in_flow_,
-                  /* Scheduling permissions: */
-                  source.captured_as_ & AccessHandleBase::Leaf ?
-                    HandleUse::None : HandleUse::Read,
-                  /* Immediate permissions: */
-                  HandleUse::Read
-                )
-              );
-              captured.current_use_->do_register();
-              // Continuing use stays the same
-              break;
-            }
-            case HandleUse::Modify: {
-              auto forwarded_flow = make_forwarding_flow_ptr(
-                source.current_use_->use.in_flow_, backend_runtime
-              );
-              captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
-                source.var_handle_,
-                forwarded_flow, forwarded_flow,
-                /* Scheduling permissions: */
-                source.captured_as_ & AccessHandleBase::Leaf ?
-                  HandleUse::None : HandleUse::Read,
-                /* Immediate permissions: */
-                HandleUse::Read
-              ));
-              captured.current_use_->do_register();
-
-              auto source_use_to_release_after = source.current_use_;
-
-              // The continuing context actually needs to have a Use as well,
-              // since it has access to the underlying data...
-              continuing.current_use_ = detail::make_shared<UseHolder>(HandleUse(
-                source.var_handle_,
-                forwarded_flow,
-                // It still carries the out flow of the task, though, and should
-                // establish an alias on release if there are no more modifies
-                source_use_to_release_after->use.out_flow_,
-                /* Scheduling permissions: (unchanged from source) */
-                source_use_to_release_after->use.scheduling_permissions_,
-                /* Immediate permissions: */
-                HandleUse::Read
-              ));
-              // But this *can* still establish an alias (if it has Modify
-              // scheduling permissions) because it could be the one that detects
-              // that the forwarding flow aliases the out flow (i.e., that there
-              // are no more modifies)
-              continuing.current_use_->could_be_alias =
-                source_use_to_release_after->use.scheduling_permissions_ == HandleUse::Modify;
-              continuing.current_use_->do_register();
-              // We can go ahead and pass on the underlying pointer, though, since
-              // the Use is associated with a handle in a context that's uninterruptible
-              void*& ptr = continuing.current_use_->use.get_data_pointer_reference();
-              // (But only if the backend didn't somehow set it to something
-              // else during registration...)
-              if(ptr == nullptr) {
-                ptr = source_use_to_release_after->use.get_data_pointer_reference();
-              }
-
-              // Now we can release the source, finally
-              source_use_to_release_after->do_release();
-              break;
-            }
-            default: {
-              DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
-              break;
-            }
-          } // end switch source.current_use_->use.scheduling_permissions_
-          break;
-        }
-        ////////////////////////////////////////////////////////////////////////////////
-        case AccessHandleT::mod_capture: {
-          DARMA_ASSERT_MESSAGE(source.current_use_->use.scheduling_permissions_ == HandleUse::Permissions::Modify,
-            "Can't do a Modify capture of a handle without Modify scheduling permissions"
-          );
-          switch (source.current_use_->use.immediate_permissions_) {
-            case HandleUse::None:
-            case HandleUse::Read: {
-              // mod(MN) and mod(MR)
-              auto captured_out_flow = make_next_flow_ptr(
-                  source.current_use_->use.in_flow_, backend_runtime
-              );
-              captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
-                source.var_handle_,
-                source.current_use_->use.in_flow_,
-                captured_out_flow,
-                source.captured_as_ & AccessHandleBase::Leaf ?
-                  HandleUse::None : HandleUse::Modify,
-                HandleUse::Modify
-              ));
-              captured.current_use_->do_register();
-              if(source.current_use_->is_registered) source.current_use_->do_release();
-              continuing.current_use_->use.in_flow_ = captured_out_flow;
-              break;
-            }
-            case HandleUse::Modify: {
-              auto captured_in_flow = make_forwarding_flow_ptr(
-                source.current_use_->use.in_flow_, backend_runtime
-              );
-              auto captured_out_flow = make_next_flow_ptr(
-                captured_in_flow, backend_runtime
-              );
-              captured.current_use_ = detail::make_shared<UseHolder>(HandleUse(
-                source.var_handle_,
-                captured_in_flow, captured_out_flow,
-                source.captured_as_ & AccessHandleBase::Leaf ?
-                  HandleUse::None : HandleUse::Modify,
-                HandleUse::Modify
-              ));
-              captured.current_use_->do_register();
-
-              // Release the current use (from the source)
-              source.current_use_->do_release();
-              // And make the continuing context state correct
-              continuing.current_use_->use.scheduling_permissions_ = HandleUse::Modify;
-              continuing.current_use_->use.immediate_permissions_ = HandleUse::None;
-              continuing.current_use_->use.in_flow_ = captured_out_flow;
-              continuing.current_use_->could_be_alias = true;
-              // continuing out flow is unchanged
-              break;
-            }
-            default: {
-              DARMA_ASSERT_NOT_IMPLEMENTED();
-              break;
-            }
-          } // end switch source.current_use_->use.scheduling_permissions_
-          break;
-        } // end mod_capture case
-        ////////////////////////////////////////////////////////////////////////////////
-      } // end switch(capture_type)
+      // Now make the captured use holder (and set up the continuing use holder,
+      // if necessary)
+      captured.current_use_ = make_captured_use_holder(
+        source.var_handle_,
+        /* requested scheduling permissions */
+        requested_schedule_permissions,
+        /* requested immediate permissions */
+        requested_immediate_permissions,
+        source_and_continuing.current_use_
+      );
 
       // Now add the dependency
       add_dependency(captured.current_use_->use);
 
-      // Indicate that we've processed the "leaf" information by resetting the flag
-      source.captured_as_ &= ~AccessHandleBase::Leaf;
-
       captured.var_handle_ = source.var_handle_;
-
 
     }
     else {
+      // TODO remove this functionality, it's deprecated
       // ignored
       captured.current_use_ = nullptr;
     }
