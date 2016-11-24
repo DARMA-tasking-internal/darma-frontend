@@ -149,6 +149,8 @@ make_captured_use_holder(
               // if the source use was registered, we need to release it now
               if(source_and_continuing_holder->is_registered) {
 
+                // TODO creating a new use here might be inconsistent with how we don't create continuation uses in the immediate modify case
+
                 // We need to register a new use here, though, since the
                 // continuing context will have different flows from the
                 // already-registered capturing context
@@ -389,6 +391,7 @@ make_captured_use_holder(
           // if the source use was registered, we need to release it now
           if(source_and_continuing_holder->is_registered) {
             // We need to register a new use here, though
+            // TODO creating a new use here might be inconsistent with how we don't create continuation uses in the modify immediate source case
 
             // copy the use holder so that it can be released after we register
             // the new use in the continuing context
