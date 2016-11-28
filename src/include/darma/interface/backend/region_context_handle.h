@@ -53,7 +53,7 @@ namespace darma_runtime {
 namespace abstract {
 namespace backend {
 
-struct ConcurrentRegionContextHandle {
+struct TaskCollectionContextHandle {
   public:
     virtual size_t get_backend_index() const =0;
 };

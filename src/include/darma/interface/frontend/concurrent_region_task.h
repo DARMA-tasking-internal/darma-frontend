@@ -56,7 +56,7 @@ struct ConcurrentRegionTask : TaskImpl {
   public:
 
     virtual void set_region_context(
-      std::shared_ptr<backend::ConcurrentRegionContextHandle> const&
+      std::shared_ptr<backend::TaskCollectionContextHandle> const&
     ) =0;
 
     /** Makes a copy of the task.  All Use objects returned by get_dependencies

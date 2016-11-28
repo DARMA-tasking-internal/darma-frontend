@@ -194,7 +194,7 @@ class MockSerializationPolicy
 };
 
 struct MockConcurrentRegionContextHandle
-  : public darma_runtime::abstract::backend::ConcurrentRegionContextHandle
+  : public darma_runtime::abstract::backend::TaskCollectionContextHandle
 {
   public:
     MOCK_CONST_METHOD0(get_backend_index, size_t());

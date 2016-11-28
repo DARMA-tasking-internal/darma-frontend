@@ -76,7 +76,7 @@ class CollectiveDetails {
     reduce_operation() const =0;
 
     virtual
-    std::shared_ptr<backend::ConcurrentRegionContextHandle>
+    std::shared_ptr<backend::TaskCollectionContextHandle>
     get_concurrent_region_context() const { return { nullptr }; }
 
 };
