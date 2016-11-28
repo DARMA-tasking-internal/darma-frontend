@@ -168,7 +168,7 @@ namespace threads_backend {
   };
 
   struct ConcurrentRegionContext
-    : ConcurrentRegionContextHandle {
+    : TaskCollectionContextHandle {
     size_t index = 0;
 
     ConcurrentRegionContext(

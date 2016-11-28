@@ -75,7 +75,7 @@ struct ConcurrentRegionContext {
     using IndexT = typename RangeT::index_t;
     using IndexMappingT = typename RangeT::mapping_to_dense_t;
 
-    std::shared_ptr<abstract::backend::ConcurrentRegionContextHandle>
+    std::shared_ptr<abstract::backend::TaskCollectionContextHandle>
       context_handle_ = nullptr;
 
     mutable detail::compressed_pair<IndexT, IndexMappingT> index_and_mapping_;
@@ -164,7 +164,7 @@ namespace detail {
 struct CRTaskRunnableBase {
   virtual void
   set_context_handle(
-    std::shared_ptr<abstract::backend::ConcurrentRegionContextHandle> const& ctxt
+    std::shared_ptr<abstract::backend::TaskCollectionContextHandle> const& ctxt
   ) =0;
 };
 
@@ -224,7 +224,7 @@ struct CRTaskRunnable
 
   void
   set_context_handle(
-    std::shared_ptr<abstract::backend::ConcurrentRegionContextHandle> const& ctxt
+    std::shared_ptr<abstract::backend::TaskCollectionContextHandle> const& ctxt
   ) override {
     context_.context_handle_ = ctxt;
   }
@@ -259,7 +259,7 @@ struct ConcurrentRegionTaskImpl
     using base_t::base_t;
 
     void set_region_context(
-      std::shared_ptr<abstract::backend::ConcurrentRegionContextHandle> const& ctxt
+      std::shared_ptr<abstract::backend::TaskCollectionContextHandle> const& ctxt
     ) override {
       assert(runnable_);
       // ugly....
