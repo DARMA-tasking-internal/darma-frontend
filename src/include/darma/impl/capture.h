@@ -55,12 +55,17 @@ namespace detail {
 
 // returns the captured UseHolder in a properly registered state
 // and with all of the proper flags set
-inline auto
-make_captured_use_holder(
+template <typename UseMaker>
+auto make_captured_use_holder(
   std::shared_ptr<VariableHandleBase> const& var_handle,
   HandleUse::permissions_t requested_scheduling_permissions,
   HandleUse::permissions_t requested_immediate_permissions,
-  std::shared_ptr<UseHolder>& source_and_continuing_holder
+  std::shared_ptr<UseHolder>& source_and_continuing_holder,
+  UseMaker&& use_holder_maker = [](auto&&... args) {
+    return detail::make_shared<UseHolder>(HandleUse(
+      std::forward<decltype(args)>(args)...
+    ));
+  }
 ) {
 
   // source scheduling permissions shouldn't be None at this point
@@ -99,7 +104,7 @@ make_captured_use_holder(
             case HandleUse::Read: {
 
               // We still need to create a new use, because it's a separate task
-              captured_use_holder = detail::make_shared<UseHolder>(HandleUse(
+              captured_use_holder = use_holder_maker(
                 var_handle,
                 source_and_continuing_holder->use.in_flow_,
                 source_and_continuing_holder->use.in_flow_,
@@ -107,7 +112,7 @@ make_captured_use_holder(
                 HandleUse::Read,
                 /* Immediate permissions */
                 HandleUse::None
-              ));
+              );
               captured_use_holder->do_register();
 
               break;
@@ -131,7 +136,7 @@ make_captured_use_holder(
                 source_and_continuing_holder->use.in_flow_, backend_runtime
               );
 
-              captured_use_holder = detail::make_shared<UseHolder>(HandleUse(
+              captured_use_holder = use_holder_maker(
                 var_handle,
                 source_and_continuing_holder->use.in_flow_,
                 captured_out_flow,
@@ -139,7 +144,7 @@ make_captured_use_holder(
                 HandleUse::Modify,
                 /* Immediate permissions */
                 HandleUse::None
-              ));
+              );
 
               captured_use_holder->do_register();
 
@@ -161,7 +166,7 @@ make_captured_use_holder(
 
                 // Make a new use for the continuing context (since, for some reason
                 // or another, we needed one in the source context)
-                source_and_continuing_holder = detail::make_shared<UseHolder>(HandleUse(
+                source_and_continuing_holder = use_holder_maker(
                   var_handle,
                   captured_out_flow,
                   source_use_holder->use.out_flow_,
@@ -169,7 +174,7 @@ make_captured_use_holder(
                   HandleUse::Modify,
                   /* Immediate permissions */
                   HandleUse::None // This is a schedule-only use
-                ));
+                );
                 // Register our new use
                 source_and_continuing_holder->do_register();
 
@@ -261,7 +266,7 @@ make_captured_use_holder(
         case HandleUse::None:
         case HandleUse::Read: {
 
-          captured_use_holder = detail::make_shared<UseHolder>(HandleUse(
+          captured_use_holder = use_holder_maker(
             var_handle,
             source_and_continuing_holder->use.in_flow_,
             source_and_continuing_holder->use.in_flow_,
@@ -269,7 +274,7 @@ make_captured_use_holder(
             requested_scheduling_permissions,
             /* Immediate permissions */
             HandleUse::Read
-          ));
+          );
           captured_use_holder->do_register();
 
           break;
@@ -290,7 +295,7 @@ make_captured_use_holder(
             source_and_continuing_holder->use.in_flow_, backend_runtime
           );
 
-          captured_use_holder = detail::make_shared<UseHolder>(HandleUse(
+          captured_use_holder = use_holder_maker(
             var_handle,
             forwarded_flow,
             forwarded_flow,
@@ -298,7 +303,7 @@ make_captured_use_holder(
             requested_scheduling_permissions,
             /* Immediate permissions */
             HandleUse::Read
-          ));
+          );
           captured_use_holder->do_register();
 
           // The continuing context actually needs to have a Use as well,
@@ -311,7 +316,7 @@ make_captured_use_holder(
           auto source_use_holder = source_and_continuing_holder;
 
           // now make the use for the continuing context
-          source_and_continuing_holder = detail::make_shared<UseHolder>(HandleUse(
+          source_and_continuing_holder = use_holder_maker(
             var_handle,
             forwarded_flow,
             // It still carries the out flow of the task, though, and should
@@ -321,7 +326,7 @@ make_captured_use_holder(
             source_use_holder->use.scheduling_permissions_,
             /* Immediate permissions: */
             HandleUse::Read
-          ));
+          );
           // But this *can* still establish an alias (if it has Modify
           // scheduling permissions) because it could be the one that detects
           // that the forwarding flow aliases the out flow (i.e., that there
@@ -375,7 +380,7 @@ make_captured_use_holder(
           );
 
           // make the captured use holder
-          captured_use_holder = detail::make_shared<UseHolder>(HandleUse(
+          captured_use_holder = use_holder_maker(
             var_handle,
             source_and_continuing_holder->use.in_flow_,
             captured_out_flow,
@@ -383,7 +388,7 @@ make_captured_use_holder(
             requested_scheduling_permissions,
             /* Immediate permissions */
             HandleUse::Modify
-          ));
+          );
 
           // register the captured use
           captured_use_holder->do_register();
@@ -399,7 +404,7 @@ make_captured_use_holder(
 
             // Make a new use for the continuing context (since, for some reason
             // or another, we needed one in the source context)
-            source_and_continuing_holder = detail::make_shared<UseHolder>(HandleUse(
+            source_and_continuing_holder = use_holder_maker(
               var_handle,
               captured_out_flow,
               source_use_holder->use.out_flow_,
@@ -407,7 +412,7 @@ make_captured_use_holder(
               HandleUse::Modify,
               /* Immediate permissions */
               HandleUse::None // This is a schedule-only use
-            ));
+            );
             // and register then new use
             source_and_continuing_holder->do_register();
 
@@ -460,14 +465,14 @@ make_captured_use_holder(
           );
 
           // make the captured use holder
-          captured_use_holder = detail::make_shared<UseHolder>(HandleUse(
+          captured_use_holder = use_holder_maker(
             var_handle,
             captured_in_flow, captured_out_flow,
             /* Scheduling permissions */
             requested_scheduling_permissions,
             /* Immediate permissions */
             HandleUse::Modify
-          ));
+          );
 
           // register the captured use
           captured_use_holder->do_register();

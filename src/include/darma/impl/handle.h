@@ -571,6 +571,9 @@ template <typename... Args>
 struct is_access_handle<AccessHandle<Args...>, void>
   : std::true_type { };
 
+template <typename T>
+using decayed_is_access_handle = typename is_access_handle<std::decay_t<T>, void>::type;
+
 namespace _impl {
 
 template <typename T>

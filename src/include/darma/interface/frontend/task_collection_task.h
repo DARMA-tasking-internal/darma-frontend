@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          types.h
-//                         darma_new
+//                      task_collection_task.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,29 +42,27 @@
 //@HEADER
 */
 
-#ifndef DARMA_ABSTRACT_FRONTEND_TYPES_H_
-#define DARMA_ABSTRACT_FRONTEND_TYPES_H_
+#ifndef DARMA_TASK_COLLECTION_TASK_H
+#define DARMA_TASK_COLLECTION_TASK_H
 
-#ifdef DARMA_HAS_FRONTEND_TYPES_H
-#include <frontend_types.h>
-#endif
-
-//#include <darma_types.h>
-#include <darma/interface/frontend/frontend_fwd.h>
-
-#ifndef DARMA_CUSTOM_HANDLE_CONTAINER
-#include <unordered_set>
 namespace darma_runtime {
-namespace types {
 
-  // TODO this needs to be changed to something like use_iterable
-  template <typename... Ts>
-  using handle_container_template = std::set<Ts...>;
+namespace abstract {
 
-} // end namespace types
+namespace frontend {
+
+template <typename TaskImpl>
+class TaskCollectionTask : public TaskImpl {
+  public:
+
+    using TaskImpl::TaskImpl;
+
+};
+
+} // end namespace frontend
+
+} // end namespace abstract
+
 } // end namespace darma_runtime
-#endif
 
-#include <darma/interface/frontend/types/concrete_task_t.h>
-
-#endif /* DARMA_ABSTRACT_FRONTEND_TYPES_H_ */
+#endif //DARMA_TASK_COLLECTION_TASK_H

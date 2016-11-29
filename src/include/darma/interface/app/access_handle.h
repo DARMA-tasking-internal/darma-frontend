@@ -544,6 +544,13 @@ class AccessHandle : public detail::AccessHandleBase {
     ////////////////////////////////////////
     // private constructors
 
+    explicit
+    AccessHandle(
+      use_holder_ptr const& use_holder
+    ) : var_handle_(use_holder->use.handle_),
+        current_use_(use_holder)
+    { }
+
     AccessHandle(
       variable_handle_ptr var_handle,
       detail::flow_ptr const& in_flow,
@@ -620,6 +627,9 @@ class AccessHandle : public detail::AccessHandleBase {
     // Attorneys for create_work and *_access functions
     friend class detail::create_work_attorneys::for_AccessHandle;
     friend class detail::access_attorneys::for_AccessHandle;
+
+    template <typename Functor, typename CollectionArg, size_t Position>
+    friend struct detail::_get_task_stored_arg_helper;
 
     ////////////////////////////////////////
     // TaskBase is also a friend

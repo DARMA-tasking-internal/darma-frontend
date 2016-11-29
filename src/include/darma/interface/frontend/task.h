@@ -56,6 +56,8 @@ namespace abstract {
 
 namespace frontend {
 
+// TODO perhaps remove pack() and get_packed_size() functions in favor of inheriting from PolymorphicSerializableObject<Task> ?
+
 /** @brief A piece of work that acts on (accesses) zero or more Handle objects
  *  at a particular point in the apparently sequential uses of these Handle objects.
  *
@@ -141,6 +143,11 @@ class Task {
      */
     virtual void pack(void* allocated) const =0;
 
+    /** @brief Indicates whether the task represents a parallel_for loop
+     *
+     * @return True if and only if this task directly wraps a parallel_for created via
+     * darma_runtime::backend::execute_parallel_for()
+     */
     virtual bool is_parallel_for_task() const =0;
 
     virtual ~Task() = default;

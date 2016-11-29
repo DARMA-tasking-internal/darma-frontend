@@ -52,6 +52,7 @@
 #include <darma/interface/backend/flow.h>
 
 #include "handle.h"
+#include "use_collection.h"
 
 namespace darma_runtime {
 namespace abstract {
@@ -126,26 +127,11 @@ class Use {
     virtual types::flow_t const&
     get_in_flow() const =0;
 
-    /** @todo document this
-     *  @remark This may be deprecated in favor of making the return value of
-     *  get_out_flow() a non-const reference
-     *  @remark this should no longer be
-     */
-    virtual void
-    set_in_flow(types::flow_t const&) =0;
-
     /** @brief Get the Flow that is produced or made available when this Use is
      *  released
      */
     virtual types::flow_t const&
     get_out_flow() const =0;
-
-    /** @todo document this
-     *  @remark This may be deprecated in favor of making the return value of
-     *  get_out_flow() a non-const reference
-     */
-    virtual void
-    set_out_flow(types::flow_t const&) =0;
 
     /** @brief Get the immediate permissions needed for the Flow returned by
      *  get_in_flow() to be ready as a precondition for this Use
@@ -174,6 +160,28 @@ class Use {
      */
     virtual void*&
     get_data_pointer_reference() =0;
+
+    /** @brief Whether or not the Use manages the outer scope control flow for
+     *  a UseCollection.
+     *
+     *  @remark If true, the return values of get_in_flow() and get_out_flow()
+     *  must be references to objects returned by one of the
+     *  Runtime::make_*_flow_collection() methods.
+     *
+     *  @return True if and only if the Use manages a UseCollection
+     */
+    virtual bool
+    manages_collection() const { return false; }
+
+    /** @todo document this
+     *
+     *  @remark the lifetime of the returned pointer is tied to the lifetime of
+     *  the Use that manages it
+     *
+     *  @return
+     */
+    virtual UseCollection*
+    get_managed_collection() const { return nullptr; }
 
 };
 
