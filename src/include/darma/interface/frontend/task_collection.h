@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          types.h
-//                         darma_new
+//                      task_collection.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,29 +42,61 @@
 //@HEADER
 */
 
-#ifndef DARMA_ABSTRACT_FRONTEND_TYPES_H_
-#define DARMA_ABSTRACT_FRONTEND_TYPES_H_
+#ifndef DARMA_TASK_COLLECTION_H
+#define DARMA_TASK_COLLECTION_H
 
-#ifdef DARMA_HAS_FRONTEND_TYPES_H
-#include <frontend_types.h>
-#endif
+#include <darma/interface/frontend/types.h> // types::handle_container_template<>
 
-//#include <darma_types.h>
-#include <darma/interface/frontend/frontend_fwd.h>
+#include <darma/interface/frontend/polymorphic_serializable_object.h>
 
-#ifndef DARMA_CUSTOM_HANDLE_CONTAINER
-#include <unordered_set>
+#include <darma/interface/frontend/types/task_collection_task_t.h>
+
+
 namespace darma_runtime {
-namespace types {
 
-  // TODO this needs to be changed to something like use_iterable
-  template <typename... Ts>
-  using handle_container_template = std::set<Ts...>;
+namespace abstract {
 
-} // end namespace types
+namespace frontend {
+
+/** @todo document this
+ *
+ */
+class TaskCollection
+  : public PolymorphicSerializableObject<TaskCollection>
+{
+  public:
+
+    /** @todo document this
+     *
+     *  @return
+     */
+    virtual types::handle_container_template<Use*> const&
+    get_dependencies() const =0;
+
+    /** @todo document this
+     *
+     * @param backend_index
+     * @return
+     */
+    virtual std::unique_ptr<types::task_collection_task_t>
+    create_task_for_index(std::size_t backend_index) =0;
+
+    /** @todo document this
+     *
+     * @return
+     */
+    virtual std::size_t
+    size() const =0;
+
+    virtual bool
+    all_mappings_same_as(TaskCollection* other) const =0;
+
+};
+
+} // end namespace frontend
+
+} // end namespace abstract
+
 } // end namespace darma_runtime
-#endif
 
-#include <darma/interface/frontend/types/concrete_task_t.h>
-
-#endif /* DARMA_ABSTRACT_FRONTEND_TYPES_H_ */
+#endif //DARMA_TASK_COLLECTION_H

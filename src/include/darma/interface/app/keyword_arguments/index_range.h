@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      concrete_task_t.h
+//                      index_range.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,17 +42,34 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_TYPES_CONCRETE_TASK_T_H
-#define DARMA_INTERFACE_FRONTEND_TYPES_CONCRETE_TASK_T_H
+#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_INDEX_RANGE_H
+#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_INDEX_RANGE_H
 
-#include <darma/impl/task_fwd.h>
+#include <darma/impl/keyword_arguments/macros.h>
+
+DeclareDarmaTypeTransparentKeyword(create_concurrent_region, index_range);
 
 namespace darma_runtime {
-namespace types {
+  namespace keyword_arguments_for_access_handle_collection {
+    AliasDarmaKeyword(create_concurrent_region, index_range);
+  } // end namespace keyword_arguments_for_access_handle_collection
 
-typedef darma_runtime::detail::ConcurrentRegionTaskImpl concrete_concurrent_region_task_t;
+  namespace keyword_arguments {
+    AliasDarmaKeyword(create_concurrent_region, index_range);
+  } // end namespace keyword_arguments
 
-} // end namespace types
+  namespace _keyword_arguments {
+    AliasDarmaKeywordAs(create_concurrent_region, index_range, _index_range);
+  } // end namespace keyword_arguments
+
+  namespace keyword_arguments_ {
+    AliasDarmaKeywordAs(create_concurrent_region, index_range, index_range_);
+  } // end namespace keyword_arguments
+
+  namespace _keyword_arguments_ {
+    AliasDarmaKeywordAs(create_concurrent_region, index_range, _index_range_);
+  } // end namespace keyword_arguments
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_TYPES_CONCRETE_TASK_T_H
+
+#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_INDEX_RANGE_H

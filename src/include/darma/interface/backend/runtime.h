@@ -58,8 +58,8 @@
 #include <darma/interface/frontend/types/concrete_condition_task_t.h>
 #include <darma/interface/frontend/condition_task.h>
 #include <darma/interface/frontend/concurrent_region_task.h>
-#include <darma/interface/backend/data_store_handle.h>
 #include <darma/interface/frontend/top_level_task.h>
+#include <darma/interface/frontend/task_collection.h>
 
 #include "backend_fwd.h"
 
@@ -97,13 +97,15 @@ class Runtime {
     using pub_details_t = darma_runtime::abstract::frontend::PublicationDetails;
     using collective_details_t = darma_runtime::abstract::frontend::CollectiveDetails;
     using memory_details_t = abstract::frontend::MemoryRequirementDetails;
+    using task_collection_t = abstract::frontend::TaskCollection;
+    using task_collection_unique_ptr = std::unique_ptr<task_collection_t>;
 
     //==========================================================================
 
     virtual size_t get_execution_resource_count(size_t depth) const =0;
 
     //==========================================================================
-    // <editor-fold desc="Task handling">
+    // <editor-fold desc="Task and TaskCollection handling">
 
     /** @brief Register a task to be run at some future time by the runtime
      * system.
@@ -137,15 +139,9 @@ class Runtime {
     register_condition_task(condition_task_unique_ptr&& task) = 0;
 
     virtual void
-    register_concurrent_region(
-      concurrent_region_task_unique_ptr&& task,
-      size_t n_indices, std::shared_ptr<DataStoreHandle> const& data_store = nullptr
+    register_task_collection(
+      task_collection_unique_ptr&& collection
     ) =0;
-
-    virtual std::shared_ptr<DataStoreHandle>
-    make_data_store() =0;
-
-
 
     // </editor-fold> end Task handling
     //==========================================================================
@@ -274,6 +270,16 @@ class Runtime {
       std::shared_ptr<frontend::Handle> const& handle
     ) =0;
 
+    /** @todo document this
+     *
+     * @param handle
+     * @return
+     */
+    virtual types::flow_t
+    make_initial_flow_collection(
+      std::shared_ptr<frontend::Handle> const& handle
+    ) =0;
+
     /** @brief Make a fetching Flow to be associated with the handle given as an
      *  argument.
      *
@@ -307,6 +313,16 @@ class Runtime {
      */
     virtual types::flow_t
     make_null_flow(
+      std::shared_ptr<frontend::Handle> const& handle
+    ) =0;
+
+    /** @todo document this
+     *
+     * @param handle
+     * @return
+     */
+    virtual types::flow_t
+    make_null_flow_collection(
       std::shared_ptr<frontend::Handle> const& handle
     ) =0;
 
@@ -366,6 +382,16 @@ class Runtime {
      */
     virtual types::flow_t
     make_next_flow(
+      types::flow_t& from
+    ) =0;
+
+    /** @todo document this
+     *
+     * @param from
+     * @return
+     */
+    virtual types::flow_t
+    make_next_flow_collection(
       types::flow_t& from
     ) =0;
 

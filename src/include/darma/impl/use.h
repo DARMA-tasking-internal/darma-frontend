@@ -51,12 +51,13 @@
 #include <darma/interface/backend/flow.h>
 #include <darma/impl/handle.h>
 #include <darma/impl/flow_handling.h>
+#include <darma/impl/index_range/mapping.h>
 
 namespace darma_runtime {
 
 namespace detail {
 
-class HandleUse
+class HandleUseBase
   : public abstract::frontend::Use
 {
   public:
@@ -118,7 +119,7 @@ class HandleUse
     ////////////////////////////////////////
 
 
-    HandleUse(
+    HandleUseBase(
       std::shared_ptr<VariableHandleBase> handle,
       flow_ptr const& in_flow,
       flow_ptr const& out_flow,
@@ -131,11 +132,116 @@ class HandleUse
         out_flow_(out_flow)
     { }
 
-    HandleUse() = default;
-    HandleUse(HandleUse const&) = default;
-    HandleUse(HandleUse&&) = default;
-    HandleUse& operator=(HandleUse const&) = default;
-    HandleUse& operator=(HandleUse&&) = default;
+    HandleUseBase() = default;
+    HandleUseBase(HandleUseBase const&) = default;
+    HandleUseBase(HandleUseBase&&) = default;
+    HandleUseBase& operator=(HandleUseBase const&) = default;
+    HandleUseBase& operator=(HandleUseBase&&) = default;
+
+};
+
+class HandleUse
+  : public HandleUseBase
+{
+  public:
+
+    using HandleUseBase::HandleUseBase;
+
+    bool manages_collection() const override {
+      return false;
+    }
+
+    abstract::frontend::UseCollection*
+    get_managed_collection() override {
+      return nullptr;
+    }
+
+
+};
+
+template <typename UseCollectionIndexRange, typename TaskCollectionIndexRange>
+using default_mapping_to_task_collection = tinympl::identity<
+  CompositeMapping<
+    mapping_to_dense_t<UseCollectionIndexRange>,
+    ReverseMapping<mapping_to_dense_t<TaskCollectionIndexRange>>
+  >
+>;
+template <typename UseCollectionIndexRange, typename TaskCollectionIndexRange>
+using default_mapping_to_task_collection_t = typename
+  default_mapping_to_task_collection<UseCollectionIndexRange, TaskCollectionIndexRange>::type;
+
+template <typename UseCollectionIndexRange>
+struct make_default_mapping_to_task_collection {
+  template <typename TaskCollectionIndexRange>
+  using apply = default_mapping_to_task_collection<UseCollectionIndexRange, TaskCollectionIndexRange>;
+  template <typename TaskCollectionIndexRange>
+  using apply_t = default_mapping_to_task_collection_t<UseCollectionIndexRange, TaskCollectionIndexRange>;
+};
+
+
+template <typename IndexRangeT, typename MappingToTaskCollection = IdentityMapping<size_t> >
+class CollectionManagingUse
+  : public HandleUseBase, public abstract::frontend::UseCollection
+{
+  private:
+
+    template <typename T>
+    using index_iterable = abstract::frontend::UseCollection::index_iterable<T>;
+
+  public:
+
+    IndexRangeT index_range;
+    // TODO this should incoroporate the mapping from dense backend index to user index as well
+    MappingToTaskCollection mapping;
+
+
+    CollectionManagingUse(
+      std::shared_ptr<VariableHandleBase> handle,
+      flow_ptr const& in_flow,
+      flow_ptr const& out_flow,
+      abstract::frontend::Use::permissions_t scheduling_permissions,
+      IndexRangeT&& range
+    ) : HandleUseBase(handle, in_flow, out_flow, scheduling_permissions, HandleUse::None),
+        index_range(std::forward<IndexRangeT>(range))
+    { }
+
+    CollectionManagingUse(
+      std::shared_ptr<VariableHandleBase> handle,
+      flow_ptr const& in_flow,
+      flow_ptr const& out_flow,
+      abstract::frontend::Use::permissions_t scheduling_permissions,
+      IndexRangeT&& range, MappingToTaskCollection&& mapping
+    ) : HandleUseBase(handle, in_flow, out_flow, scheduling_permissions, HandleUse::None),
+        index_range(std::forward<IndexRangeT>(range)),
+        mapping(std::forward<MappingToTaskCollection>(mapping))
+    { }
+
+
+    bool manages_collection() const override {
+      return true;
+    }
+
+    abstract::frontend::UseCollection*
+    get_managed_collection() override {
+      return this;
+    }
+
+    index_iterable<std::size_t>
+    local_indices_for(std::size_t backend_task_collection_index) const override {
+      // Only one-to-one for now
+      // TODO more than just one-to-one mapping
+      return index_iterable<std::size_t>{
+        mapping.map_backwards(backend_task_collection_index)
+      };
+    }
+
+    bool
+    has_same_mapping_as(
+      abstract::frontend::UseCollection const* other
+    ) const override {
+      // TODO implement this
+      return false;
+    }
 
 };
 
@@ -145,8 +251,9 @@ static constexpr migrated_use_arg_t migrated_use_arg = { };
 
 // really belongs to AccessHandle, but we can't put this in impl/handle.h
 // because of circular header dependencies
-struct UseHolder {
-  HandleUse use;
+template <typename UnderlyingUse>
+struct GenericUseHolder {
+  UnderlyingUse use;
   bool is_registered = false;
   bool could_be_alias = false;
   bool captured_but_not_handled = false;
@@ -155,7 +262,7 @@ struct UseHolder {
   UseHolder(UseHolder const &) = delete;
 
   explicit
-  UseHolder(HandleUse&& in_use)
+  UseHolder(UnderlyingUse&& in_use)
     : use(std::move(in_use))
   { }
 
@@ -171,7 +278,7 @@ struct UseHolder {
     is_registered = false;
   }
 
-  UseHolder(migrated_use_arg_t const&, HandleUse&& in_use) : use(std::move(in_use)) {
+  UseHolder(migrated_use_arg_t const&, UnderlyingUse&& in_use) : use(std::move(in_use)) {
     abstract::backend::get_backend_runtime()->reregister_migrated_use(&use);
     is_registered = true;
   }
@@ -187,6 +294,10 @@ struct UseHolder {
     }
   }
 };
+
+using UseHolder = GenericUseHolder<HandleUse>;
+template <typename... Args>
+using UseCollectionManagingHolder = GenericUseHolder<CollectionManagingUse<Args...>>;
 
 } // end namespace detail
 

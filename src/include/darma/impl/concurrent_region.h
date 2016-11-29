@@ -50,12 +50,13 @@
 #include <darma/impl/array/index_range.h>
 #include <darma/impl/data_store.h>
 #include <darma/interface/backend/region_context_handle.h>
+#include <darma/interface/app/keyword_arguments/index_range.h>
+
 
 #include <darma/impl/util/compressed_pair.h>
 
 #include "task.h"
 
-DeclareDarmaTypeTransparentKeyword(create_concurrent_region, index_range);
 DeclareDarmaTypeTransparentKeyword(create_concurrent_region, data_store);
 
 namespace darma_runtime {

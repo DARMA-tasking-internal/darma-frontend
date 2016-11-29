@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          types.h
-//                         darma_new
+//                      use_collection.h
+//                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,29 +42,53 @@
 //@HEADER
 */
 
-#ifndef DARMA_ABSTRACT_FRONTEND_TYPES_H_
-#define DARMA_ABSTRACT_FRONTEND_TYPES_H_
+#ifndef DARMA_USE_COLLECTION_H
+#define DARMA_USE_COLLECTION_H
 
-#ifdef DARMA_HAS_FRONTEND_TYPES_H
-#include <frontend_types.h>
-#endif
+#include <cstdlib> // std::size_t
+#include <vector>
 
-//#include <darma_types.h>
-#include <darma/interface/frontend/frontend_fwd.h>
-
-#ifndef DARMA_CUSTOM_HANDLE_CONTAINER
-#include <unordered_set>
 namespace darma_runtime {
-namespace types {
 
-  // TODO this needs to be changed to something like use_iterable
-  template <typename... Ts>
-  using handle_container_template = std::set<Ts...>;
+namespace abstract {
 
-} // end namespace types
+namespace frontend {
+
+/** @todo document this
+ *
+ */
+class UseCollection {
+  protected:
+    template <typename T>
+    using index_iterable = std::vector<T>;  // TODO make a template alias for this in frontend/types.h
+
+  public:
+
+    /** @todo document this
+     *
+     *  @param task_index
+     *  @return
+     */
+    virtual index_iterable<std::size_t>
+    local_indices_for(std::size_t task_index) const =0;
+
+    /** @todo document this
+     *
+     *  @param other
+     *  @return
+     */
+    virtual bool
+    has_same_mapping_as(UseCollection const* other) const =0;
+
+    virtual std::size_t
+    size() const =0;
+
+};
+
+} // end namespace frontend
+
+} // end namespace abstract
+
 } // end namespace darma_runtime
-#endif
 
-#include <darma/interface/frontend/types/concrete_task_t.h>
-
-#endif /* DARMA_ABSTRACT_FRONTEND_TYPES_H_ */
+#endif //DARMA_USE_COLLECTION_H

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      data_store_handle.h
+//                      range_1d.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,24 +42,37 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_BACKEND_DATA_STORE_HANDLE_H
-#define DARMA_INTERFACE_BACKEND_DATA_STORE_HANDLE_H
+#ifndef DARMA_IMPL_INDEX_RANGE_RANGE_1D_H
+#define DARMA_IMPL_INDEX_RANGE_RANGE_1D_H
 
-#include "backend_fwd.h"
+#include <darma/interface/frontend/index_range.h>
+
+#include <darma/impl/polymorphic_serialization.h>
 
 namespace darma_runtime {
-namespace abstract {
-namespace backend {
 
-/** @TODO document this
- *
- */
-struct DataStoreHandle {
+namespace detail {
+
+template <typename Integer>
+struct basic_index_range_1d
+  : detail::PolymorphicSerializationAdapter<
+      basic_index_range_1d<Integer>,
+      abstract::frontend::IndexRange
+    >
+{
+
+  private:
+
+    Integer size_;
+    Integer offset_;
+
+  public:
+    
 
 };
 
-} // end namespace backend
-} // end namespace abstract
+} // end namespace detail
+
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_BACKEND_DATA_STORE_HANDLE_H
+#endif //DARMA_IMPL_INDEX_RANGE_RANGE_1D_H
