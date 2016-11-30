@@ -155,33 +155,31 @@ class HandleUse
     get_managed_collection() override {
       return nullptr;
     }
+};
 
+template <typename IndexRangeT>
+class CollectionManagingUseBase
+  : public HandleUseBase,
+    public abstract::frontend::UseCollection
+{
+  public:
+
+    IndexRangeT index_range;
+
+    bool manages_collection() const override {
+      return true;
+    }
+
+    abstract::frontend::UseCollection*
+    get_managed_collection() override {
+      return this;
+    }
 
 };
 
-template <typename UseCollectionIndexRange, typename TaskCollectionIndexRange>
-using default_mapping_to_task_collection = tinympl::identity<
-  CompositeMapping<
-    mapping_to_dense_t<UseCollectionIndexRange>,
-    ReverseMapping<mapping_to_dense_t<TaskCollectionIndexRange>>
-  >
->;
-template <typename UseCollectionIndexRange, typename TaskCollectionIndexRange>
-using default_mapping_to_task_collection_t = typename
-  default_mapping_to_task_collection<UseCollectionIndexRange, TaskCollectionIndexRange>::type;
-
-template <typename UseCollectionIndexRange>
-struct make_default_mapping_to_task_collection {
-  template <typename TaskCollectionIndexRange>
-  using apply = default_mapping_to_task_collection<UseCollectionIndexRange, TaskCollectionIndexRange>;
-  template <typename TaskCollectionIndexRange>
-  using apply_t = default_mapping_to_task_collection_t<UseCollectionIndexRange, TaskCollectionIndexRange>;
-};
-
-
-template <typename IndexRangeT, typename MappingToTaskCollection = IdentityMapping<size_t> >
+template <typename IndexRangeT, typename MappingToTaskCollection=NullMapping>
 class CollectionManagingUse
-  : public HandleUseBase, public abstract::frontend::UseCollection
+  : public CollectionManagingUseBase<IndexRangeT>
 {
   private:
 
@@ -190,10 +188,7 @@ class CollectionManagingUse
 
   public:
 
-    IndexRangeT index_range;
-    // TODO this should incoroporate the mapping from dense backend index to user index as well
     MappingToTaskCollection mapping;
-
 
     CollectionManagingUse(
       std::shared_ptr<VariableHandleBase> handle,
@@ -217,14 +212,6 @@ class CollectionManagingUse
     { }
 
 
-    bool manages_collection() const override {
-      return true;
-    }
-
-    abstract::frontend::UseCollection*
-    get_managed_collection() override {
-      return this;
-    }
 
     std::size_t size() const override { return index_range.size(); }
 

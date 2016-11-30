@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      test_index_range.cc
+//                      type_traits.hpp
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,40 +42,33 @@
 //@HEADER
 */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#ifndef TINYMPL_TYPE_TRAITS_HPP
+#define TINYMPL_TYPE_TRAITS_HPP
 
-#include <darma/impl/array/index_range.h>
-#include <darma/impl/index_range/range_1d.h>
-#include <darma/impl/index_range/mapping.h>
-#include <darma/impl/index_range/polymorphic_mapping.h>
+#include <type_traits>
+#include "copy_traits.hpp"
 
-using namespace darma_runtime;
-using namespace darma_runtime::detail;
-
-TEST(TestIndexRange, pack_unpack_contiguous) {
-
-//  ContiguousIndexRange crange1(20, 5);
-//
-//  abstract::frontend::CompactIndexRange& crange_base = crange1;
-//
-//  size_t size = crange_base.get_packed_size();
-//  char* buffer = new char[size];
-//
-//  crange_base.pack(buffer);
-//
-//  auto crange_base_ptr_2 =
-//    abstract::frontend::PolymorphicSerializableObject<abstract::frontend::CompactIndexRange>::unpack(
-//      buffer, size
-//    );
-//
-//  delete[] buffer;
-//
-//  ASSERT_EQ(crange_base_ptr_2->size(), 20);
-//  ASSERT_EQ(crange_base_ptr_2->offset(), 5);
-//  ASSERT_EQ(crange_base_ptr_2->contiguous(), true);
-//  ASSERT_EQ(crange_base_ptr_2->strided(), false);
+namespace tinympl {
 
 
-}
 
+template <typename T>
+struct as_const_lvalue_reference {
+  using type =
+    // add back in the lvalue reference
+    std::add_lvalue_reference_t<
+      // add the const
+      std::add_const_t<
+        // remove references so we can add const
+        std::remove_reference_t<T>
+      >
+    >;
+};
+
+template <typename T>
+using as_const_lvalue_reference_t = typename as_const_lvalue_reference<T>::type;
+
+} // end namespace tinympl
+
+
+#endif //TINYMPL_TYPE_TRAITS_HPP

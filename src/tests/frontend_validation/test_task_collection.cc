@@ -99,8 +99,8 @@ TEST_F(TestCreateConcurrentWork, simple) {
   {
 
     //auto tmp = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
-    auto tmp = initial_access<int>("hello");
-    //auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
+    //auto tmp = initial_access<int>("hello");
+    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
 
     struct Foo {
       void operator()(Index1D<int> index, int const&) const {
@@ -109,7 +109,7 @@ TEST_F(TestCreateConcurrentWork, simple) {
       }
     };
 
-    create_concurrent_work<Foo>(tmp,
+    create_concurrent_work<Foo>(tmp_c,
       index_range=Range1D<int>(0, 4)
     );
 
