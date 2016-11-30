@@ -134,7 +134,7 @@ struct ContiguousIndexMapping {
       return from.value - from.min_value;
     }
 
-    from_index_t map_reverse(to_index_t const& to) const {
+    from_index_t map_backward(to_index_t const& to) const {
       return { static_cast<Integer>(to), range.offset_, range.offset_ + range.size_ };
     }
 

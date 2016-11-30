@@ -89,7 +89,7 @@ class TaskCollection
     size() const =0;
 
     virtual bool
-    all_mappings_same_as(TaskCollection* other) const =0;
+    all_mappings_same_as(TaskCollection const* other) const =0;
 
 };
 

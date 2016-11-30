@@ -98,7 +98,16 @@ TEST_F(TestCreateConcurrentWork, simple) {
   // actual code being tested
   {
 
-    auto tmp = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
+    //auto tmp = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
+
+    struct Foo {
+      void operator()(Index1D<int> index) const {
+        ASSERT_THAT(index.value, Lt(4));
+        ASSERT_THAT(index.value, Ge(0));
+      }
+    };
+
+    create_concurrent_work<Foo>(index_range=Range1D<int>(0, 4));
 
   }
   //============================================================================
