@@ -61,14 +61,7 @@ auto make_captured_use_holder(
   HandleUse::permissions_t requested_scheduling_permissions,
   HandleUse::permissions_t requested_immediate_permissions,
   std::shared_ptr<UseHolder>& source_and_continuing_holder,
-  UseMaker&& use_holder_maker = [](auto&&... args) {
-    return detail::make_shared<UseHolder>(HandleUse(
-      std::forward<decltype(args)>(args)...
-    ));
-  },
-  NextFlowMaker&& next_flow_maker = [](auto&& flow, auto* backend_runtime) {
-    return detail::make_next_flow_ptr(std::forward<decltype(flow)>(flow), backend_runtime);
-  }
+  UseMaker&& use_holder_maker, NextFlowMaker&& next_flow_maker
 ) {
 
   // source scheduling permissions shouldn't be None at this point
@@ -518,6 +511,27 @@ auto make_captured_use_holder(
   return captured_use_holder;
 }
 
+
+inline auto
+make_captured_use_holder(
+  std::shared_ptr<VariableHandleBase> const& var_handle,
+  HandleUse::permissions_t requested_scheduling_permissions,
+  HandleUse::permissions_t requested_immediate_permissions,
+  std::shared_ptr<UseHolder>& source_and_continuing_holder
+) {
+  return make_captured_use_holder(
+    var_handle, requested_scheduling_permissions, requested_immediate_permissions,
+    source_and_continuing_holder,
+    [](auto&&... args) {
+      return detail::make_shared<UseHolder>(HandleUse(
+        std::forward<decltype(args)>(args)...
+      ));
+    },
+    [](auto&& flow, auto* backend_runtime) {
+      return detail::make_next_flow_ptr(std::forward<decltype(flow)>(flow), backend_runtime);
+    }
+  );
+}
 
 
 } // end namespace detail
