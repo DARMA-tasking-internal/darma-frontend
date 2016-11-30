@@ -81,9 +81,11 @@ class PolymorphicMapping {
     virtual bool is_many_to_many() const =0;
     static constexpr auto is_always_many_to_many = false;
 
+    // TODO add the overloads that take a range instance
     virtual to_multi_index_type
     map_forward(from_index_type const&) const =0;
 
+    // TODO add the overloads that take a range instance
     virtual from_multi_index_type
     map_backward(to_index_type const&) const =0;
 

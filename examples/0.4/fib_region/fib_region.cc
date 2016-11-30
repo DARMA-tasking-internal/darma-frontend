@@ -1,5 +1,5 @@
 #include <darma.h>
-#include <darma/impl/array/range_2d.h>
+#include <src/include/darma/impl/index_range/range_2d.h>
 #include <assert.h>
 
 using namespace darma_runtime;
