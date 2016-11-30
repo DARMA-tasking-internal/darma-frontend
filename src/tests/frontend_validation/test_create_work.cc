@@ -627,3 +627,47 @@ INSTANTIATE_TEST_CASE_P(
   TestScheduleOnly,
   ::testing::Bool()
 );
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestCreateWork, death_schedule_only) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  MockFlow finit, fnull, f_sched_out;
+  use_t* use_sched_capt = nullptr;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+
+  // Expect a schedule-only mod capture
+  EXPECT_CALL(*mock_runtime, make_next_flow(finit))
+    .WillOnce(Return(f_sched_out));
+  EXPECT_REGISTER_USE(use_sched_capt, finit, f_sched_out, Modify, None);
+  EXPECT_REGISTER_TASK(use_sched_capt);
+
+  mock_runtime->save_tasks = true;
+
+  //============================================================================
+  // actual code being tested (that should fail when run)
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work(schedule_only(tmp), [=] {
+      EXPECT_DEATH(
+        {
+          tmp.set_value(42);
+        },
+        "set_value\\(\\) called on handle not in immediately modifiable state.*"
+      );
+    });
+
+  }
+  //============================================================================
+
+  run_all_tasks();
+
+}
+#endif
