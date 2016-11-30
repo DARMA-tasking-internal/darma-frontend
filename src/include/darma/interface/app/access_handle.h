@@ -547,8 +547,9 @@ class AccessHandle : public detail::AccessHandleBase {
 
     explicit
     AccessHandle(
+      variable_handle_ptr const& var_handle,
       use_holder_ptr const& use_holder
-    ) : var_handle_(use_holder->use.handle_),
+    ) : var_handle_(var_handle),
         current_use_(use_holder)
     { }
 
@@ -629,8 +630,11 @@ class AccessHandle : public detail::AccessHandleBase {
     friend class detail::create_work_attorneys::for_AccessHandle;
     friend class detail::access_attorneys::for_AccessHandle;
 
-    template <typename Functor, typename CollectionArg, size_t Position>
+    template <typename, typename, size_t, typename>
     friend struct detail::_task_collection_impl::_get_task_stored_arg_helper;
+
+    template <typename, typename, typename>
+    friend struct detail::_task_collection_impl::_get_storage_arg_helper;
 
     ////////////////////////////////////////
     // TaskBase is also a friend

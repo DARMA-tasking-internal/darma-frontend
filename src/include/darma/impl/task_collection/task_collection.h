@@ -111,7 +111,7 @@ struct _get_storage_arg_helper<
       >::type::template with_max_immediate_permissions<
         // TODO check for a schedule-only AccessHandle parameter
         AccessHandlePermissions::Read
-      >
+      >::type
   >;
   using return_type = type; // readability
 
@@ -119,6 +119,7 @@ struct _get_storage_arg_helper<
   auto
   operator()(TaskCollectionT& collection, GivenArg&& arg) const {
     auto rv = return_type(
+      arg.var_handle_,
       detail::make_captured_use_holder(
         arg.var_handle_,
         /* Requested Scheduling permissions: */
@@ -616,7 +617,7 @@ struct TaskCollectionTaskImpl
   void run() override {
     meta::splat_tuple(
       _get_call_args_impl(std::index_sequence_for<StoredArgs...>{}),
-      [&](auto&&... args) {
+      [&](auto&&... args) mutable {
         Functor()(
           mapping_.map_backward(backend_index_),
           std::forward<decltype(args)>(args)...
@@ -680,7 +681,7 @@ struct TaskCollectionImpl
         TaskCollectionTaskImpl<
           Functor, mapping_to_dense_t<index_range_t>,
           typename _task_collection_impl::_get_task_stored_arg_helper<
-            Functor, decltype(std::get<Spots>(args_stored_)), Spots
+            Functor, Args, Spots
           >::type...
         >>(
           index, get_mapping_to_dense(collection_range_),
