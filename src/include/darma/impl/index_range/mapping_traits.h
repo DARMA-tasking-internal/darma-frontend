@@ -49,15 +49,23 @@
 
 #include <darma/impl/meta/detection.h>
 #include <src/include/tinympl/type_traits.hpp>
+#include <darma/impl/util/optional_boolean.h>
 
 namespace darma_runtime {
 
 namespace indexing {
 
 template <typename T>
-struct MappingTraits {
+struct mapping_traits {
+
+  //============================================================================
+  // <editor-fold desc="Member type determination"> {{{1
 
   private:
+
+    template <typename T>
+    friend
+    struct darma_runtime::indexing::mapping_traits;
 
     template <typename U>
     using _index_type_archetype = typename U::index_type;
@@ -133,18 +141,203 @@ struct MappingTraits {
       >
     >;
 
+  // </editor-fold> end Member type determination }}}1
+  //============================================================================
+
+  //============================================================================
+  // <editor-fold desc="known_same_mapping() and same_mapping_is_known"> {{{1
+
   private:
 
     template <typename U, typename OtherMapping>
-    using _has_is_same_archetype = decltype(
+    using _is_same_archetype = decltype(
       std::declval<U>().is_same(
         std::declval<tinympl::as_const_lvalue_reference_t<OtherMapping>>()
       )
     );
 
-
+    template <typename OtherMapping>
+    using _mapping_is_same_return_t =
+      meta::detected_t<_is_same_archetype, T, OtherMapping>;
 
   public:
+
+
+    template <typename OtherMapping>
+    using same_mapping_is_known = tinympl::bool_<
+      std::is_convertible<_mapping_is_same_return_t<OtherMapping>, bool>::value
+        or std::is_convertible<
+          _mapping_is_same_return_t<OtherMapping>,
+          optional_boolean_t
+        >::value
+        or std::is_convertible<
+          typename darma_runtime::indexing::mapping_traits<OtherMapping>
+          ::template _mapping_is_same_return_t<T>,
+          optional_boolean_t
+        >::value
+        or std::is_convertible<
+          typename darma_runtime::indexing::mapping_traits<OtherMapping>
+          ::template _mapping_is_same_return_t<T>,
+          bool
+        >::value
+    >;
+
+    template <typename OtherMapping>
+    static bool
+    known_same_mapping(
+      std::enable_if_t<
+        std::is_convertible<
+          _mapping_is_same_return_t<OtherMapping>, optional_boolean_t
+        >::value,
+        T const&
+      > mapping,
+      OtherMapping const& other_mapping
+    ) {
+      return mapping.is_same(other_mapping) == OptionalBoolean::KnownTrue;
+    }
+
+    template <typename OtherMapping>
+    static bool
+    known_same_mapping(
+      std::enable_if_t<
+        std::is_convertible<
+          _mapping_is_same_return_t<OtherMapping>,
+          bool
+        >::value
+          and not std::is_convertible<
+            _mapping_is_same_return_t<OtherMapping>, optional_boolean_t
+          >::value,
+        T const&
+      > mapping,
+      OtherMapping const& other_mapping
+    ) {
+      return mapping.is_same(other_mapping);
+    }
+
+    template <typename OtherMapping>
+    static bool
+    known_same_mapping(
+      std::enable_if_t<
+        not std::is_convertible<
+          _mapping_is_same_return_t<OtherMapping>,
+          bool
+        >::value
+          and not std::is_convertible<
+            _mapping_is_same_return_t<OtherMapping>,
+            optional_boolean_t
+          >::value
+          and std::is_convertible<
+            typename darma_runtime::indexing::mapping_traits<OtherMapping>
+            ::template _mapping_is_same_return_t<T>,
+            optional_boolean_t
+          >::value,
+        T const&
+      > mapping,
+      OtherMapping const& other_mapping
+    ) {
+      return other_mapping.is_same(mapping) == OptionalBoolean::KnownTrue;
+    }
+
+    template <typename OtherMapping>
+    static bool
+    known_same_mapping(
+      std::enable_if_t<
+        not std::is_convertible<
+          _mapping_is_same_return_t<OtherMapping>,
+          bool
+        >::value
+          and not std::is_convertible<
+            _mapping_is_same_return_t<OtherMapping>,
+            optional_boolean_t
+          >::value
+          and not std::is_convertible<
+            typename darma_runtime::indexing::mapping_traits<OtherMapping>
+            ::template _mapping_is_same_return_t<T>,
+            optional_boolean_t
+          >::value
+          and std::is_convertible<
+            typename darma_runtime::indexing::mapping_traits<OtherMapping>
+            ::template _mapping_is_same_return_t<T>,
+            bool
+          >::value,
+        T const&
+      > mapping,
+      OtherMapping const& other_mapping
+    ) {
+      return other_mapping.is_same(mapping);
+    }
+
+
+    template <typename OtherMapping>
+    static bool
+    known_same_mapping(
+      std::enable_if_t<
+        not same_mapping_is_known<OtherMapping>::value,
+        T const&
+      > mapping,
+      OtherMapping const& other_mapping
+    ) {
+      return false; // we don't know that it's the same
+    }
+
+  // </editor-fold> end known_same_mapping() and same_mapping_is_known }}}1
+  //==========================================================================
+
+  //==============================================================================
+  // <editor-fold desc="Generic map_forward and map_backward"> {{{1
+
+  private:
+
+    template <typename U>
+    using _map_forward_no_ranges_archetype = decltype(
+      std::declval<U>().map_forward(std::declval<to_index_type const&>())
+    );
+
+    template <typename U, typename Range1>
+    using _map_forward_one_range_archetype = decltype(
+      std::declval<U>().map_forward(
+        std::declval<to_index_type const&>(),
+        std::declval<Range1 const&>()
+      )
+    );
+
+    template <typename U, typename Range1, typename Range2>
+    using _map_forward_two_ranges_archetype = decltype(
+      std::declval<U>().map_forward(
+        std::declval<to_index_type const&>(),
+        std::declval<Range1 const&>(),
+        std::declval<Range2 const&>()
+      )
+    );
+
+    template <typename U>
+    using _map_backward_no_ranges_archetype = decltype(
+      std::declval<U>().map_backward(std::declval<from_index_type const&>())
+    );
+
+    template <typename U, typename Range1>
+    using _map_backward_one_range_archetype = decltype(
+      std::declval<U>().map_backward(
+        std::declval<from_index_type const&>(),
+        std::declval<Range1 const&>()
+      )
+    );
+
+    template <typename U, typename Range1, typename Range2>
+    using _map_backward_two_ranges_archetype = decltype(
+      std::declval<U>().map_backward(
+        std::declval<from_index_type const&>(),
+        std::declval<Range1 const&>(),
+        std::declval<Range2 const&>()
+      )
+    );
+
+  public:
+
+
+
+  // </editor-fold> end Generic map_forward and map_backward }}}1
+  //==============================================================================
 
 };
 

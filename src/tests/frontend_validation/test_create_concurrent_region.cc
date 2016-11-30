@@ -53,7 +53,7 @@
 #include <darma/interface/app/read_access.h>
 #include <darma/interface/app/create_work.h>
 #include <darma/impl/data_store.h>
-#include <darma/impl/array/range_2d.h>
+#include <src/include/darma/impl/index_range/range_2d.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 
