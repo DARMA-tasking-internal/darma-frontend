@@ -163,6 +163,7 @@ struct _get_storage_arg_helper<
   >;
 
   // TODO static schedule-only permissions
+  // TODO non-AccessHandleCollection parameters should probably be deprecated
 
   static constexpr auto required_immediate_permissions = tinympl::select_first<
     tinympl::bool_<(
@@ -371,6 +372,7 @@ struct _get_task_stored_arg_helper<
 };
 
 // Mapped HandleCollection case
+// TODO non-AccessHandleCollection parameters should probably be deprecated for AccessHandleCollection arguments
 template <typename Functor, typename CollectionArg, size_t Position>
 struct _get_task_stored_arg_helper<
   Functor, CollectionArg, Position,
@@ -644,9 +646,10 @@ template <
 >
 struct TaskCollectionImpl
   : PolymorphicSerializationAdapter<
-    TaskCollectionImpl<IndexRangeT, Args...>,
-    abstract::frontend::TaskCollection
-  > {
+      TaskCollectionImpl<Functor, IndexRangeT, Args...>,
+      abstract::frontend::TaskCollection
+    >
+{
   public:
     using index_range_t = IndexRangeT;
 
@@ -675,14 +678,15 @@ struct TaskCollectionImpl
     ) {
       return std::make_unique<
         TaskCollectionTaskImpl<
-          Functor, typename index_range_t::index_t,
+          Functor, mapping_to_dense_t<index_range_t>,
           typename _task_collection_impl::_get_task_stored_arg_helper<
             Functor, decltype(std::get<Spots>(args_stored_)), Spots
           >::type...
         >>(
-        _task_collection_impl::_get_task_stored_arg_helper<
-          Functor, decltype(std::get<Spots>(args_stored_)), Spots
-        >{}(*this, std::get<Spots>(args_stored_))...
+          index, get_mapping_to_dense(collection_range_),
+          _task_collection_impl::_get_task_stored_arg_helper<
+              Functor, decltype(std::get<Spots>(args_stored_)), Spots
+            >{}(*this, std::get<Spots>(args_stored_))...
       );
     }
 
@@ -696,8 +700,19 @@ struct TaskCollectionImpl
     IndexRangeT collection_range_;
     std::tuple<Args...> args_stored_;
 
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      /* TODO write this!!! */
+    }
+
+    void add_dependency(abstract::frontend::Use* dep) {
+      dependencies_.insert(dep);
+    }
+
     //==========================================================================
     // Ctors
+
+    TaskCollectionImpl() = default;
 
     template <typename IndexRangeDeduced, typename... ArgsForwarded>
     TaskCollectionImpl(
@@ -723,11 +738,22 @@ struct TaskCollectionImpl
       );
     }
 
+    // This should really return something ternary like "known false, known true, or unknown"
+    bool
+    all_mappings_same_as(abstract::frontend::TaskCollection const* other) const override {
+      /* TODO */
+      return false;
+    }
+
+    types::handle_container_template<abstract::frontend::Use*> const&
+    get_dependencies() const override {
+      return dependencies_;
+    }
 
     template <typename, typename, typename>
     friend struct _task_collection_impl::_get_storage_arg_helper;
 
-    template <typename, typename, size_t>
+    template <typename, typename, size_t, typename>
     friend struct _task_collection_impl::_get_task_stored_arg_helper;
 
 };
@@ -780,7 +806,7 @@ void create_concurrent_work(Args&&... args) {
 
   parser()
     .parse_args(std::forward<Args>(args)...)
-    .invokee([](
+    .invoke([](
       auto&& index_range,
       variadic_arguments_begin_tag,
       auto&&... args
@@ -794,7 +820,8 @@ void create_concurrent_work(Args&&... args) {
         std::forward<decltype(args)>(args)...
       );
 
-      auto* backend_runtime = abstract::backend::get_backend_runtime()->register_task_collection(
+      auto* backend_runtime = abstract::backend::get_backend_runtime();
+      backend_runtime->register_task_collection(
         std::move(task_collection)
       );
 
