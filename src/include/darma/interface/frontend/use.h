@@ -181,7 +181,7 @@ class Use {
      *  @return
      */
     virtual UseCollection*
-    get_managed_collection() const { return nullptr; }
+    get_managed_collection() { return nullptr; }
 
 };
 

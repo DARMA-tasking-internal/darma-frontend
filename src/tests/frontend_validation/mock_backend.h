@@ -81,13 +81,8 @@ class MockRuntime
     using concurrent_region_task_unique_ptr = runtime_t::concurrent_region_task_unique_ptr;
     using top_level_task_t = darma_runtime::abstract::backend::runtime_t::top_level_task_t;
     using top_level_task_unique_ptr = darma_runtime::abstract::backend::runtime_t::top_level_task_unique_ptr;
-
-    struct CRTaskDetails {
-      concurrent_region_task_unique_ptr task;
-      size_t n_indices;
-      std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle> data_store_handle;
-      size_t n_run_so_far = 0;
-    };
+    using task_collection_t = darma_runtime::abstract::backend::runtime_t::task_collection_t;
+    using task_collection_unique_ptr = darma_runtime::abstract::backend::runtime_t::task_collection_unique_ptr;
 
     void
     register_task(
@@ -99,14 +94,23 @@ class MockRuntime
       }
     }
 
-    void
-    register_concurrent_region(
-      concurrent_region_task_unique_ptr&& task, size_t n_idxs,
-      std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle> const& ds
+    void register_task_collection(
+      task_collection_unique_ptr&& collection
     ) override {
-      register_concurrent_region_gmock_proxy(task.get(), n_idxs, ds.get());
-      concurrent_regions.emplace_back(CRTaskDetails{std::move(task), n_idxs, ds, 0});
+      register_task_collection_gmock_proxy(collection.get());
+      if(save_tasks) {
+        task_collections.emplace_back(std::forward<task_collection_unique_ptr>(collection));
+      }
     }
+
+    //void
+    //register_concurrent_region(
+    //  concurrent_region_task_unique_ptr&& task, size_t n_idxs,
+    //  std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle> const& ds
+    //) override {
+    //  register_concurrent_region_gmock_proxy(task.get(), n_idxs, ds.get());
+    //  concurrent_regions.emplace_back(CRTaskDetails{std::move(task), n_idxs, ds, 0});
+    //}
 
     bool
     register_condition_task(
@@ -129,10 +133,7 @@ class MockRuntime
 
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
     MOCK_METHOD1(register_condition_task_gmock_proxy, bool(condition_task_t* task));
-    MOCK_METHOD3(register_concurrent_region_gmock_proxy, void(
-      concurrent_region_task_t*, size_t,
-      darma_runtime::abstract::backend::DataStoreHandle*
-    ));
+    MOCK_METHOD1(register_task_collection_gmock_proxy, void(task_collection_t*));
     MOCK_METHOD0(make_data_store,
       std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle>()
     );
@@ -166,6 +167,10 @@ class MockRuntime
     MOCK_METHOD2(pack_flow, void(flow_t&, void*&));
     MOCK_METHOD1(make_unpacked_flow, flow_t(void const*&));
     MOCK_METHOD1(reregister_use_copy, void(use_t*));
+    MOCK_METHOD2(make_indexed_local_flow, flow_t(flow_t&, size_t));
+    MOCK_METHOD1(make_initial_flow_collection, flow_t(std::shared_ptr<handle_t> const&));
+    MOCK_METHOD1(make_null_flow_collection, flow_t(std::shared_ptr<handle_t> const&));
+    MOCK_METHOD1(make_next_flow_collection, flow_t(flow_t&));
 
 
 #ifdef __clang__
@@ -177,7 +182,7 @@ class MockRuntime
 
     bool save_tasks = true;
     std::deque<task_unique_ptr> registered_tasks;
-    std::deque<CRTaskDetails> concurrent_regions;
+    std::deque<task_collection_unique_ptr> task_collections;
 };
 
 
@@ -198,12 +203,6 @@ struct MockConcurrentRegionContextHandle
 {
   public:
     MOCK_CONST_METHOD0(get_backend_index, size_t());
-};
-
-struct MockDataStoreHandle
-  : public darma_runtime::abstract::backend::DataStoreHandle
-{
-
 };
 
 } // end namespace mock_backend

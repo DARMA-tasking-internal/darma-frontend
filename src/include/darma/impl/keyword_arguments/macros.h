@@ -162,17 +162,17 @@ struct tag_data<darma_runtime::keyword_tags_for_##argument_for::name>           
 #define AliasDarmaKeyword(original_argument_for, name) \
 namespace { \
 /* anonymous namespace for linking purposes */ \
-static constexpr \
+static constexpr const \
 ::darma_runtime::keyword_arguments_for_##original_argument_for::name##_keyword_name_t& \
-name = ::darma_runtime:::keyword_arguments_for_##original_argument_for::name; \
+name = ::darma_runtime::keyword_arguments_for_##original_argument_for::name; \
 } /* end anonymous namespace */
 
 #define AliasDarmaKeywordAs(original_argument_for, name, as_name) \
 namespace { \
 /* anonymous namespace for linking purposes */ \
-static constexpr \
+static constexpr const \
 ::darma_runtime::keyword_arguments_for_##original_argument_for::name##_keyword_name_t& \
-as_name = ::darma_runtime:::keyword_arguments_for_##original_argument_for::name; \
+as_name = ::darma_runtime::keyword_arguments_for_##original_argument_for::name; \
 } /* end anonymous namespace */
 
 

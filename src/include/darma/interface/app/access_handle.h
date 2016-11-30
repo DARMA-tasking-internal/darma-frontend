@@ -60,6 +60,7 @@
 #include <darma/impl/use.h>
 #include <darma/impl/publication_details.h>
 #include <darma/impl/flow_handling.h>
+#include <darma/impl/task_collection/task_collection_fwd.h>
 
 namespace darma_runtime {
 
@@ -629,7 +630,7 @@ class AccessHandle : public detail::AccessHandleBase {
     friend class detail::access_attorneys::for_AccessHandle;
 
     template <typename Functor, typename CollectionArg, size_t Position>
-    friend struct detail::_get_task_stored_arg_helper;
+    friend struct detail::_task_collection_impl::_get_task_stored_arg_helper;
 
     ////////////////////////////////////////
     // TaskBase is also a friend

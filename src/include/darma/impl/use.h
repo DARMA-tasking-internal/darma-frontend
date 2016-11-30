@@ -91,12 +91,12 @@ class HandleUseBase
     }
 
     void
-    set_in_flow(types::flow_t const& flow) override {
+    set_in_flow(types::flow_t const& flow) {
       in_flow_ = make_flow_ptr(flow);
     }
 
     void
-    set_out_flow(types::flow_t const& flow) override {
+    set_out_flow(types::flow_t const& flow) {
       out_flow_ = make_flow_ptr(flow);
     }
 
@@ -226,12 +226,14 @@ class CollectionManagingUse
       return this;
     }
 
+    std::size_t size() const override { return index_range.size(); }
+
     index_iterable<std::size_t>
     local_indices_for(std::size_t backend_task_collection_index) const override {
       // Only one-to-one for now
       // TODO more than just one-to-one mapping
       return index_iterable<std::size_t>{
-        mapping.map_backwards(backend_task_collection_index)
+        mapping.map_backward(backend_task_collection_index)
       };
     }
 
@@ -258,11 +260,11 @@ struct GenericUseHolder {
   bool could_be_alias = false;
   bool captured_but_not_handled = false;
 
-  UseHolder(UseHolder&&) = delete;
-  UseHolder(UseHolder const &) = delete;
+  GenericUseHolder(GenericUseHolder&&) = delete;
+  GenericUseHolder(GenericUseHolder const &) = delete;
 
   explicit
-  UseHolder(UnderlyingUse&& in_use)
+  GenericUseHolder(UnderlyingUse&& in_use)
     : use(std::move(in_use))
   { }
 
@@ -278,12 +280,12 @@ struct GenericUseHolder {
     is_registered = false;
   }
 
-  UseHolder(migrated_use_arg_t const&, UnderlyingUse&& in_use) : use(std::move(in_use)) {
+  GenericUseHolder(migrated_use_arg_t const&, UnderlyingUse&& in_use) : use(std::move(in_use)) {
     abstract::backend::get_backend_runtime()->reregister_migrated_use(&use);
     is_registered = true;
   }
 
-  ~UseHolder() {
+  ~GenericUseHolder() {
     if(is_registered) do_release();
     if(could_be_alias) {
       // okay, now we know it IS an alias

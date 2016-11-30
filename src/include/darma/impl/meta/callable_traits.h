@@ -560,6 +560,7 @@ struct callable_traits {
           // Lazily evaluate the UnaryMetafunction, in case it's not
           // SFINAE-friendly
           tinympl::extract_value_potentially_lazy<
+            // TODO make this part SFINAE friendly also (i.e., evaluation of UnaryMetafunction itself)?!?
             typename tinympl::lazy<UnaryMetafunction>::template instantiated_with<
               // Evaluate the at with a default in case it's not valid (checked
               // by the first condition
@@ -583,6 +584,23 @@ struct callable_traits {
     // Deprecated naming convention:
     template < template <class...> class UnaryMetafunction >
     using all_args_match = allparams_vector_match<UnaryMetafunction>;
+
+    //--------------------------------------------------------------------------
+
+    template <size_t N>
+    struct param_n_traits {
+      static constexpr auto is_by_reference = param_n_is_by_reference<N>::value;
+      static constexpr auto is_by_value = param_n_is_by_value<N>::value;
+      static constexpr auto is_const_lvalue_reference = param_n_is_const_lvalue_reference<N>::value;
+      static constexpr auto is_nonconst_lvalue_reference = param_n_is_nonconst_lvalue_reference<N>::value;
+      static constexpr auto is_nonconst_rvalue_reference = param_n_is_nonconst_rvalue_reference<N>::value;
+
+      template <template <class...> class UnaryMetafunction>
+      struct matches {
+        static constexpr auto value = param_n_matches<UnaryMetafunction, N>::value;
+        using type = std::integral_constant<bool, value>;
+      };
+    };
 
 };
 

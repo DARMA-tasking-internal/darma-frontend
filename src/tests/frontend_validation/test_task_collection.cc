@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      data_store.h
+//                      test_task_collection.cc
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,12 +42,68 @@
 //@HEADER
 */
 
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
-#ifndef DARMA_IMPL_DATA_STORE_H
-#define DARMA_IMPL_DATA_STORE_H
 
-#include <memory>
+#include "mock_backend.h"
+#include "test_frontend.h"
 
-#include <darma/interface/backend/runtime.h>
+#include <darma/interface/app/initial_access.h>
+#include <darma/interface/app/read_access.h>
+#include <darma/interface/app/create_work.h>
+#include <darma/impl/data_store.h>
+#include <darma/impl/task_collection/task_collection.h>
+#include <darma/impl/task_collection/handle_collection.h>
+#include <darma/impl/index_range/mapping.h>
+#include <darma/impl/array/index_range.h>
 
-#endif //DARMA_IMPL_DATA_STORE_H
+////////////////////////////////////////////////////////////////////////////////
+
+class TestCreateConcurrentWork
+  : public TestFrontend
+{
+  protected:
+
+    virtual void SetUp() {
+      using namespace ::testing;
+
+      setup_mock_runtime<::testing::NiceMock>();
+      TestFrontend::SetUp();
+      ON_CALL(*mock_runtime, get_running_task())
+        .WillByDefault(Return(top_level_task.get()));
+    }
+
+    virtual void TearDown() {
+      TestFrontend::TearDown();
+    }
+
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+TEST_F(TestCreateConcurrentWork, simple) {
+
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
+
+  }
+  //============================================================================
+
+
+
+
+}
