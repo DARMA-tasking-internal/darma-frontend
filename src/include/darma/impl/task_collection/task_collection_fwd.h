@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      data_store.h
+//                      task_collection_fwd.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,12 +42,36 @@
 //@HEADER
 */
 
+#ifndef DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
+#define DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
 
-#ifndef DARMA_IMPL_DATA_STORE_H
-#define DARMA_IMPL_DATA_STORE_H
+#include <cstdio> // size_t
 
-#include <memory>
+namespace darma_runtime {
+namespace detail {
 
-#include <darma/interface/backend/runtime.h>
+namespace _task_collection_impl {
 
-#endif //DARMA_IMPL_DATA_STORE_H
+template <
+  typename GivenArg, typename ParamTraits, typename Enable=void
+>
+struct _get_storage_arg_helper;
+
+template <
+  typename Functor, typename CollectionArg, size_t Position, typename Enable=void
+>
+struct _get_task_stored_arg_helper;
+
+} // end namespace _task_collection_impl
+
+template <
+  typename Functor,
+  typename IndexRangeT,
+  typename... Args
+>
+struct TaskCollectionImpl;
+
+} // end namespace detail
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H

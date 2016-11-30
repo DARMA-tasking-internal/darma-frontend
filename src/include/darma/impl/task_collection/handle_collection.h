@@ -50,6 +50,7 @@
 #include <darma/impl/keyword_arguments/parse.h>
 #include <darma/impl/keyword_arguments/macros.h>
 #include <darma/interface/app/keyword_arguments/index_range.h>
+#include <darma/impl/task_collection/task_collection_fwd.h>
 
 namespace darma_runtime {
 
@@ -100,7 +101,7 @@ class AccessHandleCollection {
     template <typename Mapping>
     detail::MappedHandleCollection<AccessHandleCollection, std::decay_t<Mapping>>
     mapped_with(Mapping&& mapping) const {
-      return detail::MappedHandleCollection(
+      return detail::MappedHandleCollection<AccessHandleCollection, std::decay_t<Mapping>>(
         *this, std::forward<Mapping>(mapping)
       );
     };
@@ -109,7 +110,7 @@ class AccessHandleCollection {
 
     using variable_handle_t = detail::VariableHandle<T>;
     using variable_handle_ptr = types::shared_ptr_template<detail::VariableHandle<T>>;
-    using use_holder_ptr = types::shared_ptr_template<detail::UseCollectionManagingHolder>;
+    using use_holder_ptr = types::shared_ptr_template<detail::UseCollectionManagingHolder<index_range_type>>;
 
   private:
 
@@ -119,15 +120,15 @@ class AccessHandleCollection {
     template <typename... AccessorDetails>
     friend struct detail::AccessHandleCollectionAccess;
 
-    template <typename Functor, typename GivenArg, size_t Position, typename Enable>
-    friend struct detail::_get_storage_arg_helper;
+    template <typename, typename, typename>
+    friend struct detail::_task_collection_impl::_get_storage_arg_helper;
 
-    template < typename Functor, typename CollectionArg, size_t Position >
-    friend struct detail::_get_task_stored_arg_helper;
+    template < typename, typename, size_t, typename >
+    friend struct detail::_task_collection_impl::_get_task_stored_arg_helper;
 
     //==========================================================================
 
-    template <typename, typename...>
+    template <typename, typename, typename...>
     friend struct detail::TaskCollectionImpl;
 
     //==========================================================================
@@ -140,8 +141,9 @@ class AccessHandleCollection {
     // private ctors:
 
     explicit AccessHandleCollection(
+      std::shared_ptr<detail::VariableHandle<value_type>> const& var_handle,
       use_holder_ptr const& use_holder
-    ) : var_handle_(use_holder->use.handle_),
+    ) : var_handle_(var_handle),
         current_use_(use_holder)
     { }
 };
@@ -190,7 +192,7 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType> {
       make_key(std::forward<Args>(args)...)
     );
 
-    auto use_holder = std::make_shared<UseCollectionManagingHolder>(
+    auto use_holder = std::make_shared<UseCollectionManagingHolder<std::decay_t<IndexRangeT>>>(
       CollectionManagingUse<std::decay_t<IndexRangeT>>(
         var_handle,
         detail::make_flow_ptr(backend_runtime->make_initial_flow_collection(var_handle)),
@@ -200,8 +202,12 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType> {
       )
     );
 
-    auto rv = AccessHandleCollection<ValueType, std::decay_t<IndexRangeT>>(use_holder);
+    auto rv = AccessHandleCollection<ValueType, std::decay_t<IndexRangeT>>(
+      var_handle,
+      use_holder
+    );
 
+    return rv;
 
   }
 

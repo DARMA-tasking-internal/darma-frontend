@@ -354,6 +354,20 @@ class Runtime {
       types::flow_t& from
     ) =0;
 
+    /** @todo document this
+     *
+     * @remark Parameter must be a value returned from one of the
+     * `make_*_flow_collection()` methods
+     *
+     * @param from
+     * @return
+     */
+    virtual types::flow_t
+    make_indexed_local_flow(
+      types::flow_t& from,
+      size_t backend_index
+    ) =0;
+
     /** @todo update this
      *
      *  @brief Make a flow that will be logically (not necessarily immediately)

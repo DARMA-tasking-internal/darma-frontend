@@ -51,20 +51,34 @@
 #include <darma/interface/frontend/task_collection.h>
 #include <darma/impl/capture.h>
 #include <darma/impl/task.h>
+#include "task_collection_fwd.h"
+
 
 namespace darma_runtime {
 
 namespace detail {
 
+namespace _task_collection_impl {
+
+
 //==============================================================================
 // <editor-fold desc="_get_storage_arg_helper for constructing a TaskCollection">
 
+// TODO more readable errors when none of these work
+
 // Default "regular argument" case
 template <
-  typename Functor, typename GivenArg, size_t Position, typename Enable=void
+  typename GivenArg, typename ParamTraits, typename Enable /* =void */
 >
 struct _get_storage_arg_helper {
   using type = std::decay_t<GivenArg>;
+
+  static_assert(
+    not ParamTraits::is_nonconst_lvalue_reference,
+    "Cannot pass \"plain-old\" argument to modify parameter of concurrent work"
+      " call.  Use an AccessHandleCollection instead"
+  );
+
   template <typename TaskCollectionT>
   auto
   operator()(TaskCollectionT& collection, GivenArg&& arg) const {
@@ -73,24 +87,47 @@ struct _get_storage_arg_helper {
 };
 
 // AccessHandle-like
-template <typename Functor, typename GivenArg, size_t Position>
+template <typename GivenArg, typename ParamTraits>
 struct _get_storage_arg_helper<
-  Functor, GivenArg, Position,
-  std::enable_if_t<decayed_is_access_handle<GivenArg>::value>
+  GivenArg, ParamTraits,
+  std::enable_if_t<
+    // The argument is an access handle
+    decayed_is_access_handle<GivenArg>::value
+  >
 > {
-  // TODO make this AccessHandle have static read-only permissions
-  using type = std::decay_t<GivenArg>;
+  // If the argument is an AccessHandle, the parameter cannot modify:
+  static_assert(
+    not ParamTraits::is_nonconst_lvalue_reference,
+    "Cannot pass \"plain-old\" AccessHandle to modify parameter of concurrent work"
+      " call.  Use an AccessHandleCollection instead"
+  );
+
+  using type = AccessHandle<
+    typename std::decay_t<GivenArg>::value_type,
+    typename access_handle_traits<>
+      ::template with_max_schedule_permissions<
+        ParamTraits::template matches<decayed_is_access_handle>::value ?
+          AccessHandlePermissions::Read : AccessHandlePermissions::None
+      >::type::template with_max_immediate_permissions<
+        // TODO check for a schedule-only AccessHandle parameter
+        AccessHandlePermissions::Read
+      >
+  >;
+  using return_type = type; // readability
 
   template <typename TaskCollectionT>
   auto
   operator()(TaskCollectionT& collection, GivenArg&& arg) const {
-    auto rv = std::decay_t<GivenArg>(
+    auto rv = return_type(
       detail::make_captured_use_holder(
         arg.var_handle_,
         /* Requested Scheduling permissions: */
-        HandleUse::Read, // TODO check params for leaf-ness
+        return_type::is_compile_time_schedule_readable ?
+          HandleUse::Read : HandleUse::None,
         /* Requested Immediate permissions: */
-        HandleUse::Read, // TODO check params for schdule-only permissions request
+        // TODO check params(/args?) for schdule-only permissions request
+        HandleUse::Read,
+        /* source and continuing context use holder */
         arg.current_use_
       )
     );
@@ -100,9 +137,9 @@ struct _get_storage_arg_helper<
 };
 
 // MappedHandleCollection
-template <typename Functor, typename GivenArg, size_t Position>
+template <typename GivenArg, typename ParamTraits>
 struct _get_storage_arg_helper<
-  Functor, GivenArg, Position,
+  GivenArg, ParamTraits,
   std::enable_if_t<
     tinympl::is_instantiation_of<
       MappedHandleCollection,
@@ -110,6 +147,93 @@ struct _get_storage_arg_helper<
   >
 > {
   using type = std::decay_t<GivenArg>;
+
+  //template <HandleUse::permissions_t sched, HandleUse::permissions_t immed>
+  //using _permissions = std::integer_sequence<HandleUse::permissions_t, sched, immed>;
+  template <HandleUse::permissions_t p>
+  using _permissions = std::integer_sequence<HandleUse::permissions_t, p>;
+
+  template <typename T>
+  using _compile_time_immediate_read_only_archetype = tinympl::bool_<
+    std::decay_t<T>::is_compile_time_immediate_read_only
+  >;
+  template <typename T>
+  using compile_time_immediate_read_only_if_access_handle = meta::detected_or_t<std::false_type,
+    _compile_time_immediate_read_only_archetype, T
+  >;
+
+  // TODO static schedule-only permissions
+
+  static constexpr auto required_immediate_permissions = tinympl::select_first<
+    tinympl::bool_<(
+      // Parameter is an AccessHandle
+      ParamTraits::template matches<decayed_is_access_handle>::value
+      // Parameter is compile-time immediate read-only
+      and ParamTraits::template matches<compile_time_immediate_read_only_if_access_handle>::value
+    )>, /* => */ _permissions<HandleUse::Read>,
+    /*----------------------------------------*/
+    tinympl::bool_<(
+      // Parameter is an AccessHandle
+      ParamTraits::template matches<decayed_is_access_handle>::value
+      // Parameter is compile-time immediate read-only
+      and not ParamTraits::template matches<compile_time_immediate_read_only_if_access_handle>::value
+    )>, /* => */ _permissions<HandleUse::Modify>,
+    /*----------------------------------------*/
+    tinympl::bool_<(
+      // Parameter is an not AccessHandle
+      (not ParamTraits::template matches<decayed_is_access_handle>::value)
+      // Parameter is by value or by const reference
+      and (
+        ParamTraits::is_by_value
+        or ParamTraits::is_const_lvalue_reference
+      )
+    )>, /* => */ _permissions<HandleUse::Read>,
+    /*----------------------------------------*/
+    // TODO read-only AccessHandleCollection parameters (or other static permissions?)
+    tinympl::bool_<(
+      // Parameter is an AccessHandleCollection
+      (not ParamTraits::template matches<decayed_is_access_handle_collection>::value)
+    )>, /* => */ _permissions<HandleUse::Modify>,
+    /*----------------------------------------*/
+    tinympl::bool_<(
+      // Parameter is an not AccessHandle
+      (not ParamTraits::template matches<decayed_is_access_handle>::value)
+      // Parameter is a nonconst lvalue reference
+      and ParamTraits::is_nonconst_lvalue_reference
+    )>, /* => */ _permissions<HandleUse::Modify>
+    /*----------------------------------------*/
+    // TODO better error message in the failure case
+  >::type::value;
+
+  static constexpr auto required_scheduling_permissions = tinympl::select_first<
+    // TODO check the actual scheduling permissions static flags rather than relying on the immediate flags
+    tinympl::bool_<(
+      // Parameter is an AccessHandle
+      ParamTraits::template matches<decayed_is_access_handle>::value
+      // Parameter is compile-time immediate read-only
+      and ParamTraits::template matches<compile_time_immediate_read_only_if_access_handle>::value
+    )>, /* => */ _permissions<HandleUse::Read>,
+    /*----------------------------------------*/
+    tinympl::bool_<(
+      // Parameter is an AccessHandle
+      ParamTraits::template matches<decayed_is_access_handle>::value
+      // Parameter is compile-time immediate read-only
+      and not ParamTraits::template matches<compile_time_immediate_read_only_if_access_handle>::value
+    )>, /* => */ _permissions<HandleUse::Modify>,
+    /*----------------------------------------*/
+    // TODO read-only AccessHandleCollection parameters (or other static permissions?)
+    tinympl::bool_<(
+      // Parameter is an AccessHandleCollection
+      (not ParamTraits::template matches<decayed_is_access_handle_collection>::value)
+    )>, /* => */ _permissions<HandleUse::Modify>,
+    /*----------------------------------------*/
+    tinympl::bool_<(
+      // Parameter is not an AccessHandle
+      (not ParamTraits::template matches<decayed_is_access_handle>::value)
+    )>, /* => */ _permissions<HandleUse::None>
+    /*----------------------------------------*/
+    // TODO better error message in the failure case
+  >::type::value;
 
   template <typename TaskCollectionT>
   auto
@@ -127,9 +251,10 @@ struct _get_storage_arg_helper<
       detail::make_captured_use_holder(
         arg.collection.var_handle_,
         /* Requested Scheduling permissions: */
-        HandleUse::Read, // TODO CHANGE THIS BASED ON THE PARAMETER!!!
+        required_scheduling_permissions,
         /* Requested Immediate permissions: */
-        HandleUse::None, // TODO change this based on the parameter?
+        required_immediate_permissions,
+        /* source and continuing use handle */
         arg.current_use_,
         // Custom create use holder callable
         [&](
@@ -143,19 +268,24 @@ struct _get_storage_arg_helper<
               typename mapped_t::access_handle_collection_t::index_range_type,
               mapping_t
             >>(
-            handle,
-            in_flow,
-            out_flow,
-            scheduling_permissions,
-            immediate_permissions,
+            handle, in_flow, out_flow,
+            scheduling_permissions, immediate_permissions,
             arg.collection.current_use_->use.index_range,
             mapping_t(
               arg.mapping,
               get_mapping_to_dense(collection.collection_range_)
             )
           );
-        }
-      )
+        }, // end custom create use holder callable
+        // Custom "next flow maker"
+        [](auto&& flow, auto* backend_runtime) {
+          return make_flow_ptr(
+            backend_runtime->make_next_flow_collection(
+              std::forward<decltype(flow)>(flow)
+            )
+          );
+        } // end of the custom "next flow maker"
+      ) // end arguments to make_captured_use_holder
     );
     collection.add_dependency(&(rv.current_use_->use));
     return rv;
@@ -164,20 +294,20 @@ struct _get_storage_arg_helper<
 };
 
 // AccessHandleCollection version
-template <typename Functor, typename GivenArg, size_t Position>
+template <typename GivenArg, typename ParamTraits>
 struct _get_storage_arg_helper<
-  Functor, GivenArg, Position,
+  GivenArg, ParamTraits,
   std::enable_if_t<
     detail::decayed_is_access_handle_collection<GivenArg>::value
   >
 > {
   // TODO use a less circuitous mapping
   using _identity_mapping_t = IdentityMapping<typename std::decay_t<GivenArg>::index_range_type::index_t>;
-  using _identity_mapped_version_t = typename _get_storage_arg_helper<
-    Functor, decltype(std::declval<GivenArg>().mapped_with(
+  using _identity_mapped_version_t = _get_storage_arg_helper<
+    decltype(std::declval<GivenArg>().mapped_with(
       // If we've gotten here, the indices better at least be the same type
-      identity_mapping_t()
-    )), Position
+      _identity_mapping_t{}
+    )), ParamTraits
   >;
 
   using type = typename _identity_mapped_version_t::type;
@@ -186,7 +316,7 @@ struct _get_storage_arg_helper<
   auto
   operator()(TaskCollectionT& collection, GivenArg&& arg) const {
     return _identity_mapped_version_t()(
-      collection, arg.mapped_with(identity_mapping_t())
+      collection, arg.mapped_with(_identity_mapping_t{})
     );
   }
 
@@ -201,7 +331,7 @@ struct _get_storage_arg_helper<
 // Default "regular argument" case
 template <
   typename Functor, typename CollectionArg, size_t Position,
-  typename Enable=void
+  typename Enable /* =void */
 >
 struct _get_task_stored_arg_helper {
   // TODO decide if this should be allowed to be a reference to the parent (probably not...)
@@ -223,7 +353,7 @@ struct _get_task_stored_arg_helper<
 
   template <typename TaskInstanceT>
   type
-  operator()(TaskInstanceT& collection, CollectionArg const& arg) const {
+  operator()(TaskInstanceT& instance, CollectionArg const& arg) const {
     // We still need to create a new use for the task itself...
     auto new_use_holder = std::make_shared<UseHolder>(
       HandleUse(
@@ -240,7 +370,68 @@ struct _get_task_stored_arg_helper<
 
 };
 
-// TODO !!!MappedHandleCollection case
+// Mapped HandleCollection case
+template <typename Functor, typename CollectionArg, size_t Position>
+struct _get_task_stored_arg_helper<
+  Functor, CollectionArg, Position,
+  std::enable_if_t<
+    tinympl::is_instantiation_of<
+      MappedHandleCollection,
+      std::decay_t<CollectionArg>>::value
+  >
+> {
+  using type = AccessHandle<typename CollectionArg::access_handle_collection_t::value_type>;
+  using return_type = type; // readability
+
+  template <typename TaskInstanceT>
+  return_type
+  operator()(TaskInstanceT& instance, CollectionArg const& arg) const {
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
+
+    auto index_range_mapping_to_dense = get_mapping_to_dense(
+      arg.collection.current_use_->use.index_range
+    );
+
+    // mapping in the collection stored arg already incorporates frontend->backend
+    // transformation of the collection index, so we can use it here directly
+    // with the backend index.  However, we still need to convert the use collection
+    // fronend index to a backend index
+    size_t backend_collection_index = index_range_mapping_to_dense.map_forward(
+      arg.mapping.map_backward(instance.backend_index_)
+    );
+
+
+    auto local_in_flow = detail::make_flow_ptr(
+      backend_runtime->make_indexed_local_flow(
+        arg.collection.current_use_.in_flow_,
+        backend_collection_index
+      )
+    );
+
+    auto local_out_flow = detail::make_flow_ptr(
+      backend_runtime->make_indexed_local_flow(
+        arg.collection.current_use_.out_flow_,
+        backend_collection_index
+      )
+    );
+
+    auto new_use_holder = std::make_shared<UseHolder>(
+      HandleUse(
+        arg.collection.var_handle_,
+        local_in_flow, local_out_flow,
+        arg.collection.current_use_->use.scheduling_permissions_,
+        arg.collection.current_use_->use.immediate_permissions_
+      )
+    );
+    new_use_holder->do_register();
+
+    auto rv = return_type(new_use_holder);
+  }
+
+};
+
+
+// TODO Mapped HandleCollection -> Mapped HandleCollection case
 
 // </editor-fold> end _get_task_stored_arg_helper for creating TaskCollectionTasks
 //==============================================================================
@@ -248,17 +439,21 @@ struct _get_task_stored_arg_helper<
 //==============================================================================
 // <editor-fold desc="_get_call_arg_helper">
 
+// TODO parameter is a AccessHandleCollection case
 // TODO clean this up and generalize it?
 
-template <typename StoredArg, typename Param, typename Enable=void>
+template <typename StoredArg, typename ParamTraits, typename Enable=void>
 struct _get_call_arg_helper; // TODO better error message for default case
 
 // Normal arg, param by value
-template <typename StoredArg, typename Param>
-struct _get_call_arg_helper<StoredArg, Param,
+template <typename StoredArg, typename ParamTraits>
+struct _get_call_arg_helper<StoredArg, ParamTraits,
   std::enable_if_t<
-    std::is_same<std::decay_t<Param>, Param>::value
-    and not is_access_handle<StoredArg>::value
+    // Arg is not AccessHandle
+    (not is_access_handle<StoredArg>::value)
+    // Param is not AccessHandle, is by value
+    and (not ParamTraits::template matches<decayed_is_access_handle>::value)
+    and ParamTraits::is_by_value
   >
 >{
   decltype(auto)
@@ -269,12 +464,14 @@ struct _get_call_arg_helper<StoredArg, Param,
 };
 
 // Normal arg, param is const ref value
-template <typename StoredArg, typename Param>
-struct _get_call_arg_helper<StoredArg, Param,
+template <typename StoredArg, typename ParamTraits>
+struct _get_call_arg_helper<StoredArg, ParamTraits,
   std::enable_if_t<
-    std::is_lvalue_reference<Param>::value
-      and std::is_const<std::remove_reference_t<Param>>::value
-      and not is_access_handle<StoredArg>::value
+    // Arg is not AccessHandle
+    (not is_access_handle<StoredArg>::value)
+    // Param is not AccessHandle, but is const ref
+    and (not ParamTraits::template matches<decayed_is_access_handle>::value)
+    and ParamTraits::is_const_lvalue_reference
   >
 >{
   decltype(auto)
@@ -285,19 +482,17 @@ struct _get_call_arg_helper<StoredArg, Param,
   }
 };
 
-// AccessHandle arg, Param is not non-const lvalue reference
-template <typename StoredArg, typename Param>
-struct _get_call_arg_helper<StoredArg, Param,
+// AccessHandle arg, Param is by value or const lvalue reference
+template <typename StoredArg, typename ParamTraits>
+struct _get_call_arg_helper<StoredArg, ParamTraits,
   std::enable_if_t<
-    (
-      // const lvalue ref
-      (std::is_lvalue_reference<Param>::value
-        and std::is_const<std::remove_reference_t<Param>>::value)
-      // or by value
-      or std::is_same<std::decay_t<Param>, Param>::value
+    // StoredArg is an AccessHandle
+    is_access_handle<StoredArg>::value
+    // Param is by value or a const lvalue reference
+    and (
+      ParamTraits::is_by_value
+      or ParamTraits::is_const_lvalue_reference
     )
-    // and StoredArg is an AccessHandle
-    and not is_access_handle<StoredArg>::value
   >
 
 >{
@@ -308,16 +503,13 @@ struct _get_call_arg_helper<StoredArg, Param,
 };
 
 // AccessHandle arg, Param is non-const lvalue reference
-template <typename StoredArg, typename Param>
-struct _get_call_arg_helper<StoredArg, Param,
+template <typename StoredArg, typename ParamTraits>
+struct _get_call_arg_helper<StoredArg, ParamTraits,
   std::enable_if_t<
-    // param is non-const lvalue ref
-    (
-      std::is_lvalue_reference<Param>::value
-      and not std::is_const<std::remove_reference_t<Param>>::value
-    )
-    // and StoredArg is an AccessHandle
-    and not is_access_handle<StoredArg>::value
+    // StoredArg is an AccessHandle
+    is_access_handle<StoredArg>::value
+    // Param is non-const lvalue reference
+    and ParamTraits::is_nonconst_lvalue_reference
   >
 
 >{
@@ -327,14 +519,58 @@ struct _get_call_arg_helper<StoredArg, Param,
   }
 };
 
+// AccessHandle arg, Param is AccessHandle (by value)
+template <typename StoredArg, typename ParamTraits>
+struct _get_call_arg_helper<StoredArg, ParamTraits,
+  std::enable_if_t<
+    // StoredArg is an AccessHandle
+    is_access_handle<StoredArg>::value
+    // Param is AccessHandle by value (so we can move into it)
+    and (
+      ParamTraits::template matches<decayed_is_access_handle>::value
+      and ParamTraits::is_by_value
+    )
+  >
+
+>{
+  decltype(auto)
+  operator()(StoredArg&& arg) const {
+    return std::move(arg);
+  }
+};
+
+// AccessHandle arg, Param is AccessHandle (by reference; can't move into it)
+template <typename StoredArg, typename ParamTraits>
+struct _get_call_arg_helper<StoredArg, ParamTraits,
+  std::enable_if_t<
+    // StoredArg is an AccessHandle
+    is_access_handle<StoredArg>::value
+    // Param is AccessHandle is a (potentially const) lvalue reference  (so we can't move into it)
+    and (
+      ParamTraits::template matches<decayed_is_access_handle>::value
+      and (
+        ParamTraits::is_nonconst_lvalue_reference
+        or ParamTraits::is_const_lvalue_reference
+      )
+    )
+  > // end enable_if_t
+>{
+  decltype(auto)
+  operator()(StoredArg&& arg) const {
+    return arg;
+  }
+};
+
 // </editor-fold> end _get_call_arg_helper
 //==============================================================================
+
+} // end namespace _task_collection_impl
 
 //==============================================================================
 // <editor-fold desc="TaskCollectionTaskImpl">
 
 template <
-  typename Functor, typename IndexConvertible,
+  typename Functor, typename Mapping,
   typename... StoredArgs
 >
 struct TaskCollectionTaskImpl
@@ -344,9 +580,11 @@ struct TaskCollectionTaskImpl
 
   /* TODO implement this */
 
-  using args_tuple_t = std::tuple<StoredArgs>;
+  using args_tuple_t = std::tuple<StoredArgs...>;
 
-  IndexConvertible idx_;
+  size_t backend_index_;
+  // This is the mapping from frontend index to backend index for the collection itself
+  Mapping mapping_;
   args_tuple_t args_;
 
   template <size_t... Spots>
@@ -355,10 +593,10 @@ struct TaskCollectionTaskImpl
     std::index_sequence<Spots...>
   ) {
     return std::forward_as_tuple(
-      detail::_get_call_args_helper<
+      _task_collection_impl::_get_call_arg_helper<
         typename std::tuple_element<Spots, args_tuple_t>::type,
-        typename meta::callable_traits<Functor>::template param_n<Spots>::type
-      >()(
+        typename meta::callable_traits<Functor>::template param_n_traits<Spots>
+      >{}(
         std::get<Spots>(std::move(args_))
       )...
     );
@@ -366,18 +604,19 @@ struct TaskCollectionTaskImpl
 
   template <typename... StoredArgsDeduced>
   TaskCollectionTaskImpl(
-    IndexConvertible idx,
+    std::size_t backend_index, Mapping const& mapping,
     StoredArgsDeduced&&... args
-  ) : idx_(idx),
+  ) : backend_index_(backend_index),
+      mapping_(mapping),
       args_(std::forward<StoredArgsDeduced>(args)...)
   { }
 
   void run() override {
     meta::splat_tuple(
-      _get_call_args_impl(std::index_sequence_for<StoredArgs...>()),
+      _get_call_args_impl(std::index_sequence_for<StoredArgs...>{}),
       [&](auto&&... args) {
         Functor()(
-          idx_,
+          mapping_.map_backward(backend_index_),
           std::forward<decltype(args)>(args)...
         );
       }
@@ -394,6 +633,8 @@ struct TaskCollectionTaskImpl
 // </editor-fold> end TaskCollectionTaskImpl
 //==============================================================================
 
+//==============================================================================
+// <editor-fold desc="TaskCollectionImpl">
 
 
 template <
@@ -403,25 +644,25 @@ template <
 >
 struct TaskCollectionImpl
   : PolymorphicSerializationAdapter<
-      TaskCollectionImpl<IndexRangeT, Args...>,
-      abstract::frontend::TaskCollection
-    > {
+    TaskCollectionImpl<IndexRangeT, Args...>,
+    abstract::frontend::TaskCollection
+  > {
   public:
     using index_range_t = IndexRangeT;
 
   protected:
 
     template <typename ArgsForwardedTuple, size_t... Spots>
-    auto _get_args_stored_impl(
+    decltype(auto)
+    _get_args_stored_impl(
       ArgsForwardedTuple&& args_fwd,
       std::index_sequence<Spots...>
     ) {
       return std::forward_as_tuple(
-        detail::_get_storage_arg_helper<
-          Functor,
+        _task_collection_impl::_get_storage_arg_helper<
           decltype(std::get<Spots>(std::forward<ArgsForwardedTuple>(args_fwd))),
-          Spots
-        >()(
+          typename meta::callable_traits<Functor>::template param_n_traits<Spots>
+        >{}(
           *this, std::get<Spots>(std::forward<ArgsForwardedTuple>(args_fwd))
         )...
       );
@@ -432,22 +673,31 @@ struct TaskCollectionImpl
       std::size_t index,
       std::index_sequence<Spots...>
     ) {
-      return std::make_unique<TaskCollectionTaskImpl<
-        Functor, typename index_range_t::index_t,
-        typename _get_task_stored_arg_helper<
+      return std::make_unique<
+        TaskCollectionTaskImpl<
+          Functor, typename index_range_t::index_t,
+          typename _task_collection_impl::_get_task_stored_arg_helper<
+            Functor, decltype(std::get<Spots>(args_stored_)), Spots
+          >::type...
+        >>(
+        _task_collection_impl::_get_task_stored_arg_helper<
           Functor, decltype(std::get<Spots>(args_stored_)), Spots
-        >::type...
-      >>(
-        detail::_get_task_stored_arg_helper<
-          Functor, decltype(std::get<Spots>(args_stored_)), Spots
-        >()(*this, std::get<Spots>(args_stored_))...
+        >{}(*this, std::get<Spots>(args_stored_))...
       );
     }
 
+
   public:
 
-    std::tuple<Args...> args_stored_;
+    // Leave this member declaration order the same; construction of args_stored_
+    // depends on collection_range_ being initialized already
+
+    types::handle_container_template<abstract::frontend::Use*> dependencies_;
     IndexRangeT collection_range_;
+    std::tuple<Args...> args_stored_;
+
+    //==========================================================================
+    // Ctors
 
     template <typename IndexRangeDeduced, typename... ArgsForwarded>
     TaskCollectionImpl(
@@ -460,7 +710,7 @@ struct TaskCollectionImpl
             std::index_sequence_for<ArgsForwarded...>()
           )
         )
-    {}
+    { }
 
 
     size_t size() const override { return collection_range_.size(); }
@@ -474,13 +724,41 @@ struct TaskCollectionImpl
     }
 
 
-    template <typename Functor, typename GivenArg, size_t Position, typename Enable>
-    friend struct detail::_get_storage_arg_helper;
+    template <typename, typename, typename>
+    friend struct _task_collection_impl::_get_storage_arg_helper;
 
-    template < typename Functor, typename CollectionArg, size_t Position >
-    friend struct detail::_get_task_stored_arg_helper;
+    template <typename, typename, size_t>
+    friend struct _task_collection_impl::_get_task_stored_arg_helper;
 
 };
+
+template <typename Functor, typename IndexRangeT, typename... Args>
+struct make_task_collection_impl_t {
+  private:
+
+    using arg_vector_t = tinympl::vector<Args...>;
+
+    template <typename T> struct _helper;
+
+    template <size_t... Idxs>
+    struct _helper<std::index_sequence<Idxs...>> {
+      using type = TaskCollectionImpl<
+        Functor, IndexRangeT,
+        typename detail::_task_collection_impl::_get_storage_arg_helper<
+          tinympl::at_t<Idxs, arg_vector_t>,
+          typename meta::callable_traits<Functor>::template param_n_traits<Idxs>
+        >::type...
+      >;
+    };
+
+  public:
+
+    using type = typename _helper<std::index_sequence_for<Args...>>::type;
+
+};
+
+// </editor-fold> end TaskCollectionImpl
+//==============================================================================
 
 
 } // end namespace detail
@@ -507,10 +785,9 @@ void create_concurrent_work(Args&&... args) {
       variadic_arguments_begin_tag,
       auto&&... args
     ){
-      using task_collection_impl_t = detail::TaskCollectionImpl<
-        Functor, std::decay_t<decltype(index_range)>,
-        typename _get_storage_arg_helper<decltype(args)>::type...
-      >;
+      using task_collection_impl_t = typename detail::make_task_collection_impl_t<
+        Functor, std::decay_t<decltype(index_range)>, decltype(args)...
+      >::type;
 
       auto task_collection = std::make_unique<task_collection_impl_t>(
         std::forward<decltype(index_range)>(index_range),

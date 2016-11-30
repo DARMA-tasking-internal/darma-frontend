@@ -39,6 +39,7 @@ add_unit_test(test_create_concurrent_region)
 add_unit_test(test_resource_count)
 add_unit_test(test_publish)
 add_unit_test(test_create_parallel_for)
+add_unit_test(test_task_collection)
 
 add_executable(run_all_frontend_tests ${frontendtestfiles})
 

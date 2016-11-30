@@ -345,38 +345,38 @@ class TestFrontend
 
     ////////////////////////////////////////
 
-    void
-    run_one_cr_rank(bool do_move = true) {
-      using namespace mock_backend;
-      auto& cr = mock_runtime->concurrent_regions.front();
-      std::shared_ptr<MockConcurrentRegionContextHandle> ctxt =
-        std::make_shared<MockConcurrentRegionContextHandle>();
-      EXPECT_CALL(*ctxt, get_backend_index())
-        .Times(AtLeast(0))
-        .WillRepeatedly(Return(cr.n_run_so_far));
-
-      // do SerDes on the task object so that the same instance doesn't get
-      // run multiple times, in keeping with task life cycle
-      size_t task_size = cr.task->get_packed_size();
-      char buffer[task_size];
-      cr.task->pack(buffer);
-
-      auto task_copy =
-        darma_runtime::frontend::unpack_concurrent_region_task(buffer);
-
-      task_copy->set_region_context(ctxt);
-      task_copy->run();
-    }
-
-    void
-    run_all_cr_ranks_for_one_region_in_serial() {
-      auto& cr = mock_runtime->concurrent_regions.front();
-      while(cr.n_run_so_far < cr.n_indices) {
-        run_one_cr_rank();
-        ++cr.n_run_so_far;
-      }
-      mock_runtime->concurrent_regions.pop_front();
-    }
+//    void
+//    run_one_cr_rank(bool do_move = true) {
+//      using namespace mock_backend;
+//      auto& cr = mock_runtime->concurrent_regions.front();
+//      std::shared_ptr<MockConcurrentRegionContextHandle> ctxt =
+//        std::make_shared<MockConcurrentRegionContextHandle>();
+//      EXPECT_CALL(*ctxt, get_backend_index())
+//        .Times(AtLeast(0))
+//        .WillRepeatedly(Return(cr.n_run_so_far));
+//
+//      // do SerDes on the task object so that the same instance doesn't get
+//      // run multiple times, in keeping with task life cycle
+//      size_t task_size = cr.task->get_packed_size();
+//      char buffer[task_size];
+//      cr.task->pack(buffer);
+//
+//      auto task_copy =
+//        darma_runtime::frontend::unpack_concurrent_region_task(buffer);
+//
+//      task_copy->set_region_context(ctxt);
+//      task_copy->run();
+//    }
+//
+//    void
+//    run_all_cr_ranks_for_one_region_in_serial() {
+//      auto& cr = mock_runtime->concurrent_regions.front();
+//      while(cr.n_run_so_far < cr.n_indices) {
+//        run_one_cr_rank();
+//        ++cr.n_run_so_far;
+//      }
+//      mock_runtime->concurrent_regions.pop_front();
+//    }
 
     ////////////////////////////////////////
 

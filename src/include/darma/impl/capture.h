@@ -55,7 +55,7 @@ namespace detail {
 
 // returns the captured UseHolder in a properly registered state
 // and with all of the proper flags set
-template <typename UseMaker>
+template <typename UseMaker, typename NextFlowMaker>
 auto make_captured_use_holder(
   std::shared_ptr<VariableHandleBase> const& var_handle,
   HandleUse::permissions_t requested_scheduling_permissions,
@@ -65,6 +65,9 @@ auto make_captured_use_holder(
     return detail::make_shared<UseHolder>(HandleUse(
       std::forward<decltype(args)>(args)...
     ));
+  },
+  NextFlowMaker&& next_flow_maker = [](auto&& flow, auto* backend_runtime) {
+    return detail::make_next_flow_ptr(std::forward<decltype(flow)>(flow), backend_runtime);
   }
 ) {
 
@@ -132,7 +135,7 @@ auto make_captured_use_holder(
               // We still need to make a next flow...
               // ...actually, this is basically just a regular modify capture with
               // some small exceptions
-              auto captured_out_flow = make_next_flow_ptr(
+              auto captured_out_flow = next_flow_maker(
                 source_and_continuing_holder->use.in_flow_, backend_runtime
               );
 
@@ -375,7 +378,7 @@ auto make_captured_use_holder(
           // Modify capture of handle without modify immediate permissions
 
           // Create the out flow
-          auto captured_out_flow = make_next_flow_ptr(
+          auto captured_out_flow = next_flow_maker(
             source_and_continuing_holder->use.in_flow_, backend_runtime
           );
 
@@ -460,7 +463,7 @@ auto make_captured_use_holder(
           auto captured_in_flow = make_forwarding_flow_ptr(
             source_and_continuing_holder->use.in_flow_, backend_runtime
           );
-          auto captured_out_flow = make_next_flow_ptr(
+          auto captured_out_flow = next_flow_maker(
             captured_in_flow, backend_runtime
           );
 
