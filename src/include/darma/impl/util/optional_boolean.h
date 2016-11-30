@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      test_index_range.cc
+//                      optional_boolean.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,40 +42,17 @@
 //@HEADER
 */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#ifndef DARMA_IMPL_UTIL_OPTIONAL_BOOLEAN_H
+#define DARMA_IMPL_UTIL_OPTIONAL_BOOLEAN_H
 
-#include <darma/impl/array/index_range.h>
-#include <darma/impl/index_range/range_1d.h>
-#include <darma/impl/index_range/mapping.h>
-#include <darma/impl/index_range/polymorphic_mapping.h>
+namespace darma_runtime {
 
-using namespace darma_runtime;
-using namespace darma_runtime::detail;
+typedef enum OptionalBoolean {
+  Unknown,
+  KnownTrue = true,
+  KnownFalse = false
+} optional_boolean_t;
 
-TEST(TestIndexRange, pack_unpack_contiguous) {
+} // end namespace darma_runtime
 
-//  ContiguousIndexRange crange1(20, 5);
-//
-//  abstract::frontend::CompactIndexRange& crange_base = crange1;
-//
-//  size_t size = crange_base.get_packed_size();
-//  char* buffer = new char[size];
-//
-//  crange_base.pack(buffer);
-//
-//  auto crange_base_ptr_2 =
-//    abstract::frontend::PolymorphicSerializableObject<abstract::frontend::CompactIndexRange>::unpack(
-//      buffer, size
-//    );
-//
-//  delete[] buffer;
-//
-//  ASSERT_EQ(crange_base_ptr_2->size(), 20);
-//  ASSERT_EQ(crange_base_ptr_2->offset(), 5);
-//  ASSERT_EQ(crange_base_ptr_2->contiguous(), true);
-//  ASSERT_EQ(crange_base_ptr_2->strided(), false);
-
-
-}
-
+#endif //DARMA_IMPL_UTIL_OPTIONAL_BOOLEAN_H

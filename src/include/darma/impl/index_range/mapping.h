@@ -91,6 +91,22 @@ struct CompositeMapping<Mapping1, Mapping2> {
     Mapping1 m1_;
     Mapping2 m2_;
 
+    template <
+      typename... Args1,
+      typename... Args2,
+      size_t... Idxs1,
+      size_t... Idxs2
+    >
+    CompositeMapping(
+      std::piecewise_construct_t,
+      std::tuple<Args1...>& m1args,
+      std::tuple<Args2...>& m2args,
+      std::integer_sequence<std::size_t, Idxs1...>,
+      std::integer_sequence<std::size_t, Idxs2...>
+    ) : m1_(std::forward<Args1>(std::get<Idxs1>(m1args))...),
+        m2_(std::forward<Args2>(std::get<Idxs2>(m2args))...)
+    { }
+
 
   public:
 
@@ -117,19 +133,31 @@ struct CompositeMapping<Mapping1, Mapping2> {
         m2_(std::forward<Mapping2Convertible>(m2))
     { }
 
+    template <
+      typename... Args1,
+      typename... Args2
+    >
+    CompositeMapping(
+      std::piecewise_construct_t pc,
+      std::tuple<Args1...> m1args,
+      std::tuple<Args2...> m2args
+    ) : CompositeMapping(
+          pc, m1args, m2args,
+          std::index_sequence_for<Args1...>{},
+          std::index_sequence_for<Args2...>{}
+        )
+    { }
 
-    // TODO other ctors, including pass-through
 
+    using from_index_type = typename Mapping1::from_index_type;
+    using to_index_type = typename Mapping2::to_index_type;
+    using is_index_mapping = std::true_type;
 
-    using from_index_t = typename Mapping1::from_index_t;
-    using to_index_t = typename Mapping2::to_index_t;
-    using is_index_mapping_t = std::true_type;
-
-    to_index_t map_forward(from_index_t const& from) const {
+    to_index_type map_forward(from_index_type const& from) const {
       return m2_.map_forward(m1_.map_forward(from));
     }
 
-    from_index_t map_backward(to_index_t const& to) const {
+    from_index_type map_backward(to_index_type const& to) const {
       return m1_.map_backward(m2_.map_backward(to));
     }
 };
@@ -160,37 +188,42 @@ struct ReverseMapping {
       : m1_(std::forward<Args>(args)...)
     { }
 
-    using from_index_t = typename Mapping::to_index_t;
-    using to_index_t = typename Mapping::from_index_t;
-    using is_index_mapping_t = std::true_type;
+    using from_index_type = typename Mapping::to_index_type;
+    using to_index_type = typename Mapping::from_index_type;
+    using is_index_mapping = std::true_type;
 
-    to_index_t map_forward(from_index_t const& from) const {
+    to_index_type map_forward(from_index_type const& from) const {
       return m1_.map_backward(from);
     }
 
-    from_index_t map_backward(to_index_t const& to) const {
+    from_index_type map_backward(to_index_type const& to) const {
       return m1_.map_forward(to);
     }
 
 };
 
-template <typename IndexT>
+template <typename FromIndexT, typename ToIndexT=FromIndexT>
 struct IdentityMapping {
 
   public:
 
-    using from_index_t = IndexT;
-    using to_index_t = IndexT;
-    using is_index_mapping_t = std::true_type;
+    using from_index_type = FromIndexT;
+    using to_index_type = ToIndexT;
+    using is_index_mapping = std::true_type;
 
-    to_index_t map_forward(from_index_t const& from) const {
+    to_index_type map_forward(from_index_type const& from) const {
       return from;
     }
 
-    from_index_t map_backward(to_index_t const& to) const {
+    from_index_type map_backward(to_index_type const& to) const {
       return to;
     }
+
+    bool operator=(IdentityMapping const&) { return true; }
 };
+
+// Just a sentinel that can't have map_forward or map_backward called
+struct NullMapping { };
 
 } // end namespace darma_runtime
 

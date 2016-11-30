@@ -91,17 +91,19 @@ struct MappedHandleCollection {
 //==============================================================================
 // <editor-fold desc="AccessHandleCollection">
 
-template <typename T, typename IndexRangeT>
+template <typename T, typename IndexRangeT, typename Mapping=NullMapping>
 class AccessHandleCollection {
   public:
 
     using value_type = T;
     using index_range_type = IndexRangeT;
 
-    template <typename Mapping>
-    detail::MappedHandleCollection<AccessHandleCollection, std::decay_t<Mapping>>
-    mapped_with(Mapping&& mapping) const {
-      return detail::MappedHandleCollection<AccessHandleCollection, std::decay_t<Mapping>>(
+    template <typename MappingT>
+    auto mapped_with(MappingT&& mapping) const {
+      return detail::MappedHandleCollection<
+        ::darma_runtime::AccessHandleCollection<T, IndexRangeT, std::decay_t<MappingT>>,
+        std::decay_t<MappingT>
+      >(
         *this, std::forward<Mapping>(mapping)
       );
     };
@@ -110,7 +112,9 @@ class AccessHandleCollection {
 
     using variable_handle_t = detail::VariableHandle<T>;
     using variable_handle_ptr = types::shared_ptr_template<detail::VariableHandle<T>>;
-    using use_holder_ptr = types::shared_ptr_template<detail::UseCollectionManagingHolder<index_range_type>>;
+    using use_holder_ptr = types::shared_ptr_template<
+      detail::UseCollectionManagingHolder<index_range_type, Mapping>
+    >;
 
   private:
 
@@ -203,8 +207,7 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType> {
     );
 
     auto rv = AccessHandleCollection<ValueType, std::decay_t<IndexRangeT>>(
-      var_handle,
-      use_holder
+      var_handle, use_holder
     );
 
     return rv;
