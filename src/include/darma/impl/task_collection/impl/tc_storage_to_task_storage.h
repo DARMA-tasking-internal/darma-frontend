@@ -72,9 +72,9 @@ template <
 struct _get_task_stored_arg_helper {
   // TODO decide if this should be allowed to be a reference to the parent (probably not...)
   using type = std::decay_t<CollectionArg>;
-  template <typename TaskInstanceT>
+  template <typename TaskCollectionInstanceT>
   type
-  operator()(TaskInstanceT& collection, CollectionArg const& arg) const {
+  operator()(TaskCollectionInstanceT& collection, size_t backend_index, CollectionArg const& arg) const {
     return arg;
   }
 };
@@ -93,9 +93,9 @@ struct _get_task_stored_arg_helper<
 > {
   using type = CollectionArg;
 
-  template <typename TaskInstanceT>
+  template <typename TaskCollectionInstanceT>
   type
-  operator()(TaskInstanceT& instance, CollectionArg const& arg) const {
+  operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg) const {
     // We still need to create a new use for the task itself...
     auto new_use_holder = std::make_shared<UseHolder>(
       HandleUse(
@@ -130,10 +130,10 @@ struct _get_task_stored_arg_helper<
   using type = typename CollectionArg::access_handle_collection_t;
   using return_type = type; // readability
 
-  template <typename TaskInstanceT>
+  template <typename TaskCollectionInstanceT>
   return_type
-  operator()(TaskInstanceT& instance, CollectionArg const& arg) const {
-    arg.collection.mapped_backend_index_ = instance.backend_index_;
+  operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg) const {
+    arg.collection.mapped_backend_index_ = backend_index;
     return arg.collection;
   }
 

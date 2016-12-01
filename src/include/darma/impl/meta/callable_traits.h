@@ -601,6 +601,8 @@ struct callable_traits {
         using type = std::integral_constant<bool, value>;
       };
 
+      using type = param_n_t<N>;
+
       using callable = callable_t;
     };
 

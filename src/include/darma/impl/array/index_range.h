@@ -78,9 +78,9 @@ class ContiguousIndexRange
 
   public:
 
-    using mapping_to_dense_t = detail::ContiguousIndexMapping<Integer>;
-    using index_t = ContiguousIndex<Integer>;
-    using is_index_range_t = std::true_type;
+    using mapping_to_dense = detail::ContiguousIndexMapping<Integer>;
+    using index_type = ContiguousIndex<Integer>;
+    using is_index_range = std::true_type;
 
     friend class detail::ContiguousIndexMapping<Integer>;
 
@@ -127,14 +127,14 @@ struct ContiguousIndexMapping {
     { }
 
     using is_index_mapping_t = std::true_type;
-    using from_index_t = ContiguousIndex<Integer>;
-    using to_index_t = DenseIndex;
+    using from_index_type = ContiguousIndex<Integer>;
+    using to_index_type = DenseIndex;
 
-    to_index_t map_forward(from_index_t const& from) const {
+    to_index_type map_forward(from_index_type const& from) const {
       return from.value - from.min_value;
     }
 
-    from_index_t map_backward(to_index_t const& to) const {
+    from_index_type map_backward(to_index_type const& to) const {
       return { static_cast<Integer>(to), range.offset_, range.offset_ + range.size_ };
     }
 

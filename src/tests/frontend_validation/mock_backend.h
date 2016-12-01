@@ -144,8 +144,7 @@ class MockRuntime
     MOCK_METHOD1(register_use, void(use_t*));
     MOCK_METHOD1(reregister_migrated_use, void(use_t*));
     MOCK_METHOD1(make_initial_flow, flow_t(std::shared_ptr<handle_t> const&));
-    MOCK_METHOD4(make_fetching_flow, flow_t(std::shared_ptr<handle_t> const&, key_t const&,
-      std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle> const&,
+    MOCK_METHOD3(make_fetching_flow, flow_t(std::shared_ptr<handle_t> const&, key_t const&,
       bool
     ));
     MOCK_METHOD1(make_null_flow, flow_t(std::shared_ptr<handle_t> const&));
@@ -168,6 +167,7 @@ class MockRuntime
     MOCK_METHOD1(make_unpacked_flow, flow_t(void const*&));
     MOCK_METHOD1(reregister_use_copy, void(use_t*));
     MOCK_METHOD2(make_indexed_local_flow, flow_t(flow_t&, size_t));
+    MOCK_METHOD3(make_indexed_fetching_flow, flow_t(flow_t&, key_t const&, size_t));
     MOCK_METHOD1(make_initial_flow_collection, flow_t(std::shared_ptr<handle_t> const&));
     MOCK_METHOD1(make_null_flow_collection, flow_t(std::shared_ptr<handle_t> const&));
     MOCK_METHOD1(make_next_flow_collection, flow_t(flow_t&));

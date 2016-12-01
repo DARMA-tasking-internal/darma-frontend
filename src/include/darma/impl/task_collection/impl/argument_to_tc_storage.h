@@ -195,7 +195,7 @@ struct _get_storage_arg_helper<
     tinympl::bool_<
       (
         // Parameter is an AccessHandleCollection
-        (not ParamTraits::template matches<decayed_is_access_handle_collection>::value)
+        ParamTraits::template matches<decayed_is_access_handle_collection>::value
       )
     >, /* => */ _permissions<HandleUse::Modify>,
     /*----------------------------------------*/
@@ -244,6 +244,11 @@ struct _get_storage_arg_helper<
     // >, /* => */ _permissions<HandleUse::Modify>
     /*----------------------------------------*/
     std::true_type, /* => */ _darma__static_failure<
+      GivenArg,
+      _____________________________________________________________________,
+      ParamTraits,
+      _____________________________________________________________________,
+      CollectionIndexRangeT
       // TODO better error message in the failure case
     >
   >::type::value;
@@ -293,6 +298,11 @@ struct _get_storage_arg_helper<
     //>, /* => */ _permissions<HandleUse::None>
     /*----------------------------------------*/
     std::true_type, /* => */ _darma__static_failure<
+      GivenArg,
+      _____________________________________________________________________,
+      ParamTraits,
+      _____________________________________________________________________,
+      CollectionIndexRangeT
       // TODO better error message in the failure case
     >
   >::type::value;
@@ -301,7 +311,7 @@ struct _get_storage_arg_helper<
   //----------------------------------------------------------------------------
 
   template <typename TaskCollectionT>
-  auto
+  return_type
   operator()(TaskCollectionT& collection, GivenArg&& arg) const {
     using mapped_handle_t = std::decay_t<GivenArg>;
     using handle_collection_t = typename mapped_handle_t::access_handle_collection_t;
@@ -319,6 +329,8 @@ struct _get_storage_arg_helper<
     using full_mapping_t = CompositeMapping<
       user_mapping_t,
       typename tc_index_range_traits::mapping_to_dense_type
+      //, detail::not_an_index_range /* for now; make this handle_range_t later once implemented in composite mapping */
+      //, tc_index_range // second mapping "from" range type
     >;
     using full_mapping_traits = indexing::mapping_traits<full_mapping_t>;
 
@@ -332,12 +344,15 @@ struct _get_storage_arg_helper<
       return std::make_shared<
         GenericUseHolder<CollectionManagingUse<handle_range_t>>
       > (
-        handle, in_flow, out_flow,
-        scheduling_permissions, immediate_permissions,
-        arg.collection.current_use_->use.index_range,
-        full_mapping_t(
-          arg.mapping,
-          full_mapping_t::mapping_to_dense(collection.collection_range_)
+        CollectionManagingUse<handle_range_t>(
+          handle, in_flow, out_flow,
+          scheduling_permissions, immediate_permissions,
+          arg.collection.current_use_->use.index_range,
+          full_mapping_t(
+            arg.mapping,
+            tc_index_range_traits::mapping_to_dense(collection.collection_range_)
+            //, collection.collection_range_
+          )
         )
       );
     };
@@ -361,9 +376,11 @@ struct _get_storage_arg_helper<
       return std::make_shared<
         GenericUseHolder<CollectionManagingUse<handle_range_t>>
       > (
-        handle, in_flow, out_flow,
-        scheduling_permissions, immediate_permissions,
-        arg.collection.current_use_->use.index_range
+        CollectionManagingUse<handle_range_t>(
+          handle, in_flow, out_flow,
+          scheduling_permissions, immediate_permissions,
+          arg.collection.current_use_->use.index_range
+        )
       );
     };
 
