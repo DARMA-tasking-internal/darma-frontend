@@ -48,7 +48,7 @@
 /*
  * Debugging prints with mutex
  */
-#define __THREADS_BACKEND_DEBUG__	  0
+#define __THREADS_BACKEND_DEBUG__	  1
 #define __THREADS_BACKEND_SHUFFLE__	  0
 #define __THREADS_BACKEND_DEBUG_VERBOSE__ 0
 #define __THREADS_BACKEND_DEBUG_TRACE__   0
@@ -147,6 +147,21 @@ namespace threads_backend {
     { }
 
     virtual ~DataBlock() { free(data); }
+  };
+
+  struct CollectionID {
+    size_t collection = 0;
+    size_t index = 0;
+
+    CollectionID() = default;
+
+    CollectionID(
+      size_t const collection_in, size_t const index_in
+    ) : collection(collection_in), index(index_in) { }
+
+    bool operator==(CollectionID const& other) const {
+      return other.collection == collection && other.index == index;
+    }
   };
 }
 

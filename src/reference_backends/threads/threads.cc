@@ -116,7 +116,7 @@ namespace threads_backend {
   // global publish
   std::mutex rank_publish;
   std::unordered_map<
-    std::tuple<types::key_t, types::key_t>,
+    std::tuple<CollectionID, types::key_t, types::key_t>,
     PublishedBlock*
   > published;
 
@@ -225,21 +225,18 @@ namespace threads_backend {
   template <typename TaskType>
   void
   ThreadsRuntime::create_task(
-    std::shared_ptr<TaskNode<TaskType>> t
+    std::shared_ptr<TaskNode<TaskType>> t,
+    int rank
   ) {
     t->join_counter = check_dep_task(t);
 
     DEBUG_PRINT("task check_dep results: jc=%ld\n", t->join_counter);
 
-    // use depth-first scheduling policy
-    if (threads_backend::depthFirstExpand) {
-      assert(t->ready());
-      DEBUG_VERBOSE_PRINT("running task\n");
-
-      t->execute();
-    } else {
-      if (t->ready()) {
+    if (t->ready()) {
+      if (rank == -1) {
         ready_local.push_back(t);
+      } else {
+        shared_ranks[rank]->add_remote(t);
       }
     }
 
@@ -393,7 +390,8 @@ namespace threads_backend {
         !f_in->fetcherAdded) {
       blocking_fetch(
         f_in->handle.get(),
-        f_in->version_key
+        f_in->version_key,
+        f_in->cid
       );
       f_in->fetcherAdded = true;
       if (f_in->acquire) {
@@ -409,7 +407,8 @@ namespace threads_backend {
       const bool ready = add_fetcher(
         node,
         f_in->handle.get(),
-        f_in->version_key
+        f_in->version_key,
+        f_in->cid
       );
       if (ready) {
         DEBUG_PRINT("check_dep_task: adding fetch node to deque\n");
@@ -755,7 +754,8 @@ namespace threads_backend {
   bool
   ThreadsRuntime::try_fetch(
     handle_t* handle,
-    types::key_t const& version_key
+    types::key_t const& version_key,
+    CollectionID cid
   ) {
     bool found = false;
 
@@ -764,8 +764,8 @@ namespace threads_backend {
       // TODO: big lock to handling fetching
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
-      const auto& key = handle->get_key();
-      const auto& iter = published.find(std::make_tuple(version_key, key));
+      auto const& key = handle->get_key();
+      auto const& iter = published.find(std::make_tuple(cid,version_key,key));
 
       if (iter != published.end()) {
         PublishedBlock* pub_ptr = iter->second;
@@ -802,7 +802,7 @@ namespace threads_backend {
 
         if (std::atomic_load<size_t>(&pub.expected) == 0) {
           // remove from publication list
-          published.erase(std::make_tuple(version_key,key));
+          published.erase(std::make_tuple(cid,version_key,key));
           free(pub_ptr->data->data_);
           delete pub.data;
           delete pub_ptr;
@@ -822,17 +822,19 @@ namespace threads_backend {
   ThreadsRuntime::add_fetcher(
     std::shared_ptr<FetchNode> fetch,
     handle_t* handle,
-    types::key_t const& version_key
+    types::key_t const& version_key,
+    CollectionID cid
   ) {
     bool ready = false;
     {
       // TODO: unscalable lock to handling fetching
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
-      const auto& key = handle->get_key();
-      const auto& iter = published.find(std::make_tuple(version_key,key));
-      const bool found = iter != published.end();
-      const bool avail = found && std::atomic_load<bool>(&iter->second->ready);
+      auto const& cid = fetch->fetch->cid;
+      auto const& key = handle->get_key();
+      auto const& iter = published.find(std::make_tuple(cid,version_key,key));
+      bool const found = iter != published.end();
+      bool const avail = found && std::atomic_load<bool>(&iter->second->ready);
 
       fetch->fetch->fetcherAdded = true;
 
@@ -846,9 +848,9 @@ namespace threads_backend {
       if (!found) {
         auto pub = new PublishedBlock();
         pub->waiting.push_front(fetch);
-        published[std::make_tuple(version_key,key)] = pub;
+        published[std::make_tuple(cid,version_key,key)] = pub;
       } else if (found && !avail) {
-        published[std::make_tuple(version_key,key)]->waiting.push_front(fetch);
+        published[std::make_tuple(cid,version_key,key)]->waiting.push_front(fetch);
       }
 
       ready = avail;
@@ -859,7 +861,8 @@ namespace threads_backend {
   bool
   ThreadsRuntime::test_fetch(
     handle_t* handle,
-    types::key_t const& version_key
+    types::key_t const& version_key,
+    CollectionID cid
   ) {
     bool ready = false;
     {
@@ -867,7 +870,7 @@ namespace threads_backend {
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find(std::make_tuple(version_key,key));
+      const auto& iter = published.find(std::make_tuple(cid,version_key,key));
 
       DEBUG_PRINT("test_fetch: trying to find a publish, key=%s, version=%s\n",
                   PRINT_KEY(key),
@@ -883,27 +886,29 @@ namespace threads_backend {
   void
   ThreadsRuntime::blocking_fetch(
     handle_t* handle,
-    types::key_t const& version_key
+    types::key_t const& version_key,
+    CollectionID cid
   ) {
 
     DEBUG_PRINT("fetch_block: handle = %p\n", handle);
 
-    while (!test_fetch(handle, version_key)) ;
+    while (!test_fetch(handle, version_key, cid)) ;
 
-    fetch(handle, version_key);
+    fetch(handle, version_key, cid);
   }
 
   TraceLog*
   ThreadsRuntime::fetch(
     handle_t* handle,
-    types::key_t const& version_key
+    types::key_t const& version_key,
+    CollectionID cid
   ) {
     {
       // TODO: big lock to handling fetching
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find(std::make_tuple(version_key,key));
+      const auto& iter = published.find(std::make_tuple(cid,version_key,key));
 
       DEBUG_PRINT("fetch: trying to find a publish, assume existance: handle=%p, key=%s, version=%s\n",
                   handle,
@@ -956,7 +961,7 @@ namespace threads_backend {
 
       if (std::atomic_load<size_t>(&pub.expected) == 0) {
         // remove from publication list
-        published.erase(std::make_tuple(version_key,key));
+        published.erase(std::make_tuple(cid,version_key,key));
         free(pub_ptr->data->data_);
         delete pub.data;
         delete pub_ptr;
@@ -1048,6 +1053,7 @@ namespace threads_backend {
 
     f->forward = f_forward;
 
+    f_forward->cid = f->cid;
     f_forward->isForward = true;
     f_forward->handle = f->handle;
     f_forward->fromFetch = f->fromFetch;
@@ -1086,6 +1092,7 @@ namespace threads_backend {
     f_next->handle = f->handle;
     f_next->fromFetch = f->fromFetch;
     f_next->version_key = f->version_key;
+    f_next->cid = f->cid;
 
     DEBUG_PRINT("next flow from %lu to %lu\n",
                 PRINT_LABEL(f),
@@ -1121,6 +1128,32 @@ namespace threads_backend {
     types::key_t const& key,
     bool const fromFetch
   ) {
+  }
+
+  void
+  ThreadsRuntime::indexed_alias_to_out(
+    flow_t const& f_in,
+    flow_t const& f_alias
+  ) {
+    if (f_alias->collection_out && f_alias->is_indexed && f_in->is_indexed) {
+      auto index = f_in->collection_index;
+      assert(f_in->collection != nullptr);
+
+      auto next_col = f_in->collection->next;
+      assert(f_in->collection->next != nullptr);
+
+      f_in->indexed_alias_out = true;
+      assert(f_in->collection_child.find(index) != f_in->collection_child.end());
+      if (next_col != nullptr) {
+        if (next_col->collection_child.find(index) != next_col->collection_child.end()) {
+          auto next_elm = next_col->collection_child[index];
+          try_release_to_read(next_elm);
+          f_in->collection_child.erase(
+            f_in->collection_child.find(index)
+          );
+        }
+      }
+    }
   }
 
   /*virtual*/
@@ -1163,6 +1196,8 @@ namespace threads_backend {
                       PRINT_STATE(alias_part));
 
         }
+
+        indexed_alias_to_out(alias_part, f_from);
       }
     } else if (f_from->state == FlowReadReady) {
       f_from->state = FlowReadOnlyReady;
@@ -1678,6 +1713,8 @@ namespace threads_backend {
                       PRINT_LABEL(alias_part),
                       PRINT_STATE(alias_part));
         }
+
+        indexed_alias_to_out(alias_part, flow);
       }
     }
   }
@@ -1720,6 +1757,8 @@ namespace threads_backend {
                       PRINT_LABEL(alias_part),
                       PRINT_STATE(alias_part));
         }
+
+        indexed_alias_to_out(alias_part, f_out);
       }
     }
 
@@ -1810,9 +1849,10 @@ namespace threads_backend {
       // TODO: big lock to handling publishing
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
-      const auto& expected = publish->fetchers;
-      const auto& version = publish->version;
-      const auto& key = publish->key;
+      auto const& expected = publish->fetchers;
+      auto const& version = publish->version;
+      auto const& key = publish->key;
+      auto const& cid = publish->collection_id;
 
       auto handle = publish->handle;
       void* data_ptr = publish->data_ptr;
@@ -1825,8 +1865,7 @@ namespace threads_backend {
 
       assert(expected >= 1);
 
-      auto block = serialize(handle.get(),
-                             data_ptr);
+      auto block = serialize(handle.get(), data_ptr);
 
       DEBUG_PRINT("publication: key = %s, version = %s, published data = %p, data ptr = %p\n",
                   PRINT_KEY(key),
@@ -1834,7 +1873,7 @@ namespace threads_backend {
                   block->data_,
                   data_ptr);
 
-      auto const key_tup = std::make_tuple(version,key);
+      auto const key_tup = std::make_tuple(cid,version,key);
       auto const publish_exists = published.find(key_tup) != published.end();
       auto const& publish = publish_exists ?
         published[key_tup] :
@@ -1872,27 +1911,32 @@ namespace threads_backend {
   ) {
     task_collection_unique_ptr cr_task = std::move(task_collection);
 
-    int const blocks = task_collection->size();
+    int const blocks = 2;//cr_task->size();
     int const ranks = inside_num_ranks;
     int const num_per_rank = std::max(1, blocks / ranks);
+
+    DEBUG_PRINT(
+      "register_task_collection: indicies=%d, ranks=%d, num_per_rank=%d\n",
+      blocks, ranks, num_per_rank
+    );
 
     for (auto cur = 0; cur < std::max(blocks,num_per_rank*ranks); cur += num_per_rank) {
       int const rank = (cur / num_per_rank) % ranks;
 
       for (auto i = cur; i < std::min(cur+num_per_rank,blocks); i++) {
         //std::cout << "rank " << rank << ": index = " << i << std::endl;
-        auto new_task = task_collection->create_task_for_index(i);
+        auto new_task = cr_task->create_task_for_index(i);
 
         auto task_node = std::make_shared<TaskNode<types::task_collection_task_t>>(
           rank == inside_rank ? this : shared_ranks[rank],
           std::move(new_task)
         );
 
-        if (rank == inside_rank) {
-          create_task(task_node);
-        } else {
-          shared_ranks[rank]->add_remote(task_node);
+        if (rank != inside_rank) {
+          task_node->for_rank = rank;
         }
+
+        create_task(task_node, rank == inside_rank ? -1 : rank);
       }
     }
   }
@@ -1904,6 +1948,10 @@ namespace threads_backend {
   ) {
     auto flow = make_initial_flow(handle);
     flow->is_collection = true;
+    flow->cid.collection = next_collection_id++;
+
+    DEBUG_PRINT("make_initial_flow_collection\n");
+
     return flow;
   }
 
@@ -1914,6 +1962,9 @@ namespace threads_backend {
   ) {
     auto flow = make_null_flow(handle);
     flow->is_collection = true;
+
+    DEBUG_PRINT("make_null_flow_collection\n");
+
     return flow;
   }
 
@@ -1924,6 +1975,11 @@ namespace threads_backend {
   ) {
     auto flow = make_next_flow(from);
     flow->is_collection = true;
+    flow->prev = from;
+    flow->cid.collection = from->cid.collection;
+
+    DEBUG_PRINT("make_next_flow_collection\n");
+
     return flow;
   }
 
@@ -1941,9 +1997,29 @@ namespace threads_backend {
       delete flow;
     });
 
+    DEBUG_PRINT(
+      "make_indexed_local_flow: flow=%ld, collection=%ld, index=%ld\n",
+      PRINT_LABEL(f), from->cid.collection, backend_index
+    );
+
     f->is_indexed = true;
     f->collection = from;
-    f->collection_index = backend_index;
+    f->cid = CollectionID(from->cid.collection, backend_index);
+    f->collection->collection_child[backend_index] = f;
+    f->state = FlowWaiting;
+
+    if (from->state != FlowWaiting) {
+      if (from->prev->collection_child.find(backend_index) !=
+          from->prev->collection_child.end()) {
+        auto prev_matching_flow = from->prev->collection_child[backend_index];
+        if (prev_matching_flow->indexed_alias_out) {
+          f->state = FlowReadReady;
+          f->ready = true;
+        }
+      }
+    } else {
+      f->collection_out = true;
+    }
 
     return f;
   }
@@ -1966,6 +2042,13 @@ namespace threads_backend {
     f->is_indexed = true;
     f->collection = from;
     f->collection_index = backend_index;
+
+    f->version_key = version_key;
+    f->isFetch = true;
+    f->fromFetch = true;
+    f->state = FlowWaiting;
+    f->ready = false;
+    f->acquire = true;
 
     return f;
   }
@@ -1991,7 +2074,8 @@ namespace threads_backend {
           details->get_n_fetchers(),
           key,
           details->get_version_name(),
-          false
+          false,
+          f_in->cid
        });
 
     auto p = std::make_shared<PublishNode>(PublishNode{this,pub});

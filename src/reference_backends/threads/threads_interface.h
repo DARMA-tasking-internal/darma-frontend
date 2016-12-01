@@ -56,6 +56,7 @@ namespace threads_backend {
   struct PublishNode;
   struct DelayedPublish;
   struct CollectiveInfo;
+  struct CollectionID;
 
   template <typename Impl>
   class ThreadsInterface {
@@ -116,19 +117,21 @@ namespace threads_backend {
     inline TraceLog*
     fetch(
       Runtime::handle_t* handle,
-      types::key_t const& version_key
+      types::key_t const& version_key,
+      CollectionID cid
     ) {
       return static_cast<Impl*>(this)->fetch(
-        handle, version_key
+        handle, version_key, cid
       );
     }
     inline bool
     test_fetch(
       Runtime::handle_t* handle,
-      types::key_t const& version_key
+      types::key_t const& version_key,
+      CollectionID cid
     ) {
       return static_cast<Impl*>(this)->test_fetch(
-        handle, version_key
+        handle, version_key,cid
       );
     }
 

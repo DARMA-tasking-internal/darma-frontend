@@ -65,7 +65,6 @@
 #include <darma_types.h>
 
 namespace std {
-
   template<>
   struct hash<darma_runtime::types::key_t> {
     size_t operator()(darma_runtime::types::key_t const& in) const {
@@ -102,6 +101,12 @@ namespace std {
       return std::hash<
         std::common_type_t<size_t, threads_backend::CollectiveType>
       >()(in);
+    }
+  };
+  template<>
+  struct hash<threads_backend::CollectionID> {
+    size_t operator()(threads_backend::CollectionID const& in) {
+      return std::hash<size_t>()(in.collection) + std::hash<size_t>()(in.index);
     }
   };
 }
@@ -161,6 +166,7 @@ namespace threads_backend {
     types::key_t key;
     types::key_t version;
     bool finished;
+    CollectionID collection_id;
   };
 
   struct CollectiveInfo {
@@ -197,6 +203,8 @@ namespace threads_backend {
     ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
     std::condition_variable cv_remote_awake{};
+
+    size_t next_collection_id = 1;
 
     std::unordered_map<
       std::pair<types::key_t, types::key_t>,
@@ -414,7 +422,14 @@ namespace threads_backend {
     template <typename TaskType>
     void
     create_task(
-      std::shared_ptr<TaskNode<TaskType>> task_node
+      std::shared_ptr<TaskNode<TaskType>> task_node,
+      int rank = -1
+    );
+
+    void
+    indexed_alias_to_out(
+      flow_t const& f_in,
+      flow_t const& f_alias
     );
 
     virtual void
@@ -485,31 +500,36 @@ namespace threads_backend {
     add_fetcher(
       std::shared_ptr<FetchNode> fetch,
       handle_t* handle,
-      types::key_t const& version_key
+      types::key_t const& version_key,
+      CollectionID cid
     );
 
     bool
     try_fetch(
       handle_t* handle,
-      types::key_t const& version_key
+      types::key_t const& version_key,
+      CollectionID cid
     );
 
     bool
     test_fetch(
       handle_t* handle,
-      types::key_t const& version_key
+      types::key_t const& version_key,
+      CollectionID cid
     );
 
     void
     blocking_fetch(
       handle_t* handle,
-      types::key_t const& version_key
+      types::key_t const& version_key,
+      CollectionID cid
     );
 
     TraceLog*
     fetch(
       handle_t* handle,
-      types::key_t const& version_key
+      types::key_t const& version_key,
+      CollectionID cid
     );
 
     virtual flow_t
