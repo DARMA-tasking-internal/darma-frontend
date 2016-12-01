@@ -427,7 +427,7 @@ namespace threads_backend {
     );
 
     void
-    indexed_alias_to_null(
+    indexed_alias_to_out(
       flow_t const& f_in,
       flow_t const& f_alias
     );
