@@ -55,6 +55,7 @@ namespace threads_backend {
 
   enum FlowState {
     FlowWaiting,
+    FlowScheduleOnly,
     FlowReadReady,
     FlowReadOnlyReady,
     FlowWriteReady,
@@ -69,8 +70,14 @@ namespace threads_backend {
     types::key_t version_key, key;
     std::shared_ptr<handle_t> handle = nullptr;
     bool ready, isNull, isFetch, fromFetch, isCollective, isForward;
-    bool  isWriteForward, fetcherAdded;
-    std::shared_ptr<DataStoreHandle> data_store = nullptr;
+    bool isWriteForward, fetcherAdded;
+    bool scheduleOnlyNeeded = false;
+
+    // for collection related flows
+    bool is_collection = false;
+    bool is_indexed = false;
+    std::shared_ptr<InnerFlow> collection = nullptr;
+    size_t collection_index = 0;
 
     size_t* shared_reader_count = nullptr;
     size_t uses = 0;

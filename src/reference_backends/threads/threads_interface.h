@@ -116,25 +116,19 @@ namespace threads_backend {
     inline TraceLog*
     fetch(
       Runtime::handle_t* handle,
-      types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& store
+      types::key_t const& version_key
     ) {
       return static_cast<Impl*>(this)->fetch(
-        handle,
-        version_key,
-        store
+        handle, version_key
       );
     }
     inline bool
     test_fetch(
       Runtime::handle_t* handle,
-      types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& store
+      types::key_t const& version_key
     ) {
       return static_cast<Impl*>(this)->test_fetch(
-        handle,
-        version_key,
-        store
+        handle, version_key
       );
     }
 
