@@ -52,6 +52,7 @@
 #include <darma/impl/capture.h>
 #include <darma/impl/task.h>
 #include <darma/impl/index_range/mapping_traits.h>
+#include <darma/impl/index_range/index_range_traits.h>
 #include "task_collection_fwd.h"
 
 #include "impl/argument_to_tc_storage.h"
@@ -133,7 +134,6 @@ struct TaskCollectionTaskImpl
 //==============================================================================
 // <editor-fold desc="TaskCollectionImpl">
 
-
 template <
   typename Functor,
   typename IndexRangeT,
@@ -146,7 +146,9 @@ struct TaskCollectionImpl
     >
 {
   public:
+
     using index_range_t = IndexRangeT;
+    using index_range_traits = indexing::index_range_traits<index_range_t>;
 
   protected:
 
@@ -159,7 +161,8 @@ struct TaskCollectionImpl
       return std::forward_as_tuple(
         _task_collection_impl::_get_storage_arg_helper<
           decltype(std::get<Spots>(std::forward<ArgsForwardedTuple>(args_fwd))),
-          typename meta::callable_traits<Functor>::template param_n_traits<Spots>
+          typename meta::callable_traits<Functor>::template param_n_traits<Spots>,
+          IndexRangeT
         >{}(
           *this, std::get<Spots>(std::forward<ArgsForwardedTuple>(args_fwd))
         )...
@@ -173,15 +176,18 @@ struct TaskCollectionImpl
     ) {
       return std::make_unique<
         TaskCollectionTaskImpl<
-          Functor, mapping_to_dense_t<index_range_t>,
+          Functor, typename index_range_traits::mapping_to_dense_type,
           typename _task_collection_impl::_get_task_stored_arg_helper<
             Functor, Args, Spots
           >::type...
-        >>(
-          index, get_mapping_to_dense(collection_range_),
-          _task_collection_impl::_get_task_stored_arg_helper<
-              Functor, decltype(std::get<Spots>(args_stored_)), Spots
-            >{}(*this, std::get<Spots>(args_stored_))...
+        >
+      >(
+        index, index_range_traits::mapping_to_dense(collection_range_),
+        _task_collection_impl::_get_task_stored_arg_helper<
+          Functor,
+          decltype(std::get<Spots>(args_stored_)),
+          Spots
+        >{}(*this, std::get<Spots>(args_stored_))...
       );
     }
 
@@ -217,7 +223,7 @@ struct TaskCollectionImpl
         args_stored_(
           _get_args_stored_impl(
             std::forward_as_tuple(std::forward<ArgsForwarded>(args_forwarded)...),
-            std::index_sequence_for<ArgsForwarded...>()
+            std::index_sequence_for<ArgsForwarded...>{}
           )
         )
     { }
@@ -229,7 +235,7 @@ struct TaskCollectionImpl
     create_task_for_index(std::size_t index) override {
 
       return _make_task_impl(
-        index, std::make_index_sequence<sizeof...(Args)>()
+        index, std::make_index_sequence<sizeof...(Args)>{}
       );
     }
 
@@ -267,7 +273,8 @@ struct make_task_collection_impl_t {
         Functor, IndexRangeT,
         typename detail::_task_collection_impl::_get_storage_arg_helper<
           tinympl::at_t<Idxs, arg_vector_t>,
-          typename meta::callable_traits<Functor>::template param_n_traits<Idxs>
+          typename meta::callable_traits<Functor>::template param_n_traits<Idxs>,
+          IndexRangeT
         >::type...
       >;
     };

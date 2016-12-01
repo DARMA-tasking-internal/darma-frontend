@@ -52,8 +52,9 @@ namespace detail {
 
 namespace _task_collection_impl {
 
+// Argument to TaskCollectionImpl storage helper
 template <
-  typename GivenArg, typename ParamTraits, typename Enable=void
+  typename GivenArg, typename ParamTraits, typename CollectionIndexRangeT, typename Enable=void
 >
 struct _get_storage_arg_helper;
 

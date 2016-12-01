@@ -600,6 +600,8 @@ struct callable_traits {
         static constexpr auto value = param_n_matches<UnaryMetafunction, N>::value;
         using type = std::integral_constant<bool, value>;
       };
+
+      using callable = callable_t;
     };
 
 };

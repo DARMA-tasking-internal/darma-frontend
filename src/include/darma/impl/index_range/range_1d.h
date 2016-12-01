@@ -54,9 +54,9 @@ namespace darma_runtime {
 namespace detail {
 
 template <typename Integer>
-struct basic_index_range_1d
+struct basic_integer_range_1d
   : detail::PolymorphicSerializationAdapter<
-      basic_index_range_1d<Integer>,
+      basic_integer_range_1d<Integer>,
       abstract::frontend::IndexRange
     >
 {
@@ -65,8 +65,11 @@ struct basic_index_range_1d
 
     Integer size_;
     Integer offset_;
+    Integer stride_;
 
   public:
+
+    // TODO finish this
     
 
 };

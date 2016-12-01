@@ -91,7 +91,7 @@ struct MappedHandleCollection {
 //==============================================================================
 // <editor-fold desc="AccessHandleCollection">
 
-template <typename T, typename IndexRangeT, typename Mapping=NullMapping>
+template <typename T, typename IndexRangeT>
 class AccessHandleCollection {
   public:
 
@@ -101,19 +101,23 @@ class AccessHandleCollection {
     template <typename MappingT>
     auto mapped_with(MappingT&& mapping) const {
       return detail::MappedHandleCollection<
-        ::darma_runtime::AccessHandleCollection<T, IndexRangeT, std::decay_t<MappingT>>,
+        ::darma_runtime::AccessHandleCollection<T, IndexRangeT>,
         std::decay_t<MappingT>
       >(
-        *this, std::forward<Mapping>(mapping)
+        *this, std::forward<MappingT>(mapping)
       );
     };
+
+    IndexRangeT const& get_index_range() const {
+      return current_use_->use.index_range;
+    }
 
   protected:
 
     using variable_handle_t = detail::VariableHandle<T>;
     using variable_handle_ptr = types::shared_ptr_template<detail::VariableHandle<T>>;
     using use_holder_ptr = types::shared_ptr_template<
-      detail::UseCollectionManagingHolder<index_range_type, Mapping>
+      detail::GenericUseHolder<detail::CollectionManagingUse<index_range_type>>
     >;
 
   private:
@@ -124,7 +128,7 @@ class AccessHandleCollection {
     template <typename... AccessorDetails>
     friend struct detail::AccessHandleCollectionAccess;
 
-    template <typename, typename, typename>
+    template <typename, typename, typename, typename>
     friend struct detail::_task_collection_impl::_get_storage_arg_helper;
 
     template < typename, typename, size_t, typename >
@@ -138,6 +142,8 @@ class AccessHandleCollection {
     //==========================================================================
     // private members:
 
+    static constexpr auto unknown_backend_index = std::numeric_limits<size_t>::max();
+    mutable std::size_t mapped_backend_index_ = unknown_backend_index;
     mutable variable_handle_ptr var_handle_ = nullptr;
     mutable use_holder_ptr current_use_ = nullptr;
 
@@ -196,12 +202,15 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType> {
       make_key(std::forward<Args>(args)...)
     );
 
-    auto use_holder = std::make_shared<UseCollectionManagingHolder<std::decay_t<IndexRangeT>>>(
+    auto use_holder = std::make_shared<GenericUseHolder<
+      CollectionManagingUse<std::decay_t<IndexRangeT>>
+    >>(
       CollectionManagingUse<std::decay_t<IndexRangeT>>(
         var_handle,
         detail::make_flow_ptr(backend_runtime->make_initial_flow_collection(var_handle)),
         detail::make_flow_ptr(backend_runtime->make_null_flow_collection(var_handle)),
         HandleUse::Modify,
+        HandleUse::None,
         std::forward<IndexRangeT>(range)
       )
     );
