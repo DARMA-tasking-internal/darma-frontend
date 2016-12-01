@@ -161,7 +161,6 @@ namespace threads_backend {
     types::key_t key;
     types::key_t version;
     bool finished;
-    std::shared_ptr<DataStoreHandle> data_store;
   };
 
   struct CollectiveInfo {
@@ -198,8 +197,6 @@ namespace threads_backend {
     ThreadsRuntime(const ThreadsRuntime& tr) = delete;
 
     std::condition_variable cv_remote_awake{};
-
-    size_t data_store_counter = 0;
 
     std::unordered_map<
       std::pair<types::key_t, types::key_t>,
@@ -414,14 +411,44 @@ namespace threads_backend {
     virtual void
     register_use(use_t* u);
 
-    virtual void
-    register_concurrent_region(
-      concurrent_region_task_unique_ptr&& task,
-      size_t n_indices, std::shared_ptr<DataStoreHandle> const& data_store = nullptr
+    template <typename TaskType>
+    void
+    create_task(
+      std::shared_ptr<TaskNode<TaskType>> task_node
     );
 
-    virtual std::shared_ptr<DataStoreHandle>
-    make_data_store();
+    virtual void
+    register_task_collection(
+      task_collection_unique_ptr&& task_collection
+    );
+
+    virtual flow_t
+    make_initial_flow_collection(
+      std::shared_ptr<handle_t> const& handle
+    );
+
+    virtual flow_t
+    make_null_flow_collection(
+      std::shared_ptr<handle_t> const& handle
+    );
+
+    virtual flow_t
+    make_next_flow_collection(
+      flow_t& from
+    );
+
+    virtual flow_t
+    make_indexed_local_flow(
+      flow_t& from,
+      size_t backend_index
+    );
+
+    virtual flow_t
+    make_indexed_fetching_flow(
+      flow_t& from,
+      types::key_t const& version_key,
+      size_t backend_index
+    );
 
     std::shared_ptr<DataBlock>
     allocate_block(
@@ -458,43 +485,37 @@ namespace threads_backend {
     add_fetcher(
       std::shared_ptr<FetchNode> fetch,
       handle_t* handle,
-      types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& store
+      types::key_t const& version_key
     );
 
     bool
     try_fetch(
       handle_t* handle,
-      types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& store
+      types::key_t const& version_key
     );
 
     bool
     test_fetch(
       handle_t* handle,
-      types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& store
+      types::key_t const& version_key
     );
 
     void
     blocking_fetch(
       handle_t* handle,
-      types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& store
+      types::key_t const& version_key
     );
 
     TraceLog*
     fetch(
       handle_t* handle,
-      types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& store
+      types::key_t const& version_key
     );
 
     virtual flow_t
     make_fetching_flow(
       std::shared_ptr<handle_t> const& handle,
       types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& data_store,
       bool acquired = false
     );
 

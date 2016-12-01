@@ -72,7 +72,12 @@ namespace threads_backend {
     bool ready, isNull, isFetch, fromFetch, isCollective, isForward;
     bool isWriteForward, fetcherAdded;
     bool scheduleOnlyNeeded = false;
-    std::shared_ptr<DataStoreHandle> data_store = nullptr;
+
+    // for collection related flows
+    bool is_collection = false;
+    bool is_indexed = false;
+    std::shared_ptr<InnerFlow> collection = nullptr;
+    size_t collection_index = 0;
 
     size_t* shared_reader_count = nullptr;
     size_t uses = 0;

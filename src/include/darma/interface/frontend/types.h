@@ -49,6 +49,8 @@
 #include <frontend_types.h>
 #endif
 
+#include <set>
+
 //#include <darma_types.h>
 #include <darma/interface/frontend/frontend_fwd.h>
 

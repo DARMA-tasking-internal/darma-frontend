@@ -116,7 +116,7 @@ namespace threads_backend {
   // global publish
   std::mutex rank_publish;
   std::unordered_map<
-    std::tuple<std::shared_ptr<DataStoreHandle>, types::key_t, types::key_t>,
+    std::tuple<types::key_t, types::key_t>,
     PublishedBlock*
   > published;
 
@@ -219,7 +219,14 @@ namespace threads_backend {
     auto t = std::make_shared<TaskNode<task_t>>(
       TaskNode<task_t>{this,std::move(task)}
     );
+    create_task(t);
+  }
 
+  template <typename TaskType>
+  void
+  ThreadsRuntime::create_task(
+    std::shared_ptr<TaskNode<TaskType>> t
+  ) {
     t->join_counter = check_dep_task(t);
 
     DEBUG_PRINT("task check_dep results: jc=%ld\n", t->join_counter);
@@ -386,8 +393,7 @@ namespace threads_backend {
         !f_in->fetcherAdded) {
       blocking_fetch(
         f_in->handle.get(),
-        f_in->version_key,
-        f_in->data_store
+        f_in->version_key
       );
       f_in->fetcherAdded = true;
       if (f_in->acquire) {
@@ -403,8 +409,7 @@ namespace threads_backend {
       const bool ready = add_fetcher(
         node,
         f_in->handle.get(),
-        f_in->version_key,
-        f_in->data_store
+        f_in->version_key
       );
       if (ready) {
         DEBUG_PRINT("check_dep_task: adding fetch node to deque\n");
@@ -750,8 +755,7 @@ namespace threads_backend {
   bool
   ThreadsRuntime::try_fetch(
     handle_t* handle,
-    types::key_t const& version_key,
-    std::shared_ptr<DataStoreHandle> const& store
+    types::key_t const& version_key
   ) {
     bool found = false;
 
@@ -761,7 +765,7 @@ namespace threads_backend {
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find(std::make_tuple(store,version_key, key));
+      const auto& iter = published.find(std::make_tuple(version_key, key));
 
       if (iter != published.end()) {
         PublishedBlock* pub_ptr = iter->second;
@@ -798,7 +802,7 @@ namespace threads_backend {
 
         if (std::atomic_load<size_t>(&pub.expected) == 0) {
           // remove from publication list
-          published.erase(std::make_tuple(store,version_key,key));
+          published.erase(std::make_tuple(version_key,key));
           free(pub_ptr->data->data_);
           delete pub.data;
           delete pub_ptr;
@@ -818,8 +822,7 @@ namespace threads_backend {
   ThreadsRuntime::add_fetcher(
     std::shared_ptr<FetchNode> fetch,
     handle_t* handle,
-    types::key_t const& version_key,
-    std::shared_ptr<DataStoreHandle> const& store
+    types::key_t const& version_key
   ) {
     bool ready = false;
     {
@@ -827,7 +830,7 @@ namespace threads_backend {
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find(std::make_tuple(store,version_key,key));
+      const auto& iter = published.find(std::make_tuple(version_key,key));
       const bool found = iter != published.end();
       const bool avail = found && std::atomic_load<bool>(&iter->second->ready);
 
@@ -843,9 +846,9 @@ namespace threads_backend {
       if (!found) {
         auto pub = new PublishedBlock();
         pub->waiting.push_front(fetch);
-        published[std::make_tuple(store,version_key,key)] = pub;
+        published[std::make_tuple(version_key,key)] = pub;
       } else if (found && !avail) {
-        published[std::make_tuple(store,version_key,key)]->waiting.push_front(fetch);
+        published[std::make_tuple(version_key,key)]->waiting.push_front(fetch);
       }
 
       ready = avail;
@@ -856,8 +859,7 @@ namespace threads_backend {
   bool
   ThreadsRuntime::test_fetch(
     handle_t* handle,
-    types::key_t const& version_key,
-    std::shared_ptr<DataStoreHandle> const& store
+    types::key_t const& version_key
   ) {
     bool ready = false;
     {
@@ -865,7 +867,7 @@ namespace threads_backend {
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find(std::make_tuple(store,version_key,key));
+      const auto& iter = published.find(std::make_tuple(version_key,key));
 
       DEBUG_PRINT("test_fetch: trying to find a publish, key=%s, version=%s\n",
                   PRINT_KEY(key),
@@ -881,29 +883,27 @@ namespace threads_backend {
   void
   ThreadsRuntime::blocking_fetch(
     handle_t* handle,
-    types::key_t const& version_key,
-    std::shared_ptr<DataStoreHandle> const& store
+    types::key_t const& version_key
   ) {
 
     DEBUG_PRINT("fetch_block: handle = %p\n", handle);
 
-    while (!test_fetch(handle, version_key, store)) ;
+    while (!test_fetch(handle, version_key)) ;
 
-    fetch(handle, version_key, store);
+    fetch(handle, version_key);
   }
 
   TraceLog*
   ThreadsRuntime::fetch(
     handle_t* handle,
-    types::key_t const& version_key,
-    std::shared_ptr<DataStoreHandle> const& store
+    types::key_t const& version_key
   ) {
     {
       // TODO: big lock to handling fetching
       std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
 
       const auto& key = handle->get_key();
-      const auto& iter = published.find(std::make_tuple(store,version_key,key));
+      const auto& iter = published.find(std::make_tuple(version_key,key));
 
       DEBUG_PRINT("fetch: trying to find a publish, assume existance: handle=%p, key=%s, version=%s\n",
                   handle,
@@ -956,7 +956,7 @@ namespace threads_backend {
 
       if (std::atomic_load<size_t>(&pub.expected) == 0) {
         // remove from publication list
-        published.erase(std::make_tuple(store,version_key,key));
+        published.erase(std::make_tuple(version_key,key));
         free(pub_ptr->data->data_);
         delete pub.data;
         delete pub_ptr;
@@ -971,7 +971,6 @@ namespace threads_backend {
   ThreadsRuntime::make_fetching_flow(
     std::shared_ptr<handle_t> const& handle,
     types::key_t const& version_key,
-    std::shared_ptr<DataStoreHandle> const& data_store,
     bool acquired
   ) {
     DEBUG_VERBOSE_PRINT("make fetching flow\n");
@@ -988,7 +987,6 @@ namespace threads_backend {
     f->state = FlowWaiting;
     f->ready = false;
     f->acquire = true;
-    f->data_store = data_store;
 
     return f;
   }
@@ -1123,13 +1121,6 @@ namespace threads_backend {
     types::key_t const& key,
     bool const fromFetch
   ) {
-    auto& data_store = fromFetch ? fetched_data : data;
-
-    if (data_store.find({version,key}) != data_store.end()) {
-      data_store.erase(
-        data_store.find({version,key})
-      );
-    }
   }
 
   /*virtual*/
@@ -1822,7 +1813,6 @@ namespace threads_backend {
       const auto& expected = publish->fetchers;
       const auto& version = publish->version;
       const auto& key = publish->key;
-      const auto& store = publish->data_store;
 
       auto handle = publish->handle;
       void* data_ptr = publish->data_ptr;
@@ -1844,7 +1834,7 @@ namespace threads_backend {
                   block->data_,
                   data_ptr);
 
-      auto const key_tup = std::make_tuple(store,version,key);
+      auto const key_tup = std::make_tuple(version,key);
       auto const publish_exists = published.find(key_tup) != published.end();
       auto const& publish = publish_exists ?
         published[key_tup] :
@@ -1877,14 +1867,12 @@ namespace threads_backend {
 
   /*virtual*/
   void
-  ThreadsRuntime::register_concurrent_region(
-    concurrent_region_task_unique_ptr&& task,
-    size_t n_indices,
-    std::shared_ptr<DataStoreHandle> const& data_store
+  ThreadsRuntime::register_task_collection(
+    task_collection_unique_ptr&& task_collection
   ) {
-    concurrent_region_task_unique_ptr cr_task = std::move(task);
+    task_collection_unique_ptr cr_task = std::move(task_collection);
 
-    int const blocks = n_indices;
+    int const blocks = task_collection->size();
     int const ranks = inside_num_ranks;
     int const num_per_rank = std::max(1, blocks / ranks);
 
@@ -1893,26 +1881,15 @@ namespace threads_backend {
 
       for (auto i = cur; i < std::min(cur+num_per_rank,blocks); i++) {
         //std::cout << "rank " << rank << ": index = " << i << std::endl;
-        auto const size = cr_task->get_packed_size();
-        void* packed_task = malloc(size);
-        cr_task->pack(packed_task);
-        auto new_task =
-          darma_runtime::frontend::unpack_concurrent_region_task(
-            packed_task
-          );
-        free(packed_task);
+        auto new_task = task_collection->create_task_for_index(i);
 
-        auto context = std::make_shared<ConcurrentRegionContext>(i);
-        new_task->set_region_context(
-          context
-        );
-        auto task_node = std::make_shared<TaskNode<concurrent_region_task_t>>(
+        auto task_node = std::make_shared<TaskNode<types::task_collection_task_t>>(
           rank == inside_rank ? this : shared_ranks[rank],
           std::move(new_task)
         );
 
         if (rank == inside_rank) {
-          add_local(task_node);
+          create_task(task_node);
         } else {
           shared_ranks[rank]->add_remote(task_node);
         }
@@ -1921,12 +1898,76 @@ namespace threads_backend {
   }
 
   /*virtual*/
-  std::shared_ptr<DataStoreHandle>
-  ThreadsRuntime::make_data_store() {
-    return std::make_shared<DataStore>(
-      inside_rank,
-      data_store_counter++
-    );
+  flow_t
+  ThreadsRuntime::make_initial_flow_collection(
+    std::shared_ptr<handle_t> const& handle
+  ) {
+    auto flow = make_initial_flow(handle);
+    flow->is_collection = true;
+    return flow;
+  }
+
+  /*virtual*/
+  flow_t
+  ThreadsRuntime::make_null_flow_collection(
+    std::shared_ptr<handle_t> const& handle
+  ) {
+    auto flow = make_null_flow(handle);
+    flow->is_collection = true;
+    return flow;
+  }
+
+  /*virtual*/
+  flow_t
+  ThreadsRuntime::make_next_flow_collection(
+    flow_t& from
+  ) {
+    auto flow = make_next_flow(from);
+    flow->is_collection = true;
+    return flow;
+  }
+
+  /*virtual*/
+  flow_t
+  ThreadsRuntime::make_indexed_local_flow(
+    flow_t& from,
+    size_t backend_index
+  ) {
+    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(nullptr), [this](InnerFlow* flow){
+      DEBUG_PRINT(
+        "make_indexed_local_flow: deleter running %ld\n",
+        PRINT_LABEL(flow)
+      );
+      delete flow;
+    });
+
+    f->is_indexed = true;
+    f->collection = from;
+    f->collection_index = backend_index;
+
+    return f;
+  }
+
+  /*virtual*/
+  flow_t
+  ThreadsRuntime::make_indexed_fetching_flow(
+    flow_t& from,
+    types::key_t const& version_key,
+    size_t backend_index
+  ) {
+    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(nullptr), [this](InnerFlow* flow){
+      DEBUG_PRINT(
+        "make_indexed_fetching_flow: deleter running %ld\n",
+        PRINT_LABEL(flow)
+      );
+      delete flow;
+    });
+
+    f->is_indexed = true;
+    f->collection = from;
+    f->collection_index = backend_index;
+
+    return f;
   }
 
   /*virtual*/
@@ -1941,7 +1982,6 @@ namespace threads_backend {
     auto handle = f->get_handle();
     auto version = details->get_version_name();
     auto key = handle->get_key();
-    auto const& store = details->get_data_store();
 
     // TODO: do not create this just to tear it down
     auto pub = std::make_shared<DelayedPublish>
@@ -1951,8 +1991,7 @@ namespace threads_backend {
           details->get_n_fetchers(),
           key,
           details->get_version_name(),
-          false,
-          store
+          false
        });
 
     auto p = std::make_shared<PublishNode>(PublishNode{this,pub});
