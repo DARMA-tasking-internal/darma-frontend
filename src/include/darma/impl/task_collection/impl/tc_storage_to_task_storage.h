@@ -134,6 +134,7 @@ struct _get_task_stored_arg_helper<
   return_type
   operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg) const {
     arg.collection.mapped_backend_index_ = backend_index;
+    arg.collection._setup_local_uses();
     return arg.collection;
   }
 
