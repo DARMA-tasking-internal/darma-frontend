@@ -139,8 +139,10 @@ class AccessHandleCollection {
         // stash the in flow that you should get the fetched flow from in the in flow
         auto fetched_in_flow = current_use_->use.in_flow_;
 
-        auto fetched_out_flow = backend_runtime->make_null_flow(
-          var_handle_
+        auto fetched_out_flow = detail::make_flow_ptr(
+          backend_runtime->make_null_flow(
+            var_handle_
+          )
         );
 
         auto const& idx_range = get_index_range();
@@ -163,7 +165,7 @@ class AccessHandleCollection {
       }
       else {
         return AccessHandle<T>(
-          var_handle_, *use_iter
+          var_handle_, use_iter->second
         );
       }
     }
