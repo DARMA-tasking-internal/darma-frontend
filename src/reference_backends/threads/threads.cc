@@ -222,7 +222,7 @@ namespace threads_backend {
 
     t->join_counter = check_dep_task(t);
 
-    DEBUG_VERBOSE_PRINT("task join counter: %ld\n", t->join_counter);
+    DEBUG_PRINT("task check_dep results: jc=%ld\n", t->join_counter);
 
     // use depth-first scheduling policy
     if (threads_backend::depthFirstExpand) {
@@ -457,6 +457,12 @@ namespace threads_backend {
           f_in->node = t;
           dep_count++;
         }
+        if (f_in->state == FlowScheduleOnly) {
+          if (!f_in->scheduleOnlyNeeded) {
+            f_in->node = t;
+            dep_count++;
+          }
+        }
       }
     }
 
@@ -476,6 +482,7 @@ namespace threads_backend {
                 PRINT_STATE(flow));
 
     if (flow->state == FlowWaiting ||
+        flow->state == FlowScheduleOnly ||
         flow->state == FlowWriteReady) {
       flow->readers.push_back(node);
       // shared is incremented when readers are released
@@ -524,8 +531,21 @@ namespace threads_backend {
 
     bool const ready = f_in->ready;
 
+    auto flows_same = f_in == f_out;
+
+    if (!flows_same &&
+        u->immediate_permissions() == abstract::frontend::Use::Permissions::None) {
+      f_out->state = FlowScheduleOnly;
+    }
+
+    if (u->immediate_permissions() == abstract::frontend::Use::Permissions::None) {
+      f_in->scheduleOnlyNeeded = true;
+    } else {
+      f_in->scheduleOnlyNeeded = false;
+    }
+
     DEBUG_PRINT("%p: register use: ready=%s, key=%s, version=%s, "
-                "handle=%p [in={%ld,ref=%ld,state=%s},out={%ld,ref=%ld,state=%s}], "
+                "handle=%p [in={%ld,ref=%ld,state=%s,son=%s},out={%ld,ref=%ld,state=%s,son=%s}], "
                 "sched=%d, immed=%d, fromFetch=%s\n",
                 u,
                 PRINT_BOOL_STR(ready),
@@ -535,9 +555,11 @@ namespace threads_backend {
                 PRINT_LABEL(f_in),
                 f_in->ref,
                 PRINT_STATE(f_in),
+                PRINT_BOOL_STR(f_in->scheduleOnlyNeeded),
                 PRINT_LABEL(f_out),
                 f_out->ref,
                 PRINT_STATE(f_out),
+                PRINT_BOOL_STR(f_out->scheduleOnlyNeeded),
                 u->scheduling_permissions(),
                 u->immediate_permissions(),
                 PRINT_BOOL_STR(f_in->fromFetch)
@@ -1175,7 +1197,7 @@ namespace threads_backend {
   ThreadsRuntime::try_release_to_read(
     std::shared_ptr<InnerFlow> flow
   ) {
-    assert(flow->state == FlowWaiting);
+    assert(flow->state == FlowWaiting || flow->state == FlowScheduleOnly);
     assert(flow->ref == 0);
     assert(flow->readers.size() == flow->readers_jc);
 
@@ -1255,6 +1277,8 @@ namespace threads_backend {
           assert(alias->ref == 0);
 
           has_read_phase |= try_release_to_read(alias);
+        } else if (alias->state == FlowScheduleOnly) {
+          has_read_phase |= try_release_to_read(alias);
         } else {
           assert(
             alias->state == FlowReadOnlyReady ||
@@ -1263,8 +1287,7 @@ namespace threads_backend {
           assert(alias->shared_reader_count != nullptr);
 
           auto const has_outstanding_reads =
-          alias->readers_jc != 0 &&
-          *alias->shared_reader_count == 0;
+            alias->readers_jc != 0 && *alias->shared_reader_count == 0;
 
           has_read_phase |= has_outstanding_reads;
         }
@@ -1740,12 +1763,6 @@ namespace threads_backend {
                 handle.get(),
                 PRINT_KEY(version),
                 PRINT_KEY(key));
-
-    if (!f_in->fromFetch) {
-      data[{version,key}]->refs--;
-    } else {
-      fetched_data[{version,key}]->refs--;
-    }
 
     DEBUG_PRINT("release_use: f_in=[%ld,state=%s], f_out=[%ld,state=%s]\n",
                 PRINT_LABEL(f_in),

@@ -86,7 +86,8 @@ std::mutex __output_mutex;
     ((FLOW->state) == FlowReadReady ? "FlowReadReady" :                 \
      ((FLOW->state) == FlowReadOnlyReady ? "FlowReadOnlyReady" :        \
       ((FLOW->state) == FlowAntiReady ? "FlowAntiReady" :               \
-       "InvalidFlowState")))))
+       ((FLOW->state) == FlowScheduleOnly ? "FlowScheduleOnly" :        \
+        "InvalidFlowState"))))))
 
 #if __THREADS_BACKEND_DEBUG_TRACE__
   #define DEBUG_TRACE(fmt, arg...)         THREADS_PRINTER(fmt, ##arg)
