@@ -201,7 +201,7 @@ struct MappingManager : MappingManagerBase<FrontendHandleIndex> {
 
   index_iterable<FrontendHandleIndex>
   local_indices_for(std::size_t backend_task_collection_index) const override {
-    return index_iterable<std::size_t>{
+    return index_iterable<FrontendHandleIndex>{
       mapping_to_tc_backend_idx.map_backward(backend_task_collection_index)
     };
   }
@@ -330,8 +330,9 @@ class CollectionManagingUse
       // Again, really inefficient...
       auto fe_idxs = base_t::mapping_manager->local_indices_for(backend_task_collection_index);
       index_iterable<std::size_t> rv;
+      rv.reserve(fe_idxs.size());
       for(auto&& fe_idx : fe_idxs) {
-        rv.insert(
+        rv.push_back(
           mapping_to_dense_traits::map_forward(
             mapping_to_dense, std::forward<decltype(fe_idx)>(fe_idx),
             index_range

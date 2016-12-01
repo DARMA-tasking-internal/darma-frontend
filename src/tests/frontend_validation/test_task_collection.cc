@@ -103,7 +103,9 @@ TEST_F(TestCreateConcurrentWork, simple) {
     auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
 
     struct Foo {
-      void operator()(Index1D<int> index, int const&) const {
+      void operator()(Index1D<int> index,
+        AccessHandleCollection<int, Range1D<int>> coll
+      ) const {
         ASSERT_THAT(index.value, Lt(4));
         ASSERT_THAT(index.value, Ge(0));
       }

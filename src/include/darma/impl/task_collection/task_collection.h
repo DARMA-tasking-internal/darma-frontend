@@ -161,7 +161,8 @@ struct TaskCollectionImpl
       return std::forward_as_tuple(
         _task_collection_impl::_get_storage_arg_helper<
           decltype(std::get<Spots>(std::forward<ArgsForwardedTuple>(args_fwd))),
-          typename meta::callable_traits<Functor>::template param_n_traits<Spots>,
+          // offset by 1 to incorporate the index parameter
+          typename meta::callable_traits<Functor>::template param_n_traits<Spots+1>,
           IndexRangeT
         >{}(
           *this, std::get<Spots>(std::forward<ArgsForwardedTuple>(args_fwd))
@@ -185,9 +186,9 @@ struct TaskCollectionImpl
         index, index_range_traits::mapping_to_dense(collection_range_),
         _task_collection_impl::_get_task_stored_arg_helper<
           Functor,
-          decltype(std::get<Spots>(args_stored_)),
+          Args,
           Spots
-        >{}(*this, std::get<Spots>(args_stored_))...
+        >{}(*this, index, std::get<Spots>(args_stored_))...
       );
     }
 
@@ -251,7 +252,7 @@ struct TaskCollectionImpl
       return dependencies_;
     }
 
-    template <typename, typename, typename>
+    template <typename, typename, typename, typename>
     friend struct _task_collection_impl::_get_storage_arg_helper;
 
     template <typename, typename, size_t, typename>
@@ -273,7 +274,8 @@ struct make_task_collection_impl_t {
         Functor, IndexRangeT,
         typename detail::_task_collection_impl::_get_storage_arg_helper<
           tinympl::at_t<Idxs, arg_vector_t>,
-          typename meta::callable_traits<Functor>::template param_n_traits<Idxs>,
+          // offset by 1 to incorporate the index parameter
+          typename meta::callable_traits<Functor>::template param_n_traits<Idxs+1>,
           IndexRangeT
         >::type...
       >;

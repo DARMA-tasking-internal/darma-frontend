@@ -72,6 +72,9 @@ struct MappedHandleCollection {
     using mapping_t = Mapping;
     using access_handle_collection_t = AccessHandleCollectionT;
 
+    // TODO remove meaningless default ctor once I write serdes stuff
+    MappedHandleCollection() = default;
+
     template <typename MappingDeduced>
     MappedHandleCollection(
       AccessHandleCollectionT const& collection,
@@ -111,6 +114,8 @@ class AccessHandleCollection {
     IndexRangeT const& get_index_range() const {
       return current_use_->use.index_range;
     }
+
+    AccessHandleCollection() = default;
 
   protected:
 
