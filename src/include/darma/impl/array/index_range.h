@@ -62,6 +62,10 @@ struct ContiguousIndex {
   Integer value;
   Integer min_value;
   Integer max_value;
+
+  bool operator < (ContiguousIndex const& other) const {
+    return value < other.value;
+  }
 };
 
 template <typename Integer>
@@ -94,6 +98,7 @@ class ContiguousIndexRange
     void serialize(ArchiveT& ar) {
       ar | size_ | offset_;
     }
+
 
   public:
 

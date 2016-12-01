@@ -61,6 +61,7 @@
 #include <darma/impl/publication_details.h>
 #include <darma/impl/flow_handling.h>
 #include <darma/impl/task_collection/task_collection_fwd.h>
+#include <darma/impl/keyword_arguments/parse.h>
 
 namespace darma_runtime {
 
@@ -69,6 +70,8 @@ namespace detail {
 // forward declaration
 template <typename Op>
 struct all_reduce_impl;
+
+struct unfetched_access_handle_tag { };
 
 template <typename AccessHandleT>
 struct _publish_impl;
@@ -514,19 +517,56 @@ class AccessHandle : public detail::AccessHandleBase {
       PublishExprParts&&... parts
     ) const;
 
-    template <typename _Ignored=void, typename... PublishExprParts>
-    std::enable_if_t<
-      is_compile_time_schedule_readable
-        and std::is_same<_Ignored, void>::value
-    >
-    publish_out(
-      PublishExprParts&&... parts
+    template <typename... Args>
+    auto fetch(
+      Args&&... args
     ) const {
-      return publish(
-        std::forward<PublishExprParts>(parts)...,
-        darma_runtime::keyword_arguments_for_publication::out = true
+
+      DARMA_ASSERT_MESSAGE(
+        unfetched_,
+        "Illegal operation on AccessHandle not in an unfetched state"
       );
-    };
+
+      unfetched_ = false;
+
+      using namespace darma_runtime::detail;
+      using parser = detail::kwarg_parser<
+        overload_description<
+          _optional_keyword<converted_parameter, keyword_tags_for_publication::version>
+        >
+      >;
+      using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
+
+      return parser()
+        .with_converters(
+          [](auto&&... parts) {
+            return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+          }
+        )
+        .with_default_generators(
+          keyword_arguments_for_publication::version=[]{ return make_key(); }
+        )
+        .parse_args(std::forward<Args>(args)...)
+        .invoke([this](
+          types::key_t&& version_key
+        ) -> decltype(auto) {
+
+          auto* backend_runtime = abstract::backend::get_backend_runtime();
+          auto fetched_in_flow = make_flow_ptr(
+            backend_runtime->make_indexed_fetching_flow(
+              *current_use_->use.in_flow_.get(),
+              version_key,
+              unfetched_backend_index_
+            )
+          );
+
+          current_use_->use.in_flow_ = fetched_in_flow;
+          current_use_->do_register();
+
+          return *this;
+
+        });
+    }
 
     ~AccessHandle() noexcept = default;
 
@@ -613,6 +653,17 @@ class AccessHandle : public detail::AccessHandleBase {
       #pragma clang diagnostic pop
     }
 
+    AccessHandle(
+      detail::unfetched_access_handle_tag,
+      variable_handle_ptr const& var_handle,
+      use_holder_ptr const& unreg_use_ptr,
+      std::size_t unfetched_backend_index
+    ) : var_handle_(var_handle),
+        current_use_(unreg_use_ptr),
+        unfetched_(true),
+        unfetched_backend_index_(unfetched_backend_index)
+    { }
+
     ////////////////////////////////////////
     // private members
 
@@ -620,6 +671,8 @@ class AccessHandle : public detail::AccessHandleBase {
     mutable use_holder_ptr current_use_ = nullptr;
     // TODO switch to everything has to be constructed requirement
     mutable bool value_constructed_ = std::is_default_constructible<T>::value;
+    mutable bool unfetched_ = false;
+    mutable std::size_t unfetched_backend_index_ = 0;
 
     AccessHandle const* prev_copied_from = nullptr;
 
@@ -639,6 +692,9 @@ class AccessHandle : public detail::AccessHandleBase {
     ////////////////////////////////////////
     // TaskBase is also a friend
     friend class detail::TaskBase;
+
+    template <typename, typename>
+    friend class AccessHandleCollection;
 
     template <typename Op>
     friend struct detail::all_reduce_impl;
