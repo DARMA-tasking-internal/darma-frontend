@@ -55,24 +55,7 @@ namespace darma_runtime {
 
 namespace detail {
 
-namespace _impl {
 
-template <typename IndexRangeT>
-using _has_mapping_to_dense_archetype = decltype(
-  get_mapping_to_dense(std::declval<IndexRangeT>())
-);
-
-} // end namespace _impl
-
-template <typename T>
-using has_mapping_to_dense = meta::is_detected<
-  _impl::_has_mapping_to_dense_archetype, T
->;
-
-template <typename IndexRangeT>
-using mapping_to_dense_t = meta::detected_t<
-  _impl::_has_mapping_to_dense_archetype, IndexRangeT
->;
 
 
 

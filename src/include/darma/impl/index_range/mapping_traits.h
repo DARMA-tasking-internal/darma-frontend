@@ -63,9 +63,8 @@ struct mapping_traits {
 
   private:
 
-    template <typename T>
-    friend
-    struct darma_runtime::indexing::mapping_traits;
+    template <typename>
+    friend struct darma_runtime::indexing::mapping_traits;
 
     template <typename U>
     using _index_type_archetype = typename U::index_type;
@@ -332,9 +331,209 @@ struct mapping_traits {
       )
     );
 
+    typedef enum {
+      _no_ranges,
+      _one_range,
+      _two_ranges
+    } _map_method_overload;
+
+    template <
+      typename Range1 = meta::nonesuch,
+      typename Range2 = meta::nonesuch
+    >
+    using _forward_method_overload_tag = tinympl::select_first_t<
+      tinympl::bool_<meta::is_detected_convertible<
+        from_multi_index_type, _map_forward_two_ranges_archetype, T, Range1, Range2
+      >::value>, /* => */ std::integral_constant<_map_method_overload, _two_ranges>,
+      tinympl::bool_<meta::is_detected_convertible<
+        from_multi_index_type, _map_forward_one_range_archetype, T, Range1
+      >::value>, /* => */ std::integral_constant<_map_method_overload, _one_range>,
+      tinympl::bool_<meta::is_detected_convertible<
+        from_multi_index_type, _map_forward_no_ranges_archetype, T
+      >::value>, /* => */ std::integral_constant<_map_method_overload, _no_ranges>
+    >;
+
+    template <
+      typename Range1 = meta::nonesuch,
+      typename Range2 = meta::nonesuch
+    >
+    using _backward_method_overload_tag = tinympl::select_first_t<
+      tinympl::bool_<meta::is_detected_convertible<
+        to_multi_index_type, _map_backward_two_ranges_archetype, T, Range1, Range2
+      >::value>, /* => */ std::integral_constant<_map_method_overload, _two_ranges>,
+      tinympl::bool_<meta::is_detected_convertible<
+        to_multi_index_type, _map_backward_one_range_archetype, T, Range1
+      >::value>, /* => */ std::integral_constant<_map_method_overload, _one_range>,
+      tinympl::bool_<meta::is_detected_convertible<
+        to_multi_index_type, _map_backward_no_ranges_archetype, T
+      >::value>, /* => */ std::integral_constant<_map_method_overload, _no_ranges>
+    >;
+
   public:
 
+    template <typename FromRangeT, typename ToRangeT>
+    static to_multi_index_type
+    map_forward(
+      std::enable_if_t<
+        _forward_method_overload_tag<FromRangeT, ToRangeT>::value == _two_ranges,
+        T const&
+      > mapping,
+      from_index_type const& from,
+      FromRangeT const& from_range,
+      ToRangeT const& to_range
+    ) {
+      return mapping.map_forward(from, from_range, to_range);
+    }
 
+    template <typename FromRangeT, typename ToRangeT>
+    static to_multi_index_type
+    map_forward(
+      std::enable_if_t<
+        _forward_method_overload_tag<FromRangeT, ToRangeT>::value == _one_range,
+        T const&
+      > mapping,
+      from_index_type const& from,
+      FromRangeT const& from_range,
+      ToRangeT const& to_range
+    ) {
+      return mapping.map_forward(from, from_range);
+    }
+
+    template <typename FromRangeT, typename ToRangeT>
+    static to_multi_index_type
+    map_forward(
+      std::enable_if_t<
+        _forward_method_overload_tag<FromRangeT, ToRangeT>::value == _no_ranges,
+        T const&
+      > mapping,
+      from_index_type const& from,
+      FromRangeT const& from_range,
+      ToRangeT const& to_range
+    ) {
+      return mapping.map_forward(from);
+    }
+
+    template <typename FromRangeT>
+    static to_multi_index_type
+    map_forward(
+      std::enable_if_t<
+        _forward_method_overload_tag<FromRangeT>::value == _one_range,
+        T const&
+      > mapping,
+      from_index_type const& from,
+      FromRangeT const& from_range
+    ) {
+      return mapping.map_forward(from, from_range);
+    }
+
+    template <typename FromRangeT>
+    static to_multi_index_type
+    map_forward(
+      std::enable_if_t<
+        _forward_method_overload_tag<FromRangeT>::value == _no_ranges,
+        T const&
+      > mapping,
+      from_index_type const& from,
+      FromRangeT const& from_range
+    ) {
+      return mapping.map_forward(from);
+    }
+
+    template <typename _for_SFINAE_only = void>
+    static to_multi_index_type
+    map_forward(
+      std::enable_if_t<
+        _forward_method_overload_tag<>::value == _no_ranges
+          and std::is_void<_for_SFINAE_only>::value,
+        T const&
+      > mapping,
+      from_index_type const& from
+    ) {
+      return mapping.map_forward(from);
+    }
+
+    //==========================================================================
+
+    template <typename FromRangeT, typename ToRangeT>
+    static from_multi_index_type
+    map_backward(
+      std::enable_if_t<
+        _backward_method_overload_tag<FromRangeT, ToRangeT>::value == _two_ranges,
+        T const&
+      > mapping,
+      to_index_type const& to,
+      FromRangeT const& from_range,
+      ToRangeT const& to_range
+    ) {
+      return mapping.map_backward(to, from_range, to_range);
+    }
+
+    template <typename FromRangeT, typename ToRangeT>
+    static from_multi_index_type
+    map_backward(
+      std::enable_if_t<
+        _backward_method_overload_tag<FromRangeT, ToRangeT>::value == _one_range,
+        T const&
+      > mapping,
+      to_index_type const& to,
+      FromRangeT const& from_range,
+      ToRangeT const& to_range
+    ) {
+      return mapping.map_backward(to, from_range);
+    }
+
+    template <typename FromRangeT, typename ToRangeT>
+    static from_multi_index_type
+    map_backward(
+      std::enable_if_t<
+        _backward_method_overload_tag<FromRangeT, ToRangeT>::value == _no_ranges,
+        T const&
+      > mapping,
+      to_index_type const& to,
+      FromRangeT const& from_range,
+      ToRangeT const& to_range
+    ) {
+      return mapping.map_backward(to);
+    }
+
+    template <typename FromRangeT>
+    static from_multi_index_type
+    map_backward(
+      std::enable_if_t<
+        _backward_method_overload_tag<FromRangeT>::value == _one_range,
+        T const&
+      > mapping,
+      to_index_type const& to,
+      FromRangeT const& from_range
+    ) {
+      return mapping.map_backward(to, from_range);
+    }
+
+    template <typename FromRangeT>
+    static from_multi_index_type
+    map_backward(
+      std::enable_if_t<
+        _backward_method_overload_tag<FromRangeT>::value == _no_ranges,
+        T const&
+      > mapping,
+      to_index_type const& to,
+      FromRangeT const& from_range
+    ) {
+      return mapping.map_backward(to);
+    }
+
+    template <typename _for_SFINAE_only = void>
+    static from_multi_index_type
+    map_backward(
+      std::enable_if_t<
+        _backward_method_overload_tag<>::value == _no_ranges
+          and std::is_void<_for_SFINAE_only>::value,
+        T const&
+      > mapping,
+      to_index_type const& to
+    ) {
+      return mapping.map_backward(to);
+    }
 
   // </editor-fold> end Generic map_forward and map_backward }}}1
   //==============================================================================

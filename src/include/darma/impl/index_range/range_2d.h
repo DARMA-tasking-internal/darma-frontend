@@ -142,19 +142,7 @@ struct Range2D
 template <typename Integer, typename DenseIndex>
 struct Range2DDenseMapping {
 
-  private:
-
-    Range2D<Integer> full_range;
-
   public:
-
-
-    Range2DDenseMapping(
-      Range2D<Integer> const& range
-    ) : full_range(range)
-    { }
-
-    friend class Range2D<Integer>;
 
     Range2DDenseMapping() = default;
 
@@ -162,14 +150,14 @@ struct Range2DDenseMapping {
     using from_index_type = Index2D<Integer>;
     using to_index_type = DenseIndex;
 
-    to_index_type map_forward(from_index_type const& from) const {
+    to_index_type map_forward(from_index_type const& from, Range2D<Integer> const& full_range) const {
       return (from.x() - full_range.begin_of_dimension(0))
         * (full_range.end_of_dimension(1) - full_range.begin_of_dimension(1))
           + (from.y() - full_range.begin_of_dimension(1));
 
     }
 
-    from_index_type map_reverse(to_index_type const& to_idx) const {
+    from_index_type map_reverse(to_index_type const& to_idx, Range2D<Integer> const& full_range) const {
       const Integer y_size = full_range.end_of_dimension(1) - full_range.begin_of_dimension(1);
       assert(full_range.size() != 0);
       return Index2D<Integer>(
@@ -178,10 +166,6 @@ struct Range2DDenseMapping {
       );
     }
 
-    template <typename ArchiveT>
-    void serialize(ArchiveT& ar) {
-      ar | full_range;
-    }
 };
 
 
@@ -189,12 +173,8 @@ template <typename Integer>
 Range2DDenseMapping<Integer> get_mapping_to_dense(
   Range2D<Integer> const& range
 ) {
-  return Range2DDenseMapping<Integer>(range);
+  return Range2DDenseMapping<Integer>();
 }
-
-
-
-
 
 } // end namespace darma_runtime
 

@@ -187,6 +187,45 @@ struct _get_call_arg_helper<StoredArg, ParamTraits,
   }
 };
 
+// AccessHandleCollection arg, Param is AccessHandleCollection (by value)
+template <typename StoredArg, typename ParamTraits>
+struct _get_call_arg_helper<StoredArg, ParamTraits,
+  std::enable_if_t<
+    // StoredArg is an AccessHandleCollection
+    is_access_handle_collection<StoredArg>::value
+    // Param is AccessHandleCollection
+    and ParamTraits::template matches<decayed_is_access_handle_collection>::value
+    and ParamTraits::is_by_value
+  > // end enable_if_t
+>
+{
+  decltype(auto)
+  operator()(StoredArg&& arg) const {
+    return std::move(arg);
+  }
+};
+
+// AccessHandleCollection arg, Param is AccessHandleCollection (by reference; can't move)
+template <typename StoredArg, typename ParamTraits>
+struct _get_call_arg_helper<StoredArg, ParamTraits,
+  std::enable_if_t<
+    // StoredArg is an AccessHandleCollection
+    is_access_handle_collection<StoredArg>::value
+      // Param is AccessHandleCollection
+      and ParamTraits::template matches<decayed_is_access_handle_collection>::value
+      and (
+        ParamTraits::is_nonconst_lvalue_reference
+          or ParamTraits::is_const_lvalue_reference
+      )
+  > // end enable_if_t
+>
+{
+  decltype(auto)
+  operator()(StoredArg&& arg) const {
+    return arg;
+  }
+};
+
 // </editor-fold> end _get_call_arg_helper
 //==============================================================================
 

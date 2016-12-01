@@ -52,6 +52,8 @@
 #include <darma/impl/handle.h>
 #include <darma/impl/flow_handling.h>
 #include <darma/impl/index_range/mapping.h>
+#include <src/include/darma/impl/index_range/mapping_traits.h>
+#include <src/include/darma/impl/index_range/index_range_traits.h>
 
 namespace darma_runtime {
 
@@ -157,14 +159,161 @@ class HandleUse
     }
 };
 
-template <typename IndexRangeT>
+template <typename FrontendHandleIndex>
+struct MappingManagerBase {
+
+  template <typename T>
+  using index_iterable = abstract::frontend::UseCollection::index_iterable<T>;
+
+  virtual index_iterable<FrontendHandleIndex>
+  local_indices_for(std::size_t backend_task_collection_index) const =0;
+
+  virtual bool
+  has_same_mapping_as(MappingManagerBase const* other) const =0;
+
+};
+
+template <typename MappingToTaskCollection, typename FrontendHandleIndex>
+struct MappingManager : MappingManagerBase<FrontendHandleIndex> {
+
+  template <typename T>
+  using index_iterable = abstract::frontend::UseCollection::index_iterable<T>;
+
+  // This should be the full mapping from frontend handle collection index to backend task collection index
+  MappingToTaskCollection mapping_to_tc_backend_idx;
+
+  // We can assert this: (at least in part)
+  static_assert(
+    std::is_same<
+      typename indexing::mapping_traits<MappingToTaskCollection>::to_index_type,
+      std::size_t // i.e., backend index
+    >::value,
+    "Backend index incorrectly declared"
+  );
+
+  template <typename MappingDeduced,
+    typename=std::enable_if_t<std::is_convertible<MappingDeduced&&, MappingToTaskCollection>::value>
+  >
+  explicit MappingManager(
+    MappingDeduced&& mapping
+  ) : mapping_to_tc_backend_idx(std::forward<MappingDeduced>(mapping))
+  { }
+
+  index_iterable<FrontendHandleIndex>
+  local_indices_for(std::size_t backend_task_collection_index) const override {
+    return index_iterable<std::size_t>{
+      mapping_to_tc_backend_idx.map_backward(backend_task_collection_index)
+    };
+  }
+
+  bool
+  has_same_mapping_as(
+    MappingManagerBase<FrontendHandleIndex> const* other
+  ) const override {
+    // TODO figure out how to do this in a more general way?!?
+    auto const* other_cast = dynamic_cast<MappingManager const*>(other);
+    if(other_cast) {
+      return indexing::mapping_traits<MappingToTaskCollection>
+      ::known_same_mapping(mapping_to_tc_backend_idx, other_cast->mapping_to_tc_backend_idx);
+    }
+    // TODO Maybe some fallback with polymorphic mappings?
+    else {
+      return false;
+    }
+  }
+
+};
+
+template <typename FrontendHandleIndex>
 class CollectionManagingUseBase
-  : public HandleUseBase,
-    public abstract::frontend::UseCollection
+  : public abstract::frontend::UseCollection,
+    public HandleUseBase
+{
+  public:
+    // This structure is probably very inefficient, but just to get something working...
+    std::unique_ptr<MappingManagerBase<FrontendHandleIndex>> mapping_manager = nullptr;
+
+    using HandleUseBase::HandleUseBase;
+
+    template <typename MappingToTaskCollectionDeduced>
+    CollectionManagingUseBase(
+      std::shared_ptr<VariableHandleBase> handle,
+      flow_ptr const& in_flow,
+      flow_ptr const& out_flow,
+      abstract::frontend::Use::permissions_t scheduling_permissions,
+      abstract::frontend::Use::permissions_t immediate_permissions,
+      MappingToTaskCollectionDeduced&& mapping
+    ) : HandleUseBase(handle, in_flow, out_flow, scheduling_permissions, immediate_permissions),
+        mapping_manager(
+          std::make_unique<
+            MappingManager<std::decay_t<MappingToTaskCollectionDeduced>, FrontendHandleIndex>
+          >(std::forward<MappingToTaskCollectionDeduced>(mapping))
+        )
+    { }
+};
+
+
+
+template <typename IndexRangeT>
+class CollectionManagingUse
+  : public CollectionManagingUseBase<typename indexing::index_range_traits<IndexRangeT>::index_type>
 {
   public:
 
+    using rng_traits = indexing::index_range_traits<IndexRangeT>;
+    using mapping_to_dense_traits = indexing::mapping_traits<
+      typename rng_traits::mapping_to_dense_type
+    >;
+
+    using base_t = CollectionManagingUseBase<
+      typename indexing::index_range_traits<IndexRangeT>::index_type
+    >;
+
+    template <typename T>
+    using index_iterable = abstract::frontend::UseCollection::index_iterable<T>;
+
+    template <typename IndexRangeDeduced,
+      typename=std::enable_if_t<
+        std::is_convertible<IndexRangeDeduced&&, IndexRangeT>::value
+      >
+    >
+    CollectionManagingUse(
+      std::shared_ptr<VariableHandleBase> handle,
+      flow_ptr const& in_flow,
+      flow_ptr const& out_flow,
+      abstract::frontend::Use::permissions_t scheduling_permissions,
+      abstract::frontend::Use::permissions_t immediate_permissions,
+      IndexRangeDeduced&& range
+    ) : base_t(handle, in_flow, out_flow, scheduling_permissions, immediate_permissions),
+        index_range(std::forward<IndexRangeT>(range)),
+        mapping_to_dense(rng_traits::mapping_to_dense(index_range))
+    { }
+
+    template <typename IndexRangeDeduced, typename MappingToTaskCollectionDeduced,
+      typename=std::enable_if_t<
+        std::is_convertible<IndexRangeDeduced&&, IndexRangeT>::value
+      >
+    >
+    CollectionManagingUse(
+      std::shared_ptr<VariableHandleBase> handle,
+      flow_ptr const& in_flow,
+      flow_ptr const& out_flow,
+      abstract::frontend::Use::permissions_t scheduling_permissions,
+      abstract::frontend::Use::permissions_t immediate_permissions,
+      IndexRangeDeduced&& range, MappingToTaskCollectionDeduced&& mapping
+    ) : base_t(
+          handle, in_flow, out_flow, scheduling_permissions, immediate_permissions,
+          std::forward<MappingToTaskCollectionDeduced>(mapping)
+        ),
+        index_range(std::forward<IndexRangeT>(range)),
+        mapping_to_dense(rng_traits::mapping_to_dense(index_range))
+    { }
+
+    // Don't change this member order
     IndexRangeT index_range;
+    typename rng_traits::mapping_to_dense_type mapping_to_dense;
+
+    std::size_t size() const override { return index_range.size(); }
 
     bool manages_collection() const override {
       return true;
@@ -175,61 +324,36 @@ class CollectionManagingUseBase
       return this;
     }
 
-};
-
-template <typename IndexRangeT, typename MappingToTaskCollection=NullMapping>
-class CollectionManagingUse
-  : public CollectionManagingUseBase<IndexRangeT>
-{
-  private:
-
-    template <typename T>
-    using index_iterable = abstract::frontend::UseCollection::index_iterable<T>;
-
-  public:
-
-    MappingToTaskCollection mapping;
-
-    CollectionManagingUse(
-      std::shared_ptr<VariableHandleBase> handle,
-      flow_ptr const& in_flow,
-      flow_ptr const& out_flow,
-      abstract::frontend::Use::permissions_t scheduling_permissions,
-      IndexRangeT&& range
-    ) : HandleUseBase(handle, in_flow, out_flow, scheduling_permissions, HandleUse::None),
-        index_range(std::forward<IndexRangeT>(range))
-    { }
-
-    CollectionManagingUse(
-      std::shared_ptr<VariableHandleBase> handle,
-      flow_ptr const& in_flow,
-      flow_ptr const& out_flow,
-      abstract::frontend::Use::permissions_t scheduling_permissions,
-      IndexRangeT&& range, MappingToTaskCollection&& mapping
-    ) : HandleUseBase(handle, in_flow, out_flow, scheduling_permissions, HandleUse::None),
-        index_range(std::forward<IndexRangeT>(range)),
-        mapping(std::forward<MappingToTaskCollection>(mapping))
-    { }
-
-
-
-    std::size_t size() const override { return index_range.size(); }
-
     index_iterable<std::size_t>
     local_indices_for(std::size_t backend_task_collection_index) const override {
-      // Only one-to-one for now
-      // TODO more than just one-to-one mapping
-      return index_iterable<std::size_t>{
-        mapping.map_backward(backend_task_collection_index)
-      };
+      // Still need to convert these to backend handle collection indices
+      // Again, really inefficient...
+      auto fe_idxs = base_t::mapping_manager->local_indices_for(backend_task_collection_index);
+      index_iterable<std::size_t> rv;
+      for(auto&& fe_idx : fe_idxs) {
+        rv.insert(
+          mapping_to_dense_traits::map_forward(
+            mapping_to_dense, std::forward<decltype(fe_idx)>(fe_idx),
+            index_range
+          )
+        );
+      }
+      return rv;
     }
 
     bool
     has_same_mapping_as(
       abstract::frontend::UseCollection const* other
     ) const override {
-      // TODO implement this
-      return false;
+      auto const* other_cast = dynamic_cast<base_t const*>(other);
+      if(other_cast) {
+        return base_t::mapping_manager->has_same_mapping_as(
+          other_cast->mapping_manager.get()
+        );
+      }
+      else {
+        return false;
+      }
     }
 
 };
@@ -285,8 +409,6 @@ struct GenericUseHolder {
 };
 
 using UseHolder = GenericUseHolder<HandleUse>;
-template <typename... Args>
-using UseCollectionManagingHolder = GenericUseHolder<CollectionManagingUse<Args...>>;
 
 } // end namespace detail
 

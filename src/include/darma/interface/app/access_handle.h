@@ -633,7 +633,7 @@ class AccessHandle : public detail::AccessHandleBase {
     template <typename, typename, size_t, typename>
     friend struct detail::_task_collection_impl::_get_task_stored_arg_helper;
 
-    template <typename, typename, typename>
+    template <typename, typename, typename, typename>
     friend struct detail::_task_collection_impl::_get_storage_arg_helper;
 
     ////////////////////////////////////////

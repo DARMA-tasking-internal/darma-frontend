@@ -56,7 +56,6 @@ namespace detail {
 // returns the captured UseHolder in a properly registered state
 // and with all of the proper flags set
 template <
-  typename OutputHolderT,
   typename UseHolderT,
   typename UseMaker,
   typename NextFlowMaker,
@@ -68,7 +67,7 @@ auto make_captured_use_holder(
   HandleUse::permissions_t requested_immediate_permissions,
   std::shared_ptr<UseHolderT>& source_and_continuing_holder,
   UseMaker&& use_holder_maker, NextFlowMaker&& next_flow_maker,
-  ContinuingUseMaker&& continuing_use_maker
+  ContinuingUseMaker&& continuing_use_holder_maker
 ) {
 
   // source scheduling permissions shouldn't be None at this point
@@ -79,7 +78,7 @@ auto make_captured_use_holder(
 
   auto* backend_runtime = abstract::backend::get_backend_runtime();
 
-  std::shared_ptr<OutputHolderT> captured_use_holder;
+  std::shared_ptr<UseHolderT> captured_use_holder;
 
   switch(requested_immediate_permissions) {
     //==========================================================================
@@ -169,7 +168,7 @@ auto make_captured_use_holder(
 
                 // Make a new use for the continuing context (since, for some reason
                 // or another, we needed one in the source context)
-                source_and_continuing_holder = continuing_use_maker(
+                source_and_continuing_holder = continuing_use_holder_maker(
                   var_handle,
                   captured_out_flow,
                   source_use_holder->use.out_flow_,
@@ -319,7 +318,7 @@ auto make_captured_use_holder(
           auto source_use_holder = source_and_continuing_holder;
 
           // now make the use for the continuing context
-          source_and_continuing_holder = continuing_use_maker(
+          source_and_continuing_holder = continuing_use_holder_maker(
             var_handle,
             forwarded_flow,
             // It still carries the out flow of the task, though, and should
@@ -407,7 +406,7 @@ auto make_captured_use_holder(
 
             // Make a new use for the continuing context (since, for some reason
             // or another, we needed one in the source context)
-            source_and_continuing_holder = continuing_use_maker(
+            source_and_continuing_holder = continuing_use_holder_maker(
               var_handle,
               captured_out_flow,
               source_use_holder->use.out_flow_,
@@ -526,7 +525,7 @@ make_captured_use_holder(
   HandleUse::permissions_t requested_immediate_permissions,
   std::shared_ptr<UseHolder>& source_and_continuing_holder
 ) {
-  return make_captured_use_holder<UseHolder>(
+  return make_captured_use_holder(
     var_handle, requested_scheduling_permissions, requested_immediate_permissions,
     source_and_continuing_holder,
     [](auto&&... args) {
