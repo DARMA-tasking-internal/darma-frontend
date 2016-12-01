@@ -99,6 +99,7 @@ class Runtime {
     using memory_details_t = abstract::frontend::MemoryRequirementDetails;
     using task_collection_t = abstract::frontend::TaskCollection;
     using task_collection_unique_ptr = std::unique_ptr<task_collection_t>;
+    using task_collection_task_unique_ptr = std::unique_ptr<types::task_collection_task_t>;
 
     //==========================================================================
 
@@ -297,7 +298,6 @@ class Runtime {
     make_fetching_flow(
       std::shared_ptr<frontend::Handle> const& handle,
       types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& data_store = nullptr,
       bool acquired = false
     ) =0;
 
@@ -379,6 +379,7 @@ class Runtime {
     virtual types::flow_t
     make_indexed_fetching_flow(
       types::flow_t& from,
+      types::key_t const& version_key,
       size_t backend_index
     ) =0;
 
