@@ -108,6 +108,7 @@ TEST_F(TestCreateConcurrentWork, simple) {
       ) const {
         ASSERT_THAT(index.value, Lt(4));
         ASSERT_THAT(index.value, Ge(0));
+        coll[index].set_value(42);
       }
     };
 
