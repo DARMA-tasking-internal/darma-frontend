@@ -63,10 +63,13 @@ namespace threads_backend {
 
   typedef ThreadsInterface<ThreadsRuntime> Runtime;
 
+  extern std::vector<ThreadsRuntime*> shared_ranks;
+
   struct GraphNode
     : std::enable_shared_from_this<GraphNode> {
     Runtime* runtime;
     size_t join_counter;
+    int for_rank = -1;
 
     GraphNode(size_t join_counter_,
               Runtime* runtime_)
@@ -90,7 +93,11 @@ namespace threads_backend {
       );
 
       if (--join_counter == 0) {
-        runtime->add_local(this->shared_from_this());
+        if (for_rank == -1) {
+          runtime->add_local(this->shared_from_this());
+        } else {
+          threads_backend::shared_ranks[for_rank]->add_remote(this->shared_from_this());
+        }
       }
     }
 
@@ -135,7 +142,8 @@ namespace threads_backend {
 
       TraceLog* pub_log = runtime->fetch(
         fetch->handle.get(),
-        fetch->version_key
+        fetch->version_key,
+        fetch->cid
       );
 
       if (runtime->getTrace()) {
@@ -164,7 +172,8 @@ namespace threads_backend {
     bool ready() override {
       return runtime->test_fetch(
         fetch->handle.get(),
-        fetch->version_key
+        fetch->version_key,
+        fetch->cid
       );
     }
 
