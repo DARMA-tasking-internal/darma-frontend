@@ -354,6 +354,10 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     operator->() const {
       DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "handle dereferenced in context without immediate permissions"
       );
@@ -382,6 +386,10 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     operator*() const {
       DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "handle dereferenced in context without immediate permissions"
       );
@@ -409,6 +417,10 @@ class AccessHandle : public detail::AccessHandleBase {
     void
     release() const {
       DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
+      DARMA_ASSERT_MESSAGE(
         _can_be_released(),
         "release() called on handle not in releasable state (most likely, uninitialized or already released)"
       );
@@ -424,6 +436,10 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     void
     set_value(U&& val) const {
+      DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "set_value() called on handle in context without immediate permissions"
@@ -446,6 +462,10 @@ class AccessHandle : public detail::AccessHandleBase {
         and std::is_same<_Ignored, void>::value
     >
     emplace_value(Args&&... args) const {
+      DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "emplace_value() called on handle in context without immediate permissions"
@@ -474,6 +494,10 @@ class AccessHandle : public detail::AccessHandleBase {
     const T&
     get_value() const {
       DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "get_value() called on handle in context without immediate permissions"
       );
@@ -497,6 +521,10 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     T&
     get_reference() const {
+      DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "get_reference() called on handle in context without immediate permissions"
