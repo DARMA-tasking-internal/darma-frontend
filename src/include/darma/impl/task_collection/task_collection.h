@@ -100,13 +100,21 @@ struct TaskCollectionTaskImpl
     );
   }
 
-  template <typename... StoredArgsDeduced>
+  template <typename TaskCollectionT, typename CollectionStoredArgs, size_t... Spots>
   TaskCollectionTaskImpl(
     std::size_t backend_index, Mapping const& mapping,
-    StoredArgsDeduced&&... args
+    TaskCollectionT& parent,
+    std::index_sequence<Spots...>,
+    CollectionStoredArgs& args_stored
   ) : backend_index_(backend_index),
       mapping_(mapping),
-      args_(std::forward<StoredArgsDeduced>(args)...)
+      args_(
+        _task_collection_impl::_get_task_stored_arg_helper<
+          Functor,
+          std::remove_reference_t<decltype(std::get<Spots>(args_stored))>,
+          Spots
+        >{}(parent, backend_index, std::get<Spots>(args_stored), *this)...
+      )
   { }
 
   void run() override {
@@ -175,7 +183,7 @@ struct TaskCollectionImpl
     template <size_t... Spots>
     auto _make_task_impl(
       std::size_t index,
-      std::index_sequence<Spots...>
+      std::index_sequence<Spots...> seq
     ) {
       return std::make_unique<
         TaskCollectionTaskImpl<
@@ -186,11 +194,7 @@ struct TaskCollectionImpl
         >
       >(
         index, index_range_traits::mapping_to_dense(collection_range_),
-        _task_collection_impl::_get_task_stored_arg_helper<
-          Functor,
-          Args,
-          Spots
-        >{}(*this, index, std::get<Spots>(args_stored_))...
+        *this, seq, args_stored_
       );
     }
 

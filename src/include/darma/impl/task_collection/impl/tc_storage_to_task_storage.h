@@ -72,9 +72,11 @@ template <
 struct _get_task_stored_arg_helper {
   // TODO decide if this should be allowed to be a reference to the parent (probably not...)
   using type = std::decay_t<CollectionArg>;
-  template <typename TaskCollectionInstanceT>
+  template <typename TaskCollectionInstanceT, typename TaskInstance>
   type
-  operator()(TaskCollectionInstanceT& collection, size_t backend_index, CollectionArg const& arg) const {
+  operator()(TaskCollectionInstanceT& collection, size_t backend_index, CollectionArg const& arg,
+    TaskInstance& task
+  ) const {
     return arg;
   }
 };
@@ -93,9 +95,11 @@ struct _get_task_stored_arg_helper<
 > {
   using type = CollectionArg;
 
-  template <typename TaskCollectionInstanceT>
+  template <typename TaskCollectionInstanceT, typename TaskInstance>
   type
-  operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg) const {
+  operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg,
+    TaskInstance& task
+  ) const {
     // We still need to create a new use for the task itself...
     auto new_use_holder = std::make_shared<UseHolder>(
       HandleUse(
@@ -130,14 +134,16 @@ struct _get_task_stored_arg_helper<
   using type = typename CollectionArg::access_handle_collection_t;
   using return_type = type; // readability
 
-  template <typename TaskCollectionInstanceT>
+  template <typename TaskCollectionInstanceT, typename TaskInstance>
   return_type
-  operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg) const {
+  operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg,
+    TaskInstance& task
+  ) const {
     // make a copy of the handle collection for the task instance
     auto rv = arg.collection;
     rv.mapped_backend_index_ = backend_index;
 
-    rv._setup_local_uses();
+    rv._setup_local_uses(task);
     return rv;
   }
 

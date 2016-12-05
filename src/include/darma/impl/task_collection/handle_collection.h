@@ -211,7 +211,7 @@ class AccessHandleCollection {
     //==========================================================================
     // private methods:
 
-    void _setup_local_uses() const {
+    void _setup_local_uses(detail::TaskBase& task) const {
       auto& current_use_use = current_use_->use;
       auto local_idxs = current_use_use.local_indices_for(mapped_backend_index_);
       auto const& idx_range = get_index_range();
@@ -250,6 +250,7 @@ class AccessHandleCollection {
           )
         );
         idx_use_holder->do_register();
+        task.add_dependency(idx_use_holder->use);
 
         local_use_holders_.insert(std::make_pair(fe_idx, idx_use_holder));
 
