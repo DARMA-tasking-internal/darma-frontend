@@ -450,7 +450,7 @@ struct _get_storage_arg_helper<
   return_type
   operator()(TaskCollectionT& collection, GivenArg&& arg) const {
     return _identity_mapped_helper_t{}(
-      collection, arg.mapped_with(_identity_mapping_t{})
+      collection, std::forward<GivenArg>(arg).mapped_with(_identity_mapping_t{})
     );
   }
 };

@@ -86,7 +86,7 @@ struct TaskCollectionTaskImpl
   args_tuple_t args_;
 
   template <size_t... Spots>
-  decltype(auto)
+  auto
   _get_call_args_impl(
     std::index_sequence<Spots...>
   ) {
@@ -125,6 +125,8 @@ struct TaskCollectionTaskImpl
   bool is_migratable() const override {
     return false;
   }
+
+  virtual ~TaskCollectionTaskImpl() override { }
 
 };
 
@@ -215,6 +217,8 @@ struct TaskCollectionImpl
     // Ctors
 
     TaskCollectionImpl() = default;
+
+    ~TaskCollectionImpl() { }
 
     template <typename IndexRangeDeduced, typename... ArgsForwarded>
     TaskCollectionImpl(

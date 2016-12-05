@@ -133,9 +133,12 @@ struct _get_task_stored_arg_helper<
   template <typename TaskCollectionInstanceT>
   return_type
   operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg) const {
-    arg.collection.mapped_backend_index_ = backend_index;
-    arg.collection._setup_local_uses();
-    return arg.collection;
+    // make a copy of the handle collection for the task instance
+    auto rv = arg.collection;
+    rv.mapped_backend_index_ = backend_index;
+
+    rv._setup_local_uses();
+    return rv;
   }
 
 //  template <typename TaskInstanceT>

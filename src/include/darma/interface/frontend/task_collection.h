@@ -91,6 +91,8 @@ class TaskCollection
     virtual bool
     all_mappings_same_as(TaskCollection const* other) const =0;
 
+    virtual ~TaskCollection() = default;
+
 };
 
 } // end namespace frontend
