@@ -137,13 +137,14 @@ class AccessHandleCollection {
 
         auto* backend_runtime = abstract::backend::get_backend_runtime();
         // stash the in flow that you should get the fetched flow from in the in flow
-        auto fetched_in_flow = current_use_->use.in_flow_;
+        auto unfetched_in_flow = current_use_->use.in_flow_;
 
-        auto fetched_out_flow = detail::make_flow_ptr(
-          backend_runtime->make_null_flow(
-            var_handle_
-          )
-        );
+        // Shouldn't do this...
+        //auto fetched_out_flow = detail::make_flow_ptr(
+        //  backend_runtime->make_null_flow(
+        //    var_handle_
+        //  )
+        //);
 
         auto const& idx_range = get_index_range();
         auto map_dense = _range_traits::mapping_to_dense(idx_range);
@@ -152,7 +153,7 @@ class AccessHandleCollection {
 
         auto idx_use_holder = std::make_shared<detail::UseHolder>(
           detail::HandleUse(
-            var_handle_, fetched_in_flow, fetched_out_flow,
+            var_handle_, unfetched_in_flow, unfetched_in_flow,
             detail::HandleUse::Read, detail::HandleUse::None
           )
         );
