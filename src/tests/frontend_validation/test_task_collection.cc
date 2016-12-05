@@ -96,6 +96,7 @@ TEST_F(TestCreateConcurrentWork, simple) {
 
   MockFlow finit, fnull, fout_coll, f_in_idx[4], f_out_idx[4];
   use_t* use_idx[4];
+  use_t* use_coll = nullptr;
   int values[4];
 
   EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
@@ -111,7 +112,9 @@ TEST_F(TestCreateConcurrentWork, simple) {
           and use->get_managed_collection()->size() == 4
       );
     })
-  )));
+  ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
+
+  EXPECT_FLOW_ALIAS(fout_coll, fnull);
 
   //============================================================================
   // actual code being tested
@@ -156,6 +159,14 @@ TEST_F(TestCreateConcurrentWork, simple) {
     auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
     created_task->run();
     EXPECT_THAT(values[i], Eq(42));
+
+    EXPECT_RELEASE_USE(use_idx[i]);
+
   }
+
+  EXPECT_RELEASE_USE(use_coll);
+
+
+  mock_runtime->task_collections.front().reset(nullptr);
 
 }

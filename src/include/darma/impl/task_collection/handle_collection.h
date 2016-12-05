@@ -170,6 +170,9 @@ class AccessHandleCollection {
       }
     }
 
+    //==========================================================================
+
+    ~AccessHandleCollection() { }
 
   private:
 
