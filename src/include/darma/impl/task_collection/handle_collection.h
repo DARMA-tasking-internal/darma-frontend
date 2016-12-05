@@ -209,7 +209,8 @@ class AccessHandleCollection {
     // private methods:
 
     void _setup_local_uses() const {
-      auto local_idxs = current_use_->use.local_indices_for(mapped_backend_index_);
+      auto& current_use_use = current_use_->use;
+      auto local_idxs = current_use_use.local_indices_for(mapped_backend_index_);
       auto const& idx_range = get_index_range();
       auto map_dense = _range_traits::mapping_to_dense(idx_range);
       auto* backend_runtime = abstract::backend::get_backend_runtime();

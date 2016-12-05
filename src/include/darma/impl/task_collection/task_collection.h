@@ -158,7 +158,7 @@ struct TaskCollectionImpl
       ArgsForwardedTuple&& args_fwd,
       std::index_sequence<Spots...>
     ) {
-      return std::forward_as_tuple(
+      return std::make_tuple(
         _task_collection_impl::_get_storage_arg_helper<
           decltype(std::get<Spots>(std::forward<ArgsForwardedTuple>(args_fwd))),
           // offset by 1 to incorporate the index parameter
