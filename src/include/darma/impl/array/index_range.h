@@ -66,7 +66,40 @@ struct ContiguousIndex {
   bool operator < (ContiguousIndex const& other) const {
     return value < other.value;
   }
+  template <typename IntegerConvertible>
+  ContiguousIndex operator- (IntegerConvertible&& other) const {
+    return { value - std::forward<IntegerConvertible>(other), min_value, max_value };
+  }
+
+  template <typename IntegerConvertible>
+  ContiguousIndex operator+ (IntegerConvertible&& other) const {
+    return { value + std::forward<IntegerConvertible>(other), min_value, max_value };
+  }
+
+  operator Integer() { return value; }
 };
+
+template <typename IntegerConvertible, typename Integer>
+std::enable_if_t<
+  not std::is_same<std::decay_t<IntegerConvertible>, ContiguousIndex<Integer>>::value,
+  ContiguousIndex<Integer>
+>
+operator- (IntegerConvertible&& other, ContiguousIndex<Integer> const& idx) {
+  return { std::forward<IntegerConvertible>(other) - idx.value,
+    idx.min_value, idx.max_value
+  };
+}
+
+template <typename IntegerConvertible, typename Integer>
+std::enable_if_t<
+  not std::is_same<std::decay_t<IntegerConvertible>, ContiguousIndex<Integer>>::value,
+  ContiguousIndex<Integer>
+>
+operator+ (IntegerConvertible&& other, ContiguousIndex<Integer> const& idx) {
+  return { std::forward<IntegerConvertible>(other) + idx.value,
+    idx.min_value, idx.max_value
+  };
+}
 
 template <typename Integer>
 class ContiguousIndexRange

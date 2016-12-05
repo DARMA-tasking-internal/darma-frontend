@@ -170,3 +170,122 @@ TEST_F(TestCreateConcurrentWork, simple) {
   mock_runtime->task_collections.front().reset(nullptr);
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+TEST_F(TestCreateConcurrentWork, fetch) {
+
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow finit("finit"), fnull, fout_coll, f_in_idx[4], f_out_idx[4], f_pub[4], f_fetch[4];
+  use_t* use_idx[4], *use_pub[4], *use_pub_contin[4], *use_fetch[4];
+  use_t* use_coll = nullptr;
+  int values[4];
+
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
+    .WillOnce(Return(fout_coll));
+
+  EXPECT_CALL(*mock_runtime, register_use(AllOf(
+    IsUseWithFlows(finit, fout_coll, use_t::Modify, use_t::Modify),
+    Truly([](auto* use){
+      return (
+        use->manages_collection()
+          and use->get_managed_collection()->size() == 4
+      );
+    })
+  ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
+
+  EXPECT_FLOW_ALIAS(fout_coll, fnull);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
+
+
+    struct Foo {
+      void operator()(Index1D<int> index,
+        AccessHandleCollection<int, Range1D<int>> coll
+      ) const {
+        ASSERT_THAT(index.value, Lt(4));
+        ASSERT_THAT(index.value, Ge(0));
+        if(index.value > 0) {
+          coll[index].publish(version = "hello_world");
+        }
+        if(index.value < 3) {
+          auto neighbor = coll[index+1].fetch(version = "hello_world");
+        }
+      }
+    };
+
+    create_concurrent_work<Foo>(tmp_c,
+      index_range=Range1D<int>(4)
+    );
+
+  }
+  //============================================================================
+
+  for(int i = 0; i < 4; ++i) {
+    values[i] = 0;
+
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(finit, i))
+      .WillOnce(Return(f_in_idx[i]));
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
+      .WillOnce(Return(f_out_idx[i]));
+    EXPECT_CALL(*mock_runtime, register_use(
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+    )).WillOnce(Invoke([&](auto* use){
+      use_idx[i] = use;
+      use->get_data_pointer_reference() = &values[i];
+    }));
+
+    // Publish...
+    if(i > 0) {
+      EXPECT_CALL(*mock_runtime, make_forwarding_flow(f_in_idx[i]))
+        .WillOnce(Return(f_pub[i]));
+      EXPECT_REGISTER_USE(use_pub[i], f_pub[i], f_pub[i], None, Read);
+      EXPECT_RELEASE_USE(use_idx[i]);
+      EXPECT_CALL(*mock_runtime, publish_use(Eq(ByRef(use_pub[i])), _));
+      EXPECT_REGISTER_USE(use_pub_contin[i], f_pub[i], f_out_idx[i], Modify, Read);
+      // may be removed...
+      EXPECT_RELEASE_USE(use_pub[i]);
+      EXPECT_RELEASE_USE(use_pub_contin[i]);
+      EXPECT_FLOW_ALIAS(f_pub[i], f_out_idx[i]);
+    }
+    else {
+      EXPECT_RELEASE_USE(use_idx[i]);
+    }
+
+    // Fetch...
+    if(i < 3) {
+      EXPECT_CALL(*mock_runtime, make_indexed_fetching_flow(
+        finit, Eq(make_key("hello_world")), i+1)
+      ).WillOnce(Return(f_fetch[i+1]));
+      EXPECT_REGISTER_USE(use_fetch[i+1], f_fetch[i+1], f_fetch[i+1], Read, None);
+
+      EXPECT_RELEASE_USE(use_fetch[i+1]);
+    }
+
+
+    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+    created_task->run();
+
+  }
+
+  EXPECT_RELEASE_USE(use_coll);
+
+
+  mock_runtime->task_collections.front().reset(nullptr);
+
+}

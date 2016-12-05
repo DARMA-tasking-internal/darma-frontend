@@ -518,7 +518,7 @@ class AccessHandle : public detail::AccessHandleBase {
     ) const;
 
     template <typename... Args>
-    auto fetch(
+    auto const& fetch(
       Args&&... args
     ) const {
 
