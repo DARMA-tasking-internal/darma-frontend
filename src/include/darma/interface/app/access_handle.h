@@ -212,6 +212,10 @@ class AccessHandle : public detail::AccessHandleBase {
 
       // Now check if we're in a capturing context:
       if (capturing_task != nullptr) {
+        DARMA_ASSERT_MESSAGE(
+          not copied_from.unfetched_,
+          "Illegal capture of unfetched non-local AccessHandle"
+        );
         AccessHandle const* source = &copied_from;
         if(capturing_task->is_double_copy_capture) {
           assert(copied_from.prev_copied_from != nullptr);
@@ -258,6 +262,10 @@ class AccessHandle : public detail::AccessHandleBase {
 
       // Now check if we're in a capturing context:
       if (capturing_task != nullptr) {
+        DARMA_ASSERT_MESSAGE(
+          not copied_from.unfetched_,
+          "Illegal capture of unfetched non-local AccessHandle"
+        );
         if (
           // If this type is a compile-time read-only handle, mark it as such here
           traits::max_immediate_permissions == detail::AccessHandlePermissions::Read
