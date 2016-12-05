@@ -157,6 +157,9 @@ TEST_F(TestCreateConcurrentWork, simple) {
     }));
 
     auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+
+    EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
+
     created_task->run();
     EXPECT_THAT(values[i], Eq(42));
 
@@ -185,7 +188,11 @@ TEST_F(TestCreateConcurrentWork, fetch) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow finit("finit"), fnull, fout_coll, f_in_idx[4], f_out_idx[4], f_pub[4], f_fetch[4];
+  MockFlow finit("finit"), fnull("fnull"), fout_coll("fout_coll");
+  MockFlow f_in_idx[4] = { "f_in_idx[0]", "f_in_idx[1]", "f_in_idx[2]", "f_in_idx[3]"};
+  MockFlow f_out_idx[4] = { "f_out_idx[0]", "f_out_idx[1]", "f_out_idx[2]", "f_out_idx[3]"};
+  MockFlow f_pub[4] = { "f_pub[0]", "f_pub[1]", "f_pub[2]", "f_pub[3]"};
+  MockFlow f_fetch[4] = { "f_fetch[0]", "f_fetch[1]", "f_fetch[2]", "f_fetch[3]"};
   use_t* use_idx[4], *use_pub[4], *use_pub_contin[4], *use_fetch[4];
   use_t* use_coll = nullptr;
   int values[4];
@@ -277,8 +284,12 @@ TEST_F(TestCreateConcurrentWork, fetch) {
       EXPECT_RELEASE_USE(use_fetch[i+1]);
     }
 
+    // TODO assert that the correct uses are in the dependencies of created_task
+
 
     auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+
+    EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
     created_task->run();
 
   }

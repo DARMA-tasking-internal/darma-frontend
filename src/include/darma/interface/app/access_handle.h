@@ -561,6 +561,7 @@ class AccessHandle : public detail::AccessHandleBase {
           );
 
           current_use_->use.in_flow_ = fetched_in_flow;
+          current_use_->use.out_flow_ = fetched_in_flow;
           current_use_->do_register();
 
           return *this;
