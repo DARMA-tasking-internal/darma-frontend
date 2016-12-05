@@ -94,13 +94,33 @@ TEST_F(TestCreateConcurrentWork, simple) {
 
   mock_runtime->save_tasks = true;
 
+  MockFlow finit, fnull, fout_coll, f_in_idx[4], f_out_idx[4];
+  use_t* use_idx[4];
+  int values[4];
+
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
+    .WillOnce(Return(fout_coll));
+
+  EXPECT_CALL(*mock_runtime, register_use(AllOf(
+    IsUseWithFlows(finit, fout_coll, use_t::Modify, use_t::Modify),
+    Truly([](auto* use){
+      return (
+        use->manages_collection()
+          and use->get_managed_collection()->size() == 4
+      );
+    })
+  )));
+
   //============================================================================
   // actual code being tested
   {
 
     //auto tmp = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
     //auto tmp = initial_access<int>("hello");
-    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
+    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
+
 
     struct Foo {
       void operator()(Index1D<int> index,
@@ -113,10 +133,29 @@ TEST_F(TestCreateConcurrentWork, simple) {
     };
 
     create_concurrent_work<Foo>(tmp_c,
-      index_range=Range1D<int>(0, 4)
+      index_range=Range1D<int>(4)
     );
 
   }
   //============================================================================
+
+  for(int i = 0; i < 4; ++i) {
+    values[i] = 0;
+
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(finit, i))
+      .WillOnce(Return(f_in_idx[i]));
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
+      .WillOnce(Return(f_out_idx[i]));
+    EXPECT_CALL(*mock_runtime, register_use(
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+    )).WillOnce(Invoke([&](auto* use){
+      use_idx[i] = use;
+      use->get_data_pointer_reference() = &values[i];
+    }));
+
+    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+    created_task->run();
+    EXPECT_THAT(values[i], Eq(42));
+  }
 
 }

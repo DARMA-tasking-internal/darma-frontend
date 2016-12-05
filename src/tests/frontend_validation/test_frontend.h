@@ -194,6 +194,12 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
   EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key))) \
     .WillOnce(::testing::Return(fout)); \
 
+#define EXPECT_INITIAL_ACCESS_COLLECTION(fin, fout, key) \
+  EXPECT_CALL(*mock_runtime, make_initial_flow_collection(is_handle_with_key(key))) \
+    .WillOnce(::testing::Return(fin)); \
+  EXPECT_CALL(*mock_runtime, make_null_flow_collection(is_handle_with_key(key))) \
+    .WillOnce(::testing::Return(fout)); \
+
 /* eventually expect release of flow */ \
 /* EXPECT_CALL(*mock_runtime, release_flow(::testing::Eq(f_in))); */ \
 /* EXPECT_CALL(*mock_runtime, release_flow(::testing::Eq(f_out))); */ \
