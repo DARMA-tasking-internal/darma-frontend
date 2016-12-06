@@ -300,3 +300,156 @@ TEST_F(TestCreateConcurrentWork, fetch) {
   mock_runtime->task_collections.front().reset(nullptr);
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+TEST_F(TestCreateConcurrentWork, migrate_simple) {
+
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow finit, fnull, fout_coll, f_in_idx[4], f_out_idx[4];
+  MockFlow finit_unpacked, fout_unpacked;
+  use_t* use_idx[4];
+  use_t* use_coll = nullptr;
+  use_t* use_migrated = nullptr;
+  int values[4];
+
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
+    .WillOnce(Return(fout_coll));
+
+  EXPECT_CALL(*mock_runtime, register_use(AllOf(
+    IsUseWithFlows(finit, fout_coll, use_t::Modify, use_t::Modify),
+    Truly([](auto* use){
+      return (
+        use->manages_collection()
+          and use->get_managed_collection()->size() == 4
+      );
+    })
+  ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
+
+  EXPECT_FLOW_ALIAS(fout_coll, fnull);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    //auto tmp = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
+    //auto tmp = initial_access<int>("hello");
+    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
+
+
+    struct Foo {
+      void operator()(Index1D<int> index,
+        AccessHandleCollection<int, Range1D<int>> coll
+      ) const {
+        ASSERT_THAT(index.value, Lt(4));
+        ASSERT_THAT(index.value, Ge(0));
+        coll[index].set_value(42);
+      }
+    };
+
+    create_concurrent_work<Foo>(tmp_c,
+      index_range=Range1D<int>(4)
+    );
+
+  }
+
+  // "migrate" the task collection
+  EXPECT_CALL(*mock_runtime, get_packed_flow_size(finit))
+    .WillOnce(Return(sizeof(int)));
+  EXPECT_CALL(*mock_runtime, get_packed_flow_size(fout_coll))
+    .WillOnce(Return(sizeof(int)));
+
+  auto& created_collection = mock_runtime->task_collections.front();
+  size_t tcsize = created_collection->get_packed_size();
+
+  EXPECT_CALL(*mock_runtime, pack_flow(finit, _))
+    .WillOnce(Invoke([](auto&&, void*& buffer){
+      int value = 1;
+      ::memcpy(buffer, &value, sizeof(int));
+      reinterpret_cast<char*&>(buffer) += sizeof(int);
+    }));
+  EXPECT_CALL(*mock_runtime, pack_flow(fout_coll, _))
+    .WillOnce(Invoke([](auto&&, void*& buffer){
+      int value = 2;
+      ::memcpy(buffer, &value, sizeof(int));
+      reinterpret_cast<char*&>(buffer) += sizeof(int);
+    }));
+
+  char buffer[tcsize];
+  created_collection->pack(buffer);
+
+  EXPECT_CALL(*mock_runtime, make_unpacked_flow(_))
+    .Times(2)
+    .WillRepeatedly(Invoke([&](void const*& buffer) -> MockFlow {
+      if(*reinterpret_cast<int const*>(buffer) == 1) {
+        reinterpret_cast<char const*&>(buffer) += sizeof(int);
+        return finit_unpacked;
+      }
+      else if(*reinterpret_cast<int const*>(buffer) == 2) {
+        reinterpret_cast<char const*&>(buffer) += sizeof(int);
+        return fout_unpacked;
+      }
+      // Otherwise, fail
+      EXPECT_TRUE(false);
+      return finit; // ignored
+    }));
+
+  EXPECT_CALL(*mock_runtime, reregister_migrated_use(
+    IsUseWithFlows(finit_unpacked, fout_unpacked, use_t::Modify, use_t::Modify)
+  )).WillOnce(SaveArg<0>(&use_migrated));
+
+  auto copied_collection = abstract::frontend::PolymorphicSerializableObject<
+    abstract::frontend::TaskCollection
+  >::unpack(buffer, tcsize);
+
+  //============================================================================
+
+
+  // Make sure the thing still works...
+
+  for(int i = 0; i < 4; ++i) {
+    values[i] = 0;
+
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(finit_unpacked, i))
+      .WillOnce(Return(f_in_idx[i]));
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_unpacked, i))
+      .WillOnce(Return(f_out_idx[i]));
+    EXPECT_CALL(*mock_runtime, register_use(
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+    )).WillOnce(Invoke([&](auto* use){
+      use_idx[i] = use;
+      use->get_data_pointer_reference() = &values[i];
+    }));
+
+    auto created_task = copied_collection->create_task_for_index(i);
+
+    EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
+
+    created_task->run();
+
+    EXPECT_THAT(values[i], Eq(42));
+
+    EXPECT_RELEASE_USE(use_idx[i]);
+
+  }
+
+  EXPECT_RELEASE_USE(use_migrated);
+
+  copied_collection.reset(nullptr);
+
+  EXPECT_RELEASE_USE(use_coll);
+
+  mock_runtime->task_collections.front().reset(nullptr);
+
+}
