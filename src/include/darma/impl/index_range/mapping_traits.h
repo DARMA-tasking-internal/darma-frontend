@@ -79,6 +79,9 @@ struct mapping_traits {
     friend struct darma_runtime::indexing::mapping_traits;
 
     template <typename U>
+    using _is_index_mapping_archetype = typename U::is_index_mapping;
+
+    template <typename U>
     using _index_type_archetype = typename U::index_type;
 
     template <typename U>
@@ -119,6 +122,12 @@ struct mapping_traits {
     // Note: must have index_type defined if either from_index_type or to_index_type are missing
 
   public:
+
+    using is_index_mapping_t = meta::detected_or_t<std::false_type,
+      _is_index_mapping_archetype, T
+    >;
+
+    static constexpr auto is_index_mapping = is_index_mapping_t::value;
 
     using from_index_type = std::conditional_t<
       _has_from_index_type,
@@ -412,7 +421,7 @@ struct mapping_traits {
     static to_multi_index_type
     map_forward(
       std::enable_if_t<
-        _forward_method_overload_tag<FromRangeT, ToRangeT, true>::value == _two_ranges,
+        _forward_method_overload_tag<FromRangeT, ToRangeT>::value == _two_ranges,
         T const&
       > mapping,
       from_index_type const& from,
@@ -490,7 +499,7 @@ struct mapping_traits {
     static to_multi_index_type
     map_forward(
       std::enable_if_t<
-        _forward_method_overload_tag<meta::nonesuch, meta::nonesuch, true>::value == _no_ranges
+        _forward_method_overload_tag<meta::nonesuch, meta::nonesuch>::value == _no_ranges
           and std::is_void<_for_SFINAE_only>::value,
         T const&
       > mapping,
@@ -509,7 +518,7 @@ struct mapping_traits {
     static from_multi_index_type
     map_backward(
       std::enable_if_t<
-        _backward_method_overload_tag<FromRangeT, ToRangeT, true>::value == _two_ranges,
+        _backward_method_overload_tag<FromRangeT, ToRangeT>::value == _two_ranges,
         T const&
       > mapping,
       to_index_type const& to,

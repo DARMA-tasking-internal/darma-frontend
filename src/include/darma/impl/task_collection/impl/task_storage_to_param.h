@@ -71,7 +71,8 @@ template <typename StoredArg, typename ParamTraits>
 struct _get_call_arg_helper<StoredArg, ParamTraits,
   std::enable_if_t<
     // Arg is not AccessHandle
-    (not is_access_handle<StoredArg>::value)
+    (not is_access_handle<StoredArg>::value
+      and not is_access_handle_collection<StoredArg>::value)
     // Param is not AccessHandle, is by value
     and (not ParamTraits::template matches<decayed_is_access_handle>::value)
     and ParamTraits::is_by_value
@@ -90,7 +91,8 @@ template <typename StoredArg, typename ParamTraits>
 struct _get_call_arg_helper<StoredArg, ParamTraits,
   std::enable_if_t<
     // Arg is not AccessHandle
-    (not is_access_handle<StoredArg>::value)
+    (not is_access_handle<StoredArg>::value and
+      not is_access_handle_collection<StoredArg>::value)
     // Param is not AccessHandle, but is const ref
     and (not ParamTraits::template matches<decayed_is_access_handle>::value)
     and ParamTraits::is_const_lvalue_reference

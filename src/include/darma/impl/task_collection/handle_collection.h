@@ -83,6 +83,128 @@ struct MappedHandleCollection {
         mapping(std::forward<MappingDeduced>(mapping))
     { }
 
+    // Just the compute_size and pack
+    template <typename ArchiveT>
+    void serialize(ArchiveT& ar) const {
+      assert(not ar.is_unpacking());
+
+      ar | mapping;
+
+      ar | collection.var_handle_->get_key();
+
+      ar | collection.get_index_range();
+
+      ar | collection.current_use_->use.scheduling_permissions_;
+      ar | collection.current_use_->use.immediate_permissions_;
+      DARMA_ASSERT_MESSAGE(
+        collection.mapped_backend_index_ == collection.unknown_backend_index,
+        "Can't migrate a handle collection after it has been mapped to a task"
+      );
+      DARMA_ASSERT_MESSAGE(
+        collection.local_use_holders_.empty(),
+        "Can't migrate a handle collection after it has been mapped to a task"
+      );
+      auto* backend_runtime = abstract::backend::get_backend_runtime();
+      if(ar.is_sizing()) {
+        ar.add_to_size_indirect(
+          backend_runtime->get_packed_flow_size(
+            *collection.current_use_->use.in_flow_
+          )
+        );
+        ar.add_to_size_indirect(
+          backend_runtime->get_packed_flow_size(
+            *collection.current_use_->use.out_flow_
+          )
+        );
+      }
+      else { // ar.is_packing()
+        assert(ar.is_packing());
+        using serialization::Serializer_attorneys::ArchiveAccess;
+        backend_runtime->pack_flow(
+          *collection.current_use_->use.in_flow_,
+          reinterpret_cast<void*&>(ArchiveAccess::start(ar))
+        );
+        backend_runtime->pack_flow(
+          *collection.current_use_->use.out_flow_,
+          reinterpret_cast<void*&>(ArchiveAccess::start(ar))
+        );
+      }
+
+    }
+
+    template <typename ArchiveT>
+    static MappedHandleCollection&
+    reconstruct(void* allocated, ArchiveT& ar) {
+      // just for offsets
+      auto* rv_uninitialized = reinterpret_cast<MappedHandleCollection*>(allocated);
+
+      // Mapping need not be default constructible, so unpack it here
+      ar >> rv_uninitialized->mapping;
+
+      // Collection is default constructible, so just construct it here
+      // and unpack it in unpack
+      new (&rv_uninitialized->collection) AccessHandleCollectionT();
+
+      return *rv_uninitialized;
+    }
+
+    template <typename ArchiveT>
+    void unpack(ArchiveT& ar) {
+      // Mapping already unpacked in reconstruct()
+
+      // Set up the access handle collection here, though
+      types::key_t key;
+      ar >> key;
+      auto var_handle = std::make_shared<
+        detail::VariableHandle<typename AccessHandleCollectionT::value_type>
+      >(key);
+
+      using handle_range_t = typename AccessHandleCollectionT::index_range_type;
+      using handle_range_traits = indexing::index_range_traits<handle_range_t>;
+      using handle_range_serdes_traits = serialization::detail::serializability_traits<handle_range_t>;
+
+      // Unpack index range of the handle itself
+      char hr_buffer[sizeof(handle_range_t)];
+      handle_range_serdes_traits::unpack(reinterpret_cast<void*>(hr_buffer), ar);
+      auto& hr = *reinterpret_cast<handle_range_t*>(hr_buffer);
+
+      // unpack permissions
+      HandleUse::permissions_t sched_perm, immed_perm;
+      ar >> sched_perm >> immed_perm;
+
+      // unpack the flows
+      using serialization::Serializer_attorneys::ArchiveAccess;
+      auto* backend_runtime = abstract::backend::get_backend_runtime();
+      char const*& archive_spot = const_cast<char const*&>(
+        ArchiveAccess::start(ar)
+      );
+      auto inflow = detail::make_flow_ptr(
+        backend_runtime->make_unpacked_flow(
+          reinterpret_cast<void const*&>(archive_spot)
+        )
+      );
+      auto outflow = detail::make_flow_ptr(
+        backend_runtime->make_unpacked_flow(
+          reinterpret_cast<void const*&>(archive_spot)
+        )
+      );
+
+      // remake the use:
+      collection.current_use_ = std::make_shared<
+        GenericUseHolder<CollectionManagingUse<handle_range_t>>
+      >(
+        CollectionManagingUse<handle_range_t>(
+          var_handle, inflow, outflow, sched_perm, immed_perm, std::move(hr)
+          // the mapping will be re-set up in the task collection unpack,
+          // so don't worry about it here
+        )
+      );
+
+      // the use will be reregistered after the mapping is added back in, so
+      // don't worry about it here
+
+    }
+
 };
 
 // </editor-fold> end MappedHandleCollection
@@ -188,6 +310,11 @@ class AccessHandleCollection {
 
     template < typename, typename, size_t, typename >
     friend struct detail::_task_collection_impl::_get_task_stored_arg_helper;
+
+    template <typename, typename>
+    friend struct detail::MappedHandleCollection;
+
+    //friend struct serialization::Serializer<AccessHandleCollection>;
 
     //==========================================================================
 
@@ -364,6 +491,45 @@ initial_access_collection(Args&&... args) {
 // </editor-fold> end initial_access_collection
 //==============================================================================
 
+
+namespace serialization {
+
+template <typename T, typename IndexRangeT>
+struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT>> {
+
+  using access_handle_collection_t = darma_runtime::AccessHandleCollection<T, IndexRangeT>;
+
+  // This is the sizing and packing method in one...
+  template <typename ArchiveT>
+  void compute_size(access_handle_collection_t& ahc, ArchiveT& ar) const {
+    ar % ahc.var_handle_->get_key();
+    ar % ahc.current_use_->use.scheduling_permissions_;
+    ar % ahc.current_use_->use.immediate_permissions_;
+    DARMA_ASSERT_MESSAGE(
+      ahc.mapped_backend_index_ == ahc.unknown_backend_index,
+      "Can't migrate a handle collection after it has been mapped to a task"
+    );
+    DARMA_ASSERT_MESSAGE(
+      ahc.local_use_holders_.empty(),
+      "Can't migrate a handle collection after it has been mapped to a task"
+    );
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
+    ar.add_to_size_indirect(
+      backend_runtime->get_packed_flow_size(
+        *ahc.current_use_->use.in_flow_
+      )
+    );
+    ar.add_to_size_indirect(
+      backend_runtime->get_packed_flow_size(
+        *ahc.current_use_->use.out_flow_
+      )
+    );
+  }
+
+};
+
+
+} // end namespace serialization
 
 
 } // end namespace darma_runtime
