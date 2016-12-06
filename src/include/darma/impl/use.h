@@ -289,6 +289,19 @@ class CollectionManagingUse
         mapping_to_dense(rng_traits::mapping_to_dense(index_range))
     { }
 
+    template <typename MappingToTaskCollectionDeduced>
+    CollectionManagingUse(
+      CollectionManagingUse const& other,
+      MappingToTaskCollectionDeduced&& mapping
+    ) : base_t(
+        other.handle_, other.in_flow_, other.out_flow_,
+        other.scheduling_permissions_, other.immediate_permissions_,
+        std::forward<MappingToTaskCollectionDeduced>(mapping)
+      ),
+      index_range(other.index_range),
+      mapping_to_dense(rng_traits::mapping_to_dense(index_range))
+    { }
+
     template <typename IndexRangeDeduced, typename MappingToTaskCollectionDeduced,
       typename=std::enable_if_t<
         std::is_convertible<IndexRangeDeduced&&, IndexRangeT>::value
@@ -392,7 +405,7 @@ struct GenericUseHolder {
     is_registered = false;
   }
 
-  GenericUseHolder(migrated_use_arg_t const&, UnderlyingUse&& in_use) : use(std::move(in_use)) {
+  GenericUseHolder(migrated_use_arg_t, UnderlyingUse&& in_use) : use(std::move(in_use)) {
     abstract::backend::get_backend_runtime()->reregister_migrated_use(&use);
     is_registered = true;
   }

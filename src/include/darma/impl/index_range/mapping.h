@@ -50,6 +50,7 @@
 #include <tinympl/variadic/at.hpp>
 
 #include <darma/impl/meta/detection.h>
+#include <darma/impl/serialization/as_pod.h>
 #include "mapping_traits.h"
 
 namespace darma_runtime {
@@ -107,7 +108,62 @@ struct CompositeMapping {
 
     using _traits_1 = indexing::mapping_traits<Mapping1>;
     using _traits_2 = indexing::mapping_traits<Mapping2>;
+    using _serdes_traits_1 = serialization::detail::serializability_traits<Mapping1>;
+    using _serdes_traits_2 = serialization::detail::serializability_traits<Mapping2>;
+    using _serdes_traits_m1to = serialization::detail::serializability_traits<M1ToRange>;
+    using _serdes_traits_m2from = serialization::detail::serializability_traits<M2FromRange>;
 
+    template <typename ArchiveT>
+    void _serialize(ArchiveT& ar,
+      std::false_type, // m1 is given
+      std::false_type // m2 is given
+    ) {
+      ar | m1_ | m2_ | m1_to_range_ | m2_from_range_;
+    }
+
+    template <typename ArchiveT>
+    void _serialize(ArchiveT& ar,
+      std::false_type, // m1 is given
+      std::true_type // m2 not given
+    ) {
+      ar | m1_ | m2_ | m1_to_range_;
+    }
+
+    template <typename ArchiveT>
+    void _serialize(ArchiveT& ar,
+      std::true_type, // m1 not given
+      std::false_type // m2 is given
+    ) {
+      ar | m1_ | m2_ | m1_to_range_;
+    }
+
+    template <typename ArchiveT>
+    void _serialize(ArchiveT& ar,
+      std::true_type, // m1 not given
+      std::true_type // m2 not given
+    ) {
+      ar | m1_ | m2_;
+    }
+
+    template <typename ArchiveT>
+    std::enable_if_t<
+      _serdes_traits_1::template is_serializable_with_archive<ArchiveT>::value
+      and _serdes_traits_2::template is_serializable_with_archive<ArchiveT>::value
+      and (
+        std::is_same<M1ToRange, detail::not_an_index_range>::value
+          or _serdes_traits_m1to::template is_serializable_with_archive<ArchiveT>::value
+      )
+      and (
+        std::is_same<M2FromRange, detail::not_an_index_range>::value
+          or _serdes_traits_m2from::template is_serializable_with_archive<ArchiveT>::value
+      )
+    >
+    serialize(ArchiveT& ar) {
+      _serialize(ar,
+        typename std::is_same<M1ToRange, detail::not_an_index_range>::type{},
+        typename std::is_same<M2FromRange, detail::not_an_index_range>::type{}
+      );
+    }
 
   public:
 
@@ -415,7 +471,23 @@ struct IdentityMapping {
 };
 
 // Just a sentinel that can't have map_forward or map_backward called
-struct NullMapping { };
+struct NullMapping {
+  using is_index_mapping = std::true_type;
+};
+
+
+namespace serialization {
+
+template <typename T>
+struct serialize_as_pod_if<T,
+  std::enable_if_t<
+    indexing::mapping_traits<T>::is_index_mapping
+    and std::is_empty<T>::value
+  >
+> : std::true_type { };
+
+} // end namespace serialization
+
 
 } // end namespace darma_runtime
 

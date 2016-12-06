@@ -55,91 +55,14 @@
 #include <darma/impl/index_range/index_range_traits.h>
 #include "task_collection_fwd.h"
 
+#include "task_collection_task.h"
+
 #include "impl/argument_to_tc_storage.h"
 #include "impl/tc_storage_to_task_storage.h"
-#include "impl/task_storage_to_param.h"
-
 
 namespace darma_runtime {
 
 namespace detail {
-
-//==============================================================================
-// <editor-fold desc="TaskCollectionTaskImpl">
-
-template <
-  typename Functor, typename Mapping,
-  typename... StoredArgs
->
-struct TaskCollectionTaskImpl
-  : abstract::frontend::TaskCollectionTask<TaskBase>
-{
-  using base_t = abstract::frontend::TaskCollectionTask<TaskBase>;
-
-  /* TODO implement this */
-
-  using args_tuple_t = std::tuple<StoredArgs...>;
-
-  size_t backend_index_;
-  // This is the mapping from frontend index to backend index for the collection itself
-  Mapping mapping_;
-  args_tuple_t args_;
-
-  template <size_t... Spots>
-  auto
-  _get_call_args_impl(
-    std::index_sequence<Spots...>
-  ) {
-    return std::forward_as_tuple(
-      _task_collection_impl::_get_call_arg_helper<
-        typename std::tuple_element<Spots, args_tuple_t>::type,
-        typename meta::callable_traits<Functor>::template param_n_traits<Spots>
-      >{}(
-        std::get<Spots>(std::move(args_))
-      )...
-    );
-  }
-
-  template <typename TaskCollectionT, typename CollectionStoredArgs, size_t... Spots>
-  TaskCollectionTaskImpl(
-    std::size_t backend_index, Mapping const& mapping,
-    TaskCollectionT& parent,
-    std::index_sequence<Spots...>,
-    CollectionStoredArgs& args_stored
-  ) : backend_index_(backend_index),
-      mapping_(mapping),
-      args_(
-        _task_collection_impl::_get_task_stored_arg_helper<
-          Functor,
-          std::remove_reference_t<decltype(std::get<Spots>(args_stored))>,
-          Spots
-        >{}(parent, backend_index, std::get<Spots>(args_stored), *this)...
-      )
-  { }
-
-  void run() override {
-    meta::splat_tuple(
-      _get_call_args_impl(std::index_sequence_for<StoredArgs...>{}),
-      [&](auto&&... args) mutable {
-        Functor()(
-          mapping_.map_backward(backend_index_),
-          std::forward<decltype(args)>(args)...
-        );
-      }
-    );
-  }
-
-
-  bool is_migratable() const override {
-    return false;
-  }
-
-  virtual ~TaskCollectionTaskImpl() override { }
-
-};
-
-// </editor-fold> end TaskCollectionTaskImpl
-//==============================================================================
 
 //==============================================================================
 // <editor-fold desc="TaskCollectionImpl">
@@ -198,19 +121,135 @@ struct TaskCollectionImpl
       );
     }
 
+    using args_tuple_t = std::tuple<Args...>;
 
   public:
 
     // Leave this member declaration order the same; construction of args_stored_
     // depends on collection_range_ being initialized already
 
-    types::handle_container_template<abstract::frontend::Use*> dependencies_;
+    using dependencies_container_t = types::handle_container_template<abstract::frontend::Use*>;
+    dependencies_container_t dependencies_;
     IndexRangeT collection_range_;
-    std::tuple<Args...> args_stored_;
+    args_tuple_t args_stored_;
+
+    template <typename Archive>
+    static TaskCollectionImpl&
+    reconstruct(void* allocated, Archive& ar) {
+      using args_tuple_traits = darma_runtime::serialization::detail
+        ::serializability_traits<args_tuple_t>;
+      using range_serdes_traits = darma_runtime::serialization::detail
+        ::serializability_traits<IndexRangeT>;
+
+      // Don't actually call any of the constructors of this class.
+      // Just reinterpret-cast to get the correct offsets...
+      auto* rv_ptr_uninitialized = reinterpret_cast<TaskCollectionImpl*>(allocated);
+
+      // No default constructibility requirement on index range, so unpack it here...
+      ar >> rv_ptr_uninitialized->collection_range_;
+
+      // Some arguments might not be default constructible either...
+      ar >> rv_ptr_uninitialized->args_stored_;
+
+      // for dependencies_, just reconstruct directly; it was never packed
+      new (&rv_ptr_uninitialized->dependencies_) dependencies_container_t();
+
+      return *rv_ptr_uninitialized;
+    }
+
+  private:
+
+    struct _do_unpack_deps {
+      template <typename TaskCollectionT,
+        typename MappedHandleCollectionT
+      >
+      std::enable_if_t<
+        tinympl::is_instantiation_of<
+          MappedHandleCollection,
+          std::decay_t<MappedHandleCollectionT>
+        >::value,
+        int
+      >
+      operator()(TaskCollectionT& tc, MappedHandleCollectionT&& mcoll) const {
+        using tc_index_range_traits = typename TaskCollectionT::index_range_traits;
+        using handle_index_range_t = typename std::decay_t<MappedHandleCollectionT>
+          ::access_handle_collection_t::index_range_type;
+        using full_mapping_t = CompositeMapping<
+          typename std::decay_t<MappedHandleCollectionT>::mapping_t,
+          typename tc_index_range_traits::mapping_to_dense_type
+        >;
+        assert(not mcoll.collection.current_use_->is_registered);
+        mcoll.collection.current_use_ = std::make_shared<
+          GenericUseHolder<CollectionManagingUse<handle_index_range_t>>
+        >(
+          migrated_use_arg,
+          CollectionManagingUse<handle_index_range_t>(
+            mcoll.collection.current_use_->use,
+            full_mapping_t(
+              mcoll.mapping,
+              tc_index_range_traits::mapping_to_dense(tc.collection_range_)
+            )
+          )
+        );
+        return 0;
+      }
+
+      template <typename TaskCollectionT,
+        typename AccessHandleT
+      >
+      std::enable_if_t<
+        decayed_is_access_handle<AccessHandleT>::value,
+        int
+      >
+      operator()(TaskCollectionT& tc, AccessHandleT&& ah) const {
+        tc.add_dependency(&(ah.current_use_->use));
+        return 0;
+      }
+
+      template <typename TaskCollectionT, typename T>
+      std::enable_if_t<
+        not tinympl::is_instantiation_of<
+          MappedHandleCollection,
+          std::decay_t<T>
+        >::value
+        and not decayed_is_access_handle<T>::value,
+        int
+      >
+      operator()(TaskCollectionT& tc, T&& ah) const {
+        // Nothing to do...
+        return 0;
+      }
+    };
+
+    template <size_t... Spots>
+    void _unpack_deps(
+      std::index_sequence<Spots...>
+    ) {
+      std::make_tuple(
+        _do_unpack_deps()(
+          *this,
+          std::get<Spots>(args_stored_)
+        )...
+      ); // return value ignored
+    }
+
+  public:
 
     template <typename Archive>
     void serialize(Archive& ar) {
-      /* TODO write this!!! */
+      if(not ar.is_unpacking()) {
+        ar | collection_range_;
+        ar | args_stored_;
+        // nothing to pack for dependencies.  They'll be handled later
+      }
+      else {
+        // Unpacking.
+        // collection_range_ already unpacked in reconstruct
+        // args_stored_ already unpacked in reconstruct
+
+        // need to set up dependencies here...
+        _unpack_deps(std::index_sequence_for<Args...>{});
+      }
     }
 
     void add_dependency(abstract::frontend::Use* dep) {
@@ -220,7 +259,6 @@ struct TaskCollectionImpl
     //==========================================================================
     // Ctors
 
-    TaskCollectionImpl() = default;
 
     ~TaskCollectionImpl() { }
 
@@ -236,7 +274,6 @@ struct TaskCollectionImpl
           )
         )
     { }
-
 
     size_t size() const override { return collection_range_.size(); }
 
