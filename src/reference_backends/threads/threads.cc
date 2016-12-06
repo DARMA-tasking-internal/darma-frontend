@@ -422,13 +422,15 @@ namespace threads_backend {
   ThreadsRuntime::check_dep_task(
     std::shared_ptr<TaskNode<TaskType>> t
   ) {
-    DEBUG_VERBOSE_PRINT("check_dep_task\n");
+    DEBUG_PRINT("check_dep_task\n");
 
     size_t dep_count = 0;
 
     for (auto&& dep : t->task->get_dependencies()) {
       auto const f_in  = dep->get_in_flow();
       auto const f_out = dep->get_out_flow();
+
+      DEBUG_PRINT("check_dep_task dep f_in=%ld\n", PRINT_LABEL(f_in));
 
       add_fetch_node_flow(f_in);
 
@@ -1039,8 +1041,10 @@ namespace threads_backend {
                 PRINT_LABEL(f),
                 PRINT_LABEL(f_forward));
 
-    f->next->ref++;
-    f->next->state = FlowWaiting;
+    if (f->next != nullptr) {
+      f->next->ref++;
+      f->next->state = FlowWaiting;
+    }
 
     if (depthFirstExpand) {
       f_forward->ready = true;
@@ -1135,21 +1139,47 @@ namespace threads_backend {
     flow_t const& f_in,
     flow_t const& f_alias
   ) {
+    DEBUG_PRINT(
+      "indexed_alias_to_out: f_in=%ld, f_alias=%ld\n", PRINT_LABEL(f_in),
+      PRINT_LABEL(f_alias)
+    );
+
     if (f_alias->collection_out && f_alias->is_indexed && f_in->is_indexed) {
       auto index = f_in->collection_index;
+      DEBUG_PRINT("indexed_alias_to_out: index=%ld\n", index);
       assert(f_in->collection != nullptr);
 
       auto next_col = f_in->collection->next;
       assert(f_in->collection->next != nullptr);
+      DEBUG_PRINT("indexed_alias_to_out: next_col=%ld\n", PRINT_LABEL(next_col));
 
       f_in->indexed_alias_out = true;
-      assert(f_in->collection_child.find(index) != f_in->collection_child.end());
+      DEBUG_PRINT("indexed_alias_to_out: f_in->collection=%ld\n",
+                  f_in->collection ? PRINT_LABEL(f_in->collection) : -1);
+      assert(f_in->collection->collection_child.find(index) != f_in->collection->collection_child.end());
+
       if (next_col != nullptr) {
+        DEBUG_PRINT("indexed_alias_to_out: next_col->collection_child[index]=%s\n",
+                    next_col->collection_child.find(index) != next_col->collection_child.end() ? "true" : "false");
         if (next_col->collection_child.find(index) != next_col->collection_child.end()) {
           auto next_elm = next_col->collection_child[index];
-          try_release_to_read(next_elm);
-          f_in->collection_child.erase(
-            f_in->collection_child.find(index)
+
+        DEBUG_PRINT(
+          "indexed_alias_to_out: next_elem=%ld\n", PRINT_LABEL(next_elm)
+        );
+
+        if (next_elm->state == FlowWaiting) {
+          auto const has_read = try_release_to_read(next_elm);
+          if (!has_read) {
+            release_to_write(next_elm);
+          }
+        } else {
+          release_to_write(next_elm);
+        }
+
+          //transition_after_write(f_in, next_elm);
+          f_in->collection->collection_child.erase(
+            f_in->collection->collection_child.find(index)
           );
         }
       }
@@ -1197,7 +1227,9 @@ namespace threads_backend {
 
         }
 
-        indexed_alias_to_out(alias_part, f_from);
+        if (alias_part != f_from) {
+          indexed_alias_to_out(f_from, alias_part);
+        }
       }
     } else if (f_from->state == FlowReadReady) {
       f_from->state = FlowReadOnlyReady;
@@ -1714,7 +1746,9 @@ namespace threads_backend {
                       PRINT_STATE(alias_part));
         }
 
-        indexed_alias_to_out(alias_part, flow);
+        if (alias_part != flow) {
+          indexed_alias_to_out(flow, alias_part);
+        }
       }
     }
   }
@@ -1758,7 +1792,9 @@ namespace threads_backend {
                       PRINT_STATE(alias_part));
         }
 
-        indexed_alias_to_out(alias_part, f_out);
+        if (alias_part != f_in) {
+          indexed_alias_to_out(f_in, alias_part);
+        }
       }
     }
 
@@ -1911,7 +1947,7 @@ namespace threads_backend {
   ) {
     task_collection_unique_ptr cr_task = std::move(task_collection);
 
-    int const blocks = 2;//cr_task->size();
+    int const blocks = cr_task->size();
     int const ranks = inside_num_ranks;
     int const num_per_rank = std::max(1, blocks / ranks);
 
@@ -1998,23 +2034,28 @@ namespace threads_backend {
     });
 
     DEBUG_PRINT(
-      "make_indexed_local_flow: flow=%ld, collection=%ld, index=%ld\n",
-      PRINT_LABEL(f), from->cid.collection, backend_index
+      "make_indexed_local_flow: flow=%ld, from=%ld, collection=%ld, index=%ld, from state=%s\n",
+      PRINT_LABEL(f), PRINT_LABEL(from), from->cid.collection, backend_index,
+      PRINT_STATE(from)
     );
 
     f->is_indexed = true;
     f->collection = from;
     f->cid = CollectionID(from->cid.collection, backend_index);
-    f->collection->collection_child[backend_index] = f;
-    f->state = FlowWaiting;
+    from->collection_child[backend_index] = f;
+    f->state = from->state;
+    f->collection_index = backend_index;
 
-    if (from->state != FlowWaiting) {
-      if (from->prev->collection_child.find(backend_index) !=
-          from->prev->collection_child.end()) {
-        auto prev_matching_flow = from->prev->collection_child[backend_index];
-        if (prev_matching_flow->indexed_alias_out) {
-          f->state = FlowReadReady;
-          f->ready = true;
+    if (from->state == FlowWaiting) {
+      DEBUG_PRINT("from->prev=%ld\n", from->prev ? PRINT_LABEL(from->prev) : 0);
+      if (from->prev != nullptr) {
+        if (from->prev->collection_child.find(backend_index) !=
+            from->prev->collection_child.end()) {
+          auto prev_matching_flow = from->prev->collection_child[backend_index];
+          if (prev_matching_flow->indexed_alias_out) {
+            f->state = FlowReadReady;
+            f->ready = true;
+          }
         }
       }
     } else {
