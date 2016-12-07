@@ -426,31 +426,51 @@ struct _get_storage_arg_helper<
 >
 {
   // TODO use a less circuitous mapping?
+  using collection_range_t = CollectionIndexRangeT;
+  using collection_range_traits = indexing::index_range_traits<CollectionIndexRangeT>;
+  using handle_range_t = typename std::decay_t<GivenArg>::index_range_type;
+  using handle_range_traits = indexing::index_range_traits<handle_range_t>;
 
-  using _identity_mapping_t = IdentityMapping<
-    typename indexing::index_range_traits<
-      typename std::decay_t<GivenArg>::index_range_type
-    >::index_type,
-    typename indexing::index_range_traits<CollectionIndexRangeT>::index_type
+  using _default_mapping_t = CompositeMapping<
+    typename handle_range_traits::mapping_to_dense_type,
+    ReverseMapping<typename collection_range_traits::mapping_to_dense_type>
   >;
 
-  using _identity_mapped_helper_t = _get_storage_arg_helper<
+  using _default_mapped_helper_t = _get_storage_arg_helper<
     // Note that this type gets decayed in the companion helper, so no reason to also do so here
     decltype(std::declval<GivenArg>().mapped_with(
-      // If we've gotten here, the indices better at least be the same type
-      _identity_mapping_t{}
+      _default_mapping_t{
+        std::declval<typename handle_range_traits::mapping_to_dense_type>(),
+        std::declval<decltype(
+          make_reverse_mapping(
+            std::declval<typename handle_range_traits::mapping_to_dense_type>()
+          )
+        )>()
+      }
     )),
     ParamTraits, CollectionIndexRangeT
   >;
 
-  using type = typename _identity_mapped_helper_t::type;
+  using type = typename _default_mapped_helper_t::type;
   using return_type = type; // readability
 
   template <typename TaskCollectionT>
   return_type
   operator()(TaskCollectionT& collection, GivenArg&& arg) const {
-    return _identity_mapped_helper_t{}(
-      collection, std::forward<GivenArg>(arg).mapped_with(_identity_mapping_t{})
+    // First, check that the identity mapping is valid...
+    DARMA_ASSERT_EQUAL_VERBOSE(
+      arg.get_index_range().size(), collection.collection_range_.size()
+    );
+    // This default should probably be:
+    // Composite of mapping_to_dense(handle_collection) -> reverse(mapping_to_dense(task_collection))
+    return _default_mapped_helper_t{}(
+      collection, std::forward<GivenArg>(arg).mapped_with(_default_mapping_t{
+        handle_range_traits::mapping_to_dense(arg.get_index_range()),
+        // Intentionally leave this as ADL; user could want to override it
+        make_reverse_mapping(
+          collection_range_traits::mapping_to_dense(collection.collection_range_)
+        )
+      })
     );
   }
 };
