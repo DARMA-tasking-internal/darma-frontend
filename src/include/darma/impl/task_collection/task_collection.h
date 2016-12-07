@@ -123,6 +123,8 @@ struct TaskCollectionImpl
 
     using args_tuple_t = std::tuple<Args...>;
 
+    TaskCollectionImpl() = default;
+
   public:
 
     // Leave this member declaration order the same; construction of args_stored_
@@ -141,20 +143,38 @@ struct TaskCollectionImpl
       using range_serdes_traits = darma_runtime::serialization::detail
         ::serializability_traits<IndexRangeT>;
 
-      // Don't actually call any of the constructors of this class.
-      // Just reinterpret-cast to get the correct offsets...
-      auto* rv_ptr_uninitialized = reinterpret_cast<TaskCollectionImpl*>(allocated);
+      // Need to call ctor to initialize vtable
+      auto* rv_ptr = new (allocated) TaskCollectionImpl();
+
+      // TODO figure out (yet another) way around the default constructibility issue
 
       // No default constructibility requirement on index range, so unpack it here...
-      ar >> rv_ptr_uninitialized->collection_range_;
+      ar >> rv_ptr->collection_range_;
 
       // Some arguments might not be default constructible either...
-      ar >> rv_ptr_uninitialized->args_stored_;
+      ar >> rv_ptr->args_stored_;
 
       // for dependencies_, just reconstruct directly; it was never packed
-      new (&rv_ptr_uninitialized->dependencies_) dependencies_container_t();
+      new (&rv_ptr->dependencies_) dependencies_container_t();
 
-      return *rv_ptr_uninitialized;
+      return *rv_ptr;
+    }
+
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      if(not ar.is_unpacking()) {
+        ar | collection_range_;
+        ar | args_stored_;
+        // nothing to pack for dependencies.  They'll be handled later
+      }
+      else {
+        // Unpacking.
+        // collection_range_ already unpacked in reconstruct
+        // args_stored_ already unpacked in reconstruct
+
+        // need to set up dependencies here...
+        _unpack_deps(std::index_sequence_for<Args...>{});
+      }
     }
 
   private:
@@ -235,22 +255,6 @@ struct TaskCollectionImpl
 
   public:
 
-    template <typename Archive>
-    void serialize(Archive& ar) {
-      if(not ar.is_unpacking()) {
-        ar | collection_range_;
-        ar | args_stored_;
-        // nothing to pack for dependencies.  They'll be handled later
-      }
-      else {
-        // Unpacking.
-        // collection_range_ already unpacked in reconstruct
-        // args_stored_ already unpacked in reconstruct
-
-        // need to set up dependencies here...
-        _unpack_deps(std::index_sequence_for<Args...>{});
-      }
-    }
 
     void add_dependency(abstract::frontend::Use* dep) {
       dependencies_.insert(dep);
