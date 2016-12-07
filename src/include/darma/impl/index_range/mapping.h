@@ -145,6 +145,8 @@ struct CompositeMapping {
       ar | m1_ | m2_;
     }
 
+  public:
+
     template <typename ArchiveT>
     std::enable_if_t<
       _serdes_traits_1::template is_serializable_with_archive<ArchiveT>::value
@@ -165,7 +167,6 @@ struct CompositeMapping {
       );
     }
 
-  public:
 
     template <
       typename _IgnoredSFINAE = void,
@@ -259,7 +260,7 @@ struct CompositeMapping {
     // TODO composite multi-index mappings
 
     using from_index_type = typename _traits_1::from_index_type;
-    using to_index_type = typename Mapping2::to_index_type;
+    using to_index_type = typename _traits_2::to_index_type;
     using is_index_mapping = std::true_type;
 
     template <typename FromRange>
@@ -385,18 +386,14 @@ struct CompositeMapping {
     }
 };
 
-//template <typename Mapping1, typename Mapping2, typename Mapping3, typename... Mappings>
-//struct CompositeMapping<Mapping1, Mapping2, Mapping3, Mappings...>
-//  : CompositeMapping<Mapping1,
-//    CompositeMapping<Mapping2, Mapping3, Mappings...>
-//  >
-//{ };
 
 template <typename Mapping>
 struct ReverseMapping {
   private:
 
     Mapping m1_;
+
+    using _m_traits = indexing::mapping_traits<Mapping>;
 
   public:
 
@@ -411,8 +408,8 @@ struct ReverseMapping {
       : m1_(std::forward<Args>(args)...)
     { }
 
-    using from_index_type = typename Mapping::to_index_type;
-    using to_index_type = typename Mapping::from_index_type;
+    using from_index_type = typename _m_traits::to_index_type;
+    using to_index_type = typename _m_traits::from_index_type;
     using is_index_mapping = std::true_type;
 
     to_index_type map_forward(from_index_type const& from) const {
@@ -423,7 +420,26 @@ struct ReverseMapping {
       return m1_.map_forward(to);
     }
 
+    template <typename ArchiveT>
+    std::enable_if_t<
+      serialization::detail::serializability_traits<Mapping>
+        ::template is_serializable_with_archive<ArchiveT>::value
+    >
+    serialize(ArchiveT& ar) {
+      ar | m1_;
+    }
+
 };
+
+template <typename MappingT>
+auto
+make_reverse_mapping(
+  MappingT&& mapping
+) {
+  return ReverseMapping<std::decay_t<MappingT>>(
+    std::forward<MappingT>(mapping)
+  );
+}
 
 template <typename FromIndexT, typename ToIndexT=FromIndexT>
 struct IdentityMapping {
