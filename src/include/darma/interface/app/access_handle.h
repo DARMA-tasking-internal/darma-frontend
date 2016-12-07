@@ -731,6 +731,9 @@ class AccessHandle : public detail::AccessHandleBase {
     friend class detail::TaskBase;
 
     template <typename, typename>
+    friend class AccessHandle;
+
+    template <typename, typename>
     friend class AccessHandleCollection;
 
     template <typename Op>

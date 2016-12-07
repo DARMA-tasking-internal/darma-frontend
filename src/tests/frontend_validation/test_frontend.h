@@ -205,7 +205,7 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
 /* EXPECT_CALL(*mock_runtime, release_flow(::testing::Eq(f_out))); */ \
 
 #define EXPECT_READ_ACCESS(f_init, f_null, key, version_key) \
-  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(key), ::testing::Eq(version_key), ::testing::Eq(nullptr), ::testing::Eq(false))) \
+  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(key), ::testing::Eq(version_key), ::testing::Eq(false))) \
     .WillOnce(Return(f_init)); \
   EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key))) \
     .WillOnce(Return(f_null));
