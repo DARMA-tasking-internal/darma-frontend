@@ -122,11 +122,11 @@ struct MappedHandleCollection {
         using serialization::Serializer_attorneys::ArchiveAccess;
         backend_runtime->pack_flow(
           *collection.current_use_->use.in_flow_,
-          reinterpret_cast<void*&>(ArchiveAccess::start(ar))
+          reinterpret_cast<void*&>(ArchiveAccess::spot(ar))
         );
         backend_runtime->pack_flow(
           *collection.current_use_->use.out_flow_,
-          reinterpret_cast<void*&>(ArchiveAccess::start(ar))
+          reinterpret_cast<void*&>(ArchiveAccess::spot(ar))
         );
       }
 
@@ -158,6 +158,7 @@ struct MappedHandleCollection {
       auto var_handle = std::make_shared<
         detail::VariableHandle<typename AccessHandleCollectionT::value_type>
       >(key);
+      collection.var_handle_ = var_handle;
 
       using handle_range_t = typename AccessHandleCollectionT::index_range_type;
       using handle_range_traits = indexing::index_range_traits<handle_range_t>;
@@ -176,7 +177,7 @@ struct MappedHandleCollection {
       using serialization::Serializer_attorneys::ArchiveAccess;
       auto* backend_runtime = abstract::backend::get_backend_runtime();
       char const*& archive_spot = const_cast<char const*&>(
-        ArchiveAccess::start(ar)
+        ArchiveAccess::spot(ar)
       );
       auto inflow = detail::make_flow_ptr(
         backend_runtime->make_unpacked_flow(
@@ -188,6 +189,7 @@ struct MappedHandleCollection {
           reinterpret_cast<void const*&>(archive_spot)
         )
       );
+
 
       // remake the use:
       collection.current_use_ = std::make_shared<

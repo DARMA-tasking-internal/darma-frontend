@@ -375,13 +375,13 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
   EXPECT_CALL(*mock_runtime, pack_flow(finit, _))
     .WillOnce(Invoke([](auto&&, void*& buffer){
-      int value = 1;
+      int value = 42;
       ::memcpy(buffer, &value, sizeof(int));
       reinterpret_cast<char*&>(buffer) += sizeof(int);
     }));
   EXPECT_CALL(*mock_runtime, pack_flow(fout_coll, _))
     .WillOnce(Invoke([](auto&&, void*& buffer){
-      int value = 2;
+      int value = 73;
       ::memcpy(buffer, &value, sizeof(int));
       reinterpret_cast<char*&>(buffer) += sizeof(int);
     }));
@@ -392,11 +392,11 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
   EXPECT_CALL(*mock_runtime, make_unpacked_flow(_))
     .Times(2)
     .WillRepeatedly(Invoke([&](void const*& buffer) -> MockFlow {
-      if(*reinterpret_cast<int const*>(buffer) == 1) {
+      if(*reinterpret_cast<int const*>(buffer) == 42) {
         reinterpret_cast<char const*&>(buffer) += sizeof(int);
         return finit_unpacked;
       }
-      else if(*reinterpret_cast<int const*>(buffer) == 2) {
+      else if(*reinterpret_cast<int const*>(buffer) == 73) {
         reinterpret_cast<char const*&>(buffer) += sizeof(int);
         return fout_unpacked;
       }
@@ -408,6 +408,7 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
   EXPECT_CALL(*mock_runtime, reregister_migrated_use(
     IsUseWithFlows(finit_unpacked, fout_unpacked, use_t::Modify, use_t::Modify)
   )).WillOnce(SaveArg<0>(&use_migrated));
+
 
   auto copied_collection = abstract::frontend::PolymorphicSerializableObject<
     abstract::frontend::TaskCollection
