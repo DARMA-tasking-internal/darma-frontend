@@ -260,11 +260,13 @@ struct CompositeMapping {
     // TODO composite multi-index mappings
 
     using from_index_type = typename _traits_1::from_index_type;
+    using from_multi_index_type = typename _traits_1::from_multi_index_type;
     using to_index_type = typename _traits_2::to_index_type;
+    using to_multi_index_type = typename _traits_2::to_multi_index_type;
     using is_index_mapping = std::true_type;
 
     template <typename FromRange>
-    to_index_type map_forward(
+    to_multi_index_type map_forward(
       from_index_type const& from, FromRange const& from_range,
       std::enable_if<
         std::is_same<M1ToRange, detail::not_an_index_range>::value
@@ -280,7 +282,7 @@ struct CompositeMapping {
     }
 
     template <typename FromRange>
-    to_index_type
+    to_multi_index_type
     map_forward(
       from_index_type const& from, FromRange const& from_range,
       std::enable_if<
@@ -305,7 +307,7 @@ struct CompositeMapping {
           and _traits_2::allows_no_range_map_forward::value
       >
     >
-    to_index_type
+    to_multi_index_type
     map_forward(from_index_type const& from) const {
       return _traits_2::map_forward(m2_,
         _traits_1::map_forward(m1_, from)
@@ -313,7 +315,7 @@ struct CompositeMapping {
     }
 
     template <typename FromRange>
-    from_index_type map_backward(
+    from_multi_index_type map_backward(
       to_index_type const& to, FromRange const& from_range,
       std::enable_if<
         std::is_same<M1ToRange, detail::not_an_index_range>::value
@@ -329,7 +331,7 @@ struct CompositeMapping {
     }
 
     template <typename FromRange>
-    from_index_type map_backward(
+    from_multi_index_type map_backward(
       to_index_type const& to, FromRange const& from_range,
       std::enable_if<
         std::is_same<M1ToRange, detail::not_an_index_range>::value
@@ -345,7 +347,7 @@ struct CompositeMapping {
     }
 
     template <typename _for_SFINAE_only_1=void>
-    from_index_type
+    from_multi_index_type
     map_backward(to_index_type const& to,
       std::enable_if_t<
         std::is_void<_for_SFINAE_only_1>::value
@@ -362,7 +364,7 @@ struct CompositeMapping {
     }
 
     template <typename _for_SFINAE_only_2=void>
-    from_index_type
+    from_multi_index_type
     map_backward(
       to_index_type const& to,
       std::enable_if_t<
