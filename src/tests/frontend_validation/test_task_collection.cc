@@ -193,7 +193,10 @@ TEST_F(TestCreateConcurrentWork, fetch) {
   MockFlow f_out_idx[4] = { "f_out_idx[0]", "f_out_idx[1]", "f_out_idx[2]", "f_out_idx[3]"};
   MockFlow f_pub[4] = { "f_pub[0]", "f_pub[1]", "f_pub[2]", "f_pub[3]"};
   MockFlow f_fetch[4] = { "f_fetch[0]", "f_fetch[1]", "f_fetch[2]", "f_fetch[3]"};
-  use_t* use_idx[4], *use_pub[4], *use_pub_contin[4], *use_fetch[4];
+  use_t* use_idx[4] = { nullptr, nullptr, nullptr, nullptr };
+  use_t* use_pub[4] = { nullptr, nullptr, nullptr, nullptr };
+  use_t* use_pub_contin[4] = { nullptr, nullptr, nullptr, nullptr };
+  use_t* use_fetch[4] = { nullptr, nullptr, nullptr, nullptr };
   use_t* use_coll = nullptr;
   int values[4];
 
