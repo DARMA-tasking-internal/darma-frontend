@@ -173,7 +173,7 @@ struct ContiguousIndexMapping {
     }
 
     from_index_type map_backward(to_index_type const& to) const {
-      return { static_cast<Integer>(to), range.offset_, range.offset_ + range.size_ };
+      return { static_cast<Integer>(to), range.offset_, range.offset_ + range.size_ - 1 };
     }
 
     template <typename ArchiveT> void serialize(ArchiveT& ar) { ar | range; }

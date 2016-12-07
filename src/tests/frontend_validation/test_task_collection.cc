@@ -457,3 +457,135 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
   mock_runtime->task_collections.front().reset(nullptr);
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+TEST_F(TestCreateConcurrentWork, many_to_one) {
+
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow finit("finit"), fnull("fnull"), fout_coll("fout_coll");
+  MockFlow f_in_idx[4] = { "f_in_idx[0]", "f_in_idx[1]", "f_in_idx[2]", "f_in_idx[3]"};
+  MockFlow f_out_idx[4] = { "f_out_idx[0]", "f_out_idx[1]", "f_out_idx[2]", "f_out_idx[3]"};
+  use_t* use_idx[4] = { nullptr, nullptr, nullptr, nullptr };
+  use_t* use_coll = nullptr;
+  int values[4];
+
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
+    .WillOnce(Return(fout_coll));
+
+  EXPECT_CALL(*mock_runtime, register_use(AllOf(
+    IsUseWithFlows(finit, fout_coll, use_t::Modify, use_t::Modify),
+    Truly([](auto* use){
+      return (
+        use->manages_collection()
+          and use->get_managed_collection()->size() == 4
+      );
+    })
+  ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
+
+  EXPECT_FLOW_ALIAS(fout_coll, fnull);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    //auto tmp = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
+    //auto tmp = initial_access<int>("hello");
+    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
+
+
+    struct Foo {
+      void operator()(Index1D<int> index,
+        AccessHandleCollection<int, Range1D<int>> coll
+      ) const {
+        ASSERT_THAT(index.value, Lt(4));
+        ASSERT_THAT(index.value, Ge(0));
+        coll[index].set_value(42);
+        coll[index+2].set_value(73);
+      }
+    };
+
+    using darma_runtime::Index1D;
+
+    struct ModMapping {
+      using from_index_type = Index1D<int>;
+      using from_multi_index_type = std::vector<Index1D<int>>;
+      using to_index_type = Index1D<int>;
+      using is_index_mapping = std::true_type;
+
+      to_index_type map_forward(from_index_type const& from) const {
+        return Index1D<int>{from.value % 2, 0, 1};
+      }
+      from_multi_index_type map_backward(to_index_type const& to) const {
+        return std::vector<Index1D<int>>{
+          Index1D<int>{0+to.value, 0, 3},
+          Index1D<int>{2+to.value, 0, 3}
+        };
+      }
+
+    };
+
+    create_concurrent_work<Foo>(
+      tmp_c.mapped_with( ModMapping() ),
+      index_range=Range1D<int>(2)
+    );
+
+  }
+  //============================================================================
+
+  for(int i = 0; i < 2; ++i) {
+    values[i] = 0;
+    values[i+2] = 0;
+
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(finit, i))
+      .WillOnce(Return(f_in_idx[i]));
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(finit, i+2))
+      .WillOnce(Return(f_in_idx[i+2]));
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
+      .WillOnce(Return(f_out_idx[i]));
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i+2))
+      .WillOnce(Return(f_out_idx[i+2]));
+    EXPECT_CALL(*mock_runtime, register_use(
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+    )).WillOnce(Invoke([&](auto* use){
+      use_idx[i] = use;
+      use->get_data_pointer_reference() = &values[i];
+    }));
+    EXPECT_CALL(*mock_runtime, register_use(
+      IsUseWithFlows(f_in_idx[i+2], f_out_idx[i+2], use_t::Modify, use_t::Modify)
+    )).WillOnce(Invoke([&](auto* use){
+      use_idx[i+2] = use;
+      use->get_data_pointer_reference() = &values[i+2];
+    }));
+
+    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+
+    EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
+    EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i+2]));
+
+    created_task->run();
+    EXPECT_THAT(values[i], Eq(42));
+    EXPECT_THAT(values[i+2], Eq(73));
+
+    EXPECT_RELEASE_USE(use_idx[i]);
+    EXPECT_RELEASE_USE(use_idx[i+2]);
+
+  }
+
+  EXPECT_RELEASE_USE(use_coll);
+
+
+  mock_runtime->task_collections.front().reset(nullptr);
+
+}
