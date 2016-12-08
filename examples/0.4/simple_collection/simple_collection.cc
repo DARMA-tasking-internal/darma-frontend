@@ -13,8 +13,6 @@ struct SimpleCollection {
     AccessHandleCollection<int, Range1D<int>> c1,
     bool const first
   ) {
-    using darma_runtime::keyword_arguments_for_publication::version;
-
     auto handle = c1[index];
 
     if (first) {
