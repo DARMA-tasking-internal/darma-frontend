@@ -341,6 +341,7 @@ TEST_F(TestKeywordArguments, static_tests) {
   // should fail gracefully at compile time:
   //assert_valid<parser>(test_kwarg_1=5, test_kwarg_3=6);
   // should fail gracefully, useful as an example of what a user might see...
+  // TODO the second fail reason here is wrong
   //test_function(test_kwarg_1=5, test_kwarg_3=6);
   // should fail gracefully, useful as an example of what a user might see...
   //test_function_variadics(test_kwarg_1=5, test_kwarg_3=6);

@@ -45,15 +45,89 @@
 #ifndef DARMA_IMPL_INDEX_RANGE_RANGE_1D_H
 #define DARMA_IMPL_INDEX_RANGE_RANGE_1D_H
 
+#include <tinympl/bool.hpp>
+#include <tinympl/variadic/count_if.hpp>
+
+#include <darma/impl/meta/detection.h>
+
 #include <darma/interface/frontend/index_range.h>
 
 #include <darma/impl/polymorphic_serialization.h>
+#include <darma/impl/meta/parse_properties.h>
 
 namespace darma_runtime {
 
+namespace indexing {
+
+namespace integer_range_1d_options {
+
+template <bool value=true>
+struct use_stateless_mapping_to_dense {
+  using use_stateless_mapping_to_dense_option_type = tinympl::bool_<value>;
+  static constexpr auto use_stateless_mapping_to_dense_option_value = value;
+};
+
+} // end namespace integer_range_1d_options
+
+//==============================================================================
+
 namespace detail {
 
+template <typename... Properties>
+struct basic_integer_range_1d_property_parser {
+
+  //==============================================================================
+  // <editor-fold desc="use_stateless_mapping_to_dense"> {{{1
+
+  private:
+
+    template <typename Property>
+    using _check_use_stateless_mapping_to_dense_archetype =
+      typename Property::use_stateless_mapping_to_dense_property_type;
+
+    using _use_stateless_mapping_to_dense_parser =
+      meta::boolean_template_property_parser<
+        _check_use_stateless_mapping_to_dense_archetype,
+        /* default = */ false
+      >;
+
+  public:
+
+    static constexpr auto use_stateless_mapping_to_dense =
+      _use_stateless_mapping_to_dense_parser::template parse<Properties...>::value;
+
+  // </editor-fold> end  }}}1
+  //==============================================================================
+
+  //==============================================================================
+  // <editor-fold desc="check that all properties are accounted for"> {{{1
+
+  private:
+
+    using _checker = meta::property_parsing_checker<
+      _use_stateless_mapping_to_dense_parser
+    >;
+
+  public:
+
+    using check_all_properties_known = typename _checker
+      ::template assert_all_properties_known<Properties...>::type;
+
+
+  // </editor-fold> end  }}}1
+  //==============================================================================
+
+};
+
 template <typename Integer>
+struct basic_integer_index_1d {
+
+};
+
+template <
+  typename Integer,
+  typename... Properties
+>
 struct basic_integer_range_1d
   : detail::PolymorphicSerializationAdapter<
       basic_integer_range_1d<Integer>,
@@ -65,16 +139,66 @@ struct basic_integer_range_1d
 
     Integer size_;
     Integer offset_;
-    Integer stride_;
+
+    using _properties = basic_integer_range_1d_property_parser<Properties...>;
+
+    using _check_properties = typename _properties::check_all_properties_known;
+
+    static constexpr auto use_stateless_mapping_to_dense =
+      _properties::use_stateless_mapping_to_dense;
+
+    // TODO add stride
+    //Integer stride_;
+
+    // TODO stateless/stateful mapping to dense
+
+    basic_integer_index_1d() = delete;
 
   public:
 
+    // TODO index typedef
+
+    using is_index_range = std::true_type;
+
+    explicit
+    basic_integer_index_1d(Integer size)
+      : size_(size), offset_(0)
+    { }
+
+    basic_integer_index_1d(Integer begin, Integer end)
+      : size_(end - begin), offset_(begin)
+    { }
+
+    using index_type = basic_integer_index_1d<Integer>;
+    using is_index_range = std::true_type;
+
     // TODO finish this
-    
+
+    // Allow serialization without default constructor
+    template <typename Archive>
+    basic_integer_index_1d&
+    reconstruct(void* allocated, Archive&) {
+      auto* rv = new (allocated) basic_integer_index_1d(0);
+      return *rv;
+    }
+
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | size_ | offset_;
+    }
+
+    size_t size() const override { return size_; }
 
 };
 
 } // end namespace detail
+
+using index_range_1d = detail::basic_integer_range_1d<int>;
+
+using index_1d = detail::basic_integer_index_1d<int>;
+
+} // end namespace indexing
+
 
 } // end namespace darma_runtime
 
