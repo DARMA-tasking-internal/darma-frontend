@@ -68,8 +68,6 @@ struct TaskCollectionTaskImpl
 {
   using base_t = abstract::frontend::TaskCollectionTask<TaskBase>;
 
-  /* TODO implement this */
-
   using args_tuple_t = std::tuple<StoredArgs...>;
 
   size_t backend_index_;

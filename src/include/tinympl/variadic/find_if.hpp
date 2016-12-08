@@ -92,6 +92,9 @@ struct find_if<F>
   : std::integral_constant<std::size_t, 0>
 {};
 
+template <template <class... T> class F, class... Args>
+using find_if_t = typename find_if<F, Args...>::type;
+
 } // namespace variadic
 } // namespace tinympl
 
