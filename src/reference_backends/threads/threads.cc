@@ -222,11 +222,10 @@ namespace threads_backend {
     create_task(t);
   }
 
-  template <typename TaskType>
+  template <typename TaskNode>
   void
   ThreadsRuntime::create_task(
-    std::shared_ptr<TaskNode<TaskType>> t,
-    int rank
+    std::shared_ptr<TaskNode> t, int rank
   ) {
     t->join_counter = check_dep_task(t);
 
@@ -420,7 +419,7 @@ namespace threads_backend {
   template <typename TaskType>
   size_t
   ThreadsRuntime::check_dep_task(
-    std::shared_ptr<TaskNode<TaskType>> t
+    std::shared_ptr<TaskType> t
   ) {
     DEBUG_PRINT("check_dep_task\n");
 
@@ -1159,28 +1158,34 @@ namespace threads_backend {
       assert(f_in->collection->collection_child.find(index) != f_in->collection->collection_child.end());
 
       if (next_col != nullptr) {
-        DEBUG_PRINT("indexed_alias_to_out: next_col->collection_child[index]=%s\n",
-                    next_col->collection_child.find(index) != next_col->collection_child.end() ? "true" : "false");
+        DEBUG_PRINT(
+          "indexed_alias_to_out: next_col->collection_child[index]=%s\n",
+          next_col->collection_child.find(index) != next_col->collection_child.end() ? "true" : "false"
+        );
         if (next_col->collection_child.find(index) != next_col->collection_child.end()) {
           auto next_elm = next_col->collection_child[index];
 
-        DEBUG_PRINT(
-          "indexed_alias_to_out: next_elem=%ld\n", PRINT_LABEL(next_elm)
-        );
-
-        if (next_elm->state == FlowWaiting) {
-          auto const has_read = try_release_to_read(next_elm);
-          if (!has_read) {
-            release_to_write(next_elm);
-          }
-        } else {
-          release_to_write(next_elm);
-        }
-
-          //transition_after_write(f_in, next_elm);
-          f_in->collection->collection_child.erase(
-            f_in->collection->collection_child.find(index)
+          DEBUG_PRINT(
+            "indexed_alias_to_out: has second = %s\n", next_elm.second ? "true" : "false"
           );
+
+          if (next_elm.second != nullptr) {
+            DEBUG_PRINT(
+              "indexed_alias_to_out: first_elem=%ld, next_elem=%ld\n",
+              PRINT_LABEL(next_elm.first), PRINT_LABEL(next_elm.second)
+            );
+            if (next_elm.second->state == FlowWaiting) {
+              auto const has_read = try_release_to_read(next_elm.second);
+              if (!has_read) {
+                release_to_write(next_elm.second);
+              }
+            } else {
+              release_to_write(next_elm.second);
+            }
+            f_in->collection->collection_child.erase(
+              f_in->collection->collection_child.find(index)
+            );
+          }
         }
       }
     }
@@ -1945,36 +1950,14 @@ namespace threads_backend {
   ThreadsRuntime::register_task_collection(
     task_collection_unique_ptr&& task_collection
   ) {
-    task_collection_unique_ptr cr_task = std::move(task_collection);
+    auto cr_task = std::move(task_collection);
 
-    int const blocks = cr_task->size();
-    int const ranks = inside_num_ranks;
-    int const num_per_rank = std::max(1, blocks / ranks);
-
-    DEBUG_PRINT(
-      "register_task_collection: indicies=%d, ranks=%d, num_per_rank=%d\n",
-      blocks, ranks, num_per_rank
+    auto task_node = std::make_shared<TaskCollectionNode<task_collection_t>>(
+      this, std::move(cr_task),
+      inside_rank, inside_num_ranks
     );
 
-    for (auto cur = 0; cur < std::max(blocks,num_per_rank*ranks); cur += num_per_rank) {
-      int const rank = (cur / num_per_rank) % ranks;
-
-      for (auto i = cur; i < std::min(cur+num_per_rank,blocks); i++) {
-        //std::cout << "rank " << rank << ": index = " << i << std::endl;
-        auto new_task = cr_task->create_task_for_index(i);
-
-        auto task_node = std::make_shared<TaskNode<types::task_collection_task_t>>(
-          rank == inside_rank ? this : shared_ranks[rank],
-          std::move(new_task)
-        );
-
-        if (rank != inside_rank) {
-          task_node->for_rank = rank;
-        }
-
-        create_task(task_node, rank == inside_rank ? -1 : rank);
-      }
-    }
+    create_task(task_node, inside_rank);
   }
 
   /*virtual*/
@@ -2042,7 +2025,13 @@ namespace threads_backend {
     f->is_indexed = true;
     f->collection = from;
     f->cid = CollectionID(from->cid.collection, backend_index);
-    from->collection_child[backend_index] = f;
+
+    if (from->collection_child.find(backend_index) == from->collection_child.end()) {
+      from->collection_child[backend_index].first = f;
+    } else {
+      from->collection_child[backend_index].second = f;
+    }
+
     f->state = from->state;
     f->collection_index = backend_index;
 
@@ -2050,8 +2039,9 @@ namespace threads_backend {
       DEBUG_PRINT("from->prev=%ld\n", from->prev ? PRINT_LABEL(from->prev) : 0);
       if (from->prev != nullptr) {
         if (from->prev->collection_child.find(backend_index) !=
-            from->prev->collection_child.end()) {
-          auto prev_matching_flow = from->prev->collection_child[backend_index];
+            from->prev->collection_child.end() &&
+           from->prev->collection_child[backend_index].second != nullptr) {
+          auto prev_matching_flow = from->prev->collection_child[backend_index].second;
           if (prev_matching_flow->indexed_alias_out) {
             f->state = FlowReadReady;
             f->ready = true;
