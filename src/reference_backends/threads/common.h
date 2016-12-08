@@ -48,7 +48,7 @@
 /*
  * Debugging prints with mutex
  */
-#define __THREADS_BACKEND_DEBUG__	  1
+#define __THREADS_BACKEND_DEBUG__	  0
 #define __THREADS_BACKEND_SHUFFLE__	  0
 #define __THREADS_BACKEND_DEBUG_VERBOSE__ 0
 #define __THREADS_BACKEND_DEBUG_TRACE__   0
@@ -106,9 +106,11 @@ std::mutex __output_mutex;
 #if !defined(DEBUG_PRINT)
   #if __THREADS_BACKEND_DEBUG__
     #define DEBUG_PRINT(fmt, arg...)          THREADS_PRINTER(fmt, ##arg)
+    #define DEBUG_PRINT_FORCE(fmt, arg...)    THREADS_PRINTER(fmt, ##arg)
     #define DEBUG_PRINT_THD(thd, fmt, arg...) THREADS_PRINTER_THD(thd, fmt, ##arg)
   #else
     #define DEBUG_PRINT(fmt, arg...)
+    #define DEBUG_PRINT_FORCE(fmt, arg...)    THREADS_PRINTER(fmt, ##arg)
     #define DEBUG_PRINT_THD(thd, fmt, arg...)
   #endif
 #endif
@@ -154,6 +156,7 @@ namespace threads_backend {
     size_t index = 0;
 
     CollectionID() = default;
+    CollectionID(CollectionID const&) = default;
 
     CollectionID(
       size_t const collection_in, size_t const index_in

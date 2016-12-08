@@ -129,7 +129,13 @@ namespace threads_backend {
               std::shared_ptr<InnerFlow> fetch_)
       : GraphNode(-1, rt)
       , fetch(fetch_)
-    { }
+    {
+      DEBUG_PRINT_THD(
+        runtime->get_rank(),
+        "constructing fetch node, flow=%ld, this=%p\n",
+        PRINT_LABEL(fetch), this
+      );
+    }
 
     void execute() override {
       std::string genName = "";
@@ -180,8 +186,8 @@ namespace threads_backend {
     virtual ~FetchNode() {
       DEBUG_PRINT_THD(
         runtime->get_rank(),
-        "destructing fetch node, flow=%ld\n",
-        PRINT_LABEL(fetch)
+        "destructing fetch node, flow=%ld, this=%p\n",
+        PRINT_LABEL(fetch), this
       );
     }
 
@@ -367,10 +373,10 @@ namespace threads_backend {
   struct TaskCollectionNode : GraphNode {
 
     std::unique_ptr<TaskType> task;
-    int inside_rank = 0, inside_num_ranks = 0;
+    size_t inside_rank = 0, inside_num_ranks = 0;
 
     TaskCollectionNode(
-      Runtime* rt, std::unique_ptr<TaskType>&& task_, int rank, int num_ranks
+      Runtime* rt, std::unique_ptr<TaskType>&& task_, size_t rank, size_t num_ranks
     )
       : GraphNode(-1, rt)
       , task(std::move(task_))
@@ -385,8 +391,7 @@ namespace threads_backend {
       int const ranks = inside_num_ranks;
       int const num_per_rank = std::max(1, blocks / ranks);
 
-      DEBUG_PRINT_THD(
-        inside_rank,
+      DEBUG_PRINT(
         "register_task_collection: indicies=%d, ranks=%d, num_per_rank=%d\n",
         blocks, ranks, num_per_rank
       );
