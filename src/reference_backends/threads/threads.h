@@ -207,7 +207,7 @@ namespace threads_backend {
     size_t next_collection_id = 1;
 
     std::unordered_map<
-      std::pair<types::key_t, types::key_t>,
+      std::tuple<CollectionID, types::key_t, types::key_t>,
       std::shared_ptr<DataBlock>
     > data, fetched_data;
 
