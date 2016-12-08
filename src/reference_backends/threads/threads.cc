@@ -2060,7 +2060,9 @@ namespace threads_backend {
     // correct forwarding
     if (from->prev != nullptr) {
       auto other = from->prev->collection_child[backend_index].first;
-      other->next = f;
+      if (other) {
+        other->next = f;
+      }
 
       DEBUG_PRINT(
         "make_indexed_local_flow: other=%ld\n", other ? PRINT_LABEL(other) : -1
