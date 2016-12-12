@@ -77,6 +77,7 @@ auto make_captured_use_holder(
   );
 
   auto* backend_runtime = abstract::backend::get_backend_runtime();
+  std::size_t saved_collection_owner = source_and_continuing_holder->use.use_->collection_owner_;
 
   std::shared_ptr<UseHolderT> captured_use_holder;
 
@@ -524,6 +525,11 @@ auto make_captured_use_holder(
 
     //==========================================================================
   } // end switch requested immediate permissions
+
+  // Propagate the collection owner information
+  captured_use_holder->use.use_->collection_owner_ = saved_collection_owner;
+  // Also for the continuing, in case there's been a change
+  source_and_continuing_holder->use.use_->collection_owner_ = saved_collection_owner;
 
   return captured_use_holder;
 }

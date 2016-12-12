@@ -87,12 +87,73 @@ struct _get_task_stored_arg_helper {
 //==============================================================================
 // <editor-fold desc="AccessHandle case"> {{{1
 
-// AccessHandle case
+// AccessHandle unique modify case
 template <typename Functor, typename CollectionArg, size_t Position>
 struct _get_task_stored_arg_helper<
   Functor, CollectionArg, Position,
-  std::enable_if_t<decayed_is_access_handle<CollectionArg>::value>
+  std::enable_if_t<decayed_is_access_handle<CollectionArg>::value
+    and is_access_handle_captured_as_unique_modify<std::decay_t<CollectionArg>>::value
+  >
 > {
+  using type = typename CollectionArg::template with_traits<
+    typename CollectionArg::traits::template with_owning_index_type<
+      std::size_t
+    >::type
+  >;
+  using return_type = type; // readability
+
+  template <typename TaskCollectionInstanceT, typename TaskInstance>
+  type
+  operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg,
+    TaskInstance& task
+  ) const {
+    if(backend_index == arg.current_use_->use.use_->collection_owner_) {
+      // We still need to create a new use for the task itself...
+      auto new_use_holder = std::make_shared<UseHolder>(
+        HandleUse(
+          arg.var_handle_,
+          arg.current_use_->use.in_flow_,
+          arg.current_use_->use.out_flow_,
+          arg.current_use_->use.scheduling_permissions_,
+          arg.current_use_->use.immediate_permissions_
+        )
+      );
+      new_use_holder->do_register();
+      return return_type(new_use_holder);
+    }
+    else {
+      // We still need to create a new use for the task itself, but not don't register it!!!!
+      auto new_use_holder = std::make_shared<UseHolder>(
+        HandleUse(
+          arg.var_handle_,
+          nullptr, nullptr,
+          HandleUse::Read, HandleUse::Read
+        )
+      );
+      return_type rv(
+        detail::unfetched_access_handle_tag{},
+        arg.var_handle_,
+        new_use_holder
+      );
+      rv.owning_index_ = arg.current_use_->use.use_->collection_owner_;
+      return rv;
+
+    }
+  }
+
+};
+
+//------------------------------------------------------------------------------
+
+// AccessHandle shared read case
+template <typename Functor, typename CollectionArg, size_t Position>
+struct _get_task_stored_arg_helper<
+  Functor, CollectionArg, Position,
+  std::enable_if_t<decayed_is_access_handle<CollectionArg>::value
+    and is_access_handle_captured_as_shared_read<std::decay_t<CollectionArg>>::value
+  >
+> {
+  // TODO finish this!
   using type = CollectionArg;
 
   template <typename TaskCollectionInstanceT, typename TaskInstance>

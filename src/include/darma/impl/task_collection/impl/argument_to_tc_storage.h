@@ -102,7 +102,7 @@ struct _get_storage_arg_helper<
   std::enable_if_t<
     // The argument is an access handle
     decayed_is_access_handle<GivenArg>::value
-    and is_access_handle_captured_as_unique_modify<GivenArg>::value
+    and is_access_handle_captured_as_unique_modify<std::decay_t<GivenArg>>::value
   >
 > {
   // If the argument is an AccessHandle, the parameter cannot modify unless it is
@@ -118,9 +118,9 @@ struct _get_storage_arg_helper<
       " an owned_by() specifier and use an AccessHandle as the function parameter"
   );
 
-  using type = AccessHandle<
-    typename std::decay_t<GivenArg>::value_type,
-    typename std::decay_t<GivenArg>::traits
+  using type = typename std::decay_t<GivenArg>
+    ::template with_traits<
+      typename std::decay_t<GivenArg>::traits
   >;
   using return_type = type; // readability
 
@@ -144,7 +144,7 @@ struct _get_storage_arg_helper<
     using collection_range_traits = typename TaskCollectionT::index_range_traits;
     auto coll_mapping_to_dense = collection_range_traits::mapping_to_dense(collection.collection_range_);
     std::size_t backend_owning_index = coll_mapping_to_dense.map_forward(arg.owning_index_);
-    rv.current_use_->use.collection_owner_ = backend_owning_index;
+    rv.current_use_->use.use_->collection_owner_ = backend_owning_index;
     collection.add_dependency(&(rv.current_use_->use));
     return rv;
   }
