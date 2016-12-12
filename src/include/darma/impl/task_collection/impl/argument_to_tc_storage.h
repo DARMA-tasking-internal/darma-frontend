@@ -145,6 +145,7 @@ struct _get_storage_arg_helper<
     auto coll_mapping_to_dense = collection_range_traits::mapping_to_dense(collection.collection_range_);
     std::size_t backend_owning_index = coll_mapping_to_dense.map_forward(arg.owning_index_);
     rv.current_use_->use.use_->collection_owner_ = backend_owning_index;
+    rv.owning_backend_index_ = backend_owning_index;
     collection.add_dependency(&(rv.current_use_->use));
     return rv;
   }

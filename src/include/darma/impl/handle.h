@@ -625,7 +625,7 @@ using decayed_is_access_handle = typename is_access_handle<std::decay_t<T>>::typ
 
 template <typename T>
 using _captured_as_unique_modify_archetype =
-  tinympl::bool_<T::collection_captured_as_unique_modify>;
+  tinympl::bool_<T::is_collection_captured_as_unique_modify>;
 
 template <typename T>
 using is_access_handle_captured_as_unique_modify = tinympl::and_<
@@ -637,7 +637,7 @@ using is_access_handle_captured_as_unique_modify = tinympl::and_<
 
 template <typename T>
 using _captured_as_shared_read_archetype =
-  tinympl::bool_<T::collection_captured_as_shared_read>;
+  tinympl::bool_<T::is_collection_captured_as_shared_read>;
 
 template <typename T>
 using is_access_handle_captured_as_shared_read = tinympl::and_<

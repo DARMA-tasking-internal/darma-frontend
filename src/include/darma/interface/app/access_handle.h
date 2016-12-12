@@ -218,6 +218,10 @@ class AccessHandle : public detail::AccessHandleBase {
       );
       capturing_task = running_task->current_create_work_context;
       var_handle_ = copied_from.var_handle_;
+      DARMA_ASSERT_MESSAGE(
+        not copied_from.unfetched_,
+        "Illegal capture of unfetched non-local AccessHandle"
+      );
 
       // Now check if we're in a capturing context:
       if (capturing_task != nullptr) {
@@ -268,13 +272,13 @@ class AccessHandle : public detail::AccessHandleBase {
       );
       capturing_task = running_task->current_create_work_context;
       var_handle_ = AccessHandleAccess::var_handle(copied_from);
+      DARMA_ASSERT_MESSAGE(
+        not copied_from.unfetched_,
+        "Illegal capture of unfetched non-local AccessHandle"
+      );
 
       // Now check if we're in a capturing context:
       if (capturing_task != nullptr) {
-        DARMA_ASSERT_MESSAGE(
-          not copied_from.unfetched_,
-          "Illegal capture of unfetched non-local AccessHandle"
-        );
         if (
           // If this type is a compile-time read-only handle, mark it as such here
           traits::max_immediate_permissions == detail::AccessHandlePermissions::Read
@@ -296,11 +300,8 @@ class AccessHandle : public detail::AccessHandleBase {
         capturing_task->do_capture<AccessHandle>(*this, copied_from);
       } // end if capturing_task != nullptr
       else {
-        // regular copy
-        DARMA_ASSERT_FAILURE(
-          "Copying an AccessHandle<T> to an analogous type (e.g., ReadAccessHandle<T>) is not"
-          " allowed (except for the implicit copy that occurs when the handle is being captured)"
-        );
+        // regular copy, just copy over the current use
+        current_use_ = copied_from.current_use_;
       }
     }
 
@@ -343,6 +344,8 @@ class AccessHandle : public detail::AccessHandleBase {
       // creation process will handle it.  Just copy over things...
       var_handle_ = std::forward<AccessHandleT>(other).var_handle_;
       current_use_ = std::forward<AccessHandleT>(other).current_use_;
+      // this is the only place where unfetched copy is legal
+      unfetched_ = other.unfetched_;
       // Everything else will be set up by the TaskCollection setup process
     }
 
@@ -359,6 +362,10 @@ class AccessHandle : public detail::AccessHandleBase {
       // creation process will handle it.  Just copy over things...
       var_handle_ = std::forward<AccessHandleT>(other).var_handle_;
       current_use_ = std::forward<AccessHandleT>(other).current_use_;
+      DARMA_ASSERT_MESSAGE(
+        not other.unfetched_,
+        "Illegal capture of unfetched non-local AccessHandle"
+      );
       // Everything else will be set up by the TaskCollection setup process
     }
 
@@ -670,12 +677,14 @@ class AccessHandle : public detail::AccessHandleBase {
             )
           );
 
-          current_use_ = make_shared<GenericUseHolder<HandleUse>>(
-            var_handle_,
-            fetched_in_flow,
-            fetched_out_flow,
-            HandleUse::Read,
-            HandleUse::Read
+          current_use_ = std::make_shared<GenericUseHolder<HandleUse>>(
+            HandleUse(
+              var_handle_,
+              fetched_in_flow,
+              fetched_out_flow,
+              HandleUse::Read,
+              HandleUse::Read
+            )
           );
 
           current_use_->could_be_alias = true;
@@ -828,6 +837,7 @@ class AccessHandle : public detail::AccessHandleBase {
     mutable bool value_constructed_ = std::is_default_constructible<T>::value;
     mutable bool unfetched_ = false;
     mutable typename traits::owning_index_t owning_index_;
+    mutable std::size_t owning_backend_index_;
 
     AccessHandle const* prev_copied_from = nullptr;
 
@@ -856,6 +866,9 @@ class AccessHandle : public detail::AccessHandleBase {
 
     template <typename, typename>
     friend class AccessHandleCollection;
+
+    template <typename, typename, typename...>
+    friend class detail::TaskCollectionImpl;
 
     template <typename Op>
     friend struct detail::all_reduce_impl;

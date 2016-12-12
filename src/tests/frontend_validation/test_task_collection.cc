@@ -743,3 +743,220 @@ TEST_F(TestCreateConcurrentWork, simple_sq_brkt_same) {
   mock_runtime->task_collections.front().reset(nullptr);
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+TEST_F(TestCreateConcurrentWork, simple_unique_owner) {
+
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+
+  MockFlow finit("finit"), fnull("fnull"), ftask_out("ftask_out");
+  use_t* use_task = nullptr;
+  int value;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, ftask_out, use_task, value);
+
+  EXPECT_FLOW_ALIAS(ftask_out, fnull);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp_c = initial_access<int>("hello");
+
+
+    struct Foo {
+      void operator()(Index1D<int> index,
+        AccessHandle<int> val
+      ) const {
+        if(index.value == 0) { val.set_value(42); }
+      }
+    };
+
+    create_concurrent_work<Foo>(
+      tmp_c.owned_by(Index1D<int>{0, 0, 3}),
+      index_range=Range1D<int>(4)
+    );
+
+  }
+  //============================================================================
+
+  for(int i = 0; i < 4; ++i) {
+
+    if(i == 0) {
+      EXPECT_RELEASE_USE(use_task);
+    }
+    else {
+
+    }
+
+    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+
+    if(i == 0) {
+      EXPECT_THAT(created_task.get(), UseInGetDependencies(use_task));
+    }
+    else {
+      EXPECT_EQ(created_task->get_dependencies().size(), 0);
+    }
+
+    created_task->run();
+
+    if(i == 0) {
+      EXPECT_THAT(value, Eq(42));
+    }
+
+  }
+
+
+  mock_runtime->task_collections.front().reset(nullptr);
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+TEST_F(TestCreateConcurrentWork, fetch_unique_owner) {
+
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+
+  MockFlow finit("finit"), fnull("fnull"), ftask_out("ftask_out");
+  MockFlow fpub("fpub");
+  MockFlow f_fetch[4] = { "f_fetch[0]", "f_fetch[1]", "f_fetch[2]", "f_fetch[3]"};
+  MockFlow f_fetch_null[4] = { "f_fetch_null[0]", "f_fetch_null[1]", "f_fetch_null[2]", "f_fetch_null[3]"};
+  use_t* use_task = nullptr, *use_pub = nullptr, *use_pub_cont = nullptr;
+  use_t* use_fetch[4] = {nullptr, nullptr, nullptr, nullptr};
+  int value;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, ftask_out, use_task, value);
+
+  EXPECT_FLOW_ALIAS(ftask_out, fnull);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp_c = initial_access<int>("hello");
+
+
+    struct Foo {
+      void operator()(Index1D<int> index,
+        AccessHandle<int> val
+      ) const {
+        if(index.value == 0) {
+          val.set_value(42);
+          val.publish(n_readers=3);
+        }
+        else {
+          val.read_access();
+          create_work([=]{
+            EXPECT_EQ(val.get_value(), 42);
+          });
+
+        }
+      }
+    };
+
+    create_concurrent_work<Foo>(
+      tmp_c.owned_by(Index1D<int>{0, 0, 3}),
+      index_range=Range1D<int>(4)
+    );
+
+  }
+  //============================================================================
+
+  for(int i = 0; i < 4; ++i) {
+
+    if(i == 0) {
+
+      {
+        InSequence s;
+
+        EXPECT_CALL(*mock_runtime, make_forwarding_flow(finit))
+          .WillOnce(Return(fpub));
+
+        EXPECT_REGISTER_USE(use_pub, fpub, fpub, None, Read);
+
+        EXPECT_REGISTER_USE(use_pub_cont, fpub, ftask_out, Modify, Read);
+
+        EXPECT_RELEASE_USE(use_task);
+
+        EXPECT_CALL(*mock_runtime, publish_use(Eq(ByRef(use_pub)), _));
+
+        EXPECT_RELEASE_USE(use_pub);
+
+      }
+
+      EXPECT_RELEASE_USE(use_pub_cont);
+
+      EXPECT_FLOW_ALIAS(fpub, ftask_out);
+
+    }
+    else {
+
+      EXPECT_CALL(*mock_runtime, make_fetching_flow(
+        is_handle_with_key(make_key("hello")), make_key(), false
+      )).WillOnce(Return(f_fetch[i]));
+
+      EXPECT_CALL(*mock_runtime, make_null_flow(
+        is_handle_with_key(make_key("hello"))
+      )).WillOnce(Return(f_fetch_null[i]));
+
+      EXPECT_REGISTER_USE_AND_SET_BUFFER(
+        use_fetch[i], f_fetch[i], f_fetch[i], Read, Read, value
+      );
+
+      EXPECT_REGISTER_TASK(use_fetch[i]);
+
+      EXPECT_FLOW_ALIAS(f_fetch[i], f_fetch_null[i]);
+
+    }
+
+    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+
+    if(i == 0) {
+      EXPECT_THAT(created_task.get(), UseInGetDependencies(use_task));
+    }
+    else {
+      EXPECT_EQ(created_task->get_dependencies().size(), 0);
+    }
+
+    created_task->run();
+
+    // Run any of the fetching tasks created...
+    if(i != 0) {
+      EXPECT_RELEASE_USE(use_fetch[i]);
+
+      run_all_tasks();
+    }
+
+    if(i == 0) {
+      EXPECT_THAT(value, Eq(42));
+    }
+
+  }
+
+
+  mock_runtime->task_collections.front().reset(nullptr);
+
+}

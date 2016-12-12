@@ -249,6 +249,16 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
     ))), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce(SaveArg<0>(&use_ptr)); } \
   )
 
+#define EXPECT_REGISTER_USE_AND_SET_BUFFER(use_ptr, fin, fout, sched, immed, value) \
+  ::_impl::in_sequence_wrapper( \
+    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+      &fin, &fout, use_t::sched, use_t::immed \
+    ))), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce( \
+      ::testing::Invoke( \
+         [&](auto&& use_arg) { use_ptr = use_arg; use_ptr->get_data_pointer_reference() = &value; } \
+    )); } \
+  )
+
 #define EXPECT_REGISTER_TASK(...) \
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy( \
     UsesInGetDependencies(VectorOfPtrsToArgs(__VA_ARGS__)) \
