@@ -2439,7 +2439,7 @@ backend_parse_arguments(
   bool const trace =
     holder.exists("trace") ? static_cast<bool>(holder.get<size_t>("trace")) : false;
   size_t const bwidth =
-    holder.exists("bf") ? holder.get<size_t>("bf") : 0;
+    holder.exists("bf") ? holder.get<size_t>("bf") : 1;
   bool const depth =
     bwidth == 0 ? true : false;
 
