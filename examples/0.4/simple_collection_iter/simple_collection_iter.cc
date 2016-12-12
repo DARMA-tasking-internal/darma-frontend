@@ -15,8 +15,8 @@ struct SimpleCollectionInit {
     AccessHandleCollection<std::vector<int>, Range1D<int>> c1,
     AccessHandleCollection<int, Range1D<int>> c2
   ) {
-    auto local_vector = c1[index];
-    auto some_data = c2[index];
+    auto local_vector = c1[index].local_access();
+    auto some_data = c2[index].local_access();
 
     std::vector<int>& vec = *local_vector;
     for (auto i = 0; i < index.value; i++) {
@@ -34,14 +34,14 @@ struct SimpleCollectionTimestep {
     AccessHandleCollection<int, Range1D<int>> c2,
     int const this_iter
   ) {
-    auto local_vector = c1[index];
+    auto local_vector = c1[index].local_access();
     std::vector<int>& vec = *local_vector;
     for (auto i = 0; i < index.value; i++) {
       assert(vec[i] == index.value + i + this_iter);
       vec[i]++;
     }
 
-    auto some_data = c2[index];
+    auto some_data = c2[index].local_access();
     assert(some_data.get_value() == index.value);
   }
 };

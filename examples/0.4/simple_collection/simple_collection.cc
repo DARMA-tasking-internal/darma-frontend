@@ -13,7 +13,7 @@ struct SimpleCollection {
     AccessHandleCollection<int, Range1D<int>> c1,
     bool const first
   ) {
-    auto handle = c1[index];
+    auto handle = c1[index].local_access();
 
     if (first) {
       std::cout << "first=" << first

@@ -17,8 +17,8 @@ struct SimpleCollectionInit {
   ) {
     using darma_runtime::keyword_arguments_for_publication::version;
 
-    auto local_vector = c1[index];
-    auto some_data = c2[index];
+    auto local_vector = c1[index].local_access();
+    auto some_data = c2[index].local_access();
 
     std::vector<int>& vec = *local_vector;
     for (auto i = 0; i < index.value; i++) {
@@ -38,22 +38,24 @@ struct SimpleCollectionTimestep {
   ) {
     using darma_runtime::keyword_arguments_for_publication::version;
 
-    auto local_vector = c1[index];
+    auto local_vector = c1[index].local_access();
     std::vector<int>& vec = *local_vector;
     for (auto i = 0; i < index.value; i++) {
       assert(vec[i] == index.value + i + this_iter);
       vec[i]++;
     }
 
-    auto some_data = c2[index];
+    auto some_data = c2[index].local_access();
     assert(some_data.get_value() == index.value);
 
-    local_vector.publish(version=this_iter);
+    if(index.value != index.max_value) {
+      local_vector.publish(version=this_iter);
+    }
 
     if (index.value != 0) {
-      auto fetched_handle = c1[index-1].fetch(version=this_iter);
+      auto fetched_handle = c1[index-1].read_access(version=this_iter);
       create_work([=]{
-        std::vector<int>& fvec = *fetched_handle;
+        std::vector<int> const& fvec = *fetched_handle;
         assert(fvec.size() == index.value - 1);
         for (auto i = 0; i < index.value - 1; i++) {
           assert(fvec[i] == index.value + i + this_iter);
