@@ -86,4 +86,7 @@ add_subdirectory(fib_nokey)
 add_subdirectory(region_square_roots)
 add_subdirectory(persistent_square_roots)
 add_subdirectory(simple_reduce)
+add_subdirectory(simple_collection)
+add_subdirectory(simple_collection_iter)
+add_subdirectory(simple_collection_fetch)
 

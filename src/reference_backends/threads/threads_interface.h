@@ -50,8 +50,8 @@
 namespace threads_backend {
   struct InnerFlow;
   struct GraphNode;
-  template <typename TaskType>
-  struct TaskNode;
+  template <typename TaskType> struct TaskNode;
+  template <typename MetaTask> struct MetaTaskNode;
   struct FetchNode;
   struct PublishNode;
   struct DelayedPublish;
@@ -170,6 +170,15 @@ namespace threads_backend {
     run_task(TaskType* task) {
       return static_cast<Impl*>(this)->run_task(task);
     }
+
+    template <typename TaskType>
+    inline void
+    create_task(
+      std::shared_ptr<TaskNode<TaskType>> t, int rank
+    ) {
+      return static_cast<Impl*>(this)->create_task(t,rank);
+    }
+
   };
 }
 

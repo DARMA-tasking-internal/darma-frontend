@@ -70,19 +70,24 @@ namespace threads_backend {
     types::key_t version_key, key;
     std::shared_ptr<handle_t> handle = nullptr;
     bool ready, isNull, isFetch, fromFetch, isCollective, isForward;
-    bool isWriteForward, fetcherAdded;
+    bool isWriteForward, writeForwardSet = false, fetcherAdded;
     bool scheduleOnlyNeeded = false;
 
     // for collection related flows
+    // TODO: subclass this to reduce size of flow
     bool is_collection = false;
     bool is_indexed = false;
     std::shared_ptr<InnerFlow> collection = nullptr;
     std::shared_ptr<InnerFlow> prev = nullptr;
     size_t collection_index = 0;
-    std::unordered_map<size_t, std::shared_ptr<InnerFlow>> collection_child;
+    std::unordered_map<
+      size_t,
+      std::pair<std::shared_ptr<InnerFlow>,std::shared_ptr<InnerFlow>>
+    > collection_child;
     bool indexed_alias_out = false;
     bool collection_out = true;
     CollectionID cid;
+    std::mutex collection_mutex{};
 
     size_t* shared_reader_count = nullptr;
     size_t uses = 0;

@@ -207,7 +207,7 @@ namespace threads_backend {
     size_t next_collection_id = 1;
 
     std::unordered_map<
-      std::pair<types::key_t, types::key_t>,
+      std::tuple<CollectionID, types::key_t, types::key_t>,
       std::shared_ptr<DataBlock>
     > data, fetched_data;
 
@@ -404,7 +404,7 @@ namespace threads_backend {
     template <typename TaskType>
     size_t
     check_dep_task(
-      std::shared_ptr<TaskNode<TaskType>> t
+      std::shared_ptr<TaskType> t
     );
 
     template <typename TaskType>
@@ -422,7 +422,7 @@ namespace threads_backend {
     template <typename TaskType>
     void
     create_task(
-      std::shared_ptr<TaskNode<TaskType>> task_node,
+      std::shared_ptr<TaskType> task_node,
       int rank = -1
     );
 

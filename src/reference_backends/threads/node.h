@@ -129,7 +129,13 @@ namespace threads_backend {
               std::shared_ptr<InnerFlow> fetch_)
       : GraphNode(-1, rt)
       , fetch(fetch_)
-    { }
+    {
+      DEBUG_PRINT_THD(
+        runtime->get_rank(),
+        "constructing fetch node, flow=%ld, this=%p\n",
+        PRINT_LABEL(fetch), this
+      );
+    }
 
     void execute() override {
       std::string genName = "";
@@ -180,8 +186,8 @@ namespace threads_backend {
     virtual ~FetchNode() {
       DEBUG_PRINT_THD(
         runtime->get_rank(),
-        "destructing fetch node, flow=%ld\n",
-        PRINT_LABEL(fetch)
+        "destructing fetch node, flow=%ld, this=%p\n",
+        PRINT_LABEL(fetch), this
       );
     }
 
@@ -286,6 +292,42 @@ namespace threads_backend {
     }
   };
 
+  template <typename MetaTask>
+  struct MetaTaskNode : GraphNode {
+    std::shared_ptr<MetaTask> shared_task = nullptr;
+    int lo = 0, hi = 0, cur = 0;
+    int rank = -1;
+
+    MetaTaskNode(
+      Runtime* rt, std::shared_ptr<MetaTask> meta_shared_task,
+      int lo_in, int hi_in, int in_rank
+    ) : GraphNode(-1, rt), shared_task(meta_shared_task)
+      , lo(lo_in), hi(hi_in), cur(lo_in), rank(in_rank)
+    { }
+
+    virtual void execute() override {
+      if (cur < hi) {
+        auto task = std::move(shared_task->create_task_for_index(cur));
+        cur++;
+        auto task_node = std::make_shared<TaskNode<types::task_collection_task_t>>(
+          runtime, std::move(task)
+        );
+        runtime->create_task(
+          task_node, rank
+        );
+        if (cur < hi) {
+          runtime->add_remote(this->shared_from_this());
+        } else {
+          GraphNode::execute();
+        }
+      }
+    }
+
+    virtual bool ready() override {
+      return true;
+    }
+  };
+
   template <typename TaskType>
   struct TaskNode
     : GraphNode
@@ -323,6 +365,59 @@ namespace threads_backend {
     }
 
     virtual bool ready() {
+      return join_counter == 0;
+    }
+  };
+
+  template <typename TaskType>
+  struct TaskCollectionNode : GraphNode {
+
+    std::unique_ptr<TaskType> task;
+    size_t inside_rank = 0, inside_num_ranks = 0;
+
+    TaskCollectionNode(
+      Runtime* rt, std::unique_ptr<TaskType>&& task_, size_t rank, size_t num_ranks
+    )
+      : GraphNode(-1, rt)
+      , task(std::move(task_))
+      , inside_rank(rank)
+      , inside_num_ranks(num_ranks)
+    { }
+
+    virtual void execute() override {
+      auto shared_task_collection = std::shared_ptr<ThreadsRuntime::task_collection_t>(std::move(task));
+
+      int const blocks = shared_task_collection->size();
+      int const ranks = inside_num_ranks;
+      int const num_per_rank = std::max(1, blocks / ranks);
+
+      DEBUG_PRINT(
+        "register_task_collection: indicies=%d, ranks=%d, num_per_rank=%d\n",
+        blocks, ranks, num_per_rank
+      );
+
+      for (auto cur = 0; cur < std::max(blocks,num_per_rank*ranks); cur += num_per_rank) {
+        int const rank = (cur / num_per_rank) % ranks;
+
+        auto task_node = std::make_shared<MetaTaskNode<ThreadsRuntime::task_collection_t>>(
+          rank == inside_rank ? runtime : shared_ranks[rank],
+          shared_task_collection,
+          cur,
+          std::min(cur+num_per_rank,blocks),
+          rank
+        );
+
+        if (rank == inside_rank) {
+          runtime->add_remote(task_node);
+        } else {
+          shared_ranks[rank]->add_remote(task_node);
+        }
+      }
+
+      GraphNode::execute();
+    }
+
+    virtual bool ready() override {
       return join_counter == 0;
     }
   };

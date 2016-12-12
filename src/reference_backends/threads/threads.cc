@@ -214,19 +214,19 @@ namespace threads_backend {
   ThreadsRuntime::register_task(
     types::unique_ptr_template<runtime_t::task_t>&& task
   ) {
-    DEBUG_VERBOSE_PRINT("register task\n");
+    DEBUG_PRINT("register task\n");
 
     auto t = std::make_shared<TaskNode<task_t>>(
       TaskNode<task_t>{this,std::move(task)}
     );
+
     create_task(t);
   }
 
-  template <typename TaskType>
+  template <typename TaskNode>
   void
   ThreadsRuntime::create_task(
-    std::shared_ptr<TaskNode<TaskType>> t,
-    int rank
+    std::shared_ptr<TaskNode> t, int rank
   ) {
     t->join_counter = check_dep_task(t);
 
@@ -402,8 +402,11 @@ namespace threads_backend {
       f_in->ready = true;
     } else if (f_in->isFetch &&
                !f_in->fetcherAdded) {
-      auto node = std::make_shared<FetchNode>(FetchNode{this,f_in});
+      auto node = std::make_shared<FetchNode>(this,f_in);
       node->acquire = f_in->acquire;
+      DEBUG_PRINT(
+        "add_fetch_node_flow: handle=%p\n", f_in->handle.get()
+      );
       const bool ready = add_fetcher(
         node,
         f_in->handle.get(),
@@ -420,15 +423,17 @@ namespace threads_backend {
   template <typename TaskType>
   size_t
   ThreadsRuntime::check_dep_task(
-    std::shared_ptr<TaskNode<TaskType>> t
+    std::shared_ptr<TaskType> t
   ) {
-    DEBUG_VERBOSE_PRINT("check_dep_task\n");
+    DEBUG_PRINT("check_dep_task\n");
 
     size_t dep_count = 0;
 
     for (auto&& dep : t->task->get_dependencies()) {
       auto const f_in  = dep->get_in_flow();
       auto const f_out = dep->get_out_flow();
+
+      DEBUG_PRINT("check_dep_task dep f_in=%ld\n", PRINT_LABEL(f_in));
 
       add_fetch_node_flow(f_in);
 
@@ -532,6 +537,7 @@ namespace threads_backend {
     auto handle = u->get_handle();
     auto const& key = handle->get_key();
     auto const version = f_in->version_key;
+    auto const& cid = f_in->cid;
 
     bool const ready = f_in->ready;
 
@@ -571,21 +577,24 @@ namespace threads_backend {
 
     if (f_in->isForward) {
       auto const flows_match = f_in == f_out;
-      f_in->isWriteForward = !flows_match;
+      if (!f_in->writeForwardSet) {
+        f_in->isWriteForward = !flows_match;
+        f_in->writeForwardSet = true;
+      }
     }
 
     f_in->uses++;
     f_out->uses++;
 
     if (!f_in->fromFetch) {
-      const bool data_exists = data.find({version,key}) != data.end();
+      const bool data_exists = data.find({cid,version,key}) != data.end();
       if (data_exists) {
-        f_in->data_block = data[{version,key}];
-        u->get_data_pointer_reference() = data[{version,key}]->data;
+        f_in->data_block = data[{cid,version,key}];
+        u->get_data_pointer_reference() = data[{cid,version,key}]->data;
 
         DEBUG_PRINT("%p: use register, ptr=%p, key=%s, "
                     "in version=%s, out version=%s, data exists\n",
-                    u, data[{version,key}]->data, PRINT_KEY(key),
+                    u, data[{cid,version,key}]->data, PRINT_KEY(key),
                     PRINT_KEY(f_in->version_key),
                     PRINT_KEY(f_out->version_key));
       } else {
@@ -593,7 +602,7 @@ namespace threads_backend {
         auto block = allocate_block(handle);
 
         // insert into the hash
-        data[{version,key}] = block;
+        data[{cid,version,key}] = block;
         f_in->data_block = block;
         u->get_data_pointer_reference() = block->data;
 
@@ -604,16 +613,16 @@ namespace threads_backend {
                     PRINT_KEY(f_out->version_key));
       }
 
-      f_in->shared_reader_count = &data[{version,key}]->shared_ref_count;
-      f_out->shared_reader_count = &data[{version,key}]->shared_ref_count;
+      f_in->shared_reader_count = &data[{cid,version,key}]->shared_ref_count;
+      f_out->shared_reader_count = &data[{cid,version,key}]->shared_ref_count;
     } else {
-      const bool data_exists = fetched_data.find({version,key}) != fetched_data.end();
+      const bool data_exists = fetched_data.find({cid,version,key}) != fetched_data.end();
       if (data_exists) {
-        f_in->data_block = fetched_data[{version,key}];
-        u->get_data_pointer_reference() = fetched_data[{version,key}]->data;
+        f_in->data_block = fetched_data[{cid,version,key}];
+        u->get_data_pointer_reference() = fetched_data[{cid,version,key}]->data;
 
         DEBUG_PRINT("register_use: data exists: ptr=%p\n",
-                    fetched_data[{version,key}]->data);
+                    fetched_data[{cid,version,key}]->data);
       } else {
         // FIXME: copy-paste of above code...
 
@@ -621,23 +630,24 @@ namespace threads_backend {
         auto block = allocate_block(handle, f_in->fromFetch);
         f_in->data_block = block;
         // insert into the hash
-        fetched_data[{version,key}] = block;
+        fetched_data[{cid,version,key}] = block;
         u->get_data_pointer_reference() = block->data;
 
         DEBUG_PRINT("register_use: data does not exist: ptr=%p\n",
                     block->data);
       }
 
-      f_in->shared_reader_count = &fetched_data[{version,key}]->shared_ref_count;
-      f_out->shared_reader_count = &fetched_data[{version,key}]->shared_ref_count;
+      f_in->shared_reader_count = &fetched_data[{cid,version,key}]->shared_ref_count;
+      f_out->shared_reader_count = &fetched_data[{cid,version,key}]->shared_ref_count;
     }
 
     // save keys
     f_in->key = key;
     f_out->key = key;
 
-    DEBUG_PRINT("flow %ld, shared_reader_count=%p [%ld]\n",
+    DEBUG_PRINT("flow {%ld,%s}, shared_reader_count=%p [%ld]\n",
                 PRINT_LABEL(f_in),
+                PRINT_STATE(f_in),
                 f_in->shared_reader_count,
                 *f_in->shared_reader_count
                 );
@@ -771,8 +781,8 @@ namespace threads_backend {
         PublishedBlock* pub_ptr = iter->second;
         auto &pub = *pub_ptr;
 
-        const bool buffer_exists = fetched_data.find({version_key,key}) != fetched_data.end();
-        void* unpack_to = buffer_exists ? fetched_data[{version_key,key}]->data : malloc(pub.data->size_);
+        const bool buffer_exists = fetched_data.find({cid,version_key,key}) != fetched_data.end();
+        void* unpack_to = buffer_exists ? fetched_data[{cid,version_key,key}]->data : malloc(pub.data->size_);
 
         DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
                     PRINT_BOOL_STR(buffer_exists),
@@ -783,7 +793,7 @@ namespace threads_backend {
                      unpack_to);
 
         if (!buffer_exists) {
-          fetched_data[{version_key,key}] = std::make_shared<DataBlock>(unpack_to);
+          fetched_data[{cid,version_key,key}] = std::make_shared<DataBlock>(unpack_to);
         }
 
         DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
@@ -838,12 +848,12 @@ namespace threads_backend {
 
       fetch->fetch->fetcherAdded = true;
 
-      DEBUG_PRINT("add_fetcher: key=%s, version=%s, found=%s, avail=%s\n",
-                  PRINT_KEY(key),
-                  PRINT_KEY(version_key),
-                  PRINT_BOOL_STR(found),
-                  PRINT_BOOL_STR(avail)
-                  );
+      DEBUG_PRINT(
+        "add_fetcher: key=%s, version=%s, found=%s, avail=%s, collection=%ld, index=%ld\n",
+        PRINT_KEY(key), PRINT_KEY(version_key),
+        PRINT_BOOL_STR(found), PRINT_BOOL_STR(avail),
+        cid.collection, cid.index
+      );
 
       if (!found) {
         auto pub = new PublishedBlock();
@@ -923,8 +933,8 @@ namespace threads_backend {
       auto &pub = *pub_ptr;
       auto traceLog = pub.pub_log;
 
-      const bool buffer_exists = fetched_data.find({version_key,key}) != fetched_data.end();
-      auto block = buffer_exists ? fetched_data[{version_key,key}] :
+      const bool buffer_exists = fetched_data.find({cid,version_key,key}) != fetched_data.end();
+      auto block = buffer_exists ? fetched_data[{cid,version_key,key}] :
         std::shared_ptr<DataBlock>(new DataBlock(0, pub.data->size_), [handle](DataBlock* b) {
           handle
             ->get_serialization_manager()
@@ -933,7 +943,7 @@ namespace threads_backend {
        });
 
       if (!buffer_exists) {
-        fetched_data[{version_key,key}] = block;
+        fetched_data[{cid,version_key,key}] = block;
       }
 
       DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
@@ -1035,12 +1045,15 @@ namespace threads_backend {
       delete flow;
     });
 
-    DEBUG_PRINT("forwarding flow from %lu to %lu\n",
-                PRINT_LABEL(f),
-                PRINT_LABEL(f_forward));
+    DEBUG_PRINT(
+      "forwarding flow from %lu to %lu, f->next=%ld\n",
+      PRINT_LABEL(f), PRINT_LABEL(f_forward), f->next ? PRINT_LABEL(f->next) : -1
+    );
 
-    f->next->ref++;
-    f->next->state = FlowWaiting;
+    if (f->next != nullptr) {
+      f->next->ref++;
+      f->next->state = FlowWaiting;
+    }
 
     if (depthFirstExpand) {
       f_forward->ready = true;
@@ -1135,22 +1148,72 @@ namespace threads_backend {
     flow_t const& f_in,
     flow_t const& f_alias
   ) {
+    DEBUG_PRINT(
+      "indexed_alias_to_out: f_in=%ld, f_alias=%ld\n", PRINT_LABEL(f_in),
+      PRINT_LABEL(f_alias)
+    );
+
     if (f_alias->collection_out && f_alias->is_indexed && f_in->is_indexed) {
       auto index = f_in->collection_index;
+
+      DEBUG_PRINT(
+        "indexed_alias_to_out: index=%ld\n", index
+      );
+
       assert(f_in->collection != nullptr);
 
       auto next_col = f_in->collection->next;
       assert(f_in->collection->next != nullptr);
 
+      DEBUG_PRINT(
+        "indexed_alias_to_out: next_col=%ld\n", PRINT_LABEL(next_col)
+      );
+
       f_in->indexed_alias_out = true;
-      assert(f_in->collection_child.find(index) != f_in->collection_child.end());
+
+      std::lock_guard<std::mutex> lg1(f_in->collection->collection_mutex);
+      std::lock_guard<std::mutex> lg2(f_in->collection->next->collection_mutex);
+
+      auto found = f_in->collection->collection_child.find(index) != f_in->collection->collection_child.end();
+
+      DEBUG_PRINT(
+        "indexed_alias_to_out: f_in->collection=%ld, found=%d\n",
+        f_in->collection ? PRINT_LABEL(f_in->collection) : -1,
+        found ? 1 : 0
+      );
+
+      assert(found);
+
       if (next_col != nullptr) {
+        DEBUG_PRINT(
+          "indexed_alias_to_out: next_col->collection_child[%ld]=%s\n",
+          index, next_col->collection_child.find(index) != next_col->collection_child.end() ? "true" : "false"
+        );
+
         if (next_col->collection_child.find(index) != next_col->collection_child.end()) {
           auto next_elm = next_col->collection_child[index];
-          try_release_to_read(next_elm);
-          f_in->collection_child.erase(
-            f_in->collection_child.find(index)
+
+          DEBUG_PRINT(
+            "indexed_alias_to_out: has second = %s\n", next_elm.second ? "true" : "false"
           );
+
+          if (next_elm.second != nullptr) {
+            DEBUG_PRINT(
+              "indexed_alias_to_out: first_elem=%ld, next_elem=%ld\n",
+              PRINT_LABEL(next_elm.first), PRINT_LABEL(next_elm.second)
+            );
+            if (next_elm.second->state == FlowWaiting) {
+              auto const has_read = try_release_to_read(next_elm.second);
+              if (!has_read) {
+                release_to_write(next_elm.second);
+              }
+            } else {
+              release_to_write(next_elm.second);
+            }
+            f_in->collection->collection_child.erase(
+              f_in->collection->collection_child.find(index)
+            );
+          }
         }
       }
     }
@@ -1187,17 +1250,17 @@ namespace threads_backend {
                     PRINT_STATE(alias_part));
 
         if (has_subsequent) {
-          release_to_write(
-            alias_part
-          );
+          release_to_write(alias_part);
+
+          if (alias_part != f_from) {
+            indexed_alias_to_out(f_from, alias_part);
+          }
         } else {
           DEBUG_PRINT("establish_flow_alias subsequent, %ld in state=%s does not have *subsequent*\n",
                       PRINT_LABEL(alias_part),
                       PRINT_STATE(alias_part));
 
         }
-
-        indexed_alias_to_out(alias_part, f_from);
       }
     } else if (f_from->state == FlowReadReady) {
       f_from->state = FlowReadOnlyReady;
@@ -1705,16 +1768,16 @@ namespace threads_backend {
       if (std::get<1>(last_found_alias) == false) {
         auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
         if (has_subsequent) {
-          release_to_write(
-            alias_part
-          );
+          release_to_write(alias_part);
+
+          if (alias_part != flow) {
+            indexed_alias_to_out(flow, alias_part);
+          }
         } else {
           DEBUG_PRINT("transition_after_read, %ld in state=%s does not have *subsequent*\n",
                       PRINT_LABEL(alias_part),
                       PRINT_STATE(alias_part));
         }
-
-        indexed_alias_to_out(alias_part, flow);
       }
     }
   }
@@ -1729,9 +1792,10 @@ namespace threads_backend {
 
     f_in->state = FlowAntiReady;
 
-    DEBUG_PRINT("transition_after_write, transition in=%ld to state=%s\n",
-                PRINT_LABEL(f_in),
-                PRINT_STATE(f_in));
+    DEBUG_PRINT(
+      "transition_after_write, transition in=%ld to state=%s, out ref=%ld\n",
+      PRINT_LABEL(f_in), PRINT_STATE(f_in), f_out->ref
+    );
 
     if (f_out->ref == 0) {
       auto const has_read_phase = try_release_to_read(f_out);
@@ -1749,16 +1813,16 @@ namespace threads_backend {
 
         auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
         if (has_subsequent) {
-          release_to_write(
-            alias_part
-          );
+          release_to_write(alias_part);
+
+          if (alias_part != f_in) {
+            indexed_alias_to_out(f_in, alias_part);
+          }
         } else {
           DEBUG_PRINT("transition_after_write, %ld in state=%s does not have *subsequent*\n",
                       PRINT_LABEL(alias_part),
                       PRINT_STATE(alias_part));
         }
-
-        indexed_alias_to_out(alias_part, f_out);
       }
     }
 
@@ -1818,15 +1882,17 @@ namespace threads_backend {
     }
 
     if (flows_match) {
-      transition_after_read(
-        f_out
-      );
+      if (u->immediate_permissions() != abstract::frontend::Use::Permissions::None) {
+        transition_after_read(f_out);
+      }
     } else {
       if (f_in->uses == 0) {
-        transition_after_write(
-          f_in,
-          f_out
-        );
+        if (u->immediate_permissions() == abstract::frontend::Use::Permissions::Modify) {
+          transition_after_write(
+            f_in,
+            f_out
+          );
+        }
       }
     }
   }
@@ -1857,11 +1923,12 @@ namespace threads_backend {
       auto handle = publish->handle;
       void* data_ptr = publish->data_ptr;
 
-      DEBUG_PRINT("publish: key = %s, version = %s, data ptr = %p, handle = %p\n",
-                  PRINT_KEY(key),
-                  PRINT_KEY(version),
-                  data_ptr,
-                  handle.get());
+      DEBUG_PRINT(
+        "publish: key = %s, version = %s, data ptr = %p, handle = %p, collection=%ld, index=%ld\n",
+        PRINT_KEY(key), PRINT_KEY(version),
+        data_ptr, handle.get(),
+        cid.collection, cid.index
+      );
 
       assert(expected >= 1);
 
@@ -1909,36 +1976,14 @@ namespace threads_backend {
   ThreadsRuntime::register_task_collection(
     task_collection_unique_ptr&& task_collection
   ) {
-    task_collection_unique_ptr cr_task = std::move(task_collection);
+    auto cr_task = std::move(task_collection);
 
-    int const blocks = 2;//cr_task->size();
-    int const ranks = inside_num_ranks;
-    int const num_per_rank = std::max(1, blocks / ranks);
-
-    DEBUG_PRINT(
-      "register_task_collection: indicies=%d, ranks=%d, num_per_rank=%d\n",
-      blocks, ranks, num_per_rank
+    auto task_node = std::make_shared<TaskCollectionNode<task_collection_t>>(
+      this, std::move(cr_task),
+      inside_rank, inside_num_ranks
     );
 
-    for (auto cur = 0; cur < std::max(blocks,num_per_rank*ranks); cur += num_per_rank) {
-      int const rank = (cur / num_per_rank) % ranks;
-
-      for (auto i = cur; i < std::min(cur+num_per_rank,blocks); i++) {
-        //std::cout << "rank " << rank << ": index = " << i << std::endl;
-        auto new_task = cr_task->create_task_for_index(i);
-
-        auto task_node = std::make_shared<TaskNode<types::task_collection_task_t>>(
-          rank == inside_rank ? this : shared_ranks[rank],
-          std::move(new_task)
-        );
-
-        if (rank != inside_rank) {
-          task_node->for_rank = rank;
-        }
-
-        create_task(task_node, rank == inside_rank ? -1 : rank);
-      }
-    }
+    create_task(task_node, inside_rank);
   }
 
   /*virtual*/
@@ -1950,7 +1995,9 @@ namespace threads_backend {
     flow->is_collection = true;
     flow->cid.collection = next_collection_id++;
 
-    DEBUG_PRINT("make_initial_flow_collection\n");
+    DEBUG_PRINT(
+      "make_initial_flow_collection: id=%ld\n", flow->cid.collection
+    );
 
     return flow;
   }
@@ -1974,6 +2021,7 @@ namespace threads_backend {
     flow_t& from
   ) {
     auto flow = make_next_flow(from);
+    from->next = flow;
     flow->is_collection = true;
     flow->prev = from;
     flow->cid.collection = from->cid.collection;
@@ -1998,23 +2046,51 @@ namespace threads_backend {
     });
 
     DEBUG_PRINT(
-      "make_indexed_local_flow: flow=%ld, collection=%ld, index=%ld\n",
-      PRINT_LABEL(f), from->cid.collection, backend_index
+      "make_indexed_local_flow: flow=%ld, from=%ld, collection=%ld, index=%ld, from state=%s\n",
+      PRINT_LABEL(f), PRINT_LABEL(from), from->cid.collection, backend_index,
+      PRINT_STATE(from)
     );
 
     f->is_indexed = true;
     f->collection = from;
     f->cid = CollectionID(from->cid.collection, backend_index);
-    f->collection->collection_child[backend_index] = f;
-    f->state = FlowWaiting;
 
-    if (from->state != FlowWaiting) {
-      if (from->prev->collection_child.find(backend_index) !=
-          from->prev->collection_child.end()) {
-        auto prev_matching_flow = from->prev->collection_child[backend_index];
-        if (prev_matching_flow->indexed_alias_out) {
-          f->state = FlowReadReady;
-          f->ready = true;
+    std::lock_guard<std::mutex> lg1(f->collection->collection_mutex);
+
+    // set up next link inside indexed region between in and out flows for
+    // correct forwarding
+    if (from->prev != nullptr) {
+      auto other = from->prev->collection_child[backend_index].first;
+      if (other) {
+        other->next = f;
+      }
+
+      DEBUG_PRINT(
+        "make_indexed_local_flow: other=%ld\n", other ? PRINT_LABEL(other) : -1
+      );
+    }
+
+    if (from->collection_child.find(backend_index) == from->collection_child.end()) {
+      //f->next = from->next->collection_child[backend_index].first;
+      from->collection_child[backend_index].first = f;
+    } else {
+      from->collection_child[backend_index].second = f;
+    }
+
+    f->state = from->state;
+    f->collection_index = backend_index;
+
+    if (from->state == FlowWaiting) {
+      DEBUG_PRINT("from->prev=%ld\n", from->prev ? PRINT_LABEL(from->prev) : 0);
+      if (from->prev != nullptr) {
+        if (from->prev->collection_child.find(backend_index) !=
+            from->prev->collection_child.end() &&
+           from->prev->collection_child[backend_index].second != nullptr) {
+          auto prev_matching_flow = from->prev->collection_child[backend_index].second;
+          if (prev_matching_flow->indexed_alias_out) {
+            f->state = FlowReadReady;
+            f->ready = true;
+          }
         }
       }
     } else {
@@ -2031,7 +2107,7 @@ namespace threads_backend {
     types::key_t const& version_key,
     size_t backend_index
   ) {
-    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(nullptr), [this](InnerFlow* flow){
+    auto f = std::shared_ptr<InnerFlow>(new InnerFlow(from->handle), [this](InnerFlow* flow){
       DEBUG_PRINT(
         "make_indexed_fetching_flow: deleter running %ld\n",
         PRINT_LABEL(flow)
@@ -2039,9 +2115,16 @@ namespace threads_backend {
       delete flow;
     });
 
+    DEBUG_PRINT(
+      "make_indexed_fetching_flow: flow=%ld, from=%ld, collection=%ld, index=%ld, from state=%s\n",
+      PRINT_LABEL(f), PRINT_LABEL(from), from->cid.collection, backend_index,
+      PRINT_STATE(from)
+    );
+
     f->is_indexed = true;
     f->collection = from;
     f->collection_index = backend_index;
+    f->cid = CollectionID(from->cid.collection, backend_index);
 
     f->version_key = version_key;
     f->isFetch = true;
@@ -2078,21 +2161,24 @@ namespace threads_backend {
           f_in->cid
        });
 
-    auto p = std::make_shared<PublishNode>(PublishNode{this,pub});
+    auto p = std::make_shared<PublishNode>(this,pub);
 
     const bool ready = p->ready();
 
-    DEBUG_PRINT("%p: publish_use: shared=%ld, ptr=%p, key=%s, "
-                "version=%s, handle=%p, ready=%s, f_in=%lu, f_out=%lu\n",
-                f,
-                *f_in->shared_reader_count,
-                f->get_data_pointer_reference(),
-                PRINT_KEY(key),
-                PRINT_KEY(version),
-                handle.get(),
-                PRINT_BOOL_STR(ready),
-                PRINT_LABEL(f_in),
-                PRINT_LABEL(f_out));
+    DEBUG_PRINT(
+      "%p: publish_use: shared=%ld, ptr=%p, key=%s, "
+      "version=%s, handle=%p, ready=%s, f_in={%lu,%s}, f_out=%lu\n",
+      f,
+      *f_in->shared_reader_count,
+      f->get_data_pointer_reference(),
+      PRINT_KEY(key),
+      PRINT_KEY(version),
+      handle.get(),
+      PRINT_BOOL_STR(ready),
+      PRINT_LABEL(f_in),
+      PRINT_STATE(f_in),
+      PRINT_LABEL(f_out)
+    );
 
     assert(f_in == f_out);
 
