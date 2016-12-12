@@ -68,6 +68,24 @@ namespace darma_runtime {
 
 namespace detail {
 
+static constexpr struct _not_a_type_ctor_tag_t { } _not_a_type_ctor_tag { };
+
+struct _not_a_type {
+  _not_a_type(_not_a_type_ctor_tag_t) { }
+  _not_a_type() = delete;
+  _not_a_type(_not_a_type&&) = delete;
+  _not_a_type(_not_a_type const&) = delete;
+};
+
+
+template <size_t numbered = 0>
+struct _not_a_type_numbered {
+  _not_a_type_numbered(_not_a_type_ctor_tag_t) { }
+  _not_a_type_numbered() = delete;
+  _not_a_type_numbered(_not_a_type_numbered&&) = delete;
+  _not_a_type_numbered(_not_a_type_numbered const&) = delete;
+};
+
 struct variadic_constructor_arg_t { };
 constexpr const variadic_constructor_arg_t variadic_constructor_arg = { };
 

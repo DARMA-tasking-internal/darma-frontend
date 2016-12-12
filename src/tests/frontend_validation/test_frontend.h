@@ -46,6 +46,7 @@
 #define SRC_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_H_
 
 #define DEBUG_CREATE_WORK_HANDLES 0
+#define DARMA_SAFE_TEST_FRONTEND_PRINTERS 1
 
 #include <deque>
 #include <iomanip>
@@ -401,13 +402,20 @@ operator<<(std::ostream& o, use_t const* const& u) {
     o << "<null Use ptr>";
   }
   else {
+#if DARMA_SAFE_TEST_FRONTEND_PRINTERS
+    o << "<non-null use (unprinted)>";
+#else
     auto handle = u->get_handle();
     if(handle) {
-      o << "<Use ptr for handle with key " << handle->get_key() << ">";
+      o << "<Use ptr for handle with key {" << handle->get_key()
+        << "}, in_flow " << u->get_in_flow() << ", out_flow" << u->get_out_flow() << ", sched="
+        << permissions_to_string(u->scheduling_permissions()) << ", immed="
+        << permissions_to_string(u->immediate_permissions()) << ">";
     }
     else {
       o << "<Use ptr with null handle>";
     }
+#endif
   }
   return o;
 }

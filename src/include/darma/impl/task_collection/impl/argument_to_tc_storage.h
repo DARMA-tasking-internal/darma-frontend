@@ -95,30 +95,94 @@ struct _get_storage_arg_helper {
 //==============================================================================
 // <editor-fold desc="AccessHandle-like"> {{{1
 
+
 template <typename GivenArg, typename ParamTraits, typename CollectionIndexRangeT>
 struct _get_storage_arg_helper<
   GivenArg, ParamTraits, CollectionIndexRangeT,
   std::enable_if_t<
     // The argument is an access handle
     decayed_is_access_handle<GivenArg>::value
+    and is_access_handle_captured_as_unique_modify<GivenArg>::value
   >
 > {
-  // If the argument is an AccessHandle, the parameter cannot modify:
+  // If the argument is an AccessHandle, the parameter cannot modify unless it is
+  // a uniquely-owned capture (in which case the parameter still needs to be an
+  // AccessHandle):
   static_assert(
-    not ParamTraits::is_nonconst_lvalue_reference,
+    not (
+      ParamTraits::is_nonconst_lvalue_reference
+      and not ParamTraits::template matches<decayed_is_access_handle>::value
+    ),
     "Cannot pass \"plain-old\" AccessHandle to modify parameter of concurrent work"
-      " call.  Use an AccessHandleCollection instead"
+      " call.  Use an AccessHandleCollection instead, or pass an access handle with"
+      " an owned_by() specifier and use an AccessHandle as the function parameter"
   );
 
   using type = AccessHandle<
     typename std::decay_t<GivenArg>::value_type,
-    typename access_handle_traits<>
-    ::template with_max_schedule_permissions<
-      ParamTraits::template matches<decayed_is_access_handle>::value ?
-        AccessHandlePermissions::Read : AccessHandlePermissions::None
-    >::type::template with_max_immediate_permissions<
-      // TODO check for a schedule-only AccessHandle parameter
-      AccessHandlePermissions::Read
+    typename std::decay_t<GivenArg>::traits
+  >;
+  using return_type = type; // readability
+
+  template <typename TaskCollectionT>
+  auto
+  operator()(TaskCollectionT& collection, GivenArg&& arg) const {
+    auto rv = return_type(
+      arg.var_handle_,
+      detail::make_captured_use_holder(
+        arg.var_handle_,
+        /* Requested Scheduling permissions: */
+        // TODO check params(/args?) for reduced scheduling permissions
+        HandleUse::Modify,
+        /* Requested Immediate permissions: */
+        // TODO check params(/args?) for schdule-only permissions request?
+        HandleUse::Modify,
+        /* source and continuing context use holder */
+        arg.current_use_
+      )
+    );
+    using collection_range_traits = typename TaskCollectionT::index_range_traits;
+    auto coll_mapping_to_dense = collection_range_traits::mapping_to_dense(collection.collection_range_);
+    std::size_t backend_owning_index = coll_mapping_to_dense.map_forward(arg.owning_index_);
+    rv.current_use_->use.collection_owner_ = backend_owning_index;
+    collection.add_dependency(&(rv.current_use_->use));
+    return rv;
+  }
+};
+
+//------------------------------------------------------------------------------
+
+template <typename GivenArg, typename ParamTraits, typename CollectionIndexRangeT>
+struct _get_storage_arg_helper<
+  GivenArg, ParamTraits, CollectionIndexRangeT,
+  std::enable_if_t<
+    // The argument is an access handle
+    decayed_is_access_handle<GivenArg>::value
+      and is_access_handle_captured_as_shared_read<GivenArg>::value
+  >
+> {
+  // If the argument is an AccessHandle, the parameter cannot modify unless it is
+  // a uniquely-owned capture (in which case the parameter still needs to be an
+  // AccessHandle):
+  static_assert(
+    not (
+      ParamTraits::is_nonconst_lvalue_reference
+        and not ParamTraits::template matches<decayed_is_access_handle>::value
+    ),
+    "Cannot pass \"plain-old\" AccessHandle to modify parameter of concurrent work"
+      " call.  Use an AccessHandleCollection instead, or pass an access handle with"
+      " an owned_by() specifier and use an AccessHandle as the function parameter"
+  );
+
+  using type = AccessHandle<
+    typename std::decay_t<GivenArg>::value_type,
+    typename std::decay_t<GivenArg>::traits
+      ::template with_max_schedule_permissions<
+        ParamTraits::template matches<decayed_is_access_handle>::value ?
+          AccessHandlePermissions::Read : AccessHandlePermissions::None
+      >::type::template with_max_immediate_permissions<
+        // TODO check for a schedule-only AccessHandle parameter
+        AccessHandlePermissions::Read
     >::type
   >;
   using return_type = type; // readability
@@ -341,13 +405,11 @@ struct _get_storage_arg_helper<
       auto scheduling_permissions,
       auto immediate_permissions
     ) {
-      return std::make_shared<
-        GenericUseHolder<CollectionManagingUse<handle_range_t>>
-      > (
+      return std::make_shared<GenericUseHolder<CollectionManagingUse<handle_range_t>>>(
         CollectionManagingUse<handle_range_t>(
           handle, in_flow, out_flow,
           scheduling_permissions, immediate_permissions,
-          arg.collection.current_use_->use.index_range,
+          arg.collection.get_index_range(),
           full_mapping_t(
             arg.mapping,
             tc_index_range_traits::mapping_to_dense(collection.collection_range_)
@@ -373,14 +435,10 @@ struct _get_storage_arg_helper<
       auto scheduling_permissions,
       auto immediate_permissions
     ) {
-      return std::make_shared<
-        GenericUseHolder<CollectionManagingUse<handle_range_t>>
-      > (
-        CollectionManagingUse<handle_range_t>(
-          handle, in_flow, out_flow,
-          scheduling_permissions, immediate_permissions,
-          arg.collection.current_use_->use.index_range
-        )
+      return CollectionManagingUse<handle_range_t>(
+        handle, in_flow, out_flow,
+        scheduling_permissions, immediate_permissions,
+        arg.collection.get_index_range()
       );
     };
 

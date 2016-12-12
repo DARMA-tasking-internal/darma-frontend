@@ -66,6 +66,11 @@ struct ContiguousIndex {
   bool operator < (ContiguousIndex const& other) const {
     return value < other.value;
   }
+
+  bool operator == (ContiguousIndex const& other) const {
+    return value == other.value;
+  }
+
   template <typename IntegerConvertible>
   ContiguousIndex operator- (IntegerConvertible&& other) const {
     return { value - std::forward<IntegerConvertible>(other), min_value, max_value };

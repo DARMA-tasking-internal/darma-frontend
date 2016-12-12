@@ -115,6 +115,7 @@ auto make_captured_use_holder(
                 /* Immediate permissions */
                 HandleUse::None
               );
+
               captured_use_holder->do_register();
 
               break;
@@ -162,34 +163,28 @@ auto make_captured_use_holder(
                 // continuing context will have different flows from the
                 // already-registered capturing context
 
-                // copy the use holder so that it can be released after we register
-                // the new use in the continuing context
-                auto source_use_holder = source_and_continuing_holder;
-
                 // Make a new use for the continuing context (since, for some reason
                 // or another, we needed one in the source context)
-                source_and_continuing_holder = continuing_use_holder_maker(
-                  var_handle,
-                  captured_out_flow,
-                  source_use_holder->use.out_flow_,
-                  /* Scheduling permissions */
-                  HandleUse::Modify,
-                  /* Immediate permissions */
-                  HandleUse::None // This is a schedule-only use
-                );
-                // Register our new use
-                source_and_continuing_holder->do_register();
-
-                // This new use could establish an alias if no additional tasks are
-                // scheduled on it...
-                source_and_continuing_holder->could_be_alias = true;
 
                 // now that we've created a continuing context use holder, the source
                 // should NOT establish an alias (the continuing use holder will do
                 // it instead), so flip the flag here
-                source_use_holder->could_be_alias = false;
-                // Now we can release the source use
-                source_use_holder->do_release();
+                source_and_continuing_holder->could_be_alias = false;
+                source_and_continuing_holder->replace_use_and_register(
+                  continuing_use_holder_maker(
+                    var_handle,
+                    captured_out_flow,
+                    source_and_continuing_holder->use.out_flow_,
+                    /* Scheduling permissions */
+                    HandleUse::Modify,
+                    /* Immediate permissions */
+                    HandleUse::None // This is a schedule-only use
+                  )
+                );
+
+                // This new use could establish an alias if no additional tasks are
+                // scheduled on it...
+                source_and_continuing_holder->could_be_alias = true;
 
               }
               else {
@@ -315,39 +310,36 @@ auto make_captured_use_holder(
           // source use is released
           // make another shared ptr to the source use holder so that we can
           // release it
-          auto source_use_holder = source_and_continuing_holder;
+          void* old_ptr = source_and_continuing_holder->use.get_data_pointer_reference();
 
           // now make the use for the continuing context
-          source_and_continuing_holder = continuing_use_holder_maker(
-            var_handle,
-            forwarded_flow,
-            // It still carries the out flow of the task, though, and should
-            // establish an alias on release if there are no more modifies
-            source_use_holder->use.out_flow_,
-            /* Scheduling permissions: (should be unchanged) */
-            source_use_holder->use.scheduling_permissions_,
-            /* Immediate permissions: */
-            HandleUse::Read
+          source_and_continuing_holder->replace_use_and_register(
+            continuing_use_holder_maker(
+              var_handle,
+              forwarded_flow,
+              // It still carries the out flow of the task, though, and should
+              // establish an alias on release if there are no more modifies
+              source_and_continuing_holder->use.out_flow_,
+              /* Scheduling permissions: (should be unchanged) */
+              source_and_continuing_holder->use.scheduling_permissions_,
+              /* Immediate permissions: */
+              HandleUse::Read
+            )
           );
           // But this *can* still establish an alias (if it has Modify
           // scheduling permissions) because it could be the one that detects
           // that the forwarding flow aliases the out flow (i.e., that there
           // are no more modifies)
           source_and_continuing_holder->could_be_alias = true;
-          // Now register the continuing use
-          source_and_continuing_holder->do_register();
 
           // We can go ahead and pass on the underlying pointer, though, since
           // the Use is associated with a handle in a context that's uninterruptible
-          void*& ptr = source_and_continuing_holder->use.get_data_pointer_reference();
+          void*& new_ptr = source_and_continuing_holder->use.get_data_pointer_reference();
           // (But only if the backend didn't somehow set it to something
           // else during registration...)
-          if(ptr == nullptr) {
-            ptr = source_use_holder->use.get_data_pointer_reference();
+          if(new_ptr == nullptr) {
+            new_ptr = old_ptr;
           }
-
-          // now release the source
-          source_use_holder->do_release();
 
           break;
 
@@ -363,7 +355,7 @@ auto make_captured_use_holder(
 
     } // end case Read requested immediate permissions
     //==========================================================================
-    case HandleUse::Modify: {
+    case HandleUse::Modify: { // requested immediate permissions
 
       DARMA_ASSERT_MESSAGE(
         source_and_continuing_holder->use.scheduling_permissions_ == HandleUse::Modify,
@@ -400,34 +392,30 @@ auto make_captured_use_holder(
             // We need to register a new use here, though
             // TODO creating a new use here might be inconsistent with how we don't create continuation uses in the modify immediate source case
 
-            // copy the use holder so that it can be released after we register
-            // the new use in the continuing context
-            auto source_use_holder = source_and_continuing_holder;
 
             // Make a new use for the continuing context (since, for some reason
             // or another, we needed one in the source context)
-            source_and_continuing_holder = continuing_use_holder_maker(
-              var_handle,
-              captured_out_flow,
-              source_use_holder->use.out_flow_,
-              /* Scheduling permissions */
-              HandleUse::Modify,
-              /* Immediate permissions */
-              HandleUse::None // This is a schedule-only use
+
+            // now that we're created a continuing context use holder, the source
+            // should NOT establish an alias (the continuing use holder will do
+            // it instead), so flip the flag here
+            source_and_continuing_holder->could_be_alias = false;
+
+            source_and_continuing_holder->replace_use_and_register(
+              continuing_use_holder_maker(
+                var_handle,
+                captured_out_flow,
+                source_and_continuing_holder->use.out_flow_,
+                /* Scheduling permissions */
+                HandleUse::Modify,
+                /* Immediate permissions */
+                HandleUse::None // This is a schedule-only use
+              )
             );
-            // and register then new use
-            source_and_continuing_holder->do_register();
 
             // This new use could establish an alias if no additional tasks are
             // scheduled on it...
             source_and_continuing_holder->could_be_alias = true;
-
-            // now that we've created a continuing context use holder, the source
-            // should NOT establish an alias (the continuing use holder will do
-            // it instead), so flip the flag here
-            source_use_holder->could_be_alias = false;
-            // Now we can release the source use
-            source_use_holder->do_release();
           }
           else {
             // Otherwise, we can reuse the old use holder (since it was never
@@ -446,10 +434,33 @@ auto make_captured_use_holder(
         } // end case None source immediate permissions
         //----------------------------------------------------------------------
         case HandleUse::Read: {
-          // This was getting to complicated to keep in the same block with the
-          // None case.  I don't even think it's reachable in the current
-          // interface, so it's unimplemented for now
-          DARMA_ASSERT_NOT_IMPLEMENTED();                                       // LCOV_EXCL_LINE
+
+          // Create the out flow
+          auto captured_out_flow = next_flow_maker(
+            source_and_continuing_holder->use.in_flow_, backend_runtime
+          );
+
+          // make the captured use holder
+          captured_use_holder = use_holder_maker(
+            var_handle,
+            source_and_continuing_holder->use.in_flow_,
+            captured_out_flow,
+            /* Scheduling permissions */
+            requested_scheduling_permissions,
+            /* Immediate permissions */
+            HandleUse::Modify
+          );
+
+          // register the captured use
+          captured_use_holder->do_register();
+
+          // Now release the source use
+          source_and_continuing_holder->do_release();
+
+          source_and_continuing_holder->use.in_flow_ = captured_out_flow;
+          source_and_continuing_holder->use.immediate_permissions_ = HandleUse::None;
+          // out flow and scheduling permissions unchanged
+
           break;                                                                // LCOV_EXCL_LINE
         } // end case Read source immediate permissions
         //----------------------------------------------------------------------
@@ -529,7 +540,7 @@ make_captured_use_holder(
     var_handle, requested_scheduling_permissions, requested_immediate_permissions,
     source_and_continuing_holder,
     [](auto&&... args) {
-      return detail::make_shared<UseHolder>(HandleUse(
+      return std::make_shared<GenericUseHolder<HandleUse>>(HandleUse(
         std::forward<decltype(args)>(args)...
       ));
     },
@@ -537,9 +548,9 @@ make_captured_use_holder(
       return detail::make_next_flow_ptr(std::forward<decltype(flow)>(flow), backend_runtime);
     },
     [](auto&&... args) {
-      return detail::make_shared<UseHolder>(HandleUse(
+      return HandleUse(
         std::forward<decltype(args)>(args)...
-      ));
+      );
     }
   );
 }
