@@ -58,7 +58,7 @@ class TestReadAccess
   protected:
 
     virtual void SetUp() override {
-      setup_mock_runtime<::testing::StrictMock>();
+      setup_mock_runtime<::testing::NiceMock>();
       TestFrontend::SetUp();
     }
 
