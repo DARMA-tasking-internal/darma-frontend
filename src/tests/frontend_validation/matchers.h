@@ -75,7 +75,7 @@ MATCHER_P4(IsUseWithFlows, f_in, f_out, scheduling_permissions, immediate_permis
   }
 
 #if DARMA_SAFE_TEST_FRONTEND_PRINTERS
-  *result_listener << "arg (unprinted for SEGFAULT safety)";
+  *result_listener << "arg (unprinted for safety)";
 #else
   *result_listener << "arg->get_in_flow(): " << PrintToString(arg->get_in_flow()) + ", arg->get_out_flow(): "
     + PrintToString(arg->get_out_flow())

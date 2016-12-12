@@ -108,6 +108,7 @@ struct _get_call_arg_helper<StoredArg, ParamTraits,
 };
 
 // AccessHandle arg, Param is by value or const lvalue reference
+// TODO this needs to check for a shared read stored arg type
 template <typename StoredArg, typename ParamTraits>
 struct _get_call_arg_helper<StoredArg, ParamTraits,
   std::enable_if_t<
@@ -115,8 +116,11 @@ struct _get_call_arg_helper<StoredArg, ParamTraits,
     is_access_handle<StoredArg>::value
     // Param is by value or a const lvalue reference
     and (
-      ParamTraits::is_by_value
-        or ParamTraits::is_const_lvalue_reference
+      not ParamTraits::template matches<decayed_is_access_handle>::value
+      and (
+        ParamTraits::is_by_value
+          or ParamTraits::is_const_lvalue_reference
+      )
     )
 >
 
@@ -129,22 +133,22 @@ struct _get_call_arg_helper<StoredArg, ParamTraits,
 };
 
 // AccessHandle arg, Param is non-const lvalue reference
-template <typename StoredArg, typename ParamTraits>
-struct _get_call_arg_helper<StoredArg, ParamTraits,
-  std::enable_if_t<
-    // StoredArg is an AccessHandle
-    is_access_handle<StoredArg>::value
-    // Param is non-const lvalue reference
-    and ParamTraits::is_nonconst_lvalue_reference
->
-
->
-{
-  decltype(auto)
-  operator()(StoredArg&& arg) const {
-    return arg.get_reference();
-  }
-};
+// TODO this should be prohibited
+//template <typename StoredArg, typename ParamTraits>
+//struct _get_call_arg_helper<StoredArg, ParamTraits,
+//  std::enable_if_t<
+//    // StoredArg is an AccessHandle
+//    is_access_handle<StoredArg>::value
+//    // Param is non-const lvalue reference
+//    and ParamTraits::is_nonconst_lvalue_reference
+//  >
+//>
+//{
+//  decltype(auto)
+//  operator()(StoredArg&& arg) const {
+//    return arg.get_reference();
+//  }
+//};
 
 // AccessHandle arg, Param is AccessHandle (by value)
 template <typename StoredArg, typename ParamTraits>

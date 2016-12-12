@@ -107,22 +107,19 @@ struct _get_task_stored_arg_helper<
   operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg,
     TaskInstance& task
   ) const {
-    if(backend_index == arg.current_use_->use.use_->collection_owner_) {
-      // We still need to create a new use for the task itself...
-      auto new_use_holder = std::make_shared<UseHolder>(
-        HandleUse(
-          arg.var_handle_,
-          arg.current_use_->use.in_flow_,
-          arg.current_use_->use.out_flow_,
-          arg.current_use_->use.scheduling_permissions_,
-          arg.current_use_->use.immediate_permissions_
-        )
+    if(backend_index == arg.owning_backend_index_) {
+      assert(arg.current_use_);
+      // "Transfer" the use...
+      return_type rv = return_type(
+        arg.var_handle_,
+        arg.current_use_
       );
-      new_use_holder->do_register();
-      return return_type(new_use_holder);
+      arg.current_use_ = nullptr;
+      task.add_dependency(*(&(rv.current_use_->use)));
+      return rv;
     }
     else {
-      // We still need to create a new use for the task itself, but not don't register it!!!!
+      // We still need to create a new use holder (but not a use!) for the task itself, and don't register it!!!!
       auto new_use_holder = std::make_shared<UseHolder>(
         HandleUse(
           arg.var_handle_,
@@ -135,7 +132,7 @@ struct _get_task_stored_arg_helper<
         arg.var_handle_,
         new_use_holder
       );
-      rv.owning_index_ = arg.current_use_->use.use_->collection_owner_;
+      rv.owning_index_ = arg.owning_backend_index_;
       return rv;
 
     }
@@ -154,26 +151,38 @@ struct _get_task_stored_arg_helper<
   >
 > {
   // TODO finish this!
-  using type = CollectionArg;
+//  using type = CollectionArg;
+//
+//  template <typename TaskCollectionInstanceT, typename TaskInstance>
+//  type
+//  operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg,
+//    TaskInstance& task
+//  ) const {
+//    // We still need to create a new use for the task itself...
+//    auto new_use_holder = std::make_shared<UseHolder>(
+//      HandleUse(
+//        arg.var_handle_,
+//        arg.current_use_->use.in_flow_,
+//        arg.current_use_->use.out_flow_,
+//        arg.current_use_->use.scheduling_permissions_, // better be something like Read or less
+//        arg.current_use_->use.immediate_permissions_  // better be something like Read or less
+//      )
+//    );
+//    new_use_holder->do_register();
+//    return CollectionArg(new_use_holder);
+//  }
 
-  template <typename TaskCollectionInstanceT, typename TaskInstance>
-  type
-  operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg,
-    TaskInstance& task
-  ) const {
-    // We still need to create a new use for the task itself...
-    auto new_use_holder = std::make_shared<UseHolder>(
-      HandleUse(
-        arg.var_handle_,
-        arg.current_use_->use.in_flow_,
-        arg.current_use_->use.out_flow_,
-        arg.current_use_->use.scheduling_permissions_, // better be something like Read or less
-        arg.current_use_->use.immediate_permissions_  // better be something like Read or less
-      )
-    );
-    new_use_holder->do_register();
-    return CollectionArg(new_use_holder);
-  }
+};
+
+template <typename Functor, typename CollectionArg, size_t Position>
+struct _get_task_stored_arg_helper<
+  Functor, CollectionArg, Position,
+  std::enable_if_t<decayed_is_access_handle<CollectionArg>::value
+    and not is_access_handle_captured_as_shared_read<std::decay_t<CollectionArg>>::value
+    and not is_access_handle_captured_as_unique_modify<std::decay_t<CollectionArg>>::value
+  >
+> {
+  // TODO reasonable error message
 
 };
 
