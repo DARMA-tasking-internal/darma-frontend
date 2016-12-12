@@ -331,6 +331,7 @@ class IndexedAccessHandle {
           );
 
           access_handle_.current_use_->could_be_alias = true;
+          access_handle_.unfetched_ = false;
 
           // Still, don't register until it gets captured...
 
