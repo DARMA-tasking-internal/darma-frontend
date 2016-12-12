@@ -129,7 +129,7 @@ template <
   typename... Properties
 >
 struct basic_integer_range_1d
-  : detail::PolymorphicSerializationAdapter<
+  : darma_runtime::detail::PolymorphicSerializationAdapter<
       basic_integer_range_1d<Integer>,
       abstract::frontend::IndexRange
     >
@@ -151,34 +151,32 @@ struct basic_integer_range_1d
     //Integer stride_;
 
     // TODO stateless/stateful mapping to dense
+    // TODO simpler index property (i.e., yields just Integer instead)
 
-    basic_integer_index_1d() = delete;
+    basic_integer_range_1d() = delete;
 
   public:
 
-    // TODO index typedef
-
+    using index_type = basic_integer_index_1d<Integer>;
     using is_index_range = std::true_type;
 
     explicit
-    basic_integer_index_1d(Integer size)
+    basic_integer_range_1d(Integer size)
       : size_(size), offset_(0)
     { }
 
-    basic_integer_index_1d(Integer begin, Integer end)
+    basic_integer_range_1d(Integer begin, Integer end)
       : size_(end - begin), offset_(begin)
     { }
 
-    using index_type = basic_integer_index_1d<Integer>;
-    using is_index_range = std::true_type;
 
     // TODO finish this
 
     // Allow serialization without default constructor
     template <typename Archive>
-    basic_integer_index_1d&
+    basic_integer_range_1d&
     reconstruct(void* allocated, Archive&) {
-      auto* rv = new (allocated) basic_integer_index_1d(0);
+      auto* rv = new (allocated) basic_integer_range_1d(0);
       return *rv;
     }
 

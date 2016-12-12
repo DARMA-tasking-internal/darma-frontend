@@ -143,7 +143,7 @@ struct property_parsing_checker {
 
     static constexpr auto all_properties_known = tinympl::variadic::all_of<
       _check_given, Properties...
-    >;
+    >::type::value;
 
     static_assert(all_properties_known,
       "Unknown template property given to template with property parameters"
