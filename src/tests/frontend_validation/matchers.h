@@ -50,8 +50,19 @@
 
 #include "helpers.h"
 #include "mock_backend.h"
+#include <darma/interface/frontend/use.h>
 
 using namespace ::testing;
+
+//bool operator==(
+//  darma_runtime::abstract::frontend::Use const* const a,
+//  darma_runtime::abstract::frontend::Use const* const b
+//) {
+//  return a->get_in_flow() == b->get_in_flow()
+//    and  a->get_out_flow() == b->get_out_flow()
+//    and  a->immediate_permissions() == b->immediate_permissions()
+//    and  a->scheduling_permissions() == b->scheduling_permissions();
+//}
 
 MATCHER_P4(IsUseWithFlows, f_in, f_out, scheduling_permissions, immediate_permissions,
   "arg->get_in_flow(): " + PrintToString(f_in) + ", arg->get_out_flow(): "
@@ -63,10 +74,14 @@ MATCHER_P4(IsUseWithFlows, f_in, f_out, scheduling_permissions, immediate_permis
     return false;
   }
 
+#if DARMA_SAFE_TEST_FRONTEND_PRINTERS
+  *result_listener << "arg (unprinted for SEGFAULT safety)";
+#else
   *result_listener << "arg->get_in_flow(): " << PrintToString(arg->get_in_flow()) + ", arg->get_out_flow(): "
     + PrintToString(arg->get_out_flow())
     << ", arg->scheduling_permissions(): " << permissions_to_string(arg->scheduling_permissions())
       + ", arg->immediate_permissions(): " + permissions_to_string(arg->immediate_permissions());
+#endif
 
   using namespace mock_backend;
   if(f_in != arg->get_in_flow()) return false;
@@ -123,10 +138,22 @@ MATCHER_P(UsesInGetDependencies, uses,
   auto deps = arg->get_dependencies();
   bool rv = true;
   for(auto&& use : uses) {
-    if (deps.find(*use) == deps.end()) {
+    bool found = false;
+    //if(*use == nullptr) found = false;
+    //else {
+    //  for (auto&& dep : deps) {
+    //    if (
+    //      dep->get_in_flow() == (*use)->get_in_flow()
+    //      and dep->get_out_flow() == (*use)->get_out_flow()
+    //      and dep->immediate_permissions() == (*use)->immediate_permissions()
+    //      and dep->scheduling_permissions() == (*use)->scheduling_permissions()
+    //    ) found = true;
+    //  }
+    //}
+    //if (not found) {
+    if(deps.find(*use) == deps.end()) {
       *result_listener << PrintToString(*use) << " not found; ";
       rv = false;
-
     }
   }
   *result_listener << "task->get_dependencies() contains: ";

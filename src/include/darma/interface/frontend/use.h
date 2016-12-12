@@ -183,6 +183,14 @@ class Use {
     virtual UseCollection*
     get_managed_collection() { return nullptr; }
 
+    /** @todo document this
+     *
+     */
+    virtual std::size_t
+    task_collection_owning_index() const {
+      return std::numeric_limits<std::size_t>::max();
+    }
+
 };
 
 

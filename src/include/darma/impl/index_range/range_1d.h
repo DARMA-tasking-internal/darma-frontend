@@ -193,9 +193,9 @@ struct basic_integer_range_1d
 
 } // end namespace detail
 
-using index_range_1d = detail::basic_integer_range_1d<int>;
+using index_range_1d = detail::basic_integer_range_1d<int64_t>;
 
-using index_1d = detail::basic_integer_index_1d<int>;
+using index_1d = detail::basic_integer_index_1d<int64_t>;
 
 } // end namespace indexing
 

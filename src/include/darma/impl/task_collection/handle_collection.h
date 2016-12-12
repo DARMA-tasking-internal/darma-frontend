@@ -51,8 +51,23 @@
 #include <darma/impl/keyword_arguments/macros.h>
 #include <darma/interface/app/keyword_arguments/index_range.h>
 #include <darma/impl/task_collection/task_collection_fwd.h>
+#include <darma/impl/keyword_arguments/parse.h>
+
+namespace _darma__errors {
+
+struct _____cannot_capture_return_of_AccessHandleCollection_subscript_directly {
+  template <typename T>
+  struct __for_access_handle_collection_wrapping_type {
+    struct __must_call__local_access__or__read_access__method_first { };
+  };
+};
+
+} // end namespace _darma__errors
 
 namespace darma_runtime {
+
+template <typename T, typename IndexRangeT>
+class AccessHandleCollection;
 
 namespace detail {
 
@@ -212,6 +227,123 @@ struct MappedHandleCollection {
 // </editor-fold> end MappedHandleCollection
 //==============================================================================
 
+
+//==============================================================================
+// <editor-fold desc="IndexedAccessHandle"> {{{1
+
+// Proxy type returned by the AccessHandleCollection index operation
+template <typename AccessHandleT>
+class IndexedAccessHandle {
+  private:
+
+    AccessHandleT access_handle_;
+    bool has_local_access_;
+    std::size_t backend_index_;
+
+    template <typename, typename>
+    friend class darma_runtime::AccessHandleCollection;
+
+    IndexedAccessHandle(
+      AccessHandleT&& access_handle,
+      bool has_local_access,
+      std::size_t backend_index = std::numeric_limits<std::size_t>::max()
+    ) : access_handle_(std::move(access_handle)),
+        has_local_access_(has_local_access),
+        backend_index_(backend_index)
+    { }
+
+  public:
+
+    template <typename _for_SFINAE_only=void,
+      typename=tinympl::and_<
+        std::is_void<_for_SFINAE_only>,
+        _darma__static_failure<
+          typename
+            _darma__errors::_____cannot_capture_return_of_AccessHandleCollection_subscript_directly
+              ::template __for_access_handle_collection_wrapping_type<typename AccessHandleT::value_type>
+              ::__must_call__local_access__or__read_access__method_first
+        >
+      >
+    >
+    IndexedAccessHandle(IndexedAccessHandle const&) { /* unreachable */ }       // LCOV_EXCL_LINE
+
+    IndexedAccessHandle(IndexedAccessHandle&&) = default;
+
+    AccessHandleT
+    local_access() const {
+      DARMA_ASSERT_MESSAGE(has_local_access_,
+        "Attempted to obtain local access to index of AccessHandleCollection"
+          " that is not local"
+      );
+      return access_handle_;
+    }
+
+    template <typename... Args>
+    typename AccessHandleT::template with_traits<
+      typename AccessHandleT::traits
+        ::template with_max_immediate_permissions<
+          AccessHandlePermissions::Read
+        >::type
+        ::template with_max_schedule_permissions<
+          AccessHandlePermissions::Read
+        >::type
+    >
+    read_access(Args&&... args) const {
+      DARMA_ASSERT_MESSAGE(not has_local_access_,
+        "Attempted to fetch an AccessHandle corresponding to an index of an"
+        " AccessHandleCollection that is local to the fetching context"
+      );
+
+      using namespace darma_runtime::detail;
+      using parser = detail::kwarg_parser<
+        overload_description<
+          _optional_keyword<converted_parameter, keyword_tags_for_publication::version>
+        >
+      >;
+      using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
+
+      return parser()
+        .with_converters(
+          [](auto&&... parts) {
+            return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+          }
+        )
+        .with_default_generators(
+          keyword_arguments_for_publication::version=[]{ return make_key(); }
+        )
+        .parse_args(std::forward<Args>(args)...)
+        .invoke([this](
+           types::key_t&& version_key
+        ) -> decltype(auto) {
+
+          auto* backend_runtime = abstract::backend::get_backend_runtime();
+          auto fetched_in_flow = make_flow_ptr(
+            backend_runtime->make_indexed_fetching_flow(
+              *access_handle_.current_use_->use.in_flow_.get(),
+              version_key, backend_index_
+            )
+          );
+
+          access_handle_.current_use_->use.in_flow_ = fetched_in_flow;
+
+          access_handle_.current_use_->use.out_flow_ = detail::make_flow_ptr(
+            backend_runtime->make_null_flow( access_handle_.var_handle_ )
+          );
+
+          access_handle_.current_use_->could_be_alias = true;
+
+          // Still, don't register until it gets captured...
+
+          return access_handle_;
+        });
+    }
+
+};
+
+
+// </editor-fold> end IndexedAccessHandle }}}1
+//==============================================================================
+
 } // end namespace detail
 
 
@@ -236,7 +368,7 @@ class AccessHandleCollection {
     };
 
     IndexRangeT const& get_index_range() const {
-      return current_use_->use.index_range;
+      return current_use_->use.use_->index_range;
     }
 
     AccessHandleCollection() = default;
@@ -254,7 +386,8 @@ class AccessHandleCollection {
 
   public:
 
-    auto operator[](typename _range_traits::index_type const& idx) const {
+    auto
+    operator[](typename _range_traits::index_type const& idx) const {
       auto use_iter = local_use_holders_.find(idx);
       if(use_iter == local_use_holders_.end()) {
         // make an unfetched handle
@@ -283,14 +416,19 @@ class AccessHandleCollection {
         );
         // DO NOT REGISTER IT YET!!!
 
-        return AccessHandle<T>(
-          detail::unfetched_access_handle_tag{},
-          var_handle_, idx_use_holder, backend_index
+        return detail::IndexedAccessHandle<AccessHandle<T>>(
+          AccessHandle<T>(
+            detail::unfetched_access_handle_tag{},
+            var_handle_, idx_use_holder
+          ), false,
+          backend_index
         );
       }
       else {
-        return AccessHandle<T>(
-          var_handle_, use_iter->second
+        return detail::IndexedAccessHandle<AccessHandle<T>>(
+          AccessHandle<T>(
+            var_handle_, use_iter->second
+          ), true
         );
       }
     }
@@ -343,7 +481,7 @@ class AccessHandleCollection {
 
     void _setup_local_uses(detail::TaskBase& task) const {
       auto& current_use_use = current_use_->use;
-      auto local_idxs = current_use_use.local_indices_for(mapped_backend_index_);
+      auto local_idxs = current_use_use.use_->local_indices_for(mapped_backend_index_);
       auto const& idx_range = get_index_range();
       auto map_dense = _range_traits::mapping_to_dense(idx_range);
       auto* backend_runtime = abstract::backend::get_backend_runtime();
@@ -402,22 +540,35 @@ class AccessHandleCollection {
 // </editor-fold> end AccessHandleCollection
 //==============================================================================
 
+
+//==============================================================================
+// <editor-fold desc="is_access_handle_collection"> {{{1
+
 namespace detail {
 
 template <typename T>
-struct is_access_handle_collection : std::false_type { };
+struct is_access_handle_collection: std::false_type {
+};
 
 template <typename T, typename IndexRangeT>
 struct is_access_handle_collection<
   AccessHandleCollection<T, IndexRangeT>
-> : std::true_type { };
+>: std::true_type {
+};
 
 template <typename T>
 using decayed_is_access_handle_collection = typename is_access_handle_collection<
   std::decay_t<T>
 >::type;
 
+template <typename T>
+using is_access_handle_collection_d = decayed_is_access_handle<T>;
+
 } // end namespace detail
+
+// </editor-fold> end is_access_handle_collection }}}1
+//==============================================================================
+
 
 //==============================================================================
 // <editor-fold desc="initial_access_collection">
@@ -494,44 +645,52 @@ initial_access_collection(Args&&... args) {
 //==============================================================================
 
 
-namespace serialization {
+//==============================================================================
+// <editor-fold desc="serialization for AccessHandleCollection (currently disabled code)"> {{{1
 
-template <typename T, typename IndexRangeT>
-struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT>> {
+//namespace serialization {
+//
+//template <typename T, typename IndexRangeT>
+//struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT>> {
+//
+//  using access_handle_collection_t = darma_runtime::AccessHandleCollection<
+//    T,
+//    IndexRangeT
+//  >;
+//
+//  // This is the sizing and packing method in one...
+//  template <typename ArchiveT>
+//  void compute_size(access_handle_collection_t& ahc, ArchiveT& ar) const {
+//    ar % ahc.var_handle_->get_key();
+//    ar % ahc.current_use_->use.scheduling_permissions_;
+//    ar % ahc.current_use_->use.immediate_permissions_;
+//    DARMA_ASSERT_MESSAGE(
+//      ahc.mapped_backend_index_ == ahc.unknown_backend_index,
+//      "Can't migrate a handle collection after it has been mapped to a task"
+//    );
+//    DARMA_ASSERT_MESSAGE(
+//      ahc.local_use_holders_.empty(),
+//      "Can't migrate a handle collection after it has been mapped to a task"
+//    );
+//    auto* backend_runtime = abstract::backend::get_backend_runtime();
+//    ar.add_to_size_indirect(
+//      backend_runtime->get_packed_flow_size(
+//        *ahc.current_use_->use.in_flow_
+//      )
+//    );
+//    ar.add_to_size_indirect(
+//      backend_runtime->get_packed_flow_size(
+//        *ahc.current_use_->use.out_flow_
+//      )
+//    );
+//  }
+//
+//};
+//
+//} // end namespace serialization
 
-  using access_handle_collection_t = darma_runtime::AccessHandleCollection<T, IndexRangeT>;
-
-  // This is the sizing and packing method in one...
-  template <typename ArchiveT>
-  void compute_size(access_handle_collection_t& ahc, ArchiveT& ar) const {
-    ar % ahc.var_handle_->get_key();
-    ar % ahc.current_use_->use.scheduling_permissions_;
-    ar % ahc.current_use_->use.immediate_permissions_;
-    DARMA_ASSERT_MESSAGE(
-      ahc.mapped_backend_index_ == ahc.unknown_backend_index,
-      "Can't migrate a handle collection after it has been mapped to a task"
-    );
-    DARMA_ASSERT_MESSAGE(
-      ahc.local_use_holders_.empty(),
-      "Can't migrate a handle collection after it has been mapped to a task"
-    );
-    auto* backend_runtime = abstract::backend::get_backend_runtime();
-    ar.add_to_size_indirect(
-      backend_runtime->get_packed_flow_size(
-        *ahc.current_use_->use.in_flow_
-      )
-    );
-    ar.add_to_size_indirect(
-      backend_runtime->get_packed_flow_size(
-        *ahc.current_use_->use.out_flow_
-      )
-    );
-  }
-
-};
-
-
-} // end namespace serialization
+// </editor-fold> end serialization for AccessHandleCollection (currently disabled code) }}}1
+//==============================================================================
 
 
 } // end namespace darma_runtime

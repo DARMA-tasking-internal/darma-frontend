@@ -94,7 +94,7 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
   const bool use_helper = GetParam();
 
   MockFlow f_initial, f_null, f_task_out;
-  use_t* task_use;
+  use_t* task_use = nullptr;
 
   EXPECT_INITIAL_ACCESS(f_initial, f_null, make_key("hello"));
 
@@ -115,7 +115,6 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
 
   EXPECT_FLOW_ALIAS(f_task_out, f_null);
 
-  EXPECT_RELEASE_FLOW(f_task_out);
   EXPECT_RELEASE_FLOW(f_null);
 
   {
@@ -132,6 +131,8 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
   EXPECT_RELEASE_USE(task_use);
 
   EXPECT_RELEASE_FLOW(f_initial);
+
+  EXPECT_RELEASE_FLOW(f_task_out);
 
   mock_runtime->registered_tasks.clear();
 
@@ -157,6 +158,7 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
   MockFlow fnull1("null1"), fnull2("null2");
   MockFlow fout1("out1"), fout2("out2");
   use_t *use_1, *use_2;
+  use_1 = use_2 = nullptr;
 
   EXPECT_INITIAL_ACCESS(finit1, fnull1, make_key("hello"));
   EXPECT_INITIAL_ACCESS(finit2, fnull2, make_key("world"));
@@ -218,7 +220,7 @@ TEST_P(TestRoCaptureRN, ro_capture_RN) {
   Sequence s1, s_release_read;
 
   MockFlow f_fetch, f_null;
-  use_t* read_use;
+  use_t* read_use = nullptr;
   EXPECT_READ_ACCESS(f_fetch, f_null, make_key("hello"), make_key("world"));
 
   bool use_helper = GetParam();
@@ -288,7 +290,7 @@ TEST_P(TestCaptureMM, capture_MM) {
     f_outer_out("f_outer_out"), f_forwarded("f_forwarded"),
     f_inner_out("f_inner_out");
   use_t* use_outer, *use_inner, *use_continuing;
-  use_outer = use_inner = nullptr;
+  use_outer = use_inner = use_continuing = nullptr;
 
   EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
 
@@ -671,3 +673,92 @@ TEST_F(TestCreateWork, death_schedule_only) {
 
 }
 #endif
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow finit("finit"), fnull("fnull"), ftask_out("ftask_out");
+  MockFlow fforw("fforw"), finner_out("inner_out");
+  use_t* use_task, *use_pub, *use_pub_cont, *use_inner;
+  use_task = use_pub = use_pub_cont = use_inner = nullptr;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, ftask_out, use_task);
+
+  EXPECT_REGISTER_TASK(use_task);
+
+  EXPECT_FLOW_ALIAS(ftask_out, fnull);
+
+  // Inside of outer task:
+
+  EXPECT_CALL(*mock_runtime, make_forwarding_flow(finit))
+    .WillOnce(Return(fforw));
+
+  EXPECT_REGISTER_USE(use_pub, fforw, fforw, None, Read);
+
+  {
+    InSequence s;
+
+    EXPECT_REGISTER_USE(use_pub_cont, fforw, ftask_out, Modify, Read);
+
+    EXPECT_RELEASE_USE(use_task);
+
+    EXPECT_CALL(*mock_runtime, publish_use(Eq(ByRef(use_pub)), _));
+
+    EXPECT_RELEASE_USE(use_pub);
+
+  }
+
+  int value = 0;
+
+  {
+    InSequence s;
+
+    EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(fforw, finner_out, use_inner, value);
+
+    EXPECT_RELEASE_USE(use_pub_cont);
+  }
+
+  EXPECT_REGISTER_TASK(use_inner);
+
+  EXPECT_FLOW_ALIAS(finner_out, ftask_out);
+
+  // Inside of inner task
+
+  EXPECT_RELEASE_USE(use_inner);
+
+
+  //============================================================================
+  // actual code being tested
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work([=]{
+
+      tmp.publish();
+
+      create_work([=]{
+        tmp.set_value(42);
+      });
+
+    });
+
+  }
+  //
+  //============================================================================
+
+  run_all_tasks();
+
+  EXPECT_THAT(value, Eq(42));
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
