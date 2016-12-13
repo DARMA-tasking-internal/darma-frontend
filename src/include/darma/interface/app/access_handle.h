@@ -202,6 +202,7 @@ class AccessHandle : public detail::AccessHandleBase {
       std::swap(var_handle_, other.var_handle_);
       std::swap(current_use_, other.current_use_);
       value_constructed_ = other.value_constructed_;
+      unfetched_ = other.unfetched_;
       return *this;
     }
 
