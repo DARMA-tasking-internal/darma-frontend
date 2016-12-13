@@ -150,27 +150,31 @@ struct _get_task_stored_arg_helper<
     and is_access_handle_captured_as_shared_read<std::decay_t<CollectionArg>>::value
   >
 > {
-  // TODO finish this!
-//  using type = CollectionArg;
-//
-//  template <typename TaskCollectionInstanceT, typename TaskInstance>
-//  type
-//  operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg,
-//    TaskInstance& task
-//  ) const {
-//    // We still need to create a new use for the task itself...
-//    auto new_use_holder = std::make_shared<UseHolder>(
-//      HandleUse(
-//        arg.var_handle_,
-//        arg.current_use_->use.in_flow_,
-//        arg.current_use_->use.out_flow_,
-//        arg.current_use_->use.scheduling_permissions_, // better be something like Read or less
-//        arg.current_use_->use.immediate_permissions_  // better be something like Read or less
-//      )
-//    );
-//    new_use_holder->do_register();
-//    return CollectionArg(new_use_holder);
-//  }
+  using type = CollectionArg;
+  using return_type = type;
+
+  template <typename TaskCollectionInstanceT, typename TaskInstance>
+  return_type
+  operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg,
+    TaskInstance& task
+  ) const {
+    // We still need to create a new use for the task itself...
+    auto new_use_holder = std::make_shared<UseHolder>(
+      HandleUse(
+        arg.var_handle_,
+        arg.current_use_->use.in_flow_,
+        arg.current_use_->use.out_flow_,
+        arg.current_use_->use.scheduling_permissions_, // better be something like Read or less
+        arg.current_use_->use.immediate_permissions_  // better be something like Read or less
+      )
+    );
+    new_use_holder->do_register();
+    task.add_dependency(*(&(new_use_holder->use)));
+    return return_type(
+      arg.var_handle_,
+      new_use_holder
+    );
+  }
 
 };
 

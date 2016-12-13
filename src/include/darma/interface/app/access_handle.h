@@ -720,6 +720,26 @@ class AccessHandle : public detail::AccessHandleBase {
       return rv;
     };
 
+    template <
+      typename _for_SFINAE_only=void,
+      typename=std::enable_if_t<
+        not is_collection_captured
+          and std::is_void<_for_SFINAE_only>::value
+      >
+    >
+    with_traits<
+      typename traits::template with_collection_capture_mode<
+        detail::AccessHandleTaskCollectionCaptureMode::SharedRead
+      >::type
+    >
+    shared_read() const {
+      using return_type = with_traits<
+        typename traits::template with_collection_capture_mode<
+          detail::AccessHandleTaskCollectionCaptureMode::SharedRead
+        >::type
+      >;
+      return return_type(*this);
+    };
 
 
     ~AccessHandle() noexcept = default;
