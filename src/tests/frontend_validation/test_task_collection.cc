@@ -960,3 +960,84 @@ TEST_F(TestCreateConcurrentWork, fetch_unique_owner) {
   mock_runtime->task_collections.front().reset(nullptr);
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+TEST_F(TestCreateConcurrentWork, simple_collection_read) {
+
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow finit("finit"), fnull("fnull"), fout_task("fout_task");
+  use_t* use_all = nullptr;
+  use_t* use_coll[4] = { nullptr, nullptr, nullptr, nullptr };
+  use_t* use_task = nullptr;
+  int value = 0;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, fout_task, use_task, value);
+
+  EXPECT_REGISTER_TASK(use_task);
+
+  EXPECT_RELEASE_USE(use_task);
+
+  EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(fout_task, use_all);
+
+  EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(
+    UseInGetDependencies(ByRef(use_all))
+  ));
+
+  EXPECT_FLOW_ALIAS(fout_task, fnull);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp = initial_access<int>("hello");
+
+
+    struct Foo {
+      void operator()(Index1D<int> index,
+        AccessHandle<int> h
+      ) const {
+        EXPECT_THAT(h.get_value(), Eq(42));
+      }
+    };
+
+    create_work([=]{ tmp.set_value(42); });
+
+    create_concurrent_work<Foo>(tmp.shared_read(),
+      index_range=Range1D<int>(4)
+    );
+
+  }
+  //============================================================================
+
+  run_all_tasks();
+
+  for(int i = 0; i < 4; ++i) {
+    EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(fout_task, use_coll[i], value);
+
+    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+
+    EXPECT_THAT(created_task.get(), UseInGetDependencies(use_coll[i]));
+
+    EXPECT_RELEASE_USE(use_coll[i]);
+
+    created_task->run();
+
+  }
+
+  EXPECT_RELEASE_USE(use_all);
+
+  mock_runtime->task_collections.front().reset(nullptr);
+
+}

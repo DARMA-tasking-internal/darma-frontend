@@ -175,8 +175,7 @@ struct _get_storage_arg_helper<
       " an owned_by() specifier and use an AccessHandle as the function parameter"
   );
 
-  using type = AccessHandle<
-    typename std::decay_t<GivenArg>::value_type,
+  using type = typename std::decay_t<GivenArg>::template with_traits<
     typename std::decay_t<GivenArg>::traits
       ::template with_max_schedule_permissions<
         ParamTraits::template matches<decayed_is_access_handle>::value ?
