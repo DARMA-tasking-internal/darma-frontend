@@ -96,13 +96,13 @@ using DefaultMemoryRequirementDetails = StaticMemoryRequirementDetails<
  *  deallocate() methods and defers to some other allocator for the rest
  *  of the allocation functionality (by default, defers to std::allocator<T>)
  */
-template <typename T, typename BaseAllocator = std::allocator<T>>
+template <typename T, typename BaseAllocator = std::allocator<std::decay_t<T>>>
 struct darma_allocator
-  : std::allocator_traits<BaseAllocator>::template rebind_alloc<T>
+  : std::allocator_traits<BaseAllocator>::template rebind_alloc<std::decay_t<T>>
 {
   private:
 
-    using base_t = typename std::allocator_traits<BaseAllocator>::template rebind_alloc<T>;
+    using base_t = typename std::allocator_traits<BaseAllocator>::template rebind_alloc<std::decay_t<T>>;
 
     using base_traits_t = std::allocator_traits<base_t>;
 

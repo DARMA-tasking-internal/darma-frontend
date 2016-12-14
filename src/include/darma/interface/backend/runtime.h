@@ -258,12 +258,17 @@ class Runtime {
      *
      *  The initial Flow will be used as the return value of u->get_in_flow()
      *  for the first Use* u registered with write privileges that returns
-     *  handle for u->get_handle() (or any other handle with an equivalent
-     *  return for get_key() to the one passed in here). In most cases, this
-     *  will derive from calls to initial_access in the application code.
+     *  handle for u->get_handle().
+     *
+     *  @remark In the sequential semantic (C++) frontend, this will usually
+     *  derive from calls to initial_access in the application code.
      *
      *  @param handle A handle encapsulating a type and unique name (variable)
-     *  for which the Flow represents the initial state
+     *  for which the Flow will represent the initial state (upon a subsequent
+     *  call to register_use())
+     *
+     *  @return The flow for the frontend to use as described
+     *
      *
      */
     virtual types::flow_t
@@ -271,10 +276,17 @@ class Runtime {
       std::shared_ptr<frontend::Handle> const& handle
     ) =0;
 
-    /** @todo document this
+    /** @brief Similar to make_initial_flow, but for a Use that manages a
+     *  collection
      *
-     * @param handle
-     * @return
+     *  @sa Use::manages_collection()
+     *  @sa UseCollection
+     *
+     *  @param handle Analogously to make_initial_flow(), the argument is handle
+     *  encapsulating a type and unique name (variable) for which the Flow will
+     *  represent the initial state (upon a subsequent call to register_use())
+     *
+     *  @return The flow for the frontend to use as described
      */
     virtual types::flow_t
     make_initial_flow_collection(
@@ -288,11 +300,19 @@ class Runtime {
      *  for a Use* u intended to fetch the data published with a particular
      *  handle key and version_key.
      *
+     *  @remark In the sequential semantic (C++) frontend, this will usually
+     *  derive from calls to read_access in the application code.
+     *
      *  @param handle A handle object carrying the key identifer returned by
      *  get_key()
      *
      *  @param version_key A unique version for the key returned by
      *  handle->get_key()
+     *
+     *  @param acquired Currently unused; in future versions this indicates the
+     *  expectation of a transfer of ownership
+     *
+     *  @return The flow for the frontend to use as described
      */
     virtual types::flow_t
     make_fetching_flow(
@@ -306,9 +326,13 @@ class Runtime {
      *
      *  A null usage as a return value of u->get_out_flow() for some Use* u is
      *  intended to indicate that the data associated with that Use has no
-     *  subsequent consumers and can safely be deleted.  See release_use().
+     *  subsequent consumers and can safely be deleted when other Uses are
+     *  released.  See release_use().
      *
-     *  @param handle   The handle variable associate with the flow
+     *  @param handle The handle variable that will be associated with the Flow
+     *  in the corresponding call to register_use()
+     *
+     *  @return The flow for the frontend to use as described
      *
      */
     virtual types::flow_t
@@ -316,10 +340,14 @@ class Runtime {
       std::shared_ptr<frontend::Handle> const& handle
     ) =0;
 
-    /** @todo document this
+    /** @brief Analogue of make_null_flow() for a use that manages a collection
      *
-     * @param handle
-     * @return
+     *  @sa make_null_flow()
+     *
+     *  @param handle The handle variable that will be associated with the Flow
+     *  in the corresponding call to register_use()
+     *
+     *  @return The flow for the frontend to use as described
      */
     virtual types::flow_t
     make_null_flow_collection(
@@ -327,15 +355,16 @@ class Runtime {
     ) =0;
 
     /** @todo update this
-     *  @brief Make a new input Flow that receives forwarded changes from
+     *  @brief Make a new Flow that receives forwarded changes from
      *  another input Flow, the latter of which is associated with a Use on
-     *  which Modify immediate permissions were requested.
+     *  which Modify immediate permissions were requested and already granted
+     *  (via a backend call to Task::run() on the Task object that that Use
+     *  was uniquely associated with).
      *
      *  Flows are registered and released indirectly through calls to
-     *  register_use()/release_use(). The translation layer will never share a
-     *  given `Flow*` returned by the backend across multiple Use instances. The
-     *  input Flow to make_forwarding_flow() must have been registered through a
-     *  register_use() call, but not yet released through a release_use() call.
+     *  register_use()/release_use().  The input Flow to make_forwarding_flow()
+     *  must have been registered through a register_use() call, but not yet
+     *  released through a release_use() call.
      *  make_forwarding_flow() can be called at most once with a given input.
      *
      *  @param from An already initialized and registered flow returned from
