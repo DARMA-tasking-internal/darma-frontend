@@ -1,8 +1,0 @@
-
-The parallel example is a slight variation on the serial example. Here
-each rank declares an initial access float handle, sets a value via the
-handle, and then publishes that but this time designated as to be read 
-by two readers. The setting of the float value is wrapped inside a task
-this time. Then, each rank creates a second task, which declares two 
-read access float handles for reading the float values published by the
-left and right neighbours. 

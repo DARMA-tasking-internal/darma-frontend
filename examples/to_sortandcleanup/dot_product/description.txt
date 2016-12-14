@@ -1,5 +1,0 @@
-An attempt at how a dot product example might look like.
-The main aim is to expose aspects that need to be addressed
-both at the front and the back ends. 
-
-Both Francesco and Hemanth are writing separate versions.

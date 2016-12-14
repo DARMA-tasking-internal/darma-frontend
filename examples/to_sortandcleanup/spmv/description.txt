@@ -1,6 +1,0 @@
-An attempt at how a sparse matrix vector multiplication look like..
-The main aim is to expose aspects that need to be addressed
-both at the front and the back ends. Also, the code will help to 
-write Conjugate Gradient code.
-
-The code is written by Keita Teranishi. 

@@ -1,3 +1,0 @@
-add_executable(simple_collection simple_collection.cc)
-target_link_libraries(simple_collection ${DARMA_BACKEND_LIBNAME})
-add_test_for_example(simple_collection ${CMAKE_CURRENT_BINARY_DIR}/simple_collection --bf 100 --ranks 4 10)
