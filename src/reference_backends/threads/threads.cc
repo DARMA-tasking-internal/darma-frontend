@@ -587,14 +587,14 @@ namespace threads_backend {
     f_out->uses++;
 
     if (!f_in->fromFetch) {
-      const bool data_exists = data.find({cid,version,key}) != data.end();
+      const bool data_exists = data.find(std::make_tuple(cid,version,key)) != data.end();
       if (data_exists) {
-        f_in->data_block = data[{cid,version,key}];
-        u->get_data_pointer_reference() = data[{cid,version,key}]->data;
+        f_in->data_block = data[std::make_tuple(cid,version,key)];
+        u->get_data_pointer_reference() = data[std::make_tuple(cid,version,key)]->data;
 
         DEBUG_PRINT("%p: use register, ptr=%p, key=%s, "
                     "in version=%s, out version=%s, data exists\n",
-                    u, data[{cid,version,key}]->data, PRINT_KEY(key),
+                    u, data[std::make_tuple(cid,version,key)]->data, PRINT_KEY(key),
                     PRINT_KEY(f_in->version_key),
                     PRINT_KEY(f_out->version_key));
       } else {
@@ -602,7 +602,7 @@ namespace threads_backend {
         auto block = allocate_block(handle);
 
         // insert into the hash
-        data[{cid,version,key}] = block;
+        data[std::make_tuple(cid,version,key)] = block;
         f_in->data_block = block;
         u->get_data_pointer_reference() = block->data;
 
@@ -613,16 +613,16 @@ namespace threads_backend {
                     PRINT_KEY(f_out->version_key));
       }
 
-      f_in->shared_reader_count = &data[{cid,version,key}]->shared_ref_count;
-      f_out->shared_reader_count = &data[{cid,version,key}]->shared_ref_count;
+      f_in->shared_reader_count = &data[std::make_tuple(cid,version,key)]->shared_ref_count;
+      f_out->shared_reader_count = &data[std::make_tuple(cid,version,key)]->shared_ref_count;
     } else {
-      const bool data_exists = fetched_data.find({cid,version,key}) != fetched_data.end();
+      const bool data_exists = fetched_data.find(std::make_tuple(cid,version,key)) != fetched_data.end();
       if (data_exists) {
-        f_in->data_block = fetched_data[{cid,version,key}];
-        u->get_data_pointer_reference() = fetched_data[{cid,version,key}]->data;
+        f_in->data_block = fetched_data[std::make_tuple(cid,version,key)];
+        u->get_data_pointer_reference() = fetched_data[std::make_tuple(cid,version,key)]->data;
 
         DEBUG_PRINT("register_use: data exists: ptr=%p\n",
-                    fetched_data[{cid,version,key}]->data);
+                    fetched_data[std::make_tuple(cid,version,key)]->data);
       } else {
         // FIXME: copy-paste of above code...
 
@@ -630,15 +630,15 @@ namespace threads_backend {
         auto block = allocate_block(handle, f_in->fromFetch);
         f_in->data_block = block;
         // insert into the hash
-        fetched_data[{cid,version,key}] = block;
+        fetched_data[std::make_tuple(cid,version,key)] = block;
         u->get_data_pointer_reference() = block->data;
 
         DEBUG_PRINT("register_use: data does not exist: ptr=%p\n",
                     block->data);
       }
 
-      f_in->shared_reader_count = &fetched_data[{cid,version,key}]->shared_ref_count;
-      f_out->shared_reader_count = &fetched_data[{cid,version,key}]->shared_ref_count;
+      f_in->shared_reader_count = &fetched_data[std::make_tuple(cid,version,key)]->shared_ref_count;
+      f_out->shared_reader_count = &fetched_data[std::make_tuple(cid,version,key)]->shared_ref_count;
     }
 
     // save keys
@@ -781,8 +781,8 @@ namespace threads_backend {
         PublishedBlock* pub_ptr = iter->second;
         auto &pub = *pub_ptr;
 
-        const bool buffer_exists = fetched_data.find({cid,version_key,key}) != fetched_data.end();
-        void* unpack_to = buffer_exists ? fetched_data[{cid,version_key,key}]->data : malloc(pub.data->size_);
+        const bool buffer_exists = fetched_data.find(std::make_tuple(cid,version_key,key)) != fetched_data.end();
+        void* unpack_to = buffer_exists ? fetched_data[std::make_tuple(cid,version_key,key)]->data : malloc(pub.data->size_);
 
         DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
                     PRINT_BOOL_STR(buffer_exists),
@@ -793,7 +793,7 @@ namespace threads_backend {
                      unpack_to);
 
         if (!buffer_exists) {
-          fetched_data[{cid,version_key,key}] = std::make_shared<DataBlock>(unpack_to);
+          fetched_data[std::make_tuple(cid,version_key,key)] = std::make_shared<DataBlock>(unpack_to);
         }
 
         DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
@@ -933,8 +933,8 @@ namespace threads_backend {
       auto &pub = *pub_ptr;
       auto traceLog = pub.pub_log;
 
-      const bool buffer_exists = fetched_data.find({cid,version_key,key}) != fetched_data.end();
-      auto block = buffer_exists ? fetched_data[{cid,version_key,key}] :
+      const bool buffer_exists = fetched_data.find(std::make_tuple(cid,version_key,key)) != fetched_data.end();
+      auto block = buffer_exists ? fetched_data[std::make_tuple(cid,version_key,key)] :
         std::shared_ptr<DataBlock>(new DataBlock(0, pub.data->size_), [handle](DataBlock* b) {
           handle
             ->get_serialization_manager()
@@ -943,7 +943,7 @@ namespace threads_backend {
        });
 
       if (!buffer_exists) {
-        fetched_data[{cid,version_key,key}] = block;
+        fetched_data[std::make_tuple(cid,version_key,key)] = block;
       }
 
       DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
