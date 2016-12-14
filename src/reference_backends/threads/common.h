@@ -128,6 +128,7 @@ std::mutex __output_mutex;
 
 #include <thread>
 #include <atomic>
+#include <iomanip>
 
 namespace threads_backend {
   using namespace darma_runtime;
@@ -168,91 +169,220 @@ namespace threads_backend {
   };
 }
 
-struct ArgsRemover {
-  template <typename... Args>
-  ArgsRemover(
-    int& argc,
-    char**& argv,
-    Args&&... args
-  ) {
-    iterate(argc, argv, {args...});
-  }
 
-  std::list<std::string> new_args;
+enum { NO_VALUE, OPTIONAL_VALUE, REQUIRED_VALUE };
 
-  void
-  iterate(
-    int& argc,
-    char**& argv,
-    std::initializer_list<std::string> args
-  ) {
-    std::list<std::string> arg_list, arg_list_new;
-    for (auto i = 0; i < argc; i++) {
-      arg_list.push_back(argv[i]);
-    }
+#define NO_SHORT_NAME 0
+#define NO_LONG_NAME nullptr
 
-    for (auto&& arg : args) {
-      bool remove_next = false;
-      //std::cout << "iterate: arg = " << arg << std::endl;
-      for (auto&& item : arg_list) {
-        if ("--" + arg == item) {
-          remove_next = true;
-        } else if (!remove_next) {
-          arg_list_new.push_back(item);
-        } else {
-          remove_next = false;
-        }
-      }
-      arg_list = arg_list_new;
-      arg_list_new.clear();
-    }
-
-    new_args = arg_list;
-  }
-
+struct ArgsConfig {
+  int argEnum;
+  char letter;
+  const char* name;
+  int valueType;
+  const char* docstring;
 };
 
-struct ArgsHolder {
-  std::unordered_map<std::string, std::string> args;
+struct ArgEntry {
+  int argEnum;
+  const char* value;
 
-  ArgsHolder(int argc, char** argv) {
-    for (auto i = 0; i < argc; i++) {
-      //printf("parsing arg: %s\n", argv[i]);
-      if (strlen(argv[i]) > 1 &&
-          argv[i][0] == '-' &&
-          argv[i][1] == '-' &&
-          i+1 < argc &&
-          argv[i+1][0] != '-') {
-        //printf("parsing arg value: %s\n", argv[i+1]);
-        args[std::string(argv[i])] = std::string(argv[i+1]);
-        i++;
-      } else {
-        args[std::string(argv[i])];
-      }
-    }
+  ArgEntry() : value(nullptr), argEnum(-1)
+  {
   }
 
-  bool
-  exists(std::string const& str) {
-    return args.find("--" + str) != args.end();
-  }
-
-  std::string
-  get(std::string const& str) {
-    return args[str];
-  }
-
-  template <typename T>
-  T get(std::string const& str) {
+  template <class T>
+  void
+  get(T& t) const {
     T val;
-    assert(args.find("--" + str) != args.end() &&
-           "Could not find argument");
-    std::stringstream stream(args["--" + str]);
+    std::stringstream stream(value);
     stream >> val;
     if (!stream) {
       assert(0 && "Could not parse correctly");
     }
-    return val;
+  }
+
+  const char*
+  get() const {
+    return value;
+  }
+};
+
+struct ArgName {
+  char shortName;
+  const char* longName;
+  ArgName(char s, const char* l) :
+    shortName(s), longName(l)
+  {
+  }
+};
+
+struct ArgNameCompare
+{
+  bool operator()(const ArgName& l, const ArgName& r) const {
+    if (l.shortName != 0 && r.shortName != 0){
+      return l.shortName < r.shortName;
+    } else {
+      return strcmp(l.longName, r.longName) < 0;
+    }
+  }
+};
+
+
+struct ArgsHolder {
+
+  std::map<ArgName, ArgsConfig*, ArgNameCompare> configs;
+  std::list<ArgEntry> entries;
+
+  typedef  std::list<ArgEntry>::iterator iterator;
+  typedef  std::list<ArgEntry>::const_iterator const_iterator;
+
+  iterator begin() {
+    return entries.begin();
+  }
+
+  const_iterator begin() const {
+    return entries.begin();
+  }
+
+  iterator end() {
+    return entries.end();
+  }
+
+  const_iterator end() const {
+    return entries.end();
+  }
+
+  void
+  usage(std::ostream& os){
+    using std::setw;
+    os << "Usage: app [OPTION]\n"
+       << "Run a given DARMA application with OPTIONS configuring the backend and app"
+       << std::endl;
+    for (auto& pair : configs){
+      ArgsConfig* cfg = pair.second;
+      if (cfg->letter != 0){
+        os << setw(2) << " -" << cfg->letter << ", ";
+      } else {
+        os << setw(5) << "";
+      }
+      if (cfg->name){
+        os << "--" << cfg->name;
+        int len = strlen(cfg->name);
+        os << setw(23-len) << "";
+      } else {
+        os << setw(25) << "";
+      }
+
+      //print a well-formatted docstring
+      int col = 0;
+      int idx = 0;
+      int len = strlen(cfg->docstring);
+      while (idx < len){
+        int startIdx = idx;
+        while (idx < len && (cfg->docstring[idx] != ' ')){
+          ++idx;
+        }
+        int wordSize = idx - startIdx;
+        if (col != 0 && (col + wordSize) > 60){
+          os << "\n" << setw(31) << "";
+          col = 0;
+        } else {
+          col += wordSize;
+          os << " ";
+        }
+
+        for (int i=startIdx; i < idx; ++i){
+          os << cfg->docstring[i];
+        }
+
+        while (idx < len && cfg->docstring[idx] == ' '){
+          ++idx;
+        }
+      }
+      os << std::endl;
+    }
+  }
+
+  void
+  parse(int argc, char** argv)
+  {
+    int i=0;
+    for (i=1; i < argc; ++i){
+      const char* str = argv[i];
+      int len = strlen(str);
+      if (len >= 2){
+        if (str[0] != '-') {
+          std::cerr << "value " << str << " not consumed by any flag" << std::endl;
+          abort();
+        }
+
+        entries.emplace_back();
+        ArgEntry& entry = entries.back();
+        ArgsConfig* cfg = nullptr;
+        if (str[1] == '-'){
+          ArgName n(NO_SHORT_NAME, &str[2]);
+          cfg = configs[n];
+        } else {
+          if (len != 2) {
+            std::cerr << "flag " << str << " has single dash, but is not a single char" << std::endl;
+            abort();
+          }
+          ArgName n(str[1], NO_LONG_NAME);
+          cfg = configs[n];
+        }
+
+        if (cfg == nullptr){
+          std::cerr << "unknown flag " << str << std::endl;
+          abort();
+        }
+
+        entry.argEnum = cfg->argEnum;
+
+
+        if ((i+1) == argc){
+          //reached the end
+          if (cfg->valueType == REQUIRED_VALUE){
+            std::cerr << str << " requires argument" << std::endl;
+            abort();
+          }
+        } else {
+          const char* next = argv[i+1];
+          switch (cfg->valueType){
+            case OPTIONAL_VALUE:
+              if (next[0] != '-'){
+                entry.value = next;
+                ++i;
+              }
+              break;
+            case REQUIRED_VALUE:
+              if (next[0] == '-'){
+                std::cerr << str << " requires argument but found flag " << next << std::endl;
+                abort();
+              }
+              entry.value = next;
+              break;
+            case NO_VALUE:
+              if (next[0] != '-'){
+                std::cerr << str << " takes no arguments, but found " << next << std::endl;
+                abort();
+              }
+              break;
+          }
+        }
+      }
+    }
+  }
+
+  ArgsHolder(ArgsConfig config[]) {
+    int idx = 0;
+    while(1){
+      ArgsConfig& cfg = config[idx];
+      if (cfg.letter == 0 && cfg.name == nullptr)
+        break;
+      configs[{cfg.letter,cfg.name}] = &cfg;
+      ++idx;
+    }
   }
 };
 
