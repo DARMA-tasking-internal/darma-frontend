@@ -4,9 +4,7 @@
 using namespace darma_runtime;
 
 struct fib {
-  void
-  operator()(size_t const n,
-             AccessHandle<size_t>& ret) const{
+  void operator()(size_t const n, AccessHandle<size_t>& ret) const {
     if (n < 2) {
       ret.set_value(n);
     } else {
@@ -38,4 +36,6 @@ void darma_main_task(std::vector<std::string> args) {
   });
 }
 
+
 DARMA_REGISTER_TOP_LEVEL_FUNCTION(darma_main_task);
+

@@ -111,7 +111,7 @@ class ArchivePassthroughMixin {
     std::enable_if_t<is_unpackable_with_this<T>::value>
     unpack_item(void* val) {
       traits<T>::unpack( val, *static_cast<ArchiveT*>(this),
-        darma_allocator<T>()
+        darma_allocator<std::decay_t<T>>()
       );
     }
 
@@ -131,7 +131,7 @@ class ArchivePassthroughMixin {
         // TODO figure out where T is being deduced as const.  It shouldn't be
         const_cast<void*>(static_cast<const void*>(&val)),
         *static_cast<ArchiveT*>(this),
-        darma_allocator<T>()
+        darma_allocator<std::decay_t<T>>()
       );
     }
 
