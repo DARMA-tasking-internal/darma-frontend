@@ -12,7 +12,7 @@ To enable the frontend tests, do the following instead:
 
 $ cmake ${source} \
   -DCMAKE_INSTALL_PREFIX=${frontend_prefix} \
-  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_CXX_COMPILER=${cxxcompiler} \
   -DCMAKE_C_COMPILER=${ccompiler} \
   -DDARMA_FE_ENABLE_TESTS:BOOL=ON \
