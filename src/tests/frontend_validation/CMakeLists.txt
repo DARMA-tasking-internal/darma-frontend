@@ -1,14 +1,14 @@
 
 if (NOT GTEST_DIR)
-message(FATAL_ERROR "Must define prefix install dir for GoogleTest via -DGTEST_DIR=")
+  message("It is recommended to define the prefix install dir for GoogleTest via -DGTEST_DIR=")
+else()
+  include_directories( ${GTEST_DIR}/include )
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${GTEST_DIR}/lib")
 endif()
 
 find_package ( Threads REQUIRED )
 
-include_directories( ${GTEST_DIR}/include )
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${GTEST_DIR}/lib")
 include_directories( ${CMAKE_SOURCE_DIR}/src/tests/frontend_validation )
-
 set(frontendtestfiles gtest_main.cc )
 function(add_unit_test test_name)
 set(frontendtestfiles "${frontendtestfiles};${test_name}.cc" PARENT_SCOPE)
