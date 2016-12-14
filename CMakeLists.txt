@@ -12,23 +12,15 @@ project (DarmaFrontend)
 set (DarmaFrontend_VERSION_MAJOR 0)
 set (DarmaFrontend_VERSION_MINOR 4)
 
-option (DARMA_FE_ENABLE_TESTS
-    "Enable build of frontend tests"
-    OFF
-)
+option (DARMA_FE_ENABLE_TESTS "Enable build of frontend tests" Off)
 
 if (DARMA_FE_ENABLE_TESTS)
   include(CTest)
   enable_testing()
 endif()
 
-include_directories( ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} )
-include_directories( ${CMAKE_BINARY_DIR}/src/include )
-
 # indicate that CMAKE was used, so config-generated.h can be used
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_CONFIG_GENERATED_H_AVAILABLE" )
-
-set(DARMA_ALL_IN_ONE On)
 
 option (DARMA_GENERATE_OO_MACRO_FILES 
     "Generate OO macro expansions for testing and debugging purposes in test_oo"
