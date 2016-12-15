@@ -1,6 +1,6 @@
 
-include_directories( ${CMAKE_SOURCE_DIR}/src/tests )
-include_directories( ${CMAKE_SOURCE_DIR}/src/include )
+include_directories( ${DARMA_FE_REPO_ROOT}/src/tests )
+include_directories( ${DARMA_FE_REPO_ROOT}/src/include )
 
 include (../../cmake-modules/SetDarmaCompilerFlags.cmake)
 set_darma_compiler_flags()
