@@ -441,6 +441,8 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
     abstract::frontend::TaskCollection
   >::unpack(buffer, tcsize);
 
+  EXPECT_THAT(copied_collection->get_dependencies().size(), Eq(1));
+
   //============================================================================
 
 

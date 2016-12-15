@@ -52,8 +52,8 @@
 #include <darma/impl/handle.h>
 #include <darma/impl/flow_handling.h>
 #include <darma/impl/index_range/mapping.h>
-#include <src/include/darma/impl/index_range/mapping_traits.h>
-#include <src/include/darma/impl/index_range/index_range_traits.h>
+#include <darma/impl/index_range/mapping_traits.h>
+#include <darma/impl/index_range/index_range_traits.h>
 
 namespace darma_runtime {
 
