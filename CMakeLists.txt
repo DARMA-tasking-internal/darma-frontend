@@ -12,6 +12,8 @@ project (DarmaFrontend)
 set (DarmaFrontend_VERSION_MAJOR 0)
 set (DarmaFrontend_VERSION_MINOR 4)
 
+set (DARMA_FE_REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+
 option (DARMA_FE_ENABLE_TESTS "Enable build of frontend tests" Off)
 
 if (DARMA_FE_ENABLE_TESTS)

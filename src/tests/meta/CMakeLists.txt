@@ -13,7 +13,7 @@ endif()
 
 find_package ( Threads REQUIRED )
 
-include_directories( ${CMAKE_SOURCE_DIR}/src/tests/meta )
+include_directories( ${DARMA_FE_REPO_ROOT}/src/tests/meta )
 set(metatestfiles gtest_main.cc )
 function(add_unit_test test_name)
     set(metatestfiles "${metatestfiles};${test_name}.cc" PARENT_SCOPE)
