@@ -52,67 +52,44 @@
 using namespace darma_runtime;
 using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
 
-static void escape(void* p) {
-  asm volatile("" : : "g"(p) : "memory");
-}
-
-static void clobber() {
-  asm volatile("" : : : "memory");
-}
-
-// The parameter to the imbalance chi-squared distribution
-static constexpr double imbalance_param = 3.0;
-
-// Truncate the imbalance distribution at this multiplier
-static constexpr double max_imbalance = 100.0;
-
-struct SquareRoots {
+struct AllReduce {
   void operator()(
-    Index1D<int> index,
-    int iteration, int change_interval,
-    int average_n_sqrts
+    Index1D<int> index
   ) const {
+    using darma_runtime::keyword_arguments_for_collectives::in_out;
+    using darma_runtime::keyword_arguments_for_collectives::piece;
+    using darma_runtime::keyword_arguments_for_collectives::n_pieces;
+    using darma_runtime::keyword_arguments_for_collectives::tag;
 
-    clobber();
+    auto const n_elems = index.max_value + 1;
+    auto const my_elm = index.value;
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    gen.seed(index.value * (index.max_value + 1) + iteration/change_interval);
-    std::uniform_real_distribution<> value_dis(1.0, 2.0);
-    std::chi_squared_distribution<> imbalance_dis(1.0);
-    // The chi-squared distribution has a mean equal to it's parameter, so
-    // if we divide out the parameter, we'll get a mean at the average number of
-    // square roots requested
-    int n_sqrts = (int)((
-      double(average_n_sqrts) * std::min(max_imbalance, imbalance_dis(gen))
-    ) / imbalance_param);
+    auto red_data = initial_access<size_t>(my_elm, "red_data");
 
-    std::vector<double> results;
-    for(int i = 0; i < n_sqrts; ++i) {
-      results.push_back(
-        std::sqrt(value_dis(gen))
-      );
+    create_work([=]{
+      red_data.set_value(my_elm);
+    });
+
+    for (auto i = 0; i < 10; i++) {
+      allreduce(in_out=red_data,piece=index.value, n_pieces=n_elems, tag("test",i));
     }
 
-    escape(results.data());
-
+    if(my_elm == 0) {
+      create_work(reads(red_data), [=]{
+        std::cout << "Final sum: " << red_data.get_value() << std::endl;
+      });
+    }
   }
 };
 
 void darma_main_task(std::vector<std::string> args) {
-  assert(args.size() == 5);
+  assert(args.size() == 2);
 
-  size_t const num_ranks = std::atoi(args[1].c_str());
-  size_t const num_iters = std::atoi(args[2].c_str());
-  size_t const change_interval = std::atoi(args[3].c_str());
-  size_t const average_per_iter = std::atoi(args[4].c_str());
+  size_t const num_elems = std::atoi(args[1].c_str());
 
-  for(size_t iter = 0; iter < num_iters; ++iter) {
-    create_concurrent_work<SquareRoots>(
-      iter, change_interval, average_per_iter,
-      index_range=Range1D<int>(num_ranks)
-    );
-  }
+  create_concurrent_work<AllReduce>(
+    index_range=Range1D<int>(num_elems)
+  );
 }
 
 DARMA_REGISTER_TOP_LEVEL_FUNCTION(darma_main_task);

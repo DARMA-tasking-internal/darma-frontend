@@ -50,6 +50,7 @@
 #include <darma/impl/task_collection/task_collection.h>
 
 using namespace darma_runtime;
+using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
 
 static void escape(void* p) {
   asm volatile("" : : "g"(p) : "memory");
@@ -115,7 +116,6 @@ struct GatherResults {
 };
 
 void darma_main_task(std::vector<std::string> args) {
-  using darma_runtime::keyword_arguments_for_create_concurrent_region::index_range;
   assert(args.size() == 6);
 
   size_t const num_ranks = std::atoi(args[1].c_str());
