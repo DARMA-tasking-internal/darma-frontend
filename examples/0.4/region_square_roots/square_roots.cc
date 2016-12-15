@@ -46,6 +46,8 @@
 
 #include <darma.h>
 #include <darma/impl/array/index_range.h>
+#include <darma/impl/task_collection/handle_collection.h>
+#include <darma/impl/task_collection/task_collection.h>
 
 using namespace darma_runtime;
 
@@ -65,7 +67,7 @@ static constexpr double max_imbalance = 100.0;
 
 struct SquareRoots {
   void operator()(
-    ConcurrentRegionContext<Range1D<int>> context,
+    Index1D<int> index,
     int iteration, int change_interval,
     int average_n_sqrts
   ) const {
@@ -74,7 +76,7 @@ struct SquareRoots {
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    gen.seed(context.index().value * context.index().max_value + iteration/change_interval);
+    gen.seed(index.value * (index.max_value + 1) + iteration/change_interval);
     std::uniform_real_distribution<> value_dis(1.0, 2.0);
     std::chi_squared_distribution<> imbalance_dis(1.0);
     // The chi-squared distribution has a mean equal to it's parameter, so
@@ -107,7 +109,7 @@ void darma_main_task(std::vector<std::string> args) {
   size_t const average_per_iter = std::atoi(args[4].c_str());
 
   for(size_t iter = 0; iter < num_iters; ++iter) {
-    create_concurrent_region<SquareRoots>(
+    create_concurrent_work<SquareRoots>(
       iter, change_interval, average_per_iter,
       index_range=Range1D<int>(num_ranks)
     );
