@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      square_roots.cc
+//                     simple_reduce.cc
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
