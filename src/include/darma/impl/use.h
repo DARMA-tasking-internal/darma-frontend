@@ -177,6 +177,9 @@ struct MappingManagerBase {
   virtual bool
   has_same_mapping_as(MappingManagerBase const* other) const =0;
 
+  virtual std::size_t
+  map_to_task_collection_backend_index(FrontendHandleIndex const& fe_idx) const =0;
+
 };
 
 template <typename MappingToTaskCollection, typename FrontendHandleIndex>
@@ -187,11 +190,12 @@ struct MappingManager : MappingManagerBase<FrontendHandleIndex> {
 
   // This should be the full mapping from frontend handle collection index to backend task collection index
   MappingToTaskCollection mapping_to_tc_backend_idx;
+  using _mapping_traits = indexing::mapping_traits<std::decay_t<MappingToTaskCollection>>;
 
   // We can assert this: (at least in part)
   static_assert(
     std::is_same<
-      typename indexing::mapping_traits<MappingToTaskCollection>::to_index_type,
+      typename _mapping_traits::to_index_type,
       std::size_t // i.e., backend index
     >::value,
     "Backend index incorrectly declared"
@@ -207,8 +211,12 @@ struct MappingManager : MappingManagerBase<FrontendHandleIndex> {
 
   index_iterable<FrontendHandleIndex>
   local_indices_for(std::size_t backend_task_collection_index) const override {
+    // TODO propagate index range arguments to here?
     return index_iterable<FrontendHandleIndex>{
-      mapping_to_tc_backend_idx.map_backward(backend_task_collection_index)
+      _mapping_traits::map_backward(
+        mapping_to_tc_backend_idx,
+        backend_task_collection_index
+      )
     };
   }
 
@@ -219,13 +227,23 @@ struct MappingManager : MappingManagerBase<FrontendHandleIndex> {
     // TODO figure out how to do this in a more general way?!?
     auto const* other_cast = dynamic_cast<MappingManager const*>(other);
     if(other_cast) {
-      return indexing::mapping_traits<MappingToTaskCollection>
-      ::known_same_mapping(mapping_to_tc_backend_idx, other_cast->mapping_to_tc_backend_idx);
+      return _mapping_traits::known_same_mapping(
+        mapping_to_tc_backend_idx,
+        other_cast->mapping_to_tc_backend_idx
+      );
     }
     // TODO Maybe some fallback with polymorphic mappings?
     else {
       return false;
     }
+  }
+
+  virtual std::size_t
+  map_to_task_collection_backend_index(FrontendHandleIndex const& fe_idx) const override {
+    // TODO propagate index range arguments to here?
+    return _mapping_traits::map_forward(
+      mapping_to_tc_backend_idx, fe_idx
+    );
   }
 
 };
@@ -374,6 +392,15 @@ class CollectionManagingUse
       else {
         return false;
       }
+    }
+
+    std::size_t
+    task_index_for(std::size_t collection_index) const override {
+      return base_t::mapping_manager->map_to_task_collection_backend_index(
+        mapping_to_dense_traits::map_backward(
+          mapping_to_dense, collection_index, index_range
+        )
+      );
     }
 
 };
