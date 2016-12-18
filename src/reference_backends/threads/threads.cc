@@ -2090,23 +2090,6 @@ namespace threads_backend {
 
   template <typename Node>
   void
-  ThreadsRuntime::try_node(
-    std::list<std::shared_ptr<Node> >& nodes
-  ) {
-    if (nodes.size() > 0) {
-      auto n = nodes.back();
-      nodes.pop_back();
-      if (n->ready(this)) {
-        n->execute(this);
-        n->cleanup(this);
-      } else {
-        nodes.push_front(n);
-      }
-    }
-  }
-
-  template <typename Node>
-  void
   ThreadsRuntime::shuffle_deque(
     std::mutex* lock,
     std::deque<Node>& nodes

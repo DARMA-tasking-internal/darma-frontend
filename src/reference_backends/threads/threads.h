@@ -598,12 +598,6 @@ namespace threads_backend {
     );
 
     template <typename Node>
-    void
-    try_node(
-      std::list<std::shared_ptr<Node>>& nodes
-    );
-
-    template <typename Node>
     bool schedule_from_deque(
       std::mutex* lock,
       std::deque<Node>& nodes
