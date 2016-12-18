@@ -93,7 +93,7 @@ namespace threads_backend {
 
       if (--join_counter == 0) {
         if (for_rank == -1) {
-          runtime->add_local(this->shared_from_this());
+          runtime->add_remote(this->shared_from_this());
         } else {
           threads_backend::shared_ranks[for_rank]->add_remote(this->shared_from_this());
         }
@@ -331,7 +331,7 @@ namespace threads_backend {
   struct TaskNode
     : GraphNode
   {
-    std::unique_ptr<TaskType> task;
+    std::unique_ptr<TaskType> task = nullptr;
 
     TaskNode(runtime_t* rt,
              std::unique_ptr<TaskType>&& task_)
