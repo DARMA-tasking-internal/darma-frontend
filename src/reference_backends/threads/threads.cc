@@ -579,7 +579,7 @@ namespace threads_backend {
     f_in->uses++;
     f_out->uses++;
 
-    if (f_in->is_indexed) {
+    if (not flows_same and f_in->is_indexed) {
       auto const from = f_in->collection;
       std::lock_guard<std::mutex> lg1(from->collection_mutex);
       auto const backend_index = f_in->collection_index;
@@ -1068,7 +1068,10 @@ namespace threads_backend {
           auto next_elm = next_col->collection_child[index];
 
           DEBUG_PRINT(
-            "indexed_alias_to_out: has second = %s\n", next_elm.second ? "true" : "false"
+            "indexed_alias_to_out: fst=%ld, snd=%ld, has second=%s\n",
+            next_elm.first ? PRINT_LABEL(next_elm.first) : -1,
+            next_elm.second ? PRINT_LABEL(next_elm.second) : -1,
+            next_elm.second ? "true" : "false"
           );
 
           if (next_elm.second != nullptr) {
@@ -1127,15 +1130,14 @@ namespace threads_backend {
 
         if (has_subsequent) {
           release_to_write(alias_part);
-
-          if (alias_part != f_from) {
-            indexed_alias_to_out(f_from, alias_part);
-          }
         } else {
           DEBUG_PRINT("establish_flow_alias subsequent, %ld in state=%s does not have *subsequent*\n",
                       PRINT_LABEL(alias_part),
                       PRINT_STATE(alias_part));
 
+        }
+        if (alias_part != f_from) {
+          indexed_alias_to_out(f_from, alias_part);
         }
       }
     } else if (f_from->state == FlowReadReady) {
@@ -1633,14 +1635,13 @@ namespace threads_backend {
         auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
         if (has_subsequent) {
           release_to_write(alias_part);
-
-          if (alias_part != flow) {
-            indexed_alias_to_out(flow, alias_part);
-          }
         } else {
           DEBUG_PRINT("transition_after_read, %ld in state=%s does not have *subsequent*\n",
                       PRINT_LABEL(alias_part),
                       PRINT_STATE(alias_part));
+        }
+        if (alias_part != flow) {
+          indexed_alias_to_out(flow, alias_part);
         }
       }
     }
