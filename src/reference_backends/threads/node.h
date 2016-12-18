@@ -361,11 +361,16 @@ namespace threads_backend {
         if (f_in->perform_transfer) {
           DEBUG_PRINT_THD(
             runtime->get_rank(),
-            "perform transfer: f_in=%ld, owner=%d, prev_owner=%d\n",
-            PRINT_LABEL(f_in), f_in->indexed_rank_owner, f_in->prev_rank_owner
+            "perform transfer: f_in=%ld, owner=%d, prev_owner=%d, prev=%ld\n",
+            PRINT_LABEL(f_in), f_in->indexed_rank_owner, f_in->prev_rank_owner,
+            f_in->prev ? PRINT_LABEL(f_in->prev) : -1
           );
 
           assert(f_in->prev_rank_owner != -1);
+
+          if (f_in->prev != nullptr) {
+            runtime->assign_data_ptr(use, f_in->prev->data_block);
+          }
         }
       }
 

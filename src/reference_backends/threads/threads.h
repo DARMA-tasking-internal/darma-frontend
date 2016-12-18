@@ -431,6 +431,11 @@ namespace threads_backend {
       types::key_t const& key, types::key_t const& version, CollectionID const& cid
     );
 
+    void
+    assign_data_ptr(
+      use_t* u, std::shared_ptr<DataBlock> data_block
+    );
+
     template <typename TaskType>
     void
     create_task(

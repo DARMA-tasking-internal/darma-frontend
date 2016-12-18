@@ -183,6 +183,13 @@ namespace threads_backend {
     set_first_indexed_flow(bool set) {
       return static_cast<Impl*>(this)->set_first_indexed_flow(set);
     }
+
+    inline void
+    assign_data_ptr(
+      Runtime::use_t* u, std::shared_ptr<DataBlock> data_block
+    ) {
+      return static_cast<Impl*>(this)->assign_data_ptr(u, data_block);
+    }
   };
 }
 

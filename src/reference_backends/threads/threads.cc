@@ -486,6 +486,22 @@ namespace threads_backend {
     return current_task;
   }
 
+  void
+  ThreadsRuntime::assign_data_ptr(
+    use_t* u, std::shared_ptr<DataBlock> data_block
+  ) {
+    auto f_in  = u->get_in_flow();
+    auto f_out = u->get_out_flow();
+
+    f_in->data_block = data_block;
+    f_out->data_block = data_block;
+
+    u->get_data_pointer_reference() = data_block->data;
+
+    f_in->shared_reader_count = &data_block->shared_ref_count;
+    f_out->shared_reader_count = &data_block->shared_ref_count;
+  }
+
   template <typename DataMap>
   void
   ThreadsRuntime::set_up_data(
@@ -496,24 +512,18 @@ namespace threads_backend {
     auto f_out = u->get_out_flow();
     auto const lookup = std::make_tuple(cid,version,key);
     auto const search_iter = data.find(lookup);
-
-    bool const data_exists = search_iter != data.end();
+    auto const data_exists = search_iter != data.end();
 
     if (data_exists) {
       auto data_block = search_iter->second;
-      f_in->data_block = data_block;
-      u->get_data_pointer_reference() = data_block->data;
+      assign_data_ptr(u, data_block);
     } else {
       auto data_block = allocate_block(handle);
       data[lookup] = data_block;
-      f_in->data_block = data_block;
-      u->get_data_pointer_reference() = data_block->data;
+      assign_data_ptr(u, data_block);
     }
 
     auto const& data_block = data[lookup];
-
-    f_in->shared_reader_count = &data_block->shared_ref_count;
-    f_out->shared_reader_count = &data_block->shared_ref_count;
 
     DEBUG_PRINT(
       "set_up_data: ptr=%p, key=%s, version=%s\n",
@@ -1068,6 +1078,7 @@ namespace threads_backend {
             f_in->collection->collection_child.erase(
               f_in->collection->collection_child.find(index)
             );
+            next_elm.second->prev = f_in;
           }
         }
       }
@@ -1959,10 +1970,13 @@ namespace threads_backend {
               prev_matching_flow->indexed_alias_out ? "true" : "false"
             );
 
-            f->prev_rank_owner = prev_matching_flow->indexed_rank_owner;
+            if (prev_matching_flow != nullptr) {
+              f->prev_rank_owner = prev_matching_flow->indexed_rank_owner;
 
-            if (prev_matching_flow->indexed_alias_out) {
-              f->state = FlowWriteReady;
+              if (prev_matching_flow->indexed_alias_out) {
+                f->state = FlowWriteReady;
+                f->prev = prev_matching_flow;
+              }
             }
           }
         }
