@@ -419,6 +419,13 @@ namespace threads_backend {
     virtual void
     register_use(use_t* u);
 
+    template <typename DataMap>
+    void
+    set_up_data(
+      use_t* u, std::shared_ptr<handle_t const> handle, DataMap& data,
+      types::key_t const& key, types::key_t const& version, CollectionID const& cid
+    );
+
     template <typename TaskType>
     void
     create_task(

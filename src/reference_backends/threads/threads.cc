@@ -486,6 +486,41 @@ namespace threads_backend {
     return current_task;
   }
 
+  template <typename DataMap>
+  void
+  ThreadsRuntime::set_up_data(
+    use_t* u, std::shared_ptr<handle_t const> handle, DataMap& data,
+    types::key_t const& key, types::key_t const& version, CollectionID const& cid
+  ) {
+    auto f_in  = u->get_in_flow();
+    auto f_out = u->get_out_flow();
+    auto const lookup = std::make_tuple(cid,version,key);
+    auto const search_iter = data.find(lookup);
+
+    bool const data_exists = search_iter != data.end();
+
+    if (data_exists) {
+      auto data_block = search_iter->second;
+      f_in->data_block = data_block;
+      u->get_data_pointer_reference() = data_block->data;
+    } else {
+      auto data_block = allocate_block(handle);
+      data[lookup] = data_block;
+      f_in->data_block = data_block;
+      u->get_data_pointer_reference() = data_block->data;
+    }
+
+    auto const& data_block = data[lookup];
+
+    f_in->shared_reader_count = &data_block->shared_ref_count;
+    f_out->shared_reader_count = &data_block->shared_ref_count;
+
+    DEBUG_PRINT(
+      "set_up_data: ptr=%p, key=%s, version=%s\n",
+      data_block->data, PRINT_KEY(key), PRINT_KEY(f_in->version_key),
+    );
+  }
+
   /*virtual*/
   void
   ThreadsRuntime::register_use(use_t* u) {
@@ -512,26 +547,16 @@ namespace threads_backend {
       f_in->scheduleOnlyNeeded = false;
     }
 
-    DEBUG_PRINT("%p: register use: ready=%s, key=%s, version=%s, "
-                "handle=%p [in={%ld,ref=%ld,state=%s,son=%s},out={%ld,ref=%ld,state=%s,son=%s}], "
-                "sched=%d, immed=%d, fromFetch=%s\n",
-                u,
-                PRINT_BOOL_STR(ready),
-                PRINT_KEY(key),
-                PRINT_KEY(version),
-                handle.get(),
-                PRINT_LABEL(f_in),
-                f_in->ref,
-                PRINT_STATE(f_in),
-                PRINT_BOOL_STR(f_in->scheduleOnlyNeeded),
-                PRINT_LABEL(f_out),
-                f_out->ref,
-                PRINT_STATE(f_out),
-                PRINT_BOOL_STR(f_out->scheduleOnlyNeeded),
-                u->scheduling_permissions(),
-                u->immediate_permissions(),
-                PRINT_BOOL_STR(f_in->fromFetch)
-               );
+    DEBUG_PRINT(
+      "%p: register use: ready=%s, key=%s, version=%s, "
+      "handle=%p [in={%ld,ref=%ld,state=%s,son=%s},out={%ld,ref=%ld,state=%s,son=%s}], "
+      "sched=%d, immed=%d, fromFetch=%s\n",
+      u, PRINT_BOOL_STR(ready), PRINT_KEY(key), PRINT_KEY(version), handle.get(),
+      PRINT_LABEL(f_in), f_in->ref, PRINT_STATE(f_in), PRINT_BOOL_STR(f_in->scheduleOnlyNeeded),
+      PRINT_LABEL(f_out), f_out->ref, PRINT_STATE(f_out), PRINT_BOOL_STR(f_out->scheduleOnlyNeeded),
+      u->scheduling_permissions(), u->immediate_permissions(),
+      PRINT_BOOL_STR(f_in->fromFetch)
+    );
 
     if (f_in->isForward) {
       auto const flows_match = f_in == f_out;
@@ -545,70 +570,20 @@ namespace threads_backend {
     f_out->uses++;
 
     if (!f_in->fromFetch) {
-      const bool data_exists = data.find(std::make_tuple(cid,version,key)) != data.end();
-      if (data_exists) {
-        f_in->data_block = data[std::make_tuple(cid,version,key)];
-        u->get_data_pointer_reference() = data[std::make_tuple(cid,version,key)]->data;
-
-        DEBUG_PRINT("%p: use register, ptr=%p, key=%s, "
-                    "in version=%s, out version=%s, data exists\n",
-                    u, data[std::make_tuple(cid,version,key)]->data, PRINT_KEY(key),
-                    PRINT_KEY(f_in->version_key),
-                    PRINT_KEY(f_out->version_key));
-      } else {
-        // allocate new deferred data block for this use
-        auto block = allocate_block(handle);
-
-        // insert into the hash
-        data[std::make_tuple(cid,version,key)] = block;
-        f_in->data_block = block;
-        u->get_data_pointer_reference() = block->data;
-
-        DEBUG_PRINT("%p: use register: ptr=%p, key=%s, "
-                    "in version=%s, out version=%s\n",
-                    u, block->data, PRINT_KEY(key),
-                    PRINT_KEY(f_in->version_key),
-                    PRINT_KEY(f_out->version_key));
-      }
-
-      f_in->shared_reader_count = &data[std::make_tuple(cid,version,key)]->shared_ref_count;
-      f_out->shared_reader_count = &data[std::make_tuple(cid,version,key)]->shared_ref_count;
+      set_up_data(u, handle, data, key, version, cid);
     } else {
-      const bool data_exists = fetched_data.find(std::make_tuple(cid,version,key)) != fetched_data.end();
-      if (data_exists) {
-        f_in->data_block = fetched_data[std::make_tuple(cid,version,key)];
-        u->get_data_pointer_reference() = fetched_data[std::make_tuple(cid,version,key)]->data;
-
-        DEBUG_PRINT("register_use: data exists: ptr=%p\n",
-                    fetched_data[std::make_tuple(cid,version,key)]->data);
-      } else {
-        // FIXME: copy-paste of above code...
-
-        // allocate new deferred data block for this use
-        auto block = allocate_block(handle, f_in->fromFetch);
-        f_in->data_block = block;
-        // insert into the hash
-        fetched_data[std::make_tuple(cid,version,key)] = block;
-        u->get_data_pointer_reference() = block->data;
-
-        DEBUG_PRINT("register_use: data does not exist: ptr=%p\n",
-                    block->data);
-      }
-
-      f_in->shared_reader_count = &fetched_data[std::make_tuple(cid,version,key)]->shared_ref_count;
-      f_out->shared_reader_count = &fetched_data[std::make_tuple(cid,version,key)]->shared_ref_count;
+      set_up_data(u, handle, fetched_data, key, version, cid);
     }
 
     // save keys
     f_in->key = key;
     f_out->key = key;
 
-    DEBUG_PRINT("flow {%ld,%s}, shared_reader_count=%p [%ld]\n",
-                PRINT_LABEL(f_in),
-                PRINT_STATE(f_in),
-                f_in->shared_reader_count,
-                *f_in->shared_reader_count
-                );
+    DEBUG_PRINT(
+      "flow {%ld,%s}, shared_reader_count=%p [%ld]\n",
+      PRINT_LABEL(f_in), PRINT_STATE(f_in),
+      f_in->shared_reader_count, *f_in->shared_reader_count
+    );
   }
 
   std::shared_ptr<DataBlock>
