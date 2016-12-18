@@ -517,7 +517,7 @@ namespace threads_backend {
 
     DEBUG_PRINT(
       "set_up_data: ptr=%p, key=%s, version=%s\n",
-      data_block->data, PRINT_KEY(key), PRINT_KEY(f_in->version_key),
+      data_block->data, PRINT_KEY(key), PRINT_KEY(f_in->version_key)
     );
   }
 
@@ -570,7 +570,12 @@ namespace threads_backend {
     f_out->uses++;
 
     if (!f_in->fromFetch) {
-      set_up_data(u, handle, data, key, version, cid);
+      auto const data_exists = data.find(std::make_tuple(cid,version,key)) != data.end();
+      if (!data_exists && f_in->is_indexed && !f_in->is_initial) {
+        f_in->perform_transfer = true;
+      } else {
+        set_up_data(u, handle, data, key, version, cid);
+      }
     } else {
       set_up_data(u, handle, fetched_data, key, version, cid);
     }
@@ -582,7 +587,8 @@ namespace threads_backend {
     DEBUG_PRINT(
       "flow {%ld,%s}, shared_reader_count=%p [%ld]\n",
       PRINT_LABEL(f_in), PRINT_STATE(f_in),
-      f_in->shared_reader_count, *f_in->shared_reader_count
+      f_in->shared_reader_count,
+      f_in->shared_reader_count ? *f_in->shared_reader_count : -1
     );
   }
 
@@ -646,6 +652,7 @@ namespace threads_backend {
     f->state = FlowReadReady;
     f->ready = true;
     f->handle = handle;
+    f->is_initial = true;
     return f;
   }
 
@@ -1049,6 +1056,7 @@ namespace threads_backend {
               "indexed_alias_to_out: first_elem=%ld, next_elem=%ld\n",
               PRINT_LABEL(next_elm.first), PRINT_LABEL(next_elm.second)
             );
+            next_elm.second->prev_rank_owner = f_in->indexed_rank_owner;
             if (next_elm.second->state == FlowWaiting) {
               auto const has_read = try_release_to_read(next_elm.second);
               if (!has_read) {
@@ -1649,14 +1657,13 @@ namespace threads_backend {
         auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
         if (has_subsequent) {
           release_to_write(alias_part);
-
-          if (alias_part != f_in) {
-            indexed_alias_to_out(f_in, alias_part);
-          }
         } else {
           DEBUG_PRINT("transition_after_write, %ld in state=%s does not have *subsequent*\n",
                       PRINT_LABEL(alias_part),
                       PRINT_STATE(alias_part));
+        }
+        if (alias_part != f_in) {
+          indexed_alias_to_out(f_in, alias_part);
         }
       }
     }
@@ -1884,6 +1891,8 @@ namespace threads_backend {
     f->is_indexed = true;
     f->collection = from;
     f->cid = CollectionID(from->cid.collection, backend_index);
+    f->is_initial = from->is_initial;
+    f->indexed_rank_owner = inside_rank;
 
     std::lock_guard<std::mutex> lg1(f->collection->collection_mutex);
 
@@ -1900,26 +1909,61 @@ namespace threads_backend {
       );
     }
 
-    if (from->collection_child.find(backend_index) == from->collection_child.end()) {
-      //f->next = from->next->collection_child[backend_index].first;
+    if (first_indexed_flow) {
       from->collection_child[backend_index].first = f;
+      first_indexed_flow = false;
     } else {
       from->collection_child[backend_index].second = f;
+      first_indexed_flow = true;
     }
 
-    f->state = from->state;
+    DEBUG_PRINT(
+      "make_indexed_local_flow: flow=%ld, from=%ld, collection=%ld, index=%ld, from state=%s, fst=%ld, snd=%ld\n",
+      PRINT_LABEL(f), PRINT_LABEL(from), from->cid.collection, backend_index,
+      PRINT_STATE(from),
+      from->collection_child[backend_index].first ? PRINT_LABEL(from->collection_child[backend_index].first) : -1,
+      from->collection_child[backend_index].second ? PRINT_LABEL(from->collection_child[backend_index].second) : -1
+    );
+
+    if (from->is_initial) {
+      f->state = from->state;
+    }
     f->collection_index = backend_index;
 
-    if (from->state == FlowWaiting) {
-      DEBUG_PRINT("from->prev=%ld\n", from->prev ? PRINT_LABEL(from->prev) : 0);
+    if (1 || from->state == FlowWaiting) {
+      DEBUG_PRINT(
+        "from->prev=%ld\n", from->prev ? PRINT_LABEL(from->prev) : 0
+      );
+
       if (from->prev != nullptr) {
+
         if (from->prev->collection_child.find(backend_index) !=
-            from->prev->collection_child.end() &&
-           from->prev->collection_child[backend_index].second != nullptr) {
-          auto prev_matching_flow = from->prev->collection_child[backend_index].second;
-          if (prev_matching_flow->indexed_alias_out) {
-            f->state = FlowReadReady;
-            f->ready = true;
+            from->prev->collection_child.end()) {
+
+          DEBUG_PRINT(
+            "make_indexed_local_flow: flow=%ld, from=%ld, index=%ld, prev fst=%ld, prev snd=%ld\n",
+            PRINT_LABEL(f), PRINT_LABEL(from), backend_index,
+            from->prev->collection_child[backend_index].first ?
+            PRINT_LABEL(from->prev->collection_child[backend_index].first) : -1,
+            from->prev->collection_child[backend_index].second ?
+            PRINT_LABEL(from->prev->collection_child[backend_index].second) : -1
+          );
+
+          if (from->prev->collection_child[backend_index].second != nullptr) {
+            auto prev_matching_flow = from->prev->collection_child[backend_index].second;
+
+            DEBUG_PRINT(
+              "make_indexed_local_flow: flow=%ld, from=%ld, index=%ld, prev_matching_flow=%ld, "
+              "prev_matching_flow->indexed_alias_out=%s\n",
+              PRINT_LABEL(f), PRINT_LABEL(from), backend_index, PRINT_LABEL(prev_matching_flow),
+              prev_matching_flow->indexed_alias_out ? "true" : "false"
+            );
+
+            f->prev_rank_owner = prev_matching_flow->indexed_rank_owner;
+
+            if (prev_matching_flow->indexed_alias_out) {
+              f->state = FlowWriteReady;
+            }
           }
         }
       }

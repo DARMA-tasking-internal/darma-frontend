@@ -179,6 +179,10 @@ namespace threads_backend {
       return static_cast<Impl*>(this)->create_task(t,rank);
     }
 
+    inline void
+    set_first_indexed_flow(bool set) {
+      return static_cast<Impl*>(this)->set_first_indexed_flow(set);
+    }
   };
 }
 

@@ -307,7 +307,9 @@ namespace threads_backend {
 
     virtual void execute() override {
       if (cur < hi) {
+        runtime->set_first_indexed_flow(false);
         auto task = std::move(shared_task->create_task_for_index(cur));
+        runtime->set_first_indexed_flow(true);
         cur++;
         auto task_node = std::make_shared<TaskNode<types::task_collection_task_t>>(
           runtime, std::move(task)
@@ -352,6 +354,19 @@ namespace threads_backend {
         }
         log = runtime->getTrace()->eventStartNow(genName);
         runtime->addTraceDeps(this,log);
+      }
+
+      for (auto&& use : task->get_dependencies()) {
+        auto const& f_in = use->get_in_flow();
+        if (f_in->perform_transfer) {
+          DEBUG_PRINT_THD(
+            runtime->get_rank(),
+            "perform transfer: f_in=%ld, owner=%d, prev_owner=%d\n",
+            PRINT_LABEL(f_in), f_in->indexed_rank_owner, f_in->prev_rank_owner
+          );
+
+          assert(f_in->prev_rank_owner != -1);
+        }
       }
 
       runtime->run_task(task.get());

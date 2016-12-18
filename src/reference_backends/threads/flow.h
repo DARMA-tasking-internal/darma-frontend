@@ -77,6 +77,10 @@ namespace threads_backend {
     // TODO: subclass this to reduce size of flow
     bool is_collection = false;
     bool is_indexed = false;
+    bool is_initial = false;
+    // TODO: this is a hack
+    bool perform_transfer = false;
+    int indexed_rank_owner = -1, prev_rank_owner = -1;
     std::shared_ptr<InnerFlow> collection = nullptr;
     std::shared_ptr<InnerFlow> prev = nullptr;
     size_t collection_index = 0;
