@@ -49,7 +49,6 @@
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/defaults/darma_main.h>
 
-#include <threads_interface.h>
 #include <flow.h>
 
 namespace threads_backend {

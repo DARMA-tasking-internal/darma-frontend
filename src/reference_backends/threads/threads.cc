@@ -216,7 +216,7 @@ namespace threads_backend {
     DEBUG_PRINT("register task\n");
 
     auto t = std::make_shared<TaskNode<task_t>>(
-      TaskNode<task_t>{this,std::move(task)}
+      this,std::move(task)
     );
 
     create_task(t);
@@ -249,7 +249,7 @@ namespace threads_backend {
     DEBUG_PRINT("register condition task\n");
 
     auto t = std::make_shared<TaskNode<condition_task_t>>(
-      TaskNode<condition_task_t>{this,std::move(task)}
+      this,std::move(task)
     );
     t->join_counter = check_dep_task(t);
 
@@ -1358,7 +1358,7 @@ namespace threads_backend {
         false
     });
 
-    auto node = std::make_shared<CollectiveNode>(CollectiveNode{this,info});
+    auto node = std::make_shared<CollectiveNode>(this,info);
 
     // set the node
     info->node = node;
@@ -2186,7 +2186,7 @@ namespace threads_backend {
 
     if (top_level_task) {
       auto t = std::make_shared<TaskNode<top_level_task_t>>(
-        TaskNode<top_level_task_t>{this,std::move(top_level_task)}
+        this,std::move(top_level_task)
       );
       add_local(t);
       top_level_task = nullptr;
