@@ -505,21 +505,7 @@ namespace threads_backend {
     );
 
     bool
-    try_fetch(
-      handle_t* handle,
-      types::key_t const& version_key,
-      CollectionID cid
-    );
-
-    bool
     test_fetch(
-      handle_t* handle,
-      types::key_t const& version_key,
-      CollectionID cid
-    );
-
-    void
-    blocking_fetch(
       handle_t* handle,
       types::key_t const& version_key,
       CollectionID cid

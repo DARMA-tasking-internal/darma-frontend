@@ -110,7 +110,6 @@ namespace threads_backend {
   // global
   size_t n_ranks = 1;
   bool traceMode = false;
-  bool depthFirstExpand = true;
   size_t bwidth = 100;
 
   // global publish
@@ -254,24 +253,18 @@ namespace threads_backend {
     );
     t->join_counter = check_dep_task(t);
 
-    assert(threads_backend::depthFirstExpand);
+    assert(t->ready());
+    DEBUG_VERBOSE_PRINT("running task\n");
 
-    if (threads_backend::depthFirstExpand) {
-      assert(t->ready());
-      DEBUG_VERBOSE_PRINT("running task\n");
-
-      runtime_t::task_t* prev = current_task;
-      condition_task_unique_ptr cur = std::move(t->task);
-      current_task = cur.get();
-      cur.get()->run();
-      bool ret = cur.get()->get_result();
-      this->consumed++;
-      global_consume();
-      DEBUG_PRINT("calling run on task\n");
-      current_task = prev;
-
-      return ret;
-    }
+    runtime_t::task_t* prev = current_task;
+    condition_task_unique_ptr cur = std::move(t->task);
+    current_task = cur.get();
+    cur.get()->run();
+    bool ret = cur.get()->get_result();
+    this->consumed++;
+    global_consume();
+    DEBUG_PRINT("calling run on task\n");
+    current_task = prev;
 
     return true;
   }
@@ -296,10 +289,6 @@ namespace threads_backend {
   ThreadsRuntime::addFetchDeps(FetchNode* node,
                                TraceLog* thisLog,
                                TraceLog* pub_log) {
-    if (threads_backend::depthFirstExpand) {
-      return;
-    }
-
     if (pub_log) {
       const auto& end = std::atomic_load<TraceLog*>(&pub_log->end);
       const auto& time = end != nullptr ? end->time : pub_log->time;
@@ -316,10 +305,6 @@ namespace threads_backend {
   void
   ThreadsRuntime::addPublishDeps(PublishNode* node,
                                  TraceLog* thisLog) {
-    if (threads_backend::depthFirstExpand) {
-      return;
-    }
-
     const auto& flow = node->pub->flow;
     findAddTraceDep(flow,thisLog);
   }
@@ -364,10 +349,6 @@ namespace threads_backend {
   void
   ThreadsRuntime::addTraceDeps(TaskNode<TaskType>* node,
                                TraceLog* thisLog) {
-    if (threads_backend::depthFirstExpand) {
-      return;
-    }
-
     for (auto&& dep : node->task->get_dependencies()) {
       auto const f_in  = dep->get_in_flow();
       auto const f_out = dep->get_out_flow();
@@ -385,23 +366,7 @@ namespace threads_backend {
   ThreadsRuntime::add_fetch_node_flow(
     std::shared_ptr<InnerFlow> f_in
   ) {
-    if (f_in->isFetch &&
-        threads_backend::depthFirstExpand &&
-        !f_in->fetcherAdded) {
-      blocking_fetch(
-        f_in->handle.get(),
-        f_in->version_key,
-        f_in->cid
-      );
-      f_in->fetcherAdded = true;
-      if (f_in->acquire) {
-        f_in->state = FlowWriteReady;
-      } else {
-        f_in->state = FlowReadReady;
-      }
-      f_in->ready = true;
-    } else if (f_in->isFetch &&
-               !f_in->fetcherAdded) {
+    if (f_in->isFetch && !f_in->fetcherAdded) {
       auto node = std::make_shared<FetchNode>(this,f_in);
       node->acquire = f_in->acquire;
       DEBUG_PRINT(
@@ -436,13 +401,6 @@ namespace threads_backend {
       DEBUG_PRINT("check_dep_task dep f_in=%ld\n", PRINT_LABEL(f_in));
 
       add_fetch_node_flow(f_in);
-
-      if (f_in->isCollective &&
-          threads_backend::depthFirstExpand) {
-        if (!f_in->dfsColNode->finished) {
-          f_in->dfsColNode->block_execute();
-        }
-      }
 
       DEBUG_PRINT("check_dep_task: f_in=%lu (ready=%s), f_out=%lu\n",
                   PRINT_LABEL(f_in),
@@ -762,73 +720,6 @@ namespace threads_backend {
   }
 
   bool
-  ThreadsRuntime::try_fetch(
-    handle_t* handle,
-    types::key_t const& version_key,
-    CollectionID cid
-  ) {
-    bool found = false;
-
-  retry_fetch:
-    {
-      // TODO: big lock to handling fetching
-      std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
-
-      auto const& key = handle->get_key();
-      auto const& iter = published.find(std::make_tuple(cid,version_key,key));
-
-      if (iter != published.end()) {
-        PublishedBlock* pub_ptr = iter->second;
-        auto &pub = *pub_ptr;
-
-        const bool buffer_exists = fetched_data.find(std::make_tuple(cid,version_key,key)) != fetched_data.end();
-        void* unpack_to = buffer_exists ? fetched_data[std::make_tuple(cid,version_key,key)]->data : malloc(pub.data->size_);
-
-        DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
-                    PRINT_BOOL_STR(buffer_exists),
-                    handle);
-
-        de_serialize(handle,
-                     pub.data->data_,
-                     unpack_to);
-
-        if (!buffer_exists) {
-          fetched_data[std::make_tuple(cid,version_key,key)] = std::make_shared<DataBlock>(unpack_to);
-        }
-
-        DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
-                    PRINT_KEY(key),
-                    PRINT_KEY(version_key),
-                    pub.data->data_,
-                    std::atomic_load<size_t>(&pub.expected),
-                    unpack_to);
-
-        assert(pub.expected > 0);
-
-        ++(pub.done);
-        --(pub.expected);
-
-        DEBUG_PRINT("expected=%ld\n", pub.expected.load());
-
-        if (std::atomic_load<size_t>(&pub.expected) == 0) {
-          // remove from publication list
-          published.erase(std::make_tuple(cid,version_key,key));
-          free(pub_ptr->data->data_);
-          delete pub.data;
-          delete pub_ptr;
-        }
-
-        found = true;
-      }
-    }
-
-    if (!found && depthFirstExpand)
-      goto retry_fetch;
-
-    return found;
-  }
-
-  bool
   ThreadsRuntime::add_fetcher(
     std::shared_ptr<FetchNode> fetch,
     handle_t* handle,
@@ -891,20 +782,6 @@ namespace threads_backend {
         std::atomic_load<bool>(&iter->second->ready);
     }
     return ready;
-  }
-
-  void
-  ThreadsRuntime::blocking_fetch(
-    handle_t* handle,
-    types::key_t const& version_key,
-    CollectionID cid
-  ) {
-
-    DEBUG_PRINT("fetch_block: handle = %p\n", handle);
-
-    while (!test_fetch(handle, version_key, cid)) ;
-
-    fetch(handle, version_key, cid);
   }
 
   TraceLog*
@@ -1053,11 +930,6 @@ namespace threads_backend {
     if (f->next != nullptr) {
       f->next->ref++;
       f->next->state = FlowWaiting;
-    }
-
-    if (depthFirstExpand) {
-      f_forward->ready = true;
-      f_forward->state = FlowWriteReady;
     }
 
     if (getTrace()) {
@@ -1497,11 +1369,9 @@ namespace threads_backend {
     // set the node
     info->node = node;
 
-    if (!depthFirstExpand) {
-      f_out->ready = false;
-      f_out->state = FlowWaiting;
-      f_out->ref++;
-    }
+    f_out->ready = false;
+    f_out->state = FlowWaiting;
+    f_out->ref++;
 
     const auto& ready = node->ready();
 
@@ -1510,22 +1380,16 @@ namespace threads_backend {
                 PRINT_LABEL_INNER(f_in),
                 PRINT_LABEL_INNER(f_out));
 
-    if (depthFirstExpand) {
-      f_out->dfsColNode = node;
-      node->execute();
-    } else {
+    publish_uses[use_in]++;
 
-      publish_uses[use_in]++;
+    add_fetch_node_flow(f_in);
 
-      add_fetch_node_flow(f_in);
-
-      if (f_in->state == FlowWaiting ||
+    if (f_in->state == FlowWaiting ||
           f_in->state == FlowReadReady) {
-        f_in->node = node;
-        node->set_join(1);
-      } else {
-        node->execute();
-      }
+      f_in->node = node;
+      node->set_join(1);
+    } else {
+      node->execute();
     }
 
     // TODO: for the future this should be two-stage starting with a read
@@ -1617,9 +1481,7 @@ namespace threads_backend {
           finished = state.current_pieces == state.n_pieces;
 
           if (!finished) {
-            if (!depthFirstExpand) {
-              state.activations.push_back(info->node);
-            }
+            state.activations.push_back(info->node);
           } else {
             act = &state.activations;
           }
@@ -1732,13 +1594,11 @@ namespace threads_backend {
 
         delete block;
 
-        if (!depthFirstExpand) {
-          info->flow_out->ref--;
-          transition_after_write(
-            info->flow,
-            info->flow_out
-          );
-        }
+        info->flow_out->ref--;
+        transition_after_write(
+          info->flow,
+          info->flow_out
+        );
       }
       break;
     default:
@@ -1841,11 +1701,6 @@ namespace threads_backend {
     if (f_in->forward) {
       f_in->forward->state = f_in->forward->isWriteForward ? FlowWriteReady : FlowReadReady;
       f_in->forward->ready = true;
-    }
-
-    // enable each out flow
-    if (depthFirstExpand) {
-      f_out->ready = true;
     }
 
     auto handle = u->get_handle();
@@ -2197,8 +2052,6 @@ namespace threads_backend {
       p->set_join(1);
     }
 
-    assert(ready || !depthFirstExpand);
-
     schedule_over_breadth();
   }
 
@@ -2440,30 +2293,18 @@ backend_parse_arguments(
     holder.exists("trace") ? static_cast<bool>(holder.get<size_t>("trace")) : false;
   size_t const bwidth =
     holder.exists("bf") ? holder.get<size_t>("bf") : 1;
-  bool const depth =
-    bwidth == 0 ? true : false;
 
-  threads_backend::depthFirstExpand = depth;
   threads_backend::bwidth = bwidth;
   threads_backend::n_ranks = n_ranks;
 
   if (system_rank == 0) {
-    if (threads_backend::depthFirstExpand) {
-      STARTUP_PRINT(
-        "DARMA: number of ranks = %zu, "
-        "DF-Sched mode (depth-first, rank-threaded scheduler): Tracing=%s\n",
-        n_ranks,
-        trace ? "ON" : "OFF"
-      );
-    } else {
-      STARTUP_PRINT(
-        "DARMA: number of ranks = %zu, "
-        "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler), Tracing=%s\n",
-        n_ranks,
-        bwidth,
-        trace ? "ON" : "OFF"
-      );
-    }
+    STARTUP_PRINT(
+      "DARMA: number of ranks = %zu, "
+      "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler), Tracing=%s\n",
+      n_ranks,
+      bwidth,
+      trace ? "ON" : "OFF"
+    );
 
     DEBUG_PRINT_THD(
       system_rank,

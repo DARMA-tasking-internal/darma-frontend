@@ -106,9 +106,6 @@ namespace threads_backend {
     // node in the graph to activate
     std::shared_ptr<GraphNode> node;
 
-    // hack to put dfs info in here
-    std::shared_ptr<CollectiveNode> dfsColNode;
-
     std::shared_ptr<InnerFlow> alias = nullptr;
 
     InnerFlow(const InnerFlow& in) = default;
