@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      threads_interface.h
+//                        union_find.h
 //                           darma
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,21 +42,59 @@
 //@HEADER
 */
 
-#if !defined(_THREADS_INTERFACE_BACKEND_RUNTIME_H_)
-#define _THREADS_INTERFACE_BACKEND_RUNTIME_H_
+#if !defined(_UNION_FIND_BACKEND_RUNTIME_H_)
+#define _UNION_FIND_BACKEND_RUNTIME_H_
 
-#include <trace.h>
+namespace threads_backend { namespace union_find {
+    template <typename UFArchetype>
+    void make_set(
+      UFArchetype const& node
+    ) {
+      node->alias = nullptr;
+      node->uf_size = 1;
+    }
 
-namespace threads_backend {
-  struct InnerFlow;
-  struct GraphNode;
-  template <typename TaskType> struct TaskNode;
-  template <typename MetaTask> struct MetaTaskNode;
-  struct FetchNode;
-  struct PublishNode;
-  struct DelayedPublish;
-  struct CollectiveInfo;
-  struct CollectionID;
+    template <typename UFArchetype>
+    void union_nodes(
+      UFArchetype node1,
+      UFArchetype node2
+    ) {
+      DEBUG_PRINT_THD(
+        (size_t)0,
+        "union_nodes: sz = %ld, sz2 = %ld\n",
+        node1->uf_size,
+        node2->uf_size
+      );
+      // optimization to pick the larger subtree
+      // does not apply to this problem due to ordering problem
+      // if (node1->uf_size < node2->uf_size) {
+      //   node1.swap(node2);
+      // }
+      node2->alias = node1;
+      node1->uf_size += node2->uf_size;
+    }
+
+    template <typename UFArchetype, typename Callable>
+    UFArchetype find_call(
+      UFArchetype const& node,
+      Callable&& callable
+    ) {
+      DEBUG_PRINT_THD(
+        (size_t)0,
+        "find_call: node=%ld, alias=%ld\n",
+        PRINT_LABEL(node),
+        node->alias ? PRINT_LABEL(node->alias) : 0
+      );
+      if (node->alias != nullptr) {
+        callable(node->alias);
+        node->alias = find_call(
+          node->alias,
+          callable
+        );
+      }
+      return node->alias ? node->alias : node;
+    }
+  }
 }
 
-#endif /*_THREADS_INTERFACE_BACKEND_RUNTIME_H_*/
+#endif /*_UNION_FIND_BACKEND_RUNTIME_H_*/

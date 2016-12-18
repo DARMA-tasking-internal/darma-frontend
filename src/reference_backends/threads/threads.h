@@ -58,7 +58,7 @@
 #include <unordered_map>
 #include <cstring>
 
-#include <threads_interface.h>
+#include <union_find.h>
 #include <common.h>
 #include <trace.h>
 
@@ -80,14 +80,15 @@ namespace threads_backend {
   using namespace darma_runtime::abstract::backend;
 
   struct InnerFlow;
-  struct ThreadsFlow;
-
   struct GraphNode;
-  // template <typename TaskType>
-  // struct TaskNode;
+  template <typename TaskType> struct TaskNode;
+  template <typename MetaTask> struct MetaTaskNode;
   struct FetchNode;
-  struct PublishNode;
   struct CollectiveNode;
+  struct PublishNode;
+  struct DelayedPublish;
+  struct CollectiveInfo;
+  struct CollectionID;
 
   enum CollectiveType {
     AllReduce = 0
