@@ -61,18 +61,18 @@ namespace threads_backend {
   using namespace darma_runtime;
   using namespace darma_runtime::abstract::backend;
 
-  typedef ThreadsInterface<ThreadsRuntime> Runtime;
+  using runtime_t = ThreadsRuntime;
 
   extern std::vector<ThreadsRuntime*> shared_ranks;
 
   struct GraphNode
     : std::enable_shared_from_this<GraphNode> {
-    Runtime* runtime;
+    runtime_t* runtime;
     size_t join_counter;
     int for_rank = -1;
 
     GraphNode(size_t join_counter_,
-              Runtime* runtime_)
+              runtime_t* runtime_)
       : join_counter(join_counter_)
       , runtime(runtime_)
     {
@@ -125,7 +125,7 @@ namespace threads_backend {
     std::shared_ptr<InnerFlow> fetch;
     bool acquire = false;
 
-    FetchNode(Runtime* rt,
+    FetchNode(runtime_t* rt,
               std::shared_ptr<InnerFlow> fetch_)
       : GraphNode(-1, rt)
       , fetch(fetch_)
@@ -205,7 +205,7 @@ namespace threads_backend {
   {
     std::shared_ptr<DelayedPublish> pub;
 
-    PublishNode(Runtime* rt,
+    PublishNode(runtime_t* rt,
                 std::shared_ptr<DelayedPublish> pub_)
       : GraphNode(-1, rt)
       , pub(pub_)
@@ -255,7 +255,7 @@ namespace threads_backend {
     std::shared_ptr<CollectiveInfo> info;
     bool finished = false;
 
-    CollectiveNode(Runtime* rt,
+    CollectiveNode(runtime_t* rt,
                    std::shared_ptr<CollectiveInfo> info)
       : GraphNode(-1, rt)
       , info(info)
@@ -299,7 +299,7 @@ namespace threads_backend {
     int rank = -1;
 
     MetaTaskNode(
-      Runtime* rt, std::shared_ptr<MetaTask> meta_shared_task,
+      runtime_t* rt, std::shared_ptr<MetaTask> meta_shared_task,
       int lo_in, int hi_in, int in_rank
     ) : GraphNode(-1, rt), shared_task(meta_shared_task)
       , lo(lo_in), hi(hi_in), cur(lo_in), rank(in_rank)
@@ -336,7 +336,7 @@ namespace threads_backend {
   {
     std::unique_ptr<TaskType> task;
 
-    TaskNode(Runtime* rt,
+    TaskNode(runtime_t* rt,
              std::unique_ptr<TaskType>&& task_)
       : GraphNode(-1, rt)
       , task(std::move(task_))
@@ -396,7 +396,7 @@ namespace threads_backend {
     size_t inside_rank = 0, inside_num_ranks = 0;
 
     TaskCollectionNode(
-      Runtime* rt, std::unique_ptr<TaskType>&& task_, size_t rank, size_t num_ranks
+      runtime_t* rt, std::unique_ptr<TaskType>&& task_, size_t rank, size_t num_ranks
     )
       : GraphNode(-1, rt)
       , task(std::move(task_))

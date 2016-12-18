@@ -189,7 +189,7 @@ namespace threads_backend {
     : public abstract::backend::Runtime
     , public abstract::backend::Context
     , public abstract::backend::MemoryManager
-    , public ThreadsInterface<ThreadsRuntime> {
+  {
 
   public:
     size_t inside_rank = 0;
