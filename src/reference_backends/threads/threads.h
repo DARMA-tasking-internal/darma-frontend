@@ -206,11 +206,6 @@ namespace threads_backend {
     std::condition_variable cv_remote_awake{};
 
     size_t next_collection_id = 1;
-    bool first_indexed_flow = false;
-
-    void set_first_indexed_flow(bool set) {
-      first_indexed_flow = set;
-    }
 
     std::unordered_map<
       std::tuple<CollectionID, types::key_t, types::key_t>,

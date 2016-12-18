@@ -89,7 +89,6 @@ namespace threads_backend {
       std::pair<std::shared_ptr<InnerFlow>,std::shared_ptr<InnerFlow>>
     > collection_child;
     bool indexed_alias_out = false;
-    bool collection_out = true;
     CollectionID cid;
     std::mutex collection_mutex{};
 

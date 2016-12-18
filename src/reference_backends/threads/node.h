@@ -85,7 +85,7 @@ namespace threads_backend {
 
     virtual void release()  {
       DEBUG_PRINT_THD(
-        runtime->get_rank(),
+        runtime->inside_rank,
         "%p: join counter is now %zu\n",
         this,
         join_counter - 1
@@ -130,7 +130,7 @@ namespace threads_backend {
       , fetch(fetch_)
     {
       DEBUG_PRINT_THD(
-        runtime->get_rank(),
+        runtime->inside_rank,
         "constructing fetch node, flow=%ld, this=%p\n",
         PRINT_LABEL(fetch), this
       );
@@ -162,7 +162,7 @@ namespace threads_backend {
       fetch->ready = true;
 
       DEBUG_PRINT_THD(
-        runtime->get_rank(),
+        runtime->inside_rank,
         "=== EXECUTING === fetch node\n"
       );
 
@@ -184,7 +184,7 @@ namespace threads_backend {
 
     virtual ~FetchNode() {
       DEBUG_PRINT_THD(
-        runtime->get_rank(),
+        runtime->inside_rank,
         "destructing fetch node, flow=%ld, this=%p\n",
         PRINT_LABEL(fetch), this
       );
@@ -192,7 +192,7 @@ namespace threads_backend {
 
     void activate() override {
       DEBUG_PRINT_THD(
-        runtime->get_rank(),
+        runtime->inside_rank,
         "=== ACTIVATING === fetch node\n"
       );
       runtime->add_remote(this->shared_from_this());
@@ -212,7 +212,7 @@ namespace threads_backend {
 
     void execute() {
       DEBUG_PRINT_THD(
-        runtime->get_rank(),
+        runtime->inside_rank,
         "=== EXECUTING === publish node\n"
       );
 
@@ -306,9 +306,7 @@ namespace threads_backend {
 
     virtual void execute() override {
       if (cur < hi) {
-        runtime->set_first_indexed_flow(false);
         auto task = std::move(shared_task->create_task_for_index(cur));
-        runtime->set_first_indexed_flow(true);
         cur++;
         auto task_node = std::make_shared<TaskNode<types::task_collection_task_t>>(
           runtime, std::move(task)
@@ -359,7 +357,7 @@ namespace threads_backend {
         auto const& f_in = use->get_in_flow();
         if (f_in->perform_transfer) {
           DEBUG_PRINT_THD(
-            runtime->get_rank(),
+            runtime->inside_rank,
             "perform transfer: f_in=%ld, owner=%d, prev_owner=%d, prev=%ld\n",
             PRINT_LABEL(f_in), f_in->indexed_rank_owner, f_in->prev_rank_owner,
             f_in->prev ? PRINT_LABEL(f_in->prev) : -1
