@@ -17,8 +17,11 @@ set (DARMA_FE_REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 option (DARMA_FE_ENABLE_TESTS "Enable build of frontend tests" Off)
 
 if (DARMA_FE_ENABLE_TESTS)
+  message("DARMA frontend tests will be built.")
   include(CTest)
   enable_testing()
+else()
+  message("DARMA frontend tests will be skipped.")
 endif()
 
 # indicate that CMAKE was used, so config-generated.h can be used
