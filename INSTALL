@@ -2,11 +2,22 @@ By default, frontend tests are disabled.  To simply install the
 frontend headers, execute:
 
 $ cmake ${source} \
-  -DCMAKE_INSTALL_PREFIX=${frontend_prefix}
+  -DCMAKE_INSTALL_PREFIX=${frontend_prefix} \
+  -DCMAKE_CXX_COMPILER=${cxxcompiler} \
+  -DCMAKE_C_COMPILER=${ccompiler}
 $ make install
 
 where ${frontend_prefix} is the location you want the headers
-installed.
+installed, ${ccompiler} is the desired c compiler, and
+${cxxcompiler} is the desired C++ compiler.  If you omit the
+CMAKE_C_COMPILER and CMAKE_CXX_COMPILER options, ${CC} and ${CXX}
+will be assumed by cmake.
+
+Even though nothing is being built in this step, specifying the
+compilers is necessary so that compiler-requirements can be recorded
+as part of the header install.  If you omit the compilers here, the
+backend and/or example builds may fail later due to errors in the
+frontend headers.
 
 To enable the frontend tests, do the following instead:
 
@@ -21,12 +32,8 @@ $ make
 $ ctest
 $ make install
 
-Here, ${ccompiler} is the desired c compiler, ${cxxcompiler} is the
-desired C++ compiler, and ${gtest_install_prefix} is the prefix of
-a previous googletest/googlemock install.
-
-If you omit the CMAKE_C_COMPILER and CMAKE_CXX_COMPILER options,
-${CC} and ${CXX} will be used by cmake.
+Here, ${gtest_install_prefix} is the prefix of a previous googletest/
+googlemock install.
 
 The frontend tests require the DEVELOPMENT version googletest/
 googlemock.  Release 1.7.0 is NOT sufficient.  If the install prefix
