@@ -211,6 +211,7 @@ struct TaskCollectionImpl
             )
           )
         );
+        tc.add_dependency(&(mcoll.collection.current_use_->use));
         return 0;
       }
 
