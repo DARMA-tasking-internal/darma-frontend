@@ -620,7 +620,12 @@ namespace threads_backend {
     // allocate some space for this object
     const size_t sz = handle->get_serialization_manager()->get_metadata_size();
     auto data_block = new DataBlock(1, sz);
-    auto block = std::shared_ptr<DataBlock>(data_block, [handle](DataBlock* block) {
+    auto block = std::shared_ptr<DataBlock>(data_block, [handle,this](DataBlock* block) {
+      DEBUG_PRINT(
+        "DataBlock deleter running, block data=%p, calling destructor from allocate\n",
+        block->data
+      );
+
       handle
         ->get_serialization_manager()
         ->destroy(block->data);
@@ -812,9 +817,14 @@ namespace threads_backend {
       auto &pub = *pub_ptr;
       auto traceLog = pub.pub_log;
 
-      const bool buffer_exists = fetched_data.find(std::make_tuple(cid,version_key,key)) != fetched_data.end();
+      auto const buffer_exists = fetched_data.find(std::make_tuple(cid,version_key,key)) != fetched_data.end();
       auto block = buffer_exists ? fetched_data[std::make_tuple(cid,version_key,key)] :
-        std::shared_ptr<DataBlock>(new DataBlock(0, pub.data->size_), [handle](DataBlock* b) {
+        std::shared_ptr<DataBlock>(new DataBlock(0, pub.data->size_), [handle,this](DataBlock* b) {
+          DEBUG_PRINT(
+            "DataBlock deleter running, block data=%p, calling destructor\n",
+            b->data
+          );
+
           handle
             ->get_serialization_manager()
             ->destroy(b->data);
@@ -823,23 +833,30 @@ namespace threads_backend {
 
       if (!buffer_exists) {
         fetched_data[std::make_tuple(cid,version_key,key)] = block;
+      } else {
+        // call destructor since it was previously default constructed
+        handle
+          ->get_serialization_manager()
+          ->destroy(block->data);
       }
 
-      DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
-                  PRINT_BOOL_STR(buffer_exists),
-                  handle);
+      DEBUG_PRINT(
+        "fetch: unpacking data: buffer_exists=%s, handle=%p\n",
+        PRINT_BOOL_STR(buffer_exists), handle
+      );
 
-      de_serialize(handle,
-                   pub.data->data_,
-                   block->data);
+      de_serialize(
+        handle, pub.data->data_, block->data
+      );
 
-
-      DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
-                  PRINT_KEY(key),
-                  PRINT_KEY(version_key),
-                  pub.data->data_,
-                  std::atomic_load<size_t>(&pub.expected),
-                  block->data);
+      DEBUG_PRINT(
+        "fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
+        PRINT_KEY(key),
+        PRINT_KEY(version_key),
+        pub.data->data_,
+        std::atomic_load<size_t>(&pub.expected),
+        block->data
+      );
 
       assert(pub.expected > 0);
 
@@ -996,25 +1013,34 @@ namespace threads_backend {
   ) {
     auto handle = flow->handle;
 
-    DEBUG_PRINT("cleanup_handle identity: %p to %p\n",
-                flow->handle.get(),
-                flow->alias ? flow->alias->handle.get() : nullptr)
+    DEBUG_PRINT(
+      "cleanup_handle identity: %p to %p\n",
+      flow->handle.get(),
+      flow->alias ? flow->alias->handle.get() : nullptr
+    );
 
     delete_handle_data(
-      handle.get(),
-      flow->version_key,
-      flow->key,
-      flow->fromFetch
+      handle.get(), flow->version_key, flow->key, flow->cid, flow->fromFetch
     );
   }
 
   void
   ThreadsRuntime::delete_handle_data(
-    handle_t const* handle,
-    types::key_t const& version,
-    types::key_t const& key,
-    bool const fromFetch
+    handle_t const* handle, types::key_t const& version, types::key_t const& key,
+    CollectionID const& cid, bool const fromFetch
   ) {
+    auto& data_store = fromFetch ? fetched_data : data;
+    auto data_iter = data_store.find(std::make_tuple(cid, version, key));
+    auto found = data_iter != data_store.end();
+
+    DEBUG_PRINT(
+      "delete_handle_data: handle=%p, fromFetch=%s, found=%s\n",
+      handle, PRINT_BOOL_STR(fromFetch), PRINT_BOOL_STR(found)
+    );
+
+    if (found) {
+      data_store.erase(data_iter);
+    }
   }
 
   void
@@ -2209,11 +2235,10 @@ namespace threads_backend {
                   this->consumed,
                   largest_deque_size);
 
-    DEBUG_PRINT("data=%ld, "
-                "fetched data=%ld, "
-                "\n",
-                data.size(),
-                fetched_data.size());
+    DEBUG_PRINT(
+      "data=%ld, fetched data=%ld\n",
+      data.size(), fetched_data.size()
+    );
 
     // should call destructor for trace module if it exists to write
     // out the logs
