@@ -171,7 +171,7 @@ namespace threads_backend {
 }
 
 
-enum { NO_VALUE, OPTIONAL_VALUE, REQUIRED_VALUE };
+enum { NO_VALUE, OPTIONAL_VALUE, REQUIRED_VALUE, MULTIPLE_VALUES };
 
 #define NO_SHORT_NAME 0
 #define NO_LONG_NAME nullptr
@@ -184,13 +184,10 @@ struct ArgsConfig {
   const char* docstring;
 };
 
-struct ArgEntry {
-  int argEnum;
+struct ArgGetter {
   const char* value;
 
-  ArgEntry() : value(nullptr), argEnum(-1)
-  {
-  }
+  ArgGetter(const char* val) : value(val){}
 
   template <class T>
   void
@@ -207,6 +204,55 @@ struct ArgEntry {
   get() const {
     return value;
   }
+
+};
+
+struct ArgEntry {
+  int argEnum;
+
+  /** Or this could have multiple values */
+  std::list<ArgGetter> entries;
+
+  ArgEntry() : argEnum(-1)
+  {
+  }
+
+  ArgEntry(int en, const char* val) :
+    argEnum(en)
+  {
+    entries.emplace_back(val);
+  }
+
+  template <class T>
+  void
+  get(T& val) const {
+    return entries.front().get<T>(val);
+  }
+
+  const char*
+  get() const {
+    return entries.front().get();
+  }
+
+  typedef std::list<ArgGetter>::iterator iterator;
+  typedef std::list<ArgGetter>::const_iterator const_iterator;
+
+  iterator begin() {
+    return entries.begin();
+  }
+
+  const_iterator begin() const {
+    return entries.begin();
+  }
+
+  iterator end() {
+    return entries.end();
+  }
+
+  const_iterator end() const {
+    return entries.end();
+  }
+
 };
 
 struct ArgName {
@@ -262,19 +308,39 @@ struct ArgsHolder {
        << std::endl;
     for (auto& pair : configs){
       ArgsConfig* cfg = pair.second;
+      int stride = 22;
       if (cfg->letter != 0){
         os << setw(2) << " -" << cfg->letter << ", ";
       } else {
-        os << setw(5) << "";
+        os << " ";
+        //we didn't print
+        stride += 4;
       }
+
       if (cfg->name){
         os << "--" << cfg->name;
         int len = strlen(cfg->name);
-        os << setw(23-len) << "";
+        os << setw(stride-2-len) << "";
       } else {
-        os << setw(25) << "";
+        os << setw(stride) << "";
       }
 
+      switch (cfg->valueType){
+        case OPTIONAL_VALUE:
+          os << "[Optional value]";
+          break;
+        case REQUIRED_VALUE:
+          os << "[Required value]";
+          break;
+        case NO_VALUE:
+          break;
+        case MULTIPLE_VALUES:
+          os << "[List of values]";
+          break;
+      }
+
+      os << "\n ";
+      int lineskip = 2;
       //print a well-formatted docstring
       int col = 0;
       int idx = 0;
@@ -286,7 +352,7 @@ struct ArgsHolder {
         }
         int wordSize = idx - startIdx;
         if (col != 0 && (col + wordSize) > 60){
-          os << "\n" << setw(31) << "";
+          os << "\n" << setw(lineskip) << "";
           col = 0;
         } else {
           col += wordSize;
@@ -320,8 +386,9 @@ struct ArgsHolder {
   {
     switch (cfg->valueType){
       case OPTIONAL_VALUE:
+      case MULTIPLE_VALUES:
         if (next[0] != '-'){
-          entry.value = next;
+          entry.entries.emplace_back(next);
           return true;
         }
         return false;
@@ -330,7 +397,7 @@ struct ArgsHolder {
           std::cerr << str << " requires argument but found flag " << next << std::endl;
           abort();
         }
-        entry.value = next;
+        entry.entries.emplace_back(next);
         return true;
       case NO_VALUE:
         if (next[0] != '-'){
@@ -339,7 +406,7 @@ struct ArgsHolder {
         }
         return false;
     }
-    return false; //never reached, compiler warnings
+    return false; //never reached, get rid compiler warnings
   }
 
   void
@@ -347,7 +414,6 @@ struct ArgsHolder {
   {
     int i=0;
     for (i=1; i < argc; ++i){
-      std::cout << "argv[" << i << "]=" << argv[i] << std::endl;
       char* str = argv[i];
       int len = strlen(str);
       if (len >= 2){
@@ -398,6 +464,13 @@ struct ArgsHolder {
           if (cfg->valueType == REQUIRED_VALUE){
             std::cerr << str << " requires argument" << std::endl;
             abort();
+          }
+        } else if (cfg->valueType == MULTIPLE_VALUES){
+          while ((i+1) < argc && argv[i+1][0] != '-'){
+            //keep reading arguments until we find next flag
+            //or run out of argv
+            ++i;
+            entry.entries.emplace_back(argv[i]);
           }
         } else {
           if (parseNext(cfg, entry, argv[i+1], str)){

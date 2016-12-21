@@ -2340,10 +2340,10 @@ static ArgsConfig arg_config[] = {
   {NumSystemRanks, NO_SHORT_NAME, "num_system_ranks", REQUIRED_VALUE, "the number of system ranks (system-use only)"},
   {Ranks, 'r', "ranks", REQUIRED_VALUE, "the number of ranks to launch for concurrent regions - data partition only, no reference to physical resources"},
   {Threads, 't', "threads", REQUIRED_VALUE, "the number of physical threads to run"},
-  {BreadthFirst, 'b', "bf", REQUIRED_VALUE, "the degree of breadth-first lookahead in the scheduler - not required, will use system default if unspecified"},
+  {BreadthFirst, 'b', "bf", REQUIRED_VALUE, "the degree of breadth-first lookahead in the scheduler. If not given, will use system default"},
   {Trace, NO_SHORT_NAME, "trace", NO_VALUE, "whether to activate DAG tracing"},
   {Help, 'h', "help", NO_VALUE, "print usage of application command-line flags"},
-  {AppArgv, 'a', "app-argv", REQUIRED_VALUE, "the list of arguments to be used by the application - must be quoted as a single string"},
+  {AppArgv, 'a', "app-argv", MULTIPLE_VALUES, "the list of arguments to be used by the application"},
   {AppHelp, NO_SHORT_NAME, "app-help", NO_VALUE, "print application options (pass --help to app argv)"},
   {0, 0, nullptr, 0}
 };
@@ -2358,18 +2358,17 @@ namespace threads_backend {
  * @param num_system_ranks [out] The total number of ranks being initialized
  * @return A string containing the command line arguments for the application
  */
-char*
+void
 backend_parse_arguments(
   int argc, char** argv,
   size_t& system_rank,
-  size_t& num_system_ranks
+  size_t& num_system_ranks,
+  std::vector<std::string>& app_argv
 ) {
   size_t n_threads = 1;
   size_t n_ranks = 1;
   bool trace = false;
   size_t bwidth = 1;
-  static const char* null_argv = "";
-  char* app_argv = const_cast<char*>(null_argv);
   bool print_app_help = false;
   ArgsHolder holder(arg_config);
   holder.parse(argc, argv);
@@ -2388,17 +2387,18 @@ backend_parse_arguments(
         entry.get<size_t>(n_threads);
         break;
       case AppHelp:
-        print_app_help = true;
+        app_argv.push_back("--help");
         break;
       case BreadthFirst:
         entry.get<size_t>(bwidth);
-        std::cout << "bwidth=" << bwidth << std::endl;
         break;
       case Help:
         holder.usage(std::cout);
         _Exit(0);
       case AppArgv:
-        app_argv = const_cast<char*>(entry.get());
+        for (auto& arg : entry){
+          app_argv.push_back(arg.get());
+        }
         break;
     }
   }
@@ -2436,12 +2436,6 @@ backend_parse_arguments(
       );
     }
   }
-
-  static char help[] = { '-', '-', 'h', 'e', 'l', 'p', '\0' };
-  if (print_app_help) //the only option to pass is a --help
-    return help;
-  else
-    return app_argv;
 }
 
 }
@@ -2451,28 +2445,16 @@ backend_parse_arguments(
 void backend_init_finalize(int argc, char **argv) {
   size_t system_rank = 0;
   size_t num_system_ranks = 1;
-  char* app_argv_str = threads_backend::backend_parse_arguments(argc, argv, system_rank, num_system_ranks);
-  size_t len = strlen(app_argv_str);
-  int char_idx = 0;
-  int argv_idx = 1;
-  char** app_argv = new char*[len]; //just optimistically allocate enough
-  app_argv[0] = argv[0];
-  while (char_idx < len){
-    if (app_argv_str[char_idx] == ' '){
-      while (app_argv_str[char_idx] == ' ' && char_idx < len) char_idx++;
-    } else {
-      app_argv[argv_idx++] = &app_argv_str[char_idx];
-      while (app_argv_str[char_idx] != ' ' && char_idx < len) char_idx++;
-    }
-  }
-  int app_argc = argv_idx;
+  std::vector<std::string> app_argv;
+  app_argv.push_back(argv[0]);
+  threads_backend::backend_parse_arguments(
+      argc, argv, system_rank, num_system_ranks, app_argv);
 
+  std::cout << "got app argv of size" << app_argv.size() << " " << std::endl;
 
   if (system_rank == 0) {
-    auto task = darma_runtime::frontend::darma_top_level_setup(
-      app_argc,
-      app_argv
-    );
+    auto task = darma_runtime::frontend::darma_top_level_setup(std::move(app_argv));
+
     auto runtime = std::make_unique<threads_backend::ThreadsRuntime>(
       system_rank,
       num_system_ranks,

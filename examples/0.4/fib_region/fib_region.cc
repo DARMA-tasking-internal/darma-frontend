@@ -91,8 +91,7 @@ struct concurrent_fib {
 void darma_main_task(std::vector<std::string> args) {
   assert(args.size() > 1);
 
-  size_t const xdim = atoi(args[1].c_str());
-  size_t const ydim = atoi(args[2].c_str());
+  size_t const num = atoi(args[1].c_str());
 
   create_concurrent_work<concurrent_fib>(
     index_range=Range1D<int>(num)
