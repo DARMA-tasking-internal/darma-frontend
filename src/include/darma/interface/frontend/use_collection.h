@@ -72,6 +72,9 @@ class UseCollection {
     virtual index_iterable<std::size_t>
     local_indices_for(std::size_t task_index) const =0;
 
+    virtual std::size_t
+    task_index_for(std::size_t collection_index) const =0;
+
     /** @todo document this
      *
      *  @param other

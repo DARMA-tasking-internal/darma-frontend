@@ -15,7 +15,7 @@ set (threads_HEADERS
   node.h
   publish.h
   threads.h
-  threads_interface.h
+  union_find.h
   trace.h
 )
 

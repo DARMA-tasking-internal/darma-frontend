@@ -58,7 +58,7 @@
 #include <unordered_map>
 #include <cstring>
 
-#include <threads_interface.h>
+#include <union_find.h>
 #include <common.h>
 #include <trace.h>
 
@@ -80,14 +80,16 @@ namespace threads_backend {
   using namespace darma_runtime::abstract::backend;
 
   struct InnerFlow;
-  struct ThreadsFlow;
-
   struct GraphNode;
-  // template <typename TaskType>
-  // struct TaskNode;
+  template <typename TaskType> struct TaskNode;
+  template <typename MetaTask> struct MetaTaskNode;
+  template <typename TaskType> struct TaskConditionNode;
   struct FetchNode;
-  struct PublishNode;
   struct CollectiveNode;
+  struct PublishNode;
+  struct DelayedPublish;
+  struct CollectiveInfo;
+  struct CollectionID;
 
   enum CollectiveType {
     AllReduce = 0
@@ -189,7 +191,7 @@ namespace threads_backend {
     : public abstract::backend::Runtime
     , public abstract::backend::Context
     , public abstract::backend::MemoryManager
-    , public ThreadsInterface<ThreadsRuntime> {
+  {
 
   public:
     size_t inside_rank = 0;
@@ -312,10 +314,8 @@ namespace threads_backend {
 
     void
     delete_handle_data(
-      handle_t const* handle,
-      types::key_t const& version,
-      types::key_t const& key,
-      bool const fromFetch
+      handle_t const* handle, types::key_t const& version, types::key_t const& key,
+      CollectionID const& cid, bool const fromFetch
     );
 
     void
@@ -419,6 +419,18 @@ namespace threads_backend {
     virtual void
     register_use(use_t* u);
 
+    template <typename DataMap>
+    void
+    set_up_data(
+      use_t* u, std::shared_ptr<handle_t const> handle, DataMap& data,
+      types::key_t const& key, types::key_t const& version, CollectionID const& cid
+    );
+
+    void
+    assign_data_ptr(
+      use_t* u, std::shared_ptr<DataBlock> data_block
+    );
+
     template <typename TaskType>
     void
     create_task(
@@ -505,21 +517,7 @@ namespace threads_backend {
     );
 
     bool
-    try_fetch(
-      handle_t* handle,
-      types::key_t const& version_key,
-      CollectionID cid
-    );
-
-    bool
     test_fetch(
-      handle_t* handle,
-      types::key_t const& version_key,
-      CollectionID cid
-    );
-
-    void
-    blocking_fetch(
       handle_t* handle,
       types::key_t const& version_key,
       CollectionID cid
@@ -591,12 +589,6 @@ namespace threads_backend {
     publish_use(
       use_t* f,
       pub_details_t* details
-    );
-
-    template <typename Node>
-    void
-    try_node(
-      std::list<std::shared_ptr<Node>>& nodes
     );
 
     template <typename Node>

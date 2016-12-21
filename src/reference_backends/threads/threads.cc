@@ -112,7 +112,6 @@ namespace threads_backend {
   // global
   size_t n_ranks = 1;
   bool traceMode = false;
-  bool depthFirstExpand = true;
   size_t bwidth = 100;
 
   // global publish
@@ -219,7 +218,7 @@ namespace threads_backend {
     DEBUG_PRINT("register task\n");
 
     auto t = std::make_shared<TaskNode<task_t>>(
-      TaskNode<task_t>{this,std::move(task)}
+      this,std::move(task)
     );
 
     create_task(t);
@@ -251,31 +250,39 @@ namespace threads_backend {
   ) {
     DEBUG_PRINT("register condition task\n");
 
-    auto t = std::make_shared<TaskNode<condition_task_t>>(
-      TaskNode<condition_task_t>{this,std::move(task)}
+    auto t = std::make_shared<TaskConditionNode<condition_task_t>>(
+      this, std::move(task)
     );
+
     t->join_counter = check_dep_task(t);
 
-    assert(threads_backend::depthFirstExpand);
+    DEBUG_PRINT(
+      "register condition task: jc=%ld, ready=%s\n",
+      t->join_counter, PRINT_BOOL_STR(t->ready())
+    );
 
-    if (threads_backend::depthFirstExpand) {
-      assert(t->ready());
-      DEBUG_VERBOSE_PRINT("running task\n");
-
-      runtime_t::task_t* prev = current_task;
-      condition_task_unique_ptr cur = std::move(t->task);
-      current_task = cur.get();
-      cur.get()->run();
-      bool ret = cur.get()->get_result();
-      this->consumed++;
-      global_consume();
-      DEBUG_PRINT("calling run on task\n");
-      current_task = prev;
-
-      return ret;
+    while (!t->ready()) {
+      schedule_next_unit();
     }
 
-    return true;
+    DEBUG_PRINT(
+      "register condition task (after loop): jc=%ld, ready=%s\n",
+      t->join_counter, PRINT_BOOL_STR(t->ready())
+    );
+
+    assert(t->ready());
+
+    t->execute();
+    t->cleanup();
+
+    auto const ret = t->get_result<bool>();
+
+    DEBUG_PRINT(
+      "register condition task (after loop): ret=%s\n",
+      PRINT_BOOL_STR(ret)
+    );
+
+    return ret;
   }
 
   void
@@ -298,10 +305,6 @@ namespace threads_backend {
   ThreadsRuntime::addFetchDeps(FetchNode* node,
                                TraceLog* thisLog,
                                TraceLog* pub_log) {
-    if (threads_backend::depthFirstExpand) {
-      return;
-    }
-
     if (pub_log) {
       const auto& end = std::atomic_load<TraceLog*>(&pub_log->end);
       const auto& time = end != nullptr ? end->time : pub_log->time;
@@ -318,10 +321,6 @@ namespace threads_backend {
   void
   ThreadsRuntime::addPublishDeps(PublishNode* node,
                                  TraceLog* thisLog) {
-    if (threads_backend::depthFirstExpand) {
-      return;
-    }
-
     const auto& flow = node->pub->flow;
     findAddTraceDep(flow,thisLog);
   }
@@ -366,10 +365,6 @@ namespace threads_backend {
   void
   ThreadsRuntime::addTraceDeps(TaskNode<TaskType>* node,
                                TraceLog* thisLog) {
-    if (threads_backend::depthFirstExpand) {
-      return;
-    }
-
     for (auto&& dep : node->task->get_dependencies()) {
       auto const f_in  = dep->get_in_flow();
       auto const f_out = dep->get_out_flow();
@@ -387,23 +382,7 @@ namespace threads_backend {
   ThreadsRuntime::add_fetch_node_flow(
     std::shared_ptr<InnerFlow> f_in
   ) {
-    if (f_in->isFetch &&
-        threads_backend::depthFirstExpand &&
-        !f_in->fetcherAdded) {
-      blocking_fetch(
-        f_in->handle.get(),
-        f_in->version_key,
-        f_in->cid
-      );
-      f_in->fetcherAdded = true;
-      if (f_in->acquire) {
-        f_in->state = FlowWriteReady;
-      } else {
-        f_in->state = FlowReadReady;
-      }
-      f_in->ready = true;
-    } else if (f_in->isFetch &&
-               !f_in->fetcherAdded) {
+    if (f_in->isFetch && !f_in->fetcherAdded) {
       auto node = std::make_shared<FetchNode>(this,f_in);
       node->acquire = f_in->acquire;
       DEBUG_PRINT(
@@ -438,13 +417,6 @@ namespace threads_backend {
       DEBUG_PRINT("check_dep_task dep f_in=%ld\n", PRINT_LABEL(f_in));
 
       add_fetch_node_flow(f_in);
-
-      if (f_in->isCollective &&
-          threads_backend::depthFirstExpand) {
-        if (!f_in->dfsColNode->finished) {
-          f_in->dfsColNode->block_execute();
-        }
-      }
 
       DEBUG_PRINT("check_dep_task: f_in=%lu (ready=%s), f_out=%lu\n",
                   PRINT_LABEL(f_in),
@@ -530,6 +502,51 @@ namespace threads_backend {
     return current_task;
   }
 
+  void
+  ThreadsRuntime::assign_data_ptr(
+    use_t* u, std::shared_ptr<DataBlock> data_block
+  ) {
+    auto f_in  = u->get_in_flow();
+    auto f_out = u->get_out_flow();
+
+    f_in->data_block = data_block;
+    f_out->data_block = data_block;
+
+    u->get_data_pointer_reference() = data_block->data;
+
+    f_in->shared_reader_count = &data_block->shared_ref_count;
+    f_out->shared_reader_count = &data_block->shared_ref_count;
+  }
+
+  template <typename DataMap>
+  void
+  ThreadsRuntime::set_up_data(
+    use_t* u, std::shared_ptr<handle_t const> handle, DataMap& data,
+    types::key_t const& key, types::key_t const& version, CollectionID const& cid
+  ) {
+    auto f_in  = u->get_in_flow();
+    auto f_out = u->get_out_flow();
+    auto const lookup = std::make_tuple(cid,version,key);
+    auto const search_iter = data.find(lookup);
+    auto const data_exists = search_iter != data.end();
+
+    if (data_exists) {
+      auto data_block = search_iter->second;
+      assign_data_ptr(u, data_block);
+    } else {
+      auto data_block = allocate_block(handle);
+      data[lookup] = data_block;
+      assign_data_ptr(u, data_block);
+    }
+
+    auto const& data_block = data[lookup];
+
+    DEBUG_PRINT(
+      "set_up_data: ptr=%p, key=%s, version=%s\n",
+      data_block->data, PRINT_KEY(key), PRINT_KEY(f_in->version_key)
+    );
+  }
+
   /*virtual*/
   void
   ThreadsRuntime::register_use(use_t* u) {
@@ -556,26 +573,16 @@ namespace threads_backend {
       f_in->scheduleOnlyNeeded = false;
     }
 
-    DEBUG_PRINT("%p: register use: ready=%s, key=%s, version=%s, "
-                "handle=%p [in={%ld,ref=%ld,state=%s,son=%s},out={%ld,ref=%ld,state=%s,son=%s}], "
-                "sched=%d, immed=%d, fromFetch=%s\n",
-                u,
-                PRINT_BOOL_STR(ready),
-                PRINT_KEY(key),
-                PRINT_KEY(version),
-                handle.get(),
-                PRINT_LABEL(f_in),
-                f_in->ref,
-                PRINT_STATE(f_in),
-                PRINT_BOOL_STR(f_in->scheduleOnlyNeeded),
-                PRINT_LABEL(f_out),
-                f_out->ref,
-                PRINT_STATE(f_out),
-                PRINT_BOOL_STR(f_out->scheduleOnlyNeeded),
-                u->scheduling_permissions(),
-                u->immediate_permissions(),
-                PRINT_BOOL_STR(f_in->fromFetch)
-               );
+    DEBUG_PRINT(
+      "%p: register use: ready=%s, key=%s, version=%s, "
+      "handle=%p [in={%ld,ref=%ld,state=%s,son=%s},out={%ld,ref=%ld,state=%s,son=%s}], "
+      "sched=%d, immed=%d, fromFetch=%s\n",
+      u, PRINT_BOOL_STR(ready), PRINT_KEY(key), PRINT_KEY(version), handle.get(),
+      PRINT_LABEL(f_in), f_in->ref, PRINT_STATE(f_in), PRINT_BOOL_STR(f_in->scheduleOnlyNeeded),
+      PRINT_LABEL(f_out), f_out->ref, PRINT_STATE(f_out), PRINT_BOOL_STR(f_out->scheduleOnlyNeeded),
+      u->scheduling_permissions(), u->immediate_permissions(),
+      PRINT_BOOL_STR(f_in->fromFetch)
+    );
 
     if (f_in->isForward) {
       auto const flows_match = f_in == f_out;
@@ -588,71 +595,37 @@ namespace threads_backend {
     f_in->uses++;
     f_out->uses++;
 
+    if (not flows_same and f_in->is_indexed) {
+      auto const from = f_in->collection;
+      std::lock_guard<std::mutex> lg1(from->collection_mutex);
+      auto const backend_index = f_in->collection_index;
+      from->collection_child[backend_index] = std::make_pair(f_out,f_in);
+      DEBUG_PRINT(
+        "register_use: setting collection child index=%lu\n", backend_index
+      );
+    }
+
     if (!f_in->fromFetch) {
-      const bool data_exists = data.find({cid,version,key}) != data.end();
-      if (data_exists) {
-        f_in->data_block = data[{cid,version,key}];
-        u->get_data_pointer_reference() = data[{cid,version,key}]->data;
-
-        DEBUG_PRINT("%p: use register, ptr=%p, key=%s, "
-                    "in version=%s, out version=%s, data exists\n",
-                    u, data[{cid,version,key}]->data, PRINT_KEY(key),
-                    PRINT_KEY(f_in->version_key),
-                    PRINT_KEY(f_out->version_key));
+      auto const data_exists = data.find(std::make_tuple(cid,version,key)) != data.end();
+      if (!data_exists && f_in->is_indexed && !f_in->is_initial) {
+        f_in->perform_transfer = true;
       } else {
-        // allocate new deferred data block for this use
-        auto block = allocate_block(handle);
-
-        // insert into the hash
-        data[{cid,version,key}] = block;
-        f_in->data_block = block;
-        u->get_data_pointer_reference() = block->data;
-
-        DEBUG_PRINT("%p: use register: ptr=%p, key=%s, "
-                    "in version=%s, out version=%s\n",
-                    u, block->data, PRINT_KEY(key),
-                    PRINT_KEY(f_in->version_key),
-                    PRINT_KEY(f_out->version_key));
+        set_up_data(u, handle, data, key, version, cid);
       }
-
-      f_in->shared_reader_count = &data[{cid,version,key}]->shared_ref_count;
-      f_out->shared_reader_count = &data[{cid,version,key}]->shared_ref_count;
     } else {
-      const bool data_exists = fetched_data.find({cid,version,key}) != fetched_data.end();
-      if (data_exists) {
-        f_in->data_block = fetched_data[{cid,version,key}];
-        u->get_data_pointer_reference() = fetched_data[{cid,version,key}]->data;
-
-        DEBUG_PRINT("register_use: data exists: ptr=%p\n",
-                    fetched_data[{cid,version,key}]->data);
-      } else {
-        // FIXME: copy-paste of above code...
-
-        // allocate new deferred data block for this use
-        auto block = allocate_block(handle, f_in->fromFetch);
-        f_in->data_block = block;
-        // insert into the hash
-        fetched_data[{cid,version,key}] = block;
-        u->get_data_pointer_reference() = block->data;
-
-        DEBUG_PRINT("register_use: data does not exist: ptr=%p\n",
-                    block->data);
-      }
-
-      f_in->shared_reader_count = &fetched_data[{cid,version,key}]->shared_ref_count;
-      f_out->shared_reader_count = &fetched_data[{cid,version,key}]->shared_ref_count;
+      set_up_data(u, handle, fetched_data, key, version, cid);
     }
 
     // save keys
     f_in->key = key;
     f_out->key = key;
 
-    DEBUG_PRINT("flow {%ld,%s}, shared_reader_count=%p [%ld]\n",
-                PRINT_LABEL(f_in),
-                PRINT_STATE(f_in),
-                f_in->shared_reader_count,
-                *f_in->shared_reader_count
-                );
+    DEBUG_PRINT(
+      "flow {%ld,%s}, shared_reader_count=%p [%ld]\n",
+      PRINT_LABEL(f_in), PRINT_STATE(f_in),
+      f_in->shared_reader_count,
+      f_in->shared_reader_count ? *f_in->shared_reader_count : -1
+    );
   }
 
   std::shared_ptr<DataBlock>
@@ -663,7 +636,12 @@ namespace threads_backend {
     // allocate some space for this object
     const size_t sz = handle->get_serialization_manager()->get_metadata_size();
     auto data_block = new DataBlock(1, sz);
-    auto block = std::shared_ptr<DataBlock>(data_block, [handle](DataBlock* block) {
+    auto block = std::shared_ptr<DataBlock>(data_block, [handle,this](DataBlock* block) {
+      DEBUG_PRINT(
+        "DataBlock deleter running, block data=%p, calling destructor from allocate\n",
+        block->data
+      );
+
       handle
         ->get_serialization_manager()
         ->destroy(block->data);
@@ -715,6 +693,7 @@ namespace threads_backend {
     f->state = FlowReadReady;
     f->ready = true;
     f->handle = handle;
+    f->is_initial = true;
     return f;
   }
 
@@ -761,73 +740,6 @@ namespace threads_backend {
       ->unpack_data(unpack_to,
                     packed,
                     policy.get());
-  }
-
-  bool
-  ThreadsRuntime::try_fetch(
-    handle_t* handle,
-    types::key_t const& version_key,
-    CollectionID cid
-  ) {
-    bool found = false;
-
-  retry_fetch:
-    {
-      // TODO: big lock to handling fetching
-      std::lock_guard<std::mutex> guard(threads_backend::rank_publish);
-
-      auto const& key = handle->get_key();
-      auto const& iter = published.find(std::make_tuple(cid,version_key,key));
-
-      if (iter != published.end()) {
-        PublishedBlock* pub_ptr = iter->second;
-        auto &pub = *pub_ptr;
-
-        const bool buffer_exists = fetched_data.find({cid,version_key,key}) != fetched_data.end();
-        void* unpack_to = buffer_exists ? fetched_data[{cid,version_key,key}]->data : malloc(pub.data->size_);
-
-        DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
-                    PRINT_BOOL_STR(buffer_exists),
-                    handle);
-
-        de_serialize(handle,
-                     pub.data->data_,
-                     unpack_to);
-
-        if (!buffer_exists) {
-          fetched_data[{cid,version_key,key}] = std::make_shared<DataBlock>(unpack_to);
-        }
-
-        DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
-                    PRINT_KEY(key),
-                    PRINT_KEY(version_key),
-                    pub.data->data_,
-                    std::atomic_load<size_t>(&pub.expected),
-                    unpack_to);
-
-        assert(pub.expected > 0);
-
-        ++(pub.done);
-        --(pub.expected);
-
-        DEBUG_PRINT("expected=%ld\n", pub.expected.load());
-
-        if (std::atomic_load<size_t>(&pub.expected) == 0) {
-          // remove from publication list
-          published.erase(std::make_tuple(cid,version_key,key));
-          free(pub_ptr->data->data_);
-          delete pub.data;
-          delete pub_ptr;
-        }
-
-        found = true;
-      }
-    }
-
-    if (!found && depthFirstExpand)
-      goto retry_fetch;
-
-    return found;
   }
 
   bool
@@ -895,20 +807,6 @@ namespace threads_backend {
     return ready;
   }
 
-  void
-  ThreadsRuntime::blocking_fetch(
-    handle_t* handle,
-    types::key_t const& version_key,
-    CollectionID cid
-  ) {
-
-    DEBUG_PRINT("fetch_block: handle = %p\n", handle);
-
-    while (!test_fetch(handle, version_key, cid)) ;
-
-    fetch(handle, version_key, cid);
-  }
-
   TraceLog*
   ThreadsRuntime::fetch(
     handle_t* handle,
@@ -935,9 +833,14 @@ namespace threads_backend {
       auto &pub = *pub_ptr;
       auto traceLog = pub.pub_log;
 
-      const bool buffer_exists = fetched_data.find({cid,version_key,key}) != fetched_data.end();
-      auto block = buffer_exists ? fetched_data[{cid,version_key,key}] :
-        std::shared_ptr<DataBlock>(new DataBlock(0, pub.data->size_), [handle](DataBlock* b) {
+      auto const buffer_exists = fetched_data.find(std::make_tuple(cid,version_key,key)) != fetched_data.end();
+      auto block = buffer_exists ? fetched_data[std::make_tuple(cid,version_key,key)] :
+        std::shared_ptr<DataBlock>(new DataBlock(0, pub.data->size_), [handle,this](DataBlock* b) {
+          DEBUG_PRINT(
+            "DataBlock deleter running, block data=%p, calling destructor\n",
+            b->data
+          );
+
           handle
             ->get_serialization_manager()
             ->destroy(b->data);
@@ -945,24 +848,31 @@ namespace threads_backend {
        });
 
       if (!buffer_exists) {
-        fetched_data[{cid,version_key,key}] = block;
+        fetched_data[std::make_tuple(cid,version_key,key)] = block;
+      } else {
+        // call destructor since it was previously default constructed
+        handle
+          ->get_serialization_manager()
+          ->destroy(block->data);
       }
 
-      DEBUG_PRINT("fetch: unpacking data: buffer_exists = %s, handle = %p\n",
-                  PRINT_BOOL_STR(buffer_exists),
-                  handle);
+      DEBUG_PRINT(
+        "fetch: unpacking data: buffer_exists=%s, handle=%p\n",
+        PRINT_BOOL_STR(buffer_exists), handle
+      );
 
-      de_serialize(handle,
-                   pub.data->data_,
-                   block->data);
+      de_serialize(
+        handle, pub.data->data_, block->data
+      );
 
-
-      DEBUG_PRINT("fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
-                  PRINT_KEY(key),
-                  PRINT_KEY(version_key),
-                  pub.data->data_,
-                  std::atomic_load<size_t>(&pub.expected),
-                  block->data);
+      DEBUG_PRINT(
+        "fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
+        PRINT_KEY(key),
+        PRINT_KEY(version_key),
+        pub.data->data_,
+        std::atomic_load<size_t>(&pub.expected),
+        block->data
+      );
 
       assert(pub.expected > 0);
 
@@ -1057,11 +967,6 @@ namespace threads_backend {
       f->next->state = FlowWaiting;
     }
 
-    if (depthFirstExpand) {
-      f_forward->ready = true;
-      f_forward->state = FlowWriteReady;
-    }
-
     if (getTrace()) {
       task_forwards[f_forward] = f;
     }
@@ -1124,25 +1029,34 @@ namespace threads_backend {
   ) {
     auto handle = flow->handle;
 
-    DEBUG_PRINT("cleanup_handle identity: %p to %p\n",
-                flow->handle.get(),
-                flow->alias ? flow->alias->handle.get() : nullptr)
+    DEBUG_PRINT(
+      "cleanup_handle identity: %p to %p\n",
+      flow->handle.get(),
+      flow->alias ? flow->alias->handle.get() : nullptr
+    );
 
     delete_handle_data(
-      handle.get(),
-      flow->version_key,
-      flow->key,
-      flow->fromFetch
+      handle.get(), flow->version_key, flow->key, flow->cid, flow->fromFetch
     );
   }
 
   void
   ThreadsRuntime::delete_handle_data(
-    handle_t const* handle,
-    types::key_t const& version,
-    types::key_t const& key,
-    bool const fromFetch
+    handle_t const* handle, types::key_t const& version, types::key_t const& key,
+    CollectionID const& cid, bool const fromFetch
   ) {
+    auto& data_store = fromFetch ? fetched_data : data;
+    auto data_iter = data_store.find(std::make_tuple(cid, version, key));
+    auto found = data_iter != data_store.end();
+
+    DEBUG_PRINT(
+      "delete_handle_data: handle=%p, fromFetch=%s, found=%s\n",
+      handle, PRINT_BOOL_STR(fromFetch), PRINT_BOOL_STR(found)
+    );
+
+    if (found) {
+      data_store.erase(data_iter);
+    }
   }
 
   void
@@ -1155,7 +1069,7 @@ namespace threads_backend {
       PRINT_LABEL(f_alias)
     );
 
-    if (f_alias->collection_out && f_alias->is_indexed && f_in->is_indexed) {
+    if (f_alias->is_indexed && f_in->is_indexed) {
       auto index = f_in->collection_index;
 
       DEBUG_PRINT(
@@ -1173,8 +1087,8 @@ namespace threads_backend {
 
       f_in->indexed_alias_out = true;
 
-      std::lock_guard<std::mutex> lg1(f_in->collection->collection_mutex);
       std::lock_guard<std::mutex> lg2(f_in->collection->next->collection_mutex);
+      std::lock_guard<std::mutex> lg1(f_in->collection->collection_mutex);
 
       auto found = f_in->collection->collection_child.find(index) != f_in->collection->collection_child.end();
 
@@ -1196,7 +1110,10 @@ namespace threads_backend {
           auto next_elm = next_col->collection_child[index];
 
           DEBUG_PRINT(
-            "indexed_alias_to_out: has second = %s\n", next_elm.second ? "true" : "false"
+            "indexed_alias_to_out: fst=%ld, snd=%ld, has second=%s\n",
+            next_elm.first ? PRINT_LABEL(next_elm.first) : -1,
+            next_elm.second ? PRINT_LABEL(next_elm.second) : -1,
+            next_elm.second ? "true" : "false"
           );
 
           if (next_elm.second != nullptr) {
@@ -1204,6 +1121,7 @@ namespace threads_backend {
               "indexed_alias_to_out: first_elem=%ld, next_elem=%ld\n",
               PRINT_LABEL(next_elm.first), PRINT_LABEL(next_elm.second)
             );
+            next_elm.second->prev_rank_owner = f_in->indexed_rank_owner;
             if (next_elm.second->state == FlowWaiting) {
               auto const has_read = try_release_to_read(next_elm.second);
               if (!has_read) {
@@ -1215,6 +1133,7 @@ namespace threads_backend {
             f_in->collection->collection_child.erase(
               f_in->collection->collection_child.find(index)
             );
+            next_elm.second->prev = f_in;
           }
         }
       }
@@ -1253,15 +1172,14 @@ namespace threads_backend {
 
         if (has_subsequent) {
           release_to_write(alias_part);
-
-          if (alias_part != f_from) {
-            indexed_alias_to_out(f_from, alias_part);
-          }
         } else {
           DEBUG_PRINT("establish_flow_alias subsequent, %ld in state=%s does not have *subsequent*\n",
                       PRINT_LABEL(alias_part),
                       PRINT_STATE(alias_part));
 
+        }
+        if (alias_part != f_from) {
+          indexed_alias_to_out(f_from, alias_part);
         }
       }
     } else if (f_from->state == FlowReadReady) {
@@ -1494,16 +1412,14 @@ namespace threads_backend {
         false
     });
 
-    auto node = std::make_shared<CollectiveNode>(CollectiveNode{this,info});
+    auto node = std::make_shared<CollectiveNode>(this,info);
 
     // set the node
     info->node = node;
 
-    if (!depthFirstExpand) {
-      f_out->ready = false;
-      f_out->state = FlowWaiting;
-      f_out->ref++;
-    }
+    f_out->ready = false;
+    f_out->state = FlowWaiting;
+    f_out->ref++;
 
     const auto& ready = node->ready();
 
@@ -1512,22 +1428,16 @@ namespace threads_backend {
                 PRINT_LABEL_INNER(f_in),
                 PRINT_LABEL_INNER(f_out));
 
-    if (depthFirstExpand) {
-      f_out->dfsColNode = node;
-      node->execute();
-    } else {
+    publish_uses[use_in]++;
 
-      publish_uses[use_in]++;
+    add_fetch_node_flow(f_in);
 
-      add_fetch_node_flow(f_in);
-
-      if (f_in->state == FlowWaiting ||
+    if (f_in->state == FlowWaiting ||
           f_in->state == FlowReadReady) {
-        f_in->node = node;
-        node->set_join(1);
-      } else {
-        node->execute();
-      }
+      f_in->node = node;
+      node->set_join(1);
+    } else {
+      node->execute();
     }
 
     // TODO: for the future this should be two-stage starting with a read
@@ -1619,9 +1529,7 @@ namespace threads_backend {
           finished = state.current_pieces == state.n_pieces;
 
           if (!finished) {
-            if (!depthFirstExpand) {
-              state.activations.push_back(info->node);
-            }
+            state.activations.push_back(info->node);
           } else {
             act = &state.activations;
           }
@@ -1734,13 +1642,11 @@ namespace threads_backend {
 
         delete block;
 
-        if (!depthFirstExpand) {
-          info->flow_out->ref--;
-          transition_after_write(
-            info->flow,
-            info->flow_out
-          );
-        }
+        info->flow_out->ref--;
+        transition_after_write(
+          info->flow,
+          info->flow_out
+        );
       }
       break;
     default:
@@ -1771,14 +1677,13 @@ namespace threads_backend {
         auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
         if (has_subsequent) {
           release_to_write(alias_part);
-
-          if (alias_part != flow) {
-            indexed_alias_to_out(flow, alias_part);
-          }
         } else {
           DEBUG_PRINT("transition_after_read, %ld in state=%s does not have *subsequent*\n",
                       PRINT_LABEL(alias_part),
                       PRINT_STATE(alias_part));
+        }
+        if (alias_part != flow) {
+          indexed_alias_to_out(flow, alias_part);
         }
       }
     }
@@ -1816,14 +1721,13 @@ namespace threads_backend {
         auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
         if (has_subsequent) {
           release_to_write(alias_part);
-
-          if (alias_part != f_in) {
-            indexed_alias_to_out(f_in, alias_part);
-          }
         } else {
           DEBUG_PRINT("transition_after_write, %ld in state=%s does not have *subsequent*\n",
                       PRINT_LABEL(alias_part),
                       PRINT_STATE(alias_part));
+        }
+        if (alias_part != f_in) {
+          indexed_alias_to_out(f_in, alias_part);
         }
       }
     }
@@ -1843,11 +1747,6 @@ namespace threads_backend {
     if (f_in->forward) {
       f_in->forward->state = f_in->forward->isWriteForward ? FlowWriteReady : FlowReadReady;
       f_in->forward->ready = true;
-    }
-
-    // enable each out flow
-    if (depthFirstExpand) {
-      f_out->ready = true;
     }
 
     auto handle = u->get_handle();
@@ -2056,47 +1955,66 @@ namespace threads_backend {
     f->is_indexed = true;
     f->collection = from;
     f->cid = CollectionID(from->cid.collection, backend_index);
+    f->is_initial = from->is_initial;
+    f->indexed_rank_owner = inside_rank;
+    f->collection_index = backend_index;
 
-    std::lock_guard<std::mutex> lg1(f->collection->collection_mutex);
+    std::lock_guard<std::mutex> lg1(from->collection_mutex);
+
+    if (from->is_initial) {
+      f->state = from->state;
+    }
 
     // set up next link inside indexed region between in and out flows for
     // correct forwarding
     if (from->prev != nullptr) {
+      std::lock_guard<std::mutex> lg2(from->prev->collection_mutex);
+
       auto other = from->prev->collection_child[backend_index].first;
       if (other) {
         other->next = f;
       }
 
       DEBUG_PRINT(
-        "make_indexed_local_flow: other=%ld\n", other ? PRINT_LABEL(other) : -1
+        "make_indexed_local_flow: flow=%ld, from=%ld, collection=%ld, index=%ld, from state=%s, fst=%ld, snd=%ld\n",
+        PRINT_LABEL(f), PRINT_LABEL(from), from->cid.collection, backend_index,
+        PRINT_STATE(from),
+        from->collection_child[backend_index].first ? PRINT_LABEL(from->collection_child[backend_index].first) : -1,
+        from->collection_child[backend_index].second ? PRINT_LABEL(from->collection_child[backend_index].second) : -1
       );
-    }
 
-    if (from->collection_child.find(backend_index) == from->collection_child.end()) {
-      //f->next = from->next->collection_child[backend_index].first;
-      from->collection_child[backend_index].first = f;
-    } else {
-      from->collection_child[backend_index].second = f;
-    }
+      if (from->prev->collection_child.find(backend_index) !=
+          from->prev->collection_child.end()) {
 
-    f->state = from->state;
-    f->collection_index = backend_index;
+        DEBUG_PRINT(
+          "make_indexed_local_flow: flow=%ld, from=%ld, index=%ld, prev fst=%ld, prev snd=%ld\n",
+          PRINT_LABEL(f), PRINT_LABEL(from), backend_index,
+          from->prev->collection_child[backend_index].first ?
+          PRINT_LABEL(from->prev->collection_child[backend_index].first) : -1,
+          from->prev->collection_child[backend_index].second ?
+          PRINT_LABEL(from->prev->collection_child[backend_index].second) : -1
+        );
 
-    if (from->state == FlowWaiting) {
-      DEBUG_PRINT("from->prev=%ld\n", from->prev ? PRINT_LABEL(from->prev) : 0);
-      if (from->prev != nullptr) {
-        if (from->prev->collection_child.find(backend_index) !=
-            from->prev->collection_child.end() &&
-           from->prev->collection_child[backend_index].second != nullptr) {
+        if (from->prev->collection_child[backend_index].second != nullptr) {
           auto prev_matching_flow = from->prev->collection_child[backend_index].second;
-          if (prev_matching_flow->indexed_alias_out) {
-            f->state = FlowReadReady;
-            f->ready = true;
+
+          DEBUG_PRINT(
+            "make_indexed_local_flow: flow=%ld, from=%ld, index=%ld, prev_matching_flow=%ld, "
+            "prev_matching_flow->indexed_alias_out=%s\n",
+            PRINT_LABEL(f), PRINT_LABEL(from), backend_index, PRINT_LABEL(prev_matching_flow),
+            prev_matching_flow->indexed_alias_out ? "true" : "false"
+          );
+
+          if (prev_matching_flow != nullptr) {
+            f->prev_rank_owner = prev_matching_flow->indexed_rank_owner;
+
+            if (prev_matching_flow->indexed_alias_out) {
+              f->state = FlowWriteReady;
+              f->prev = prev_matching_flow;
+            }
           }
         }
       }
-    } else {
-      f->collection_out = true;
     }
 
     return f;
@@ -2199,26 +2117,7 @@ namespace threads_backend {
       p->set_join(1);
     }
 
-    assert(ready || !depthFirstExpand);
-
     schedule_over_breadth();
-  }
-
-  template <typename Node>
-  void
-  ThreadsRuntime::try_node(
-    std::list<std::shared_ptr<Node> >& nodes
-  ) {
-    if (nodes.size() > 0) {
-      auto n = nodes.back();
-      nodes.pop_back();
-      if (n->ready(this)) {
-        n->execute(this);
-        n->cleanup(this);
-      } else {
-        nodes.push_front(n);
-      }
-    }
   }
 
   template <typename Node>
@@ -2302,7 +2201,7 @@ namespace threads_backend {
 
     if (top_level_task) {
       auto t = std::make_shared<TaskNode<top_level_task_t>>(
-        TaskNode<top_level_task_t>{this,std::move(top_level_task)}
+        this,std::move(top_level_task)
       );
       add_local(t);
       top_level_task = nullptr;
@@ -2352,11 +2251,10 @@ namespace threads_backend {
                   this->consumed,
                   largest_deque_size);
 
-    DEBUG_PRINT("data=%ld, "
-                "fetched data=%ld, "
-                "\n",
-                data.size(),
-                fetched_data.size());
+    DEBUG_PRINT(
+      "data=%ld, fetched data=%ld\n",
+      data.size(), fetched_data.size()
+    );
 
     // should call destructor for trace module if it exists to write
     // out the logs
@@ -2507,27 +2405,17 @@ backend_parse_arguments(
 
   bool const depth =  bwidth == 0 ? true : false;
 
-  threads_backend::depthFirstExpand = depth;
   threads_backend::bwidth = bwidth;
   threads_backend::n_ranks = n_ranks;
 
   if (system_rank == 0) {
-    if (threads_backend::depthFirstExpand) {
-      STARTUP_PRINT(
-        "DARMA: number of ranks = %zu, "
-        "DF-Sched mode (depth-first, rank-threaded scheduler): Tracing=%s\n",
-        n_ranks,
-        trace ? "ON" : "OFF"
-      );
-    } else {
-      STARTUP_PRINT(
-        "DARMA: number of ranks = %zu, "
-        "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler), Tracing=%s\n",
-        n_ranks,
-        bwidth,
-        trace ? "ON" : "OFF"
-      );
-    }
+    STARTUP_PRINT(
+      "DARMA: number of ranks = %zu, "
+      "BF-Sched mode (breadth-first (B=%zu), rank-threaded scheduler), Tracing=%s\n",
+      n_ranks,
+      bwidth,
+      trace ? "ON" : "OFF"
+    );
 
     DEBUG_PRINT_THD(
       system_rank,

@@ -26,6 +26,15 @@ FILE(GLOB impl_serialization_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
 FILE(GLOB impl_util_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/util/*.h")
 
+FILE(GLOB impl_indRange_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/index_range/*.h")
+
+FILE(GLOB impl_taskColl_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/task_collection/*.h")
+
+FILE(GLOB impl_taskCollImpl_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/task_collection/impl/*.h")
+
 
 install (FILES ${impl_HEADERS} DESTINATION include/darma/impl)
 install (FILES ${impl_array_HEADERS} DESTINATION include/darma/impl/array)
@@ -37,6 +46,9 @@ install (FILES ${impl_oo_HEADERS} DESTINATION include/darma/impl/oo)
 install (FILES ${impl_serialization_HEADERS} DESTINATION include/darma/impl/serialization)
 install (FILES ${impl_util_HEADERS} DESTINATION include/darma/impl/util)
 
+install (FILES ${impl_indRange_HEADERS} DESTINATION include/darma/impl/index_range)
+install (FILES ${impl_taskColl_HEADERS} DESTINATION include/darma/impl/task_collection)
+install (FILES ${impl_taskCollImpl_HEADERS} DESTINATION include/darma/impl/task_collection/impl)
 
 include (CheckCXXSourceCompiles)
 check_cxx_source_compiles("

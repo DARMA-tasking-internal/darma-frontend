@@ -77,6 +77,10 @@ namespace threads_backend {
     // TODO: subclass this to reduce size of flow
     bool is_collection = false;
     bool is_indexed = false;
+    bool is_initial = false;
+    // TODO: this is a hack
+    bool perform_transfer = false;
+    int indexed_rank_owner = -1, prev_rank_owner = -1;
     std::shared_ptr<InnerFlow> collection = nullptr;
     std::shared_ptr<InnerFlow> prev = nullptr;
     size_t collection_index = 0;
@@ -85,7 +89,6 @@ namespace threads_backend {
       std::pair<std::shared_ptr<InnerFlow>,std::shared_ptr<InnerFlow>>
     > collection_child;
     bool indexed_alias_out = false;
-    bool collection_out = true;
     CollectionID cid;
     std::mutex collection_mutex{};
 
@@ -105,9 +108,6 @@ namespace threads_backend {
 
     // node in the graph to activate
     std::shared_ptr<GraphNode> node;
-
-    // hack to put dfs info in here
-    std::shared_ptr<CollectiveNode> dfsColNode;
 
     std::shared_ptr<InnerFlow> alias = nullptr;
 

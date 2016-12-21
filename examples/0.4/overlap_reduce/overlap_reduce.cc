@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                   simple_collection.cc
+//                     overlap_reduce.cc
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,60 +42,66 @@
 //@HEADER
 */
 
+#include <random>
+
 #include <darma.h>
+#include <darma/impl/array/index_range.h>
 #include <darma/impl/task_collection/handle_collection.h>
 #include <darma/impl/task_collection/task_collection.h>
-#include <darma/impl/array/index_range.h>
-#include <assert.h>
 
 using namespace darma_runtime;
 using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
 
-struct SimpleCollection {
-  void operator()(
-    Index1D<int> index,
-    AccessHandleCollection<int, Range1D<int>> c1,
-    bool const first
-  ) {
-    auto handle = c1[index].local_access();
+constexpr int num_overlaping = 10;
 
-    if (first) {
-      std::cout << "Setting index " << index.value
-                << " to value " << index.value
-                << std::endl;
-      handle.set_value(index.value);
-    } else {
-      std::cout << "Checking index "
-                << index.value
-                << " to make sure "
-                << handle.get_value()
-                << "=="
-                << index.value << std::endl;
-      assert(handle.get_value() == index.value);
+int n_sum(int const n) {
+  return (n*(n-1))/2;
+}
+
+struct AllReduce {
+  void operator()(
+    Index1D<int> index
+  ) const {
+    using darma_runtime::keyword_arguments_for_collectives::in_out;
+    using darma_runtime::keyword_arguments_for_collectives::piece;
+    using darma_runtime::keyword_arguments_for_collectives::n_pieces;
+    using darma_runtime::keyword_arguments_for_collectives::tag;
+
+    auto const n_elems = index.max_value + 1;
+    auto const my_elm = index.value;
+
+    for (auto i = 0; i < num_overlaping; i++) {
+      auto redin = initial_access<size_t>(my_elm, "red_data", i);
+      create_work([=]{
+        redin.set_value(my_elm + i);
+      });
+      create_work([=]{
+        allreduce(in_out=redin,piece=my_elm, n_pieces=n_elems, tag=i);
+      });
+      create_work(reads(redin),[=]{
+        auto const closed_form = n_sum(n_elems+i) - n_sum(i);
+
+        if (my_elm == 0) {
+          std::cout << "rank=" << my_elm
+                    << ", i=" << i
+                    << ", val=" << redin.get_value()
+                    << ", closed=" << closed_form
+                    << std::endl;
+        }
+
+        assert(closed_form == redin.get_value());
+      });
     }
   }
 };
 
 void darma_main_task(std::vector<std::string> args) {
-
-  if (args.size() > 1 && args[1] == "--help"){
-    std::cout << "Usage: ./simple_collection [Collection Size (int)]"
-              << std::endl;
-    return;
-  }
-
   assert(args.size() == 2);
 
-  size_t const col_size = std::atoi(args[1].c_str());
+  size_t const num_elems = std::atoi(args[1].c_str());
 
-  auto c1 = initial_access_collection<int>("simple", index_range=Range1D<int>(col_size));
-
-  create_concurrent_work<SimpleCollection>(
-    c1, true, index_range=Range1D<int>(col_size)
-  );
-
-  create_concurrent_work<SimpleCollection>(
-    c1, false, index_range=Range1D<int>(col_size)
+  create_concurrent_work<AllReduce>(
+    index_range=Range1D<int>(num_elems)
   );
 }
 

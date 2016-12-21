@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      square_roots.cc
+//                     simple_reduce.cc
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -46,26 +46,29 @@
 
 #include <darma.h>
 #include <darma/impl/array/index_range.h>
+#include <darma/impl/task_collection/handle_collection.h>
+#include <darma/impl/task_collection/task_collection.h>
+#include <darma/impl/array/index_range.h>
 
 using namespace darma_runtime;
 
 struct AllReduce {
   void operator()(
-    ConcurrentRegionContext<Range1D<int>> context
+    Index1D<int> index
   ) const {
     using darma_runtime::keyword_arguments_for_collectives::in_out;
     using darma_runtime::keyword_arguments_for_collectives::piece;
     using darma_runtime::keyword_arguments_for_collectives::n_pieces;
 
-    auto red_data = initial_access<size_t>(context.index().value, "red_data");
+    auto red_data = initial_access<size_t>(index.value, "red_data");
 
-    create_work([=]{ red_data.set_value(context.index().value); });
+    int const n_elems = index.max_value + 1;
 
-    int const n_elems = context.index().max_value;
+    create_work([=]{ red_data.set_value(index.value); });
 
-    allreduce(in_out=red_data, piece=context.index().value, n_pieces=n_elems);
+    allreduce(in_out=red_data, piece=index.value, n_pieces=n_elems);
 
-    if(context.index().value == 0) {
+    if (index.value == 0) {
       create_work(reads(red_data), [=]{
         std::cout << "Final average: " << (red_data.get_value() / n_elems) << std::endl;
       });
@@ -79,8 +82,8 @@ void darma_main_task(std::vector<std::string> args) {
 
   size_t const num_elems = std::atoi(args[1].c_str());
 
-  create_concurrent_region<AllReduce>(
-    index_range = Range1D<int>(num_elems)
+  create_concurrent_work<AllReduce>(
+    index_range=Range1D<int>(num_elems)
   );
 }
 

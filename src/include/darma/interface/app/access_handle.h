@@ -384,6 +384,7 @@ class AccessHandle : public detail::AccessHandleBase {
     AccessHandle(AccessHandle &&) noexcept = default;
 
     // Analogous type move constructor
+    // Can't use forwarding constructor here, apparently
     template <typename AccessHandleT>
     AccessHandle(AccessHandleT&& /* note: not universal reference! */ other,
       std::enable_if_t<
@@ -402,7 +403,12 @@ class AccessHandle : public detail::AccessHandleBase {
         detail::_not_a_type
       > _nat = { detail::_not_a_type_ctor_tag }
     ) noexcept
-      : AccessHandle( reinterpret_cast<AccessHandle&&>(std::move(other)) )
+      : var_handle_(std::move(other.var_handle_)),
+        current_use_(std::move(other.current_use_)),
+        value_constructed_(std::move(other.value_constructed_)),
+        unfetched_(std::move(other.unfetched_)),
+        owning_index_(std::move(other.owning_index_)),
+        owning_backend_index_(std::move(other.owning_backend_index_))
     { }
 
     AccessHandle(AccessHandle const&& other) noexcept
@@ -426,7 +432,11 @@ class AccessHandle : public detail::AccessHandleBase {
     // </editor-fold> end move constructors
     ////////////////////////////////////////
 
-    template <typename _Ignored=void,
+    //==============================================================================
+    // <editor-fold desc="Public interface methods"> {{{1
+
+    template <
+      typename _Ignored=void,
       typename = std::enable_if_t<
         is_compile_time_immediate_readable
           and std::is_same<_Ignored, void>::value
@@ -434,7 +444,7 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     std::conditional_t<
       is_compile_time_immediate_read_only,
-      T const *,
+      T const*,
       T*
     >
     operator->() const {
@@ -447,8 +457,10 @@ class AccessHandle : public detail::AccessHandleBase {
         "handle dereferenced in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
-        "handle dereferenced in state without immediate access to data, with key: {" << get_key() << "}"
+        current_use_->use.immediate_permissions_
+          != abstract::frontend::Use::Permissions::None,
+        "handle dereferenced in state without immediate access to data, with key: {"
+          << get_key() << "}"
       );
       using return_t_decay = std::conditional_t<
         is_compile_time_immediate_read_only,
@@ -458,7 +470,8 @@ class AccessHandle : public detail::AccessHandleBase {
       return static_cast<return_t_decay*>(current_use_->use.data_);
     }
 
-    template <typename _Ignored=void,
+    template <
+      typename _Ignored=void,
       typename = std::enable_if_t<
         is_compile_time_immediate_readable
           and std::is_same<_Ignored, void>::value
@@ -479,8 +492,10 @@ class AccessHandle : public detail::AccessHandleBase {
         "handle dereferenced in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
-        "handle dereferenced in state without immediate access to data, with key: {" << get_key() << "}"
+        current_use_->use.immediate_permissions_
+          != abstract::frontend::Use::Permissions::None,
+        "handle dereferenced in state without immediate access to data, with key: {"
+          << get_key() << "}"
       );
       using return_t_decay = std::conditional_t<
         is_compile_time_immediate_read_only,
@@ -494,8 +509,10 @@ class AccessHandle : public detail::AccessHandleBase {
       typename _Ignored = void,
       typename = std::enable_if_t<
         // Technically, if this is compile-time nothing, you can't even do this, so we can disable it
-        not (traits::max_immediate_permissions == detail::AccessHandlePermissions::None
-          and traits::max_schedule_permissions == detail::AccessHandlePermissions::None)
+        not(traits::max_immediate_permissions
+          == detail::AccessHandlePermissions::None
+          and traits::max_schedule_permissions
+            == detail::AccessHandlePermissions::None)
           and std::is_same<_Ignored, void>::value
       >
     >
@@ -516,7 +533,7 @@ class AccessHandle : public detail::AccessHandleBase {
       typename U,
       typename = std::enable_if_t<
         std::is_convertible<U, T>::value
-        and is_compile_time_immediate_modifiable
+          and is_compile_time_immediate_modifiable
       >
     >
     void
@@ -530,8 +547,10 @@ class AccessHandle : public detail::AccessHandleBase {
         "set_value() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
-        "set_value() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
+        current_use_->use.immediate_permissions_
+          == abstract::frontend::Use::Permissions::Modify,
+        "set_value() called on handle not in immediately modifiable state, with key: {"
+          << get_key() << "}"
       );
       DARMA_ASSERT_MESSAGE(value_constructed_,
         "Tried to call set_value on non-default-constructible type before calling emplace_value to construct"
@@ -546,7 +565,7 @@ class AccessHandle : public detail::AccessHandleBase {
         and is_compile_time_immediate_modifiable
         and std::is_same<_Ignored, void>::value
     >
-    emplace_value(Args&&... args) const {
+    emplace_value(Args&& ... args) const {
       DARMA_ASSERT_MESSAGE(
         not unfetched_,
         "Illegal operation on unfetched non-local AccessHandle"
@@ -556,8 +575,10 @@ class AccessHandle : public detail::AccessHandleBase {
         "emplace_value() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
-        "emplace_value() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
+        current_use_->use.immediate_permissions_
+          == abstract::frontend::Use::Permissions::Modify,
+        "emplace_value() called on handle not in immediately modifiable state, with key: {"
+          << get_key() << "}"
       );
       // TODO do this more uniformly and/or expose it to the frontend somehow
       using alloc_t = std::allocator<T>;
@@ -566,14 +587,18 @@ class AccessHandle : public detail::AccessHandleBase {
       if (value_constructed_) {
         allocator_traits_t::destroy(alloc, (T*)(current_use_->use.data_));
       }
-      allocator_traits_t::construct(alloc, (T*)(current_use_->use.data_), std::forward<Args>(args)...);
+      allocator_traits_t::construct(
+        alloc,
+        (T*)(current_use_->use.data_),
+        std::forward<Args>(args)...
+      );
       value_constructed_ = true;
     }
 
     template <
       typename = std::enable_if<
         not std::is_same<T, void>::value
-        and is_compile_time_immediate_readable
+          and is_compile_time_immediate_readable
       >
     >
     const T&
@@ -587,10 +612,12 @@ class AccessHandle : public detail::AccessHandleBase {
         "get_value() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
-        "get_value() called on handle not in immediately readable state, with key: {" << get_key() << "}"
+        current_use_->use.immediate_permissions_
+          != abstract::frontend::Use::Permissions::None,
+        "get_value() called on handle not in immediately readable state, with key: {"
+          << get_key() << "}"
       );
-      return *static_cast<T const *>(current_use_->use.data_);
+      return *static_cast<T const*>(current_use_->use.data_);
     }
 
     const key_t&
@@ -601,7 +628,7 @@ class AccessHandle : public detail::AccessHandleBase {
     template <
       typename = std::enable_if<
         not std::is_same<T, void>::value
-        and is_compile_time_immediate_modifiable
+          and is_compile_time_immediate_modifiable
       >
     >
     T&
@@ -615,8 +642,10 @@ class AccessHandle : public detail::AccessHandleBase {
         "get_reference() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
-        "get_reference() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
+        current_use_->use.immediate_permissions_
+          == abstract::frontend::Use::Permissions::Modify,
+        "get_reference() called on handle not in immediately modifiable state, with key: {"
+          << get_key() << "}"
       );
       return *static_cast<T*>(current_use_->use.data_);
     }
@@ -627,12 +656,12 @@ class AccessHandle : public detail::AccessHandleBase {
         and std::is_same<_Ignored, void>::value
     >
     publish(
-      PublishExprParts&&... parts
+      PublishExprParts&& ... parts
     ) const;
 
     template <typename... Args>
     auto const& read_access(
-      Args&&... args
+      Args&& ... args
     ) const {
 
       DARMA_ASSERT_MESSAGE(
@@ -645,55 +674,63 @@ class AccessHandle : public detail::AccessHandleBase {
       using namespace darma_runtime::detail;
       using parser = detail::kwarg_parser<
         overload_description<
-          _optional_keyword<converted_parameter, keyword_tags_for_publication::version>
+          _optional_keyword<
+            converted_parameter,
+            keyword_tags_for_publication::version
+          >
         >
       >;
-      using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
+      using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<
+        Args...
+      >;
 
       return parser()
         .with_converters(
-          [](auto&&... parts) {
+          [](auto&& ... parts) {
             return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
           }
         )
         .with_default_generators(
-          keyword_arguments_for_publication::version=[]{ return make_key(); }
+          keyword_arguments_for_publication::version = [] { return make_key(); }
         )
         .parse_args(std::forward<Args>(args)...)
-        .invoke([this](
-          types::key_t&& version_key
-        ) -> decltype(auto) {
+        .invoke(
+          [this](
+            types::key_t&& version_key
+          ) -> decltype(auto) {
 
-          auto* backend_runtime = abstract::backend::get_backend_runtime();
-          auto fetched_in_flow = make_flow_ptr(
-            backend_runtime->make_fetching_flow(
-              var_handle_,
-              version_key
-            )
-          );
+            auto* backend_runtime = abstract::backend::get_backend_runtime();
+            auto fetched_in_flow = make_flow_ptr(
+              backend_runtime->make_fetching_flow(
+                var_handle_,
+                version_key
+              )
+            );
 
-          auto fetched_out_flow = make_flow_ptr(
-            backend_runtime->make_null_flow(
-              var_handle_
-            )
-          );
+            auto fetched_out_flow = make_flow_ptr(
+              backend_runtime->make_null_flow(
+                var_handle_
+              )
+            );
 
-          current_use_ = std::make_shared<GenericUseHolder<HandleUse>>(
-            HandleUse(
-              var_handle_,
-              fetched_in_flow,
-              fetched_out_flow,
-              HandleUse::Read,
-              HandleUse::Read
-            )
-          );
+            current_use_ = std::make_shared<GenericUseHolder < HandleUse>>
+            (
+              HandleUse(
+                var_handle_,
+                fetched_in_flow,
+                fetched_out_flow,
+                HandleUse::Read,
+                HandleUse::Read
+              )
+            );
 
-          current_use_->could_be_alias = true;
-          current_use_->use.use_->collection_owner_ = owning_index_;
+            current_use_->could_be_alias = true;
+            current_use_->use.use_->collection_owner_ = owning_index_;
 
-          return *this;
+            return *this;
 
-        });
+          }
+        );
     }
 
 
@@ -702,7 +739,7 @@ class AccessHandle : public detail::AccessHandleBase {
       typename _for_SFINAE_only=void,
       typename=std::enable_if_t<
         not is_collection_captured
-        and std::is_void<_for_SFINAE_only>::value
+          and std::is_void<_for_SFINAE_only>::value
       >
     >
     with_traits<
@@ -741,6 +778,9 @@ class AccessHandle : public detail::AccessHandleBase {
       >;
       return return_type(*this);
     };
+
+    // </editor-fold> end Public interface methods }}}1
+    //==============================================================================
 
 
     ~AccessHandle() noexcept = default;
