@@ -441,6 +441,8 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
     abstract::frontend::TaskCollection
   >::unpack(buffer, tcsize);
 
+  EXPECT_THAT(copied_collection->get_dependencies().size(), Eq(1));
+
   //============================================================================
 
 
@@ -568,6 +570,15 @@ TEST_F(TestCreateConcurrentWork, many_to_one) {
   }
   //============================================================================
 
+  EXPECT_THAT((*mock_runtime->task_collections.front()->get_dependencies().begin()
+    )->get_managed_collection()->task_index_for(0), Eq(0));
+  EXPECT_THAT((*mock_runtime->task_collections.front()->get_dependencies().begin()
+    )->get_managed_collection()->task_index_for(1), Eq(1));
+  EXPECT_THAT((*mock_runtime->task_collections.front()->get_dependencies().begin()
+    )->get_managed_collection()->task_index_for(2), Eq(0));
+  EXPECT_THAT((*mock_runtime->task_collections.front()->get_dependencies().begin()
+    )->get_managed_collection()->task_index_for(3), Eq(1));
+
   for(int i = 0; i < 2; ++i) {
     values[i] = 0;
     values[i+2] = 0;
@@ -601,6 +612,7 @@ TEST_F(TestCreateConcurrentWork, many_to_one) {
     created_task->run();
     EXPECT_THAT(values[i], Eq(42));
     EXPECT_THAT(values[i+2], Eq(73));
+
 
     EXPECT_RELEASE_USE(use_idx[i]);
     EXPECT_RELEASE_USE(use_idx[i+2]);
