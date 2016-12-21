@@ -129,6 +129,7 @@ std::mutex __output_mutex;
 #include <thread>
 #include <atomic>
 #include <iomanip>
+#include <list>
 
 namespace threads_backend {
   using namespace darma_runtime;
@@ -193,10 +194,10 @@ struct ArgEntry {
 
   template <class T>
   void
-  get(T& t) const {
-    T val;
+  get(T& val) const {
     std::stringstream stream(value);
     stream >> val;
+    std::cout << "value " << value << " became " << val << std::endl;
     if (!stream) {
       assert(0 && "Could not parse correctly");
     }
@@ -305,11 +306,49 @@ struct ArgsHolder {
   }
 
   void
+  parse(const std::vector<std::string>& args)
+  {
+    char* argv[100];
+    for (int i=0; i < args.size(); ++i){
+      argv[i] = const_cast<char*>(args[i].data());
+    }
+    parse(args.size(), argv);
+  }
+
+  bool
+  parseNext(ArgsConfig* cfg, ArgEntry& entry, char* next, char* str)
+  {
+    switch (cfg->valueType){
+      case OPTIONAL_VALUE:
+        if (next[0] != '-'){
+          entry.value = next;
+          return true;
+        }
+        return false;
+      case REQUIRED_VALUE:
+        if (next[0] == '-'){
+          std::cerr << str << " requires argument but found flag " << next << std::endl;
+          abort();
+        }
+        entry.value = next;
+        return true;
+      case NO_VALUE:
+        if (next[0] != '-'){
+          std::cerr << str << " takes no arguments, but found " << next << std::endl;
+          abort();
+        }
+        return false;
+    }
+    return false; //never reached, compiler warnings
+  }
+
+  void
   parse(int argc, char** argv)
   {
     int i=0;
     for (i=1; i < argc; ++i){
-      const char* str = argv[i];
+      std::cout << "argv[" << i << "]=" << argv[i] << std::endl;
+      char* str = argv[i];
       int len = strlen(str);
       if (len >= 2){
         if (str[0] != '-') {
@@ -317,6 +356,18 @@ struct ArgsHolder {
           abort();
         }
 
+        //look for '=' in string
+        char* valptr = str;
+        bool valEquals = false;
+        while (*valptr != '\0'){
+          if (*valptr == '='){
+            //argument is contained in the string
+            valEquals = true;
+            *valptr = '\0';
+            break;
+          }
+          ++valptr;
+        }
         entries.emplace_back();
         ArgEntry& entry = entries.back();
         ArgsConfig* cfg = nullptr;
@@ -339,35 +390,19 @@ struct ArgsHolder {
 
         entry.argEnum = cfg->argEnum;
 
-
-        if ((i+1) == argc){
+        if (valEquals){
+          parseNext(cfg, entry, valptr+1, str);
+          *valptr = '=';
+        } else if ((i+1) == argc){
           //reached the end
           if (cfg->valueType == REQUIRED_VALUE){
             std::cerr << str << " requires argument" << std::endl;
             abort();
           }
         } else {
-          const char* next = argv[i+1];
-          switch (cfg->valueType){
-            case OPTIONAL_VALUE:
-              if (next[0] != '-'){
-                entry.value = next;
-                ++i;
-              }
-              break;
-            case REQUIRED_VALUE:
-              if (next[0] == '-'){
-                std::cerr << str << " requires argument but found flag " << next << std::endl;
-                abort();
-              }
-              entry.value = next;
-              break;
-            case NO_VALUE:
-              if (next[0] != '-'){
-                std::cerr << str << " takes no arguments, but found " << next << std::endl;
-                abort();
-              }
-              break;
+          if (parseNext(cfg, entry, argv[i+1], str)){
+            //if this contains an argument, increment index
+            ++i;
           }
         }
       }

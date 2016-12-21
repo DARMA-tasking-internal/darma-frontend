@@ -1,4 +1,6 @@
 #include <darma.h>
+#include <darma/impl/task_collection/handle_collection.h>
+#include <darma/impl/task_collection/task_collection.h>
 #include <src/include/darma/impl/index_range/range_2d.h>
 #include <assert.h>
 
@@ -26,10 +28,8 @@ struct fib {
 
 struct concurrent_fib {
   void operator()(
-    ConcurrentRegionContext<Range2D<int>> context
+    Index2D<int> index
   ) const {
-    auto index = context.index();
-
     auto const fib_to_compute = index.x() + index.y();
 
     auto val = initial_access<size_t>(index.x(), index.y(), "result");
@@ -48,10 +48,11 @@ void darma_main_task(std::vector<std::string> args) {
   using darma_runtime::keyword_arguments_for_create_concurrent_region::index_range;
   assert(args.size() > 1);
 
-  size_t const num = atoi(args[1].c_str());
+  size_t const xdim = atoi(args[1].c_str());
+  size_t const ydim = atoi(args[2].c_str());
 
-  create_concurrent_region<concurrent_fib>(
-    index_range=Range2D<int>(num, 1)
+  create_concurrent_work<concurrent_fib>(
+    index_range=Range2D<int>(xdim, ydim)
   );
 }
 

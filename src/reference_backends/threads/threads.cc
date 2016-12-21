@@ -54,6 +54,7 @@
 #include <darma/interface/backend/flow.h>
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/defaults/darma_main.h>
+#include "common.h"
 
 #include <thread>
 #include <atomic>
@@ -2432,7 +2433,8 @@ enum ValidArgs {
   Trace,
   BreadthFirst,
   Help,
-  AppArgv
+  AppArgv,
+  AppHelp,
 };
 
 static ArgsConfig arg_config[] = {
@@ -2440,10 +2442,11 @@ static ArgsConfig arg_config[] = {
   {NumSystemRanks, NO_SHORT_NAME, "num_system_ranks", REQUIRED_VALUE, "the number of system ranks (system-use only)"},
   {Ranks, 'r', "ranks", REQUIRED_VALUE, "the number of ranks to launch for concurrent regions - data partition only, no reference to physical resources"},
   {Threads, 't', "threads", REQUIRED_VALUE, "the number of physical threads to run"},
-  {BreadthFirst, 'b', "bf", REQUIRED_VALUE, "the degree of breadth-first looakead in the scheduler - not required, will use system default if unspecified"},
+  {BreadthFirst, 'b', "bf", REQUIRED_VALUE, "the degree of breadth-first lookahead in the scheduler - not required, will use system default if unspecified"},
   {Trace, NO_SHORT_NAME, "trace", NO_VALUE, "whether to activate DAG tracing"},
   {Help, 'h', "help", NO_VALUE, "print usage of application command-line flags"},
   {AppArgv, 'a', "app-argv", REQUIRED_VALUE, "the list of arguments to be used by the application - must be quoted as a single string"},
+  {AppHelp, NO_SHORT_NAME, "app-help", NO_VALUE, "print application options (pass --help to app argv)"},
   {0, 0, nullptr, 0}
 };
 
@@ -2466,10 +2469,10 @@ backend_parse_arguments(
   size_t n_threads = 1;
   size_t n_ranks = 1;
   bool trace = false;
-  size_t bwidth = 0;
+  size_t bwidth = 1;
   static const char* null_argv = "";
   char* app_argv = const_cast<char*>(null_argv);
-  bool const depth =  bwidth == 0 ? true : false;
+  bool print_app_help = false;
   ArgsHolder holder(arg_config);
   holder.parse(argc, argv);
   for (auto& entry : holder){
@@ -2486,8 +2489,12 @@ backend_parse_arguments(
       case Threads:
         entry.get<size_t>(n_threads);
         break;
+      case AppHelp:
+        print_app_help = true;
+        break;
       case BreadthFirst:
         entry.get<size_t>(bwidth);
+        std::cout << "bwidth=" << bwidth << std::endl;
         break;
       case Help:
         holder.usage(std::cout);
@@ -2497,6 +2504,8 @@ backend_parse_arguments(
         break;
     }
   }
+
+  bool const depth =  bwidth == 0 ? true : false;
 
   threads_backend::depthFirstExpand = depth;
   threads_backend::bwidth = bwidth;
@@ -2539,8 +2548,14 @@ backend_parse_arguments(
       );
     }
   }
-  return app_argv;
+
+  static char help[] = { '-', '-', 'h', 'e', 'l', 'p', '\0' };
+  if (print_app_help) //the only option to pass is a --help
+    return help;
+  else
+    return app_argv;
 }
+
 }
 
 
@@ -2557,9 +2572,8 @@ void backend_init_finalize(int argc, char **argv) {
   while (char_idx < len){
     if (app_argv_str[char_idx] == ' '){
       while (app_argv_str[char_idx] == ' ' && char_idx < len) char_idx++;
-      ++argv_idx;
     } else {
-      app_argv[argv_idx] = &app_argv_str[char_idx];
+      app_argv[argv_idx++] = &app_argv_str[char_idx];
       while (app_argv_str[char_idx] != ' ' && char_idx < len) char_idx++;
     }
   }

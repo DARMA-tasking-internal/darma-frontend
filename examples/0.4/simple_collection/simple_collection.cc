@@ -16,21 +16,30 @@ struct SimpleCollection {
     auto handle = c1[index].local_access();
 
     if (first) {
-      std::cout << "first=" << first
-                << ", index=" << index.value
+      std::cout << "Setting index " << index.value
+                << " to value " << index.value
                 << std::endl;
       handle.set_value(index.value);
     } else {
-      std::cout << "first=" << first
-                << ", index=" << index.value
-                << ", handle=" << handle.get_value()
-                << std::endl;
+      std::cout << "Checking index "
+                << index.value
+                << " to make sure "
+                << handle.get_value()
+                << "=="
+                << index.value << std::endl;
       assert(handle.get_value() == index.value);
     }
   }
 };
 
 void darma_main_task(std::vector<std::string> args) {
+
+  if (args.size() > 1 && args[1] == "--help"){
+    std::cout << "Usage: ./simple_collection [Collection Size (int)]"
+              << std::endl;
+    return;
+  }
+
   assert(args.size() == 2);
 
   size_t const col_size = std::atoi(args[1].c_str());
