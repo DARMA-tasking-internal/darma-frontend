@@ -328,8 +328,7 @@ namespace threads_backend {
   };
 
   template <typename TaskType>
-  struct TaskNode
-    : GraphNode
+  struct TaskNode : GraphNode
   {
     std::unique_ptr<TaskType> task = nullptr;
 
@@ -383,6 +382,23 @@ namespace threads_backend {
 
     virtual bool ready() {
       return join_counter == 0;
+    }
+  };
+
+  template <typename TaskType>
+  struct TaskConditionNode : TaskNode<TaskType>
+  {
+    TaskConditionNode(
+      runtime_t* rt, std::unique_ptr<TaskType>&& task_
+    ) : TaskNode<TaskType>(rt, std::move(task_)) { }
+
+    template <typename ReturnType>
+    ReturnType get_result() {
+      return TaskNode<TaskType>::task.get()->get_result();
+    }
+
+    virtual void release() override {
+      TaskNode<TaskType>::join_counter--;
     }
   };
 

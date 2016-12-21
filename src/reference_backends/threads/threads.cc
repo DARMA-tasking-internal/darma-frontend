@@ -248,25 +248,39 @@ namespace threads_backend {
   ) {
     DEBUG_PRINT("register condition task\n");
 
-    auto t = std::make_shared<TaskNode<condition_task_t>>(
-      this,std::move(task)
+    auto t = std::make_shared<TaskConditionNode<condition_task_t>>(
+      this, std::move(task)
     );
+
     t->join_counter = check_dep_task(t);
 
+    DEBUG_PRINT(
+      "register condition task: jc=%ld, ready=%s\n",
+      t->join_counter, PRINT_BOOL_STR(t->ready())
+    );
+
+    while (!t->ready()) {
+      schedule_next_unit();
+    }
+
+    DEBUG_PRINT(
+      "register condition task (after loop): jc=%ld, ready=%s\n",
+      t->join_counter, PRINT_BOOL_STR(t->ready())
+    );
+
     assert(t->ready());
-    DEBUG_VERBOSE_PRINT("running task\n");
 
-    runtime_t::task_t* prev = current_task;
-    condition_task_unique_ptr cur = std::move(t->task);
-    current_task = cur.get();
-    cur.get()->run();
-    bool ret = cur.get()->get_result();
-    this->consumed++;
-    global_consume();
-    DEBUG_PRINT("calling run on task\n");
-    current_task = prev;
+    t->execute();
+    t->cleanup();
 
-    return true;
+    auto const ret = t->get_result<bool>();
+
+    DEBUG_PRINT(
+      "register condition task (after loop): ret=%s\n",
+      PRINT_BOOL_STR(ret)
+    );
+
+    return ret;
   }
 
   void

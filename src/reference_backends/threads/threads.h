@@ -83,6 +83,7 @@ namespace threads_backend {
   struct GraphNode;
   template <typename TaskType> struct TaskNode;
   template <typename MetaTask> struct MetaTaskNode;
+  template <typename TaskType> struct TaskConditionNode;
   struct FetchNode;
   struct CollectiveNode;
   struct PublishNode;
