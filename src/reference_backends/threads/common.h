@@ -194,7 +194,6 @@ struct ArgGetter {
   get(T& val) const {
     std::stringstream stream(value);
     stream >> val;
-    std::cout << "value " << value << " became " << val << std::endl;
     if (!stream) {
       assert(0 && "Could not parse correctly");
     }
@@ -269,9 +268,26 @@ struct ArgNameCompare
   bool operator()(const ArgName& l, const ArgName& r) const {
     if (l.shortName != 0 && r.shortName != 0){
       return l.shortName < r.shortName;
-    } else {
+    } else if (l.longName && r.longName){
       return strcmp(l.longName, r.longName) < 0;
+    } else if (l.shortName && r.longName != 0){
+      return l.shortName < r.longName[0];
+    } else if (l.longName && r.shortName != 0){
+      return l.longName[0] < r.shortName;
+    } else {
+      std::cerr << "Error comparing command-line argument configs ";
+      if (l.longName) std::cerr << l.longName;
+      else std::cerr << l.shortName;
+
+      std::cerr << " and ";
+
+      if (r.longName) std::cerr << r.longName;
+      else std::cerr << r.shortName;
+
+      std::cerr << std::endl;
+      abort();
     }
+    return true;
   }
 };
 

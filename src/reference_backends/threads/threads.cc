@@ -2369,7 +2369,6 @@ backend_parse_arguments(
   size_t n_ranks = 1;
   bool trace = false;
   size_t bwidth = 1;
-  bool print_app_help = false;
   ArgsHolder holder(arg_config);
   holder.parse(argc, argv);
   for (auto& entry : holder){
@@ -2449,8 +2448,6 @@ void backend_init_finalize(int argc, char **argv) {
   app_argv.push_back(argv[0]);
   threads_backend::backend_parse_arguments(
       argc, argv, system_rank, num_system_ranks, app_argv);
-
-  std::cout << "got app argv of size" << app_argv.size() << " " << std::endl;
 
   if (system_rank == 0) {
     auto task = darma_runtime::frontend::darma_top_level_setup(std::move(app_argv));
