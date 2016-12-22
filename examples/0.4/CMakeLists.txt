@@ -94,4 +94,5 @@ add_subdirectory(simple_collection_iter)
 add_subdirectory(simple_collection_unique_owner)
 add_subdirectory(simple_collection_remap)
 add_subdirectory(simple_collection_convergence)
+add_subdirectory(simple_collection_ordering)
 
