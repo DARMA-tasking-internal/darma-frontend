@@ -371,9 +371,11 @@ namespace threads_backend {
 
           if (f_in->prev != nullptr) {
             runtime->assign_data_ptr(use, f_in->prev->data_block);
-            f_in->prev = nullptr;
           }
         }
+
+        // null out previous to break the cyclic shared_ptr
+        f_in->prev = nullptr;
       }
 
       runtime->run_task(task.get());

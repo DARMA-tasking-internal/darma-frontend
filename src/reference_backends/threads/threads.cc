@@ -600,14 +600,19 @@ namespace threads_backend {
       auto const from = f_in->collection;
       std::lock_guard<std::mutex> lg1(from->collection_mutex);
       auto const backend_index = f_in->collection_index;
-      from->collection_child[backend_index] = std::make_pair(f_out,f_in);
+      from->collection_child[backend_index] = std::make_pair(f_out,nullptr);
       if (from->prev) {
-        if (from->prev->collection_child.find(backend_index) !=
-            from->prev->collection_child.end()) {
+        auto index_iter = from->prev->collection_child.find(backend_index);
+        if (index_iter != from->prev->collection_child.end()) {
           auto prev_pair = from->prev->collection_child[backend_index];
           prev_pair.first->chain = f_in;
+          prev_pair.first->collection = nullptr;
+          from->prev->collection_child.erase(index_iter);
         }
       }
+      f_in->collection = nullptr;
+      f_out->collection = nullptr;
+
       DEBUG_PRINT(
         "register_use: setting collection child index=%lu, from=%ld, "
         "fst=%ld, snd=%ld\n",
@@ -1104,14 +1109,6 @@ namespace threads_backend {
         "indexed_alias_to_out: index=%ld\n", index
       );
 
-      assert(f_alias->collection != nullptr);
-
-      auto next_col = f_alias->collection;
-
-      DEBUG_PRINT(
-        "indexed_alias_to_out: next_col=%ld\n", PRINT_LABEL(next_col)
-      );
-
       f_alias->indexed_alias_out = true;
 
       if (f_alias->chain != nullptr) {
@@ -1125,6 +1122,7 @@ namespace threads_backend {
         } else if (next->state == FlowReadReady) {
           release_to_write(next.get());
         }
+        f_alias->chain = nullptr;
       }
     }
   }
@@ -1975,7 +1973,7 @@ namespace threads_backend {
     f->indexed_rank_owner = inside_rank;
     f->collection_index = backend_index;
 
-    flow_t sub_other = nullptr;
+    flow_t prev_match = nullptr;
     {
       std::lock_guard<std::mutex> lg1(from->collection_mutex);
 
@@ -1990,76 +1988,22 @@ namespace threads_backend {
 
         auto other = from->prev->collection_child[backend_index].first;
         if (other) {
-          other->next = f;
-
-          DEBUG_PRINT(
-            "make_indexed_local_flow: subsequent flow=%ld, collection=%ld, "
-            "index=%ld, from=%ld, other=%ld\n",
-            PRINT_LABEL(f), from->cid.collection, backend_index,
-            PRINT_LABEL(from), PRINT_LABEL(other)
-          );
-
-          sub_other = other;
+          prev_match = other;
         }
       }
     }
 
-    if (sub_other != nullptr) {
-      create_next_subsequent(sub_other.get());
-    }
+    if (prev_match != nullptr) {
+      create_next_subsequent(prev_match.get());
 
-    std::lock_guard<std::mutex> lg1(from->collection_mutex);
+      f->prev_rank_owner = prev_match->indexed_rank_owner;
 
-    // set up next link inside indexed region between in and out flows for
-    // correct forwarding
-    if (from->prev != nullptr) {
-      std::lock_guard<std::mutex> lg2(from->prev->collection_mutex);
-
-      auto other = from->prev->collection_child[backend_index].first;
-
-      DEBUG_PRINT(
-        "make_indexed_local_flow: flow=%ld, from=%ld, collection=%ld, "
-        "index=%ld, from state=%s, prev=%ld\n",
-        PRINT_LABEL(f), PRINT_LABEL(from), from->cid.collection, backend_index,
-        PRINT_STATE(from), PRINT_LABEL(from->prev)
-      );
-
-      if (from->prev->collection_child.find(backend_index) !=
-          from->prev->collection_child.end()) {
-
-        DEBUG_PRINT(
-          "make_indexed_local_flow: flow=%ld, from=%ld, collection=%ld, "
-          "index=%ld, from state=%s, prev fst=%ld, prev snd=%ld\n",
-          PRINT_LABEL(f), PRINT_LABEL(from), from->cid.collection, backend_index,
-          PRINT_STATE(from),
-          from->prev->collection_child[backend_index].first ?
-          PRINT_LABEL(from->prev->collection_child[backend_index].first) : -1,
-          from->prev->collection_child[backend_index].second ?
-          PRINT_LABEL(from->prev->collection_child[backend_index].second) : -1
-        );
-
-        if (from->prev->collection_child[backend_index].first != nullptr) {
-          auto prev_matching_flow = from->prev->collection_child[backend_index].first;
-
-          DEBUG_PRINT(
-            "make_indexed_local_flow: flow=%ld, from=%ld, index=%ld, prev_matching_flow=%ld, "
-            "prev_matching_flow->indexed_alias_out=%s\n",
-            PRINT_LABEL(f), PRINT_LABEL(from), backend_index, PRINT_LABEL(prev_matching_flow),
-            prev_matching_flow->indexed_alias_out ? "true" : "false"
-          );
-
-          if (prev_matching_flow != nullptr) {
-            f->prev_rank_owner = prev_matching_flow->indexed_rank_owner;
-
-            if (prev_matching_flow->indexed_alias_out) {
-              f->state = FlowWriteReady;
-              f->prev = prev_matching_flow;
-            }
-
-            prev_matching_flow->next = f;
-          }
-        }
+      if (prev_match->indexed_alias_out) {
+        f->state = FlowWriteReady;
       }
+
+      f->prev = prev_match;
+      prev_match->next = f;
     }
 
     return f;
