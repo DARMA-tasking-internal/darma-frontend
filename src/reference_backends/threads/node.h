@@ -305,6 +305,8 @@ namespace threads_backend {
     { }
 
     virtual void execute() override {
+      auto added_task = false;
+
       if (cur < hi) {
         auto task = std::move(shared_task->create_task_for_index(cur));
         cur++;
@@ -316,9 +318,12 @@ namespace threads_backend {
         );
         if (cur < hi) {
           runtime->add_remote(this->shared_from_this());
-        } else {
-          GraphNode::execute();
+          added_task = true;
         }
+      }
+
+      if (not added_task) {
+        GraphNode::execute();
       }
     }
 
