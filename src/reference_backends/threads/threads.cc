@@ -1076,7 +1076,7 @@ namespace threads_backend {
       f_in ? PRINT_LABEL(f_in) : -1, PRINT_LABEL(f_alias)
     );
 
-    if (f_alias->is_indexed && f_alias->is_indexed) {
+    if (f_alias->is_indexed) {
       auto index = f_alias->collection_index;
 
       DEBUG_PRINT(
