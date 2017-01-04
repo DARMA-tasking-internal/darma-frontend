@@ -1100,7 +1100,6 @@ namespace threads_backend {
       assert(f_alias->collection != nullptr);
 
       auto next_col = f_alias->collection;
-      assert(f_alias->collection->next != nullptr);
 
       DEBUG_PRINT(
         "indexed_alias_to_out: next_col=%ld\n", PRINT_LABEL(next_col)
@@ -1108,7 +1107,6 @@ namespace threads_backend {
 
       f_alias->indexed_alias_out = true;
 
-      std::lock_guard<std::mutex> lg2(f_alias->collection->next->collection_mutex);
       std::lock_guard<std::mutex> lg1(f_alias->collection->collection_mutex);
 
       if (next_col != nullptr) {
