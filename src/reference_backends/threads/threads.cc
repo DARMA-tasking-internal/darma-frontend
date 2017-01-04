@@ -2315,10 +2315,11 @@ namespace threads_backend {
            this->produced == this->consumed &&
            "TD failed if queues have work units in them.");
 
-    STARTUP_PRINT("work units: produced=%ld, consumed=%ld, max deque count=%ld\n",
-                  this->produced,
-                  this->consumed,
-                  largest_deque_size);
+    STARTUP_PRINT(
+      "work units: produced=%ld, consumed=%ld, max deque count=%ld, data={%ld,%ld}\n",
+      this->produced, this->consumed, largest_deque_size,
+      data.size(), fetched_data.size()
+    );
 
     DEBUG_PRINT(
       "data(%p)=%ld, fetched data(%p)=%ld\n",
