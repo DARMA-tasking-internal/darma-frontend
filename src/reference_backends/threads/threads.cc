@@ -2436,6 +2436,10 @@ backend_parse_arguments(
   threads_backend::bwidth = bwidth;
   threads_backend::n_ranks = n_ranks;
 
+  if (num_system_ranks == 1 && n_ranks != num_system_ranks) {
+    num_system_ranks = n_ranks;
+  }
+
   if (system_rank == 0) {
     STARTUP_PRINT(
       "DARMA: number of ranks = %zu, "
