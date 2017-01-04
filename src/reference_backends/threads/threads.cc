@@ -539,11 +539,12 @@ namespace threads_backend {
       assign_data_ptr(u, data_block);
     }
 
-    auto const& data_block = data[lookup];
+    auto const& db = data[lookup];
 
     DEBUG_PRINT(
-      "set_up_data: ptr=%p, key=%s, version=%s\n",
-      data_block->data, PRINT_KEY(key), PRINT_KEY(f_in->version_key)
+      "set_up_data: ptr=%p, key=%s, version=%s, exists=%s\n",
+      db->data, PRINT_KEY(key), PRINT_KEY(f_in->version_key),
+      PRINT_BOOL_STR(data_exists)
     );
   }
 
@@ -638,7 +639,7 @@ namespace threads_backend {
   ) {
     // allocate some space for this object
     const size_t sz = handle->get_serialization_manager()->get_metadata_size();
-    auto data_block = new DataBlock(1, sz);
+    auto data_block = new DataBlock(1, sz, inside_rank);
     auto block = std::shared_ptr<DataBlock>(data_block, [handle,this](DataBlock* block) {
       DEBUG_PRINT(
         "DataBlock deleter running, block data=%p, calling destructor from allocate\n",
@@ -838,7 +839,7 @@ namespace threads_backend {
 
       auto const buffer_exists = fetched_data.find(std::make_tuple(cid,version_key,key)) != fetched_data.end();
       auto block = buffer_exists ? fetched_data[std::make_tuple(cid,version_key,key)] :
-        std::shared_ptr<DataBlock>(new DataBlock(0, pub.data->size_), [handle,this](DataBlock* b) {
+        std::shared_ptr<DataBlock>(new DataBlock(0, pub.data->size_, inside_rank), [handle,this](DataBlock* b) {
           DEBUG_PRINT(
             "DataBlock deleter running, block data=%p, calling destructor\n",
             b->data
@@ -1034,15 +1035,19 @@ namespace threads_backend {
   ThreadsRuntime::cleanup_handle(
     std::shared_ptr<InnerFlow> flow
   ) {
+    auto const db_owner =
+      flow->data_block != nullptr ? flow->data_block->owner : -1;
+
     DEBUG_PRINT(
       "cleanup_handle identity: flow=%ld, key=%s, version=%s, "
-      "cid.index=%ld, fromFetch=%s, indexed_rank_owner=%d\n",
+      "cid.index=%ld, fromFetch=%s, indexed_rank_owner=%d, db_owner=%d\n",
       PRINT_LABEL(flow), PRINT_KEY(flow->key), PRINT_KEY(flow->version_key),
       flow->cid.index, PRINT_BOOL_STR(flow->fromFetch),
-      flow->indexed_rank_owner
+      flow->indexed_rank_owner, db_owner
     );
 
-    auto const flow_data_owner = flow->indexed_rank_owner;
+    auto const flow_data_owner =
+      db_owner == -1 ? flow->indexed_rank_owner : flow->data_block->owner;
     if (flow_data_owner != -1 && flow_data_owner != inside_rank) {
       auto const& owning_rt = shared_ranks[flow_data_owner];
       auto delete_node = std::make_shared<DeleteNode>(owning_rt, flow);

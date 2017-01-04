@@ -139,15 +139,16 @@ namespace threads_backend {
     void* data = nullptr;
     size_t shared_ref_count = 0;
     size_t refs = 0;
+    int owner = -1;
 
     DataBlock(const DataBlock& in) = delete;
 
-    DataBlock(void* data_)
-      : data(data_)
+    DataBlock(void* data_, int owner_in)
+      : data(data_), owner(owner_in)
     { }
 
-    DataBlock(int refs_, size_t sz)
-      : data(malloc(sz))
+    DataBlock(int refs_, size_t sz, int owner_in)
+      : data(malloc(sz)), owner(owner_in)
     { }
 
     virtual ~DataBlock() { free(data); }
