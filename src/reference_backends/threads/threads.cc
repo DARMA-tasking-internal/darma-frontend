@@ -608,6 +608,16 @@ namespace threads_backend {
           prev_pair.first->chain = f_in;
           prev_pair.first->collection = nullptr;
           from->prev->collection_child.erase(index_iter);
+
+          DEBUG_PRINT(
+            "register_use: from->prev=%ld, child size=%ld\n",
+            PRINT_LABEL(from->prev), from->prev->collection_child.size()
+          );
+
+          if (from->prev->uses == 0 &&
+              from->prev->collection_child.size() == 0) {
+            from->prev = nullptr;
+          }
         }
       }
       f_in->collection = nullptr;
@@ -957,9 +967,10 @@ namespace threads_backend {
   /*virtual*/
   void
   ThreadsRuntime::release_flow(flow_t& to_release) {
-    DEBUG_PRINT("release_flow %ld: state=%s\n",
-                PRINT_LABEL(to_release),
-                PRINT_STATE(to_release));
+    DEBUG_PRINT(
+      "release_flow %ld: state=%s\n",
+      PRINT_LABEL(to_release), PRINT_STATE(to_release)
+    );
   }
 
   /*virtual*/
@@ -1204,6 +1215,8 @@ namespace threads_backend {
             cleanup_handle(c.second.second.get());
           }
         }
+        flow->prev->collection_child.clear();
+        flow->prev = nullptr;
       }
     }
 
@@ -1797,6 +1810,10 @@ namespace threads_backend {
         publish_uses.erase(publish_uses.find(u));
       }
       return;
+    }
+
+    if (f_in->is_collection && f_in->collection_child.size() == 0) {
+      f_in->prev = nullptr;
     }
 
     if (flows_match) {
