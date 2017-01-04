@@ -459,6 +459,34 @@ namespace threads_backend {
       return join_counter == 0;
     }
   };
+
+  struct DeleteNode : GraphNode {
+    flow_t flow_to_delete;
+
+    DeleteNode(
+      runtime_t* rt, flow_t flow_to_delete_in
+    )
+      : GraphNode(-1, rt)
+      , flow_to_delete(flow_to_delete_in)
+    { }
+
+    void execute() override {
+      DEBUG_PRINT_THD(
+        runtime->inside_rank,
+        "DeleteNode executing: flow=%ld, key=%s, version=%s, "
+        "indexed_rank_owner=%d\n",
+        PRINT_LABEL(flow_to_delete), PRINT_KEY(flow_to_delete->key), PRINT_KEY(flow_to_delete->version_key),
+        flow_to_delete->indexed_rank_owner
+      );
+
+      runtime->cleanup_handle(flow_to_delete);
+      GraphNode::execute();
+    }
+
+    bool ready() override { return true; }
+
+    virtual ~DeleteNode() { }
+  };
 }
 
 #endif /* _THREADS_NODE_BACKEND_RUNTIME_H_ */

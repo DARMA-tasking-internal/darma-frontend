@@ -1034,34 +1034,44 @@ namespace threads_backend {
   ThreadsRuntime::cleanup_handle(
     std::shared_ptr<InnerFlow> flow
   ) {
-    auto handle = flow->handle;
-
     DEBUG_PRINT(
-      "cleanup_handle identity: %p to %p\n",
-      flow->handle.get(),
-      flow->alias ? flow->alias->handle.get() : nullptr
+      "cleanup_handle identity: flow=%ld, key=%s, version=%s, "
+      "cid.index=%ld, fromFetch=%s, indexed_rank_owner=%d\n",
+      PRINT_LABEL(flow), PRINT_KEY(flow->key), PRINT_KEY(flow->version_key),
+      flow->cid.index, PRINT_BOOL_STR(flow->fromFetch),
+      flow->indexed_rank_owner
     );
 
-    delete_handle_data(
-      handle.get(), flow->version_key, flow->key, flow->cid, flow->fromFetch
-    );
+    auto const flow_data_owner = flow->indexed_rank_owner;
+    if (flow_data_owner != -1 && flow_data_owner != inside_rank) {
+      auto const& owning_rt = shared_ranks[flow_data_owner];
+      auto delete_node = std::make_shared<DeleteNode>(owning_rt, flow);
+      owning_rt->add_remote(delete_node);
+    } else {
+      delete_handle_data(
+        flow->version_key, flow->key, flow->cid, flow->fromFetch
+      );
+    }
   }
 
   void
   ThreadsRuntime::delete_handle_data(
-    handle_t const* handle, types::key_t const& version, types::key_t const& key,
+    types::key_t const& version, types::key_t const& key,
     CollectionID const& cid, bool const fromFetch
   ) {
     auto& data_store = fromFetch ? fetched_data : data;
     auto data_iter = data_store.find(std::make_tuple(cid, version, key));
     auto found = data_iter != data_store.end();
 
-    DEBUG_PRINT(
-      "delete_handle_data: handle=%p, fromFetch=%s, found=%s\n",
-      handle, PRINT_BOOL_STR(fromFetch), PRINT_BOOL_STR(found)
-    );
-
     if (found) {
+      auto const& data_block = data_iter->second->data;
+
+      DEBUG_PRINT(
+        "delete_handle_data: map ptr=%p, data ptr=%p, fromFetch=%s, found=%s\n",
+        &data_store, data_block, PRINT_BOOL_STR(fromFetch),
+        PRINT_BOOL_STR(found)
+      );
+
       data_store.erase(data_iter);
     }
   }
@@ -1187,6 +1197,36 @@ namespace threads_backend {
     std::shared_ptr<InnerFlow> flow,
     std::shared_ptr<InnerFlow> alias
   ) {
+    auto const is_col = flow->is_collection;
+
+    DEBUG_PRINT(
+      "test_alias_null: is_collection=%s, flow=%ld, alias=%ld\n",
+      PRINT_BOOL_STR(is_col), PRINT_LABEL(flow), PRINT_LABEL(alias)
+    );
+
+    if (is_col) {
+      assert(alias->is_collection);
+
+      if (flow->prev) {
+        std::lock_guard<std::mutex> lg1(flow->prev->collection_mutex);
+
+        for (auto&& c : flow->prev->collection_child) {
+          DEBUG_PRINT(
+            "test_alias_null: fst=%ld, snd=%ld\n",
+            c.second.first ? PRINT_LABEL(c.second.first) : -1,
+            c.second.second ? PRINT_LABEL(c.second.second) : -1
+          );
+
+          if (c.second.first) {
+            cleanup_handle(c.second.first);
+          }
+          if (c.second.second) {
+            cleanup_handle(c.second.second);
+          }
+        }
+      }
+    }
+
     if (alias->isNull) {
       if (flow->shared_reader_count != nullptr &&
           *flow->shared_reader_count == 0) {
@@ -2281,8 +2321,8 @@ namespace threads_backend {
                   largest_deque_size);
 
     DEBUG_PRINT(
-      "data=%ld, fetched data=%ld\n",
-      data.size(), fetched_data.size()
+      "data(%p)=%ld, fetched data(%p)=%ld\n",
+      &data, data.size(), &fetched_data, fetched_data.size()
     );
 
     // should call destructor for trace module if it exists to write

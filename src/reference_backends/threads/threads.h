@@ -314,7 +314,7 @@ namespace threads_backend {
 
     void
     delete_handle_data(
-      handle_t const* handle, types::key_t const& version, types::key_t const& key,
+      types::key_t const& version, types::key_t const& key,
       CollectionID const& cid, bool const fromFetch
     );
 
