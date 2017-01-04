@@ -85,8 +85,7 @@ namespace threads_backend {
     std::shared_ptr<InnerFlow> prev = nullptr;
     size_t collection_index = 0;
     std::unordered_map<
-      size_t,
-      std::pair<std::shared_ptr<InnerFlow>,std::shared_ptr<InnerFlow>>
+      size_t, std::pair<std::shared_ptr<InnerFlow>,std::shared_ptr<InnerFlow>>
     > collection_child;
     bool indexed_alias_out = false;
     CollectionID cid;

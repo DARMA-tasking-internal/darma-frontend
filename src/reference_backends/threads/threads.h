@@ -309,7 +309,7 @@ namespace threads_backend {
 
     void
     cleanup_handle(
-      std::shared_ptr<InnerFlow> flow
+      InnerFlow* flow
     );
 
     void
@@ -329,23 +329,22 @@ namespace threads_backend {
 
     bool
     test_alias_null(
-      std::shared_ptr<InnerFlow> flow,
-      std::shared_ptr<InnerFlow> alias
+      InnerFlow* flow, InnerFlow* alias
     );
 
     void
     release_to_write(
-      std::shared_ptr<InnerFlow> flow
+      InnerFlow* flow
     );
 
     bool
     finish_read(
-      std::shared_ptr<InnerFlow> flow
+      InnerFlow* flow
     );
 
     void
     create_next_subsequent(
-      std::shared_ptr<InnerFlow> flow
+      InnerFlow* flow
     );
 
     template <typename NodeType>
@@ -368,19 +367,16 @@ namespace threads_backend {
 
     bool
     flow_has_alias(
-      std::shared_ptr<InnerFlow> flow
+      InnerFlow* flow
     );
 
-    std::tuple<
-      std::shared_ptr<InnerFlow>,
-      bool
-    >
+    std::tuple<std::shared_ptr<InnerFlow>, bool>
     try_release_alias_to_read(
       std::shared_ptr<InnerFlow> flow
     );
 
     bool
-    try_release_to_read(std::shared_ptr<InnerFlow> flow);
+    try_release_to_read(InnerFlow* flow);
 
     size_t
     count_ready_work() const;
@@ -440,8 +436,7 @@ namespace threads_backend {
 
     void
     indexed_alias_to_out(
-      flow_t const& f_in,
-      flow_t const& f_alias
+      InnerFlow* f_in, InnerFlow* f_alias
     );
 
     virtual void

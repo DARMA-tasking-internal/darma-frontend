@@ -986,7 +986,7 @@ namespace threads_backend {
 
   void
   ThreadsRuntime::create_next_subsequent(
-    std::shared_ptr<InnerFlow> f
+    InnerFlow* f
   ) {
     DEBUG_PRINT(
       "create_next_subsequent: f=%ld, state=%s\n",
@@ -1026,14 +1026,14 @@ namespace threads_backend {
                 PRINT_LABEL(f),
                 PRINT_LABEL(f_next));
 
-    create_next_subsequent(f);
+    create_next_subsequent(f.get());
 
     return f_next;
   }
 
   void
   ThreadsRuntime::cleanup_handle(
-    std::shared_ptr<InnerFlow> flow
+    InnerFlow* flow
   ) {
     auto const db_owner =
       flow->data_block != nullptr ? flow->data_block->owner : -1;
@@ -1083,8 +1083,7 @@ namespace threads_backend {
 
   void
   ThreadsRuntime::indexed_alias_to_out(
-    flow_t const& f_in,
-    flow_t const& f_alias
+    InnerFlow* f_in, InnerFlow* f_alias
   ) {
     DEBUG_PRINT(
       "indexed_alias_to_out: f_in=%ld, f_alias=%ld\n",
@@ -1137,15 +1136,16 @@ namespace threads_backend {
             );
             next_elm.second->prev_rank_owner = f_alias->indexed_rank_owner;
             if (next_elm.second->state == FlowWaiting) {
-              auto const has_read = try_release_to_read(next_elm.second);
+              auto const has_read = try_release_to_read(next_elm.second.get());
               if (!has_read) {
-                release_to_write(next_elm.second);
+                release_to_write(next_elm.second.get());
               }
             } else if (next_elm.second->state == FlowReadReady) {
-              release_to_write(next_elm.second);
+              release_to_write(next_elm.second.get());
             }
-            next_elm.second->prev = f_alias;
+            //next_elm.second->prev = f_alias;
           }
+          //next_col->collection_child.erase(index);
         }
       }
     }
@@ -1175,16 +1175,16 @@ namespace threads_backend {
       auto const last_found_alias = try_release_alias_to_read(f_from);
       auto const alias_part = std::get<0>(last_found_alias);
       if (std::get<1>(last_found_alias) == false) {
-        auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
+        auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part.get());
 
         DEBUG_PRINT("establish_flow_alias alias_part, %ld in state=%s\n",
                     PRINT_LABEL(alias_part),
                     PRINT_STATE(alias_part));
 
         if (has_subsequent) {
-          release_to_write(alias_part);
+          release_to_write(alias_part.get());
           if (alias_part != f_from) {
-            indexed_alias_to_out(f_from, alias_part);
+            indexed_alias_to_out(f_from.get(), alias_part.get());
           }
         } else {
           DEBUG_PRINT("establish_flow_alias subsequent, %ld in state=%s does not have *subsequent*\n",
@@ -1199,8 +1199,7 @@ namespace threads_backend {
 
   bool
   ThreadsRuntime::test_alias_null(
-    std::shared_ptr<InnerFlow> flow,
-    std::shared_ptr<InnerFlow> alias
+    InnerFlow* flow, InnerFlow* alias
   ) {
     auto const is_col = flow->is_collection;
 
@@ -1223,10 +1222,10 @@ namespace threads_backend {
           );
 
           if (c.second.first) {
-            cleanup_handle(c.second.first);
+            cleanup_handle(c.second.first.get());
           }
           if (c.second.second) {
-            cleanup_handle(c.second.second);
+            cleanup_handle(c.second.second.get());
           }
         }
       }
@@ -1244,7 +1243,7 @@ namespace threads_backend {
 
   bool
   ThreadsRuntime::try_release_to_read(
-    std::shared_ptr<InnerFlow> flow
+    InnerFlow* flow
   ) {
     assert(flow->state == FlowWaiting || flow->state == FlowScheduleOnly);
     assert(flow->ref == 0);
@@ -1290,15 +1289,12 @@ namespace threads_backend {
 
   bool
   ThreadsRuntime::flow_has_alias(
-    std::shared_ptr<InnerFlow> flow
+    InnerFlow* flow
   ) {
     return flow->alias != nullptr;
   }
 
-  std::tuple<
-    std::shared_ptr<InnerFlow>,
-    bool
-  >
+  std::tuple<std::shared_ptr<InnerFlow>, bool>
   ThreadsRuntime::try_release_alias_to_read(
     std::shared_ptr<InnerFlow> flow
   ) {
@@ -1312,7 +1308,7 @@ namespace threads_backend {
                 PRINT_STATE(flow),
                 flow->alias ? flow->alias.get() : nullptr);
 
-    if (flow_has_alias(flow)) {
+    if (flow_has_alias(flow.get())) {
       bool has_read_phase = false;
       auto aliased = union_find::find_call(flow, [&](std::shared_ptr<InnerFlow> alias){
         if (alias->isNull) {
@@ -1325,9 +1321,9 @@ namespace threads_backend {
 
           assert(alias->ref == 0);
 
-          has_read_phase |= try_release_to_read(alias);
+          has_read_phase |= try_release_to_read(alias.get());
         } else if (alias->state == FlowScheduleOnly) {
-          has_read_phase |= try_release_to_read(alias);
+          has_read_phase |= try_release_to_read(alias.get());
         } else {
           assert(
             alias->state == FlowReadOnlyReady ||
@@ -1348,7 +1344,7 @@ namespace threads_backend {
                   PRINT_STATE(aliased),
                   aliased->ref);
 
-      if (test_alias_null(flow, aliased)) {
+      if (test_alias_null(flow.get(), aliased.get())) {
         return std::make_tuple(aliased,false);
       } else {
         return std::make_tuple(aliased, has_read_phase);
@@ -1359,7 +1355,7 @@ namespace threads_backend {
 
   void
   ThreadsRuntime::release_to_write(
-    std::shared_ptr<InnerFlow> flow
+    InnerFlow* flow
   ) {
     assert(flow->state == FlowReadReady);
     assert(flow->ref == 0);
@@ -1388,7 +1384,7 @@ namespace threads_backend {
   }
 
   bool
-  ThreadsRuntime::finish_read(std::shared_ptr<InnerFlow> flow) {
+  ThreadsRuntime::finish_read(InnerFlow* flow) {
     assert(flow->shared_reader_count != nullptr);
     assert(*flow->shared_reader_count > 0);
     assert(flow->readers_jc > 0);
@@ -1708,18 +1704,18 @@ namespace threads_backend {
                 PRINT_LABEL(flow),
                 PRINT_STATE(flow));
 
-    auto const finishedAllReads = *flow->shared_reader_count == 0 || finish_read(flow);
+    auto const finishedAllReads = *flow->shared_reader_count == 0 || finish_read(flow.get());
 
     if (finishedAllReads) {
       auto const last_found_alias = try_release_alias_to_read(flow);
       auto const alias_part = std::get<0>(last_found_alias);
 
       if (std::get<1>(last_found_alias) == false) {
-        auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
+        auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part.get());
         if (has_subsequent) {
-          release_to_write(alias_part);
+          release_to_write(alias_part.get());
           if (alias_part != flow) {
-            indexed_alias_to_out(flow, alias_part);
+            indexed_alias_to_out(flow.get(), alias_part.get());
           }
         } else {
           DEBUG_PRINT("transition_after_read, %ld in state=%s does not have *subsequent*\n",
@@ -1746,7 +1742,7 @@ namespace threads_backend {
     );
 
     if (f_out->ref == 0) {
-      auto const has_read_phase = try_release_to_read(f_out);
+      auto const has_read_phase = try_release_to_read(f_out.get());
       auto const last_found_alias = try_release_alias_to_read(f_out);
       auto const alias_part = std::get<0>(last_found_alias);
 
@@ -1766,11 +1762,11 @@ namespace threads_backend {
       if (!has_read_phase &&
           std::get<1>(last_found_alias) == false) {
 
-        auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part);
+        auto const has_subsequent = alias_part->next != nullptr || flow_has_alias(alias_part.get());
         if (has_subsequent) {
-          release_to_write(alias_part);
+          release_to_write(alias_part.get());
           if (alias_part != f_in) {
-            indexed_alias_to_out(f_in, alias_part);
+            indexed_alias_to_out(f_in.get(), alias_part.get());
           }
         } else {
           DEBUG_PRINT("transition_after_write, %ld in state=%s does not have *subsequent*\n",
@@ -1834,10 +1830,7 @@ namespace threads_backend {
     } else {
       if (f_in->uses == 0) {
         if (u->immediate_permissions() == abstract::frontend::Use::Permissions::Modify) {
-          transition_after_write(
-            f_in,
-            f_out
-          );
+          transition_after_write(f_in, f_out);
         }
       }
     }
@@ -2034,7 +2027,7 @@ namespace threads_backend {
     }
 
     if (sub_other != nullptr) {
-      create_next_subsequent(sub_other);
+      create_next_subsequent(sub_other.get());
     }
 
     std::lock_guard<std::mutex> lg1(from->collection_mutex);

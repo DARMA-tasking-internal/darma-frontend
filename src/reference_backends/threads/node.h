@@ -166,9 +166,9 @@ namespace threads_backend {
         "=== EXECUTING === fetch node\n"
       );
 
-      auto const has_read_phase = runtime->try_release_to_read(fetch);
+      auto const has_read_phase = runtime->try_release_to_read(fetch.get());
       if (acquire && !has_read_phase) {
-        runtime->release_to_write(fetch);
+        runtime->release_to_write(fetch.get());
       }
 
       GraphNode::execute();
@@ -371,6 +371,7 @@ namespace threads_backend {
 
           if (f_in->prev != nullptr) {
             runtime->assign_data_ptr(use, f_in->prev->data_block);
+            f_in->prev = nullptr;
           }
         }
       }
@@ -461,10 +462,10 @@ namespace threads_backend {
   };
 
   struct DeleteNode : GraphNode {
-    flow_t flow_to_delete;
+    InnerFlow* flow_to_delete;
 
     DeleteNode(
-      runtime_t* rt, flow_t flow_to_delete_in
+      runtime_t* rt, InnerFlow* flow_to_delete_in
     )
       : GraphNode(-1, rt)
       , flow_to_delete(flow_to_delete_in)
