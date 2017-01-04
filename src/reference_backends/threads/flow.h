@@ -83,6 +83,7 @@ namespace threads_backend {
     int indexed_rank_owner = -1, prev_rank_owner = -1;
     std::shared_ptr<InnerFlow> collection = nullptr;
     std::shared_ptr<InnerFlow> prev = nullptr;
+    std::shared_ptr<InnerFlow> chain = nullptr;
     size_t collection_index = 0;
     std::unordered_map<
       size_t, std::pair<std::shared_ptr<InnerFlow>,std::shared_ptr<InnerFlow>>

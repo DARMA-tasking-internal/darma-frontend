@@ -601,6 +601,13 @@ namespace threads_backend {
       std::lock_guard<std::mutex> lg1(from->collection_mutex);
       auto const backend_index = f_in->collection_index;
       from->collection_child[backend_index] = std::make_pair(f_out,f_in);
+      if (from->prev) {
+        if (from->prev->collection_child.find(backend_index) !=
+            from->prev->collection_child.end()) {
+          auto prev_pair = from->prev->collection_child[backend_index];
+          prev_pair.first->chain = f_in;
+        }
+      }
       DEBUG_PRINT(
         "register_use: setting collection child index=%lu, from=%ld, "
         "fst=%ld, snd=%ld\n",
@@ -1107,43 +1114,16 @@ namespace threads_backend {
 
       f_alias->indexed_alias_out = true;
 
-      std::lock_guard<std::mutex> lg1(f_alias->collection->collection_mutex);
-
-      if (next_col != nullptr) {
-        DEBUG_PRINT(
-          "indexed_alias_to_out: next_col->collection_child[%ld]=%s\n",
-          index, next_col->collection_child.find(index) != next_col->collection_child.end() ? "true" : "false"
-        );
-
-        if (next_col->collection_child.find(index) != next_col->collection_child.end()) {
-          auto next_elm = next_col->collection_child[index];
-
-          DEBUG_PRINT(
-            "indexed_alias_to_out: fst=%ld, snd=%ld, has second=%s\n",
-            next_elm.first ? PRINT_LABEL(next_elm.first) : -1,
-            next_elm.second ? PRINT_LABEL(next_elm.second) : -1,
-            next_elm.second ? "true" : "false"
-          );
-
-          if (next_elm.second != nullptr) {
-            DEBUG_PRINT(
-              "indexed_alias_to_out: first_elem=%ld, next_elem=%ld, "
-              "next_elm.second->state=%s\n",
-              PRINT_LABEL(next_elm.first), PRINT_LABEL(next_elm.second),
-              PRINT_STATE(next_elm.second)
-            );
-            next_elm.second->prev_rank_owner = f_alias->indexed_rank_owner;
-            if (next_elm.second->state == FlowWaiting) {
-              auto const has_read = try_release_to_read(next_elm.second.get());
-              if (!has_read) {
-                release_to_write(next_elm.second.get());
-              }
-            } else if (next_elm.second->state == FlowReadReady) {
-              release_to_write(next_elm.second.get());
-            }
-            //next_elm.second->prev = f_alias;
+      if (f_alias->chain != nullptr) {
+        auto const& next = f_alias->chain;
+        next->prev_rank_owner = f_alias->indexed_rank_owner;
+        if (next->state == FlowWaiting) {
+          auto const has_read = try_release_to_read(next.get());
+          if (!has_read) {
+            release_to_write(next.get());
           }
-          //next_col->collection_child.erase(index);
+        } else if (next->state == FlowReadReady) {
+          release_to_write(next.get());
         }
       }
     }
