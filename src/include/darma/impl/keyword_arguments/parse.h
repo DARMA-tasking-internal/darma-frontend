@@ -77,8 +77,22 @@ struct ____keyword_argument____ {
 struct __________candidate_overloads_are__ { };
 template <typename... Args>
 struct _____overload_candidate_with__ { };
+template <typename... Args>
 
-struct ___expected_zero_or_more_variadic_positional_arguments_ { };
+struct _____overload_failed_because__ { };
+struct ___unknown_or_undocumented_failure_reason { };
+struct ___too_many_positional_arguments { };
+//struct ___missing_required_positional_argument { };
+struct ___missing_required_keyword_argument { };
+struct ___unrecognized_keyword_argument_given { };
+struct ___required_keyword_argument_not_convertible_to_desired_type { };
+struct ___optional_keyword_argument_not_convertible_to_desired_type { };
+struct ___required_argument_given_as_positional_not_convertible_to_desired_type { };
+struct ___variadic_positional_arguments_given_but_not_allowed { };
+struct ___keyword_argument_given_before_last_positional { };
+struct ___same_keyword_argument_given_twice { };
+
+struct ___with_zero_or_more_variadic_positional_arguments_ { };
 
 template <typename Tag>
 struct ___expected_positional_or_keyword_ {
@@ -89,6 +103,13 @@ struct ___expected_positional_or_keyword_ {
 
 template <typename Tag>
 struct ___expected_keyword_argument_only_ {
+  template <typename Arg>
+  struct _convertible_to_ { };
+  struct _with_deduced_type { };
+};
+
+template <typename Tag>
+struct ___optional_keyword_argument_only_ {
   template <typename Arg>
   struct _convertible_to_ { };
   struct _with_deduced_type { };
@@ -114,6 +135,45 @@ struct converted_parameter { };
 
 struct deduced_parameter { };
 
+template <template <class...> class UnaryMetafunction>
+struct parameter_such_that {
+  template <typename T>
+  struct apply {
+    static constexpr auto value = tinympl::extract_bool_value_potentially_lazy<
+      UnaryMetafunction<T>
+    >::value;
+    using type = tinympl::bool_<value>;
+  };
+  template <typename T>
+  using apply_t = typename apply<T>::type;
+};
+
+template <template <class...> class UnaryMetafunction>
+struct parameter_such_that_not {
+  template <typename T>
+  struct apply {
+    static constexpr auto value = not tinympl::extract_bool_value_potentially_lazy<
+      UnaryMetafunction<T>
+    >::value;
+    using type = tinympl::bool_<value>;
+  };
+  template <typename T>
+  using apply_t = typename apply<T>::type;
+};
+
+template <typename T>
+struct is_predicate_parameter_description : std::false_type { };
+
+template <template <class...> class UnaryMetafunction>
+struct is_predicate_parameter_description<
+  parameter_such_that<UnaryMetafunction>
+> : std::true_type { };
+
+template <template <class...> class UnaryMetafunction>
+struct is_predicate_parameter_description<
+  parameter_such_that_not<UnaryMetafunction>
+> : std::true_type { };
+
 //==============================================================================
 
 struct variadic_arguments_begin_tag { };
@@ -128,6 +188,15 @@ struct _argument_description_base {
   //using converter_is_valid_archetype = meta::callable_traits<
   //  typename ConvertedParam::
 
+  template <typename ParamT, typename ArgT, typename Enable=void>
+  struct _protected_apply { using type = std::false_type; /* should be irrelevant */};
+
+  template <typename ParamT, typename ArgT>
+  struct _protected_apply<ParamT, ArgT,
+    std::enable_if_t<is_predicate_parameter_description<ParamT>::value>
+  >{
+    using type = typename ParamT::template apply<ArgT>::type;
+  };
 
   template <typename T>
   using _type_is_compatible = tinympl::select_first_t<
@@ -137,6 +206,9 @@ struct _argument_description_base {
     //==========================================================================
     std::is_same<ParameterType, converted_parameter>,
     /* => */ std::true_type,
+    //==========================================================================
+    is_predicate_parameter_description<ParameterType>,
+    /* => */ typename _protected_apply<ParameterType, T>::type,
     //==========================================================================
     std::true_type,
     /* => */ std::is_convertible<T, ParameterType>
@@ -241,6 +313,15 @@ struct keyword_only_argument : _argument_description_base<ParameterType> {
       _value_type_if_kwarg_archetype, T
     >;
 
+    template <typename T>
+    using _pretty_print_arg_wrapper = std::conditional_t<
+      Optional,
+      _darma__errors::___optional_keyword_argument_only_<T>,
+      _darma__errors::___expected_keyword_argument_only_<T>
+    >;
+
+
+
   public:
     using parameter_type = ParameterType;
     using tag = KWArgTag;
@@ -255,11 +336,12 @@ struct keyword_only_argument : _argument_description_base<ParameterType> {
       _value_type_if_kwarg<Argument>
     >;
 
+
 #ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
     using _pretty_printed_error_t = std::conditional_t<
       std::is_same<ParameterType, deduced_parameter>::value,
-      typename _darma__errors::___expected_keyword_argument_only_<KWArgTag>::_with_deduced_type,
-      typename _darma__errors::___expected_keyword_argument_only_<
+      typename _pretty_print_arg_wrapper<KWArgTag>::_with_deduced_type,
+      typename _pretty_print_arg_wrapper<
         KWArgTag
       >::template _convertible_to_<ParameterType>
     >;
@@ -638,6 +720,31 @@ struct _overload_desc_is_valid_impl {
 
   using type = tinympl::bool_<value>;
 
+#ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
+  using _pretty_print_overload_fail_reason = tinympl::select_first_t<
+    tinympl::bool_<kwarg_given_before_last_positional>,
+    /* => */ _darma__errors::___keyword_argument_given_before_last_positional,
+    tinympl::bool_<too_many_positional>,
+    /* => */ _darma__errors::___too_many_positional_arguments,
+    tinympl::bool_<variadics_given_but_not_allowed>,
+    /* => */ _darma__errors::___variadic_positional_arguments_given_but_not_allowed,
+    tinympl::bool_<not all_positional_args_convertible>,
+    /* => */ _darma__errors::___required_argument_given_as_positional_not_convertible_to_desired_type,
+    tinympl::bool_<not all_kwargs_found>,
+    /* => */ _darma__errors::___missing_required_keyword_argument,
+    tinympl::bool_<not all_given_kwargs_allowed>,
+    /* => */ _darma__errors::___unrecognized_keyword_argument_given,
+    tinympl::bool_<not all_required_kwargs_convertible>,
+    /* => */ _darma__errors::___required_keyword_argument_not_convertible_to_desired_type,
+    tinympl::bool_<not given_optional_kwargs_convertible>,
+    /* => */ _darma__errors::___optional_keyword_argument_not_convertible_to_desired_type,
+    tinympl::bool_<not no_keyword_argument_given_twice>,
+    /* => */ _darma__errors::___same_keyword_argument_given_twice,
+    std::true_type,
+    /* => */ _darma__errors::___unknown_or_undocumented_failure_reason
+  >;
+#endif
+
   //============================================================================
 
   // This could probably be done faster...
@@ -961,6 +1068,8 @@ struct _overload_desc_is_valid_impl {
   // </editor-fold>
   //============================================================================
 
+
+
 };
 
 //==============================================================================
@@ -1074,15 +1183,27 @@ struct _overload_description_maybe_variadic {
   };
 
 #ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
+
+
+
+  template <typename... ActualArgs>
   using _pretty_printed_error_t =
     std::conditional_t<
       AllowVariadics,
       _darma__errors::_____overload_candidate_with__<
         typename ArgumentDescriptions::_pretty_printed_error_t...,
-        _darma__errors::___expected_zero_or_more_variadic_positional_arguments_
+        _darma__errors::___with_zero_or_more_variadic_positional_arguments_,
+        _____________________________________________________________________,
+        _darma__errors::_____overload_failed_because__<
+          typename _helper<ActualArgs...>::_pretty_print_overload_fail_reason
+        >
       >,
       _darma__errors::_____overload_candidate_with__<
-        typename ArgumentDescriptions::_pretty_printed_error_t...
+        typename ArgumentDescriptions::_pretty_printed_error_t...,
+        _____________________________________________________________________,
+        _darma__errors::_____overload_failed_because__<
+          typename _helper<ActualArgs...>::_pretty_print_overload_fail_reason
+        >
       >
     >;
 #endif
@@ -1126,7 +1247,9 @@ struct overload_description {
   };
 
 #ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
-  using _pretty_printed_error_t = typename var_helper_t::_pretty_printed_error_t;
+  template <typename... ActualArgs>
+  using _pretty_printed_error_t =
+    typename var_helper_t::template _pretty_printed_error_t<ActualArgs...>;
 #endif
 
 };
@@ -1165,7 +1288,9 @@ struct variadic_positional_overload_description {
   };
 
 #ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
-  using _pretty_printed_error_t = typename var_helper_t::_pretty_printed_error_t;
+  template <typename... ActualArgs>
+  using _pretty_printed_error_t =
+    typename var_helper_t::template _pretty_printed_error_t<ActualArgs...>;
 #endif
 
 };
@@ -1232,7 +1357,7 @@ struct kwarg_parser {
           _____________________________________________________________________,
           _____________________________________________________________________,
           _darma__errors::__________candidate_overloads_are__,
-          typename OverloadDescriptions::_pretty_printed_error_t...,
+          typename OverloadDescriptions::template _pretty_printed_error_t<Args...>...,
           _____________________________________________________________________,
           _____________________________________________________________________
 #else

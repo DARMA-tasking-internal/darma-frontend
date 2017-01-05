@@ -72,6 +72,29 @@ DeclareDarmaTypeTransparentKeyword(task_creation, allow_aliasing);
 
 namespace darma_runtime {
 
+template <typename... Args>
+decltype(auto)
+schedule_only(Args&&... args) {
+  auto make_schedule_only = [](auto const& arg) {
+    // No need for perfect forwarding; the argument must be an lvalue
+    using detail::create_work_attorneys::for_AccessHandle;
+    for_AccessHandle::captured_as_info(arg) |=
+      detail::AccessHandleBase::ScheduleOnly;
+    // return a value that the compiler will ignore.  This allows us to mimic
+    // C++17 fold expressions
+    return meta::sentinal_type { };
+  };
+  std::forward_as_tuple( // return values ignored, but mimics a fold expression
+    make_schedule_only(std::forward<Args>(args))...
+  );
+
+  // Return the (first) argument as a passthrough
+  // TODO return a type that looks like a sensible compile-time error
+  // (if more than one positional argument is given and the user tries to
+  // use the return value for something like an argument to a functor create_work)
+  return std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
+}
+
 
 namespace detail {
 
@@ -84,6 +107,7 @@ struct reads_decorator_parser {
     using detail::create_work_attorneys::for_AccessHandle;
 
     // NOTE: This is a post-0.2 feature
+    // TODO we probably should remove ignore/only_if because they are unsafe
     bool ignored = not get_typeless_kwarg_with_default_as<
         darma_runtime::keyword_tags_for_create_work_decorators::unless,
         bool
@@ -94,6 +118,7 @@ struct reads_decorator_parser {
     >(true, std::forward<Args>(args)...);
 
     // Mark this usage as a read-only capture
+    // TODO this should be just a splatted tuple.  Order doesn't matter
     meta::tuple_for_each(
       get_positional_arg_tuple(std::forward<Args>(args)...),
       [&](auto const& ah) {
@@ -109,11 +134,11 @@ struct reads_decorator_parser {
       }
     );
 
-    // Return the argument as a passthrough
-    // TODO the outer std::forward should never need to be there (right?)
-    return std::forward<mv::at_t<0, Args...>>(
-      std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...))
-    );
+    // Return the (first) argument as a passthrough
+    // TODO return a type that looks like a sensible compile-time error
+    // (if more than one positional argument is given and the user tries to
+    // use the return value for something like an argument to a functor create_work)
+    return std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
   }
 };
 
@@ -261,8 +286,6 @@ struct _do_create_work_impl<void> {
 //==============================================================================
 
 struct _do_create_work {
-
-
 
   explicit
   _do_create_work(types::unique_ptr_template<TaskBase>&& tsk_base)

@@ -58,8 +58,8 @@
 #include <darma/interface/frontend/types/concrete_condition_task_t.h>
 #include <darma/interface/frontend/condition_task.h>
 #include <darma/interface/frontend/concurrent_region_task.h>
-#include <darma/interface/backend/data_store_handle.h>
 #include <darma/interface/frontend/top_level_task.h>
+#include <darma/interface/frontend/task_collection.h>
 
 #include "backend_fwd.h"
 
@@ -97,13 +97,16 @@ class Runtime {
     using pub_details_t = darma_runtime::abstract::frontend::PublicationDetails;
     using collective_details_t = darma_runtime::abstract::frontend::CollectiveDetails;
     using memory_details_t = abstract::frontend::MemoryRequirementDetails;
+    using task_collection_t = abstract::frontend::TaskCollection;
+    using task_collection_unique_ptr = std::unique_ptr<task_collection_t>;
+    using task_collection_task_unique_ptr = std::unique_ptr<types::task_collection_task_t>;
 
     //==========================================================================
 
     virtual size_t get_execution_resource_count(size_t depth) const =0;
 
     //==========================================================================
-    // <editor-fold desc="Task handling">
+    // <editor-fold desc="Task and TaskCollection handling">
 
     /** @brief Register a task to be run at some future time by the runtime
      * system.
@@ -137,15 +140,9 @@ class Runtime {
     register_condition_task(condition_task_unique_ptr&& task) = 0;
 
     virtual void
-    register_concurrent_region(
-      concurrent_region_task_unique_ptr&& task,
-      size_t n_indices, std::shared_ptr<DataStoreHandle> const& data_store = nullptr
+    register_task_collection(
+      task_collection_unique_ptr&& collection
     ) =0;
-
-    virtual std::shared_ptr<DataStoreHandle>
-    make_data_store() =0;
-
-
 
     // </editor-fold> end Task handling
     //==========================================================================
@@ -173,15 +170,22 @@ class Runtime {
     ) =0;
 
     /** @TODO document this
-     *  @TODO DSH: I'm not very happy with how this works.  The backend would
-     *        have to somehow look up the flows it needs to unpack by the
-     *        Use's Handle's key or something.  Seems pretty inefficient,
-     *        but I'm rolling with it for now just to get something working
+     *  @remark on entry, the in_flow and out_flow of `u` already be set up
+     *  via calls to make_unpacked_flow() on the buffers created by pack_flow()
+     *  on the sender side
      */
     virtual void
     reregister_migrated_use(
       frontend::Use* u
     ) =0;
+
+    virtual void
+    register_use_copy(
+      frontend::Use* u
+    ) {
+      // By default, just pass through to register_use()
+      return register_use(u);
+    }
 
     /** @todo update this
      *  @brief Release a Use object previously registered with register_use().
@@ -254,16 +258,38 @@ class Runtime {
      *
      *  The initial Flow will be used as the return value of u->get_in_flow()
      *  for the first Use* u registered with write privileges that returns
-     *  handle for u->get_handle() (or any other handle with an equivalent
-     *  return for get_key() to the one passed in here). In most cases, this
-     *  will derive from calls to initial_access in the application code.
+     *  handle for u->get_handle().
+     *
+     *  @remark In the sequential semantic (C++) frontend, this will usually
+     *  derive from calls to initial_access in the application code.
      *
      *  @param handle A handle encapsulating a type and unique name (variable)
-     *  for which the Flow represents the initial state
+     *  for which the Flow will represent the initial state (upon a subsequent
+     *  call to register_use())
+     *
+     *  @return The flow for the frontend to use as described
+     *
      *
      */
     virtual types::flow_t
     make_initial_flow(
+      std::shared_ptr<frontend::Handle> const& handle
+    ) =0;
+
+    /** @brief Similar to make_initial_flow, but for a Use that manages a
+     *  collection
+     *
+     *  @sa Use::manages_collection()
+     *  @sa UseCollection
+     *
+     *  @param handle Analogously to make_initial_flow(), the argument is handle
+     *  encapsulating a type and unique name (variable) for which the Flow will
+     *  represent the initial state (upon a subsequent call to register_use())
+     *
+     *  @return The flow for the frontend to use as described
+     */
+    virtual types::flow_t
+    make_initial_flow_collection(
       std::shared_ptr<frontend::Handle> const& handle
     ) =0;
 
@@ -274,17 +300,24 @@ class Runtime {
      *  for a Use* u intended to fetch the data published with a particular
      *  handle key and version_key.
      *
+     *  @remark In the sequential semantic (C++) frontend, this will usually
+     *  derive from calls to read_access in the application code.
+     *
      *  @param handle A handle object carrying the key identifer returned by
      *  get_key()
      *
      *  @param version_key A unique version for the key returned by
      *  handle->get_key()
+     *
+     *  @param acquired Currently unused; in future versions this indicates the
+     *  expectation of a transfer of ownership
+     *
+     *  @return The flow for the frontend to use as described
      */
     virtual types::flow_t
     make_fetching_flow(
       std::shared_ptr<frontend::Handle> const& handle,
       types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& data_store = nullptr,
       bool acquired = false
     ) =0;
 
@@ -293,9 +326,13 @@ class Runtime {
      *
      *  A null usage as a return value of u->get_out_flow() for some Use* u is
      *  intended to indicate that the data associated with that Use has no
-     *  subsequent consumers and can safely be deleted.  See release_use().
+     *  subsequent consumers and can safely be deleted when other Uses are
+     *  released.  See release_use().
      *
-     *  @param handle   The handle variable associate with the flow
+     *  @param handle The handle variable that will be associated with the Flow
+     *  in the corresponding call to register_use()
+     *
+     *  @return The flow for the frontend to use as described
      *
      */
     virtual types::flow_t
@@ -303,16 +340,31 @@ class Runtime {
       std::shared_ptr<frontend::Handle> const& handle
     ) =0;
 
+    /** @brief Analogue of make_null_flow() for a use that manages a collection
+     *
+     *  @sa make_null_flow()
+     *
+     *  @param handle The handle variable that will be associated with the Flow
+     *  in the corresponding call to register_use()
+     *
+     *  @return The flow for the frontend to use as described
+     */
+    virtual types::flow_t
+    make_null_flow_collection(
+      std::shared_ptr<frontend::Handle> const& handle
+    ) =0;
+
     /** @todo update this
-     *  @brief Make a new input Flow that receives forwarded changes from
+     *  @brief Make a new Flow that receives forwarded changes from
      *  another input Flow, the latter of which is associated with a Use on
-     *  which Modify immediate permissions were requested.
+     *  which Modify immediate permissions were requested and already granted
+     *  (via a backend call to Task::run() on the Task object that that Use
+     *  was uniquely associated with).
      *
      *  Flows are registered and released indirectly through calls to
-     *  register_use()/release_use(). The translation layer will never share a
-     *  given `Flow*` returned by the backend across multiple Use instances. The
-     *  input Flow to make_forwarding_flow() must have been registered through a
-     *  register_use() call, but not yet released through a release_use() call.
+     *  register_use()/release_use().  The input Flow to make_forwarding_flow()
+     *  must have been registered through a register_use() call, but not yet
+     *  released through a release_use() call.
      *  make_forwarding_flow() can be called at most once with a given input.
      *
      *  @param from An already initialized and registered flow returned from
@@ -329,6 +381,35 @@ class Runtime {
     virtual types::flow_t
     make_forwarding_flow(
       types::flow_t& from
+    ) =0;
+
+    /** @todo document this
+     *
+     * @remark Parameter must be a value returned from one of the
+     * `make_*_flow_collection()` methods
+     *
+     * @param from
+     * @return
+     */
+    virtual types::flow_t
+    make_indexed_local_flow(
+      types::flow_t& from,
+      size_t backend_index
+    ) =0;
+
+    /** @todo document this
+     *
+     * @remark Parameter must be a value returned from one of the
+     * `make_*_flow_collection()` methods
+     *
+     * @param from
+     * @return
+     */
+    virtual types::flow_t
+    make_indexed_fetching_flow(
+      types::flow_t& from,
+      types::key_t const& version_key,
+      size_t backend_index
     ) =0;
 
     /** @todo update this
@@ -360,6 +441,44 @@ class Runtime {
     virtual types::flow_t
     make_next_flow(
       types::flow_t& from
+    ) =0;
+
+    /** @todo document this
+     *
+     * @param from
+     * @return
+     */
+    virtual types::flow_t
+    make_next_flow_collection(
+      types::flow_t& from
+    ) =0;
+
+    virtual size_t
+    get_packed_flow_size(
+      types::flow_t const& f
+    ) =0;
+
+    /** @todo document this
+     *
+     *  @remark this method should advance the buffer to after the end of the
+     *  packed storage used for `f`
+     */
+    virtual void
+    pack_flow(
+      types::flow_t& f, void*& buffer
+    ) =0;
+
+    /** @todo document this
+     *
+     *  @remark this method should advance the buffer to after the end of the
+     *  packed data used to recreate the return value
+     *
+     *  @param buffer
+     *  @return
+     */
+    virtual types::flow_t
+    make_unpacked_flow(
+      void const*& buffer
     ) =0;
 
     /** @todo document this

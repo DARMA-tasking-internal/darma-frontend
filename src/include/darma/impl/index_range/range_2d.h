@@ -48,6 +48,8 @@
 #include <cassert>
 #include <type_traits>
 
+#include <darma/impl/polymorphic_serialization.h>
+
 namespace darma_runtime {
 
 // TODO this could obviously be generalized substantially
@@ -74,10 +76,12 @@ template <typename Integer, typename DenseIndex = size_t>
 struct Range2DDenseMapping;
 
 template <typename Integer>
-struct Range2D : detail::PolymorphicSerializationAdapter<
-  Range2D<Integer>, abstract::frontend::IndexRange
-> {
-
+struct Range2D
+  : detail::PolymorphicSerializationAdapter<
+      Range2D<Integer>,
+      abstract::frontend::IndexRange
+    >
+{
   private:
 
     Integer begin_[2], end_[2];
@@ -138,34 +142,22 @@ struct Range2D : detail::PolymorphicSerializationAdapter<
 template <typename Integer, typename DenseIndex>
 struct Range2DDenseMapping {
 
-  private:
-
-    Range2D<Integer> full_range;
-
   public:
-
-
-    Range2DDenseMapping(
-      Range2D<Integer> const& range
-    ) : full_range(range)
-    { }
-
-    friend class Range2D<Integer>;
 
     Range2DDenseMapping() = default;
 
-    using is_index_mapping_t = std::true_type;
-    using from_index_t = Index2D<Integer>;
-    using to_index_t = DenseIndex;
+    using is_index_mapping = std::true_type;
+    using from_index_type = Index2D<Integer>;
+    using to_index_type = DenseIndex;
 
-    to_index_t map_forward(from_index_t const& from) const {
+    to_index_type map_forward(from_index_type const& from, Range2D<Integer> const& full_range) const {
       return (from.x() - full_range.begin_of_dimension(0))
         * (full_range.end_of_dimension(1) - full_range.begin_of_dimension(1))
           + (from.y() - full_range.begin_of_dimension(1));
 
     }
 
-    from_index_t map_reverse(to_index_t const& to_idx) const {
+    from_index_type map_backward(to_index_type const& to_idx, Range2D<Integer> const& full_range) const {
       const Integer y_size = full_range.end_of_dimension(1) - full_range.begin_of_dimension(1);
       assert(full_range.size() != 0);
       return Index2D<Integer>(
@@ -174,10 +166,6 @@ struct Range2DDenseMapping {
       );
     }
 
-    template <typename ArchiveT>
-    void serialize(ArchiveT& ar) {
-      ar | full_range;
-    }
 };
 
 
@@ -185,12 +173,8 @@ template <typename Integer>
 Range2DDenseMapping<Integer> get_mapping_to_dense(
   Range2D<Integer> const& range
 ) {
-  return Range2DDenseMapping<Integer>(range);
+  return Range2DDenseMapping<Integer>();
 }
-
-
-
-
 
 } // end namespace darma_runtime
 

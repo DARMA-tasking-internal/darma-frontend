@@ -67,6 +67,7 @@
 #include <darma/interface/backend/types.h>
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/frontend/task.h>
+#include <darma/interface/frontend/unpack_task.h>
 
 #include <darma/impl/util.h>
 #include <darma/impl/runnable.h>
@@ -286,16 +287,6 @@ class TaskBase : public abstract::frontend::Task
 
 ////////////////////////////////////////////////////////////////////////////////
 
-} // end namespace detail
-
-// implementation of abstract::frontend::unpack_task
-
-namespace abstract {
-
-namespace frontend {
-
-namespace detail {
-
 template <typename ConcreteTaskT>
 inline std::unique_ptr<ConcreteTaskT>
 _unpack_task(void* packed_data) {
@@ -322,15 +313,24 @@ _unpack_task(void* packed_data) {
 
 } // end namespace detail
 
-inline backend::runtime_t::task_unique_ptr
+// implementation of abstract::frontend::unpack_task
+
+namespace frontend {
+
+namespace detail {
+
+
+} // end namespace detail
+
+inline
+abstract::backend::runtime_t::task_unique_ptr
 unpack_task(void* packed_data) {
-  return detail::_unpack_task<darma_runtime::detail::TaskBase>(packed_data);
+  return darma_runtime::detail::_unpack_task<darma_runtime::detail::TaskBase>(
+    packed_data
+  );
 }
 
-
 } // end namespace frontend
-
-} // end namespace abstract
 
 } // end namespace darma_runtime
 

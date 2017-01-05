@@ -53,7 +53,7 @@
 #include <darma/interface/app/read_access.h>
 #include <darma/interface/app/create_work.h>
 #include <darma/impl/data_store.h>
-#include <darma/impl/array/range_2d.h>
+#include <src/include/darma/impl/index_range/range_2d.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -109,7 +109,7 @@ TEST_F(TestCreateConcurrentRegion, simple_2d) {
     auto my_ds = create_data_store();
 
     create_concurrent_region<MyCR>(
-      Range2D<int>(3, 2), data_store=my_ds
+      index_range=Range2D<int>(3, 2), data_store=my_ds
     );
 
   }
@@ -243,7 +243,7 @@ TEST_F(TestCreateConcurrentRegion, simple_2d_reader_hint) {
     auto my_ds = create_data_store();
 
     create_concurrent_region<MyCR>(
-      Range2D<int>(3, 2), data_store=my_ds
+      index_range=Range2D<int>(3, 2), data_store=my_ds
     );
 
   }
@@ -262,3 +262,39 @@ TEST_F(TestCreateConcurrentRegion, simple_2d_reader_hint) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+// Doesn't work in GCC...
+//struct MyCRTemplate {
+//  template <typename Context>
+//  void operator()(Context context) const {
+//    std::cout << context.index().value;
+//  }
+//};
+//
+//
+//TEST_F(TestCreateConcurrentRegion, simple_templated) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace darma_runtime::keyword_arguments_for_create_concurrent_region;
+//  using namespace mock_backend;
+//
+//  testing::internal::CaptureStdout();
+//
+//  EXPECT_CALL(*mock_runtime, register_concurrent_region_gmock_proxy(_, 6, nullptr));
+//
+//  //============================================================================
+//  // actual code to be tested
+//  {
+//    create_concurrent_region<MyCRTemplate>(
+//      index_range=Range1D<int>(6)
+//    );
+//  }
+//  //============================================================================
+//
+//  run_all_cr_ranks_for_one_region_in_serial();
+//
+//  ASSERT_EQ(testing::internal::GetCapturedStdout(),
+//    "012345"
+//  );
+//
+//}

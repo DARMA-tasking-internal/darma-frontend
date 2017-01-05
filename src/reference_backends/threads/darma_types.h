@@ -69,6 +69,10 @@ typedef types::shared_ptr_template<::threads_backend::InnerFlow> flow_t;
 #endif
 
 namespace darma_runtime { namespace types {
+typedef types::shared_ptr_template<::threads_backend::InnerFlow> flow_t;
+}} // end namespace darma_runtime::types
+
+namespace darma_runtime { namespace types {
   typedef darma_runtime::detail::SSOKey<
     DARMA_KEY_STACK_SIZE - 16,
     uint64_t
@@ -76,6 +80,5 @@ namespace darma_runtime { namespace types {
 }} // end namespace darma_runtime::types
 
 #include <darma/impl/key/SSO_key.h>
-
 
 #endif /* BACKENDS_SERIAL_DARMA_TYPES_H_ */

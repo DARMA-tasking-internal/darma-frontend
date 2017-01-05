@@ -63,17 +63,23 @@ namespace Serializer_attorneys {
 struct ArchiveAccess {
   template <typename ArchiveT>
   static inline
-  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type&
+  std::add_lvalue_reference_t<
+    typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type
+  >
   start(ArchiveT& ar) { return ar.start; }
 
   template <typename ArchiveT>
   static inline
-  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type&
+  std::add_lvalue_reference_t<
+    typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<char*>::type
+  >
   spot(ArchiveT& ar) { return ar.spot; }
 
   template <typename ArchiveT>
   static inline
-  typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<detail::SerializerMode>::type&
+  std::add_lvalue_reference_t<
+    typename tinympl::copy_cv_qualifiers<ArchiveT>::template apply<detail::SerializerMode>::type
+  >
   mode(ArchiveT& ar) { return ar.mode; }
 
   template <typename ArchiveT>

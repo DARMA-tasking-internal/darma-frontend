@@ -1,0 +1,6 @@
+To run DARMA, run ./exe [BACKEND_OPTIONS] --app-argv [APP_OPTIONS].
+Most command line options are passed to the backend to configue the DARMA runtime.
+To pass command line arguments to the application itself, there is a special option
+--app-argv.  Parameter values can either be passed as --flag value or --flag=value.
+To display all backend command line flags, run ./exe --help.
+To display all application command line flags, run ./exe --app-help.

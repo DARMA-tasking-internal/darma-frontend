@@ -56,6 +56,7 @@
 
 #include <darma/impl/handle.h> // is_access_handle
 #include <darma/impl/use.h> // HandleUse
+#include <darma/impl/capture.h> // make_captured_use_holder
 
 
 #include "details.h"
@@ -93,8 +94,6 @@ using _get_collective_details_t = SimpleCollectiveDetails<
 template<typename Op>
 struct all_reduce_impl {
 
-  // TODO generalize the use/flow handling here to be used by other collectives
-
   template <
     typename InputHandle,
     typename OutputHandle
@@ -108,6 +107,7 @@ struct all_reduce_impl {
     InputHandle&& input, OutputHandle&& output, types::key_t const& tag,
     size_t piece, size_t n_pieces
   ) const {
+
     DARMA_ASSERT_MESSAGE(
       input.current_use_->use.scheduling_permissions_ != HandleUse::None,
       "allreduce() called on handle that can't schedule at least Read usage on "
@@ -121,153 +121,47 @@ struct all_reduce_impl {
     );
     // TODO disallow same handle
 
-    // TODO !!!!! write this
-    //DARMA_ASSERT_NOT_IMPLEMENTED("collectives with separate input and output");
-
-    detail::HandleUse* input_use, *output_use;
-    input_use = output_use = nullptr;
-    bool release_input_use = false;
-    bool release_output_use = false;
     auto* backend_runtime = abstract::backend::get_backend_runtime();
 
     // This is a read capture of the InputHandle and a write capture of the
     // output handle
 
-    // First do the read capture of the input handle
-    switch(input.current_use_->use.immediate_permissions_) {
-      case HandleUse::None:
-      case HandleUse::Read: {
+    auto input_use_holder = detail::make_captured_use_holder(
+      input.var_handle_,
+      /* requested_scheduling_permissions */
+      HandleUse::None,
+      /* requested_immediate_permissions */
+      HandleUse::Read,
+      input.current_use_
+    );
 
-        // Note that scheduling permissions assertion is above, so we don't
-        // need to mess with it here
+    auto output_use_holder = detail::make_captured_use_holder(
+      output.var_handle_,
+      /* requested_scheduling_permissions */
+      HandleUse::None,
+      /* requested_immediate_permissions */
+      // TODO change this to Write once that is implemented
+      HandleUse::Modify,
+      output.current_use_
+    );
 
-        input_use = new HandleUse(
-          input.var_handle_,
-          input.current_use_->use.in_flow_,
-          input.current_use_->use.in_flow_,
-          /* scheduling_permissions= */ HandleUse::None,
-          /* immediate_permissions = */ HandleUse::Read
-        );
+    _get_collective_details_t<
+      Op, std::decay_t<InputHandle>, std::decay_t<OutputHandle>
+    > details(piece, n_pieces);
 
-        backend_runtime->register_use(input_use);
+    backend_runtime->allreduce_use(
+      &(input_use_holder->use),
+      &(output_use_holder->use),
+      &details, tag
+    );
 
-        break;
-      }
-      case HandleUse::Modify: {
-
-        auto inflow = make_forwarding_flow_ptr(
-          input.current_use_->use.in_flow_, backend_runtime
-        );
-
-        input_use = new HandleUse(
-          input.var_handle_,
-          inflow, inflow,
-          /* scheduling_permissions= */ HandleUse::None,
-          /* immediate_permissions = */ HandleUse::Read
-        );
-
-        backend_runtime->register_use(input_use);
-
-        input.current_use_->use.immediate_permissions_ = HandleUse::Read;
-        input.current_use_->use.in_flow_ = inflow;
-        // current_use_->use.out_flow_ and scheduling_permissions_ unchanged
-        input.current_use_->could_be_alias = true;
-
-        break;
-      }
-      default:
-        DARMA_ASSERT_NOT_IMPLEMENTED("Collectives with input handles and"
-          " different immediate permissions");
-    }
-
-    // Now do the write capture of the output handle
-    switch(output.current_use_->use.immediate_permissions_) {
-      case HandleUse::None:
-      case HandleUse::Read: {
-        auto write_outflow = make_next_flow_ptr(
-          output.current_use_->use.in_flow_, backend_runtime
-        );
-        // Note that scheduling permissions assertion is above, so we don't
-        // need to mess with it here
-        output_use = new HandleUse(
-          output.var_handle_,
-          output.current_use_->use.in_flow_,
-          write_outflow,
-          /* scheduling_permissions= */ HandleUse::None,
-          /* immediate_permissions = */ HandleUse::Write
-        );
-
-        backend_runtime->register_use(output_use);
-
-        if(output.current_use_->use.immediate_permissions_ == HandleUse::Read) {
-          output.current_use_->do_release();
-        }
-
-        output.current_use_->use.in_flow_ = write_outflow;
-        // output.current_use_->use.out_flow_ unchanged
-        output.current_use_->use.immediate_permissions_ = HandleUse::None;
-        output.current_use_->could_be_alias = true;
-
-        break;
-      }
-      case HandleUse::Write: {
-        DARMA_ASSERT_NOT_IMPLEMENTED("Write after write dependency handling"
-          " is (perhaps permanently) unimplemented");
-        break;
-      }
-      case HandleUse::Modify: {
-        // This is also (kind of) a write-after-write.  We don't need a
-        // forwarding flow because we don't need the data to be available
-
-        // TODO doing this doesn't make a lot of sense, so it should probably be
-        //      a warning in some "safe" mode or "strict" mode
-
-        auto write_outflow = make_next_flow_ptr(
-          output.current_use_->use.in_flow_, backend_runtime
-        );
-
-        output_use = new HandleUse(
-          output.var_handle_,
-          output.current_use_->use.in_flow_,
-          write_outflow,
-          /* scheduling_permissions= */ HandleUse::None,
-          /* immediate_permissions = */ HandleUse::Write
-        );
-
-        output.current_use_->do_release();
-
-        output.current_use_->use.immediate_permissions_ = HandleUse::None;
-        // output.current_use_->use.scheduling_permissions_ unchanged
-        output.current_use_->use.in_flow_ = write_outflow;
-
-        backend_runtime->register_use(output_use);
-
-        break;
-      }
-      default:
-        DARMA_ASSERT_NOT_IMPLEMENTED("Collectives with output handles and"
-          " different immediate permissions");
-    } // end switch on output immediate permissions
-
-    {
-      _get_collective_details_t<
-        Op, std::decay_t<InputHandle>, std::decay_t<OutputHandle>
-      > details(piece, n_pieces);
-
-      backend_runtime->allreduce_use(
-        input_use, output_use, &details, tag
-      );
-
-    } // delete details object
-
-
-    backend_runtime->release_use(input_use);
-    delete input_use;
-    backend_runtime->release_use(output_use);
-    delete output_use;
-
+    // TODO decide if the release is necessary here (same as with publish)
+    input_use_holder->do_release();
+    output_use_holder->do_release();
 
   }
+
+  //============================================================================
 
   template <
     typename InOutHandle
@@ -280,6 +174,7 @@ struct all_reduce_impl {
     InOutHandle&& in_out, types::key_t const& tag,
     size_t piece, size_t n_pieces
   ) const {
+
     DARMA_ASSERT_MESSAGE(
       in_out.current_use_->use.scheduling_permissions_ != HandleUse::None,
       "allreduce() called on handle that can't schedule at least read usage on "
@@ -300,82 +195,24 @@ struct all_reduce_impl {
     // This is a mod capture.  Need special behavior if we have modify
     // immediate permissions (i.e., forwarding)
 
-    switch (in_out.current_use_->use.immediate_permissions_) {
-      case HandleUse::None:
-      case HandleUse::Read: {
-        // Make a next flow to hold the changes
-        auto captured_out_flow = make_next_flow_ptr(
-          in_out.current_use_->use.in_flow_, backend_runtime
-        );
+    auto collective_use_holder = detail::make_captured_use_holder(
+      in_out.var_handle_,
+      /* requested_scheduling_permissions */
+      HandleUse::None,
+      /* requested_immediate_permissions */
+      HandleUse::Modify,
+      in_out.current_use_
+    );
 
-        // Make the use to be given to the collective
-        HandleUse collective_use(
-          in_out.var_handle_,
-          in_out.current_use_->use.in_flow_,
-          captured_out_flow,
-          /* scheduling_permissions= */ HandleUse::None,
-          /* immediate_permissions = */ HandleUse::Modify
-        );
-        backend_runtime->register_use(&collective_use);
+    backend_runtime->allreduce_use(
+      &(collective_use_holder->use),
+      &(collective_use_holder->use),
+      &details, tag
+    );
 
-        // The input flow of the handle in the continuing context is the
-        // output flow of the captured use
-        in_out.current_use_->use.in_flow_ = captured_out_flow;
-
-
-        // Call the allreduce
-        backend_runtime->allreduce_use(
-          &collective_use,
-          &collective_use,
-          &details, tag
-        );
-
-        // Release the use
-        backend_runtime->release_use(&collective_use);
-
-        break;
-      }
-      case HandleUse::Modify: {
-
-        auto collective_in_flow = make_forwarding_flow_ptr(
-          in_out.current_use_->use.in_flow_, backend_runtime
-        );
-        auto collective_out_flow = make_next_flow_ptr(
-          collective_in_flow, backend_runtime
-        );
-
-        HandleUse collective_use(
-          in_out.var_handle_,
-          collective_in_flow, collective_out_flow,
-          HandleUse::None, HandleUse::Modify
-        );
-
-        backend_runtime->register_use(&collective_use);
-
-        in_out.current_use_->do_release();
-
-        // Call the allreduce
-        backend_runtime->allreduce_use(
-          &collective_use,
-          &collective_use,
-          &details, tag
-        );
-
-        in_out.current_use_->use.in_flow_ = collective_out_flow;
-        // Should be current state (asserted above)
-        // in_out.current_use_->use.scheduling_permissions_ = HandleUse::Modify;
-        in_out.current_use_->use.immediate_permissions_ = HandleUse::None;
-        // out flow remains unchanged
-
-        in_out.current_use_->could_be_alias = true;
-
-        backend_runtime->release_use(&collective_use);
-
-        break;
-      }
-      default:
-        DARMA_ASSERT_NOT_IMPLEMENTED("other handle states for allreduce");
-    } // end switch on immediate permissions
+    // Release the captured use
+    // TODO decide if this is necessary here (same as with publish)
+    collective_use_holder->do_release();
 
   }
 
@@ -383,8 +220,6 @@ struct all_reduce_impl {
 
 } // end namespace detail
 
-
-// TODO generalize the argument parsing here
 
 template <typename Op = detail::op_not_given, typename... KWArgs>
 void allreduce(

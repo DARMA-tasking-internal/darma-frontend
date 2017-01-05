@@ -58,14 +58,13 @@
 #include <unordered_map>
 #include <cstring>
 
-#include <threads_interface.h>
+#include <union_find.h>
 #include <common.h>
 #include <trace.h>
 
 #include <darma_types.h>
 
 namespace std {
-
   template<>
   struct hash<darma_runtime::types::key_t> {
     size_t operator()(darma_runtime::types::key_t const& in) const {
@@ -81,14 +80,16 @@ namespace threads_backend {
   using namespace darma_runtime::abstract::backend;
 
   struct InnerFlow;
-  struct ThreadsFlow;
-
   struct GraphNode;
-  // template <typename TaskType>
-  // struct TaskNode;
+  template <typename TaskType> struct TaskNode;
+  template <typename MetaTask> struct MetaTaskNode;
+  template <typename TaskType> struct TaskConditionNode;
   struct FetchNode;
-  struct PublishNode;
   struct CollectiveNode;
+  struct PublishNode;
+  struct DelayedPublish;
+  struct CollectiveInfo;
+  struct CollectionID;
 
   enum CollectiveType {
     AllReduce = 0
@@ -102,6 +103,12 @@ namespace std {
       return std::hash<
         std::common_type_t<size_t, threads_backend::CollectiveType>
       >()(in);
+    }
+  };
+  template<>
+  struct hash<threads_backend::CollectionID> {
+    size_t operator()(threads_backend::CollectionID const& in) {
+      return std::hash<size_t>()(in.collection) + std::hash<size_t>()(in.index);
     }
   };
 }
@@ -161,7 +168,7 @@ namespace threads_backend {
     types::key_t key;
     types::key_t version;
     bool finished;
-    std::shared_ptr<DataStoreHandle> data_store;
+    CollectionID collection_id;
   };
 
   struct CollectiveInfo {
@@ -184,7 +191,7 @@ namespace threads_backend {
     : public abstract::backend::Runtime
     , public abstract::backend::Context
     , public abstract::backend::MemoryManager
-    , public ThreadsInterface<ThreadsRuntime> {
+  {
 
   public:
     size_t inside_rank = 0;
@@ -199,10 +206,10 @@ namespace threads_backend {
 
     std::condition_variable cv_remote_awake{};
 
-    size_t data_store_counter = 0;
+    size_t next_collection_id = 1;
 
     std::unordered_map<
-      std::pair<types::key_t, types::key_t>,
+      std::tuple<CollectionID, types::key_t, types::key_t>,
       std::shared_ptr<DataBlock>
     > data, fetched_data;
 
@@ -302,15 +309,13 @@ namespace threads_backend {
 
     void
     cleanup_handle(
-      std::shared_ptr<InnerFlow> flow
+      InnerFlow* flow
     );
 
     void
     delete_handle_data(
-      handle_t const* handle,
-      types::key_t const& version,
-      types::key_t const& key,
-      bool const fromFetch
+      types::key_t const& version, types::key_t const& key,
+      CollectionID const& cid, bool const fromFetch
     );
 
     void
@@ -324,23 +329,22 @@ namespace threads_backend {
 
     bool
     test_alias_null(
-      std::shared_ptr<InnerFlow> flow,
-      std::shared_ptr<InnerFlow> alias
+      InnerFlow* flow, InnerFlow* alias
     );
 
     void
     release_to_write(
-      std::shared_ptr<InnerFlow> flow
+      InnerFlow* flow
     );
 
     bool
     finish_read(
-      std::shared_ptr<InnerFlow> flow
+      InnerFlow* flow
     );
 
     void
     create_next_subsequent(
-      std::shared_ptr<InnerFlow> flow
+      InnerFlow* flow
     );
 
     template <typename NodeType>
@@ -363,19 +367,16 @@ namespace threads_backend {
 
     bool
     flow_has_alias(
-      std::shared_ptr<InnerFlow> flow
+      InnerFlow* flow
     );
 
-    std::tuple<
-      std::shared_ptr<InnerFlow>,
-      bool
-    >
+    std::tuple<std::shared_ptr<InnerFlow>, bool>
     try_release_alias_to_read(
       std::shared_ptr<InnerFlow> flow
     );
 
     bool
-    try_release_to_read(std::shared_ptr<InnerFlow> flow);
+    try_release_to_read(InnerFlow* flow);
 
     size_t
     count_ready_work() const;
@@ -399,7 +400,7 @@ namespace threads_backend {
     template <typename TaskType>
     size_t
     check_dep_task(
-      std::shared_ptr<TaskNode<TaskType>> t
+      std::shared_ptr<TaskType> t
     );
 
     template <typename TaskType>
@@ -414,14 +415,62 @@ namespace threads_backend {
     virtual void
     register_use(use_t* u);
 
-    virtual void
-    register_concurrent_region(
-      concurrent_region_task_unique_ptr&& task,
-      size_t n_indices, std::shared_ptr<DataStoreHandle> const& data_store = nullptr
+    template <typename DataMap>
+    void
+    set_up_data(
+      use_t* u, std::shared_ptr<handle_t const> handle, DataMap& data,
+      types::key_t const& key, types::key_t const& version, CollectionID const& cid
     );
 
-    virtual std::shared_ptr<DataStoreHandle>
-    make_data_store();
+    void
+    assign_data_ptr(
+      use_t* u, std::shared_ptr<DataBlock> data_block
+    );
+
+    template <typename TaskType>
+    void
+    create_task(
+      std::shared_ptr<TaskType> task_node,
+      int rank = -1
+    );
+
+    void
+    indexed_alias_to_out(
+      InnerFlow* f_in, InnerFlow* f_alias
+    );
+
+    virtual void
+    register_task_collection(
+      task_collection_unique_ptr&& task_collection
+    );
+
+    virtual flow_t
+    make_initial_flow_collection(
+      std::shared_ptr<handle_t> const& handle
+    );
+
+    virtual flow_t
+    make_null_flow_collection(
+      std::shared_ptr<handle_t> const& handle
+    );
+
+    virtual flow_t
+    make_next_flow_collection(
+      flow_t& from
+    );
+
+    virtual flow_t
+    make_indexed_local_flow(
+      flow_t& from,
+      size_t backend_index
+    );
+
+    virtual flow_t
+    make_indexed_fetching_flow(
+      flow_t& from,
+      types::key_t const& version_key,
+      size_t backend_index
+    );
 
     std::shared_ptr<DataBlock>
     allocate_block(
@@ -434,47 +483,52 @@ namespace threads_backend {
       std::shared_ptr<handle_t> const& handle
     );
 
+    size_t
+    get_packed_flow_size(flow_t const& f) {
+      // TODO implement this
+      assert(false); // not implemented
+      return 0;
+    }
+
+    void
+    pack_flow(flow_t& f, void*& buffer) {
+      // TODO implement this
+      assert(false); // not implemented
+    }
+
+    flow_t
+    make_unpacked_flow(void const*& buffer) {
+      // TODO implement this
+      assert(false); // not implemented
+      return nullptr;
+    }
+
     bool
     add_fetcher(
       std::shared_ptr<FetchNode> fetch,
       handle_t* handle,
       types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& store
-    );
-
-    bool
-    try_fetch(
-      handle_t* handle,
-      types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& store
+      CollectionID cid
     );
 
     bool
     test_fetch(
       handle_t* handle,
       types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& store
-    );
-
-    void
-    blocking_fetch(
-      handle_t* handle,
-      types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& store
+      CollectionID cid
     );
 
     TraceLog*
     fetch(
       handle_t* handle,
       types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& store
+      CollectionID cid
     );
 
     virtual flow_t
     make_fetching_flow(
       std::shared_ptr<handle_t> const& handle,
       types::key_t const& version_key,
-      std::shared_ptr<DataStoreHandle> const& data_store,
       bool acquired = false
     );
 
@@ -530,12 +584,6 @@ namespace threads_backend {
     publish_use(
       use_t* f,
       pub_details_t* details
-    );
-
-    template <typename Node>
-    void
-    try_node(
-      std::list<std::shared_ptr<Node>>& nodes
     );
 
     template <typename Node>

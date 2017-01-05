@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      concrete_task_t.h
+//                   simple_collection.cc
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,17 +42,61 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_TYPES_CONCRETE_TASK_T_H
-#define DARMA_INTERFACE_FRONTEND_TYPES_CONCRETE_TASK_T_H
+#include <darma.h>
+#include <darma/impl/task_collection/handle_collection.h>
+#include <darma/impl/task_collection/task_collection.h>
+#include <darma/impl/array/index_range.h>
+#include <assert.h>
 
-#include <darma/impl/task_fwd.h>
+using namespace darma_runtime;
+using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
 
-namespace darma_runtime {
-namespace types {
+struct SimpleCollection {
+  void operator()(
+    Index1D<int> index,
+    AccessHandleCollection<int, Range1D<int>> c1,
+    bool const first
+  ) {
+    auto handle = c1[index].local_access();
 
-typedef darma_runtime::detail::ConcurrentRegionTaskImpl concrete_concurrent_region_task_t;
+    if (first) {
+      std::cout << "Setting index " << index.value
+                << " to value " << index.value
+                << std::endl;
+      handle.set_value(index.value);
+    } else {
+      std::cout << "Checking index "
+                << index.value
+                << " to make sure "
+                << handle.get_value()
+                << "=="
+                << index.value << std::endl;
+      assert(handle.get_value() == index.value);
+    }
+  }
+};
 
-} // end namespace types
-} // end namespace darma_runtime
+void darma_main_task(std::vector<std::string> args) {
 
-#endif //DARMA_INTERFACE_FRONTEND_TYPES_CONCRETE_TASK_T_H
+  if (args.size() > 1 && args[1] == "--help"){
+    std::cout << "Usage: ./simple_collection [Collection Size (int)]"
+              << std::endl;
+    return;
+  }
+
+  assert(args.size() == 2);
+
+  size_t const col_size = std::atoi(args[1].c_str());
+
+  auto c1 = initial_access_collection<int>("simple", index_range=Range1D<int>(col_size));
+
+  create_concurrent_work<SimpleCollection>(
+    c1, true, index_range=Range1D<int>(col_size)
+  );
+
+  create_concurrent_work<SimpleCollection>(
+    c1, false, index_range=Range1D<int>(col_size)
+  );
+}
+
+DARMA_REGISTER_TOP_LEVEL_FUNCTION(darma_main_task);

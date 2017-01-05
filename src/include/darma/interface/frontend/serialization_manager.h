@@ -45,6 +45,7 @@
 #ifndef SRC_ABSTRACT_FRONTEND_SERIALIZATION_MANAGER_H_
 #define SRC_ABSTRACT_FRONTEND_SERIALIZATION_MANAGER_H_
 
+#include <cassert>
 #include <darma/interface/backend/serialization_policy.h>
 
 namespace darma_runtime {

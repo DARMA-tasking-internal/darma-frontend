@@ -49,9 +49,9 @@
 #ifndef KEYWORD_ARGUMENTS_MACROS_H_
 #define KEYWORD_ARGUMENTS_MACROS_H_
 
-////////////////////////////////////////////////////////////////////////////////
+// TODO remove deprecated elements of this file!!!
 
-/* Keyword argument declaration macros                                   {{{1 */ #if 1 // begin fold
+////////////////////////////////////////////////////////////////////////////////
 
 #define __DARMA_detail_remove_parens(...) __VA_ARGS__
 
@@ -155,11 +155,25 @@ struct tag_data<darma_runtime::keyword_tags_for_##argument_for::name>           
 #define DeclareDarmaArgumentWithDefault(argument_for, name, arg_type, ...)                         \
   DeclareDarmaArgumentWithDefaultGetter(argument_for, name, arg_type, { return __VA_ARGS__; })
 
-/*                                                                            */ #endif // end fold
 
 ////////////////////////////////////////////////////////////////////////////////
 
 
+#define AliasDarmaKeyword(original_argument_for, name) \
+namespace { \
+/* anonymous namespace for linking purposes */ \
+static constexpr const \
+::darma_runtime::keyword_arguments_for_##original_argument_for::name##_keyword_name_t& \
+name = ::darma_runtime::keyword_arguments_for_##original_argument_for::name; \
+} /* end anonymous namespace */
+
+#define AliasDarmaKeywordAs(original_argument_for, name, as_name) \
+namespace { \
+/* anonymous namespace for linking purposes */ \
+static constexpr const \
+::darma_runtime::keyword_arguments_for_##original_argument_for::name##_keyword_name_t& \
+as_name = ::darma_runtime::keyword_arguments_for_##original_argument_for::name; \
+} /* end anonymous namespace */
 
 
 
