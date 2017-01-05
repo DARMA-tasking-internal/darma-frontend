@@ -62,7 +62,53 @@ struct ContiguousIndex {
   Integer value;
   Integer min_value;
   Integer max_value;
+
+  ContiguousIndex() : value(0), min_value(0), max_value(0) { }
+  ContiguousIndex(Integer i) : value(i), min_value(0), max_value(0) { }
+  ContiguousIndex(Integer i, Integer min, Integer max) : value(i), min_value(min), max_value(max) { }
+
+  bool operator < (ContiguousIndex const& other) const {
+    return value < other.value;
+  }
+
+  bool operator == (ContiguousIndex const& other) const {
+    return value == other.value;
+  }
+
+  template <typename IntegerConvertible>
+  ContiguousIndex operator- (IntegerConvertible&& other) const {
+    return { value - std::forward<IntegerConvertible>(other), min_value, max_value };
+  }
+
+  template <typename IntegerConvertible>
+  ContiguousIndex operator+ (IntegerConvertible&& other) const {
+    return { value + std::forward<IntegerConvertible>(other), min_value, max_value };
+  }
+
+  operator Integer() { return value; }
 };
+
+template <typename IntegerConvertible, typename Integer>
+std::enable_if_t<
+  not std::is_same<std::decay_t<IntegerConvertible>, ContiguousIndex<Integer>>::value,
+  ContiguousIndex<Integer>
+>
+operator- (IntegerConvertible&& other, ContiguousIndex<Integer> const& idx) {
+  return { std::forward<IntegerConvertible>(other) - idx.value,
+    idx.min_value, idx.max_value
+  };
+}
+
+template <typename IntegerConvertible, typename Integer>
+std::enable_if_t<
+  not std::is_same<std::decay_t<IntegerConvertible>, ContiguousIndex<Integer>>::value,
+  ContiguousIndex<Integer>
+>
+operator+ (IntegerConvertible&& other, ContiguousIndex<Integer> const& idx) {
+  return { std::forward<IntegerConvertible>(other) + idx.value,
+    idx.min_value, idx.max_value
+  };
+}
 
 template <typename Integer>
 class ContiguousIndexRange
@@ -78,9 +124,9 @@ class ContiguousIndexRange
 
   public:
 
-    using mapping_to_dense_t = detail::ContiguousIndexMapping<Integer>;
-    using index_t = ContiguousIndex<Integer>;
-    using is_index_range_t = std::true_type;
+    using mapping_to_dense = detail::ContiguousIndexMapping<Integer>;
+    using index_type = ContiguousIndex<Integer>;
+    using is_index_range = std::true_type;
 
     friend class detail::ContiguousIndexMapping<Integer>;
 
@@ -94,6 +140,7 @@ class ContiguousIndexRange
     void serialize(ArchiveT& ar) {
       ar | size_ | offset_;
     }
+
 
   public:
 
@@ -127,15 +174,15 @@ struct ContiguousIndexMapping {
     { }
 
     using is_index_mapping_t = std::true_type;
-    using from_index_t = ContiguousIndex<Integer>;
-    using to_index_t = DenseIndex;
+    using from_index_type = ContiguousIndex<Integer>;
+    using to_index_type = DenseIndex;
 
-    to_index_t map_forward(from_index_t const& from) const {
+    to_index_type map_forward(from_index_type const& from) const {
       return from.value - from.min_value;
     }
 
-    from_index_t map_reverse(to_index_t const& to) const {
-      return { static_cast<Integer>(to), range.offset_, range.offset_ + range.size_ };
+    from_index_type map_backward(to_index_type const& to) const {
+      return { static_cast<Integer>(to), range.offset_, range.offset_ + range.size_ - 1 };
     }
 
     template <typename ArchiveT> void serialize(ArchiveT& ar) { ar | range; }

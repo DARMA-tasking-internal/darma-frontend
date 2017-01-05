@@ -154,8 +154,8 @@ struct Unpacker {
   template <typename ArchiveT>
   std::enable_if_t<traits::template has_intrusive_unpack<ArchiveT>::value>
   unpack(void *allocated, ArchiveT &ar) const {
-    T *v = new(allocated) T;
-    v->unpack(ar);
+    T& v = traits::reconstruct(allocated, ar);
+    v.unpack(ar);
   };
 
   // serialize() method version
@@ -165,8 +165,8 @@ struct Unpacker {
       and not traits::template has_intrusive_unpack<ArchiveT>::value
   >
   unpack(void *allocated, ArchiveT &ar) const {
-    T *v = new(allocated) T;
-    v->serialize(ar);
+    T& v = traits::reconstruct(allocated, ar);
+    v.serialize(ar);
   };
 
 };

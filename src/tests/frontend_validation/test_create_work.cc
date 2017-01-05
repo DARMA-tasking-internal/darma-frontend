@@ -94,7 +94,7 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
   const bool use_helper = GetParam();
 
   MockFlow f_initial, f_null, f_task_out;
-  use_t* task_use;
+  use_t* task_use = nullptr;
 
   EXPECT_INITIAL_ACCESS(f_initial, f_null, make_key("hello"));
 
@@ -115,7 +115,6 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
 
   EXPECT_FLOW_ALIAS(f_task_out, f_null);
 
-  EXPECT_RELEASE_FLOW(f_task_out);
   EXPECT_RELEASE_FLOW(f_null);
 
   {
@@ -132,6 +131,8 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
   EXPECT_RELEASE_USE(task_use);
 
   EXPECT_RELEASE_FLOW(f_initial);
+
+  EXPECT_RELEASE_FLOW(f_task_out);
 
   mock_runtime->registered_tasks.clear();
 
@@ -157,6 +158,7 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
   MockFlow fnull1("null1"), fnull2("null2");
   MockFlow fout1("out1"), fout2("out2");
   use_t *use_1, *use_2;
+  use_1 = use_2 = nullptr;
 
   EXPECT_INITIAL_ACCESS(finit1, fnull1, make_key("hello"));
   EXPECT_INITIAL_ACCESS(finit2, fnull2, make_key("world"));
@@ -218,7 +220,7 @@ TEST_P(TestRoCaptureRN, ro_capture_RN) {
   Sequence s1, s_release_read;
 
   MockFlow f_fetch, f_null;
-  use_t* read_use;
+  use_t* read_use = nullptr;
   EXPECT_READ_ACCESS(f_fetch, f_null, make_key("hello"), make_key("world"));
 
   bool use_helper = GetParam();
@@ -284,9 +286,11 @@ TEST_P(TestCaptureMM, capture_MM) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow finit, fnull, f_outer_out, f_forwarded, f_inner_out;
-  use_t* use_outer, *use_inner;
-  use_outer = use_inner = nullptr;
+  MockFlow finit("finit"), fnull("fnull"),
+    f_outer_out("f_outer_out"), f_forwarded("f_forwarded"),
+    f_inner_out("f_inner_out");
+  use_t* use_outer, *use_inner, *use_continuing;
+  use_outer = use_inner = use_continuing = nullptr;
 
   EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
 
@@ -308,8 +312,8 @@ TEST_P(TestCaptureMM, capture_MM) {
   EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_outer_out, &fnull))
     .InSequence(s1);
 
-  ////////////////////////////////////////////////////////////////////////////////
-
+  //============================================================================
+  // Actual code being tested
   if(use_vector) {
 
     std::vector<AccessHandle<int>> tmp;
@@ -333,7 +337,7 @@ TEST_P(TestCaptureMM, capture_MM) {
 
   }
 
-  ////////////////////////////////////////////////////////////////////////////////
+  //----------------------------------------------------------------------------
 
   else {
 
@@ -356,8 +360,7 @@ TEST_P(TestCaptureMM, capture_MM) {
     });
 
   }
-
-  ////////////////////////////////////////////////////////////////////////////////
+  //============================================================================
 
   ON_CALL(*mock_runtime, get_running_task())
     .WillByDefault(Return(ByRef(outer)));
@@ -386,6 +389,15 @@ TEST_P(TestCaptureMM, capture_MM) {
         use->get_data_pointer_reference() = (void*)(&value);
         use_inner = use;
       }));
+    // Expect the continuing context use to be registered after the captured context
+    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
+      &f_forwarded, &f_outer_out, use_t::Modify, use_t::Read
+    ))).InSequence(s1)
+      .WillOnce(Invoke([&](auto&& use){
+        // Shouldn't be necessary
+        // use->get_data_pointer_reference() = (void*)(&value);
+        use_continuing = use;
+      }));
   }
 
   EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(use_outer))))
@@ -398,7 +410,9 @@ TEST_P(TestCaptureMM, capture_MM) {
     EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_inner_out, &f_outer_out));
   }
   else{
+    // Note: Currently there is no ordering requirement on these two
     EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_forwarded, &f_outer_out));
+    EXPECT_RELEASE_USE(use_continuing);
   }
 
   EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(use_inner))))
@@ -489,3 +503,262 @@ TEST_F(TestCreateWork, handle_aliasing) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct TestScheduleOnly
+  : TestCreateWork,
+    ::testing::WithParamInterface<bool>
+{ };
+
+TEST_P(TestScheduleOnly, schedule_only) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow finit, fnull, fcapt, f_sched_out, f_immed_out;
+  use_t *use_immed_capt, *use_sched_capt, *use_read_capt, *use_sched_contin,
+    *use_ro_sched;
+  use_read_capt = use_immed_capt = use_sched_capt = nullptr;
+  use_ro_sched = nullptr;
+
+  int value = 0;
+
+  bool sched_capture_read = GetParam();
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+
+  // First, expect the task that does a schedule-only capture
+
+  // Expect a schedule-only mod capture
+  EXPECT_CALL(*mock_runtime, make_next_flow(finit))
+    .WillOnce(Return(f_sched_out));
+  Expectation reg_sched =
+    EXPECT_REGISTER_USE(use_sched_capt, finit, f_sched_out, Modify, None);
+  EXPECT_REGISTER_TASK(use_sched_capt).After(reg_sched);
+
+  if(not sched_capture_read) {
+    // Then expect the task that does a read-only capture
+    EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(f_sched_out, use_read_capt, value);
+    EXPECT_REGISTER_TASK(use_read_capt);
+  }
+  else {
+    // Expect a schedule-only ro capture
+    EXPECT_REGISTER_USE(use_ro_sched, f_sched_out, f_sched_out, Read, None);
+    EXPECT_REGISTER_TASK(use_ro_sched);
+  }
+
+  EXPECT_FLOW_ALIAS(f_sched_out, fnull);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp = initial_access<int>("hello");
+
+    create_work(schedule_only(tmp), [=]{
+      create_work([=]{
+        tmp.set_value(42);
+      });
+    });
+
+    if(not sched_capture_read) {
+      create_work(reads(tmp), [=] {
+        EXPECT_THAT(tmp.get_value(), Eq(42));
+      });
+    }
+    else {
+      create_work(schedule_only(reads(tmp)), [=] {
+        create_work(reads(tmp), [=] {
+          EXPECT_THAT(tmp.get_value(), Eq(42));
+        });
+      });
+
+    }
+
+  }
+  //============================================================================
+
+  // Now expect the mod-immediate task to be registered once the first task is run
+  // TODO technically I should change the return value of get_running_task here...
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, f_immed_out, use_immed_capt, value);
+  EXPECT_REGISTER_TASK(use_immed_capt);
+
+  // Also, a replacement schedule-only use should be registered
+  EXPECT_REGISTER_USE(use_sched_contin, f_immed_out, f_sched_out, Modify, None);
+
+  EXPECT_RELEASE_USE(use_sched_contin);
+  EXPECT_FLOW_ALIAS(f_immed_out, f_sched_out);
+
+  EXPECT_RELEASE_USE(use_sched_capt);
+
+  mock_runtime->registered_tasks.front()->run();
+  mock_runtime->registered_tasks.pop_front();
+
+  EXPECT_RELEASE_USE(use_immed_capt);
+
+  // now the inner task should be on the back, so run it next
+  mock_runtime->registered_tasks.back()->run();
+  mock_runtime->registered_tasks.pop_back();
+
+
+  if(sched_capture_read) {
+    // The outer task will be on the front now
+    EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(f_sched_out, use_read_capt, value);
+    EXPECT_REGISTER_TASK(use_read_capt);
+
+    EXPECT_RELEASE_USE(use_ro_sched);
+
+    mock_runtime->registered_tasks.front()->run();
+    mock_runtime->registered_tasks.pop_front();
+  }
+
+  EXPECT_RELEASE_USE(use_read_capt);
+
+  // and finally the read task
+  mock_runtime->registered_tasks.front()->run();
+  mock_runtime->registered_tasks.pop_front();
+  EXPECT_TRUE(mock_runtime->registered_tasks.empty());
+
+}
+
+INSTANTIATE_TEST_CASE_P(
+  schedule_only,
+  TestScheduleOnly,
+  ::testing::Bool()
+);
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestCreateWork, death_schedule_only) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  MockFlow finit, fnull, f_sched_out;
+  use_t* use_sched_capt = nullptr;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+
+  // Expect a schedule-only mod capture
+  EXPECT_CALL(*mock_runtime, make_next_flow(finit))
+    .WillOnce(Return(f_sched_out));
+  EXPECT_REGISTER_USE(use_sched_capt, finit, f_sched_out, Modify, None);
+  EXPECT_REGISTER_TASK(use_sched_capt);
+
+  mock_runtime->save_tasks = true;
+
+  //============================================================================
+  // actual code being tested (that should fail when run)
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work(schedule_only(tmp), [=] {
+      EXPECT_DEATH(
+        {
+          tmp.set_value(42);
+        },
+        "set_value\\(\\) called on handle not in immediately modifiable state.*"
+      );
+    });
+
+  }
+  //============================================================================
+
+  run_all_tasks();
+
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow finit("finit"), fnull("fnull"), ftask_out("ftask_out");
+  MockFlow fforw("fforw"), finner_out("inner_out");
+  use_t* use_task, *use_pub, *use_pub_cont, *use_inner;
+  use_task = use_pub = use_pub_cont = use_inner = nullptr;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, ftask_out, use_task);
+
+  EXPECT_REGISTER_TASK(use_task);
+
+  EXPECT_FLOW_ALIAS(ftask_out, fnull);
+
+  // Inside of outer task:
+
+  EXPECT_CALL(*mock_runtime, make_forwarding_flow(finit))
+    .WillOnce(Return(fforw));
+
+  EXPECT_REGISTER_USE(use_pub, fforw, fforw, None, Read);
+
+  {
+    InSequence s;
+
+    EXPECT_REGISTER_USE(use_pub_cont, fforw, ftask_out, Modify, Read);
+
+    EXPECT_RELEASE_USE(use_task);
+
+    EXPECT_CALL(*mock_runtime, publish_use(Eq(ByRef(use_pub)), _));
+
+    EXPECT_RELEASE_USE(use_pub);
+
+  }
+
+  int value = 0;
+
+  {
+    InSequence s;
+
+    EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(fforw, finner_out, use_inner, value);
+
+    EXPECT_RELEASE_USE(use_pub_cont);
+  }
+
+  EXPECT_REGISTER_TASK(use_inner);
+
+  EXPECT_FLOW_ALIAS(finner_out, ftask_out);
+
+  // Inside of inner task
+
+  EXPECT_RELEASE_USE(use_inner);
+
+
+  //============================================================================
+  // actual code being tested
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work([=]{
+
+      tmp.publish();
+
+      create_work([=]{
+        tmp.set_value(42);
+      });
+
+    });
+
+  }
+  //
+  //============================================================================
+
+  run_all_tasks();
+
+  EXPECT_THAT(value, Eq(42));
+
+}
+
+////////////////////////////////////////////////////////////////////////////////

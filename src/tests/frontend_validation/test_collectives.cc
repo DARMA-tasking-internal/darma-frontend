@@ -230,7 +230,8 @@ TEST_P(Test_different_inout_allreduce, overload) {
 
   EXPECT_REGISTER_USE(reduce_in_use, f_task_out, f_task_out, None, Read)
     .InSequence(s1);
-  EXPECT_REGISTER_USE(reduce_out_use, f_out_init, f_collect_out, None, Write)
+  // TODO change this to Write once that is implemented
+  EXPECT_REGISTER_USE(reduce_out_use, f_out_init, f_collect_out, None, Modify)
     .InSequence(s2);
 
   EXPECT_CALL(*mock_runtime, allreduce_use(

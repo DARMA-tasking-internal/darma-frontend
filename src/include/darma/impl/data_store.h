@@ -48,61 +48,6 @@
 
 #include <memory>
 
-#include <darma/interface/backend/data_store_handle.h>
 #include <darma/interface/backend/runtime.h>
-
-namespace darma_runtime {
-
-struct DataStore;
-
-namespace detail {
-struct DataStoreAttorney {
-  static inline std::shared_ptr<abstract::backend::DataStoreHandle>&
-  get_handle(DataStore&);
-};
-} // end namespace detail
-
-struct DataStore {
-  private:
-
-    std::shared_ptr<abstract::backend::DataStoreHandle> ds_handle_ = nullptr;
-
-    explicit
-    DataStore(std::shared_ptr<abstract::backend::DataStoreHandle> const& h)
-      : ds_handle_(h)
-    { }
-
-    friend DataStore create_data_store();
-
-    friend class detail::DataStoreAttorney;
-
-  public:
-
-    static constexpr struct default_data_store_tag_t { } default_data_store_tag { };
-
-    explicit
-    DataStore(default_data_store_tag_t) : ds_handle_(nullptr) { }
-
-    bool is_default() const { return not bool(ds_handle_); }
-
-};
-
-
-inline DataStore create_data_store() {
-  return DataStore(abstract::backend::get_backend_runtime()->make_data_store());
-}
-
-namespace detail {
-
-inline std::shared_ptr<abstract::backend::DataStoreHandle>&
-DataStoreAttorney::get_handle(DataStore& ds) {
-  return ds.ds_handle_;
-}
-
-} // end namespace detail
-
-
-
-} // end namespace darma_runtime
 
 #endif //DARMA_IMPL_DATA_STORE_H

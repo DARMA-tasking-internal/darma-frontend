@@ -88,6 +88,12 @@ struct nonesuch {
 template <template <class...> class Op, class... Args>
 using is_detected = detector<nonesuch, void, Op, Args...>;
 
+// same as is_detected, but strictly wrapped in an integral constant
+template <template <class...> class Op, class... Args>
+using is_detected_value_t = std::integral_constant<bool,
+  detector<nonesuch, void, Op, Args...>::value
+>;
+
 template <template <class...> class Op, class... Args>
 using detected_t = typename is_detected<Op, Args...>::type;
 

@@ -51,7 +51,7 @@
 #include "runtime.h"
 #include "spmd.h"
 #include "create_work.h"
-#include "concurrent_region.h"
+//#include "concurrent_region.h"
 #include <darma/impl/collective/allreduce.h>
 #include <darma/impl/top_level.h>
 #include <darma/interface/defaults/darma_main.h>

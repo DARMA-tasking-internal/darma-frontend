@@ -57,7 +57,7 @@ class MemoryManager;
 
 class DataStoreHandle;
 
-class ConcurrentRegionContextHandle;
+class TaskCollectionContextHandle;
 
 } // end namespace backend
 } // end namespace abstract

@@ -60,14 +60,21 @@
 #include <darma/impl/use.h>
 #include <darma/impl/publication_details.h>
 #include <darma/impl/flow_handling.h>
+#include <darma/impl/task_collection/task_collection_fwd.h>
+#include <darma/impl/keyword_arguments/parse.h>
 
 namespace darma_runtime {
 
 namespace detail {
 
+template <typename AccessHandleT>
+class IndexedAccessHandle;
+
 // forward declaration
 template <typename Op>
 struct all_reduce_impl;
+
+struct unfetched_access_handle_tag { };
 
 template <typename AccessHandleT>
 struct _publish_impl;
@@ -159,6 +166,12 @@ class AccessHandle : public detail::AccessHandleBase {
         )
     >;
 
+    static constexpr auto is_collection_captured = traits::collection_capture_given;
+    static constexpr auto is_collection_captured_as_shared_read =
+      traits::collection_captured_as_shared_read;
+    static constexpr auto is_collection_captured_as_unique_modify =
+      traits::collection_captured_as_unique_modify;
+
   private:
 
   public:
@@ -189,6 +202,7 @@ class AccessHandle : public detail::AccessHandleBase {
       std::swap(var_handle_, other.var_handle_);
       std::swap(current_use_, other.current_use_);
       value_constructed_ = other.value_constructed_;
+      unfetched_ = other.unfetched_;
       return *this;
     }
 
@@ -205,9 +219,17 @@ class AccessHandle : public detail::AccessHandleBase {
       );
       capturing_task = running_task->current_create_work_context;
       var_handle_ = copied_from.var_handle_;
+      DARMA_ASSERT_MESSAGE(
+        not copied_from.unfetched_,
+        "Illegal capture of unfetched non-local AccessHandle"
+      );
 
       // Now check if we're in a capturing context:
       if (capturing_task != nullptr) {
+        //DARMA_ASSERT_MESSAGE(
+        //  not copied_from.unfetched_,
+        //  "Illegal capture of unfetched non-local AccessHandle"
+        //);
         AccessHandle const* source = &copied_from;
         if(capturing_task->is_double_copy_capture) {
           assert(copied_from.prev_copied_from != nullptr);
@@ -251,6 +273,10 @@ class AccessHandle : public detail::AccessHandleBase {
       );
       capturing_task = running_task->current_create_work_context;
       var_handle_ = AccessHandleAccess::var_handle(copied_from);
+      DARMA_ASSERT_MESSAGE(
+        not copied_from.unfetched_,
+        "Illegal capture of unfetched non-local AccessHandle"
+      );
 
       // Now check if we're in a capturing context:
       if (capturing_task != nullptr) {
@@ -275,15 +301,76 @@ class AccessHandle : public detail::AccessHandleBase {
         capturing_task->do_capture<AccessHandle>(*this, copied_from);
       } // end if capturing_task != nullptr
       else {
-        // regular copy
-        DARMA_ASSERT_FAILURE(
-          "Copying an AccessHandle<T> to an analogous type (e.g., ReadAccessHandle<T>) is not"
-          " allowed (except for the implicit copy that occurs when the handle is being captured)"
-        );
+        // regular copy, just copy over the current use
+        current_use_ = copied_from.current_use_;
       }
     }
 
     // end analogous type conversion constructor
+    ////////////////////////////////////////
+
+    ////////////////////////////////////////
+    // Collection capture
+
+  protected:
+
+    template <typename U>
+    using _is_collection_captured_archetype = tinympl::bool_<U::is_collection_captured>;
+
+    template <typename U>
+    using _is_not_collection_captured_archetype = tinympl::bool_<not U::is_collection_captured>;
+
+    template <typename U>
+    using access_handle_is_collection_captured = meta::detected_or_t<
+      std::false_type, _is_collection_captured_archetype, U
+    >;
+
+    template <typename U>
+    using access_handle_is_not_collection_captured = meta::detected_or_t<
+      std::false_type, _is_not_collection_captured_archetype, U
+    >;
+
+  public:
+
+    template <typename AccessHandleT>
+    AccessHandle(AccessHandleT&& other,
+      std::enable_if_t<
+        is_convertible_from_access_handle<AccessHandleT>::value
+          and not is_collection_captured
+          and access_handle_is_collection_captured<std::decay_t<AccessHandleT>>::value,
+        detail::_not_a_type
+      > = { detail::_not_a_type_ctor_tag }
+    ) {
+      // Don't do a copy-based capture and registration; the TaskCollection
+      // creation process will handle it.  Just copy over things...
+      var_handle_ = std::forward<AccessHandleT>(other).var_handle_;
+      current_use_ = std::forward<AccessHandleT>(other).current_use_;
+      // this is the only place where unfetched copy is legal
+      unfetched_ = other.unfetched_;
+      // Everything else will be set up by the TaskCollection setup process
+    }
+
+    template <typename AccessHandleT>
+    AccessHandle(AccessHandleT&& other,
+      std::enable_if_t<
+        is_convertible_from_access_handle<AccessHandleT>::value
+          and is_collection_captured
+          and access_handle_is_not_collection_captured<std::decay_t<AccessHandleT>>::value,
+        detail::_not_a_type
+      > = { detail::_not_a_type_ctor_tag }
+    ) {
+      // Don't do a copy-based capture and registration; the TaskCollection
+      // creation process will handle it.  Just copy over things...
+      var_handle_ = std::forward<AccessHandleT>(other).var_handle_;
+      current_use_ = std::forward<AccessHandleT>(other).current_use_;
+      DARMA_ASSERT_MESSAGE(
+        not other.unfetched_,
+        "Illegal capture of unfetched non-local AccessHandle"
+      );
+      // Everything else will be set up by the TaskCollection setup process
+    }
+
+    // end Collection capture
     ////////////////////////////////////////
 
     // Allow casting to a non-const reference
@@ -297,23 +384,31 @@ class AccessHandle : public detail::AccessHandleBase {
     AccessHandle(AccessHandle &&) noexcept = default;
 
     // Analogous type move constructor
-    template <
-      typename AccessHandleT,
-      typename = std::enable_if_t<
+    // Can't use forwarding constructor here, apparently
+    template <typename AccessHandleT>
+    AccessHandle(AccessHandleT&& /* note: not universal reference! */ other,
+      std::enable_if_t<
         // Check if this is convertible from AccessHandleT
-        is_convertible_from_access_handle<
-          std::decay_t<AccessHandleT>>::value
+        is_convertible_from_access_handle<std::decay_t<AccessHandleT>>::value
           and not std::is_same<std::decay_t<AccessHandleT>, AccessHandle>::value
-          // also, turn this into a non-universal ref (i.e., only use for rvalue references)
-          // and ignore consts as well (they should go to the const move constructor below)
+            // also, turn this into a non-universal ref (i.e., only use for rvalue references)
+            // and ignore consts as well (they should go to the const move constructor below)
           and std::is_same<
             std::remove_const_t<std::remove_reference_t<AccessHandleT>>,
             AccessHandleT
           >::value
-      >
-    >
-    AccessHandle(AccessHandleT&& /* note: not universal reference! */ other) noexcept
-      : AccessHandle( reinterpret_cast<AccessHandle&&>(std::move(other)) )
+          and access_handle_is_not_collection_captured<AccessHandleT>::value
+          and not is_collection_captured
+          and not access_handle_is_collection_captured<AccessHandleT>::value,
+        detail::_not_a_type
+      > _nat = { detail::_not_a_type_ctor_tag }
+    ) noexcept
+      : var_handle_(std::move(other.var_handle_)),
+        current_use_(std::move(other.current_use_)),
+        value_constructed_(std::move(other.value_constructed_)),
+        unfetched_(std::move(other.unfetched_)),
+        owning_index_(std::move(other.owning_index_)),
+        owning_backend_index_(std::move(other.owning_backend_index_))
     { }
 
     AccessHandle(AccessHandle const&& other) noexcept
@@ -337,7 +432,11 @@ class AccessHandle : public detail::AccessHandleBase {
     // </editor-fold> end move constructors
     ////////////////////////////////////////
 
-    template <typename _Ignored=void,
+    //==============================================================================
+    // <editor-fold desc="Public interface methods"> {{{1
+
+    template <
+      typename _Ignored=void,
       typename = std::enable_if_t<
         is_compile_time_immediate_readable
           and std::is_same<_Ignored, void>::value
@@ -345,17 +444,23 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     std::conditional_t<
       is_compile_time_immediate_read_only,
-      T const *,
+      T const*,
       T*
     >
     operator->() const {
+      DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "handle dereferenced in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
-        "handle dereferenced in state without immediate access to data, with key: {" << get_key() << "}"
+        current_use_->use.immediate_permissions_
+          != abstract::frontend::Use::Permissions::None,
+        "handle dereferenced in state without immediate access to data, with key: {"
+          << get_key() << "}"
       );
       using return_t_decay = std::conditional_t<
         is_compile_time_immediate_read_only,
@@ -365,7 +470,8 @@ class AccessHandle : public detail::AccessHandleBase {
       return static_cast<return_t_decay*>(current_use_->use.data_);
     }
 
-    template <typename _Ignored=void,
+    template <
+      typename _Ignored=void,
       typename = std::enable_if_t<
         is_compile_time_immediate_readable
           and std::is_same<_Ignored, void>::value
@@ -378,12 +484,18 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     operator*() const {
       DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "handle dereferenced in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
-        "handle dereferenced in state without immediate access to data, with key: {" << get_key() << "}"
+        current_use_->use.immediate_permissions_
+          != abstract::frontend::Use::Permissions::None,
+        "handle dereferenced in state without immediate access to data, with key: {"
+          << get_key() << "}"
       );
       using return_t_decay = std::conditional_t<
         is_compile_time_immediate_read_only,
@@ -397,13 +509,19 @@ class AccessHandle : public detail::AccessHandleBase {
       typename _Ignored = void,
       typename = std::enable_if_t<
         // Technically, if this is compile-time nothing, you can't even do this, so we can disable it
-        not (traits::max_immediate_permissions == detail::AccessHandlePermissions::None
-          and traits::max_schedule_permissions == detail::AccessHandlePermissions::None)
+        not(traits::max_immediate_permissions
+          == detail::AccessHandlePermissions::None
+          and traits::max_schedule_permissions
+            == detail::AccessHandlePermissions::None)
           and std::is_same<_Ignored, void>::value
       >
     >
     void
     release() const {
+      DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
       DARMA_ASSERT_MESSAGE(
         _can_be_released(),
         "release() called on handle not in releasable state (most likely, uninitialized or already released)"
@@ -415,18 +533,24 @@ class AccessHandle : public detail::AccessHandleBase {
       typename U,
       typename = std::enable_if_t<
         std::is_convertible<U, T>::value
-        and is_compile_time_immediate_modifiable
+          and is_compile_time_immediate_modifiable
       >
     >
     void
     set_value(U&& val) const {
       DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "set_value() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
-        "set_value() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
+        current_use_->use.immediate_permissions_
+          == abstract::frontend::Use::Permissions::Modify,
+        "set_value() called on handle not in immediately modifiable state, with key: {"
+          << get_key() << "}"
       );
       DARMA_ASSERT_MESSAGE(value_constructed_,
         "Tried to call set_value on non-default-constructible type before calling emplace_value to construct"
@@ -441,14 +565,20 @@ class AccessHandle : public detail::AccessHandleBase {
         and is_compile_time_immediate_modifiable
         and std::is_same<_Ignored, void>::value
     >
-    emplace_value(Args&&... args) const {
+    emplace_value(Args&& ... args) const {
+      DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "emplace_value() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
-        "emplace_value() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
+        current_use_->use.immediate_permissions_
+          == abstract::frontend::Use::Permissions::Modify,
+        "emplace_value() called on handle not in immediately modifiable state, with key: {"
+          << get_key() << "}"
       );
       // TODO do this more uniformly and/or expose it to the frontend somehow
       using alloc_t = std::allocator<T>;
@@ -457,27 +587,37 @@ class AccessHandle : public detail::AccessHandleBase {
       if (value_constructed_) {
         allocator_traits_t::destroy(alloc, (T*)(current_use_->use.data_));
       }
-      allocator_traits_t::construct(alloc, (T*)(current_use_->use.data_), std::forward<Args>(args)...);
+      allocator_traits_t::construct(
+        alloc,
+        (T*)(current_use_->use.data_),
+        std::forward<Args>(args)...
+      );
       value_constructed_ = true;
     }
 
     template <
       typename = std::enable_if<
         not std::is_same<T, void>::value
-        and is_compile_time_immediate_readable
+          and is_compile_time_immediate_readable
       >
     >
     const T&
     get_value() const {
       DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "get_value() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use.immediate_permissions_ != abstract::frontend::Use::Permissions::None,
-        "get_value() called on handle not in immediately readable state, with key: {" << get_key() << "}"
+        current_use_->use.immediate_permissions_
+          != abstract::frontend::Use::Permissions::None,
+        "get_value() called on handle not in immediately readable state, with key: {"
+          << get_key() << "}"
       );
-      return *static_cast<T const *>(current_use_->use.data_);
+      return *static_cast<T const*>(current_use_->use.data_);
     }
 
     const key_t&
@@ -488,18 +628,24 @@ class AccessHandle : public detail::AccessHandleBase {
     template <
       typename = std::enable_if<
         not std::is_same<T, void>::value
-        and is_compile_time_immediate_modifiable
+          and is_compile_time_immediate_modifiable
       >
     >
     T&
     get_reference() const {
       DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "get_reference() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use.immediate_permissions_ == abstract::frontend::Use::Permissions::Modify,
-        "get_reference() called on handle not in immediately modifiable state, with key: {" << get_key() << "}"
+        current_use_->use.immediate_permissions_
+          == abstract::frontend::Use::Permissions::Modify,
+        "get_reference() called on handle not in immediately modifiable state, with key: {"
+          << get_key() << "}"
       );
       return *static_cast<T*>(current_use_->use.data_);
     }
@@ -510,26 +656,136 @@ class AccessHandle : public detail::AccessHandleBase {
         and std::is_same<_Ignored, void>::value
     >
     publish(
-      PublishExprParts&&... parts
+      PublishExprParts&& ... parts
     ) const;
 
-    template <typename _Ignored=void, typename... PublishExprParts>
-    std::enable_if_t<
-      is_compile_time_schedule_readable
-        and std::is_same<_Ignored, void>::value
-    >
-    publish_out(
-      PublishExprParts&&... parts
+    template <typename... Args>
+    auto const& read_access(
+      Args&& ... args
     ) const {
-      return publish(
-        std::forward<PublishExprParts>(parts)...,
-        darma_runtime::keyword_arguments_for_publication::out = true
+
+      DARMA_ASSERT_MESSAGE(
+        unfetched_,
+        "Illegal operation on AccessHandle not in an unfetched state"
       );
+
+      unfetched_ = false;
+
+      using namespace darma_runtime::detail;
+      using parser = detail::kwarg_parser<
+        overload_description<
+          _optional_keyword<
+            converted_parameter,
+            keyword_tags_for_publication::version
+          >
+        >
+      >;
+      using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<
+        Args...
+      >;
+
+      return parser()
+        .with_converters(
+          [](auto&& ... parts) {
+            return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+          }
+        )
+        .with_default_generators(
+          keyword_arguments_for_publication::version = [] { return make_key(); }
+        )
+        .parse_args(std::forward<Args>(args)...)
+        .invoke(
+          [this](
+            types::key_t&& version_key
+          ) -> decltype(auto) {
+
+            auto* backend_runtime = abstract::backend::get_backend_runtime();
+            auto fetched_in_flow = make_flow_ptr(
+              backend_runtime->make_fetching_flow(
+                var_handle_,
+                version_key
+              )
+            );
+
+            auto fetched_out_flow = make_flow_ptr(
+              backend_runtime->make_null_flow(
+                var_handle_
+              )
+            );
+
+            current_use_ = std::make_shared<GenericUseHolder < HandleUse>>
+            (
+              HandleUse(
+                var_handle_,
+                fetched_in_flow,
+                fetched_out_flow,
+                HandleUse::Read,
+                HandleUse::Read
+              )
+            );
+
+            current_use_->could_be_alias = true;
+            current_use_->use.use_->collection_owner_ = owning_index_;
+
+            return *this;
+
+          }
+        );
+    }
+
+
+    template <
+      typename Index,
+      typename _for_SFINAE_only=void,
+      typename=std::enable_if_t<
+        not is_collection_captured
+          and std::is_void<_for_SFINAE_only>::value
+      >
+    >
+    with_traits<
+      typename traits::template with_collection_capture_mode<
+        detail::AccessHandleTaskCollectionCaptureMode::UniqueModify
+      >::type::template with_owning_index_type<std::decay_t<Index>>::type
+    >
+    owned_by(Index&& idx) const {
+      using return_type = with_traits<
+        typename traits::template with_collection_capture_mode<
+          detail::AccessHandleTaskCollectionCaptureMode::UniqueModify
+        >::type::template with_owning_index_type<std::decay_t<Index>>::type
+      >;
+      auto rv = return_type(*this);
+      rv.owning_index_ = std::forward<Index>(idx);
+      return rv;
     };
+
+    template <
+      typename _for_SFINAE_only=void,
+      typename=std::enable_if_t<
+        not is_collection_captured
+          and std::is_void<_for_SFINAE_only>::value
+      >
+    >
+    with_traits<
+      typename traits::template with_collection_capture_mode<
+        detail::AccessHandleTaskCollectionCaptureMode::SharedRead
+      >::type
+    >
+    shared_read() const {
+      using return_type = with_traits<
+        typename traits::template with_collection_capture_mode<
+          detail::AccessHandleTaskCollectionCaptureMode::SharedRead
+        >::type
+      >;
+      return return_type(*this);
+    };
+
+    // </editor-fold> end Public interface methods }}}1
+    //==============================================================================
+
 
     ~AccessHandle() noexcept = default;
 
-   private:
+  private:
 
     //void _switch_to_new_use(use_holder_ptr&& new_use) const {
     //  std::swap(current_use_, new_use);
@@ -541,8 +797,18 @@ class AccessHandle : public detail::AccessHandleBase {
       return (bool)current_use_.get() && current_use_->use.handle_ != nullptr;
     }
 
-    ////////////////////////////////////////
-    // private constructors
+  //==============================================================================
+  // <editor-fold desc="private ctors"> {{{1
+
+  private:
+
+    explicit
+    AccessHandle(
+      variable_handle_ptr const& var_handle,
+      use_holder_ptr const& use_holder
+    )
+      : var_handle_(var_handle),
+      current_use_(use_holder) {}
 
     AccessHandle(
       variable_handle_ptr var_handle,
@@ -551,11 +817,15 @@ class AccessHandle : public detail::AccessHandleBase {
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions
     ) : var_handle_(var_handle),
-        current_use_(detail::make_shared<detail::UseHolder>(detail::HandleUse(
-          var_handle_,
-          in_flow, out_flow,
-          scheduling_permissions, immediate_permissions
-        )))
+        current_use_(
+          detail::make_shared<detail::UseHolder>(
+            detail::HandleUse(
+              var_handle_,
+              in_flow, out_flow,
+              scheduling_permissions, immediate_permissions
+            )
+          )
+        )
     {
       current_use_->could_be_alias = true;
     }
@@ -575,25 +845,65 @@ class AccessHandle : public detail::AccessHandleBase {
 
       ar >> sched >> immed;
 
+      auto* backend_runtime = abstract::backend::get_backend_runtime();
+
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+      auto in_flow = detail::make_flow_ptr(
+        backend_runtime->make_unpacked_flow(
+          ArchiveAccess::get_const_spot(ar)
+        )
+      );
+
+      // Note that the backend function advances the underlying pointer, so the
+      // pointer returned by get_spot is different in the call below from the
+      // call above
+      auto out_flow = detail::make_flow_ptr(
+        backend_runtime->make_unpacked_flow(
+          ArchiveAccess::get_const_spot(ar)
+        )
+      );
+
       current_use_ = std::make_shared<detail::UseHolder>(
         detail::migrated_use_arg,
         detail::HandleUse(
-          var_handle_, nullptr, nullptr, sched, immed
+          var_handle_,
+          in_flow, out_flow, sched, immed
         )
       );
 
       #pragma clang diagnostic pop
     }
 
-    ////////////////////////////////////////
-    // private members
+    AccessHandle(
+      detail::unfetched_access_handle_tag,
+      variable_handle_ptr const& var_handle,
+      use_holder_ptr const& unreg_use_ptr
+    ) : var_handle_(var_handle),
+        current_use_(unreg_use_ptr),
+        unfetched_(true)
+    { }
+
+
+  // </editor-fold> end private ctors }}}1
+  //==============================================================================
+
+  //==============================================================================
+  // <editor-fold desc="private members"> {{{1
+
+  private:
 
     mutable variable_handle_ptr var_handle_ = nullptr;
     mutable use_holder_ptr current_use_ = nullptr;
     // TODO switch to everything has to be constructed requirement
     mutable bool value_constructed_ = std::is_default_constructible<T>::value;
+    mutable bool unfetched_ = false;
+    mutable typename traits::owning_index_t owning_index_;
+    mutable std::size_t owning_backend_index_;
 
     AccessHandle const* prev_copied_from = nullptr;
+
+  // </editor-fold> end private members }}}1
+  //==============================================================================
 
    public:
 
@@ -602,15 +912,33 @@ class AccessHandle : public detail::AccessHandleBase {
     friend class detail::create_work_attorneys::for_AccessHandle;
     friend class detail::access_attorneys::for_AccessHandle;
 
+    template <typename, typename, size_t, typename>
+    friend struct detail::_task_collection_impl::_get_task_stored_arg_helper;
+
+    template <typename, typename, typename, typename>
+    friend struct detail::_task_collection_impl::_get_storage_arg_helper;
+
     ////////////////////////////////////////
     // TaskBase is also a friend
     friend class detail::TaskBase;
+
+    template <typename, typename>
+    friend class AccessHandle;
+
+    template <typename, typename>
+    friend class AccessHandleCollection;
+
+    template <typename, typename, typename...>
+    friend class detail::TaskCollectionImpl;
 
     template <typename Op>
     friend struct detail::all_reduce_impl;
 
     template <typename AccessHandleT>
     friend struct detail::_publish_impl;
+
+    template <typename>
+    friend class detail::IndexedAccessHandle;
 
     ////////////////////////////////////////
     // Analogs with different privileges are friends too
@@ -651,29 +979,73 @@ struct Serializer<AccessHandle<Args...>> {
   private:
     using AccessHandleT = AccessHandle<Args...>;
 
+    bool handle_is_serializable_assertions(AccessHandleT const& val) const {
+      // The handle has to be set up and valid
+      assert(val.var_handle_.get() != nullptr);
+      // The only AccessHandle objects that should ever be migrated are ones that
+      // are already registered as part of a task.
+      assert(val.current_use_->is_registered == true);
+      // Also, since this has to be before the task runs, whether or not the use
+      // can establish an alias should be exactly determined by whether or not it
+      // has modify scheduling permissions (and less than modify immediate permissions)
+      assert(
+        ((
+          val.current_use_->use.scheduling_permissions_ == ::darma_runtime::detail::HandleUse::Modify
+            and val.current_use_->use.immediate_permissions_ != ::darma_runtime::detail::HandleUse::Modify
+        ) and val.current_use_->could_be_alias)
+          or (not (
+            val.current_use_->use.scheduling_permissions_ == ::darma_runtime::detail::HandleUse::Modify
+              and val.current_use_->use.immediate_permissions_ != ::darma_runtime::detail::HandleUse::Modify
+          ) and not val.current_use_->could_be_alias)
+      );
+      // captured_as_ should always be normal here
+      assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
+      return true;
+    }
+
+
   public:
     template <typename ArchiveT>
     void compute_size(AccessHandleT const& val, ArchiveT& ar) const {
-      if(val.var_handle_.get() != nullptr) {
-        ar % val.var_handle_->get_key();
-        ar % val.current_use_->use.scheduling_permissions_;
-        ar % val.current_use_->use.immediate_permissions_;
-      }
-      // Omit captured_as_; it should always be normal here
-      assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
-      // capturing_task will be replaced by task serialization process, so we don't need to pack it here
+
+      assert(handle_is_serializable_assertions(val));
+
+      ar % val.var_handle_->get_key();
+      ar % val.current_use_->use.scheduling_permissions_;
+      ar % val.current_use_->use.immediate_permissions_;
+
+      auto* backend_runtime = abstract::backend::get_backend_runtime();
+      // TODO if we add operator==() to the requirements of flow_t, we don't have to pack the outflow when it's the same as the inflow
+      ar.add_to_size_indirect(
+        backend_runtime->get_packed_flow_size(*(val.current_use_->use.in_flow_))
+      );
+      ar.add_to_size_indirect(
+        backend_runtime->get_packed_flow_size(*(val.current_use_->use.out_flow_))
+      );
+
     }
 
     template <typename ArchiveT>
     void pack(AccessHandleT const& val, ArchiveT& ar) const {
-      if(val.var_handle_.get() != nullptr) {
-        ar << val.var_handle_->get_key();
-        ar << val.current_use_->use.scheduling_permissions_;
-        ar << val.current_use_->use.immediate_permissions_;
-      }
-      // Omit captured_as_; it should always be normal here
-      assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
-      // capturing_task will be replaced by task serialization, so we don't need to pack it here
+
+      assert(handle_is_serializable_assertions(val));
+
+      ar << val.var_handle_->get_key();
+      ar << val.current_use_->use.scheduling_permissions_;
+      ar << val.current_use_->use.immediate_permissions_;
+
+      using detail::DependencyHandle_attorneys::ArchiveAccess;
+      auto* backend_runtime = abstract::backend::get_backend_runtime();
+      // TODO if we add operator==() to the requirements of flow_t, we don't have to pack the outflow when it's the same as the inflow
+      backend_runtime->pack_flow(
+        *(val.current_use_->use.in_flow_),
+        ArchiveAccess::get_spot(ar)
+      );
+      backend_runtime->pack_flow(
+        *(val.current_use_->use.out_flow_),
+        ArchiveAccess::get_spot(ar)
+      );
+
     }
 
     template <typename ArchiveT>

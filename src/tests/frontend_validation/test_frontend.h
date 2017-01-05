@@ -46,6 +46,7 @@
 #define SRC_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_H_
 
 #define DEBUG_CREATE_WORK_HANDLES 0
+#define DARMA_SAFE_TEST_FRONTEND_PRINTERS 1
 
 #include <deque>
 #include <iomanip>
@@ -194,12 +195,18 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
   EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key))) \
     .WillOnce(::testing::Return(fout)); \
 
+#define EXPECT_INITIAL_ACCESS_COLLECTION(fin, fout, key) \
+  EXPECT_CALL(*mock_runtime, make_initial_flow_collection(is_handle_with_key(key))) \
+    .WillOnce(::testing::Return(fin)); \
+  EXPECT_CALL(*mock_runtime, make_null_flow_collection(is_handle_with_key(key))) \
+    .WillOnce(::testing::Return(fout)); \
+
 /* eventually expect release of flow */ \
 /* EXPECT_CALL(*mock_runtime, release_flow(::testing::Eq(f_in))); */ \
 /* EXPECT_CALL(*mock_runtime, release_flow(::testing::Eq(f_out))); */ \
 
 #define EXPECT_READ_ACCESS(f_init, f_null, key, version_key) \
-  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(key), ::testing::Eq(version_key), ::testing::Eq(nullptr), ::testing::Eq(false))) \
+  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(key), ::testing::Eq(version_key), ::testing::Eq(false))) \
     .WillOnce(Return(f_init)); \
   EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(key))) \
     .WillOnce(Return(f_null));
@@ -240,6 +247,16 @@ in_sequence_wrapper(Expectation&& exp, Lambda&& lambda) {
     EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
       &fin, &fout, use_t::sched, use_t::immed \
     ))), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce(SaveArg<0>(&use_ptr)); } \
+  )
+
+#define EXPECT_REGISTER_USE_AND_SET_BUFFER(use_ptr, fin, fout, sched, immed, value) \
+  ::_impl::in_sequence_wrapper( \
+    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+      &fin, &fout, use_t::sched, use_t::immed \
+    ))), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce( \
+      ::testing::Invoke( \
+         [&](auto&& use_arg) { use_ptr = use_arg; use_ptr->get_data_pointer_reference() = &value; } \
+    )); } \
   )
 
 #define EXPECT_REGISTER_TASK(...) \
@@ -345,40 +362,38 @@ class TestFrontend
 
     ////////////////////////////////////////
 
-    void
-    run_one_cr_rank(bool do_move = true) {
-      using namespace mock_backend;
-      auto& cr = mock_runtime->concurrent_regions.front();
-      std::shared_ptr<MockConcurrentRegionContextHandle> ctxt =
-        std::make_shared<MockConcurrentRegionContextHandle>();
-      EXPECT_CALL(*ctxt, get_backend_index())
-        .Times(AtLeast(0))
-        .WillRepeatedly(Return(cr.n_run_so_far));
-
-      // do SerDes on the task object so that the same instance doesn't get
-      // run multiple times, in keeping with task life cycle
-      size_t task_size = cr.task->get_packed_size();
-      char buffer[task_size];
-      cr.task->pack(buffer);
-
-      auto task_copy =
-        darma_runtime::abstract::frontend::unpack_concurrent_region_task<
-          darma_runtime::types::concrete_task_t
-        >(buffer);
-
-      task_copy->set_region_context(ctxt);
-      task_copy->run();
-    }
-
-    void
-    run_all_cr_ranks_for_one_region_in_serial() {
-      auto& cr = mock_runtime->concurrent_regions.front();
-      while(cr.n_run_so_far < cr.n_indices) {
-        run_one_cr_rank();
-        ++cr.n_run_so_far;
-      }
-      mock_runtime->concurrent_regions.pop_front();
-    }
+//    void
+//    run_one_cr_rank(bool do_move = true) {
+//      using namespace mock_backend;
+//      auto& cr = mock_runtime->concurrent_regions.front();
+//      std::shared_ptr<MockConcurrentRegionContextHandle> ctxt =
+//        std::make_shared<MockConcurrentRegionContextHandle>();
+//      EXPECT_CALL(*ctxt, get_backend_index())
+//        .Times(AtLeast(0))
+//        .WillRepeatedly(Return(cr.n_run_so_far));
+//
+//      // do SerDes on the task object so that the same instance doesn't get
+//      // run multiple times, in keeping with task life cycle
+//      size_t task_size = cr.task->get_packed_size();
+//      char buffer[task_size];
+//      cr.task->pack(buffer);
+//
+//      auto task_copy =
+//        darma_runtime::frontend::unpack_concurrent_region_task(buffer);
+//
+//      task_copy->set_region_context(ctxt);
+//      task_copy->run();
+//    }
+//
+//    void
+//    run_all_cr_ranks_for_one_region_in_serial() {
+//      auto& cr = mock_runtime->concurrent_regions.front();
+//      while(cr.n_run_so_far < cr.n_indices) {
+//        run_one_cr_rank();
+//        ++cr.n_run_so_far;
+//      }
+//      mock_runtime->concurrent_regions.pop_front();
+//    }
 
     ////////////////////////////////////////
 
@@ -397,13 +412,20 @@ operator<<(std::ostream& o, use_t const* const& u) {
     o << "<null Use ptr>";
   }
   else {
+#if DARMA_SAFE_TEST_FRONTEND_PRINTERS
+    o << "<non-null use (unprinted)>";
+#else
     auto handle = u->get_handle();
     if(handle) {
-      o << "<Use ptr for handle with key " << handle->get_key() << ">";
+      o << "<Use ptr for handle with key {" << handle->get_key()
+        << "}, in_flow " << u->get_in_flow() << ", out_flow" << u->get_out_flow() << ", sched="
+        << permissions_to_string(u->scheduling_permissions()) << ", immed="
+        << permissions_to_string(u->immediate_permissions()) << ">";
     }
     else {
       o << "<Use ptr with null handle>";
     }
+#endif
   }
   return o;
 }

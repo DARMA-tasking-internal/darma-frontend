@@ -395,6 +395,12 @@ typedef enum AccessHandlePermissions {
   None=0, Read=1, Modify=2
 } access_handle_permissions_t;
 
+typedef enum AccessHandleTaskCollectionCaptureMode {
+  NoCollectionCapture,
+  SharedRead,
+  UniqueModify
+} access_handle_task_collection_capture_mode_t;
+
 // (Not really true, needs more explanation): Min permissions refers to as a parameter, max permissions refers to as a call argument or lvalue
 // (or as a parameter for determining whether a capture is read-only).  All are only the known compile-time
 // bounds; if no restrictions are given at compile time, all will be AccessHandlePermissions::NotGiven
@@ -403,7 +409,10 @@ template <
   access_handle_permissions_t MinSchedulePermissions = NotGiven,
   access_handle_permissions_t MinImmediatePermissions = NotGiven,
   access_handle_permissions_t MaxSchedulePermissions = NotGiven,
-  access_handle_permissions_t MaxImmediatePermissions = NotGiven
+  access_handle_permissions_t MaxImmediatePermissions = NotGiven,
+  access_handle_task_collection_capture_mode_t CollectionCaptureMode =
+    AccessHandleTaskCollectionCaptureMode::NoCollectionCapture,
+  typename OwningIndexType = std::size_t
 >
 struct access_handle_traits {
 
@@ -416,13 +425,22 @@ struct access_handle_traits {
   static constexpr auto max_immediate_permissions = MaxImmediatePermissions;
   static constexpr auto max_immediate_permissions_given = MaxImmediatePermissions != NotGiven;
 
+  static constexpr auto collection_capture_mode = CollectionCaptureMode;
+  static constexpr auto collection_capture_given = CollectionCaptureMode != NoCollectionCapture;
+  static constexpr auto collection_captured_as_shared_read = CollectionCaptureMode == SharedRead;
+  static constexpr auto collection_captured_as_unique_modify = CollectionCaptureMode == UniqueModify;
+
+  using owning_index_t = OwningIndexType;
+
   template <access_handle_permissions_t new_min_schedule_permissions>
   struct with_min_schedule_permissions {
     typedef access_handle_traits<
       new_min_schedule_permissions,
       MinImmediatePermissions,
       MaxSchedulePermissions,
-      MaxImmediatePermissions
+      MaxImmediatePermissions,
+      CollectionCaptureMode,
+      OwningIndexType
     > type;
   };
 
@@ -432,7 +450,9 @@ struct access_handle_traits {
       MinSchedulePermissions,
       MinImmediatePermissions,
       new_max_schedule_permissions,
-      MaxImmediatePermissions
+      MaxImmediatePermissions,
+      CollectionCaptureMode,
+      OwningIndexType
     > type;
   };
 
@@ -442,7 +462,9 @@ struct access_handle_traits {
       MinSchedulePermissions,
       new_min_immediate_permissions,
       MaxSchedulePermissions,
-      MaxImmediatePermissions
+      MaxImmediatePermissions,
+      CollectionCaptureMode,
+      OwningIndexType
     > type;
   };
 
@@ -452,7 +474,33 @@ struct access_handle_traits {
       MinSchedulePermissions,
       MinImmediatePermissions,
       MaxSchedulePermissions,
-      new_max_immediate_permissions
+      new_max_immediate_permissions,
+      CollectionCaptureMode,
+      OwningIndexType
+    > type;
+  };
+
+  template <access_handle_task_collection_capture_mode_t new_capture_mode>
+  struct with_collection_capture_mode {
+    typedef access_handle_traits<
+      MinSchedulePermissions,
+      MinImmediatePermissions,
+      MaxSchedulePermissions,
+      MaxImmediatePermissions,
+      new_capture_mode,
+      OwningIndexType
+    > type;
+  };
+
+  template <typename NewOwningIndexT>
+  struct with_owning_index_type {
+    typedef access_handle_traits<
+      MinSchedulePermissions,
+      MinImmediatePermissions,
+      MaxSchedulePermissions,
+      MaxImmediatePermissions,
+      CollectionCaptureMode,
+      NewOwningIndexT
     > type;
   };
 
@@ -570,6 +618,34 @@ struct is_access_handle<T,
 template <typename... Args>
 struct is_access_handle<AccessHandle<Args...>, void>
   : std::true_type { };
+
+template <typename T>
+using decayed_is_access_handle = typename is_access_handle<std::decay_t<T>>::type;
+
+
+template <typename T>
+using _captured_as_unique_modify_archetype =
+  tinympl::bool_<T::is_collection_captured_as_unique_modify>;
+
+template <typename T>
+using is_access_handle_captured_as_unique_modify = tinympl::and_<
+  decayed_is_access_handle<T>,
+  tinympl::bool_<
+    meta::detected_or_t<std::false_type, _captured_as_unique_modify_archetype, std::decay_t<T>>::type::value
+  >
+>;
+
+template <typename T>
+using _captured_as_shared_read_archetype =
+  tinympl::bool_<T::is_collection_captured_as_shared_read>;
+
+template <typename T>
+using is_access_handle_captured_as_shared_read = tinympl::and_<
+  decayed_is_access_handle<T>,
+  tinympl::bool_<
+    meta::detected_or_t<std::false_type, _captured_as_shared_read_archetype, std::decay_t<T>>::type::value
+  >
+>;
 
 namespace _impl {
 

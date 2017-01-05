@@ -131,6 +131,15 @@ darma_top_level_setup(int& argc, char**& argv) {
   return { std::move(tlt) };
 }
 
+inline
+std::unique_ptr<abstract::frontend::TopLevelTask<darma_runtime::detail::TaskBase>>
+darma_top_level_setup(std::vector<std::string>&& args) {
+  auto tlt = std::make_unique<darma_runtime::detail::TopLevelTaskImpl>();
+  tlt->set_command_line_arguments(std::move(args));
+  return { std::move(tlt) };
+}
+
+
 } // end namespace frontend
 } // end namespace darma_runtime
 

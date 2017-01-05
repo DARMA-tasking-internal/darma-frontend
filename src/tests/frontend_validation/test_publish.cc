@@ -117,79 +117,79 @@ TEST_F(TestCreateWork, publish_simple_MN) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestCreateWork, publish_simple_MN_out) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace mock_backend;
-
-  MockFlow finit, fnull;
-  use_t* use_capt;
-
-  InSequence s;
-
-  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
-
-  EXPECT_REGISTER_USE(use_capt, finit, finit, None, Read);
-
-  EXPECT_CALL(*mock_runtime, publish_use(
-    Eq(ByRef(use_capt)),
-    Truly([&](auto* pub_dets) {
-      return pub_dets->get_version_name() == make_key("world")
-        and pub_dets->get_n_fetchers() == 1
-        and not pub_dets->is_within_concurrent_region();
-    })
-  ));
-
-  EXPECT_RELEASE_USE(use_capt);
-
-  //============================================================================
-  // actual code being tested
-  {
-    auto tmp = initial_access<int>("hello");
-    tmp.publish(version="world", out=true);
-  }
-  //============================================================================
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestCreateWork, publish_simple_MN_out_2) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace mock_backend;
-
-  MockFlow finit, fnull;
-  use_t* use_capt;
-
-  InSequence s;
-
-  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
-
-  EXPECT_REGISTER_USE(use_capt, finit, finit, None, Read);
-
-  EXPECT_CALL(*mock_runtime, publish_use(
-    Eq(ByRef(use_capt)),
-    Truly([&](auto* pub_dets) {
-      return pub_dets->get_version_name() == make_key("world")
-        and pub_dets->get_n_fetchers() == 1
-        and not pub_dets->is_within_concurrent_region();
-    })
-  ));
-
-  EXPECT_RELEASE_USE(use_capt);
-
-  //============================================================================
-  // actual code being tested
-  {
-    auto tmp = initial_access<int>("hello");
-    tmp.publish_out(version="world");
-  }
-  //============================================================================
-
-}
+//
+//TEST_F(TestCreateWork, publish_simple_MN_out) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//  using namespace darma_runtime::keyword_arguments_for_task_creation;
+//  using namespace mock_backend;
+//
+//  MockFlow finit, fnull;
+//  use_t* use_capt;
+//
+//  InSequence s;
+//
+//  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+//
+//  EXPECT_REGISTER_USE(use_capt, finit, finit, None, Read);
+//
+//  EXPECT_CALL(*mock_runtime, publish_use(
+//    Eq(ByRef(use_capt)),
+//    Truly([&](auto* pub_dets) {
+//      return pub_dets->get_version_name() == make_key("world")
+//        and pub_dets->get_n_fetchers() == 1
+//        and not pub_dets->is_within_concurrent_region();
+//    })
+//  ));
+//
+//  EXPECT_RELEASE_USE(use_capt);
+//
+//  //============================================================================
+//  // actual code being tested
+//  {
+//    auto tmp = initial_access<int>("hello");
+//    tmp.publish(version="world", out=true);
+//  }
+//  //============================================================================
+//
+//}
+//
+//////////////////////////////////////////////////////////////////////////////////
+//
+//TEST_F(TestCreateWork, publish_simple_MN_out_2) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//  using namespace darma_runtime::keyword_arguments_for_task_creation;
+//  using namespace mock_backend;
+//
+//  MockFlow finit, fnull;
+//  use_t* use_capt;
+//
+//  InSequence s;
+//
+//  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+//
+//  EXPECT_REGISTER_USE(use_capt, finit, finit, None, Read);
+//
+//  EXPECT_CALL(*mock_runtime, publish_use(
+//    Eq(ByRef(use_capt)),
+//    Truly([&](auto* pub_dets) {
+//      return pub_dets->get_version_name() == make_key("world")
+//        and pub_dets->get_n_fetchers() == 1
+//        and not pub_dets->is_within_concurrent_region();
+//    })
+//  ));
+//
+//  EXPECT_RELEASE_USE(use_capt);
+//
+//  //============================================================================
+//  // actual code being tested
+//  {
+//    auto tmp = initial_access<int>("hello");
+//    tmp.publish_out(version="world");
+//  }
+//  //============================================================================
+//
+//}

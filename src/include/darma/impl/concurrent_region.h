@@ -50,12 +50,13 @@
 #include <darma/impl/array/index_range.h>
 #include <darma/impl/data_store.h>
 #include <darma/interface/backend/region_context_handle.h>
+#include <darma/interface/app/keyword_arguments/index_range.h>
+
 
 #include <darma/impl/util/compressed_pair.h>
 
 #include "task.h"
 
-DeclareDarmaTypeTransparentKeyword(create_concurrent_region, index_range);
 DeclareDarmaTypeTransparentKeyword(create_concurrent_region, data_store);
 
 namespace darma_runtime {
@@ -75,7 +76,7 @@ struct ConcurrentRegionContext {
     using IndexT = typename RangeT::index_t;
     using IndexMappingT = typename RangeT::mapping_to_dense_t;
 
-    std::shared_ptr<abstract::backend::ConcurrentRegionContextHandle>
+    std::shared_ptr<abstract::backend::TaskCollectionContextHandle>
       context_handle_ = nullptr;
 
     mutable detail::compressed_pair<IndexT, IndexMappingT> index_and_mapping_;
@@ -164,7 +165,7 @@ namespace detail {
 struct CRTaskRunnableBase {
   virtual void
   set_context_handle(
-    std::shared_ptr<abstract::backend::ConcurrentRegionContextHandle> const& ctxt
+    std::shared_ptr<abstract::backend::TaskCollectionContextHandle> const& ctxt
   ) =0;
 };
 
@@ -196,7 +197,7 @@ struct CRTaskRunnable
       ArchiveT, CRTaskRunnable
     >(ar);
     rv->context_.index_and_mapping_.second() = mapping;
-    return rv;
+    return std::move(rv);
   };
 
   void pack(void* allocated) const override {
@@ -224,7 +225,7 @@ struct CRTaskRunnable
 
   void
   set_context_handle(
-    std::shared_ptr<abstract::backend::ConcurrentRegionContextHandle> const& ctxt
+    std::shared_ptr<abstract::backend::TaskCollectionContextHandle> const& ctxt
   ) override {
     context_.context_handle_ = ctxt;
   }
@@ -259,13 +260,20 @@ struct ConcurrentRegionTaskImpl
     using base_t::base_t;
 
     void set_region_context(
-      std::shared_ptr<abstract::backend::ConcurrentRegionContextHandle> const& ctxt
+      std::shared_ptr<abstract::backend::TaskCollectionContextHandle> const& ctxt
     ) override {
       assert(runnable_);
       // ugly....
       auto* cr_runnable = dynamic_cast<CRTaskRunnableBase*>(runnable_.get());
       cr_runnable->set_context_handle(ctxt);
     }
+
+    std::unique_ptr<abstract::frontend::ConcurrentRegionTask<TaskBase>>
+    deep_copy() const override {
+      assert(false);
+      return nullptr;
+    }
+
 
 };
 
@@ -330,246 +338,70 @@ void _do_register_concurrent_region(
 
 };
 
-
-template <typename Functor>
-struct _create_concurrent_region_impl {
-
-  template <typename InArg>
-  struct parse_for_mapping_argument {
-    using Arg = std::decay_t<InArg>;
-    using index_range_kwarg = std::decay_t<
-      typename is_kwarg_expression_with_tag<Arg,
-        darma_runtime::keyword_tags_for_create_concurrent_region::index_range
-      >::argument_type
-    >;
-
-    template <typename T>
-    using _is_index_range_archetype = typename T::is_index_range_t;
-    static constexpr auto pos_arg_is_index_range = meta::detected_or_t<std::false_type,
-      _is_index_range_archetype, Arg
-    >::value;
-    static constexpr auto kwarg_is_index_range = meta::detected_or_t<std::false_type,
-      _is_index_range_archetype, index_range_kwarg
-    >::value;
-
-    template <typename T>
-    using _mapping_to_dense_archetype = decltype( get_mapping_to_dense(std::declval<T>()) );
-    template <typename T>
-    using _is_index_mapping_archetype = typename T::is_index_mapping_t;
-    using pos_arg_mapping_to_dense = meta::detected_t<
-      _mapping_to_dense_archetype, Arg
-    >;
-    //meta::detected_t<_is_index_mapping_archetype, Arg>,
-    using kwarg_mapping_to_dense = meta::detected_t<
-      _mapping_to_dense_archetype, index_range_kwarg
-    >;
-    //meta::detected_t<_is_index_mapping_archetype, index_range_kwarg>,
-    static constexpr auto pos_arg_has_mapping_to_dense = not
-      std::is_same<pos_arg_mapping_to_dense, meta::nonesuch>::value;
-    static constexpr auto kwarg_has_mapping_to_dense = not
-      std::is_same<kwarg_mapping_to_dense, meta::nonesuch>::value;
-
-    static constexpr auto value =
-      (pos_arg_is_index_range and pos_arg_has_mapping_to_dense)
-      or (kwarg_is_index_range and kwarg_has_mapping_to_dense);
-    using type = tinympl::bool_<value>;
-
-
-    static constexpr auto from_positional_arg =
-      (pos_arg_is_index_range and pos_arg_has_mapping_to_dense);
-
-    using index_range_t = tinympl::select_first_t<
-      //------------------------------
-      tinympl::bool_<(pos_arg_is_index_range and pos_arg_has_mapping_to_dense)>,
-      Arg,
-      //------------------------------
-      tinympl::bool_<(kwarg_is_index_range and kwarg_has_mapping_to_dense)>,
-      index_range_kwarg,
-      //------------------------------
-      std::true_type,
-      meta::nonesuch
-    >;
-
-    static_assert(not (
-        (pos_arg_is_index_range and pos_arg_has_mapping_to_dense)
-        and (kwarg_is_index_range and kwarg_has_mapping_to_dense)
-      ), "Metaprogramming error"
-    );
-
-    template <typename ArgForwarded>
-    std::enable_if_t<
-      std::is_same<std::decay_t<ArgForwarded>, Arg>::value
-        and (pos_arg_is_index_range and pos_arg_has_mapping_to_dense),
-      index_range_t
-    >
-    get_range(ArgForwarded&& arg) {
-      return std::forward<ArgForwarded>(arg);
-    }
-
-
-    template <typename ArgForwarded>
-    std::enable_if_t<
-      std::is_same<std::decay_t<ArgForwarded>, Arg>::value
-        and (kwarg_is_index_range and kwarg_has_mapping_to_dense),
-      index_range_t
-    >
-    get_range(ArgForwarded&& arg) {
-      return arg.value();
-    }
-
-    template <typename ArgForwarded>
-    std::enable_if_t<
-      std::is_same<std::decay_t<ArgForwarded>, Arg>::value
-        and (pos_arg_is_index_range and pos_arg_has_mapping_to_dense),
-      pos_arg_mapping_to_dense
-    >
-    get_mapping(ArgForwarded&& arg) {
-      return get_mapping_to_dense(std::forward<ArgForwarded>(arg));
-    }
-
-
-    template <typename ArgForwarded>
-    std::enable_if_t<
-      std::is_same<std::decay_t<ArgForwarded>, Arg>::value
-        and (kwarg_is_index_range and kwarg_has_mapping_to_dense),
-      kwarg_mapping_to_dense
-    >
-    get_mapping(ArgForwarded&& arg) {
-      return get_mapping_to_dense( std::forward<ArgForwarded>(arg).value() );
-    }
-  };
-
-
-  template <typename... Args>
-  auto _extract_range(Args&&... args) const {
-    static constexpr auto arg_idx_mapping_derived_from = tinympl::variadic::find_if<
-      parse_for_mapping_argument, Args...
-    >::value;
-    static_assert(arg_idx_mapping_derived_from < sizeof...(Args),
-      "Cannot determine IndexRange over which to create_concurrent_region and/or"
-        " the mapping of that IndexRange to dense indices"
-    );
-    using found_arg_or_kwarg_t = tinympl::variadic::at_t<arg_idx_mapping_derived_from, Args...>;
-    // TODO check that the range is valid if the range keyword argument is given
-    static_assert(arg_idx_mapping_derived_from == 0 or
-        not parse_for_mapping_argument<found_arg_or_kwarg_t>::from_positional_arg,
-      "create_concurrent_region IndexRange must be given as first positional argument"
-        " or as the keyword argument"
-        " darma_runtime::keyword_arguments_for_create_concurrent_region::index_range"
-    );
-    return parse_for_mapping_argument<found_arg_or_kwarg_t>().get_range(
-      std::get<arg_idx_mapping_derived_from>(
-        std::forward_as_tuple(std::forward<Args>(args)...)
-      )
-    );
-  }
-
-  template <typename... Args>
-  auto _extract_mapping(Args&&... args) const {
-    static constexpr auto arg_idx_mapping_derived_from = tinympl::variadic::find_if<
-      parse_for_mapping_argument, Args...
-    >::value;
-    static_assert(arg_idx_mapping_derived_from < sizeof...(Args),
-      "Cannot determine IndexRange over which to create_concurrent_region and/or"
-        " the mapping of that IndexRange to dense indices"
-    );
-    using found_arg_or_kwarg_t = tinympl::variadic::at_t<arg_idx_mapping_derived_from, Args...>;
-    // TODO check that the range is valid if the range keyword argument is given
-    static_assert(arg_idx_mapping_derived_from == 0 or
-      not parse_for_mapping_argument<found_arg_or_kwarg_t>::from_positional_arg,
-      "create_concurrent_region IndexRange must be given as first positional argument"
-        " or as the keyword argument"
-        " darma_runtime::keyword_arguments_for_create_concurrent_region::index_range"
-    );
-    return parse_for_mapping_argument<found_arg_or_kwarg_t>().get_mapping(
-      std::get<arg_idx_mapping_derived_from>(
-        std::forward_as_tuple(std::forward<Args>(args)...)
-      )
-    );
-  }
-
-  template <typename... Args>
-  auto _extract_dstore(Args&&... args) const {
-    return get_typeless_kwarg_with_default_as<
-      darma_runtime::keyword_tags_for_create_concurrent_region::data_store,
-      DataStore
-    >(
-      DataStore(DataStore::default_data_store_tag),
-      std::forward<Args>(args)...
-    );
-  }
-
-  template <size_t... Idxs, typename... Args>
-  auto _extract_other_helper(
-    std::integer_sequence<size_t, Idxs...>,
-    Args&&... args
-  ) const {
-    return std::tuple<tinympl::variadic::at_t<Idxs, Args...>...>(
-      std::get<Idxs>(std::forward_as_tuple(std::forward<Args>(args)...))...
-    );
-  };
-
-  template <typename T>
-  using _is_other_arg = tinympl::and_<
-    tinympl::not_<parse_for_mapping_argument<T>>,
-    tinympl::not_<
-      is_kwarg_expression_with_tag<std::decay_t<T>,
-        darma_runtime::keyword_tags_for_create_concurrent_region::data_store
-      >
-    >
-  >;
-
-  template <typename... Args>
-  auto _extract_remaining_args_tuple(Args&&... args) const {
-    using other_idxs_t = typename tinympl::variadic::find_all_if<_is_other_arg, Args...>::type;
-    return _extract_other_helper(other_idxs_t(), std::forward<Args>(args)...);
-  }
-
-  template <typename... Args>
-  void operator()(Args&&... args) const {
-    _do_register_concurrent_region<Functor> (
-      _extract_range(std::forward<Args>(args)...),
-      _extract_mapping(std::forward<Args>(args)...),
-      _extract_dstore(std::forward<Args>(args)...),
-      _extract_remaining_args_tuple(std::forward<Args>(args)...)
-    );
-  }
-};
-
-template <>
-struct _create_concurrent_region_impl<void> {
-  template <typename Return, typename... FuncParams, typename... Args>
-  void operator()(Return (*func)(FuncParams...), Args&&... args) const {
-    DARMA_ASSERT_NOT_IMPLEMENTED("function arguments to create_concurrent region");
-
-  }
-};
+template <typename T>
+using _is_index_range_archetype = typename T::is_index_range_t;
+template <typename Arg>
+using is_index_range = meta::is_detected<_is_index_range_archetype, Arg>;
+template <typename Arg>
+using decayed_is_index_range = is_index_range<std::decay_t<Arg>>;
 
 } // end namespace detail
 
 template <typename Functor, typename... Args>
 auto
 create_concurrent_region(Args&&... args) {
-  return detail::_create_concurrent_region_impl<Functor>()(
-    std::forward<Args>(args)...
-  );
-};
+  using namespace darma_runtime::detail;
 
-namespace abstract {
+  using parser = kwarg_parser<
+    variadic_positional_overload_description<
+      _keyword<parameter_such_that<decayed_is_index_range>,
+        keyword_tags_for_create_concurrent_region::index_range
+      >,
+      _optional_keyword<DataStore,
+        keyword_tags_for_create_concurrent_region::data_store
+      >
+    >
+  >;
+
+  // This is on one line for readability of compiler error; don't respace it please!
+  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
+
+  parser()
+    .with_default_generators(
+      keyword_arguments_for_create_concurrent_region::data_store=[]{
+        return DataStore(DataStore::default_data_store_tag);
+      }
+    )
+    .parse_args(std::forward<Args>(args)...)
+    .invoke(
+      [](
+        auto&& index_range, DataStore dstore,
+        variadic_arguments_begin_tag,
+        auto&&... args
+      ) {
+        detail::_do_register_concurrent_region<Functor>(
+          std::forward<decltype(index_range)>(index_range),
+          get_mapping_to_dense(index_range), // not forwarded because the
+                                             // function get_mapping_to_dense
+                                             // shouldn't take possession of
+                                             // index_range
+          dstore,
+          std::forward_as_tuple(std::forward<decltype(args)>(args)...)
+        );
+      }
+    );
+};
 
 namespace frontend {
 
-template <>
-inline backend::runtime_t::concurrent_region_task_unique_ptr
+inline abstract::backend::runtime_t::concurrent_region_task_unique_ptr
 unpack_concurrent_region_task(void* packed_data) {
-  return detail::_unpack_task<
+  return darma_runtime::detail::_unpack_task<
     darma_runtime::detail::ConcurrentRegionTaskImpl
   >(packed_data);
 }
 
 } // end namespace frontend
-
-} // end namespace abstract
 
 } // end namespace darma_runtime
 

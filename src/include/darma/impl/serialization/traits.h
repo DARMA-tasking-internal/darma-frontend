@@ -48,10 +48,33 @@
 #include <tinympl/logical_and.hpp>
 #include <tinympl/logical_or.hpp>
 
+#include <darma/impl/util/static_assertions.h>
 #include <darma/impl/meta/is_container.h>
 
 #include "serialization_fwd.h"
 #include "allocator.h"
+
+namespace _darma__errors {
+
+template <typename T>
+struct _____cannot_reconstruct_type_for_serialization {
+  struct ___no_static_or_nonintrusive_reconstruct_method_and_no_default_constructor {
+    template <typename ArchiveT>
+    struct ___with_archive_type {
+      template <typename AllocatorT>
+      struct ___and_allocator_type { };
+      struct ___and_no_allocator { };
+      template <typename U>
+      using allocator_error_message = std::conditional_t<
+        std::is_same<U, darma_runtime::meta::nonesuch>::value,
+        ___and_no_allocator,
+        ___and_allocator_type<U>
+      >;
+    };
+  };
+};
+
+} // end namespace _darma__errors
 
 namespace darma_runtime {
 
@@ -96,7 +119,7 @@ struct serializability_traits {
 
     typedef _clean_T value_type;
 
-    ////////////////////////////////////////////////////////////////////////////////
+    //==========================================================================
     // <editor-fold desc="Detection of presence of intrusive serialization methods">
 
     //----------------------------------------
@@ -185,10 +208,54 @@ struct serializability_traits {
     // </editor-fold>
     //----------------------------------------
 
-    // </editor-fold>
-    ////////////////////////////////////////////////////////////////////////////////
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="(static method) reconstruct()"> {{{2
 
-    ////////////////////////////////////////////////////////////////////////////////
+  private:
+
+    template <typename U, typename ArchiveT, typename Allocator>
+    using has_intrusive_allocator_aware_reconstruct_archetype =
+      decltype(
+        U::reconstruct(
+          std::declval<void*>(),
+          std::declval<std::remove_reference_t<ArchiveT>&>(),
+          std::declval<Allocator>()
+        )
+      );
+
+    template <typename U, typename ArchiveT>
+    using has_intrusive_reconstruct_archetype =
+      decltype(
+        U::reconstruct(
+          std::declval<void*>(),
+          std::declval<std::remove_reference_t<ArchiveT>&>()
+        )
+      );
+
+  public:
+
+    template <typename ArchiveT, typename Allocator>
+    using has_intrusive_allocator_aware_reconstruct = tinympl::bool_<
+      meta::is_detected_convertible<_T&,
+        has_intrusive_allocator_aware_reconstruct_archetype, _clean_T, ArchiveT, Allocator
+      >::value
+    >;
+
+    template <typename ArchiveT>
+    using has_intrusive_reconstruct = tinympl::bool_<
+      meta::is_detected_convertible<_T&,
+        has_intrusive_reconstruct_archetype, _clean_T, ArchiveT
+      >::value
+    >;
+
+
+    // </editor-fold> end (static method) reconstruct }}}2
+    //--------------------------------------------------------------------------
+
+    // </editor-fold>
+    //==========================================================================
+
+    //==========================================================================
     // <editor-fold desc="Detection of presence of nonintrusive serialization methods (for a given ArchiveT)">
 
     //----------------------------------------
@@ -290,11 +357,216 @@ struct serializability_traits {
     // </editor-fold>
     //----------------------------------------
 
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="reconstruct()"> {{{2
+
+  private:
+
+    template <typename U, typename ArchiveT, typename Allocator>
+    using has_nonintrusive_allocator_aware_reconstruct_archetype =
+      decltype(
+        std::declval<Serializer<U>>().reconstruct(
+          std::declval<void*>(),
+          std::declval<std::remove_reference_t<ArchiveT>&>(),
+          std::declval<Allocator>()
+        )
+      );
+
+    template <typename U, typename ArchiveT>
+    using has_nonintrusive_reconstruct_archetype =
+      decltype(
+        std::declval<Serializer<U>>().reconstruct(
+          std::declval<void*>(),
+          std::declval<std::remove_reference_t<ArchiveT>&>()
+        )
+      );
+
+  public:
+
+    template <typename ArchiveT, typename Allocator>
+    using has_nonintrusive_allocator_aware_reconstruct = tinympl::bool_<
+      meta::is_detected_convertible<_T&,
+        has_nonintrusive_allocator_aware_reconstruct_archetype,
+        _clean_T, ArchiveT, Allocator
+      >::value
+    >;
+
+    template <typename ArchiveT>
+    using has_nonintrusive_reconstruct = tinympl::bool_<
+      meta::is_detected_convertible<_T&,
+        has_nonintrusive_reconstruct_archetype, _clean_T, ArchiveT
+      >::value
+    >;
+
+
+    // </editor-fold> end  }}}2
+    //--------------------------------------------------------------------------
+
     // </editor-fold>
-    ////////////////////////////////////////////////////////////////////////////////
+    //==========================================================================
 
 
-    ////////////////////////////////////////////////////////////////////////////////
+    //==========================================================================
+    // <editor-fold desc="Detected strategies for each stage of the process"> {{{1
+
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="unpack strategy"> {{{2
+
+  public:
+
+    typedef enum UnpackStrategy {
+      nonintrusive_unpack_void_ptr_with_allocator,
+      nonintrusive_unpack_void_ptr_without_allocator,
+      nonintrusive_serialize_with_object_reference
+      /* intrusive versions currently reduce to nonintrusive thin wrappers,
+       * so they're omitted here */
+    } unpack_strategy_tag_t;
+
+  private:
+
+    template <unpack_strategy_tag_t strategy>
+    using _unpack_strategy = std::integral_constant<unpack_strategy_tag_t, strategy>;
+
+  public:
+
+    template <typename ArchiveT,
+      typename AllocatorT = meta::nonesuch,
+      bool show_error = false
+    >
+    using unpack_strategy_t = typename tinympl::select_first_t<
+      /*----------------------------------------*/
+      has_nonintrusive_allocator_aware_unpack<ArchiveT, AllocatorT>,
+      /* => */ _unpack_strategy<
+        UnpackStrategy::nonintrusive_unpack_void_ptr_with_allocator
+      >,
+      /*----------------------------------------*/
+      tinympl::bool_<
+        has_nonintrusive_unpack<ArchiveT>::value
+        // also only if no allocator was given
+        and std::is_same<AllocatorT, meta::nonesuch>::value
+      >,
+      /* => */ _unpack_strategy<
+        UnpackStrategy::nonintrusive_unpack_void_ptr_without_allocator
+      >,
+      /*----------------------------------------*/
+      has_nonintrusive_serialize<ArchiveT>,
+      /* => */ _unpack_strategy<
+        UnpackStrategy::nonintrusive_serialize_with_object_reference
+      >,
+      /*----------------------------------------*/
+      std::true_type, /* => */ std::conditional_t<
+        show_error,
+        _darma__static_failure<
+          // TODO helpful static error here
+        >,
+        std::false_type // ignored (hopefully)
+      >
+      /*----------------------------------------*/
+    >::type;
+
+    // </editor-fold> end unpack strategy }}}2
+    //--------------------------------------------------------------------------
+
+    //==============================================================================
+    // <editor-fold desc="reconstruct strategy"> {{{1
+
+  public:
+
+    // TODO constructor versions that take a tag and possibly an archive/allocator
+    typedef enum ReconstructStrategy {
+      nonintrusive_reconstruct_with_allocator,
+      nonintrusive_reconstruct_without_allocator,
+      intrusive_reconstruct_with_allocator,
+      intrusive_reconstruct_without_allocator,
+      call_default_constructor,
+      _no_reconstruct_strategy_found
+    } reconstruct_strategy_tag_t;
+
+  private:
+
+    template <reconstruct_strategy_tag_t strategy>
+    using _reconstruct_strategy = std::integral_constant<
+      reconstruct_strategy_tag_t, strategy
+    >;
+
+  public:
+
+    template <typename ArchiveT,
+      typename AllocatorT = meta::nonesuch,
+      bool show_error = false
+    >
+    using reconstruct_strategy_t = typename tinympl::select_first_t<
+      /*----------------------------------------*/
+      tinympl::and_<
+        has_nonintrusive_allocator_aware_reconstruct<ArchiveT, AllocatorT>,
+        tinympl::not_<std::is_same<AllocatorT, meta::nonesuch>>
+      >,
+      /* => */ _reconstruct_strategy<
+        ReconstructStrategy::nonintrusive_reconstruct_with_allocator
+      >,
+      /*----------------------------------------*/
+      has_nonintrusive_reconstruct<ArchiveT>,
+      /* => */ _reconstruct_strategy<
+        ReconstructStrategy::nonintrusive_reconstruct_without_allocator
+      >,
+      /*----------------------------------------*/
+      tinympl::and_<
+        has_intrusive_allocator_aware_reconstruct<ArchiveT, AllocatorT>,
+        tinympl::not_<std::is_same<AllocatorT, meta::nonesuch>>
+      >,
+      /* => */ _reconstruct_strategy<
+        ReconstructStrategy::intrusive_reconstruct_with_allocator
+      >,
+      /*----------------------------------------*/
+      has_intrusive_reconstruct<ArchiveT>,
+      /* => */ _reconstruct_strategy<
+        ReconstructStrategy::intrusive_reconstruct_without_allocator
+      >,
+      /*----------------------------------------*/
+      tinympl::and_<
+        has_nonintrusive_allocator_aware_reconstruct<ArchiveT, darma_allocator<_clean_T>>,
+        std::is_same<AllocatorT, meta::nonesuch>
+      >,
+      /* => */ _reconstruct_strategy<
+        ReconstructStrategy::nonintrusive_reconstruct_with_allocator
+      >,
+      /*----------------------------------------*/
+      tinympl::and_<
+        has_intrusive_allocator_aware_reconstruct<ArchiveT, darma_allocator<_clean_T>>,
+        std::is_same<AllocatorT, meta::nonesuch>
+      >,
+      /* => */ _reconstruct_strategy<
+        ReconstructStrategy::intrusive_reconstruct_with_allocator
+      >,
+      /*----------------------------------------*/
+      std::is_default_constructible<_clean_T>,
+      /* => */ _reconstruct_strategy<
+        ReconstructStrategy::call_default_constructor
+      >,
+      /*----------------------------------------*/
+      std::true_type, /* => */ std::conditional_t<
+        show_error,
+        _darma__static_failure<
+          typename _darma__errors::_____cannot_reconstruct_type_for_serialization<_clean_T>
+            ::___no_static_or_nonintrusive_reconstruct_method_and_no_default_constructor
+            ::template ___with_archive_type<ArchiveT>
+            ::template allocator_error_message<AllocatorT>
+        >,
+        _reconstruct_strategy<
+          ReconstructStrategy::_no_reconstruct_strategy_found
+        > // ignored (hopefully)
+      >
+      /*----------------------------------------*/
+    >::type;
+
+
+    // </editor-fold> end reconstruct strategy }}}1
+    //==============================================================================
+
+    // </editor-fold> end Detected strategies for each stage of the process }}}1
+    //==========================================================================
+
+    //==========================================================================
     // <editor-fold desc="is_serializable_with_archive">
 
     template <typename ArchiveT>
@@ -330,9 +602,9 @@ struct serializability_traits {
     using serializer = Serializer<_clean_T>;
 
     // </editor-fold>
-    ////////////////////////////////////////////////////////////////////////////////
+    //==========================================================================
 
-    ////////////////////////////////////////////////////////////////////////////////
+    //==========================================================================
     // <editor-fold desc="other traits">
 
   private:
@@ -355,9 +627,8 @@ struct serializability_traits {
       std::false_type, _is_directly_serializable_archetype, serializer
     >::type::value;
 
-
     // </editor-fold>
-    ////////////////////////////////////////////////////////////////////////////////
+    //==========================================================================
 
 
     template <typename ArchiveT>
@@ -458,9 +729,167 @@ struct serializability_traits {
         and has_nonintrusive_serialize<ArchiveT>::value
     >
     unpack(void* allocated, ArchiveT& ar) {
-      T* val = new (allocated) T;
-      serializer().serialize(*val, ar);
+      serializer().serialize(reconstruct(allocated, ar), ar);
     }
+
+    //--------------------------------------------------------------------------
+
+    //==============================================================================
+    // <editor-fold desc="reconstruct()"> {{{1
+
+  private:
+
+    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // Overloads that take an allocator
+
+    template <typename ArchiveT, typename AllocatorT>
+    static _T&
+    _reconstruct(
+      void* allocated, ArchiveT& ar, AllocatorT&& alloc,
+      _reconstruct_strategy<
+        ReconstructStrategy::nonintrusive_reconstruct_with_allocator
+      >
+    ) {
+      return serializer().reconstruct(
+        allocated,
+        ar,
+        std::forward<AllocatorT>(alloc)
+      );
+    }
+
+    template <typename ArchiveT, typename AllocatorT>
+    static _T&
+    _reconstruct(
+      void* allocated, ArchiveT& ar, AllocatorT&&,
+      _reconstruct_strategy<
+        ReconstructStrategy::nonintrusive_reconstruct_without_allocator
+      >
+    ) {
+      return serializer().reconstruct(allocated, ar);
+    }
+
+    template <typename ArchiveT, typename AllocatorT>
+    static _T&
+    _reconstruct(
+      void* allocated, ArchiveT& ar, AllocatorT&& alloc,
+      _reconstruct_strategy<
+        ReconstructStrategy::intrusive_reconstruct_with_allocator
+      >
+    ) {
+      return _clean_T::reconstruct(
+        allocated,
+        ar,
+        std::forward<AllocatorT>(alloc)
+      );
+    }
+
+    template <typename ArchiveT, typename AllocatorT>
+    static _T&
+    _reconstruct(
+      void* allocated, ArchiveT& ar, AllocatorT&& alloc,
+      _reconstruct_strategy<
+        ReconstructStrategy::intrusive_reconstruct_without_allocator
+      >
+    ) {
+      return _clean_T::reconstruct(allocated, ar);
+    }
+
+    template <typename ArchiveT, typename AllocatorT>
+    static _T&
+    _reconstruct(
+      void* allocated, ArchiveT& ar, AllocatorT&& alloc,
+      _reconstruct_strategy<
+        ReconstructStrategy::call_default_constructor
+      >
+    ) {
+      std::allocator_traits<std::decay_t<AllocatorT>>::construct(
+        alloc, reinterpret_cast<_T*>(allocated)
+      );
+      return *reinterpret_cast<_T*>(allocated);
+    }
+
+    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // Overloads that do not take an allocator
+
+    template <typename ArchiveT>
+    static _T&
+    _reconstruct(
+      void* allocated, ArchiveT& ar,
+      _reconstruct_strategy<
+        ReconstructStrategy::nonintrusive_reconstruct_with_allocator
+      >
+    ) {
+      return serializer().reconstruct(allocated, ar, darma_allocator<_T>());
+    }
+
+    template <typename ArchiveT>
+    static _T&
+    _reconstruct(
+      void* allocated, ArchiveT& ar,
+      _reconstruct_strategy<
+        ReconstructStrategy::nonintrusive_reconstruct_without_allocator
+      >
+    ) {
+      return serializer().reconstruct(allocated, ar);
+    }
+
+    template <typename ArchiveT>
+    static _T&
+    _reconstruct(
+      void* allocated, ArchiveT& ar,
+      _reconstruct_strategy<
+        ReconstructStrategy::intrusive_reconstruct_with_allocator
+      >
+    ) {
+      return _clean_T::reconstruct(allocated, ar, darma_allocator<_T>());
+    }
+
+    template <typename ArchiveT>
+    static _T&
+    _reconstruct(
+      void* allocated, ArchiveT& ar,
+      _reconstruct_strategy<
+        ReconstructStrategy::intrusive_reconstruct_without_allocator
+      >
+    ) {
+      return _clean_T::reconstruct(allocated, ar);
+    }
+
+    template <typename ArchiveT>
+    static _T&
+    _reconstruct(
+      void* allocated, ArchiveT& ar,
+      _reconstruct_strategy<
+        ReconstructStrategy::call_default_constructor
+      > _tag
+    ) {
+      return serializability_traits::_reconstruct(
+        allocated, ar, darma_allocator<_T>(), _tag
+      );
+    }
+
+  public:
+
+    template <typename ArchiveT, typename AllocatorT>
+    static _T&
+    reconstruct(void* allocated, ArchiveT& ar, AllocatorT&& alloc) {
+      return serializability_traits::_reconstruct(
+        allocated, ar, std::forward<AllocatorT>(alloc),
+        reconstruct_strategy_t<ArchiveT, AllocatorT, true>{}
+      );
+    }
+
+    template <typename ArchiveT>
+    static _T&
+    reconstruct(void* allocated, ArchiveT& ar) {
+      return serializability_traits::_reconstruct(
+        allocated, ar,
+        reconstruct_strategy_t<ArchiveT, meta::nonesuch, true>{}
+      );
+    }
+
+    // </editor-fold> end reconstruct() }}}1
+    //==============================================================================
 
 };
 

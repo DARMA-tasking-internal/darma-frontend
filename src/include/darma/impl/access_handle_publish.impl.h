@@ -50,6 +50,7 @@
 //#include <darma/interface/app/access_handle.h>
 #include <darma/impl/flow_handling.h>
 #include <darma/impl/keyword_arguments/parse.h>
+#include <darma/impl/capture.h>
 
 namespace darma_runtime {
 
@@ -90,57 +91,21 @@ struct _publish_impl {
     detail::PublicationDetails dets(version, n_readers, not is_publish_out);
     dets.reader_hint_ = reader_backend_idx;
 
-    switch(this_.current_use_->use.immediate_permissions_) {
-      case HandleUse::None:
-      case HandleUse::Read: {
-        // No need to check that scheduling permissions are greater than None;
-        // an error message above checks this
-        detail::HandleUse use_to_publish(
-          this_.var_handle_,
-          this_.current_use_->use.in_flow_,
-          this_.current_use_->use.in_flow_,
-          detail::HandleUse::None, detail::HandleUse::Read
-        );
-        backend_runtime->register_use(&use_to_publish);
-        backend_runtime->publish_use(&use_to_publish, &dets);
+    auto publish_use_holder = make_captured_use_holder(
+      this_.var_handle_,
+      HandleUse::None,
+      HandleUse::Read,
+      this_.current_use_
+    );
+    backend_runtime->publish_use(
+      &(publish_use_holder->use),
+      &dets
+    );
 
-        // TODO Remove release_use here when Jonathan is ready for it
-        backend_runtime->release_use(&use_to_publish);
-        break;
-      }
-      case HandleUse::Modify: {
-        // No need to check that scheduling permissions are greater than None;
-        // an error message above checks this
-        auto flow_to_publish = detail::make_forwarding_flow_ptr(
-          this_.current_use_->use.in_flow_, backend_runtime
-        );
+    // TODO Remove release_use here (maybe?) when Jonathan is ready for it
+    publish_use_holder->do_release();
 
-        detail::HandleUse use_to_publish(
-          this_.var_handle_,
-          flow_to_publish,
-          flow_to_publish,
-          detail::HandleUse::None, detail::HandleUse::Read
-        );
-        backend_runtime->register_use(&use_to_publish);
-
-        this_.current_use_->do_release();
-
-        backend_runtime->publish_use(&use_to_publish, &dets);
-
-        this_.current_use_->use.immediate_permissions_ = HandleUse::Read;
-        this_.current_use_->use.in_flow_ = flow_to_publish;
-        // current_use_->use.out_flow_ and scheduling_permissions_ unchanged
-        this_.current_use_->could_be_alias = true;
-
-        // TODO Remove release_use here when Jonathan is ready for it
-        backend_runtime->release_use(&use_to_publish);
-      }
-      default: {
-        DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
-        break;
-      }
-    }
-
+    // TODO Remove this.  Publish out is a deprecated motif
     if(is_publish_out) {
       // If we're publishing "out", reduce permissions in continuing context
       this_.current_use_->use.immediate_permissions_ =

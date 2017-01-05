@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      concrete_task_t.h
+//                      task_collection.h
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -42,17 +42,63 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_TYPES_CONCRETE_TASK_T_H
-#define DARMA_INTERFACE_FRONTEND_TYPES_CONCRETE_TASK_T_H
+#ifndef DARMA_TASK_COLLECTION_H
+#define DARMA_TASK_COLLECTION_H
 
-#include <darma/impl/task_fwd.h>
+#include <darma/interface/frontend/types.h> // types::handle_container_template<>
+
+#include <darma/interface/frontend/polymorphic_serializable_object.h>
+
+#include <darma/interface/frontend/types/task_collection_task_t.h>
+
 
 namespace darma_runtime {
-namespace types {
 
-typedef darma_runtime::detail::ConcurrentRegionTaskImpl concrete_concurrent_region_task_t;
+namespace abstract {
 
-} // end namespace types
+namespace frontend {
+
+/** @todo document this
+ *
+ */
+class TaskCollection
+  : public PolymorphicSerializableObject<TaskCollection>
+{
+  public:
+
+    /** @todo document this
+     *
+     *  @return
+     */
+    virtual types::handle_container_template<Use*> const&
+    get_dependencies() const =0;
+
+    /** @todo document this
+     *
+     * @param backend_index
+     * @return
+     */
+    virtual std::unique_ptr<types::task_collection_task_t>
+    create_task_for_index(std::size_t backend_index) =0;
+
+    /** @todo document this
+     *
+     * @return
+     */
+    virtual std::size_t
+    size() const =0;
+
+    virtual bool
+    all_mappings_same_as(TaskCollection const* other) const =0;
+
+    virtual ~TaskCollection() = default;
+
+};
+
+} // end namespace frontend
+
+} // end namespace abstract
+
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_TYPES_CONCRETE_TASK_T_H
+#endif //DARMA_TASK_COLLECTION_H

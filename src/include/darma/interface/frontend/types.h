@@ -49,7 +49,9 @@
 #include <frontend_types.h>
 #endif
 
-#include <darma_types.h>
+#include <set>
+
+//#include <darma_types.h>
 #include <darma/interface/frontend/frontend_fwd.h>
 
 #ifndef DARMA_CUSTOM_HANDLE_CONTAINER
@@ -57,8 +59,9 @@
 namespace darma_runtime {
 namespace types {
 
+  // TODO this needs to be changed to something like use_iterable
   template <typename... Ts>
-  using handle_container_template = std::unordered_set<Ts...>;
+  using handle_container_template = std::set<Ts...>;
 
 } // end namespace types
 } // end namespace darma_runtime

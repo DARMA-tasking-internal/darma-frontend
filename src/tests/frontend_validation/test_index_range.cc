@@ -46,6 +46,9 @@
 #include <gmock/gmock.h>
 
 #include <darma/impl/array/index_range.h>
+#include <darma/impl/index_range/range_1d.h>
+#include <darma/impl/index_range/mapping.h>
+#include <darma/impl/index_range/polymorphic_mapping.h>
 
 using namespace darma_runtime;
 using namespace darma_runtime::detail;
