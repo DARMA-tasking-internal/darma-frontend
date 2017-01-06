@@ -464,10 +464,10 @@ namespace threads_backend {
   };
 
   struct DeleteNode : GraphNode {
-    InnerFlow* flow_to_delete;
+    flow_t flow_to_delete = nullptr;
 
     DeleteNode(
-      runtime_t* rt, InnerFlow* flow_to_delete_in
+      runtime_t* rt, flow_t const& flow_to_delete_in
     )
       : GraphNode(-1, rt)
       , flow_to_delete(flow_to_delete_in)
