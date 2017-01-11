@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                   simple_collection.cc
-//                         DARMA
+//                        union_find.h
+//                           darma
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -36,67 +36,65 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// JL => Jonathan Lifflander (jliffla@sandia.gov)
 //
 // ************************************************************************
 //@HEADER
 */
 
-#include <darma.h>
-#include <darma/impl/task_collection/handle_collection.h>
-#include <darma/impl/task_collection/task_collection.h>
-#include <darma/impl/array/index_range.h>
-#include <assert.h>
+#if !defined(_UNION_FIND_BACKEND_RUNTIME_H_)
+#define _UNION_FIND_BACKEND_RUNTIME_H_
 
-using namespace darma_runtime;
-using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+namespace threads_backend { namespace union_find {
+    template <typename UFArchetype>
+    void make_set(
+      UFArchetype const& node
+    ) {
+      node->alias = nullptr;
+      node->uf_size = 1;
+    }
 
-struct SimpleCollection {
-  void operator()(
-    Index1D<int> index,
-    AccessHandleCollection<int, Range1D<int>> c1,
-    bool const first
-  ) {
-    auto handle = c1[index].local_access();
+    template <typename UFArchetype>
+    void union_nodes(
+      UFArchetype node1,
+      UFArchetype node2
+    ) {
+      DEBUG_PRINT_THD(
+        (size_t)0,
+        "union_nodes: sz = %ld, sz2 = %ld\n",
+        node1->uf_size,
+        node2->uf_size
+      );
+      // optimization to pick the larger subtree
+      // does not apply to this problem due to ordering problem
+      // if (node1->uf_size < node2->uf_size) {
+      //   node1.swap(node2);
+      // }
+      node2->alias = node1;
+      node1->uf_size += node2->uf_size;
+    }
 
-    if (first) {
-      std::cout << "Setting index " << index.value
-                << " to value " << index.value
-                << std::endl;
-      handle.set_value(index.value);
-    } else {
-      std::cout << "Checking index "
-                << index.value
-                << " to make sure "
-                << handle.get_value()
-                << "=="
-                << index.value << std::endl;
-      assert(handle.get_value() == index.value);
+    template <typename UFArchetype, typename Callable>
+    UFArchetype find_call(
+      UFArchetype const& node,
+      Callable&& callable
+    ) {
+      DEBUG_PRINT_THD(
+        (size_t)0,
+        "find_call: node=%ld, alias=%ld\n",
+        PRINT_LABEL(node),
+        node->alias ? PRINT_LABEL(node->alias) : 0
+      );
+      if (node->alias != nullptr) {
+        callable(node->alias);
+        node->alias = find_call(
+          node->alias,
+          callable
+        );
+      }
+      return node->alias ? node->alias : node;
     }
   }
-};
-
-void darma_main_task(std::vector<std::string> args) {
-
-  if (args.size() > 1 && args[1] == "--help"){
-    std::cout << "Usage: ./simple_collection [Collection Size (int)]"
-              << std::endl;
-    return;
-  }
-
-  assert(args.size() == 2);
-
-  size_t const col_size = std::atoi(args[1].c_str());
-
-  auto c1 = initial_access_collection<int>("simple", index_range=Range1D<int>(col_size));
-
-  create_concurrent_work<SimpleCollection>(
-    c1, true, index_range=Range1D<int>(col_size)
-  );
-
-  create_concurrent_work<SimpleCollection>(
-    c1, false, index_range=Range1D<int>(col_size)
-  );
 }
 
-DARMA_REGISTER_TOP_LEVEL_FUNCTION(darma_main_task);
+#endif /*_UNION_FIND_BACKEND_RUNTIME_H_*/

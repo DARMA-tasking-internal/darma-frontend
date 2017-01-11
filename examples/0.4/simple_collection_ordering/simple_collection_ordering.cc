@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                   simple_collection.cc
+//              simple_collection_ordering.cc
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -46,56 +46,95 @@
 #include <darma/impl/task_collection/handle_collection.h>
 #include <darma/impl/task_collection/task_collection.h>
 #include <darma/impl/array/index_range.h>
-#include <assert.h>
+#include <iostream>
 
 using namespace darma_runtime;
 using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
 
-struct SimpleCollection {
+int n_sum(int const n) {
+  return (n*(n-1))/2;
+}
+
+struct FirstConcurrentWork {
   void operator()(
     Index1D<int> index,
-    AccessHandleCollection<int, Range1D<int>> c1,
-    bool const first
-  ) {
-    auto handle = c1[index].local_access();
+    AccessHandleCollection<int, Range1D<int>> my_collection
+  ) const {
 
-    if (first) {
-      std::cout << "Setting index " << index.value
-                << " to value " << index.value
-                << std::endl;
-      handle.set_value(index.value);
-    } else {
-      std::cout << "Checking index "
-                << index.value
-                << " to make sure "
-                << handle.get_value()
-                << "=="
-                << index.value << std::endl;
-      assert(handle.get_value() == index.value);
+    using darma_runtime::keyword_arguments_for_publication::version;
+    using darma_runtime::keyword_arguments_for_publication::n_readers;
+
+    int num_ranks = index.max_value + 1;
+    int my_rank = index.value;
+
+    auto my_handle = my_collection[index].local_access();
+
+    my_handle.set_value(my_rank);
+
+    my_handle.publish(version=0, n_readers=num_ranks-1);
+
+    for (int rank=0 ; rank<num_ranks ; rank++) {
+      if (rank != my_rank) {
+        auto off_rank_handle = my_collection[rank].read_access(version=0);
+        create_work([=]{
+          int value = my_handle.get_value() + off_rank_handle.get_value();
+          my_handle.set_value(value);
+
+          #if DEBUG_SIMPLE_COLL_ORDERING
+          std::cout << index.value
+                    << ": other rank=" << rank
+                    << ", first concurrent work setting val=" << my_handle.get_value()
+                    << std::endl;
+          #endif
+        });
+      }
     }
+
+    create_work([=]{
+      std::cout << index.value
+                << ": first concurrent work val=" << my_handle.get_value()
+                << std::endl;
+      assert(my_handle.get_value() == n_sum(num_ranks));
+    });
+  }
+};
+
+struct SecondConcurrentWork {
+  void operator()(
+    Index1D<int> index,
+    AccessHandleCollection<int, Range1D<int>> my_collection
+  ) const {
+    int num_ranks = index.max_value + 1;
+
+    auto my_handle = my_collection[index].local_access();
+
+    std::cout << index.value
+              << ": second concurrent work val=" << my_handle.get_value()
+              << std::endl;
+
+    assert(my_handle.get_value() == n_sum(num_ranks));
   }
 };
 
 void darma_main_task(std::vector<std::string> args) {
-
   if (args.size() > 1 && args[1] == "--help"){
-    std::cout << "Usage: ./simple_collection [Collection Size (int)]"
+    std::cout << "Usage: ./simple_collection_ordering [Collection Size (int)]"
               << std::endl;
     return;
   }
 
-  assert(args.size() == 2);
+  auto const num_ranks = std::atoi(args[1].c_str());
 
-  size_t const col_size = std::atoi(args[1].c_str());
-
-  auto c1 = initial_access_collection<int>("simple", index_range=Range1D<int>(col_size));
-
-  create_concurrent_work<SimpleCollection>(
-    c1, true, index_range=Range1D<int>(col_size)
+  auto my_collection = initial_access_collection<int>(
+    "test", index_range=Range1D<int>(num_ranks)
   );
 
-  create_concurrent_work<SimpleCollection>(
-    c1, false, index_range=Range1D<int>(col_size)
+  create_concurrent_work<FirstConcurrentWork>(
+    my_collection, index_range=Range1D<int>(num_ranks)
+  );
+
+  create_concurrent_work<SecondConcurrentWork>(
+    my_collection, index_range=Range1D<int>(num_ranks)
   );
 }
 

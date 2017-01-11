@@ -59,6 +59,7 @@ struct SimpleCollectionInit {
     AccessHandleCollection<std::vector<int>, Range1D<int>> c1,
     AccessHandleCollection<int, Range1D<int>> c2
   ) {
+    std::cout << "Initializing index " << index.value << std::endl;
     using darma_runtime::keyword_arguments_for_publication::version;
 
     auto local_vector = c1[index].local_access();
@@ -80,6 +81,9 @@ struct SimpleCollectionTimestep {
     AccessHandleCollection<int, Range1D<int>> c2,
     int const this_iter
   ) {
+    std::cout << "Performing iter " << this_iter
+              << " on index " << index.value
+              << std::endl;
     using darma_runtime::keyword_arguments_for_publication::version;
 
     auto local_vector = c1[index].local_access();
@@ -112,8 +116,18 @@ struct SimpleCollectionTimestep {
 void darma_main_task(std::vector<std::string> args) {
   assert(args.size() == 3);
 
+  if (args.size() > 1 && args[1] == "--help"){
+    std::cout << "Usage: ./simple_collection_fetch [Collection size(int)] [Num iters(int)]"
+              << std::endl;
+    return;
+  }
+
   size_t const col_size = std::atoi(args[1].c_str());
   size_t const num_iter = std::atoi(args[2].c_str());
+
+  std::cout << "Running " << num_iter
+            << " iterations of collection of size "
+            << col_size << std::endl;
 
   auto c1 = initial_access_collection<std::vector<int>>("my_vec", index_range=Range1D<int>(col_size));
   auto c2 = initial_access_collection<int>("simple", index_range=Range1D<int>(col_size));

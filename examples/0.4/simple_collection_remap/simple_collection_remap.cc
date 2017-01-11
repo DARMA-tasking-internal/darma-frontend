@@ -50,6 +50,7 @@
 
 #include <vector>
 #include <numeric>
+#include <algorithm>
 
 using namespace darma_runtime;
 using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
