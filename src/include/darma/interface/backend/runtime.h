@@ -46,7 +46,6 @@
 #define SRC_ABSTRACT_BACKEND_RUNTIME_H_
 
 #include <darma/interface/frontend/types.h>
-#include <darma/interface/backend/types.h>
 
 #include <darma/interface/backend/flow.h>
 #include <darma/interface/frontend/handle.h>
@@ -660,5 +659,7 @@ typedef Runtime runtime_t;
  */
 int main(int argc, char **argv);
 void backend_init_finalize(int argc, char** argv);
+
+#include <darma/interface/backend/types.h>
 
 #endif /* SRC_ABSTRACT_BACKEND_RUNTIME_H_ */

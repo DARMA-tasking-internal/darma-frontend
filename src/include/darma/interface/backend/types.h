@@ -49,6 +49,8 @@
 
 #include <darma_types.h> //provided by the backend
 
+#include <darma/impl/key/SSO_key.h>
+
 namespace darma_runtime {
 
 // Key utility functions
