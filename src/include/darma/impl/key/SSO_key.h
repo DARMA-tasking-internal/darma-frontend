@@ -304,18 +304,25 @@ class SSOKey
       Archive& ar
     ) {
       ar >> mode;
+      DARMA_ASSERT_MESSAGE(
+        mode != _impl::NeedsBackendAssignedKey,
+        "SSOKey unpack got mode NeedsBackendAssignedKey, which is not allowed."
+          "  (This is a backend implementation bug; contact your backend developer)"
+      );
       switch (mode) {
-        case darma_runtime::detail::_impl::BackendAssigned:
+        case darma_runtime::detail::_impl::BackendAssigned: {
           repr.as_backend_assigned = _backend_assigned{};
           ar >> repr.as_backend_assigned.backend_assigned_key;
           break;
-        case darma_runtime::detail::_impl::Short:
+        }
+        case darma_runtime::detail::_impl::Short: {
           repr.as_short = _short{};
           ar >> repr.as_short.size;
           // This could be smaller...
           ar >> repr.as_short.data;
           break;
-        case darma_runtime::detail::_impl::Long:
+        }
+        case darma_runtime::detail::_impl::Long: {
           repr.as_long = _long{};
           // don't really need to store size since range does it
           ar >> repr.as_long.size;
@@ -326,6 +333,11 @@ class SSOKey
           );
           assert(range_end - repr.as_long.data == repr.as_long.size);
           break;
+        }
+        case darma_runtime::detail::_impl::NeedsBackendAssignedKey: {
+          DARMA_ASSERT_UNREACHABLE_FAILURE("NeedsBackendAssignedKey");            // LCOV_EXCL_LINE
+          break;                                                                  // LCOV_EXCL_LINE
+        }
       }
     }
 
@@ -719,6 +731,9 @@ struct Serializer<
           val.repr.as_long.data + val.repr.as_long.size
         );
         break;
+      case darma_runtime::detail::_impl::NeedsBackendAssignedKey:
+        DARMA_ASSERT_UNREACHABLE_FAILURE("NeedsBackendAssignedKey");            // LCOV_EXCL_LINE
+        break;                                                                  // LCOV_EXCL_LINE
     }
   }
 
@@ -747,6 +762,9 @@ struct Serializer<
           val.repr.as_long.data + val.repr.as_long.size
         );
         break;
+      case darma_runtime::detail::_impl::NeedsBackendAssignedKey:
+        DARMA_ASSERT_UNREACHABLE_FAILURE("NeedsBackendAssignedKey");            // LCOV_EXCL_LINE
+        break;                                                                  // LCOV_EXCL_LINE
     }
   }
 
