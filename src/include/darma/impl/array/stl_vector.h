@@ -50,6 +50,7 @@
 #include "index_decomposition.h"
 #include <darma/interface/app/vector_view.h>
 
+namespace darma = darma_runtime;
 
 namespace darma_runtime {
 

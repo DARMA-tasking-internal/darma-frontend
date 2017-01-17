@@ -62,5 +62,7 @@
 #include "serialization/serialization.impl.h"
 #include "array/array.impl.h"
 
+namespace darma = darma_runtime;
+
 #endif /* SRC_DARMA_DARMA_H_ */
 
