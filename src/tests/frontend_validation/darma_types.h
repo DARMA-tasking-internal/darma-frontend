@@ -45,6 +45,8 @@
 #ifndef SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
 #define SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
 
+#define _darma_backend_feature_progress_date 20990000 // for now
+
 #define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
 
 #include "test_frontend_fwd.h"

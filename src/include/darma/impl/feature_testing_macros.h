@@ -47,9 +47,29 @@
 
 #include "util/macros.h"
 
-#ifndef _darma_has_feature
-#  define _darma_has_feature(x) \
-  defined(DARMA_CONCAT_TOKEN_(_darma_has_feature_, x))
-#endif
+#define _darma_feature_date_create_parallel_for 20170117
+
+#define _darma_has_feature(x) \
+  ( \
+    defined( _darma_has_feature_ ## x ) \
+    && _darma_has_feature_ ## x != 0 \
+  ) \
+  || ( \
+    !defined(_darma_has_feature_##x) \
+    && defined(_darma_feature_date_##x) \
+    && _darma_backend_feature_progress_date \
+      >= _darma_feature_date_##x \
+  ) \
+  || ( \
+    defined(_darma_backend_has_all_features) \
+    && !( \
+      defined(_darma_has_feature_##x) \
+      && _darma_has_feature_##x == 0 \
+    ) \
+  )
+
+//#define _darma_has_feature(x) \
+//  defined(_darma_has_feature_ ## x) && _darma_has_feature_##x != 0
+
 
 #endif //DARMA_FEATURE_TESTING_MACROS_H
