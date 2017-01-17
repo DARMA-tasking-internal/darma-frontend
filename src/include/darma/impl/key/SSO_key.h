@@ -288,13 +288,14 @@ class SSOKey
 
 
     bool _needs_backend_assigned_key() const {
-      return mode == _impl::Long and repr.as_long.data == nullptr;
+      return mode == _impl::NeedsBackendAssignedKey;
     }
 
     explicit SSOKey(request_backend_assigned_key_tag) {
       // both values are defaults, but just for readability...
       repr.as_long = _long{};
       repr.as_long.data = nullptr;
+      mode = _impl::NeedsBackendAssignedKey;
     }
 
     template <typename Archive>
