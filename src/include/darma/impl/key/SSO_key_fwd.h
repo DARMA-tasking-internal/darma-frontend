@@ -56,7 +56,8 @@ namespace _impl {
 typedef enum {
   Long = (uint8_t)0,
   Short = (uint8_t)1,
-  BackendAssigned = (uint8_t)2
+  BackendAssigned = (uint8_t)2,
+  NeedsBackendAssignedKey = (uint8_t)3
 } sso_key_mode_t;
 
 } // end namespace _impl
