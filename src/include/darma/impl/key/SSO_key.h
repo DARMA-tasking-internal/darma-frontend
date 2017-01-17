@@ -285,6 +285,7 @@ class SSOKey
 
     explicit SSOKey(request_backend_assigned_key_tag) {
       // both values are defaults, but just for readability...
+      repr.as_long = _long{};
       repr.as_long.data = nullptr;
     }
 
