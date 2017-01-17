@@ -363,6 +363,8 @@ class SSOKey
           return repr.as_short.size;
         case _impl::Long:
           return repr.as_long.size;
+        case _impl::NeedsBackendAssignedKey:
+          return 0ul;
       }
     }
 
@@ -374,6 +376,8 @@ class SSOKey
           return repr.as_short.data;
         case _impl::Long:
           return repr.as_long.data;
+        case _impl::NeedsBackendAssignedKey:
+          return nullptr;
       }
     }
 
@@ -599,10 +603,6 @@ struct key_traits<
   >;
 
   struct maker {
-    inline sso_key_t
-    operator()() const {
-      return sso_key_t(typename sso_key_t::request_backend_assigned_key_tag{});
-    }
     template <typename... Args>
     inline sso_key_t
     operator()(Args&& ... args) const {
