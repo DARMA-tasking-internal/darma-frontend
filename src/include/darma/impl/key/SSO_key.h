@@ -692,14 +692,17 @@ struct Serializer<
     ar >> val.mode;
     switch (val.mode) {
       case darma_runtime::detail::_impl::BackendAssigned:
+        val.repr.as_backend_assigned = typename sso_key_t::_backend_assigned{};
         ar >> val.repr.as_backend_assigned.backend_assigned_key;
         break;
       case darma_runtime::detail::_impl::Short:
+        val.repr.as_short = typename sso_key_t::_short{};
         ar >> val.repr.as_short.size;
         // This could be smaller...
         ar >> val.repr.as_short.data;
         break;
       case darma_runtime::detail::_impl::Long:
+        val.repr.as_long = typename sso_key_t::_long{};
         // don't really need to store size since range does it
         ar >> val.repr.as_long.size;
         auto* range_end = val.repr.as_long.data + val.repr.as_long.size;

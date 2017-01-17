@@ -309,7 +309,7 @@ namespace threads_backend {
 
     void
     cleanup_handle(
-      InnerFlow* flow
+      flow_t const& flow
     );
 
     void
@@ -329,7 +329,7 @@ namespace threads_backend {
 
     bool
     test_alias_null(
-      InnerFlow* flow, InnerFlow* alias
+      flow_t const& flow, flow_t const& alias
     );
 
     void

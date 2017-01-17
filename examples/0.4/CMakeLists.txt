@@ -91,9 +91,10 @@ add_subdirectory(overlap_reduce)
 add_subdirectory(simple_collection)
 add_subdirectory(simple_collection_fetch)
 add_subdirectory(simple_collection_iter)
-add_subdirectory(simple_collection_unique_owner)
+#add_subdirectory(simple_collection_unique_owner)
 add_subdirectory(simple_collection_remap)
 add_subdirectory(simple_collection_convergence)
 add_subdirectory(simple_collection_ordering)
+add_subdirectory(simple_collection_multidim)
 
 

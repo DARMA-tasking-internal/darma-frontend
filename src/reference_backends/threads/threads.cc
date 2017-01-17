@@ -1056,7 +1056,7 @@ namespace threads_backend {
 
   void
   ThreadsRuntime::cleanup_handle(
-    InnerFlow* flow
+    flow_t const& flow
   ) {
     auto const db_owner =
       flow->data_block != nullptr ? flow->data_block->owner : -1;
@@ -1186,7 +1186,7 @@ namespace threads_backend {
 
   bool
   ThreadsRuntime::test_alias_null(
-    InnerFlow* flow, InnerFlow* alias
+    flow_t const& flow, flow_t const& alias
   ) {
     auto const is_col = flow->is_collection;
 
@@ -1209,10 +1209,10 @@ namespace threads_backend {
           );
 
           if (c.second.first) {
-            cleanup_handle(c.second.first.get());
+            cleanup_handle(c.second.first);
           }
           if (c.second.second) {
-            cleanup_handle(c.second.second.get());
+            cleanup_handle(c.second.second);
           }
         }
         flow->prev->collection_child.clear();
@@ -1333,7 +1333,7 @@ namespace threads_backend {
                   PRINT_STATE(aliased),
                   aliased->ref);
 
-      if (test_alias_null(flow.get(), aliased.get())) {
+      if (test_alias_null(flow, aliased)) {
         return std::make_tuple(aliased,false);
       } else {
         return std::make_tuple(aliased, has_read_phase);
