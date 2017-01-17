@@ -249,6 +249,7 @@ class SSOKey
 
     struct backend_assigned_key_tag { };
     struct request_backend_assigned_key_tag { };
+    struct unpack_ctor_tag { };
 
 
     struct _short {
@@ -286,6 +287,38 @@ class SSOKey
       // both values are defaults, but just for readability...
       repr.as_long.data = nullptr;
     }
+
+    template <typename Archive>
+    SSOKey(
+      unpack_ctor_tag,
+      Archive& ar
+    ) {
+      ar >> mode;
+      switch (mode) {
+        case darma_runtime::detail::_impl::BackendAssigned:
+          repr.as_backend_assigned = _backend_assigned{};
+          ar >> repr.as_backend_assigned.backend_assigned_key;
+          break;
+        case darma_runtime::detail::_impl::Short:
+          repr.as_short = _short{};
+          ar >> repr.as_short.size;
+          // This could be smaller...
+          ar >> repr.as_short.data;
+          break;
+        case darma_runtime::detail::_impl::Long:
+          repr.as_long = _long{};
+          // don't really need to store size since range does it
+          ar >> repr.as_long.size;
+          auto* range_end = repr.as_long.data + repr.as_long.size;
+          ar >> serialization::range(
+            repr.as_long.data,
+            range_end
+          );
+          assert(range_end - repr.as_long.data == repr.as_long.size);
+          break;
+      }
+    }
+
 
     SSOKey(
       backend_assigned_key_tag,
@@ -688,31 +721,9 @@ struct Serializer<
 
   template <typename ArchiveT>
   void unpack(void* allocated, ArchiveT& ar) const {
-    auto& val = *(new(allocated) sso_key_t);
-    ar >> val.mode;
-    switch (val.mode) {
-      case darma_runtime::detail::_impl::BackendAssigned:
-        val.repr.as_backend_assigned = typename sso_key_t::_backend_assigned{};
-        ar >> val.repr.as_backend_assigned.backend_assigned_key;
-        break;
-      case darma_runtime::detail::_impl::Short:
-        val.repr.as_short = typename sso_key_t::_short{};
-        ar >> val.repr.as_short.size;
-        // This could be smaller...
-        ar >> val.repr.as_short.data;
-        break;
-      case darma_runtime::detail::_impl::Long:
-        val.repr.as_long = typename sso_key_t::_long{};
-        // don't really need to store size since range does it
-        ar >> val.repr.as_long.size;
-        auto* range_end = val.repr.as_long.data + val.repr.as_long.size;
-        ar >> serialization::range(
-          val.repr.as_long.data,
-          range_end
-        );
-        assert(range_end - val.repr.as_long.data == val.repr.as_long.size);
-        break;
-    }
+    new (allocated) sso_key_t(
+      typename sso_key_t::unpack_ctor_tag{}, ar
+    );
   }
 };
 
