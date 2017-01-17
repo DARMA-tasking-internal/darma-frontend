@@ -46,9 +46,14 @@
 #ifndef DARMA_IMPL_PARALLEL_FOR_H
 #define DARMA_IMPL_PARALLEL_FOR_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(create_parallel_for)
+
 #include <darma/interface/backend/parallel_for.h>
 #include <darma/impl/keyword_arguments/parse.h>
 #include <darma/impl/keyword_arguments/macros.h>
+
 
 DeclareDarmaTypeTransparentKeyword(parallel_for, n_iterations);
 
@@ -280,5 +285,7 @@ void create_parallel_for(
 }
 
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(create_parallel_for)
 
 #endif //DARMA_IMPL_PARALLEL_FOR_H
