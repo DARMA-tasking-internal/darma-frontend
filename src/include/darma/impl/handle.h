@@ -153,7 +153,7 @@ class VariableHandleBase
       const key_t &key
     ) : keyed_base_t(key) { }
 
-    VariableHandleBase() : keyed_base_t(key_t()) { }
+    //VariableHandleBase() : keyed_base_t(key_t()) { }
 
     virtual ~VariableHandleBase() noexcept { }
 
@@ -190,7 +190,7 @@ class VariableHandle
     ////////////////////////////////////////////////////////////
     // Constructors and Destructor <editor-fold desc="Constructors and Destructor">
 
-    VariableHandle() : base_t() { }
+    //VariableHandle() : base_t() { }
 
     VariableHandle(
       const key_t &data_key

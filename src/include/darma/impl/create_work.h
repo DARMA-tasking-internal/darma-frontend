@@ -310,9 +310,11 @@ struct _do_create_work {
       darma_runtime::keyword_tags_for_task_creation::name
     >([](auto&&... key_parts){
       return make_key(std::forward<decltype(key_parts)>(key_parts)...);
-    }, types::key_t(), std::forward<Args>(args)...);
+    }, darma_runtime::make_key(), std::forward<Args>(args)...);
 
-    if(not detail::key_traits<types::key_t>::key_equal()(name_key, types::key_t())) {
+    if(not detail::key_traits<types::key_t>::key_equal()(
+      name_key, darma_runtime::make_key()
+    )) {
       task_->set_name(name_key);
     }
 

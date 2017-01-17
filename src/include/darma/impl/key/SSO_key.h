@@ -63,6 +63,10 @@ namespace darma_runtime {
 
 namespace detail {
 
+// TODO move this forward declaration
+template <typename T>
+struct _initial_access_key_helper;
+
 namespace _impl {
 
 template <typename T> struct is_sso_key : std::false_type { };
@@ -216,6 +220,10 @@ inline auto _sum(Arg0&& arg0, Args&&... args) {
     typename _rest_vector_t::pop_back::type
   >()(std::forward<Arg0>(arg0), std::forward<Args>(args)...);
 
+}
+
+inline auto _sum() {
+  return 0ul;
 }
 
 } // end namespace _impl
@@ -395,6 +403,9 @@ class SSOKey
         }
     };
 
+    //SSOKey()
+    //  : SSOKey(request_backend_assigned_key_tag{}) {}
+
     static constexpr uint8_t not_given = std::numeric_limits<uint8_t>::max();
 
     friend struct key_traits<SSOKey>;
@@ -403,10 +414,17 @@ class SSOKey
     friend struct serialization::Serializer<SSOKey>;
     friend struct serialization::Serializer<const SSOKey>;
 
+    template <typename T>
+    friend struct darma_runtime::detail::_initial_access_key_helper;
+
   public:
 
-    SSOKey()
-      : SSOKey(request_backend_assigned_key_tag{}) {}
+    // TODO make this private and add the appropriate friend
+    SSOKey(
+      darma_runtime::serialization::detail::serialization_manager_default_construct_tag_t
+    ) : SSOKey(variadic_constructor_arg)
+    { }
+
 
     // TODO efficient move constructor
 
@@ -673,9 +691,15 @@ struct Serializer<
   using sso_key_t = darma_runtime::detail::SSOKey<
     BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal
   >;
+  using key_traits_t = darma_runtime::detail::key_traits<sso_key_t>;
 
   template <typename ArchiveT>
   void compute_size(sso_key_t const& val, ArchiveT& ar) const {
+    DARMA_ASSERT_MESSAGE(
+      not key_traits_t::needs_backend_key(val),
+      "Cannot compute size of a key that is awaiting a backend assigned value."
+        "  (This is a backend implementation bug; contact your backend developer)"
+    );
     ar % val.mode;
     switch (val.mode) {
       case darma_runtime::detail::_impl::BackendAssigned:
@@ -699,6 +723,11 @@ struct Serializer<
 
   template <typename ArchiveT>
   void pack(sso_key_t const& val, ArchiveT& ar) const {
+    DARMA_ASSERT_MESSAGE(
+      not key_traits_t::needs_backend_key(val),
+      "Cannot pack a key that is awaiting a backend assigned value."
+        "  (This is a backend implementation bug; contact your backend developer)"
+    );
     ar << val.mode;
     switch (val.mode) {
       case darma_runtime::detail::_impl::BackendAssigned:

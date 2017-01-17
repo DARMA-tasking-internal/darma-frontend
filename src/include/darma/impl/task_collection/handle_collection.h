@@ -168,7 +168,7 @@ struct MappedHandleCollection {
       // Mapping already unpacked in reconstruct()
 
       // Set up the access handle collection here, though
-      types::key_t key;
+      types::key_t key = darma_runtime::make_key();
       ar >> key;
       auto var_handle = std::make_shared<
         detail::VariableHandle<typename AccessHandleCollectionT::value_type>

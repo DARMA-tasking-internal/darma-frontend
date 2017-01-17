@@ -348,7 +348,7 @@ namespace threads_backend {
       std::string genName = "";
       if (runtime->getTrace()) {
         TraceLog* log = nullptr;
-        if (task->get_name() == darma_runtime::types::key_t()) {
+        if (task->get_name() == darma_runtime::make_key()) {
           genName = "task-" + std::to_string(task_label++);
         } else {
           genName = task->get_name().human_readable_string("_","","");

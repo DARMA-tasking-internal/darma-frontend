@@ -59,7 +59,7 @@ namespace threads_backend {
     TraceLog* pub_log = nullptr;
     std::atomic<bool> ready = {false};
 
-    types::key_t key;
+    types::key_t key = darma_runtime::make_key();
     PackedDataBlock* data = nullptr;
     std::atomic<size_t> expected = {0}, done = {0};
 
