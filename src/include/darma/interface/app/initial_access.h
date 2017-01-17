@@ -89,7 +89,9 @@ struct _initial_access_key_helper {
   decltype(auto)
   operator()(variadic_arguments_begin_tag) {
     // call default ctor to make a backend-awaiting key
-    types::key_t key = darma_runtime::types::key_t();
+    types::key_t key = darma_runtime::types::key_t(
+      types::key_t::request_backend_assigned_key_tag{}
+    );
     return _impl(key);
   }
 

@@ -128,6 +128,8 @@ struct ArchiveAccess {
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////
 
+static constexpr struct serialization_manager_default_construct_tag_t { }
+  serialization_manager_default_construct_tag { };
 
 template <typename T>
 class SerializationManagerForType
@@ -227,11 +229,32 @@ class SerializationManagerForType
       serialization::detail::serializability_traits<T>::unpack(object_dest, ar);
     }
 
+  private:
+
+    template <typename U>
+    using _has_tagged_default_construct_archetype =
+      decltype( U{ serialization_manager_default_construct_tag } );
+
+    template <typename U>
+    using _has_tagged_default_construct = tinympl::bool_<
+      meta::is_detected<
+        _has_tagged_default_construct_archetype, U
+      >::value
+    >;
+
+    void _default_construct_impl(void* allocated, std::true_type) const {
+      new (allocated) T(serialization_manager_default_construct_tag);
+    }
+
+    void _default_construct_impl(void* allocated, std::false_type) const {
+      new (allocated) T();
+    }
+
+  public:
+
     void
     default_construct(void* allocated) const override {
-      // Will fail if T is not default constructible...
-      // TODO allocator awareness?
-      new (allocated) T();
+      _default_construct_impl(allocated, _has_tagged_default_construct<T>{});
     }
 
     void

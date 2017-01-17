@@ -101,7 +101,7 @@ class TaskBase : public abstract::frontend::Task
 
     get_deps_container_t dependencies_;
 
-    key_t name_;
+    key_t name_ = darma_runtime::make_key();
 
   public:
 
