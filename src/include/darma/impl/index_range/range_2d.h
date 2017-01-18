@@ -157,7 +157,7 @@ struct Range2DDenseMapping {
 
     }
 
-    from_index_type map_reverse(to_index_type const& to_idx, Range2D<Integer> const& full_range) const {
+    from_index_type map_backward(to_index_type const& to_idx, Range2D<Integer> const& full_range) const {
       const Integer y_size = full_range.end_of_dimension(1) - full_range.begin_of_dimension(1);
       assert(full_range.size() != 0);
       return Index2D<Integer>(
