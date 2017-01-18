@@ -52,6 +52,16 @@
 #include "test_frontend_fwd.h"
 
 namespace mock_backend {
+
+struct MockCPUSet { };
+
+} // end namespace mock backend
+
+namespace darma_runtime { namespace types {
+using cpu_set_t = ::mock_backend::MockCPUSet;
+}} // end namespace darma_runtime::types
+
+namespace mock_backend {
 // Forward declaration
 class MockFlow {
   private:
@@ -131,5 +141,7 @@ namespace darma_runtime { namespace types {
 
 //#include <darma/impl/key/simple_key.h>
 #include <darma/impl/key/SSO_key.h>
+
+
 
 #endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */

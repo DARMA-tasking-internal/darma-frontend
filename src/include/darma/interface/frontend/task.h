@@ -144,7 +144,13 @@ class Task {
      */
     virtual void pack(void* allocated) const =0;
 
+
+    //==========================================================================
 #if _darma_has_feature(create_parallel_for)
+
+    virtual size_t width() const { return 1; }
+
+    virtual void set_cpu_set(darma_runtime::types::cpu_set_t const&) =0;
 
     /** @brief Indicates whether the task represents a parallel_for loop
      *
@@ -154,6 +160,7 @@ class Task {
     virtual bool is_parallel_for_task() const =0;
 
 #endif
+    //==========================================================================
 
     virtual ~Task() = default;
 

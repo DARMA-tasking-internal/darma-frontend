@@ -64,6 +64,8 @@
 #include <tinympl/tuple_as_sequence.hpp>
 #include <tinympl/stl_integer_sequence.hpp>
 
+#include <darma_types.h>
+
 #include <darma/interface/backend/types.h>
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/frontend/task.h>
@@ -104,6 +106,16 @@ class TaskBase : public abstract::frontend::Task
     key_t name_ = darma_runtime::make_key();
 
   public:
+
+#if _darma_has_feature(create_parallel_for)
+    types::cpu_set_t assigned_cpu_set_;
+    std::size_t width_;
+
+    types::cpu_set_t get_cpu_set() const {
+      return assigned_cpu_set_;
+    }
+#endif
+
 
     TaskBase() = default;
 
@@ -212,9 +224,23 @@ class TaskBase : public abstract::frontend::Task
       runnable_ = std::move(r);
     }
 
+    //==========================================================================
+#if _darma_has_feature(create_parallel_for)
     bool is_parallel_for_task() const override {
       return is_parallel_for_task_;
     }
+
+    std::size_t width() const override {
+      return width_;
+    }
+
+    void set_cpu_set(
+      darma_runtime::types::cpu_set_t const& cpuset
+    ) override {
+      assigned_cpu_set_ = cpuset;
+    }
+#endif
+    //==========================================================================
 
     virtual ~TaskBase() noexcept { }
 
