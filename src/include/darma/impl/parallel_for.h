@@ -56,6 +56,7 @@
 
 
 DeclareDarmaTypeTransparentKeyword(parallel_for, n_iterations);
+DeclareDarmaTypeTransparentKeyword(parallel_for, n_workers);
 
 namespace darma_runtime {
 
@@ -66,8 +67,9 @@ struct ParallelForLambdaRunnable
   : RunnableBase
 {
   // Force the double-copy
-  ParallelForLambdaRunnable(std::remove_reference_t<Lambda>& lambda, int64_t n_iters)
-    : run_this_(lambda), n_iters_(n_iters)
+  ParallelForLambdaRunnable(std::remove_reference_t<Lambda>& lambda,
+    int64_t n_iters
+  ) : run_this_(lambda), n_iters_(n_iters)
   { }
 
   bool run() override {
@@ -143,21 +145,22 @@ struct _do_create_parallel_for<
 > {
   void operator()(Args&& ... args, Callable&& c) const {
     using parser = kwarg_parser<
-      variadic_positional_overload_description<
-        _keyword<size_t, keyword_tags_for_parallel_for::n_iterations>
+      overload_description<
+        _keyword<size_t, keyword_tags_for_parallel_for::n_iterations>,
+        _optional_keyword<size_t, keyword_tags_for_parallel_for::n_workers>
       >
     >;
 
     using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
 
     return parser()
-      // For some reason, this doesn't work with zero variadics, so we can give it a
-      // random one since they're ignored anyway
-      .parse_args(5, std::forward<Args>(args)...)
+      .with_default_generators(
+        darma_runtime::keyword_arguments_for_parallel_for::n_workers=[]{ return 1; }
+      )
+      .parse_args(std::forward<Args>(args)...)
       .invoke([&](
         size_t n_iters,
-        variadic_arguments_begin_tag,
-        auto&&... /*ignored*/
+        size_t n_workers
       ) {
         auto task = std::make_unique<TaskBase>();
         detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
@@ -165,6 +168,7 @@ struct _do_create_parallel_for<
         );
         parent_task->current_create_work_context = task.get();
 
+        task->width_ = n_workers;
         task->is_double_copy_capture = true;
         task->set_runnable(std::make_unique<
           ParallelForLambdaRunnable<Callable>
@@ -195,8 +199,6 @@ struct _do_create_parallel_for<
 //==============================================================================
 // <editor-fold desc="Functor version">
 
-// Lambda version
-
 template <typename Callable, typename... Args>
 struct _do_create_parallel_for<
   true, Callable, tinympl::vector<Args...>
@@ -204,7 +206,8 @@ struct _do_create_parallel_for<
   void operator()(Args&& ... args) const {
     using parser = kwarg_parser<
       variadic_positional_overload_description<
-        _keyword<size_t, keyword_tags_for_parallel_for::n_iterations>
+        _keyword<size_t, keyword_tags_for_parallel_for::n_iterations>,
+        _optional_keyword<size_t, keyword_tags_for_parallel_for::n_workers>
       >
     >;
 
@@ -213,9 +216,13 @@ struct _do_create_parallel_for<
     return parser()
       // For some reason, this doesn't work with zero variadics, so we can give it a
       // random one since they're ignored anyway
+      .with_default_generators(
+        darma_runtime::keyword_arguments_for_parallel_for::n_workers=[]{ return 1; }
+      )
       .parse_args(std::forward<Args>(args)...)
       .invoke([&](
         size_t n_iters,
+        size_t n_workers,
         variadic_arguments_begin_tag,
         auto&&... args_to_fwd
       ) {
@@ -224,6 +231,7 @@ struct _do_create_parallel_for<
           abstract::backend::get_backend_context()->get_running_task()
         );
         parent_task->current_create_work_context = task.get();
+
 
         auto runnable = std::make_unique<
           ParallelForFunctorRunnable<Callable, decltype(args_to_fwd)...>
@@ -237,6 +245,7 @@ struct _do_create_parallel_for<
         parent_task->current_create_work_context = nullptr;
 
         task->is_parallel_for_task_ = true;
+        task->width_ = n_workers;
 
         for (auto&& reg : task->registrations_to_run) {
           reg();

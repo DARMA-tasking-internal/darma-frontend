@@ -75,6 +75,7 @@ class UseCollection {
     virtual std::size_t
     task_index_for(std::size_t collection_index) const =0;
 
+    /// TODO remove this!?!
     /** @todo document this
      *
      *  @param other

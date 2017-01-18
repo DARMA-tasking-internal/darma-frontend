@@ -47,6 +47,9 @@
 
 #define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
 
+#define _darma_backend_has_all_features 1
+#define _darma_has_feature_create_parallel_for 0
+
 #include <utility> // std::pair
 
 namespace threads_backend {
