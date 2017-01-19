@@ -91,6 +91,7 @@ namespace threads_backend {
     bool indexed_alias_out = false;
     CollectionID cid;
     std::mutex collection_mutex{};
+    size_t collection_instance = 0;
 
     size_t* shared_reader_count = nullptr;
     size_t uses = 0;
