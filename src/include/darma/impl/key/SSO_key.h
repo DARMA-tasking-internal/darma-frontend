@@ -63,9 +63,12 @@ namespace darma_runtime {
 
 namespace detail {
 
+
 // TODO move this forward declaration
 template <typename T>
 struct _initial_access_key_helper;
+template <typename...>
+struct AccessHandleCollectionAccess;
 
 namespace _impl {
 
