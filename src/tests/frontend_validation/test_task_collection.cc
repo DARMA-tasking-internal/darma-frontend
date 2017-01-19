@@ -42,6 +42,10 @@
 //@HEADER
 */
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(create_concurrent_work)
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -1053,3 +1057,5 @@ TEST_F(TestCreateConcurrentWork, simple_collection_read) {
   mock_runtime->task_collections.front().reset(nullptr);
 
 }
+
+#endif

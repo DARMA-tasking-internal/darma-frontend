@@ -45,6 +45,8 @@
 #ifndef DARMA_IMPL_CONCURRENT_REGION_H
 #define DARMA_IMPL_CONCURRENT_REGION_H
 
+#if 0
+
 #include <darma/interface/app/create_concurrent_region.h>
 #include <darma/interface/frontend/concurrent_region_task.h>
 #include <darma/impl/array/index_range.h>
@@ -405,4 +407,6 @@ unpack_concurrent_region_task(void* packed_data) {
 
 } // end namespace darma_runtime
 
+#endif // 0
 #endif //DARMA_IMPL_CONCURRENT_REGION_H
+

@@ -60,6 +60,8 @@
 #include <darma/interface/frontend/top_level_task.h>
 #include <darma/interface/frontend/task_collection.h>
 
+#include <darma/impl/feature_testing_macros.h>
+
 #include "backend_fwd.h"
 
 namespace darma_runtime {
@@ -120,6 +122,7 @@ class Runtime {
     virtual void
     register_task(task_unique_ptr&& task) = 0;
 
+#if _darma_has_feature(create_condition)
     /** @brief register a task with a run() method that has a bool get_result(),
      *  which is valid after to call after run() returns.
      *
@@ -137,11 +140,14 @@ class Runtime {
      */
     virtual bool
     register_condition_task(condition_task_unique_ptr&& task) = 0;
+#endif
 
+#if _darma_has_feature(create_concurrent_work)
     virtual void
     register_task_collection(
       task_collection_unique_ptr&& collection
     ) =0;
+#endif
 
     // </editor-fold> end Task handling
     //==========================================================================
@@ -168,6 +174,7 @@ class Runtime {
       frontend::Use* u
     ) =0;
 
+#if _darma_has_feature(task_migration)
     /** @TODO document this
      *  @remark on entry, the in_flow and out_flow of `u` already be set up
      *  via calls to make_unpacked_flow() on the buffers created by pack_flow()
@@ -177,6 +184,7 @@ class Runtime {
     reregister_migrated_use(
       frontend::Use* u
     ) =0;
+#endif
 
     virtual void
     register_use_copy(
@@ -275,6 +283,7 @@ class Runtime {
       std::shared_ptr<frontend::Handle> const& handle
     ) =0;
 
+#if _darma_has_feature(create_concurrent_work)
     /** @brief Similar to make_initial_flow, but for a Use that manages a
      *  collection
      *
@@ -291,7 +300,9 @@ class Runtime {
     make_initial_flow_collection(
       std::shared_ptr<frontend::Handle> const& handle
     ) =0;
+#endif
 
+#if _darma_has_feature(publish_fetch)
     /** @brief Make a fetching Flow to be associated with the handle given as an
      *  argument.
      *
@@ -319,6 +330,7 @@ class Runtime {
       types::key_t const& version_key,
       bool acquired = false
     ) =0;
+#endif
 
     /** @brief Make a null Flow to be associated with the handle given as an
      *  argument.
@@ -339,6 +351,7 @@ class Runtime {
       std::shared_ptr<frontend::Handle> const& handle
     ) =0;
 
+#if _darma_has_feature(create_concurrent_work)
     /** @brief Analogue of make_null_flow() for a use that manages a collection
      *
      *  @sa make_null_flow()
@@ -352,6 +365,7 @@ class Runtime {
     make_null_flow_collection(
       std::shared_ptr<frontend::Handle> const& handle
     ) =0;
+#endif
 
     /** @todo update this
      *  @brief Make a new Flow that receives forwarded changes from
@@ -382,6 +396,7 @@ class Runtime {
       types::flow_t& from
     ) =0;
 
+#if _darma_has_feature(create_concurrent_work)
     /** @todo document this
      *
      * @remark Parameter must be a value returned from one of the
@@ -410,6 +425,7 @@ class Runtime {
       types::key_t const& version_key,
       size_t backend_index
     ) =0;
+#endif
 
     /** @todo update this
      *
@@ -442,6 +458,7 @@ class Runtime {
       types::flow_t& from
     ) =0;
 
+#if _darma_has_feature(create_concurrent_work)
     /** @todo document this
      *
      * @param from
@@ -451,7 +468,9 @@ class Runtime {
     make_next_flow_collection(
       types::flow_t& from
     ) =0;
+#endif
 
+#if _darma_has_feature(task_migration)
     virtual size_t
     get_packed_flow_size(
       types::flow_t const& f
@@ -479,6 +498,7 @@ class Runtime {
     make_unpacked_flow(
       void const*& buffer
     ) =0;
+#endif
 
     /** @todo document this
      */
@@ -502,6 +522,7 @@ class Runtime {
     //==========================================================================
     // <editor-fold desc="publication, collectives, etc">
 
+#if _darma_has_feature(publish_fetch)
     /** @brief Indicate that the state of a Handle corresponding to a given Use
      *  should be accessible via a corresponding fetching usage with the same
      *  version_key.
@@ -517,7 +538,9 @@ class Runtime {
       frontend::Use* u,
       frontend::PublicationDetails* details
     ) =0;
+#endif
 
+#if _darma_has_feature(simple_collectives)
     virtual void
     allreduce_use(
       frontend::Use* use_in,
@@ -525,6 +548,7 @@ class Runtime {
       frontend::CollectiveDetails const* details,
       types::key_t const& tag
     ) =0;
+#endif
 
     // </editor-fold> end publication, collectives, etc
     //==========================================================================
