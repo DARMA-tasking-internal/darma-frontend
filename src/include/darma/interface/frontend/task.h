@@ -49,6 +49,8 @@
 #include <darma/impl/feature_testing_macros.h>
 #include <darma/interface/frontend/types.h>
 
+#include <darma/impl/feature_testing_macros.h>
+
 #include "use.h"
 
 namespace darma_runtime {

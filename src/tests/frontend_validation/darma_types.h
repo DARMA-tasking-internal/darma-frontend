@@ -45,9 +45,11 @@
 #ifndef SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
 #define SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
 
-#define _darma_backend_feature_progress_date 20990000 // for now
-
 #define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
+
+#include <cstdlib> // std::size_t
+#include <string>
+#include <ostream>
 
 #include "test_frontend_fwd.h"
 
@@ -66,8 +68,8 @@ namespace mock_backend {
 class MockFlow {
   private:
 
-    static size_t next_index;
-    size_t index_;
+    static std::size_t next_index;
+    std::size_t index_;
     std::string name_;
 
   public:
@@ -139,7 +141,6 @@ namespace darma_runtime { namespace types {
   typedef darma_runtime::detail::SSOKey<> key_t;
 }} // end namespace darma_runtime::types
 
-//#include <darma/impl/key/simple_key.h>
 #include <darma/impl/key/SSO_key.h>
 
 

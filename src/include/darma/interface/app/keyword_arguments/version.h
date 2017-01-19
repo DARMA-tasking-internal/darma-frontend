@@ -48,9 +48,30 @@
 #include <darma/impl/keyword_arguments/macros.h>
 
 DeclareDarmaTypeTransparentKeyword(publication, version);
+
+DeclareStandardDarmaKeywordArgumentAliases(publication, version);
+
+namespace darma_runtime {
+
+namespace keyword_arguments_for_read_access {
+AliasDarmaKeyword(publication, version);
+} // end namespace keyword_arguments_for_read_access
+
+namespace keyword_arguments_for_publish {
+AliasDarmaKeyword(publication, version);
+} // end namespace keyword_arguments_for_read_access
+
+namespace keyword_arguments_for_access_handle_publish {
+AliasDarmaKeyword(publication, version);
+} // end namespace keyword_arguments_for_read_access
+
+} // end namespace darma_runtime
+
+
+// TODO deprecate these
 DeclareDarmaTypeTransparentKeyword(publication, reader_hint);
 DeclareDarmaTypeTransparentKeyword(publication, region_context);
-DeclareDarmaTypeTransparentKeyword(acquire_ownership, from_data_store);
+//DeclareDarmaTypeTransparentKeyword(acquire_ownership, from_data_store);
 
 #endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_VERSION_H
 

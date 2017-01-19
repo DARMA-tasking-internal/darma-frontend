@@ -45,9 +45,34 @@
 #ifndef DARMA_FEATURE_TESTING_MACROS_H
 #define DARMA_FEATURE_TESTING_MACROS_H
 
+#include <darma_features.h>  // should contain feature macro definitions
+
 #include "util/macros.h"
 
+//==============================================================================
+// <editor-fold desc="Feature Dates and Defaults"> {{{1
+
+#define _darma_feature_date_publish_fetch 20160101
+
+#define _darma_feature_date_create_condition 20160301
+
+// Original collectives, uses arbitrary piece and n_pieces
+// (should be deprecated soon)
+#define _darma_feature_date_simple_collectives 20160604
+
+#define _darma_feature_date_task_migration 20160701
+
+// Task collections, including create_concurrent_work and AccessHandleCollection
+#define _darma_feature_date_create_concurrent_work 20161210
+
+// Initial, simple implementation of create_parallel_for
 #define _darma_feature_date_create_parallel_for 20170117
+
+// </editor-fold> end Feature Dates and Defaults }}}1
+//==============================================================================
+
+//==============================================================================
+// <editor-fold desc="Macros for interacting with features"> {{{1
 
 #define _darma_has_feature(x) \
   ( \
@@ -67,6 +92,9 @@
       && _darma_has_feature_##x == 0 \
     ) \
   )
+
+// </editor-fold> end Macros for interacting with features }}}1
+//==============================================================================
 
 //#define _darma_has_feature(x) \
 //  defined(_darma_has_feature_ ## x) && _darma_has_feature_##x != 0
