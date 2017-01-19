@@ -84,9 +84,9 @@ struct MultiBlockMap {
 
   to_index_type map_forward(from_index_type const& from) const {
     if (reverse) {
-      return Index1D<int>{(from.max_value - from.value) / Factor};
+      return Index1D<int>{(from.max_value - from.value) / (int)Factor};
     } else {
-      return Index1D<int>{from.value / Factor};
+      return Index1D<int>{from.value / (int)Factor};
     }
   }
 
