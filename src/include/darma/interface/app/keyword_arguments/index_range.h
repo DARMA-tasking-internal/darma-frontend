@@ -47,27 +47,27 @@
 
 #include <darma/impl/keyword_arguments/macros.h>
 
-DeclareDarmaTypeTransparentKeyword(create_concurrent_region, index_range);
+DeclareDarmaTypeTransparentKeyword(create_concurrent_work, index_range);
 
 namespace darma_runtime {
   namespace keyword_arguments_for_access_handle_collection {
-    AliasDarmaKeyword(create_concurrent_region, index_range);
+    AliasDarmaKeyword(create_concurrent_work, index_range);
   } // end namespace keyword_arguments_for_access_handle_collection
 
   namespace keyword_arguments {
-    AliasDarmaKeyword(create_concurrent_region, index_range);
+    AliasDarmaKeyword(create_concurrent_work, index_range);
   } // end namespace keyword_arguments
 
   namespace _keyword_arguments {
-    AliasDarmaKeywordAs(create_concurrent_region, index_range, _index_range);
+    AliasDarmaKeywordAs(create_concurrent_work, index_range, _index_range);
   } // end namespace keyword_arguments
 
   namespace keyword_arguments_ {
-    AliasDarmaKeywordAs(create_concurrent_region, index_range, index_range_);
+    AliasDarmaKeywordAs(create_concurrent_work, index_range, index_range_);
   } // end namespace keyword_arguments
 
   namespace _keyword_arguments_ {
-    AliasDarmaKeywordAs(create_concurrent_region, index_range, _index_range_);
+    AliasDarmaKeywordAs(create_concurrent_work, index_range, _index_range_);
   } // end namespace keyword_arguments
 } // end namespace darma_runtime
 
