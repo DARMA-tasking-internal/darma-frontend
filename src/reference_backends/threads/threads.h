@@ -116,6 +116,8 @@ namespace std {
 namespace threads_backend {
   using flow_t = darma_runtime::types::flow_t;
 
+  constexpr size_t const max_stack_depth = 20;
+
   void global_produce();
   void global_consume();
 
@@ -240,7 +242,7 @@ namespace threads_backend {
       TraceLog*
     > taskTrace;
 
-    bool inScheduler = false;
+    size_t inScheduler = 0;
 
     TraceModule* trace = nullptr;
 

@@ -204,7 +204,7 @@ namespace threads_backend {
                 bwidth);
     // ensure that the scheduler does not reenter recursively, which will stack
     // overflow
-    if (!inScheduler &&
+    if (inScheduler < max_stack_depth &&
         this->produced - this->consumed > bwidth) {
       schedule_next_unit();
     }
@@ -2209,7 +2209,7 @@ namespace threads_backend {
 
   void
   ThreadsRuntime::schedule_next_unit() {
-    inScheduler = true;
+    inScheduler++;
     #if __THREADS_BACKEND_DEBUG__ || __THREADS_BACKEND_SHUFFLE__
       shuffle_deque(nullptr, ready_local);
     #endif
@@ -2220,7 +2220,7 @@ namespace threads_backend {
     if (!found) {
       schedule_from_deque(&lock_remote, ready_remote);
     }
-    inScheduler = false;
+    inScheduler--;
   }
 
   /*virtual*/
