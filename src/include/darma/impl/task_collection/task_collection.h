@@ -125,15 +125,12 @@ struct TaskCollectionImpl
 
     TaskCollectionImpl() = default;
 
-    types::key_t name_ = make_key(); // TODO change this!!!
+    types::key_t name_ = types::key_t(
+      types::key_t::request_backend_assigned_key_tag{}
+    );
 
   public:
 
-    types::key_t const&
-    get_name() const override { return name_; }
-
-    void
-    set_name(types::key_t const& name) override { name_ = name; }
 
     // Leave this member declaration order the same; construction of args_stored_
     // depends on collection_range_ being initialized already
@@ -269,38 +266,45 @@ struct TaskCollectionImpl
       dependencies_.insert(dep);
     }
 
-    //==========================================================================
-    // Ctors
-
-
     ~TaskCollectionImpl() { }
+
+    //==============================================================================
+    // <editor-fold desc="Ctors"> {{{1
 
     template <typename IndexRangeDeduced, typename... ArgsForwarded>
     TaskCollectionImpl(
       IndexRangeDeduced&& collection_range,
       ArgsForwarded&& ... args_forwarded
-    ) : collection_range_(std::forward<IndexRangeDeduced>(collection_range)),
-        args_stored_(
-          _get_args_stored_impl(
-            std::forward_as_tuple(std::forward<ArgsForwarded>(args_forwarded)...),
-            std::index_sequence_for<ArgsForwarded...>{}
-          )
+    )
+      : collection_range_(std::forward<IndexRangeDeduced>(collection_range)),
+      args_stored_(
+        _get_args_stored_impl(
+          std::forward_as_tuple(std::forward<ArgsForwarded>(args_forwarded)...),
+          std::index_sequence_for<ArgsForwarded...>{}
         )
-    { }
+      ) {}
+
+    // </editor-fold> end Ctors }}}1
+    //==============================================================================
+
+    //==========================================================================
+    // <editor-fold desc="TaskCollection concrete implementation"> {{{1
 
     size_t size() const override { return collection_range_.size(); }
 
     std::unique_ptr<types::task_collection_task_t>
     create_task_for_index(std::size_t index) override {
-
       return _make_task_impl(
         index, std::make_index_sequence<sizeof...(Args)>{}
       );
     }
 
     // This should really return something ternary like "known false, known true, or unknown"
+    // TODO deprecated
     bool
-    all_mappings_same_as(abstract::frontend::TaskCollection const* other) const override {
+    all_mappings_same_as(
+      abstract::frontend::TaskCollection const* other
+    ) const override {
       /* TODO */
       return false;
     }
@@ -309,6 +313,15 @@ struct TaskCollectionImpl
     get_dependencies() const override {
       return dependencies_;
     }
+
+    types::key_t const&
+    get_name() const override { return name_; }
+
+    void
+    set_name(types::key_t const& name) override { name_ = name; }
+
+    // </editor-fold> end TaskCollection concrete implementation }}}1
+    //==========================================================================
 
     template <typename, typename, typename, typename>
     friend struct _task_collection_impl::_get_storage_arg_helper;
@@ -348,48 +361,7 @@ struct make_task_collection_impl_t {
 // </editor-fold> end TaskCollectionImpl
 //==============================================================================
 
-
 } // end namespace detail
-
-
-template <typename Functor, typename... Args>
-void create_concurrent_work(Args&&... args) {
-  using namespace darma_runtime::detail;
-  using darma_runtime::keyword_tags_for_create_concurrent_work::index_range;
-  using parser = kwarg_parser<
-    variadic_positional_overload_description<
-      _keyword<deduced_parameter, index_range>
-    >
-    // TODO other overloads
-  >;
-
-  // This is on one line for readability of compiler error; don't respace it please!
-  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
-
-  parser()
-    .parse_args(std::forward<Args>(args)...)
-    .invoke([](
-      auto&& index_range,
-      variadic_arguments_begin_tag,
-      auto&&... args
-    ){
-      using task_collection_impl_t = typename detail::make_task_collection_impl_t<
-        Functor, std::decay_t<decltype(index_range)>, decltype(args)...
-      >::type;
-
-      auto task_collection = std::make_unique<task_collection_impl_t>(
-        std::forward<decltype(index_range)>(index_range),
-        std::forward<decltype(args)>(args)...
-      );
-
-      auto* backend_runtime = abstract::backend::get_backend_runtime();
-      backend_runtime->register_task_collection(
-        std::move(task_collection)
-      );
-
-    });
-
-}
 
 } // end namespace darma_runtime
 

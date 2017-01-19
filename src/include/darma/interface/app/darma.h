@@ -53,7 +53,6 @@
 #include <darma/interface/app/create_condition.h>
 #include <darma/interface/app/access_handle.h>
 #include <darma/interface/app/oo.h>
-#include <darma/interface/app/create_concurrent_region.h>
 #include <darma/interface/app/keyword_arguments/all_keyword_arguments.h>
 #include <darma/interface/app/resource_count.h>
 

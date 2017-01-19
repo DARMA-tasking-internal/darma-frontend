@@ -6,7 +6,7 @@
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corpoation,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without

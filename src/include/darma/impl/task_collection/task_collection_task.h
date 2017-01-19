@@ -54,6 +54,25 @@
 
 namespace darma_runtime {
 
+template <typename Index>
+struct ConcurrentContext {
+  private:
+
+    Index index_;
+    size_t backend_index_;
+    size_t backend_size_;
+
+
+  public:
+
+    ConcurrentContext(
+      Index const& index,
+      size_t backend_index,
+      size_t backend_size
+    ) : index_(index), backend_index_(backend_index), backend_size_(backend_size) { }
+
+};
+
 namespace detail {
 
 //==============================================================================
@@ -91,6 +110,11 @@ struct TaskCollectionTaskImpl
     );
   }
 
+  auto
+  _get_first_argument() {
+    return mapping_.map_backward(backend_index_);
+  }
+
   template <typename TaskCollectionT, typename CollectionStoredArgs, size_t... Spots>
   TaskCollectionTaskImpl(
     std::size_t backend_index, Mapping const& mapping,
@@ -117,7 +141,7 @@ struct TaskCollectionTaskImpl
       _get_call_args_impl(std::index_sequence_for<StoredArgs...>{}),
       [&](auto&&... args) mutable {
         Functor()(
-          mapping_.map_backward(backend_index_),
+          _get_first_argument(),
           std::forward<decltype(args)>(args)...
         );
       }

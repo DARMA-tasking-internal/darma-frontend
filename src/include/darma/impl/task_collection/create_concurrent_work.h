@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      create_concurrent_region.h
+//                      create_concurrent_work.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,15 +42,52 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_APP_CREATE_CONCURRENT_REGION_H
-#define DARMA_INTERFACE_APP_CREATE_CONCURRENT_REGION_H
+#ifndef DARMA_IMPL_TASK_COLLECTION_CREATE_CONCURRENT_WORK_H
+#define DARMA_IMPL_TASK_COLLECTION_CREATE_CONCURRENT_WORK_H
+
+#include <darma/impl/task_collection/task_collection.h>
 
 namespace darma_runtime {
 
-template <typename Functor=void, typename... Args>
-auto
-create_concurrent_region(Args&&... args);
+template <typename Functor, typename... Args>
+void create_concurrent_work(Args&&... args) {
+  using namespace darma_runtime::detail;
+  using darma_runtime::keyword_tags_for_create_concurrent_work::index_range;
+  using parser = kwarg_parser<
+  variadic_positional_overload_description<
+    _keyword<deduced_parameter, index_range>
+  >
+  // TODO other overloads
+  >;
+
+  // This is on one line for readability of compiler error; don't respace it please!
+  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
+
+  parser()
+    .parse_args(std::forward<Args>(args)...)
+    .invoke([](
+      auto&& index_range,
+      variadic_arguments_begin_tag,
+      auto&&... args
+    ){
+      using task_collection_impl_t = typename detail::make_task_collection_impl_t<
+        Functor, std::decay_t<decltype(index_range)>, decltype(args)...
+      >::type;
+
+      auto task_collection = std::make_unique<task_collection_impl_t>(
+        std::forward<decltype(index_range)>(index_range),
+        std::forward<decltype(args)>(args)...
+      );
+
+      auto* backend_runtime = abstract::backend::get_backend_runtime();
+      backend_runtime->register_task_collection(
+        std::move(task_collection)
+      );
+
+    });
+
+}
 
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_APP_CREATE_CONCURRENT_REGION_H
+#endif //DARMA_IMPL_TASK_COLLECTION_CREATE_CONCURRENT_WORK_H
