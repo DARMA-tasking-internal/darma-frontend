@@ -388,6 +388,14 @@ namespace threads_backend {
       DEBUG_PRINT(
         "add_fetch_node_flow: handle=%p\n", f_in->handle.get()
       );
+
+      types::key_t version =
+        f_in->cid.collection != 0 ?
+        darma_runtime::make_key(f_in->version_key, node->fetch->collection->collection_instance) :
+        f_in->version_key;
+
+      f_in->version_key = version;
+
       const bool ready = add_fetcher(
         node,
         f_in->handle.get(),
@@ -620,8 +628,6 @@ namespace threads_backend {
           }
         }
       }
-      f_in->collection = nullptr;
-      f_out->collection = nullptr;
 
       DEBUG_PRINT(
         "register_use: setting collection child index=%lu, from=%ld, "
@@ -639,7 +645,12 @@ namespace threads_backend {
         set_up_data(u, handle, data, key, version, cid);
       }
     } else {
-      set_up_data(u, handle, fetched_data, key, version, cid);
+      auto version_new =
+        f_in->cid.collection != 0 ?
+        darma_runtime::make_key(version, f_in->collection->collection_instance) :
+        version;
+
+      set_up_data(u, handle, fetched_data, key, version_new, cid);
     }
 
     // save keys
@@ -772,7 +783,7 @@ namespace threads_backend {
   ThreadsRuntime::add_fetcher(
     std::shared_ptr<FetchNode> fetch,
     handle_t* handle,
-    types::key_t const& version_key,
+    types::key_t const& version,
     CollectionID cid
   ) {
     bool ready = false;
@@ -782,7 +793,7 @@ namespace threads_backend {
 
       auto const& cid = fetch->fetch->cid;
       auto const& key = handle->get_key();
-      auto const& iter = published.find(std::make_tuple(cid,version_key,key));
+      auto const& iter = published.find(std::make_tuple(cid,version,key));
       bool const found = iter != published.end();
       bool const avail = found && std::atomic_load<bool>(&iter->second->ready);
 
@@ -790,7 +801,7 @@ namespace threads_backend {
 
       DEBUG_PRINT(
         "add_fetcher: key=%s, version=%s, found=%s, avail=%s, collection=%ld, index=%ld\n",
-        PRINT_KEY(key), PRINT_KEY(version_key),
+        PRINT_KEY(key), PRINT_KEY(version),
         PRINT_BOOL_STR(found), PRINT_BOOL_STR(avail),
         cid.collection, cid.index
       );
@@ -798,9 +809,9 @@ namespace threads_backend {
       if (!found) {
         auto pub = new PublishedBlock();
         pub->waiting.push_front(fetch);
-        published[std::make_tuple(cid,version_key,key)] = pub;
+        published[std::make_tuple(cid,version,key)] = pub;
       } else if (found && !avail) {
-        published[std::make_tuple(cid,version_key,key)]->waiting.push_front(fetch);
+        published[std::make_tuple(cid,version,key)]->waiting.push_front(fetch);
       }
 
       ready = avail;
@@ -822,9 +833,11 @@ namespace threads_backend {
       const auto& key = handle->get_key();
       const auto& iter = published.find(std::make_tuple(cid,version_key,key));
 
-      DEBUG_PRINT("test_fetch: trying to find a publish, key=%s, version=%s\n",
-                  PRINT_KEY(key),
-                  PRINT_KEY(version_key));
+      DEBUG_PRINT(
+        "test_fetch: trying to find a publish, key=%s, version=%s, "
+        "cid.collection=%ld, cid.index=%ld\n",
+        PRINT_KEY(key), PRINT_KEY(version_key), cid.collection, cid.index
+      );
 
       ready =
         iter != published.end() &&
@@ -846,10 +859,11 @@ namespace threads_backend {
       const auto& key = handle->get_key();
       const auto& iter = published.find(std::make_tuple(cid,version_key,key));
 
-      DEBUG_PRINT("fetch: trying to find a publish, assume existance: handle=%p, key=%s, version=%s\n",
-                  handle,
-                  PRINT_KEY(key),
-                  PRINT_KEY(version_key));
+      DEBUG_PRINT(
+        "fetch: trying to find a publish, assume existance: handle=%p, key=%s, version=%s, "
+        "cid.collection=%ld, cid.index=%ld\n",
+        handle, PRINT_KEY(key), PRINT_KEY(version_key), cid.collection, cid.index
+      );
 
       // published block found and ready
       assert(iter != published.end() &&
@@ -892,7 +906,7 @@ namespace threads_backend {
       );
 
       DEBUG_PRINT(
-        "fetch: key = %s, version = %s, published data = %p, expected = %ld, data = %p\n",
+        "fetch: key=%s, version=%s, published data=%p, expected=%ld, data=%p\n",
         PRINT_KEY(key),
         PRINT_KEY(version_key),
         pub.data->data_,
@@ -1004,6 +1018,7 @@ namespace threads_backend {
     f_forward->isForward = true;
     f_forward->handle = f->handle;
     f_forward->fromFetch = f->fromFetch;
+    f_forward->collection = f->collection;
     return f_forward;
   }
 
@@ -1044,6 +1059,7 @@ namespace threads_backend {
     f_next->fromFetch = f->fromFetch;
     f_next->version_key = f->version_key;
     f_next->cid = f->cid;
+    f_next->collection = f->collection;
 
     DEBUG_PRINT("next flow from %lu to %lu\n",
                 PRINT_LABEL(f),
@@ -1925,6 +1941,7 @@ namespace threads_backend {
   ) {
     auto flow = make_initial_flow(handle);
     flow->is_collection = true;
+    flow->collection_instance = 1;
     flow->cid.collection = next_collection_id++;
 
     DEBUG_PRINT(
@@ -1956,6 +1973,7 @@ namespace threads_backend {
     from->next = flow;
     flow->is_collection = true;
     flow->prev = from;
+    flow->collection_instance = from->collection_instance + 1;
     flow->cid.collection = from->cid.collection;
 
     DEBUG_PRINT("make_next_flow_collection\n");
@@ -2075,6 +2093,11 @@ namespace threads_backend {
     auto version = details->get_version_name();
     auto key = handle->get_key();
 
+    types::key_t version_new =
+      f_in->cid.collection != 0 ?
+      darma_runtime::make_key(version, f_in->collection->collection_instance) :
+      version;
+
     // TODO: do not create this just to tear it down
     auto pub = std::make_shared<DelayedPublish>
       (DelayedPublish{f_in,
@@ -2082,7 +2105,7 @@ namespace threads_backend {
           f->get_data_pointer_reference(),
           details->get_n_fetchers(),
           key,
-          details->get_version_name(),
+          version_new,
           false,
           f_in->cid
        });
@@ -2098,7 +2121,7 @@ namespace threads_backend {
       *f_in->shared_reader_count,
       f->get_data_pointer_reference(),
       PRINT_KEY(key),
-      PRINT_KEY(version),
+      PRINT_KEY(version_new),
       handle.get(),
       PRINT_BOOL_STR(ready),
       PRINT_LABEL(f_in),
