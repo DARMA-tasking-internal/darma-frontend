@@ -61,6 +61,9 @@
 
 #include "serialization/serialization.impl.h"
 #include "array/array.impl.h"
+#include "array/index_range.h"
+#include "index_range/mapping.h"
+#include "task_collection/task_collection.h"
 
 namespace darma = darma_runtime;
 

@@ -434,6 +434,9 @@ class SSOKey
     template <typename T>
     friend struct darma_runtime::detail::_initial_access_key_helper;
 
+    template <typename...>
+    friend class AccessHandleCollectionAccess;
+
   public:
 
     // TODO make this private and add the appropriate friend

@@ -581,20 +581,15 @@ struct initial_access_collection_tag { };
 template <typename ValueType>
 struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType> {
 
-  template <typename IndexRangeT, typename... Args>
-  inline auto
-  operator()(
-    IndexRangeT&& range,
-    variadic_arguments_begin_tag,
-    Args&&... args
+  template <typename IndexRangeT>
+  auto _impl(
+    types::key_t const& key,
+    IndexRangeT&& range
   ) const {
 
+    auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
+
     auto* backend_runtime = abstract::backend::get_backend_runtime();
-
-    auto var_handle = std::make_shared<VariableHandle<ValueType>>(
-      make_key(std::forward<Args>(args)...)
-    );
-
     auto use_holder = std::make_shared<GenericUseHolder<
       CollectionManagingUse<std::decay_t<IndexRangeT>>
     >>(
@@ -613,6 +608,33 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType> {
     );
 
     return rv;
+  }
+
+  template <typename IndexRangeT, typename Arg1, typename... Args>
+  inline auto
+  operator()(
+    IndexRangeT&& range,
+    variadic_arguments_begin_tag,
+    Arg1&& arg1,
+    Args&&... args
+  ) const {
+
+    auto key = make_key(std::forward<Arg1>(arg1), std::forward<Args>(args)...);
+
+    return _impl(key, std::forward<IndexRangeT>(range));
+
+  }
+
+  template <typename IndexRangeT>
+  inline auto
+  operator()(
+    IndexRangeT&& range,
+    variadic_arguments_begin_tag
+  ) const {
+
+    auto key = types::key_t(types::key_t::request_backend_assigned_key_tag{});
+
+    return _impl(key, std::forward<IndexRangeT>(range));
 
   }
 
@@ -625,7 +647,7 @@ template <typename T, typename... Args>
 auto
 initial_access_collection(Args&&... args) {
   using namespace darma_runtime::detail;
-  using darma_runtime::keyword_tags_for_create_concurrent_region::index_range;
+  using darma_runtime::keyword_tags_for_create_concurrent_work::index_range;
   using parser = kwarg_parser<
     variadic_positional_overload_description<
       _keyword<deduced_parameter, index_range>
