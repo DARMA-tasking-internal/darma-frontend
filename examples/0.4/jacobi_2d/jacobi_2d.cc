@@ -53,7 +53,7 @@
 using namespace darma_runtime;
 using namespace darma_runtime::keyword_arguments_for_publication;
 using namespace darma_runtime::keyword_arguments_for_collectives;
-using namespace darma_runtime::keyword_arguments_for_create_concurrent_region;
+using namespace darma_runtime::keyword_arguments_for_create_concurrent_work;
 
 #define INDEX(i,j) ((i)*(size_y_bound)+(j))
 #define JACOBI_DEBUG 0

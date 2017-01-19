@@ -77,7 +77,7 @@ struct AllReduce {
 };
 
 void darma_main_task(std::vector<std::string> args) {
-  using darma_runtime::keyword_arguments_for_create_concurrent_region::index_range;
+  using darma_runtime::keyword_arguments_for_create_concurrent_work::index_range;
   assert(args.size() == 2);
 
   size_t const num_elems = std::atoi(args[1].c_str());
