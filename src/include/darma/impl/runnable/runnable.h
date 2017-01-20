@@ -83,63 +83,11 @@ struct __________asynchronous_call_to_functor__ {
 // </editor-fold> end Errors for calls with unserializable arguments
 //==============================================================================
 
+#include "runnable_fwd.h"
+#include "registry.h"
+
 namespace darma_runtime {
 namespace detail {
-
-// Forward declaration
-class RunnableBase;
-
-
-////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="Runnable registry and helpers">
-
-typedef std::vector<std::function<std::unique_ptr<RunnableBase>(void*)>> runnable_registry_t;
-
-// TODO make sure this pattern works on all compilers at all optimization levels
-template <typename = void>
-runnable_registry_t&
-get_runnable_registry()  {
-  static runnable_registry_t reg;
-  return reg;
-}
-
-namespace _impl {
-
-template <typename Runnable>
-struct RunnableRegistrar {
-  size_t index;
-  RunnableRegistrar() {
-    runnable_registry_t &reg = get_runnable_registry<>();
-    index = reg.size();
-    reg.emplace_back([](void* archive_as_void) -> std::unique_ptr<RunnableBase> {
-      using ArchiveT = serialization::SimplePackUnpackArchive;
-
-      return Runnable::template construct_from_archive<
-        serialization::SimplePackUnpackArchive
-      >(*static_cast<serialization::SimplePackUnpackArchive*>(archive_as_void));
-    });
-  }
-};
-
-template <typename Runnable>
-struct RunnableRegistrarWrapper {
-  static RunnableRegistrar<Runnable> registrar;
-};
-
-template <typename Runnable>
-RunnableRegistrar<Runnable> RunnableRegistrarWrapper<Runnable>::registrar = { };
-
-} // end namespace _impl
-
-template <typename Runnable>
-const size_t
-register_runnable() {
-  return _impl::RunnableRegistrarWrapper<Runnable>::registrar.index;
-}
-
-// </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="RunnableBase">
@@ -170,7 +118,6 @@ struct Runnable : public RunnableBase
     Runnable(std::remove_reference_t<Callable>&& c)
       : run_this_(std::move(c))
     { }
-
 
     bool run()  { run_this_(); return false; }
 

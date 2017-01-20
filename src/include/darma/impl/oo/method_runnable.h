@@ -45,7 +45,7 @@
 #ifndef DARMA_METHOD_RUNNABLE_H
 #define DARMA_METHOD_RUNNABLE_H
 
-#include <darma/impl/runnable.h>
+#include <darma/impl/runnable/runnable.h>
 #include <darma/impl/oo/oo_fwd.h>
 
 namespace darma_runtime {
