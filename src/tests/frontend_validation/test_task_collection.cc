@@ -1168,3 +1168,55 @@ TEST_F(TestCreateConcurrentWork, simple_collection_read) {
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+// Actually a compile-time error...
+//TEST_F(TestCreateConcurrentWork, collection_capture_death) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//  using namespace darma_runtime::keyword_arguments_for_task_creation;
+//  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+//  using namespace mock_backend;
+//
+//  //============================================================================
+//  // actual code being tested
+//  struct FooTask {
+//    void operator()(AccessHandleCollection<int, Range1D<int>>) { }
+//  };
+//
+//  auto tmp = initial_access_collection<int>(index_range=Range1D<int>(42));
+//
+//  EXPECT_DEATH({
+//    create_work<FooTask>(tmp);
+//  },
+//    "Capturing AccessHandleCollection objects in regular tasks is not yet supported"
+//  );
+//
+//  //============================================================================
+//
+//}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateConcurrentWork, collection_capture_death) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  //============================================================================
+  // actual code being tested
+  auto tmp = initial_access_collection<int>(index_range=Range1D<int>(42));
+
+  EXPECT_DEATH({
+    create_work([=]{ tmp[5].local_access(); });
+  },
+    "Capturing AccessHandleCollection objects in regular tasks is not yet supported"
+  );
+
+  //============================================================================
+
+}
