@@ -49,6 +49,7 @@
 
 #include "reduce_operation.h"
 #include <darma/interface/backend/region_context_handle.h>
+#include <darma/impl/feature_testing_macros.h>
 
 namespace darma_runtime {
 namespace abstract {
@@ -75,9 +76,11 @@ class CollectiveDetails {
     virtual ReduceOp const*
     reduce_operation() const =0;
 
-    virtual
-    std::shared_ptr<backend::TaskCollectionContextHandle>
-    get_concurrent_region_context() const { return { nullptr }; }
+#if _darma_has_feature(handle_collection_based_collectives)
+    virtual bool
+
+#endif
+
 
 };
 
