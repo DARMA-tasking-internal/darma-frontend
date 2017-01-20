@@ -64,6 +64,7 @@
 #include "array/index_range.h"
 #include "index_range/mapping.h"
 #include "task_collection/task_collection.h"
+#include "task_collection/create_concurrent_work.h"
 
 namespace darma = darma_runtime;
 

@@ -279,8 +279,6 @@ TEST_P(TestCaptureMM, capture_MM) {
   using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace mock_backend;
 
-  // TODO release_flow expectations
-
   bool ro_capture = std::get<0>(GetParam());
   bool use_vector = std::get<1>(GetParam());
 
