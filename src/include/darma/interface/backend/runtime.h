@@ -550,6 +550,16 @@ class Runtime {
     ) =0;
 #endif
 
+#if _darma_has_feature(handle_collection_based_collectives)
+    virtual void
+    allreduce_use(
+      frontend::Use* use_collection_in,
+      std::map<std::size_t, frontend::Use*> local_indexed_uses,
+      frontend::Use* use_out,
+      frontend::CollectiveDetails const* details,
+      types::key_t const& tag
+    ) =0;
+#endif
     // </editor-fold> end publication, collectives, etc
     //==========================================================================
 

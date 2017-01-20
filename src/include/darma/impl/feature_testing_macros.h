@@ -68,6 +68,8 @@
 // Initial, simple implementation of create_parallel_for
 #define _darma_feature_date_create_parallel_for 20170117
 
+#define _darma_feature_date_handle_collection_based_collectives 20170119
+
 // </editor-fold> end Feature Dates and Defaults }}}1
 //==============================================================================
 
