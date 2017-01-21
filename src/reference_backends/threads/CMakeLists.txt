@@ -17,6 +17,7 @@ set (threads_HEADERS
   threads.h
   union_find.h
   trace.h
+  darma_features.h
 )
 
 set (threads_SOURCES
