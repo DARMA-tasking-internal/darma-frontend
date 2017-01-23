@@ -54,6 +54,38 @@
 
 namespace darma_runtime {
 
+template <typename Index>
+struct ConcurrentContext {
+  private:
+
+    Index index_;
+    size_t backend_index_;
+    size_t backend_size_;
+
+
+  public:
+
+    ConcurrentContext(
+      Index const& index,
+      size_t backend_index,
+      size_t backend_size
+    ) : index_(index), backend_index_(backend_index), backend_size_(backend_size) { }
+
+    operator Index() { return index_; }
+
+    Index const& index() const { return index_; }
+
+    template <typename ReduceOp=detail::op_not_given, typename... Args>
+    void allreduce(Args&&... args) {
+      darma_runtime::allreduce<ReduceOp>(
+        std::forward<Args>(args)...,
+        darma_runtime::keyword_arguments_for_collectives::piece=backend_index_,
+        darma_runtime::keyword_arguments_for_collectives::n_pieces=backend_size_
+      );
+    }
+
+};
+
 namespace detail {
 
 //==============================================================================
@@ -71,6 +103,7 @@ struct TaskCollectionTaskImpl
   using args_tuple_t = std::tuple<StoredArgs...>;
 
   size_t backend_index_;
+  size_t backend_size_;
   // This is the mapping from frontend index to backend index for the collection itself
   Mapping mapping_;
   args_tuple_t args_;
@@ -91,6 +124,16 @@ struct TaskCollectionTaskImpl
     );
   }
 
+  auto
+  _get_first_argument() {
+    return ConcurrentContext<
+        decltype(mapping_.map_backward(backend_index_))
+    >(
+      mapping_.map_backward(backend_index_),
+      backend_index_, backend_size_
+    );
+  }
+
   template <typename TaskCollectionT, typename CollectionStoredArgs, size_t... Spots>
   TaskCollectionTaskImpl(
     std::size_t backend_index, Mapping const& mapping,
@@ -98,6 +141,7 @@ struct TaskCollectionTaskImpl
     std::index_sequence<Spots...>,
     CollectionStoredArgs&& args_stored
   ) : backend_index_(backend_index),
+      backend_size_(parent.size()),
       mapping_(mapping),
       args_(
         _task_collection_impl::_get_task_stored_arg_helper<
@@ -117,7 +161,7 @@ struct TaskCollectionTaskImpl
       _get_call_args_impl(std::index_sequence_for<StoredArgs...>{}),
       [&](auto&&... args) mutable {
         Functor()(
-          mapping_.map_backward(backend_index_),
+          this->_get_first_argument(),
           std::forward<decltype(args)>(args)...
         );
       }

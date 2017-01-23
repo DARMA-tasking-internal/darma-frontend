@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      collective_details.h
+//                      create_if_then.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,45 +42,55 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
-#define DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
+#ifndef DARMA_CREATE_IF_THEN_H
+#define DARMA_CREATE_IF_THEN_H
 
-#include <cstdlib>
+#include <tinympl/vector.hpp>
 
-#include "reduce_operation.h"
-#include <darma/interface/backend/region_context_handle.h>
-#include <darma/impl/feature_testing_macros.h>
+#include <darma/interface/app/create_work.h>
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
+
+namespace experimental {
+
+namespace detail {
+
+template <typename...>
+struct _create_work_if_helper;
+
+template <typename Functor, typename... Args>
+struct _create_work_if_helper<tinympl::vector<Args...>, Functor> {
+
+  Functor func;
+
+  _create_work_if_helper(
+    Args&&..., /* modifiers ignored/processed elsewhere */
+    Functor&& f
+  ) : func(std::forward<Functor>(f))
+  { }
+
+  template <typename... ThenArgs>
+  auto
+  then_(ThenArgs&&... args) && {
+
+    create_work([=]{ // TODO finish this
+    });
 
 
-class CollectiveDetails {
-  public:
-
-    static inline constexpr size_t
-    unknown_contribution() {
-      return std::numeric_limits<size_t>::max();
-    }
-
-    virtual size_t
-    this_contribution() const =0;
-
-    virtual size_t
-    n_contributions() const =0;
-
-    virtual bool
-    is_indexed() const =0;
-
-    virtual ReduceOp const*
-    reduce_operation() const =0;
+  }
 
 };
 
+} // end namespace detail
 
-} // end namespace frontend
-} // end namespace abstract
+template <typename... Args>
+auto
+create_work_if(Args&&... args) {
+
+}
+
+} // end namespace experimental
+
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
+#endif //DARMA_CREATE_IF_THEN_H

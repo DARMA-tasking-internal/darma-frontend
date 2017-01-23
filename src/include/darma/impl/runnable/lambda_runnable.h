@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      collective_details.h
+//                      lambda_runnable.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,45 +42,72 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
-#define DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
-
-#include <cstdlib>
-
-#include "reduce_operation.h"
-#include <darma/interface/backend/region_context_handle.h>
-#include <darma/impl/feature_testing_macros.h>
+#ifndef DARMA_IMPL_RUNNABLE_LAMBDA_RUNNABLE_H
+#define DARMA_IMPL_RUNNABLE_LAMBDA_RUNNABLE_H
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
+namespace detail {
 
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="Runnable (for lambdas)">
 
-class CollectiveDetails {
+template <typename Callable>
+struct Runnable : public RunnableBase
+{
+  private:
   public:
-
-    static inline constexpr size_t
-    unknown_contribution() {
-      return std::numeric_limits<size_t>::max();
+    // Force it to be an rvalue reference
+    explicit
+    Runnable(std::remove_reference_t<Callable>&& c)
+      : run_this_(std::move(c))
+    {
+      RunnableBase::is_lambda_like_runnable = true;
     }
 
-    virtual size_t
-    this_contribution() const =0;
+    bool run() override { run_this_(); return false; }
 
-    virtual size_t
-    n_contributions() const =0;
+    static const size_t index_;
 
-    virtual bool
-    is_indexed() const =0;
+    template <typename ArchiveT>
+    static std::unique_ptr<RunnableBase>
+    construct_from_archive(ArchiveT& data) {
+      // TODO write this (or don't...)
+      assert(false);
+      return nullptr;
+    }
 
-    virtual ReduceOp const*
-    reduce_operation() const =0;
+    virtual size_t get_packed_size() const override {
+      DARMA_ASSERT_NOT_IMPLEMENTED();
+      return 0;
+    }
+    virtual void pack(void* allocated) const override {
+      DARMA_ASSERT_NOT_IMPLEMENTED();
+    }
 
+    std::size_t lambda_size() const override {
+      return sizeof(Callable);
+    }
+
+    void copy_lambda(void* dest) const override {
+      Callable c = run_this_;
+      ::memcpy(dest, static_cast<void*>(&c), sizeof(Callable));
+    }
+
+    size_t get_index() const override  { return index_; }
+
+  private:
+    std::remove_reference_t<Callable> run_this_;
 };
 
+template <typename Callable>
+const size_t Runnable<Callable>::index_ =
+  register_runnable<Runnable<Callable>>();
 
-} // end namespace frontend
-} // end namespace abstract
+} // end namespace detail
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
+
+
+#endif //DARMA_IMPL_RUNNABLE_LAMBDA_RUNNABLE_H
