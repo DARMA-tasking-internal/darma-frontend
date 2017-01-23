@@ -436,7 +436,9 @@ class AccessHandleCollection {
 
     //==========================================================================
 
-    ~AccessHandleCollection() { }
+    ~AccessHandleCollection() {
+      current_use_ = nullptr;
+    }
 
     //==========================================================================
 
