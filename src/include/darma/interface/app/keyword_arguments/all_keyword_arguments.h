@@ -48,7 +48,6 @@
 #include <darma/interface/app/keyword_arguments/version.h>
 #include <darma/interface/app/keyword_arguments/n_readers.h>
 #include <darma/interface/app/keyword_arguments/name.h>
-#include <darma/interface/app/keyword_arguments/unless.h>
-#include <darma/interface/app/keyword_arguments/only_if.h>
+#include <darma/interface/app/keyword_arguments/index_range.h>
 
 #endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ALL_KEYWORD_ARGUMENTS_H

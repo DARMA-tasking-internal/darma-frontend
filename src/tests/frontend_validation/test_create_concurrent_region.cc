@@ -91,7 +91,7 @@ struct MyCR {
 TEST_F(TestCreateConcurrentRegion, simple_2d) {
   using namespace ::testing;
   using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_create_concurrent_region;
+  using namespace darma_runtime::keyword_arguments_for_create_concurrent_work;
   using namespace mock_backend;
 
   testing::internal::CaptureStdout();

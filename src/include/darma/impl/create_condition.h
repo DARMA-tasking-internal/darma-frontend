@@ -45,6 +45,10 @@
 #ifndef DARMA_IMPL_CREATE_CONDITION_H
 #define DARMA_IMPL_CREATE_CONDITION_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(create_condition)
+
 #include <tinympl/vector.hpp>
 
 #include <darma/impl/util/smart_pointers.h>
@@ -204,5 +208,7 @@ create_condition(Args&&... args) {
 }
 
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(create_condition)
 
 #endif //DARMA_IMPL_CREATE_CONDITION_H

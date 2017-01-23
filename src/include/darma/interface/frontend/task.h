@@ -46,7 +46,10 @@
 #define SRC_ABSTRACT_FRONTEND_TASK_H_
 
 #include <darma_types.h>
+#include <darma/impl/feature_testing_macros.h>
 #include <darma/interface/frontend/types.h>
+
+#include <darma/impl/feature_testing_macros.h>
 
 #include "use.h"
 
@@ -143,12 +146,23 @@ class Task {
      */
     virtual void pack(void* allocated) const =0;
 
+
+    //==========================================================================
+#if _darma_has_feature(create_parallel_for)
+
+    virtual size_t width() const { return 1; }
+
+    virtual void set_cpu_set(darma_runtime::types::cpu_set_t const&) =0;
+
     /** @brief Indicates whether the task represents a parallel_for loop
      *
      * @return True if and only if this task directly wraps a parallel_for created via
      * darma_runtime::backend::execute_parallel_for()
      */
     virtual bool is_parallel_for_task() const =0;
+
+#endif
+    //==========================================================================
 
     virtual ~Task() = default;
 

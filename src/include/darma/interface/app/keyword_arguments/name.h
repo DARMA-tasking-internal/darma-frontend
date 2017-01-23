@@ -49,4 +49,18 @@
 
 DeclareDarmaTypeTransparentKeyword(task_creation, name);
 
+DeclareStandardDarmaKeywordArgumentAliases(task_creation, name);
+
+namespace darma_runtime {
+
+namespace keyword_arguments_for_create_work {
+AliasDarmaKeyword(task_creation, name);
+} // end namespace keyword_arguments_for_create_work
+
+namespace keyword_arguments_for_create_concurrent_work {
+AliasDarmaKeyword(task_creation, name);
+} // end namespace keyword_arguments_for_create_work
+
+} // end namespace darma_runtime
+
 #endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_NAME_H

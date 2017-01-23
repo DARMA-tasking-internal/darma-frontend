@@ -48,6 +48,16 @@
 #include <darma/impl/keyword_arguments/macros.h>
 
 DeclareDarmaTypeTransparentKeyword(publication, n_readers);
+
+DeclareStandardDarmaKeywordArgumentAliases(publication, n_readers);
+
+namespace keyword_arguments_for_publish {
+AliasDarmaKeyword(publication, n_readers);
+} // end namespace keyword_arguments_for_create_work
+
+
+
+// TODO deprecate this
 DeclareDarmaTypeTransparentKeyword(publication, out);
 
 #endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_READERS_H

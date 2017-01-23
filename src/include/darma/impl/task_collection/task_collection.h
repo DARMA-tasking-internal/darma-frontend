@@ -125,7 +125,15 @@ struct TaskCollectionImpl
 
     TaskCollectionImpl() = default;
 
+    types::key_t name_ = make_key(); // TODO change this!!!
+
   public:
+
+    types::key_t const&
+    get_name() const override { return name_; }
+
+    void
+    set_name(types::key_t const& name) override { name_ = name; }
 
     // Leave this member declaration order the same; construction of args_stored_
     // depends on collection_range_ being initialized already
@@ -347,7 +355,7 @@ struct make_task_collection_impl_t {
 template <typename Functor, typename... Args>
 void create_concurrent_work(Args&&... args) {
   using namespace darma_runtime::detail;
-  using darma_runtime::keyword_tags_for_create_concurrent_region::index_range;
+  using darma_runtime::keyword_tags_for_create_concurrent_work::index_range;
   using parser = kwarg_parser<
     variadic_positional_overload_description<
       _keyword<deduced_parameter, index_range>

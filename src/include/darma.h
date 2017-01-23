@@ -51,4 +51,6 @@
 
 #include <darma/interface/frontend/detail/crtp_impl.h>
 
+namespace darma = darma_runtime;
+
 #endif /* SRC_DARMA_H_ */
