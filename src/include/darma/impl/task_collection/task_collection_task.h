@@ -54,11 +54,27 @@
 
 namespace darma_runtime {
 
-template <typename Index>
+template <
+  typename IndexOrIndexRange
+>
 struct ConcurrentContext {
+
   private:
 
-    Index index_;
+    using index_range_t = std::conditional_t<
+      indexing::index_range_traits<IndexOrIndexRange>::is_index_range,
+      IndexOrIndexRange,
+      detail::not_an_index_range
+    >;
+
+    using index_t = std::conditional_t<
+      indexing::index_range_traits<IndexOrIndexRange>::is_index_range,
+      typename indexing::index_range_traits<IndexOrIndexRange>::index_type,
+      IndexOrIndexRange
+    >;
+
+    index_t index_;
+    index_range_t index_range_;
     size_t backend_index_;
     size_t backend_size_;
 
@@ -66,14 +82,37 @@ struct ConcurrentContext {
   public:
 
     ConcurrentContext(
-      Index const& index,
+      index_t const& index,
       size_t backend_index,
       size_t backend_size
     ) : index_(index), backend_index_(backend_index), backend_size_(backend_size) { }
 
-    operator Index() { return index_; }
+    ConcurrentContext(
+      index_t const& index,
+      index_range_t const& index_range,
+      size_t backend_index,
+      size_t backend_size
+    ) : index_(index),
+        index_range_(index_range),
+        backend_index_(backend_index),
+        backend_size_(backend_size)
+    { }
 
-    Index const& index() const { return index_; }
+    operator index_t() { return index_; }
+
+    index_t const& index() const { return index_; }
+
+    std::size_t index_count() const { return backend_size_; }
+
+    template <typename _SFINAE_only=void,
+      typename=std::enable_if_t<
+        not std::is_same<index_range_t, detail::not_an_index_range>::value
+        and std::is_void<_SFINAE_only>::value
+      >
+    >
+    index_range_t const& index_range() const {
+      return index_range_;
+    };
 
     template <typename ReduceOp=detail::op_not_given, typename... Args>
     void allreduce(Args&&... args) {
@@ -124,6 +163,8 @@ struct TaskCollectionTaskImpl
     );
   }
 
+
+  // TODO potentially propagate Index Range object?
   auto
   _get_first_argument() {
     return ConcurrentContext<

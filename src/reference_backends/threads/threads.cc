@@ -1262,9 +1262,11 @@ namespace threads_backend {
 
     flow->state = flow_has_alias(flow) ? FlowReadOnlyReady : FlowReadReady;
 
-    DEBUG_PRINT("try_release_to_read: %ld, new state=%s\n",
+    DEBUG_PRINT("try_release_to_read: %ld, new state=%s, shared_reader_count=%d\n",
                 PRINT_LABEL(flow),
-                PRINT_STATE(flow));
+                PRINT_STATE(flow),
+       flow->shared_reader_count ? *flow->shared_reader_count : -1
+    );
 
     if (flow->readers.size() > 0) {
       for (auto reader : flow->readers) {
@@ -1943,6 +1945,7 @@ namespace threads_backend {
     flow->is_collection = true;
     flow->collection_instance = 1;
     flow->cid.collection = next_collection_id++;
+    flow->cid.index = -1;
 
     DEBUG_PRINT(
       "make_initial_flow_collection: id=%ld\n", flow->cid.collection
@@ -1975,6 +1978,7 @@ namespace threads_backend {
     flow->prev = from;
     flow->collection_instance = from->collection_instance + 1;
     flow->cid.collection = from->cid.collection;
+    flow->cid.index = from->cid.index;
 
     DEBUG_PRINT("make_next_flow_collection\n");
 

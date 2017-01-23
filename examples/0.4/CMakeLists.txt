@@ -97,5 +97,6 @@ add_subdirectory(simple_collection_convergence)
 add_subdirectory(simple_collection_ordering)
 add_subdirectory(simple_collection_multidim)
 add_subdirectory(tutorial)
+add_subdirectory(simulated_load_imbalance)
 
 
