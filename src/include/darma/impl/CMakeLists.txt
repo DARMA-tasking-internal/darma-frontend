@@ -1,37 +1,28 @@
 
 FILE(GLOB impl_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
-
 FILE(GLOB impl_array_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/array/*.h")
-
 FILE(GLOB impl_collective_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/collective/*.h")
-
 FILE(GLOB impl_index_range_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/index_range/*.h")
-
 FILE(GLOB impl_key_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/key/*.h")
-
 FILE(GLOB impl_keyword_arguments_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/keyword_arguments/*.h")
-
 FILE(GLOB impl_meta_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/meta/*.h")
-
 FILE(GLOB impl_oo_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/oo/*.h")
-
+FILE(GLOB impl_runnable_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/runnable/*.h")
 FILE(GLOB impl_serialization_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/serialization/*.h")
-
 FILE(GLOB impl_task_collection_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/task_collection/*.h")
-
 FILE(GLOB impl_task_collection_impl_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/task_collection/impl/*.h")
-
 FILE(GLOB impl_util_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/util/*.h")
 
@@ -43,6 +34,7 @@ install (FILES ${impl_key_HEADERS} DESTINATION include/darma/impl/key)
 install (FILES ${impl_keyword_arguments_HEADERS} DESTINATION include/darma/impl/keyword_arguments)
 install (FILES ${impl_meta_HEADERS} DESTINATION include/darma/impl/meta)
 install (FILES ${impl_oo_HEADERS} DESTINATION include/darma/impl/oo)
+install (FILES ${impl_runnable_HEADERS} DESTINATION include/darma/impl/runnable)
 install (FILES ${impl_serialization_HEADERS} DESTINATION include/darma/impl/serialization)
 install (FILES ${impl_task_collection_HEADERS} DESTINATION include/darma/impl/task_collection)
 install (FILES ${impl_task_collection_impl_HEADERS} DESTINATION include/darma/impl/task_collection/impl)
