@@ -68,25 +68,23 @@ struct SquareRoots {
     int iteration, int change_interval,
     int min_per_iter, int max_per_iter
   ) const {
-    create_work([=]{
-      std::random_device rd;
-      std::mt19937 gen(rd());
-      gen.seed(index.value * (index.max_value + 1) + iteration/change_interval);
-      std::uniform_int_distribution<> dis(min_per_iter, max_per_iter);
-      std::uniform_real_distribution<> value_dis(1.0, 2.0);
-      int n_sqrts = dis(gen);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    gen.seed(index.value * (index.max_value + 1) + iteration/change_interval);
+    std::uniform_int_distribution<> dis(min_per_iter, max_per_iter);
+    std::uniform_real_distribution<> value_dis(1.0, 2.0);
+    int n_sqrts = dis(gen);
 
-      double results_accumulated = 0.0;
-      for(int i = 0; i < n_sqrts; ++i) {
-        results_accumulated += std::sqrt(value_dis(gen));
-      }
+    double results_accumulated = 0.0;
+    for(int i = 0; i < n_sqrts; ++i) {
+      results_accumulated += std::sqrt(value_dis(gen));
+    }
 
-      auto averaged = averaged_col[index].local_access();
+    auto averaged = averaged_col[index].local_access();
 
-      averaged.set_value(
-        ((averaged.get_value() * iteration) + results_accumulated/n_sqrts) / (iteration+1)
-      );
-    });
+    averaged.set_value(
+      ((averaged.get_value() * iteration) + results_accumulated/n_sqrts) / (iteration+1)
+    );
   }
 };
 

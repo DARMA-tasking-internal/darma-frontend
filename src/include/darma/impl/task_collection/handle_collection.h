@@ -451,9 +451,12 @@ class AccessHandleCollection {
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         abstract::backend::get_backend_context()->get_running_task()
       );
-      auto* capturing_task = running_task->current_create_work_context;
+      darma_runtime::detail::TaskBase* capturing_task = nullptr;
+      if(running_task) {
+        capturing_task = running_task->current_create_work_context;
+      }
 
-      if(capturing_task != nullptr) {
+      if (capturing_task != nullptr) {
         DARMA_ASSERT_FAILURE("Capturing AccessHandleCollection objects in"
           " regular tasks is not yet supported.");
       }

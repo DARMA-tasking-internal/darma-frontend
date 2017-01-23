@@ -377,6 +377,7 @@ class AccessHandleBase {
 
     mutable unsigned captured_as_ = CapturedAsInfo::Normal;
     task_t* capturing_task = nullptr;
+    std::size_t lambda_capture_unpack_index = 0;
 
 };
 

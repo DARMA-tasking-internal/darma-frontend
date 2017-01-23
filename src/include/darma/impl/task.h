@@ -194,7 +194,17 @@ class TaskBase : public abstract::frontend::Task
       assert(runnable_.get() != nullptr);
 
       ar % runnable_->get_index();
-      return runnable_->get_packed_size() + ArchiveAccess::get_size(ar);
+
+      if(runnable_->is_lambda_like_runnable) {
+        // TODO pack up the flows/uses/etc and their access handle indices
+        DARMA_ASSERT_NOT_IMPLEMENTED("packing up lambda-like runnables");
+        size_t added_size = runnable_->lambda_size();
+        // TODO finish this!
+        return ArchiveAccess::get_size(ar);
+      }
+      else {
+        return runnable_->get_packed_size() + ArchiveAccess::get_size(ar);
+      }
     }
 
     void pack(void* allocated) const override {
@@ -208,7 +218,15 @@ class TaskBase : public abstract::frontend::Task
 
       ar << runnable_->get_index();
 
-      return runnable_->pack(ArchiveAccess::get_spot(ar));
+      if(runnable_->is_lambda_like_runnable) {
+        // TODO pack up the flows/uses/etc and their access handle indices
+        DARMA_ASSERT_NOT_IMPLEMENTED("packing up lambda-like runnables");
+        assigned_lambda_unpack_index = 1; // trigger recognition in AccessHandle copy ctor
+        // TODO finish this
+      }
+      else {
+        runnable_->pack(ArchiveAccess::get_spot(ar));
+      }
     }
 
     // end implementation of abstract::frontend::Task
@@ -285,6 +303,7 @@ class TaskBase : public abstract::frontend::Task
     bool is_double_copy_capture = false;
     unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
     bool is_parallel_for_task_ = false;
+    mutable std::size_t assigned_lambda_unpack_index = 0;
 
   protected:
 

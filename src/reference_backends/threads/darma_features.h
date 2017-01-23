@@ -48,8 +48,6 @@
 //==============================================================================
 // <editor-fold desc="feature testing macro definitions"> {{{1
 
-#define _darma_backend_has_all_features 1
-
 #define _darma_has_feature_create_parallel_for 0
 
 #define _darma_backend_feature_progress_date 20170117
