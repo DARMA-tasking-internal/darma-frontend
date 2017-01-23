@@ -47,6 +47,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <tinympl/max_element.hpp>
 
 namespace darma_runtime {
 namespace detail {
@@ -56,14 +57,21 @@ namespace _impl {
 typedef enum {
   Long = (uint8_t)0,
   Short = (uint8_t)1,
-  BackendAssigned = (uint8_t)2
+  BackendAssigned = (uint8_t)2,
+  NeedsBackendAssignedKey = (uint8_t)3
 } sso_key_mode_t;
 
 } // end namespace _impl
 
 template <
   /* default allows it to fit in a cache line */
-  std::size_t BufferSize = 64 - sizeof(std::size_t) - 8 - 8,
+  std::size_t BufferSize = 64
+    - sizeof(std::size_t) /* base class vtable (guessing?) */
+    - sizeof(std::size_t) /* abstract base class vtable (guessing?) */
+    - tinympl::max<
+      std::integral_constant<size_t, sizeof(_impl::sso_key_mode_t)>,
+      std::integral_constant<size_t, 8>
+    >::value,
   typename BackendAssignedKeyType = std::size_t,
   typename PieceSizeOrdinal = uint8_t,
   typename ComponentCountOrdinal = uint8_t

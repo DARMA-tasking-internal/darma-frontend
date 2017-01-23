@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      only_if.h
+//                      darma_features.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,11 +42,11 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ONLY_IF_H
-#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ONLY_IF_H
+#ifndef DARMA_DARMA_FEATURES_H
+#define DARMA_DARMA_FEATURES_H
 
-#include <darma/impl/keyword_arguments/macros.h>
+#define _darma_backend_has_all_features 1
 
-DeclareDarmaTypeTransparentKeyword(create_work_decorators, only_if);
+#define _darma_backend_feature_progress_date 29990101 // for now
 
-#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ONLY_IF_H
+#endif //DARMA_DARMA_FEATURES_H

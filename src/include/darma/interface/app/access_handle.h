@@ -835,7 +835,7 @@ class AccessHandle : public detail::AccessHandleBase {
       serialization::unpack_constructor_tag_t const&,
       Archive& ar
     ) {
-      key_t k;
+      key_t k = make_key();
       ar >> k;
       var_handle_ = detail::make_shared<detail::VariableHandle<T>>(k);
       detail::HandleUse::permissions_t immed, sched;

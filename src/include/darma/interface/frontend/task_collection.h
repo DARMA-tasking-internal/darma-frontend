@@ -88,6 +88,12 @@ class TaskCollection
     virtual std::size_t
     size() const =0;
 
+    virtual types::key_t const&
+    get_name() const =0;
+
+    virtual void
+    set_name(types::key_t const&) =0;
+
     virtual bool
     all_mappings_same_as(TaskCollection const* other) const =0;
 

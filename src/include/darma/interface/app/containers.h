@@ -52,7 +52,7 @@
 #include <unordered_map>
 #include <darma/impl/serialization/allocator.h>
 
-namespace darma {
+namespace darma_runtime {
 
 template <typename T, typename OtherAllocator=std::allocator<T>>
 using vector = std::vector<T,

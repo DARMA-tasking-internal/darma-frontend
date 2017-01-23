@@ -175,6 +175,27 @@ static constexpr const \
 as_name = ::darma_runtime::keyword_arguments_for_##original_argument_for::name; \
 } /* end anonymous namespace */
 
+#define DeclareStandardDarmaKeywordArgumentAliases(original_argument_for, name) \
+namespace darma_runtime { \
+namespace keyword_arguments { \
+AliasDarmaKeyword(original_argument_for, name); \
+} \
+\
+namespace _keyword_arguments { \
+AliasDarmaKeywordAs(original_argument_for, name, DARMA_CONCAT_TOKEN_(_, name)); \
+} \
+\
+namespace keyword_arguments_ { \
+AliasDarmaKeywordAs(original_argument_for, name, DARMA_CONCAT_TOKEN_(name, _)); \
+} \
+\
+namespace _keyword_arguments_ { \
+AliasDarmaKeywordAs(original_argument_for, name, \
+  DARMA_CONCAT_TOKEN_(DARMA_CONCAT_TOKEN_(_, name), _) \
+); \
+} \
+} /* end namespace darma_runtime */
+
 
 
 #endif /* KEYWORD_ARGUMENTS_MACROS_H_ */

@@ -52,7 +52,7 @@
 #include <darma/impl/darma_assert.h>
 #include <darma/impl/serialization/nonintrusive.h>
 
-namespace darma {
+namespace darma_runtime {
 
 namespace detail {
 
@@ -260,7 +260,7 @@ namespace darma_runtime {
 namespace serialization {
 
 template <typename T>
-struct Serializer<::darma::vector_view<T>> {
+struct Serializer<::darma_runtime::vector_view<T>> {
   private:
 
     // TODO: Packability is what's important, not serializability...
@@ -270,7 +270,7 @@ struct Serializer<::darma::vector_view<T>> {
         ::template is_serializable_with_archive<Archive>::value
     >;
 
-    using view_t = ::darma::vector_view<T>;
+    using view_t = ::darma_runtime::vector_view<T>;
 
   public:
 

@@ -63,8 +63,6 @@
 #include <darma/impl/util.h>
 #include <darma/impl/keyword_arguments/macros.h>
 
-#include <darma/interface/app/keyword_arguments/unless.h>
-#include <darma/interface/app/keyword_arguments/only_if.h>
 #include <darma/interface/app/keyword_arguments/name.h>
 
 // TODO move this once it becomes part of the specified interface
@@ -108,14 +106,15 @@ struct reads_decorator_parser {
 
     // NOTE: This is a post-0.2 feature
     // TODO we probably should remove ignore/only_if because they are unsafe
-    bool ignored = not get_typeless_kwarg_with_default_as<
-        darma_runtime::keyword_tags_for_create_work_decorators::unless,
-        bool
-    >(false, std::forward<Args>(args)...);
-    ignored = ignored && not get_typeless_kwarg_with_default_as<
-      darma_runtime::keyword_tags_for_create_work_decorators::only_if,
-      bool
-    >(true, std::forward<Args>(args)...);
+    bool ignored = false;
+    //not get_typeless_kwarg_with_default_as<
+    //    darma_runtime::keyword_tags_for_create_work_decorators::unless,
+    //    bool
+    //>(false, std::forward<Args>(args)...);
+    //ignored = ignored && not get_typeless_kwarg_with_default_as<
+    //  darma_runtime::keyword_tags_for_create_work_decorators::only_if,
+    //  bool
+    //>(true, std::forward<Args>(args)...);
 
     // Mark this usage as a read-only capture
     // TODO this should be just a splatted tuple.  Order doesn't matter
@@ -310,9 +309,11 @@ struct _do_create_work {
       darma_runtime::keyword_tags_for_task_creation::name
     >([](auto&&... key_parts){
       return make_key(std::forward<decltype(key_parts)>(key_parts)...);
-    }, types::key_t(), std::forward<Args>(args)...);
+    }, darma_runtime::make_key(), std::forward<Args>(args)...);
 
-    if(not detail::key_traits<types::key_t>::key_equal()(name_key, types::key_t())) {
+    if(not detail::key_traits<types::key_t>::key_equal()(
+      name_key, darma_runtime::make_key()
+    )) {
       task_->set_name(name_key);
     }
 
@@ -354,12 +355,12 @@ struct _do_create_work {
 template <typename... Args>
 decltype(auto)
 reads(Args&&... args) {
-  static_assert(detail::only_allowed_kwargs_given<
-      keyword_tags_for_create_work_decorators::unless,
-      keyword_tags_for_create_work_decorators::only_if
-    >::template apply<Args...>::type::value,
-    "Unknown keyword argument given to reads() decorator for create_work()"
-  );
+  //static_assert(detail::only_allowed_kwargs_given<
+  //    keyword_tags_for_create_work_decorators::unless,
+  //    keyword_tags_for_create_work_decorators::only_if
+  //  >::template apply<Args...>::type::value,
+  //  "Unknown keyword argument given to reads() decorator for create_work()"
+  //);
   return detail::reads_decorator_parser<Args...>()(std::forward<Args>(args)...);
 }
 

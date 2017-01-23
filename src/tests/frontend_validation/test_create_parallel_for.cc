@@ -52,6 +52,9 @@
 #include <darma/interface/app/create_work.h>
 #include <darma/impl/parallel_for.h>
 
+
+#if _darma_has_feature(create_parallel_for)
+
 ////////////////////////////////////////////////////////////////////////////////
 
 class TestCreateParallelFor
@@ -246,3 +249,5 @@ TEST_F(TestCreateParallelFor, functor_args) {
   mock_runtime->save_tasks = true;
 
 }
+
+#endif
