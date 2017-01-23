@@ -217,7 +217,12 @@ class AccessHandle : public detail::AccessHandleBase {
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         abstract::backend::get_backend_context()->get_running_task()
       );
-      capturing_task = running_task->current_create_work_context;
+      if(running_task) {
+        capturing_task = running_task->current_create_work_context;
+      }
+      else {
+        capturing_task = nullptr;
+      }
       var_handle_ = copied_from.var_handle_;
       DARMA_ASSERT_MESSAGE(
         not copied_from.unfetched_,
@@ -271,7 +276,12 @@ class AccessHandle : public detail::AccessHandleBase {
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         abstract::backend::get_backend_context()->get_running_task()
       );
-      capturing_task = running_task->current_create_work_context;
+      if(running_task) {
+        capturing_task = running_task->current_create_work_context;
+      }
+      else {
+        capturing_task = nullptr;
+      }
       var_handle_ = AccessHandleAccess::var_handle(copied_from);
       DARMA_ASSERT_MESSAGE(
         not copied_from.unfetched_,

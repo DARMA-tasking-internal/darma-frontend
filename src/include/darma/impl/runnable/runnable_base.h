@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      collective_details.h
+//                      runnable_base.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,45 +42,35 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
-#define DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
+#ifndef DARMA_IMPL_RUNNABLE_RUNNABLE_BASE_H
+#define DARMA_IMPL_RUNNABLE_RUNNABLE_BASE_H
 
 #include <cstdlib>
 
-#include "reduce_operation.h"
-#include <darma/interface/backend/region_context_handle.h>
-#include <darma/impl/feature_testing_macros.h>
+#include "runnable_fwd.h"
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
+namespace detail {
 
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="RunnableBase">
 
-class CollectiveDetails {
+class RunnableBase {
   public:
-
-    static inline constexpr size_t
-    unknown_contribution() {
-      return std::numeric_limits<size_t>::max();
-    }
-
-    virtual size_t
-    this_contribution() const =0;
-
-    virtual size_t
-    n_contributions() const =0;
-
-    virtual bool
-    is_indexed() const =0;
-
-    virtual ReduceOp const*
-    reduce_operation() const =0;
-
+    virtual bool run() =0;
+    virtual size_t get_index() const =0;
+    virtual size_t get_packed_size() const =0;
+    virtual void pack(void* allocated) const =0;
+    virtual ~RunnableBase() { }
+    bool is_lambda_like_runnable = false;
+    virtual void copy_lambda(void* dest) const { /* do nothing unless is_lambda_like */ }
+    virtual std::size_t lambda_size() const { return 0; }
 };
 
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
 
-} // end namespace frontend
-} // end namespace abstract
+} // end namespace detail
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
+#endif //DARMA_IMPL_RUNNABLE_RUNNABLE_BASE_H

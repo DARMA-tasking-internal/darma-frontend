@@ -161,7 +161,7 @@ struct TaskCollectionTaskImpl
       _get_call_args_impl(std::index_sequence_for<StoredArgs...>{}),
       [&](auto&&... args) mutable {
         Functor()(
-          _get_first_argument(),
+          this->_get_first_argument(),
           std::forward<decltype(args)>(args)...
         );
       }
