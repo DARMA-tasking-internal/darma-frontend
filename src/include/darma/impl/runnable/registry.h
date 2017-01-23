@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      collective_details.h
+//                      registry.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,45 +42,66 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
-#define DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
+#ifndef DARMA_IMPL_RUNNABLE_REGISTRY_H
+#define DARMA_IMPL_RUNNABLE_REGISTRY_H
 
-#include <cstdlib>
-
-#include "reduce_operation.h"
-#include <darma/interface/backend/region_context_handle.h>
-#include <darma/impl/feature_testing_macros.h>
+#include "runnable_fwd.h"
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
+namespace detail {
 
+////////////////////////////////////////////////////////////////////////////////
+// <editor-fold desc="Runnable registry and helpers">
 
-class CollectiveDetails {
-  public:
+typedef std::vector<std::function<std::unique_ptr<RunnableBase>(void*)>> runnable_registry_t;
 
-    static inline constexpr size_t
-    unknown_contribution() {
-      return std::numeric_limits<size_t>::max();
-    }
+// TODO make sure this pattern works on all compilers at all optimization levels
+template <typename = void>
+runnable_registry_t&
+get_runnable_registry()  {
+  static runnable_registry_t reg;
+  return reg;
+}
 
-    virtual size_t
-    this_contribution() const =0;
+namespace _impl {
 
-    virtual size_t
-    n_contributions() const =0;
+template <typename Runnable>
+struct RunnableRegistrar {
+  size_t index;
+  RunnableRegistrar() {
+    runnable_registry_t &reg = get_runnable_registry<>();
+    index = reg.size();
+    reg.emplace_back([](void* archive_as_void) -> std::unique_ptr<RunnableBase> {
+      using ArchiveT = serialization::SimplePackUnpackArchive;
 
-    virtual bool
-    is_indexed() const =0;
-
-    virtual ReduceOp const*
-    reduce_operation() const =0;
-
+      return Runnable::template construct_from_archive<
+        serialization::SimplePackUnpackArchive
+      >(*static_cast<serialization::SimplePackUnpackArchive*>(archive_as_void));
+    });
+  }
 };
 
+template <typename Runnable>
+struct RunnableRegistrarWrapper {
+  static RunnableRegistrar<Runnable> registrar;
+};
 
-} // end namespace frontend
-} // end namespace abstract
+template <typename Runnable>
+RunnableRegistrar<Runnable> RunnableRegistrarWrapper<Runnable>::registrar = { };
+
+} // end namespace _impl
+
+template <typename Runnable>
+const size_t
+register_runnable() {
+  return _impl::RunnableRegistrarWrapper<Runnable>::registrar.index;
+}
+
+// </editor-fold>
+////////////////////////////////////////////////////////////////////////////////
+
+
+} // end namespace detail
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H
+#endif //DARMA_IMPL_RUNNABLE_REGISTRY_H

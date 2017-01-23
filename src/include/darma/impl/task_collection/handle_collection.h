@@ -438,6 +438,31 @@ class AccessHandleCollection {
 
     ~AccessHandleCollection() { }
 
+    //==========================================================================
+
+    AccessHandleCollection(
+      AccessHandleCollection const& other
+    ) : mapped_backend_index_(other.mapped_backend_index_),
+        var_handle_(other.var_handle_),
+        current_use_(other.current_use_),
+        local_use_holders_(other.local_use_holders_)
+    {
+      // get the shared_ptr from the weak_ptr stored in the runtime object
+      detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
+        abstract::backend::get_backend_context()->get_running_task()
+      );
+      darma_runtime::detail::TaskBase* capturing_task = nullptr;
+      if(running_task) {
+        capturing_task = running_task->current_create_work_context;
+      }
+
+      if (capturing_task != nullptr) {
+        DARMA_ASSERT_FAILURE("Capturing AccessHandleCollection objects in"
+          " regular tasks is not yet supported.");
+      }
+
+    }
+
   private:
 
     //==========================================================================
@@ -603,11 +628,9 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType> {
       )
     );
 
-    auto rv = AccessHandleCollection<ValueType, std::decay_t<IndexRangeT>>(
+    return AccessHandleCollection<ValueType, std::decay_t<IndexRangeT>>(
       var_handle, use_holder
     );
-
-    return rv;
   }
 
   template <typename IndexRangeT, typename Arg1, typename... Args>

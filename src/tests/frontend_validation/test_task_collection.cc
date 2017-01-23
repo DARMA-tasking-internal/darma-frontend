@@ -44,8 +44,6 @@
 
 #include <darma/impl/feature_testing_macros.h>
 
-#if _darma_has_feature(create_concurrent_work)
-
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -61,6 +59,7 @@
 #include <darma/impl/task_collection/handle_collection.h>
 #include <darma/impl/index_range/mapping.h>
 #include <darma/impl/array/index_range.h>
+#include <darma/impl/task_collection/create_concurrent_work.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -180,6 +179,117 @@ TEST_F(TestCreateConcurrentWork, simple) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
+
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow finit, fnull, fout_coll, f_in_idx[4], f_out_idx[4];
+  MockFlow f_fwd_allred[4] = { "f_fwd_allred[0]", "f_fwd_allred[1]", "f_fwd_allred[2]", "f_fwd_allred[3]"};
+  MockFlow f_allred_out[4] = { "f_allred_out[0]", "f_allred_out[1]", "f_allred_out[2]", "f_allred_out[3]"};
+  use_t* use_idx[4] = {nullptr, nullptr, nullptr, nullptr};
+  use_t* use_allred[4] = {nullptr, nullptr, nullptr, nullptr};
+  use_t* use_coll = nullptr;
+  int values[4];
+
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
+    .WillOnce(Return(fout_coll));
+
+  EXPECT_CALL(*mock_runtime, register_use(AllOf(
+    IsUseWithFlows(finit, fout_coll, use_t::Modify, use_t::Modify),
+    Truly([](auto* use){
+      return (
+        use->manages_collection()
+          and use->get_managed_collection()->size() == 4
+      );
+    })
+  ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
+
+  EXPECT_FLOW_ALIAS(fout_coll, fnull);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
+
+
+    struct Foo {
+      void operator()(
+        ConcurrentContext<Index1D<int>> context,
+        AccessHandleCollection<int, Range1D<int>> coll
+      ) const {
+        ASSERT_THAT(context.index().value, Lt(4));
+        ASSERT_THAT(context.index().value, Ge(0));
+        auto mine = coll[context.index()].local_access();
+        mine.set_value(42);
+        context.allreduce(mine);
+      }
+    };
+
+    create_concurrent_work<Foo>(tmp_c,
+      index_range=Range1D<int>(4)
+    );
+
+  }
+  //============================================================================
+
+  for(int i = 0; i < 4; ++i) {
+    values[i] = 0;
+
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(finit, i))
+      .WillOnce(Return(f_in_idx[i]));
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
+      .WillOnce(Return(f_out_idx[i]));
+    EXPECT_CALL(*mock_runtime, register_use(
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+    )).WillOnce(Invoke([&](auto* use){
+      use_idx[i] = use;
+      use->get_data_pointer_reference() = &values[i];
+    }));
+
+    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+
+    EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
+
+    EXPECT_CALL(*mock_runtime, make_forwarding_flow(f_in_idx[i]))
+      .WillOnce(Return(f_fwd_allred[i]));
+    EXPECT_CALL(*mock_runtime, make_next_flow(f_fwd_allred[i]))
+      .WillOnce(Return(f_allred_out[i]));
+    EXPECT_REGISTER_USE(use_allred[i], f_fwd_allred[i], f_allred_out[i], None, Modify);
+
+    EXPECT_RELEASE_USE(use_idx[i]);
+
+    EXPECT_CALL(*mock_runtime, allreduce_use(
+      Eq(ByRef(use_allred[i])), Eq(ByRef(use_allred[i])), _, _)
+    );
+
+    EXPECT_RELEASE_USE(use_allred[i]);
+
+    EXPECT_FLOW_ALIAS(f_allred_out[i], f_out_idx[i]);
+
+    created_task->run();
+
+    EXPECT_THAT(values[i], Eq(42));
+
+  }
+
+  EXPECT_RELEASE_USE(use_coll);
+
+
+  mock_runtime->task_collections.front().reset(nullptr);
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateConcurrentWork, fetch) {
 
@@ -1058,4 +1168,55 @@ TEST_F(TestCreateConcurrentWork, simple_collection_read) {
 
 }
 
-#endif
+////////////////////////////////////////////////////////////////////////////////
+
+// Actually a compile-time error...
+//TEST_F(TestCreateConcurrentWork, collection_capture_death) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//  using namespace darma_runtime::keyword_arguments_for_task_creation;
+//  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+//  using namespace mock_backend;
+//
+//  //============================================================================
+//  // actual code being tested
+//  struct FooTask {
+//    void operator()(AccessHandleCollection<int, Range1D<int>>) { }
+//  };
+//
+//  auto tmp = initial_access_collection<int>(index_range=Range1D<int>(42));
+//
+//  EXPECT_DEATH({
+//    create_work<FooTask>(tmp);
+//  },
+//    "Capturing AccessHandleCollection objects in regular tasks is not yet supported"
+//  );
+//
+//  //============================================================================
+//
+//}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateConcurrentWork, collection_capture_death) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  //============================================================================
+  // actual code being tested
+  auto tmp = initial_access_collection<int>(index_range=Range1D<int>(42));
+
+  EXPECT_DEATH({
+    create_work([=]{ tmp[5].local_access(); });
+  },
+    "Capturing AccessHandleCollection objects in regular tasks is not yet supported"
+  );
+
+  //============================================================================
+
+}

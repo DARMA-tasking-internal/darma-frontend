@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      create_concurrent_region.h
+//                      runnable_fwd.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,15 +42,16 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_APP_CREATE_CONCURRENT_REGION_H
-#define DARMA_INTERFACE_APP_CREATE_CONCURRENT_REGION_H
+#ifndef DARMA_IMPL_RUNNABLE_RUNNABLE_FWD_H
+#define DARMA_IMPL_RUNNABLE_RUNNABLE_FWD_H
 
 namespace darma_runtime {
+namespace detail {
 
-template <typename Functor=void, typename... Args>
-auto
-create_concurrent_region(Args&&... args);
+// Forward declaration
+class RunnableBase;
 
+} // end namespace detail
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_APP_CREATE_CONCURRENT_REGION_H
+#endif //DARMA_IMPL_RUNNABLE_RUNNABLE_FWD_H

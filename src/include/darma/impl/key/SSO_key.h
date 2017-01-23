@@ -69,6 +69,8 @@ template <typename T>
 struct _initial_access_key_helper;
 template <typename...>
 struct AccessHandleCollectionAccess;
+template <typename, typename, typename...>
+class TaskCollectionImpl;
 
 namespace _impl {
 
@@ -439,6 +441,9 @@ class SSOKey
 
     template <typename...>
     friend class AccessHandleCollectionAccess;
+
+    template <typename, typename, typename...>
+    friend class TaskCollectionImpl;
 
   public:
 
