@@ -1,39 +1,30 @@
 
 FILE(GLOB impl_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
-
 FILE(GLOB impl_array_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/array/*.h")
-
 FILE(GLOB impl_collective_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/collective/*.h")
-
 FILE(GLOB impl_key_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/key/*.h")
-
 FILE(GLOB impl_keyword_arguments_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/keyword_arguments/*.h")
-
 FILE(GLOB impl_meta_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/meta/*.h")
-
 FILE(GLOB impl_oo_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/oo/*.h")
-
 FILE(GLOB impl_serialization_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/serialization/*.h")
-
 FILE(GLOB impl_util_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/util/*.h")
-
 FILE(GLOB impl_indRange_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/index_range/*.h")
-
 FILE(GLOB impl_taskColl_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/task_collection/*.h")
-
 FILE(GLOB impl_taskCollImpl_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/task_collection/impl/*.h")
+FILE(GLOB impl_runnable_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/runnable/*.h")
 
 
 install (FILES ${impl_HEADERS} DESTINATION include/darma/impl)
@@ -49,6 +40,7 @@ install (FILES ${impl_util_HEADERS} DESTINATION include/darma/impl/util)
 install (FILES ${impl_indRange_HEADERS} DESTINATION include/darma/impl/index_range)
 install (FILES ${impl_taskColl_HEADERS} DESTINATION include/darma/impl/task_collection)
 install (FILES ${impl_taskCollImpl_HEADERS} DESTINATION include/darma/impl/task_collection/impl)
+install (FILES ${impl_runnable_HEADERS} DESTINATION include/darma/impl/runnable)
 
 include (CheckCXXSourceCompiles)
 check_cxx_source_compiles("
