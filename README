@@ -4,3 +4,7 @@ The darma-frontend repository contains:
 3) frontend tests.
 
 For instructions on how to build and install DARMA, please see the INSTALL file.
+
+DARMA nightly tests can be viewed at https://jenkins-srn.sandia.gov:8443/view/Darma/ .
+The frontend tests are named DARMA_frontend_* .
+ 
