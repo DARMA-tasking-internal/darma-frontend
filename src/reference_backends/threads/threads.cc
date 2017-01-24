@@ -1262,10 +1262,11 @@ namespace threads_backend {
 
     flow->state = flow_has_alias(flow) ? FlowReadOnlyReady : FlowReadReady;
 
-    DEBUG_PRINT("try_release_to_read: %ld, new state=%s, shared_reader_count=%d\n",
-                PRINT_LABEL(flow),
-                PRINT_STATE(flow),
-       flow->shared_reader_count ? *flow->shared_reader_count : -1
+    DEBUG_PRINT(
+      "try_release_to_read: %ld, new state=%s, shared_reader_count=%ld\n",
+      PRINT_LABEL(flow),
+      PRINT_STATE(flow),
+      flow->shared_reader_count ? *flow->shared_reader_count : -1
     );
 
     if (flow->readers.size() > 0) {
