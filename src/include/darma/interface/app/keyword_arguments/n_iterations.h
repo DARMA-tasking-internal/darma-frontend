@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma_types.h
-//                         dharma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      n_iterations.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,48 +42,14 @@
 //@HEADER
 */
 
-#ifndef BACKENDS_SERIAL_DARMA_TYPES_H_
-#define BACKENDS_SERIAL_DARMA_TYPES_H_
+#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_ITERATIONS_H
+#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_ITERATIONS_H
 
-#define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
+#include <darma/impl/keyword_arguments/macros.h>
 
+DeclareDarmaTypeTransparentKeyword(parallel_for, n_iterations);
 
-#include <utility> // std::pair
-
-namespace darma_runtime { namespace types {
-  using cpu_set_t = /* not implemented */ int; // just a placeholder for now
-}} // end namespace darma_runtime::types
-
-namespace threads_backend {
-  // forward declaration
-  struct InnerFlow;
-} // end namespace threads_backend
-
-#include <darma/interface/defaults/pointers.h>
-
-namespace darma_runtime { namespace types {
-typedef types::shared_ptr_template<::threads_backend::InnerFlow> flow_t;
-}} // end namespace darma_runtime::types
+DeclareStandardDarmaKeywordArgumentAliases(parallel_for, n_iterations);
 
 
-//#include <darma/impl/key/simple_key.h>
-#include <darma/impl/key/SSO_key_fwd.h>
-
-#ifndef DARMA_KEY_STACK_SIZE
-#define DARMA_KEY_STACK_SIZE 64
-#endif
-
-namespace darma_runtime { namespace types {
-typedef types::shared_ptr_template<::threads_backend::InnerFlow> flow_t;
-}} // end namespace darma_runtime::types
-
-namespace darma_runtime { namespace types {
-  typedef darma_runtime::detail::SSOKey<
-    DARMA_KEY_STACK_SIZE - 16,
-    uint64_t
-  > key_t;
-}} // end namespace darma_runtime::types
-
-#include <darma/impl/key/SSO_key.h>
-
-#endif /* BACKENDS_SERIAL_DARMA_TYPES_H_ */
+#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_ITERATIONS_H

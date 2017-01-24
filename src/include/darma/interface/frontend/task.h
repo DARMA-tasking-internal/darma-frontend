@@ -152,7 +152,13 @@ class Task {
 
     virtual size_t width() const { return 1; }
 
+#if _darma_has_feature(create_parallel_for_custom_cpu_set)
+
+    virtual darma_runtime::types::cpu_set_t const& get_cpu_set() const =0;
+
     virtual void set_cpu_set(darma_runtime::types::cpu_set_t const&) =0;
+
+#endif
 
     /** @brief Indicates whether the task represents a parallel_for loop
      *
