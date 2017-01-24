@@ -61,7 +61,7 @@ double do_workload(double factor) {
   std::size_t iters = (std::size_t)(factor * 1000);
   double value = 0;
   for (std::size_t i = 1; i <= iters; ++i) {
-    value += std::sqrt(i * 3.14);
+    value += (double)i * value;
   }
   return value;
 }
