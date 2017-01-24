@@ -70,6 +70,8 @@
 
 #define _darma_feature_date_handle_collection_based_collectives 20170119
 
+#define _darma_feature_date_create_parallel_for_custom_cpu_set 20170124
+
 // </editor-fold> end Feature Dates and Defaults }}}1
 //==============================================================================
 

@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      all_keyword_arguments.h
+//                      n_iterations.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,13 +42,14 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ALL_KEYWORD_ARGUMENTS_H
-#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ALL_KEYWORD_ARGUMENTS_H
+#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_ITERATIONS_H
+#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_ITERATIONS_H
 
-#include <darma/interface/app/keyword_arguments/version.h>
-#include <darma/interface/app/keyword_arguments/n_readers.h>
-#include <darma/interface/app/keyword_arguments/name.h>
-#include <darma/interface/app/keyword_arguments/index_range.h>
-#include <darma/interface/app/keyword_arguments/n_iterations.h>
+#include <darma/impl/keyword_arguments/macros.h>
 
-#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ALL_KEYWORD_ARGUMENTS_H
+DeclareDarmaTypeTransparentKeyword(parallel_for, n_iterations);
+
+DeclareStandardDarmaKeywordArgumentAliases(parallel_for, n_iterations);
+
+
+#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_ITERATIONS_H
