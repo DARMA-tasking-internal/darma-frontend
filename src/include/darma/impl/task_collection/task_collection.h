@@ -45,6 +45,9 @@
 #ifndef DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_H
 #define DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(create_concurrent_work)
 #include <darma/impl/polymorphic_serialization.h>
 #include <darma/impl/handle.h>
 #include <darma/impl/task_collection/handle_collection.h>
@@ -365,4 +368,5 @@ struct make_task_collection_impl_t {
 
 } // end namespace darma_runtime
 
+#endif // _darma_has_feature(create_concurrent_work)
 #endif //DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_H

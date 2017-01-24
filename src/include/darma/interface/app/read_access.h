@@ -45,6 +45,9 @@
 #ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_
 #define SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(publish_fetch)
 #include <darma/interface/app/access_handle.h>
 #include <darma/impl/handle_attorneys.h>
 #include <darma/impl/flow_handling.h>
@@ -175,5 +178,6 @@ read_access(
 
 } // end namespace darma_runtime
 
+#endif // _darma_has_feature(publish_fetch)
 
 #endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_ */

@@ -660,6 +660,7 @@ class AccessHandle : public detail::AccessHandleBase {
       return *static_cast<T*>(current_use_->use.data_);
     }
 
+#if _darma_has_feature(publish_fetch)
     template <typename _Ignored=void, typename... PublishExprParts>
     std::enable_if_t<
       is_compile_time_schedule_readable
@@ -668,7 +669,9 @@ class AccessHandle : public detail::AccessHandleBase {
     publish(
       PublishExprParts&& ... parts
     ) const;
+#endif // _darma_has_feature(publish_fetch)
 
+#if _darma_has_feature(create_concurrent_work)
     template <typename... Args>
     auto const& read_access(
       Args&& ... args
@@ -742,8 +745,10 @@ class AccessHandle : public detail::AccessHandleBase {
           }
         );
     }
+#endif // _darma_has_feature(create_concurrent_work)
 
 
+#if _darma_has_feature(create_concurrent_work_owned_by)
     template <
       typename Index,
       typename _for_SFINAE_only=void,
@@ -788,6 +793,7 @@ class AccessHandle : public detail::AccessHandleBase {
       >;
       return return_type(*this);
     };
+#endif // _darma_has_feature(create_concurrent_work_owned_by)
 
     // </editor-fold> end Public interface methods }}}1
     //==============================================================================
@@ -840,6 +846,7 @@ class AccessHandle : public detail::AccessHandleBase {
       current_use_->could_be_alias = true;
     }
 
+#if _darma_has_feature(task_migration)
     template <typename Archive>
     AccessHandle(
       serialization::unpack_constructor_tag_t const&,
@@ -883,6 +890,7 @@ class AccessHandle : public detail::AccessHandleBase {
 
       #pragma clang diagnostic pop
     }
+#endif // _darma_has_feature(task_migration)
 
     AccessHandle(
       detail::unfetched_access_handle_tag,
@@ -982,6 +990,7 @@ using ReadAccessHandle = AccessHandle<
   >::type
 >;
 
+#if _darma_has_feature(task_migration)
 namespace serialization {
 
 template <typename... Args>
@@ -1066,6 +1075,7 @@ struct Serializer<AccessHandle<Args...>> {
 };
 
 } // end namespace serialization
+#endif // _darma_has_feature(task_migration)
 
 } // end namespace darma_runtime
 

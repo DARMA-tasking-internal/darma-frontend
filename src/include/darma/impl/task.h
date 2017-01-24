@@ -172,12 +172,6 @@ class TaskBase : public abstract::frontend::Task
       name_ = name;
     }
 
-    bool
-    is_migratable() const override {
-      // Ignored for now:
-      return false;
-    }
-
     virtual void run() override {
       assert(runnable_);
       pre_run_setup();
@@ -185,6 +179,12 @@ class TaskBase : public abstract::frontend::Task
       post_run_cleanup();
     }
 
+#if _darma_has_feature(task_migration)
+    bool
+    is_migratable() const override {
+      // Ignored for now:
+      return false;
+    }
 
     size_t get_packed_size() const override {
       using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
@@ -229,6 +229,7 @@ class TaskBase : public abstract::frontend::Task
         runnable_->pack(ArchiveAccess::get_spot(ar));
       }
     }
+#endif // _darma_has_feature(task_migration)
 
     // end implementation of abstract::frontend::Task
     ////////////////////////////////////////////////////////////////////////////////
@@ -324,23 +325,12 @@ class TaskBase : public abstract::frontend::Task
 
 };
 
-//class TopLevelTask
-//  : public TaskBase
-//{
-//  public:
-//
-//    void run()  {
-//      // Abort, as specified.  This should never be called.
-//      assert(false);
-//    }
-//
-//};
-
 
 // </editor-fold>
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if _darma_has_feature(task_migration)
 template <typename ConcreteTaskT>
 inline std::unique_ptr<ConcreteTaskT>
 _unpack_task(void* packed_data) {
@@ -364,6 +354,7 @@ _unpack_task(void* packed_data) {
 
   return std::move(rv);
 }
+#endif // _darma_has_feature(task_migration)
 
 } // end namespace detail
 
@@ -371,11 +362,7 @@ _unpack_task(void* packed_data) {
 
 namespace frontend {
 
-namespace detail {
-
-
-} // end namespace detail
-
+#if _darma_has_feature(task_migration)
 inline
 abstract::backend::runtime_t::task_unique_ptr
 unpack_task(void* packed_data) {
@@ -383,6 +370,7 @@ unpack_task(void* packed_data) {
     packed_data
   );
 }
+#endif // _darma_has_feature(task_migration)
 
 } // end namespace frontend
 

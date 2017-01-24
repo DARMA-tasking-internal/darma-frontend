@@ -47,13 +47,13 @@
 
 #include <cstdlib> // size_t
 
-//#include <darma/interface/app/access_handle.h>
 #include <darma/impl/flow_handling.h>
 #include <darma/impl/keyword_arguments/parse.h>
 #include <darma/impl/capture.h>
 
 namespace darma_runtime {
 
+#if _darma_has_feature(publish_fetch)
 namespace detail {
 
 template <typename AccessHandleT>
@@ -177,6 +177,7 @@ AccessHandle<T, Traits>::publish(
     .invoke(detail::_publish_impl<AccessHandle>(*this));
 
 }
+#endif // _darma_has_feature(publish_fetch)
 
 } // end namespace darma_runtime
 

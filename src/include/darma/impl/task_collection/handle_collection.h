@@ -45,6 +45,10 @@
 #ifndef DARMA_HANDLE_COLLECTION_H
 #define DARMA_HANDLE_COLLECTION_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(create_concurrent_work)
+
 #include <darma/impl/handle.h>
 #include <darma/impl/use.h>
 #include <darma/impl/keyword_arguments/parse.h>
@@ -742,5 +746,7 @@ initial_access_collection(Args&&... args) {
 
 
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(create_concurrent_work)
 
 #endif //DARMA_HANDLE_COLLECTION_H

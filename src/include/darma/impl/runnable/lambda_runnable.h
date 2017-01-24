@@ -45,6 +45,8 @@
 #ifndef DARMA_IMPL_RUNNABLE_LAMBDA_RUNNABLE_H
 #define DARMA_IMPL_RUNNABLE_LAMBDA_RUNNABLE_H
 
+#include <darma/impl/feature_testing_macros.h>
+
 namespace darma_runtime {
 namespace detail {
 
@@ -68,6 +70,7 @@ struct Runnable : public RunnableBase
 
     static const size_t index_;
 
+#if _darma_has_feature(task_migration)
     template <typename ArchiveT>
     static std::unique_ptr<RunnableBase>
     construct_from_archive(ArchiveT& data) {
@@ -76,6 +79,8 @@ struct Runnable : public RunnableBase
       return nullptr;
     }
 
+    size_t get_index() const override  { return index_; }
+
     virtual size_t get_packed_size() const override {
       DARMA_ASSERT_NOT_IMPLEMENTED();
       return 0;
@@ -83,6 +88,7 @@ struct Runnable : public RunnableBase
     virtual void pack(void* allocated) const override {
       DARMA_ASSERT_NOT_IMPLEMENTED();
     }
+#endif // _darma_has_feature(task_migration)
 
     std::size_t lambda_size() const override {
       return sizeof(Callable);
@@ -93,15 +99,15 @@ struct Runnable : public RunnableBase
       ::memcpy(dest, static_cast<void*>(&c), sizeof(Callable));
     }
 
-    size_t get_index() const override  { return index_; }
-
   private:
     std::remove_reference_t<Callable> run_this_;
 };
 
+#if _darma_has_feature(task_migration)
 template <typename Callable>
 const size_t Runnable<Callable>::index_ =
   register_runnable<Runnable<Callable>>();
+#endif
 
 } // end namespace detail
 } // end namespace darma_runtime
