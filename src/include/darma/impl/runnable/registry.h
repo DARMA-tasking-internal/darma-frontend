@@ -45,6 +45,8 @@
 #ifndef DARMA_IMPL_RUNNABLE_REGISTRY_H
 #define DARMA_IMPL_RUNNABLE_REGISTRY_H
 
+#include <darma/impl/feature_testing_macros.h>
+
 #include "runnable_fwd.h"
 
 namespace darma_runtime {
@@ -52,6 +54,8 @@ namespace detail {
 
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="Runnable registry and helpers">
+
+#if _darma_has_feature(task_migration)
 
 typedef std::vector<std::function<std::unique_ptr<RunnableBase>(void*)>> runnable_registry_t;
 
@@ -96,6 +100,8 @@ const size_t
 register_runnable() {
   return _impl::RunnableRegistrarWrapper<Runnable>::registrar.index;
 }
+
+#endif // _darma_has_feature(task_migration)
 
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////

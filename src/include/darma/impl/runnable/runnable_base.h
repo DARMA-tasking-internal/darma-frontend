@@ -58,9 +58,13 @@ namespace detail {
 class RunnableBase {
   public:
     virtual bool run() =0;
+
+#if _darma_has_feature(task_migration)
     virtual size_t get_index() const =0;
     virtual size_t get_packed_size() const =0;
     virtual void pack(void* allocated) const =0;
+#endif // _darma_has_feature(task_migration)
+
     virtual ~RunnableBase() { }
     bool is_lambda_like_runnable = false;
     virtual void copy_lambda(void* dest) const { /* do nothing unless is_lambda_like */ }

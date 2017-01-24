@@ -100,12 +100,16 @@ struct RunnableCondition : public RunnableBase
     : run_this_(c)
   { }
 
+#if _darma_has_feature(task_migration)
   size_t get_index() const  { DARMA_ASSERT_NOT_IMPLEMENTED(); return 0; }
+
   virtual size_t get_packed_size() const {
     DARMA_ASSERT_NOT_IMPLEMENTED();
     return 0; // Unreachable; silence missing return warnings
   }
+
   virtual void pack(void* allocated) const { DARMA_ASSERT_NOT_IMPLEMENTED(); }
+#endif // _darma_has_feature(task_migration)
 
   bool run()  { return run_this_(); }
 
@@ -181,6 +185,7 @@ class FunctorLikeRunnableBase
     ));
 
     ////////////////////////////////////////////////////////////////////////////
+#if _darma_has_feature(task_migration)
 
     // TODO there should also be a version of construct_from_archive where
     //      all of the entries in args_tuple_t are in-place constructible
@@ -262,11 +267,15 @@ class FunctorLikeRunnableBase
 
       return std::move(rv);
     }
+#endif // _darma_has_feature(task_migration)
 
 
     ////////////////////////////////////////////////////////////////////////////
 
   public:
+
+#if _darma_has_feature(task_migration)
+    size_t get_index() const override { return register_runnable<FunctorRunnable>(); }
 
     size_t get_packed_size() const override {
       using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
@@ -290,6 +299,7 @@ class FunctorLikeRunnableBase
       ar << args_;
 
     }
+#endif // _darma_has_feature(task_migration)
 
     template <typename _used_only_for_SFINAE = void,
       typename = std::enable_if_t<
@@ -327,7 +337,7 @@ class FunctorRunnable
     using args_tuple_t = typename base_t::args_tuple_t;
 
     template <typename T>
-    using _arg_is_serializable = tinympl::or_<
+    using _arg_is_serializable_or_is_access_handle = tinympl::or_<
       typename serialization::detail::serializability_traits<T>
         ::template is_serializable_with_archive<
           serialization::PolicyAwareArchive
@@ -335,7 +345,8 @@ class FunctorRunnable
       typename serialization::detail::serializability_traits<T>
         ::template is_serializable_with_archive<
           serialization::SimplePackUnpackArchive
-        >
+        >,
+      is_access_handle<T>
     >;
 
 
@@ -347,13 +358,13 @@ class FunctorRunnable
         tinympl::at_or_t<int /* ignored*/,
           tinympl::find_if<
             args_tuple_t,
-            tinympl::negate_metafunction<_arg_is_serializable>::template apply
+            tinympl::negate_metafunction<_arg_is_serializable_or_is_access_handle>::template apply
           >::type::value,
           args_tuple_t
         >
     >
     using static_assert_all_args_serializable = decltype(std::conditional_t<
-      tinympl::all_of<args_tuple_t, _arg_is_serializable>::value,
+      tinympl::all_of<args_tuple_t, _arg_is_serializable_or_is_access_handle>::value,
       tinympl::identity<int>,
       _darma__static_failure<
         _____________________________________________________________________,
@@ -427,6 +438,7 @@ class FunctorRunnable
     }
 
 
+#if _darma_has_feature(task_migration)
     template <typename ArchiveT>
     static types::unique_ptr_template<RunnableBase>
     construct_from_archive(ArchiveT& ar) {
@@ -435,8 +447,8 @@ class FunctorRunnable
         FunctorRunnable<Functor, Args...>
       >(ar);
     };
+#endif // _darma_has_feature(task_migration)
 
-    size_t get_index() const override { return register_runnable<FunctorRunnable>(); }
 };
 
 //template <typename Functor, typename... Args>

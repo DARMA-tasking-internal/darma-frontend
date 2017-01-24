@@ -45,7 +45,10 @@
 #ifndef DARMA_IMPL_USE_H
 #define DARMA_IMPL_USE_H
 
+#include <darma/impl/feature_testing_macros.h>
+
 #include <darma_types.h>
+
 
 #include <darma/interface/frontend/use.h>
 #include <darma/interface/backend/flow.h>
@@ -522,10 +525,12 @@ struct GenericUseHolder {
     is_registered = false;
   }
 
+#if _darma_has_feature(task_migration)
   GenericUseHolder(migrated_use_arg_t, UnderlyingUse&& in_use) : use(std::move(in_use)) {
     abstract::backend::get_backend_runtime()->reregister_migrated_use(&use);
     is_registered = true;
   }
+#endif
 
   ~GenericUseHolder() {
     if(is_registered) do_release();

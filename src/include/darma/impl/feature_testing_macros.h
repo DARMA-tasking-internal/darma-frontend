@@ -72,6 +72,8 @@
 
 #define _darma_feature_date_create_parallel_for_custom_cpu_set 20170124
 
+#define _darma_feature_date_create_concurrent_work_owned_by 20170124
+
 // </editor-fold> end Feature Dates and Defaults }}}1
 //==============================================================================
 
