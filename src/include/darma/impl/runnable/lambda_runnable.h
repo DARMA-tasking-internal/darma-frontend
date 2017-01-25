@@ -58,10 +58,10 @@ struct Runnable : public RunnableBase
 {
   private:
   public:
-    // Force it to be an rvalue reference
+    // Force it to be an lvalue reference so as to invoke the copy ctor of captured vars
     explicit
-    Runnable(std::remove_reference_t<Callable>&& c)
-      : run_this_(std::move(c))
+    Runnable(std::remove_reference_t<Callable>& c)
+      : run_this_(c)
     {
       RunnableBase::is_lambda_like_runnable = true;
     }

@@ -275,7 +275,6 @@ class FunctorLikeRunnableBase
   public:
 
 #if _darma_has_feature(task_migration)
-    size_t get_index() const override { return register_runnable<FunctorRunnable>(); }
 
     size_t get_packed_size() const override {
       using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
@@ -447,6 +446,8 @@ class FunctorRunnable
         FunctorRunnable<Functor, Args...>
       >(ar);
     };
+
+    size_t get_index() const override { return register_runnable<FunctorRunnable>(); }
 #endif // _darma_has_feature(task_migration)
 
 };

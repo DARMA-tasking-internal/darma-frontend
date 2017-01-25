@@ -93,7 +93,7 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
 
   const bool use_helper = GetParam();
 
-  MockFlow f_initial, f_null, f_task_out;
+  MockFlow f_initial("f_initial"), f_null("f_null"), f_task_out("f_task_out"), f_unused("f_unused");
   use_t* task_use = nullptr;
 
   EXPECT_INITIAL_ACCESS(f_initial, f_null, make_key("hello"));

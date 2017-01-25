@@ -47,6 +47,7 @@
 
 #include <memory>
 
+
 #include <tinympl/variadic/at.hpp>
 #include <tinympl/variadic/back.hpp>
 #include <tinympl/vector.hpp>
@@ -56,11 +57,14 @@
 #include <darma/impl/meta/tuple_for_each.h>
 #include <darma/impl/meta/splat_tuple.h>
 
+#include <darma/interface/app/create_work.h>
+
 #include <darma/impl/handle_attorneys.h>
 #include <darma/interface/app/access_handle.h>
 #include <darma/impl/runtime.h>
 #include <darma/impl/task.h>
 #include <darma/impl/util.h>
+#include <darma/impl/runnable/runnable.h>
 #include <darma/impl/keyword_arguments/macros.h>
 
 #include <darma/interface/app/keyword_arguments/name.h>
@@ -349,18 +353,251 @@ struct _do_create_work {
   types::unique_ptr_template<TaskBase> task_;
 };
 
+
+template <typename...>
+struct _create_work_impl;
+
+template <typename... Args>
+void _create_work_parse_args(
+  std::unique_ptr<TaskBase>& task_,
+  Args&&... args
+) {
+  //--------------------------------------------------------------------------
+  // Check for allowed keywords
+  using _check_kwargs_asserting_t = typename detail::only_allowed_kwargs_given<
+    darma_runtime::keyword_tags_for_task_creation::name,
+    darma_runtime::keyword_tags_for_task_creation::allow_aliasing
+  >::template static_assert_correct<Args...>::type;
+
+  //--------------------------------------------------------------------------
+  // Handle the name kwarg
+
+  auto name_key = get_typeless_kwarg_with_converter_and_default<
+    darma_runtime::keyword_tags_for_task_creation::name
+  >([](auto&&... key_parts){
+    return make_key(std::forward<decltype(key_parts)>(key_parts)...);
+  }, darma_runtime::make_key(), std::forward<Args>(args)...);
+
+  if(not detail::key_traits<types::key_t>::key_equal()(
+    name_key, darma_runtime::make_key()
+  )) {
+    task_->set_name(name_key);
+  }
+
+  bool found_aliasing_description = get_typeless_kwarg_with_converter_and_default<
+    darma_runtime::keyword_tags_for_task_creation::allow_aliasing
+  >([&](auto&&... args) {
+      // forward to the allowed_aliasing_description constructor
+      task_->allowed_aliasing = std::make_unique<TaskBase::allowed_aliasing_description>(
+        TaskBase::allowed_aliasing_description::allowed_aliasing_description_ctor_tag_t(),
+        std::forward<decltype(args)>(args)...
+      );
+      return true;
+    }, false /* return value is ignored anyway */, std::forward<Args>(args)...
+  );
+}
+
+using create_work_argument_parser = detail::kwarg_parser<
+  variadic_positional_overload_description<
+    _optional_keyword<
+      converted_parameter, keyword_tags_for_task_creation::name
+    >,
+    _optional_keyword<
+      converted_parameter, keyword_tags_for_task_creation::allow_aliasing
+    >
+  >
+>;
+
+//==============================================================================
+// <editor-fold desc="_create_work_impl, functor version">
+
+inline auto setup_create_work_argument_parser() {
+  return create_work_argument_parser()
+    .with_converters(
+      [](auto&& ... parts) {
+        return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+      },
+      [](auto&&... aliasing_desc) {
+        return std::make_unique<TaskBase::allowed_aliasing_description>(
+          TaskBase::allowed_aliasing_description::allowed_aliasing_description_ctor_tag_t(),
+          std::forward<decltype(aliasing_desc)>(aliasing_desc)...
+        );
+      }
+    )
+    .with_default_generators(
+      keyword_arguments_for_task_creation::name = [] {
+        // TODO this should actually return a "pending backend assignment" key
+        return make_key();
+      },
+      keyword_arguments_for_task_creation::allow_aliasing = [] {
+        return std::make_unique<TaskBase::allowed_aliasing_description>(
+          TaskBase::allowed_aliasing_description::allowed_aliasing_description_ctor_tag_t(),
+          false
+        );
+      }
+    );
+}
+
+template <typename Functor, typename LastArg, typename... Args>
+struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
+
+  template <typename... DeducedArgs>
+  auto _impl(DeducedArgs&&... in_args) const {
+
+    using _______________see_calling_context_on_next_line________________ = typename create_work_argument_parser::template static_assert_valid_invocation<DeducedArgs...>;
+
+    return setup_create_work_argument_parser()
+      .parse_args(std::forward<DeducedArgs>(in_args)...)
+      .invoke([](
+        types::key_t name_key,
+        auto&& allow_aliasing_desc,
+        variadic_arguments_begin_tag,
+        auto&&... args
+      ) {
+
+        using runnable_t = FunctorRunnable<Functor, decltype(args)...>;
+
+        //--------------------------------------------------------------------------
+        // Check that the arguments are serializable
+
+        // Don't wrap this line; it's on one line for compiler spew readability
+        using _______________see_calling_context_below________________ = typename runnable_t::template static_assert_all_args_serializable<>;
+
+        //--------------------------------------------------------------------------
+
+        auto task = std::make_unique<TaskBase>();
+
+        task->set_name(name_key);
+        task->allowed_aliasing = std::move(allow_aliasing_desc);
+
+        auto* parent_task = static_cast<TaskBase* const>(
+          abstract::backend::get_backend_context()->get_running_task()
+        );
+        parent_task->current_create_work_context = task.get();
+
+        // Make sure it's clear that this is not a double-copy capture
+        task->is_double_copy_capture = false;
+
+        // The copy happens in here, which triggers the AccessHandle copy ctor hook
+        task->set_runnable(
+          std::make_unique<runnable_t>(
+            variadic_constructor_arg,
+            std::forward<decltype(args)>(args)...
+          )
+        );
+
+        // All registration ops should have been added at this point
+        for (auto&& reg : task->registrations_to_run) { reg(); }
+        task->registrations_to_run.clear();
+
+        // Done with capture; unset the current_create_work_context for safety later
+        parent_task->current_create_work_context = nullptr;
+
+        return abstract::backend::get_backend_runtime()->register_task(
+          std::move(task)
+        );
+      });
+  }
+
+  decltype(auto) operator()(
+    Args&&... args,
+    LastArg&& last_arg
+  ) const {
+    return this->_impl(std::forward<Args>(args)..., std::forward<LastArg>(last_arg));
+  }
+};
+
+// </editor-fold> end _create_work_impl, functor version
+//==============================================================================
+
+//==============================================================================
+// <editor-fold desc="_create_work_impl, lambda version">
+
+template <typename Lambda, typename... Args>
+struct _create_work_impl<detail::_create_work_uses_lambda_tag, tinympl::vector<Args...>, Lambda> {
+  auto operator()(
+    Args&&... in_args,
+    Lambda&& lambda_to_be_copied
+  ) const {
+    using _______________see_calling_context_on_next_line________________ = typename create_work_argument_parser::template static_assert_valid_invocation<Args...>;
+
+    return setup_create_work_argument_parser()
+      .parse_args(std::forward<Args>(in_args)...)
+      .invoke([&](
+        types::key_t name_key,
+        auto&& allow_aliasing_desc,
+        variadic_arguments_begin_tag,
+        auto&&... /* unused */
+      ) {
+
+        auto task = std::make_unique<TaskBase>();
+        task->set_name(name_key);
+        task->allowed_aliasing = std::move(allow_aliasing_desc);
+
+        auto* parent_task = static_cast<TaskBase* const>(
+          abstract::backend::get_backend_context()->get_running_task()
+        );
+        parent_task->current_create_work_context = task.get();
+
+        task->is_double_copy_capture = true;
+
+        // Intentionally don't do perfect forwarding here, to trigger the copy ctor hook
+        // This should call the copy ctors of all of the captured variables, triggering
+        // the logging of the AccessHandle copies as captures for the task
+        task->set_runnable(std::make_unique<Runnable<Lambda>>(lambda_to_be_copied));
+
+        // All registration ops should have been added at this point
+        for (auto&& reg : task->registrations_to_run) { reg(); }
+        task->registrations_to_run.clear();
+
+        // Done with capture; unset the current_create_work_context for safety later
+        parent_task->current_create_work_context = nullptr;
+        task->is_double_copy_capture = false;
+
+        return abstract::backend::get_backend_runtime()->register_task(
+          std::move(task)
+        );
+
+      });
+  }
+};
+
+// </editor-fold> end _create_work_impl, functor version
+//==============================================================================
+
+
+
+
+
 } // end namespace detail
 
+
+template <
+  typename Functor, /*=detail::_create_work_uses_lambda_tag */
+  typename... Args
+>
+void create_work(Args&&... args) {
+
+  return detail::_create_work_impl<
+    Functor,
+    typename tinympl::vector<Args...>::pop_back::type,
+    typename tinympl::vector<Args...>::back::type
+  >()(std::forward<Args>(args)...);
+
+}
+
+template <typename Functor>
+void create_work() {
+  return detail::_create_work_impl<
+    Functor,
+    typename tinympl::vector<>,
+    meta::nonesuch
+  >()._impl();
+}
 
 template <typename... Args>
 decltype(auto)
 reads(Args&&... args) {
-  //static_assert(detail::only_allowed_kwargs_given<
-  //    keyword_tags_for_create_work_decorators::unless,
-  //    keyword_tags_for_create_work_decorators::only_if
-  //  >::template apply<Args...>::type::value,
-  //  "Unknown keyword argument given to reads() decorator for create_work()"
-  //);
   return detail::reads_decorator_parser<Args...>()(std::forward<Args>(args)...);
 }
 

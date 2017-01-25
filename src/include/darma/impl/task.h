@@ -309,6 +309,7 @@ class TaskBase : public abstract::frontend::Task
     TaskBase* current_create_work_context = nullptr;
 
     std::vector<std::function<void()>> registrations_to_run;
+    // TODO remove the post_registration_ops, since it's not used
     std::vector<std::function<void()>> post_registration_ops;
     bool is_double_copy_capture = false;
     unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;

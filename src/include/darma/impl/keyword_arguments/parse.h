@@ -1466,6 +1466,20 @@ struct kwarg_parser {
         );
       }
 
+      template <typename... Args>
+      auto
+      parse_arg_tuple(std::tuple<Args&&...>&& arg_tup) {
+        return _parsed_invoke<
+          DefaultGeneratorsTuple, ConvertersTuple,
+          std::tuple<Args&&...>,
+          _valid_overload_desc_t<Args...>
+        >(
+          std::move(def_tup),
+          std::move(conv_tup),
+          std::move(arg_tup)
+        );
+      }
+
     };
 
     template <typename DefaultGeneratorsTuple, typename ConvertersTuple /*=std::tuple<>*/>
@@ -1525,6 +1539,20 @@ struct kwarg_parser {
           std::move(def_tup),
           std::move(conv_tup),
           std::forward_as_tuple(std::forward<Args>(args)...)
+        );
+      }
+
+      template <typename... Args>
+      auto
+      parse_arg_tuple(std::tuple<Args&&...>&& arg_tup) {
+        return _parsed_invoke<
+          DefaultGeneratorsTuple, ConvertersTuple,
+          std::tuple<Args&&...>,
+          _valid_overload_desc_t<Args...>
+        >(
+          std::move(def_tup),
+          std::move(conv_tup),
+          std::move(arg_tup)
         );
       }
 
