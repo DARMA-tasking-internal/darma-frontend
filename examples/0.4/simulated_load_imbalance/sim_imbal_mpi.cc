@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      fib_region.cc
+//                      sim_bal_mpi.cc
 //                         DARMA
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -43,8 +43,11 @@
 */
 
 #include <chrono>
+#include <algorithm>
 #include <random>
 #include <cmath>
+#include <iostream>
+#include <cassert>
 
 #include <mpi.h>
 
@@ -53,25 +56,26 @@
 //==============================================================================
 // <editor-fold desc="Actual imbalance functor"> {{{1
 
-struct ImbalancedLoad {
+struct Load {
 
   void operator()(
     std::size_t index, std::size_t n_indices,
     std::size_t random_seed, bool adjust_workload,
-    double& workload, double& value, double adjust_scale
+    double& workload, double& value, double adjust_scale,
+    bool create_imbalance
   ) const {
 
     if (adjust_workload) {
-      create_work([=]{
-        double base_load = get_base_load_for_index(index, n_indices, random_seed);
-        do_adjust_workload(workload, adjust_scale, base_load);
-      });
+      double base_load = create_imbalance ?
+        get_base_load_for_index(
+          index, n_indices, random_seed
+        )
+        : double(n_indices*(n_indices+1)) / double(2*n_indices);
+      do_adjust_workload(workload, adjust_scale, base_load);
     }
 
     value += do_workload(workload);
-
   }
-
 };
 
 // </editor-fold> end Actual imbalance functor }}}1
@@ -86,20 +90,24 @@ int main(int argc, char** argv) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  assert(argc == 4 or argc == 5);
+  assert(argc == 5 or argc == 6);
 
-  std::size_t n_iterations_total = std::atoi(args[1]);
-  std::size_t iterations_per_update = std::atoi(args[2]);
-  std::size_t n_workers = std::atoi(args[3]);
+  std::size_t n_iterations_total = std::atoi(argv[1]);
+  std::size_t iterations_per_update = std::atoi(argv[2]);
+  std::size_t n_workers = std::atoi(argv[3]);
+  bool const is_imbalanced = std::atoi(argv[4]);
 
-  std::cout << "Running workload for " << n_iterations_total << " iterations, ";
-  std::cout << "changing the workload every " << iterations_per_update
-            << " iterations, for " << n_workers << " work indices." << std::endl;
-
+  if (rank == 0) {
+    std::cout << "Running workload for " << n_iterations_total << " iterations, ";
+    std::cout << "changing the workload every " << iterations_per_update
+              << " iterations, for " << n_workers << " work indices, "
+              << "is imbalanced = " << is_imbalanced
+              << std::endl;
+  }
 
   std::size_t random_seed;
-  if(argc == 5) {
-    random_seed = std::atoi(args[4]);
+  if(argc == 6) {
+    random_seed = std::atoi(argv[5]);
   }
   else {
     random_seed = 0;
@@ -111,7 +119,7 @@ int main(int argc, char** argv) {
 
   std::size_t current_random_seed;
 
-  int my_offset = ((n_workers / size) * rank) + std::min(n_workers % size, rank);
+  int my_offset = ((n_workers / size) * rank) + std::min((int)(n_workers % size), rank);
   int my_size = (n_workers / size) + int(rank < n_workers % size);
 
   double workloads[my_size];
@@ -122,6 +130,7 @@ int main(int argc, char** argv) {
   }
 
   for(std::size_t i = 0; i < n_iterations_total; ++i) {
+    auto const start_time = MPI_Wtime();
 
     if(i % iterations_per_update == 0) {
       current_random_seed = seed_gen();
@@ -129,15 +138,21 @@ int main(int argc, char** argv) {
 
     for(int my_idx = my_offset; my_idx < my_offset + my_size; ++my_idx) {
 
-      ImbalancedLoad()(
+      Load()(
         my_idx, n_workers,
         current_random_seed, i % iterations_per_update == 0,
         workloads[my_idx - my_offset], results[my_idx - my_offset],
-        get_adjust_scale(i / iterations_per_update, n_iterations_total / iterations_per_update)
+        get_adjust_scale(i / iterations_per_update, n_iterations_total / iterations_per_update),
+        is_imbalanced
       );
 
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if (rank == 0) {
+      std::cout << i << ": iter time = " << MPI_Wtime() - start_time  << "s " << std::endl;
+    }
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -145,5 +160,3 @@ int main(int argc, char** argv) {
   MPI_Finalize();
 
 }
-
-DARMA_REGISTER_TOP_LEVEL_FUNCTION(darma_main_task);
