@@ -51,7 +51,7 @@
 double do_workload(double factor) {
   //std::cout << "do workload: " << factor << std::endl;
   assert(factor >= 0.0);
-  std::size_t iters = (std::size_t)(factor * 10000);
+  std::size_t iters = (std::size_t)(factor * 10000000);
   double value = 0;
   for (std::size_t i = 1; i <= iters; ++i) {
     value += (double)i * value;
