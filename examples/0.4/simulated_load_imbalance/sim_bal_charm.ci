@@ -1,0 +1,16 @@
+mainmodule sim_bal {
+  readonly CProxy_Main mainProxy;
+
+  mainchare Main {
+    entry Main(CkArgMsg* msg);
+    entry [reductiontarget] void do_iter();
+  }
+
+  array [1d] Load {
+    entry Load(std::size_t const in_n_indices);
+    entry void do_work(
+      int iteration, std::size_t random_seed, bool adjust_workload,
+      double adjust_scale, bool create_imbalance
+    );
+  }
+}
