@@ -212,7 +212,7 @@ class AccessHandle : public detail::AccessHandleBase {
       return *this;
     }
 
-    AccessHandle(AccessHandle const & copied_from) noexcept {
+    AccessHandle(AccessHandle const& copied_from) noexcept {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         abstract::backend::get_backend_context()->get_running_task()
@@ -224,6 +224,8 @@ class AccessHandle : public detail::AccessHandleBase {
         capturing_task = nullptr;
       }
       var_handle_ = copied_from.var_handle_;
+
+      // TODO remove this?  I don't think the unfetched flag is still used...
       DARMA_ASSERT_MESSAGE(
         not copied_from.unfetched_,
         "Illegal capture of unfetched non-local AccessHandle"
@@ -231,14 +233,11 @@ class AccessHandle : public detail::AccessHandleBase {
 
       // Now check if we're in a capturing context:
       if (capturing_task != nullptr) {
-        //DARMA_ASSERT_MESSAGE(
-        //  not copied_from.unfetched_,
-        //  "Illegal capture of unfetched non-local AccessHandle"
-        //);
         AccessHandle const* source = &copied_from;
         if(capturing_task->is_double_copy_capture) {
           assert(copied_from.prev_copied_from != nullptr);
           source = copied_from.prev_copied_from;
+          copied_from.current_use_ = nullptr;
         }
 
         capturing_task->do_capture<AccessHandle>(*this, *source);
@@ -260,6 +259,8 @@ class AccessHandle : public detail::AccessHandleBase {
     ////////////////////////////////////////
     // Analogous type conversion constructor
 
+    // This *has* to be distinct from the regular copy constructor above because of the
+    // handling of the double-copy capture
     template <
       typename AccessHandleT,
       typename = std::enable_if_t<
@@ -270,7 +271,7 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     AccessHandle(
       AccessHandleT const &copied_from
-    ) noexcept {
+    ) {
       using detail::analogous_access_handle_attorneys::AccessHandleAccess;
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
@@ -283,6 +284,8 @@ class AccessHandle : public detail::AccessHandleBase {
         capturing_task = nullptr;
       }
       var_handle_ = AccessHandleAccess::var_handle(copied_from);
+
+      // TODO remove this?  I don't think the unfetched flag is still used...
       DARMA_ASSERT_MESSAGE(
         not copied_from.unfetched_,
         "Illegal capture of unfetched non-local AccessHandle"
