@@ -279,7 +279,7 @@ struct _create_work_impl<detail::_create_work_uses_lambda_tag, tinympl::vector<A
         types::key_t name_key,
         auto&& allow_aliasing_desc,
         variadic_arguments_begin_tag,
-        auto&&... /* unused */
+        auto&&... _unused /* unused */ // GCC hates empty, unnamed variadic args for some reason
       ) {
 
         auto task = std::make_unique<TaskBase>();
