@@ -187,6 +187,7 @@ namespace threads_backend {
     std::shared_ptr<handle_t const> handle;
     bool incorporated_local;
     std::shared_ptr<CollectiveNode> node;
+    bool is_indexed;
   };
 
   class ThreadsRuntime

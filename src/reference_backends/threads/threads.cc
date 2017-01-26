@@ -1454,7 +1454,9 @@ namespace threads_backend {
         use_in->get_data_pointer_reference(),
         use_out->get_data_pointer_reference(),
         use_in->get_handle(),
-        false
+        false,
+        nullptr,
+        details->is_indexed()
     });
 
     auto node = std::make_shared<CollectiveNode>(this,info);
@@ -1564,7 +1566,7 @@ namespace threads_backend {
               info->data_ptr_in,
               state.cur_buf,
               0,
-              n_elem
+              info->is_indexed ? n_elem : 1
             );
           }
 
