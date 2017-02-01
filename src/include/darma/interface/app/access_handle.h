@@ -242,8 +242,11 @@ class AccessHandle : public detail::AccessHandleBase {
 
         capturing_task->do_capture<AccessHandle>(*this, *source);
 
-        // Only capture once...
-        source->current_use_->captured_but_not_handled = true;
+        source->current_use_->use.use_->already_captured = true;
+        // TODO this flag should be on the AccessHandleBase itself
+        capturing_task->uses_to_unmark_already_captured.push_back(
+          source->current_use_->use.use_
+        );
       } // end if capturing_task != nullptr
       else {
         // regular copy
@@ -256,8 +259,8 @@ class AccessHandle : public detail::AccessHandleBase {
       }
     }
 
-    ////////////////////////////////////////
-    // Analogous type conversion constructor
+    //------------------------------------------------------------------------------
+    // <editor-fold desc="Analogous type conversion constructor"> {{{2
 
     // This *has* to be distinct from the regular copy constructor above because of the
     // handling of the double-copy capture
@@ -270,17 +273,16 @@ class AccessHandle : public detail::AccessHandleBase {
       >
     >
     AccessHandle(
-      AccessHandleT const &copied_from
+      AccessHandleT const& copied_from
     ) {
       using detail::analogous_access_handle_attorneys::AccessHandleAccess;
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         abstract::backend::get_backend_context()->get_running_task()
       );
-      if(running_task) {
+      if (running_task) {
         capturing_task = running_task->current_create_work_context;
-      }
-      else {
+      } else {
         capturing_task = nullptr;
       }
       var_handle_ = AccessHandleAccess::var_handle(copied_from);
@@ -295,23 +297,33 @@ class AccessHandle : public detail::AccessHandleBase {
       if (capturing_task != nullptr) {
         if (
           // If this type is a compile-time read-only handle, mark it as such here
-          traits::max_immediate_permissions == detail::AccessHandlePermissions::Read
+          traits::max_immediate_permissions
+            == detail::AccessHandlePermissions::Read
             // If the other type is compile-time read-only and we don't know, mark it as a read
-            or (AccessHandleT::traits::max_immediate_permissions == detail::AccessHandlePermissions::Read
+            or (AccessHandleT::traits::max_immediate_permissions
+              == detail::AccessHandlePermissions::Read
               and not traits::max_immediate_permissions_given
             )
           ) {
-          AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::ReadOnly;
+          AccessHandleAccess::captured_as(copied_from) |=
+            CapturedAsInfo::ReadOnly;
         }
         if (
           // If this type doesn't have scheduling permissions, mark it as a leaf
-          traits::max_schedule_permissions == detail::AccessHandlePermissions::None
-        ) {
+          traits::max_schedule_permissions
+            == detail::AccessHandlePermissions::None
+          ) {
           AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::Leaf;
         }
         // TODO schedule-only, etc
         // TODO require dynamic modify from RHS if this class is static modify
+        // TODO set some flag to check for aliasing?!?
         capturing_task->do_capture<AccessHandle>(*this, copied_from);
+        copied_from.current_use_->use.use_->already_captured = true;
+        // TODO this flag should be on the AccessHandleBase itself
+        capturing_task->uses_to_unmark_already_captured.push_back(
+          copied_from.current_use_->use.use_
+        );
       } // end if capturing_task != nullptr
       else {
         // regular copy, just copy over the current use
@@ -319,11 +331,11 @@ class AccessHandle : public detail::AccessHandleBase {
       }
     }
 
-    // end analogous type conversion constructor
-    ////////////////////////////////////////
+    // </editor-fold> end Analogous type conversion constructor }}}2
+    //------------------------------------------------------------------------------
 
-    ////////////////////////////////////////
-    // Collection capture
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="Collection capture"> {{{2
 
   protected:
 
@@ -346,13 +358,14 @@ class AccessHandle : public detail::AccessHandleBase {
   public:
 
     template <typename AccessHandleT>
-    AccessHandle(AccessHandleT&& other,
+    AccessHandle(
+      AccessHandleT&& other,
       std::enable_if_t<
         is_convertible_from_access_handle<AccessHandleT>::value
           and not is_collection_captured
           and access_handle_is_collection_captured<std::decay_t<AccessHandleT>>::value,
         detail::_not_a_type
-      > = { detail::_not_a_type_ctor_tag }
+      > = {detail::_not_a_type_ctor_tag}
     ) {
       // Don't do a copy-based capture and registration; the TaskCollection
       // creation process will handle it.  Just copy over things...
@@ -364,13 +377,16 @@ class AccessHandle : public detail::AccessHandleBase {
     }
 
     template <typename AccessHandleT>
-    AccessHandle(AccessHandleT&& other,
+    AccessHandle(
+      AccessHandleT&& other,
       std::enable_if_t<
         is_convertible_from_access_handle<AccessHandleT>::value
           and is_collection_captured
-          and access_handle_is_not_collection_captured<std::decay_t<AccessHandleT>>::value,
+          and access_handle_is_not_collection_captured<
+            std::decay_t<
+              AccessHandleT>>::value,
         detail::_not_a_type
-      > = { detail::_not_a_type_ctor_tag }
+      > = {detail::_not_a_type_ctor_tag}
     ) {
       // Don't do a copy-based capture and registration; the TaskCollection
       // creation process will handle it.  Just copy over things...
@@ -383,8 +399,9 @@ class AccessHandle : public detail::AccessHandleBase {
       // Everything else will be set up by the TaskCollection setup process
     }
 
-    // end Collection capture
-    ////////////////////////////////////////
+
+    // </editor-fold> end Collection capture }}}2
+    //--------------------------------------------------------------------------
 
     // Allow casting to a non-const reference
     operator AccessHandle&() const {

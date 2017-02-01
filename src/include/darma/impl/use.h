@@ -69,6 +69,8 @@ class HandleUseBase
 
     void* data_ = nullptr;
 
+    bool already_captured = false;
+
     std::shared_ptr<VariableHandleBase> handle_ = nullptr;
 
     flow_ptr in_flow_;
@@ -492,7 +494,6 @@ struct GenericUseHolder {
   OwningUseWrapper<UnderlyingUse> use;
   bool is_registered = false;
   bool could_be_alias = false;
-  bool captured_but_not_handled = false;
 
   GenericUseHolder(GenericUseHolder&&) = delete;
   GenericUseHolder(GenericUseHolder const &) = delete;
