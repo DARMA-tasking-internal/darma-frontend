@@ -240,6 +240,13 @@ class TaskBase : public abstract::frontend::Task
 
     void post_run_cleanup() { }
 
+    void post_registration_cleanup() {
+      for(auto* use : uses_to_unmark_already_captured) {
+        static_cast<HandleUse*>(use)->already_captured = false;
+      }
+      uses_to_unmark_already_captured.clear();
+    }
+
     void set_runnable(std::unique_ptr<RunnableBase>&& r) {
       runnable_ = std::move(r);
     }
@@ -308,9 +315,7 @@ class TaskBase : public abstract::frontend::Task
 
     TaskBase* current_create_work_context = nullptr;
 
-    std::vector<std::function<void()>> registrations_to_run;
-    // TODO remove the post_registration_ops, since it's not used
-    std::vector<std::function<void()>> post_registration_ops;
+    std::vector<HandleUseBase*> uses_to_unmark_already_captured;
     bool is_double_copy_capture = false;
     unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
     bool is_parallel_for_task_ = false;

@@ -109,9 +109,13 @@ class Use {
       Modify=3,  /*!< Read|Write. An immediate (scheduling) Use may perform any
                       operations (create any tasks)
                   */
-      Reduce=4  /*!< An immediate (scheduling) Use may perform reduce operations
-                    (create reduce tasks). This is not a strict subset of
-                    Read/Write privileges
+      Commutative=4, /*!< An immediate (scheduling) Use may perform commutative
+                      *   operations (create commutative tasks). This is not a
+                      *   strict subset of Read/Write privileges
+                      */
+      Relaxed=8 /*!< An immediate (scheduling) Use may perform relaxed
+                 *   operations (create relaxed tasks). This is not a
+                 *   strict subset of Read/Write privileges
                  */
     } permissions_t;
 

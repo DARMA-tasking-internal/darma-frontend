@@ -238,9 +238,7 @@ struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
           )
         );
 
-        // All registration ops should have been added at this point
-        for (auto&& reg : task->registrations_to_run) { reg(); }
-        task->registrations_to_run.clear();
+        task->post_registration_cleanup();
 
         // Done with capture; unset the current_create_work_context for safety later
         parent_task->current_create_work_context = nullptr;
@@ -298,9 +296,7 @@ struct _create_work_impl<detail::_create_work_uses_lambda_tag, tinympl::vector<A
         // the logging of the AccessHandle copies as captures for the task
         task->set_runnable(std::make_unique<Runnable<Lambda>>(lambda_to_be_copied));
 
-        // All registration ops should have been added at this point
-        for (auto&& reg : task->registrations_to_run) { reg(); }
-        task->registrations_to_run.clear();
+        task->post_registration_cleanup();
 
         // Done with capture; unset the current_create_work_context for safety later
         parent_task->current_create_work_context = nullptr;
