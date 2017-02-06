@@ -138,6 +138,7 @@ class MethodRunnable
       return true;
     }
 
+#if _darma_has_feature(task_migration)
     template <typename ArchiveT>
     static types::unique_ptr_template<darma_runtime::detail::RunnableBase>
     construct_from_archive(ArchiveT& ar) {
@@ -181,12 +182,16 @@ class MethodRunnable
 
       base_t::pack(ArchiveAccess::get_spot(ar));
     }
+#endif // _darma_has_feature(task_migration)
 
 };
 
+#if _darma_has_feature(task_migration)
 template <typename CaptureType, typename... Args>
 const size_t MethodRunnable<CaptureType, Args...>::index_ =
   darma_runtime::detail::register_runnable<MethodRunnable<CaptureType, Args...>>();
+#endif // _darma_has_feature(task_migration)
+
 
 } // end namespace detail
 } // end namespace oo

@@ -45,6 +45,8 @@
 #ifndef DARMA_INTERFACE_FRONTEND_TOP_LEVEL_TASK_H
 #define DARMA_INTERFACE_FRONTEND_TOP_LEVEL_TASK_H
 
+#include <darma/impl/feature_testing_macros.h>
+
 namespace darma_runtime {
 
 namespace abstract {
@@ -57,7 +59,9 @@ struct TopLevelTask: ConcreteBasicTask {
 
     virtual void run() override =0;
 
+#if _darma_has_feature(task_migration)
     bool is_migratable() const override { return false; }
+#endif // _darma_has_feature(task_migration)
 };
 
 } // end namespace frontend

@@ -45,6 +45,8 @@
 #ifndef SRC_ABSTRACT_FRONTEND_TASK_H_
 #define SRC_ABSTRACT_FRONTEND_TASK_H_
 
+#include <darma/impl/feature_testing_macros.h>
+
 #include <darma_types.h>
 #include <darma/impl/feature_testing_macros.h>
 #include <darma/interface/frontend/types.h>
@@ -124,8 +126,11 @@ class Task {
      */
     virtual void set_name(const types::key_t& name_key) =0;
 
+    //==========================================================================
+
+#if _darma_has_feature(task_migration)
     /** @brief returns true iff the task can be migrated
-     *  
+     *
      *  @remark always return false in the current spec implementation.  Later specs will need
      *  additional hooks for migration
      *  @return Whether the task is migratable.
@@ -145,14 +150,20 @@ class Task {
      *                    the serialization of the class
      */
     virtual void pack(void* allocated) const =0;
-
+#endif // _darma_has_feature(task_migration)
 
     //==========================================================================
-#if _darma_has_feature(create_parallel_for)
 
+#if _darma_has_feature(create_parallel_for)
     virtual size_t width() const { return 1; }
 
+#if _darma_has_feature(create_parallel_for_custom_cpu_set)
+
+    virtual darma_runtime::types::cpu_set_t const& get_cpu_set() const =0;
+
     virtual void set_cpu_set(darma_runtime::types::cpu_set_t const&) =0;
+
+#endif
 
     /** @brief Indicates whether the task represents a parallel_for loop
      *
@@ -160,8 +171,8 @@ class Task {
      * darma_runtime::backend::execute_parallel_for()
      */
     virtual bool is_parallel_for_task() const =0;
+#endif // _darma_has_feature(create_parallel_for)
 
-#endif
     //==========================================================================
 
     virtual ~Task() = default;

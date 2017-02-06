@@ -792,15 +792,7 @@ _create_deferred_method_call(ClassOrCallingMethodT&& cls, Args&&... args) {
   ));
   parent_task->current_create_work_context = nullptr;
 
-  for(auto&& reg : t->registrations_to_run) {
-    reg();
-  }
-  t->registrations_to_run.clear();
-
-  for(auto&& post_reg_op : t->post_registration_ops) {
-    post_reg_op();
-  }
-  t->post_registration_ops.clear();
+  t->post_registration_cleanup();
 
   darma_runtime::abstract::backend::get_backend_runtime()->register_task(
     std::move(t)

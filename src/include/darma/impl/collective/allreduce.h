@@ -45,6 +45,10 @@
 #ifndef DARMA_IMPL_COLLECTIVE_ALLREDUCE_H
 #define DARMA_IMPL_COLLECTIVE_ALLREDUCE_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(simple_collectives)
+
 #include <tinympl/bool.hpp>
 
 #include <darma/impl/keyword_arguments/macros.h>
@@ -267,8 +271,8 @@ void allreduce(
 
 };
 
-
-
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(simple_collectives)
 
 #endif //DARMA_IMPL_COLLECTIVE_ALLREDUCE_H

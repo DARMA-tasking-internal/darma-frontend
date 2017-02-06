@@ -108,13 +108,14 @@ class TaskBase : public abstract::frontend::Task
   public:
 
 #if _darma_has_feature(create_parallel_for)
-    types::cpu_set_t assigned_cpu_set_;
     std::size_t width_;
 
-    types::cpu_set_t get_cpu_set() const {
-      return assigned_cpu_set_;
-    }
-#endif
+#if _darma_has_feature(create_parallel_for_custom_cpu_set)
+    types::cpu_set_t assigned_cpu_set_;
+
+#endif // _darma_has_feature(create_parallel_for_custom_cpu_set)
+
+#endif // _darma_has_feature(create_parallel_for)
 
 
     TaskBase() = default;
@@ -171,12 +172,6 @@ class TaskBase : public abstract::frontend::Task
       name_ = name;
     }
 
-    bool
-    is_migratable() const override {
-      // Ignored for now:
-      return false;
-    }
-
     virtual void run() override {
       assert(runnable_);
       pre_run_setup();
@@ -184,6 +179,12 @@ class TaskBase : public abstract::frontend::Task
       post_run_cleanup();
     }
 
+#if _darma_has_feature(task_migration)
+    bool
+    is_migratable() const override {
+      // Ignored for now:
+      return false;
+    }
 
     size_t get_packed_size() const override {
       using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
@@ -228,6 +229,7 @@ class TaskBase : public abstract::frontend::Task
         runnable_->pack(ArchiveAccess::get_spot(ar));
       }
     }
+#endif // _darma_has_feature(task_migration)
 
     // end implementation of abstract::frontend::Task
     ////////////////////////////////////////////////////////////////////////////////
@@ -237,6 +239,13 @@ class TaskBase : public abstract::frontend::Task
     void pre_run_setup() { }
 
     void post_run_cleanup() { }
+
+    void post_registration_cleanup() {
+      for(auto* use : uses_to_unmark_already_captured) {
+        static_cast<HandleUse*>(use)->already_captured = false;
+      }
+      uses_to_unmark_already_captured.clear();
+    }
 
     void set_runnable(std::unique_ptr<RunnableBase>&& r) {
       runnable_ = std::move(r);
@@ -252,12 +261,20 @@ class TaskBase : public abstract::frontend::Task
       return width_;
     }
 
+#if _darma_has_feature(create_parallel_for_custom_cpu_set)
     void set_cpu_set(
       darma_runtime::types::cpu_set_t const& cpuset
     ) override {
       assigned_cpu_set_ = cpuset;
     }
-#endif
+
+    types::cpu_set_t const&
+    get_cpu_set() const override {
+      return assigned_cpu_set_;
+    }
+#endif // _darma_has_feature(create_parallel_for_custom_cpu_set)
+
+#endif // _darma_has_feature(create_parallel_for)
     //==========================================================================
 
     virtual ~TaskBase() noexcept { }
@@ -298,8 +315,7 @@ class TaskBase : public abstract::frontend::Task
 
     TaskBase* current_create_work_context = nullptr;
 
-    std::vector<std::function<void()>> registrations_to_run;
-    std::vector<std::function<void()>> post_registration_ops;
+    std::vector<HandleUseBase*> uses_to_unmark_already_captured;
     bool is_double_copy_capture = false;
     unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
     bool is_parallel_for_task_ = false;
@@ -315,23 +331,12 @@ class TaskBase : public abstract::frontend::Task
 
 };
 
-//class TopLevelTask
-//  : public TaskBase
-//{
-//  public:
-//
-//    void run()  {
-//      // Abort, as specified.  This should never be called.
-//      assert(false);
-//    }
-//
-//};
-
 
 // </editor-fold>
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if _darma_has_feature(task_migration)
 template <typename ConcreteTaskT>
 inline std::unique_ptr<ConcreteTaskT>
 _unpack_task(void* packed_data) {
@@ -355,6 +360,7 @@ _unpack_task(void* packed_data) {
 
   return std::move(rv);
 }
+#endif // _darma_has_feature(task_migration)
 
 } // end namespace detail
 
@@ -362,11 +368,7 @@ _unpack_task(void* packed_data) {
 
 namespace frontend {
 
-namespace detail {
-
-
-} // end namespace detail
-
+#if _darma_has_feature(task_migration)
 inline
 abstract::backend::runtime_t::task_unique_ptr
 unpack_task(void* packed_data) {
@@ -374,6 +376,7 @@ unpack_task(void* packed_data) {
     packed_data
   );
 }
+#endif // _darma_has_feature(task_migration)
 
 } // end namespace frontend
 

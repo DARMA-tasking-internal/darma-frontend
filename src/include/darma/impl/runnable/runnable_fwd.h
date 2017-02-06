@@ -51,6 +51,9 @@ namespace detail {
 // Forward declaration
 class RunnableBase;
 
+template <typename Functor, typename... Args>
+class FunctorRunnable;
+
 } // end namespace detail
 } // end namespace darma_runtime
 

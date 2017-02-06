@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      helpers.h
+//                      n_iterations.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,37 +42,14 @@
 //@HEADER
 */
 
-#ifndef DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H
-#define DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H
+#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_ITERATIONS_H
+#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_ITERATIONS_H
 
-#include <darma/interface/frontend/use.h>
+#include <darma/impl/keyword_arguments/macros.h>
 
-#include <string>
+DeclareDarmaTypeTransparentKeyword(parallel_for, n_iterations);
 
-inline std::string
-permissions_to_string(darma_runtime::abstract::frontend::Use::permissions_t per) {
-  switch(per) {
-#define _DARMA__perm_case(val) case darma_runtime::abstract::frontend::Use::Permissions::val: return #val;
-    _DARMA__perm_case(None)
-    _DARMA__perm_case(Read)
-    _DARMA__perm_case(Modify)
-    _DARMA__perm_case(Write)
-    _DARMA__perm_case(Commutative)
-    _DARMA__perm_case(Relaxed)
-#undef _DARMA__perm_case
-  }
-}
-
-inline std::string
-permissions_to_string(testing::internal::AnythingMatcher) {
-  return "<any permissions>";
-}
-
-inline std::string
-permissions_to_string(int i) {
-  if(i == -1) return "<any permissions>";
-  else return "<unknown/invalid permissions specification>";
-}
+DeclareStandardDarmaKeywordArgumentAliases(parallel_for, n_iterations);
 
 
-#endif //DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H
+#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_ITERATIONS_H

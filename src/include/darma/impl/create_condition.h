@@ -97,16 +97,7 @@ struct _create_condition_impl {
     parent_task->current_create_work_context = nullptr;
 
     // Now we need to run all of the registrations that were created during capture
-    for(auto&& reg : task->registrations_to_run) {
-      reg();
-    }
-    task->registrations_to_run.clear();
-
-    // ... and the post registration ops that were created during capture
-    for(auto&& post_reg_op : task->post_registration_ops) {
-      post_reg_op();
-    }
-    task->post_registration_ops.clear();
+    task->post_registration_cleanup();
 
     return abstract::backend::get_backend_runtime()->register_condition_task(
       std::move(task)
@@ -146,17 +137,7 @@ struct _create_condition_impl {
     // And set the current create_work context to null
     parent_task->current_create_work_context = nullptr;
 
-    // Now we need to run all of the registrations that were created during capture
-    for(auto&& reg : task->registrations_to_run) {
-      reg();
-    }
-    task->registrations_to_run.clear();
-
-    // ... and the post registration ops that were created during capture
-    for(auto&& post_reg_op : task->post_registration_ops) {
-      post_reg_op();
-    }
-    task->post_registration_ops.clear();
+    task->post_registration_cleanup();
 
     return abstract::backend::get_backend_runtime()->register_condition_task(
       std::move(task)
