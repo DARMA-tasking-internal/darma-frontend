@@ -45,18 +45,36 @@
 #ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
 #define SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
 
+
+namespace darma_runtime {
+
+namespace detail {
+
+struct _create_work_uses_lambda_tag { };
+
+} // end namespace detail
+
+// TODO create_work with return value (Issue #107 on GitLab)
+
+template <
+  typename Functor=detail::_create_work_uses_lambda_tag,
+  typename... Args
+>
+void create_work(Args&&... args);
+
+} // end namespace darma_runtime
+
+
 #include <darma/impl/create_work.h>
+//#include <darma/impl/util.h>
 
-#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 
-#include <darma/impl/util.h>
-
-#define create_work \
-  auto DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__) = \
-    ::darma_runtime::detail::_start_create_work(); \
-    ::darma_runtime::detail::_do_create_work( \
-      std::move(DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__)) \
-    ).operator()
+//#define create_work \
+//  auto DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__) = \
+//    ::darma_runtime::detail::_start_create_work(); \
+//    ::darma_runtime::detail::_do_create_work( \
+//      std::move(DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__)) \
+//    ).operator()
 
 
 #endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_ */

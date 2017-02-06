@@ -50,12 +50,12 @@
 
 #if _darma_has_feature(create_parallel_for)
 
+#include <darma/interface/app/keyword_arguments/n_iterations.h>
 #include <darma/interface/backend/parallel_for.h>
 #include <darma/impl/keyword_arguments/parse.h>
 #include <darma/impl/keyword_arguments/macros.h>
 
 
-DeclareDarmaTypeTransparentKeyword(parallel_for, n_iterations);
 DeclareDarmaTypeTransparentKeyword(parallel_for, n_workers);
 
 namespace darma_runtime {
@@ -181,10 +181,7 @@ struct _do_create_parallel_for<
 
         task->is_parallel_for_task_ = true;
 
-        for (auto&& reg : task->registrations_to_run) {
-          reg();
-        }
-        task->registrations_to_run.clear();
+        task->post_registration_cleanup();
 
         return abstract::backend::get_backend_runtime()->register_task(
           std::move(task)
@@ -247,10 +244,7 @@ struct _do_create_parallel_for<
         task->is_parallel_for_task_ = true;
         task->width_ = n_workers;
 
-        for (auto&& reg : task->registrations_to_run) {
-          reg();
-        }
-        task->registrations_to_run.clear();
+        task->post_registration_cleanup();
 
         return abstract::backend::get_backend_runtime()->register_task(
           std::move(task)

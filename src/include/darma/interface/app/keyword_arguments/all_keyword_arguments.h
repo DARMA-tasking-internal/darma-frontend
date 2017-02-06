@@ -49,5 +49,6 @@
 #include <darma/interface/app/keyword_arguments/n_readers.h>
 #include <darma/interface/app/keyword_arguments/name.h>
 #include <darma/interface/app/keyword_arguments/index_range.h>
+#include <darma/interface/app/keyword_arguments/n_iterations.h>
 
 #endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ALL_KEYWORD_ARGUMENTS_H

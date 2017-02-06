@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      helpers.h
+//                      vector.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,37 +42,17 @@
 //@HEADER
 */
 
-#ifndef DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H
-#define DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H
+#ifndef DARMA_INTERFACE_APP_DATA_STRUCTURES_VECTOR_H
+#define DARMA_INTERFACE_APP_DATA_STRUCTURES_VECTOR_H
 
-#include <darma/interface/frontend/use.h>
+namespace darma_runtime {
 
-#include <string>
+namespace data_structures {
 
-inline std::string
-permissions_to_string(darma_runtime::abstract::frontend::Use::permissions_t per) {
-  switch(per) {
-#define _DARMA__perm_case(val) case darma_runtime::abstract::frontend::Use::Permissions::val: return #val;
-    _DARMA__perm_case(None)
-    _DARMA__perm_case(Read)
-    _DARMA__perm_case(Modify)
-    _DARMA__perm_case(Write)
-    _DARMA__perm_case(Commutative)
-    _DARMA__perm_case(Relaxed)
-#undef _DARMA__perm_case
-  }
-}
+// TODO darma vector
 
-inline std::string
-permissions_to_string(testing::internal::AnythingMatcher) {
-  return "<any permissions>";
-}
+} // end namespace data_structures
 
-inline std::string
-permissions_to_string(int i) {
-  if(i == -1) return "<any permissions>";
-  else return "<unknown/invalid permissions specification>";
-}
+} // end namespace darma_runtime
 
-
-#endif //DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H
+#endif //DARMA_INTERFACE_APP_DATA_STRUCTURES_VECTOR_H

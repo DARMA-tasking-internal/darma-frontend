@@ -45,6 +45,7 @@
 #include <type_traits>
 
 #include <darma/impl/keyword_arguments/keyword_tag.h>
+#include <darma/impl/keyword_arguments/keyword_argument_name.h>
 
 #ifndef KEYWORD_ARGUMENTS_MACROS_H_
 #define KEYWORD_ARGUMENTS_MACROS_H_

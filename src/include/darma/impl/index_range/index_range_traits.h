@@ -104,8 +104,11 @@ class index_range_traits {
   public:
 
     template <
-      typename _for_SFINAE_only,
-      typename=std::enable_if_t<_has_size::value>
+      typename _for_SFINAE_only=void,
+      typename=std::enable_if_t<
+        _has_size::value
+        and std::is_void<_for_SFINAE_only>::value
+      >
     >
     static std::size_t
     size(T const& range) {
@@ -132,6 +135,19 @@ class index_range_traits {
     >;
 
   // </editor-fold> end index_type }}}1
+  //==============================================================================
+
+
+  //==============================================================================
+  // <editor-fold desc="is_index_range"> {{{1
+
+    static constexpr auto is_index_range =
+      not std::is_same<index_type, meta::nonesuch>::value
+      and _has_size::value
+      and has_mapping_to_dense::value;
+
+
+  // </editor-fold> end is_index_range }}}1
   //==============================================================================
 
 };

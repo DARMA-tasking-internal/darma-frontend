@@ -45,6 +45,9 @@
 #ifndef DARMA_IMPL_TASK_COLLECTION_CREATE_CONCURRENT_WORK_H
 #define DARMA_IMPL_TASK_COLLECTION_CREATE_CONCURRENT_WORK_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(create_concurrent_work)
 #include <darma/impl/task_collection/task_collection.h>
 
 namespace darma_runtime {
@@ -89,5 +92,6 @@ void create_concurrent_work(Args&&... args) {
 }
 
 } // end namespace darma_runtime
+#endif // _darma_has_feature(create_concurrent_work)
 
 #endif //DARMA_IMPL_TASK_COLLECTION_CREATE_CONCURRENT_WORK_H
