@@ -46,7 +46,7 @@
 #define SRC_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_H_
 
 #define DEBUG_CREATE_WORK_HANDLES 0
-#define DARMA_SAFE_TEST_FRONTEND_PRINTERS 0
+#define DARMA_SAFE_TEST_FRONTEND_PRINTERS 1
 
 
 #include <deque>
@@ -356,11 +356,15 @@ class TestFrontend
     void
     run_all_tasks() {
       while(not mock_runtime->registered_tasks.empty()) {
-        mock_runtime->registered_tasks.front()->run();
-        mock_runtime->registered_tasks.pop_front();
+        run_one_task();
       }
     }
 
+    void
+    run_one_task() {
+      mock_runtime->registered_tasks.front()->run();
+      mock_runtime->registered_tasks.pop_front();
+    }
     ////////////////////////////////////////
 
 //    void

@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          dependency.h
-//                         darma_mockup
-//              Copyright (C) 2016 Sandia Corporation
+//                      access_handle_base.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,39 +42,55 @@
 //@HEADER
 */
 
-#ifndef DARMA_HANDLE_FWD_H
-#define DARMA_HANDLE_FWD_H
+#ifndef DARMA_IMPL_ACCESS_HANDLE_BASE_H
+#define DARMA_IMPL_ACCESS_HANDLE_BASE_H
+
+#include <cstdlib> // std::size_t
+
+#include <darma/impl/task_fwd.h> // TaskBase forward declaration
+
+#include <darma/impl/use.h> // UseHolder
 
 namespace darma_runtime {
-
 namespace detail {
 
-template <typename KeyType>
-class KeyedObject;
+class AccessHandleBase {
+  public:
 
-struct handle_migration_unpack_t { };
-static constexpr handle_migration_unpack_t handle_migration_unpack = {};
+    using use_holder_ptr = std::shared_ptr<UseHolder>;
 
-class VariableHandleBase;
+    typedef enum CaptureOp {
+      ro_capture,
+      mod_capture
+    } capture_op_t;
 
-template <typename T>
-class VariableHandle;
+    // TODO figure out if this as efficient as a bitfield (it's definitely more readable)
+    typedef enum CapturedAsInfo {
+      Normal = 0,
+      Ignored = 1,
+      ReadOnly = 2,
+      // Future use:
+        ScheduleOnly = 4,
+      Leaf = 8
+    } captured_as_info_t;
 
-class AccessHandleBase;
+  protected:
 
-typedef enum AccessHandlePermissions {
-  NotGiven=-1,
-  None=0, Read=1, Modify=2
-} access_handle_permissions_t;
+    using task_t = detail::TaskBase;
 
-typedef enum AccessHandleTaskCollectionCaptureMode {
-  NoCollectionCapture,
-  SharedRead,
-  UniqueModify
-} access_handle_task_collection_capture_mode_t;
+    mutable unsigned captured_as_ = CapturedAsInfo::Normal;
+    task_t* capturing_task = nullptr;
+    std::size_t lambda_capture_unpack_index = 0;
+    mutable use_holder_ptr current_use_ = nullptr;
+
+    // This is ugly, but it works for now:
+    std::shared_ptr<VariableHandleBase> var_handle_base_;
+
+    friend class TaskBase;
+
+};
 
 } // end namespace detail
-
 } // end namespace darma_runtime
 
-#endif //DARMA_HANDLE_FWD_H
+#endif //DARMA_IMPL_ACCESS_HANDLE_BASE_H

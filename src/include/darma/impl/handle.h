@@ -78,7 +78,7 @@
 #include <darma/impl/array/indexable.h>
 #include <darma/impl/array/concept.h>
 
-
+#include "handle_fwd.h"
 
 namespace darma_runtime {
 
@@ -122,10 +122,6 @@ class KeyedObject
 // <editor-fold desc="DependencyHandleBase">
 
 namespace detail {
-
-// Tag type for handle migration unpack
-struct handle_migration_unpack_t { };
-static constexpr handle_migration_unpack_t handle_migration_unpack = {};
 
 class VariableHandleBase
   : public KeyedObject<types::key_t>,
@@ -350,57 +346,9 @@ struct AccessHandleAccess {
 //==============================================================================
 
 //==============================================================================
-// <editor-fold desc="AccessHandleBase">
-
-namespace detail {
-
-class AccessHandleBase {
-  public:
-
-    typedef enum CaptureOp {
-      ro_capture,
-      mod_capture
-    } capture_op_t;
-
-    // TODO figure out if this as efficient as a bitfield (it's definitely more readable)
-    typedef enum CapturedAsInfo {
-      Normal = 0,
-      Ignored = 1,
-      ReadOnly = 2,
-      // Future use:
-      ScheduleOnly = 4,
-      Leaf = 8
-    } captured_as_info_t;
-
-  protected:
-    using task_t = detail::TaskBase;
-
-    mutable unsigned captured_as_ = CapturedAsInfo::Normal;
-    task_t* capturing_task = nullptr;
-    std::size_t lambda_capture_unpack_index = 0;
-
-};
-
-} // end namespace detail
-
-// </editor-fold>
-//==============================================================================
-
-//==============================================================================
 // <editor-fold desc="access_handle_traits and helpers">
 
 namespace detail {
-
-typedef enum AccessHandlePermissions {
-  NotGiven=-1,
-  None=0, Read=1, Modify=2
-} access_handle_permissions_t;
-
-typedef enum AccessHandleTaskCollectionCaptureMode {
-  NoCollectionCapture,
-  SharedRead,
-  UniqueModify
-} access_handle_task_collection_capture_mode_t;
 
 // (Not really true, needs more explanation): Min permissions refers to as a parameter, max permissions refers to as a call argument or lvalue
 // (or as a parameter for determining whether a capture is read-only).  All are only the known compile-time

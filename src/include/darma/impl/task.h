@@ -71,6 +71,10 @@
 #include <darma/interface/frontend/task.h>
 #include <darma/interface/frontend/unpack_task.h>
 
+#include <darma/impl/handle_fwd.h>
+
+#include <darma/impl/access_handle_base.h>
+
 #include <darma/impl/util.h>
 #include <darma/impl/runnable/runnable.h>
 #include <darma/impl/runtime.h>
@@ -81,6 +85,7 @@
 #include <darma/impl/serialization/nonintrusive.h>
 #include <darma/impl/use.h>
 #include <darma/impl/util/smart_pointers.h>
+#include <darma/impl/capture.h>
 
 
 namespace darma_runtime {
@@ -148,14 +153,31 @@ class TaskBase : public abstract::frontend::Task
       dependencies_.insert(&use);
     }
 
-    template <typename AccessHandleT1, typename AccessHandleT2>
     void do_capture(
-      AccessHandleT1& captured,
-      AccessHandleT2 const& source_and_continuing
+      AccessHandleBase& captured,
+      AccessHandleBase const& source_and_continuing
     );
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // Implementation of abstract::frontend::Task
+    virtual
+    void do_capture_uses(
+      HandleUse::permissions_t requested_schedule_permissions,
+      HandleUse::permissions_t requested_immediate_permissions,
+      std::shared_ptr<VariableHandleBase> const& var_handle,
+      std::shared_ptr<detail::UseHolder>& captured_current_use,
+      std::shared_ptr<detail::UseHolder>& source_and_continuing_current_use
+    ) {
+      captured_current_use = detail::make_captured_use_holder(
+        var_handle,
+        requested_schedule_permissions,
+        requested_immediate_permissions,
+        source_and_continuing_current_use
+      );
+
+      add_dependency(captured_current_use->use);
+    }
+
+    //==========================================================================
+    // <editor-fold desc="Implementation of abstract::frontend::Task"> {{{1
 
     virtual get_deps_container_t const&
     get_dependencies() const override {
@@ -179,7 +201,10 @@ class TaskBase : public abstract::frontend::Task
       post_run_cleanup();
     }
 
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="DARMA feature: task_migration"> {{{2
 #if _darma_has_feature(task_migration)
+
     bool
     is_migratable() const override {
       // Ignored for now:
@@ -196,14 +221,13 @@ class TaskBase : public abstract::frontend::Task
 
       ar % runnable_->get_index();
 
-      if(runnable_->is_lambda_like_runnable) {
+      if (runnable_->is_lambda_like_runnable) {
         // TODO pack up the flows/uses/etc and their access handle indices
         DARMA_ASSERT_NOT_IMPLEMENTED("packing up lambda-like runnables");
         size_t added_size = runnable_->lambda_size();
         // TODO finish this!
         return ArchiveAccess::get_size(ar);
-      }
-      else {
+      } else {
         return runnable_->get_packed_size() + ArchiveAccess::get_size(ar);
       }
     }
@@ -219,25 +243,30 @@ class TaskBase : public abstract::frontend::Task
 
       ar << runnable_->get_index();
 
-      if(runnable_->is_lambda_like_runnable) {
+      if (runnable_->is_lambda_like_runnable) {
         // TODO pack up the flows/uses/etc and their access handle indices
         DARMA_ASSERT_NOT_IMPLEMENTED("packing up lambda-like runnables");
-        assigned_lambda_unpack_index = 1; // trigger recognition in AccessHandle copy ctor
+        assigned_lambda_unpack_index =
+          1; // trigger recognition in AccessHandle copy ctor
         // TODO finish this
-      }
-      else {
+      } else {
         runnable_->pack(ArchiveAccess::get_spot(ar));
       }
     }
-#endif // _darma_has_feature(task_migration)
 
-    // end implementation of abstract::frontend::Task
-    ////////////////////////////////////////////////////////////////////////////////
+#endif // _darma_has_feature(task_migration)
+    // </editor-fold> end task_migration }}}2
+    //--------------------------------------------------------------------------
+
+    // </editor-fold> end Implementation of abstract::frontend::Task }}}1
+    //==========================================================================
 
   public:
 
+    // TODO remove this, it is unused
     void pre_run_setup() { }
 
+    // TODO remove this, it is unused
     void post_run_cleanup() { }
 
     void post_registration_cleanup() {
@@ -313,6 +342,7 @@ class TaskBase : public abstract::frontend::Task
 
     //==========================================================================
 
+    // TODO refactor this to group some of these "capture context" properties into a seperate class
     TaskBase* current_create_work_context = nullptr;
 
     std::vector<HandleUseBase*> uses_to_unmark_already_captured;

@@ -62,6 +62,7 @@
 #include <darma/impl/flow_handling.h>
 #include <darma/impl/task_collection/task_collection_fwd.h>
 #include <darma/impl/keyword_arguments/parse.h>
+#include <darma/impl/access_handle_base.h>
 
 namespace darma_runtime {
 
@@ -98,7 +99,6 @@ class AccessHandle : public detail::AccessHandleBase {
 
     using variable_handle_t = detail::VariableHandle<T>;
     using variable_handle_ptr = types::shared_ptr_template<detail::VariableHandle<T>>;
-    using use_holder_ptr = types::shared_ptr_template<detail::UseHolder>;
 
     using key_t = types::key_t;
 
@@ -175,42 +175,46 @@ class AccessHandle : public detail::AccessHandleBase {
   private:
 
   public:
-    AccessHandle() = default;
 
-    AccessHandle &
-    operator=(AccessHandle &other) = default;
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="assignment operator overloads"> {{{2
 
-    //AccessHandle &
-    //operator=(AccessHandle &other) const = default;
+    AccessHandle&
+    operator=(AccessHandle& other) = default;
 
-    AccessHandle &
-    operator=(AccessHandle const &other) = default;
+    AccessHandle&
+    operator=(AccessHandle const& other) = default;
 
-    //AccessHandle &
-    //operator=(AccessHandle const &other) const = default;
+    AccessHandle&
+    operator=(AccessHandle&& other) = default;
 
-    AccessHandle const &
-    operator=(AccessHandle &&other) noexcept {
-      // Forward to const move assignment operator
-      return const_cast<AccessHandle const *>(this)->operator=(
-        std::forward<AccessHandle>(other)
-      );
-    }
+    //AccessHandle const&
+    //operator=(AccessHandle&& other) noexcept {
+    //  // Forward to const move assignment operator
+    //  return const_cast<AccessHandle const*>(this)->operator=(
+    //    std::forward<AccessHandle>(other)
+    //  );
+    //}
 
-    AccessHandle const &
-    operator=(AccessHandle&& other) const noexcept {
-      std::swap(var_handle_, other.var_handle_);
-      std::swap(current_use_, other.current_use_);
-      value_constructed_ = other.value_constructed_;
-      unfetched_ = other.unfetched_;
-      return *this;
-    }
+    //AccessHandle const&
+    //operator=(AccessHandle&& other) const noexcept {
+    //  std::swap(var_handle_, other.var_handle_);
+    //  std::swap(current_use_, other.current_use_);
+    //  value_constructed_ = other.value_constructed_;
+    //  unfetched_ = other.unfetched_;
+    //  return *this;
+    //}
 
-    AccessHandle const &
+    AccessHandle const&
     operator=(std::nullptr_t) const {
       release();
       return *this;
     }
+
+    // </editor-fold> end assignment operator overloads }}}2
+    //--------------------------------------------------------------------------
+
+    AccessHandle() = default;
 
     AccessHandle(AccessHandle const& copied_from) noexcept {
       // get the shared_ptr from the weak_ptr stored in the runtime object
@@ -224,6 +228,7 @@ class AccessHandle : public detail::AccessHandleBase {
         capturing_task = nullptr;
       }
       var_handle_ = copied_from.var_handle_;
+      var_handle_base_ = var_handle_;
 
       // TODO remove this?  I don't think the unfetched flag is still used...
       DARMA_ASSERT_MESSAGE(
@@ -240,7 +245,7 @@ class AccessHandle : public detail::AccessHandleBase {
           copied_from.current_use_ = nullptr;
         }
 
-        capturing_task->do_capture<AccessHandle>(*this, *source);
+        capturing_task->do_capture(*this, *source);
 
         source->current_use_->use.use_->already_captured = true;
         // TODO this flag should be on the AccessHandleBase itself
@@ -259,7 +264,7 @@ class AccessHandle : public detail::AccessHandleBase {
       }
     }
 
-    //------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     // <editor-fold desc="Analogous type conversion constructor"> {{{2
 
     // This *has* to be distinct from the regular copy constructor above because of the
@@ -286,6 +291,7 @@ class AccessHandle : public detail::AccessHandleBase {
         capturing_task = nullptr;
       }
       var_handle_ = AccessHandleAccess::var_handle(copied_from);
+      var_handle_base_ = var_handle_;
 
       // TODO remove this?  I don't think the unfetched flag is still used...
       DARMA_ASSERT_MESSAGE(
@@ -318,7 +324,7 @@ class AccessHandle : public detail::AccessHandleBase {
         // TODO schedule-only, etc
         // TODO require dynamic modify from RHS if this class is static modify
         // TODO set some flag to check for aliasing?!?
-        capturing_task->do_capture<AccessHandle>(*this, copied_from);
+        capturing_task->do_capture(*this, copied_from);
         copied_from.current_use_->use.use_->already_captured = true;
         // TODO this flag should be on the AccessHandleBase itself
         capturing_task->uses_to_unmark_already_captured.push_back(
@@ -332,7 +338,7 @@ class AccessHandle : public detail::AccessHandleBase {
     }
 
     // </editor-fold> end Analogous type conversion constructor }}}2
-    //------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
 
     //--------------------------------------------------------------------------
     // <editor-fold desc="Collection capture"> {{{2
@@ -370,6 +376,7 @@ class AccessHandle : public detail::AccessHandleBase {
       // Don't do a copy-based capture and registration; the TaskCollection
       // creation process will handle it.  Just copy over things...
       var_handle_ = std::forward<AccessHandleT>(other).var_handle_;
+      var_handle_base_ = var_handle_;
       current_use_ = std::forward<AccessHandleT>(other).current_use_;
       // this is the only place where unfetched copy is legal
       unfetched_ = other.unfetched_;
@@ -391,6 +398,7 @@ class AccessHandle : public detail::AccessHandleBase {
       // Don't do a copy-based capture and registration; the TaskCollection
       // creation process will handle it.  Just copy over things...
       var_handle_ = std::forward<AccessHandleT>(other).var_handle_;
+      var_handle_base_ = var_handle_;
       current_use_ = std::forward<AccessHandleT>(other).current_use_;
       DARMA_ASSERT_MESSAGE(
         not other.unfetched_,
@@ -398,7 +406,6 @@ class AccessHandle : public detail::AccessHandleBase {
       );
       // Everything else will be set up by the TaskCollection setup process
     }
-
 
     // </editor-fold> end Collection capture }}}2
     //--------------------------------------------------------------------------
@@ -408,15 +415,16 @@ class AccessHandle : public detail::AccessHandleBase {
       return *const_cast<AccessHandle*>(this);
     };
 
-    ////////////////////////////////////////
-    // <editor-fold desc="move constructors">
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="move constructors"> {{{2
 
-    AccessHandle(AccessHandle &&) noexcept = default;
+    AccessHandle(AccessHandle&&) noexcept = default;
 
     // Analogous type move constructor
     // Can't use forwarding constructor here, apparently
     template <typename AccessHandleT>
-    AccessHandle(AccessHandleT&& /* note: not universal reference! */ other,
+    AccessHandle(
+      AccessHandleT&& /* note: not universal reference! */ other,
       std::enable_if_t<
         // Check if this is convertible from AccessHandleT
         is_convertible_from_access_handle<std::decay_t<AccessHandleT>>::value
@@ -431,21 +439,23 @@ class AccessHandle : public detail::AccessHandleBase {
           and not is_collection_captured
           and not access_handle_is_collection_captured<AccessHandleT>::value,
         detail::_not_a_type
-      > _nat = { detail::_not_a_type_ctor_tag }
+      > _nat = {detail::_not_a_type_ctor_tag}
     ) noexcept
       : var_handle_(std::move(other.var_handle_)),
-        current_use_(std::move(other.current_use_)),
         value_constructed_(std::move(other.value_constructed_)),
         unfetched_(std::move(other.unfetched_)),
         owning_index_(std::move(other.owning_index_)),
         owning_backend_index_(std::move(other.owning_backend_index_))
-    { }
+    {
+      var_handle_base_ = var_handle_;
+      current_use_ = std::move(other.current_use_);
+    }
 
     AccessHandle(AccessHandle const&& other) noexcept
       : AccessHandle(std::move(const_cast<AccessHandle&>(other)))
-    { }
+    { /* forwarding ctor, must be empty */ }
 
-    // Analogous type const move constructor
+    // Analogous type const move constructor (forwarding ctor)
     template <
       typename AccessHandleT,
       typename = std::enable_if_t<
@@ -455,14 +465,14 @@ class AccessHandle : public detail::AccessHandleBase {
           and not std::is_same<std::decay_t<AccessHandleT>, AccessHandle>::value
       >
     >
-    AccessHandle(AccessHandleT const && other) noexcept
+    AccessHandle(AccessHandleT const&& other) noexcept
       : AccessHandle(std::move(const_cast<AccessHandleT&>(other)))
-    { }
+    { /* forwarding ctor, must be empty */ }
 
-    // </editor-fold> end move constructors
-    ////////////////////////////////////////
+    // </editor-fold> end move constructors }}}2
+    //--------------------------------------------------------------------------
 
-    //==============================================================================
+    //==========================================================================
     // <editor-fold desc="Public interface methods"> {{{1
 
     template <
@@ -816,7 +826,7 @@ class AccessHandle : public detail::AccessHandleBase {
 #endif // _darma_has_feature(create_concurrent_work_owned_by)
 
     // </editor-fold> end Public interface methods }}}1
-    //==============================================================================
+    //==========================================================================
 
 
     ~AccessHandle() noexcept = default;
@@ -842,9 +852,11 @@ class AccessHandle : public detail::AccessHandleBase {
     AccessHandle(
       variable_handle_ptr const& var_handle,
       use_holder_ptr const& use_holder
-    )
-      : var_handle_(var_handle),
-      current_use_(use_holder) {}
+    ) : var_handle_(var_handle)
+    {
+      current_use_ = use_holder;
+      var_handle_base_ = var_handle_;
+    }
 
     AccessHandle(
       variable_handle_ptr var_handle,
@@ -852,20 +864,21 @@ class AccessHandle : public detail::AccessHandleBase {
       detail::flow_ptr const& out_flow,
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions
-    ) : var_handle_(var_handle),
-        current_use_(
-          detail::make_shared<detail::UseHolder>(
-            detail::HandleUse(
-              var_handle_,
-              in_flow, out_flow,
-              scheduling_permissions, immediate_permissions
-            )
-          )
-        )
+    ) : var_handle_(var_handle)
     {
+      var_handle_base_ = var_handle_;
+      current_use_ = detail::make_shared<detail::UseHolder>(
+        detail::HandleUse(
+          var_handle_,
+          in_flow, out_flow,
+          scheduling_permissions, immediate_permissions
+        )
+      );
       current_use_->could_be_alias = true;
     }
 
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="DARMA feature: task_migration"> {{{2
 #if _darma_has_feature(task_migration)
     template <typename Archive>
     AccessHandle(
@@ -875,6 +888,7 @@ class AccessHandle : public detail::AccessHandleBase {
       key_t k = make_key();
       ar >> k;
       var_handle_ = detail::make_shared<detail::VariableHandle<T>>(k);
+      var_handle_base_ = var_handle_;
       detail::HandleUse::permissions_t immed, sched;
 
       #pragma clang diagnostic push
@@ -911,16 +925,21 @@ class AccessHandle : public detail::AccessHandleBase {
       #pragma clang diagnostic pop
     }
 #endif // _darma_has_feature(task_migration)
+    // </editor-fold> end DARMA feature: task_migration }}}2
+    //--------------------------------------------------------------------------
 
+    // "Unfetched" ctor (unused?)
     AccessHandle(
       detail::unfetched_access_handle_tag,
       variable_handle_ptr const& var_handle,
       use_holder_ptr const& unreg_use_ptr
     ) : var_handle_(var_handle),
-        current_use_(unreg_use_ptr),
         unfetched_(true)
-    { }
+    {
+      var_handle_base_ = var_handle_;
+      current_use_ = unreg_use_ptr;
 
+    }
 
   // </editor-fold> end private ctors }}}1
   //==============================================================================
@@ -931,10 +950,12 @@ class AccessHandle : public detail::AccessHandleBase {
   private:
 
     mutable variable_handle_ptr var_handle_ = nullptr;
-    mutable use_holder_ptr current_use_ = nullptr;
+
     // TODO switch to everything has to be constructed requirement
     mutable bool value_constructed_ = std::is_default_constructible<T>::value;
+    // TODO remove unfetched?
     mutable bool unfetched_ = false;
+
     mutable typename traits::owning_index_t owning_index_;
     mutable std::size_t owning_backend_index_;
 

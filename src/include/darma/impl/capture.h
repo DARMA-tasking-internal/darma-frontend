@@ -393,6 +393,7 @@ auto make_captured_use_holder(
             // We need to register a new use here, though
             // TODO creating a new use here might be inconsistent with how we don't create continuation uses in the modify immediate source case
 
+            // TODO is it possible we shouldn't be making a next flow in this case?
 
             // Make a new use for the continuing context (since, for some reason
             // or another, we needed one in the source context)

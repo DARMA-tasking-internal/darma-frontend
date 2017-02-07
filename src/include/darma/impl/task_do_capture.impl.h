@@ -60,17 +60,11 @@ namespace darma_runtime {
 
 namespace detail {
 
-template <
-  typename AccessHandleT1,
-  typename AccessHandleT2
->
-void
+inline void
 TaskBase::do_capture(
-  AccessHandleT1& captured,
-  AccessHandleT2 const& source_and_continuing
+  AccessHandleBase& captured,
+  AccessHandleBase const& source_and_continuing
 ) {
-
-  typedef AccessHandleT1 AccessHandleT;
 
   DARMA_ASSERT_MESSAGE(
     source_and_continuing.current_use_.get() != nullptr,
@@ -100,11 +94,17 @@ TaskBase::do_capture(
     }
     else {
       // Unallowed alias...
+      //DARMA_ASSERT_FAILURE(
+      //  "Captured the same handle (with key = " << source_and_continuing.get_key()
+      //  << ") via different variables without explicitly allowing aliasing in"
+      //    " create_work call (using the keyword_arguments_for_task_creation::allow_aliasing"
+      //    " keyword argument)."
+      //);
+      // TODO (@minor) reinstate retrieval of key in error message?
       DARMA_ASSERT_FAILURE(
-        "Captured the same handle (with key = " << source_and_continuing.get_key()
-        << ") via different variables without explicitly allowing aliasing in"
-          " create_work call (using the keyword_arguments_for_task_creation::allow_aliasing"
-          " keyword argument)."
+        "Captured the same handle via different variables without explicitly"
+          " allowing aliasing in create_work call (using the"
+          " keyword_arguments_for_task_creation::allow_aliasing keyword argument)."
       );
     }
   }
@@ -172,19 +172,15 @@ TaskBase::do_capture(
 
     // Now make the captured use holder (and set up the continuing use holder,
     // if necessary)
-    captured.current_use_ = detail::make_captured_use_holder(
-      source.var_handle_,
+    do_capture_uses(
       /* requested scheduling permissions */
       requested_schedule_permissions,
       /* requested immediate permissions */
       requested_immediate_permissions,
+      source.var_handle_base_,
+      captured.current_use_,
       source_and_continuing.current_use_
     );
-
-    // Now add the dependency
-    add_dependency(captured.current_use_->use);
-
-    captured.var_handle_ = source.var_handle_;
 
   }
   else {
@@ -199,7 +195,6 @@ TaskBase::do_capture(
   assert(captured.captured_as_ == AccessHandleBase::Normal);
 
 }
-
 
 } // end namespace detail
 

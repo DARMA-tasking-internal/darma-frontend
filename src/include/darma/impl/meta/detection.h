@@ -47,6 +47,8 @@
 
 #include <type_traits>
 
+#include <tinympl/detection.hpp>
+
 #include "void_t.h"
 
 namespace darma_runtime {
@@ -78,12 +80,7 @@ struct detector<Default, void_t<Op<Args...>>, Op, Args...> {
   using type = Op<Args...>;
 };
 
-struct nonesuch {
-  nonesuch() = delete;
-  ~nonesuch() = delete;
-  nonesuch(nonesuch const&) = delete;
-  void operator=(nonesuch const&) = delete;
-};
+using nonesuch = tinympl::nonesuch;
 
 template <template <class...> class Op, class... Args>
 using is_detected = detector<nonesuch, void, Op, Args...>;

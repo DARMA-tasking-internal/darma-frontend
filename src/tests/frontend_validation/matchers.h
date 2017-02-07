@@ -129,7 +129,7 @@ VectorOfPtrsToArgs(Arg& arg, Args&... args) {
 }
 
 MATCHER_P(UsesInGetDependencies, uses,
-  "task->get_dependencies() contains all of [%(uses)s]"
+  "task->get_dependencies() contains all of " + PrintToString(uses)
 ) {
   if(arg == nullptr) {
     *result_listener << "task is null";

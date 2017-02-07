@@ -121,6 +121,13 @@ struct vector
   struct pop_back {
     using type = typename variadic::erase<size-1,size,tinympl::vector,Args...>::type;
   };
+  struct safe_pop_back {
+    using type = typename std::conditional_t<
+      (size > 0),
+      variadic::erase<size-1, size, tinympl::vector, Args...>,
+      identity<vector<>>
+    >::type;
+  };
   // Can't/Shouldn't have a pop_back_t because it won't be lazily constructed
 
   //! Return a new vector constructed by removing the first element of the current vector
@@ -208,6 +215,16 @@ struct vector
   //! Return the last element of the vector
   struct back { using type = variadic::at_t<size-1, Args...>; };
   // Can't/Shouldn't have a back_t because it won't be lazily constructed
+
+  //! Return the last element of the vector
+  template <typename Default = tinympl::nonesuch>
+  struct safe_back {
+    using type = typename std::conditional_t<
+      (size > 0),
+      variadic::at<size-1, Args...>,
+      identity<Default>
+    >::type;
+  };
 };
 
 /** @} */

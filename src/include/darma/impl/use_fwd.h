@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          dependency.h
-//                         darma_mockup
-//              Copyright (C) 2016 Sandia Corporation
+//                      use_fwd.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,39 +42,24 @@
 //@HEADER
 */
 
-#ifndef DARMA_HANDLE_FWD_H
-#define DARMA_HANDLE_FWD_H
+#ifndef DARMA_IMPL_USE_FWD_H
+#define DARMA_IMPL_USE_FWD_H
 
 namespace darma_runtime {
 
 namespace detail {
 
-template <typename KeyType>
-class KeyedObject;
+class HandleUseBase;
 
-struct handle_migration_unpack_t { };
-static constexpr handle_migration_unpack_t handle_migration_unpack = {};
+class HandleUse;
 
-class VariableHandleBase;
+template <typename UnderlyingUse>
+struct GenericUseHolder;
 
-template <typename T>
-class VariableHandle;
-
-class AccessHandleBase;
-
-typedef enum AccessHandlePermissions {
-  NotGiven=-1,
-  None=0, Read=1, Modify=2
-} access_handle_permissions_t;
-
-typedef enum AccessHandleTaskCollectionCaptureMode {
-  NoCollectionCapture,
-  SharedRead,
-  UniqueModify
-} access_handle_task_collection_capture_mode_t;
+using UseHolder = GenericUseHolder<HandleUse>;
 
 } // end namespace detail
 
 } // end namespace darma_runtime
 
-#endif //DARMA_HANDLE_FWD_H
+#endif //DARMA_IMPL_USE_FWD_H
