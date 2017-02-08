@@ -150,7 +150,6 @@ TEST_F(TestCreateWorkIf, basic_same_always_true) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#if 0
 TEST_F(TestCreateWorkIf, basic_different_always_true) {
   using namespace darma_runtime;
   using namespace ::testing;
@@ -231,4 +230,3 @@ TEST_F(TestCreateWorkIf, basic_different_always_true) {
   EXPECT_THAT(cap_value, Eq(73));
 
 }
-#endif

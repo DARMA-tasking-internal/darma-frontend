@@ -109,12 +109,14 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
 
     std::map<AccessHandleBase const*, CaptureDescription> if_captures_;
 
-    // TODO use shared_ptrs here instead?  Or unique_ptrs?
-    std::vector<AccessHandleBase*> implicit_if_captured_handles;
-    std::unordered_map<types::key_t, std::shared_ptr<AccessHandleBase>,
+    using captured_handle_map_t = std::unordered_map<
+      types::key_t, std::shared_ptr<AccessHandleBase>,
       typename key_traits<types::key_t>::hasher,
       typename key_traits<types::key_t>::key_equal
-    > explicit_if_captured_handles;
+    >;
+
+    captured_handle_map_t implicit_if_captured_handles;
+    captured_handle_map_t explicit_if_captured_handles;
 
     template <typename ThenHelper>
     IfLambdaThenLambdaTask(
@@ -139,6 +141,21 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
 
       // Invoke the copy ctor
       ThenLambda then_lambda_tmp = then_task_.then_lambda_;
+
+      // Now loop over the remaining if_captures (those not handle in the Then
+      // copy mode) and do the capture on them
+      for(auto&& if_cap_pair : if_captures_) {
+        auto& desc = if_cap_pair.second;
+        auto const* source = if_cap_pair.first;
+        desc.captured->current_use_ = make_captured_use_holder(
+          source->var_handle_base_,
+          desc.requested_schedule_permissions,
+          desc.requested_immediate_permissions,
+          source->current_use_
+        );
+        add_dependency(desc.captured->current_use_->use);
+      }
+      if_captures_.clear();
 
       // now move the copies back *after* all of the if capture processing is
       // done, since it relies on pointers that the move ctor (might) change
@@ -185,7 +202,7 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
               "Leaf flag handling not yet implemented for create_work_if"
             );
 
-            // TODO handle the Leaf flag
+            // TODO handle the ScheduleOnly flag
             DARMA_ASSERT_MESSAGE(
               (source_and_continuing.captured_as_ & AccessHandleBase::ScheduleOnly) == 0,
               "ScheduleOnly flag handling not yet implemented for create_work_if"
@@ -241,14 +258,39 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
             assert(insertion_result.second); // can't already be in map
           }
           else {
+            // TODO don't actually need to use desc here...
+
             // It's an "implicit" use in the if clause, so we need to store it
             desc.is_implicit_in_if = true;
 
-            DARMA_ASSERT_NOT_IMPLEMENTED("then-but-not-if-capture");
+            auto const& key = source_and_continuing.var_handle_base_->get_key();
+            auto insertion_result = implicit_if_captured_handles.insert(
+              std::make_pair(key,
+                source_and_continuing.copy(/* check_context = */ false)
+              )
+            );
+            assert(insertion_result.second); // can't already be in map
 
-            // TODO finish this by calling the make captured use holder method
+            desc.captured = insertion_result.first->second.get();
+            desc.captured->current_use_ = make_captured_use_holder<
+              /* AllowRegisterContinuation = */ true
+            >(
+              source_and_continuing.var_handle_base_,
+              HandleUse::Modify, // TODO look for permissions downgrades
+              HandleUse::None,
+              source_and_continuing.current_use_
+            );
+
+            // Set this for the benefit if the source of the ThenCopyForThen phase;
+            // it will act as the source when that happens
+            captured.current_use_ = desc.captured->current_use_;
+
+            add_dependency(desc.captured->current_use_->use);
+
 
           }
+
+          if_captures_.erase(&source_and_continuing);
 
           break;
         }
@@ -284,7 +326,12 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
         explicit_if_captured_handles.erase(found_explicit);
       }
       else {
-        DARMA_ASSERT_NOT_IMPLEMENTED("then-but-not-if-capture");
+        auto found_implicit = implicit_if_captured_handles.find(key);
+        if(found_implicit != implicit_if_captured_handles.end()) {
+          source_handle = found_implicit->second;
+          // Don't allow multiple captures
+          implicit_if_captured_handles.erase(found_implicit);
+        }
       }
 
       assert(source_handle.get() != nullptr);
