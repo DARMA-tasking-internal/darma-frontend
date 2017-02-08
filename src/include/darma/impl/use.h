@@ -509,12 +509,12 @@ struct GenericUseHolder {
     is_registered = true;
   }
 
-  void replace_use_and_register(UnderlyingUse&& new_use) {
+  void replace_use(UnderlyingUse&& new_use, bool should_do_register) {
     OwningUseWrapper<UnderlyingUse> new_use_wrapper(std::move(new_use));
     detail::swap(use, new_use_wrapper);
     bool old_is_registered = is_registered;
     is_registered = false;
-    do_register();
+    if(should_do_register) do_register();
     if(old_is_registered) {
       abstract::backend::get_backend_runtime()->release_use(&new_use_wrapper);
     }

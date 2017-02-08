@@ -61,8 +61,7 @@ namespace darma_runtime {
 namespace detail {
 
 inline void
-TaskBase::do_capture(
-  AccessHandleBase& captured,
+TaskBase::do_capture_checks(
   AccessHandleBase const& source_and_continuing
 ) {
 
@@ -78,16 +77,10 @@ TaskBase::do_capture(
 
   bool check_aliasing = source_and_continuing.current_use_->use.use_->already_captured;
 
-  source_and_continuing.captured_as_ |= default_capture_as_info;
-
-  auto* backend_runtime = abstract::backend::get_backend_runtime();
-  //std::cout << backend_runtime->get_execution_resource_count(0) << std::endl;
-
-  auto& source = source_and_continuing;
-  auto& continuing = source_and_continuing;
-
   if(check_aliasing) {
-    if(allowed_aliasing and allowed_aliasing->aliasing_is_allowed_for(source, this)) {
+    if(allowed_aliasing and allowed_aliasing->aliasing_is_allowed_for(
+      source_and_continuing, this
+    )) {
       // Short-circuit rather than capturing twice...
       // TODO get the maximum permissions and pass those on
       return;
@@ -109,85 +102,96 @@ TaskBase::do_capture(
     }
   }
 
-  bool ignored = (source.captured_as_ & AccessHandleBase::Ignored) != 0;
+  DARMA_ASSERT_MESSAGE(
+    (source_and_continuing.captured_as_ & AccessHandleBase::Ignored) == 0,
+    "Something went wrong; ignored bit no longer used"
+  );
 
-  if (not ignored) {
+}
 
-    ////////////////////////////////////////////////////////////////////////////////
+inline void
+TaskBase::do_capture(
+  AccessHandleBase& captured,
+  AccessHandleBase const& source_and_continuing
+) {
 
-    // Determine the capture type
+  do_capture_checks(source_and_continuing);
 
-    HandleUse::permissions_t requested_schedule_permissions, requested_immediate_permissions;
+  source_and_continuing.captured_as_ |= default_capture_as_info;
 
-    // first check for any explicit permissions
-    bool is_marked_read_capture = (source.captured_as_ & AccessHandleBase::ReadOnly) != 0;
-    // Indicate that we've processed the ReadOnly bit by resetting it
-    source.captured_as_ &= ~AccessHandleBase::ReadOnly;
-
-    // And also schedule-only:
-    bool is_marked_schedule_only = (source.captured_as_ & AccessHandleBase::ScheduleOnly) != 0;
-    // Indicate that we've processed the ScheduleOnly bit by resetting it
-    source.captured_as_ &= ~AccessHandleBase::ScheduleOnly;
-
-    // And also schedule-only:
-    bool is_marked_leaf = (source.captured_as_ & AccessHandleBase::Leaf) != 0;
-    // Indicate that we've processed the Leaf bit by resetting it
-    source.captured_as_ &= ~AccessHandleBase::Leaf;
+  auto& source = source_and_continuing;
+  auto& continuing = source_and_continuing;
 
 
-    if (is_marked_read_capture) {
-      requested_schedule_permissions = requested_immediate_permissions = HandleUse::Read;
-    }
-    else {
-      // By default, use the strongest permissions we can schedule to
-      switch (source.current_use_->use.scheduling_permissions_) {
-        case HandleUse::Read: {
-          requested_schedule_permissions = requested_immediate_permissions = HandleUse::Read;
-          break;
-        }
-        case HandleUse::Modify: {
-          requested_immediate_permissions = requested_schedule_permissions = HandleUse::Modify;
-          break;
-        }
-        case HandleUse::None: {
-          DARMA_ASSERT_UNREACHABLE_FAILURE(); // LCOV_EXCL_LINE
-          break;
-        }
-        default: {
-          DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
-          break;
-        }
-      } // end switch on source permissions
-    }
+  ////////////////////////////////////////////////////////////////////////////////
 
-    // if it's marked schedule-only, set the requested immediate permissions to None
-    if(is_marked_schedule_only) {
-      requested_immediate_permissions = HandleUse::None;
-    }
+  // Determine the capture type
 
-    // if it's marked as a leaf, set the requested scheduling permissions to None
-    if(is_marked_leaf) {
-      requested_schedule_permissions = HandleUse::None;
-    }
+  HandleUse::permissions_t requested_schedule_permissions = HandleUse::None;
+  HandleUse::permissions_t requested_immediate_permissions = HandleUse::None;
 
-    // Now make the captured use holder (and set up the continuing use holder,
-    // if necessary)
-    do_capture_uses(
-      /* requested scheduling permissions */
-      requested_schedule_permissions,
-      /* requested immediate permissions */
-      requested_immediate_permissions,
-      source.var_handle_base_,
-      captured.current_use_,
-      source_and_continuing.current_use_
-    );
+  // first check for any explicit permissions
+  bool is_marked_read_capture = (source.captured_as_ & AccessHandleBase::ReadOnly) != 0;
+  // Indicate that we've processed the ReadOnly bit by resetting it
+  source.captured_as_ &= ~AccessHandleBase::ReadOnly;
 
+  // And also schedule-only:
+  bool is_marked_schedule_only = (source.captured_as_ & AccessHandleBase::ScheduleOnly) != 0;
+  // Indicate that we've processed the ScheduleOnly bit by resetting it
+  source.captured_as_ &= ~AccessHandleBase::ScheduleOnly;
+
+  // And also schedule-only:
+  bool is_marked_leaf = (source.captured_as_ & AccessHandleBase::Leaf) != 0;
+  // Indicate that we've processed the Leaf bit by resetting it
+  source.captured_as_ &= ~AccessHandleBase::Leaf;
+
+
+  if (is_marked_read_capture) {
+    requested_schedule_permissions = requested_immediate_permissions = HandleUse::Read;
   }
   else {
-    // TODO remove this functionality, it's deprecated
-    // ignored
-    captured.current_use_ = nullptr;
+    // By default, use the strongest permissions we can schedule to
+    switch (source.current_use_->use.scheduling_permissions_) {
+      case HandleUse::Read: {
+        requested_schedule_permissions = requested_immediate_permissions = HandleUse::Read;
+        break;
+      }
+      case HandleUse::Modify: {
+        requested_immediate_permissions = requested_schedule_permissions = HandleUse::Modify;
+        break;
+      }
+      case HandleUse::None: {
+        DARMA_ASSERT_UNREACHABLE_FAILURE(); // LCOV_EXCL_LINE
+        break;
+      }
+      default: {
+        DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+        break;
+      }
+    } // end switch on source permissions
   }
+
+  // if it's marked schedule-only, set the requested immediate permissions to None
+  if(is_marked_schedule_only) {
+    requested_immediate_permissions = HandleUse::None;
+  }
+
+  // if it's marked as a leaf, set the requested scheduling permissions to None
+  if(is_marked_leaf) {
+    requested_schedule_permissions = HandleUse::None;
+  }
+
+  // Now make the captured use holder (and set up the continuing use holder,
+  // if necessary)
+  captured.current_use_ = detail::make_captured_use_holder(
+    source.var_handle_base_,
+    requested_schedule_permissions,
+    requested_immediate_permissions,
+    source_and_continuing.current_use_
+  );
+
+  add_dependency(captured.current_use_->use);
+
 
   // Assert that all of the captured_as info has been handled:
   assert(source.captured_as_ == AccessHandleBase::Normal);

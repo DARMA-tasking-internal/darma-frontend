@@ -53,6 +53,7 @@
 
 #include <darma/impl/meta/splat_tuple.h>
 
+
 #include <darma/impl/task.h>
 #include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 #include <darma/impl/util.h>
@@ -843,6 +844,25 @@ class AccessHandle : public detail::AccessHandleBase {
       return (bool)current_use_.get() && current_use_->use.handle_ != nullptr;
     }
 
+    std::shared_ptr<detail::AccessHandleBase>
+    copy(bool check_context = true) const override {
+      if(check_context) {
+        return std::allocate_shared<AccessHandle>(
+          darma_runtime::serialization::darma_allocator<AccessHandle>{},
+          *this
+        );
+      }
+      else {
+        auto rv = std::allocate_shared<AccessHandle>(
+          darma_runtime::serialization::darma_allocator<AccessHandle>{}
+        );
+        rv->current_use_ = current_use_;
+        rv->var_handle_ = var_handle_;
+        rv->var_handle_base_ = var_handle_;
+        return rv;
+      }
+    }
+
   //==============================================================================
   // <editor-fold desc="private ctors"> {{{1
 
@@ -957,7 +977,7 @@ class AccessHandle : public detail::AccessHandleBase {
     mutable bool unfetched_ = false;
 
     mutable typename traits::owning_index_t owning_index_;
-    mutable std::size_t owning_backend_index_;
+    mutable std::size_t owning_backend_index_ = 0;
 
     AccessHandle const* prev_copied_from = nullptr;
 

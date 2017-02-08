@@ -121,6 +121,9 @@ class Use {
 
     /** @brief Return a pointer to the handle that this object encapsulates a
      *  use of.
+     *
+     *  @remark If `immediate_permissions()` on this `Use` returns `None`,
+     *  a `shared_ptr` to `nullptr` *may* be returned.
      */
     virtual std::shared_ptr<Handle const>
     get_handle() const =0;

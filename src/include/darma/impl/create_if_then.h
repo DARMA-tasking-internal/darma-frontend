@@ -57,8 +57,6 @@
 
 namespace darma_runtime {
 
-namespace experimental {
-
 namespace detail {
 
 template <typename...>
@@ -77,7 +75,8 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
       ThenLambda then_lambda_;
 
       ThenLambdaTask(ThenLambdaTask&& other)
-        : then_lambda_(std::move(other.then_lambda_))
+        : TaskBase(std::move(other)),
+          then_lambda_(std::move(other.then_lambda_))
       { }
 
       explicit ThenLambdaTask(ThenLambda&& then_lambda)
@@ -92,9 +91,30 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
 
     IfLambda if_lambda_;
     ThenLambdaTask then_task_;
-    bool is_doing_then_copy_ = false;
 
-    std::vector<std::shared_ptr<darma_runtime::detail::UseHolder>> schedule_uses;
+    typedef enum CaptureStage {
+      IfCopy,
+      ThenCopyForIf,
+      ThenCopyForThen
+    } capture_stage_t;
+
+    capture_stage_t current_stage;
+
+    struct CaptureDescription {
+      AccessHandleBase* captured = nullptr;
+      HandleUse::permissions_t requested_schedule_permissions = HandleUse::None;
+      HandleUse::permissions_t requested_immediate_permissions = HandleUse::None;
+      bool is_implicit_in_if = false;
+    };
+
+    std::map<AccessHandleBase const*, CaptureDescription> if_captures_;
+
+    // TODO use shared_ptrs here instead?  Or unique_ptrs?
+    std::vector<AccessHandleBase*> implicit_if_captured_handles;
+    std::unordered_map<types::key_t, std::shared_ptr<AccessHandleBase>,
+      typename key_traits<types::key_t>::hasher,
+      typename key_traits<types::key_t>::key_equal
+    > explicit_if_captured_handles;
 
     template <typename ThenHelper>
     IfLambdaThenLambdaTask(
@@ -107,89 +127,218 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
       );
       parent_task->current_create_work_context = this;
 
-
+      // Setup some variables
       is_double_copy_capture = true;
-      is_doing_then_copy_ = false;
-
-      default_capture_as_info |= darma_runtime::detail::AccessHandleBase::CapturedAsInfo::ReadOnly;
+      current_stage = IfCopy;
 
       // Invoke the copy constructor of the if lambda
       IfLambda if_lambda_tmp = if_lambda_;
-      // now move the copy back
-      if_lambda_ = std::move(if_lambda_tmp);
-
 
       // Now do a copy of the then lambda and capture the if part as schedule only
-      is_doing_then_copy_ = true;
-      default_capture_as_info &= ~darma_runtime::detail::AccessHandleBase::CapturedAsInfo::ReadOnly;
+      current_stage = ThenCopyForIf;
 
+      // Invoke the copy ctor
       ThenLambda then_lambda_tmp = then_task_.then_lambda_;
-      // now move the copy back
+
+      // now move the copies back *after* all of the if capture processing is
+      // done, since it relies on pointers that the move ctor (might) change
+      // or break
+      if_lambda_ = std::move(if_lambda_tmp);
       then_task_.then_lambda_ = std::move(then_lambda_tmp);
 
-      is_doing_then_copy_ = false;
-
+      // Reset stuff
+      is_double_copy_capture = false;
       parent_task->current_create_work_context = nullptr;
 
     }
 
 
-    void do_capture_uses(
-      darma_runtime::detail::HandleUse::permissions_t requested_schedule_permissions,
-      darma_runtime::detail::HandleUse::permissions_t requested_immediate_permissions,
-      std::shared_ptr<darma_runtime::detail::VariableHandleBase> const& var_handle,
-      std::shared_ptr<darma_runtime::detail::UseHolder>& captured_current_use,
-      std::shared_ptr<darma_runtime::detail::UseHolder>& source_and_continuing_current_use
+    void
+    do_capture(
+      darma_runtime::detail::AccessHandleBase& captured,
+      darma_runtime::detail::AccessHandleBase const& source_and_continuing
     ) override {
-      if(not is_doing_then_copy_) {
-        // We're handling the if capture
-        captured_current_use = darma_runtime::detail::make_captured_use_holder(
-          var_handle,
-          requested_schedule_permissions, // TODO !!! need to upgrade this if then part does writes...
-          requested_immediate_permissions,
-          source_and_continuing_current_use
-        );
 
-        add_dependency(captured_current_use->use);
+
+      switch(current_stage) {
+        case IfCopy: {
+
+          // Only do the capture checks on the if copy stage, since source
+          // may not be valid in the ThenCopyForThen stage, and since "double copies"
+          // should be expected for things captured by both if and then
+          do_capture_checks(source_and_continuing);
+
+          // TODO handle things explicitly marked as modify
+
+          // TODO handle actual aliasing
+
+          // this doesn't actually work, since aliasing doesn't involve the same
+          // source pointer, but rather the same use pointer
+          if(if_captures_.find(&source_and_continuing) == if_captures_.end()) {
+
+            auto& desc = if_captures_[&source_and_continuing];
+            desc.captured = &captured;
+
+            // TODO handle the Leaf flag
+            DARMA_ASSERT_MESSAGE(
+              (source_and_continuing.captured_as_ & AccessHandleBase::Leaf) == 0,
+              "Leaf flag handling not yet implemented for create_work_if"
+            );
+
+            // TODO handle the Leaf flag
+            DARMA_ASSERT_MESSAGE(
+              (source_and_continuing.captured_as_ & AccessHandleBase::ScheduleOnly) == 0,
+              "ScheduleOnly flag handling not yet implemented for create_work_if"
+            );
+
+            desc.requested_immediate_permissions = HandleUse::Read;
+            desc.requested_schedule_permissions = HandleUse::Read;
+            desc.is_implicit_in_if = false;
+
+          }
+
+          break;
+        }
+        case ThenCopyForIf: {
+
+          auto& desc = if_captures_[&source_and_continuing];
+
+          if((source_and_continuing.captured_as_ & AccessHandleBase::ReadOnly) != 0) {
+            desc.requested_schedule_permissions = HandleUse::Read;
+          }
+          else {
+            // this is a modify, so request schedule modify permissions here
+            desc.requested_schedule_permissions = HandleUse::Modify;
+          }
+
+          if(desc.captured) {
+            // It's explicit in the "if" *and* explicit in the "then"
+
+            // (so something's wrong with my logic if this fails)
+            assert(not desc.is_implicit_in_if);
+
+            // Do the capture for the "if" part, but and go ahead and register
+            // the uses
+            desc.captured->current_use_ = make_captured_use_holder<
+              /* AllowRegisterContinuation = */ true
+            >(
+              source_and_continuing.var_handle_base_,
+              desc.requested_schedule_permissions,
+              desc.requested_immediate_permissions,
+              source_and_continuing.current_use_
+            );
+
+            // Set this for the benefit if the source of the ThenCopyForThen phase
+            captured.current_use_ = desc.captured->current_use_;
+
+            add_dependency(desc.captured->current_use_->use);
+            auto const& key = desc.captured->var_handle_base_->get_key();
+            auto insertion_result = explicit_if_captured_handles.insert(
+              std::make_pair(key,
+                desc.captured->copy(/* check_context = */ false)
+              )
+            );
+            assert(insertion_result.second); // can't already be in map
+          }
+          else {
+            // It's an "implicit" use in the if clause, so we need to store it
+            desc.is_implicit_in_if = true;
+
+            DARMA_ASSERT_NOT_IMPLEMENTED("then-but-not-if-capture");
+
+            // TODO finish this by calling the make captured use holder method
+
+          }
+
+          break;
+        }
+        case ThenCopyForThen: {
+          // Be careful!!!!! source_and_continuing might not be valid
+          // Do this elsewhere so that we don't accidentally access source_and_continuing
+          do_capture_then_copy_for_then(captured);
+          break;
+        }
+      }
+
+      if(current_stage != ThenCopyForThen) {
+        // Reset all of the capture flags
+        source_and_continuing.captured_as_ = AccessHandleBase::Normal;
+      }
+
+    }
+
+    void
+    do_capture_then_copy_for_then(
+      AccessHandleBase& captured
+    ) {
+      auto key = captured.var_handle_base_->get_key();
+
+      // TODO !!! make permission downgrades work!!!
+      // TODO handle interaction with aliasing
+
+      std::shared_ptr<AccessHandleBase> source_handle = nullptr;
+      auto found_explicit = explicit_if_captured_handles.find(key);
+      if(found_explicit != explicit_if_captured_handles.end()) {
+        source_handle = found_explicit->second;
+        // Don't allow multiple captures
+        explicit_if_captured_handles.erase(found_explicit);
       }
       else {
-        // We're handling the "then" capture, but also need to put stuff in the "if"
-        // TODO !!! look to see if this was already captured in the "if" with these permissions
-        // Only if it's not already captured....
-        auto if_nested_use = darma_runtime::detail::make_captured_use_holder(
-          var_handle,
-          requested_schedule_permissions,
-          darma_runtime::detail::HandleUse::None,
-          source_and_continuing_current_use
-        );
-
-        // TODO !!! only if not already captured...
-        // TODO this appears to be the problem...
-        schedule_uses.push_back(if_nested_use);
-
-        captured_current_use = darma_runtime::detail::make_captured_use_holder(
-          var_handle,
-          requested_schedule_permissions,
-          requested_immediate_permissions,
-          if_nested_use
-        );
-
-
-        add_dependency(if_nested_use->use);
-        then_task_.add_dependency(captured_current_use->use);
+        DARMA_ASSERT_NOT_IMPLEMENTED("then-but-not-if-capture");
       }
+
+      assert(source_handle.get() != nullptr);
+
+      // For now, assume modify-modify is requested
+      captured.current_use_ = make_captured_use_holder<
+        /* AllowRegisterContinuation = */ true
+      >(
+        captured.var_handle_base_,
+        HandleUse::Modify,
+        HandleUse::Modify,
+        source_handle->current_use_
+      );
+
+      then_task_.add_dependency(captured.current_use_->use);
+
+      // But don't register the continuation use.
+      // TODO keep this from even generating the continuation flow?!?
+
+      // Tell the source (now continuing) handle to establish an alias
+      source_handle->current_use_->could_be_alias = true;
+
+      // Release the handle, triggering release of the use
+      source_handle = nullptr;
 
     }
 
     void run() override {
       if(if_lambda_()) {
-        std::unique_ptr<abstract::frontend::Task> then_task_ptr(
+
+        auto* parent_task = static_cast<darma_runtime::detail::TaskBase*>(
+          abstract::backend::get_backend_context()->get_running_task()
+        );
+        parent_task->current_create_work_context = this;
+
+        current_stage = ThenCopyForThen;
+        is_double_copy_capture = false; // since source context may no longer be valid
+
+        // Invoke the copy ctor
+        ThenLambda then_lambda_tmp = then_task_.then_lambda_;
+
+        // Then move it back
+        then_task_.then_lambda_ = std::move(then_lambda_tmp);
+
+        parent_task->current_create_work_context = nullptr;
+
+        {
+          // Delete the if_lambda by moving it and deleting the move destination
+          IfLambda if_lambda_delete_tmp = std::move(if_lambda_);
+        }
+
+        abstract::backend::get_backend_runtime()->register_task(
           std::make_unique<ThenLambdaTask>(std::move(then_task_))
         );
-        abstract::backend::get_backend_runtime()->register_task(
-          std::move(then_task_ptr)
-        );
-        schedule_uses.clear();
       }
     }
 
@@ -265,6 +414,8 @@ struct _create_work_if_helper<meta::nonesuch, tinympl::vector<Args...>, Lambda> 
 
 
 } // end namespace detail
+
+namespace experimental {
 
 template <typename Functor=meta::nonesuch, typename... Args>
 auto

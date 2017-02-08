@@ -125,10 +125,13 @@ class TaskBase : public abstract::frontend::Task
 
     TaskBase() = default;
 
+    TaskBase(TaskBase&&) = default;
+
     // Directly construct from a conditional callable
     template <typename LambdaCallable,
       typename = std::enable_if_t<
         not std::is_base_of<std::decay_t<LambdaCallable>, TaskBase>::value
+        and not std::is_base_of<TaskBase, std::decay_t<LambdaCallable>>::value
       >
     >
     TaskBase(LambdaCallable&& bool_callable) {
@@ -153,28 +156,16 @@ class TaskBase : public abstract::frontend::Task
       dependencies_.insert(&use);
     }
 
-    void do_capture(
-      AccessHandleBase& captured,
+    void
+    do_capture_checks(
       AccessHandleBase const& source_and_continuing
     );
 
-    virtual
-    void do_capture_uses(
-      HandleUse::permissions_t requested_schedule_permissions,
-      HandleUse::permissions_t requested_immediate_permissions,
-      std::shared_ptr<VariableHandleBase> const& var_handle,
-      std::shared_ptr<detail::UseHolder>& captured_current_use,
-      std::shared_ptr<detail::UseHolder>& source_and_continuing_current_use
-    ) {
-      captured_current_use = detail::make_captured_use_holder(
-        var_handle,
-        requested_schedule_permissions,
-        requested_immediate_permissions,
-        source_and_continuing_current_use
-      );
-
-      add_dependency(captured_current_use->use);
-    }
+    virtual void
+    do_capture(
+      AccessHandleBase& captured,
+      AccessHandleBase const& source_and_continuing
+    );
 
     //==========================================================================
     // <editor-fold desc="Implementation of abstract::frontend::Task"> {{{1

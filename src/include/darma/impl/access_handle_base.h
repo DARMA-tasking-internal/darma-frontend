@@ -48,6 +48,7 @@
 #include <cstdlib> // std::size_t
 
 #include <darma/impl/task_fwd.h> // TaskBase forward declaration
+#include <darma/impl/create_if_then_fwd.h>
 
 #include <darma/impl/use.h> // UseHolder
 
@@ -87,6 +88,13 @@ class AccessHandleBase {
     std::shared_ptr<VariableHandleBase> var_handle_base_;
 
     friend class TaskBase;
+    template <typename, typename>
+    friend class darma_runtime::detail::IfLambdaThenLambdaTask;
+
+    // Copy the concrete object instance
+    virtual std::shared_ptr<AccessHandleBase> copy(bool check_context = true) const =0;
+
+    virtual ~AccessHandleBase() = default;
 
 };
 

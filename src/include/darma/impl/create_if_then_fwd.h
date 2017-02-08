@@ -2,13 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                                fill_n.hpp                               
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                      create_if_then_fwd.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -46,64 +42,16 @@
 //@HEADER
 */
 
+#ifndef DARMA_IMPL_CREATE_IF_THEN_FWD_H
+#define DARMA_IMPL_CREATE_IF_THEN_FWD_H
 
-#ifndef TINYMPL_VARIADIC_FILL_N_HPP
-#define TINYMPL_VARIADIC_FILL_N_HPP
-
-#include <cstddef>
-
-namespace tinympl {
-namespace variadic {
-
-// O(log(N)) list fill borrowed from brigand:
-//   (https://github.com/edouarda/brigand/blob/master/brigand/sequences/filled_list.hpp)
+namespace darma_runtime {
 namespace detail {
 
-template<class, class>
-struct dup_append_list;
-
-template<template<class...> class List, class... Ts, class... Us>
-struct dup_append_list<List<Ts...>, List<Us...>>
-{
-  using type = List<Ts..., Ts..., Us...>;
-};
-
-template<class T, template<class...> class List, std::size_t N>
-struct fill_n_impl
-  : dup_append_list<
-      typename fill_n_impl<T, List, N/2>::type,
-      typename fill_n_impl<T, List, N - N/2*2>::type
-    >
-{ };
-
-template<class T, template<class...> class List>
-struct fill_n_impl<T, List, 1> {
-  using type = List<T>;
-};
-
-template<class T, template<class...> class List>
-struct fill_n_impl<T, List, 0> {
-  using type = List<>;
-};
+template <typename IfLambda, typename ThenLambda>
+struct IfLambdaThenLambdaTask;
 
 } // end namespace detail
+} // end namespace darma_runtime
 
-/**
- * \ingroup VarModAlgs
- * \class fill_n
- * \brief Fills an output sequence with n equal elements
- * \param n The number of elements
- * \param T The type of the elements
- * \param Out The output sequence type
- * \return `fill_n<...>::type` is a type templated from `Out` constructed with n
-types equal to `T`
- * \sa tinympl::fill_n
- */
-template <std::size_t n, class T, template <class ...> class Out>
-using fill_n = detail::fill_n_impl<T, Out, n>;
-
-
-} // namespace variadic
-} // namespace tinympl
-
-#endif // TINYMPL_VARIADIC_FILL_N_HPP
+#endif //DARMA_IMPL_CREATE_IF_THEN_FWD_H
