@@ -48,6 +48,7 @@
 #include <type_traits> // std::integral_constant
 
 #include <darma/impl/meta/detection.h>
+#include <darma/impl/util/static_assertions.h>
 
 namespace darma_runtime {
 namespace detail {
@@ -65,11 +66,11 @@ struct meets_key_concept {
     // Must specialize the key_traits class
     template <typename Key>
     //using specializes_key_traits_archetype = decltype( std::declval<key_traits<Key>>() );
-    using specializes_key_traits_archetype = key_traits<Key>;
+    using specializes_key_traits_archetype = darma_runtime::detail::key_traits<Key>;
 
     // This will be the type meta::nonesuch if the specialization doesn't exist
     // and key_traits<Key> if it does (see meta::detected_t)
-    typedef meta::detected_t<specializes_key_traits_archetype, T> traits_t;
+    using traits_t = typename meta::is_detected<specializes_key_traits_archetype, T>::type;
 
   public:
     static constexpr auto has_traits_specialization =
@@ -89,6 +90,7 @@ struct meets_key_concept {
         meta::is_detected<traits_key_equal_archetype, traits_t>::value;
 
   private:
+
     // The key equal functor must be able to compare two keys and must be default constructible
     template <typename KeyEqual>
     using key_equal_archetype = decltype( KeyEqual()(std::declval<const T>(), std::declval<const T>()) );
@@ -247,11 +249,11 @@ operator<<(std::ostream& o, Key const& k) {
   static_assert(darma_runtime::detail::meets_key_concept<K>::has_key_equal, \
     "key_traits<" #K "> specialization missing key_equal member type"); \
   static_assert(darma_runtime::detail::meets_key_concept<K>::key_equal_works, \
-    "key_traits<" #K ">::key_equal does work as expected"); \
+    "key_traits<" #K ">::key_equal does not work as expected"); \
   static_assert(darma_runtime::detail::meets_key_concept<K>::has_hasher, \
     "key_traits<" #K "> specialization missing hasher member type"); \
   static_assert(darma_runtime::detail::meets_key_concept<K>::hasher_works, \
-    "key_traits<" #K ">::hasher does work as expected"); \
+    "key_traits<" #K ">::hasher does not work as expected"); \
   static_assert(darma_runtime::detail::meets_key_concept<K>::has_maker, \
     "key_traits<" #K "> specialization missing maker member type"); \
   static_assert(darma_runtime::detail::meets_key_concept<K>::has_component_method, \

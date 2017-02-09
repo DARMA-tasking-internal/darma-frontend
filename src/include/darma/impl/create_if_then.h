@@ -47,6 +47,8 @@
 
 #include <tinympl/vector.hpp>
 
+#include "create_if_then_fwd.h"
+
 #include <darma/interface/app/create_work.h>
 #include <darma/impl/capture.h>
 #include <darma/impl/handle.h>
@@ -65,37 +67,46 @@ struct _create_work_then_helper;
 template <typename...>
 struct _create_work_if_helper;
 
-template <typename IfLambda, typename ThenLambda>
+template <typename Lambda>
+struct NestedThenElseLambdaTask : public darma_runtime::detail::TaskBase {
+
+  Lambda lambda_;
+
+  NestedThenElseLambdaTask(NestedThenElseLambdaTask&& other)
+    : TaskBase(std::move(other)),
+      lambda_(std::move(other.lambda_))
+  { }
+
+  explicit NestedThenElseLambdaTask(Lambda&& lambda)
+    : lambda_(std::move(lambda))
+  { }
+
+  void run() override {
+    lambda_();
+  }
+
+};
+
+template <>
+struct NestedThenElseLambdaTask<void> { };
+
+template <typename IfLambda, typename ThenLambda, typename ElseLambda /* =void*/>
 struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
 
   public:
 
-    struct ThenLambdaTask : public darma_runtime::detail::TaskBase {
-
-      ThenLambda then_lambda_;
-
-      ThenLambdaTask(ThenLambdaTask&& other)
-        : TaskBase(std::move(other)),
-          then_lambda_(std::move(other.then_lambda_))
-      { }
-
-      explicit ThenLambdaTask(ThenLambda&& then_lambda)
-        : then_lambda_(std::move(then_lambda))
-      { }
-
-      void run() override {
-        then_lambda_();
-      }
-
-    };
-
     IfLambda if_lambda_;
-    ThenLambdaTask then_task_;
+    using then_task_t = NestedThenElseLambdaTask<ThenLambda>;
+    using else_task_t = NestedThenElseLambdaTask<ElseLambda>;
+    then_task_t then_task_;
+    else_task_t else_task_;
 
     typedef enum CaptureStage {
       IfCopy,
       ThenCopyForIf,
-      ThenCopyForThen
+      ElseCopyForIf,
+      ThenCopyForThen,
+      ElseCopyForElse
     } capture_stage_t;
 
     capture_stage_t current_stage;
@@ -105,6 +116,8 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
       HandleUse::permissions_t requested_schedule_permissions = HandleUse::None;
       HandleUse::permissions_t requested_immediate_permissions = HandleUse::None;
       bool is_implicit_in_if = false;
+      bool captured_in_then_or_else = false;
+      std::vector<std::shared_ptr<UseHolder>*> uses_to_set;
     };
 
     std::map<AccessHandleBase const*, CaptureDescription> if_captures_;
@@ -120,9 +133,46 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
 
     template <typename ThenHelper>
     IfLambdaThenLambdaTask(
-      ThenHelper&& helper
-    ) : if_lambda_(std::move(helper.if_helper.func)),
-        then_task_(std::move(helper.then_lambda))
+      ThenHelper&& helper,
+      std::enable_if_t<
+        std::is_void<typename std::decay_t<ThenHelper>::else_lambda_t>::value
+          and std::is_void<ElseLambda>::value,
+        int
+      > = 0
+    ) : IfLambdaThenLambdaTask(
+          std::move(helper.if_helper.func),
+          std::move(helper.then_lambda),
+          else_task_t{}
+        )
+    { /* Forwarding constructor, body must be empty */ }
+
+    template <typename ElseHelper>
+    IfLambdaThenLambdaTask(
+      ElseHelper&& else_helper,
+      std::enable_if_t<
+        not std::is_void<typename std::decay_t<ElseHelper>::else_lambda_t>::value
+          and not std::is_void<ElseLambda>::value,
+        int
+      > = 0
+    ) : IfLambdaThenLambdaTask(
+          std::move(else_helper.then_helper.if_helper.func),
+          std::move(else_helper.then_helper.then_lambda),
+          std::move(else_helper.else_lambda)
+        )
+    { /* Forwarding constructor, body must be empty */ }
+
+    IfLambdaThenLambdaTask(
+      IfLambda&& if_lambda,
+      ThenLambda&& then_lambda,
+      std::conditional_t<
+        std::is_void<ElseLambda>::value,
+        else_task_t,
+        ElseLambda
+      >&& else_lambda
+
+    ) : if_lambda_(std::move(if_lambda)),
+        then_task_(std::move(then_lambda)),
+        else_task_(std::move(else_lambda))
     {
       auto* parent_task = static_cast<darma_runtime::detail::TaskBase*>(
         abstract::backend::get_backend_context()->get_running_task()
@@ -140,7 +190,10 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
       current_stage = ThenCopyForIf;
 
       // Invoke the copy ctor
-      ThenLambda then_lambda_tmp = then_task_.then_lambda_;
+      ThenLambda then_lambda_tmp = then_task_.lambda_;
+
+      current_stage = ElseCopyForIf;
+      auto else_lambda_tmp = _do_copy_else_lambda();
 
       // Now loop over the remaining if_captures (those not handle in the Then
       // copy mode) and do the capture on them
@@ -154,6 +207,18 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
           source->current_use_
         );
         add_dependency(desc.captured->current_use_->use);
+        for(auto&& use_to_set : desc.uses_to_set) {
+          (*use_to_set) = desc.captured->current_use_;
+        }
+        if(desc.captured_in_then_or_else and not desc.is_implicit_in_if) {
+          auto const& key = desc.captured->var_handle_base_->get_key();
+          auto insertion_result = explicit_if_captured_handles.insert(
+            std::make_pair(key,
+              desc.captured->copy(/* check_context = */ false)
+            )
+          );
+          assert(insertion_result.second); // can't already be in map
+        }
       }
       if_captures_.clear();
 
@@ -161,7 +226,8 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
       // done, since it relies on pointers that the move ctor (might) change
       // or break
       if_lambda_ = std::move(if_lambda_tmp);
-      then_task_.then_lambda_ = std::move(then_lambda_tmp);
+      then_task_.lambda_ = std::move(then_lambda_tmp);
+      _do_restore_else_lambda(std::move(else_lambda_tmp));
 
       // Reset stuff
       is_double_copy_capture = false;
@@ -169,13 +235,54 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
 
     }
 
+    struct _not_a_lambda { };
+
+    template <typename _SFINAE_only=void>
+    std::enable_if_t<
+      std::is_void<_SFINAE_only>::value
+      and std::is_void<ElseLambda>::value,
+      _not_a_lambda
+    >
+    _do_copy_else_lambda() { return _not_a_lambda{}; };
+
+
+    template <typename _SFINAE_only=void>
+    std::enable_if_t<
+      std::is_void<_SFINAE_only>::value
+        and not std::is_void<ElseLambda>::value,
+      ElseLambda
+    >
+    _do_copy_else_lambda() {
+      return else_task_.lambda_;
+    };
+
+    template <typename _SFINAE_only=void>
+    std::enable_if_t<
+      std::is_void<_SFINAE_only>::value
+        and std::is_void<ElseLambda>::value
+    >
+    _do_restore_else_lambda(
+      _not_a_lambda&&
+    ) { };
+
+
+    template <typename _SFINAE_only=void>
+    void
+    _do_restore_else_lambda(
+      std::enable_if_t<
+        std::is_void<_SFINAE_only>::value
+          and not std::is_void<ElseLambda>::value,
+        ElseLambda
+      >&& else_lambda_tmp
+    ) {
+      else_task_.lambda_ = std::move(else_lambda_tmp);
+    };
 
     void
     do_capture(
       darma_runtime::detail::AccessHandleBase& captured,
       darma_runtime::detail::AccessHandleBase const& source_and_continuing
     ) override {
-
 
       switch(current_stage) {
         case IfCopy: {
@@ -216,102 +323,84 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
 
           break;
         }
-        case ThenCopyForIf: {
+        case ThenCopyForIf:
+        case ElseCopyForIf: {
+
+          // TODO !!! handle things captured in both then and else !!!
 
           auto& desc = if_captures_[&source_and_continuing];
 
-          if((source_and_continuing.captured_as_ & AccessHandleBase::ReadOnly) != 0) {
-            desc.requested_schedule_permissions = HandleUse::Read;
-          }
-          else {
-            // this is a modify, so request schedule modify permissions here
-            desc.requested_schedule_permissions = HandleUse::Modify;
-          }
+          desc.requested_schedule_permissions = HandleUse::Modify; // TODO look for permissions downgrades
 
-          if(desc.captured) {
-            // It's explicit in the "if" *and* explicit in the "then"
+          //if((source_and_continuing.captured_as_ & AccessHandleBase::ReadOnly) != 0) {
+          //  desc.requested_schedule_permissions = HandleUse::Read;
+          //}
+          //else {
+          //  // this is a modify, so request schedule modify permissions here
+          //  desc.requested_schedule_permissions = HandleUse::Modify;
+          //}
 
-            // (so something's wrong with my logic if this fails)
-            assert(not desc.is_implicit_in_if);
+          if(not desc.captured_in_then_or_else) {
+            if (desc.captured) {
+              // It's explicit in the "if" *and* explicit in the "then"
 
-            // Do the capture for the "if" part, but and go ahead and register
-            // the uses
-            desc.captured->current_use_ = make_captured_use_holder<
-              /* AllowRegisterContinuation = */ true
-            >(
-              source_and_continuing.var_handle_base_,
-              desc.requested_schedule_permissions,
-              desc.requested_immediate_permissions,
-              source_and_continuing.current_use_
-            );
-
-            // Set this for the benefit if the source of the ThenCopyForThen phase
-            captured.current_use_ = desc.captured->current_use_;
-
-            add_dependency(desc.captured->current_use_->use);
-            auto const& key = desc.captured->var_handle_base_->get_key();
-            auto insertion_result = explicit_if_captured_handles.insert(
-              std::make_pair(key,
-                desc.captured->copy(/* check_context = */ false)
-              )
-            );
-            assert(insertion_result.second); // can't already be in map
-          }
-          else {
-            // TODO don't actually need to use desc here...
-
-            // It's an "implicit" use in the if clause, so we need to store it
-            desc.is_implicit_in_if = true;
-
-            auto const& key = source_and_continuing.var_handle_base_->get_key();
-            auto insertion_result = implicit_if_captured_handles.insert(
-              std::make_pair(key,
-                source_and_continuing.copy(/* check_context = */ false)
-              )
-            );
-            assert(insertion_result.second); // can't already be in map
-
-            desc.captured = insertion_result.first->second.get();
-            desc.captured->current_use_ = make_captured_use_holder<
-              /* AllowRegisterContinuation = */ true
-            >(
-              source_and_continuing.var_handle_base_,
-              HandleUse::Modify, // TODO look for permissions downgrades
-              HandleUse::None,
-              source_and_continuing.current_use_
-            );
-
-            // Set this for the benefit if the source of the ThenCopyForThen phase;
-            // it will act as the source when that happens
-            captured.current_use_ = desc.captured->current_use_;
-
-            add_dependency(desc.captured->current_use_->use);
+              // (so something's wrong with my logic if this fails)
+              assert(not desc.is_implicit_in_if);
 
 
+            } else {
+
+              // It's an "implicit" use in the if clause, so we need to store it
+              desc.is_implicit_in_if = true;
+
+              auto const & key = source_and_continuing.var_handle_base_->get_key();
+              auto insertion_result = implicit_if_captured_handles.insert(
+                std::make_pair(key,
+                  source_and_continuing.copy(/* check_context = */ false)
+                )
+              );
+              assert(insertion_result.second); // can't already be in map
+
+              desc.captured = insertion_result.first->second.get();
+
+            }
           }
 
-          if_captures_.erase(&source_and_continuing);
+          // Set this for the benefit if the source of the ThenCopyForThen phase
+          desc.uses_to_set.push_back(&captured.current_use_);
+
+          desc.captured_in_then_or_else = true;
 
           break;
         }
         case ThenCopyForThen: {
           // Be careful!!!!! source_and_continuing might not be valid
           // Do this elsewhere so that we don't accidentally access source_and_continuing
-          do_capture_then_copy_for_then(captured);
+          do_capture_then_else_copy_for_then_else(captured, then_task_, std::false_type{});
+          break;
+        }
+        case ElseCopyForElse: {
+          do_capture_then_else_copy_for_then_else(captured,
+            else_task_,
+            typename std::is_void<ElseLambda>::type{}
+          );
           break;
         }
       }
 
-      if(current_stage != ThenCopyForThen) {
+      if(current_stage != ThenCopyForThen && current_stage != ElseCopyForElse) {
         // Reset all of the capture flags
         source_and_continuing.captured_as_ = AccessHandleBase::Normal;
       }
 
     }
 
+    template <typename ThenElseTask>
     void
-    do_capture_then_copy_for_then(
-      AccessHandleBase& captured
+    do_capture_then_else_copy_for_then_else(
+      AccessHandleBase& captured,
+      ThenElseTask& then_else_task,
+      std::false_type
     ) {
       auto key = captured.var_handle_base_->get_key();
 
@@ -346,7 +435,7 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
         source_handle->current_use_
       );
 
-      then_task_.add_dependency(captured.current_use_->use);
+      then_else_task.add_dependency(captured.current_use_->use);
 
       // But don't register the continuation use.
       // TODO keep this from even generating the continuation flow?!?
@@ -357,6 +446,16 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
       // Release the handle, triggering release of the use
       source_handle = nullptr;
 
+    }
+
+    template <typename ThenElseTask>
+    void
+    do_capture_then_else_copy_for_then_else(
+      AccessHandleBase& captured,
+      ThenElseTask& then_else_task,
+      std::true_type
+    ) {
+      // Do nothing
     }
 
     void run() override {
@@ -370,25 +469,115 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
         current_stage = ThenCopyForThen;
         is_double_copy_capture = false; // since source context may no longer be valid
 
-        // Invoke the copy ctor
-        ThenLambda then_lambda_tmp = then_task_.then_lambda_;
+        {
+          // Invoke the copy ctor
+          ThenLambda then_lambda_tmp = then_task_.lambda_;
 
-        // Then move it back
-        then_task_.then_lambda_ = std::move(then_lambda_tmp);
+          // Then move it back
+          then_task_.lambda_ = std::move(then_lambda_tmp);
+        }
 
         parent_task->current_create_work_context = nullptr;
 
         {
           // Delete the if_lambda by moving it and deleting the move destination
           IfLambda if_lambda_delete_tmp = std::move(if_lambda_);
+
+          // Delete the else task by moving it...
+          else_task_t else_task_delete_tmp = std::move(else_task_);
         }
 
+        explicit_if_captured_handles.clear();
+        implicit_if_captured_handles.clear();
+
         abstract::backend::get_backend_runtime()->register_task(
-          std::make_unique<ThenLambdaTask>(std::move(then_task_))
+          std::make_unique<then_task_t>(std::move(then_task_))
         );
+      }
+      else {
+        _run_else_part(typename std::is_void<ElseLambda>::type{});
       }
     }
 
+    template <typename _SFINAE_only=void>
+    std::enable_if_t<
+      std::is_void<_SFINAE_only>::value
+      and not std::is_void<ElseLambda>::value
+    >
+    _run_else_part(std::false_type) {
+
+      auto* parent_task = static_cast<darma_runtime::detail::TaskBase*>(
+        abstract::backend::get_backend_context()->get_running_task()
+      );
+      parent_task->current_create_work_context = this;
+
+      current_stage = ElseCopyForElse;
+      is_double_copy_capture = false; // since source context may no longer be valid
+
+      // Invoke the copy ctor
+      auto else_lambda_tmp = _do_copy_else_lambda();
+
+      // Then move it back
+      _do_restore_else_lambda(std::move(else_lambda_tmp));
+
+      parent_task->current_create_work_context = nullptr;
+
+      {
+        // Delete the if_lambda by moving it and deleting the move destination
+        IfLambda if_lambda_delete_tmp = std::move(if_lambda_);
+        // Delete the then task by moving it...
+        then_task_t then_task_delete_tmp = std::move(then_task_);
+      }
+
+      explicit_if_captured_handles.clear();
+      implicit_if_captured_handles.clear();
+
+      abstract::backend::get_backend_runtime()->register_task(
+        std::make_unique<else_task_t>(std::move(else_task_))
+      );
+
+    }
+
+    void _run_else_part(std::true_type) {
+      // Do nothing
+    }
+
+};
+
+template <typename...>
+struct _create_work_else_helper;
+
+template <typename ThenHelper, typename Lambda, typename... Args>
+struct _create_work_else_helper<
+  ThenHelper, meta::nonesuch, tinympl::vector<Args...>, Lambda
+> {
+  public:
+
+    _create_work_else_helper(
+      ThenHelper&& then_helper,
+      Args&&... args,
+      Lambda&& else_lambda_in
+    ) : then_helper(std::move(then_helper)),
+        else_lambda(std::move(else_lambda_in))
+    { }
+
+    using then_lambda_t = typename ThenHelper::then_lambda_t;
+    using else_lambda_t = Lambda;
+    using if_helper_t = typename ThenHelper::if_helper_t;
+
+    ThenHelper then_helper;
+    Lambda else_lambda;
+
+    ~_create_work_else_helper() {
+      std::unique_ptr<abstract::frontend::Task> if_then_else_task = std::make_unique<
+        IfLambdaThenLambdaTask<typename if_helper_t::lambda_t, then_lambda_t, Lambda>
+      >(
+        std::move(*this)
+      );
+      abstract::backend::get_backend_runtime()->register_task(
+        std::move(if_then_else_task)
+      );
+    }
 
 };
 
@@ -406,15 +595,25 @@ struct _create_work_then_helper<
       then_lambda(std::forward<Lambda>(then_lambda_in))
   { }
 
+  _create_work_then_helper(_create_work_then_helper&&) = default;
+  _create_work_then_helper(_create_work_then_helper const&) = delete;
+
   IfHelper if_helper;
   Lambda then_lambda;
   bool else_invoked = false;
 
+  using if_helper_t = IfHelper;
+  using then_lambda_t = Lambda;
+  using else_lambda_t = void;
+
   template <typename... ElseArgs>
-  auto
-  else_(ElseArgs&&... args) && {
+  void else_(ElseArgs&&... args) && {
     else_invoked = true;
-    // TODO implement this
+    _create_work_else_helper<_create_work_then_helper,
+      meta::nonesuch,
+      typename tinympl::vector<ElseArgs...>::pop_back::type,
+      typename tinympl::vector<ElseArgs...>::back::type
+    >(std::move(*this), std::forward<ElseArgs>(args)...);
   }
 
   ~_create_work_then_helper() {

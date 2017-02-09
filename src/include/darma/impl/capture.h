@@ -233,15 +233,89 @@ auto make_captured_use_holder(
         //----------------------------------------------------------------------
 
         case HandleUse::Read: {
-          // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-          // %   RR -> { RN } -> RR     %
-          // %   MR -> { RN } -> MR     %
-          // %   MR -> { MN } -> MN     %
-          // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-          DARMA_ASSERT_NOT_IMPLEMENTED(
-            "Schedule-only permissions on handles that already have immediate"
-              " Read permissions."
-          );                                                                    // LCOV_EXCL_LINE
+
+          switch(requested_scheduling_permissions) {
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            case HandleUse::Read : { // requested scheduling permissions
+              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+              // %   RR -> { RN } -> RR     %
+              // %   MR -> { RN } -> MR     %
+              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+              // UNTESTED CODE !!!!!!!!!!!!!!!!!!
+
+              captured_use_holder = use_holder_maker(
+                var_handle,
+                source_and_continuing_holder->use.in_flow_,
+                source_and_continuing_holder->use.in_flow_,
+                /* Scheduling permissions */
+                HandleUse::Read,
+                /* Immediate permissions */
+                HandleUse::None
+              );
+              captured_use_holder->do_register();
+
+              break;
+            }
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            case HandleUse::Modify : { // requested scheduling permissions
+              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+              // %   MR -> { MN } -> MN     %
+              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+              // UNTESTED CODE !!!!!!!!!!!!!!!!!!
+
+              // Assert that, e.g., RR -> { MN } -> ... is not allowed
+              DARMA_ASSERT_MESSAGE(
+                source_and_continuing_holder->use.scheduling_permissions_ == HandleUse::Modify,
+                "Can't make a Modify schedule-only capture on a handle without"
+                  " at Modify schedule permissions"
+              );
+
+              auto created_in_flow = make_forwarding_flow_ptr(
+                source_and_continuing_holder->use.in_flow_,
+                backend_runtime
+              );
+
+              auto created_out_flow = make_next_flow_ptr(
+                created_in_flow, backend_runtime
+              );
+
+
+              bool source_was_registered = source_and_continuing_holder->is_registered;
+
+              captured_use_holder = use_holder_maker(
+                var_handle,
+                created_in_flow,
+                created_out_flow,
+                /* Scheduling permissions */
+                HandleUse::Modify,
+                /* Immediate permissions */
+                HandleUse::None
+              );
+              captured_use_holder->do_register();
+
+              source_and_continuing_holder->replace_use(
+                continuing_use_holder_maker(
+                  var_handle,
+                  created_out_flow,
+                  source_and_continuing_holder->use.out_flow_,
+                  HandleUse::Modify,
+                  HandleUse::None
+                ),
+                AllowRegisterContinuation and source_was_registered
+              );
+
+              break;
+            }
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            default: {
+              DARMA_ASSERT_NOT_IMPLEMENTED();                                   // LCOV_EXCL_LINE
+            } // end default
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+          } // end switch requested_scheduling_permissions
+
+
           break;                                                                // LCOV_EXCL_LINE
         }
 

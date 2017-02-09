@@ -88,7 +88,7 @@ class AccessHandleBase {
     std::shared_ptr<VariableHandleBase> var_handle_base_;
 
     friend class TaskBase;
-    template <typename, typename>
+    template <typename, typename, typename>
     friend class darma_runtime::detail::IfLambdaThenLambdaTask;
 
     // Copy the concrete object instance

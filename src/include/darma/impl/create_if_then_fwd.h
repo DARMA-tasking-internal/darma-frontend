@@ -48,7 +48,7 @@
 namespace darma_runtime {
 namespace detail {
 
-template <typename IfLambda, typename ThenLambda>
+template <typename IfLambda, typename ThenLambda, typename ElseLambda=void>
 struct IfLambdaThenLambdaTask;
 
 } // end namespace detail

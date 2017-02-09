@@ -180,7 +180,7 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
 
     template <typename T>
     inline disabled_version<T, ArchiveT&>
-    operator>>(T&& val) { return this->MoreGeneralMixin::template operator>>(std::forward<T>(val)); }
+    operator>>(T&& val) { return this->MoreGeneralMixin::operator>>(std::forward<T>(val)); }
 
     //--------------------------------------------------------------------------
 
@@ -205,7 +205,7 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
 
     template <typename T>
     inline disabled_version<T, ArchiveT&>
-    operator<<(T&& val) { return this->MoreGeneralMixin::template operator<<(std::forward<T>(val)); }
+    operator<<(T&& val) { return this->MoreGeneralMixin::operator<<(std::forward<T>(val)); }
 
     //--------------------------------------------------------------------------
 
@@ -231,7 +231,7 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
 
     template <typename T>
     inline disabled_version<T, ArchiveT&>
-    operator%(T&& val) { return this->MoreGeneralMixin::template operator%(std::forward<T>(val)); }
+    operator%(T&& val) { return this->MoreGeneralMixin::operator%(std::forward<T>(val)); }
 
     //--------------------------------------------------------------------------
 
@@ -253,7 +253,7 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
 
     template <typename T>
     inline disabled_version<T, ArchiveT&>
-    operator|(T&& val) { return this->MoreGeneralMixin::template operator|(std::forward<T>(val)); }
+    operator|(T&& val) { return this->MoreGeneralMixin::operator|(std::forward<T>(val)); }
 };
 
 } // end namespace detail
