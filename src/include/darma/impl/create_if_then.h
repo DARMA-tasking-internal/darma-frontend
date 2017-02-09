@@ -225,8 +225,10 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
       // now move the copies back *after* all of the if capture processing is
       // done, since it relies on pointers that the move ctor (might) change
       // or break
-      if_lambda_ = std::move(if_lambda_tmp);
-      then_task_.lambda_ = std::move(then_lambda_tmp);
+      if_lambda_.~IfLambda();
+      new (&if_lambda_) IfLambda(std::move(if_lambda_tmp));
+      then_task_.lambda_.~ThenLambda();
+      new (&then_task_.lambda_) ThenLambda(std::move(then_lambda_tmp));
       _do_restore_else_lambda(std::move(else_lambda_tmp));
 
       // Reset stuff
@@ -275,7 +277,8 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
         ElseLambda
       >&& else_lambda_tmp
     ) {
-      else_task_.lambda_ = std::move(else_lambda_tmp);
+      else_task_.lambda_.~ElseLambda();
+      new (&else_task_.lambda_) ElseLambda(std::move(else_lambda_tmp));
     };
 
     void
@@ -474,7 +477,8 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
           ThenLambda then_lambda_tmp = then_task_.lambda_;
 
           // Then move it back
-          then_task_.lambda_ = std::move(then_lambda_tmp);
+          then_task_.lambda_.~ThenLambda();
+          new (&then_task_.lambda_) ThenLambda(std::move(then_lambda_tmp));
         }
 
         parent_task->current_create_work_context = nullptr;
@@ -514,11 +518,13 @@ struct IfLambdaThenLambdaTask : public darma_runtime::detail::TaskBase {
       current_stage = ElseCopyForElse;
       is_double_copy_capture = false; // since source context may no longer be valid
 
-      // Invoke the copy ctor
-      auto else_lambda_tmp = _do_copy_else_lambda();
+      {
+        // Invoke the copy ctor
+        auto else_lambda_tmp = _do_copy_else_lambda();
 
-      // Then move it back
-      _do_restore_else_lambda(std::move(else_lambda_tmp));
+        // Then move it back
+        _do_restore_else_lambda(std::move(else_lambda_tmp));
+      }
 
       parent_task->current_create_work_context = nullptr;
 

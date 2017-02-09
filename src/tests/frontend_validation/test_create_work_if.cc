@@ -219,6 +219,7 @@ TEST_F(TestCreateWorkIf, basic_different_always_true) {
   EXPECT_RELEASE_USE(cond_use);
   EXPECT_RELEASE_USE(cap_if_use);
   EXPECT_RELEASE_USE(cap_then_cont_use);
+
   EXPECT_FLOW_ALIAS(f_cap_cont, f_cap_if_out);
 
   run_one_task();
