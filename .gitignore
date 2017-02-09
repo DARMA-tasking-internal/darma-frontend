@@ -232,3 +232,4 @@ darma_region_demo.cc
 reduce_op_sketch.cc
 queue_*_tests.zsh
 examples/scratch
+examples
