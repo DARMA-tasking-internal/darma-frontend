@@ -77,6 +77,56 @@ using namespace darma_runtime::experimental;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+TEST_F(TestCreateWorkIf, basic_same_always_false) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_null, f_if_out
+  );
+  use_t* if_use = nullptr;
+
+  int value = 0;
+
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+    .WillOnce(Return(f_if_out));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Read, value);
+
+  EXPECT_REGISTER_TASK(if_use);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp = initial_access<int>("hello");
+
+    create_work_if([=]{
+      return tmp.get_value() != 0; // should always be False
+    }).then_([=]{
+      tmp.set_value(73);
+      FAIL() << "Ran then clause when if should have been false";
+    });
+
+  }
+  //============================================================================
+
+
+  EXPECT_RELEASE_USE(if_use);
+
+  run_all_tasks();
+
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestCreateWorkIf, basic_same_always_true) {
   using namespace darma_runtime;
   using namespace ::testing;
@@ -111,6 +161,84 @@ TEST_F(TestCreateWorkIf, basic_same_always_true) {
     create_work_if([=]{
       return tmp.get_value() == 0; // should always be true
     }).then_([=]{
+      tmp.set_value(73);
+    });
+
+  }
+  //============================================================================
+
+  {
+    InSequence seq;
+
+    // TODO decide if this should be a forwarding flow call
+    EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+      .WillOnce(Return(f_then_out));
+
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, Modify, Modify, value);
+
+    EXPECT_RELEASE_USE(if_use);
+
+    EXPECT_REGISTER_TASK(then_use);
+  }
+
+  // TODO eventually get rid of these next two calls
+  EXPECT_FLOW_ALIAS(f_then_out, f_if_out);
+
+  ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));
+
+  run_one_task();
+
+  ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));
+
+  EXPECT_RELEASE_USE(then_use);
+
+  run_one_task();
+
+  EXPECT_THAT(value, Eq(73));
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWorkIf, basic_same_always_true_functor) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_null, f_if_out, f_then_fwd, f_then_out
+  );
+  use_t* if_use = nullptr;
+  use_t* then_use = nullptr;
+
+  int value = 0;
+
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+    .WillOnce(Return(f_if_out));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Read, value);
+
+  EXPECT_REGISTER_TASK(if_use);
+
+  //============================================================================
+  // actual code being tested
+  {
+    struct IfFunctor {
+      bool operator()(
+        int const& v
+      ) const {
+        return v == 0; // should always be true
+      }
+    };
+
+    auto tmp = initial_access<int>("hello");
+
+    create_work_if<IfFunctor>(tmp).then_([=]{
       tmp.set_value(73);
     });
 
@@ -321,3 +449,150 @@ TEST_F(TestCreateWorkIf, if_else_same_different_always_true) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+// TODO make this and the next one into a parameterized test
+TEST_F(TestCreateWorkIf, if_else_same_same_always_true) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_null, f_if_out, f_then_fwd, f_then_out
+  );
+  use_t* if_use = nullptr;
+  use_t* then_use = nullptr;
+
+  int value = 0;
+
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+    .WillOnce(Return(f_if_out));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Read, value);
+
+  EXPECT_REGISTER_TASK(if_use);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp = initial_access<int>("hello");
+
+    create_work_if([=]{
+      return tmp.get_value() == 0; // should always be true
+    }).then_([=]{
+      tmp.set_value(73);
+    }).else_([=]{
+      tmp.set_value(42);
+    });
+
+  }
+  //============================================================================
+
+  {
+    InSequence seq;
+
+    EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+      .WillOnce(Return(f_then_out));
+
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, Modify, Modify, value);
+
+    EXPECT_RELEASE_USE(if_use);
+
+    EXPECT_REGISTER_TASK(then_use);
+
+  }
+
+  EXPECT_FLOW_ALIAS(f_then_out, f_if_out);
+
+  ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));
+
+  run_one_task();
+
+  ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));
+
+  EXPECT_RELEASE_USE(then_use);
+
+  run_one_task();
+
+  EXPECT_THAT(value, Eq(73));
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWorkIf, if_else_same_same_always_false) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_null, f_if_out, f_then_fwd, f_then_out
+  );
+  use_t* if_use = nullptr;
+  use_t* then_use = nullptr;
+
+  int value = 0;
+
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+    .WillOnce(Return(f_if_out));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Read, value);
+
+  EXPECT_REGISTER_TASK(if_use);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp = initial_access<int>("hello");
+
+    create_work_if([=]{
+      return tmp.get_value() != 0; // should always be false
+    }).then_([=]{
+      tmp.set_value(73);
+    }).else_([=]{
+      tmp.set_value(42);
+    });
+
+  }
+  //============================================================================
+
+  {
+    InSequence seq;
+
+    EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+      .WillOnce(Return(f_then_out));
+
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, Modify, Modify, value);
+
+    EXPECT_RELEASE_USE(if_use);
+
+    EXPECT_REGISTER_TASK(then_use);
+
+  }
+
+  EXPECT_FLOW_ALIAS(f_then_out, f_if_out);
+
+  ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));
+
+  run_one_task();
+
+  ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));
+
+  EXPECT_RELEASE_USE(then_use);
+
+  run_one_task();
+
+  EXPECT_THAT(value, Eq(42));
+
+}

@@ -60,7 +60,7 @@ template <
   typename UseMaker,
   typename NextFlowMaker,
   typename ContinuingUseMaker,
-  typename AllowRegisterContinuationIntegralConstantType
+  typename AllowRegisterContinuationIntegralConstantType=std::true_type
 >
 auto make_captured_use_holder(
   std::shared_ptr<VariableHandleBase> const& var_handle,
