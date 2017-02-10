@@ -466,7 +466,7 @@ TEST_F(TestCreateWork, handle_aliasing) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow finit, fnull, fcapt;
+  DECLARE_MOCK_FLOWS(finit, fnull, fcapt);
   use_t* use_capt;
 
   EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));

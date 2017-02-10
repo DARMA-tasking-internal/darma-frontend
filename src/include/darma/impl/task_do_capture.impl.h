@@ -60,7 +60,7 @@ namespace darma_runtime {
 
 namespace detail {
 
-inline void
+inline bool
 TaskBase::do_capture_checks(
   AccessHandleBase const& source_and_continuing
 ) {
@@ -77,13 +77,18 @@ TaskBase::do_capture_checks(
 
   bool check_aliasing = source_and_continuing.current_use_->use.use_->already_captured;
 
+  DARMA_ASSERT_MESSAGE(
+    (source_and_continuing.captured_as_ & AccessHandleBase::Ignored) == 0,
+    "Something went wrong; ignored bit no longer used"
+  );
+
   if(check_aliasing) {
     if(allowed_aliasing and allowed_aliasing->aliasing_is_allowed_for(
       source_and_continuing, this
     )) {
       // Short-circuit rather than capturing twice...
       // TODO get the maximum permissions and pass those on
-      return;
+      return true; // trigger the short circuit
     }
     else {
       // Unallowed alias...
@@ -102,10 +107,8 @@ TaskBase::do_capture_checks(
     }
   }
 
-  DARMA_ASSERT_MESSAGE(
-    (source_and_continuing.captured_as_ & AccessHandleBase::Ignored) == 0,
-    "Something went wrong; ignored bit no longer used"
-  );
+
+  return false;
 
 }
 
@@ -115,7 +118,7 @@ TaskBase::do_capture(
   AccessHandleBase const& source_and_continuing
 ) {
 
-  do_capture_checks(source_and_continuing);
+  if(do_capture_checks(source_and_continuing)) return;
 
   source_and_continuing.captured_as_ |= default_capture_as_info;
 

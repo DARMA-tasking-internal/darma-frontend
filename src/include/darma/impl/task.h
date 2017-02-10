@@ -156,7 +156,7 @@ class TaskBase : public abstract::frontend::Task
       dependencies_.insert(&use);
     }
 
-    void
+    bool
     do_capture_checks(
       AccessHandleBase const& source_and_continuing
     );
