@@ -564,7 +564,7 @@ auto make_captured_use_holder(
 
       DARMA_ASSERT_MESSAGE(
         source_and_continuing_holder->use.scheduling_permissions_ == HandleUse::Modify,
-        "Can't schedule a read on a handle without Modify schedule permissions"
+        "Can't schedule a modify on a handle without Modify schedule permissions"
       );
 
       switch(source_and_continuing_holder->use.immediate_permissions_) {

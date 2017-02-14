@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      create_if_then_fwd.h
+//                      create_work_fwd.h.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,24 +42,22 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_CREATE_IF_THEN_FWD_H
-#define DARMA_IMPL_CREATE_IF_THEN_FWD_H
+#ifndef DARMA_IMPL_CREATE_WORK_FWD_H
+#define DARMA_IMPL_CREATE_WORK_FWD_H
 
-#include <tuple>
+#include "handle_fwd.h"
 
 namespace darma_runtime {
 namespace detail {
 
 template <
-  typename IfLambda, typename IfArgsTuple, bool IfIsLambda,
-  typename ThenLambda, typename ThenArgsTuple, bool ThenIsLambda,
-  typename ElseLambda=void, typename ElseArgsTuple=std::tuple<>, bool ElseIsLambda=false
+  typename AccessHandleT,
+  AccessHandlePermissions SchedulingDowngrade = AccessHandlePermissions::NotGiven,
+  AccessHandlePermissions ImmediateDowngrade = AccessHandlePermissions::NotGiven
 >
-struct IfLambdaThenLambdaTask;
-
-struct ParsedCaptureOptions;
+struct PermissionsDowngradeDescription;
 
 } // end namespace detail
 } // end namespace darma_runtime
 
-#endif //DARMA_IMPL_CREATE_IF_THEN_FWD_H
+#endif //DARMA_IMPL_CREATE_WORK_FWD_H

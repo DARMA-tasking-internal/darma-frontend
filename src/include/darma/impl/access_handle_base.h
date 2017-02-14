@@ -70,8 +70,7 @@ class AccessHandleBase {
       Normal = 0,
       Ignored = 1,
       ReadOnly = 2,
-      // Future use:
-        ScheduleOnly = 4,
+      ScheduleOnly = 4,
       Leaf = 8
     } captured_as_info_t;
 
@@ -88,8 +87,9 @@ class AccessHandleBase {
     std::shared_ptr<VariableHandleBase> var_handle_base_;
 
     friend class TaskBase;
-    template <typename, typename, bool, typename, typename>
+    template <typename, typename, bool, typename, typename, bool, typename, typename, bool>
     friend class darma_runtime::detail::IfLambdaThenLambdaTask;
+    friend class ParsedCaptureOptions;
 
     // Copy the concrete object instance
     virtual std::shared_ptr<AccessHandleBase> copy(bool check_context = true) const =0;

@@ -349,7 +349,7 @@ using decayed_is_index_range = is_index_range<std::decay_t<Arg>>;
 
 } // end namespace detail
 
-template <typename Functor, typename... Args>
+template <typename FunctorWrapper, typename... Args>
 auto
 create_concurrent_region(Args&&... args) {
   using namespace darma_runtime::detail;
@@ -381,7 +381,7 @@ create_concurrent_region(Args&&... args) {
         variadic_arguments_begin_tag,
         auto&&... args
       ) {
-        detail::_do_register_concurrent_region<Functor>(
+        detail::_do_register_concurrent_region<FunctorWrapper>(
           std::forward<decltype(index_range)>(index_range),
           get_mapping_to_dense(index_range), // not forwarded because the
                                              // function get_mapping_to_dense

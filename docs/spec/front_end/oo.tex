@@ -407,8 +407,8 @@ struct MyClassDARMA_method<bart>
 \texttt{deferred}}
 
 By default, calling a method on an instance of a DARMA class enqueues a deferred
-invocation of that method --- analogous to calling |create_work<Functor>(...)|
-instead of |Functor()(...)|.  When a DARMA method requests the appropriate
+invocation of that method --- analogous to calling |create_work<FunctorWrapper>(...)|
+instead of |FunctorWrapper()(...)|.  When a DARMA method requests the appropriate
 permissions to do so (e.g., member access on the callee must be a subset of
 member access on the caller, etc.), however, it can also make an immediate call
 to another method in the same class.  To do so, simply prefix the method

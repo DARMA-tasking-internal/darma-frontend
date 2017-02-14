@@ -54,15 +54,125 @@
 #include <darma/interface/app/create_work.h>
 #include <darma/impl/capture.h>
 #include <darma/impl/handle.h>
+#include <darma/impl/create_work_fwd.h>
 
 
-
-// TODO Functor version
+// TODO Don't create a task (and generate a warning?) if there are no captures in the if clause
 
 namespace darma_runtime {
 
 namespace detail {
 
+struct _not_a_lambda { };
+
+struct ParsedCaptureOptions {
+
+  using permissions_downgrade_map_t = std::unordered_map<
+    types::key_t, HandleUse::permissions_t,
+    typename key_traits<types::key_t>::hasher,
+    typename key_traits<types::key_t>::key_equal
+  >;
+
+  HandleUse::permissions_t default_immediate_permissions;
+  HandleUse::permissions_t default_scheduling_permissions;
+
+  permissions_downgrade_map_t scheduling_permissions_downgrades;
+  permissions_downgrade_map_t immediate_permissions_downgrades;
+
+  template <typename PermissionsDowngradeT>
+  int _process_downgrade_option(
+    PermissionsDowngradeT&& downgrade
+  ) {
+    auto sched_perms = downgrade.get_requested_scheduling_permissions(
+      default_scheduling_permissions
+    );
+    if(sched_perms != default_scheduling_permissions) {
+      scheduling_permissions_downgrades.insert(
+        std::make_pair(downgrade.handle.get_key(), sched_perms)
+      );
+    }
+    auto immed_perms = downgrade.get_requested_immediate_permissions(
+      default_immediate_permissions
+    );
+    if(immed_perms != default_immediate_permissions) {
+      immediate_permissions_downgrades.insert(
+        std::make_pair(downgrade.handle.get_key(), immed_perms)
+      );
+    }
+    return 0; // sentinel returned to std::forward_as_tuple
+  };
+
+  // Splat any tuples we get...
+  template <
+    typename... Options,
+    size_t... Idxs
+  >
+  auto _process_option(
+    std::tuple<Options...>&& downgrades,
+    std::integer_sequence<size_t, Idxs...>
+  ) {
+    return std::make_tuple( // return value ignored
+      this->_process_downgrade_option(
+        std::get<Idxs>(std::move(downgrades))
+      )...
+    );
+  }
+
+  template <
+    typename... Args,
+    size_t... Idxs
+  >
+  ParsedCaptureOptions(
+    HandleUse::permissions_t in_default_immediate_permissions,
+    HandleUse::permissions_t in_default_scheduling_permissions,
+    std::tuple<Args...>&& args,
+    std::integer_sequence<size_t, Idxs...>
+  ) : default_scheduling_permissions(in_default_scheduling_permissions),
+      default_immediate_permissions(in_default_immediate_permissions)
+  {
+    // TODO process name=...
+    std::make_tuple( // ignored return value
+      _process_option(
+        std::get<Idxs>(std::move(args)),
+        meta::tuple_indices_for(args)
+      )...
+    );
+  }
+
+  ParsedCaptureOptions(ParsedCaptureOptions&&) = default;
+
+
+  HandleUse::permissions_t
+  get_requested_immediate_permissions(
+    AccessHandleBase const& handle
+  ) const {
+    auto found = immediate_permissions_downgrades.find(
+      handle.var_handle_base_->get_key()
+    );
+    if(found != immediate_permissions_downgrades.end()) {
+      return found->second;
+    }
+    else {
+      return default_immediate_permissions;
+    }
+  }
+
+  HandleUse::permissions_t
+  get_requested_scheduling_permissions(
+    AccessHandleBase const& handle
+  ) const {
+    auto found = scheduling_permissions_downgrades.find(
+      handle.var_handle_base_->get_key()
+    );
+    if(found != scheduling_permissions_downgrades.end()) {
+      return found->second;
+    }
+    else {
+      return default_scheduling_permissions;
+    }
+  }
+
+};
 
 //==============================================================================
 // <editor-fold desc="NestedThenElseLambdaTask"> {{{1
@@ -70,35 +180,106 @@ namespace detail {
 template <typename Lambda>
 struct NestedThenElseLambdaTask: public darma_runtime::detail::TaskBase {
 
+
   Lambda lambda_;
+  ParsedCaptureOptions capture_options_;
 
   NestedThenElseLambdaTask(NestedThenElseLambdaTask&& other)
     : TaskBase(std::move(other)),
-    lambda_(std::move(other.lambda_)) {}
+      lambda_(std::move(other.lambda_)),
+      capture_options_(std::move(other.capture_options_))
+  { }
 
-  explicit NestedThenElseLambdaTask(Lambda&& lambda)
-    : lambda_(std::move(lambda)) {}
+  template <typename... Args>
+  explicit NestedThenElseLambdaTask(
+    Lambda&& lambda,
+    std::tuple<>&&, // args, unused
+    std::tuple<Args...>&& options_args
+  ) : lambda_(std::move(lambda)),
+      capture_options_(
+        HandleUse::Modify, HandleUse::Modify,
+        std::move(options_args),
+        std::index_sequence_for<Args...>{}
+      )
+  { }
 
   void run() override {
     lambda_();
   }
+};
+
+template <typename FunctorWrapper, typename StoredArgsTuple>
+struct NestedThenElseFunctorTask: public darma_runtime::detail::TaskBase {
+
+  FunctorWrapper wrapper_;
+  ParsedCaptureOptions capture_options_;
+  StoredArgsTuple args_;
+
+  template <typename Task, typename ForwardedArgsTuple, typename ForwardedOptionsTuple>
+  explicit NestedThenElseFunctorTask(
+    Task& task,
+    ForwardedArgsTuple&& args,
+    ForwardedOptionsTuple&& // ignored, for now
+  ) : wrapper_(task), // this sets the mode
+      capture_options_(
+        HandleUse::Modify, HandleUse::Modify,
+        std::tuple<>(), std::make_index_sequence<0>{} // for now, don't parse the arguments for downgrades
+      ),
+      args_(std::forward<ForwardedArgsTuple>(args))
+  { }
+
+  template <size_t... Idxs>
+  void
+  _run_helper(std::integer_sequence<size_t, Idxs...>) {
+    using functor_traits_t = functor_call_traits<
+      typename FunctorWrapper::functor_t, std::tuple_element_t<Idxs, StoredArgsTuple>...
+    >;
+    typename FunctorWrapper::functor_t{}(
+      typename functor_traits_t::template call_arg_traits<Idxs>{}.get_converted_arg(
+        std::get<Idxs>(std::move(args_))
+      )...
+    );
+  }
+
+  void
+  run() override {
+    _run_helper(
+      std::make_index_sequence<std::tuple_size<StoredArgsTuple>::value>{}
+    );
+  }
+
+  _not_a_lambda lambda_; // for now
 
 };
 
 template <>
 struct NestedThenElseLambdaTask<void> {
+  NestedThenElseLambdaTask() = default;
+  template <typename Ignored>
+  explicit NestedThenElseLambdaTask(
+    Ignored&&, std::tuple<>&&, std::tuple<>&&
+  ) { }
 };
 
 // </editor-fold> end NestedThenElseLambdaTask }}}1
 //==============================================================================
 
 
-struct _not_a_lambda { };
+typedef enum IfThenElseCaptureStage {
+  Unknown,
+  IfCopy,
+  ThenCopyForIf,
+  ElseCopyForIf,
+  ThenCopyForThen,
+  ElseCopyForElse,
+  ThenCopyForIfAndThen,
+  ElseCopyForIfAndElse
+} if_then_else_capture_stage_t;
 
-template <typename Functor>
+template <typename Functor, IfThenElseCaptureStage Stage>
 struct WrappedFunctorHelper {
 
-  // TODO argument mismatch error messages
+  // TODO better argument mismatch error messages
 
   using functor_t = Functor;
 
@@ -114,7 +295,7 @@ struct WrappedFunctorHelper {
     );
     parent_task->current_create_work_context = &task;
 
-    task.current_stage = TaskT::IfCopy;
+    task.current_stage = Stage;
     task.is_double_copy_capture = false;
   }
 
@@ -130,21 +311,30 @@ struct WrappedFunctorHelper {
 
 template <
   typename IfCallable, typename IfArgsTuple, bool IfIsLambda,
-  typename ThenLambda, typename ElseLambda /* =void*/>
+  typename ThenLambda, typename ThenArgsTuple, bool ThenIsLambda,
+  typename ElseLambda /* =void*/,
+  typename ElseArgsTuple /*=std::tuple<>*/,
+  bool ElseIsLambda /* = false */
+>
 struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
 
   public:
 
-    using then_task_t = NestedThenElseLambdaTask<ThenLambda>;
-    using else_task_t = NestedThenElseLambdaTask<ElseLambda>;
+    using then_task_t = typename std::conditional_t<
+      ThenIsLambda,
+      typename tinympl::lazy<NestedThenElseLambdaTask>
+        ::template instantiated_with<ThenLambda>,
+      tinympl::lazy<NestedThenElseFunctorTask>
+        ::template instantiated_with<ThenLambda, ThenArgsTuple>
+    >::type;
+    using else_task_t = typename std::conditional_t<
+      ElseIsLambda or std::is_void<ElseLambda>::value,
+      typename tinympl::lazy<NestedThenElseLambdaTask>
+        ::template instantiated_with<ElseLambda>,
+      tinympl::lazy<NestedThenElseFunctorTask>
+        ::template instantiated_with<ElseLambda, ElseArgsTuple>
+    >::type;
 
-    typedef enum CaptureStage {
-      IfCopy,
-      ThenCopyForIf,
-      ElseCopyForIf,
-      ThenCopyForThen,
-      ElseCopyForElse
-    } capture_stage_t;
 
     struct CaptureDescription {
       AccessHandleBase const* source_and_continuing = nullptr;
@@ -157,6 +347,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
       std::vector<std::shared_ptr<UseHolder>*> uses_to_set;
     };
 
+
     using if_capture_map_t = std::unordered_map<
       types::key_t, CaptureDescription,
       typename key_traits<types::key_t>::hasher,
@@ -165,15 +356,19 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
 
     // Member order is important here! (for initialization purposes)
 
-    capture_stage_t current_stage;
+    if_then_else_capture_stage_t current_stage = IfThenElseCaptureStage::Unknown;
+    std::vector<AccessHandleBase*> delayed_then_capture_handles_;
+    std::vector<AccessHandleBase*> delayed_else_capture_handles_;
 
     if_capture_map_t if_captures_;
+    ParsedCaptureOptions if_options_;
 
-    IfCallable if_callable_;
+    IfCallable if_callable_; // must be before if_args_!!!
     IfArgsTuple if_args_;
 
     then_task_t then_task_;
     else_task_t else_task_;
+
 
     using captured_handle_map_t = std::unordered_map<
       types::key_t, std::shared_ptr<AccessHandleBase>,
@@ -184,12 +379,12 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
     captured_handle_map_t implicit_if_captured_handles;
     captured_handle_map_t explicit_if_captured_handles;
 
-    template <typename _SFINAE_only=void>
+    template <typename IfCallableIn, typename _SFINAE_only=void>
     std::enable_if_t<
       IfIsLambda and std::is_void<_SFINAE_only>::value,
       IfCallable
     >
-    _do_if_capture(std::true_type) {
+    _do_if_capture(IfCallableIn&& if_callable_in, std::true_type) {
 
       auto* parent_task = static_cast<darma_runtime::detail::TaskBase*>(
         abstract::backend::get_backend_context()->get_running_task()
@@ -200,21 +395,22 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
       is_double_copy_capture = true;
       current_stage = IfCopy;
 
-      // trigger copy ctors
-      return if_callable_;
+      // trigger copy ctors (by not doing perfect forwarding here)
+      return if_callable_in;
     }
 
-    template <typename _SFINAE_only=void>
+    template <typename IfCallableIn, typename _SFINAE_only=void>
     std::enable_if_t<
       not IfIsLambda and std::is_void<_SFINAE_only>::value,
-      _not_a_lambda
+      IfCallable
     >
-    _do_if_capture(std::false_type) {
+    _do_if_capture(IfCallableIn&& forward_to_return_value, std::false_type) {
 
       // The actual capture happened when the if_args_ member is constructed,
-      // so there's nothing to do here.
+      // so there's nothing to do here except forward to the WrappedFunctor
+      // ctor that sets up the state
 
-      return _not_a_lambda{};
+      return std::forward<IfCallableIn>(forward_to_return_value);
     }
 
     //--------------------------------------------------------------------------
@@ -223,85 +419,261 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // <editor-fold desc="forwarding Ctors"> {{{2
 
-    template <typename ThenHelper>
+    // If part, IfIsLambda = false
+    template <typename ThenHelper, typename _SFINAE_only=void>
     IfLambdaThenLambdaTask(
       ThenHelper&& helper,
       std::enable_if_t<
-        std::is_void<typename std::decay_t<ThenHelper>::else_lambda_t>::value
-          and std::is_void<ElseLambda>::value
-          and not IfIsLambda,
+          not IfIsLambda
+            and std::is_void<_SFINAE_only>::value,
         int
       > = 0
     ) : IfLambdaThenLambdaTask(
           *this,
-          std::move(helper.if_helper.args_fwd_tup_),
-          std::move(helper.then_lambda),
-          else_task_t{}
+          std::move(helper.then_helper.if_helper_.args_fwd_tup_),
+          std::move(helper.then_helper.if_helper_.task_details_args_),
+          std::forward<ThenHelper>(helper)
         )
     { /* Forwarding constructor, body must be empty */ }
 
-    template <typename ThenHelper>
+    // If part, IfIsLambda = true
+    template <typename ThenHelper, typename _SFINAE_only=void>
     IfLambdaThenLambdaTask(
       ThenHelper&& helper,
       std::enable_if_t<
-        std::is_void<typename std::decay_t<ThenHelper>::else_lambda_t>::value
-          and std::is_void<ElseLambda>::value
-          and IfIsLambda,
+        IfIsLambda
+          and std::is_void<_SFINAE_only>::value,
         int
       > = 0
     ) : IfLambdaThenLambdaTask(
-          std::move(helper.if_helper.func),
-          std::move(helper.if_helper.args_fwd_tup_),
-          std::move(helper.then_lambda),
-          else_task_t{}
+          std::move(helper.then_helper.if_helper_.func),
+          std::move(helper.then_helper.if_helper_.args_fwd_tup_),
+          std::move(helper.then_helper.if_helper_.task_details_args_),
+          std::forward<ThenHelper>(helper)
         )
     { /* Forwarding constructor, body must be empty */ }
 
-    template <typename ElseHelper>
+    // Then part, ThenIsLambda = false
+    template <
+      typename IfCallableIn, typename IfArgsForwarded,
+      typename ThenHelper, typename _SFINAE_only=void,
+      typename... IfTaskOptions
+    >
     IfLambdaThenLambdaTask(
-      ElseHelper&& else_helper,
+      IfCallableIn&& if_lambda, IfArgsForwarded&& if_args,
+      std::tuple<IfTaskOptions...>&& if_capture_options,
+      ThenHelper&& helper,
       std::enable_if_t<
-        not std::is_void<typename std::decay_t<ElseHelper>::else_lambda_t>::value
-          and not std::is_void<ElseLambda>::value,
+          not ThenIsLambda
+            and std::is_void<_SFINAE_only>::value,
         int
       > = 0
     ) : IfLambdaThenLambdaTask(
-          std::move(else_helper.then_helper.if_helper.func),
-          std::move(else_helper.then_helper.if_helper.args_fwd_tup_),
-          std::move(else_helper.then_helper.then_lambda),
-          std::move(else_helper.else_lambda)
+          std::forward<IfCallableIn>(if_lambda),
+          std::forward<IfArgsForwarded>(if_args),
+          std::move(if_capture_options),
+          *this,
+          std::move(helper.then_helper.args_fwd_tup_),
+          std::move(helper.then_helper.task_details_args_),
+          std::forward<ThenHelper>(helper)
         )
     { /* Forwarding constructor, body must be empty */ }
+
+    // Then part, ThenIsLambda = true
+    template <
+      typename IfCallableIn, typename IfArgsForwarded,
+      typename ThenHelper, typename _SFINAE_only=void,
+      typename... IfTaskOptions
+    >
+    IfLambdaThenLambdaTask(
+      IfCallableIn&& if_lambda, IfArgsForwarded&& if_args,
+      std::tuple<IfTaskOptions...>&& if_capture_options,
+      ThenHelper&& helper,
+      std::enable_if_t<
+        ThenIsLambda
+          and std::is_void<_SFINAE_only>::value,
+        int
+      > = 0
+    ) : IfLambdaThenLambdaTask(
+          std::forward<IfCallableIn>(if_lambda),
+          std::forward<IfArgsForwarded>(if_args),
+          std::move(if_capture_options),
+          std::move(helper.then_helper.then_lambda),
+          std::move(helper.then_helper.args_fwd_tup_),
+          std::move(helper.then_helper.task_details_args_),
+          std::forward<ThenHelper>(helper)
+        )
+    { /* Forwarding constructor, body must be empty */ }
+
+
+    // Else is void
+    template <
+      typename IfCallableIn, typename IfArgsForwarded,
+      typename ThenCallableIn, typename ThenArgsForwarded,
+      typename ThenTaskOptionsTuple, typename Helper,
+      typename _SFINAE_only = void,
+      typename... IfTaskOptions
+    >
+    IfLambdaThenLambdaTask(
+      IfCallableIn&& if_lambda, IfArgsForwarded&& if_args,
+      std::tuple<IfTaskOptions...>&& if_capture_options,
+      ThenCallableIn&& then_lambda, ThenArgsForwarded&& then_args,
+      ThenTaskOptionsTuple&& then_task_options_tup,
+      Helper&&,
+      std::enable_if_t<
+        std::is_void<ElseLambda>::value
+          and std::is_void<_SFINAE_only>::value,
+        int
+      > = 0
+    ) : IfLambdaThenLambdaTask(
+          std::forward<IfCallableIn>(if_lambda),
+          std::forward<IfArgsForwarded>(if_args),
+          std::move(if_capture_options),
+          std::forward<ThenCallableIn>(then_lambda),
+          std::forward<ThenArgsForwarded>(then_args),
+          std::forward<ThenTaskOptionsTuple>(then_task_options_tup),
+          else_task_t{}, std::tuple<>{}, std::tuple<>{}
+        )
+    { /* Forwarding constructor, body must be empty */ }
+
+    // Else is not void, but is a lambda
+    template <
+      typename IfCallableIn, typename IfArgsForwarded,
+      typename ThenCallableIn, typename ThenArgsForwarded,
+      typename ThenTaskOptionsTuple, typename Helper,
+      typename _SFINAE_only = void,
+      typename... IfTaskOptions
+    >
+    IfLambdaThenLambdaTask(
+      IfCallableIn&& if_lambda, IfArgsForwarded&& if_args,
+      std::tuple<IfTaskOptions...>&& if_capture_options,
+      ThenCallableIn&& then_lambda, ThenArgsForwarded&& then_args,
+      ThenTaskOptionsTuple&& then_task_options_tup,
+      Helper&& helper,
+      std::enable_if_t<
+        not std::is_void<ElseLambda>::value
+          and std::is_void<_SFINAE_only>::value
+          and ElseIsLambda,
+        int
+      > = 0
+    ) : IfLambdaThenLambdaTask(
+          std::forward<IfCallableIn>(if_lambda),
+          std::forward<IfArgsForwarded>(if_args),
+          std::move(if_capture_options),
+          std::forward<ThenCallableIn>(then_lambda),
+          std::forward<ThenArgsForwarded>(then_args),
+          std::forward<ThenTaskOptionsTuple>(then_task_options_tup),
+          std::move(helper.else_lambda),
+          std::tuple<>{},
+          std::move(helper.task_details_args_)
+        )
+    { /* Forwarding constructor, body must be empty */ }
+
+    // Else is not void, but is not a lambda
+    template <
+      typename IfCallableIn, typename IfArgsForwarded,
+      typename ThenCallableIn, typename ThenArgsForwarded,
+      typename ThenTaskOptionsTuple, typename Helper,
+      typename _SFINAE_only = void,
+      typename... IfTaskOptions
+    >
+    IfLambdaThenLambdaTask(
+      IfCallableIn&& if_lambda, IfArgsForwarded&& if_args,
+      std::tuple<IfTaskOptions...>&& if_capture_options,
+      ThenCallableIn&& then_lambda, ThenArgsForwarded&& then_args,
+      ThenTaskOptionsTuple&& then_task_options_tup,
+      Helper&& helper,
+      std::enable_if_t<
+        not std::is_void<ElseLambda>::value
+          and std::is_void<_SFINAE_only>::value
+          and not ElseIsLambda,
+        int
+      > = 0
+    ) : IfLambdaThenLambdaTask(
+          std::forward<IfCallableIn>(if_lambda),
+          std::forward<IfArgsForwarded>(if_args),
+          std::move(if_capture_options),
+          std::forward<ThenCallableIn>(then_lambda),
+          std::forward<ThenArgsForwarded>(then_args),
+          std::forward<ThenTaskOptionsTuple>(then_task_options_tup),
+          *this,
+          std::move(helper.args_fwd_tup_),
+          std::move(helper.task_details_args_)
+        )
+    { /* Forwarding constructor, body must be empty */ }
+
+
+//    template <typename ElseHelper>
+//    IfLambdaThenLambdaTask(
+//      ElseHelper&& else_helper,
+//      std::enable_if_t<
+//        not std::is_void<typename std::decay_t<ElseHelper>::else_lambda_t>::value
+//          and not std::is_void<ElseLambda>::value,
+//        int
+//      > = 0
+//    ) : IfLambdaThenLambdaTask(
+//          std::move(else_helper.then_helper.if_helper.func),
+//          std::move(else_helper.then_helper.if_helper.args_fwd_tup_),
+//          std::move(else_helper.then_helper.if_helper.task_details_args_),
+//          std::move(else_helper.then_helper.then_lambda),
+//          std::move(else_helper.then_helper.args_fwd_tup_),
+//          std::move(else_helper.then_helper.task_details_args_),
+//          std::move(else_helper.else_lambda),
+//          std::move(else_helper.task_details_args_)
+//        )
+//    { /* Forwarding constructor, body must be empty */ }
 
     // </editor-fold> end forwarding Ctors }}}2
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    template <typename IfCallableIn, typename IfArgsForwarded>
+    template <
+      typename IfCallableIn, typename IfArgsForwarded,
+      typename ThenCallableIn, typename ThenArgsForwarded, typename ThenTaskOptionsTuple,
+      typename ElseCallableIn, typename ElseArgsForwarded, typename ElseTaskOptionsTuple,
+      typename... IfTaskOptions
+    >
     IfLambdaThenLambdaTask(
-      IfCallableIn&& if_lambda,
-      IfArgsForwarded&& if_args,
-      ThenLambda&& then_lambda,
-      std::conditional_t<
-        std::is_void<ElseLambda>::value,
-        else_task_t,
-        ElseLambda
-      >&& else_lambda
-    ) : if_callable_(std::forward<IfCallableIn>(if_lambda)),
+      IfCallableIn&& if_lambda, IfArgsForwarded&& if_args,
+      std::tuple<IfTaskOptions...>&& if_capture_options,
+      ThenCallableIn&& then_lambda, ThenArgsForwarded&& then_args,
+      ThenTaskOptionsTuple&& then_task_options_tup,
+      ElseCallableIn&& else_lambda, ElseArgsForwarded&& else_args,
+      ElseTaskOptionsTuple&& else_task_options_tup
+    ) : if_options_(
+          HandleUse::Read,
+          HandleUse::Read,
+          std::move(if_capture_options),
+          std::index_sequence_for<IfTaskOptions...>{}
+        ),
+        if_callable_(
+          _do_if_capture(
+            std::forward<IfCallableIn>(if_lambda),
+            std::integral_constant<bool, IfIsLambda>{}
+          )
+        ),
         if_args_(std::forward<IfArgsForwarded>(if_args)),
-        then_task_(std::move(then_lambda)),
-        else_task_(std::move(else_lambda))
+        then_task_(
+          std::forward<ThenCallableIn>(then_lambda),
+          std::forward<ThenArgsForwarded>(then_args),
+          std::forward<ThenTaskOptionsTuple>(then_task_options_tup)
+        ),
+        else_task_(
+          std::forward<ElseCallableIn>(else_lambda),
+          std::forward<ElseArgsForwarded>(else_args),
+          std::forward<ElseTaskOptionsTuple>(else_task_options_tup)
+        )
     {
-      // Invoke the copy constructor of the if lambda
-      auto if_lambda_tmp = _do_if_capture(std::integral_constant<bool, IfIsLambda>{});
 
       // Now do a copy of the then lambda and capture the if part as schedule only
       current_stage = ThenCopyForIf;
-
-      // Invoke the copy ctor
-      ThenLambda then_lambda_tmp = then_task_.lambda_;
+      is_double_copy_capture = true; // since the functor version does nothing
+      auto then_lambda_tmp = _do_copy_then_lambda();
+      is_double_copy_capture = false; // reset the flag as soon as possible
 
       current_stage = ElseCopyForIf;
+      is_double_copy_capture = true; // since the functor version does nothing
       auto else_lambda_tmp = _do_copy_else_lambda();
+      is_double_copy_capture = false; // reset the flag as soon as possible
 
       // Now loop over the remaining if_captures (those not handle in the Then
       // copy mode) and do the capture on them
@@ -335,14 +707,10 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
       // now move the copies back *after* all of the if capture processing is
       // done, since it relies on pointers that the move ctor (might) change
       // or break
-      if_callable_.~IfCallable();
-      new(&if_callable_) IfCallable(std::move(if_lambda_tmp));
-      then_task_.lambda_.~ThenLambda();
-      new(&then_task_.lambda_) ThenLambda(std::move(then_lambda_tmp));
+      _do_restore_then_lambda(std::move(then_lambda_tmp));
       _do_restore_else_lambda(std::move(else_lambda_tmp));
 
       // Reset stuff
-      is_double_copy_capture = false;
       auto* parent_task = static_cast<darma_runtime::detail::TaskBase*>(
         abstract::backend::get_backend_context()->get_running_task()
       );
@@ -361,7 +729,48 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
     template <typename _SFINAE_only=void>
     std::enable_if_t<
       std::is_void<_SFINAE_only>::value
-        and std::is_void<ElseLambda>::value,
+        and not ThenIsLambda,
+      _not_a_lambda
+    >
+    _do_copy_then_lambda() { return _not_a_lambda{}; };
+
+
+    template <typename _SFINAE_only=void>
+    std::enable_if_t<
+      std::is_void<_SFINAE_only>::value
+        and ThenIsLambda,
+      ThenLambda
+    >
+    _do_copy_then_lambda() {
+      return then_task_.lambda_;
+    };
+
+    template <typename _SFINAE_only=void>
+    std::enable_if_t<
+      std::is_void<_SFINAE_only>::value
+        and not ThenIsLambda
+    >
+    _do_restore_then_lambda(
+      _not_a_lambda&&
+    ) {};
+
+    template <typename _SFINAE_only=void>
+    void
+    _do_restore_then_lambda(
+      std::enable_if_t<
+        std::is_void<_SFINAE_only>::value
+          and ThenIsLambda,
+        ThenLambda
+      >&& then_lambda_tmp
+    ) {
+      then_task_.lambda_.~ThenLambda();
+      new(&then_task_.lambda_) ThenLambda(std::move(then_lambda_tmp));
+    };
+
+    template <typename _SFINAE_only=void>
+    std::enable_if_t<
+      std::is_void<_SFINAE_only>::value
+        and not ElseIsLambda,
       _not_a_lambda
     >
     _do_copy_else_lambda() { return _not_a_lambda{}; };
@@ -370,7 +779,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
     template <typename _SFINAE_only=void>
     std::enable_if_t<
       std::is_void<_SFINAE_only>::value
-        and not std::is_void<ElseLambda>::value,
+        and ElseIsLambda,
       ElseLambda
     >
     _do_copy_else_lambda() {
@@ -380,7 +789,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
     template <typename _SFINAE_only=void>
     std::enable_if_t<
       std::is_void<_SFINAE_only>::value
-        and std::is_void<ElseLambda>::value
+        and not ElseIsLambda
     >
     _do_restore_else_lambda(
       _not_a_lambda&&
@@ -392,7 +801,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
     _do_restore_else_lambda(
       std::enable_if_t<
         std::is_void<_SFINAE_only>::value
-          and not std::is_void<ElseLambda>::value,
+          and ElseIsLambda,
         ElseLambda
       >&& else_lambda_tmp
     ) {
@@ -414,7 +823,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
     ) override {
 
       switch (current_stage) {
-        case IfCopy: {
+        case IfThenElseCaptureStage::IfCopy: {
 
           // Only do the capture checks on the if copy stage, since source
           // may not be valid in the ThenCopyForThen stage, and since "double copies"
@@ -435,21 +844,16 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
             desc.source_and_continuing = &source_and_continuing;
             desc.captured = &captured;
 
-            // TODO handle the ScheduleOnly flag
-            DARMA_ASSERT_MESSAGE(
-              (source_and_continuing.captured_as_
-                & AccessHandleBase::ScheduleOnly) == 0,
-              "ScheduleOnly flag handling not yet implemented for create_work_if"
-            );
-
-            desc.requested_immediate_permissions = HandleUse::Read;
+            desc.requested_immediate_permissions =
+              if_options_.get_requested_immediate_permissions(source_and_continuing);
 
             if((source_and_continuing.captured_as_ & AccessHandleBase::Leaf) != 0) {
               // This could still be upgraded by the then or else clauses, though
               desc.requested_schedule_permissions = HandleUse::None;
             }
             else {
-              desc.requested_schedule_permissions = HandleUse::Read;
+              desc.requested_schedule_permissions =
+                if_options_.get_requested_immediate_permissions(source_and_continuing);
             }
 
             desc.is_implicit_in_if = false;
@@ -461,25 +865,42 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
 
           break;
         }
-        case ThenCopyForIf:
-        case ElseCopyForIf: {
+        case IfThenElseCaptureStage::ThenCopyForIfAndThen:
+        case IfThenElseCaptureStage::ElseCopyForIfAndElse:
+        case IfThenElseCaptureStage::ThenCopyForIf:
+        case IfThenElseCaptureStage::ElseCopyForIf: {
 
-          // TODO !!! handle things captured in both then and else !!!
-
-          auto& desc = if_captures_[source_and_continuing.var_handle_base_->get_key()];
+          auto const& key = source_and_continuing.var_handle_base_->get_key();
+          auto& desc = if_captures_[key];
 
           desc.source_and_continuing = &source_and_continuing;
 
-          desc.requested_schedule_permissions =
-            HandleUse::Modify; // TODO look for permissions downgrades
+          HandleUse::permissions_t req_sched = HandleUse::None;
+          if(current_stage == IfThenElseCaptureStage::ThenCopyForIf
+            or current_stage == IfThenElseCaptureStage::ThenCopyForIfAndThen
+          ) {
+            req_sched = then_task_.capture_options_.get_requested_scheduling_permissions(
+              source_and_continuing
+            );
+            auto req_immed = then_task_.capture_options_.get_requested_immediate_permissions(
+              source_and_continuing
+            );
+            if(req_immed > req_sched) { req_sched = req_immed; }
+          }
+          else {
+            assert(
+              current_stage == IfThenElseCaptureStage::ElseCopyForIf
+              or current_stage == IfThenElseCaptureStage::ElseCopyForIfAndElse
+            );
+            req_sched = _get_else_required_permissions_for_if(
+              source_and_continuing,
+              std::is_void<ElseLambda>{}
+            );
+          }
 
-          //if((source_and_continuing.captured_as_ & AccessHandleBase::ReadOnly) != 0) {
-          //  desc.requested_schedule_permissions = HandleUse::Read;
-          //}
-          //else {
-          //  // this is a modify, so request schedule modify permissions here
-          //  desc.requested_schedule_permissions = HandleUse::Modify;
-          //}
+          if(req_sched > desc.requested_schedule_permissions) {
+            desc.requested_schedule_permissions = req_sched;
+          }
 
           if (not desc.captured_in_then_or_else) {
             if (desc.captured) {
@@ -493,8 +914,6 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
               // It's an "implicit" use in the if clause, so we need to store it
               desc.is_implicit_in_if = true;
 
-              auto const
-                & key = source_and_continuing.var_handle_base_->get_key();
               auto insertion_result = implicit_if_captured_handles.insert(
                 std::make_pair(key,
                   source_and_continuing.copy(/* check_context = */ false)
@@ -512,9 +931,16 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
 
           desc.captured_in_then_or_else = true;
 
+          if(current_stage == IfThenElseCaptureStage::ThenCopyForIfAndThen) {
+            delayed_then_capture_handles_.push_back(&captured);
+          }
+          else if(current_stage == IfThenElseCaptureStage::ElseCopyForIfAndElse) {
+            delayed_else_capture_handles_.push_back(&captured);
+          }
+
           break;
         }
-        case ThenCopyForThen: {
+        case IfThenElseCaptureStage::ThenCopyForThen: {
           // Be careful!!!!! source_and_continuing might not be valid
           // Do this elsewhere so that we don't accidentally access source_and_continuing
           do_capture_then_else_copy_for_then_else(captured,
@@ -523,11 +949,15 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
           );
           break;
         }
-        case ElseCopyForElse: {
+        case IfThenElseCaptureStage::ElseCopyForElse: {
           do_capture_then_else_copy_for_then_else(captured,
             else_task_,
             typename std::is_void<ElseLambda>::type{}
           );
+          break;
+        }
+        case IfThenElseCaptureStage::Unknown: {
+          DARMA_ASSERT_FAILURE("Unexpected capture in if_then_else_task");      // LCOV_EXCL_LINE
           break;
         }
       }
@@ -540,16 +970,48 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
 
     }
 
+    template <typename _SFINAE_only = void>
+    std::enable_if_t<
+      std::is_void<ElseLambda>::value
+        and std::is_void<_SFINAE_only>::value,
+      HandleUse::permissions_t
+    >
+    _get_else_required_permissions_for_if(
+      AccessHandleBase const&, std::true_type
+    ) const {
+      // Ignored
+      return HandleUse::None;
+    }
+
+    template <typename _SFINAE_only = void>
+    std::enable_if_t<
+      not std::is_void<ElseLambda>::value
+        and std::is_void<_SFINAE_only>::value,
+      HandleUse::permissions_t
+    >
+    _get_else_required_permissions_for_if(
+      AccessHandleBase const& source_and_continuing,
+      std::false_type
+    ) const {
+      auto req_sched = else_task_.capture_options_.get_requested_scheduling_permissions(
+        source_and_continuing
+      );
+      auto req_immed = else_task_.capture_options_.get_requested_immediate_permissions(
+        source_and_continuing
+      );
+      if(req_immed > req_sched) { req_sched = req_immed; }
+      return req_sched;
+    }
+
     template <typename ThenElseTask>
     void
     do_capture_then_else_copy_for_then_else(
       AccessHandleBase& captured,
       ThenElseTask& then_else_task,
-      std::false_type // ElseLambda is NOT void
+      std::false_type // ElseLambda is NOT void (or this is the ThenLambda version)
     ) {
       auto key = captured.var_handle_base_->get_key();
 
-      // TODO !!! make permission downgrades work!!!
       // TODO handle interaction with aliasing
 
       std::shared_ptr<AccessHandleBase> source_handle = nullptr;
@@ -569,19 +1031,21 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
 
       assert(source_handle.get() != nullptr);
 
-      // For now, assume modify-modify is requested
       captured.current_use_ = make_captured_use_holder<
         /* AllowRegisterContinuation = */ true
       >(
         captured.var_handle_base_,
-        HandleUse::Modify,
-        HandleUse::Modify,
+        then_else_task.capture_options_.get_requested_scheduling_permissions(
+          captured /* defaults to modify */
+        ),
+        then_else_task.capture_options_.get_requested_immediate_permissions(
+          captured /* defaults to modify */
+        ),
         source_handle->current_use_
       );
 
       then_else_task.add_dependency(captured.current_use_->use);
 
-      // But don't register the continuation use.
       // TODO keep this from even generating the continuation flow?!?
 
       // Tell the source (now continuing) handle to establish an alias
@@ -645,6 +1109,37 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
       );
     };
 
+    template <typename _SFINAE_only=void>
+    std::enable_if_t<
+      ThenIsLambda and std::is_void<_SFINAE_only>::value
+    >
+    _trigger_then_capture(std::true_type) {
+      current_stage = ThenCopyForThen;
+      is_double_copy_capture =
+        false; // since source context may no longer be valid
+
+      // Invoke the copy ctor
+      ThenLambda then_lambda_tmp = then_task_.lambda_;
+
+      // Then move it back
+      then_task_.lambda_.~ThenLambda();
+      new(&then_task_.lambda_) ThenLambda(std::move(then_lambda_tmp));
+    }
+
+    template <typename _SFINAE_only=void>
+    std::enable_if_t<
+      not ThenIsLambda and std::is_void<_SFINAE_only>::value
+    >
+    _trigger_then_capture(std::false_type) {
+      for(auto* cap_handle : delayed_then_capture_handles_) {
+        do_capture_then_else_copy_for_then_else(
+          *cap_handle,
+          then_task_,
+          std::false_type{} // then callable is not void
+        );
+      }
+      delayed_then_capture_handles_.clear();
+    }
 
     void run() override {
       if (_do_if_call(std::integral_constant<bool, IfIsLambda>{})) {
@@ -654,18 +1149,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
         );
         parent_task->current_create_work_context = this;
 
-        current_stage = ThenCopyForThen;
-        is_double_copy_capture =
-          false; // since source context may no longer be valid
-
-        {
-          // Invoke the copy ctor
-          ThenLambda then_lambda_tmp = then_task_.lambda_;
-
-          // Then move it back
-          then_task_.lambda_.~ThenLambda();
-          new(&then_task_.lambda_) ThenLambda(std::move(then_lambda_tmp));
-        }
+        _trigger_then_capture(std::integral_constant<bool, ThenIsLambda>{});
 
         parent_task->current_create_work_context = nullptr;
 
@@ -690,6 +1174,38 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
 
     template <typename _SFINAE_only=void>
     std::enable_if_t<
+      ElseIsLambda and std::is_void<_SFINAE_only>::value
+    >
+    _trigger_else_capture(std::true_type) {
+      current_stage = ElseCopyForElse;
+      is_double_copy_capture = false; // since source context may no longer be valid
+
+      // Invoke the copy ctor
+      auto else_lambda_tmp = _do_copy_else_lambda();
+
+      // Then move it back
+      _do_restore_else_lambda(std::move(else_lambda_tmp));
+    }
+
+    template <typename _SFINAE_only=void>
+    std::enable_if_t<
+      not ElseIsLambda
+        and not std::is_void<ElseLambda>::value
+        and std::is_void<_SFINAE_only>::value
+    >
+    _trigger_else_capture(std::false_type) {
+      for(auto* cap_handle : delayed_else_capture_handles_) {
+        do_capture_then_else_copy_for_then_else(
+          *cap_handle,
+          else_task_,
+          std::false_type{} // else callable is not void
+        );
+      }
+      delayed_else_capture_handles_.clear();
+    }
+
+    template <typename _SFINAE_only=void>
+    std::enable_if_t<
       std::is_void<_SFINAE_only>::value
         and not std::is_void<ElseLambda>::value
     >
@@ -700,17 +1216,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
       );
       parent_task->current_create_work_context = this;
 
-      current_stage = ElseCopyForElse;
-      is_double_copy_capture =
-        false; // since source context may no longer be valid
-
-      {
-        // Invoke the copy ctor
-        auto else_lambda_tmp = _do_copy_else_lambda();
-
-        // Then move it back
-        _do_restore_else_lambda(std::move(else_lambda_tmp));
-      }
+      _trigger_else_capture(std::integral_constant<bool, ElseIsLambda>{});
 
       parent_task->current_create_work_context = nullptr;
 
@@ -742,7 +1248,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
     }
 
 
-    template <typename>
+    template <typename, IfThenElseCaptureStage>
     friend struct WrappedFunctorHelper;
 };
 
@@ -762,6 +1268,9 @@ struct _create_work_then_helper;
 template <typename...>
 struct _create_work_if_helper;
 
+//------------------------------------------------------------------------------
+// <editor-fold desc="create_work_else_helper, lambda version"> {{{2
+
 template <typename ThenHelper, typename Lambda, typename... Args>
 struct _create_work_else_helper<
   ThenHelper, meta::nonesuch, tinympl::vector<Args...>, Lambda
@@ -772,9 +1281,10 @@ struct _create_work_else_helper<
       ThenHelper&& then_helper,
       Args&& ... args,
       Lambda&& else_lambda_in
-    )
-      : then_helper(std::move(then_helper)),
-      else_lambda(std::move(else_lambda_in)) {}
+    ) : then_helper(std::move(then_helper)),
+        task_details_args_(std::forward<Args>(args)...),
+        else_lambda(std::move(else_lambda_in))
+    { }
 
     using then_lambda_t = typename ThenHelper::then_lambda_t;
     using else_lambda_t = Lambda;
@@ -782,15 +1292,20 @@ struct _create_work_else_helper<
 
     ThenHelper then_helper;
     Lambda else_lambda;
+    std::tuple<Args&&...> task_details_args_;
+    std::tuple<> args_fwd_tup_;
 
     ~_create_work_else_helper() {
       std::unique_ptr<abstract::frontend::Task>
         if_then_else_task = std::make_unique<
         IfLambdaThenLambdaTask<
-          typename if_helper_t::lambda_t, std::tuple<>,
+          typename if_helper_t::lambda_t,
+          typename if_helper_t::args_tuple_t,
           if_helper_t::is_lambda_callable,
           then_lambda_t,
-          Lambda
+          typename ThenHelper::args_tuple_t,
+          ThenHelper::is_lambda_callable,
+          Lambda, std::tuple<>, true
         >
       >(
         std::move(*this)
@@ -802,6 +1317,70 @@ struct _create_work_else_helper<
 
 };
 
+// </editor-fold> end create_work_else_helper, lambda version }}}2
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// <editor-fold desc="create_work_else_helper, functor version"> {{{2
+
+template <typename ThenHelper, typename Functor, typename LastArg, typename... Args>
+struct _create_work_else_helper<
+  ThenHelper, Functor, tinympl::vector<Args...>, LastArg
+> {
+  public:
+
+    _create_work_else_helper(
+      ThenHelper&& then_helper_in,
+      Args&& ... args,
+      LastArg&& last_arg
+    ) : then_helper(std::forward<ThenHelper>(then_helper_in)),
+        args_fwd_tup_(
+          std::forward<Args>(args)...,
+          std::forward<LastArg>(last_arg)
+        ),
+        task_details_args_()
+    { }
+
+    using functor_call_traits_t = functor_call_traits<Functor, Args&&..., LastArg&&>;
+    using args_tuple_t = typename functor_call_traits_t::args_tuple_t;
+    using args_fwd_tuple_t = std::tuple<Args&&..., LastArg&&>;
+
+    using then_lambda_t = typename ThenHelper::then_lambda_t;
+    using if_helper_t = typename ThenHelper::if_helper_t;
+    using else_lambda_t = WrappedFunctorHelper<Functor,
+      IfThenElseCaptureStage::ElseCopyForIfAndElse
+    >;
+
+    ThenHelper then_helper;
+    std::tuple<> task_details_args_;
+    args_fwd_tuple_t args_fwd_tup_;
+
+    ~_create_work_else_helper() {
+      std::unique_ptr<abstract::frontend::Task> if_then_else_task = std::make_unique<
+        IfLambdaThenLambdaTask<
+          typename if_helper_t::lambda_t,
+          typename if_helper_t::args_tuple_t,
+          if_helper_t::is_lambda_callable,
+          then_lambda_t,
+          typename ThenHelper::args_tuple_t,
+          ThenHelper::is_lambda_callable,
+          else_lambda_t, args_tuple_t, false
+        >
+      >(
+        std::move(*this)
+      );
+      abstract::backend::get_backend_runtime()->register_task(
+        std::move(if_then_else_task)
+      );
+    }
+
+};
+
+// </editor-fold> end create_work_else_helper, functor version }}}2
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// <editor-fold desc="create_work_then_helper, lambda version"> {{{2
 
 template <typename IfHelper, typename Lambda, typename... Args>
 struct _create_work_then_helper<
@@ -812,27 +1391,37 @@ struct _create_work_then_helper<
     IfHelper&& if_helper_in,
     Args&& ... args,
     Lambda&& then_lambda_in
-  ) : if_helper(std::forward<IfHelper>(if_helper_in)),
-      then_lambda(std::forward<Lambda>(then_lambda_in))
+  ) : if_helper_(std::forward<IfHelper>(if_helper_in)),
+      then_lambda(std::forward<Lambda>(then_lambda_in)),
+      task_details_args_(std::forward<Args>(args)...),
+      then_helper(*this)
   { }
 
   _create_work_then_helper(_create_work_then_helper&&) = default;
   _create_work_then_helper(_create_work_then_helper const&) = delete;
 
-  IfHelper if_helper;
+  _create_work_then_helper& then_helper;
+  IfHelper if_helper_;
   Lambda then_lambda;
+  std::tuple<Args&&...> task_details_args_;
+  std::tuple<> args_fwd_tup_;
   bool else_invoked = false;
+
+  static constexpr auto is_lambda_callable = true;
 
   using if_helper_t = IfHelper;
   using then_lambda_t = Lambda;
   using else_lambda_t = void;
+  using task_details_args_t = std::tuple<Args&&...>;
+  using args_tuple_t = std::tuple<>;
+  using args_fwd_tuple_t = std::tuple<>;
 
-  template <typename... ElseArgs>
+  template <typename ElseFunctor=meta::nonesuch, typename... ElseArgs>
   void else_(ElseArgs&& ... args)&& {
     else_invoked = true;
     _create_work_else_helper<
       _create_work_then_helper,
-      meta::nonesuch,
+      ElseFunctor,
       typename tinympl::vector<ElseArgs...>::pop_back::type,
       typename tinympl::vector<ElseArgs...>::back::type
     >(std::move(*this), std::forward<ElseArgs>(args)...);
@@ -844,7 +1433,7 @@ struct _create_work_then_helper<
         IfLambdaThenLambdaTask<
           typename IfHelper::lambda_t,
           typename IfHelper::args_tuple_t, IfHelper::is_lambda_callable,
-          Lambda
+          Lambda, std::tuple<>, true
         >
       >(
         std::move(*this)
@@ -857,6 +1446,84 @@ struct _create_work_then_helper<
 
 };
 
+// </editor-fold> end create_work_then_helper, lambda version }}}2
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// <editor-fold desc="create_work_then_helper, functor version"> {{{2
+
+template <typename IfHelper, typename Functor, typename LastArg, typename... Args>
+struct _create_work_then_helper<
+  IfHelper, Functor, tinympl::vector<Args...>, LastArg
+> {
+
+  using if_helper_t = IfHelper;
+  using then_lambda_t = WrappedFunctorHelper<Functor,
+    IfThenElseCaptureStage::ThenCopyForIfAndThen
+  >;
+  using functor_call_traits_t = functor_call_traits<Functor, Args&&..., LastArg&&>;
+  using args_tuple_t = typename functor_call_traits_t::args_tuple_t;
+  using args_fwd_tuple_t = std::tuple<Args&&..., LastArg&&>;
+  using else_lambda_t = void;
+
+  _create_work_then_helper& then_helper;
+  IfHelper if_helper_;
+  args_fwd_tuple_t args_fwd_tup_;
+  using then_task_details_args_t = std::tuple<>;
+  then_task_details_args_t task_details_args_; // for now
+
+  bool else_invoked = false;
+
+  static constexpr auto is_lambda_callable = false;
+
+  _create_work_then_helper(
+    IfHelper&& if_helper_in,
+    Args&& ... args,
+    LastArg&& last_arg
+  ) : if_helper_(std::forward<IfHelper>(if_helper_in)),
+      args_fwd_tup_(
+        std::forward<Args>(args)...,
+        std::forward<LastArg>(last_arg)
+      ),
+      task_details_args_(),
+      then_helper(*this)
+  { }
+
+  _create_work_then_helper(_create_work_then_helper&&) = default;
+  _create_work_then_helper(_create_work_then_helper const&) = delete;
+
+  template <typename ElseFunctor=meta::nonesuch, typename... ElseArgs>
+  void else_(ElseArgs&& ... args)&& {
+    else_invoked = true;
+    _create_work_else_helper<
+      _create_work_then_helper,
+      ElseFunctor,
+      typename tinympl::vector<ElseArgs...>::pop_back::type,
+      typename tinympl::vector<ElseArgs...>::back::type
+    >(std::move(*this), std::forward<ElseArgs>(args)...);
+  }
+
+  ~_create_work_then_helper() {
+    if (not else_invoked) {
+      std::unique_ptr<abstract::frontend::Task> if_then_task = std::make_unique<
+        IfLambdaThenLambdaTask<
+          typename IfHelper::lambda_t,
+          typename IfHelper::args_tuple_t, IfHelper::is_lambda_callable,
+          then_lambda_t, args_tuple_t, false
+        >
+      >(
+        std::move(*this)
+      );
+      abstract::backend::get_backend_runtime()->register_task(
+        std::move(if_then_task)
+      );
+    }
+  }
+
+};
+
+// </editor-fold> end create_work_then_helper, functor version }}}2
+//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // <editor-fold desc="create_work_if_helper, lambda version"> {{{2
@@ -874,18 +1541,20 @@ struct _create_work_if_helper<
 
   Lambda func;
   std::tuple<> args_fwd_tup_;
+  std::tuple<Args...> task_details_args_;
 
   _create_work_if_helper(
-    Args&& ..., /* modifiers ignored/processed elsewhere */
+    Args&&... args,
     Lambda&& f
-  )
-    : func(std::forward<Lambda>(f)) {}
+  ) : func(std::forward<Lambda>(f)),
+      task_details_args_(std::forward<Args>(args)...)
+  { }
 
-  template <typename... ThenArgs>
+  template <typename ThenFunctor=meta::nonesuch, typename... ThenArgs>
   auto
   then_(ThenArgs&& ... args)&& {
     return _create_work_then_helper<
-      _create_work_if_helper, meta::nonesuch,
+      _create_work_if_helper, ThenFunctor,
       typename tinympl::vector<ThenArgs...>::pop_back::type,
       typename tinympl::vector<ThenArgs...>::back::type
     >(
@@ -899,7 +1568,7 @@ struct _create_work_if_helper<
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// <editor-fold desc="create_work_if_helper, Functor version"> {{{2
+// <editor-fold desc="create_work_if_helper, FunctorWrapper version"> {{{2
 
 template <typename Functor, typename LastArg, typename... Args>
 struct _create_work_if_helper<
@@ -910,13 +1579,14 @@ struct _create_work_if_helper<
 
   // TODO handle zero args case
 
-  using lambda_t = WrappedFunctorHelper<Functor>;
+  using lambda_t = WrappedFunctorHelper<Functor, IfThenElseCaptureStage::IfCopy>;
   using functor_call_traits_t = functor_call_traits<Functor, Args&&..., LastArg&&>;
   using args_tuple_t = typename functor_call_traits_t::args_tuple_t;
   static constexpr auto is_lambda_callable = false;
 
   Functor func;
   std::tuple<Args&&..., LastArg&&> args_fwd_tup_;
+  std::tuple<> task_details_args_; // for now
 
   _create_work_if_helper(
     Args&&... args, LastArg&& last_arg
@@ -940,7 +1610,7 @@ struct _create_work_if_helper<
   }
 };
 
-// </editor-fold> end create_work_if_helper, Functor version }}}2
+// </editor-fold> end create_work_if_helper, FunctorWrapper version }}}2
 //------------------------------------------------------------------------------
 
 // </editor-fold> end Task creation helpers in the form of proxy return objects }}}1

@@ -309,8 +309,9 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
 
   {
     if (test_type == "explicit_read") {
-      auto tmp = initial_access<int>("hello");
-      create_work<SimpleFunctor>(15, reads(tmp));
+      // TODO reinstate this test
+      //auto tmp = initial_access<int>("hello");
+      //create_work<SimpleFunctor>(15, reads(tmp));
     }
     else if (test_type == "read_only_handle") {
       // Formal parameter is ReadOnlyAccessHandle<int>
@@ -344,7 +345,7 @@ INSTANTIATE_TEST_CASE_P(
   Parameterized,
   TestFunctorROCaptures,
   ::testing::Values(
-    "explicit_read",
+    //"explicit_read",
     "read_only_handle",
     "convert",
     "convert_value",

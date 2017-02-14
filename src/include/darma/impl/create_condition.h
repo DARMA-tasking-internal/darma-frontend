@@ -69,7 +69,7 @@ struct _create_condition_impl {
   //  "Callable given to create_condition() must return a value convertible to bool"
   //);
 
-  // Functor version
+  // FunctorWrapper version
   inline bool
   operator()(Args&&... args) const {
     detail::TaskBase* parent_task = static_cast<detail::TaskBase* const>(
@@ -146,7 +146,7 @@ struct _create_condition_impl {
   }
 };
 
-// Functor version
+// FunctorWrapper version
 template <typename Functor, typename... Args>
 struct _create_condition_select_functor {
   bool operator()(Args&&... args) const {

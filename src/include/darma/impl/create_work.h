@@ -68,57 +68,230 @@
 #include <darma/impl/keyword_arguments/macros.h>
 
 #include <darma/interface/app/keyword_arguments/name.h>
+#include <darma/impl/meta/make_flattened_tuple.h>
+#include <darma/impl/create_work_fwd.h>
 
 // TODO move this once it becomes part of the specified interface
 DeclareDarmaTypeTransparentKeyword(task_creation, allow_aliasing);
 
 namespace darma_runtime {
 
-template <typename... Args>
-decltype(auto)
-schedule_only(Args&&... args) {
-  auto make_schedule_only = [](auto const& arg) {
-    // No need for perfect forwarding; the argument must be an lvalue
-    using detail::create_work_attorneys::for_AccessHandle;
-    for_AccessHandle::captured_as_info(arg) |=
-      detail::AccessHandleBase::ScheduleOnly;
-    // return a value that the compiler will ignore.  This allows us to mimic
-    // C++17 fold expressions
-    return meta::sentinal_type { };
-  };
-  std::forward_as_tuple( // return values ignored, but mimics a fold expression
-    make_schedule_only(std::forward<Args>(args))...
-  );
+namespace detail {
 
-  // Return the (first) argument as a passthrough
-  // TODO return a type that looks like a sensible compile-time error
-  // (if more than one positional argument is given and the user tries to
-  // use the return value for something like an argument to a functor create_work)
-  return std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
-}
+template <AccessHandlePermissions SchedulingDowngrade>
+struct _scheduling_permissions_downgrade_handler;
+template <AccessHandlePermissions ImmediateDowngrade>
+struct _immediate_permissions_downgrade_handler;
+
+// Handle the case where no known scheduling downgrade flag exists
+template <>
+struct _scheduling_permissions_downgrade_handler<AccessHandlePermissions::NotGiven> {
+  template <typename AccessHandleT>
+  void apply_flag(AccessHandleT const&) const { }
+  HandleUse::permissions_t get_permissions(
+    HandleUse::permissions_t default_perms
+  ) const {
+    return default_perms;
+  }
+};
+
+// Handle the case where no known immediate downgrade flag exists
+template <>
+struct _immediate_permissions_downgrade_handler<AccessHandlePermissions::NotGiven> {
+  template <typename AccessHandleT>
+  void apply_flag(AccessHandleT const&) const { }
+  HandleUse::permissions_t get_permissions(
+    HandleUse::permissions_t default_perms
+  ) const {
+    return default_perms;
+  }
+};
+
+// Apply the "ScheduleOnly" flag
+template<>
+struct _immediate_permissions_downgrade_handler<AccessHandlePermissions::None> {
+  template <typename AccessHandleT>
+  void apply_flag(AccessHandleT const& ah) const {
+    detail::create_work_attorneys::for_AccessHandle::captured_as_info(ah) |=
+      detail::AccessHandleBase::ScheduleOnly;
+  }
+  HandleUse::permissions_t get_permissions(
+    HandleUse::permissions_t
+  ) const {
+    return HandleUse::None;
+  }
+};
+
+// Apply the "ReadOnly" flag
+template<>
+struct _immediate_permissions_downgrade_handler<AccessHandlePermissions::Read>{
+  template <typename AccessHandleT>
+  void apply_flag(AccessHandleT const& ah) const {
+    detail::create_work_attorneys::for_AccessHandle::captured_as_info(ah) |=
+      detail::AccessHandleBase::ReadOnly;
+  }
+  HandleUse::permissions_t get_permissions(
+    HandleUse::permissions_t
+  ) const {
+    return HandleUse::Read;
+  }
+};
+
+// Apply the "ReadOnly" flag (scheduling downgrade version)
+template<>
+struct _scheduling_permissions_downgrade_handler<AccessHandlePermissions::Read>{
+  template <typename AccessHandleT>
+  void apply_flag(AccessHandleT const& ah) const {
+    detail::create_work_attorneys::for_AccessHandle::captured_as_info(ah) |=
+      detail::AccessHandleBase::ReadOnly;
+  }
+  HandleUse::permissions_t get_permissions(
+    HandleUse::permissions_t
+  ) const {
+    return HandleUse::Read;
+  }
+};
+
+template <
+  typename AccessHandleT,
+  AccessHandlePermissions SchedulingDowngrade /*= AccessHandlePermissions::NotGiven*/,
+  AccessHandlePermissions ImmediateDowngrade /*= AccessHandlePermissions::NotGiven*/
+>
+struct PermissionsDowngradeDescription {
+  AccessHandleT& handle;
+  static constexpr auto scheduling_downgrade = SchedulingDowngrade;
+  static constexpr auto immediate_downgrade = ImmediateDowngrade;
+  explicit PermissionsDowngradeDescription(AccessHandleT& handle_in)
+    : handle(handle_in)
+  {
+    _scheduling_permissions_downgrade_handler<SchedulingDowngrade>{}.apply_flag(
+      handle
+    );
+    _immediate_permissions_downgrade_handler<ImmediateDowngrade>{}.apply_flag(
+      handle
+    );
+  }
+
+  HandleUse::permissions_t
+  get_requested_scheduling_permissions(
+    HandleUse::permissions_t default_permissions
+  ) const {
+    return _scheduling_permissions_downgrade_handler<
+      SchedulingDowngrade
+    >{}.get_permissions(
+      default_permissions
+    );
+  }
+
+  HandleUse::permissions_t
+  get_requested_immediate_permissions(
+    HandleUse::permissions_t default_permissions
+  ) const {
+    return _immediate_permissions_downgrade_handler<
+      ImmediateDowngrade
+    >{}.get_permissions(
+      default_permissions
+    );
+  }
+};
+
+template <
+  AccessHandlePermissions SchedulingDowngrade,
+  AccessHandlePermissions ImmediateDowngrade,
+  typename AccessHandleT,
+  typename = std::enable_if_t<
+    is_access_handle<std::decay_t<AccessHandleT>>::value
+  >
+>
+auto
+make_permissions_downgrade_description(AccessHandleT& handle) {
+  return PermissionsDowngradeDescription<
+    AccessHandleT, SchedulingDowngrade, ImmediateDowngrade
+  >(handle);
+};
+
+template <
+  AccessHandlePermissions SchedulingDowngrade,
+  AccessHandlePermissions ImmediateDowngrade,
+  typename AccessHandleT,
+  AccessHandlePermissions OldSchedDowngrade,
+  AccessHandlePermissions OldImmedDowngrade
+>
+auto
+make_permissions_downgrade_description(
+  PermissionsDowngradeDescription<
+    AccessHandleT, OldSchedDowngrade, OldImmedDowngrade
+  >&& downgrade_holder
+) {
+  return PermissionsDowngradeDescription<
+    AccessHandleT,
+    OldSchedDowngrade == AccessHandlePermissions::NotGiven ?
+      SchedulingDowngrade : (
+      SchedulingDowngrade == AccessHandlePermissions::NotGiven ?
+        OldSchedDowngrade : (
+        OldSchedDowngrade < SchedulingDowngrade ?
+          OldSchedDowngrade : SchedulingDowngrade
+      )
+    ),
+    OldImmedDowngrade == AccessHandlePermissions::NotGiven ?
+      ImmediateDowngrade : (
+      ImmediateDowngrade == AccessHandlePermissions::NotGiven ?
+        OldImmedDowngrade : (
+        OldImmedDowngrade < ImmediateDowngrade ?
+          OldImmedDowngrade : ImmediateDowngrade
+      )
+    )
+  >(std::move(downgrade_holder).handle);
+};
+
+template <
+  AccessHandlePermissions SchedulingDowngrade,
+  AccessHandlePermissions ImmediateDowngrade,
+  typename... Args, size_t... Idxs
+>
+auto
+_make_permissions_downgrade_description_tuple_helper(
+  std::tuple<Args...>&& tup,
+  std::integer_sequence<size_t, Idxs...>
+) {
+  return std::make_tuple(
+    make_permissions_downgrade_description<
+      SchedulingDowngrade, ImmediateDowngrade
+    >(
+      std::get<Idxs>(std::move(tup))
+    )...
+  );
+};
+
+template <
+  AccessHandlePermissions SchedulingDowngrade,
+  AccessHandlePermissions ImmediateDowngrade,
+  typename... Args
+>
+auto
+make_permissions_downgrade_description(
+  std::tuple<Args...>&& tup
+) {
+  return darma_runtime::detail::_make_permissions_downgrade_description_tuple_helper<
+    SchedulingDowngrade, ImmediateDowngrade
+  >(
+    std::move(tup), std::index_sequence_for<Args...>{}
+  );
+};
+
+
+} // end namespace detail
+
+
 
 
 namespace detail {
-
-namespace mv = tinympl::variadic;
 
 template <typename... Args>
 struct reads_decorator_parser {
   inline decltype(auto)
   operator()(Args&&... args) const {
     using detail::create_work_attorneys::for_AccessHandle;
-
-    // NOTE: This is a post-0.2 feature
-    // TODO we probably should remove ignore/only_if because they are unsafe
-    bool ignored = false;
-    //not get_typeless_kwarg_with_default_as<
-    //    darma_runtime::keyword_tags_for_create_work_decorators::unless,
-    //    bool
-    //>(false, std::forward<Args>(args)...);
-    //ignored = ignored && not get_typeless_kwarg_with_default_as<
-    //  darma_runtime::keyword_tags_for_create_work_decorators::only_if,
-    //  bool
-    //>(true, std::forward<Args>(args)...);
 
     // Mark this usage as a read-only capture
     // TODO this should be just a splatted tuple.  Order doesn't matter
@@ -128,12 +301,7 @@ struct reads_decorator_parser {
         static_assert(is_access_handle<std::decay_t<decltype(ah)>>::value,
           "Non-AccessHandle<> argument passed to reads() decorator"
         );
-        if(ignored) {
-          for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::Ignored;
-        }
-        else {
-          for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::ReadOnly;
-        }
+        for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::ReadOnly;
       }
     );
 
@@ -313,10 +481,6 @@ struct _create_work_impl<detail::_create_work_uses_lambda_tag, tinympl::vector<A
 // </editor-fold> end _create_work_impl, functor version
 //==============================================================================
 
-
-
-
-
 } // end namespace detail
 
 
@@ -344,9 +508,31 @@ void create_work() {
 }
 
 template <typename... Args>
-decltype(auto)
+auto
 reads(Args&&... args) {
-  return detail::reads_decorator_parser<Args...>()(std::forward<Args>(args)...);
+  auto make_read_only = [](auto&& arg) {
+    return detail::make_permissions_downgrade_description<
+      detail::AccessHandlePermissions::Read,
+      detail::AccessHandlePermissions::Read
+    >(std::forward<decltype(arg)>(arg));
+  };
+  return meta::make_flattened_tuple(
+    make_read_only(std::forward<Args>(args))...
+  );
+}
+
+template <typename... Args>
+decltype(auto)
+schedule_only(Args&&... args) {
+  auto make_schedule_only = [](auto&& arg) {
+    return detail::make_permissions_downgrade_description<
+      detail::AccessHandlePermissions::NotGiven,
+      detail::AccessHandlePermissions::None
+    >(std::forward<decltype(arg)>(arg));
+  };
+  return meta::make_flattened_tuple(
+    make_schedule_only(std::forward<Args>(args))...
+  );
 }
 
 } // end namespace darma_runtime

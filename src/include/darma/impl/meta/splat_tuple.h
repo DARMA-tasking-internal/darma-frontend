@@ -87,6 +87,41 @@ splat_tuple(Tuple&& tup, Callable&& callable) {
 }
 
 
+template <typename T>
+std::enable_if_t<
+  not tinympl::is_instantiation_of<std::tuple, std::decay_t<T>>::type::value,
+  std::integer_sequence<size_t>
+>
+tuple_indices_for(
+  T&& val
+) {
+  return std::integer_sequence<size_t>{};
+}
+
+template <typename... Args>
+std::index_sequence_for<Args...>
+tuple_indices_for(
+  std::tuple<Args...> const& val
+) {
+  return std::index_sequence_for<Args...>{};
+}
+
+template <typename... Args>
+std::index_sequence_for<Args...>
+tuple_indices_for(
+  std::tuple<Args...>&& val
+) {
+  return std::index_sequence_for<Args...>{};
+}
+
+template <typename... Args>
+std::index_sequence_for<Args...>
+tuple_indices_for(
+  std::tuple<Args...>& val
+) {
+  return std::index_sequence_for<Args...>{};
+}
+
 }} // end namespace darma_runtime::meta
 
 

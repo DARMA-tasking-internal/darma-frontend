@@ -138,7 +138,7 @@ class FunctorLikeRunnableBase
 
     static_assert(
       sizeof...(Args) <= n_functor_args_max && sizeof...(Args) >= n_functor_args_min,
-      "Functor or Method task created with wrong number of arguments"
+      "FunctorWrapper or Method task created with wrong number of arguments"
     );
 
     using args_tuple_t = typename call_traits::args_tuple_t;
@@ -452,9 +452,9 @@ class FunctorRunnable
 
 };
 
-//template <typename Functor, typename... Args>
-//const size_t FunctorRunnable<Functor, Args...>::index_ =
-//  register_runnable<FunctorRunnable<Functor, Args...>>();
+//template <typename FunctorWrapper, typename... Args>
+//const size_t FunctorRunnable<FunctorWrapper, Args...>::index_ =
+//  register_runnable<FunctorRunnable<FunctorWrapper, Args...>>();
 
 // </editor-fold>
 ////////////////////////////////////////////////////////////////////////////////

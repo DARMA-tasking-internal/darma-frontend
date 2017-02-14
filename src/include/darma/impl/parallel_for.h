@@ -194,7 +194,7 @@ struct _do_create_parallel_for<
 //==============================================================================
 
 //==============================================================================
-// <editor-fold desc="Functor version">
+// <editor-fold desc="FunctorWrapper version">
 
 template <typename Callable, typename... Args>
 struct _do_create_parallel_for<
@@ -266,7 +266,7 @@ void create_parallel_for(
 
   using callable_t = std::conditional_t<
     std::is_void<Functor>::value,
-    // Just use Functor in the case of sizeof...(Args) == 0 (should never happen)
+    // Just use FunctorWrapper in the case of sizeof...(Args) == 0 (should never happen)
     typename tinympl::vector<Functor, Args...>::back::type,
     Functor
   >;

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      create_if_then_fwd.h
+//                      make_flattened_tuple.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,24 +42,66 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_CREATE_IF_THEN_FWD_H
-#define DARMA_IMPL_CREATE_IF_THEN_FWD_H
+#ifndef DARMA_IMPL_META_MAKE_FLATTENED_TUPLE_H
+#define DARMA_IMPL_META_MAKE_FLATTENED_TUPLE_H
 
 #include <tuple>
 
 namespace darma_runtime {
+namespace meta {
+
 namespace detail {
 
-template <
-  typename IfLambda, typename IfArgsTuple, bool IfIsLambda,
-  typename ThenLambda, typename ThenArgsTuple, bool ThenIsLambda,
-  typename ElseLambda=void, typename ElseArgsTuple=std::tuple<>, bool ElseIsLambda=false
->
-struct IfLambdaThenLambdaTask;
+template <typename Arg>
+decltype(auto)
+_make_flattened_tuple_helper(
+  Arg&& arg
+) {
+  return std::make_tuple(
+    std::forward<Arg>(arg)
+  );
+}
 
-struct ParsedCaptureOptions;
+template <typename Arg>
+decltype(auto)
+_make_flattened_tuple_helper(
+  std::tuple<Arg>&& arg
+) {
+  return std::move(arg);
+}
+
+template <typename Arg>
+decltype(auto)
+_make_flattened_tuple_helper(
+  std::tuple<Arg>& arg
+) {
+  return arg;
+}
+
+template <typename Arg>
+decltype(auto)
+_make_flattened_tuple_helper(
+  std::tuple<Arg> const& arg
+) {
+  return arg;
+}
 
 } // end namespace detail
+
+template <typename... Args>
+auto
+make_flattened_tuple(
+  Args&&... args
+) {
+  return std::tuple_cat(
+    detail::_make_flattened_tuple_helper(
+      std::forward<Args>(args)
+    )...
+  );
+}
+
+
+} // end namespace meta
 } // end namespace darma_runtime
 
-#endif //DARMA_IMPL_CREATE_IF_THEN_FWD_H
+#endif //DARMA_IMPL_META_MAKE_FLATTENED_TUPLE_H

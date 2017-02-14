@@ -59,7 +59,7 @@ namespace detail {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// <editor-fold desc="Functor traits">
+// <editor-fold desc="FunctorWrapper traits">
 
 namespace _functor_traits_impl {
 
