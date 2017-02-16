@@ -524,7 +524,7 @@ auto make_captured_use_holder(
 
               break;
             } // end case source immediate permissions None or Read
-            //----------------------------------------------------------------------
+            //------------------------------------------------------------------
             case HandleUse::Read: { // source immediate permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MR -> { MR } -> MN     %
@@ -533,18 +533,45 @@ auto make_captured_use_holder(
               DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
               break;
             } // end source immediate permissions Read
+            //------------------------------------------------------------------
             case HandleUse::Modify: { // source immediate permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MM -> { MR } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-              // TODO Modify case
-              DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
+
+              auto fwd_flow = make_forwarding_flow_ptr(
+                source_and_continuing_holder->use.in_flow_, backend_runtime
+              );
+              auto cap_out_flow = make_next_flow_ptr(
+                fwd_flow, backend_runtime
+              );
+              captured_use_holder = use_holder_maker(
+                var_handle,
+                fwd_flow,
+                cap_out_flow,
+                /* Scheduling permissions */
+                HandleUse::Modify,
+                /* Immediate permissions */
+                HandleUse::Read
+              );
+              captured_use_holder->do_register();
+
+              // Continuation doesn't need to be registered
+              source_and_continuing_holder->do_release();
+
+              source_and_continuing_holder->use.in_flow_ = cap_out_flow;
+              source_and_continuing_holder->could_be_alias = true;
+              source_and_continuing_holder->use.immediate_permissions_ = HandleUse::None;
+              // Out flow and scheduling permissions unchanged
+
+              break;
+
             } // end case source immediate permissions Modify
-            //----------------------------------------------------------------------
+            //------------------------------------------------------------------
             default: {
               DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
             } // end default
-            //----------------------------------------------------------------------
+            //------------------------------------------------------------------
           } // end switch on source immediate permissions
 
           break;
@@ -678,6 +705,7 @@ auto make_captured_use_holder(
 
           source_and_continuing_holder->use.in_flow_ = captured_out_flow;
           source_and_continuing_holder->use.immediate_permissions_ = HandleUse::None;
+          source_and_continuing_holder->could_be_alias = true;
           // out flow and scheduling permissions unchanged
 
           break;                                                                // LCOV_EXCL_LINE

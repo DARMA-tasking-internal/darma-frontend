@@ -232,7 +232,8 @@ class AccessHandle : public detail::AccessHandleBase {
       var_handle_base_ = var_handle_;
 
       // Always copy the use, no matter what (it will usually get replaced anyway)
-      current_use_ = copied_from.current_use_;
+      // Not a good idea!!!
+      //current_use_ = copied_from.current_use_;
 
       // TODO remove this?  I don't think the unfetched flag is still used...
       DARMA_ASSERT_MESSAGE(
@@ -251,11 +252,13 @@ class AccessHandle : public detail::AccessHandleBase {
 
         capturing_task->do_capture(*this, *source);
 
-        source->current_use_->use.use_->already_captured = true;
-        // TODO this flag should be on the AccessHandleBase itself
-        capturing_task->uses_to_unmark_already_captured.push_back(
-          source->current_use_->use.use_
-        );
+        if(source->current_use_) {
+          source->current_use_->use.use_->already_captured = true;
+          // TODO this flag should be on the AccessHandleBase itself
+          capturing_task->uses_to_unmark_already_captured.push_back(
+            source->current_use_->use.use_
+          );
+        }
       } // end if capturing_task != nullptr
       else {
         // Also, save prev copied from in case this is a double capture, like in
@@ -294,7 +297,8 @@ class AccessHandle : public detail::AccessHandleBase {
       var_handle_ = AccessHandleAccess::var_handle(copied_from);
       var_handle_base_ = var_handle_;
       // Always copy the use, no matter what (it will usually get replaced anyway)
-      current_use_ = copied_from.current_use_;
+      // Not a good idea!!!
+      //current_use_ = copied_from.current_use_;
 
       // TODO remove this?  I don't think the unfetched flag is still used...
       DARMA_ASSERT_MESSAGE(
@@ -328,11 +332,14 @@ class AccessHandle : public detail::AccessHandleBase {
         // TODO require dynamic modify from RHS if this class is static modify
         // TODO set some flag to check for aliasing?!?
         capturing_task->do_capture(*this, copied_from);
-        copied_from.current_use_->use.use_->already_captured = true;
-        // TODO this flag should be on the AccessHandleBase itself
-        capturing_task->uses_to_unmark_already_captured.push_back(
-          copied_from.current_use_->use.use_
-        );
+
+        if(copied_from.current_use_) {
+          copied_from.current_use_->use.use_->already_captured = true;
+          // TODO this flag should be on the AccessHandleBase itself
+          capturing_task->uses_to_unmark_already_captured.push_back(
+            copied_from.current_use_->use.use_
+          );
+        }
       } // end if capturing_task != nullptr
     }
 

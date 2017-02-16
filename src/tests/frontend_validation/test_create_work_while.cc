@@ -126,3 +126,94 @@ TEST_F(TestCreateWorkWhile, basic_same_always_false) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+TEST_F(TestCreateWorkWhile, basic_same_one_iteration) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_null, f_while_out, f_do_out,
+    f_while_fwd, f_while_out_2
+  );
+  use_t* while_use = nullptr;
+  use_t* do_use = nullptr;
+  use_t* while_use_2 = nullptr;
+  use_t* do_cont_use = nullptr;
+
+  int value = 0;
+
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+    .WillOnce(Return(f_while_out));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(while_use, f_init, f_while_out, Modify, Read, value);
+
+  EXPECT_REGISTER_TASK(while_use);
+
+  EXPECT_FLOW_ALIAS(f_while_out, f_null);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp = initial_access<int>("hello");
+
+    create_work_while([=]{
+      return tmp.get_value() != 73; // should only be false the first time
+    }).do_([=]{
+      tmp.set_value(73);
+    });
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+    .WillOnce(Return(f_do_out));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(do_use, f_init, f_do_out, Modify, Modify, value);
+
+  EXPECT_RELEASE_USE(while_use);
+
+  EXPECT_REGISTER_TASK(do_use);
+
+  EXPECT_FLOW_ALIAS(f_do_out, f_while_out);
+
+  run_one_task(); // the first while
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_CALL(*mock_runtime, make_forwarding_flow(f_init))
+    .WillOnce(Return(f_while_fwd));
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_while_fwd))
+    .WillOnce(Return(f_while_out_2));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(while_use_2, f_while_fwd, f_while_out_2,
+    Modify, Read, value
+  );
+
+  EXPECT_RELEASE_USE(do_use);
+
+  EXPECT_REGISTER_TASK(while_use_2);
+
+  EXPECT_FLOW_ALIAS(f_while_out_2, f_do_out);
+
+  run_one_task(); // the do part
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_RELEASE_USE(while_use_2);
+
+  run_one_task(); // the second while
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_THAT(value, Eq(73));
+
+}
+
+////////////////////////////////////////////////////////////////////////////////

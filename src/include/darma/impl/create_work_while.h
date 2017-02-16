@@ -72,8 +72,8 @@ struct WhileDoCaptureDescription {
   AccessHandleBase const* source_and_continuing = nullptr;
   AccessHandleBase* captured = nullptr;
   std::shared_ptr<AccessHandleBase>* captured_copy; // should be a weak pointer
-  HandleUse::permissions_t requested_schedule_permissions = HandleUse::None;
-  HandleUse::permissions_t requested_immediate_permissions = HandleUse::None;
+  HandleUse::permissions_t req_sched_perms = HandleUse::None;
+  HandleUse::permissions_t req_immed_perms = HandleUse::None;
   //std::vector<std::shared_ptr<UseHolder>*> uses_to_set;
 };
 
@@ -96,22 +96,29 @@ struct CallableHolder<Lambda, std::tuple<>, true> {
     typename key_traits<types::key_t>::key_equal
   >;
 
-  HandleUse::permissions_t default_scheduling_permissions;
-  HandleUse::permissions_t default_immediate_permissions;
+  HandleUse::permissions_t default_sched_perms;
+  HandleUse::permissions_t default_immed_perms;
 
   capture_description_map_t capture_descs_;
   captured_handle_map_t implicit_captures_;
   captured_handle_map_t explicit_captures_;
+  captured_handle_map_t old_explicit_captures_;
 
-  lambda_t lambda_;
+  // TODO have this use memory allocated in line with the object
+  std::unique_ptr<lambda_t> lambda_;
 
 
   template <typename Task>
-  //std::unique_ptr<Lambda>
   auto
   trigger_capture(Task& task) {
     // do the copy
-    return std::make_unique<Lambda>(lambda_);
+    auto rv = std::make_unique<Lambda>(*lambda_);
+
+    // delete the "moved out of" object ASAP
+    lambda_ = nullptr;
+
+    // move into the return value
+    return std::move(rv);
   }
 
   void
@@ -119,8 +126,7 @@ struct CallableHolder<Lambda, std::tuple<>, true> {
     // Now move it back
     // We have to do weird stuff here to make sure we invoke the move constructor
     // and not the move assignment operator (which may/should be deleted)
-    lambda_.~Lambda();
-    new (&lambda_) Lambda(std::move(*tmp_ptr));
+    lambda_ = std::make_unique<Lambda>(std::move(*tmp_ptr));
     tmp_ptr = nullptr; // trigger destructor of (now-empty) Lambda in the unique ptr
   }
 
@@ -133,9 +139,9 @@ struct CallableHolder<Lambda, std::tuple<>, true> {
     OptionArgsTuple&&, // TODO parse option args
     HandleUse::permissions_t default_sched_perms,
     HandleUse::permissions_t default_immed_perms
-  ) : lambda_(std::move(in_lambda)),
-      default_scheduling_permissions(default_sched_perms),
-      default_immediate_permissions(default_immed_perms)
+  ) : lambda_(std::make_unique<Lambda>(std::move(in_lambda))),
+      default_sched_perms(default_sched_perms),
+      default_immed_perms(default_immed_perms)
   { }
 
   CallableHolder(CallableHolder&&) = default;
@@ -144,17 +150,17 @@ struct CallableHolder<Lambda, std::tuple<>, true> {
   HandleUse::permissions_t
   get_requested_scheduling_permissions(types::key_t const& key) const {
     // TODO parse option args
-    return default_scheduling_permissions;
+    return default_sched_perms;
   }
 
   HandleUse::permissions_t
   get_requested_immediate_permissions(types::key_t const& key) const {
     // TODO parse option args
-    return default_immediate_permissions;
+    return default_immed_perms;
   }
 
   auto do_call() {
-    return lambda_();
+    return (*lambda_)();
   }
 
 };
@@ -243,10 +249,11 @@ struct WhileDoTask : public TaskBase {
       // Now do the actual capture
       while_desc.captured->current_use_ = make_captured_use_holder(
         while_desc.source_and_continuing->var_handle_base_,
-        while_desc.requested_schedule_permissions,
-        while_desc.requested_immediate_permissions,
+        while_desc.req_sched_perms,
+        while_desc.req_immed_perms,
         while_desc.source_and_continuing->current_use_
       );
+      while_desc.captured_copy->get()->current_use_ = while_desc.captured->current_use_;
       add_dependency(while_desc.captured->current_use_->use);
     }
     while_holder_.capture_descs_.clear();
@@ -278,17 +285,18 @@ struct WhileDoTask : public TaskBase {
       // Now do the actual capture
       do_desc.captured->current_use_ = make_captured_use_holder(
         do_desc.source_and_continuing->var_handle_base_,
-        do_desc.requested_schedule_permissions,
-        do_desc.requested_immediate_permissions,
+        do_desc.req_sched_perms,
+        do_desc.req_immed_perms,
         do_desc.source_and_continuing->current_use_
       );
+      do_desc.captured_copy->get()->current_use_ = do_desc.captured->current_use_;
       add_dependency(do_desc.captured->current_use_->use);
     }
     do_holder_.capture_descs_.clear();
 
     // Delete the implicit and explicit from the while
     while_holder_.implicit_captures_.clear();
-    while_holder_.explicit_captures_.clear();
+    while_holder_.old_explicit_captures_.clear();
 
     // The capture descriptions in while_holder_ should be correct at this point
     // except that they need to be corrected to also handle the schedule-only
@@ -320,17 +328,18 @@ struct WhileDoTask : public TaskBase {
       // Now do the actual capture
       while_desc.captured->current_use_ = make_captured_use_holder(
         while_desc.source_and_continuing->var_handle_base_,
-        while_desc.requested_schedule_permissions,
-        while_desc.requested_immediate_permissions,
+        while_desc.req_sched_perms,
+        while_desc.req_immed_perms,
         while_desc.source_and_continuing->current_use_
       );
+      while_desc.captured_copy->get()->current_use_ = while_desc.captured->current_use_;
       add_dependency(while_desc.captured->current_use_->use);
     }
     while_holder_.capture_descs_.clear();
 
     // Delete the implicit and explicit from the while
     do_holder_.implicit_captures_.clear();
-    do_holder_.explicit_captures_.clear();
+    do_holder_.old_explicit_captures_.clear();
 
     // The capture descriptions in do_holder_ should be correct at this point
     // except that they need to be corrected to also handle the schedule-only
@@ -345,6 +354,9 @@ struct WhileDoTask : public TaskBase {
     // TODO capture checks
 
     switch(current_stage_) {
+      //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+      // <editor-fold desc="OuterWhileCapture"> {{{2
+
       case WhileDoCaptureStage::OuterWhileCapture: {
 
         auto& key = source_and_continuing.var_handle_base_->get_key();
@@ -354,28 +366,34 @@ struct WhileDoTask : public TaskBase {
         while_desc.source_and_continuing = &source_and_continuing;
         while_desc.captured = &captured;
 
-        while_desc.requested_immediate_permissions =
+        while_desc.req_immed_perms =
           while_holder_.get_requested_immediate_permissions(key);
-        while_desc.requested_schedule_permissions =
+        while_desc.req_sched_perms =
           while_holder_.get_requested_scheduling_permissions(key);
 
+        captured.current_use_ = nullptr;
+
         // Make the AccessHandle for the explicit capture
-        auto insert_result = while_holder_.explicit_captures_.insert(
-          std::make_pair(key,
-            captured.copy(false)
-          )
-        );
-        assert(insert_result.second);
-        while_desc.captured_copy = &(insert_result.first->second);
+        {
+          auto insert_result = while_holder_.explicit_captures_.insert(
+            std::make_pair(key, captured.copy(false))
+          );
+          assert(insert_result.second);
+          while_desc.captured_copy = &(insert_result.first->second);
+        } // delete insertion result
 
         // Make sure it can schedule itself
-        if(while_desc.requested_schedule_permissions < while_desc.requested_immediate_permissions) {
-          while_desc.requested_schedule_permissions = while_desc.requested_immediate_permissions;
+        if (while_desc.req_sched_perms < while_desc.req_immed_perms) {
+          while_desc.req_sched_perms = while_desc.req_immed_perms;
         }
 
         break;
       }
+
+      // </editor-fold> end OuterWhileCapture }}}2
       //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+      // <editor-fold desc="NestedDoCapture"> {{{2
+
       case WhileDoCaptureStage::NestedDoCapture: {
         auto& key = source_and_continuing.var_handle_base_->get_key();
 
@@ -383,29 +401,34 @@ struct WhileDoTask : public TaskBase {
         auto& while_desc = while_holder_.capture_descs_[key];
         auto& do_desc = do_holder_.capture_descs_[key];
 
-        do_desc.requested_immediate_permissions =
+        do_desc.req_immed_perms =
           do_holder_.get_requested_immediate_permissions(key);
-        do_desc.requested_schedule_permissions =
+        do_desc.req_sched_perms =
           do_holder_.get_requested_scheduling_permissions(key);
         do_desc.captured = &captured;
+
+        // Make sure the callable we don't hold a duplicate of the outer
+        // context handle, since it is held in the while part
+        // This (should be?) okay since this will be replaced before another
+        // capture that depends on it is triggered
+        assert(captured.current_use_.get() == nullptr);
 
         // Make the AccessHandle for the explicit capture
         // (so that if the handle gets released in the middle, we still retain
         // scheduling permissions)
         {
           auto insert_result = do_holder_.explicit_captures_.insert(
-            std::make_pair(key,
-              captured.copy(false)
-            )
+            std::make_pair(key, captured.copy(false))
           );
           assert(insert_result.second);
           do_desc.captured_copy = &(insert_result.first->second);
         } // delete insertion result
 
         // Modify the (parent) do_desc so that it captures this if it doesn't already
-        if(while_desc.captured == nullptr) {
+        if (while_desc.captured == nullptr) {
           // create an implicit capture for the outer while
-          assert(while_holder_.implicit_captures_.find(key) == while_holder_.implicit_captures_.end());
+          assert(while_holder_.implicit_captures_.find(key)
+            == while_holder_.implicit_captures_.end());
           auto insert_result = while_holder_.implicit_captures_.insert(
             std::make_pair(key, source_and_continuing.copy(false))
           );
@@ -413,39 +436,42 @@ struct WhileDoTask : public TaskBase {
           while_desc.captured_copy = &(insert_result.first->second);
           while_desc.captured = while_desc.captured_copy->get();
 
-          while_desc.requested_schedule_permissions = do_desc.requested_immediate_permissions;
+          while_desc.req_sched_perms = do_desc.req_immed_perms;
 
-        }
-        else {
+        } else {
           // Check whether or not the scheduling permissions need to be upgraded
-          if(while_desc.requested_schedule_permissions < do_desc.requested_immediate_permissions) {
-            while_desc.requested_schedule_permissions = do_desc.requested_immediate_permissions;
+          if (while_desc.req_sched_perms < do_desc.req_immed_perms) {
+            while_desc.req_sched_perms = do_desc.req_immed_perms;
           }
         }
 
         // Make sure the while can schedule the things that the do schedules
-        if(while_desc.requested_schedule_permissions < do_desc.requested_schedule_permissions) {
-          while_desc.requested_schedule_permissions = do_desc.requested_schedule_permissions;
+        if (while_desc.req_sched_perms < do_desc.req_sched_perms) {
+          while_desc.req_sched_perms = do_desc.req_sched_perms;
         }
 
         // Make sure it can schedule itself
-        if(do_desc.requested_schedule_permissions < do_desc.requested_immediate_permissions) {
-          do_desc.requested_schedule_permissions = do_desc.requested_immediate_permissions;
+        if (do_desc.req_sched_perms < do_desc.req_immed_perms) {
+          do_desc.req_sched_perms = do_desc.req_immed_perms;
         }
 
-        do_desc.source_and_continuing = while_desc.captured;
+        do_desc.source_and_continuing = while_desc.captured_copy->get();
 
         break;
       }
+
+      // </editor-fold> end NestedDoCapture }}}2
       //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+      // <editor-fold desc="NestedWhileCapture"> {{{2
+
       case WhileDoCaptureStage::NestedWhileCapture: {
         auto& key = source_and_continuing.var_handle_base_->get_key();
         auto& do_desc = do_holder_.capture_descs_[key];
 
         auto& while_desc = while_holder_.capture_descs_[key];
-        while_desc.requested_schedule_permissions =
+        while_desc.req_sched_perms =
           while_holder_.get_requested_scheduling_permissions(key);
-        while_desc.requested_immediate_permissions =
+        while_desc.req_immed_perms =
           while_holder_.get_requested_immediate_permissions(key);
         while_desc.captured = &captured;
 
@@ -464,33 +490,36 @@ struct WhileDoTask : public TaskBase {
 
 
         // Modify the (parent) do_desc so that it captures this if it doesn't already
-        if(do_desc.captured == nullptr) {
+        if (do_desc.captured == nullptr) {
           // create an implicit capture for the outer do
-          assert(do_holder_.implicit_captures_.find(key) == do_holder_.implicit_captures_.end());
-          auto insert_result = do_holder_.implicit_captures_.insert(std::make_pair(
-            key, captured.copy(false)
-          ));
+          assert(do_holder_.implicit_captures_.find(key)
+            == do_holder_.implicit_captures_.end()
+          );
+          auto insert_result = do_holder_.implicit_captures_.insert(
+            std::make_pair(key, captured.copy(false) )
+          );
           assert(insert_result.second);
           do_desc.captured_copy = &(insert_result.first->second);
           do_desc.captured = do_desc.captured_copy->get();
-          do_desc.requested_schedule_permissions = while_desc.requested_immediate_permissions;
-        }
-        else {
+          do_desc.req_sched_perms = while_desc.req_immed_perms;
+        } else {
           // Check whether or not the scheduling permissions need to be upgraded
-          if(do_desc.requested_schedule_permissions < while_desc.requested_immediate_permissions) {
-            do_desc.requested_schedule_permissions = while_desc.requested_immediate_permissions;
+          if (do_desc.req_sched_perms < while_desc.req_immed_perms) {
+            do_desc.req_sched_perms = while_desc.req_immed_perms;
           }
         }
 
         // Make sure the do can schedule the things that the while schedules
-        if(do_desc.requested_schedule_permissions < while_desc.requested_schedule_permissions) {
-          do_desc.requested_schedule_permissions = while_desc.requested_schedule_permissions;
+        if (do_desc.req_sched_perms < while_desc.req_sched_perms) {
+          do_desc.req_sched_perms = while_desc.req_sched_perms;
         }
 
-        while_desc.source_and_continuing = do_desc.captured;
+        while_desc.source_and_continuing = do_desc.captured_copy->get();
 
         break;
       }
+
+      // </editor-fold> end NestedWhileCapture }}}2
       //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       case WhileDoCaptureStage::OuterDoCapture: {
         DARMA_ASSERT_NOT_IMPLEMENTED("Do-While loop mode");
@@ -521,10 +550,14 @@ struct WhileDoTask : public TaskBase {
     auto* parent_task = static_cast<darma_runtime::detail::TaskBase*>(
       abstract::backend::get_backend_context()->get_running_task()
     );
+    // Setup to do the capture
     parent_task->current_create_work_context = this;
     current_stage_ = NestedDoCapture;
-    is_double_copy_capture = false;
+    is_double_copy_capture = false; // should be default, so we should be able to remove this
+    std::swap(do_holder_.old_explicit_captures_, do_holder_.explicit_captures_);
+    // Trigger the actual capture
     do_fxn_temp_holder_ = do_holder_.trigger_capture(*this);
+    // Cleanup
     parent_task->current_create_work_context = nullptr;
 
     auto while_do_task = std::make_unique<
@@ -560,12 +593,19 @@ struct WhileDoTask : public TaskBase {
       auto* parent_task = static_cast<darma_runtime::detail::TaskBase*>(
         abstract::backend::get_backend_context()->get_running_task()
       );
+      // Setup to do the capture
       parent_task->current_create_work_context = this;
       current_stage_ = NestedWhileCapture;
-      is_double_copy_capture = false;
+      is_double_copy_capture = false; // should be default, so we should be able to remove this
+      std::swap(
+        while_holder_.old_explicit_captures_, while_holder_.explicit_captures_
+      );
+      // Trigger the actual capture
       while_fxn_temp_holder_ = while_holder_.trigger_capture(*this);
+      // Cleanup
       parent_task->current_create_work_context = nullptr;
 
+      // Pass everything off to the next task
       auto do_while_task = std::make_unique<
         nested_analogue<true /* i.e., do-while mode */>
       >(
