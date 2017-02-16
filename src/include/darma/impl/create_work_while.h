@@ -429,12 +429,16 @@ struct WhileDoTask : public TaskBase {
           // create an implicit capture for the outer while
           assert(while_holder_.implicit_captures_.find(key)
             == while_holder_.implicit_captures_.end());
-          auto insert_result = while_holder_.implicit_captures_.insert(
-            std::make_pair(key, source_and_continuing.copy(false))
-          );
-          assert(insert_result.second);
-          while_desc.captured_copy = &(insert_result.first->second);
+          {
+            auto insert_result = while_holder_.implicit_captures_.insert(
+              std::make_pair(key, source_and_continuing.copy(false))
+            );
+            assert(insert_result.second);
+            while_desc.captured_copy = &(insert_result.first->second);
+          } // delete insertion result
           while_desc.captured = while_desc.captured_copy->get();
+
+          while_desc.source_and_continuing = &source_and_continuing;
 
           while_desc.req_sched_perms = do_desc.req_immed_perms;
 

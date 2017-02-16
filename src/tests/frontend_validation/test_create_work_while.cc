@@ -100,6 +100,8 @@ TEST_F(TestCreateWorkWhile, basic_same_always_false) {
 
   EXPECT_REGISTER_TASK(while_use);
 
+  EXPECT_FLOW_ALIAS(f_while_out, f_null);
+
   //============================================================================
   // actual code being tested
   {
@@ -110,12 +112,14 @@ TEST_F(TestCreateWorkWhile, basic_same_always_false) {
       return tmp.get_value() != 0; // should always be False
     }).do_([=]{
       tmp.set_value(73);
-      FAIL() << "Ran do clause when while part should have been false";
+      // This doesn't work like you think it does
+      //FAIL() << "Ran do clause when while part should have been false";
     });
 
   }
   //============================================================================
 
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
 
   EXPECT_RELEASE_USE(while_use);
 
@@ -175,13 +179,19 @@ TEST_F(TestCreateWorkWhile, basic_same_one_iteration) {
   EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
     .WillOnce(Return(f_do_out));
 
-  EXPECT_REGISTER_USE_AND_SET_BUFFER(do_use, f_init, f_do_out, Modify, Modify, value);
+  {
+    InSequence reg_before_release;
 
-  EXPECT_RELEASE_USE(while_use);
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(do_use, f_init, f_do_out, Modify, Modify, value);
 
-  EXPECT_REGISTER_TASK(do_use);
+    EXPECT_RELEASE_USE(while_use);
 
-  EXPECT_FLOW_ALIAS(f_do_out, f_while_out);
+    // TODO get rid of this and the corresponding make_next
+    EXPECT_FLOW_ALIAS(f_do_out, f_while_out);
+
+    EXPECT_REGISTER_TASK(do_use);
+
+  }
 
   run_one_task(); // the first while
 
@@ -192,15 +202,20 @@ TEST_F(TestCreateWorkWhile, basic_same_one_iteration) {
   EXPECT_CALL(*mock_runtime, make_next_flow(f_while_fwd))
     .WillOnce(Return(f_while_out_2));
 
-  EXPECT_REGISTER_USE_AND_SET_BUFFER(while_use_2, f_while_fwd, f_while_out_2,
-    Modify, Read, value
-  );
+  {
+    InSequence reg_before_release;
 
-  EXPECT_RELEASE_USE(do_use);
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(while_use_2, f_while_fwd, f_while_out_2,
+      Modify, Read, value
+    );
 
-  EXPECT_REGISTER_TASK(while_use_2);
+    EXPECT_RELEASE_USE(do_use);
 
-  EXPECT_FLOW_ALIAS(f_while_out_2, f_do_out);
+    // TODO get rid of this and the corresponding make_next
+    EXPECT_FLOW_ALIAS(f_while_out_2, f_do_out);
+
+    EXPECT_REGISTER_TASK(while_use_2);
+  }
 
   run_one_task(); // the do part
 
@@ -217,3 +232,199 @@ TEST_F(TestCreateWorkWhile, basic_same_one_iteration) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWorkWhile, basic_different_always_false) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_null,
+    f_init_2, f_null_2, f_while_out_2
+  );
+  use_t* while_use = nullptr;
+  use_t* do_sched_use = nullptr;
+
+  int value = 0;
+
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init_2, f_null_2, make_key("world"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_init_2))
+    .WillOnce(Return(f_while_out_2));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(while_use, f_init, f_init, Read, Read, value);
+  EXPECT_REGISTER_USE(do_sched_use, f_init_2, f_while_out_2, Modify, None);
+
+  EXPECT_REGISTER_TASK(while_use, do_sched_use);
+
+  EXPECT_FLOW_ALIAS(f_init, f_null);
+  EXPECT_FLOW_ALIAS(f_while_out_2, f_null_2);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp = initial_access<int>("hello");
+    auto tmp2 = initial_access<int>("world");
+
+    create_work_while([=]{
+      return tmp.get_value() != 0; // should always be False
+    }).do_([=]{
+      tmp2.set_value(73);
+      // This doesn't work like you think it does
+      //FAIL() << "Ran do clause when while part should have been false";
+    });
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_RELEASE_USE(while_use);
+
+  EXPECT_RELEASE_USE(do_sched_use);
+
+  run_all_tasks();
+
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWorkWhile, basic_same_four_iterations) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_null
+  );
+  MockFlow f_do_out[] = { "f_do_out[0]", "f_do_out[1]", "f_do_out[2]", "f_do_out[3]",  "f_do_out[4]"};
+  MockFlow f_while_fwd[] = { "f_while_fwd[0]", "f_while_fwd[1]", "f_while_fwd[2]", "f_while_fwd[3]",  "f_while_fwd[4]"};
+  MockFlow f_while_out[] = { "f_while_out[0]", "f_while_out[1]", "f_while_out[2]", "f_while_out[3]",  "f_while_out[4]"};
+  use_t* do_use[] = { nullptr, nullptr, nullptr, nullptr };
+  use_t* while_use[] = { nullptr, nullptr, nullptr, nullptr, nullptr };
+
+  int value = 0;
+
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+    .WillOnce(Return(f_while_out[0]));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(while_use[0], f_init, f_while_out[0], Modify, Read, value);
+
+  EXPECT_REGISTER_TASK(while_use[0]);
+
+  EXPECT_FLOW_ALIAS(f_while_out[0], f_null);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp = initial_access<int>("hello");
+
+    create_work_while([=]{
+      return tmp.get_value() < 4; // should do 4 iterations
+    }).do_([=]{
+      *tmp += 1;
+    });
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+    .WillOnce(Return(f_do_out[0]));
+
+  {
+    InSequence reg_before_release;
+
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(do_use[0], f_init, f_do_out[0], Modify, Modify, value);
+
+    EXPECT_RELEASE_USE(while_use[0]);
+
+    EXPECT_REGISTER_TASK(do_use[0]);
+  }
+
+  EXPECT_FLOW_ALIAS(f_do_out[0], f_while_out[0]);
+
+  run_one_task(); // the first while
+
+  for(int i = 0; i < 4; ++i) {
+
+    Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+    // the next while part is registered in the do part
+
+    EXPECT_CALL(*mock_runtime, make_forwarding_flow(
+      i == 0 ? f_init : f_while_fwd[i-1]
+    )).WillOnce(Return(f_while_fwd[i]));
+    EXPECT_CALL(*mock_runtime, make_next_flow(f_while_fwd[i]))
+      .WillOnce(Return(f_while_out[i+1]));
+
+    {
+      InSequence reg_before_release;
+
+      EXPECT_REGISTER_USE_AND_SET_BUFFER(while_use[i+1], f_while_fwd[i], f_while_out[i+1],
+        Modify, Read, value
+      );
+
+      EXPECT_RELEASE_USE(do_use[i]);
+
+      // TODO get rid of this and the corresponding make_next and just use existing out
+      EXPECT_FLOW_ALIAS(f_while_out[i+1], f_do_out[i]);
+
+      EXPECT_REGISTER_TASK(while_use[i+1]);
+    }
+
+
+    run_one_task(); // run the do part
+
+    // the next do part is registered as part of the while
+
+    Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+    if(i < 3) {
+      EXPECT_CALL(*mock_runtime, make_next_flow(f_while_fwd[i]))
+        .WillOnce(Return(f_do_out[i + 1]));
+
+      {
+
+        InSequence reg_before_release;
+
+        EXPECT_REGISTER_USE_AND_SET_BUFFER(do_use[i + 1],
+          f_while_fwd[i], f_do_out[i + 1], Modify, Modify, value
+        );
+
+        EXPECT_RELEASE_USE(while_use[i + 1]);
+
+        // TODO get rid of this and the corresponding make_next and just use existing out
+        EXPECT_FLOW_ALIAS(f_do_out[i+1], f_while_out[i+1]);
+
+        EXPECT_REGISTER_TASK(do_use[i + 1]);
+
+      }
+
+
+    }
+    else {
+
+      EXPECT_RELEASE_USE(while_use[i+1]);
+
+    }
+
+
+    run_one_task(); // run the next while part
+
+  }
+
+  EXPECT_THAT(value, Eq(4));
+
+}
