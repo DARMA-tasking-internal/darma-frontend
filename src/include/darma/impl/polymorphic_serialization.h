@@ -265,7 +265,7 @@ PolymorphicSerializableObject<AbstractType>::unpack(char const* buffer, size_t s
   size_t concrete_index = std::numeric_limits<size_t>::max();
   for(; i_base < n_bases; ++i_base) {
     const auto& pair = *reinterpret_cast<std::pair<size_t, size_t> const*>(buffer);
-    if (i_base == pair.first) {
+    if (abstract_type_index == pair.first) {
       concrete_index = pair.second;
       break;
     }

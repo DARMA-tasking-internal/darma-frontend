@@ -376,6 +376,9 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
       typename key_traits<types::key_t>::key_equal
     >;
 
+    // TODO technically, this oversynchronizes, since there may be, e.g., a
+    // period of time in between then if and the then where immediate permissions
+    // are not needed.  Don't know how to fix this, though
     captured_handle_map_t implicit_if_captured_handles;
     captured_handle_map_t explicit_if_captured_handles;
 
@@ -688,8 +691,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
           source->current_use_
         );
         add_dependency(desc.captured->current_use_->use);
-        for (auto&& use_to_set : desc.uses_to_set
-          ) {
+        for (auto&& use_to_set : desc.uses_to_set) {
           (*use_to_set) = desc.captured->current_use_;
         }
         if (desc.captured_in_then_or_else and not desc.is_implicit_in_if) {
@@ -1568,7 +1570,7 @@ struct _create_work_if_helper<
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// <editor-fold desc="create_work_if_helper, FunctorWrapper version"> {{{2
+// <editor-fold desc="create_work_if_helper, functor version"> {{{2
 
 template <typename Functor, typename LastArg, typename... Args>
 struct _create_work_if_helper<
@@ -1610,7 +1612,7 @@ struct _create_work_if_helper<
   }
 };
 
-// </editor-fold> end create_work_if_helper, FunctorWrapper version }}}2
+// </editor-fold> end create_work_if_helper, functor version }}}2
 //------------------------------------------------------------------------------
 
 // </editor-fold> end Task creation helpers in the form of proxy return objects }}}1

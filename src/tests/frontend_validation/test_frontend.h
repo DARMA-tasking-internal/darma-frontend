@@ -56,10 +56,9 @@
 
 #include <gtest/gtest.h>
 
-#include <darma.h>
-
 #include <tinympl/fill_n.hpp>
 
+#include <darma.h> // TODO remove this in favor of finer-grained dependency inclusion
 #include <darma/impl/task.h>
 #include <darma/impl/runtime.h>
 #include <darma/interface/app/access_handle.h>

@@ -74,6 +74,8 @@
 
 #define _darma_feature_date_create_concurrent_work_owned_by 20170124
 
+#define _darma_feature_date_resilient_tasks 29990101
+
 // </editor-fold> end Feature Dates and Defaults }}}1
 //==============================================================================
 

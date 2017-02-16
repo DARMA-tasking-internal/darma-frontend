@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      darma_features.h
+//                      create_work_while_fwd.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,13 +42,20 @@
 //@HEADER
 */
 
-#ifndef DARMA_DARMA_FEATURES_H
-#define DARMA_DARMA_FEATURES_H
+#ifndef DARMA_IMPL_CREATE_WORK_WHILE_FWD_H
+#define DARMA_IMPL_CREATE_WORK_WHILE_FWD_H
 
-#define _darma_backend_has_all_features 1
+namespace darma_runtime {
+namespace detail {
 
-#define _darma_backend_feature_progress_date 20990101 // for now
-#define _darma_has_feature_handle_collection_based_collectives 0
-#define _darma_has_feature_resilient_tasks 0
+template <
+  typename WhileCallable, typename WhileArgsTuple, bool WhileIsLambda,
+  typename DoCallable, typename DoArgsTuple, bool DoIsLambda,
+  bool IsDoWhilePhase=false, bool IsOuter=true
+>
+struct WhileDoTask;
 
-#endif //DARMA_DARMA_FEATURES_H
+} // end namespace detail
+} // end namespace darma_runtime
+
+#endif //DARMA_IMPL_CREATE_WORK_WHILE_FWD_H

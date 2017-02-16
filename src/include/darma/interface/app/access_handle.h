@@ -231,6 +231,9 @@ class AccessHandle : public detail::AccessHandleBase {
       var_handle_ = copied_from.var_handle_;
       var_handle_base_ = var_handle_;
 
+      // Always copy the use, no matter what (it will usually get replaced anyway)
+      current_use_ = copied_from.current_use_;
+
       // TODO remove this?  I don't think the unfetched flag is still used...
       DARMA_ASSERT_MESSAGE(
         not copied_from.unfetched_,
@@ -255,9 +258,6 @@ class AccessHandle : public detail::AccessHandleBase {
         );
       } // end if capturing_task != nullptr
       else {
-        // regular copy
-        // TODO figure out how this works with respect to who is responsible for destruction
-        current_use_ = copied_from.current_use_;
         // Also, save prev copied from in case this is a double capture, like in
         // create_condition.  This is the only time that the prev_copied_from ptr
         // should be valid (i.e., when task->is_double_copy_capture is set to true)
@@ -293,6 +293,8 @@ class AccessHandle : public detail::AccessHandleBase {
       }
       var_handle_ = AccessHandleAccess::var_handle(copied_from);
       var_handle_base_ = var_handle_;
+      // Always copy the use, no matter what (it will usually get replaced anyway)
+      current_use_ = copied_from.current_use_;
 
       // TODO remove this?  I don't think the unfetched flag is still used...
       DARMA_ASSERT_MESSAGE(
@@ -332,10 +334,6 @@ class AccessHandle : public detail::AccessHandleBase {
           copied_from.current_use_->use.use_
         );
       } // end if capturing_task != nullptr
-      else {
-        // regular copy, just copy over the current use
-        current_use_ = copied_from.current_use_;
-      }
     }
 
     // </editor-fold> end Analogous type conversion constructor }}}2
@@ -498,6 +496,11 @@ class AccessHandle : public detail::AccessHandleBase {
         "handle dereferenced in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
+        current_use_->use.use_ != nullptr,
+        "dereference of handle with null Use (this should never happen,"
+          " it indicates an error in the translation layer)"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_
           != abstract::frontend::Use::Permissions::None,
         "handle dereferenced in state without immediate access to data, with key: {"
@@ -531,6 +534,11 @@ class AccessHandle : public detail::AccessHandleBase {
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "handle dereferenced in context without immediate permissions"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_->use.use_ != nullptr,
+        "dereference of handle with null Use (this should never happen,"
+          " it indicates an error in the translation layer)"
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_
@@ -588,6 +596,11 @@ class AccessHandle : public detail::AccessHandleBase {
         "set_value() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
+        current_use_->use.use_ != nullptr,
+        "get_reference() called on handle with null Use (this should never happen,"
+          " it indicates an error in the translation layer)"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_
           == abstract::frontend::Use::Permissions::Modify,
         "set_value() called on handle not in immediately modifiable state, with key: {"
@@ -614,6 +627,11 @@ class AccessHandle : public detail::AccessHandleBase {
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "emplace_value() called on handle in context without immediate permissions"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_->use.use_ != nullptr,
+        "emplace_value() called on handle with null Use (this should never happen,"
+          " it indicates an error in the translation layer)"
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_
@@ -653,6 +671,11 @@ class AccessHandle : public detail::AccessHandleBase {
         "get_value() called on handle in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
+        current_use_->use.use_ != nullptr,
+        "get_value() called on handle with null Use (this should never happen,"
+          " it indicates an error in the translation layer)"
+      );
+      DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_
           != abstract::frontend::Use::Permissions::None,
         "get_value() called on handle not in immediately readable state, with key: {"
@@ -681,6 +704,11 @@ class AccessHandle : public detail::AccessHandleBase {
       DARMA_ASSERT_MESSAGE(
         current_use_.get() != nullptr,
         "get_reference() called on handle in context without immediate permissions"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_->use.use_ != nullptr,
+        "get_reference() called on handle with null Use (this should never happen,"
+          " it indicates an error in the translation layer)"
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use.immediate_permissions_

@@ -49,8 +49,10 @@
 
 #include <darma/impl/task_fwd.h> // TaskBase forward declaration
 #include <darma/impl/create_if_then_fwd.h>
+#include <darma/impl/create_work_while_fwd.h>
 
 #include <darma/impl/use.h> // UseHolder
+
 
 namespace darma_runtime {
 namespace detail {
@@ -90,6 +92,8 @@ class AccessHandleBase {
     template <typename, typename, bool, typename, typename, bool, typename, typename, bool>
     friend class darma_runtime::detail::IfLambdaThenLambdaTask;
     friend class ParsedCaptureOptions;
+    template <typename, typename, bool, typename, typename, bool, bool, bool>
+    friend class WhileDoTask;
 
     // Copy the concrete object instance
     virtual std::shared_ptr<AccessHandleBase> copy(bool check_context = true) const =0;

@@ -175,6 +175,10 @@ class Task {
 
     //==========================================================================
 
+#if _darma_has_feature(resilient_tasks)
+    virtual bool is_replayable() const =0;
+#endif
+
     virtual ~Task() = default;
 
 };
