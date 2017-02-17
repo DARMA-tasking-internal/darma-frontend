@@ -1038,3 +1038,84 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Bool()
   )
 );
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if 0
+TEST_F(TestCreateWorkIf, same_always_true_mod_functor) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_null, f_if_out, f_then_fwd, f_then_out
+  );
+  use_t* if_use = nullptr;
+  use_t* then_use = nullptr;
+
+  int value = 0;
+
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+    .WillOnce(Return(f_if_out));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Modify, value);
+
+  EXPECT_REGISTER_TASK(if_use);
+
+  //============================================================================
+  // actual code being tested
+  {
+    struct IfFunctor {
+      bool operator()(
+        int& v
+      ) const {
+        v = 42;
+        return true;
+      }
+    };
+
+    auto tmp = initial_access<int>("hello");
+
+    create_work_if<IfFunctor>(tmp).then_([=]{
+      tmp.set_value(tmp.get_value() + 31 /* = 73 */);
+    });
+
+  }
+  //============================================================================
+
+  EXPECT_CALL(*mock_runtime, make_forwarding_flow(f_init))
+    .WillOnce(Return(f_then_fwd));
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_then_fwd))
+    .WillOnce(Return(f_then_out));
+
+  {
+    InSequence seq;
+
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_then_fwd, f_then_out, Modify, Modify, value);
+
+    EXPECT_RELEASE_USE(if_use);
+
+    EXPECT_REGISTER_TASK(then_use);
+  }
+
+  EXPECT_FLOW_ALIAS(f_then_out, f_if_out);
+
+  ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));
+
+  run_one_task();
+
+  ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));
+
+  EXPECT_RELEASE_USE(then_use);
+
+  run_one_task();
+
+  EXPECT_THAT(value, Eq(73));
+
+}
+#endif

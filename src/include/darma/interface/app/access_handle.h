@@ -261,6 +261,7 @@ class AccessHandle : public detail::AccessHandleBase {
         }
       } // end if capturing_task != nullptr
       else {
+        current_use_ = copied_from.current_use_;
         // Also, save prev copied from in case this is a double capture, like in
         // create_condition.  This is the only time that the prev_copied_from ptr
         // should be valid (i.e., when task->is_double_copy_capture is set to true)
@@ -341,6 +342,9 @@ class AccessHandle : public detail::AccessHandleBase {
           );
         }
       } // end if capturing_task != nullptr
+      else {
+        current_use_ = copied_from.current_use_; // not sure this is necessary
+      }
     }
 
     // </editor-fold> end Analogous type conversion constructor }}}2
