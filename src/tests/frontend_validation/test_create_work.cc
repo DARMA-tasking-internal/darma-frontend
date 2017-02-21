@@ -93,29 +93,38 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
 
   const bool use_helper = GetParam();
 
-  MockFlow f_initial("f_initial"), f_null("f_null"), f_task_out("f_task_out"), f_unused("f_unused");
+  DECLARE_MOCK_FLOWS(f_initial, f_null, f_task_out);
   use_t* task_use = nullptr;
+  use_t* use_initial = nullptr;
+  use_t* use_cont = nullptr;
 
-  EXPECT_INITIAL_ACCESS(f_initial, f_null, make_key("hello"));
-
+  EXPECT_INITIAL_ACCESS(f_initial, f_null, use_initial, make_key("hello"));
 
   if(use_helper) {
-    EXPECT_MOD_CAPTURE_MN_OR_MR(f_initial, f_task_out, task_use);
+    EXPECT_MOD_CAPTURE_MN_OR_MR(f_initial, f_task_out, task_use, f_null, use_cont);
   }
   else {
     EXPECT_CALL(*mock_runtime, make_next_flow(&f_initial))
       .WillOnce(Return(&f_task_out));
 
     EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
-      &f_initial, &f_task_out, use_t::Modify, use_t::Modify
+      f_initial, f_task_out, use_t::Modify, use_t::Modify
     ))).WillOnce(SaveArg<0>(&task_use));
+
+    EXPECT_REGISTER_USE(use_cont, f_task_out, f_null, Modify, None);
   }
 
-  EXPECT_REGISTER_TASK(task_use);
+  {
+    InSequence rel_before_reg;
 
-  EXPECT_FLOW_ALIAS(f_task_out, f_null);
+    EXPECT_RELEASE_USE(use_initial);
 
-  EXPECT_RELEASE_FLOW(f_null);
+    EXPECT_REGISTER_TASK(task_use);
+
+    EXPECT_FLOW_ALIAS(f_task_out, f_null);
+
+    EXPECT_RELEASE_USE(use_cont);
+  }
 
   {
     auto tmp = initial_access<int>("hello");
@@ -130,10 +139,6 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
 
   EXPECT_RELEASE_USE(task_use);
 
-  EXPECT_RELEASE_FLOW(f_initial);
-
-  EXPECT_RELEASE_FLOW(f_task_out);
-
   mock_runtime->registered_tasks.clear();
 
 }
@@ -144,6 +149,7 @@ INSTANTIATE_TEST_CASE_P(
   ::testing::Bool()
 );
 
+
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWork, mod_capture_MN_vector) {
@@ -152,31 +158,29 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
   using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace mock_backend;
 
-  Sequence s0, s1;
+  DECLARE_MOCK_FLOWS(finit1, finit2, fnull1, fnull2, fout1, fout2);
+  use_t *use_1, *use_2, *init_use_1, *init_use_2, *cont_use_1, *cont_use_2;
 
-  MockFlow finit1("init1"), finit2("init2");
-  MockFlow fnull1("null1"), fnull2("null2");
-  MockFlow fout1("out1"), fout2("out2");
-  use_t *use_1, *use_2;
-  use_1 = use_2 = nullptr;
+  EXPECT_INITIAL_ACCESS(finit1, fnull1, init_use_1, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(finit2, fnull2, init_use_2, make_key("world"));
 
-  EXPECT_INITIAL_ACCESS(finit1, fnull1, make_key("hello"));
-  EXPECT_INITIAL_ACCESS(finit2, fnull2, make_key("world"));
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit1, fout1, use_1, fnull1, cont_use_1);
 
-  EXPECT_MOD_CAPTURE_MN_OR_MR(finit1, fout1, use_1);
-  EXPECT_MOD_CAPTURE_MN_OR_MR(finit2, fout2, use_2);
+  EXPECT_RELEASE_USE(init_use_1);
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit2, fout2, use_2, fnull2, cont_use_2);
+
+  EXPECT_RELEASE_USE(init_use_2);
 
   EXPECT_REGISTER_TASK(use_1, use_2);
 
-  Expectation fa1 = EXPECT_FLOW_ALIAS(fout1, fnull1);
+  EXPECT_FLOW_ALIAS(fout1, fnull1);
 
-  EXPECT_RELEASE_FLOW(fout1).After(fa1);
-  EXPECT_RELEASE_FLOW(fnull1).After(fa1);
+  EXPECT_RELEASE_USE(cont_use_1);
 
-  Expectation fa2 = EXPECT_FLOW_ALIAS(fout2, fnull2);
+  EXPECT_FLOW_ALIAS(fout2, fnull2);
 
-  EXPECT_RELEASE_FLOW(fout2).After(fa2);
-  EXPECT_RELEASE_FLOW(fnull2).After(fa2);
+  EXPECT_RELEASE_USE(cont_use_2);
 
 
   {
@@ -192,17 +196,16 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
 
   } // handles deleted
 
-  Expectation rel1 = EXPECT_RELEASE_USE(use_1);
-  Expectation rel2 = EXPECT_RELEASE_USE(use_2);
+  EXPECT_RELEASE_USE(use_1);
 
-  EXPECT_RELEASE_FLOW(finit1).After(rel1);
-  EXPECT_RELEASE_FLOW(finit2).After(rel2);
+  EXPECT_RELEASE_USE(use_2);
 
   mock_runtime->registered_tasks.clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if 0 // Arbitrary Publish-Fetch deprecated
 
 struct TestRoCaptureRN
   : TestCreateWork,
@@ -219,7 +222,7 @@ TEST_P(TestRoCaptureRN, ro_capture_RN) {
 
   Sequence s1, s_release_read;
 
-  MockFlow f_fetch, f_null;
+  DECLARE_MOCK_FLOWS(f_fetch, f_null);
   use_t* read_use = nullptr;
   EXPECT_READ_ACCESS(f_fetch, f_null, make_key("hello"), make_key("world"));
 
@@ -266,6 +269,8 @@ INSTANTIATE_TEST_CASE_P(
   ::testing::Bool()
 );
 
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 
 struct TestCaptureMM
@@ -284,15 +289,17 @@ TEST_P(TestCaptureMM, capture_MM) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow finit("finit"), fnull("fnull"),
-    f_outer_out("f_outer_out"), f_forwarded("f_forwarded"),
-    f_inner_out("f_inner_out");
-  use_t* use_outer, *use_inner, *use_continuing;
+  DECLARE_MOCK_FLOWS(
+    finit, fnull, f_outer_out, f_forwarded, f_inner_out
+  );
+  use_t* use_outer, *use_inner, *use_continuing, *use_outer_cont, *use_initial;
   use_outer = use_inner = use_continuing = nullptr;
 
-  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_initial, make_key("hello"));
 
-  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, f_outer_out, use_outer);
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, f_outer_out, use_outer, fnull, use_outer_cont);
+
+  EXPECT_RELEASE_USE(use_initial);
 
   task_t* outer;
   int value = 0;
@@ -305,10 +312,9 @@ TEST_P(TestCaptureMM, capture_MM) {
       outer = task;
     }));
 
-  Sequence s1;
+  EXPECT_FLOW_ALIAS(f_outer_out, fnull);
 
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_outer_out, &fnull))
-    .InSequence(s1);
+  EXPECT_RELEASE_USE(use_outer_cont);
 
   //============================================================================
   // Actual code being tested
@@ -360,6 +366,8 @@ TEST_P(TestCaptureMM, capture_MM) {
   }
   //============================================================================
 
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
   ON_CALL(*mock_runtime, get_running_task())
     .WillByDefault(Return(ByRef(outer)));
 
@@ -367,22 +375,33 @@ TEST_P(TestCaptureMM, capture_MM) {
     .WillOnce(Return(&f_forwarded));
 
   if(not ro_capture) {
+    //InSequence seq;
+
     EXPECT_CALL(*mock_runtime, make_next_flow(&f_forwarded))
       .WillOnce(Return(&f_inner_out));
 
-    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
-      &f_forwarded, &f_inner_out, use_t::Modify, use_t::Modify
-    ))).InSequence(s1)
-      .WillOnce(Invoke([&](auto&& use){
-        use->get_data_pointer_reference() = (void*)(&value);
-        use_inner = use;
-      }));
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(use_inner, f_forwarded, f_inner_out, Modify, Modify, value);
+    //EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
+    //  f_forwarded, f_inner_out, use_t::Modify, use_t::Modify
+    //))).WillOnce(Invoke([&](auto&& use){
+    //  use->get_data_pointer_reference() = (void*)(&value);
+    //  use_inner = use;
+    //}));
+
+    // Doesn't really need to be sequenced w.r.t. prev register
+    EXPECT_REGISTER_USE(use_continuing, f_inner_out, f_outer_out, Modify, None);
+
+    EXPECT_RELEASE_USE(use_outer);
+
   }
 
   else {
+
+    InSequence seq;
+
     EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
       &f_forwarded, &f_forwarded, use_t::Read, use_t::Read
-    ))).InSequence(s1)
+    )))
       .WillOnce(Invoke([&](auto&& use){
         use->get_data_pointer_reference() = (void*)(&value);
         use_inner = use;
@@ -390,32 +409,30 @@ TEST_P(TestCaptureMM, capture_MM) {
     // Expect the continuing context use to be registered after the captured context
     EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
       &f_forwarded, &f_outer_out, use_t::Modify, use_t::Read
-    ))).InSequence(s1)
-      .WillOnce(Invoke([&](auto&& use){
-        // Shouldn't be necessary
-        // use->get_data_pointer_reference() = (void*)(&value);
-        use_continuing = use;
-      }));
-  }
+    ))).WillOnce(Invoke([&](auto&& use){
+      // Shouldn't be necessary
+      // use->get_data_pointer_reference() = (void*)(&value);
+      use_continuing = use;
+    }));
 
-  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(use_outer))))
-    .InSequence(s1)
-    .WillOnce(Assign(&use_outer, nullptr));
+    EXPECT_RELEASE_USE(use_outer);
+  }
 
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_inner))));
 
   if(not ro_capture) {
-    EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_inner_out, &f_outer_out));
+    EXPECT_FLOW_ALIAS(f_inner_out, f_outer_out);
   }
   else{
     // Note: Currently there is no ordering requirement on these two
-    EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_forwarded, &f_outer_out));
-    EXPECT_RELEASE_USE(use_continuing);
+    EXPECT_FLOW_ALIAS(f_forwarded, f_outer_out);
   }
 
-  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(use_inner))))
-    .InSequence(s1)
-    .WillOnce(Assign(&use_inner, nullptr));
+  EXPECT_RELEASE_USE(use_continuing);
+
+  EXPECT_RELEASE_USE(use_inner);
+  //EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(use_inner))))
+  //  .WillOnce(Assign(&use_inner, nullptr));
 
   run_all_tasks();
 
@@ -429,6 +446,7 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Bool()
   )
 );
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -457,6 +475,7 @@ TEST_F(TestCreateWork, named_task) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+
 TEST_F(TestCreateWork, handle_aliasing) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -467,15 +486,19 @@ TEST_F(TestCreateWork, handle_aliasing) {
   mock_runtime->save_tasks = true;
 
   DECLARE_MOCK_FLOWS(finit, fnull, fcapt);
-  use_t* use_capt;
+  use_t* use_capt, *use_init, *use_cont;
 
-  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
 
-  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, fcapt, use_capt);
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, fcapt, use_capt, fnull, use_cont);
+
+  EXPECT_RELEASE_USE(use_init);
 
   EXPECT_REGISTER_TASK(use_capt);
 
   EXPECT_FLOW_ALIAS(fcapt, fnull);
+
+  EXPECT_RELEASE_USE(use_cont);
 
   //============================================================================
   // actual code being tested
@@ -492,6 +515,8 @@ TEST_F(TestCreateWork, handle_aliasing) {
 
   }
   //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
 
   EXPECT_RELEASE_USE(use_capt);
 
@@ -515,9 +540,9 @@ TEST_P(TestScheduleOnly, schedule_only) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow finit, fnull, fcapt, f_sched_out, f_immed_out;
+  DECLARE_MOCK_FLOWS(finit, fnull, fcapt, f_sched_out, f_immed_out);
   use_t *use_immed_capt, *use_sched_capt, *use_read_capt, *use_sched_contin,
-    *use_ro_sched;
+    *use_ro_sched, *use_init, *use_cont;
   use_read_capt = use_immed_capt = use_sched_capt = nullptr;
   use_ro_sched = nullptr;
 
@@ -525,7 +550,7 @@ TEST_P(TestScheduleOnly, schedule_only) {
 
   bool sched_capture_read = GetParam();
 
-  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
 
   // First, expect the task that does a schedule-only capture
 
@@ -534,6 +559,11 @@ TEST_P(TestScheduleOnly, schedule_only) {
     .WillOnce(Return(f_sched_out));
   Expectation reg_sched =
     EXPECT_REGISTER_USE(use_sched_capt, finit, f_sched_out, Modify, None);
+
+  EXPECT_RELEASE_USE(use_init);
+
+  EXPECT_REGISTER_USE(use_sched_contin, f_sched_out, fnull, Modify, None);
+
   EXPECT_REGISTER_TASK(use_sched_capt).After(reg_sched);
 
   if(not sched_capture_read) {
@@ -548,6 +578,8 @@ TEST_P(TestScheduleOnly, schedule_only) {
   }
 
   EXPECT_FLOW_ALIAS(f_sched_out, fnull);
+
+  EXPECT_RELEASE_USE(use_sched_contin);
 
   //============================================================================
   // actual code being tested
@@ -628,6 +660,7 @@ INSTANTIATE_TEST_CASE_P(
   ::testing::Bool()
 );
 
+
 ////////////////////////////////////////////////////////////////////////////////
 
 #if defined(DEBUG) || !defined(NDEBUG)
@@ -639,16 +672,22 @@ TEST_F(TestCreateWork, death_schedule_only) {
 
   MockFlow finit, fnull, f_sched_out;
   use_t* use_sched_capt = nullptr;
+  use_t* use_sched_cont = nullptr;
+  use_t* use_init = nullptr;
 
-  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+  mock_runtime->save_tasks = true;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
 
   // Expect a schedule-only mod capture
   EXPECT_CALL(*mock_runtime, make_next_flow(finit))
     .WillOnce(Return(f_sched_out));
   EXPECT_REGISTER_USE(use_sched_capt, finit, f_sched_out, Modify, None);
+  EXPECT_REGISTER_USE(use_sched_cont, f_sched_out, fnull, Modify, None);
+  EXPECT_RELEASE_USE(use_init);
   EXPECT_REGISTER_TASK(use_sched_capt);
 
-  mock_runtime->save_tasks = true;
+  EXPECT_RELEASE_USE(use_sched_cont);
 
   //============================================================================
   // actual code being tested (that should fail when run)
@@ -667,12 +706,16 @@ TEST_F(TestCreateWork, death_schedule_only) {
   }
   //============================================================================
 
+  EXPECT_RELEASE_USE(use_sched_capt);
+
   run_all_tasks();
 
 }
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
+
+#if 0
 
 TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
   using namespace ::testing;
@@ -758,5 +801,6 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
   EXPECT_THAT(value, Eq(42));
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -742,19 +742,17 @@ auto make_captured_use_holder(
           // register the captured use
           captured_use_holder->do_register();
 
-          // and release the source use
-          // (there should not be a registered use in the continuing context)
-          source_and_continuing_holder->do_release();
-
-          // ...but we do need to set up some stuff for the next time the
-          // UseHolder is encountered (whether it's establishing an alias or
-          // another capture)
-          // (note that the out flow and scheduling permissions remain unchanged)
-          source_and_continuing_holder->use.immediate_permissions_ = HandleUse::None;
-          source_and_continuing_holder->use.in_flow_ = captured_out_flow;
+          source_and_continuing_holder->replace_use(
+            HandleUse(
+              var_handle,
+              captured_out_flow,
+              source_and_continuing_holder->use.out_flow_,
+              source_and_continuing_holder->use.scheduling_permissions_,
+              HandleUse::None
+            ),
+            AllowRegisterContinuation
+          );
           source_and_continuing_holder->could_be_alias = true;
-
-          // TODO decide if this continuing context use needs to be registered as schedule only (for consistency)
 
           break;
         } // end case Modify source immediate permissions

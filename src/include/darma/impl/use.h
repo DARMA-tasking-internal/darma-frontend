@@ -501,12 +501,17 @@ struct GenericUseHolder {
   explicit
   GenericUseHolder(UnderlyingUse&& in_use)
     : use(std::move(in_use))
-  { }
+  {
+    do_register();
+  }
 
   void do_register() {
-    assert(!is_registered);
-    abstract::backend::get_backend_runtime()->register_use(&use);
-    is_registered = true;
+    if(not is_registered) { // for now
+      // TODO remove this hack if statement once I remove the superfluous do_register() calls elsewhere
+      assert(!is_registered);
+      abstract::backend::get_backend_runtime()->register_use(&use);
+      is_registered = true;
+    }
   }
 
   void replace_use(UnderlyingUse&& new_use, bool should_do_register) {
@@ -534,7 +539,6 @@ struct GenericUseHolder {
 #endif
 
   ~GenericUseHolder() {
-    if(is_registered) do_release();
     if(could_be_alias) {
       // okay, now we know it IS an alias
       abstract::backend::get_backend_runtime()->establish_flow_alias(
@@ -542,6 +546,7 @@ struct GenericUseHolder {
         *(use.out_flow_.get())
       );
     }
+    if(is_registered) do_release();
   }
 };
 
