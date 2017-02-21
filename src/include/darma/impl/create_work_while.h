@@ -305,21 +305,21 @@ struct WhileDoTask: public TaskBase {
         and not std::is_void<WhileDoHelper>::value, // should always be true
       int
     > = 0
-  )
-    : while_holder_(
-    *this,
-    std::move(helper.while_helper.while_lambda),
-    std::move(helper.while_helper.args_fwd_tup),
-    std::move(helper.while_helper.task_option_args_tup),
-    HandleUse::Read, HandleUse::Read
-  ),
-    do_holder_(
-      *this,
-      std::move(helper.do_lambda),
-      std::move(helper.args_fwd_tup),
-      std::move(helper.task_option_args_tup),
-      HandleUse::Modify, HandleUse::Modify
-    ) {
+  ) : while_holder_(
+        *this,
+        std::move(helper.while_helper.while_lambda),
+        std::move(helper.while_helper.args_fwd_tup),
+        std::move(helper.while_helper.task_option_args_tup),
+        HandleUse::Read, HandleUse::Read
+      ),
+      do_holder_(
+        *this,
+        std::move(helper.do_lambda),
+        std::move(helper.args_fwd_tup),
+        std::move(helper.task_option_args_tup),
+        HandleUse::Modify, HandleUse::Modify
+      )
+  {
     // Handle the while capture
     auto* parent_task = static_cast<darma_runtime::detail::TaskBase*>(
       abstract::backend::get_backend_context()->get_running_task()
@@ -338,8 +338,7 @@ struct WhileDoTask: public TaskBase {
 
     parent_task->current_create_work_context = nullptr;
 
-    for (auto&& while_desc_pair : while_holder_.capture_descs_
-      ) {
+    for (auto&& while_desc_pair : while_holder_.capture_descs_) {
       auto& while_desc = while_desc_pair.second;
       auto& key = while_desc_pair.first;
 
@@ -355,6 +354,12 @@ struct WhileDoTask: public TaskBase {
       add_dependency(while_desc.captured->current_use_->use);
     }
     while_holder_.capture_descs_.clear();
+
+    // Cleanup:  remove the alias guards
+    // TODO make this work
+    //for(auto* use_to_unmark : uses_to_unmark_already_captured) {
+    //  use_to_unmark->already_captured = false;
+    //}
 
   }
 
@@ -401,6 +406,11 @@ struct WhileDoTask: public TaskBase {
     // The capture descriptions in while_holder_ should be correct at this point
     // except that they need to be corrected to also handle the schedule-only
     // captures of the do parts
+
+    // Cleanup:  remove the alias guards
+    for(auto* use_to_unmark : uses_to_unmark_already_captured) {
+      use_to_unmark->already_captured = false;
+    }
   }
 
   // This is a recursive inner constructor, called for "while" mode
@@ -447,6 +457,10 @@ struct WhileDoTask: public TaskBase {
     // except that they need to be corrected to also handle the schedule-only
     // captures of the nested while parts
 
+    // Cleanup:  remove the alias guards
+    for(auto* use_to_unmark : uses_to_unmark_already_captured) {
+      use_to_unmark->already_captured = false;
+    }
   }
 
   void do_capture(

@@ -720,6 +720,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
       for(auto* use_to_unmark : uses_to_unmark_already_captured) {
         use_to_unmark->already_captured = false;
       }
+      uses_to_unmark_already_captured.clear();
 
     }
 
