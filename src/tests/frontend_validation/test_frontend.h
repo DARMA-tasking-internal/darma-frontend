@@ -411,6 +411,12 @@ class TestFrontend
       mock_runtime->registered_tasks.front()->run();
       mock_runtime->registered_tasks.pop_front();
     }
+
+    void
+    run_most_recently_added_task() {
+      mock_runtime->registered_tasks.back()->run();
+      mock_runtime->registered_tasks.pop_back();
+    }
     ////////////////////////////////////////
 
 //    void

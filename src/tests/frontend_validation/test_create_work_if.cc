@@ -1119,3 +1119,101 @@ TEST_F(TestCreateWorkIf, same_always_true_mod_functor) {
 
 }
 #endif
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWorkIf, multiple_different_always_true) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    f_cond_init, f_cond_null, f_cap_init, f_cap_null,
+    f_cap_if_out, f_cap_cont
+  );
+  use_t* cond_use = nullptr;
+  use_t* cap_if_use = nullptr;
+  use_t* cap_then_use = nullptr;
+  use_t* cap_then_cont_use = nullptr;
+  use_t* cond_after_use = nullptr;
+
+
+  int cond_value = 0;
+  int cap_value = 0;
+
+  EXPECT_INITIAL_ACCESS(f_cond_init, f_cond_null, make_key("hello"));
+
+  EXPECT_INITIAL_ACCESS(f_cap_init, f_cap_null, make_key("world"));
+
+  EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(f_cond_init, cond_use, cond_value);
+
+  {
+    // TODO decide if this should be done differently...
+
+    InSequence two_nexts;
+    EXPECT_CALL(*mock_runtime, make_next_flow(f_cap_init))
+      .WillOnce(Return(f_cap_if_out));
+
+    EXPECT_CALL(*mock_runtime, make_next_flow(f_cap_init))
+      .WillOnce(Return(f_cap_cont));
+
+  }
+
+  EXPECT_REGISTER_USE(cap_if_use, f_cap_init, f_cap_if_out, Modify, None);
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(cap_then_use, f_cap_init, f_cap_cont, Modify, Modify, cap_value);
+
+  EXPECT_REGISTER_TASK(cond_use, cap_if_use);
+
+
+  // TODO get rid of this in the code
+  EXPECT_REGISTER_USE(cap_then_cont_use, f_cap_cont, f_cap_if_out, Modify, None);
+
+  EXPECT_REGISTER_TASK(cap_then_use);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto cond_val = initial_access<int>("hello");
+    auto cap_val = initial_access<int>("world");
+
+    create_work_if([=]{
+      return cond_val.get_value() != 42; // should always be true
+    }).then_([=]{
+      cap_val.set_value(73);
+    });
+
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(cond_after_use, f_cond_init, f_cond_init, Read, Read, cond_value);
+
+    EXPECT_REGISTER_TASK(cond_after_use);
+
+    create_work(reads(cond_val), [=]{
+      EXPECT_THAT(cond_val.get_value(), Eq(0));
+    });
+
+  }
+  //============================================================================
+
+  EXPECT_RELEASE_USE(cond_use);
+  EXPECT_RELEASE_USE(cap_if_use);
+  EXPECT_RELEASE_USE(cap_then_cont_use);
+
+  EXPECT_FLOW_ALIAS(f_cap_cont, f_cap_if_out);
+
+  run_one_task();
+
+  EXPECT_RELEASE_USE(cap_then_use);
+
+  run_most_recently_added_task();
+
+  EXPECT_RELEASE_USE(cond_after_use);
+
+  run_one_task();
+
+  EXPECT_THAT(cap_value, Eq(73));
+
+}

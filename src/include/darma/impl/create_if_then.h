@@ -680,8 +680,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
 
       // Now loop over the remaining if_captures (those not handle in the Then
       // copy mode) and do the capture on them
-      for (auto&& if_cap_pair : if_captures_
-        ) {
+      for (auto&& if_cap_pair : if_captures_) {
         auto& desc = if_cap_pair.second;
         auto* source = desc.source_and_continuing;
         desc.captured->current_use_ = make_captured_use_holder(
@@ -717,6 +716,10 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
         abstract::backend::get_backend_context()->get_running_task()
       );
       parent_task->current_create_work_context = nullptr;
+
+      for(auto* use_to_unmark : uses_to_unmark_already_captured) {
+        use_to_unmark->already_captured = false;
+      }
 
     }
 
@@ -1298,8 +1301,7 @@ struct _create_work_else_helper<
     std::tuple<> args_fwd_tup_;
 
     ~_create_work_else_helper() {
-      std::unique_ptr<abstract::frontend::Task>
-        if_then_else_task = std::make_unique<
+      std::unique_ptr<abstract::frontend::Task> if_then_else_task = std::make_unique<
         IfLambdaThenLambdaTask<
           typename if_helper_t::lambda_t,
           typename if_helper_t::args_tuple_t,
