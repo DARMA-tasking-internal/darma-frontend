@@ -715,7 +715,6 @@ TEST_F(TestCreateWork, death_schedule_only) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#if 0
 
 TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
   using namespace ::testing;
@@ -725,18 +724,47 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow finit("finit"), fnull("fnull"), ftask_out("ftask_out");
-  MockFlow fforw("fforw"), finner_out("inner_out");
-  use_t* use_task, *use_pub, *use_pub_cont, *use_inner;
+  DECLARE_MOCK_FLOWS(finit, fnull, ftask_out, fforw, finner_out);
+  use_t* use_task, *use_pub, *use_pub_cont, *use_inner,
+    *use_init, *use_outer_cont, *use_mod_cont;
   use_task = use_pub = use_pub_cont = use_inner = nullptr;
 
-  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
 
-  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, ftask_out, use_task);
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, ftask_out, use_task, fnull, use_outer_cont);
 
-  EXPECT_REGISTER_TASK(use_task);
+  {
+    InSequence rel_before_task;
+
+    EXPECT_RELEASE_USE(use_init);
+
+    EXPECT_REGISTER_TASK(use_task);
+  }
 
   EXPECT_FLOW_ALIAS(ftask_out, fnull);
+
+  EXPECT_RELEASE_USE(use_outer_cont);
+
+  //============================================================================
+  // actual code being tested
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work([=]{
+
+      tmp.publish();
+
+      create_work([=]{
+        tmp.set_value(42);
+      });
+
+    });
+
+  }
+  //
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
 
   // Inside of outer task:
 
@@ -758,12 +786,15 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
 
   }
 
+
   int value = 0;
 
   {
     InSequence s;
 
     EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(fforw, finner_out, use_inner, value);
+
+    EXPECT_REGISTER_USE(use_mod_cont, finner_out, ftask_out, Modify, None);
 
     EXPECT_RELEASE_USE(use_pub_cont);
   }
@@ -772,35 +803,20 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
 
   EXPECT_FLOW_ALIAS(finner_out, ftask_out);
 
+  EXPECT_RELEASE_USE(use_mod_cont);
+
+  run_one_task();
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
   // Inside of inner task
 
   EXPECT_RELEASE_USE(use_inner);
 
-
-  //============================================================================
-  // actual code being tested
-  {
-    auto tmp = initial_access<int>("hello");
-
-    create_work([=]{
-
-      tmp.publish();
-
-      create_work([=]{
-        tmp.set_value(42);
-      });
-
-    });
-
-  }
-  //
-  //============================================================================
-
-  run_all_tasks();
+  run_one_task();
 
   EXPECT_THAT(value, Eq(42));
 
 }
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////

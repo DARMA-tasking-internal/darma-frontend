@@ -700,11 +700,17 @@ auto make_captured_use_holder(
           // register the captured use
           captured_use_holder->do_register();
 
-          // Now release the source use
-          source_and_continuing_holder->do_release();
+          source_and_continuing_holder->replace_use(
+            continuing_use_holder_maker(
+              var_handle,
+              captured_out_flow,
+              source_and_continuing_holder->use.out_flow_,
+              source_and_continuing_holder->use.scheduling_permissions_,
+              HandleUse::None
+            ),
+            AllowRegisterContinuation
+          );
 
-          source_and_continuing_holder->use.in_flow_ = captured_out_flow;
-          source_and_continuing_holder->use.immediate_permissions_ = HandleUse::None;
           source_and_continuing_holder->could_be_alias = true;
           // out flow and scheduling permissions unchanged
 
@@ -743,7 +749,7 @@ auto make_captured_use_holder(
           captured_use_holder->do_register();
 
           source_and_continuing_holder->replace_use(
-            HandleUse(
+            continuing_use_holder_maker(
               var_handle,
               captured_out_flow,
               source_and_continuing_holder->use.out_flow_,
