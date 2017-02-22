@@ -717,9 +717,10 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
       );
       parent_task->current_create_work_context = nullptr;
 
-      for(auto* use_to_unmark : uses_to_unmark_already_captured) {
-        use_to_unmark->already_captured = false;
-      }
+      // TODO re-enable this
+      //for(auto* use_to_unmark : uses_to_unmark_already_captured) {
+      //  use_to_unmark->already_captured = false;
+      //}
       uses_to_unmark_already_captured.clear();
 
     }

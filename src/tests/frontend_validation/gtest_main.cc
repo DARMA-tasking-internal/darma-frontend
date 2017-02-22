@@ -53,7 +53,7 @@ size_t MockFlow::next_index = 0;
 
 } // end namespace mock_backend
 
-std::map<TestFrontend::use_t const* const*, _impl::UseDescription>
+std::map<TestFrontend::use_t const *, _impl::UseDescription>
   TestFrontend::described_uses_ = { };
 
 // Used for arbitrarily establishing ordering of specific lines of code

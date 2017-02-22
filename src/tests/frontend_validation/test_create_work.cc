@@ -381,12 +381,6 @@ TEST_P(TestCaptureMM, capture_MM) {
       .WillOnce(Return(&f_inner_out));
 
     EXPECT_REGISTER_USE_AND_SET_BUFFER(use_inner, f_forwarded, f_inner_out, Modify, Modify, value);
-    //EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
-    //  f_forwarded, f_inner_out, use_t::Modify, use_t::Modify
-    //))).WillOnce(Invoke([&](auto&& use){
-    //  use->get_data_pointer_reference() = (void*)(&value);
-    //  use_inner = use;
-    //}));
 
     // Doesn't really need to be sequenced w.r.t. prev register
     EXPECT_REGISTER_USE(use_continuing, f_inner_out, f_outer_out, Modify, None);

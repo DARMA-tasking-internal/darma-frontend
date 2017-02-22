@@ -177,6 +177,31 @@ struct UseDescription {
 // Note that these can't just be functions or methods (like they used to be
 // because the line numbers get screwed up and debugging is much harder
 
+#define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed) \
+  ::_impl::in_sequence_wrapper( \
+    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+      &fin, &fout, use_t::sched, use_t::immed \
+    ))), [&](auto&& exp) -> decltype(auto) { \
+       return exp.WillOnce(::testing::Invoke([&](auto&& use_arg) { \
+         use_ptr = use_arg; \
+         described_uses_[use_ptr] = _impl::UseDescription(#use_ptr, fin, fout, use_t::sched, use_t::immed); \
+       })); \
+    } \
+  )
+
+#define EXPECT_REGISTER_USE_AND_SET_BUFFER(use_ptr, fin, fout, sched, immed, value) \
+  ::_impl::in_sequence_wrapper( \
+    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+      &fin, &fout, use_t::sched, use_t::immed \
+    ))), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce( \
+      ::testing::Invoke( \
+         [&](auto&& use_arg) { use_ptr = use_arg; \
+           described_uses_[use_ptr] = _impl::UseDescription(#use_ptr, fin, fout, use_t::sched, use_t::immed); \
+           use_ptr->get_data_pointer_reference() = &value; \
+         } \
+    )); } \
+  )
+
 #define EXPECT_MOD_CAPTURE_MN_OR_MR(f_in, f_out, use, f_cont_out, cont_use) \
   EXPECT_CALL(*mock_runtime, make_next_flow(f_in)) \
     .WillOnce(::testing::Return(f_out)); \
@@ -207,13 +232,6 @@ struct UseDescription {
 /* eventually expect release of flow */ \
 /* EXPECT_CALL(*mock_runtime, release_flow(::testing::Eq(f_out))); */ \
 
-#define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed) \
-  ::_impl::in_sequence_wrapper(( \
-    (this->described_uses_[&use_ptr] = _impl::UseDescription(#use_ptr, fin, fout, use_t::sched, use_t::immed)), \
-    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
-      &fin, &fout, use_t::sched, use_t::immed \
-    )))), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce(SaveArg<0>(&use_ptr)); } \
-  )
 
 #define EXPECT_RELEASE_USE(use_ptr) \
   ::_impl::in_sequence_wrapper( \
@@ -269,16 +287,6 @@ struct UseDescription {
         } \
   )
 
-#define EXPECT_REGISTER_USE_AND_SET_BUFFER(use_ptr, fin, fout, sched, immed, value) \
-  ::_impl::in_sequence_wrapper(( \
-    (this->described_uses_[&use_ptr] = _impl::UseDescription(#use_ptr, fin, fout, use_t::sched, use_t::immed)), \
-    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
-      &fin, &fout, use_t::sched, use_t::immed \
-    )))), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce( \
-      ::testing::Invoke( \
-         [&](auto&& use_arg) { use_ptr = use_arg; use_ptr->get_data_pointer_reference() = &value; } \
-    )); } \
-  )
 
 #define EXPECT_REGISTER_TASK(...) \
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy( \
@@ -440,7 +448,7 @@ class TestFrontend
     ////////////////////////////////////////
 
   public:
-    static std::map<use_t const * const *, _impl::UseDescription> described_uses_;
+    static std::map<use_t const *, _impl::UseDescription> described_uses_;
 
     ////////////////////////////////////////
   protected:
@@ -456,7 +464,7 @@ using use_t = darma_runtime::abstract::frontend::Use;
 
 inline std::ostream&
 operator<<(std::ostream& o, use_t const* const& u) {
-  auto use_desc_iter = TestFrontend::described_uses_.find(&u);
+  auto use_desc_iter = TestFrontend::described_uses_.find(u);
   if(use_desc_iter != TestFrontend::described_uses_.end()) {
     auto& use_desc = use_desc_iter->second;
     o << "<Use variable named \"" << use_desc.var_name
@@ -466,15 +474,8 @@ operator<<(std::ostream& o, use_t const* const& u) {
       << "\", immed: " << use_desc.expected_immed_permissions
       << ">";
   }
-  else {
-    o << "<Undescribed Use>";
-  }
-  /*
-  if(u == nullptr) {
-    o << "<null Use ptr>";
-  }
-  else {
-#if DARMA_SAFE_TEST_FRONTEND_PRINTERS
+  else if(u != nullptr) {
+#if DARMA_SAFE_TEST_FRONTEND_PRINTERS && 0
     o << "<non-null use (unprinted)>";
 #else
     auto handle = u->get_handle();
@@ -488,6 +489,14 @@ operator<<(std::ostream& o, use_t const* const& u) {
       o << "<Use ptr with null handle>";
     }
 #endif
+  }
+  else {
+    o << "<Undescribed null Use>";
+  }
+  /*
+  if(u == nullptr) {
+    o << "<null Use ptr>";
+  }
   }
   */
   return o;
