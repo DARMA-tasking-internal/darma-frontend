@@ -84,7 +84,7 @@ struct for_AccessHandle {
   static inline
   typename tinympl::copy_cv_qualifiers<AccessHandleType>::template apply<
     typename AccessHandleType::dep_handle_t
-  >::type* const
+  >::type*
   get_dep_handle(
     AccessHandleType const& ah
   ) {

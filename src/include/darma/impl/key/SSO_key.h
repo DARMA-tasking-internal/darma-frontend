@@ -852,7 +852,7 @@ SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdin
     std::forward_as_tuple(std::forward<Args>(args)...),
     [&](auto&& arg) {
       actual_component_count +=
-        _impl::sso_key_add(*this, buffer, std::forward<decltype(arg)>(arg));
+        darma_runtime::detail::_impl::sso_key_add(*this, buffer, std::forward<decltype(arg)>(arg));
     }
   );
   *reinterpret_cast<ComponentCountOrdinal*>(buffer_start) =

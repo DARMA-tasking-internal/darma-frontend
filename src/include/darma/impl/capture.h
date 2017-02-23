@@ -798,14 +798,17 @@ make_captured_use_holder(
     var_handle, requested_scheduling_permissions, requested_immediate_permissions,
     source_and_continuing_holder,
     [](auto&&... args) {
+      using namespace darma_runtime::detail;
       return std::make_shared<GenericUseHolder<HandleUse>>(HandleUse(
         std::forward<decltype(args)>(args)...
       ));
     },
     [](auto&& flow, auto* backend_runtime) {
-      return detail::make_next_flow_ptr(std::forward<decltype(flow)>(flow), backend_runtime);
+      using namespace darma_runtime::detail;
+      return darma_runtime::detail::make_next_flow_ptr(std::forward<decltype(flow)>(flow), backend_runtime);
     },
     [](auto&&... args) {
+      using namespace darma_runtime::detail;
       return HandleUse(
         std::forward<decltype(args)>(args)...
       );

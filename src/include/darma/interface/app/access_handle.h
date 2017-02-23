@@ -421,9 +421,11 @@ class AccessHandle : public detail::AccessHandleBase {
     //--------------------------------------------------------------------------
 
     // Allow casting to a non-const reference
-    operator AccessHandle&() const {
-      return *const_cast<AccessHandle*>(this);
-    };
+    // ICC claims this doesn't do anything.
+    // TODO figure out if this does anything at all
+    //operator AccessHandle&() const {
+    //  return *const_cast<AccessHandle*>(this);
+    //};
 
     //--------------------------------------------------------------------------
     // <editor-fold desc="move constructors"> {{{2

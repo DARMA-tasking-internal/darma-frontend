@@ -83,7 +83,7 @@ struct meets_key_concept {
     // Traits class must define key_equal type
     template <typename Traits>
     using traits_key_equal_archetype = typename Traits::key_equal;
-    typedef meta::detected_t<traits_key_equal_archetype, traits_t> key_equal_t;
+    using key_equal_t = meta::detected_t<traits_key_equal_archetype, traits_t>;
 
   public:
     static constexpr auto has_key_equal =
@@ -92,12 +92,13 @@ struct meets_key_concept {
   private:
 
     // The key equal functor must be able to compare two keys and must be default constructible
-    template <typename KeyEqual>
-    using key_equal_archetype = decltype( KeyEqual()(std::declval<const T>(), std::declval<const T>()) );
+    template <typename KeyEqual, typename KeyT>
+    using key_equal_archetype = decltype( KeyEqual()(std::declval<KeyT&>(), std::declval<KeyT&>()) );
 
   public:
+
     static constexpr auto key_equal_works =
-        meta::is_detected_convertible<bool, key_equal_archetype, key_equal_t>::value;
+        meta::is_detected_convertible<bool, key_equal_archetype, key_equal_t, T>::value;
 
   ////////////////////////////////////////////////////////////////////////////////
   // must have a valid hasher in traits
@@ -114,12 +115,12 @@ struct meets_key_concept {
 
   private:
     // The hasher functor must be default constructible and must be callable with a const T
-    template <typename Hasher>
-    using hasher_archetype = decltype( Hasher()( std::declval<const T>() ) );
+    template <typename Hasher, typename KeyT>
+    using hasher_archetype = decltype( Hasher()( std::declval<KeyT&>() ) );
 
   public:
     static constexpr auto hasher_works =
-        meta::is_detected_convertible<size_t, hasher_archetype, hasher_t>::value;
+        meta::is_detected_convertible<size_t, hasher_archetype, hasher_t, T>::value;
 
   ////////////////////////////////////////////////////////////////////////////////
   // must have a valid maker and maker_from_tuple in traits
@@ -150,8 +151,8 @@ struct meets_key_concept {
   private:
     template <int N>
     struct component_method_archetype {
-      template <typename Key>
-      using apply = decltype( std::declval<Key>().template component<N>() );
+      template <typename Key, typename Num=std::integral_constant<int, N>>
+      using apply = decltype( std::declval<Key>().template component<Num::value>() );
     };
 
     // Test the first few integers...

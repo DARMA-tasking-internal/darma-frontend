@@ -156,14 +156,20 @@ auto desc_helper(Args&&... arg) {
   return typename OverloadDescription::var_helper_t::template _helper<Args...>{};
 };
 
+template <size_t i>
+struct _forward_through_arg_impl {
+  template <typename... Args>
+  decltype(auto)
+  operator()(Args&&... args) const {
+    return std::get<i>(std::forward_as_tuple(std::forward<decltype(args)>(args)...));
+  }
+};
+
 template <typename OverloadDescription, size_t i, typename... Args>
 decltype(auto) invoke_arg(Args&&... args) {
-  auto _forward_through_arg = [](auto&&... args) -> decltype(auto) {
-    return std::get<i>(std::forward_as_tuple(std::forward<decltype(args)>(args)...));
-  };
   return OverloadDescription().invoke(
     std::forward_as_tuple(), std::forward_as_tuple(),
-    _forward_through_arg, std::forward_as_tuple(std::forward<Args>(args)...)
+    _forward_through_arg_impl<i>{}, std::forward_as_tuple(std::forward<Args>(args)...)
   );
 };
 
