@@ -84,23 +84,23 @@ read_access(
     .parse_args(std::forward<KeyExprParts>(parts)...)
     .invoke([](
       types::key_t&& version_key,
-      variadic_arguments_begin_tag,
+      darma_runtime::detail::variadic_arguments_begin_tag,
       auto&&... args
     ) -> decltype(auto) {
-      auto backend_runtime = abstract::backend::get_backend_runtime();
-      auto var_h = detail::make_shared<detail::VariableHandle<U>>(
+      auto backend_runtime = darma_runtime::abstract::backend::get_backend_runtime();
+      auto var_h = darma_runtime::detail::make_shared<darma_runtime::detail::VariableHandle<U>>(
         darma_runtime::make_key(std::forward<decltype(args)>(args)...)
       );
-      auto in_flow = detail::make_flow_ptr(
+      auto in_flow = darma_runtime::detail::make_flow_ptr(
         backend_runtime->make_fetching_flow( var_h, std::move(version_key) )
       );
-      auto out_flow = detail::make_flow_ptr(
+      auto out_flow = darma_runtime::detail::make_flow_ptr(
         backend_runtime->make_null_flow( var_h )
       );
 
-      return detail::access_attorneys::for_AccessHandle::construct_access<U>(
+      return darma_runtime::detail::access_attorneys::for_AccessHandle::construct_access<U>(
         var_h, in_flow, out_flow,
-        detail::HandleUse::Read, detail::HandleUse::None
+        darma_runtime::detail::HandleUse::Read, darma_runtime::detail::HandleUse::None
       );
 
     });

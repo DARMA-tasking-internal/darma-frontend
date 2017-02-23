@@ -96,7 +96,7 @@ RunnableRegistrar<Runnable> RunnableRegistrarWrapper<Runnable>::registrar = { };
 } // end namespace _impl
 
 template <typename Runnable>
-const size_t
+size_t
 register_runnable() {
   return _impl::RunnableRegistrarWrapper<Runnable>::registrar.index;
 }

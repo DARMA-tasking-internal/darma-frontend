@@ -316,7 +316,7 @@ struct reads_decorator_parser {
 template <typename...>
 struct _create_work_impl;
 
-using create_work_argument_parser = detail::kwarg_parser<
+using create_work_argument_parser = darma_runtime::detail::kwarg_parser<
   variadic_positional_overload_description<
     _optional_keyword<
       converted_parameter, keyword_tags_for_task_creation::name
@@ -334,20 +334,20 @@ inline auto setup_create_work_argument_parser() {
         return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
       },
       [](auto&&... aliasing_desc) {
-        return std::make_unique<TaskBase::allowed_aliasing_description>(
-          TaskBase::allowed_aliasing_description::allowed_aliasing_description_ctor_tag_t(),
+        return std::make_unique<darma_runtime::detail::TaskBase::allowed_aliasing_description>(
+          darma_runtime::detail::TaskBase::allowed_aliasing_description::allowed_aliasing_description_ctor_tag_t(),
           std::forward<decltype(aliasing_desc)>(aliasing_desc)...
         );
       }
     )
     .with_default_generators(
-      keyword_arguments_for_task_creation::name = [] {
+      darma_runtime::keyword_arguments_for_task_creation::name = [] {
         // TODO this should actually return a "pending backend assignment" key
-        return make_key();
+        return darma_runtime::make_key();
       },
       keyword_arguments_for_task_creation::allow_aliasing = [] {
-        return std::make_unique<TaskBase::allowed_aliasing_description>(
-          TaskBase::allowed_aliasing_description::allowed_aliasing_description_ctor_tag_t(),
+        return std::make_unique<darma_runtime::detail::TaskBase::allowed_aliasing_description>(
+          darma_runtime::detail::TaskBase::allowed_aliasing_description::allowed_aliasing_description_ctor_tag_t(),
           false
         );
       }
@@ -358,72 +358,72 @@ inline auto setup_create_work_argument_parser() {
 // <editor-fold desc="_create_work_impl, functor version">
 
 
-template <typename Functor, typename LastArg, typename... Args>
-struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
-
-  template <typename... DeducedArgs>
-  auto _impl(DeducedArgs&&... in_args) const {
-
-    using _______________see_calling_context_on_next_line________________ = typename create_work_argument_parser::template static_assert_valid_invocation<DeducedArgs...>;
-
-    return setup_create_work_argument_parser()
-      .parse_args(std::forward<DeducedArgs>(in_args)...)
-      .invoke([](
-        types::key_t name_key,
-        auto&& allow_aliasing_desc,
-        variadic_arguments_begin_tag,
-        auto&&... args
-      ) {
-
-        using runnable_t = FunctorRunnable<Functor, decltype(args)...>;
-
-        //--------------------------------------------------------------------------
-        // Check that the arguments are serializable
-
-        // Don't wrap this line; it's on one line for compiler spew readability
-        using _______________see_calling_context_below________________ = typename runnable_t::template static_assert_all_args_serializable<>;
-
-        //--------------------------------------------------------------------------
-
-        auto task = std::make_unique<TaskBase>();
-
-        task->set_name(name_key);
-        task->allowed_aliasing = std::move(allow_aliasing_desc);
-
-        auto* parent_task = static_cast<TaskBase* const>(
-          abstract::backend::get_backend_context()->get_running_task()
-        );
-        parent_task->current_create_work_context = task.get();
-
-        // Make sure it's clear that this is not a double-copy capture
-        task->is_double_copy_capture = false;
-
-        // The copy happens in here, which triggers the AccessHandle copy ctor hook
-        task->set_runnable(
-          std::make_unique<runnable_t>(
-            variadic_constructor_arg,
-            std::forward<decltype(args)>(args)...
-          )
-        );
-
-        task->post_registration_cleanup();
-
-        // Done with capture; unset the current_create_work_context for safety later
-        parent_task->current_create_work_context = nullptr;
-
-        return abstract::backend::get_backend_runtime()->register_task(
-          std::move(task)
-        );
-      });
-  }
-
-  decltype(auto) operator()(
-    Args&&... args,
-    LastArg&& last_arg
-  ) const {
-    return this->_impl(std::forward<Args>(args)..., std::forward<LastArg>(last_arg));
-  }
-};
+//template <typename Functor, typename LastArg, typename... Args>
+//struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
+//
+//  template <typename... DeducedArgs>
+//  auto _impl(DeducedArgs&&... in_args) const {
+//
+//    using _______________see_calling_context_on_next_line________________ = typename create_work_argument_parser::template static_assert_valid_invocation<DeducedArgs...>;
+//
+//    return setup_create_work_argument_parser()
+//      .parse_args(std::forward<DeducedArgs>(in_args)...)
+//      .invoke([](
+//        types::key_t name_key,
+//        auto&& allow_aliasing_desc,
+//        variadic_arguments_begin_tag,
+//        auto&&... args
+//      ) {
+//
+//        using runnable_t = FunctorRunnable<Functor, decltype(args)...>;
+//
+//        //--------------------------------------------------------------------------
+//        // Check that the arguments are serializable
+//
+//        // Don't wrap this line; it's on one line for compiler spew readability
+//        using _______________see_calling_context_below________________ = typename runnable_t::template static_assert_all_args_serializable<>;
+//
+//        //--------------------------------------------------------------------------
+//
+//        auto task = std::make_unique<TaskBase>();
+//
+//        task->set_name(name_key);
+//        task->allowed_aliasing = std::move(allow_aliasing_desc);
+//
+//        auto* parent_task = static_cast<TaskBase* const>(
+//          abstract::backend::get_backend_context()->get_running_task()
+//        );
+//        parent_task->current_create_work_context = task.get();
+//
+//        // Make sure it's clear that this is not a double-copy capture
+//        task->is_double_copy_capture = false;
+//
+//        // The copy happens in here, which triggers the AccessHandle copy ctor hook
+//        task->set_runnable(
+//          std::make_unique<runnable_t>(
+//            variadic_constructor_arg,
+//            std::forward<decltype(args)>(args)...
+//          )
+//        );
+//
+//        task->post_registration_cleanup();
+//
+//        // Done with capture; unset the current_create_work_context for safety later
+//        parent_task->current_create_work_context = nullptr;
+//
+//        return abstract::backend::get_backend_runtime()->register_task(
+//          std::move(task)
+//        );
+//      });
+//  }
+//
+//  decltype(auto) operator()(
+//    Args&&... args,
+//    LastArg&& last_arg
+//  ) const {
+//    return this->_impl(std::forward<Args>(args)..., std::forward<LastArg>(last_arg));
+//  }
+//};
 
 // </editor-fold> end _create_work_impl, functor version
 //==============================================================================
@@ -437,44 +437,44 @@ struct _create_work_impl<detail::_create_work_uses_lambda_tag, tinympl::vector<A
     Args&&... in_args,
     Lambda&& lambda_to_be_copied
   ) const {
-    using _______________see_calling_context_on_next_line________________ = typename create_work_argument_parser::template static_assert_valid_invocation<Args...>;
+    //using _______________see_calling_context_on_next_line________________ = typename create_work_argument_parser::template static_assert_valid_invocation<Args...>;
 
-    return setup_create_work_argument_parser()
-      .parse_args(std::forward<Args>(in_args)...)
-      .invoke([&](
-        types::key_t name_key,
-        auto&& allow_aliasing_desc,
-        variadic_arguments_begin_tag,
-        auto&&... _unused /* unused */ // GCC hates empty, unnamed variadic args for some reason
-      ) {
+    //return setup_create_work_parser()
+    //  .parse_args(std::forward<Args>(in_args)...)
+    //  .invoke([&](
+    //    darma_runtime::types::key_t name_key,
+    //    auto&& allow_aliasing_desc,
+    //    darma_runtime::detail::variadic_arguments_begin_tag,
+    //    auto&&... _unused /* unused */ // GCC hates empty, unnamed variadic args for some reason
+    //  ) {
 
-        auto task = std::make_unique<TaskBase>();
-        task->set_name(name_key);
-        task->allowed_aliasing = std::move(allow_aliasing_desc);
+    //    auto task = std::make_unique<darma_runtime::detail::TaskBase>();
+    //    task->set_name(name_key);
+    //    task->allowed_aliasing = std::move(allow_aliasing_desc);
 
-        auto* parent_task = static_cast<TaskBase* const>(
-          abstract::backend::get_backend_context()->get_running_task()
-        );
-        parent_task->current_create_work_context = task.get();
+    //    auto* parent_task = static_cast<darma_runtime::detail::TaskBase* const>(
+    //      darma_runtime::abstract::backend::get_backend_context()->get_running_task()
+    //    );
+    //    parent_task->current_create_work_context = task.get();
 
-        task->is_double_copy_capture = true;
+    //    task->is_double_copy_capture = true;
 
-        // Intentionally don't do perfect forwarding here, to trigger the copy ctor hook
-        // This should call the copy ctors of all of the captured variables, triggering
-        // the logging of the AccessHandle copies as captures for the task
-        task->set_runnable(std::make_unique<Runnable<Lambda>>(lambda_to_be_copied));
+    //    // Intentionally don't do perfect forwarding here, to trigger the copy ctor hook
+    //    // This should call the copy ctors of all of the captured variables, triggering
+    //    // the logging of the AccessHandle copies as captures for the task
+    //    task->set_runnable(std::make_unique<darma_runtime::detail::Runnable<Lambda>>(lambda_to_be_copied));
 
-        task->post_registration_cleanup();
+    //    task->post_registration_cleanup();
 
-        // Done with capture; unset the current_create_work_context for safety later
-        parent_task->current_create_work_context = nullptr;
-        task->is_double_copy_capture = false;
+    //    // Done with capture; unset the current_create_work_context for safety later
+    //    parent_task->current_create_work_context = nullptr;
+    //    task->is_double_copy_capture = false;
 
-        return abstract::backend::get_backend_runtime()->register_task(
-          std::move(task)
-        );
+    //    return darma_runtime::abstract::backend::get_backend_runtime()->register_task(
+    //      std::move(task)
+    //    );
 
-      });
+    //  });
   }
 };
 

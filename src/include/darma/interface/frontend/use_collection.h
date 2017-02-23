@@ -58,11 +58,10 @@ namespace frontend {
  *
  */
 class UseCollection {
-  protected:
+  public:
     template <typename T>
     using index_iterable = std::vector<T>;  // TODO make a template alias for this in frontend/types.h
 
-  public:
 
     /** @todo document this
      *
