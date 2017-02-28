@@ -47,6 +47,7 @@
 #include <map>
 
 #include <darma/impl/meta/is_contiguous.h>
+#include <darma/impl/meta/is_container.h>
 
 using namespace darma_runtime::meta;
 
@@ -61,6 +62,7 @@ static_assert(
 );
 
 // Doesn't work with ICPC
+// TODO make this work for ICPC
 //static_assert(
 //  is_contiguous_iterator<typename std::string::iterator>::value,
 //  "std::string iterator should be contiguous"
@@ -80,3 +82,10 @@ static_assert(
   is_contiguous_iterator<int*>::value,
   "int* should be contiguous"
 );
+
+// TODO move this to it's own test file
+static_assert(
+  is_container<std::map<int, int>>::value,
+  "std::map<int, int> should be a container"
+);
+

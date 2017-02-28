@@ -952,8 +952,8 @@ class AccessHandle : public detail::AccessHandleBase {
       var_handle_base_ = var_handle_;
       detail::HandleUse::permissions_t immed, sched;
 
-      #pragma clang diagnostic push
-      #pragma clang diagnostic ignored "-Wuninitialized"
+      //#pragma clang diagnostic push
+      //#pragma clang diagnostic ignored "-Wuninitialized"
 
       ar >> sched >> immed;
 
@@ -983,7 +983,7 @@ class AccessHandle : public detail::AccessHandleBase {
         )
       );
 
-      #pragma clang diagnostic pop
+      //#pragma clang diagnostic pop
     }
 #endif // _darma_has_feature(task_migration)
     // </editor-fold> end DARMA feature: task_migration }}}2
@@ -1059,6 +1059,9 @@ class AccessHandle : public detail::AccessHandleBase {
 
     template <typename>
     friend class detail::IndexedAccessHandle;
+    
+    template <typename>
+    friend struct darma_runtime::detail::_initial_access_key_helper;
 
     ////////////////////////////////////////
     // Analogs with different privileges are friends too

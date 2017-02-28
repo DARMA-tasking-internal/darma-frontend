@@ -42,6 +42,7 @@
 //@HEADER
 */
 
+#include <set>
 
 #include <gtest/gtest.h>
 
@@ -118,6 +119,8 @@ TEST_F(TestInitialAccess, call_sequence_helper) {
 
   {
     auto tmp = initial_access<int>("hello");
+    // TODO make this work on ICC!
+    //auto tmp = initial_access<std::set<int>>("hello");
   } // tmp deleted
 
 }

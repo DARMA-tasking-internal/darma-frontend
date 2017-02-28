@@ -131,15 +131,16 @@ class FunctorLikeRunnableBase
 
     typedef functor_traits<Callable> traits;
     typedef functor_call_traits<Callable, Args&&...> call_traits;
-    static constexpr auto n_functor_args_min = traits::n_args_min;
-    static constexpr auto n_functor_args_max = traits::n_args_max;
+    // Doesn't work with ICC
+    //static constexpr auto n_functor_args_min = traits::n_args_min;
+    //static constexpr auto n_functor_args_max = traits::n_args_max;
 
-    STATIC_ASSERT_VALUE_LESS_EQUAL(sizeof...(Args), n_functor_args_max);
-
-    static_assert(
-      sizeof...(Args) <= n_functor_args_max && sizeof...(Args) >= n_functor_args_min,
-      "FunctorWrapper or Method task created with wrong number of arguments"
-    );
+    //STATIC_ASSERT_VALUE_LESS_EQUAL(sizeof...(Args), n_functor_args_max);
+    //
+    //static_assert(
+    //  sizeof...(Args) <= n_functor_args_max && sizeof...(Args) >= n_functor_args_min,
+    //  "FunctorWrapper or Method task created with wrong number of arguments"
+    //);
 
     using args_tuple_t = typename call_traits::args_tuple_t;
 
@@ -157,34 +158,31 @@ class FunctorLikeRunnableBase
       return static_get_args_to_splat(args_);
     }
 
+    template <size_t... Idxs>
     static decltype(auto)
-    static_get_args_to_splat(args_tuple_t& args_) {
-      return meta::tuple_for_each_zipped(
-        // iterate over the arguments yielding a pair of
-        // (argument, call_arg_traits) and call the lambda below for each
-        // pair
-        args_,
-        typename tinympl::transform<
-          std::make_index_sequence<std::tuple_size<args_tuple_t>::value>,
-          call_traits::template call_arg_traits_types_only,
-          std::tuple
-        >::type(),
-        [&](auto&& arg, auto&& call_arg_traits_i_val) -> decltype(auto) {
-          // Forward to the get_converted_arg function which does the appropriate
-          // conversion from stored arg type to call arg type
-          using call_traits_i = std::decay_t<decltype(call_arg_traits_i_val)>;
-          return call_traits_i::template get_converted_arg(
-            std::forward<decltype(arg)>(arg)
-          );
-        } // end lambda
-      ); // end tuple_for_each_zipped
+    static_get_args_to_splat_impl(
+      args_tuple_t& args_,
+      std::integer_sequence<std::size_t, Idxs...>
+    ) {
+      return std::forward_as_tuple(
+        call_traits::template call_arg_traits<Idxs>::get_converted_arg(
+	  std::get<Idxs>(args_)
+        )...
+      );
     }
 
-    using get_args_splat_tuple_t = decltype(static_get_args_to_splat(
-      std::declval<args_tuple_t&>()
-    ));
+    static decltype(auto)
+    static_get_args_to_splat(args_tuple_t& args_) {
+      return static_get_args_to_splat_impl(
+        args_, std::index_sequence_for<Args...>{}
+      );
+    }
 
-    ////////////////////////////////////////////////////////////////////////////
+    //using get_args_splat_tuple_t = decltype(static_get_args_to_splat(
+    //  std::declval<args_tuple_t&>()
+    //));
+
+  ////////////////////////////////////////////////////////////////////////////
 #if _darma_has_feature(task_migration)
 
     // TODO there should also be a version of construct_from_archive where
@@ -270,9 +268,9 @@ class FunctorLikeRunnableBase
 #endif // _darma_has_feature(task_migration)
 
 
-    ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
 
-  public:
+public:
 
 #if _darma_has_feature(task_migration)
 
@@ -333,56 +331,56 @@ class FunctorRunnable
 
     using base_t = FunctorLikeRunnableBase<Functor, Args...>;
 
-    using args_tuple_t = typename base_t::args_tuple_t;
+//    using args_tuple_t = typename base_t::args_tuple_t;
 
-    template <typename T>
-    using _arg_is_serializable_or_is_access_handle = tinympl::or_<
-      typename serialization::detail::serializability_traits<T>
-        ::template is_serializable_with_archive<
-          serialization::PolicyAwareArchive
-        >,
-      typename serialization::detail::serializability_traits<T>
-        ::template is_serializable_with_archive<
-          serialization::SimplePackUnpackArchive
-        >,
-      is_access_handle<T>
-    >;
+//    template <typename T>
+//    using _arg_is_serializable_or_is_access_handle = tinympl::or_<
+//      typename serialization::detail::serializability_traits<T>
+//        ::template is_serializable_with_archive<
+//          serialization::PolicyAwareArchive
+//        >,
+//      typename serialization::detail::serializability_traits<T>
+//        ::template is_serializable_with_archive<
+//          serialization::SimplePackUnpackArchive
+//        >,
+//      is_access_handle<T>
+//    >;
 
 
   public:
 
-    template <
-      /* convenience */
-      typename _first_unserializable =
-        tinympl::at_or_t<int /* ignored*/,
-          tinympl::find_if<
-            args_tuple_t,
-            tinympl::negate_metafunction<_arg_is_serializable_or_is_access_handle>::template apply
-          >::type::value,
-          args_tuple_t
-        >
-    >
-    using static_assert_all_args_serializable = decltype(std::conditional_t<
-      tinympl::all_of<args_tuple_t, _arg_is_serializable_or_is_access_handle>::value,
-      tinympl::identity<int>,
-      _darma__static_failure<
-        _____________________________________________________________________,
-        _____________________________________________________________________,
-        typename _darma__errors::__________asynchronous_call_to_functor__<Functor>
-          ::template _____with_unserializable_argument_of_type__<
-            _first_unserializable
-          >,
-        _____________________________________________________________________,
-        _____________________________________________________________________
-      >
-    >());
+//    template <
+//      /* convenience */
+//      typename _first_unserializable =
+//        tinympl::at_or_t<int /* ignored*/,
+//          tinympl::find_if<
+//            args_tuple_t,
+//            tinympl::negate_metafunction<_arg_is_serializable_or_is_access_handle>::template apply
+//          >::type::value,
+//          args_tuple_t
+//        >
+//    >
+//    using static_assert_all_args_serializable = decltype(std::conditional_t<
+//      tinympl::all_of<args_tuple_t, _arg_is_serializable_or_is_access_handle>::value,
+//      tinympl::identity<int>,
+//      _darma__static_failure<
+//        _____________________________________________________________________,
+//        _____________________________________________________________________,
+//        typename _darma__errors::__________asynchronous_call_to_functor__<Functor>
+//          ::template _____with_unserializable_argument_of_type__<
+//            _first_unserializable
+//          >,
+//        _____________________________________________________________________,
+//        _____________________________________________________________________
+//      >
+//    >());
 
   private:
 
-    template <typename... FArgs>
-    using _return_of_functor_t = std::result_of_t<Functor(FArgs...)>;
-
-    using splat_args_t = typename base_t::get_args_splat_tuple_t;
+//    template <typename... FArgs>
+//    using _return_of_functor_t = std::result_of_t<Functor(FArgs...)>;
+//
+//    using splat_args_t = typename base_t::get_args_splat_tuple_t;
 
 
   public:
@@ -393,17 +391,18 @@ class FunctorRunnable
 
   private:
 
-    template <typename _Ignored=void>
-    std::enable_if_t<
-      std::is_void<_Ignored>::value
-        and std::is_void<
-          typename tinympl::splat_to<
-            splat_args_t,
-            _return_of_functor_t
-          >::type
-        >::value,
-      bool
-    >
+//    template <typename _Ignored=void>
+//    std::enable_if_t<
+//      std::is_void<_Ignored>::value
+//        and std::is_void<
+//          typename tinympl::splat_to<
+//            splat_args_t,
+//            _return_of_functor_t
+//          >::type
+//        >::value,
+//      bool
+//    >
+    bool
     do_run() {
       meta::splat_tuple<AccessHandleBase>(
         this->base_t::_get_args_to_splat(),
@@ -412,23 +411,23 @@ class FunctorRunnable
       return false; /* should be ignored */
     }
 
-    template <typename _Ignored=void>
-    std::enable_if_t<
-      std::is_void<_Ignored>::value
-      and not std::is_void<
-        typename tinympl::splat_to<
-          splat_args_t,
-          _return_of_functor_t
-        >::type
-      >::value,
-      bool
-    >
-    do_run() {
-      return meta::splat_tuple<AccessHandleBase>(
-        this->base_t::_get_args_to_splat(),
-        Functor()
-      );
-    }
+//    template <typename _Ignored=void>
+//    std::enable_if_t<
+//      std::is_void<_Ignored>::value
+//      and not std::is_void<
+//        typename tinympl::splat_to<
+//          splat_args_t,
+//          _return_of_functor_t
+//        >::type
+//      >::value,
+//      bool
+//    >
+//    do_run() {
+//      return meta::splat_tuple<AccessHandleBase>(
+//        this->base_t::_get_args_to_splat(),
+//        Functor()
+//      );
+//    }
 
   public:
 

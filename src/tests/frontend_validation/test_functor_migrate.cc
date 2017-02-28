@@ -125,9 +125,9 @@ TEST_F(TestFunctor, simple_migrate) {
     // memcpy the flow directly into the buffer.  We'll just use it for
     // comparison purposes later to make sure the translation layer is
     // delivering the correct buffer to make_unpacked_flow
-    ::memcpy(buffer, (void*)(std::addressof(flow)), sizeof(MockFlow));
+    ::memcpy(buffer, (void*)(std::addressof(flow)), sizeof(mock_backend::MockFlow));
     // and advance the buffer
-    reinterpret_cast<char*&>(buffer) += sizeof(MockFlow);
+    reinterpret_cast<char*&>(buffer) += sizeof(mock_backend::MockFlow);
   }));
 
   task_to_migrate->pack(buffer);

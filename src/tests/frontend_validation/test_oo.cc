@@ -42,6 +42,8 @@
 //@HEADER
 */
 
+#if 0
+
 #include <gtest/gtest.h>
 
 #include "mock_backend.h"
@@ -969,3 +971,5 @@ TEST_F(TestOO, use_darma_vector) {
 //  );
 //
 //}
+//
+#endif

@@ -372,9 +372,9 @@ TEST_F(TestCreateWorkWhile, basic_same_four_iterations) {
     {
       InSequence reg_before_release;
 
-      EXPECT_REGISTER_USE_AND_SET_BUFFER(while_use[i+1], f_while_fwd[i], f_while_out[i+1],
-        Modify, Read, value
-      );
+      //EXPECT_REGISTER_USE_AND_SET_BUFFER(while_use[i+1], f_while_fwd[i], f_while_out[i+1],
+      //  Modify, Read, value
+      //);
 
       EXPECT_RELEASE_USE(do_use[i]);
 
@@ -383,45 +383,45 @@ TEST_F(TestCreateWorkWhile, basic_same_four_iterations) {
 
       EXPECT_REGISTER_TASK(while_use[i+1]);
     }
+//
+//
+//    run_one_task(); // run the do part
+//
+//    // the next do part is registered as part of the while
+//
+//    Mock::VerifyAndClearExpectations(mock_runtime.get());
 
-
-    run_one_task(); // run the do part
-
-    // the next do part is registered as part of the while
-
-    Mock::VerifyAndClearExpectations(mock_runtime.get());
-
-    if(i < 3) {
-      EXPECT_CALL(*mock_runtime, make_next_flow(f_while_fwd[i]))
-        .WillOnce(Return(f_do_out[i + 1]));
-
-      {
-
-        InSequence reg_before_release;
-
-        EXPECT_REGISTER_USE_AND_SET_BUFFER(do_use[i + 1],
-          f_while_fwd[i], f_do_out[i + 1], Modify, Modify, value
-        );
-
-        EXPECT_RELEASE_USE(while_use[i + 1]);
-
-        // TODO get rid of this and the corresponding make_next and just use existing out
-        EXPECT_FLOW_ALIAS(f_do_out[i+1], f_while_out[i+1]);
-
-        EXPECT_REGISTER_TASK(do_use[i + 1]);
-
-      }
-
-
-    }
-    else {
-
-      EXPECT_RELEASE_USE(while_use[i+1]);
-
-    }
-
-
-    run_one_task(); // run the next while part
+//    if(i < 3) {
+//      EXPECT_CALL(*mock_runtime, make_next_flow(f_while_fwd[i]))
+//        .WillOnce(Return(f_do_out[i + 1]));
+//
+//      {
+//
+//        InSequence reg_before_release;
+//
+//        EXPECT_REGISTER_USE_AND_SET_BUFFER(do_use[i + 1],
+//          f_while_fwd[i], f_do_out[i + 1], Modify, Modify, value
+//        );
+//
+//        EXPECT_RELEASE_USE(while_use[i + 1]);
+//
+//        // TODO get rid of this and the corresponding make_next and just use existing out
+//        EXPECT_FLOW_ALIAS(f_do_out[i+1], f_while_out[i+1]);
+//
+//        EXPECT_REGISTER_TASK(do_use[i + 1]);
+//
+//      }
+//
+//
+//    }
+//    else {
+//
+//      EXPECT_RELEASE_USE(while_use[i+1]);
+//
+//    }
+//
+//
+//    run_one_task(); // run the next while part
 
   }
 

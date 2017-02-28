@@ -72,28 +72,28 @@ class ReduceOperationWrapper
     using const_idx_traits = detail::IndexingTraits<std::add_const_t<value_type>>;
     using element_type = typename idx_traits::element_type;
 
-    template <typename T>
+    template <typename T, typename ElementType>
     using _has_element_type_reduce_archetype = decltype(
       std::declval<T>().reduce(
-        std::declval<element_type>(),
-        std::declval<std::add_lvalue_reference_t<element_type>>()
+        std::declval<ElementType>(),
+        std::declval<std::add_lvalue_reference_t<ElementType>>()
       )
     );
 
-    template <typename T>
+    template <typename T, typename ValueType>
     using _has_value_type_reduce_archetype = decltype(
       std::declval<T>().reduce(
-        std::declval<value_type>(),
-        std::declval<std::add_lvalue_reference_t<value_type>>(),
+        std::declval<ValueType>(),
+        std::declval<std::add_lvalue_reference_t<ValueType>>(),
         size_t(), size_t()
       )
     );
 
-    template <typename T>
+    template <typename T, typename ValueType>
     using _has_unindexed_value_type_reduce_archetype = decltype(
       std::declval<T>().reduce(
-        std::declval<value_type>(),
-        std::declval<std::add_lvalue_reference_t<value_type>>()
+        std::declval<ValueType>(),
+        std::declval<std::add_lvalue_reference_t<ValueType>>()
       )
     );
 
@@ -165,24 +165,24 @@ class ReduceOperationWrapper
     ) const override {
 
       using _has_element_type_reduce = tinympl::bool_<meta::is_detected<
-        _has_element_type_reduce_archetype, Op
+        _has_element_type_reduce_archetype, Op, element_type
       >::value and is_indexed>;
 
       using _has_value_type_reduce = tinympl::bool_<meta::is_detected<
-        _has_value_type_reduce_archetype, Op
+        _has_value_type_reduce_archetype, Op, value_type
       >::value>;
 
       using _has_unindexed_value_type_reduce = tinympl::bool_<meta::is_detected<
-        _has_unindexed_value_type_reduce_archetype, Op
+        _has_unindexed_value_type_reduce_archetype, Op, value_type
       >::value>;
 
       assert(is_indexed or (offset == 0 and n_elem == 1));
 
       _do_reduce(
-        _has_value_type_reduce{},
-        _has_unindexed_value_type_reduce{},
+        typename _has_value_type_reduce::type{},
+        typename _has_unindexed_value_type_reduce::type{},
         is_indexed_t{},
-        _has_element_type_reduce{},
+        typename _has_element_type_reduce::type{},
         *static_cast<value_type const*>(piece),
         *static_cast<value_type*>(dest),
         offset, n_elem

@@ -48,6 +48,38 @@
 namespace darma_runtime {
 namespace serialization {
 
+template <
+  typename CharT, typename Traits, typename Allocator
+>
+struct Serializer<
+  std::basic_string<CharT, Traits, Allocator>
+> {
+  using string_t = std::basic_string<CharT, Traits, Allocator>;
+  template <typename ArchiveT>
+  size_t compute_size(string_t const& val, ArchiveT& ar) const {
+    ar.incorporate_size(size_t());
+    ar.add_to_size_direct(val.data(), val.size());
+  }
+
+  template <typename ArchiveT>
+  void pack(string_t const& val, ArchiveT& ar) const {
+    ar << val.size();
+    ar.pack_direct(val.data(), val.data() + val.size());
+  }
+
+  template <typename ArchiveT, typename Allocator>
+  void unpack(void* allocated, ArchiveT& ar, Allocator const& alloc) const {
+    size_t size = 0;
+    ar >> size;
+    auto* val = new (allocated) std::string(size, '\0', alloc);
+    ar.template unpack_direct<CharT>(
+      const_cast<CharT*>(val->data()),
+      size
+    );
+  }
+
+};
+
 namespace detail {
 
 namespace _impl {

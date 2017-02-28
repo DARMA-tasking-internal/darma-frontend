@@ -413,7 +413,7 @@ struct WhileDoTask: public TaskBase {
     std::enable_if_t<
       not IsDoWhilePhase and not IsOuter
         and std::is_void<_SFINAE_only>::value,
-      int
+      double
     > = 0
   )
     : while_holder_(std::move(in_while_holder)),

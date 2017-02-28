@@ -251,17 +251,17 @@ void allreduce(
 
   parser()
     .with_default_generators(
-      keyword_arguments_for_collectives::tag=[]{ return make_key(); },
+      keyword_arguments_for_collectives::tag=[]{ return darma_runtime::make_key(); },
       keyword_arguments_for_collectives::piece=[]{
-        return abstract::frontend::CollectiveDetails::unknown_contribution();
+        return darma_runtime::abstract::frontend::CollectiveDetails::unknown_contribution();
       },
       keyword_arguments_for_collectives::n_pieces=[] {
-        return abstract::frontend::CollectiveDetails::unknown_contribution();
+        return darma_runtime::abstract::frontend::CollectiveDetails::unknown_contribution();
       }
     )
     .with_converters(
       [](auto&&... key_parts) {
-        return make_key(std::forward<decltype(key_parts)>(key_parts)...);
+        return darma_runtime::make_key(std::forward<decltype(key_parts)>(key_parts)...);
       }
     )
     .parse_args(

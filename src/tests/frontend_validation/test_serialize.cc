@@ -193,14 +193,24 @@ STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::string, SimplePackUnpackArchive,
   "String should be serializable"
 );
 
+using map_int_int = std::map<int, int>;
+static_assert(darma_runtime::serialization::Serializer<map_int_int>::is_insertable, 
+   "std::map<int, int> should be insertable"
+);
+STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(map_int_int, SimplePackUnpackArchive,
+   "std::map<int, int> should be serializable"
+);
+STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::set<int>, SimplePackUnpackArchive,
+   "std::set<int> should be serializable"
+);
 STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::vector<std::vector<int>>, SimplePackUnpackArchive,
-  "vector<vector<int>> should be serializable should be serializable"
+  "vector<vector<int>> should be serializable"
 );
 STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::vector<std::vector<int>>, PolicyAwareArchive,
-  "vector<vector<int>> should be serializable should be serializable"
+  "vector<vector<int>> should be serializable"
 );
 STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::vector<std::string>, PolicyAwareArchive,
-  "vector<vector<int>> should be serializable should be serializable"
+  "vector<std::string> should be serializable"
 );
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -332,7 +332,7 @@ TEST(TestCallableTraits, static5) {
   static_assert(callable_traits<decltype(with_ptr_const_ref)>::template arg_n_accepts_const_reference<0>::value, meta_fail);
   static_assert(callable_traits<decltype(with_ptr_const_ref)>::template arg_n_is_const_lvalue_reference<0>::value, meta_fail);
   static_assert(not callable_traits<decltype(with_ptr_const_ref)>::template arg_n_is_nonconst_rvalue_reference<0>::value, meta_fail);
-  static_assert(not callable_traits<decltype(with_ptr_const_ref)>::is_templated, meta_fail);
+  //static_assert(not callable_traits<decltype(with_ptr_const_ref)>::is_templated, meta_fail);
 }
 
 // Not currently used

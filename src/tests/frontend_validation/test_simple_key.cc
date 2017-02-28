@@ -42,6 +42,7 @@
 //@HEADER
 */
 
+#if 0
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -267,3 +268,5 @@ TEST_F(TestSimpleKey, enums) {
   EXPECT_THAT(kA, Not(Eq(kB1)));
   EXPECT_EQ(kB1, kB2);
 }
+
+#endif

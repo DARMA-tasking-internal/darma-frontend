@@ -1136,20 +1136,24 @@ struct _overload_description_maybe_variadic {
     };
   };
   template <typename ArgsVector, size_t offset=0>
-  using _make_args_with_indices = typename tinympl::zip<
+  using _make_args_with_indices = tinympl::zip<
     tinympl::vector, _impl::arg_with_index,
-    tinympl::transform_t<
+    typename tinympl::transform<
       std::make_index_sequence<ArgsVector::size>,
       _make_add_to_mfn<offset>::template apply
-    >,
+    >::type,
     ArgsVector
-  >::type;
+  >;
 
   template <typename... Args>
   using _helper = _impl::_overload_desc_is_valid_impl<
-    _make_args_with_indices<tinympl::vector<Args...>>,
-    _make_args_with_indices<_required_arg_descs>,
-    _make_args_with_indices<_optional_arg_descs, _required_arg_descs::size>,
+    typename tinympl::zip<
+      tinympl::vector, _impl::arg_with_index,
+      std::make_index_sequence<sizeof...(Args)>,
+      tinympl::vector<Args...>
+    >::type,
+    typename _make_args_with_indices<_required_arg_descs>::type,
+    typename _make_args_with_indices<_optional_arg_descs, _required_arg_descs::size>::type,
     AllowVariadics
   >;
 
