@@ -1045,7 +1045,7 @@ class AccessHandle : public detail::AccessHandleBase {
     template <typename, typename>
     friend class AccessHandle;
 
-    template <typename, typename>
+    template <typename, typename, typename>
     friend class AccessHandleCollection;
 
     template <typename, typename, typename...>

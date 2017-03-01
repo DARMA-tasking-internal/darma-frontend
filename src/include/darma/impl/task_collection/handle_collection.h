@@ -70,7 +70,20 @@ struct _____cannot_capture_return_of_AccessHandleCollection_subscript_directly {
 
 namespace darma_runtime {
 
-template <typename T, typename IndexRangeT>
+namespace detail {
+
+template <
+  bool IsOuter = false
+>
+struct access_handle_collection_traits {
+  static constexpr auto is_outer = IsOuter;
+};
+
+} // end namespace detail
+
+template <typename T, typename IndexRangeT,
+  typename Traits=detail::access_handle_collection_traits<>
+>
 class AccessHandleCollection;
 
 namespace detail {
@@ -244,7 +257,7 @@ class IndexedAccessHandle {
     bool has_local_access_;
     std::size_t backend_index_;
 
-    template <typename, typename>
+    template <typename, typename, typename>
     friend class darma_runtime::AccessHandleCollection;
 
     IndexedAccessHandle(
@@ -349,23 +362,31 @@ class IndexedAccessHandle {
 // </editor-fold> end IndexedAccessHandle }}}1
 //==============================================================================
 
+
 } // end namespace detail
 
 
 //==============================================================================
 // <editor-fold desc="AccessHandleCollection">
 
-template <typename T, typename IndexRangeT>
+template <typename T, typename IndexRangeT,
+  typename Traits /*=detail::access_handle_collection_traits<>*/
+>
 class AccessHandleCollection {
   public:
 
     using value_type = T;
     using index_range_type = IndexRangeT;
+    using traits_t = Traits;
 
-    template <typename MappingT>
+    template <typename MappingT,
+      typename=std::enable_if_t<traits_t::is_outer and not std::is_void<MappingT>::value>
+    >
     auto mapped_with(MappingT&& mapping) const {
       return detail::MappedHandleCollection<
-        ::darma_runtime::AccessHandleCollection<T, IndexRangeT>,
+        ::darma_runtime::AccessHandleCollection<T, IndexRangeT,
+          detail::access_handle_collection_traits<false>
+        >,
         std::decay_t<MappingT>
       >(
         *this, std::forward<MappingT>(mapping)
@@ -391,6 +412,11 @@ class AccessHandleCollection {
 
   public:
 
+    template <typename _Ignored_SFINAE=void,
+      typename=std::enable_if_t<std::is_void<_Ignored_SFINAE>::value
+        and not traits_t::is_outer
+      >
+    >
     auto
     operator[](typename _range_traits::index_type const& idx) const {
       auto use_iter = local_use_holders_.find(idx);
@@ -446,6 +472,13 @@ class AccessHandleCollection {
 
     //==========================================================================
 
+  private:
+
+
+    //==========================================================================
+
+  public:
+
     AccessHandleCollection(
       AccessHandleCollection const& other
     ) : mapped_backend_index_(other.mapped_backend_index_),
@@ -463,16 +496,113 @@ class AccessHandleCollection {
       }
 
       if (capturing_task != nullptr) {
+        AccessHandleCollection const* source = &other;
+        if(running_task->is_double_copy_capture) {
+          assert(other.copied_from != nullptr);
+          source = other.copied_from;
+        }
+
+        auto continuing_use_maker = [&](
+          auto handle,
+          auto const& in_flow, auto const& out_flow,
+          auto scheduling_permissions,
+          auto immediate_permissions
+        ) {
+          return darma_runtime::detail::CollectionManagingUse<std::decay_t<IndexRangeT>>(
+            handle, in_flow, out_flow,
+            scheduling_permissions, immediate_permissions,
+            source->current_use_->use.use_->index_range
+          );
+        };
+
+        auto next_use_holder_maker = [&](
+          auto handle,
+          auto const& in_flow, auto const& out_flow,
+          auto scheduling_permissions,
+          auto immediate_permissions
+        ) {
+          return std::make_shared<darma_runtime::detail::GenericUseHolder<
+            darma_runtime::detail::CollectionManagingUse<std::decay_t<IndexRangeT>>
+          >>(
+            darma_runtime::detail::CollectionManagingUse<std::decay_t<IndexRangeT>>(
+              handle, in_flow, out_flow,
+              scheduling_permissions, immediate_permissions,
+              source->current_use_->use.use_->index_range
+            )
+          );
+        };
+
+        // Custom "next flow maker"
+        auto next_flow_maker = [](auto&& flow, auto* backend_runtime) {
+          return darma_runtime::detail::make_flow_ptr(
+            backend_runtime->make_next_flow_collection(
+              *std::forward<decltype(flow)>(flow).get()
+            )
+          );
+        };
+
+        // Do the capture
+        current_use_ = detail::make_captured_use_holder(
+          var_handle_,
+          detail::HandleUse::Modify,
+          detail::HandleUse::None,
+          source->current_use_,
+          next_use_holder_maker,
+          next_flow_maker,
+          continuing_use_maker
+        );
+        current_use_->use.use_->already_captured = true;
+        capturing_task->uses_to_unmark_already_captured.push_back(
+          source->current_use_->use.use_
+        );
+
+        capturing_task->add_dependency(*current_use_->use.use_);
+
+      }
+      else {
+        copied_from = &other;
+        current_use_ = other.current_use_;
+      }
+
+    }
+
+    template <typename _Ignored_SFINAE=void>
+    AccessHandleCollection(
+      AccessHandleCollection<
+        T, IndexRangeT, detail::access_handle_collection_traits<true>
+      > const& other,
+      std::enable_if_t<
+        std::is_void<_Ignored_SFINAE>::value
+        and not traits_t::is_outer,
+        int
+      > = 0
+    ) : mapped_backend_index_(other.mapped_backend_index_),
+        var_handle_(other.var_handle_),
+        current_use_(other.current_use_),
+        local_use_holders_(other.local_use_holders_)
+    {
+      // get the shared_ptr from the weak_ptr stored in the runtime object
+      detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
+        abstract::backend::get_backend_context()->get_running_task()
+      );
+      darma_runtime::detail::TaskBase* capturing_task = nullptr;
+      if (running_task) {
+        capturing_task = running_task->current_create_work_context;
+      }
+
+      if (capturing_task != nullptr) {
         DARMA_ASSERT_FAILURE("Capturing AccessHandleCollection objects in"
           " regular tasks is not yet supported.");
       }
-
     }
 
   private:
 
     //==========================================================================
     // Customization/interaction point:
+
+    template <typename, typename, typename>
+    friend class AccessHandleCollection;
 
     template <typename... AccessorDetails>
     friend struct detail::AccessHandleCollectionAccess;
@@ -501,6 +631,8 @@ class AccessHandleCollection {
     mutable std::size_t mapped_backend_index_ = unknown_backend_index;
     mutable variable_handle_ptr var_handle_ = nullptr;
     mutable use_holder_ptr current_use_ = nullptr;
+    mutable AccessHandleCollection const* copied_from = nullptr;
+    mutable bool dynamic_is_outer = traits_t::is_outer;
 
     mutable std::map<
       typename _range_traits::index_type,
@@ -582,9 +714,9 @@ template <typename T>
 struct is_access_handle_collection: std::false_type {
 };
 
-template <typename T, typename IndexRangeT>
+template <typename T, typename IndexRangeT, typename Traits>
 struct is_access_handle_collection<
-  AccessHandleCollection<T, IndexRangeT>
+  AccessHandleCollection<T, IndexRangeT, Traits>
 >: std::true_type {
 };
 
@@ -609,8 +741,8 @@ namespace detail {
 
 struct initial_access_collection_tag { };
 
-template <typename ValueType>
-struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType> {
+template <typename ValueType, typename Traits>
+struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType, Traits> {
 
   template <typename IndexRangeT>
   auto _impl(
@@ -634,7 +766,7 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType> {
       )
     );
 
-    return AccessHandleCollection<ValueType, std::decay_t<IndexRangeT>>(
+    return AccessHandleCollection<ValueType, std::decay_t<IndexRangeT>, Traits>(
       var_handle, use_holder
     );
   }
@@ -689,7 +821,9 @@ initial_access_collection(Args&&... args) {
 
   return parser()
     .parse_args(std::forward<Args>(args)...)
-    .invoke(detail::AccessHandleCollectionAccess<initial_access_collection_tag, T>());
+    .invoke(detail::AccessHandleCollectionAccess<initial_access_collection_tag,
+      T, detail::access_handle_collection_traits</* IsOuter = */ true>
+    >());
 };
 
 

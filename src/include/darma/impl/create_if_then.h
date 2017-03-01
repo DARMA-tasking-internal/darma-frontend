@@ -344,7 +344,6 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
         requested_immediate_permissions = HandleUse::None;
       bool is_implicit_in_if = false;
       bool captured_in_then_or_else = false;
-      std::vector<std::shared_ptr<UseHolder>*> uses_to_set;
     };
 
 
@@ -689,10 +688,8 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
           desc.requested_immediate_permissions,
           source->current_use_
         );
+        source->current_use_->use.use_->already_captured = false;
         add_dependency(desc.captured->current_use_->use);
-        for (auto&& use_to_set : desc.uses_to_set) {
-          (*use_to_set) = desc.captured->current_use_;
-        }
         if (desc.captured_in_then_or_else and not desc.is_implicit_in_if) {
           auto const& key = desc.captured->var_handle_base_->get_key();
           auto insertion_result = explicit_if_captured_handles.insert(
@@ -716,11 +713,6 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
         abstract::backend::get_backend_context()->get_running_task()
       );
       parent_task->current_create_work_context = nullptr;
-
-      for(auto* use_to_unmark : uses_to_unmark_already_captured) {
-        use_to_unmark->already_captured = false;
-      }
-      uses_to_unmark_already_captured.clear();
 
     }
 
@@ -932,9 +924,6 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
             }
           }
 
-          // Set this for the benefit if the source of the ThenCopyForThen phase
-          desc.uses_to_set.push_back(&captured.current_use_);
-
           desc.captured_in_then_or_else = true;
 
           if(current_stage == IfThenElseCaptureStage::ThenCopyForIfAndThen) {
@@ -942,6 +931,15 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
           }
           else if(current_stage == IfThenElseCaptureStage::ElseCopyForIfAndElse) {
             delayed_else_capture_handles_.push_back(&captured);
+          }
+
+          if(current_stage == IfThenElseCaptureStage::ThenCopyForIf
+            or current_stage == IfThenElseCaptureStage::ElseCopyForIf) {
+            // It's a double-copy capture, but we don't want to hold the use
+            // in the captured (since we'll make another one when we do the
+            // copy for the then or else block
+            // TODO we should probably instead put the implicit capture use here
+            captured.current_use_ = nullptr;
           }
 
           break;
@@ -1126,6 +1124,11 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
 
       // Invoke the copy ctor
       ThenLambda then_lambda_tmp = then_task_.lambda_;
+
+      // don't need clean up the uses to unmark already captured while the
+      // source is still valid since all of those uses should be nullptr
+      // but still clear the list
+      uses_to_unmark_already_captured.clear();
 
       // Then move it back
       then_task_.lambda_.~ThenLambda();
