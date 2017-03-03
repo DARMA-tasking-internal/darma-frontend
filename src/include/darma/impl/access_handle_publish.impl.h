@@ -95,10 +95,10 @@ struct _publish_impl {
       this_.var_handle_,
       HandleUse::None,
       HandleUse::Read,
-      this_.current_use_
+      this_.current_use_.get()
     );
     backend_runtime->publish_use(
-      &(publish_use_holder->use),
+      publish_use_holder->use.get(),
       &dets
     );
 
@@ -108,11 +108,11 @@ struct _publish_impl {
     // TODO Remove this.  Publish out is a deprecated motif
     if(is_publish_out) {
       // If we're publishing "out", reduce permissions in continuing context
-      this_.current_use_->use.immediate_permissions_ =
-        this_.current_use_->use.immediate_permissions_ == HandleUse::None ?
+      this_.current_use_->use->immediate_permissions_ =
+        this_.current_use_->use->immediate_permissions_ == HandleUse::None ?
           HandleUse::None : HandleUse::Read;
-      this_.current_use_->use.scheduling_permissions_ =
-        this_.current_use_->use.scheduling_permissions_ == HandleUse::None ?
+      this_.current_use_->use->scheduling_permissions_ =
+        this_.current_use_->use->scheduling_permissions_ == HandleUse::None ?
           HandleUse::None : HandleUse::Read;
     }
 
@@ -138,7 +138,7 @@ AccessHandle<T, Traits>::publish(
     "publish() called on handle after release"
   );
   DARMA_ASSERT_MESSAGE(
-    current_use_->use.scheduling_permissions_ != HandleUse::None,
+    current_use_->use->scheduling_permissions_ != HandleUse::None,
     "publish() called on handle that can't schedule at least read usage on data (most likely "
       "because it was already released"
   );

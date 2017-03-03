@@ -66,7 +66,7 @@ auto make_captured_use_holder(
   std::shared_ptr<VariableHandleBase> const& var_handle,
   HandleUse::permissions_t requested_scheduling_permissions,
   HandleUse::permissions_t requested_immediate_permissions,
-  std::shared_ptr<UseHolderT>& source_and_continuing_holder,
+  UseHolderT* source_and_continuing_holder,
   UseMaker&& use_holder_maker, NextFlowMaker&& next_flow_maker,
   ContinuingUseMaker&& continuing_use_holder_maker,
   AllowRegisterContinuationIntegralConstantType = std::true_type{}
@@ -77,12 +77,12 @@ auto make_captured_use_holder(
 
   // source scheduling permissions shouldn't be None at this point
   DARMA_ASSERT_MESSAGE(
-    source_and_continuing_holder->use.scheduling_permissions_ != HandleUse::None,
+    source_and_continuing_holder->use->scheduling_permissions_ != HandleUse::None,
     "Can't schedule a task on a handle with leaf permissions"
   );
 
   auto* backend_runtime = abstract::backend::get_backend_runtime();
-  std::size_t saved_collection_owner = source_and_continuing_holder->use.use_->collection_owner_;
+  std::size_t saved_collection_owner = source_and_continuing_holder->use->collection_owner_;
 
   std::shared_ptr<UseHolderT> captured_use_holder;
 
@@ -92,7 +92,7 @@ auto make_captured_use_holder(
 
       // schedule-only cases
 
-      switch(source_and_continuing_holder->use.immediate_permissions_) {
+      switch(source_and_continuing_holder->use->immediate_permissions_) {
 
         //----------------------------------------------------------------------
 
@@ -123,8 +123,8 @@ auto make_captured_use_holder(
               // We still need to create a new use, because it's a separate task
               captured_use_holder = use_holder_maker(
                 var_handle,
-                source_and_continuing_holder->use.in_flow_,
-                source_and_continuing_holder->use.in_flow_,
+                source_and_continuing_holder->use->in_flow_,
+                source_and_continuing_holder->use->in_flow_,
                 /* Scheduling permissions */
                 HandleUse::Read,
                 /* Immediate permissions */
@@ -146,7 +146,7 @@ auto make_captured_use_holder(
               // permissions.
 
               DARMA_ASSERT_MESSAGE(
-                source_and_continuing_holder->use.scheduling_permissions_ == HandleUse::Modify,
+                source_and_continuing_holder->use->scheduling_permissions_ == HandleUse::Modify,
                 "Can't schedule a (schedule-only) Modify task on a handle without"
                   " modify schedule permissions"
               );
@@ -155,12 +155,12 @@ auto make_captured_use_holder(
               // ...actually, this is basically just a regular modify capture with
               // some small exceptions
               auto captured_out_flow = next_flow_maker(
-                source_and_continuing_holder->use.in_flow_, backend_runtime
+                source_and_continuing_holder->use->in_flow_, backend_runtime
               );
 
               captured_use_holder = use_holder_maker(
                 var_handle,
-                source_and_continuing_holder->use.in_flow_,
+                source_and_continuing_holder->use->in_flow_,
                 captured_out_flow,
                 /* Scheduling permissions */
                 HandleUse::Modify,
@@ -193,7 +193,7 @@ auto make_captured_use_holder(
                   continuing_use_holder_maker(
                     var_handle,
                     captured_out_flow,
-                    source_and_continuing_holder->use.out_flow_,
+                    source_and_continuing_holder->use->out_flow_,
                     /* Scheduling permissions */
                     HandleUse::Modify,
                     /* Immediate permissions */
@@ -212,7 +212,7 @@ auto make_captured_use_holder(
 
                 // ...but the in_flow needs to be set to the out_flow of the captured
                 // Use for the purposes of the next task
-                source_and_continuing_holder->use.in_flow_ = captured_out_flow;
+                source_and_continuing_holder->use->in_flow_ = captured_out_flow;
                 // Out flow should be unchanged, but it will still establish an alias
                 // when it goes away if no other tasks are asigned to it
                 source_and_continuing_holder->could_be_alias = true;
@@ -246,8 +246,8 @@ auto make_captured_use_holder(
 
               captured_use_holder = use_holder_maker(
                 var_handle,
-                source_and_continuing_holder->use.in_flow_,
-                source_and_continuing_holder->use.in_flow_,
+                source_and_continuing_holder->use->in_flow_,
+                source_and_continuing_holder->use->in_flow_,
                 /* Scheduling permissions */
                 HandleUse::Read,
                 /* Immediate permissions */
@@ -267,13 +267,13 @@ auto make_captured_use_holder(
 
               // Assert that, e.g., RR -> { MN } -> ... is not allowed
               DARMA_ASSERT_MESSAGE(
-                source_and_continuing_holder->use.scheduling_permissions_ == HandleUse::Modify,
+                source_and_continuing_holder->use->scheduling_permissions_ == HandleUse::Modify,
                 "Can't make a Modify schedule-only capture on a handle without"
                   " at Modify schedule permissions"
               );
 
               auto created_in_flow = make_forwarding_flow_ptr(
-                source_and_continuing_holder->use.in_flow_,
+                source_and_continuing_holder->use->in_flow_,
                 backend_runtime
               );
 
@@ -299,7 +299,7 @@ auto make_captured_use_holder(
                 continuing_use_holder_maker(
                   var_handle,
                   created_out_flow,
-                  source_and_continuing_holder->use.out_flow_,
+                  source_and_continuing_holder->use->out_flow_,
                   HandleUse::Modify,
                   HandleUse::None
                 ),
@@ -349,7 +349,7 @@ auto make_captured_use_holder(
     case HandleUse::Read: { // requested immediate permissions
 
       DARMA_ASSERT_MESSAGE(
-        (source_and_continuing_holder->use.scheduling_permissions_ & HandleUse::Read) != 0,
+        (source_and_continuing_holder->use->scheduling_permissions_ & HandleUse::Read) != 0,
         "Can't schedule a read on a handle without at least Read schedule permissions"
       );
 
@@ -359,7 +359,7 @@ auto make_captured_use_holder(
         case HandleUse::Read: { // requested scheduling permissions
           // This covers the vast majority of uses
 
-          switch(source_and_continuing_holder->use.immediate_permissions_) {
+          switch(source_and_continuing_holder->use->immediate_permissions_) {
             //----------------------------------------------------------------------
             case HandleUse::None:
             case HandleUse::Read: { // source immediate permissions
@@ -376,8 +376,8 @@ auto make_captured_use_holder(
 
               captured_use_holder = use_holder_maker(
                 var_handle,
-                source_and_continuing_holder->use.in_flow_,
-                source_and_continuing_holder->use.in_flow_,
+                source_and_continuing_holder->use->in_flow_,
+                source_and_continuing_holder->use->in_flow_,
                 /* Scheduling permissions */
                 requested_scheduling_permissions,
                 /* Immediate permissions */
@@ -406,7 +406,7 @@ auto make_captured_use_holder(
               // we need to make a forwarded flow and register a new use in the
               // continuing context
               auto forwarded_flow = make_forwarding_flow_ptr(
-                source_and_continuing_holder->use.in_flow_, backend_runtime
+                source_and_continuing_holder->use->in_flow_, backend_runtime
               );
 
               captured_use_holder = use_holder_maker(
@@ -427,7 +427,7 @@ auto make_captured_use_holder(
               // source use is released
               // make another shared ptr to the source use holder so that we can
               // release it
-              void* old_ptr = source_and_continuing_holder->use.get_data_pointer_reference();
+              void* old_ptr = source_and_continuing_holder->use->get_data_pointer_reference();
 
               // now make the use for the continuing context
               source_and_continuing_holder->replace_use(
@@ -436,9 +436,9 @@ auto make_captured_use_holder(
                   forwarded_flow,
                   // It still carries the out flow of the task, though, and should
                   // establish an alias on release if there are no more modifies
-                  source_and_continuing_holder->use.out_flow_,
+                  source_and_continuing_holder->use->out_flow_,
                   /* Scheduling permissions: (should be unchanged) */
-                  source_and_continuing_holder->use.scheduling_permissions_,
+                  source_and_continuing_holder->use->scheduling_permissions_,
                   /* Immediate permissions: */
                   HandleUse::Read
                 ),
@@ -452,7 +452,7 @@ auto make_captured_use_holder(
 
               // We can go ahead and pass on the underlying pointer, though, since
               // the Use is associated with a handle in a context that's uninterruptible
-              void*& new_ptr = source_and_continuing_holder->use.get_data_pointer_reference();
+              void*& new_ptr = source_and_continuing_holder->use->get_data_pointer_reference();
               // (But only if the backend didn't somehow set it to something
               // else during registration...)
               if(new_ptr == nullptr) {
@@ -476,12 +476,12 @@ auto make_captured_use_holder(
           // We're requesting MR, which is unusual but not impossible
 
           DARMA_ASSERT_MESSAGE(
-            (source_and_continuing_holder->use.scheduling_permissions_ == HandleUse::Modify),
+            (source_and_continuing_holder->use->scheduling_permissions_ == HandleUse::Modify),
             "Can't capture a handle with modify schedule permissions without"
               " Modify schedule permissions in enclosing scope"
           );
 
-          switch(source_and_continuing_holder->use.immediate_permissions_) {
+          switch(source_and_continuing_holder->use->immediate_permissions_) {
             //----------------------------------------------------------------------
             case HandleUse::None: { // source immediate permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -490,11 +490,11 @@ auto make_captured_use_holder(
               // this case is an MR capture of MN
 
               auto next_flow = make_next_flow_ptr(
-                source_and_continuing_holder->use.in_flow_, backend_runtime
+                source_and_continuing_holder->use->in_flow_, backend_runtime
               );
               captured_use_holder = use_holder_maker(
                 var_handle,
-                source_and_continuing_holder->use.in_flow_,
+                source_and_continuing_holder->use->in_flow_,
                 next_flow,
                 /* Scheduling permissions */
                 HandleUse::Modify,
@@ -514,7 +514,7 @@ auto make_captured_use_holder(
                 continuing_use_holder_maker(
                   var_handle,
                   next_flow,
-                  source_and_continuing_holder->use.out_flow_,
+                  source_and_continuing_holder->use->out_flow_,
                   HandleUse::Modify,
                   HandleUse::None
                 ),
@@ -540,7 +540,7 @@ auto make_captured_use_holder(
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
               auto fwd_flow = make_forwarding_flow_ptr(
-                source_and_continuing_holder->use.in_flow_, backend_runtime
+                source_and_continuing_holder->use->in_flow_, backend_runtime
               );
               auto cap_out_flow = make_next_flow_ptr(
                 fwd_flow, backend_runtime
@@ -559,9 +559,9 @@ auto make_captured_use_holder(
               // Continuation doesn't need to be registered
               source_and_continuing_holder->do_release();
 
-              source_and_continuing_holder->use.in_flow_ = cap_out_flow;
+              source_and_continuing_holder->use->in_flow_ = cap_out_flow;
               source_and_continuing_holder->could_be_alias = true;
-              source_and_continuing_holder->use.immediate_permissions_ = HandleUse::None;
+              source_and_continuing_holder->use->immediate_permissions_ = HandleUse::None;
               // Out flow and scheduling permissions unchanged
 
               break;
@@ -590,11 +590,11 @@ auto make_captured_use_holder(
     case HandleUse::Modify: { // requested immediate permissions
 
       DARMA_ASSERT_MESSAGE(
-        source_and_continuing_holder->use.scheduling_permissions_ == HandleUse::Modify,
+        source_and_continuing_holder->use->scheduling_permissions_ == HandleUse::Modify,
         "Can't schedule a modify on a handle without Modify schedule permissions"
       );
 
-      switch(source_and_continuing_holder->use.immediate_permissions_) {
+      switch(source_and_continuing_holder->use->immediate_permissions_) {
         //----------------------------------------------------------------------
         case HandleUse::None: {
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -607,13 +607,13 @@ auto make_captured_use_holder(
 
           // Create the out flow
           auto captured_out_flow = next_flow_maker(
-            source_and_continuing_holder->use.in_flow_, backend_runtime
+            source_and_continuing_holder->use->in_flow_, backend_runtime
           );
 
           // make the captured use holder
           captured_use_holder = use_holder_maker(
             var_handle,
-            source_and_continuing_holder->use.in_flow_,
+            source_and_continuing_holder->use->in_flow_,
             captured_out_flow,
             /* Scheduling permissions */
             requested_scheduling_permissions,
@@ -643,7 +643,7 @@ auto make_captured_use_holder(
               continuing_use_holder_maker(
                 var_handle,
                 captured_out_flow,
-                source_and_continuing_holder->use.out_flow_,
+                source_and_continuing_holder->use->out_flow_,
                 /* Scheduling permissions */
                 HandleUse::Modify,
                 /* Immediate permissions */
@@ -663,7 +663,7 @@ auto make_captured_use_holder(
 
             // ...but the in_flow needs to be set to the out_flow of the captured
             // Use for the purposes of the next task
-            source_and_continuing_holder->use.in_flow_ = captured_out_flow;
+            source_and_continuing_holder->use->in_flow_ = captured_out_flow;
             // Out flow should be unchanged, but it will still establish an alias
             // when it goes away if no other tasks are asigned to it
             source_and_continuing_holder->could_be_alias = true;
@@ -683,13 +683,13 @@ auto make_captured_use_holder(
           // Create the out flow  (should this be make_forwarding_flow?)
           // (probably not, since RR -> { RR } -> RR doesn't do forwarding?)
           auto captured_out_flow = next_flow_maker(
-            source_and_continuing_holder->use.in_flow_, backend_runtime
+            source_and_continuing_holder->use->in_flow_, backend_runtime
           );
 
           // make the captured use holder
           captured_use_holder = use_holder_maker(
             var_handle,
-            source_and_continuing_holder->use.in_flow_,
+            source_and_continuing_holder->use->in_flow_,
             captured_out_flow,
             /* Scheduling permissions */
             requested_scheduling_permissions,
@@ -703,8 +703,8 @@ auto make_captured_use_holder(
           // Now release the source use
           source_and_continuing_holder->do_release();
 
-          source_and_continuing_holder->use.in_flow_ = captured_out_flow;
-          source_and_continuing_holder->use.immediate_permissions_ = HandleUse::None;
+          source_and_continuing_holder->use->in_flow_ = captured_out_flow;
+          source_and_continuing_holder->use->immediate_permissions_ = HandleUse::None;
           source_and_continuing_holder->could_be_alias = true;
           // out flow and scheduling permissions unchanged
 
@@ -723,7 +723,7 @@ auto make_captured_use_holder(
           // we need to forward the input flow, since it could have changed
           // (because the source has modify immediate permissions)
           auto captured_in_flow = make_forwarding_flow_ptr(
-            source_and_continuing_holder->use.in_flow_, backend_runtime
+            source_and_continuing_holder->use->in_flow_, backend_runtime
           );
           auto captured_out_flow = next_flow_maker(
             captured_in_flow, backend_runtime
@@ -750,8 +750,8 @@ auto make_captured_use_holder(
           // UseHolder is encountered (whether it's establishing an alias or
           // another capture)
           // (note that the out flow and scheduling permissions remain unchanged)
-          source_and_continuing_holder->use.immediate_permissions_ = HandleUse::None;
-          source_and_continuing_holder->use.in_flow_ = captured_out_flow;
+          source_and_continuing_holder->use->immediate_permissions_ = HandleUse::None;
+          source_and_continuing_holder->use->in_flow_ = captured_out_flow;
           source_and_continuing_holder->could_be_alias = true;
 
           // TODO decide if this continuing context use needs to be registered as schedule only (for consistency)
@@ -778,9 +778,9 @@ auto make_captured_use_holder(
   } // end switch requested immediate permissions
 
   // Propagate the collection owner information
-  captured_use_holder->use.use_->collection_owner_ = saved_collection_owner;
+  captured_use_holder->use->collection_owner_ = saved_collection_owner;
   // Also for the continuing, in case there's been a change
-  source_and_continuing_holder->use.use_->collection_owner_ = saved_collection_owner;
+  source_and_continuing_holder->use->collection_owner_ = saved_collection_owner;
 
   return captured_use_holder;
 }
@@ -792,7 +792,7 @@ make_captured_use_holder(
   std::shared_ptr<VariableHandleBase> const& var_handle,
   HandleUse::permissions_t requested_scheduling_permissions,
   HandleUse::permissions_t requested_immediate_permissions,
-  std::shared_ptr<UseHolder>& source_and_continuing_holder
+  UseHolder* source_and_continuing_holder
 ) {
   return make_captured_use_holder(
     var_handle, requested_scheduling_permissions, requested_immediate_permissions,

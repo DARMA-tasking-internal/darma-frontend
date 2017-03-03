@@ -344,6 +344,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
         requested_immediate_permissions = HandleUse::None;
       bool is_implicit_in_if = false;
       bool captured_in_then_or_else = false;
+      std::vector<std::shared_ptr<UseHolder>*> uses_to_set;
     };
 
 
@@ -682,14 +683,14 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
       for (auto&& if_cap_pair : if_captures_) {
         auto& desc = if_cap_pair.second;
         auto* source = desc.source_and_continuing;
-        desc.captured->current_use_ = make_captured_use_holder(
+        desc.captured->call_make_captured_use_holder(
           source->var_handle_base_,
           desc.requested_schedule_permissions,
           desc.requested_immediate_permissions,
-          source->current_use_
+          *source
         );
-        source->current_use_->use.use_->already_captured = false;
-        add_dependency(desc.captured->current_use_->use);
+        source->current_use_base_->use_base->already_captured = false;
+        add_dependency(*desc.captured->current_use_base_->use_base);
         if (desc.captured_in_then_or_else and not desc.is_implicit_in_if) {
           auto const& key = desc.captured->var_handle_base_->get_key();
           auto insertion_result = explicit_if_captured_handles.insert(
@@ -939,7 +940,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
             // in the captured (since we'll make another one when we do the
             // copy for the then or else block
             // TODO we should probably instead put the implicit capture use here
-            captured.current_use_ = nullptr;
+            //captured.current_use_ = nullptr;
           }
 
           break;
@@ -1035,9 +1036,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
 
       assert(source_handle.get() != nullptr);
 
-      captured.current_use_ = make_captured_use_holder<
-        /* AllowRegisterContinuation = */ true
-      >(
+      captured.call_make_captured_use_holder(
         captured.var_handle_base_,
         then_else_task.capture_options_.get_requested_scheduling_permissions(
           captured /* defaults to modify */
@@ -1045,15 +1044,15 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
         then_else_task.capture_options_.get_requested_immediate_permissions(
           captured /* defaults to modify */
         ),
-        source_handle->current_use_
+        *source_handle
       );
 
-      then_else_task.add_dependency(captured.current_use_->use);
+      then_else_task.add_dependency(*captured.current_use_base_->use_base);
 
       // TODO keep this from even generating the continuation flow?!?
 
       // Tell the source (now continuing) handle to establish an alias
-      source_handle->current_use_->could_be_alias = true;
+      source_handle->current_use_base_->could_be_alias = true;
 
       // Release the handle, triggering release of the use
       source_handle = nullptr;

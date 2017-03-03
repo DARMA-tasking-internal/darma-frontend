@@ -343,15 +343,17 @@ struct WhileDoTask: public TaskBase {
       auto& key = while_desc_pair.first;
 
       // Now do the actual capture
-      while_desc.captured->current_use_ = make_captured_use_holder(
+      while_desc.captured->call_make_captured_use_holder(
         while_desc.source_and_continuing->var_handle_base_,
         while_desc.req_sched_perms,
         while_desc.req_immed_perms,
-        while_desc.source_and_continuing->current_use_
+        *while_desc.source_and_continuing
       );
-      while_desc.captured_copy->get()->current_use_ =
-        while_desc.captured->current_use_;
-      add_dependency(while_desc.captured->current_use_->use);
+      // Not sure if I need this; note that it slices
+      while_desc.captured_copy->get()->replace_use_holder_with(
+        *while_desc.captured
+      );
+      add_dependency(*while_desc.captured->current_use_base_->use_base);
     }
     while_holder_.capture_descs_.clear();
 
@@ -387,15 +389,16 @@ struct WhileDoTask: public TaskBase {
       auto& key = do_desc_pair.first;
 
       // Now do the actual capture
-      do_desc.captured->current_use_ = make_captured_use_holder(
+      do_desc.captured->call_make_captured_use_holder(
         do_desc.source_and_continuing->var_handle_base_,
         do_desc.req_sched_perms,
         do_desc.req_immed_perms,
-        do_desc.source_and_continuing->current_use_
+        *do_desc.source_and_continuing
       );
-      do_desc.captured_copy->get()->current_use_ =
-        do_desc.captured->current_use_;
-      add_dependency(do_desc.captured->current_use_->use);
+      do_desc.captured_copy->get()->replace_use_holder_with(
+        *do_desc.captured
+      );
+      add_dependency(*do_desc.captured->current_use_base_->use_base);
     }
     do_holder_.capture_descs_.clear();
 
@@ -437,15 +440,16 @@ struct WhileDoTask: public TaskBase {
       auto& key = while_desc_pair.first;
 
       // Now do the actual capture
-      while_desc.captured->current_use_ = make_captured_use_holder(
+      while_desc.captured->call_make_captured_use_holder(
         while_desc.source_and_continuing->var_handle_base_,
         while_desc.req_sched_perms,
         while_desc.req_immed_perms,
-        while_desc.source_and_continuing->current_use_
+        *while_desc.source_and_continuing
       );
-      while_desc.captured_copy->get()->current_use_ =
-        while_desc.captured->current_use_;
-      add_dependency(while_desc.captured->current_use_->use);
+      while_desc.captured_copy->get()->replace_use_holder_with(
+        *while_desc.captured
+      );
+      add_dependency(*while_desc.captured->current_use_base_->use_base);
     }
     while_holder_.capture_descs_.clear();
 
@@ -487,7 +491,8 @@ struct WhileDoTask: public TaskBase {
         while_desc.req_sched_perms =
           while_holder_.get_requested_scheduling_permissions(key);
 
-        captured.current_use_ = nullptr;
+        // TODO do the equivalent of this
+        //captured.current_use_ = nullptr;
 
         // Make the AccessHandle for the explicit capture
         {
@@ -527,7 +532,7 @@ struct WhileDoTask: public TaskBase {
         // context handle, since it is held in the while part
         // This (should be?) okay since this will be replaced before another
         // capture that depends on it is triggered
-        assert(captured.current_use_.get() == nullptr);
+        assert(captured.current_use_base_ == nullptr);
 
         // Make the AccessHandle for the explicit capture
         // (so that if the handle gets released in the middle, we still retain

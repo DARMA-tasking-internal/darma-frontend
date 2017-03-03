@@ -66,16 +66,16 @@ TaskBase::do_capture_checks(
 ) {
 
   DARMA_ASSERT_MESSAGE(
-    source_and_continuing.current_use_.get() != nullptr,
+    source_and_continuing.current_use_base_ != nullptr,
     "Can't capture handle after it was released or before it was initialized"
   );
 
   DARMA_ASSERT_MESSAGE(
-    source_and_continuing.current_use_->use.scheduling_permissions_ != HandleUse::Permissions::None,
+    source_and_continuing.current_use_base_->use_base->scheduling_permissions_ != HandleUse::Permissions::None,
     "Can't do a capture of an AccessHandle with scheduling permissions of None"
   );
 
-  bool check_aliasing = source_and_continuing.current_use_->use.use_->already_captured;
+  bool check_aliasing = source_and_continuing.current_use_base_->use_base->already_captured;
 
   DARMA_ASSERT_MESSAGE(
     (source_and_continuing.captured_as_ & AccessHandleBase::Ignored) == 0,
@@ -154,7 +154,7 @@ TaskBase::do_capture(
   }
   else {
     // By default, use the strongest permissions we can schedule to
-    switch (source.current_use_->use.scheduling_permissions_) {
+    switch (source.current_use_base_->use_base->scheduling_permissions_) {
       case HandleUse::Read: {
         requested_schedule_permissions = requested_immediate_permissions = HandleUse::Read;
         break;
@@ -186,14 +186,14 @@ TaskBase::do_capture(
 
   // Now make the captured use holder (and set up the continuing use holder,
   // if necessary)
-  captured.current_use_ = detail::make_captured_use_holder(
+  captured.call_make_captured_use_holder(
     source.var_handle_base_,
     requested_schedule_permissions,
     requested_immediate_permissions,
-    source_and_continuing.current_use_
+    source_and_continuing
   );
 
-  add_dependency(captured.current_use_->use);
+  add_dependency(*captured.current_use_base_->use_base);
 
 
   // Assert that all of the captured_as info has been handled:

@@ -60,7 +60,7 @@ namespace detail {
 class AccessHandleBase {
   public:
 
-    using use_holder_ptr = std::shared_ptr<UseHolder>;
+    using use_holder_base_ptr = UseHolderBase*;
 
     typedef enum CaptureOp {
       ro_capture,
@@ -83,7 +83,7 @@ class AccessHandleBase {
     mutable unsigned captured_as_ = CapturedAsInfo::Normal;
     task_t* capturing_task = nullptr;
     std::size_t lambda_capture_unpack_index = 0;
-    mutable use_holder_ptr current_use_ = nullptr;
+    mutable use_holder_base_ptr current_use_base_ = nullptr;
 
     // This is ugly, but it works for now:
     std::shared_ptr<VariableHandleBase> var_handle_base_;
@@ -94,9 +94,19 @@ class AccessHandleBase {
     friend class ParsedCaptureOptions;
     template <typename, typename, bool, typename, typename, bool, bool, bool>
     friend class WhileDoTask;
+    template <typename, typename>
+    friend class darma_runtime::AccessHandle;
 
     // Copy the concrete object instance
     virtual std::shared_ptr<AccessHandleBase> copy(bool check_context = true) const =0;
+
+    virtual void call_make_captured_use_holder(
+      std::shared_ptr<detail::VariableHandleBase> var_handle,
+      detail::HandleUse::permissions_t req_sched,
+      detail::HandleUse::permissions_t req_immed,
+      detail::AccessHandleBase const& source
+    ) =0;
+    virtual void replace_use_holder_with(AccessHandleBase const&) =0;
 
     virtual ~AccessHandleBase() = default;
 

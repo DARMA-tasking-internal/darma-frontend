@@ -138,15 +138,15 @@ struct _get_storage_arg_helper<
         // TODO check params(/args?) for schdule-only permissions request?
         HandleUse::Modify,
         /* source and continuing context use holder */
-        arg.current_use_
+        arg.current_use_.get()
       )
     );
     using collection_range_traits = typename TaskCollectionT::index_range_traits;
     auto coll_mapping_to_dense = collection_range_traits::mapping_to_dense(collection.collection_range_);
     std::size_t backend_owning_index = coll_mapping_to_dense.map_forward(arg.owning_index_);
-    rv.current_use_->use.use_->collection_owner_ = backend_owning_index;
+    rv.current_use_->use->collection_owner_ = backend_owning_index;
     rv.owning_backend_index_ = backend_owning_index;
-    collection.add_dependency(&(rv.current_use_->use));
+    collection.add_dependency(rv.current_use_->use.get());
     return rv;
   }
 };
@@ -201,10 +201,10 @@ struct _get_storage_arg_helper<
         // TODO check params(/args?) for schdule-only permissions request
         HandleUse::Read,
         /* source and continuing context use holder */
-        arg.current_use_
+        arg.current_use_.get()
       )
     );
-    collection.add_dependency(&(rv.current_use_->use));
+    collection.add_dependency(rv.current_use_->use.get());
     return rv;
   }
 };
@@ -446,14 +446,14 @@ struct _get_storage_arg_helper<
     auto rv = return_type(
       handle_collection_t(
         arg.collection.var_handle_,
-        ::darma_runtime::detail::make_captured_use_holder(
+        darma_runtime::detail::make_captured_use_holder(
           arg.collection.var_handle_,
             /* Requested Scheduling permissions: */
             required_scheduling_permissions,
             /* Requested Immediate permissions: */
             required_immediate_permissions,
             /* source and continuing use handle */
-            arg.collection.current_use_,
+            arg.collection.current_use_.get(),
             // Customization functors:
             captured_use_holder_maker,
             next_flow_maker,
@@ -462,7 +462,7 @@ struct _get_storage_arg_helper<
       ),
       arg.mapping
     );
-    collection.add_dependency(&(rv.collection.current_use_->use));
+    collection.add_dependency(rv.collection.current_use_->use.get());
     return rv;
   }
 

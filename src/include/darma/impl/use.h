@@ -57,6 +57,7 @@
 #include <darma/impl/index_range/mapping.h>
 #include <darma/impl/index_range/mapping_traits.h>
 #include <darma/impl/index_range/index_range_traits.h>
+#include <darma/impl/util/managing_ptr.h>
 
 namespace darma_runtime {
 
@@ -282,7 +283,6 @@ class CollectionManagingUseBase
 };
 
 
-
 template <typename IndexRangeT>
 class CollectionManagingUse
   : public CollectionManagingUseBase<typename indexing::index_range_traits<IndexRangeT>::index_type>
@@ -415,120 +415,134 @@ struct migrated_use_arg_t { };
 static constexpr migrated_use_arg_t migrated_use_arg = { };
 
 // This is an ugly hack, but it will hold us over for now...
-template <typename UnderlyingUse>
-struct OwningUseWrapper {
-  UnderlyingUse* use_;
+//template <typename UnderlyingUse>
+//struct OwningUseWrapper {
+//  UnderlyingUse* use_;
+//
+//  void*& data_;
+//  std::shared_ptr<VariableHandleBase>& handle_;
+//  flow_ptr& in_flow_;
+//  flow_ptr& out_flow_;
+//  abstract::frontend::Use::permissions_t& immediate_permissions_;
+//  abstract::frontend::Use::permissions_t& scheduling_permissions_;
+//
+//  OwningUseWrapper(UnderlyingUse&& use)
+//    : use_(
+//        new (
+//          abstract::backend::get_backend_memory_manager()->allocate(
+//            sizeof(UnderlyingUse),
+//            serialization::detail::DefaultMemoryRequirementDetails{}
+//          )
+//        ) UnderlyingUse(std::move(use))
+//      ),
+//      handle_(use_->handle_),
+//      data_(use_->data_),
+//      in_flow_(use_->in_flow_),
+//      out_flow_(use_->out_flow_),
+//      immediate_permissions_(use_->immediate_permissions_),
+//      scheduling_permissions_(use_->scheduling_permissions_)
+//  { }
+//
+//  OwningUseWrapper(UnderlyingUse* use)
+//    : use_(use),
+//      handle_(use_->handle_),
+//      data_(use_->data_),
+//      in_flow_(use_->in_flow_),
+//      out_flow_(use_->out_flow_),
+//      immediate_permissions_(use_->immediate_permissions_),
+//      scheduling_permissions_(use_->scheduling_permissions_)
+//  { }
+//
+//  void*& get_data_pointer_reference() { return data_; }
+//
+//  UnderlyingUse* operator&() { return use_; }
+//  UnderlyingUse const* operator&() const { return use_; }
+//
+//  operator UnderlyingUse&() {
+//    return *use_;
+//  }
+//
+//  operator UnderlyingUse const&() const {
+//    return *use_;
+//  }
+//
+//  ~OwningUseWrapper() {
+//    use_->~UnderlyingUse();
+//    abstract::backend::get_backend_memory_manager()->deallocate(
+//      use_, sizeof(UnderlyingUse)
+//    );
+//
+//  }
+//
+//};
 
-  void*& data_;
-  std::shared_ptr<VariableHandleBase>& handle_;
-  flow_ptr& in_flow_;
-  flow_ptr& out_flow_;
-  abstract::frontend::Use::permissions_t& immediate_permissions_;
-  abstract::frontend::Use::permissions_t& scheduling_permissions_;
+//template <typename UnderlyingUse>
+//void swap(
+//  OwningUseWrapper<UnderlyingUse>& a,
+//  OwningUseWrapper<UnderlyingUse>& b
+//) {
+//  UnderlyingUse* a_use = a.use_;
+//  UnderlyingUse* b_use = b.use_;
+//  new (std::addressof(a)) OwningUseWrapper<UnderlyingUse>(b_use);
+//  new (std::addressof(b)) OwningUseWrapper<UnderlyingUse>(a_use);
+//}
 
-  OwningUseWrapper(UnderlyingUse&& use)
-    : use_(
-        new (
-          abstract::backend::get_backend_memory_manager()->allocate(
-            sizeof(UnderlyingUse),
-            serialization::detail::DefaultMemoryRequirementDetails{}
-          )
-        ) UnderlyingUse(std::move(use))
-      ),
-      handle_(use_->handle_),
-      data_(use_->data_),
-      in_flow_(use_->in_flow_),
-      out_flow_(use_->out_flow_),
-      immediate_permissions_(use_->immediate_permissions_),
-      scheduling_permissions_(use_->scheduling_permissions_)
-  { }
-
-  OwningUseWrapper(UnderlyingUse* use)
-    : use_(use),
-      handle_(use_->handle_),
-      data_(use_->data_),
-      in_flow_(use_->in_flow_),
-      out_flow_(use_->out_flow_),
-      immediate_permissions_(use_->immediate_permissions_),
-      scheduling_permissions_(use_->scheduling_permissions_)
-  { }
-
-  void*& get_data_pointer_reference() { return data_; }
-
-  UnderlyingUse* operator&() { return use_; }
-  UnderlyingUse const* operator&() const { return use_; }
-
-  operator UnderlyingUse&() {
-    return *use_;
-  }
-
-  operator UnderlyingUse const&() const {
-    return *use_;
-  }
-
-  ~OwningUseWrapper() {
-    use_->~UnderlyingUse();
-    abstract::backend::get_backend_memory_manager()->deallocate(
-      use_, sizeof(UnderlyingUse)
-    );
-
-  }
-
+struct UseHolderBase {
+  bool is_registered = false;
+  bool could_be_alias = false;
+  HandleUseBase* use_base = nullptr;
 };
-
-template <typename UnderlyingUse>
-void swap(
-  OwningUseWrapper<UnderlyingUse>& a,
-  OwningUseWrapper<UnderlyingUse>& b
-) {
-  UnderlyingUse* a_use = a.use_;
-  UnderlyingUse* b_use = b.use_;
-  new (std::addressof(a)) OwningUseWrapper<UnderlyingUse>(b_use);
-  new (std::addressof(b)) OwningUseWrapper<UnderlyingUse>(a_use);
-}
 
 // really belongs to AccessHandle, but we can't put this in impl/handle.h
 // because of circular header dependencies
 template <typename UnderlyingUse>
-struct GenericUseHolder {
-  OwningUseWrapper<UnderlyingUse> use;
-  bool is_registered = false;
-  bool could_be_alias = false;
+struct GenericUseHolder : UseHolderBase {
+  using held_use_t = managing_ptr<
+    std::unique_ptr<UnderlyingUse>, HandleUseBase*
+  >;
+
+  held_use_t use;
 
   GenericUseHolder(GenericUseHolder&&) = delete;
   GenericUseHolder(GenericUseHolder const &) = delete;
 
   explicit
   GenericUseHolder(UnderlyingUse&& in_use)
-    : use(std::move(in_use))
+    : use(use_base, std::make_unique<UnderlyingUse>(std::move(in_use)))
   { }
 
   void do_register() {
     assert(!is_registered);
-    abstract::backend::get_backend_runtime()->register_use(&use);
+    abstract::backend::get_backend_runtime()->register_use(use_base);
     is_registered = true;
   }
 
   void replace_use(UnderlyingUse&& new_use, bool should_do_register) {
-    OwningUseWrapper<UnderlyingUse> new_use_wrapper(std::move(new_use));
-    detail::swap(use, new_use_wrapper);
+    HandleUseBase* swapped_use_base = nullptr;
+    held_use_t new_use_wrapper(
+      swapped_use_base,
+      std::make_unique<UnderlyingUse>(std::move(new_use))
+    );
+    swap(use, new_use_wrapper);
     bool old_is_registered = is_registered;
     is_registered = false;
     if(should_do_register) do_register();
     if(old_is_registered) {
-      abstract::backend::get_backend_runtime()->release_use(&new_use_wrapper);
+      abstract::backend::get_backend_runtime()->release_use(swapped_use_base);
     }
   }
 
   void do_release() {
     assert(is_registered);
-    abstract::backend::get_backend_runtime()->release_use(&use);
+    abstract::backend::get_backend_runtime()->release_use(use_base);
     is_registered = false;
   }
 
 #if _darma_has_feature(task_migration)
-  GenericUseHolder(migrated_use_arg_t, UnderlyingUse&& in_use) : use(std::move(in_use)) {
-    abstract::backend::get_backend_runtime()->reregister_migrated_use(&use);
+  GenericUseHolder(migrated_use_arg_t, UnderlyingUse&& in_use)
+    : use(use_base, std::make_unique<UnderlyingUse>(std::move(in_use)))
+  {
+    abstract::backend::get_backend_runtime()->reregister_migrated_use(use_base);
     is_registered = true;
   }
 #endif
@@ -538,8 +552,8 @@ struct GenericUseHolder {
     if(could_be_alias) {
       // okay, now we know it IS an alias
       abstract::backend::get_backend_runtime()->establish_flow_alias(
-        *(use.in_flow_.get()),
-        *(use.out_flow_.get())
+        *(use->in_flow_.get()),
+        *(use->out_flow_.get())
       );
     }
   }
