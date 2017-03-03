@@ -902,7 +902,7 @@ class AccessHandle : public detail::AccessHandleBase {
   // </editor-fold> end Private implementation detail methods }}}1
   //============================================================================
 
-  //==============================================================================
+  //============================================================================
   // <editor-fold desc="AccessHandleBase pure virtual function implementations"> {{{1
 
   private:
@@ -950,8 +950,12 @@ class AccessHandle : public detail::AccessHandleBase {
       )->current_use_;
     }
 
+    void release_current_use() const override {
+      current_use_ = nullptr;
+    }
+
   // </editor-fold> end AccessHandleBase pure virtual function implementations }}}1
-  //==============================================================================
+  //============================================================================
 
   //============================================================================
   // <editor-fold desc="private ctors"> {{{1

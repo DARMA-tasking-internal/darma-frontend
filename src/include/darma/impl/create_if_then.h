@@ -914,9 +914,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
               desc.is_implicit_in_if = true;
 
               auto insertion_result = implicit_if_captured_handles.insert(
-                std::make_pair(key,
-                  source_and_continuing.copy(/* check_context = */ false)
-                )
+                { key, source_and_continuing.copy(/* check_context = */ false) }
               );
               assert(insertion_result.second); // can't already be in map
 
@@ -940,7 +938,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
             // in the captured (since we'll make another one when we do the
             // copy for the then or else block
             // TODO we should probably instead put the implicit capture use here
-            //captured.current_use_ = nullptr;
+            captured.release_current_use();
           }
 
           break;

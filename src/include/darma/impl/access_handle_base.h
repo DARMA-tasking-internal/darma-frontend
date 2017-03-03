@@ -107,6 +107,7 @@ class AccessHandleBase {
       detail::AccessHandleBase const& source
     ) =0;
     virtual void replace_use_holder_with(AccessHandleBase const&) =0;
+    virtual void release_current_use() const =0;
 
     virtual ~AccessHandleBase() = default;
 

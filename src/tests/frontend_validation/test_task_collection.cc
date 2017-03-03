@@ -86,7 +86,7 @@ class TestCreateConcurrentWork
 ////////////////////////////////////////////////////////////////////////////////
 
 
-TEST_F(TestCreateConcurrentWork, simple) {
+TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
 
   using namespace ::testing;
   using namespace darma_runtime;
@@ -102,20 +102,28 @@ TEST_F(TestCreateConcurrentWork, simple) {
   use_t* use_coll = nullptr;
   int values[4];
 
+  bool with_helper = GetParam();
+
   EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
 
   EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
     .WillOnce(Return(fout_coll));
 
-  EXPECT_CALL(*mock_runtime, register_use(AllOf(
-    IsUseWithFlows(finit, fout_coll, use_t::Modify, use_t::Modify),
-    Truly([](auto* use){
-      return (
-        use->manages_collection()
-          and use->get_managed_collection()->size() == 4
-      );
-    })
-  ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
+  if(with_helper) {
+    EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, fout_coll, Modify, Modify, 4);
+  }
+  else {
+    EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf(
+      IsUseWithFlows(finit, fout_coll, use_t::Modify, use_t::Modify),
+      Truly([](auto* use){
+        return (
+          use->manages_collection()
+            and use->get_managed_collection()->size() == 4
+        );
+      })
+    ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
+  }
+
 
   EXPECT_FLOW_ALIAS(fout_coll, fnull);
 

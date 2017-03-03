@@ -123,14 +123,18 @@ class managing_ptr {
       managing_ptr const& other
     ) : smart_ptr_(other.smart_ptr_),
         managed_ptr_(managed_ptr)
-    { }
+    {
+      managed_ptr_ = smart_ptr_.get();
+    }
 
     managing_ptr(
       managed_ptr_t& managed_ptr,
       managing_ptr&& other
     ) : smart_ptr_(other.smart_ptr_),
         managed_ptr_(managed_ptr)
-    { }
+    {
+      managed_ptr_ = smart_ptr_.get();
+    }
 
     managing_ptr& operator=(std::nullptr_t) {
       smart_ptr_ = nullptr;
@@ -175,6 +179,9 @@ class managing_ptr {
 
     auto get() { return smart_ptr_.get(); }
     auto get() const { return smart_ptr_.get(); }
+
+    smart_ptr_t const&
+    get_smart_ptr() const { return smart_ptr_; }
 
     bool operator==(std::nullptr_t) const {
       return smart_ptr_ == nullptr;
