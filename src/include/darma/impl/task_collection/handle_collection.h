@@ -534,8 +534,23 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     copy(
       bool check_context = true
     ) const override {
-      // TODO write this
-      DARMA_ASSERT_NOT_IMPLEMENTED();
+      if(check_context) {
+        return std::allocate_shared<AccessHandleCollection>(
+          darma_runtime::serialization::darma_allocator<AccessHandleCollection>{},
+          *this
+        );
+      }
+      else {
+        auto rv = std::allocate_shared<AccessHandleCollection>(
+          darma_runtime::serialization::darma_allocator<AccessHandleCollection>{}
+        );
+        rv->current_use_ = current_use_;
+        rv->var_handle_ = var_handle_;
+        rv->local_use_holders_ = local_use_holders_;
+        rv->mapped_backend_index_ = mapped_backend_index_;
+        rv->dynamic_is_outer = dynamic_is_outer;
+        return rv;
+      }
     }
 
     void
@@ -557,7 +572,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     ) : mapped_backend_index_(other.mapped_backend_index_),
         var_handle_(other.var_handle_),
         current_use_(current_use_base_, other.current_use_),
-        local_use_holders_(other.local_use_holders_)
+        local_use_holders_(other.local_use_holders_),
+        dynamic_is_outer(other.dynamic_is_outer)
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
@@ -605,7 +621,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     ) : mapped_backend_index_(other.mapped_backend_index_),
         var_handle_(other.var_handle_),
         current_use_(current_use_base_, other.current_use_),
-        local_use_holders_(other.local_use_holders_)
+        local_use_holders_(other.local_use_holders_),
+        dynamic_is_outer(other.dynamic_is_outer)
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
