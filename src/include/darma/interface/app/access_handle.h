@@ -530,7 +530,7 @@ class AccessHandle : public detail::AccessHandleBase {
         "handle dereferenced in context without immediate permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use != nullptr,
+        current_use_ != nullptr,
         "dereference of handle with null Use (this should never happen,"
           " it indicates an error in the translation layer)"
       );

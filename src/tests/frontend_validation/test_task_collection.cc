@@ -143,6 +143,7 @@ TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
         ASSERT_THAT(index.value, Lt(4));
         ASSERT_THAT(index.value, Ge(0));
         coll[index].local_access().set_value(42);
+        sequence_marker->mark_sequence("inside task " + std::to_string(index.value));
       }
     };
 
@@ -171,10 +172,17 @@ TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
 
     EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
 
+    {
+      InSequence use_before_release;
+
+      EXPECT_CALL(*sequence_marker, mark_sequence("inside task " + std::to_string(i)));
+
+      EXPECT_RELEASE_USE(use_idx[i]);
+
+    }
+
     created_task->run();
     EXPECT_THAT(values[i], Eq(42));
-
-    EXPECT_RELEASE_USE(use_idx[i]);
 
   }
 
@@ -588,11 +596,11 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
     EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
 
+    EXPECT_RELEASE_USE(use_idx[i]);
+
     created_task->run();
 
     EXPECT_THAT(values[i], Eq(42));
-
-    EXPECT_RELEASE_USE(use_idx[i]);
 
   }
 
@@ -731,13 +739,13 @@ TEST_F(TestCreateConcurrentWork, many_to_one) {
     EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
     EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i+2]));
 
-    created_task->run();
-    EXPECT_THAT(values[i], Eq(42));
-    EXPECT_THAT(values[i+2], Eq(73));
-
-
     EXPECT_RELEASE_USE(use_idx[i]);
     EXPECT_RELEASE_USE(use_idx[i+2]);
+
+    created_task->run();
+
+    EXPECT_THAT(values[i], Eq(42));
+    EXPECT_THAT(values[i+2], Eq(73));
 
   }
 
@@ -1341,10 +1349,10 @@ TEST_F(TestCreateConcurrentWork, nested_in_create_work) {
 
     EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
 
+    EXPECT_RELEASE_USE(use_idx[i]);
+
     created_task->run();
     EXPECT_THAT(values[i], Eq(42));
-
-    EXPECT_RELEASE_USE(use_idx[i]);
 
   }
 

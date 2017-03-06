@@ -66,6 +66,7 @@ namespace detail {
 typedef enum WhileDoCaptureStage {
   OuterWhileCapture,
   OuterDoCapture,
+  OuterNestedDoCapture,
   NestedDoCapture,
   NestedWhileCapture
 } while_do_capture_stage_t;
@@ -321,7 +322,7 @@ struct WhileDoTask: public TaskBase {
       )
   {
     // Handle the while capture
-    auto* parent_task = static_cast<darma_runtime::detail::TaskBase*>(
+    auto* parent_task = detail::safe_static_cast<darma_runtime::detail::TaskBase*>(
       abstract::backend::get_backend_context()->get_running_task()
     );
     parent_task->current_create_work_context = this;
@@ -331,7 +332,7 @@ struct WhileDoTask: public TaskBase {
     while_fxn_temp_holder_ = while_holder_.trigger_capture(*this);
     is_double_copy_capture = false;
 
-    current_stage_ = NestedDoCapture;
+    current_stage_ = OuterNestedDoCapture;
     is_double_copy_capture = true;
     do_fxn_temp_holder_ = do_holder_.trigger_capture(*this);
     is_double_copy_capture = false;
@@ -377,14 +378,13 @@ struct WhileDoTask: public TaskBase {
         and std::is_void<_SFINAE_only>::value,
       int
     > = 0
-  )
-    : while_holder_(std::move(in_while_holder)),
-    do_holder_(std::move(in_do_holder)),
-    while_fxn_temp_holder_(std::move(in_tmp_while_holder)),
-    do_fxn_temp_holder_(std::move(in_tmp_do_holder)) {
+  ) : while_holder_(std::move(in_while_holder)),
+      do_holder_(std::move(in_do_holder)),
+      while_fxn_temp_holder_(std::move(in_tmp_while_holder)),
+      do_fxn_temp_holder_(std::move(in_tmp_do_holder))
+  {
     // Register the do_descs from the outer task
-    for (auto&& do_desc_pair : do_holder_.capture_descs_
-      ) {
+    for (auto&& do_desc_pair : do_holder_.capture_descs_) {
       auto& do_desc = do_desc_pair.second;
       auto& key = do_desc_pair.first;
 
@@ -428,20 +428,19 @@ struct WhileDoTask: public TaskBase {
         and std::is_void<_SFINAE_only>::value,
       int
     > = 0
-  )
-    : while_holder_(std::move(in_while_holder)),
-    do_holder_(std::move(in_do_holder)),
-    while_fxn_temp_holder_(std::move(in_tmp_while_holder)),
-    do_fxn_temp_holder_(std::move(in_tmp_do_holder)) {
+  ) : while_holder_(std::move(in_while_holder)),
+      do_holder_(std::move(in_do_holder)),
+      while_fxn_temp_holder_(std::move(in_tmp_while_holder)),
+      do_fxn_temp_holder_(std::move(in_tmp_do_holder))
+  {
     // Register the do_descs from the outer task
-    for (auto&& while_desc_pair : while_holder_.capture_descs_
-      ) {
+    for (auto&& while_desc_pair : while_holder_.capture_descs_) {
       auto& while_desc = while_desc_pair.second;
       auto& key = while_desc_pair.first;
 
       // Now do the actual capture
       while_desc.captured->call_make_captured_use_holder(
-        while_desc.source_and_continuing->var_handle_base_,
+        while_desc.captured->var_handle_base_,
         while_desc.req_sched_perms,
         while_desc.req_immed_perms,
         *while_desc.source_and_continuing
@@ -491,8 +490,7 @@ struct WhileDoTask: public TaskBase {
         while_desc.req_sched_perms =
           while_holder_.get_requested_scheduling_permissions(key);
 
-        // TODO do the equivalent of this
-        //captured.current_use_ = nullptr;
+        captured.release_current_use();
 
         // Make the AccessHandle for the explicit capture
         {
@@ -512,9 +510,10 @@ struct WhileDoTask: public TaskBase {
       }
 
         // </editor-fold> end OuterWhileCapture }}}2
-        //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        // <editor-fold desc="NestedDoCapture"> {{{2
+      //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+      // <editor-fold desc="NestedDoCapture"> {{{2
 
+      case WhileDoCaptureStage::OuterNestedDoCapture:
       case WhileDoCaptureStage::NestedDoCapture: {
         auto& key = source_and_continuing.var_handle_base_->get_key();
 
@@ -532,7 +531,8 @@ struct WhileDoTask: public TaskBase {
         // context handle, since it is held in the while part
         // This (should be?) okay since this will be replaced before another
         // capture that depends on it is triggered
-        assert(captured.current_use_base_ == nullptr);
+        captured.release_current_use();
+        //assert(captured.current_use_base_ == nullptr);
 
         // Make the AccessHandle for the explicit capture
         // (so that if the handle gets released in the middle, we still retain
@@ -559,7 +559,16 @@ struct WhileDoTask: public TaskBase {
           } // delete insertion result
           while_desc.captured = while_desc.captured_copy->get();
 
-          while_desc.source_and_continuing = &source_and_continuing;
+          // This only works for the outer context case
+          if(current_stage_ == WhileDoCaptureStage::OuterNestedDoCapture) {
+            while_desc.source_and_continuing = &source_and_continuing;
+          }
+          else {
+            // If it's implicit in the while, it has to be explicit in the do
+            auto explicit_found = do_holder_.old_explicit_captures_.find(key);
+            assert(explicit_found != do_holder_.old_explicit_captures_.end());
+            while_desc.source_and_continuing = explicit_found->second.get();
+          }
 
           while_desc.req_sched_perms = do_desc.req_immed_perms;
 
@@ -586,8 +595,8 @@ struct WhileDoTask: public TaskBase {
       }
 
         // </editor-fold> end NestedDoCapture }}}2
-        //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        // <editor-fold desc="NestedWhileCapture"> {{{2
+      //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+      // <editor-fold desc="NestedWhileCapture"> {{{2
 
       case WhileDoCaptureStage::NestedWhileCapture: {
         auto& key = source_and_continuing.var_handle_base_->get_key();
@@ -645,7 +654,7 @@ struct WhileDoTask: public TaskBase {
       }
 
         // </editor-fold> end NestedWhileCapture }}}2
-        //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+      //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       case WhileDoCaptureStage::OuterDoCapture: {
         DARMA_ASSERT_NOT_IMPLEMENTED("Do-While loop mode");
         break;

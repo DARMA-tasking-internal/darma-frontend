@@ -401,8 +401,10 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
   protected:
 
-    using variable_handle_t = detail::VariableHandle<T>;
-    using variable_handle_ptr = std::shared_ptr<detail::VariableHandle<T>>;
+    using variable_handle_ptr = detail::managing_ptr<
+      std::shared_ptr<detail::VariableHandle<T>>,
+      std::shared_ptr<detail::VariableHandleBase>
+    >;
     using use_holder_ptr = detail::managing_ptr<
       std::shared_ptr<
         detail::GenericUseHolder<detail::CollectionManagingUse<index_range_type>>
@@ -444,7 +446,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
         auto idx_use_holder = std::make_shared<detail::UseHolder>(
           detail::HandleUse(
-            var_handle_, unfetched_in_flow, unfetched_in_flow,
+            var_handle_base_, unfetched_in_flow, unfetched_in_flow,
             detail::HandleUse::Read, detail::HandleUse::None
           )
         );
@@ -453,14 +455,14 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         return detail::IndexedAccessHandle<AccessHandle<T>>(
           AccessHandle<T>(
             detail::unfetched_access_handle_tag{},
-            var_handle_, idx_use_holder
+            var_handle_.get_smart_ptr(), idx_use_holder
           ), false,
           backend_index
         );
       } else {
         return detail::IndexedAccessHandle<AccessHandle<T>>(
           AccessHandle<T>(
-            var_handle_, use_iter->second
+            var_handle_.get_smart_ptr(), use_iter->second
           ), true
         );
       }
@@ -487,8 +489,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       detail::HandleUse::permissions_t req_immed_perms,
       detail::AccessHandleBase const& source_in
     ) override {
-      auto& source =
-        *detail::safe_static_cast<AccessHandleCollection const*>(&source_in);
+      auto* source =
+        detail::safe_static_cast<AccessHandleCollection const*>(&source_in);
       auto continuing_use_maker = [&](
         auto handle,
         auto const& in_flow, auto const& out_flow,
@@ -500,7 +502,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
             IndexRangeT>>(
           handle, in_flow, out_flow,
           scheduling_permissions, immediate_permissions,
-          source.current_use_->use->index_range
+          source->current_use_->use->index_range
         );
       };
 
@@ -519,7 +521,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
           darma_runtime::detail::CollectionManagingUse<std::decay_t<IndexRangeT>>(
             handle, in_flow, out_flow,
             scheduling_permissions, immediate_permissions,
-            source.current_use_->use->index_range
+            source->current_use_->use->index_range
           )
         );
       };
@@ -535,10 +537,10 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
       // Do the capture
       current_use_ = detail::make_captured_use_holder(
-        var_handle_,
+        var_handle_base_,
         detail::HandleUse::Modify,
         detail::HandleUse::None,
-        source.current_use_.get(),
+        source->current_use_.get(),
         next_use_holder_maker,
         next_flow_maker,
         continuing_use_maker
@@ -589,30 +591,28 @@ class AccessHandleCollection : public detail::AccessHandleBase {
   public:
 
     AccessHandleCollection()
-      : current_use_(current_use_base_)
+      : current_use_(current_use_base_),
+        var_handle_(var_handle_base_)
     { }
 
     AccessHandleCollection(
       AccessHandleCollection&& other
     ) : mapped_backend_index_(std::move(other.mapped_backend_index_)),
-        var_handle_(std::move(other.var_handle_)),
+        var_handle_(var_handle_base_, std::move(other.var_handle_)),
         current_use_(current_use_base_, std::move(other.current_use_)),
         local_use_holders_(std::move(other.local_use_holders_)),
-        dynamic_is_outer(std::move(other.dynamic_is_outer))
-    {
-      var_handle_base_ = var_handle_;
-    }
+        dynamic_is_outer(std::move(other.dynamic_is_outer)),
+        copied_from(std::move(other.copied_from))
+    { }
 
     AccessHandleCollection(
       AccessHandleCollection const& other
     ) : mapped_backend_index_(other.mapped_backend_index_),
-        var_handle_(other.var_handle_),
+        var_handle_(var_handle_base_, other.var_handle_),
         current_use_(current_use_base_, other.current_use_),
         local_use_holders_(other.local_use_holders_),
         dynamic_is_outer(other.dynamic_is_outer)
     {
-      var_handle_base_ = var_handle_;
-
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         abstract::backend::get_backend_context()->get_running_task()
@@ -624,7 +624,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
       if (capturing_task != nullptr) {
         AccessHandleCollection const* source = &other;
-        if (running_task->is_double_copy_capture) {
+        if (capturing_task->is_double_copy_capture) {
           assert(other.copied_from != nullptr);
           source = other.copied_from;
         }
@@ -658,12 +658,11 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         int
       > = 0
     ) : mapped_backend_index_(other.mapped_backend_index_),
-        var_handle_(other.var_handle_),
+        var_handle_(var_handle_base_, other.var_handle_),
         current_use_(current_use_base_, other.current_use_),
         local_use_holders_(other.local_use_holders_),
         dynamic_is_outer(other.dynamic_is_outer)
     {
-      var_handle_base_ = var_handle_;
 
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
@@ -726,7 +725,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       unknown_backend_index = std::numeric_limits<size_t>::max();
 
     mutable std::size_t mapped_backend_index_ = unknown_backend_index;
-    mutable variable_handle_ptr var_handle_ = nullptr;
+    mutable variable_handle_ptr var_handle_ = {var_handle_base_};
     mutable use_holder_ptr current_use_ = {current_use_base_};
     mutable AccessHandleCollection const* copied_from = nullptr;
     mutable bool dynamic_is_outer = traits_t::is_outer;
@@ -781,7 +780,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         // TODO UPDATE THIS!!!
         auto idx_use_holder = std::make_shared<detail::UseHolder>(
           detail::HandleUse(
-            var_handle_, local_in_flow, local_out_flow,
+            var_handle_base_, local_in_flow, local_out_flow,
             current_use_->use->scheduling_permissions_,
             current_use_->use->immediate_permissions_
           )
@@ -808,11 +807,9 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     explicit AccessHandleCollection(
       std::shared_ptr<detail::VariableHandle<value_type>> const& var_handle,
       typename use_holder_ptr::smart_ptr_t const& use_holder
-    ) : var_handle_(var_handle),
+    ) : var_handle_(var_handle_base_, var_handle),
         current_use_(current_use_base_, use_holder)
-    {
-      var_handle_base_ = var_handle_;
-    }
+    { }
 
   // </editor-fold> end private ctors }}}1
   //============================================================================
@@ -862,7 +859,7 @@ template <typename ValueType, typename Traits>
 struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType, Traits> {
 
   template <typename IndexRangeT>
-  auto _impl(
+  decltype(auto) _impl(
     types::key_t const& key,
     IndexRangeT&& range
   ) const {

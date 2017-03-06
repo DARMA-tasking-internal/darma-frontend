@@ -130,7 +130,7 @@ struct _get_storage_arg_helper<
     auto rv = return_type(
       arg.var_handle_,
       detail::make_captured_use_holder(
-        arg.var_handle_,
+        arg.var_handle_base_,
         /* Requested Scheduling permissions: */
         // TODO check params(/args?) for reduced scheduling permissions
         HandleUse::Modify,
@@ -193,7 +193,7 @@ struct _get_storage_arg_helper<
     auto rv = return_type(
       arg.var_handle_,
       detail::make_captured_use_holder(
-        arg.var_handle_,
+        arg.var_handle_base_,
         /* Requested Scheduling permissions: */
         return_type::is_compile_time_schedule_readable ?
           HandleUse::Read : HandleUse::None,
@@ -445,19 +445,19 @@ struct _get_storage_arg_helper<
     // Finally, make the return type...
     auto rv = return_type(
       handle_collection_t(
-        arg.collection.var_handle_,
+        arg.collection.var_handle_.get_smart_ptr(),
         darma_runtime::detail::make_captured_use_holder(
-          arg.collection.var_handle_,
-            /* Requested Scheduling permissions: */
-            required_scheduling_permissions,
-            /* Requested Immediate permissions: */
-            required_immediate_permissions,
-            /* source and continuing use handle */
-            arg.collection.current_use_.get(),
-            // Customization functors:
-            captured_use_holder_maker,
-            next_flow_maker,
-            continuation_use_holder_maker
+          arg.collection.var_handle_base_,
+          /* Requested Scheduling permissions: */
+          required_scheduling_permissions,
+          /* Requested Immediate permissions: */
+          required_immediate_permissions,
+          /* source and continuing use handle */
+          arg.collection.current_use_.get(),
+          // Customization functors:
+          captured_use_holder_maker,
+          next_flow_maker,
+          continuation_use_holder_maker
         ) // end arguments to make_captured_use_holder
       ),
       arg.mapping

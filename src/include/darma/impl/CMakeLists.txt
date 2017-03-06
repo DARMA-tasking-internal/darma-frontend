@@ -40,7 +40,6 @@ install (FILES ${impl_task_collection_HEADERS} DESTINATION include/darma/impl/ta
 install (FILES ${impl_task_collection_impl_HEADERS} DESTINATION include/darma/impl/task_collection/impl)
 install (FILES ${impl_util_HEADERS} DESTINATION include/darma/impl/util)
 
-include (CheckCXXSourceCompiles)
 check_cxx_source_compiles("
 extern void* my_memcpy(void *dest, const void *src)
     __attribute__((nonnull (1, 2)));

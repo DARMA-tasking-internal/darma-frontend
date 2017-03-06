@@ -46,9 +46,12 @@
 #define DARMA_IMPL_UTIL_MANAGING_PTR_H
 
 #include <type_traits>
+#include <darma/impl/util/not_a_type.h>
 
 namespace darma_runtime {
 namespace detail {
+
+// TODO unit tests for managing_ptr
 
 // A wrapper around a smart pointer that sets the value of some dumb
 // pointer to a base class of the smart pointer's underlying type
@@ -89,6 +92,57 @@ class managing_ptr {
       >::value
     >;
 
+    using arrow_operator_return_t = decltype(
+      std::declval<smart_ptr_t&>().operator->()
+    );
+
+    using const_arrow_operator_return_t = decltype(
+      std::declval<smart_ptr_t const&>().operator->()
+    );
+
+    using dereference_operator_return_t = decltype(
+      std::declval<smart_ptr_t&>().operator*()
+    );
+
+    using const_dereference_operator_return_t = decltype(
+      std::declval<smart_ptr_t const&>().operator*()
+    );
+
+    template <typename SmartPtrT, typename ManagedPtrT>
+    using _managed_is_directly_assignable_archetype = decltype(
+      std::declval<ManagedPtrT&>() = std::declval<SmartPtrT>()
+    );
+
+    using managed_is_directly_assignable = tinympl::bool_<
+      meta::is_detected<
+        _managed_is_directly_assignable_archetype, smart_ptr_t, managed_ptr_t
+      >::value
+    >;
+
+    template <typename _Ignored_SFINAE=void>
+    void
+    _assign_managed(
+      std::enable_if_t<
+        std::is_void<_Ignored_SFINAE>::value
+          and managed_is_directly_assignable::value,
+        _not_a_type_numbered<1>
+      > = {}
+    ) {
+      managed_ptr_ = smart_ptr_;
+    }
+
+    template <typename _Ignored_SFINAE=void>
+    void
+    _assign_managed(
+      std::enable_if_t<
+        std::is_void<_Ignored_SFINAE>::value
+          and not managed_is_directly_assignable::value,
+        _not_a_type_numbered<2>
+      > = {}
+    ) {
+      managed_ptr_ = smart_ptr_.get();
+    }
+
   public:
 
     managing_ptr() = delete;
@@ -115,7 +169,7 @@ class managing_ptr {
         ),
         managed_ptr_(managed_ptr)
     {
-      managed_ptr_ = smart_ptr_.get();
+      _assign_managed();
     }
 
     managing_ptr(
@@ -124,7 +178,7 @@ class managing_ptr {
     ) : smart_ptr_(other.smart_ptr_),
         managed_ptr_(managed_ptr)
     {
-      managed_ptr_ = smart_ptr_.get();
+      _assign_managed();
     }
 
     managing_ptr(
@@ -133,7 +187,7 @@ class managing_ptr {
     ) : smart_ptr_(other.smart_ptr_),
         managed_ptr_(managed_ptr)
     {
-      managed_ptr_ = smart_ptr_.get();
+      _assign_managed();
     }
 
     managing_ptr& operator=(std::nullptr_t) {
@@ -146,7 +200,7 @@ class managing_ptr {
       managing_ptr const& other
     ) {
       smart_ptr_ = other.smart_ptr_;
-      managed_ptr_ = smart_ptr_.get();
+      _assign_managed();
       return *this;
     }
 
@@ -154,7 +208,7 @@ class managing_ptr {
       managing_ptr&& other
     ) {
       smart_ptr_ = std::move(other.smart_ptr_);
-      managed_ptr_ = smart_ptr_.get();
+      _assign_managed();
       return *this;
     }
 
@@ -168,18 +222,26 @@ class managing_ptr {
       Rhs&& other
     ) {
       smart_ptr_ = std::forward<Rhs>(other);
-      managed_ptr_ = smart_ptr_.get();
+      _assign_managed();
       return *this;
     }
 
-    decltype(auto) operator->() { return smart_ptr_.operator->(); }
-    decltype(auto) operator->() const { return smart_ptr_.operator->(); }
-    decltype(auto) operator*() { return smart_ptr_.operator*(); }
-    decltype(auto) operator*() const { return smart_ptr_.operator*(); }
+    arrow_operator_return_t
+    operator->() { return smart_ptr_.operator->(); }
+
+    const_arrow_operator_return_t
+    operator->() const { return smart_ptr_.operator->(); }
+
+    dereference_operator_return_t
+    operator*() { return smart_ptr_.operator*(); }
+
+    const_dereference_operator_return_t
+    operator*() const { return smart_ptr_.operator*(); }
 
     auto get() { return smart_ptr_.get(); }
     auto get() const { return smart_ptr_.get(); }
 
+    // const only, so it can't be set and thus lose the managed ptr
     smart_ptr_t const&
     get_smart_ptr() const { return smart_ptr_; }
 
@@ -197,22 +259,21 @@ class managing_ptr {
 
     friend void swap(managing_ptr& a, managing_ptr& b) {
       std::swap(a.smart_ptr_, b.smart_ptr_);
-      a.managed_ptr_ = a.smart_ptr_.get();
-      b.managed_ptr_ = b.smart_ptr_.get();
+      a._assign_managed();
+      b._assign_managed();
     };
 
     friend void swap(managing_ptr& a, smart_ptr_t& b_smart_ptr) {
       std::swap(a.smart_ptr_, b_smart_ptr);
-      a.managed_ptr_ = a.smart_ptr_.get();
+      a._assign_managed();
     };
 
     friend void swap(smart_ptr_t& a_smart_ptr, managing_ptr& b) {
       std::swap(a_smart_ptr, b.smart_ptr_);
-      b.managed_ptr_ = b.smart_ptr_.get();
+      b._assign_managed();
     };
 
 };
-
 
 } // end namespace detail
 } // end namespace darma_runtime
