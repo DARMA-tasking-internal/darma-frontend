@@ -59,7 +59,7 @@ struct _not_a_type {
   _not_a_type(_not_a_type const&) = delete;
 };
 
-template <std::size_t>
+template <std::size_t number>
 struct _not_a_type_numbered {
   _not_a_type_numbered(_not_a_type_ctor_tag_t) { }
   _not_a_type_numbered() = default;

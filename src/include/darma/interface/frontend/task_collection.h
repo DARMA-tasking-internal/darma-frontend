@@ -94,6 +94,7 @@ class TaskCollection
     virtual void
     set_name(types::key_t const&) =0;
 
+    /** deprecated! will be removed soon */
     virtual bool
     all_mappings_same_as(TaskCollection const* other) const =0;
 

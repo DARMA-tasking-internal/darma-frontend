@@ -130,7 +130,10 @@ TEST_F(TestCreateWorkWhile, basic_same_always_false) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWorkWhile, basic_same_one_iteration) {
+TEST_F_WITH_PARAMS(TestCreateWorkWhile, basic_same_one_iteration,
+  ::testing::Combine(::testing::Bool(), ::testing::Bool()),
+  std::tuple<bool, bool>
+) {
   using namespace darma_runtime;
   using namespace ::testing;
   using namespace mock_backend;
@@ -147,6 +150,9 @@ TEST_F(TestCreateWorkWhile, basic_same_one_iteration) {
   use_t* do_cont_use = nullptr;
 
   int value = 0;
+
+  bool while_as_functor = std::get<0>(GetParam());
+  bool do_as_functor = std::get<1>(GetParam());
 
   EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
 
@@ -165,11 +171,42 @@ TEST_F(TestCreateWorkWhile, basic_same_one_iteration) {
 
     auto tmp = initial_access<int>("hello");
 
-    create_work_while([=]{
-      return tmp.get_value() != 73; // should only be false the first time
-    }).do_([=]{
-      tmp.set_value(73);
-    });
+    struct WhileFunctor {
+      bool operator()(AccessHandle<int> t) {
+        return t.get_value() != 73; // should only be false the first time
+      }
+    };
+
+    struct DoFunctor {
+      void operator()(AccessHandle<int> t) {
+        t.set_value(73);
+      }
+    };
+
+    if(not while_as_functor and not do_as_functor) {
+      create_work_while([=]{
+        return tmp.get_value() != 73; // should only be false the first time
+      }).do_([=]{
+        tmp.set_value(73);
+      });
+    }
+    else if(while_as_functor and not do_as_functor) {
+      create_work_while<WhileFunctor>(tmp).do_([=]{
+        tmp.set_value(73);
+      });
+    }
+    else if(not while_as_functor and do_as_functor) {
+      create_work_while([=]{
+        return tmp.get_value() != 73; // should only be false the first time
+      }).do_<DoFunctor>(tmp);
+    }
+    else if(while_as_functor and do_as_functor) {
+      create_work_while<WhileFunctor>(tmp).do_<DoFunctor>(tmp);
+    }
+    else {
+      FAIL() << "huh?"; // LCOV_EXCL_LINE
+    }
+
 
   }
   //============================================================================
@@ -649,5 +686,63 @@ TEST_F(TestCreateWorkWhile, collection_one_iteration) {
   Mock::VerifyAndClearExpectations(mock_runtime.get());
 
   EXPECT_THAT(value, Eq(73));
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWorkWhile, functor_same_always_false) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_null, f_while_out
+  );
+  use_t* while_use = nullptr;
+
+  int value = 0;
+
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+    .WillOnce(Return(f_while_out));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(while_use, f_init, f_while_out, Modify, Read, value);
+
+  EXPECT_REGISTER_TASK(while_use);
+
+  EXPECT_FLOW_ALIAS(f_while_out, f_null);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    struct WhilePart {
+      bool operator()(AccessHandle<int> t) {
+        return t.get_value() != 0;
+      }
+    };
+    struct DoPart {
+      void operator()(AccessHandle<int> t) {
+        t.set_value(73);
+      }
+    };
+
+    auto tmp = initial_access<int>("hello");
+
+    create_work_while<WhilePart>(tmp).do_<DoPart>(tmp);
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_RELEASE_USE(while_use);
+
+  run_all_tasks();
+
 
 }
