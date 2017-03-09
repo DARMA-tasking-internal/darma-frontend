@@ -184,23 +184,27 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, basic_same_one_iteration,
     };
 
     if(not while_as_functor and not do_as_functor) {
+      // CASE 0
       create_work_while([=]{
         return tmp.get_value() != 73; // should only be false the first time
       }).do_([=]{
         tmp.set_value(73);
       });
     }
-    else if(while_as_functor and not do_as_functor) {
-      create_work_while<WhileFunctor>(tmp).do_([=]{
-        tmp.set_value(73);
-      });
-    }
     else if(not while_as_functor and do_as_functor) {
+      // CASE 1
       create_work_while([=]{
         return tmp.get_value() != 73; // should only be false the first time
       }).do_<DoFunctor>(tmp);
     }
+    else if(while_as_functor and not do_as_functor) {
+      // CASE 2
+      create_work_while<WhileFunctor>(tmp).do_([=]{
+        tmp.set_value(73);
+      });
+    }
     else if(while_as_functor and do_as_functor) {
+      // CASE 3
       create_work_while<WhileFunctor>(tmp).do_<DoFunctor>(tmp);
     }
     else {
@@ -223,12 +227,12 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, basic_same_one_iteration,
 
     EXPECT_RELEASE_USE(while_use);
 
-    // TODO get rid of this and the corresponding make_next
-    EXPECT_FLOW_ALIAS(f_do_out, f_while_out);
-
     EXPECT_REGISTER_TASK(do_use);
 
   }
+
+  // TODO get rid of this and the corresponding make_next
+  EXPECT_FLOW_ALIAS(f_do_out, f_while_out);
 
   run_one_task(); // the first while
 
@@ -331,7 +335,10 @@ TEST_F(TestCreateWorkWhile, basic_different_always_false) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWorkWhile, basic_same_four_iterations) {
+TEST_F_WITH_PARAMS(TestCreateWorkWhile, basic_same_four_iterations,
+  ::testing::Combine(::testing::Bool(), ::testing::Bool()),
+  std::tuple<bool, bool>
+) {
   using namespace darma_runtime;
   using namespace ::testing;
   using namespace mock_backend;
@@ -349,6 +356,9 @@ TEST_F(TestCreateWorkWhile, basic_same_four_iterations) {
 
   int value = 0;
 
+  bool while_as_functor = std::get<0>(GetParam());
+  bool do_as_functor = std::get<1>(GetParam());
+
   EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
 
   EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
@@ -363,14 +373,47 @@ TEST_F(TestCreateWorkWhile, basic_same_four_iterations) {
   //============================================================================
   // actual code being tested
   {
+    struct WhileFunctor {
+      bool operator()(AccessHandle<int> t) {
+        return t.get_value() < 4; // should only be false the first time
+      }
+    };
+
+    struct DoFunctor {
+      void operator()(AccessHandle<int> t) {
+        *t += 1;
+      }
+    };
 
     auto tmp = initial_access<int>("hello");
 
-    create_work_while([=]{
-      return tmp.get_value() < 4; // should do 4 iterations
-    }).do_([=]{
-      *tmp += 1;
-    });
+    if(not while_as_functor and not do_as_functor) {
+      // CASE 0
+      create_work_while([=]{
+        return tmp.get_value() < 4; // should do 4 iterations
+      }).do_([=]{
+        *tmp += 1;
+      });
+    }
+    else if(not while_as_functor and do_as_functor) {
+      // CASE 1
+      create_work_while([=]{
+        return tmp.get_value() < 4; // should do 4 iterations
+      }).do_<DoFunctor>(tmp);
+    }
+    else if(while_as_functor and not do_as_functor) {
+      // CASE 2
+      create_work_while<WhileFunctor>(tmp).do_([=]{
+        *tmp += 1;
+      });
+    }
+    else if(while_as_functor and do_as_functor) {
+      // CASE 3
+      create_work_while<WhileFunctor>(tmp).do_<DoFunctor>(tmp);
+    }
+    else {
+      FAIL() << "huh?"; // LCOV_EXCL_LINE
+    }
 
   }
   //============================================================================

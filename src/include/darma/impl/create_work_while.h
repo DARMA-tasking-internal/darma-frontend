@@ -79,6 +79,7 @@ namespace detail {
 
 typedef enum WhileDoCaptureStage
 {
+  NotAWhileDoStage,
   OuterWhileCapture,
   OuterDoCapture,
   OuterNestedDoCapture,
@@ -190,34 +191,16 @@ struct CallableHolder<Functor, ArgsTuple, false, IsOuter>
     typename Task
   >
   _not_a_lambda
-  trigger_capture(
-    Task& task,
-    std::enable_if_t<
-      not std::is_void<Task>::value // always true
-        and IsOuter,
-      detail::_not_a_type_numbered<0>
-    > _ignored = { }
-  )
-  {
-    // nothing to do here; capture already happened in constructor
-    return _not_a_lambda{};
-  }
-
-  template <
-    typename Task
-  >
-  _not_a_lambda
-  trigger_capture(
-    Task& task,
-    std::enable_if_t<
-      not std::is_void<Task>::value // always true
-        and not IsOuter,
-      detail::_not_a_type_numbered<1>
-    > = { }
-  )
+  trigger_capture(Task& task)
   {
     // trigger a copy
     args_tmp_ = std::make_unique<args_tuple_t>(*args_);
+
+    // delete the "copied out of" object ASAP
+    // Note: this triggers a release/alias before a task is registered.
+    // TODO Make sure this is compatible with all backend invariants (once we have them)
+    args_ = nullptr;
+
     return _not_a_lambda{};
   }
 
@@ -229,10 +212,16 @@ struct CallableHolder<Functor, ArgsTuple, false, IsOuter>
       std::is_void<_ignored_SFINAE>::value // always true
         and IsOuter,
       detail::_not_a_type_numbered<0>
-    > = { }
+    > = {}
   )
   {
-    // nothing to do here
+    assert(false); // should never be called
+    // make another copy for later use
+    //if(args_tmp_) { // basically, do the restore unless our parent is outer
+    //  assert(not args_);
+    //  args_ = std::make_unique<args_tuple_t>(std::move(*args_tmp_));
+    //  args_tmp_ = nullptr; // delete the expired args_tmp ASAP
+    //}
   }
 
   template <typename _ignored_SFINAE=void>
@@ -243,12 +232,15 @@ struct CallableHolder<Functor, ArgsTuple, false, IsOuter>
       std::is_void<_ignored_SFINAE>::value // always true
         and not IsOuter,
       detail::_not_a_type_numbered<1>
-    > = { }
+    > = {}
   )
   {
-    assert(args_tmp_ and not args_);
-    args_ = std::make_unique<args_tuple_t>(std::move(*args_tmp_));
-    args_tmp_ = nullptr; // delete the expired args_tmp ASAP
+    // Not sure this is necessary; could just swap which variable we splat from
+    if(args_tmp_) { // basically, do the restore unless our parent is outer
+      assert(not args_);
+      args_ = std::make_unique<args_tuple_t>(std::move(*args_tmp_));
+      args_tmp_ = nullptr; // delete the expired args_tmp ASAP
+    }
   }
 
   // Only called on the IsOuter case
@@ -298,25 +290,25 @@ struct CallableHolder<Functor, ArgsTuple, false, IsOuter>
       std::is_void<_Ignored_SFINAE>::value
         and not IsOuter,
       _not_a_type
-    > = { }
+    > = {}
   ) : CallableHolderBase(std::move(other)),
-      // This could be a problem for some types (maybe?) if the other.args_
-      // is already an xvalue...
       args_(std::move(other.args_)),
       args_tmp_(std::move(other.args_tmp_))
   { }
 
   template <size_t... Idxs>
-  auto do_call_impl(
+  auto
+  do_call_impl(
     std::integer_sequence<std::size_t, Idxs...>
-  ) {
-    using functor_call_traits_ = functor_call_traits<Functor,
+  )
+  {
+    using functor_call_traits_ = functor_call_traits<
+      Functor,
       std::tuple_element_t<Idxs, args_tuple_t>...
     >;
-    assert(args_);
     return Functor{}(
       functor_call_traits_::template call_arg_traits<Idxs>::get_converted_arg(
-        std::get<Idxs>(std::move(*args_))
+        std::get<Idxs>(*args_)
       )...
     );
   }
@@ -356,7 +348,9 @@ struct CallableHolder<Lambda, std::tuple<>, true, IsOuter>
     // do the copy
     auto rv = std::make_unique<lambda_t>(*lambda_);
 
-    // delete the "moved out of" object ASAP
+    // delete the "copied out of" object ASAP
+    // Note: this triggers a release/alias before a task is registered.
+    // TODO Make sure this is compatible with all backend invariants (once we have them)
     lambda_ = nullptr;
 
     // move into the return value
@@ -364,13 +358,14 @@ struct CallableHolder<Lambda, std::tuple<>, true, IsOuter>
   }
 
   void
-  restore_callable(std::unique_ptr  <Lambda>& tmp_ptr)
+  restore_callable(std::unique_ptr<Lambda>& tmp_ptr)
   {
     // Now move it back
     // We have to do weird stuff here to make sure we invoke the move constructor
     // and not the move assignment operator (which may/should be deleted)
     lambda_ = std::make_unique<lambda_t>(std::move(*tmp_ptr));
-    tmp_ptr = nullptr; // trigger destructor of (now-empty) Lambda in the unique ptr
+    tmp_ptr =
+      nullptr; // trigger destructor of (now-empty) Lambda in the unique ptr
   }
 
   template <typename Task, typename OptionArgsTuple>
@@ -382,8 +377,7 @@ struct CallableHolder<Lambda, std::tuple<>, true, IsOuter>
     HandleUse::permissions_t default_sched_perms,
     HandleUse::permissions_t default_immed_perms
   ) : CallableHolderBase(default_sched_perms, default_immed_perms),
-      lambda_(std::make_unique<lambda_t>(std::move(in_lambda)))
-  { }
+      lambda_(std::make_unique<lambda_t>(std::move(in_lambda))) {}
 
   CallableHolder(CallableHolder&&) = default;
   CallableHolder(CallableHolder const&) = delete;
@@ -395,10 +389,9 @@ struct CallableHolder<Lambda, std::tuple<>, true, IsOuter>
       std::is_void<_Ignored_SFINAE>::value
         and not IsOuter,
       _not_a_type
-    > = { }
+    > = {}
   ) : CallableHolderBase(std::move(other)),
-      lambda_(std::move(other.lambda_))
-  { }
+      lambda_(std::move(other.lambda_)) {}
 
   auto do_call()
   {
@@ -443,9 +436,9 @@ struct WhileDoTask: public TaskBase
 
   template <typename PermanentHolder>
   using tmp_holder_t = decltype(
-    std::declval<PermanentHolder>().trigger_capture(
-      std::declval<WhileDoTask&>()
-    )
+  std::declval<PermanentHolder>().trigger_capture(
+    std::declval<WhileDoTask&>()
+  )
   );
   using tmp_while_holder_t = tmp_holder_t<while_holder_t>;
   using tmp_do_holder_t = tmp_holder_t<do_holder_t>;
@@ -465,11 +458,14 @@ struct WhileDoTask: public TaskBase
   //------------------------------------------------------------------------------
   // <editor-fold desc="Data members"> {{{2
 
+  // NOTE THAT MEMBER ORDER MATTERS HERE FOR INITIALIZATION ORDER!!!
+
   while_do_capture_stage_t current_stage_;
 
   while_holder_t while_holder_;
-  do_holder_t do_holder_;
   tmp_while_holder_t while_fxn_temp_holder_;
+
+  do_holder_t do_holder_;
   tmp_do_holder_t do_fxn_temp_holder_;
 
   // </editor-fold> end Data members }}}2
@@ -530,6 +526,44 @@ struct WhileDoTask: public TaskBase
     );
   }
 
+  template <typename _Ignored_SFINAE=void>
+  tmp_while_holder_t
+  _while_tmp_ctor_helper(
+    std::enable_if_t<
+      std::is_void<_Ignored_SFINAE>::value // always true
+        and IsOuter // only used for the outer case
+        and not WhileIsLambda,
+      detail::_not_a_type_numbered<0>
+    > = {}
+  )
+  {
+    // Nothing to do here...
+    return tmp_while_holder_t{};
+  }
+
+  template <typename _Ignored_SFINAE=void>
+  tmp_while_holder_t
+  _while_tmp_ctor_helper(
+    std::enable_if_t<
+      std::is_void<_Ignored_SFINAE>::value // always true
+        and IsOuter // only used for the outer case
+        and WhileIsLambda,
+      detail::_not_a_type_numbered<1>
+    > = {}
+  )
+  {
+    // Do the capture in lambda mode (must happen in member "constructor"
+    // so that the captures happen while first then do even if the while
+    // is a lambda and the do is a functor
+    current_stage_ = OuterWhileCapture;
+    is_double_copy_capture = true;
+    auto rv = while_holder_.trigger_capture(*this);
+    is_double_copy_capture = false;
+    current_stage_ = NotAWhileDoStage;
+
+    return std::move(rv);
+  }
+
   template <typename... Args>
   std::enable_if_t<
     sizeof...(Args) != 0 // always true
@@ -570,6 +604,41 @@ struct WhileDoTask: public TaskBase
     );
   }
 
+  template <typename _Ignored_SFINAE=void>
+  tmp_do_holder_t
+  _do_tmp_ctor_helper(
+    std::enable_if_t<
+      std::is_void<_Ignored_SFINAE>::value // always true
+        and IsOuter // only used for the outer case
+        and not DoIsLambda,
+      detail::_not_a_type_numbered<0>
+    > = {}
+  )
+  {
+    // Nothing to do here... (specifically, don't all trigger_capture())
+    return tmp_do_holder_t{};
+  }
+
+  template <typename _Ignored_SFINAE=void>
+  tmp_do_holder_t
+  _do_tmp_ctor_helper(
+    std::enable_if_t<
+      std::is_void<_Ignored_SFINAE>::value // always true
+        and IsOuter // only used for the outer case
+        and DoIsLambda,
+      detail::_not_a_type_numbered<1>
+    > = {}
+  )
+  {
+    current_stage_ = OuterNestedDoCapture;
+    is_double_copy_capture = true;
+    auto rv = do_holder_.trigger_capture(*this);
+    is_double_copy_capture = false;
+    current_stage_ = NotAWhileDoStage;
+
+    return std::move(rv);
+  }
+
   // </editor-fold> end ctor helpers }}}2
   //------------------------------------------------------------------------------
 
@@ -595,6 +664,7 @@ struct WhileDoTask: public TaskBase
           HandleUse::Read, HandleUse::Read
         )
       ),
+      while_fxn_temp_holder_(_while_tmp_ctor_helper()),
       do_holder_(
         _do_holder_ctor_helper(
           *this,
@@ -603,7 +673,8 @@ struct WhileDoTask: public TaskBase
           std::move(helper.task_option_args_tup),
           HandleUse::Modify, HandleUse::Modify
         )
-      )
+      ),
+      do_fxn_temp_holder_(_do_tmp_ctor_helper())
   {
     // Handle the while capture
     auto* parent_task =
@@ -614,17 +685,20 @@ struct WhileDoTask: public TaskBase
     // no matter what, so we don't need to do it here
     // (as if: `parent_task->current_create_work_context = this;` were here)
 
-    // These next few statements should do nothing if the while is in Functor mode
-    current_stage_ = OuterWhileCapture;
-    is_double_copy_capture = true;
-    while_fxn_temp_holder_ = while_holder_.trigger_capture(*this);
-    is_double_copy_capture = false;
-
-    // These next few statements should do nothing if the do is in Functor mode
-    current_stage_ = OuterNestedDoCapture;
-    is_double_copy_capture = true;
-    do_fxn_temp_holder_ = do_holder_.trigger_capture(*this);
-    is_double_copy_capture = false;
+    // The while capture is done in the tmp_while_holder "ctor helper" so that
+    // it happens before the do capture no matter what.  It's as if the following
+    // code were run *before* the do holder ctor is run:
+    // [-- begin "as-if" code:
+    //   current_stage_ = OuterWhileCapture;
+    //   is_double_copy_capture = true;
+    //   while_fxn_temp_holder_ = while_holder_.trigger_capture(*this);
+    //   is_double_copy_capture = false;
+    //   current_stage_ = OuterNestedDoCapture;
+    //   is_double_copy_capture = true;
+    //   do_fxn_temp_holder_ = do_holder_.trigger_capture(*this);
+    //   is_double_copy_capture = false;
+    //   current_stage_ = NotAWhileDoStage;
+    // --] end "as-if" code
 
     parent_task->current_create_work_context = nullptr;
 
@@ -656,17 +730,20 @@ struct WhileDoTask: public TaskBase
   }
 
   // This is a recursive inner constructor, called for "do" mode
-  template <typename _SFINAE_only=void>
+  template <
+    typename InWhileHolderT,
+    typename InDoHolderT
+  >
   WhileDoTask(
-    while_holder_t&& in_while_holder,
-    do_holder_t&& in_do_holder,
+    InWhileHolderT&& in_while_holder,
+    InDoHolderT&& in_do_holder,
     tmp_while_holder_t&& in_tmp_while_holder,
     tmp_do_holder_t&& in_tmp_do_holder,
     std::enable_if_t<
       IsDoWhilePhase and not IsOuter
-        and std::is_void<_SFINAE_only>::value,
-      int
-    > = 0
+        and not std::is_void<InWhileHolderT>::value, // always true
+      _not_a_type
+    > = { }
   ) : while_holder_(std::move(in_while_holder)),
       do_holder_(std::move(in_do_holder)),
       while_fxn_temp_holder_(std::move(in_tmp_while_holder)),
@@ -955,6 +1032,12 @@ struct WhileDoTask: public TaskBase
         DARMA_ASSERT_NOT_IMPLEMENTED("Do-While loop mode");
         break;
       }
+      case WhileDoCaptureStage::NotAWhileDoStage: {
+        DARMA_ASSERT_UNREACHABLE_FAILURE(
+          "Something went wrong with While-Do capture"
+        );
+        break;
+      }
     }
 
   }
@@ -1087,7 +1170,12 @@ struct _create_work_while_do_helper;
 //------------------------------------------------------------------------------
 // <editor-fold desc="create_work_while_do_helper, functor version"> {{{2
 
-template <typename WhileHelper, typename Functor, typename LastArg, typename... Args>
+template <
+  typename WhileHelper,
+  typename Functor,
+  typename LastArg,
+  typename... Args
+>
 struct _create_work_while_do_helper<
   WhileHelper,
   Functor,
@@ -1098,7 +1186,7 @@ struct _create_work_while_do_helper<
 
   using functor_traits_t = functor_call_traits<Functor, Args..., LastArg>;
   using args_tuple_t = typename functor_traits_t::args_tuple_t;
-  using args_fwd_tuple_t = std::tuple<Args&&..., LastArg&&>;
+  using args_fwd_tuple_t = std::tuple<Args&& ..., LastArg&&>;
   //using task_option_args_tuple_t = decltype(
   //  std::forward_as_tuple(std::declval<Args&&>()...)
   //);
@@ -1119,8 +1207,9 @@ struct _create_work_while_do_helper<
     Args&& ... args,
     LastArg&& last_arg
   ) : while_helper(std::move(while_helper_in)),
-      args_fwd_tup(std::forward<Args>(args)..., std::forward<LastArg>(last_arg))
-  { }
+      args_fwd_tup(std::forward<Args>(args)...,
+        std::forward<LastArg>(last_arg)
+      ) {}
 
   ~_create_work_while_do_helper()
   {
@@ -1181,8 +1270,7 @@ struct _create_work_while_do_helper<
       while_helper(std::move(while_helper_in)),
       task_option_args_tup(
         std::forward_as_tuple(std::forward<Args>(args)...)
-      )
-  { }
+      ) {}
 
   ~_create_work_while_do_helper()
   {
@@ -1277,7 +1365,7 @@ struct _create_work_while_helper<
   using callable_t = Functor;
   using functor_traits_t = functor_call_traits<Functor, Args..., LastArg>;
   using args_tuple_t = typename functor_traits_t::args_tuple_t;
-  using args_fwd_tuple_t = std::tuple<Args&&..., LastArg&&>;
+  using args_fwd_tuple_t = std::tuple<Args&& ..., LastArg&&>;
   using task_option_args_tuple_t = std::tuple<>; // for now
   //using task_option_args_tuple_t = decltype(
   //  std::forward_as_tuple(std::declval<Args&&>()...)
@@ -1297,10 +1385,9 @@ struct _create_work_while_helper<
     Args&& ... args,
     LastArg&& last_arg
   ) : args_fwd_tup(
-        std::forward<Args>(args)...,
-        std::forward<LastArg>(last_arg)
-      )
-  { }
+    std::forward<Args>(args)...,
+    std::forward<LastArg>(last_arg)
+  ) {}
 
   template <typename DoFunctor=meta::nonesuch, typename... DoArgs>
   auto

@@ -411,11 +411,12 @@ struct functor_call_traits {
           _functor_traits_impl::decayed_is_access_handle<T>::value
             and formal_traits::is_by_value
             and formal_traits::is_access_handle,
-          typename std::remove_reference_t<T>&&
+          typename std::remove_reference_t<T>&
         >
         get_converted_arg(T&& val) {
           // Note that this should work this way even if T&& is an lvalue reference!
-          return std::move(val);
+          // TODO turn the move on/off from outside for different use in the normal case/while case
+          return val; //std::move(val);
         }
 
         template <typename T>
