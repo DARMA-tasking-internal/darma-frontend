@@ -52,7 +52,9 @@ namespace darma_runtime { namespace experimental { namespace backend_hint {
      // the maximum width of any CCW in a grouped task
     CCW_MAX_WIDTH,
      // an approximate number of CCWs in the groups task
-    CCW_COUNT
+    CCW_COUNT,
+    // a integer type that uniquelyidentifies an instance of the grouping
+    CCW_GROUPING_IDENT
   };
 }}}
 
