@@ -47,7 +47,12 @@
 
 namespace darma_runtime { namespace experimental { namespace backend_hint {
   enum TaskHintIdentifier {
-    CCW_GROUPING_TASK = 2993421
+     // a task that groups together CCWs
+    CCW_GROUPING_TASK = 2993421,
+     // the maximum width of any CCW in a grouped task
+    CCW_MAX_WIDTH,
+     // an approximate number of CCWs in the groups task
+    CCW_COUNT
   };
 }}}
 
