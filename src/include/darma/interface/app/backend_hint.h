@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                     backend_hint.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -36,28 +36,19 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// JL => Jonathan Lifflander (jliffla@sandia.gov)
 //
 // ************************************************************************
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef DARMA_INTERFACE_APP_BACKEND_HINT_H
+#define DARMA_INTERFACE_APP_BACKEND_HINT_H
 
-#include <darma/impl/darma.h>
+namespace darma_runtime { namespace experimental { namespace backend_hint {
+  enum TaskHintIdentifier {
+    CCW_GROUPING_TASK = 2993421
+  };
+}}}
 
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/interface/app/create_condition.h>
-#include <darma/interface/app/access_handle.h>
-#include <darma/interface/app/oo.h>
-#include <darma/interface/app/keyword_arguments/all_keyword_arguments.h>
-#include <darma/interface/app/resource_count.h>
-
-#include <darma/interface/app/containers.h>
-
-#include <darma/interface/app/backend_hint.h>
-
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+#endif
