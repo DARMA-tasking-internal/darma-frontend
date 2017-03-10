@@ -404,9 +404,9 @@ class SSOKey
 
         char const* data;
         PieceSizeOrdinal size;
-        bytes_type_metadata const* md;
 
       public:
+        bytes_type_metadata const* md;
 
         SSOKeyComponent(
           char const* data,
