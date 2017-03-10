@@ -215,13 +215,13 @@ struct CallableHolder<Functor, ArgsTuple, false, IsOuter>
     > = {}
   )
   {
-    assert(false); // should never be called
+    //assert(false); // should never be called
     // make another copy for later use
-    //if(args_tmp_) { // basically, do the restore unless our parent is outer
-    //  assert(not args_);
-    //  args_ = std::make_unique<args_tuple_t>(std::move(*args_tmp_));
-    //  args_tmp_ = nullptr; // delete the expired args_tmp ASAP
-    //}
+    if(args_tmp_) { // basically, do the restore unless our parent is outer
+      assert(not args_);
+      args_ = std::make_unique<args_tuple_t>(std::move(*args_tmp_));
+      args_tmp_ = nullptr; // delete the expired args_tmp ASAP
+    }
   }
 
   template <typename _ignored_SFINAE=void>
