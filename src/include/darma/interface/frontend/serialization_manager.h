@@ -54,6 +54,8 @@ namespace abstract {
 
 namespace frontend {
 
+// TODO this should preserve alignment information
+
 /* LCOV_EXCL_START (exclude abstract class from coverage) */
 
 /** @ingroup abstract
