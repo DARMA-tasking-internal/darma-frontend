@@ -694,6 +694,7 @@ typedef Runtime runtime_t;
  */
 int main(int argc, char **argv);
 void backend_init_finalize(int argc, char** argv);
+void backend_santioned_exit(int const);
 
 #include <darma/interface/backend/types.h>
 
