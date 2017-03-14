@@ -57,6 +57,7 @@
 #include <darma/impl/task_collection/task_collection_fwd.h>
 #include <darma/impl/keyword_arguments/parse.h>
 #include <darma/impl/access_handle_base.h>
+#include <darma/impl/util/optional_boolean.h>
 
 namespace _darma__errors {
 
@@ -74,7 +75,7 @@ namespace darma_runtime {
 namespace detail {
 
 template <
-  bool IsOuter = false
+  OptionalBoolean IsOuter = OptionalBoolean::Unknown
 >
 struct access_handle_collection_traits {
   static constexpr auto is_outer = IsOuter;
@@ -108,11 +109,11 @@ struct MappedHandleCollection {
     // TODO remove meaningless default ctor once I write serdes stuff
     MappedHandleCollection() = default;
 
-    template <typename MappingDeduced>
+    template <typename AccessHandleCollectionTDeduced, typename MappingDeduced>
     MappedHandleCollection(
-      AccessHandleCollectionT const& collection,
+      AccessHandleCollectionTDeduced&& collection,
       MappingDeduced&& mapping
-    ) : collection(collection),
+    ) : collection(std::forward<AccessHandleCollectionTDeduced>(collection)),
         mapping(std::forward<MappingDeduced>(mapping))
     { }
 
@@ -380,13 +381,11 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     using index_range_type = IndexRangeT;
     using traits_t = Traits;
 
-    template <typename MappingT,
-      typename=std::enable_if_t<traits_t::is_outer and not std::is_void<MappingT>::value>
-    >
+    template <typename MappingT>
     auto mapped_with(MappingT&& mapping) const {
       return detail::MappedHandleCollection<
         ::darma_runtime::AccessHandleCollection<T, IndexRangeT,
-          detail::access_handle_collection_traits<false>
+          detail::access_handle_collection_traits<OptionalBoolean::KnownFalse>
         >,
         std::decay_t<MappingT>
       >(
@@ -424,8 +423,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     template <
       typename _Ignored_SFINAE=void,
       typename=std::enable_if_t<
-        std::is_void<_Ignored_SFINAE>::value
-          and not traits_t::is_outer
+        traits_t::is_outer != KnownTrue
+          and std::is_void<_Ignored_SFINAE>::value // should always be true
       >
     >
     auto
@@ -647,14 +646,15 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
     }
 
-    template <typename _Ignored_SFINAE=void>
+    template <typename _Ignored_SFINAE=void, typename OtherTraits>
     AccessHandleCollection(
       AccessHandleCollection<
-        T, IndexRangeT, detail::access_handle_collection_traits<true>
+        T, IndexRangeT, OtherTraits
       > const& other,
       std::enable_if_t<
-        std::is_void<_Ignored_SFINAE>::value
-          and not traits_t::is_outer,
+        traits_t::is_outer != KnownTrue
+          and traits_t::is_outer != OtherTraits::is_outer
+          and std::is_void<_Ignored_SFINAE>::value, // should always be true
         int
       > = 0
     ) : mapped_backend_index_(other.mapped_backend_index_),
@@ -674,13 +674,31 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       }
 
       if (capturing_task != nullptr) {
-        DARMA_ASSERT_FAILURE("Capturing AccessHandleCollection objects in"
-          " regular tasks is not yet supported.");
+        DARMA_ASSERT_FAILURE("Shouldn't be capturing here");
       }
     }
 
   // </editor-fold> end public ctors }}}1
   //============================================================================
+
+  public:
+
+    AccessHandleCollection& operator=(AccessHandleCollection const&) = default;
+    AccessHandleCollection& operator=(AccessHandleCollection&&) = default;
+    template <typename OtherTraits, typename _Ignored_SFINAE=void,
+      typename=std::enable_if_t<
+        traits_t::is_outer != KnownTrue
+          and traits_t::is_outer != OtherTraits::is_outer
+          and std::is_void<_Ignored_SFINAE>::value // should always be true
+        >
+    >
+    AccessHandleCollection& operator=(
+      AccessHandleCollection<T, IndexRangeT, OtherTraits> const& other
+    ) {
+      this->~AccessHandleCollection();
+      new (this) AccessHandleCollection(other);
+      return *this;
+    };
 
 
   //============================================================================
@@ -936,7 +954,7 @@ initial_access_collection(Args&&... args) {
   return parser()
     .parse_args(std::forward<Args>(args)...)
     .invoke(detail::AccessHandleCollectionAccess<initial_access_collection_tag,
-      T, detail::access_handle_collection_traits</* IsOuter = */ true>
+      T, detail::access_handle_collection_traits</* IsOuter = */ KnownTrue>
     >());
 };
 
