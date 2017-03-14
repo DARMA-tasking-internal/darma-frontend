@@ -152,7 +152,7 @@ class TaskBase : public abstract::frontend::Task
       parent_task->current_create_work_context = nullptr;
     }
 
-    void add_dependency(HandleUse& use) {
+    void add_dependency(HandleUseBase& use) {
       dependencies_.insert(&use);
     }
 

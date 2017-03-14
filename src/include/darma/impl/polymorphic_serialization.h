@@ -167,7 +167,7 @@ AbstractBaseRegistrar<AbstractBase>
 } // end namespace _impl
 
 template <typename AbstractType>
-const size_t
+size_t
 get_abstract_type_index() {
   return _impl::AbstractBaseRegistrarWrapper<AbstractType>::registrar.index;
 }

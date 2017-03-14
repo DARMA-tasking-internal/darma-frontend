@@ -113,13 +113,13 @@ struct all_reduce_impl {
   ) const {
 
     DARMA_ASSERT_MESSAGE(
-      input.current_use_->use.scheduling_permissions_ != HandleUse::None,
+      input.current_use_->use->scheduling_permissions_ != HandleUse::None,
       "allreduce() called on handle that can't schedule at least Read usage on "
         "data"
     );
     DARMA_ASSERT_MESSAGE(
-      output.current_use_->use.scheduling_permissions_ != HandleUse::None
-      and output.current_use_->use.scheduling_permissions_ != HandleUse::Read,
+      output.current_use_->use->scheduling_permissions_ != HandleUse::None
+      and output.current_use_->use->scheduling_permissions_ != HandleUse::Read,
       "allreduce() called on handle that can't schedule at least Write usage on "
         "data"
     );
@@ -136,7 +136,7 @@ struct all_reduce_impl {
       HandleUse::None,
       /* requested_immediate_permissions */
       HandleUse::Read,
-      input.current_use_
+      input.current_use_.get()
     );
 
     auto output_use_holder = detail::make_captured_use_holder(
@@ -146,7 +146,7 @@ struct all_reduce_impl {
       /* requested_immediate_permissions */
       // TODO change this to Write once that is implemented
       HandleUse::Modify,
-      output.current_use_
+      output.current_use_.get()
     );
 
     _get_collective_details_t<
@@ -154,8 +154,8 @@ struct all_reduce_impl {
     > details(piece, n_pieces);
 
     backend_runtime->allreduce_use(
-      &(input_use_holder->use),
-      &(output_use_holder->use),
+      input_use_holder->use.get(),
+      output_use_holder->use.get(),
       &details, tag
     );
 
@@ -180,12 +180,12 @@ struct all_reduce_impl {
   ) const {
 
     DARMA_ASSERT_MESSAGE(
-      in_out.current_use_->use.scheduling_permissions_ != HandleUse::None,
+      in_out.current_use_->use->scheduling_permissions_ != HandleUse::None,
       "allreduce() called on handle that can't schedule at least read usage on "
       "data (most likely because it was already released"
     );
     DARMA_ASSERT_MESSAGE(
-      in_out.current_use_->use.scheduling_permissions_ == HandleUse::Permissions::Modify,
+      in_out.current_use_->use->scheduling_permissions_ == HandleUse::Permissions::Modify,
       "Can't do an allreduce capture of a handle as in_out without Modify"
       " scheduling permissions"
     );
@@ -205,12 +205,12 @@ struct all_reduce_impl {
       HandleUse::None,
       /* requested_immediate_permissions */
       HandleUse::Modify,
-      in_out.current_use_
+      in_out.current_use_.get()
     );
 
     backend_runtime->allreduce_use(
-      &(collective_use_holder->use),
-      &(collective_use_holder->use),
+      collective_use_holder->use.get(),
+      collective_use_holder->use.get(),
       &details, tag
     );
 

@@ -1258,4 +1258,195 @@ TEST_F(TestCreateWorkIf, multiple_different_always_true) {
   EXPECT_THAT(cap_value, Eq(73));
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWorkIf, collection_then_always_true) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_null, f_if_out, f_then_fwd, f_then_out,
+    f_init_c, f_null_c, f_if_out_c, fout_coll, f_then_out_c
+  );
+  MockFlow f_in_idx[4] = { "f_in_idx[0]", "f_in_idx[1]", "f_in_idx[2]", "f_in_idx[3]"};
+  MockFlow f_out_idx[4] = { "f_out_idx[0]", "f_out_idx[1]", "f_out_idx[2]", "f_out_idx[3]"};
+  use_t* use_idx[4] = { nullptr, nullptr, nullptr, nullptr };
+  use_t* use_coll = nullptr;
+  use_t* use_coll_cont = nullptr;
+  use_t* if_use = nullptr;
+  use_t* if_c_use = nullptr;
+  use_t* then_use = nullptr;
+  use_t* then_c_use = nullptr;
+  use_t* then_c_use_cont = nullptr;
+
+  int value = 0;
+  int values[4] = {0, 0, 0, 0};
+
+  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS_COLLECTION(f_init_c, f_null_c, make_key("world"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+    .WillOnce(Return(f_if_out));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow_collection(f_init_c))
+    .WillOnce(Return(f_if_out_c));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Read, value);
+  EXPECT_REGISTER_USE(if_c_use, f_init_c, f_if_out_c, Modify, None);
+
+  EXPECT_REGISTER_TASK(if_use, if_c_use);
+
+  EXPECT_FLOW_ALIAS(f_if_out, f_null);
+  EXPECT_FLOW_ALIAS(f_if_out_c, f_null_c);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    struct Foo {
+      void operator()(Index1D<int> index,
+        AccessHandleCollection<int, Range1D<int>> coll
+      ) const {
+        coll[index].local_access().set_value(42);
+      }
+    };
+
+    auto tmp = initial_access<int>("hello");
+    auto tmp_c = initial_access_collection<int>("world",
+      index_range=Range1D<int>(4)
+    );
+
+    create_work_if([=]{
+      return tmp.get_value() == 0; // should always be true
+    }).then_([=]{
+      tmp.set_value(73);
+      create_concurrent_work<Foo>(tmp_c,
+        index_range=Range1D<int>(4)
+      );
+    });
+
+  }
+  //============================================================================
+
+  // Assert that there's only one task registered
+  ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  // Stuff that should happen in the if clause
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
+    .WillOnce(Return(f_then_out));
+  EXPECT_CALL(*mock_runtime, make_next_flow_collection(f_init_c))
+    .WillOnce(Return(f_then_out_c));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, Modify, Modify, value);
+
+  // Expect register schedule only use for the collection
+  EXPECT_REGISTER_USE_COLLECTION(then_c_use, f_init_c, f_then_out_c, Modify, None, 4);
+
+  {
+    InSequence reg_before_release;
+
+    // Expect register continuation use for the collection
+    EXPECT_REGISTER_USE_COLLECTION(then_c_use_cont,
+      f_then_out_c, f_if_out_c, Modify, None, 4);
+
+    // Expect release of the collection use for the if clause
+    EXPECT_RELEASE_USE(if_c_use);
+
+  }
+
+  // Expect release use for the regular handle
+  EXPECT_RELEASE_USE(if_use);
+
+  // Expect release of the continuation use
+  // We can do this before or after the register task call, but preferrably
+  // before
+  EXPECT_RELEASE_USE(then_c_use_cont);
+
+  // Expect register task  with both uses
+  EXPECT_REGISTER_TASK(then_use, then_c_use);
+
+  // Expect aliases of both continuation uses
+  EXPECT_FLOW_ALIAS(f_then_out, f_if_out);
+  EXPECT_FLOW_ALIAS(f_then_out_c, f_if_out_c);
+
+  run_one_task(); // run the "if" part
+
+  // Assert that there's still only one task
+  ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));  // The "then" task should be registered
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  EXPECT_CALL(*mock_runtime, make_next_flow_collection(f_init_c))
+    .WillOnce(Return(fout_coll));
+
+  EXPECT_REGISTER_USE_COLLECTION(use_coll, f_init_c, fout_coll, Modify, Modify, 4);
+
+  {
+    InSequence reg_before_rel;
+
+    EXPECT_REGISTER_USE_COLLECTION(use_coll_cont, fout_coll, f_then_out_c, Modify, None, 4);
+
+    EXPECT_RELEASE_USE(then_c_use);
+  }
+
+  EXPECT_RELEASE_USE(use_coll_cont);
+
+  EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(
+    UseInGetDependencies(ByRef(use_coll))
+  ));
+
+  EXPECT_FLOW_ALIAS(fout_coll, f_then_out_c);
+
+  EXPECT_RELEASE_USE(then_use);
+
+  run_one_task(); // run the "then" part
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  for(int i = 0; i < 4; ++i) {
+    values[i] = 0;
+
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(f_init_c, i))
+      .WillOnce(Return(f_in_idx[i]));
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
+      .WillOnce(Return(f_out_idx[i]));
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i],
+      Modify, Modify, values[i]);
+
+    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+
+    EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
+
+    EXPECT_RELEASE_USE(use_idx[i]);
+
+    created_task->run();
+
+    EXPECT_THAT(values[i], Eq(42));
+
+  }
+
+  EXPECT_RELEASE_USE(use_coll);
+
+  mock_runtime->task_collections.front().reset(nullptr);
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  EXPECT_THAT(value, Eq(73));
+
+}
+
 #endif

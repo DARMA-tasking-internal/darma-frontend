@@ -41,5 +41,12 @@ include(CodeCoverage)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
 endif()
 
+include (CheckCXXCompilerFlag)
+include (CheckCXXSourceCompiles)
+
+if (NOT CMAKE_VERSION VERSION_LESS 3.4)
+CHECK_CXX_COMPILER_FLAG("-fconcepts" DARMA_HAS_CXX_CONCEPTS_FLAG)
+endif()
+
 add_subdirectory(src)
 

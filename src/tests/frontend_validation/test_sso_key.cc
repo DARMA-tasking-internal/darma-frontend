@@ -45,8 +45,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include "test_frontend.h"
-#include "mock_backend.h"
 
 #include <darma/impl/key/SSO_key.h>
 #include <darma/impl/key_concept.h>
@@ -68,6 +66,12 @@ STATIC_ASSERT_SIZE_IS(SSOKey<>, 64);
 
 using sso_key_t = SSOKey<>;
 
+////////////////////////////////////////////////////////////////////////////////
+
+#include "test_frontend.h"
+#include "mock_backend.h"
+
+//
 ////////////////////////////////////////////////////////////////////////////////
 
 class TestSSOKey

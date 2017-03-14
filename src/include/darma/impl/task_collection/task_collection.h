@@ -212,14 +212,14 @@ struct TaskCollectionImpl
         >(
           migrated_use_arg,
           CollectionManagingUse<handle_index_range_t>(
-            mcoll.collection.current_use_->use,
+            *mcoll.collection.current_use_->use.get(),
             full_mapping_t(
               mcoll.mapping,
               tc_index_range_traits::mapping_to_dense(tc.collection_range_)
             )
           )
         );
-        tc.add_dependency(&(mcoll.collection.current_use_->use));
+        tc.add_dependency(mcoll.collection.current_use_->use.get());
         return 0;
       }
 
@@ -231,7 +231,7 @@ struct TaskCollectionImpl
         int
       >
       operator()(TaskCollectionT& tc, AccessHandleT&& ah) const {
-        tc.add_dependency(&(ah.current_use_->use));
+        tc.add_dependency(ah.current_use_->use.get());
         return 0;
       }
 

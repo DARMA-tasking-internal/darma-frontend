@@ -56,6 +56,7 @@
 #include <darma/interface/app/keyword_arguments/index_range.h>
 #include <darma/impl/task_collection/task_collection_fwd.h>
 #include <darma/impl/keyword_arguments/parse.h>
+#include <darma/impl/access_handle_base.h>
 
 namespace _darma__errors {
 
@@ -70,7 +71,20 @@ struct _____cannot_capture_return_of_AccessHandleCollection_subscript_directly {
 
 namespace darma_runtime {
 
-template <typename T, typename IndexRangeT>
+namespace detail {
+
+template <
+  bool IsOuter = false
+>
+struct access_handle_collection_traits {
+  static constexpr auto is_outer = IsOuter;
+};
+
+} // end namespace detail
+
+template <typename T, typename IndexRangeT,
+  typename Traits=detail::access_handle_collection_traits<>
+>
 class AccessHandleCollection;
 
 namespace detail {
@@ -113,8 +127,8 @@ struct MappedHandleCollection {
 
       ar | collection.get_index_range();
 
-      ar | collection.current_use_->use.scheduling_permissions_;
-      ar | collection.current_use_->use.immediate_permissions_;
+      ar | collection.current_use_->use->scheduling_permissions_;
+      ar | collection.current_use_->use->immediate_permissions_;
       DARMA_ASSERT_MESSAGE(
         collection.mapped_backend_index_ == collection.unknown_backend_index,
         "Can't migrate a handle collection after it has been mapped to a task"
@@ -127,12 +141,12 @@ struct MappedHandleCollection {
       if(ar.is_sizing()) {
         ar.add_to_size_indirect(
           backend_runtime->get_packed_flow_size(
-            *collection.current_use_->use.in_flow_
+            *collection.current_use_->use->in_flow_
           )
         );
         ar.add_to_size_indirect(
           backend_runtime->get_packed_flow_size(
-            *collection.current_use_->use.out_flow_
+            *collection.current_use_->use->out_flow_
           )
         );
       }
@@ -140,11 +154,11 @@ struct MappedHandleCollection {
         assert(ar.is_packing());
         using serialization::Serializer_attorneys::ArchiveAccess;
         backend_runtime->pack_flow(
-          *collection.current_use_->use.in_flow_,
+          *collection.current_use_->use->in_flow_,
           reinterpret_cast<void*&>(ArchiveAccess::spot(ar))
         );
         backend_runtime->pack_flow(
-          *collection.current_use_->use.out_flow_,
+          *collection.current_use_->use->out_flow_,
           reinterpret_cast<void*&>(ArchiveAccess::spot(ar))
         );
       }
@@ -244,7 +258,7 @@ class IndexedAccessHandle {
     bool has_local_access_;
     std::size_t backend_index_;
 
-    template <typename, typename>
+    template <typename, typename, typename>
     friend class darma_runtime::AccessHandleCollection;
 
     IndexedAccessHandle(
@@ -323,14 +337,14 @@ class IndexedAccessHandle {
           auto* backend_runtime = abstract::backend::get_backend_runtime();
           auto fetched_in_flow = make_flow_ptr(
             backend_runtime->make_indexed_fetching_flow(
-              *access_handle_.current_use_->use.in_flow_.get(),
+              *access_handle_.current_use_->use->in_flow_.get(),
               version_key, backend_index_
             )
           );
 
-          access_handle_.current_use_->use.in_flow_ = fetched_in_flow;
+          access_handle_.current_use_->use->in_flow_ = fetched_in_flow;
 
-          access_handle_.current_use_->use.out_flow_ = detail::make_flow_ptr(
+          access_handle_.current_use_->use->out_flow_ = detail::make_flow_ptr(
             backend_runtime->make_null_flow( access_handle_.var_handle_ )
           );
 
@@ -349,23 +363,31 @@ class IndexedAccessHandle {
 // </editor-fold> end IndexedAccessHandle }}}1
 //==============================================================================
 
+
 } // end namespace detail
 
 
 //==============================================================================
 // <editor-fold desc="AccessHandleCollection">
 
-template <typename T, typename IndexRangeT>
-class AccessHandleCollection {
+template <typename T, typename IndexRangeT,
+  typename Traits /*=detail::access_handle_collection_traits<>*/
+>
+class AccessHandleCollection : public detail::AccessHandleBase {
   public:
 
     using value_type = T;
     using index_range_type = IndexRangeT;
+    using traits_t = Traits;
 
-    template <typename MappingT>
+    template <typename MappingT,
+      typename=std::enable_if_t<traits_t::is_outer and not std::is_void<MappingT>::value>
+    >
     auto mapped_with(MappingT&& mapping) const {
       return detail::MappedHandleCollection<
-        ::darma_runtime::AccessHandleCollection<T, IndexRangeT>,
+        ::darma_runtime::AccessHandleCollection<T, IndexRangeT,
+          detail::access_handle_collection_traits<false>
+        >,
         std::decay_t<MappingT>
       >(
         *this, std::forward<MappingT>(mapping)
@@ -373,49 +395,58 @@ class AccessHandleCollection {
     };
 
     IndexRangeT const& get_index_range() const {
-      return current_use_->use.use_->index_range;
+      return current_use_->use->index_range;
     }
 
-    AccessHandleCollection() = default;
 
   protected:
 
-    using variable_handle_t = detail::VariableHandle<T>;
-    using variable_handle_ptr = types::shared_ptr_template<detail::VariableHandle<T>>;
-    using use_holder_ptr = types::shared_ptr_template<
-      detail::GenericUseHolder<detail::CollectionManagingUse<index_range_type>>
+    using variable_handle_ptr = detail::managing_ptr<
+      std::shared_ptr<detail::VariableHandle<T>>,
+      std::shared_ptr<detail::VariableHandleBase>
+    >;
+    using use_holder_ptr = detail::managing_ptr<
+      std::shared_ptr<
+        detail::GenericUseHolder<detail::CollectionManagingUse<index_range_type>>
+      >,
+      detail::UseHolderBase*
     >;
     using element_use_holder_ptr = types::shared_ptr_template<detail::UseHolder>;
 
     using _range_traits = indexing::index_range_traits<index_range_type>;
 
+
+  //============================================================================
+  // <editor-fold desc="public interface functions"> {{{1
+
   public:
 
+    template <
+      typename _Ignored_SFINAE=void,
+      typename=std::enable_if_t<
+        std::is_void<_Ignored_SFINAE>::value
+          and not traits_t::is_outer
+      >
+    >
     auto
     operator[](typename _range_traits::index_type const& idx) const {
       auto use_iter = local_use_holders_.find(idx);
-      if(use_iter == local_use_holders_.end()) {
+      if (use_iter == local_use_holders_.end()) {
         // make an unfetched handle
 
         auto* backend_runtime = abstract::backend::get_backend_runtime();
         // stash the in flow that you should get the fetched flow from in the in flow
-        auto unfetched_in_flow = current_use_->use.in_flow_;
-
-        // Shouldn't do this...
-        //auto fetched_out_flow = detail::make_flow_ptr(
-        //  backend_runtime->make_null_flow(
-        //    var_handle_
-        //  )
-        //);
+        auto unfetched_in_flow = current_use_->use->in_flow_;
 
         auto const& idx_range = get_index_range();
         auto map_dense = _range_traits::mapping_to_dense(idx_range);
         using _map_traits = indexing::mapping_traits<typename _range_traits::mapping_to_dense_type>;
-        auto backend_index = _map_traits::map_forward(map_dense, idx, idx_range);
+        auto
+          backend_index = _map_traits::map_forward(map_dense, idx, idx_range);
 
         auto idx_use_holder = std::make_shared<detail::UseHolder>(
           detail::HandleUse(
-            var_handle_, unfetched_in_flow, unfetched_in_flow,
+            var_handle_base_, unfetched_in_flow, unfetched_in_flow,
             detail::HandleUse::Read, detail::HandleUse::None
           )
         );
@@ -424,41 +455,221 @@ class AccessHandleCollection {
         return detail::IndexedAccessHandle<AccessHandle<T>>(
           AccessHandle<T>(
             detail::unfetched_access_handle_tag{},
-            var_handle_, idx_use_holder
+            var_handle_.get_smart_ptr(), idx_use_holder
           ), false,
           backend_index
         );
-      }
-      else {
+      } else {
         return detail::IndexedAccessHandle<AccessHandle<T>>(
           AccessHandle<T>(
-            var_handle_, use_iter->second
+            var_handle_.get_smart_ptr(), use_iter->second
           ), true
         );
       }
     }
 
-    //==========================================================================
+  // </editor-fold> end public interface functions }}}1
+  //============================================================================
 
-    ~AccessHandleCollection() {
+
+  public:
+
+    ~AccessHandleCollection() = default;
+
+
+  //============================================================================
+  // <editor-fold desc="AccessHandleBase pure virtual method overloads"> {{{1
+
+  protected:
+
+    // TODO write something like this as a virtual overload of an AccessHandleBase method
+    void call_make_captured_use_holder(
+      std::shared_ptr<detail::VariableHandleBase> var_handle,
+      detail::HandleUse::permissions_t req_sched_perms,
+      detail::HandleUse::permissions_t req_immed_perms,
+      detail::AccessHandleBase const& source_in
+    ) override {
+      auto* source =
+        detail::safe_static_cast<AccessHandleCollection const*>(&source_in);
+      auto continuing_use_maker = [&](
+        auto handle,
+        auto const& in_flow, auto const& out_flow,
+        auto scheduling_permissions,
+        auto immediate_permissions
+      ) {
+        return darma_runtime::detail::CollectionManagingUse<
+          std::decay_t<
+            IndexRangeT>>(
+          handle, in_flow, out_flow,
+          scheduling_permissions, immediate_permissions,
+          source->current_use_->use->index_range
+        );
+      };
+
+      auto next_use_holder_maker = [&](
+        auto handle,
+        auto const& in_flow, auto const& out_flow,
+        auto scheduling_permissions,
+        auto immediate_permissions
+      ) {
+        return std::make_shared<
+          darma_runtime::detail::GenericUseHolder<
+            darma_runtime::detail::CollectionManagingUse<
+              std::decay_t<
+                IndexRangeT>>
+          >>(
+          darma_runtime::detail::CollectionManagingUse<std::decay_t<IndexRangeT>>(
+            handle, in_flow, out_flow,
+            scheduling_permissions, immediate_permissions,
+            source->current_use_->use->index_range
+          )
+        );
+      };
+
+      // Custom "next flow maker"
+      auto next_flow_maker = [](auto&& flow, auto* backend_runtime) {
+        return darma_runtime::detail::make_flow_ptr(
+          backend_runtime->make_next_flow_collection(
+            *std::forward<decltype(flow)>(flow).get()
+          )
+        );
+      };
+
+      // Do the capture
+      current_use_ = detail::make_captured_use_holder(
+        var_handle_base_,
+        detail::HandleUse::Modify,
+        detail::HandleUse::None,
+        source->current_use_.get(),
+        next_use_holder_maker,
+        next_flow_maker,
+        continuing_use_maker
+      );
+    }
+
+    std::shared_ptr<detail::AccessHandleBase>
+    copy(
+      bool check_context = true
+    ) const override {
+      if (check_context) {
+        return std::allocate_shared<AccessHandleCollection>(
+          darma_runtime::serialization::darma_allocator<AccessHandleCollection>{},
+          *this
+        );
+      } else {
+        auto rv = std::allocate_shared<AccessHandleCollection>(
+          darma_runtime::serialization::darma_allocator<AccessHandleCollection>{}
+        );
+        rv->current_use_ = current_use_;
+        rv->var_handle_ = var_handle_;
+        rv->local_use_holders_ = local_use_holders_;
+        rv->mapped_backend_index_ = mapped_backend_index_;
+        rv->dynamic_is_outer = dynamic_is_outer;
+        return rv;
+      }
+    }
+
+    void
+    replace_use_holder_with(detail::AccessHandleBase const& other_handle) override {
+      current_use_ = detail::safe_static_cast<AccessHandleCollection const*>(
+        &other_handle
+      )->current_use_;
+    }
+
+    void
+    release_current_use() const override {
       current_use_ = nullptr;
     }
 
-    //==========================================================================
+  // </editor-fold> end AccessHandleBase pure virtual method overloads }}}1
+  //============================================================================
+
+
+  //============================================================================
+  // <editor-fold desc="public ctors"> {{{1
+
+  public:
+
+    AccessHandleCollection()
+      : current_use_(current_use_base_),
+        var_handle_(var_handle_base_)
+    { }
+
+    AccessHandleCollection(
+      AccessHandleCollection&& other
+    ) : mapped_backend_index_(std::move(other.mapped_backend_index_)),
+        var_handle_(var_handle_base_, std::move(other.var_handle_)),
+        current_use_(current_use_base_, std::move(other.current_use_)),
+        local_use_holders_(std::move(other.local_use_holders_)),
+        dynamic_is_outer(std::move(other.dynamic_is_outer)),
+        copied_from(std::move(other.copied_from))
+    { }
 
     AccessHandleCollection(
       AccessHandleCollection const& other
     ) : mapped_backend_index_(other.mapped_backend_index_),
-        var_handle_(other.var_handle_),
-        current_use_(other.current_use_),
-        local_use_holders_(other.local_use_holders_)
+        var_handle_(var_handle_base_, other.var_handle_),
+        current_use_(current_use_base_, other.current_use_),
+        local_use_holders_(other.local_use_holders_),
+        dynamic_is_outer(other.dynamic_is_outer)
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         abstract::backend::get_backend_context()->get_running_task()
       );
       darma_runtime::detail::TaskBase* capturing_task = nullptr;
-      if(running_task) {
+      if (running_task) {
+        capturing_task = running_task->current_create_work_context;
+      }
+
+      if (capturing_task != nullptr) {
+        AccessHandleCollection const* source = &other;
+        if (capturing_task->is_double_copy_capture) {
+          assert(other.copied_from != nullptr);
+          source = other.copied_from;
+        }
+
+        source->captured_as_ |= CapturedAsInfo::ScheduleOnly;
+
+        capturing_task->do_capture(*this, *source);
+
+        if(source->current_use_) {
+          source->current_use_->use->already_captured = true;
+          capturing_task->uses_to_unmark_already_captured.push_back(
+            source->current_use_->use.get()
+          );
+        }
+
+      } else {
+        copied_from = &other;
+        current_use_ = other.current_use_;
+      }
+
+    }
+
+    template <typename _Ignored_SFINAE=void>
+    AccessHandleCollection(
+      AccessHandleCollection<
+        T, IndexRangeT, detail::access_handle_collection_traits<true>
+      > const& other,
+      std::enable_if_t<
+        std::is_void<_Ignored_SFINAE>::value
+          and not traits_t::is_outer,
+        int
+      > = 0
+    ) : mapped_backend_index_(other.mapped_backend_index_),
+        var_handle_(var_handle_base_, other.var_handle_),
+        current_use_(current_use_base_, other.current_use_),
+        local_use_holders_(other.local_use_holders_),
+        dynamic_is_outer(other.dynamic_is_outer)
+    {
+
+      // get the shared_ptr from the weak_ptr stored in the runtime object
+      detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
+        abstract::backend::get_backend_context()->get_running_task()
+      );
+      darma_runtime::detail::TaskBase* capturing_task = nullptr;
+      if (running_task) {
         capturing_task = running_task->current_create_work_context;
       }
 
@@ -466,91 +677,116 @@ class AccessHandleCollection {
         DARMA_ASSERT_FAILURE("Capturing AccessHandleCollection objects in"
           " regular tasks is not yet supported.");
       }
-
     }
+
+  // </editor-fold> end public ctors }}}1
+  //============================================================================
+
+
+  //============================================================================
+  // <editor-fold desc="friends"> {{{1
 
   private:
 
-    //==========================================================================
-    // Customization/interaction point:
+    template <typename, typename, typename>
+    friend
+    class AccessHandleCollection;
 
     template <typename... AccessorDetails>
-    friend struct detail::AccessHandleCollectionAccess;
+    friend
+    struct detail::AccessHandleCollectionAccess;
 
     template <typename, typename, typename, typename>
-    friend struct detail::_task_collection_impl::_get_storage_arg_helper;
+    friend
+    struct detail::_task_collection_impl::_get_storage_arg_helper;
 
-    template < typename, typename, size_t, typename >
-    friend struct detail::_task_collection_impl::_get_task_stored_arg_helper;
+    template <typename, typename, size_t, typename>
+    friend
+    struct detail::_task_collection_impl::_get_task_stored_arg_helper;
 
     template <typename, typename>
-    friend struct detail::MappedHandleCollection;
-
-    //friend struct serialization::Serializer<AccessHandleCollection>;
-
-    //==========================================================================
+    friend
+    struct detail::MappedHandleCollection;
 
     template <typename, typename, typename...>
-    friend struct detail::TaskCollectionImpl;
+    friend
+    struct detail::TaskCollectionImpl;
 
-    //==========================================================================
-    // private members:
+  // </editor-fold> end friends }}}1
+  //============================================================================
 
-    static constexpr auto unknown_backend_index = std::numeric_limits<size_t>::max();
+
+  //============================================================================
+  // <editor-fold desc="private members"> {{{1
+
+  private:
+
+    static constexpr auto
+      unknown_backend_index = std::numeric_limits<size_t>::max();
 
     mutable std::size_t mapped_backend_index_ = unknown_backend_index;
-    mutable variable_handle_ptr var_handle_ = nullptr;
-    mutable use_holder_ptr current_use_ = nullptr;
+    mutable variable_handle_ptr var_handle_ = {var_handle_base_};
+    mutable use_holder_ptr current_use_ = {current_use_base_};
+    mutable AccessHandleCollection const* copied_from = nullptr;
+    mutable bool dynamic_is_outer = traits_t::is_outer;
 
     mutable std::map<
       typename _range_traits::index_type,
       element_use_holder_ptr
     > local_use_holders_;
 
+  // </editor-fold> end private members }}}1
+  //============================================================================
 
-    //==========================================================================
-    // private methods:
+
+  //============================================================================
+  // <editor-fold desc="private implementation detail methods"> {{{1
+
+  private:
 
     void _setup_local_uses(detail::TaskBase& task) const {
       auto& current_use_use = current_use_->use;
-      auto local_idxs = current_use_use.use_->local_indices_for(mapped_backend_index_);
+      auto
+        local_idxs = current_use_use->local_indices_for(mapped_backend_index_);
       auto const& idx_range = get_index_range();
       auto map_dense = _range_traits::mapping_to_dense(idx_range);
       auto* backend_runtime = abstract::backend::get_backend_runtime();
       using _map_traits = indexing::mapping_traits<typename _range_traits::mapping_to_dense_type>;
-      for(auto&& idx : local_idxs) {
+      for (auto&& idx : local_idxs
+        ) {
         auto fe_idx = _map_traits::map_backward(map_dense, idx, idx_range);
 
         auto local_in_flow = detail::make_flow_ptr(
           backend_runtime->make_indexed_local_flow(
-            *current_use_->use.in_flow_.get(), idx
+            *current_use_->use->in_flow_.get(), idx
           )
         );
 
         detail::flow_ptr local_out_flow;
-        if(
-          current_use_->use.immediate_permissions_ == detail::HandleUse::Modify
-          or current_use_->use.scheduling_permissions_ == detail::HandleUse::Modify
-        ) {
+        if (
+          current_use_->use->immediate_permissions_ == detail::HandleUse::Modify
+            or current_use_->use->scheduling_permissions_
+              == detail::HandleUse::Modify
+          ) {
           local_out_flow = detail::make_flow_ptr(
             backend_runtime->make_indexed_local_flow(
-              *current_use_->use.out_flow_.get(), idx
+              *current_use_->use->out_flow_.get(), idx
             )
           );
-        }
-        else {
+        } else {
           local_out_flow = local_in_flow;
         }
 
+        // TODO UPDATE THIS!!!
         auto idx_use_holder = std::make_shared<detail::UseHolder>(
           detail::HandleUse(
-            var_handle_, local_in_flow, local_out_flow,
-            current_use_->use.scheduling_permissions_,
-            current_use_->use.immediate_permissions_
+            var_handle_base_, local_in_flow, local_out_flow,
+            current_use_->use->scheduling_permissions_,
+            current_use_->use->immediate_permissions_
           )
         );
         idx_use_holder->do_register();
-        task.add_dependency(idx_use_holder->use);
+        task.add_dependency(*idx_use_holder->use_base);
 
         local_use_holders_.insert(std::make_pair(fe_idx, idx_use_holder));
 
@@ -558,15 +794,25 @@ class AccessHandleCollection {
     }
 
 
-    //==========================================================================
-    // private ctors:
+
+  // </editor-fold> end private implementation detail methods }}}1
+  //============================================================================
+
+
+  //============================================================================
+  // <editor-fold desc="private ctors"> {{{1
+
+  private:
 
     explicit AccessHandleCollection(
       std::shared_ptr<detail::VariableHandle<value_type>> const& var_handle,
-      use_holder_ptr const& use_holder
-    ) : var_handle_(var_handle),
-        current_use_(use_holder)
+      typename use_holder_ptr::smart_ptr_t const& use_holder
+    ) : var_handle_(var_handle_base_, var_handle),
+        current_use_(current_use_base_, use_holder)
     { }
+
+  // </editor-fold> end private ctors }}}1
+  //============================================================================
 };
 
 // </editor-fold> end AccessHandleCollection
@@ -582,9 +828,9 @@ template <typename T>
 struct is_access_handle_collection: std::false_type {
 };
 
-template <typename T, typename IndexRangeT>
+template <typename T, typename IndexRangeT, typename Traits>
 struct is_access_handle_collection<
-  AccessHandleCollection<T, IndexRangeT>
+  AccessHandleCollection<T, IndexRangeT, Traits>
 >: std::true_type {
 };
 
@@ -609,11 +855,11 @@ namespace detail {
 
 struct initial_access_collection_tag { };
 
-template <typename ValueType>
-struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType> {
+template <typename ValueType, typename Traits>
+struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType, Traits> {
 
   template <typename IndexRangeT>
-  auto _impl(
+  decltype(auto) _impl(
     types::key_t const& key,
     IndexRangeT&& range
   ) const {
@@ -634,7 +880,7 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType> {
       )
     );
 
-    return AccessHandleCollection<ValueType, std::decay_t<IndexRangeT>>(
+    return AccessHandleCollection<ValueType, std::decay_t<IndexRangeT>, Traits>(
       var_handle, use_holder
     );
   }
@@ -689,7 +935,9 @@ initial_access_collection(Args&&... args) {
 
   return parser()
     .parse_args(std::forward<Args>(args)...)
-    .invoke(detail::AccessHandleCollectionAccess<initial_access_collection_tag, T>());
+    .invoke(detail::AccessHandleCollectionAccess<initial_access_collection_tag,
+      T, detail::access_handle_collection_traits</* IsOuter = */ true>
+    >());
 };
 
 

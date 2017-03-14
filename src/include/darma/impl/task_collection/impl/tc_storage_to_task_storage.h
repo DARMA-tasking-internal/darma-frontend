@@ -115,7 +115,7 @@ struct _get_task_stored_arg_helper<
         arg.current_use_
       );
       arg.current_use_ = nullptr;
-      task.add_dependency(*(&(rv.current_use_->use)));
+      task.add_dependency(*rv.current_use_->use);
       return rv;
     }
     else {
@@ -162,14 +162,14 @@ struct _get_task_stored_arg_helper<
     auto new_use_holder = std::make_shared<UseHolder>(
       HandleUse(
         arg.var_handle_,
-        arg.current_use_->use.in_flow_,
-        arg.current_use_->use.out_flow_,
-        arg.current_use_->use.scheduling_permissions_, // better be something like Read or less
-        arg.current_use_->use.immediate_permissions_  // better be something like Read or less
+        arg.current_use_->use->in_flow_,
+        arg.current_use_->use->out_flow_,
+        arg.current_use_->use->scheduling_permissions_, // better be something like Read or less
+        arg.current_use_->use->immediate_permissions_  // better be something like Read or less
       )
     );
     new_use_holder->do_register();
-    task.add_dependency(*(&(new_use_holder->use)));
+    task.add_dependency(*new_use_holder->use.get());
     return return_type(
       arg.var_handle_,
       new_use_holder

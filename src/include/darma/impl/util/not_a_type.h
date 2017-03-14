@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      use_collection.h
+//                      not_a_type.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,56 +42,40 @@
 //@HEADER
 */
 
-#ifndef DARMA_USE_COLLECTION_H
-#define DARMA_USE_COLLECTION_H
+#ifndef DARMA_IMPL_UTIL_NOT_A_TYPE_H
+#define DARMA_IMPL_UTIL_NOT_A_TYPE_H
 
-#include <cstdlib> // std::size_t
-#include <vector>
+#include <cstdlib> // size_t
 
 namespace darma_runtime {
+namespace detail {
 
-namespace abstract {
+static constexpr struct _not_a_type_ctor_tag_t { } _not_a_type_ctor_tag { };
 
-namespace frontend {
-
-/** @todo document this
- *
- */
-class UseCollection {
-  public:
-    template <typename T>
-    using index_iterable = std::vector<T>;  // TODO make a template alias for this in frontend/types.h
-
-
-    /** @todo document this
-     *
-     *  @param task_index
-     *  @return
-     */
-    virtual index_iterable<std::size_t>
-    local_indices_for(std::size_t task_index) const =0;
-
-    virtual std::size_t
-    task_index_for(std::size_t collection_index) const =0;
-
-    /// TODO remove this!?!
-    /** @todo document this
-     *
-     *  @param other
-     *  @return
-     */
-    virtual bool
-    has_same_mapping_as(UseCollection const* other) const =0;
-
-    virtual std::size_t
-    size() const =0;
-
+struct _not_a_type {
+  _not_a_type(_not_a_type_ctor_tag_t) { }
+  _not_a_type() = default;
+  _not_a_type(_not_a_type&&) = delete;
+  _not_a_type(_not_a_type const&) = delete;
 };
 
-} // end namespace frontend
+template <std::size_t number>
+struct _not_a_type_numbered {
+  _not_a_type_numbered(_not_a_type_ctor_tag_t) { }
+  _not_a_type_numbered() = default;
+  _not_a_type_numbered(_not_a_type_numbered&&) = delete;
+  _not_a_type_numbered(_not_a_type_numbered const&) = delete;
+};
 
-} // end namespace abstract
+template <typename>
+struct _not_a_type_typed {
+  _not_a_type_typed(_not_a_type_ctor_tag_t) { }
+  _not_a_type_typed() = default;
+  _not_a_type_typed(_not_a_type_typed&&) = delete;
+  _not_a_type_typed(_not_a_type_typed const&) = delete;
+};
 
+} // end namespace detail
 } // end namespace darma_runtime
 
-#endif //DARMA_USE_COLLECTION_H
+#endif //DARMA_IMPL_UTIL_NOT_A_TYPE_H

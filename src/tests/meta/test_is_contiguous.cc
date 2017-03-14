@@ -60,10 +60,11 @@ static_assert(
   "std::vector const_iterator should be contiguous"
 );
 
-static_assert(
-  is_contiguous_iterator<typename std::string::iterator>::value,
-  "std::string iterator should be contiguous"
-);
+// Doesn't work with ICPC
+//static_assert(
+//  is_contiguous_iterator<typename std::string::iterator>::value,
+//  "std::string iterator should be contiguous"
+//);
 
 static_assert(
   is_contiguous_iterator<typename std::vector<long>::const_iterator>::value,

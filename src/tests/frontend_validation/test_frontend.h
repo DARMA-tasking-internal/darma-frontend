@@ -343,8 +343,27 @@ auto make_flows(char const* names) {
 #define DECLARE_MOCK_FLOWS(Args...) \
   ::mock_backend::MockFlow Args; std::tie(Args) = ::_make_mock_flows_impl::make_flows<DARMA_PP_NUM_ARGS(Args)>(#Args);
 
+#define EXPECT_REGISTER_USE_COLLECTION(use_coll, fin, fout, sched, immed, collsize) \
+    EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf( \
+      IsUseWithFlows(fin, fout, use_t::sched, use_t::immed), \
+      ::testing::Truly([=](auto* use){ \
+        return ( \
+          use->manages_collection() \
+          and use->get_managed_collection()->size() == collsize \
+        ); \
+      }) \
+    ))).WillOnce(::testing::Invoke([&](auto* use) { use_coll = use; }));
+
 // </editor-fold> end Special EXPECT_* macros for DARMA
 //==============================================================================
+
+
+#define TEST_F_WITH_PARAMS(fixture, test_name, paramvals, params...) \
+  struct _with_params_##fixture##_##test_name : fixture, ::testing::WithParamInterface<params> { }; \
+  class GTEST_TEST_CLASS_NAME_(fixture, test_name); \
+  INSTANTIATE_TEST_CASE_P(_cases_for_##fixture##_##test_name, _with_params_##fixture##_##test_name, paramvals); \
+  TEST_P(_with_params_##fixture##_##test_name, test_name)
+
 
 class TestFrontend
   : public ::testing::Test

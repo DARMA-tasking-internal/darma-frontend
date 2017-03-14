@@ -122,7 +122,7 @@ struct darma_allocator
     template <typename U>
     struct rebind { using other = darma_allocator<U>; };
 
-    using BaseAllocator::BaseAllocator;
+    using base_t::base_t;
 
     pointer
     allocate(size_type n, const_void_pointer _ignored=nullptr);
