@@ -58,7 +58,9 @@ namespace darma_runtime { namespace experimental { namespace backend_hint {
     // the number of groupings of a certain type
     CCW_NUM_GROUPINGS,
     // the number of groupings of a certain type
-    CCW_GROUP_TYPE
+    CCW_GROUP_TYPE,
+    // string to stamp on user event of leaf task
+    PROJECTIONS_USER_EVENT
   };
 }}}
 
