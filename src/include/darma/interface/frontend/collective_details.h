@@ -59,17 +59,21 @@ namespace frontend {
 class CollectiveDetails {
   public:
 
+    /** @deprecated */
     static inline constexpr size_t
     unknown_contribution() {
       return std::numeric_limits<size_t>::max();
     }
 
+    /** @deprecated */
     virtual size_t
     this_contribution() const =0;
 
+    /** @deprecated */
     virtual size_t
     n_contributions() const =0;
 
+    /** @deprecated (though might be added later) */
     virtual bool
     is_indexed() const =0;
 
