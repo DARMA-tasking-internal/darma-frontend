@@ -93,6 +93,9 @@ T darma_copy(T& lvalue) {
 
 template <typename T, typename Traits>
 class AccessHandle : public detail::AccessHandleBase {
+  //===========================================================================
+  // <editor-fold desc="type aliases"> {{{1
+
   public:
 
     typedef T value_type;
@@ -100,7 +103,9 @@ class AccessHandle : public detail::AccessHandleBase {
   protected:
 
     using variable_handle_t = detail::VariableHandle<T>;
-    using variable_handle_ptr = types::shared_ptr_template<detail::VariableHandle<T>>;
+    using variable_handle_ptr = types::shared_ptr_template<
+      detail::VariableHandle<T>
+    >;
 
     using key_t = types::key_t;
     using use_holder_t = detail::UseHolder;
@@ -108,6 +113,9 @@ class AccessHandle : public detail::AccessHandleBase {
       std::shared_ptr<use_holder_t>,
       detail::UseHolderBase*
     >;
+
+  // </editor-fold> end type aliases }}}1
+  //============================================================================
 
   //============================================================================
   // <editor-fold desc="Expression of traits as static member variables"> {{{1
@@ -121,44 +129,44 @@ class AccessHandle : public detail::AccessHandleBase {
 
     using CompileTimeReadAccessAnalog = with_traits<
       typename traits
-      ::template with_max_schedule_permissions<detail::AccessHandlePermissions::Read>::type
-      ::template with_max_immediate_permissions<detail::AccessHandlePermissions::Read>::type
+        ::template with_max_scheduling_permissions<detail::AccessHandlePermissions::Read>::type
+        ::template with_max_immediate_permissions<detail::AccessHandlePermissions::Read>::type
     >;
 
     static constexpr bool is_compile_time_immediate_modifiable =
       (traits::max_immediate_permissions
         == detail::AccessHandlePermissions::Modify
         or not traits::max_immediate_permissions_given);
-    static constexpr bool is_compile_time_schedule_modifiable =
-      (traits::max_schedule_permissions
+    static constexpr bool is_compile_time_scheduling_modifiable =
+      (traits::max_scheduling_permissions
         == detail::AccessHandlePermissions::Modify
-        or not traits::max_schedule_permissions_given);
+        or not traits::max_scheduling_permissions_given);
     static constexpr bool is_compile_time_immediate_readable =
       (traits::max_immediate_permissions
         == detail::AccessHandlePermissions::Read
         or traits::max_immediate_permissions
           == detail::AccessHandlePermissions::Modify
         or not traits::max_immediate_permissions_given);
-    static constexpr bool is_compile_time_schedule_readable =
-      (traits::max_schedule_permissions == detail::AccessHandlePermissions::Read
-        or traits::max_schedule_permissions
+    static constexpr bool is_compile_time_scheduling_readable =
+      (traits::max_scheduling_permissions == detail::AccessHandlePermissions::Read
+        or traits::max_scheduling_permissions
           == detail::AccessHandlePermissions::Modify
-        or not traits::max_schedule_permissions_given);
+        or not traits::max_scheduling_permissions_given);
     static constexpr bool is_compile_time_immediate_read_only =
       (is_compile_time_immediate_readable
         and not is_compile_time_immediate_modifiable);
 
     static constexpr bool is_leaf = (
-      traits::max_schedule_permissions == detail::AccessHandlePermissions::None
+      traits::max_scheduling_permissions == detail::AccessHandlePermissions::None
     );
 
-    // Assert that max_schedule_permissions, if given, is >= min_schedule_permissions, if also given
+    // Assert that max_scheduling_permissions, if given, is >= min_scheduling_permissions, if also given
     static_assert(
-      not traits::max_schedule_permissions_given
-        or not traits::min_schedule_permissions_given
-        or (int)traits::max_schedule_permissions
-          >= (int)traits::min_schedule_permissions,
-      "Tried to create handle with max_schedule_permissions < min_schedule_permissions"
+      not traits::max_scheduling_permissions_given
+        or not traits::min_scheduling_permissions_given
+        or (int)traits::max_scheduling_permissions
+          >= (int)traits::min_scheduling_permissions,
+      "Tried to create handle with max_scheduling_permissions < min_scheduling_permissions"
     );
     // Assert that max_immediate_permissions, if given, is >= min_immediate_permissions, if also given
     static_assert(
@@ -182,10 +190,10 @@ class AccessHandle : public detail::AccessHandleBase {
         )
           // same thing for schedule case
         and (
-          not traits::max_schedule_permissions_given
-            or not AccessHandleT::traits::min_schedule_permissions_given
-            or traits::max_schedule_permissions
-              >= AccessHandleT::traits::min_schedule_permissions
+          not traits::max_scheduling_permissions_given
+            or not AccessHandleT::traits::min_scheduling_permissions_given
+            or traits::max_scheduling_permissions
+              >= AccessHandleT::traits::min_scheduling_permissions
         )
     >;
 
@@ -255,8 +263,8 @@ class AccessHandle : public detail::AccessHandleBase {
       if (capturing_task != nullptr) {
         AccessHandle const* source = &copied_from;
         if (capturing_task->is_double_copy_capture) {
-          assert(copied_from.prev_copied_from != nullptr);
-          source = copied_from.prev_copied_from;
+          assert(copied_from.prev_copied_from() != nullptr);
+          source = copied_from.prev_copied_from();
           copied_from.current_use_ = nullptr;
           copied_from.current_use_base_ = nullptr;
         }
@@ -276,7 +284,7 @@ class AccessHandle : public detail::AccessHandleBase {
         // Also, save prev copied from in case this is a double capture, like in
         // create_condition.  This is the only time that the prev_copied_from ptr
         // should be valid (i.e., when task->is_double_copy_capture is set to true)
-        prev_copied_from = &copied_from;
+        prev_copied_from() = &copied_from;
       }
     }
 
@@ -336,7 +344,7 @@ class AccessHandle : public detail::AccessHandleBase {
         }
         if (
           // If this type doesn't have scheduling permissions, mark it as a leaf
-          traits::max_schedule_permissions
+          traits::max_scheduling_permissions
             == detail::AccessHandlePermissions::None
           ) {
           AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::Leaf;
@@ -392,7 +400,7 @@ class AccessHandle : public detail::AccessHandleBase {
         is_convertible_from_access_handle<AccessHandleT>::value
           and not is_collection_captured
           and access_handle_is_collection_captured<std::decay_t<AccessHandleT>>::value,
-        detail::_not_a_type
+        detail::_not_a_type_numbered<0>
       > = {detail::_not_a_type_ctor_tag}
     ) : current_use_(current_use_base_)
     {
@@ -413,9 +421,9 @@ class AccessHandle : public detail::AccessHandleBase {
         is_convertible_from_access_handle<AccessHandleT>::value
           and is_collection_captured
           and access_handle_is_not_collection_captured<
-            std::decay_t<
-              AccessHandleT>>::value,
-        detail::_not_a_type
+            std::decay_t<AccessHandleT>
+          >::value,
+        detail::_not_a_type_numbered<1>
       > = {detail::_not_a_type_ctor_tag}
     ) : current_use_(current_use_base_)
     {
@@ -443,10 +451,10 @@ class AccessHandle : public detail::AccessHandleBase {
         unfetched_(std::move(other.unfetched_)),
         owning_index_(std::move(other.owning_index_)),
         owning_backend_index_(std::move(other.owning_backend_index_)),
-        current_use_(current_use_base_, std::move(other.current_use_)),
-        prev_copied_from(other.prev_copied_from)
+        current_use_(current_use_base_, std::move(other.current_use_))
     {
       var_handle_base_ = var_handle_;
+      prev_copied_from() = other.prev_copied_from();
     }
 
     // Analogous type move constructor
@@ -594,7 +602,7 @@ class AccessHandle : public detail::AccessHandleBase {
         // Technically, if this is compile-time nothing, you can't even do this, so we can disable it
         not(traits::max_immediate_permissions
           == detail::AccessHandlePermissions::None
-          and traits::max_schedule_permissions
+          and traits::max_scheduling_permissions
             == detail::AccessHandlePermissions::None)
           and std::is_same<_Ignored, void>::value
       >
@@ -749,7 +757,7 @@ class AccessHandle : public detail::AccessHandleBase {
 #if _darma_has_feature(publish_fetch)
     template <typename _Ignored=void, typename... PublishExprParts>
     std::enable_if_t<
-      is_compile_time_schedule_readable
+      is_compile_time_scheduling_readable
         and std::is_same<_Ignored, void>::value
     >
     publish(
@@ -884,7 +892,7 @@ class AccessHandle : public detail::AccessHandleBase {
   // </editor-fold> end Public interface methods }}}1
   //============================================================================
 
-    ~AccessHandle() noexcept = default;
+    ~AccessHandle() = default;
 
   private:
 
@@ -924,7 +932,7 @@ class AccessHandle : public detail::AccessHandleBase {
         rv->unfetched_ = unfetched_;
         rv->owning_index_ = owning_index_;
         rv->owning_backend_index_ = owning_backend_index_;
-        rv->prev_copied_from = prev_copied_from; // Shouldn't matter
+        rv->prev_copied_from() = prev_copied_from(); // Shouldn't matter
         return rv;
       }
     }
@@ -1071,19 +1079,30 @@ class AccessHandle : public detail::AccessHandleBase {
   //============================================================================
 
   //============================================================================
-  // <editor-fold desc="private members"> {{{1
+  // <editor-fold desc="private members and their accessors"> {{{1
 
   private:
 
     mutable variable_handle_ptr var_handle_ = nullptr;
+    mutable use_holder_ptr current_use_ = { current_use_base_ };
 
     // TODO remove unfetched?
     mutable bool unfetched_ = false;
     mutable typename traits::owning_index_t owning_index_;
     mutable std::size_t owning_backend_index_ = 0;
-    mutable use_holder_ptr current_use_ = { current_use_base_ };
 
-    AccessHandle const* prev_copied_from = nullptr;
+    detail::compressed_pair<
+      AccessHandle const*,
+      typename traits::special_members_t
+    > other_private_members_;
+
+    AccessHandle const*& prev_copied_from() {
+      return other_private_members_.first();
+    }
+    AccessHandle const* const& prev_copied_from() const {
+      return other_private_members_.first();
+    }
+
 
   // </editor-fold> end private members }}}1
   //============================================================================
@@ -1160,7 +1179,7 @@ using ReadAccessHandle = AccessHandle<
   T, typename detail::make_access_handle_traits<
     detail::min_immediate_permissions<detail::AccessHandlePermissions::Read>,
     detail::max_immediate_permissions<detail::AccessHandlePermissions::Read>,
-    detail::min_schedule_permissions<detail::AccessHandlePermissions::Read>
+    detail::min_scheduling_permissions<detail::AccessHandlePermissions::Read>
   >::type
 >;
 

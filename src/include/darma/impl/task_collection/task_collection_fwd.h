@@ -50,6 +50,14 @@
 namespace darma_runtime {
 namespace detail {
 
+typedef enum HandleCollectiveLabel {
+  Reduce = 0
+} handle_collective_label_t;
+
+template <typename AccessHandleCollectionT, typename ReduceOp, handle_collective_label_t>
+struct _collective_awaiting_assignment;
+
+
 namespace _task_collection_impl {
 
 // Argument to TaskCollectionImpl storage helper

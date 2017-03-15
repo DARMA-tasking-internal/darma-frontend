@@ -303,7 +303,7 @@ class IndexedAccessHandle {
         ::template with_max_immediate_permissions<
           AccessHandlePermissions::Read
         >::type
-        ::template with_max_schedule_permissions<
+        ::template with_max_scheduling_permissions<
           AccessHandlePermissions::Read
         >::type
     >
@@ -364,6 +364,12 @@ class IndexedAccessHandle {
 // </editor-fold> end IndexedAccessHandle }}}1
 //==============================================================================
 
+
+// TODO this should actually be a functioning AccessHandle from the start (so that auto can be used on the RHS)
+template <typename AccessHandleCollectionT, typename ReduceOp, HandleCollectiveLabel label>
+struct _collective_awaiting_assignment {
+  AccessHandleCollectionT const& collection;
+};
 
 } // end namespace detail
 
@@ -466,6 +472,45 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         );
       }
     }
+
+    template <typename ReduceOp, typename... Args>
+     /* TODO: attribute [[nodiscard]] in a general way */
+    auto
+    reduce(Args&&... args) const  {
+      using namespace darma_runtime::detail;
+      using parser = detail::kwarg_parser<
+        overload_description<
+          _optional_keyword<
+            converted_parameter, darma_runtime::keyword_tags_for_collectives::tag
+          >
+        >
+      >;
+      using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
+
+      // TODO output keyword
+
+      return parser()
+        .with_converters(
+          [](auto&&... parts) {
+            return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+          }
+        )
+        .with_default_generators(
+          darma_runtime::keyword_arguments_for_collectives::tag=[]{ return darma_runtime::make_key(); }
+        )
+        .parse_args(std::forward<Args>(args)...)
+        .invoke([](
+          types::key_t const& tag
+        ) -> decltype(auto) {
+
+
+
+
+        });
+
+    }
+
+
 
   // </editor-fold> end public interface functions }}}1
   //============================================================================
@@ -770,8 +815,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       auto map_dense = _range_traits::mapping_to_dense(idx_range);
       auto* backend_runtime = abstract::backend::get_backend_runtime();
       using _map_traits = indexing::mapping_traits<typename _range_traits::mapping_to_dense_type>;
-      for (auto&& idx : local_idxs
-        ) {
+      for (auto&& idx : local_idxs) {
         auto fe_idx = _map_traits::map_backward(map_dense, idx, idx_range);
 
         auto local_in_flow = detail::make_flow_ptr(
@@ -1010,6 +1054,39 @@ initial_access_collection(Args&&... args) {
 // </editor-fold> end serialization for AccessHandleCollection (currently disabled code) }}}1
 //==============================================================================
 
+//template <typename T, typename Traits>
+//template <typename AccessHandleCollectionT, typename ReduceOp, detail::handle_collective_label_t Label>
+//AccessHandle<T, Traits>::AccessHandle(
+//  detail::_collective_awaiting_assignment<AccessHandleCollectionT, ReduceOp, Label>&& awaiting
+//) : current_use_(current_use_base_)
+//{
+//  var_handle_ = std::make_shared<detail::VariableHandle<T>>(
+//    detail::key_traits<types::key_t>::make_awaiting_backend_assignment_key()
+//  );
+//  var_handle_base_ = var_handle_;
+//  auto* runtime = abstract::backend::get_backend_runtime();
+//  auto in_flow = detail::make_flow_ptr(runtime->make_initial_flow(var_handle_));
+//  auto out_flow = detail::make_next_flow_ptr(in_flow, runtime);
+//
+//  // TODO make sure using an initial flow this way doesn't mess up the backend
+//  current_use_ = detail::UseHolder(detail::HandleUse(
+//    var_handle_,
+//    in_flow, out_flow,
+//    detail::HandleUse::None, /* scheduling permissions */
+//    detail::HandleUse::Modify /* immediate permissions */ // TODO change this to Write
+//  ));
+//
+//  darma_runtime::detail::SimpleCollectiveDetails<ReduceOp, T>(
+//
+//  );
+//  runtime->allreduce_collection_use(
+//    awaiting.collection.current_use_.get(),
+//    current_use_.get(),
+//
+//
+//  )
+
+//};
 
 } // end namespace darma_runtime
 

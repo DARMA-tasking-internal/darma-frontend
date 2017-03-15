@@ -47,11 +47,14 @@
 
 #include <cstdlib>
 
+#include <darma/interface/frontend/polymorphic_serializable_object.h>
+#include <darma/interface/frontend/serialization_manager.h>
+
 namespace darma_runtime {
 namespace abstract {
 namespace frontend {
 
-class ReduceOp {
+class ReduceOp : public PolymorphicSerializableObject<ReduceOp> {
   public:
 
     virtual void
@@ -90,6 +93,15 @@ class ReduceOp {
       // Default to unimplemented
       return false;
     }
+
+    /** @brief Get the serialization manager for the type of the value to be
+     *  passed into the `reduce_*_into_*` methods
+     *
+     * @return A serialization manager that knows how to pack and unpack the
+     * values that the ReduceOp acts on
+     */
+    virtual SerializationManager const*
+    get_serialization_manager_for_values() const =0;
 };
 
 } // end namespace frontend

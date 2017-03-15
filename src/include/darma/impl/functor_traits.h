@@ -84,9 +84,9 @@ using _compile_time_immediate_readable = std::integral_constant<bool, T::is_comp
 template <typename T>
 using _compile_time_immediate_modifiable = std::integral_constant<bool, T::is_compile_time_immediate_modifiable>;
 template <typename T>
-using _compile_time_schedule_readable = std::integral_constant<bool, T::is_compile_time_schedule_readable>;
+using _compile_time_scheduling_readable = std::integral_constant<bool, T::is_compile_time_scheduling_readable>;
 template <typename T>
-using _compile_time_schedule_modifiable = std::integral_constant<bool, T::is_compile_time_schedule_modifiable>;
+using _compile_time_scheduling_modifiable = std::integral_constant<bool, T::is_compile_time_scheduling_modifiable>;
 
 template <typename T>
 using decayed_is_compile_time_immediate_readable = typename meta::detected_or_t<std::true_type,
@@ -97,12 +97,12 @@ using decayed_is_compile_time_immediate_modifiable = typename meta::detected_or_
   _compile_time_immediate_modifiable, std::decay_t<T>
 >::type;
 template <typename T>
-using decayed_is_compile_time_schedule_readable = typename meta::detected_or_t<std::true_type,
-  _compile_time_schedule_readable, std::decay_t<T>
+using decayed_is_compile_time_scheduling_readable = typename meta::detected_or_t<std::true_type,
+  _compile_time_scheduling_readable, std::decay_t<T>
 >::type;
 template <typename T>
-using decayed_is_compile_time_schedule_modifiable = typename meta::detected_or_t<std::true_type,
-  _compile_time_schedule_modifiable, std::decay_t<T>
+using decayed_is_compile_time_scheduling_modifiable = typename meta::detected_or_t<std::true_type,
+  _compile_time_scheduling_modifiable, std::decay_t<T>
 >::type;
 
 
@@ -256,10 +256,10 @@ struct functor_call_traits {
           typename std::decay_t<AccessHandleT>::template with_traits<
             typename std::decay_t<AccessHandleT>::traits
               ::template with_max_immediate_permissions<detail::AccessHandlePermissions::Read>::type
-              ::template with_max_schedule_permissions<detail::AccessHandlePermissions::None>::type
+              ::template with_max_scheduling_permissions<detail::AccessHandlePermissions::None>::type
               // Also set the min schedule and immediate permissions, in case they were higher before
               ::template with_min_immediate_permissions<detail::AccessHandlePermissions::Read>::type
-              ::template with_min_schedule_permissions<detail::AccessHandlePermissions::None>::type
+              ::template with_min_scheduling_permissions<detail::AccessHandlePermissions::None>::type
           >;
 
         using _const_conversion_capture_arg_tuple_entry = meta::detected_t<
@@ -278,9 +278,9 @@ struct functor_call_traits {
           typename std::decay_t<AccessHandleT>::template with_traits<
             typename std::decay_t<AccessHandleT>::traits
               ::template with_min_immediate_permissions<detail::AccessHandlePermissions::Modify>::type
-              ::template with_max_schedule_permissions<detail::AccessHandlePermissions::None>::type
+              ::template with_max_scheduling_permissions<detail::AccessHandlePermissions::None>::type
               // Also set the min schedule permissions, in case they were higher before
-              ::template with_min_schedule_permissions<detail::AccessHandlePermissions::None>::type
+              ::template with_min_scheduling_permissions<detail::AccessHandlePermissions::None>::type
               // but the max immediate permissions should stay the same.  If they are given and less
               // than Modify, we should get a compile-time error
           >;
@@ -302,7 +302,7 @@ struct functor_call_traits {
               ::template with_max_immediate_permissions<detail::AccessHandlePermissions::Read>::type
               // Also set the min schedule permissions, in case they were higher before
               ::template with_min_immediate_permissions<detail::AccessHandlePermissions::Read>::type
-              ::template with_min_schedule_permissions<detail::AccessHandlePermissions::Read>::type
+              ::template with_min_scheduling_permissions<detail::AccessHandlePermissions::Read>::type
           >;
 
         using _read_only_handle_capture_arg_tuple_entry = meta::detected_t<

@@ -687,6 +687,11 @@ struct key_traits<
     return key._needs_backend_assigned_key();
   }
 
+  static sso_key_t
+  make_awaiting_backend_assignment_key() {
+    return sso_key_t(typename sso_key_t::request_backend_assigned_key_tag{});
+  }
+
 };
 
 // </editor-fold> end key_traits<SSOKey> implementation

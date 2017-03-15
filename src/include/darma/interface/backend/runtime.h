@@ -553,7 +553,7 @@ class Runtime {
 
 #if _darma_has_feature(handle_collection_based_collectives)
     virtual void
-    allreduce_collection_use(
+    reduce_collection_use(
       frontend::Use* use_collection_in,
       frontend::Use* use_out,
       frontend::CollectiveDetails const* details,

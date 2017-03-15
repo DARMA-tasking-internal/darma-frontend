@@ -160,6 +160,10 @@ class MockRuntime
       darma_runtime::abstract::frontend::CollectiveDetails const*,
       key_t const&
     ));
+    MOCK_METHOD4(reduce_collection_use, void(use_t*, use_t*,
+      darma_runtime::abstract::frontend::CollectiveDetails const*,
+      key_t const&
+    ));
     MOCK_METHOD1(release_flow, void(flow_t&));
 
     MOCK_METHOD1(get_packed_flow_size, size_t(flow_t const&));

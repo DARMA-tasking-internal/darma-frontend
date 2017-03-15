@@ -53,6 +53,7 @@
 
 #include <darma/impl/use.h> // UseHolder
 
+// TODO move this to access_handle directory when we're at a stable merge point
 
 namespace darma_runtime {
 namespace detail {
