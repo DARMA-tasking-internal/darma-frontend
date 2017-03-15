@@ -367,6 +367,7 @@ class compressed_pair
     using base_t::second;
 
 
+    compressed_pair() = default;
     compressed_pair(compressed_pair const&) = default;
     compressed_pair(compressed_pair&&) = default;
     compressed_pair& operator=(compressed_pair const&) = default;
