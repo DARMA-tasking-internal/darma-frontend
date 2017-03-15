@@ -248,11 +248,12 @@ struct UseDescription {
     .WillOnce(::testing::Return(fout)); \
   EXPECT_REGISTER_USE(use, fin, fout, Modify, None);
 
-#define EXPECT_INITIAL_ACCESS_COLLECTION(fin, fout, key) \
+#define EXPECT_INITIAL_ACCESS_COLLECTION(fin, fout, use, key, size) \
   EXPECT_CALL(*mock_runtime, make_initial_flow_collection(is_handle_with_key(key))) \
     .WillOnce(::testing::Return(fin)); \
   EXPECT_CALL(*mock_runtime, make_null_flow_collection(is_handle_with_key(key))) \
     .WillOnce(::testing::Return(fout)); \
+  EXPECT_REGISTER_USE_COLLECTION(use, fin, fout, Modify, None, size);
 
 /* eventually expect release of flow */ \
 /* EXPECT_CALL(*mock_runtime, release_flow(::testing::Eq(f_in))); */ \

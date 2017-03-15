@@ -233,7 +233,8 @@ struct MappedHandleCollection {
           var_handle, inflow, outflow, sched_perm, immed_perm, std::move(hr)
           // the mapping will be re-set up in the task collection unpack,
           // so don't worry about it here
-        )
+        ),
+        /* do_register_in_ctor= */ false // MappedHandleCollection unpack handles this
       );
 
       // the use will be reregistered after the mapping is added back in, so

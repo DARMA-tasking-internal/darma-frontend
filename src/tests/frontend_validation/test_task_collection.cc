@@ -105,23 +105,15 @@ TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
 
   bool with_helper = GetParam();
 
-  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, use_init, make_key("hello"), 4);
 
-  EXPECT_CALL(*mock_runtime, register_use(AllOf(
-    IsUseWithFlows(finit, fnull, use_t::Modify, use_t::None),
-    Truly([](auto* use){
-      return (
-        use->manages_collection()
-          and use->get_managed_collection()->size() == 4
-      );
-    })
-  ))).WillOnce(Invoke([&](auto* use) { use_init = use; }));
 
   EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
     .WillOnce(Return(fout_coll));
 
   if(with_helper) {
     EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, fout_coll, Modify, Modify, 4);
+    EXPECT_REGISTER_USE_COLLECTION(use_coll_cont, fout_coll, fnull, Modify, None, 4);
   }
   else {
     EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf(
@@ -133,18 +125,19 @@ TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
         );
       })
     ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
+
+    EXPECT_CALL(*mock_runtime, register_use(AllOf(
+      IsUseWithFlows(fout_coll, fnull, use_t::Modify, use_t::None),
+      Truly([](auto* use){
+        return (
+          use->manages_collection()
+            and use->get_managed_collection()->size() == 4
+        );
+      })
+    ))).WillOnce(Invoke([&](auto* use) { use_coll_cont = use; }));
   }
 
 
-  EXPECT_CALL(*mock_runtime, register_use(AllOf(
-    IsUseWithFlows(fout_coll, fnull, use_t::Modify, use_t::None),
-    Truly([](auto* use){
-      return (
-        use->manages_collection()
-          and use->get_managed_collection()->size() == 4
-      );
-    })
-  ))).WillOnce(Invoke([&](auto* use) { use_coll_cont = use; }));
 
   EXPECT_RELEASE_USE(use_init);
   EXPECT_RELEASE_USE(use_coll_cont);
@@ -493,6 +486,8 @@ TEST_F(TestCreateConcurrentWork, fetch) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#endif
+
 
 TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
@@ -505,28 +500,30 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow finit, fnull, fout_coll, f_in_idx[4], f_out_idx[4];
-  MockFlow finit_unpacked, fout_unpacked;
+  DECLARE_MOCK_FLOWS(
+    finit, fnull, fout_coll, finit_unpacked, fout_unpacked
+  );
+  MockFlow f_in_idx[4], f_out_idx[4];
   use_t* use_idx[4];
+  use_t* use_init = nullptr;
+  use_t* use_coll_cont = nullptr;
   use_t* use_coll = nullptr;
   use_t* use_migrated = nullptr;
   int values[4];
 
-  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, use_init, make_key("hello"), 4);
 
   EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
     .WillOnce(Return(fout_coll));
 
-  EXPECT_CALL(*mock_runtime, register_use(AllOf(
-    IsUseWithFlows(finit, fout_coll, use_t::Modify, use_t::Modify),
-    Truly([](auto* use){
-      return (
-        use->manages_collection()
-          and use->get_managed_collection()->size() == 4
-      );
-    })
-  ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
+  EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, fout_coll, Modify, Modify, 4);
+  EXPECT_REGISTER_USE_COLLECTION(use_coll_cont, fout_coll, fnull, Modify, None, 4);
+  EXPECT_RELEASE_USE(use_init);
 
+  // TODO properly constrain this
+  EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(_));
+
+  EXPECT_RELEASE_USE(use_coll_cont);
   EXPECT_FLOW_ALIAS(fout_coll, fnull);
 
   //============================================================================
@@ -553,6 +550,8 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
     );
 
   }
+  //
+  //============================================================================
 
   // "migrate" the task collection
   EXPECT_CALL(*mock_runtime, get_packed_flow_size(finit))
@@ -606,7 +605,6 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
   EXPECT_THAT(copied_collection->get_dependencies().size(), Eq(1));
 
-  //============================================================================
 
 
   // Make sure the thing still works...
@@ -649,6 +647,7 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if 0
 
 TEST_F(TestCreateConcurrentWork, many_to_one) {
 
