@@ -48,19 +48,19 @@
 namespace darma_runtime { namespace experimental { namespace backend_hint {
   enum TaskHintIdentifier {
      // a task that groups together CCWs
-    CCW_GROUPING_TASK = 2993421,
+    CCWGroupingTask = 2993421,
      // the maximum width of any CCW in a grouped task
-    CCW_MAX_WIDTH,
+    CCWMaxWidth,
      // an approximate number of CCWs in the groups task
-    CCW_COUNT,
+    CCWCount,
     // a integer type that uniquely identifies an instance of the grouping
-    CCW_GROUPING_IDENT,
+    CCWGroupingIdent,
     // the number of groupings of a certain type
-    CCW_NUM_GROUPINGS,
+    CCWNumGrouping,
     // the number of groupings of a certain type
-    CCW_GROUP_TYPE,
-    // string to stamp on user event of leaf task
-    PROJECTIONS_USER_EVENT
+    CCWGroupType,
+    // string to stamp on user event of a task
+    UserEventName
   };
 }}}
 
