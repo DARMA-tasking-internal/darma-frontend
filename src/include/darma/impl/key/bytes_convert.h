@@ -335,7 +335,7 @@ struct bytes_convert<T,
     // This indicates that the value is being retrieved as an enum type that it wasn't stored as
     DARMA_ASSERT_EQUAL(correct_index, stored_index);
     DARMA_ASSERT_EQUAL(size, sizeof(T));
-    return *static_cast<T*>(data);
+    return *static_cast<T*>(const_cast<void*>(data));
   }
 
 };

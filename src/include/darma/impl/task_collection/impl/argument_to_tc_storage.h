@@ -177,7 +177,7 @@ struct _get_storage_arg_helper<
 
   using type = typename std::decay_t<GivenArg>::template with_traits<
     typename std::decay_t<GivenArg>::traits
-      ::template with_max_schedule_permissions<
+      ::template with_max_scheduling_permissions<
         ParamTraits::template matches<decayed_is_access_handle>::value ?
           AccessHandlePermissions::Read : AccessHandlePermissions::None
       >::type::template with_max_immediate_permissions<
@@ -195,7 +195,7 @@ struct _get_storage_arg_helper<
       detail::make_captured_use_holder(
         arg.var_handle_base_,
         /* Requested Scheduling permissions: */
-        return_type::is_compile_time_schedule_readable ?
+        return_type::is_compile_time_scheduling_readable ?
           HandleUse::Read : HandleUse::None,
         /* Requested Immediate permissions: */
         // TODO check params(/args?) for schdule-only permissions request

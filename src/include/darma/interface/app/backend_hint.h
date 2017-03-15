@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      task_collection_fwd.h
+//                     backend_hint.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -36,51 +36,32 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// JL => Jonathan Lifflander (jliffla@sandia.gov)
 //
 // ************************************************************************
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
-#define DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
+#ifndef DARMA_INTERFACE_APP_BACKEND_HINT_H
+#define DARMA_INTERFACE_APP_BACKEND_HINT_H
 
-#include <cstdio> // size_t
+namespace darma_runtime { namespace experimental { namespace backend_hint {
+  enum TaskHintIdentifier {
+     // a task that groups together CCWs
+    CCWGroupingTask = 2993421,
+     // the maximum width of any CCW in a grouped task
+    CCWMaxWidth,
+     // an approximate number of CCWs in the groups task
+    CCWCount,
+    // a integer type that uniquely identifies an instance of the grouping
+    CCWGroupingIdent,
+    // the number of groupings of a certain type
+    CCWNumGrouping,
+    // the number of groupings of a certain type
+    CCWGroupType,
+    // string to stamp on user event of a task
+    UserEventName
+  };
+}}}
 
-namespace darma_runtime {
-namespace detail {
-
-typedef enum HandleCollectiveLabel {
-  Reduce = 0
-} handle_collective_label_t;
-
-template <typename AccessHandleCollectionT, typename ReduceOp, handle_collective_label_t>
-struct _collective_awaiting_assignment;
-
-
-namespace _task_collection_impl {
-
-// Argument to TaskCollectionImpl storage helper
-template <
-  typename GivenArg, typename ParamTraits, typename CollectionIndexRangeT, typename Enable=void
->
-struct _get_storage_arg_helper;
-
-template <
-  typename Functor, typename CollectionArg, size_t Position, typename Enable=void
->
-struct _get_task_stored_arg_helper;
-
-} // end namespace _task_collection_impl
-
-template <
-  typename Functor,
-  typename IndexRangeT,
-  typename... Args
->
-struct TaskCollectionImpl;
-
-} // end namespace detail
-} // end namespace darma_runtime
-
-#endif //DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
+#endif

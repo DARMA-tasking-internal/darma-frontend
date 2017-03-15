@@ -57,6 +57,7 @@
 #include <darma/impl/task_collection/task_collection_fwd.h>
 #include <darma/impl/keyword_arguments/parse.h>
 #include <darma/impl/access_handle_base.h>
+#include <darma/impl/util/optional_boolean.h>
 
 namespace _darma__errors {
 
@@ -74,7 +75,7 @@ namespace darma_runtime {
 namespace detail {
 
 template <
-  bool IsOuter = false
+  OptionalBoolean IsOuter = OptionalBoolean::Unknown
 >
 struct access_handle_collection_traits {
   static constexpr auto is_outer = IsOuter;
@@ -108,11 +109,11 @@ struct MappedHandleCollection {
     // TODO remove meaningless default ctor once I write serdes stuff
     MappedHandleCollection() = default;
 
-    template <typename MappingDeduced>
+    template <typename AccessHandleCollectionTDeduced, typename MappingDeduced>
     MappedHandleCollection(
-      AccessHandleCollectionT const& collection,
+      AccessHandleCollectionTDeduced&& collection,
       MappingDeduced&& mapping
-    ) : collection(collection),
+    ) : collection(std::forward<AccessHandleCollectionTDeduced>(collection)),
         mapping(std::forward<MappingDeduced>(mapping))
     { }
 
@@ -302,7 +303,7 @@ class IndexedAccessHandle {
         ::template with_max_immediate_permissions<
           AccessHandlePermissions::Read
         >::type
-        ::template with_max_schedule_permissions<
+        ::template with_max_scheduling_permissions<
           AccessHandlePermissions::Read
         >::type
     >
@@ -364,6 +365,12 @@ class IndexedAccessHandle {
 //==============================================================================
 
 
+// TODO this should actually be a functioning AccessHandle from the start (so that auto can be used on the RHS)
+template <typename AccessHandleCollectionT, typename ReduceOp, HandleCollectiveLabel label>
+struct _collective_awaiting_assignment {
+  AccessHandleCollectionT const& collection;
+};
+
 } // end namespace detail
 
 
@@ -380,13 +387,11 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     using index_range_type = IndexRangeT;
     using traits_t = Traits;
 
-    template <typename MappingT,
-      typename=std::enable_if_t<traits_t::is_outer and not std::is_void<MappingT>::value>
-    >
+    template <typename MappingT>
     auto mapped_with(MappingT&& mapping) const {
       return detail::MappedHandleCollection<
         ::darma_runtime::AccessHandleCollection<T, IndexRangeT,
-          detail::access_handle_collection_traits<false>
+          detail::access_handle_collection_traits<OptionalBoolean::KnownFalse>
         >,
         std::decay_t<MappingT>
       >(
@@ -424,8 +429,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     template <
       typename _Ignored_SFINAE=void,
       typename=std::enable_if_t<
-        std::is_void<_Ignored_SFINAE>::value
-          and not traits_t::is_outer
+        traits_t::is_outer != KnownTrue
+          and std::is_void<_Ignored_SFINAE>::value // should always be true
       >
     >
     auto
@@ -467,6 +472,45 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         );
       }
     }
+
+    template <typename ReduceOp, typename... Args>
+     /* TODO: attribute [[nodiscard]] in a general way */
+    auto
+    reduce(Args&&... args) const  {
+      using namespace darma_runtime::detail;
+      using parser = detail::kwarg_parser<
+        overload_description<
+          _optional_keyword<
+            converted_parameter, darma_runtime::keyword_tags_for_collectives::tag
+          >
+        >
+      >;
+      using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
+
+      // TODO output keyword
+
+      return parser()
+        .with_converters(
+          [](auto&&... parts) {
+            return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+          }
+        )
+        .with_default_generators(
+          darma_runtime::keyword_arguments_for_collectives::tag=[]{ return darma_runtime::make_key(); }
+        )
+        .parse_args(std::forward<Args>(args)...)
+        .invoke([](
+          types::key_t const& tag
+        ) -> decltype(auto) {
+
+
+
+
+        });
+
+    }
+
+
 
   // </editor-fold> end public interface functions }}}1
   //============================================================================
@@ -647,14 +691,15 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
     }
 
-    template <typename _Ignored_SFINAE=void>
+    template <typename _Ignored_SFINAE=void, typename OtherTraits>
     AccessHandleCollection(
       AccessHandleCollection<
-        T, IndexRangeT, detail::access_handle_collection_traits<true>
+        T, IndexRangeT, OtherTraits
       > const& other,
       std::enable_if_t<
-        std::is_void<_Ignored_SFINAE>::value
-          and not traits_t::is_outer,
+        traits_t::is_outer != KnownTrue
+          and traits_t::is_outer != OtherTraits::is_outer
+          and std::is_void<_Ignored_SFINAE>::value, // should always be true
         int
       > = 0
     ) : mapped_backend_index_(other.mapped_backend_index_),
@@ -674,13 +719,31 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       }
 
       if (capturing_task != nullptr) {
-        DARMA_ASSERT_FAILURE("Capturing AccessHandleCollection objects in"
-          " regular tasks is not yet supported.");
+        DARMA_ASSERT_FAILURE("Shouldn't be capturing here");
       }
     }
 
   // </editor-fold> end public ctors }}}1
   //============================================================================
+
+  public:
+
+    AccessHandleCollection& operator=(AccessHandleCollection const&) = default;
+    AccessHandleCollection& operator=(AccessHandleCollection&&) = default;
+    template <typename OtherTraits, typename _Ignored_SFINAE=void,
+      typename=std::enable_if_t<
+        traits_t::is_outer != KnownTrue
+          and traits_t::is_outer != OtherTraits::is_outer
+          and std::is_void<_Ignored_SFINAE>::value // should always be true
+        >
+    >
+    AccessHandleCollection& operator=(
+      AccessHandleCollection<T, IndexRangeT, OtherTraits> const& other
+    ) {
+      this->~AccessHandleCollection();
+      new (this) AccessHandleCollection(other);
+      return *this;
+    };
 
 
   //============================================================================
@@ -752,8 +815,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       auto map_dense = _range_traits::mapping_to_dense(idx_range);
       auto* backend_runtime = abstract::backend::get_backend_runtime();
       using _map_traits = indexing::mapping_traits<typename _range_traits::mapping_to_dense_type>;
-      for (auto&& idx : local_idxs
-        ) {
+      for (auto&& idx : local_idxs) {
         auto fe_idx = _map_traits::map_backward(map_dense, idx, idx_range);
 
         auto local_in_flow = detail::make_flow_ptr(
@@ -936,7 +998,7 @@ initial_access_collection(Args&&... args) {
   return parser()
     .parse_args(std::forward<Args>(args)...)
     .invoke(detail::AccessHandleCollectionAccess<initial_access_collection_tag,
-      T, detail::access_handle_collection_traits</* IsOuter = */ true>
+      T, detail::access_handle_collection_traits</* IsOuter = */ KnownTrue>
     >());
 };
 
@@ -992,6 +1054,39 @@ initial_access_collection(Args&&... args) {
 // </editor-fold> end serialization for AccessHandleCollection (currently disabled code) }}}1
 //==============================================================================
 
+//template <typename T, typename Traits>
+//template <typename AccessHandleCollectionT, typename ReduceOp, detail::handle_collective_label_t Label>
+//AccessHandle<T, Traits>::AccessHandle(
+//  detail::_collective_awaiting_assignment<AccessHandleCollectionT, ReduceOp, Label>&& awaiting
+//) : current_use_(current_use_base_)
+//{
+//  var_handle_ = std::make_shared<detail::VariableHandle<T>>(
+//    detail::key_traits<types::key_t>::make_awaiting_backend_assignment_key()
+//  );
+//  var_handle_base_ = var_handle_;
+//  auto* runtime = abstract::backend::get_backend_runtime();
+//  auto in_flow = detail::make_flow_ptr(runtime->make_initial_flow(var_handle_));
+//  auto out_flow = detail::make_next_flow_ptr(in_flow, runtime);
+//
+//  // TODO make sure using an initial flow this way doesn't mess up the backend
+//  current_use_ = detail::UseHolder(detail::HandleUse(
+//    var_handle_,
+//    in_flow, out_flow,
+//    detail::HandleUse::None, /* scheduling permissions */
+//    detail::HandleUse::Modify /* immediate permissions */ // TODO change this to Write
+//  ));
+//
+//  darma_runtime::detail::SimpleCollectiveDetails<ReduceOp, T>(
+//
+//  );
+//  runtime->allreduce_collection_use(
+//    awaiting.collection.current_use_.get(),
+//    current_use_.get(),
+//
+//
+//  )
+
+//};
 
 } // end namespace darma_runtime
 

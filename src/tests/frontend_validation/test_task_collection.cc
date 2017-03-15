@@ -154,9 +154,8 @@ TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
   // actual code being tested
   {
 
-    //auto tmp = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
-    //auto tmp = initial_access<int>("hello");
-    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
+    AccessHandleCollection<int, Range1D<int>> tmp_c;
+    tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
 
 
     struct Foo {

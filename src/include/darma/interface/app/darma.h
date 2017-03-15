@@ -58,4 +58,6 @@
 
 #include <darma/interface/app/containers.h>
 
+#include <darma/interface/app/backend_hint.h>
+
 #endif /* SRC_INTERFACE_APP_DARMA_H_ */

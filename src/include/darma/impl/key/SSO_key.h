@@ -404,9 +404,9 @@ class SSOKey
 
         char const* data;
         PieceSizeOrdinal size;
-        bytes_type_metadata const* md;
 
       public:
+        bytes_type_metadata const* md;
 
         SSOKeyComponent(
           char const* data,
@@ -685,6 +685,11 @@ struct key_traits<
   static bool
   needs_backend_key(sso_key_t const& key) {
     return key._needs_backend_assigned_key();
+  }
+
+  static sso_key_t
+  make_awaiting_backend_assignment_key() {
+    return sso_key_t(typename sso_key_t::request_backend_assigned_key_tag{});
   }
 
 };

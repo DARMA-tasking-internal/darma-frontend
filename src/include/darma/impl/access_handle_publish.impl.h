@@ -51,6 +51,8 @@
 #include <darma/impl/keyword_arguments/parse.h>
 #include <darma/impl/capture.h>
 
+// TODO move this to access_handle sub-directory when we're at a stable merge point
+
 namespace darma_runtime {
 
 #if _darma_has_feature(publish_fetch)
@@ -125,7 +127,7 @@ struct _publish_impl {
 template < typename T, typename Traits >
 template < typename _Ignored, typename... PublishExprParts >
 std::enable_if_t<
-  AccessHandle<T, Traits>::is_compile_time_schedule_readable
+  AccessHandle<T, Traits>::is_compile_time_scheduling_readable
     and std::is_same<_Ignored, void>::value
 >
 AccessHandle<T, Traits>::publish(

@@ -55,6 +55,7 @@
 
 #include <darma/impl/array/indexable.h>
 #include <darma/impl/meta/has_op.h>
+#include <darma/impl/polymorphic_serialization.h>
 
 namespace darma_runtime {
 
@@ -63,8 +64,17 @@ namespace detail {
 
 template <typename Op, typename value_type>
 class ReduceOperationWrapper
-  : public abstract::frontend::ReduceOp
+  : public darma_runtime::detail::PolymorphicSerializationAdapter<
+      ReduceOperationWrapper<Op, value_type>,
+      abstract::frontend::ReduceOp
+    >,
+    public darma_runtime::serialization::detail::SerializationManagerForType<
+      value_type
+    >
 {
+
+  //============================================================================
+  // <editor-fold desc="private type aliases and detection helpers"> {{{1
 
   private:
 
@@ -74,30 +84,51 @@ class ReduceOperationWrapper
 
     template <typename T>
     using _has_element_type_reduce_archetype = decltype(
-      std::declval<T>().reduce(
-        std::declval<element_type>(),
-        std::declval<std::add_lvalue_reference_t<element_type>>()
-      )
+    std::declval<T>().reduce(
+      std::declval<element_type>(),
+      std::declval<std::add_lvalue_reference_t<element_type>>()
+    )
     );
 
     template <typename T>
     using _has_value_type_reduce_archetype = decltype(
-      std::declval<T>().reduce(
-        std::declval<value_type>(),
-        std::declval<std::add_lvalue_reference_t<value_type>>(),
-        size_t(), size_t()
-      )
+    std::declval<T>().reduce(
+      std::declval<value_type>(),
+      std::declval<std::add_lvalue_reference_t<value_type>>(),
+      size_t(), size_t()
+    )
     );
 
     template <typename T>
     using _has_unindexed_value_type_reduce_archetype = decltype(
-      std::declval<T>().reduce(
-        std::declval<value_type>(),
-        std::declval<std::add_lvalue_reference_t<value_type>>()
-      )
+    std::declval<T>().reduce(
+      std::declval<value_type>(),
+      std::declval<std::add_lvalue_reference_t<value_type>>()
+    )
     );
 
-    template <typename ValueTypeDeduced, typename _IgnoredCondition, typename _Ignored2>
+    template <typename T>
+    using _is_indexed_archetype = std::integral_constant<bool, T::is_indexed>;
+
+    using is_indexed_t = typename meta::detected_or_t<
+      std::true_type,
+      _is_indexed_archetype, Op
+    >::type;
+
+  // </editor-fold> end private type aliases and detection helpers }}}1
+  //============================================================================
+
+
+  //============================================================================
+  // <editor-fold desc="_do_reduce()"> {{{1
+
+  private:
+
+    template <
+      typename ValueTypeDeduced,
+      typename _IgnoredCondition,
+      typename _Ignored2
+    >
     void _do_reduce(
       _IgnoredCondition, // has value_type reduce
       std::true_type, // has unindexed value_type reduce
@@ -106,13 +137,18 @@ class ReduceOperationWrapper
       ValueTypeDeduced const& piece,
       ValueTypeDeduced& dest,
       size_t, size_t
-    ) const {
+    ) const
+    {
       Op().reduce(
         piece, dest
       );
     }
 
-    template <typename ValueTypeDeduced, typename _IgnoredCondition, typename _Ignored2>
+    template <
+      typename ValueTypeDeduced,
+      typename _IgnoredCondition,
+      typename _Ignored2
+    >
     void _do_reduce(
       std::true_type, // has value_type reduce
       _IgnoredCondition, // has unindexed value_type reduce
@@ -121,7 +157,8 @@ class ReduceOperationWrapper
       ValueTypeDeduced const& piece,
       ValueTypeDeduced& dest,
       size_t offset, size_t n_elem
-    ) const {
+    ) const
+    {
       Op().reduce(
         piece, dest, offset, n_elem
       );
@@ -137,44 +174,57 @@ class ReduceOperationWrapper
       ValueTypeDeduced const& piece,
       ValueTypeDeduced& dest,
       size_t offset, size_t n_elem
-    ) const {
-      for(size_t i = 0; i < n_elem; ++i) {
+    ) const
+    {
+      for (size_t i = 0; i < n_elem; ++i) {
         Op().reduce(
           const_idx_traits::get_element(piece, i),
-          idx_traits::get_element(dest, i+offset)
+          idx_traits::get_element(dest, i + offset)
         );
       }
     }
 
-    template <typename T>
-    using _is_indexed_archetype = std::integral_constant<bool, T::is_indexed>;
+  // </editor-fold> end _do_reduce() }}}1
+  //============================================================================
 
-    using is_indexed_t = typename meta::detected_or_t<std::true_type,
-      _is_indexed_archetype, Op
-    >::type;
 
   public:
 
     static constexpr auto is_indexed = is_indexed_t::value;
 
+    // Empty serialize, since this class is stateless except for the vtable
+    template <typename Archive>
+    void serialize(Archive& ar) { /* intentionally empty */ }
+
+  //==============================================================================
+  // <editor-fold desc="abstract::frontend::ReduceOp virtual methods"> {{{1
+
+  public:
 
     void
     reduce_unpacked_into_unpacked(
       void const* piece, void* dest,
       size_t offset, size_t n_elem
-    ) const override {
+    ) const override
+    {
 
-      using _has_element_type_reduce = tinympl::bool_<meta::is_detected<
-        _has_element_type_reduce_archetype, Op
-      >::value and is_indexed>;
+      using _has_element_type_reduce = tinympl::bool_<
+        meta::is_detected<
+          _has_element_type_reduce_archetype, Op
+        >::value and is_indexed
+      >;
 
-      using _has_value_type_reduce = tinympl::bool_<meta::is_detected<
-        _has_value_type_reduce_archetype, Op
-      >::value>;
+      using _has_value_type_reduce = tinympl::bool_<
+        meta::is_detected<
+          _has_value_type_reduce_archetype, Op
+        >::value
+      >;
 
-      using _has_unindexed_value_type_reduce = tinympl::bool_<meta::is_detected<
-        _has_unindexed_value_type_reduce_archetype, Op
-      >::value>;
+      using _has_unindexed_value_type_reduce = tinympl::bool_<
+        meta::is_detected<
+          _has_unindexed_value_type_reduce_archetype, Op
+        >::value
+      >;
 
       assert(is_indexed or (offset == 0 and n_elem == 1));
 
@@ -188,6 +238,14 @@ class ReduceOperationWrapper
         offset, n_elem
       );
     };
+
+    abstract::frontend::SerializationManager const*
+    get_serialization_manager_for_values() const override {
+      return this;
+    }
+
+  // </editor-fold> end abstract::frontend::ReduceOp virtual methods }}}1
+  //============================================================================
 
 };
 

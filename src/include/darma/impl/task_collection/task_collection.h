@@ -199,6 +199,7 @@ struct TaskCollectionImpl
         int
       >
       operator()(TaskCollectionT& tc, MappedHandleCollectionT&& mcoll) const {
+
         using tc_index_range_traits = typename TaskCollectionT::index_range_traits;
         using handle_index_range_t = typename std::decay_t<MappedHandleCollectionT>
           ::access_handle_collection_t::index_range_type;
@@ -206,7 +207,9 @@ struct TaskCollectionImpl
           typename std::decay_t<MappedHandleCollectionT>::mapping_t,
           typename tc_index_range_traits::mapping_to_dense_type
         >;
+
         assert(not mcoll.collection.current_use_->is_registered);
+
         mcoll.collection.current_use_ = std::make_shared<
           GenericUseHolder<CollectionManagingUse<handle_index_range_t>>
         >(
@@ -219,7 +222,9 @@ struct TaskCollectionImpl
             )
           )
         );
+
         tc.add_dependency(mcoll.collection.current_use_->use.get());
+
         return 0;
       }
 

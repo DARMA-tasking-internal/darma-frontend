@@ -48,7 +48,7 @@
 #define _darma_backend_has_all_features 1
 
 #define _darma_backend_feature_progress_date 20990101 // for now
-#define _darma_has_feature_handle_collection_based_collectives 0
+
 #define _darma_has_feature_resilient_tasks 0
 
 #endif //DARMA_DARMA_FEATURES_H

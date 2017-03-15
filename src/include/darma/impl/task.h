@@ -199,7 +199,7 @@ class TaskBase : public abstract::frontend::Task
     bool
     is_migratable() const override {
       // Ignored for now:
-      return false;
+      return not runnable_->is_lambda_like_runnable;
     }
 
     size_t get_packed_size() const override {

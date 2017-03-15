@@ -146,9 +146,6 @@ class compressed_pair_part_impl<T1, /* IsEmpty = */ false> {
       : t1_(std::forward<Args>(args)...)
     { }
 
-    compressed_pair_part_impl(compressed_pair_part_impl const&) = default;
-    compressed_pair_part_impl(compressed_pair_part_impl&&) = default;
-
   private:
 
     using reference = std::add_lvalue_reference_t<T1>;
@@ -180,9 +177,6 @@ class compressed_pair_part_impl<T1, /* IsEmpty = */ true>
     compressed_pair_part_impl(Args&&... args)
       : T1(std::forward<Args>(args)...)
     { }
-
-    compressed_pair_part_impl(compressed_pair_part_impl const&) = default;
-    compressed_pair_part_impl(compressed_pair_part_impl&&) = default;
 
   private:
 
@@ -352,9 +346,6 @@ class compressed_pair_impl
       std::index_sequence_for<Args2...>()
     ) { }
 
-    compressed_pair_impl(compressed_pair_impl const&) = default;
-    compressed_pair_impl(compressed_pair_impl&&) = default;
-
 };
 
 
@@ -374,6 +365,13 @@ class compressed_pair
     using base_t::base_t;
     using base_t::first;
     using base_t::second;
+
+
+    compressed_pair() = default;
+    compressed_pair(compressed_pair const&) = default;
+    compressed_pair(compressed_pair&&) = default;
+    compressed_pair& operator=(compressed_pair const&) = default;
+    compressed_pair& operator=(compressed_pair&&) = default;
 
 };
 
