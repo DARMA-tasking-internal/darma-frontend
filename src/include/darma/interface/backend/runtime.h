@@ -544,8 +544,15 @@ class Runtime {
 #if _darma_has_feature(simple_collectives)
     virtual void
     allreduce_use(
-      frontend::Use* use_in,
-      frontend::Use* use_out,
+      std::unique_ptr<frontend::Use>&& use_in_out,
+      frontend::CollectiveDetails const* details,
+      types::key_t const& tag
+    ) =0;
+
+    virtual void
+    allreduce_use(
+      std::unique_ptr<frontend::Use>&& use_in,
+      std::unique_ptr<frontend::Use>&& use_out,
       frontend::CollectiveDetails const* details,
       types::key_t const& tag
     ) =0;
@@ -554,8 +561,8 @@ class Runtime {
 #if _darma_has_feature(handle_collection_based_collectives)
     virtual void
     reduce_collection_use(
-      frontend::Use* use_collection_in,
-      frontend::Use* use_out,
+      std::unique_ptr<frontend::Use>&& use_collection_in,
+      std::unique_ptr<frontend::Use>&& use_out,
       frontend::CollectiveDetails const* details,
       types::key_t const& tag
     ) =0;

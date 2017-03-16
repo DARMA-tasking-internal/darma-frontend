@@ -120,6 +120,39 @@ class MockRuntime
       return rv;
     }
 
+    void allreduce_use(
+      std::unique_ptr<use_t>&& use_in_out,
+      darma_runtime::abstract::frontend::CollectiveDetails const* details,
+      key_t const& tag
+    ) override {
+      allreduce_use_gmock_proxy(use_in_out.get(), details, tag);
+      backend_owned_uses.emplace_back(std::move(use_in_out));
+    }
+
+    void allreduce_use(
+      std::unique_ptr<use_t>&& use_in,
+      std::unique_ptr<use_t>&& use_out,
+      darma_runtime::abstract::frontend::CollectiveDetails const* details,
+      key_t const& tag
+    ) override {
+      allreduce_use_gmock_proxy(use_in.get(), use_out.get(), details, tag);
+      backend_owned_uses.emplace_back(std::move(use_in));
+      backend_owned_uses.emplace_back(std::move(use_out));
+    }
+
+    void reduce_collection_use(
+      std::unique_ptr<use_t>&& use_collection_in,
+      std::unique_ptr<use_t>&& use_out,
+      darma_runtime::abstract::frontend::CollectiveDetails const* details,
+      key_t const& tag
+    ) override {
+      reduce_collection_use_gmock_proxy(use_collection_in.get(), use_out.get(),
+        details, tag
+      );
+      backend_owned_uses.emplace_back(std::move(use_collection_in));
+      backend_owned_uses.emplace_back(std::move(use_out));
+    }
+
 
 #ifdef __clang__
 #if __has_warning("-Winconsistent-missing-override")
@@ -156,11 +189,17 @@ class MockRuntime
     MOCK_METHOD2(allocate, void*(size_t,
       darma_runtime::abstract::frontend::MemoryRequirementDetails const&));
     MOCK_METHOD2(deallocate, void(void*, size_t));
-    MOCK_METHOD4(allreduce_use, void(use_t*, use_t*,
+
+
+    MOCK_METHOD3(allreduce_use_gmock_proxy, void(use_t*,
       darma_runtime::abstract::frontend::CollectiveDetails const*,
       key_t const&
     ));
-    MOCK_METHOD4(reduce_collection_use, void(use_t*, use_t*,
+    MOCK_METHOD4(allreduce_use_gmock_proxy, void(use_t*, use_t*,
+      darma_runtime::abstract::frontend::CollectiveDetails const*,
+      key_t const&
+    ));
+    MOCK_METHOD4(reduce_collection_use_gmock_proxy, void(use_t*, use_t*,
       darma_runtime::abstract::frontend::CollectiveDetails const*,
       key_t const&
     ));
@@ -187,6 +226,7 @@ class MockRuntime
     bool save_tasks = true;
     std::deque<task_unique_ptr> registered_tasks;
     std::deque<task_collection_unique_ptr> task_collections;
+    std::deque<std::unique_ptr<use_t>> backend_owned_uses;
 };
 
 

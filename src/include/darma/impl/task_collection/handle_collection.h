@@ -300,10 +300,10 @@ class IndexedAccessHandle {
     template <typename... Args>
     typename AccessHandleT::template with_traits<
       typename AccessHandleT::traits
-        ::template with_max_immediate_permissions<
+        ::template with_static_immediate_permissions<
           AccessHandlePermissions::Read
         >::type
-        ::template with_max_scheduling_permissions<
+        ::template with_static_scheduling_permissions<
           AccessHandlePermissions::Read
         >::type
     >
@@ -474,12 +474,14 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     }
 
     template <typename ReduceOp, typename... Args>
-     /* TODO: attribute [[nodiscard]] in a general way */
     auto
     reduce(Args&&... args) const  {
       using namespace darma_runtime::detail;
       using parser = detail::kwarg_parser<
         overload_description<
+          _keyword< /* required for now */
+            deduced_parameter, darma_runtime::keyword_tags_for_collectives::output
+          >,
           _optional_keyword<
             converted_parameter, darma_runtime::keyword_tags_for_collectives::tag
           >
@@ -487,7 +489,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       >;
       using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
 
-      // TODO output keyword
+      // TODO somehow check if we're inside a task collection
 
       return parser()
         .with_converters(
@@ -496,14 +498,26 @@ class AccessHandleCollection : public detail::AccessHandleBase {
           }
         )
         .with_default_generators(
-          darma_runtime::keyword_arguments_for_collectives::tag=[]{ return darma_runtime::make_key(); }
+          darma_runtime::keyword_arguments_for_collectives::tag=[]{
+            return darma_runtime::make_key();
+          }
         )
         .parse_args(std::forward<Args>(args)...)
         .invoke([](
+          auto& output_handle,
           types::key_t const& tag
         ) -> decltype(auto) {
 
+          auto* backend_runtime = abstract::backend::get_backend_runtime();
 
+          auto out_use_holder = detail::make_captured_use_holder(
+            output_handle.var_handle_,
+            /* requested_scheduling_permissions */
+            HandleUse::None,
+            /* requested_immediate_permissions */
+            HandleUse::Modify,
+            output_handle.current_use_.get()
+          );
 
 
         });
@@ -526,7 +540,16 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
   protected:
 
-    // TODO write something like this as a virtual overload of an AccessHandleBase method
+    decltype(auto)
+    _call_make_captured_use_holder_impl(
+      std::shared_ptr<detail::VariableHandleBase> var_handle,
+      detail::HandleUse::permissions_t req_sched_perms,
+      detail::HandleUse::permissions_t req_immed_perms,
+      detail::AccessHandleBase const& source_in
+    ) {
+
+    }
+
     void call_make_captured_use_holder(
       std::shared_ptr<detail::VariableHandleBase> var_handle,
       detail::HandleUse::permissions_t req_sched_perms,

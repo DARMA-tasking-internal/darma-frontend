@@ -347,16 +347,6 @@ struct AccessHandleAccess {
 // </editor-fold>
 //==============================================================================
 
-//==============================================================================
-// <editor-fold desc="access_handle_traits and helpers">
-
-namespace detail {
-
-} // end namespace detail
-
-// </editor-fold>
-//==============================================================================
-
 // Forward declaration of AccessHandle
 template <
   typename T = void,

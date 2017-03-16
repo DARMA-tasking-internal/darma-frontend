@@ -177,3 +177,40 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+TEST_F(TestInitialAccess, call_sequence_copy_assign) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::detail;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  DECLARE_MOCK_FLOWS(f_in_1, f_out_1, f_in_2, f_out_2);
+
+  {
+    InSequence s;
+
+    EXPECT_INITIAL_ACCESS(f_in_2, f_out_2, make_key("world"));
+    EXPECT_INITIAL_ACCESS(f_in_1, f_out_1, make_key("hello"));
+
+    EXPECT_FLOW_ALIAS(f_in_1, f_out_1);
+
+    EXPECT_CALL(*sequence_marker, mark_sequence("in between"));
+
+    EXPECT_FLOW_ALIAS(f_in_2, f_out_2);
+  }
+
+  {
+    auto tmp2 = initial_access<int>("world");
+    auto tmp1 = initial_access<int,
+      darma::advanced::access_handle_traits::copy_assignable<true>
+    >("hello");
+
+    // Replace tmp1, since that should be allowed now
+    tmp1 = tmp2;
+
+    sequence_marker->mark_sequence("in between");
+
+  }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////

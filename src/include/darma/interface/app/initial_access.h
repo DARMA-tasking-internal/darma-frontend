@@ -58,7 +58,7 @@ namespace darma_runtime {
 
 namespace detail {
 
-template <typename T>
+template <typename T, typename... TraitsFlags>
 struct _initial_access_key_helper {
 
   decltype(auto)
@@ -71,7 +71,14 @@ struct _initial_access_key_helper {
     auto out_flow = detail::make_flow_ptr(
       backend_runtime->make_null_flow( var_h )
     );
-    return detail::access_attorneys::for_AccessHandle::construct_access<T>(
+    return AccessHandle<T,
+      typename make_access_handle_traits<TraitsFlags...>::template from_traits<
+        make_access_handle_traits_t<
+          static_scheduling_permissions<AccessHandlePermissions::Modify>,
+          copy_assignable_handle<false>
+        >
+      >::type
+    >(
       var_h, in_flow, out_flow, detail::HandleUse::Modify, detail::HandleUse::None
     );
   }
@@ -83,7 +90,7 @@ struct _initial_access_key_helper {
       std::forward<Arg>(arg),
       std::forward<decltype(args)>(args)...
     );
-    return _impl(key);
+    return this->_impl(key);
   }
 
   decltype(auto)
@@ -92,7 +99,7 @@ struct _initial_access_key_helper {
     types::key_t key = darma_runtime::types::key_t(
       types::key_t::request_backend_assigned_key_tag{}
     );
-    return _impl(key);
+    return this->_impl(key);
   }
 
 };
@@ -100,10 +107,10 @@ struct _initial_access_key_helper {
 } // end namespace detail
 
 template <
-  typename T=void,
+  typename T, typename... TraitsFlags,
   typename... KeyExprParts
 >
-AccessHandle<T>
+auto
 initial_access(
   KeyExprParts&&... parts
 ) {
@@ -115,7 +122,7 @@ initial_access(
 
   return parser()
     .parse_args(std::forward<KeyExprParts>(parts)...)
-    .invoke(detail::_initial_access_key_helper<T>{});
+    .invoke(detail::_initial_access_key_helper<T, TraitsFlags...>{});
 }
 
 } // end namespace darma_runtime

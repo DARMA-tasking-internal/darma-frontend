@@ -67,6 +67,44 @@ class TestAccessHandle_publish_MM_Test;
 #include <darma/interface/app/initial_access.h>
 #include <darma/interface/app/read_access.h>
 
+#include <darma/impl/util/static_assertions.h>
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Static traits tests
+using namespace darma_runtime;
+
+STATIC_ASSERT_TYPE_EQ(
+  AccessHandle<int, detail::make_access_handle_traits_t<
+    detail::copy_assignable_handle<true>
+  >>,
+  AccessHandle<int, detail::access_handle_traits<
+    detail::access_handle_permissions_traits<>,
+    detail::access_handle_collection_capture_traits<>,
+    detail::access_handle_semantic_traits<OptionalBoolean::KnownTrue>
+  >>
+);
+
+STATIC_ASSERT_TYPE_EQ(
+  AccessHandle<int, typename detail::make_access_handle_traits<
+    detail::copy_assignable_handle<true>
+  >::template from_traits<
+    detail::make_access_handle_traits_t<
+      detail::static_scheduling_permissions<detail::AccessHandlePermissions::Modify>,
+      detail::copy_assignable_handle<false>
+    >
+  >::type>,
+  AccessHandle<int, detail::access_handle_traits<
+    detail::access_handle_permissions_traits<
+      detail::AccessHandlePermissions::NotGiven,
+      detail::AccessHandlePermissions::NotGiven,
+      detail::AccessHandlePermissions::Modify
+    >,
+    detail::access_handle_collection_capture_traits<>,
+    detail::access_handle_semantic_traits<OptionalBoolean::KnownTrue>
+  >>
+);
+
 ////////////////////////////////////////////////////////////////////////////////
 
 class TestAccessHandle

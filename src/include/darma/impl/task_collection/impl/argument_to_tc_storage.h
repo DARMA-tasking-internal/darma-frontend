@@ -143,9 +143,9 @@ struct _get_storage_arg_helper<
     );
     using collection_range_traits = typename TaskCollectionT::index_range_traits;
     auto coll_mapping_to_dense = collection_range_traits::mapping_to_dense(collection.collection_range_);
-    std::size_t backend_owning_index = coll_mapping_to_dense.map_forward(arg.owning_index_);
+    std::size_t backend_owning_index = coll_mapping_to_dense.map_forward(arg.owning_index());
     rv.current_use_->use->collection_owner_ = backend_owning_index;
-    rv.owning_backend_index_ = backend_owning_index;
+    rv.owning_backend_index() = backend_owning_index;
     collection.add_dependency(rv.current_use_->use.get());
     return rv;
   }
@@ -177,10 +177,10 @@ struct _get_storage_arg_helper<
 
   using type = typename std::decay_t<GivenArg>::template with_traits<
     typename std::decay_t<GivenArg>::traits
-      ::template with_max_scheduling_permissions<
+      ::template with_static_scheduling_permissions<
         ParamTraits::template matches<decayed_is_access_handle>::value ?
           AccessHandlePermissions::Read : AccessHandlePermissions::None
-      >::type::template with_max_immediate_permissions<
+      >::type::template with_static_immediate_permissions<
         // TODO check for a schedule-only AccessHandle parameter
         AccessHandlePermissions::Read
     >::type
