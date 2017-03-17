@@ -124,6 +124,42 @@ TEST_F(TestInitialAccess, call_sequence_helper) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// Same as call_sequence, but with delayed assignment
+TEST_F(TestInitialAccess, call_sequence_helper_2) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  DECLARE_MOCK_FLOWS(f_in, f_out, f_in_2, f_out_2);
+
+  EXPECT_INITIAL_ACCESS(f_in, f_out, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out));
+
+  EXPECT_RELEASE_FLOW(f_in);
+  EXPECT_RELEASE_FLOW(f_out);
+
+
+  {
+    AccessHandle<int> tmp{};
+    AccessHandle<int> tmp2{};
+
+    STATIC_ASSERT_VALUE_EQUAL(
+      tmp.is_known_not_copy_assignable,
+      false
+    );
+
+    tmp = initial_access<int>("hello");
+    tmp2 = tmp;
+
+
+
+  } // tmp2, tmp deleted
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestInitialAccess, call_sequence_assign) {
   using namespace ::testing;
   using namespace darma_runtime;

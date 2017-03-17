@@ -100,7 +100,8 @@ template <
   optional_boolean_t IsCopyAssignable = OptionalBoolean::Unknown
 >
 struct access_handle_semantic_traits {
-  static constexpr auto is_copy_assignable = true;
+  // TODO add an "assignable once" mode for classes and stuff
+  static constexpr auto is_copy_assignable = IsCopyAssignable;
 };
 
 // </editor-fold> end Various categories of traits }}}1

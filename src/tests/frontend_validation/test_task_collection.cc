@@ -283,8 +283,8 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
 
     EXPECT_RELEASE_USE(use_idx[i]);
 
-    EXPECT_CALL(*mock_runtime, allreduce_use(
-      Eq(ByRef(use_allred[i])), Eq(ByRef(use_allred[i])), _, _)
+    EXPECT_CALL(*mock_runtime, allreduce_use_gmock_proxy(
+      Eq(ByRef(use_allred[i])), _, _)
     );
 
     EXPECT_RELEASE_USE(use_allred[i]);

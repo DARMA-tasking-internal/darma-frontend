@@ -234,11 +234,12 @@ class AccessHandle : public detail::AccessHandleBase {
     template <typename AccessHandleT>
     std::enable_if_t<
       is_convertible_from_access_handle<AccessHandleT>::value
+        and not std::is_same<AccessHandleT, AccessHandle>::value
         and not is_known_not_copy_assignable,
       AccessHandle&
     >
     operator=(AccessHandleT const& other) {
-      // Don't need to check copy ctor, since it shouldn't be a capture
+      // Don't need go through copy ctor, since it shouldn't be a capture
       assert(not _is_capturing_copy());
       this->detail::AccessHandleBase::operator=(other);
 
@@ -252,8 +253,28 @@ class AccessHandle : public detail::AccessHandleBase {
       return *this;
     }
 
+    template <typename AccessHandleT,
+      typename=std::enable_if_t<
+        is_convertible_from_access_handle<AccessHandleT>::value
+          and not std::is_same<AccessHandleT, AccessHandle>::value
+          and std::is_rvalue_reference<AccessHandleT&&>::value
+          and not is_known_not_copy_assignable
+      >
+    >
     AccessHandle&
-    operator=(AccessHandle&& other) = default;
+    operator=(AccessHandleT&& /*note: not a universal reference! */ other) {
+      this->detail::AccessHandleBase::operator=(std::move(other));
+      var_handle_ = std::move(other.var_handle_);
+      var_handle_base_ = var_handle_;
+      unfetched_ = std::move(other.unfetched_);
+      current_use_ = std::move(other.current_use_);
+      assert(prev_copied_from() == nullptr);
+      assert(other.prev_copied_from() == nullptr);
+      other_private_members_.second() = std::move(
+        other.other_private_members_.second()
+      );
+      return *this;
+    };
 
     AccessHandle const&
     operator=(std::nullptr_t) const {
@@ -479,6 +500,9 @@ class AccessHandle : public detail::AccessHandleBase {
     //--------------------------------------------------------------------------
     // <editor-fold desc="move constructors"> {{{2
 
+    template <typename _Ignored_SFINAE=void,
+      typename=std::enable_if_t<std::is_void<_Ignored_SFINAE>::value>
+    >
     AccessHandle(AccessHandle&& other)
       : detail::AccessHandleBase(std::move(other)),
         var_handle_(std::move(other.var_handle_)),
@@ -523,6 +547,10 @@ class AccessHandle : public detail::AccessHandleBase {
       var_handle_base_ = var_handle_;
     }
 
+    // need to make this a template to avoid deleting templated assignment operators
+    template <typename _Ignored_SFINAE=void,
+      typename=std::enable_if_t<std::is_void<_Ignored_SFINAE>::value>
+    >
     AccessHandle(AccessHandle const&& other) noexcept
       : AccessHandle(std::move(const_cast<AccessHandle&>(other)))
     { /* forwarding ctor, must be empty */ }
@@ -984,19 +1012,6 @@ class AccessHandle : public detail::AccessHandleBase {
   // <editor-fold desc="implicit conversions and reinterpretations"> {{{1
 
   public:
-
-
-//    template <
-//      typename AccessHandleT,
-//      typename=std::enable_if_t<
-//        std::decay_t<AccessHandleT>
-//        ::template is_convertible_from_access_handle<AccessHandle>::value
-//      >
-//    >
-//    operator AccessHandleT()
-//    {
-//      return { *reinterpret_cast<AccessHandleT*>(this) };
-//    }
 
     template <
       typename AccessHandleT,
