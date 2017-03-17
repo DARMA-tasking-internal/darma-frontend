@@ -234,7 +234,6 @@ class AccessHandle : public detail::AccessHandleBase {
     template <typename AccessHandleT>
     std::enable_if_t<
       is_convertible_from_access_handle<AccessHandleT>::value
-        and not std::is_same<AccessHandleT, AccessHandle>::value
         and not is_known_not_copy_assignable,
       AccessHandle&
     >
@@ -247,8 +246,7 @@ class AccessHandle : public detail::AccessHandleBase {
       var_handle_base_ = var_handle_;
       unfetched_ = other.unfetched_;
       current_use_ = other.current_use_;
-      assert(prev_copied_from() == nullptr);
-      assert(other.prev_copied_from() == nullptr);
+      // safely ignore prev_copied_from
       other_private_members_.second() = other.other_private_members_.second();
       return *this;
     }
@@ -256,9 +254,7 @@ class AccessHandle : public detail::AccessHandleBase {
     template <typename AccessHandleT,
       typename=std::enable_if_t<
         is_convertible_from_access_handle<AccessHandleT>::value
-          and not std::is_same<AccessHandleT, AccessHandle>::value
           and std::is_rvalue_reference<AccessHandleT&&>::value
-          and not is_known_not_copy_assignable
       >
     >
     AccessHandle&
@@ -268,8 +264,7 @@ class AccessHandle : public detail::AccessHandleBase {
       var_handle_base_ = var_handle_;
       unfetched_ = std::move(other.unfetched_);
       current_use_ = std::move(other.current_use_);
-      assert(prev_copied_from() == nullptr);
-      assert(other.prev_copied_from() == nullptr);
+      // Safely ignore prev_copied_from
       other_private_members_.second() = std::move(
         other.other_private_members_.second()
       );
@@ -454,6 +449,7 @@ class AccessHandle : public detail::AccessHandleBase {
       std::enable_if_t<
         is_convertible_from_access_handle<AccessHandleT>::value
           and not is_collection_captured
+          and not is_reinterpret_castable_from_access_handle<std::decay_t<AccessHandleT>>::value
           and access_handle_is_collection_captured<std::decay_t<AccessHandleT>>::value,
         detail::_not_a_type_numbered<0>
       > = {detail::_not_a_type_ctor_tag}

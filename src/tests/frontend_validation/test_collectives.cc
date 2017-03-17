@@ -157,7 +157,6 @@ TEST_P(Test_simple_allreduce, overloads) {
       Eq(make_key("world")
     )));
 
-    EXPECT_RELEASE_USE(reduce_use);
   } // end of sequence
 
 

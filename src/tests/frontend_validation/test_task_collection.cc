@@ -287,8 +287,6 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
       Eq(ByRef(use_allred[i])), _, _)
     );
 
-    EXPECT_RELEASE_USE(use_allred[i]);
-
     EXPECT_FLOW_ALIAS(f_allred_out[i], f_out_idx[i]);
 
     created_task->run();
