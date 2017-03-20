@@ -198,6 +198,8 @@ class Use {
       return std::numeric_limits<std::size_t>::max();
     }
 
+    virtual ~Use() = default;
+
 };
 
 } // end namespace frontend

@@ -152,6 +152,8 @@ class HandleUseBase
     HandleUseBase& operator=(HandleUseBase const&) = default;
     HandleUseBase& operator=(HandleUseBase&&) = default;
 
+    virtual ~HandleUseBase() = default;
+
 };
 
 class HandleUse
@@ -280,6 +282,9 @@ class CollectionManagingUseBase
           >(std::forward<MappingToTaskCollectionDeduced>(mapping))
         )
     { }
+
+    CollectionManagingUseBase(CollectionManagingUseBase&&) = default;
+    virtual ~CollectionManagingUseBase() = default;
 };
 
 

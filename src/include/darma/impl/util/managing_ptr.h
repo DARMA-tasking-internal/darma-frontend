@@ -271,7 +271,7 @@ class managing_ptr {
     smart_ptr_t const&
     get_smart_ptr() const { return smart_ptr_; }
 
-    smart_ptr_t&&
+    smart_ptr_t
     release_smart_ptr() {
       _assign_managed(nullptr);
       return std::move(smart_ptr_);

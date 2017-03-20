@@ -364,13 +364,6 @@ class IndexedAccessHandle {
 // </editor-fold> end IndexedAccessHandle }}}1
 //==============================================================================
 
-
-// TODO this should actually be a functioning AccessHandle from the start (so that auto can be used on the RHS)
-template <typename AccessHandleCollectionT, typename ReduceOp, HandleCollectiveLabel label>
-struct _collective_awaiting_assignment {
-  AccessHandleCollectionT const& collection;
-};
-
 } // end namespace detail
 
 
@@ -419,6 +412,72 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     using element_use_holder_ptr = types::shared_ptr_template<detail::UseHolder>;
 
     using _range_traits = indexing::index_range_traits<index_range_type>;
+
+    auto
+    _call_make_captured_use_holder_impl(
+      std::shared_ptr<detail::VariableHandleBase> var_handle,
+      detail::HandleUse::permissions_t req_sched_perms,
+      detail::HandleUse::permissions_t req_immed_perms,
+      detail::AccessHandleBase const& source_in
+    ) const {
+      auto* source =
+        detail::safe_static_cast<AccessHandleCollection const*>(&source_in);
+      auto continuing_use_maker = [&](
+        auto handle,
+        auto const& in_flow, auto const& out_flow,
+        auto scheduling_permissions,
+        auto immediate_permissions
+      ) {
+        return darma_runtime::detail::CollectionManagingUse<
+          std::decay_t<
+            IndexRangeT>>(
+          handle, in_flow, out_flow,
+          scheduling_permissions, immediate_permissions,
+          source->current_use_->use->index_range
+        );
+      };
+
+      auto next_use_holder_maker = [&](
+        auto handle,
+        auto const& in_flow, auto const& out_flow,
+        auto scheduling_permissions,
+        auto immediate_permissions
+      ) {
+        return std::make_shared<
+          darma_runtime::detail::GenericUseHolder<
+            darma_runtime::detail::CollectionManagingUse<
+              std::decay_t<IndexRangeT>
+            >
+          >>(
+          darma_runtime::detail::CollectionManagingUse<std::decay_t<IndexRangeT>>(
+            handle, in_flow, out_flow,
+            scheduling_permissions, immediate_permissions,
+            source->current_use_->use->index_range
+          )
+        );
+      };
+
+      // Custom "next flow maker"
+      auto next_flow_maker = [](auto&& flow, auto* backend_runtime) {
+        return darma_runtime::detail::make_flow_ptr(
+          backend_runtime->make_next_flow_collection(
+            *std::forward<decltype(flow)>(flow).get()
+          )
+        );
+      };
+
+      // Do the capture
+      return detail::make_captured_use_holder(
+        var_handle_base_,
+        req_sched_perms,
+        req_immed_perms,
+        source->current_use_.get(),
+        next_use_holder_maker,
+        next_flow_maker,
+        continuing_use_maker
+      );
+
+    }
 
 
   //============================================================================
@@ -473,7 +532,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       }
     }
 
-    template <typename ReduceOp, typename... Args>
+    template <typename ReduceOp=detail::op_not_given, typename... Args>
     auto
     reduce(Args&&... args) const  {
       using namespace darma_runtime::detail;
@@ -489,7 +548,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       >;
       using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
 
-      // TODO somehow check if we're inside a task collection
+      // TODO somehow check if we're inside a task collection, and fail if we're not
 
       return parser()
         .with_converters(
@@ -503,14 +562,14 @@ class AccessHandleCollection : public detail::AccessHandleBase {
           }
         )
         .parse_args(std::forward<Args>(args)...)
-        .invoke([](
+        .invoke([this](
           auto& output_handle,
           types::key_t const& tag
         ) -> decltype(auto) {
 
           auto* backend_runtime = abstract::backend::get_backend_runtime();
 
-          auto out_use_holder = detail::make_captured_use_holder(
+          auto cap_result_holder = detail::make_captured_use_holder(
             output_handle.var_handle_,
             /* requested_scheduling_permissions */
             HandleUse::None,
@@ -520,7 +579,97 @@ class AccessHandleCollection : public detail::AccessHandleBase {
           );
 
 
+//          auto continuing_use_maker = [&](
+//            auto handle,
+//            auto const& in_flow, auto const& out_flow,
+//            auto scheduling_permissions,
+//            auto immediate_permissions
+//          ) {
+//            return darma_runtime::detail::CollectionManagingUse<
+//              std::decay_t<
+//                IndexRangeT>>(
+//              handle, in_flow, out_flow,
+//              scheduling_permissions, immediate_permissions,
+//              current_use_->use->index_range
+//            );
+//          };
+//
+//          auto next_use_holder_maker = [&](
+//            auto handle,
+//            auto const& in_flow, auto const& out_flow,
+//            auto scheduling_permissions,
+//            auto immediate_permissions
+//          ) {
+//            return std::make_shared<
+//              darma_runtime::detail::GenericUseHolder<
+//                darma_runtime::detail::CollectionManagingUse<
+//                  std::decay_t<IndexRangeT>
+//                >
+//              >
+//            >(
+//              darma_runtime::detail::CollectionManagingUse<std::decay_t<IndexRangeT>>(
+//                handle, in_flow, out_flow,
+//                scheduling_permissions, immediate_permissions,
+//                current_use_->use->index_range
+//              )
+//            );
+//          };
+//
+//          // Custom "next flow maker"
+//          auto next_flow_maker = [](auto&& flow, auto* backend_runtime) {
+//            return darma_runtime::detail::make_flow_ptr(
+//              backend_runtime->make_next_flow_collection(
+//                *std::forward<decltype(flow)>(flow).get()
+//              )
+//            );
+//          };
+//
+//          // Do the capture
+//          auto cap_collection_holder = detail::make_captured_use_holder(
+//            var_handle_base_,
+//            detail::HandleUse::None,
+//            detail::HandleUse::Read,
+//            current_use_.get(),
+//            next_use_holder_maker,
+//            next_flow_maker,
+//            continuing_use_maker
+//          );
+
+          auto cap_collection_holder = this->_call_make_captured_use_holder_impl(
+            this->var_handle_base_,
+            detail::HandleUse::None,
+            detail::HandleUse::Read,
+            *this
+          );
+
+          assert(cap_collection_holder->use->scheduling_permissions_ == detail::HandleUse::None);
+          assert(cap_collection_holder->use->immediate_permissions_ == detail::HandleUse::Read);
+
+          // piece and n_pieces are ignored now
+          auto coll_dets = detail::_get_collective_details_t<
+            ReduceOp,
+            AccessHandleCollection,
+            decltype(output_handle)
+          >(0, 0);
+          auto* rt = abstract::backend::get_backend_runtime();
+          rt->reduce_collection_use(
+            cap_collection_holder->use.release_smart_ptr(),
+            cap_result_holder->use.release_smart_ptr(),
+            &coll_dets,
+            tag
+          );
+
+          assert(cap_collection_holder->use.get_smart_ptr().get() == nullptr);
+          assert(cap_result_holder->use.get_smart_ptr().get() == nullptr);
+
+          cap_collection_holder->is_registered = false;
+          cap_collection_holder->could_be_alias = false;
+
+          cap_result_holder->is_registered = false;
+          cap_result_holder->could_be_alias = false;
         });
+
+
 
     }
 
@@ -540,15 +689,6 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
   protected:
 
-    decltype(auto)
-    _call_make_captured_use_holder_impl(
-      std::shared_ptr<detail::VariableHandleBase> var_handle,
-      detail::HandleUse::permissions_t req_sched_perms,
-      detail::HandleUse::permissions_t req_immed_perms,
-      detail::AccessHandleBase const& source_in
-    ) {
-
-    }
 
     void call_make_captured_use_holder(
       std::shared_ptr<detail::VariableHandleBase> var_handle,
@@ -556,61 +696,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       detail::HandleUse::permissions_t req_immed_perms,
       detail::AccessHandleBase const& source_in
     ) override {
-      auto* source =
-        detail::safe_static_cast<AccessHandleCollection const*>(&source_in);
-      auto continuing_use_maker = [&](
-        auto handle,
-        auto const& in_flow, auto const& out_flow,
-        auto scheduling_permissions,
-        auto immediate_permissions
-      ) {
-        return darma_runtime::detail::CollectionManagingUse<
-          std::decay_t<
-            IndexRangeT>>(
-          handle, in_flow, out_flow,
-          scheduling_permissions, immediate_permissions,
-          source->current_use_->use->index_range
-        );
-      };
-
-      auto next_use_holder_maker = [&](
-        auto handle,
-        auto const& in_flow, auto const& out_flow,
-        auto scheduling_permissions,
-        auto immediate_permissions
-      ) {
-        return std::make_shared<
-          darma_runtime::detail::GenericUseHolder<
-            darma_runtime::detail::CollectionManagingUse<
-              std::decay_t<
-                IndexRangeT>>
-          >>(
-          darma_runtime::detail::CollectionManagingUse<std::decay_t<IndexRangeT>>(
-            handle, in_flow, out_flow,
-            scheduling_permissions, immediate_permissions,
-            source->current_use_->use->index_range
-          )
-        );
-      };
-
-      // Custom "next flow maker"
-      auto next_flow_maker = [](auto&& flow, auto* backend_runtime) {
-        return darma_runtime::detail::make_flow_ptr(
-          backend_runtime->make_next_flow_collection(
-            *std::forward<decltype(flow)>(flow).get()
-          )
-        );
-      };
-
-      // Do the capture
-      current_use_ = detail::make_captured_use_holder(
-        var_handle_base_,
-        detail::HandleUse::Modify,
-        detail::HandleUse::None,
-        source->current_use_.get(),
-        next_use_holder_maker,
-        next_flow_maker,
-        continuing_use_maker
+      current_use_ = _call_make_captured_use_holder_impl(
+        var_handle, req_sched_perms, req_immed_perms, source_in
       );
     }
 

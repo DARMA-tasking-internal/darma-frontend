@@ -141,16 +141,20 @@ class MockRuntime
     }
 
     void reduce_collection_use(
-      std::unique_ptr<use_t>&& use_collection_in,
-      std::unique_ptr<use_t>&& use_out,
+      std::unique_ptr<use_t> use_collection_in,
+      std::unique_ptr<use_t> use_out,
       darma_runtime::abstract::frontend::CollectiveDetails const* details,
       key_t const& tag
     ) override {
       reduce_collection_use_gmock_proxy(use_collection_in.get(), use_out.get(),
         details, tag
       );
-      backend_owned_uses.emplace_back(std::move(use_collection_in));
-      backend_owned_uses.emplace_back(std::move(use_out));
+      use_out.reset(nullptr);
+      use_collection_in.reset(nullptr);
+      //backend_owned_uses.emplace_back(std::move(use_collection_in));
+      //backend_owned_uses.emplace_back(std::move(use_out));
+      assert(use_out.get() == nullptr);
+      assert(use_collection_in.get() == nullptr);
     }
 
 
