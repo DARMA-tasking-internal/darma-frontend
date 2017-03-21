@@ -578,63 +578,6 @@ class AccessHandleCollection : public detail::AccessHandleBase {
             output_handle.current_use_.get()
           );
 
-
-//          auto continuing_use_maker = [&](
-//            auto handle,
-//            auto const& in_flow, auto const& out_flow,
-//            auto scheduling_permissions,
-//            auto immediate_permissions
-//          ) {
-//            return darma_runtime::detail::CollectionManagingUse<
-//              std::decay_t<
-//                IndexRangeT>>(
-//              handle, in_flow, out_flow,
-//              scheduling_permissions, immediate_permissions,
-//              current_use_->use->index_range
-//            );
-//          };
-//
-//          auto next_use_holder_maker = [&](
-//            auto handle,
-//            auto const& in_flow, auto const& out_flow,
-//            auto scheduling_permissions,
-//            auto immediate_permissions
-//          ) {
-//            return std::make_shared<
-//              darma_runtime::detail::GenericUseHolder<
-//                darma_runtime::detail::CollectionManagingUse<
-//                  std::decay_t<IndexRangeT>
-//                >
-//              >
-//            >(
-//              darma_runtime::detail::CollectionManagingUse<std::decay_t<IndexRangeT>>(
-//                handle, in_flow, out_flow,
-//                scheduling_permissions, immediate_permissions,
-//                current_use_->use->index_range
-//              )
-//            );
-//          };
-//
-//          // Custom "next flow maker"
-//          auto next_flow_maker = [](auto&& flow, auto* backend_runtime) {
-//            return darma_runtime::detail::make_flow_ptr(
-//              backend_runtime->make_next_flow_collection(
-//                *std::forward<decltype(flow)>(flow).get()
-//              )
-//            );
-//          };
-//
-//          // Do the capture
-//          auto cap_collection_holder = detail::make_captured_use_holder(
-//            var_handle_base_,
-//            detail::HandleUse::None,
-//            detail::HandleUse::Read,
-//            current_use_.get(),
-//            next_use_holder_maker,
-//            next_flow_maker,
-//            continuing_use_maker
-//          );
-
           auto cap_collection_holder = this->_call_make_captured_use_holder_impl(
             this->var_handle_base_,
             detail::HandleUse::None,

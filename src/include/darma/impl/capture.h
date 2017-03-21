@@ -767,7 +767,42 @@ auto make_captured_use_holder(
 
       break;
     } // end case Modify requested immediate permissions
+    //==========================================================================
+    case HandleUse::Commutative: { // requested immediate permissions
 
+      DARMA_ASSERT_MESSAGE(
+        source_and_continuing_holder->use->scheduling_permissions_ == HandleUse::Commutative,
+        "Can't schedule a commutative use without commutative scheduling permissions"
+      );
+      DARMA_ASSERT_MESSAGE(
+        source_and_continuing_holder->use->immediate_permissions_ == HandleUse::None
+          or source_and_continuing_holder->use->immediate_permissions_ == HandleUse::Commutative,
+        "Can't create commutative task on handle without None or Commutative immediate permissions"
+      );
+
+      // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+      // %   CN -> { CC } -> CN     %
+      // %   CC -> { CC } -> CC     %
+      // %   CN -> { NC } -> CN     %
+      // %   CC -> { NC } -> CC     %
+      // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+      captured_use_holder = use_holder_maker(
+        var_handle,
+        source_and_continuing_holder->use->in_flow_,
+        source_and_continuing_holder->use->out_flow_,
+        /* Scheduling permissions */
+        requested_scheduling_permissions,
+        /* Immediate permissions */
+        HandleUse::Commutative
+      );
+
+      captured_use_holder->do_register();
+
+      // Note that permissions/use/etc of source_and_continuing are unchanged
+
+      break;
+    } // end requested immediate permissions commutative
     //==========================================================================
 
     default: {

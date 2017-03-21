@@ -78,6 +78,8 @@
 
 #define _darma_feature_register_all_uses 20170320
 
+#define _darma_feature_commutative_access_handles 20170321
+
 // </editor-fold> end Feature Dates and Defaults }}}1
 //==============================================================================
 

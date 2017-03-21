@@ -227,11 +227,11 @@ TEST_F(TestInitialAccess, call_sequence_copy_assign) {
     EXPECT_INITIAL_ACCESS(f_in_2, f_out_2, make_key("world"));
     EXPECT_INITIAL_ACCESS(f_in_1, f_out_1, make_key("hello"));
 
-    EXPECT_FLOW_ALIAS(f_in_1, f_out_1);
+    EXPECT_FLOW_ALIAS(f_in_2, f_out_2);
 
     EXPECT_CALL(*sequence_marker, mark_sequence("in between"));
 
-    EXPECT_FLOW_ALIAS(f_in_2, f_out_2);
+    EXPECT_FLOW_ALIAS(f_in_1, f_out_1);
   }
 
   {
@@ -240,8 +240,9 @@ TEST_F(TestInitialAccess, call_sequence_copy_assign) {
       darma::advanced::access_handle_traits::copy_assignable<true>
     >("hello");
 
-    // Replace tmp1, since that should be allowed now
-    tmp1 = tmp2;
+    // Replace tmp2 with tmp1 (leaving a hanging alias to tmp1), since that
+    // should be allowed now
+    tmp2 = tmp1;
 
     sequence_marker->mark_sequence("in between");
 

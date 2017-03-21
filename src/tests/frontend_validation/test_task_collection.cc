@@ -299,6 +299,7 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
 
 
   mock_runtime->task_collections.front().reset(nullptr);
+  mock_runtime->backend_owned_uses.clear();
 
 }
 
@@ -917,6 +918,7 @@ TEST_F(TestCreateConcurrentWork, simple_unique_owner) {
 
     struct Foo {
       void operator()(Index1D<int> index,
+        // TODO: this instead: UniquelyOwned<AccessHandle<int>, Index1D<int>> val
         AccessHandle<int> val
       ) const {
         if(index.value == 0) { val.set_value(42); }
@@ -1000,6 +1002,7 @@ TEST_F(TestCreateConcurrentWork, fetch_unique_owner) {
 
     struct Foo {
       void operator()(Index1D<int> index,
+        // TODO: this instead: UniquelyOwned<AccessHandle<int>, Index1D<int>> val
         AccessHandle<int> val
       ) const {
         if(index.value == 0) {

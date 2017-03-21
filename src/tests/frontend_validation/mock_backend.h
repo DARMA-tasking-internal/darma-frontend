@@ -149,12 +149,12 @@ class MockRuntime
       reduce_collection_use_gmock_proxy(use_collection_in.get(), use_out.get(),
         details, tag
       );
-      use_out.reset(nullptr);
-      use_collection_in.reset(nullptr);
-      //backend_owned_uses.emplace_back(std::move(use_collection_in));
-      //backend_owned_uses.emplace_back(std::move(use_out));
-      assert(use_out.get() == nullptr);
-      assert(use_collection_in.get() == nullptr);
+      //use_out.reset(nullptr);
+      //use_collection_in.reset(nullptr);
+      backend_owned_uses.emplace_back(std::move(use_collection_in));
+      backend_owned_uses.emplace_back(std::move(use_out));
+      //assert(use_out.get() == nullptr);
+      //assert(use_collection_in.get() == nullptr);
     }
 
 

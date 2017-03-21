@@ -75,10 +75,10 @@ class TestAccessHandle_publish_MM_Test;
 using namespace darma_runtime;
 
 STATIC_ASSERT_TYPE_EQ(
-  AccessHandle<int, detail::make_access_handle_traits_t<
+  AccessHandle<int, detail::make_access_handle_traits_t<int,
     detail::copy_assignable_handle<true>
   >>,
-  AccessHandle<int, detail::access_handle_traits<
+  AccessHandle<int, detail::access_handle_traits<int,
     detail::access_handle_permissions_traits<>,
     detail::access_handle_collection_capture_traits<>,
     detail::access_handle_semantic_traits<OptionalBoolean::KnownTrue>
@@ -86,15 +86,15 @@ STATIC_ASSERT_TYPE_EQ(
 );
 
 STATIC_ASSERT_TYPE_EQ(
-  AccessHandle<int, typename detail::make_access_handle_traits<
+  AccessHandle<int, typename detail::make_access_handle_traits<int,
     detail::copy_assignable_handle<true>
   >::template from_traits<
-    detail::make_access_handle_traits_t<
+    detail::make_access_handle_traits_t<int,
       detail::static_scheduling_permissions<detail::AccessHandlePermissions::Modify>,
       detail::copy_assignable_handle<false>
     >
   >::type>,
-  AccessHandle<int, detail::access_handle_traits<
+  AccessHandle<int, detail::access_handle_traits<int,
     detail::access_handle_permissions_traits<
       detail::AccessHandlePermissions::NotGiven,
       detail::AccessHandlePermissions::NotGiven,

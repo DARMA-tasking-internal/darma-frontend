@@ -70,6 +70,7 @@ typedef enum AccessHandlePermissions {
 typedef enum AccessHandleTaskCollectionCaptureMode {
   NoCollectionCapture,
   SharedRead,
+  // TODO add UniqueModifyOrRead mode or something like that (and allow overloads?)
   UniqueModify
 } access_handle_task_collection_capture_mode_t;
 

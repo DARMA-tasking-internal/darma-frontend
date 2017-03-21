@@ -45,6 +45,8 @@
 #ifndef SRC_KEYWORD_ARGUMENTS_KEYWORD_TAG_H_
 #define SRC_KEYWORD_ARGUMENTS_KEYWORD_TAG_H_
 
+#include <type_traits>
+
 namespace darma_runtime {
 
 namespace detail {

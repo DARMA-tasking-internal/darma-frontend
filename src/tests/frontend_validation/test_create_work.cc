@@ -480,7 +480,7 @@ TEST_F(TestCreateWork, handle_aliasing) {
   //============================================================================
   // actual code being tested
   {
-    auto call_me = [](AccessHandle<int> a, AccessHandle<int> b) {
+    auto call_me = [](AccessHandle<int>& a, AccessHandle<int>& b) {
       create_work(allow_aliasing=true, [=]{
         std::cout << (a.get_value() * b.get_value()) << std::endl;
       });
@@ -760,3 +760,70 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, comm_capture_cc_from_mn) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(finit, fcomm_out, fnull);
+  use_t* comm_use_1, *comm_use_2;
+  int value = 0;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(finit))
+    .WillOnce(Return(fcomm_out));
+
+  {
+    InSequence s1;
+
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(comm_use_1, finit, fcomm_out,
+      Commutative, Commutative, value);
+
+    EXPECT_CALL(*sequence_marker, mark_sequence("in between create_work calls"));
+
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(comm_use_2, finit, fcomm_out,
+      Commutative, Commutative, value);
+  }
+
+
+  EXPECT_REGISTER_TASK(comm_use_1);
+
+  EXPECT_REGISTER_TASK(comm_use_2);
+
+  EXPECT_FLOW_ALIAS(fcomm_out, fnull);
+
+  //============================================================================
+  // actual code being tested
+  {
+    auto tmp = initial_access<int>("hello");
+
+    tmp.begin_commutative_usage();
+
+    create_work([=]{ tmp.set_value(tmp.get_value() + 5); });
+
+    sequence_marker->mark_sequence("in between create_work calls");
+
+    create_work([=]{ tmp.set_value(tmp.get_value() + 7); });
+
+    tmp.end_commutative_usage();
+
+  }
+  //
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_RELEASE_USE(comm_use_1);
+
+  EXPECT_RELEASE_USE(comm_use_2);
+
+  run_all_tasks();
+
+  EXPECT_THAT(value, Eq(12));
+
+}

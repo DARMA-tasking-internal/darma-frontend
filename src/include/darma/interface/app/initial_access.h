@@ -72,8 +72,8 @@ struct _initial_access_key_helper {
       backend_runtime->make_null_flow( var_h )
     );
     return AccessHandle<T,
-      typename make_access_handle_traits<TraitsFlags...>::template from_traits<
-        make_access_handle_traits_t<
+      typename make_access_handle_traits<T, TraitsFlags...>::template from_traits<
+        make_access_handle_traits_t<T,
           static_scheduling_permissions<AccessHandlePermissions::Modify>,
           copy_assignable_handle<false>
         >

@@ -78,6 +78,8 @@ class HandleUseBase
     flow_ptr out_flow_;
     std::size_t collection_owner_ = std::numeric_limits<std::size_t>::max();
 
+    flow_ptr suspended_out_flow_ = nullptr; // for use with commutative regions
+
     abstract::frontend::Use::permissions_t immediate_permissions_ = None;
     abstract::frontend::Use::permissions_t scheduling_permissions_ = None;
 
@@ -171,6 +173,8 @@ class HandleUse
     get_managed_collection() override {
       return nullptr;
     }
+
+    ~HandleUse() = default;
 };
 
 template <typename FrontendHandleIndex>
@@ -187,6 +191,8 @@ struct MappingManagerBase {
 
   virtual std::size_t
   map_to_task_collection_backend_index(FrontendHandleIndex const& fe_idx) const =0;
+
+  virtual ~MappingManagerBase() = default;
 
 };
 
@@ -254,6 +260,8 @@ struct MappingManager : MappingManagerBase<FrontendHandleIndex> {
     );
   }
 
+  ~MappingManager() = default;
+
 };
 
 template <typename FrontendHandleIndex>
@@ -305,6 +313,8 @@ class CollectionManagingUse
 
     template <typename T>
     using index_iterable = abstract::frontend::UseCollection::index_iterable<T>;
+
+    CollectionManagingUse(CollectionManagingUse&&) = default;
 
     template <typename IndexRangeDeduced,
       typename=std::enable_if_t<
@@ -412,6 +422,8 @@ class CollectionManagingUse
         )
       );
     }
+
+    ~CollectionManagingUse() = default;
 
 };
 

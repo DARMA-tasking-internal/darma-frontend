@@ -201,7 +201,12 @@ class AccessHandle : public detail::AccessHandleBase {
             or AccessHandleT::traits::static_scheduling_permissions
               >= traits::required_scheduling_permissions
         )
-        // TODO !!! also check convertibility of collection_capture_traits
+        and (
+          std::is_convertible<
+            typename AccessHandleT::traits::special_members_t,
+            typename traits::special_members_t
+          >::value
+        )
     >;
 
     template <typename AccessHandleTIn,
@@ -231,10 +236,12 @@ class AccessHandle : public detail::AccessHandleBase {
 
   public:
 
+    // TODO make read-only AccessHandles copy assignable
+
     template <typename AccessHandleT>
     std::enable_if_t<
       is_convertible_from_access_handle<AccessHandleT>::value
-        and not is_known_not_copy_assignable,
+        and not AccessHandleT::is_known_not_copy_assignable,
       AccessHandle&
     >
     operator=(AccessHandleT const& other) {
@@ -469,7 +476,15 @@ class AccessHandle : public detail::AccessHandleBase {
     AccessHandle(
       AccessHandleT&& other,
       std::enable_if_t<
-        is_convertible_from_access_handle<AccessHandleT>::value
+        is_convertible_from_access_handle<
+          // Only if it would be convertible with the right owning index type
+          typename std::decay_t<AccessHandleT>::template with_traits<
+            detail::make_access_handle_traits_t<typename std::decay_t<AccessHandleT>::value_type,
+              detail::collection_capture_mode<detail::AccessHandleTaskCollectionCaptureMode::UniqueModify>,
+              detail::owning_index_type<typename traits::collection_capture_traits::owning_index_t>
+            >
+          >
+        >::value
           and is_collection_captured
           and access_handle_is_not_collection_captured<
             std::decay_t<AccessHandleT>
@@ -550,20 +565,6 @@ class AccessHandle : public detail::AccessHandleBase {
     AccessHandle(AccessHandle const&& other) noexcept
       : AccessHandle(std::move(const_cast<AccessHandle&>(other)))
     { /* forwarding ctor, must be empty */ }
-
-    // Analogous type const move constructor (forwarding ctor)
-//    template <
-//      typename AccessHandleT,
-//      typename = std::enable_if_t<
-//        // Check if this is convertible from AccessHandleT
-//        is_convertible_from_access_handle<
-//          std::decay_t<AccessHandleT>>::value
-//          and not std::is_same<std::decay_t<AccessHandleT>, AccessHandle>::value
-//      >
-//    >
-//    AccessHandle(AccessHandleT const&& other) noexcept
-//      : AccessHandle(std::move(const_cast<AccessHandleT&>(other)))
-//    { /* forwarding ctor, must be empty */ }
 
     // </editor-fold> end move constructors }}}2
     //--------------------------------------------------------------------------
@@ -704,7 +705,7 @@ class AccessHandle : public detail::AccessHandleBase {
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use->immediate_permissions_
-          == abstract::frontend::Use::Permissions::Modify,
+          >= abstract::frontend::Use::Permissions::Modify,
         "set_value() called on handle not in immediately modifiable state, with key: {"
           << get_key() << "}"
       );
@@ -733,12 +734,11 @@ class AccessHandle : public detail::AccessHandleBase {
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use->immediate_permissions_
-          == abstract::frontend::Use::Permissions::Modify,
+          >= abstract::frontend::Use::Permissions::Modify,
         "emplace_value() called on handle not in immediately modifiable state, with key: {"
           << get_key() << "}"
       );
-      // TODO do this more uniformly and/or expose it to the frontend somehow
-      using alloc_t = std::allocator<T>;
+      using alloc_t = typename traits::allocation_traits::allocator_t;
       using allocator_traits_t = std::allocator_traits<alloc_t>;
       alloc_t alloc;
       allocator_traits_t::destroy(alloc, (T*)(current_use_->use->data_));
@@ -807,7 +807,7 @@ class AccessHandle : public detail::AccessHandleBase {
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use->immediate_permissions_
-          == abstract::frontend::Use::Permissions::Modify,
+          >= abstract::frontend::Use::Permissions::Modify,
         "get_reference() called on handle not in immediately modifiable state, with key: {"
           << get_key() << "}"
       );
@@ -947,6 +947,94 @@ class AccessHandle : public detail::AccessHandleBase {
       return return_type(*this);
     };
 #endif // _darma_has_feature(create_concurrent_work_owned_by)
+
+#if _darma_has_feature(commutative_access_handles)
+    template <typename _Ignored_SFINAE=void>
+    std::enable_if_t<
+      is_compile_time_scheduling_modifiable
+        and std::is_void<_Ignored_SFINAE>::value
+    >
+    begin_commutative_usage() const {
+      DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "begin_commutative_usage called on uninitialized or released AccessHandle"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_->use->immediate_permissions_ == detail::HandleUse::None,
+        "begin_commutative_usage called on use with immediate permissions that aren't None"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_->use->scheduling_permissions_ == detail::HandleUse::Modify,
+        "begin_commutative_usage called on use without scheduling modify permissions"
+      );
+
+      // Need to make next flow to be the output of the commutative usage
+      auto old_out_flow = current_use_->use->out_flow_;
+
+      auto* rt = abstract::backend::get_backend_runtime();
+      auto comm_reg_out = detail::make_next_flow_ptr(
+        current_use_->use->in_flow_, rt
+      );
+
+      current_use_->replace_use(
+        detail::HandleUse(
+          var_handle_,
+          current_use_->use->in_flow_,
+          comm_reg_out,
+          /* scheduling permissions */
+          detail::HandleUse::Commutative,
+          /* immediate permissions */
+          detail::HandleUse::None
+        ),
+        current_use_->is_registered
+      );
+
+      current_use_->use->suspended_out_flow_ = old_out_flow;
+
+      set_is_commutative_dynamic(true);
+    }
+
+    template <typename _Ignored_SFINAE=void>
+    std::enable_if_t<
+      is_compile_time_scheduling_modifiable
+        and std::is_void<_Ignored_SFINAE>::value
+    >
+    end_commutative_usage() const {
+      // TODO We'll need to swap uses here when all of the uses are registered
+      DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "end_commutative_usage called on uninitialized or released AccessHandle"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_->use->immediate_permissions_ == detail::HandleUse::None,
+        "end_commutative_usage called on use with immediate permissions that aren't None"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_->use->scheduling_permissions_ == detail::HandleUse::Commutative,
+        "end_commutative_usage called on use without scheduling Commutative permissions"
+      );
+
+      set_is_commutative_dynamic(false);
+
+      // Need to end the commutative usage
+      auto old_out_flow = current_use_->use->suspended_out_flow_;
+
+      auto comm_reg_out = current_use_->use->out_flow_;
+
+      current_use_->replace_use(
+        detail::HandleUse(
+          var_handle_,
+          comm_reg_out,
+          old_out_flow,
+          /* scheduling permissions */
+          detail::HandleUse::Modify,
+          /* immediate permissions */
+          detail::HandleUse::None
+        ),
+        current_use_->is_registered
+      );
+    }
+#endif // _darma_has_feature(commutative_access_handles)
 
   // </editor-fold> end Public interface methods }}}1
   //============================================================================
@@ -1228,8 +1316,16 @@ class AccessHandle : public detail::AccessHandleBase {
 
     // TODO remove unfetched?
     mutable bool unfetched_ = false;
-    //mutable typename traits::owning_index_t owning_index_;
-    //mutable std::size_t owning_backend_index_ = 0;
+
+
+    bool
+    get_is_commutative_dynamic() const {
+      return other_private_members_.second().is_commutative_dynamic;
+    }
+    void
+    set_is_commutative_dynamic(bool new_val) const {
+      other_private_members_.second().is_commutative_dynamic = new_val;
+    }
 
     detail::compressed_pair<
       AccessHandle const*,
@@ -1346,22 +1442,43 @@ class AccessHandle : public detail::AccessHandleBase {
 
 template <typename T>
 using ReadAccessHandle = AccessHandle<
-  T, typename detail::make_access_handle_traits<
+  T, typename detail::make_access_handle_traits<T,
     detail::required_immediate_permissions<detail::AccessHandlePermissions::Read>,
     detail::static_immediate_permissions<detail::AccessHandlePermissions::Read>,
     detail::required_scheduling_permissions<detail::AccessHandlePermissions::Read>
   >::type
 >;
 
+template <typename AccessHandleT>
+using ScheduleOnly = typename AccessHandleT::template with_traits<
+  detail::make_access_handle_traits_t<typename AccessHandleT::value_type,
+    detail::required_immediate_permissions<detail::AccessHandlePermissions::None>
+  >
+>;
+template <typename AccessHandleT, typename IndexType>
+using UniquelyOwned = typename AccessHandleT::template with_traits<
+  detail::make_access_handle_traits_t<typename AccessHandleT::value_type,
+    detail::owning_index_type<IndexType>,
+    detail::collection_capture_mode<
+      detail::AccessHandleTaskCollectionCaptureMode::UniqueModify
+    >
+  >
+>;
+
+//==============================================================================
+// <editor-fold desc="Serialization"> {{{1
+
 #if _darma_has_feature(task_migration)
 namespace serialization {
 
 template <typename... Args>
-struct Serializer<AccessHandle<Args...>> {
+struct Serializer<AccessHandle<Args...>>
+{
   private:
     using AccessHandleT = AccessHandle<Args...>;
 
-    bool handle_is_serializable_assertions(AccessHandleT const& val) const {
+    bool handle_is_serializable_assertions(AccessHandleT const& val) const
+    {
       // The handle has to be set up and valid
       assert(val.var_handle_.get() != nullptr);
       // The only AccessHandle objects that should ever be migrated are ones that
@@ -1372,12 +1489,16 @@ struct Serializer<AccessHandle<Args...>> {
       // has modify scheduling permissions (and less than modify immediate permissions)
       assert(
         ((
-          val.current_use_->use->scheduling_permissions_ == ::darma_runtime::detail::HandleUse::Modify
-            and val.current_use_->use->immediate_permissions_ != ::darma_runtime::detail::HandleUse::Modify
+          val.current_use_->use->scheduling_permissions_
+            == ::darma_runtime::detail::HandleUse::Modify
+            and val.current_use_->use->immediate_permissions_
+              != ::darma_runtime::detail::HandleUse::Modify
         ) and val.current_use_->could_be_alias)
-          or (not (
-            val.current_use_->use->scheduling_permissions_ == ::darma_runtime::detail::HandleUse::Modify
-              and val.current_use_->use->immediate_permissions_ != ::darma_runtime::detail::HandleUse::Modify
+          or (not(
+            val.current_use_->use->scheduling_permissions_
+              == ::darma_runtime::detail::HandleUse::Modify
+              and val.current_use_->use->immediate_permissions_
+                != ::darma_runtime::detail::HandleUse::Modify
           ) and not val.current_use_->could_be_alias)
       );
       // captured_as_ should always be normal here
@@ -1388,7 +1509,8 @@ struct Serializer<AccessHandle<Args...>> {
 
   public:
     template <typename ArchiveT>
-    void compute_size(AccessHandleT const& val, ArchiveT& ar) const {
+    void compute_size(AccessHandleT const& val, ArchiveT& ar) const
+    {
 
       assert(handle_is_serializable_assertions(val));
 
@@ -1408,7 +1530,8 @@ struct Serializer<AccessHandle<Args...>> {
     }
 
     template <typename ArchiveT>
-    void pack(AccessHandleT const& val, ArchiveT& ar) const {
+    void pack(AccessHandleT const& val, ArchiveT& ar) const
+    {
 
       assert(handle_is_serializable_assertions(val));
 
@@ -1431,14 +1554,18 @@ struct Serializer<AccessHandle<Args...>> {
     }
 
     template <typename ArchiveT>
-    void unpack(void* allocated, ArchiveT& ar) const {
+    void unpack(void* allocated, ArchiveT& ar) const
+    {
       // Call an unpacking constructor
-      new (allocated) AccessHandleT(serialization::unpack_constructor_tag, ar);
+      new(allocated) AccessHandleT(serialization::unpack_constructor_tag, ar);
     }
 };
 
 } // end namespace serialization
 #endif // _darma_has_feature(task_migration)
+
+// </editor-fold> end Serialization }}}1
+//==============================================================================
 
 } // end namespace darma_runtime
 
