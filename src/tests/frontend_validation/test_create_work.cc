@@ -761,10 +761,13 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, comm_capture_cc_from_mn) {
+TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
+  ::testing::Values(0, 1, 2), int
+) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_commutative_access;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -772,6 +775,8 @@ TEST_F(TestCreateWork, comm_capture_cc_from_mn) {
   DECLARE_MOCK_FLOWS(finit, fcomm_out, fnull);
   use_t* comm_use_1, *comm_use_2;
   int value = 0;
+
+  int semantic_mode = GetParam();
 
   EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
 
@@ -800,17 +805,45 @@ TEST_F(TestCreateWork, comm_capture_cc_from_mn) {
   //============================================================================
   // actual code being tested
   {
-    auto tmp = initial_access<int>("hello");
+    // All three of these should be equivalent
 
-    tmp.begin_commutative_usage();
+    //--------------------------------------------------------------------------
+    if(semantic_mode == 0) {
+      auto tmp = initial_access<int>("hello");
 
-    create_work([=]{ tmp.set_value(tmp.get_value() + 5); });
+      tmp.begin_commutative_usage();
 
-    sequence_marker->mark_sequence("in between create_work calls");
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
 
-    create_work([=]{ tmp.set_value(tmp.get_value() + 7); });
+      sequence_marker->mark_sequence("in between create_work calls");
 
-    tmp.end_commutative_usage();
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+
+      tmp.end_commutative_usage();
+    }
+    //--------------------------------------------------------------------------
+    else if(semantic_mode == 1) {
+
+      auto tmp2 = initial_access<int>("hello");
+      auto tmp = commutative_access(to_handle=std::move(tmp2));
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
+
+      sequence_marker->mark_sequence("in between create_work calls");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+    }
+    //--------------------------------------------------------------------------
+    else { assert(semantic_mode == 2);
+      auto tmp = commutative_access<int>("hello");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
+
+      sequence_marker->mark_sequence("in between create_work calls");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+    }
+    //--------------------------------------------------------------------------
 
   }
   //

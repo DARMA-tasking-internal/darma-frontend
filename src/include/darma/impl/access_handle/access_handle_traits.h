@@ -55,6 +55,105 @@
 namespace darma_runtime {
 namespace detail {
 
+template <
+  access_handle_permissions_t... a
+>
+struct all_AH_permissions_given
+  : tinympl::and_<
+      tinympl::not_<
+        tinympl::equal_to<
+          std::integral_constant<access_handle_permissions_t, a>,
+          std::integral_constant<access_handle_permissions_t, NotGiven>
+        >
+      >...
+    >::type
+{ };
+
+template <
+  access_handle_permissions_t a,
+  access_handle_permissions_t b
+>
+struct _check_permissions_compatible {
+  static_assert(
+    not all_AH_permissions_given<a, b>::value
+    or (
+      // If a is Commutative, b must be Commutative or None
+      (
+        a != AccessHandlePermissions::Commutative || (
+          b == AccessHandlePermissions::None || b == AccessHandlePermissions::Commutative
+        )
+      )
+      // also, if b is Commutative, a must be Commutative or None
+      and (
+        b != AccessHandlePermissions::Commutative || (
+          a == AccessHandlePermissions::None || a == AccessHandlePermissions::Commutative
+        )
+      )
+    ),
+    "Static permissions comparison between incompatible permissions values"
+  );
+};
+
+template <
+  access_handle_permissions_t a,
+  access_handle_permissions_t b
+>
+struct compatible_given_AH_permissions_less_equal
+  : tinympl::or_<
+      tinympl::not_<all_AH_permissions_given<a, b>>,
+      tinympl::bool_<(
+        std::underlying_type_t<access_handle_permissions_t>(a)
+          <= std::underlying_type_t<access_handle_permissions_t>(b)
+      )>
+    >::type,
+    _check_permissions_compatible<a, b>
+{ };
+
+template <
+  access_handle_permissions_t a,
+  access_handle_permissions_t b
+>
+struct compatible_given_AH_permissions_less
+  : tinympl::or_<
+      tinympl::not_<all_AH_permissions_given<a, b>>,
+      tinympl::bool_<(
+        std::underlying_type_t<access_handle_permissions_t>(a)
+          < std::underlying_type_t<access_handle_permissions_t>(b)
+      )>
+    >::type,
+    _check_permissions_compatible<a, b>
+{ };
+
+template <
+  access_handle_permissions_t a,
+  access_handle_permissions_t b
+>
+struct compatible_given_AH_permissions_greater
+  : tinympl::or_<
+      tinympl::not_<all_AH_permissions_given<a, b>>,
+      tinympl::bool_<(
+        std::underlying_type_t<access_handle_permissions_t>(a)
+          > std::underlying_type_t<access_handle_permissions_t>(b)
+      )>
+    >::type,
+    _check_permissions_compatible<a, b>
+{ };
+
+template <
+  access_handle_permissions_t a,
+  access_handle_permissions_t b
+>
+struct compatible_given_AH_permissions_greater_equal
+  : tinympl::or_<
+      tinympl::not_<all_AH_permissions_given<a, b>>,
+      tinympl::bool_<(
+        std::underlying_type_t<access_handle_permissions_t>(a)
+          >= std::underlying_type_t<access_handle_permissions_t>(b)
+      )>
+    >::type,
+    _check_permissions_compatible<a, b>
+{ };
+
 //==============================================================================
 // <editor-fold desc="Various categories of traits"> {{{1
 
@@ -116,19 +215,23 @@ struct access_handle_collection_capture_traits
 //} access_handle_copy_assignability_mode_as_rhs;
 
 template <
-  optional_boolean_t IsCopyAssignable = OptionalBoolean::Unknown
+  //optional_boolean_t IsCopyAssignable = OptionalBoolean::Unknown
+  optional_boolean_t IsCopyAssignable = OptionalBoolean::KnownFalse
 >
 struct access_handle_semantic_traits {
-  // TODO add an "assignable once" mode for classes and stuff
+  // This is copy assignability as a right-hand side, representing the potential
+  // for this object to be an alias.
   static constexpr auto is_copy_assignable = IsCopyAssignable;
 };
 
 template <
   typename T,
-  typename Allocator = darma::serialization::darma_allocator<T>
+  typename Allocator = darma::serialization::darma_allocator<T>,
+  bool UseAllocatorForHandleItself = true
 >
 struct access_handle_allocation_traits {
   using allocator_t = Allocator;
+  static constexpr auto use_allocator_for_handle_itself = UseAllocatorForHandleItself;
 };
 
 // </editor-fold> end Various categories of traits }}}1
@@ -897,7 +1000,8 @@ namespace advanced {
 namespace access_handle_traits {
 
 template <bool copy_assignable_bool=true>
-using copy_assignable = darma_runtime::detail::copy_assignable_handle<copy_assignable_bool>;
+using allow_copy_assignment_from_this =
+  darma_runtime::detail::copy_assignable_handle<copy_assignable_bool>;
 
 } // end namespace access_handle_traits
 } // end namespace advanced

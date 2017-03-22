@@ -800,6 +800,7 @@ auto make_captured_use_holder(
       captured_use_holder->do_register();
 
       // Note that permissions/use/etc of source_and_continuing are unchanged
+      // TODO commutative schedule-only capture
 
       break;
     } // end requested immediate permissions commutative
@@ -832,16 +833,19 @@ make_captured_use_holder(
   return make_captured_use_holder(
     var_handle, requested_scheduling_permissions, requested_immediate_permissions,
     source_and_continuing_holder,
+    /* Use holder maker */
     [](auto&&... args) {
       using namespace darma_runtime::detail;
       return std::make_shared<GenericUseHolder<HandleUse>>(HandleUse(
         std::forward<decltype(args)>(args)...
       ));
     },
+    /* next flow maker */
     [](auto&& flow, auto* backend_runtime) {
       using namespace darma_runtime::detail;
       return darma_runtime::detail::make_next_flow_ptr(std::forward<decltype(flow)>(flow), backend_runtime);
     },
+    /* continuing use maker */
     [](auto&&... args) {
       using namespace darma_runtime::detail;
       return HandleUse(

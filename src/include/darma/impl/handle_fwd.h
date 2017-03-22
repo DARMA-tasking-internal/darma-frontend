@@ -64,7 +64,8 @@ class AccessHandleBase;
 
 typedef enum AccessHandlePermissions {
   NotGiven=-1,
-  None=0, Read=1, Modify=2
+  None=0, Read=1, Modify=2,
+  Commutative=3
 } access_handle_permissions_t;
 
 typedef enum AccessHandleTaskCollectionCaptureMode {

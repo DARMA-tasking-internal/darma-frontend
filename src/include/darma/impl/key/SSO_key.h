@@ -67,6 +67,8 @@ namespace detail {
 // TODO move this forward declaration
 template <typename T, typename...>
 struct _initial_access_key_helper;
+template <typename T, typename...>
+struct _commutative_access_impl;
 template <typename...>
 struct AccessHandleCollectionAccess;
 template <typename, typename, typename...>

@@ -165,18 +165,16 @@ class AccessHandle : public detail::AccessHandleBase {
 
     // Assert that static_scheduling_permissions, if given, is >= required_scheduling_permissions, if also given
     static_assert(
-      not traits::static_scheduling_permissions_given
-        or not traits::required_scheduling_permissions_given
-        or (int)traits::static_scheduling_permissions
-          >= (int)traits::required_scheduling_permissions,
+      detail::compatible_given_AH_permissions_greater_equal<
+        traits::static_scheduling_permissions, traits::required_scheduling_permissions
+      >::value,
       "Tried to create handle with static_scheduling_permissions < required_scheduling_permissions"
     );
     // Assert that static_immediate_permissions, if given, is >= required_immediate_permissions, if also given
     static_assert(
-      not traits::static_immediate_permissions_given
-        or not traits::required_immediate_permissions_given
-        or (int)traits::static_immediate_permissions
-          >= (int)traits::required_immediate_permissions,
+      detail::compatible_given_AH_permissions_greater_equal<
+        traits::static_immediate_permissions, traits::required_immediate_permissions
+      >::value,
       "Tried to create handle with static_immediate_permissions < required_immediate_permissions"
     );
 
@@ -188,25 +186,18 @@ class AccessHandle : public detail::AccessHandleBase {
       bool,
       detail::is_access_handle<AccessHandleT>::value
         // Check if the conversion is allowed based on min permissions and max permissions
-        and (
-          not AccessHandleT::traits::static_immediate_permissions_given
-            or not traits::required_immediate_permissions_given
-            or AccessHandleT::traits::static_immediate_permissions
-              >= traits::required_immediate_permissions
-        )
-        and (
-          // same thing for schedule case
-          not AccessHandleT::traits::static_scheduling_permissions_given
-            or not traits::required_scheduling_permissions_given
-            or AccessHandleT::traits::static_scheduling_permissions
-              >= traits::required_scheduling_permissions
-        )
-        and (
-          std::is_convertible<
-            typename AccessHandleT::traits::special_members_t,
-            typename traits::special_members_t
-          >::value
-        )
+        and detail::compatible_given_AH_permissions_greater_equal<
+          AccessHandleT::traits::static_immediate_permissions, traits::required_immediate_permissions
+        >::value
+        // same thing for schedule case
+        and detail::compatible_given_AH_permissions_greater_equal<
+          AccessHandleT::traits::static_scheduling_permissions, traits::required_scheduling_permissions
+        >::value
+        // Special members need to be convertible also
+        and std::is_convertible<
+          typename AccessHandleT::traits::special_members_t,
+          typename traits::special_members_t
+        >::value
     >;
 
     template <typename AccessHandleTIn,
@@ -1025,7 +1016,7 @@ class AccessHandle : public detail::AccessHandleBase {
         detail::HandleUse(
           var_handle_,
           comm_reg_out,
-          old_out_flow,
+          old_out_flow, // restore the old out flow
           /* scheduling permissions */
           detail::HandleUse::Modify,
           /* immediate permissions */
@@ -1238,6 +1229,29 @@ class AccessHandle : public detail::AccessHandleBase {
       current_use_->could_be_alias = true;
     }
 
+    AccessHandle(
+      variable_handle_ptr var_handle,
+      detail::flow_ptr const& in_flow,
+      detail::flow_ptr const& out_flow,
+      abstract::frontend::Use::permissions_t scheduling_permissions,
+      abstract::frontend::Use::permissions_t immediate_permissions,
+      detail::flow_ptr const& suspended_out_flow
+    ) : var_handle_(var_handle),
+        current_use_(current_use_base_)
+    {
+      var_handle_base_ = var_handle_;
+      current_use_ = detail::make_shared<detail::UseHolder>(
+        detail::HandleUse(
+          var_handle_,
+          in_flow, out_flow,
+          scheduling_permissions, immediate_permissions
+        )
+      );
+      current_use_->use->suspended_out_flow_ = suspended_out_flow;
+      // If there's a suspended outt flow, this should never be an alias
+      current_use_->could_be_alias = (suspended_out_flow == nullptr);
+    }
+
     //--------------------------------------------------------------------------
     // <editor-fold desc="DARMA feature: task_migration"> {{{2
 #if _darma_has_feature(task_migration)
@@ -1276,6 +1290,9 @@ class AccessHandle : public detail::AccessHandleBase {
         )
       );
 
+      // Suspended flow should always be null when packing/unpacking, so don't
+      // have to worry about it here
+
       current_use_ = std::make_shared<detail::UseHolder>(
         detail::migrated_use_arg,
         detail::HandleUse(
@@ -1302,6 +1319,9 @@ class AccessHandle : public detail::AccessHandleBase {
     {
       var_handle_base_ = var_handle_;
     }
+
+
+
 
   // </editor-fold> end private ctors }}}1
   //============================================================================
@@ -1338,6 +1358,15 @@ class AccessHandle : public detail::AccessHandleBase {
 
     AccessHandle const* const& prev_copied_from() const {
       return other_private_members_.first();
+    }
+
+    typename traits::allocation_traits::allocator_t const&
+    get_allocator() const {
+      return other_private_members_.second().allocator;
+    }
+    typename traits::allocation_traits::allocator_t&
+    get_allocator() {
+      return other_private_members_.second().allocator;
     }
 
     template <typename _Ignored_SFINAE=void>
@@ -1408,6 +1437,9 @@ class AccessHandle : public detail::AccessHandleBase {
     friend
     struct detail::_publish_impl;
 
+    template <typename, typename...>
+    friend struct detail::_commutative_access_impl;
+
     template <typename>
     friend
     class detail::IndexedAccessHandle;
@@ -1465,6 +1497,17 @@ using UniquelyOwned = typename AccessHandleT::template with_traits<
   >
 >;
 
+template <typename T, typename... TraitModifiers>
+using AccessHandleWithTraits = AccessHandle<T,
+  detail::make_access_handle_traits_t<T,
+    TraitModifiers...
+  >
+>;
+
+
+
+
+
 //==============================================================================
 // <editor-fold desc="Serialization"> {{{1
 
@@ -1474,6 +1517,7 @@ namespace serialization {
 template <typename... Args>
 struct Serializer<AccessHandle<Args...>>
 {
+    // TODO update this for all of the special members now present in AccessHandle
   private:
     using AccessHandleT = AccessHandle<Args...>;
 
@@ -1503,6 +1547,7 @@ struct Serializer<AccessHandle<Args...>>
       );
       // captured_as_ should always be normal here
       assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
+      assert(val.current_use_->use->suspended_out_flow_ == nullptr);
       return true;
     }
 

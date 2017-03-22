@@ -141,18 +141,13 @@ TEST_F(TestInitialAccess, call_sequence_helper_2) {
 
 
   {
-    AccessHandle<int> tmp{};
-    AccessHandle<int> tmp2{};
-
-    STATIC_ASSERT_VALUE_EQUAL(
-      tmp.is_known_not_copy_assignable,
-      false
-    );
+    AccessHandleWithTraits<int,
+      advanced::access_handle_traits::allow_copy_assignment_from_this<true>
+    > tmp;
+    AccessHandle<int> tmp2;
 
     tmp = initial_access<int>("hello");
     tmp2 = tmp;
-
-
 
   } // tmp2, tmp deleted
 
@@ -237,7 +232,7 @@ TEST_F(TestInitialAccess, call_sequence_copy_assign) {
   {
     auto tmp2 = initial_access<int>("world");
     auto tmp1 = initial_access<int,
-      darma::advanced::access_handle_traits::copy_assignable<true>
+      advanced::access_handle_traits::allow_copy_assignment_from_this<true>
     >("hello");
 
     // Replace tmp2 with tmp1 (leaving a hanging alias to tmp1), since that
