@@ -183,6 +183,7 @@ TEST_P(Test_simple_allreduce, overloads) {
   EXPECT_RELEASE_USE(task_use);
 
   mock_runtime->registered_tasks.clear();
+  mock_runtime->backend_owned_uses.clear();
 
 }
 

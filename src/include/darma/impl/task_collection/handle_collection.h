@@ -639,8 +639,10 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       detail::HandleUse::permissions_t req_immed_perms,
       detail::AccessHandleBase const& source_in
     ) override {
+      // TODO make req_immed_perms None at a higher level or something
+      // Should be max of immed and sched for actual sched
       current_use_ = _call_make_captured_use_holder_impl(
-        var_handle, req_sched_perms, req_immed_perms, source_in
+        var_handle, req_sched_perms, detail::HandleUse::None, source_in
       );
     }
 
