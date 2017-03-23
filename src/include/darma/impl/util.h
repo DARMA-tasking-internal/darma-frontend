@@ -64,6 +64,7 @@
 #include <darma/impl/compatibility.h>
 #include <darma/impl/meta/largest_aligned.h>
 #include <darma/interface/defaults/pointers.h>
+#include <darma/impl/util/safe_static_cast.h>
 
 namespace darma_runtime {
 
@@ -148,40 +149,6 @@ hash_as_bytes(const char* a, size_t a_size) {
 }
 
 
-// Does a dynamic_cast in debug (-O0) mode and an unsafe static_cast in optimized mode
-template <typename ToType, typename FromType, std::enable_if_t<std::is_pointer<ToType>::value>>
-inline DARMA_CONSTEXPR_14
-ToType
-safe_static_cast(FromType val) {
-  // perfect forwarding here is probably unnecessary...
-  DARMA_ASSERT_MESSAGE(
-    dynamic_cast<ToType>(std::forward<FromType>(val)) != nullptr,
-    "safe_static_cast from type " << typeid(FromType).name() << " to type " << typeid(ToType).name() << " failed"
-  );
-  return static_cast<ToType>(std::forward<FromType>(val));
-}
-
-template <typename ToType, typename FromType>
-bool _try_dynamic_cast(FromType&& val) {
-  try {
-    decltype(auto) _ignored = dynamic_cast<ToType>(std::forward<FromType>(val));
-    return true;
-  }
-  catch (std::bad_cast) {
-    return false;
-  }
-};
-
-template <typename ToType, typename FromType>
-inline DARMA_CONSTEXPR_14
-ToType
-safe_static_cast(FromType&& val) {
-  DARMA_ASSERT_MESSAGE(
-    _try_dynamic_cast<ToType>(std::forward<FromType>(val)),
-    "safe_static_cast from type " << typeid(FromType).name() << " to type " << typeid(ToType).name() << " failed"
-  );
-  return static_cast<ToType>(std::forward<FromType>(val));
-}
 
 // An unsafe, quick-and-dirty arg parser
 

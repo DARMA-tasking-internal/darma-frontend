@@ -762,7 +762,7 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
-  ::testing::Values(0, 1, 2), int
+  ::testing::Values(0, 1, 2, 3, 4, 5, 6), int
 ) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -823,7 +823,6 @@ TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
     }
     //--------------------------------------------------------------------------
     else if(semantic_mode == 1) {
-
       auto tmp2 = initial_access<int>("hello");
       auto tmp = commutative_access(to_handle=std::move(tmp2));
 
@@ -834,7 +833,7 @@ TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
       create_work([=] { tmp.set_value(tmp.get_value() + 7); });
     }
     //--------------------------------------------------------------------------
-    else { assert(semantic_mode == 2);
+    else if(semantic_mode == 2) {
       auto tmp = commutative_access<int>("hello");
 
       create_work([=] { tmp.set_value(tmp.get_value() + 5); });
@@ -842,6 +841,60 @@ TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
       sequence_marker->mark_sequence("in between create_work calls");
 
       create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+    }
+    //--------------------------------------------------------------------------
+    else if(semantic_mode == 3) {
+      auto tmp2 = initial_access<int>("hello");
+      auto tmp = commutative_access_to_handle(std::move(tmp2));
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
+
+      sequence_marker->mark_sequence("in between create_work calls");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+
+    }
+    //--------------------------------------------------------------------------
+    else if(semantic_mode == 4) {
+      auto tmp = commutative_access<int>("hello");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
+
+      sequence_marker->mark_sequence("in between create_work calls");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+
+      auto tmp2 = noncommutative_access_to_handle(std::move(tmp));
+    }
+    //--------------------------------------------------------------------------
+    else if(semantic_mode == 5) {
+      auto tmp2 = initial_access<int>("hello");
+      auto tmp = commutative_access(to_handle=std::move(tmp2));
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
+
+      sequence_marker->mark_sequence("in between create_work calls");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+
+      auto tmp3 = noncommutative_access_to_handle(std::move(tmp));
+    }
+    //--------------------------------------------------------------------------
+    else if(semantic_mode == 6) {
+      auto tmp2 = initial_access<int>("hello");
+      auto tmp = commutative_access(to_handle=std::move(tmp2));
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
+
+      sequence_marker->mark_sequence("in between create_work calls");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+
+      tmp2 = noncommutative_access_to_handle(std::move(tmp));
+    }
+    //--------------------------------------------------------------------------
+    else {
+      FAIL() << "huh? unknown semantic mode " << semantic_mode;
     }
     //--------------------------------------------------------------------------
 

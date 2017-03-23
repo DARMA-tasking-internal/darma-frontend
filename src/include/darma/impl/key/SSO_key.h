@@ -69,6 +69,8 @@ template <typename T, typename...>
 struct _initial_access_key_helper;
 template <typename T, typename...>
 struct _commutative_access_impl;
+template <typename T, typename...>
+struct _noncommutative_access_impl;
 template <typename...>
 struct AccessHandleCollectionAccess;
 template <typename, typename, typename...>

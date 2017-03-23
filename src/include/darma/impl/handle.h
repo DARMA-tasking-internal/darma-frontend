@@ -350,7 +350,7 @@ struct AccessHandleAccess {
 // Forward declaration of AccessHandle
 template <
   typename T = void,
-  typename traits = detail::access_handle_traits<T>
+  typename traits = detail::default_access_handle_traits<T>
 >
 class AccessHandle;
 

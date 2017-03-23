@@ -1337,20 +1337,30 @@ class AccessHandle : public detail::AccessHandleBase {
     // TODO remove unfetched?
     mutable bool unfetched_ = false;
 
+    detail::compressed_pair<
+      AccessHandle const*,
+      typename traits::special_members_t
+    > other_private_members_;
 
     bool
     get_is_commutative_dynamic() const {
       return other_private_members_.second().is_commutative_dynamic;
     }
-    void
+    bool
     set_is_commutative_dynamic(bool new_val) const {
       other_private_members_.second().is_commutative_dynamic = new_val;
+      return new_val;
     }
 
-    detail::compressed_pair<
-      AccessHandle const*,
-      typename traits::special_members_t
-    > other_private_members_;
+    bool
+    get_is_outermost_scope_dynamic() const {
+      return other_private_members_.second().is_outermost_scope_dynamic;
+    }
+    bool
+    set_is_outermost_scope_dynamic(bool new_val) {
+      other_private_members_.second().is_outermost_scope_dynamic = new_val;
+      return new_val;
+    }
 
     AccessHandle const*& prev_copied_from() {
       return other_private_members_.first();
@@ -1439,6 +1449,8 @@ class AccessHandle : public detail::AccessHandleBase {
 
     template <typename, typename...>
     friend struct detail::_commutative_access_impl;
+    template <typename, typename...>
+    friend struct detail::_noncommutative_access_impl;
 
     template <typename>
     friend

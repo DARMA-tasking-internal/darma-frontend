@@ -64,7 +64,6 @@ namespace darma_runtime {
 namespace detail {
 
 
-
 class HandleUseBase
   : public abstract::frontend::Use
 {
@@ -560,12 +559,14 @@ struct GenericUseHolder : UseHolderBase {
         *(use->out_flow_.get())
       );
     }
-    if(use->suspended_out_flow_) {
-      // TODO this may need to register a use (probably?) and then release it when all uses are registered
-      rt->establish_flow_alias(
-        *(use->out_flow_.get()),
-        *(use->suspended_out_flow_.get())
-      );
+    if(use) {
+      if (use->suspended_out_flow_) {
+        // TODO this may need to register a use (probably?) and then release it when all uses are registered
+        rt->establish_flow_alias(
+          *(use->out_flow_.get()),
+          *(use->suspended_out_flow_.get())
+        );
+      }
     }
   }
 };

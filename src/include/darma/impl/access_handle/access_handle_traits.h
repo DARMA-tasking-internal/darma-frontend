@@ -51,6 +51,7 @@
 
 #include <darma/impl/handle_fwd.h>
 #include <darma/impl/util/optional_boolean.h>
+#include <darma/impl/serialization/allocator.h>
 
 namespace darma_runtime {
 namespace detail {
@@ -215,13 +216,17 @@ struct access_handle_collection_capture_traits
 //} access_handle_copy_assignability_mode_as_rhs;
 
 template <
-  //optional_boolean_t IsCopyAssignable = OptionalBoolean::Unknown
-  optional_boolean_t IsCopyAssignable = OptionalBoolean::KnownFalse
+  optional_boolean_t IsCopyAssignable = OptionalBoolean::KnownFalse,
+  // TODO make this default to false when we make the outer scope assignability
+  // constraints more stringent (e.g., requiring default-construct-then-assign
+  // to be declared as such)
+  bool CouldBeOutermostScope = true
 >
 struct access_handle_semantic_traits {
   // This is copy assignability as a right-hand side, representing the potential
   // for this object to be an alias.
   static constexpr auto is_copy_assignable = IsCopyAssignable;
+  static constexpr auto could_be_outermost_scope = CouldBeOutermostScope;
 };
 
 template <
@@ -400,15 +405,16 @@ struct access_handle_special_collection_capture_members<
 template <typename SemanticTraits>
 struct access_handle_special_semantic_members {
 
+  bool is_outermost_scope_dynamic
+    = SemanticTraits::could_be_outermost_scope;
+
   // For now at least, always allow the loss of information
   template <typename OtherTraits>
   using is_convertible_from = std::true_type;
 
-  // Check that the other traits are empty, just to be safe
+  // for now, at least (be careful when this gets changed)
   template <typename OtherTraits>
-  using is_reinterpret_castable_from = std::is_empty<
-    access_handle_special_semantic_members<OtherTraits>
-  >;
+  using is_reinterpret_castable_from = std::true_type;
 
   access_handle_special_semantic_members() = default;
 
@@ -819,7 +825,8 @@ struct access_handle_traits {
         static_immediate_permissions
       >,
       collection_capture_traits,
-      semantic_traits
+      semantic_traits,
+      allocation_traits
     >;
   };
 
@@ -833,7 +840,8 @@ struct access_handle_traits {
         static_immediate_permissions
       >,
       collection_capture_traits,
-      semantic_traits
+      semantic_traits,
+      allocation_traits
     >;
   };
 
@@ -847,7 +855,8 @@ struct access_handle_traits {
         static_immediate_permissions
       >,
       collection_capture_traits,
-      semantic_traits
+      semantic_traits,
+      allocation_traits
     >;
   };
 
@@ -861,7 +870,8 @@ struct access_handle_traits {
         new_static_immediate_permissions
       >,
       collection_capture_traits,
-      semantic_traits
+      semantic_traits,
+      allocation_traits
     >;
   };
 
@@ -873,7 +883,8 @@ struct access_handle_traits {
         new_capture_mode,
         owning_index_t
       >,
-      semantic_traits
+      semantic_traits,
+      allocation_traits
     >;
   };
 
@@ -885,7 +896,8 @@ struct access_handle_traits {
         collection_capture_mode,
         NewOwningIndexT
       >,
-      semantic_traits
+      semantic_traits,
+      allocation_traits
     >;
   };
 
@@ -896,12 +908,32 @@ struct access_handle_traits {
       collection_capture_traits,
       access_handle_semantic_traits<
         new_copy_assignable
-      >
+      >,
+      allocation_traits
+    >;
+  };
+
+  template <bool new_could_be_outermost>
+  struct with_could_be_outermost_scope {
+    using type = access_handle_traits<T,
+      permissions_traits,
+      collection_capture_traits,
+      access_handle_semantic_traits<
+        semantic_traits::is_copy_assignable,
+        new_could_be_outermost
+      >,
+      allocation_traits
     >;
   };
 
 };
 
+// TODO implement and propagate this name-mangling reduction strategy
+// shorten name-mangling for less specialized AccessHandle
+template <typename T>
+struct default_access_handle_traits
+  : access_handle_traits<T>
+{ };
 
 //------------------------------------------------------------------------------
 // <editor-fold desc="make_access_traits and associated 'keyword' template arguments"> {{{2
@@ -912,6 +944,7 @@ struct required_scheduling_permissions {
   template <typename Traits>
   using modified_traits = typename Traits
     ::template with_required_scheduling_permissions<permissions>;
+  using is_access_handle_trait_flag = std::true_type;
 };
 
 template <access_handle_permissions_t permissions>
@@ -920,6 +953,7 @@ struct static_scheduling_permissions {
   template <typename Traits>
   using modified_traits = typename Traits
     ::template with_static_scheduling_permissions<permissions>;
+  using is_access_handle_trait_flag = std::true_type;
 };
 
 template <access_handle_permissions_t permissions>
@@ -928,6 +962,7 @@ struct required_immediate_permissions {
   template <typename Traits>
   using modified_traits = typename Traits
     ::template with_required_immediate_permissions<permissions>;
+  using is_access_handle_trait_flag = std::true_type;
 };
 
 template <access_handle_permissions_t permissions>
@@ -936,6 +971,7 @@ struct static_immediate_permissions {
   template <typename Traits>
   using modified_traits = typename Traits
     ::template with_static_immediate_permissions<permissions>;
+  using is_access_handle_trait_flag = std::true_type;
 };
 
 template <access_handle_task_collection_capture_mode_t capture_mode>
@@ -944,6 +980,7 @@ struct collection_capture_mode {
   template <typename Traits>
   using modified_traits = typename Traits
     ::template with_collection_capture_mode<capture_mode>;
+  using is_access_handle_trait_flag = std::true_type;
 };
 
 template <typename OwningIndex>
@@ -952,6 +989,7 @@ struct owning_index_type {
   template <typename Traits>
   using modified_traits = typename Traits
     ::template with_owning_index_type<OwningIndex>;
+  using is_access_handle_trait_flag = std::true_type;
 };
 
 template <bool copy_assignable>
@@ -962,6 +1000,7 @@ struct copy_assignable_handle {
     ::template with_copy_assignable<
       copy_assignable ? OptionalBoolean::KnownTrue : OptionalBoolean::KnownFalse
     >;
+  using is_access_handle_trait_flag = std::true_type;
 };
 template <bool copy_assignable>
 using copy_assignability = copy_assignable_handle<copy_assignable>;
@@ -971,6 +1010,18 @@ struct unknown_copy_assignability {
   template <typename Traits>
   using modified_traits = typename Traits
     ::template with_copy_assignable<OptionalBoolean::Unknown>;
+  using is_access_handle_trait_flag = std::true_type;
+};
+
+template <bool new_value>
+struct could_be_outermost_scope {
+  static constexpr auto value = new_value;
+  template <typename Traits>
+  using modified_traits = typename Traits
+    ::template with_could_be_outermost_scope<
+      new_value
+    >;
+  using is_access_handle_trait_flag = std::true_type;
 };
 
 template <typename T, typename... modifiers>
@@ -990,6 +1041,14 @@ struct make_access_handle_traits {
 
 template <typename... modifiers>
 using make_access_handle_traits_t = typename make_access_handle_traits<modifiers...>::type;
+
+template <typename T>
+using _is_access_handle_trait_flag_archetype = typename T::is_access_handle_trait_flag;
+
+template <typename T>
+using is_access_handle_trait_flag = tinympl::detected_or_t<std::false_type,
+  _is_access_handle_trait_flag_archetype, T
+>;
 
 // </editor-fold> }}}2
 //------------------------------------------------------------------------------

@@ -152,8 +152,9 @@ MATCHER_P(UsesInGetDependencies, uses,
     //}
     //if (not found) {
     if(deps.find(*use) == deps.end()) {
-      *result_listener << PrintToString(*use) << " not found; ";
+      *result_listener << "at least one use not found; ";
       rv = false;
+      break;
     }
   }
   *result_listener << "task->get_dependencies() contains: ";
