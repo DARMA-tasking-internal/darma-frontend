@@ -146,8 +146,8 @@ TEST_P(Test_simple_allreduce, overloads) {
 
     EXPECT_REGISTER_USE(reduce_use, f_task_out, f_collect_out, None, Modify);
 
-    EXPECT_CALL(*mock_runtime, allreduce_use(
-      Eq(ByRef(reduce_use)), Eq(ByRef(reduce_use)),
+    EXPECT_CALL(*mock_runtime, allreduce_use_gmock_proxy(
+      Eq(ByRef(reduce_use)),
       IsCollectiveDetailsWithReduceOp(0, 10,
         // Check that the correct reduce op is getting used also...
         detail::_impl::_get_static_reduce_op_instance<
@@ -157,10 +157,11 @@ TEST_P(Test_simple_allreduce, overloads) {
       Eq(make_key("world")
     )));
 
-    EXPECT_RELEASE_USE(reduce_use);
   } // end of sequence
 
 
+  //============================================================================
+  // actual code being tested
   {
     auto tmp = initial_access<std::vector<int>>("hello");
 
@@ -176,12 +177,13 @@ TEST_P(Test_simple_allreduce, overloads) {
 
 
     // TODO check expectations on continuing context
-
   }
+  //============================================================================
 
   EXPECT_RELEASE_USE(task_use);
 
   mock_runtime->registered_tasks.clear();
+  mock_runtime->backend_owned_uses.clear();
 
 }
 
@@ -193,6 +195,8 @@ INSTANTIATE_TEST_CASE_P(
 
 
 ////////////////////////////////////////////////////////////////////////////////
+
+#if 0
 
 struct Test_different_inout_allreduce
   : TestCollectives,
@@ -310,3 +314,5 @@ INSTANTIATE_TEST_CASE_P(
 //  );
 //
 //}
+
+#endif

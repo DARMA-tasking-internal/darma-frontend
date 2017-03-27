@@ -152,6 +152,12 @@ TaskBase::do_capture(
   if (is_marked_read_capture) {
     requested_schedule_permissions = requested_immediate_permissions = HandleUse::Read;
   }
+  else if(
+    source.current_use_base_->use_base->scheduling_permissions_ == HandleUse::Commutative
+  ) {
+    requested_immediate_permissions = HandleUse::Commutative;
+    requested_schedule_permissions = HandleUse::Commutative;
+  }
   else {
     // By default, use the strongest permissions we can schedule to
     switch (source.current_use_base_->use_base->scheduling_permissions_) {

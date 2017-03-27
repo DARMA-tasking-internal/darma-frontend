@@ -82,6 +82,9 @@ struct unfetched_access_handle_tag { };
 template <typename AccessHandleT>
 struct _publish_impl;
 
+template <typename T, typename... TraitsFlags>
+struct _initial_access_key_helper;
+
 } // end namespace detail
 
 
@@ -129,72 +132,81 @@ class AccessHandle : public detail::AccessHandleBase {
 
     using CompileTimeReadAccessAnalog = with_traits<
       typename traits
-        ::template with_max_scheduling_permissions<detail::AccessHandlePermissions::Read>::type
-        ::template with_max_immediate_permissions<detail::AccessHandlePermissions::Read>::type
+        ::template with_static_scheduling_permissions<detail::AccessHandlePermissions::Read>::type
+        ::template with_static_immediate_permissions<detail::AccessHandlePermissions::Read>::type
     >;
 
     static constexpr bool is_compile_time_immediate_modifiable =
-      (traits::max_immediate_permissions
+      (traits::static_immediate_permissions
         == detail::AccessHandlePermissions::Modify
-        or not traits::max_immediate_permissions_given);
+        or not traits::static_immediate_permissions_given);
     static constexpr bool is_compile_time_scheduling_modifiable =
-      (traits::max_scheduling_permissions
+      (traits::static_scheduling_permissions
         == detail::AccessHandlePermissions::Modify
-        or not traits::max_scheduling_permissions_given);
+        or not traits::static_scheduling_permissions_given);
     static constexpr bool is_compile_time_immediate_readable =
-      (traits::max_immediate_permissions
+      (traits::static_immediate_permissions
         == detail::AccessHandlePermissions::Read
-        or traits::max_immediate_permissions
+        or traits::static_immediate_permissions
           == detail::AccessHandlePermissions::Modify
-        or not traits::max_immediate_permissions_given);
+        or not traits::static_immediate_permissions_given);
     static constexpr bool is_compile_time_scheduling_readable =
-      (traits::max_scheduling_permissions == detail::AccessHandlePermissions::Read
-        or traits::max_scheduling_permissions
+      (traits::static_scheduling_permissions == detail::AccessHandlePermissions::Read
+        or traits::static_scheduling_permissions
           == detail::AccessHandlePermissions::Modify
-        or not traits::max_scheduling_permissions_given);
+        or not traits::static_scheduling_permissions_given);
     static constexpr bool is_compile_time_immediate_read_only =
       (is_compile_time_immediate_readable
         and not is_compile_time_immediate_modifiable);
 
     static constexpr bool is_leaf = (
-      traits::max_scheduling_permissions == detail::AccessHandlePermissions::None
+      traits::static_scheduling_permissions == detail::AccessHandlePermissions::None
     );
 
-    // Assert that max_scheduling_permissions, if given, is >= min_scheduling_permissions, if also given
+    // Assert that static_scheduling_permissions, if given, is >= required_scheduling_permissions, if also given
     static_assert(
-      not traits::max_scheduling_permissions_given
-        or not traits::min_scheduling_permissions_given
-        or (int)traits::max_scheduling_permissions
-          >= (int)traits::min_scheduling_permissions,
-      "Tried to create handle with max_scheduling_permissions < min_scheduling_permissions"
+      detail::compatible_given_AH_permissions_greater_equal<
+        traits::static_scheduling_permissions, traits::required_scheduling_permissions
+      >::value,
+      "Tried to create handle with static_scheduling_permissions < required_scheduling_permissions"
     );
-    // Assert that max_immediate_permissions, if given, is >= min_immediate_permissions, if also given
+    // Assert that static_immediate_permissions, if given, is >= required_immediate_permissions, if also given
     static_assert(
-      not traits::max_immediate_permissions_given
-        or not traits::min_immediate_permissions_given
-        or (int)traits::max_immediate_permissions
-          >= (int)traits::min_immediate_permissions,
-      "Tried to create handle with max_immediate_permissions < min_immediate_permissions"
+      detail::compatible_given_AH_permissions_greater_equal<
+        traits::static_immediate_permissions, traits::required_immediate_permissions
+      >::value,
+      "Tried to create handle with static_immediate_permissions < required_immediate_permissions"
     );
 
-    template <typename AccessHandleT>
+    template <typename AccessHandleTIn,
+      /* convenience temporary */
+      typename AccessHandleT = std::decay_t<AccessHandleTIn>
+    >
     using is_convertible_from_access_handle =  std::integral_constant<
       bool,
       detail::is_access_handle<AccessHandleT>::value
         // Check if the conversion is allowed based on min permissions and max permissions
-        and (
-          not traits::max_immediate_permissions_given
-            or not AccessHandleT::traits::min_immediate_permissions_given
-            or traits::max_immediate_permissions
-              >= AccessHandleT::traits::min_immediate_permissions
-        )
-          // same thing for schedule case
-        and (
-          not traits::max_scheduling_permissions_given
-            or not AccessHandleT::traits::min_scheduling_permissions_given
-            or traits::max_scheduling_permissions
-              >= AccessHandleT::traits::min_scheduling_permissions
-        )
+        and detail::compatible_given_AH_permissions_greater_equal<
+          AccessHandleT::traits::static_immediate_permissions, traits::required_immediate_permissions
+        >::value
+        // same thing for schedule case
+        and detail::compatible_given_AH_permissions_greater_equal<
+          AccessHandleT::traits::static_scheduling_permissions, traits::required_scheduling_permissions
+        >::value
+        // Special members need to be convertible also
+        and std::is_convertible<
+          typename AccessHandleT::traits::special_members_t,
+          typename traits::special_members_t
+        >::value
+    >;
+
+    template <typename AccessHandleTIn,
+      /* convenience temporary */
+      typename AccessHandleT = std::decay_t<AccessHandleTIn>
+    >
+    using is_reinterpret_castable_from_access_handle = std::integral_constant<
+      bool, is_convertible_from_access_handle<AccessHandleT>::value
+        and traits::template is_reinterpret_castable_from<typename AccessHandleT::traits>::type::value
     >;
 
     static constexpr auto
@@ -204,6 +216,9 @@ class AccessHandle : public detail::AccessHandleBase {
     static constexpr auto is_collection_captured_as_unique_modify =
       traits::collection_captured_as_unique_modify;
 
+    static constexpr auto is_known_not_copy_assignable =
+      traits::semantic_traits::is_copy_assignable == OptionalBoolean::KnownFalse;
+
   // </editor-fold> end Expression of traits as static member variables }}}1
   //============================================================================
 
@@ -212,14 +227,47 @@ class AccessHandle : public detail::AccessHandleBase {
 
   public:
 
-    AccessHandle&
-    operator=(AccessHandle& other) = default;
+    // TODO make read-only AccessHandles copy assignable
 
-    AccessHandle&
-    operator=(AccessHandle const& other) = default;
+    template <typename AccessHandleT>
+    std::enable_if_t<
+      is_convertible_from_access_handle<AccessHandleT>::value
+        and not AccessHandleT::is_known_not_copy_assignable,
+      AccessHandle&
+    >
+    operator=(AccessHandleT const& other) {
+      // Don't need go through copy ctor, since it shouldn't be a capture
+      assert(not _is_capturing_copy());
+      this->detail::AccessHandleBase::operator=(other);
 
+      var_handle_ = other.var_handle_;
+      var_handle_base_ = var_handle_;
+      unfetched_ = other.unfetched_;
+      current_use_ = other.current_use_;
+      // safely ignore prev_copied_from
+      other_private_members_.second() = other.other_private_members_.second();
+      return *this;
+    }
+
+    template <typename AccessHandleT,
+      typename=std::enable_if_t<
+        is_convertible_from_access_handle<AccessHandleT>::value
+          and std::is_rvalue_reference<AccessHandleT&&>::value
+      >
+    >
     AccessHandle&
-    operator=(AccessHandle&& other) = default;
+    operator=(AccessHandleT&& /*note: not a universal reference! */ other) {
+      this->detail::AccessHandleBase::operator=(std::move(other));
+      var_handle_ = std::move(other.var_handle_);
+      var_handle_base_ = var_handle_;
+      unfetched_ = std::move(other.unfetched_);
+      current_use_ = std::move(other.current_use_);
+      // Safely ignore prev_copied_from
+      other_private_members_.second() = std::move(
+        other.other_private_members_.second()
+      );
+      return *this;
+    };
 
     AccessHandle const&
     operator=(std::nullptr_t) const {
@@ -331,12 +379,12 @@ class AccessHandle : public detail::AccessHandleBase {
       if (capturing_task != nullptr) {
         if (
           // If this type is a compile-time read-only handle, mark it as such here
-          traits::max_immediate_permissions
+          traits::static_immediate_permissions
             == detail::AccessHandlePermissions::Read
             // If the other type is compile-time read-only and we don't know, mark it as a read
-            or (AccessHandleT::traits::max_immediate_permissions
+            or (AccessHandleT::traits::static_immediate_permissions
               == detail::AccessHandlePermissions::Read
-              and not traits::max_immediate_permissions_given
+              and not traits::static_immediate_permissions_given
             )
           ) {
           AccessHandleAccess::captured_as(copied_from) |=
@@ -344,7 +392,7 @@ class AccessHandle : public detail::AccessHandleBase {
         }
         if (
           // If this type doesn't have scheduling permissions, mark it as a leaf
-          traits::max_scheduling_permissions
+          traits::static_scheduling_permissions
             == detail::AccessHandlePermissions::None
           ) {
           AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::Leaf;
@@ -399,6 +447,7 @@ class AccessHandle : public detail::AccessHandleBase {
       std::enable_if_t<
         is_convertible_from_access_handle<AccessHandleT>::value
           and not is_collection_captured
+          and not is_reinterpret_castable_from_access_handle<std::decay_t<AccessHandleT>>::value
           and access_handle_is_collection_captured<std::decay_t<AccessHandleT>>::value,
         detail::_not_a_type_numbered<0>
       > = {detail::_not_a_type_ctor_tag}
@@ -418,7 +467,15 @@ class AccessHandle : public detail::AccessHandleBase {
     AccessHandle(
       AccessHandleT&& other,
       std::enable_if_t<
-        is_convertible_from_access_handle<AccessHandleT>::value
+        is_convertible_from_access_handle<
+          // Only if it would be convertible with the right owning index type
+          typename std::decay_t<AccessHandleT>::template with_traits<
+            detail::make_access_handle_traits_t<typename std::decay_t<AccessHandleT>::value_type,
+              detail::collection_capture_mode<detail::AccessHandleTaskCollectionCaptureMode::UniqueModify>,
+              detail::owning_index_type<typename traits::collection_capture_traits::owning_index_t>
+            >
+          >
+        >::value
           and is_collection_captured
           and access_handle_is_not_collection_captured<
             std::decay_t<AccessHandleT>
@@ -445,16 +502,17 @@ class AccessHandle : public detail::AccessHandleBase {
     //--------------------------------------------------------------------------
     // <editor-fold desc="move constructors"> {{{2
 
+    template <typename _Ignored_SFINAE=void,
+      typename=std::enable_if_t<std::is_void<_Ignored_SFINAE>::value>
+    >
     AccessHandle(AccessHandle&& other)
       : detail::AccessHandleBase(std::move(other)),
         var_handle_(std::move(other.var_handle_)),
         unfetched_(std::move(other.unfetched_)),
-        owning_index_(std::move(other.owning_index_)),
-        owning_backend_index_(std::move(other.owning_backend_index_)),
-        current_use_(current_use_base_, std::move(other.current_use_))
+        current_use_(current_use_base_, std::move(other.current_use_)),
+        other_private_members_(std::move(other.other_private_members_))
     {
       var_handle_base_ = var_handle_;
-      prev_copied_from() = other.prev_copied_from();
     }
 
     // Analogous type move constructor
@@ -474,35 +532,29 @@ class AccessHandle : public detail::AccessHandleBase {
           >::value
           and access_handle_is_not_collection_captured<AccessHandleT>::value
           and not is_collection_captured
-          and not access_handle_is_collection_captured<AccessHandleT>::value,
+          and not access_handle_is_collection_captured<AccessHandleT>::value
+          // prevent ambiguity with reinterpret_cast operator
+          and not is_reinterpret_castable_from_access_handle<AccessHandleT>::value,
         detail::_not_a_type
       > _nat = {detail::_not_a_type_ctor_tag}
     ) : detail::AccessHandleBase(std::move(other)),
         var_handle_(std::move(other.var_handle_)),
         unfetched_(std::move(other.unfetched_)),
-        owning_index_(std::move(other.owning_index_)),
-        owning_backend_index_(std::move(other.owning_backend_index_)),
-        current_use_(current_use_base_, std::move(other.current_use_))
+        current_use_(current_use_base_, std::move(other.current_use_)),
+        other_private_members_(std::piecewise_construct,
+          std::forward_as_tuple(nullptr),
+          std::forward_as_tuple(std::move(other.other_private_members_.second()))
+        )
     {
       var_handle_base_ = var_handle_;
     }
 
+    // need to make this a template to avoid deleting templated assignment operators
+    template <typename _Ignored_SFINAE=void,
+      typename=std::enable_if_t<std::is_void<_Ignored_SFINAE>::value>
+    >
     AccessHandle(AccessHandle const&& other) noexcept
       : AccessHandle(std::move(const_cast<AccessHandle&>(other)))
-    { /* forwarding ctor, must be empty */ }
-
-    // Analogous type const move constructor (forwarding ctor)
-    template <
-      typename AccessHandleT,
-      typename = std::enable_if_t<
-        // Check if this is convertible from AccessHandleT
-        is_convertible_from_access_handle<
-          std::decay_t<AccessHandleT>>::value
-          and not std::is_same<std::decay_t<AccessHandleT>, AccessHandle>::value
-      >
-    >
-    AccessHandle(AccessHandleT const&& other) noexcept
-      : AccessHandle(std::move(const_cast<AccessHandleT&>(other)))
     { /* forwarding ctor, must be empty */ }
 
     // </editor-fold> end move constructors }}}2
@@ -600,9 +652,9 @@ class AccessHandle : public detail::AccessHandleBase {
       typename _Ignored = void,
       typename = std::enable_if_t<
         // Technically, if this is compile-time nothing, you can't even do this, so we can disable it
-        not(traits::max_immediate_permissions
+        not(traits::static_immediate_permissions
           == detail::AccessHandlePermissions::None
-          and traits::max_scheduling_permissions
+          and traits::static_scheduling_permissions
             == detail::AccessHandlePermissions::None)
           and std::is_same<_Ignored, void>::value
       >
@@ -644,7 +696,7 @@ class AccessHandle : public detail::AccessHandleBase {
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use->immediate_permissions_
-          == abstract::frontend::Use::Permissions::Modify,
+          >= abstract::frontend::Use::Permissions::Modify,
         "set_value() called on handle not in immediately modifiable state, with key: {"
           << get_key() << "}"
       );
@@ -673,12 +725,11 @@ class AccessHandle : public detail::AccessHandleBase {
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use->immediate_permissions_
-          == abstract::frontend::Use::Permissions::Modify,
+          >= abstract::frontend::Use::Permissions::Modify,
         "emplace_value() called on handle not in immediately modifiable state, with key: {"
           << get_key() << "}"
       );
-      // TODO do this more uniformly and/or expose it to the frontend somehow
-      using alloc_t = std::allocator<T>;
+      using alloc_t = typename traits::allocation_traits::allocator_t;
       using allocator_traits_t = std::allocator_traits<alloc_t>;
       alloc_t alloc;
       allocator_traits_t::destroy(alloc, (T*)(current_use_->use->data_));
@@ -747,7 +798,7 @@ class AccessHandle : public detail::AccessHandleBase {
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use->immediate_permissions_
-          == abstract::frontend::Use::Permissions::Modify,
+          >= abstract::frontend::Use::Permissions::Modify,
         "get_reference() called on handle not in immediately modifiable state, with key: {"
           << get_key() << "}"
       );
@@ -820,8 +871,7 @@ class AccessHandle : public detail::AccessHandleBase {
               )
             );
 
-            current_use_ = std::make_shared<GenericUseHolder < HandleUse>>
-            (
+            current_use_ = std::make_shared<GenericUseHolder<HandleUse>>(
               HandleUse(
                 var_handle_,
                 fetched_in_flow,
@@ -832,7 +882,7 @@ class AccessHandle : public detail::AccessHandleBase {
             );
 
             current_use_->could_be_alias = true;
-            current_use_->use->collection_owner_ = owning_index_;
+            _set_owning_index_if_owned_by();
 
             return *this;
 
@@ -863,7 +913,7 @@ class AccessHandle : public detail::AccessHandleBase {
         >::type::template with_owning_index_type<std::decay_t<Index>>::type
       >;
       auto rv = return_type(*this);
-      rv.owning_index_ = std::forward<Index>(idx);
+      rv.owning_index() = std::forward<Index>(idx);
       return rv;
     };
 
@@ -889,6 +939,94 @@ class AccessHandle : public detail::AccessHandleBase {
     };
 #endif // _darma_has_feature(create_concurrent_work_owned_by)
 
+#if _darma_has_feature(commutative_access_handles)
+    template <typename _Ignored_SFINAE=void>
+    std::enable_if_t<
+      is_compile_time_scheduling_modifiable
+        and std::is_void<_Ignored_SFINAE>::value
+    >
+    begin_commutative_usage() const {
+      DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "begin_commutative_usage called on uninitialized or released AccessHandle"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_->use->immediate_permissions_ == detail::HandleUse::None,
+        "begin_commutative_usage called on use with immediate permissions that aren't None"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_->use->scheduling_permissions_ == detail::HandleUse::Modify,
+        "begin_commutative_usage called on use without scheduling modify permissions"
+      );
+
+      // Need to make next flow to be the output of the commutative usage
+      auto old_out_flow = current_use_->use->out_flow_;
+
+      auto* rt = abstract::backend::get_backend_runtime();
+      auto comm_reg_out = detail::make_next_flow_ptr(
+        current_use_->use->in_flow_, rt
+      );
+
+      current_use_->replace_use(
+        detail::HandleUse(
+          var_handle_,
+          current_use_->use->in_flow_,
+          comm_reg_out,
+          /* scheduling permissions */
+          detail::HandleUse::Commutative,
+          /* immediate permissions */
+          detail::HandleUse::None
+        ),
+        current_use_->is_registered
+      );
+
+      current_use_->use->suspended_out_flow_ = old_out_flow;
+
+      set_is_commutative_dynamic(true);
+    }
+
+    template <typename _Ignored_SFINAE=void>
+    std::enable_if_t<
+      is_compile_time_scheduling_modifiable
+        and std::is_void<_Ignored_SFINAE>::value
+    >
+    end_commutative_usage() const {
+      // TODO We'll need to swap uses here when all of the uses are registered
+      DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "end_commutative_usage called on uninitialized or released AccessHandle"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_->use->immediate_permissions_ == detail::HandleUse::None,
+        "end_commutative_usage called on use with immediate permissions that aren't None"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_->use->scheduling_permissions_ == detail::HandleUse::Commutative,
+        "end_commutative_usage called on use without scheduling Commutative permissions"
+      );
+
+      set_is_commutative_dynamic(false);
+
+      // Need to end the commutative usage
+      auto old_out_flow = current_use_->use->suspended_out_flow_;
+
+      auto comm_reg_out = current_use_->use->out_flow_;
+
+      current_use_->replace_use(
+        detail::HandleUse(
+          var_handle_,
+          comm_reg_out,
+          old_out_flow, // restore the old out flow
+          /* scheduling permissions */
+          detail::HandleUse::Modify,
+          /* immediate permissions */
+          detail::HandleUse::None
+        ),
+        current_use_->is_registered
+      );
+    }
+#endif // _darma_has_feature(commutative_access_handles)
+
   // </editor-fold> end Public interface methods }}}1
   //============================================================================
 
@@ -907,8 +1045,91 @@ class AccessHandle : public detail::AccessHandleBase {
       return (bool)current_use_.get() && current_use_->use->handle_ != nullptr;
     }
 
+    template <typename _Ignored_SFINAE=void>
+    void
+    _set_owning_index_if_owned_by(
+      std::enable_if_t<
+        traits::collection_captured_as_unique_modify
+          and std::is_void<_Ignored_SFINAE>::value,
+        detail::_not_a_type_numbered<0>
+      > = { }
+    ) const {
+      current_use_->use->collection_owner_ = owning_backend_index();
+    }
+
+    template <typename _Ignored_SFINAE=void>
+    void
+    _set_owning_index_if_owned_by(
+      std::enable_if_t<
+        not traits::collection_captured_as_unique_modify
+          and std::is_void<_Ignored_SFINAE>::value,
+        detail::_not_a_type_numbered<1>
+      > = { }
+    ) const { /* intentionally empty */ }
+
+    bool
+    _is_capturing_copy() const {
+      // This method is basically only used in debug mode (inside an assert)
+      detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
+        abstract::backend::get_backend_context()->get_running_task()
+      );
+      if (running_task) {
+        return running_task->current_create_work_context != nullptr;
+      } else {
+        return false;
+      }
+    }
+
   // </editor-fold> end Private implementation detail methods }}}1
   //============================================================================
+
+  //==============================================================================
+  // <editor-fold desc="implicit conversions and reinterpretations"> {{{1
+
+  public:
+
+    template <
+      typename AccessHandleT,
+      typename=std::enable_if_t<
+        std::decay_t<AccessHandleT>
+          ::template is_reinterpret_castable_from_access_handle<AccessHandle>::value
+          and not std::is_const<AccessHandleT>::value
+      >
+    >
+    operator AccessHandleT&() &
+    {
+      static_assert(sizeof(AccessHandle) == sizeof(std::decay_t<AccessHandleT>),
+        "Something went horribly wrong"
+      );
+      return *reinterpret_cast<AccessHandleT*>(this);
+    }
+
+    operator AccessHandle&() const &
+    {
+      return *const_cast<AccessHandle*>(this);
+    }
+
+    template <
+      typename AccessHandleT,
+      typename=std::enable_if_t<
+        std::decay_t<AccessHandleT>
+          ::template is_reinterpret_castable_from_access_handle<AccessHandle>::value
+          // This works around a bug in GCC.  See impl/meta/any_convertible.h
+          and meta::_impl::rvalue_ref_operator_needs_const_t::value
+      >
+    >
+    operator AccessHandleT&&() &&
+    {
+      static_assert(sizeof(AccessHandle) == sizeof(std::decay_t<AccessHandleT>),
+        "Something went horribly wrong"
+      );
+      return reinterpret_cast<AccessHandleT&&>(*this);
+    }
+
+  private:
+
+  // </editor-fold> end implicit conversions and reinterpretations }}}1
+  //==============================================================================
 
   //============================================================================
   // <editor-fold desc="AccessHandleBase pure virtual function implementations"> {{{1
@@ -930,9 +1151,7 @@ class AccessHandle : public detail::AccessHandleBase {
         rv->var_handle_ = var_handle_;
         rv->var_handle_base_ = var_handle_;
         rv->unfetched_ = unfetched_;
-        rv->owning_index_ = owning_index_;
-        rv->owning_backend_index_ = owning_backend_index_;
-        rv->prev_copied_from() = prev_copied_from(); // Shouldn't matter
+        rv->other_private_members_ = other_private_members_;
         return rv;
       }
     }
@@ -1010,6 +1229,29 @@ class AccessHandle : public detail::AccessHandleBase {
       current_use_->could_be_alias = true;
     }
 
+    AccessHandle(
+      variable_handle_ptr var_handle,
+      detail::flow_ptr const& in_flow,
+      detail::flow_ptr const& out_flow,
+      abstract::frontend::Use::permissions_t scheduling_permissions,
+      abstract::frontend::Use::permissions_t immediate_permissions,
+      detail::flow_ptr const& suspended_out_flow
+    ) : var_handle_(var_handle),
+        current_use_(current_use_base_)
+    {
+      var_handle_base_ = var_handle_;
+      current_use_ = detail::make_shared<detail::UseHolder>(
+        detail::HandleUse(
+          var_handle_,
+          in_flow, out_flow,
+          scheduling_permissions, immediate_permissions
+        )
+      );
+      current_use_->use->suspended_out_flow_ = suspended_out_flow;
+      // If there's a suspended outt flow, this should never be an alias
+      current_use_->could_be_alias = (suspended_out_flow == nullptr);
+    }
+
     //--------------------------------------------------------------------------
     // <editor-fold desc="DARMA feature: task_migration"> {{{2
 #if _darma_has_feature(task_migration)
@@ -1048,6 +1290,9 @@ class AccessHandle : public detail::AccessHandleBase {
         )
       );
 
+      // Suspended flow should always be null when packing/unpacking, so don't
+      // have to worry about it here
+
       current_use_ = std::make_shared<detail::UseHolder>(
         detail::migrated_use_arg,
         detail::HandleUse(
@@ -1075,6 +1320,9 @@ class AccessHandle : public detail::AccessHandleBase {
       var_handle_base_ = var_handle_;
     }
 
+
+
+
   // </editor-fold> end private ctors }}}1
   //============================================================================
 
@@ -1088,19 +1336,73 @@ class AccessHandle : public detail::AccessHandleBase {
 
     // TODO remove unfetched?
     mutable bool unfetched_ = false;
-    mutable typename traits::owning_index_t owning_index_;
-    mutable std::size_t owning_backend_index_ = 0;
 
     detail::compressed_pair<
       AccessHandle const*,
       typename traits::special_members_t
     > other_private_members_;
 
+    bool
+    get_is_commutative_dynamic() const {
+      return other_private_members_.second().is_commutative_dynamic;
+    }
+    bool
+    set_is_commutative_dynamic(bool new_val) const {
+      other_private_members_.second().is_commutative_dynamic = new_val;
+      return new_val;
+    }
+
+    bool
+    get_is_outermost_scope_dynamic() const {
+      return other_private_members_.second().is_outermost_scope_dynamic;
+    }
+    bool
+    set_is_outermost_scope_dynamic(bool new_val) {
+      other_private_members_.second().is_outermost_scope_dynamic = new_val;
+      return new_val;
+    }
+
     AccessHandle const*& prev_copied_from() {
       return other_private_members_.first();
     }
+
     AccessHandle const* const& prev_copied_from() const {
       return other_private_members_.first();
+    }
+
+    typename traits::allocation_traits::allocator_t const&
+    get_allocator() const {
+      return other_private_members_.second().allocator;
+    }
+    typename traits::allocation_traits::allocator_t&
+    get_allocator() {
+      return other_private_members_.second().allocator;
+    }
+
+    template <typename _Ignored_SFINAE=void>
+    typename traits::owning_index_t&
+    owning_index(
+      std::enable_if_t<
+        traits::collection_captured_as_unique_modify
+          and std::is_void<_Ignored_SFINAE>::value, // should be always true
+        detail::_not_a_type
+      > = { }
+    ) const
+    {
+      return other_private_members_.second().owning_index_;
+    }
+
+    template <typename _Ignored_SFINAE=void>
+    std::size_t&
+    owning_backend_index(
+      std::enable_if_t<
+        traits::collection_captured_as_unique_modify
+          and std::is_void<_Ignored_SFINAE>::value, // should be always true
+        detail::_not_a_type
+      > = { }
+    ) const
+    {
+      return other_private_members_.second().owning_backend_index_;
     }
 
 
@@ -1145,6 +1447,11 @@ class AccessHandle : public detail::AccessHandleBase {
     friend
     struct detail::_publish_impl;
 
+    template <typename, typename...>
+    friend struct detail::_commutative_access_impl;
+    template <typename, typename...>
+    friend struct detail::_noncommutative_access_impl;
+
     template <typename>
     friend
     class detail::IndexedAccessHandle;
@@ -1156,6 +1463,9 @@ class AccessHandle : public detail::AccessHandleBase {
     friend struct meta::splat_tuple_access<detail::AccessHandleBase>;
 
     friend struct darma_runtime::serialization::Serializer<AccessHandle>;
+
+    template <typename, typename...>
+    friend struct detail::_initial_access_key_helper;
 
 #ifdef DARMA_TEST_FRONTEND_VALIDATION
     friend class ::TestAccessHandle;
@@ -1176,22 +1486,55 @@ class AccessHandle : public detail::AccessHandleBase {
 
 template <typename T>
 using ReadAccessHandle = AccessHandle<
-  T, typename detail::make_access_handle_traits<
-    detail::min_immediate_permissions<detail::AccessHandlePermissions::Read>,
-    detail::max_immediate_permissions<detail::AccessHandlePermissions::Read>,
-    detail::min_scheduling_permissions<detail::AccessHandlePermissions::Read>
+  T, typename detail::make_access_handle_traits<T,
+    detail::required_immediate_permissions<detail::AccessHandlePermissions::Read>,
+    detail::static_immediate_permissions<detail::AccessHandlePermissions::Read>,
+    detail::required_scheduling_permissions<detail::AccessHandlePermissions::Read>
   >::type
 >;
+
+template <typename AccessHandleT>
+using ScheduleOnly = typename AccessHandleT::template with_traits<
+  detail::make_access_handle_traits_t<typename AccessHandleT::value_type,
+    detail::required_immediate_permissions<detail::AccessHandlePermissions::None>
+  >
+>;
+template <typename AccessHandleT, typename IndexType>
+using UniquelyOwned = typename AccessHandleT::template with_traits<
+  detail::make_access_handle_traits_t<typename AccessHandleT::value_type,
+    detail::owning_index_type<IndexType>,
+    detail::collection_capture_mode<
+      detail::AccessHandleTaskCollectionCaptureMode::UniqueModify
+    >
+  >
+>;
+
+template <typename T, typename... TraitModifiers>
+using AccessHandleWithTraits = AccessHandle<T,
+  detail::make_access_handle_traits_t<T,
+    TraitModifiers...
+  >
+>;
+
+
+
+
+
+//==============================================================================
+// <editor-fold desc="Serialization"> {{{1
 
 #if _darma_has_feature(task_migration)
 namespace serialization {
 
 template <typename... Args>
-struct Serializer<AccessHandle<Args...>> {
+struct Serializer<AccessHandle<Args...>>
+{
+    // TODO update this for all of the special members now present in AccessHandle
   private:
     using AccessHandleT = AccessHandle<Args...>;
 
-    bool handle_is_serializable_assertions(AccessHandleT const& val) const {
+    bool handle_is_serializable_assertions(AccessHandleT const& val) const
+    {
       // The handle has to be set up and valid
       assert(val.var_handle_.get() != nullptr);
       // The only AccessHandle objects that should ever be migrated are ones that
@@ -1202,23 +1545,29 @@ struct Serializer<AccessHandle<Args...>> {
       // has modify scheduling permissions (and less than modify immediate permissions)
       assert(
         ((
-          val.current_use_->use->scheduling_permissions_ == ::darma_runtime::detail::HandleUse::Modify
-            and val.current_use_->use->immediate_permissions_ != ::darma_runtime::detail::HandleUse::Modify
+          val.current_use_->use->scheduling_permissions_
+            == ::darma_runtime::detail::HandleUse::Modify
+            and val.current_use_->use->immediate_permissions_
+              != ::darma_runtime::detail::HandleUse::Modify
         ) and val.current_use_->could_be_alias)
-          or (not (
-            val.current_use_->use->scheduling_permissions_ == ::darma_runtime::detail::HandleUse::Modify
-              and val.current_use_->use->immediate_permissions_ != ::darma_runtime::detail::HandleUse::Modify
+          or (not(
+            val.current_use_->use->scheduling_permissions_
+              == ::darma_runtime::detail::HandleUse::Modify
+              and val.current_use_->use->immediate_permissions_
+                != ::darma_runtime::detail::HandleUse::Modify
           ) and not val.current_use_->could_be_alias)
       );
       // captured_as_ should always be normal here
       assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
+      assert(val.current_use_->use->suspended_out_flow_ == nullptr);
       return true;
     }
 
 
   public:
     template <typename ArchiveT>
-    void compute_size(AccessHandleT const& val, ArchiveT& ar) const {
+    void compute_size(AccessHandleT const& val, ArchiveT& ar) const
+    {
 
       assert(handle_is_serializable_assertions(val));
 
@@ -1238,7 +1587,8 @@ struct Serializer<AccessHandle<Args...>> {
     }
 
     template <typename ArchiveT>
-    void pack(AccessHandleT const& val, ArchiveT& ar) const {
+    void pack(AccessHandleT const& val, ArchiveT& ar) const
+    {
 
       assert(handle_is_serializable_assertions(val));
 
@@ -1261,14 +1611,18 @@ struct Serializer<AccessHandle<Args...>> {
     }
 
     template <typename ArchiveT>
-    void unpack(void* allocated, ArchiveT& ar) const {
+    void unpack(void* allocated, ArchiveT& ar) const
+    {
       // Call an unpacking constructor
-      new (allocated) AccessHandleT(serialization::unpack_constructor_tag, ar);
+      new(allocated) AccessHandleT(serialization::unpack_constructor_tag, ar);
     }
 };
 
 } // end namespace serialization
 #endif // _darma_has_feature(task_migration)
+
+// </editor-fold> end Serialization }}}1
+//==============================================================================
 
 } // end namespace darma_runtime
 

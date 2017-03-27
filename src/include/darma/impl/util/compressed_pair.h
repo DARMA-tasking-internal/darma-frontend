@@ -263,7 +263,7 @@ class compressed_pair_impl
   : public compressed_pair_first_part_impl<T1>,
     public compressed_pair_second_part_impl<T2>
 {
-  private:
+  protected:
 
     using _first_base_t = compressed_pair_first_part_impl<T1>;
     using _second_base_t = compressed_pair_second_part_impl<T2>;
@@ -282,6 +282,26 @@ class compressed_pair_impl
     using enable_pair_conversion_ctor_if_t = std::enable_if_t<
       std::is_convertible<U1, T1>::value
         and std::is_convertible<U2, T2>::value
+    >;
+
+    template <typename U1, typename U2>
+    using enable_copy_conversion_assignment_op_if_t = std::enable_if_t<
+      std::is_assignable<T1&, U1 const&>::value
+        and std::is_assignable<T2&, U2 const&>::value
+        and not (
+          std::is_same<T1, U1>::value
+            and std::is_same<T2, U2>::value
+        )
+    >;
+
+    template <typename U1, typename U2>
+    using enable_move_conversion_assignment_op_if_t = std::enable_if_t<
+      std::is_assignable<T1&, U1&&>::value
+        and std::is_assignable<T2&, U2&&>::value
+        and not (
+          std::is_same<T1, U1>::value
+            and std::is_same<T2, U2>::value
+        )
     >;
 
     template <class... Args1, class... Args2, std::size_t... Idxs1, std::size_t... Idxs2>
@@ -341,10 +361,11 @@ class compressed_pair_impl
       std::tuple<Args1...> first_args,
       std::tuple<Args2...> second_args
     ) : compressed_pair_impl(
-      _pc, first_args, second_args,
-      std::index_sequence_for<Args1...>(),
-      std::index_sequence_for<Args2...>()
-    ) { }
+          _pc, first_args, second_args,
+          std::index_sequence_for<Args1...>(),
+          std::index_sequence_for<Args2...>()
+        )
+    { }
 
 };
 
@@ -367,11 +388,40 @@ class compressed_pair
     using base_t::second;
 
 
-    compressed_pair() = default;
-    compressed_pair(compressed_pair const&) = default;
-    compressed_pair(compressed_pair&&) = default;
+    inline DARMA_CONSTEXPR_14 compressed_pair() = default;
+    inline DARMA_CONSTEXPR_14 compressed_pair(compressed_pair const&) = default;
+    inline DARMA_CONSTEXPR_14 compressed_pair(compressed_pair&&) = default;
+
+    inline DARMA_CONSTEXPR_14
     compressed_pair& operator=(compressed_pair const&) = default;
+    inline DARMA_CONSTEXPR_14
     compressed_pair& operator=(compressed_pair&&) = default;
+
+    template <typename U1, typename U2,
+      typename=typename base_t
+        ::template enable_copy_conversion_assignment_op_if_t<U1, U2>
+    >
+    inline DARMA_CONSTEXPR_14
+    compressed_pair& operator=(
+      compressed_pair<U1, U2> const& other
+    ) {
+      first() = other.first();
+      second() = other.second();
+      return *this;
+    };
+
+    template <typename U1, typename U2,
+      typename=typename base_t
+        ::template enable_move_conversion_assignment_op_if_t<U1, U2>
+    >
+    inline DARMA_CONSTEXPR_14
+    compressed_pair& operator=(
+      compressed_pair<U1, U2>&& other
+    ) {
+      first() = std::move(other.first());
+      second() = std::move(other.second());
+      return *this;
+    };
 
 };
 

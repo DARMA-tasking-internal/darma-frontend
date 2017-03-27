@@ -65,8 +65,12 @@ namespace detail {
 
 
 // TODO move this forward declaration
-template <typename T>
+template <typename T, typename...>
 struct _initial_access_key_helper;
+template <typename T, typename...>
+struct _commutative_access_impl;
+template <typename T, typename...>
+struct _noncommutative_access_impl;
 template <typename...>
 struct AccessHandleCollectionAccess;
 template <typename, typename, typename...>
@@ -436,7 +440,7 @@ class SSOKey
     friend struct serialization::Serializer<SSOKey>;
     friend struct serialization::Serializer<const SSOKey>;
 
-    template <typename T>
+    template <typename T, typename...>
     friend struct darma_runtime::detail::_initial_access_key_helper;
 
     template <typename...>

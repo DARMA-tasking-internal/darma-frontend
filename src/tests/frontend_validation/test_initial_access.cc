@@ -124,6 +124,37 @@ TEST_F(TestInitialAccess, call_sequence_helper) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// Same as call_sequence, but with delayed assignment
+TEST_F(TestInitialAccess, call_sequence_helper_2) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  DECLARE_MOCK_FLOWS(f_in, f_out, f_in_2, f_out_2);
+
+  EXPECT_INITIAL_ACCESS(f_in, f_out, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out));
+
+  EXPECT_RELEASE_FLOW(f_in);
+  EXPECT_RELEASE_FLOW(f_out);
+
+
+  {
+    AccessHandleWithTraits<int,
+      advanced::access_handle_traits::allow_copy_assignment_from_this<true>
+    > tmp;
+    AccessHandle<int> tmp2;
+
+    tmp = initial_access<int>("hello");
+    tmp2 = tmp;
+
+  } // tmp2, tmp deleted
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestInitialAccess, call_sequence_assign) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -177,3 +208,41 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+TEST_F(TestInitialAccess, call_sequence_copy_assign) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::detail;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  DECLARE_MOCK_FLOWS(f_in_1, f_out_1, f_in_2, f_out_2);
+
+  {
+    InSequence s;
+
+    EXPECT_INITIAL_ACCESS(f_in_2, f_out_2, make_key("world"));
+    EXPECT_INITIAL_ACCESS(f_in_1, f_out_1, make_key("hello"));
+
+    EXPECT_FLOW_ALIAS(f_in_2, f_out_2);
+
+    EXPECT_CALL(*sequence_marker, mark_sequence("in between"));
+
+    EXPECT_FLOW_ALIAS(f_in_1, f_out_1);
+  }
+
+  {
+    auto tmp2 = initial_access<int>("world");
+    auto tmp1 = initial_access<int,
+      advanced::access_handle_traits::allow_copy_assignment_from_this<true>
+    >("hello");
+
+    // Replace tmp2 with tmp1 (leaving a hanging alias to tmp1), since that
+    // should be allowed now
+    tmp2 = tmp1;
+
+    sequence_marker->mark_sequence("in between");
+
+  }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////

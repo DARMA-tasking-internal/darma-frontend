@@ -760,7 +760,43 @@ auto make_captured_use_holder(
 
       break;
     } // end case Modify requested immediate permissions
+    //==========================================================================
+    case HandleUse::Commutative: { // requested immediate permissions
 
+      DARMA_ASSERT_MESSAGE(
+        source_and_continuing_holder->use->scheduling_permissions_ == HandleUse::Commutative,
+        "Can't schedule a commutative use without commutative scheduling permissions"
+      );
+      DARMA_ASSERT_MESSAGE(
+        source_and_continuing_holder->use->immediate_permissions_ == HandleUse::None
+          or source_and_continuing_holder->use->immediate_permissions_ == HandleUse::Commutative,
+        "Can't create commutative task on handle without None or Commutative immediate permissions"
+      );
+
+      // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+      // %   CN -> { CC } -> CN     %
+      // %   CC -> { CC } -> CC     %
+      // %   CN -> { NC } -> CN     %
+      // %   CC -> { NC } -> CC     %
+      // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+      captured_use_holder = use_holder_maker(
+        var_handle,
+        source_and_continuing_holder->use->in_flow_,
+        source_and_continuing_holder->use->out_flow_,
+        /* Scheduling permissions */
+        requested_scheduling_permissions,
+        /* Immediate permissions */
+        HandleUse::Commutative
+      );
+
+      captured_use_holder->do_register();
+
+      // Note that permissions/use/etc of source_and_continuing are unchanged
+      // TODO commutative schedule-only capture
+
+      break;
+    } // end requested immediate permissions commutative
     //==========================================================================
 
     default: {
@@ -790,16 +826,19 @@ make_captured_use_holder(
   return make_captured_use_holder(
     var_handle, requested_scheduling_permissions, requested_immediate_permissions,
     source_and_continuing_holder,
+    /* Use holder maker */
     [](auto&&... args) {
       using namespace darma_runtime::detail;
       return std::make_shared<GenericUseHolder<HandleUse>>(HandleUse(
         std::forward<decltype(args)>(args)...
       ));
     },
+    /* next flow maker */
     [](auto&& flow, auto* backend_runtime) {
       using namespace darma_runtime::detail;
       return darma_runtime::detail::make_next_flow_ptr(std::forward<decltype(flow)>(flow), backend_runtime);
     },
+    /* continuing use maker */
     [](auto&&... args) {
       using namespace darma_runtime::detail;
       return HandleUse(

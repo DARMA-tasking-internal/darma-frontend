@@ -154,15 +154,15 @@ struct all_reduce_impl {
     > details(piece, n_pieces);
 
     backend_runtime->allreduce_use(
-      input_use_holder->use.get(),
-      output_use_holder->use.get(),
+      input_use_holder->use.release_smart_ptr(),
+      output_use_holder->use.release_smart_ptr(),
       &details, tag
     );
 
-    // TODO decide if the release is necessary here (same as with publish)
-    input_use_holder->do_release();
-    output_use_holder->do_release();
-
+    input_use_holder->is_registered = false;
+    input_use_holder->could_be_alias = false;
+    output_use_holder->is_registered = false;
+    output_use_holder->could_be_alias = false;
   }
 
   //============================================================================
@@ -209,15 +209,13 @@ struct all_reduce_impl {
     );
 
     backend_runtime->allreduce_use(
-      collective_use_holder->use.get(),
-      collective_use_holder->use.get(),
+      // Transfer ownership
+      collective_use_holder->use.release_smart_ptr(),
       &details, tag
     );
 
-    // Release the captured use
-    // TODO decide if this is necessary here (same as with publish)
-    collective_use_holder->do_release();
-
+    collective_use_holder->is_registered = false;
+    collective_use_holder->could_be_alias = false;
   }
 
 };

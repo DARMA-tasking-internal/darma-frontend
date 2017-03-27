@@ -310,11 +310,9 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
 
     EXPECT_RELEASE_USE(use_idx[i]);
 
-    EXPECT_CALL(*mock_runtime, allreduce_use(
-      Eq(ByRef(use_allred[i])), Eq(ByRef(use_allred[i])), _, _)
+    EXPECT_CALL(*mock_runtime, allreduce_use_gmock_proxy(
+      Eq(ByRef(use_allred[i])), _, _)
     );
-
-    EXPECT_RELEASE_USE(use_allred[i]);
 
     EXPECT_FLOW_ALIAS(f_allred_out[i], f_out_idx[i]);
 
@@ -328,6 +326,7 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
 
 
   mock_runtime->task_collections.front().reset(nullptr);
+  mock_runtime->backend_owned_uses.clear();
 
 }
 
@@ -952,6 +951,7 @@ TEST_F(TestCreateConcurrentWork, simple_unique_owner) {
 
     struct Foo {
       void operator()(Index1D<int> index,
+        // TODO: this instead: UniquelyOwned<AccessHandle<int>, Index1D<int>> val
         AccessHandle<int> val
       ) const {
         if(index.value == 0) { val.set_value(42); }
@@ -1035,6 +1035,7 @@ TEST_F(TestCreateConcurrentWork, fetch_unique_owner) {
 
     struct Foo {
       void operator()(Index1D<int> index,
+        // TODO: this instead: UniquelyOwned<AccessHandle<int>, Index1D<int>> val
         AccessHandle<int> val
       ) const {
         if(index.value == 0) {
@@ -1397,3 +1398,132 @@ TEST_F(TestCreateConcurrentWork, nested_in_create_work) {
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
+
+#if _darma_has_feature(handle_collection_based_collectives)
+
+TEST_F(TestCreateConcurrentWork, handle_reduce) {
+
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_collectives;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(finit, fnull, fout_coll, finit_tmp, fnull_tmp, fout_tmp);
+  MockFlow f_in_idx[4], f_out_idx[4];
+  MockFlow f_fwd_allred[4] = { "f_fwd_allred[0]", "f_fwd_allred[1]", "f_fwd_allred[2]", "f_fwd_allred[3]"};
+  MockFlow f_allred_out[4] = { "f_allred_out[0]", "f_allred_out[1]", "f_allred_out[2]", "f_allred_out[3]"};
+  use_t* use_idx[4] = {nullptr, nullptr, nullptr, nullptr};
+  use_t* use_coll = nullptr;
+  use_t* use_coll_collective = nullptr;
+  use_t* use_tmp_collective = nullptr;
+  int values[4];
+
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(finit_tmp, fnull_tmp, make_key("world"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
+    .WillOnce(Return(fout_coll));
+  EXPECT_CALL(*mock_runtime, make_next_flow(finit_tmp))
+    .WillOnce(Return(fout_tmp));
+
+#if _darma_has_feature(register_all_uses)
+  use_t* use_coll_cont, *use_tmp_cont;
+  EXPECT_REGISTER_USE(use_coll_cont, fout_coll, fnull, Modify, None);
+  EXPECT_REGISTER_USE(use_tmp_cont, fout_tmp, fnull_tmp, Modify, None);
+  EXPECT_RELEASE_USE(use_coll_cont);
+  EXPECT_RELEASE_USE(use_tmp_cont);
+#endif
+
+  EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, fout_coll, Modify, Modify, 4);
+
+  EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(
+    UseInGetDependencies(ByRef(use_coll))
+  ));
+
+  EXPECT_REGISTER_USE_COLLECTION(use_coll_collective, fout_coll, fout_coll, None, Read, 4);
+  EXPECT_REGISTER_USE(use_tmp_collective, finit_tmp, fout_tmp, None, Modify);
+
+  EXPECT_CALL(*mock_runtime, reduce_collection_use_gmock_proxy(
+    Eq(ByRef(use_coll_collective)),
+    Eq(ByRef(use_tmp_collective)),
+    _,
+    make_key("myred")
+  ));
+
+  EXPECT_FLOW_ALIAS(fout_coll, fnull);
+  EXPECT_FLOW_ALIAS(fout_tmp, fnull_tmp);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
+    auto tmp = initial_access<int>("world");
+
+
+    struct Foo {
+      void operator()(
+        ConcurrentContext<Index1D<int>> context,
+        AccessHandleCollection<int, Range1D<int>> coll
+      ) const {
+        ASSERT_THAT(context.index().value, Lt(4));
+        ASSERT_THAT(context.index().value, Ge(0));
+        auto mine = coll[context.index()].local_access();
+        mine.set_value(42);
+      }
+    };
+
+    create_concurrent_work<Foo>(tmp_c,
+      index_range=Range1D<int>(4)
+    );
+
+    tmp_c.reduce(tag="myred", output=tmp);
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  for(int i = 0; i < 4; ++i) {
+    values[i] = 0;
+
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(finit, i))
+      .WillOnce(Return(f_in_idx[i]));
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
+      .WillOnce(Return(f_out_idx[i]));
+    EXPECT_CALL(*mock_runtime, register_use(
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+    )).WillOnce(Invoke([&](auto* use){
+      use_idx[i] = use;
+      use->get_data_pointer_reference() = &values[i];
+    }));
+
+    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+
+    EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
+
+    EXPECT_RELEASE_USE(use_idx[i]);
+
+    created_task->run();
+
+    EXPECT_THAT(values[i], Eq(42));
+
+  }
+
+  EXPECT_RELEASE_USE(use_coll);
+
+
+  mock_runtime->task_collections.front().reset(nullptr);
+
+  // Leak the memory for now, just to get things working
+  //new (&mock_runtime->backend_owned_uses) std::deque<std::unique_ptr<use_t>>();
+  mock_runtime->backend_owned_uses.clear();
+
+}
+
+#endif // _darma_has_feature(handle_collection_based_collectives)

@@ -143,6 +143,32 @@ class managing_ptr {
       managed_ptr_ = smart_ptr_.get();
     }
 
+    template <typename _Ignored_SFINAE=void>
+    void
+    _assign_managed(
+      nullptr_t,
+      std::enable_if_t<
+        std::is_void<_Ignored_SFINAE>::value
+          and managed_is_directly_assignable::value,
+        _not_a_type_numbered<1>
+    > = {}
+    ) {
+      managed_ptr_.reset(nullptr);
+    }
+
+    template <typename _Ignored_SFINAE=void>
+    void
+    _assign_managed(
+      nullptr_t,
+      std::enable_if_t<
+        std::is_void<_Ignored_SFINAE>::value
+          and not managed_is_directly_assignable::value,
+        _not_a_type_numbered<2>
+    > = {}
+    ) {
+      managed_ptr_ = nullptr;
+    }
+
   public:
 
     managing_ptr() = delete;
@@ -244,6 +270,12 @@ class managing_ptr {
     // const only, so it can't be set and thus lose the managed ptr
     smart_ptr_t const&
     get_smart_ptr() const { return smart_ptr_; }
+
+    smart_ptr_t
+    release_smart_ptr() {
+      _assign_managed(nullptr);
+      return std::move(smart_ptr_);
+    }
 
     bool operator==(std::nullptr_t) const {
       return smart_ptr_ == nullptr;

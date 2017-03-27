@@ -48,7 +48,7 @@
 namespace darma_runtime {
 
 typedef enum OptionalBoolean {
-  Unknown,
+  Unknown = -1,
   KnownTrue = true,
   KnownFalse = false
 } optional_boolean_t;

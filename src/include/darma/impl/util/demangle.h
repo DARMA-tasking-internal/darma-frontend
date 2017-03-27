@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      use_collection.h
+//                      demangle.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,68 +42,49 @@
 //@HEADER
 */
 
-#ifndef DARMA_USE_COLLECTION_H
-#define DARMA_USE_COLLECTION_H
+#ifndef DARMA_IMPL_UTIL_DEMANGLE_H
+#define DARMA_IMPL_UTIL_DEMANGLE_H
 
-#include <cstdlib> // std::size_t
-#include <vector>
+// TODO protect this file with preprocessor macros from generated configure file
+
+#include <cxxabi.h>
+#include <string>
+#include <typeinfo>
+#include <cstdlib>
+#include <cassert>
 
 namespace darma_runtime {
+namespace detail {
 
-namespace abstract {
-
-namespace frontend {
-
-/** @todo document this
- *
- */
-class UseCollection {
-  public:
-    template <typename T>
-    using index_iterable = std::vector<T>;  // TODO make a template alias for this in frontend/types.h
-
-#if _darma_has_feature(commutative_access_handles)
-    /** @brief Indicates if this `UseCollection` is mapped over a
-     * `TaskCollection` that depends on it.
-     *
-     *  @remark If this `Use` that manages this is not dependency of a
-     *  `TaskCollection` (and is not going to be in its lifetime), this will
-     *  always return `false`.
-     *
-     *  @remark If this method returns `false`, the return values of
-     *  `local_indices_for` and `task_index_for` are unspecified.
-     *
-     *  @invariant If the `Use` managing this `UseCollection` requests immediate
-     *  permissions other than `None`, this must be mapped (i.e., this method
-     *  must return `true`).
-     *
-     *  @return `true` if the `UseCollection` is mapped across a `TaskCollection`;
-     * `false` otherwise.
-     */
-    virtual bool
-    is_mapped() const =0;
-#endif
-
-    /** @todo document this
-     *
-     *  @param task_index
-     *  @return
-     */
-    virtual index_iterable<std::size_t>
-    local_indices_for(std::size_t task_index) const =0;
-
-    virtual std::size_t
-    task_index_for(std::size_t collection_index) const =0;
-
-    virtual std::size_t
-    size() const =0;
-
+// Note that this should never be used in optimized code
+template <typename T>
+struct try_demangle {
+  static std::string name() {
+    // using abi::__cxa_demangle, which is documented at, e.g.,
+    //   https://gcc.gnu.org/onlinedocs/libstdc++/libstdc++-html-USERS-4.3/a01696.html#76957f5810098d2ffb5c62f43eda1c6d
+    //   https://gcc.gnu.org/onlinedocs/libstdc++/manual/ext_demangling.html
+    int status = 0;
+    std::type_info const& info = typeid(T);
+    char* real_name = abi::__cxa_demangle(
+      info.name(), nullptr, nullptr, &status
+    );
+    if(status == 0) {
+      // The demangle operation succeeded
+      std::string rv(real_name);
+      std::free(real_name);
+      return rv;
+    }
+    else {
+      // Demangling failed for some reason.  By default (and for now),
+      // just return the mangled name as is.
+      // something really weird happened if the returned name isn't null
+      assert(real_name == nullptr);
+      return std::string(info.name());
+    }
+  }
 };
 
-} // end namespace frontend
-
-} // end namespace abstract
-
+} // end namespace detail
 } // end namespace darma_runtime
 
-#endif //DARMA_USE_COLLECTION_H
+#endif //DARMA_IMPL_UTIL_DEMANGLE_H

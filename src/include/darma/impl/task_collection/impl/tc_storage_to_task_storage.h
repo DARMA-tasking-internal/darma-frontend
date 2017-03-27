@@ -107,7 +107,7 @@ struct _get_task_stored_arg_helper<
   operator()(TaskCollectionInstanceT& instance, size_t backend_index, CollectionArg const& arg,
     TaskInstance& task
   ) const {
-    if(backend_index == arg.owning_backend_index_) {
+    if(backend_index == arg.owning_backend_index()) {
       assert(arg.current_use_);
       // "Transfer" the use...
       return_type rv = return_type(
@@ -132,7 +132,7 @@ struct _get_task_stored_arg_helper<
         arg.var_handle_,
         new_use_holder
       );
-      rv.owning_index_ = arg.owning_backend_index_;
+      rv.owning_index() = arg.owning_backend_index();
       return rv;
 
     }

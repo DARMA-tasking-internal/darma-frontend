@@ -47,6 +47,7 @@
 
 #define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
 
+#include <limits> // std::numeric_limits
 #include <cstdlib> // std::size_t
 #include <string>
 #include <ostream>
