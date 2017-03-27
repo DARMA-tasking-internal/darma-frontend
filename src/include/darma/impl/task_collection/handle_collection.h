@@ -58,6 +58,7 @@
 #include <darma/impl/keyword_arguments/parse.h>
 #include <darma/impl/access_handle_base.h>
 #include <darma/impl/util/optional_boolean.h>
+#include <darma/impl/use_collection.h>
 
 namespace _darma__errors {
 
@@ -429,8 +430,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         auto immediate_permissions
       ) {
         return darma_runtime::detail::CollectionManagingUse<
-          std::decay_t<
-            IndexRangeT>>(
+          std::decay_t<IndexRangeT>
+        >(
           handle, in_flow, out_flow,
           scheduling_permissions, immediate_permissions,
           source->current_use_->use->index_range
