@@ -102,7 +102,7 @@ class TaskBase : public abstract::frontend::Task
   protected:
 
     using key_t = types::key_t;
-    using abstract_use_t = abstract::frontend::Use;
+    using abstract_use_t = abstract::frontend::DependencyUse;
 
     using get_deps_container_t = types::handle_container_template<abstract_use_t*>;
 

@@ -53,18 +53,17 @@
 #include <tinympl/select.hpp>
 #include <tinympl/bool.hpp>
 
+#include <darma/impl/config.h>
+
 #include "kwarg_expression.h"
 
 // TODO figure out how to replace "tags" with "arguments" in error message?!?
 // TODO specificity of pretty printed errors on why an overload failed (e.g., bad keyword argument, etc.)
 // TODO fix the zero variadics case?
 
-#ifndef DARMA_NO_PRETTY_PRINT_COMPILE_TIME_ERRORS
-#define DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
-#endif
 
-namespace _darma__errors {
 #ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
+namespace _darma__errors {
 template <typename... Args>
 struct __________no_matching_function_call_with__ { };
 template <typename Arg>
@@ -120,10 +119,8 @@ struct ___expected_positional_argument_only_ {
   struct _convertible_to_ { };
   struct _with_deduced_type { };
 };
-#else
-struct __________use_dash_D_DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS__to_see_a_better_error_message { };
-#endif
 } // end namespace _darma__errors
+#endif
 
 namespace darma_runtime {
 

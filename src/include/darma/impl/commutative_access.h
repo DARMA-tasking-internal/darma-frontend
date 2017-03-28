@@ -104,29 +104,25 @@ struct _commutative_access_impl {
       >::type
     >;
 
-    auto* rt = abstract::backend::get_backend_runtime();
+    using namespace darma_runtime::abstract::frontend;
 
-    auto comm_reg_out = detail::make_next_flow_ptr(
-      in_handle.current_use_->use->in_flow_, rt
-    );
-
-    // Use the allocator from the out handle (which is the allocator from the
     // in handle unless one is given for the new handle, which is not yet
     // supported anyway)
     auto
       new_use_ptr = std::allocate_shared<typename out_handle_t::use_holder_t>(
-      in_handle.get_allocator(),
-      HandleUse(
-        in_handle.var_handle_,
-        in_handle.current_use_->use->in_flow_,
-        comm_reg_out,
-        HandleUse::Commutative, /* scheduling permissions */
-        HandleUse::None /* immediate permissions */
-      )
-    );
+        in_handle.get_allocator(),
+        HandleUse(
+          in_handle.var_handle_,
+          HandleUse::Commutative, /* scheduling permissions */
+          HandleUse::None, /* immediate permissions */
+          FlowRelationship::Same, &in_handle.current_use_->use->in_flow_,
+          FlowRelationship::Next, nullptr, true
+        )
+      );
     assert(in_handle.current_use_->use->suspended_out_flow_ == nullptr);
-    new_use_ptr->use->suspended_out_flow_ =
-      in_handle.current_use_->use->out_flow_;
+    new_use_ptr->use->suspended_out_flow_ = std::make_unique<types::flow_t>(
+      std::move(in_handle.current_use_->use->out_flow_)
+    );
     in_handle.current_use_->could_be_alias = false;
 
     if (in_handle.current_use_->is_registered) {
@@ -233,6 +229,8 @@ struct _commutative_access_impl {
         " commutative_access(...) that don't take an AccessHandle argument"
     );
 
+    using namespace darma_runtime::abstract::frontend;
+
     // TODO use allocator
 
     auto var_h = detail::make_shared<
@@ -240,16 +238,19 @@ struct _commutative_access_impl {
         given_value_type_t
       >>(std::move(key));
 
-    auto in_flow = detail::make_flow_ptr(
-      rt->make_initial_flow(var_h)
-    );
+    // TODO This is ugly.  We need a cleaner semantic for this that still preserves some reasonable invariants
 
-    auto null_flow = detail::make_flow_ptr(
-      rt->make_null_flow(var_h)
-    );
-
-    auto out_flow = detail::make_next_flow_ptr(
-      in_flow, rt
+    // Effectively, right now we need to create an initial access, register it,
+    // then switch to commutative mode so that it has something reasonable to
+    // switch back to when it exits commutative mode
+    UseHolder initial_use(
+      HandleUse(
+        var_h,
+        HandleUse::Modify,
+        HandleUse::None,
+        FlowRelationship::Initial, nullptr,
+        FlowRelationship::Null, nullptr, false
+      )
     );
 
     return AccessHandle<
@@ -268,12 +269,20 @@ struct _commutative_access_impl {
       >::type
     >(
       var_h,
-      in_flow,
-      out_flow,
-      detail::HandleUse::Commutative,
-      detail::HandleUse::None,
-      null_flow
+      std::make_shared<UseHolder>(
+        HandleUse(
+          var_h,
+          HandleUse::Commutative,
+          HandleUse::None,
+          FlowRelationship::Same, &initial_use.use->in_flow_,
+          FlowRelationship::Next, nullptr, true
+        )
+      ),
+      std::make_unique<types::flow_t>(
+        std::move(initial_use.use->out_flow_)
+      )
     );
+    // initial_use released at closing curly brace
   }
 
   template <
@@ -350,39 +359,40 @@ struct _noncommutative_access_impl {
       >::type
     >;
 
+    using namespace darma_runtime::abstract::frontend;
     auto* rt = abstract::backend::get_backend_runtime();
 
     // Use the allocator from the out handle (which is the allocator from the
     // in handle unless one is given for the new handle, which is not yet
     // supported anyway)
-    auto suspended_out = in_handle.current_use_->use->suspended_out_flow_;
+    auto suspended_out = std::move(
+      *in_handle.current_use_->use->suspended_out_flow_.release()
+    );
 
+    in_handle.current_use_->could_be_alias = false;
     auto new_use_ptr =
       std::allocate_shared<typename out_handle_t::use_holder_t>(
         in_handle.get_allocator(),
         HandleUse(
           in_handle.var_handle_,
-          in_handle.current_use_->use->out_flow_,
-          suspended_out,
           HandleUse::Modify, /* scheduling permissions */
-          HandleUse::None /* immediate permissions */
+          HandleUse::None, /* immediate permissions */
+          FlowRelationship::Same, &in_handle.current_use_->use->out_flow_,
+          FlowRelationship::Same, &suspended_out
         )
       );
-    in_handle.current_use_->could_be_alias = false;
 
-    if (in_handle.current_use_->is_registered) {
-      new_use_ptr->do_register();
-    }
-
-    // Hold the variable handle so that it doesn't expire
+    // Hold the variable handle so that it doesn't expire (shouldn't a
     auto var_handle = in_handle.var_handle_;
 
     // release the use from the expired handle
     in_handle.current_use_ = nullptr;
     in_handle.var_handle_ = nullptr;
 
+    new_use_ptr->could_be_alias = true;
+
     return out_handle_t(
-      var_handle, new_use_ptr
+      std::move(var_handle), std::move(new_use_ptr)
     );
   }
 

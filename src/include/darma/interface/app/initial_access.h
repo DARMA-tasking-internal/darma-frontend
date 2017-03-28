@@ -64,13 +64,23 @@ struct _initial_access_key_helper {
   decltype(auto)
   _impl(darma_runtime::types::key_t const& key) const {
     auto* backend_runtime = abstract::backend::get_backend_runtime();
+
     auto var_h = detail::make_shared<detail::VariableHandle<T>>(key);
-    auto in_flow = detail::make_flow_ptr(
-      backend_runtime->make_initial_flow( var_h )
+
+    using namespace darma_runtime::abstract::frontend;
+
+    auto use_holder = std::make_shared<UseHolder>(
+      HandleUse(
+        var_h,
+        HandleUse::Modify,
+        HandleUse::None,
+        FlowRelationship::Initial, nullptr,
+        FlowRelationship::Null, nullptr, false
+      )
     );
-    auto out_flow = detail::make_flow_ptr(
-      backend_runtime->make_null_flow( var_h )
-    );
+
+    use_holder->could_be_alias = true;
+
     return AccessHandle<T,
       typename make_access_handle_traits<T, TraitsFlags...>::template from_traits<
         make_access_handle_traits_t<T,
@@ -79,7 +89,7 @@ struct _initial_access_key_helper {
         >
       >::type
     >(
-      var_h, in_flow, out_flow, detail::HandleUse::Modify, detail::HandleUse::None
+      var_h, std::move(use_holder)
     );
   }
 

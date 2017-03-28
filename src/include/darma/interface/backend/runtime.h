@@ -70,26 +70,12 @@ namespace abstract {
 
 namespace backend {
 
-
-/**
- *  @ingroup abstract
- *  @class Runtime
- *  @brief Abstract class implemented by the backend containing much of the
- *  runtime.
- *
- *  @note Thread safety of all methods in this class should be handled by the
- *  backend implementaton; two threads must be allowed to call any method in
- *  this class simultaneously.
- *
- */
 class Runtime {
   public:
 
     using task_t = frontend::Task;
-    using condition_task_t = frontend::ConditionTask<types::concrete_task_t>;
     using concurrent_region_task_t = frontend::ConcurrentRegionTask<types::concrete_task_t>;
     using task_unique_ptr = types::unique_ptr_template<task_t>;
-    using condition_task_unique_ptr = types::unique_ptr_template<condition_task_t>;
     using handle_t = frontend::Handle;
     using concurrent_region_task_unique_ptr = std::unique_ptr<concurrent_region_task_t>;
     using top_level_task_t = abstract::frontend::TopLevelTask<types::concrete_task_t>;
@@ -123,26 +109,6 @@ class Runtime {
     virtual void
     register_task(task_unique_ptr&& task) = 0;
 
-#if _darma_has_feature(create_condition)
-    /** @brief register a task with a run() method that has a bool get_result(),
-     *  which is valid after to call after run() returns.
-     *
-     *  @param task a unique_ptr to a task object that implements the bool
-     *  specialization of the run() method template.  see register_task for more
-     *  details
-     *
-     *  @return the value of the condition returned by the task when run, or the
-     *  speculated value if the backend wishes to implement speculative
-     *  execution
-     *
-     *
-     *  @sa frontend::task @sa runtime::register_task
-     *
-     */
-    virtual bool
-    register_condition_task(condition_task_unique_ptr&& task) = 0;
-#endif
-
 #if _darma_has_feature(create_concurrent_work)
     virtual void
     register_task_collection(
@@ -152,7 +118,6 @@ class Runtime {
 
     // </editor-fold> end Task handling
     //==========================================================================
-
 
     //==========================================================================
     // <editor-fold desc="Use handling">
@@ -172,7 +137,7 @@ class Runtime {
      */
     virtual void
     register_use(
-      frontend::Use* u
+      frontend::UsePendingRegistration* u
     ) =0;
 
 #if _darma_has_feature(task_migration)
@@ -181,19 +146,22 @@ class Runtime {
      *  via calls to make_unpacked_flow() on the buffers created by pack_flow()
      *  on the sender side
      */
+    // TODO this should work the same way as register_use(), execpt that the
+    // flows are described as Packed in the FlowRelationship
     virtual void
     reregister_migrated_use(
-      frontend::Use* u
+      frontend::RegisteredUse* u
     ) =0;
 #endif
 
-    virtual void
-    register_use_copy(
-      frontend::Use* u
-    ) {
-      // By default, just pass through to register_use()
-      return register_use(u);
-    }
+    // TODO re-enable this if/when it's used on the frontend?
+    //virtual void
+    //register_use_copy(
+    //  frontend::RegisteredUse* u
+    //) {
+    //    // By default, just pass through to register_use()
+    //    return register_use(u);
+    //}
 
     /** @todo update this
      *  @brief Release a Use object previously registered with register_use().
@@ -251,274 +219,11 @@ class Runtime {
      */
     virtual void
     release_use(
-      frontend::Use* u
+      frontend::UsePendingRelease* u
     ) =0;
 
     // </editor-fold> end Use handling
     //==========================================================================
-
-
-    //==========================================================================
-    // <editor-fold desc="Flow handling">
-
-    /** @brief Make an initial Flow to be associated with the handle given as an
-     *  argument.
-     *
-     *  The initial Flow will be used as the return value of u->get_in_flow()
-     *  for the first Use* u registered with write privileges that returns
-     *  handle for u->get_handle().
-     *
-     *  @remark In the sequential semantic (C++) frontend, this will usually
-     *  derive from calls to initial_access in the application code.
-     *
-     *  @param handle A handle encapsulating a type and unique name (variable)
-     *  for which the Flow will represent the initial state (upon a subsequent
-     *  call to register_use())
-     *
-     *  @return The flow for the frontend to use as described
-     *
-     *
-     */
-    virtual types::flow_t
-    make_initial_flow(
-      std::shared_ptr<frontend::Handle> const& handle
-    ) =0;
-
-#if _darma_has_feature(create_concurrent_work)
-    /** @brief Similar to make_initial_flow, but for a Use that manages a
-     *  collection
-     *
-     *  @sa Use::manages_collection()
-     *  @sa UseCollection
-     *
-     *  @param handle Analogously to make_initial_flow(), the argument is handle
-     *  encapsulating a type and unique name (variable) for which the Flow will
-     *  represent the initial state (upon a subsequent call to register_use())
-     *
-     *  @return The flow for the frontend to use as described
-     */
-    virtual types::flow_t
-    make_initial_flow_collection(
-      std::shared_ptr<frontend::Handle> const& handle
-    ) =0;
-#endif
-
-#if _darma_has_feature(publish_fetch)
-    /** @brief Make a fetching Flow to be associated with the handle given as an
-     *  argument.
-     *
-     *  The fetching usage will be used as a return value of u->get_in_flow()
-     *  for a Use* u intended to fetch the data published with a particular
-     *  handle key and version_key.
-     *
-     *  @remark In the sequential semantic (C++) frontend, this will usually
-     *  derive from calls to read_access in the application code.
-     *
-     *  @param handle A handle object carrying the key identifer returned by
-     *  get_key()
-     *
-     *  @param version_key A unique version for the key returned by
-     *  handle->get_key()
-     *
-     *  @param acquired Currently unused; in future versions this indicates the
-     *  expectation of a transfer of ownership
-     *
-     *  @return The flow for the frontend to use as described
-     */
-    virtual types::flow_t
-    make_fetching_flow(
-      std::shared_ptr<frontend::Handle> const& handle,
-      types::key_t const& version_key,
-      bool acquired = false
-    ) =0;
-#endif
-
-    /** @brief Make a null Flow to be associated with the handle given as an
-     *  argument.
-     *
-     *  A null usage as a return value of u->get_out_flow() for some Use* u is
-     *  intended to indicate that the data associated with that Use has no
-     *  subsequent consumers and can safely be deleted when other Uses are
-     *  released.  See release_use().
-     *
-     *  @param handle The handle variable that will be associated with the Flow
-     *  in the corresponding call to register_use()
-     *
-     *  @return The flow for the frontend to use as described
-     *
-     */
-    virtual types::flow_t
-    make_null_flow(
-      std::shared_ptr<frontend::Handle> const& handle
-    ) =0;
-
-#if _darma_has_feature(create_concurrent_work)
-    /** @brief Analogue of make_null_flow() for a use that manages a collection
-     *
-     *  @sa make_null_flow()
-     *
-     *  @param handle The handle variable that will be associated with the Flow
-     *  in the corresponding call to register_use()
-     *
-     *  @return The flow for the frontend to use as described
-     */
-    virtual types::flow_t
-    make_null_flow_collection(
-      std::shared_ptr<frontend::Handle> const& handle
-    ) =0;
-#endif
-
-    /** @todo update this
-     *  @brief Make a new Flow that receives forwarded changes from
-     *  another input Flow, the latter of which is associated with a Use on
-     *  which Modify immediate permissions were requested and already granted
-     *  (via a backend call to Task::run() on the Task object that that Use
-     *  was uniquely associated with).
-     *
-     *  Flows are registered and released indirectly through calls to
-     *  register_use()/release_use().  The input Flow to make_forwarding_flow()
-     *  must have been registered through a register_use() call, but not yet
-     *  released through a release_use() call.
-     *  make_forwarding_flow() can be called at most once with a given input.
-     *
-     *  @param from An already initialized and registered flow returned from
-     *  `make_*_flow`
-     *
-     *  @param purpose An enum indicating the relationship between the flows
-     *  (purpose of the function). This information is provided for optimization
-     *  purposes. In the current specification, this enum will always be
-     *  ForwardingChanges
-     *
-     *  @return A new Flow object indicating that new data is the produced by
-     *  immediate modifications to the data from the Flow given as a parameter
-     */
-    virtual types::flow_t
-    make_forwarding_flow(
-      types::flow_t& from
-    ) =0;
-
-#if _darma_has_feature(create_concurrent_work)
-    /** @todo document this
-     *
-     * @remark Parameter must be a value returned from one of the
-     * `make_*_flow_collection()` methods
-     *
-     * @param from
-     * @return
-     */
-    virtual types::flow_t
-    make_indexed_local_flow(
-      types::flow_t& from,
-      size_t backend_index
-    ) =0;
-
-    /** @todo document this
-     *
-     * @remark Parameter must be a value returned from one of the
-     * `make_*_flow_collection()` methods
-     *
-     * @param from
-     * @return
-     */
-    virtual types::flow_t
-    make_indexed_fetching_flow(
-      types::flow_t& from,
-      types::key_t const& version_key,
-      size_t backend_index
-    ) =0;
-#endif
-
-    /** @todo update this
-     *
-     *  @brief Make a flow that will be logically (not necessarily immediately)
-     *  subsequent to another Flow
-     *
-     *  Calls to make_next_flow() indicate a producer-consumer relationship
-     *  between Flows. make_next_flow() indicates that an operation consumes
-     *  Flow* from and produces the returned Flow*. A direct subsequent
-     *  relationship should not be inferred here; the direct subsequent of input
-     *  flow `from` will only be the output flow within the same Use if no other
-     *  subsequents of the input use are created and registered in its lifetime.
-     *  Flows are registered and released indirectly through calls to
-     *  register_use()/release_use(). Flow instances cannot be shared across Use
-     *  instances. The input to make_next_flow() must have been registered with
-     *  register_use(), but not yet released through release_use().
-     *  make_next_flow() can be called at most once with a given input.
-     *
-     *  @param from    The flow consumed by an operation to produce the Flow
-     *  returned by make_next_flow()
-     *
-     *  @param purpose An enum indicating the purpose of the next flow.  This
-     *  information is provided for optimization purposes
-     *
-     *  @return A new Flow object indicating that new data will be produced by
-     *  the data incoming from the Flow given as a parameter
-     */
-    virtual types::flow_t
-    make_next_flow(
-      types::flow_t& from
-    ) =0;
-
-#if _darma_has_feature(create_concurrent_work)
-    /** @todo document this
-     *
-     * @param from
-     * @return
-     */
-    virtual types::flow_t
-    make_next_flow_collection(
-      types::flow_t& from
-    ) =0;
-#endif
-
-#if _darma_has_feature(task_migration)
-    virtual size_t
-    get_packed_flow_size(
-      types::flow_t const& f
-    ) =0;
-
-    /** @todo document this
-     *
-     *  @remark this method should advance the buffer to after the end of the
-     *  packed storage used for `f`
-     */
-    virtual void
-    pack_flow(
-      types::flow_t& f, void*& buffer
-    ) =0;
-
-    /** @todo document this
-     *
-     *  @remark this method should advance the buffer to after the end of the
-     *  packed data used to recreate the return value
-     *
-     *  @param buffer
-     *  @return
-     */
-    virtual types::flow_t
-    make_unpacked_flow(
-      void const*& buffer
-    ) =0;
-#endif
-
-    /** @todo document this
-     */
-    virtual void
-    establish_flow_alias(
-      types::flow_t& from,
-      types::flow_t& to
-    ) =0;
-
-    /** @todo document this
-     */
-    virtual void
-    release_flow(
-      types::flow_t& to_release
-    ) =0;
-
-    // </editor-fold> end flow handling
-    //==========================================================================
-
 
     //==========================================================================
     // <editor-fold desc="publication, collectives, etc">
@@ -536,7 +241,7 @@ class Runtime {
      */
     virtual void
     publish_use(
-      frontend::Use* u,
+      std::unique_ptr<frontend::Use>&& u,
       frontend::PublicationDetails* details
     ) =0;
 #endif
@@ -570,9 +275,37 @@ class Runtime {
     // </editor-fold> end publication, collectives, etc
     //==========================================================================
 
-    virtual ~Runtime() noexcept = default;
+#if _darma_has_feature(task_migration)
+    virtual size_t
+    get_packed_flow_size(
+      types::flow_t const& f
+    ) =0;
 
+    /** @todo document this
+     *
+     *  @remark this method should advance the buffer to after the end of the
+     *  packed storage used for `f`
+     */
+    virtual void
+    pack_flow(
+      types::flow_t& f, void*& buffer
+    ) =0;
+
+    /** @todo document this
+     *
+     *  @remark this method should advance the buffer to after the end of the
+     *  packed data used to recreate the return value
+     *
+     *  @param buffer
+     *  @return
+     */
+    virtual types::flow_t
+    make_unpacked_flow(
+      void const*& buffer
+    ) =0;
+#endif
 };
+
 
 
 class Context {

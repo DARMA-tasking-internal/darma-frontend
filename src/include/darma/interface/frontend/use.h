@@ -53,6 +53,7 @@
 
 #include "handle.h"
 #include "use_collection.h"
+#include "flow_relationship.h"
 
 namespace darma_runtime {
 namespace abstract {
@@ -128,18 +129,6 @@ class Use {
     virtual std::shared_ptr<Handle const>
     get_handle() const =0;
 
-    /** @brief Get the Flow that must be ready for use as a precondition for the
-     *  Task t that depends on this Use
-     */
-    virtual types::flow_t const&
-    get_in_flow() const =0;
-
-    /** @brief Get the Flow that is produced or made available when this Use is
-     *  released
-     */
-    virtual types::flow_t const&
-    get_out_flow() const =0;
-
     /** @brief Get the immediate permissions needed for the Flow returned by
      *  get_in_flow() to be ready as a precondition for this Use
      *
@@ -156,18 +145,6 @@ class Use {
     virtual permissions_t
     scheduling_permissions() const =0;
 
-    /** @brief Get a reference to the data pointer on which the requested
-     *  immediate permissions have been granted.
-     *
-     *  For a Use requesting immediate permissions, the runtime will set the
-     *  value of the reference returned by this function to the beginning of the
-     *  data requested at least by the time the backend calls Task::run() on the
-     *  task requesting this Use
-     *
-     */
-    virtual void*&
-    get_data_pointer_reference() =0;
-
     /** @brief Whether or not the Use manages the outer scope control flow for
      *  a UseCollection.
      *
@@ -180,6 +157,103 @@ class Use {
     virtual bool
     manages_collection() const { return false; }
 
+#if _darma_has_feature(create_concurrent_work_owned_by)
+    virtual bool
+    is_uniquely_owned() const { return false; }
+#endif // _darma_has_feature(create_concurrent_work_owned_by)
+
+    // Deletions should only ever occur on the most derived class (i.e., done
+    // by the translation layer itself) or on pointer to the most base class,
+    // `Use`.
+    virtual ~Use() = default;
+
+};
+
+/** @todo document this
+ *
+ *  @remark The return values of get_in_flow() and get_out_flow() are undefined
+ *  when the `Use` is accessed via a pointer to a `UsePendingRegistration
+ */
+class UsePendingRegistration : virtual public Use {
+  public:
+
+    virtual void set_in_flow(types::flow_t const& new_flow) =0;
+
+    virtual void set_out_flow(types::flow_t const& new_flow) =0;
+
+    virtual FlowRelationship const&
+    get_in_flow_relationship() const =0;
+
+    virtual FlowRelationship const&
+    get_out_flow_relationship() const =0;
+
+    virtual bool will_be_dependency() const =0;
+
+  protected:
+    // Deletions should only ever occur on the most derived class (i.e., done
+    // by the translation layer itself) or on pointer to the most base class,
+    // `Use`.
+    ~UsePendingRegistration() = default;
+
+};
+
+class RegisteredUse : virtual public Use {
+
+  public:
+
+    /** @brief Get the Flow that must be ready for use as a precondition for the
+     *  Task t that depends on this Use
+     */
+    virtual types::flow_t&
+    get_in_flow() =0;
+
+    /** @brief Get the Flow that is produced or made available when this Use is
+     *  released
+     */
+    virtual types::flow_t&
+    get_out_flow() =0;
+
+};
+
+class UsePendingRelease : virtual public RegisteredUse {
+  public:
+
+    virtual bool establishes_alias() const =0;
+
+    virtual bool was_dependency() const =0;
+
+  protected:
+    // Deletions should only ever occur on the most derived class (i.e., done
+    // by the translation layer itself) or on pointer to the most base class,
+    // `Use`.
+    ~UsePendingRelease() = default;
+};
+
+class DependencyUse : virtual public RegisteredUse {
+  public:
+
+    /** @brief Get a reference to the data pointer on which the requested
+     *  immediate permissions have been granted.
+     *
+     *  For a Use requesting immediate permissions, the runtime will set the
+     *  value of the reference returned by this function to the beginning of the
+     *  data requested at least by the time the backend calls Task::run() on the
+     *  task requesting this Use
+     *
+     */
+    virtual void*&
+    get_data_pointer_reference() =0;
+
+  protected:
+    // Deletions should only ever occur on the most derived class (i.e., done
+    // by the translation layer itself) or on pointer to the most base class,
+    // `Use`.
+    ~DependencyUse() = default;
+};
+
+class CollectionManagingUse : virtual public RegisteredUse {
+
+  public:
     /** @todo document this
      *
      *  @remark the lifetime of the returned pointer is tied to the lifetime of
@@ -190,17 +264,52 @@ class Use {
     virtual UseCollection*
     get_managed_collection() { return nullptr; }
 
+  protected:
+    // Deletions should only ever occur on the most derived class (i.e., done
+    // by the translation layer itself) or on pointer to the most base class,
+    // `Use`.
+    ~CollectionManagingUse() = default;
+};
+
+#if _darma_has_feature(create_concurrent_work_owned_by)
+class UniquelyOwnedUse : virtual public RegisteredUse {
+
+  public:
     /** @todo document this
      *
      */
     virtual std::size_t
-    task_collection_owning_index() const {
-      return std::numeric_limits<std::size_t>::max();
-    }
+    task_collection_owning_index() const =0;
 
-    virtual ~Use() = default;
+  protected:
+    // Deletions should only ever occur on the most derived class (i.e., done
+    // by the translation layer itself) or on pointer to the most base class,
+    // `Use`.
+    ~UniquelyOwnedUse() = default;
 
 };
+#endif // _darma_has_feature(create_concurrent_work_owned_by)
+
+
+template <typename ToUse>
+ToUse
+use_cast(
+  Use* from_use
+) {
+  return darma_runtime::detail::safe_dynamic_cast<ToUse>(
+    from_use
+  );
+}
+
+template <typename ToUse>
+ToUse
+use_cast(
+  Use const* from_use
+) {
+  return darma_runtime::detail::safe_dynamic_cast<ToUse>(
+    from_use
+  );
+}
 
 } // end namespace frontend
 } // end namespace abstract

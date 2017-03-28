@@ -51,6 +51,6 @@
 
 #define _darma_has_feature_resilient_tasks 0
 
-#define _darma_has_feature_register_all_uses 0
+#define _darma_has_feature_register_all_uses 1
 
 #endif //DARMA_DARMA_FEATURES_H

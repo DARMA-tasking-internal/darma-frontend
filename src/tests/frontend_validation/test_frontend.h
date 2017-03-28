@@ -46,7 +46,7 @@
 #define SRC_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_H_
 
 #define DEBUG_CREATE_WORK_HANDLES 0
-#define DARMA_SAFE_TEST_FRONTEND_PRINTERS 0
+#define DARMA_SAFE_TEST_FRONTEND_PRINTERS 1
 
 
 #include <deque>
@@ -179,25 +179,25 @@ struct UseDescription {
 
 #define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed) \
   ::_impl::in_sequence_wrapper( \
-    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
-      &fin, &fout, use_t::sched, use_t::immed \
+    EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows( \
+      fin, fout, use_t::sched, use_t::immed \
     ))), [&](auto&& exp) -> decltype(auto) { \
        return exp.WillOnce(::testing::Invoke([&](auto&& use_arg) { \
          use_ptr = use_arg; \
-         described_uses_[use_ptr] = _impl::UseDescription(#use_ptr, fin, fout, use_t::sched, use_t::immed); \
+         described_uses_[use_ptr] = ::_impl::UseDescription(#use_ptr, fin, fout, use_t::sched, use_t::immed); \
        })); \
     } \
   )
 
 #define EXPECT_REGISTER_USE_AND_SET_BUFFER(use_ptr, fin, fout, sched, immed, value) \
   ::_impl::in_sequence_wrapper( \
-    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
-      &fin, &fout, use_t::sched, use_t::immed \
+    EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows( \
+      fin, fout, use_t::sched, use_t::immed \
     ))), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce( \
       ::testing::Invoke( \
          [&](auto&& use_arg) { use_ptr = use_arg; \
            described_uses_[use_ptr] = _impl::UseDescription(#use_ptr, fin, fout, use_t::sched, use_t::immed); \
-           use_ptr->get_data_pointer_reference() = &value; \
+           use_arg->get_data_pointer_reference() = &value; \
          } \
     )); } \
   )
@@ -216,14 +216,14 @@ struct UseDescription {
 #define EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR(f_in, f_out, use) \
   EXPECT_CALL(*mock_runtime, make_next_flow(f_in)) \
     .WillOnce(::testing::Return(f_out)); \
-  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+  EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows( \
     f_in, f_out, use_t::None, use_t::Modify \
   ))).WillOnce(::testing::SaveArg<0>(&use)); \
 
 #define EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(f_in, f_out, use, value) \
   EXPECT_CALL(*mock_runtime, make_next_flow(f_in)) \
     .WillOnce(::testing::Return(f_out)); \
-  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows( \
+  EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows( \
     f_in, f_out, use_t::None, use_t::Modify \
   ))).WillOnce(Invoke([&](auto&& use_arg){ \
     use = use_arg; use->get_data_pointer_reference() = &value; \
@@ -235,7 +235,7 @@ struct UseDescription {
 
 #define EXPECT_RELEASE_USE(use_ptr) \
   ::_impl::in_sequence_wrapper( \
-    EXPECT_CALL(*mock_runtime, release_use( \
+    EXPECT_CALL(*mock_runtime, legacy_release_use( \
       ::testing::Eq(::testing::ByRef(use_ptr))\
     )), [&](auto&& exp) -> decltype(auto) { \
       return exp.WillOnce(::testing::Assign(&use_ptr, nullptr)); \
@@ -268,22 +268,22 @@ struct UseDescription {
 
 #define EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(fread, use_ptr) \
   ::_impl::in_sequence_wrapper( \
-    EXPECT_CALL(*mock_runtime, register_use( \
+    EXPECT_CALL(*mock_runtime, legacy_register_use( \
         IsUseWithFlows( \
-          &fread, &fread, -1, use_t::Read \
+          fread, fread, -1, use_t::Read \
         ) \
     )), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce(SaveArg<0>(&use_ptr)); } \
   )
 
 #define EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(fread, use_ptr, value) \
   ::_impl::in_sequence_wrapper( \
-    EXPECT_CALL(*mock_runtime, register_use( \
+    EXPECT_CALL(*mock_runtime, legacy_register_use( \
         IsUseWithFlows( \
-          &fread, &fread, -1, use_t::Read \
+          fread, fread, -1, use_t::Read \
         ) \
     )), [&](auto&& exp) -> decltype(auto) { \
           return exp.WillOnce(::testing::Invoke([&](auto&& use_arg) { \
-            use_ptr = use_arg; use_ptr->get_data_pointer_reference() = &value; \
+            use_ptr = use_arg; use_arg->get_data_pointer_reference() = &value; \
           })); \
         } \
   )
@@ -345,7 +345,7 @@ auto make_flows(char const* names) {
   ::mock_backend::MockFlow Args; std::tie(Args) = ::_make_mock_flows_impl::make_flows<DARMA_PP_NUM_ARGS(Args)>(#Args);
 
 #define EXPECT_REGISTER_USE_COLLECTION(use_coll, fin, fout, sched, immed, collsize) \
-    EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf( \
+    EXPECT_CALL(*mock_runtime, legacy_register_use(::testing::AllOf( \
       IsUseWithFlows(fin, fout, use_t::sched, use_t::immed), \
       ::testing::Truly([=](auto* use){ \
         return ( \
@@ -483,7 +483,7 @@ namespace std {
 using use_t = darma_runtime::abstract::frontend::Use;
 
 inline std::ostream&
-operator<<(std::ostream& o, use_t const* const& u) {
+operator<<(std::ostream& o, use_t* const& u) {
   auto use_desc_iter = TestFrontend::described_uses_.find(u);
   if(use_desc_iter != TestFrontend::described_uses_.end()) {
     auto& use_desc = use_desc_iter->second;
@@ -495,13 +495,21 @@ operator<<(std::ostream& o, use_t const* const& u) {
       << ">";
   }
   else if(u != nullptr) {
-#if DARMA_SAFE_TEST_FRONTEND_PRINTERS && 0
+#if DARMA_SAFE_TEST_FRONTEND_PRINTERS
     o << "<non-null use (unprinted)>";
 #else
     auto handle = u->get_handle();
     if(handle) {
       o << "<Use ptr for handle with key {" << handle->get_key()
-        << "}, in_flow " << u->get_in_flow() << ", out_flow" << u->get_out_flow() << ", sched="
+        << "}, in_flow "
+        << darma_runtime::abstract::frontend::use_cast<
+             darma_runtime::abstract::frontend::RegisteredUse*
+           >(u)->get_in_flow()
+        << ", out_flow"
+        << darma_runtime::abstract::frontend::use_cast<
+             darma_runtime::abstract::frontend::RegisteredUse*
+           >(u)->get_out_flow()
+        << ", sched="
         << permissions_to_string(u->scheduling_permissions()) << ", immed="
         << permissions_to_string(u->immediate_permissions()) << ">";
     }

@@ -75,27 +75,32 @@ TEST_F(TestInitialAccess, call_sequence) {
   using namespace darma_runtime;
 
   mock_backend::MockFlow f_in_1, f_out_1;
+  use_t* use_init = nullptr;
 
-  Sequence s1, s2;
+  {
+    InSequence s;
 
-  EXPECT_CALL(*mock_runtime, make_initial_flow(_))
-    .InSequence(s1)
-    .WillOnce(Return(&f_in_1));
+    EXPECT_CALL(*mock_runtime, make_initial_flow(_))
+      .WillOnce(Return(f_in_1));
 
-  EXPECT_CALL(*mock_runtime, make_null_flow(_))
-    .InSequence(s2)
-    .WillOnce(Return(&f_out_1));
+    EXPECT_CALL(*mock_runtime, make_null_flow(_))
+      .WillOnce(Return(f_out_1));
+
+    EXPECT_REGISTER_USE(use_init, f_in_1, f_out_1, Modify, None);
+
+    EXPECT_FLOW_ALIAS(f_in_1, f_out_1);
+
+    EXPECT_RELEASE_USE(use_init);
+  }
 
 
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_1, &f_out_1))
-    .InSequence(s1, s2);
 
-  EXPECT_RELEASE_FLOW(f_in_1);
-  EXPECT_RELEASE_FLOW(f_out_1);
-
+  //============================================================================
+  // Actual code being tested
   {
     auto tmp = initial_access<int>("hello");
   } // tmp deleted
+  //============================================================================
 
 }
 
@@ -107,18 +112,25 @@ TEST_F(TestInitialAccess, call_sequence_helper) {
   using namespace darma_runtime;
   using namespace mock_backend;
 
-  MockFlow f_in, f_out;
+  DECLARE_MOCK_FLOWS(f_in, f_out);
+  use_t* use;
 
-  EXPECT_INITIAL_ACCESS(f_in, f_out, make_key("hello"));
+  {
+    InSequence s;
 
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out));
+    EXPECT_INITIAL_ACCESS(f_in, f_out, use, make_key("hello"));
 
-  EXPECT_RELEASE_FLOW(f_in);
-  EXPECT_RELEASE_FLOW(f_out);
+    EXPECT_FLOW_ALIAS(f_in, f_out);
 
+    EXPECT_RELEASE_USE(use);
+  }
+
+  //============================================================================
+  // Actual code being tested
   {
     auto tmp = initial_access<int>("hello");
   } // tmp deleted
+  //============================================================================
 
 }
 
@@ -131,15 +143,15 @@ TEST_F(TestInitialAccess, call_sequence_helper_2) {
   using namespace mock_backend;
 
   DECLARE_MOCK_FLOWS(f_in, f_out, f_in_2, f_out_2);
+  use_t* use_init;
 
-  EXPECT_INITIAL_ACCESS(f_in, f_out, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_in, f_out, use_init, make_key("hello"));
 
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out));
+  EXPECT_FLOW_ALIAS(f_in, f_out);
+  EXPECT_RELEASE_USE(use_init);
 
-  EXPECT_RELEASE_FLOW(f_in);
-  EXPECT_RELEASE_FLOW(f_out);
-
-
+  //============================================================================
+  // Actual code being tested
   {
     AccessHandleWithTraits<int,
       advanced::access_handle_traits::allow_copy_assignment_from_this<true>
@@ -150,6 +162,7 @@ TEST_F(TestInitialAccess, call_sequence_helper_2) {
     tmp2 = tmp;
 
   } // tmp2, tmp deleted
+  //============================================================================
 
 }
 
@@ -160,41 +173,25 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
 
-  mock_backend::MockFlow f_in_1, f_out_1, f_in_2, f_out_2;
+  DECLARE_MOCK_FLOWS(f_in_1, f_out_1, f_in_2, f_out_2);
+  use_t* use_init1 = nullptr, *use_init2 = nullptr;
 
-  Sequence s1, s2, s5, s6, s7;
+  {
+    InSequence s;
+    EXPECT_INITIAL_ACCESS(f_in_1, f_out_1, use_init1, make_key("hello"));
+
+    EXPECT_INITIAL_ACCESS(f_in_2, f_out_2, use_init2, make_key("world"));
+
+    EXPECT_FLOW_ALIAS(f_in_1, f_out_1);
+    EXPECT_RELEASE_USE(use_init1);
+
+    EXPECT_FLOW_ALIAS(f_in_2, f_out_2);
+    EXPECT_RELEASE_USE(use_init2);
+  }
 
 
-  // These next two calls can come in either order
-  EXPECT_CALL(*mock_runtime, make_initial_flow(_))
-    .InSequence(s1, s5)
-    .WillOnce(Return(&f_in_1));
-  EXPECT_CALL(*mock_runtime, make_null_flow(_))
-    .InSequence(s2, s6)
-    .WillOnce(Return(&f_out_1));
-
-  // These next two calls can come in either order
-  EXPECT_CALL(*mock_runtime, make_initial_flow(_))
-    .InSequence(s5, s1)
-    .WillOnce(Return(&f_in_2));
-  EXPECT_CALL(*mock_runtime, make_null_flow(_))
-    .InSequence(s6, s2)
-    .WillOnce(Return(&f_out_2));
-
-  // This must be the last thing in all sequences
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_1, &f_out_1))
-    .InSequence(s1, s2, s7);
-
-  EXPECT_RELEASE_FLOW(f_in_1).InSequence(s1);
-  EXPECT_RELEASE_FLOW(f_out_1).InSequence(s2);
-
-  // This must be the last thing in all sequences
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_2, &f_out_2))
-    .InSequence(s5, s6, s7);
-
-  EXPECT_RELEASE_FLOW(f_in_2).InSequence(s5);
-  EXPECT_RELEASE_FLOW(f_out_2).InSequence(s6);
-
+  //============================================================================
+  // Actual code being tested
   {
 
     auto tmp1 = initial_access<int>("hello");
@@ -203,6 +200,7 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
     tmp1 = initial_access<int>("world");
 
   } // tmp1
+  //============================================================================
 
 }
 
@@ -215,20 +213,25 @@ TEST_F(TestInitialAccess, call_sequence_copy_assign) {
   using namespace darma_runtime::keyword_arguments_for_publication;
 
   DECLARE_MOCK_FLOWS(f_in_1, f_out_1, f_in_2, f_out_2);
+  use_t* use1 = nullptr, *use2 = nullptr;
 
   {
     InSequence s;
 
-    EXPECT_INITIAL_ACCESS(f_in_2, f_out_2, make_key("world"));
-    EXPECT_INITIAL_ACCESS(f_in_1, f_out_1, make_key("hello"));
+    EXPECT_INITIAL_ACCESS(f_in_2, f_out_2, use2, make_key("world"));
+    EXPECT_INITIAL_ACCESS(f_in_1, f_out_1, use1, make_key("hello"));
 
     EXPECT_FLOW_ALIAS(f_in_2, f_out_2);
+    EXPECT_RELEASE_USE(use2);
 
     EXPECT_CALL(*sequence_marker, mark_sequence("in between"));
 
     EXPECT_FLOW_ALIAS(f_in_1, f_out_1);
+    EXPECT_RELEASE_USE(use1);
   }
 
+  //============================================================================
+  // Actual code being tested
   {
     auto tmp2 = initial_access<int>("world");
     auto tmp1 = initial_access<int,
@@ -242,6 +245,7 @@ TEST_F(TestInitialAccess, call_sequence_copy_assign) {
     sequence_marker->mark_sequence("in between");
 
   }
+  //============================================================================
 
 }
 

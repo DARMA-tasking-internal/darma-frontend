@@ -69,6 +69,8 @@ class HandleUse
 {
   public:
 
+    HandleUse(HandleUse&&) = default;
+
     using HandleUseBase::HandleUseBase;
 
     bool manages_collection() const override {
@@ -174,6 +176,9 @@ struct GenericUseHolder : UseHolderBase {
       assert(!is_registered);
       abstract::backend::get_backend_runtime()->register_use(use_base);
       is_registered = true;
+      // Delete the FlowRelationship descriptions so that they don't accidentally get used
+      use->in_flow_rel_ = HandleUseBase::FlowRelationshipImpl();
+      use->out_flow_rel_ = HandleUseBase::FlowRelationshipImpl();
     }
   }
 
@@ -194,6 +199,8 @@ struct GenericUseHolder : UseHolderBase {
 
   void do_release() {
     assert(is_registered);
+    assert(use);
+    use_base->establishes_alias_ = could_be_alias;
     abstract::backend::get_backend_runtime()->release_use(use_base);
     is_registered = false;
   }
@@ -208,23 +215,38 @@ struct GenericUseHolder : UseHolderBase {
 #endif
 
   ~GenericUseHolder() {
-    auto* rt = abstract::backend::get_backend_runtime();
-    if(could_be_alias) {
-      // okay, now we know it IS an alias
-      rt->establish_flow_alias(
-        *(use->in_flow_.get()),
-        *(use->out_flow_.get())
+    using namespace darma_runtime::abstract::frontend; // FlowRelationship
+
+    if(use && use_base->suspended_out_flow_.get() != nullptr) {
+
+      // We ended our lives in commutative mode.  While this doesn't make much
+      // sense in most cases, it should work (potentially with a warning message).
+      // We'll need to register the use that depends on the output of the
+      // commutative region to preserve some desirable invariants
+
+      auto* rt = abstract::backend::get_backend_runtime();
+
+      // TODO the "collection" version of this needs to work also
+      HandleUse last_use(
+        use->handle_,
+        HandleUse::None, // This could cause problems for some backends...
+        HandleUse::None,
+        FlowRelationship::Same, &(use->out_flow_),
+        FlowRelationship::Same, use->suspended_out_flow_.get(), false
       );
+      rt->register_use(&last_use);
+
+      assert(is_registered);
+
+      do_release();
+
+      last_use.establishes_alias_ = true;
+
+      rt->release_use(&last_use);
     }
-    if(is_registered) do_release();
-    if(use) {
-      if (use->suspended_out_flow_) {
-        // TODO this may need to register a use (probably?) and then release it when all uses are registered
-        rt->establish_flow_alias(
-          *(use->out_flow_.get()),
-          *(use->suspended_out_flow_.get())
-        );
-      }
+    else {
+      // Normal case...
+      if(is_registered) do_release();
     }
   }
 };

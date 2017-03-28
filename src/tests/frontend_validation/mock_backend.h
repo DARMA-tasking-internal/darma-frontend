@@ -57,11 +57,12 @@
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/frontend/handle.h>
 #include <darma/interface/backend/region_context_handle.h>
+#include <darma/interface/backend/legacy_runtime.h>
 
 namespace mock_backend {
 
 class MockRuntime
-  : public darma_runtime::abstract::backend::Runtime,
+  : public darma_runtime::abstract::backend::LegacyFlowsFromMethodsRuntime,
     public darma_runtime::abstract::backend::Context,
     public darma_runtime::abstract::backend::MemoryManager
 {
@@ -69,8 +70,6 @@ class MockRuntime
 
     using task_t = darma_runtime::abstract::backend::runtime_t::task_t;
     using task_unique_ptr = darma_runtime::abstract::backend::runtime_t::task_unique_ptr;
-    using condition_task_t = darma_runtime::abstract::backend::runtime_t::condition_task_t;
-    using condition_task_unique_ptr = darma_runtime::abstract::backend::runtime_t::condition_task_unique_ptr;
     using runtime_t = darma_runtime::abstract::backend::Runtime;
     using handle_t = darma_runtime::abstract::frontend::Handle;
     using use_t = darma_runtime::abstract::frontend::Use;
@@ -103,21 +102,12 @@ class MockRuntime
       }
     }
 
-    //void
-    //register_concurrent_region(
-    //  concurrent_region_task_unique_ptr&& task, size_t n_idxs,
-    //  std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle> const& ds
-    //) override {
-    //  register_concurrent_region_gmock_proxy(task.get(), n_idxs, ds.get());
-    //  concurrent_regions.emplace_back(CRTaskDetails{std::move(task), n_idxs, ds, 0});
-    //}
-
-    bool
-    register_condition_task(
-      condition_task_unique_ptr&& task
+    void publish_use(
+      std::unique_ptr<use_t>&& pub_use,
+      darma_runtime::abstract::frontend::PublicationDetails* details
     ) override {
-      auto rv = register_condition_task_gmock_proxy(task.get());
-      return rv;
+      publish_use_gmock_proxy(pub_use.get(), details);
+      backend_owned_uses.emplace_back(std::move(pub_use));
     }
 
     void allreduce_use(
@@ -165,31 +155,42 @@ class MockRuntime
 #endif
 #endif
 
-    MOCK_CONST_METHOD0(get_spmd_rank, size_t());
-    MOCK_CONST_METHOD0(get_spmd_size, size_t());
+    MOCK_CONST_METHOD1(get_execution_resource_count, size_t(size_t));
 
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
-    MOCK_METHOD1(register_condition_task_gmock_proxy, bool(condition_task_t* task));
     MOCK_METHOD1(register_task_collection_gmock_proxy, void(task_collection_t*));
     MOCK_METHOD0(make_data_store,
       std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle>()
     );
 
-    MOCK_CONST_METHOD1(get_execution_resource_count, size_t(size_t));
     MOCK_CONST_METHOD0(get_running_task, task_t*());
-    MOCK_METHOD0(finalize, void());
-    MOCK_METHOD1(register_use, void(use_t*));
-    MOCK_METHOD1(reregister_migrated_use, void(use_t*));
-    MOCK_METHOD1(make_initial_flow, flow_t(std::shared_ptr<handle_t> const&));
-    MOCK_METHOD3(make_fetching_flow, flow_t(std::shared_ptr<handle_t> const&, key_t const&,
+
+    MOCK_METHOD1(legacy_register_use, void(
+      darma_runtime::abstract::frontend::DependencyUse*
+    ));
+    MOCK_METHOD1(reregister_migrated_use, void(
+      darma_runtime::abstract::frontend::RegisteredUse*
+    ));
+    MOCK_METHOD1(legacy_release_use, void(
+      darma_runtime::abstract::frontend::DependencyUse*
+    ));
+
+    MOCK_METHOD1(make_initial_flow, flow_t(std::shared_ptr<handle_t const> const&));
+    MOCK_METHOD3(make_fetching_flow, flow_t(std::shared_ptr<handle_t const> const&, key_t const&,
       bool
     ));
-    MOCK_METHOD1(make_null_flow, flow_t(std::shared_ptr<handle_t> const&));
+    MOCK_METHOD1(make_null_flow, flow_t(std::shared_ptr<handle_t const> const&));
+
     MOCK_METHOD1(make_forwarding_flow, flow_t(flow_t&));
     MOCK_METHOD1(make_next_flow, flow_t(flow_t&));
+
     MOCK_METHOD2(establish_flow_alias, void(flow_t&, flow_t&));
-    MOCK_METHOD1(release_use, void(use_t*));
-    MOCK_METHOD2(publish_use, void(use_t*, publication_details_t*));
+
+
+    MOCK_METHOD2(publish_use_gmock_proxy, void(
+      use_t*, publication_details_t*)
+    );
+
     MOCK_METHOD2(allocate, void*(size_t,
       darma_runtime::abstract::frontend::MemoryRequirementDetails const&));
     MOCK_METHOD2(deallocate, void(void*, size_t));
@@ -212,11 +213,12 @@ class MockRuntime
     MOCK_METHOD1(get_packed_flow_size, size_t(flow_t const&));
     MOCK_METHOD2(pack_flow, void(flow_t&, void*&));
     MOCK_METHOD1(make_unpacked_flow, flow_t(void const*&));
-    MOCK_METHOD1(reregister_use_copy, void(use_t*));
+
     MOCK_METHOD2(make_indexed_local_flow, flow_t(flow_t&, size_t));
     MOCK_METHOD3(make_indexed_fetching_flow, flow_t(flow_t&, key_t const&, size_t));
-    MOCK_METHOD1(make_initial_flow_collection, flow_t(std::shared_ptr<handle_t> const&));
-    MOCK_METHOD1(make_null_flow_collection, flow_t(std::shared_ptr<handle_t> const&));
+
+    MOCK_METHOD1(make_initial_flow_collection, flow_t(std::shared_ptr<handle_t const> const&));
+    MOCK_METHOD1(make_null_flow_collection, flow_t(std::shared_ptr<handle_t const> const&));
     MOCK_METHOD1(make_next_flow_collection, flow_t(flow_t&));
 
 

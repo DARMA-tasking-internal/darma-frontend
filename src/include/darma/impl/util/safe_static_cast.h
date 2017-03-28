@@ -133,6 +133,46 @@ safe_static_pointer_cast(std::shared_ptr<FromType> const& from)
   return std::static_pointer_cast<ToType>(from);
 };
 
+//==============================================================================
+// <editor-fold desc="pointer version of safe_dynamic_cast"> {{{1
+
+template <
+  typename ToType,
+  typename FromType,
+  typename=std::enable_if_t<std::is_pointer<ToType>::value>
+>
+inline DARMA_CONSTEXPR_14
+ToType
+safe_dynamic_cast(FromType val)
+{
+  // perfect forwarding here is probably unnecessary...
+  DARMA_ASSERT_MESSAGE(
+    dynamic_cast<ToType>(std::forward<FromType>(val)) != nullptr,
+    "safe_dynamic_cast from type "
+      << try_demangle<FromType>::name() << " to type "
+      << try_demangle<ToType>::name() << " failed"
+  );
+  return dynamic_cast<ToType>(std::forward<FromType>(val));
+}
+
+template <
+  typename ToType,
+  typename FromType,
+  typename=std::enable_if_t<std::is_pointer<ToType>::value>
+>
+inline DARMA_CONSTEXPR_14
+ToType
+try_dynamic_cast(FromType val)
+{
+  // perfect forwarding here is probably unnecessary...
+  auto* rv = dynamic_cast<ToType>(std::forward<FromType>(val));
+  if(rv) return rv;
+  else throw std::bad_cast();
+}
+
+// </editor-fold> end pointer version of safe_static_cast }}}1
+//==============================================================================
+
 } // end namespace detail
 } // end namespace darma_runtime
 

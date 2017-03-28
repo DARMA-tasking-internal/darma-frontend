@@ -158,6 +158,7 @@ class CollectionManagingUseBase
 {
   public:
     // This structure is probably very inefficient, but just to get something working...
+    // TODO this should be a std::optional, probably, or something like that, since mapping manager is stateless
     std::unique_ptr<MappingManagerBase<FrontendHandleIndex>> mapping_manager = nullptr;
 
     using HandleUseBase::HandleUseBase;
@@ -165,16 +166,23 @@ class CollectionManagingUseBase
     template <typename MappingToTaskCollectionDeduced>
     CollectionManagingUseBase(
       std::shared_ptr<VariableHandleBase> handle,
-      flow_ptr const& in_flow,
-      flow_ptr const& out_flow,
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions,
+      abstract::frontend::FlowRelationship::flow_relationship_description_t in_desc,
+      types::flow_t* in_rel,
+      abstract::frontend::FlowRelationship::flow_relationship_description_t out_desc,
+      types::flow_t* out_rel,
+      bool out_rel_is_in,
       MappingToTaskCollectionDeduced&& mapping
-    ) : HandleUseBase(handle, in_flow, out_flow, scheduling_permissions, immediate_permissions),
+    ) : HandleUseBase(
+          handle, scheduling_permissions, immediate_permissions,
+          in_desc, in_rel,
+          out_desc, out_rel, out_rel_is_in
+        ),
         mapping_manager(
           std::make_unique<
             MappingManager<std::decay_t<MappingToTaskCollectionDeduced>, FrontendHandleIndex>
-            >(std::forward<MappingToTaskCollectionDeduced>(mapping))
+          >(std::forward<MappingToTaskCollectionDeduced>(mapping))
         )
     { }
 
@@ -201,21 +209,31 @@ class CollectionManagingUse
     template <typename T>
     using index_iterable = abstract::frontend::UseCollection::index_iterable<T>;
 
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="Ctors"> {{{2
+
     CollectionManagingUse(CollectionManagingUse&&) = default;
 
-    template <typename IndexRangeDeduced,
+    template <
+      typename IndexRangeDeduced,
       typename=std::enable_if_t<
-      std::is_convertible<IndexRangeDeduced&&, IndexRangeT>::value
+        std::is_convertible<IndexRangeDeduced&&, IndexRangeT>::value
       >
     >
     CollectionManagingUse(
       std::shared_ptr<VariableHandleBase> handle,
-      flow_ptr const& in_flow,
-      flow_ptr const& out_flow,
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions,
+      abstract::frontend::FlowRelationship::flow_relationship_description_t in_desc,
+      types::flow_t* in_rel,
+      abstract::frontend::FlowRelationship::flow_relationship_description_t out_desc,
+      types::flow_t* out_rel,
+      bool out_rel_is_in,
       IndexRangeDeduced&& range
-    ) : base_t(handle, in_flow, out_flow, scheduling_permissions, immediate_permissions),
+    ) : base_t(
+          handle, scheduling_permissions, immediate_permissions,
+          in_desc, in_rel, out_desc, out_rel, out_rel_is_in
+        ),
         index_range(std::forward<IndexRangeDeduced>(range)),
         mapping_to_dense(rng_traits::mapping_to_dense(index_range))
     { }
@@ -225,33 +243,41 @@ class CollectionManagingUse
       CollectionManagingUse const& other,
       MappingToTaskCollectionDeduced&& mapping
     ) : base_t(
-      other.handle_, other.in_flow_, other.out_flow_,
-      other.scheduling_permissions_, other.immediate_permissions_,
-      std::forward<MappingToTaskCollectionDeduced>(mapping)
-    ),
+          other.handle_, other.in_flow_, other.out_flow_,
+          other.scheduling_permissions_, other.immediate_permissions_,
+          std::forward<MappingToTaskCollectionDeduced>(mapping)
+        ),
         index_range(other.index_range),
         mapping_to_dense(rng_traits::mapping_to_dense(index_range))
     { }
 
-    template <typename IndexRangeDeduced, typename MappingToTaskCollectionDeduced,
+    template <
+      typename IndexRangeDeduced, typename MappingToTaskCollectionDeduced,
       typename=std::enable_if_t<
-      std::is_convertible<IndexRangeDeduced&&, IndexRangeT>::value
+        std::is_convertible<IndexRangeDeduced&&, IndexRangeT>::value
       >
     >
     CollectionManagingUse(
       std::shared_ptr<VariableHandleBase> handle,
-      flow_ptr const& in_flow,
-      flow_ptr const& out_flow,
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions,
+      abstract::frontend::FlowRelationship::flow_relationship_description_t in_desc,
+      types::flow_t* in_rel,
+      abstract::frontend::FlowRelationship::flow_relationship_description_t out_desc,
+      types::flow_t* out_rel,
+      bool out_rel_is_in,
       IndexRangeDeduced&& range, MappingToTaskCollectionDeduced&& mapping
     ) : base_t(
-      handle, in_flow, out_flow, scheduling_permissions, immediate_permissions,
-      std::forward<MappingToTaskCollectionDeduced>(mapping)
-    ),
+          handle, scheduling_permissions, immediate_permissions,
+          in_desc, in_rel, out_desc, out_rel, out_rel_is_in,
+          std::forward<MappingToTaskCollectionDeduced>(mapping)
+        ),
         index_range(std::forward<IndexRangeDeduced>(range)),
         mapping_to_dense(rng_traits::mapping_to_dense(index_range))
     { }
+
+    // </editor-fold> end Ctors }}}2
+    //--------------------------------------------------------------------------
 
     // Don't change this member order
     IndexRangeT index_range;

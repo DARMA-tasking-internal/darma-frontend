@@ -107,7 +107,11 @@ MATCHER_P(UseRefIsNonNull, use, "Use* reference is non-null at time of invocatio
 
 MATCHER_P(UseInGetDependencies, use, "task->get_dependencies() contains " + PrintToString(use)) {
   auto deps = arg->get_dependencies();
-  if(deps.find(use) != deps.end()) {
+  if(deps.find(
+    ::darma_runtime::abstract::frontend::use_cast<
+      ::darma_runtime::abstract::frontend::DependencyUse*
+    >(use)
+  ) != deps.end()) {
     return true;
   }
   else {
@@ -151,8 +155,21 @@ MATCHER_P(UsesInGetDependencies, uses,
     //  }
     //}
     //if (not found) {
-    if(deps.find(*use) == deps.end()) {
-      *result_listener << "at least one use not found; ";
+    if(use == nullptr) {
+      rv = false;
+      break;
+    }
+    try {
+      if (deps.find(
+        ::darma_runtime::detail::try_dynamic_cast<
+          ::darma_runtime::abstract::frontend::DependencyUse*
+        >(*use)
+      ) == deps.end()) {
+        *result_listener << "at least one use not found; ";
+        rv = false;
+        break;
+      }
+    } catch (std::bad_cast const&) {
       rv = false;
       break;
     }

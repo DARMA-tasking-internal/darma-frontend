@@ -305,6 +305,11 @@ class managing_ptr {
       b._assign_managed();
     };
 
+    friend bool
+    operator==(nullptr_t, managing_ptr const& a) {
+      return !bool(a);
+    }
+
 };
 
 } // end namespace detail

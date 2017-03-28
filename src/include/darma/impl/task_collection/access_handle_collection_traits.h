@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      task_collection_fwd.h
+//                      access_handle_collection_traits.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,65 +42,46 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
-#define DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
+#ifndef DARMA_IMPL_TASK_COLLECTION_ACCESS_HANDLE_COLLECTION_TRAITS_H
+#define DARMA_IMPL_TASK_COLLECTION_ACCESS_HANDLE_COLLECTION_TRAITS_H
 
-#include <cstdio> // size_t
+
+#include <darma/impl/access_handle/access_handle_traits.h>
 
 #include <darma/impl/util/optional_boolean.h>
 
-#include <darma/impl/task_collection/access_handle_collection_traits.h>
-
 namespace darma_runtime {
+
 namespace detail {
 
-typedef enum HandleCollectiveLabel
-{
-  Reduce = 0
-} handle_collective_label_t;
+// TODO special members (e.g., for allocator)
+
+namespace ahc_traits {
 
 template <
-  typename AccessHandleCollectionT,
-  typename ReduceOp, handle_collective_label_t
+  OptionalBoolean IsOuter = OptionalBoolean::Unknown,
+  typename AHSemanticTraits = access_handle_semantic_traits<>
 >
-struct _collective_awaiting_assignment;
+struct semantic_traits {
+  static constexpr auto is_outer = IsOuter;
+  using handle_semantic_traits = AHSemanticTraits;
+};
 
+} // end namespace ahc_traits
 
-namespace _task_collection_impl {
-
-// Argument to TaskCollectionImpl storage helper
-template <
-  typename GivenArg,
-  typename ParamTraits,
-  typename CollectionIndexRangeT,
-  typename Enable=void
+template <typename T, typename IndexRangeT,
+  typename PermissionsTraits = access_handle_permissions_traits<>,
+  typename SemanticTraits = ahc_traits::semantic_traits<>,
+  typename AllocationTraits = access_handle_allocation_traits<T>
 >
-struct _get_storage_arg_helper;
-
-template <
-  typename Functor,
-  typename CollectionArg, size_t Position,
-  typename Enable=void
->
-struct _get_task_stored_arg_helper;
-
-} // end namespace _task_collection_impl
-
-template <
-  typename Functor,
-  typename IndexRangeT,
-  typename... Args
->
-struct TaskCollectionImpl;
-
+struct access_handle_collection_traits {
+  using permissions_traits = PermissionsTraits;
+  using semantic_traits = SemanticTraits;
+  using allocation_traits = AllocationTraits;
+};
 
 } // end namespace detail
 
-template <typename T, typename IndexRangeT,
-  typename Traits=detail::access_handle_collection_traits<T, IndexRangeT>
->
-class AccessHandleCollection;
-
 } // end namespace darma_runtime
 
-#endif //DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
+#endif //DARMA_IMPL_TASK_COLLECTION_ACCESS_HANDLE_COLLECTION_TRAITS_H

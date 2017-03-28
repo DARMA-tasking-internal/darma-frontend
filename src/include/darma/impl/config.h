@@ -49,4 +49,8 @@
 #include <darma/impl/config-generated.h>
 #endif
 
+#ifndef DARMA_NO_PRETTY_PRINT_COMPILE_TIME_ERRORS
+#define DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
+#endif
+
 #endif //DARMA_CONFIG_H

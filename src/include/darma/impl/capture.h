@@ -58,7 +58,6 @@ namespace detail {
 template <
   typename UseHolderT,
   typename UseMaker,
-  typename NextFlowMaker,
   typename ContinuingUseMaker,
   typename AllowRegisterContinuationIntegralConstantType=std::true_type
 >
@@ -67,13 +66,14 @@ auto make_captured_use_holder(
   HandleUse::permissions_t requested_scheduling_permissions,
   HandleUse::permissions_t requested_immediate_permissions,
   UseHolderT* source_and_continuing_holder,
-  UseMaker&& use_holder_maker, NextFlowMaker&& next_flow_maker,
+  UseMaker&& use_holder_maker,
   ContinuingUseMaker&& continuing_use_holder_maker,
   AllowRegisterContinuationIntegralConstantType = std::true_type{}
 ) {
 
   static constexpr auto AllowRegisterContinuation =
     AllowRegisterContinuationIntegralConstantType::value;
+  using namespace darma_runtime::abstract::frontend;
 
   // source scheduling permissions shouldn't be None at this point
   DARMA_ASSERT_MESSAGE(
@@ -123,15 +123,15 @@ auto make_captured_use_holder(
               // We still need to create a new use, because it's a separate task
               captured_use_holder = use_holder_maker(
                 var_handle,
-                source_and_continuing_holder->use->in_flow_,
-                source_and_continuing_holder->use->in_flow_,
                 /* Scheduling permissions */
                 HandleUse::Read,
                 /* Immediate permissions */
-                HandleUse::None
+                HandleUse::None,
+                FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+                FlowRelationship::Same, nullptr, true
               );
 
-              captured_use_holder->do_register();
+              // Continuing use same as source use
 
               break;
             } // end case Read requested scheduling permissions
@@ -154,69 +154,50 @@ auto make_captured_use_holder(
               // We still need to make a next flow...
               // ...actually, this is basically just a regular modify capture with
               // some small exceptions
-              auto captured_out_flow = next_flow_maker(
-                source_and_continuing_holder->use->in_flow_, backend_runtime
-              );
 
               captured_use_holder = use_holder_maker(
                 var_handle,
-                source_and_continuing_holder->use->in_flow_,
-                captured_out_flow,
                 /* Scheduling permissions */
                 HandleUse::Modify,
                 /* Immediate permissions */
-                HandleUse::None
+                HandleUse::None,
+                FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+                FlowRelationship::Next, nullptr, true
               );
 
-              captured_use_holder->do_register();
 
               // Note that this next part is almost exactly the same as the logic for
               // the immediate modify case
 
               // if the source use was registered, we need to release it now
-              if(source_and_continuing_holder->is_registered) {
 
-                // TODO creating a new use here might be inconsistent with how we don't create continuation uses in the immediate modify case
+              // We need to register a new use here, though, since the
+              // continuing context will have different flows from the
+              // already-registered capturing context
 
-                // We need to register a new use here, though, since the
-                // continuing context will have different flows from the
-                // already-registered capturing context
+              // Make a new use for the continuing context (since, for some reason
+              // or another, we needed one in the source context)
 
-                // Make a new use for the continuing context (since, for some reason
-                // or another, we needed one in the source context)
+              // now that we've created a continuing context use holder, the source
+              // should NOT establish an alias (the continuing use holder will do
+              // it instead), so flip the flag here
+              source_and_continuing_holder->could_be_alias = false;
+              source_and_continuing_holder->replace_use(
+                continuing_use_holder_maker(
+                  var_handle,
+                  /* Scheduling permissions */
+                  HandleUse::Modify,
+                  /* Immediate permissions */
+                  HandleUse::None, // This is a schedule-only use
+                  FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+                  FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+                ),
+                AllowRegisterContinuation
+              );
 
-                // now that we've created a continuing context use holder, the source
-                // should NOT establish an alias (the continuing use holder will do
-                // it instead), so flip the flag here
-                source_and_continuing_holder->could_be_alias = false;
-                source_and_continuing_holder->replace_use(
-                  continuing_use_holder_maker(
-                    var_handle,
-                    captured_out_flow,
-                    source_and_continuing_holder->use->out_flow_,
-                    /* Scheduling permissions */
-                    HandleUse::Modify,
-                    /* Immediate permissions */
-                    HandleUse::None // This is a schedule-only use
-                  ),
-                  AllowRegisterContinuation
-                );
-
-                // This new use could establish an alias if no additional tasks are
-                // scheduled on it...
-                source_and_continuing_holder->could_be_alias = true;
-
-              }
-              else {
-                // otherwise, we can just reuse the existing use holder
-
-                // ...but the in_flow needs to be set to the out_flow of the captured
-                // Use for the purposes of the next task
-                source_and_continuing_holder->use->in_flow_ = captured_out_flow;
-                // Out flow should be unchanged, but it will still establish an alias
-                // when it goes away if no other tasks are asigned to it
-                source_and_continuing_holder->could_be_alias = true;
-              }
+              // This new use could establish an alias if no additional tasks are
+              // scheduled on it...
+              source_and_continuing_holder->could_be_alias = true;
 
               break;
             } // end case Modify requested scheduling permissions
@@ -246,14 +227,13 @@ auto make_captured_use_holder(
 
               captured_use_holder = use_holder_maker(
                 var_handle,
-                source_and_continuing_holder->use->in_flow_,
-                source_and_continuing_holder->use->in_flow_,
                 /* Scheduling permissions */
                 HandleUse::Read,
                 /* Immediate permissions */
-                HandleUse::None
+                HandleUse::None,
+                FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+                FlowRelationship::Same, nullptr, true
               );
-              captured_use_holder->do_register();
 
               break;
             }
@@ -272,38 +252,25 @@ auto make_captured_use_holder(
                   " at Modify schedule permissions"
               );
 
-              auto created_in_flow = make_forwarding_flow_ptr(
-                source_and_continuing_holder->use->in_flow_,
-                backend_runtime
-              );
-
-              auto created_out_flow = make_next_flow_ptr(
-                created_in_flow, backend_runtime
-              );
-
-
-              bool source_was_registered = source_and_continuing_holder->is_registered;
-
               captured_use_holder = use_holder_maker(
                 var_handle,
-                created_in_flow,
-                created_out_flow,
                 /* Scheduling permissions */
                 HandleUse::Modify,
                 /* Immediate permissions */
-                HandleUse::None
+                HandleUse::None,
+                FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
+                FlowRelationship::Next /* "scheduling next" */, nullptr, true
               );
-              captured_use_holder->do_register();
 
               source_and_continuing_holder->replace_use(
                 continuing_use_holder_maker(
                   var_handle,
-                  created_out_flow,
-                  source_and_continuing_holder->use->out_flow_,
                   HandleUse::Modify,
-                  HandleUse::None
+                  HandleUse::None,
+                  FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+                  FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
                 ),
-                AllowRegisterContinuation and source_was_registered
+                AllowRegisterContinuation
               );
 
               break;
@@ -376,14 +343,15 @@ auto make_captured_use_holder(
 
               captured_use_holder = use_holder_maker(
                 var_handle,
-                source_and_continuing_holder->use->in_flow_,
-                source_and_continuing_holder->use->in_flow_,
                 /* Scheduling permissions */
                 requested_scheduling_permissions,
                 /* Immediate permissions */
-                HandleUse::Read
+                HandleUse::Read,
+                FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+                FlowRelationship::Same, nullptr, true
               );
-              captured_use_holder->do_register();
+
+              // The continuation use is the source use here
 
               break;
 
@@ -405,20 +373,15 @@ auto make_captured_use_holder(
 
               // we need to make a forwarded flow and register a new use in the
               // continuing context
-              auto forwarded_flow = make_forwarding_flow_ptr(
-                source_and_continuing_holder->use->in_flow_, backend_runtime
-              );
-
               captured_use_holder = use_holder_maker(
                 var_handle,
-                forwarded_flow,
-                forwarded_flow,
                 /* Scheduling permissions */
                 requested_scheduling_permissions,
                 /* Immediate permissions */
-                HandleUse::Read
+                HandleUse::Read,
+                FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
+                FlowRelationship::Same, nullptr, true
               );
-              captured_use_holder->do_register();
 
               // The continuing context actually needs to have a Use as well,
               // since it has access to the underlying data...
@@ -433,14 +396,14 @@ auto make_captured_use_holder(
               source_and_continuing_holder->replace_use(
                 continuing_use_holder_maker(
                   var_handle,
-                  forwarded_flow,
-                  // It still carries the out flow of the task, though, and should
-                  // establish an alias on release if there are no more modifies
-                  source_and_continuing_holder->use->out_flow_,
                   /* Scheduling permissions: (should be unchanged) */
                   source_and_continuing_holder->use->scheduling_permissions_,
                   /* Immediate permissions: */
-                  HandleUse::Read
+                  HandleUse::Read,
+                  FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+                  // It still carries the out flow of the task, though, and should
+                  // establish an alias on release if there are no more modifies
+                  FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
                 ),
                 AllowRegisterContinuation
               );
@@ -453,11 +416,10 @@ auto make_captured_use_holder(
               // We can go ahead and pass on the underlying pointer, though, since
               // the Use is associated with a handle in a context that's uninterruptible
               void*& new_ptr = source_and_continuing_holder->use->get_data_pointer_reference();
-              // (But only if the backend didn't somehow set it to something
-              // else during registration...)
-              if(new_ptr == nullptr) {
-                new_ptr = old_ptr;
-              }
+              // The backend isn't allowed to change the pointer at this stage,
+              // since it's in the middle of a task
+              assert(new_ptr == nullptr);
+              new_ptr = old_ptr;
 
               break;
 
@@ -489,21 +451,15 @@ auto make_captured_use_holder(
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // this case is an MR capture of MN
 
-              auto next_flow = make_next_flow_ptr(
-                source_and_continuing_holder->use->in_flow_, backend_runtime
-              );
               captured_use_holder = use_holder_maker(
                 var_handle,
-                source_and_continuing_holder->use->in_flow_,
-                next_flow,
                 /* Scheduling permissions */
                 HandleUse::Modify,
                 /* Immediate permissions */
-                HandleUse::Read
+                HandleUse::Read,
+                FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+                FlowRelationship::Next, nullptr, true
               );
-              captured_use_holder->do_register();
-
-              bool source_is_registered = source_and_continuing_holder->is_registered;
 
               // the source should *not* establish an alias when potentially
               // released, in the replace below, since the continuation will
@@ -513,12 +469,12 @@ auto make_captured_use_holder(
               source_and_continuing_holder->replace_use(
                 continuing_use_holder_maker(
                   var_handle,
-                  next_flow,
-                  source_and_continuing_holder->use->out_flow_,
                   HandleUse::Modify,
-                  HandleUse::None
+                  HandleUse::None,
+                  FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+                  FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
                 ),
-                AllowRegisterContinuation and source_is_registered
+                AllowRegisterContinuation
               );
               source_and_continuing_holder->could_be_alias = true;
 
@@ -539,33 +495,25 @@ auto make_captured_use_holder(
               // %   MM -> { MR } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-              auto fwd_flow = make_forwarding_flow_ptr(
-                source_and_continuing_holder->use->in_flow_, backend_runtime
-              );
-              auto cap_out_flow = make_next_flow_ptr(
-                fwd_flow, backend_runtime
-              );
               captured_use_holder = use_holder_maker(
                 var_handle,
-                fwd_flow,
-                cap_out_flow,
                 /* Scheduling permissions */
                 HandleUse::Modify,
                 /* Immediate permissions */
-                HandleUse::Read
+                HandleUse::Read,
+                FlowRelationship::Forwarding, &captured_use_holder->use->in_flow_,
+                FlowRelationship::Next, nullptr, true
               );
-              captured_use_holder->do_register();
 
               source_and_continuing_holder->replace_use(
                 continuing_use_holder_maker(
                   var_handle,
-                  cap_out_flow,
-                  source_and_continuing_holder->use->out_flow_,
-                  HandleUse::Modify, HandleUse::None
+                  HandleUse::Modify, HandleUse::None,
+                  FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+                  FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
                 ),
                 AllowRegisterContinuation
               );
-
               source_and_continuing_holder->could_be_alias = true;
 
               break;
@@ -609,24 +557,16 @@ auto make_captured_use_holder(
 
           // Modify capture of handle without modify immediate permissions
 
-          // Create the out flow
-          auto captured_out_flow = next_flow_maker(
-            source_and_continuing_holder->use->in_flow_, backend_runtime
-          );
-
           // make the captured use holder
           captured_use_holder = use_holder_maker(
             var_handle,
-            source_and_continuing_holder->use->in_flow_,
-            captured_out_flow,
             /* Scheduling permissions */
             requested_scheduling_permissions,
             /* Immediate permissions */
-            HandleUse::Modify
+            HandleUse::Modify,
+            FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+            FlowRelationship::Next, nullptr, true
           );
-
-          // register the captured use
-          captured_use_holder->do_register();
 
           // We need to register a new use here, though
           // TODO creating a new use here might be inconsistent with how we don't create continuation uses in the modify immediate source case
@@ -644,12 +584,12 @@ auto make_captured_use_holder(
           source_and_continuing_holder->replace_use(
             continuing_use_holder_maker(
               var_handle,
-              captured_out_flow,
-              source_and_continuing_holder->use->out_flow_,
               /* Scheduling permissions */
               HandleUse::Modify,
               /* Immediate permissions */
-              HandleUse::None // This is a schedule-only use
+              HandleUse::None, // This is a schedule-only use
+              FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+              FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
             ),
             AllowRegisterContinuation
           );
@@ -671,31 +611,27 @@ auto make_captured_use_holder(
 
           // Create the out flow  (should this be make_forwarding_flow?)
           // (probably not, since RR -> { RR } -> RR doesn't do forwarding?)
-          auto captured_out_flow = next_flow_maker(
-            source_and_continuing_holder->use->in_flow_, backend_runtime
-          );
 
           // make the captured use holder
           captured_use_holder = use_holder_maker(
             var_handle,
-            source_and_continuing_holder->use->in_flow_,
-            captured_out_flow,
             /* Scheduling permissions */
             requested_scheduling_permissions,
             /* Immediate permissions */
-            HandleUse::Modify
+            HandleUse::Modify,
+            FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+            FlowRelationship::Next, nullptr, true
           );
 
           // register the captured use
-          captured_use_holder->do_register();
 
           source_and_continuing_holder->replace_use(
             continuing_use_holder_maker(
               var_handle,
-              captured_out_flow,
-              source_and_continuing_holder->use->out_flow_,
               source_and_continuing_holder->use->scheduling_permissions_,
-              HandleUse::None
+              HandleUse::None,
+              FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+              FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
             ),
             AllowRegisterContinuation
           );
@@ -717,33 +653,25 @@ auto make_captured_use_holder(
 
           // we need to forward the input flow, since it could have changed
           // (because the source has modify immediate permissions)
-          auto captured_in_flow = make_forwarding_flow_ptr(
-            source_and_continuing_holder->use->in_flow_, backend_runtime
-          );
-          auto captured_out_flow = next_flow_maker(
-            captured_in_flow, backend_runtime
-          );
 
           // make the captured use holder
           captured_use_holder = use_holder_maker(
             var_handle,
-            captured_in_flow, captured_out_flow,
             /* Scheduling permissions */
             requested_scheduling_permissions,
             /* Immediate permissions */
-            HandleUse::Modify
+            HandleUse::Modify,
+            FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
+            FlowRelationship::Next, nullptr, true
           );
-
-          // register the captured use
-          captured_use_holder->do_register();
 
           source_and_continuing_holder->replace_use(
             continuing_use_holder_maker(
               var_handle,
-              captured_out_flow,
-              source_and_continuing_holder->use->out_flow_,
               source_and_continuing_holder->use->scheduling_permissions_,
-              HandleUse::None
+              HandleUse::None,
+              FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+              FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
             ),
             AllowRegisterContinuation
           );
@@ -782,15 +710,31 @@ auto make_captured_use_holder(
 
       captured_use_holder = use_holder_maker(
         var_handle,
-        source_and_continuing_holder->use->in_flow_,
-        source_and_continuing_holder->use->out_flow_,
         /* Scheduling permissions */
         requested_scheduling_permissions,
         /* Immediate permissions */
-        HandleUse::Commutative
+        HandleUse::Commutative,
+        FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+        FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
       );
 
-      captured_use_holder->do_register();
+//#if _darma_has_feature(register_commutative_continuation_uses)
+//
+//      source_and_continuing_holder->replace_use(
+//        continuing_use_holder_maker(
+//          var_handle,
+//          /* Scheduling permissions */
+//          source_and_continuing_holder->use->scheduling_permissions_,
+//          /* Immediate permissions */
+//          source_and_continuing_holder->use->immediate_permissions_,
+//          FlowRelationship::Same, &captured_use_holder->use->in_flow_,
+//          FlowRelationship::Same, &captured_use_holder->use->out_flow_
+//        ),
+//        AllowRegisterContinuation
+//      );
+//
+//#endif // _darma_has_feature(register_commutative_continuation_uses)
+
 
       // Note that permissions/use/etc of source_and_continuing are unchanged
       // TODO commutative schedule-only capture
@@ -823,27 +767,27 @@ make_captured_use_holder(
   HandleUse::permissions_t requested_immediate_permissions,
   UseHolder* source_and_continuing_holder
 ) {
+  // TODO is_dependency_ pass through here, for use with allreduce and publish, etc?
   return make_captured_use_holder(
     var_handle, requested_scheduling_permissions, requested_immediate_permissions,
     source_and_continuing_holder,
     /* Use holder maker */
     [](auto&&... args) {
       using namespace darma_runtime::detail;
-      return std::make_shared<GenericUseHolder<HandleUse>>(HandleUse(
+      auto rv = std::make_shared<GenericUseHolder<HandleUse>>(HandleUse(
         std::forward<decltype(args)>(args)...
       ));
-    },
-    /* next flow maker */
-    [](auto&& flow, auto* backend_runtime) {
-      using namespace darma_runtime::detail;
-      return darma_runtime::detail::make_next_flow_ptr(std::forward<decltype(flow)>(flow), backend_runtime);
+      rv->use->is_dependency_ = true;
+      return rv;
     },
     /* continuing use maker */
     [](auto&&... args) {
       using namespace darma_runtime::detail;
-      return HandleUse(
+      HandleUse rv(
         std::forward<decltype(args)>(args)...
       );
+      rv.is_dependency_ = false;
+      return rv;
     },
     std::integral_constant<bool, AllowRegisterContinuation>{}
   );

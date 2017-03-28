@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      task_collection_fwd.h
+//                      optional.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,65 +42,43 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
-#define DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
+#ifndef DARMA_IMPL_UTIL_OPTIONAL_H
+#define DARMA_IMPL_UTIL_OPTIONAL_H
 
-#include <cstdio> // size_t
+// TODO configuration/compatibility check to make sure optional is available, and our own implementation to use if not
 
-#include <darma/impl/util/optional_boolean.h>
-
-#include <darma/impl/task_collection/access_handle_collection_traits.h>
+#include <experimental/optional>
 
 namespace darma_runtime {
 namespace detail {
 
-typedef enum HandleCollectiveLabel
-{
-  Reduce = 0
-} handle_collective_label_t;
+using nullopt_t = std::experimental::nullopt_t;
+static constexpr auto nullopt = std::experimental::nullopt;
 
-template <
-  typename AccessHandleCollectionT,
-  typename ReduceOp, handle_collective_label_t
->
-struct _collective_awaiting_assignment;
+template <typename T>
+using optional = std::experimental::optional<T>;
 
+template <typename T>
+constexpr
+optional<std::decay_t<T>> make_optional( T&& value ) {
+  return std::experimental::make_optional(std::forward<T>(value));
+}
 
-namespace _task_collection_impl {
+template <typename T, typename... Args>
+constexpr
+optional<T> make_optional( Args&&... args ) {
+  return std::experimental::make_optional<T>(std::forward<Args>(args)...);
+}
 
-// Argument to TaskCollectionImpl storage helper
-template <
-  typename GivenArg,
-  typename ParamTraits,
-  typename CollectionIndexRangeT,
-  typename Enable=void
->
-struct _get_storage_arg_helper;
+template <typename T, typename U, typename... Args>
+constexpr
+optional<T> make_optional( std::initializer_list<U> il, Args&&... args ) {
+  return std::experimental::make_optional<T>(il, std::forward<Args>(args)...);
+}
 
-template <
-  typename Functor,
-  typename CollectionArg, size_t Position,
-  typename Enable=void
->
-struct _get_task_stored_arg_helper;
-
-} // end namespace _task_collection_impl
-
-template <
-  typename Functor,
-  typename IndexRangeT,
-  typename... Args
->
-struct TaskCollectionImpl;
-
+static constexpr auto in_place = std::experimental::in_place;
 
 } // end namespace detail
-
-template <typename T, typename IndexRangeT,
-  typename Traits=detail::access_handle_collection_traits<T, IndexRangeT>
->
-class AccessHandleCollection;
-
 } // end namespace darma_runtime
 
-#endif //DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
+#endif //DARMA_IMPL_UTIL_OPTIONAL_H

@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      task_collection_fwd.h
+//                      errors.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,65 +42,17 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
-#define DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
+#ifndef DARMA_IMPL_ERRORS_H
+#define DARMA_IMPL_ERRORS_H
 
-#include <cstdio> // size_t
+#include <darma/impl/config.h>
 
-#include <darma/impl/util/optional_boolean.h>
+namespace _darma__errors {
 
-#include <darma/impl/task_collection/access_handle_collection_traits.h>
+#ifndef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
+struct __________use_dash_D_DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS__to_see_a_better_error_message { };
+#endif
 
-namespace darma_runtime {
-namespace detail {
+} // end namespace _darma__errors
 
-typedef enum HandleCollectiveLabel
-{
-  Reduce = 0
-} handle_collective_label_t;
-
-template <
-  typename AccessHandleCollectionT,
-  typename ReduceOp, handle_collective_label_t
->
-struct _collective_awaiting_assignment;
-
-
-namespace _task_collection_impl {
-
-// Argument to TaskCollectionImpl storage helper
-template <
-  typename GivenArg,
-  typename ParamTraits,
-  typename CollectionIndexRangeT,
-  typename Enable=void
->
-struct _get_storage_arg_helper;
-
-template <
-  typename Functor,
-  typename CollectionArg, size_t Position,
-  typename Enable=void
->
-struct _get_task_stored_arg_helper;
-
-} // end namespace _task_collection_impl
-
-template <
-  typename Functor,
-  typename IndexRangeT,
-  typename... Args
->
-struct TaskCollectionImpl;
-
-
-} // end namespace detail
-
-template <typename T, typename IndexRangeT,
-  typename Traits=detail::access_handle_collection_traits<T, IndexRangeT>
->
-class AccessHandleCollection;
-
-} // end namespace darma_runtime
-
-#endif //DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H
+#endif //DARMA_IMPL_ERRORS_H

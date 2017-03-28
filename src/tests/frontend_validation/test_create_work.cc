@@ -104,12 +104,10 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
     EXPECT_MOD_CAPTURE_MN_OR_MR(f_initial, f_task_out, task_use, f_null, use_cont);
   }
   else {
-    EXPECT_CALL(*mock_runtime, make_next_flow(&f_initial))
-      .WillOnce(Return(&f_task_out));
+    EXPECT_CALL(*mock_runtime, make_next_flow(f_initial))
+      .WillOnce(Return(f_task_out));
 
-    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
-      f_initial, f_task_out, use_t::Modify, use_t::Modify
-    ))).WillOnce(SaveArg<0>(&task_use));
+    EXPECT_REGISTER_USE(task_use, f_initial, f_task_out, Modify, Modify);
 
     EXPECT_REGISTER_USE(use_cont, f_task_out, f_null, Modify, None);
   }
@@ -126,6 +124,8 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
     EXPECT_RELEASE_USE(use_cont);
   }
 
+  //============================================================================
+  // Actual code being tested
   {
     auto tmp = initial_access<int>("hello");
 
@@ -136,6 +136,7 @@ TEST_P(TestModCaptureMN, mod_capture_MN) {
     });
 
   } // tmp deleted
+  //============================================================================
 
   EXPECT_RELEASE_USE(task_use);
 
@@ -183,6 +184,8 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
   EXPECT_RELEASE_USE(cont_use_2);
 
 
+  //============================================================================
+  // Actual code being tested
   {
     std::vector<AccessHandle<int>> handles;
 
@@ -195,6 +198,7 @@ TEST_F(TestCreateWork, mod_capture_MN_vector) {
     });
 
   } // handles deleted
+  //============================================================================
 
   EXPECT_RELEASE_USE(use_1);
 
@@ -371,14 +375,14 @@ TEST_P(TestCaptureMM, capture_MM) {
   ON_CALL(*mock_runtime, get_running_task())
     .WillByDefault(Return(ByRef(outer)));
 
-  EXPECT_CALL(*mock_runtime, make_forwarding_flow(&finit))
-    .WillOnce(Return(&f_forwarded));
+  EXPECT_CALL(*mock_runtime, make_forwarding_flow(finit))
+    .WillOnce(Return(f_forwarded));
 
   if(not ro_capture) {
     //InSequence seq;
 
-    EXPECT_CALL(*mock_runtime, make_next_flow(&f_forwarded))
-      .WillOnce(Return(&f_inner_out));
+    EXPECT_CALL(*mock_runtime, make_next_flow(f_forwarded))
+      .WillOnce(Return(f_inner_out));
 
     EXPECT_REGISTER_USE_AND_SET_BUFFER(use_inner, f_forwarded, f_inner_out, Modify, Modify, value);
 
@@ -393,16 +397,15 @@ TEST_P(TestCaptureMM, capture_MM) {
 
     InSequence seq;
 
-    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
-      &f_forwarded, &f_forwarded, use_t::Read, use_t::Read
-    )))
-      .WillOnce(Invoke([&](auto&& use){
+    EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
+      f_forwarded, f_forwarded, use_t::Read, use_t::Read
+    ))).WillOnce(Invoke([&](auto&& use){
         use->get_data_pointer_reference() = (void*)(&value);
         use_inner = use;
       }));
     // Expect the continuing context use to be registered after the captured context
-    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
-      &f_forwarded, &f_outer_out, use_t::Modify, use_t::Read
+    EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
+      f_forwarded, f_outer_out, use_t::Modify, use_t::Read
     ))).WillOnce(Invoke([&](auto&& use){
       // Shouldn't be necessary
       // use->get_data_pointer_reference() = (void*)(&value);
@@ -604,6 +607,8 @@ TEST_P(TestScheduleOnly, schedule_only) {
   }
   //============================================================================
 
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
   // Now expect the mod-immediate task to be registered once the first task is run
   // TODO technically I should change the return value of get_running_task here...
 
@@ -774,9 +779,7 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
 
     EXPECT_RELEASE_USE(use_task);
 
-    EXPECT_CALL(*mock_runtime, publish_use(Eq(ByRef(use_pub)), _));
-
-    EXPECT_RELEASE_USE(use_pub);
+    EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(Eq(ByRef(use_pub)), _));
 
   }
 
@@ -811,6 +814,8 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
 
   EXPECT_THAT(value, Eq(42));
 
+  mock_runtime->backend_owned_uses.clear();
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -827,15 +832,23 @@ TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
   mock_runtime->save_tasks = true;
 
   DECLARE_MOCK_FLOWS(finit, fcomm_out, fnull);
-  use_t* comm_use_1, *comm_use_2;
+  use_t* comm_use_1, *comm_use_2, *use_init, *last_use, *outer_comm_use;
   int value = 0;
 
   int semantic_mode = GetParam();
 
-  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
 
   EXPECT_CALL(*mock_runtime, make_next_flow(finit))
     .WillOnce(Return(fcomm_out));
+
+  {
+    InSequence s;
+
+    EXPECT_REGISTER_USE(outer_comm_use, finit, fcomm_out, Commutative, None);
+
+    EXPECT_RELEASE_USE(use_init);
+  }
 
   {
     InSequence s1;
@@ -843,18 +856,40 @@ TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
     EXPECT_REGISTER_USE_AND_SET_BUFFER(comm_use_1, finit, fcomm_out,
       Commutative, Commutative, value);
 
+    EXPECT_REGISTER_TASK(comm_use_1);
+
     EXPECT_CALL(*sequence_marker, mark_sequence("in between create_work calls"));
 
     EXPECT_REGISTER_USE_AND_SET_BUFFER(comm_use_2, finit, fcomm_out,
       Commutative, Commutative, value);
+
+    EXPECT_REGISTER_TASK(comm_use_2);
   }
 
+  {
+    InSequence s1;
+    EXPECT_CALL(*mock_runtime, legacy_register_use(Truly(
+      [&](abstract::frontend::DependencyUse* use) {
+        return use->get_in_flow() == fcomm_out
+          && use->get_out_flow() == fnull
+          && use->immediate_permissions() == use_t::None
+          && (
+            // The ones that don't do explicit releases will have "None" scheduling
+            // permissions on the last use
+            ((semantic_mode == 0 || semantic_mode > 3)
+              && use->scheduling_permissions() == use_t::Modify)
+            || ((semantic_mode == 1 || semantic_mode == 2 || semantic_mode == 3)
+              && use->scheduling_permissions() == use_t::None)
+          );
+      }
+    ))).WillOnce(SaveArg<0>(&last_use));
 
-  EXPECT_REGISTER_TASK(comm_use_1);
+    EXPECT_RELEASE_USE(outer_comm_use);
 
-  EXPECT_REGISTER_TASK(comm_use_2);
+    EXPECT_FLOW_ALIAS(fcomm_out, fnull);
 
-  EXPECT_FLOW_ALIAS(fcomm_out, fnull);
+    EXPECT_RELEASE_USE(last_use);
+  }
 
   //============================================================================
   // actual code being tested

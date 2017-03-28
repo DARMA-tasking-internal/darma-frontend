@@ -56,42 +56,6 @@ namespace detail {
 
 using flow_ptr = std::shared_ptr<types::flow_t>;
 
-struct FlowDeleter {
-  inline void
-  operator()(types::flow_t* f) const {
-    abstract::backend::get_backend_runtime()->release_flow(*f);
-    delete f;
-  }
-};
-
-inline auto
-make_flow_ptr(types::flow_t const& f) {
-  // This seems a little inefficient, but I can't think of a better way to do it
-  return flow_ptr(
-    new types::flow_t(f), FlowDeleter()
-  );
-}
-
-inline auto
-make_next_flow_ptr(
-  flow_ptr const& fp,
-  abstract::backend::Runtime* const rt
-) {
-  return make_flow_ptr(
-    rt->make_next_flow(*(fp.get()))
-  );
-}
-
-inline auto
-make_forwarding_flow_ptr(
-  flow_ptr const& fp,
-  abstract::backend::Runtime* const rt
-) {
-  return make_flow_ptr(
-    rt->make_forwarding_flow(*(fp.get()))
-  );
-}
-
 } // end namespace detail
 } // end namespace darma_runtime
 

@@ -107,11 +107,6 @@ class MockFlow {
       return not operator==(other);
     }
 
-    // Make all of the old tests (from when types::flow_t had to be Flow*) work
-    MockFlow& operator&() {
-      return *this;
-    }
-
     friend std::ostream&
     operator<<(std::ostream& o, MockFlow const& f) {
       if(f.name_ != "%##unnamed##%") {

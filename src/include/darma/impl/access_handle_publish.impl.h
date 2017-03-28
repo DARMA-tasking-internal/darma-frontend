@@ -100,23 +100,12 @@ struct _publish_impl {
       this_.current_use_.get()
     );
     backend_runtime->publish_use(
-      publish_use_holder->use.get(),
+      publish_use_holder->use.release_smart_ptr(),
       &dets
     );
 
-    // TODO Remove release_use here (maybe?) when Jonathan is ready for it
-    publish_use_holder->do_release();
-
-    // TODO Remove this.  Publish out is a deprecated motif
-    if(is_publish_out) {
-      // If we're publishing "out", reduce permissions in continuing context
-      this_.current_use_->use->immediate_permissions_ =
-        this_.current_use_->use->immediate_permissions_ == HandleUse::None ?
-          HandleUse::None : HandleUse::Read;
-      this_.current_use_->use->scheduling_permissions_ =
-        this_.current_use_->use->scheduling_permissions_ == HandleUse::None ?
-          HandleUse::None : HandleUse::Read;
-    }
+    // No longer registered
+    publish_use_holder->is_registered = false;
 
   }
 };

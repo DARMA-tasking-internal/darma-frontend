@@ -926,6 +926,26 @@ struct access_handle_traits {
     >;
   };
 
+  template <typename NewPermissionsTraits>
+  struct with_permissions_traits {
+    using type = access_handle_traits<T,
+      NewPermissionsTraits,
+      collection_capture_traits,
+      semantic_traits,
+      allocation_traits
+    >;
+  };
+
+  template <typename NewAllocationTraits>
+  struct with_allocation_traits {
+    using type = access_handle_traits<T,
+      permissions_traits,
+      collection_capture_traits,
+      semantic_traits,
+      NewAllocationTraits
+    >;
+  };
+
 };
 
 // TODO implement and propagate this name-mangling reduction strategy
@@ -1013,6 +1033,32 @@ struct unknown_copy_assignability {
   using is_access_handle_trait_flag = std::true_type;
 };
 
+namespace access_handle_trait_tags {
+
+// TODO move other classes here
+
+template <typename NewPermissionsTraits>
+struct permissions_traits {
+  using type = NewPermissionsTraits;
+  template <typename Traits>
+  using modified_traits = typename Traits
+  ::template with_permissions_traits<NewPermissionsTraits>;
+  using is_access_handle_trait_flag = std::true_type;
+};
+
+template <typename NewAllocationTraits>
+struct allocation_traits {
+  using type = NewAllocationTraits;
+  template <typename Traits>
+  using modified_traits = typename Traits
+    ::template with_allocation_traits<NewAllocationTraits>;
+  using is_access_handle_trait_flag = std::true_type;
+};
+
+
+} // end namespace access_handle_trait_tags
+
+
 template <bool new_value>
 struct could_be_outermost_scope {
   static constexpr auto value = new_value;
@@ -1023,6 +1069,8 @@ struct could_be_outermost_scope {
     >;
   using is_access_handle_trait_flag = std::true_type;
 };
+
+
 
 template <typename T, typename... modifiers>
 struct make_access_handle_traits {

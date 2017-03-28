@@ -70,7 +70,7 @@ namespace darma_runtime {
 
 namespace detail {
 
-template <typename AccessHandleT>
+template <typename ParentAHC, typename UseHolderPtr>
 class IndexedAccessHandle;
 
 // forward declaration
@@ -423,6 +423,7 @@ class AccessHandle : public detail::AccessHandleBase {
 
   protected:
 
+#if _darma_has_feature(create_concurrent_work_owned_by)
     template <typename U>
     using _is_collection_captured_archetype = tinympl::bool_<U::is_collection_captured>;
 
@@ -495,6 +496,7 @@ class AccessHandle : public detail::AccessHandleBase {
       );
       // Everything else will be set up by the TaskCollection setup process
     }
+#endif //_darma_has_feature(create_concurrent_work_owned_by)
 
     // </editor-fold> end Collection capture }}}2
     //--------------------------------------------------------------------------
@@ -816,80 +818,80 @@ class AccessHandle : public detail::AccessHandleBase {
     ) const;
 #endif // _darma_has_feature(publish_fetch)
 
-#if _darma_has_feature(create_concurrent_work)
-    template <typename... Args>
-    auto const& read_access(
-      Args&& ... args
-    ) const {
-
-      DARMA_ASSERT_MESSAGE(
-        unfetched_,
-        "Illegal operation on AccessHandle not in an unfetched state"
-      );
-
-      unfetched_ = false;
-
-      using namespace darma_runtime::detail;
-      using parser = detail::kwarg_parser<
-        overload_description<
-          _optional_keyword<
-            converted_parameter,
-            keyword_tags_for_publication::version
-          >
-        >
-      >;
-      using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<
-        Args...
-      >;
-
-      return parser()
-        .with_converters(
-          [](auto&& ... parts) {
-            return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
-          }
-        )
-        .with_default_generators(
-          keyword_arguments_for_publication::version = [] { return make_key(); }
-        )
-        .parse_args(std::forward<Args>(args)...)
-        .invoke(
-          [this](
-            types::key_t&& version_key
-          ) -> decltype(auto) {
-
-            auto* backend_runtime = abstract::backend::get_backend_runtime();
-            auto fetched_in_flow = make_flow_ptr(
-              backend_runtime->make_fetching_flow(
-                var_handle_,
-                version_key
-              )
-            );
-
-            auto fetched_out_flow = make_flow_ptr(
-              backend_runtime->make_null_flow(
-                var_handle_
-              )
-            );
-
-            current_use_ = std::make_shared<GenericUseHolder<HandleUse>>(
-              HandleUse(
-                var_handle_,
-                fetched_in_flow,
-                fetched_out_flow,
-                HandleUse::Read,
-                HandleUse::Read
-              )
-            );
-
-            current_use_->could_be_alias = true;
-            _set_owning_index_if_owned_by();
-
-            return *this;
-
-          }
-        );
-    }
-#endif // _darma_has_feature(create_concurrent_work)
+//#if _darma_has_feature(create_concurrent_work)
+//    template <typename... Args>
+//    auto const& read_access(
+//      Args&& ... args
+//    ) const {
+//
+//      DARMA_ASSERT_MESSAGE(
+//        unfetched_,
+//        "Illegal operation on AccessHandle not in an unfetched state"
+//      );
+//
+//      unfetched_ = false;
+//
+//      using namespace darma_runtime::detail;
+//      using parser = detail::kwarg_parser<
+//        overload_description<
+//          _optional_keyword<
+//            converted_parameter,
+//            keyword_tags_for_publication::version
+//          >
+//        >
+//      >;
+//      using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<
+//        Args...
+//      >;
+//
+//      return parser()
+//        .with_converters(
+//          [](auto&& ... parts) {
+//            return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+//          }
+//        )
+//        .with_default_generators(
+//          keyword_arguments_for_publication::version = [] { return make_key(); }
+//        )
+//        .parse_args(std::forward<Args>(args)...)
+//        .invoke(
+//          [this](
+//            types::key_t&& version_key
+//          ) -> decltype(auto) {
+//
+//            auto* backend_runtime = abstract::backend::get_backend_runtime();
+//            auto fetched_in_flow = make_flow_ptr(
+//              backend_runtime->make_fetching_flow(
+//                var_handle_,
+//                version_key
+//              )
+//            );
+//
+//            auto fetched_out_flow = make_flow_ptr(
+//              backend_runtime->make_null_flow(
+//                var_handle_
+//              )
+//            );
+//
+//            current_use_ = std::make_shared<GenericUseHolder<HandleUse>>(
+//              HandleUse(
+//                var_handle_,
+//                fetched_in_flow,
+//                fetched_out_flow,
+//                HandleUse::Read,
+//                HandleUse::Read
+//              )
+//            );
+//
+//            current_use_->could_be_alias = true;
+//            _set_owning_index_if_owned_by();
+//
+//            return *this;
+//
+//          }
+//        );
+//    }
+//#endif // _darma_has_feature(create_concurrent_work)
 
 
 #if _darma_has_feature(create_concurrent_work_owned_by)
@@ -959,28 +961,28 @@ class AccessHandle : public detail::AccessHandleBase {
         "begin_commutative_usage called on use without scheduling modify permissions"
       );
 
+      using namespace darma_runtime::abstract::frontend;
+
       // Need to make next flow to be the output of the commutative usage
       auto old_out_flow = current_use_->use->out_flow_;
-
-      auto* rt = abstract::backend::get_backend_runtime();
-      auto comm_reg_out = detail::make_next_flow_ptr(
-        current_use_->use->in_flow_, rt
-      );
 
       current_use_->replace_use(
         detail::HandleUse(
           var_handle_,
-          current_use_->use->in_flow_,
-          comm_reg_out,
           /* scheduling permissions */
           detail::HandleUse::Commutative,
           /* immediate permissions */
-          detail::HandleUse::None
+          detail::HandleUse::None,
+          FlowRelationship::Same, &current_use_->use->in_flow_,
+          FlowRelationship::Next, nullptr, true
         ),
-        current_use_->is_registered
+        true
       );
 
-      current_use_->use->suspended_out_flow_ = old_out_flow;
+      assert(current_use_->use->suspended_out_flow_ == nullptr);
+      current_use_->use->suspended_out_flow_ = std::make_unique<types::flow_t>(
+        std::move(old_out_flow)
+      );
 
       set_is_commutative_dynamic(true);
     }
@@ -1005,24 +1007,21 @@ class AccessHandle : public detail::AccessHandleBase {
         "end_commutative_usage called on use without scheduling Commutative permissions"
       );
 
+      using namespace darma_runtime::abstract::frontend;
+
       set_is_commutative_dynamic(false);
-
-      // Need to end the commutative usage
-      auto old_out_flow = current_use_->use->suspended_out_flow_;
-
-      auto comm_reg_out = current_use_->use->out_flow_;
 
       current_use_->replace_use(
         detail::HandleUse(
           var_handle_,
-          comm_reg_out,
-          old_out_flow, // restore the old out flow
           /* scheduling permissions */
           detail::HandleUse::Modify,
           /* immediate permissions */
-          detail::HandleUse::None
+          detail::HandleUse::None,
+          FlowRelationship::Same, &current_use_->use->out_flow_,
+          FlowRelationship::Same, current_use_->use->suspended_out_flow_.release()
         ),
-        current_use_->is_registered
+        true
       );
     }
 #endif // _darma_has_feature(commutative_access_handles)
@@ -1202,54 +1201,23 @@ class AccessHandle : public detail::AccessHandleBase {
     explicit
     AccessHandle(
       variable_handle_ptr const& var_handle,
+      typename use_holder_ptr::smart_ptr_t const& use_holder,
+      std::unique_ptr<types::flow_t>&& suspended_out_flow
+    ) : current_use_(current_use_base_, use_holder),
+        var_handle_(var_handle)
+    {
+      var_handle_base_ = var_handle_;
+      current_use_->use->suspended_out_flow_ = std::move(suspended_out_flow);
+    }
+
+    explicit
+    AccessHandle(
+      variable_handle_ptr const& var_handle,
       use_holder_ptr const& use_holder
     ) : current_use_(current_use_base_, use_holder),
         var_handle_(var_handle)
     {
       var_handle_base_ = var_handle_;
-    }
-
-    AccessHandle(
-      variable_handle_ptr var_handle,
-      detail::flow_ptr const& in_flow,
-      detail::flow_ptr const& out_flow,
-      abstract::frontend::Use::permissions_t scheduling_permissions,
-      abstract::frontend::Use::permissions_t immediate_permissions
-    ) : var_handle_(var_handle),
-        current_use_(current_use_base_)
-    {
-      var_handle_base_ = var_handle_;
-      current_use_ = detail::make_shared<detail::UseHolder>(
-        detail::HandleUse(
-          var_handle_,
-          in_flow, out_flow,
-          scheduling_permissions, immediate_permissions
-        )
-      );
-      current_use_->could_be_alias = true;
-    }
-
-    AccessHandle(
-      variable_handle_ptr var_handle,
-      detail::flow_ptr const& in_flow,
-      detail::flow_ptr const& out_flow,
-      abstract::frontend::Use::permissions_t scheduling_permissions,
-      abstract::frontend::Use::permissions_t immediate_permissions,
-      detail::flow_ptr const& suspended_out_flow
-    ) : var_handle_(var_handle),
-        current_use_(current_use_base_)
-    {
-      var_handle_base_ = var_handle_;
-      current_use_ = detail::make_shared<detail::UseHolder>(
-        detail::HandleUse(
-          var_handle_,
-          in_flow, out_flow,
-          scheduling_permissions, immediate_permissions
-        )
-      );
-      current_use_->use->suspended_out_flow_ = suspended_out_flow;
-      // If there's a suspended outt flow, this should never be an alias
-      current_use_->could_be_alias = (suspended_out_flow == nullptr);
     }
 
     //--------------------------------------------------------------------------
@@ -1275,19 +1243,16 @@ class AccessHandle : public detail::AccessHandleBase {
       auto* backend_runtime = abstract::backend::get_backend_runtime();
 
       using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-      auto in_flow = detail::make_flow_ptr(
-        backend_runtime->make_unpacked_flow(
-          ArchiveAccess::get_const_spot(ar)
-        )
+
+      auto in_flow = backend_runtime->make_unpacked_flow(
+        ArchiveAccess::get_const_spot(ar)
       );
 
       // Note that the backend function advances the underlying pointer, so the
       // pointer returned by get_spot is different in the call below from the
       // call above
-      auto out_flow = detail::make_flow_ptr(
-        backend_runtime->make_unpacked_flow(
-          ArchiveAccess::get_const_spot(ar)
-        )
+      auto out_flow = backend_runtime->make_unpacked_flow(
+        ArchiveAccess::get_const_spot(ar)
       );
 
       // Suspended flow should always be null when packing/unpacking, so don't
@@ -1296,8 +1261,7 @@ class AccessHandle : public detail::AccessHandleBase {
       current_use_ = std::make_shared<detail::UseHolder>(
         detail::migrated_use_arg,
         detail::HandleUse(
-          var_handle_,
-          in_flow, out_flow, sched, immed
+          var_handle_, sched, immed, std::move(in_flow), std::move(out_flow)
         )
       );
 
@@ -1308,6 +1272,8 @@ class AccessHandle : public detail::AccessHandleBase {
     //--------------------------------------------------------------------------
 
     // "Unfetched" ctor; currently only used with owned_by (I think?)
+    // TODO remove this?
+#if _darma_has_feature(create_concurrent_work_owned_by)
     AccessHandle(
       detail::unfetched_access_handle_tag,
       variable_handle_ptr const& var_handle,
@@ -1315,13 +1281,10 @@ class AccessHandle : public detail::AccessHandleBase {
     ) : var_handle_(var_handle),
         unfetched_(true),
         current_use_(current_use_base_, unreg_use_ptr)
-        // owning_index_, owning_backend_index_, prev_copied_from initialized to default
     {
       var_handle_base_ = var_handle_;
     }
-
-
-
+#endif //_darma_has_feature(create_concurrent_work_owned_by)
 
   // </editor-fold> end private ctors }}}1
   //============================================================================
@@ -1379,6 +1342,7 @@ class AccessHandle : public detail::AccessHandleBase {
       return other_private_members_.second().allocator;
     }
 
+#if _darma_has_feature(create_concurrent_work_owned_by)
     template <typename _Ignored_SFINAE=void>
     typename traits::owning_index_t&
     owning_index(
@@ -1404,7 +1368,7 @@ class AccessHandle : public detail::AccessHandleBase {
     {
       return other_private_members_.second().owning_backend_index_;
     }
-
+#endif // _darma_has_feature(create_concurrent_work_owned_by)
 
   // </editor-fold> end private members }}}1
   //============================================================================
@@ -1452,7 +1416,7 @@ class AccessHandle : public detail::AccessHandleBase {
     template <typename, typename...>
     friend struct detail::_noncommutative_access_impl;
 
-    template <typename>
+    template <typename, typename>
     friend
     class detail::IndexedAccessHandle;
 

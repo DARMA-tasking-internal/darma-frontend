@@ -80,6 +80,9 @@
 
 #define _darma_feature_commutative_access_handles 20170321
 
+// Never enabled by default
+#define _darma_feature_register_commutative_continuation_uses 29991231
+
 // </editor-fold> end Feature Dates and Defaults }}}1
 //==============================================================================
 
