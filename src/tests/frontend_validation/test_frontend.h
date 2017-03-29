@@ -46,7 +46,7 @@
 #define SRC_TESTS_FRONTEND_VALIDATION_TEST_FRONTEND_H_
 
 #define DEBUG_CREATE_WORK_HANDLES 0
-#define DARMA_SAFE_TEST_FRONTEND_PRINTERS 1
+#define DARMA_SAFE_TEST_FRONTEND_PRINTERS 0
 
 
 #include <deque>
@@ -350,7 +350,10 @@ auto make_flows(char const* names) {
       ::testing::Truly([=](auto* use){ \
         return ( \
           use->manages_collection() \
-          and use->get_managed_collection()->size() == collsize \
+          and \
+            ::darma_runtime::abstract::frontend::use_cast< \
+              ::darma_runtime::abstract::frontend::CollectionManagingUse* \
+            >(use)->get_managed_collection()->size() == collsize \
         ); \
       }) \
     ))).WillOnce(::testing::Invoke([&](auto* use) { use_coll = use; }));

@@ -138,7 +138,9 @@ struct TaskCollectionImpl
     // Leave this member declaration order the same; construction of args_stored_
     // depends on collection_range_ being initialized already
 
-    using dependencies_container_t = types::handle_container_template<abstract::frontend::Use*>;
+    using dependencies_container_t = types::handle_container_template<
+      abstract::frontend::CollectionManagingUse*
+    >;
     dependencies_container_t dependencies_;
     IndexRangeT collection_range_;
     args_tuple_t args_stored_;
@@ -210,12 +212,14 @@ struct TaskCollectionImpl
 
         assert(not mcoll.collection.current_use_->is_registered);
 
+        auto incomplete_use = mcoll.collection.current_use_->use.release_smart_ptr();
+
         mcoll.collection.current_use_ = std::make_shared<
           GenericUseHolder<CollectionManagingUse<handle_index_range_t>>
         >(
           migrated_use_arg,
           CollectionManagingUse<handle_index_range_t>(
-            *mcoll.collection.current_use_->use.get(),
+            std::move(*incomplete_use.get()),
             full_mapping_t(
               mcoll.mapping,
               tc_index_range_traits::mapping_to_dense(tc.collection_range_)
@@ -270,7 +274,7 @@ struct TaskCollectionImpl
   public:
 
 
-    void add_dependency(abstract::frontend::Use* dep) {
+    void add_dependency(abstract::frontend::CollectionManagingUse* dep) {
       dependencies_.insert(dep);
     }
 
@@ -283,14 +287,14 @@ struct TaskCollectionImpl
     TaskCollectionImpl(
       IndexRangeDeduced&& collection_range,
       ArgsForwarded&& ... args_forwarded
-    )
-      : collection_range_(std::forward<IndexRangeDeduced>(collection_range)),
-      args_stored_(
-        _get_args_stored_impl(
-          std::forward_as_tuple(std::forward<ArgsForwarded>(args_forwarded)...),
-          std::index_sequence_for<ArgsForwarded...>{}
+    ) : collection_range_(std::forward<IndexRangeDeduced>(collection_range)),
+        args_stored_(
+          _get_args_stored_impl(
+            std::forward_as_tuple(std::forward<ArgsForwarded>(args_forwarded)...),
+            std::index_sequence_for<ArgsForwarded...>{}
+          )
         )
-      ) {}
+    { }
 
     // </editor-fold> end Ctors }}}1
     //==============================================================================
@@ -317,7 +321,7 @@ struct TaskCollectionImpl
       return false;
     }
 
-    types::handle_container_template<abstract::frontend::Use*> const&
+    types::handle_container_template<abstract::frontend::CollectionManagingUse*> const&
     get_dependencies() const override {
       return dependencies_;
     }

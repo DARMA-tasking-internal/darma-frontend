@@ -111,12 +111,12 @@ struct MappedHandleCollection {
       if(ar.is_sizing()) {
         ar.add_to_size_indirect(
           backend_runtime->get_packed_flow_size(
-            *collection.current_use_->use->in_flow_
+            collection.current_use_->use->in_flow_
           )
         );
         ar.add_to_size_indirect(
           backend_runtime->get_packed_flow_size(
-            *collection.current_use_->use->out_flow_
+            collection.current_use_->use->out_flow_
           )
         );
       }
@@ -124,11 +124,11 @@ struct MappedHandleCollection {
         assert(ar.is_packing());
         using serialization::Serializer_attorneys::ArchiveAccess;
         backend_runtime->pack_flow(
-          *collection.current_use_->use->in_flow_,
+          collection.current_use_->use->in_flow_,
           reinterpret_cast<void*&>(ArchiveAccess::spot(ar))
         );
         backend_runtime->pack_flow(
-          *collection.current_use_->use->out_flow_,
+          collection.current_use_->use->out_flow_,
           reinterpret_cast<void*&>(ArchiveAccess::spot(ar))
         );
       }
@@ -195,7 +195,8 @@ struct MappedHandleCollection {
         GenericUseHolder<CollectionManagingUse<handle_range_t>>
       >(
         CollectionManagingUse<handle_range_t>(
-          var_handle, inflow, outflow, sched_perm, immed_perm, std::move(hr)
+          var_handle, sched_perm, immed_perm,
+          std::move(inflow), std::move(outflow), std::move(hr)
           // the mapping will be re-set up in the task collection unpack,
           // so don't worry about it here
         ),

@@ -243,7 +243,7 @@ class HandleUseBase
         immediate_permissions_(immediate_permissions),
         scheduling_permissions_(scheduling_permissions),
         in_flow_(std::move(in_flow)),
-        out_flow_(std::move(in_flow))
+        out_flow_(std::move(out_flow))
     { }
 
 

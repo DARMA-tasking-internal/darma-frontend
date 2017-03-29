@@ -186,6 +186,37 @@ class CollectionManagingUseBase
         )
     { }
 
+    template <typename MappingToTaskCollectionDeduced>
+    CollectionManagingUseBase(
+      CollectionManagingUseBase&& use_base,
+      MappingToTaskCollectionDeduced&& mapping
+    ) : HandleUseBase(std::move(use_base)),
+        mapping_manager(
+          std::make_unique<
+            MappingManager<std::decay_t<MappingToTaskCollectionDeduced>, FrontendHandleIndex>
+          >(std::forward<MappingToTaskCollectionDeduced>(mapping))
+        )
+    { }
+
+    template <typename MappingToTaskCollectionDeduced>
+    CollectionManagingUseBase(
+      std::shared_ptr<VariableHandleBase> handle,
+      abstract::frontend::Use::permissions_t scheduling_permissions,
+      abstract::frontend::Use::permissions_t immediate_permissions,
+      types::flow_t&& unpacked_in_flow,
+      types::flow_t&& unpacked_out_flow,
+      MappingToTaskCollectionDeduced&& mapping
+    ) : HandleUseBase(
+          handle, scheduling_permissions, immediate_permissions,
+          std::move(unpacked_in_flow), std::move(unpacked_out_flow)
+        ),
+        mapping_manager(
+          std::make_unique<
+            MappingManager<std::decay_t<MappingToTaskCollectionDeduced>, FrontendHandleIndex>
+          >(std::forward<MappingToTaskCollectionDeduced>(mapping))
+        )
+    { }
+
     CollectionManagingUseBase(CollectionManagingUseBase&&) = default;
     virtual ~CollectionManagingUseBase() = default;
 };
@@ -240,13 +271,9 @@ class CollectionManagingUse
 
     template <typename MappingToTaskCollectionDeduced>
     CollectionManagingUse(
-      CollectionManagingUse const& other,
+      CollectionManagingUse&& other,
       MappingToTaskCollectionDeduced&& mapping
-    ) : base_t(
-          other.handle_, other.in_flow_, other.out_flow_,
-          other.scheduling_permissions_, other.immediate_permissions_,
-          std::forward<MappingToTaskCollectionDeduced>(mapping)
-        ),
+    ) : base_t(std::move(other)),
         index_range(other.index_range),
         mapping_to_dense(rng_traits::mapping_to_dense(index_range))
     { }
@@ -276,6 +303,29 @@ class CollectionManagingUse
         mapping_to_dense(rng_traits::mapping_to_dense(index_range))
     { }
 
+    // Should only be used by unpack at this point
+    template <
+      typename IndexRangeDeduced,
+      typename=std::enable_if_t<
+        std::is_convertible<IndexRangeDeduced&&, IndexRangeT>::value
+      >
+    >
+    CollectionManagingUse(
+      std::shared_ptr<VariableHandleBase> handle,
+      abstract::frontend::Use::permissions_t scheduling_permissions,
+      abstract::frontend::Use::permissions_t immediate_permissions,
+      types::flow_t&& in_flow,
+      types::flow_t&& out_flow,
+      IndexRangeDeduced&& range
+    ) : base_t(
+          handle,
+          scheduling_permissions, immediate_permissions,
+          std::move(in_flow), std::move(out_flow)
+        ),
+        index_range(std::forward<IndexRangeDeduced>(range)),
+        mapping_to_dense(rng_traits::mapping_to_dense(index_range))
+    { }
+
     // </editor-fold> end Ctors }}}2
     //--------------------------------------------------------------------------
 
@@ -298,6 +348,7 @@ class CollectionManagingUse
     local_indices_for(std::size_t backend_task_collection_index) const override {
       // Still need to convert these to backend handle collection indices
       // Again, really inefficient...
+      assert(base_t::mapping_manager);
       auto fe_idxs = base_t::mapping_manager->local_indices_for(backend_task_collection_index);
       index_iterable<std::size_t> rv;
       rv.reserve(fe_idxs.size());

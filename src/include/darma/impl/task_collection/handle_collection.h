@@ -479,8 +479,9 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         T, IndexRangeT, OtherTraits
       > const& other,
       std::enable_if_t<
-        traits_t::is_outer != KnownTrue
-          and traits_t::is_outer != OtherTraits::is_outer
+        // TODO generalize this into an is_convertible_from_... metafunction
+        traits_t::semantic_traits::is_outer != KnownTrue
+          and traits_t::semantic_traits::is_outer != OtherTraits::semantic_traits::is_outer
           and std::is_void<_Ignored_SFINAE>::value, // should always be true
         int
       > = 0
@@ -514,10 +515,11 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     AccessHandleCollection& operator=(AccessHandleCollection&&) = default;
     template <typename OtherTraits, typename _Ignored_SFINAE=void,
       typename=std::enable_if_t<
-        traits_t::is_outer != KnownTrue
-          and traits_t::is_outer != OtherTraits::is_outer
+        // TODO generalize this into an is_assignable_from_... metafunction
+        traits_t::semantic_traits::is_outer != KnownTrue
+          and traits_t::semantic_traits::is_outer != OtherTraits::semantic_traits::is_outer
           and std::is_void<_Ignored_SFINAE>::value // should always be true
-        >
+      >
     >
     AccessHandleCollection& operator=(
       AccessHandleCollection<T, IndexRangeT, OtherTraits> const& other
@@ -553,6 +555,10 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     friend
     struct detail::MappedHandleCollection;
 
+    template <typename, typename>
+    friend
+    struct detail::IndexedAccessHandle;
+
     template <typename, typename, typename...>
     friend
     struct detail::TaskCollectionImpl;
@@ -573,7 +579,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     mutable variable_handle_ptr var_handle_ = {var_handle_base_};
     mutable use_holder_ptr current_use_ = {current_use_base_};
     mutable AccessHandleCollection const* copied_from = nullptr;
-    mutable bool dynamic_is_outer = traits_t::is_outer;
+    mutable bool dynamic_is_outer =
+      traits_t::semantic_traits::is_outer == KnownTrue;
 
     mutable std::map<
       typename _range_traits::index_type,

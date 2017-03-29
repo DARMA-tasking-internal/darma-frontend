@@ -401,14 +401,21 @@ struct _get_storage_arg_helper<
     // Custom create use holder callable for the captured use holder
     auto captured_use_holder_maker = [&](
       auto handle,
-      auto const& in_flow, auto const& out_flow,
       auto scheduling_permissions,
-      auto immediate_permissions
+      auto immediate_permissions,
+      abstract::frontend::FlowRelationship::flow_relationship_description_t in_desc,
+      types::flow_t* in_rel,
+      abstract::frontend::FlowRelationship::flow_relationship_description_t out_desc,
+      types::flow_t* out_rel,
+      bool out_rel_is_in = false
     ) {
       return std::make_shared<GenericUseHolder<CollectionManagingUse<handle_range_t>>>(
         CollectionManagingUse<handle_range_t>(
-          handle, in_flow, out_flow,
+          handle,
           scheduling_permissions, immediate_permissions,
+          in_desc | abstract::frontend::FlowRelationship::Collection, in_rel,
+          out_desc | abstract::frontend::FlowRelationship::Collection, out_rel,
+          out_rel_is_in,
           arg.collection.get_index_range(),
           full_mapping_t(
             arg.mapping,
@@ -419,25 +426,23 @@ struct _get_storage_arg_helper<
       );
     };
 
-    // Custom "next flow maker"
-    auto next_flow_maker = [](auto&& flow, auto* backend_runtime) {
-      return make_flow_ptr(
-        backend_runtime->make_next_flow_collection(
-          *std::forward<decltype(flow)>(flow).get()
-        )
-      );
-    };
-
     // Custom create use holder callable for the continuation use
     auto continuation_use_holder_maker = [&](
       auto handle,
-      auto const& in_flow, auto const& out_flow,
       auto scheduling_permissions,
-      auto immediate_permissions
+      auto immediate_permissions,
+      abstract::frontend::FlowRelationship::flow_relationship_description_t in_desc,
+      types::flow_t* in_rel,
+      abstract::frontend::FlowRelationship::flow_relationship_description_t out_desc,
+      types::flow_t* out_rel,
+      bool out_rel_is_in = false
     ) {
       return CollectionManagingUse<handle_range_t>(
-        handle, in_flow, out_flow,
+        handle,
         scheduling_permissions, immediate_permissions,
+        in_desc | abstract::frontend::FlowRelationship::Collection, in_rel,
+        out_desc | abstract::frontend::FlowRelationship::Collection, out_rel,
+        out_rel_is_in,
         arg.collection.get_index_range()
       );
     };
@@ -456,7 +461,6 @@ struct _get_storage_arg_helper<
           arg.collection.current_use_.get(),
           // Customization functors:
           captured_use_holder_maker,
-          next_flow_maker,
           continuation_use_holder_maker
         ) // end arguments to make_captured_use_holder
       ),
