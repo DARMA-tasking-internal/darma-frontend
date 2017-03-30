@@ -772,6 +772,8 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType,
       )
     );
 
+    use_holder->could_be_alias = true;
+
     return return_type(
       std::move(var_handle), std::move(use_holder)
     );
@@ -833,9 +835,22 @@ initial_access_collection(Args&&... args) {
     >());
 };
 
-
 // </editor-fold> end initial_access_collection
 //==============================================================================
+
+template <typename T, typename IndexRange>
+using ReadAccessHandleCollection = AccessHandleCollection<
+  T, IndexRange,
+  detail::access_handle_collection_traits<T, IndexRange,
+    detail::access_handle_permissions_traits<
+      /* Required scheduling = */ detail::AccessHandlePermissions::Read,
+      /* Required immediate = */ detail::AccessHandlePermissions::Read,
+      /* Static scheduling = */ detail::AccessHandlePermissions::Read,
+      /* Static immediate = */ detail::AccessHandlePermissions::Read
+    >
+    // All of the other categories are defaulted
+  >
+>;
 
 
 //==============================================================================

@@ -1,15 +1,10 @@
-
 /*
 //@HEADER
 // ************************************************************************
 //
-//                               equal_to.hpp                              
-//                         darma_mockup
-//              Copyright (C) 2015 Sandia Corporation
-// This file was adapted from its original form in the tinympl library.
-// The original file bore the following copyright:
-//   Copyright (C) 2013, Ennio Barbaro.
-// See LEGAL.md for more information.
+//                      test_switch.cc
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -47,39 +42,61 @@
 //@HEADER
 */
 
-
-#ifndef TINYMPL_EQUAL_TO_HPP
-#define TINYMPL_EQUAL_TO_HPP
-
 #include <type_traits>
 
-#include <tinympl/bool.hpp>
+#include <tinympl/find.hpp>
+#include <tinympl/switch.hpp>
+#include <type_traits>
 
-namespace tinympl {
+#include <util/empty_main.h>
 
-/**
- * \ingroup Comparisons
- * \class equal_to
- * \brief Determines whether the types `A` and `B` are equal
- * \return `equal_to<A,B>::type` is a `std::integral_constant<bool,v>` where `v` is true iff `A` and `B` are equal
- * \note The default behaviour is to forward the call to std::is_same. Users are allowed to specialize this metafunction for user-defined types
- */
-template<class A,class B> struct equal_to : std::is_same<A,B> {};
-template<class T,class U,T t,U u> struct equal_to<
-	std::integral_constant<T,t>,
-	std::integral_constant<U,u> > : std::integral_constant<bool,t ==u> {};
+#include "metatest_helpers.h"
 
-template <typename ValueType>
-struct make_value_equal {
-	template <ValueType a, ValueType b>
-  struct apply {
-		static constexpr auto value = a == b;
-		using type = bool_<value>;
-	};
-	template <ValueType a, ValueType b>
-  using apply_t = typename apply<a, b>::type;
-};
+using namespace tinympl;
 
-} // namespace tinympl
 
-#endif // TINYMPL_EQUAL_TO_HPP
+STATIC_ASSERT_TYPE_EQ(
+  // Expected:
+  char,
+  // Actual:
+  typename static_value_switch<
+    int, 42
+  >
+    ::template case_<15, bool>
+    ::template case_<42, char>
+  ::type
+);
+
+STATIC_ASSERT_TYPE_EQ(
+  // Expected:
+  char,
+  // Actual:
+  typename static_value_switch<
+    int, 42
+  >
+    ::template case_<42, char>
+  ::type
+);
+
+STATIC_ASSERT_TYPE_EQ(
+  // Expected:
+  double,
+  // Actual:
+  typename static_value_switch<
+    int, 42, double
+  >
+    ::template case_<15, char>
+  ::type
+);
+
+STATIC_ASSERT_TYPE_EQ(
+  // Expected:
+  double,
+  // Actual:
+  typename static_value_switch<
+    int, 42
+  >
+    ::template case_<15, char>
+    ::template default_<double>
+  ::type
+);

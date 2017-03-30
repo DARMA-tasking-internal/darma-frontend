@@ -48,6 +48,8 @@
 
 #include <type_traits>
 
+#include <tinympl/switch.hpp>
+
 #include <darma/impl/task_collection/task_collection_fwd.h>
 
 #include <darma/interface/app/access_handle.h>
@@ -278,6 +280,28 @@ struct _get_storage_arg_helper<
 
   // TODO static schedule-only permissions
 
+  template <typename AHC>
+  using _required_immediate_permissions_archetype = typename std::integral_constant<
+    access_handle_permissions_t, AHC::traits_t::permissions_traits::required_immediate_permissions
+  >;
+
+  template <typename AHC>
+  using _required_immediate_permissions = meta::detected_or_t<
+    std::integral_constant<access_handle_permissions_t, AccessHandlePermissions::NotGiven>,
+    _required_immediate_permissions_archetype, AHC
+  >;
+
+  template <typename AHC>
+  using _required_scheduling_permissions_archetype = typename std::integral_constant<
+    access_handle_permissions_t, AHC::traits_t::permissions_traits::required_scheduling_permissions
+  >;
+
+  template <typename AHC>
+  using _required_scheduling_permissions = meta::detected_or_t<
+    std::integral_constant<access_handle_permissions_t, AccessHandlePermissions::NotGiven>,
+    _required_scheduling_permissions_archetype, AHC
+  >;
+
   //----------------------------------------------------------------------------
   // <editor-fold desc="required_immediate_permissions"> {{{2
 
@@ -288,7 +312,15 @@ struct _get_storage_arg_helper<
         // Parameter is an AccessHandleCollection
         ParamTraits::template matches<decayed_is_access_handle_collection>::value
       )
-    >, /* => */ _permissions<HandleUse::Modify>,
+    >, /* => */ typename tinympl::switch_value_<
+      access_handle_permissions_t, _required_immediate_permissions<
+        std::decay_t<typename ParamTraits::type>
+      >::value
+    > ::template case_<AccessHandlePermissions::Modify, _permissions<HandleUse::Modify>>
+      ::template case_<AccessHandlePermissions::Read, _permissions<HandleUse::Read>>
+      ::template case_<AccessHandlePermissions::None, _permissions<HandleUse::None>>
+      ::template default_<_permissions<HandleUse::Modify>>
+    ::type,
     /*----------------------------------------*/
     // // TODO reinstate support for single-entry-in-collection parameters when it's implemented elsewhere?
     // tinympl::bool_<
@@ -355,7 +387,16 @@ struct _get_storage_arg_helper<
     tinympl::bool_<
       // Parameter is an AccessHandleCollection
       ParamTraits::template matches<decayed_is_access_handle_collection>::value
-    >, /* => */ _permissions<HandleUse::Modify>,
+    >, /* => */ typename tinympl::switch_value_<
+      access_handle_permissions_t, _required_scheduling_permissions<
+        std::decay_t<typename ParamTraits::type>
+      >::value
+    > ::template case_<AccessHandlePermissions::Modify, _permissions<HandleUse::Modify>>
+      ::template case_<AccessHandlePermissions::Read, _permissions<HandleUse::Read>>
+      ::template case_<AccessHandlePermissions::None, _permissions<HandleUse::None>>
+      ::template case_<AccessHandlePermissions::Commutative, _permissions<HandleUse::Commutative>>
+      ::template default_<_permissions<HandleUse::Modify>>
+    ::type,
     /*----------------------------------------*/
     // TODO check the actual scheduling permissions static flags rather than relying on the immediate flags
     // TODO reinstate support for single-entry-in-collection parameters when it's implemented elsewhere?
