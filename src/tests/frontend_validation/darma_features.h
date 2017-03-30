@@ -52,5 +52,6 @@
 #define _darma_has_feature_resilient_tasks 0
 
 #define _darma_has_feature_register_all_uses 1
+#define _darma_has_feature_create_concurrent_work_owned_by 0
 
 #endif //DARMA_DARMA_FEATURES_H

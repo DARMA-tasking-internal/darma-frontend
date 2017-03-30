@@ -172,10 +172,12 @@ class HandleUseBase
       return data_;
     }
 
+#if _darma_has_feature(create_concurrent_work_owned_by)
     std::size_t
     task_collection_owning_index() const override {
       return collection_owner_;
     }
+#endif // _darma_has_feature(create_concurrent_work_owned_by)
 
     // </editor-fold>
     ////////////////////////////////////////

@@ -126,6 +126,27 @@ MATCHER_P(UseInGetDependencies, use, "task->get_dependencies() contains " + Prin
   }
 }
 
+MATCHER_P(CollectionUseInGetDependencies, use, "task->get_dependencies() contains " + PrintToString(use)) {
+  auto deps = arg->get_dependencies();
+  if(deps.find(
+    ::darma_runtime::abstract::frontend::use_cast<
+      ::darma_runtime::abstract::frontend::CollectionManagingUse*
+    >(use)
+  ) != deps.end()) {
+    return true;
+  }
+  else {
+    *result_listener << "task->get_dependencies() contains: ";
+    bool is_first = true;
+    for(auto&& dep : deps) {
+      if(not is_first) *result_listener << ", ";
+      is_first = false;
+      *result_listener << PrintToString(dep);
+    }
+    return false;
+  }
+}
+
 template <typename Arg, typename... Args>
 auto
 VectorOfPtrsToArgs(Arg& arg, Args&... args) {

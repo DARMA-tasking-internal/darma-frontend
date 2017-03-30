@@ -1410,7 +1410,6 @@ TEST_F(TestCreateConcurrentWork, nested_in_create_work) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#if 0 // TODO re-enable this
 #if _darma_has_feature(handle_collection_based_collectives)
 
 TEST_F(TestCreateConcurrentWork, handle_reduce) {
@@ -1433,29 +1432,46 @@ TEST_F(TestCreateConcurrentWork, handle_reduce) {
   use_t* use_coll = nullptr;
   use_t* use_coll_collective = nullptr;
   use_t* use_tmp_collective = nullptr;
+  use_t* use_initial, *use_initial_coll;
+  use_t* use_coll_cont, *use_tmp_cont;
+
   int values[4];
 
-  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
-  EXPECT_INITIAL_ACCESS(finit_tmp, fnull_tmp, make_key("world"));
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, use_initial_coll, make_key("hello"), 4);
+  EXPECT_INITIAL_ACCESS(finit_tmp, fnull_tmp, use_initial, make_key("world"));
 
   EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
     .WillOnce(Return(fout_coll));
   EXPECT_CALL(*mock_runtime, make_next_flow(finit_tmp))
     .WillOnce(Return(fout_tmp));
 
-#if _darma_has_feature(register_all_uses)
-  use_t* use_coll_cont, *use_tmp_cont;
-  EXPECT_REGISTER_USE(use_coll_cont, fout_coll, fnull, Modify, None);
-  EXPECT_REGISTER_USE(use_tmp_cont, fout_tmp, fnull_tmp, Modify, None);
-  EXPECT_RELEASE_USE(use_coll_cont);
-  EXPECT_RELEASE_USE(use_tmp_cont);
-#endif
+  // We need to sequence registers before releases so that gmock doesn't freak out
+  // when checking expectations on null pointers
+  {
+    InSequence s;
+    EXPECT_REGISTER_USE(use_coll_cont, fout_coll, fnull, Modify, None);
+    EXPECT_FLOW_ALIAS(fout_coll, fnull);
+    EXPECT_RELEASE_USE(use_coll_cont);
+  }
 
-  EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, fout_coll, Modify, Modify, 4);
+  {
+    InSequence s;
+    EXPECT_REGISTER_USE(use_tmp_cont, fout_tmp, fnull_tmp, Modify, None);
+    EXPECT_FLOW_ALIAS(fout_tmp, fnull_tmp);
+    EXPECT_RELEASE_USE(use_tmp_cont);
+  }
 
-  EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(
-    UseInGetDependencies(ByRef(use_coll))
-  ));
+  EXPECT_RELEASE_USE(use_initial_coll);
+  EXPECT_RELEASE_USE(use_initial);
+
+  {
+    InSequence s;
+    EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, fout_coll, Modify, Modify, 4);
+
+    EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(
+      CollectionUseInGetDependencies(ByRef(use_coll))
+    ));
+  }
 
   EXPECT_REGISTER_USE_COLLECTION(use_coll_collective, fout_coll, fout_coll, None, Read, 4);
   EXPECT_REGISTER_USE(use_tmp_collective, finit_tmp, fout_tmp, None, Modify);
@@ -1467,8 +1483,6 @@ TEST_F(TestCreateConcurrentWork, handle_reduce) {
     make_key("myred")
   ));
 
-  EXPECT_FLOW_ALIAS(fout_coll, fnull);
-  EXPECT_FLOW_ALIAS(fout_tmp, fnull_tmp);
 
   //============================================================================
   // actual code being tested
@@ -1508,7 +1522,7 @@ TEST_F(TestCreateConcurrentWork, handle_reduce) {
       .WillOnce(Return(f_in_idx[i]));
     EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
       .WillOnce(Return(f_out_idx[i]));
-    EXPECT_CALL(*mock_runtime, register_use(
+    EXPECT_CALL(*mock_runtime, legacy_register_use(
       IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
     )).WillOnce(Invoke([&](auto* use){
       use_idx[i] = use;
@@ -1539,4 +1553,3 @@ TEST_F(TestCreateConcurrentWork, handle_reduce) {
 }
 
 #endif // _darma_has_feature(handle_collection_based_collectives)
-#endif

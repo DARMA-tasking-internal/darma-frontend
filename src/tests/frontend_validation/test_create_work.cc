@@ -1002,3 +1002,31 @@ TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
   EXPECT_THAT(value, Eq(12));
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+// TODO testing of new-style Uses
+//TEST_F_WITH_PARAMS(TestCreateWork, register_use_new,
+//  ::testing::Bool(), bool
+//)
+//{
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//  using namespace darma_runtime::keyword_arguments_for_commutative_access;
+//  using namespace mock_backend;
+//
+//  //============================================================================
+//  // Actual code being tested
+//  {
+//    auto tmp = initial_access<int>("hello");
+//
+//    create_work([=]{
+//      // This code doesn't run in this example
+//      tmp.set_value(5);
+//      FAIL() << "This code block shouldn't be running in this example";
+//    });
+//
+//  } // tmp deleted
+//  //============================================================================
+//}

@@ -69,6 +69,9 @@ class PublicationDetails {
      *          for a Handle `h` returned by Use::get_handle() for the use
      *          given as the first argument to Runtime::publish_use() for which
      *          this object is the second object
+     *
+     *  @remark 
+     *
      *  @return A unique version name for the current publication of a given Handle
      */
     virtual types::key_t const&

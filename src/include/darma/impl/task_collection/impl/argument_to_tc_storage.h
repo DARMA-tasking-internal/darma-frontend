@@ -96,22 +96,32 @@ struct _get_storage_arg_helper {
 // <editor-fold desc="AccessHandle-like"> {{{1
 
 
-template <typename GivenArg, typename ParamTraits, typename CollectionIndexRangeT>
+//------------------------------------------------------------------------------
+// <editor-fold desc="unique modify case"> {{{2
+
+
+#if _darma_has_feature(create_concurrent_work_owned_by)
+template <
+  typename GivenArg,
+  typename ParamTraits,
+  typename CollectionIndexRangeT
+>
 struct _get_storage_arg_helper<
   GivenArg, ParamTraits, CollectionIndexRangeT,
   std::enable_if_t<
     // The argument is an access handle
     decayed_is_access_handle<GivenArg>::value
-    and is_access_handle_captured_as_unique_modify<std::decay_t<GivenArg>>::value
+      and is_access_handle_captured_as_unique_modify<std::decay_t<GivenArg>>::value
   >
-> {
+>
+{
   // If the argument is an AccessHandle, the parameter cannot modify unless it is
   // a uniquely-owned capture (in which case the parameter still needs to be an
   // AccessHandle):
   static_assert(
-    not (
+    not(
       ParamTraits::is_nonconst_lvalue_reference
-      and not ParamTraits::template matches<decayed_is_access_handle>::value
+        and not ParamTraits::template matches<decayed_is_access_handle>::value
     ),
     "Cannot pass \"plain-old\" AccessHandle to modify parameter of concurrent work"
       " call.  Use an AccessHandleCollection instead, or pass an access handle with"
@@ -119,14 +129,15 @@ struct _get_storage_arg_helper<
   );
 
   using type = typename std::decay_t<GivenArg>
-    ::template with_traits<
-      typename std::decay_t<GivenArg>::traits
+  ::template with_traits<
+    typename std::decay_t<GivenArg>::traits
   >;
   using return_type = type; // readability
 
   template <typename TaskCollectionT>
   auto
-  operator()(TaskCollectionT& collection, GivenArg&& arg) const {
+  operator()(TaskCollectionT& collection, GivenArg&& arg) const
+  {
     auto rv = return_type(
       arg.var_handle_,
       detail::make_captured_use_holder(
@@ -142,18 +153,29 @@ struct _get_storage_arg_helper<
       )
     );
     using collection_range_traits = typename TaskCollectionT::index_range_traits;
-    auto coll_mapping_to_dense = collection_range_traits::mapping_to_dense(collection.collection_range_);
-    std::size_t backend_owning_index = coll_mapping_to_dense.map_forward(arg.owning_index());
+    auto coll_mapping_to_dense =
+      collection_range_traits::mapping_to_dense(collection.collection_range_);
+    std::size_t backend_owning_index =
+      coll_mapping_to_dense.map_forward(arg.owning_index());
     rv.current_use_->use->collection_owner_ = backend_owning_index;
     rv.owning_backend_index() = backend_owning_index;
     collection.add_dependency(rv.current_use_->use.get());
     return rv;
   }
 };
+#endif // _darma_has_feature(create_concurrent_work_owned_by)
 
+// </editor-fold> end unique modify case }}}2
 //------------------------------------------------------------------------------
 
-template <typename GivenArg, typename ParamTraits, typename CollectionIndexRangeT>
+//------------------------------------------------------------------------------
+// <editor-fold desc="shared_read case"> {{{2
+
+template <
+  typename GivenArg,
+  typename ParamTraits,
+  typename CollectionIndexRangeT
+>
 struct _get_storage_arg_helper<
   GivenArg, ParamTraits, CollectionIndexRangeT,
   std::enable_if_t<
@@ -161,12 +183,13 @@ struct _get_storage_arg_helper<
     decayed_is_access_handle<GivenArg>::value
       and is_access_handle_captured_as_shared_read<GivenArg>::value
   >
-> {
+>
+{
   // If the argument is an AccessHandle, the parameter cannot modify unless it is
   // a uniquely-owned capture (in which case the parameter still needs to be an
   // AccessHandle):
   static_assert(
-    not (
+    not(
       ParamTraits::is_nonconst_lvalue_reference
         and not ParamTraits::template matches<decayed_is_access_handle>::value
     ),
@@ -177,19 +200,20 @@ struct _get_storage_arg_helper<
 
   using type = typename std::decay_t<GivenArg>::template with_traits<
     typename std::decay_t<GivenArg>::traits
-      ::template with_static_scheduling_permissions<
-        ParamTraits::template matches<decayed_is_access_handle>::value ?
-          AccessHandlePermissions::Read : AccessHandlePermissions::None
-      >::type::template with_static_immediate_permissions<
-        // TODO check for a schedule-only AccessHandle parameter
-        AccessHandlePermissions::Read
+    ::template with_static_scheduling_permissions<
+      ParamTraits::template matches<decayed_is_access_handle>::value ?
+        AccessHandlePermissions::Read : AccessHandlePermissions::None
+    >::type::template with_static_immediate_permissions<
+      // TODO check for a schedule-only AccessHandle parameter
+      AccessHandlePermissions::Read
     >::type
   >;
   using return_type = type; // readability
 
   template <typename TaskCollectionT>
   auto
-  operator()(TaskCollectionT& collection, GivenArg&& arg) const {
+  operator()(TaskCollectionT& collection, GivenArg&& arg) const
+  {
     auto rv = return_type(
       arg.var_handle_,
       detail::make_captured_use_holder(
@@ -208,6 +232,9 @@ struct _get_storage_arg_helper<
     return rv;
   }
 };
+
+// </editor-fold> end shared_read case }}}2
+//------------------------------------------------------------------------------
 
 // </editor-fold> end AccessHandle-like }}}1
 //==============================================================================
@@ -377,9 +404,11 @@ struct _get_storage_arg_helper<
   template <typename TaskCollectionT>
   return_type
   operator()(TaskCollectionT& collection, GivenArg&& arg) const {
+
     using mapped_handle_t = std::decay_t<GivenArg>;
     using handle_collection_t = typename mapped_handle_t::access_handle_collection_t;
     using handle_range_t = typename handle_collection_t::index_range_type;
+
     // This is the user's mapping type.  It maps from handle frontend index to
     // collection frontend index.
     // To get a mapping from frontend index to backend index, we need to composite it
@@ -389,6 +418,7 @@ struct _get_storage_arg_helper<
     using task_collection_t = std::decay_t<TaskCollectionT>;
     using tc_index_range = typename task_collection_t::index_range_t;
     using tc_index_range_traits = typename task_collection_t::index_range_traits;
+
     // mapping all the way from frontend handle index to backend tc index
     using full_mapping_t = CompositeMapping<
       user_mapping_t,
@@ -409,7 +439,9 @@ struct _get_storage_arg_helper<
       types::flow_t* out_rel,
       bool out_rel_is_in = false
     ) {
-      return std::make_shared<GenericUseHolder<CollectionManagingUse<handle_range_t>>>(
+      return std::make_shared<
+        GenericUseHolder<CollectionManagingUse<handle_range_t>>
+      >(
         CollectionManagingUse<handle_range_t>(
           handle,
           scheduling_permissions, immediate_permissions,

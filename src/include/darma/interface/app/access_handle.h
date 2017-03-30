@@ -421,9 +421,8 @@ class AccessHandle : public detail::AccessHandleBase {
     //--------------------------------------------------------------------------
     // <editor-fold desc="Collection capture"> {{{2
 
-  protected:
-
 #if _darma_has_feature(create_concurrent_work_owned_by)
+  protected:
     template <typename U>
     using _is_collection_captured_archetype = tinympl::bool_<U::is_collection_captured>;
 
@@ -504,6 +503,8 @@ class AccessHandle : public detail::AccessHandleBase {
     //--------------------------------------------------------------------------
     // <editor-fold desc="move constructors"> {{{2
 
+  public:
+
     template <typename _Ignored_SFINAE=void,
       typename=std::enable_if_t<std::is_void<_Ignored_SFINAE>::value>
     >
@@ -532,9 +533,11 @@ class AccessHandle : public detail::AccessHandleBase {
             std::remove_const_t<std::remove_reference_t<AccessHandleT>>,
             AccessHandleT
           >::value
+#if _darma_has_feature(create_concurrent_work_owned_by)
           and access_handle_is_not_collection_captured<AccessHandleT>::value
           and not is_collection_captured
           and not access_handle_is_collection_captured<AccessHandleT>::value
+#endif // _darma_has_feature(create_concurrent_work_owned_by)
           // prevent ambiguity with reinterpret_cast operator
           and not is_reinterpret_castable_from_access_handle<AccessHandleT>::value,
         detail::_not_a_type
@@ -818,80 +821,80 @@ class AccessHandle : public detail::AccessHandleBase {
     ) const;
 #endif // _darma_has_feature(publish_fetch)
 
-//#if _darma_has_feature(create_concurrent_work)
-//    template <typename... Args>
-//    auto const& read_access(
-//      Args&& ... args
-//    ) const {
-//
-//      DARMA_ASSERT_MESSAGE(
-//        unfetched_,
-//        "Illegal operation on AccessHandle not in an unfetched state"
-//      );
-//
-//      unfetched_ = false;
-//
-//      using namespace darma_runtime::detail;
-//      using parser = detail::kwarg_parser<
-//        overload_description<
-//          _optional_keyword<
-//            converted_parameter,
-//            keyword_tags_for_publication::version
-//          >
-//        >
-//      >;
-//      using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<
-//        Args...
-//      >;
-//
-//      return parser()
-//        .with_converters(
-//          [](auto&& ... parts) {
-//            return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
-//          }
-//        )
-//        .with_default_generators(
-//          keyword_arguments_for_publication::version = [] { return make_key(); }
-//        )
-//        .parse_args(std::forward<Args>(args)...)
-//        .invoke(
-//          [this](
-//            types::key_t&& version_key
-//          ) -> decltype(auto) {
-//
-//            auto* backend_runtime = abstract::backend::get_backend_runtime();
-//            auto fetched_in_flow = make_flow_ptr(
-//              backend_runtime->make_fetching_flow(
-//                var_handle_,
-//                version_key
-//              )
-//            );
-//
-//            auto fetched_out_flow = make_flow_ptr(
-//              backend_runtime->make_null_flow(
-//                var_handle_
-//              )
-//            );
-//
-//            current_use_ = std::make_shared<GenericUseHolder<HandleUse>>(
-//              HandleUse(
-//                var_handle_,
-//                fetched_in_flow,
-//                fetched_out_flow,
-//                HandleUse::Read,
-//                HandleUse::Read
-//              )
-//            );
-//
-//            current_use_->could_be_alias = true;
-//            _set_owning_index_if_owned_by();
-//
-//            return *this;
-//
-//          }
-//        );
-//    }
-//#endif // _darma_has_feature(create_concurrent_work)
+#if _darma_has_feature(create_concurrent_work_owned_by)
+    template <typename... Args>
+    auto const& read_access(
+      Args&& ... args
+    ) const {
+
+      DARMA_ASSERT_MESSAGE(
+        unfetched_,
+        "Illegal operation on AccessHandle not in an unfetched state"
+      );
+
+      unfetched_ = false;
+
+      using namespace darma_runtime::detail;
+      using parser = detail::kwarg_parser<
+        overload_description<
+          _optional_keyword<
+            converted_parameter,
+            keyword_tags_for_publication::version
+          >
+        >
+      >;
+      using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<
+        Args...
+      >;
+
+      return parser()
+        .with_converters(
+          [](auto&& ... parts) {
+            return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+          }
+        )
+        .with_default_generators(
+          keyword_arguments_for_publication::version = [] { return make_key(); }
+        )
+        .parse_args(std::forward<Args>(args)...)
+        .invoke(
+          [this](
+            types::key_t&& version_key
+          ) -> decltype(auto) {
+
+            auto* backend_runtime = abstract::backend::get_backend_runtime();
+            auto fetched_in_flow = make_flow_ptr(
+              backend_runtime->make_fetching_flow(
+                var_handle_,
+                version_key
+              )
+            );
+
+            auto fetched_out_flow = make_flow_ptr(
+              backend_runtime->make_null_flow(
+                var_handle_
+              )
+            );
+
+            current_use_ = std::make_shared<GenericUseHolder<HandleUse>>(
+              HandleUse(
+                var_handle_,
+                fetched_in_flow,
+                fetched_out_flow,
+                HandleUse::Read,
+                HandleUse::Read
+              )
+            );
+
+            current_use_->could_be_alias = true;
+            _set_owning_index_if_owned_by();
+
+            return *this;
+
+          }
+        );
+    }
+#endif // _darma_has_feature(create_concurrent_work_owned_by)
 
 
 #if _darma_has_feature(create_concurrent_work_owned_by)
@@ -1044,6 +1047,7 @@ class AccessHandle : public detail::AccessHandleBase {
       return (bool)current_use_.get() && current_use_->use->handle_ != nullptr;
     }
 
+#if _darma_has_feature(create_concurrent_work_owned_by)
     template <typename _Ignored_SFINAE=void>
     void
     _set_owning_index_if_owned_by(
@@ -1065,6 +1069,8 @@ class AccessHandle : public detail::AccessHandleBase {
         detail::_not_a_type_numbered<1>
       > = { }
     ) const { /* intentionally empty */ }
+#endif // _darma_has_feature(create_concurrent_work_owned_by)
+
 
     bool
     _is_capturing_copy() const {

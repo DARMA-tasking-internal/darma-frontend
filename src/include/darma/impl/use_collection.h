@@ -273,7 +273,8 @@ class CollectionManagingUse
     CollectionManagingUse(
       CollectionManagingUse&& other,
       MappingToTaskCollectionDeduced&& mapping
-    ) : base_t(std::move(other)),
+    ) : base_t(std::move(other),
+        std::forward<MappingToTaskCollectionDeduced>(mapping)),
         index_range(other.index_range),
         mapping_to_dense(rng_traits::mapping_to_dense(index_range))
     { }
