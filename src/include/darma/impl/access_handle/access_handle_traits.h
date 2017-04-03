@@ -99,6 +99,21 @@ template <
   access_handle_permissions_t a,
   access_handle_permissions_t b
 >
+struct handle_permissions_equal_if_given
+  : tinympl::or_<
+    tinympl::not_<all_AH_permissions_given<a, b>>,
+    tinympl::bool_<(
+      std::underlying_type_t<access_handle_permissions_t>(a)
+        == std::underlying_type_t<access_handle_permissions_t>(b)
+    )>
+  >::type,
+    _check_permissions_compatible<a, b>
+{ };
+
+template <
+  access_handle_permissions_t a,
+  access_handle_permissions_t b
+>
 struct compatible_given_AH_permissions_less_equal
   : tinympl::or_<
       tinympl::not_<all_AH_permissions_given<a, b>>,
@@ -181,6 +196,58 @@ struct access_handle_permissions_traits
     static_immediate_permissions_given = StaticImmediatePermissions != NotGiven;
 
   static constexpr auto is_commutative = IsCommutative;
+
+  template <access_handle_permissions_t new_required_schedule_permissions>
+  struct with_required_scheduling_permissions {
+    using type = access_handle_permissions_traits<
+      new_required_schedule_permissions,
+      required_immediate_permissions,
+      static_scheduling_permissions,
+      static_immediate_permissions
+    >;
+  };
+  template <access_handle_permissions_t new_required_immediate_permissions>
+  struct with_required_immediate_permissions {
+    using type = access_handle_permissions_traits<
+      required_scheduling_permissions,
+      new_required_immediate_permissions,
+      static_scheduling_permissions,
+      static_immediate_permissions
+    >;
+  };
+
+  template <access_handle_permissions_t new_static_schedule_permissions>
+  struct with_static_scheduling_permissions {
+    using type = access_handle_permissions_traits<
+      required_scheduling_permissions,
+      required_immediate_permissions,
+      new_static_schedule_permissions,
+      static_immediate_permissions
+    >;
+  };
+  template <access_handle_permissions_t new_static_immediate_permissions>
+  struct with_static_immediate_permissions {
+    using type = access_handle_permissions_traits<
+      required_scheduling_permissions,
+      required_immediate_permissions,
+      static_scheduling_permissions,
+      new_static_immediate_permissions
+    >;
+  };
+
+  template <typename OtherTraits>
+  using is_convertible_from = std::integral_constant<bool,
+    compatible_given_AH_permissions_greater_equal<
+      OtherTraits::static_immediate_permissions,
+      required_immediate_permissions
+    >::value
+    // same thing for schedule case
+    and compatible_given_AH_permissions_greater_equal<
+      OtherTraits::static_scheduling_permissions,
+      required_scheduling_permissions
+    >::value
+  >;
+
 };
 
 template <
@@ -237,6 +304,10 @@ template <
 struct access_handle_allocation_traits {
   using allocator_t = Allocator;
   static constexpr auto use_allocator_for_handle_itself = UseAllocatorForHandleItself;
+  template <typename OtherTraits>
+  using is_convertible_from = std::is_convertible<
+    typename OtherTraits::allocator_t, allocator_t
+  >;
 };
 
 // </editor-fold> end Various categories of traits }}}1
@@ -962,8 +1033,10 @@ template <access_handle_permissions_t permissions>
 struct required_scheduling_permissions {
   static constexpr auto value = permissions;
   template <typename Traits>
-  using modified_traits = typename Traits
-    ::template with_required_scheduling_permissions<permissions>;
+  using modified_traits = typename Traits::template with_permissions_traits<
+    typename Traits::permissions_traits
+      ::template with_required_scheduling_permissions<permissions>::type
+  >;
   using is_access_handle_trait_flag = std::true_type;
 };
 
@@ -971,8 +1044,10 @@ template <access_handle_permissions_t permissions>
 struct static_scheduling_permissions {
   static constexpr auto value = permissions;
   template <typename Traits>
-  using modified_traits = typename Traits
-    ::template with_static_scheduling_permissions<permissions>;
+  using modified_traits = typename Traits::template with_permissions_traits<
+    typename Traits::permissions_traits
+      ::template with_static_scheduling_permissions<permissions>::type
+  >;
   using is_access_handle_trait_flag = std::true_type;
 };
 
@@ -980,8 +1055,10 @@ template <access_handle_permissions_t permissions>
 struct required_immediate_permissions {
   static constexpr auto value = permissions;
   template <typename Traits>
-  using modified_traits = typename Traits
-    ::template with_required_immediate_permissions<permissions>;
+  using modified_traits = typename Traits::template with_permissions_traits<
+    typename Traits::permissions_traits
+      ::template with_required_immediate_permissions<permissions>::type
+  >;
   using is_access_handle_trait_flag = std::true_type;
 };
 
@@ -989,8 +1066,10 @@ template <access_handle_permissions_t permissions>
 struct static_immediate_permissions {
   static constexpr auto value = permissions;
   template <typename Traits>
-  using modified_traits = typename Traits
-    ::template with_static_immediate_permissions<permissions>;
+  using modified_traits = typename Traits::template with_permissions_traits<
+    typename Traits::permissions_traits
+      ::template with_static_immediate_permissions<permissions>::type
+  >;
   using is_access_handle_trait_flag = std::true_type;
 };
 
@@ -1042,7 +1121,7 @@ struct permissions_traits {
   using type = NewPermissionsTraits;
   template <typename Traits>
   using modified_traits = typename Traits
-  ::template with_permissions_traits<NewPermissionsTraits>;
+    ::template with_permissions_traits<NewPermissionsTraits>;
   using is_access_handle_trait_flag = std::true_type;
 };
 
@@ -1109,6 +1188,10 @@ namespace access_handle_traits {
 template <bool copy_assignable_bool=true>
 using allow_copy_assignment_from_this =
   darma_runtime::detail::copy_assignable_handle<copy_assignable_bool>;
+
+template <typename NewPermissionsTraits>
+using permissions_traits = ::darma_runtime::detail
+  ::access_handle_trait_tags::permissions_traits<NewPermissionsTraits>;
 
 } // end namespace access_handle_traits
 } // end namespace advanced

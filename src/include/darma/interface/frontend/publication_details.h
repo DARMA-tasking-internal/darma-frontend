@@ -49,6 +49,8 @@
 
 #include <darma/interface/backend/backend_fwd.h> // fwd decl of backend::DataStoreHandle
 
+#include <darma/impl/feature_testing_macros.h>
+
 
 namespace darma_runtime {
 namespace abstract {
@@ -60,9 +62,6 @@ namespace frontend {
 class PublicationDetails {
   public:
 
-    static constexpr size_t unknown_reader = std::numeric_limits<size_t>::max();
-
-
     /** @brief  Get the unique version (as a key) of the item being published.
      *          The combination of h.get_key() and get_version_name()
      *          must be globally unique
@@ -70,7 +69,7 @@ class PublicationDetails {
      *          given as the first argument to Runtime::publish_use() for which
      *          this object is the second object
      *
-     *  @remark 
+     *  @remark
      *
      *  @return A unique version name for the current publication of a given Handle
      */
@@ -88,22 +87,13 @@ class PublicationDetails {
     virtual size_t
     get_n_fetchers() const =0;
 
-    /** @todo
-     *
-     * @return
-     */
-    virtual bool
-    is_within_concurrent_region() const { return true; }
 
-    virtual size_t
-    reader_hint() const { return unknown_reader; }
+#if _darma_has_feature(task_collection_token)
+    virtual
+    darma_runtime::types::task_collection_token_t
+    get_task_collection_token() const =0;
+#endif
 
-    /** @todo
-     *
-     * @return
-     */
-    virtual std::shared_ptr<backend::DataStoreHandle>
-    get_data_store() const { return nullptr; }
 };
 
 } // end namespace frontend

@@ -58,6 +58,7 @@
 
 
 DeclareDarmaTypeTransparentKeyword(commutative_access, to_handle);
+DeclareDarmaTypeTransparentKeyword(commutative_access, to_collection);
 
 namespace darma_runtime {
 
@@ -211,6 +212,147 @@ struct _commutative_access_impl {
   // </editor-fold> end AccessHandle "converting" version }}}1
   //==============================================================================
 
+
+  //==============================================================================
+  // <editor-fold desc="Collection-converting version"> {{{1
+
+  template <typename AccessHandleCollectionT, std::size_t... TraitIdxs>
+  decltype(auto)
+  _collection_version_impl(
+    AccessHandleCollectionT&& in_handle,
+    std::integer_sequence<std::size_t, TraitIdxs...>
+  ) const
+  {
+    using in_handle_t = std::decay_t<AccessHandleCollectionT>;
+    using out_handle_t = typename in_handle_t::template with_traits<
+      typename make_access_handle_collection_traits<
+        typename in_handle_t::value_type, typename in_handle_t::index_range_t,
+        typename trait_flags_t::template at_t<TraitIdxs>...
+      >::template from_traits<
+        typename make_access_handle_collection_traits<
+          typename in_handle_t::value_type, typename in_handle_t::index_range_t,
+          static_scheduling_permissions<AccessHandlePermissions::Commutative>,
+          required_scheduling_permissions<AccessHandlePermissions::Commutative>,
+          copy_assignable_handle<false>,
+          could_be_outermost_scope<true>
+        >::type
+      >::type
+    >;
+
+    using namespace darma_runtime::abstract::frontend;
+
+    // in handle unless one is given for the new handle, which is not yet
+    // supported anyway)
+    auto
+      new_use_ptr = std::allocate_shared<typename out_handle_t::use_holder_t>(
+      in_handle.get_allocator(),
+      HandleUse(
+        in_handle.var_handle_,
+        HandleUse::Commutative, /* scheduling permissions */
+        HandleUse::None, /* immediate permissions */
+        FlowRelationship::Same, &in_handle.current_use_->use->in_flow_,
+        FlowRelationship::Next, nullptr, true
+      )
+    );
+    assert(in_handle.current_use_->use->suspended_out_flow_ == nullptr);
+    new_use_ptr->use->suspended_out_flow_ = std::make_unique<types::flow_t>(
+      std::move(in_handle.current_use_->use->out_flow_)
+    );
+    in_handle.current_use_->could_be_alias = false;
+
+    if (in_handle.current_use_->is_registered) {
+      new_use_ptr->do_register();
+    }
+
+    // Hold the variable handle so that it doesn't expire
+    auto var_handle = in_handle.var_handle_;
+
+    // release the use from the expired handle
+    in_handle.current_use_ = nullptr;
+    in_handle.var_handle_ = nullptr;
+
+    return out_handle_t(
+      var_handle, new_use_ptr
+    );
+  }
+
+  template <typename AccessHandleCollectionT,
+    typename=std::enable_if_t<is_access_handle_collection<
+      std::decay_t<AccessHandleCollectionT>
+    >::value>
+  >
+  decltype(auto)
+  operator()(AccessHandleCollectionT&& in_handle) const
+  {
+    using ahc_t = std::decay_t<AccessHandleCollectionT>;
+    static_assert(
+      is_access_handle_collection<std::decay_t<AccessHandleCollectionT>>::value
+        and std::is_rvalue_reference<AccessHandleCollectionT&&>::value,
+      "Argument to commutative_access(to_collection=...) must be an rvalue"
+        " AccessHandle.  Use std::move() if necessary"
+    );
+    static_assert(std::is_same<given_value_type_t, meta::nonesuch>::value
+        or std::is_same<
+          given_value_type_t,
+          typename std::decay_t<AccessHandleCollectionT>::value_type
+        >::value,
+      "Don't need to give a template parameter for commutative_access(to_collection=...),"
+        " but if you do, it must match the type of the existing parameter"
+    );
+    static_assert(
+      handle_permissions_equal_if_given<
+        ahc_t::traits_t::permissions_traits::static_scheduling_permissions,
+        AccessHandlePermissions::Modify
+      >::value,
+      "Can't create commutative_access to collection that is marked with scheduling"
+        " permissions less than Modify at compile time"
+    );
+    static_assert(
+      ahc_t::traits_t::permissions_traits::static_scheduling_permissions
+        != AccessHandlePermissions::Commutative,
+      "Can't create commutative_access to collection that is already marked"
+        " commutative at compile time"
+    );
+    static_assert(
+      ahc_t::traits_t::permissions_traits::static_immediate_permissions
+        != AccessHandlePermissions::Commutative,
+      "Can't create commutative_access to collection that is already marked"
+        " commutative at compile time"
+    );
+    static_assert(
+      ahc_t::traits_t::permissions_traits::required_scheduling_permissions
+        != AccessHandlePermissions::Commutative,
+      "Can't create commutative_access to collection that is already marked"
+        " commutative at compile time"
+    );
+    static_assert(
+      ahc_t::traits_t::permissions_traits::required_immediate_permissions
+        != AccessHandlePermissions::Commutative,
+      "Can't create commutative_access to collection that is already marked"
+        " commutative at compile time"
+    );
+    DARMA_ASSERT_MESSAGE(
+      in_handle.current_use_.get() != nullptr,
+      "commutative_access(to_handle=...) called on uninitialized or released AccessHandle"
+    );
+    DARMA_ASSERT_MESSAGE(
+      in_handle.current_use_->use->immediate_permissions_
+        == detail::HandleUse::None,
+      "commutative_access(to_collection=...) called on use with immediate permissions that aren't None"
+    );
+    DARMA_ASSERT_MESSAGE(
+      in_handle.current_use_->use->scheduling_permissions_
+        == detail::HandleUse::Modify,
+      "commutative_access(to_collection=...) called on use without scheduling modify permissions"
+    );
+    return _collection_version_impl(
+      std::forward<AccessHandleCollectionT>(in_handle),
+      std::make_index_sequence<trait_flags_t::size>{}
+    );
+  }
+
+  // </editor-fold> end Collection-converting version }}}1
+  //==============================================================================
 
   //==============================================================================
   // <editor-fold desc="non-AccessHandle-converting version"> {{{1
@@ -481,6 +623,12 @@ commutative_access(Args&&... args) {
       // for converting an existing handle into commutative mode:
       _keyword<
         deduced_parameter, keyword_tags_for_commutative_access::to_handle
+      >
+    >,
+    overload_description<
+      // for converting an existing handle collection into commutative mode:
+      _keyword<
+        deduced_parameter, keyword_tags_for_commutative_access::to_collection
       >
     >,
     // for creating a new parameter in commutative mode:

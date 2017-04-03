@@ -45,8 +45,6 @@
 #ifndef SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
 #define SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_
 
-#define DARMA_BACKEND_SPMD_NAME_PREFIX "spmd"
-
 #include <limits> // std::numeric_limits
 #include <cstdlib> // std::size_t
 #include <string>
@@ -56,16 +54,15 @@
 
 namespace mock_backend {
 
-struct MockCPUSet { };
+struct MockResourcePack { };
 
 } // end namespace mock backend
 
 namespace darma_runtime { namespace types {
-using cpu_set_t = ::mock_backend::MockCPUSet;
+using resource_pack_t = ::mock_backend::MockResourcePack;
 }} // end namespace darma_runtime::types
 
 namespace mock_backend {
-// Forward declaration
 class MockFlow {
   private:
 
@@ -130,7 +127,6 @@ namespace darma_runtime { namespace types {
 typedef ::mock_backend::MockFlow flow_t;
 }} // end namespace darma_runtime::types
 
-//#include <darma/impl/key/simple_key_fwd.h>
 #include <darma/impl/key/SSO_key_fwd.h>
 
 namespace darma_runtime { namespace types {
@@ -138,6 +134,11 @@ namespace darma_runtime { namespace types {
 }} // end namespace darma_runtime::types
 
 #include <darma/impl/key/SSO_key.h>
+
+
+namespace darma_runtime { namespace types {
+using task_collection_token_t = std::size_t;
+}} // end namespace darma_runtime::types
 
 
 

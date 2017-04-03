@@ -1655,3 +1655,115 @@ TEST_F(TestCreateConcurrentWork, simple_read_only) {
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+
+#if 0
+TEST_F(TestCreateConcurrentWork, simple_commutative) {
+
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_commutative_access;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(finit, fnull);
+  MockFlow f_in_idx[4], f_out_idx[4];
+  use_t* use_idx[4];
+  use_t* use_init = nullptr;
+  use_t* use_coll = nullptr;
+  int values[4];
+
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, use_init, make_key("hello"), 4);
+
+  EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, finit, Read, Read, 4);
+
+  EXPECT_FLOW_ALIAS(finit, fnull);
+
+  EXPECT_RELEASE_USE(use_init);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(2));
+
+    struct Foo {
+      void operator()(Index1D<int> index,
+        CommutativeAccessHandleCollection<int, Range1D<int>> coll
+      ) const {
+        sequence_marker->mark_sequence("inside task " + std::to_string(index.value));
+        for(int i = 0; i <= index.max_value; ++i) {
+          auto comm_i = coll[i].commutative_access();
+          create_work([=]{
+            comm_i.set_value(comm_i.get_value() + i);
+          });
+        }
+      }
+    };
+
+    auto tmp_comm = commutative_access(to_collection=std::move(tmp_c));
+
+    create_concurrent_work<Foo>(tmp_comm,
+      index_range=Range1D<int>(4)
+    );
+
+    tmp_c = noncommutative_access_to_collection(std::move(tmp_comm));
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  for(int i = 0; i < 4; ++i) {
+    values[i] = 0;
+
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(finit, i))
+      .WillOnce(Return(f_in_idx[i]));
+    EXPECT_CALL(*mock_runtime, legacy_register_use(
+      IsUseWithFlows(f_in_idx[i], f_in_idx[i], use_t::Read, use_t::Read)
+    )).WillOnce(Invoke([&](auto* use){
+      use_idx[i] = use;
+      use->get_data_pointer_reference() = &values[i];
+    }));
+
+    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+
+    EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
+
+    values[i] = 42 + i;
+
+    {
+      InSequence use_before_release;
+
+      EXPECT_CALL(*sequence_marker, mark_sequence("inside task " + std::to_string(42+i)));
+      // Moved below for now
+      //EXPECT_RELEASE_USE(use_idx[i]);
+    }
+
+    created_task->run();
+
+    Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+    // TODO we should be able to expect this to be released inside the task itself
+    EXPECT_RELEASE_USE(use_idx[i]);
+
+    created_task = nullptr;
+
+
+    Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  }
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_RELEASE_USE(use_coll);
+
+  mock_runtime->task_collections.front().reset(nullptr);
+
+}
+#endif

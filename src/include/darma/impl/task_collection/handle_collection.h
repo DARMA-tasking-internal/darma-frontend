@@ -79,6 +79,13 @@ struct AccessHandleCollectionAccess;
 
 } // end namespace detail
 
+namespace serialization {
+
+// Forward declaration
+template <typename T, typename IndexRangeT, typename Traits>
+struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>;
+
+} // end namespace serialization
 
 //==============================================================================
 // <editor-fold desc="AccessHandleCollection">
@@ -93,29 +100,12 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     using index_range_type = IndexRangeT;
     using traits_t = Traits;
 
-    template <typename MappingT>
-    auto mapped_with(MappingT&& mapping) const {
-      return detail::MappedHandleCollection<
-        darma_runtime::AccessHandleCollection<T, IndexRangeT,
-          detail::access_handle_collection_traits<T, IndexRangeT,
-            typename traits_t::permissions_traits,
-            detail::ahc_traits::semantic_traits<
-              OptionalBoolean::KnownFalse,
-              typename traits_t::semantic_traits::handle_semantic_traits
-            >,
-            typename traits_t::allocation_traits
-          >
-        >,
-        std::decay_t<MappingT>
-      >(
-        *this, std::forward<MappingT>(mapping)
-      );
-    };
-
-    IndexRangeT const& get_index_range() const {
-      return current_use_->use->index_range;
-    }
-
+    template <typename... NewTraitsFlags>
+    using with_trait_flags = AccessHandleCollection<
+      T, IndexRangeT, typename detail::make_access_handle_collection_traits<
+        T, IndexRangeT, NewTraitsFlags...
+      >::template from_traits<traits_t>::type
+    >;
 
   protected:
 
@@ -210,6 +200,33 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
   public:
 
+    template <typename MappingT>
+    auto
+    mapped_with(MappingT&& mapping) const {
+      return detail::MappedHandleCollection<
+        darma_runtime::AccessHandleCollection<T, IndexRangeT,
+          detail::access_handle_collection_traits<T, IndexRangeT,
+            typename traits_t::permissions_traits,
+            detail::ahc_traits::semantic_traits<
+              OptionalBoolean::KnownFalse,
+              typename traits_t::semantic_traits::handle_semantic_traits
+            >,
+            typename traits_t::allocation_traits
+          >
+        >,
+        std::decay_t<MappingT>
+      >(
+        *this, std::forward<MappingT>(mapping)
+      );
+    };
+
+
+    IndexRangeT const&
+    get_index_range() const {
+      return current_use_->use->index_range;
+    }
+
+
     template <
       typename _Ignored_SFINAE=void,
       typename=std::enable_if_t<
@@ -258,9 +275,10 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       }
     }
 
+
     template <typename ReduceOp=detail::op_not_given, typename... Args>
     auto
-    reduce(Args&&... args) const  {
+    reduce(Args&&... args) const {
       using namespace darma_runtime::detail;
       using parser = detail::kwarg_parser<
         overload_description<
@@ -473,25 +491,20 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
     }
 
-    template <typename _Ignored_SFINAE=void, typename OtherTraits>
+    template <typename OtherTraits>
     AccessHandleCollection(
-      AccessHandleCollection<
-        T, IndexRangeT, OtherTraits
-      > const& other,
+      AccessHandleCollection<T, IndexRangeT, OtherTraits> const& other,
       std::enable_if_t<
-        // TODO generalize this into an is_convertible_from_... metafunction
-        traits_t::semantic_traits::is_outer != KnownTrue
-          and traits_t::semantic_traits::is_outer != OtherTraits::semantic_traits::is_outer
-          and std::is_void<_Ignored_SFINAE>::value, // should always be true
-        int
-      > = 0
+        traits_t::template is_convertible_from<OtherTraits>::value
+          and not std::is_same<OtherTraits, traits_t>::value,
+        detail::_not_a_type
+      > = { }
     ) : mapped_backend_index_(other.mapped_backend_index_),
         var_handle_(var_handle_base_, other.var_handle_),
         current_use_(current_use_base_, other.current_use_),
         local_use_holders_(other.local_use_holders_),
         dynamic_is_outer(other.dynamic_is_outer)
     {
-
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         abstract::backend::get_backend_context()->get_running_task()
@@ -511,8 +524,11 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
   public:
 
+    // TODO delete the copy assignment operator
     AccessHandleCollection& operator=(AccessHandleCollection const&) = default;
+
     AccessHandleCollection& operator=(AccessHandleCollection&&) = default;
+
     template <typename OtherTraits, typename _Ignored_SFINAE=void,
       typename=std::enable_if_t<
         // TODO generalize this into an is_assignable_from_... metafunction
@@ -562,6 +578,9 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     template <typename, typename, typename...>
     friend
     struct detail::TaskCollectionImpl;
+
+    friend
+    struct serialization::Serializer<AccessHandleCollection>;
 
   // </editor-fold> end friends }}}1
   //============================================================================
@@ -692,9 +711,6 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
 namespace detail {
 
-template <typename T>
-struct is_access_handle_collection: std::false_type {
-};
 
 template <typename T, typename IndexRangeT, typename Traits>
 struct is_access_handle_collection<
@@ -746,12 +762,14 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType,
 
     auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
-    using return_type = AccessHandleCollection<ValueType, std::decay_t<IndexRangeT>,
-      access_handle_collection_traits<
+    using return_type = AccessHandleCollection<
+      ValueType, std::decay_t<IndexRangeT>,
+      access_handle_collection_traits<ValueType, std::decay_t<IndexRangeT>,
         typename ah_analog_traits::permissions_traits,
         ahc_traits::semantic_traits<
           /* IsOuter = */ OptionalBoolean::KnownTrue,
-          typename ah_analog_traits::semantic_traits
+          typename ah_analog_traits::semantic_traits,
+          /* IsMapped = */ OptionalBoolean::Unknown
         >,
         typename ah_analog_traits::allocation_traits
       >
@@ -852,50 +870,152 @@ using ReadAccessHandleCollection = AccessHandleCollection<
   >
 >;
 
+template <typename T, typename IndexRange>
+using CommutativeAccessHandleCollection = AccessHandleCollection<
+  T, IndexRange,
+  detail::access_handle_collection_traits<T, IndexRange,
+    detail::access_handle_permissions_traits<
+      /* Required scheduling = */ detail::AccessHandlePermissions::Commutative,
+      /* Required immediate = */ detail::AccessHandlePermissions::None,
+      /* Static scheduling = */ detail::AccessHandlePermissions::Commutative
+    >
+    // All of the other categories are defaulted
+  >
+>;
 
 //==============================================================================
-// <editor-fold desc="serialization for AccessHandleCollection (currently disabled code)"> {{{1
+// <editor-fold desc="serialization for AccessHandleCollection"> {{{1
 
-//namespace serialization {
-//
-//template <typename T, typename IndexRangeT>
-//struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT>> {
-//
-//  using access_handle_collection_t = darma_runtime::AccessHandleCollection<
-//    T,
-//    IndexRangeT
-//  >;
-//
-//  // This is the sizing and packing method in one...
-//  template <typename ArchiveT>
-//  void compute_size(access_handle_collection_t& ahc, ArchiveT& ar) const {
-//    ar % ahc.var_handle_->get_key();
-//    ar % ahc.current_use_->use.scheduling_permissions_;
-//    ar % ahc.current_use_->use.immediate_permissions_;
-//    DARMA_ASSERT_MESSAGE(
-//      ahc.mapped_backend_index_ == ahc.unknown_backend_index,
-//      "Can't migrate a handle collection after it has been mapped to a task"
-//    );
-//    DARMA_ASSERT_MESSAGE(
-//      ahc.local_use_holders_.empty(),
-//      "Can't migrate a handle collection after it has been mapped to a task"
-//    );
-//    auto* backend_runtime = abstract::backend::get_backend_runtime();
-//    ar.add_to_size_indirect(
-//      backend_runtime->get_packed_flow_size(
-//        *ahc.current_use_->use.in_flow_
-//      )
-//    );
-//    ar.add_to_size_indirect(
-//      backend_runtime->get_packed_flow_size(
-//        *ahc.current_use_->use.out_flow_
-//      )
-//    );
-//  }
-//
-//};
-//
-//} // end namespace serialization
+namespace serialization {
+
+template <typename T, typename IndexRangeT, typename Traits>
+struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>> {
+
+  using access_handle_collection_t = darma_runtime::AccessHandleCollection<
+    T, IndexRangeT, Traits
+  >;
+
+
+  void _do_migratability_assertions(access_handle_collection_t const& ahc) const {
+    DARMA_ASSERT_MESSAGE(
+      ahc.mapped_backend_index_ == ahc.unknown_backend_index,
+      "Can't migrate a handle collection after it has been mapped to a task"
+    );
+    DARMA_ASSERT_MESSAGE(
+      ahc.local_use_holders_.empty(),
+      "Can't migrate a handle collection after it has been mapped to a task"
+    );
+  }
+
+  // This is the sizing and packing method in one...
+  template <typename ArchiveT>
+  void compute_size(access_handle_collection_t const& ahc, ArchiveT& ar) const {
+
+    _do_migratability_assertions(ahc);
+
+    ar % ahc.var_handle_->get_key();
+    ar % ahc.get_index_range();
+    ar % ahc.current_use_->use->scheduling_permissions_;
+    ar % ahc.current_use_->use->immediate_permissions_;
+
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
+
+    ar.add_to_size_indirect(
+      backend_runtime->get_packed_flow_size(
+        ahc.current_use_->use->in_flow_
+      )
+    );
+    ar.add_to_size_indirect(
+      backend_runtime->get_packed_flow_size(
+        ahc.current_use_->use->out_flow_
+      )
+    );
+  }
+
+  template <typename ArchiveT>
+  void pack(access_handle_collection_t const& ahc, ArchiveT& ar) const {
+    _do_migratability_assertions(ahc);
+
+    ar << ahc.var_handle_->get_key();
+    ar << ahc.get_index_range();
+    ar << ahc.current_use_->use->scheduling_permissions_;
+    ar << ahc.current_use_->use->immediate_permissions_;
+
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
+    using serialization::Serializer_attorneys::ArchiveAccess;
+
+    backend_runtime->pack_flow(
+      ahc.current_use_->use->in_flow_,
+      reinterpret_cast<void*&>(ArchiveAccess::spot(ar))
+    );
+    backend_runtime->pack_flow(
+      ahc.current_use_->use->out_flow_,
+      reinterpret_cast<void*&>(ArchiveAccess::spot(ar))
+    );
+  }
+
+  template <typename ArchiveT, typename AllocatorT>
+  void unpack(void* allocated, ArchiveT& ar, AllocatorT const& alloc) const {
+    // TODO allocator support
+
+    auto& collection = *(new (allocated) access_handle_collection_t());
+
+    types::key_t key = darma_runtime::make_key();
+    ar >> key;
+    collection.var_handle_ = std::make_shared<
+      ::darma_runtime::detail::VariableHandle<typename access_handle_collection_t::value_type>
+    >(key);
+
+    using handle_range_t = typename access_handle_collection_t::index_range_type;
+    using handle_range_traits = indexing::index_range_traits<handle_range_t>;
+    using handle_range_serdes_traits = serialization::detail::serializability_traits<handle_range_t>;
+
+    // Unpack index range of the handle itself
+    char hr_buffer[sizeof(handle_range_t)];
+    handle_range_serdes_traits::unpack(reinterpret_cast<void*>(hr_buffer), ar);
+    auto& hr = *reinterpret_cast<handle_range_t*>(hr_buffer);
+
+    // unpack permissions
+    darma_runtime::detail::HandleUse::permissions_t sched_perm, immed_perm;
+    ar >> sched_perm >> immed_perm;
+
+    // unpack the flows
+    using serialization::Serializer_attorneys::ArchiveAccess;
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
+    char const*& archive_spot = const_cast<char const*&>(
+      ArchiveAccess::spot(ar)
+    );
+    auto inflow = backend_runtime->make_unpacked_flow(
+      reinterpret_cast<void const*&>(archive_spot)
+    );
+    auto outflow = backend_runtime->make_unpacked_flow(
+      reinterpret_cast<void const*&>(archive_spot)
+    );
+
+
+    // remake the use:
+    collection.current_use_ = std::make_shared<
+      darma_runtime::detail::GenericUseHolder<
+        darma_runtime::detail::CollectionManagingUse<handle_range_t>
+      >
+    >(
+      darma_runtime::detail::CollectionManagingUse<handle_range_t>(
+        collection.var_handle_.get_smart_ptr(), sched_perm, immed_perm,
+        std::move(inflow), std::move(outflow), std::move(hr)
+        // the mapping will be re-set up in the task collection unpack,
+        // so don't worry about it here
+      ),
+      // The task collection unpack handles registration for mapped handles;
+      // otherwise, we need to register here
+      /* do_register_in_ctor= */ access_handle_collection_t
+        ::traits_t::semantic_traits::is_mapped != KnownTrue
+    );
+
+  };
+
+};
+
+} // end namespace serialization
 
 // </editor-fold> end serialization for AccessHandleCollection (currently disabled code) }}}1
 //==============================================================================

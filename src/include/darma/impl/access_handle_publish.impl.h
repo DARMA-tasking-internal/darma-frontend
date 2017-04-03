@@ -69,8 +69,7 @@ struct _publish_impl {
     types::key_t version, size_t n_readers, bool out
   ) {
     _impl(
-      version, n_readers, out,
-      abstract::frontend::PublicationDetails::unknown_reader
+      version, n_readers, out
     );
   }
 
@@ -80,18 +79,15 @@ struct _publish_impl {
     types::key_t version, size_t n_readers, bool out
   ) {
     _impl(
-      version, n_readers, out,
-      reg_ctxt.get_backend_index(idx)
+      version, n_readers, out
     );
   }
 
   void _impl(
-    types::key_t version, size_t n_readers, bool is_publish_out,
-    size_t reader_backend_idx
+    types::key_t version, size_t n_readers, bool is_publish_out
   ) {
     auto* backend_runtime = abstract::backend::get_backend_runtime();
     detail::PublicationDetails dets(version, n_readers, not is_publish_out);
-    dets.reader_hint_ = reader_backend_idx;
 
     auto publish_use_holder = make_captured_use_holder(
       this_.var_handle_,

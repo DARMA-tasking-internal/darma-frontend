@@ -116,7 +116,7 @@ class TaskBase : public abstract::frontend::Task
     std::size_t width_;
 
 #if _darma_has_feature(create_parallel_for_custom_cpu_set)
-    types::cpu_set_t assigned_cpu_set_;
+    types::resource_pack_t assigned_resource_pack_;
 
 #endif // _darma_has_feature(create_parallel_for_custom_cpu_set)
 
@@ -282,15 +282,15 @@ class TaskBase : public abstract::frontend::Task
     }
 
 #if _darma_has_feature(create_parallel_for_custom_cpu_set)
-    void set_cpu_set(
-      darma_runtime::types::cpu_set_t const& cpuset
+    void set_resource_pack(
+      darma_runtime::types::resource_pack_t const& cpuset
     ) override {
-      assigned_cpu_set_ = cpuset;
+      assigned_resource_pack_ = cpuset;
     }
 
-    types::cpu_set_t const&
-    get_cpu_set() const override {
-      return assigned_cpu_set_;
+    types::resource_pack_t const&
+    get_resource_pack() const override {
+      return assigned_resource_pack_;
     }
 #endif // _darma_has_feature(create_parallel_for_custom_cpu_set)
 

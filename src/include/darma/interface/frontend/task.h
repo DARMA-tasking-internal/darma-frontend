@@ -159,9 +159,9 @@ class Task {
 
 #if _darma_has_feature(create_parallel_for_custom_cpu_set)
 
-    virtual darma_runtime::types::cpu_set_t const& get_cpu_set() const =0;
+    virtual darma_runtime::types::resource_pack_t const& get_resource_pack() const =0;
 
-    virtual void set_cpu_set(darma_runtime::types::cpu_set_t const&) =0;
+    virtual void set_resource_pack(darma_runtime::types::resource_pack_t const&) =0;
 
 #endif
 
