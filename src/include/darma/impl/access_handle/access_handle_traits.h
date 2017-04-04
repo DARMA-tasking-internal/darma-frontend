@@ -294,6 +294,22 @@ struct access_handle_semantic_traits {
   // for this object to be an alias.
   static constexpr auto is_copy_assignable = IsCopyAssignable;
   static constexpr auto could_be_outermost_scope = CouldBeOutermostScope;
+
+  template <OptionalBoolean NewCopyAssignable>
+  struct with_is_copy_assignable {
+    using type = access_handle_semantic_traits<
+      NewCopyAssignable,
+      CouldBeOutermostScope
+    >;
+  };
+
+  template <bool new_value>
+  struct with_could_be_outermost_scope {
+    using type = access_handle_semantic_traits<
+      is_copy_assignable,
+      new_value
+    >;
+  };
 };
 
 template <

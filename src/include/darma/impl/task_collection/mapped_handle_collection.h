@@ -149,10 +149,12 @@ struct UnmappedHandleCollection {
 
     explicit
     UnmappedHandleCollection(
-      AccessHandleCollectionT const& coll
-    ) : collection(coll)
+      AccessHandleCollectionT&& coll
+    ) : collection(std::move(coll))
     { }
 
+    UnmappedHandleCollection() = default;
+    UnmappedHandleCollection(UnmappedHandleCollection&&) = default;
 
     // Just the compute_size and pack
     template <typename ArchiveT>

@@ -261,23 +261,6 @@ struct _get_storage_arg_helper<
   template <HandleUse::permissions_t p>
   using _permissions = std::integral_constant<HandleUse::permissions_t, p>;
 
-  //------------------------------------------------------------------------------
-  // <editor-fold desc="(disabled code)"> {{{2
-
-  // Disabled for now
-  // template <typename T>
-  // using _compile_time_immediate_read_only_archetype = tinympl::bool_<
-  //   std::decay_t<T>::is_compile_time_immediate_read_only
-  // >;
-  // template <typename T>
-  // using compile_time_immediate_read_only_if_access_handle = meta::detected_or_t<
-  //   std::false_type,
-  //   _compile_time_immediate_read_only_archetype, T
-  // >;
-
-  // </editor-fold> end (disabled code) }}}2
-  //------------------------------------------------------------------------------
-
   // TODO static schedule-only permissions
 
   template <typename AHC>
@@ -560,9 +543,15 @@ struct _get_storage_arg_helper<
   >
 >
 {
-  // TODO use a less circuitous mapping?
+  //----------------------------------------------------------------------------
+  // <editor-fold desc="type aliases and traits"> {{{2
+
+  // TODO use a less circuitous mapping in the one-to-one case?
+
   using collection_range_t = CollectionIndexRangeT;
-  using collection_range_traits = indexing::index_range_traits<CollectionIndexRangeT>;
+  using collection_range_traits =
+    indexing::index_range_traits<CollectionIndexRangeT>;
+
   using handle_range_t = typename std::decay_t<GivenArg>::index_range_type;
   using handle_range_traits = indexing::index_range_traits<handle_range_t>;
 
@@ -571,43 +560,158 @@ struct _get_storage_arg_helper<
     ReverseMapping<typename collection_range_traits::mapping_to_dense_type>
   >;
 
+  // See if it needs to be mapped (i.e., if it needs immediate permissions)
+  static constexpr auto needs_mapping = std::decay_t<typename ParamTraits::type>::traits
+    ::permissions_traits::required_immediate_permissions
+      != AccessHandlePermissions::None;
+
+  template <typename ArgNeedingMapping>
   using _default_mapped_helper_t = _get_storage_arg_helper<
-    // Note that this type gets decayed in the companion helper, so no reason to also do so here
-    decltype(std::declval<GivenArg>().mapped_with(
+    // Note that this type gets decayed in the companion helper, so no reason
+    // to also do so here
+    decltype(std::declval<ArgNeedingMapping>().mapped_with(
       _default_mapping_t{
         std::declval<typename handle_range_traits::mapping_to_dense_type>(),
-        std::declval<decltype(
-          make_reverse_mapping(
-            std::declval<typename handle_range_traits::mapping_to_dense_type>()
+        std::declval<
+          decltype(
+            make_reverse_mapping(
+              std::declval<typename handle_range_traits::mapping_to_dense_type>()
+            )
           )
-        )>()
+        >()
       }
     )),
     ParamTraits, CollectionIndexRangeT
   >;
 
-  using type = typename _default_mapped_helper_t::type;
-  using return_type = type; // readability
+  using type = typename std::conditional_t<
+    needs_mapping,
+    typename tinympl::lazy<_default_mapped_helper_t>::template applied_to<GivenArg>,
+    tinympl::identity<UnmappedHandleCollection<std::decay_t<GivenArg>>>
+  >::type;
+  using return_type = type; // readability alias
+
+  // </editor-fold> end type aliases and traits }}}2
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  // <editor-fold desc="default mapped version"> {{{2
 
   template <typename TaskCollectionT>
   return_type
-  operator()(TaskCollectionT& collection, GivenArg&& arg) const {
+  operator()(
+    TaskCollectionT& collection, GivenArg&& arg,
+    std::enable_if_t<
+      not std::is_void<TaskCollectionT>::value // should be always true
+        and needs_mapping,
+      _not_a_type
+    > = {}
+  ) const {
+
     // First, check that the identity mapping is valid...
     DARMA_ASSERT_EQUAL_VERBOSE(
       arg.get_index_range().size(), collection.collection_range_.size()
     );
+
     // This default should probably be:
     // Composite of mapping_to_dense(handle_collection) -> reverse(mapping_to_dense(task_collection))
-    return _default_mapped_helper_t{}(
+    return _default_mapped_helper_t<GivenArg>{}(
       collection, std::forward<GivenArg>(arg).mapped_with(_default_mapping_t{
-        handle_range_traits::mapping_to_dense(arg.get_index_range()),
-        // Intentionally leave this as ADL; user could want to override it
-        make_reverse_mapping(
-          collection_range_traits::mapping_to_dense(collection.collection_range_)
-        )
-      })
+          handle_range_traits::mapping_to_dense(arg.get_index_range()),
+          // Intentionally leave this as ADL; user could want to override it
+          make_reverse_mapping(
+            collection_range_traits::mapping_to_dense(collection.collection_range_)
+          )
+        }
+      )
     );
   }
+
+  // </editor-fold> end default mapped version }}}2
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  // <editor-fold desc="unmapped version"> {{{2
+
+  template <typename TaskCollectionT>
+  return_type
+  operator()(
+    TaskCollectionT& collection, GivenArg&& arg,
+    std::enable_if_t<
+      not std::is_void<TaskCollectionT>::value // should be always true
+        and not needs_mapping,
+      _not_a_type
+    > = { }
+  ) const {
+
+    using handle_collection_t = typename return_type::access_handle_collection_t;
+    using handle_range_t = typename handle_collection_t::index_range_type;
+
+    // Custom create use holder callable for the captured use holder
+    auto captured_use_holder_maker = [&](
+      auto handle,
+      auto scheduling_permissions,
+      auto immediate_permissions,
+      auto in_desc, types::flow_t* in_rel,
+      auto out_desc, types::flow_t* out_rel, bool out_rel_is_in = false
+    ) {
+      return std::make_shared<
+        GenericUseHolder<CollectionManagingUse<handle_range_t>>
+      >(
+        CollectionManagingUse<handle_range_t>(
+          handle,
+          scheduling_permissions, immediate_permissions,
+          in_desc | abstract::frontend::FlowRelationship::Collection, in_rel,
+          out_desc | abstract::frontend::FlowRelationship::Collection, out_rel,
+          out_rel_is_in,
+          arg.get_index_range()
+        ), true, true
+      );
+    };
+
+    // Custom create use holder callable for the continuation use
+    auto continuation_use_holder_maker = [&](
+      auto handle,
+      auto scheduling_permissions,
+      auto immediate_permissions,
+      auto in_desc, types::flow_t* in_rel,
+      auto out_desc, types::flow_t* out_rel, bool out_rel_is_in = false
+    ) {
+      return CollectionManagingUse<handle_range_t>(
+        handle,
+        scheduling_permissions, immediate_permissions,
+        in_desc | abstract::frontend::FlowRelationship::Collection, in_rel,
+        out_desc | abstract::frontend::FlowRelationship::Collection, out_rel,
+        out_rel_is_in,
+        arg.get_index_range()
+      );
+    };
+
+    // Finally, make the return type...
+    auto rv = return_type(
+      handle_collection_t(
+        arg.var_handle_.get_smart_ptr(),
+        darma_runtime::detail::make_captured_use_holder(
+          arg.var_handle_base_,
+          /* Requested Scheduling permissions: */
+          HandleUse::Commutative,
+          /* Requested Immediate permissions: */
+          HandleUse::None,
+          /* source and continuing use handle */
+          arg.current_use_.get(),
+          // Customization functors:
+          captured_use_holder_maker,
+          continuation_use_holder_maker
+        ) // end arguments to make_captured_use_holder
+      )
+    );
+    collection.add_dependency(rv.collection.current_use_->use.get());
+
+    return std::move(rv);
+  }
+
+  // </editor-fold> end unmapped version }}}2
+  //----------------------------------------------------------------------------
 };
 
 // </editor-fold> end AccessHandleCollection version }}}1

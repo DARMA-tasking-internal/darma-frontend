@@ -139,12 +139,8 @@ class MockRuntime
       reduce_collection_use_gmock_proxy(use_collection_in.get(), use_out.get(),
         details, tag
       );
-      //use_out.reset(nullptr);
-      //use_collection_in.reset(nullptr);
       backend_owned_uses.emplace_back(std::move(use_collection_in));
       backend_owned_uses.emplace_back(std::move(use_out));
-      //assert(use_out.get() == nullptr);
-      //assert(use_collection_in.get() == nullptr);
     }
 
 
@@ -216,17 +212,54 @@ class MockRuntime
 
     MOCK_METHOD2(make_indexed_local_flow, flow_t(flow_t&, size_t));
     MOCK_METHOD3(make_indexed_fetching_flow, flow_t(flow_t&, key_t const&, size_t));
+    MOCK_METHOD2(make_indexed_flow, flow_t(flow_t&, size_t));
 
     MOCK_METHOD1(make_initial_flow_collection, flow_t(std::shared_ptr<handle_t const> const&));
     MOCK_METHOD1(make_null_flow_collection, flow_t(std::shared_ptr<handle_t const> const&));
     MOCK_METHOD1(make_next_flow_collection, flow_t(flow_t&));
 
+    // "New" methods
+    MOCK_METHOD1(register_use, void(darma_runtime::abstract::frontend::UsePendingRegistration*));
+    MOCK_METHOD1(release_use, void(darma_runtime::abstract::frontend::UsePendingRelease*));
 
 #ifdef __clang__
 #if __has_warning("-Winconsistent-missing-override")
 #pragma clang diagnostic pop
 #endif
 #endif
+
+
+    // "new" interface calls
+    void setup_default_delegators(
+      top_level_task_unique_ptr& top_level_task
+    ) {
+      ON_CALL(*this, get_running_task())
+        .WillByDefault(::testing::Return(top_level_task.get()));
+      ON_CALL(*this, allocate(::testing::_, ::testing::_))
+        .WillByDefault(::testing::Invoke([](auto size, auto const& details) {
+          return ::operator new(size);
+        }));
+      ON_CALL(*this, deallocate(::testing::_,::testing:: _))
+        .WillByDefault(::testing::Invoke([](auto* ptr, auto size) {
+          #if defined(__cpp_sized_deallocation)
+          ::operator delete(ptr, size);
+          #else
+          ::operator delete(ptr);
+          #endif
+        }));
+      setup_legacy_delegators();
+    }
+
+    void setup_legacy_delegators() {
+      ON_CALL(*this, register_use(::testing::_))
+        .WillByDefault(::testing::Invoke([this](auto* use) {
+          this->darma_runtime::abstract::backend::LegacyFlowsFromMethodsRuntime::register_use(use);
+        }));
+      ON_CALL(*this, release_use(::testing::_))
+        .WillByDefault(::testing::Invoke([this](auto* use) {
+          this->darma_runtime::abstract::backend::LegacyFlowsFromMethodsRuntime::release_use(use);
+        }));
+    }
 
 
     bool save_tasks = true;

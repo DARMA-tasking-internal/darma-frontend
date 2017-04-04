@@ -83,6 +83,7 @@ struct nonesuch {
   void operator=(nonesuch const&) = delete;
 };
 
+// TODO make this a tinympl::bool_
 template <template <class...> class Op, class... Args>
 using is_detected = detector<nonesuch, void, Op, Args...>;
 
@@ -101,9 +102,108 @@ using is_detected_exact = std::is_same<Expected, detected_t<Op, Args...>>;
 template <class To, template <class...> class Op, class... Args>
 using is_detected_convertible = std::is_convertible<detected_t<Op, Args...>, To>;
 
-
 } // end namespace tinympl
 
+#define _TINYMPL_DETECTED_TYPE_IMPL( \
+  assign_to, detected_name, of_type, default_type, access_specifier \
+) \
+  private: \
+    template <typename _##detected_name##_arch_param> \
+    using _##assign_to##_detect_##detected_name##_archetype = \
+      typename _##detected_name##_arch_param::detected_name; \
+  access_specifier: \
+    using assign_to = ::tinympl::detected_or_t<default_type, \
+       _##assign_to##_detect_##detected_name##_archetype, \
+       of_type \
+    >
 
+#define TINYMPL_PUBLIC_DETECTED_TYPE(assign_to, detected_name, of_type) \
+  _TINYMPL_DETECTED_TYPE_IMPL( \
+    assign_to, detected_name, of_type, ::tinympl::nonesuch, public \
+  )
+
+#define TINYMPL_PUBLIC_DETECTED_TYPE_WITH_DEFAULT( \
+  assign_to, detected_name, of_type, default_type \
+) \
+  _TINYMPL_DETECTED_TYPE_IMPL( \
+    assign_to, detected_name, of_type, default_type, public \
+  )
+
+#define TINYMPL_PRIVATE_DETECTED_TYPE(assign_to, detected_name, of_type) \
+  _TINYMPL_DETECTED_TYPE_IMPL( \
+    assign_to, detected_name, of_type, ::tinympl::nonesuch, private \
+  )
+
+#define TINYMPL_PRIVATE_DETECTED_TYPE_WITH_DEFAULT( \
+  assign_to, detected_name, of_type, default_type \
+) \
+  _TINYMPL_DETECTED_TYPE_IMPL( \
+    assign_to, detected_name, of_type, default_type, private \
+  )
+
+#define TINYMPL_PROTECTED_DETECTED_TYPE(assign_to, detected_name, of_type) \
+  _TINYMPL_DETECTED_TYPE_IMPL( \
+    assign_to, detected_name, of_type, ::tinympl::nonesuch, protected \
+  )
+
+#define TINYMPL_PROTECTED_DETECTED_TYPE_WITH_DEFAULT( \
+assign_to, detected_name, of_type, default_type \
+) \
+  _TINYMPL_DETECTED_TYPE_IMPL( \
+    assign_to, detected_name, of_type, default_type, protected \
+  )
+
+#define _TINYMPL_DETECTED_VALUE_WITH_DEFAULT_IMPL( \
+  assign_to, detected_name, of_type, default_value, access_specifier \
+) \
+  private: \
+    template <typename _##detected_name##_arch_param> \
+    using _##assign_to##_detect_value_##detected_name##_archetype = \
+      ::std::integral_constant< \
+        decltype(_##detected_name##_arch_param::detected_name), \
+        _##detected_name##_arch_param::detected_name \
+      >; \
+  access_specifier: \
+    static constexpr auto assign_to = ::tinympl::detected_or_t< \
+       ::std::integral_constant<decltype(default_value), default_value>, \
+       _##assign_to##_detect_value_##detected_name##_archetype, \
+       of_type \
+    >::value
+
+#define TINYMPL_PUBLIC_DETECTED_VALUE(assign_to, detected_name, of_type) \
+  _TINYMPL_DETECTED_VALUE_WITH_DEFAULT_IMPL( \
+    assign_to, detected_name, of_type, ::std::false_type, public \
+  )
+
+#define TINYMPL_PUBLIC_DETECTED_VALUE_WITH_DEFAULT( \
+  assign_to, detected_name, of_type, default_value \
+) \
+  _TINYMPL_DETECTED_VALUE_WITH_DEFAULT_IMPL( \
+    assign_to, detected_name, of_type, default_value, public \
+  )
+
+#define TINYMPL_PRIVATE_DETECTED_VALUE(assign_to, detected_name, of_type) \
+  _TINYMPL_DETECTED_VALUE_WITH_DEFAULT_IMPL( \
+    assign_to, detected_name, of_type, ::std::false_type, private \
+  )
+
+#define TINYMPL_PRIVATE_DETECTED_VALUE_WITH_DEFAULT( \
+assign_to, detected_name, of_type, default_value \
+) \
+  _TINYMPL_DETECTED_VALUE_WITH_DEFAULT_IMPL( \
+    assign_to, detected_name, of_type, default_value, private \
+  )
+
+#define TINYMPL_PROTECTED_DETECTED_VALUE(assign_to, detected_name, of_type) \
+  _TINYMPL_DETECTED_VALUE_WITH_DEFAULT_IMPL( \
+    assign_to, detected_name, of_type, ::std::false_type, protected \
+  )
+
+#define TINYMPL_PROTECTED_DETECTED_VALUE_WITH_DEFAULT( \
+assign_to, detected_name, of_type, default_value \
+) \
+  _TINYMPL_DETECTED_VALUE_WITH_DEFAULT_IMPL( \
+    assign_to, detected_name, of_type, default_value, protected \
+  )
 
 #endif /* TINYMPL_DETECTION_H_ */

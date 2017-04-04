@@ -49,6 +49,8 @@
 #  include <gtest/gtest_prod.h>
 #endif
 
+#include <darma/impl/commutative_access_fwd.h>
+
 #include <darma/impl/handle.h>
 
 #include <darma/impl/meta/splat_tuple.h>

@@ -50,6 +50,7 @@
 
 // included forward declarations
 #include <darma/impl/task_collection/task_collection_fwd.h>
+#include <darma/impl/commutative_access_fwd.h>
 
 // included interface files
 #include <darma/interface/app/keyword_arguments/index_range.h>
@@ -98,7 +99,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
     using value_type = T;
     using index_range_type = IndexRangeT;
-    using traits_t = Traits;
+    using traits_t = Traits; // TODO remove this one
+    using traits = Traits;
 
     template <typename... NewTraitsFlags>
     using with_trait_flags = AccessHandleCollection<
@@ -107,16 +109,19 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       >::template from_traits<traits_t>::type
     >;
 
+    template <typename NewTraits>
+    using with_traits = AccessHandleCollection<T, IndexRangeT, NewTraits>;
+
   protected:
 
     using variable_handle_ptr = detail::managing_ptr<
       std::shared_ptr<detail::VariableHandle<T>>,
       std::shared_ptr<detail::VariableHandleBase>
     >;
+    using use_t = detail::CollectionManagingUse<index_range_type>;
+    using use_holder_t = detail::GenericUseHolder<use_t>;
     using use_holder_ptr = detail::managing_ptr<
-      std::shared_ptr<
-        detail::GenericUseHolder<detail::CollectionManagingUse<index_range_type>>
-      >,
+      std::shared_ptr<use_holder_t>,
       detail::UseHolderBase*
     >;
     using element_use_holder_ptr = types::shared_ptr_template<detail::UseHolder>;
@@ -178,7 +183,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
             out_desc | abstract::frontend::FlowRelationship::Collection, out_rel,
             out_rel_is_in,
             source->current_use_->use->index_range
-          )
+          ), true, true
         );
       };
 
@@ -582,6 +587,13 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     friend
     struct serialization::Serializer<AccessHandleCollection>;
 
+
+    template <typename, typename...>
+    friend struct detail::_commutative_access_impl;
+
+    template <typename, typename...>
+    friend struct detail::_noncommutative_collection_access_impl;
+
   // </editor-fold> end friends }}}1
   //============================================================================
 
@@ -870,17 +882,26 @@ using ReadAccessHandleCollection = AccessHandleCollection<
   >
 >;
 
-template <typename T, typename IndexRange>
-using CommutativeAccessHandleCollection = AccessHandleCollection<
-  T, IndexRange,
-  detail::access_handle_collection_traits<T, IndexRange,
-    detail::access_handle_permissions_traits<
-      /* Required scheduling = */ detail::AccessHandlePermissions::Commutative,
-      /* Required immediate = */ detail::AccessHandlePermissions::None,
-      /* Static scheduling = */ detail::AccessHandlePermissions::Commutative
-    >
-    // All of the other categories are defaulted
-  >
+template <typename T, typename IndexRange,
+  typename OtherTraits=detail::make_access_handle_collection_traits_t<T, IndexRange>
+>
+using CommutativeAccessHandleCollection = typename AccessHandleCollection<
+  T, IndexRange
+>::template with_traits<
+  typename detail::make_access_handle_collection_traits<T, IndexRange,
+    detail::required_immediate_permissions<detail::AccessHandlePermissions::None>,
+    // For now, at least, a CommutativeAccessHandleCollection can never be indexed
+    // and have local_access() called on the indexed return value, so it never
+    // has immediate permissions other than None
+    detail::static_immediate_permissions<detail::AccessHandlePermissions::None>,
+    detail::required_scheduling_permissions<detail::AccessHandlePermissions::Commutative>,
+    detail::static_scheduling_permissions<detail::AccessHandlePermissions::Commutative>
+  >::template from_traits<OtherTraits>::type
+>;
+
+template <typename T, typename IndexRange, typename... TraitsFlags>
+using CommutativeAccessHandleCollectionWithTraits = CommutativeAccessHandleCollection<
+  T, IndexRange, detail::make_access_handle_collection_traits_t<T, IndexRange, TraitsFlags...>
 >;
 
 //==============================================================================

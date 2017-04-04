@@ -95,6 +95,131 @@ MATCHER_P4(IsUseWithFlows, f_in, f_out, scheduling_permissions, immediate_permis
   return true;
 }
 
+MATCHER_P(InFlowRelationshipIndex, value, "use->get_in_flow_relationship().index() = "
+  + PrintToString(value)
+) {
+  if(arg == nullptr) {
+    *result_listener << "arg is null";
+    return false;
+  }
+  *result_listener << "use->get_in_flow_relationship().index() = "
+                   << arg->get_in_flow_relationship().index();
+  return arg->get_in_flow_relationship().index() == value;
+}
+
+MATCHER_P(OutFlowRelationshipIndex, value, "use->get_out_flow_relationship().index() = "
+  + PrintToString(value)
+) {
+  if(arg == nullptr) {
+    *result_listener << "arg is null";
+    return false;
+  }
+  *result_listener << "use->get_out_flow_relationship().index() = "
+                   << arg->get_out_flow_relationship().index();
+  return arg->get_out_flow_relationship().index() == value;
+}
+
+MATCHER_P(UseEstablishesAlias, value, "use->establishes_alias() = " + PrintToString(value)) {
+  if(arg == nullptr) {
+    *result_listener << "arg is null";
+    return false;
+  }
+  *result_listener << "arg->establishes_alias() " << std::boolalpha << arg->establishes_alias();
+  return arg->establishes_alias() == value;
+}
+
+MATCHER_P(UseWillBeDependency, value, "use->will_be_dependency() = " + PrintToString(value)) {
+  if(arg == nullptr) {
+    *result_listener << "arg is null";
+    return false;
+  }
+  *result_listener << "arg->will_be_dependency() = " << std::boolalpha << arg->will_be_dependency();
+  return arg->will_be_dependency() == value;
+}
+
+MATCHER_P(IsUseWithHandleKey, key, "handle->get_key() = " + PrintToString(key)) {
+  if(arg == nullptr) {
+    *result_listener << "arg is null";
+    return false;
+  }
+  *result_listener << "arg has key " << arg->get_handle()->get_key();
+  return arg->get_handle()->get_key() == key;
+}
+
+template <typename T> struct _deref_non_null { decltype(auto) operator()(T val) const { return *val; } };
+template <> struct _deref_non_null<std::nullptr_t> { decltype(auto) operator()(nullptr_t) const { return nullptr; } };
+template <> struct _deref_non_null<std::nullptr_t&> { decltype(auto) operator()(nullptr_t) const { return nullptr; } };
+template <> struct _deref_non_null<std::nullptr_t const&> { decltype(auto) operator()(nullptr_t) const { return nullptr; } };
+template <> struct _deref_non_null<std::nullptr_t&&> { decltype(auto) operator()(nullptr_t) const { return nullptr; } };
+template <typename T> decltype(auto) deref_non_null(T&& val) { return _deref_non_null<T&&>{}(std::forward<T>(val)); }
+
+MATCHER_P7(IsUseWithFlowRelationships, f_in_rel, f_in, f_out_rel, f_out, out_rel_is_in, scheduling_permissions, immediate_permissions,
+  "in_flow relationship: " + PrintToString(f_in_rel)
+    + ", in_flow related: " + PrintToString(deref_non_null(f_in))
+    + ", out_flow relationship: " + PrintToString(f_out_rel)
+    + ", out_flow_related: " + PrintToString(deref_non_null(f_out))
+    + ", out_flow_related_is_in: " + PrintToString(out_rel_is_in)
+    + ", scheduling_permissions: " + permissions_to_string(scheduling_permissions)
+    + ", immediate_permissions: " + permissions_to_string(immediate_permissions)
+) {
+  if(arg == nullptr) {
+    *result_listener << "arg is null";
+    return false;
+  }
+
+#if DARMA_SAFE_TEST_FRONTEND_PRINTERS
+  *result_listener << "arg (unprinted for safety)";
+#else
+  *result_listener << "in_flow relationship: " << PrintToString(arg->get_in_flow_relationship().description());
+  if(arg->get_in_flow_relationship().related_flow() == nullptr) {
+    *result_listener << ", in_flow_related: NULL";
+  }
+  else {
+    *result_listener << ", in_flow related: "
+                     << PrintToString(*arg->get_in_flow_relationship().related_flow());
+  }
+  *result_listener << ", out_flow relationship: " << PrintToString(arg->get_out_flow_relationship().description());
+  if(arg->get_out_flow_relationship().related_flow() == nullptr) {
+    *result_listener << ", out_flow_related: NULL";
+  }
+  else {
+    *result_listener << ", out_flow related: "
+                     << PrintToString(*arg->get_out_flow_relationship().related_flow());
+  }
+  *result_listener << ", out_flow_related_is_in: " << PrintToString(arg->get_out_flow_relationship().use_corresponding_in_flow_as_related())
+    << ", scheduling_permissions: " << permissions_to_string(arg->scheduling_permissions())
+    << ", immediate_permissions: " << permissions_to_string(arg->immediate_permissions());
+#endif
+
+  using namespace mock_backend;
+  if(f_in == nullptr) {
+    if(arg->get_in_flow_relationship().related_flow() != nullptr) return false;
+  }
+  else {
+    if(arg->get_in_flow_relationship().related_flow() == nullptr) return false;
+    if(*arg->get_in_flow_relationship().related_flow() != deref_non_null(f_in)) return false;
+    if(arg->get_in_flow_relationship().description() != f_in_rel) return false;
+  }
+
+  if(f_out == nullptr) {
+    if(arg->get_out_flow_relationship().related_flow() != nullptr) return false;
+  }
+  else {
+    if(arg->get_out_flow_relationship().related_flow() == nullptr) return false;
+    if(*arg->get_out_flow_relationship().related_flow() != deref_non_null(f_out)) return false;
+    if(arg->get_out_flow_relationship().description() != f_out_rel) return false;
+  }
+  if(arg->get_out_flow_relationship().use_corresponding_in_flow_as_related() xor out_rel_is_in) return false;
+
+  if(immediate_permissions != -1) {
+    if(immediate_permissions != int(arg->immediate_permissions())) return false;
+  }
+  if(scheduling_permissions != -1) {
+    if(scheduling_permissions != int(arg->scheduling_permissions())) return false;
+  }
+  return true;
+}
+
 MATCHER_P(UseRefIsNonNull, use, "Use* reference is non-null at time of invocation") {
   if(use == nullptr) {
     *result_listener << "Use* reference is null at time of invocation";

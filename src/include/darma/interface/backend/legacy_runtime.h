@@ -205,6 +205,15 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
       types::key_t const& version_key,
       size_t backend_index
     ) =0;
+#if _darma_has_feature(commutative_access_handles)
+    virtual types::flow_t
+    make_indexed_flow(
+      types::flow_t& from,
+      size_t backend_index
+    ) {
+      return from; // filler, override if needed
+    }
+#endif
 #endif
 
     /** @todo update this
@@ -272,7 +281,8 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
 
     // Implementations of the new register_use() and release_use() that translate
     // to the old semantics
-    void register_use(frontend::UsePendingRegistration* use) override
+    virtual void
+    register_use(frontend::UsePendingRegistration* use) override
     {
       using namespace darma_runtime::abstract::frontend;
       types::flow_t in_flow;
@@ -314,6 +324,13 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
         }
         case FlowRelationship::IndexedLocal : {
           in_flow = make_indexed_local_flow(
+            *in_rel.related_flow(),
+            in_rel.index()
+          );
+          break;
+        }
+        case FlowRelationship::Indexed : {
+          in_flow = make_indexed_flow(
             *in_rel.related_flow(),
             in_rel.index()
           );
@@ -382,6 +399,13 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
           );
           break;
         }
+        case FlowRelationship::Indexed : {
+          out_flow = make_indexed_flow(
+            *out_rel.related_flow(),
+            out_rel.index()
+          );
+          break;
+        }
         case FlowRelationship::IndexedFetching : {
           out_flow = make_indexed_fetching_flow(
             *out_related_flow,
@@ -416,7 +440,8 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
 
     }
 
-    void release_use(frontend::UsePendingRelease* use) override
+    virtual void
+    release_use(frontend::UsePendingRelease* use) override
     {
       if(use->establishes_alias()) {
         establish_flow_alias(use->get_in_flow(), use->get_out_flow());

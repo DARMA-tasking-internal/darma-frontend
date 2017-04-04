@@ -250,6 +250,41 @@ struct _get_task_stored_arg_helper<
 // </editor-fold> end MappedHandleCollection case }}}1
 //==============================================================================
 
+//==============================================================================
+// <editor-fold desc="UnmappedHandleCollection case"> {{{1
+
+template <typename Functor, typename CollectionArg, size_t Position>
+struct _get_task_stored_arg_helper<
+  Functor, CollectionArg, Position,
+  std::enable_if_t<
+    tinympl::is_instantiation_of<
+      UnmappedHandleCollection,
+      std::decay_t<CollectionArg>
+    >::value
+  >
+>
+{
+  using type = typename CollectionArg::access_handle_collection_t;
+  using return_type = type; // readability
+
+  template <typename TaskCollectionInstanceT, typename TaskInstance>
+  return_type
+  operator()(
+    TaskCollectionInstanceT& instance,
+    size_t backend_index,
+    CollectionArg const& arg,
+    TaskInstance& task
+  ) const
+  {
+    // make a copy of the handle collection for the task instance
+    return arg.collection;
+  }
+
+};
+
+// </editor-fold> end UnmappedHandleCollection case }}}1
+//==============================================================================
+
 // </editor-fold> end _get_task_stored_arg_helper for creating TaskCollectionTasks
 //==============================================================================
 

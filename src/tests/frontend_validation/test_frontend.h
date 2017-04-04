@@ -300,6 +300,140 @@ struct UseDescription {
 #define EXPECT_FLOW_ALIAS(f1, f2) \
   EXPECT_CALL(*mock_runtime, establish_flow_alias(::testing::Eq(f1), ::testing::Eq(f2)))
 
+#define EXPECT_NEW_REGISTER_USE(use_ptr, fin, fin_rel, fin_src, fout, fout_rel, fout_src, out_rel_is_in, sched, immed, will_be_dep) \
+  EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf( \
+    IsUseWithFlowRelationships( \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fin_rel, fin_src, \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fout_rel, fout_src, out_rel_is_in, \
+      use_t::sched, use_t::immed \
+    ), \
+    UseWillBeDependency(will_be_dep) \
+  ))).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
+    use_ptr = use_arg; \
+    use_arg->set_in_flow(fin); \
+    use_arg->set_out_flow(fout); \
+  }))
+
+#define EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(use_ptr, fin, fin_rel, fin_src, fout, fout_rel, fout_src, out_rel_is_in, sched, immed, will_be_dep, value) \
+  EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf( \
+    IsUseWithFlowRelationships( \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fin_rel, fin_src, \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fout_rel, fout_src, out_rel_is_in, \
+      use_t::sched, use_t::immed \
+    ), \
+    UseWillBeDependency(will_be_dep) \
+  ))).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
+    use_ptr = use_arg; \
+    use_arg->set_in_flow(fin); \
+    use_arg->set_out_flow(fout); \
+    ::darma_runtime::abstract::frontend::use_cast<::darma_runtime::abstract::frontend::DependencyUse*>( \
+      use_ptr \
+    )->get_data_pointer_reference() = &(value); \
+  }))
+
+#define EXPECT_NEW_REGISTER_USE_WITH_EXTRA_CONSTRAINTS(use_ptr, fin, fin_rel, fin_src, fout, fout_rel, fout_src, out_rel_is_in, sched, immed, will_be_dep, extra_constraints...) \
+  EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf( \
+    IsUseWithFlowRelationships( \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fin_rel, fin_src, \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fout_rel, fout_src, out_rel_is_in, \
+      use_t::sched, use_t::immed \
+    ), \
+    UseWillBeDependency(will_be_dep), \
+    extra_constraints \
+  ))).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
+    use_ptr = use_arg; \
+    use_arg->set_in_flow(fin); \
+    use_arg->set_out_flow(fout); \
+  }))
+
+#define EXPECT_NEW_REGISTER_USE_WITH_EXTRA_CONSTRAINTS_AND_SET_BUFFER( \
+  use_ptr, fin, fin_rel, fin_src, fout, fout_rel, fout_src, out_rel_is_in,\
+  sched, immed, will_be_dep, buffer, extra_constraints... \
+) \
+  EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf( \
+    IsUseWithFlowRelationships( \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fin_rel, fin_src, \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fout_rel, fout_src, out_rel_is_in, \
+      use_t::sched, use_t::immed \
+    ), \
+    UseWillBeDependency(will_be_dep), \
+    extra_constraints \
+  ))).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
+    use_ptr = use_arg; \
+    use_arg->set_in_flow(fin); \
+    use_arg->set_out_flow(fout); \
+    ::darma_runtime::abstract::frontend::use_cast<::darma_runtime::abstract::frontend::DependencyUse*>( \
+      use_ptr \
+    )->get_data_pointer_reference() = &(value); \
+  }))
+
+#define EXPECT_NEW_REGISTER_USE_COLLECTION(use_ptr, fin, fin_rel, fin_src, \
+  fout, fout_rel, fout_src, out_rel_is_in, sched, immed, will_be_dep, collsize) \
+  EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf(IsUseWithFlowRelationships( \
+    ::darma_runtime::abstract::frontend::FlowRelationship::fin_rel, fin_src, \
+    ::darma_runtime::abstract::frontend::FlowRelationship::fout_rel, fout_src, out_rel_is_in, \
+    use_t::sched, use_t::immed \
+  ), \
+  UseWillBeDependency(will_be_dep), \
+  ::testing::Truly([=](auto* use){ \
+    return ( \
+      use->manages_collection() \
+      and \
+        ::darma_runtime::abstract::frontend::use_cast< \
+          ::darma_runtime::abstract::frontend::CollectionManagingUse* \
+        >(use)->get_managed_collection()->size() == collsize \
+    ); \
+  })))).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
+    use_ptr = use_arg; \
+    use_arg->set_in_flow(fin); \
+    use_arg->set_out_flow(fout); \
+  }))
+
+#define EXPECT_NEW_INITIAL_ACCESS(fin, fout, use_ptr, key) \
+  EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf( \
+    IsUseWithFlowRelationships( \
+      ::darma_runtime::abstract::frontend::FlowRelationship::Initial, nullptr, \
+      ::darma_runtime::abstract::frontend::FlowRelationship::Null, nullptr, false, \
+      use_t::Modify, use_t::None \
+    ), \
+    UseWillBeDependency(false), \
+    IsUseWithHandleKey(key) \
+  ))).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
+    use_ptr = use_arg; \
+    use_arg->set_in_flow(fin); \
+    use_arg->set_out_flow(fout); \
+  }))
+
+#define EXPECT_NEW_INITIAL_ACCESS_COLLECTION(fin, fout, use_ptr, key, collsize) \
+  EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf( \
+    IsUseWithFlowRelationships( \
+      ::darma_runtime::abstract::frontend::FlowRelationship::InitialCollection, nullptr, \
+      ::darma_runtime::abstract::frontend::FlowRelationship::NullCollection, nullptr, false, \
+      use_t::Modify, use_t::None \
+    ), \
+    UseWillBeDependency(false), \
+    IsUseWithHandleKey(key), \
+    ::testing::Truly([=](auto* use){ \
+      return ( \
+        use->manages_collection() \
+        and \
+          ::darma_runtime::abstract::frontend::use_cast< \
+            ::darma_runtime::abstract::frontend::CollectionManagingUse* \
+          >(use)->get_managed_collection()->size() == collsize \
+      ); \
+    }) \
+  ))).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
+    use_ptr = use_arg; \
+    use_arg->set_in_flow(fin); \
+    use_arg->set_out_flow(fout); \
+  }))
+
+#define EXPECT_NEW_RELEASE_USE(use_ptr, est_alias) \
+  EXPECT_CALL(*mock_runtime, release_use(::testing::AllOf( \
+    ::testing::Eq(::testing::ByRef(use_ptr)), \
+    UseEstablishesAlias(est_alias) \
+  ))).WillOnce(::testing::Assign(&use_ptr, nullptr));
+
 // (Move this to somewhere more general if/when necessary)
 #define _DARMA_PP_NUM_ARGS_HELPER(X100, X99, X98, X97, X96, X95, X94, X93, X92, X91, X90, X89, X88, X87, X86, X85, X84, X83, X82, X81, X80, X79, X78, X77, X76, X75, X74, X73, X72, X71, X70, X69, X68, X67, X66, X65, X64, X63, X62, X61, X60, X59, X58, X57, X56, X55, X54, X53, X52, X51, X50, X49, X48, X47, X46, X45, X44, X43, X42, X41, X40, X39, X38, X37, X36, X35, X34, X33, X32, X31, X30, X29, X28, X27, X26, X25, X24, X23, X22, X21, X20, X19, X18, X17, X16, X15, X14, X13, X12, X11, X10, X9, X8, X7, X6, X5, X4, X3, X2, X1, N, ...)   N
 
@@ -402,20 +536,7 @@ class TestFrontend
 
       assert(mock_runtime == nullptr);
       mock_runtime = std::make_unique<Strictness<mock_backend::MockRuntime>>();
-      ON_CALL(*mock_runtime, get_running_task())
-        .WillByDefault(Return(top_level_task.get()));
-      ON_CALL(*mock_runtime, allocate(_, _))
-        .WillByDefault(Invoke([](auto size, auto const& details) {
-          return ::operator new(size);
-        }));
-      ON_CALL(*mock_runtime, deallocate(_, _))
-        .WillByDefault(Invoke([](auto* ptr, auto size) {
-#if defined(__cpp_sized_deallocation)
-          ::operator delete(ptr, size);
-#else
-          ::operator delete(ptr);
-#endif
-        }));
+      mock_runtime->setup_default_delegators(top_level_task);
 
       mock_runtime_setup_done = true;
     }

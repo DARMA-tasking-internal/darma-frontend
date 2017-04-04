@@ -1005,28 +1005,116 @@ TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// TODO testing of new-style Uses
-//TEST_F_WITH_PARAMS(TestCreateWork, register_use_new,
-//  ::testing::Bool(), bool
-//)
-//{
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//  using namespace darma_runtime::keyword_arguments_for_commutative_access;
-//  using namespace mock_backend;
-//
-//  //============================================================================
-//  // Actual code being tested
-//  {
-//    auto tmp = initial_access<int>("hello");
-//
-//    create_work([=]{
-//      // This code doesn't run in this example
-//      tmp.set_value(5);
-//      FAIL() << "This code block shouldn't be running in this example";
-//    });
-//
-//  } // tmp deleted
-//  //============================================================================
-//}
+TEST_F(TestCreateWork, mod_capture_new) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(f_initial, f_null, f_task_out);
+  use_t* task_use = nullptr;
+  use_t* use_initial = nullptr;
+  use_t* use_cont = nullptr;
+
+  {
+    InSequence s1;
+
+    EXPECT_NEW_INITIAL_ACCESS(f_initial, f_null, use_initial, make_key("hello"));
+
+    EXPECT_NEW_REGISTER_USE(task_use,
+      f_initial, Same, &f_initial,
+      f_task_out, Next, nullptr, true,
+      Modify, Modify, true
+    );
+
+    EXPECT_NEW_REGISTER_USE(use_cont,
+      f_task_out, Same, &f_task_out,
+      f_null, Same, &f_null, false,
+      Modify, None, false
+    );
+
+    EXPECT_NEW_RELEASE_USE(use_initial, false);
+
+    EXPECT_REGISTER_TASK(task_use);
+
+    EXPECT_NEW_RELEASE_USE(use_cont, true);
+  }
+
+  //============================================================================
+  // Actual code being tested
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work([=]{
+      // This code doesn't run in this example
+      tmp.set_value(5);
+      FAIL() << "This code block shouldn't be running in this example";
+    });
+
+  } // tmp deleted
+  //============================================================================
+
+  EXPECT_NEW_RELEASE_USE(task_use, false);
+
+  mock_runtime->registered_tasks.clear();
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, mod_capture_new_track_same) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(finit1, finit2, fnull1, fnull2, ftaskout1, ftaskout2);
+  use_t* task_use = nullptr;
+  use_t* use_initial = nullptr;
+  use_t* use_cont = nullptr;
+
+  {
+    InSequence s1;
+
+    EXPECT_NEW_INITIAL_ACCESS(finit1, fnull1, use_initial, make_key("hello"));
+
+    EXPECT_NEW_REGISTER_USE(task_use,
+      finit2, Same, &finit1,
+      ftaskout1, Next, nullptr, true,
+      Modify, Modify, true
+    );
+
+    EXPECT_NEW_REGISTER_USE(use_cont,
+      ftaskout2, Same, &ftaskout1,
+      fnull2, Same, &fnull1, false,
+      Modify, None, false
+    );
+
+    EXPECT_NEW_RELEASE_USE(use_initial, false);
+
+    EXPECT_REGISTER_TASK(task_use);
+
+    EXPECT_NEW_RELEASE_USE(use_cont, true);
+  }
+
+  //============================================================================
+  // Actual code being tested
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work([=]{
+      // This code doesn't run in this example
+      tmp.set_value(5);
+      FAIL() << "This code block shouldn't be running in this example";
+    });
+
+  } // tmp deleted
+  //============================================================================
+
+  EXPECT_NEW_RELEASE_USE(task_use, false);
+
+  mock_runtime->registered_tasks.clear();
+
+}

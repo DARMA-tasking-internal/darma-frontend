@@ -164,9 +164,12 @@ struct GenericUseHolder : UseHolderBase {
   GenericUseHolder(GenericUseHolder const &) = delete;
 
   explicit
-  GenericUseHolder(UnderlyingUse&& in_use, bool do_register_in_ctor=true)
-    : use(use_base, std::make_unique<UnderlyingUse>(std::move(in_use)))
+  GenericUseHolder(UnderlyingUse&& in_use,
+    bool do_register_in_ctor=true,
+    bool will_be_dep=false
+  ) : use(use_base, std::make_unique<UnderlyingUse>(std::move(in_use)))
   {
+    use->is_dependency_ = will_be_dep;
     if(do_register_in_ctor) do_register();
   }
 

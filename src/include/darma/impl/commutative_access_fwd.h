@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          detection.h
-//                         dharma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      commutative_access_fwd.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,53 +42,20 @@
 //@HEADER
 */
 
-#ifndef FRONTEND_INCLUDE_DARMA_META_DETECTION_H_
-#define FRONTEND_INCLUDE_DARMA_META_DETECTION_H_
-
-// NOTE:  These are now just aliases to tinympl detection.  Make changes there!
-
-#include <type_traits>
-
-#include <tinympl/detection.hpp>
-
-#include "void_t.h"
+#ifndef DARMA_IMPL_COMMUTATIVE_ACCESS_FWD_H
+#define DARMA_IMPL_COMMUTATIVE_ACCESS_FWD_H
 
 namespace darma_runtime {
+namespace detail {
 
-namespace meta {
+template <typename T, typename...>
+struct _commutative_access_impl;
+template <typename T, typename...>
+struct _noncommutative_access_impl;
+template <typename T, typename...>
+struct _noncommutative_collection_access_impl;
 
-// Large pieces taken or adapted from http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4436.pdf
-
-using nonesuch = tinympl::nonesuch;
-
-template <template <class...> class Op, class... Args>
-using is_detected = tinympl::detector<nonesuch, void, Op, Args...>;
-
-// same as is_detected, but strictly wrapped in an integral constant
-template <template <class...> class Op, class... Args>
-using is_detected_value_t = std::integral_constant<bool,
-  tinympl::detector<nonesuch, void, Op, Args...>::value
->;
-
-template <template <class...> class Op, class... Args>
-using detected_t = typename tinympl::is_detected<Op, Args...>::type;
-
-template <class Default, template <class...> class Op, class... Args>
-using detected_or = tinympl::detector<Default, void, Op, Args...>;
-
-template <class Default, template <class...> class Op, class... Args>
-using detected_or_t = typename tinympl::detected_or<Default, Op, Args...>::type;
-
-template <class Expected, template<class...> class Op, class... Args>
-using is_detected_exact = std::is_same<Expected, tinympl::detected_t<Op, Args...>>;
-
-template <class To, template <class...> class Op, class... Args>
-using is_detected_convertible = std::is_convertible<tinympl::detected_t<Op, Args...>, To>;
-
-} // end namespace meta
-
+} // end namespace detail
 } // end namespace darma_runtime
 
-
-
-#endif /* FRONTEND_INCLUDE_DARMA_META_DETECTION_H_ */
+#endif //DARMA_IMPL_COMMUTATIVE_ACCESS_FWD_H

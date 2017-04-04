@@ -151,9 +151,9 @@ class managing_ptr {
         std::is_void<_Ignored_SFINAE>::value
           and managed_is_directly_assignable::value,
         _not_a_type_numbered<1>
-    > = {}
+      > = {}
     ) {
-      managed_ptr_.reset(nullptr);
+      managed_ptr_.reset();
     }
 
     template <typename _Ignored_SFINAE=void>
@@ -164,7 +164,7 @@ class managing_ptr {
         std::is_void<_Ignored_SFINAE>::value
           and not managed_is_directly_assignable::value,
         _not_a_type_numbered<2>
-    > = {}
+      > = {}
     ) {
       managed_ptr_ = nullptr;
     }

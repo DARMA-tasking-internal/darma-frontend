@@ -49,6 +49,8 @@
 
 #if _darma_has_feature(commutative_access_handles)
 
+#include <darma/impl/commutative_access_fwd.h>
+
 #include <darma/impl/meta/detection.h> // nonesuch
 #include <darma/impl/keyword_arguments/macros.h>
 #include <darma/impl/keyword_arguments/parse.h>
@@ -144,7 +146,12 @@ struct _commutative_access_impl {
 
   template <typename AccessHandleT>
   decltype(auto)
-  operator()(AccessHandleT&& in_handle) const
+  operator()(AccessHandleT&& in_handle,
+    std::enable_if_t<
+      is_access_handle<std::decay_t<AccessHandleT>>::value,
+      _not_a_type_numbered<0>
+    > = {}
+  ) const
   {
     static_assert(
       is_access_handle<std::decay_t<AccessHandleT>>::value
@@ -223,35 +230,38 @@ struct _commutative_access_impl {
     std::integer_sequence<std::size_t, TraitIdxs...>
   ) const
   {
-    using in_handle_t = std::decay_t<AccessHandleCollectionT>;
+    using in_handle_t = typename std::decay<AccessHandleCollectionT>::type;
     using out_handle_t = typename in_handle_t::template with_traits<
       typename make_access_handle_collection_traits<
-        typename in_handle_t::value_type, typename in_handle_t::index_range_t,
+        typename in_handle_t::value_type, typename in_handle_t::index_range_type,
         typename trait_flags_t::template at_t<TraitIdxs>...
       >::template from_traits<
         typename make_access_handle_collection_traits<
-          typename in_handle_t::value_type, typename in_handle_t::index_range_t,
+          typename in_handle_t::value_type, typename in_handle_t::index_range_type,
           static_scheduling_permissions<AccessHandlePermissions::Commutative>,
-          required_scheduling_permissions<AccessHandlePermissions::Commutative>,
-          copy_assignable_handle<false>,
-          could_be_outermost_scope<true>
+          required_scheduling_permissions<AccessHandlePermissions::Commutative>
         >::type
       >::type
     >;
+
+    // TODO use allocator
 
     using namespace darma_runtime::abstract::frontend;
 
     // in handle unless one is given for the new handle, which is not yet
     // supported anyway)
-    auto
-      new_use_ptr = std::allocate_shared<typename out_handle_t::use_holder_t>(
-      in_handle.get_allocator(),
-      HandleUse(
-        in_handle.var_handle_,
+    auto new_use_ptr = std::make_shared<typename out_handle_t::use_holder_t>(
+      typename out_handle_t::use_t(
+        in_handle.var_handle_.get_smart_ptr(),
         HandleUse::Commutative, /* scheduling permissions */
         HandleUse::None, /* immediate permissions */
-        FlowRelationship::Same, &in_handle.current_use_->use->in_flow_,
-        FlowRelationship::Next, nullptr, true
+        FlowRelationship::SameCollection, &in_handle.current_use_->use->in_flow_,
+        FlowRelationship::NextCollection, nullptr, true,
+        // we probably COULD move the index range from the old use now, since
+        // it's going away, but for now, just copy it, since we might want
+        // to use it in the destructor of the old use at some point in the
+        // future
+        in_handle.current_use_->use->index_range
       )
     );
     assert(in_handle.current_use_->use->suspended_out_flow_ == nullptr);
@@ -260,29 +270,23 @@ struct _commutative_access_impl {
     );
     in_handle.current_use_->could_be_alias = false;
 
-    if (in_handle.current_use_->is_registered) {
-      new_use_ptr->do_register();
-    }
-
-    // Hold the variable handle so that it doesn't expire
-    auto var_handle = in_handle.var_handle_;
-
     // release the use from the expired handle
     in_handle.current_use_ = nullptr;
-    in_handle.var_handle_ = nullptr;
 
     return out_handle_t(
-      var_handle, new_use_ptr
+      in_handle.var_handle_.release_smart_ptr(), new_use_ptr
     );
   }
 
-  template <typename AccessHandleCollectionT,
-    typename=std::enable_if_t<is_access_handle_collection<
-      std::decay_t<AccessHandleCollectionT>
-    >::value>
-  >
+  template <typename AccessHandleCollectionT>
   decltype(auto)
-  operator()(AccessHandleCollectionT&& in_handle) const
+  operator()(
+    AccessHandleCollectionT&& in_handle,
+    std::enable_if_t<
+      is_access_handle_collection<std::decay_t<AccessHandleCollectionT>>::value,
+      _not_a_type_numbered<1>
+    > = {}
+  ) const
   {
     using ahc_t = std::decay_t<AccessHandleCollectionT>;
     static_assert(
@@ -301,36 +305,42 @@ struct _commutative_access_impl {
     );
     static_assert(
       handle_permissions_equal_if_given<
-        ahc_t::traits_t::permissions_traits::static_scheduling_permissions,
+        ahc_t::traits::permissions_traits::static_scheduling_permissions,
         AccessHandlePermissions::Modify
       >::value,
       "Can't create commutative_access to collection that is marked with scheduling"
         " permissions less than Modify at compile time"
     );
     static_assert(
-      ahc_t::traits_t::permissions_traits::static_scheduling_permissions
+      ahc_t::traits::permissions_traits::static_scheduling_permissions
         != AccessHandlePermissions::Commutative,
       "Can't create commutative_access to collection that is already marked"
         " commutative at compile time"
     );
     static_assert(
-      ahc_t::traits_t::permissions_traits::static_immediate_permissions
+      ahc_t::traits::permissions_traits::static_immediate_permissions
         != AccessHandlePermissions::Commutative,
       "Can't create commutative_access to collection that is already marked"
         " commutative at compile time"
     );
     static_assert(
-      ahc_t::traits_t::permissions_traits::required_scheduling_permissions
+      ahc_t::traits::permissions_traits::required_scheduling_permissions
         != AccessHandlePermissions::Commutative,
       "Can't create commutative_access to collection that is already marked"
         " commutative at compile time"
     );
     static_assert(
-      ahc_t::traits_t::permissions_traits::required_immediate_permissions
+      ahc_t::traits::permissions_traits::required_immediate_permissions
         != AccessHandlePermissions::Commutative,
       "Can't create commutative_access to collection that is already marked"
         " commutative at compile time"
     );
+    static_assert(
+      ahc_t::traits::semantic_traits::is_mapped != OptionalBoolean::KnownTrue,
+      "Can't create commutative_access to collection that is mapped to a task"
+        " collection"
+    );
+    // TODO check non-static is_mapped
     DARMA_ASSERT_MESSAGE(
       in_handle.current_use_.get() != nullptr,
       "commutative_access(to_handle=...) called on uninitialized or released AccessHandle"
@@ -605,6 +615,208 @@ struct _noncommutative_access_impl {
 
 };
 
+template <typename T, typename... TraitFlags>
+struct _noncommutative_collection_access_impl {
+
+  using trait_flags_t = std::conditional_t<
+    is_access_handle_trait_flag<T>::value,
+    tinympl::vector<T, TraitFlags...>,
+    tinympl::vector<TraitFlags...>
+  >;
+
+  using given_value_type_t = std::conditional_t<
+    is_access_handle_trait_flag<T>::value,
+    meta::nonesuch,
+    T
+  >;
+
+  template <typename AccessHandleCollectionT, std::size_t... TraitIdxs>
+  decltype(auto)
+  _collection_version_impl(
+    AccessHandleCollectionT&& in_handle,
+    std::integer_sequence<std::size_t, TraitIdxs...>
+  ) const
+  {
+    using in_handle_t = std::decay_t<AccessHandleCollectionT>;
+    using default_traits_t = typename make_access_handle_collection_traits<
+      typename in_handle_t::value_type, typename in_handle_t::index_range_type,
+      static_scheduling_permissions<AccessHandlePermissions::Modify>,
+      required_scheduling_permissions<AccessHandlePermissions::None>
+      // TODO track copy assignability of AHC
+      // copy_assignable_handle<false>,
+      // TODO track outermost scope/captured semantics of AHC
+      //could_be_outermost_scope<true>
+    >::type;
+
+    using out_handle_t = typename in_handle_t::template with_traits<
+      typename make_access_handle_collection_traits<
+        typename in_handle_t::value_type, typename in_handle_t::index_range_type,
+        typename trait_flags_t::template at_t<TraitIdxs>...
+      >::template from_traits<default_traits_t>::type
+    >;
+
+    using namespace darma_runtime::abstract::frontend;
+    auto* rt = abstract::backend::get_backend_runtime();
+
+    // Use the allocator from the out handle (which is the allocator from the
+    // in handle unless one is given for the new handle, which is not yet
+    // supported anyway)
+    auto suspended_out_flow = std::move(
+      // Dereferencing a "dumb" pointer doesn't create an rvalue, so we need
+      // to invoke an explicit move so that the stack variable now owns the
+      // flow
+      *in_handle.current_use_->use->suspended_out_flow_.release()
+    );
+
+    auto new_use_ptr = std::make_shared<typename out_handle_t::use_holder_t>(
+      typename out_handle_t::use_t(
+        in_handle.var_handle_.get_smart_ptr(),
+        HandleUse::Commutative, /* scheduling permissions */
+        HandleUse::None, /* immediate permissions */
+        FlowRelationship::SameCollection, &in_handle.current_use_->use->out_flow_,
+        FlowRelationship::SameCollection, &suspended_out_flow, false,
+        // we probably COULD move the index range from the old use now, since
+        // it's going away, but for now, just copy it, since we might want
+        // to use it in the destructor of the old use at some point in the
+        // future
+        in_handle.current_use_->use->index_range
+      )
+    );
+
+    // Make sure an alias call doesn't trigger when the commutative use gets
+    // released
+    in_handle.current_use_->could_be_alias = false;
+
+    // release the use from the expired handle
+    in_handle.current_use_ = nullptr;
+
+    new_use_ptr->could_be_alias = true;
+
+    return out_handle_t(
+      in_handle.var_handle_.release_smart_ptr(), std::move(new_use_ptr)
+    );
+  }
+
+  template <typename AccessHandleCollectionT>
+  decltype(auto)
+  operator()(AccessHandleCollectionT&& in_handle) const
+  {
+    using ahc_t = std::decay_t<AccessHandleCollectionT>;
+
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="check that we were actually given an AccessHandleCollection rvalue"> {{{2
+
+    static_assert(
+      is_access_handle_collection<std::decay_t<AccessHandleCollectionT>>::value
+        and std::is_rvalue_reference<AccessHandleCollectionT&&>::value,
+      "Argument to noncommutative_access_to_collection(...) must be an rvalue"
+        " AccessHandleCollection.  You probably forgot to use std::move()."
+    );
+    static_assert(std::is_same<given_value_type_t, meta::nonesuch>::value
+        or std::is_same<
+          given_value_type_t,
+          typename std::decay_t<AccessHandleCollectionT>::value_type
+        >::value,
+      "Don't need to give a template parameter for noncommutative_access_to_collection(...),"
+        " but if you do, it must match the type of the existing value_type parameter"
+    );
+
+    // </editor-fold> end check that we were actually given an AccessHandleCollection rvalue }}}2
+    //--------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------
+    // <editor-fold desc="semantic trait checks"> {{{2
+
+    DARMA_ASSERT_MESSAGE(
+      in_handle.current_use_.get() != nullptr,
+      "noncommutative_access_to_collection(...) called on uninitialized or"
+        " released AccessHandleCollection"
+    );
+
+    // TODO outer scope check
+    //static_assert(
+    //  std::decay_t<AccessHandleT>::traits::semantic_traits::could_be_outermost_scope,
+    //  "Can't create noncommutative_access to handle that's marked as"
+    //    " noncommutative at compile time"
+    //);
+
+    static_assert(
+      ahc_t::traits::semantic_traits::is_mapped != OptionalBoolean::KnownTrue,
+      "Can't release commutative_access to collection that is mapped to a task"
+        " collection"
+    );
+
+    // TODO non-static is_mapped
+
+    // </editor-fold> end semantic trait checks }}}2
+    //------------------------------------------------------------------------------
+
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="scheduling permissions checks"> {{{2
+    static_assert(
+      handle_permissions_equal_if_given<
+        ahc_t::traits::permissions_traits::static_scheduling_permissions,
+        AccessHandlePermissions::Commutative
+      >::value,
+      "Can't create noncommutative_access to handle that's marked as"
+        " not commutative at compile time"
+    );
+    static_assert(
+      handle_permissions_equal_if_given<
+        ahc_t::traits::permissions_traits::required_scheduling_permissions,
+        AccessHandlePermissions::Commutative
+      >::value,
+      "Can't create noncommutative_access to handle that's marked as"
+        " not commutative at compile time"
+    );
+    DARMA_ASSERT_MESSAGE(
+      in_handle.current_use_->use->scheduling_permissions_
+        == detail::HandleUse::Commutative,
+      "noncommutative_access_to_collection(...) called on use without scheduling"
+        " commutative permissions"
+    );
+    // </editor-fold> end scheduling permissions }}}2
+    //--------------------------------------------------------------------------
+
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="immediate permissions checks"> {{{2
+
+    static_assert(
+      handle_permissions_equal_if_given<
+        ahc_t::traits::permissions_traits::required_immediate_permissions,
+        AccessHandlePermissions::None
+      >::value,
+      "Can't create noncommutative_access to handle that's marked as"
+        " requiring immediate permissions other than None at compile time at"
+        " compile time"
+    );
+    static_assert(
+      handle_permissions_equal_if_given<
+        ahc_t::traits::permissions_traits::static_immediate_permissions,
+        AccessHandlePermissions::None
+      >::value,
+      "Can't create noncommutative_access to handle that's marked as"
+        " starting with immediate permissions other than None at compile time at"
+        " compile time"
+    );
+    DARMA_ASSERT_MESSAGE(
+      in_handle.current_use_->use->immediate_permissions_
+        == detail::HandleUse::None,
+      "noncommutative_access_to_collection(...) called on use with immediate"
+        " permissions that aren't None"
+    );
+
+    // </editor-fold> end immediate permissions checks }}}2
+    //--------------------------------------------------------------------------
+
+    return _collection_version_impl(
+      std::forward<AccessHandleCollectionT>(in_handle),
+      std::make_index_sequence<trait_flags_t::size>{}
+    );
+  }
+
+};
+
 } // end namespace detail
 
 
@@ -683,6 +895,29 @@ noncommutative_access_to_handle(Args&&... args) {
     .invoke(detail::_noncommutative_access_impl<T, TraitFlags...>{});
 };
 
+template <
+  typename T=meta::nonesuch,
+  typename... TraitFlags,
+  typename... Args
+>
+auto
+noncommutative_access_to_collection(Args&&... args) {
+
+  using namespace darma_runtime::detail;
+  using parser = detail::kwarg_parser<
+    overload_description<
+      // for converting an existing handle into commutative mode:
+      _positional_or_keyword<
+        deduced_parameter, keyword_tags_for_commutative_access::to_collection
+      >
+    >
+  >;
+  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
+
+  return parser()
+    .parse_args(std::forward<Args>(args)...)
+    .invoke(detail::_noncommutative_collection_access_impl<T, TraitFlags...>{});
+};
 
 
 

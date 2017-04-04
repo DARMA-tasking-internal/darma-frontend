@@ -257,6 +257,44 @@ class IndexedAccessHandle {
     }
 
 
+    template <typename _Ignored_SFINAE=void,
+      typename=std::enable_if_t<
+        std::is_void<_Ignored_SFINAE>::value
+          and ParentAHC::traits_t::permissions_traits::static_scheduling_permissions
+            == AccessHandlePermissions::Commutative
+      >
+    >
+    auto
+    commutative_access() && {
+      using namespace darma_runtime::abstract::frontend;
+      // TODO make_indexed_?_flow
+      use_holder_ = std::make_shared<UseHolder>(
+        HandleUse(
+          parent_.var_handle_.get_smart_ptr(),
+          HandleUse::Commutative,
+          HandleUse::None,
+          FlowRelationship::Indexed, &parent_.current_use_->use->in_flow_,
+          FlowRelationship::Indexed, &parent_.current_use_->use->out_flow_, false,
+          nullptr, backend_index_,
+          nullptr, backend_index_
+        )
+      );
+
+      return AccessHandle<value_type,
+        make_access_handle_traits_t<value_type,
+          copy_assignability<false>,
+          static_scheduling_permissions<AccessHandlePermissions::Commutative>,
+          required_scheduling_permissions<AccessHandlePermissions::Commutative>,
+          access_handle_trait_tags::allocation_traits<
+            typename parent_traits_t::allocation_traits
+          >
+        >
+      >(
+        parent_.var_handle_.get_smart_ptr(),
+        std::move(use_holder_)
+      );
+    };
+
     //------------------------------------------------------------------------------
     // <editor-fold desc="friends"> {{{2
 

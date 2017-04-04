@@ -347,6 +347,8 @@ class CollectionManagingUse
 
     index_iterable<std::size_t>
     local_indices_for(std::size_t backend_task_collection_index) const override {
+      // TODO cache this?
+      // TODO short buffer optimization for the return type?
       // Still need to convert these to backend handle collection indices
       // Again, really inefficient...
       assert(base_t::mapping_manager);

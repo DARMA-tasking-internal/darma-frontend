@@ -202,6 +202,11 @@ struct make_access_handle_collection_traits {
 
 };
 
+template <typename T, typename IndexRange, typename... Flags>
+using make_access_handle_collection_traits_t = typename
+  make_access_handle_collection_traits<T, IndexRange, Flags...>::type;
+
+
 } // end namespace detail
 
 namespace advanced {

@@ -88,6 +88,7 @@ auto make_captured_use_holder(
 
   switch(requested_immediate_permissions) {
     //==========================================================================
+    // <editor-fold desc="requested_immediate_permissions = None"> {{{1
     case HandleUse::None: {
 
       // schedule-only cases
@@ -138,9 +139,10 @@ auto make_captured_use_holder(
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             case HandleUse::Modify: { // requested scheduling permissions
 
-              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-              // %   MN -> { MN } -> MN     %
-              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+              // %   MN -> { MN } -> MN                      %
+              // %   XN -> { MN } -> XN (disallowed here)    %
+              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
               // Modify schedule-only permissions on a handle with no immediate
               // permissions.
@@ -202,6 +204,37 @@ auto make_captured_use_holder(
               break;
             } // end case Modify requested scheduling permissions
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            case HandleUse::Commutative: { // requested scheduling permissions
+              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+              // %   CN -> { CN } -> CN                      %
+              // %   XN -> { CN } -> XN (disallowed here)    %
+              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+              DARMA_ASSERT_MESSAGE(
+                source_and_continuing_holder->use->scheduling_permissions_
+                  == HandleUse::Commutative,
+                "Can't make a schedule-only use of handle not in schedule"
+                  " commutative mode.  Need to transition handle to commutative"
+                  " mode first in outer scope."
+              );
+
+              captured_use_holder = use_holder_maker(
+                var_handle,
+                /* Scheduling permissions */
+                HandleUse::Commutative,
+                /* Immediate permissions */
+                HandleUse::None,
+                FlowRelationship::Same,
+                &source_and_continuing_holder->use->in_flow_,
+                FlowRelationship::Same,
+                &source_and_continuing_holder->use->out_flow_, false
+              );
+
+              // No continuation use needed here, since source was schedule-only
+
+              break;
+            }
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             default: {
               DARMA_ASSERT_NOT_IMPLEMENTED();                                   // LCOV_EXCL_LINE
             } // end default
@@ -213,7 +246,7 @@ auto make_captured_use_holder(
 
         //----------------------------------------------------------------------
 
-        case HandleUse::Read: {
+        case HandleUse::Read: { // source immediate permissions
 
           switch(requested_scheduling_permissions) {
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -288,7 +321,7 @@ auto make_captured_use_holder(
 
         //----------------------------------------------------------------------
 
-        case HandleUse::Modify: {
+        case HandleUse::Modify: { // source immediate permissions
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
           // %   MM -> { RN } -> MR     %
           // %   MM -> { MN } -> MN     %
@@ -298,6 +331,20 @@ auto make_captured_use_holder(
               " Modify permissions."
           );                                                                    // LCOV_EXCL_LINE
           break;                                                                // LCOV_EXCL_LINE
+        }
+
+        //----------------------------------------------------------------------
+
+        case HandleUse::Commutative : { // source immediate permissions
+          // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+          // %   CC -> { CN } -> CN     %
+          // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+          DARMA_ASSERT_NOT_IMPLEMENTED(
+            "Schedule-only permissions on handles that already have immediate"
+              " Commutative permissions."
+          );                                                                    // LCOV_EXCL_LINE
+
         }
 
         //----------------------------------------------------------------------
@@ -312,7 +359,9 @@ auto make_captured_use_holder(
       break;
 
     } // end case None requested immediate permissions
+    // </editor-fold> end requested_immediate_permissions = None }}}1
     //==========================================================================
+    // <editor-fold desc="requested_immediate_permissions = Read"> {{{1
     case HandleUse::Read: { // requested immediate permissions
 
       DARMA_ASSERT_MESSAGE(
@@ -538,7 +587,9 @@ auto make_captured_use_holder(
       break;
 
     } // end case Read requested immediate permissions
+    // </editor-fold> end requested_immediate_permissions = Read }}}1
     //==========================================================================
+    // <editor-fold desc="requested_immediate_permissions = Modify"> {{{1
     case HandleUse::Modify: { // requested immediate permissions
 
       DARMA_ASSERT_MESSAGE(
@@ -688,7 +739,9 @@ auto make_captured_use_holder(
 
       break;
     } // end case Modify requested immediate permissions
+    // </editor-fold> end requested_immediate_permissions = Modify }}}1
     //==========================================================================
+    // <editor-fold desc="requested_immediate_permissions = Commutative"> {{{1
     case HandleUse::Commutative: { // requested immediate permissions
 
       DARMA_ASSERT_MESSAGE(
@@ -703,9 +756,9 @@ auto make_captured_use_holder(
 
       // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
       // %   CN -> { CC } -> CN     %
-      // %   CC -> { CC } -> CC     %
+      // %   CC -> { CC } -> CN     %
       // %   CN -> { NC } -> CN     %
-      // %   CC -> { NC } -> CC     %
+      // %   CC -> { NC } -> CN     %
       // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
       captured_use_holder = use_holder_maker(
@@ -718,6 +771,7 @@ auto make_captured_use_holder(
         FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
       );
 
+      // TODO register this and make the continuation use have none immediate permissions
 //#if _darma_has_feature(register_commutative_continuation_uses)
 //
 //      source_and_continuing_holder->replace_use(
@@ -741,6 +795,7 @@ auto make_captured_use_holder(
 
       break;
     } // end requested immediate permissions commutative
+    // </editor-fold> end requested_immediate_permissions = Commutative }}}1
     //==========================================================================
 
     default: {
@@ -776,8 +831,7 @@ make_captured_use_holder(
       using namespace darma_runtime::detail;
       auto rv = std::make_shared<GenericUseHolder<HandleUse>>(HandleUse(
         std::forward<decltype(args)>(args)...
-      ));
-      rv->use->is_dependency_ = true;
+      ), true, true);
       return rv;
     },
     /* continuing use maker */
