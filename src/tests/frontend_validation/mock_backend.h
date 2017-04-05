@@ -73,6 +73,7 @@ class MockRuntime
     using runtime_t = darma_runtime::abstract::backend::Runtime;
     using handle_t = darma_runtime::abstract::frontend::Handle;
     using use_t = darma_runtime::abstract::frontend::Use;
+    using destructible_use_t = darma_runtime::abstract::frontend::DestructibleUse;
     using key_t = darma_runtime::types::key_t;
     using publication_details_t = darma_runtime::abstract::frontend::PublicationDetails;
     using flow_t = darma_runtime::types::flow_t;
@@ -101,7 +102,7 @@ class MockRuntime
     }
 
     void publish_use(
-      std::unique_ptr<use_t>&& pub_use,
+      std::unique_ptr<destructible_use_t>&& pub_use,
       darma_runtime::abstract::frontend::PublicationDetails* details
     ) override {
       publish_use_gmock_proxy(pub_use.get(), details);
@@ -109,7 +110,7 @@ class MockRuntime
     }
 
     void allreduce_use(
-      std::unique_ptr<use_t>&& use_in_out,
+      std::unique_ptr<destructible_use_t>&& use_in_out,
       darma_runtime::abstract::frontend::CollectiveDetails const* details,
       key_t const& tag
     ) override {
@@ -118,8 +119,8 @@ class MockRuntime
     }
 
     void allreduce_use(
-      std::unique_ptr<use_t>&& use_in,
-      std::unique_ptr<use_t>&& use_out,
+      std::unique_ptr<destructible_use_t>&& use_in,
+      std::unique_ptr<destructible_use_t>&& use_out,
       darma_runtime::abstract::frontend::CollectiveDetails const* details,
       key_t const& tag
     ) override {
@@ -129,8 +130,8 @@ class MockRuntime
     }
 
     void reduce_collection_use(
-      std::unique_ptr<use_t>&& use_collection_in,
-      std::unique_ptr<use_t>&& use_out,
+      std::unique_ptr<destructible_use_t>&& use_collection_in,
+      std::unique_ptr<destructible_use_t>&& use_out,
       darma_runtime::abstract::frontend::CollectiveDetails const* details,
       key_t const& tag
     ) override {
@@ -170,9 +171,7 @@ class MockRuntime
     ));
 
     MOCK_METHOD1(make_initial_flow, flow_t(std::shared_ptr<handle_t const> const&));
-    MOCK_METHOD3(make_fetching_flow, flow_t(std::shared_ptr<handle_t const> const&, key_t const&,
-      bool
-    ));
+    MOCK_METHOD2(make_fetching_flow, flow_t(std::shared_ptr<handle_t const> const&, key_t const&));
     MOCK_METHOD1(make_null_flow, flow_t(std::shared_ptr<handle_t const> const&));
 
     MOCK_METHOD1(make_forwarding_flow, flow_t(flow_t&));

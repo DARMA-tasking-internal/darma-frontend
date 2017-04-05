@@ -47,7 +47,8 @@
 
 #include <darma/impl/feature_testing_macros.h>
 
-#if _darma_has_feature(publish_fetch)
+#if _darma_has_feature(arbitrary_publish_fetch)
+
 #include <darma/interface/app/access_handle.h>
 #include <darma/impl/handle_attorneys.h>
 #include <darma/impl/flow_handling.h>
@@ -56,56 +57,60 @@
 
 namespace darma_runtime {
 
-// Deprecated
-//template <
-//  typename U=void,
-//  typename... KeyExprParts
-//>
-//AccessHandle<U>
-//read_access(
-//  KeyExprParts&&... parts
-//) {
-//  using namespace darma_runtime::detail;
-//  using parser = detail::kwarg_parser<
-//    variadic_positional_overload_description<
-//      _optional_keyword<converted_parameter, keyword_tags_for_publication::version>
-//    >
-//  >;
-//  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<KeyExprParts...>;
-//
-//  return parser()
-//    .with_converters(
-//      [](auto&&... parts) {
-//        return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
-//      }
-//    )
-//    .with_default_generators(
-//      keyword_arguments_for_publication::version=[]{ return make_key(); }
-//    )
-//    .parse_args(std::forward<KeyExprParts>(parts)...)
-//    .invoke([](
-//      types::key_t&& version_key,
-//      darma_runtime::detail::variadic_arguments_begin_tag,
-//      auto&&... args
-//    ) -> decltype(auto) {
-//      auto backend_runtime = darma_runtime::abstract::backend::get_backend_runtime();
-//      auto var_h = darma_runtime::detail::make_shared<darma_runtime::detail::VariableHandle<U>>(
-//        darma_runtime::make_key(std::forward<decltype(args)>(args)...)
-//      );
-//      auto in_flow = darma_runtime::detail::make_flow_ptr(
-//        backend_runtime->make_fetching_flow( var_h, std::move(version_key) )
-//      );
-//      auto out_flow = darma_runtime::detail::make_flow_ptr(
-//        backend_runtime->make_null_flow( var_h )
-//      );
-//
-//      return darma_runtime::detail::access_attorneys::for_AccessHandle::construct_access<U>(
-//        var_h, in_flow, out_flow,
-//        darma_runtime::detail::HandleUse::Read, darma_runtime::detail::HandleUse::None
-//      );
-//
-//    });
-//}
+
+template <
+  typename U=void,
+  typename... KeyExprParts
+>
+AccessHandle<U>
+read_access(
+  KeyExprParts&&... parts
+) {
+  using namespace darma_runtime::detail;
+  using parser = detail::kwarg_parser<
+    variadic_positional_overload_description<
+      _optional_keyword<converted_parameter, keyword_tags_for_publication::version>
+    >
+  >;
+  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<KeyExprParts...>;
+
+  return parser()
+    .with_converters(
+      [](auto&&... parts) {
+        return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+      }
+    )
+    .with_default_generators(
+      keyword_arguments_for_publication::version=[]{ return make_key(); }
+    )
+    .parse_args(std::forward<KeyExprParts>(parts)...)
+    .invoke([](
+      types::key_t&& version_key,
+      darma_runtime::detail::variadic_arguments_begin_tag,
+      auto&&... args
+    ) -> decltype(auto) {
+      auto backend_runtime = darma_runtime::abstract::backend::get_backend_runtime();
+      auto var_h = darma_runtime::detail::make_shared<darma_runtime::detail::VariableHandle<U>>(
+        darma_runtime::make_key(std::forward<decltype(args)>(args)...)
+      );
+
+      using namespace darma_runtime::abstract::frontend;
+
+      return darma_runtime::detail::access_attorneys::for_AccessHandle::construct_access<U>(
+        var_h,
+        std::make_shared<UseHolder>(
+          detail::HandleUse(
+            var_h,
+            Use::Read, Use::Read,
+            FlowRelationship::Fetching, nullptr,
+            FlowRelationship::Null, nullptr, false,
+            &version_key
+          ), true, false
+        )
+      );
+
+    });
+}
 
 //template <
 //  typename U=void,
@@ -179,6 +184,6 @@ namespace darma_runtime {
 
 } // end namespace darma_runtime
 
-#endif // _darma_has_feature(publish_fetch)
+#endif // _darma_has_feature(arbitrary_publish_fetch)
 
 #endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_ */

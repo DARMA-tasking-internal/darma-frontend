@@ -230,6 +230,12 @@ class UsePendingRelease : virtual public RegisteredUse {
     ~UsePendingRelease() = default;
 };
 
+class DestructibleUse : virtual public RegisteredUse {
+  public:
+
+    virtual ~DestructibleUse() = default;
+};
+
 class DependencyUse : virtual public RegisteredUse {
   public:
 
@@ -311,6 +317,16 @@ use_cast(
     from_use
   );
 }
+
+//template <typename ToUse>
+//ToUse
+//use_pointer_cast(
+//  Use const* from_use
+//) {
+//    return darma_runtime::detail::safe_dynamic_pointer_cast<ToUse>(
+//      from_use
+//    );
+//}
 
 } // end namespace frontend
 } // end namespace abstract

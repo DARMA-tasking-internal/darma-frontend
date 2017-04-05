@@ -176,6 +176,14 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
       types::flow_t& from
     ) =0;
 
+#if _darma_has_feature(arbitrary_publish_fetch)
+    virtual types::flow_t
+    make_fetching_flow(
+      std::shared_ptr<handle_t const> const& handle,
+      types::key_t const& version_key
+    ) =0;
+#endif
+
 #if _darma_has_feature(create_concurrent_work)
     /** @todo document this
      *
@@ -205,6 +213,7 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
       types::key_t const& version_key,
       size_t backend_index
     ) =0;
+
 #if _darma_has_feature(commutative_access_handles)
     virtual types::flow_t
     make_indexed_flow(
@@ -296,6 +305,10 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
         }
         case FlowRelationship::Initial : {
           in_flow = make_initial_flow(use->get_handle());
+          break;
+        }
+        case FlowRelationship::Fetching : {
+          in_flow = make_fetching_flow(use->get_handle(), *in_rel.version_key());
           break;
         }
         case FlowRelationship::Null : {

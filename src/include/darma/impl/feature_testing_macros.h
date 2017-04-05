@@ -54,6 +54,8 @@
 
 #define _darma_feature_date_publish_fetch 20160101
 
+#define _darma_feature_date_arbitrary_publish_fetch 20160101
+
 #define _darma_feature_date_create_condition 20160301
 
 // Original collectives, uses arbitrary piece and n_pieces
@@ -72,7 +74,9 @@
 
 #define _darma_feature_date_create_parallel_for_custom_cpu_set 20170124
 
-#define _darma_feature_date_create_concurrent_work_owned_by 20170124
+// TODO potentially reinstate owned by, if backend ever wants to/can support it
+//#define _darma_feature_date_create_concurrent_work_owned_by 20170124
+#define _darma_feature_disabled_by_default_concurrent_work_owned_by 1
 
 #define _darma_feature_date_resilient_tasks 29990101
 
@@ -89,7 +93,7 @@
 
 // TODO incorporate task_collection_token
 //#define _darma_feature_date_task_collection_token 20170415
-#define _darma_feature_disabled_by_default_collection_token 1
+#define _darma_feature_disabled_by_default_task_collection_token 1
 
 // TODO re-enable the OO interface once it's updated to reflect modern DARMA
 //#define _darma_feature_date_oo_interface 20990101
