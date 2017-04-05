@@ -63,8 +63,7 @@ namespace darma_runtime {
 namespace detail {
 
 class HandleUseBase
-  : public abstract::frontend::DependencyUse,
-    public abstract::frontend::DestructibleUse,
+  : public abstract::frontend::DestructibleUse,
     public abstract::frontend::CollectionManagingUse,
     public abstract::frontend::UsePendingRegistration,
     public abstract::frontend::UsePendingRelease

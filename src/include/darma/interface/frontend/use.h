@@ -230,12 +230,6 @@ class UsePendingRelease : virtual public RegisteredUse {
     ~UsePendingRelease() = default;
 };
 
-class DestructibleUse : virtual public RegisteredUse {
-  public:
-
-    virtual ~DestructibleUse() = default;
-};
-
 class DependencyUse : virtual public RegisteredUse {
   public:
 
@@ -256,6 +250,12 @@ class DependencyUse : virtual public RegisteredUse {
     // by the translation layer itself) or on pointer to the most base class,
     // `Use`.
     ~DependencyUse() = default;
+};
+
+class DestructibleUse : virtual public DependencyUse {
+  public:
+
+    virtual ~DestructibleUse() = default;
 };
 
 class CollectionManagingUse : virtual public RegisteredUse {
