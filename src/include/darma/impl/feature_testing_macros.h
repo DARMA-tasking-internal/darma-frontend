@@ -89,7 +89,7 @@
 
 // TODO incorporate task_collection_token
 //#define _darma_feature_date_task_collection_token 20170415
-#define _darma_feature_disabled_by_default_collection_token 1
+#define _darma_feature_disabled_by_default_task_collection_token 1
 
 // TODO re-enable the OO interface once it's updated to reflect modern DARMA
 //#define _darma_feature_date_oo_interface 20990101
