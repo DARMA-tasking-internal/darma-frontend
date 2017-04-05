@@ -45,6 +45,10 @@
 #ifndef DARMA_IMPL_OO_MACROS_H
 #define DARMA_IMPL_OO_MACROS_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(oo_interface)
+
 #include <type_traits> // std::declval
 #include <utility> // std::forward
 
@@ -416,5 +420,7 @@ struct name { \
 //using as_public_method_in_chain = name##__as_public_method<T, Base>;
 //template <typename T>
 //using as_public_method = name##__as_public_method<T, darma_runtime::detail::empty_base>;
+
+#endif // _darma_has_feature(oo_interface)
 
 #endif //DARMA_IMPL_OO_MACROS_H

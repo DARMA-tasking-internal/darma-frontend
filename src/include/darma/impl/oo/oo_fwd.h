@@ -45,6 +45,10 @@
 #ifndef DARMA_OO_FWD_H
 #define DARMA_OO_FWD_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(oo_interface)
+
 #include <type_traits>
 
 namespace darma_runtime {
@@ -59,5 +63,7 @@ struct is_darma_method_of_class;
 } // end namespace oo
 
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(oo_interface)
 
 #endif //DARMA_OO_FWD_H

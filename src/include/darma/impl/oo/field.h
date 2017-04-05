@@ -45,6 +45,10 @@
 #ifndef DARMA_IMPL_OO_FIELD_H
 #define DARMA_IMPL_OO_FIELD_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(oo_interface)
+
 namespace darma_runtime {
 
 namespace oo {
@@ -92,5 +96,7 @@ struct _public_field_in_chain {
 } // end namespace oo
 
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(oo_interface)
 
 #endif //DARMA_IMPL_OO_FIELD_H

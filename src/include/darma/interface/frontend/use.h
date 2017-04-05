@@ -50,6 +50,7 @@
 #include <darma/interface/frontend/frontend_fwd.h>
 
 #include <darma/interface/backend/flow.h>
+#include <darma/interface/frontend/flow_relationship.h>
 
 #include "handle.h"
 #include "use_collection.h"

@@ -45,6 +45,10 @@
 #ifndef DARMA_OO_H
 #define DARMA_OO_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(oo_interface)
+
 namespace darma_runtime {
 namespace oo {
 
@@ -93,5 +97,7 @@ using modifies_values_ = modifies_value_<Args...>;
 #include <darma/impl/oo/method.h>
 #include <darma/impl/oo/field.h>
 #include <darma/impl/oo/macros.h>
+
+#endif // _darma_has_feature(oo_interface)
 
 #endif //DARMA_OO_H

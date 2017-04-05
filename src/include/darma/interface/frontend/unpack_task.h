@@ -45,7 +45,6 @@
 #ifndef DARMA_INTERFACE_FRONTEND_UNPACK_TASK_H
 #define DARMA_INTERFACE_FRONTEND_UNPACK_TASK_H
 
-#include <darma/interface/frontend/concurrent_region_task.h>
 #include <darma/interface/frontend/types/concrete_task_t.h>
 
 namespace darma_runtime {
@@ -58,9 +57,6 @@ namespace frontend {
  */
 types::unique_ptr_template<abstract::frontend::Task>
 unpack_task(void* packed_data);
-
-std::unique_ptr<abstract::frontend::ConcurrentRegionTask<types::concrete_task_t>>
-unpack_concurrent_region_task(void* buffer);
 
 } // end namespace frontend
 } // end namespace darma_runtime

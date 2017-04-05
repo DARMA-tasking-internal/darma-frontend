@@ -45,6 +45,10 @@
 #ifndef DARMA_IMPL_OO_CLASS_H
 #define DARMA_IMPL_OO_CLASS_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(oo_interface)
+
 #include <type_traits>
 
 #include <tinympl/vector.hpp>
@@ -475,5 +479,7 @@ struct Serializer_enabled_if<T, std::enable_if_t<darma_runtime::oo::is_darma_cla
 } // end namespace serialization
 
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(oo_interface)
 
 #endif //DARMA_IMPL_OO_CLASS_H

@@ -45,6 +45,10 @@
 #ifndef DARMA_IMPL_OO_UTIL_H
 #define DARMA_IMPL_OO_UTIL_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(oo_interface)
+
 #include <darma/impl/meta/detection.h>
 #include <darma/impl/serialization/serialization_fwd.h> // unpack_constructor_tag_t
 
@@ -173,5 +177,7 @@ using is_oo_name_tag = meta::detected_or_t<std::false_type,
 } // end namespace detail
 } // end namespace oo
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(oo_interface)
 
 #endif //DARMA_IMPL_OO_UTIL_H

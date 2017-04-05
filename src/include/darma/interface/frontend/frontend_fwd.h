@@ -67,6 +67,20 @@ class Use;
 // This will make a useful replacement when we go to CRTP for use
 typedef Use use_t;
 
+class UsePendingRegistration;
+
+class RegisteredUse;
+
+class UsePendingRelease;
+
+class DependencyUse;
+
+class CollectionManagingUse;
+
+class UseCollection;
+
+class UniquelyOwnedUse;
+
 } // end namespace frontend
 } // end namespace abstract
 } // end namespace darma_runtime

@@ -45,6 +45,10 @@
 #ifndef DARMA_IMPL_OO_METHOD_H
 #define DARMA_IMPL_OO_METHOD_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(oo_interface)
+
 #include <tinympl/vector.hpp>
 #include <tinympl/find_all_if.hpp>
 
@@ -804,5 +808,7 @@ _create_deferred_method_call(ClassOrCallingMethodT&& cls, Args&&... args) {
 } // end namespace oo
 
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(oo_interface)
 
 #endif //DARMA_IMPL_OO_METHOD_H

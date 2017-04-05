@@ -45,6 +45,10 @@
 #ifndef DARMA_CONSTRUCTOR_H
 #define DARMA_CONSTRUCTOR_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(oo_interface)
+
 namespace darma_runtime {
 
 namespace oo {
@@ -73,5 +77,7 @@ struct darma_constructors
 } // end namespace oo
 
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(oo_interface)
 
 #endif //DARMA_CONSTRUCTOR_H

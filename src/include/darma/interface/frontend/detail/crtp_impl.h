@@ -46,6 +46,5 @@
 #define DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H
 
 #include <darma/interface/frontend/detail/task.crtp_impl.h>
-#include <darma/interface/frontend/detail/condition_task.crtp_impl.h>
 
 #endif //DARMA_INTERFACE_FRONTEND_DETAIL_CRTP_IMPL_H

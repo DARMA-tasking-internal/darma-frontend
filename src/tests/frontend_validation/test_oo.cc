@@ -42,6 +42,10 @@
 //@HEADER
 */
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(oo_interface)
+
 #include <gtest/gtest.h>
 
 #include "mock_backend.h"
@@ -969,3 +973,5 @@ TEST_F(TestOO, use_darma_vector) {
 //  );
 //
 //}
+
+#endif // _darma_has_feature(oo_interface)

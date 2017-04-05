@@ -76,6 +76,7 @@
 
 #define _darma_feature_date_resilient_tasks 29990101
 
+// TODO remove the register_all_uses tag
 #define _darma_feature_date_register_all_uses 20170320
 
 #define _darma_feature_date_commutative_access_handles 20170321
@@ -83,9 +84,16 @@
 #define _darma_feature_date_register_commutative_continuation_uses 20170330
 
 // TODO write anti flows
-#define _darma_feature_date_anti_flows 20170415
+//#define _darma_feature_date_anti_flows 20170415
+#define _darma_feature_disabled_by_default_anti_flows 1
 
-#define _darma_feature_date_task_collection_token 20170415
+// TODO incorporate task_collection_token
+//#define _darma_feature_date_task_collection_token 20170415
+#define _darma_feature_disabled_by_default_collection_token 1
+
+// TODO re-enable the OO interface once it's updated to reflect modern DARMA
+//#define _darma_feature_date_oo_interface 20990101
+#define _darma_feature_disabled_by_default_oo_interface 1
 
 // </editor-fold> end Feature Dates and Defaults }}}1
 //==============================================================================
@@ -106,9 +114,17 @@
   ) \
   || ( \
     defined(_darma_backend_has_all_features) \
-    && !( \
-      defined(_darma_has_feature_##x) \
-      && _darma_has_feature_##x == 0 \
+    && !(\
+      ( \
+        defined(_darma_has_feature_##x) \
+        && _darma_has_feature_##x == 0 \
+      ) \
+      || \
+      ( \
+        !defined(_darma_has_feature_##x) \
+        && defined(_darma_feature_disabled_by_default_##x) \
+        && _darma_feature_disabled_by_default_##x != 0 \
+      ) \
     ) \
   )
 

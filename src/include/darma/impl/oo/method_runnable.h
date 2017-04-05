@@ -45,6 +45,10 @@
 #ifndef DARMA_METHOD_RUNNABLE_H
 #define DARMA_METHOD_RUNNABLE_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(oo_interface)
+
 #include <darma/impl/runnable/runnable.h>
 #include <darma/impl/oo/oo_fwd.h>
 
@@ -196,5 +200,7 @@ const size_t MethodRunnable<CaptureType, Args...>::index_ =
 } // end namespace detail
 } // end namespace oo
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(oo_interface)
 
 #endif //DARMA_METHOD_RUNNABLE_H

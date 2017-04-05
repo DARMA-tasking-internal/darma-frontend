@@ -76,8 +76,6 @@ class MockRuntime
     using key_t = darma_runtime::types::key_t;
     using publication_details_t = darma_runtime::abstract::frontend::PublicationDetails;
     using flow_t = darma_runtime::types::flow_t;
-    using concurrent_region_task_t = runtime_t::concurrent_region_task_t;
-    using concurrent_region_task_unique_ptr = runtime_t::concurrent_region_task_unique_ptr;
     using top_level_task_t = darma_runtime::abstract::backend::runtime_t::top_level_task_t;
     using top_level_task_unique_ptr = darma_runtime::abstract::backend::runtime_t::top_level_task_unique_ptr;
     using task_collection_t = darma_runtime::abstract::backend::runtime_t::task_collection_t;
@@ -131,8 +129,8 @@ class MockRuntime
     }
 
     void reduce_collection_use(
-      std::unique_ptr<use_t> use_collection_in,
-      std::unique_ptr<use_t> use_out,
+      std::unique_ptr<use_t>&& use_collection_in,
+      std::unique_ptr<use_t>&& use_out,
       darma_runtime::abstract::frontend::CollectiveDetails const* details,
       key_t const& tag
     ) override {

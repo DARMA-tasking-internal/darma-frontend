@@ -45,18 +45,17 @@
 #ifndef SRC_ABSTRACT_BACKEND_RUNTIME_H_
 #define SRC_ABSTRACT_BACKEND_RUNTIME_H_
 
+#include <darma/interface/frontend/frontend_fwd.h>
+
 #include <darma/interface/frontend/types.h>
 
 #include <darma/interface/backend/flow.h>
 #include <darma/interface/frontend/handle.h>
 #include <darma/interface/frontend/task.h>
-#include <darma/interface/frontend/use.h>
+
 #include <darma/interface/frontend/publication_details.h>
 #include <darma/interface/frontend/memory_requirement_details.h>
 #include <darma/interface/frontend/collective_details.h>
-#include <darma/interface/frontend/types/concrete_condition_task_t.h>
-#include <darma/interface/frontend/condition_task.h>
-#include <darma/interface/frontend/concurrent_region_task.h>
 #include <darma/interface/frontend/top_level_task.h>
 #include <darma/interface/frontend/task_collection.h>
 
@@ -74,10 +73,8 @@ class Runtime {
   public:
 
     using task_t = frontend::Task;
-    using concurrent_region_task_t = frontend::ConcurrentRegionTask<types::concrete_task_t>;
     using task_unique_ptr = types::unique_ptr_template<task_t>;
     using handle_t = frontend::Handle;
-    using concurrent_region_task_unique_ptr = std::unique_ptr<concurrent_region_task_t>;
     using top_level_task_t = abstract::frontend::TopLevelTask<types::concrete_task_t>;
     using top_level_task_unique_ptr = std::unique_ptr<top_level_task_t>;
     using use_t = frontend::Use;
@@ -110,11 +107,16 @@ class Runtime {
     register_task(task_unique_ptr&& task) = 0;
 
 #if _darma_has_feature(create_concurrent_work)
-    virtual void
+    virtual
+#if _darma_has_feature(task_collection_token)
+    types::task_collection_token_t
+#else
+    void
+#endif // _darma_has_feature(task_collection_token)
     register_task_collection(
       task_collection_unique_ptr&& collection
     ) =0;
-#endif
+#endif // _darma_has_feature(create_concurrent_work)
 
     // </editor-fold> end Task handling
     //==========================================================================
@@ -266,8 +268,8 @@ class Runtime {
 #if _darma_has_feature(handle_collection_based_collectives)
     virtual void
     reduce_collection_use(
-      std::unique_ptr<frontend::Use> use_collection_in,
-      std::unique_ptr<frontend::Use> use_out,
+      std::unique_ptr<frontend::Use>&& use_collection_in,
+      std::unique_ptr<frontend::Use>&& use_out,
       frontend::CollectiveDetails const* details,
       types::key_t const& tag
     ) =0;

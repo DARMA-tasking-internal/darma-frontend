@@ -45,6 +45,10 @@
 #ifndef DARMA_IMPL_OO_ERRORS_H
 #define DARMA_IMPL_OO_ERRORS_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(oo_interface)
+
 namespace darma_runtime {
 namespace oo {
 namespace detail {
@@ -58,5 +62,7 @@ struct __________you_forgot___using__darma_method__darma_method___in_definition_
 } // end namespace detail
 } // end namespace oo
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(oo_interface)
 
 #endif //DARMA_IMPL_OO_ERRORS_H
