@@ -78,6 +78,9 @@ class Runtime {
     using top_level_task_t = abstract::frontend::TopLevelTask<types::concrete_task_t>;
     using top_level_task_unique_ptr = std::unique_ptr<top_level_task_t>;
     using use_t = frontend::Use;
+    using dependency_use_t = frontend::DependencyUse;
+    using registered_use_t = frontend::RegisteredUse;
+    using use_pending_release_t = frontend::UsePendingRelease;
     using use_collection_t = abstract::frontend::UseCollection;
     using pub_details_t = darma_runtime::abstract::frontend::PublicationDetails;
     using collective_details_t = darma_runtime::abstract::frontend::CollectiveDetails;
