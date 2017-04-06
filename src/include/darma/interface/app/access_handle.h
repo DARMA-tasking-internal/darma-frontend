@@ -1550,10 +1550,10 @@ struct Serializer<AccessHandle<Args...>>
       auto* backend_runtime = abstract::backend::get_backend_runtime();
       // TODO if we add operator==() to the requirements of flow_t, we don't have to pack the outflow when it's the same as the inflow
       ar.add_to_size_indirect(
-        backend_runtime->get_packed_flow_size(*(val.current_use_->use->in_flow_))
+        backend_runtime->get_packed_flow_size(val.current_use_->use->in_flow_)
       );
       ar.add_to_size_indirect(
-        backend_runtime->get_packed_flow_size(*(val.current_use_->use->out_flow_))
+        backend_runtime->get_packed_flow_size(val.current_use_->use->out_flow_)
       );
 
     }
@@ -1572,11 +1572,11 @@ struct Serializer<AccessHandle<Args...>>
       auto* backend_runtime = abstract::backend::get_backend_runtime();
       // TODO if we add operator==() to the requirements of flow_t, we don't have to pack the outflow when it's the same as the inflow
       backend_runtime->pack_flow(
-        *(val.current_use_->use->in_flow_),
+        val.current_use_->use->in_flow_,
         ArchiveAccess::get_spot(ar)
       );
       backend_runtime->pack_flow(
-        *(val.current_use_->use->out_flow_),
+        val.current_use_->use->out_flow_,
         ArchiveAccess::get_spot(ar)
       );
 
