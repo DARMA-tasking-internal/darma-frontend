@@ -80,6 +80,7 @@ class Runtime {
     using use_t = frontend::Use;
     using dependency_use_t = frontend::DependencyUse;
     using registered_use_t = frontend::RegisteredUse;
+    using destructible_use_t = frontend::DestructibleUse;
     using use_pending_release_t = frontend::UsePendingRelease;
     using use_collection_t = abstract::frontend::UseCollection;
     using pub_details_t = darma_runtime::abstract::frontend::PublicationDetails;
