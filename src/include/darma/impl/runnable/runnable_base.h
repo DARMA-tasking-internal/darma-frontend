@@ -69,6 +69,8 @@ class RunnableBase {
     bool is_lambda_like_runnable = false;
     virtual void copy_lambda(void* dest) const { /* do nothing unless is_lambda_like */ }
     virtual std::size_t lambda_size() const { return 0; }
+    virtual bool needs_resource_pack() const { return false; }
+    virtual void set_resource_pack(types::resource_pack_t const&) { assert(false); }
 };
 
 // </editor-fold>

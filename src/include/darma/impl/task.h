@@ -285,12 +285,13 @@ class TaskBase : public abstract::frontend::Task
     void set_resource_pack(
       darma_runtime::types::resource_pack_t const& cpuset
     ) override {
-      assigned_resource_pack_ = cpuset;
+      assert(runnable_);
+      runnable_->set_resource_pack(cpuset);
     }
 
-    types::resource_pack_t const&
-    get_resource_pack() const override {
-      return assigned_resource_pack_;
+    bool is_data_parallel_task() const override {
+      assert(runnable_);
+      return runnable_->needs_resource_pack();
     }
 #endif // _darma_has_feature(create_parallel_for_custom_cpu_set)
 

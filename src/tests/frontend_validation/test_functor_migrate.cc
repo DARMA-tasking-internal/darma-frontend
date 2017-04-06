@@ -52,19 +52,21 @@ TEST_F(TestFunctor, simple_migrate) {
   using namespace ::testing;
   using namespace mock_backend;
 
-  testing::internal::CaptureStdout();
-
   mock_runtime->save_tasks = true;
 
-  MockFlow f_init, f_set_42_out, f_null, f_set_42_out_migrated;
-  use_t* set_42_use, *hello_use, *migrated_use;
+  DECLARE_MOCK_FLOWS(f_init, f_set_42_out, f_null, f_set_42_out_migrated);
+  use_t* set_42_use, *hello_use, *migrated_use, *initial_use, *cont_use;
   set_42_use = hello_use = migrated_use = nullptr;
 
   int value = 0;
 
-  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, initial_use, make_key("hello"));
 
-  EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(f_init, f_set_42_out, set_42_use, value);
+  EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(
+    f_init, f_set_42_out, set_42_use, f_null, cont_use, value
+  );
+
+  EXPECT_RELEASE_USE(initial_use);
 
   EXPECT_REGISTER_TASK(set_42_use);
 
@@ -73,6 +75,8 @@ TEST_F(TestFunctor, simple_migrate) {
   EXPECT_REGISTER_TASK(hello_use);
 
   EXPECT_FLOW_ALIAS(f_set_42_out, f_null);
+
+  EXPECT_RELEASE_USE(cont_use);
 
   //============================================================================
   // Code to actually be tested
@@ -84,7 +88,7 @@ TEST_F(TestFunctor, simple_migrate) {
 
     struct HelloWorldNumber {
       void operator()(int const& val) const {
-        std::cout << "Hello World " << val << std::endl;
+        EXPECT_THAT(val, Eq(42));
       }
     };
 
@@ -148,7 +152,9 @@ TEST_F(TestFunctor, simple_migrate) {
     f_set_42_out_migrated, f_set_42_out_migrated,
     use_t::None, use_t::Read
   ))).WillOnce(Invoke([&](auto&& rereg_use) {
-      rereg_use->get_data_pointer_reference() = &value;
+      darma_runtime::abstract::frontend::use_cast<
+        darma_runtime::abstract::frontend::DependencyUse*
+      >(rereg_use)->get_data_pointer_reference() = &value;
       migrated_use = rereg_use;
     }));
 
@@ -160,9 +166,6 @@ TEST_F(TestFunctor, simple_migrate) {
 
   migrated_task = nullptr;
 
-  ASSERT_EQ(testing::internal::GetCapturedStdout(),
-    "Hello World 42\n"
-  );
 }
 
 ////////////////////////////////////////////////////////////////////////////////

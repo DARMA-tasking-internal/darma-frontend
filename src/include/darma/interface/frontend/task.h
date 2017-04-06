@@ -159,7 +159,7 @@ class Task {
 
 #if _darma_has_feature(create_parallel_for_custom_cpu_set)
 
-    virtual darma_runtime::types::resource_pack_t const& get_resource_pack() const =0;
+    //virtual darma_runtime::types::resource_pack_t const& get_resource_pack() const =0;
 
     virtual void set_resource_pack(darma_runtime::types::resource_pack_t const&) =0;
 
@@ -171,6 +171,9 @@ class Task {
      * darma_runtime::backend::execute_parallel_for()
      */
     virtual bool is_parallel_for_task() const =0;
+
+    virtual bool is_data_parallel_task() const =0;
+
 #endif // _darma_has_feature(create_parallel_for)
 
     //==========================================================================

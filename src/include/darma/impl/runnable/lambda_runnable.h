@@ -57,6 +57,20 @@ template <typename Callable>
 struct Runnable : public RunnableBase
 {
   private:
+
+    //using traits_t = meta::callable_traits<Callable>;
+
+    // If there's a parameter, a types::resource_pack_t must be contextually
+    // convertible to that type
+    template <typename CallableT>
+    using _is_callable_with_resource_pack_archetype = decltype(
+      std::declval<CallableT>()(std::declval<types::resource_pack_t>())
+    );
+
+    static constexpr auto is_callable_with_resource_pack = meta::is_detected<
+      _is_callable_with_resource_pack_archetype, Callable
+    >::value;
+
   public:
     // Force it to be an lvalue reference so as to invoke the copy ctor of captured vars
     explicit
@@ -65,6 +79,32 @@ struct Runnable : public RunnableBase
     {
       RunnableBase::is_lambda_like_runnable = true;
     }
+
+    template <typename _Ignored_SFINAE=void>
+    void
+    _do_run(
+      std::enable_if_t<
+        std::is_void<_Ignored_SFINAE>::value // always true
+          and is_callable_with_resource_pack,
+        _not_a_type_numbered<0>
+      > = { }
+    ) {
+      run_this_(std::move(*resource_pack_ptr_.release()));
+    }
+
+    template <typename _Ignored_SFINAE=void>
+    void
+    _do_run(
+      std::enable_if_t<
+        std::is_void<_Ignored_SFINAE>::value // always true
+          and not is_callable_with_resource_pack,
+        _not_a_type_numbered<1>
+      > = { }
+    ) {
+      run_this_();
+    }
+
+    bool needs_resource_pack() const override { return is_callable_with_resource_pack; }
 
     bool run() override { run_this_(); return false; }
 
@@ -99,8 +139,13 @@ struct Runnable : public RunnableBase
       ::memcpy(dest, static_cast<void*>(&c), sizeof(Callable));
     }
 
+    virtual void set_resource_pack(types::resource_pack_t const& pack) override {
+      resource_pack_ptr_ = std::make_unique<types::resource_pack_t>(pack);
+    }
+
   private:
     std::remove_reference_t<Callable> run_this_;
+    std::unique_ptr<types::resource_pack_t> resource_pack_ptr_ = nullptr;
 };
 
 #if _darma_has_feature(task_migration)

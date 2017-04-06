@@ -550,7 +550,7 @@ auto make_captured_use_holder(
                 HandleUse::Modify,
                 /* Immediate permissions */
                 HandleUse::Read,
-                FlowRelationship::Forwarding, &captured_use_holder->use->in_flow_,
+                FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
                 FlowRelationship::Next, nullptr, true
               );
 
