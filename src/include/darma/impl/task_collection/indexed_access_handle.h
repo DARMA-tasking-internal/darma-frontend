@@ -183,7 +183,7 @@ class IndexedAccessHandle {
     // reference specifier enforces this
     template <typename... Args>
     auto
-    read_access(Args&&... args) const && {
+    read_access(Args&&... args) && {
       DARMA_ASSERT_MESSAGE(not has_local_access_,
         "Attempted to fetch an AccessHandle corresponding to an index of an"
           " AccessHandleCollection that is local to the fetching context"
@@ -223,17 +223,19 @@ class IndexedAccessHandle {
           assert(use_holder_ == nullptr);
 
           // Make the use holder
-          use_holder_ = std::make_shared<UseHolder>(
-            parent_.var_handle_.get_smart_ptr(),
-            HandleUse::Read, // Read scheduling permissions
-            HandleUse::None, // No immediate permissions
-            /* In flow description */
-            FlowRelationship::IndexedFetching, &parent_.current_use_->use->in_flow_,
-            /* Out flow description */
-            FlowRelationship::Same, nullptr, true,
-            /* In flow version key and index */
-            &version_key, backend_index_
-            /* Out flow version key and index not needed */
+          use_holder_ = std::make_shared<typename std::pointer_traits<UseHolderPtr>::element_type>(
+            HandleUse(
+              parent_.var_handle_.get_smart_ptr(),
+              HandleUse::Read, // Read scheduling permissions
+              HandleUse::None, // No immediate permissions
+              /* In flow description */
+              FlowRelationship::IndexedFetching, &parent_.current_use_->use->in_flow_,
+              /* Out flow description */
+              FlowRelationship::Same, nullptr, true,
+              /* In flow version key and index */
+              &version_key, backend_index_
+              /* Out flow version key and index not needed */
+            )
           );
 
           return AccessHandle<value_type,

@@ -339,6 +339,7 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
   mock_runtime->backend_owned_uses.clear();
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -364,24 +365,21 @@ TEST_F(TestCreateConcurrentWork, fetch) {
   use_t* use_pub_contin[4] = { nullptr, nullptr, nullptr, nullptr };
   use_t* use_fetch[4] = { nullptr, nullptr, nullptr, nullptr };
   use_t* use_coll = nullptr;
+  use_t* use_init = nullptr;
+  use_t* use_coll_cont = nullptr;
   int values[4];
 
-  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, use_init, make_key("hello"), 4);
 
   EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
     .WillOnce(Return(fout_coll));
 
-  EXPECT_CALL(*mock_runtime, register_use(AllOf(
-    IsUseWithFlows(finit, fout_coll, use_t::Modify, use_t::Modify),
-    Truly([](auto* use){
-      return (
-        use->manages_collection()
-          and use->get_managed_collection()->size() == 4
-      );
-    })
-  ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
+  EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, fout_coll, Modify, Modify, 4);
+  EXPECT_REGISTER_USE_COLLECTION(use_coll_cont, fout_coll, fnull, Modify, None, 4);
+  EXPECT_RELEASE_USE(use_init);
 
   EXPECT_FLOW_ALIAS(fout_coll, fnull);
+  EXPECT_RELEASE_USE(use_coll_cont);
 
   //============================================================================
   // actual code being tested
@@ -424,7 +422,7 @@ TEST_F(TestCreateConcurrentWork, fetch) {
       .WillOnce(Return(f_in_idx[i]));
     EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
       .WillOnce(Return(f_out_idx[i]));
-    EXPECT_CALL(*mock_runtime, register_use(
+    EXPECT_CALL(*mock_runtime, legacy_register_use(
       IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
     )).WillOnce(Invoke([&](auto* use){
       use_idx[i] = use;
@@ -437,7 +435,7 @@ TEST_F(TestCreateConcurrentWork, fetch) {
         .WillOnce(Return(f_pub[i]));
       EXPECT_REGISTER_USE(use_pub[i], f_pub[i], f_pub[i], None, Read);
       EXPECT_RELEASE_USE(use_idx[i]);
-      EXPECT_CALL(*mock_runtime, publish_use(Eq(ByRef(use_pub[i])), _));
+      EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(Eq(ByRef(use_pub[i])), _));
       EXPECT_REGISTER_USE(use_pub_contin[i], f_pub[i], f_out_idx[i], Modify, Read);
       // may be removed...
       EXPECT_RELEASE_USE(use_pub[i]);
@@ -495,7 +493,6 @@ TEST_F(TestCreateConcurrentWork, fetch) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#endif
 
 
 TEST_F(TestCreateConcurrentWork, migrate_simple) {
