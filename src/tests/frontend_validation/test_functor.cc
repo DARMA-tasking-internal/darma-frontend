@@ -136,7 +136,12 @@ TEST_F(TestFunctor, simpler) {
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(_))
     .Times(1);
 
-  create_work<SimplerFunctor>();
+  //============================================================================
+  // actual code being tested
+  {
+    create_work<SimplerFunctor>();
+  }
+  //============================================================================
 
   run_all_tasks();
 
@@ -157,7 +162,12 @@ TEST_F(TestFunctor, simpler_named) {
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(HasName(make_key("hello_task"))))
     .Times(1);
 
-  create_work<SimplerFunctor>(name="hello_task");
+  //============================================================================
+  // actual code being tested
+  {
+    create_work<SimplerFunctor>(name = "hello_task");
+  }
+  //============================================================================
 
   run_all_tasks();
 
@@ -186,38 +196,48 @@ TEST_P(TestFunctorModCaptures, Parametrized) {
 
   MockFlow f_initial, f_null, f_task_out;
   use_t* task_use = nullptr;
+  use_t* use_initial = nullptr;
+  use_t* use_cont = nullptr;
 
-  EXPECT_INITIAL_ACCESS(f_initial, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_initial, f_null, use_initial, make_key("hello"));
 
   //--------------------
   // Expect mod capture:
 
-  EXPECT_CALL(*mock_runtime, make_next_flow(&f_initial))
-    .WillOnce(Return(&f_task_out));
+  {
+    InSequence s;
 
-  use_t::permissions_t expected_scheduling_permissions;
-  if(test_type == "simple_handle") {
-    expected_scheduling_permissions = use_t::Modify;
+    EXPECT_CALL(*mock_runtime, make_next_flow(f_initial))
+      .WillOnce(Return(f_task_out));
+
+    use_t::permissions_t expected_scheduling_permissions;
+    if(test_type == "simple_handle") {
+      expected_scheduling_permissions = use_t::Modify;
+    }
+    else {
+      expected_scheduling_permissions = use_t::None;
+    }
+
+    EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
+      f_initial, f_task_out,
+      expected_scheduling_permissions,
+      use_t::Modify
+    ))).WillOnce(SaveArg<0>(&task_use));
+    EXPECT_REGISTER_USE(use_cont, f_task_out, f_null, Modify, None);
+    EXPECT_RELEASE_USE(use_initial);
+
+    EXPECT_REGISTER_TASK(task_use);
+
+    EXPECT_FLOW_ALIAS(f_task_out, f_null);
+    EXPECT_RELEASE_USE(use_cont);
   }
-  else {
-    expected_scheduling_permissions = use_t::None;
-  }
-
-  EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
-    &f_initial, &f_task_out,
-    expected_scheduling_permissions,
-    use_t::Modify
-  ))).WillOnce(SaveArg<0>(&task_use));
-
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(
-    UseInGetDependencies(ByRef(task_use))
-  ));
-
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_task_out, &f_null));
 
   // End expect mod capture
   //--------------------
 
+
+  //============================================================================
+  // actual code being tested
   {
     auto tmp = initial_access<int>("hello");
     if(test_type == "simple_handle") {
@@ -230,8 +250,9 @@ TEST_P(TestFunctorModCaptures, Parametrized) {
       FAIL() << "unknown test type: " << test_type;
     }
   }
+  //============================================================================
 
-  EXPECT_CALL(*mock_runtime, release_use(task_use));
+  EXPECT_RELEASE_USE(task_use);
 
   run_all_tasks();
 
@@ -260,14 +281,13 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
   mock_runtime->save_tasks = true;
 
 
-  MockFlow fl_init, fl_null;
+  DECLARE_MOCK_FLOWS(fl_init, fl_null);
   use_t* task_use = nullptr;
+  use_t* use_init = nullptr;
 
   std::string test_type = GetParam();
 
-  Sequence s1;
-
-  EXPECT_INITIAL_ACCESS(fl_init, fl_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(fl_init, fl_null, use_init, make_key("hello"));
 
   //--------------------
   // Expect ro capture:
@@ -283,30 +303,29 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
 
   int data = 0;
 
-  EXPECT_CALL(*mock_runtime, register_use(
+  EXPECT_CALL(*mock_runtime, legacy_register_use(
     IsUseWithFlows(
-      &fl_init, &fl_init,
+      fl_init, fl_init,
       expected_scheduling_permissions,
       use_t::Read
     )
-  )).InSequence(s1).WillOnce(
+  )).WillOnce(
     Invoke([&](auto* use) {
       use->get_data_pointer_reference() = (void*)(&data);
       task_use = use;
     })
   );
 
+  EXPECT_REGISTER_TASK(task_use);
 
-  EXPECT_CALL(*mock_runtime,
-    register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use)))
-  ).InSequence(s1);
-
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&fl_init, &fl_null))
-    .InSequence(s1);
+  EXPECT_FLOW_ALIAS(fl_init, fl_null);
+  EXPECT_RELEASE_USE(use_init);
 
   // End expect ro capture
   //--------------------
 
+  //============================================================================
+  // actual code being tested
   {
     if (test_type == "explicit_read") {
       // TODO reinstate this test
@@ -334,8 +353,9 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
       create_work<SimpleReadOnlyFunctorConvertLong>(15, tmp);
     }
   }
+  //============================================================================
 
-  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(task_use)))).InSequence(s1);
+  EXPECT_RELEASE_USE(task_use);
 
   run_all_tasks();
 
@@ -364,21 +384,22 @@ TEST_F(TestFunctor, simple_handle_ref) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow f_init, f_task_out, f_null;
+  DECLARE_MOCK_FLOWS(f_init, f_task_out, f_null);
   use_t* task_use;
+  use_t* use_initial;
+  use_t* use_cont;
 
-  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, use_initial, make_key("hello"));
 
-  EXPECT_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use);
+  EXPECT_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use, f_null, use_cont);
+  EXPECT_RELEASE_USE(use_initial);
 
   EXPECT_FLOW_ALIAS(f_task_out, f_null);
-
-  EXPECT_RELEASE_FLOW(f_null);
+  EXPECT_RELEASE_USE(use_cont);
 
   //============================================================================
   // Code to actually be tested
   {
-    auto tmp = initial_access<int>("hello");
 
     struct FunctorHandleRef {
       void
@@ -387,14 +408,14 @@ TEST_F(TestFunctor, simple_handle_ref) {
       }
     };
 
+    auto tmp = initial_access<int>("hello");
+
     create_work<FunctorHandleRef>(tmp);
 
   }
   //============================================================================
 
   EXPECT_RELEASE_USE(task_use);
-  EXPECT_RELEASE_FLOW(f_init);
-  EXPECT_RELEASE_FLOW(f_task_out);
 
   run_all_tasks();
 
@@ -402,6 +423,7 @@ TEST_F(TestFunctor, simple_handle_ref) {
     "Hello World\n"
   );
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
