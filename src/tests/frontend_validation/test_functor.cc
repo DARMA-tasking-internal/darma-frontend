@@ -424,6 +424,88 @@ TEST_F(TestFunctor, simple_handle_ref) {
   );
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+struct dinitialize2 {
+  void
+  operator()(
+    double& a,
+    int& b,
+    int& c
+  ) const {
+    //std::cout << "Hello World" << std::endl;
+  }
+};
+
+
+TEST_F(TestFunctor, three_refs) {
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  //testing::internal::CaptureStdout();
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(f_init, f_task_out, f_null);
+  DECLARE_MOCK_FLOWS(f_init2, f_task_out2, f_null2);
+  DECLARE_MOCK_FLOWS(f_init3, f_task_out3, f_null3);
+  use_t* task_use;
+  use_t* task_use2;
+  use_t* task_use3;
+  use_t* use_initial;
+  use_t* use_initial2;
+  use_t* use_initial3;
+  use_t* use_cont;
+  use_t* use_cont2;
+  use_t* use_cont3;
+
+  EXPECT_INITIAL_ACCESS(f_init, f_null, use_initial, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init2, f_null2, use_initial2, make_key("hello2"));
+  EXPECT_INITIAL_ACCESS(f_init3, f_null3, use_initial3, make_key("hello3"));
+
+  EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use, f_null, use_cont);
+  EXPECT_RELEASE_USE(use_initial);
+
+  EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR(f_init2, f_task_out2, task_use2, f_null2, use_cont2);
+  EXPECT_RELEASE_USE(use_initial2);
+
+  EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR(f_init3, f_task_out3, task_use3, f_null3, use_cont3);
+  EXPECT_RELEASE_USE(use_initial3);
+
+  EXPECT_REGISTER_TASK(task_use, task_use2, task_use3);
+
+  EXPECT_FLOW_ALIAS(f_task_out, f_null);
+  EXPECT_RELEASE_USE(use_cont);
+
+  EXPECT_FLOW_ALIAS(f_task_out2, f_null2);
+  EXPECT_RELEASE_USE(use_cont2);
+
+  EXPECT_FLOW_ALIAS(f_task_out3, f_null3);
+  EXPECT_RELEASE_USE(use_cont3);
+
+  //============================================================================
+  // Code to actually be tested
+  {
+
+    auto tmp = initial_access<double>("hello");
+    auto tmp2 = initial_access<int>("hello2");
+    auto tmp3 = initial_access<int>("hello3");
+
+    create_work<dinitialize2>(tmp, tmp2, tmp3);
+
+  }
+  //============================================================================
+
+  EXPECT_RELEASE_USE(task_use);
+  EXPECT_RELEASE_USE(task_use2);
+  EXPECT_RELEASE_USE(task_use3);
+
+  run_all_tasks();
+
+  //ASSERT_EQ(testing::internal::GetCapturedStdout(),
+  //  "Hello World\n"
+  //);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 

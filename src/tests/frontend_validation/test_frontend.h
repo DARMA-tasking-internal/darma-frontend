@@ -213,12 +213,11 @@ struct UseDescription {
     .WillOnce(::testing::Return(f_out)); \
   EXPECT_REGISTER_USE_AND_SET_BUFFER(use, f_in, f_out, Modify, Modify, value)
 
-#define EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR(f_in, f_out, use) \
+#define EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR(f_in, f_out, use, f_cont_out, cont_use) \
   EXPECT_CALL(*mock_runtime, make_next_flow(f_in)) \
     .WillOnce(::testing::Return(f_out)); \
-  EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows( \
-    f_in, f_out, use_t::None, use_t::Modify \
-  ))).WillOnce(::testing::SaveArg<0>(&use)); \
+  EXPECT_REGISTER_USE(use, f_in, f_out, None, Modify); \
+  EXPECT_REGISTER_USE(cont_use, f_out, f_cont_out, Modify, None)
 
 #define EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(f_in, f_out, use, f_cont_out, cont_use, value) \
   EXPECT_CALL(*mock_runtime, make_next_flow(f_in)) \

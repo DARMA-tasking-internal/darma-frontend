@@ -125,26 +125,34 @@ TEST_P(Test_simple_allreduce, overloads) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow f_init, f_null, f_task_out, f_collect_out;
+  DECLARE_MOCK_FLOWS(f_init, f_null, f_task_out, f_collect_out);
+  use_t* use_initial = nullptr;
+  use_t* use_cont = nullptr;
   use_t* task_use = nullptr;
   use_t* reduce_use = nullptr;
+  use_t* use_reduce_cont = nullptr;
 
   int overload = GetParam();
   ASSERT_THAT(overload, Lt(2));
 
-  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, use_initial, make_key("hello"));
 
-  EXPECT_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use);
+  EXPECT_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use, f_null, use_cont);
+  EXPECT_RELEASE_USE(use_initial);
 
   EXPECT_REGISTER_TASK(task_use);
 
-  EXPECT_CALL(*mock_runtime, make_next_flow(&f_task_out))
-    .WillOnce(Return(&f_collect_out));
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_task_out))
+    .WillOnce(Return(f_collect_out));
 
   { // scope for sequence
     InSequence seq;
 
     EXPECT_REGISTER_USE(reduce_use, f_task_out, f_collect_out, None, Modify);
+
+    EXPECT_REGISTER_USE(use_reduce_cont, f_collect_out, f_null, Modify, None);
+
+    EXPECT_RELEASE_USE(use_cont);
 
     EXPECT_CALL(*mock_runtime, allreduce_use_gmock_proxy(
       Eq(ByRef(reduce_use)),
@@ -154,11 +162,13 @@ TEST_P(Test_simple_allreduce, overloads) {
           detail::ReduceOperationWrapper<Add, std::vector<int>>
         >()
       ),
-      Eq(make_key("world")
-    )));
+      Eq(make_key("world"))
+    ));
 
   } // end of sequence
 
+  EXPECT_FLOW_ALIAS(f_collect_out, f_null);
+  EXPECT_RELEASE_USE(use_reduce_cont);
 
   //============================================================================
   // actual code being tested
@@ -196,7 +206,6 @@ INSTANTIATE_TEST_CASE_P(
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#if 0
 
 struct Test_different_inout_allreduce
   : TestCollectives,
@@ -215,30 +224,34 @@ TEST_P(Test_different_inout_allreduce, overload) {
 
   ASSERT_THAT(overload, Lt(3));
 
-  MockFlow f_init, f_out_init, f_null, f_out_null, f_task_out, f_collect_out;
+  DECLARE_MOCK_FLOWS(f_init, f_out_init, f_null, f_out_null, f_task_out, f_collect_out);
+  use_t* use_initial = nullptr;
+  use_t* use_cont = nullptr;
+  use_t* use_out_cont = nullptr;
+  use_t* use_out_initial = nullptr;
   use_t* task_use = nullptr;
   use_t* reduce_in_use = nullptr;
   use_t* reduce_out_use = nullptr;
 
-  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("in"));
-  EXPECT_INITIAL_ACCESS(f_out_init, f_out_null, make_key("out"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, use_initial, make_key("in"));
+  EXPECT_INITIAL_ACCESS(f_out_init, f_out_null, use_out_initial, make_key("out"));
 
-  EXPECT_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use);
+  EXPECT_MOD_CAPTURE_MN_OR_MR(f_init, f_task_out, task_use, f_null, use_cont);
+  EXPECT_RELEASE_USE(use_initial);
 
   EXPECT_REGISTER_TASK(task_use);
 
-  EXPECT_CALL(*mock_runtime, make_next_flow(&f_out_init))
-    .WillOnce(Return(&f_collect_out));
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_out_init))
+    .WillOnce(Return(f_collect_out));
 
-  Sequence s1, s2;
+  EXPECT_REGISTER_USE(reduce_in_use, f_task_out, f_task_out, None, Read);
 
-  EXPECT_REGISTER_USE(reduce_in_use, f_task_out, f_task_out, None, Read)
-    .InSequence(s1);
-  // TODO change this to Write once that is implemented
-  EXPECT_REGISTER_USE(reduce_out_use, f_out_init, f_collect_out, None, Modify)
-    .InSequence(s2);
+  EXPECT_REGISTER_USE(reduce_out_use, f_out_init, f_collect_out, None, Modify);
+  EXPECT_RELEASE_USE(use_out_initial);
 
-  EXPECT_CALL(*mock_runtime, allreduce_use(
+  EXPECT_REGISTER_USE(use_out_cont, f_collect_out, f_out_null, Modify, None);
+
+  EXPECT_CALL(*mock_runtime, allreduce_use_gmock_proxy(
     Eq(ByRef(reduce_in_use)), Eq(ByRef(reduce_out_use)),
     IsCollectiveDetailsWithReduceOp(0, 10,
       // Check that the correct reduce op is getting used also...
@@ -247,11 +260,16 @@ TEST_P(Test_different_inout_allreduce, overload) {
       >()
     ),
     Eq(make_key("world")
-  ))).InSequence(s1, s2);
+  )));
 
-  EXPECT_RELEASE_USE(reduce_in_use).InSequence(s1);
-  EXPECT_RELEASE_USE(reduce_out_use).InSequence(s2);
+  EXPECT_FLOW_ALIAS(f_task_out, f_null);
+  EXPECT_RELEASE_USE(use_cont);
 
+  EXPECT_FLOW_ALIAS(f_collect_out, f_out_null);
+  EXPECT_RELEASE_USE(use_out_cont);
+
+  //============================================================================
+  // actual code being tested
   {
     auto tmp_in = initial_access<std::set<int>>("in");
     auto tmp_out = initial_access<std::set<int>>("out");
@@ -281,6 +299,7 @@ TEST_P(Test_different_inout_allreduce, overload) {
     // TODO check expectations on continuing context
 
   }
+  //============================================================================
 
   EXPECT_RELEASE_USE(task_use);
 
@@ -315,4 +334,3 @@ INSTANTIATE_TEST_CASE_P(
 //
 //}
 
-#endif

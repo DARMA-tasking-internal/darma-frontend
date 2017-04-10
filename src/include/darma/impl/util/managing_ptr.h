@@ -306,7 +306,7 @@ class managing_ptr {
     };
 
     friend bool
-    operator==(nullptr_t, managing_ptr const& a) {
+    operator==(std::nullptr_t, managing_ptr const& a) {
       return !bool(a);
     }
 
