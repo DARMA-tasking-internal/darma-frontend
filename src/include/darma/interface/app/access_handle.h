@@ -923,6 +923,7 @@ class AccessHandle : public detail::AccessHandleBase {
       rv.owning_index() = std::forward<Index>(idx);
       return rv;
     };
+#endif // _darma_has_feature(create_concurrent_work_owned_by)
 
     template <
       typename _for_SFINAE_only=void,
@@ -944,7 +945,6 @@ class AccessHandle : public detail::AccessHandleBase {
       >;
       return return_type(*this);
     };
-#endif // _darma_has_feature(create_concurrent_work_owned_by)
 
 #if _darma_has_feature(commutative_access_handles)
     template <typename _Ignored_SFINAE=void>

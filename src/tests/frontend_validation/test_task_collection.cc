@@ -364,6 +364,7 @@ TEST_F(TestCreateConcurrentWork, fetch) {
   use_t* use_pub[4] = { nullptr, nullptr, nullptr, nullptr };
   use_t* use_pub_contin[4] = { nullptr, nullptr, nullptr, nullptr };
   use_t* use_fetch[4] = { nullptr, nullptr, nullptr, nullptr };
+  use_t* use_fetch_init[4] = { nullptr, nullptr, nullptr, nullptr };
   use_t* use_coll = nullptr;
   use_t* use_init = nullptr;
   use_t* use_coll_cont = nullptr;
@@ -414,6 +415,8 @@ TEST_F(TestCreateConcurrentWork, fetch) {
   }
   //============================================================================
 
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
   for(int i = 0; i < 4; ++i) {
     values[i] = 0;
     int fetched_value = 42;
@@ -429,6 +432,10 @@ TEST_F(TestCreateConcurrentWork, fetch) {
       use->get_data_pointer_reference() = &values[i];
     }));
 
+    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+
+    Mock::VerifyAndClearExpectations(mock_runtime.get());
+
     // Publish...
     if(i > 0) {
       EXPECT_CALL(*mock_runtime, make_forwarding_flow(f_in_idx[i]))
@@ -438,7 +445,7 @@ TEST_F(TestCreateConcurrentWork, fetch) {
       EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(Eq(ByRef(use_pub[i])), _));
       EXPECT_REGISTER_USE(use_pub_contin[i], f_pub[i], f_out_idx[i], Modify, Read);
       // may be removed...
-      EXPECT_RELEASE_USE(use_pub[i]);
+      //EXPECT_RELEASE_USE(use_pub[i]);
       EXPECT_RELEASE_USE(use_pub_contin[i]);
       EXPECT_FLOW_ALIAS(f_pub[i], f_out_idx[i]);
     }
@@ -452,35 +459,34 @@ TEST_F(TestCreateConcurrentWork, fetch) {
         finit, Eq(make_key("hello_world")), i+1)
       ).WillOnce(Return(f_fetch[i+1]));
 
-      EXPECT_CALL(*mock_runtime, make_null_flow(
-        is_handle_with_key(make_key("hello"))
-      )).WillOnce(Return(f_fetch_null[i+1]));
+      //EXPECT_CALL(*mock_runtime, make_null_flow(
+      //  is_handle_with_key(make_key("hello"))
+      //)).WillOnce(Return(f_fetch_null[i+1]));
 
-      {
-        InSequence s;
+      EXPECT_REGISTER_USE(use_fetch_init[i+1], f_fetch[i+1], f_fetch[i+1], Read, None);
+      EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(f_fetch[i+1], use_fetch[i+1], fetched_value);
 
-        EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(f_fetch[i+1], use_fetch[i+1], fetched_value);
+      EXPECT_REGISTER_TASK(use_fetch[i+1]);
 
-        EXPECT_REGISTER_TASK(use_fetch[i+1]);
+      //EXPECT_FLOW_ALIAS(f_fetch[i+1], f_fetch_null[i+1]);
 
-        EXPECT_FLOW_ALIAS(f_fetch[i+1], f_fetch_null[i+1]);
+      EXPECT_RELEASE_USE(use_fetch_init[i+1]);
+      EXPECT_RELEASE_USE(use_fetch[i+1]);
 
-        EXPECT_RELEASE_USE(use_fetch[i+1]);
-
-      }
 
     }
 
     // TODO assert that the correct uses are in the dependencies of created_task
 
 
-    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
 
     EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
     created_task->run();
 
     // Run the task created inside that does the fetching, if any
     run_all_tasks();
+
+    Mock::VerifyAndClearExpectations(mock_runtime.get());
 
   }
 
@@ -1144,6 +1150,8 @@ TEST_F(TestCreateConcurrentWork, fetch_unique_owner) {
 
 }
 
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 
 
@@ -1158,34 +1166,35 @@ TEST_F(TestCreateConcurrentWork, simple_collection_read) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow finit("finit"), fnull("fnull"), fout_task("fout_task");
+  DECLARE_MOCK_FLOWS(finit, fnull, fout_task);
   use_t* use_all = nullptr;
   use_t* use_coll[4] = { nullptr, nullptr, nullptr, nullptr };
+  use_t* use_mod_cont = nullptr;
+  use_t* use_init = nullptr;
   use_t* use_task = nullptr;
   int value = 0;
 
-  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
 
   EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, fout_task, use_task, value);
 
-  EXPECT_REGISTER_TASK(use_task);
+  EXPECT_REGISTER_USE(use_mod_cont, fout_task, fnull, Modify, None);
+  EXPECT_RELEASE_USE(use_init);
 
-  EXPECT_RELEASE_USE(use_task);
+  EXPECT_REGISTER_TASK(use_task);
 
   EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(fout_task, use_all);
 
   EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(
-    UseInGetDependencies(ByRef(use_all))
+    CollectionUseInGetDependencies(ByRef(use_all))
   ));
 
   EXPECT_FLOW_ALIAS(fout_task, fnull);
+  EXPECT_RELEASE_USE(use_mod_cont);
 
   //============================================================================
   // actual code being tested
   {
-
-    auto tmp = initial_access<int>("hello");
-
 
     struct Foo {
       void operator()(Index1D<int> index,
@@ -1195,6 +1204,8 @@ TEST_F(TestCreateConcurrentWork, simple_collection_read) {
       }
     };
 
+    auto tmp = initial_access<int>("hello");
+
     create_work([=]{ tmp.set_value(42); });
 
     create_concurrent_work<Foo>(tmp.shared_read(),
@@ -1203,6 +1214,8 @@ TEST_F(TestCreateConcurrentWork, simple_collection_read) {
 
   }
   //============================================================================
+
+  EXPECT_RELEASE_USE(use_task);
 
   run_all_tasks();
 
@@ -1227,59 +1240,7 @@ TEST_F(TestCreateConcurrentWork, simple_collection_read) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Actually a compile-time error...
-//TEST_F(TestCreateConcurrentWork, collection_capture_death) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//  using namespace darma_runtime::keyword_arguments_for_task_creation;
-//  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
-//  using namespace mock_backend;
-//
-//  //============================================================================
-//  // actual code being tested
-//  struct FooTask {
-//    void operator()(AccessHandleCollection<int, Range1D<int>>) { }
-//  };
-//
-//  auto tmp = initial_access_collection<int>(index_range=Range1D<int>(42));
-//
-//  EXPECT_DEATH({
-//    create_work<FooTask>(tmp);
-//  },
-//    "Capturing AccessHandleCollection objects in regular tasks is not yet supported"
-//  );
-//
-//  //============================================================================
-//
-//}
-
-////////////////////////////////////////////////////////////////////////////////
-
-//#if 0 // shouldn't compile any more
-//TEST_F(TestCreateConcurrentWork, collection_capture_death) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//  using namespace darma_runtime::keyword_arguments_for_task_creation;
-//  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
-//  using namespace mock_backend;
-//
-//  //============================================================================
-//  // actual code being tested
-//  auto tmp = initial_access_collection<int>(index_range=Range1D<int>(42));
-//
-//  EXPECT_DEATH({
-//    create_work([=]{ tmp[5].local_access(); });
-//  },
-//    "Capturing AccessHandleCollection objects in regular tasks is not yet supported"
-//  );
-//
-//  //============================================================================
-//
-//}
-//#endif
-
+#if 0
 
 TEST_F(TestCreateConcurrentWork, nested_in_create_work) {
 
