@@ -443,11 +443,11 @@ TEST_F(TestCreateConcurrentWork, fetch) {
       EXPECT_REGISTER_USE(use_pub[i], f_pub[i], f_pub[i], None, Read);
       EXPECT_RELEASE_USE(use_idx[i]);
       EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(Eq(ByRef(use_pub[i])), _));
+
       EXPECT_REGISTER_USE(use_pub_contin[i], f_pub[i], f_out_idx[i], Modify, Read);
-      // may be removed...
-      //EXPECT_RELEASE_USE(use_pub[i]);
-      EXPECT_RELEASE_USE(use_pub_contin[i]);
+
       EXPECT_FLOW_ALIAS(f_pub[i], f_out_idx[i]);
+      EXPECT_RELEASE_USE(use_pub_contin[i]);
     }
     else {
       EXPECT_RELEASE_USE(use_idx[i]);
@@ -485,6 +485,8 @@ TEST_F(TestCreateConcurrentWork, fetch) {
 
     // Run the task created inside that does the fetching, if any
     run_all_tasks();
+
+    created_task = nullptr;
 
     Mock::VerifyAndClearExpectations(mock_runtime.get());
 
