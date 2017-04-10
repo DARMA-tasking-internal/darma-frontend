@@ -1049,9 +1049,6 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
 
       // TODO keep this from even generating the continuation flow?!?
 
-      // Tell the source (now continuing) handle to establish an alias
-      source_handle->current_use_base_->could_be_alias = true;
-
       // Release the handle, triggering release of the use
       source_handle = nullptr;
 

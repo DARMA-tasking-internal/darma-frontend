@@ -509,6 +509,7 @@ auto make_captured_use_holder(
                 FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
                 FlowRelationship::Next, nullptr, true
               );
+              captured_use_holder->could_be_alias = true;
 
               // the source should *not* establish an alias when potentially
               // released, in the replace below, since the continuation will
@@ -553,6 +554,7 @@ auto make_captured_use_holder(
                 FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
                 FlowRelationship::Next, nullptr, true
               );
+              captured_use_holder->could_be_alias = true;
 
               source_and_continuing_holder->replace_use(
                 continuing_use_holder_maker(

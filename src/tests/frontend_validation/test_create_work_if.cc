@@ -643,7 +643,6 @@ TEST_F(TestCreateWorkIf, if_else_same_same_always_true) {
 
 }
 
-#if 0
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -659,18 +658,26 @@ TEST_F(TestCreateWorkIf, if_else_same_same_always_false) {
     f_init, f_null, f_if_out, f_then_fwd, f_then_out
   );
   use_t* if_use = nullptr;
+  use_t* if_cont_use = nullptr;
+  use_t* use_init = nullptr;
   use_t* then_use = nullptr;
+  use_t* then_cont_use = nullptr;
 
   int value = 0;
 
-  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, use_init, make_key("hello"));
 
   EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
     .WillOnce(Return(f_if_out));
 
   EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Read, value);
+  EXPECT_REGISTER_USE(if_cont_use, f_if_out, f_null, Modify, None);
+  EXPECT_RELEASE_USE(use_init);
 
   EXPECT_REGISTER_TASK(if_use);
+
+  EXPECT_FLOW_ALIAS(f_if_out, f_null);
+  EXPECT_RELEASE_USE(if_cont_use);
 
   //============================================================================
   // actual code being tested
@@ -696,6 +703,7 @@ TEST_F(TestCreateWorkIf, if_else_same_same_always_false) {
       .WillOnce(Return(f_then_out));
 
     EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, Modify, Modify, value);
+    EXPECT_REGISTER_USE(then_cont_use, f_then_out, f_if_out, Modify, None);
 
     EXPECT_RELEASE_USE(if_use);
 
@@ -704,6 +712,7 @@ TEST_F(TestCreateWorkIf, if_else_same_same_always_false) {
   }
 
   EXPECT_FLOW_ALIAS(f_then_out, f_if_out);
+  EXPECT_RELEASE_USE(then_cont_use);
 
   ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));
 
@@ -733,15 +742,19 @@ TEST_F(TestCreateWorkIf, basic_same_read_only) {
     f_init, f_null
   );
   use_t* if_use = nullptr;
+  use_t* use_init = nullptr;
   use_t* then_use = nullptr;
 
   int value = 73;
 
-  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, use_init, make_key("hello"));
 
   EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_init, Read, Read, value);
 
   EXPECT_REGISTER_TASK(if_use);
+
+  EXPECT_FLOW_ALIAS(f_init, f_null);
+  EXPECT_RELEASE_USE(use_init);
 
   //============================================================================
   // actual code being tested
@@ -757,6 +770,10 @@ TEST_F(TestCreateWorkIf, basic_same_read_only) {
 
   }
   //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(_, _)).Times(0);
 
   {
     InSequence seq;
@@ -798,17 +815,24 @@ TEST_F(TestCreateWorkIf, basic_same_read_only_write_else) {
   );
   use_t* if_use = nullptr;
   use_t* then_use = nullptr;
+  use_t* use_init;
+  use_t* use_cont;
 
   int value = 73;
 
-  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, use_init, make_key("hello"));
 
   EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
     .WillOnce(Return(f_if_out));
 
   EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Read, value);
+  EXPECT_REGISTER_USE(use_cont, f_if_out, f_null, Modify, None);
+  EXPECT_RELEASE_USE(use_init);
 
   EXPECT_REGISTER_TASK(if_use);
+
+  EXPECT_FLOW_ALIAS(f_if_out, f_null);
+  EXPECT_RELEASE_USE(use_cont);
 
   //============================================================================
   // actual code being tested
@@ -826,6 +850,8 @@ TEST_F(TestCreateWorkIf, basic_same_read_only_write_else) {
 
   }
   //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
 
   {
     InSequence seq;
@@ -856,6 +882,7 @@ TEST_F(TestCreateWorkIf, basic_same_read_only_write_else) {
   EXPECT_THAT(value, Eq(73));
 
 }
+
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkIf, basic_same_true_if_lambda_then_functor) {
@@ -870,18 +897,26 @@ TEST_F(TestCreateWorkIf, basic_same_true_if_lambda_then_functor) {
     f_init, f_null, f_if_out, f_then_fwd, f_then_out
   );
   use_t* if_use = nullptr;
+  use_t* use_initial = nullptr;
+  use_t* use_cont = nullptr;
   use_t* then_use = nullptr;
+  use_t* then_cont_use = nullptr;
 
   int value = 0;
 
-  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, use_initial, make_key("hello"));
 
   EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
     .WillOnce(Return(f_if_out));
 
   EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Read, value);
+  EXPECT_REGISTER_USE(use_cont, f_if_out, f_null, Modify, None);
+  EXPECT_RELEASE_USE(use_initial);
 
   EXPECT_REGISTER_TASK(if_use);
+
+  EXPECT_FLOW_ALIAS(f_if_out, f_null);
+  EXPECT_RELEASE_USE(use_cont);
 
   //============================================================================
   // actual code being tested
@@ -901,6 +936,8 @@ TEST_F(TestCreateWorkIf, basic_same_true_if_lambda_then_functor) {
   }
   //============================================================================
 
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
   {
     InSequence seq;
 
@@ -909,14 +946,19 @@ TEST_F(TestCreateWorkIf, basic_same_true_if_lambda_then_functor) {
       .WillOnce(Return(f_then_out));
 
     EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, Modify, Modify, value);
+    // TODO Eventually don't even register this
+    EXPECT_REGISTER_USE(then_cont_use, f_then_out, f_if_out, Modify, None);
 
     EXPECT_RELEASE_USE(if_use);
 
     EXPECT_REGISTER_TASK(then_use);
+
+    // TODO eventually get rid of these next two calls
+    EXPECT_FLOW_ALIAS(f_then_out, f_if_out);
+
+    EXPECT_RELEASE_USE(then_cont_use);
   }
 
-  // TODO eventually get rid of these next two calls
-  EXPECT_FLOW_ALIAS(f_then_out, f_if_out);
 
   ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));
 
@@ -934,6 +976,7 @@ TEST_F(TestCreateWorkIf, basic_same_true_if_lambda_then_functor) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+
 TEST_F(TestCreateWorkIf, same_false_if_lambda_then_lambda_else_functor) {
   using namespace darma_runtime;
   using namespace ::testing;
@@ -946,18 +989,27 @@ TEST_F(TestCreateWorkIf, same_false_if_lambda_then_lambda_else_functor) {
     f_init, f_null, f_if_out, f_then_fwd, f_then_out
   );
   use_t* if_use = nullptr;
+  use_t* use_init = nullptr;
+  use_t* use_cont = nullptr;
   use_t* then_use = nullptr;
+  use_t* then_use_cont = nullptr;
+
 
   int value = 0;
 
-  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, use_init, make_key("hello"));
 
   EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
     .WillOnce(Return(f_if_out));
 
   EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Read, value);
+  EXPECT_REGISTER_USE(use_cont, f_if_out, f_null, Modify, None);
+  EXPECT_RELEASE_USE(use_init);
 
   EXPECT_REGISTER_TASK(if_use);
+
+  EXPECT_FLOW_ALIAS(f_if_out, f_null);
+  EXPECT_RELEASE_USE(use_cont);
 
   //============================================================================
   // actual code being tested
@@ -980,6 +1032,8 @@ TEST_F(TestCreateWorkIf, same_false_if_lambda_then_lambda_else_functor) {
   }
   //============================================================================
 
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
   {
     InSequence seq;
 
@@ -988,14 +1042,18 @@ TEST_F(TestCreateWorkIf, same_false_if_lambda_then_lambda_else_functor) {
       .WillOnce(Return(f_then_out));
 
     EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, Modify, Modify, value);
+    EXPECT_REGISTER_USE(then_use_cont, f_then_out, f_if_out, Modify, None);
 
     EXPECT_RELEASE_USE(if_use);
 
     EXPECT_REGISTER_TASK(then_use);
+
+    // TODO eventually get rid of these next two calls
+    EXPECT_FLOW_ALIAS(f_then_out, f_if_out);
+
+    EXPECT_RELEASE_USE(then_use_cont);
   }
 
-  // TODO eventually get rid of these next two calls
-  EXPECT_FLOW_ALIAS(f_then_out, f_if_out);
 
   ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));
 
@@ -1012,6 +1070,7 @@ TEST_F(TestCreateWorkIf, same_false_if_lambda_then_lambda_else_functor) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
 
 struct TestFunctorLambdaTrueFalse
   : TestCreateWorkIf,
@@ -1034,19 +1093,29 @@ TEST_P(TestFunctorLambdaTrueFalse, same_if_then_else) {
   DECLARE_MOCK_FLOWS(
     f_init, f_null, f_if_out, f_then_fwd, f_then_out
   );
+
+  use_t* use_init = nullptr;
+  use_t* use_cont = nullptr;
   use_t* if_use = nullptr;
   use_t* then_use = nullptr;
+  use_t* then_use_cont = nullptr;
 
   int value = 0;
 
-  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, use_init, make_key("hello"));
 
   EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
     .WillOnce(Return(f_if_out));
 
   EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Read, value);
+  EXPECT_REGISTER_USE(use_cont, f_if_out, f_null, Modify, None);
+
+  EXPECT_RELEASE_USE(use_init);
 
   EXPECT_REGISTER_TASK(if_use);
+
+  EXPECT_FLOW_ALIAS(f_if_out, f_null);
+  EXPECT_RELEASE_USE(use_cont);
 
   //============================================================================
   // actual code being tested
@@ -1126,14 +1195,18 @@ TEST_P(TestFunctorLambdaTrueFalse, same_if_then_else) {
       .WillOnce(Return(f_then_out));
 
     EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, Modify, Modify, value);
+    EXPECT_REGISTER_USE(then_use_cont, f_then_out, f_if_out, Modify, None);
 
     EXPECT_RELEASE_USE(if_use);
 
     EXPECT_REGISTER_TASK(then_use);
+
+    // TODO eventually get rid of these next two calls
+    EXPECT_FLOW_ALIAS(f_then_out, f_if_out);
+
+    EXPECT_RELEASE_USE(then_use_cont);
   }
 
-  // TODO eventually get rid of these next two calls
-  EXPECT_FLOW_ALIAS(f_then_out, f_if_out);
 
   ASSERT_THAT(mock_runtime->registered_tasks.size(), Eq(1));
 
@@ -1176,18 +1249,21 @@ TEST_F(TestCreateWorkIf, multiple_different_always_true) {
     f_cap_if_out, f_cap_cont
   );
   use_t* cond_use = nullptr;
+  use_t* cond_init_use = nullptr;
+  use_t* cap_init_use = nullptr;
   use_t* cap_if_use = nullptr;
   use_t* cap_then_use = nullptr;
   use_t* cap_then_cont_use = nullptr;
+  use_t* outer_cont_use = nullptr;
   use_t* cond_after_use = nullptr;
 
 
   int cond_value = 0;
   int cap_value = 0;
 
-  EXPECT_INITIAL_ACCESS(f_cond_init, f_cond_null, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_cond_init, f_cond_null, cond_init_use, make_key("hello"));
 
-  EXPECT_INITIAL_ACCESS(f_cap_init, f_cap_null, make_key("world"));
+  EXPECT_INITIAL_ACCESS(f_cap_init, f_cap_null, cap_init_use, make_key("world"));
 
   EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(f_cond_init, cond_use, cond_value);
 
@@ -1198,22 +1274,21 @@ TEST_F(TestCreateWorkIf, multiple_different_always_true) {
     EXPECT_CALL(*mock_runtime, make_next_flow(f_cap_init))
       .WillOnce(Return(f_cap_if_out));
 
-    EXPECT_CALL(*mock_runtime, make_next_flow(f_cap_init))
-      .WillOnce(Return(f_cap_cont));
+    EXPECT_REGISTER_USE(cap_if_use, f_cap_init, f_cap_if_out, Modify, None);
+    EXPECT_REGISTER_USE(outer_cont_use, f_cap_if_out, f_cap_null, Modify, None);
+    EXPECT_RELEASE_USE(cap_init_use);
+
+    EXPECT_REGISTER_TASK(cond_use, cap_if_use);
 
   }
 
-  EXPECT_REGISTER_USE(cap_if_use, f_cap_init, f_cap_if_out, Modify, None);
-
-  EXPECT_REGISTER_USE_AND_SET_BUFFER(cap_then_use, f_cap_init, f_cap_cont, Modify, Modify, cap_value);
-
-  EXPECT_REGISTER_TASK(cond_use, cap_if_use);
 
 
-  // TODO get rid of this in the code
-  EXPECT_REGISTER_USE(cap_then_cont_use, f_cap_cont, f_cap_if_out, Modify, None);
+  EXPECT_FLOW_ALIAS(f_cap_if_out, f_cap_null);
+  EXPECT_RELEASE_USE(outer_cont_use);
 
-  EXPECT_REGISTER_TASK(cap_then_use);
+  EXPECT_FLOW_ALIAS(f_cond_init, f_cond_null);
+  EXPECT_RELEASE_USE(cond_init_use);
 
   //============================================================================
   // actual code being tested
@@ -1239,25 +1314,52 @@ TEST_F(TestCreateWorkIf, multiple_different_always_true) {
   }
   //============================================================================
 
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(f_cap_init))
+    .WillOnce(Return(f_cap_cont));
+
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(cap_then_use, f_cap_init, f_cap_cont, Modify, Modify, cap_value);
+  EXPECT_REGISTER_USE(cap_then_cont_use, f_cap_cont, f_cap_if_out, Modify, None);
+
+  EXPECT_REGISTER_TASK(cap_then_use);
+
   EXPECT_RELEASE_USE(cond_use);
   EXPECT_RELEASE_USE(cap_if_use);
-  EXPECT_RELEASE_USE(cap_then_cont_use);
 
   EXPECT_FLOW_ALIAS(f_cap_cont, f_cap_if_out);
+  EXPECT_RELEASE_USE(cap_then_cont_use);
 
   run_one_task();
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_CALL(*mock_runtime, legacy_register_use(_)).Times(0);
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(_, _)).Times(0);
 
   EXPECT_RELEASE_USE(cap_then_use);
 
   run_most_recently_added_task();
 
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_CALL(*mock_runtime, legacy_register_use(_)).Times(0);
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(_, _)).Times(0);
+
   EXPECT_RELEASE_USE(cond_after_use);
 
   run_one_task();
 
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_CALL(*mock_runtime, legacy_register_use(_)).Times(0);
+  EXPECT_CALL(*mock_runtime, establish_flow_alias(_, _)).Times(0);
+
   EXPECT_THAT(cap_value, Eq(73));
 
 }
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1276,19 +1378,24 @@ TEST_F(TestCreateWorkIf, collection_then_always_true) {
   MockFlow f_in_idx[4] = { "f_in_idx[0]", "f_in_idx[1]", "f_in_idx[2]", "f_in_idx[3]"};
   MockFlow f_out_idx[4] = { "f_out_idx[0]", "f_out_idx[1]", "f_out_idx[2]", "f_out_idx[3]"};
   use_t* use_idx[4] = { nullptr, nullptr, nullptr, nullptr };
+  use_t* use_init = nullptr;
+  use_t* use_init_coll = nullptr;
+  use_t* use_cont = nullptr;
+  use_t* use_outer_coll_cont = nullptr;
   use_t* use_coll = nullptr;
   use_t* use_coll_cont = nullptr;
   use_t* if_use = nullptr;
   use_t* if_c_use = nullptr;
   use_t* then_use = nullptr;
+  use_t* then_use_cont = nullptr;
   use_t* then_c_use = nullptr;
   use_t* then_c_use_cont = nullptr;
 
   int value = 0;
   int values[4] = {0, 0, 0, 0};
 
-  EXPECT_INITIAL_ACCESS(f_init, f_null, make_key("hello"));
-  EXPECT_INITIAL_ACCESS_COLLECTION(f_init_c, f_null_c, make_key("world"));
+  EXPECT_INITIAL_ACCESS(f_init, f_null, use_init, make_key("hello"));
+  EXPECT_INITIAL_ACCESS_COLLECTION(f_init_c, f_null_c, use_init_coll, make_key("world"), 4);
 
   EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
     .WillOnce(Return(f_if_out));
@@ -1298,11 +1405,18 @@ TEST_F(TestCreateWorkIf, collection_then_always_true) {
 
   EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Read, value);
   EXPECT_REGISTER_USE(if_c_use, f_init_c, f_if_out_c, Modify, None);
+  EXPECT_REGISTER_USE(use_cont, f_if_out, f_null, Modify, None);
+  EXPECT_REGISTER_USE(use_outer_coll_cont, f_if_out_c, f_null_c, Modify, None);
+  EXPECT_RELEASE_USE(use_init);
+  EXPECT_RELEASE_USE(use_init_coll);
 
   EXPECT_REGISTER_TASK(if_use, if_c_use);
 
   EXPECT_FLOW_ALIAS(f_if_out, f_null);
+  EXPECT_RELEASE_USE(use_cont);
+
   EXPECT_FLOW_ALIAS(f_if_out_c, f_null_c);
+  EXPECT_RELEASE_USE(use_outer_coll_cont);
 
   //============================================================================
   // actual code being tested
@@ -1346,6 +1460,7 @@ TEST_F(TestCreateWorkIf, collection_then_always_true) {
     .WillOnce(Return(f_then_out_c));
 
   EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, Modify, Modify, value);
+  EXPECT_REGISTER_USE(then_use_cont, f_then_out, f_if_out, Modify, None);
 
   // Expect register schedule only use for the collection
   EXPECT_REGISTER_USE_COLLECTION(then_c_use, f_init_c, f_then_out_c, Modify, None, 4);
@@ -1365,17 +1480,18 @@ TEST_F(TestCreateWorkIf, collection_then_always_true) {
   // Expect release use for the regular handle
   EXPECT_RELEASE_USE(if_use);
 
-  // Expect release of the continuation use
-  // We can do this before or after the register task call, but preferrably
-  // before
-  EXPECT_RELEASE_USE(then_c_use_cont);
-
   // Expect register task  with both uses
   EXPECT_REGISTER_TASK(then_use, then_c_use);
 
   // Expect aliases of both continuation uses
   EXPECT_FLOW_ALIAS(f_then_out, f_if_out);
+  EXPECT_RELEASE_USE(then_use_cont);
+
+  // Expect release of the continuation use
+  // We can do this before or after the register task call, but preferrably
+  // before
   EXPECT_FLOW_ALIAS(f_then_out_c, f_if_out_c);
+  EXPECT_RELEASE_USE(then_c_use_cont);
 
   run_one_task(); // run the "if" part
 
@@ -1402,7 +1518,7 @@ TEST_F(TestCreateWorkIf, collection_then_always_true) {
   EXPECT_RELEASE_USE(use_coll_cont);
 
   EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(
-    UseInGetDependencies(ByRef(use_coll))
+    CollectionUseInGetDependencies(ByRef(use_coll))
   ));
 
   EXPECT_FLOW_ALIAS(fout_coll, f_then_out_c);
@@ -1449,4 +1565,3 @@ TEST_F(TestCreateWorkIf, collection_then_always_true) {
 
 }
 
-#endif
