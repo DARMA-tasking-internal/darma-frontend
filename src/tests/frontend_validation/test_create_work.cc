@@ -612,14 +612,13 @@ TEST_P(TestScheduleOnly, schedule_only) {
   // Now expect the mod-immediate task to be registered once the first task is run
   // TODO technically I should change the return value of get_running_task here...
 
-  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, f_immed_out, use_immed_capt, value);
+  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, f_immed_out, use_immed_capt,
+    f_sched_out, use_sched_contin, value);
+
   EXPECT_REGISTER_TASK(use_immed_capt);
 
-  // Also, a replacement schedule-only use should be registered
-  EXPECT_REGISTER_USE(use_sched_contin, f_immed_out, f_sched_out, Modify, None);
-
-  EXPECT_RELEASE_USE(use_sched_contin);
   EXPECT_FLOW_ALIAS(f_immed_out, f_sched_out);
+  EXPECT_RELEASE_USE(use_sched_contin);
 
   EXPECT_RELEASE_USE(use_sched_capt);
 
@@ -789,9 +788,9 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
   {
     InSequence s;
 
-    EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(fforw, finner_out, use_inner, value);
-
-    EXPECT_REGISTER_USE(use_mod_cont, finner_out, ftask_out, Modify, None);
+    EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(
+      fforw, finner_out, use_inner, ftask_out, use_mod_cont, value
+    );
 
     EXPECT_RELEASE_USE(use_pub_cont);
   }

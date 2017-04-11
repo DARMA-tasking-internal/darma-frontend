@@ -662,7 +662,6 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#if 0
 
 TEST_F(TestCreateConcurrentWork, many_to_one) {
 
@@ -680,31 +679,30 @@ TEST_F(TestCreateConcurrentWork, many_to_one) {
   MockFlow f_out_idx[4] = { "f_out_idx[0]", "f_out_idx[1]", "f_out_idx[2]", "f_out_idx[3]"};
   use_t* use_idx[4] = { nullptr, nullptr, nullptr, nullptr };
   use_t* use_coll = nullptr;
+  use_t* use_coll_cont = nullptr;
+  use_t* use_coll_init = nullptr;
   int values[4];
 
-  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, use_coll_init, make_key("hello"), 4);
 
   EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
     .WillOnce(Return(fout_coll));
 
-  EXPECT_CALL(*mock_runtime, register_use(AllOf(
-    IsUseWithFlows(finit, fout_coll, use_t::Modify, use_t::Modify),
-    Truly([](auto* use){
-      return (
-        use->manages_collection()
-          and use->get_managed_collection()->size() == 4
-      );
-    })
-  ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
+  EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, fout_coll, Modify, Modify, 4);
+  EXPECT_REGISTER_USE_COLLECTION(use_coll_cont, fout_coll, fnull, Modify, None, 4);
+  EXPECT_RELEASE_USE(use_coll_init);
+
+  EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(
+    CollectionUseInGetDependencies(ByRef(use_coll))
+  ));
 
   EXPECT_FLOW_ALIAS(fout_coll, fnull);
+  EXPECT_RELEASE_USE(use_coll_cont);
 
   //============================================================================
   // actual code being tested
   {
 
-    //auto tmp = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
-    //auto tmp = initial_access<int>("hello");
     auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
 
 
@@ -747,6 +745,8 @@ TEST_F(TestCreateConcurrentWork, many_to_one) {
   }
   //============================================================================
 
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
   EXPECT_THAT((*mock_runtime->task_collections.front()->get_dependencies().begin()
     )->get_managed_collection()->task_index_for(0), Eq(0));
   EXPECT_THAT((*mock_runtime->task_collections.front()->get_dependencies().begin()
@@ -768,18 +768,10 @@ TEST_F(TestCreateConcurrentWork, many_to_one) {
       .WillOnce(Return(f_out_idx[i]));
     EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i+2))
       .WillOnce(Return(f_out_idx[i+2]));
-    EXPECT_CALL(*mock_runtime, register_use(
-      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
-    )).WillOnce(Invoke([&](auto* use){
-      use_idx[i] = use;
-      use->get_data_pointer_reference() = &values[i];
-    }));
-    EXPECT_CALL(*mock_runtime, register_use(
-      IsUseWithFlows(f_in_idx[i+2], f_out_idx[i+2], use_t::Modify, use_t::Modify)
-    )).WillOnce(Invoke([&](auto* use){
-      use_idx[i+2] = use;
-      use->get_data_pointer_reference() = &values[i+2];
-    }));
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i],
+      Modify, Modify, values[i]);
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i+2], f_in_idx[i+2],
+      f_out_idx[i+2], Modify, Modify, values[i+2]);
 
     auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
 
@@ -797,7 +789,6 @@ TEST_F(TestCreateConcurrentWork, many_to_one) {
   }
 
   EXPECT_RELEASE_USE(use_coll);
-
 
   mock_runtime->task_collections.front().reset(nullptr);
 
@@ -822,35 +813,35 @@ TEST_F(TestCreateConcurrentWork, simple_sq_brkt_same) {
   MockFlow f_out_idx = "f_out_idx";
   MockFlow f_pub("f_pub"), f_inner_mod("f_inner_mod");
   use_t* use_idx = nullptr;
+  use_t* use_coll_init = nullptr;
+  use_t* use_coll_cont = nullptr;
   use_t* use_coll = nullptr;
   use_t* use_pub = nullptr;
   use_t* use_pub_cont = nullptr;
   use_t* use_inner_mod = nullptr;
+  use_t* use_inner_mod_cont = nullptr;
   int value = 0;
 
-  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, use_coll_init, make_key("hello"), 1);
 
   EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
     .WillOnce(Return(fout_coll));
 
-  EXPECT_CALL(*mock_runtime, register_use(AllOf(
-    IsUseWithFlows(finit, fout_coll, use_t::Modify, use_t::Modify),
-    Truly([](auto* use){
-      return (
-        use->manages_collection()
-          and use->get_managed_collection()->size() == 1
-      );
-    })
-  ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
+  EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, fout_coll, Modify, Modify, 1);
+  EXPECT_REGISTER_USE_COLLECTION(use_coll_cont, fout_coll, fnull, Modify, None, 1);
+  EXPECT_RELEASE_USE(use_coll_init);
+
+  EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(
+    CollectionUseInGetDependencies(ByRef(use_coll))
+  ));
 
   EXPECT_FLOW_ALIAS(fout_coll, fnull);
+  EXPECT_RELEASE_USE(use_coll_cont);
 
   //============================================================================
   // actual code being tested
   {
 
-    //auto tmp = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
-    //auto tmp = initial_access<int>("hello");
     auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(1));
 
 
@@ -879,18 +870,20 @@ TEST_F(TestCreateConcurrentWork, simple_sq_brkt_same) {
   }
   //============================================================================
 
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
 
   EXPECT_CALL(*mock_runtime, make_indexed_local_flow(finit, 0))
     .WillOnce(Return(f_in_idx));
   EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, 0))
     .WillOnce(Return(f_out_idx));
 
-  EXPECT_CALL(*mock_runtime, register_use(
-    IsUseWithFlows(f_in_idx, f_out_idx, use_t::Modify, use_t::Modify)
-  )).WillOnce(Invoke([&](auto* use){
-    use_idx = use;
-    use->get_data_pointer_reference() = &value;
-  }));
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx, f_in_idx, f_out_idx, Modify, Modify, value);
+  //EXPECT_CALL(*mock_runtime, legacy_register_use(
+  //  IsUseWithFlows(f_in_idx, f_out_idx, use_t::Modify, use_t::Modify)
+  //)).WillOnce(Invoke([&](auto* use){
+  //  use_idx = use;
+  //  use->get_data_pointer_reference() = &value;
+  //}));
 
   auto created_task = mock_runtime->task_collections.front()->create_task_for_index(0);
 
@@ -905,21 +898,26 @@ TEST_F(TestCreateConcurrentWork, simple_sq_brkt_same) {
 
   EXPECT_RELEASE_USE(use_idx);
 
-  EXPECT_CALL(*mock_runtime, publish_use(Eq(ByRef(use_pub)), _));
-
-  EXPECT_RELEASE_USE(use_pub);
+  EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(Eq(ByRef(use_pub)), _));
 
   EXPECT_RELEASE_USE(use_pub_cont);
 
-  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(f_pub, f_inner_mod, use_inner_mod, value);
+  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(f_pub, f_inner_mod, use_inner_mod,
+    f_out_idx, use_inner_mod_cont, value);
 
   EXPECT_REGISTER_TASK(use_inner_mod);
 
   EXPECT_FLOW_ALIAS(f_inner_mod, f_out_idx);
+  EXPECT_RELEASE_USE(use_inner_mod_cont);
 
   created_task->run();
 
+  // TODO some/most of these releases should happen without having to release the task
+  created_task = nullptr;
+
   EXPECT_THAT(value, Eq(42));
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
 
   EXPECT_RELEASE_USE(use_inner_mod);
 
@@ -935,7 +933,7 @@ TEST_F(TestCreateConcurrentWork, simple_sq_brkt_same) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
+#if _darma_has_feature(create_concurrent_work_owned_by)
 TEST_F(TestCreateConcurrentWork, simple_unique_owner) {
 
   using namespace ::testing;
@@ -1152,7 +1150,7 @@ TEST_F(TestCreateConcurrentWork, fetch_unique_owner) {
 
 }
 
-#endif
+#endif // _darma_has_feature(create_concurrent_work_owned_by)
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1178,9 +1176,8 @@ TEST_F(TestCreateConcurrentWork, simple_collection_read) {
 
   EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
 
-  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, fout_task, use_task, value);
-
-  EXPECT_REGISTER_USE(use_mod_cont, fout_task, fnull, Modify, None);
+  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, fout_task, use_task, fnull,
+    use_mod_cont, value);
   EXPECT_RELEASE_USE(use_init);
 
   EXPECT_REGISTER_TASK(use_task);
