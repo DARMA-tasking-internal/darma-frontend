@@ -136,11 +136,6 @@ TEST_F(TestFunctor, simple_migrate) {
 
   task_to_migrate->pack(buffer);
 
-  EXPECT_RELEASE_USE(hello_use);
-
-  // Release the task on the "origin node"
-  task_to_migrate = nullptr;
-
   EXPECT_CALL(*mock_runtime, make_unpacked_flow(Truly([&](void const* buff){
     return *reinterpret_cast<MockFlow const*>(buff) == f_set_42_out;
   }))).Times(2).WillRepeatedly(Invoke([&](void const*& buff) {
@@ -159,6 +154,14 @@ TEST_F(TestFunctor, simple_migrate) {
     }));
 
   auto migrated_task = darma_runtime::frontend::unpack_task(buffer);
+
+  // Since we need to have f_set_42_out still in existence to make the above
+  // expectations work, we need to move the release down here.
+  // TODO figure out how to do this test so that task_to_migrate can be released
+  // before we unpack the other task
+  EXPECT_RELEASE_USE(hello_use);
+  // Release the task on the "origin node"
+  task_to_migrate = nullptr;
 
   EXPECT_RELEASE_USE(migrated_use);
 
