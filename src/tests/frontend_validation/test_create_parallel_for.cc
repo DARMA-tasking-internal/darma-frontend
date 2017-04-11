@@ -110,14 +110,15 @@ TEST_F(TestCreateParallelFor, simple_lambda_capture) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow finit, fnull, fcapt;
-  use_t* use_capt;
+  DECLARE_MOCK_FLOWS(finit, fnull, fcapt);
+  use_t* use_capt, *use_init, *use_cont;
 
   std::vector<int> five_items{0, 0, 0, 0, 0};
 
-  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
 
-  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, fcapt, use_capt, five_items);
+  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, fcapt, use_capt, fnull, use_cont, five_items);
+  EXPECT_RELEASE_USE(use_init);
 
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(
     AllOf(
@@ -127,6 +128,9 @@ TEST_F(TestCreateParallelFor, simple_lambda_capture) {
       })
     )
   ));
+
+  EXPECT_FLOW_ALIAS(fcapt, fnull);
+  EXPECT_RELEASE_USE(use_cont);
 
   //============================================================================
   // actual code being tested
@@ -138,6 +142,8 @@ TEST_F(TestCreateParallelFor, simple_lambda_capture) {
     });
   }
   //============================================================================
+
+  EXPECT_RELEASE_USE(use_capt);
 
   run_all_tasks();
 
@@ -200,6 +206,7 @@ TEST_F(TestCreateParallelFor, simple_functor_args) {
 
 }
 
+
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateParallelFor, functor_args) {
@@ -211,13 +218,14 @@ TEST_F(TestCreateParallelFor, functor_args) {
   mock_runtime->save_tasks = true;
 
   MockFlow finit, fnull, fcapt;
-  use_t* use_capt;
+  use_t* use_capt, *use_init, *use_cont;
 
   std::vector<int> five_items{0, 0, 0, 0, 0};
 
-  EXPECT_INITIAL_ACCESS(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
 
-  EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, fcapt, use_capt, five_items);
+  EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, fcapt, use_capt, fnull, use_cont, five_items);
+  EXPECT_RELEASE_USE(use_init);
 
   EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(
     AllOf(
@@ -227,6 +235,9 @@ TEST_F(TestCreateParallelFor, functor_args) {
       })
     )
   ));
+
+  EXPECT_FLOW_ALIAS(fcapt, fnull);
+  EXPECT_RELEASE_USE(use_cont);
 
   //============================================================================
   // actual code being tested
@@ -242,6 +253,8 @@ TEST_F(TestCreateParallelFor, functor_args) {
     create_parallel_for<Simple>(tmp, n_iterations=5);
   }
   //============================================================================
+
+  EXPECT_RELEASE_USE(use_capt);
 
   run_all_tasks();
 
