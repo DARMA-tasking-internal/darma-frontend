@@ -398,7 +398,11 @@ TEST_P(TestCaptureMM, capture_MM) {
     InSequence seq;
 
     EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
+#if _darma_has_feature(anti_flows)
+      f_forwarded, nullptr, use_t::Read, use_t::Read
+#else
       f_forwarded, f_forwarded, use_t::Read, use_t::Read
+#endif // _darma_has_feature(anti_flows)
     ))).WillOnce(Invoke([&](auto&& use){
         use->get_data_pointer_reference() = (void*)(&value);
         use_inner = use;
@@ -769,7 +773,11 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
   EXPECT_CALL(*mock_runtime, make_forwarding_flow(finit))
     .WillOnce(Return(fforw));
 
+#if _darma_has_feature(anti_flows)
+  EXPECT_REGISTER_USE(use_pub, fforw, nullptr, None, Read);
+#else
   EXPECT_REGISTER_USE(use_pub, fforw, fforw, None, Read);
+#endif // _darma_has_feature(anti_flows)
 
   {
     InSequence s;

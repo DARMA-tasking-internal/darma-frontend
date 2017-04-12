@@ -111,7 +111,18 @@ TEST_F(TestFunctor, simple_migrate) {
   auto& task_to_migrate = mock_runtime->registered_tasks.front();
 
   EXPECT_CALL(*mock_runtime, get_packed_flow_size(f_set_42_out))
-    .Times(2).WillRepeatedly(Return(sizeof(MockFlow)));
+    .Times(
+#if _darma_has_feature(anti_flows)
+      1
+#else
+      2
+#endif // _darma_has_feature(anti_flows)
+    ).WillRepeatedly(Return(sizeof(MockFlow)));
+
+#if _darma_has_feature(anti_flows)
+  EXPECT_CALL(*mock_runtime, get_packed_flow_size(Eq(nullptr)))
+    .Times(1).WillRepeatedly(Return(sizeof(MockFlow)));
+#endif // _darma_has_feature(anti_flows)
 
   size_t task_packed_size = task_to_migrate->get_packed_size();
 
@@ -125,7 +136,13 @@ TEST_F(TestFunctor, simple_migrate) {
         (intptr_t(&(buffer[0])) <= intptr_t(flow_buff))
         and (intptr_t(&(buffer[0])+task_packed_size) > intptr_t(flow_buff));
     }
-  ))).Times(2).WillRepeatedly(Invoke([&](auto&& flow, void*& buffer) {
+  ))).Times(
+#if _darma_has_feature(anti_flows)
+    1
+#else
+    2
+#endif // _darma_has_feature(anti_flows)
+  ).WillRepeatedly(Invoke([&](auto&& flow, void*& buffer) {
     // memcpy the flow directly into the buffer.  We'll just use it for
     // comparison purposes later to make sure the translation layer is
     // delivering the correct buffer to make_unpacked_flow
@@ -134,17 +151,53 @@ TEST_F(TestFunctor, simple_migrate) {
     reinterpret_cast<char*&>(buffer) += sizeof(MockFlow);
   }));
 
+#if _darma_has_feature(anti_flows)
+  EXPECT_CALL(*mock_runtime, pack_flow(Eq(nullptr), Truly(
+    // GCC doesn't like it if I capture buffer by reference, so...
+    [buffer=&(buffer[0]), task_packed_size](auto&& flow_buff) {
+      // expect that the buffer given here is part of the buffer from above
+      return
+        (intptr_t(&(buffer[0])) <= intptr_t(flow_buff))
+          and (intptr_t(&(buffer[0])+task_packed_size) > intptr_t(flow_buff));
+    }
+  ))).Times(1).WillRepeatedly(Invoke([&](auto&& flow, void*& buffer) {
+    // memcpy the flow directly into the buffer.  We'll just use it for
+    // comparison purposes later to make sure the translation layer is
+    // delivering the correct buffer to make_unpacked_flow
+    ::memcpy(buffer, (void*)(std::addressof(flow)), sizeof(MockFlow));
+    // and advance the buffer
+    reinterpret_cast<char*&>(buffer) += sizeof(MockFlow);
+  }));
+#endif // _darma_has_feature(anti_flows)
+
   task_to_migrate->pack(buffer);
 
   EXPECT_CALL(*mock_runtime, make_unpacked_flow(Truly([&](void const* buff){
-    return *reinterpret_cast<MockFlow const*>(buff) == f_set_42_out;
-  }))).Times(2).WillRepeatedly(Invoke([&](void const*& buff) {
-    reinterpret_cast<char const*&>(buff) += sizeof(MockFlow);
-    return f_set_42_out_migrated;
-  }));
+    return *reinterpret_cast<MockFlow const*>(buff) == f_set_42_out
+      || *reinterpret_cast<MockFlow const*>(buff) == nullptr;
+  }))).Times(2)
+#if _darma_has_feature(anti_flows)
+    .WillOnce(Invoke([&](void const*& buff) {
+      reinterpret_cast<char const*&>(buff) += sizeof(MockFlow);
+      return f_set_42_out_migrated;
+    }))
+    .WillOnce(Invoke([&](void const*& buff) {
+      reinterpret_cast<char const*&>(buff) += sizeof(MockFlow);
+      return MockFlow(nullptr);
+    }));
+#else
+    .WillRepeatedly(Invoke([&](void const*& buff) {
+      reinterpret_cast<char const*&>(buff) += sizeof(MockFlow);
+      return f_set_42_out_migrated;
+    }));
+#endif // _darma_has_feature(anti_flows)
 
   EXPECT_CALL(*mock_runtime, reregister_migrated_use(IsUseWithFlows(
+#if _darma_has_feature(anti_flows)
+    f_set_42_out_migrated, nullptr,
+#else
     f_set_42_out_migrated, f_set_42_out_migrated,
+#endif // _darma_has_feature(anti_flows)
     use_t::None, use_t::Read
   ))).WillOnce(Invoke([&](auto&& rereg_use) {
       darma_runtime::abstract::frontend::use_cast<

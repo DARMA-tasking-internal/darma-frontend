@@ -91,7 +91,11 @@ TEST_F(TestCreateWork, publish_simple_MN) {
 
   EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
 
+#if _darma_has_feature(anti_flows)
+  EXPECT_REGISTER_USE(use_capt, finit, nullptr, None, Read);
+#else
   EXPECT_REGISTER_USE(use_capt, finit, finit, None, Read);
+#endif // _darma_has_feature(anti_flows)
 
   EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(
     Eq(ByRef(use_capt)),

@@ -749,7 +749,11 @@ TEST_F(TestCreateWorkIf, basic_same_read_only) {
 
   EXPECT_INITIAL_ACCESS(f_init, f_null, use_init, make_key("hello"));
 
+#if _darma_has_feature(anti_flows)
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, nullptr, Read, Read, value);
+#else
   EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_init, Read, Read, value);
+#endif // _darma_has_feature(anti_flows)
 
   EXPECT_REGISTER_TASK(if_use);
 
@@ -778,7 +782,11 @@ TEST_F(TestCreateWorkIf, basic_same_read_only) {
   {
     InSequence seq;
 
+#if _darma_has_feature(anti_flows)
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, nullptr, Read, Read, value);
+#else
     EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_init, Read, Read, value);
+#endif // _darma_has_feature(anti_flows)
 
     EXPECT_REGISTER_TASK(then_use);
   }
