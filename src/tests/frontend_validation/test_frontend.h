@@ -263,27 +263,23 @@ struct UseDescription {
     .WillOnce(Return(f_null));
 
 
+// Works either way with anti-flows enabled or disabled
 #define EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(fread, use_ptr) \
-  ::_impl::in_sequence_wrapper( \
-    EXPECT_CALL(*mock_runtime, legacy_register_use( \
-        IsUseWithFlows( \
-          fread, fread, -1, use_t::Read \
-        ) \
-    )), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce(SaveArg<0>(&use_ptr)); } \
-  )
+  EXPECT_CALL(*mock_runtime, legacy_register_use( \
+    IsUseWithInFlow( \
+      fread, -1, use_t::Read \
+    ) \
+  )).WillOnce(SaveArg<0>(&use_ptr))
 
+// Works either way with anti-flows enabled or disabled
 #define EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(fread, use_ptr, value) \
-  ::_impl::in_sequence_wrapper( \
     EXPECT_CALL(*mock_runtime, legacy_register_use( \
-        IsUseWithFlows( \
-          fread, fread, -1, use_t::Read \
+        IsUseWithInFlow( \
+          fread, -1, use_t::Read \
         ) \
-    )), [&](auto&& exp) -> decltype(auto) { \
-          return exp.WillOnce(::testing::Invoke([&](auto&& use_arg) { \
-            use_ptr = use_arg; use_arg->get_data_pointer_reference() = &value; \
-          })); \
-        } \
-  )
+    )).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
+      use_ptr = use_arg; use_arg->get_data_pointer_reference() = &value; \
+    }))
 
 
 #define EXPECT_REGISTER_TASK(...) \

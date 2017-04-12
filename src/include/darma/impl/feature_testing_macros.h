@@ -87,9 +87,8 @@
 
 #define _darma_feature_date_register_commutative_continuation_uses 20170330
 
-// TODO write anti flows
-//#define _darma_feature_date_anti_flows 20170415
-#define _darma_feature_disabled_by_default_anti_flows 1
+#define _darma_feature_date_anti_flows 20170415
+#define _darma_feature_disabled_by_default_anti_flows 0
 
 // TODO incorporate task_collection_token
 //#define _darma_feature_date_task_collection_token 20170415

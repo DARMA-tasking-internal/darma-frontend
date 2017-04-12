@@ -50,6 +50,7 @@
 namespace mock_backend {
 
 size_t MockFlow::next_index = 0;
+size_t MockAntiFlow::next_index = 0;
 
 } // end namespace mock_backend
 

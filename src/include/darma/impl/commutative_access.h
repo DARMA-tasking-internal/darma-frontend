@@ -108,6 +108,7 @@ struct _commutative_access_impl {
     >;
 
     using namespace darma_runtime::abstract::frontend;
+    using namespace darma_runtime::detail::flow_relationships;
 
     // in handle unless one is given for the new handle, which is not yet
     // supported anyway)
@@ -118,8 +119,14 @@ struct _commutative_access_impl {
           in_handle.var_handle_,
           HandleUse::Commutative, /* scheduling permissions */
           HandleUse::None, /* immediate permissions */
-          FlowRelationship::Same, &in_handle.current_use_->use->in_flow_,
-          FlowRelationship::Next, nullptr, true
+          same_flow(&in_handle.current_use_->use->in_flow_),
+          //FlowRelationship::Same, &in_handle.current_use_->use->in_flow_,
+          next_of_in_flow()
+          //FlowRelationship::Next, nullptr, true
+#if _darma_has_feature(anti_flows)
+          , insignificant_flow(),
+          same_anti_flow(&in_handle.current_use_->use->anti_out_flow_)
+#endif // _darma_has_feature(anti_flows)
         )
       );
     assert(in_handle.current_use_->use->suspended_out_flow_ == nullptr);
@@ -247,6 +254,7 @@ struct _commutative_access_impl {
     // TODO use allocator
 
     using namespace darma_runtime::abstract::frontend;
+    using namespace darma_runtime::detail::flow_relationships;
 
     // in handle unless one is given for the new handle, which is not yet
     // supported anyway)
@@ -255,8 +263,14 @@ struct _commutative_access_impl {
         in_handle.var_handle_.get_smart_ptr(),
         HandleUse::Commutative, /* scheduling permissions */
         HandleUse::None, /* immediate permissions */
-        FlowRelationship::SameCollection, &in_handle.current_use_->use->in_flow_,
-        FlowRelationship::NextCollection, nullptr, true,
+        same_flow(&in_handle.current_use_->use->in_flow_).as_collection_relationship(),
+        //FlowRelationship::SameCollection, &in_handle.current_use_->use->in_flow_,
+        next_of_in_flow().as_collection_relationship(),
+        //FlowRelationship::NextCollection, nullptr, true,
+#if _darma_has_feature(anti_flows)
+        insignificant_flow().as_collection_relationship(),
+        same_anti_flow(&in_handle.current_use_->use->anti_out_flow_).as_collection_relationship(),
+#endif // _darma_has_feature(anti_flows)
         // we probably COULD move the index range from the old use now, since
         // it's going away, but for now, just copy it, since we might want
         // to use it in the destructor of the old use at some point in the
@@ -381,7 +395,7 @@ struct _commutative_access_impl {
         " commutative_access(...) that don't take an AccessHandle argument"
     );
 
-    using namespace darma_runtime::abstract::frontend;
+    using namespace darma_runtime::detail::flow_relationships;
 
     // TODO use allocator
 
@@ -400,8 +414,14 @@ struct _commutative_access_impl {
         var_h,
         HandleUse::Modify,
         HandleUse::None,
-        FlowRelationship::Initial, nullptr,
-        FlowRelationship::Null, nullptr, false
+        initial_flow(),
+        //FlowRelationship::Initial, nullptr,
+        null_flow()
+        //FlowRelationship::Null, nullptr, false
+#if _darma_has_feature(anti_flows)
+        , insignificant_flow(),
+        anti_next_of_in_flow()
+#endif // _darma_has_feature(anti_flows)
       )
     );
 
@@ -426,8 +446,14 @@ struct _commutative_access_impl {
           var_h,
           HandleUse::Commutative,
           HandleUse::None,
-          FlowRelationship::Same, &initial_use.use->in_flow_,
-          FlowRelationship::Next, nullptr, true
+          same_flow(&initial_use.use->in_flow_),
+          //FlowRelationship::Same, &initial_use.use->in_flow_,
+          next_of_in_flow()
+          //FlowRelationship::Next, nullptr, true
+#if _darma_has_feature(anti_flows)
+          , same_anti_flow(&initial_use.use->anti_out_flow_),
+          insignificant_flow()
+#endif // _darma_has_feature(anti_flows)
         )
       ),
       std::make_unique<types::flow_t>(
@@ -512,6 +538,7 @@ struct _noncommutative_access_impl {
     >;
 
     using namespace darma_runtime::abstract::frontend;
+    using namespace darma_runtime::detail::flow_relationships;
     auto* rt = abstract::backend::get_backend_runtime();
 
     // Use the allocator from the out handle (which is the allocator from the
@@ -529,8 +556,14 @@ struct _noncommutative_access_impl {
           in_handle.var_handle_,
           HandleUse::Modify, /* scheduling permissions */
           HandleUse::None, /* immediate permissions */
-          FlowRelationship::Same, &in_handle.current_use_->use->out_flow_,
-          FlowRelationship::Same, &suspended_out
+          same_flow(&in_handle.current_use_->use->out_flow_),
+          //FlowRelationship::Same, &in_handle.current_use_->use->out_flow_,
+          same_flow(&suspended_out)
+          //FlowRelationship::Same, &suspended_out
+#if _darma_has_feature(anti_flows)
+          , insignificant_flow(),
+          anti_next_of_in_flow()
+#endif // _darma_has_feature(anti_flows)
         )
       );
 
@@ -656,6 +689,7 @@ struct _noncommutative_collection_access_impl {
     >;
 
     using namespace darma_runtime::abstract::frontend;
+    using namespace darma_runtime::detail::flow_relationships;
     auto* rt = abstract::backend::get_backend_runtime();
 
     // Use the allocator from the out handle (which is the allocator from the
@@ -671,10 +705,16 @@ struct _noncommutative_collection_access_impl {
     auto new_use_ptr = std::make_shared<typename out_handle_t::use_holder_t>(
       typename out_handle_t::use_t(
         in_handle.var_handle_.get_smart_ptr(),
-        HandleUse::Commutative, /* scheduling permissions */
+        HandleUse::Modify, /* scheduling permissions */
         HandleUse::None, /* immediate permissions */
-        FlowRelationship::SameCollection, &in_handle.current_use_->use->out_flow_,
-        FlowRelationship::SameCollection, &suspended_out_flow, false,
+        same_flow(&in_handle.current_use_->use->out_flow_).as_collection_relationship(),
+        //FlowRelationship::SameCollection, &in_handle.current_use_->use->out_flow_,
+        same_flow(&suspended_out_flow).as_collection_relationship(),
+        //FlowRelationship::SameCollection, &suspended_out_flow, false,
+#if _darma_has_feature(anti_flows)
+        insignificant_flow().as_collection_relationship(),
+        next_of_in_flow().as_collection_relationship(),
+#endif // _darma_has_feature(anti_flows)
         // we probably COULD move the index range from the old use now, since
         // it's going away, but for now, just copy it, since we might want
         // to use it in the destructor of the old use at some point in the

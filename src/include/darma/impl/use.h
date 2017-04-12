@@ -218,7 +218,7 @@ struct GenericUseHolder : UseHolderBase {
 #endif
 
   ~GenericUseHolder() {
-    using namespace darma_runtime::abstract::frontend; // FlowRelationship
+    using namespace darma_runtime::detail::flow_relationships;
 
     if(use && use_base->suspended_out_flow_.get() != nullptr) {
 
@@ -234,8 +234,22 @@ struct GenericUseHolder : UseHolderBase {
         use->handle_,
         HandleUse::None, // This could cause problems for some backends...
         HandleUse::None,
-        FlowRelationship::Same, &(use->out_flow_),
-        FlowRelationship::Same, use->suspended_out_flow_.get(), false
+        use->manages_collection() ?
+          same_flow(&use->out_flow_).as_collection_relationship()
+            : same_flow(&use->out_flow_),
+        //FlowRelationship::Same, &(use->out_flow_),
+        use->manages_collection() ?
+          same_flow(use->suspended_out_flow_.get()).as_collection_relationship()
+            : same_flow(use->suspended_out_flow_.get())
+        //FlowRelationship::Same, use->suspended_out_flow_.get(), false
+#if _darma_has_feature(anti_flows)
+        // anti-in
+        , insignificant_flow(),
+        // anti-out
+        use->manages_collection() ?
+          anti_next_of_in_flow().as_collection_relationship()
+            : anti_next_of_in_flow()
+#endif // _darma_has_feature(anti_flows)
       );
       rt->register_use(&last_use);
 

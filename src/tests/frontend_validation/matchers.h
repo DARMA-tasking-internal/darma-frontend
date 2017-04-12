@@ -64,6 +64,36 @@ using namespace ::testing;
 //    and  a->scheduling_permissions() == b->scheduling_permissions();
 //}
 
+// Ignoring out flow
+MATCHER_P3(IsUseWithInFlow, f_in, scheduling_permissions, immediate_permissions,
+  "arg->get_in_flow(): " + PrintToString(f_in) + ", arg->scheduling_permissions(): "
+    + permissions_to_string(scheduling_permissions)
+    + ", arg->immediate_permissions(): " + permissions_to_string(immediate_permissions)
+) {
+  if(arg == nullptr) {
+    *result_listener << "arg is null";
+    return false;
+  }
+
+#if DARMA_SAFE_TEST_FRONTEND_PRINTERS
+  *result_listener << "arg (unprinted for safety)";
+#else
+  *result_listener << "arg->get_in_flow(): " << PrintToString(arg->get_in_flow())
+                   << ", arg->scheduling_permissions(): " << permissions_to_string(arg->scheduling_permissions())
+                     + ", arg->immediate_permissions(): " + permissions_to_string(arg->immediate_permissions());
+#endif
+
+  using namespace mock_backend;
+  if(f_in != arg->get_in_flow()) return false;
+  if(immediate_permissions != -1) {
+    if(immediate_permissions != int(arg->immediate_permissions())) return false;
+  }
+  if(scheduling_permissions != -1) {
+    if(scheduling_permissions != int(arg->scheduling_permissions())) return false;
+  }
+  return true;
+}
+
 MATCHER_P4(IsUseWithFlows, f_in, f_out, scheduling_permissions, immediate_permissions,
   "arg->get_in_flow(): " + PrintToString(f_in) + ", arg->get_out_flow(): "
   + PrintToString(f_out) + ", arg->scheduling_permissions(): " + permissions_to_string(scheduling_permissions)

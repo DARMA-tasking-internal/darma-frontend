@@ -457,11 +457,12 @@ struct _get_storage_arg_helper<
       auto handle,
       auto scheduling_permissions,
       auto immediate_permissions,
-      abstract::frontend::FlowRelationship::flow_relationship_description_t in_desc,
-      types::flow_t* in_rel,
-      abstract::frontend::FlowRelationship::flow_relationship_description_t out_desc,
-      types::flow_t* out_rel,
-      bool out_rel_is_in = false
+      auto&& in_rel,
+      auto&& out_rel
+#if _darma_has_feature(anti_flows)
+      , auto&& anti_in_rel,
+      auto&& anti_out_rel
+#endif // _darma_has_feature(anti_flows)
     ) {
       return std::make_shared<
         GenericUseHolder<CollectionManagingUse<handle_range_t>>
@@ -469,9 +470,12 @@ struct _get_storage_arg_helper<
         CollectionManagingUse<handle_range_t>(
           handle,
           scheduling_permissions, immediate_permissions,
-          in_desc | abstract::frontend::FlowRelationship::Collection, in_rel,
-          out_desc | abstract::frontend::FlowRelationship::Collection, out_rel,
-          out_rel_is_in,
+          std::move(in_rel).as_collection_relationship(),
+          std::move(out_rel).as_collection_relationship(),
+#if _darma_has_feature(anti_flows)
+          std::move(anti_in_rel).as_collection_relationship(),
+          std::move(anti_out_rel).as_collection_relationship(),
+#endif // _darma_has_feature(anti_flows)
           arg.collection.get_index_range(),
           full_mapping_t(
             arg.mapping,
@@ -487,18 +491,22 @@ struct _get_storage_arg_helper<
       auto handle,
       auto scheduling_permissions,
       auto immediate_permissions,
-      abstract::frontend::FlowRelationship::flow_relationship_description_t in_desc,
-      types::flow_t* in_rel,
-      abstract::frontend::FlowRelationship::flow_relationship_description_t out_desc,
-      types::flow_t* out_rel,
-      bool out_rel_is_in = false
+      auto&& in_rel,
+      auto&& out_rel
+#if _darma_has_feature(anti_flows)
+      , auto&& anti_in_rel,
+      auto&& anti_out_rel
+#endif // _darma_has_feature(anti_flows)
     ) {
       return CollectionManagingUse<handle_range_t>(
         handle,
         scheduling_permissions, immediate_permissions,
-        in_desc | abstract::frontend::FlowRelationship::Collection, in_rel,
-        out_desc | abstract::frontend::FlowRelationship::Collection, out_rel,
-        out_rel_is_in,
+        std::move(in_rel).as_collection_relationship(),
+        std::move(out_rel).as_collection_relationship(),
+#if _darma_has_feature(anti_flows)
+        std::move(anti_in_rel).as_collection_relationship(),
+        std::move(anti_out_rel).as_collection_relationship(),
+#endif // _darma_has_feature(anti_flows)
         arg.collection.get_index_range()
       );
     };
@@ -652,8 +660,12 @@ struct _get_storage_arg_helper<
       auto handle,
       auto scheduling_permissions,
       auto immediate_permissions,
-      auto in_desc, types::flow_t* in_rel,
-      auto out_desc, types::flow_t* out_rel, bool out_rel_is_in = false
+      auto&& in_rel,
+      auto&& out_rel
+#if _darma_has_feature(anti_flows)
+      , auto&& anti_in_rel,
+      auto&& anti_out_rel
+#endif // _darma_has_feature(anti_flows)
     ) {
       return std::make_shared<
         GenericUseHolder<CollectionManagingUse<handle_range_t>>
@@ -661,9 +673,12 @@ struct _get_storage_arg_helper<
         CollectionManagingUse<handle_range_t>(
           handle,
           scheduling_permissions, immediate_permissions,
-          in_desc | abstract::frontend::FlowRelationship::Collection, in_rel,
-          out_desc | abstract::frontend::FlowRelationship::Collection, out_rel,
-          out_rel_is_in,
+          std::move(in_rel).as_collection_relationship(),
+          std::move(out_rel).as_collection_relationship(),
+#if _darma_has_feature(anti_flows)
+          std::move(anti_in_rel).as_collection_relationship(),
+          std::move(anti_out_rel).as_collection_relationship(),
+#endif // _darma_has_feature(anti_flows)
           arg.get_index_range()
         ), true, true
       );
@@ -674,15 +689,22 @@ struct _get_storage_arg_helper<
       auto handle,
       auto scheduling_permissions,
       auto immediate_permissions,
-      auto in_desc, types::flow_t* in_rel,
-      auto out_desc, types::flow_t* out_rel, bool out_rel_is_in = false
+      auto&& in_rel,
+      auto&& out_rel
+#if _darma_has_feature(anti_flows)
+      , auto&& anti_in_rel,
+      auto&& anti_out_rel
+#endif // _darma_has_feature(anti_flows)
     ) {
       return CollectionManagingUse<handle_range_t>(
         handle,
         scheduling_permissions, immediate_permissions,
-        in_desc | abstract::frontend::FlowRelationship::Collection, in_rel,
-        out_desc | abstract::frontend::FlowRelationship::Collection, out_rel,
-        out_rel_is_in,
+        std::move(in_rel).as_collection_relationship(),
+        std::move(out_rel).as_collection_relationship(),
+#if _darma_has_feature(anti_flows)
+        std::move(anti_in_rel).as_collection_relationship(),
+        std::move(anti_out_rel).as_collection_relationship(),
+#endif // _darma_has_feature(anti_flows)
         arg.get_index_range()
       );
     };

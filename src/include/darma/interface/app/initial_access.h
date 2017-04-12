@@ -68,7 +68,21 @@ struct _initial_access_key_helper {
     auto var_h = detail::make_shared<detail::VariableHandle<T>>(key);
 
     using namespace darma_runtime::abstract::frontend;
+    using namespace darma_runtime::detail::flow_relationships;
 
+#if _darma_has_feature(anti_flows)
+    auto use_holder = std::make_shared<UseHolder>(
+      HandleUse(
+        var_h,
+        HandleUse::Modify,
+        HandleUse::None,
+        initial_flow(),
+        null_flow(),
+        insignificant_flow(),
+        anti_next_of_in_flow()
+      ), /* register in ctor = */ true, /* will be dep = */ false
+    );
+#else
     auto use_holder = std::make_shared<UseHolder>(
       HandleUse(
         var_h,
@@ -76,8 +90,9 @@ struct _initial_access_key_helper {
         HandleUse::None,
         FlowRelationship::Initial, nullptr,
         FlowRelationship::Null, nullptr, false
-      )
+      ), /* register in ctor = */ true, /* will be dep = */ false
     );
+#endif // _darma_has_feature(anti_flows)
 
     use_holder->could_be_alias = true;
 

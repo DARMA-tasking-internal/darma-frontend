@@ -51,6 +51,7 @@
 #include <ostream>
 
 #include "test_frontend_fwd.h"
+#include <darma/impl/feature_testing_macros.h>
 
 namespace mock_backend {
 
@@ -88,6 +89,11 @@ class MockFlow {
     { }
 
     bool
+    operator==(std::nullptr_t) const {
+      return name_ == "%##unnamed##%"
+        and index_ == std::numeric_limits<size_t>::max();
+    }
+    bool
     operator==(MockFlow const& other) const {
       if(index_ == std::numeric_limits<size_t>::max()) {
         if(name_ == "%##unnamed##%") return false;
@@ -102,6 +108,19 @@ class MockFlow {
     bool
     operator!=(MockFlow const& other) const {
       return not operator==(other);
+    }
+    bool
+    operator!=(std::nullptr_t) const {
+      return not operator==(nullptr);
+    }
+
+    friend bool
+    operator==(std::nullptr_t, MockFlow const& fl) {
+      return fl.operator==(nullptr);
+    }
+    friend bool
+    operator!=(std::nullptr_t, MockFlow const& fl) {
+      return fl.operator!=(nullptr);
     }
 
     friend std::ostream&
@@ -119,12 +138,76 @@ class MockFlow {
     }
 
 };
+
+
+#if _darma_has_feature(anti_flows)
+// Intentionally copy-and-pasted so that MockFlow and MockAntiFlow are not
+// related to each other, in case implementations want to do it this way
+class MockAntiFlow {
+  private:
+
+    static std::size_t next_index;
+    std::size_t index_;
+    std::string name_;
+
+  public:
+
+    MockAntiFlow()
+      : index_(next_index++),
+        name_("%##unnamed##%")
+    { }
+
+    MockAntiFlow(const char* str)
+      : index_(std::numeric_limits<size_t>::max()),
+        name_(str)
+    { }
+
+    MockAntiFlow(std::nullptr_t)
+      : index_(std::numeric_limits<size_t>::max()),
+        name_("%##unnamed##%")
+    { }
+
+    bool
+    operator==(MockAntiFlow const& other) const {
+      if(index_ == std::numeric_limits<size_t>::max()) {
+        if(name_ == "%##unnamed##%") return false;
+        else {
+          return name_ == other.name_;
+        }
+      }
+      else {
+        return index_ == other.index_;
+      }
+    }
+    bool
+    operator!=(MockAntiFlow const& other) const {
+      return not operator==(other);
+    }
+
+    friend std::ostream&
+    operator<<(std::ostream& o, MockAntiFlow const& f) {
+      if(f.name_ != "%##unnamed##%") {
+        o << "<anti-flow named \"" << f.name_ << "\">";
+      }
+      else if(f.index_ != std::numeric_limits<size_t>::max()) {
+        o << "<anti-flow #" << f.index_ << ">";
+      }
+      else {
+        o << "<nullptr anti-flow>";
+      }
+      return o;
+    }
+};
+#endif // _darma_has_feature(anti_flows)
 } // end namespace mock_backend
 
 #include <darma/interface/defaults/pointers.h>
 
 namespace darma_runtime { namespace types {
 typedef ::mock_backend::MockFlow flow_t;
+#if _darma_has_feature(anti_flows)
+using anti_flow_t = ::mock_backend::MockAntiFlow;
+#endif // _darma_has_feature(anti_flows)
 }} // end namespace darma_runtime::types
 
 #include <darma/impl/key/SSO_key_fwd.h>

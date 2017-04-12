@@ -966,7 +966,7 @@ class AccessHandle : public detail::AccessHandleBase {
         "begin_commutative_usage called on use without scheduling modify permissions"
       );
 
-      using namespace darma_runtime::abstract::frontend;
+      using namespace darma_runtime::detail::flow_relationships;
 
       // Need to make next flow to be the output of the commutative usage
       auto old_out_flow = current_use_->use->out_flow_;
@@ -978,8 +978,14 @@ class AccessHandle : public detail::AccessHandleBase {
           detail::HandleUse::Commutative,
           /* immediate permissions */
           detail::HandleUse::None,
-          FlowRelationship::Same, &current_use_->use->in_flow_,
-          FlowRelationship::Next, nullptr, true
+          same_flow(&current_use_->use->in_flow_),
+          //FlowRelationship::Same, &current_use_->use->in_flow_,
+          next_of_in_flow()
+          //FlowRelationship::Next, nullptr, true
+#if _darma_has_feature(anti_flows)
+          , same_anti_flow(&current_use_->use->anti_out_flow_),
+          insignificant_flow()
+#endif // _darma_has_feature(anti_flows)
         ),
         true
       );
@@ -1012,7 +1018,7 @@ class AccessHandle : public detail::AccessHandleBase {
         "end_commutative_usage called on use without scheduling Commutative permissions"
       );
 
-      using namespace darma_runtime::abstract::frontend;
+      using namespace darma_runtime::detail::flow_relationships;
 
       set_is_commutative_dynamic(false);
 
@@ -1023,8 +1029,14 @@ class AccessHandle : public detail::AccessHandleBase {
           detail::HandleUse::Modify,
           /* immediate permissions */
           detail::HandleUse::None,
-          FlowRelationship::Same, &current_use_->use->out_flow_,
-          FlowRelationship::Same, current_use_->use->suspended_out_flow_.release()
+          same_flow(&current_use_->use->out_flow_),
+          //FlowRelationship::Same, &current_use_->use->out_flow_,
+          same_flow(current_use_->use->suspended_out_flow_.get())
+          //FlowRelationship::Same, current_use_->use->suspended_out_flow_.release()
+#if _darma_has_feature(anti_flows)
+          , insignificant_flow(),
+          anti_next_of_in_flow()
+#endif // _darma_has_feature(anti_flows)
         ),
         true
       );

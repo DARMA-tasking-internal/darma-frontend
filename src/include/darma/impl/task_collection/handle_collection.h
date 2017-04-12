@@ -142,20 +142,24 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         auto handle,
         auto scheduling_permissions,
         auto immediate_permissions,
-        abstract::frontend::FlowRelationship::flow_relationship_description_t in_desc,
-        types::flow_t* in_rel,
-        abstract::frontend::FlowRelationship::flow_relationship_description_t out_desc,
-        types::flow_t* out_rel,
-        bool out_rel_is_in = false
+        auto&& in_flow_rel,
+        auto&& out_flow_rel
+#if _darma_has_feature(anti_flows)
+        , auto&& anti_in_flow_rel,
+        auto&& anti_out_flow_rel
+#endif // _darma_has_feature(anti_flows)
       ) {
         return darma_runtime::detail::CollectionManagingUse<
           std::decay_t<IndexRangeT>
         >(
           handle,
           scheduling_permissions, immediate_permissions,
-          in_desc | abstract::frontend::FlowRelationship::Collection, in_rel,
-          out_desc | abstract::frontend::FlowRelationship::Collection, out_rel,
-          out_rel_is_in,
+          std::move(in_flow_rel).as_collection_relationship(),
+          std::move(out_flow_rel).as_collection_relationship(),
+#if _darma_has_feature(anti_flows)
+          std::move(anti_in_flow_rel).as_collection_relationship(),
+          std::move(anti_out_flow_rel).as_collection_relationship(),
+#endif // _darma_has_feature(anti_flows)
           source->current_use_->use->index_range
         );
       };
@@ -164,11 +168,12 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         auto handle,
         auto scheduling_permissions,
         auto immediate_permissions,
-        abstract::frontend::FlowRelationship::flow_relationship_description_t in_desc,
-        types::flow_t* in_rel,
-        abstract::frontend::FlowRelationship::flow_relationship_description_t out_desc,
-        types::flow_t* out_rel,
-        bool out_rel_is_in = false
+        auto&& in_flow_rel,
+        auto&& out_flow_rel
+ #if _darma_has_feature(anti_flows)
+        , auto&& anti_in_flow_rel,
+        auto&& anti_out_flow_rel
+#endif // _darma_has_feature(anti_flows)
       ) {
         return std::make_shared<
           darma_runtime::detail::GenericUseHolder<
@@ -179,9 +184,12 @@ class AccessHandleCollection : public detail::AccessHandleBase {
           darma_runtime::detail::CollectionManagingUse<std::decay_t<IndexRangeT>>(
             handle,
             scheduling_permissions, immediate_permissions,
-            in_desc | abstract::frontend::FlowRelationship::Collection, in_rel,
-            out_desc | abstract::frontend::FlowRelationship::Collection, out_rel,
-            out_rel_is_in,
+            std::move(in_flow_rel).as_collection_relationship(),
+            std::move(out_flow_rel).as_collection_relationship(),
+#if _darma_has_feature(anti_flows)
+            std::move(anti_in_flow_rel).as_collection_relationship(),
+            std::move(anti_out_flow_rel).as_collection_relationship(),
+#endif // _darma_has_feature(anti_flows)
             source->current_use_->use->index_range
           ), true, true
         );
@@ -641,7 +649,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       for (auto&& idx : local_idxs) {
         auto fe_idx = _map_traits::map_backward(map_dense, idx, idx_range);
 
-        using namespace darma_runtime::abstract::frontend;
+        using namespace darma_runtime::detail::flow_relationships;
 
         if(
           current_use_->use->immediate_permissions_ == detail::HandleUse::Modify
@@ -653,14 +661,24 @@ class AccessHandleCollection : public detail::AccessHandleBase {
               var_handle_base_,
               current_use_->use->scheduling_permissions_,
               current_use_->use->immediate_permissions_,
-              // In relationship and source
-              FlowRelationship::IndexedLocal, &current_use_->use->in_flow_,
-              // Out relationship, source, and from_in_flow status
-              FlowRelationship::IndexedLocal, &current_use_->use->out_flow_, false,
-              // In version_key and index
-              nullptr, idx,
-              // Out version_key and index
-              nullptr, idx
+              // In relationship
+              indexed_local_flow(&current_use_->use->in_flow_, idx),
+              //FlowRelationship::IndexedLocal, &current_use_->use->in_flow_,
+              // Out relationship
+              indexed_local_flow(&current_use_->use->out_flow_, idx)
+              //FlowRelationship::IndexedLocal, &current_use_->use->out_flow_, false,
+#if _darma_has_feature(anti_flows)
+              ,
+              /* anti-in flow depends on immediate permissions */
+              current_use_->use->immediate_permissions_ == detail::HandleUse::Modify ?
+                indexed_local_anti_flow(&current_use_->use->anti_in_flow_, idx)
+                  : insignificant_flow(),
+              /* anti-out flow depends on immediate permissions */
+              current_use_->use->immediate_permissions_ == detail::HandleUse::Modify ?
+                  insignificant_flow()
+                    : indexed_local_anti_flow(&current_use_->use->anti_out_flow_, idx)
+
+#endif // _darma_has_feature(anti_flows)
             )
           );
           task.add_dependency(*idx_use_holder->use_base);
@@ -675,13 +693,20 @@ class AccessHandleCollection : public detail::AccessHandleBase {
               current_use_->use->scheduling_permissions_,
               current_use_->use->immediate_permissions_,
               // In relationship and source
-              FlowRelationship::IndexedLocal, &current_use_->use->in_flow_,
-              // Out relationship, source, and from_in_flow status
-              FlowRelationship::Same, nullptr, true,
-              // In version_key and index
-              nullptr, idx,
-              // Out version_key and index
-              nullptr, idx
+              indexed_local_flow(&current_use_->use->in_flow_, idx),
+              //FlowRelationship::IndexedLocal, &current_use_->use->in_flow_,
+#if _darma_has_feature(anti_flows)
+              // out relationship
+              insignificant_flow(),
+              // anti-in relationship
+              insignificant_flow(),
+              // anti-out
+              indexed_local_anti_flow(&current_use_->use->anti_out_flow_, idx)
+#else
+              // Out relationship
+              same_flow_as_in()
+              //FlowRelationship::Same, nullptr, true,
+#endif // _darma_has_feature(anti_flows)
             )
           );
           task.add_dependency(*idx_use_holder->use_base);
@@ -788,6 +813,7 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType,
     >;
 
     using namespace darma_runtime::abstract::frontend;
+    using namespace darma_runtime::detail::flow_relationships;
 
     auto use_holder = std::make_shared<GenericUseHolder<
       CollectionManagingUse<std::decay_t<IndexRangeT>>
@@ -796,8 +822,16 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType,
         var_handle,
         HandleUse::Modify,
         HandleUse::None,
-        FlowRelationship::InitialCollection, nullptr,
-        FlowRelationship::NullCollection, nullptr, false,
+        initial_flow().as_collection_relationship(),
+        //FlowRelationship::InitialCollection, nullptr,
+        null_flow().as_collection_relationship(),
+        //FlowRelationship::NullCollection, nullptr, false,
+#if _darma_has_feature(anti_flows)
+        // anti-in
+        insignificant_flow().as_collection_relationship(),
+        // anti-out
+        anti_next_of_in_flow().as_collection_relationship(),
+#endif // _darma_has_feature(anti_flows)
         std::forward<IndexRangeT>(range)
       )
     );

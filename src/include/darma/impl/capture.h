@@ -71,6 +71,8 @@ auto make_captured_use_holder(
   AllowRegisterContinuationIntegralConstantType = std::true_type{}
 ) {
 
+  using namespace darma_runtime::detail::flow_relationships;
+
   static constexpr auto AllowRegisterContinuation =
     AllowRegisterContinuationIntegralConstantType::value;
   using namespace darma_runtime::abstract::frontend;
@@ -114,6 +116,7 @@ auto make_captured_use_holder(
               break;                                                            // LCOV_EXCL_LINE
             } // end case None requested scheduling permissions
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            // <editor-fold desc="Read requested scheduling permissions"> {{{3
             case HandleUse::Read: { // requested scheduling permissions
 
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -128,15 +131,23 @@ auto make_captured_use_holder(
                 HandleUse::Read,
                 /* Immediate permissions */
                 HandleUse::None,
-                FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
-                FlowRelationship::Same, nullptr, true
+                same_flow(&source_and_continuing_holder->use->in_flow_),
+                //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+                same_flow_as_in()
+                //FlowRelationship::Same, nullptr, true
+#if _darma_has_feature(anti_flows)
+                , insignificant_flow(),
+                same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+#endif // _darma_has_feature(anti_flows)
               );
 
               // Continuing use same as source use
 
               break;
-            } // end case Read requested scheduling permissions
+            }
+            // </editor-fold> end Read requested scheduling permissions }}}3
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            // <editor-fold desc="Modify requested scheduling permissions"> {{{3
             case HandleUse::Modify: { // requested scheduling permissions
 
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -163,8 +174,14 @@ auto make_captured_use_holder(
                 HandleUse::Modify,
                 /* Immediate permissions */
                 HandleUse::None,
-                FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
-                FlowRelationship::Next, nullptr, true
+                same_flow(&source_and_continuing_holder->use->in_flow_),
+                //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+                next_of_in_flow()
+                //FlowRelationship::Next, nullptr, true
+#if _darma_has_feature(anti_flows)
+                , insignificant_flow(),
+                same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+#endif // _darma_has_feature(anti_flows)
               );
 
 
@@ -191,8 +208,14 @@ auto make_captured_use_holder(
                   HandleUse::Modify,
                   /* Immediate permissions */
                   HandleUse::None, // This is a schedule-only use
-                  FlowRelationship::Same, &captured_use_holder->use->out_flow_,
-                  FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+                  same_flow(&captured_use_holder->use->out_flow_),
+                  //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+                  same_flow(&source_and_continuing_holder->use->out_flow_)
+                  //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+#if _darma_has_feature(anti_flows)
+                  , insignificant_flow(),
+                  anti_next_of_in_flow()
+#endif // _darma_has_feature(anti_flows)
                 ),
                 AllowRegisterContinuation
               );
@@ -203,7 +226,9 @@ auto make_captured_use_holder(
 
               break;
             } // end case Modify requested scheduling permissions
+            // </editor-fold> end Modify requested scheduling permissions }}}3
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            // <editor-fold desc="Commutative requested scheduling permissions"> {{{3
             case HandleUse::Commutative: { // requested scheduling permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   CN -> { CN } -> CN                      %
@@ -224,16 +249,21 @@ auto make_captured_use_holder(
                 HandleUse::Commutative,
                 /* Immediate permissions */
                 HandleUse::None,
-                FlowRelationship::Same,
-                &source_and_continuing_holder->use->in_flow_,
-                FlowRelationship::Same,
-                &source_and_continuing_holder->use->out_flow_, false
+                same_flow(&source_and_continuing_holder->use->in_flow_),
+                //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+                same_flow(&source_and_continuing_holder->use->out_flow_)
+                //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_, false
+#if _darma_has_feature(anti_flows)
+                , same_anti_flow(&source_and_continuing_holder->use->anti_in_flow_),
+                insignificant_flow()
+#endif // _darma_has_feature(anti_flows)
               );
 
               // No continuation use needed here, since source was schedule-only
 
               break;
             }
+            // </editor-fold> end Commutative requested scheduling permissions }}}3
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             default: {
               DARMA_ASSERT_NOT_IMPLEMENTED();                                   // LCOV_EXCL_LINE
@@ -250,6 +280,7 @@ auto make_captured_use_holder(
 
           switch(requested_scheduling_permissions) {
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            // <editor-fold desc="Read requested scheduling permissions"> {{{3
             case HandleUse::Read : { // requested scheduling permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   RR -> { RN } -> RR     %
@@ -264,13 +295,21 @@ auto make_captured_use_holder(
                 HandleUse::Read,
                 /* Immediate permissions */
                 HandleUse::None,
-                FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
-                FlowRelationship::Same, nullptr, true
+                same_flow(&source_and_continuing_holder->use->in_flow_),
+                //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+                same_flow_as_in()
+                // FlowRelationship::Same, nullptr, true
+#if _darma_has_feature(anti_flows)
+                , insignificant_flow(),
+                same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+#endif // _darma_has_feature(anti_flows)
               );
 
               break;
             }
+            // </editor-fold> end Read requested scheduling permissions }}}3
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            // <editor-fold desc="Modify requested scheduling permissions"> {{{3
             case HandleUse::Modify : { // requested scheduling permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MR -> { MN } -> MN     %
@@ -291,8 +330,14 @@ auto make_captured_use_holder(
                 HandleUse::Modify,
                 /* Immediate permissions */
                 HandleUse::None,
-                FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
-                FlowRelationship::Next /* "scheduling next" */, nullptr, true
+                forwarding_flow(&source_and_continuing_holder->use->in_flow_),
+                //FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
+                next_of_in_flow()
+                //FlowRelationship::Next /* "scheduling next" */, nullptr, true
+#if _darma_has_feature(anti_flows)
+                , insignificant_flow(),
+                same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+#endif // _darma_has_feature(anti_flows)
               );
 
               source_and_continuing_holder->replace_use(
@@ -300,14 +345,21 @@ auto make_captured_use_holder(
                   var_handle,
                   HandleUse::Modify,
                   HandleUse::None,
-                  FlowRelationship::Same, &captured_use_holder->use->out_flow_,
-                  FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+                  same_flow(&captured_use_holder->use->out_flow_),
+                  //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+                  same_flow(&source_and_continuing_holder->use->out_flow_)
+                  //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+#if _darma_has_feature(anti_flows)
+                  , insignificant_flow(),
+                  anti_next_of_in_flow()
+#endif // _darma_has_feature(anti_flows)
                 ),
                 AllowRegisterContinuation
               );
 
               break;
             }
+            // </editor-fold> end Modify requested scheduling permissions }}}3
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             default: {
               DARMA_ASSERT_NOT_IMPLEMENTED();                                   // LCOV_EXCL_LINE
@@ -377,6 +429,7 @@ auto make_captured_use_holder(
 
           switch(source_and_continuing_holder->use->immediate_permissions_) {
             //----------------------------------------------------------------------
+            // <editor-fold desc="None/Read source immediate permissions"> {{{2
             case HandleUse::None:
             case HandleUse::Read: { // source immediate permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -390,22 +443,42 @@ auto make_captured_use_holder(
               // %    MR -> { RR } -> MR   %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+#if _darma_has_feature(anti_flows)
               captured_use_holder = use_holder_maker(
                 var_handle,
                 /* Scheduling permissions */
                 requested_scheduling_permissions,
                 /* Immediate permissions */
                 HandleUse::Read,
-                FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
-                FlowRelationship::Same, nullptr, true
+                same_flow(&source_and_continuing_holder->use->in_flow_),
+                insignificant_flow(),
+                insignificant_flow(),
+                same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+              );
+#else
+              captured_use_holder = use_holder_maker(
+                var_handle,
+                /* Scheduling permissions */
+                requested_scheduling_permissions,
+                /* Immediate permissions */
+                HandleUse::Read,
+                same_flow(&source_and_continuing_holder->use->in_flow_),
+                //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+                same_flow_as_in()
+                // FlowRelationship::Same, nullptr, true
               );
 
               // The continuation use is the source use here
 
+#endif // _darma_has_feature(anti_flows)
+
+
               break;
 
             } // end case Read or None immediate permissions on source
+            // </editor-fold> end None/Read source immediate permissions }}}2
             //----------------------------------------------------------------------
+            // <editor-fold desc="Modify source immediate permissions"> {{{2
             case HandleUse::Modify: { // source immediate permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %    RM -> { NR } -> RR   %
@@ -428,8 +501,19 @@ auto make_captured_use_holder(
                 requested_scheduling_permissions,
                 /* Immediate permissions */
                 HandleUse::Read,
-                FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
-                FlowRelationship::Same, nullptr, true
+                forwarding_flow(&source_and_continuing_holder->use->in_flow_),
+                //FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
+#if _darma_has_feature(anti_flows)
+                // Out flow
+                insignificant_flow(),
+                // Anti-in flow
+                insignificant_flow(),
+                // Anti-out flow
+                next_of_in_flow()
+#else
+                same_flow_as_in()
+                // FlowRelationship::Same, nullptr, true
+#endif // _darma_has_feature(anti_flows)
               );
 
               // The continuing context actually needs to have a Use as well,
@@ -449,10 +533,16 @@ auto make_captured_use_holder(
                   source_and_continuing_holder->use->scheduling_permissions_,
                   /* Immediate permissions: */
                   HandleUse::Read,
-                  FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+                  same_flow(&captured_use_holder->use->in_flow_),
+                  //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
                   // It still carries the out flow of the task, though, and should
                   // establish an alias on release if there are no more modifies
-                  FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+                  same_flow(&source_and_continuing_holder->use->out_flow_)
+                  //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+#if _darma_has_feature(anti_flows)
+                  , insignificant_flow(),
+                  same_anti_flow(&captured_use_holder->use->anti_out_flow_)
+#endif // _darma_has_feature(anti_flows)
                 ),
                 AllowRegisterContinuation
               );
@@ -473,6 +563,7 @@ auto make_captured_use_holder(
               break;
 
             } // end case Modify immediate permissions on source
+            // </editor-fold> end Modify source immediate permissions }}}2
             //----------------------------------------------------------------------
             default: {
               DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
@@ -506,8 +597,16 @@ auto make_captured_use_holder(
                 HandleUse::Modify,
                 /* Immediate permissions */
                 HandleUse::Read,
-                FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
-                FlowRelationship::Next, nullptr, true
+                same_flow(&source_and_continuing_holder->use->in_flow_),
+                //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+                next_of_in_flow()
+                //FlowRelationship::Next, nullptr, true
+#if _darma_has_feature(anti_flows)
+                // Anti-in
+                , insignificant_flow(),
+                // Anti-out
+                same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+#endif // _darma_has_feature(anti_flows)
               );
               captured_use_holder->could_be_alias = true;
 
@@ -521,8 +620,16 @@ auto make_captured_use_holder(
                   var_handle,
                   HandleUse::Modify,
                   HandleUse::None,
-                  FlowRelationship::Same, &captured_use_holder->use->out_flow_,
-                  FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+                  same_flow(&captured_use_holder->use->out_flow_),
+                  //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+                  same_flow(&source_and_continuing_holder->use->out_flow_)
+                  //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+#if _darma_has_feature(anti_flows)
+                  // Anti-in
+                  , insignificant_flow(),
+                  // Anti-out
+                  same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+#endif // _darma_has_feature(anti_flows)
                 ),
                 AllowRegisterContinuation
               );
@@ -551,8 +658,16 @@ auto make_captured_use_holder(
                 HandleUse::Modify,
                 /* Immediate permissions */
                 HandleUse::Read,
-                FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
-                FlowRelationship::Next, nullptr, true
+                forwarding_flow(&source_and_continuing_holder->use->in_flow_),
+                //FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
+                next_of_in_flow()
+                //FlowRelationship::Next, nullptr, true
+#if _darma_has_feature(anti_flows)
+                // Anti-in
+                , insignificant_flow(),
+                // Anti-out
+                anti_next_of_in_flow()
+#endif // _darma_has_feature(anti_flows)
               );
               captured_use_holder->could_be_alias = true;
 
@@ -560,8 +675,16 @@ auto make_captured_use_holder(
                 continuing_use_holder_maker(
                   var_handle,
                   HandleUse::Modify, HandleUse::None,
-                  FlowRelationship::Same, &captured_use_holder->use->out_flow_,
-                  FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+                  same_flow(&captured_use_holder->use->out_flow_),
+                  //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+                  same_flow(&source_and_continuing_holder->use->out_flow_)
+                  //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+#if _darma_has_feature(anti_flows)
+                  // Anti-in
+                  , insignificant_flow(),
+                  // Anti-out
+                  same_anti_flow(&captured_use_holder->use->anti_out_flow_)
+#endif // _darma_has_feature(anti_flows)
                 ),
                 AllowRegisterContinuation
               );
@@ -601,6 +724,7 @@ auto make_captured_use_holder(
 
       switch(source_and_continuing_holder->use->immediate_permissions_) {
         //----------------------------------------------------------------------
+        // <editor-fold desc="None source immediate permissions"> {{{2
         case HandleUse::None: {
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
           // %   MN -> { NM } -> MN     %
@@ -617,17 +741,19 @@ auto make_captured_use_holder(
             requested_scheduling_permissions,
             /* Immediate permissions */
             HandleUse::Modify,
-            FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
-            FlowRelationship::Next, nullptr, true
+            same_flow(&source_and_continuing_holder->use->in_flow_),
+            //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+            next_of_in_flow()
+            //FlowRelationship::Next, nullptr, true
+#if _darma_has_feature(anti_flows)
+            // The whole point of having anti-out flows is to allow it to be the
+            // anti-in flow of a captured use with XM permissions
+            , same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
+            // XM permissions never carry an anti-out, since nothing follows them
+            // except (by definition) a different generation of the data
+            insignificant_flow()
+#endif // _darma_has_feature(anti_flows)
           );
-
-          // We need to register a new use here, though
-          // TODO creating a new use here might be inconsistent with how we don't create continuation uses in the modify immediate source case
-
-          // TODO is it possible we shouldn't be making a next flow in this case?
-
-          // Make a new use for the continuing context (since, for some reason
-          // or another, we needed one in the source context)
 
           // now that we're created a continuing context use holder, the source
           // should NOT establish an alias (the continuing use holder will do
@@ -641,8 +767,16 @@ auto make_captured_use_holder(
               HandleUse::Modify,
               /* Immediate permissions */
               HandleUse::None, // This is a schedule-only use
-              FlowRelationship::Same, &captured_use_holder->use->out_flow_,
-              FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+              same_flow(&captured_use_holder->use->out_flow_),
+              //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+              same_flow(&source_and_continuing_holder->use->out_flow_)
+              //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+#if _darma_has_feature(anti_flows)
+              // anti-in =
+              , insignificant_flow(),
+              // anti-out =
+              anti_next_of_in_flow()
+#endif // _darma_has_feature(anti_flows)
             ),
             AllowRegisterContinuation
           );
@@ -653,7 +787,9 @@ auto make_captured_use_holder(
 
           break;
         } // end case None source immediate permissions
+        // </editor-fold> end None source immediate permissions }}}2
         //----------------------------------------------------------------------
+        // <editor-fold desc="Read source immediate permissions"> {{{1
         case HandleUse::Read: { // source immediate permissions
           // Requesting XM capture of MR
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -672,8 +808,16 @@ auto make_captured_use_holder(
             requested_scheduling_permissions,
             /* Immediate permissions */
             HandleUse::Modify,
-            FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
-            FlowRelationship::Next, nullptr, true
+            same_flow(&source_and_continuing_holder->use->in_flow_),
+            //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+            next_of_in_flow()
+            //FlowRelationship::Next, nullptr, true
+#if _darma_has_feature(anti_flows)
+            // Anti-in flow
+            , same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+            // Anti-out flow
+            , insignificant_flow()
+#endif // _darma_has_feature(anti_flows)
           );
 
           // register the captured use
@@ -683,8 +827,16 @@ auto make_captured_use_holder(
               var_handle,
               source_and_continuing_holder->use->scheduling_permissions_,
               HandleUse::None,
-              FlowRelationship::Same, &captured_use_holder->use->out_flow_,
-              FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+              same_flow(&captured_use_holder->use->out_flow_),
+              //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+              same_flow(&source_and_continuing_holder->use->out_flow_)
+              //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+#if _darma_has_feature(anti_flows)
+              // Anti-in flow
+              , insignificant_flow(),
+              // Anti-out flow
+              anti_next_of_in_flow()
+#endif // _darma_has_feature(anti_flows)
             ),
             AllowRegisterContinuation
           );
@@ -692,9 +844,11 @@ auto make_captured_use_holder(
           source_and_continuing_holder->could_be_alias = true;
           // out flow and scheduling permissions unchanged
 
-          break;                                                                // LCOV_EXCL_LINE
-        } // end case Read source immediate permissions
+          break;
+        }
+        // </editor-fold> end Read source immediate permissions  }}}1
         //----------------------------------------------------------------------
+        // <editor-fold desc="modify source immediate permissions"> {{{1
         case HandleUse::Modify: {
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
           // %   MM -> { NM } -> MN     %
@@ -714,8 +868,17 @@ auto make_captured_use_holder(
             requested_scheduling_permissions,
             /* Immediate permissions */
             HandleUse::Modify,
-            FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
-            FlowRelationship::Next, nullptr, true
+            forwarding_flow(&source_and_continuing_holder->use->in_flow_),
+            //FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
+            next_of_in_flow()
+            //FlowRelationship::Next, nullptr, true
+#if _darma_has_feature(anti_flows)
+            // Anti-in flow
+            // because of the way forwarding works, this can never carry anti-dependencies
+            , insignificant_flow(),
+            // Anti-out flow
+            insignificant_flow()
+#endif // _darma_has_feature(anti_flows)
           );
 
           source_and_continuing_holder->replace_use(
@@ -723,15 +886,24 @@ auto make_captured_use_holder(
               var_handle,
               source_and_continuing_holder->use->scheduling_permissions_,
               HandleUse::None,
-              FlowRelationship::Same, &captured_use_holder->use->out_flow_,
-              FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+              same_flow(&captured_use_holder->use->out_flow_),
+              //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+              same_flow(&source_and_continuing_holder->use->out_flow_)
+              //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+#if _darma_has_feature(anti_flows)
+              // Anti-in flow
+              , insignificant_flow(),
+              // Anti-out flow
+              anti_next_of_in_flow()
+#endif // _darma_has_feature(anti_flows)
             ),
             AllowRegisterContinuation
           );
           source_and_continuing_holder->could_be_alias = true;
 
           break;
-        } // end case Modify source immediate permissions
+        }
+        // </editor-fold> end modify source immediate permissions  }}}1
         //----------------------------------------------------------------------
         default: {
           DARMA_ASSERT_NOT_IMPLEMENTED();                                       // LCOV_EXCL_LINE
@@ -769,8 +941,14 @@ auto make_captured_use_holder(
         requested_scheduling_permissions,
         /* Immediate permissions */
         HandleUse::Commutative,
-        FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
-        FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+        same_flow(&source_and_continuing_holder->use->in_flow_),
+        //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
+        same_flow(&source_and_continuing_holder->use->out_flow_)
+        //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+#if _darma_has_feature(anti_flows)
+        , same_anti_flow(&source_and_continuing_holder->use->anti_in_flow_)
+        , insignificant_flow()
+#endif
       );
 
       // TODO register this and make the continuation use have none immediate permissions
@@ -793,7 +971,6 @@ auto make_captured_use_holder(
 
 
       // Note that permissions/use/etc of source_and_continuing are unchanged
-      // TODO commutative schedule-only capture
 
       break;
     } // end requested immediate permissions commutative

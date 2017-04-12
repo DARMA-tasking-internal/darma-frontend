@@ -427,6 +427,12 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
           );
           break;
         }
+        case FlowRelationship::Insignificant :
+        case FlowRelationship::InsignificantCollection : {
+          // make it null, for now (may not be that way for ever)
+          out_flow = types::flow_t(nullptr);
+          break;
+        }
         default: {
           assert(false); // not implemented, what did I forget?
           break;

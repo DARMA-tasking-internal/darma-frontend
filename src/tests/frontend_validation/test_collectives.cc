@@ -244,7 +244,11 @@ TEST_P(Test_different_inout_allreduce, overload) {
   EXPECT_CALL(*mock_runtime, make_next_flow(f_out_init))
     .WillOnce(Return(f_collect_out));
 
+#if _darma_has_feature(anti_flows)
+  EXPECT_REGISTER_USE(reduce_in_use, f_task_out, nullptr, None, Read);
+#else
   EXPECT_REGISTER_USE(reduce_in_use, f_task_out, f_task_out, None, Read);
+#endif // _darma_has_feature(anti_flows)
 
   EXPECT_REGISTER_USE(reduce_out_use, f_out_init, f_collect_out, None, Modify);
   EXPECT_RELEASE_USE(use_out_initial);

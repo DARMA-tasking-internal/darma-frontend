@@ -217,6 +217,7 @@ class IndexedAccessHandle {
         ) -> decltype(auto) {
 
           using namespace darma_runtime::abstract::frontend;
+          using namespace darma_runtime::detail::flow_relationships;
 
           auto* backend_runtime = abstract::backend::get_backend_runtime();
 
@@ -229,12 +230,20 @@ class IndexedAccessHandle {
               HandleUse::Read, // Read scheduling permissions
               HandleUse::None, // No immediate permissions
               /* In flow description */
-              FlowRelationship::IndexedFetching, &parent_.current_use_->use->in_flow_,
+              indexed_fetching_flow(&parent_.current_use_->use->in_flow_, &version_key, backend_index_),
+              //FlowRelationship::IndexedFetching, &parent_.current_use_->use->in_flow_,
+#if _darma_has_feature(anti_flows)
               /* Out flow description */
-              FlowRelationship::Same, nullptr, true,
-              /* In flow version key and index */
-              &version_key, backend_index_
-              /* Out flow version key and index not needed */
+              insignificant_flow(),
+              /* Anti-In flow description */
+              insignificant_flow(),
+              /* Anti-Out flow description */
+              indexed_fetching_anti_flow(&parent_.current_use_->use->in_flow_, &version_key, backend_index_)
+#else
+              /* Out flow description */
+              same_flow_as_in()
+#endif // _darma_has_feature(anti_flows)
+              //FlowRelationship::Same, nullptr, true,
             )
           );
 
@@ -268,17 +277,21 @@ class IndexedAccessHandle {
     >
     auto
     commutative_access() && {
-      using namespace darma_runtime::abstract::frontend;
+      using namespace darma_runtime::detail::flow_relationships;
       // TODO make_indexed_?_flow
       use_holder_ = std::make_shared<UseHolder>(
         HandleUse(
           parent_.var_handle_.get_smart_ptr(),
           HandleUse::Commutative,
           HandleUse::None,
-          FlowRelationship::Indexed, &parent_.current_use_->use->in_flow_,
-          FlowRelationship::Indexed, &parent_.current_use_->use->out_flow_, false,
-          nullptr, backend_index_,
-          nullptr, backend_index_
+          indexed_flow(&parent_.current_use_->use->in_flow_, backend_index_),
+          //FlowRelationship::Indexed, &parent_.current_use_->use->in_flow_,
+          indexed_flow(&parent_.current_use_->use->out_flow_, backend_index_)
+          //FlowRelationship::Indexed, &parent_.current_use_->use->out_flow_, false,
+#if _darma_has_feature(anti_flows)
+          , indexed_anti_flow(&parent_.current_use_->use->anti_in_flow_, backend_index_),
+          insignificant_flow()
+#endif // _darma_has_feature(anti_flows)
         )
       );
 

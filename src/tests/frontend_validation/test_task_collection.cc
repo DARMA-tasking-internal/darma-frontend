@@ -440,7 +440,11 @@ TEST_F(TestCreateConcurrentWork, fetch) {
     if(i > 0) {
       EXPECT_CALL(*mock_runtime, make_forwarding_flow(f_in_idx[i]))
         .WillOnce(Return(f_pub[i]));
+#if _darma_has_feature(anti_flows)
+      EXPECT_REGISTER_USE(use_pub[i], f_pub[i], nullptr, None, Read);
+#else
       EXPECT_REGISTER_USE(use_pub[i], f_pub[i], f_pub[i], None, Read);
+#endif // _darma_has_feature(anti_flows)
       EXPECT_RELEASE_USE(use_idx[i]);
       EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(Eq(ByRef(use_pub[i])), _));
 
@@ -463,7 +467,11 @@ TEST_F(TestCreateConcurrentWork, fetch) {
       //  is_handle_with_key(make_key("hello"))
       //)).WillOnce(Return(f_fetch_null[i+1]));
 
+#if _darma_has_feature(anti_flows)
+      EXPECT_REGISTER_USE(use_fetch_init[i+1], f_fetch[i+1], nullptr, Read, None);
+#else
       EXPECT_REGISTER_USE(use_fetch_init[i+1], f_fetch[i+1], f_fetch[i+1], Read, None);
+#endif // _darma_has_feature(anti_flows)
       EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(f_fetch[i+1], use_fetch[i+1], fetched_value);
 
       EXPECT_REGISTER_TASK(use_fetch[i+1]);
@@ -892,7 +900,11 @@ TEST_F(TestCreateConcurrentWork, simple_sq_brkt_same) {
   EXPECT_CALL(*mock_runtime, make_forwarding_flow(f_in_idx))
     .WillOnce(Return(f_pub));
 
+#if _darma_has_feature(anti_flows)
+  EXPECT_REGISTER_USE(use_pub, f_pub, nullptr, None, Read);
+#else
   EXPECT_REGISTER_USE(use_pub, f_pub, f_pub, None, Read);
+#endif // _darma_has_feature(anti_flows)
 
   EXPECT_REGISTER_USE(use_pub_cont, f_pub, f_out_idx, Modify, Read);
 
@@ -1444,7 +1456,11 @@ TEST_F(TestCreateConcurrentWork, handle_reduce)
 
   EXPECT_REGISTER_USE_COLLECTION(use_coll_collective,
     fout_coll,
+#if _darma_has_feature(anti_flows)
+    nullptr,
+#else
     fout_coll,
+#endif // _darma_has_feature(anti_flows)
     None,
     Read,
     4);
@@ -1568,7 +1584,11 @@ TEST_F(TestCreateConcurrentWork, simple_read_only)
     make_key("hello"),
     4);
 
+#if _darma_has_feature(anti_flows)
+  EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, nullptr, Read, Read, 4);
+#else
   EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, finit, Read, Read, 4);
+#endif // _darma_has_feature(anti_flows)
 
   EXPECT_FLOW_ALIAS(finit, fnull);
 
@@ -1610,7 +1630,11 @@ TEST_F(TestCreateConcurrentWork, simple_read_only)
     EXPECT_CALL(*mock_runtime, make_indexed_local_flow(finit, i))
       .WillOnce(Return(f_in_idx[i]));
     EXPECT_CALL(*mock_runtime, legacy_register_use(
+#if _darma_has_feature(anti_flows)
+      IsUseWithFlows(f_in_idx[i], nullptr, use_t::Read, use_t::Read)
+#else
       IsUseWithFlows(f_in_idx[i], f_in_idx[i], use_t::Read, use_t::Read)
+#endif // _darma_has_feature(anti_flows)
     )).WillOnce(Invoke([&](auto* use) {
         use_idx[i] = use;
         use->get_data_pointer_reference() = &values[i];
@@ -1711,7 +1735,7 @@ TEST_F(TestCreateConcurrentWork, simple_commutative) {
     EXPECT_NEW_REGISTER_USE_COLLECTION(use_last_outer,
       f_out_coll, SameCollection, &f_out_coll,
       fnull, SameCollection, &fnull, false,
-      Commutative, None, false, 2
+      Modify, None, false, 2
     );
 
     EXPECT_NEW_RELEASE_USE(use_comm_outer, false);

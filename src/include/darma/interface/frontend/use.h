@@ -182,11 +182,25 @@ class UsePendingRegistration : virtual public Use {
 
     virtual void set_out_flow(types::flow_t const& new_flow) =0;
 
+#if _darma_has_feature(anti_flows)
+    virtual void set_anti_in_flow(types::anti_flow_t const& new_flow) =0;
+
+    virtual void set_anti_out_flow(types::anti_flow_t const& new_flow) =0;
+#endif // _darma_has_feature(anti_flows)
+
     virtual FlowRelationship const&
     get_in_flow_relationship() const =0;
 
     virtual FlowRelationship const&
     get_out_flow_relationship() const =0;
+
+#if _darma_has_feature(anti_flows)
+    virtual FlowRelationship const&
+    get_anti_in_flow_relationship() const =0;
+
+    virtual FlowRelationship const&
+    get_anti_out_flow_relationship() const =0;
+#endif // _darma_has_feature(anti_flows)
 
     virtual bool will_be_dependency() const =0;
 

@@ -173,14 +173,28 @@ struct _get_task_stored_arg_helper<
   ) const
   {
     // We still need to create a new use for the task itself...
-    using namespace darma_runtime::abstract::frontend;
+    using namespace darma_runtime::detail::flow_relationships;
+    assert(arg.current_use_->use->scheduling_permissions_ <= HandleUse::Read);
+    assert(arg.current_use_->use->immediate_permissions_ <= HandleUse::Read);
     auto new_use_holder = std::make_shared<UseHolder>(
       HandleUse(
         arg.var_handle_,
         arg.current_use_->use->scheduling_permissions_, // better be something like Read or less
         arg.current_use_->use->immediate_permissions_,  // better be something like Read or less
-        FlowRelationship::Same, &arg.current_use_->use->in_flow_,
-        FlowRelationship::Same, nullptr, true
+        same_flow(&arg.current_use_->use->in_flow_),
+        //FlowRelationship::Same, &arg.current_use_->use->in_flow_,
+#if _darma_has_feature(anti_flows)
+        // out flow
+        insignificant_flow(),
+        // anti-in flow
+        insignificant_flow(),
+        // anti-out flow
+        same_anti_flow(&arg.current_use_->use->anti_out_flow_)
+#else
+        // out flow
+        same_flow_as_in()
+        //FlowRelationship::Same, nullptr, true
+#endif // _darma_has_feature(anti_flows)
       )
     );
     new_use_holder->do_register();
