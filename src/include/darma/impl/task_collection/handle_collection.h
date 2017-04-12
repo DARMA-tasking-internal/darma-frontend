@@ -354,6 +354,7 @@ class IndexedAccessHandle {
           access_handle_.unfetched_ = false;
 
           // Still, don't register until it gets captured...
+          access_handle_.current_use_->do_register();
 
           return access_handle_;
         });
@@ -454,7 +455,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
           detail::HandleUse(
             var_handle_base_, unfetched_in_flow, unfetched_in_flow,
             detail::HandleUse::Read, detail::HandleUse::None
-          )
+          ), false
         );
         // DO NOT REGISTER IT YET!!!
 
