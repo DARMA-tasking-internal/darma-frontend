@@ -88,8 +88,10 @@ struct _initial_access_key_helper {
         var_h,
         HandleUse::Modify,
         HandleUse::None,
-        FlowRelationship::Initial, nullptr,
-        FlowRelationship::Null, nullptr, false
+        initial_flow(),
+        //FlowRelationship::Initial, nullptr,
+        null_flow()
+        //FlowRelationship::Null, nullptr, false
       ), /* register in ctor = */ true, /* will be dep = */ false
     );
 #endif // _darma_has_feature(anti_flows)

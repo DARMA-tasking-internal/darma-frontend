@@ -305,9 +305,9 @@ class CollectionManagingUse
       IndexRangeDeduced&& range, MappingToTaskCollectionDeduced&& mapping
     ) : base_t(
           handle, scheduling_permissions, immediate_permissions,
-          std::move(in_rel), std::move(out_rel)
+          std::move(in_rel), std::move(out_rel),
 #if _darma_has_feature(anti_flows)
-          , std::move(anti_in_rel), std::move(anti_out_rel),
+          std::move(anti_in_rel), std::move(anti_out_rel),
 #endif // _darma_has_feature(anti_flows)
           std::forward<MappingToTaskCollectionDeduced>(mapping)
         ),

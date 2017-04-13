@@ -55,5 +55,6 @@
 #define _darma_has_feature_create_concurrent_work_owned_by 0
 
 #define _darma_has_feature_task_collection_token 0
+#define _darma_has_feature_anti_flows 0
 
 #endif //DARMA_DARMA_FEATURES_H

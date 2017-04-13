@@ -50,7 +50,9 @@
 namespace mock_backend {
 
 size_t MockFlow::next_index = 0;
+#if _darma_has_feature(anti_flows)
 size_t MockAntiFlow::next_index = 0;
+#endif // _darma_has_feature(anti_flows)
 
 } // end namespace mock_backend
 

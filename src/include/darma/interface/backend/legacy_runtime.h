@@ -427,12 +427,14 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
           );
           break;
         }
+#if _darma_has_feature(anti_flows)
         case FlowRelationship::Insignificant :
         case FlowRelationship::InsignificantCollection : {
           // make it null, for now (may not be that way for ever)
           out_flow = types::flow_t(nullptr);
           break;
         }
+#endif // _darma_has_feature(anti_flows)
         default: {
           assert(false); // not implemented, what did I forget?
           break;

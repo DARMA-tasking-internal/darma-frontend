@@ -78,8 +78,12 @@ class HandleUseBase
 
     struct FlowRelationshipImpl: abstract::frontend::FlowRelationship
     {
-      flow_relationship_description_t description_ =
-        abstract::frontend::FlowRelationship::Insignificant;
+      flow_relationship_description_t description_
+#if _darma_has_feature(anti_flows)
+        = abstract::frontend::FlowRelationship::Insignificant;
+#else
+      ;
+#endif // _darma_has_feature(anti_flows)
       types::flow_t* related_ = nullptr;
       bool related_is_in_ = false;
       types::key_t const* version_key_ = nullptr;
@@ -136,8 +140,10 @@ class HandleUseBase
       types::flow_t* const
       related_flow() const override { return related_; }
 
+#if _darma_has_feature(anti_flows)
       types::anti_flow_t* const
       related_anti_flow() const override { return anti_related_; }
+#endif // _darma_has_feature(anti_flows)
 
 
       types::key_t const* version_key() const override { return version_key_; }
