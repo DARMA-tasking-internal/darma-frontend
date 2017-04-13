@@ -20,7 +20,7 @@ set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
   PASS_REGULAR_EXPRESSION "PASSED")
 endfunction()
 
-#add_unit_test(test_read_access)
+add_unit_test(test_read_access)
 add_unit_test(test_initial_access)
 add_unit_test(test_create_work)
 add_unit_test(test_access_handle)

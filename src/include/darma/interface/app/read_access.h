@@ -52,17 +52,70 @@
 #include <darma/interface/app/access_handle.h>
 #include <darma/impl/handle_attorneys.h>
 #include <darma/impl/flow_handling.h>
+#include <darma/impl/compatibility.h>
 #include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 
 
 namespace darma_runtime {
 
+namespace detail {
+
+template <typename U>
+struct _read_access_helper {
+  template <typename... Args>
+  decltype(auto)
+  operator()(
+    types::key_t&& version_key,
+    darma_runtime::detail::variadic_arguments_begin_tag,
+    Args&&... args
+  ) const {
+    auto backend_runtime = darma_runtime::abstract::backend::get_backend_runtime();
+    auto var_h = darma_runtime::detail::make_shared<darma_runtime::detail::VariableHandle<U>>(
+      darma_runtime::make_key(std::forward<decltype(args)>(args)...)
+    );
+
+    using namespace darma_runtime::detail::flow_relationships;
+    using namespace darma_runtime::abstract::frontend;
+
+    auto rv = darma_runtime::ReadAccessHandle<U>(
+      var_h,
+      std::make_shared<detail::UseHolder>(
+        detail::HandleUse(
+          var_h,
+          Use::Read, Use::None,
+          detail::HandleUseBase::FlowRelationshipImpl(
+            abstract::frontend::FlowRelationship::Fetching,
+            /* related flow = */ nullptr,
+            /* related_is_in = */ false,
+            /* version key = */ &version_key,
+            /* index = */ 0
+#if _darma_has_feature(anti_flows)
+            , /* anti_related = */ nullptr,
+            /* anti_rel_is_in = */ false
+#endif // _darma_has_feature(anti_flows)
+          ),
+          //FlowRelationship::Fetching, nullptr,
+          null_flow()
+          //FlowRelationship::Null, nullptr, false,
+        ), true, false
+      )
+    );
+    rv.current_use_->could_be_alias = true;
+    return std::move(rv);
+
+  }
+};
+
+} // end namespace detail
 
 template <
   typename U=void,
   typename... KeyExprParts
 >
-AccessHandle<U>
+DARMA_ATTRIBUTE_DEPRECATED_WITH_MESSAGE(
+  "arbitrary publish fetch is being removed very soon"
+)
+auto
 read_access(
   KeyExprParts&&... parts
 ) {
@@ -84,103 +137,8 @@ read_access(
       keyword_arguments_for_publication::version=[]{ return make_key(); }
     )
     .parse_args(std::forward<KeyExprParts>(parts)...)
-    .invoke([](
-      types::key_t&& version_key,
-      darma_runtime::detail::variadic_arguments_begin_tag,
-      auto&&... args
-    ) -> decltype(auto) {
-      auto backend_runtime = darma_runtime::abstract::backend::get_backend_runtime();
-      auto var_h = darma_runtime::detail::make_shared<darma_runtime::detail::VariableHandle<U>>(
-        darma_runtime::make_key(std::forward<decltype(args)>(args)...)
-      );
-
-      using namespace darma_runtime::abstract::frontend;
-
-      return darma_runtime::detail::access_attorneys::for_AccessHandle::construct_access<U>(
-        var_h,
-        std::make_shared<UseHolder>(
-          detail::HandleUse(
-            var_h,
-            Use::Read, Use::Read,
-            FlowRelationship::Fetching, nullptr,
-            FlowRelationship::Null, nullptr, false,
-            &version_key
-          ), true, false
-        )
-      );
-
-    });
+    .invoke(detail::_read_access_helper<U>{});
 }
-
-//template <
-//  typename U=void,
-//  typename... KeyExprParts
-//>
-//AccessHandle<U>
-//acquire_ownership(
-//  KeyExprParts&&... parts
-//) {
-//  using _check_kwargs_assert_t = typename detail::only_allowed_kwargs_given<
-//    keyword_tags_for_publication::version,
-//    keyword_tags_for_acquire_ownership::from_data_store
-//  >::template static_assert_correct<KeyExprParts...>::type;
-//
-//  using namespace darma_runtime::detail;
-//  using parser = detail::kwarg_parser<
-//    variadic_positional_overload_description<
-//      _optional_keyword<converted_parameter, keyword_tags_for_publication::version>,
-//      _optional_keyword<converted_parameter, keyword_tags_for_acquire_ownership::from_data_store>
-//    >
-//  >;
-//  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<KeyExprParts...>;
-//
-//  return parser()
-//    .with_converters(
-//      // version key converter
-//      [](auto&&... parts) {
-//        return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
-//      },
-//      // from_data_store
-//      [](auto&& ds_arg) {
-//        return detail::DataStoreAttorney::get_handle(ds_arg);
-//      }
-//    )
-//    .with_default_generators(
-//      keyword_arguments_for_publication::version=[]{ return make_key(); },
-//      keyword_arguments_for_acquire_ownership::from_data_store=[]{
-//        return std::shared_ptr<abstract::backend::DataStoreHandle>(nullptr);
-//      }
-//    )
-//    .parse_args(
-//      std::forward<KeyExprParts>(parts)...
-//    )
-//    .invoke(
-//      [](
-//        types::key_t&& version_key,
-//        std::shared_ptr<abstract::backend::DataStoreHandle> ds_handle,
-//        variadic_arguments_begin_tag,
-//        auto&&... args
-//      ) -> decltype(auto) {
-//
-//        auto backend_runtime = abstract::backend::get_backend_runtime();
-//        auto var_h = detail::make_shared<detail::VariableHandle<U>>(
-//          darma_runtime::make_key(std::forward<decltype(args)>(args)...)
-//        );
-//        auto in_flow = detail::make_flow_ptr(
-//          backend_runtime->make_fetching_flow( var_h, version_key, ds_handle, true )
-//        );
-//        auto out_flow = detail::make_flow_ptr(
-//          backend_runtime->make_null_flow( var_h )
-//        );
-//        return detail::access_attorneys::for_AccessHandle::construct_access<U>(
-//          var_h, in_flow, out_flow,
-//          detail::HandleUse::Modify, detail::HandleUse::None
-//        );
-//      }
-//    );
-//
-//}
-
 
 } // end namespace darma_runtime
 

@@ -69,6 +69,8 @@ class TestReadAccess
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// THIS IS GOING AWAY.  IT'S JUST A TEMPORARY FIX
+
 TEST_F(TestReadAccess, call_sequence) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -76,24 +78,19 @@ TEST_F(TestReadAccess, call_sequence) {
   using namespace mock_backend;
 
   auto my_version_tag = darma_runtime::make_key("my_version_tag");
-  MockFlow f_in, f_out;
-
-  Sequence s1, s2;
+  DECLARE_MOCK_FLOWS(f_in, f_out);
+  use_t* use_read = nullptr;
 
   EXPECT_CALL(*mock_runtime, make_fetching_flow(
-    is_handle_with_key(make_key("hello")), Eq(my_version_tag), Eq(false)
-  )).InSequence(s1)
-    .WillOnce(Return(&f_in));
-  EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(make_key("hello"))))
-    .InSequence(s1)
-    .WillOnce(Return(&f_out));
+    is_handle_with_key(make_key("hello")), Eq(my_version_tag))
+  ).WillOnce(Return(f_in));
+  EXPECT_CALL(*mock_runtime,
+    make_null_flow(is_handle_with_key(make_key("hello")))
+  ).WillOnce(Return(f_out));
+  EXPECT_REGISTER_USE(use_read, f_in, f_out, Read, None);
 
-
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out))
-    .InSequence(s1);
-
-  EXPECT_RELEASE_FLOW(f_in);
-  EXPECT_RELEASE_FLOW(f_out);
+  EXPECT_FLOW_ALIAS(f_in, f_out);
+  EXPECT_RELEASE_USE(use_read);
 
   {
     auto tmp = read_access<int>("hello", version=my_version_tag);
@@ -103,96 +100,3 @@ TEST_F(TestReadAccess, call_sequence) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Same as call_sequence, but uses helper to verify that other uses of helper should be valid
-TEST_F(TestReadAccess, call_sequence_helper) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace mock_backend;
-
-  MockFlow f_in, f_out;
-
-  EXPECT_READ_ACCESS(f_in, f_out,
-    make_key("hello"),
-    make_key("my_version_tag")
-  );
-
-  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in, &f_out));
-
-  EXPECT_RELEASE_FLOW(f_in);
-  EXPECT_RELEASE_FLOW(f_out);
-
-  {
-    auto tmp = read_access<int>("hello", version="my_version_tag");
-  }
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestReadAccess, call_sequence_assign) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace mock_backend;
-
-  mock_backend::MockFlow f_in_1, f_out_1, f_in_2, f_out_2;
-
-
-  EXPECT_READ_ACCESS(f_in_1, f_out_1, make_key("hello"),
-    make_key("my_version_tag")
-  );
-
-  EXPECT_READ_ACCESS(f_in_2, f_out_2, make_key("world"),
-    make_key("other_version_tag")
-  );
-
-  Expectation alias1 =
-    EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_1, &f_out_1));
-
-  Expectation release_fin1 = EXPECT_RELEASE_FLOW(f_in_1).After(alias1);
-  Expectation release_fout1 = EXPECT_RELEASE_FLOW(f_out_1).After(alias1);
-
-  Expectation alias2 =
-    EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_in_2, &f_out_2))
-      .After(release_fin1, release_fout1);
-
-  EXPECT_RELEASE_FLOW(f_in_2).After(alias2);
-  EXPECT_RELEASE_FLOW(f_out_2).After(alias2);
-
-
-  {
-    auto tmp1 = read_access<int>("hello", version="my_version_tag");
-
-    tmp1 = read_access<int>("world", version="other_version_tag");
-
-  } // tmp1
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-//TEST_F(TestReadAccess, acquire_ownership) {
-//  using namespace ::testing;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
-//  using namespace mock_backend;
-//
-//  MockFlow f_init, f_null;
-//
-//  EXPECT_CALL(*mock_runtime, make_fetching_flow(is_handle_with_key(make_key("hello")),
-//    Eq(make_key("my_version_tag")), Eq(true))
-//  ).WillOnce(Return(f_init));
-//  EXPECT_CALL(*mock_runtime, make_null_flow(is_handle_with_key(make_key("hello"))))
-//    .WillOnce(Return(f_null));
-//
-//  EXPECT_CALL(*mock_runtime, establish_flow_alias(&f_init, &f_null));
-//
-//  EXPECT_RELEASE_FLOW(f_init);
-//  EXPECT_RELEASE_FLOW(f_null);
-//
-//  {
-//    auto tmp = acquire_ownership<int>("hello", version="my_version_tag");
-//  }
-//
-//}

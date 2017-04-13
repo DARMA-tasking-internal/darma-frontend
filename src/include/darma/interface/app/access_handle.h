@@ -87,6 +87,9 @@ struct _publish_impl;
 template <typename T, typename... TraitsFlags>
 struct _initial_access_key_helper;
 
+template <typename>
+struct _read_access_helper;
+
 } // end namespace detail
 
 
@@ -1450,6 +1453,11 @@ class AccessHandle : public detail::AccessHandleBase {
 
     template <typename, typename...>
     friend struct detail::_initial_access_key_helper;
+
+    template <typename>
+    friend struct detail::_read_access_helper;
+
+
 
 #ifdef DARMA_TEST_FRONTEND_VALIDATION
     friend class ::TestAccessHandle;

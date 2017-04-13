@@ -47,6 +47,7 @@
 
 #include <darma/impl/config.h>
 
+// TODO move this to a configure test instead
 #if __cpp_constexpr >= 201304
 #  define DARMA_CONSTEXPR_14 constexpr
 #else
@@ -54,8 +55,21 @@
 #endif
 
 #ifdef DARMA_HAVE_ATTRIBUTE_NONNULL
-#define DARMA_ATTRIBUTE_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
-#define DARMA_ATTRIBUTE_ALL_NONNULL __attribute__((nonnull))
+#define DARMA_ATTRIBUTE_NONNULL(...) [[nonnull(__VA_ARGS__)]]
+#define DARMA_ATTRIBUTE_ALL_NONNULL [[nonnull]]
+#endif
+
+#ifdef DARMA_HAVE_ATTRIBUTE_DEPRECATED
+#  ifdef DARMA_HAVE_ATTRIBUTE_DEPRECATED_WITH_MESSAGE
+#    define DARMA_ATTRIBUTE_DEPRECATED [[deprecated]]
+#    define DARMA_ATTRIBUTE_DEPRECATED_WITH_MESSAGE(...) [[deprecated(__VA_ARGS__)]]
+#  else
+#    define DARMA_ATTRIBUTE_DEPRECATED [[deprecated]]
+#    define DARMA_ATTRIBUTE_DEPRECATED_WITH_MESSAGE(...) [[deprecated]]
+#  endif
+#else
+#  define DARMA_ATTRIBUTE_DEPRECATED
+#  define DARMA_ATTRIBUTE_DEPRECATED_WITH_MESSAGE(...)
 #endif
 
 #endif /* FRONTEND_INCLUDE_DARMA_COMPATIBILITY_H_ */

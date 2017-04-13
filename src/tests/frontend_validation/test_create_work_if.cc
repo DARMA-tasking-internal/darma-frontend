@@ -1315,7 +1315,11 @@ TEST_F(TestCreateWorkIf, multiple_different_always_true) {
       cap_val.set_value(73);
     });
 
+#if _darma_has_feature(anti_flows)
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(cond_after_use, f_cond_init, nullptr, Read, Read, cond_value);
+#else
     EXPECT_REGISTER_USE_AND_SET_BUFFER(cond_after_use, f_cond_init, f_cond_init, Read, Read, cond_value);
+#endif // _darma_has_feature(anti_flows)
 
     EXPECT_REGISTER_TASK(cond_after_use);
 

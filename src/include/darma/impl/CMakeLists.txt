@@ -40,10 +40,38 @@ install (FILES ${impl_task_collection_HEADERS} DESTINATION include/darma/impl/ta
 install (FILES ${impl_task_collection_impl_HEADERS} DESTINATION include/darma/impl/task_collection/impl)
 install (FILES ${impl_util_HEADERS} DESTINATION include/darma/impl/util)
 
+################################################################################
+# Check for available attributes
+set(CMAKE_REQUIRED_FLAGS_TMP ${CMAKE_REQUIRED_FLAGS})
+set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS_TMP} -Werror=attributes -std=c++14 ${CMAKE_CXX_FLAGS}")
+
 check_cxx_source_compiles("
+[[nonnull(1,2)]]
 extern void* my_memcpy(void *dest, const void *src)
-    __attribute__((nonnull (1, 2)));
 int main() { }
 " DARMA_HAVE_ATTRIBUTE_NONNULL)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config-generated.h.in ${CMAKE_CURRENT_BINARY_DIR}/config-generated.h)
-install (FILES ${CMAKE_CURRENT_BINARY_DIR}/config-generated.h DESTINATION include/darma/impl)
+
+check_cxx_source_compiles("
+#include <cassert>
+[[ deprecated ]] void* my_memcpy(void *dest, const void *src);
+int main() { }
+" DARMA_HAVE_ATTRIBUTE_DEPRECATED)
+
+check_cxx_source_compiles("
+[[ deprecated(\"reason\") ]]
+void* my_memcpy(void *dest, const void *src);
+int main() { }
+" DARMA_HAVE_ATTRIBUTE_DEPRECATED_WITH_MESSAGE)
+
+set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS_TMP}")
+# end of attribute checks
+################################################################################
+
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/config-generated.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/config-generated.h
+)
+install (
+  FILES ${CMAKE_CURRENT_BINARY_DIR}/config-generated.h
+  DESTINATION include/darma/impl
+)
