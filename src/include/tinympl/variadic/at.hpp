@@ -81,6 +81,7 @@ struct _element_at<std::integer_sequence<std::size_t, Idxs...>> {
 
 template <std::size_t i, typename... Args>
 struct _at_impl
+#if 0
   : decltype(
       // Since std::make_index_sequence is implemented in constant "time" via
       // a compiler extension in most implementations, this implementation of at
@@ -89,6 +90,11 @@ struct _at_impl
         static_cast<identity<Args>*>(nullptr)...
       )
     )
+#else
+  : identity<
+      std::tuple_element_t<i, std::tuple<Args...>>
+    >
+#endif
 { };
 
 

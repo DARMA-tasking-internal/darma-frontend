@@ -1258,8 +1258,10 @@ class AccessHandle : public detail::AccessHandleBase {
       var_handle_base_ = var_handle_;
       detail::HandleUse::permissions_t immed, sched;
 
+#ifdef __clang__
       #pragma clang diagnostic push
       #pragma clang diagnostic ignored "-Wuninitialized"
+#endif
 
       ar >> sched >> immed;
 
@@ -1288,7 +1290,9 @@ class AccessHandle : public detail::AccessHandleBase {
         )
       );
 
+#ifdef __clang__
       #pragma clang diagnostic pop
+#endif
     }
 #endif // _darma_has_feature(task_migration)
     // </editor-fold> end DARMA feature: task_migration }}}2

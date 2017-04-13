@@ -137,11 +137,11 @@ class HandleUseBase
         return description_;
       }
 
-      types::flow_t* const
+      types::flow_t*
       related_flow() const override { return related_; }
 
 #if _darma_has_feature(anti_flows)
-      types::anti_flow_t* const
+      types::anti_flow_t*
       related_anti_flow() const override { return anti_related_; }
 #endif // _darma_has_feature(anti_flows)
 

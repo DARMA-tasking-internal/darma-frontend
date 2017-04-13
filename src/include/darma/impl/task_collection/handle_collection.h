@@ -329,9 +329,9 @@ class AccessHandleCollection : public detail::AccessHandleBase {
           auto cap_result_holder = detail::make_captured_use_holder(
             output_handle.var_handle_,
             /* requested_scheduling_permissions */
-            HandleUse::None,
+            darma_runtime::detail::HandleUse::None,
             /* requested_immediate_permissions */
-            HandleUse::Modify,
+            darma_runtime::detail::HandleUse::Modify,
             output_handle.current_use_.get()
           );
 
@@ -820,8 +820,8 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType,
     >>(
       CollectionManagingUse<std::decay_t<IndexRangeT>>(
         var_handle,
-        HandleUse::Modify,
-        HandleUse::None,
+        darma_runtime::detail::HandleUse::Modify,
+        darma_runtime::detail::HandleUse::None,
         initial_flow().as_collection_relationship(),
         //FlowRelationship::InitialCollection, nullptr,
         null_flow().as_collection_relationship(),

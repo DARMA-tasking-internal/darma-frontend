@@ -70,7 +70,7 @@ void create_concurrent_work(Args&&... args) {
     .parse_args(std::forward<Args>(args)...)
     .invoke([](
       auto&& index_range,
-      variadic_arguments_begin_tag,
+      darma_runtime::detail::variadic_arguments_begin_tag,
       auto&&... args
     ){
       using task_collection_impl_t = typename detail::make_task_collection_impl_t<

@@ -97,6 +97,36 @@ struct Serializer_enabled_if<
 };
 
 } // end namespace detail
+
+// For now, just do std::string by itself as a full specialization
+template <>
+struct Serializer<std::string> {
+  template <typename ArchiveT>
+  size_t compute_size(std::string const& val, ArchiveT& ar) const {
+    ar.incorporate_size(size_t());
+    ar.add_to_size_indirect(val.length());
+  }
+
+  template <typename ArchiveT>
+  void pack(std::string const& val, ArchiveT& ar) const {
+    size_t length = val.length();
+    ar << length;
+    ar.pack_indirect(val.data(), val.data()+val.length());
+  }
+
+  template <typename ArchiveT>
+  void unpack(void* allocated, ArchiveT& ar) const {
+    // inefficient, but just to get something working:
+    size_t length = 0;
+    ar >> length;
+    char data[length];
+    ar.template unpack_indirect<char>(data, length);
+    auto* val = new (allocated) std::string(data, length);
+  }
+};
+
+
+
 } // end namespace serialization
 } // end namespace darma_runtime
 

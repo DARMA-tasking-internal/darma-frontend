@@ -117,11 +117,11 @@ TEST_F(TestFunctor, simple_migrate) {
 #else
       2
 #endif // _darma_has_feature(anti_flows)
-    ).WillRepeatedly(Return(sizeof(MockFlow)));
+    ).WillRepeatedly(Return(sizeof(mock_backend::MockFlow)));
 
 #if _darma_has_feature(anti_flows)
   EXPECT_CALL(*mock_runtime, get_packed_flow_size(Eq(nullptr)))
-    .Times(1).WillRepeatedly(Return(sizeof(MockFlow)));
+    .Times(1).WillRepeatedly(Return(sizeof(mock_backend::MockFlow)));
 #endif // _darma_has_feature(anti_flows)
 
   size_t task_packed_size = task_to_migrate->get_packed_size();
@@ -146,9 +146,9 @@ TEST_F(TestFunctor, simple_migrate) {
     // memcpy the flow directly into the buffer.  We'll just use it for
     // comparison purposes later to make sure the translation layer is
     // delivering the correct buffer to make_unpacked_flow
-    ::memcpy(buffer, (void*)(std::addressof(flow)), sizeof(MockFlow));
+    ::memcpy(buffer, (void*)(std::addressof(flow)), sizeof(mock_backend::MockFlow));
     // and advance the buffer
-    reinterpret_cast<char*&>(buffer) += sizeof(MockFlow);
+    reinterpret_cast<char*&>(buffer) += sizeof(mock_backend::MockFlow);
   }));
 
 #if _darma_has_feature(anti_flows)
@@ -164,30 +164,30 @@ TEST_F(TestFunctor, simple_migrate) {
     // memcpy the flow directly into the buffer.  We'll just use it for
     // comparison purposes later to make sure the translation layer is
     // delivering the correct buffer to make_unpacked_flow
-    ::memcpy(buffer, (void*)(std::addressof(flow)), sizeof(MockFlow));
+    ::memcpy(buffer, (void*)(std::addressof(flow)), sizeof(mock_backend::MockFlow));
     // and advance the buffer
-    reinterpret_cast<char*&>(buffer) += sizeof(MockFlow);
+    reinterpret_cast<char*&>(buffer) += sizeof(mock_backend::MockFlow);
   }));
 #endif // _darma_has_feature(anti_flows)
 
   task_to_migrate->pack(buffer);
 
   EXPECT_CALL(*mock_runtime, make_unpacked_flow(Truly([&](void const* buff){
-    return *reinterpret_cast<MockFlow const*>(buff) == f_set_42_out
-      || *reinterpret_cast<MockFlow const*>(buff) == nullptr;
+    return *reinterpret_cast<mock_backend::MockFlow const*>(buff) == f_set_42_out
+      || *reinterpret_cast<mock_backend::MockFlow const*>(buff) == nullptr;
   }))).Times(2)
 #if _darma_has_feature(anti_flows)
     .WillOnce(Invoke([&](void const*& buff) {
-      reinterpret_cast<char const*&>(buff) += sizeof(MockFlow);
+      reinterpret_cast<char const*&>(buff) += sizeof(mock_backend::MockFlow);
       return f_set_42_out_migrated;
     }))
     .WillOnce(Invoke([&](void const*& buff) {
-      reinterpret_cast<char const*&>(buff) += sizeof(MockFlow);
-      return MockFlow(nullptr);
+      reinterpret_cast<char const*&>(buff) += sizeof(mock_backend::MockFlow);
+      return mock_backend::MockFlow(nullptr);
     }));
 #else
     .WillRepeatedly(Invoke([&](void const*& buff) {
-      reinterpret_cast<char const*&>(buff) += sizeof(MockFlow);
+      reinterpret_cast<char const*&>(buff) += sizeof(mock_backend::MockFlow);
       return f_set_42_out_migrated;
     }));
 #endif // _darma_has_feature(anti_flows)

@@ -287,94 +287,96 @@ struct callable_traits {
     //  "Can't handle functors with overloaded call operators"
     //);
 
-    struct _automatic_unevaluated { };
+    //struct _automatic_unevaluated { };
 
-    template <typename F>
-    using _functor_with_no_template_params_archetype = decltype(
-      &F::operator()
-    );
-    template <typename F, typename... template_args>
-    using _functor_with_template_args_archtype = decltype(
-      &F::template operator()<template_args...>
-    );
-    // Maybe something like this would work for GCC?  Don't know.  Might be a waste of time...
+    //template <typename F>
+    //using _functor_with_no_template_params_archetype = decltype(
+    //  &F::operator()
+    //);
     //template <typename F, typename... template_args>
     //using _functor_with_template_args_archtype = decltype(
-    //  &std::declval<decltype(F::template operator()<template_args...>)>()
+    //  &F::template operator()<template_args...>
     //);
-    template <typename... Args>
-    using _functor_allowed_with_template_args = tinympl::extract_bool_value_potentially_lazy<
-      meta::is_detected<
-        _functor_with_template_args_archtype, Callable, Args...
-      >
-    >;
-    template <typename... Args>
-    using _functor_type_with_template_args = meta::is_detected<
-      _functor_with_template_args_archtype, Callable, Args...
-    >;
-    template <typename WrappedArgsCount>
-    using _functor_allowed_with_n_template_args = typename tinympl::splat_to<
-      typename tinympl::transform<
-        std::make_index_sequence<WrappedArgsCount::value>,
-        tinympl::make_ignore_argument<_automatic_unevaluated>::template apply,
-        tinympl::vector
-      >::type,
-      _functor_allowed_with_template_args
-    >::type;
-    template <typename WrappedArgsCount>
-    using _functor_type_with_n_template_args = typename tinympl::splat_to<
-      typename tinympl::transform<
-        std::make_index_sequence<WrappedArgsCount::value>,
-        tinympl::make_ignore_argument<_automatic_unevaluated>::template apply,
-        tinympl::vector
-      >::type,
-      _functor_type_with_template_args
-    >::type;
+    //// Maybe something like this would work for GCC?  Don't know.  Might be a waste of time...
+    ////template <typename F, typename... template_args>
+    ////using _functor_with_template_args_archtype = decltype(
+    ////  &std::declval<decltype(F::template operator()<template_args...>)>()
+    ////);
+    //template <typename... Args>
+    //using _functor_allowed_with_template_args = tinympl::extract_bool_value_potentially_lazy<
+    //  meta::is_detected<
+    //    _functor_with_template_args_archtype, Callable, Args...
+    //  >
+    //>;
+    //template <typename... Args>
+    //using _functor_type_with_template_args = meta::is_detected<
+    //  _functor_with_template_args_archtype, Callable, Args...
+    //>;
+    //template <typename WrappedArgsCount>
+    //using _functor_allowed_with_n_template_args = typename tinympl::splat_to<
+    //  typename tinympl::transform<
+    //    std::make_index_sequence<WrappedArgsCount::value>,
+    //    tinympl::make_ignore_argument<_automatic_unevaluated>::template apply,
+    //    tinympl::vector
+    //  >::type,
+    //  _functor_allowed_with_template_args
+    //>::type;
+    //template <typename WrappedArgsCount>
+    //using _functor_type_with_n_template_args = typename tinympl::splat_to<
+    //  typename tinympl::transform<
+    //    std::make_index_sequence<WrappedArgsCount::value>,
+    //    tinympl::make_ignore_argument<_automatic_unevaluated>::template apply,
+    //    tinympl::vector
+    //  >::type,
+    //  _functor_type_with_template_args
+    //>::type;
 
-    template <typename WrappedArgsCount, typename WrappedI, typename TemplateArgI>
-    using _functor_type_with_n_template_args_subst_i = typename tinympl::splat_to<
-      typename tinympl::transform<
-        std::make_index_sequence<WrappedArgsCount::value>,
-        tinympl::make_ignore_argument<_automatic_unevaluated>::template apply,
-        tinympl::vector
-      >::type::template insert<WrappedI::value, TemplateArgI>::type::pop_back::type,
-      _functor_type_with_template_args
-    >::type;
+    //template <typename WrappedArgsCount, typename WrappedI, typename TemplateArgI>
+    //using _functor_type_with_n_template_args_subst_i = typename tinympl::splat_to<
+    //  typename tinympl::transform<
+    //    std::make_index_sequence<WrappedArgsCount::value>,
+    //    tinympl::make_ignore_argument<_automatic_unevaluated>::template apply,
+    //    tinympl::vector
+    //  >::type::template insert<WrappedI::value, TemplateArgI>::type::pop_back::type,
+    //  _functor_type_with_template_args
+    //>::type;
 
-    static constexpr auto MAX_TEMPLATE_PARAMETERS_TO_TRY = 10;
-    template <size_t max_to_try>
-    using _min_num_template_args = tinympl::find_if<
-      std::make_index_sequence<max_to_try>,
-      _functor_allowed_with_n_template_args
-    >;
+    //static constexpr auto MAX_TEMPLATE_PARAMETERS_TO_TRY = 10;
+    //template <size_t max_to_try>
+    //using _min_num_template_args = tinympl::find_if<
+    //  std::make_index_sequence<max_to_try>,
+    //  _functor_allowed_with_n_template_args
+    //>;
 
-    using callable_t = typename std::conditional_t<
-      meta::is_detected<_functor_with_no_template_params_archetype, Callable>::value,
-      meta::is_detected<_functor_with_no_template_params_archetype, Callable>,
-      std::conditional_t<
-        _min_num_template_args<MAX_TEMPLATE_PARAMETERS_TO_TRY>::value
-          == MAX_TEMPLATE_PARAMETERS_TO_TRY,
-        tinympl::identity<Callable>,
-        _functor_type_with_n_template_args<
-          _min_num_template_args<MAX_TEMPLATE_PARAMETERS_TO_TRY>
-        >
-      >
-    >::type;
+    //using callable_t = typename std::conditional_t<
+    //  meta::is_detected<_functor_with_no_template_params_archetype, Callable>::value,
+    //  meta::is_detected<_functor_with_no_template_params_archetype, Callable>,
+    //  std::conditional_t<
+    //    _min_num_template_args<MAX_TEMPLATE_PARAMETERS_TO_TRY>::value
+    //      == MAX_TEMPLATE_PARAMETERS_TO_TRY,
+    //    tinympl::identity<Callable>,
+    //    _functor_type_with_n_template_args<
+    //      _min_num_template_args<MAX_TEMPLATE_PARAMETERS_TO_TRY>
+    //    >
+    //  >
+    //>::type;
 
-    static constexpr auto needs_pop_front = not std::is_same<
-      callable_t, Callable
-    >::value;
+    //static constexpr auto needs_pop_front = not std::is_same<
+    //  callable_t, Callable
+    //>::value;
 
-    static constexpr auto is_templated = needs_pop_front and not std::is_same<
-      meta::detected_t<_functor_with_no_template_params_archetype, Callable>,
-      callable_t
-    >::value;
+    //static constexpr auto is_templated = needs_pop_front and not std::is_same<
+    //  meta::detected_t<_functor_with_no_template_params_archetype, Callable>,
+    //  callable_t
+    //>::value;
 
-    using params_vector = typename std::conditional_t<
-      needs_pop_front,
-      get_params_t<callable_t>,
-      typename get_params_t<callable_t>::template push_front<meta::nonesuch>::type
-    >::pop_front::type;
+    using callable_t = Callable;
+    using params_vector = get_params_t<Callable>;
+    //using params_vector = typename std::conditional_t<
+    //  needs_pop_front,
+    //  get_params_t<callable_t>,
+    //  typename get_params_t<callable_t>::template push_front<meta::nonesuch>::type
+    //>::pop_front::type;
     using args_vector = params_vector;
 
     static constexpr auto n_params_max = params_vector::size;

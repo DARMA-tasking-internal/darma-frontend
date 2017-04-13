@@ -112,12 +112,12 @@ class FlowRelationship {
 
     virtual flow_relationship_description_t description() const =0;
 
-    virtual types::flow_t* const related_flow() const =0;
+    virtual types::flow_t* related_flow() const =0;
 
 #if _darma_has_feature(anti_flows)
     // Only non-null if it's an "AntiFlowRelationship" (not a real class,
     // but conceptually speaking)
-    virtual types::anti_flow_t* const related_anti_flow() const =0;
+    virtual types::anti_flow_t* related_anti_flow() const =0;
 
     virtual bool use_corresponding_in_flow_as_anti_related() const =0;
 #endif // _darma_has_feature(anti_flows)

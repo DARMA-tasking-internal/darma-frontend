@@ -138,7 +138,7 @@ class SerializationManagerForType
   public:
 
     STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(T, serialization::SimplePackUnpackArchive,
-    "Handles to non-serializable types not yet supported"
+      "Handles to non-serializable types not yet supported"
     );
 
     size_t

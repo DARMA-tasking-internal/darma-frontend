@@ -66,6 +66,7 @@ class TestAccessHandle_publish_MM_Test;
 #include <darma/interface/app/create_work.h>
 #include <darma/interface/app/initial_access.h>
 #include <darma/interface/app/read_access.h>
+#include <darma/impl/serialization/string.h>
 
 #include <darma/impl/util/static_assertions.h>
 

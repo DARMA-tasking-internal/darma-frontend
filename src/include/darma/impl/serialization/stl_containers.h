@@ -60,7 +60,7 @@ namespace detail {
 // A specialization for all stl containers of serializable objects
 template <typename C>
 struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> {
-  protected:
+  public:
 
     typedef meta::is_container<C> container_traits;
     typedef typename container_traits::value_type value_type;
@@ -70,30 +70,30 @@ struct Serializer_enabled_if<C, std::enable_if_t<meta::is_container<C>::value>> 
     ////////////////////////////////////////////////////////////
     // <editor-fold desc="Special handling if reserve() is available, push_back() or insert(), etc">
 
-    template <typename T>
+    template <typename T, typename ValueType>
     using back_insertable_archetype = decltype(
-      std::declval<T>().push_back(std::declval<value_type>())
+      std::declval<T>().push_back(std::declval<ValueType const&>())
     );
 
-    template <typename T>
+    template <typename T, typename Iterator, typename ValueType>
     using insertable_archetype = decltype(
       std::declval<T>().insert(
-        std::declval<typename container_traits::iterator>(),
-        std::declval<value_type>()
+        std::declval<Iterator>(),
+        std::declval<ValueType const&>()
       )
     );
     template <typename T>
     using reservable_archetype = decltype( std::declval<T>().reserve(
-      std::declval<typename C::size_type>()
+      std::declval<typename T::size_type>()
     ) );
     template <typename T>
     using has_emplace_back_default_archetype =
       decltype( std::declval<T>().emplace_back() );
 
     static constexpr auto is_back_insertable = meta::is_detected<
-      back_insertable_archetype, C>::value;
+      back_insertable_archetype, C, value_type>::value;
     static constexpr auto is_insertable = meta::is_detected<
-      insertable_archetype, C>::value;
+      insertable_archetype, C, typename container_traits::iterator, value_type>::value;
     static constexpr auto is_reservable = meta::is_detected<
       reservable_archetype , C>::value;
     static constexpr auto has_emplace_back_default = meta::is_detected<

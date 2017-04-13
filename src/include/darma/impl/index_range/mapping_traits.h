@@ -308,45 +308,45 @@ struct mapping_traits {
 
   private:
 
-    template <typename U>
+    template <typename U, typename FromIndexType>
     using _map_forward_no_ranges_archetype = decltype(
-      std::declval<U>().map_forward(std::declval<from_index_type const&>())
+      std::declval<U>().map_forward(std::declval<FromIndexType const&>())
     );
 
-    template <typename U, typename Range1>
+    template <typename U, typename Range1, typename FromIndexType>
     using _map_forward_one_range_archetype = decltype(
       std::declval<U>().map_forward(
-        std::declval<from_index_type const&>(),
+        std::declval<FromIndexType const&>(),
         std::declval<Range1 const&>()
       )
     );
 
-    template <typename U, typename Range1, typename Range2>
+    template <typename U, typename Range1, typename Range2, typename FromIndexType>
     using _map_forward_two_ranges_archetype = decltype(
       std::declval<U>().map_forward(
-        std::declval<from_index_type const&>(),
+        std::declval<FromIndexType const&>(),
         std::declval<Range1 const&>(),
         std::declval<Range2 const&>()
       )
     );
 
-    template <typename U>
+    template <typename U, typename ToIndexType>
     using _map_backward_no_ranges_archetype = decltype(
-      std::declval<U>().map_backward(std::declval<to_index_type const&>())
+      std::declval<U>().map_backward(std::declval<ToIndexType const&>())
     );
 
-    template <typename U, typename Range1>
+    template <typename U, typename Range1, typename ToIndexType>
     using _map_backward_one_range_archetype = decltype(
       std::declval<U>().map_backward(
-        std::declval<to_index_type const&>(),
+        std::declval<ToIndexType const&>(),
         std::declval<Range1 const&>()
       )
     );
 
-    template <typename U, typename Range1, typename Range2>
+    template <typename U, typename Range1, typename Range2, typename ToIndexType>
     using _map_backward_two_ranges_archetype = decltype(
       std::declval<U>().map_backward(
-        std::declval<to_index_type const&>(),
+        std::declval<ToIndexType const&>(),
         std::declval<Range1 const&>(),
         std::declval<Range2 const&>()
       )
@@ -366,15 +366,15 @@ struct mapping_traits {
     >
     using _forward_method_overload_tag = typename tinympl::select_first_t<
         tinympl::bool_<meta::is_detected_convertible<
-          to_multi_index_type, _map_forward_two_ranges_archetype, T, Range1, Range2
+          to_multi_index_type, _map_forward_two_ranges_archetype, T, Range1, Range2, from_index_type
         >::value and not std::is_same<Range1, meta::nonesuch>::value and not std::is_same<Range2, meta::nonesuch>::value
       >, /* => */ std::integral_constant<_map_method_overload, _two_ranges>,
       tinympl::bool_<meta::is_detected_convertible<
-          to_multi_index_type, _map_forward_one_range_archetype, T, Range1
+          to_multi_index_type, _map_forward_one_range_archetype, T, Range1, from_index_type
         >::value and not std::is_same<Range1, meta::nonesuch>::value
       >, /* => */ std::integral_constant<_map_method_overload, _one_range>,
       tinympl::bool_<meta::is_detected_convertible<
-        to_multi_index_type, _map_forward_no_ranges_archetype, T
+        to_multi_index_type, _map_forward_no_ranges_archetype, T, from_index_type
       >::value>, /* => */ std::integral_constant<_map_method_overload, _no_ranges>,
       std::true_type,
       /* => */ std::conditional_t<error_if_missing, _darma__static_failure<
@@ -394,15 +394,15 @@ struct mapping_traits {
     >
     using _backward_method_overload_tag = tinympl::select_first_t<
       tinympl::bool_<meta::is_detected_convertible<
-          from_multi_index_type, _map_backward_two_ranges_archetype, T, Range1, Range2
+          from_multi_index_type, _map_backward_two_ranges_archetype, T, Range1, Range2, to_index_type
         >::value and not std::is_same<Range1, meta::nonesuch>::value and not std::is_same<Range2, meta::nonesuch>::value
       >, /* => */ std::integral_constant<_map_method_overload, _two_ranges>,
       tinympl::bool_<meta::is_detected_convertible<
-          from_multi_index_type, _map_backward_one_range_archetype, T, Range1
+          from_multi_index_type, _map_backward_one_range_archetype, T, Range1, to_index_type
         >::value and not std::is_same<Range1, meta::nonesuch>::value
       >, /* => */ std::integral_constant<_map_method_overload, _one_range>,
       tinympl::bool_<meta::is_detected_convertible<
-        from_multi_index_type, _map_backward_no_ranges_archetype, T
+        from_multi_index_type, _map_backward_no_ranges_archetype, T, to_index_type
       >::value>, /* => */ std::integral_constant<_map_method_overload, _no_ranges>,
       std::true_type,
       /* => */ std::conditional_t<error_if_missing, _darma__static_failure<
