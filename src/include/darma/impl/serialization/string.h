@@ -69,7 +69,7 @@ struct Serializer_enabled_if<
   std::enable_if_t<_impl::_has_char_traits_length<T>::value>
 > {
   template <typename ArchiveT>
-  size_t compute_size(T* const val, ArchiveT& ar) const {
+  void compute_size(T* const val, ArchiveT& ar) const {
     ar.incorporate_size(size_t());
     ar.add_to_size_direct(val, std::char_traits<T>::length(val));
   }
@@ -102,7 +102,7 @@ struct Serializer_enabled_if<
 template <>
 struct Serializer<std::string> {
   template <typename ArchiveT>
-  size_t compute_size(std::string const& val, ArchiveT& ar) const {
+  void compute_size(std::string const& val, ArchiveT& ar) const {
     ar.incorporate_size(size_t());
     ar.add_to_size_indirect(val.length());
   }

@@ -65,43 +65,44 @@ struct _read_access_helper {
   template <typename... Args>
   decltype(auto)
   operator()(
-    types::key_t&& version_key,
+    types::key_t const& version_key,
     darma_runtime::detail::variadic_arguments_begin_tag,
     Args&&... args
   ) const {
     auto backend_runtime = darma_runtime::abstract::backend::get_backend_runtime();
-    auto var_h = darma_runtime::detail::make_shared<darma_runtime::detail::VariableHandle<U>>(
-      darma_runtime::make_key(std::forward<decltype(args)>(args)...)
-    );
+    auto key = darma_runtime::make_key(std::forward<decltype(args)>(args)...);
+    auto var_h = darma_runtime::detail::make_shared<
+      darma_runtime::detail::VariableHandle<U>
+    >(key);
 
     using namespace darma_runtime::detail::flow_relationships;
     using namespace darma_runtime::abstract::frontend;
 
-    auto rv = darma_runtime::ReadAccessHandle<U>(
-      var_h,
-      std::make_shared<detail::UseHolder>(
-        detail::HandleUse(
-          var_h,
-          Use::Read, Use::None,
-          detail::HandleUseBase::FlowRelationshipImpl(
-            abstract::frontend::FlowRelationship::Fetching,
-            /* related flow = */ nullptr,
-            /* related_is_in = */ false,
-            /* version key = */ &version_key,
-            /* index = */ 0
+    auto use_holder = std::make_shared<detail::UseHolder>(
+      detail::HandleUse(
+        var_h,
+        Use::Read, Use::None,
+        detail::HandleUseBase::FlowRelationshipImpl(
+          abstract::frontend::FlowRelationship::Fetching,
+          /* related flow = */ nullptr,
+          /* related_is_in = */ false,
+          /* version key = */ &version_key,
+          /* index = */ 0
 #if _darma_has_feature(anti_flows)
-            , /* anti_related = */ nullptr,
+        , /* anti_related = */ nullptr,
             /* anti_rel_is_in = */ false
 #endif // _darma_has_feature(anti_flows)
-          ),
-          //FlowRelationship::Fetching, nullptr,
-          null_flow()
-          //FlowRelationship::Null, nullptr, false,
-        ), true, false
-      )
+        ),
+        //FlowRelationship::Fetching, nullptr,
+        null_flow()
+        //FlowRelationship::Null, nullptr, false,
+      ), true, false
     );
-    rv.current_use_->could_be_alias = true;
-    return std::move(rv);
+    use_holder->could_be_alias = true;
+
+    return darma_runtime::ReadAccessHandle<U>(
+      var_h, std::move(use_holder)
+    );
 
   }
 };
