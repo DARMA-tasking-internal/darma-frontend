@@ -320,7 +320,11 @@ TEST_F(TestCreateWorkWhile, basic_different_always_false) {
   EXPECT_CALL(*mock_runtime, make_next_flow(f_init_2))
     .WillOnce(Return(f_while_out_2));
 
+#if _darma_has_feature(anti_flows)
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(while_use, f_init, nullptr, Read, Read, value);
+#else
   EXPECT_REGISTER_USE_AND_SET_BUFFER(while_use, f_init, f_init, Read, Read, value);
+#endif // _darma_has_feature(anti_flows)
   EXPECT_REGISTER_USE(do_sched_use, f_init_2, f_while_out_2, Modify, None);
   EXPECT_REGISTER_USE(do_cont_use, f_while_out_2, f_null_2, Modify, None);
   EXPECT_RELEASE_USE(do_init_use);

@@ -305,7 +305,11 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
 
   EXPECT_CALL(*mock_runtime, legacy_register_use(
     IsUseWithFlows(
+#if _darma_has_feature(anti_flows)
+      fl_init, nullptr,
+#else
       fl_init, fl_init,
+#endif // _darma_has_feature(anti_flows)
       expected_scheduling_permissions,
       use_t::Read
     )
