@@ -146,7 +146,7 @@ class managing_ptr {
     template <typename _Ignored_SFINAE=void>
     void
     _assign_managed(
-      nullptr_t,
+      std::nullptr_t,
       std::enable_if_t<
         std::is_void<_Ignored_SFINAE>::value
           and managed_is_directly_assignable::value,
@@ -159,7 +159,7 @@ class managing_ptr {
     template <typename _Ignored_SFINAE=void>
     void
     _assign_managed(
-      nullptr_t,
+      std::nullptr_t,
       std::enable_if_t<
         std::is_void<_Ignored_SFINAE>::value
           and not managed_is_directly_assignable::value,

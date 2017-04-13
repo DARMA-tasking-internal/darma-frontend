@@ -177,10 +177,10 @@ MATCHER_P(IsUseWithHandleKey, key, "handle->get_key() = " + PrintToString(key)) 
 }
 
 template <typename T> struct _deref_non_null { decltype(auto) operator()(T val) const { return *val; } };
-template <> struct _deref_non_null<std::nullptr_t> { decltype(auto) operator()(nullptr_t) const { return nullptr; } };
-template <> struct _deref_non_null<std::nullptr_t&> { decltype(auto) operator()(nullptr_t) const { return nullptr; } };
-template <> struct _deref_non_null<std::nullptr_t const&> { decltype(auto) operator()(nullptr_t) const { return nullptr; } };
-template <> struct _deref_non_null<std::nullptr_t&&> { decltype(auto) operator()(nullptr_t) const { return nullptr; } };
+template <> struct _deref_non_null<std::nullptr_t> { decltype(auto) operator()(std::nullptr_t) const { return nullptr; } };
+template <> struct _deref_non_null<std::nullptr_t&> { decltype(auto) operator()(std::nullptr_t) const { return nullptr; } };
+template <> struct _deref_non_null<std::nullptr_t const&> { decltype(auto) operator()(std::nullptr_t) const { return nullptr; } };
+template <> struct _deref_non_null<std::nullptr_t&&> { decltype(auto) operator()(std::nullptr_t) const { return nullptr; } };
 template <typename T> decltype(auto) deref_non_null(T&& val) { return _deref_non_null<T&&>{}(std::forward<T>(val)); }
 
 MATCHER_P7(IsUseWithFlowRelationships, f_in_rel, f_in, f_out_rel, f_out, out_rel_is_in, scheduling_permissions, immediate_permissions,
