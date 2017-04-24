@@ -289,6 +289,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     }
 
 
+#if _darma_has_feature(handle_collection_based_collectives)
     template <typename ReduceOp=detail::op_not_given, typename... Args>
     auto
     reduce(Args&&... args) const {
@@ -372,7 +373,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
 
     }
-
+#endif //_darma_has_feature(handle_collection_based_collectives)
 
 
   // </editor-fold> end public interface functions }}}1
@@ -670,6 +671,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 #if _darma_has_feature(anti_flows)
               ,
               /* anti-in flow depends on immediate permissions */
+              // TODO this should probably check if the Collection anti-flow was significant
               current_use_->use->immediate_permissions_ == detail::HandleUse::Modify ?
                 indexed_local_anti_flow(&current_use_->use->anti_in_flow_, idx)
                   : insignificant_flow(),
@@ -941,6 +943,7 @@ using CommutativeAccessHandleCollectionWithTraits = CommutativeAccessHandleColle
 //==============================================================================
 // <editor-fold desc="serialization for AccessHandleCollection"> {{{1
 
+#if _darma_has_feature(task_migration)
 namespace serialization {
 
 template <typename T, typename IndexRangeT, typename Traits>
@@ -1071,6 +1074,7 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
 };
 
 } // end namespace serialization
+#endif // _darma_has_feature(task_migration)
 
 // </editor-fold> end serialization for AccessHandleCollection (currently disabled code) }}}1
 //==============================================================================

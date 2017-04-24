@@ -273,8 +273,9 @@ struct serializability_traits {
   public:
 
     template <typename ArchiveT>
-    using has_nonintrusive_serialize =
-      is_detected<has_nonintrusive_serialize_archetype, _clean_T, ArchiveT>;
+    using has_nonintrusive_serialize = std::integral_constant<bool,
+      is_detected<has_nonintrusive_serialize_archetype, _clean_T, ArchiveT>::value
+    >;
 
     // </editor-fold>
     //----------------------------------------
@@ -294,8 +295,9 @@ struct serializability_traits {
   public:
 
     template <typename ArchiveT>
-    using has_nonintrusive_compute_size =
-      is_detected<has_nonintrusive_compute_size_archetype, _clean_T, ArchiveT>;
+    using has_nonintrusive_compute_size = std::integral_constant<bool,
+      is_detected<has_nonintrusive_compute_size_archetype, _clean_T, ArchiveT>::value
+    >;
 
     // </editor-fold>
     //----------------------------------------
@@ -732,6 +734,19 @@ struct serializability_traits {
       serializer().serialize(reconstruct(allocated, ar), ar);
     }
 
+    template <typename ArchiveT, typename Allocator>
+    static
+    std::enable_if_t<
+      not has_nonintrusive_allocator_aware_unpack<ArchiveT,
+        darma_allocator<_clean_T>
+      >::value
+        and not has_nonintrusive_unpack<ArchiveT>::value
+        and has_nonintrusive_serialize<ArchiveT>::value
+    >
+    unpack(void* allocated, ArchiveT& ar, Allocator&& /* ignored */) {
+      serializer().serialize(reconstruct(allocated, ar), ar);
+    }
+
     //--------------------------------------------------------------------------
 
     //==============================================================================
@@ -901,16 +916,15 @@ struct serializability_traits {
 
 #define STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(type, artype, ...) \
   static_assert( \
-    ::darma_runtime::serialization::detail::serializability_traits<type>::template has_nonintrusive_compute_size<artype>::value, \
+    ::darma_runtime::serialization::detail::serializability_traits<type>::template is_sizable_with_archive<artype>::value, \
     __VA_ARGS__ ":  Cannot generate valid Serializer::compute_size() method for type/archive combination" \
   ); \
   static_assert( \
-     ::darma_runtime::serialization::detail::serializability_traits<type>::template has_nonintrusive_pack<artype>::value, \
+     ::darma_runtime::serialization::detail::serializability_traits<type>::template is_packable_with_archive<artype>::value, \
       __VA_ARGS__ ":  Cannot generate valid Serializer::pack() method for type/archive combination" \
   ); \
   static_assert( \
-    ::darma_runtime::serialization::detail::serializability_traits<type>::template has_nonintrusive_unpack<artype>::value\
-    or ::darma_runtime::serialization::detail::serializability_traits<type>::template has_nonintrusive_allocator_aware_unpack<artype>::value, \
+    ::darma_runtime::serialization::detail::serializability_traits<type>::template is_unpackable_with_archive<artype>::value,\
     __VA_ARGS__ ":  Cannot generate valid Serializer::unpack() method for type/archive combination" \
   );
 

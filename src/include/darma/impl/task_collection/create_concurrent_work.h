@@ -71,15 +71,15 @@ void create_concurrent_work(Args&&... args) {
     .invoke([](
       auto&& index_range,
       darma_runtime::detail::variadic_arguments_begin_tag,
-      auto&&... args
+      auto&&... my_args
     ){
       using task_collection_impl_t = typename detail::make_task_collection_impl_t<
-        Functor, std::decay_t<decltype(index_range)>, decltype(args)...
+        Functor, std::decay_t<decltype(index_range)>, decltype(my_args)...
       >::type;
 
       auto task_collection = std::make_unique<task_collection_impl_t>(
         std::forward<decltype(index_range)>(index_range),
-        std::forward<decltype(args)>(args)...
+        std::forward<decltype(my_args)>(my_args)...
       );
 
       auto* backend_runtime = abstract::backend::get_backend_runtime();

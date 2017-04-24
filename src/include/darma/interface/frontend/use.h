@@ -56,6 +56,8 @@
 #include "use_collection.h"
 #include "flow_relationship.h"
 
+#include <darma/impl/util/safe_static_cast.h>
+
 namespace darma_runtime {
 namespace abstract {
 namespace frontend {
@@ -227,6 +229,14 @@ class RegisteredUse : virtual public Use {
      */
     virtual types::flow_t&
     get_out_flow() =0;
+
+#if _darma_has_feature(anti_flows)
+    virtual types::anti_flow_t&
+    get_anti_in_flow() =0;
+
+    virtual types::anti_flow_t&
+    get_anti_out_flow() =0;
+#endif // _darma_has_feature(anti_flows)
 
 };
 

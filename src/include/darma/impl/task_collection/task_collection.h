@@ -76,10 +76,14 @@ template <
   typename... Args
 >
 struct TaskCollectionImpl
+#if _darma_has_feature(task_migration)
   : PolymorphicSerializationAdapter<
       TaskCollectionImpl<Functor, IndexRangeT, Args...>,
       abstract::frontend::TaskCollection
     >
+#else
+  : abstract::frontend::TaskCollection
+#endif //_darma_has_feature(task_migration)
 {
   public:
 

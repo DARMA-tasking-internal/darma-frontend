@@ -214,6 +214,40 @@ STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(std::vector<std::string>, PolicyAwareArc
 
 ////////////////////////////////////////////////////////////////////////////////
 
+template <typename T>
+struct Foo {
+  T t;
+};
+
+namespace darma_runtime {
+namespace serialization {
+
+template <typename T>
+struct Serializer<Foo<T>> {
+
+  template <typename ArchiveT>
+  void serialize(Foo<T>& f, ArchiveT& ar) const {
+    ar | f.t;
+  }
+
+};
+
+} // end namespace serialization
+} // end namespace darma_runtime
+
+
+static_assert(darma_runtime::serialization::detail::serializability_traits<Foo<int>>
+    ::template has_nonintrusive_serialize<darma_runtime::serialization::SimplePackUnpackArchive
+  >::value,
+  "Foo<int> should have a nonintrusive serialize"
+);
+
+STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(Foo<int>, SimplePackUnpackArchive,
+  "Foo<int> should be serializable"
+);
+
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestSerialize, vector_policy) {
   using namespace std;
   using namespace ::testing;
@@ -277,6 +311,21 @@ TEST_F(TestSerialize, vector_string) {
   auto v_unpacked = do_serdes(value);
 
   ASSERT_THAT(v_unpacked, ContainerEq(value));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSerialize, foo) {
+  using namespace std;
+  using namespace ::testing;
+
+  Foo<int> value = { 42 };
+
+  auto v_unpacked = do_serdes(value);
+
+  ASSERT_THAT(v_unpacked.t, Eq(value.t));
+  ASSERT_THAT(v_unpacked.t, Eq(42));
+  ASSERT_THAT(value.t, Eq(42));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

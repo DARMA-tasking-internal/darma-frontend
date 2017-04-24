@@ -1246,9 +1246,11 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
     // </editor-fold> end run() and helpers }}}2
     //--------------------------------------------------------------------------
 
+#if _darma_has_feature(task_migration)
     bool is_migratable() const override {
       return false; // TODO if/then/else task migration
     }
+#endif
 
 
     template <typename, IfThenElseCaptureStage>

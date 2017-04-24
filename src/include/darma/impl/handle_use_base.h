@@ -225,6 +225,19 @@ class HandleUseBase
       return out_flow_;
     }
 
+#if _darma_has_feature(anti_flows)
+    types::anti_flow_t&
+    get_anti_in_flow() override {
+      return anti_in_flow_;
+    }
+
+    types::anti_flow_t&
+    get_anti_out_flow() override {
+      return anti_out_flow_;
+    }
+
+#endif // _darma_has_feature(anti_flows)
+
     abstract::frontend::Use::permissions_t
     immediate_permissions() const override {
       return immediate_permissions_;
@@ -589,7 +602,7 @@ indexed_local_anti_flow(
   std::size_t backend_index
 ) {
   return HandleUseBase::FlowRelationshipImpl(
-    abstract::frontend::FlowRelationship::IndexedLocal,
+    abstract::frontend::FlowRelationship::AntiIndexedLocal,
     /* related flow = */ nullptr,
     /* related_is_in = */ false,
     /* version key = */ nullptr,

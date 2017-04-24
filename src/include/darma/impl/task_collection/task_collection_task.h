@@ -114,6 +114,7 @@ struct ConcurrentContext {
       return index_range_;
     };
 
+#if _darma_has_feature(_simple_collectives)
     template <typename ReduceOp=detail::op_not_given, typename... Args>
     void allreduce(Args&&... args) {
       darma_runtime::allreduce<ReduceOp>(
@@ -122,6 +123,7 @@ struct ConcurrentContext {
         darma_runtime::keyword_arguments_for_collectives::n_pieces=backend_size_
       );
     }
+#endif // _darma_has_feature(_simple_collectives)
 
 };
 
@@ -210,9 +212,11 @@ struct TaskCollectionTaskImpl
   }
 
 
+#if _darma_has_feature(task_migration)
   bool is_migratable() const override {
     return false;
   }
+#endif //_darma_has_feature(task_migration)
 
   virtual ~TaskCollectionTaskImpl() override { }
 

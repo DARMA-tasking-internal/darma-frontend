@@ -62,7 +62,9 @@ namespace frontend {
  *
  */
 class TaskCollection
+#if _darma_has_feature(task_migration)
   : public PolymorphicSerializableObject<TaskCollection>
+#endif //_darma_has_feature(task_migration)
 {
   public:
 

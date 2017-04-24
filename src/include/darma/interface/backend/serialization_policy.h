@@ -48,8 +48,6 @@
 #include <cstdlib>
 #include <darma/impl/feature_testing_macros.h>
 
-#if _darma_has_feature(task_migration)
-
 namespace darma_runtime {
 namespace abstract {
 namespace backend {
@@ -124,7 +122,5 @@ struct SerializationPolicy {
 } // end namespace backend
 } // end namespace abstract
 } // end namespace darma_runtime
-
-#endif
 
 #endif //DARMA_INTERFACE_BACKEND_SERIALIZATION_POLICY_H

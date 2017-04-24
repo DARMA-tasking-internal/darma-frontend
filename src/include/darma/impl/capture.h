@@ -509,7 +509,7 @@ auto make_captured_use_holder(
                 // Anti-in flow
                 insignificant_flow(),
                 // Anti-out flow
-                next_of_in_flow()
+                anti_next_of_in_flow()
 #else
                 same_flow_as_in()
                 // FlowRelationship::Same, nullptr, true
