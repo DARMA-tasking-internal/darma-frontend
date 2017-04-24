@@ -527,6 +527,7 @@ TEST_F(TestCreateWorkIf, if_else_same_different_always_true) {
   }
 
   // TODO FIXME: this needs to be ordered before the registration of then_use
+  EXPECT_FLOW_ALIAS(f_init2, f_if_out_2);
   EXPECT_RELEASE_USE(else_sched_use);
 
 
