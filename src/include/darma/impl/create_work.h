@@ -73,6 +73,7 @@
 
 // TODO move this once it becomes part of the specified interface
 DeclareDarmaTypeTransparentKeyword(task_creation, allow_aliasing);
+DeclareDarmaTypeTransparentKeyword(task_creation, data_parallel);
 
 namespace darma_runtime {
 
@@ -323,6 +324,9 @@ using create_work_argument_parser = darma_runtime::detail::kwarg_parser<
     >,
     _optional_keyword<
       converted_parameter, keyword_tags_for_task_creation::allow_aliasing
+    >,
+    _optional_keyword<
+      bool, keyword_tags_for_task_creation::data_parallel
     >
   >
 >;
@@ -350,7 +354,8 @@ inline auto setup_create_work_argument_parser() {
           darma_runtime::detail::TaskBase::allowed_aliasing_description::allowed_aliasing_description_ctor_tag_t(),
           false
         );
-      }
+      },
+      keyword_arguments_for_task_creation::data_parallel = [] { return false; }
     );
 }
 
@@ -371,6 +376,7 @@ struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
       .invoke([](
         types::key_t name_key,
         auto&& allow_aliasing_desc,
+        bool data_parallel,
         variadic_arguments_begin_tag,
         auto&&... args
       ) {
@@ -394,6 +400,8 @@ struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
           abstract::backend::get_backend_context()->get_running_task()
         );
         parent_task->current_create_work_context = task.get();
+
+        task->is_data_parallel_task_ = data_parallel;
 
         // Make sure it's clear that this is not a double-copy capture
         task->is_double_copy_capture = false;
@@ -444,6 +452,7 @@ struct _create_work_impl<detail::_create_work_uses_lambda_tag, tinympl::vector<A
       .invoke([&](
         darma_runtime::types::key_t name_key,
         auto&& allow_aliasing_desc,
+        bool data_parallel,
         darma_runtime::detail::variadic_arguments_begin_tag,
         auto&&... _unused /* unused */ // GCC hates empty, unnamed variadic args for some reason
       ) {
@@ -456,6 +465,8 @@ struct _create_work_impl<detail::_create_work_uses_lambda_tag, tinympl::vector<A
           darma_runtime::abstract::backend::get_backend_context()->get_running_task()
         );
         parent_task->current_create_work_context = task.get();
+
+        task->is_data_parallel_task_ = data_parallel;
 
         task->is_double_copy_capture = true;
 

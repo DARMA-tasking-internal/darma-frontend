@@ -263,4 +263,35 @@ TEST_F(TestCreateParallelFor, functor_args) {
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateParallelFor, resource_pack_passthrough) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(
+    Truly([](auto&& task){ return task->is_data_parallel_task(); })
+  )).WillOnce(
+    Invoke([](auto&& task) {
+      task->set_resource_pack(MockResourcePack("hello"));
+    }
+  ));
+
+  //============================================================================
+  // actual code being tested
+  {
+    create_work(data_parallel=true, [=](auto const& resource_pack){
+      ASSERT_THAT(resource_pack.name, Eq("hello"));
+    });
+  }
+  //============================================================================
+
+  run_all_tasks();
+}
+
+
 #endif

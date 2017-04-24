@@ -106,7 +106,7 @@ struct Runnable : public RunnableBase
 
     bool needs_resource_pack() const override { return is_callable_with_resource_pack; }
 
-    bool run() override { run_this_(); return false; }
+    bool run() override { _do_run(); return false; }
 
     static const size_t index_;
 

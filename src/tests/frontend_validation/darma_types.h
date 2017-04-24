@@ -55,7 +55,11 @@
 
 namespace mock_backend {
 
-struct MockResourcePack { };
+struct MockResourcePack {
+  MockResourcePack() : name("%##unnamed##%") { }
+  MockResourcePack(std::string const& name) : name(name) { }
+  std::string name;
+};
 
 } // end namespace mock backend
 
