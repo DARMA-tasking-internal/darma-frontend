@@ -161,6 +161,8 @@ struct functor_traits {
       using is_implicitly_convertible_from =
         typename traits::template arg_n_is_implicitly_convertible_from<N, T>;
 
+      using param_t = typename traits::template param_n_t<N>;
+
     };
 
 };
@@ -309,6 +311,10 @@ struct functor_call_traits {
           _read_only_handle_capture_arg_tuple_entry_archetype, CallArg
         >;
 
+        using _access_handle_like_arg_tuple_entry = std::decay_t<
+          typename formal_traits::param_t
+        >;
+
       public:
 
         // disallow the implicit {T&, T const&} => {T&, T const&} cases (all 4)
@@ -351,9 +357,14 @@ struct functor_call_traits {
           std::integral_constant<bool, is_nonconst_conversion_capture>,
             /* => */ _nonconst_conversion_capture_arg_tuple_entry,
           //------------------------------------------------------------
+          // TODO this should be just the parameter itself if both it and the arg are access handles
           // For the AccessHandle<T> => ReadAccessHandle<T>& case:
-          std::integral_constant<bool, is_read_only_handle_capture>,
-            /* => */ _read_only_handle_capture_arg_tuple_entry,
+          std::integral_constant<bool, is_access_handle>,
+            /* => */ _access_handle_like_arg_tuple_entry,
+          //------------------------------------------------------------
+          // For the AccessHandle<T> => ReadAccessHandle<T>& case:
+          //std::integral_constant<bool, is_read_only_handle_capture>,
+          //  /* => */ _read_only_handle_capture_arg_tuple_entry,
           //------------------------------------------------------------
           // Something is wrong with my logic for this case, so we'll leave it out for now
           // (only results in one extra copy)

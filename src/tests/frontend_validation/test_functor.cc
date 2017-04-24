@@ -545,6 +545,64 @@ TEST_F(TestFunctor, lvalue_argument_copy) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+TEST_F(TestFunctor, schedule_only) {
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(finit, fnull, fout);
+  use_t* use_init, *use_cont, *use_capt;
+
+  EXPECT_NEW_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
+
+  EXPECT_NEW_REGISTER_USE(use_capt,
+    finit, Same, &finit,
+    fout, Next, nullptr, true,
+    Modify, None, true
+  );
+
+  EXPECT_NEW_REGISTER_USE(use_cont,
+    fout, Same, &fout,
+    fnull, Same, &fnull, false,
+    Modify, None, false
+  );
+
+  EXPECT_NEW_RELEASE_USE(use_init, false);
+
+  EXPECT_REGISTER_TASK(use_capt);
+
+  EXPECT_NEW_RELEASE_USE(use_cont, true);
+
+  //============================================================================
+  // Code to actually be tested
+  {
+
+    struct ScheduleOnlyFunctor {
+      void operator()(
+        ScheduleOnly<AccessHandle<int>> sched
+      ) const {
+        // nothing to do here
+      }
+    };
+
+    auto my_var = initial_access<int>("hello");
+
+    create_work<ScheduleOnlyFunctor>(my_var);
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_NEW_RELEASE_USE(use_capt, true);
+
+  run_all_tasks();
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 // Should fail gracefully at compile time if uncommented
 //TEST_F(TestFunctor, lvalue_argument_copy) {
 //  using namespace ::testing;

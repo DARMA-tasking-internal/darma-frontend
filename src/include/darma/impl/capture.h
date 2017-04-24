@@ -183,6 +183,10 @@ auto make_captured_use_holder(
                 same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
 #endif // _darma_has_feature(anti_flows)
               );
+              // The in and out are different, but we don't know if any tasks
+              // will be scheduled that will make them actually different, so
+              // the captured holder could establish an alias
+              captured_use_holder->could_be_alias = true;
 
 
               // Note that this next part is almost exactly the same as the logic for

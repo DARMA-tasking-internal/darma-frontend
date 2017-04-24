@@ -402,7 +402,13 @@ class AccessHandle : public detail::AccessHandleBase {
           ) {
           AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::Leaf;
         }
-        // TODO schedule-only, etc
+        if (
+          // If this type doesn't have scheduling permissions, mark it as a leaf
+          traits::required_immediate_permissions
+            == detail::AccessHandlePermissions::None
+        ) {
+          AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::ScheduleOnly;
+        }
         // TODO require dynamic modify from RHS if this class is static modify
         // TODO set some flag to check for aliasing?!?
         capturing_task->do_capture(*this, copied_from);
