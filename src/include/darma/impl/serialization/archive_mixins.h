@@ -45,6 +45,8 @@
 #ifndef DARMA_IMPL_SERIALIZATION_ARCHIVE_MIXINS_H
 #define DARMA_IMPL_SERIALIZATION_ARCHIVE_MIXINS_H
 
+#include <darma/impl/util/constexpr_if.h>
+
 namespace darma_runtime {
 
 namespace serialization {
@@ -167,7 +169,11 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
       this_archive->unpack_item(size);
 
       val.begin() = val.get_allocator().allocate(size);
-      val.end() = val.begin() + size;
+      darma_runtime::detail::constexpr_if<std::decay_t<T>::can_set_end>(
+        [&](auto&& val) { val.end() = val.begin() + size; },
+        [](auto&& val) { },
+        val
+      );
 
       _unpack_direct_if_possible(std::forward<T>(val), *this_archive, size,
         std::integral_constant<bool, std::decay_t<T>::is_contiguous

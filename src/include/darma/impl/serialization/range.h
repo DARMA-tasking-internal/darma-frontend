@@ -76,6 +76,8 @@ struct SerDesRange<
 
   public:
 
+    static constexpr auto can_set_end = false;
+
     typedef RandomAccessIterator iterator;
     typedef std::iterator_traits<RandomAccessIterator> iterator_traits;
 
@@ -115,6 +117,8 @@ struct SerDesRange<RandomAccessIterator&, RandomAccessIterator&, Allocator>
     Allocator alloc_;
 
   public:
+
+    static constexpr auto can_set_end = true;
 
     typedef RandomAccessIterator iterator;
     typedef std::iterator_traits<RandomAccessIterator> iterator_traits;
@@ -158,6 +162,8 @@ struct SerDesRange<RandomAccessIterator, RandomAccessIterator, Allocator>
     Allocator alloc_;
 
   public:
+
+    static constexpr auto can_set_end = false;
 
     using value_type = typename std::iterator_traits<RandomAccessIterator>::value_type;
 

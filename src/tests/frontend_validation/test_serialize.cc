@@ -55,6 +55,10 @@
 
 #include "mock_backend.h"
 
+#include <darma/impl/serialization/allocator.impl.h>
+
+#include <test_frontend.h>
+
 
 using namespace darma_runtime;
 using namespace darma_runtime::detail;
@@ -144,7 +148,7 @@ TEST_F(TestSerialize, vector_simple) {
   using namespace std;
   using namespace ::testing;
 
-  vector<int> value = { 3, 1, 4, 1, 5, 9, 2, 6 };
+  std::vector<int> value = { 3, 1, 4, 1, 5, 9, 2, 6 };
 
   auto v_unpacked = do_serdes(value);
 
@@ -163,9 +167,9 @@ TEST_F(TestSerialize, map_simple) {
   using namespace std;
   using namespace ::testing;
 
-  static_assert(meta::is_container<map<int, int>>::value, "map must be a Container");
+  static_assert(meta::is_container<std::map<int, int>>::value, "map must be a Container");
 
-  map<int, int> value = { {3, 1}, {4, 1}, {5, 9}, {2, 6} };
+  std::map<int, int> value = { {3, 1}, {4, 1}, {5, 9}, {2, 6} };
 
   auto v_unpacked = do_serdes(value);
 
@@ -178,9 +182,9 @@ TEST_F(TestSerialize, unordered_map_simple) {
   using namespace std;
   using namespace ::testing;
 
-  static_assert(meta::is_container<unordered_map<int, int>>::value, "unordered_map must be a Container");
+  static_assert(meta::is_container<std::unordered_map<int, int>>::value, "unordered_map must be a Container");
 
-  unordered_map<int, int> value = { {3, 1}, {4, 1}, {5, 9}, {2, 6} };
+  std::unordered_map<int, int> value = { {3, 1}, {4, 1}, {5, 9}, {2, 6} };
 
   auto v_unpacked = do_serdes(value);
 
@@ -256,7 +260,7 @@ TEST_F(TestSerialize, vector_policy) {
   using namespace darma_runtime::serialization;
   using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 
-  vector<int> value = { 3, 1, 4, 1, 5, 9, 2, 6 };
+  std::vector<int> value = { 3, 1, 4, 1, 5, 9, 2, 6 };
 
   // Simulate a zero-copy transfer as facilitated by the backend
 
@@ -284,7 +288,7 @@ TEST_F(TestSerialize, vector_policy) {
   ArchiveAccess::start_packing(ar);
   ar << value;
 
-  vector<int> value2;
+  std::vector<int> value2;
 
   EXPECT_CALL(ser_pol, unpack_blob(_, _, 8*sizeof(int)))
     .WillOnce(Invoke([&](void*& indirect_buff, void* data, size_t nbytes){
@@ -303,8 +307,6 @@ TEST_F(TestSerialize, vector_policy) {
 TEST_F(TestSerialize, vector_string) {
   using namespace std;
   using namespace ::testing;
-
-  static_assert(meta::is_container<unordered_map<int, int>>::value, "unordered_map must be a Container");
 
   std::vector<std::string> value = { "hello", "world", "!", "test"};
 
@@ -333,8 +335,6 @@ TEST_F(TestSerialize, foo) {
 TEST_F(TestSerialize, map_map) {
   using namespace std;
   using namespace ::testing;
-
-  static_assert(meta::is_container<unordered_map<int, int>>::value, "unordered_map must be a Container");
 
   std::map<int,std::map<int, float>> value;
   for(int i = 0; i < 5; ++i) {
@@ -371,4 +371,93 @@ TEST_F(TestSerialize, key) {
   auto v_unpacked = do_serdes(value);
 
   ASSERT_THAT(v_unpacked, Eq(value));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+class TestSerializeWithMock
+  : public TestFrontend
+{
+  protected:
+
+    virtual void SetUp() {
+      using namespace ::testing;
+
+      setup_mock_runtime<::testing::NiceMock>();
+      TestFrontend::SetUp();
+      ON_CALL(*mock_runtime, get_running_task())
+        .WillByDefault(Return(top_level_task.get()));
+    }
+
+    virtual void TearDown() {
+      TestFrontend::TearDown();
+    }
+
+};
+
+TEST_F(TestSerializeWithMock, range) {
+  using namespace std;
+  using namespace ::testing;
+  using namespace darma_runtime::serialization;
+
+  int my_val[5] = {1, 2, 3, 4, 5};
+  int* value = &(my_val[0]);
+
+  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+  SimplePackUnpackArchive ar;
+
+  ArchiveAccess::start_sizing(ar);
+  ar % range(value, value+5);
+  size_t size = ArchiveAccess::get_size(ar);
+
+  char data[size];
+  ArchiveAccess::set_buffer(ar, data);
+  ArchiveAccess::start_packing(ar);
+  ar << range(value, value+5);
+
+  int* out = nullptr;
+  ArchiveAccess::start_unpacking_with_buffer(ar, data);
+  ar >> range(out, out+5);
+
+  ASSERT_THAT(value[0], Eq(out[0]));
+  ASSERT_THAT(value[1], Eq(out[1]));
+  ASSERT_THAT(value[2], Eq(out[2]));
+  ASSERT_THAT(value[3], Eq(out[3]));
+  ASSERT_THAT(value[4], Eq(out[4]));
+
+}
+
+TEST_F(TestSerializeWithMock, range_begin_end) {
+  using namespace std;
+  using namespace ::testing;
+  using namespace darma_runtime::serialization;
+
+  int my_val[5] = {1, 2, 3, 4, 5};
+  int* value = &(my_val[0]);
+
+  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+  SimplePackUnpackArchive ar;
+
+  ArchiveAccess::start_sizing(ar);
+  auto* v2 = value + 5;
+  ar % range(value, v2);
+  size_t size = ArchiveAccess::get_size(ar);
+
+  char data[size];
+  ArchiveAccess::set_buffer(ar, data);
+  ArchiveAccess::start_packing(ar);
+  ar << range(value, v2);
+
+  int* out = nullptr;
+  auto* out2 = out+5;
+  ArchiveAccess::start_unpacking_with_buffer(ar, data);
+  ar >> range(out, out2);
+
+  ASSERT_THAT(value[0], Eq(out[0]));
+  ASSERT_THAT(value[1], Eq(out[1]));
+  ASSERT_THAT(value[2], Eq(out[2]));
+  ASSERT_THAT(value[3], Eq(out[3]));
+  ASSERT_THAT(value[4], Eq(out[4]));
+  ASSERT_THAT(*(out2-5), Eq(out[0]));
+
 }
