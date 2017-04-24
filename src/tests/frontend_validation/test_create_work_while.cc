@@ -860,3 +860,162 @@ TEST_F(TestCreateWorkWhile, functor_same_always_false) {
   run_all_tasks();
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWorkWhile, while_nested_read) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_null, f_while_out, f_do_out, f_while_2_fwd, f_while_2_out,
+    f_do_fwd, f_subtask_out
+  );
+  use_t* use_init = nullptr;
+  use_t* use_while = nullptr;
+  use_t* use_while_cont = nullptr;
+  use_t* use_do = nullptr;
+  use_t* use_do_cont = nullptr;
+  use_t* use_while_2 = nullptr;
+  use_t* use_while_cont_2 = nullptr;
+  use_t* use_subtask = nullptr;
+  use_t* use_subtask_cont = nullptr;
+
+  size_t value = 0;
+
+  EXPECT_NEW_INITIAL_ACCESS(f_init, f_null, use_init, make_key("hello"));
+
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(use_while,
+    f_init, Same, &f_init,
+    f_while_out, Next, nullptr, true,
+    Modify, Read, true, value
+  );
+
+  EXPECT_NEW_REGISTER_USE(use_while_cont,
+    f_while_out, Same, &f_while_out,
+    f_null, Same, &f_null, false,
+    Modify, None, false
+  );
+
+  EXPECT_NEW_RELEASE_USE(use_init, false);
+
+  EXPECT_REGISTER_TASK(use_while);
+
+  EXPECT_NEW_RELEASE_USE(use_while_cont, true);
+
+  //============================================================================
+  // actual code being tested
+  {
+    auto cur_iter = initial_access<size_t>("hello");
+
+    create_work_while([=]{
+      return cur_iter.get_value() < 1;
+    }).do_([=]{
+      (*cur_iter)++;
+      darma::create_work(reads(cur_iter),[=]{
+        ASSERT_THAT(cur_iter.get_value(), Eq(1));
+      });
+    });
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  //----------------------------------------------------------------------------
+  // Expect the do block to be registered inside the while block execution
+
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(use_do,
+    f_init, Same, &f_init,
+    f_do_out, Next, nullptr, true,
+    Modify, Modify, true, value
+  );
+
+  EXPECT_NEW_REGISTER_USE(use_do_cont,
+    f_do_out, Same, &f_do_out,
+    f_while_out, Same, &f_while_out, false,
+    Modify, None, false
+  );
+
+  EXPECT_NEW_RELEASE_USE(use_while, false);
+
+  EXPECT_REGISTER_TASK(use_do);
+
+  EXPECT_NEW_RELEASE_USE(use_do_cont, true);
+
+  run_one_task();
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  //----------------------------------------------------------------------------
+  // Expect the next while block to be registered inside the do block execution
+  // and the read subtask
+
+#if _darma_has_feature(anti_flows)
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(use_subtask,
+    f_do_fwd, Forwarding, &f_init,
+    MockFlow(nullptr), Insignificant, nullptr, false,
+    Read, Read, true, value
+  );
+#else
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(use_subtask,
+    f_do_fwd, Forwarding, &f_init,
+    f_do_fwd, Same, nullptr, true,
+    Read, Read, true, value
+  );
+#endif // _darma_has_feature(anti_flows)
+
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(use_subtask_cont,
+    f_do_fwd, Same, &f_do_fwd,
+    f_do_out, Same, &f_do_out, false,
+    Modify, Read, false, value
+  );
+
+  EXPECT_NEW_RELEASE_USE(use_do, false);
+
+  EXPECT_REGISTER_TASK(use_subtask);
+
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(use_while_2,
+    f_do_fwd, Same, &f_do_fwd,
+    f_while_2_out, Next, nullptr, true,
+    Modify, Read, true, value
+  );
+
+  EXPECT_NEW_REGISTER_USE(use_while_cont_2,
+    f_while_2_out, Same, &f_while_2_out,
+    f_do_out, Same, &f_do_out, false,
+    Modify, None, false
+  );
+
+  EXPECT_NEW_RELEASE_USE(use_subtask_cont, false);
+
+  EXPECT_REGISTER_TASK(use_while_2);
+
+  EXPECT_NEW_RELEASE_USE(use_while_cont_2, true);
+
+  run_one_task();
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  //----------------------------------------------------------------------------
+  // Now run the nested read task
+
+  EXPECT_NEW_RELEASE_USE(use_subtask, false);
+
+  run_one_task();
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  //----------------------------------------------------------------------------
+  // And run the while
+
+  // This establishes an alias because a subsequent was created for the purposes
+  // of schedule modify but there was never an immediate modify subtask created,
+  // thus making the two versions equivalent.
+  EXPECT_NEW_RELEASE_USE(use_while_2, true);
+
+  run_one_task();
+
+}

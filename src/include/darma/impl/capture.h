@@ -557,7 +557,7 @@ auto make_captured_use_holder(
               void*& new_ptr = source_and_continuing_holder->use->get_data_pointer_reference();
               // The backend isn't allowed to change the pointer at this stage,
               // since it's in the middle of a task
-              assert(new_ptr == nullptr);
+              assert(new_ptr == old_ptr || new_ptr == nullptr);
               new_ptr = old_ptr;
 
               break;
@@ -585,11 +585,13 @@ auto make_captured_use_holder(
 
           switch(source_and_continuing_holder->use->immediate_permissions_) {
             //----------------------------------------------------------------------
-            case HandleUse::None: { // source immediate permissions
+            case HandleUse::None: // source immediate permissions
+            case HandleUse::Read: { // source immediate permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MN -> { MR } -> MN     %
+              // %   MR -> { MR } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-              // this case is an MR capture of MN
+              // this case is an MR capture of MN or MR
 
               captured_use_holder = use_holder_maker(
                 var_handle,
@@ -637,15 +639,6 @@ auto make_captured_use_holder(
 
               break;
             } // end case source immediate permissions None or Read
-            //------------------------------------------------------------------
-            case HandleUse::Read: { // source immediate permissions
-              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-              // %   MR -> { MR } -> MN     %
-              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-              // TODO Read case
-              DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
-              break;
-            } // end source immediate permissions Read
             //------------------------------------------------------------------
             case HandleUse::Modify: { // source immediate permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
