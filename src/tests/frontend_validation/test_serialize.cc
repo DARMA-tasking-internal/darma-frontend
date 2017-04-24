@@ -345,3 +345,30 @@ TEST_F(TestSerialize, map_map) {
 
   ASSERT_THAT(v_unpacked, ContainerEq(value));
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSerialize, tuple_string_int) {
+  using namespace std;
+  using namespace ::testing;
+
+  std::tuple<std::string, int> value = std::make_tuple("hello", 42);
+
+  auto v_unpacked = do_serdes(value);
+
+  ASSERT_THAT(std::get<0>(v_unpacked), Eq(std::get<0>(value)));
+  ASSERT_THAT(std::get<1>(v_unpacked), Eq(std::get<1>(value)));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestSerialize, key) {
+  using namespace std;
+  using namespace ::testing;
+
+  auto value = darma::make_key("hello", 42);
+
+  auto v_unpacked = do_serdes(value);
+
+  ASSERT_THAT(v_unpacked, Eq(value));
+}

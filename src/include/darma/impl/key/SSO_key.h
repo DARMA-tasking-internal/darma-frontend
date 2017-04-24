@@ -447,6 +447,8 @@ class SSOKey
 
   public:
 
+    SSOKey() : SSOKey(variadic_constructor_arg) { }
+
     // TODO make this private and add the appropriate friend
     SSOKey(
       darma_runtime::serialization::detail::serialization_manager_default_construct_tag_t

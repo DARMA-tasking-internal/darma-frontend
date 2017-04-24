@@ -1598,24 +1598,30 @@ TEST_F(TestCreateConcurrentWork, simple_read_only)
   // actual code being tested
   {
 
-    auto tmp_c =
-      initial_access_collection<int>("hello", index_range = Range1D<int>(4));
 
 
     struct Foo
     {
       void operator()(
         Index1D<int> index,
-        ReadAccessHandleCollection<int, Range1D<int>> coll
+        ReadAccessHandleCollection<int, Range1D<int>> coll,
+        std::string str_val,
+        darma_runtime::types::key_t key
       ) const
       {
+        ASSERT_THAT(str_val, Eq("world"));
+        ASSERT_THAT(key, Eq(darma::make_key("hello", 42)));
         sequence_marker->mark_sequence("inside task "
           + std::to_string(coll[index].local_access().get_value())
         );
       }
     };
 
-    create_concurrent_work<Foo>(tmp_c,
+    auto tmp_c =
+      initial_access_collection<int>("hello", index_range = Range1D<int>(4));
+    std::string my_string("world");
+
+    create_concurrent_work<Foo>(tmp_c, my_string, darma::make_key("hello", 42),
       index_range = Range1D<int>(4)
     );
 
