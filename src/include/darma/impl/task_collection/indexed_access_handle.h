@@ -162,7 +162,7 @@ class IndexedAccessHandle {
           " that is not local"
       );
       // TODO mangled name shortening optimization by making these traits a subclass of access_handle_traits
-      return AccessHandle<value_type,
+      auto rv = AccessHandle<value_type,
         make_access_handle_traits_t<value_type,
           copy_assignability<false>,
           access_handle_trait_tags::permissions_traits<
@@ -171,11 +171,16 @@ class IndexedAccessHandle {
           access_handle_trait_tags::allocation_traits<
             typename parent_traits_t::allocation_traits
           >
+            // TODO set publishable to KnownTrue
         >
       >(
         parent_.var_handle_.get_smart_ptr(),
         std::move(use_holder_)
       );
+#if _darma_has_feature(task_collection_token)
+      rv.other_private_members_.second().task_collection_token() = parent_.task_collection_token_;
+#endif // _darma_has_feature(task_collection_token)
+      return std::move(rv);
     }
 
 

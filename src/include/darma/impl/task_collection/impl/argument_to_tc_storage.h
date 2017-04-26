@@ -531,6 +531,7 @@ struct _get_storage_arg_helper<
       arg.mapping
     );
     collection.add_dependency(rv.collection.current_use_->use.get());
+    // RVO copy elision should happen here
     return rv;
   }
 
@@ -728,8 +729,8 @@ struct _get_storage_arg_helper<
       )
     );
     collection.add_dependency(rv.collection.current_use_->use.get());
-
-    return std::move(rv);
+    // RVO copy elision should happen here
+    return rv;
   }
 
   // </editor-fold> end unmapped version }}}2

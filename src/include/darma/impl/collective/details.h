@@ -79,12 +79,23 @@ class SimpleCollectiveDetails
 
     using wrapper_t = detail::ReduceOperationWrapper<ReduceOp, T>;
 
+#if _darma_has_feature(task_collection_token)
+    types::task_collection_token_t token_;
+#endif // _darma_has_feature(task_collection_token)
 
   public:
 
     SimpleCollectiveDetails(size_t piece, size_t n_pieces)
       : piece_(piece), n_pieces_(n_pieces)
     { }
+
+#if _darma_has_feature(task_collection_token)
+    SimpleCollectiveDetails(size_t piece, size_t n_pieces,
+      types::task_collection_token_t const& token
+    )
+      : piece_(piece), n_pieces_(n_pieces), token_(token)
+    { }
+#endif // _darma_has_feature(task_collection_token)
 
     size_t
     this_contribution() const override { return piece_; }

@@ -214,6 +214,26 @@ using anti_flow_t = ::mock_backend::MockAntiFlow;
 #endif // _darma_has_feature(anti_flows)
 }} // end namespace darma_runtime::types
 
+namespace mock_backend {
+
+struct MockTaskCollectionToken {
+  MockTaskCollectionToken() : name("%##unnamed##%") { }
+  MockTaskCollectionToken(const char* in_name) : name(in_name) { }
+  MockTaskCollectionToken(MockTaskCollectionToken const& other) = default;
+  MockTaskCollectionToken(MockTaskCollectionToken&& other) = default;
+  MockTaskCollectionToken& operator=(MockTaskCollectionToken const& other) = default;
+  MockTaskCollectionToken& operator=(MockTaskCollectionToken&& other) = default;
+  std::string name;
+};
+
+} // end namespace mock_backend
+
+
+namespace darma_runtime { namespace types {
+using task_collection_token_t = mock_backend::MockTaskCollectionToken;
+}} // end namespace darma_runtime::types
+
+
 #include <darma/impl/key/SSO_key_fwd.h>
 
 namespace darma_runtime { namespace types {
@@ -221,11 +241,6 @@ namespace darma_runtime { namespace types {
 }} // end namespace darma_runtime::types
 
 #include <darma/impl/key/SSO_key.h>
-
-
-namespace darma_runtime { namespace types {
-using task_collection_token_t = std::size_t;
-}} // end namespace darma_runtime::types
 
 
 

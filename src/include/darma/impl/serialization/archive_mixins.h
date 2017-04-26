@@ -169,9 +169,9 @@ class ArchiveRangesMixin : public MoreGeneralMixin {
       this_archive->unpack_item(size);
 
       val.begin() = val.get_allocator().allocate(size);
-      darma_runtime::detail::constexpr_if<std::decay_t<T>::can_set_end>(
+      darma_runtime::detail::constexpr_if_else<std::decay_t<T>::can_set_end>(
         [&](auto&& val) { val.end() = val.begin() + size; },
-        [](auto&& val) { },
+        [](auto&& val) {},
         val
       );
 

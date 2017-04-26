@@ -98,6 +98,24 @@ using _get_collective_details_t = SimpleCollectiveDetails<
 template<typename Op>
 struct all_reduce_impl {
 
+  size_t piece_ = abstract::frontend::CollectiveDetails::unknown_contribution();
+  size_t n_pieces_ = abstract::frontend::CollectiveDetails::unknown_contribution();
+#if _darma_has_feature(task_collection_token)
+  types::task_collection_token_t token_;
+#endif // _darma_has_feature(task_collection_token)
+
+  all_reduce_impl(
+    size_t piece, size_t n_pieces
+#if _darma_has_feature(task_collection_token)
+    , types::task_collection_token_t token
+#endif // _darma_has_feature(task_collection_token)
+  ) : piece_(piece), n_pieces_(n_pieces)
+#if _darma_has_feature(task_collection_token)
+      , token_(token)
+#endif // _darma_has_feature(task_collection_token)
+  { }
+
+
   template <
     typename InputHandle,
     typename OutputHandle
@@ -109,7 +127,8 @@ struct all_reduce_impl {
   >
   operator()(
     InputHandle&& input, OutputHandle&& output, types::key_t const& tag,
-    size_t piece, size_t n_pieces
+    size_t piece = abstract::frontend::CollectiveDetails::unknown_contribution(),
+    size_t n_pieces = abstract::frontend::CollectiveDetails::unknown_contribution()
   ) const {
 
     DARMA_ASSERT_MESSAGE(
@@ -124,6 +143,13 @@ struct all_reduce_impl {
         "data"
     );
     // TODO disallow same handle
+
+    if(piece == abstract::frontend::CollectiveDetails::unknown_contribution()) {
+      piece = piece_;
+    }
+    if(n_pieces == abstract::frontend::CollectiveDetails::unknown_contribution()) {
+      piece = piece_;
+    }
 
     auto* backend_runtime = abstract::backend::get_backend_runtime();
 
@@ -151,7 +177,11 @@ struct all_reduce_impl {
 
     _get_collective_details_t<
       Op, std::decay_t<InputHandle>, std::decay_t<OutputHandle>
-    > details(piece, n_pieces);
+    > details(piece, n_pieces
+#if _darma_has_feature(task_collection_token)
+        , token_
+#endif // _darma_has_feature(task_collection_token)
+    );
 
     backend_runtime->allreduce_use(
       input_use_holder->use.release_smart_ptr(),
@@ -176,7 +206,8 @@ struct all_reduce_impl {
   >
   operator()(
     InOutHandle&& in_out, types::key_t const& tag,
-    size_t piece, size_t n_pieces
+    size_t piece = abstract::frontend::CollectiveDetails::unknown_contribution(),
+    size_t n_pieces = abstract::frontend::CollectiveDetails::unknown_contribution()
   ) const {
 
     DARMA_ASSERT_MESSAGE(
@@ -190,11 +221,22 @@ struct all_reduce_impl {
       " scheduling permissions"
     );
 
+    if(piece == abstract::frontend::CollectiveDetails::unknown_contribution()) {
+      piece = piece_;
+    }
+    if(n_pieces == abstract::frontend::CollectiveDetails::unknown_contribution()) {
+      piece = piece_;
+    }
+
     auto* backend_runtime = abstract::backend::get_backend_runtime();
 
     _get_collective_details_t<
       Op, std::decay_t<InOutHandle>, std::decay_t<InOutHandle>
-    > details(piece, n_pieces);
+    > details(piece, n_pieces
+#if _darma_has_feature(task_collection_token)
+        , token_
+#endif // _darma_has_feature(task_collection_token)
+    );
 
     // This is a mod capture.  Need special behavior if we have modify
     // immediate permissions (i.e., forwarding)

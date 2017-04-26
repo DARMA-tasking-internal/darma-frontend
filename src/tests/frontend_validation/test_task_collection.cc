@@ -432,6 +432,11 @@ TEST_F(TestCreateConcurrentWork, fetch) {
       use->get_data_pointer_reference() = &values[i];
     }));
 
+#if _darma_has_feature(task_collection_token)
+    mock_runtime->task_collections.front()->set_task_collection_token(
+      MockTaskCollectionToken("my_token")
+    );
+#endif // _darma_has_feature(task_collection_token)
     auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
 
     Mock::VerifyAndClearExpectations(mock_runtime.get());
@@ -446,7 +451,16 @@ TEST_F(TestCreateConcurrentWork, fetch) {
       EXPECT_REGISTER_USE(use_pub[i], f_pub[i], f_pub[i], None, Read);
 #endif // _darma_has_feature(anti_flows)
       EXPECT_RELEASE_USE(use_idx[i]);
-      EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(Eq(ByRef(use_pub[i])), _));
+      EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(
+        Eq(ByRef(use_pub[i])),
+#if _darma_has_feature(task_collection_token)
+        ::Truly([](auto const* dets){
+          return dets->get_task_collection_token().name == "my_token";
+        })
+#else
+        _
+#endif // _darma_has_feature(task_collection_token)
+      ));
 
       EXPECT_REGISTER_USE(use_pub_contin[i], f_pub[i], f_out_idx[i], Modify, Read);
 
@@ -554,7 +568,6 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
     //auto tmp = initial_access_collection<int>("hello", index_range=Range1D<int>(0, 4));
     //auto tmp = initial_access<int>("hello");
-    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
 
 
     struct Foo {
@@ -567,6 +580,8 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
       }
     };
 
+    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
+
     create_concurrent_work<Foo>(tmp_c,
       index_range=Range1D<int>(4)
     );
@@ -574,6 +589,8 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
   }
   //
   //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
 
   // "migrate" the task collection
   EXPECT_CALL(*mock_runtime, get_packed_flow_size(finit))

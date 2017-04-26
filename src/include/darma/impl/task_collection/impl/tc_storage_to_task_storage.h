@@ -254,6 +254,9 @@ struct _get_task_stored_arg_helper<
     // make a copy of the handle collection for the task instance
     auto rv = arg.collection;
     rv.mapped_backend_index_ = backend_index;
+#if _darma_has_feature(task_collection_token)
+    rv.task_collection_token_ = instance.token_;
+#endif // _darma_has_feature(task_collection_token)
 
     rv._setup_local_uses(task);
     return rv;
@@ -290,6 +293,9 @@ struct _get_task_stored_arg_helper<
     TaskInstance& task
   ) const
   {
+#if _darma_has_feature(task_collection_token)
+    arg.collection.task_collection_token_ = instance.token_;
+#endif // _darma_has_feature(task_collection_token)
     // make a copy of the handle collection for the task instance
     return arg.collection;
   }

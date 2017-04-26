@@ -52,6 +52,7 @@
 #include <darma/impl/handle_fwd.h>
 #include <darma/impl/util/optional_boolean.h>
 #include <darma/impl/serialization/allocator.h>
+#include <darma/impl/meta/conditional_members.h>
 
 namespace darma_runtime {
 namespace detail {
@@ -268,46 +269,45 @@ struct access_handle_collection_capture_traits
   using owning_index_t = OwningIndexType;
 };
 
-//typedef enum AccessHandleCopyAssignabilityModeAsLHS {
-//  LHSDynamic = -1,
-//  LHSAlwaysFalse = 0,
-//  LHSAlwaysTrue = 1,
-//  LHSOnlyOnce = 2
-//} access_handle_copy_assignability_mode_as_lhs;
-//
-//typedef enum AccessHandleCopyAssignabilityModeAsRHS {
-//  RHSDynamic = -1,
-//  RHSAlwaysFalse = 0,
-//  RHSAlwaysTrue = 1,
-//  RHSOnlyOnce = 2
-//} access_handle_copy_assignability_mode_as_rhs;
-
 template <
   optional_boolean_t IsCopyAssignable = OptionalBoolean::KnownFalse,
   // TODO make this default to false when we make the outer scope assignability
   // constraints more stringent (e.g., requiring default-construct-then-assign
   // to be declared as such)
-  bool CouldBeOutermostScope = true
+  bool CouldBeOutermostScope = true,
+  optional_boolean_t CanBePublished = OptionalBoolean::Unknown
 >
 struct access_handle_semantic_traits {
   // This is copy assignability as a right-hand side, representing the potential
   // for this object to be an alias.
   static constexpr auto is_copy_assignable = IsCopyAssignable;
   static constexpr auto could_be_outermost_scope = CouldBeOutermostScope;
+  static constexpr auto can_be_published = CanBePublished;
 
   template <OptionalBoolean NewCopyAssignable>
   struct with_is_copy_assignable {
     using type = access_handle_semantic_traits<
       NewCopyAssignable,
-      CouldBeOutermostScope
+      CouldBeOutermostScope,
+      can_be_published
     >;
   };
 
-  template <bool new_value>
+  template <bool NewCouldBeOutermostScope>
   struct with_could_be_outermost_scope {
     using type = access_handle_semantic_traits<
       is_copy_assignable,
-      new_value
+      NewCouldBeOutermostScope,
+      can_be_published
+    >;
+  };
+
+  template <OptionalBoolean NewCanBePublished>
+  struct with_can_be_published {
+    using type = access_handle_semantic_traits<
+      is_copy_assignable,
+      could_be_outermost_scope,
+      NewCanBePublished
     >;
   };
 };
@@ -490,18 +490,161 @@ struct access_handle_special_collection_capture_members<
 // <editor-fold desc="access_handle_special_semantic_members"> {{{2
 
 template <typename SemanticTraits>
-struct access_handle_special_semantic_members {
+struct access_handle_special_semantic_members
+  : meta::with_conditional_members<
+      meta::conditional_member_with_static_default_description<
+        SemanticTraits::can_be_published == OptionalBoolean::Unknown,
+        bool,
+        SemanticTraits::can_be_published == OptionalBoolean::KnownTrue
+      >
+#if _darma_has_feature(task_collection_token)
+      , meta::conditional_member_description<
+          SemanticTraits::can_be_published != OptionalBoolean::KnownFalse,
+          types::task_collection_token_t
+        >
+#endif // _darma_has_feature(task_collection_token)
+    >
+{
+  static constexpr auto _can_be_published_dynamic_index = 0;
+#if _darma_has_feature(task_collection_token)
+  static constexpr auto _task_collection_token_index = 1;
+#endif // _darma_has_feature(task_collection_token)
+
+  static constexpr auto has_can_be_published_dynamic = meta::has_conditional_member<
+    access_handle_special_semantic_members,
+    _can_be_published_dynamic_index
+  >::value;
+
+#if _darma_has_feature(task_collection_token)
+  static constexpr auto has_task_collection_token = meta::has_conditional_member<
+    access_handle_special_semantic_members,
+    _task_collection_token_index
+  >::value;
+#endif // _darma_has_feature(task_collection_token)
+
+  template <typename _Ignored_SFINAE=void>
+  bool&
+  can_be_published_dynamic(
+    std::enable_if_t<
+      std::is_void<_Ignored_SFINAE>::value // always true
+        and has_can_be_published_dynamic,
+        _not_a_type
+    > = { }
+  ) {
+    return meta::get_conditional_member<_can_be_published_dynamic_index>(*this);
+  }
+
+#if _darma_has_feature(task_collection_token)
+  template <typename _Ignored_SFINAE=void>
+  types::task_collection_token_t&
+  task_collection_token(
+    std::enable_if_t<
+      std::is_void<_Ignored_SFINAE>::value // always true
+        and has_task_collection_token,
+      _not_a_type
+    > = { }
+  ) {
+    return meta::get_conditional_member<_task_collection_token_index>(*this);
+  }
+  template <typename _Ignored_SFINAE=void>
+  types::task_collection_token_t const&
+  task_collection_token(
+    std::enable_if_t<
+      std::is_void<_Ignored_SFINAE>::value // always true
+        and has_task_collection_token,
+      _not_a_type
+    > = { }
+  ) const {
+    return meta::get_conditional_member<_task_collection_token_index>(*this);
+  }
+#endif // _darma_has_feature(task_collection_token)
 
   bool is_outermost_scope_dynamic
     = SemanticTraits::could_be_outermost_scope;
 
   // For now at least, always allow the loss of information
+#if _darma_has_feature(task_collection_token)
+  template <typename OtherTraits>
+  using is_convertible_from = tinympl::bool_<
+    (
+      has_task_collection_token and
+        access_handle_special_semantic_members<OtherTraits>::has_task_collection_token
+    ) or (
+      not has_task_collection_token and
+        not access_handle_special_semantic_members<OtherTraits>::has_task_collection_token
+    )
+  >;
+#else
   template <typename OtherTraits>
   using is_convertible_from = std::true_type;
+#endif // _darma_has_feature(task_collection_token)
 
   // for now, at least (be careful when this gets changed)
   template <typename OtherTraits>
-  using is_reinterpret_castable_from = std::true_type;
+  using is_reinterpret_castable_from = tinympl::bool_<
+    is_convertible_from<OtherTraits>::value
+    and ((
+      has_can_be_published_dynamic and
+        access_handle_special_semantic_members<OtherTraits>::has_can_be_published_dynamic
+    ) or (
+      not has_can_be_published_dynamic and
+        not access_handle_special_semantic_members<OtherTraits>::has_can_be_published_dynamic
+    ))
+  >;
+
+  template <
+    typename OtherTraits,
+    typename=std::enable_if_t<is_convertible_from<OtherTraits>::value>
+  >
+  void copy_conditional_members(
+    access_handle_special_semantic_members<OtherTraits> const& other
+  ) {
+    constexpr_if<has_can_be_published_dynamic>(
+      [](auto& this_) {
+        this_.can_be_published_dynamic() =
+          meta::get_conditional_member<_can_be_published_dynamic_index>(this_);
+      },
+      *this
+    );
+#if _darma_has_feature(task_collection_token)
+    constexpr_if<has_task_collection_token
+      and access_handle_special_semantic_members<OtherTraits>::has_task_collection_token
+    >(
+      [](auto& this_, auto& other_) {
+        this_.task_collection_token() = other_.task_collection_token();
+      },
+      *this, other
+    );
+#endif // _darma_has_feature(task_collection_token)
+  };
+
+
+  template <
+    typename OtherTraits,
+    typename=std::enable_if_t<is_convertible_from<OtherTraits>::value>
+  >
+  void move_conditional_members(
+    access_handle_special_semantic_members<OtherTraits>&& other
+  ) {
+    constexpr_if<has_can_be_published_dynamic>(
+      [](auto& this_) {
+        this_.can_be_published_dynamic() =
+          meta::get_conditional_member<_can_be_published_dynamic_index>(this_);
+      },
+      *this
+    );
+#if _darma_has_feature(task_collection_token)
+    constexpr_if<has_task_collection_token
+      and access_handle_special_semantic_members<OtherTraits>::has_task_collection_token
+    >(
+      [](auto& this_, auto& other_) {
+        this_.task_collection_token() = std::move(other_.task_collection_token());
+      },
+      *this, other
+    );
+#endif // _darma_has_feature(task_collection_token)
+  };
+
 
   access_handle_special_semantic_members() = default;
 
@@ -510,25 +653,25 @@ struct access_handle_special_semantic_members {
     typename=std::enable_if_t<is_convertible_from<OtherTraits>::value>
   >
   access_handle_special_semantic_members(
-    access_handle_special_semantic_members<OtherTraits> const&
-  ) { /* no members, so nothing to do */ }
+    access_handle_special_semantic_members<OtherTraits> const& other
+  ) { copy_conditional_members(other); }
 
   template <
     typename OtherTraits,
     typename=std::enable_if_t<is_convertible_from<OtherTraits>::value>
   >
   access_handle_special_semantic_members(
-    access_handle_special_semantic_members<OtherTraits>&&
-  ) { /* no members, so nothing to do */ }
+    access_handle_special_semantic_members<OtherTraits>&& other
+  ) { move_conditional_members(std::move(other)); }
 
   template <
     typename OtherTraits,
     typename=std::enable_if_t<is_convertible_from<OtherTraits>::value>
   >
   access_handle_special_semantic_members& operator=(
-    access_handle_special_semantic_members<OtherTraits> const&
+    access_handle_special_semantic_members<OtherTraits> const& other
   ) {
-    /* no members, so nothing to do */
+    copy_conditional_members(other);
     return *this;
   }
 
@@ -537,9 +680,9 @@ struct access_handle_special_semantic_members {
     typename=std::enable_if_t<is_convertible_from<OtherTraits>::value>
   >
   access_handle_special_semantic_members& operator=(
-    access_handle_special_semantic_members<OtherTraits>&&
+    access_handle_special_semantic_members<OtherTraits>&& other
   ) {
-    /* no members, so nothing to do */
+    move_conditional_members(std::move(other));
     return *this;
   }
 

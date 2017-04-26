@@ -76,6 +76,17 @@ class PublicationDetails
         n_fetchers(n_fetchers_in)
     { }
 
+#if _darma_has_feature(task_collection_token)
+
+    types::task_collection_token_t token_;
+
+    types::task_collection_token_t const&
+    get_task_collection_token() const override {
+      return token_;
+    }
+
+#endif // _darma_has_feature(task_collection_token)
+
 };
 
 

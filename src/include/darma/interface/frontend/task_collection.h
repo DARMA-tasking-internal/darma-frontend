@@ -51,6 +51,8 @@
 
 #include <darma/interface/frontend/types/task_collection_task_t.h>
 
+#include <darma_types.h>
+
 
 namespace darma_runtime {
 
@@ -99,6 +101,16 @@ class TaskCollection
     /** deprecated! will be removed soon */
     virtual bool
     all_mappings_same_as(TaskCollection const* other) const =0;
+
+#if _darma_has_feature(task_collection_token)
+    virtual types::task_collection_token_t const&
+    get_task_collection_token() const =0;
+
+    virtual void
+    set_task_collection_token(
+      types::task_collection_token_t const& token
+    ) =0;
+#endif // _darma_has_feature(task_collection_token)
 
     virtual ~TaskCollection() = default;
 

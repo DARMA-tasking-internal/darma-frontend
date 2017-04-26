@@ -112,12 +112,7 @@ class Runtime {
     register_task(task_unique_ptr&& task) = 0;
 
 #if _darma_has_feature(create_concurrent_work)
-    virtual
-#if _darma_has_feature(task_collection_token)
-    types::task_collection_token_t
-#else
-    void
-#endif // _darma_has_feature(task_collection_token)
+    virtual void
     register_task_collection(
       task_collection_unique_ptr&& collection
     ) =0;

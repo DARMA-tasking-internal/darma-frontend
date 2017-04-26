@@ -145,6 +145,9 @@ struct TaskCollectionImpl
     using dependencies_container_t = types::handle_container_template<
       abstract::frontend::CollectionManagingUse*
     >;
+#if _darma_has_feature(task_collection_token)
+    types::task_collection_token_t token_ = { };
+#endif // _darma_has_feature(task_collection_token)
     dependencies_container_t dependencies_;
     IndexRangeT collection_range_;
     args_tuple_t args_stored_;
@@ -292,6 +295,9 @@ struct TaskCollectionImpl
       IndexRangeDeduced&& collection_range,
       ArgsForwarded&& ... args_forwarded
     ) : collection_range_(std::forward<IndexRangeDeduced>(collection_range)),
+#if _darma_has_feature(task_collection_token)
+        token_(),
+#endif // _darma_has_feature(task_collection_token)
         args_stored_(
           _get_args_stored_impl(
             std::forward_as_tuple(std::forward<ArgsForwarded>(args_forwarded)...),
@@ -335,6 +341,18 @@ struct TaskCollectionImpl
 
     void
     set_name(types::key_t const& name) override { name_ = name; }
+
+#if _darma_has_feature(task_collection_token)
+    types::task_collection_token_t const&
+    get_task_collection_token() const override {
+      return token_;
+    }
+
+    void
+    set_task_collection_token(types::task_collection_token_t const& token) override {
+      token_ = token;
+    }
+#endif // _darma_has_feature(task_collection_token)
 
     // </editor-fold> end TaskCollection concrete implementation }}}1
     //==========================================================================

@@ -78,6 +78,9 @@ struct ConcurrentContext {
     size_t backend_index_;
     size_t backend_size_;
 
+#if _darma_has_feature(task_collection_token)
+    types::task_collection_token_t token_;
+#endif // _darma_has_feature(task_collection_token)
 
   public:
 
@@ -85,7 +88,16 @@ struct ConcurrentContext {
       index_t const& index,
       size_t backend_index,
       size_t backend_size
-    ) : index_(index), backend_index_(backend_index), backend_size_(backend_size) { }
+#if _darma_has_feature(task_collection_token)
+      , types::task_collection_token_t const& token
+#endif // _darma_has_feature(task_collection_token)
+    ) : index_(index),
+        backend_index_(backend_index),
+        backend_size_(backend_size)
+#if _darma_has_feature(task_collection_token)
+        , token_(token)
+#endif // _darma_has_feature(task_collection_token)
+    { }
 
     ConcurrentContext(
       index_t const& index,
@@ -97,6 +109,21 @@ struct ConcurrentContext {
         backend_index_(backend_index),
         backend_size_(backend_size)
     { }
+
+#if _darma_has_feature(task_collection_token)
+    ConcurrentContext(
+      index_t const& index,
+      index_range_t const& index_range,
+      size_t backend_index,
+      size_t backend_size,
+      types::task_collection_token_t const& token
+    ) : index_(index),
+        index_range_(index_range),
+        backend_index_(backend_index),
+        backend_size_(backend_size),
+        token_(token)
+    { }
+#endif // _darma_has_feature(task_collection_token)
 
     operator index_t() { return index_; }
 
@@ -114,14 +141,43 @@ struct ConcurrentContext {
       return index_range_;
     };
 
-#if _darma_has_feature(_simple_collectives)
+#if _darma_has_feature(simple_collectives)
     template <typename ReduceOp=detail::op_not_given, typename... Args>
     void allreduce(Args&&... args) {
-      darma_runtime::allreduce<ReduceOp>(
-        std::forward<Args>(args)...,
-        darma_runtime::keyword_arguments_for_collectives::piece=backend_index_,
-        darma_runtime::keyword_arguments_for_collectives::n_pieces=backend_size_
-      );
+      using namespace darma_runtime::detail;
+
+      using parser = detail::kwarg_parser<
+        overload_description<
+          _positional_or_keyword<deduced_parameter, keyword_tags_for_collectives::input>,
+          _positional_or_keyword<deduced_parameter, keyword_tags_for_collectives::output>,
+          _optional_keyword<converted_parameter, keyword_tags_for_collectives::tag>
+        >,
+        overload_description<
+          _positional_or_keyword<deduced_parameter, keyword_tags_for_collectives::in_out>,
+          _optional_keyword<converted_parameter, keyword_tags_for_collectives::tag>
+        >
+      >;
+
+      using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
+
+      parser()
+        .with_default_generators(
+          keyword_arguments_for_collectives::tag=[]{ return make_key(); }
+        )
+        .with_converters(
+          [](auto&&... key_parts) {
+            return make_key(std::forward<decltype(key_parts)>(key_parts)...);
+          }
+        )
+        .parse_args(
+          std::forward<Args>(args)...
+        )
+        .invoke(detail::all_reduce_impl<ReduceOp>(
+          backend_index_, backend_size_
+#if _darma_has_feature(task_collection_token)
+          , token_
+#endif // _darma_has_feature(task_collection_token)
+        ));
     }
 #endif // _darma_has_feature(_simple_collectives)
 
@@ -148,6 +204,10 @@ struct TaskCollectionTaskImpl
   // This is the mapping from frontend index to backend index for the collection itself
   Mapping mapping_;
   args_tuple_t args_;
+#if _darma_has_feature(task_collection_token)
+  types::task_collection_token_t token_;
+#endif // _darma_has_feature(task_collection_token)
+
 
   template <size_t... Spots>
   auto
@@ -174,6 +234,9 @@ struct TaskCollectionTaskImpl
     >(
       mapping_.map_backward(backend_index_),
       backend_index_, backend_size_
+#if _darma_has_feature(task_collection_token)
+      , token_
+#endif
     );
   }
 
@@ -186,6 +249,9 @@ struct TaskCollectionTaskImpl
   ) : backend_index_(backend_index),
       backend_size_(parent.size()),
       mapping_(mapping),
+#if _darma_has_feature(task_collection_token)
+      token_(parent.token_),
+#endif // _darma_has_feature(task_collection_token)
       args_(
         _task_collection_impl::_get_task_stored_arg_helper<
           Functor,

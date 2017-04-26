@@ -88,6 +88,9 @@ struct _publish_impl {
   ) {
     auto* backend_runtime = abstract::backend::get_backend_runtime();
     detail::PublicationDetails dets(version, n_readers, not is_publish_out);
+#if _darma_has_feature(task_collection_token)
+    dets.token_ = this_.other_private_members_.second().task_collection_token();
+#endif // _darma_has_feature(task_collection_token)
 
     auto publish_use_holder = make_captured_use_holder(
       this_.var_handle_,

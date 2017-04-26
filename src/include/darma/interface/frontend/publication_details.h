@@ -90,7 +90,7 @@ class PublicationDetails {
 
 #if _darma_has_feature(task_collection_token)
     virtual
-    darma_runtime::types::task_collection_token_t
+    darma_runtime::types::task_collection_token_t const&
     get_task_collection_token() const =0;
 #endif
 

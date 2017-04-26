@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      constexpr_if.h
+//                      constexpr_if_else.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -104,7 +104,7 @@ template <bool Condition,
   typename... Args
 >
 decltype(auto)
-constexpr_if(
+constexpr_if_else(
   GenericCallableIfTrue&& if_true,
   GenericCallableIfFalse&& if_false,
   Args&&... args
@@ -112,6 +112,22 @@ constexpr_if(
   _impl::_constexpr_if_impl<std::integral_constant<bool, Condition>>{}(
     std::forward<GenericCallableIfTrue>(if_true),
     std::forward<GenericCallableIfFalse>(if_false),
+    std::forward<Args>(args)...
+  );
+};
+
+template <bool Condition,
+  typename GenericCallableIfTrue,
+  typename... Args
+>
+decltype(auto)
+constexpr_if(
+  GenericCallableIfTrue&& if_true,
+  Args&&... args
+) {
+  return detail::constexpr_if_else<Condition>(
+    std::forward<GenericCallableIfTrue>(if_true),
+    [](Args&&... args) { },
     std::forward<Args>(args)...
   );
 };
