@@ -412,6 +412,7 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
           );
           break;
         }
+#if _darma_has_feature(commutative_access_handles)
         case FlowRelationship::Indexed : {
           out_flow = make_indexed_flow(
             *out_rel.related_flow(),
@@ -419,6 +420,7 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
           );
           break;
         }
+#endif // _darma_has_feature(commutative_access_handles)
         case FlowRelationship::IndexedFetching : {
           out_flow = make_indexed_fetching_flow(
             *out_related_flow,

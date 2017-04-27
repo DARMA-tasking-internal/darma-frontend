@@ -45,6 +45,8 @@
 #ifndef DARMA_IMPL_COLLECTIVE_ALLREDUCE_H
 #define DARMA_IMPL_COLLECTIVE_ALLREDUCE_H
 
+#include <darma_types.h>
+
 #include <darma/impl/feature_testing_macros.h>
 
 #if _darma_has_feature(simple_collectives)
@@ -103,6 +105,8 @@ struct all_reduce_impl {
 #if _darma_has_feature(task_collection_token)
   types::task_collection_token_t token_;
 #endif // _darma_has_feature(task_collection_token)
+
+  all_reduce_impl() = default;
 
   all_reduce_impl(
     size_t piece, size_t n_pieces
