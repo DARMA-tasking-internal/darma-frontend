@@ -230,7 +230,6 @@ TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#if 0
 TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
 
   using namespace ::testing;
@@ -242,30 +241,31 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow finit, fnull, fout_coll, f_in_idx[4], f_out_idx[4];
+  DECLARE_MOCK_FLOWS(finit, fnull, fout_coll);
+  MockFlow f_in_idx[4], f_out_idx[4];
   MockFlow f_fwd_allred[4] = { "f_fwd_allred[0]", "f_fwd_allred[1]", "f_fwd_allred[2]", "f_fwd_allred[3]"};
   MockFlow f_allred_out[4] = { "f_allred_out[0]", "f_allred_out[1]", "f_allred_out[2]", "f_allred_out[3]"};
   use_t* use_idx[4] = {nullptr, nullptr, nullptr, nullptr};
   use_t* use_allred[4] = {nullptr, nullptr, nullptr, nullptr};
+  use_t* use_allred_cont[4] = {nullptr, nullptr, nullptr, nullptr};
   use_t* use_coll = nullptr;
+  use_t* use_cont = nullptr;
+  use_t* use_init = nullptr;
   int values[4];
 
-  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, make_key("hello"));
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, use_init, make_key("hello"), 4);
 
   EXPECT_CALL(*mock_runtime, make_next_flow_collection(finit))
     .WillOnce(Return(fout_coll));
 
-  EXPECT_CALL(*mock_runtime, register_use(AllOf(
-    IsUseWithFlows(finit, fout_coll, use_t::Modify, use_t::Modify),
-    Truly([](auto* use){
-      return (
-        use->manages_collection()
-          and use->get_managed_collection()->size() == 4
-      );
-    })
-  ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
+  EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, fout_coll, Modify, Modify, 4);
+  EXPECT_REGISTER_USE_COLLECTION(use_cont, fout_coll, fnull, Modify, None, 4);
+  EXPECT_RELEASE_USE(use_init);
+
+  EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(_));
 
   EXPECT_FLOW_ALIAS(fout_coll, fnull);
+  EXPECT_RELEASE_USE(use_cont);
 
   //============================================================================
   // actual code being tested
@@ -294,6 +294,12 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
   }
   //============================================================================
 
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+#if _darma_has_feature(task_collection_token)
+  mock_runtime->task_collections.front()->set_task_collection_token(MockTaskCollectionToken("my_token_2"));
+#endif // _darma_has_feature(task_collection_token)
+
   for(int i = 0; i < 4; ++i) {
     values[i] = 0;
 
@@ -301,12 +307,14 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
       .WillOnce(Return(f_in_idx[i]));
     EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
       .WillOnce(Return(f_out_idx[i]));
-    EXPECT_CALL(*mock_runtime, register_use(
-      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
-    )).WillOnce(Invoke([&](auto* use){
-      use_idx[i] = use;
-      use->get_data_pointer_reference() = &values[i];
-    }));
+
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i], Modify, Modify, values[i]);
+//    EXPECT_CALL(*mock_runtime, legacy_register_use(
+//      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+//    )).WillOnce(Invoke([&](auto* use){
+//      use_idx[i] = use;
+//      use->get_data_pointer_reference() = &values[i];
+//    }));
 
     auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
 
@@ -317,14 +325,24 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
     EXPECT_CALL(*mock_runtime, make_next_flow(f_fwd_allred[i]))
       .WillOnce(Return(f_allred_out[i]));
     EXPECT_REGISTER_USE(use_allred[i], f_fwd_allred[i], f_allred_out[i], None, Modify);
+    EXPECT_REGISTER_USE(use_allred_cont[i], f_allred_out[i], f_out_idx[i], Modify, None);
 
     EXPECT_RELEASE_USE(use_idx[i]);
 
     EXPECT_CALL(*mock_runtime, allreduce_use_gmock_proxy(
-      Eq(ByRef(use_allred[i])), _, _)
-    );
+      Eq(ByRef(use_allred[i])),
+#if _darma_has_feature(task_collection_token)
+      Truly([](auto const* details) {
+        return details->get_task_collection_token().name == "my_token_2";
+      }),
+#else
+      _,
+#endif // _darma_has_feature(task_collection_token)
+      _
+    ));
 
     EXPECT_FLOW_ALIAS(f_allred_out[i], f_out_idx[i]);
+    EXPECT_RELEASE_USE(use_allred_cont[i]);
 
     created_task->run();
 
@@ -339,7 +357,6 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
   mock_runtime->backend_owned_uses.clear();
 
 }
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 

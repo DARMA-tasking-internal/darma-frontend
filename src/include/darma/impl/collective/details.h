@@ -113,6 +113,12 @@ class SimpleCollectiveDetails
       return _impl::_get_static_reduce_op_instance<wrapper_t>();
     }
 
+#if _darma_has_feature(task_collection_token)
+    types::task_collection_token_t const&
+    get_task_collection_token() const override {
+      return token_;
+    }
+#endif // _darma_has_feature(task_collection_token)
 
 };
 

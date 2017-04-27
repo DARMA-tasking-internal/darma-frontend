@@ -80,6 +80,11 @@ class CollectiveDetails {
     virtual ReduceOp const*
     reduce_operation() const =0;
 
+#if _darma_has_feature(task_collection_token)
+    virtual types::task_collection_token_t const&
+    get_task_collection_token() const =0;
+#endif // _darma_has_feature(task_collection_token)
+
 };
 
 
