@@ -437,6 +437,15 @@ int main(int argc, char **argv);
 void backend_init_finalize(int argc, char** argv);
 void backend_santioned_exit(int const);
 
+#include <string>
+
+namespace darma_runtime {
+void
+abort(
+  std::string const& abort_str = std::string{}
+);
+} // end darma_runtime
+
 #include <darma/interface/backend/types.h>
 
 #endif /* SRC_ABSTRACT_BACKEND_RUNTIME_H_ */
