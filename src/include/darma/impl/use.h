@@ -229,6 +229,10 @@ struct GenericUseHolder : UseHolderBase {
 
       auto* rt = abstract::backend::get_backend_runtime();
 
+#if _darma_has_feature(anti_flows)
+      DARMA_ASSERT_NOT_IMPLEMENTED("new anti-flow semantics with commutative");
+#endif
+
       // TODO the "collection" version of this needs to work also
       HandleUse last_use(
         use->handle_,

@@ -1031,6 +1031,10 @@ class AccessHandle : public detail::AccessHandleBase {
 
       set_is_commutative_dynamic(false);
 
+#if _darma_has_feature(anti_flows)
+      DARMA_ASSERT_NOT_IMPLEMENTED("new anti-flow semantics with commutative");
+#endif
+
       current_use_->replace_use(
         detail::HandleUse(
           var_handle_,

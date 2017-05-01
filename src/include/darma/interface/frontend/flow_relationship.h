@@ -102,6 +102,9 @@ class FlowRelationship {
     static constexpr auto AntiNext =
       flow_relationship_description_t(Anti)
         | flow_relationship_description_t(Next);
+    static constexpr auto AntiForwarding =
+      flow_relationship_description_t(Anti)
+        | flow_relationship_description_t(Forwarding);
     static constexpr auto AntiIndexedLocal =
       flow_relationship_description_t(Anti)
         | flow_relationship_description_t(IndexedLocal);

@@ -404,6 +404,9 @@ struct _commutative_access_impl {
         given_value_type_t
       >>(std::move(key));
 
+#if _darma_has_feature(anti_flows)
+    DARMA_ASSERT_NOT_IMPLEMENTED("new anti-flow semantics with commutative");
+#endif
     // TODO This is ugly.  We need a cleaner semantic for this that still preserves some reasonable invariants
 
     // Effectively, right now we need to create an initial access, register it,

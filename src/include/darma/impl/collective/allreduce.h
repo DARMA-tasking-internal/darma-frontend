@@ -152,7 +152,7 @@ struct all_reduce_impl {
       piece = piece_;
     }
     if(n_pieces == abstract::frontend::CollectiveDetails::unknown_contribution()) {
-      piece = piece_;
+      n_pieces = n_pieces_;
     }
 
     auto* backend_runtime = abstract::backend::get_backend_runtime();
@@ -229,7 +229,7 @@ struct all_reduce_impl {
       piece = piece_;
     }
     if(n_pieces == abstract::frontend::CollectiveDetails::unknown_contribution()) {
-      piece = piece_;
+      n_pieces = n_pieces_;
     }
 
     auto* backend_runtime = abstract::backend::get_backend_runtime();

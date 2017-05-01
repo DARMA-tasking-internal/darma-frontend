@@ -461,9 +461,6 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         local_use_holders_(std::move(other.local_use_holders_)),
         dynamic_is_outer(std::move(other.dynamic_is_outer)),
         copied_from(std::move(other.copied_from))
-#if _darma_has_feature(task_collection_token)
-        , task_collection_token_(std::move(other.task_collection_token_))
-#endif // _darma_has_feature(task_collection_token)
     { }
 
     AccessHandleCollection(
@@ -473,9 +470,6 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         current_use_(current_use_base_, other.current_use_),
         local_use_holders_(other.local_use_holders_),
         dynamic_is_outer(other.dynamic_is_outer)
-#if _darma_has_feature(task_collection_token)
-        , task_collection_token_(other.task_collection_token_)
-#endif // _darma_has_feature(task_collection_token)
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
@@ -525,7 +519,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         local_use_holders_(other.local_use_holders_),
         dynamic_is_outer(other.dynamic_is_outer)
 #if _darma_has_feature(task_collection_token)
-        , task_collection_token_(other.task_collection_token_)
+
 #endif // _darma_has_feature(task_collection_token)
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
@@ -638,7 +632,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
     // TODO move this to a special members class that leaves it out if it's known to be not captured
 #if _darma_has_feature(task_collection_token)
-    mutable types::task_collection_token_t task_collection_token_ = { };
+    mutable types::task_collection_token_t task_collection_token_;
 #endif // _darma_has_feature(task_collection_token)
 
   // </editor-fold> end private members }}}1
@@ -685,14 +679,16 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 #if _darma_has_feature(anti_flows)
               ,
               /* anti-in flow depends on immediate permissions */
+              indexed_local_anti_flow(&current_use_->use->anti_in_flow_, idx),
               // TODO this should probably check if the Collection anti-flow was significant
-              current_use_->use->immediate_permissions_ == detail::HandleUse::Modify ?
-                indexed_local_anti_flow(&current_use_->use->anti_in_flow_, idx)
-                  : insignificant_flow(),
-              /* anti-out flow depends on immediate permissions */
-              current_use_->use->immediate_permissions_ == detail::HandleUse::Modify ?
-                  insignificant_flow()
-                    : indexed_local_anti_flow(&current_use_->use->anti_out_flow_, idx)
+              //current_use_->use->immediate_permissions_ == detail::HandleUse::Modify ?
+              //  indexed_local_anti_flow(&current_use_->use->anti_in_flow_, idx)
+              //    : insignificant_flow(),
+              //* anti-out flow depends on immediate permissions */
+              //current_use_->use->immediate_permissions_ == detail::HandleUse::Modify ?
+              //    insignificant_flow()
+              //      : indexed_local_anti_flow(&current_use_->use->anti_out_flow_, idx)
+              indexed_local_anti_flow(&current_use_->use->anti_out_flow_, idx)
 
 #endif // _darma_has_feature(anti_flows)
             )
@@ -846,7 +842,7 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType,
         // anti-in
         insignificant_flow().as_collection_relationship(),
         // anti-out
-        anti_next_of_in_flow().as_collection_relationship(),
+        initial_anti_flow().as_collection_relationship(),
 #endif // _darma_has_feature(anti_flows)
         std::forward<IndexRangeT>(range)
       )

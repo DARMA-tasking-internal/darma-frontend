@@ -473,6 +473,19 @@ same_anti_flow(types::anti_flow_t* rel) {
 }
 
 inline HandleUseBase::FlowRelationshipImpl
+initial_anti_flow() {
+  return HandleUseBase::FlowRelationshipImpl(
+    abstract::frontend::FlowRelationship::Initial,
+    /* related flow = */ nullptr,
+    /* related_is_in = */ false,
+    /* version key = */ nullptr,
+    /* index = */ 0,
+    /* anti_related = */ nullptr,
+    /* anti_rel_is_in = */ false
+  );
+}
+
+inline HandleUseBase::FlowRelationshipImpl
 anti_next_of_in_flow() {
 return HandleUseBase::FlowRelationshipImpl(
     abstract::frontend::FlowRelationship::AntiNext,
@@ -648,7 +661,49 @@ indexed_anti_flow(
   );
 }
 
-#endif // _darma_has_feature(anti_flows)
+inline HandleUseBase::FlowRelationshipImpl
+forwarding_anti_flow(
+  types::anti_flow_t* rel
+) {
+  return HandleUseBase::FlowRelationshipImpl(
+    abstract::frontend::FlowRelationship::AntiForwarding,
+    /* related flow = */ nullptr,
+    /* related_is_in = */ false,
+    /* version key = */ nullptr,
+    /* index = */ 0,
+    /* anti_related = */ rel,
+    /* anti_rel_is_in = */ false
+  );
+}
+
+inline HandleUseBase::FlowRelationshipImpl
+next_anti_flow(
+  types::anti_flow_t* rel
+) {
+  return HandleUseBase::FlowRelationshipImpl(
+    abstract::frontend::FlowRelationship::AntiNext,
+    /* related flow = */ nullptr,
+    /* related_is_in = */ false,
+    /* version key = */ nullptr,
+    /* index = */ 0,
+    /* anti_related = */ rel,
+    /* anti_rel_is_in = */ false
+  );
+}
+
+inline HandleUseBase::FlowRelationshipImpl
+next_anti_flow_of_anti_in() {
+  return HandleUseBase::FlowRelationshipImpl(
+    abstract::frontend::FlowRelationship::AntiNext,
+    /* related flow = */ nullptr,
+    /* related_is_in = */ false,
+    /* version key = */ nullptr,
+    /* index = */ 0,
+    /* anti_related = */ nullptr,
+    /* anti_rel_is_in = */ true
+  );
+}
+#endif
 
 } // end namespace flow_relationships
 

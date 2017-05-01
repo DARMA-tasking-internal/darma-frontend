@@ -79,7 +79,7 @@ struct _initial_access_key_helper {
         initial_flow(),
         null_flow(),
         insignificant_flow(),
-        anti_next_of_in_flow()
+        initial_anti_flow()
       ), /* register in ctor = */ true, /* will be dep = */ false
     );
 #else
