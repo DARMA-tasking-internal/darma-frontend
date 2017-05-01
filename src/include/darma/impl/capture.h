@@ -995,8 +995,7 @@ auto make_captured_use_holder(
               , insignificant_flow(),
               // Anti-out flow
               requested_scheduling_permissions == HandleUse::None ?
-                // TODO check the None case...
-                next_anti_flow(&source_and_continuing_holder->use->anti_in_flow_)
+                forwarding_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
                   : same_anti_flow(&captured_use_holder->use->anti_out_flow_)
 
 #endif // _darma_has_feature(anti_flows)
