@@ -144,8 +144,8 @@ struct Serializer<std::tuple<Args...>> {
         decltype(auto) get(Tuple&& tup) {
           return std::get<wrapped_index::value>(std::forward<Tuple>(tup));
         }
-        using serializer =
-          typename detail::serializability_traits<ItemType>::serializer;
+        using traits =
+          typename detail::serializability_traits<ItemType>;
       };
     };
 
@@ -164,7 +164,7 @@ struct Serializer<std::tuple<Args...>> {
           _ser_get_pair_for_item
         >::type(),
         [&](auto&& item_ser_get) {
-          typename std::decay_t<decltype(item_ser_get)>::serializer().unpack(
+          std::decay_t<decltype(item_ser_get)>::traits::unpack(
             // This is safe because std::get on a lvalue reference is
             // specified to return an lvalue reference, which we immediately
             // take the address of and cast to a void* without ever
