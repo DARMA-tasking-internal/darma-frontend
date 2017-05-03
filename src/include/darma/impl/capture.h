@@ -860,7 +860,7 @@ auto make_captured_use_holder(
               //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
 #if _darma_has_feature(anti_flows)
               // anti-in =
-              , same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
+              , same_anti_flow(&source_and_continuing_holder->use->anti_in_flow_),
               // anti-out =
               requested_scheduling_permissions == HandleUse::None ?
                 next_anti_flow_of_anti_in()

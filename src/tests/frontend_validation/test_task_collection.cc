@@ -1336,11 +1336,21 @@ TEST_F(TestCreateConcurrentWork, nested_in_create_work) {
       }
     };
 
-    create_work([=]{
-      create_concurrent_work<Foo>(tmp_c,
-        index_range=Range1D<int>(4)
-      );
-    });
+    struct FooTask {
+      void operator()(AccessHandleCollection<int, Range1D<int>> coll) const {
+        create_concurrent_work<Foo>(coll,
+          index_range=Range1D<int>(4)
+        );
+      }
+    };
+
+    create_work<FooTask>(tmp_c);
+
+//    create_work([=]{
+//      create_concurrent_work<Foo>(tmp_c,
+//        index_range=Range1D<int>(4)
+//      );
+//    });
 
   }
   //============================================================================
