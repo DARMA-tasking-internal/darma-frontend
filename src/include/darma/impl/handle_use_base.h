@@ -488,7 +488,7 @@ initial_anti_flow() {
 inline HandleUseBase::FlowRelationshipImpl
 anti_next_of_in_flow() {
 return HandleUseBase::FlowRelationshipImpl(
-    abstract::frontend::FlowRelationship::AntiNext,
+    abstract::frontend::FlowRelationship::Next,
     /* related flow = */ nullptr,
     /* related_is_in = */ true,
     /* version key = */ nullptr,
@@ -681,7 +681,7 @@ next_anti_flow(
   types::anti_flow_t* rel
 ) {
   return HandleUseBase::FlowRelationshipImpl(
-    abstract::frontend::FlowRelationship::AntiNext,
+    abstract::frontend::FlowRelationship::Next,
     /* related flow = */ nullptr,
     /* related_is_in = */ false,
     /* version key = */ nullptr,
@@ -694,7 +694,7 @@ next_anti_flow(
 inline HandleUseBase::FlowRelationshipImpl
 next_anti_flow_of_anti_in() {
   return HandleUseBase::FlowRelationshipImpl(
-    abstract::frontend::FlowRelationship::AntiNext,
+    abstract::frontend::FlowRelationship::Next,
     /* related flow = */ nullptr,
     /* related_is_in = */ false,
     /* version key = */ nullptr,

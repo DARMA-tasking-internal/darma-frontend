@@ -307,6 +307,61 @@ struct UseDescription {
     use_arg->set_out_flow(fout); \
   }))
 
+#define EXPECT_REGISTER_USE_WITH_ANTI_FLOWS(use_ptr, \
+  fin, fin_desc, fin_src, \
+  fout, fout_desc, fout_src, out_rel_is_in, \
+  fanti_in, fantiin_desc, fantiin_src, \
+  fanti_out, fantiout_desc, fantiout_src, antiout_rel_is_anti_in, \
+  sched, immed, will_be_dep \
+) \
+  EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf( \
+    IsUseWithFlowRelationships( \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fin_desc, fin_src, \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fout_desc, fout_src, out_rel_is_in, \
+      use_t::sched, use_t::immed \
+    ), \
+    IsUseWithAntiFlowRelationships( \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fantiin_desc, fantiin_src, \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fantiout_desc, fantiout_src, antiout_rel_is_anti_in \
+    ), \
+    UseWillBeDependency(will_be_dep) \
+  ))).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
+    use_ptr = use_arg; \
+    use_arg->set_in_flow(fin); \
+    use_arg->set_out_flow(fout); \
+    use_arg->set_anti_in_flow(fanti_in); \
+    use_arg->set_anti_out_flow(fanti_out); \
+  }))
+
+#define EXPECT_REGISTER_USE_WITH_ANTI_FLOWS_AND_SET_BUFFER(use_ptr, \
+  fin, fin_desc, fin_src, \
+  fout, fout_desc, fout_src, out_rel_is_in, \
+  fanti_in, fantiin_desc, fantiin_src, \
+  fanti_out, fantiout_desc, fantiout_src, antiout_rel_is_anti_in, \
+  sched, immed, will_be_dep, value \
+) \
+  EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf( \
+    IsUseWithFlowRelationships( \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fin_desc, fin_src, \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fout_desc, fout_src, out_rel_is_in, \
+      use_t::sched, use_t::immed \
+    ), \
+    IsUseWithAntiFlowRelationships( \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fantiin_desc, fantiin_src, \
+      ::darma_runtime::abstract::frontend::FlowRelationship::fantiout_desc, fantiout_src, antiout_rel_is_anti_in \
+    ), \
+    UseWillBeDependency(will_be_dep) \
+  ))).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
+    use_ptr = use_arg; \
+    use_arg->set_in_flow(fin); \
+    use_arg->set_out_flow(fout); \
+    use_arg->set_anti_in_flow(fanti_in); \
+    use_arg->set_anti_out_flow(fanti_out); \
+    ::darma_runtime::abstract::frontend::use_cast<::darma_runtime::abstract::frontend::DependencyUse*>( \
+      use_ptr \
+    )->get_data_pointer_reference() = &(value); \
+  }))
+
 #define EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(use_ptr, fin, fin_rel, fin_src, fout, fout_rel, fout_src, out_rel_is_in, sched, immed, will_be_dep, value) \
   EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf( \
     IsUseWithFlowRelationships( \
@@ -437,8 +492,8 @@ struct UseDescription {
 
 namespace _make_mock_flows_impl {
 
-template <size_t I>
-::mock_backend::MockFlow _do_make_flow(char const* names) {
+template <typename FlowT, size_t I>
+FlowT _do_make_flow(char const* names) {
   std::string all_names(names);
   all_names = all_names + ", ";
   std::string name;
@@ -447,29 +502,32 @@ template <size_t I>
   while ((pos = all_names.find(", ")) != std::string::npos) {
     name = all_names.substr(0, pos);
     all_names.erase(0, pos + 2);
-    if(count == I) return ::mock_backend::MockFlow(name.c_str());
+    if(count == I) return FlowT(name.c_str());
     ++count;
   }
   assert(false); // something went wrong...
-  return ::mock_backend::MockFlow();
+  return FlowT();
 }
 
-template <size_t... Idxs>
+template <typename FlowT, size_t... Idxs>
 auto _make_flows_impl(char const* names, std::integer_sequence<std::size_t, Idxs...>) {
   return std::make_tuple(
-    _do_make_flow<Idxs>(names)...
+    _do_make_flow<FlowT, Idxs>(names)...
   );
 };
 
-template <size_t NFlows>
+template <typename FlowT, size_t NFlows>
 auto make_flows(char const* names) {
-  return _make_flows_impl(names, std::make_index_sequence<NFlows>{});
+  return _make_flows_impl<FlowT>(names, std::make_index_sequence<NFlows>{});
 }
 
 } // end namespace _make_mock_flows_impl
 
 #define DECLARE_MOCK_FLOWS(Args...) \
-  ::mock_backend::MockFlow Args; std::tie(Args) = ::_make_mock_flows_impl::make_flows<DARMA_PP_NUM_ARGS(Args)>(#Args);
+  ::mock_backend::MockFlow Args; std::tie(Args) = ::_make_mock_flows_impl::make_flows<::mock_backend::MockFlow, DARMA_PP_NUM_ARGS(Args)>(#Args);
+
+#define DECLARE_MOCK_ANTI_FLOWS(Args...) \
+  ::mock_backend::MockAntiFlow Args; std::tie(Args) = ::_make_mock_flows_impl::make_flows<::mock_backend::MockAntiFlow, DARMA_PP_NUM_ARGS(Args)>(#Args);
 
 #define EXPECT_REGISTER_USE_COLLECTION(use_coll, fin, fout, sched, immed, collsize) \
     EXPECT_CALL(*mock_runtime, legacy_register_use(::testing::AllOf( \
