@@ -1416,6 +1416,133 @@ TEST_F(TestCreateConcurrentWork, nested_in_create_work) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+TEST_F(TestCreateConcurrentWork, nested_in_create_work_functor) {
+
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(finit, fouter_out, fnull, fout_coll);
+  MockFlow f_in_idx[4], f_out_idx[4];
+  use_t* use_idx[4];
+  use_t* use_init = nullptr;
+  use_t* use_coll = nullptr;
+  use_t* use_task_cont = nullptr;
+  use_t* use_outer_capture = nullptr;
+  use_t* use_outer_cont = nullptr;
+  int values[4];
+
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, use_init, make_key("hello"), 4);
+
+  EXPECT_CALL(*mock_runtime, make_next_flow_collection(
+    finit
+  )).WillOnce(Return(fouter_out));
+
+  EXPECT_REGISTER_USE_COLLECTION(use_outer_capture, finit, fouter_out, Modify, None, 4);
+  EXPECT_REGISTER_USE_COLLECTION(use_outer_cont, fouter_out, fnull, Modify, None, 4);
+  EXPECT_RELEASE_USE(use_init);
+
+  EXPECT_REGISTER_TASK(use_outer_capture);
+
+  EXPECT_FLOW_ALIAS(fouter_out, fnull);
+  EXPECT_RELEASE_USE(use_outer_cont);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
+
+
+    struct Foo {
+      void operator()(Index1D<int> index,
+        AccessHandleCollection<int, Range1D<int>> coll
+      ) const {
+        coll[index].local_access().set_value(42);
+      }
+    };
+
+    struct FooTask {
+      void operator()(AccessHandleCollection<int, Range1D<int>> coll) const {
+        create_concurrent_work<Foo>(coll,
+          index_range=Range1D<int>(4)
+        );
+      }
+    };
+
+    create_work<FooTask>(tmp_c);
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_CALL(*mock_runtime, make_next_flow_collection(
+    finit
+  )).WillOnce(Return(fout_coll));
+
+  EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, fout_coll, Modify, Modify, 4);
+
+  {
+    InSequence reg_before_release;
+
+    EXPECT_REGISTER_USE(use_task_cont, fout_coll, fouter_out, Modify, None);
+
+    EXPECT_RELEASE_USE(use_outer_capture);
+
+    EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(
+      CollectionUseInGetDependencies(ByRef(use_coll))
+    ));
+
+    EXPECT_FLOW_ALIAS(fout_coll, fouter_out);
+
+    EXPECT_RELEASE_USE(use_task_cont);
+  }
+
+  run_one_task();
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  for(int i = 0; i < 4; ++i) {
+    values[i] = 0;
+
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(finit, i))
+      .WillOnce(Return(f_in_idx[i]));
+    EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
+      .WillOnce(Return(f_out_idx[i]));
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i], Modify, Modify, values[i]);
+    //EXPECT_CALL(*mock_runtime, register_use(
+    //  IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+    //)).WillOnce(Invoke([&](auto* use){
+    //  use_idx[i] = use;
+    //  use->get_data_pointer_reference() = &values[i];
+    //}));
+
+    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+
+    EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
+
+    EXPECT_RELEASE_USE(use_idx[i]);
+
+    created_task->run();
+    EXPECT_THAT(values[i], Eq(42));
+
+  }
+
+  EXPECT_RELEASE_USE(use_coll);
+
+
+  mock_runtime->task_collections.front().reset(nullptr);
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 #if _darma_has_feature(handle_collection_based_collectives)
 
 //==============================================================================
