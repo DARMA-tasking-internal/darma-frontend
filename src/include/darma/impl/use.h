@@ -169,7 +169,7 @@ struct GenericUseHolder : UseHolderBase {
     bool will_be_dep=false
   ) : use(use_base, std::make_unique<UnderlyingUse>(std::move(in_use)))
   {
-    use->is_dependency_ = will_be_dep;
+    use->is_dependency_ = will_be_dep and use_base->immediate_permissions_ != HandleUse::None;
     if(do_register_in_ctor) do_register();
   }
 

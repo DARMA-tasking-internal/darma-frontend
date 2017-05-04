@@ -215,13 +215,13 @@ template <> struct _deref_non_null<std::nullptr_t&&> { decltype(auto) operator()
 template <typename T> decltype(auto) deref_non_null(T&& val) { return _deref_non_null<T&&>{}(std::forward<T>(val)); }
 
 MATCHER_P7(IsUseWithFlowRelationships, f_in_rel, f_in, f_out_rel, f_out, out_rel_is_in, scheduling_permissions, immediate_permissions,
-  "in_flow relationship: " + relationship_to_string(f_in_rel)
-    + ", in_flow related: " + PrintToString(deref_non_null(f_in))
-    + ", out_flow relationship: " + relationship_to_string(f_out_rel)
-    + ", out_flow_related: " + PrintToString(deref_non_null(f_out))
-    + ", out_flow_related_is_in: " + PrintToString(out_rel_is_in)
-    + ", scheduling_permissions: " + permissions_to_string(scheduling_permissions)
-    + ", immediate_permissions: " + permissions_to_string(immediate_permissions)
+  "\n  ------------ Use with ------------\n  in_flow relationship: " + relationship_to_string(f_in_rel)
+    + "\n  in_flow related: " + PrintToString(deref_non_null(f_in))
+    + "\n  out_flow relationship: " + relationship_to_string(f_out_rel)
+    + "\n  out_flow_related: " + PrintToString(deref_non_null(f_out))
+    + "\n  out_flow_related_is_in: " + PrintToString(out_rel_is_in)
+    + "\n  scheduling_permissions: " + permissions_to_string(scheduling_permissions)
+    + "\n  immediate_permissions: " + permissions_to_string(immediate_permissions)
 ) {
   if(arg == nullptr) {
     *result_listener << "arg is null";
@@ -231,25 +231,26 @@ MATCHER_P7(IsUseWithFlowRelationships, f_in_rel, f_in, f_out_rel, f_out, out_rel
 #if DARMA_SAFE_TEST_FRONTEND_PRINTERS
   *result_listener << "arg (unprinted for safety)";
 #else
-  *result_listener << "in_flow relationship: " << relationship_to_string(arg->get_in_flow_relationship().description());
+  *result_listener << "\n  ------------ Use with ------------";
+  *result_listener << "\n  in_flow relationship: " << relationship_to_string(arg->get_in_flow_relationship().description());
   if(arg->get_in_flow_relationship().related_flow() == nullptr) {
-    *result_listener << ", in_flow_related: NULL";
+    *result_listener << "\n  in_flow_related: NULL";
   }
   else {
-    *result_listener << ", in_flow related: "
+    *result_listener << "\n  in_flow related: "
                      << PrintToString(*arg->get_in_flow_relationship().related_flow());
   }
-  *result_listener << ", out_flow relationship: " << relationship_to_string(arg->get_out_flow_relationship().description());
+  *result_listener << "\n  out_flow relationship: " << relationship_to_string(arg->get_out_flow_relationship().description());
   if(arg->get_out_flow_relationship().related_flow() == nullptr) {
-    *result_listener << ", out_flow_related: NULL";
+    *result_listener << "\n  out_flow_related: NULL";
   }
   else {
-    *result_listener << ", out_flow related: "
+    *result_listener << "\n  out_flow related: "
                      << PrintToString(*arg->get_out_flow_relationship().related_flow());
   }
-  *result_listener << ", out_flow_related_is_in: " << PrintToString(arg->get_out_flow_relationship().use_corresponding_in_flow_as_related())
-    << ", scheduling_permissions: " << permissions_to_string(arg->scheduling_permissions())
-    << ", immediate_permissions: " << permissions_to_string(arg->immediate_permissions());
+  *result_listener << "\n  out_flow_related_is_in: " << PrintToString(arg->get_out_flow_relationship().use_corresponding_in_flow_as_related())
+    << "\n  scheduling_permissions: " << permissions_to_string(arg->scheduling_permissions())
+    << "\n  immediate_permissions: " << permissions_to_string(arg->immediate_permissions());
 #endif
 
   using namespace mock_backend;
@@ -282,11 +283,12 @@ MATCHER_P7(IsUseWithFlowRelationships, f_in_rel, f_in, f_out_rel, f_out, out_rel
 }
 
 MATCHER_P5(IsUseWithAntiFlowRelationships, f_anti_in_rel, f_anti_in_arg, f_anti_out_rel, f_anti_out_arg, anti_out_rel_is_anti_in,
-  "anti_in_flow relationship: " + relationship_to_string(f_anti_in_rel)
-    + ", anti_in_flow related: " + PrintToString(::mock_backend::MockAntiFlow(f_anti_in_arg))
-    + ", anti_out_flow relationship: " + relationship_to_string(f_anti_out_rel)
-    + ", anti_out_flow_related: " + PrintToString(::mock_backend::MockAntiFlow(f_anti_out_arg))
-    + ", anti_out_flow_related_is_anti_in: " + PrintToString(anti_out_rel_is_anti_in)
+  "\n  ------------ Use with ------------"
+  "\n  anti_in_flow relationship: " + relationship_to_string(f_anti_in_rel)
+    + "\n  anti_in_flow related: " + PrintToString(::mock_backend::MockAntiFlow(f_anti_in_arg))
+    + "\n  anti_out_flow relationship: " + relationship_to_string(f_anti_out_rel)
+    + "\n  anti_out_flow_related: " + PrintToString(::mock_backend::MockAntiFlow(f_anti_out_arg))
+    + "\n  anti_out_flow_related_is_anti_in: " + PrintToString(anti_out_rel_is_anti_in)
 ) {
   if(arg == nullptr) {
     *result_listener << "arg is null";
@@ -302,15 +304,16 @@ MATCHER_P5(IsUseWithAntiFlowRelationships, f_anti_in_rel, f_anti_in_arg, f_anti_
 #if DARMA_SAFE_TEST_FRONTEND_PRINTERS
   *result_listener << "arg (unprinted for safety)";
 #else
-  *result_listener << "anti_in_flow relationship: " << relationship_to_string(arg->get_anti_in_flow_relationship().description());
-  *result_listener << ", anti_anti_in_flow related: "
+  *result_listener << "\n  ------------ Use with ------------"
+                   "\n  anti_in_flow relationship: " << relationship_to_string(arg->get_anti_in_flow_relationship().description());
+  *result_listener << "\n  anti_anti_in_flow related: "
                    << PrintToString(related_anti_in_flow);
-  *result_listener << ", anti_out_flow relationship: " << relationship_to_string(arg->get_anti_out_flow_relationship().description());
-  *result_listener << ", anti_out_flow related: "
+  *result_listener << "\n  anti_out_flow relationship: " << relationship_to_string(arg->get_anti_out_flow_relationship().description());
+  *result_listener << "\n  anti_out_flow related: "
                    << PrintToString(related_anti_out_flow);
-  *result_listener << ", anti_out_flow_related_is_in: " << PrintToString(arg->get_anti_out_flow_relationship().use_corresponding_in_flow_as_anti_related())
-                   << ", scheduling_permissions: " << permissions_to_string(arg->scheduling_permissions())
-                   << ", immediate_permissions: " << permissions_to_string(arg->immediate_permissions());
+  *result_listener << "\n  anti_out_flow_related_is_in: " << PrintToString(arg->get_anti_out_flow_relationship().use_corresponding_in_flow_as_anti_related())
+                   << "\n  scheduling_permissions: " << permissions_to_string(arg->scheduling_permissions())
+                   << "\n  immediate_permissions: " << permissions_to_string(arg->immediate_permissions());
 #endif
 
   if(f_anti_in_flow != related_anti_in_flow) return false;

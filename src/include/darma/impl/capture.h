@@ -94,10 +94,6 @@ auto make_captured_use_holder(
     case HandleUse::None: {
 
       // schedule-only cases
-      // TODO !!! update schedule-only anti-flows!
-#if _darma_has_feature(anti_flows)
-      DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for schedule-only captures");
-#endif
 
       switch(source_and_continuing_holder->use->immediate_permissions_) {
 
@@ -127,6 +123,9 @@ auto make_captured_use_holder(
               // %   RN -> { RN } -> RN     %
               // %   MN -> { RN } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#if _darma_has_feature(anti_flows)
+              DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for XN -> { RN } capture case");
+#endif
 
               // We still need to create a new use, because it's a separate task
               captured_use_holder = use_holder_maker(
@@ -183,7 +182,7 @@ auto make_captured_use_holder(
                 next_of_in_flow()
                 //FlowRelationship::Next, nullptr, true
 #if _darma_has_feature(anti_flows)
-                , insignificant_flow(),
+                , next_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
                 same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
 #endif // _darma_has_feature(anti_flows)
               );
@@ -221,8 +220,8 @@ auto make_captured_use_holder(
                   same_flow(&source_and_continuing_holder->use->out_flow_)
                   //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
 #if _darma_has_feature(anti_flows)
-                  , insignificant_flow(),
-                  anti_next_of_in_flow()
+                  , same_anti_flow(&source_and_continuing_holder->use->anti_in_flow_),
+                  same_anti_flow(&captured_use_holder->use->anti_in_flow_)
 #endif // _darma_has_feature(anti_flows)
                 ),
                 AllowRegisterContinuation
@@ -296,6 +295,9 @@ auto make_captured_use_holder(
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
               // UNTESTED CODE !!!!!!!!!!!!!!!!!!
+#if _darma_has_feature(anti_flows)
+              DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for XR -> { RN } capture case");
+#endif
 
               captured_use_holder = use_holder_maker(
                 var_handle,
@@ -324,6 +326,9 @@ auto make_captured_use_holder(
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
               // UNTESTED CODE !!!!!!!!!!!!!!!!!!
+#if _darma_has_feature(anti_flows)
+              DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for XR -> { MN } capture case");
+#endif
 
               // Assert that, e.g., RR -> { MN } -> ... is not allowed
               DARMA_ASSERT_MESSAGE(
@@ -382,14 +387,71 @@ auto make_captured_use_holder(
         //----------------------------------------------------------------------
 
         case HandleUse::Modify: { // source immediate permissions
-          // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-          // %   MM -> { RN } -> MR     %
-          // %   MM -> { MN } -> MN     %
-          // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-          DARMA_ASSERT_NOT_IMPLEMENTED(
-            "Schedule-only permissions on handles that already have immediate"
-              " Modify permissions."
-          );                                                                    // LCOV_EXCL_LINE
+
+          switch(requested_scheduling_permissions) {
+            case HandleUse::Read : { // requested scheduling permissions
+              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+              // %   MM -> { RN } -> MR     %
+              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+              DARMA_ASSERT_NOT_IMPLEMENTED(
+                "Schedule-only Read permissions on handles that already have immediate"
+                  " Modify permissions."
+              );                                                                    // LCOV_EXCL_LINE
+              break;
+            } // end case Read requested scheduling permissions
+            //------------------------------------------------------------------
+            case HandleUse::Modify : { // requested scheduling permissions
+
+              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+              // %   MM -> { MN } -> MN     %
+              // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+              captured_use_holder = use_holder_maker(
+                var_handle,
+                /* Scheduling permissions */
+                HandleUse::Modify,
+                /* Immediate permissions */
+                HandleUse::None,
+                forwarding_flow(&source_and_continuing_holder->use->in_flow_),
+                //FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
+                next_of_in_flow()
+                //FlowRelationship::Next /* "scheduling next" */, nullptr, true
+#if _darma_has_feature(anti_flows)
+                , next_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
+                next_anti_flow_of_anti_in()
+#endif // _darma_has_feature(anti_flows)
+              );
+              captured_use_holder->could_be_alias = true;
+
+              source_and_continuing_holder->could_be_alias = false;
+              source_and_continuing_holder->replace_use(
+                continuing_use_holder_maker(
+                  var_handle,
+                  HandleUse::Modify,
+                  HandleUse::None,
+                  same_flow(&captured_use_holder->use->out_flow_),
+                  //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
+                  same_flow(&source_and_continuing_holder->use->out_flow_)
+                  //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
+#if _darma_has_feature(anti_flows)
+                  , same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
+                  same_anti_flow(&captured_use_holder->use->anti_in_flow_)
+#endif // _darma_has_feature(anti_flows)
+                ),
+                AllowRegisterContinuation
+              );
+              source_and_continuing_holder->could_be_alias = true;
+
+              break;
+
+            } // end case Modify requested scheduling permissions
+            //------------------------------------------------------------------
+            default: {
+              DARMA_ASSERT_NOT_IMPLEMENTED();                                   // LCOV_EXCL_LINE
+            } // end default
+            //------------------------------------------------------------------
+          } // end switch requested scheduling permissions
+
           break;                                                                // LCOV_EXCL_LINE
         }
 

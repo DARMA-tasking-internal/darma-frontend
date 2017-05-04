@@ -370,4 +370,273 @@ TEST_F(TestAntiFlows, high_level_example_1) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestAntiFlows, high_level_example_3) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+
+  DECLARE_MOCK_FLOWS(f0, f1, f2, f3, f4, f5, f6, f7, f8, f9);
+  DECLARE_MOCK_ANTI_FLOWS(fbar1, fbar2, fbar3, fbar4, fbar5, fbar6, fbar7, fbar8);
+
+  int value = 0xFACE;
+
+  use_t* u0, *u1, *u2, *u3, *u4, *u5, *u6, *u7, *u8, *u9, *u10, *u11, *u12, *u13, *u14;
+
+  {
+    InSequence seq;
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS(u0,
+      f0, Initial, nullptr,
+      f1, Null, nullptr, false,
+      nullptr, Insignificant, nullptr,
+      fbar1, Initial, nullptr, false,
+      Modify, None, false
+    );
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS(u1,
+      f0, Same, &f0,
+      f2, Next, nullptr, true,
+      fbar2, Next, &fbar1,
+      fbar1, Same, &fbar1, false,
+      Modify, None, false
+    );
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS(u4,
+      f2, Same, &f2,
+      f1, Same, &f1, false,
+      nullptr, Same, nullptr,
+      fbar2, Same, &fbar2, false,
+      Modify, None, false
+    );
+
+    EXPECT_NEW_RELEASE_USE(u0, false);
+
+    EXPECT_REGISTER_TASK(u1);
+
+    //--------------------------------------------------------------------------
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS_AND_SET_BUFFER(u5,
+      f2, Same, &f2,
+      f4, Next, nullptr, true,
+      fbar2, Same, &fbar2,
+      fbar4, Next, nullptr, true,
+      Modify, Modify, true, value
+    );
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS(u12,
+      f4, Same, &f4,
+      f1, Same, &f1, false,
+      nullptr, Same, nullptr,
+      fbar4, Same, &fbar4, false,
+      Modify, None, false
+    );
+
+    EXPECT_NEW_RELEASE_USE(u4, false);
+
+    EXPECT_REGISTER_TASK(u5);
+
+    //--------------------------------------------------------------------------
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS(u13,
+      f4, Same, &f4,
+      f9, Next, nullptr, true,
+      fbar8, Next, &fbar4,
+      fbar4, Same, &fbar4, false,
+      Modify, None, false
+    );
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS(u14,
+      f9, Same, &f9,
+      f1, Same, &f1, false,
+      nullptr, Same, nullptr,
+      fbar8, Same, &fbar8, false,
+      Modify, None, false
+    );
+
+    EXPECT_NEW_RELEASE_USE(u12, false);
+
+    EXPECT_REGISTER_TASK(u13);
+
+    //--------------------------------------------------------------------------
+
+    EXPECT_NEW_RELEASE_USE(u14, true);
+
+  }
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto x = initial_access<int>("hello");
+    create_work(schedule_only(x), [=]{
+      create_work([=]{ EXPECT_EQ(x.get_value(), 0xFACE); x.set_value(0x6A5);});
+    });
+    create_work([=]{
+      EXPECT_EQ(x.get_value(), 0x6A5);
+      x.set_value(42);
+      create_work(schedule_only(x), [=]{
+        create_work(reads(x), [=]{ EXPECT_EQ(x.get_value(), 42); });
+        create_work([=]{ EXPECT_EQ(x.get_value(), 42); x.set_value(314); });
+      });
+    });
+    create_work(schedule_only(x), [x]{ });
+
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  {
+    InSequence closureA_sequence;
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS_AND_SET_BUFFER(u2,
+      f0, Same, &f0,
+      f3, Next, nullptr, true,
+      fbar1, Same, &fbar1,
+      fbar3, Next, nullptr, true,
+      Modify, Modify, true, value
+    );
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS(u3,
+      f3, Same, &f3,
+      f2, Same, &f2, false,
+      fbar2, Same, &fbar2,
+      fbar3, Same, &fbar3, false,
+      Modify, None, false
+    );
+
+    EXPECT_NEW_RELEASE_USE(u1, false);
+
+    EXPECT_REGISTER_TASK(u2);
+
+    EXPECT_NEW_RELEASE_USE(u3, true);
+
+  }
+
+  run_one_task();
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  auto closureC = std::move(mock_runtime->registered_tasks.front());
+  mock_runtime->registered_tasks.pop_front();
+
+  auto closureG = std::move(mock_runtime->registered_tasks.front());
+  mock_runtime->registered_tasks.pop_front();
+
+  // We need to run closure B next, which should be at the front of the queue now.
+
+  EXPECT_NEW_RELEASE_USE(u2, false);
+
+  run_one_task();
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  ASSERT_EQ(value, 0x6A5);
+
+  {
+    InSequence closureC_sequence;
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS(u6,
+      f5, Forwarding, &f2,
+      f6, Next, nullptr, true,
+      fbar5, Next, &fbar4,
+      fbar6, Next, nullptr, true,
+      Modify, None, false
+    );
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS(u11,
+      f6, Same, &f6,
+      f4, Same, &f4, false,
+      fbar4, Same, &fbar4,
+      fbar5, Same, &fbar5, false,
+      Modify, None, false
+    );
+
+    EXPECT_NEW_RELEASE_USE(u5, false);
+
+    EXPECT_REGISTER_TASK(u6);
+
+    EXPECT_NEW_RELEASE_USE(u11, true);
+
+  }
+
+  closureC->run();
+  closureC = nullptr;
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  ASSERT_EQ(value, 42);
+
+  {
+    InSequence closureD_sequence;
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS_AND_SET_BUFFER(u7,
+      f5, Same, &f5,
+      nullptr, Insignificant, nullptr, false,
+      nullptr, Insignificant, nullptr,
+      fbar6, Same, &fbar6, false,
+      Read, Read, true, value
+    );
+
+    EXPECT_REGISTER_TASK(u7);
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS_AND_SET_BUFFER(u9,
+      f5, Same, &f5,
+      f7, Next, nullptr, true,
+      fbar6, Same, &fbar6,
+      fbar7, Next, nullptr, true,
+      Modify, Modify, true, value
+    );
+
+    EXPECT_REGISTER_USE_WITH_ANTI_FLOWS(u10,
+      f7, Same, &f7,
+      f6, Same, &f6, false,
+      fbar5, Same, &fbar5,
+      fbar7, Same, &fbar7, false,
+      Modify, None, false
+    );
+
+    EXPECT_NEW_RELEASE_USE(u6, false);
+
+    EXPECT_REGISTER_TASK(u9);
+
+    EXPECT_NEW_RELEASE_USE(u10, true);
+
+  }
+
+  // run closure D
+  run_one_task();
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_NEW_RELEASE_USE(u7, false);
+
+  // run closure E
+  run_one_task();
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_NEW_RELEASE_USE(u9, false);
+
+  // run closure F
+  run_one_task();
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  ASSERT_EQ(value, 314);
+
+  ASSERT_EQ(mock_runtime->registered_tasks.size(), 0);
+
+  EXPECT_NEW_RELEASE_USE(u13, true);
+
+  // Run closure G, which does nothing
+  closureG->run();
+  closureG = nullptr;
+
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 #endif
