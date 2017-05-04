@@ -176,6 +176,12 @@ MATCHER_P(IsUseWithHandleKey, key, "handle->get_key() = " + PrintToString(key)) 
   return arg->get_handle()->get_key() == key;
 }
 
+MATCHER_P(HasTaskCollectionTokenNamed, token_name, "object with get_task_collection_token().name = " + PrintToString(token_name)) {
+  *result_listener << "object with get_task_collection_token().name = "
+                   << arg->get_task_collection_token().name;
+  return token_name == arg->get_task_collection_token().name;
+}
+
 template <typename T> struct _deref_non_null { decltype(auto) operator()(T val) const { return *val; } };
 template <> struct _deref_non_null<std::nullptr_t> { decltype(auto) operator()(std::nullptr_t) const { return nullptr; } };
 template <> struct _deref_non_null<std::nullptr_t&> { decltype(auto) operator()(std::nullptr_t) const { return nullptr; } };

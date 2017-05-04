@@ -667,7 +667,11 @@ auto make_captured_use_holder(
               );
               source_and_continuing_holder->could_be_alias = true;
 
+              break;
             } // end None source immediate permissions
+            // </editor-fold> end None immediate permissions }}}1
+            //------------------------------------------------------------------
+            // <editor-fold desc="Read immediate permissions"> {{{1
             case HandleUse::Read: { // source immediate permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MR -> { MR } -> MN     %

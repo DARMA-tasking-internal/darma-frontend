@@ -461,6 +461,9 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         local_use_holders_(std::move(other.local_use_holders_)),
         dynamic_is_outer(std::move(other.dynamic_is_outer)),
         copied_from(std::move(other.copied_from))
+#if _darma_has_feature(task_collection_token)
+        , task_collection_token_(std::move(other.task_collection_token_))
+#endif // _darma_has_feature(task_collection_token)
     { }
 
     AccessHandleCollection(
@@ -470,6 +473,9 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         current_use_(current_use_base_, other.current_use_),
         local_use_holders_(other.local_use_holders_),
         dynamic_is_outer(other.dynamic_is_outer)
+#if _darma_has_feature(task_collection_token)
+        , task_collection_token_(std::move(other.task_collection_token_))
+#endif // _darma_has_feature(task_collection_token)
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
@@ -519,7 +525,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         local_use_holders_(other.local_use_holders_),
         dynamic_is_outer(other.dynamic_is_outer)
 #if _darma_has_feature(task_collection_token)
-
+        , task_collection_token_(other.task_collection_token_)
 #endif // _darma_has_feature(task_collection_token)
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object

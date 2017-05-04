@@ -103,11 +103,7 @@ TEST_F(TestCreateWorkIf, basic_same_always_false) {
     .WillOnce(Return(f_if_out));
 
 
-  {
-    InSequence two_if_uses;
-
-    EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Read, value);
-  }
+  EXPECT_REGISTER_USE_AND_SET_BUFFER(if_use, f_init, f_if_out, Modify, Read, value);
 
   EXPECT_REGISTER_USE(outer_cont_use, f_if_out, f_null, Modify, None);
 
@@ -126,6 +122,7 @@ TEST_F(TestCreateWorkIf, basic_same_always_false) {
     auto tmp = initial_access<int>("hello");
 
     create_work_if([=]{
+      EXPECT_EQ(tmp.get_value(), 0);
       return tmp.get_value() != 0; // should always be False
     }).then_([=]{
       tmp.set_value(73);

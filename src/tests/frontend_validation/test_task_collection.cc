@@ -471,9 +471,7 @@ TEST_F(TestCreateConcurrentWork, fetch) {
       EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(
         Eq(ByRef(use_pub[i])),
 #if _darma_has_feature(task_collection_token)
-        ::Truly([](auto const* dets){
-          return dets->get_task_collection_token().name == "my_token";
-        })
+        HasTaskCollectionTokenNamed("my_token")
 #else
         _
 #endif // _darma_has_feature(task_collection_token)
