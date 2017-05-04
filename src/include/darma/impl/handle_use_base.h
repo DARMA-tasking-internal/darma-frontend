@@ -666,7 +666,7 @@ forwarding_anti_flow(
   types::anti_flow_t* rel
 ) {
   return HandleUseBase::FlowRelationshipImpl(
-    abstract::frontend::FlowRelationship::AntiForwarding,
+    abstract::frontend::FlowRelationship::Forwarding,
     /* related flow = */ nullptr,
     /* related_is_in = */ false,
     /* version key = */ nullptr,

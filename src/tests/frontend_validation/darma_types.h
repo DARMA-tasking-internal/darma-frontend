@@ -166,6 +166,11 @@ class MockAntiFlow {
         name_(str)
     { }
 
+    MockAntiFlow(MockAntiFlow* other)
+      : index_(other ? other->index_ : std::numeric_limits<size_t>::max()),
+        name_(other ? other->name_ : "%##unnamed##%")
+    { }
+
     MockAntiFlow(std::nullptr_t)
       : index_(std::numeric_limits<size_t>::max()),
         name_("%##unnamed##%")
@@ -174,7 +179,7 @@ class MockAntiFlow {
     bool
     operator==(MockAntiFlow const& other) const {
       if(index_ == std::numeric_limits<size_t>::max()) {
-        if(name_ == "%##unnamed##%") return false;
+        if(name_ == "%##unnamed##%") return true;
         else {
           return name_ == other.name_;
         }

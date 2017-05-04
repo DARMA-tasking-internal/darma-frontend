@@ -52,6 +52,31 @@
 #include "mock_backend.h"
 #include <darma/interface/frontend/use.h>
 
+inline std::string
+relationship_to_string(darma_runtime::abstract::frontend::FlowRelationship::flow_relationship_description_t rel) {
+#define _flow_rel_str_case(rel) case darma_runtime::abstract::frontend::FlowRelationship::rel : return #rel
+  switch(rel) {
+    _flow_rel_str_case(Same);
+    _flow_rel_str_case(Initial);
+    _flow_rel_str_case(Null);
+    _flow_rel_str_case(Next);
+    _flow_rel_str_case(Forwarding);
+    _flow_rel_str_case(Indexed);
+    _flow_rel_str_case(IndexedLocal);
+    _flow_rel_str_case(IndexedFetching);
+    _flow_rel_str_case(InitialCollection);
+    _flow_rel_str_case(NullCollection);
+    _flow_rel_str_case(NextCollection);
+    _flow_rel_str_case(SameCollection);
+#if _darma_has_feature(anti_flows)
+    _flow_rel_str_case(Insignificant);
+    _flow_rel_str_case(InsignificantCollection);
+#endif // _darma_has_feature(anti_flows)
+    default: return std::to_string(rel);
+  };
+#undef _flow_rel_str_case
+}
+
 using namespace ::testing;
 
 //bool operator==(
@@ -190,9 +215,9 @@ template <> struct _deref_non_null<std::nullptr_t&&> { decltype(auto) operator()
 template <typename T> decltype(auto) deref_non_null(T&& val) { return _deref_non_null<T&&>{}(std::forward<T>(val)); }
 
 MATCHER_P7(IsUseWithFlowRelationships, f_in_rel, f_in, f_out_rel, f_out, out_rel_is_in, scheduling_permissions, immediate_permissions,
-  "in_flow relationship: " + PrintToString(f_in_rel)
+  "in_flow relationship: " + relationship_to_string(f_in_rel)
     + ", in_flow related: " + PrintToString(deref_non_null(f_in))
-    + ", out_flow relationship: " + PrintToString(f_out_rel)
+    + ", out_flow relationship: " + relationship_to_string(f_out_rel)
     + ", out_flow_related: " + PrintToString(deref_non_null(f_out))
     + ", out_flow_related_is_in: " + PrintToString(out_rel_is_in)
     + ", scheduling_permissions: " + permissions_to_string(scheduling_permissions)
@@ -206,7 +231,7 @@ MATCHER_P7(IsUseWithFlowRelationships, f_in_rel, f_in, f_out_rel, f_out, out_rel
 #if DARMA_SAFE_TEST_FRONTEND_PRINTERS
   *result_listener << "arg (unprinted for safety)";
 #else
-  *result_listener << "in_flow relationship: " << PrintToString(arg->get_in_flow_relationship().description());
+  *result_listener << "in_flow relationship: " << relationship_to_string(arg->get_in_flow_relationship().description());
   if(arg->get_in_flow_relationship().related_flow() == nullptr) {
     *result_listener << ", in_flow_related: NULL";
   }
@@ -214,7 +239,7 @@ MATCHER_P7(IsUseWithFlowRelationships, f_in_rel, f_in, f_out_rel, f_out, out_rel
     *result_listener << ", in_flow related: "
                      << PrintToString(*arg->get_in_flow_relationship().related_flow());
   }
-  *result_listener << ", out_flow relationship: " << PrintToString(arg->get_out_flow_relationship().description());
+  *result_listener << ", out_flow relationship: " << relationship_to_string(arg->get_out_flow_relationship().description());
   if(arg->get_out_flow_relationship().related_flow() == nullptr) {
     *result_listener << ", out_flow_related: NULL";
   }
@@ -256,60 +281,43 @@ MATCHER_P7(IsUseWithFlowRelationships, f_in_rel, f_in, f_out_rel, f_out, out_rel
   return true;
 }
 
-MATCHER_P5(IsUseWithAntiFlowRelationships, f_anti_in_rel, f_anti_in, f_anti_out_rel, f_anti_out, anti_out_rel_is_anti_in,
-  "anti_in_flow relationship: " + PrintToString(f_anti_in_rel)
-    + ", anti_in_flow related: " + PrintToString(deref_non_null(f_anti_in))
-    + ", anti_out_flow relationship: " + PrintToString(f_anti_out_rel)
-    + ", anti_out_flow_related: " + PrintToString(deref_non_null(f_anti_out))
+MATCHER_P5(IsUseWithAntiFlowRelationships, f_anti_in_rel, f_anti_in_arg, f_anti_out_rel, f_anti_out_arg, anti_out_rel_is_anti_in,
+  "anti_in_flow relationship: " + relationship_to_string(f_anti_in_rel)
+    + ", anti_in_flow related: " + PrintToString(::mock_backend::MockAntiFlow(f_anti_in_arg))
+    + ", anti_out_flow relationship: " + relationship_to_string(f_anti_out_rel)
+    + ", anti_out_flow_related: " + PrintToString(::mock_backend::MockAntiFlow(f_anti_out_arg))
     + ", anti_out_flow_related_is_anti_in: " + PrintToString(anti_out_rel_is_anti_in)
 ) {
   if(arg == nullptr) {
     *result_listener << "arg is null";
     return false;
   }
+  using namespace mock_backend;
+
+  auto f_anti_in_flow = ::mock_backend::MockAntiFlow(f_anti_in_arg);
+  auto f_anti_out_flow = ::mock_backend::MockAntiFlow(f_anti_out_arg);
+  auto related_anti_in_flow = MockAntiFlow(arg->get_anti_in_flow_relationship().related_anti_flow());
+  auto related_anti_out_flow = MockAntiFlow(arg->get_anti_out_flow_relationship().related_anti_flow());
 
 #if DARMA_SAFE_TEST_FRONTEND_PRINTERS
   *result_listener << "arg (unprinted for safety)";
 #else
-  *result_listener << "anti_in_flow relationship: " << PrintToString(arg->get_anti_in_flow_relationship().description());
-  if(arg->get_anti_in_flow_relationship().related_anti_flow() == nullptr) {
-    *result_listener << ", anti_in_flow_related: NULL";
-  }
-  else {
-    *result_listener << ", anti_anti_in_flow related: "
-                     << PrintToString(*arg->get_anti_in_flow_relationship().related_anti_flow());
-  }
-  *result_listener << ", anti_out_flow relationship: " << PrintToString(arg->get_anti_out_flow_relationship().description());
-  if(arg->get_anti_out_flow_relationship().related_anti_flow() == nullptr) {
-    *result_listener << ", anti_out_flow_related: NULL";
-  }
-  else {
-    *result_listener << ", anti_out_flow related: "
-                     << PrintToString(*arg->get_anti_out_flow_relationship().related_anti_flow());
-  }
+  *result_listener << "anti_in_flow relationship: " << relationship_to_string(arg->get_anti_in_flow_relationship().description());
+  *result_listener << ", anti_anti_in_flow related: "
+                   << PrintToString(related_anti_in_flow);
+  *result_listener << ", anti_out_flow relationship: " << relationship_to_string(arg->get_anti_out_flow_relationship().description());
+  *result_listener << ", anti_out_flow related: "
+                   << PrintToString(related_anti_out_flow);
   *result_listener << ", anti_out_flow_related_is_in: " << PrintToString(arg->get_anti_out_flow_relationship().use_corresponding_in_flow_as_anti_related())
                    << ", scheduling_permissions: " << permissions_to_string(arg->scheduling_permissions())
                    << ", immediate_permissions: " << permissions_to_string(arg->immediate_permissions());
 #endif
 
-  using namespace mock_backend;
-  if(f_anti_in == nullptr) {
-    if(arg->get_anti_in_flow_relationship().related_anti_flow() != nullptr) return false;
-  }
-  else {
-    if(arg->get_anti_in_flow_relationship().related_anti_flow() == nullptr) return false;
-    if(*arg->get_anti_in_flow_relationship().related_anti_flow() != deref_non_null(f_anti_in)) return false;
-    if(arg->get_anti_in_flow_relationship().description() != f_anti_in_rel) return false;
-  }
+  if(f_anti_in_flow != related_anti_in_flow) return false;
+  if(arg->get_anti_in_flow_relationship().description() != f_anti_in_rel) return false;
 
-  if(f_anti_out == nullptr) {
-    if(arg->get_anti_out_flow_relationship().related_anti_flow() != nullptr) return false;
-  }
-  else {
-    if(arg->get_anti_out_flow_relationship().related_anti_flow() == nullptr) return false;
-    if(*arg->get_anti_out_flow_relationship().related_anti_flow() != deref_non_null(f_anti_out)) return false;
-    if(arg->get_anti_out_flow_relationship().description() != f_anti_out_rel) return false;
-  }
+  if(f_anti_out_flow != related_anti_out_flow) return false;
+  if(arg->get_anti_out_flow_relationship().description() != f_anti_out_rel) return false;
   if(arg->get_anti_out_flow_relationship().use_corresponding_in_flow_as_anti_related() xor anti_out_rel_is_anti_in) return false;
 
   return true;

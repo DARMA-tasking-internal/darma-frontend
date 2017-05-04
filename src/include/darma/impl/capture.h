@@ -867,7 +867,7 @@ auto make_captured_use_holder(
               , same_anti_flow(&source_and_continuing_holder->use->anti_in_flow_),
               // anti-out =
               requested_scheduling_permissions == HandleUse::None ?
-                next_anti_flow_of_anti_in()
+                next_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
                   : same_anti_flow(&captured_use_holder->use->anti_out_flow_)
 #endif // _darma_has_feature(anti_flows)
             ),
@@ -976,11 +976,11 @@ auto make_captured_use_holder(
 #if _darma_has_feature(anti_flows)
             // Anti-in flow
             // because of the way forwarding works, this can never carry anti-dependencies
-            , insignificant_flow(),
+            , forwarding_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
             // anti-out =
             requested_scheduling_permissions == HandleUse::None ?
               insignificant_flow()
-                : forwarding_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+                : next_anti_flow_of_anti_in()
 #endif // _darma_has_feature(anti_flows)
           );
 
@@ -995,7 +995,7 @@ auto make_captured_use_holder(
               //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
 #if _darma_has_feature(anti_flows)
               // Anti-in flow
-              , insignificant_flow(),
+              , same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
               // Anti-out flow
               requested_scheduling_permissions == HandleUse::None ?
                 forwarding_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
