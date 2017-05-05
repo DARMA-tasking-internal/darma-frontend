@@ -282,6 +282,7 @@ MATCHER_P7(IsUseWithFlowRelationships, f_in_rel, f_in, f_out_rel, f_out, out_rel
   return true;
 }
 
+#if _darma_has_feature(anti_flows)
 MATCHER_P5(IsUseWithAntiFlowRelationships, f_anti_in_rel, f_anti_in_arg, f_anti_out_rel, f_anti_out_arg, anti_out_rel_is_anti_in,
   "\n  ------------ Use with ------------"
   "\n  anti_in_flow relationship: " + relationship_to_string(f_anti_in_rel)
@@ -325,6 +326,7 @@ MATCHER_P5(IsUseWithAntiFlowRelationships, f_anti_in_rel, f_anti_in_arg, f_anti_
 
   return true;
 }
+#endif
 
 MATCHER_P(UseRefIsNonNull, use, "Use* reference is non-null at time of invocation") {
   if(use == nullptr) {

@@ -98,7 +98,7 @@ auto make_captured_use_holder(
       switch(source_and_continuing_holder->use->immediate_permissions_) {
 
         //----------------------------------------------------------------------
-
+        // <editor-fold desc="None source immediate permissions"> {{{3
         case HandleUse::None: { // Source immediate permissions
 
           // This feels like it should be the dominant use case...
@@ -123,6 +123,7 @@ auto make_captured_use_holder(
               // %   RN -> { RN } -> RN     %
               // %   MN -> { RN } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+              // TODO @antiflows implement and test antiflows for this case
 #if _darma_has_feature(anti_flows)
               DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for XN -> { RN } capture case");
 #endif
@@ -242,6 +243,11 @@ auto make_captured_use_holder(
               // %   XN -> { CN } -> XN (disallowed here)    %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+              // TODO @antiflows implement and test antiflows for this case
+#if _darma_has_feature(anti_flows)
+              DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for CN -> { CN } capture case");
+#endif
+
               DARMA_ASSERT_MESSAGE(
                 source_and_continuing_holder->use->scheduling_permissions_
                   == HandleUse::Commutative,
@@ -280,10 +286,12 @@ auto make_captured_use_holder(
 
           break;
         } // end case None source immediate permissions
-
+        // </editor-fold> end None source immediate permissions }}}3
         //----------------------------------------------------------------------
-
+        // <editor-fold desc="Read source immediate permissions"> {{{3
         case HandleUse::Read: { // source immediate permissions
+
+          // Mostly untested/unimplemented because these are corner cases...
 
           switch(requested_scheduling_permissions) {
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -295,6 +303,7 @@ auto make_captured_use_holder(
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
               // UNTESTED CODE !!!!!!!!!!!!!!!!!!
+              // TODO @antiflows implement and test antiflows for this case
 #if _darma_has_feature(anti_flows)
               DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for XR -> { RN } capture case");
 #endif
@@ -326,6 +335,7 @@ auto make_captured_use_holder(
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
               // UNTESTED CODE !!!!!!!!!!!!!!!!!!
+              // TODO @antiflows implement and test antiflows for this case
 #if _darma_has_feature(anti_flows)
               DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for XR -> { MN } capture case");
 #endif
@@ -383,9 +393,9 @@ auto make_captured_use_holder(
 
           break;                                                                // LCOV_EXCL_LINE
         }
-
+        // </editor-fold> end Read source immediate permissions }}}3
         //----------------------------------------------------------------------
-
+        // <editor-fold desc="Modify source immediate permissions"> {{{3
         case HandleUse::Modify: { // source immediate permissions
 
           switch(requested_scheduling_permissions) {
@@ -405,6 +415,8 @@ auto make_captured_use_holder(
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MM -> { MN } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+              // Tested in, e.g., TestAntiFlows.high_level_example_3
 
               captured_use_holder = use_holder_maker(
                 var_handle,
@@ -454,9 +466,9 @@ auto make_captured_use_holder(
 
           break;                                                                // LCOV_EXCL_LINE
         }
-
+        // </editor-fold> end Modify source immediate permissions }}}3
         //----------------------------------------------------------------------
-
+        // <editor-fold desc="Commutative source immediate permissions"> {{{3
         case HandleUse::Commutative : { // source immediate permissions
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
           // %   CC -> { CN } -> CN     %
@@ -468,13 +480,11 @@ auto make_captured_use_holder(
           );                                                                    // LCOV_EXCL_LINE
 
         }
-
+          // </editor-fold> end Commutative source immediate permissions }}}3
         //----------------------------------------------------------------------
-
         default: {
           DARMA_ASSERT_NOT_IMPLEMENTED();                                       // LCOV_EXCL_LINE
         } // end default
-
         //----------------------------------------------------------------------
       } // end switch on source immediate permissions
 
@@ -493,6 +503,8 @@ auto make_captured_use_holder(
 
       switch(requested_scheduling_permissions) {
 
+        //----------------------------------------------------------------------
+        // <editor-fold desc="Requesting NR or RR case"> {{{3
         case HandleUse::None:
         case HandleUse::Read: { // requested scheduling permissions
           // This covers the vast majority of uses
@@ -512,6 +524,8 @@ auto make_captured_use_holder(
               // %    MR -> { NR } -> MR   %
               // %    MR -> { RR } -> MR   %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+              // Tested in too many places to count
 
 #if _darma_has_feature(anti_flows)
               captured_use_holder = use_holder_maker(
@@ -552,6 +566,7 @@ auto make_captured_use_holder(
             case HandleUse::Modify: { // source immediate permissions
               switch (source_and_continuing_holder->use->scheduling_permissions_) {
                 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                // <editor-fold desc="Read source scheduling permissions"> {{{3
                 case HandleUse::Read : {
                   // %%%%%%%%%%%%%%%%%%%%%%%%%%%
                   // %    RM -> { NR } -> RR   % ?????
@@ -560,12 +575,20 @@ auto make_captured_use_holder(
                   DARMA_ASSERT_NOT_IMPLEMENTED();                               // LCOV_EXCL_LINE
                   break;
                 }
+                // </editor-fold> end Read source scheduling permissions }}}3
                 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                // <editor-fold desc="Modify source scheduling permissions"> {{{3
                 case HandleUse::Modify : {
                   // %%%%%%%%%%%%%%%%%%%%%%%%%%%
                   // %    MM -> { NR } -> MR   %
                   // %    MM -> { RR } -> MR   %
                   // %%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+                  // Not yet tested for anti-flows
+                  // TODO @antiflows implement and test antiflows for this case
+#if _darma_has_feature(anti_flows)
+                  DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for MM -> { NR } and MM -> { RR } capture cases");
+#endif
 
                   // This is a ro capture of a handle with modify immediate permissions
 
@@ -638,6 +661,7 @@ auto make_captured_use_holder(
 
                   break;
                 } // end case Modify source scheduling permissions
+                // </editor-fold> end Modify source scheduling permissions }}}3
                 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                 default: {
                   DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
@@ -658,11 +682,9 @@ auto make_captured_use_holder(
 
           break;
         } // end case None or Read requested scheduling permissions (requested NR or RR)
+        // </editor-fold> None/Read requested scheduling permissions }}}3
         //----------------------------------------------------------------------
         // <editor-fold desc="requesting MR case"> {{{1
-
-
-
         case HandleUse::Modify: { // requested scheduling permissions
           // We're requesting MR, which is unusual but not impossible
 
@@ -674,13 +696,13 @@ auto make_captured_use_holder(
 
           switch(source_and_continuing_holder->use->immediate_permissions_) {
             //----------------------------------------------------------------------
-            // <editor-fold desc="None or Read immediate permissions"> {{{1
+            // <editor-fold desc="None immediate permissions"> {{{1
             case HandleUse::None: { // source immediate permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MN -> { MR } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-              // TODO !!! update anti-flow pattern for this case.
+              // TODO @antiflows implement and test antiflows for this case
 #if _darma_has_feature(anti_flows)
               DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for MN -> { MR } -> MN");
 #endif
@@ -740,7 +762,7 @@ auto make_captured_use_holder(
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // this case is an MR capture of MN or MR
 
-              // TODO !!! update anti-flow pattern for this case..
+              // TODO @antiflows implement and test antiflows for this case
 #if _darma_has_feature(anti_flows)
               DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for MR -> { MR } -> MN");
 #endif
@@ -799,6 +821,11 @@ auto make_captured_use_holder(
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MM -> { MR } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+              // TODO @antiflows implement and test antiflows for this case
+#if _darma_has_feature(anti_flows)
+              DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for MM -> { MR } capture case");
+#endif
 
               captured_use_holder = use_holder_maker(
                 var_handle,
@@ -878,9 +905,11 @@ auto make_captured_use_holder(
         case HandleUse::None: {
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
           // %   MN -> { NM } -> MN     %
-          // %   MN -> { RM } -> MN     %
+          // %   MN -> { RM } -> MN     % // our implementation of this case may be non-minimal
           // %   MN -> { MM } -> MN     %
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+          // Tested in, e.g. TestAntiFlows.high_level_example_1 and TestAntiFlows.high_level_example_3
 
           // Modify capture of handle without modify immediate permissions
 
@@ -953,6 +982,11 @@ auto make_captured_use_holder(
           // %   MR -> { MM } -> MN     %
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+          // TODO @antiflows implement and test antiflows for this case
+#if _darma_has_feature(anti_flows)
+          DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for MR -> { XM } capture case");
+#endif
+
           // Create the out flow  (should this be make_forwarding_flow?)
           // (probably not, since RR -> { RR } -> RR doesn't do forwarding?)
 
@@ -1014,10 +1048,12 @@ auto make_captured_use_holder(
         // <editor-fold desc="modify source immediate permissions"> {{{1
         case HandleUse::Modify: {
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-          // %   MM -> { NM } -> MN     %
-          // %   MM -> { RM } -> MN     %
+          // %   MM -> { NM } -> MN     % this case is untested for anti-flows
+          // %   MM -> { RM } -> MN     % our implementation of this case may be non-minimal
           // %   MM -> { MM } -> MN     %
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+          // The MM -> { MM } case is tested in, e.g., TestAntiFlows.high_level_example_1
 
           // Modify capture of handle with modify immediate permissions
 
@@ -1060,9 +1096,8 @@ auto make_captured_use_holder(
               , same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
               // Anti-out flow
               requested_scheduling_permissions == HandleUse::None ?
-                forwarding_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+                next_anti_flow(&captured_use_holder->use->anti_in_flow_)
                   : same_anti_flow(&captured_use_holder->use->anti_out_flow_)
-
 #endif // _darma_has_feature(anti_flows)
             ),
             AllowRegisterContinuation
@@ -1097,7 +1132,10 @@ auto make_captured_use_holder(
       );
 
 
-      // TODO update commutative for new anti-flow semantics
+      // TODO @antiflows update commutative for new anti-flow semantics
+#if _darma_has_feature(anti_flows)
+      DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for CX -> { XC } capture cases");
+#endif
 
       // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
       // %   CN -> { CC } -> CN     %

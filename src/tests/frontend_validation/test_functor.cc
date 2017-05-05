@@ -559,7 +559,7 @@ TEST_F(TestFunctor, schedule_only) {
   EXPECT_NEW_REGISTER_USE(use_capt,
     finit, Same, &finit,
     fout, Next, nullptr, true,
-    Modify, None, true
+    Modify, None, false
   );
 
   EXPECT_NEW_REGISTER_USE(use_cont,

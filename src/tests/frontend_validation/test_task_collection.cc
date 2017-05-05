@@ -1902,7 +1902,7 @@ TEST_F(TestCreateConcurrentWork, simple_commutative) {
     EXPECT_NEW_REGISTER_USE_COLLECTION(use_coll,
       finit, SameCollection, &finit,
       f_out_coll, SameCollection, &f_out_coll, false,
-      Commutative, None, true, 2
+      Commutative, None, false, 2
     );
 
     //EXPECT_REGISTER_TASK_COLLECTION(use_coll);
