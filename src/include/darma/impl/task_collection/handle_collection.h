@@ -397,12 +397,26 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       detail::HandleUse::permissions_t req_immed_perms,
       detail::AccessHandleBase const& source_in
     ) override {
-      current_use_ = _call_make_captured_use_holder_impl(
-        var_handle,
-        std::max(req_sched_perms, req_immed_perms, detail::compatible_permissions_less{}),
-        detail::HandleUse::None,
-        source_in
-      );
+      if(dynamic_is_outer) {
+        assert(local_use_holders_.size() == 0);
+        current_use_ = _call_make_captured_use_holder_impl(
+          var_handle,
+          std::max(req_sched_perms, req_immed_perms, detail::compatible_permissions_less{}),
+          detail::HandleUse::None,
+          source_in
+        );
+      }
+      else {
+        DARMA_ASSERT_NOT_IMPLEMENTED("AccessHandleCollection capture in task inside create_concurrent_work");
+        //for(auto&& local_holder_pair : local_use_holders_) {
+        //  detail::make_captured_use_holder(
+        //    /* TODO finish this */
+        //    local_holder_pair.second.get()
+        //  )
+        //}
+
+        // TODO Finish this!!!
+      }
     }
 
     std::shared_ptr<detail::AccessHandleBase>
@@ -684,16 +698,9 @@ class AccessHandleCollection : public detail::AccessHandleBase {
               //FlowRelationship::IndexedLocal, &current_use_->use->out_flow_, false,
 #if _darma_has_feature(anti_flows)
               ,
-              /* anti-in flow depends on immediate permissions */
+              /* anti-in flow */
               indexed_local_anti_flow(&current_use_->use->anti_in_flow_, idx),
-              // TODO this should probably check if the Collection anti-flow was significant
-              //current_use_->use->immediate_permissions_ == detail::HandleUse::Modify ?
-              //  indexed_local_anti_flow(&current_use_->use->anti_in_flow_, idx)
-              //    : insignificant_flow(),
-              //* anti-out flow depends on immediate permissions */
-              //current_use_->use->immediate_permissions_ == detail::HandleUse::Modify ?
-              //    insignificant_flow()
-              //      : indexed_local_anti_flow(&current_use_->use->anti_out_flow_, idx)
+              //* anti-out flow */
               indexed_local_anti_flow(&current_use_->use->anti_out_flow_, idx)
 
 #endif // _darma_has_feature(anti_flows)

@@ -585,10 +585,7 @@ auto make_captured_use_holder(
                   // %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
                   // Not yet tested for anti-flows
-                  // TODO @antiflows implement and test antiflows for this case
-#if _darma_has_feature(anti_flows)
-                  DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for MM -> { NR } and MM -> { RR } capture cases");
-#endif
+                  // TODO @antiflows test antiflows for this case
 
                   // This is a ro capture of a handle with modify immediate permissions
 
@@ -608,7 +605,7 @@ auto make_captured_use_holder(
                     // Anti-in flow
                     insignificant_flow(),
                     // Anti-out flow
-                    forwarding_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+                    same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
 #else
                     same_flow_as_in()
                     // FlowRelationship::Same, nullptr, true
@@ -639,7 +636,7 @@ auto make_captured_use_holder(
                       same_flow(&source_and_continuing_holder->use->out_flow_)
                       //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
     #if _darma_has_feature(anti_flows)
-                      , insignificant_flow(),
+                      , insignificant_flow(), // TODO test this!!
                       same_anti_flow(&captured_use_holder->use->anti_out_flow_)
     #endif // _darma_has_feature(anti_flows)
                     ),
@@ -982,13 +979,11 @@ auto make_captured_use_holder(
           // %   MR -> { MM } -> MN     %
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-          // TODO @antiflows implement and test antiflows for this case
-#if _darma_has_feature(anti_flows)
-          DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for MR -> { XM } capture case");
-#endif
+          // TODO @antiflows test antiflows for this case
 
           // Create the out flow  (should this be make_forwarding_flow?)
           // (probably not, since RR -> { RR } -> RR doesn't do forwarding?)
+
 
           // make the captured use holder
           captured_use_holder = use_holder_maker(
@@ -1027,7 +1022,8 @@ auto make_captured_use_holder(
               //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
 #if _darma_has_feature(anti_flows)
               // anti-in =
-              , insignificant_flow(),
+              // this should usually be insignificant unless the source is somehow a dependency use
+              , same_anti_flow(&source_and_continuing_holder->use->anti_in_flow_),
               // anti-out =
               requested_scheduling_permissions == HandleUse::None ?
                 // TODO check the None case...

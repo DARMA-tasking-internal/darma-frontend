@@ -2037,5 +2037,134 @@ TEST_F(TestCreateConcurrentWork, simple_commutative) {
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
 // TODO test commutative migration
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if 0
+TEST_F(TestCreateConcurrentWork, nested_reverse) {
+
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(finit, fouter_out, fnull);
+
+  MockFlow f_in_idx[4], f_out_idx[4], f_inner_out[4];
+  use_t* use_init, *use_coll, *use_coll_cont;
+  use_t* use_idx[4], *use_inner_cap[4], *use_inner_cont[4];
+  int values[4];
+
+
+  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, use_init, make_key("hello"), 4);
+
+  EXPECT_NEW_REGISTER_USE_COLLECTION(use_coll,
+    finit, Same, &finit,
+    fouter_out, Next, nullptr, true,
+    Modify, Modify, true, 4
+  );
+
+  EXPECT_NEW_REGISTER_USE_COLLECTION(use_coll_cont,
+    fouter_out, Same, &fouter_out,
+    fnull, Same, &fnull, false,
+    Modify, None, false, 4
+  );
+
+  EXPECT_NEW_RELEASE_USE(use_init, false);
+
+  EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(
+    CollectionUseInGetDependencies(ByRef(use_coll))
+  ));
+
+  EXPECT_NEW_RELEASE_USE(use_coll_cont, true);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
+
+    struct FooTask {
+      void operator()(
+        int index,
+        AccessHandleCollection<int, Range1D<int>> coll
+      ) const {
+        coll[index].local_access().set_value(42);
+      }
+    };
+
+    struct Foo {
+      void operator()(Index1D<int> index,
+        AccessHandleCollection<int, Range1D<int>> coll
+      ) const {
+        create_work<FooTask>(index.value, coll);
+      }
+    };
+
+
+    create_concurrent_work<Foo>(tmp_c,
+      index_range=Range1D<int>(4)
+    );
+
+  }
+  //============================================================================
+
+
+  for(int i = 0; i < 4; ++i) {
+
+    Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+    values[i] = 0;
+
+    EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(use_idx[i],
+      f_in_idx[i], IndexedLocal, &finit,
+      f_out_idx[i], IndexedLocal, &fouter_out, false,
+      Modify, Modify, true, values[i]
+    );
+
+    auto created_task = mock_runtime->task_collections.front()->create_task_for_index(i);
+
+    EXPECT_THAT(created_task.get(), UseInGetDependencies(use_idx[i]));
+
+    EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(use_inner_cap[i],
+      f_in_idx[i], Forwarding, &(f_in_idx[i]),
+      f_inner_out[i], Next, nullptr, true,
+      Modify, Modify, true, values[i]
+    );
+
+    EXPECT_NEW_REGISTER_USE(use_inner_cont[i],
+      f_inner_out[i], Same, &(f_inner_out[i]),
+      f_out_idx[i], Same, &(f_out_idx[i]), false,
+      Modify, None, false
+    );
+
+    EXPECT_NEW_RELEASE_USE(use_idx[i], false);
+
+    EXPECT_REGISTER_TASK(use_inner_cap[i]);
+
+    EXPECT_NEW_RELEASE_USE(use_inner_cont[i], true);
+
+    created_task->run();
+    created_task = nullptr;
+
+    EXPECT_NEW_RELEASE_USE(use_inner_cap[i], false);
+
+    // Now run the task that got added to the queue
+    run_one_task();
+
+    EXPECT_THAT(values[i], Eq(42));
+
+  }
+
+  EXPECT_RELEASE_USE(use_coll);
+
+  mock_runtime->task_collections.front().reset(nullptr);
+
+}
+
+#endif

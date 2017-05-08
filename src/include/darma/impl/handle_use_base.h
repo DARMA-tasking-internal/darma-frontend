@@ -615,7 +615,7 @@ indexed_local_anti_flow(
   std::size_t backend_index
 ) {
   return HandleUseBase::FlowRelationshipImpl(
-    abstract::frontend::FlowRelationship::AntiIndexedLocal,
+    abstract::frontend::FlowRelationship::IndexedLocal,
     /* related flow = */ nullptr,
     /* related_is_in = */ false,
     /* version key = */ nullptr,
