@@ -282,6 +282,17 @@ MATCHER_P7(IsUseWithFlowRelationships, f_in_rel, f_in, f_out_rel, f_out, out_rel
   return true;
 }
 
+MATCHER_P(ObjectNamed, name, "Pointer to object for which get_name() returns " + PrintToString(name)) {
+  if(arg == nullptr) {
+    *result_listener << "Pointer to null";
+    return false;
+  }
+  else {
+    *result_listener << "Pointer to object for which get_name() returns " << PrintToString(arg->get_name());
+    return name == arg->get_name();
+  }
+}
+
 #if _darma_has_feature(anti_flows)
 MATCHER_P5(IsUseWithAntiFlowRelationships, f_anti_in_rel, f_anti_in_arg, f_anti_out_rel, f_anti_out_arg, anti_out_rel_is_anti_in,
   "\n  ------------ Use with ------------"

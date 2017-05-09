@@ -56,9 +56,11 @@ template <typename Functor, typename... Args>
 void create_concurrent_work(Args&&... args) {
   using namespace darma_runtime::detail;
   using darma_runtime::keyword_tags_for_create_concurrent_work::index_range;
+  using darma_runtime::keyword_tags_for_task_creation::name;
   using parser = kwarg_parser<
   variadic_positional_overload_description<
-    _keyword<deduced_parameter, index_range>
+    _keyword<deduced_parameter, index_range>,
+    _optional_keyword<converted_parameter, name>
   >
   // TODO other overloads
   >;
@@ -67,9 +69,18 @@ void create_concurrent_work(Args&&... args) {
   using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
 
   parser()
+    .with_default_generators(
+      keyword_arguments_for_task_creation::name=[]{ return darma_runtime::make_key(); }
+    )
+    .with_converters(
+      [](auto&&... key_parts) {
+        return darma_runtime::make_key(std::forward<decltype(key_parts)>(key_parts)...);
+      }
+    )
     .parse_args(std::forward<Args>(args)...)
     .invoke([](
       auto&& index_range,
+      types::key_t name_key,
       darma_runtime::detail::variadic_arguments_begin_tag,
       auto&&... my_args
     ){
@@ -81,6 +92,8 @@ void create_concurrent_work(Args&&... args) {
         std::forward<decltype(index_range)>(index_range),
         std::forward<decltype(my_args)>(my_args)...
       );
+
+      task_collection->name_ = std::move(name_key);
 
       auto* backend_runtime = abstract::backend::get_backend_runtime();
       backend_runtime->register_task_collection(

@@ -571,8 +571,11 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
   EXPECT_REGISTER_USE_COLLECTION(use_coll_cont, fout_coll, fnull, Modify, None, 4);
   EXPECT_RELEASE_USE(use_init);
 
-  // TODO properly constrain this
-  EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(_));
+  EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(AllOf(
+      CollectionUseInGetDependencies(ByRef(use_coll)),
+      ObjectNamed(make_key("my", "task", "collection"))
+    )
+  ));
 
   EXPECT_RELEASE_USE(use_coll_cont);
   EXPECT_FLOW_ALIAS(fout_coll, fnull);
@@ -598,6 +601,7 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
     auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
 
     create_concurrent_work<Foo>(tmp_c,
+      name("my", "task", "collection"),
       index_range=Range1D<int>(4)
     );
 
@@ -658,6 +662,8 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
   >::unpack(buffer, tcsize);
 
   EXPECT_THAT(copied_collection->get_dependencies().size(), Eq(1));
+
+  EXPECT_THAT(copied_collection->get_name(), Eq(make_key("my", "task", "collection")));
 
 
 

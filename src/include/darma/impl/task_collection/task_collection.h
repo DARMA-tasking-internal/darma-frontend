@@ -132,12 +132,11 @@ struct TaskCollectionImpl
 
     TaskCollectionImpl() = default;
 
+  public:
+
     types::key_t name_ = types::key_t(
       types::key_t::request_backend_assigned_key_tag{}
     );
-
-  public:
-
 
     // Leave this member declaration order the same; construction of args_stored_
     // depends on collection_range_ being initialized already
@@ -182,12 +181,14 @@ struct TaskCollectionImpl
       if(not ar.is_unpacking()) {
         ar | collection_range_;
         ar | args_stored_;
+        ar | name_;
         // nothing to pack for dependencies.  They'll be handled later
       }
       else {
         // Unpacking.
         // collection_range_ already unpacked in reconstruct
         // args_stored_ already unpacked in reconstruct
+        ar >> name_;
 
         // need to set up dependencies here...
         _unpack_deps(std::index_sequence_for<Args...>{});
