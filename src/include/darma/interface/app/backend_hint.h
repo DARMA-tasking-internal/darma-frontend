@@ -60,7 +60,9 @@ namespace darma_runtime { namespace experimental { namespace backend_hint {
     // the number of groupings of a certain type
     CCWGroupType,
     // string to stamp on user event of a task
-    UserEventName
+    UserEventName,
+    // load balancing iteration
+    LBIteration
   };
 }}}
 
