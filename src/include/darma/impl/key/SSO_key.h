@@ -455,10 +455,17 @@ class SSOKey
     ) : SSOKey(variadic_constructor_arg)
     { }
 
-
     // TODO efficient move constructor
 
     ~SSOKey();
+
+    SSOKey(SSOKey const& other);
+    SSOKey& operator=(SSOKey const& other) {
+      this->~SSOKey();
+      new (this) SSOKey(other);
+      return *this;
+    }
+
 
     size_t n_components() const {
       if (mode == _impl::BackendAssigned) return 0;
@@ -879,6 +886,43 @@ SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdin
     );
   }
 };
+
+template <
+  size_t BufferSize,
+  typename BackendAssignedKeyType,
+  typename PieceSizeOrdinal,
+  typename ComponentCountOrdinal
+>
+SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal>::SSOKey(SSOKey const& other)
+  : mode(other.mode)
+{
+  switch(mode) {
+    case _impl::BackendAssigned: {
+      repr.as_backend_assigned = other.repr.as_backend_assigned;
+      break;
+    }
+    case _impl::Short: {
+      ::memset(repr.as_short.data, 0, BufferSize);
+      repr.as_short.size = other.repr.as_short.size;
+      ::memcpy(repr.as_short.data, other.repr.as_short.data, repr.as_short.size);
+      break;
+    }
+    case _impl::Long: {
+      repr.as_long.size = other.repr.as_long.size;
+      repr.as_long.data = static_cast<char*>(
+        abstract::backend::get_backend_memory_manager()->allocate(
+          repr.as_long.size, serialization::detail::DefaultMemoryRequirementDetails{}
+        )
+      );
+      ::memcpy(repr.as_long.data, other.repr.as_long.data, repr.as_long.size);
+      break;
+    }
+    case _impl::NeedsBackendAssignedKey: {
+      // nothing to do
+      break;
+    }
+  }
+}
 
 } // end namespace detail
 } // end namespace darma_runtime
