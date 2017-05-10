@@ -90,6 +90,11 @@ struct _initial_access_key_helper;
 template <typename>
 struct _read_access_helper;
 
+inline void
+AccessHandleBase::call_add_dependency(TaskBase* task) {
+  task->add_dependency(*current_use_base_->use_base);
+}
+
 } // end namespace detail
 
 

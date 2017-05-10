@@ -52,6 +52,7 @@
 #include <darma/impl/create_work_while_fwd.h>
 
 #include <darma/impl/use.h> // UseHolder
+#include <darma/impl/task.h> // TaskBase
 
 // TODO move this to access_handle directory when we're at a stable merge point
 
@@ -109,6 +110,9 @@ class AccessHandleBase {
     ) =0;
     virtual void replace_use_holder_with(AccessHandleBase const&) =0;
     virtual void release_current_use() const =0;
+    virtual void call_add_dependency(
+      detail::TaskBase* task
+    );
 
     virtual ~AccessHandleBase() = default;
 

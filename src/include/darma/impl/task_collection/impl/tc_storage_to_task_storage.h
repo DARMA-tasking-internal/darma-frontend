@@ -198,6 +198,7 @@ struct _get_task_stored_arg_helper<
       )
     );
     new_use_holder->do_register();
+    // TODO should this be call_add_dependency, somehow?
     task.add_dependency(*new_use_holder->use.get());
     return return_type(
       arg.var_handle_,

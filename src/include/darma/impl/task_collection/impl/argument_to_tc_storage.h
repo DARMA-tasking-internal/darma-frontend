@@ -482,7 +482,9 @@ struct _get_storage_arg_helper<
             tc_index_range_traits::mapping_to_dense(collection.collection_range_)
             //, collection.collection_range_
           )
-        )
+        ),
+        /* do register in ctor = */ true,
+        /* will be dependency = */ true
       );
     };
 

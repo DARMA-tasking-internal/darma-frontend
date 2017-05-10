@@ -690,7 +690,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
           *source
         );
         source->current_use_base_->use_base->already_captured = false;
-        add_dependency(*desc.captured->current_use_base_->use_base);
+        desc.captured->call_add_dependency(this);
         if (desc.captured_in_then_or_else and not desc.is_implicit_in_if) {
           auto const& key = desc.captured->var_handle_base_->get_key();
           auto insertion_result = explicit_if_captured_handles.insert(
@@ -1045,7 +1045,7 @@ struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
         *source_handle
       );
 
-      then_else_task.add_dependency(*captured.current_use_base_->use_base);
+      captured.call_add_dependency(&then_else_task);
 
       // TODO keep this from even generating the continuation flow?!?
 

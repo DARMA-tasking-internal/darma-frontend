@@ -574,17 +574,17 @@ indexed_fetching_flow(
 #if _darma_has_feature(anti_flows)
 inline HandleUseBase::FlowRelationshipImpl
 indexed_fetching_anti_flow(
-  types::flow_t* rel,
+  types::anti_flow_t* rel,
   types::key_t const* version_key,
   std::size_t backend_index
 ) {
   return HandleUseBase::FlowRelationshipImpl(
-    abstract::frontend::FlowRelationship::AntiIndexedFetching,
-    /* related flow = */ rel,
+    abstract::frontend::FlowRelationship::IndexedFetching,
+    /* related flow = */ nullptr,
     /* related_is_in = */ false,
     /* version key = */ version_key,
     /* index = */ backend_index,
-    /* anti_related = */ nullptr,
+    /* anti_related = */ rel,
     /* anti_rel_is_in = */ false
   );
 }

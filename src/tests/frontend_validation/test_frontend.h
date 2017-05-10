@@ -418,8 +418,8 @@ struct UseDescription {
 #define EXPECT_NEW_REGISTER_USE_COLLECTION(use_ptr, fin, fin_rel, fin_src, \
   fout, fout_rel, fout_src, out_rel_is_in, sched, immed, will_be_dep, collsize) \
   EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf(IsUseWithFlowRelationships( \
-    ::darma_runtime::abstract::frontend::FlowRelationship::fin_rel, fin_src, \
-    ::darma_runtime::abstract::frontend::FlowRelationship::fout_rel, fout_src, out_rel_is_in, \
+    ::darma_runtime::abstract::frontend::FlowRelationship::fin_rel|::darma_runtime::abstract::frontend::FlowRelationship::Collection, fin_src, \
+    ::darma_runtime::abstract::frontend::FlowRelationship::fout_rel|::darma_runtime::abstract::frontend::FlowRelationship::Collection, fout_src, out_rel_is_in, \
     use_t::sched, use_t::immed \
   ), \
   UseWillBeDependency(will_be_dep), \

@@ -699,10 +699,7 @@ auto make_captured_use_holder(
               // %   MN -> { MR } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-              // TODO @antiflows implement and test antiflows for this case
-#if _darma_has_feature(anti_flows)
-              DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for MN -> { MR } -> MN");
-#endif
+              // TODO @antiflows test antiflows for this case
 
               captured_use_holder = use_holder_maker(
                 var_handle,
@@ -716,7 +713,11 @@ auto make_captured_use_holder(
                 //FlowRelationship::Next, nullptr, true
 #if _darma_has_feature(anti_flows)
                 // Anti-in
-                , insignificant_flow(),
+                // this has to be an "already ready" anti-flow.  Forwarding allows us to do that
+                // BUT THIS CAN'T BE ALREADY READY!!!
+                //, forwarding_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
+                // For now:
+                , next_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
                 // Anti-out
                 same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
 #endif // _darma_has_feature(anti_flows)
@@ -739,9 +740,9 @@ auto make_captured_use_holder(
                   //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
 #if _darma_has_feature(anti_flows)
                   // Anti-in
-                  , insignificant_flow(),
+                  , same_anti_flow(&source_and_continuing_holder->use->anti_in_flow_),
                   // Anti-out
-                  same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+                  same_anti_flow(&captured_use_holder->use->anti_in_flow_)
 #endif // _darma_has_feature(anti_flows)
                 ),
                 AllowRegisterContinuation
@@ -819,10 +820,7 @@ auto make_captured_use_holder(
               // %   MM -> { MR } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-              // TODO @antiflows implement and test antiflows for this case
-#if _darma_has_feature(anti_flows)
-              DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for MM -> { MR } capture case");
-#endif
+              // TODO @antiflows test antiflows for this case
 
               captured_use_holder = use_holder_maker(
                 var_handle,
@@ -836,9 +834,9 @@ auto make_captured_use_holder(
                 //FlowRelationship::Next, nullptr, true
 #if _darma_has_feature(anti_flows)
                 // Anti-in
-                , insignificant_flow(),
+                , next_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
                 // Anti-out
-                forwarding_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+                same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
 #endif // _darma_has_feature(anti_flows)
               );
               captured_use_holder->could_be_alias = true;
@@ -855,7 +853,7 @@ auto make_captured_use_holder(
                   // Anti-in
                   , insignificant_flow(),
                   // Anti-out
-                  same_anti_flow(&captured_use_holder->use->anti_out_flow_)
+                  same_anti_flow(&captured_use_holder->use->anti_in_flow_)
 #endif // _darma_has_feature(anti_flows)
                 ),
                 AllowRegisterContinuation

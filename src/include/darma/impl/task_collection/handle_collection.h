@@ -390,6 +390,19 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
   protected:
 
+    void call_add_dependency(
+      detail::TaskBase* task
+    ) override {
+      if(dynamic_is_outer) {
+        task->add_dependency(*current_use_base_->use_base);
+      }
+      else {
+        for(auto&& local_holder_pair : local_use_holders_) {
+          task->add_dependency(*local_holder_pair.second->use_base);
+        }
+      }
+    }
+
 
     void call_make_captured_use_holder(
       std::shared_ptr<detail::VariableHandleBase> var_handle,
@@ -407,13 +420,23 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         );
       }
       else {
-        DARMA_ASSERT_NOT_IMPLEMENTED("AccessHandleCollection capture in task inside create_concurrent_work");
-        //for(auto&& local_holder_pair : local_use_holders_) {
-        //  detail::make_captured_use_holder(
-        //    /* TODO finish this */
-        //    local_holder_pair.second.get()
-        //  )
-        //}
+        //DARMA_ASSERT_NOT_IMPLEMENTED("AccessHandleCollection capture in task inside create_concurrent_work");
+        auto& source = reinterpret_cast<AccessHandleCollection const&>(source_in);
+        for(auto&& local_holder_pair : source.local_use_holders_) {
+          local_use_holders_[local_holder_pair.first] = detail::make_captured_use_holder(
+            var_handle,
+            req_sched_perms,
+            req_immed_perms,
+            local_holder_pair.second.get()
+          );
+          // TODO !!! register a new Use for the collection as well
+          //current_use_ = _call_make_captured_use_holder_impl(
+          //  var_handle,
+          //  std::max(req_sched_perms, req_immed_perms, detail::compatible_permissions_less{}),
+          //  detail::HandleUse::None,
+          //  source_in
+          //);
+        }
 
         // TODO Finish this!!!
       }
@@ -507,7 +530,9 @@ class AccessHandleCollection : public detail::AccessHandleBase {
           source = other.copied_from;
         }
 
-        source->captured_as_ |= CapturedAsInfo::ScheduleOnly;
+        if(dynamic_is_outer) {
+          source->captured_as_ |= CapturedAsInfo::ScheduleOnly;
+        }
 
         capturing_task->do_capture(*this, *source);
 
@@ -643,7 +668,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     mutable use_holder_ptr current_use_ = {current_use_base_};
     mutable AccessHandleCollection const* copied_from = nullptr;
     mutable bool dynamic_is_outer =
-      traits_t::semantic_traits::is_outer == KnownTrue;
+      traits_t::semantic_traits::is_outer != KnownFalse;
 
     mutable std::map<
       typename _range_traits::index_type,
@@ -704,8 +729,11 @@ class AccessHandleCollection : public detail::AccessHandleBase {
               indexed_local_anti_flow(&current_use_->use->anti_out_flow_, idx)
 
 #endif // _darma_has_feature(anti_flows)
-            )
+            ),
+            /* reg_in_ctor = */ true,
+            /* will_be_dependency = */ true
           );
+          // TODO change this to call_add_dependency
           task.add_dependency(*idx_use_holder->use_base);
           local_use_holders_.insert(std::make_pair(fe_idx, idx_use_holder));
 
@@ -732,7 +760,9 @@ class AccessHandleCollection : public detail::AccessHandleBase {
               same_flow_as_in()
               //FlowRelationship::Same, nullptr, true,
 #endif // _darma_has_feature(anti_flows)
-            )
+            ),
+            /* reg_in_ctor = */ true,
+            /* will_be_dependency = */ true
           );
           task.add_dependency(*idx_use_holder->use_base);
           local_use_holders_.insert(std::make_pair(fe_idx, idx_use_holder));

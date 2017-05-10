@@ -717,7 +717,7 @@ struct WhileDoTask: public TaskBase
       while_desc.captured_copy->get()->replace_use_holder_with(
         *while_desc.captured
       );
-      add_dependency(*while_desc.captured->current_use_base_->use_base);
+      while_desc.captured->call_add_dependency(this);
     }
     while_holder_.capture_descs_.clear();
 
@@ -764,7 +764,8 @@ struct WhileDoTask: public TaskBase
       do_desc.captured_copy->get()->replace_use_holder_with(
         *do_desc.captured
       );
-      add_dependency(*do_desc.captured->current_use_base_->use_base);
+      do_desc.captured->call_add_dependency(this);
+      //add_dependency(*do_desc.captured->current_use_base_->use_base);
     }
     do_holder_.capture_descs_.clear();
 
@@ -814,7 +815,7 @@ struct WhileDoTask: public TaskBase
       while_desc.captured_copy->get()->replace_use_holder_with(
         *while_desc.captured
       );
-      add_dependency(*while_desc.captured->current_use_base_->use_base);
+      while_desc.captured->call_add_dependency(this);
     }
     while_holder_.capture_descs_.clear();
 
@@ -915,7 +916,9 @@ struct WhileDoTask: public TaskBase
           auto insert_result = do_holder_.explicit_captures_.insert(
             std::make_pair(key, captured.copy(false))
           );
-          assert(insert_result.second);
+          DARMA_ASSERT_MESSAGE(insert_result.second,
+            "Tried to do explicit capture in do block multiple times for handle with key " << key
+          );
           do_desc.captured_copy = &(insert_result.first->second);
         } // delete insertion result
 

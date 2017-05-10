@@ -243,7 +243,7 @@ class IndexedAccessHandle {
               /* Anti-In flow description */
               insignificant_flow(),
               /* Anti-Out flow description */
-              indexed_fetching_anti_flow(&parent_.current_use_->use->in_flow_, &version_key, backend_index_)
+              indexed_fetching_anti_flow(&parent_.current_use_->use->anti_out_flow_, &version_key, backend_index_)
 #else
               /* Out flow description */
               same_flow_as_in()

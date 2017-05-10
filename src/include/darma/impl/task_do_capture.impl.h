@@ -199,7 +199,7 @@ TaskBase::do_capture(
     source_and_continuing
   );
 
-  add_dependency(*captured.current_use_base_->use_base);
+  captured.call_add_dependency(this);
 
 
   // Assert that all of the captured_as info has been handled:

@@ -2049,7 +2049,6 @@ TEST_F(TestCreateConcurrentWork, simple_commutative) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#if 0
 TEST_F(TestCreateConcurrentWork, nested_reverse) {
 
   using namespace ::testing;
@@ -2067,7 +2066,7 @@ TEST_F(TestCreateConcurrentWork, nested_reverse) {
   int values[4];
 
 
-  EXPECT_INITIAL_ACCESS_COLLECTION(finit, fnull, use_init, make_key("hello"), 4);
+  EXPECT_NEW_INITIAL_ACCESS_COLLECTION(finit, fnull, use_init, make_key("hello"), 4);
 
   EXPECT_NEW_REGISTER_USE_COLLECTION(use_coll,
     finit, Same, &finit,
@@ -2167,10 +2166,9 @@ TEST_F(TestCreateConcurrentWork, nested_reverse) {
 
   }
 
-  EXPECT_RELEASE_USE(use_coll);
+  EXPECT_NEW_RELEASE_USE(use_coll, false);
 
   mock_runtime->task_collections.front().reset(nullptr);
 
 }
 
-#endif
