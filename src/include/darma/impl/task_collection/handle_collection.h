@@ -629,6 +629,10 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     friend
     struct detail::_task_collection_impl::_get_task_stored_arg_helper;
 
+    template <typename, typename, typename>
+    friend
+    struct detail::_task_collection_impl::_get_call_arg_helper;
+
     template <typename, typename>
     friend
     struct detail::MappedHandleCollection;
@@ -668,7 +672,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
     mutable use_holder_ptr current_use_ = {current_use_base_};
     mutable AccessHandleCollection const* copied_from = nullptr;
     mutable bool dynamic_is_outer =
-      traits_t::semantic_traits::is_outer != KnownFalse;
+      traits_t::semantic_traits::is_outer == KnownTrue;
 
     mutable std::map<
       typename _range_traits::index_type,

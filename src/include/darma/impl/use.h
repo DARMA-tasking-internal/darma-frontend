@@ -170,6 +170,9 @@ struct GenericUseHolder : UseHolderBase {
   ) : use(use_base, std::make_unique<UnderlyingUse>(std::move(in_use)))
   {
     use->is_dependency_ = will_be_dep and use_base->immediate_permissions_ != HandleUse::None;
+#if _darma_has_feature(anti_flows)
+    use->is_anti_dependency_ = use->is_dependency_ and use_base->immediate_permissions_ != HandleUse::Read;
+#endif // _darma_has_feature(anti_flows)
     if(do_register_in_ctor) do_register();
   }
 

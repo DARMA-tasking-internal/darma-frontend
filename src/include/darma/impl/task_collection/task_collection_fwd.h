@@ -84,6 +84,9 @@ template <
 >
 struct _get_task_stored_arg_helper;
 
+template <typename StoredArg, typename ParamTraits, typename Enable=void>
+struct _get_call_arg_helper; // TODO better error message for default case
+
 } // end namespace _task_collection_impl
 
 template <

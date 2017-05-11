@@ -63,8 +63,6 @@ namespace _task_collection_impl {
 // TODO parameter is a AccessHandleCollection case
 // TODO clean this up and generalize it?
 
-template <typename StoredArg, typename ParamTraits, typename Enable=void>
-struct _get_call_arg_helper; // TODO better error message for default case
 
 // Normal arg, param by value
 template <typename StoredArg, typename ParamTraits>
@@ -207,6 +205,7 @@ struct _get_call_arg_helper<StoredArg, ParamTraits,
 {
   decltype(auto)
   operator()(StoredArg&& arg) const {
+    arg.dynamic_is_outer = false;
     return std::move(arg);
   }
 };
@@ -228,6 +227,7 @@ struct _get_call_arg_helper<StoredArg, ParamTraits,
 {
   decltype(auto)
   operator()(StoredArg&& arg) const {
+    arg.dynamic_is_outer = false;
     return arg;
   }
 };

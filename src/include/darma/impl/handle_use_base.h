@@ -199,6 +199,7 @@ class HandleUseBase
 #if _darma_has_feature(anti_flows)
     FlowRelationshipImpl in_anti_flow_rel_;
     FlowRelationshipImpl out_anti_flow_rel_;
+    bool is_anti_dependency_ = false;
 #endif // _darma_has_feature(anti_flows)
     bool establishes_alias_ = false;
 
@@ -267,6 +268,8 @@ class HandleUseBase
       return out_flow_rel_;
     }
 
+    bool is_dependency() const override { return is_dependency_; }
+
 #if _darma_has_feature(anti_flows)
     FlowRelationshipImpl const& get_anti_in_flow_relationship() const override {
       return in_anti_flow_rel_;
@@ -274,6 +277,8 @@ class HandleUseBase
     FlowRelationshipImpl const& get_anti_out_flow_relationship() const override {
       return out_anti_flow_rel_;
     }
+
+    bool is_anti_dependency() const override { return is_anti_dependency_; }
 #endif // _darma_has_feature(anti_flows)
 
     void set_in_flow(types::flow_t const& new_flow) override {

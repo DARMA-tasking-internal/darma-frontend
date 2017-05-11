@@ -165,6 +165,12 @@ class Use {
     is_uniquely_owned() const { return false; }
 #endif // _darma_has_feature(create_concurrent_work_owned_by)
 
+    virtual bool is_dependency() const =0;
+
+#if _darma_has_feature(anti_flows)
+    virtual bool is_anti_dependency() const =0;
+#endif // _darma_has_feature(anti_flows)
+
     // Deletions should only ever occur on the most derived class (i.e., done
     // by the translation layer itself) or on pointer to the most base class,
     // `Use`.
@@ -204,6 +210,7 @@ class UsePendingRegistration : virtual public Use {
     get_anti_out_flow_relationship() const =0;
 #endif // _darma_has_feature(anti_flows)
 
+    // Deprecated; use Use::is_dependency() instead
     virtual bool will_be_dependency() const =0;
 
   protected:
@@ -238,6 +245,7 @@ class RegisteredUse : virtual public Use {
     get_anti_out_flow() =0;
 #endif // _darma_has_feature(anti_flows)
 
+
 };
 
 class UsePendingRelease : virtual public RegisteredUse {
@@ -245,6 +253,7 @@ class UsePendingRelease : virtual public RegisteredUse {
 
     virtual bool establishes_alias() const =0;
 
+    // Deprecated; use Use::is_dependency() instead
     virtual bool was_dependency() const =0;
 
   protected:
