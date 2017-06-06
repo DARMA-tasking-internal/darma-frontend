@@ -5,7 +5,7 @@ FILE(GLOB impl_array_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/array/*.h")
 FILE(GLOB impl_collective_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/collective/*.h")
-FILE(GLOB impl_util_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+FILE(GLOB impl_access_handle_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/access_handle/*.h")
 FILE(GLOB impl_index_range_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/index_range/*.h")
@@ -41,6 +41,7 @@ install (FILES ${impl_serialization_HEADERS} DESTINATION include/darma/impl/seri
 install (FILES ${impl_task_collection_HEADERS} DESTINATION include/darma/impl/task_collection)
 install (FILES ${impl_task_collection_impl_HEADERS} DESTINATION include/darma/impl/task_collection/impl)
 install (FILES ${impl_util_HEADERS} DESTINATION include/darma/impl/util)
+install (FILES ${impl_access_handle_HEADERS} DESTINATION include/darma/impl/access_handle)
 
 ################################################################################
 # Check for available attributes
