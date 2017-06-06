@@ -60,6 +60,12 @@ class ReduceOp : public PolymorphicSerializableObject<ReduceOp> {
     virtual void
     reduce_unpacked_into_unpacked(
       void const* unpacked_piece,
+      void * unpacked_dest
+    ) const =0;
+
+    virtual void
+    reduce_unpacked_into_unpacked(
+      void const* unpacked_piece,
       void * unpacked_dest,
       size_t offset, size_t n_elem
     ) const =0;
@@ -102,6 +108,9 @@ class ReduceOp : public PolymorphicSerializableObject<ReduceOp> {
      */
     virtual SerializationManager const*
     get_serialization_manager_for_values() const =0;
+
+    virtual ArrayConceptManager const*
+    get_array_concept_manager_for_values() const =0;
 };
 
 } // end namespace frontend

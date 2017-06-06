@@ -54,6 +54,7 @@
 #include <darma/interface/frontend/reduce_operation.h>
 
 #include <darma/impl/array/indexable.h>
+#include <darma/impl/array/concept.h>
 #include <darma/impl/meta/has_op.h>
 #include <darma/impl/polymorphic_serialization.h>
 
@@ -70,6 +71,9 @@ class ReduceOperationWrapper
     >,
     public darma_runtime::serialization::detail::SerializationManagerForType<
       value_type
+    >,
+    public darma_runtime::detail::ArrayConceptManagerForType<
+      value_type, SimpleElementRange<value_type>
     >
 {
 
@@ -203,6 +207,21 @@ class ReduceOperationWrapper
 
     void
     reduce_unpacked_into_unpacked(
+      void const* unpacked_piece,
+      void * unpacked_dest
+    ) const override
+    {
+      assert(false);
+      size_t nelem = 0;
+
+      return reduce_unpacked_into_unpacked(
+        unpacked_piece, unpacked_dest,
+        0, this->n_elements(unpacked_piece)
+      );
+    }
+
+    void
+    reduce_unpacked_into_unpacked(
       void const* piece, void* dest,
       size_t offset, size_t n_elem
     ) const override
@@ -241,6 +260,11 @@ class ReduceOperationWrapper
 
     abstract::frontend::SerializationManager const*
     get_serialization_manager_for_values() const override {
+      return this;
+    }
+
+    abstract::frontend::ArrayConceptManager const*
+    get_array_concept_manager_for_values() const override {
       return this;
     }
 
