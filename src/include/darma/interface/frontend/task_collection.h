@@ -52,6 +52,7 @@
 #include <darma/interface/frontend/types/task_collection_task_t.h>
 
 #include <darma_types.h>
+#include <darma/impl/util/optional_boolean.h>
 
 
 namespace darma_runtime {
@@ -98,8 +99,7 @@ class TaskCollection
     virtual void
     set_name(types::key_t const&) =0;
 
-    /** deprecated! will be removed soon */
-    virtual bool
+    virtual OptionalBoolean
     all_mappings_same_as(TaskCollection const* other) const =0;
 
 #if _darma_has_feature(task_collection_token)

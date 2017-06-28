@@ -185,6 +185,11 @@ struct ContiguousIndexMapping {
       return { static_cast<Integer>(to), range.offset_, range.offset_ + range.size_ - 1 };
     }
 
+    bool is_same(ContiguousIndexMapping<Integer, DenseIndex>& other) const {
+      // TODO think through whether or not offsets don't need to be the same also
+      return other.range.size_ == range.size_ and other.range.offset_ == range.offset_;
+    }
+
     template <typename ArchiveT> void serialize(ArchiveT& ar) { ar | range; }
 };
 

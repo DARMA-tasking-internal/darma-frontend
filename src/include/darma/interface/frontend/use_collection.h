@@ -47,6 +47,7 @@
 
 #include <cstdlib> // std::size_t
 #include <vector>
+#include <darma/impl/util/optional_boolean.h>
 
 namespace darma_runtime {
 
@@ -94,6 +95,14 @@ class UseCollection {
 
     virtual std::size_t
     task_index_for(std::size_t collection_index) const =0;
+
+    /** @todo document this
+     *
+     *  @param other
+     *  @return
+     */
+    virtual OptionalBoolean
+    has_same_mapping_as(UseCollection const* other) const =0;
 
     virtual std::size_t
     size() const =0;

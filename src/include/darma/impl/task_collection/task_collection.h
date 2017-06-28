@@ -324,12 +324,12 @@ struct TaskCollectionImpl
 
     // This should really return something ternary like "known false, known true, or unknown"
     // TODO deprecated
-    bool
+    OptionalBoolean
     all_mappings_same_as(
       abstract::frontend::TaskCollection const* other
     ) const override {
       /* TODO */
-      return false;
+      return OptionalBoolean::Unknown;
     }
 
     types::handle_container_template<abstract::frontend::CollectionManagingUse*> const&

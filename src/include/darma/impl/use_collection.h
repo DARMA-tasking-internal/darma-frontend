@@ -75,6 +75,11 @@ struct MappingManagerBase
   virtual std::size_t
   map_to_task_collection_backend_index(FrontendHandleIndex const& fe_idx) const =0;
 
+  virtual OptionalBoolean
+  has_same_mapping_as(
+    MappingManagerBase<FrontendHandleIndex> const& other_manager
+  ) const =0;
+
   virtual ~MappingManagerBase() = default;
 
 };
@@ -95,8 +100,8 @@ struct MappingManager : MappingManagerBase<FrontendHandleIndex>
   // This should be the full mapping from frontend handle collection index to backend task collection index
   MappingToTaskCollection mapping_to_tc_backend_idx;
   using _mapping_traits = indexing::mapping_traits<
-    std::decay_t<
-      MappingToTaskCollection>>;
+    std::decay_t<MappingToTaskCollection>
+  >;
 
   // We can assert this: (at least in part)
   static_assert(
@@ -141,6 +146,24 @@ struct MappingManager : MappingManagerBase<FrontendHandleIndex>
     );
   }
 
+  OptionalBoolean
+  has_same_mapping_as(
+    MappingManagerBase<FrontendHandleIndex> const& other_manager
+  ) const override {
+    auto const* other_as_this_type = try_dynamic_cast<MappingManager const*>(
+      &other_manager
+    );
+    if(other_as_this_type) {
+      bool result = _mapping_traits::known_same_mapping(
+        mapping_to_tc_backend_idx, *other_as_this_type
+      );
+      return static_cast<OptionalBoolean>(result);
+    }
+    else {
+      return OptionalBoolean::Unknown;
+    }
+  }
+
   ~MappingManager() = default;
 
 };
@@ -150,6 +173,10 @@ struct MappingManager : MappingManagerBase<FrontendHandleIndex>
 
 // </editor-fold> end MappingManager }}}1
 //==============================================================================
+
+
+//==============================================================================
+// <editor-fold desc="CollectionManagingUseBase"> {{{1
 
 template <typename FrontendHandleIndex>
 class CollectionManagingUseBase
@@ -162,6 +189,9 @@ class CollectionManagingUseBase
     std::unique_ptr<MappingManagerBase<FrontendHandleIndex>> mapping_manager = nullptr;
 
     using HandleUseBase::HandleUseBase;
+
+    //------------------------------------------------------------------------------
+    // <editor-fold desc="Ctors"> {{{2
 
     template <typename MappingToTaskCollectionDeduced>
     CollectionManagingUseBase(
@@ -220,9 +250,43 @@ class CollectionManagingUseBase
         )
     { }
 
+    // </editor-fold> end Ctors }}}2
+    //------------------------------------------------------------------------------
+
+    OptionalBoolean
+    has_same_mapping_as(
+      abstract::frontend::UseCollection const* other
+    ) const override {
+      if(mapping_manager == nullptr) {
+        return OptionalBoolean::KnownFalse;
+      }
+      auto const* other_as_this_type = try_dynamic_cast<
+        CollectionManagingUseBase const*
+      >(other);
+      if(other_as_this_type) {
+        if(other_as_this_type->mapping_manager == nullptr) {
+          return OptionalBoolean::KnownFalse;
+        }
+        else {
+          return mapping_manager->has_same_mapping_as(
+            *other_as_this_type->mapping_manager.get()
+          );
+        }
+      }
+      else {
+        // Dynamic cast failed, so we basically have no way to recover
+        // sameness information
+        return OptionalBoolean::Unknown;
+      }
+    }
+
+
     CollectionManagingUseBase(CollectionManagingUseBase&&) = default;
     virtual ~CollectionManagingUseBase() = default;
 };
+
+// </editor-fold> end CollectionManagingUseBase }}}1
+//==============================================================================
 
 
 template <typename IndexRangeT>
