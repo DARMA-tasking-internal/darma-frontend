@@ -415,6 +415,11 @@ struct ReverseMapping {
       return m1_.map_forward(to);
     }
 
+    bool
+    is_same(ReverseMapping const& other) const {
+      return _m_traits::known_same_mapping(m1_, other.m1_);
+    }
+
     template <typename ArchiveT>
     std::enable_if_t<
       serialization::detail::serializability_traits<Mapping>

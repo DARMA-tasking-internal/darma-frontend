@@ -155,7 +155,7 @@ struct MappingManager : MappingManagerBase<FrontendHandleIndex>
     );
     if(other_as_this_type) {
       bool result = _mapping_traits::known_same_mapping(
-        mapping_to_tc_backend_idx, *other_as_this_type
+        mapping_to_tc_backend_idx, other_as_this_type->mapping_to_tc_backend_idx
       );
       return static_cast<OptionalBoolean>(result);
     }

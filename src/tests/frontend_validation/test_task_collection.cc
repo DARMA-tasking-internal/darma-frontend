@@ -88,7 +88,6 @@ class TestCreateConcurrentWork
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
 TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
 
   using namespace ::testing;
@@ -538,8 +537,6 @@ TEST_F(TestCreateConcurrentWork, fetch) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
-
 TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
   using namespace ::testing;
@@ -708,7 +705,6 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
 TEST_F(TestCreateConcurrentWork, many_to_one) {
 
   using namespace ::testing;
@@ -841,7 +837,6 @@ TEST_F(TestCreateConcurrentWork, many_to_one) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
 
 TEST_F(TestCreateConcurrentWork, simple_sq_brkt_same) {
 
@@ -1866,7 +1861,6 @@ TEST_F(TestCreateConcurrentWork, simple_read_only)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
 TEST_F(TestCreateConcurrentWork, simple_commutative) {
 
   using namespace ::testing;
@@ -2172,3 +2166,112 @@ TEST_F(TestCreateConcurrentWork, nested_reverse) {
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateConcurrentWork, mappings_same) {
+
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(finit, fnull, fout_coll, fout_coll_2);
+  use_t* use_init = nullptr;
+  use_t* use_coll = nullptr, *use_coll_cont = nullptr;
+  use_t* use_coll_2 = nullptr, *use_coll_cont_2 = nullptr;
+
+  // TODO static assertions about mapping sameness detectability
+
+  {
+    InSequence s1;
+
+    EXPECT_NEW_INITIAL_ACCESS_COLLECTION(finit, fnull, use_init, make_key("hello"), 4);
+
+    EXPECT_NEW_REGISTER_USE_COLLECTION(use_coll,
+      finit, Same, &finit,
+      fout_coll, Next, nullptr, true,
+      Modify, Modify, true, 4
+    );
+    EXPECT_NEW_REGISTER_USE_COLLECTION(use_coll_cont,
+      fout_coll, Same, &fout_coll,
+      fnull, Same, &fnull, false,
+      Modify, None, false, 4
+    );
+    EXPECT_NEW_RELEASE_USE(use_init, false);
+
+    EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(
+      CollectionUseInGetDependencies(ByRef(use_coll))
+    ));
+
+    EXPECT_NEW_REGISTER_USE_COLLECTION(use_coll_2,
+      fout_coll, Same, &fout_coll,
+      fout_coll_2, Next, nullptr, true,
+      Modify, Modify, true, 4
+    );
+    EXPECT_NEW_REGISTER_USE_COLLECTION(use_coll_cont_2,
+      fout_coll_2, Same, &fout_coll_2,
+      fnull, Same, &fnull, false,
+      Modify, None, false, 4
+    );
+    EXPECT_NEW_RELEASE_USE(use_coll_cont, false);
+
+    EXPECT_CALL(*mock_runtime, register_task_collection_gmock_proxy(
+      CollectionUseInGetDependencies(ByRef(use_coll_2))
+    ));
+
+    EXPECT_NEW_RELEASE_USE(use_coll_cont_2, true);
+  }
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp_c = initial_access_collection<int>("hello", index_range=Range1D<int>(4));
+
+
+    struct Foo {
+      void operator()(Index1D<int> index,
+        AccessHandleCollection<int, Range1D<int>> coll
+      ) const {
+        ASSERT_THAT(index.value, Lt(4));
+        ASSERT_THAT(index.value, Ge(0));
+      }
+    };
+
+    create_concurrent_work<Foo>(tmp_c,
+      index_range=Range1D<int>(4)
+    );
+
+    create_concurrent_work<Foo>(tmp_c,
+      index_range=Range1D<int>(4)
+    );
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  using namespace darma_runtime::abstract::frontend;
+
+  EXPECT_THAT(
+    use_cast<CollectionManagingUse*>(use_coll)->get_managed_collection()->has_same_mapping_as(
+      use_cast<CollectionManagingUse*>(use_coll_2)->get_managed_collection()
+    ),
+    Eq(OptionalBoolean::KnownTrue)
+  );
+
+  EXPECT_RELEASE_USE(use_coll);
+
+  mock_runtime->task_collections.front().reset(nullptr);
+  mock_runtime->task_collections.pop_front();
+
+  EXPECT_RELEASE_USE(use_coll_2);
+
+  mock_runtime->task_collections.front().reset(nullptr);
+  mock_runtime->task_collections.pop_front();
+
+}

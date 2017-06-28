@@ -70,10 +70,13 @@ namespace indexing {
 template <typename T>
 struct mapping_traits {
 
+  template <typename>
+  friend struct darma_runtime::indexing::mapping_traits;
+
   //============================================================================
   // <editor-fold desc="Member type determination"> {{{1
 
-  private:
+  public:
 
     template <typename>
     friend struct darma_runtime::indexing::mapping_traits;
@@ -167,37 +170,39 @@ struct mapping_traits {
   //============================================================================
   // <editor-fold desc="known_same_mapping() and same_mapping_is_known"> {{{1
 
-  private:
+  public:
+
+    // TODO Check for and raise compile-time errors or warnings for non-const-correct signatures
 
     template <typename U, typename OtherMapping>
     using _is_same_archetype = decltype(
-      std::declval<U>().is_same(
-        std::declval<tinympl::as_const_lvalue_reference_t<OtherMapping>>()
+      std::declval<std::decay_t<U>&>().is_same(
+        std::declval<std::decay_t<OtherMapping> const&>()
       )
     );
 
-    template <typename OtherMapping>
+    template <typename ThisMapping, typename OtherMapping>
     using _mapping_is_same_return_t =
-      meta::detected_t<_is_same_archetype, T, OtherMapping>;
+      meta::detected_t<_is_same_archetype, ThisMapping, OtherMapping>;
 
   public:
 
 
     template <typename OtherMapping>
     using same_mapping_is_known = tinympl::bool_<
-      std::is_convertible<_mapping_is_same_return_t<OtherMapping>, bool>::value
+      std::is_convertible<_mapping_is_same_return_t<T, OtherMapping>, bool>::value
         or std::is_convertible<
-          _mapping_is_same_return_t<OtherMapping>,
+          _mapping_is_same_return_t<T, OtherMapping>,
           optional_boolean_t
         >::value
         or std::is_convertible<
           typename darma_runtime::indexing::mapping_traits<OtherMapping>
-          ::template _mapping_is_same_return_t<T>,
+            ::template _mapping_is_same_return_t<OtherMapping, T>,
           optional_boolean_t
         >::value
         or std::is_convertible<
           typename darma_runtime::indexing::mapping_traits<OtherMapping>
-          ::template _mapping_is_same_return_t<T>,
+            ::template _mapping_is_same_return_t<OtherMapping, T>,
           bool
         >::value
     >;
@@ -207,7 +212,7 @@ struct mapping_traits {
     known_same_mapping(
       std::enable_if_t<
         std::is_convertible<
-          _mapping_is_same_return_t<OtherMapping>, optional_boolean_t
+          _mapping_is_same_return_t<T, OtherMapping>, optional_boolean_t
         >::value,
         T const&
       > mapping,
@@ -221,11 +226,11 @@ struct mapping_traits {
     known_same_mapping(
       std::enable_if_t<
         std::is_convertible<
-          _mapping_is_same_return_t<OtherMapping>,
+          _mapping_is_same_return_t<T, OtherMapping>,
           bool
         >::value
           and not std::is_convertible<
-            _mapping_is_same_return_t<OtherMapping>, optional_boolean_t
+            _mapping_is_same_return_t<T, OtherMapping>, optional_boolean_t
           >::value,
         T const&
       > mapping,
@@ -239,16 +244,16 @@ struct mapping_traits {
     known_same_mapping(
       std::enable_if_t<
         not std::is_convertible<
-          _mapping_is_same_return_t<OtherMapping>,
+          _mapping_is_same_return_t<T, OtherMapping>,
           bool
         >::value
           and not std::is_convertible<
-            _mapping_is_same_return_t<OtherMapping>,
+            _mapping_is_same_return_t<T, OtherMapping>,
             optional_boolean_t
           >::value
           and std::is_convertible<
             typename darma_runtime::indexing::mapping_traits<OtherMapping>
-            ::template _mapping_is_same_return_t<T>,
+              ::template _mapping_is_same_return_t<OtherMapping, T>,
             optional_boolean_t
           >::value,
         T const&
@@ -263,21 +268,21 @@ struct mapping_traits {
     known_same_mapping(
       std::enable_if_t<
         not std::is_convertible<
-          _mapping_is_same_return_t<OtherMapping>,
+          _mapping_is_same_return_t<T, OtherMapping>,
           bool
         >::value
           and not std::is_convertible<
-            _mapping_is_same_return_t<OtherMapping>,
+            _mapping_is_same_return_t<T, OtherMapping>,
             optional_boolean_t
           >::value
           and not std::is_convertible<
             typename darma_runtime::indexing::mapping_traits<OtherMapping>
-            ::template _mapping_is_same_return_t<T>,
+              ::template _mapping_is_same_return_t<OtherMapping, T>,
             optional_boolean_t
           >::value
           and std::is_convertible<
             typename darma_runtime::indexing::mapping_traits<OtherMapping>
-            ::template _mapping_is_same_return_t<T>,
+              ::template _mapping_is_same_return_t<OtherMapping, T>,
             bool
           >::value,
         T const&
@@ -306,7 +311,7 @@ struct mapping_traits {
   //==============================================================================
   // <editor-fold desc="Generic map_forward and map_backward"> {{{1
 
-  private:
+  public:
 
     template <typename U, typename FromIndexType>
     using _map_forward_no_ranges_archetype = decltype(
