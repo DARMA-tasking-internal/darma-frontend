@@ -63,6 +63,7 @@
 #include <darma/impl/handle.h> // is_access_handle
 #include <darma/impl/use.h> // HandleUse
 #include <darma/impl/capture.h> // make_captured_use_holder
+#include <darma/impl/task.h> // TaskBase
 
 
 #include "details.h"
@@ -106,7 +107,18 @@ struct all_reduce_impl {
   types::task_collection_token_t token_;
 #endif // _darma_has_feature(task_collection_token)
 
-  all_reduce_impl() = default;
+  all_reduce_impl()
+  {
+#if _darma_has_feature(task_collection_token)
+    auto* running_task =
+      detail::safe_static_cast<darma_runtime::detail::TaskBase*>(
+        abstract::backend::get_backend_context()->get_running_task()
+      );
+    if(running_task->parent_token_available) {
+      token_ = running_task->token_;
+    }
+#endif
+  }
 
   all_reduce_impl(
     size_t piece, size_t n_pieces
@@ -118,6 +130,7 @@ struct all_reduce_impl {
       , token_(token)
 #endif // _darma_has_feature(task_collection_token)
   { }
+
 
 
   template <

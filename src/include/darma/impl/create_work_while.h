@@ -254,8 +254,9 @@ struct CallableHolder<Functor, ArgsTuple, false, IsOuter>
     auto* parent_task = static_cast<darma_runtime::detail::TaskBase*>(
       abstract::backend::get_backend_context()->get_running_task()
     );
-    // make ourselves the "Task" that handles the capture
+    // make our Task handles the capture
     parent_task->current_create_work_context = &task;
+    task.propagate_parent_context(parent_task);
 
     // This should trigger copy ctors of all AccessHandles
     // (and AccessHandleCollections, etc.) since they should be lvalues in the
@@ -278,7 +279,9 @@ struct CallableHolder<Functor, ArgsTuple, false, IsOuter>
     HandleUse::permissions_t default_immed_perms
   ) : CallableHolderBase(default_sched_perms, default_immed_perms),
       args_(_prepare_args(task, std::forward<ArgsFwdTuple>(args)))
-  { }
+  {
+
+  }
 
   CallableHolder(CallableHolder&&) = default;
   CallableHolder(CallableHolder const&) = delete;
@@ -493,6 +496,7 @@ struct WhileDoTask: public TaskBase
         abstract::backend::get_backend_context()->get_running_task()
       );
     parent_task->current_create_work_context = this;
+    propagate_parent_context(parent_task);
 
     current_stage_ = OuterWhileCapture;
     is_double_copy_capture = false;
@@ -520,6 +524,7 @@ struct WhileDoTask: public TaskBase
         abstract::backend::get_backend_context()->get_running_task()
       );
     parent_task->current_create_work_context = this;
+    propagate_parent_context(parent_task);
 
     return while_holder_t(
       std::forward<Args>(args)...
@@ -755,6 +760,7 @@ struct WhileDoTask: public TaskBase
       auto& key = do_desc_pair.first;
 
       // Now do the actual capture
+      assert(do_desc.source_and_continuing);
       do_desc.captured->call_make_captured_use_holder(
         do_desc.source_and_continuing->var_handle_base_,
         do_desc.req_sched_perms,
@@ -1012,6 +1018,7 @@ struct WhileDoTask: public TaskBase
           do_desc.captured_copy = &(insert_result.first->second);
           do_desc.captured = do_desc.captured_copy->get();
           do_desc.req_sched_perms = while_desc.req_immed_perms;
+          do_desc.source_and_continuing = while_holder_.old_explicit_captures_.at(key).get();
         } else {
           // Check whether or not the scheduling permissions need to be upgraded
           if (do_desc.req_sched_perms < while_desc.req_immed_perms) {
@@ -1075,6 +1082,7 @@ struct WhileDoTask: public TaskBase
     );
     // Setup to do the capture
     parent_task->current_create_work_context = this;
+    propagate_parent_context(parent_task);
     current_stage_ = NestedDoCapture;
     is_double_copy_capture =
       false; // should be default, so we should be able to remove this
@@ -1120,6 +1128,7 @@ struct WhileDoTask: public TaskBase
       );
       // Setup to do the capture
       parent_task->current_create_work_context = this;
+      propagate_parent_context(parent_task);
       current_stage_ = NestedWhileCapture;
       is_double_copy_capture =
         false; // should be default, so we should be able to remove this

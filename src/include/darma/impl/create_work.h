@@ -400,6 +400,7 @@ struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
           abstract::backend::get_backend_context()->get_running_task()
         );
         parent_task->current_create_work_context = task.get();
+        task->propagate_parent_context(parent_task);
 
         task->is_data_parallel_task_ = data_parallel;
 
@@ -465,6 +466,7 @@ struct _create_work_impl<detail::_create_work_uses_lambda_tag, tinympl::vector<A
           darma_runtime::abstract::backend::get_backend_context()->get_running_task()
         );
         parent_task->current_create_work_context = task.get();
+        task->propagate_parent_context(parent_task);
 
         task->is_data_parallel_task_ = data_parallel;
 

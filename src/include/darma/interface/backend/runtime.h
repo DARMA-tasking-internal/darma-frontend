@@ -226,7 +226,7 @@ class Runtime {
 
     virtual void
     release_use(
-      std::unique_ptr<frontend::UsePendingRelease>&& u
+      std::unique_ptr<frontend::UsePendingRelease> u
     ) {
         release_use(u.get());
         u = nullptr;

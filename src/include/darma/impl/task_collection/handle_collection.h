@@ -420,7 +420,6 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         );
       }
       else {
-        //DARMA_ASSERT_NOT_IMPLEMENTED("AccessHandleCollection capture in task inside create_concurrent_work");
         auto& source = reinterpret_cast<AccessHandleCollection const&>(source_in);
         for(auto&& local_holder_pair : source.local_use_holders_) {
           local_use_holders_[local_holder_pair.first] = detail::make_captured_use_holder(
@@ -429,16 +428,11 @@ class AccessHandleCollection : public detail::AccessHandleBase {
             req_immed_perms,
             local_holder_pair.second.get()
           );
-          // TODO !!! register a new Use for the collection as well
-          //current_use_ = _call_make_captured_use_holder_impl(
-          //  var_handle,
-          //  std::max(req_sched_perms, req_immed_perms, detail::compatible_permissions_less{}),
-          //  detail::HandleUse::None,
-          //  source_in
-          //);
-        }
+          current_use_ = static_cast<AccessHandleCollection const&>(source_in).current_use_;
+          // Continuation should be unchanged
 
-        // TODO Finish this!!!
+          // TODO test this
+        }
       }
     }
 

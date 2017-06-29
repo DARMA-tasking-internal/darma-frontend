@@ -303,10 +303,7 @@ auto make_captured_use_holder(
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
               // UNTESTED CODE !!!!!!!!!!!!!!!!!!
-              // TODO @antiflows implement and test antiflows for this case
-#if _darma_has_feature(anti_flows)
-              DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for XR -> { RN } capture case");
-#endif
+              // TODO @antiflows test antiflows for this case
 
               captured_use_holder = use_holder_maker(
                 var_handle,
@@ -316,11 +313,13 @@ auto make_captured_use_holder(
                 HandleUse::None,
                 same_flow(&source_and_continuing_holder->use->in_flow_),
                 //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
-                same_flow_as_in()
                 // FlowRelationship::Same, nullptr, true
 #if _darma_has_feature(anti_flows)
+                insignificant_flow()
                 , insignificant_flow(),
                 same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+#else
+                same_flow_as_in()
 #endif // _darma_has_feature(anti_flows)
               );
 
@@ -758,12 +757,9 @@ auto make_captured_use_holder(
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MR -> { MR } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-              // this case is an MR capture of MN or MR
+              // this case is an MR capture of MR
 
-              // TODO @antiflows implement and test antiflows for this case
-#if _darma_has_feature(anti_flows)
-              DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for MR -> { MR } -> MN");
-#endif
+              // TODO @antiflows test antiflows for this case
 
               captured_use_holder = use_holder_maker(
                 var_handle,
@@ -777,10 +773,10 @@ auto make_captured_use_holder(
                 //FlowRelationship::Next, nullptr, true
 #if _darma_has_feature(anti_flows)
                 // Anti-in
-                , insignificant_flow(),
+                , next_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
                 // Anti-out
-
-                same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+                , same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+                //same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
 #endif // _darma_has_feature(anti_flows)
               );
               captured_use_holder->could_be_alias = true;
@@ -801,9 +797,9 @@ auto make_captured_use_holder(
                   //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
 #if _darma_has_feature(anti_flows)
                   // Anti-in
-                  , insignificant_flow(),
+                  , same_anti_flow(&source_and_continuing_holder->use->anti_in_flow_),
                   // Anti-out
-                  same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
+                  same_anti_flow(&captured_use_holder->use->anti_in_flow_)
 #endif // _darma_has_feature(anti_flows)
                 ),
                 AllowRegisterContinuation

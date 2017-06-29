@@ -204,9 +204,6 @@ struct TaskCollectionTaskImpl
   // This is the mapping from frontend index to backend index for the collection itself
   Mapping mapping_;
   args_tuple_t args_;
-#if _darma_has_feature(task_collection_token)
-  types::task_collection_token_t token_;
-#endif // _darma_has_feature(task_collection_token)
 
 
   template <size_t... Spots>
@@ -249,9 +246,6 @@ struct TaskCollectionTaskImpl
   ) : backend_index_(backend_index),
       backend_size_(parent.size()),
       mapping_(mapping),
-#if _darma_has_feature(task_collection_token)
-      token_(parent.token_),
-#endif // _darma_has_feature(task_collection_token)
       args_(
         _task_collection_impl::_get_task_stored_arg_helper<
           Functor,
@@ -263,7 +257,12 @@ struct TaskCollectionTaskImpl
           *this
         )...
       )
-  { }
+  {
+#if _darma_has_feature(task_collection_token)
+    parent_token_available = true;
+    token_ = parent.token_;
+#endif // _darma_has_feature(task_collection_token)
+  }
 
   void run() override {
     meta::splat_tuple(

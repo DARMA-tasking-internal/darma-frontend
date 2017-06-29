@@ -90,7 +90,7 @@
 #define _darma_feature_date_anti_flows 20170415
 #define _darma_feature_disabled_by_default_anti_flows 1
 
-// TODO incorporate task_collection_token
+// TODO task collection token serialization?
 //#define _darma_feature_date_task_collection_token 20170415
 #define _darma_feature_disabled_by_default_task_collection_token 1
 

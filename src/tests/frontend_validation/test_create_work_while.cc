@@ -1318,3 +1318,41 @@ TEST_F(TestCreateWorkWhile, basic_coll_one_iter_nested) {
   EXPECT_THAT(value, Eq(73));
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+//TEST_F(TestCreateWorkWhile, nested_in_call_two_iters) {
+//  using namespace darma_runtime;
+//  using namespace ::testing;
+//  using namespace mock_backend;
+//  using namespace darma_runtime::keyword_arguments;
+//
+//
+//
+//  //============================================================================
+//  // actual code being tested
+//  {
+//    struct Bar {
+//      void operator()(Index1D<int> idx, AccessHandleCollection<int, Range1D<int>> coll) {
+//
+//      }
+//    };
+//
+//    auto tmp = initial_access<int>("hello");
+//
+//    create_work_while([=]{
+//      return tmp.get_value() == 0; // should always be true
+//    }).do_([=]{
+//      tmp.set_value(73);
+//      EXPECT_THAT(f.tmp_c.get_index_range().size(), Eq(4));
+//      // invoke copy ctor
+//      create_concurrent_work<Bar>(f.tmp_c, index_range=f.tmp_c.get_index_range());
+//      [](auto p){ }(f.tmp_c);
+//    });
+//
+//  }
+//  //============================================================================
+//
+//
+//}
+

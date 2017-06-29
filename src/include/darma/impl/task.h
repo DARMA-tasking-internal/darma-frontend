@@ -127,30 +127,35 @@ class TaskBase : public abstract::frontend::Task
 
     TaskBase(TaskBase&&) = default;
 
-    // Directly construct from a conditional callable
-    template <typename LambdaCallable,
-      typename = std::enable_if_t<
-        not std::is_base_of<std::decay_t<LambdaCallable>, TaskBase>::value
-        and not std::is_base_of<TaskBase, std::decay_t<LambdaCallable>>::value
-      >
-    >
-    TaskBase(LambdaCallable&& bool_callable) {
-      TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-        abstract::backend::get_backend_context()->get_running_task()
-      );
-      parent_task->current_create_work_context = this;
-      default_capture_as_info |= AccessHandleBase::CapturedAsInfo::ReadOnly;
-      default_capture_as_info |= AccessHandleBase::CapturedAsInfo::Leaf;
-      runnable_ =
-        // *Intentionally* avoid perfect forwarding here, causing a copy to happen,
-        // which then triggers all of the captures.  We do this by adding an lvalue reference
-        // to the type and not forwarding the value
-        detail::make_unique<RunnableCondition<std::remove_reference_t<LambdaCallable>&>>(
-          bool_callable
-        );
-      default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
-      parent_task->current_create_work_context = nullptr;
-    }
+//    // Directly construct from a conditional callable
+//    template <typename LambdaCallable,
+//      typename = std::enable_if_t<
+//        not std::is_base_of<std::decay_t<LambdaCallable>, TaskBase>::value
+//        and not std::is_base_of<TaskBase, std::decay_t<LambdaCallable>>::value
+//      >
+//    >
+//    TaskBase(LambdaCallable&& bool_callable) {
+//      TaskBase* parent_task = static_cast<detail::TaskBase* const>(
+//        abstract::backend::get_backend_context()->get_running_task()
+//      );
+//      parent_task->current_create_work_context = this;
+//#if _darma_has_feature(task_collection_token)
+//      if(parent_task->parent_token_available) {
+//        token_ = parent_task->token_;
+//      }
+//#endif // _darma_has_feature(task_collection_token)
+//      default_capture_as_info |= AccessHandleBase::CapturedAsInfo::ReadOnly;
+//      default_capture_as_info |= AccessHandleBase::CapturedAsInfo::Leaf;
+//      runnable_ =
+//        // *Intentionally* avoid perfect forwarding here, causing a copy to happen,
+//        // which then triggers all of the captures.  We do this by adding an lvalue reference
+//        // to the type and not forwarding the value
+//        detail::make_unique<RunnableCondition<std::remove_reference_t<LambdaCallable>&>>(
+//          bool_callable
+//        );
+//      default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
+//      parent_task->current_create_work_context = nullptr;
+//    }
 
     void add_dependency(HandleUseBase& use) {
       dependencies_.insert(&use);
@@ -344,6 +349,24 @@ class TaskBase : public abstract::frontend::Task
     bool is_parallel_for_task_ = false;
     bool is_data_parallel_task_ = true;
     mutable std::size_t assigned_lambda_unpack_index = 0;
+
+#if _darma_has_feature(task_collection_token)
+    // TODO @cleanup @dependent remove this when free-function-style collectives are fully deprecated
+    types::task_collection_token_t token_;
+    bool parent_token_available = false;
+#endif
+
+    // Note: may be called pre-registration of dependencies or not.  If we need
+    // a similar hook that *must* be called specifically pre- or
+    // post-registration of dependencies, we'll need a different hook
+    void propagate_parent_context(TaskBase* parent_task) {
+#if _darma_has_feature(task_collection_token)
+      if(parent_task->parent_token_available) {
+        token_ = parent_task->token_;
+        parent_token_available = true;
+      }
+#endif // _darma_has_feature(task_collection_token)
+    }
 
   protected:
 

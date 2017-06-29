@@ -172,6 +172,7 @@ struct GenericUseHolder : UseHolderBase {
     use->is_dependency_ = will_be_dep and use_base->immediate_permissions_ != HandleUse::None;
 #if _darma_has_feature(anti_flows)
     use->is_anti_dependency_ = use->is_dependency_ and use_base->immediate_permissions_ != HandleUse::Read;
+
 #endif // _darma_has_feature(anti_flows)
     if(do_register_in_ctor) do_register();
   }
@@ -236,8 +237,13 @@ struct GenericUseHolder : UseHolderBase {
       DARMA_ASSERT_NOT_IMPLEMENTED("new anti-flow semantics with commutative");
 #endif
 
-      // TODO the "collection" version of this needs to work also
-      HandleUse last_use(
+      // TODO @commutative the "collection" version of this needs to work also
+      DARMA_ASSERT_MESSAGE(
+        not use_base->manages_collection(),
+        "Commutative collections released in this way are not yet implemented"
+      );
+
+      auto last_use_ptr = std::make_unique<HandleUse>(
         use->handle_,
         HandleUse::None, // This could cause problems for some backends...
         HandleUse::None,
@@ -258,15 +264,15 @@ struct GenericUseHolder : UseHolderBase {
             : anti_next_of_in_flow()
 #endif // _darma_has_feature(anti_flows)
       );
-      rt->register_use(&last_use);
+      rt->register_use(last_use_ptr.get());
 
       assert(is_registered);
 
       do_release();
 
-      last_use.establishes_alias_ = true;
+      last_use_ptr->establishes_alias_ = true;
 
-      rt->release_use(&last_use);
+      rt->release_use(std::move(last_use_ptr));
     }
     else {
       // Normal case...
