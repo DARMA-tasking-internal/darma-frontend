@@ -207,7 +207,7 @@ struct GenericUseHolder : UseHolderBase {
     assert(is_registered);
     assert(use);
     use_base->establishes_alias_ = could_be_alias;
-    abstract::backend::get_backend_runtime()->release_use(use_base);
+    abstract::backend::get_backend_runtime()->release_use(use.release_smart_ptr());
     is_registered = false;
   }
 

@@ -256,11 +256,12 @@ class UsePendingRelease : virtual public RegisteredUse {
     // Deprecated; use Use::is_dependency() instead
     virtual bool was_dependency() const =0;
 
-  protected:
     // Deletions should only ever occur on the most derived class (i.e., done
     // by the translation layer itself) or on pointer to the most base class,
     // `Use`.
     ~UsePendingRelease() = default;
+
+  protected:
 };
 
 class DependencyUse : virtual public RegisteredUse {

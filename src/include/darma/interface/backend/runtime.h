@@ -224,6 +224,14 @@ class Runtime {
       frontend::UsePendingRelease* u
     ) =0;
 
+    virtual void
+    release_use(
+      std::unique_ptr<frontend::UsePendingRelease>&& u
+    ) {
+        release_use(u.get());
+        u = nullptr;
+    }
+
     // </editor-fold> end Use handling
     //==========================================================================
 
