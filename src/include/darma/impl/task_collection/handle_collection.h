@@ -420,7 +420,9 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         );
       }
       else {
-        auto& source = reinterpret_cast<AccessHandleCollection const&>(source_in);
+        // TODO fix this for create_work_while!!!
+        //auto& source = reinterpret_cast<AccessHandleCollection const&>(source_in);
+        auto& source = detail::safe_static_cast<AccessHandleCollection const&>(source_in);
         for(auto&& local_holder_pair : source.local_use_holders_) {
           local_use_holders_[local_holder_pair.first] = detail::make_captured_use_holder(
             var_handle,
@@ -460,14 +462,24 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
     void
     replace_use_holder_with(detail::AccessHandleBase const& other_handle) override {
-      current_use_ = detail::safe_static_cast<AccessHandleCollection const*>(
-        &other_handle
-      )->current_use_;
+      auto& other_as_this_type = detail::safe_static_cast<AccessHandleCollection const&>(
+        other_handle
+      );
+      current_use_ = other_as_this_type.current_use_;
+      if(not dynamic_is_outer) {
+        // Also replace the use holders in the local_use_holders_
+        local_use_holders_.clear();
+        local_use_holders_ = other_as_this_type.local_use_holders_;
+      }
     }
 
+    // really should be something like "release_current_use_holders"...
     void
     release_current_use() const override {
       current_use_ = nullptr;
+      if(not dynamic_is_outer) {
+        local_use_holders_.clear();
+      }
     }
 
   // </editor-fold> end AccessHandleBase pure virtual method overloads }}}1

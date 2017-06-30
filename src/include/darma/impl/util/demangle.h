@@ -52,6 +52,7 @@
 #include <typeinfo>
 #include <cstdlib>
 #include <cassert>
+#include <sstream>
 
 namespace darma_runtime {
 namespace detail {
@@ -79,7 +80,22 @@ struct try_demangle {
       // just return the mangled name as is.
       // something really weird happened if the returned name isn't null
       assert(real_name == nullptr);
-      return std::string(info.name());
+      std::stringstream sstr;
+      sstr << "[failed demangling";
+      if(status == -1) {
+        sstr << ": memory allocation failure while demangling " << info.name();
+      }
+      else if(status == -2) {
+        sstr << " because mangled name is not valid in C++ ABI: " << info.name();
+      }
+      else if(status == -3) {
+        sstr << ": invalid argument to __cxa_demangle while demangling " << info.name();
+      }
+      else {
+        sstr << " with unknown error code for " << info.name();
+      }
+      sstr << "]";
+      return sstr.str();
     }
   }
 };

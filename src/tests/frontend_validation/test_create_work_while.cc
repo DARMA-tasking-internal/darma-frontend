@@ -1356,3 +1356,49 @@ TEST_F(TestCreateWorkWhile, basic_coll_one_iter_nested) {
 //
 //}
 
+////////////////////////////////////////////////////////////////////////////////
+
+// TODO !!! Test this case
+//  auto counter1 = initial_access<int>("counter1");
+//  auto counter2 = initial_access<int>("counter2");
+//  create_work_while([=]{
+//  //std::cout << "while: cond counter=" << counter.get_value() << std::endl;
+//  std::printf("  hello %d\n", __LINE__);
+//  //return counter.get_value() < inner_weight;
+//  return *counter1 + *counter2 < 1;
+//  }).do_([=]{
+//  //std::cout << "while: do counter=" << counter.get_value() << std::endl;
+//  //auto my_weight = weights[index].local_access();
+//  //*my_weight += index.value;
+//  //std::printf("    hello %d, iter = %d, counter = %d, index = %d\n", __LINE__, iter, *counter, index.value);
+//  std::printf("  hello %d\n", __LINE__);
+//
+//  //::simple_backend::DebugState::print_state(::simple_backend::DebugWorker::instance->current_state);
+//
+//  (*counter1)++;
+//
+//  });
+
+////////////////////////////////////////////////////////////////////////////////
+
+// TODO !!! Test this case
+//  struct Foo {
+//    void operator()(
+//      Index1D<int> idx,
+//      AccessHandleCollection<int, Range1D<int>> coll
+//    ) const {
+//
+//      create_work_while([=]{
+//        return *coll[idx].local_access() < 30;
+//      }).do_([=]{
+//        std::printf("Hello World %d\n", *coll[idx].local_access());
+//        (*coll[idx].local_access())++;
+//      });
+//    }
+//  };
+//
+//  auto mycol = initial_access_collection<int>(index_range=Range1D<int>(1));
+//
+//  create_concurrent_work<Foo>(mycol, index_range=Range1D<int>(1));
+
+

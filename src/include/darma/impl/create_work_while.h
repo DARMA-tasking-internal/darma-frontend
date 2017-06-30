@@ -944,6 +944,8 @@ struct WhileDoTask: public TaskBase
 
           // This only works for the outer context case
           if (current_stage_ == WhileDoCaptureStage::OuterNestedDoCapture) {
+            // This won't already be set above since we're working with
+            // an implicit capture
             while_desc.source_and_continuing = &source_and_continuing;
           } else {
             // If it's implicit in the while, it has to be explicit in the do
@@ -971,6 +973,10 @@ struct WhileDoTask: public TaskBase
           do_desc.req_sched_perms = do_desc.req_immed_perms;
         }
 
+        // Make sure we reference the captured *copy* as the source of the
+        // next capture, since the object in the functor or lambda itself
+        // (i.e., while_desc.captured) might be deleted, moved, or invalid
+        // by the time the capture of the do block happens
         do_desc.source_and_continuing = while_desc.captured_copy->get();
 
         break;
@@ -1018,7 +1024,12 @@ struct WhileDoTask: public TaskBase
           do_desc.captured_copy = &(insert_result.first->second);
           do_desc.captured = do_desc.captured_copy->get();
           do_desc.req_sched_perms = while_desc.req_immed_perms;
-          do_desc.source_and_continuing = while_holder_.old_explicit_captures_.at(key).get();
+
+          auto explicit_found = while_holder_.old_explicit_captures_.find(key);
+          assert(explicit_found != while_holder_.old_explicit_captures_.end());
+          // TODO this will still be a bug in AccessHandleCollection mode
+          do_desc.source_and_continuing = explicit_found->second.get();
+
         } else {
           // Check whether or not the scheduling permissions need to be upgraded
           if (do_desc.req_sched_perms < while_desc.req_immed_perms) {
@@ -1031,6 +1042,10 @@ struct WhileDoTask: public TaskBase
           do_desc.req_sched_perms = while_desc.req_sched_perms;
         }
 
+        // Make sure we reference the captured *copy* as the source of the
+        // next capture, since the object in the functor or lambda itself
+        // (i.e., do_desc.captured) might be deleted, moved, or invalid
+        // by the time the capture of the next while happens
         while_desc.source_and_continuing = do_desc.captured_copy->get();
 
         break;

@@ -109,6 +109,7 @@ class AccessHandleBase {
       detail::AccessHandleBase const& source
     ) =0;
     virtual void replace_use_holder_with(AccessHandleBase const&) =0;
+    // really should be something like "release_current_use_holders"...
     virtual void release_current_use() const =0;
     virtual void call_add_dependency(
       detail::TaskBase* task
