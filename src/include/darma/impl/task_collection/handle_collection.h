@@ -467,6 +467,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       current_use_ = other_as_this_type.current_use_;
       if(not dynamic_is_outer) {
         // Also replace the use holders in the local_use_holders_
+//        assert(&other_as_this_type != this);
         local_use_holders_ = other_as_this_type.local_use_holders_;
       }
     }
@@ -542,8 +543,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
         if(source->current_use_) {
           source->current_use_->use->already_captured = true;
-          capturing_task->uses_to_unmark_already_captured.push_back(
-            source->current_use_->use.get()
+          capturing_task->uses_to_unmark_already_captured.insert(
+            source->current_use_->use_base
           );
         }
 

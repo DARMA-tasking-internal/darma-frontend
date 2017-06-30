@@ -343,7 +343,7 @@ class TaskBase : public abstract::frontend::Task
     // TODO refactor this to group some of these "capture context" properties into a seperate class
     TaskBase* current_create_work_context = nullptr;
 
-    std::vector<HandleUseBase*> uses_to_unmark_already_captured;
+    std::set<HandleUseBase*> uses_to_unmark_already_captured;
     bool is_double_copy_capture = false;
     unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
     bool is_parallel_for_task_ = false;

@@ -705,6 +705,12 @@ struct WhileDoTask: public TaskBase
     //   current_stage_ = NotAWhileDoStage;
     // --] end "as-if" code
 
+    // Cleanup:  remove the alias guards
+    for(auto* use_to_unmark : uses_to_unmark_already_captured) {
+      assert(use_to_unmark != nullptr);
+      use_to_unmark->already_captured = false;
+    }
+
     parent_task->current_create_work_context = nullptr;
 
     for (auto&& while_desc_pair : while_holder_.capture_descs_) {
@@ -726,11 +732,6 @@ struct WhileDoTask: public TaskBase
     }
     while_holder_.capture_descs_.clear();
 
-    // Cleanup:  remove the alias guards
-    // TODO make this work
-    //for(auto* use_to_unmark : uses_to_unmark_already_captured) {
-    //  use_to_unmark->already_captured = false;
-    //}
 
   }
 
@@ -754,6 +755,11 @@ struct WhileDoTask: public TaskBase
       while_fxn_temp_holder_(std::move(in_tmp_while_holder)),
       do_fxn_temp_holder_(std::move(in_tmp_do_holder))
   {
+    // Cleanup:  remove the alias guards
+    for (auto* use_to_unmark : uses_to_unmark_already_captured) {
+      use_to_unmark->already_captured = false;
+    }
+
     // Register the do_descs from the outer task
     for (auto&& do_desc_pair : do_holder_.capture_descs_) {
       auto& do_desc = do_desc_pair.second;
@@ -784,10 +790,6 @@ struct WhileDoTask: public TaskBase
     // except that they need to be corrected to also handle the schedule-only
     // captures of the do parts
 
-    // Cleanup:  remove the alias guards
-    for (auto* use_to_unmark : uses_to_unmark_already_captured) {
-      use_to_unmark->already_captured = false;
-    }
   }
 
   // This is a recursive inner constructor, called for "while" mode
@@ -807,6 +809,15 @@ struct WhileDoTask: public TaskBase
       while_fxn_temp_holder_(std::move(in_tmp_while_holder)),
       do_fxn_temp_holder_(std::move(in_tmp_do_holder))
   {
+    // The capture descriptions in while_holder_ should be correct at this point
+    // except that they need to be corrected to also handle the schedule-only
+    // captures of the do parts
+
+    // Cleanup:  remove the alias guards
+    for (auto* use_to_unmark : uses_to_unmark_already_captured) {
+      use_to_unmark->already_captured = false;
+    }
+
     // Register the do_descs from the outer task
     for (auto&& while_desc_pair : while_holder_.capture_descs_) {
       auto& while_desc = while_desc_pair.second;
@@ -835,10 +846,6 @@ struct WhileDoTask: public TaskBase
     // except that they need to be corrected to also handle the schedule-only
     // captures of the nested while parts
 
-    // Cleanup:  remove the alias guards
-    for (auto* use_to_unmark : uses_to_unmark_already_captured) {
-      use_to_unmark->already_captured = false;
-    }
   }
 
   // </editor-fold> end Ctors }}}2

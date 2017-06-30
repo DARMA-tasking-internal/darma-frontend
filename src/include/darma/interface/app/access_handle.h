@@ -332,7 +332,7 @@ class AccessHandle : public detail::AccessHandleBase {
         if (source->current_use_) {
           source->current_use_->use_base->already_captured = true;
           // TODO this flag should be on the AccessHandleBase itself
-          capturing_task->uses_to_unmark_already_captured.push_back(
+          capturing_task->uses_to_unmark_already_captured.insert(
             source->current_use_->use_base
           );
         }
@@ -421,8 +421,8 @@ class AccessHandle : public detail::AccessHandleBase {
         if (copied_from.current_use_) {
           copied_from.current_use_->use->already_captured = true;
           // TODO this flag should be on the AccessHandleBase itself
-          capturing_task->uses_to_unmark_already_captured.push_back(
-            copied_from.current_use_->use.get()
+          capturing_task->uses_to_unmark_already_captured.insert(
+            copied_from.current_use_->use_base
           );
         }
       } // end if capturing_task != nullptr

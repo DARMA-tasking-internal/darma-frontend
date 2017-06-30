@@ -333,11 +333,7 @@ auto make_captured_use_holder(
               // %   MR -> { MN } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-              // UNTESTED CODE !!!!!!!!!!!!!!!!!!
-              // TODO @antiflows implement and test antiflows for this case
-#if _darma_has_feature(anti_flows)
-              //DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for XR -> { MN } capture case");
-#endif
+              // TODO @antiflows test antiflows for this case
 
               // Assert that, e.g., RR -> { MN } -> ... is not allowed
               DARMA_ASSERT_MESSAGE(
