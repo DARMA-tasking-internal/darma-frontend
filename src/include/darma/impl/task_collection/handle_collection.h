@@ -430,11 +430,10 @@ class AccessHandleCollection : public detail::AccessHandleBase {
             req_immed_perms,
             local_holder_pair.second.get()
           );
-          current_use_ = static_cast<AccessHandleCollection const&>(source_in).current_use_;
           // Continuation should be unchanged
-
           // TODO test this
         }
+        current_use_ = source.current_use_;
       }
     }
 
@@ -468,7 +467,6 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       current_use_ = other_as_this_type.current_use_;
       if(not dynamic_is_outer) {
         // Also replace the use holders in the local_use_holders_
-        local_use_holders_.clear();
         local_use_holders_ = other_as_this_type.local_use_holders_;
       }
     }

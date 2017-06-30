@@ -336,7 +336,7 @@ auto make_captured_use_holder(
               // UNTESTED CODE !!!!!!!!!!!!!!!!!!
               // TODO @antiflows implement and test antiflows for this case
 #if _darma_has_feature(anti_flows)
-              DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for XR -> { MN } capture case");
+              //DARMA_ASSERT_NOT_IMPLEMENTED("Anti-flows for XR -> { MN } capture case");
 #endif
 
               // Assert that, e.g., RR -> { MN } -> ... is not allowed
@@ -357,7 +357,7 @@ auto make_captured_use_holder(
                 next_of_in_flow()
                 //FlowRelationship::Next /* "scheduling next" */, nullptr, true
 #if _darma_has_feature(anti_flows)
-                , insignificant_flow(),
+                , next_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
                 same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
 #endif // _darma_has_feature(anti_flows)
               );
@@ -372,8 +372,8 @@ auto make_captured_use_holder(
                   same_flow(&source_and_continuing_holder->use->out_flow_)
                   //FlowRelationship::Same, &source_and_continuing_holder->use->out_flow_
 #if _darma_has_feature(anti_flows)
-                  , insignificant_flow(),
-                  anti_next_of_in_flow()
+                  , same_anti_flow(&source_and_continuing_holder->use->anti_in_flow_),
+                  same_anti_flow(&captured_use_holder->use->anti_in_flow_)
 #endif // _darma_has_feature(anti_flows)
                 ),
                 AllowRegisterContinuation

@@ -775,7 +775,8 @@ struct WhileDoTask: public TaskBase
     }
     do_holder_.capture_descs_.clear();
 
-    // Delete the implicit and explicit from the while
+    // Delete the implicit and old explicit from the while (but not the new explicit,
+    // since we've already captured some of them)
     while_holder_.implicit_captures_.clear();
     while_holder_.old_explicit_captures_.clear();
 
@@ -813,7 +814,7 @@ struct WhileDoTask: public TaskBase
 
       // Now do the actual capture
       while_desc.captured->call_make_captured_use_holder(
-        while_desc.captured->var_handle_base_,
+        while_desc.source_and_continuing->var_handle_base_,
         while_desc.req_sched_perms,
         while_desc.req_immed_perms,
         *while_desc.source_and_continuing
@@ -825,7 +826,8 @@ struct WhileDoTask: public TaskBase
     }
     while_holder_.capture_descs_.clear();
 
-    // Delete the implicit and explicit from the while
+    // Delete the implicit and old explicit from the do (but not the new explicit,
+    // since we've already captured some of them)
     do_holder_.implicit_captures_.clear();
     do_holder_.old_explicit_captures_.clear();
 
@@ -997,6 +999,12 @@ struct WhileDoTask: public TaskBase
           while_holder_.get_requested_immediate_permissions(key);
         while_desc.captured = &captured;
 
+        // Make sure the callable we don't hold a duplicate of the outer
+        // context handle, since it is held in the while part
+        // This (should be?) okay since this will be replaced before another
+        // capture that depends on it is triggered
+        captured.release_current_use();
+
         // Make the AccessHandle for the explicit capture
         // (so that if the handle gets released in the middle, we still retain
         // scheduling permissions)
@@ -1025,9 +1033,12 @@ struct WhileDoTask: public TaskBase
           do_desc.captured = do_desc.captured_copy->get();
           do_desc.req_sched_perms = while_desc.req_immed_perms;
 
+          // Because this is a "late" discovery of an implicit dependency for the
+          // do block, the explicit_captures_ map has already been cleared to
+          // get ready for the next while capture, so we have to use the handle
+          // from the old_explicit_captures_ map.
           auto explicit_found = while_holder_.old_explicit_captures_.find(key);
           assert(explicit_found != while_holder_.old_explicit_captures_.end());
-          // TODO this will still be a bug in AccessHandleCollection mode
           do_desc.source_and_continuing = explicit_found->second.get();
 
         } else {
