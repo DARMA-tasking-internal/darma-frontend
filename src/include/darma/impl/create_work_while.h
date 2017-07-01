@@ -732,7 +732,6 @@ struct WhileDoTask: public TaskBase
     }
     while_holder_.capture_descs_.clear();
 
-
   }
 
   // This is a recursive inner constructor, called for "do" mode
@@ -813,10 +812,6 @@ struct WhileDoTask: public TaskBase
     // except that they need to be corrected to also handle the schedule-only
     // captures of the do parts
 
-    // Cleanup:  remove the alias guards
-    for (auto* use_to_unmark : uses_to_unmark_already_captured) {
-      use_to_unmark->already_captured = false;
-    }
 
     // Register the do_descs from the outer task
     for (auto&& while_desc_pair : while_holder_.capture_descs_) {
@@ -1125,6 +1120,11 @@ struct WhileDoTask: public TaskBase
     // Cleanup
     parent_task->current_create_work_context = nullptr;
 
+    // Cleanup:  remove the alias guards
+    for (auto* use_to_unmark : uses_to_unmark_already_captured) {
+      use_to_unmark->already_captured = false;
+    }
+
     auto while_do_task = std::make_unique<
       nested_analogue<false /* i.e., while-do mode */>
     >(
@@ -1173,6 +1173,11 @@ struct WhileDoTask: public TaskBase
       // Cleanup
       parent_task->current_create_work_context = nullptr;
 
+      // Cleanup:  remove the alias guards
+      for (auto* use_to_unmark : uses_to_unmark_already_captured) {
+        use_to_unmark->already_captured = false;
+      }
+
       // Pass everything off to the next task
       auto do_while_task = std::make_unique<
         nested_analogue<true /* i.e., do-while mode */>
@@ -1184,6 +1189,13 @@ struct WhileDoTask: public TaskBase
       abstract::backend::get_backend_runtime()->register_task(
         std::move(do_while_task)
       );
+    }
+    else {
+      // still need to clean up our captures?!?
+      //for(auto* use_to_unmark : uses_to_unmark_already_captured) {
+      //  assert(use_to_unmark != nullptr);
+      //  use_to_unmark->already_captured = false;
+      //}
     }
   }
 
