@@ -710,6 +710,7 @@ struct WhileDoTask: public TaskBase
       assert(use_to_unmark != nullptr);
       use_to_unmark->already_captured = false;
     }
+    uses_to_unmark_already_captured.clear();
 
     parent_task->current_create_work_context = nullptr;
 
@@ -1124,6 +1125,7 @@ struct WhileDoTask: public TaskBase
     for (auto* use_to_unmark : uses_to_unmark_already_captured) {
       use_to_unmark->already_captured = false;
     }
+    uses_to_unmark_already_captured.clear();
 
     auto while_do_task = std::make_unique<
       nested_analogue<false /* i.e., while-do mode */>
@@ -1177,6 +1179,7 @@ struct WhileDoTask: public TaskBase
       for (auto* use_to_unmark : uses_to_unmark_already_captured) {
         use_to_unmark->already_captured = false;
       }
+      uses_to_unmark_already_captured.clear();
 
       // Pass everything off to the next task
       auto do_while_task = std::make_unique<
@@ -1189,14 +1192,9 @@ struct WhileDoTask: public TaskBase
       abstract::backend::get_backend_runtime()->register_task(
         std::move(do_while_task)
       );
+
     }
-    else {
-      // still need to clean up our captures?!?
-      //for(auto* use_to_unmark : uses_to_unmark_already_captured) {
-      //  assert(use_to_unmark != nullptr);
-      //  use_to_unmark->already_captured = false;
-      //}
-    }
+
   }
 
   void run() override
