@@ -104,6 +104,9 @@ T darma_copy(T& lvalue) {
   return lvalue;
 }
 
+// TODO overload <<= to make it "release scheduling permissions and return reference" (i.e., release_into_reference())
+// TODO unary +/-/! (maybe?) as a "const dereference" and give a mode that doesn't allow * or -> in read-only at runtime
+
 template <typename T, typename Traits>
 class AccessHandle : public detail::AccessHandleBase {
   //===========================================================================

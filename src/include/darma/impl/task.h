@@ -294,14 +294,17 @@ class TaskBase : public abstract::frontend::Task
       runnable_->set_resource_pack(cpuset);
     }
 
+#endif // _darma_has_feature(create_parallel_for_custom_cpu_set)
+#endif // _darma_has_feature(create_parallel_for)
+
+#if _darma_has_feature(mark_parallel_tasks)
     bool is_data_parallel_task() const override {
-      assert(runnable_);
-      assert(not runnable_->needs_resource_pack() or is_data_parallel_task_);
+      //assert(runnable_);
+      //assert(not runnable_->needs_resource_pack() or is_data_parallel_task_);
       return is_data_parallel_task_;
     }
-#endif // _darma_has_feature(create_parallel_for_custom_cpu_set)
+#endif
 
-#endif // _darma_has_feature(create_parallel_for)
     //==========================================================================
 
     virtual ~TaskBase() noexcept { }
@@ -347,7 +350,7 @@ class TaskBase : public abstract::frontend::Task
     bool is_double_copy_capture = false;
     unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
     bool is_parallel_for_task_ = false;
-    bool is_data_parallel_task_ = true;
+    bool is_data_parallel_task_ = false;
     mutable std::size_t assigned_lambda_unpack_index = 0;
 
 #if _darma_has_feature(task_collection_token)

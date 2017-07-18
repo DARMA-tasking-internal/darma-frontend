@@ -133,6 +133,7 @@ class FlowRelationship {
     virtual types::key_t const* version_key() const =0;
 
     virtual std::size_t index() const =0;
+
 };
 
 } // end namespace frontend

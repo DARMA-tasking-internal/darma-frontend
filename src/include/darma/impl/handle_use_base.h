@@ -310,10 +310,26 @@ class HandleUseBase
 
     bool establishes_alias() const override { return establishes_alias_; }
 
+#if _darma_has_feature(use_collection_token)
+    types::use_collection_token_t parent_use_collection_token_;
+
+    types::use_collection_token_t const&
+    parent_use_collection_token() const override { return parent_use_collection_token_; }
+#endif // _darma_has_feature(use_collection_token)
+
     // </editor-fold>
     ////////////////////////////////////////
 
+#if _darma_has_feature(use_collection_token)
+    HandleUseBase
+    with_parent_use_collection_token(types::use_collection_token_t const& token) && {
+      this->parent_use_collection_token_ = token;
+      return *this;
+    }
+#endif // _darma_has_feature(use_collection_token)
+
     // TODO anti-flow ser/des
+    // TODO use_collection_token ser/des
 
 //    HandleUseBase(
 //      std::shared_ptr<VariableHandleBase> handle,

@@ -73,7 +73,7 @@
 
 // TODO move this once it becomes part of the specified interface
 DeclareDarmaTypeTransparentKeyword(task_creation, allow_aliasing);
-DeclareDarmaTypeTransparentKeyword(task_creation, data_parallel);
+DeclareDarmaTypeTransparentKeyword(task_creation, is_parallel);
 
 namespace darma_runtime {
 
@@ -326,7 +326,7 @@ using create_work_argument_parser = darma_runtime::detail::kwarg_parser<
       converted_parameter, keyword_tags_for_task_creation::allow_aliasing
     >,
     _optional_keyword<
-      bool, keyword_tags_for_task_creation::data_parallel
+      bool, keyword_tags_for_task_creation::is_parallel
     >
   >
 >;
@@ -355,7 +355,7 @@ inline auto setup_create_work_argument_parser() {
           false
         );
       },
-      keyword_arguments_for_task_creation::data_parallel = [] { return false; }
+      keyword_arguments_for_task_creation::is_parallel = [] { return false; }
     );
 }
 

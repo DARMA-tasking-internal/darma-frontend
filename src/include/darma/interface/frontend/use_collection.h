@@ -107,6 +107,11 @@ class UseCollection {
     virtual std::size_t
     size() const =0;
 
+#if _darma_has_feature(use_collection_token)
+    virtual void
+    set_use_collection_token(types::use_collection_token_t const& token) =0;
+#endif // _darma_has_feature(use_collection_token)
+
 };
 
 } // end namespace frontend

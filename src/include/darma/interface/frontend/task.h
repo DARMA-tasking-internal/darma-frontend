@@ -172,9 +172,12 @@ class Task {
      */
     virtual bool is_parallel_for_task() const =0;
 
-    virtual bool is_data_parallel_task() const =0;
 
 #endif // _darma_has_feature(create_parallel_for)
+
+#if _darma_has_feature(mark_parallel_tasks)
+    virtual bool is_data_parallel_task() const =0;
+#endif
 
     //==========================================================================
 
