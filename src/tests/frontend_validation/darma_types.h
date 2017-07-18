@@ -238,26 +238,6 @@ namespace darma_runtime { namespace types {
 using task_collection_token_t = mock_backend::MockTaskCollectionToken;
 }} // end namespace darma_runtime::types
 
-#if _darma_has_feature(use_collection_token)
-
-namespace mock_backend {
-
-struct MockUseCollectionToken {
-  MockUseCollectionToken() : name("%##unnamed##%") { }
-  MockUseCollectionToken(const char* in_name) : name(in_name) { }
-  MockUseCollectionToken(MockUseCollectionToken const& other) = default;
-  MockUseCollectionToken(MockUseCollectionToken&& other) = default;
-  MockUseCollectionToken& operator=(MockUseCollectionToken const& other) = default;
-  MockUseCollectionToken& operator=(MockUseCollectionToken&& other) = default;
-  std::string name;
-};
-
-} // end namespace mock_backend
-
-namespace darma_runtime { namespace types {
-using use_collection_token_t = mock_backend::MockUseCollectionToken;
-}} // end namespace darma_runtime::types
-#endif // _darma_has_feature(use_collection_token)
 
 #include <darma/impl/key/SSO_key_fwd.h>
 

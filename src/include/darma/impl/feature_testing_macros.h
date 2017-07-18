@@ -101,9 +101,6 @@
 //#define _darma_feature_date_oo_interface 20990101
 #define _darma_feature_disabled_by_default_oo_interface 1
 
-// TODO use collection token serialization?
-#define _darma_feature_date_use_collection_token 20170717
-//#define _darma_feature_disabled_by_default_use_collection_token 20170717
 
 // </editor-fold> end Feature Dates and Defaults }}}1
 //==============================================================================

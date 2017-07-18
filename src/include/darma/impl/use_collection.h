@@ -229,9 +229,6 @@ class CollectionManagingUseBase
             MappingManager<std::decay_t<MappingToTaskCollectionDeduced>, FrontendHandleIndex>
           >(std::forward<MappingToTaskCollectionDeduced>(mapping))
         )
-#if _darma_has_feature(use_collection_token)
-        , token_(use_base.token_)  // shouldn't be set yet, but just in case...
-#endif // _darma_has_feature(use_collection_token)
     { }
 
     template <typename MappingToTaskCollectionDeduced>
@@ -283,15 +280,6 @@ class CollectionManagingUseBase
       }
     }
 
-#if _darma_has_feature(use_collection_token)
-    types::use_collection_token_t token_;
-
-    void set_use_collection_token(
-      types::use_collection_token_t const& token
-    ) override {
-      token_ = token;
-    }
-#endif // _darma_has_feature(use_collection_token)
 
     CollectionManagingUseBase(CollectionManagingUseBase&&) = default;
     virtual ~CollectionManagingUseBase() = default;
