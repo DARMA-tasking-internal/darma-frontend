@@ -541,11 +541,14 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
         capturing_task->do_capture(*this, *source);
 
-        if(source->current_use_) {
-          source->current_use_->use->already_captured = true;
-          capturing_task->uses_to_unmark_already_captured.insert(
-            source->current_use_->use_base
-          );
+        // TODO alias checks for non-outer use cases
+        if(dynamic_is_outer) {
+          if (source->current_use_) {
+            source->current_use_->use->already_captured = true;
+            capturing_task->uses_to_unmark_already_captured.insert(
+              source->current_use_->use_base
+            );
+          }
         }
 
       } else {

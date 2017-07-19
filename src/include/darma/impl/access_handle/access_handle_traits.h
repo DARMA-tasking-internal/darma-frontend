@@ -523,6 +523,30 @@ struct access_handle_special_semantic_members
 #endif // _darma_has_feature(task_collection_token)
 
   template <typename _Ignored_SFINAE=void>
+  void
+  set_can_be_published_dynamic(
+    std::enable_if_t<
+      std::is_void<_Ignored_SFINAE>::value // always true
+        and has_can_be_published_dynamic,
+      bool
+    > new_value
+  ) {
+    meta::get_conditional_member<_can_be_published_dynamic_index>(*this) = new_value;
+  }
+
+  template <typename _Ignored_SFINAE=void>
+  void
+  set_can_be_published_dynamic(
+    std::enable_if_t<
+      std::is_void<_Ignored_SFINAE>::value // always true
+        and not has_can_be_published_dynamic,
+      bool
+    > new_value
+  ) {
+    // TODO assert that the new dynamic value matches the static one
+  }
+
+  template <typename _Ignored_SFINAE=void>
   bool&
   can_be_published_dynamic(
     std::enable_if_t<
@@ -531,6 +555,18 @@ struct access_handle_special_semantic_members
         _not_a_type
     > = { }
   ) {
+    return meta::get_conditional_member<_can_be_published_dynamic_index>(*this);
+  }
+
+  template <typename _Ignored_SFINAE=void>
+  bool
+  can_be_published_dynamic(
+    std::enable_if_t<
+      std::is_void<_Ignored_SFINAE>::value // always true
+        and has_can_be_published_dynamic,
+      _not_a_type
+    > = { }
+  ) const {
     return meta::get_conditional_member<_can_be_published_dynamic_index>(*this);
   }
 

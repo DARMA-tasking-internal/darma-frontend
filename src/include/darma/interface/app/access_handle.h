@@ -300,7 +300,8 @@ class AccessHandle : public detail::AccessHandleBase {
       : current_use_(current_use_base_) {}
 
     AccessHandle(AccessHandle const& copied_from)
-      : current_use_(current_use_base_)
+      : current_use_(current_use_base_),
+        other_private_members_(copied_from.other_private_members_)
     {
       // get the shared_ptr from the weak_ptr stored in the runtime object
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
@@ -364,7 +365,12 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     AccessHandle(
       AccessHandleT const& copied_from
-    ) : current_use_(current_use_base_)
+    ) : current_use_(current_use_base_),
+        other_private_members_(
+          std::piecewise_construct,
+          std::forward_as_tuple(nullptr),
+          std::forward_as_tuple(copied_from.other_private_members_.second())
+        )
     {
       using detail::analogous_access_handle_attorneys::AccessHandleAccess;
       // get the shared_ptr from the weak_ptr stored in the runtime object
