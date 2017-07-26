@@ -88,11 +88,11 @@ struct _publish_impl {
   ) {
     auto* backend_runtime = abstract::backend::get_backend_runtime();
     detail::PublicationDetails dets(version, n_readers, not is_publish_out);
+#if _darma_has_feature(task_collection_token)
     DARMA_ASSERT_MESSAGE(
       this_.other_private_members_.second().can_be_published_dynamic(),
       "Tried to publish AccessHandle that is not descended from a AccessHandleCollection local access"
     );
-#if _darma_has_feature(task_collection_token)
     dets.token_ = this_.other_private_members_.second().task_collection_token();
 #endif // _darma_has_feature(task_collection_token)
 
