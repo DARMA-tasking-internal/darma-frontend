@@ -1053,6 +1053,18 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
         ahc.current_use_->use->out_flow_
       )
     );
+#if _darma_has_feature(anti_flows)
+    ar.add_to_size_indirect(
+      backend_runtime->get_packed_anti_flow_size(
+        ahc.current_use_->use->anti_in_flow_
+      )
+    );
+    ar.add_to_size_indirect(
+      backend_runtime->get_packed_anti_flow_size(
+        ahc.current_use_->use->anti_out_flow_
+      )
+    );
+#endif // _darma_has_feature(anti_flows)
   }
 
   template <typename ArchiveT>
@@ -1075,6 +1087,16 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
       ahc.current_use_->use->out_flow_,
       reinterpret_cast<void*&>(ArchiveAccess::spot(ar))
     );
+#if _darma_has_feature(anti_flows)
+    backend_runtime->pack_anti_flow(
+      ahc.current_use_->use->anti_in_flow_,
+      reinterpret_cast<void*&>(ArchiveAccess::spot(ar))
+    );
+    backend_runtime->pack_anti_flow(
+      ahc.current_use_->use->anti_out_flow_,
+      reinterpret_cast<void*&>(ArchiveAccess::spot(ar))
+    );
+#endif // _darma_has_feature(anti_flows)
   }
 
   template <typename ArchiveT, typename AllocatorT>
@@ -1114,6 +1136,14 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
     auto outflow = backend_runtime->make_unpacked_flow(
       reinterpret_cast<void const*&>(archive_spot)
     );
+#if _darma_has_feature(anti_flows)
+    auto anti_inflow = backend_runtime->make_unpacked_anti_flow(
+      reinterpret_cast<void const*&>(archive_spot)
+    );
+    auto anti_outflow = backend_runtime->make_unpacked_anti_flow(
+      reinterpret_cast<void const*&>(archive_spot)
+    );
+#endif // _darma_has_feature(anti_flows)
 
 
     // remake the use:
@@ -1124,7 +1154,11 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
     >(
       darma_runtime::detail::CollectionManagingUse<handle_range_t>(
         collection.var_handle_.get_smart_ptr(), sched_perm, immed_perm,
-        std::move(inflow), std::move(outflow), std::move(hr)
+        std::move(inflow), std::move(outflow),
+#if _darma_has_feature(anti_flows)
+        std::move(anti_inflow), std::move(anti_outflow),
+#endif // _darma_has_feature(anti_flows)
+        std::move(hr)
         // the mapping will be re-set up in the task collection unpack,
         // so don't worry about it here
       ),

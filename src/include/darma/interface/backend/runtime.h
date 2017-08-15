@@ -313,6 +313,36 @@ class Runtime {
     make_unpacked_flow(
       void const*& buffer
     ) =0;
+
+#if _darma_has_feature(anti_flows)
+    virtual size_t
+    get_packed_anti_flow_size(
+      types::anti_flow_t const& f
+    ) =0;
+
+    /** @todo document this
+     *
+     *  @remark this method should advance the buffer to after the end of the
+     *  packed storage used for `f`
+     */
+    virtual void
+    pack_anti_flow(
+      types::anti_flow_t& f, void*& buffer
+    ) =0;
+
+    /** @todo document this
+     *
+     *  @remark this method should advance the buffer to after the end of the
+     *  packed data used to recreate the return value
+     *
+     *  @param buffer
+     *  @return
+     */
+    virtual types::anti_flow_t
+    make_unpacked_anti_flow(
+      void const*& buffer
+    ) =0;
+#endif // _darma_has_feature(anti_flows)
 #endif
 };
 

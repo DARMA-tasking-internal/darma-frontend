@@ -370,8 +370,8 @@ class HandleUseBase
         scheduling_permissions_(scheduling_permissions),
         in_flow_rel_(std::move(in_rel)),
         out_flow_rel_(std::move(out_rel)),
-        in_anti_flow_rel_(std::move(anti_in_rel)), // i.e., insignificant
-        out_anti_flow_rel_(std::move(anti_out_rel)) // i.e., insignificant
+        in_anti_flow_rel_(std::move(anti_in_rel)),
+        out_anti_flow_rel_(std::move(anti_out_rel))
     { }
 #endif // _darma_has_feature(anti_flows)
 
@@ -383,11 +383,19 @@ class HandleUseBase
       abstract::frontend::Use::permissions_t immediate_permissions,
       types::flow_t&& in_flow,
       types::flow_t&& out_flow
+#if _darma_has_feature(anti_flows)
+      , types::anti_flow_t&& anti_in_flow,
+      types::anti_flow_t&& anti_out_flow
+#endif // _darma_has_feature(anti_flows)
     ) : handle_(handle),
         immediate_permissions_(immediate_permissions),
         scheduling_permissions_(scheduling_permissions),
         in_flow_(std::move(in_flow)),
         out_flow_(std::move(out_flow))
+#if _darma_has_feature(anti_flows)
+        , anti_in_flow_(std::move(anti_in_flow)),
+        anti_out_flow_(std::move(anti_out_flow))
+#endif // _darma_has_feature(anti_flows)
     { }
 
 

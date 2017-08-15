@@ -46,6 +46,8 @@
 #define DARMA_INTERFACE_BACKEND_SERIALIZATION_POLICY_H
 
 #include <cstdlib>
+#include <algorithm>
+
 #include <darma/impl/feature_testing_macros.h>
 
 namespace darma_runtime {

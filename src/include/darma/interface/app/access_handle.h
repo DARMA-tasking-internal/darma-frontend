@@ -1304,6 +1304,16 @@ class AccessHandle : public detail::AccessHandleBase {
         ArchiveAccess::get_const_spot(ar)
       );
 
+#if _darma_has_feature(anti_flows)
+      auto anti_in_flow = backend_runtime->make_unpacked_anti_flow(
+        ArchiveAccess::get_const_spot(ar)
+      );
+
+      auto anti_out_flow = backend_runtime->make_unpacked_anti_flow(
+        ArchiveAccess::get_const_spot(ar)
+      );
+#endif // _darma_has_feature(anti_flows)
+
       // Suspended flow should always be null when packing/unpacking, so don't
       // have to worry about it here
 
@@ -1311,6 +1321,9 @@ class AccessHandle : public detail::AccessHandleBase {
         detail::migrated_use_arg,
         detail::HandleUse(
           var_handle_, sched, immed, std::move(in_flow), std::move(out_flow)
+#if _darma_has_feature(anti_flows)
+          , std::move(anti_in_flow), std::move(anti_out_flow)
+#endif // _darma_has_feature(anti_flows)
         )
       );
 
@@ -1603,6 +1616,14 @@ struct Serializer<AccessHandle<Args...>>
       ar.add_to_size_indirect(
         backend_runtime->get_packed_flow_size(val.current_use_->use->out_flow_)
       );
+#if _darma_has_feature(anti_flows)
+      ar.add_to_size_indirect(
+        backend_runtime->get_packed_anti_flow_size(val.current_use_->use->anti_in_flow_)
+      );
+      ar.add_to_size_indirect(
+        backend_runtime->get_packed_anti_flow_size(val.current_use_->use->anti_out_flow_)
+      );
+#endif // _darma_has_feature(anti_flows)
 
     }
 
@@ -1627,6 +1648,16 @@ struct Serializer<AccessHandle<Args...>>
         val.current_use_->use->out_flow_,
         ArchiveAccess::get_spot(ar)
       );
+#if _darma_has_feature(anti_flows)
+      backend_runtime->pack_anti_flow(
+        val.current_use_->use->anti_in_flow_,
+        ArchiveAccess::get_spot(ar)
+      );
+      backend_runtime->pack_anti_flow(
+        val.current_use_->use->anti_out_flow_,
+        ArchiveAccess::get_spot(ar)
+      );
+#endif // _darma_has_feature(anti_flows)
 
     }
 

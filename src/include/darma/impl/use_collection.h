@@ -238,10 +238,17 @@ class CollectionManagingUseBase
       abstract::frontend::Use::permissions_t immediate_permissions,
       types::flow_t&& unpacked_in_flow,
       types::flow_t&& unpacked_out_flow,
+#if _darma_has_feature(anti_flows)
+      types::anti_flow_t&& unpacked_anti_in_flow,
+      types::anti_flow_t&& unpacked_anti_out_flow,
+#endif // _darma_has_feature(anti_flows)
       MappingToTaskCollectionDeduced&& mapping
     ) : HandleUseBase(
           handle, scheduling_permissions, immediate_permissions,
           std::move(unpacked_in_flow), std::move(unpacked_out_flow)
+#if _darma_has_feature(anti_flows)
+          , std::move(unpacked_anti_in_flow), std::move(unpacked_anti_out_flow)
+#endif // _darma_has_feature(anti_flows)
         ),
         mapping_manager(
           std::make_unique<
@@ -392,11 +399,18 @@ class CollectionManagingUse
       abstract::frontend::Use::permissions_t immediate_permissions,
       types::flow_t&& in_flow,
       types::flow_t&& out_flow,
+#if _darma_has_feature(anti_flows)
+      types::anti_flow_t&& anti_in_flow,
+      types::anti_flow_t&& anti_out_flow,
+#endif // _darma_has_feature(anti_flows)
       IndexRangeDeduced&& range
     ) : base_t(
           handle,
           scheduling_permissions, immediate_permissions,
           std::move(in_flow), std::move(out_flow)
+#if _darma_has_feature(anti_flows)
+          , std::move(anti_in_flow), std::move(anti_out_flow)
+#endif // _darma_has_feature(anti_flows)
         ),
         index_range(std::forward<IndexRangeDeduced>(range)),
         mapping_to_dense(rng_traits::mapping_to_dense(index_range))
