@@ -717,7 +717,8 @@ TEST_F(TestCreateWork, death_schedule_only) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
+// Test disabled because arbitrary publish-fetch is no longer supported
+#if 0
 TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -824,6 +825,7 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
   mock_runtime->backend_owned_uses.clear();
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 

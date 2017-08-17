@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task.h
-//                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      task_base.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,8 +42,8 @@
 //@HEADER
 */
 
-#ifndef DARMA_RUNTIME_TASK_H_
-#define DARMA_RUNTIME_TASK_H_
+#ifndef DARMAFRONTEND_TASK_BASE_H
+#define DARMAFRONTEND_TASK_BASE_H
 
 #include <typeindex>
 #include <cstdlib>
@@ -87,15 +87,12 @@
 #include <darma/impl/util/smart_pointers.h>
 #include <darma/impl/capture.h>
 
-
 namespace darma_runtime {
-
 namespace detail {
-
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// <editor-fold desc="TaskBase and its descendants">
+// <editor-fold desc="TaskBase">
 
 class TaskBase : public abstract::frontend::Task
 {
@@ -112,50 +109,56 @@ class TaskBase : public abstract::frontend::Task
 
   public:
 
-#if _darma_has_feature(create_parallel_for)
+    //------------------------------------------------------------------------------
+    // <editor-fold desc="_darma_has_feature(create_parallel_for_custom_cpu_set)"> {{{2
+    #if _darma_has_feature(create_parallel_for)
     std::size_t width_;
 
-#if _darma_has_feature(create_parallel_for_custom_cpu_set)
+    //------------------------------------------------------------------------------
+    // <editor-fold desc="_darma_has_feature(create_parallel_for)"> {{{2
+    #if _darma_has_feature(create_parallel_for_custom_cpu_set)
+
     types::resource_pack_t assigned_resource_pack_;
 
-#endif // _darma_has_feature(create_parallel_for_custom_cpu_set)
+    #endif // _darma_has_feature(create_parallel_for_custom_cpu_set)
+    // </editor-fold> end _darma_has_feature(create_parallel_for_custom_cpu_set) }}}2
+    //------------------------------------------------------------------------------
 
-#endif // _darma_has_feature(create_parallel_for)
+    #endif // _darma_has_feature(create_parallel_for)
+    // </editor-fold> end _darma_has_feature(create_parallel_for) }}}2
+    //------------------------------------------------------------------------------
 
+
+    //==============================================================================
+    // <editor-fold desc="Constructors"> {{{1
 
     TaskBase() = default;
 
     TaskBase(TaskBase&&) = default;
 
-//    // Directly construct from a conditional callable
-//    template <typename LambdaCallable,
-//      typename = std::enable_if_t<
-//        not std::is_base_of<std::decay_t<LambdaCallable>, TaskBase>::value
-//        and not std::is_base_of<TaskBase, std::decay_t<LambdaCallable>>::value
-//      >
-//    >
-//    TaskBase(LambdaCallable&& bool_callable) {
-//      TaskBase* parent_task = static_cast<detail::TaskBase* const>(
-//        abstract::backend::get_backend_context()->get_running_task()
-//      );
-//      parent_task->current_create_work_context = this;
-//#if _darma_has_feature(task_collection_token)
-//      if(parent_task->parent_token_available) {
-//        token_ = parent_task->token_;
-//      }
-//#endif // _darma_has_feature(task_collection_token)
-//      default_capture_as_info |= AccessHandleBase::CapturedAsInfo::ReadOnly;
-//      default_capture_as_info |= AccessHandleBase::CapturedAsInfo::Leaf;
-//      runnable_ =
-//        // *Intentionally* avoid perfect forwarding here, causing a copy to happen,
-//        // which then triggers all of the captures.  We do this by adding an lvalue reference
-//        // to the type and not forwarding the value
-//        detail::make_unique<RunnableCondition<std::remove_reference_t<LambdaCallable>&>>(
-//          bool_callable
-//        );
-//      default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
-//      parent_task->current_create_work_context = nullptr;
-//    }
+    TaskBase(TaskBase const&) = delete;
+    virtual ~TaskBase() noexcept = default;
+
+    // </editor-fold> end Constructors }}}1
+    //==============================================================================
+
+    template <typename ArchiveT>
+    void serialize(ArchiveT& ar) {
+      ar | name_;
+      #if _darma_has_feature(create_parallel_for)
+      ar | width_;
+      #if _darma_has_feature(create_parallel_for_custom_cpu_set)
+      ar | assigned_resource_pack_;
+      #endif
+      #endif
+
+      #if _darma_has_feature(task_collection_token)
+      ar | parent_token_available;
+      if(parent_token_available) {
+        ar | token_;
+      }
+      #endif
+    }
 
     void add_dependency(HandleUseBase& use) {
       dependencies_.insert(&use);
@@ -192,65 +195,64 @@ class TaskBase : public abstract::frontend::Task
 
     virtual void run() override {
       assert(runnable_);
-      pre_run_setup();
       runnable_->run();
-      post_run_cleanup();
     }
 
     //--------------------------------------------------------------------------
     // <editor-fold desc="DARMA feature: task_migration"> {{{2
-#if _darma_has_feature(task_migration)
+    #if _darma_has_feature(task_migration)
 
     bool
     is_migratable() const override {
-      // Ignored for now:
-      return not runnable_->is_lambda_like_runnable;
+      // if it's not overridden by the time it gets here, it's not migratable
+      return false;
     }
 
-    size_t get_packed_size() const override {
-      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-      serialization::SimplePackUnpackArchive ar;
 
-      ArchiveAccess::start_sizing(ar);
+//    size_t get_packed_size() const override {
+//      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+//      serialization::SimplePackUnpackArchive ar;
+//
+//      ArchiveAccess::start_sizing(ar);
+//
+//      assert(runnable_.get() != nullptr);
+//
+//      ar % runnable_->get_index();
+//
+//      if (runnable_->is_lambda_like_runnable) {
+//        // TODO pack up the flows/uses/etc and their access handle indices
+//        DARMA_ASSERT_NOT_IMPLEMENTED("packing up lambda-like runnables");
+//        size_t added_size = runnable_->lambda_size();
+//        // TODO finish this!
+//        return ArchiveAccess::get_size(ar);
+//      } else {
+//        return runnable_->get_packed_size() + ArchiveAccess::get_size(ar);
+//      }
+//    }
+//
+//    void pack(void* allocated) const override {
+//      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+//      serialization::SimplePackUnpackArchive ar;
+//
+//      ArchiveAccess::start_packing(ar);
+//      ArchiveAccess::set_buffer(ar, allocated);
+//
+//      assert(runnable_.get() != nullptr);
+//
+//      ar << runnable_->get_index();
+//
+//      if (runnable_->is_lambda_like_runnable) {
+//        // TODO pack up the flows/uses/etc and their access handle indices
+//        DARMA_ASSERT_NOT_IMPLEMENTED("packing up lambda-like runnables");
+//        assigned_lambda_unpack_index =
+//          1; // trigger recognition in AccessHandle copy ctor
+//        // TODO finish this
+//      } else {
+//        runnable_->pack(ArchiveAccess::get_spot(ar));
+//      }
+//    }
 
-      assert(runnable_.get() != nullptr);
-
-      ar % runnable_->get_index();
-
-      if (runnable_->is_lambda_like_runnable) {
-        // TODO pack up the flows/uses/etc and their access handle indices
-        DARMA_ASSERT_NOT_IMPLEMENTED("packing up lambda-like runnables");
-        size_t added_size = runnable_->lambda_size();
-        // TODO finish this!
-        return ArchiveAccess::get_size(ar);
-      } else {
-        return runnable_->get_packed_size() + ArchiveAccess::get_size(ar);
-      }
-    }
-
-    void pack(void* allocated) const override {
-      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-      serialization::SimplePackUnpackArchive ar;
-
-      ArchiveAccess::start_packing(ar);
-      ArchiveAccess::set_buffer(ar, allocated);
-
-      assert(runnable_.get() != nullptr);
-
-      ar << runnable_->get_index();
-
-      if (runnable_->is_lambda_like_runnable) {
-        // TODO pack up the flows/uses/etc and their access handle indices
-        DARMA_ASSERT_NOT_IMPLEMENTED("packing up lambda-like runnables");
-        assigned_lambda_unpack_index =
-          1; // trigger recognition in AccessHandle copy ctor
-        // TODO finish this
-      } else {
-        runnable_->pack(ArchiveAccess::get_spot(ar));
-      }
-    }
-
-#endif // _darma_has_feature(task_migration)
+    #endif // _darma_has_feature(task_migration)
     // </editor-fold> end task_migration }}}2
     //--------------------------------------------------------------------------
 
@@ -258,12 +260,6 @@ class TaskBase : public abstract::frontend::Task
     //==========================================================================
 
   public:
-
-    // TODO remove this, it is unused
-    void pre_run_setup() { }
-
-    // TODO remove this, it is unused
-    void post_run_cleanup() { }
 
     void post_registration_cleanup() {
       for(auto* use : uses_to_unmark_already_captured) {
@@ -277,7 +273,11 @@ class TaskBase : public abstract::frontend::Task
     }
 
     //==========================================================================
-#if _darma_has_feature(create_parallel_for)
+
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="_darma_has_feature(create_parallel_for)"> {{{2
+    #if _darma_has_feature(create_parallel_for)
+
     bool is_parallel_for_task() const override {
       return is_parallel_for_task_;
     }
@@ -286,28 +286,41 @@ class TaskBase : public abstract::frontend::Task
       return width_;
     }
 
-#if _darma_has_feature(create_parallel_for_custom_cpu_set)
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="_darma_has_feature(create_parallel_for_custom_cpu_set)"> {{{2
+
+    #if _darma_has_feature(create_parallel_for_custom_cpu_set)
     void set_resource_pack(
       darma_runtime::types::resource_pack_t const& cpuset
-    ) override {
+    ) override
+    {
       assert(runnable_);
       runnable_->set_resource_pack(cpuset);
     }
+    #endif // _darma_has_feature(create_parallel_for_custom_cpu_set)
 
-#endif // _darma_has_feature(create_parallel_for_custom_cpu_set)
-#endif // _darma_has_feature(create_parallel_for)
+    // </editor-fold> end _darma_has_feature(create_parallel_for_custom_cpu_set) }}}2
+    //--------------------------------------------------------------------------
 
-#if _darma_has_feature(mark_parallel_tasks)
+    #endif // _darma_has_feature(create_parallel_for)
+
+    // </editor-fold> end _darma_has_feature(create_parallel_for) }}}2
+    //------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------
+    // <editor-fold desc="_darma_has_feature(mark_parallel_tasks)"> {{{2
+    #if _darma_has_feature(mark_parallel_tasks)
+
     bool is_data_parallel_task() const override {
-      //assert(runnable_);
-      //assert(not runnable_->needs_resource_pack() or is_data_parallel_task_);
       return is_data_parallel_task_;
     }
-#endif
+
+    #endif
+    // </editor-fold> end _darma_has_feature(mark_parallel_tasks) }}}2
+    //------------------------------------------------------------------------------
 
     //==========================================================================
 
-    virtual ~TaskBase() noexcept { }
 
     //==========================================================================
     // allowed_aliasing_description
@@ -382,58 +395,11 @@ class TaskBase : public abstract::frontend::Task
 };
 
 
+} // end namespace detail
+} // end namespace darma_runtime
+
 // </editor-fold>
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#if _darma_has_feature(task_migration)
-template <typename ConcreteTaskT>
-inline std::unique_ptr<ConcreteTaskT>
-_unpack_task(void* packed_data) {
-  using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-  serialization::SimplePackUnpackArchive ar;
-
-  ArchiveAccess::start_unpacking(ar);
-  ArchiveAccess::set_buffer(ar, packed_data);
-
-  std::size_t runnable_index;
-  ar >> runnable_index;
-
-  auto rv = std::make_unique<ConcreteTaskT>();
-
-  auto& reg = darma_runtime::detail::get_runnable_registry();
-  rv->set_runnable(
-    reg.at(runnable_index)(
-      (void*)&ar
-    )
-  );
-
-  return std::move(rv);
-}
-#endif // _darma_has_feature(task_migration)
-
-} // end namespace detail
-
-// implementation of abstract::frontend::unpack_task
-
-namespace frontend {
-
-#if _darma_has_feature(task_migration)
-inline
-abstract::backend::runtime_t::task_unique_ptr
-unpack_task(void* packed_data) {
-  return darma_runtime::detail::_unpack_task<darma_runtime::detail::TaskBase>(
-    packed_data
-  );
-}
-#endif // _darma_has_feature(task_migration)
-
-} // end namespace frontend
-
-} // end namespace darma_runtime
-
-
-#include <darma/impl/task_do_capture.impl.h>
-
-
-#endif /* DARMA_RUNTIME_TASK_H_ */
+#endif //DARMAFRONTEND_TASK_BASE_H

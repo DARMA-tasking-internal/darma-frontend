@@ -47,10 +47,10 @@
 
 #include <darma_types.h>
 #include "handle.h"
-#include "task.h"
+#include "darma/impl/task/task.h"
 #include "runtime.h"
 #include "spmd.h"
-#include "create_work.h"
+#include "darma/impl/create_work/create_work.h"
 #include <darma/impl/collective/allreduce.h>
 #include <darma/impl/top_level.h>
 #include <darma/interface/defaults/darma_main.h>

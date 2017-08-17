@@ -52,7 +52,7 @@
 
 #include <darma_types.h>
 
-#include <darma/impl/task.h>
+#include <darma/impl/task/task.h>
 
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/frontend/handle.h>

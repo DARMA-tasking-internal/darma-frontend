@@ -47,7 +47,7 @@
 
 
 #include <darma/interface/frontend/top_level.h>
-#include <darma/impl/task.h>
+#include <darma/impl/task/task.h>
 
 #include <functional>
 #include <darma/interface/frontend/top_level_task.h>
@@ -99,7 +99,15 @@ struct TopLevelCallableRegistrar<ReturnType (*)(Args...)> {
 
 
 struct TopLevelTaskImpl
+#if _darma_has_feature(task_migration)
+  : PolymorphicSerializationAdapter<
+      TopLevelTaskImpl,
+      abstract::frontend::Task,
+      abstract::frontend::TopLevelTask<TaskBase>
+    >
+#else
   : abstract::frontend::TopLevelTask<TaskBase>
+#endif // _darma_Has_feature(task_migration)
 {
   private:
 
@@ -113,6 +121,11 @@ struct TopLevelTaskImpl
 
     void set_command_line_arguments(std::vector<std::string> clargs) {
       cl_args_ = std::move(clargs);
+    }
+
+    template <typename ArchiveT>
+    void serialize(ArchiveT& ar) {
+      ar | cl_args_;
     }
 };
 

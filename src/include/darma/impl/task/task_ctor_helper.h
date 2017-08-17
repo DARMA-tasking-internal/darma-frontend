@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          create_work.h
-//                         dharma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      task_ctor_helper.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,39 +42,37 @@
 //@HEADER
 */
 
-#ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
-#define SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
+#ifndef DARMAFRONTEND_TASK_CTOR_HELPER_H
+#define DARMAFRONTEND_TASK_CTOR_HELPER_H
 
+#include "task_base.h"
 
 namespace darma_runtime {
-
 namespace detail {
 
-struct _create_work_uses_lambda_tag { };
+// Empty class used for actions that need to take place before the constructor
+// of LambdaTask executes but after the constructor of TaskBase executes
+struct TaskCtorHelper : TaskBase {
+
+
+  // Use a tag as the first argument to prevent messing with copy ctors and such
+  template <typename PreConstructAction>
+  TaskCtorHelper(
+    variadic_constructor_arg_t,
+    PreConstructAction&& action
+  ) : TaskBase()
+  {
+    std::forward<PreConstructAction>(action)(this);
+  }
+
+  TaskCtorHelper() = default;
+  TaskCtorHelper(TaskCtorHelper&&) = default;
+  TaskCtorHelper(TaskCtorHelper const&) = delete;
+
+};
+
 
 } // end namespace detail
-
-// TODO create_work with return value (Issue #107 on GitLab)
-
-template <
-  typename Functor=detail::_create_work_uses_lambda_tag,
-  typename... Args
->
-void create_work(Args&&... args);
-
 } // end namespace darma_runtime
 
-
-#include <darma/impl/create_work/create_work.h>
-//#include <darma/impl/util.h>
-
-
-//#define create_work \
-//  auto DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__) = \
-//    ::darma_runtime::detail::_start_create_work(); \
-//    ::darma_runtime::detail::_do_create_work( \
-//      std::move(DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__)) \
-//    ).operator()
-
-
-#endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_ */
+#endif //DARMAFRONTEND_TASK_CTOR_HELPER_H

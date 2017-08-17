@@ -62,7 +62,7 @@
 #include <darma/interface/frontend/handle.h>
 #include <darma/interface/backend/types.h>
 
-#include <darma/impl/task_fwd.h>
+#include <darma/impl/task/task_fwd.h>
 #include <darma/impl/util.h>
 #include <darma/impl/darma_assert.h>
 #include <darma/impl/serialization/archive.h>

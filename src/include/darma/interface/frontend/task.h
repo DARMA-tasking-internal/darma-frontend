@@ -83,7 +83,11 @@ namespace frontend {
  *      task body by the user.
  *
  */
-class Task {
+class Task
+#if _darma_has_feature(task_migration)
+  : public PolymorphicSerializableObject<Task>
+#endif
+{
   public:
 
     /** @brief Return an Iterable of Use objects whose permission requests must be satisfied before the task
@@ -137,19 +141,19 @@ class Task {
      */
     virtual bool is_migratable() const =0;
 
-    /**
-     *  @brief Returns the number of bytes required to store the task object.
-     *  Not relevant for current specification which does not support task migration.
-     *  @return The size in bytes need to pack the task into a serialization buffer
-     */
-    virtual size_t get_packed_size() const =0;
+    ///**
+    // *  @brief Returns the number of bytes required to store the task object.
+    // *  Not relevant for current specification which does not support task migration.
+    // *  @return The size in bytes need to pack the task into a serialization buffer
+    // */
+    //virtual size_t get_packed_size() const =0;
 
-    /**
-     *  @brief Pack a migratable serialization of the task object into the passed-in buffer
-     *  @param allocated The pointer to region of memory guaranteed to be large enough to hold
-     *                    the serialization of the class
-     */
-    virtual void pack(void* allocated) const =0;
+    ///**
+    // *  @brief Pack a migratable serialization of the task object into the passed-in buffer
+    // *  @param allocated The pointer to region of memory guaranteed to be large enough to hold
+    // *                    the serialization of the class
+    // */
+    //virtual void pack(void* allocated) const =0;
 #endif // _darma_has_feature(task_migration)
 
     //==========================================================================

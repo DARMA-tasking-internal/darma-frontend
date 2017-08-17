@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          create_work.h
-//                         dharma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      lambda_task.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,39 +42,86 @@
 //@HEADER
 */
 
-#ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
-#define SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
+#ifndef DARMAFRONTEND_LAMBDA_TASK_H
+#define DARMAFRONTEND_LAMBDA_TASK_H
 
+#include <darma/impl/polymorphic_serialization.h>
+
+#include "task_base.h"
+#include "task_ctor_helper.h"
 
 namespace darma_runtime {
-
 namespace detail {
 
-struct _create_work_uses_lambda_tag { };
+
+template <typename Lambda>
+struct LambdaTask
+#if _darma_has_feature(task_migration)
+  : PolymorphicSerializationAdapter<
+      LambdaTask<Lambda>,
+      abstract::frontend::Task,
+      TaskCtorHelper
+    >
+#else
+  : TaskCtorHelper
+#endif
+{
+
+#if _darma_has_feature(task_migration)
+  using base_t = PolymorphicSerializationAdapter<
+    LambdaTask<Lambda>,
+    abstract::frontend::Task,
+    TaskCtorHelper
+  >;
+#else
+  using base_t = TaskCtorHelper;
+#endif
+
+  Lambda lambda_;
+
+  template <
+    typename PreConstructAction,
+    typename LambdaDeduced
+  >
+  LambdaTask(
+    PreConstructAction&& action,
+    LambdaDeduced&& lambda_in
+  ) : base_t(
+        variadic_constructor_arg,
+        std::forward<PreConstructAction>(action)
+      ),
+      lambda_(
+        // Intentionally *don't* forward to trigger copy ctors of captured vars
+        lambda_in
+      )
+  { }
+
+
+  ~LambdaTask() override = default;
+
+  template <typename ArchiveT>
+  static LambdaTask& reconstruct(void* allocated, ArchiveT& ar) {
+    DARMA_ASSERT_NOT_IMPLEMENTED("serialization of lambda tasks");
+    // Unreachable, but to avoid compiler warnings
+    return *reinterpret_cast<LambdaTask*>(allocated);
+  }
+
+  template <typename ArchiveT>
+  void serialize(ArchiveT& ar) {
+    DARMA_ASSERT_NOT_IMPLEMENTED("serialization of lambda tasks");
+  }
+
+  bool is_migratable() const override {
+    return false;
+  }
+
+  void run() override {
+    lambda_();
+  }
+
+};
 
 } // end namespace detail
-
-// TODO create_work with return value (Issue #107 on GitLab)
-
-template <
-  typename Functor=detail::_create_work_uses_lambda_tag,
-  typename... Args
->
-void create_work(Args&&... args);
-
 } // end namespace darma_runtime
 
-
-#include <darma/impl/create_work/create_work.h>
-//#include <darma/impl/util.h>
-
-
-//#define create_work \
-//  auto DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__) = \
-//    ::darma_runtime::detail::_start_create_work(); \
-//    ::darma_runtime::detail::_do_create_work( \
-//      std::move(DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__)) \
-//    ).operator()
-
-
-#endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_ */
+#endif //DARMAFRONTEND_LAMBDA_TASK_H

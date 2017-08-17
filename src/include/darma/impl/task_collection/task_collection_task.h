@@ -47,7 +47,7 @@
 
 #include <type_traits>
 
-#include <darma/impl/task.h>
+#include <darma/impl/task/task.h>
 
 #include "impl/tc_storage_to_task_storage.h"
 #include "impl/task_storage_to_param.h"

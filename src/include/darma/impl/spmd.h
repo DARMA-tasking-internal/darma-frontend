@@ -50,7 +50,7 @@
 #include <darma/impl/runtime.h>
 #include <darma/interface/backend/runtime.h>
 #include <darma/impl/darma_assert.h>
-#include <darma/impl/task.h>
+#include <darma/impl/task/task.h>
 
 
 // Whole file is deprecated

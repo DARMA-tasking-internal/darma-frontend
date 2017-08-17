@@ -50,7 +50,7 @@
 
 #include <darma/impl/meta/callable_traits.h>
 #include <tinympl/select.hpp>
-#include "task.h"
+#include "darma/impl/task/task.h"
 #include "handle.h"
 
 namespace darma_runtime {

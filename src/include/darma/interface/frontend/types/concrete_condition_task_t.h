@@ -45,7 +45,7 @@
 #ifndef DARMA_INTERFACE_FRONTEND_TYPES_CONDITION_TASK_T_H
 #define DARMA_INTERFACE_FRONTEND_TYPES_CONDITION_TASK_T_H
 
-#include <darma/impl/task_fwd.h>
+#include <darma/impl/task/task_fwd.h>
 
 namespace darma_runtime {
 namespace types {

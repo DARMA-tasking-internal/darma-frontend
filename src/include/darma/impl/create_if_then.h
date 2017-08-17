@@ -54,7 +54,7 @@
 #include <darma/interface/app/create_work.h>
 #include <darma/impl/capture.h>
 #include <darma/impl/handle.h>
-#include <darma/impl/create_work_fwd.h>
+#include <darma/impl/create_work/create_work_fwd.h>
 
 
 // TODO Don't create a task (and generate a warning?) if there are no captures in the if clause

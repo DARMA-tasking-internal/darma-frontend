@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      registry.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,25 +42,13 @@
 //@HEADER
 */
 
-#ifndef SRC_TASK_FWD_H_
-#define SRC_TASK_FWD_H_
+#ifndef DARMAFRONTEND_IMPL_TASK_REGISTRY_H
+#define DARMAFRONTEND_IMPL_TASK_REGISTRY_H
 
 namespace darma_runtime {
-
 namespace detail {
 
-class TaskBase;
-
-class ConditionTaskImpl;
-
-class TopLevelTaskImpl;
-
-class ConcurrentRegionTaskImpl;
-
 } // end namespace detail
-
 } // end namespace darma_runtime
 
-
-
-#endif /* SRC_TASK_FWD_H_ */
+#endif //DARMAFRONTEND_IMPL_TASK_REGISTRY_H

@@ -59,6 +59,8 @@ struct MockResourcePack {
   MockResourcePack() : name("%##unnamed##%") { }
   MockResourcePack(std::string const& name) : name(name) { }
   std::string name;
+  template <typename Archive>
+  void serialize(Archive& ar) { ar | name; }
 };
 
 } // end namespace mock backend
@@ -229,6 +231,8 @@ struct MockTaskCollectionToken {
   MockTaskCollectionToken& operator=(MockTaskCollectionToken const& other) = default;
   MockTaskCollectionToken& operator=(MockTaskCollectionToken&& other) = default;
   std::string name;
+  template <typename Archive>
+  void serialize(Archive& ar) { ar | name; }
 };
 
 } // end namespace mock_backend

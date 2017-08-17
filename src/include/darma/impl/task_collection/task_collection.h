@@ -53,7 +53,7 @@
 #include <darma/impl/task_collection/handle_collection.h>
 #include <darma/interface/frontend/task_collection.h>
 #include <darma/impl/capture.h>
-#include <darma/impl/task.h>
+#include <darma/impl/task/task.h>
 #include <darma/impl/index_range/mapping_traits.h>
 #include <darma/impl/index_range/index_range_traits.h>
 #include "task_collection_fwd.h"

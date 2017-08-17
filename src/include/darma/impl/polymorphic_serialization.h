@@ -198,13 +198,18 @@ struct polymorphic_serialization_details {
 };
 
 
-template <typename ConcreteT, typename AbstractT>
-struct PolymorphicSerializationAdapter : AbstractT {
+template <typename ConcreteT, typename AbstractT, typename BaseT = AbstractT>
+struct PolymorphicSerializationAdapter : BaseT {
+
+  template <typename... Args>
+  PolymorphicSerializationAdapter(
+    Args&&... args
+  ) : BaseT(std::forward<Args>(args)...)
+  { }
 
   using polymorphic_details = typename
     polymorphic_serialization_details<ConcreteT>
       ::template with_abstract_bases<AbstractT>;
-
 
   size_t get_packed_size() const override {
     serialization::SimplePackUnpackArchive ar;
@@ -228,6 +233,7 @@ struct PolymorphicSerializationAdapter : AbstractT {
     );
   }
 
+  // TODO this doesn't work if the class defines an unpack method templated on an Archive type
   static
   std::unique_ptr<AbstractT>
   unpack(char const* buffer, size_t size) {

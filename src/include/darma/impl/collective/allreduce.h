@@ -63,7 +63,7 @@
 #include <darma/impl/handle.h> // is_access_handle
 #include <darma/impl/use.h> // HandleUse
 #include <darma/impl/capture.h> // make_captured_use_holder
-#include <darma/impl/task.h> // TaskBase
+#include <darma/impl/task/task.h> // TaskBase
 
 
 #include "details.h"

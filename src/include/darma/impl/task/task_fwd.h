@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                          create_work.h
-//                         dharma_new
+//                          task_fwd.h
+//                         darma_new
 //              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,39 +42,28 @@
 //@HEADER
 */
 
-#ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
-#define SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
-
+#ifndef SRC_TASK_FWD_H_
+#define SRC_TASK_FWD_H_
 
 namespace darma_runtime {
 
 namespace detail {
 
-struct _create_work_uses_lambda_tag { };
+class TaskBase;
+
+class ConditionTaskImpl;
+
+class TopLevelTaskImpl;
+
+class ConcurrentRegionTaskImpl;
+
+template <typename Functor, typename... Args>
+struct FunctorTask;
 
 } // end namespace detail
-
-// TODO create_work with return value (Issue #107 on GitLab)
-
-template <
-  typename Functor=detail::_create_work_uses_lambda_tag,
-  typename... Args
->
-void create_work(Args&&... args);
 
 } // end namespace darma_runtime
 
 
-#include <darma/impl/create_work/create_work.h>
-//#include <darma/impl/util.h>
 
-
-//#define create_work \
-//  auto DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__) = \
-//    ::darma_runtime::detail::_start_create_work(); \
-//    ::darma_runtime::detail::_do_create_work( \
-//      std::move(DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__)) \
-//    ).operator()
-
-
-#endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_ */
+#endif /* SRC_TASK_FWD_H_ */

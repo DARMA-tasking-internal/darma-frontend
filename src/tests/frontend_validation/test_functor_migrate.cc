@@ -206,7 +206,21 @@ TEST_F(TestFunctor, simple_migrate) {
       migrated_use = rereg_use;
     }));
 
-  auto migrated_task = darma_runtime::frontend::unpack_task(buffer);
+  auto migrated_task = darma_runtime::abstract::frontend
+    ::PolymorphicSerializableObject<darma_runtime::abstract::frontend::Task>
+    ::unpack(buffer, task_packed_size);
+
+  ASSERT_THAT(migrated_task->get_dependencies().size(), Eq(1));
+  ASSERT_THAT(*migrated_task->get_dependencies().begin(),
+    IsUseWithFlows(
+  #if _darma_has_feature(anti_flows)
+      f_set_42_out_migrated, nullptr,
+  #else
+      f_set_42_out_migrated, f_set_42_out_migrated,
+  #endif // _darma_has_feature(anti_flows)
+      use_t::None, use_t::Read
+    )
+  );
 
   // Since we need to have f_set_42_out still in existence to make the above
   // expectations work, we need to move the release down here.

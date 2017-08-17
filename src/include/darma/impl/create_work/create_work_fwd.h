@@ -45,7 +45,7 @@
 #ifndef DARMA_IMPL_CREATE_WORK_FWD_H
 #define DARMA_IMPL_CREATE_WORK_FWD_H
 
-#include "handle_fwd.h"
+#include "darma/impl/handle_fwd.h"
 
 namespace darma_runtime {
 namespace detail {
@@ -56,6 +56,9 @@ template <
   AccessHandlePermissions ImmediateDowngrade = AccessHandlePermissions::NotGiven
 >
 struct PermissionsDowngradeDescription;
+
+template <typename...>
+struct _create_work_impl;
 
 } // end namespace detail
 } // end namespace darma_runtime

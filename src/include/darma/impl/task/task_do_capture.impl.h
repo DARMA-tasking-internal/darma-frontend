@@ -45,7 +45,7 @@
 #ifndef DARMA_TASK_CAPTURE_IMPL_H_H
 #define DARMA_TASK_CAPTURE_IMPL_H_H
 
-#include <darma/impl/task.h>
+#include <darma/impl/task/task.h>
 #include <darma/impl/handle.h>
 #include <darma/impl/util/smart_pointers.h>
 
@@ -53,8 +53,8 @@
 
 #include <thread>
 
-#include "use.h"
-#include "capture.h"
+#include "darma/impl/use.h"
+#include "darma/impl/capture.h"
 
 namespace darma_runtime {
 

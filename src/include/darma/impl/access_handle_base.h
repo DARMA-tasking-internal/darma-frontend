@@ -47,12 +47,12 @@
 
 #include <cstdlib> // std::size_t
 
-#include <darma/impl/task_fwd.h> // TaskBase forward declaration
+#include <darma/impl/task/task_fwd.h> // TaskBase forward declaration
 #include <darma/impl/create_if_then_fwd.h>
 #include <darma/impl/create_work_while_fwd.h>
 
 #include <darma/impl/use.h> // UseHolder
-#include <darma/impl/task.h> // TaskBase
+#include <darma/impl/task/task.h> // TaskBase
 
 // TODO move this to access_handle directory when we're at a stable merge point
 
@@ -116,6 +116,9 @@ class AccessHandleBase {
     );
 
     virtual ~AccessHandleBase() = default;
+
+    template <typename, typename...>
+    friend struct FunctorTask;
 
 };
 

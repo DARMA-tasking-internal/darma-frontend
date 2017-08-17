@@ -57,7 +57,7 @@
 
 #include <darma/impl/util/managing_ptr.h>
 
-#include <darma/impl/task.h>
+#include <darma/impl/task/task.h>
 #include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 #include <darma/impl/util.h>
 #include <darma/impl/serialization/traits.h>

@@ -45,7 +45,7 @@
 #ifndef DARMA_INTEFACE_FRONTEND_TYPES_CONCRETE_TOP_LEVEL_TASK_T_H
 #define DARMA_INTEFACE_FRONTEND_TYPES_CONCRETE_TOP_LEVEL_TASK_T_H
 
-#include <darma/impl/task_fwd.h>
+#include <darma/impl/task/task_fwd.h>
 
 namespace darma_runtime {
 namespace types {
