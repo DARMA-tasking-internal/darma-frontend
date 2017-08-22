@@ -76,6 +76,9 @@ class CopyCapturedObject {
       serialization::SimplePackUnpackArchive ar;
       ArchiveAccess::start_packing_with_buffer(ar, capturing_task->lambda_serdes_buffer);
       serdes_traits_t::pack(copied_from, ar);
+
+      // Advance the buffer
+      capturing_task->lambda_serdes_buffer = static_cast<char*>(ArchiveAccess::get_spot(ar));
     }
 
     void _handle_lambda_unpack() {
@@ -86,6 +89,9 @@ class CopyCapturedObject {
       ArchiveAccess::start_unpacking_with_buffer(ar, capturing_task->lambda_serdes_buffer);
 
       static_cast<Derived*>(this)->template unpack_from_archive(ar);
+
+      // Advance the buffer
+      capturing_task->lambda_serdes_buffer = static_cast<char*>(ArchiveAccess::get_spot(ar));
 
       static_cast<Derived*>(this)->template report_dependency(capturing_task);
     }
