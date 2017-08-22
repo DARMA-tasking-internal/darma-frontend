@@ -47,7 +47,7 @@
 
 #define _darma_backend_has_all_features 1
 
-#define _darma_backend_feature_progress_date 20170801 // for now
+#define _darma_backend_feature_progress_date 20170901 // for now
 
 #define _darma_has_feature_resilient_tasks 0
 

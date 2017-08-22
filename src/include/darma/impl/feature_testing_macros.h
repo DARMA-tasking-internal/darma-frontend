@@ -102,6 +102,8 @@
 #define _darma_feature_disabled_by_default_oo_interface 1
 
 
+#define _darma_feature_date_channels 20170822
+
 // </editor-fold> end Feature Dates and Defaults }}}1
 //==============================================================================
 

@@ -67,6 +67,7 @@
 #include <darma/impl/task_collection/task_collection_fwd.h>
 #include <darma/impl/keyword_arguments/parse.h>
 #include <darma/impl/access_handle_base.h>
+#include <darma/impl/access_handle/copy_captured_object.h>
 
 namespace darma_runtime {
 
@@ -104,11 +105,14 @@ T darma_copy(T& lvalue) {
   return lvalue;
 }
 
-// TODO overload <<= to make it "release scheduling permissions and return reference" (i.e., release_into_reference())
+// TODO overload something to make it "release scheduling permissions and return reference" (i.e., release_into_reference())
 // TODO unary +/-/! (maybe?) as a "const dereference" and give a mode that doesn't allow * or -> in read-only at runtime
 
 template <typename T, typename Traits>
-class AccessHandle : public detail::AccessHandleBase {
+class AccessHandle
+  : public detail::AccessHandleBase,
+    private detail::CopyCapturedObject<AccessHandle<T, Traits>>
+{
   //===========================================================================
   // <editor-fold desc="type aliases"> {{{1
 
@@ -129,6 +133,8 @@ class AccessHandle : public detail::AccessHandleBase {
       std::shared_ptr<use_holder_t>,
       detail::UseHolderBase*
     >;
+
+    using copy_capture_handler_t = detail::CopyCapturedObject<AccessHandle>;
 
   // </editor-fold> end type aliases }}}1
   //============================================================================
@@ -257,8 +263,7 @@ class AccessHandle : public detail::AccessHandleBase {
       var_handle_base_ = var_handle_;
       unfetched_ = other.unfetched_;
       current_use_ = other.current_use_;
-      // safely ignore prev_copied_from
-      other_private_members_.second() = other.other_private_members_.second();
+      other_private_members_ = other.other_private_members_;
       return *this;
     }
 
@@ -275,10 +280,7 @@ class AccessHandle : public detail::AccessHandleBase {
       var_handle_base_ = var_handle_;
       unfetched_ = std::move(other.unfetched_);
       current_use_ = std::move(other.current_use_);
-      // Safely ignore prev_copied_from
-      other_private_members_.second() = std::move(
-        other.other_private_members_.second()
-      );
+      other_private_members_ = std::move(other.other_private_members_);
       return *this;
     };
 
@@ -316,78 +318,21 @@ class AccessHandle : public detail::AccessHandleBase {
     >
     AccessHandle(
       AccessHandleT const& copied_from
-    ) : current_use_(current_use_base_),
-        other_private_members_(
-          std::piecewise_construct,
-          std::forward_as_tuple(nullptr),
-          std::forward_as_tuple(copied_from.other_private_members_.second())
-        )
+    ) : current_use_(current_use_base_)
     {
-      using detail::analogous_access_handle_attorneys::AccessHandleAccess;
-      // get the shared_ptr from the weak_ptr stored in the runtime object
-      detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
-        abstract::backend::get_backend_context()->get_running_task()
-      );
-      if (running_task) {
-        capturing_task = running_task->current_create_work_context;
-      } else {
-        capturing_task = nullptr;
-      }
-      var_handle_ = AccessHandleAccess::var_handle(copied_from);
-      var_handle_base_ = var_handle_;
-      // Always copy the use, no matter what (it will usually get replaced anyway)
-      // Not a good idea!!!
-      //current_use_ = copied_from.current_use_;
-
-      // TODO remove this?  I don't think the unfetched flag is still used...
-      DARMA_ASSERT_MESSAGE(
-        not copied_from.unfetched_,
-        "Illegal capture of unfetched non-local AccessHandle"
+      auto result = this->copy_capture_handler_t::handle_compatible_analog_construct(
+        copied_from
       );
 
-      // Now check if we're in a capturing context:
-      if (capturing_task != nullptr) {
-        if (
-          // If this type is a compile-time read-only handle, mark it as such here
-          traits::static_immediate_permissions
-            == detail::AccessHandlePermissions::Read
-            // If the other type is compile-time read-only and we don't know, mark it as a read
-            or (AccessHandleT::traits::static_immediate_permissions
-              == detail::AccessHandlePermissions::Read
-              and not traits::static_immediate_permissions_given
-            )
-          ) {
-          AccessHandleAccess::captured_as(copied_from) |=
-            CapturedAsInfo::ReadOnly;
-        }
-        if (
-          // If this type doesn't have scheduling permissions, mark it as a leaf
-          traits::static_scheduling_permissions
-            == detail::AccessHandlePermissions::None
-          ) {
-          AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::Leaf;
-        }
-        if (
-          // If this type doesn't have scheduling permissions, mark it as a leaf
-          traits::required_immediate_permissions
-            == detail::AccessHandlePermissions::None
-        ) {
-          AccessHandleAccess::captured_as(copied_from) |= CapturedAsInfo::ScheduleOnly;
-        }
-        // TODO require dynamic modify from RHS if this class is static modify
-        // TODO set some flag to check for aliasing?!?
-        capturing_task->do_capture(*this, copied_from);
+      // There's no lambda serdes case to worry about here
+      assert(not result.argument_is_garbage);
 
-        if (copied_from.current_use_) {
-          copied_from.current_use_->use->already_captured = true;
-          // TODO this flag should be on the AccessHandleBase itself
-          capturing_task->uses_to_unmark_already_captured.insert(
-            copied_from.current_use_->use_base
-          );
-        }
-      } // end if capturing_task != nullptr
-      else {
-        current_use_ = copied_from.current_use_; // not sure this is necessary
+      if(not result.did_capture and not result.argument_is_garbage) {
+        // then we need to propagate stuff here, since no capture handler was invoked
+        var_handle_ = copied_from.var_handle_;
+        var_handle_base_ = var_handle_;
+        current_use_ = copied_from.current_use_;
+        other_private_members_ = copied_from.other_private_members_;
       }
     }
 
@@ -786,6 +731,64 @@ class AccessHandle : public detail::AccessHandleBase {
       return *static_cast<T*>(current_use_->use->data_);
     }
 
+    template <
+      typename = std::enable_if<
+        not std::is_same<T, void>::value
+          and is_compile_time_immediate_modifiable
+      >
+    >
+    T&
+    acquire_reference() const {
+      // TODO test this
+      DARMA_ASSERT_MESSAGE(
+        not unfetched_,
+        "Illegal operation on unfetched non-local AccessHandle"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_.get() != nullptr,
+        "acquire_reference() called on handle in context without immediate permissions"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_->use != nullptr,
+        "acquire_reference() called on handle with null Use (this should never happen,"
+          " it indicates an error in the translation layer)"
+      );
+      DARMA_ASSERT_MESSAGE(
+        current_use_->use->immediate_permissions_
+          >= abstract::frontend::Use::Permissions::Modify,
+        "acquire_reference() called on handle not in immediately modifiable state, with key: {"
+          << get_key() << "}"
+      );
+      if(current_use_->use->scheduling_permissions_ != abstract::frontend::Use::Permissions::None) {
+        // TODO decide if this needs to register a new use and release the old one
+        // for now, go ahead and do that
+        auto replacement_use = detail::HandleUse(
+          var_handle_base_,
+          abstract::frontend::Use::Permissions::None,
+          current_use_->use->immediate_permissions_,
+          detail::flow_relationships::same_flow(&current_use_->use->in_flow_),
+          detail::flow_relationships::same_flow(&current_use_->use->out_flow_)
+#if _darma_has_feature(anti_flows)
+          , detail::flow_relationships::same_anti_flow(&current_use_->use->anti_in_flow_),
+          detail::flow_relationships::same_anti_flow(&current_use_->use->anti_out_flow_)
+#endif
+        );
+        // TODO move this stuff to somewhere in HandleUseBase.  Doing it here breaks encapsulation
+        replacement_use.data_ = current_use_->use->data_;
+        replacement_use.collection_owner_ = current_use_->use->collection_owner_;
+        replacement_use.establishes_alias_ = current_use_->use->establishes_alias_;
+        replacement_use.is_dependency_ = current_use_->use->is_dependency_;
+#if _darma_has_feature(anti_flows)
+        replacement_use.is_anti_dependency_ = current_use_->use->is_anti_dependency_;
+#endif
+        replacement_use.suspended_out_flow_ = std::move(current_use_->use->suspended_out_flow_);
+
+        current_use_->replace_use(std::move(replacement_use), true);
+      }
+
+      return *static_cast<T*>(current_use_->use->data_);
+    }
+
 #if _darma_has_feature(publish_fetch)
     template <typename _Ignored=void, typename... PublishExprParts>
     std::enable_if_t<
@@ -1181,6 +1184,144 @@ class AccessHandle : public detail::AccessHandleBase {
   // </editor-fold> end AccessHandleBase pure virtual function implementations }}}1
   //============================================================================
 
+  //==============================================================================
+  // <editor-fold desc="CopyCapturedObject hook implementations"> {{{1
+
+  private:
+
+    template <typename CompatibleAccessHandleT>
+    void _mark_static_capture_flags(
+      CompatibleAccessHandleT const* source
+    ) {
+      if (
+        // If this type is a compile-time read-only handle, mark it as such here
+        traits::static_immediate_permissions == detail::AccessHandlePermissions::Read
+          // If the other type is compile-time read-only and we don't know, mark it as a read
+          or (
+            CompatibleAccessHandleT::traits::static_immediate_permissions
+              == detail::AccessHandlePermissions::Read
+              and not traits::static_immediate_permissions_given
+          )
+        ) {
+        source->captured_as_ |= CapturedAsInfo::ReadOnly;
+      }
+      if (
+        // If this type doesn't have scheduling permissions, mark it as a leaf
+        traits::static_scheduling_permissions == detail::AccessHandlePermissions::None
+      ) {
+        source->captured_as_ |= CapturedAsInfo::Leaf;
+      }
+      if (
+        // If this type doesn't have scheduling permissions, mark it as a leaf
+        traits::required_immediate_permissions == detail::AccessHandlePermissions::None
+      ) {
+        source->captured_as_ |= CapturedAsInfo::ScheduleOnly;
+      }
+    }
+
+    template <typename CompatibleAccessHandleT>
+    void report_capture(
+      CompatibleAccessHandleT const* source,
+      detail::TaskBase* capturing_task
+    ) {
+      // We should copy these over before reporting the capture
+      var_handle_ = source->var_handle_;
+      var_handle_base_ = var_handle_;
+      other_private_members_ = source->other_private_members_;
+
+      _mark_static_capture_flags(source);
+
+      capturing_task->do_capture(*this, *source);
+
+      if (source->current_use_) {
+        source->current_use_->use_base->already_captured = true;
+        // TODO this flag should be on the AccessHandleBase itself
+        capturing_task->uses_to_unmark_already_captured.insert(
+          source->current_use_->use_base
+        );
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="DARMA feature: task_migration"> {{{2
+    #if _darma_has_feature(task_migration)
+    template <typename Archive>
+    void unpack_from_archive(Archive& ar) {
+
+      key_t k = make_key();
+      ar >> k;
+
+      var_handle_ = detail::make_shared<detail::VariableHandle<T>>(k);
+      var_handle_base_ = var_handle_;
+
+      detail::HandleUse::permissions_t immed, sched;
+
+      #ifdef __clang__
+      #pragma clang diagnostic push
+      #pragma clang diagnostic ignored "-Wuninitialized"
+      #endif
+
+      ar >> sched >> immed;
+
+      auto* backend_runtime = abstract::backend::get_backend_runtime();
+
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+
+      auto in_flow = backend_runtime->make_unpacked_flow(
+        ArchiveAccess::get_const_spot(ar)
+      );
+
+      // Note that the backend function advances the underlying pointer, so the
+      // pointer returned by get_spot is different in the call below from the
+      // call above
+      auto out_flow = backend_runtime->make_unpacked_flow(
+        ArchiveAccess::get_const_spot(ar)
+      );
+
+      #if _darma_has_feature(anti_flows)
+      auto anti_in_flow = backend_runtime->make_unpacked_anti_flow(
+        ArchiveAccess::get_const_spot(ar)
+      );
+
+      auto anti_out_flow = backend_runtime->make_unpacked_anti_flow(
+        ArchiveAccess::get_const_spot(ar)
+      );
+      #endif // _darma_has_feature(anti_flows)
+
+      // Suspended flow should always be null when packing/unpacking, so don't
+      // have to worry about it here
+
+      current_use_ = std::make_shared<detail::UseHolder>(
+        detail::migrated_use_arg,
+        detail::HandleUse(
+          var_handle_, sched, immed, std::move(in_flow), std::move(out_flow)
+          #if _darma_has_feature(anti_flows)
+          , std::move(anti_in_flow), std::move(anti_out_flow)
+          #endif // _darma_has_feature(anti_flows)
+        )
+      );
+
+      #ifdef __clang__
+      #pragma clang diagnostic pop
+      #endif
+
+    }
+    #endif // _darma_has_feature(task_migration)
+    // </editor-fold> end DARMA feature: task_migration }}}2
+    //--------------------------------------------------------------------------
+
+    template <typename TaskLikeT>
+    void report_dependency(
+      TaskLikeT* task
+    ) {
+      task->add_dependency(*current_use_base_->use_base);
+    }
+
+
+
+  // </editor-fold> end CopyCapturedObject hook implementations }}}1
+  //==============================================================================
+
   //============================================================================
   // <editor-fold desc="private ctors"> {{{1
 
@@ -1220,67 +1361,7 @@ class AccessHandle : public detail::AccessHandleBase {
 
     //--------------------------------------------------------------------------
     // <editor-fold desc="DARMA feature: task_migration"> {{{2
-#if _darma_has_feature(task_migration)
-
-    template <typename Archive>
-    void _unpack_from_archive(Archive& ar) {
-      key_t k = make_key();
-      ar >> k;
-      var_handle_ = detail::make_shared<detail::VariableHandle<T>>(k);
-      var_handle_base_ = var_handle_;
-      detail::HandleUse::permissions_t immed, sched;
-
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wuninitialized"
-#endif
-
-      ar >> sched >> immed;
-
-      auto* backend_runtime = abstract::backend::get_backend_runtime();
-
-      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-
-      auto in_flow = backend_runtime->make_unpacked_flow(
-        ArchiveAccess::get_const_spot(ar)
-      );
-
-      // Note that the backend function advances the underlying pointer, so the
-      // pointer returned by get_spot is different in the call below from the
-      // call above
-      auto out_flow = backend_runtime->make_unpacked_flow(
-        ArchiveAccess::get_const_spot(ar)
-      );
-
-#if _darma_has_feature(anti_flows)
-      auto anti_in_flow = backend_runtime->make_unpacked_anti_flow(
-        ArchiveAccess::get_const_spot(ar)
-      );
-
-      auto anti_out_flow = backend_runtime->make_unpacked_anti_flow(
-        ArchiveAccess::get_const_spot(ar)
-      );
-#endif // _darma_has_feature(anti_flows)
-
-      // Suspended flow should always be null when packing/unpacking, so don't
-      // have to worry about it here
-
-      current_use_ = std::make_shared<detail::UseHolder>(
-        detail::migrated_use_arg,
-        detail::HandleUse(
-          var_handle_, sched, immed, std::move(in_flow), std::move(out_flow)
-#if _darma_has_feature(anti_flows)
-          , std::move(anti_in_flow), std::move(anti_out_flow)
-#endif // _darma_has_feature(anti_flows)
-        )
-      );
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-
-    }
-
+    #if _darma_has_feature(task_migration)
 
     template <typename Archive>
     AccessHandle(
@@ -1288,9 +1369,10 @@ class AccessHandle : public detail::AccessHandleBase {
       Archive& ar
     ) : current_use_(current_use_base_)
     {
-      _unpack_from_archive(ar);
+      unpack_from_archive(ar);
     }
-#endif // _darma_has_feature(task_migration)
+
+    #endif // _darma_has_feature(task_migration)
     // </editor-fold> end DARMA feature: task_migration }}}2
     //--------------------------------------------------------------------------
 
@@ -1323,46 +1405,43 @@ class AccessHandle : public detail::AccessHandleBase {
     // TODO remove unfetched?
     mutable bool unfetched_ = false;
 
-    detail::compressed_pair<
-      AccessHandle const*,
-      typename traits::special_members_t
-    > other_private_members_;
+    typename traits::special_members_t other_private_members_;
 
     bool
     get_is_commutative_dynamic() const {
-      return other_private_members_.second().is_commutative_dynamic;
+      return other_private_members_.is_commutative_dynamic;
     }
     bool
     set_is_commutative_dynamic(bool new_val) const {
-      other_private_members_.second().is_commutative_dynamic = new_val;
+      other_private_members_.is_commutative_dynamic = new_val;
       return new_val;
     }
 
     bool
     get_is_outermost_scope_dynamic() const {
-      return other_private_members_.second().is_outermost_scope_dynamic;
+      return other_private_members_.is_outermost_scope_dynamic;
     }
     bool
     set_is_outermost_scope_dynamic(bool new_val) {
-      other_private_members_.second().is_outermost_scope_dynamic = new_val;
+      other_private_members_.is_outermost_scope_dynamic = new_val;
       return new_val;
     }
 
-    AccessHandle const*& prev_copied_from() {
-      return other_private_members_.first();
-    }
+    //AccessHandle const*& prev_copied_from() {
+    //  return other_private_members_.first();
+    //}
 
-    AccessHandle const* const& prev_copied_from() const {
-      return other_private_members_.first();
-    }
+    //AccessHandle const* const& prev_copied_from() const {
+    //  return other_private_members_.first();
+    //}
 
     typename traits::allocation_traits::allocator_t const&
     get_allocator() const {
-      return other_private_members_.second().allocator;
+      return other_private_members_.allocator;
     }
     typename traits::allocation_traits::allocator_t&
     get_allocator() {
-      return other_private_members_.second().allocator;
+      return other_private_members_.allocator;
     }
 
 #if _darma_has_feature(create_concurrent_work_owned_by)
@@ -1457,7 +1536,8 @@ class AccessHandle : public detail::AccessHandleBase {
     template <typename>
     friend struct detail::_read_access_helper;
 
-
+    template <typename>
+    friend class detail::CopyCapturedObject;
 
 #ifdef DARMA_TEST_FRONTEND_VALIDATION
     friend class ::TestAccessHandle;
@@ -1508,218 +1588,12 @@ using AccessHandleWithTraits = AccessHandle<T,
   >
 >;
 
-
-
-
-
-//==============================================================================
-// <editor-fold desc="Serialization"> {{{1
-
-#if _darma_has_feature(task_migration)
-namespace serialization {
-
-template <typename... Args>
-struct Serializer<AccessHandle<Args...>>
-{
-    // TODO update this for all of the special members now present in AccessHandle
-  private:
-    using AccessHandleT = AccessHandle<Args...>;
-
-    bool handle_is_serializable_assertions(AccessHandleT const& val) const
-    {
-      // The handle has to be set up and valid
-      assert(val.var_handle_.get() != nullptr);
-      // The only AccessHandle objects that should ever be migrated are ones that
-      // are already registered as part of a task.
-      assert(val.current_use_base_->is_registered == true);
-      // Also, since this has to be before the task runs, whether or not the use
-      // can establish an alias should be exactly determined by whether or not it
-      // has modify scheduling permissions (and less than modify immediate permissions)
-      assert(
-        ((
-          val.current_use_->use->scheduling_permissions_
-            == ::darma_runtime::detail::HandleUse::Modify
-            and val.current_use_->use->immediate_permissions_
-              != ::darma_runtime::detail::HandleUse::Modify
-        ) and val.current_use_->could_be_alias)
-          or (not(
-            val.current_use_->use->scheduling_permissions_
-              == ::darma_runtime::detail::HandleUse::Modify
-              and val.current_use_->use->immediate_permissions_
-                != ::darma_runtime::detail::HandleUse::Modify
-          ) and not val.current_use_->could_be_alias)
-      );
-      // captured_as_ should always be normal here
-      assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
-      assert(val.current_use_->use->suspended_out_flow_ == nullptr);
-      return true;
-    }
-
-
-  public:
-    template <typename ArchiveT>
-    void compute_size(AccessHandleT const& val, ArchiveT& ar) const
-    {
-
-      assert(handle_is_serializable_assertions(val));
-
-      ar % val.var_handle_->get_key();
-      ar % val.current_use_->use->scheduling_permissions_;
-      ar % val.current_use_->use->immediate_permissions_;
-
-      auto* backend_runtime = abstract::backend::get_backend_runtime();
-      // TODO if we add operator==() to the requirements of flow_t, we don't have to pack the outflow when it's the same as the inflow
-      ar.add_to_size_indirect(
-        backend_runtime->get_packed_flow_size(val.current_use_->use->in_flow_)
-      );
-      ar.add_to_size_indirect(
-        backend_runtime->get_packed_flow_size(val.current_use_->use->out_flow_)
-      );
-#if _darma_has_feature(anti_flows)
-      ar.add_to_size_indirect(
-        backend_runtime->get_packed_anti_flow_size(val.current_use_->use->anti_in_flow_)
-      );
-      ar.add_to_size_indirect(
-        backend_runtime->get_packed_anti_flow_size(val.current_use_->use->anti_out_flow_)
-      );
-#endif // _darma_has_feature(anti_flows)
-
-    }
-
-    template <typename ArchiveT>
-    void pack(AccessHandleT const& val, ArchiveT& ar) const
-    {
-
-      assert(handle_is_serializable_assertions(val));
-
-      ar << val.var_handle_->get_key();
-      ar << val.current_use_->use->scheduling_permissions_;
-      ar << val.current_use_->use->immediate_permissions_;
-
-      using detail::DependencyHandle_attorneys::ArchiveAccess;
-      auto* backend_runtime = abstract::backend::get_backend_runtime();
-      // TODO if we add operator==() to the requirements of flow_t, we don't have to pack the outflow when it's the same as the inflow
-      backend_runtime->pack_flow(
-        val.current_use_->use->in_flow_,
-        ArchiveAccess::get_spot(ar)
-      );
-      backend_runtime->pack_flow(
-        val.current_use_->use->out_flow_,
-        ArchiveAccess::get_spot(ar)
-      );
-#if _darma_has_feature(anti_flows)
-      backend_runtime->pack_anti_flow(
-        val.current_use_->use->anti_in_flow_,
-        ArchiveAccess::get_spot(ar)
-      );
-      backend_runtime->pack_anti_flow(
-        val.current_use_->use->anti_out_flow_,
-        ArchiveAccess::get_spot(ar)
-      );
-#endif // _darma_has_feature(anti_flows)
-
-    }
-
-    template <typename ArchiveT>
-    void unpack(void* allocated, ArchiveT& ar) const
-    {
-      // Call an unpacking constructor
-      new(allocated) AccessHandleT(serialization::unpack_constructor_tag, ar);
-    }
-};
-
-} // end namespace serialization
-#endif // _darma_has_feature(task_migration)
-
-// </editor-fold> end Serialization }}}1
-//==============================================================================
-
-
-template <typename T, typename Traits>
-AccessHandle<T, Traits>::AccessHandle(AccessHandle<T, Traits> const& copied_from)
-  : current_use_(current_use_base_)
-{
-  // get the shared_ptr from the weak_ptr stored in the runtime object
-  detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
-    abstract::backend::get_backend_context()->get_running_task()
-  );
-
-  if (running_task) {
-    capturing_task = running_task->current_create_work_context;
-  } else {
-    capturing_task = nullptr;
-  }
-
-  // TODO mark this unlikely?
-  if(capturing_task != nullptr
-    && capturing_task->lambda_serdes_mode != serialization::detail::SerializerMode::None
-    ) {
-    serialization::SimplePackUnpackArchive ar;
-    if(capturing_task->lambda_serdes_mode == serialization::detail::SerializerMode::Sizing) {
-      darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess
-        ::start_sizing(ar);
-      serialization::detail::serializability_traits<AccessHandle>::compute_size(copied_from, ar);
-      capturing_task->lambda_serdes_computed_size +=
-        darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess::get_size(ar);
-    }
-    else if(capturing_task->lambda_serdes_mode == serialization::detail::SerializerMode::Packing) {
-      darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess
-        ::start_packing_with_buffer(ar, capturing_task->lambda_serdes_buffer);
-      serialization::detail::serializability_traits<AccessHandle>::pack(copied_from, ar);
-    }
-    else {
-      // NOTE THAT IN THIS CASE, copied_from IS GARBAGE!!!
-      assert(capturing_task->lambda_serdes_mode == serialization::detail::SerializerMode::Unpacking);
-      darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess
-        ::start_unpacking_with_buffer(ar, capturing_task->lambda_serdes_buffer);
-      _unpack_from_archive(ar);
-      capturing_task->add_dependency(*current_use_base_->use_base);
-    }
-    // now advance the buffer for the next user
-    if(capturing_task->lambda_serdes_mode != serialization::detail::SerializerMode::Sizing) {
-      capturing_task->lambda_serdes_buffer = static_cast<char*>(
-        darma_runtime::serialization::detail
-          ::DependencyHandle_attorneys::ArchiveAccess::get_spot(ar)
-      );
-    }
-  }
-  else {
-    other_private_members_ = copied_from.other_private_members_;
-    var_handle_ = copied_from.var_handle_;
-    var_handle_base_ = var_handle_;
-
-    // Now check if we're in a capturing context:
-    if (capturing_task != nullptr) {
-      AccessHandle const* source = &copied_from;
-      if (capturing_task->is_double_copy_capture) {
-        assert(copied_from.prev_copied_from() != nullptr);
-        source = copied_from.prev_copied_from();
-        copied_from.current_use_ = nullptr;
-        copied_from.current_use_base_ = nullptr;
-      }
-
-      capturing_task->do_capture(*this, *source);
-
-      if (source->current_use_) {
-        source->current_use_->use_base->already_captured = true;
-        // TODO this flag should be on the AccessHandleBase itself
-        capturing_task->uses_to_unmark_already_captured.insert(
-          source->current_use_->use_base
-        );
-      }
-    } // end if capturing_task != nullptr
-    else {
-      current_use_ = copied_from.current_use_;
-      // Also, save prev copied from in case this is a double capture, like in
-      // create_condition.  This is the only time that the prev_copied_from ptr
-      // should be valid (i.e., when task->is_double_copy_capture is set to true)
-      prev_copied_from() = &copied_from;
-    }
-  }
-}
-
-
 } // end namespace darma_runtime
+
+
+#include <darma/impl/access_handle/access_handle_serialization.h>
+
+#include <darma/impl/access_handle/access_handle.impl.h>
 
 #include <darma/impl/access_handle_publish.impl.h>
 
