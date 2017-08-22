@@ -142,8 +142,9 @@ class TaskBase : public abstract::frontend::Task
     // </editor-fold> end Constructors }}}1
     //==============================================================================
 
+    // Called from serialize implementations of derived classes
     template <typename ArchiveT>
-    void serialize(ArchiveT& ar) {
+    void do_serialize(ArchiveT& ar) {
       ar | name_;
       #if _darma_has_feature(create_parallel_for)
       ar | width_;
@@ -362,9 +363,9 @@ class TaskBase : public abstract::frontend::Task
     std::set<HandleUseBase*> uses_to_unmark_already_captured;
     bool is_double_copy_capture = false;
     unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
-    bool is_parallel_for_task_ = false;
-    bool is_data_parallel_task_ = false;
-    mutable std::size_t assigned_lambda_unpack_index = 0;
+    mutable std::size_t lambda_serdes_computed_size = 0;
+    mutable serialization::detail::SerializerMode lambda_serdes_mode = serialization::detail::SerializerMode::None;
+    mutable char* lambda_serdes_buffer = nullptr;
 
 #if _darma_has_feature(task_collection_token)
     // TODO @cleanup @dependent remove this when free-function-style collectives are fully deprecated
@@ -384,6 +385,9 @@ class TaskBase : public abstract::frontend::Task
 #endif // _darma_has_feature(task_collection_token)
     }
 
+    bool is_parallel_for_task_ = false;
+    bool is_data_parallel_task_ = false;
+
   protected:
 
     std::unique_ptr<RunnableBase> runnable_;
@@ -391,11 +395,37 @@ class TaskBase : public abstract::frontend::Task
     friend types::unique_ptr_template<abstract::frontend::Task>
     unpack_task(void* packed_data);
 
+};
 
+
+// for use with make_running_task_to_return_when_unpacking()
+class EmptyTask : public TaskBase {
+  public:
+    EmptyTask() = default;
+
+    size_t get_packed_size() const override {
+      assert(false); // not migratable
+      return 0;
+    }
+
+    void pack(char*) const override {
+      assert(false); // not migratable
+    }
 };
 
 
 } // end namespace detail
+
+namespace frontend {
+
+inline
+std::unique_ptr<abstract::frontend::Task>
+make_running_task_to_return_when_unpacking() {
+  return std::make_unique<darma_runtime::detail::EmptyTask>();
+}
+
+} // end namespace frontend
+
 } // end namespace darma_runtime
 
 // </editor-fold>

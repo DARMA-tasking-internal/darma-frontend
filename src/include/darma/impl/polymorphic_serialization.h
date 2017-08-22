@@ -69,7 +69,7 @@ namespace detail {
 template <typename AbstractBase>
 using abstract_base_unpack_registry =
   std::vector<
-    std::function<std::unique_ptr<AbstractBase>(char const* buffer, size_t size)>
+    std::function<std::unique_ptr<AbstractBase>(char const* buffer)>
   >;
 
 template <typename=void>
@@ -86,10 +86,53 @@ get_polymorphic_unpack_registry() {
   return _reg;
 }
 
+struct SerializedPolymorphicObjectHeader {
+  size_t n_bases : 8;
+  // Pad to 128 bits for now to make alignment work out reasonably in the most
+  // common case, where there's only one base
+  size_t _unused1 : 56;
+  size_t _unused2 : 64;
+};
+
+struct PolymorphicAbstractBasesTableEntry {
+  size_t abstract_index : 64;
+  size_t concrete_index : 64;
+};
+
 namespace _impl {
 
+//==============================================================================
+// <editor-fold desc="PolymorphicUnpackRegistrar"> {{{1
+
+template <typename AbstractBase, typename ConcreteType, typename Enable=void>
+struct PolymorphicUnpackRegistrar;
+
+//------------------------------------------------------------------------------
+// <editor-fold desc="static unpack detection"> {{{2
+
+// Use longer names in the adapters to avoid collisions with user-defined functions named "unpack"
 template <typename T, typename AbstractBase>
-using _has_static_unpack_as_archetype = decltype( T::template unpack_as<AbstractBase>(nullptr, 0ul) );
+using _has_static_long_name_unpack_as_archetype = decltype(
+  T::template _darma_static_polymorphic_serializable_adapter_unpack_as<AbstractBase>((char const*)nullptr)
+);
+
+template <typename T, typename AbstractBase>
+using _has_static_long_name_unpack_as = meta::is_detected_convertible<
+  std::unique_ptr<AbstractBase>, _has_static_long_name_unpack_as_archetype, T, AbstractBase
+>;
+
+template <typename T>
+using _has_static_long_name_unpack_archetype = decltype(
+  T::_darma_static_polymorphic_serializable_adapter_unpack((char const*)nullptr)
+);
+
+template <typename T, typename AbstractBase>
+using _has_static_long_name_unpack = meta::is_detected_convertible<
+  std::unique_ptr<AbstractBase>, _has_static_long_name_unpack_archetype, T
+>;
+
+template <typename T, typename AbstractBase>
+using _has_static_unpack_as_archetype = decltype( T::template unpack_as<AbstractBase>((char const*)nullptr) );
 
 template <typename T, typename AbstractBase>
 using _has_static_unpack_as = meta::is_detected_convertible<
@@ -97,40 +140,104 @@ using _has_static_unpack_as = meta::is_detected_convertible<
 >;
 
 template <typename T>
-using _has_static_unpack_archetype = decltype( T::unpack(nullptr, 0ul) );
+using _has_static_unpack_archetype = decltype( T::unpack((char const*)nullptr) );
 
 template <typename T, typename AbstractBase>
 using _has_static_unpack = meta::is_detected_convertible<
   std::unique_ptr<AbstractBase>, _has_static_unpack_archetype, T
 >;
 
-template <typename AbstractBase, typename ConcreteType, typename Enable=void>
-struct PolymorphicUnpackRegistrar;
+enum struct _static_unpack_hook_option {
+  long_name_unpack_as,
+  long_name_unpack,
+  unpack_as,
+  unpack
+};
+
+template <_static_unpack_hook_option val>
+using _wrapped_hook = std::integral_constant<_static_unpack_hook_option, val>;
+
+template <_static_unpack_hook_option option, typename T, typename AbstractBase>
+using _enable_if_static_unpack_hook_case = std::enable_if_t<
+  tinympl::select_first<
+    _has_static_long_name_unpack_as<T, AbstractBase>,
+    /* => */ _wrapped_hook<_static_unpack_hook_option::long_name_unpack_as>,
+    _has_static_long_name_unpack<T, AbstractBase>,
+    /* => */ _wrapped_hook<_static_unpack_hook_option::long_name_unpack>,
+    _has_static_unpack_as<T, AbstractBase>,
+    /* => */ _wrapped_hook<_static_unpack_hook_option::unpack_as>,
+    _has_static_unpack<T, AbstractBase>,
+    /* => */ _wrapped_hook<_static_unpack_hook_option::unpack>
+  >::type::value == option
+>;
+
+// </editor-fold> end static unpack detection }}}2
+//------------------------------------------------------------------------------
 
 template <typename AbstractBase, typename ConcreteType>
 struct PolymorphicUnpackRegistrar<AbstractBase, ConcreteType,
-  std::enable_if_t<_has_static_unpack_as<ConcreteType, AbstractBase>::value>
+  _enable_if_static_unpack_hook_case<
+    _static_unpack_hook_option::unpack_as,
+    ConcreteType, AbstractBase
+  >
 >{
   size_t index;
   PolymorphicUnpackRegistrar() {
     auto& reg = get_polymorphic_unpack_registry<AbstractBase>();
     index = reg.size();
-    reg.emplace_back([](char const* buffer, size_t size) {
-      return ConcreteType::template unpack_as<AbstractBase>(buffer, size);
+    reg.emplace_back([](char const* buffer) {
+      return ConcreteType::template unpack_as<AbstractBase>(buffer);
     });
   }
 };
 
 template <typename AbstractBase, typename ConcreteType>
 struct PolymorphicUnpackRegistrar<AbstractBase, ConcreteType,
-  std::enable_if_t<_has_static_unpack<ConcreteType, AbstractBase>::value>
+  _enable_if_static_unpack_hook_case<
+    _static_unpack_hook_option::unpack,
+    ConcreteType, AbstractBase
+  >
 >{
   size_t index;
   PolymorphicUnpackRegistrar() {
     auto& reg = get_polymorphic_unpack_registry<AbstractBase>();
     index = reg.size();
-    reg.emplace_back([](char const* buffer, size_t size) {
-      return ConcreteType::unpack(buffer, size);
+    reg.emplace_back([](char const* buffer) {
+      return ConcreteType::unpack(buffer);
+    });
+  }
+};
+
+template <typename AbstractBase, typename ConcreteType>
+struct PolymorphicUnpackRegistrar<AbstractBase, ConcreteType,
+  _enable_if_static_unpack_hook_case<
+    _static_unpack_hook_option::long_name_unpack_as,
+    ConcreteType, AbstractBase
+  >
+>{
+  size_t index;
+  PolymorphicUnpackRegistrar() {
+    auto& reg = get_polymorphic_unpack_registry<AbstractBase>();
+    index = reg.size();
+    reg.emplace_back([](char const* buffer) {
+      return ConcreteType::template _darma_static_polymorphic_serializable_adapter_unpack_as<AbstractBase>(buffer);
+    });
+  }
+};
+
+template <typename AbstractBase, typename ConcreteType>
+struct PolymorphicUnpackRegistrar<AbstractBase, ConcreteType,
+  _enable_if_static_unpack_hook_case<
+    _static_unpack_hook_option::long_name_unpack,
+    ConcreteType, AbstractBase
+  >
+>{
+  size_t index;
+  PolymorphicUnpackRegistrar() {
+    auto& reg = get_polymorphic_unpack_registry<AbstractBase>();
+    index = reg.size();
+    reg.emplace_back([](char const* buffer) {
+      return ConcreteType::_darma_static_polymorphic_serializable_adapter_unpack(buffer);
     });
   }
 };
@@ -143,6 +250,9 @@ struct PolymorphicUnpackRegistrarWrapper {
 template <typename AbstractBase, typename ConcreteType>
 PolymorphicUnpackRegistrar<AbstractBase, ConcreteType>
 PolymorphicUnpackRegistrarWrapper<AbstractBase, ConcreteType>::registrar = { };
+
+// </editor-fold> end PolymorphicUnpackRegistrar }}}1
+//==============================================================================
 
 
 template <typename AbstractBase>
@@ -178,82 +288,182 @@ struct polymorphic_serialization_details {
   struct with_abstract_bases {
     static void
     add_registry_frontmatter_in_place(char* buffer) {
-      new (buffer) uint8_t(static_cast<uint8_t>(sizeof...(AbstractBases)));
-      char* off_buffer = buffer + sizeof(uint8_t);
-      new (off_buffer) std::array<
-        std::pair<size_t, size_t>, sizeof...(AbstractBases)
-      >({
-        std::make_pair(
+      // add the header
+      new (buffer) SerializedPolymorphicObjectHeader{
+        /* n_bases = */ static_cast<uint8_t>(sizeof...(AbstractBases)),
+        /* unused */ 0ull,
+        /* also unused */ 0ull
+      };
+      // advance the buffer
+      buffer += sizeof(SerializedPolymorphicObjectHeader);
+
+      // add the array of abstract-to-concrete index pairs
+      new (buffer) PolymorphicAbstractBasesTableEntry[sizeof...(AbstractBases)] {
+        PolymorphicAbstractBasesTableEntry{
           get_abstract_type_index<AbstractBases>(),
           _impl::PolymorphicUnpackRegistrarWrapper<
             AbstractBases,
             ConcreteType
           >::registrar.index
-        )...
-      });
+        }...
+      };
     }
-    static constexpr auto registry_frontmatter_size = sizeof(uint8_t)
-      + sizeof(std::array<std::pair<size_t, size_t>, sizeof...(AbstractBases)>);
+    static constexpr auto registry_frontmatter_size =
+      sizeof(SerializedPolymorphicObjectHeader)
+        + sizeof(PolymorphicAbstractBasesTableEntry[sizeof...(AbstractBases)]);
+    using concrete_t = ConcreteType;
   };
 };
 
+template <typename Details, typename BaseT>
+struct _polymorphic_serialization_adapter_impl : BaseT {
 
-template <typename ConcreteT, typename AbstractT, typename BaseT = AbstractT>
-struct PolymorphicSerializationAdapter : BaseT {
+  private:
+    using polymorphic_details_t = Details;
+    using concrete_t = typename Details::concrete_t;
 
-  template <typename... Args>
-  PolymorphicSerializationAdapter(
-    Args&&... args
-  ) : BaseT(std::forward<Args>(args)...)
-  { }
-
-  using polymorphic_details = typename
-    polymorphic_serialization_details<ConcreteT>
-      ::template with_abstract_bases<AbstractT>;
+  protected:
+    // Perfect forwarding ctor
+    template <typename... Args>
+    _polymorphic_serialization_adapter_impl(
+      Args&&... args
+    ) : BaseT(std::forward<Args>(args)...)
+    { }
 
   size_t get_packed_size() const override {
     serialization::SimplePackUnpackArchive ar;
     using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
     ArchiveAccess::start_sizing(ar);
-    serialization::Serializer<ConcreteT>().compute_size(
-      *static_cast<ConcreteT const*>(this),
+    //serialization::Serializer<concrete_t>().compute_size(
+    serialization::detail::serializability_traits<concrete_t>::template compute_size(
+      *static_cast<concrete_t const*>(this),
       ar
     );
-    return ArchiveAccess::get_size(ar) + polymorphic_details::registry_frontmatter_size;
+    return ArchiveAccess::get_size(ar) + polymorphic_details_t::registry_frontmatter_size;
   }
 
   void pack(char* buffer) const override {
-    polymorphic_details::add_registry_frontmatter_in_place(buffer);
-    buffer += polymorphic_details::registry_frontmatter_size;
+    polymorphic_details_t::add_registry_frontmatter_in_place(buffer);
+    buffer += polymorphic_details_t::registry_frontmatter_size;
     serialization::SimplePackUnpackArchive ar;
     using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
     ArchiveAccess::start_packing_with_buffer(ar, buffer);
-    serialization::Serializer<ConcreteT>().pack(
-      *static_cast<ConcreteT const*>(this), ar
+    //serialization::Serializer<concrete_t>().pack(
+    serialization::detail::serializability_traits<concrete_t>::template pack(
+      *static_cast<concrete_t const*>(this), ar
     );
-  }
-
-  // TODO this doesn't work if the class defines an unpack method templated on an Archive type
-  static
-  std::unique_ptr<AbstractT>
-  unpack(char const* buffer, size_t size) {
-    serialization::SimplePackUnpackArchive ar;
-    using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-    ArchiveAccess::start_unpacking_with_buffer(ar, buffer);
-
-    // TODO do allocation (and, consequently, deletion) through the backend
-    void* allocated_spot = ::operator new(sizeof(ConcreteT));
-
-    serialization::Serializer<ConcreteT>().unpack(
-      allocated_spot, ar
-    );
-    std::unique_ptr<ConcreteT> rv(reinterpret_cast<ConcreteT*>(allocated_spot));
-
-    return std::move(rv);
   }
 
 };
 
+//==============================================================================
+// <editor-fold desc="PolymorphicSerializationAdapter"> {{{1
+
+// Adapter for single abstract base
+template <typename ConcreteT, typename AbstractT, typename BaseT = AbstractT>
+struct PolymorphicSerializationAdapter
+  : _polymorphic_serialization_adapter_impl<
+      typename polymorphic_serialization_details<ConcreteT>::template with_abstract_bases<AbstractT>,
+      BaseT
+    >
+{
+  private:
+    using impl_t = _polymorphic_serialization_adapter_impl<
+      typename polymorphic_serialization_details<ConcreteT>::template with_abstract_bases<AbstractT>,
+      BaseT
+    >;
+
+  protected:
+
+    template <typename... Args>
+    PolymorphicSerializationAdapter(
+      Args&&... args
+    ) : impl_t(std::forward<Args>(args)...)
+    { }
+
+  public:
+
+    // TODO this doesn't work if the class defines an unpack method templated on an Archive type
+    static
+    std::unique_ptr<AbstractT>
+    _darma_static_polymorphic_serializable_adapter_unpack(char const* buffer) {
+      serialization::SimplePackUnpackArchive ar;
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+      ArchiveAccess::start_unpacking_with_buffer(ar, buffer);
+
+      // TODO ask the abstract object for an allocator?
+      void* allocated_spot = darma_runtime::abstract::backend::get_backend_memory_manager()
+        ->allocate(
+          sizeof(ConcreteT),
+          darma_runtime::serialization::detail::DefaultMemoryRequirementDetails{}
+        );
+
+      serialization::detail::serializability_traits<ConcreteT>::template unpack(
+        allocated_spot, ar
+      );
+      std::unique_ptr<ConcreteT> rv(reinterpret_cast<ConcreteT*>(allocated_spot));
+
+      return std::move(rv);
+    }
+};
+
+// Adapter for multiple abstract bases
+template <typename ConcreteT, typename BaseT, typename... AbstractTypes>
+struct PolymorphicSerializationAdapter<ConcreteT, tinympl::vector<AbstractTypes...>, BaseT>
+  : _polymorphic_serialization_adapter_impl<
+      typename polymorphic_serialization_details<ConcreteT>::template with_abstract_bases<AbstractTypes...>,
+      BaseT
+    >
+{
+  private:
+    using impl_t = _polymorphic_serialization_adapter_impl<
+      typename polymorphic_serialization_details<ConcreteT>::template with_abstract_bases<
+        AbstractTypes...
+      >,
+      BaseT
+    >;
+
+  protected:
+
+    template <typename... Args>
+    PolymorphicSerializationAdapter(
+      Args&&... args
+    ) : impl_t(std::forward<Args>(args)...)
+    { }
+
+  public:
+
+    template <
+      typename AbstractT,
+      typename=std::enable_if_t<
+        tinympl::variadic::find<AbstractT, AbstractTypes...>::value != sizeof...(AbstractTypes)
+      >
+    >
+    static
+    std::unique_ptr<AbstractT>
+    _darma_static_polymorphic_serializable_adapter_unpack_as(char const* buffer) {
+      serialization::SimplePackUnpackArchive ar;
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+      ArchiveAccess::start_unpacking_with_buffer(ar, buffer);
+
+      // TODO ask the abstract object for an allocator?
+      void* allocated_spot = darma_runtime::abstract::backend::get_backend_memory_manager()
+        ->allocate(
+          sizeof(ConcreteT),
+          darma_runtime::serialization::detail::DefaultMemoryRequirementDetails{}
+        );
+
+      serialization::Serializer<ConcreteT>().unpack(
+        allocated_spot, ar
+      );
+      std::unique_ptr<ConcreteT> rv(reinterpret_cast<ConcreteT*>(allocated_spot));
+
+      return std::move(rv);
+    }
+};
+
+// </editor-fold> end PolymorphicSerializationAdapter }}}1
+//==============================================================================
 
 } // end namespace detail
 
@@ -262,28 +472,49 @@ namespace frontend {
 
 template <typename AbstractType>
 std::unique_ptr<AbstractType>
-PolymorphicSerializableObject<AbstractType>::unpack(char const* buffer, size_t size) {
+PolymorphicSerializableObject<AbstractType>::unpack(char const* buffer) {
+  // Get the abstract type index that we're looking for
   static const size_t abstract_type_index =
     darma_runtime::detail::get_abstract_type_index<AbstractType>();
-  const uint8_t& n_bases = *reinterpret_cast<uint8_t const*>(buffer);
-  buffer += sizeof(uint8_t);
+
+  // Get the header
+  auto const& header = *reinterpret_cast<
+    darma_runtime::detail::SerializedPolymorphicObjectHeader const*
+  >(buffer);
+  buffer += sizeof(darma_runtime::detail::SerializedPolymorphicObjectHeader);
+
+  // Look through the abstract bases that this object is registered for until
+  // we find the entry that corresponds to a callable that unpacks the object
+  // as a std::unique_ptr<AbstractType>
   uint8_t i_base = 0;
   size_t concrete_index = std::numeric_limits<size_t>::max();
-  for(; i_base < n_bases; ++i_base) {
-    const auto& pair = *reinterpret_cast<std::pair<size_t, size_t> const*>(buffer);
-    if (abstract_type_index == pair.first) {
-      concrete_index = pair.second;
+  for(; i_base < header.n_bases; ++i_base) {
+    const auto& entry = *reinterpret_cast<
+      darma_runtime::detail::PolymorphicAbstractBasesTableEntry const*
+    >(buffer);
+
+    if (abstract_type_index == entry.abstract_index) {
+      // We found the one we want to call, so break
+      concrete_index = entry.concrete_index;
       break;
     }
-    buffer += sizeof(std::pair<size_t, size_t>);
+
+    buffer += sizeof(darma_runtime::detail::PolymorphicAbstractBasesTableEntry);
   }
-  // TODO better error here
-  assert(concrete_index != std::numeric_limits<size_t>::max());
+  DARMA_ASSERT_MESSAGE(
+    concrete_index != std::numeric_limits<size_t>::max(),
+    "No registered unpacker found to unpack a concrete type as abstract type "
+      << darma_runtime::detail::try_demangle<AbstractType>::name()
+  );
 
-  buffer += sizeof(std::pair<size_t, size_t>) * (n_bases - i_base);
+  // Make sure we advance the buffer over all of the other base class entries
+  buffer += sizeof(darma_runtime::detail::PolymorphicAbstractBasesTableEntry) * (header.n_bases - i_base);
 
+  // get a reference to the static registry
   auto& reg = darma_runtime::detail::get_polymorphic_unpack_registry<AbstractType>();
-  return reg[concrete_index](buffer, size - sizeof(uint8_t) - n_bases*sizeof(std::pair<size_t, size_t>));
+
+  // execute the unpack callable on the buffer
+  return reg[concrete_index](buffer);
 }
 
 } // end namespace frontend

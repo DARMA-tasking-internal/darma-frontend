@@ -91,50 +91,20 @@
 
 namespace darma_runtime {
 
-namespace detail {
+// implementation of abstract::frontend::unpack_task
+// (for backwards compatibility; should usually just use PolymorphicSerializableObject directly)
 
+namespace frontend {
 
-//#if _darma_has_feature(task_migration)
-//template <typename ConcreteTaskT>
-//inline std::unique_ptr<ConcreteTaskT>
-//_unpack_task(void* packed_data) {
-//  using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-//  serialization::SimplePackUnpackArchive ar;
-//
-//  ArchiveAccess::start_unpacking(ar);
-//  ArchiveAccess::set_buffer(ar, packed_data);
-//
-//  std::size_t runnable_index;
-//  ar >> runnable_index;
-//
-//  auto rv = std::make_unique<ConcreteTaskT>();
-//
-//  auto& reg = darma_runtime::detail::get_runnable_registry();
-//  rv->set_runnable(
-//    reg.at(runnable_index)(
-//      (void*)&ar
-//    )
-//  );
-//
-//  return std::move(rv);
-//}
-//#endif // _darma_has_feature(task_migration)
-//
-//} // end namespace detail
-//
-//// implementation of abstract::frontend::unpack_task
-//
-//namespace frontend {
-//
-//#if _darma_has_feature(task_migration)
-//inline
-//abstract::backend::runtime_t::task_unique_ptr
-//unpack_task(void* packed_data) {
-//  return darma_runtime::detail::_unpack_task<darma_runtime::detail::TaskBase>(
-//    packed_data
-//  );
-//}
-//#endif // _darma_has_feature(task_migration)
+#if _darma_has_feature(task_migration)
+inline
+abstract::backend::runtime_t::task_unique_ptr
+unpack_task(void* packed_data) {
+  return darma_runtime::abstract::frontend::PolymorphicSerializableObject<
+    abstract::frontend::Task
+  >::unpack(static_cast<char const*>(packed_data));
+}
+#endif // _darma_has_feature(task_migration)
 
 } // end namespace frontend
 

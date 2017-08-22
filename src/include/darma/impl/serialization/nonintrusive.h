@@ -96,7 +96,7 @@ struct Sizer {
   template <typename ArchiveT>
   std::enable_if_t<
     not traits::has_intrusive_compute_size::value
-
+      and not traits::template has_intrusive_compute_size_with_archive<ArchiveT>::value
       and traits::template has_intrusive_serialize<ArchiveT>::value
   >
   compute_size(T const& val, ArchiveT& ar) const {

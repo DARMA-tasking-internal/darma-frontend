@@ -204,14 +204,14 @@ struct FunctorTask
       if(not ar.is_unpacking()) {
         // Need to pack in this order for reconstruct
         ar | stored_args_;
-        this->TaskBase::template serialize(ar);
+        this->TaskBase::template do_serialize(ar);
       }
       else {
         // unpack of args happens in reconstruct, so only need to invoke the base
         // TODO serdes framework should work better with class hierarchies
         // there should be something here that allows me to call unpack instead of
         // calling serialize
-        this->TaskBase::template serialize(ar);
+        this->TaskBase::template do_serialize(ar);
 
        // Now we need to iterate over the arguments and add the uses as dependencies
         _unpack_deps(std::index_sequence_for<Args...>{});

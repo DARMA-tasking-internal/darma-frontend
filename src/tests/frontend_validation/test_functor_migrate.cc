@@ -208,7 +208,7 @@ TEST_F(TestFunctor, simple_migrate) {
 
   auto migrated_task = darma_runtime::abstract::frontend
     ::PolymorphicSerializableObject<darma_runtime::abstract::frontend::Task>
-    ::unpack(buffer, task_packed_size);
+    ::unpack(buffer);
 
   ASSERT_THAT(migrated_task->get_dependencies().size(), Eq(1));
   ASSERT_THAT(*migrated_task->get_dependencies().begin(),

@@ -60,7 +60,7 @@ struct PolymorphicSerializableObject {
 
   static
   std::unique_ptr<AbstractType>
-  unpack(char const* buffer, size_t size);
+  unpack(char const* buffer);
 
 };
 

@@ -53,7 +53,6 @@
 namespace darma_runtime {
 namespace detail {
 
-
 template <typename Lambda>
 struct LambdaTask
 #if _darma_has_feature(task_migration)
@@ -100,19 +99,107 @@ struct LambdaTask
   ~LambdaTask() override = default;
 
   template <typename ArchiveT>
-  static LambdaTask& reconstruct(void* allocated, ArchiveT& ar) {
-    DARMA_ASSERT_NOT_IMPLEMENTED("serialization of lambda tasks");
-    // Unreachable, but to avoid compiler warnings
-    return *reinterpret_cast<LambdaTask*>(allocated);
+  static LambdaTask& reconstruct(void* allocated_void, ArchiveT& ar) {
+    auto* allocated = static_cast<char*>(allocated_void);
+
+    auto* running_task = static_cast<darma_runtime::detail::TaskBase*>(
+      abstract::backend::get_backend_context()->get_running_task()
+    );
+
+    auto*& archive_spot = darma_runtime::serialization::detail::DependencyHandle_attorneys
+      ::ArchiveAccess::get_spot(ar);
+
+    auto& data_as_lambda = *reinterpret_cast<Lambda*>(archive_spot);
+    reinterpret_cast<char*&>(archive_spot) += sizeof(Lambda);
+
+    auto* rv_ptr = new (allocated_void) LambdaTask(
+      [&](detail::TaskBase* task_base){
+        running_task->current_create_work_context = task_base;
+        task_base->lambda_serdes_mode = serialization::detail::SerializerMode::Unpacking;
+        task_base->lambda_serdes_buffer = static_cast<char*>(archive_spot);
+      },
+      data_as_lambda
+    );
+
+    rv_ptr->lambda_serdes_mode = serialization::detail::SerializerMode::None;
+    running_task->current_create_work_context = nullptr;
+
+    reinterpret_cast<char*&>(
+      darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess::get_spot(ar)
+    ) = rv_ptr->lambda_serdes_buffer;
+
+    return *rv_ptr;
+  }
+
+  template <typename ArchiveT>
+  size_t compute_size(ArchiveT& ar) const {
+    auto* running_task = static_cast<darma_runtime::detail::TaskBase*>(
+      abstract::backend::get_backend_context()->get_running_task()
+    );
+    running_task->current_create_work_context = const_cast<LambdaTask*>(this);
+    this->lambda_serdes_mode = serialization::detail::SerializerMode::Sizing;
+    this->lambda_serdes_computed_size = 0;
+
+    // Trigger a copy, but be sure not to use _garbage for anything!!!
+    // in fact, make sure it doesn't get destroyed
+    char* _garbage_as_raw = new char[sizeof(Lambda)];
+    new (_garbage_as_raw) Lambda(lambda_);
+    delete[] _garbage_as_raw;
+
+    this->lambda_serdes_mode = serialization::detail::SerializerMode::None;
+    running_task->current_create_work_context = nullptr;
+
+    auto size_before = darma_runtime::serialization::detail::DependencyHandle_attorneys
+      ::ArchiveAccess::get_size(ar);
+    const_cast<LambdaTask*>(this)->TaskBase::template do_serialize(ar);
+    auto size_after = darma_runtime::serialization::detail::DependencyHandle_attorneys
+      ::ArchiveAccess::get_size(ar);
+
+    return sizeof(Lambda) + this->lambda_serdes_computed_size + (size_after - size_before);
+  }
+
+  template <typename ArchiveT>
+  void pack(ArchiveT& ar) const {
+    auto*& archive_spot = darma_runtime::serialization::detail::DependencyHandle_attorneys
+      ::ArchiveAccess::get_spot(ar);
+
+    ::memcpy(archive_spot, (void const*)&lambda_, sizeof(Lambda));
+    reinterpret_cast<char*&>(archive_spot) += sizeof(Lambda);
+
+    auto* running_task = static_cast<darma_runtime::detail::TaskBase*>(
+      abstract::backend::get_backend_context()->get_running_task()
+    );
+    running_task->current_create_work_context = const_cast<LambdaTask*>(this);
+    this->lambda_serdes_mode = serialization::detail::SerializerMode::Packing;
+    this->lambda_serdes_buffer = static_cast<char*>(archive_spot);
+
+    // Trigger a copy, but be sure not to use _garbage for anything!!!
+    // in fact, make sure it doesn't get destroyed
+    char* _garbage_as_raw = new char[sizeof(Lambda)];
+    new (_garbage_as_raw) Lambda(lambda_);
+    delete[] _garbage_as_raw;
+
+    this->lambda_serdes_mode = serialization::detail::SerializerMode::None;
+    running_task->current_create_work_context = nullptr;
+
+    // And advance the buffer
+    reinterpret_cast<char*&>(
+      darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess::get_spot(ar)
+    ) = this->lambda_serdes_buffer;
+    this->lambda_serdes_buffer = nullptr;
+
+    const_cast<LambdaTask*>(this)->TaskBase::template do_serialize(ar);
   }
 
   template <typename ArchiveT>
   void serialize(ArchiveT& ar) {
-    DARMA_ASSERT_NOT_IMPLEMENTED("serialization of lambda tasks");
+    // Only used for unpacking
+    assert(ar.is_unpacking());
+    this->TaskBase::template do_serialize(ar);
   }
 
   bool is_migratable() const override {
-    return false;
+    return true;
   }
 
   void run() override {

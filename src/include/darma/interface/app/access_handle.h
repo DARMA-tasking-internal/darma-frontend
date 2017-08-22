@@ -299,56 +299,7 @@ class AccessHandle : public detail::AccessHandleBase {
     AccessHandle()
       : current_use_(current_use_base_) {}
 
-    AccessHandle(AccessHandle const& copied_from)
-      : current_use_(current_use_base_),
-        other_private_members_(copied_from.other_private_members_)
-    {
-      // get the shared_ptr from the weak_ptr stored in the runtime object
-      detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
-        abstract::backend::get_backend_context()->get_running_task()
-      );
-      if (running_task) {
-        capturing_task = running_task->current_create_work_context;
-      } else {
-        capturing_task = nullptr;
-      }
-      var_handle_ = copied_from.var_handle_;
-      var_handle_base_ = var_handle_;
-
-      // TODO remove this?  I don't think the unfetched flag is still used...
-      DARMA_ASSERT_MESSAGE(
-        not copied_from.unfetched_,
-        "Illegal capture of unfetched non-local AccessHandle"
-      );
-
-      // Now check if we're in a capturing context:
-      if (capturing_task != nullptr) {
-        AccessHandle const* source = &copied_from;
-        if (capturing_task->is_double_copy_capture) {
-          assert(copied_from.prev_copied_from() != nullptr);
-          source = copied_from.prev_copied_from();
-          copied_from.current_use_ = nullptr;
-          copied_from.current_use_base_ = nullptr;
-        }
-
-        capturing_task->do_capture(*this, *source);
-
-        if (source->current_use_) {
-          source->current_use_->use_base->already_captured = true;
-          // TODO this flag should be on the AccessHandleBase itself
-          capturing_task->uses_to_unmark_already_captured.insert(
-            source->current_use_->use_base
-          );
-        }
-      } // end if capturing_task != nullptr
-      else {
-        current_use_ = copied_from.current_use_;
-        // Also, save prev copied from in case this is a double capture, like in
-        // create_condition.  This is the only time that the prev_copied_from ptr
-        // should be valid (i.e., when task->is_double_copy_capture is set to true)
-        prev_copied_from() = &copied_from;
-      }
-    }
+    AccessHandle(AccessHandle const& copied_from);
 
     //--------------------------------------------------------------------------
     // <editor-fold desc="Analogous type conversion constructor"> {{{2
@@ -1270,12 +1221,9 @@ class AccessHandle : public detail::AccessHandleBase {
     //--------------------------------------------------------------------------
     // <editor-fold desc="DARMA feature: task_migration"> {{{2
 #if _darma_has_feature(task_migration)
+
     template <typename Archive>
-    AccessHandle(
-      serialization::unpack_constructor_tag_t const&,
-      Archive& ar
-    ) : current_use_(current_use_base_)
-    {
+    void _unpack_from_archive(Archive& ar) {
       key_t k = make_key();
       ar >> k;
       var_handle_ = detail::make_shared<detail::VariableHandle<T>>(k);
@@ -1283,8 +1231,8 @@ class AccessHandle : public detail::AccessHandleBase {
       detail::HandleUse::permissions_t immed, sched;
 
 #ifdef __clang__
-      #pragma clang diagnostic push
-      #pragma clang diagnostic ignored "-Wuninitialized"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wuninitialized"
 #endif
 
       ar >> sched >> immed;
@@ -1328,8 +1276,19 @@ class AccessHandle : public detail::AccessHandleBase {
       );
 
 #ifdef __clang__
-      #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #endif
+
+    }
+
+
+    template <typename Archive>
+    AccessHandle(
+      serialization::unpack_constructor_tag_t const&,
+      Archive& ar
+    ) : current_use_(current_use_base_)
+    {
+      _unpack_from_archive(ar);
     }
 #endif // _darma_has_feature(task_migration)
     // </editor-fold> end DARMA feature: task_migration }}}2
@@ -1674,6 +1633,91 @@ struct Serializer<AccessHandle<Args...>>
 
 // </editor-fold> end Serialization }}}1
 //==============================================================================
+
+
+template <typename T, typename Traits>
+AccessHandle<T, Traits>::AccessHandle(AccessHandle<T, Traits> const& copied_from)
+  : current_use_(current_use_base_)
+{
+  // get the shared_ptr from the weak_ptr stored in the runtime object
+  detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
+    abstract::backend::get_backend_context()->get_running_task()
+  );
+
+  if (running_task) {
+    capturing_task = running_task->current_create_work_context;
+  } else {
+    capturing_task = nullptr;
+  }
+
+  // TODO mark this unlikely?
+  if(capturing_task != nullptr
+    && capturing_task->lambda_serdes_mode != serialization::detail::SerializerMode::None
+    ) {
+    serialization::SimplePackUnpackArchive ar;
+    if(capturing_task->lambda_serdes_mode == serialization::detail::SerializerMode::Sizing) {
+      darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess
+        ::start_sizing(ar);
+      serialization::detail::serializability_traits<AccessHandle>::compute_size(copied_from, ar);
+      capturing_task->lambda_serdes_computed_size +=
+        darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess::get_size(ar);
+    }
+    else if(capturing_task->lambda_serdes_mode == serialization::detail::SerializerMode::Packing) {
+      darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess
+        ::start_packing_with_buffer(ar, capturing_task->lambda_serdes_buffer);
+      serialization::detail::serializability_traits<AccessHandle>::pack(copied_from, ar);
+    }
+    else {
+      // NOTE THAT IN THIS CASE, copied_from IS GARBAGE!!!
+      assert(capturing_task->lambda_serdes_mode == serialization::detail::SerializerMode::Unpacking);
+      darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess
+        ::start_unpacking_with_buffer(ar, capturing_task->lambda_serdes_buffer);
+      _unpack_from_archive(ar);
+      capturing_task->add_dependency(*current_use_base_->use_base);
+    }
+    // now advance the buffer for the next user
+    if(capturing_task->lambda_serdes_mode != serialization::detail::SerializerMode::Sizing) {
+      capturing_task->lambda_serdes_buffer = static_cast<char*>(
+        darma_runtime::serialization::detail
+          ::DependencyHandle_attorneys::ArchiveAccess::get_spot(ar)
+      );
+    }
+  }
+  else {
+    other_private_members_ = copied_from.other_private_members_;
+    var_handle_ = copied_from.var_handle_;
+    var_handle_base_ = var_handle_;
+
+    // Now check if we're in a capturing context:
+    if (capturing_task != nullptr) {
+      AccessHandle const* source = &copied_from;
+      if (capturing_task->is_double_copy_capture) {
+        assert(copied_from.prev_copied_from() != nullptr);
+        source = copied_from.prev_copied_from();
+        copied_from.current_use_ = nullptr;
+        copied_from.current_use_base_ = nullptr;
+      }
+
+      capturing_task->do_capture(*this, *source);
+
+      if (source->current_use_) {
+        source->current_use_->use_base->already_captured = true;
+        // TODO this flag should be on the AccessHandleBase itself
+        capturing_task->uses_to_unmark_already_captured.insert(
+          source->current_use_->use_base
+        );
+      }
+    } // end if capturing_task != nullptr
+    else {
+      current_use_ = copied_from.current_use_;
+      // Also, save prev copied from in case this is a double capture, like in
+      // create_condition.  This is the only time that the prev_copied_from ptr
+      // should be valid (i.e., when task->is_double_copy_capture is set to true)
+      prev_copied_from() = &copied_from;
+    }
+  }
+}
+
 
 } // end namespace darma_runtime
 
