@@ -48,11 +48,16 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestFunctor, simple_migrate) {
+TEST_F_WITH_PARAMS(
+  TestFunctor, simple_migrate,
+  ::testing::Bool(), bool
+) {
   using namespace ::testing;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
+
+  bool use_lambda = GetParam();
 
   DECLARE_MOCK_FLOWS(f_init, f_set_42_out, f_null, f_set_42_out_migrated);
   use_t* set_42_use, *hello_use, *migrated_use, *initial_use, *cont_use;
@@ -62,9 +67,16 @@ TEST_F(TestFunctor, simple_migrate) {
 
   EXPECT_INITIAL_ACCESS(f_init, f_null, initial_use, make_key("hello"));
 
-  EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(
-    f_init, f_set_42_out, set_42_use, f_null, cont_use, value
-  );
+  if(use_lambda) {
+    EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(
+      f_init, f_set_42_out, set_42_use, f_null, cont_use, value
+    );
+  }
+  else {
+    EXPECT_LEAF_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(
+      f_init, f_set_42_out, set_42_use, f_null, cont_use, value
+    );
+  }
 
   EXPECT_RELEASE_USE(initial_use);
 
@@ -81,23 +93,40 @@ TEST_F(TestFunctor, simple_migrate) {
   //============================================================================
   // Code to actually be tested
   {
-    struct SetTo42 {
-      //void operator()(AccessHandle<int>& val) const { val.set_value(42); }
-      void operator()(int& val) const { val = 42; }
-    };
-
-    struct HelloWorldNumber {
-      void operator()(int const& val) const {
-        EXPECT_THAT(val, Eq(42));
-      }
-    };
-
     auto tmp = initial_access<int>("hello");
 
-    create_work<SetTo42>(tmp);
+    //--------------------------------------------------------------------------
+    // Lambda version
+    if(use_lambda) {
+      create_work([=]{
+        tmp.set_value(42);
+      });
 
-    create_work<HelloWorldNumber>(tmp);
+      create_work(reads(tmp), [=]{
+        EXPECT_THAT(tmp.get_value(), Eq(42));
+      });
+    }
+    //--------------------------------------------------------------------------
+    // Functor version
+    else {
 
+      struct SetTo42 {
+        //void operator()(AccessHandle<int>& val) const { val.set_value(42); }
+        void operator()(int& val) const { val = 42; }
+      };
+
+      struct HelloWorldNumber {
+        void operator()(int const& val) const {
+          EXPECT_THAT(val, Eq(42));
+        }
+      };
+
+      create_work<SetTo42>(tmp);
+
+      create_work<HelloWorldNumber>(tmp);
+
+    }
+    //--------------------------------------------------------------------------
   }
   //============================================================================
 
@@ -112,36 +141,40 @@ TEST_F(TestFunctor, simple_migrate) {
 
   EXPECT_CALL(*mock_runtime, get_packed_flow_size(f_set_42_out))
     .Times(
-#if _darma_has_feature(anti_flows)
+      #if _darma_has_feature(anti_flows)
       1
-#else
+      #else
       2
-#endif // _darma_has_feature(anti_flows)
+      #endif // _darma_has_feature(anti_flows)
     ).WillRepeatedly(Return(sizeof(mock_backend::MockFlow)));
 
-#if _darma_has_feature(anti_flows)
+  #if _darma_has_feature(anti_flows)
   EXPECT_CALL(*mock_runtime, get_packed_flow_size(Eq(nullptr)))
     .Times(1).WillRepeatedly(Return(sizeof(mock_backend::MockFlow)));
-#endif // _darma_has_feature(anti_flows)
+  #endif // _darma_has_feature(anti_flows)
 
   size_t task_packed_size = task_to_migrate->get_packed_size();
 
   char buffer[task_packed_size];
 
-  EXPECT_CALL(*mock_runtime, pack_flow(f_set_42_out, Truly(
-    // GCC doesn't like it if I capture buffer by reference, so...
-    [buffer=&(buffer[0]), task_packed_size](auto&& flow_buff) {
-      // expect that the buffer given here is part of the buffer from above
-      return
-        (intptr_t(&(buffer[0])) <= intptr_t(flow_buff))
-        and (intptr_t(&(buffer[0])+task_packed_size) > intptr_t(flow_buff));
-    }
-  ))).Times(
-#if _darma_has_feature(anti_flows)
+  EXPECT_CALL(*mock_runtime, pack_flow(f_set_42_out,
+    AllOf(
+      Ge((void*)&(buffer[0])), Le((void*)&(buffer[task_packed_size]))
+    )
+    //Truly(
+    // // GCC doesn't like it if I capture buffer by reference, so...
+    //[buffer=&(buffer[0]), task_packed_size](auto&& flow_buff) {
+    //  // expect that the buffer given here is part of the buffer from above
+    //  return
+    //    (intptr_t(&(buffer[0])) <= intptr_t(flow_buff))
+    //    and (intptr_t(&(buffer[0])+task_packed_size) > intptr_t(flow_buff));
+    //}
+  )).Times(
+    #if _darma_has_feature(anti_flows)
     1
-#else
+    #else
     2
-#endif // _darma_has_feature(anti_flows)
+    #endif // _darma_has_feature(anti_flows)
   ).WillRepeatedly(Invoke([&](auto&& flow, void*& buffer) {
     // memcpy the flow directly into the buffer.  We'll just use it for
     // comparison purposes later to make sure the translation layer is
@@ -151,7 +184,7 @@ TEST_F(TestFunctor, simple_migrate) {
     reinterpret_cast<char*&>(buffer) += sizeof(mock_backend::MockFlow);
   }));
 
-#if _darma_has_feature(anti_flows)
+  #if _darma_has_feature(anti_flows)
   EXPECT_CALL(*mock_runtime, pack_flow(Eq(nullptr), Truly(
     // GCC doesn't like it if I capture buffer by reference, so...
     [buffer=&(buffer[0]), task_packed_size](auto&& flow_buff) {
@@ -168,7 +201,10 @@ TEST_F(TestFunctor, simple_migrate) {
     // and advance the buffer
     reinterpret_cast<char*&>(buffer) += sizeof(mock_backend::MockFlow);
   }));
-#endif // _darma_has_feature(anti_flows)
+
+  // TODO expect antiflow pack
+
+  #endif // _darma_has_feature(anti_flows)
 
   task_to_migrate->pack(buffer);
 
@@ -176,7 +212,7 @@ TEST_F(TestFunctor, simple_migrate) {
     return *reinterpret_cast<mock_backend::MockFlow const*>(buff) == f_set_42_out
       || *reinterpret_cast<mock_backend::MockFlow const*>(buff) == nullptr;
   }))).Times(2)
-#if _darma_has_feature(anti_flows)
+    #if _darma_has_feature(anti_flows)
     .WillOnce(Invoke([&](void const*& buff) {
       reinterpret_cast<char const*&>(buff) += sizeof(mock_backend::MockFlow);
       return f_set_42_out_migrated;
@@ -185,20 +221,22 @@ TEST_F(TestFunctor, simple_migrate) {
       reinterpret_cast<char const*&>(buff) += sizeof(mock_backend::MockFlow);
       return mock_backend::MockFlow(nullptr);
     }));
-#else
+    #else
     .WillRepeatedly(Invoke([&](void const*& buff) {
       reinterpret_cast<char const*&>(buff) += sizeof(mock_backend::MockFlow);
       return f_set_42_out_migrated;
     }));
-#endif // _darma_has_feature(anti_flows)
+    #endif // _darma_has_feature(anti_flows)
 
+  // TODO expectations on antiflows
   EXPECT_CALL(*mock_runtime, reregister_migrated_use(IsUseWithFlows(
-#if _darma_has_feature(anti_flows)
+    #if _darma_has_feature(anti_flows)
     f_set_42_out_migrated, nullptr,
-#else
+    #else
     f_set_42_out_migrated, f_set_42_out_migrated,
-#endif // _darma_has_feature(anti_flows)
-    use_t::None, use_t::Read
+    #endif // _darma_has_feature(anti_flows)
+    use_lambda ? use_t::Read : use_t::None,
+    use_t::Read
   ))).WillOnce(Invoke([&](auto&& rereg_use) {
       darma_runtime::abstract::frontend::use_cast<
         darma_runtime::abstract::frontend::DependencyUse*
@@ -213,12 +251,13 @@ TEST_F(TestFunctor, simple_migrate) {
   ASSERT_THAT(migrated_task->get_dependencies().size(), Eq(1));
   ASSERT_THAT(*migrated_task->get_dependencies().begin(),
     IsUseWithFlows(
-  #if _darma_has_feature(anti_flows)
+      #if _darma_has_feature(anti_flows)
       f_set_42_out_migrated, nullptr,
-  #else
+      #else
       f_set_42_out_migrated, f_set_42_out_migrated,
-  #endif // _darma_has_feature(anti_flows)
-      use_t::None, use_t::Read
+      #endif // _darma_has_feature(anti_flows)
+      use_lambda ? use_t::Read : use_t::None,
+      use_t::Read
     )
   );
 

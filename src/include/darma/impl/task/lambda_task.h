@@ -133,6 +133,12 @@ struct LambdaTask
 
   template <typename ArchiveT>
   size_t compute_size(ArchiveT& ar) const {
+
+    auto size_before = darma_runtime::serialization::detail::DependencyHandle_attorneys
+      ::ArchiveAccess::get_size(ar);
+
+    ar.add_to_size_indirect(sizeof(Lambda));
+
     auto* running_task = static_cast<darma_runtime::detail::TaskBase*>(
       abstract::backend::get_backend_context()->get_running_task()
     );
@@ -149,13 +155,15 @@ struct LambdaTask
     this->lambda_serdes_mode = serialization::detail::SerializerMode::None;
     running_task->current_create_work_context = nullptr;
 
-    auto size_before = darma_runtime::serialization::detail::DependencyHandle_attorneys
-      ::ArchiveAccess::get_size(ar);
+    ar.add_to_size_indirect(this->lambda_serdes_computed_size);
+    this->lambda_serdes_computed_size = 0;
+
     const_cast<LambdaTask*>(this)->TaskBase::template do_serialize(ar);
+
     auto size_after = darma_runtime::serialization::detail::DependencyHandle_attorneys
       ::ArchiveAccess::get_size(ar);
 
-    return sizeof(Lambda) + this->lambda_serdes_computed_size + (size_after - size_before);
+    return (size_after - size_before);
   }
 
   template <typename ArchiveT>
