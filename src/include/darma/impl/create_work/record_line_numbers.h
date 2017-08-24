@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          create_work.h
-//                         dharma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      record_line_numbers.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,43 +42,41 @@
 //@HEADER
 */
 
-#ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
-#define SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
+#ifndef DARMAFRONTEND_RECORD_LINE_NUMBERS_H
+#define DARMAFRONTEND_RECORD_LINE_NUMBERS_H
+
+#include <cstdint>
 
 #include <darma/impl/config.h>
+#include <darma/interface/app/create_work.h>
 
 namespace darma_runtime {
 
-namespace detail {
-
-struct _create_work_uses_lambda_tag { };
-} // end namespace detail
-
-// TODO create_work with return value (Issue #107 on GitLab)
-
 #if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-struct _create_work_creation_context;
-#else
-template <
-  typename Functor=detail::_create_work_uses_lambda_tag,
-  typename... Args
->
-void create_work(Args&&... args);
+
+struct _create_work_creation_context {
+  const char* file;
+  const char* func;
+  size_t line;
+  _create_work_creation_context(const char* file, size_t line, const char* func)
+    : file(file), line(line), func(func)
+  { }
+  template <
+    typename Functor=detail::_create_work_uses_lambda_tag,
+    typename... Args
+  >
+  void
+  _darma_create_work_with_line_numbers(Args&&... args);
+  template <
+    typename Functor
+  >
+  void
+  _darma_create_work_with_line_numbers();
+};
+
+#define create_work _create_work_creation_context(__FILE__, __LINE__, __func__)._darma_create_work_with_line_numbers
 #endif
 
 } // end namespace darma_runtime
 
-
-#include <darma/impl/create_work/create_work.h>
-//#include <darma/impl/util.h>
-
-
-//#define create_work \
-//  auto DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__) = \
-//    ::darma_runtime::detail::_start_create_work(); \
-//    ::darma_runtime::detail::_do_create_work( \
-//      std::move(DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__)) \
-//    ).operator()
-
-
-#endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_ */
+#endif //DARMAFRONTEND_RECORD_LINE_NUMBERS_H

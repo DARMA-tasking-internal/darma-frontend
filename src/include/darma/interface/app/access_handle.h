@@ -431,6 +431,7 @@ class AccessHandle
     >
     AccessHandle(AccessHandle&& other)
       : detail::AccessHandleBase(std::move(other)),
+        copy_capture_handler_t(std::move(other)),
         var_handle_(std::move(other.var_handle_)),
         unfetched_(std::move(other.unfetched_)),
         current_use_(current_use_base_, std::move(other.current_use_)),
@@ -464,13 +465,11 @@ class AccessHandle
         detail::_not_a_type
       > _nat = {detail::_not_a_type_ctor_tag}
     ) : detail::AccessHandleBase(std::move(other)),
+        copy_capture_handler_t(),
         var_handle_(std::move(other.var_handle_)),
         unfetched_(std::move(other.unfetched_)),
         current_use_(current_use_base_, std::move(other.current_use_)),
-        other_private_members_(std::piecewise_construct,
-          std::forward_as_tuple(nullptr),
-          std::forward_as_tuple(std::move(other.other_private_members_.second()))
-        )
+        other_private_members_(std::move(other.other_private_members_))
     {
       var_handle_base_ = var_handle_;
     }
@@ -1219,11 +1218,19 @@ class AccessHandle
       }
     }
 
-    template <typename CompatibleAccessHandleT>
+    template <
+      typename CompatibleAccessHandleT,
+      typename CaptureManagerT
+    >
     void report_capture(
       CompatibleAccessHandleT const* source,
-      detail::TaskBase* capturing_task
+      CaptureManagerT* capturing_task
     ) {
+      static_assert(
+        std::is_base_of<detail::CaptureManager, CaptureManagerT>::value,
+        "Report capture requires an object conforming to the CaptureManager interface"
+      );
+
       // We should copy these over before reporting the capture
       var_handle_ = source->var_handle_;
       var_handle_base_ = var_handle_;
@@ -1245,72 +1252,17 @@ class AccessHandle
     //--------------------------------------------------------------------------
     // <editor-fold desc="DARMA feature: task_migration"> {{{2
     #if _darma_has_feature(task_migration)
+
     template <typename Archive>
-    void unpack_from_archive(Archive& ar) {
+    void unpack_from_archive(Archive& ar);
 
-      key_t k = make_key();
-      ar >> k;
-
-      var_handle_ = detail::make_shared<detail::VariableHandle<T>>(k);
-      var_handle_base_ = var_handle_;
-
-      detail::HandleUse::permissions_t immed, sched;
-
-      #ifdef __clang__
-      #pragma clang diagnostic push
-      #pragma clang diagnostic ignored "-Wuninitialized"
-      #endif
-
-      ar >> sched >> immed;
-
-      auto* backend_runtime = abstract::backend::get_backend_runtime();
-
-      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-
-      auto in_flow = backend_runtime->make_unpacked_flow(
-        ArchiveAccess::get_const_spot(ar)
-      );
-
-      // Note that the backend function advances the underlying pointer, so the
-      // pointer returned by get_spot is different in the call below from the
-      // call above
-      auto out_flow = backend_runtime->make_unpacked_flow(
-        ArchiveAccess::get_const_spot(ar)
-      );
-
-      #if _darma_has_feature(anti_flows)
-      auto anti_in_flow = backend_runtime->make_unpacked_anti_flow(
-        ArchiveAccess::get_const_spot(ar)
-      );
-
-      auto anti_out_flow = backend_runtime->make_unpacked_anti_flow(
-        ArchiveAccess::get_const_spot(ar)
-      );
-      #endif // _darma_has_feature(anti_flows)
-
-      // Suspended flow should always be null when packing/unpacking, so don't
-      // have to worry about it here
-
-      current_use_ = std::make_shared<detail::UseHolder>(
-        detail::migrated_use_arg,
-        detail::HandleUse(
-          var_handle_, sched, immed, std::move(in_flow), std::move(out_flow)
-          #if _darma_has_feature(anti_flows)
-          , std::move(anti_in_flow), std::move(anti_out_flow)
-          #endif // _darma_has_feature(anti_flows)
-        )
-      );
-
-      #ifdef __clang__
-      #pragma clang diagnostic pop
-      #endif
-
-    }
     #endif // _darma_has_feature(task_migration)
     // </editor-fold> end DARMA feature: task_migration }}}2
     //--------------------------------------------------------------------------
 
-    template <typename TaskLikeT>
+    template <
+      typename TaskLikeT
+    >
     void report_dependency(
       TaskLikeT* task
     ) {
@@ -1455,7 +1407,7 @@ class AccessHandle
       > = { }
     ) const
     {
-      return other_private_members_.second().owning_index_;
+      return other_private_members_.owning_index_;
     }
 
     template <typename _Ignored_SFINAE=void>
@@ -1468,7 +1420,7 @@ class AccessHandle
       > = { }
     ) const
     {
-      return other_private_members_.second().owning_backend_index_;
+      return other_private_members_.owning_backend_index_;
     }
 #endif // _darma_has_feature(create_concurrent_work_owned_by)
 

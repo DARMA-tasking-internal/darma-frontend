@@ -178,8 +178,8 @@ class IndexedAccessHandle {
         std::move(use_holder_)
       );
 #if _darma_has_feature(task_collection_token)
-      rv.other_private_members_.second().set_can_be_published_dynamic(true);
-      rv.other_private_members_.second().task_collection_token() = parent_.task_collection_token_;
+      rv.other_private_members_.set_can_be_published_dynamic(true);
+      rv.other_private_members_.task_collection_token() = parent_.task_collection_token_;
 #endif // _darma_has_feature(task_collection_token)
       return std::move(rv);
     }

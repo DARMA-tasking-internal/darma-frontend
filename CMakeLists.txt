@@ -32,6 +32,7 @@ option (DARMA_GENERATE_OO_MACRO_FILES
     OFF
 )
 
+
 option(DARMA_COVERAGE "Whether to setup coverage targets for tests" Off)
 
 if (DARMA_COVERAGE)

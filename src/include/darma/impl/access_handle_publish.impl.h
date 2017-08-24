@@ -90,10 +90,10 @@ struct _publish_impl {
     detail::PublicationDetails dets(version, n_readers, not is_publish_out);
 #if _darma_has_feature(task_collection_token)
     DARMA_ASSERT_MESSAGE(
-      this_.other_private_members_.second().can_be_published_dynamic(),
+      this_.other_private_members_.can_be_published_dynamic(),
       "Tried to publish AccessHandle that is not descended from a AccessHandleCollection local access"
     );
-    dets.token_ = this_.other_private_members_.second().task_collection_token();
+    dets.token_ = this_.other_private_members_.task_collection_token();
 #endif // _darma_has_feature(task_collection_token)
 
     auto publish_use_holder = make_captured_use_holder(

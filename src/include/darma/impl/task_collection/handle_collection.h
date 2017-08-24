@@ -523,7 +523,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         abstract::backend::get_backend_context()->get_running_task()
       );
-      darma_runtime::detail::TaskBase* capturing_task = nullptr;
+      darma_runtime::detail::CaptureManager* capturing_task = nullptr;
       if (running_task) {
         capturing_task = running_task->current_create_work_context;
       }
@@ -579,7 +579,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       detail::TaskBase* running_task = static_cast<detail::TaskBase* const>(
         abstract::backend::get_backend_context()->get_running_task()
       );
-      darma_runtime::detail::TaskBase* capturing_task = nullptr;
+      darma_runtime::detail::CaptureManager* capturing_task = nullptr;
       if (running_task) {
         capturing_task = running_task->current_create_work_context;
       }

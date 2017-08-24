@@ -51,6 +51,8 @@
 
 #include <darma/impl/task/functor_task.h>
 
+#include "record_line_numbers.h"
+
 namespace darma_runtime {
 namespace detail {
 
@@ -60,6 +62,12 @@ namespace detail {
 template <typename Functor, typename LastArg, typename... Args>
 struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
 
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+  _create_work_creation_context* ctxt;
+  explicit
+  _create_work_impl(_create_work_creation_context* ctxt) : ctxt(ctxt) { }
+#endif
+
   template <typename... DeducedArgs>
   auto _impl(DeducedArgs&&... in_args) const {
 
@@ -67,7 +75,7 @@ struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
 
     return setup_create_work_argument_parser()
       .parse_args(std::forward<DeducedArgs>(in_args)...)
-      .invoke([](
+      .invoke([this](
         types::key_t name_key,
         auto&& allow_aliasing_desc,
         bool data_parallel,
@@ -110,13 +118,11 @@ struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
           std::forward<decltype(args)>(args)...
         );
 
-        // The copy happens in here, which triggers the AccessHandle copy ctor hook
-        //task->set_runnable(
-        //  std::make_unique<runnable_t>(
-        //    variadic_constructor_arg,
-        //    std::forward<decltype(args)>(args)...
-        //  )
-        //);
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+        task->set_context_information(
+          ctxt->file, ctxt->line, ctxt->func
+        );
+#endif
 
         task->post_registration_cleanup();
 

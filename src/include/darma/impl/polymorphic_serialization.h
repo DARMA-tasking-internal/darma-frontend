@@ -56,6 +56,8 @@
 #include <darma/impl/serialization/archive.h>
 #include <darma/impl/serialization/manager.h>
 
+#include <darma/interface/backend/runtime.h>
+
 //#ifndef DARMA_INITIAL_ABSTRACT_BASE_REGISTRY_SIZE
 //#define DARMA_INITIAL_ABSTRACT_BASE_REGISTRY_SIZE 32
 //#endif

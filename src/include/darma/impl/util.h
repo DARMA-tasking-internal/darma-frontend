@@ -71,7 +71,9 @@ namespace darma_runtime {
 namespace detail {
 
 struct variadic_constructor_arg_t { };
-constexpr const variadic_constructor_arg_t variadic_constructor_arg = { };
+constexpr variadic_constructor_arg_t variadic_constructor_arg = { };
+using variadic_constructor_tag_t = variadic_constructor_arg_t;
+constexpr variadic_constructor_tag_t variadic_constructor_tag = variadic_constructor_arg;
 
 //   http://stackoverflow.com/questions/2590677/how-do-i-combine-hash-values-in-c0x
 template <class T>

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      lambda_task.h
+//                      callable_task.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -53,80 +53,268 @@
 namespace darma_runtime {
 namespace detail {
 
+constexpr struct delay_capture_tag_t {} defer_capture_tag = { };
+
+struct LambdaCaptureSetupHelper {
+
+  LambdaCaptureSetupHelper(
+    TaskBase* parent_task,
+    CaptureManager* current_capture_context
+  ) {
+    // Note that the arguments (especially parent_task) to this constructor
+    // should *not* be stored as data members because they may not be valid
+    // for the entirety of this object's lifetime
+    pre_capture_setup(parent_task, current_capture_context);
+  }
+
+  void pre_capture_setup(
+    TaskBase* parent_task,
+    CaptureManager* current_capture_context
+  ) {
+    parent_task->current_create_work_context = current_capture_context;
+    current_capture_context->is_double_copy_capture = true;
+  }
+
+  void post_capture_cleanup(
+    TaskBase* parent_task,
+    CaptureManager* current_capture_context
+  ) {
+    current_capture_context->is_double_copy_capture = false;
+    parent_task->current_create_work_context = nullptr;
+    current_capture_context->post_capture_cleanup();
+  }
+
+  //==============================================================================
+  // <editor-fold desc="Task migration"> {{{1
+  #if _darma_has_feature(task_migration)
+
+  template <typename ArchiveT>
+  LambdaCaptureSetupHelper(
+    unpacking_task_constructor_tag_t,
+    TaskBase* parent_task,
+    CaptureManager* current_capture_context,
+    ArchiveT& ar
+  ) {
+    pre_unpack_setup(parent_task, current_capture_context, ar);
+  }
+
+  template <typename ArchiveT>
+  void pre_unpack_setup(
+    TaskBase* parent_task,
+    CaptureManager* current_capture_context,
+    ArchiveT& ar
+  ) {
+    using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+    parent_task->current_create_work_context = current_capture_context;
+    current_capture_context->lambda_serdes_mode = serialization::detail::SerializerMode::Unpacking;
+    current_capture_context->lambda_serdes_buffer = static_cast<char*>(ArchiveAccess::get_spot(ar));
+  }
+
+  template <typename ArchiveT>
+  void post_unpack_cleanup(
+    TaskBase* parent_task,
+    CaptureManager* current_capture_context,
+    ArchiveT& ar
+  ) {
+    using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+
+    current_capture_context->lambda_serdes_mode = serialization::detail::SerializerMode::None;
+    parent_task->current_create_work_context = nullptr;
+
+    reinterpret_cast<char*&>(ArchiveAccess::get_spot(ar)) = current_capture_context->lambda_serdes_buffer;
+  }
+
+  #endif // darma_has_feature(task_migration)
+  // </editor-fold> end Task migration }}}1
+  //==============================================================================
+
+};
+
+// Inheriting from LambdaCaptureSetupHelper ensures the setup happens before
+// the capture
+template <typename Lambda>
+struct LambdaCapturer
+  : protected LambdaCaptureSetupHelper
+{
+
+  //============================================================================
+  // <editor-fold desc="Constructors and destructor"> {{{1
+
+  template <typename LambdaDeduced>
+  LambdaCapturer(
+    LambdaDeduced&& callable_in,
+    TaskBase* parent_task,
+    CaptureManager* capture_manager
+  ) : LambdaCaptureSetupHelper(parent_task, capture_manager),
+      callable_(
+        // Intentionally *don't* forward to trigger copy ctors of captured vars
+        callable_in
+      )
+  {
+    post_capture_cleanup(parent_task, capture_manager);
+  }
+
+  LambdaCapturer(LambdaCapturer&&)
+    noexcept(std::is_nothrow_move_constructible<Lambda>::value) = default;
+
+  //------------------------------------------------------------------------------
+  // <editor-fold desc="darma_has_feature(task_migration)"> {{{2
+  #if _darma_has_feature(task_migration)
+
+  template <typename LambdaDeduced, typename ArchiveT>
+  LambdaCapturer(
+    unpacking_task_constructor_tag_t,
+    LambdaDeduced&& callable_in,
+    TaskBase* parent_task,
+    CaptureManager* capture_manager,
+    ArchiveT& ar
+  ) : LambdaCaptureSetupHelper(parent_task, capture_manager),
+      callable_(
+        // Intentionally *don't* forward to trigger copy ctors of captured vars
+        callable_in
+      )
+  {
+    post_unpack_cleanup(parent_task, capture_manager, ar);
+  }
+
+  #endif // darma_has_feature(task_migration)
+  // </editor-fold> end darma_has_feature(task_migration) }}}2
+  //------------------------------------------------------------------------------
+
+  // </editor-fold> end Constructors and destructor }}}1
+  //============================================================================
+
+
+  //============================================================================
+  // <editor-fold desc="data members"> {{{1
+
+  Lambda callable_;
+
+  // </editor-fold> end data members }}}1
+  //============================================================================
+
+};
+
+
 template <typename Lambda>
 struct LambdaTask
 #if _darma_has_feature(task_migration)
   : PolymorphicSerializationAdapter<
       LambdaTask<Lambda>,
       abstract::frontend::Task,
-      TaskCtorHelper
-    >
+      TaskBase
+    >,
 #else
-  : TaskCtorHelper
+  : TaskCtorHelper,
 #endif
+    // LambdaCapturer should always follow the TaskCtorHelper base, since it's constructor
+    // relies on a TaskBase object being fully constructed
+    LambdaCapturer<Lambda>
 {
 
-#if _darma_has_feature(task_migration)
+  //============================================================================
+  // <editor-fold desc="typedefs and type aliases"> {{{1
+
+  using capturer_t = LambdaCapturer<Lambda>;
+
+  #if _darma_has_feature(task_migration)
   using base_t = PolymorphicSerializationAdapter<
     LambdaTask<Lambda>,
     abstract::frontend::Task,
-    TaskCtorHelper
+    TaskBase
   >;
-#else
+  #else
   using base_t = TaskCtorHelper;
-#endif
+  #endif
 
-  Lambda lambda_;
+  // </editor-fold> end typedefs and type aliases }}}1
+  //============================================================================
+
+
+  //============================================================================
+  // <editor-fold desc="Constructors and Destructor"> {{{1
 
   template <
-    typename PreConstructAction,
-    typename LambdaDeduced
+    typename LambdaDeduced,
+    typename... TaskCtorArgs
   >
   LambdaTask(
-    PreConstructAction&& action,
-    LambdaDeduced&& lambda_in
+    LambdaDeduced&& callable_in,
+    detail::TaskBase* parent_task,
+    TaskCtorArgs&&... other_ctor_args
   ) : base_t(
-        variadic_constructor_arg,
-        std::forward<PreConstructAction>(action)
+        parent_task,
+        std::forward<TaskCtorArgs>(other_ctor_args)...
       ),
-      lambda_(
-        // Intentionally *don't* forward to trigger copy ctors of captured vars
-        lambda_in
+      capturer_t(
+        std::forward<LambdaDeduced>(callable_in),
+        parent_task, this
       )
   { }
 
+  template <
+    typename LambdaDeduced,
+    typename ArchiveT,
+    typename... TaskCtorArgs
+  >
+  LambdaTask(
+    unpacking_task_constructor_tag_t,
+    LambdaDeduced&& callable_in,
+    detail::TaskBase* parent_task,
+    ArchiveT& ar,
+    TaskCtorArgs&&... other_ctor_args
+  ) : base_t(
+        unpacking_task_constructor_tag,
+        parent_task,
+        std::forward<TaskCtorArgs>(other_ctor_args)...
+      ),
+      capturer_t(
+        unpacking_task_constructor_tag,
+        std::forward<LambdaDeduced>(callable_in),
+        parent_task, this, ar
+      )
+  { }
+
+  LambdaTask(LambdaTask const&) = delete;
+
+  LambdaTask(LambdaTask&&)
+    noexcept(std::is_nothrow_move_constructible<base_t>::value
+      and std::is_nothrow_move_constructible<capturer_t>::value
+    ) = default;
 
   ~LambdaTask() override = default;
 
+  // </editor-fold> end Constructors and Destructor }}}1
+  //============================================================================
+
+
+  //============================================================================
+  // <editor-fold desc="Migration"> {{{1
+
+  //------------------------------------------------------------------------------
+  // <editor-fold desc="darma_has_feature(task_migration)"> {{{2
+  #if _darma_has_feature(task_migration)
+
   template <typename ArchiveT>
   static LambdaTask& reconstruct(void* allocated_void, ArchiveT& ar) {
+    using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+
     auto* allocated = static_cast<char*>(allocated_void);
 
     auto* running_task = static_cast<darma_runtime::detail::TaskBase*>(
       abstract::backend::get_backend_context()->get_running_task()
     );
 
-    auto*& archive_spot = darma_runtime::serialization::detail::DependencyHandle_attorneys
-      ::ArchiveAccess::get_spot(ar);
+    auto*& archive_spot = ArchiveAccess::get_spot(ar);
 
     auto& data_as_lambda = *reinterpret_cast<Lambda*>(archive_spot);
     reinterpret_cast<char*&>(archive_spot) += sizeof(Lambda);
 
     auto* rv_ptr = new (allocated_void) LambdaTask(
-      [&](detail::TaskBase* task_base){
-        running_task->current_create_work_context = task_base;
-        task_base->lambda_serdes_mode = serialization::detail::SerializerMode::Unpacking;
-        task_base->lambda_serdes_buffer = static_cast<char*>(archive_spot);
-      },
-      data_as_lambda
+      unpacking_task_constructor_tag,
+      std::move(data_as_lambda),
+      running_task, ar
     );
-
-    rv_ptr->lambda_serdes_mode = serialization::detail::SerializerMode::None;
-    running_task->current_create_work_context = nullptr;
-
-    reinterpret_cast<char*&>(
-      darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess::get_spot(ar)
-    ) = rv_ptr->lambda_serdes_buffer;
 
     return *rv_ptr;
   }
@@ -149,7 +337,7 @@ struct LambdaTask
     // Trigger a copy, but be sure not to use _garbage for anything!!!
     // in fact, make sure it doesn't get destroyed
     char* _garbage_as_raw = new char[sizeof(Lambda)];
-    new (_garbage_as_raw) Lambda(lambda_);
+    new (_garbage_as_raw) Lambda(this->callable_);
     delete[] _garbage_as_raw;
 
     this->lambda_serdes_mode = serialization::detail::SerializerMode::None;
@@ -171,7 +359,7 @@ struct LambdaTask
     auto*& archive_spot = darma_runtime::serialization::detail::DependencyHandle_attorneys
       ::ArchiveAccess::get_spot(ar);
 
-    ::memcpy(archive_spot, (void const*)&lambda_, sizeof(Lambda));
+    ::memcpy(archive_spot, (void const*)&this->callable_, sizeof(Lambda));
     reinterpret_cast<char*&>(archive_spot) += sizeof(Lambda);
 
     auto* running_task = static_cast<darma_runtime::detail::TaskBase*>(
@@ -184,7 +372,7 @@ struct LambdaTask
     // Trigger a copy, but be sure not to use _garbage for anything!!!
     // in fact, make sure it doesn't get destroyed
     char* _garbage_as_raw = new char[sizeof(Lambda)];
-    new (_garbage_as_raw) Lambda(lambda_);
+    new (_garbage_as_raw) Lambda(this->callable_);
     delete[] _garbage_as_raw;
 
     this->lambda_serdes_mode = serialization::detail::SerializerMode::None;
@@ -210,9 +398,25 @@ struct LambdaTask
     return true;
   }
 
+  #endif // darma_has_feature(task_migration)
+  // </editor-fold> end darma_has_feature(task_migration) }}}2
+  //----------------------------------------------------------------------------
+
+  // </editor-fold> end Migration }}}1
+  //============================================================================
+
+
+  //============================================================================
+  // <editor-fold desc="darma_runtime::abstract::frontend::Task method implementations"> {{{1
+
   void run() override {
-    lambda_();
+    this->callable_();
   }
+
+  // </editor-fold> end darma_runtime::abstract::frontend::Task method implementations }}}1
+  //============================================================================
+
+
 
 };
 

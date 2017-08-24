@@ -86,24 +86,66 @@
 #include <darma/impl/use.h>
 #include <darma/impl/util/smart_pointers.h>
 #include <darma/impl/capture.h>
+#include <darma/impl/polymorphic_serialization.h>
 
 namespace darma_runtime {
 namespace detail {
 
-////////////////////////////////////////////////////////////////////////////////
+class CaptureManager {
+  public:
 
-// <editor-fold desc="TaskBase">
+    using abstract_use_t = abstract::frontend::DependencyUse;
+    using get_deps_container_t = types::handle_container_template<abstract_use_t*>;
 
-class TaskBase : public abstract::frontend::Task
+  public:
+
+
+    virtual void
+    do_capture(
+      AccessHandleBase& captured,
+      AccessHandleBase const& source_and_continuing
+    ) =0;
+
+    void add_dependency(HandleUseBase& use) {
+      dependencies_.insert(&use);
+    }
+
+    void post_capture_cleanup() {
+      for(auto* use : uses_to_unmark_already_captured) {
+        use->already_captured = false;
+      }
+      uses_to_unmark_already_captured.clear();
+    }
+
+    std::set<HandleUseBase*> uses_to_unmark_already_captured;
+    bool is_double_copy_capture = false;
+    unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
+    mutable std::size_t lambda_serdes_computed_size = 0;
+    mutable serialization::detail::SerializerMode lambda_serdes_mode = serialization::detail::SerializerMode::None;
+    mutable char* lambda_serdes_buffer = nullptr;
+
+  protected:
+
+
+    get_deps_container_t dependencies_;
+
+    /**
+     * Protected destructor
+     * An object should never be deleted via a pointer to a CaptureManager
+     */
+    virtual ~CaptureManager() = default;
+
+};
+
+constexpr struct unpacking_task_constructor_tag_t {} unpacking_task_constructor_tag = { };
+
+class TaskBase
+  : public abstract::frontend::Task,
+    public CaptureManager
 {
   protected:
 
     using key_t = types::key_t;
-    using abstract_use_t = abstract::frontend::DependencyUse;
-
-    using get_deps_container_t = types::handle_container_template<abstract_use_t*>;
-
-    get_deps_container_t dependencies_;
 
     key_t name_ = darma_runtime::make_key();
 
@@ -130,17 +172,48 @@ class TaskBase : public abstract::frontend::Task
 
 
     //==============================================================================
-    // <editor-fold desc="Constructors"> {{{1
+    // <editor-fold desc="Constructors and destructor"> {{{1
 
     TaskBase() = default;
 
     TaskBase(TaskBase&&) = default;
 
     TaskBase(TaskBase const&) = delete;
+
+    explicit
+    TaskBase(
+      unpacking_task_constructor_tag_t,
+      TaskBase* parent_task
+    ) {
+      propagate_parent_context(parent_task);
+    }
+
+    // note: do not store the parent_task argument; the pointer might not be
+    // valid for the lifetime of this object
+    template <
+      typename AllowAliasingDescription
+    >
+    TaskBase(
+      TaskBase* parent_task,
+      types::key_t const& name_key,
+      AllowAliasingDescription&& aliasing_desc,
+      bool is_data_parallel
+    ) : name_(name_key),
+        allowed_aliasing(std::forward<AllowAliasingDescription>(aliasing_desc)),
+        is_data_parallel_task_(is_data_parallel)
+    {
+      propagate_parent_context(parent_task);
+    }
+
     virtual ~TaskBase() noexcept = default;
 
-    // </editor-fold> end Constructors }}}1
+    // </editor-fold> end Constructors and destructor }}}1
     //==============================================================================
+
+
+    //==============================================================================
+    // <editor-fold desc="Task migration"> {{{1
+    #if _darma_has_feature(task_migration)
 
     // Called from serialize implementations of derived classes
     template <typename ArchiveT>
@@ -153,13 +226,22 @@ class TaskBase : public abstract::frontend::Task
       #endif
       #endif
 
+      #if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+      ar | calling_file | calling_function | calling_line;
+      #endif
+
       #if _darma_has_feature(task_collection_token)
-      ar | parent_token_available;
-      if(parent_token_available) {
-        ar | token_;
-      }
+      DARMA_ASSERT_NOT_IMPLEMENTED("Task collection token migration");
+      // ar | parent_token_available;
+      // if(parent_token_available) {
+      //   ar | token_;
+      // }
       #endif
     }
+
+    #endif // darma_has_feature(task_migration)
+    // </editor-fold> end Task migration }}}1
+    //==============================================================================
 
     void add_dependency(HandleUseBase& use) {
       dependencies_.insert(&use);
@@ -170,11 +252,11 @@ class TaskBase : public abstract::frontend::Task
       AccessHandleBase const& source_and_continuing
     );
 
-    virtual void
+    void
     do_capture(
       AccessHandleBase& captured,
       AccessHandleBase const& source_and_continuing
-    );
+    ) override;
 
     //==========================================================================
     // <editor-fold desc="Implementation of abstract::frontend::Task"> {{{1
@@ -203,55 +285,14 @@ class TaskBase : public abstract::frontend::Task
     // <editor-fold desc="DARMA feature: task_migration"> {{{2
     #if _darma_has_feature(task_migration)
 
-    bool
+    virtual bool
     is_migratable() const override {
       // if it's not overridden by the time it gets here, it's not migratable
       return false;
     }
 
-
-//    size_t get_packed_size() const override {
-//      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-//      serialization::SimplePackUnpackArchive ar;
-//
-//      ArchiveAccess::start_sizing(ar);
-//
-//      assert(runnable_.get() != nullptr);
-//
-//      ar % runnable_->get_index();
-//
-//      if (runnable_->is_lambda_like_runnable) {
-//        // TODO pack up the flows/uses/etc and their access handle indices
-//        DARMA_ASSERT_NOT_IMPLEMENTED("packing up lambda-like runnables");
-//        size_t added_size = runnable_->lambda_size();
-//        // TODO finish this!
-//        return ArchiveAccess::get_size(ar);
-//      } else {
-//        return runnable_->get_packed_size() + ArchiveAccess::get_size(ar);
-//      }
-//    }
-//
-//    void pack(void* allocated) const override {
-//      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-//      serialization::SimplePackUnpackArchive ar;
-//
-//      ArchiveAccess::start_packing(ar);
-//      ArchiveAccess::set_buffer(ar, allocated);
-//
-//      assert(runnable_.get() != nullptr);
-//
-//      ar << runnable_->get_index();
-//
-//      if (runnable_->is_lambda_like_runnable) {
-//        // TODO pack up the flows/uses/etc and their access handle indices
-//        DARMA_ASSERT_NOT_IMPLEMENTED("packing up lambda-like runnables");
-//        assigned_lambda_unpack_index =
-//          1; // trigger recognition in AccessHandle copy ctor
-//        // TODO finish this
-//      } else {
-//        runnable_->pack(ArchiveAccess::get_spot(ar));
-//      }
-//    }
+    friend types::unique_ptr_template<abstract::frontend::Task>
+    unpack_task(void* packed_data);
 
     #endif // _darma_has_feature(task_migration)
     // </editor-fold> end task_migration }}}2
@@ -262,18 +303,48 @@ class TaskBase : public abstract::frontend::Task
 
   public:
 
-    void post_registration_cleanup() {
-      for(auto* use : uses_to_unmark_already_captured) {
-        static_cast<HandleUse*>(use)->already_captured = false;
-      }
-      uses_to_unmark_already_captured.clear();
-    }
 
     void set_runnable(std::unique_ptr<RunnableBase>&& r) {
       runnable_ = std::move(r);
     }
 
     //==========================================================================
+    // <editor-fold desc="line number and file name recording"> {{{1
+    #if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+
+    // These probably don't need to be strings to be portable, but just in case:
+    std::string calling_file;
+    std::string calling_function;
+    size_t calling_line;
+
+
+    void set_context_information(
+      const char* file, size_t line, const char* func_name
+    ) {
+      calling_file = file;
+      calling_function = func_name;
+      calling_line = line;
+    }
+
+    std::string const& get_calling_filename() const override {
+      return calling_file;
+    }
+
+    size_t get_calling_line_number() const override {
+      return calling_line;
+    }
+
+    std::string const& get_calling_function_name() const override {
+      return calling_function;
+    }
+
+    #endif
+    // </editor-fold> end line number and file name recording }}}1
+    //==========================================================================
+
+
+    //==========================================================================
+    // <editor-fold desc="parallel for tasks and other multi-threaded task details"> {{{1
 
     //--------------------------------------------------------------------------
     // <editor-fold desc="_darma_has_feature(create_parallel_for)"> {{{2
@@ -320,11 +391,12 @@ class TaskBase : public abstract::frontend::Task
     // </editor-fold> end _darma_has_feature(mark_parallel_tasks) }}}2
     //------------------------------------------------------------------------------
 
+    // </editor-fold> end parallel for tasks and other multi-threaded task details }}}1
     //==========================================================================
 
 
     //==========================================================================
-    // allowed_aliasing_description
+    // <editor-fold desc="allowed_aliasing_description"> {{{1
 
     struct allowed_aliasing_description {
       static constexpr struct allowed_aliasing_description_ctor_tag_t { }
@@ -355,17 +427,15 @@ class TaskBase : public abstract::frontend::Task
 
     std::unique_ptr<allowed_aliasing_description> allowed_aliasing = nullptr;
 
+    // </editor-fold> end allowed_aliasing_description }}}1
+    //==========================================================================
+
+
     //==========================================================================
 
     // TODO refactor this to group some of these "capture context" properties into a seperate class
-    TaskBase* current_create_work_context = nullptr;
+    CaptureManager* current_create_work_context = nullptr;
 
-    std::set<HandleUseBase*> uses_to_unmark_already_captured;
-    bool is_double_copy_capture = false;
-    unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
-    mutable std::size_t lambda_serdes_computed_size = 0;
-    mutable serialization::detail::SerializerMode lambda_serdes_mode = serialization::detail::SerializerMode::None;
-    mutable char* lambda_serdes_buffer = nullptr;
 
 #if _darma_has_feature(task_collection_token)
     // TODO @cleanup @dependent remove this when free-function-style collectives are fully deprecated
@@ -392,8 +462,6 @@ class TaskBase : public abstract::frontend::Task
 
     std::unique_ptr<RunnableBase> runnable_;
 
-    friend types::unique_ptr_template<abstract::frontend::Task>
-    unpack_task(void* packed_data);
 
 };
 
@@ -411,6 +479,39 @@ class EmptyTask : public TaskBase {
     void pack(char*) const override {
       assert(false); // not migratable
     }
+};
+
+
+class NonMigratableTaskBase
+  : public PolymorphicSerializationAdapter<
+      NonMigratableTaskBase,
+      TaskBase
+    >
+{
+  public:
+
+    //------------------------------------------------------------------------------
+    // <editor-fold desc="not serializable, but still need stubs"> {{{2
+#if _darma_has_feature(task_migration)
+    template <typename ArchiveT>
+    void serialize(ArchiveT&) {
+      // TODO this should throw (or something like that), not assert
+      DARMA_ASSERT_NOT_IMPLEMENTED("Migration of task collection tasks");
+    }
+    template <typename ArchiveT>
+    static NonMigratableTaskBase& reconstruct(void* allocated, ArchiveT& ar) {
+      // TODO this should throw (or something like that), not assert
+      DARMA_ASSERT_NOT_IMPLEMENTED("Migration of task collection tasks");
+      // unreachable, but helps avoid compiler warnings
+      return *reinterpret_cast<NonMigratableTaskBase*>(allocated);
+    }
+    bool is_migratable() const override {
+      return false;
+    }
+#endif //_darma_has_feature(task_migration)
+    // </editor-fold> end not serializable, but still need stubs }}}2
+    //------------------------------------------------------------------------------
+
 };
 
 

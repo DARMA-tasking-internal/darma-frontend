@@ -45,6 +45,7 @@
 #ifndef SRC_ABSTRACT_FRONTEND_TASK_H_
 #define SRC_ABSTRACT_FRONTEND_TASK_H_
 
+#include <darma/impl/config.h>
 #include <darma/impl/feature_testing_macros.h>
 
 #include <darma_types.h>
@@ -174,6 +175,15 @@ class Task
 
 #if _darma_has_feature(resilient_tasks)
     virtual bool is_replayable() const =0;
+#endif
+
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    virtual std::string const&
+    get_calling_function_name() const =0;
+    virtual std::string const&
+    get_calling_filename() const =0;
+    virtual size_t
+    get_calling_line_number() const =0;
 #endif
 
     virtual ~Task() = default;

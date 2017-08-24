@@ -181,7 +181,7 @@ struct _do_create_parallel_for<
 
         task->is_parallel_for_task_ = true;
 
-        task->post_registration_cleanup();
+        task->post_capture_cleanup();
 
         return abstract::backend::get_backend_runtime()->register_task(
           std::move(task)
@@ -244,7 +244,7 @@ struct _do_create_parallel_for<
         task->is_parallel_for_task_ = true;
         task->width_ = n_workers;
 
-        task->post_registration_cleanup();
+        task->post_capture_cleanup();
 
         return abstract::backend::get_backend_runtime()->register_task(
           std::move(task)

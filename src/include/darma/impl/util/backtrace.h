@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          create_work.h
-//                         dharma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      backtrace.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,43 +42,26 @@
 //@HEADER
 */
 
-#ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
-#define SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
+#ifndef DARMAFRONTEND_IMPL_BACKTRACE_H
+#define DARMAFRONTEND_IMPL_BACKTRACE_H
 
-#include <darma/impl/config.h>
+// TODO protect this file with configure flags tested with CMAKE
+
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(backtrace)
+
+#include <execinfo.h>
 
 namespace darma_runtime {
-
 namespace detail {
 
-struct _create_work_uses_lambda_tag { };
+
+// TODO implement this
+
 } // end namespace detail
-
-// TODO create_work with return value (Issue #107 on GitLab)
-
-#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-struct _create_work_creation_context;
-#else
-template <
-  typename Functor=detail::_create_work_uses_lambda_tag,
-  typename... Args
->
-void create_work(Args&&... args);
-#endif
-
 } // end namespace darma_runtime
 
+#endif // _darma_has_feature(backtrace)
 
-#include <darma/impl/create_work/create_work.h>
-//#include <darma/impl/util.h>
-
-
-//#define create_work \
-//  auto DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__) = \
-//    ::darma_runtime::detail::_start_create_work(); \
-//    ::darma_runtime::detail::_do_create_work( \
-//      std::move(DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__)) \
-//    ).operator()
-
-
-#endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_ */
+#endif //DARMAFRONTEND_IMPL_BACKTRACE_H

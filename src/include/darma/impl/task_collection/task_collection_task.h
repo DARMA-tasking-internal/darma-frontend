@@ -175,7 +175,7 @@ struct ConcurrentContext {
         .invoke(detail::all_reduce_impl<ReduceOp>(
           backend_index_, backend_size_
 #if _darma_has_feature(task_collection_token)
-          , token_
+          , this->token_
 #endif // _darma_has_feature(task_collection_token)
         ));
     }
@@ -193,7 +193,10 @@ template <
   typename... StoredArgs
 >
 struct TaskCollectionTaskImpl
-  : abstract::frontend::TaskCollectionTask<TaskBase>
+  : PolymorphicSerializationAdapter<
+      TaskCollectionTaskImpl<Functor, Mapping, StoredArgs...>,
+      abstract::frontend::TaskCollectionTask<TaskBase>
+    >
 {
   using base_t = abstract::frontend::TaskCollectionTask<TaskBase>;
 
@@ -204,6 +207,7 @@ struct TaskCollectionTaskImpl
   // This is the mapping from frontend index to backend index for the collection itself
   Mapping mapping_;
   args_tuple_t args_;
+
 
 
   template <size_t... Spots>
@@ -232,7 +236,7 @@ struct TaskCollectionTaskImpl
       mapping_.map_backward(backend_index_),
       backend_index_, backend_size_
 #if _darma_has_feature(task_collection_token)
-      , token_
+      , this->token_
 #endif
     );
   }
@@ -259,8 +263,8 @@ struct TaskCollectionTaskImpl
       )
   {
 #if _darma_has_feature(task_collection_token)
-    parent_token_available = true;
-    token_ = parent.token_;
+    this->parent_token_available = true;
+    this->token_ = parent.token_;
 #endif // _darma_has_feature(task_collection_token)
   }
 
@@ -278,6 +282,16 @@ struct TaskCollectionTaskImpl
 
 
 #if _darma_has_feature(task_migration)
+  template <typename ArchiveT>
+  void serialize(ArchiveT&) {
+    DARMA_ASSERT_NOT_IMPLEMENTED("Migration of task collection tasks");
+  }
+  template <typename ArchiveT>
+  static TaskCollectionTaskImpl& reconstruct(void* allocated, ArchiveT& ar) {
+    DARMA_ASSERT_NOT_IMPLEMENTED("Migration of task collection tasks");
+    // unreachable, but helps avoid compiler warnings
+    return *reinterpret_cast<TaskCollectionTaskImpl*>(allocated);
+  }
   bool is_migratable() const override {
     return false;
   }

@@ -178,14 +178,16 @@ struct ParsedCaptureOptions {
 // <editor-fold desc="NestedThenElseLambdaTask"> {{{1
 
 template <typename Lambda>
-struct NestedThenElseLambdaTask: public darma_runtime::detail::TaskBase {
+struct NestedThenElseLambdaTask
+  : public darma_runtime::detail::NonMigratableTaskBase
+{
 
 
   Lambda lambda_;
   ParsedCaptureOptions capture_options_;
 
   NestedThenElseLambdaTask(NestedThenElseLambdaTask&& other)
-    : TaskBase(std::move(other)),
+    : NonMigratableTaskBase(std::move(other)),
       lambda_(std::move(other.lambda_)),
       capture_options_(std::move(other.capture_options_))
   { }
@@ -209,7 +211,9 @@ struct NestedThenElseLambdaTask: public darma_runtime::detail::TaskBase {
 };
 
 template <typename FunctorWrapper, typename StoredArgsTuple>
-struct NestedThenElseFunctorTask: public darma_runtime::detail::TaskBase {
+struct NestedThenElseFunctorTask
+  : public darma_runtime::detail::NonMigratableTaskBase
+{
 
   FunctorWrapper wrapper_;
   ParsedCaptureOptions capture_options_;
@@ -316,7 +320,9 @@ template <
   typename ElseArgsTuple /*=std::tuple<>*/,
   bool ElseIsLambda /* = false */
 >
-struct IfLambdaThenLambdaTask: public darma_runtime::detail::TaskBase {
+struct IfLambdaThenLambdaTask
+  : public darma_runtime::detail::NonMigratableTaskBase
+{
 
   public:
 

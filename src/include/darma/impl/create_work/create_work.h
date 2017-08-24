@@ -47,6 +47,7 @@
 
 #include <memory>
 
+#include <darma/impl/config.h>
 #include <darma/impl/create_work/create_work_fwd.h>
 
 #include <darma/impl/create_work/permissions_downgrades.h>
@@ -107,27 +108,50 @@ struct reads_decorator_parser {
 
 } // end namespace detail
 
+
 template <
   typename Functor, /*=detail::_create_work_uses_lambda_tag */
   typename... Args
 >
-void create_work(Args&&... args) {
+void
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+_create_work_creation_context::_darma_create_work_with_line_numbers
+#else
+create_work
+#endif
+  (Args&&... args) {
 
   return detail::_create_work_impl<
     Functor,
     typename tinympl::vector<Args...>::pop_back::type,
     typename tinympl::vector<Args...>::back::type
-  >()(std::forward<Args>(args)...);
+  >(
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    this
+#endif
+  )(
+    std::forward<Args>(args)...
+  );
 
 }
 
 template <typename Functor>
-void create_work() {
+void
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+_create_work_creation_context::_darma_create_work_with_line_numbers
+#else
+create_work
+#endif
+() {
   return detail::_create_work_impl<
     Functor,
     typename tinympl::vector<>,
     meta::nonesuch
-  >()._impl();
+  >(
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    this
+#endif
+  )._impl();
 }
 
 template <typename... Args>

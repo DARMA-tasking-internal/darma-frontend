@@ -56,10 +56,10 @@ class CopyCapturedObject {
   private:
 
     Derived const* prev_copied_from_ = nullptr;
-    TaskBase* capturing_task = nullptr;
+    CaptureManager* capturing_task = nullptr;
 
-
-    void _handle_lambda_compute_size(Derived const& copied_from) {
+    void
+    _handle_lambda_compute_size(Derived const& copied_from) {
       using serdes_traits_t = darma_runtime::serialization::detail::serializability_traits<Derived>;
       using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 
@@ -69,7 +69,8 @@ class CopyCapturedObject {
       capturing_task->lambda_serdes_computed_size += ArchiveAccess::get_size(ar);
     }
 
-    void _handle_lambda_pack(Derived const& copied_from) {
+    void
+    _handle_lambda_pack(Derived const& copied_from) {
       using serdes_traits_t = darma_runtime::serialization::detail::serializability_traits<Derived>;
       using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 
@@ -81,7 +82,8 @@ class CopyCapturedObject {
       capturing_task->lambda_serdes_buffer = static_cast<char*>(ArchiveAccess::get_spot(ar));
     }
 
-    void _handle_lambda_unpack() {
+    void
+    _handle_lambda_unpack() {
       using serdes_traits_t = darma_runtime::serialization::detail::serializability_traits<Derived>;
       using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 
@@ -118,6 +120,10 @@ class CopyCapturedObject {
       bool did_capture;
       bool argument_is_garbage;
     };
+
+    CopyCapturedObject() = default;
+    CopyCapturedObject(CopyCapturedObject const&) = default;
+    CopyCapturedObject(CopyCapturedObject&&) noexcept = default;
 
     handle_copy_construct_result
     handle_copy_construct(Derived const& copied_from) {
@@ -162,7 +168,8 @@ class CopyCapturedObject {
       // Get the actual source for the capture operation
       Derived const* source_ptr = &copied_from;
 
-      // this only happens in the lambda case, so it's not necessary for the analogous type version
+      // (note that this only happens in the lambda case, so it's not necessary for the
+      // analogous type version, but we do need it here)
       if(capturing_task->is_double_copy_capture) {
         assert(copied_from.prev_copied_from_ != nullptr);
         source_ptr = copied_from.prev_copied_from_;

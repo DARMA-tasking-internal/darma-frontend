@@ -60,13 +60,15 @@
 
 #include <darma/impl/serialization/policy_aware_archive.h>
 
-#include "serialization/serialization.impl.h"
-#include "array/array.impl.h"
 #include "array/index_range.h"
 #include "index_range/mapping.h"
 #include "task_collection/task_collection.h"
 #include "task_collection/create_concurrent_work.h"
 #include "commutative_access.h"
+
+#include "serialization/serialization.impl.h"
+#include "array/array.impl.h"
+#include "key/key.impl.h"
 
 namespace darma = darma_runtime;
 

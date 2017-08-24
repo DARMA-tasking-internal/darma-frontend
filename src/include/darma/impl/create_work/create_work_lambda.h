@@ -50,6 +50,8 @@
 #include <darma/impl/create_work/create_work_argument_parser.h>
 
 #include <darma/impl/task/lambda_task.h>
+#include "create_work.h"
+#include "record_line_numbers.h"
 
 namespace darma_runtime {
 namespace detail {
@@ -57,6 +59,13 @@ namespace detail {
 
 template <typename Lambda, typename... Args>
 struct _create_work_impl<detail::_create_work_uses_lambda_tag, tinympl::vector<Args...>, Lambda> {
+
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+  _create_work_creation_context* ctxt;
+  explicit
+  _create_work_impl(_create_work_creation_context* ctxt) : ctxt(ctxt) { }
+#endif
+
   auto operator()(
     Args&&... in_args,
     Lambda&& lambda_to_be_copied
@@ -80,37 +89,32 @@ struct _create_work_impl<detail::_create_work_uses_lambda_tag, tinympl::vector<A
         auto task = std::make_unique<
           darma_runtime::detail::LambdaTask<std::decay_t<Lambda>>
         >(
-          // before the copy of the lambda that triggers the captures:
-          [&](darma_runtime::detail::TaskBase* task_base) {
-            task_base->set_name(name_key);
-            task_base->allowed_aliasing =
-              std::forward<decltype(allow_aliasing_desc)>(allow_aliasing_desc);
-
-            parent_task->current_create_work_context = task_base;
-            task_base->propagate_parent_context(parent_task);
-
-            task_base->is_data_parallel_task_ = data_parallel;
-
-            task_base->is_double_copy_capture = true;
-          },
           // Perfect forward the lambda here; the copy ctors will get invoked
-          // in the constructor of LambdaTask (after the above stuff gets run)
-          std::forward<Lambda>(lambda_to_be_copied)
+          // in the constructor of LambdaTask (after everything is set up)
+          std::forward<Lambda>(lambda_to_be_copied),
+          parent_task,
+          name_key,
+          std::forward<decltype(allow_aliasing_desc)>(allow_aliasing_desc),
+          data_parallel
         );
+
+        #if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+        task->set_context_information(
+          ctxt->file, ctxt->line, ctxt->func
+        );
+        #endif
 
         // Intentionally don't do perfect forwarding here, to trigger the copy ctor hook
         // This should call the copy ctors of all of the captured variables, triggering
         // the logging of the AccessHandle copies as captures for the task
         //task->set_runnable(std::make_unique<darma_runtime::detail::Runnable<Lambda>>(lambda_to_be_copied));
 
-        task->post_registration_cleanup();
-
         // Done with capture; unset the current_create_work_context for safety later
         // (do this after post_registration_cleanup() because it might need to know
         // what the current create_work context is)
-        parent_task->current_create_work_context = nullptr;
+        //parent_task->current_create_work_context = nullptr;
 
-        task->is_double_copy_capture = false;
+        //task->is_double_copy_capture = false;
 
         return darma_runtime::abstract::backend::get_backend_runtime()->register_task(
           std::move(task)

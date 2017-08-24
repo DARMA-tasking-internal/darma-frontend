@@ -160,7 +160,7 @@ template <typename Functor, typename ArgsTuple, bool IsOuter>
 struct CallableHolder<Functor, ArgsTuple, false, IsOuter>
   : CallableHolderBase,
     /* pretend to be a task so we can handle captures */
-    TaskBase
+    NonMigratableTaskBase
 {
 
   //------------------------------------------------------------------------------
@@ -418,7 +418,7 @@ template <
   typename DoCallable, typename DoArgsTuple, bool DoIsLambda,
   bool IsDoWhilePhase /*=false*/, bool IsOuter/*=true*/
 >
-struct WhileDoTask: public TaskBase
+struct WhileDoTask : public NonMigratableTaskBase
 {
 
   //------------------------------------------------------------------------------
@@ -496,10 +496,10 @@ struct WhileDoTask: public TaskBase
         abstract::backend::get_backend_context()->get_running_task()
       );
     parent_task->current_create_work_context = this;
-    propagate_parent_context(parent_task);
+    this->propagate_parent_context(parent_task);
 
     current_stage_ = OuterWhileCapture;
-    is_double_copy_capture = false;
+    this->is_double_copy_capture = false;
 
     return while_holder_t(
       std::forward<Args>(args)...
@@ -524,7 +524,7 @@ struct WhileDoTask: public TaskBase
         abstract::backend::get_backend_context()->get_running_task()
       );
     parent_task->current_create_work_context = this;
-    propagate_parent_context(parent_task);
+    this->propagate_parent_context(parent_task);
 
     return while_holder_t(
       std::forward<Args>(args)...
@@ -561,9 +561,9 @@ struct WhileDoTask: public TaskBase
     // so that the captures happen while first then do even if the while
     // is a lambda and the do is a functor
     current_stage_ = OuterWhileCapture;
-    is_double_copy_capture = true;
+    this->is_double_copy_capture = true;
     auto rv = while_holder_.trigger_capture(*this);
-    is_double_copy_capture = false;
+    this->is_double_copy_capture = false;
     current_stage_ = NotAWhileDoStage;
 
     return std::move(rv);
@@ -585,7 +585,7 @@ struct WhileDoTask: public TaskBase
     // The current_create_work_context gets set in the while holder ctor helper
     // no matter what, so we don't need to do it here
     current_stage_ = OuterNestedDoCapture;
-    is_double_copy_capture = false;
+    this->is_double_copy_capture = false;
 
     return do_holder_t(
       std::forward<Args>(args)...
@@ -636,9 +636,9 @@ struct WhileDoTask: public TaskBase
   )
   {
     current_stage_ = OuterNestedDoCapture;
-    is_double_copy_capture = true;
+    this->is_double_copy_capture = true;
     auto rv = do_holder_.trigger_capture(*this);
-    is_double_copy_capture = false;
+    this->is_double_copy_capture = false;
     current_stage_ = NotAWhileDoStage;
 
     return std::move(rv);
@@ -706,11 +706,11 @@ struct WhileDoTask: public TaskBase
     // --] end "as-if" code
 
     // Cleanup:  remove the alias guards
-    for(auto* use_to_unmark : uses_to_unmark_already_captured) {
+    for(auto* use_to_unmark : this->uses_to_unmark_already_captured) {
       assert(use_to_unmark != nullptr);
       use_to_unmark->already_captured = false;
     }
-    uses_to_unmark_already_captured.clear();
+    this->uses_to_unmark_already_captured.clear();
 
     parent_task->current_create_work_context = nullptr;
 
@@ -756,7 +756,7 @@ struct WhileDoTask: public TaskBase
       do_fxn_temp_holder_(std::move(in_tmp_do_holder))
   {
     // Cleanup:  remove the alias guards
-    for (auto* use_to_unmark : uses_to_unmark_already_captured) {
+    for (auto* use_to_unmark : this->uses_to_unmark_already_captured) {
       use_to_unmark->already_captured = false;
     }
 
@@ -1111,9 +1111,9 @@ struct WhileDoTask: public TaskBase
     );
     // Setup to do the capture
     parent_task->current_create_work_context = this;
-    propagate_parent_context(parent_task);
+    this->propagate_parent_context(parent_task);
     current_stage_ = NestedDoCapture;
-    is_double_copy_capture =
+    this->is_double_copy_capture =
       false; // should be default, so we should be able to remove this
     std::swap(do_holder_.old_explicit_captures_, do_holder_.explicit_captures_);
     // Trigger the actual capture
@@ -1122,10 +1122,10 @@ struct WhileDoTask: public TaskBase
     parent_task->current_create_work_context = nullptr;
 
     // Cleanup:  remove the alias guards
-    for (auto* use_to_unmark : uses_to_unmark_already_captured) {
+    for (auto* use_to_unmark : this->uses_to_unmark_already_captured) {
       use_to_unmark->already_captured = false;
     }
-    uses_to_unmark_already_captured.clear();
+    this->uses_to_unmark_already_captured.clear();
 
     auto while_do_task = std::make_unique<
       nested_analogue<false /* i.e., while-do mode */>
@@ -1163,9 +1163,9 @@ struct WhileDoTask: public TaskBase
       );
       // Setup to do the capture
       parent_task->current_create_work_context = this;
-      propagate_parent_context(parent_task);
+      this->propagate_parent_context(parent_task);
       current_stage_ = NestedWhileCapture;
-      is_double_copy_capture =
+      this->is_double_copy_capture =
         false; // should be default, so we should be able to remove this
       std::swap(
         while_holder_.old_explicit_captures_, while_holder_.explicit_captures_
@@ -1176,10 +1176,10 @@ struct WhileDoTask: public TaskBase
       parent_task->current_create_work_context = nullptr;
 
       // Cleanup:  remove the alias guards
-      for (auto* use_to_unmark : uses_to_unmark_already_captured) {
+      for (auto* use_to_unmark : this->uses_to_unmark_already_captured) {
         use_to_unmark->already_captured = false;
       }
-      uses_to_unmark_already_captured.clear();
+      this->uses_to_unmark_already_captured.clear();
 
       // Pass everything off to the next task
       auto do_while_task = std::make_unique<
@@ -1207,6 +1207,7 @@ struct WhileDoTask: public TaskBase
 
   // </editor-fold> end run() and helpers }}}2
   //------------------------------------------------------------------------------
+
 
 };
 

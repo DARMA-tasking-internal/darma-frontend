@@ -656,7 +656,7 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
   auto copied_collection = abstract::frontend::PolymorphicSerializableObject<
     abstract::frontend::TaskCollection
-  >::unpack(buffer, tcsize);
+  >::unpack(buffer);
 
   EXPECT_THAT(copied_collection->get_dependencies().size(), Eq(1));
 
