@@ -171,6 +171,10 @@ class Use {
     virtual bool is_anti_dependency() const =0;
 #endif // _darma_has_feature(anti_flows)
 
+    virtual bool is_while_do_use() const {
+      return false;
+    }
+
     // Deletions should only ever occur on the most derived class (i.e., done
     // by the translation layer itself) or on pointer to the most base class,
     // `Use`.
@@ -330,6 +334,22 @@ class UniquelyOwnedUse : virtual public RegisteredUse {
 
 };
 #endif // _darma_has_feature(create_concurrent_work_owned_by)
+
+class WhileDoUse : virtual public Use {
+  public:
+
+    virtual permissions_t get_while_part_scheduling_permissions() const =0;
+
+    virtual permissions_t get_while_part_immediate_permissions() const =0;
+
+    virtual permissions_t get_do_part_scheduling_permissions() const =0;
+
+    virtual permissions_t get_do_part_immediate_permissions() const =0;
+
+  protected:
+    ~WhileDoUse() = default;
+
+};
 
 
 template <typename ToUse>

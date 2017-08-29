@@ -115,7 +115,8 @@ TaskBase::do_capture_checks(
 inline void
 TaskBase::do_capture(
   AccessHandleBase& captured,
-  AccessHandleBase const& source_and_continuing
+  AccessHandleBase const& source_and_continuing,
+  bool register_continuation_use /* = true */
 ) {
 
   if(do_capture_checks(source_and_continuing)) return;
@@ -196,7 +197,8 @@ TaskBase::do_capture(
     source.var_handle_base_,
     requested_schedule_permissions,
     requested_immediate_permissions,
-    source_and_continuing
+    source_and_continuing,
+    register_continuation_use
   );
 
   captured.call_add_dependency(this);

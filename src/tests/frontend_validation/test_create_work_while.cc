@@ -47,7 +47,7 @@
 #include "mock_backend.h"
 #include "test_frontend.h"
 
-#include <darma/impl/create_work_while.h>
+#include <darma/impl/create_work/create_work_while.h>
 #include <darma/interface/app/initial_access.h>
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -134,6 +134,7 @@ TEST_F(TestCreateWorkWhile, basic_same_always_false) {
 
 }
 
+#if 0
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F_WITH_PARAMS(TestCreateWorkWhile, basic_same_one_iteration,
@@ -1402,3 +1403,4 @@ TEST_F(TestCreateWorkWhile, basic_coll_one_iter_nested) {
 //  create_concurrent_work<Foo>(mycol, index_range=Range1D<int>(1));
 
 
+#endif

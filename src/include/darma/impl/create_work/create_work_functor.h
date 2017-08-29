@@ -101,22 +101,27 @@ struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
           darma_runtime::detail::FunctorTask<Functor, decltype(args)...>
         >(
           variadic_constructor_arg,
-          // before the copy of the args that triggers the captures:
-          [&](darma_runtime::detail::TaskBase* task_base) {
-            task_base->set_name(name_key);
-            task_base->allowed_aliasing = std::move(allow_aliasing_desc);
-
-            parent_task->current_create_work_context = task_base;
-            task_base->propagate_parent_context(parent_task);
-
-            task_base->is_data_parallel_task_ = data_parallel;
-
-            // Make sure it's clear that this is not a double-copy capture
-            task_base->is_double_copy_capture = false;
-
-          },
+          parent_task,
+          name_key,
+          std::forward<decltype(allow_aliasing_desc)>(allow_aliasing_desc),
+          data_parallel,
           std::forward<decltype(args)>(args)...
         );
+        // before the copy of the args that triggers the captures:
+//        [&](darma_runtime::detail::TaskBase* task_base) {
+//          task_base->set_name(name_key);
+//          task_base->allowed_aliasing = std::move(allow_aliasing_desc);
+//
+//          parent_task->current_create_work_context = task_base;
+//          task_base->propagate_parent_context(parent_task);
+//
+//          task_base->is_data_parallel_task_ = data_parallel;
+//
+//          // Make sure it's clear that this is not a double-copy capture
+//          task_base->is_double_copy_capture = false;
+//
+//        },
+//          std::forward<decltype(args)>(args)...
 
 #if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
         task->set_context_information(
@@ -124,10 +129,10 @@ struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
         );
 #endif
 
-        task->post_registration_cleanup();
+        //task->post_registration_cleanup();
 
         // Done with capture; unset the current_create_work_context for safety later
-        parent_task->current_create_work_context = nullptr;
+        //parent_task->current_create_work_context = nullptr;
 
         return abstract::backend::get_backend_runtime()->register_task(
           std::move(task)

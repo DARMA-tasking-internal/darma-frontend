@@ -49,7 +49,7 @@
 
 #include <darma/impl/task/task_fwd.h> // TaskBase forward declaration
 #include <darma/impl/create_if_then_fwd.h>
-#include <darma/impl/create_work_while_fwd.h>
+#include <darma/impl/create_work/create_work_while_fwd.h>
 
 #include <darma/impl/use.h> // UseHolder
 #include <darma/impl/task/task.h> // TaskBase
@@ -94,8 +94,8 @@ class AccessHandleBase {
     template <typename, typename, bool, typename, typename, bool, typename, typename, bool>
     friend class darma_runtime::detail::IfLambdaThenLambdaTask;
     friend class ParsedCaptureOptions;
-    template <typename, typename, bool, typename, typename, bool, bool, bool>
-    friend class WhileDoTask;
+    template <typename, typename, bool, typename, typename, bool>
+    friend struct WhileDoCaptureManager;
     template <typename, typename>
     friend class darma_runtime::AccessHandle;
 
@@ -106,7 +106,8 @@ class AccessHandleBase {
       std::shared_ptr<detail::VariableHandleBase> var_handle,
       detail::HandleUse::permissions_t req_sched,
       detail::HandleUse::permissions_t req_immed,
-      detail::AccessHandleBase const& source
+      detail::AccessHandleBase const& source,
+      bool register_continuation_use
     ) =0;
     virtual void replace_use_holder_with(AccessHandleBase const&) =0;
     // really should be something like "release_current_use_holders"...

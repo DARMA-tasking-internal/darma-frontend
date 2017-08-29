@@ -133,7 +133,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       std::shared_ptr<detail::VariableHandleBase> var_handle,
       detail::HandleUse::permissions_t req_sched_perms,
       detail::HandleUse::permissions_t req_immed_perms,
-      detail::AccessHandleBase const& source_in
+      detail::AccessHandleBase const& source_in,
+      bool register_continuation_use = true
     ) const {
       auto* source =
         detail::safe_static_cast<AccessHandleCollection const*>(&source_in);
@@ -408,7 +409,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
       std::shared_ptr<detail::VariableHandleBase> var_handle,
       detail::HandleUse::permissions_t req_sched_perms,
       detail::HandleUse::permissions_t req_immed_perms,
-      detail::AccessHandleBase const& source_in
+      detail::AccessHandleBase const& source_in,
+      bool register_continuation_use = true
     ) override {
       if(dynamic_is_outer) {
         assert(local_use_holders_.size() == 0);
@@ -416,7 +418,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
           var_handle,
           std::max(req_sched_perms, req_immed_perms, detail::compatible_permissions_less{}),
           detail::HandleUse::None,
-          source_in
+          source_in,
+          register_continuation_use
         );
       }
       else {
@@ -428,7 +431,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
             var_handle,
             req_sched_perms,
             req_immed_perms,
-            local_holder_pair.second.get()
+            local_holder_pair.second.get(),
+            register_continuation_use
           );
           // Continuation should be unchanged
           // TODO test this

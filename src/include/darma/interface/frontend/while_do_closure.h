@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      while_do_closure.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,35 +42,31 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMAFRONTEND_WHILE_DO_CLOSURE_H
+#define DARMAFRONTEND_WHILE_DO_CLOSURE_H
 
-#include <darma_types.h>
-#include "handle.h"
-#include "darma/impl/task/task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "darma/impl/create_work/create_work.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/impl/top_level.h>
-#include <darma/interface/defaults/darma_main.h>
-#include "parallel_for.h"
-#include "create_if_then.h"
-#include "darma/impl/create_work/create_work_while.h"
+#include "task.h"
 
-#include <darma/impl/serialization/policy_aware_archive.h>
+namespace darma_runtime {
+namespace abstract {
+namespace frontend {
 
-#include "array/index_range.h"
-#include "index_range/mapping.h"
-#include "task_collection/task_collection.h"
-#include "task_collection/create_concurrent_work.h"
-#include "commutative_access.h"
+struct WhileDoClosure
+  : public Closure
+{
+  public:
 
-#include "serialization/serialization.impl.h"
-#include "array/array.impl.h"
-#include "key/key.impl.h"
+    virtual bool run_while_block() =0;
 
-namespace darma = darma_runtime;
+    virtual void run_do_block() =0;
 
-#endif /* SRC_DARMA_DARMA_H_ */
+    virtual std::set<WhileDoUse*> const&
+    get_dependencies() const =0;
 
+};
+
+} // end namespace frontend
+} // end namespace abstract
+} // end namespace darma_runtime
+
+#endif //DARMAFRONTEND_WHILE_DO_CLOSURE_H

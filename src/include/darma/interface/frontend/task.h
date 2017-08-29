@@ -62,47 +62,17 @@ namespace abstract {
 
 namespace frontend {
 
-// TODO perhaps remove pack() and get_packed_size() functions in favor of inheriting from PolymorphicSerializableObject<Task> ?
-
-/** @brief A piece of work that acts on (accesses) zero or more Handle objects
- *  at a particular point in the apparently sequential uses of these Handle objects.
- *
- *
- *  Life-cycle of a Task, for some Task instance t:
- *    + registration -- register_task() is called by moving a unique_ptr to t into the first argument.
- *      At registration time, all of the Use objects returned by the dereference of the iterator
- *      to the iterable returned by t.get_dependencies() must be registered and must not be released at least
- *      until the backend invokes t.run() method.
- *    + execution -- the backend calls t.run() once all of the dependent Uses have their required
- *      permissions to their data.  By this point (and not necessarily sooner), the backend must have assigned
- *      the return of get_data_pointer_reference() to the beginning of the actual data for any Use
- *      dependencies requiring immediate permissions.
- *    + release -- when Task.run() returns, the task is ready to be released.  The backend may do this by deleting
- *      or resetting the unique_ptr passed to it during registration, which will in turn trigger the ~Task() virtual
- *      method invocation.  At this point (in the task destructor), the frontend is responsible for calling
- *      release_use() on any Use instances requested by the task and not explicitly released in the
- *      task body by the user.
- *
- */
-class Task
-#if _darma_has_feature(task_migration)
-  : public PolymorphicSerializableObject<Task>
-#endif
-{
+class Closure {
   public:
 
-    /** @brief Return an Iterable of Use objects whose permission requests must be satisfied before the task
-     *  can run.
-     *
-     *  See description in Task and Use life cycle discussions.
-     *  @return An iterable container of Use objects whose availability are preconditions for task execution
-     */
-    virtual types::handle_container_template<DependencyUse*> const&
-    get_dependencies() const =0;
-
-    /** @brief Invoked by the backend to start the execution phase of the task's life cycle.
-     */
-    virtual void run() =0;
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    virtual std::string const&
+    get_calling_function_name() const =0;
+    virtual std::string const&
+    get_calling_filename() const =0;
+    virtual size_t
+    get_calling_line_number() const =0;
+#endif
 
     /** @brief returns the name of the task if one has been assigned with set_name(), or
      *  a reference to a default-constructed Key if not.
@@ -130,6 +100,48 @@ class Task
      *  @todo >0.3.1 spec: user task naming interface
      */
     virtual void set_name(const types::key_t& name_key) =0;
+};
+
+/** @brief A piece of work that acts on (accesses) zero or more Handle objects
+ *  at a particular point in the apparently sequential uses of these Handle objects.
+ *
+ *
+ *  Life-cycle of a Task, for some Task instance t:
+ *    + registration -- register_task() is called by moving a unique_ptr to t into the first argument.
+ *      At registration time, all of the Use objects returned by the dereference of the iterator
+ *      to the iterable returned by t.get_dependencies() must be registered and must not be released at least
+ *      until the backend invokes t.run() method.
+ *    + execution -- the backend calls t.run() once all of the dependent Uses have their required
+ *      permissions to their data.  By this point (and not necessarily sooner), the backend must have assigned
+ *      the return of get_data_pointer_reference() to the beginning of the actual data for any Use
+ *      dependencies requiring immediate permissions.
+ *    + release -- when Task.run() returns, the task is ready to be released.  The backend may do this by deleting
+ *      or resetting the unique_ptr passed to it during registration, which will in turn trigger the ~Task() virtual
+ *      method invocation.  At this point (in the task destructor), the frontend is responsible for calling
+ *      release_use() on any Use instances requested by the task and not explicitly released in the
+ *      task body by the user.
+ *
+ */
+class Task
+#if _darma_has_feature(task_migration)
+  : public PolymorphicSerializableObject<Task>,
+#endif
+    public Closure
+{
+  public:
+
+    /** @brief Return an Iterable of Use objects whose permission requests must be satisfied before the task
+     *  can run.
+     *
+     *  See description in Task and Use life cycle discussions.
+     *  @return An iterable container of Use objects whose availability are preconditions for task execution
+     */
+    virtual types::handle_container_template<DependencyUse*> const&
+    get_dependencies() const =0;
+
+    /** @brief Invoked by the backend to start the execution phase of the task's life cycle.
+     */
+    virtual void run() =0;
 
     //==========================================================================
 
@@ -175,15 +187,6 @@ class Task
 
 #if _darma_has_feature(resilient_tasks)
     virtual bool is_replayable() const =0;
-#endif
-
-#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-    virtual std::string const&
-    get_calling_function_name() const =0;
-    virtual std::string const&
-    get_calling_filename() const =0;
-    virtual size_t
-    get_calling_line_number() const =0;
 #endif
 
     virtual ~Task() = default;

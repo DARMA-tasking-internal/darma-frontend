@@ -50,26 +50,52 @@
 namespace darma_runtime {
 namespace detail {
 
-// Empty class used for actions that need to take place before the constructor
-// of LambdaTask executes but after the constructor of TaskBase executes
-struct TaskCtorHelper : TaskBase {
+struct CaptureSetupHelperBase {
 
-
-  // Use a tag as the first argument to prevent messing with copy ctors and such
-  template <typename PreConstructAction>
-  TaskCtorHelper(
-    variadic_constructor_arg_t,
-    PreConstructAction&& action
-  ) : TaskBase()
-  {
-    std::forward<PreConstructAction>(action)(this);
+  template <typename CaptureManagerT>
+  void pre_capture_setup(
+    TaskBase* parent_task,
+    CaptureManagerT* current_capture_context
+  ) {
+    // Make the context accessible before doing anything
+    parent_task->current_create_work_context = current_capture_context;
+    // invoke the CaptureManager's setup
+    current_capture_context->pre_capture_setup();
   }
 
-  TaskCtorHelper() = default;
-  TaskCtorHelper(TaskCtorHelper&&) = default;
-  TaskCtorHelper(TaskCtorHelper const&) = delete;
+  template <typename CaptureManagerT>
+  void post_capture_cleanup(
+    TaskBase* parent_task,
+    CaptureManagerT* current_capture_context
+  ) {
+    // invoke the CaptureManager's cleanup also
+    current_capture_context->post_capture_cleanup();
+    // remove the context from the parent task now that we're done
+    parent_task->current_create_work_context = nullptr;
+  }
 
 };
+
+// Empty class used for actions that need to take place before the constructor
+// of LambdaTask executes but after the constructor of TaskBase executes
+//struct TaskCtorHelper : TaskBase {
+//
+//
+//  // Use a tag as the first argument to prevent messing with copy ctors and such
+//  template <typename PreConstructAction>
+//  TaskCtorHelper(
+//    variadic_constructor_arg_t,
+//    PreConstructAction&& action
+//  ) : TaskBase()
+//  {
+//    std::forward<PreConstructAction>(action)(this);
+//  }
+//
+//  TaskCtorHelper() = default;
+//  TaskCtorHelper(TaskCtorHelper&&) = default;
+//  TaskCtorHelper(TaskCtorHelper const&) = delete;
+//
+//};
 
 
 } // end namespace detail

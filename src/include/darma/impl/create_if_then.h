@@ -824,7 +824,8 @@ struct IfLambdaThenLambdaTask
     void
     do_capture(
       darma_runtime::detail::AccessHandleBase& captured,
-      darma_runtime::detail::AccessHandleBase const& source_and_continuing
+      darma_runtime::detail::AccessHandleBase const& source_and_continuing,
+      bool register_continuation_use
     ) override {
 
       switch (current_stage) {

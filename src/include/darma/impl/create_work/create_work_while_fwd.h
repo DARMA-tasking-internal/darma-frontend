@@ -42,20 +42,24 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_CREATE_WORK_WHILE_FWD_H
-#define DARMA_IMPL_CREATE_WORK_WHILE_FWD_H
+#ifndef DARMAFRONTEND_CREATE_WORK_WHILE_FWD_H
+#define DARMAFRONTEND_CREATE_WORK_WHILE_FWD_H
 
 namespace darma_runtime {
 namespace detail {
 
+template <typename...>
+struct _create_work_while_helper;
+template <typename...>
+struct _create_work_while_do_helper;
+
 template <
   typename WhileCallable, typename WhileArgsTuple, bool WhileIsLambda,
-  typename DoCallable, typename DoArgsTuple, bool DoIsLambda,
-  bool IsDoWhilePhase=false, bool IsOuter=true
+  typename DoCallable, typename DoArgsTuple, bool DoIsLambda
 >
-struct WhileDoTask;
+struct WhileDoCaptureManager;
 
 } // end namespace detail
 } // end namespace darma_runtime
 
-#endif //DARMA_IMPL_CREATE_WORK_WHILE_FWD_H
+#endif //DARMAFRONTEND_CREATE_WORK_WHILE_FWD_H

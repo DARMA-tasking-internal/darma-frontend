@@ -60,6 +60,76 @@
 namespace darma_runtime {
 namespace detail {
 
+struct FunctorCaptureSetupHelper : protected CaptureSetupHelperBase {
+
+  FunctorCaptureSetupHelper() = default;
+
+  FunctorCaptureSetupHelper(
+    TaskBase* parent_task,
+    CaptureManager* current_capture_context
+  ) {
+    pre_capture_setup(parent_task, current_capture_context);
+  }
+
+};
+
+
+template <
+  typename Functor,
+  typename... Args
+>
+struct FunctorCapturer : protected FunctorCaptureSetupHelper {
+
+  using traits = functor_traits<Functor>;
+  using call_traits = functor_call_traits<Functor, Args&&...>;
+  using stored_args_tuple_t = typename call_traits::args_tuple_t;
+
+  static constexpr auto n_functor_args_min = traits::n_args_min;
+  static constexpr auto n_functor_args_max = traits::n_args_max;
+
+  // We only support fixed argument count functors for now:
+  static constexpr auto n_functor_args = n_functor_args_min;
+  STATIC_ASSERT_VALUE_EQUAL(n_functor_args, n_functor_args_max);
+  STATIC_ASSERT_VALUE_EQUAL(n_functor_args, sizeof...(Args));
+
+
+  template <typename... ArgsDeduced>
+  FunctorCapturer(
+    TaskBase* parent_task,
+    CaptureManager* capture_manager,
+    ArgsDeduced&&... args_deduced
+  ) : FunctorCaptureSetupHelper(parent_task, capture_manager),
+      stored_args_(std::forward<ArgsDeduced>(args_deduced)...)
+  {
+    post_capture_cleanup(parent_task, capture_manager);
+  }
+
+  explicit
+  FunctorCapturer(
+    stored_args_tuple_t&& args_moved
+  ) : stored_args_(std::move(args_moved))
+  { }
+
+  template <size_t... Idxs>
+  void run_functor(std::integer_sequence<size_t, Idxs...>) {
+    Functor{}(
+      call_traits::template call_arg_traits<Idxs>::get_converted_arg(
+        std::get<Idxs>(stored_args_)
+      )...
+    );
+  }
+
+  //============================================================================
+  // <editor-fold desc="data members"> {{{1
+
+  stored_args_tuple_t stored_args_;
+
+  // </editor-fold> end data members }}}1
+  //============================================================================
+
+};
+
+
 template <
   typename Functor,
   typename... Args
@@ -69,43 +139,35 @@ struct FunctorTask
     : PolymorphicSerializationAdapter<
         FunctorTask<Functor, Args...>,
         abstract::frontend::Task,
-        TaskCtorHelper
-      >
+        TaskBase
+      >,
 #else
-    : TaskCtorHelper
+    : TaskCtorHelper,
 #endif
+      FunctorCapturer<Functor, Args...>
 {
   public:
-#if _darma_has_feature(task_migration)
+
+    #if _darma_has_feature(task_migration)
     using base_t = PolymorphicSerializationAdapter<
       FunctorTask<Functor, Args...>,
       abstract::frontend::Task,
-      TaskCtorHelper
+      TaskBase
     >;
-#else
-  using base_t = TaskCtorHelper;
-#endif
+    #else
+    using base_t = TaskBase;
+    #endif
 
-    using traits = functor_traits<Functor>;
-    using call_traits = functor_call_traits<Functor, Args&&...>;
-    using stored_args_tuple_t = typename call_traits::args_tuple_t;
-
-    static constexpr auto n_functor_args_min = traits::n_args_min;
-    static constexpr auto n_functor_args_max = traits::n_args_max;
-
-    // We only support fixed argument count functors for now:
-    static constexpr auto n_functor_args = n_functor_args_min;
-    STATIC_ASSERT_VALUE_EQUAL(n_functor_args, n_functor_args_max);
-    STATIC_ASSERT_VALUE_EQUAL(n_functor_args, sizeof...(Args));
+    using capturer_t = FunctorCapturer<Functor, Args...>;
+    using stored_args_tuple_t = typename capturer_t::stored_args_tuple_t;
 
   private:
 
-    stored_args_tuple_t stored_args_;
 
     explicit
     FunctorTask(
-      stored_args_tuple_t&& stored_args_in
-    ) : stored_args_(
+      typename capturer_t::stored_args_tuple_t&& stored_args_in
+    ) : capturer_t(
           std::move(stored_args_in)
         )
     { }
@@ -113,19 +175,26 @@ struct FunctorTask
   public:
 
     template <
-      typename PreConstructAction,
+      typename AllowAliasingDescription,
       typename... ArgsDeduced
     >
     FunctorTask(
-      variadic_constructor_arg_t,
-      PreConstructAction&& do_this_first,
+      variadic_constructor_arg_t /*unused*/,
+      TaskBase* parent_task,
+      types::key_t const& name_key,
+      AllowAliasingDescription&& aliasing_desc,
+      bool is_data_parallel,
       ArgsDeduced&&... args_in
     ) : base_t(
-          variadic_constructor_arg,
-          std::forward<PreConstructAction>(do_this_first)
+          parent_task,
+          name_key,
+          std::forward<AllowAliasingDescription>(aliasing_desc),
+          is_data_parallel
         ),
-        stored_args_(
-          std::forward<ArgsDeduced>(args_in)...
+        capturer_t(
+          parent_task,
+          this,
+          std::forward<ArgsDeduced&&>(args_in)...
         )
     { }
 
@@ -133,25 +202,10 @@ struct FunctorTask
     //==============================================================================
     // <editor-fold desc="run() method"> {{{1
 
-  private:
-
-    template <
-      size_t... Idxs
-    >
-    void _run_impl(
-      std::integer_sequence<size_t, Idxs...>
-    ) {
-      Functor{}(
-        call_traits::template call_arg_traits<Idxs>::get_converted_arg(
-          std::get<Idxs>(stored_args_)
-        )...
-      );
-    }
-
   public:
 
     void run() override {
-      _run_impl(std::index_sequence_for<Args...>{});
+      this->run_functor(std::index_sequence_for<Args...>{});
     }
 
     // </editor-fold> end run() method }}}1
@@ -190,9 +244,9 @@ struct FunctorTask
         _add_if_dep(
           typename std::is_base_of<
             AccessHandleBase,
-            std::decay_t<std::tuple_element_t<Idxs, stored_args_tuple_t>>
+            std::decay_t<std::tuple_element_t<Idxs, typename capturer_t::stored_args_tuple_t>>
           >::type{},
-          std::get<Idxs>(stored_args_)
+          std::get<Idxs>(this->stored_args_)
         )...
       );
     }
@@ -203,7 +257,7 @@ struct FunctorTask
     void serialize(ArchiveT& ar) {
       if(not ar.is_unpacking()) {
         // Need to pack in this order for reconstruct
-        ar | stored_args_;
+        ar | this->stored_args_;
         this->TaskBase::template do_serialize(ar);
       }
       else {

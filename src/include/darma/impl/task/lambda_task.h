@@ -55,11 +55,12 @@ namespace detail {
 
 constexpr struct delay_capture_tag_t {} defer_capture_tag = { };
 
-struct LambdaCaptureSetupHelper {
+struct LambdaCaptureSetupHelper : private CaptureSetupHelperBase {
 
+  template <typename CaptureManagerT>
   LambdaCaptureSetupHelper(
     TaskBase* parent_task,
-    CaptureManager* current_capture_context
+    CaptureManagerT* current_capture_context
   ) {
     // Note that the arguments (especially parent_task) to this constructor
     // should *not* be stored as data members because they may not be valid
@@ -67,53 +68,64 @@ struct LambdaCaptureSetupHelper {
     pre_capture_setup(parent_task, current_capture_context);
   }
 
+  template <typename CaptureManagerT>
   void pre_capture_setup(
     TaskBase* parent_task,
-    CaptureManager* current_capture_context
+    CaptureManagerT* current_capture_context
   ) {
-    parent_task->current_create_work_context = current_capture_context;
+    CaptureSetupHelperBase::template pre_capture_setup(parent_task, current_capture_context);
     current_capture_context->is_double_copy_capture = true;
   }
 
+  template <typename CaptureManagerT>
   void post_capture_cleanup(
     TaskBase* parent_task,
-    CaptureManager* current_capture_context
+    CaptureManagerT* current_capture_context
   ) {
     current_capture_context->is_double_copy_capture = false;
-    parent_task->current_create_work_context = nullptr;
-    current_capture_context->post_capture_cleanup();
+    CaptureSetupHelperBase::template post_capture_cleanup(parent_task, current_capture_context);
   }
 
   //==============================================================================
   // <editor-fold desc="Task migration"> {{{1
   #if _darma_has_feature(task_migration)
 
-  template <typename ArchiveT>
+  template <
+    typename CaptureManagerT,
+    typename ArchiveT
+  >
   LambdaCaptureSetupHelper(
     unpacking_task_constructor_tag_t,
     TaskBase* parent_task,
-    CaptureManager* current_capture_context,
+    CaptureManagerT* current_capture_context,
     ArchiveT& ar
   ) {
     pre_unpack_setup(parent_task, current_capture_context, ar);
   }
 
-  template <typename ArchiveT>
+  template <
+    typename CaptureManagerT,
+    typename ArchiveT
+  >
   void pre_unpack_setup(
     TaskBase* parent_task,
-    CaptureManager* current_capture_context,
+    CaptureManagerT* current_capture_context,
     ArchiveT& ar
   ) {
+    CaptureSetupHelperBase::pre_capture_setup(parent_task, current_capture_context);
+
     using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-    parent_task->current_create_work_context = current_capture_context;
     current_capture_context->lambda_serdes_mode = serialization::detail::SerializerMode::Unpacking;
     current_capture_context->lambda_serdes_buffer = static_cast<char*>(ArchiveAccess::get_spot(ar));
   }
 
-  template <typename ArchiveT>
+  template <
+    typename CaptureManagerT,
+    typename ArchiveT
+  >
   void post_unpack_cleanup(
     TaskBase* parent_task,
-    CaptureManager* current_capture_context,
+    CaptureManagerT* current_capture_context,
     ArchiveT& ar
   ) {
     using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
@@ -122,6 +134,8 @@ struct LambdaCaptureSetupHelper {
     parent_task->current_create_work_context = nullptr;
 
     reinterpret_cast<char*&>(ArchiveAccess::get_spot(ar)) = current_capture_context->lambda_serdes_buffer;
+
+    CaptureSetupHelperBase::post_capture_cleanup(parent_task, current_capture_context);
   }
 
   #endif // darma_has_feature(task_migration)
@@ -140,11 +154,14 @@ struct LambdaCapturer
   //============================================================================
   // <editor-fold desc="Constructors and destructor"> {{{1
 
-  template <typename LambdaDeduced>
+  template <
+    typename LambdaDeduced,
+    typename CaptureManagerT
+  >
   LambdaCapturer(
     LambdaDeduced&& callable_in,
     TaskBase* parent_task,
-    CaptureManager* capture_manager
+    CaptureManagerT* capture_manager
   ) : LambdaCaptureSetupHelper(parent_task, capture_manager),
       callable_(
         // Intentionally *don't* forward to trigger copy ctors of captured vars
@@ -161,14 +178,20 @@ struct LambdaCapturer
   // <editor-fold desc="darma_has_feature(task_migration)"> {{{2
   #if _darma_has_feature(task_migration)
 
-  template <typename LambdaDeduced, typename ArchiveT>
+  template <
+    typename LambdaDeduced,
+    typename CaptureManagerT,
+    typename ArchiveT
+  >
   LambdaCapturer(
     unpacking_task_constructor_tag_t,
     LambdaDeduced&& callable_in,
     TaskBase* parent_task,
-    CaptureManager* capture_manager,
+    CaptureManagerT* capture_manager,
     ArchiveT& ar
-  ) : LambdaCaptureSetupHelper(parent_task, capture_manager),
+  ) : LambdaCaptureSetupHelper(
+        unpacking_task_constructor_tag, parent_task, capture_manager, ar
+      ),
       callable_(
         // Intentionally *don't* forward to trigger copy ctors of captured vars
         callable_in
@@ -236,11 +259,13 @@ struct LambdaTask
 
   template <
     typename LambdaDeduced,
+    typename CaptureManagerT,
     typename... TaskCtorArgs
   >
   LambdaTask(
     LambdaDeduced&& callable_in,
     detail::TaskBase* parent_task,
+    CaptureManagerT* capture_manager,
     TaskCtorArgs&&... other_ctor_args
   ) : base_t(
         parent_task,
@@ -248,9 +273,44 @@ struct LambdaTask
       ),
       capturer_t(
         std::forward<LambdaDeduced>(callable_in),
-        parent_task, this
+        parent_task, capture_manager
       )
   { }
+
+  template <
+    typename LambdaDeduced,
+    typename... TaskCtorArgs
+  >
+  LambdaTask(
+    LambdaDeduced&& callable_in,
+    detail::TaskBase* parent_task,
+    TaskCtorArgs&&... other_ctor_args
+  ) : LambdaTask<Lambda>::LambdaTask(
+        std::forward<LambdaDeduced>(callable_in),
+        parent_task,
+        this,
+        std::forward<TaskCtorArgs>(other_ctor_args)...
+      )
+  { /* forwarding ctor, must be empty */ }
+
+  template <
+    typename LambdaDeduced,
+    typename CaptureManagerT,
+    typename... TaskCtorArgs
+  >
+  LambdaTask(
+    LambdaDeduced&& callable_in,
+    CaptureManagerT* capture_manager,
+    TaskCtorArgs&&... other_ctor_args
+  ) : LambdaTask<Lambda>::LambdaTask(
+        std::forward<LambdaDeduced>(callable_in),
+        static_cast<darma_runtime::detail::TaskBase* const>(
+          darma_runtime::abstract::backend::get_backend_context()->get_running_task()
+        ),
+        capture_manager,
+        std::forward<TaskCtorArgs>(other_ctor_args)...
+      )
+  { /* forwarding ctor, must be empty */ }
 
   template <
     typename LambdaDeduced,

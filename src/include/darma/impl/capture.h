@@ -59,7 +59,7 @@ template <
   typename UseHolderT,
   typename UseMaker,
   typename ContinuingUseMaker,
-  typename AllowRegisterContinuationIntegralConstantType=std::true_type
+  typename register_continuation_useIntegralConstantType=std::true_type
 >
 auto make_captured_use_holder(
   std::shared_ptr<VariableHandleBase> const& var_handle,
@@ -68,13 +68,11 @@ auto make_captured_use_holder(
   UseHolderT* source_and_continuing_holder,
   UseMaker&& use_holder_maker,
   ContinuingUseMaker&& continuing_use_holder_maker,
-  AllowRegisterContinuationIntegralConstantType = std::true_type{}
+  bool register_continuation_use = true
 ) {
 
   using namespace darma_runtime::detail::flow_relationships;
 
-  static constexpr auto AllowRegisterContinuation =
-    AllowRegisterContinuationIntegralConstantType::value;
   using namespace darma_runtime::abstract::frontend;
 
   // source scheduling permissions shouldn't be None at this point
@@ -225,7 +223,7 @@ auto make_captured_use_holder(
                   same_anti_flow(&captured_use_holder->use->anti_in_flow_)
 #endif // _darma_has_feature(anti_flows)
                 ),
-                AllowRegisterContinuation
+                register_continuation_use
               );
 
               // This new use could establish an alias if no additional tasks are
@@ -372,7 +370,7 @@ auto make_captured_use_holder(
                   same_anti_flow(&captured_use_holder->use->anti_in_flow_)
 #endif // _darma_has_feature(anti_flows)
                 ),
-                AllowRegisterContinuation
+                register_continuation_use
               );
 
               break;
@@ -445,7 +443,7 @@ auto make_captured_use_holder(
                   same_anti_flow(&captured_use_holder->use->anti_in_flow_)
 #endif // _darma_has_feature(anti_flows)
                 ),
-                AllowRegisterContinuation
+                register_continuation_use
               );
               source_and_continuing_holder->could_be_alias = true;
 
@@ -635,7 +633,7 @@ auto make_captured_use_holder(
                       same_anti_flow(&captured_use_holder->use->anti_out_flow_)
     #endif // _darma_has_feature(anti_flows)
                     ),
-                    AllowRegisterContinuation
+                    register_continuation_use
                   );
                   // But this *can* still establish an alias (if it has Modify
                   // scheduling permissions) because it could be the one that detects
@@ -740,7 +738,7 @@ auto make_captured_use_holder(
                   same_anti_flow(&captured_use_holder->use->anti_in_flow_)
 #endif // _darma_has_feature(anti_flows)
                 ),
-                AllowRegisterContinuation
+                register_continuation_use
               );
               source_and_continuing_holder->could_be_alias = true;
 
@@ -798,7 +796,7 @@ auto make_captured_use_holder(
                   same_anti_flow(&captured_use_holder->use->anti_in_flow_)
 #endif // _darma_has_feature(anti_flows)
                 ),
-                AllowRegisterContinuation
+                register_continuation_use
               );
               source_and_continuing_holder->could_be_alias = true;
 
@@ -848,7 +846,7 @@ auto make_captured_use_holder(
                   same_anti_flow(&captured_use_holder->use->anti_in_flow_)
 #endif // _darma_has_feature(anti_flows)
                 ),
-                AllowRegisterContinuation
+                register_continuation_use
               );
               source_and_continuing_holder->could_be_alias = true;
 
@@ -949,7 +947,7 @@ auto make_captured_use_holder(
                   : same_anti_flow(&captured_use_holder->use->anti_out_flow_)
 #endif // _darma_has_feature(anti_flows)
             ),
-            AllowRegisterContinuation
+            register_continuation_use
           );
 
           // This new use could establish an alias if no additional tasks are
@@ -1021,7 +1019,7 @@ auto make_captured_use_holder(
                   : same_anti_flow(&captured_use_holder->use->anti_out_flow_)
 #endif // _darma_has_feature(anti_flows)
             ),
-            AllowRegisterContinuation
+            register_continuation_use
           );
 
           source_and_continuing_holder->could_be_alias = true;
@@ -1086,7 +1084,7 @@ auto make_captured_use_holder(
                   : same_anti_flow(&captured_use_holder->use->anti_out_flow_)
 #endif // _darma_has_feature(anti_flows)
             ),
-            AllowRegisterContinuation
+            register_continuation_use
           );
           source_and_continuing_holder->could_be_alias = true;
 
@@ -1159,7 +1157,7 @@ auto make_captured_use_holder(
 //          FlowRelationship::Same, &captured_use_holder->use->in_flow_,
 //          FlowRelationship::Same, &captured_use_holder->use->out_flow_
 //        ),
-//        AllowRegisterContinuation
+//        register_continuation_use
 //      );
 //
 //#endif // _darma_has_feature(register_commutative_continuation_uses)
@@ -1188,13 +1186,13 @@ auto make_captured_use_holder(
 }
 
 
-template <bool AllowRegisterContinuation=true>
 auto
 make_captured_use_holder(
   std::shared_ptr<VariableHandleBase> const& var_handle,
   HandleUse::permissions_t requested_scheduling_permissions,
   HandleUse::permissions_t requested_immediate_permissions,
-  UseHolder* source_and_continuing_holder
+  UseHolder* source_and_continuing_holder,
+  bool register_continuation_use = true
 ) {
   // TODO is_dependency_ pass through here, for use with allreduce and publish, etc?
   return make_captured_use_holder(
@@ -1217,7 +1215,7 @@ make_captured_use_holder(
       rv.is_dependency_ = false;
       return rv;
     },
-    std::integral_constant<bool, AllowRegisterContinuation>{}
+    register_continuation_use
   );
 }
 

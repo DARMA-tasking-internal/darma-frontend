@@ -68,6 +68,7 @@
 #include <darma/impl/keyword_arguments/parse.h>
 #include <darma/impl/access_handle_base.h>
 #include <darma/impl/access_handle/copy_captured_object.h>
+#include <darma/impl/create_work/create_work_while_fwd.h>
 
 namespace darma_runtime {
 
@@ -1160,12 +1161,14 @@ class AccessHandle
       std::shared_ptr<detail::VariableHandleBase> var_handle,
       detail::HandleUse::permissions_t req_sched,
       detail::HandleUse::permissions_t req_immed,
-      detail::AccessHandleBase const& source
+      detail::AccessHandleBase const& source,
+      bool register_continuation_use = true
     ) override {
       current_use_ = darma_runtime::detail::make_captured_use_holder(
         var_handle_base_,
         req_sched, req_immed,
-        static_cast<use_holder_t*>(source.current_use_base_)
+        static_cast<use_holder_t*>(source.current_use_base_),
+        register_continuation_use
       );
     }
 
@@ -1490,6 +1493,7 @@ class AccessHandle
 
     template <typename>
     friend class detail::CopyCapturedObject;
+
 
 #ifdef DARMA_TEST_FRONTEND_VALIDATION
     friend class ::TestAccessHandle;

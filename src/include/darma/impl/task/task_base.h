@@ -103,14 +103,21 @@ class CaptureManager {
     virtual void
     do_capture(
       AccessHandleBase& captured,
-      AccessHandleBase const& source_and_continuing
+      AccessHandleBase const& source_and_continuing,
+      bool register_continuation_use = true
     ) =0;
 
     void add_dependency(HandleUseBase& use) {
       dependencies_.insert(&use);
     }
 
-    void post_capture_cleanup() {
+    virtual void
+    pre_capture_setup() {
+      assert(uses_to_unmark_already_captured.empty());
+    }
+
+    virtual void
+    post_capture_cleanup() {
       for(auto* use : uses_to_unmark_already_captured) {
         use->already_captured = false;
       }
@@ -124,10 +131,9 @@ class CaptureManager {
     mutable serialization::detail::SerializerMode lambda_serdes_mode = serialization::detail::SerializerMode::None;
     mutable char* lambda_serdes_buffer = nullptr;
 
-  protected:
-
-
     get_deps_container_t dependencies_;
+
+  protected:
 
     /**
      * Protected destructor
@@ -170,6 +176,40 @@ class TaskBase
     // </editor-fold> end _darma_has_feature(create_parallel_for) }}}2
     //------------------------------------------------------------------------------
 
+    //==========================================================================
+    // <editor-fold desc="allowed_aliasing_description"> {{{1
+
+    struct allowed_aliasing_description {
+      static constexpr struct allowed_aliasing_description_ctor_tag_t { }
+        allowed_aliasing_description_ctor_tag { };
+
+      allowed_aliasing_description(
+        allowed_aliasing_description_ctor_tag_t,
+        bool all_or_nothing
+      ) : is_all_or_nothing(true), all_allowed(all_or_nothing)
+      { }
+
+      template <typename AccessHandleT>
+      bool aliasing_is_allowed_for(AccessHandleT&& ah, TaskBase*) {
+        if(is_all_or_nothing) {
+          return all_allowed;
+        }
+        else {
+          DARMA_ASSERT_NOT_IMPLEMENTED(
+            "more specific aliasing allowed specifications than just true or false"
+          );
+          return false; // unreachable
+        }
+      }
+
+      bool is_all_or_nothing = true;
+      bool all_allowed = false;
+    };
+
+    std::unique_ptr<allowed_aliasing_description> allowed_aliasing = nullptr;
+
+    // </editor-fold> end allowed_aliasing_description }}}1
+    //==========================================================================
 
     //==============================================================================
     // <editor-fold desc="Constructors and destructor"> {{{1
@@ -197,13 +237,34 @@ class TaskBase
       TaskBase* parent_task,
       types::key_t const& name_key,
       AllowAliasingDescription&& aliasing_desc,
-      bool is_data_parallel
+      bool is_data_parallel=false
     ) : name_(name_key),
         allowed_aliasing(std::forward<AllowAliasingDescription>(aliasing_desc)),
         is_data_parallel_task_(is_data_parallel)
     {
       propagate_parent_context(parent_task);
     }
+
+    TaskBase(
+      TaskBase* parent_task,
+      types::key_t const& name_key,
+      bool is_data_parallel=false
+    ) : TaskBase(
+          parent_task,
+          name_key,
+          std::make_unique<allowed_aliasing_description>(
+            allowed_aliasing_description::allowed_aliasing_description_ctor_tag, false
+          ),
+          is_data_parallel
+        )
+    { /* forwarding ctor, must be empty */ }
+
+    explicit
+    TaskBase(
+      TaskBase* parent_task,
+      bool is_data_parallel=false
+    ) : TaskBase(parent_task, make_key(), is_data_parallel)
+    { /* forwarding ctor, must be empty */ }
 
     virtual ~TaskBase() noexcept = default;
 
@@ -231,7 +292,9 @@ class TaskBase
       #endif
 
       #if _darma_has_feature(task_collection_token)
-      DARMA_ASSERT_NOT_IMPLEMENTED("Task collection token migration");
+      if(not ar.is_unpacking() and parent_token_available) {
+        DARMA_ASSERT_NOT_IMPLEMENTED("Task collection token migration");
+      }
       // ar | parent_token_available;
       // if(parent_token_available) {
       //   ar | token_;
@@ -255,7 +318,8 @@ class TaskBase
     void
     do_capture(
       AccessHandleBase& captured,
-      AccessHandleBase const& source_and_continuing
+      AccessHandleBase const& source_and_continuing,
+      bool register_continuation_use = true
     ) override;
 
     //==========================================================================
@@ -395,40 +459,6 @@ class TaskBase
     //==========================================================================
 
 
-    //==========================================================================
-    // <editor-fold desc="allowed_aliasing_description"> {{{1
-
-    struct allowed_aliasing_description {
-      static constexpr struct allowed_aliasing_description_ctor_tag_t { }
-        allowed_aliasing_description_ctor_tag { };
-
-      allowed_aliasing_description(
-        allowed_aliasing_description_ctor_tag_t,
-        bool all_or_nothing
-      ) : is_all_or_nothing(true), all_allowed(all_or_nothing)
-      { }
-
-      template <typename AccessHandleT>
-      bool aliasing_is_allowed_for(AccessHandleT&& ah, TaskBase*) {
-        if(is_all_or_nothing) {
-          return all_allowed;
-        }
-        else {
-          DARMA_ASSERT_NOT_IMPLEMENTED(
-            "more specific aliasing allowed specifications than just true or false"
-          );
-          return false; // unreachable
-        }
-      }
-
-      bool is_all_or_nothing = true;
-      bool all_allowed = false;
-    };
-
-    std::unique_ptr<allowed_aliasing_description> allowed_aliasing = nullptr;
-
-    // </editor-fold> end allowed_aliasing_description }}}1
-    //==========================================================================
 
 
     //==========================================================================
