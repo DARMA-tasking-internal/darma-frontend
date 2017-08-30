@@ -493,6 +493,198 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, two_handles_one_iteration,
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F_WITH_PARAMS(TestCreateWorkWhile, one_handle_four_iterations,
+  ::testing::Combine(::testing::Bool(), ::testing::Bool()),
+  std::tuple<bool, bool>
+) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  bool while_is_functor = std::get<0>(GetParam());
+  bool do_is_functor = std::get<1>(GetParam());
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_null, f_while_out
+  );
+  MockFlow f_do_out[4];
+  MockFlow f_inner_while_out[4];
+
+  use_t* initial_use = nullptr;
+  use_t* while_use = nullptr;
+  use_t* outer_cont_use = nullptr;
+  use_t* do_use[4];
+  use_t* do_cont_use[4];
+  use_t* inner_while_use[4];
+  use_t* inner_while_cont_use[4];
+
+  int value = 0;
+
+  EXPECT_NEW_INITIAL_ACCESS(f_init, f_null, initial_use, make_key("hello"));
+
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(while_use,
+    f_init, Same, &f_init,
+    f_while_out, Next, nullptr, true,
+    Modify, Read, true,
+    value
+  );
+
+  EXPECT_NEW_REGISTER_USE(outer_cont_use,
+    f_while_out, Same, &f_while_out,
+    f_null, Same, &f_null, false,
+    Modify, None, false
+  );
+
+  EXPECT_NEW_RELEASE_USE(initial_use, false);
+
+  EXPECT_REGISTER_TASK(while_use);
+
+  EXPECT_NEW_RELEASE_USE(outer_cont_use, true);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    struct WhileFunctor {
+      bool operator()(ReadAccessHandle<int> tmp_arg) const {
+        return tmp_arg.get_value() < 4; // should be true the first time, false after that
+      }
+    };
+
+    struct DoFunctor {
+      void operator()(AccessHandle<int> tmp_arg) const {
+        tmp_arg.set_value(tmp_arg.get_value() + 1);
+        /* do nothing */
+      }
+    };
+
+    auto tmp = initial_access<int>("hello");
+
+    if(!while_is_functor and !do_is_functor) {
+      create_work_while([=]{
+        return WhileFunctor{}(tmp);
+      }).do_([=]{
+        DoFunctor{}(tmp);
+      });
+    }
+    else if(!while_is_functor and do_is_functor) {
+      create_work_while([=]{
+        return WhileFunctor{}(tmp);
+      }).do_<DoFunctor>(tmp);
+    }
+    else if(while_is_functor and !do_is_functor) {
+      create_work_while<WhileFunctor>(tmp).do_([=]{
+        DoFunctor{}(tmp);
+      });
+    }
+    else {
+      assert(while_is_functor and do_is_functor);
+      create_work_while<WhileFunctor>(tmp).do_<DoFunctor>(tmp);
+    }
+
+  }
+  //============================================================================
+
+  for(int i = 0; i < 4; ++i) {
+
+    //------------------------------------------------------------------------------
+    // <editor-fold desc="outer while block"> {{{2
+
+    Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+    // Do block uses
+    EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(do_use[i],
+      (i == 0 ? f_init : f_do_out[i-1]),
+      Same,
+      (i == 0 ? &f_init : &(f_do_out[i-1])),
+      f_do_out[i], Next, nullptr, true,
+      Modify, Modify, true,
+      value
+    );
+    EXPECT_NEW_REGISTER_USE(do_cont_use[i],
+      f_do_out[i], Same, &f_do_out[i],
+      (i == 0 ? f_while_out : f_inner_while_out[i-1]),
+      Same,
+      (i == 0 ? &f_while_out : &f_inner_while_out[i-1]),
+      false,
+      Modify, None, false
+    );
+    EXPECT_NEW_RELEASE_USE(
+      (i == 0 ? while_use : inner_while_use[i-1]),
+      false
+    );
+
+    EXPECT_REGISTER_TASK(do_use[i]);
+
+    // Inner while block uses
+    EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(inner_while_use[i],
+      f_do_out[i], Same, &f_do_out[i],
+      f_inner_while_out[i], Next, nullptr, true,
+      Modify, Read, true,
+      value
+    );
+    EXPECT_NEW_REGISTER_USE(inner_while_cont_use[i],
+      f_inner_while_out[i], Same, &f_inner_while_out[i],
+      (i == 0 ? f_while_out : f_inner_while_out[i-1]),
+      Same,
+      (i == 0 ? &f_while_out : &f_inner_while_out[i-1]),
+      false,
+      Modify, None, false
+    );
+    EXPECT_NEW_RELEASE_USE(do_cont_use[i], false);
+
+    EXPECT_REGISTER_TASK(inner_while_use[i]);
+
+    EXPECT_NEW_RELEASE_USE(inner_while_cont_use[i], true);
+
+    EXPECT_FIRST_TASK_RUNNING();
+
+    // Run the outer while
+    run_one_task();
+
+    // </editor-fold> end outer while block }}}2
+    //------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------
+    // <editor-fold desc="do block"> {{{2
+
+    Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+    // expectations for the do block
+    EXPECT_NEW_RELEASE_USE(do_use[i], false);
+
+    EXPECT_FIRST_TASK_RUNNING();
+
+    // Run the do block
+    run_one_task();
+
+    // </editor-fold> end do block }}}2
+    //------------------------------------------------------------------------------
+
+  }
+
+  //------------------------------------------------------------------------------
+  // <editor-fold desc="last inner while block"> {{{2
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  // expectations for the inner while block
+  EXPECT_NEW_RELEASE_USE(inner_while_use[3], true);
+
+  EXPECT_FIRST_TASK_RUNNING();
+
+  // Run the inner while block
+  run_one_task();
+
+  // </editor-fold> end inner while block }}}2
+  //------------------------------------------------------------------------------
+
+}
+
 #if 0
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1038,6 +1230,9 @@ TEST_F(TestCreateWorkWhile, collection_one_iteration) {
   EXPECT_FLOW_ALIAS(f_do_out_c, f_while_out_c);
   EXPECT_RELEASE_USE(do_cont_use_c);
 
+
+  EXPECT_FIRST_TASK_RUNNING();
+
   run_one_task(); // the first while
 
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1107,6 +1302,7 @@ TEST_F(TestCreateWorkWhile, collection_one_iteration) {
   EXPECT_FLOW_ALIAS(f_while_out_c_2, f_do_out_c);
   EXPECT_RELEASE_USE(while_cont_use_2_c);
 
+  EXPECT_FIRST_TASK_RUNNING();
 
   run_one_task(); // the do part
 
@@ -1150,6 +1346,8 @@ TEST_F(TestCreateWorkWhile, collection_one_iteration) {
   EXPECT_RELEASE_USE(while_use_2_c);
 
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  EXPECT_FIRST_TASK_RUNNING();
 
   run_one_task(); // the second while
 
@@ -1305,6 +1503,8 @@ TEST_F(TestCreateWorkWhile, while_nested_read) {
 
   EXPECT_NEW_RELEASE_USE(use_do_cont, true);
 
+  EXPECT_FIRST_TASK_RUNNING();
+
   run_one_task();
 
   Mock::VerifyAndClearExpectations(mock_runtime.get());
@@ -1355,6 +1555,8 @@ TEST_F(TestCreateWorkWhile, while_nested_read) {
 
   EXPECT_NEW_RELEASE_USE(use_while_cont_2, true);
 
+  EXPECT_FIRST_TASK_RUNNING();
+
   run_one_task();
 
   Mock::VerifyAndClearExpectations(mock_runtime.get());
@@ -1363,6 +1565,8 @@ TEST_F(TestCreateWorkWhile, while_nested_read) {
   // Now run the nested read task
 
   EXPECT_NEW_RELEASE_USE(use_subtask, false);
+
+  EXPECT_FIRST_TASK_RUNNING();
 
   run_one_task();
 
@@ -1375,6 +1579,8 @@ TEST_F(TestCreateWorkWhile, while_nested_read) {
   // of schedule modify but there was never an immediate modify subtask created,
   // thus making the two versions equivalent.
   EXPECT_NEW_RELEASE_USE(use_while_2, true);
+
+  EXPECT_FIRST_TASK_RUNNING();
 
   run_one_task();
 
@@ -1459,6 +1665,8 @@ TEST_F(TestCreateWorkWhile, basic_same_one_iter_nested) {
   // TODO get rid of this and the corresponding make_next
   EXPECT_FLOW_ALIAS(f_do_out, f_while_out);
 
+  EXPECT_FIRST_TASK_RUNNING();
+
   run_one_task(); // the first while
 
   Mock::VerifyAndClearExpectations(mock_runtime.get());
@@ -1487,11 +1695,15 @@ TEST_F(TestCreateWorkWhile, basic_same_one_iter_nested) {
     EXPECT_REGISTER_TASK(while_use_2);
   }
 
+  EXPECT_FIRST_TASK_RUNNING();
+
   run_one_task(); // the do part
 
   Mock::VerifyAndClearExpectations(mock_runtime.get());
 
   EXPECT_RELEASE_USE(while_use_2);
+
+  EXPECT_FIRST_TASK_RUNNING();
 
   run_one_task(); // the second while
 
@@ -1618,6 +1830,8 @@ TEST_F(TestCreateWorkWhile, basic_coll_one_iter_nested) {
   EXPECT_FLOW_ALIAS(f_do_out_c, f_while_out_c);
   EXPECT_RELEASE_USE(do_cont_use_c);
 
+  EXPECT_FIRST_TASK_RUNNING();
+
   run_one_task(); // the first while
 
   Mock::VerifyAndClearExpectations(mock_runtime.get());
@@ -1658,6 +1872,8 @@ TEST_F(TestCreateWorkWhile, basic_coll_one_iter_nested) {
 
   EXPECT_REGISTER_TASK(while_use_2, while_use_2_c);
 
+  EXPECT_FIRST_TASK_RUNNING();
+
   run_one_task(); // the do part
 
   Mock::VerifyAndClearExpectations(mock_runtime.get());
@@ -1666,6 +1882,8 @@ TEST_F(TestCreateWorkWhile, basic_coll_one_iter_nested) {
   EXPECT_RELEASE_USE(while_use_2);
   EXPECT_FLOW_ALIAS(f_coll_out, f_while_out_2_c);
   EXPECT_RELEASE_USE(while_use_2_c);
+
+  EXPECT_FIRST_TASK_RUNNING();
 
   run_one_task(); // the second while
 
