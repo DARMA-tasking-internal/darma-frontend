@@ -685,6 +685,210 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, one_handle_four_iterations,
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F_WITH_PARAMS(TestCreateWorkWhile, two_handles_one_iteration_two_in_while,
+  ::testing::Combine(::testing::Bool(), ::testing::Bool()),
+  std::tuple<bool, bool>
+) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  bool while_is_functor = std::get<0>(GetParam());
+  bool do_is_functor = std::get<1>(GetParam());
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_init2, f_null, f_null2, f_while_out, f_while_out2,
+    f_do_out, f_inner_while_out
+  );
+  use_t* initial_use = nullptr;
+  use_t* while_use = nullptr;
+  use_t* outer_cont_use = nullptr;
+  use_t* initial_use2 = nullptr;
+  use_t* while_use2 = nullptr;
+  use_t* outer_cont_use2 = nullptr;
+  use_t* do_use = nullptr;
+  use_t* do_cont_use = nullptr;
+  use_t* inner_while_use = nullptr;
+  use_t* inner_while_use2 = nullptr;
+  use_t* inner_while_cont_use = nullptr;
+  use_t* inner_while_cont_use2 = nullptr;
+
+  int value = 0, value2 = 0;
+
+  EXPECT_NEW_INITIAL_ACCESS(f_init, f_null, initial_use, make_key("hello"));
+  EXPECT_NEW_INITIAL_ACCESS(f_init2, f_null2, initial_use2, make_key("world"));
+
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(while_use,
+    f_init, Same, &f_init,
+    f_while_out, Next, nullptr, true,
+    Modify, Read, true,
+    value
+  );
+
+  EXPECT_NEW_REGISTER_USE(outer_cont_use,
+    f_while_out, Same, &f_while_out,
+    f_null, Same, &f_null, false,
+    Modify, None, false
+  );
+
+  // tmp2 capture
+  // TODO fix this for antiflows
+  EXPECT_NEW_REGISTER_USE(while_use2,
+    f_init2, Same, &f_init2,
+    f_init2, Same, nullptr, true,
+    Read, Read, true
+  );
+
+  EXPECT_NEW_RELEASE_USE(initial_use, false);
+
+  EXPECT_REGISTER_TASK(while_use, while_use2);
+
+  EXPECT_NEW_RELEASE_USE(outer_cont_use, true);
+  EXPECT_NEW_RELEASE_USE(initial_use2, true);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    struct WhileFunctor {
+      bool operator()(ReadAccessHandle<int> tmp_arg, ReadAccessHandle<int> tmp_arg2) const {
+        return tmp_arg.get_value() != 42; // should be true the first time, false after that
+      }
+    };
+
+    struct DoFunctor {
+      void operator()(AccessHandle<int> tmp_arg) const {
+        tmp_arg.set_value(42);
+        /* do nothing */
+      }
+    };
+
+    auto tmp = initial_access<int>("hello");
+    auto tmp2 = initial_access<int>("world");
+
+    if(!while_is_functor and !do_is_functor) {
+      create_work_while([=]{
+        return WhileFunctor{}(tmp, tmp2);
+      }).do_([=]{
+        DoFunctor{}(tmp);
+      });
+    }
+    else if(!while_is_functor and do_is_functor) {
+      create_work_while([=]{
+        return WhileFunctor{}(tmp, tmp2);
+      }).do_<DoFunctor>(tmp);
+    }
+    else if(while_is_functor and !do_is_functor) {
+      create_work_while<WhileFunctor>(tmp, tmp2).do_([=]{
+        DoFunctor{}(tmp);
+      });
+    }
+    else {
+      assert(while_is_functor and do_is_functor);
+      create_work_while<WhileFunctor>(tmp, tmp2).do_<DoFunctor>(tmp);
+    }
+
+  }
+  //============================================================================
+
+
+  //------------------------------------------------------------------------------
+  // <editor-fold desc="outer while block"> {{{2
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  // Do block uses
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(do_use,
+    f_init, Same, &f_init,
+    f_do_out, Next, nullptr, true,
+    Modify, Modify, true,
+    value
+  );
+  EXPECT_NEW_REGISTER_USE(do_cont_use,
+    f_do_out, Same, &f_do_out,
+    f_while_out, Same, &f_while_out, false,
+    Modify, None, false
+  );
+  EXPECT_NEW_RELEASE_USE(while_use, false);
+
+  EXPECT_REGISTER_TASK(do_use);
+
+  // Inner while block uses
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(inner_while_use,
+    f_do_out, Same, &f_do_out,
+    f_inner_while_out, Next, nullptr, true,
+    Modify, Read, true,
+    value
+  );
+  EXPECT_NEW_REGISTER_USE(inner_while_cont_use,
+    f_inner_while_out, Same, &f_inner_while_out,
+    f_while_out, Same, &f_while_out, false,
+    Modify, None, false
+  );
+  EXPECT_NEW_RELEASE_USE(do_cont_use, false);
+
+  // the while block use of tmp2
+  // TODO fix this for antiflows
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(inner_while_use2,
+    f_init2, Same, &f_init2,
+    f_init2, Same, nullptr, true,
+    Read, Read, true,
+    value
+  );
+
+  EXPECT_REGISTER_TASK(inner_while_use, inner_while_use2);
+
+  EXPECT_NEW_RELEASE_USE(inner_while_cont_use, true);
+  EXPECT_NEW_RELEASE_USE(while_use2, false);
+
+  EXPECT_FIRST_TASK_RUNNING();
+
+  // Run the outer while
+  run_one_task();
+
+  // </editor-fold> end outer while block }}}2
+  //------------------------------------------------------------------------------
+
+  //------------------------------------------------------------------------------
+  // <editor-fold desc="do block"> {{{2
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  // expectations for the do block
+  EXPECT_NEW_RELEASE_USE(do_use, false);
+
+  EXPECT_FIRST_TASK_RUNNING();
+
+  // Run the do block
+  run_one_task();
+
+  // </editor-fold> end do block }}}2
+  //------------------------------------------------------------------------------
+
+  //------------------------------------------------------------------------------
+  // <editor-fold desc="inner while block"> {{{2
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  // expectations for the inner while block
+  EXPECT_NEW_RELEASE_USE(inner_while_use, true);
+  EXPECT_NEW_RELEASE_USE(inner_while_use2, false);
+
+  EXPECT_FIRST_TASK_RUNNING();
+
+  // Run the inner while block
+  run_one_task();
+
+  // </editor-fold> end inner while block }}}2
+  //------------------------------------------------------------------------------
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+}
 #if 0
 ////////////////////////////////////////////////////////////////////////////////
 
