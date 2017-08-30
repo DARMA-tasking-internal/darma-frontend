@@ -99,7 +99,11 @@ struct WhileLambdaTask
            */
         ),
         capture_manager_(capture_manager)
-    { }
+    {
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+      this->copy_context_information_from(to_recapture);
+#endif
+    }
 
     static std::unique_ptr<WhileLambdaTask>
     recapture(WhileLambdaTask& from_task) {
@@ -208,7 +212,11 @@ struct DoLambdaTask
            */
         ),
         capture_manager_(capture_manager)
-    { }
+    {
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+      this->copy_context_information_from(to_recapture);
+#endif
+    }
 
     static std::unique_ptr<DoLambdaTask>
     recapture(DoLambdaTask const& from_task) {
@@ -313,6 +321,10 @@ struct _create_work_while_helper<
     std::forward_as_tuple(std::declval<Args&&>()...)
   );
 
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+  _create_work_while_creation_context* context_;
+#endif
+
   static constexpr auto has_lambda_callable = true;
 
   callable_t while_lambda;
@@ -323,12 +335,19 @@ struct _create_work_while_helper<
   _create_work_while_helper(_create_work_while_helper const&) = delete;
 
   _create_work_while_helper(
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    _create_work_while_creation_context* ctxt,
+#endif
     Args&& ... args,
     std::remove_reference_t<Lambda>&& f // force rvalue reference<
   ) : while_lambda(std::move(f)),
       task_option_args_tup(
         std::forward_as_tuple(std::forward<Args>(args)...)
-      ) {}
+      )
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+      , context_(ctxt)
+#endif
+  { }
 
   template <typename DoFunctor=meta::nonesuch, typename... DoArgs>
   auto

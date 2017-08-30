@@ -56,6 +56,8 @@
 
 #include <darma/impl/util/not_a_type.h>
 
+#include <darma/impl/create_work/record_line_numbers.h>
+
 namespace darma_runtime {
 namespace detail {
 
@@ -103,7 +105,11 @@ struct WhileFunctorTask
          */
       ),
       capture_manager_(capture_manager)
-  { }
+  {
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    this->copy_context_information_from(to_recapture);
+#endif
+  }
 
 
   static std::unique_ptr<WhileFunctorTask>
@@ -209,7 +215,11 @@ struct DoFunctorTask
          */
       ),
       capture_manager_(capture_manager)
-  { }
+  {
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    this->copy_context_information_from(to_recapture);
+#endif
+  }
 
   static std::unique_ptr<DoFunctorTask>
   recapture(DoFunctorTask const& from_task) {
@@ -303,7 +313,9 @@ struct _create_work_while_helper<
 
   static constexpr auto has_lambda_callable = false;
 
-  _not_a_lambda while_lambda;
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+  _create_work_while_creation_context* context_;
+#endif
 
   args_fwd_tuple_t args_fwd_tup;
 
@@ -311,12 +323,18 @@ struct _create_work_while_helper<
   _create_work_while_helper(_create_work_while_helper const&) = delete;
 
   _create_work_while_helper(
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    _create_work_while_creation_context* ctxt,
+#endif
     Args&&... args,
     LastArg&& last_arg
   ) : args_fwd_tup(
         std::forward<Args>(args)...,
         std::forward<LastArg>(last_arg)
       )
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+      , context_(ctxt)
+#endif
   { }
 
   template <typename DoFunctor=meta::nonesuch, typename... DoArgs>

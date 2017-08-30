@@ -391,6 +391,14 @@ class TaskBase
       calling_line = line;
     }
 
+    void copy_context_information_from(
+      TaskBase const& other
+    ) {
+      calling_file = other.calling_file;
+      calling_function = other.calling_function;
+      calling_line = other.calling_line;
+    }
+
     std::string const& get_calling_filename() const override {
       return calling_file;
     }

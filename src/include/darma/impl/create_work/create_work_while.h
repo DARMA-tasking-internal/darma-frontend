@@ -57,8 +57,7 @@
 
 #include <darma/impl/util/not_a_type.h>
 
-// TODO protect this with a preprocessor check or something?
-//#include <experimental/optional>
+#include <darma/impl/config.h>
 
 #include <darma/impl/create_work/create_work_while_fwd.h>
 #include <darma/impl/task/lambda_task.h>
@@ -66,6 +65,8 @@
 
 #include <darma/impl/create_work/create_work_while_lambda.h>
 #include <darma/impl/create_work/create_work_while_functor.h>
+
+#include <darma/impl/create_work/record_line_numbers.h>
 
 // TODO Propagate task options and permissions downgrades
 
@@ -142,6 +143,9 @@ struct WhileDoCaptureManager<
   //----------------------------------------------------------------------------
   // <editor-fold desc="Constructor and helpers"> {{{2
 
+  WhileDoCaptureManager(WhileDoCaptureManager const&) = delete;
+  WhileDoCaptureManager(WhileDoCaptureManager&&) = delete;
+
   template <typename HelperT>
   WhileDoCaptureManager(
     variadic_constructor_tag_t /*unused*/,
@@ -152,7 +156,20 @@ struct WhileDoCaptureManager<
       do_task_(std::make_unique<do_task_t>(
         this, std::forward<HelperT>(helper)
       ))
-  { }
+  {
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    while_task_->set_context_information(
+      helper.while_helper.context_->file,
+      helper.while_helper.context_->line,
+      helper.while_helper.context_->func
+    );
+    do_task_->set_context_information(
+      helper.while_helper.context_->file,
+      helper.while_helper.context_->line,
+      helper.while_helper.context_->func
+    );
+#endif
+  }
 
   // essentially done during construction, but because shared_ptr construction
   // needs to complete before we start passing around the shared pointer,
@@ -443,9 +460,9 @@ struct WhileDoCaptureManager<
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+#endif
 
-#include "create_work_while_functor.h"
-#include "create_work_while_lambda.h"
+} // end namespace darma_runtime
 
 #endif //DARMA_IMPL_CREATE_WORK_WHILE_H

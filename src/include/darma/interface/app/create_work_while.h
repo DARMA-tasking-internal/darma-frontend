@@ -46,25 +46,46 @@
 #define DARMAFRONTEND_CREATE_WORK_WHILE_H
 
 #include <tinympl/vector.hpp>
+
+#include <darma/impl/config.h>
+
 #include <darma/impl/meta/detection.h>
 
-#include <darma/impl/create_work/create_work_while.h>
+#include <darma/impl/create_work/create_work_while_fwd.h>
+
+#include <darma/impl/create_work/record_line_numbers.h>
 
 namespace darma_runtime {
 
-template <typename Functor=meta::nonesuch, typename... Args>
+template <
+  typename Functor
+#if !DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+  = meta::nonesuch
+#endif
+  , typename... Args
+>
 auto
-create_work_while(Args&& ... args)
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+_create_work_while_creation_context::_darma_create_work_while_with_line_numbers
+#else
+create_work_while
+#endif
+  (Args&& ... args)
 {
   return detail::_create_work_while_helper<
     Functor,
     typename tinympl::vector<Args...>::safe_pop_back::type,
     typename tinympl::vector<Args...>::template safe_back<meta::nonesuch>::type
   >(
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    this,
+#endif
     std::forward<Args>(args)...
   );
 }
 
 } // end namespace darma_runtime
+
+#include <darma/impl/create_work/create_work_while.h>
 
 #endif //DARMAFRONTEND_CREATE_WORK_WHILE_H
