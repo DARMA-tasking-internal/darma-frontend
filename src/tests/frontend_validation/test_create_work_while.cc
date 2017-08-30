@@ -49,6 +49,7 @@
 
 #include <darma/impl/create_work/create_work_while.h>
 #include <darma/interface/app/initial_access.h>
+#include <darma/interface/app/create_work_while.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 

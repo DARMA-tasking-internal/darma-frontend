@@ -297,10 +297,6 @@ struct WhileDoCaptureManager<
     // execute_while_captures()
   }
 
-  void pre_capture_setup() override {
-    CaptureManager::pre_capture_setup();
-  }
-
   void post_capture_cleanup() override {
     // TODO technically unnecessary, so probably should only do it in debug mode
     current_capturing_task_mode_ = WhileDoCaptureMode::None;
@@ -446,20 +442,6 @@ struct WhileDoCaptureManager<
 //==============================================================================
 
 } // end namespace detail
-
-
-template <typename Functor=meta::nonesuch, typename... Args>
-auto
-create_work_while(Args&& ... args)
-{
-  return detail::_create_work_while_helper<
-    Functor,
-    typename tinympl::vector<Args...>::safe_pop_back::type,
-    typename tinympl::vector<Args...>::template safe_back<meta::nonesuch>::type
-  >(
-    std::forward<Args>(args)...
-  );
-}
 
 } // end namespace darma_runtime
 

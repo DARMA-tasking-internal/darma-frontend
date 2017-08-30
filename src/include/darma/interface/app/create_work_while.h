@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      create_work_while.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,22 +42,29 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef DARMAFRONTEND_CREATE_WORK_WHILE_H
+#define DARMAFRONTEND_CREATE_WORK_WHILE_H
 
-#include <darma/impl/darma.h>
+#include <tinympl/vector.hpp>
+#include <darma/impl/meta/detection.h>
 
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/interface/app/access_handle.h>
-#include <darma/interface/app/create_work_while.h>
-#include <darma/interface/app/oo.h>
-#include <darma/interface/app/keyword_arguments/all_keyword_arguments.h>
-#include <darma/interface/app/resource_count.h>
+#include <darma/impl/create_work/create_work_while.h>
 
-#include <darma/interface/app/containers.h>
+namespace darma_runtime {
 
-#include <darma/interface/app/backend_hint.h>
+template <typename Functor=meta::nonesuch, typename... Args>
+auto
+create_work_while(Args&& ... args)
+{
+  return detail::_create_work_while_helper<
+    Functor,
+    typename tinympl::vector<Args...>::safe_pop_back::type,
+    typename tinympl::vector<Args...>::template safe_back<meta::nonesuch>::type
+  >(
+    std::forward<Args>(args)...
+  );
+}
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+} // end namespace darma_runtime
+
+#endif //DARMAFRONTEND_CREATE_WORK_WHILE_H
