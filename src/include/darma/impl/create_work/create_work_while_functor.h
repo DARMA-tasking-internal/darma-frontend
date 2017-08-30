@@ -60,6 +60,174 @@ namespace darma_runtime {
 namespace detail {
 
 //------------------------------------------------------------------------------
+// <editor-fold desc="WhileFunctorTask"> {{{2
+
+template <typename CaptureManagerT, typename Functor, typename... Args>
+struct WhileFunctorTask
+  : FunctorTask<Functor, Args...>
+{
+
+  using base_t = FunctorTask<Functor, Args...>;
+
+  std::shared_ptr<CaptureManagerT> capture_manager_;
+
+  /**
+   *  Ctor called during WhileDoCaptureManager construction
+   */
+  template <typename HelperT>
+  WhileFunctorTask(
+    CaptureManagerT* capture_manager,
+    HelperT&& helper
+  ) : base_t(
+        get_running_task_impl(),
+        capture_manager->in_while_mode(),
+        std::move(helper.while_helper.args_fwd_tup)
+      )
+  { }
+
+  /**
+   *  Ctor called by recapture(); always only used for constructing an inner
+   *  nested while task (so never a double copy capture).  Can't be private,
+   *  though, since we need to construct it with std::make_unique.
+   */
+  WhileFunctorTask(
+    std::shared_ptr<CaptureManagerT> const& capture_manager,
+    WhileFunctorTask const& to_recapture,
+    TaskBase* parent_task
+  ) : base_t(
+        parent_task,
+        capture_manager->in_while_mode(),
+        to_recapture.stored_args_
+        /* TODO propagate other aspects of the task to TaskBase, like name,
+         * line numbers, iteration number, etc.
+         */
+      ),
+      capture_manager_(capture_manager)
+  { }
+
+
+  static std::unique_ptr<WhileFunctorTask>
+  recapture(WhileFunctorTask& from_task) {
+    // See note in WhileLambdaTask::recapture
+
+    // sanity check: recapture should only be triggered when the parent while,
+    // which we are recapturing from, is running:
+    assert(
+      (intptr_t)get_running_task_impl()
+        == (intptr_t)static_cast<TaskBase*>(&from_task)
+    );
+
+    return std::make_unique<WhileFunctorTask>(
+      from_task.capture_manager_,
+      from_task,
+      // since we're reconstructing an inner while, the from_task is the
+      // parent task, so we can pass that on to the base constructor
+      &from_task
+    );
+
+  }
+
+
+  void run() override {
+    if(this->run_functor()) {
+
+      capture_manager_->execute_do_captures();
+      auto do_task = std::move(capture_manager_->do_task_);
+
+      capture_manager_->recapture(
+        *this, *do_task.get()
+      );
+
+      abstract::backend::get_backend_runtime()->register_task(
+        std::move(do_task)
+      );
+
+      capture_manager_->execute_while_captures(false);
+      abstract::backend::get_backend_runtime()->register_task(
+        std::move(capture_manager_->while_task_)
+      );
+    }
+    else {
+      // Release the do_task so that the capture manager is destroyed properly
+      capture_manager_->do_task_ = nullptr;
+    }
+
+    // release the capture manager; we're all done with it
+    capture_manager_ = nullptr;
+
+  }
+
+
+};
+
+// </editor-fold> end WhileFunctorTask }}}2
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// <editor-fold desc="DoFunctorTask"> {{{2
+
+template <typename CaptureManagerT, typename Functor, typename... Args>
+struct DoFunctorTask
+  : FunctorTask<Functor, Args...>
+{
+
+  using base_t = FunctorTask<Functor, Args...>;
+
+  std::shared_ptr<CaptureManagerT> capture_manager_;
+
+  /**
+   *  Ctor called during WhileDoCaptureManager construction
+   */
+  template <typename HelperT>
+  DoFunctorTask(
+    CaptureManagerT* capture_manager,
+    HelperT&& helper
+  ) : base_t(
+        capture_manager->while_task_.get(), // parent is while block
+        get_running_task_impl(), // running is not the same as parent
+        capture_manager->in_do_mode(),
+        std::move(helper.args_fwd_tup)
+      )
+  { }
+
+  /**
+   *  Ctor called by recapture(); always only used for constructing an inner
+   *  nested while task (so never a double copy capture).  Can't be private,
+   *  though, since we need to construct it with std::make_unique.
+   */
+  DoFunctorTask(
+    std::shared_ptr<CaptureManagerT> const& capture_manager,
+    DoFunctorTask const& to_recapture,
+    TaskBase* parent_task
+  ) : base_t(
+        parent_task,
+        get_running_task_impl(),
+        capture_manager->in_do_mode(),
+        to_recapture.stored_args_
+        /* TODO propagate other aspects of the task to TaskBase, like name,
+         * line numbers, iteration number, etc.
+         */
+      ),
+      capture_manager_(capture_manager)
+  { }
+
+  static std::unique_ptr<DoFunctorTask>
+  recapture(DoFunctorTask const& from_task) {
+    // See note in DoLambdaTask::recapture
+    return std::make_unique<DoFunctorTask>(
+      from_task.capture_manager_,
+      from_task,
+      // see note about parent task in DoLambdaTask::recapture
+      from_task.capture_manager_->while_task_.get()
+    );
+  }
+
+};
+
+
+// </editor-fold> end DoFunctorTask }}}2
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // <editor-fold desc="create_work_while_do_helper, functor version"> {{{2
 
 template <
@@ -75,12 +243,9 @@ struct _create_work_while_do_helper<
   LastArg
 >
 {
-  using functor_traits_t = functor_call_traits<Functor, Args..., LastArg>;
-  using args_tuple_t = typename functor_traits_t::args_tuple_t;
-  using args_fwd_tuple_t = std::tuple<Args&& ..., LastArg&&>;
-  //using task_option_args_tuple_t = decltype(
-  //  std::forward_as_tuple(std::declval<Args&&>()...)
-  //);
+
+  using callable_t = Functor;
+  using args_fwd_tuple_t = std::tuple<Args&&..., LastArg&&>;
   using task_option_args_tuple_t = std::tuple<>; // for now
 
   _not_a_lambda do_lambda;
@@ -95,28 +260,27 @@ struct _create_work_while_do_helper<
 
   _create_work_while_do_helper(
     WhileHelper&& while_helper_in,
-    Args&& ... args,
+    Args&&... args,
     LastArg&& last_arg
   ) : while_helper(std::move(while_helper_in)),
-      args_fwd_tup(std::forward<Args>(args)...,
+      args_fwd_tup(
+        std::forward<Args>(args)...,
         std::forward<LastArg>(last_arg)
-      ) {}
-
-  ~_create_work_while_do_helper()
+      )
   {
-    auto while_do_task = std::make_unique<
-      WhileDoTask<
-        typename WhileHelper::callable_t, typename WhileHelper::args_tuple_t,
+    auto while_do_mngr = std::make_shared<
+      WhileDoCaptureManager<
+        typename WhileHelper::callable_t,
+        typename WhileHelper::args_fwd_tuple_t,
         WhileHelper::has_lambda_callable,
-        Functor, args_tuple_t, has_lambda_callable
+        callable_t, args_fwd_tuple_t, has_lambda_callable
       >
     >(
+      variadic_constructor_tag,
       std::move(*this)
     );
-
-    abstract::backend::get_backend_runtime()->register_task(
-      std::move(while_do_task)
-    );
+    while_do_mngr->set_capture_managers(while_do_mngr);
+    while_do_mngr->register_while_task();
   }
 };
 
@@ -135,40 +299,34 @@ struct _create_work_while_helper<
 {
 
   using callable_t = Functor;
-  using functor_traits_t = functor_call_traits<Functor, Args..., LastArg>;
-  using args_tuple_t = typename functor_traits_t::args_tuple_t;
   using args_fwd_tuple_t = std::tuple<Args&& ..., LastArg&&>;
-  using task_option_args_tuple_t = std::tuple<>; // for now
-  //using task_option_args_tuple_t = decltype(
-  //  std::forward_as_tuple(std::declval<Args&&>()...)
-  //);
 
   static constexpr auto has_lambda_callable = false;
 
   _not_a_lambda while_lambda;
 
   args_fwd_tuple_t args_fwd_tup;
-  task_option_args_tuple_t task_option_args_tup;
 
   _create_work_while_helper(_create_work_while_helper&&) = default;
   _create_work_while_helper(_create_work_while_helper const&) = delete;
 
   _create_work_while_helper(
-    Args&& ... args,
+    Args&&... args,
     LastArg&& last_arg
   ) : args_fwd_tup(
-    std::forward<Args>(args)...,
-    std::forward<LastArg>(last_arg)
-  ) {}
+        std::forward<Args>(args)...,
+        std::forward<LastArg>(last_arg)
+      )
+  { }
 
   template <typename DoFunctor=meta::nonesuch, typename... DoArgs>
   auto
-  do_(DoArgs&& ... args)&&
+  do_(DoArgs&&... args) &&
   {
     return _create_work_while_do_helper<
       _create_work_while_helper, DoFunctor,
-      typename tinympl::vector<DoArgs...>::pop_back::type,
-      typename tinympl::vector<DoArgs...>::back::type
+      typename tinympl::vector<DoArgs...>::safe_pop_back::type,
+      typename tinympl::vector<DoArgs...>::template safe_back<meta::nonesuch>::type
     >(
       std::move(*this),
       std::forward<DoArgs>(args)...

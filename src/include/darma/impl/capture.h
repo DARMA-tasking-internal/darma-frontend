@@ -61,7 +61,8 @@ template <
   typename ContinuingUseMaker,
   typename register_continuation_useIntegralConstantType=std::true_type
 >
-auto make_captured_use_holder(
+inline auto
+make_captured_use_holder(
   std::shared_ptr<VariableHandleBase> const& var_handle,
   HandleUse::permissions_t requested_scheduling_permissions,
   HandleUse::permissions_t requested_immediate_permissions,
@@ -1186,7 +1187,7 @@ auto make_captured_use_holder(
 }
 
 
-auto
+inline auto
 make_captured_use_holder(
   std::shared_ptr<VariableHandleBase> const& var_handle,
   HandleUse::permissions_t requested_scheduling_permissions,

@@ -53,28 +53,30 @@
 namespace darma_runtime {
 namespace detail {
 
-constexpr struct delay_capture_tag_t {} defer_capture_tag = { };
 
 struct LambdaCaptureSetupHelper : private CaptureSetupHelperBase {
 
   template <typename CaptureManagerT>
   LambdaCaptureSetupHelper(
     TaskBase* parent_task,
-    CaptureManagerT* current_capture_context
+    CaptureManagerT* current_capture_context,
+    bool double_copy_capture = true // not always double copy, like in inner
+                                    // captures of create_work_while
   ) {
     // Note that the arguments (especially parent_task) to this constructor
     // should *not* be stored as data members because they may not be valid
     // for the entirety of this object's lifetime
-    pre_capture_setup(parent_task, current_capture_context);
+    pre_capture_setup(parent_task, current_capture_context, double_copy_capture);
   }
 
   template <typename CaptureManagerT>
   void pre_capture_setup(
     TaskBase* parent_task,
-    CaptureManagerT* current_capture_context
+    CaptureManagerT* current_capture_context,
+    bool double_copy_capture = true
   ) {
     CaptureSetupHelperBase::template pre_capture_setup(parent_task, current_capture_context);
-    current_capture_context->is_double_copy_capture = true;
+    current_capture_context->is_double_copy_capture = double_copy_capture;
   }
 
   template <typename CaptureManagerT>
@@ -96,11 +98,11 @@ struct LambdaCaptureSetupHelper : private CaptureSetupHelperBase {
   >
   LambdaCaptureSetupHelper(
     unpacking_task_constructor_tag_t,
-    TaskBase* parent_task,
+    TaskBase* running_task,
     CaptureManagerT* current_capture_context,
     ArchiveT& ar
   ) {
-    pre_unpack_setup(parent_task, current_capture_context, ar);
+    pre_unpack_setup(running_task, current_capture_context, ar);
   }
 
   template <
@@ -108,11 +110,11 @@ struct LambdaCaptureSetupHelper : private CaptureSetupHelperBase {
     typename ArchiveT
   >
   void pre_unpack_setup(
-    TaskBase* parent_task,
+    TaskBase* running_task,
     CaptureManagerT* current_capture_context,
     ArchiveT& ar
   ) {
-    CaptureSetupHelperBase::pre_capture_setup(parent_task, current_capture_context);
+    CaptureSetupHelperBase::pre_capture_setup(running_task, current_capture_context);
 
     using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
     current_capture_context->lambda_serdes_mode = serialization::detail::SerializerMode::Unpacking;
@@ -124,18 +126,18 @@ struct LambdaCaptureSetupHelper : private CaptureSetupHelperBase {
     typename ArchiveT
   >
   void post_unpack_cleanup(
-    TaskBase* parent_task,
+    TaskBase* running_task,
     CaptureManagerT* current_capture_context,
     ArchiveT& ar
   ) {
     using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 
     current_capture_context->lambda_serdes_mode = serialization::detail::SerializerMode::None;
-    parent_task->current_create_work_context = nullptr;
+    running_task->current_create_work_context = nullptr;
 
     reinterpret_cast<char*&>(ArchiveAccess::get_spot(ar)) = current_capture_context->lambda_serdes_buffer;
 
-    CaptureSetupHelperBase::post_capture_cleanup(parent_task, current_capture_context);
+    CaptureSetupHelperBase::post_capture_cleanup(running_task, current_capture_context);
   }
 
   #endif // darma_has_feature(task_migration)
@@ -161,8 +163,9 @@ struct LambdaCapturer
   LambdaCapturer(
     LambdaDeduced&& callable_in,
     TaskBase* parent_task,
-    CaptureManagerT* capture_manager
-  ) : LambdaCaptureSetupHelper(parent_task, capture_manager),
+    CaptureManagerT* capture_manager,
+    bool double_copy_capture = true
+  ) : LambdaCaptureSetupHelper(parent_task, capture_manager, double_copy_capture),
       callable_(
         // Intentionally *don't* forward to trigger copy ctors of captured vars
         callable_in
@@ -218,6 +221,9 @@ struct LambdaCapturer
 
 };
 
+namespace LambdaTask_tags {
+constexpr struct no_double_copy_capture_tag_t {} no_double_copy_capture_tag = { };
+} // end namespace LambdaTask_tags
 
 template <typename Lambda>
 struct LambdaTask
@@ -307,6 +313,54 @@ struct LambdaTask
         static_cast<darma_runtime::detail::TaskBase* const>(
           darma_runtime::abstract::backend::get_backend_context()->get_running_task()
         ),
+        capture_manager,
+        std::forward<TaskCtorArgs>(other_ctor_args)...
+      )
+  { /* forwarding ctor, must be empty */ }
+
+  /**
+   *  Non-double-copy constructor, for things like the inner recapture of
+   *  a while-do loop.  Uses a tag type because adding a bool with a default
+   *  would interact awkwardly with the forwarding of variadic arguments to
+   *  the TaskBase constructor
+   */
+  template <
+    typename LambdaDeduced,
+    typename CaptureManagerT,
+    typename... TaskCtorArgs
+  >
+  LambdaTask(
+    LambdaTask_tags::no_double_copy_capture_tag_t,
+    LambdaDeduced&& callable_in,
+    detail::TaskBase* parent_task,
+    detail::TaskBase* running_task,
+    CaptureManagerT* capture_manager,
+    TaskCtorArgs&&... other_ctor_args
+  ) : base_t(
+        parent_task,
+        std::forward<TaskCtorArgs>(other_ctor_args)...
+      ),
+      capturer_t(
+        std::forward<LambdaDeduced>(callable_in), running_task, capture_manager,
+        /* double_copy_capture = */ false
+      )
+  { }
+
+  template <
+    typename LambdaDeduced,
+    typename CaptureManagerT,
+    typename... TaskCtorArgs
+  >
+  LambdaTask(
+    LambdaTask_tags::no_double_copy_capture_tag_t,
+    LambdaDeduced&& callable_in,
+    detail::TaskBase* parent_task,
+    CaptureManagerT* capture_manager,
+    TaskCtorArgs&&... other_ctor_args
+  ) : LambdaTask<Lambda>::LambdaTask(
+        LambdaTask_tags::no_double_copy_capture_tag,
+        std::forward<LambdaDeduced>(callable_in),
+        parent_task, parent_task, // if running task isn't given, it's the parent task
         capture_manager,
         std::forward<TaskCtorArgs>(other_ctor_args)...
       )

@@ -573,6 +573,35 @@ class SSOKey
       return this;
     }
 
+    bool operator<(SSOKey const& other) const {
+      if(mode != other.mode) {
+        return mode < other.mode;
+      }
+      else {
+        switch(mode) {
+          case _impl::BackendAssigned: {
+            return repr.as_backend_assigned.backend_assigned_key
+                < other.repr.as_backend_assigned.backend_assigned_key;
+          }
+          case _impl::Short: {
+            return less_as_bytes(
+                repr.as_short.data, repr.as_short.size,
+                other.repr.as_short.data, other.repr.as_short.size
+            );
+          }
+          case _impl::Long: {
+            return less_as_bytes(
+                repr.as_long.data, repr.as_short.size,
+                other.repr.as_long.data, other.repr.as_short.size
+            );
+          }
+          default: {
+            assert(false);
+          }
+        }
+      }
+    }
+
 };
 
 

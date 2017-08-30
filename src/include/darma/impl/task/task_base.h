@@ -66,6 +66,8 @@
 
 #include <darma_types.h>
 
+#include <darma/impl/util/safe_static_cast.h>
+
 #include <darma/interface/backend/types.h>
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/frontend/task.h>
@@ -144,6 +146,7 @@ class CaptureManager {
 };
 
 constexpr struct unpacking_task_constructor_tag_t {} unpacking_task_constructor_tag = { };
+constexpr struct allowed_aliasing_description_ctor_tag_t { } allowed_aliasing_description_ctor_tag { };
 
 class TaskBase
   : public abstract::frontend::Task,
@@ -180,8 +183,6 @@ class TaskBase
     // <editor-fold desc="allowed_aliasing_description"> {{{1
 
     struct allowed_aliasing_description {
-      static constexpr struct allowed_aliasing_description_ctor_tag_t { }
-        allowed_aliasing_description_ctor_tag { };
 
       allowed_aliasing_description(
         allowed_aliasing_description_ctor_tag_t,
@@ -223,7 +224,7 @@ class TaskBase
     explicit
     TaskBase(
       unpacking_task_constructor_tag_t,
-      TaskBase* parent_task
+      TaskBase* parent_task // may *not* always be the running task!!!
     ) {
       propagate_parent_context(parent_task);
     }
@@ -234,7 +235,7 @@ class TaskBase
       typename AllowAliasingDescription
     >
     TaskBase(
-      TaskBase* parent_task,
+      TaskBase* parent_task, // may *not* always be the running task!!!
       types::key_t const& name_key,
       AllowAliasingDescription&& aliasing_desc,
       bool is_data_parallel=false
@@ -246,14 +247,14 @@ class TaskBase
     }
 
     TaskBase(
-      TaskBase* parent_task,
+      TaskBase* parent_task, // may *not* always be the running task!!!
       types::key_t const& name_key,
       bool is_data_parallel=false
     ) : TaskBase(
           parent_task,
           name_key,
           std::make_unique<allowed_aliasing_description>(
-            allowed_aliasing_description::allowed_aliasing_description_ctor_tag, false
+            allowed_aliasing_description_ctor_tag, false
           ),
           is_data_parallel
         )
@@ -261,7 +262,7 @@ class TaskBase
 
     explicit
     TaskBase(
-      TaskBase* parent_task,
+      TaskBase* parent_task, // may *not* always be the running task!!!
       bool is_data_parallel=false
     ) : TaskBase(parent_task, make_key(), is_data_parallel)
     { /* forwarding ctor, must be empty */ }
@@ -562,5 +563,30 @@ make_running_task_to_return_when_unpacking() {
 // </editor-fold>
 
 ////////////////////////////////////////////////////////////////////////////////
+
+namespace darma_runtime {
+namespace detail {
+
+// Convenience methods (must be here because TaskBase must be a complete type)
+
+inline TaskBase*
+get_running_task_impl(
+  abstract::backend::Context* rt
+) {
+  return darma_runtime::detail::safe_static_cast<TaskBase*>(
+    rt->get_running_task()
+  );
+}
+
+inline TaskBase*
+get_running_task_impl() {
+  return darma_runtime::detail::get_running_task_impl(
+    abstract::backend::get_backend_context()
+  );
+}
+
+} // end namespace detail
+} // end namespace darma_runtime
+
 
 #endif //DARMAFRONTEND_TASK_BASE_H

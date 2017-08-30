@@ -60,7 +60,7 @@ struct CaptureSetupHelperBase {
     // Make the context accessible before doing anything
     parent_task->current_create_work_context = current_capture_context;
     // invoke the CaptureManager's setup
-    current_capture_context->pre_capture_setup();
+    static_cast<CaptureManager*>(current_capture_context)->pre_capture_setup();
   }
 
   template <typename CaptureManagerT>
@@ -69,7 +69,7 @@ struct CaptureSetupHelperBase {
     CaptureManagerT* current_capture_context
   ) {
     // invoke the CaptureManager's cleanup also
-    current_capture_context->post_capture_cleanup();
+    static_cast<CaptureManager*>(current_capture_context)->post_capture_cleanup();
     // remove the context from the parent task now that we're done
     parent_task->current_create_work_context = nullptr;
   }

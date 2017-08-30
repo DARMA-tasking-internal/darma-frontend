@@ -49,6 +49,8 @@
 
 #include "create_work_while_fwd.h"
 #include <darma/impl/create_if_then.h>
+#include <darma/impl/runtime.h>
+#include <darma/impl/task/lambda_task.h>
 
 namespace darma_runtime {
 namespace detail {
@@ -60,69 +62,98 @@ template <typename Lambda, typename CaptureManagerT>
 struct WhileLambdaTask
   : LambdaTask<Lambda>
 {
-  using base_t = LambdaTask<Lambda>;
+  public:
+    using base_t = LambdaTask<Lambda>;
 
-  std::shared_ptr<CaptureManagerT> capture_manager_;
+    std::shared_ptr<CaptureManagerT> capture_manager_;
 
-  template <
-    typename HelperT
-  >
-  WhileLambdaTask(
-    std::shared_ptr<CaptureManagerT> const& capture_manager,
-    WhileLambdaTask& to_recapture
-  ) : base_t(
-        to_recapture.callable_,
-        capture_manager->in_while_mode()
-      ),
-      capture_manager_(capture_manager)
-  {
+    /**
+     *  Ctor called during WhileDoCaptureManager construction
+     */
+    template <typename HelperT>
+    WhileLambdaTask(
+      CaptureManagerT* capture_manager,
+      HelperT&& helper
+    ) : base_t(
+          std::move(helper.while_helper.while_lambda),
+          capture_manager->in_while_mode()
+        )
+    { };
 
-  };
+    /**
+     *  Ctor called by recapture(); always only used for constructing an inner
+     *  nested while task (so never a double copy capture).  Can't be private,
+     *  though, since we need to construct it with std::make_unique.
+     */
+    WhileLambdaTask(
+      std::shared_ptr<CaptureManagerT> const& capture_manager,
+      WhileLambdaTask const& to_recapture,
+      TaskBase* parent_task
+    ) : base_t(
+          LambdaTask_tags::no_double_copy_capture_tag,
+          to_recapture.callable_,
+          parent_task,
+          capture_manager->in_while_mode()
+          /* TODO propagate other aspects of the task to TaskBase, like name,
+           * line numbers, iteration number, etc.
+           */
+        ),
+        capture_manager_(capture_manager)
+    { }
 
-  template <
-    typename HelperT
-  >
-  WhileLambdaTask(
-    std::shared_ptr<CaptureManagerT> const& capture_manager,
-    HelperT&& helper
-  ) : base_t(
-        std::move(helper.while_helper.while_lambda),
-        capture_manager->in_while_mode()
-      ),
-      capture_manager_(capture_manager)
-  {
+    static std::unique_ptr<WhileLambdaTask>
+    recapture(WhileLambdaTask& from_task) {
+      // Note: the above is non-const because parent_task needs to be non-const
+      // (see TaskBase ctors).  Disregard this previous note:
+      // Old note (no longer applicable): it might be possible that in the
+      // future this argument needs to be non-const, but for now I'm using const
+      // since it's consistent with (most aspects of) the task object being
+      // immutible once it's owned by the runtime system, which is the case with
+      // from_task
 
-  };
-
-  static std::unique_ptr<WhileLambdaTask>
-  recapture(WhileLambdaTask& from_task) {
-    return std::make_unique<WhileLambdaTask>(
-      from_task.capture_manager_,
-      from_task
-    );
-  }
-
-  void run() override {
-    if(this->callable_()) {
-
-      auto do_task = std::move(capture_manager_->do_task_);
-
-      capture_manager_->recapture(
-        *this, *do_task.get()
+      // sanity check: recapture should only be triggered when the parent while,
+      // which we are recapturing from, is running:
+      assert(
+        (intptr_t)get_running_task_impl()
+          == (intptr_t)static_cast<TaskBase*>(&from_task)
       );
 
-      abstract::backend::get_backend_runtime()->register_task(
-        std::move(do_task)
-      );
-
-      abstract::backend::get_backend_runtime()->register_task(
-        std::move(capture_manager_->while_task_)
+      return std::make_unique<WhileLambdaTask>(
+        from_task.capture_manager_,
+        from_task,
+        // since we're reconstructing an inner while, the from_task is the
+        // parent task, so we can pass that on to the base constructor
+        &from_task
       );
     }
 
-    // release the capture manager; we're all done with it
-    capture_manager_ = nullptr;
-  }
+    void run() override {
+      if(this->callable_()) {
+
+        capture_manager_->execute_do_captures();
+        auto do_task = std::move(capture_manager_->do_task_);
+
+        capture_manager_->recapture(
+          *this, *do_task.get()
+        );
+
+        abstract::backend::get_backend_runtime()->register_task(
+          std::move(do_task)
+        );
+
+        capture_manager_->execute_while_captures(false);
+        abstract::backend::get_backend_runtime()->register_task(
+          std::move(capture_manager_->while_task_)
+        );
+      }
+      else {
+        // Release the do_task so that the capture manager is destroyed properly
+        capture_manager_->do_task_ = nullptr;
+      }
+
+      // release the capture manager; we're all done with it
+      capture_manager_ = nullptr;
+    }
 
 };
 
@@ -138,39 +169,64 @@ struct DoLambdaTask
   : LambdaTask<Lambda>
 {
 
-  using base_t = LambdaTask<Lambda>;
+  public:
 
-  std::shared_ptr<CaptureManagerT> capture_manager_;
+    using base_t = LambdaTask<Lambda>;
 
-  template <typename HelperT>
-  DoLambdaTask(
-    std::shared_ptr<CaptureManagerT> const& capture_manager,
-    HelperT&& helper
-  ) : base_t(
-        std::move(helper.do_lambda),
-        capture_manager->in_do_mode()
-      ),
-      capture_manager_(capture_manager)
-  { };
+    std::shared_ptr<CaptureManagerT> capture_manager_;
 
-  template <typename HelperT>
-  DoLambdaTask(
-    std::shared_ptr<CaptureManagerT> const& capture_manager,
-    DoLambdaTask& to_recapture
-  ) : base_t(
-        to_recapture.callable_,
-        capture_manager->in_do_mode()
-      ),
-      capture_manager_(capture_manager)
-  { };
+    /**
+     *  Ctor called during WhileDoCaptureManager construction
+     */
+    template <typename HelperT>
+    DoLambdaTask(
+      CaptureManagerT* capture_manager,
+      HelperT&& helper
+    ) : base_t(
+          std::move(helper.do_lambda),
+          capture_manager->in_do_mode()
+        )
+    { }
 
-  static std::unique_ptr<DoLambdaTask>
-  recapture(DoLambdaTask& from_task) {
-    return std::make_unique<DoLambdaTask>(
-      from_task.capture_manager_,
-      from_task
-    );
-  }
+    /**
+     *  Ctor called by recapture(); always only used for constructing an inner
+     *  nested do task (so never a double copy capture).  Can't be private,
+     *  though, since we need to construct it with std::make_unique.
+     */
+    DoLambdaTask(
+      std::shared_ptr<CaptureManagerT> const& capture_manager,
+      DoLambdaTask const& to_recapture,
+      TaskBase* parent_task
+    ) : base_t(
+          LambdaTask_tags::no_double_copy_capture_tag,
+          to_recapture.callable_,
+          parent_task,
+          get_running_task_impl(),
+          capture_manager->in_do_mode()
+          /* TODO propagate other aspects of the task to TaskBase, like name,
+           * line numbers, iteration number, etc.
+           */
+        ),
+        capture_manager_(capture_manager)
+    { }
+
+    static std::unique_ptr<DoLambdaTask>
+    recapture(DoLambdaTask const& from_task) {
+      // See note about argument constness in WhileLambdaTask::recapture(),
+      // except this time we can still use const since we get the parent task
+      // from elsewhere
+
+      return std::make_unique<DoLambdaTask>(
+        from_task.capture_manager_,
+        from_task,
+        // since we're reconstructing an inner do, and since this must be called
+        // after an inner while has been recaptured in the capture managers's
+        // recapture() method, the parent task will always be the current
+        // while_task in the capture_manager.  Note that it will *not* be the
+        // currently running task!
+        from_task.capture_manager_->while_task_.get()
+      );
+    }
 
 };
 
@@ -215,23 +271,23 @@ struct _create_work_while_do_helper<
       while_helper(std::move(while_helper_in)),
       task_option_args_tup(
         std::forward_as_tuple(std::forward<Args>(args)...)
-      ) {}
-
-  ~_create_work_while_do_helper()
+      )
   {
-
     auto while_do_mngr = std::make_shared<
       WhileDoCaptureManager<
-          typename WhileHelper::callable_t, typename WhileHelper::args_tuple_t,
-          WhileHelper::has_lambda_callable,
-          callable_t, args_tuple_t, has_lambda_callable
+        typename WhileHelper::callable_t,
+        typename WhileHelper::args_fwd_tuple_t,
+        WhileHelper::has_lambda_callable,
+        callable_t, args_tuple_t, has_lambda_callable
       >
     >(
       variadic_constructor_tag,
       std::move(*this)
     );
-
+    while_do_mngr->set_capture_managers(while_do_mngr);
+    while_do_mngr->register_while_task();
   }
+
 };
 
 
@@ -254,7 +310,7 @@ struct _create_work_while_helper<
   using args_tuple_t = std::tuple<>;
   using args_fwd_tuple_t = std::tuple<>;
   using task_option_args_tuple_t = decltype(
-  std::forward_as_tuple(std::declval<Args&&>()...)
+    std::forward_as_tuple(std::declval<Args&&>()...)
   );
 
   static constexpr auto has_lambda_callable = true;
@@ -276,7 +332,7 @@ struct _create_work_while_helper<
 
   template <typename DoFunctor=meta::nonesuch, typename... DoArgs>
   auto
-  do_(DoArgs&& ... args)&&
+  do_(DoArgs&&... args)&&
   {
     return _create_work_while_do_helper<
       _create_work_while_helper, DoFunctor,

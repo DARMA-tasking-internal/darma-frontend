@@ -177,6 +177,10 @@ struct UseDescription {
 // Note that these can't just be functions or methods (like they used to be
 // because the line numbers get screwed up and debugging is much harder
 
+#define EXPECT_FIRST_TASK_RUNNING() \
+  EXPECT_CALL(*mock_runtime, get_running_task()) \
+    .WillRepeatedly(::testing::Return((darma_runtime::abstract::frontend::Task*)mock_runtime->registered_tasks.front().get()))
+
 #define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed) \
   ::_impl::in_sequence_wrapper( \
     EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows( \

@@ -85,7 +85,7 @@ inline auto setup_create_work_argument_parser() {
       },
       [](auto&&... aliasing_desc) {
         return std::make_unique<darma_runtime::detail::TaskBase::allowed_aliasing_description>(
-          darma_runtime::detail::TaskBase::allowed_aliasing_description::allowed_aliasing_description_ctor_tag_t(),
+          darma_runtime::detail::allowed_aliasing_description_ctor_tag_t(),
           std::forward<decltype(aliasing_desc)>(aliasing_desc)...
         );
       }
@@ -97,7 +97,7 @@ inline auto setup_create_work_argument_parser() {
       },
       keyword_arguments_for_task_creation::allow_aliasing = [] {
         return std::make_unique<darma_runtime::detail::TaskBase::allowed_aliasing_description>(
-          darma_runtime::detail::TaskBase::allowed_aliasing_description::allowed_aliasing_description_ctor_tag_t(),
+          darma_runtime::detail::allowed_aliasing_description_ctor_tag_t(),
           false
         );
       },

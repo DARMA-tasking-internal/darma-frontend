@@ -64,11 +64,12 @@ struct FunctorCaptureSetupHelper : protected CaptureSetupHelperBase {
 
   FunctorCaptureSetupHelper() = default;
 
+  template <typename CaptureManagerT>
   FunctorCaptureSetupHelper(
-    TaskBase* parent_task,
-    CaptureManager* current_capture_context
+    TaskBase* running_task,
+    CaptureManagerT* current_capture_context
   ) {
-    pre_capture_setup(parent_task, current_capture_context);
+    pre_capture_setup(running_task, current_capture_context);
   }
 
 };
@@ -93,15 +94,18 @@ struct FunctorCapturer : protected FunctorCaptureSetupHelper {
   STATIC_ASSERT_VALUE_EQUAL(n_functor_args, sizeof...(Args));
 
 
-  template <typename... ArgsDeduced>
+  template <
+    typename CaptureManagerT,
+    typename... ArgsDeduced
+  >
   FunctorCapturer(
-    TaskBase* parent_task,
-    CaptureManager* capture_manager,
+    TaskBase* running_task,
+    CaptureManagerT* capture_manager,
     ArgsDeduced&&... args_deduced
-  ) : FunctorCaptureSetupHelper(parent_task, capture_manager),
+  ) : FunctorCaptureSetupHelper(running_task, capture_manager),
       stored_args_(std::forward<ArgsDeduced>(args_deduced)...)
   {
-    post_capture_cleanup(parent_task, capture_manager);
+    post_capture_cleanup(running_task, capture_manager);
   }
 
   explicit
@@ -111,8 +115,9 @@ struct FunctorCapturer : protected FunctorCaptureSetupHelper {
   { }
 
   template <size_t... Idxs>
-  void run_functor(std::integer_sequence<size_t, Idxs...>) {
-    Functor{}(
+  auto
+  run_functor(std::integer_sequence<size_t, Idxs...>) {
+    return Functor{}(
       call_traits::template call_arg_traits<Idxs>::get_converted_arg(
         std::get<Idxs>(stored_args_)
       )...
@@ -163,7 +168,6 @@ struct FunctorTask
 
   private:
 
-
     explicit
     FunctorTask(
       typename capturer_t::stored_args_tuple_t&& stored_args_in
@@ -181,6 +185,7 @@ struct FunctorTask
     FunctorTask(
       variadic_constructor_arg_t /*unused*/,
       TaskBase* parent_task,
+      TaskBase* running_task,
       types::key_t const& name_key,
       AllowAliasingDescription&& aliasing_desc,
       bool is_data_parallel,
@@ -192,20 +197,115 @@ struct FunctorTask
           is_data_parallel
         ),
         capturer_t(
-          parent_task,
+          running_task,
           this,
           std::forward<ArgsDeduced&&>(args_in)...
         )
     { }
 
+    template <
+      typename AllowAliasingDescription,
+      typename... ArgsDeduced
+    >
+    FunctorTask(
+      variadic_constructor_arg_t /*unused*/,
+      TaskBase* parent_task,
+      types::key_t const& name_key,
+      AllowAliasingDescription&& aliasing_desc,
+      bool is_data_parallel,
+      ArgsDeduced&&... args_in
+    ) : FunctorTask<Functor, Args...>::FunctorTask(
+          variadic_constructor_arg,
+          parent_task,
+          parent_task, // if no running task is given use the parent task
+          name_key,
+          std::forward<AllowAliasingDescription>(aliasing_desc),
+          is_data_parallel,
+          std::forward<ArgsDeduced>(args_in)...
+        )
+    { /* forwarding ctor, must be empty */ }
+
+    template <
+      typename CaptureManagerT,
+      typename... ArgsDeduced
+    >
+    FunctorTask(
+      TaskBase* parent_task,
+      TaskBase* running_task,
+      CaptureManagerT* capture_manager,
+      variadic_arguments_begin_tag /*unused*/,
+      ArgsDeduced&&... args_in
+    ) : base_t(
+          parent_task
+        ),
+        capturer_t(
+          running_task,
+          capture_manager,
+          std::forward<ArgsDeduced&&>(args_in)...
+        )
+    { }
+
+    template <
+      typename CaptureManagerT,
+      typename ArgsTupleDeduced,
+      size_t... Idxs
+    >
+    FunctorTask(
+      std::integer_sequence<size_t, Idxs...> /* unused */,
+      TaskBase* parent_task,
+      TaskBase* running_task,
+      CaptureManagerT* capture_manager,
+      ArgsTupleDeduced&& args_tuple
+    ) : FunctorTask<Functor, Args...>::FunctorTask(
+          parent_task,
+          running_task,
+          capture_manager,
+          variadic_arguments_begin_tag{},
+          std::get<Idxs>(std::forward<ArgsTupleDeduced>(args_tuple))...
+        )
+    { /* forwarding ctor, must be empty */ }
+
+    template <
+      typename CaptureManagerT,
+      typename ArgsTupleDeduced
+    >
+    FunctorTask(
+      TaskBase* parent_task,
+      TaskBase* running_task,
+      CaptureManagerT* capture_manager,
+      ArgsTupleDeduced&& args_tuple
+    ) : FunctorTask<Functor, Args...>::FunctorTask(
+          std::index_sequence_for<Args...>{},
+          parent_task, running_task, capture_manager,
+          std::forward<ArgsTupleDeduced>(args_tuple)
+        )
+    { /* forwarding ctor, must be empty */ }
+
+    template <
+      typename CaptureManagerT,
+      typename ArgsTupleDeduced
+    >
+    FunctorTask(
+      TaskBase* parent_running_task,
+      CaptureManagerT* capture_manager,
+      ArgsTupleDeduced&& args_tuple
+    ) : FunctorTask<Functor, Args...>::FunctorTask(
+          parent_running_task, parent_running_task, capture_manager,
+          std::forward<ArgsTupleDeduced>(args_tuple)
+        )
+    { /* forwarding ctor, must be empty */ }
 
     //==============================================================================
     // <editor-fold desc="run() method"> {{{1
 
   public:
 
+    auto run_functor() {
+      return this->capturer_t::template run_functor(std::index_sequence_for<Args...>{});
+    }
+
     void run() override {
-      this->run_functor(std::index_sequence_for<Args...>{});
+      this->run_functor();
     }
 
     // </editor-fold> end run() method }}}1

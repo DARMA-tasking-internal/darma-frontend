@@ -73,6 +73,7 @@ namespace darma_runtime {
 
 namespace detail {
 
+#if 0
 // TODO move these to their own file and protect it with preprocessor flags or something
 //template <typename T>
 //using optional = std::experimental::optional<T>;
@@ -408,11 +409,14 @@ struct CallableHolder<Lambda, std::tuple<>, true, IsOuter>
 
 };
 
+
 // </editor-fold> end CallableHolder, lambda version }}}2
 //------------------------------------------------------------------------------
 
 // </editor-fold> end CallableHolder }}}1
 //==============================================================================
+
+#endif // 0
 
 
 //==============================================================================
@@ -1225,28 +1229,6 @@ struct CallableHolder<Lambda, std::tuple<>, true, IsOuter>
 // </editor-fold> end old version }}}2
 //------------------------------------------------------------------------------
 
-template <typename Functor, typename... Args>
-struct WhileFunctorTask
-  : FunctorTask<Functor, Args...>
-{
-  template <typename HelperT>
-  WhileFunctorTask(
-    HelperT&& helper
-  );
-
-};
-
-template <typename Functor, typename... Args>
-struct DoFunctorTask
-  : FunctorTask<Functor, Args...>
-{
-  template <typename HelperT>
-  DoFunctorTask(
-    HelperT&& helper
-  );
-
-
-};
 
 struct WhileDoTaskSetupHelper {
   WhileDoTaskSetupHelper() {
@@ -1262,26 +1244,20 @@ template <
 struct WhileDoCaptureManager<
   WhileCallable, std::tuple<WhileArgs...>, WhileIsLambda,
   DoCallable, std::tuple<DoArgs...>, DoIsLambda
-> : public CaptureManager, public WhileDoTaskSetupHelper,
-    public std::enable_shared_from_this<
-      WhileDoCaptureManager<
-        WhileCallable, std::tuple<WhileArgs...>, WhileIsLambda,
-        DoCallable, std::tuple<DoArgs...>, DoIsLambda
-      >
-    >
+> : public CaptureManager, public WhileDoTaskSetupHelper
 {
 
-  using while_task_t = typename std::conditional_t<
+  using while_task_t = typename std::conditional<
     WhileIsLambda,
     tinympl::lazy<WhileLambdaTask>::template instantiated_with<WhileCallable, WhileDoCaptureManager>,
-    tinympl::lazy<WhileFunctorTask>::template instantiated_with<WhileCallable, WhileArgs...>
-  >::type;
+    tinympl::lazy<WhileFunctorTask>::template instantiated_with<WhileDoCaptureManager, WhileCallable, WhileArgs...>
+  >::type::type;
 
-  using do_task_t = typename std::conditional_t<
+  using do_task_t = typename std::conditional<
     DoIsLambda,
     tinympl::lazy<DoLambdaTask>::template instantiated_with<DoCallable, WhileDoCaptureManager>,
-    tinympl::lazy<DoFunctorTask>::template instantiated_with<DoCallable, DoArgs...>
-  >::type;
+    tinympl::lazy<DoFunctorTask>::template instantiated_with<WhileDoCaptureManager, DoCallable, DoArgs...>
+  >::type::type;
 
   // must be initialized before while_task_ and do_task_:
   enum struct WhileDoCaptureMode { While, Do };
@@ -1292,29 +1268,48 @@ struct WhileDoCaptureManager<
     AccessHandleBase const* source_and_continuing = nullptr;
     AccessHandleBase* captured = nullptr;
     bool needs_implicit_capture = false;
-    HandleUse::permissions_t req_sched_perms = HandleUse::None;
-    HandleUse::permissions_t req_immed_perms = HandleUse::None;
+    unsigned req_sched_perms = (unsigned)HandleUse::None;
+    unsigned req_immed_perms = (unsigned)HandleUse::None;
   };
 
+  /* TODO we might be able to stick some extra fields on AccessHandleBase rather
+   * than using maps here
+   */
+  std::map<types::key_t, DeferredCapture> while_captures_;
+  std::map<types::key_t, DeferredCapture> do_captures_;
+
+  std::map<types::key_t, std::shared_ptr<detail::AccessHandleBase>> while_implicit_captures_;
+
+  // These have to be last!!
   std::unique_ptr<while_task_t> while_task_;
   std::unique_ptr<do_task_t> do_task_;
 
-  std::map<types::key_t, DeferredCapture> while_captures_;
-  std::map<types::key_t, DeferredCapture> do_captures_;
-  std::map<types::key_t, std::shared_ptr<detail::AccessHandleBase>> while_implicit_captures_;
-
   template <typename HelperT>
   WhileDoCaptureManager(
-    variadic_constructor_tag_t,
+    variadic_constructor_tag_t /*unused*/,
     HelperT&& helper
   ) : while_task_(std::make_unique<while_task_t>(
-        shared_from_this(), std::forward<HelperT>(helper)
+        this, std::forward<HelperT>(helper)
       )),
       do_task_(std::make_unique<do_task_t>(
-        shared_from_this(), std::forward<HelperT>(helper)
+        this, std::forward<HelperT>(helper)
       ))
-  {
-    execute_captures(true);
+  { }
+
+  // essentially done during construction, but because shared_ptr construction
+  // needs to complete before we start passing around the shared pointer,
+  // we need to invoke it separately from the constructor
+  void set_capture_managers(
+    std::shared_ptr<WhileDoCaptureManager> const& this_as_shared
+  ) {
+    while_task_->capture_manager_ = this_as_shared;
+    do_task_->capture_manager_ = this_as_shared;
+  }
+
+  // also essentially done during construction; see note for
+  // set_capture_managers()
+  void register_while_task() {
+    execute_while_captures(true);
     abstract::backend::get_backend_runtime()->register_task(
       std::move(while_task_)
     );
@@ -1324,57 +1319,117 @@ struct WhileDoCaptureManager<
     while_task_t& while_task,
     do_task_t& do_task
   ) {
+    // whenever recapture is being invoked, we must be in a nested context:
+    current_capture_is_nested = true;
+
+    // Note: recapture should *not* move any of the access handles captured
+    // in while_task or do_task
+
     while_task_ = while_task_t::recapture(while_task);
-    do_task_ = while_task_t::recapture(do_task);
+    do_task_ = do_task_t::recapture(do_task);
   }
 
-  void execute_captures(bool is_outermost) {
+  void execute_while_captures(bool is_outermost) {
     for(auto& pair : while_captures_) {
       auto const& key = pair.first;
       auto& while_details = pair.second;
 
-      std::shared_ptr<detail::AccessHandleBase> implicit_capture;
-      if(while_details.needs_implicit_capture) {
-        implicit_capture = while_implicit_captures_[key];
-        while_implicit_captures_[key] = implicit_capture->copy();
-        while_details.source_and_continuing = implicit_capture.get();
-        while_details.captured = while_implicit_captures_[key].get();
-        while_details.captured->current_use_ = nullptr;
+      std::shared_ptr<detail::AccessHandleBase> implicit_source_and_cont;
 
+      if(while_details.needs_implicit_capture) {
+        auto found = while_implicit_captures_.find(key);
+        assert(found != while_implicit_captures_.end());
+
+        // copy the shared pointer from the outer implicit capture to the local
+        // temporary that we will use as the source and continuing for the capture
+        implicit_source_and_cont = found->second;
+        while_details.source_and_continuing = implicit_source_and_cont.get();
+
+        // set the current implicitly captured handle to a copy of the source
+        // and continuing handle (essentially the same thing that happens when
+        // a copy of a callable is made for explicit capture)
+        found->second = implicit_source_and_cont->copy(false);
+        while_details.captured = while_implicit_captures_[key].get();
+
+        // at this point, we know that since the do is nested in the while (and
+        // since this is an implicit capture, we know the while block won't
+        // be making any changes), the source for the do capture with the same
+        // key will be the handle implicilty captured here in the while
         auto& do_details = do_captures_[key];
         do_details.source_and_continuing = while_details.captured;
-
       }
+
+      // Sanity checks:
+      assert(while_details.source_and_continuing != nullptr);
+      assert(while_details.captured != nullptr);
+
+      // Note that this function must be executed:
+      //   - before the return of create_work_while(...).do_(...) if is_outermost
+      //     is true (since otherwise source_and_continuing could be a stale pointer)
+      //   - before the parent while task's run() function returns if not
+      //     is_outermost, since source_and_continuing should be owned by the
+      //     parent while block (usually in the form of a continuation use from
+      //     the do block, unless the do block doesn't capture the source handle)
+      //
 
       while_details.captured->call_make_captured_use_holder(
         while_details.captured->var_handle_base_,
-        while_details.req_sched_perms,
-        while_details.req_immed_perms,
+        (HandleUse::permissions_t)while_details.req_sched_perms,
+        (HandleUse::permissions_t)while_details.req_immed_perms,
         *while_details.source_and_continuing,
-        is_outermost // only register continuation uses if we're in the outermost context
+        true // register all continuation uses for now...
+        //is_outermost // only register continuation uses if we're in the outermost context
       );
 
       while_details.captured->call_add_dependency(while_task_.get());
+
+      // We can now release implicit_source_and_cont (automatically release at the end
+      // of this scope) which holds the source and continuing for the while
+      // capture.  At this point, it represents the continuation of the
+      // tail recursion for the while, which by definition must be empty and
+      // do nothing.
+      // Eventually, we could make it so that neither the captured use
+      // nor the continuation use gets registered in call_make_captured_use_holder,
+      // but instead the alias operation implied by releasing the continuation
+      // could be done in-place here (i.e., the out flow of the captured use
+      // could be set to the out flow of the continuation use and only the
+      // captured use would need to be registered)
     }
 
+    // Note that we do *not* clear the captures here; instead, we'll just update
+    // the source_and_continuing and captured pointers in the do_capture()
+    // method the next time we recapture.  The permissions remain the same,
+    // so we only need to figure those out the first time around and leave them
+    // in the map
+  }
+
+  void execute_do_captures() {
     for(auto& pair : do_captures_) {
       auto const& key = pair.first;
       auto& do_details = pair.second;
 
-      // if it's not captured in the do, then don't do the capture here
-      if(do_details.captured != nullptr) {
+      // Sanity checks:
+      assert(do_details.source_and_continuing != nullptr);
+      assert(do_details.captured != nullptr);
 
-        do_details.captured->call_make_captured_use_holder(
-          do_details.captured->var_handle_base_,
-          do_details.req_sched_perms,
-          do_details.req_immed_perms,
-          *do_details.source_and_continuing,
-          is_outermost // only register continuation uses if we're in the outermost context
-        );
+      // Note that this function must be executed before the parent while task's
+      // run() function returns, since source_and_continuing should be owned by
+      // the parent while block.
 
-        do_details.captured->call_add_dependency(do_task_.get());
-      }
+      do_details.captured->call_make_captured_use_holder(
+        do_details.captured->var_handle_base_,
+        (HandleUse::permissions_t)do_details.req_sched_perms,
+        (HandleUse::permissions_t)do_details.req_immed_perms,
+        *do_details.source_and_continuing,
+        true // yes, we do want to register continuation uses here, since the
+             // while always uses them
+      );
+
+      do_details.captured->call_add_dependency(do_task_.get());
     }
+
+    // Note that we do *not* clear the captures here; see note at the end of
+    // execute_while_captures()
   }
 
   void pre_capture_setup() override {
@@ -1401,10 +1456,21 @@ struct WhileDoCaptureManager<
     bool register_continuation_use = true
   ) override {
 
+    /* TODO we should probably make copies (or something) of handles explicitly
+     * captured in the while block so that they're still capturable in the
+     * do block even if the user calls release() on the handle
+     */
+    // (or we could just prohibit calls to release in the while block...)
+
     auto const& key = captured.var_handle_base_->get_key();
     auto& while_details = while_captures_[key];
-    auto& do_details = do_captures_[key];
 
+    // Since we're doing a deferred capture (rather than replacing the use
+    // right away) we always need to make sure that the captured handle
+    // isn't holding a use copied from the outer scope.  It's safe to do here,
+    // even with the aliasing check flag, since that flag goes on the source
+    // rather than the captured handle.
+    captured.release_current_use();
 
     if(not current_capture_is_nested) {
       // First time through; need to establish the pattern that will
@@ -1424,6 +1490,8 @@ struct WhileDoCaptureManager<
       else {
         assert(current_capturing_task_mode_ == WhileDoCaptureMode::Do);
 
+        auto& do_details = do_captures_[key];
+
         // TODO ask do_task_ for permissions downgrades
         while_details.req_sched_perms |= HandleUseBase::Modify;
 
@@ -1439,12 +1507,13 @@ struct WhileDoCaptureManager<
           while_details.needs_implicit_capture = true;
 
           auto& while_implicit_capture = while_implicit_captures_[key];
-          while_implicit_capture = source_and_continuing.copy();
+          while_implicit_capture = source_and_continuing.copy(false);
 
           do_details.source_and_continuing = while_implicit_capture.get();
           while_details.captured = while_implicit_capture.get();
         }
 
+        do_details.source_and_continuing = while_details.captured;
         do_details.captured = &captured;
       }
 
@@ -1456,26 +1525,39 @@ struct WhileDoCaptureManager<
 
       if(current_capturing_task_mode_ == WhileDoCaptureMode::While) {
 
+        // Sanity check: this should be unreachable if it's an implicit capture
         assert(!while_details.needs_implicit_capture);
 
-        // The source should be the continuation of the do task
-        while_details.source_and_continuing = do_details.source_and_continuing;
-        // the captured variable should be valid
-        while_details.capture = &captured;
+        // The source should be the continuation of the do task (if it was
+        // captured in the do task; if not, the source is just the handle
+        // captured in the parent while task)
+        auto found = do_captures_.find(key);
+        if(found != do_captures_.end()) {
+          auto& do_details = found->second;
+          while_details.source_and_continuing = do_details.source_and_continuing;
+        }
+        else {
+          while_details.source_and_continuing = while_details.captured;
+        }
+
+        // now replace the captured variable with the one from the arguments
+        while_details.captured = &captured;
       }
       else {
+        // sanity check
         assert(current_capturing_task_mode_ == WhileDoCaptureMode::Do);
 
-        do_details.captured = &captured;
+        auto& do_details = do_captures_[key];
 
+        // The source of an inner do will always be captured in its parent while
         do_details.source_and_continuing = while_details.captured;
 
+        // replace the captured variable with the one from the arguments
+        do_details.captured = &captured;
       }
 
-      DARMA_ASSERT_NOT_IMPLEMENTED("the rest of while_do capture");
     }
 
-    // TODO finish this
   }
 
 };

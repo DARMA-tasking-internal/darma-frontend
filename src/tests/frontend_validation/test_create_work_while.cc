@@ -77,12 +77,18 @@ using namespace darma_runtime::experimental;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWorkWhile, basic_same_always_false) {
+TEST_F_WITH_PARAMS(TestCreateWorkWhile, basic_same_always_false,
+  ::testing::Combine(::testing::Bool(), ::testing::Bool()),
+  std::tuple<bool, bool>
+) {
   using namespace darma_runtime;
   using namespace ::testing;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
+
+  bool while_is_functor = std::get<0>(GetParam());
+  bool do_is_functor = std::get<1>(GetParam());
 
   DECLARE_MOCK_FLOWS(
     f_init, f_null, f_while_out
@@ -93,31 +99,149 @@ TEST_F(TestCreateWorkWhile, basic_same_always_false) {
 
   int value = 0;
 
-  EXPECT_INITIAL_ACCESS(f_init, f_null, initial_use, make_key("hello"));
+  EXPECT_NEW_INITIAL_ACCESS(f_init, f_null, initial_use, make_key("hello"));
 
-  EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
-    .WillOnce(Return(f_while_out));
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(while_use,
+    f_init, Same, &f_init,
+    f_while_out, Next, nullptr, true,
+    Modify, Read, true,
+    value
+  );
 
-  EXPECT_REGISTER_USE_AND_SET_BUFFER(while_use, f_init, f_while_out, Modify, Read, value);
-  EXPECT_REGISTER_USE(outer_cont_use, f_while_out, f_null, Modify, None);
+  EXPECT_NEW_REGISTER_USE(outer_cont_use,
+    f_while_out, Same, &f_while_out,
+    f_null, Same, &f_null, false,
+    Modify, None, false
+  );
 
-  EXPECT_RELEASE_USE(initial_use);
+  EXPECT_NEW_RELEASE_USE(initial_use, false);
 
   EXPECT_REGISTER_TASK(while_use);
 
-  EXPECT_FLOW_ALIAS(f_while_out, f_null);
-  EXPECT_RELEASE_USE(outer_cont_use);
+  EXPECT_NEW_RELEASE_USE(outer_cont_use, true);
+
+  //============================================================================
+  // actual code being tested
+  {
+    auto tmp = initial_access<int>("hello");
+
+    struct WhileFunctor {
+      bool operator()(ReadAccessHandle<int> tmp_arg) const {
+        return tmp_arg.get_value() != 0; // should always be False
+      }
+    };
+
+    struct DoFunctor {
+      void operator()(AccessHandle<int> tmp_arg) const {
+        /* do nothing */
+      }
+    };
+
+    if(!while_is_functor and !do_is_functor) {
+      create_work_while([=]{
+        return tmp.get_value() != 0; // should always be False
+      }).do_([=]{
+        tmp.set_value(73); // just to ensure capture
+      });
+    }
+    else if(!while_is_functor and do_is_functor) {
+      create_work_while([=]{
+        return tmp.get_value() != 0; // should always be False
+      }).do_<DoFunctor>(tmp);
+    }
+    else if(while_is_functor and !do_is_functor) {
+      create_work_while<WhileFunctor>(tmp).do_([=]{
+        tmp.set_value(73); // just to ensure capture
+      });
+    }
+    else {
+      assert(while_is_functor and do_is_functor);
+      create_work_while<WhileFunctor>(tmp).do_<DoFunctor>(tmp);
+    }
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_NEW_RELEASE_USE(while_use, true);
+
+  run_all_tasks();
+
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWorkWhile, two_same_always_false) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_init2, f_null, f_null2, f_while_out, f_while_out2
+  );
+  use_t* initial_use = nullptr;
+  use_t* while_use = nullptr;
+  use_t* outer_cont_use = nullptr;
+  use_t* initial_use2 = nullptr;
+  use_t* while_use2 = nullptr;
+  use_t* outer_cont_use2 = nullptr;
+
+  int value = 0;
+
+  EXPECT_NEW_INITIAL_ACCESS(f_init, f_null, initial_use, make_key("hello"));
+  EXPECT_NEW_INITIAL_ACCESS(f_init2, f_null2, initial_use2, make_key("world"));
+
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(while_use,
+    f_init, Same, &f_init,
+    f_while_out, Next, nullptr, true,
+    Modify, Read, true,
+    value
+  );
+
+  EXPECT_NEW_REGISTER_USE(outer_cont_use,
+    f_while_out, Same, &f_while_out,
+    f_null, Same, &f_null, false,
+    Modify, None, false
+  );
+
+  // implicitly captured use:
+  EXPECT_NEW_REGISTER_USE(while_use2,
+    f_init2, Same, &f_init2,
+    f_while_out2, Next, nullptr, true,
+    Modify, None, false
+  );
+
+  // implicitly captured continuation use:
+  EXPECT_NEW_REGISTER_USE(outer_cont_use2,
+    f_while_out2, Same, &f_while_out2,
+    f_null2, Same, &f_null2, false,
+    Modify, None, false
+  );
+
+  EXPECT_NEW_RELEASE_USE(initial_use, false);
+  EXPECT_NEW_RELEASE_USE(initial_use2, false);
+
+  EXPECT_REGISTER_TASK(while_use, while_use2);
+
+  EXPECT_NEW_RELEASE_USE(outer_cont_use, true);
+  EXPECT_NEW_RELEASE_USE(outer_cont_use2, true);
 
   //============================================================================
   // actual code being tested
   {
 
     auto tmp = initial_access<int>("hello");
+    auto tmp2 = initial_access<int>("world");
 
     create_work_while([=]{
       return tmp.get_value() != 0; // should always be False
     }).do_([=]{
       tmp.set_value(73);
+      tmp2.set_value(42);
       // This doesn't work like you think it does
       //FAIL() << "Ran do clause when while part should have been false";
     });
@@ -127,10 +251,245 @@ TEST_F(TestCreateWorkWhile, basic_same_always_false) {
 
   Mock::VerifyAndClearExpectations(mock_runtime.get());
 
-  EXPECT_RELEASE_USE(while_use);
+  EXPECT_NEW_RELEASE_USE(while_use, true);
+  EXPECT_NEW_RELEASE_USE(while_use2, true);
 
   run_all_tasks();
 
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F_WITH_PARAMS(TestCreateWorkWhile, two_handles_one_iteration,
+  ::testing::Combine(::testing::Bool(), ::testing::Bool()),
+  std::tuple<bool, bool>
+) {
+  using namespace darma_runtime;
+  using namespace ::testing;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  bool while_is_functor = std::get<0>(GetParam());
+  bool do_is_functor = std::get<1>(GetParam());
+
+  DECLARE_MOCK_FLOWS(
+    f_init, f_init2, f_null, f_null2, f_while_out, f_while_out2,
+    f_do_out, f_do_out2, f_inner_while_out, f_inner_while_out2
+  );
+  use_t* initial_use = nullptr;
+  use_t* while_use = nullptr;
+  use_t* outer_cont_use = nullptr;
+  use_t* initial_use2 = nullptr;
+  use_t* while_use2 = nullptr;
+  use_t* outer_cont_use2 = nullptr;
+  use_t* do_use = nullptr;
+  use_t* do_cont_use = nullptr;
+  use_t* do_use2 = nullptr;
+  use_t* do_cont_use2 = nullptr;
+  use_t* inner_while_use = nullptr;
+  use_t* inner_while_use2 = nullptr;
+  use_t* inner_while_cont_use = nullptr;
+  use_t* inner_while_cont_use2 = nullptr;
+
+  int value = 0, value2 = 0;
+
+  EXPECT_NEW_INITIAL_ACCESS(f_init, f_null, initial_use, make_key("hello"));
+  EXPECT_NEW_INITIAL_ACCESS(f_init2, f_null2, initial_use2, make_key("world"));
+
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(while_use,
+    f_init, Same, &f_init,
+    f_while_out, Next, nullptr, true,
+    Modify, Read, true,
+    value
+  );
+
+  EXPECT_NEW_REGISTER_USE(outer_cont_use,
+    f_while_out, Same, &f_while_out,
+    f_null, Same, &f_null, false,
+    Modify, None, false
+  );
+
+  // implicitly captured use:
+  EXPECT_NEW_REGISTER_USE(while_use2,
+    f_init2, Same, &f_init2,
+    f_while_out2, Next, nullptr, true,
+    Modify, None, false
+  );
+
+  // implicitly captured continuation use:
+  EXPECT_NEW_REGISTER_USE(outer_cont_use2,
+    f_while_out2, Same, &f_while_out2,
+    f_null2, Same, &f_null2, false,
+    Modify, None, false
+  );
+
+  EXPECT_NEW_RELEASE_USE(initial_use, false);
+  EXPECT_NEW_RELEASE_USE(initial_use2, false);
+
+  EXPECT_REGISTER_TASK(while_use, while_use2);
+
+  EXPECT_NEW_RELEASE_USE(outer_cont_use, true);
+  EXPECT_NEW_RELEASE_USE(outer_cont_use2, true);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    struct WhileFunctor {
+      bool operator()(ReadAccessHandle<int> tmp_arg) const {
+        return tmp_arg.get_value() != 42; // should be true the first time, false after that
+      }
+    };
+
+    struct DoFunctor {
+      void operator()(AccessHandle<int> tmp_arg, AccessHandle<int> tmp_arg2) const {
+        tmp_arg.set_value(42);
+        tmp_arg2.set_value(73);
+        /* do nothing */
+      }
+    };
+
+    auto tmp = initial_access<int>("hello");
+    auto tmp2 = initial_access<int>("world");
+
+    if(!while_is_functor and !do_is_functor) {
+      create_work_while([=]{
+        return WhileFunctor{}(tmp);
+      }).do_([=]{
+        DoFunctor{}(tmp, tmp2);
+      });
+    }
+    else if(!while_is_functor and do_is_functor) {
+      create_work_while([=]{
+        return WhileFunctor{}(tmp);
+      }).do_<DoFunctor>(tmp, tmp2);
+    }
+    else if(while_is_functor and !do_is_functor) {
+      create_work_while<WhileFunctor>(tmp).do_([=]{
+        DoFunctor{}(tmp, tmp2);
+      });
+    }
+    else {
+      assert(while_is_functor and do_is_functor);
+      create_work_while<WhileFunctor>(tmp).do_<DoFunctor>(tmp, tmp2);
+    }
+
+  }
+  //============================================================================
+
+
+  //------------------------------------------------------------------------------
+  // <editor-fold desc="outer while block"> {{{2
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  // Do block uses
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(do_use,
+    f_init, Same, &f_init,
+    f_do_out, Next, nullptr, true,
+    Modify, Modify, true,
+    value
+  );
+  EXPECT_NEW_REGISTER_USE(do_cont_use,
+    f_do_out, Same, &f_do_out,
+    f_while_out, Same, &f_while_out, false,
+    Modify, None, false
+  );
+  EXPECT_NEW_RELEASE_USE(while_use, false);
+
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(do_use2,
+    f_init2, Same, &f_init2,
+    f_do_out2, Next, nullptr, true,
+    Modify, Modify, true,
+    value2
+  );
+  EXPECT_NEW_REGISTER_USE(do_cont_use2,
+    f_do_out2, Same, &f_do_out2,
+    f_while_out2, Same, &f_while_out2, false,
+    Modify, None, false
+  );
+  EXPECT_NEW_RELEASE_USE(while_use2, false);
+
+  EXPECT_REGISTER_TASK(do_use, do_use2);
+
+  // Inner while block uses
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(inner_while_use,
+    f_do_out, Same, &f_do_out,
+    f_inner_while_out, Next, nullptr, true,
+    Modify, Read, true,
+    value
+  );
+  EXPECT_NEW_REGISTER_USE(inner_while_cont_use,
+    f_inner_while_out, Same, &f_inner_while_out,
+    f_while_out, Same, &f_while_out, false,
+    Modify, None, false
+  );
+  EXPECT_NEW_RELEASE_USE(do_cont_use, false);
+
+  // the implicit while block use of tmp2
+  EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(inner_while_use2,
+    f_do_out2, Same, &f_do_out2,
+    f_inner_while_out2, Next, nullptr, true,
+    Modify, None, false,
+    value
+  );
+  EXPECT_NEW_REGISTER_USE(inner_while_cont_use2,
+    f_inner_while_out2, Same, &f_inner_while_out2,
+    f_while_out2, Same, &f_while_out2, false,
+    Modify, None, false
+  );
+  EXPECT_NEW_RELEASE_USE(do_cont_use2, false);
+
+  EXPECT_REGISTER_TASK(inner_while_use, inner_while_use2);
+
+  EXPECT_NEW_RELEASE_USE(inner_while_cont_use, true);
+  EXPECT_NEW_RELEASE_USE(inner_while_cont_use2, true);
+
+  EXPECT_FIRST_TASK_RUNNING();
+
+  // Run the outer while
+  run_one_task();
+
+  // </editor-fold> end outer while block }}}2
+  //------------------------------------------------------------------------------
+
+  //------------------------------------------------------------------------------
+  // <editor-fold desc="do block"> {{{2
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  // expectations for the do block
+  EXPECT_NEW_RELEASE_USE(do_use, false);
+  EXPECT_NEW_RELEASE_USE(do_use2, false);
+
+  EXPECT_FIRST_TASK_RUNNING();
+
+  // Run the do block
+  run_one_task();
+
+  // </editor-fold> end do block }}}2
+  //------------------------------------------------------------------------------
+
+  //------------------------------------------------------------------------------
+  // <editor-fold desc="inner while block"> {{{2
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  // expectations for the inner while block
+  EXPECT_NEW_RELEASE_USE(inner_while_use, true);
+  EXPECT_NEW_RELEASE_USE(inner_while_use2, true);
+
+  EXPECT_FIRST_TASK_RUNNING();
+
+  // Run the inner while block
+  run_one_task();
+
+  // </editor-fold> end inner while block }}}2
+  //------------------------------------------------------------------------------
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
 
 }
 
