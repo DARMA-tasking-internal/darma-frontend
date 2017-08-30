@@ -391,10 +391,12 @@ struct LambdaTask
 
   LambdaTask(LambdaTask const&) = delete;
 
-  LambdaTask(LambdaTask&&)
-    noexcept(std::is_nothrow_move_constructible<base_t>::value
-      and std::is_nothrow_move_constructible<capturer_t>::value
-    ) = default;
+  LambdaTask(LambdaTask&&) = delete;
+
+  //LambdaTask(LambdaTask&&)
+  //  noexcept(std::is_nothrow_move_constructible<base_t>::value
+  //    and std::is_nothrow_move_constructible<capturer_t>::value
+  //  ) = default;
 
   ~LambdaTask() override = default;
 
