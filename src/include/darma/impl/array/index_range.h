@@ -66,6 +66,10 @@ struct ContiguousIndex {
   ContiguousIndex() : value(0), min_value(0), max_value(0) { }
   ContiguousIndex(Integer i) : value(i), min_value(0), max_value(0) { }
   ContiguousIndex(Integer i, Integer min, Integer max) : value(i), min_value(min), max_value(max) { }
+  ContiguousIndex(ContiguousIndex const&) noexcept = default;
+  ContiguousIndex(ContiguousIndex&&) noexcept = default;
+  ContiguousIndex& operator=(ContiguousIndex const&) noexcept = default;
+  ContiguousIndex& operator=(ContiguousIndex&&) noexcept = default;
 
   bool operator < (ContiguousIndex const& other) const {
     return value < other.value;

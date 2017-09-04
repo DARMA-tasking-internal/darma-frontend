@@ -55,7 +55,7 @@
 #include <darma/impl/top_level.h>
 #include <darma/interface/defaults/darma_main.h>
 #include "parallel_for.h"
-#include "create_if_then.h"
+#include "darma/impl/create_work/create_if_then.h"
 #include "darma/impl/create_work/create_work_while.h"
 
 #include <darma/impl/serialization/policy_aware_archive.h>

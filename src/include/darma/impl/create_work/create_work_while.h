@@ -324,7 +324,7 @@ struct WhileDoCaptureManager<
   void do_capture(
     AccessHandleBase& captured,
     AccessHandleBase const& source_and_continuing,
-    bool register_continuation_use = true
+    bool register_continuation_use /* ignored */
   ) override {
 
     /* TODO we should probably make copies (or something) of handles explicitly

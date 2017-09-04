@@ -106,7 +106,7 @@ class CaptureManager {
     do_capture(
       AccessHandleBase& captured,
       AccessHandleBase const& source_and_continuing,
-      bool register_continuation_use = true
+      bool register_continuation_use
     ) =0;
 
     void add_dependency(HandleUseBase& use) {

@@ -48,7 +48,7 @@
 #include <tinympl/vector.hpp>
 
 #include "create_work_while_fwd.h"
-#include <darma/impl/create_if_then.h>
+#include <darma/impl/create_work/create_if_then.h>
 #include <darma/impl/runtime.h>
 #include <darma/impl/task/lambda_task.h>
 
@@ -78,7 +78,7 @@ struct WhileLambdaTask
           std::move(helper.while_helper.while_lambda),
           capture_manager->in_while_mode()
         )
-    { };
+    { }
 
     /**
      *  Ctor called by recapture(); always only used for constructing an inner

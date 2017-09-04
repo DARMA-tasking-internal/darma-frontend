@@ -51,6 +51,23 @@ namespace darma_runtime {
 namespace detail {
 
 template <
+  typename IfCallableT, typename IfArgsTuple, bool IfIsLambda,
+  typename ThenCallableT, typename ThenArgsTuple, bool ThenIsLambda,
+  typename ElseCallableT, typename ElseArgsTuple, bool ElseIsLambda,
+  bool ElseGiven
+>
+struct IfThenElseCaptureManager;
+
+template <typename...>
+struct _create_work_else_helper;
+
+template <typename...>
+struct _create_work_then_helper;
+
+template <typename...>
+struct _create_work_if_helper;
+
+template <
   typename IfLambda, typename IfArgsTuple, bool IfIsLambda,
   typename ThenLambda, typename ThenArgsTuple, bool ThenIsLambda,
   typename ElseLambda=void, typename ElseArgsTuple=std::tuple<>, bool ElseIsLambda=false

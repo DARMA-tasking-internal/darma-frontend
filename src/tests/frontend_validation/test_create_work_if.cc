@@ -48,7 +48,7 @@
 #include "test_frontend.h"
 
 #include <darma.h>
-#include <darma/impl/create_if_then.h>
+#include <darma/impl/create_work/create_if_then.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 

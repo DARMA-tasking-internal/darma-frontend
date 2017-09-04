@@ -50,7 +50,7 @@
 #include <darma/impl/meta/detection.h>
 
 #include "create_work_while_fwd.h"
-#include <darma/impl/create_if_then.h>
+#include <darma/impl/create_work/create_if_then.h>
 
 #include <darma/impl/access_handle_base.h>
 

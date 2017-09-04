@@ -1241,7 +1241,7 @@ class AccessHandle
 
       _mark_static_capture_flags(source);
 
-      capturing_task->do_capture(*this, *source);
+      capturing_task->do_capture(*this, *source, true);
 
       if (source->current_use_) {
         source->current_use_->use_base->already_captured = true;

@@ -48,7 +48,7 @@
 #include <cstdlib> // std::size_t
 
 #include <darma/impl/task/task_fwd.h> // TaskBase forward declaration
-#include <darma/impl/create_if_then_fwd.h>
+#include <darma/impl/create_work/create_if_then_fwd.h>
 #include <darma/impl/create_work/create_work_while_fwd.h>
 
 #include <darma/impl/use.h> // UseHolder
@@ -91,8 +91,8 @@ class AccessHandleBase {
     std::shared_ptr<VariableHandleBase> var_handle_base_;
 
     friend class TaskBase;
-    template <typename, typename, bool, typename, typename, bool, typename, typename, bool>
-    friend class darma_runtime::detail::IfLambdaThenLambdaTask;
+    template <typename, typename, bool, typename, typename, bool, typename, typename, bool, bool>
+    friend class darma_runtime::detail::IfThenElseCaptureManager;
     friend class ParsedCaptureOptions;
     template <typename, typename, bool, typename, typename, bool>
     friend struct WhileDoCaptureManager;

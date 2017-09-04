@@ -543,7 +543,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
           source->captured_as_ |= CapturedAsInfo::ScheduleOnly;
         }
 
-        capturing_task->do_capture(*this, *source);
+        capturing_task->do_capture(*this, *source, true);
 
         // TODO alias checks for non-outer use cases
         if(dynamic_is_outer) {
