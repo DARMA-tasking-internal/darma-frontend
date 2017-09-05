@@ -179,6 +179,54 @@ struct FunctorTask
   public:
 
     template <
+      size_t... ArgsIdxs,
+      size_t... ExtraArgsIdxs,
+      typename CaptureManagerT,
+      typename... AllArgs
+    >
+    FunctorTask(
+      CaptureManagerT* capture_manager,
+      TaskBase* parent_task,
+      TaskBase* running_task,
+      std::integer_sequence<size_t, ArgsIdxs...>,
+      std::integer_sequence<size_t, ExtraArgsIdxs...>,
+      AllArgs&&... all_args
+    ) : base_t(
+          parent_task,
+          variadic_arguments_begin_tag{},
+          std::get<ExtraArgsIdxs + sizeof...(ArgsIdxs)>(
+            std::forward_as_tuple(std::forward<AllArgs>(all_args)...)
+          )...
+        ),
+        capturer_t(
+          running_task,
+          capture_manager,
+          std::get<ArgsIdxs>(
+            std::forward_as_tuple(std::forward<AllArgs>(all_args)...)
+          )...
+        )
+    { }
+
+    template <
+      size_t... ArgsIdxs,
+      size_t... ExtraArgsIdxs,
+      typename CaptureManagerT,
+      typename... AllArgs
+    >
+    FunctorTask(
+      TaskBase* parent_task,
+      TaskBase* running_task,
+      std::integer_sequence<size_t, ArgsIdxs...> arg_idxs,
+      std::integer_sequence<size_t, ExtraArgsIdxs...> extra_idxs,
+      AllArgs&&... all_args
+    ) : FunctorTask<Functor, Args...>::FunctorTask(
+          this, parent_task, running_task, arg_idxs, extra_idxs,
+          std::forward<AllArgs>(all_args)...
+        )
+    { /* forwarding ctor, must be empty */ };
+
+
+    template <
       typename AllowAliasingDescription,
       typename... ArgsDeduced
     >
@@ -409,6 +457,67 @@ FunctorTask<Functor, Args...>::reconstruct(
   );
 
   return *rv;
+}
+
+namespace _impl {
+
+
+
+} // end namespace _impl
+
+
+template <typename Functor, typename CaptureManagerT, typename... AllArgs>
+auto
+make_functor_task_ptr(
+  CaptureManagerT* capture_manager,
+  TaskBase* parent_task,
+  TaskBase* running_task,
+  variadic_arguments_begin_tag,
+  AllArgs&&... all_args
+) {
+  using traits = functor_traits<Functor>;
+  using task_t = tinympl::splat_to_t<
+    typename tinympl::erase<
+      traits::n_args_max + 1,
+      sizeof...(AllArgs),
+      tinympl::vector<Functor, AllArgs...>
+    >::type,
+    FunctorTask
+  >;
+
+  return std::make_unique<task_t>(
+    capture_manager, parent_task, running_task,
+    std::make_index_sequence<traits::n_args_max>{},
+    std::make_index_sequence<sizeof...(AllArgs) - traits::n_args_max>{},
+    std::forward<AllArgs>(all_args)...
+  );
+
+}
+
+template <typename Functor, typename CaptureManagerT, typename... AllArgs>
+auto
+make_functor_task_ptr(
+  TaskBase* parent_task,
+  TaskBase* running_task,
+  variadic_arguments_begin_tag,
+  AllArgs&&... all_args
+) {
+  using traits = functor_traits<Functor>;
+  using task_t = tinympl::splat_to_t<
+    typename tinympl::erase<
+      traits::n_args_max + 1,
+      sizeof...(AllArgs),
+      tinympl::vector<Functor, AllArgs...>
+    >::type,
+    FunctorTask
+  >;
+
+  return std::make_unique<task_t>(
+    parent_task, running_task,
+    std::make_index_sequence<traits::n_args_max>{},
+    std::make_index_sequence<sizeof...(AllArgs) - traits::n_args_max>{},
+    std::forward<AllArgs>(all_args)...
+  );
 }
 
 } // end namespace detail

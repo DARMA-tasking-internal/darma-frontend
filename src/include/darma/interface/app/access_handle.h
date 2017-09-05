@@ -1205,19 +1205,22 @@ class AccessHandle
               and not traits::static_immediate_permissions_given
           )
         ) {
-        source->captured_as_ |= CapturedAsInfo::ReadOnly;
+        detail::CapturedObjectAttorney::captured_as_info(*source).ReadOnly = true;
+        //source->captured_as_ |= CapturedAsInfo::ReadOnly;
       }
       if (
         // If this type doesn't have scheduling permissions, mark it as a leaf
         traits::static_scheduling_permissions == detail::AccessHandlePermissions::None
       ) {
-        source->captured_as_ |= CapturedAsInfo::Leaf;
+        detail::CapturedObjectAttorney::captured_as_info(*source).Leaf = true;
+        //source->captured_as_ |= CapturedAsInfo::Leaf;
       }
       if (
         // If this type doesn't have scheduling permissions, mark it as a leaf
         traits::required_immediate_permissions == detail::AccessHandlePermissions::None
       ) {
-        source->captured_as_ |= CapturedAsInfo::ScheduleOnly;
+        detail::CapturedObjectAttorney::captured_as_info(*source).ScheduleOnly = true;
+        //source->captured_as_ |= CapturedAsInfo::ScheduleOnly;
       }
     }
 

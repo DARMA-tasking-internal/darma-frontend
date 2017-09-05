@@ -154,33 +154,33 @@ create_work
   )._impl();
 }
 
-template <typename... Args>
-auto
-reads(Args&&... args) {
-  auto make_read_only = [](auto&& arg) {
-    return detail::make_permissions_downgrade_description<
-      detail::AccessHandlePermissions::Read,
-      detail::AccessHandlePermissions::Read
-    >(std::forward<decltype(arg)>(arg));
-  };
-  return meta::make_flattened_tuple(
-    make_read_only(std::forward<Args>(args))...
-  );
-}
+//template <typename... Args>
+//auto
+//reads(Args&&... args) {
+//  auto make_read_only = [](auto&& arg) {
+//    return detail::make_permissions_downgrade_description<
+//      detail::AccessHandlePermissions::Read,
+//      detail::AccessHandlePermissions::Read
+//    >(std::forward<decltype(arg)>(arg));
+//  };
+//  return meta::make_flattened_tuple(
+//    make_read_only(std::forward<Args>(args))...
+//  );
+//}
 
-template <typename... Args>
-decltype(auto)
-schedule_only(Args&&... args) {
-  auto make_schedule_only = [](auto&& arg) {
-    return detail::make_permissions_downgrade_description<
-      detail::AccessHandlePermissions::NotGiven,
-      detail::AccessHandlePermissions::None
-    >(std::forward<decltype(arg)>(arg));
-  };
-  return meta::make_flattened_tuple(
-    make_schedule_only(std::forward<Args>(args))...
-  );
-}
+//template <typename... Args>
+//decltype(auto)
+//schedule_only(Args&&... args) {
+//  auto make_schedule_only = [](auto&& arg) {
+//    return detail::make_permissions_downgrade_description<
+//      detail::AccessHandlePermissions::NotGiven,
+//      detail::AccessHandlePermissions::None
+//    >(std::forward<decltype(arg)>(arg));
+//  };
+//  return meta::make_flattened_tuple(
+//    make_schedule_only(std::forward<Args>(args))...
+//  );
+//}
 
 } // end namespace darma_runtime
 

@@ -9,7 +9,7 @@ endif()
 find_package ( Threads REQUIRED )
 
 include_directories( ${DARMA_FE_REPO_ROOT}/src/tests/frontend_validation )
-set(frontendtestfiles gtest_main.cc ../../include/darma/impl/create_work/create_if_then_lambda.h ../../include/darma/impl/create_work/create_if_then_functor.h)
+set(frontendtestfiles gtest_main.cc ../../include/darma/impl/create_work/create_if_then_lambda.h ../../include/darma/impl/create_work/create_if_then_functor.h ../../include/darma/impl/create_work/capture_permissions.h)
 function(add_unit_test test_name)
 set(frontendtestfiles "${frontendtestfiles};${test_name}.cc" PARENT_SCOPE)
 add_executable(${test_name} ${test_name}.cc gtest_main.cc)

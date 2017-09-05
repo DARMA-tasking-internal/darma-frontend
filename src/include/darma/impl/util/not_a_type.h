@@ -54,9 +54,9 @@ static constexpr struct _not_a_type_ctor_tag_t { } _not_a_type_ctor_tag { };
 
 struct _not_a_type {
   _not_a_type(_not_a_type_ctor_tag_t) { }
-  _not_a_type() = default;
-  _not_a_type(_not_a_type&&) = delete;
-  _not_a_type(_not_a_type const&) = delete;
+  _not_a_type() { }
+  _not_a_type(_not_a_type&&) { }
+  _not_a_type(_not_a_type const&) { }
 };
 
 template <std::size_t number>

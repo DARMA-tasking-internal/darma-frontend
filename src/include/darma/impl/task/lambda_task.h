@@ -272,9 +272,11 @@ struct LambdaTask
     LambdaDeduced&& callable_in,
     detail::TaskBase* parent_task,
     CaptureManagerT* capture_manager,
+    variadic_arguments_begin_tag,
     TaskCtorArgs&&... other_ctor_args
   ) : base_t(
         parent_task,
+        variadic_arguments_begin_tag{},
         std::forward<TaskCtorArgs>(other_ctor_args)...
       ),
       capturer_t(
@@ -290,11 +292,13 @@ struct LambdaTask
   LambdaTask(
     LambdaDeduced&& callable_in,
     detail::TaskBase* parent_task,
+    variadic_arguments_begin_tag,
     TaskCtorArgs&&... other_ctor_args
   ) : LambdaTask<Lambda>::LambdaTask(
         std::forward<LambdaDeduced>(callable_in),
         parent_task,
         this,
+        variadic_arguments_begin_tag{},
         std::forward<TaskCtorArgs>(other_ctor_args)...
       )
   { /* forwarding ctor, must be empty */ }
@@ -307,6 +311,7 @@ struct LambdaTask
   LambdaTask(
     LambdaDeduced&& callable_in,
     CaptureManagerT* capture_manager,
+    variadic_arguments_begin_tag,
     TaskCtorArgs&&... other_ctor_args
   ) : LambdaTask<Lambda>::LambdaTask(
         std::forward<LambdaDeduced>(callable_in),
@@ -314,6 +319,7 @@ struct LambdaTask
           darma_runtime::abstract::backend::get_backend_context()->get_running_task()
         ),
         capture_manager,
+        variadic_arguments_begin_tag{},
         std::forward<TaskCtorArgs>(other_ctor_args)...
       )
   { /* forwarding ctor, must be empty */ }
@@ -335,9 +341,11 @@ struct LambdaTask
     detail::TaskBase* parent_task,
     detail::TaskBase* running_task,
     CaptureManagerT* capture_manager,
+    variadic_arguments_begin_tag,
     TaskCtorArgs&&... other_ctor_args
   ) : base_t(
         parent_task,
+        variadic_arguments_begin_tag{},
         std::forward<TaskCtorArgs>(other_ctor_args)...
       ),
       capturer_t(
@@ -356,12 +364,14 @@ struct LambdaTask
     LambdaDeduced&& callable_in,
     detail::TaskBase* parent_task,
     CaptureManagerT* capture_manager,
+    variadic_arguments_begin_tag,
     TaskCtorArgs&&... other_ctor_args
   ) : LambdaTask<Lambda>::LambdaTask(
         LambdaTask_tags::no_double_copy_capture_tag,
         std::forward<LambdaDeduced>(callable_in),
         parent_task, parent_task, // if running task isn't given, it's the parent task
         capture_manager,
+        variadic_arguments_begin_tag{},
         std::forward<TaskCtorArgs>(other_ctor_args)...
       )
   { /* forwarding ctor, must be empty */ }
@@ -390,13 +400,7 @@ struct LambdaTask
   { }
 
   LambdaTask(LambdaTask const&) = delete;
-
   LambdaTask(LambdaTask&&) = delete;
-
-  //LambdaTask(LambdaTask&&)
-  //  noexcept(std::is_nothrow_move_constructible<base_t>::value
-  //    and std::is_nothrow_move_constructible<capturer_t>::value
-  //  ) = default;
 
   ~LambdaTask() override = default;
 

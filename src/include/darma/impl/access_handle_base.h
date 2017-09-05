@@ -53,13 +53,15 @@
 
 #include <darma/impl/use.h> // UseHolder
 #include <darma/impl/task/task.h> // TaskBase
+#include <darma/impl/create_work/capture_permissions.h>
 
 // TODO move this to access_handle directory when we're at a stable merge point
 
 namespace darma_runtime {
 namespace detail {
 
-class AccessHandleBase {
+
+class AccessHandleBase : public CapturedObjectBase {
   public:
 
     using use_holder_base_ptr = UseHolderBase*;
@@ -77,6 +79,7 @@ class AccessHandleBase {
       ScheduleOnly = 4,
       Leaf = 8
     } captured_as_info_t;
+
 
   protected:
 

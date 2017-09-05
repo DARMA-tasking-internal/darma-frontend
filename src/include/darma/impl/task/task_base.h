@@ -45,6 +45,7 @@
 #ifndef DARMAFRONTEND_TASK_BASE_H
 #define DARMAFRONTEND_TASK_BASE_H
 
+#include <type_traits>
 #include <typeindex>
 #include <cstdlib>
 #include <unordered_map>
@@ -89,6 +90,7 @@
 #include <darma/impl/util/smart_pointers.h>
 #include <darma/impl/capture.h>
 #include <darma/impl/polymorphic_serialization.h>
+#include <darma/impl/keyword_arguments/parse.h>
 
 namespace darma_runtime {
 namespace detail {
@@ -220,6 +222,47 @@ class TaskBase
     TaskBase(TaskBase&&) = default;
 
     TaskBase(TaskBase const&) = delete;
+
+    template <
+      typename... RemainingArgs
+    >
+    TaskBase(
+      TaskBase* parent_task, // may *not* always be the running task!!!
+      variadic_arguments_begin_tag,
+      RemainingArgs&&... args
+    );
+
+  private:
+
+    template <typename RemainingArgsTuple, size_t... Idxs>
+    TaskBase(
+      std::integer_sequence<size_t, Idxs...>,
+      variadic_constructor_tag_t,
+      TaskBase* parent_task, // may *not* always be the running task!!!
+      RemainingArgsTuple&& tuple
+    ) : TaskBase(
+          parent_task,
+          variadic_arguments_begin_tag{},
+          std::get<Idxs>(std::forward<RemainingArgsTuple>(tuple))...
+        )
+    { /* forwarding ctor, must be empty */ }
+
+  public:
+    template <
+      typename RemainingArgsTuple
+    >
+    explicit
+    TaskBase(
+      variadic_constructor_tag_t,
+      TaskBase* parent_task, // may *not* always be the running task!!!
+      RemainingArgsTuple&& tuple
+    ) : TaskBase(
+          std::make_index_sequence<std::tuple_size<std::decay_t<RemainingArgsTuple>>::value>{},
+          variadic_constructor_tag,
+          parent_task,
+          std::forward<RemainingArgsTuple>(tuple)
+        )
+    { /* forwarding ctor, must be empty */ }
 
     explicit
     TaskBase(
