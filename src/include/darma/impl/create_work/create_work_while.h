@@ -80,8 +80,8 @@ struct WhileDoCaptureManagerSetupHelper {
     AccessHandleBase const* source_and_continuing = nullptr;
     AccessHandleBase* captured = nullptr;
     bool needs_implicit_capture = false;
-    unsigned req_sched_perms = (unsigned)HandleUse::None;
-    unsigned req_immed_perms = (unsigned)HandleUse::None;
+    int req_sched_perms = (int)HandleUse::None;
+    int req_immed_perms = (int)HandleUse::None;
   };
 
   /* TODO we might be able to stick some extra fields on AccessHandleBase rather
@@ -151,10 +151,16 @@ struct WhileDoCaptureManager<
     variadic_constructor_tag_t /*unused*/,
     HelperT&& helper
   ) : while_task_(std::make_unique<while_task_t>(
-        this, std::forward<HelperT>(helper)
+        this, std::forward<HelperT>(helper),
+        std::make_index_sequence<std::tuple_size<
+          typename std::decay_t<HelperT>::while_helper_t::task_option_args_tuple_t
+        >::value>{}
       )),
       do_task_(std::make_unique<do_task_t>(
-        this, std::forward<HelperT>(helper)
+        this, std::forward<HelperT>(helper),
+        std::make_index_sequence<std::tuple_size<
+          typename std::decay_t<HelperT>::task_option_args_tuple_t
+        >::value>{}
       ))
   {
 #if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
@@ -348,10 +354,24 @@ struct WhileDoCaptureManager<
       // be repeated every iteration
 
       if(current_capturing_task_mode_ == WhileDoCaptureMode::While) {
-        // TODO ask while_task_ for permissions downgrades
 
-        while_details.req_sched_perms |= HandleUseBase::Read;
-        while_details.req_immed_perms |= HandleUseBase::Read;
+        auto initial_permissions =
+          AccessHandleBaseAttorney::get_permissions_before_downgrades(
+            source_and_continuing,
+            // hard-coded for now; could eventually get them from the task, though
+            AccessHandleBase::read_only_capture,
+            AccessHandleBase::read_only_capture
+          );
+
+        auto permissions_pair =
+          CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
+            source_and_continuing,
+            initial_permissions.scheduling,
+            initial_permissions.immediate
+          );
+
+        while_details.req_sched_perms = permissions_pair.scheduling;
+        while_details.req_immed_perms = permissions_pair.immediate;
 
         // this time through, it's safe to set these directly
         while_details.captured = &captured;
@@ -363,12 +383,28 @@ struct WhileDoCaptureManager<
 
         auto& do_details = do_captures_[key];
 
-        // TODO ask do_task_ for permissions downgrades
-        while_details.req_sched_perms |= HandleUseBase::Modify;
+        auto initial_permissions =
+          AccessHandleBaseAttorney::get_permissions_before_downgrades(
+            source_and_continuing,
+            // hard-coded for now; could eventually get them from the task, though
+            AccessHandleBase::modify_capture,
+            AccessHandleBase::modify_capture
+          );
 
-        do_details.req_sched_perms |= HandleUseBase::Modify;
-        do_details.req_immed_perms |= HandleUseBase::Modify;
+        auto permissions_pair =
+          CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
+            source_and_continuing,
+            initial_permissions.scheduling,
+            initial_permissions.immediate
+          );
 
+        do_details.req_sched_perms = permissions_pair.scheduling;
+        do_details.req_immed_perms = permissions_pair.immediate;
+
+        // TODO sanity check that the permissions are strongly ordered
+        if(while_details.req_sched_perms < do_details.req_immed_perms) {
+          while_details.req_sched_perms = do_details.req_immed_perms;
+        }
 
         // setup details for implicit capture...
         if(while_details.source_and_continuing == nullptr) {

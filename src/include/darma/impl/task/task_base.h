@@ -130,7 +130,8 @@ class CaptureManager {
 
     std::set<HandleUseBase*> uses_to_unmark_already_captured;
     bool is_double_copy_capture = false;
-    unsigned default_capture_as_info = AccessHandleBase::CapturedAsInfo::Normal;
+    AccessHandleBase::capture_op_t scheduling_capture_op = AccessHandleBase::CaptureOp::modify_capture;
+    AccessHandleBase::capture_op_t immediate_capture_op = AccessHandleBase::CaptureOp::modify_capture;
     mutable std::size_t lambda_serdes_computed_size = 0;
     mutable serialization::detail::SerializerMode lambda_serdes_mode = serialization::detail::SerializerMode::None;
     mutable char* lambda_serdes_buffer = nullptr;

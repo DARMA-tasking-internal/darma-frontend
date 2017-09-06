@@ -70,13 +70,19 @@ struct WhileLambdaTask
     /**
      *  Ctor called during WhileDoCaptureManager construction
      */
-    template <typename HelperT>
+    template <
+      typename HelperT,
+      size_t... OtherArgIdxs
+    >
     WhileLambdaTask(
       CaptureManagerT* capture_manager,
-      HelperT&& helper
+      HelperT&& helper,
+      std::integer_sequence<size_t, OtherArgIdxs...>
     ) : base_t(
           std::move(helper.while_helper.while_lambda),
-          capture_manager->in_while_mode()
+          capture_manager->in_while_mode(),
+          variadic_arguments_begin_tag{},
+          std::get<OtherArgIdxs>(std::move(helper.while_helper.task_option_args_tup))...
         )
     { }
 
@@ -182,13 +188,19 @@ struct DoLambdaTask
     /**
      *  Ctor called during WhileDoCaptureManager construction
      */
-    template <typename HelperT>
+    template <
+      typename HelperT,
+      size_t... OtherArgIdxs
+    >
     DoLambdaTask(
       CaptureManagerT* capture_manager,
-      HelperT&& helper
+      HelperT&& helper,
+      std::integer_sequence<size_t, OtherArgIdxs...>
     ) : base_t(
           std::move(helper.do_lambda),
-          capture_manager->in_do_mode()
+          capture_manager->in_do_mode(),
+          variadic_arguments_begin_tag{},
+          std::get<OtherArgIdxs>(std::move(helper.task_option_args_tup))...
         )
     { }
 
@@ -254,6 +266,7 @@ struct _create_work_while_do_helper<
 >
 {
 
+  using while_helper_t = WhileHelper;
   using callable_t = Lambda;
   using args_tuple_t = std::tuple<>;
   using args_fwd_tuple_t = std::tuple<>;

@@ -121,90 +121,22 @@ TaskBase::do_capture(
 
   if(do_capture_checks(source_and_continuing)) return;
 
-  source_and_continuing.captured_as_ |= default_capture_as_info;
-
-  auto& source = source_and_continuing;
-  auto& continuing = source_and_continuing;
-
-
-  ////////////////////////////////////////////////////////////////////////////////
-
-  auto default_immediate_permissions = HandleUseBase::Modify;
-  auto default_scheduling_permissions = HandleUseBase::Modify;
-
-  if(
-    source.current_use_base_->use_base->scheduling_permissions_ == HandleUse::Commutative
-  ) {
-    default_immediate_permissions = HandleUse::Commutative;
-    default_scheduling_permissions = HandleUse::Commutative;
-  }
+  auto pair_before_downgrades = AccessHandleBaseAttorney::get_permissions_before_downgrades(
+    source_and_continuing,
+    scheduling_capture_op,
+    immediate_capture_op
+  );
 
   auto permissions_pair = CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
     source_and_continuing,
-    default_scheduling_permissions, default_immediate_permissions
+    pair_before_downgrades.scheduling,
+    pair_before_downgrades.immediate
   );
-
-//  // first check for any explicit permissions
-//  bool is_marked_read_capture = (source.captured_as_ & AccessHandleBase::ReadOnly) != 0;
-//  // Indicate that we've processed the ReadOnly bit by resetting it
-//  source.captured_as_ &= ~AccessHandleBase::ReadOnly;
-//
-//  // And also schedule-only:
-//  bool is_marked_schedule_only = (source.captured_as_ & AccessHandleBase::ScheduleOnly) != 0;
-//  // Indicate that we've processed the ScheduleOnly bit by resetting it
-//  source.captured_as_ &= ~AccessHandleBase::ScheduleOnly;
-//
-//  // And also schedule-only:
-//  bool is_marked_leaf = (source.captured_as_ & AccessHandleBase::Leaf) != 0;
-//  // Indicate that we've processed the Leaf bit by resetting it
-//  source.captured_as_ &= ~AccessHandleBase::Leaf;
-//
-//
-//  if (is_marked_read_capture) {
-//    requested_schedule_permissions = requested_immediate_permissions = HandleUse::Read;
-//  }
-//  else if(
-//    source.current_use_base_->use_base->scheduling_permissions_ == HandleUse::Commutative
-//  ) {
-//    requested_immediate_permissions = HandleUse::Commutative;
-//    requested_schedule_permissions = HandleUse::Commutative;
-//  }
-//  else {
-//    // By default, use the strongest permissions we can schedule to
-//    switch (source.current_use_base_->use_base->scheduling_permissions_) {
-//      case HandleUse::Read: {
-//        requested_schedule_permissions = requested_immediate_permissions = HandleUse::Read;
-//        break;
-//      }
-//      case HandleUse::Modify: {
-//        requested_immediate_permissions = requested_schedule_permissions = HandleUse::Modify;
-//        break;
-//      }
-//      case HandleUse::None: {
-//        DARMA_ASSERT_UNREACHABLE_FAILURE(); // LCOV_EXCL_LINE
-//        break;
-//      }
-//      default: {
-//        DARMA_ASSERT_NOT_IMPLEMENTED(); // LCOV_EXCL_LINE
-//        break;
-//      }
-//    } // end switch on source permissions
-//  }
-//
-//  // if it's marked schedule-only, set the requested immediate permissions to None
-//  if(is_marked_schedule_only) {
-//    requested_immediate_permissions = HandleUse::None;
-//  }
-//
-//  // if it's marked as a leaf, set the requested scheduling permissions to None
-//  if(is_marked_leaf) {
-//    requested_schedule_permissions = HandleUse::None;
-//  }
 
   // Now make the captured use holder (and set up the continuing use holder,
   // if necessary)
   captured.call_make_captured_use_holder(
-    source.var_handle_base_,
+    source_and_continuing.var_handle_base_,
     (HandleUseBase::permissions_t)permissions_pair.scheduling,
     (HandleUseBase::permissions_t)permissions_pair.immediate,
     source_and_continuing,
@@ -212,12 +144,6 @@ TaskBase::do_capture(
   );
 
   captured.call_add_dependency(this);
-
-
-  // Assert that all of the captured_as info has been handled:
-  assert(source.captured_as_ == AccessHandleBase::Normal);
-  // And, just for good measure, that there aren't any flags set on captured
-  assert(captured.captured_as_ == AccessHandleBase::Normal);
 
 }
 

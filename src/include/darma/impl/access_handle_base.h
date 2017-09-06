@@ -60,6 +60,7 @@
 namespace darma_runtime {
 namespace detail {
 
+struct AccessHandleBaseAttorney;
 
 class AccessHandleBase : public CapturedObjectBase {
   public:
@@ -67,9 +68,90 @@ class AccessHandleBase : public CapturedObjectBase {
     using use_holder_base_ptr = UseHolderBase*;
 
     typedef enum CaptureOp {
-      ro_capture,
-      mod_capture
+      read_only_capture,
+      write_only_capture,
+      modify_capture,
+      no_capture
     } capture_op_t;
+
+    static constexpr HandleUse::permissions_t get_captured_permissions_for(
+      capture_op_t op,
+      HandleUse::permissions_t permissions
+    ) {
+      switch(op) {
+        case CaptureOp::read_only_capture : {
+          switch(permissions) {
+            case HandleUse::Modify :
+            case HandleUse::Read : {
+              return HandleUse::Read;
+            }
+            case HandleUse::Commutative :
+            case HandleUse::CommutativeRead : {
+              return HandleUse::CommutativeRead;
+            }
+            case HandleUse::Relaxed : {
+              return HandleUse::Relaxed;
+            }
+            case HandleUse::Reduce : {
+              // Nothing to do here but return Reduce, I guess; but we should never get here
+              return HandleUse::Reduce;
+            }
+            case HandleUse::None :
+            case HandleUse::Write :
+            case HandleUse::CommutativeWrite : {
+              return HandleUse::None;
+            }
+          }
+          break; // should be unreachable
+        }
+        case CaptureOp::write_only_capture : {
+          switch(permissions) {
+            case HandleUse::Modify :
+            case HandleUse::Write : {
+              return HandleUse::Write;
+            }
+            case HandleUse::Commutative :
+            case HandleUse::CommutativeWrite : {
+              return HandleUse::CommutativeWrite;
+            }
+            case HandleUse::Relaxed : {
+              return HandleUse::Relaxed;
+            }
+            case HandleUse::Reduce : {
+              // Nothing to do here but return Reduce, I guess; but we should never get here
+              return HandleUse::Reduce;
+            }
+            case HandleUse::None :
+            case HandleUse::Read :
+            case HandleUse::CommutativeRead : {
+              return HandleUse::None;
+            }
+          }
+          break; // should be unreachable
+        }
+        case CaptureOp::modify_capture : {
+          switch(permissions) {
+            case HandleUse::Modify :
+            case HandleUse::Commutative :
+            case HandleUse::Read :
+            case HandleUse::CommutativeRead :
+            case HandleUse::Relaxed :
+            case HandleUse::Reduce : {
+              return permissions;
+            }
+            case HandleUse::None :
+            case HandleUse::Write :
+            case HandleUse::CommutativeWrite : {
+              return HandleUse::None;
+            }
+          }
+          break; // should be unreachable
+        }
+        case CaptureOp::no_capture : {
+          return HandleUse::None;
+        }
+      }
+    }
 
     // TODO figure out if this as efficient as a bitfield (it's definitely more readable)
     typedef enum CapturedAsInfo {
@@ -118,6 +200,8 @@ class AccessHandleBase : public CapturedObjectBase {
     virtual void call_add_dependency(
       detail::TaskBase* task
     );
+    friend struct AccessHandleBaseAttorney;
+
 
     virtual ~AccessHandleBase() = default;
 
@@ -125,6 +209,34 @@ class AccessHandleBase : public CapturedObjectBase {
     friend struct FunctorTask;
 
 };
+
+
+struct AccessHandleBaseAttorney {
+  static PermissionsPair
+  get_permissions_before_downgrades(
+    AccessHandleBase const& ah,
+    AccessHandleBase::capture_op_t schedule_capture_op,
+    AccessHandleBase::capture_op_t immediate_capture_op
+  ) {
+    using use_t = abstract::frontend::Use;
+
+    auto rv = PermissionsPair{
+      AccessHandleBase::get_captured_permissions_for(
+        schedule_capture_op,
+        ah.current_use_base_->use_base->scheduling_permissions_
+      ),
+      AccessHandleBase::get_captured_permissions_for(
+        immediate_capture_op,
+        // Immediate also references the source's scheduling permissions,
+        // since that's the maximum we're allowed to schedule
+        ah.current_use_base_->use_base->scheduling_permissions_
+      )
+    };
+    return rv;
+  }
+
+};
+
 
 } // end namespace detail
 } // end namespace darma_runtime

@@ -250,11 +250,12 @@ struct CapturedObjectAttorney {
   }
 
   static PermissionsPair
-  get_and_clear_requested_capture_permissions(
+  get_requested_capture_permissions(
     CapturedObjectBase const& obj,
     int default_scheduling,
     int default_immediate
   ) {
+
     using use_t = abstract::frontend::Use;
     PermissionsPair rv { default_scheduling, default_immediate };
     if(obj.captured_as.info.ReadOnly) {
@@ -285,6 +286,20 @@ struct CapturedObjectAttorney {
     if(obj.captured_as.info.Leaf) {
       rv.scheduling = use_t::None;
     }
+
+    return rv;
+  }
+
+  static PermissionsPair
+  get_and_clear_requested_capture_permissions(
+    CapturedObjectBase const& obj,
+    int default_scheduling,
+    int default_immediate
+  ) {
+
+    auto rv = CapturedObjectAttorney::get_requested_capture_permissions(
+      obj, default_scheduling, default_immediate
+    );
 
     clear_capture_state(obj);
 
