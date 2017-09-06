@@ -51,6 +51,7 @@
 #include <darma/interface/app/read_access.h>
 #include <darma/interface/app/create_work.h>
 
+#if 0 // arbitrary publish-fetch is no longer supported
 ////////////////////////////////////////////////////////////////////////////////
 
 class TestCreateWork
@@ -122,3 +123,4 @@ TEST_F(TestCreateWork, publish_simple_MN) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+#endif

@@ -84,6 +84,7 @@
 #define _darma_feature_date_register_all_uses 20170320
 
 #define _darma_feature_date_commutative_access_handles 20170321
+#define _darma_feature_disabled_by_default_commutative_access_handles 1
 
 #define _darma_feature_date_register_commutative_continuation_uses 20170330
 

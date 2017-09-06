@@ -110,11 +110,11 @@ MATCHER_P3(IsUseWithInFlow, f_in, scheduling_permissions, immediate_permissions,
 
   using namespace mock_backend;
   if(f_in != arg->get_in_flow()) return false;
-  if(immediate_permissions != -1) {
-    if(immediate_permissions != int(arg->immediate_permissions())) return false;
+  if(immediate_permissions != ::darma_runtime::frontend::Permissions::Invalid) {
+    if(immediate_permissions != (arg->immediate_permissions())) return false;
   }
-  if(scheduling_permissions != -1) {
-    if(scheduling_permissions != int(arg->scheduling_permissions())) return false;
+  if(scheduling_permissions != ::darma_runtime::frontend::Permissions::Invalid) {
+    if(scheduling_permissions != (arg->scheduling_permissions())) return false;
   }
   return true;
 }
@@ -141,11 +141,11 @@ MATCHER_P4(IsUseWithFlows, f_in, f_out, scheduling_permissions, immediate_permis
   using namespace mock_backend;
   if(f_in != arg->get_in_flow()) return false;
   if(f_out != arg->get_out_flow()) return false;
-  if(immediate_permissions != -1) {
-    if(immediate_permissions != int(arg->immediate_permissions())) return false;
+  if(immediate_permissions != ::darma_runtime::frontend::Permissions::Invalid) {
+    if(immediate_permissions != (arg->immediate_permissions())) return false;
   }
-  if(scheduling_permissions != -1) {
-    if(scheduling_permissions != int(arg->scheduling_permissions())) return false;
+  if(scheduling_permissions != ::darma_runtime::frontend::Permissions::Invalid) {
+    if(scheduling_permissions != (arg->scheduling_permissions())) return false;
   }
   return true;
 }
@@ -273,11 +273,11 @@ MATCHER_P7(IsUseWithFlowRelationships, f_in_rel, f_in, f_out_rel, f_out, out_rel
   }
   if(arg->get_out_flow_relationship().use_corresponding_in_flow_as_related() xor out_rel_is_in) return false;
 
-  if(immediate_permissions != -1) {
-    if(immediate_permissions != int(arg->immediate_permissions())) return false;
+  if(immediate_permissions != darma_runtime::frontend::Permissions::Invalid) {
+    if(immediate_permissions != arg->immediate_permissions()) return false;
   }
-  if(scheduling_permissions != -1) {
-    if(scheduling_permissions != int(arg->scheduling_permissions())) return false;
+  if(scheduling_permissions != darma_runtime::frontend::Permissions::Invalid) {
+    if(scheduling_permissions != arg->scheduling_permissions()) return false;
   }
   return true;
 }

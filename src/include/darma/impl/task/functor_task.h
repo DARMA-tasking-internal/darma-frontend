@@ -210,7 +210,6 @@ struct FunctorTask
     template <
       size_t... ArgsIdxs,
       size_t... ExtraArgsIdxs,
-      typename CaptureManagerT,
       typename... AllArgs
     >
     FunctorTask(
@@ -494,7 +493,7 @@ make_functor_task_ptr(
 
 }
 
-template <typename Functor, typename CaptureManagerT, typename... AllArgs>
+template <typename Functor, typename... AllArgs>
 auto
 make_functor_task_ptr(
   TaskBase* parent_task,
@@ -504,10 +503,14 @@ make_functor_task_ptr(
 ) {
   using traits = functor_traits<Functor>;
   using task_t = tinympl::splat_to_t<
-    typename tinympl::erase<
-      traits::n_args_max + 1,
-      sizeof...(AllArgs),
-      tinympl::vector<Functor, AllArgs...>
+    typename std::conditional_t<
+      (sizeof...(AllArgs) > traits::n_args_max),
+      tinympl::erase<
+        traits::n_args_max + 1,
+        sizeof...(AllArgs) + 1,
+        tinympl::vector<Functor, AllArgs...>
+      >,
+      tinympl::identity<tinympl::vector<Functor, AllArgs...>>
     >::type,
     FunctorTask
   >;

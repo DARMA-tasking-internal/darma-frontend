@@ -81,7 +81,7 @@ struct _read_access_helper {
     auto use_holder = std::make_shared<detail::UseHolder>(
       detail::HandleUse(
         var_h,
-        Use::Read, Use::None,
+        frontend::Permissions::Read, frontend::Permissions::None,
         detail::HandleUseBase::FlowRelationshipImpl(
           abstract::frontend::FlowRelationship::Fetching,
           /* related flow = */ nullptr,

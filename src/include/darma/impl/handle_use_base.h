@@ -191,8 +191,9 @@ class HandleUseBase
     std::unique_ptr<types::flow_t>
       suspended_out_flow_ = nullptr; // for use with commutative regions
 
-    abstract::frontend::Use::permissions_t immediate_permissions_ = None;
-    abstract::frontend::Use::permissions_t scheduling_permissions_ = None;
+    frontend::permissions_t immediate_permissions_ = frontend::Permissions::None;
+    frontend::permissions_t scheduling_permissions_ = frontend::Permissions::None;
+    frontend::coherence_mode_t coherence_mode_ = frontend::CoherenceMode::Sequential;
 
     FlowRelationshipImpl in_flow_rel_;
     FlowRelationshipImpl out_flow_rel_;
@@ -239,14 +240,19 @@ class HandleUseBase
 
 #endif // _darma_has_feature(anti_flows)
 
-    abstract::frontend::Use::permissions_t
+    frontend::permissions_t
     immediate_permissions() const override {
       return immediate_permissions_;
     }
 
-    abstract::frontend::Use::permissions_t
+    frontend::permissions_t
     scheduling_permissions() const override {
       return scheduling_permissions_;
+    }
+
+    frontend::coherence_mode_t
+    coherence_mode() const override {
+      return coherence_mode_;
     }
 
     void*&

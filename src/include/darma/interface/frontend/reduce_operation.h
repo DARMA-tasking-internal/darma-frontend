@@ -49,6 +49,7 @@
 
 #include <darma/interface/frontend/polymorphic_serializable_object.h>
 #include <darma/interface/frontend/serialization_manager.h>
+#include <darma/interface/frontend/array_concept_manager.h>
 
 namespace darma_runtime {
 namespace abstract {

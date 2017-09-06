@@ -222,10 +222,10 @@ struct _get_storage_arg_helper<
         arg.var_handle_base_,
         /* Requested Scheduling permissions: */
         return_type::is_compile_time_scheduling_readable ?
-          HandleUse::Read : HandleUse::None,
+          frontend::Permissions::Read : frontend::Permissions::None,
         /* Requested Immediate permissions: */
         // TODO check params(/args?) for schdule-only permissions request
-        HandleUse::Read,
+        frontend::Permissions::Read,
         /* source and continuing context use holder */
         arg.current_use_.get()
       )
@@ -299,10 +299,10 @@ struct _get_storage_arg_helper<
       access_handle_permissions_t, _required_immediate_permissions<
         std::decay_t<typename ParamTraits::type>
       >::value
-    > ::template case_<AccessHandlePermissions::Modify, _permissions<HandleUse::Modify>>
-      ::template case_<AccessHandlePermissions::Read, _permissions<HandleUse::Read>>
-      ::template case_<AccessHandlePermissions::None, _permissions<HandleUse::None>>
-      ::template default_<_permissions<HandleUse::Modify>>
+    > ::template case_<AccessHandlePermissions::Modify, _permissions<frontend::Permissions::Modify>>
+      ::template case_<AccessHandlePermissions::Read, _permissions<frontend::Permissions::Read>>
+      ::template case_<AccessHandlePermissions::None, _permissions<frontend::Permissions::None>>
+      ::template default_<_permissions<frontend::Permissions::Modify>>
     ::type,
     /*----------------------------------------*/
     // // TODO reinstate support for single-entry-in-collection parameters when it's implemented elsewhere?
@@ -315,7 +315,7 @@ struct _get_storage_arg_helper<
     //         compile_time_immediate_read_only_if_access_handle
     //       >::value
     //   )
-    // >, /* => */ _permissions<HandleUse::Read>,
+    // >, /* => */ _permissions<frontend::Permissions::Read>,
     // /*----------------------------------------*/
     // tinympl::bool_<
     //   (
@@ -326,7 +326,7 @@ struct _get_storage_arg_helper<
     //         compile_time_immediate_read_only_if_access_handle
     //       >::value
     //   )
-    // >, /* => */ _permissions<HandleUse::Modify>,
+    // >, /* => */ _permissions<frontend::Permissions::Modify>,
     // /*----------------------------------------*/
     // tinympl::bool_<
     //   (
@@ -338,7 +338,7 @@ struct _get_storage_arg_helper<
     //           or ParamTraits::is_const_lvalue_reference
     //       )
     //   )
-    // >, /* => */ _permissions<HandleUse::Read>,
+    // >, /* => */ _permissions<frontend::Permissions::Read>,
     // /*----------------------------------------*/
     // tinympl::bool_<
     //   (
@@ -347,7 +347,7 @@ struct _get_storage_arg_helper<
     //       // Parameter is a nonconst lvalue reference
     //       and ParamTraits::is_nonconst_lvalue_reference
     //   )
-    // >, /* => */ _permissions<HandleUse::Modify>
+    // >, /* => */ _permissions<frontend::Permissions::Modify>
     /*----------------------------------------*/
     std::true_type, /* => */ _darma__static_failure<
       GivenArg,
@@ -374,11 +374,10 @@ struct _get_storage_arg_helper<
       access_handle_permissions_t, _required_scheduling_permissions<
         std::decay_t<typename ParamTraits::type>
       >::value
-    > ::template case_<AccessHandlePermissions::Modify, _permissions<HandleUse::Modify>>
-      ::template case_<AccessHandlePermissions::Read, _permissions<HandleUse::Read>>
-      ::template case_<AccessHandlePermissions::None, _permissions<HandleUse::None>>
-      ::template case_<AccessHandlePermissions::Commutative, _permissions<HandleUse::Commutative>>
-      ::template default_<_permissions<HandleUse::Modify>>
+    > ::template case_<AccessHandlePermissions::Modify, _permissions<frontend::Permissions::Modify>>
+      ::template case_<AccessHandlePermissions::Read, _permissions<frontend::Permissions::Read>>
+      ::template case_<AccessHandlePermissions::None, _permissions<frontend::Permissions::None>>
+      ::template default_<_permissions<frontend::Permissions::Modify>>
     ::type,
     /*----------------------------------------*/
     // TODO check the actual scheduling permissions static flags rather than relying on the immediate flags
@@ -643,6 +642,7 @@ struct _get_storage_arg_helper<
 
   //----------------------------------------------------------------------------
   // <editor-fold desc="unmapped version"> {{{2
+#if _darma_has_feature(commutative_access_handles)
 
   template <typename TaskCollectionT>
   return_type
@@ -719,9 +719,9 @@ struct _get_storage_arg_helper<
         darma_runtime::detail::make_captured_use_holder(
           arg.var_handle_base_,
           /* Requested Scheduling permissions: */
-          HandleUse::Commutative,
+          frontend::Permissions::Commutative,
           /* Requested Immediate permissions: */
-          HandleUse::None,
+          frontend::Permissions::None,
           /* source and continuing use handle */
           arg.current_use_.get(),
           // Customization functors:
@@ -734,6 +734,7 @@ struct _get_storage_arg_helper<
     // RVO copy elision should happen here
     return rv;
   }
+#endif // _darma_has_feature(commutative_access_handles)
 
   // </editor-fold> end unmapped version }}}2
   //----------------------------------------------------------------------------

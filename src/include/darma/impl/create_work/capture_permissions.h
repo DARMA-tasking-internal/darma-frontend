@@ -255,36 +255,27 @@ struct CapturedObjectAttorney {
     int default_scheduling,
     int default_immediate
   ) {
+    using frontend::Permissions;
 
-    using use_t = abstract::frontend::Use;
     PermissionsPair rv { default_scheduling, default_immediate };
     if(obj.captured_as.info.ReadOnly) {
       // Turn off the Write bit, if it's on
-      rv.scheduling &= ~(int)(use_t::Write);
-      rv.immediate &= ~(int)(use_t::Write);
+      rv.scheduling &= ~(int)(Permissions::Write);
+      rv.immediate &= ~(int)(Permissions::Write);
     }
 
     if(obj.captured_as.info.WriteOnly) {
       // Turn off the Read bit, if it's on
-      rv.scheduling &= ~(int)(use_t::Read);
-      rv.immediate &= ~(int)(use_t::Read);
-    }
-
-    if(obj.captured_as.info.Commutative) {
-      // Turn off both read and write bits
-      rv.scheduling &= ~(int)(use_t::Modify);
-      rv.immediate &= ~(int)(use_t::Modify);
-      // turn on the commutative bits
-      rv.scheduling |= (int)(use_t::Commutative);
-      rv.immediate |= (int)(use_t::Commutative);
+      rv.scheduling &= ~(int)(Permissions::Read);
+      rv.immediate &= ~(int)(Permissions::Read);
     }
 
     if(obj.captured_as.info.ScheduleOnly) {
-      rv.immediate = use_t::None;
+      rv.immediate = (int)Permissions::None;
     }
 
     if(obj.captured_as.info.Leaf) {
-      rv.scheduling = use_t::None;
+      rv.scheduling = (int)Permissions::None;
     }
 
     return rv;

@@ -64,15 +64,39 @@ struct IfLambdaTask
 
     std::shared_ptr<CaptureManagerT> capture_manager_;
 
+  private:
+    template <
+      typename HelperT,
+      size_t... OtherArgIdxs
+    >
+    IfLambdaTask(
+      HelperT&& helper,
+      CaptureManagerT* capture_manager,
+      std::integer_sequence<size_t, OtherArgIdxs...> /*unused*/
+    ) : base_t(
+          std::move(helper.if_helper.lambda),
+          capture_manager->in_if_mode(),
+          variadic_arguments_begin_tag{},
+          std::get<OtherArgIdxs>(
+            std::move(helper.if_helper.task_details_args)
+          )...
+        )
+    { }
+
+  public:
+
     template <typename HelperT>
     IfLambdaTask(
       HelperT&& helper,
       CaptureManagerT* capture_manager
-    ) : base_t(
-          std::move(helper.if_helper.lambda),
-          capture_manager->in_if_mode()
+    ) : IfLambdaTask::IfLambdaTask(
+          std::forward<HelperT>(helper),
+          capture_manager,
+          std::make_index_sequence<std::tuple_size<
+            typename std::decay_t<HelperT>::if_helper_t::task_details_args_tup_t
+          >::value>{}
         )
-    { }
+    { /* forwarding ctor, must be empty */ }
 
     void run() override {
 
@@ -95,18 +119,43 @@ template <typename Lambda, typename IsThenType>
 struct ThenElseLambdaTask
   : LambdaTask<Lambda>
 {
+  public:
 
-  using base_t = LambdaTask<Lambda>;
+    using base_t = LambdaTask<Lambda>;
 
-  template <typename HelperT, typename CaptureManagerT>
-  ThenElseLambdaTask(
-    HelperT&& helper,
-    CaptureManagerT* capture_manager
-  ) : base_t(
-        std::move(helper.lambda),
-        IsThenType::value ? capture_manager->in_then_mode() : capture_manager->in_else_mode()
-      )
-  { }
+  private:
+    template <
+      typename HelperT, typename CaptureManagerT,
+      size_t... OtherArgIdxs
+    >
+    ThenElseLambdaTask(
+      HelperT&& helper,
+      CaptureManagerT* capture_manager,
+      std::integer_sequence<size_t, OtherArgIdxs...> /*unused*/
+    ) : base_t(
+          std::move(helper.lambda),
+          IsThenType::value ? capture_manager->in_then_mode() : capture_manager->in_else_mode(),
+          variadic_arguments_begin_tag{},
+          std::get<OtherArgIdxs>(
+            std::move(helper.task_details_args)
+          )...
+        )
+    { }
+
+  public:
+
+    template <typename HelperT, typename CaptureManagerT>
+    ThenElseLambdaTask(
+      HelperT&& helper,
+      CaptureManagerT* capture_manager
+    ) : ThenElseLambdaTask::ThenElseLambdaTask(
+          std::forward<HelperT>(helper),
+          capture_manager,
+          std::make_index_sequence<std::tuple_size<
+            typename std::decay_t<HelperT>::task_details_args_tup_t
+          >::value>{}
+        )
+    { /* forwarding ctor, must be empty */ }
 
 };
 
@@ -123,6 +172,7 @@ struct _create_work_if_helper<
 
   using callable_t = Lambda;
   using args_fwd_tuple_t = std::tuple<>;
+  using task_details_args_tup_t = std::tuple<Args&&...>;
   static constexpr auto is_lambda_callable = true;
 
   Lambda lambda;
@@ -164,6 +214,7 @@ struct _create_work_then_helper<
   using if_helper_t = IfHelper;
   using callable_t = Lambda;
   using args_fwd_tuple_t = std::tuple<>;
+  using task_details_args_tup_t = std::tuple<Args&&...>;
   static constexpr auto is_lambda_callable = true;
   static constexpr auto is_else_helper = false;
 
@@ -184,7 +235,7 @@ struct _create_work_then_helper<
   _create_work_then_helper& then_helper;
 
   Lambda lambda;
-  std::tuple<Args&&...> task_details_args;
+  task_details_args_tup_t task_details_args;
 
   bool else_invoked = false;
 
@@ -232,6 +283,7 @@ struct _create_work_else_helper<
     using if_helper_t = typename ThenHelper::if_helper_t;
     using callable_t = Lambda;
     using args_fwd_tup_t = std::tuple<>;
+    using task_details_args_tup_t = std::tuple<>;
     static constexpr auto is_lambda_callable = true;
     static constexpr auto is_else_helper = true;
 

@@ -174,8 +174,8 @@ struct _get_task_stored_arg_helper<
   {
     // We still need to create a new use for the task itself...
     using namespace darma_runtime::detail::flow_relationships;
-    assert(arg.current_use_->use->scheduling_permissions_ <= HandleUse::Read);
-    assert(arg.current_use_->use->immediate_permissions_ <= HandleUse::Read);
+    assert(arg.current_use_->use->scheduling_permissions_ <= frontend::Permissions::Read);
+    assert(arg.current_use_->use->immediate_permissions_ <= frontend::Permissions::Read);
     auto new_use_holder = std::make_shared<UseHolder>(
       HandleUse(
         arg.var_handle_,

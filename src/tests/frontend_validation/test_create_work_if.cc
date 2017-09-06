@@ -955,7 +955,7 @@ TEST_F(TestCreateWorkIf, basic_same_true_if_lambda_then_functor) {
     EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
       .WillOnce(Return(f_then_out));
 
-    EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, Modify, Modify, value);
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, None, Modify, value);
     // TODO Eventually don't even register this
     EXPECT_REGISTER_USE(then_cont_use, f_then_out, f_if_out, Modify, None);
 
@@ -1051,7 +1051,7 @@ TEST_F(TestCreateWorkIf, same_false_if_lambda_then_lambda_else_functor) {
     EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
       .WillOnce(Return(f_then_out));
 
-    EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, Modify, Modify, value);
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, None, Modify, value);
     EXPECT_REGISTER_USE(then_use_cont, f_then_out, f_if_out, Modify, None);
 
     EXPECT_RELEASE_USE(if_use);
@@ -1197,6 +1197,8 @@ TEST_P(TestFunctorLambdaTrueFalse, same_if_then_else) {
   }
   //============================================================================
 
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
   {
     InSequence seq;
 
@@ -1204,7 +1206,12 @@ TEST_P(TestFunctorLambdaTrueFalse, same_if_then_else) {
     EXPECT_CALL(*mock_runtime, make_next_flow(f_init))
       .WillOnce(Return(f_then_out));
 
-    EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, Modify, Modify, value);
+    if((if_is_true and then_use_functor) or (!if_is_true and else_use_functor)) {
+      EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, None, Modify, value);
+    }
+    else {
+      EXPECT_REGISTER_USE_AND_SET_BUFFER(then_use, f_init, f_then_out, Modify, Modify, value);
+    }
     EXPECT_REGISTER_USE(then_use_cont, f_then_out, f_if_out, Modify, None);
 
     EXPECT_RELEASE_USE(if_use);

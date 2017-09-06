@@ -76,84 +76,66 @@ class AccessHandleBase : public CapturedObjectBase {
 
     static constexpr HandleUse::permissions_t get_captured_permissions_for(
       capture_op_t op,
-      HandleUse::permissions_t permissions
+      frontend::permissions_t permissions
     ) {
+      using darma_runtime::frontend::Permissions;
+      // This used to be a lot more complicated when Commutative/Relaxed/etc
+      // were permissions rather than coherence modes.  I've left it here
+      // for backwards compatibility, but it may be moved at some point
       switch(op) {
         case CaptureOp::read_only_capture : {
           switch(permissions) {
-            case HandleUse::Modify :
-            case HandleUse::Read : {
-              return HandleUse::Read;
+            case Permissions::Modify :
+            case Permissions::Read : {
+              return Permissions::Read;
             }
-            case HandleUse::Commutative :
-            case HandleUse::CommutativeRead : {
-              return HandleUse::CommutativeRead;
-            }
-            case HandleUse::Relaxed : {
-              return HandleUse::Relaxed;
-            }
-            case HandleUse::Reduce : {
-              // Nothing to do here but return Reduce, I guess; but we should never get here
-              return HandleUse::Reduce;
-            }
-            case HandleUse::None :
-            case HandleUse::Write :
-            case HandleUse::CommutativeWrite : {
-              return HandleUse::None;
+            case Permissions::Write :
+            case Permissions::Invalid : // to avoid compiler warnings...
+            case Permissions::None : {
+              // can't do a read_only_capture if you have the above scheduling
+              // permissions
+              return Permissions::Invalid;
             }
           }
-          break; // should be unreachable
         }
         case CaptureOp::write_only_capture : {
           switch(permissions) {
-            case HandleUse::Modify :
-            case HandleUse::Write : {
-              return HandleUse::Write;
+            case Permissions::Modify :
+            case Permissions::Write : {
+              return Permissions::Write;
             }
-            case HandleUse::Commutative :
-            case HandleUse::CommutativeWrite : {
-              return HandleUse::CommutativeWrite;
-            }
-            case HandleUse::Relaxed : {
-              return HandleUse::Relaxed;
-            }
-            case HandleUse::Reduce : {
-              // Nothing to do here but return Reduce, I guess; but we should never get here
-              return HandleUse::Reduce;
-            }
-            case HandleUse::None :
-            case HandleUse::Read :
-            case HandleUse::CommutativeRead : {
-              return HandleUse::None;
+            case Permissions::None :
+            case Permissions::Invalid : // to avoid compiler warnings...
+            case Permissions::Read : {
+              // can't do a write_only_capture if you have the above scheduling
+              // permissions
+              return Permissions::Invalid;
             }
           }
-          break; // should be unreachable
         }
         case CaptureOp::modify_capture : {
           switch(permissions) {
-            case HandleUse::Modify :
-            case HandleUse::Commutative :
-            case HandleUse::Read :
-            case HandleUse::CommutativeRead :
-            case HandleUse::Relaxed :
-            case HandleUse::Reduce : {
+            case Permissions::Modify :
+            case Permissions::Write :
+            case Permissions::Read : {
+              // capture the greatest permissions allowed
               return permissions;
             }
-            case HandleUse::None :
-            case HandleUse::Write :
-            case HandleUse::CommutativeWrite : {
-              return HandleUse::None;
+            case Permissions::Invalid : // to avoid compiler warnings...
+            case Permissions::None : {
+              // can't capture with no scheduling permissions
+              return Permissions::Invalid;
             }
           }
-          break; // should be unreachable
         }
         case CaptureOp::no_capture : {
-          return HandleUse::None;
+          // for completeness
+          return Permissions::None;
         }
       }
     }
 
-    // TODO figure out if this as efficient as a bitfield (it's definitely more readable)
+    // TODO remove this
     typedef enum CapturedAsInfo {
       Normal = 0,
       Ignored = 1,
@@ -218,20 +200,22 @@ struct AccessHandleBaseAttorney {
     AccessHandleBase::capture_op_t schedule_capture_op,
     AccessHandleBase::capture_op_t immediate_capture_op
   ) {
-    using use_t = abstract::frontend::Use;
+    using frontend::Permissions;
 
     auto rv = PermissionsPair{
-      AccessHandleBase::get_captured_permissions_for(
+      (int)AccessHandleBase::get_captured_permissions_for(
         schedule_capture_op,
         ah.current_use_base_->use_base->scheduling_permissions_
       ),
-      AccessHandleBase::get_captured_permissions_for(
+      (int)AccessHandleBase::get_captured_permissions_for(
         immediate_capture_op,
         // Immediate also references the source's scheduling permissions,
         // since that's the maximum we're allowed to schedule
         ah.current_use_base_->use_base->scheduling_permissions_
       )
     };
+    assert(rv.scheduling != (int)Permissions::Invalid);
+    assert(rv.immediate != (int)Permissions::Invalid);
     return rv;
   }
 

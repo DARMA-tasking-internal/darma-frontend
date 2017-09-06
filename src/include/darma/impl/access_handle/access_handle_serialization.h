@@ -77,15 +77,15 @@ struct Serializer<AccessHandle<Args...>>
       assert(
         ((
           val.current_use_->use->scheduling_permissions_
-            == ::darma_runtime::detail::HandleUse::Modify
+            == ::darma_runtime::frontend::Permissions::Modify
             and val.current_use_->use->immediate_permissions_
-              != ::darma_runtime::detail::HandleUse::Modify
+              != ::darma_runtime::frontend::Permissions::Modify
         ) and val.current_use_->could_be_alias)
           or (not(
             val.current_use_->use->scheduling_permissions_
-              == ::darma_runtime::detail::HandleUse::Modify
+              == ::darma_runtime::frontend::Permissions::Modify
               and val.current_use_->use->immediate_permissions_
-                != ::darma_runtime::detail::HandleUse::Modify
+                != ::darma_runtime::frontend::Permissions::Modify
           ) and not val.current_use_->could_be_alias)
       );
       // captured_as_ should always be normal here

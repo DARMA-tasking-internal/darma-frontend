@@ -64,8 +64,8 @@ template <
 inline auto
 make_captured_use_holder(
   std::shared_ptr<VariableHandleBase> const& var_handle,
-  HandleUse::permissions_t requested_scheduling_permissions,
-  HandleUse::permissions_t requested_immediate_permissions,
+  frontend::Permissions requested_scheduling_permissions,
+  frontend::Permissions requested_immediate_permissions,
   UseHolderT* source_and_continuing_holder,
   UseMaker&& use_holder_maker,
   ContinuingUseMaker&& continuing_use_holder_maker,
@@ -75,10 +75,11 @@ make_captured_use_holder(
   using namespace darma_runtime::detail::flow_relationships;
 
   using namespace darma_runtime::abstract::frontend;
+  using darma_runtime::frontend::Permissions;
 
   // source scheduling permissions shouldn't be None at this point
   DARMA_ASSERT_MESSAGE(
-    source_and_continuing_holder->use->scheduling_permissions_ != HandleUse::None,
+    source_and_continuing_holder->use->scheduling_permissions_ != frontend::Permissions::None,
     "Can't schedule a task on a handle with leaf permissions"
   );
 
@@ -90,7 +91,7 @@ make_captured_use_holder(
   switch(requested_immediate_permissions) {
     //==========================================================================
     // <editor-fold desc="requested_immediate_permissions = None"> {{{1
-    case HandleUse::None: {
+    case Permissions::None: {
 
       // schedule-only cases
 
@@ -98,13 +99,13 @@ make_captured_use_holder(
 
         //----------------------------------------------------------------------
         // <editor-fold desc="None source immediate permissions"> {{{3
-        case HandleUse::None: { // Source immediate permissions
+        case Permissions::None: { // Source immediate permissions
 
           // This feels like it should be the dominant use case...
           // switch on the requested scheduling permissions...
           switch(requested_scheduling_permissions) {
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            case HandleUse::None: { // requested scheduling permissions
+            case Permissions::None: { // requested scheduling permissions
               // Well, what the heck are you doing with it, then...?
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   RN -> { NN } -> RN     %
@@ -116,7 +117,7 @@ make_captured_use_holder(
             } // end case None requested scheduling permissions
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             // <editor-fold desc="Read requested scheduling permissions"> {{{3
-            case HandleUse::Read: { // requested scheduling permissions
+            case Permissions::Read: { // requested scheduling permissions
 
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   RN -> { RN } -> RN     %
@@ -131,9 +132,9 @@ make_captured_use_holder(
               captured_use_holder = use_holder_maker(
                 var_handle,
                 /* Scheduling permissions */
-                HandleUse::Read,
+                Permissions::Read,
                 /* Immediate permissions */
-                HandleUse::None,
+                Permissions::None,
                 same_flow(&source_and_continuing_holder->use->in_flow_),
                 //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
                 same_flow_as_in()
@@ -151,7 +152,7 @@ make_captured_use_holder(
             // </editor-fold> end Read requested scheduling permissions }}}3
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             // <editor-fold desc="Modify requested scheduling permissions"> {{{3
-            case HandleUse::Modify: { // requested scheduling permissions
+            case Permissions::Modify: { // requested scheduling permissions
 
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MN -> { MN } -> MN                      %
@@ -162,7 +163,7 @@ make_captured_use_holder(
               // permissions.
 
               DARMA_ASSERT_MESSAGE(
-                source_and_continuing_holder->use->scheduling_permissions_ == HandleUse::Modify,
+                source_and_continuing_holder->use->scheduling_permissions_ == Permissions::Modify,
                 "Can't schedule a (schedule-only) Modify task on a handle without"
                   " modify schedule permissions"
               );
@@ -174,9 +175,9 @@ make_captured_use_holder(
               captured_use_holder = use_holder_maker(
                 var_handle,
                 /* Scheduling permissions */
-                HandleUse::Modify,
+                Permissions::Modify,
                 /* Immediate permissions */
-                HandleUse::None,
+                Permissions::None,
                 same_flow(&source_and_continuing_holder->use->in_flow_),
                 //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
                 next_of_in_flow()
@@ -212,9 +213,9 @@ make_captured_use_holder(
                 continuing_use_holder_maker(
                   var_handle,
                   /* Scheduling permissions */
-                  HandleUse::Modify,
+                  Permissions::Modify,
                   /* Immediate permissions */
-                  HandleUse::None, // This is a schedule-only use
+                  Permissions::None, // This is a schedule-only use
                   same_flow(&captured_use_holder->use->out_flow_),
                   //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
                   same_flow(&source_and_continuing_holder->use->out_flow_)
@@ -236,7 +237,8 @@ make_captured_use_holder(
             // </editor-fold> end Modify requested scheduling permissions }}}3
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             // <editor-fold desc="Commutative requested scheduling permissions"> {{{3
-            case HandleUse::Commutative: { // requested scheduling permissions
+#if _darma_has_feature(commutative_access_handles)
+            case Permissions::Commutative: { // requested scheduling permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   CN -> { CN } -> CN                      %
               // %   XN -> { CN } -> XN (disallowed here)    %
@@ -249,7 +251,7 @@ make_captured_use_holder(
 
               DARMA_ASSERT_MESSAGE(
                 source_and_continuing_holder->use->scheduling_permissions_
-                  == HandleUse::Commutative,
+                  == Permissions::Commutative,
                 "Can't make a schedule-only use of handle not in schedule"
                   " commutative mode.  Need to transition handle to commutative"
                   " mode first in outer scope."
@@ -258,9 +260,9 @@ make_captured_use_holder(
               captured_use_holder = use_holder_maker(
                 var_handle,
                 /* Scheduling permissions */
-                HandleUse::Commutative,
+                Permissions::Commutative,
                 /* Immediate permissions */
-                HandleUse::None,
+                Permissions::None,
                 same_flow(&source_and_continuing_holder->use->in_flow_),
                 //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
                 same_flow(&source_and_continuing_holder->use->out_flow_)
@@ -275,6 +277,7 @@ make_captured_use_holder(
 
               break;
             }
+#endif // _darma_has_feature(commutative_access_handles)
             // </editor-fold> end Commutative requested scheduling permissions }}}3
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             default: {
@@ -288,14 +291,14 @@ make_captured_use_holder(
         // </editor-fold> end None source immediate permissions }}}3
         //----------------------------------------------------------------------
         // <editor-fold desc="Read source immediate permissions"> {{{3
-        case HandleUse::Read: { // source immediate permissions
+        case Permissions::Read: { // source immediate permissions
 
           // Mostly untested/unimplemented because these are corner cases...
 
           switch(requested_scheduling_permissions) {
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             // <editor-fold desc="Read requested scheduling permissions"> {{{3
-            case HandleUse::Read : { // requested scheduling permissions
+            case Permissions::Read : { // requested scheduling permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   RR -> { RN } -> RR     %
               // %   MR -> { RN } -> MR     %
@@ -307,9 +310,9 @@ make_captured_use_holder(
               captured_use_holder = use_holder_maker(
                 var_handle,
                 /* Scheduling permissions */
-                HandleUse::Read,
+                Permissions::Read,
                 /* Immediate permissions */
-                HandleUse::None,
+                Permissions::None,
                 same_flow(&source_and_continuing_holder->use->in_flow_),
                 //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
                 // FlowRelationship::Same, nullptr, true
@@ -327,7 +330,7 @@ make_captured_use_holder(
             // </editor-fold> end Read requested scheduling permissions }}}3
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             // <editor-fold desc="Modify requested scheduling permissions"> {{{3
-            case HandleUse::Modify : { // requested scheduling permissions
+            case Permissions::Modify : { // requested scheduling permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MR -> { MN } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -336,7 +339,7 @@ make_captured_use_holder(
 
               // Assert that, e.g., RR -> { MN } -> ... is not allowed
               DARMA_ASSERT_MESSAGE(
-                source_and_continuing_holder->use->scheduling_permissions_ == HandleUse::Modify,
+                source_and_continuing_holder->use->scheduling_permissions_ == Permissions::Modify,
                 "Can't make a Modify schedule-only capture on a handle without"
                   " at Modify schedule permissions"
               );
@@ -344,9 +347,9 @@ make_captured_use_holder(
               captured_use_holder = use_holder_maker(
                 var_handle,
                 /* Scheduling permissions */
-                HandleUse::Modify,
+                Permissions::Modify,
                 /* Immediate permissions */
-                HandleUse::None,
+                Permissions::None,
                 forwarding_flow(&source_and_continuing_holder->use->in_flow_),
                 //FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
                 next_of_in_flow()
@@ -360,8 +363,8 @@ make_captured_use_holder(
               source_and_continuing_holder->replace_use(
                 continuing_use_holder_maker(
                   var_handle,
-                  HandleUse::Modify,
-                  HandleUse::None,
+                  Permissions::Modify,
+                  Permissions::None,
                   same_flow(&captured_use_holder->use->out_flow_),
                   //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
                   same_flow(&source_and_continuing_holder->use->out_flow_)
@@ -390,10 +393,10 @@ make_captured_use_holder(
         // </editor-fold> end Read source immediate permissions }}}3
         //----------------------------------------------------------------------
         // <editor-fold desc="Modify source immediate permissions"> {{{3
-        case HandleUse::Modify: { // source immediate permissions
+        case Permissions::Modify: { // source immediate permissions
 
           switch(requested_scheduling_permissions) {
-            case HandleUse::Read : { // requested scheduling permissions
+            case Permissions::Read : { // requested scheduling permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MM -> { RN } -> MR     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -404,7 +407,7 @@ make_captured_use_holder(
               break;
             } // end case Read requested scheduling permissions
             //------------------------------------------------------------------
-            case HandleUse::Modify : { // requested scheduling permissions
+            case Permissions::Modify : { // requested scheduling permissions
 
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MM -> { MN } -> MN     %
@@ -415,9 +418,9 @@ make_captured_use_holder(
               captured_use_holder = use_holder_maker(
                 var_handle,
                 /* Scheduling permissions */
-                HandleUse::Modify,
+                Permissions::Modify,
                 /* Immediate permissions */
-                HandleUse::None,
+                Permissions::None,
                 forwarding_flow(&source_and_continuing_holder->use->in_flow_),
                 //FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
                 next_of_in_flow()
@@ -433,8 +436,8 @@ make_captured_use_holder(
               source_and_continuing_holder->replace_use(
                 continuing_use_holder_maker(
                   var_handle,
-                  HandleUse::Modify,
-                  HandleUse::None,
+                  Permissions::Modify,
+                  Permissions::None,
                   same_flow(&captured_use_holder->use->out_flow_),
                   //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
                   same_flow(&source_and_continuing_holder->use->out_flow_)
@@ -463,7 +466,8 @@ make_captured_use_holder(
         // </editor-fold> end Modify source immediate permissions }}}3
         //----------------------------------------------------------------------
         // <editor-fold desc="Commutative source immediate permissions"> {{{3
-        case HandleUse::Commutative : { // source immediate permissions
+#if _darma_has_feature(commutative_access_handles)
+        case Permissions::Commutative : { // source immediate permissions
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
           // %   CC -> { CN } -> CN     %
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -474,6 +478,7 @@ make_captured_use_holder(
           );                                                                    // LCOV_EXCL_LINE
 
         }
+#endif // _darma_has_feature(commutative_access_handles)
           // </editor-fold> end Commutative source immediate permissions }}}3
         //----------------------------------------------------------------------
         default: {
@@ -488,10 +493,10 @@ make_captured_use_holder(
     // </editor-fold> end requested_immediate_permissions = None }}}1
     //==========================================================================
     // <editor-fold desc="requested_immediate_permissions = Read"> {{{1
-    case HandleUse::Read: { // requested immediate permissions
+    case Permissions::Read: { // requested immediate permissions
 
       DARMA_ASSERT_MESSAGE(
-        (source_and_continuing_holder->use->scheduling_permissions_ & HandleUse::Read) != 0,
+        ((int)source_and_continuing_holder->use->scheduling_permissions_ & (int)Permissions::Read) != 0,
         "Can't schedule a read on a handle without at least Read schedule permissions"
       );
 
@@ -499,15 +504,15 @@ make_captured_use_holder(
 
         //----------------------------------------------------------------------
         // <editor-fold desc="Requesting NR or RR case"> {{{3
-        case HandleUse::None:
-        case HandleUse::Read: { // requested scheduling permissions
+        case Permissions::None:
+        case Permissions::Read: { // requested scheduling permissions
           // This covers the vast majority of uses
 
           switch(source_and_continuing_holder->use->immediate_permissions_) {
             //----------------------------------------------------------------------
             // <editor-fold desc="None/Read source immediate permissions"> {{{2
-            case HandleUse::None:
-            case HandleUse::Read: { // source immediate permissions
+            case Permissions::None:
+            case Permissions::Read: { // source immediate permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %    RN -> { NR } -> RN   %
               // %    RN -> { RR } -> RN   %
@@ -527,7 +532,7 @@ make_captured_use_holder(
                 /* Scheduling permissions */
                 requested_scheduling_permissions,
                 /* Immediate permissions */
-                HandleUse::Read,
+                Permissions::Read,
                 same_flow(&source_and_continuing_holder->use->in_flow_),
                 insignificant_flow(),
                 insignificant_flow(),
@@ -539,7 +544,7 @@ make_captured_use_holder(
                 /* Scheduling permissions */
                 requested_scheduling_permissions,
                 /* Immediate permissions */
-                HandleUse::Read,
+                Permissions::Read,
                 same_flow(&source_and_continuing_holder->use->in_flow_),
                 //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
                 same_flow_as_in()
@@ -557,11 +562,11 @@ make_captured_use_holder(
             // </editor-fold> end None/Read source immediate permissions }}}2
             //----------------------------------------------------------------------
             // <editor-fold desc="Modify source immediate permissions"> {{{2
-            case HandleUse::Modify: { // source immediate permissions
+            case Permissions::Modify: { // source immediate permissions
               switch (source_and_continuing_holder->use->scheduling_permissions_) {
                 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                 // <editor-fold desc="Read source scheduling permissions"> {{{3
-                case HandleUse::Read : {
+                case Permissions::Read : {
                   // %%%%%%%%%%%%%%%%%%%%%%%%%%%
                   // %    RM -> { NR } -> RR   % ?????
                   // %    RM -> { RR } -> RR   % ?????
@@ -572,7 +577,7 @@ make_captured_use_holder(
                 // </editor-fold> end Read source scheduling permissions }}}3
                 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                 // <editor-fold desc="Modify source scheduling permissions"> {{{3
-                case HandleUse::Modify : {
+                case Permissions::Modify : {
                   // %%%%%%%%%%%%%%%%%%%%%%%%%%%
                   // %    MM -> { NR } -> MR   %
                   // %    MM -> { RR } -> MR   %
@@ -590,7 +595,7 @@ make_captured_use_holder(
                     /* Scheduling permissions */
                     requested_scheduling_permissions,
                     /* Immediate permissions */
-                    HandleUse::Read,
+                    Permissions::Read,
                     forwarding_flow(&source_and_continuing_holder->use->in_flow_),
                     //FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
 #if _darma_has_feature(anti_flows)
@@ -622,7 +627,7 @@ make_captured_use_holder(
                       /* Scheduling permissions: (should be unchanged) */
                       source_and_continuing_holder->use->scheduling_permissions_,
                       /* Immediate permissions: */
-                      HandleUse::Read,
+                      Permissions::Read,
                       same_flow(&captured_use_holder->use->in_flow_),
                       //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
                       // It still carries the out flow of the task, though, and should
@@ -676,11 +681,11 @@ make_captured_use_holder(
         // </editor-fold> None/Read requested scheduling permissions }}}3
         //----------------------------------------------------------------------
         // <editor-fold desc="requesting MR case"> {{{1
-        case HandleUse::Modify: { // requested scheduling permissions
+        case Permissions::Modify: { // requested scheduling permissions
           // We're requesting MR, which is unusual but not impossible
 
           DARMA_ASSERT_MESSAGE(
-            (source_and_continuing_holder->use->scheduling_permissions_ == HandleUse::Modify),
+            (source_and_continuing_holder->use->scheduling_permissions_ == Permissions::Modify),
             "Can't capture a handle with modify schedule permissions without"
               " Modify schedule permissions in enclosing scope"
           );
@@ -688,7 +693,7 @@ make_captured_use_holder(
           switch(source_and_continuing_holder->use->immediate_permissions_) {
             //----------------------------------------------------------------------
             // <editor-fold desc="None immediate permissions"> {{{1
-            case HandleUse::None: { // source immediate permissions
+            case Permissions::None: { // source immediate permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MN -> { MR } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -698,9 +703,9 @@ make_captured_use_holder(
               captured_use_holder = use_holder_maker(
                 var_handle,
                 /* Scheduling permissions */
-                HandleUse::Modify,
+                Permissions::Modify,
                 /* Immediate permissions */
-                HandleUse::Read,
+                Permissions::Read,
                 same_flow(&source_and_continuing_holder->use->in_flow_),
                 //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
                 next_of_in_flow()
@@ -726,8 +731,8 @@ make_captured_use_holder(
               source_and_continuing_holder->replace_use(
                 continuing_use_holder_maker(
                   var_handle,
-                  HandleUse::Modify,
-                  HandleUse::None,
+                  Permissions::Modify,
+                  Permissions::None,
                   same_flow(&captured_use_holder->use->out_flow_),
                   //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
                   same_flow(&source_and_continuing_holder->use->out_flow_)
@@ -748,7 +753,7 @@ make_captured_use_holder(
             // </editor-fold> end None immediate permissions }}}1
             //------------------------------------------------------------------
             // <editor-fold desc="Read immediate permissions"> {{{1
-            case HandleUse::Read: { // source immediate permissions
+            case Permissions::Read: { // source immediate permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MR -> { MR } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -759,9 +764,9 @@ make_captured_use_holder(
               captured_use_holder = use_holder_maker(
                 var_handle,
                 /* Scheduling permissions */
-                HandleUse::Modify,
+                Permissions::Modify,
                 /* Immediate permissions */
-                HandleUse::Read,
+                Permissions::Read,
                 same_flow(&source_and_continuing_holder->use->in_flow_),
                 //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
                 next_of_in_flow()
@@ -784,8 +789,8 @@ make_captured_use_holder(
               source_and_continuing_holder->replace_use(
                 continuing_use_holder_maker(
                   var_handle,
-                  HandleUse::Modify,
-                  HandleUse::None,
+                  Permissions::Modify,
+                  Permissions::None,
                   same_flow(&captured_use_holder->use->out_flow_),
                   //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
                   same_flow(&source_and_continuing_holder->use->out_flow_)
@@ -806,7 +811,7 @@ make_captured_use_holder(
             // </editor-fold> end None or Read immediate permissions }}}1
             //------------------------------------------------------------------
             // <editor-fold desc="Modify source immediate permissions"> {{{1
-            case HandleUse::Modify: { // source immediate permissions
+            case Permissions::Modify: { // source immediate permissions
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
               // %   MM -> { MR } -> MN     %
               // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -816,9 +821,9 @@ make_captured_use_holder(
               captured_use_holder = use_holder_maker(
                 var_handle,
                 /* Scheduling permissions */
-                HandleUse::Modify,
+                Permissions::Modify,
                 /* Immediate permissions */
-                HandleUse::Read,
+                Permissions::Read,
                 forwarding_flow(&source_and_continuing_holder->use->in_flow_),
                 //FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
                 next_of_in_flow()
@@ -835,7 +840,7 @@ make_captured_use_holder(
               source_and_continuing_holder->replace_use(
                 continuing_use_holder_maker(
                   var_handle,
-                  HandleUse::Modify, HandleUse::None,
+                  Permissions::Modify, Permissions::None,
                   same_flow(&captured_use_holder->use->out_flow_),
                   //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
                   same_flow(&source_and_continuing_holder->use->out_flow_)
@@ -878,17 +883,17 @@ make_captured_use_holder(
     // </editor-fold> end requested_immediate_permissions = Read }}}1
     //==========================================================================
     // <editor-fold desc="requested_immediate_permissions = Modify"> {{{1
-    case HandleUse::Modify: { // requested immediate permissions
+    case Permissions::Modify: { // requested immediate permissions
 
       DARMA_ASSERT_MESSAGE(
-        source_and_continuing_holder->use->scheduling_permissions_ == HandleUse::Modify,
+        source_and_continuing_holder->use->scheduling_permissions_ == Permissions::Modify,
         "Can't schedule a modify on a handle without Modify schedule permissions"
       );
 
       switch(source_and_continuing_holder->use->immediate_permissions_) {
         //----------------------------------------------------------------------
         // <editor-fold desc="None source immediate permissions"> {{{2
-        case HandleUse::None: {
+        case Permissions::None: {
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
           // %   MN -> { NM } -> MN     %
           // %   MN -> { RM } -> MN     % // our implementation of this case may be non-minimal
@@ -905,7 +910,7 @@ make_captured_use_holder(
             /* Scheduling permissions */
             requested_scheduling_permissions,
             /* Immediate permissions */
-            HandleUse::Modify,
+            Permissions::Modify,
             same_flow(&source_and_continuing_holder->use->in_flow_),
             //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
             next_of_in_flow()
@@ -917,7 +922,7 @@ make_captured_use_holder(
             // since this could schedule read-only uses (unless the scheduling
             // permissions are None), it also creates an anti-dependency to future
             // Modify tasks
-            requested_scheduling_permissions == HandleUse::None ?
+            requested_scheduling_permissions == Permissions::None ?
               insignificant_flow() :
                 next_anti_flow_of_anti_in()
 #endif // _darma_has_feature(anti_flows)
@@ -932,9 +937,9 @@ make_captured_use_holder(
             continuing_use_holder_maker(
               var_handle,
               /* Scheduling permissions */
-              HandleUse::Modify,
+              Permissions::Modify,
               /* Immediate permissions */
-              HandleUse::None, // This is a schedule-only use
+              Permissions::None, // This is a schedule-only use
               same_flow(&captured_use_holder->use->out_flow_),
               //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
               same_flow(&source_and_continuing_holder->use->out_flow_)
@@ -943,7 +948,7 @@ make_captured_use_holder(
               // anti-in =
               , same_anti_flow(&source_and_continuing_holder->use->anti_in_flow_),
               // anti-out =
-              requested_scheduling_permissions == HandleUse::None ?
+              requested_scheduling_permissions == Permissions::None ?
                 next_anti_flow(&source_and_continuing_holder->use->anti_out_flow_)
                   : same_anti_flow(&captured_use_holder->use->anti_out_flow_)
 #endif // _darma_has_feature(anti_flows)
@@ -960,7 +965,7 @@ make_captured_use_holder(
         // </editor-fold> end None source immediate permissions }}}2
         //----------------------------------------------------------------------
         // <editor-fold desc="Read source immediate permissions"> {{{1
-        case HandleUse::Read: { // source immediate permissions
+        case Permissions::Read: { // source immediate permissions
           // Requesting XM capture of MR
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
           // %   MR -> { NM } -> MN     %
@@ -980,7 +985,7 @@ make_captured_use_holder(
             /* Scheduling permissions */
             requested_scheduling_permissions,
             /* Immediate permissions */
-            HandleUse::Modify,
+            Permissions::Modify,
             same_flow(&source_and_continuing_holder->use->in_flow_),
             //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
             next_of_in_flow()
@@ -992,7 +997,7 @@ make_captured_use_holder(
             // since this could schedule read-only uses (unless the scheduling
             // permissions are None), it also creates an anti-dependency to future
             // Modify tasks
-            requested_scheduling_permissions == HandleUse::None ?
+            requested_scheduling_permissions == Permissions::None ?
               insignificant_flow() :
                 next_anti_flow_of_anti_in()
 #endif // _darma_has_feature(anti_flows)
@@ -1004,7 +1009,7 @@ make_captured_use_holder(
             continuing_use_holder_maker(
               var_handle,
               source_and_continuing_holder->use->scheduling_permissions_,
-              HandleUse::None,
+              Permissions::None,
               same_flow(&captured_use_holder->use->out_flow_),
               //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
               same_flow(&source_and_continuing_holder->use->out_flow_)
@@ -1014,7 +1019,7 @@ make_captured_use_holder(
               // this should usually be insignificant unless the source is somehow a dependency use
               , same_anti_flow(&source_and_continuing_holder->use->anti_in_flow_),
               // anti-out =
-              requested_scheduling_permissions == HandleUse::None ?
+              requested_scheduling_permissions == Permissions::None ?
                 // TODO check the None case...
                 next_anti_flow(&captured_use_holder->use->anti_in_flow_)
                   : same_anti_flow(&captured_use_holder->use->anti_out_flow_)
@@ -1031,7 +1036,7 @@ make_captured_use_holder(
         // </editor-fold> end Read source immediate permissions  }}}1
         //----------------------------------------------------------------------
         // <editor-fold desc="modify source immediate permissions"> {{{1
-        case HandleUse::Modify: {
+        case Permissions::Modify: {
           // %%%%%%%%%%%%%%%%%%%%%%%%%%%%
           // %   MM -> { NM } -> MN     % this case is untested for anti-flows
           // %   MM -> { RM } -> MN     % our implementation of this case may be non-minimal
@@ -1051,7 +1056,7 @@ make_captured_use_holder(
             /* Scheduling permissions */
             requested_scheduling_permissions,
             /* Immediate permissions */
-            HandleUse::Modify,
+            Permissions::Modify,
             forwarding_flow(&source_and_continuing_holder->use->in_flow_),
             //FlowRelationship::Forwarding, &source_and_continuing_holder->use->in_flow_,
             next_of_in_flow()
@@ -1061,7 +1066,7 @@ make_captured_use_holder(
             // because of the way forwarding works, this can never carry anti-dependencies
             , forwarding_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
             // anti-out =
-            requested_scheduling_permissions == HandleUse::None ?
+            requested_scheduling_permissions == Permissions::None ?
               insignificant_flow()
                 : next_anti_flow_of_anti_in()
 #endif // _darma_has_feature(anti_flows)
@@ -1071,7 +1076,7 @@ make_captured_use_holder(
             continuing_use_holder_maker(
               var_handle,
               source_and_continuing_holder->use->scheduling_permissions_,
-              HandleUse::None,
+              Permissions::None,
               same_flow(&captured_use_holder->use->out_flow_),
               //FlowRelationship::Same, &captured_use_holder->use->out_flow_,
               same_flow(&source_and_continuing_holder->use->out_flow_)
@@ -1080,7 +1085,7 @@ make_captured_use_holder(
               // Anti-in flow
               , same_anti_flow(&source_and_continuing_holder->use->anti_out_flow_),
               // Anti-out flow
-              requested_scheduling_permissions == HandleUse::None ?
+              requested_scheduling_permissions == Permissions::None ?
                 next_anti_flow(&captured_use_holder->use->anti_in_flow_)
                   : same_anti_flow(&captured_use_holder->use->anti_out_flow_)
 #endif // _darma_has_feature(anti_flows)
@@ -1104,15 +1109,16 @@ make_captured_use_holder(
     // </editor-fold> end requested_immediate_permissions = Modify }}}1
     //==========================================================================
     // <editor-fold desc="requested_immediate_permissions = Commutative"> {{{1
-    case HandleUse::Commutative: { // requested immediate permissions
+#if _darma_has_feature(commutative_access_handles)
+    case Permissions::Commutative: { // requested immediate permissions
 
       DARMA_ASSERT_MESSAGE(
-        source_and_continuing_holder->use->scheduling_permissions_ == HandleUse::Commutative,
+        source_and_continuing_holder->use->scheduling_permissions_ == Permissions::Commutative,
         "Can't schedule a commutative use without commutative scheduling permissions"
       );
       DARMA_ASSERT_MESSAGE(
-        source_and_continuing_holder->use->immediate_permissions_ == HandleUse::None
-          or source_and_continuing_holder->use->immediate_permissions_ == HandleUse::Commutative,
+        source_and_continuing_holder->use->immediate_permissions_ == Permissions::None
+          or source_and_continuing_holder->use->immediate_permissions_ == Permissions::Commutative,
         "Can't create commutative task on handle without None or Commutative immediate permissions"
       );
 
@@ -1134,7 +1140,7 @@ make_captured_use_holder(
         /* Scheduling permissions */
         requested_scheduling_permissions,
         /* Immediate permissions */
-        HandleUse::Commutative,
+        Permissions::Commutative,
         same_flow(&source_and_continuing_holder->use->in_flow_),
         //FlowRelationship::Same, &source_and_continuing_holder->use->in_flow_,
         same_flow(&source_and_continuing_holder->use->out_flow_)
@@ -1168,6 +1174,7 @@ make_captured_use_holder(
 
       break;
     } // end requested immediate permissions commutative
+#endif // _darma_has_feature(commutative_access_handles)
     // </editor-fold> end requested_immediate_permissions = Commutative }}}1
     //==========================================================================
 
@@ -1190,8 +1197,8 @@ make_captured_use_holder(
 inline auto
 make_captured_use_holder(
   std::shared_ptr<VariableHandleBase> const& var_handle,
-  HandleUse::permissions_t requested_scheduling_permissions,
-  HandleUse::permissions_t requested_immediate_permissions,
+  frontend::Permissions requested_scheduling_permissions,
+  frontend::Permissions requested_immediate_permissions,
   UseHolder* source_and_continuing_holder,
   bool register_continuation_use = true
 ) {

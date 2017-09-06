@@ -126,6 +126,7 @@ struct _create_work_if_helper<
 
   using callable_t = Functor;
   using args_fwd_tuple_t = std::tuple<Args&&..., LastArg&&>;
+  using task_details_args_tup_t = std::tuple<>; // handled in FunctorTask itself
   static constexpr auto is_lambda_callable = false;
 
   args_fwd_tuple_t args_fwd_tup;
@@ -166,6 +167,7 @@ struct _create_work_then_helper<
   using if_helper_t = IfHelper;
   using callable_t = Functor;
   using args_fwd_tuple_t = std::tuple<Args&&..., LastArg&&>;
+  using task_details_args_tup_t = std::tuple<>; // handled in FunctorTask itself
   static constexpr auto is_lambda_callable = false;
   static constexpr auto is_else_helper = false;
 
@@ -234,6 +236,7 @@ struct _create_work_else_helper<
     using if_helper_t = typename ThenHelper::if_helper_t;
     using callable_t = Functor;
     using args_fwd_tuple_t = std::tuple<Args&&..., LastArg&&>;
+    using task_details_args_tup_t = std::tuple<>; // handled in FunctorTask itself
     static constexpr auto is_lambda_callable = false;
     static constexpr auto is_else_helper = true;
 

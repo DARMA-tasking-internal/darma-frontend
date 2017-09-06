@@ -74,8 +74,8 @@ struct IfThenElseCaptureManagerSetupHelper {
   struct DeferredCapture {
     AccessHandleBase const* source_and_continuing = nullptr;
     AccessHandleBase* captured = nullptr;
-    unsigned req_sched_perms = (unsigned)HandleUse::None;
-    unsigned req_immed_perms = (unsigned)HandleUse::None;
+    int req_sched_perms = (int)frontend::Permissions::None;
+    int req_immed_perms = (int)frontend::Permissions::None;
   };
 
   /* TODO we might be able to stick some extra fields on AccessHandleBase rather
@@ -289,20 +289,39 @@ struct IfThenElseCaptureManager<
        */
       // (or we could just prohibit calls to release in the while block...)
 
+      // Since we're doing a deferred capture (rather than replacing the use
+      // right away) we always need to make sure that the captured handle
+      // isn't holding a use copied from the outer scope.  It's safe to do here,
+      // even with the aliasing check flag, since that flag goes on the source
+      // rather than the captured handle.
+      captured.release_current_use();
+
       auto const& key = captured.var_handle_base_->get_key();
       auto& if_details = if_captures_[key];
 
       if(current_capturing_mode_ == CaptureMode::If) {
-        // TODO ask if_task_ for permissions downgrades
 
-        if_details.req_sched_perms |= HandleUseBase::Read;
-        if_details.req_immed_perms |= HandleUseBase::Read;
+        auto initial_permissions =
+          AccessHandleBaseAttorney::get_permissions_before_downgrades(
+            source_and_continuing,
+            // hard-coded for now; could eventually get them from the task, though
+            AccessHandleBase::read_only_capture,
+            AccessHandleBase::read_only_capture
+          );
+
+        auto permissions_pair =
+          CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
+            source_and_continuing,
+            initial_permissions.scheduling,
+            initial_permissions.immediate
+          );
+        if_details.req_sched_perms = permissions_pair.scheduling;
+        if_details.req_immed_perms = permissions_pair.immediate;
 
         if_details.captured = &captured;
         if_details.source_and_continuing = &source_and_continuing;
       }
       else {
-        // TODO ask then_task_ and/or else_task_ for permissions downgrades
         DeferredCapture* details = nullptr;
         if(current_capturing_mode_ == CaptureMode::Then) {
           details = &then_captures_[key];
@@ -312,10 +331,25 @@ struct IfThenElseCaptureManager<
           details = &else_captures_[key];
         }
 
-        if_details.req_sched_perms |= HandleUseBase::Modify;
+        auto initial_permissions =
+          AccessHandleBaseAttorney::get_permissions_before_downgrades(
+            source_and_continuing,
+            // hard-coded for now; could eventually get them from the task, though
+            AccessHandleBase::modify_capture,
+            AccessHandleBase::modify_capture
+          );
 
-        details->req_sched_perms |= HandleUseBase::Modify;
-        details->req_immed_perms |= HandleUseBase::Modify;
+        auto permissions_pair =
+          CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
+            source_and_continuing,
+            initial_permissions.scheduling,
+            initial_permissions.immediate
+          );
+
+        details->req_sched_perms = permissions_pair.scheduling;
+        details->req_immed_perms = permissions_pair.immediate;
+
+        if_details.req_sched_perms |= details->req_immed_perms;
 
         // handle implicit capture in the if:
         if(if_details.source_and_continuing == nullptr) {

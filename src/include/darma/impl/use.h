@@ -85,61 +85,62 @@ class HandleUse
     ~HandleUse() = default;
 };
 
-struct compatible_permissions_less {
-  constexpr bool operator()(
-    HandleUse::permissions_t const& a,
-    HandleUse::permissions_t const& b
-  ) const {
-    DARMA_ASSERT_MESSAGE(
-      (
-        // If a is Commutative, b must be Commutative or None
-        (
-          a != HandleUse::Commutative || (
-            b == HandleUse::None || b == HandleUse::Commutative
-          )
-        )
-        // also, if b is Commutative, a must be Commutative or None
-        and (
-          b != HandleUse::Commutative || (
-            a == HandleUse::None || a == HandleUse::Commutative
-          )
-        )
-      ),
-      "Permissions comparison between incompatible permissions values"
-    );
-    return std::underlying_type_t<HandleUse::permissions_t>(a)
-      < std::underlying_type_t<HandleUse::permissions_t>(b);
-  }
-
-  template <
-    HandleUse::permissions_t a, HandleUse::permissions_t b
-  >
-  struct static_apply
-    : std::integral_constant<bool,
-        (std::underlying_type_t<HandleUse::permissions_t>(a)
-          < std::underlying_type_t<HandleUse::permissions_t>(b))
-      >
-  {
-    static_assert(
-      (
-        // If a is Commutative, b must be Commutative or None
-        (
-          a != HandleUse::Commutative || (
-            b == HandleUse::None || b == HandleUse::Commutative
-          )
-        )
-          // also, if b is Commutative, a must be Commutative or None
-          and (
-            b != HandleUse::Commutative || (
-              a == HandleUse::None || a == HandleUse::Commutative
-            )
-          )
-      ),
-      "Static permissions comparison between incompatible permissions values"
-    );
-  };
-
-};
+// TODO remove this
+//struct compatible_permissions_less {
+//  constexpr bool operator()(
+//    HandleUse::permissions_t const& a,
+//    HandleUse::permissions_t const& b
+//  ) const {
+//    DARMA_ASSERT_MESSAGE(
+//      (
+//        // If a is Commutative, b must be Commutative or None
+//        (
+//          a != HandleUse::Commutative || (
+//            b == HandleUse::None || b == HandleUse::Commutative
+//          )
+//        )
+//        // also, if b is Commutative, a must be Commutative or None
+//        and (
+//          b != HandleUse::Commutative || (
+//            a == HandleUse::None || a == HandleUse::Commutative
+//          )
+//        )
+//      ),
+//      "Permissions comparison between incompatible permissions values"
+//    );
+//    return std::underlying_type_t<HandleUse::permissions_t>(a)
+//      < std::underlying_type_t<HandleUse::permissions_t>(b);
+//  }
+//
+//  template <
+//    HandleUse::permissions_t a, HandleUse::permissions_t b
+//  >
+//  struct static_apply
+//    : std::integral_constant<bool,
+//        (std::underlying_type_t<HandleUse::permissions_t>(a)
+//          < std::underlying_type_t<HandleUse::permissions_t>(b))
+//      >
+//  {
+//    static_assert(
+//      (
+//        // If a is Commutative, b must be Commutative or None
+//        (
+//          a != HandleUse::Commutative || (
+//            b == HandleUse::None || b == HandleUse::Commutative
+//          )
+//        )
+//          // also, if b is Commutative, a must be Commutative or None
+//          and (
+//            b != HandleUse::Commutative || (
+//              a == HandleUse::None || a == HandleUse::Commutative
+//            )
+//          )
+//      ),
+//      "Static permissions comparison between incompatible permissions values"
+//    );
+//  };
+//
+//};
 
 struct migrated_use_arg_t { };
 static constexpr migrated_use_arg_t migrated_use_arg = { };
@@ -169,9 +170,9 @@ struct GenericUseHolder : UseHolderBase {
     bool will_be_dep=false
   ) : use(use_base, std::make_unique<UnderlyingUse>(std::move(in_use)))
   {
-    use->is_dependency_ = will_be_dep and use_base->immediate_permissions_ != HandleUse::None;
+    use->is_dependency_ = will_be_dep and use_base->immediate_permissions_ != frontend::Permissions::None;
 #if _darma_has_feature(anti_flows)
-    use->is_anti_dependency_ = use->is_dependency_ and use_base->immediate_permissions_ != HandleUse::Read;
+    use->is_anti_dependency_ = use->is_dependency_ and use_base->immediate_permissions_ != frontend::Permissions::Read;
 
 #endif // _darma_has_feature(anti_flows)
     if(do_register_in_ctor) do_register();
@@ -245,8 +246,8 @@ struct GenericUseHolder : UseHolderBase {
 
       auto last_use_ptr = std::make_unique<HandleUse>(
         use->handle_,
-        HandleUse::None, // This could cause problems for some backends...
-        HandleUse::None,
+        frontend::Permissions::None, // This could cause problems for some backends...
+        frontend::Permissions::None,
         use->manages_collection() ?
           same_flow(&use->out_flow_).as_collection_relationship()
             : same_flow(&use->out_flow_),

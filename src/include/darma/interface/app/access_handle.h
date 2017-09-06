@@ -522,7 +522,7 @@ class AccessHandle
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use->immediate_permissions_
-          != abstract::frontend::Use::Permissions::None,
+          != frontend::Permissions::None,
         "handle dereferenced in state without immediate access to data, with key: {"
           << get_key() << "}"
       );
@@ -562,7 +562,7 @@ class AccessHandle
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use->immediate_permissions_
-          != abstract::frontend::Use::Permissions::None,
+          != frontend::Permissions::None,
         "handle dereferenced in state without immediate access to data, with key: {"
           << get_key() << "}"
       );
@@ -622,7 +622,7 @@ class AccessHandle
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use->immediate_permissions_
-          >= abstract::frontend::Use::Permissions::Modify,
+          >= frontend::Permissions::Modify,
         "set_value() called on handle not in immediately modifiable state, with key: {"
           << get_key() << "}"
       );
@@ -651,7 +651,7 @@ class AccessHandle
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use->immediate_permissions_
-          >= abstract::frontend::Use::Permissions::Modify,
+          >= frontend::Permissions::Modify,
         "emplace_value() called on handle not in immediately modifiable state, with key: {"
           << get_key() << "}"
       );
@@ -689,7 +689,7 @@ class AccessHandle
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use->immediate_permissions_
-          != abstract::frontend::Use::Permissions::None,
+          != frontend::Permissions::None,
         "get_value() called on handle not in immediately readable state, with key: {"
           << get_key() << "}"
       );
@@ -724,7 +724,7 @@ class AccessHandle
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use->immediate_permissions_
-          >= abstract::frontend::Use::Permissions::Modify,
+          >= frontend::Permissions::Modify,
         "get_reference() called on handle not in immediately modifiable state, with key: {"
           << get_key() << "}"
       );
@@ -755,16 +755,16 @@ class AccessHandle
       );
       DARMA_ASSERT_MESSAGE(
         current_use_->use->immediate_permissions_
-          >= abstract::frontend::Use::Permissions::Modify,
+          >= frontend::Permissions::Modify,
         "acquire_reference() called on handle not in immediately modifiable state, with key: {"
           << get_key() << "}"
       );
-      if(current_use_->use->scheduling_permissions_ != abstract::frontend::Use::Permissions::None) {
+      if(current_use_->use->scheduling_permissions_ != frontend::Permissions::None) {
         // TODO decide if this needs to register a new use and release the old one
         // for now, go ahead and do that
         auto replacement_use = detail::HandleUse(
           var_handle_base_,
-          abstract::frontend::Use::Permissions::None,
+          frontend::Permissions::None,
           current_use_->use->immediate_permissions_,
           detail::flow_relationships::same_flow(&current_use_->use->in_flow_),
           detail::flow_relationships::same_flow(&current_use_->use->out_flow_)

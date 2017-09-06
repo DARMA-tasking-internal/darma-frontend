@@ -184,11 +184,11 @@ struct UseDescription {
 #define EXPECT_REGISTER_USE(use_ptr, fin, fout, sched, immed) \
   ::_impl::in_sequence_wrapper( \
     EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows( \
-      fin, fout, use_t::sched, use_t::immed \
+      fin, fout, ::darma_runtime::frontend::Permissions::sched, ::darma_runtime::frontend::Permissions::immed \
     ))), [&](auto&& exp) -> decltype(auto) { \
        return exp.WillOnce(::testing::Invoke([&](auto&& use_arg) { \
          use_ptr = use_arg; \
-         described_uses_[use_ptr] = ::_impl::UseDescription(#use_ptr, fin, fout, use_t::sched, use_t::immed); \
+         described_uses_[use_ptr] = ::_impl::UseDescription(#use_ptr, fin, fout, ::darma_runtime::frontend::Permissions::sched, darma_runtime::frontend::Permissions::immed); \
        })); \
     } \
   )
@@ -196,11 +196,11 @@ struct UseDescription {
 #define EXPECT_REGISTER_USE_AND_SET_BUFFER(use_ptr, fin, fout, sched, immed, value) \
   ::_impl::in_sequence_wrapper( \
     EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows( \
-      fin, fout, use_t::sched, use_t::immed \
+      fin, fout, ::darma_runtime::frontend::Permissions::sched, ::darma_runtime::frontend::Permissions::immed \
     ))), [&](auto&& exp) -> decltype(auto) { return exp.WillOnce( \
       ::testing::Invoke( \
          [&](auto&& use_arg) { use_ptr = use_arg; \
-           described_uses_[use_ptr] = _impl::UseDescription(#use_ptr, fin, fout, use_t::sched, use_t::immed); \
+           described_uses_[use_ptr] = _impl::UseDescription(#use_ptr, fin, fout, ::darma_runtime::frontend::Permissions::sched, ::darma_runtime::frontend::Permissions::immed); \
            use_arg->get_data_pointer_reference() = &value; \
          } \
     )); } \
@@ -271,7 +271,7 @@ struct UseDescription {
 #define EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(fread, use_ptr) \
   EXPECT_CALL(*mock_runtime, legacy_register_use( \
     IsUseWithInFlow( \
-      fread, -1, use_t::Read \
+      fread, ::darma_runtime::frontend::Permissions::Invalid /* i.e, anything */, ::darma_runtime::frontend::Permissions::Read \
     ) \
   )).WillOnce(SaveArg<0>(&use_ptr))
 
@@ -279,7 +279,7 @@ struct UseDescription {
 #define EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(fread, use_ptr, value) \
     EXPECT_CALL(*mock_runtime, legacy_register_use( \
         IsUseWithInFlow( \
-          fread, -1, use_t::Read \
+          fread, ::darma_runtime::frontend::Permissions::Invalid /* i.e., anything */, ::darma_runtime::frontend::Permissions::Read \
         ) \
     )).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
       use_ptr = use_arg; use_arg->get_data_pointer_reference() = &value; \
@@ -302,7 +302,7 @@ struct UseDescription {
     IsUseWithFlowRelationships( \
       ::darma_runtime::abstract::frontend::FlowRelationship::fin_rel, fin_src, \
       ::darma_runtime::abstract::frontend::FlowRelationship::fout_rel, fout_src, out_rel_is_in, \
-      use_t::sched, use_t::immed \
+      ::darma_runtime::frontend::Permissions::sched, ::darma_runtime::frontend::Permissions::immed \
     ), \
     UseWillBeDependency(will_be_dep) \
   ))).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
@@ -322,7 +322,7 @@ struct UseDescription {
     IsUseWithFlowRelationships( \
       ::darma_runtime::abstract::frontend::FlowRelationship::fin_desc, fin_src, \
       ::darma_runtime::abstract::frontend::FlowRelationship::fout_desc, fout_src, out_rel_is_in, \
-      use_t::sched, use_t::immed \
+      ::darma_runtime::frontend::Permissions::sched, ::darma_runtime::frontend::Permissions::immed \
     ), \
     IsUseWithAntiFlowRelationships( \
       ::darma_runtime::abstract::frontend::FlowRelationship::fantiin_desc, fantiin_src, \
@@ -348,7 +348,7 @@ struct UseDescription {
     IsUseWithFlowRelationships( \
       ::darma_runtime::abstract::frontend::FlowRelationship::fin_desc, fin_src, \
       ::darma_runtime::abstract::frontend::FlowRelationship::fout_desc, fout_src, out_rel_is_in, \
-      use_t::sched, use_t::immed \
+      ::darma_runtime::frontend::Permissions::sched, ::darma_runtime::frontend::Permissions::immed \
     ), \
     IsUseWithAntiFlowRelationships( \
       ::darma_runtime::abstract::frontend::FlowRelationship::fantiin_desc, fantiin_src, \
@@ -371,7 +371,7 @@ struct UseDescription {
     IsUseWithFlowRelationships( \
       ::darma_runtime::abstract::frontend::FlowRelationship::fin_rel, fin_src, \
       ::darma_runtime::abstract::frontend::FlowRelationship::fout_rel, fout_src, out_rel_is_in, \
-      use_t::sched, use_t::immed \
+      ::darma_runtime::frontend::Permissions::sched, ::darma_runtime::frontend::Permissions::immed \
     ), \
     UseWillBeDependency(will_be_dep) \
   ))).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
@@ -388,7 +388,7 @@ struct UseDescription {
     IsUseWithFlowRelationships( \
       ::darma_runtime::abstract::frontend::FlowRelationship::fin_rel, fin_src, \
       ::darma_runtime::abstract::frontend::FlowRelationship::fout_rel, fout_src, out_rel_is_in, \
-      use_t::sched, use_t::immed \
+      ::darma_runtime::frontend::Permissions::sched, ::darma_runtime::frontend::Permissions::immed \
     ), \
     UseWillBeDependency(will_be_dep), \
     extra_constraints \
@@ -406,7 +406,7 @@ struct UseDescription {
     IsUseWithFlowRelationships( \
       ::darma_runtime::abstract::frontend::FlowRelationship::fin_rel, fin_src, \
       ::darma_runtime::abstract::frontend::FlowRelationship::fout_rel, fout_src, out_rel_is_in, \
-      use_t::sched, use_t::immed \
+      ::darma_runtime::frontend::Permissions::sched, ::darma_runtime::frontend::Permissions::immed \
     ), \
     UseWillBeDependency(will_be_dep), \
     extra_constraints \
@@ -424,7 +424,7 @@ struct UseDescription {
   EXPECT_CALL(*mock_runtime, register_use(::testing::AllOf(IsUseWithFlowRelationships( \
     ::darma_runtime::abstract::frontend::FlowRelationship::fin_rel|::darma_runtime::abstract::frontend::FlowRelationship::Collection, fin_src, \
     ::darma_runtime::abstract::frontend::FlowRelationship::fout_rel|::darma_runtime::abstract::frontend::FlowRelationship::Collection, fout_src, out_rel_is_in, \
-    use_t::sched, use_t::immed \
+    ::darma_runtime::frontend::Permissions::sched, ::darma_runtime::frontend::Permissions::immed \
   ), \
   UseWillBeDependency(will_be_dep), \
   ::testing::Truly([=](auto* use){ \
@@ -446,7 +446,7 @@ struct UseDescription {
     IsUseWithFlowRelationships( \
       ::darma_runtime::abstract::frontend::FlowRelationship::Initial, nullptr, \
       ::darma_runtime::abstract::frontend::FlowRelationship::Null, nullptr, false, \
-      use_t::Modify, use_t::None \
+      ::darma_runtime::frontend::Permissions::Modify, ::darma_runtime::frontend::Permissions::None \
     ), \
     UseWillBeDependency(false), \
     IsUseWithHandleKey(key) \
@@ -461,7 +461,7 @@ struct UseDescription {
     IsUseWithFlowRelationships( \
       ::darma_runtime::abstract::frontend::FlowRelationship::InitialCollection, nullptr, \
       ::darma_runtime::abstract::frontend::FlowRelationship::NullCollection, nullptr, false, \
-      use_t::Modify, use_t::None \
+      ::darma_runtime::frontend::Permissions::Modify, ::darma_runtime::frontend::Permissions::None \
     ), \
     UseWillBeDependency(false), \
     IsUseWithHandleKey(key), \
@@ -535,7 +535,7 @@ auto make_flows(char const* names) {
 
 #define EXPECT_REGISTER_USE_COLLECTION(use_coll, fin, fout, sched, immed, collsize) \
     EXPECT_CALL(*mock_runtime, legacy_register_use(::testing::AllOf( \
-      IsUseWithFlows(fin, fout, use_t::sched, use_t::immed), \
+      IsUseWithFlows(fin, fout, ::darma_runtime::frontend::Permissions::sched, ::darma_runtime::frontend::Permissions::immed), \
       ::testing::Truly([=](auto* use){ \
         return ( \
           use->manages_collection() \

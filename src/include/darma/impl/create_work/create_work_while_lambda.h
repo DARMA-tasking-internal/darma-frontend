@@ -99,7 +99,8 @@ struct WhileLambdaTask
           LambdaTask_tags::no_double_copy_capture_tag,
           to_recapture.callable_,
           parent_task,
-          capture_manager->in_while_mode()
+          capture_manager->in_while_mode(),
+          variadic_arguments_begin_tag{}
           /* TODO propagate other aspects of the task to TaskBase, like name,
            * line numbers, iteration number, etc.
            */
@@ -218,7 +219,8 @@ struct DoLambdaTask
           to_recapture.callable_,
           parent_task,
           get_running_task_impl(),
-          capture_manager->in_do_mode()
+          capture_manager->in_do_mode(),
+          variadic_arguments_begin_tag{}
           /* TODO propagate other aspects of the task to TaskBase, like name,
            * line numbers, iteration number, etc.
            */

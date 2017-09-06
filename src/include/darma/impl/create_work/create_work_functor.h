@@ -75,7 +75,7 @@ struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
 
     auto* parent_task = darma_runtime::detail::get_running_task_impl();
 
-    auto task = darma_runtime::detail::make_functor_task_ptr(
+    auto task = darma_runtime::detail::make_functor_task_ptr<Functor>(
       parent_task, parent_task,
       variadic_arguments_begin_tag{},
       std::forward<DeducedArgs>(in_args)...

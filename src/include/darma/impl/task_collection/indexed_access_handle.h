@@ -233,8 +233,8 @@ class IndexedAccessHandle {
           use_holder_ = std::make_shared<typename std::pointer_traits<UseHolderPtr>::element_type>(
             HandleUse(
               parent_.var_handle_.get_smart_ptr(),
-              HandleUse::Read, // Read scheduling permissions
-              HandleUse::None, // No immediate permissions
+              frontend::Permissions::Read, // Read scheduling permissions
+              frontend::Permissions::None, // No immediate permissions
               /* In flow description */
               indexed_fetching_flow(&parent_.current_use_->use->in_flow_, &version_key, backend_index_),
               //FlowRelationship::IndexedFetching, &parent_.current_use_->use->in_flow_,
@@ -274,6 +274,7 @@ class IndexedAccessHandle {
     }
 
 
+#if _darma_has_feature(commutative_access_handles)
     template <typename _Ignored_SFINAE=void,
       typename=std::enable_if_t<
         std::is_void<_Ignored_SFINAE>::value
@@ -288,8 +289,8 @@ class IndexedAccessHandle {
       use_holder_ = std::make_shared<UseHolder>(
         HandleUse(
           parent_.var_handle_.get_smart_ptr(),
-          HandleUse::Commutative,
-          HandleUse::None,
+          frontend::Permissions::Commutative,
+          frontend::Permissions::None,
           indexed_flow(&parent_.current_use_->use->in_flow_, backend_index_),
           //FlowRelationship::Indexed, &parent_.current_use_->use->in_flow_,
           indexed_flow(&parent_.current_use_->use->out_flow_, backend_index_)
@@ -315,6 +316,7 @@ class IndexedAccessHandle {
         std::move(use_holder_)
       );
     };
+#endif // _darma_has_feature(commutative_access_handles)
 
     //------------------------------------------------------------------------------
     // <editor-fold desc="friends"> {{{2

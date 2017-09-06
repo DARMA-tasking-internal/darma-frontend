@@ -119,7 +119,7 @@ TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
   }
   else {
     EXPECT_CALL(*mock_runtime, legacy_register_use(::testing::AllOf(
-      IsUseWithFlows(finit, fout_coll, use_t::Modify, use_t::Modify),
+      IsUseWithFlows(finit, fout_coll, darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify),
       Truly([](auto* use){
         return (
           use->manages_collection()
@@ -131,7 +131,7 @@ TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
     ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
 
     EXPECT_CALL(*mock_runtime, legacy_register_use(AllOf(
-      IsUseWithFlows(fout_coll, fnull, use_t::Modify, use_t::None),
+      IsUseWithFlows(fout_coll, fnull, darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::None),
       Truly([](auto* use){
         return (
           use->manages_collection()
@@ -185,7 +185,7 @@ TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
       .WillOnce(Return(f_out_idx[i]));
     //EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i], Modify, Modify, (values[i]));
     EXPECT_CALL(*mock_runtime, legacy_register_use(
-      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
     )).WillOnce(Invoke([&](auto* use){
       use_idx[i] = use;
       use->get_data_pointer_reference() = &values[i];
@@ -309,7 +309,7 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
 
     EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i], Modify, Modify, values[i]);
 //    EXPECT_CALL(*mock_runtime, legacy_register_use(
-//      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+//      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
 //    )).WillOnce(Invoke([&](auto* use){
 //      use_idx[i] = use;
 //      use->get_data_pointer_reference() = &values[i];
@@ -442,7 +442,7 @@ TEST_F(TestCreateConcurrentWork, fetch) {
     EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
       .WillOnce(Return(f_out_idx[i]));
     EXPECT_CALL(*mock_runtime, legacy_register_use(
-      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
     )).WillOnce(Invoke([&](auto* use){
       use_idx[i] = use;
       use->get_data_pointer_reference() = &values[i];
@@ -650,7 +650,7 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
     }));
 
   EXPECT_CALL(*mock_runtime, reregister_migrated_use(
-    IsUseWithFlows(finit_unpacked, fout_unpacked, use_t::Modify, use_t::Modify)
+    IsUseWithFlows(finit_unpacked, fout_unpacked, darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
   )).WillOnce(SaveArg<0>(&use_migrated));
 
 
@@ -675,7 +675,7 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
       .WillOnce(Return(f_out_idx[i]));
     //EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i], Modify, Modify, (values[i]));
     EXPECT_CALL(*mock_runtime, legacy_register_use(
-      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
     )).WillOnce(Invoke([&](auto* use){
       use_idx[i] = use;
       use->get_data_pointer_reference() = &values[i];
@@ -920,7 +920,7 @@ TEST_F(TestCreateConcurrentWork, simple_sq_brkt_same) {
 
   EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx, f_in_idx, f_out_idx, Modify, Modify, value);
   //EXPECT_CALL(*mock_runtime, legacy_register_use(
-  //  IsUseWithFlows(f_in_idx, f_out_idx, use_t::Modify, use_t::Modify)
+  //  IsUseWithFlows(f_in_idx, f_out_idx, darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
   //)).WillOnce(Invoke([&](auto* use){
   //  use_idx = use;
   //  use->get_data_pointer_reference() = &value;
@@ -1391,7 +1391,7 @@ TEST_F(TestCreateConcurrentWork, nested_in_create_work) {
       .WillOnce(Return(f_out_idx[i]));
     EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i], Modify, Modify, values[i]);
     //EXPECT_CALL(*mock_runtime, register_use(
-    //  IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+    //  IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
     //)).WillOnce(Invoke([&](auto* use){
     //  use_idx[i] = use;
     //  use->get_data_pointer_reference() = &values[i];
@@ -1518,7 +1518,7 @@ TEST_F(TestCreateConcurrentWork, nested_in_create_work_functor) {
       .WillOnce(Return(f_out_idx[i]));
     EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i], Modify, Modify, values[i]);
     //EXPECT_CALL(*mock_runtime, register_use(
-    //  IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+    //  IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
     //)).WillOnce(Invoke([&](auto* use){
     //  use_idx[i] = use;
     //  use->get_data_pointer_reference() = &values[i];
@@ -1686,7 +1686,7 @@ TEST_F(TestCreateConcurrentWork, handle_reduce)
     EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
       .WillOnce(Return(f_out_idx[i]));
     EXPECT_CALL(*mock_runtime, legacy_register_use(
-      IsUseWithFlows(f_in_idx[i], f_out_idx[i], use_t::Modify, use_t::Modify)
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
     )).WillOnce(Invoke([&](auto* use) {
         use_idx[i] = use;
         use->get_data_pointer_reference() = &values[i];
@@ -1807,9 +1807,9 @@ TEST_F(TestCreateConcurrentWork, simple_read_only)
       .WillOnce(Return(f_in_idx[i]));
     EXPECT_CALL(*mock_runtime, legacy_register_use(
 #if _darma_has_feature(anti_flows)
-      IsUseWithFlows(f_in_idx[i], nullptr, use_t::Read, use_t::Read)
+      IsUseWithFlows(f_in_idx[i], nullptr, darma_runtime::frontend::Permissions::Read, darma_runtime::frontend::Permissions::Read)
 #else
-      IsUseWithFlows(f_in_idx[i], f_in_idx[i], use_t::Read, use_t::Read)
+      IsUseWithFlows(f_in_idx[i], f_in_idx[i], darma_runtime::frontend::Permissions::Read, darma_runtime::frontend::Permissions::Read)
 #endif // _darma_has_feature(anti_flows)
     )).WillOnce(Invoke([&](auto* use) {
         use_idx[i] = use;
@@ -1861,6 +1861,7 @@ TEST_F(TestCreateConcurrentWork, simple_read_only)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if _darma_has_feature(commutative_access_handles)
 TEST_F(TestCreateConcurrentWork, simple_commutative) {
 
   using namespace ::testing;
@@ -2036,6 +2037,7 @@ TEST_F(TestCreateConcurrentWork, simple_commutative) {
   mock_runtime->task_collections.front().reset(nullptr);
 
 }
+#endif // _darma_has_feature(commutative_access_handles)
 
 ////////////////////////////////////////////////////////////////////////////////
 

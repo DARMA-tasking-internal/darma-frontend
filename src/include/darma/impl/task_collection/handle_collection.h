@@ -331,21 +331,21 @@ class AccessHandleCollection : public detail::AccessHandleBase {
           auto cap_result_holder = detail::make_captured_use_holder(
             output_handle.var_handle_,
             /* requested_scheduling_permissions */
-            darma_runtime::detail::HandleUse::None,
+            darma_runtime::frontend::Permissions::None,
             /* requested_immediate_permissions */
-            darma_runtime::detail::HandleUse::Modify,
+            darma_runtime::frontend::Permissions::Modify,
             output_handle.current_use_.get()
           );
 
           auto cap_collection_holder = this->_call_make_captured_use_holder_impl(
             this->var_handle_base_,
-            detail::HandleUse::None,
-            detail::HandleUse::Read,
+            frontend::Permissions::None,
+            frontend::Permissions::Read,
             *this
           );
 
-          assert(cap_collection_holder->use->scheduling_permissions_ == detail::HandleUse::None);
-          assert(cap_collection_holder->use->immediate_permissions_ == detail::HandleUse::Read);
+          assert(cap_collection_holder->use->scheduling_permissions_ == frontend::Permissions::None);
+          assert(cap_collection_holder->use->immediate_permissions_ == frontend::Permissions::Read);
 
           // piece and n_pieces are ignored now
           auto coll_dets = detail::_get_collective_details_t<
@@ -407,8 +407,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
     void call_make_captured_use_holder(
       std::shared_ptr<detail::VariableHandleBase> var_handle,
-      detail::HandleUse::permissions_t req_sched_perms,
-      detail::HandleUse::permissions_t req_immed_perms,
+      frontend::permissions_t req_sched_perms,
+      frontend::permissions_t req_immed_perms,
       detail::AccessHandleBase const& source_in,
       bool register_continuation_use = true
     ) override {
@@ -416,8 +416,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         assert(local_use_holders_.size() == 0);
         current_use_ = _call_make_captured_use_holder_impl(
           var_handle,
-          std::max(req_sched_perms, req_immed_perms, detail::compatible_permissions_less{}),
-          detail::HandleUse::None,
+          (frontend::permissions_t)std::max((int)req_sched_perms, (int)req_immed_perms),
+          frontend::Permissions::None,
           source_in,
           register_continuation_use
         );
@@ -722,8 +722,8 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         using namespace darma_runtime::detail::flow_relationships;
 
         if(
-          current_use_->use->immediate_permissions_ == detail::HandleUse::Modify
-            or current_use_->use->scheduling_permissions_ == detail::HandleUse::Modify
+          current_use_->use->immediate_permissions_ == frontend::Permissions::Modify
+            or current_use_->use->scheduling_permissions_ == frontend::Permissions::Modify
         ) {
 
           auto idx_use_holder = std::make_shared<detail::UseHolder>(
@@ -891,8 +891,8 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType,
     >>(
       CollectionManagingUse<std::decay_t<IndexRangeT>>(
         var_handle,
-        darma_runtime::detail::HandleUse::Modify,
-        darma_runtime::detail::HandleUse::None,
+        darma_runtime::frontend::Permissions::Modify,
+        darma_runtime::frontend::Permissions::None,
         initial_flow().as_collection_relationship(),
         //FlowRelationship::InitialCollection, nullptr,
         null_flow().as_collection_relationship(),
@@ -1125,7 +1125,7 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
     auto& hr = *reinterpret_cast<handle_range_t*>(hr_buffer);
 
     // unpack permissions
-    darma_runtime::detail::HandleUse::permissions_t sched_perm, immed_perm;
+    darma_runtime::frontend::permissions_t sched_perm, immed_perm;
     ar >> sched_perm >> immed_perm;
 
     // unpack the flows

@@ -188,10 +188,14 @@ struct DoFunctorTask
   /**
    *  Ctor called during WhileDoCaptureManager construction
    */
-  template <typename HelperT>
+  template <
+    typename HelperT,
+    size_t... OtherArgsIdxs // unused; other args parsed out in FunctorTask
+  >
   DoFunctorTask(
     CaptureManagerT* capture_manager,
-    HelperT&& helper
+    HelperT&& helper,
+    std::integer_sequence<size_t, OtherArgsIdxs...> /*unused*/
   ) : base_t(
         capture_manager->while_task_.get(), // parent is while block
         get_running_task_impl(), // running is not the same as parent
@@ -258,13 +262,12 @@ struct _create_work_while_do_helper<
 >
 {
 
+  using while_helper_t = WhileHelper;
   using callable_t = Functor;
   using args_fwd_tuple_t = std::tuple<Args&&..., LastArg&&>;
-  using task_option_args_tuple_t = std::tuple<>; // for now
+  using task_option_args_tuple_t = std::tuple<>; // unused; FunctorTask does the parsing
 
-  _not_a_lambda do_lambda;
   args_fwd_tuple_t args_fwd_tup;
-  task_option_args_tuple_t task_option_args_tup;
   WhileHelper while_helper;
 
   static constexpr auto has_lambda_callable = false;

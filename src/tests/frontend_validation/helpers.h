@@ -50,15 +50,14 @@
 #include <string>
 
 inline std::string
-permissions_to_string(darma_runtime::abstract::frontend::Use::permissions_t per) {
+permissions_to_string(darma_runtime::frontend::permissions_t per) {
   switch(per) {
-#define _DARMA__perm_case(val) case darma_runtime::abstract::frontend::Use::Permissions::val: return #val;
+#define _DARMA__perm_case(val) case darma_runtime::frontend::Permissions::val: return #val;
     _DARMA__perm_case(None)
     _DARMA__perm_case(Read)
     _DARMA__perm_case(Modify)
     _DARMA__perm_case(Write)
-    _DARMA__perm_case(Commutative)
-    _DARMA__perm_case(Relaxed)
+    _DARMA__perm_case(Invalid)
 #undef _DARMA__perm_case
   }
 }
@@ -73,6 +72,19 @@ permissions_to_string(int i) {
   if(i == -1) return "<any permissions>";
   else return "<unknown/invalid permissions specification>";
 }
+
+namespace darma_runtime {
+namespace frontend {
+
+inline std::ostream&
+operator<<(std::ostream& o, darma_runtime::frontend::Permissions per) {
+  o << permissions_to_string(per);
+  return o;
+}
+
+} // end namespace frontend
+} // end namespace darma_runtime
+
 
 
 #endif //DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H

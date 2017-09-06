@@ -98,8 +98,8 @@ struct _publish_impl {
 
     auto publish_use_holder = make_captured_use_holder(
       this_.var_handle_,
-      HandleUse::None,
-      HandleUse::Read,
+      frontend::Permissions::None,
+      frontend::Permissions::Read,
       this_.current_use_.get()
     );
     backend_runtime->publish_use(
@@ -132,7 +132,7 @@ AccessHandle<T, Traits>::publish(
     "publish() called on handle after release"
   );
   DARMA_ASSERT_MESSAGE(
-    current_use_->use->scheduling_permissions_ != HandleUse::None,
+    current_use_->use->scheduling_permissions_ != frontend::Permissions::None,
     "publish() called on handle that can't schedule at least read usage on data (most likely "
       "because it was already released"
   );

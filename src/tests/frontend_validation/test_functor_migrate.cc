@@ -235,8 +235,8 @@ TEST_F_WITH_PARAMS(
     #else
     f_set_42_out_migrated, f_set_42_out_migrated,
     #endif // _darma_has_feature(anti_flows)
-    use_lambda ? use_t::Read : use_t::None,
-    use_t::Read
+    use_lambda ? darma_runtime::frontend::Permissions::Read : darma_runtime::frontend::Permissions::None,
+    darma_runtime::frontend::Permissions::Read
   ))).WillOnce(Invoke([&](auto&& rereg_use) {
       darma_runtime::abstract::frontend::use_cast<
         darma_runtime::abstract::frontend::DependencyUse*
@@ -256,8 +256,8 @@ TEST_F_WITH_PARAMS(
       #else
       f_set_42_out_migrated, f_set_42_out_migrated,
       #endif // _darma_has_feature(anti_flows)
-      use_lambda ? use_t::Read : use_t::None,
-      use_t::Read
+      use_lambda ? darma_runtime::frontend::Permissions::Read : darma_runtime::frontend::Permissions::None,
+      darma_runtime::frontend::Permissions::Read
     )
   );
 

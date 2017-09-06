@@ -50,6 +50,8 @@
 #include <vector>
 #include <array>
 
+#include <tinympl/variadic/find.hpp>
+
 #include <darma/interface/frontend/polymorphic_serializable_object.h>
 #include <cassert>
 #include <darma/impl/meta/detection.h>

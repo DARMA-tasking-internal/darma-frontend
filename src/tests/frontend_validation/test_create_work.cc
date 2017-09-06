@@ -239,7 +239,7 @@ TEST_P(TestRoCaptureRN, ro_capture_RN) {
 
     // ro-capture of RN
     EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
-      &f_fetch, &f_fetch, use_t::Read, use_t::Read
+      &f_fetch, &f_fetch, darma_runtime::frontend::Permissions::Read, darma_runtime::frontend::Permissions::Read
     ))).WillOnce(SaveArg<0>(&read_use));
 
   }
@@ -399,9 +399,9 @@ TEST_P(TestCaptureMM, capture_MM) {
 
     EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
 #if _darma_has_feature(anti_flows)
-      f_forwarded, nullptr, use_t::Read, use_t::Read
+      f_forwarded, nullptr, darma_runtime::frontend::Permissions::Read, darma_runtime::frontend::Permissions::Read
 #else
-      f_forwarded, f_forwarded, use_t::Read, use_t::Read
+      f_forwarded, f_forwarded, darma_runtime::frontend::Permissions::Read, darma_runtime::frontend::Permissions::Read
 #endif // _darma_has_feature(anti_flows)
     ))).WillOnce(Invoke([&](auto&& use){
         use->get_data_pointer_reference() = (void*)(&value);
@@ -409,7 +409,7 @@ TEST_P(TestCaptureMM, capture_MM) {
       }));
     // Expect the continuing context use to be registered after the captured context
     EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
-      f_forwarded, f_outer_out, use_t::Modify, use_t::Read
+      f_forwarded, f_outer_out, darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Read
     ))).WillOnce(Invoke([&](auto&& use){
       // Shouldn't be necessary
       // use->get_data_pointer_reference() = (void*)(&value);
@@ -829,6 +829,7 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if _darma_has_feature(commutative_access_handles)
 TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
   ::testing::Values(0, 1, 2, 3, 4, 5, 6), int
 ) {
@@ -881,14 +882,14 @@ TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
       [&](abstract::frontend::DependencyUse* use) {
         return use->get_in_flow() == fcomm_out
           && use->get_out_flow() == fnull
-          && use->immediate_permissions() == use_t::None
+          && use->immediate_permissions() == darma_runtime::frontend::Permissions::None
           && (
             // The ones that don't do explicit releases will have "None" scheduling
             // permissions on the last use
             ((semantic_mode == 0 || semantic_mode > 3)
-              && use->scheduling_permissions() == use_t::Modify)
+              && use->scheduling_permissions() == darma_runtime::frontend::Permissions::Modify)
             || ((semantic_mode == 1 || semantic_mode == 2 || semantic_mode == 3)
-              && use->scheduling_permissions() == use_t::None)
+              && use->scheduling_permissions() == darma_runtime::frontend::Permissions::None)
           );
       }
     ))).WillOnce(SaveArg<0>(&last_use));
@@ -1011,6 +1012,7 @@ TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
   EXPECT_THAT(value, Eq(12));
 
 }
+#endif // _darma_has_feature(commutative_access_handles)
 
 ////////////////////////////////////////////////////////////////////////////////
 

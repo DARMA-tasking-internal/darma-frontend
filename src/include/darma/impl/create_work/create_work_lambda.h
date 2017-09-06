@@ -85,6 +85,12 @@ struct _create_work_impl<detail::_create_work_uses_lambda_tag, tinympl::vector<A
       std::forward<Args>(in_args)...
     );
 
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    task->set_context_information(
+      ctxt->file, ctxt->line, ctxt->func
+    );
+#endif
+
     return darma_runtime::abstract::backend::get_backend_runtime()->register_task(
       std::move(task)
     );

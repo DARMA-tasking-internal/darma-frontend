@@ -94,7 +94,7 @@ struct _immediate_permissions_downgrade_handler<AccessHandlePermissions::None> {
   HandleUse::permissions_t get_permissions(
     HandleUse::permissions_t
   ) const {
-    return HandleUse::None;
+    return frontend::Permissions::None;
   }
 };
 
@@ -109,7 +109,7 @@ struct _immediate_permissions_downgrade_handler<AccessHandlePermissions::Read>{
   HandleUse::permissions_t get_permissions(
     HandleUse::permissions_t
   ) const {
-    return HandleUse::Read;
+    return frontend::Permissions::Read;
   }
 };
 
@@ -124,7 +124,7 @@ struct _scheduling_permissions_downgrade_handler<AccessHandlePermissions::Read>{
   HandleUse::permissions_t get_permissions(
     HandleUse::permissions_t
   ) const {
-    return HandleUse::Read;
+    return frontend::Permissions::Read;
   }
 };
 

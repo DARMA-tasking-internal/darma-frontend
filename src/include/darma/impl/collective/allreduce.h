@@ -149,13 +149,13 @@ struct all_reduce_impl {
   ) const {
 
     DARMA_ASSERT_MESSAGE(
-      input.current_use_->use->scheduling_permissions_ != HandleUse::None,
+      input.current_use_->use->scheduling_permissions_ != frontend::Permissions::None,
       "allreduce() called on handle that can't schedule at least Read usage on "
         "data"
     );
     DARMA_ASSERT_MESSAGE(
-      output.current_use_->use->scheduling_permissions_ != HandleUse::None
-      and output.current_use_->use->scheduling_permissions_ != HandleUse::Read,
+      output.current_use_->use->scheduling_permissions_ != frontend::Permissions::None
+      and output.current_use_->use->scheduling_permissions_ != frontend::Permissions::Read,
       "allreduce() called on handle that can't schedule at least Write usage on "
         "data"
     );
@@ -176,19 +176,19 @@ struct all_reduce_impl {
     auto input_use_holder = detail::make_captured_use_holder(
       input.var_handle_,
       /* requested_scheduling_permissions */
-      HandleUse::None,
+      frontend::Permissions::None,
       /* requested_immediate_permissions */
-      HandleUse::Read,
+      frontend::Permissions::Read,
       input.current_use_.get()
     );
 
     auto output_use_holder = detail::make_captured_use_holder(
       output.var_handle_,
       /* requested_scheduling_permissions */
-      HandleUse::None,
+      frontend::Permissions::None,
       /* requested_immediate_permissions */
       // TODO change this to Write once that is implemented
-      HandleUse::Modify,
+      frontend::Permissions::Modify,
       output.current_use_.get()
     );
 
@@ -228,12 +228,12 @@ struct all_reduce_impl {
   ) const {
 
     DARMA_ASSERT_MESSAGE(
-      in_out.current_use_->use->scheduling_permissions_ != HandleUse::None,
+      in_out.current_use_->use->scheduling_permissions_ != frontend::Permissions::None,
       "allreduce() called on handle that can't schedule at least read usage on "
       "data (most likely because it was already released"
     );
     DARMA_ASSERT_MESSAGE(
-      in_out.current_use_->use->scheduling_permissions_ == HandleUse::Permissions::Modify,
+      in_out.current_use_->use->scheduling_permissions_ == frontend::Permissions::Modify,
       "Can't do an allreduce capture of a handle as in_out without Modify"
       " scheduling permissions"
     );
@@ -261,9 +261,9 @@ struct all_reduce_impl {
     auto collective_use_holder = detail::make_captured_use_holder(
       in_out.var_handle_,
       /* requested_scheduling_permissions */
-      HandleUse::None,
+      frontend::Permissions::None,
       /* requested_immediate_permissions */
-      HandleUse::Modify,
+      frontend::Permissions::Modify,
       in_out.current_use_.get()
     );
 

@@ -74,8 +74,8 @@ struct _initial_access_key_helper {
     auto use_holder = std::make_shared<UseHolder>(
       HandleUse(
         var_h,
-        HandleUse::Modify,
-        HandleUse::None,
+        frontend::Permissions::Modify,
+        frontend::Permissions::None,
         initial_flow(),
         null_flow(),
         insignificant_flow(),
@@ -86,8 +86,8 @@ struct _initial_access_key_helper {
     auto use_holder = std::make_shared<UseHolder>(
       HandleUse(
         var_h,
-        HandleUse::Modify,
-        HandleUse::None,
+        frontend::Permissions::Modify,
+        frontend::Permissions::None,
         initial_flow(),
         //FlowRelationship::Initial, nullptr,
         null_flow()

@@ -210,18 +210,18 @@ TEST_P(TestFunctorModCaptures, Parametrized) {
     EXPECT_CALL(*mock_runtime, make_next_flow(f_initial))
       .WillOnce(Return(f_task_out));
 
-    use_t::permissions_t expected_scheduling_permissions;
+    darma_runtime::frontend::permissions_t expected_scheduling_permissions;
     if(test_type == "simple_handle") {
-      expected_scheduling_permissions = use_t::Modify;
+      expected_scheduling_permissions = darma_runtime::frontend::Permissions::Modify;
     }
     else {
-      expected_scheduling_permissions = use_t::None;
+      expected_scheduling_permissions = darma_runtime::frontend::Permissions::None;
     }
 
     EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
       f_initial, f_task_out,
       expected_scheduling_permissions,
-      use_t::Modify
+      darma_runtime::frontend::Permissions::Modify
     ))).WillOnce(SaveArg<0>(&task_use));
     EXPECT_REGISTER_USE(use_cont, f_task_out, f_null, Modify, None);
     EXPECT_RELEASE_USE(use_initial);
@@ -292,13 +292,13 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
   //--------------------
   // Expect ro capture:
 
-  use_t::permissions_t expected_scheduling_permissions;
+  darma_runtime::frontend::permissions_t expected_scheduling_permissions;
   if(test_type == "convert" || test_type == "convert_value"
     || test_type == "convert_long" || test_type == "convert_string") {
-    expected_scheduling_permissions = use_t::None;
+    expected_scheduling_permissions = darma_runtime::frontend::Permissions::None;
   }
   else {
-    expected_scheduling_permissions = use_t::Read;
+    expected_scheduling_permissions = darma_runtime::frontend::Permissions::Read;
   }
 
   int data = 0;
@@ -311,7 +311,7 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
       fl_init, fl_init,
 #endif // _darma_has_feature(anti_flows)
       expected_scheduling_permissions,
-      use_t::Read
+      darma_runtime::frontend::Permissions::Read
     )
   )).WillOnce(
     Invoke([&](auto* use) {

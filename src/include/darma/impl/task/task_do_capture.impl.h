@@ -71,7 +71,7 @@ TaskBase::do_capture_checks(
   );
 
   DARMA_ASSERT_MESSAGE(
-    source_and_continuing.current_use_base_->use_base->scheduling_permissions_ != HandleUse::Permissions::None,
+    source_and_continuing.current_use_base_->use_base->scheduling_permissions_ != frontend::Permissions::None,
     "Can't do a capture of an AccessHandle with scheduling permissions of None"
   );
 
