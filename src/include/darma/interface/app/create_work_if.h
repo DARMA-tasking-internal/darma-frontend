@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          task_fwd.h
-//                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      create_work_if.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,23 +42,50 @@
 //@HEADER
 */
 
-#ifndef SRC_INTERFACE_APP_DARMA_H_
-#define SRC_INTERFACE_APP_DARMA_H_
+#ifndef DARMAFRONTEND_CREATE_WORK_IF_H
+#define DARMAFRONTEND_CREATE_WORK_IF_H
 
-#include <darma/impl/darma.h>
+#include <tinympl/vector.hpp>
 
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/interface/app/access_handle.h>
-#include <darma/interface/app/create_work_while.h>
-#include <darma/interface/app/create_work_if.h>
-#include <darma/interface/app/oo.h>
-#include <darma/interface/app/keyword_arguments/all_keyword_arguments.h>
-#include <darma/interface/app/resource_count.h>
+#include <darma/impl/config.h>
 
-#include <darma/interface/app/containers.h>
+#include <darma/impl/meta/detection.h>
 
-#include <darma/interface/app/backend_hint.h>
+#include <darma/impl/create_work/create_if_then_fwd.h>
 
-#endif /* SRC_INTERFACE_APP_DARMA_H_ */
+#include <darma/impl/create_work/record_line_numbers.h>
+
+namespace darma_runtime {
+
+template <
+  typename Functor
+#if !DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+  =meta::nonesuch
+#endif
+  , typename... Args
+>
+auto
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+_create_work_if_creation_context::_darma_create_work_if_with_line_numbers(
+#else
+create_work_if(
+#endif
+  Args&& ... args
+) {
+  return detail::_create_work_if_helper<
+    Functor,
+    typename tinympl::vector<Args...>::safe_pop_back::type,
+    typename tinympl::vector<Args...>::template safe_back<meta::nonesuch>::type
+  >(
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    std::move(*this),
+#endif
+    std::forward<Args>(args)...
+  );
+}
+
+} // end namespace darma_runtime
+
+#include <darma/impl/create_work/create_if_then.h>
+
+#endif //DARMAFRONTEND_CREATE_WORK_IF_H

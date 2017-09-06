@@ -75,10 +75,9 @@ struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
 
     auto* parent_task = darma_runtime::detail::get_running_task_impl();
 
-    auto task = darma_runtime::detail::make_functor_task_ptr<Functor>(
-      parent_task, parent_task,
-      variadic_arguments_begin_tag{},
-      std::forward<DeducedArgs>(in_args)...
+    auto task = std::make_unique<functor_task_with_args_t<Functor, DeducedArgs...>>(
+      parent_task,
+      std::forward_as_tuple(std::forward<DeducedArgs>(in_args)...)
     );
 
 #if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS

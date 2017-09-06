@@ -66,7 +66,7 @@ namespace detail {
 
 template <typename CaptureManagerT, typename Functor, typename... Args>
 struct WhileFunctorTask
-  : FunctorTask<Functor, Args...>
+  : functor_task_with_args_t<Functor, Args...>
 {
 
   using base_t = FunctorTask<Functor, Args...>;
@@ -86,8 +86,8 @@ struct WhileFunctorTask
     std::integer_sequence<size_t, OtherArgsIdxs...> /*unused*/
   ) : base_t(
         get_running_task_impl(),
-        capture_manager->in_while_mode(),
-        std::move(helper.while_helper.args_fwd_tup)
+        std::move(helper.while_helper.args_fwd_tup),
+        capture_manager->in_while_mode()
       )
   { }
 
@@ -102,8 +102,8 @@ struct WhileFunctorTask
     TaskBase* parent_task
   ) : base_t(
         parent_task,
-        capture_manager->in_while_mode(),
-        to_recapture.stored_args_
+        to_recapture.stored_args_,
+        capture_manager->in_while_mode()
         /* TODO propagate other aspects of the task to TaskBase, like name,
          * line numbers, iteration number, etc.
          */
@@ -178,7 +178,7 @@ struct WhileFunctorTask
 
 template <typename CaptureManagerT, typename Functor, typename... Args>
 struct DoFunctorTask
-  : FunctorTask<Functor, Args...>
+  : functor_task_with_args_t<Functor, Args...>
 {
 
   using base_t = FunctorTask<Functor, Args...>;
@@ -198,9 +198,9 @@ struct DoFunctorTask
     std::integer_sequence<size_t, OtherArgsIdxs...> /*unused*/
   ) : base_t(
         capture_manager->while_task_.get(), // parent is while block
-        get_running_task_impl(), // running is not the same as parent
+        std::move(helper.args_fwd_tup),
         capture_manager->in_do_mode(),
-        std::move(helper.args_fwd_tup)
+        get_running_task_impl() // running is not the same as parent
       )
   { }
 
@@ -215,9 +215,9 @@ struct DoFunctorTask
     TaskBase* parent_task
   ) : base_t(
         parent_task,
-        get_running_task_impl(),
+        to_recapture.stored_args_,
         capture_manager->in_do_mode(),
-        to_recapture.stored_args_
+        get_running_task_impl()
         /* TODO propagate other aspects of the task to TaskBase, like name,
          * line numbers, iteration number, etc.
          */

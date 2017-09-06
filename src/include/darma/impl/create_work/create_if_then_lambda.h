@@ -81,7 +81,15 @@ struct IfLambdaTask
             std::move(helper.if_helper.task_details_args)
           )...
         )
-    { }
+    {
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+      this->set_context_information(
+        helper.if_helper.context_.file,
+        helper.if_helper.context_.line,
+        helper.if_helper.context_.func
+      );
+#endif
+    }
 
   public:
 
@@ -140,7 +148,15 @@ struct ThenElseLambdaTask
             std::move(helper.task_details_args)
           )...
         )
-    { }
+    {
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+      this->set_context_information(
+        helper.if_helper.context_.file,
+        helper.if_helper.context_.line,
+        helper.if_helper.context_.func
+      );
+#endif
+    }
 
   public:
 
@@ -178,12 +194,22 @@ struct _create_work_if_helper<
   Lambda lambda;
   std::tuple<Args&&...> task_details_args;
 
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+  _create_work_if_creation_context context_;
+#endif
+
 
   _create_work_if_helper(
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    _create_work_if_creation_context&& ctxt,
+#endif
     Args&&... args,
     Lambda&& f
   ) : lambda(std::forward<Lambda>(f)),
       task_details_args(std::forward<Args>(args)...)
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+      , context_(std::move(ctxt))
+#endif
   { }
 
   template <typename ThenFunctor=meta::nonesuch, typename... ThenArgs>

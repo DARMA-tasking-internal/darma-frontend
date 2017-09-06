@@ -56,7 +56,7 @@ namespace detail {
 
 template <typename CaptureManagerT, typename Functor, typename... Args>
 struct IfFunctorTask
-  : FunctorTask<Functor, Args...>
+  : functor_task_with_args_t<Functor, Args...>
 {
   using base_t = FunctorTask<Functor, Args...>;
 
@@ -71,10 +71,18 @@ struct IfFunctorTask
     CaptureManagerT* capture_manager
   ) : base_t(
         get_running_task_impl(),
-        capture_manager->in_if_mode(),
-        std::move(helper.if_helper.args_fwd_tup)
+        std::move(helper.if_helper.args_fwd_tup),
+        capture_manager->in_if_mode()
       )
-  { }
+  {
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    this->set_context_information(
+      helper.if_helper.context_.file,
+      helper.if_helper.context_.line,
+      helper.if_helper.context_.func
+    );
+#endif
+  }
 
   void run() override {
 
@@ -95,7 +103,7 @@ struct IfFunctorTask
 
 template <typename IsThenType, typename Functor, typename... Args>
 struct ThenElseFunctorTask
-  : FunctorTask<Functor, Args...>
+  : functor_task_with_args_t<Functor, Args...>
 {
   using base_t = FunctorTask<Functor, Args...>;
 
@@ -104,11 +112,20 @@ struct ThenElseFunctorTask
     HelperT&& helper,
     CaptureManagerT* capture_manager
   ) : base_t(
-        get_running_task_impl(),
+        capture_manager->get_if_task().get(),
+        std::move(helper.args_fwd_tup),
         IsThenType::value ? capture_manager->in_then_mode() : capture_manager->in_else_mode(),
-        std::move(helper.args_fwd_tup)
+        get_running_task_impl()
       )
-  { }
+  {
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    this->set_context_information(
+      helper.if_helper.context_.file,
+      helper.if_helper.context_.line,
+      helper.if_helper.context_.func
+    );
+#endif
+  }
 
 };
 
@@ -131,12 +148,22 @@ struct _create_work_if_helper<
 
   args_fwd_tuple_t args_fwd_tup;
 
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+  _create_work_if_creation_context context_;
+#endif
+
   _create_work_if_helper(
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+    _create_work_if_creation_context&& ctxt,
+#endif
     Args&&... args, LastArg&& last_arg
   ) : args_fwd_tup(
         std::forward<Args>(args)...,
         std::forward<LastArg>(last_arg)
       )
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+      , context_(std::move(ctxt))
+#endif
   { }
 
   template <typename ThenFunctor=meta::nonesuch, typename... ThenArgs>

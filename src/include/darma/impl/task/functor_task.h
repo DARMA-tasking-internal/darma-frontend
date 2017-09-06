@@ -53,6 +53,7 @@
 #include <darma/impl/handle.h>
 #include <darma/impl/util/smart_pointers.h>
 #include <darma/impl/polymorphic_serialization.h>
+#include <type_traits>
 
 #include "task_base.h"
 #include "task_ctor_helper.h"
@@ -176,13 +177,11 @@ struct FunctorTask
         )
     { }
 
-  public:
-
     template <
       size_t... ArgsIdxs,
       size_t... ExtraArgsIdxs,
       typename CaptureManagerT,
-      typename... AllArgs
+      typename AllArgsTupleDeduced
     >
     FunctorTask(
       CaptureManagerT* capture_manager,
@@ -190,127 +189,24 @@ struct FunctorTask
       TaskBase* running_task,
       std::integer_sequence<size_t, ArgsIdxs...>,
       std::integer_sequence<size_t, ExtraArgsIdxs...>,
-      AllArgs&&... all_args
+      AllArgsTupleDeduced&& args_tup
     ) : base_t(
           parent_task,
           variadic_arguments_begin_tag{},
           std::get<ExtraArgsIdxs + sizeof...(ArgsIdxs)>(
-            std::forward_as_tuple(std::forward<AllArgs>(all_args)...)
+            std::forward<AllArgsTupleDeduced>(args_tup)
           )...
         ),
         capturer_t(
           running_task,
           capture_manager,
           std::get<ArgsIdxs>(
-            std::forward_as_tuple(std::forward<AllArgs>(all_args)...)
+            std::forward<AllArgsTupleDeduced>(args_tup)
           )...
         )
     { }
 
-    template <
-      size_t... ArgsIdxs,
-      size_t... ExtraArgsIdxs,
-      typename... AllArgs
-    >
-    FunctorTask(
-      TaskBase* parent_task,
-      TaskBase* running_task,
-      std::integer_sequence<size_t, ArgsIdxs...> arg_idxs,
-      std::integer_sequence<size_t, ExtraArgsIdxs...> extra_idxs,
-      AllArgs&&... all_args
-    ) : FunctorTask<Functor, Args...>::FunctorTask(
-          this, parent_task, running_task, arg_idxs, extra_idxs,
-          std::forward<AllArgs>(all_args)...
-        )
-    { /* forwarding ctor, must be empty */ };
-
-
-    template <
-      typename AllowAliasingDescription,
-      typename... ArgsDeduced
-    >
-    FunctorTask(
-      variadic_constructor_arg_t /*unused*/,
-      TaskBase* parent_task,
-      TaskBase* running_task,
-      types::key_t const& name_key,
-      AllowAliasingDescription&& aliasing_desc,
-      bool is_data_parallel,
-      ArgsDeduced&&... args_in
-    ) : base_t(
-          parent_task,
-          name_key,
-          std::forward<AllowAliasingDescription>(aliasing_desc),
-          is_data_parallel
-        ),
-        capturer_t(
-          running_task,
-          this,
-          std::forward<ArgsDeduced&&>(args_in)...
-        )
-    { }
-
-    template <
-      typename AllowAliasingDescription,
-      typename... ArgsDeduced
-    >
-    FunctorTask(
-      variadic_constructor_arg_t /*unused*/,
-      TaskBase* parent_task,
-      types::key_t const& name_key,
-      AllowAliasingDescription&& aliasing_desc,
-      bool is_data_parallel,
-      ArgsDeduced&&... args_in
-    ) : FunctorTask<Functor, Args...>::FunctorTask(
-          variadic_constructor_arg,
-          parent_task,
-          parent_task, // if no running task is given use the parent task
-          name_key,
-          std::forward<AllowAliasingDescription>(aliasing_desc),
-          is_data_parallel,
-          std::forward<ArgsDeduced>(args_in)...
-        )
-    { /* forwarding ctor, must be empty */ }
-
-    template <
-      typename CaptureManagerT,
-      typename... ArgsDeduced
-    >
-    FunctorTask(
-      TaskBase* parent_task,
-      TaskBase* running_task,
-      CaptureManagerT* capture_manager,
-      variadic_arguments_begin_tag /*unused*/,
-      ArgsDeduced&&... args_in
-    ) : base_t(
-          parent_task
-        ),
-        capturer_t(
-          running_task,
-          capture_manager,
-          std::forward<ArgsDeduced&&>(args_in)...
-        )
-    { }
-
-    template <
-      typename CaptureManagerT,
-      typename ArgsTupleDeduced,
-      size_t... Idxs
-    >
-    FunctorTask(
-      std::integer_sequence<size_t, Idxs...> /* unused */,
-      TaskBase* parent_task,
-      TaskBase* running_task,
-      CaptureManagerT* capture_manager,
-      ArgsTupleDeduced&& args_tuple
-    ) : FunctorTask<Functor, Args...>::FunctorTask(
-          parent_task,
-          running_task,
-          capture_manager,
-          variadic_arguments_begin_tag{},
-          std::get<Idxs>(std::forward<ArgsTupleDeduced>(args_tuple))...
-        )
-    { /* forwarding ctor, must be empty */ }
+  public:
 
     template <
       typename CaptureManagerT,
@@ -318,27 +214,29 @@ struct FunctorTask
     >
     FunctorTask(
       TaskBase* parent_task,
-      TaskBase* running_task,
+      ArgsTupleDeduced&& args_tuple,
       CaptureManagerT* capture_manager,
-      ArgsTupleDeduced&& args_tuple
-    ) : FunctorTask<Functor, Args...>::FunctorTask(
+      TaskBase* running_task = nullptr
+    ) : FunctorTask::FunctorTask(
+          capture_manager,
+          parent_task,
+          running_task == nullptr ? parent_task : running_task,
           std::index_sequence_for<Args...>{},
-          parent_task, running_task, capture_manager,
+          std::make_index_sequence<
+            std::tuple_size<std::decay_t<ArgsTupleDeduced>>::value - sizeof...(Args)
+          >{},
           std::forward<ArgsTupleDeduced>(args_tuple)
         )
     { /* forwarding ctor, must be empty */ }
 
-    template <
-      typename CaptureManagerT,
-      typename ArgsTupleDeduced
-    >
+    template <typename ArgsTupleDeduced>
     FunctorTask(
       TaskBase* parent_running_task,
-      CaptureManagerT* capture_manager,
       ArgsTupleDeduced&& args_tuple
-    ) : FunctorTask<Functor, Args...>::FunctorTask(
-          parent_running_task, parent_running_task, capture_manager,
-          std::forward<ArgsTupleDeduced>(args_tuple)
+    ) : FunctorTask::FunctorTask(
+          parent_running_task,
+          std::forward<ArgsTupleDeduced>(args_tuple),
+          this, parent_running_task
         )
     { /* forwarding ctor, must be empty */ }
 
@@ -460,68 +358,80 @@ FunctorTask<Functor, Args...>::reconstruct(
 
 namespace _impl {
 
+template <typename Functor, typename... AllArgs>
+struct _functor_task_with_args_metafunction {
 
+  using traits = functor_traits<Functor>;
+
+  using call_args_t = typename std::conditional_t<
+    (sizeof...(AllArgs) > traits::n_args_max),
+    tinympl::erase<
+      traits::n_args_max,
+      sizeof...(AllArgs),
+      tinympl::vector<AllArgs&&...>
+    >,
+    tinympl::identity<tinympl::vector<AllArgs&&...>>
+  >::type;
+
+  using functor_with_args_vector_t = typename call_args_t::template push_front_t<Functor>;
+
+  using type = tinympl::splat_to_t<
+    functor_with_args_vector_t, FunctorTask
+  >;
+
+  static constexpr auto extra_args_count = sizeof...(AllArgs) - traits::n_args_max;
+
+};
 
 } // end namespace _impl
 
-
-template <typename Functor, typename CaptureManagerT, typename... AllArgs>
-auto
-make_functor_task_ptr(
-  CaptureManagerT* capture_manager,
-  TaskBase* parent_task,
-  TaskBase* running_task,
-  variadic_arguments_begin_tag,
-  AllArgs&&... all_args
-) {
-  using traits = functor_traits<Functor>;
-  using task_t = tinympl::splat_to_t<
-    typename tinympl::erase<
-      traits::n_args_max + 1,
-      sizeof...(AllArgs),
-      tinympl::vector<Functor, AllArgs...>
-    >::type,
-    FunctorTask
-  >;
-
-  return std::make_unique<task_t>(
-    capture_manager, parent_task, running_task,
-    std::make_index_sequence<traits::n_args_max>{},
-    std::make_index_sequence<sizeof...(AllArgs) - traits::n_args_max>{},
-    std::forward<AllArgs>(all_args)...
-  );
-
-}
-
 template <typename Functor, typename... AllArgs>
-auto
-make_functor_task_ptr(
-  TaskBase* parent_task,
-  TaskBase* running_task,
-  variadic_arguments_begin_tag,
-  AllArgs&&... all_args
-) {
-  using traits = functor_traits<Functor>;
-  using task_t = tinympl::splat_to_t<
-    typename std::conditional_t<
-      (sizeof...(AllArgs) > traits::n_args_max),
-      tinympl::erase<
-        traits::n_args_max + 1,
-        sizeof...(AllArgs) + 1,
-        tinympl::vector<Functor, AllArgs...>
-      >,
-      tinympl::identity<tinympl::vector<Functor, AllArgs...>>
-    >::type,
-    FunctorTask
-  >;
+using functor_task_with_args_t = typename _impl::_functor_task_with_args_metafunction<
+  Functor, AllArgs...
+>::type;
 
-  return std::make_unique<task_t>(
-    parent_task, running_task,
-    std::make_index_sequence<traits::n_args_max>{},
-    std::make_index_sequence<sizeof...(AllArgs) - traits::n_args_max>{},
-    std::forward<AllArgs>(all_args)...
-  );
-}
+//template <typename Functor, typename... AllArgs>
+//using extra_args_count_t = std::integral_constant<size_t,
+//  _impl::_functor_task_with_args_metafunction<Functor, AllArgs...>::extra_args_count
+//>;
+//
+//
+//template <typename Functor, typename CaptureManagerT, typename... AllArgs>
+//auto
+//make_functor_task_ptr(
+//  CaptureManagerT* capture_manager,
+//  TaskBase* parent_task,
+//  TaskBase* running_task,
+//  variadic_arguments_begin_tag /*unused*/,
+//  AllArgs&&... all_args
+//) {
+//  using task_t = functor_task_with_args_t<Functor, AllArgs...>;
+//  static constexpr auto extra_args_count = extra_args_count_t<Functor, AllArgs...>::value;
+//
+//  return std::make_unique<task_t>(
+//    capture_manager, parent_task, running_task,
+//    std::forward_as_tuple(std::forward<AllArgs>(all_args)...)
+//  );
+//
+//}
+//
+//template <typename Functor, typename... AllArgs>
+//auto
+//make_functor_task_ptr(
+//  TaskBase* parent_running_task,
+//  variadic_arguments_begin_tag /*unused*/,
+//  AllArgs&&... all_args
+//) {
+//  using task_t = functor_task_with_args_t<Functor, AllArgs...>;
+//  static constexpr auto extra_args_count = extra_args_count_t<Functor, AllArgs...>::value;
+//
+//  return std::make_unique<task_t>(
+//    parent_running_task,
+//    std::forward_as_tuple(std::forward<AllArgs>(all_args)...)
+//  );
+//
+//}
+
 
 } // end namespace detail
 } // end namespace darma_runtime

@@ -86,8 +86,21 @@ struct _create_work_while_creation_context : _create_work_creation_context {
   _darma_create_work_while_with_line_numbers(Args&&... args);
 };
 
+struct _create_work_if_creation_context : _create_work_creation_context {
+
+  using _create_work_creation_context::_create_work_creation_context;
+
+  template <
+    typename Functor=meta::nonesuch,
+    typename... Args
+  >
+  auto
+  _darma_create_work_if_with_line_numbers(Args&&... args);
+};
+
 #define create_work _create_work_creation_context(__FILE__, __LINE__, __func__)._darma_create_work_with_line_numbers
 #define create_work_while _create_work_while_creation_context(__FILE__, __LINE__, __func__)._darma_create_work_while_with_line_numbers
+#define create_work_if _create_work_if_creation_context(__FILE__, __LINE__, __func__)._darma_create_work_if_with_line_numbers
 #endif
 
 } // end namespace darma_runtime
