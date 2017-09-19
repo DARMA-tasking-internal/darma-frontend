@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      darma_features.h
+//                      darma_region.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,24 +42,61 @@
 //@HEADER
 */
 
-#ifndef DARMA_DARMA_FEATURES_H
-#define DARMA_DARMA_FEATURES_H
+#ifndef DARMAFRONTEND_DARMA_REGION_H
+#define DARMAFRONTEND_DARMA_REGION_H
 
-#define _darma_backend_has_all_features 1
+#include <darma/impl/feature_testing_macros.h>
 
-#define _darma_backend_feature_progress_date 20180901 // for now
+#if _darma_has_feature(darma_regions)
 
-#define _darma_has_feature_resilient_tasks 0
+#include <darma_types.h>
+#include <darma/interface/backend/runtime.h>
 
-#define _darma_has_feature_register_all_uses 1
-#define _darma_has_feature_create_concurrent_work_owned_by 0
+namespace darma_runtime {
+namespace experimental {
 
-#define _darma_has_feature_task_collection_token 1
-#define _darma_has_feature_commutative_access_handles 0
-#define _darma_has_feature_anti_flows 0
-#define _darma_has_feature_create_parallel_for 0
-#define _darma_has_feature_unmanaged_data 0
-#define _darma_has_feature_darma_regions 0
-#define _darma_has_feature_mpi_interoperability 0
+namespace _impl {
 
-#endif //DARMA_DARMA_FEATURES_H
+template <typename AlwaysVoid=void>
+auto&
+_get_default_instance_token_ptr() {
+  static auto _rv = std::make_unique<
+    darma_runtime::types::runtime_instance_token_t
+  >(
+    darma_runtime::backend::initialize_runtime_instance()
+  );
+  return _rv;
+}
+
+auto&
+get_default_instance_token() {
+  return *_get_default_instance_token_ptr<>().get();
+}
+
+
+} // end namespace _impl
+
+template <typename Callable>
+auto
+darma_region(Callable&& callable) {
+  auto done_promise = std::promise<void>();
+  auto done_future = done_promise.get_future();
+  backend::register_runtime_instance_quiescence_callback(
+    _impl::get_default_instance_token(),
+    std::function<void()>([done_promise=std::move(done_promise)]{
+      done_promise.set_value();
+    })
+  );
+  backend::with_active_runtime_instance(
+    _impl::get_default_instance_token(),
+    std::function<void()>(std::forward<Callable>(callable)())
+  );
+  return done_future;
+}
+
+} // end namespace experimental
+} // end namespace darma_runtime
+
+#endif // _darma_has_feature(darma_regions)
+
+#endif //DARMAFRONTEND_DARMA_REGION_H

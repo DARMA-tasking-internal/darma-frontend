@@ -130,6 +130,12 @@ class Handle {
      */
     virtual ArrayConceptManager const*
     get_array_concept_manager() const =0;
+
+#if _darma_has_feature(unmanaged_data)
+    virtual bool
+    data_is_unmanaged() const { return false; }
+#endif // _darma_has_feature_mpi_interoperability
+
 };
 
 } // end namespace frontend

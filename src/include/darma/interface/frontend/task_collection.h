@@ -102,6 +102,18 @@ class TaskCollection
     virtual OptionalBoolean
     all_mappings_same_as(TaskCollection const* other) const =0;
 
+#if _darma_has_feature(mpi_interoperability)
+    virtual bool
+    require_exactly_one_index_per_process() const {
+      return false;
+    }
+
+    virtual bool
+    require_exclusive_communication_access() const {
+      return false;
+    }
+#endif
+
 #if _darma_has_feature(task_collection_token)
     virtual types::task_collection_token_t const&
     get_task_collection_token() const =0;

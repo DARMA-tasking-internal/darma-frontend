@@ -242,6 +242,25 @@ namespace darma_runtime { namespace types {
 using task_collection_token_t = mock_backend::MockTaskCollectionToken;
 }} // end namespace darma_runtime::types
 
+namespace mock_backend {
+
+struct MockRuntimeInstanceToken {
+  MockRuntimeInstanceToken() : name("%##unnamed##%") { }
+  MockRuntimeInstanceToken(const char* in_name) : name(in_name) { }
+  MockRuntimeInstanceToken(MockRuntimeInstanceToken const& other) = default;
+  MockRuntimeInstanceToken(MockRuntimeInstanceToken&& other) = default;
+  MockRuntimeInstanceToken& operator=(MockRuntimeInstanceToken const& other) = default;
+  MockRuntimeInstanceToken& operator=(MockRuntimeInstanceToken&& other) = default;
+  std::string name;
+  template <typename Archive>
+  void serialize(Archive& ar) { ar | name; }
+};
+
+} // end namespace mock_backend
+
+namespace darma_runtime { namespace types {
+using runtime_instance_token_t = mock_backend::MockRuntimeInstanceToken;
+}} // end namespace darma_runtime::types
 
 #include <darma/impl/key/SSO_key_fwd.h>
 

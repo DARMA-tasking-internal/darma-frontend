@@ -95,6 +95,19 @@ class Runtime {
 
     virtual size_t get_execution_resource_count(size_t depth) const =0;
 
+#if _darma_has_feature(unmanaged_data)
+    virtual void
+    register_unmanaged_pointer_handle(
+      std::shared_ptr<frontend::Handle> handle,
+      void* data,
+      std::function<void(std::shared_ptr<frontend::Handle>, void*)> ready_callback /* = nullptr */
+    ) =0;
+
+    // TODO more hook(s) for ensuring the data underneath an unmanaged pointer is ready for non-DARMA work
+
+#endif // _darma_has_feature(unmanaged_data)
+
+
     //==========================================================================
     // <editor-fold desc="Task and TaskCollection handling">
 
@@ -123,6 +136,7 @@ class Runtime {
 
     //==========================================================================
     // <editor-fold desc="Use handling">
+
 
     /** @brief Register a frontend::Use object
      *
@@ -450,12 +464,52 @@ get_backend_memory_manager();
 Runtime*
 get_backend_runtime();
 
-
 typedef Runtime runtime_t;
 
 } // end namespace backend
 
 } // end namespace abstract
+
+namespace backend {
+
+#if _darma_has_feature(darma_regions)
+
+types::runtime_instance_token_t
+initialize_runtime_instance();
+
+void
+register_runtime_instance_quiescence_callback(
+  types::runtime_instance_token_t& token,
+  std::function<void()> callback
+);
+
+void
+activate_runtime_instance(
+  types::runtime_instance_token_t& token
+);
+
+void
+with_active_runtime_instance(
+  types::runtime_instance_token_t& token,
+  std::function<void()> callback
+);
+
+void
+deactivate_runtime_instance(
+  types::runtime_instance_token_t& token
+);
+
+void
+await_runtime_instance_quiescence(
+  types::runtime_instance_token_t& token
+);
+
+void
+destroy_runtime_instance();
+
+#endif // _darma_has_feature(darma_regions)
+
+} // end namespace backend
 
 } // end namespace darma_runtime
 

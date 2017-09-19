@@ -294,6 +294,19 @@ class VariableHandle
 
 };
 
+template <typename T>
+class UnmanagedHandle : public VariableHandle<T> {
+  public:
+
+    using base_t = VariableHandle<T>;
+    using base_t::base_t;
+
+    bool data_is_unmanaged() const override {
+      return true;
+    }
+};
+
+
 } // end namespace detail
 
 // </editor-fold>
