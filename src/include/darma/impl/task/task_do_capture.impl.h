@@ -115,8 +115,7 @@ TaskBase::do_capture_checks(
 inline void
 TaskBase::do_capture(
   AccessHandleBase& captured,
-  AccessHandleBase const& source_and_continuing,
-  bool register_continuation_use /* = true */
+  AccessHandleBase const& source_and_continuing
 ) {
 
   if(do_capture_checks(source_and_continuing)) return;
@@ -127,10 +126,31 @@ TaskBase::do_capture(
     immediate_capture_op
   );
 
+
+  do_capture(captured, source_and_continuing,
+    (HandleUseBase::permissions_t)pair_before_downgrades.scheduling,
+    (HandleUseBase::permissions_t)pair_before_downgrades.immediate,
+    /* register_continuation = */ true,
+    /* copies_into_closure = */ false
+  );
+
+}
+
+inline void
+TaskBase::do_capture(
+  AccessHandleBase& captured,
+  AccessHandleBase const& source_and_continuing,
+  frontend::permissions_t requested_scheduling,
+  frontend::permissions_t requested_immediate,
+  bool register_continuation,
+  bool copies_into_closure
+) {
+
+  // Check for any downgrades (on the calling side)
   auto permissions_pair = CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
     source_and_continuing,
-    pair_before_downgrades.scheduling,
-    pair_before_downgrades.immediate
+    (int)requested_scheduling,
+    (int)requested_immediate
   );
 
   // Now make the captured use holder (and set up the continuing use holder,
@@ -140,7 +160,7 @@ TaskBase::do_capture(
     (HandleUseBase::permissions_t)permissions_pair.scheduling,
     (HandleUseBase::permissions_t)permissions_pair.immediate,
     source_and_continuing,
-    register_continuation_use
+    register_continuation
   );
 
   captured.call_add_dependency(this);

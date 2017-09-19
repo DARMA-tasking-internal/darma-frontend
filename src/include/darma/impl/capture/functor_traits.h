@@ -48,10 +48,12 @@
 #include <cstdint>
 #include <type_traits>
 
-#include <darma/impl/meta/callable_traits.h>
+#include <darma/impl/capture/callable_traits.h>
 #include <tinympl/select.hpp>
+#include <darma/impl/task/task_base.h>
+#include <darma/impl/async_accessible/async_access_traits.h>
 #include "darma/impl/task/task.h"
-#include "handle.h"
+#include "darma/impl/handle.h"
 
 namespace darma_runtime {
 
@@ -66,25 +68,15 @@ namespace _functor_traits_impl {
 template <typename T>
 using decayed_is_access_handle = is_access_handle<std::decay_t<T>>;
 
-//template <typename T>
-//using _compile_time_modifiable_archetype = std::integral_constant<bool, T::is_compile_time_modifiable>;
-//template <typename T>
-//using decayed_is_compile_time_modifiable = meta::detected_or_t<std::false_type,
-//  _compile_time_modifiable_archetype, std::decay_t<T>
-//>;
-//template <typename T>
-//using _compile_time_readable_archetype = std::integral_constant<bool, T::is_compile_time_readable>;
-//template <typename T>
-//using decayed_is_compile_time_readable = meta::detected_or_t<std::false_type,
-//  _compile_time_readable_archetype, std::decay_t<T>
-//>;
-
 template <typename T>
 using _compile_time_immediate_readable = std::integral_constant<bool, T::is_compile_time_immediate_readable>;
+
 template <typename T>
 using _compile_time_immediate_modifiable = std::integral_constant<bool, T::is_compile_time_immediate_modifiable>;
+
 template <typename T>
 using _compile_time_scheduling_readable = std::integral_constant<bool, T::is_compile_time_scheduling_readable>;
+
 template <typename T>
 using _compile_time_scheduling_modifiable = std::integral_constant<bool, T::is_compile_time_scheduling_modifiable>;
 
@@ -92,14 +84,17 @@ template <typename T>
 using decayed_is_compile_time_immediate_readable = typename meta::detected_or_t<std::true_type,
   _compile_time_immediate_readable, std::decay_t<T>
 >::type;
+
 template <typename T>
 using decayed_is_compile_time_immediate_modifiable = typename meta::detected_or_t<std::true_type,
   _compile_time_immediate_modifiable, std::decay_t<T>
 >::type;
+
 template <typename T>
 using decayed_is_compile_time_scheduling_readable = typename meta::detected_or_t<std::true_type,
   _compile_time_scheduling_readable, std::decay_t<T>
 >::type;
+
 template <typename T>
 using decayed_is_compile_time_scheduling_modifiable = typename meta::detected_or_t<std::true_type,
   _compile_time_scheduling_modifiable, std::decay_t<T>
@@ -108,15 +103,17 @@ using decayed_is_compile_time_scheduling_modifiable = typename meta::detected_or
 
 template <typename T>
 using _compile_time_read_access_analog_archetype = typename T::CompileTimeReadAccessAnalog;
+
 template <typename T>
 using _value_type_archetype = typename T::value_type;
+
 template <typename T>
 using value_type_if_defined_t = typename meta::is_detected<_value_type_archetype, T>::type;
 
 //int _compile_time_read_access_analog_archetype;
 } // end namespace _functor_traits_impl
 
-// formal arg introspection oesn't work for rvalue references or for deduced types
+// formal arg introspection doesn't work for rvalue references or for deduced types
 template <typename Functor>
 struct functor_traits {
 
@@ -480,6 +477,189 @@ struct functor_call_traits {
 ////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace detail
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+#ifdef DARMA_USE_NEW_FUNCTOR_CAPTURE
+namespace detail {
+
+template <typename CaptureManagerT>
+struct captured_aao_storage_ctor_helper
+  : CaptureManager
+{
+  CaptureManagerT* passthrough_to_manager;
+
+  captured_aao_storage_ctor_helper()
+    : passthrough_to_manager(
+    get_running_task_impl()->current_create_work_context
+  )
+  {
+    assert(passthrough_to_manager != nullptr);
+    get_running_task_impl()->current_create_work_context = this;
+    passthrough_to_manager = nullptr;
+  }
+};
+
+template <typename AAO, typename ParamType, typename CaptureManagerT>
+struct captured_aao_storage
+  : captured_aao_storage_ctor_helper<CaptureManagerT>
+{
+  AAO stored_value;
+  explicit
+  captured_aao_storage(
+    AAO const& source
+  ) : stored_value(source)
+  {
+    get_running_task_impl()->current_create_work_context = this->passthrough_to_manager;
+  }
+
+  using aao_traits =  async_accessible_object_traits<AAO>;
+  using aao_param_traits =  async_accessible_object_traits<std::decay_t<ParamType>>;
+  static constexpr auto required_scheduling = aao_traits
+    ::template implied_scheduling_permissions_as_argument_for_parameter_c<ParamType>::value;
+  static constexpr auto required_immediate = aao_traits
+    ::template implied_immediate_permissions_as_argument_for_parameter_c<ParamType>::value;
+
+  void do_capture(
+    AccessHandleBase& captured,
+    AccessHandleBase const& source_and_continuing
+  ) override {
+
+    auto pair_before_downgrades = AccessHandleBaseAttorney::get_permissions_before_downgrades(
+      source_and_continuing,
+      scheduling_capture_op,
+      immediate_capture_op
+    );
+
+    auto req_scheduling = required_scheduling;
+    auto req_immediate = required_immediate;
+
+    if(req_scheduling == frontend::Permissions::_notGiven) {
+      req_scheduling = pair_before_downgrades.scheduling;
+    }
+    if(req_immediate == frontend::Permissions::_notGiven) {
+      req_immediate = pair_before_downgrades.immediate;
+    }
+
+    this->passthrough_to_manager->do_capture(
+      captured, source_and_continuing,
+      req_scheduling, req_immediate,
+      aao_param_traits::implies_move_as_parameter_for_argument_c<AAO>::value,
+      aao_param_traits::implies_copy_as_parameter_for_argument_c<AAO>::value
+    );
+
+  }
+};
+
+
+namespace _impl {
+
+template <typename Functor>
+using _is_generated_explicit_functor_archetype =
+  typename Functor::_darma_INTERNAL_functor_traits;
+
+template <typename Functor>
+using _is_user_explicit_functor_archetype =
+  typename Functor::_darma_INTERNAL_functor_traits;
+
+
+template <typename Functor>
+using _is_deducible_functor_archetype = decltype(&Functor::operator());
+
+template <typename Functor>
+using _is_deducible_functor = tinympl::bool_<
+  tinympl::is_detected<_is_deducible_functor_archetype, Functor>::value
+>;
+template <typename Functor>
+using _is_generated_explicit_functor = tinympl::bool_<
+  tinympl::is_detected<_is_deducible_functor_archetype, Functor>::value
+>;
+template <typename Functor>
+using _is_user_explicit_functor = tinympl::bool_<
+  tinympl::is_detected<_is_deducible_functor_archetype, Functor>::value
+>;
+
+} // end namespace _impl
+
+template <typename Functor, typename ParamsVector>
+struct functor_closure_overload_description;
+
+template <typename Functor, typename... Params>
+struct functor_closure_overload_description<
+  Functor, tinympl::vector<Params...>
+> {
+
+  template <typename Arg, typename Param>
+  using arg_storage_t = std::conditional_t<
+    async_accessible_object_traits<std::decay_t<Arg>>::is_async_accessible_object,
+    // We should eventually be able to propagate the functor task type to avoid an extra vtable lookup
+    captured_aao_storage<std::decay_t<Arg>, Param, detail::CaptureManager>,
+    std::decay_t<Param>
+  >;
+
+  template <typename... Args>
+  using stored_args_tuple_t = typename tinympl::zip<
+    std::tuple,
+    arg_storage_t,
+    tinympl::vector<Args...>,
+    tinympl::vector<Params...>
+  >::type;
+
+  //template <typename Arg, typename Param>
+  //struct call_traits
+  //
+  //template <typename... Args>
+  //using call_traits_vector =
+
+};
+
+template <typename>
+struct functor_closure_traits_impl;
+
+template <typename... OverloadDescs>
+struct functor_closure_traits_impl<
+  tinympl::vector<OverloadDescs...>
+> {
+  using overloads_vector = tinympl::vector<OverloadDescs...>;
+
+  // For now, we only support one overload, so it has to be the first one
+  template <typename... ArgTypes>
+  using best_overload = typename overloads_vector::front;
+};
+
+} // end namespace detail
+
+template <typename Functor, typename Enable=void>
+struct functor_closure_traits;
+
+template <
+  typename Functor
+>
+struct functor_closure_traits<
+  Functor, std::enable_if_t<
+    not detail::_impl::_is_generated_explicit_functor<Functor>::value
+    and not detail::_impl::_is_user_explicit_functor<Functor>::value
+    and detail::_impl::_is_deducible_functor<Functor>::value
+  >
+> : detail::functor_closure_traits_impl<
+      tinympl::vector<
+        detail::functor_closure_overload_description<
+          Functor, typename meta::callable_traits<Functor>::params_vector
+        >
+      >
+    >
+{
+
+};
+
+#endif
+
+
 
 } // end namespace darma_runtime
 

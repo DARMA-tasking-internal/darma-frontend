@@ -271,7 +271,7 @@ struct UseDescription {
 #define EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(fread, use_ptr) \
   EXPECT_CALL(*mock_runtime, legacy_register_use( \
     IsUseWithInFlow( \
-      fread, ::darma_runtime::frontend::Permissions::Invalid /* i.e, anything */, ::darma_runtime::frontend::Permissions::Read \
+      fread, ::darma_runtime::frontend::Permissions::_notGiven /* i.e, anything */, ::darma_runtime::frontend::Permissions::Read \
     ) \
   )).WillOnce(SaveArg<0>(&use_ptr))
 
@@ -279,7 +279,7 @@ struct UseDescription {
 #define EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(fread, use_ptr, value) \
     EXPECT_CALL(*mock_runtime, legacy_register_use( \
         IsUseWithInFlow( \
-          fread, ::darma_runtime::frontend::Permissions::Invalid /* i.e., anything */, ::darma_runtime::frontend::Permissions::Read \
+          fread, ::darma_runtime::frontend::Permissions::_notGiven /* i.e., anything */, ::darma_runtime::frontend::Permissions::Read \
         ) \
     )).WillOnce(::testing::Invoke([&](auto&& use_arg) { \
       use_ptr = use_arg; use_arg->get_data_pointer_reference() = &value; \

@@ -54,7 +54,7 @@
 #include <tinympl/any_of.hpp>
 #include <tinympl/vector.hpp>
 
-#include <darma/impl/meta/callable_traits.h>
+#include <darma/impl/capture/callable_traits.h>
 #include <tinympl/logical_not.hpp>
 #include <tinympl/logical_or.hpp>
 

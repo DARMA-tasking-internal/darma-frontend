@@ -82,9 +82,9 @@
 #include <darma/impl/runnable/runnable.h>
 #include <darma/impl/runtime.h>
 #include <darma/impl/handle_fwd.h>
-#include <darma/impl/meta/callable_traits.h>
+#include <darma/impl/capture/callable_traits.h>
 #include <darma/impl/handle.h>
-#include <darma/impl/functor_traits.h>
+#include <darma/impl/capture/functor_traits.h>
 #include <darma/impl/serialization/nonintrusive.h>
 #include <darma/impl/use.h>
 #include <darma/impl/util/smart_pointers.h>
@@ -107,8 +107,17 @@ class CaptureManager {
     virtual void
     do_capture(
       AccessHandleBase& captured,
+      AccessHandleBase const& source_and_continuing
+    ) =0;
+
+    virtual void
+    do_capture(
+      AccessHandleBase& captured,
       AccessHandleBase const& source_and_continuing,
-      bool register_continuation_use
+      frontend::permissions_t requested_scheduling,
+      frontend::permissions_t requested_immediate,
+      bool register_continuation,
+      bool copies_into_closure
     ) =0;
 
     void add_dependency(HandleUseBase& use) {
@@ -363,8 +372,17 @@ class TaskBase
     void
     do_capture(
       AccessHandleBase& captured,
+      AccessHandleBase const& source_and_continuing
+    ) override;
+
+    void
+    do_capture(
+      AccessHandleBase& captured,
       AccessHandleBase const& source_and_continuing,
-      bool register_continuation_use = true
+      frontend::permissions_t requested_scheduling,
+      frontend::permissions_t requested_immediate,
+      bool register_continuation,
+      bool copies_into_closure
     ) override;
 
     //==========================================================================
@@ -383,11 +401,6 @@ class TaskBase
     void
     set_name(const key_t& name) override {
       name_ = name;
-    }
-
-    virtual void run() override {
-      assert(runnable_);
-      runnable_->run();
     }
 
     //--------------------------------------------------------------------------
@@ -412,10 +425,6 @@ class TaskBase
 
   public:
 
-
-    void set_runnable(std::unique_ptr<RunnableBase>&& r) {
-      runnable_ = std::move(r);
-    }
 
     //==========================================================================
     // <editor-fold desc="line number and file name recording"> {{{1
@@ -543,8 +552,6 @@ class TaskBase
 
   protected:
 
-    std::unique_ptr<RunnableBase> runnable_;
-
 
 };
 
@@ -561,6 +568,10 @@ class EmptyTask : public TaskBase {
 
     void pack(char*) const override {
       assert(false); // not migratable
+    }
+
+    void run() override {
+      assert(false); // should never be called
     }
 };
 

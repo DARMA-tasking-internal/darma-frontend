@@ -173,6 +173,10 @@ class SerializationManager {
       assert(not has_deep_copy(unpacked_object));
     }
 
+    virtual bool is_unmanaged() const { return false; }
+
+    virtual void* unmanaged_data_pointer() const { return nullptr; }
+
     //////////////////////////////////////////
 
     virtual ~SerializationManager() = default;

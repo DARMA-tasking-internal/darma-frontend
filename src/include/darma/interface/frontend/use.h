@@ -78,7 +78,10 @@ typedef enum struct Permissions {
   Modify=3,  /*!< Read|Write. An immediate (scheduling) Use may perform any
                   operations (create any tasks)
               */
-  Invalid=-1 /*!< For internal use only; should never show up for users or
+  _notGiven=-1, /*!< For internal use only; should never show up for users or
+              *   backends.
+              */
+  _invalid=-2, /*!< For internal use only; should never show up for users or
               *   backends.
               */
 } permissions_t;

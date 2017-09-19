@@ -90,11 +90,12 @@ class AccessHandleBase : public CapturedObjectBase {
               return Permissions::Read;
             }
             case Permissions::Write :
-            case Permissions::Invalid : // to avoid compiler warnings...
+            case Permissions::_invalid : // to avoid compiler warnings...
+            case Permissions::_notGiven : // to avoid compiler warnings...
             case Permissions::None : {
               // can't do a read_only_capture if you have the above scheduling
               // permissions
-              return Permissions::Invalid;
+              return Permissions::_invalid;
             }
           }
         }
@@ -105,11 +106,12 @@ class AccessHandleBase : public CapturedObjectBase {
               return Permissions::Write;
             }
             case Permissions::None :
-            case Permissions::Invalid : // to avoid compiler warnings...
+            case Permissions::_invalid : // to avoid compiler warnings...
+            case Permissions::_notGiven : // to avoid compiler warnings...
             case Permissions::Read : {
               // can't do a write_only_capture if you have the above scheduling
               // permissions
-              return Permissions::Invalid;
+              return Permissions::_invalid;
             }
           }
         }
@@ -121,10 +123,11 @@ class AccessHandleBase : public CapturedObjectBase {
               // capture the greatest permissions allowed
               return permissions;
             }
-            case Permissions::Invalid : // to avoid compiler warnings...
+            case Permissions::_invalid : // to avoid compiler warnings...
+            case Permissions::_notGiven : // to avoid compiler warnings...
             case Permissions::None : {
               // can't capture with no scheduling permissions
-              return Permissions::Invalid;
+              return Permissions::_invalid;
             }
           }
         }
@@ -214,8 +217,8 @@ struct AccessHandleBaseAttorney {
         ah.current_use_base_->use_base->scheduling_permissions_
       )
     };
-    assert(rv.scheduling != (int)Permissions::Invalid);
-    assert(rv.immediate != (int)Permissions::Invalid);
+    assert(rv.scheduling != (int)Permissions::_invalid);
+    assert(rv.immediate != (int)Permissions::_invalid);
     return rv;
   }
 

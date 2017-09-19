@@ -48,7 +48,7 @@
 #include "task_fwd.h"
 
 #include <darma/impl/serialization/traits.h>
-#include <darma/impl/functor_traits.h>
+#include <darma/impl/capture/functor_traits.h>
 #include <darma/impl/util.h>
 #include <darma/impl/handle.h>
 #include <darma/impl/util/smart_pointers.h>
@@ -85,6 +85,13 @@ struct FunctorCapturer : protected FunctorCaptureSetupHelper {
   using traits = functor_traits<Functor>;
   using call_traits = functor_call_traits<Functor, Args&&...>;
   using stored_args_tuple_t = typename call_traits::args_tuple_t;
+
+  //using traits = functor_closure_traits<Functor>;
+  //using overload_traits = typename traits::template best_overload<Args...>;
+  //using stored_args_tuple_t = typename overload_traits::template stored_args_tuple_t<
+  //  Args...
+  //>;
+
 
   static constexpr auto n_functor_args_min = traits::n_args_min;
   static constexpr auto n_functor_args_max = traits::n_args_max;

@@ -543,7 +543,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
           source->captured_as_ |= CapturedAsInfo::ScheduleOnly;
         }
 
-        capturing_task->do_capture(*this, *source, true);
+        capturing_task->do_capture(*this, *source);
 
         // TODO alias checks for non-outer use cases
         if(dynamic_is_outer) {
@@ -721,14 +721,27 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
         using namespace darma_runtime::detail::flow_relationships;
 
+        auto old_key = var_handle_->get_key();
+        auto new_handle = std::make_shared<detail::VariableHandle<T>>(
+          var_handle_->with_different_key(
+            old_key.is_backend_generated() ?
+              detail::key_traits<types::key_t>::make_awaiting_backend_assignment_key()
+              // TODO shorten this
+              : make_key(
+              old_key, "_index_", idx, "_local_access_"
+            )
+          )
+        );
+
         if(
           current_use_->use->immediate_permissions_ == frontend::Permissions::Modify
             or current_use_->use->scheduling_permissions_ == frontend::Permissions::Modify
         ) {
 
+
           auto idx_use_holder = std::make_shared<detail::UseHolder>(
             detail::HandleUse(
-              var_handle_base_,
+              new_handle,
               current_use_->use->scheduling_permissions_,
               current_use_->use->immediate_permissions_,
               // In relationship
@@ -758,7 +771,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
 
           auto idx_use_holder = std::make_shared<detail::UseHolder>(
             detail::HandleUse(
-              var_handle_base_,
+              new_handle,
               current_use_->use->scheduling_permissions_,
               current_use_->use->immediate_permissions_,
               // In relationship and source
@@ -998,9 +1011,7 @@ using CommutativeAccessHandleCollection = typename AccessHandleCollection<
     // For now, at least, a CommutativeAccessHandleCollection can never be indexed
     // and have local_access() called on the indexed return value, so it never
     // has immediate permissions other than None
-    detail::static_immediate_permissions<detail::AccessHandlePermissions::None>,
-    detail::required_scheduling_permissions<detail::AccessHandlePermissions::Commutative>,
-    detail::static_scheduling_permissions<detail::AccessHandlePermissions::Commutative>
+    detail::static_immediate_permissions<detail::AccessHandlePermissions::None>
   >::template from_traits<OtherTraits>::type
 >;
 

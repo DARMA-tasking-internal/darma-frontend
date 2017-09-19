@@ -69,6 +69,8 @@ class Handle {
      *  pass it to set_key(), true otherwise.
      *
      *  @sa Handle::set_key()
+     *
+     *  @todo rename this something like needs_backend_assigned_key() and negate it
      */
     virtual bool
     has_user_defined_key() const =0;

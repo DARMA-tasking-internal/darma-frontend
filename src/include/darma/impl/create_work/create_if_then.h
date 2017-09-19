@@ -49,7 +49,7 @@
 
 #include "create_if_then_fwd.h"
 
-#include <darma/impl/functor_traits.h>
+#include <darma/impl/capture/functor_traits.h>
 
 #include <darma/interface/app/create_work.h>
 #include <darma/impl/capture.h>
@@ -284,8 +284,7 @@ struct IfThenElseCaptureManager<
 
     void do_capture(
       AccessHandleBase& captured,
-      AccessHandleBase const& source_and_continuing,
-      bool register_continuation_use /* ignored */
+      AccessHandleBase const& source_and_continuing
     ) override {
 
       /* TODO we should probably make copies (or something) of handles explicitly

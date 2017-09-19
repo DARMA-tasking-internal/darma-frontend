@@ -79,16 +79,16 @@ struct _check_permissions_compatible {
   static_assert(
     not all_AH_permissions_given<a, b>::value
     or (
-      // If a is Commutative, b must be Commutative or None
+      // If a is Write, b must not be Read
       (
-        a != AccessHandlePermissions::Commutative || (
-          b == AccessHandlePermissions::None || b == AccessHandlePermissions::Commutative
+        a != AccessHandlePermissions::Write || (
+          b == AccessHandlePermissions::None || b == AccessHandlePermissions::Modify
         )
       )
-      // also, if b is Commutative, a must be Commutative or None
+      // also, if b is Write, a must not be Read
       and (
-        b != AccessHandlePermissions::Commutative || (
-          a == AccessHandlePermissions::None || a == AccessHandlePermissions::Commutative
+        b != AccessHandlePermissions::Write || (
+          a == AccessHandlePermissions::None || a == AccessHandlePermissions::Modify
         )
       )
     ),

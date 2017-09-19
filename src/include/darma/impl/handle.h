@@ -140,6 +140,7 @@ class VariableHandleBase
     bool
     has_user_defined_key() const override {
       return not key_traits<types::key_t>::needs_backend_key(key_);
+
     }
 
     void
@@ -193,6 +194,11 @@ class VariableHandle
     VariableHandle(
       const key_t &data_key
     ) : base_t(data_key) { }
+
+    VariableHandle
+    with_different_key(const key_t& different_key) const {
+      return { different_key };
+    }
 
     virtual ~VariableHandle() noexcept { }
 

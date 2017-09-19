@@ -90,69 +90,6 @@ struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
       std::move(task)
     );
 
-//    return setup_create_work_argument_parser()
-//      .parse_args(std::forward<DeducedArgs>(in_args)...)
-//      .invoke([this](
-//        types::key_t name_key,
-//        auto&& allow_aliasing_desc,
-//        bool data_parallel,
-//        variadic_arguments_begin_tag,
-//        auto&&... args
-//      ) {
-//
-//        //--------------------------------------------------------------------------
-//        // Check that the arguments are serializable
-//
-//        // Don't wrap this line; it's on one line for compiler spew readability
-//
-//        //using runnable_t = FunctorRunnable<Functor, decltype(args)...>;
-//        //using _______________see_calling_context_below________________ = typename runnable_t::template static_assert_all_args_serializable<>;
-//
-//        //--------------------------------------------------------------------------
-//
-//        auto* parent_task = darma_runtime::detail::get_running_task_impl();
-//
-//        auto task = std::make_unique<
-//          darma_runtime::detail::FunctorTask<Functor, decltype(args)...>
-//        >(
-//          variadic_constructor_arg,
-//          parent_task,
-//          name_key,
-//          std::forward<decltype(allow_aliasing_desc)>(allow_aliasing_desc),
-//          data_parallel,
-//          std::forward<decltype(args)>(args)...
-//        );
-//        // before the copy of the args that triggers the captures:
-////        [&](darma_runtime::detail::TaskBase* task_base) {
-////          task_base->set_name(name_key);
-////          task_base->allowed_aliasing = std::move(allow_aliasing_desc);
-////
-////          parent_task->current_create_work_context = task_base;
-////          task_base->propagate_parent_context(parent_task);
-////
-////          task_base->is_data_parallel_task_ = data_parallel;
-////
-////          // Make sure it's clear that this is not a double-copy capture
-////          task_base->is_double_copy_capture = false;
-////
-////        },
-////          std::forward<decltype(args)>(args)...
-//
-//#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-//        task->set_context_information(
-//          ctxt->file, ctxt->line, ctxt->func
-//        );
-//#endif
-//
-//        //task->post_registration_cleanup();
-//
-//        // Done with capture; unset the current_create_work_context for safety later
-//        //parent_task->current_create_work_context = nullptr;
-//
-//        return abstract::backend::get_backend_runtime()->register_task(
-//          std::move(task)
-//        );
-//      });
   }
 
   decltype(auto) operator()(

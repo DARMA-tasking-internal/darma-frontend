@@ -162,6 +162,7 @@ class IndexedAccessHandle {
           " that is not local"
       );
       // TODO mangled name shortening optimization by making these traits a subclass of access_handle_traits
+      auto handle = use_holder_->use->handle_;
       auto rv = AccessHandle<value_type,
         make_access_handle_traits_t<value_type,
           copy_assignability<false>,
@@ -174,7 +175,7 @@ class IndexedAccessHandle {
             // TODO set publishable to KnownTrue
         >
       >(
-        parent_.var_handle_.get_smart_ptr(),
+        std::static_pointer_cast<detail::VariableHandle<value_type>>(handle),
         std::move(use_holder_)
       );
 #if _darma_has_feature(task_collection_token)
@@ -227,12 +228,25 @@ class IndexedAccessHandle {
 
           auto* backend_runtime = abstract::backend::get_backend_runtime();
 
+          auto old_key = parent_.var_handle_->get_key();
+          auto new_handle = std::make_shared<detail::VariableHandle<value_type>>(
+            parent_.var_handle_->with_different_key(
+              old_key.is_backend_generated() ?
+                // TODO shorten this
+                detail::key_traits<types::key_t>::make_awaiting_backend_assignment_key()
+                : make_key(
+                    old_key, "_backend_index_", backend_index_,
+                    "_read_access_version_key_", version_key
+                  )
+            )
+          );
+
           assert(use_holder_ == nullptr);
 
           // Make the use holder
           use_holder_ = std::make_shared<typename std::pointer_traits<UseHolderPtr>::element_type>(
             HandleUse(
-              parent_.var_handle_.get_smart_ptr(),
+              new_handle,
               frontend::Permissions::Read, // Read scheduling permissions
               frontend::Permissions::None, // No immediate permissions
               /* In flow description */
@@ -253,6 +267,8 @@ class IndexedAccessHandle {
             )
           );
 
+          // TODO this should have a different key from the parent and from any
+          // of its siblings
           return AccessHandle<value_type,
             make_access_handle_traits_t<value_type,
               copy_assignability<true>, // statically read-only, so it doesn't
@@ -265,7 +281,7 @@ class IndexedAccessHandle {
               >
             >
           >(
-            parent_.var_handle_.get_smart_ptr(),
+            new_handle,
             std::move(use_holder_)
           );
 

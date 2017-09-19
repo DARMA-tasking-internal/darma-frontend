@@ -79,9 +79,9 @@
 #include <darma/impl/runnable/runnable.h>
 #include <darma/impl/runtime.h>
 #include <darma/impl/handle_fwd.h>
-#include <darma/impl/meta/callable_traits.h>
+#include <darma/impl/capture/callable_traits.h>
 #include <darma/impl/handle.h>
-#include <darma/impl/functor_traits.h>
+#include <darma/impl/capture/functor_traits.h>
 #include <darma/impl/serialization/nonintrusive.h>
 #include <darma/impl/use.h>
 #include <darma/impl/util/smart_pointers.h>

@@ -156,6 +156,7 @@ class AccessHandle
         ::template with_static_immediate_permissions<detail::AccessHandlePermissions::Read>::type
     >;
 
+
     static constexpr bool is_compile_time_immediate_modifiable =
       (traits::static_immediate_permissions
         == detail::AccessHandlePermissions::Modify
@@ -1244,7 +1245,7 @@ class AccessHandle
 
       _mark_static_capture_flags(source);
 
-      capturing_task->do_capture(*this, *source, true);
+      capturing_task->do_capture(*this, *source);
 
       if (source->current_use_) {
         source->current_use_->use_base->already_captured = true;
