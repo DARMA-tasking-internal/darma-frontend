@@ -118,7 +118,9 @@ class CaptureManager {
       frontend::permissions_t requested_immediate,
       bool register_continuation,
       bool copies_into_closure
-    ) =0;
+    ) {
+      assert(false); // should be unreachable
+    }
 
     void add_dependency(HandleUseBase& use) {
       dependencies_.insert(&use);
