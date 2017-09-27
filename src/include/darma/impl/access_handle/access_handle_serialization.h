@@ -89,7 +89,6 @@ struct Serializer<AccessHandle<Args...>>
           ) and not val.current_use_->could_be_alias)
       );
       // captured_as_ should always be normal here
-      assert(val.captured_as_ == AccessHandleT::CapturedAsInfo::Normal);
       assert(val.current_use_->use->suspended_out_flow_ == nullptr);
       return true;
     }

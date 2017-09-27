@@ -47,11 +47,16 @@
 
 #include <darma/interface/app/access_handle.h>
 
+#include <darma/impl/access_handle/access_handle_base.impl.h>
+
 namespace darma_runtime {
 
+//==============================================================================
+
 template <typename T, typename Traits>
-AccessHandle<T, Traits>::AccessHandle(AccessHandle<T, Traits> const& copied_from)
-  : current_use_(current_use_base_)
+AccessHandle<T, Traits>::AccessHandle(
+  AccessHandle<T, Traits> const& copied_from
+) : current_use_(current_use_base_)
 {
 
   auto result = this->copy_capture_handler_t::handle_copy_construct(
@@ -140,6 +145,8 @@ AccessHandle<T, Traits>::unpack_from_archive(Archive& ar) {
 #endif // _darma_has_feature(task_migration)
 // </editor-fold> end DARMA feature: task_migration }}}2
 //------------------------------------------------------------------------------
+
+//==============================================================================
 
 } // end namespace darma_runtime
 

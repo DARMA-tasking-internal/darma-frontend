@@ -77,11 +77,6 @@ TaskBase::do_capture_checks(
 
   bool check_aliasing = source_and_continuing.current_use_base_->use_base->already_captured;
 
-  DARMA_ASSERT_MESSAGE(
-    (source_and_continuing.captured_as_ & AccessHandleBase::Ignored) == 0,
-    "Something went wrong; ignored bit no longer used"
-  );
-
   if(check_aliasing) {
     if(allowed_aliasing and allowed_aliasing->aliasing_is_allowed_for(
       source_and_continuing, this

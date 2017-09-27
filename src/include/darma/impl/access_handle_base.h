@@ -53,7 +53,7 @@
 
 #include <darma/impl/use.h> // UseHolder
 #include <darma/impl/task/task.h> // TaskBase
-#include <darma/impl/create_work/capture_permissions.h>
+#include <darma/impl/create_work/capture_permissions.h> // CapturedObjectBase
 
 // TODO move this to access_handle directory when we're at a stable merge point
 
@@ -62,9 +62,12 @@ namespace detail {
 
 struct AccessHandleBaseAttorney;
 
-class AccessHandleBase : public CapturedObjectBase {
+class AccessHandleBase
+  : public CapturedObjectBase
+{
   public:
 
+    using task_t = detail::TaskBase;
     using use_holder_base_ptr = UseHolderBase*;
 
     typedef enum CaptureOp {
@@ -74,85 +77,19 @@ class AccessHandleBase : public CapturedObjectBase {
       no_capture
     } capture_op_t;
 
-    static constexpr HandleUse::permissions_t get_captured_permissions_for(
+    // TODO this should be a free function
+    static constexpr
+    HandleUse::permissions_t
+    get_captured_permissions_for(
       capture_op_t op,
       frontend::permissions_t permissions
-    ) {
-      using darma_runtime::frontend::Permissions;
-      // This used to be a lot more complicated when Commutative/Relaxed/etc
-      // were permissions rather than coherence modes.  I've left it here
-      // for backwards compatibility, but it may be moved at some point
-      switch(op) {
-        case CaptureOp::read_only_capture : {
-          switch(permissions) {
-            case Permissions::Modify :
-            case Permissions::Read : {
-              return Permissions::Read;
-            }
-            case Permissions::Write :
-            case Permissions::_invalid : // to avoid compiler warnings...
-            case Permissions::_notGiven : // to avoid compiler warnings...
-            case Permissions::None : {
-              // can't do a read_only_capture if you have the above scheduling
-              // permissions
-              return Permissions::_invalid;
-            }
-          }
-        }
-        case CaptureOp::write_only_capture : {
-          switch(permissions) {
-            case Permissions::Modify :
-            case Permissions::Write : {
-              return Permissions::Write;
-            }
-            case Permissions::None :
-            case Permissions::_invalid : // to avoid compiler warnings...
-            case Permissions::_notGiven : // to avoid compiler warnings...
-            case Permissions::Read : {
-              // can't do a write_only_capture if you have the above scheduling
-              // permissions
-              return Permissions::_invalid;
-            }
-          }
-        }
-        case CaptureOp::modify_capture : {
-          switch(permissions) {
-            case Permissions::Modify :
-            case Permissions::Write :
-            case Permissions::Read : {
-              // capture the greatest permissions allowed
-              return permissions;
-            }
-            case Permissions::_invalid : // to avoid compiler warnings...
-            case Permissions::_notGiven : // to avoid compiler warnings...
-            case Permissions::None : {
-              // can't capture with no scheduling permissions
-              return Permissions::_invalid;
-            }
-          }
-        }
-        case CaptureOp::no_capture : {
-          // for completeness
-          return Permissions::None;
-        }
-      }
-    }
-
-    // TODO remove this
-    typedef enum CapturedAsInfo {
-      Normal = 0,
-      Ignored = 1,
-      ReadOnly = 2,
-      ScheduleOnly = 4,
-      Leaf = 8
-    } captured_as_info_t;
-
+    );
 
   protected:
 
-    using task_t = detail::TaskBase;
+    //------------------------------------------------------------------------------
+    // <editor-fold desc="protected data members"> {{{2
 
-    mutable unsigned captured_as_ = CapturedAsInfo::Normal;
     task_t* capturing_task = nullptr;
     std::size_t lambda_capture_unpack_index = 0;
     mutable use_holder_base_ptr current_use_base_ = nullptr;
@@ -160,38 +97,63 @@ class AccessHandleBase : public CapturedObjectBase {
     // This is ugly, but it works for now:
     std::shared_ptr<VariableHandleBase> var_handle_base_;
 
+    // </editor-fold> end protected data members }}}2
+    //------------------------------------------------------------------------------
+
+
+    //------------------------------------------------------------------------------
+    // <editor-fold desc="friends"> {{{2
+
     friend class TaskBase;
+
     template <typename, typename, bool, typename, typename, bool, typename, typename, bool, bool>
     friend class darma_runtime::detail::IfThenElseCaptureManager;
-    friend class ParsedCaptureOptions;
+
     template <typename, typename, bool, typename, typename, bool>
     friend struct WhileDoCaptureManager;
+
     template <typename, typename>
     friend class darma_runtime::AccessHandle;
 
-    // Copy the concrete object instance
-    virtual std::shared_ptr<AccessHandleBase> copy(bool check_context = true) const =0;
+    friend struct AccessHandleBaseAttorney;
 
-    virtual void call_make_captured_use_holder(
+    template <typename, typename...>
+    friend struct FunctorTask;
+
+    // </editor-fold> end friends }}}2
+    //------------------------------------------------------------------------------
+
+
+    //------------------------------------------------------------------------------
+    // <editor-fold desc="virtual methods"> {{{2
+
+    // Copy the concrete object instance
+    virtual std::shared_ptr<AccessHandleBase>
+    copy(bool check_context = true) const =0;
+
+    virtual void
+    call_make_captured_use_holder(
       std::shared_ptr<detail::VariableHandleBase> var_handle,
       detail::HandleUse::permissions_t req_sched,
       detail::HandleUse::permissions_t req_immed,
       detail::AccessHandleBase const& source,
       bool register_continuation_use
     ) =0;
+
     virtual void replace_use_holder_with(AccessHandleBase const&) =0;
+
     // really should be something like "release_current_use_holders"...
     virtual void release_current_use() const =0;
+
     virtual void call_add_dependency(
       detail::TaskBase* task
     );
-    friend struct AccessHandleBaseAttorney;
+
+    // </editor-fold> end virtual methods }}}2
+    //------------------------------------------------------------------------------
 
 
     virtual ~AccessHandleBase() = default;
-
-    template <typename, typename...>
-    friend struct FunctorTask;
 
 };
 

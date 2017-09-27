@@ -104,12 +104,27 @@ class TaskCollection
 
 #if _darma_has_feature(mpi_interoperability)
     virtual bool
-    require_exactly_one_index_per_process() const {
+    requires_exactly_one_index_per_process() const {
       return false;
     }
 
     virtual bool
-    require_exclusive_communication_access() const {
+    requires_exactly_one_index_per_thread() const {
+      return false;
+    }
+
+    virtual bool
+    requires_ownership_of_threads() const {
+      return false;
+    }
+
+    virtual bool
+    requires_ownership_of_processes() const {
+      return false;
+    }
+
+    virtual bool
+    requires_exclusive_communication_access() const {
       return false;
     }
 #endif

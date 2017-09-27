@@ -85,63 +85,6 @@ class HandleUse
     ~HandleUse() = default;
 };
 
-// TODO remove this
-//struct compatible_permissions_less {
-//  constexpr bool operator()(
-//    HandleUse::permissions_t const& a,
-//    HandleUse::permissions_t const& b
-//  ) const {
-//    DARMA_ASSERT_MESSAGE(
-//      (
-//        // If a is Commutative, b must be Commutative or None
-//        (
-//          a != HandleUse::Commutative || (
-//            b == HandleUse::None || b == HandleUse::Commutative
-//          )
-//        )
-//        // also, if b is Commutative, a must be Commutative or None
-//        and (
-//          b != HandleUse::Commutative || (
-//            a == HandleUse::None || a == HandleUse::Commutative
-//          )
-//        )
-//      ),
-//      "Permissions comparison between incompatible permissions values"
-//    );
-//    return std::underlying_type_t<HandleUse::permissions_t>(a)
-//      < std::underlying_type_t<HandleUse::permissions_t>(b);
-//  }
-//
-//  template <
-//    HandleUse::permissions_t a, HandleUse::permissions_t b
-//  >
-//  struct static_apply
-//    : std::integral_constant<bool,
-//        (std::underlying_type_t<HandleUse::permissions_t>(a)
-//          < std::underlying_type_t<HandleUse::permissions_t>(b))
-//      >
-//  {
-//    static_assert(
-//      (
-//        // If a is Commutative, b must be Commutative or None
-//        (
-//          a != HandleUse::Commutative || (
-//            b == HandleUse::None || b == HandleUse::Commutative
-//          )
-//        )
-//          // also, if b is Commutative, a must be Commutative or None
-//          and (
-//            b != HandleUse::Commutative || (
-//              a == HandleUse::None || a == HandleUse::Commutative
-//            )
-//          )
-//      ),
-//      "Static permissions comparison between incompatible permissions values"
-//    );
-//  };
-//
-//};
-
 struct migrated_use_arg_t { };
 static constexpr migrated_use_arg_t migrated_use_arg = { };
 

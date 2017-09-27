@@ -92,10 +92,6 @@ struct _initial_access_key_helper;
 template <typename>
 struct _read_access_helper;
 
-inline void
-AccessHandleBase::call_add_dependency(TaskBase* task) {
-  task->add_dependency(*current_use_base_->use_base);
-}
 
 } // end namespace detail
 
@@ -1385,14 +1381,6 @@ class AccessHandle
       other_private_members_.is_outermost_scope_dynamic = new_val;
       return new_val;
     }
-
-    //AccessHandle const*& prev_copied_from() {
-    //  return other_private_members_.first();
-    //}
-
-    //AccessHandle const* const& prev_copied_from() const {
-    //  return other_private_members_.first();
-    //}
 
     typename traits::allocation_traits::allocator_t const&
     get_allocator() const {

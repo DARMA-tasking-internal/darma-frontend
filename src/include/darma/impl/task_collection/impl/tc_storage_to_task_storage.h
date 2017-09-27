@@ -51,7 +51,7 @@
 
 #include <darma/impl/handle.h>
 #include <darma/impl/capture.h>
-#include <darma/impl/task_collection/handle_collection.h>
+#include <darma/impl/task_collection/access_handle_collection.h>
 #include <darma/impl/index_range/index_range_traits.h>
 
 namespace darma_runtime {

@@ -94,7 +94,10 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
 template <typename T, typename IndexRangeT,
   typename Traits /*=detail::access_handle_collection_traits<>*/
 >
-class AccessHandleCollection : public detail::AccessHandleBase {
+class AccessHandleCollection
+  : public detail::AccessHandleBase
+    //, private detail::CopyCapturedObject<AccessHandleCollection<T, IndexRangeT, Traits>>
+{
   public:
 
     using value_type = T;
@@ -540,7 +543,7 @@ class AccessHandleCollection : public detail::AccessHandleBase {
         }
 
         if(dynamic_is_outer) {
-          source->captured_as_ |= CapturedAsInfo::ScheduleOnly;
+          source->captured_as.info.ScheduleOnly = true;
         }
 
         capturing_task->do_capture(*this, *source);

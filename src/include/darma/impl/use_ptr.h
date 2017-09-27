@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      use_ptr.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,33 +42,22 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMAFRONTEND_USE_PTR_H
+#define DARMAFRONTEND_USE_PTR_H
 
-#include <darma_types.h>
-#include "handle.h"
-#include "darma/impl/task/task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "darma/impl/create_work/create_work.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/impl/top_level.h>
-#include <darma/interface/defaults/darma_main.h>
-#include "parallel_for.h"
-#include "darma/impl/create_work/create_if_then.h"
-#include "darma/impl/create_work/create_work_while.h"
+namespace darma_runtime {
+namespace detail {
 
-#include <darma/impl/serialization/policy_aware_archive.h>
 
-#include "array/index_range.h"
-#include "index_range/mapping.h"
-#include "task_collection/task_collection.h"
-#include "task_collection/create_concurrent_work.h"
-#include "commutative_access.h"
+template <typename UnderlyingUse>
+struct UsePtr {
 
-#include "darma.impl.h"
 
-namespace darma = darma_runtime;
 
-#endif /* SRC_DARMA_DARMA_H_ */
 
+};
+
+} // end namespace detail
+} // end namespace darma_runtime
+
+#endif //DARMAFRONTEND_USE_PTR_H

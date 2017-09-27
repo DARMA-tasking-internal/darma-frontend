@@ -353,7 +353,11 @@ struct IfThenElseCaptureManager<
         details->req_sched_perms = permissions_pair.scheduling;
         details->req_immed_perms = permissions_pair.immediate;
 
+        // The if has to be able to both schedule the then/else *and* schedule
+        // anything that the then/else schedules (because scheduling permissions
+        // must be propatated outwards
         if_details.req_sched_perms |= details->req_immed_perms;
+        if_details.req_sched_perms |= details->req_sched_perms;
 
         // handle implicit capture in the if:
         if(if_details.source_and_continuing == nullptr) {

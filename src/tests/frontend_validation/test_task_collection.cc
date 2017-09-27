@@ -56,7 +56,7 @@
 #include <darma/interface/app/create_work.h>
 #include <darma/impl/data_store.h>
 #include <darma/impl/task_collection/task_collection.h>
-#include <darma/impl/task_collection/handle_collection.h>
+#include <darma/impl/task_collection/access_handle_collection.h>
 #include <darma/impl/index_range/mapping.h>
 #include <darma/impl/array/index_range.h>
 #include <darma/impl/task_collection/create_concurrent_work.h>

@@ -45,7 +45,7 @@
 #ifndef DARMAFRONTEND_ACQUIRE_ACCESS_H
 #define DARMAFRONTEND_ACQUIRE_ACCESS_H
 
-#include <darma_features.h>
+#include <darma/impl/feature_testing_macros.h>
 
 #if _darma_has_feature(unmanaged_data)
 
