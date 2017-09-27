@@ -735,7 +735,7 @@ class AccessHandle
       >
     >
     T&
-    acquire_reference() const {
+    obtain_reference() const {
       // TODO test this
       DARMA_ASSERT_MESSAGE(
         not unfetched_,
