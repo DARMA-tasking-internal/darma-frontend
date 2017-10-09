@@ -50,20 +50,6 @@
 #include <string>
 
 inline std::string
-permissions_to_string(darma_runtime::frontend::permissions_t per) {
-  switch(per) {
-#define _DARMA__perm_case(val) case darma_runtime::frontend::Permissions::val: return #val;
-    _DARMA__perm_case(None)
-    _DARMA__perm_case(Read)
-    _DARMA__perm_case(Modify)
-    _DARMA__perm_case(Write)
-    _DARMA__perm_case(_invalid)
-    _DARMA__perm_case(_notGiven)
-#undef _DARMA__perm_case
-  }
-}
-
-inline std::string
 permissions_to_string(testing::internal::AnythingMatcher) {
   return "<any permissions>";
 }

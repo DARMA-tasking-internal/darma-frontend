@@ -642,6 +642,7 @@ struct _get_storage_arg_helper<
 
   //----------------------------------------------------------------------------
   // <editor-fold desc="unmapped version"> {{{2
+#if 0
 #if _darma_has_feature(commutative_access_handles)
 
   template <typename TaskCollectionT>
@@ -719,7 +720,7 @@ struct _get_storage_arg_helper<
         darma_runtime::detail::make_captured_use_holder(
           arg.var_handle_base_,
           /* Requested Scheduling permissions: */
-          frontend::Permissions::Commutative,
+          frontend::Permissions::Modify,
           /* Requested Immediate permissions: */
           frontend::Permissions::None,
           /* source and continuing use handle */
@@ -735,6 +736,7 @@ struct _get_storage_arg_helper<
     return rv;
   }
 #endif // _darma_has_feature(commutative_access_handles)
+#endif
 
   // </editor-fold> end unmapped version }}}2
   //----------------------------------------------------------------------------

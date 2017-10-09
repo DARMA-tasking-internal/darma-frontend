@@ -737,10 +737,9 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, two_handles_one_iteration_two_in_while,
   );
 
   // tmp2 capture
-  // TODO fix this for antiflows
   EXPECT_NEW_REGISTER_USE(while_use2,
     f_init2, Same, &f_init2,
-    f_init2, Same, nullptr, true,
+    nullptr, Insignificant, nullptr, false,
     Read, Read, true
   );
 
@@ -833,10 +832,9 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, two_handles_one_iteration_two_in_while,
   EXPECT_NEW_RELEASE_USE(do_cont_use, false);
 
   // the while block use of tmp2
-  // TODO fix this for antiflows
   EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(inner_while_use2,
     f_init2, Same, &f_init2,
-    f_init2, Same, nullptr, true,
+    nullptr, Insignificant, nullptr, false,
     Read, Read, true,
     value
   );

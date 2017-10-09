@@ -574,7 +574,7 @@ TEST_P(TestScheduleOnly, schedule_only) {
   }
   else {
     // Expect a schedule-only ro capture
-    EXPECT_REGISTER_USE(use_ro_sched, f_sched_out, f_sched_out, Read, None);
+    EXPECT_REGISTER_USE(use_ro_sched, f_sched_out, nullptr, Read, None);
     EXPECT_REGISTER_TASK(use_ro_sched);
   }
 
@@ -829,6 +829,7 @@ TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if 0
 #if _darma_has_feature(commutative_access_handles)
 TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
   ::testing::Values(0, 1, 2, 3, 4, 5, 6), int
@@ -1013,6 +1014,7 @@ TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
 
 }
 #endif // _darma_has_feature(commutative_access_handles)
+#endif // 0
 
 ////////////////////////////////////////////////////////////////////////////////
 

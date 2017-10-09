@@ -400,7 +400,9 @@ struct WhileDoCaptureManager<
         do_details.req_sched_perms = permissions_pair.scheduling;
         do_details.req_immed_perms = permissions_pair.immediate;
 
+        // need to be able to schedule the do block and anything it schedules
         while_details.req_sched_perms |= do_details.req_immed_perms;
+        while_details.req_sched_perms |= do_details.req_sched_perms;
 
         // setup details for implicit capture...
         if(while_details.source_and_continuing == nullptr) {

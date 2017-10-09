@@ -57,6 +57,7 @@
 #include "flow_relationship.h"
 
 #include <darma/impl/util/safe_static_cast.h>
+#include <util_dist.h>
 
 namespace darma_runtime {
 namespace frontend {
@@ -85,6 +86,20 @@ typedef enum struct Permissions {
               *   backends.
               */
 } permissions_t;
+
+inline std::string
+permissions_to_string(darma_runtime::frontend::permissions_t per) {
+  switch(per) {
+#define _DARMA__perm_case(val) case darma_runtime::frontend::Permissions::val: return #val;
+    _DARMA__perm_case(None)
+    _DARMA__perm_case(Read)
+    _DARMA__perm_case(Modify)
+    _DARMA__perm_case(Write)
+    _DARMA__perm_case(_invalid)
+    _DARMA__perm_case(_notGiven)
+#undef _DARMA__perm_case
+  }
+}
 
 typedef enum struct CoherenceMode {
   Sequential=0, /*!< Input state is consistent with the lexically preceeding
@@ -194,6 +209,19 @@ typedef enum struct CoherenceMode {
               *   backends.
               */
 } coherence_mode_t;
+
+inline std::string
+coherence_mode_to_string(darma_runtime::frontend::coherence_mode_t mode) {
+  switch(mode) {
+#define _DARMA__coh_case(val) case darma_runtime::frontend::CoherenceMode::val: return #val;
+    _DARMA__coh_case(Sequential)
+    _DARMA__coh_case(Commutative)
+    _DARMA__coh_case(Relaxed)
+    _DARMA__coh_case(Reduce)
+    _DARMA__coh_case(Invalid)
+#undef _DARMA__coh_case
+  }
+}
 
 } // end namespace frontend
 

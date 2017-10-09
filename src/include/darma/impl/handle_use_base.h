@@ -350,12 +350,14 @@ class HandleUseBase
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions,
       FlowRelationshipImpl&& in_rel,
-      FlowRelationshipImpl&& out_rel
+      FlowRelationshipImpl&& out_rel,
+      frontend::coherence_mode_t coherence_mode = frontend::CoherenceMode::Sequential
     ) : handle_(handle),
         immediate_permissions_(immediate_permissions),
         scheduling_permissions_(scheduling_permissions),
         in_flow_rel_(std::move(in_rel)),
-        out_flow_rel_(std::move(out_rel))
+        out_flow_rel_(std::move(out_rel)),
+        coherence_mode_(coherence_mode)
 #if _darma_has_feature(anti_flows)
         , in_anti_flow_rel_(), // i.e., insignificant
           out_anti_flow_rel_() // i.e., insignificant
@@ -370,14 +372,16 @@ class HandleUseBase
       FlowRelationshipImpl&& in_rel,
       FlowRelationshipImpl&& out_rel,
       FlowRelationshipImpl&& anti_in_rel,
-      FlowRelationshipImpl&& anti_out_rel
+      FlowRelationshipImpl&& anti_out_rel,
+      frontend::coherence_mode_t coherence_mode = frontend::CoherenceMode::Sequential
     ) : handle_(handle),
         immediate_permissions_(immediate_permissions),
         scheduling_permissions_(scheduling_permissions),
         in_flow_rel_(std::move(in_rel)),
         out_flow_rel_(std::move(out_rel)),
         in_anti_flow_rel_(std::move(anti_in_rel)),
-        out_anti_flow_rel_(std::move(anti_out_rel))
+        out_anti_flow_rel_(std::move(anti_out_rel)),
+        coherence_mode_(coherence_mode)
     { }
 #endif // _darma_has_feature(anti_flows)
 

@@ -99,8 +99,6 @@ struct _commutative_access_impl {
       >::template from_traits<
         make_access_handle_traits_t<
           typename in_handle_t::value_type,
-          static_scheduling_permissions<AccessHandlePermissions::Commutative>,
-          required_scheduling_permissions<AccessHandlePermissions::Commutative>,
           copy_assignable_handle<false>,
           could_be_outermost_scope<true>
         >
@@ -117,16 +115,17 @@ struct _commutative_access_impl {
         in_handle.get_allocator(),
         HandleUse(
           in_handle.var_handle_,
-          HandleUse::Commutative, /* scheduling permissions */
-          HandleUse::None, /* immediate permissions */
+          frontend::Permissions::Modify, /* scheduling permissions */
+          frontend::Permissions::None, /* immediate permissions */
           same_flow(&in_handle.current_use_->use->in_flow_),
           //FlowRelationship::Same, &in_handle.current_use_->use->in_flow_,
-          next_of_in_flow()
+          next_of_in_flow(),
           //FlowRelationship::Next, nullptr, true
 #if _darma_has_feature(anti_flows)
-          , insignificant_flow(),
-          same_anti_flow(&in_handle.current_use_->use->anti_out_flow_)
+          insignificant_flow(),
+          same_anti_flow(&in_handle.current_use_->use->anti_out_flow_),
 #endif // _darma_has_feature(anti_flows)
+          frontend::CoherenceMode::Commutative
         )
       );
     assert(in_handle.current_use_->use->suspended_out_flow_ == nullptr);
@@ -179,42 +178,18 @@ struct _commutative_access_impl {
       "Can't create commutative_access to handle that is marked with scheduling"
         " permissions less than Modify at compile time"
     );
-    static_assert(
-      std::decay_t<AccessHandleT>::traits::static_scheduling_permissions
-        != AccessHandlePermissions::Commutative,
-      "Can't create commutative_access to handle that is already marked"
-        " commutative at compile time"
-    );
-    static_assert(
-      std::decay_t<AccessHandleT>::traits::static_immediate_permissions
-        != AccessHandlePermissions::Commutative,
-      "Can't create commutative_access to handle that is already marked"
-        " commutative at compile time"
-    );
-    static_assert(
-      std::decay_t<AccessHandleT>::traits::required_scheduling_permissions
-        != AccessHandlePermissions::Commutative,
-      "Can't create commutative_access to handle that is already marked"
-        " commutative at compile time"
-    );
-    static_assert(
-      std::decay_t<AccessHandleT>::traits::required_immediate_permissions
-        != AccessHandlePermissions::Commutative,
-      "Can't create commutative_access to handle that is already marked"
-        " commutative at compile time"
-    );
     DARMA_ASSERT_MESSAGE(
       in_handle.current_use_.get() != nullptr,
       "commutative_access(to_handle=...) called on uninitialized or released AccessHandle"
     );
     DARMA_ASSERT_MESSAGE(
       in_handle.current_use_->use->immediate_permissions_
-        == detail::HandleUse::None,
+        == frontend::Permissions::None,
       "commutative_access(to_handle=...) called on use with immediate permissions that aren't None"
     );
     DARMA_ASSERT_MESSAGE(
       in_handle.current_use_->use->scheduling_permissions_
-        == detail::HandleUse::Modify,
+        == frontend::Permissions::Modify,
       "commutative_access(to_handle=...) called on use without scheduling modify permissions"
     );
     return _handle_version_impl(
@@ -244,9 +219,7 @@ struct _commutative_access_impl {
         typename trait_flags_t::template at_t<TraitIdxs>...
       >::template from_traits<
         typename make_access_handle_collection_traits<
-          typename in_handle_t::value_type, typename in_handle_t::index_range_type,
-          static_scheduling_permissions<AccessHandlePermissions::Commutative>,
-          required_scheduling_permissions<AccessHandlePermissions::Commutative>
+          typename in_handle_t::value_type, typename in_handle_t::index_range_type
         >::type
       >::type
     >;
@@ -261,8 +234,8 @@ struct _commutative_access_impl {
     auto new_use_ptr = std::make_shared<typename out_handle_t::use_holder_t>(
       typename out_handle_t::use_t(
         in_handle.var_handle_.get_smart_ptr(),
-        HandleUse::Commutative, /* scheduling permissions */
-        HandleUse::None, /* immediate permissions */
+        frontend::Permissions::Modify, /* scheduling permissions */
+        frontend::Permissions::None, /* immediate permissions */
         same_flow(&in_handle.current_use_->use->in_flow_).as_collection_relationship(),
         //FlowRelationship::SameCollection, &in_handle.current_use_->use->in_flow_,
         next_of_in_flow().as_collection_relationship(),
@@ -275,7 +248,8 @@ struct _commutative_access_impl {
         // it's going away, but for now, just copy it, since we might want
         // to use it in the destructor of the old use at some point in the
         // future
-        in_handle.current_use_->use->index_range
+        in_handle.current_use_->use->index_range,
+        frontend::CoherenceMode::Commutative
       )
     );
     assert(in_handle.current_use_->use->suspended_out_flow_ == nullptr);
@@ -325,30 +299,30 @@ struct _commutative_access_impl {
       "Can't create commutative_access to collection that is marked with scheduling"
         " permissions less than Modify at compile time"
     );
-    static_assert(
-      ahc_t::traits::permissions_traits::static_scheduling_permissions
-        != AccessHandlePermissions::Commutative,
-      "Can't create commutative_access to collection that is already marked"
-        " commutative at compile time"
-    );
-    static_assert(
-      ahc_t::traits::permissions_traits::static_immediate_permissions
-        != AccessHandlePermissions::Commutative,
-      "Can't create commutative_access to collection that is already marked"
-        " commutative at compile time"
-    );
-    static_assert(
-      ahc_t::traits::permissions_traits::required_scheduling_permissions
-        != AccessHandlePermissions::Commutative,
-      "Can't create commutative_access to collection that is already marked"
-        " commutative at compile time"
-    );
-    static_assert(
-      ahc_t::traits::permissions_traits::required_immediate_permissions
-        != AccessHandlePermissions::Commutative,
-      "Can't create commutative_access to collection that is already marked"
-        " commutative at compile time"
-    );
+//    static_assert(
+//      ahc_t::traits::permissions_traits::static_scheduling_permissions
+//        != AccessHandlePermissions::Commutative,
+//      "Can't create commutative_access to collection that is already marked"
+//        " commutative at compile time"
+//    );
+//    static_assert(
+//      ahc_t::traits::permissions_traits::static_immediate_permissions
+//        != AccessHandlePermissions::Commutative,
+//      "Can't create commutative_access to collection that is already marked"
+//        " commutative at compile time"
+//    );
+//    static_assert(
+//      ahc_t::traits::permissions_traits::required_scheduling_permissions
+//        != AccessHandlePermissions::Commutative,
+//      "Can't create commutative_access to collection that is already marked"
+//        " commutative at compile time"
+//    );
+//    static_assert(
+//      ahc_t::traits::permissions_traits::required_immediate_permissions
+//        != AccessHandlePermissions::Commutative,
+//      "Can't create commutative_access to collection that is already marked"
+//        " commutative at compile time"
+//    );
     static_assert(
       ahc_t::traits::semantic_traits::is_mapped != OptionalBoolean::KnownTrue,
       "Can't create commutative_access to collection that is mapped to a task"
@@ -361,12 +335,12 @@ struct _commutative_access_impl {
     );
     DARMA_ASSERT_MESSAGE(
       in_handle.current_use_->use->immediate_permissions_
-        == detail::HandleUse::None,
+        == frontend::Permissions::None,
       "commutative_access(to_collection=...) called on use with immediate permissions that aren't None"
     );
     DARMA_ASSERT_MESSAGE(
       in_handle.current_use_->use->scheduling_permissions_
-        == detail::HandleUse::Modify,
+        == frontend::Permissions::Modify,
       "commutative_access(to_collection=...) called on use without scheduling modify permissions"
     );
     return _collection_version_impl(
@@ -415,8 +389,8 @@ struct _commutative_access_impl {
     UseHolder initial_use(
       HandleUse(
         var_h,
-        HandleUse::Modify,
-        HandleUse::None,
+        frontend::Permissions::Modify,
+        frontend::Permissions::None,
         initial_flow(),
         //FlowRelationship::Initial, nullptr,
         null_flow()
@@ -436,8 +410,6 @@ struct _commutative_access_impl {
       >::template from_traits<
         make_access_handle_traits_t<
           given_value_type_t,
-          static_scheduling_permissions<AccessHandlePermissions::Commutative>,
-          required_scheduling_permissions<AccessHandlePermissions::Commutative>,
           copy_assignable_handle<false>,
           could_be_outermost_scope<true>
         >
@@ -447,16 +419,17 @@ struct _commutative_access_impl {
       std::make_shared<UseHolder>(
         HandleUse(
           var_h,
-          HandleUse::Commutative,
-          HandleUse::None,
+          frontend::Permissions::Modify,
+          frontend::Permissions::None,
           same_flow(&initial_use.use->in_flow_),
           //FlowRelationship::Same, &initial_use.use->in_flow_,
-          next_of_in_flow()
+          next_of_in_flow(),
           //FlowRelationship::Next, nullptr, true
 #if _darma_has_feature(anti_flows)
-          , same_anti_flow(&initial_use.use->anti_out_flow_),
-          insignificant_flow()
+          same_anti_flow(&initial_use.use->anti_out_flow_),
+          insignificant_flow(),
 #endif // _darma_has_feature(anti_flows)
+          frontend::CoherenceMode::Commutative
         )
       ),
       std::make_unique<types::flow_t>(
@@ -557,8 +530,8 @@ struct _noncommutative_access_impl {
         in_handle.get_allocator(),
         HandleUse(
           in_handle.var_handle_,
-          HandleUse::Modify, /* scheduling permissions */
-          HandleUse::None, /* immediate permissions */
+          frontend::Permissions::Modify, /* scheduling permissions */
+          frontend::Permissions::None, /* immediate permissions */
           same_flow(&in_handle.current_use_->use->out_flow_),
           //FlowRelationship::Same, &in_handle.current_use_->use->out_flow_,
           same_flow(&suspended_out)
@@ -608,20 +581,20 @@ struct _noncommutative_access_impl {
       "Can't create noncommutative_access to handle that's marked as"
         " noncommutative at compile time"
     );
-    static_assert(
-      not std::decay_t<AccessHandleT>::traits::static_scheduling_permissions_given
-      or std::decay_t<AccessHandleT>::traits::static_scheduling_permissions
-        == AccessHandlePermissions::Commutative,
-      "Can't create noncommutative_access to handle that's marked as"
-        " noncommutative at compile time"
-    );
-    static_assert(
-      not std::decay_t<AccessHandleT>::traits::required_scheduling_permissions_given
-      or std::decay_t<AccessHandleT>::traits::required_scheduling_permissions
-        == AccessHandlePermissions::Commutative,
-      "Can't create noncommutative_access to handle that isn't marked"
-        " commutative at compile time"
-    );
+//    static_assert(
+//      not std::decay_t<AccessHandleT>::traits::static_scheduling_permissions_given
+//      or std::decay_t<AccessHandleT>::traits::static_scheduling_permissions
+//        == AccessHandlePermissions::Commutative,
+//      "Can't create noncommutative_access to handle that's marked as"
+//        " noncommutative at compile time"
+//    );
+//    static_assert(
+//      not std::decay_t<AccessHandleT>::traits::required_scheduling_permissions_given
+//      or std::decay_t<AccessHandleT>::traits::required_scheduling_permissions
+//        == AccessHandlePermissions::Commutative,
+//      "Can't create noncommutative_access to handle that isn't marked"
+//        " commutative at compile time"
+//    );
     DARMA_ASSERT_MESSAGE(
       in_handle.get_is_outermost_scope_dynamic(),
       "Can't create noncommutative_access (releasing commutative_access) at a"
@@ -634,15 +607,15 @@ struct _noncommutative_access_impl {
     );
     DARMA_ASSERT_MESSAGE(
       in_handle.current_use_->use->immediate_permissions_
-        == detail::HandleUse::None,
+        == frontend::Permissions::None,
       "noncommutative_access_to_handle(...) called on use with immediate"
         " permissions that aren't None"
     );
-    DARMA_ASSERT_MESSAGE(
-      in_handle.current_use_->use->scheduling_permissions_
-        == detail::HandleUse::Commutative,
-      "noncommutative_access_to_handle(...) called on use without scheduling modify permissions"
-    );
+//    DARMA_ASSERT_MESSAGE(
+//      in_handle.current_use_->use->scheduling_permissions_
+//        == detail::HandleUse::Commutative,
+//      "noncommutative_access_to_handle(...) called on use without scheduling modify permissions"
+//    );
     return _handle_version_impl(
       std::forward<AccessHandleT>(in_handle),
       std::make_index_sequence<trait_flags_t::size>{}
@@ -708,8 +681,8 @@ struct _noncommutative_collection_access_impl {
     auto new_use_ptr = std::make_shared<typename out_handle_t::use_holder_t>(
       typename out_handle_t::use_t(
         in_handle.var_handle_.get_smart_ptr(),
-        HandleUse::Modify, /* scheduling permissions */
-        HandleUse::None, /* immediate permissions */
+        frontend::Permissions::Modify, /* scheduling permissions */
+        frontend::Permissions::None, /* immediate permissions */
         same_flow(&in_handle.current_use_->use->out_flow_).as_collection_relationship(),
         //FlowRelationship::SameCollection, &in_handle.current_use_->use->out_flow_,
         same_flow(&suspended_out_flow).as_collection_relationship(),
@@ -796,28 +769,28 @@ struct _noncommutative_collection_access_impl {
 
     //--------------------------------------------------------------------------
     // <editor-fold desc="scheduling permissions checks"> {{{2
-    static_assert(
-      handle_permissions_equal_if_given<
-        ahc_t::traits::permissions_traits::static_scheduling_permissions,
-        AccessHandlePermissions::Commutative
-      >::value,
-      "Can't create noncommutative_access to handle that's marked as"
-        " not commutative at compile time"
-    );
-    static_assert(
-      handle_permissions_equal_if_given<
-        ahc_t::traits::permissions_traits::required_scheduling_permissions,
-        AccessHandlePermissions::Commutative
-      >::value,
-      "Can't create noncommutative_access to handle that's marked as"
-        " not commutative at compile time"
-    );
-    DARMA_ASSERT_MESSAGE(
-      in_handle.current_use_->use->scheduling_permissions_
-        == detail::HandleUse::Commutative,
-      "noncommutative_access_to_collection(...) called on use without scheduling"
-        " commutative permissions"
-    );
+//    static_assert(
+//      handle_permissions_equal_if_given<
+//        ahc_t::traits::permissions_traits::static_scheduling_permissions,
+//        AccessHandlePermissions::Commutative
+//      >::value,
+//      "Can't create noncommutative_access to handle that's marked as"
+//        " not commutative at compile time"
+//    );
+//    static_assert(
+//      handle_permissions_equal_if_given<
+//        ahc_t::traits::permissions_traits::required_scheduling_permissions,
+//        AccessHandlePermissions::Commutative
+//      >::value,
+//      "Can't create noncommutative_access to handle that's marked as"
+//        " not commutative at compile time"
+//    );
+//    DARMA_ASSERT_MESSAGE(
+//      in_handle.current_use_->use->scheduling_permissions_
+//        == detail::HandleUse::Commutative,
+//      "noncommutative_access_to_collection(...) called on use without scheduling"
+//        " commutative permissions"
+//    );
     // </editor-fold> end scheduling permissions }}}2
     //--------------------------------------------------------------------------
 
@@ -844,7 +817,7 @@ struct _noncommutative_collection_access_impl {
     );
     DARMA_ASSERT_MESSAGE(
       in_handle.current_use_->use->immediate_permissions_
-        == detail::HandleUse::None,
+        == frontend::Permissions::None,
       "noncommutative_access_to_collection(...) called on use with immediate"
         " permissions that aren't None"
     );

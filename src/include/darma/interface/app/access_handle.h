@@ -932,11 +932,11 @@ class AccessHandle
         "begin_commutative_usage called on uninitialized or released AccessHandle"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use->immediate_permissions_ == detail::HandleUse::None,
+        current_use_->use->immediate_permissions_ == frontend::Permissions::None,
         "begin_commutative_usage called on use with immediate permissions that aren't None"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use->scheduling_permissions_ == detail::HandleUse::Modify,
+        current_use_->use->scheduling_permissions_ == frontend::Permissions::Modify,
         "begin_commutative_usage called on use without scheduling modify permissions"
       );
 
@@ -949,17 +949,16 @@ class AccessHandle
         detail::HandleUse(
           var_handle_,
           /* scheduling permissions */
-          detail::HandleUse::Commutative,
+          frontend::Permissions::Modify,
           /* immediate permissions */
-          detail::HandleUse::None,
+          frontend::Permissions::None,
           same_flow(&current_use_->use->in_flow_),
-          //FlowRelationship::Same, &current_use_->use->in_flow_,
           next_of_in_flow()
-          //FlowRelationship::Next, nullptr, true
 #if _darma_has_feature(anti_flows)
           , same_anti_flow(&current_use_->use->anti_out_flow_),
           insignificant_flow()
 #endif // _darma_has_feature(anti_flows)
+          , frontend::CoherenceMode::Commutative
         ),
         true
       );
@@ -984,12 +983,12 @@ class AccessHandle
         "end_commutative_usage called on uninitialized or released AccessHandle"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use->immediate_permissions_ == detail::HandleUse::None,
+        current_use_->use->immediate_permissions_ == frontend::Permissions::None,
         "end_commutative_usage called on use with immediate permissions that aren't None"
       );
       DARMA_ASSERT_MESSAGE(
-        current_use_->use->scheduling_permissions_ == detail::HandleUse::Commutative,
-        "end_commutative_usage called on use without scheduling Commutative permissions"
+        current_use_->use->coherence_mode_ == frontend::CoherenceMode::Commutative,
+        "end_commutative_usage called on use without being in Commutative coherence mode"
       );
 
       using namespace darma_runtime::detail::flow_relationships;
@@ -1004,9 +1003,9 @@ class AccessHandle
         detail::HandleUse(
           var_handle_,
           /* scheduling permissions */
-          detail::HandleUse::Modify,
+          frontend::Permissions::Modify,
           /* immediate permissions */
-          detail::HandleUse::None,
+          frontend::Permissions::None,
           same_flow(&current_use_->use->out_flow_),
           //FlowRelationship::Same, &current_use_->use->out_flow_,
           same_flow(current_use_->use->suspended_out_flow_.get())
@@ -1156,8 +1155,8 @@ class AccessHandle
     void
     call_make_captured_use_holder(
       std::shared_ptr<detail::VariableHandleBase> var_handle,
-      detail::HandleUse::permissions_t req_sched,
-      detail::HandleUse::permissions_t req_immed,
+      frontend::permissions_t req_sched,
+      frontend::permissions_t req_immed,
       detail::AccessHandleBase const& source,
       bool register_continuation_use = true
     ) override {

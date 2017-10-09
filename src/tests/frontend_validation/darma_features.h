@@ -55,8 +55,8 @@
 #define _darma_has_feature_create_concurrent_work_owned_by 0
 
 #define _darma_has_feature_task_collection_token 1
-#define _darma_has_feature_commutative_access_handles 0
-#define _darma_has_feature_anti_flows 0
+#define _darma_has_feature_commutative_access_handles 1
+#define _darma_has_feature_anti_flows 1
 #define _darma_has_feature_create_parallel_for 0
 #define _darma_has_feature_unmanaged_data 0
 #define _darma_has_feature_darma_regions 0

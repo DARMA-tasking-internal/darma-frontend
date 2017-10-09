@@ -1861,6 +1861,7 @@ TEST_F(TestCreateConcurrentWork, simple_read_only)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if 0
 #if _darma_has_feature(commutative_access_handles)
 TEST_F(TestCreateConcurrentWork, simple_commutative) {
 
@@ -2038,6 +2039,7 @@ TEST_F(TestCreateConcurrentWork, simple_commutative) {
 
 }
 #endif // _darma_has_feature(commutative_access_handles)
+#endif // 0
 
 ////////////////////////////////////////////////////////////////////////////////
 

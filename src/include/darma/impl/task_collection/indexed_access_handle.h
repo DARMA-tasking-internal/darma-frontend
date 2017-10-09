@@ -289,7 +289,7 @@ class IndexedAccessHandle {
 
     }
 
-
+#if 0
 #if _darma_has_feature(commutative_access_handles)
     template <typename _Ignored_SFINAE=void,
       typename=std::enable_if_t<
@@ -333,6 +333,7 @@ class IndexedAccessHandle {
       );
     };
 #endif // _darma_has_feature(commutative_access_handles)
+#endif
 
     //------------------------------------------------------------------------------
     // <editor-fold desc="friends"> {{{2

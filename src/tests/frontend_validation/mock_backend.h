@@ -207,6 +207,14 @@ class MockRuntime
     MOCK_METHOD2(pack_flow, void(flow_t&, void*&));
     MOCK_METHOD1(make_unpacked_flow, flow_t(void const*&));
 
+#if _darma_has_feature(anti_flows)
+    using anti_flow_t = darma_runtime::types::anti_flow_t;
+
+    MOCK_METHOD1(get_packed_anti_flow_size, size_t(anti_flow_t const&));
+    MOCK_METHOD2(pack_anti_flow, void(anti_flow_t&, void*&));
+    MOCK_METHOD1(make_unpacked_anti_flow, anti_flow_t(void const*&));
+#endif // _darma_has_feature(anti_flows)
+
     MOCK_METHOD2(make_indexed_local_flow, flow_t(flow_t&, size_t));
     MOCK_METHOD3(make_indexed_fetching_flow, flow_t(flow_t&, key_t const&, size_t));
     MOCK_METHOD2(make_indexed_flow, flow_t(flow_t&, size_t));
