@@ -58,11 +58,16 @@
 
 #include <tinympl/fill_n.hpp>
 
-#include <darma.h> // TODO remove this in favor of finer-grained dependency inclusion
 #include <darma/impl/task/task.h>
 #include <darma/impl/runtime.h>
 #include <darma/interface/app/access_handle.h>
+#include <darma/interface/frontend/top_level.h>
 #include <darma/impl/handle_attorneys.h>
+
+#include <darma/impl/serialization/serialization.impl.h>
+#include <darma/impl/key/key.impl.h>
+#include <darma/impl/array/array.impl.h>
+#include <darma/impl/top_level.h>
 
 #include "mock_backend.h"
 #include "darma_types.h"

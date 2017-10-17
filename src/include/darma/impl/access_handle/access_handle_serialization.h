@@ -67,29 +67,9 @@ struct Serializer<AccessHandle<Args...>>
     bool handle_is_serializable_assertions(AccessHandleT const& val) const
     {
       // The handle has to be set up and valid
-      assert(val.var_handle_.get() != nullptr);
-      // The only AccessHandle objects that should ever be migrated are ones that
-      // are already registered as part of a task.
-      assert(val.current_use_base_->is_registered == true);
-      // Also, since this has to be before the task runs, whether or not the use
-      // can establish an alias should be exactly determined by whether or not it
-      // has modify scheduling permissions (and less than modify immediate permissions)
-      assert(
-        ((
-          val.current_use_->use->scheduling_permissions_
-            == ::darma_runtime::frontend::Permissions::Modify
-            and val.current_use_->use->immediate_permissions_
-              != ::darma_runtime::frontend::Permissions::Modify
-        ) and val.current_use_->could_be_alias)
-          or (not(
-            val.current_use_->use->scheduling_permissions_
-              == ::darma_runtime::frontend::Permissions::Modify
-              and val.current_use_->use->immediate_permissions_
-                != ::darma_runtime::frontend::Permissions::Modify
-          ) and not val.current_use_->could_be_alias)
-      );
-      // captured_as_ should always be normal here
-      assert(val.current_use_->use->suspended_out_flow_ == nullptr);
+      assert(val.var_handle_base_.get() != nullptr);
+      // Suspended out flow shouldn't exist
+      assert(val.get_current_use()->use()->suspended_out_flow_ == nullptr);
       return true;
     }
 
@@ -101,26 +81,23 @@ struct Serializer<AccessHandle<Args...>>
 
       assert(handle_is_serializable_assertions(val));
 
-      ar % val.var_handle_->get_key();
-      ar % val.current_use_->use->scheduling_permissions_;
-      ar % val.current_use_->use->immediate_permissions_;
+      ar % val.var_handle_base_->get_key();
+      ar % val.get_current_use()->use()->scheduling_permissions_;
+      ar % val.get_current_use()->use()->immediate_permissions_;
 
       auto* backend_runtime = abstract::backend::get_backend_runtime();
-      // TODO if we add operator==() to the requirements of flow_t, we don't have to pack the outflow when it's the same as the inflow
       ar.add_to_size_indirect(
-        backend_runtime->get_packed_flow_size(val.current_use_->use->in_flow_)
+        backend_runtime->get_packed_flow_size(val.get_current_use()->use()->in_flow_)
       );
       ar.add_to_size_indirect(
-        backend_runtime->get_packed_flow_size(val.current_use_->use->out_flow_)
-      );
-#if _darma_has_feature(anti_flows)
-      ar.add_to_size_indirect(
-        backend_runtime->get_packed_anti_flow_size(val.current_use_->use->anti_in_flow_)
+        backend_runtime->get_packed_flow_size(val.get_current_use()->use()->out_flow_)
       );
       ar.add_to_size_indirect(
-        backend_runtime->get_packed_anti_flow_size(val.current_use_->use->anti_out_flow_)
+        backend_runtime->get_packed_anti_flow_size(val.get_current_use()->use()->anti_in_flow_)
       );
-#endif // _darma_has_feature(anti_flows)
+      ar.add_to_size_indirect(
+        backend_runtime->get_packed_anti_flow_size(val.get_current_use()->use()->anti_out_flow_)
+      );
 
     }
 
@@ -130,31 +107,29 @@ struct Serializer<AccessHandle<Args...>>
 
       assert(handle_is_serializable_assertions(val));
 
-      ar << val.var_handle_->get_key();
-      ar << val.current_use_->use->scheduling_permissions_;
-      ar << val.current_use_->use->immediate_permissions_;
+      ar << val.var_handle_base_->get_key();
+      ar << val.get_current_use()->use()->scheduling_permissions_;
+      ar << val.get_current_use()->use()->immediate_permissions_;
 
       using detail::DependencyHandle_attorneys::ArchiveAccess;
       auto* backend_runtime = abstract::backend::get_backend_runtime();
       // TODO if we add operator==() to the requirements of flow_t, we don't have to pack the outflow when it's the same as the inflow
       backend_runtime->pack_flow(
-        val.current_use_->use->in_flow_,
+        val.get_current_use()->use()->in_flow_,
         ArchiveAccess::get_spot(ar)
       );
       backend_runtime->pack_flow(
-        val.current_use_->use->out_flow_,
-        ArchiveAccess::get_spot(ar)
-      );
-#if _darma_has_feature(anti_flows)
-      backend_runtime->pack_anti_flow(
-        val.current_use_->use->anti_in_flow_,
+        val.get_current_use()->use()->out_flow_,
         ArchiveAccess::get_spot(ar)
       );
       backend_runtime->pack_anti_flow(
-        val.current_use_->use->anti_out_flow_,
+        val.get_current_use()->use()->anti_in_flow_,
         ArchiveAccess::get_spot(ar)
       );
-#endif // _darma_has_feature(anti_flows)
+      backend_runtime->pack_anti_flow(
+        val.get_current_use()->use()->anti_out_flow_,
+        ArchiveAccess::get_spot(ar)
+      );
 
     }
 

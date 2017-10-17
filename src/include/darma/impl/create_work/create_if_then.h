@@ -364,7 +364,7 @@ struct IfThenElseCaptureManager<
           if_details.source_and_continuing = &source_and_continuing;
 
           auto& if_implicit_capture = if_implicit_captures_[key];
-          if_implicit_capture = source_and_continuing.copy(false);
+          if_implicit_capture = source_and_continuing.copy();
           if_details.captured = if_implicit_capture.get();
         }
 

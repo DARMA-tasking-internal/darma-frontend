@@ -74,7 +74,6 @@ class TestCreateWorkWhile
 };
 
 using namespace darma_runtime;
-using namespace darma_runtime::experimental;
 
 ////////////////////////////////////////////////////////////////////////////////
 

@@ -74,7 +74,7 @@ TEST_F(TestInitialAccess, call_sequence) {
   using namespace ::testing;
   using namespace darma_runtime;
 
-  mock_backend::MockFlow f_in_1, f_out_1;
+  DECLARE_MOCK_FLOWS(f_in_1, f_out_1);
   use_t* use_init = nullptr;
 
   {

@@ -68,9 +68,7 @@ struct _publish_impl {
   void operator()(
     types::key_t version, size_t n_readers, bool out
   ) {
-    _impl(
-      version, n_readers, out
-    );
+    _impl(version, n_readers, out);
   }
 
   template <typename ReaderIndex, typename RegionContext>
@@ -78,9 +76,7 @@ struct _publish_impl {
     ReaderIndex&& idx, RegionContext&& reg_ctxt,
     types::key_t version, size_t n_readers, bool out
   ) {
-    _impl(
-      version, n_readers, out
-    );
+    _impl(version, n_readers, out);
   }
 
   void _impl(
@@ -88,28 +84,27 @@ struct _publish_impl {
   ) {
     auto* backend_runtime = abstract::backend::get_backend_runtime();
     detail::PublicationDetails dets(version, n_readers, not is_publish_out);
-#if _darma_has_feature(task_collection_token)
+
+    #if _darma_has_feature(task_collection_token)
     DARMA_ASSERT_MESSAGE(
       this_.other_private_members_.can_be_published_dynamic(),
-      "Tried to publish AccessHandle that is not descended from a AccessHandleCollection local access"
+      "Tried to publish AccessHandle that is not descended from a"
+        " AccessHandleCollection local access"
     );
     dets.token_ = this_.other_private_members_.task_collection_token();
-#endif // _darma_has_feature(task_collection_token)
+    #endif // _darma_has_feature(task_collection_token)
 
     auto publish_use_holder = make_captured_use_holder(
-      this_.var_handle_,
+      this_.var_handle_base_,
       frontend::Permissions::None,
       frontend::Permissions::Read,
-      this_.current_use_.get()
+      this_.get_current_use()
     );
+
     backend_runtime->publish_use(
-      publish_use_holder->use.release_smart_ptr(),
+      publish_use_holder->relinquish_into_destructible_use(),
       &dets
     );
-
-    // No longer registered
-    publish_use_holder->is_registered = false;
-
   }
 };
 
@@ -125,18 +120,14 @@ std::enable_if_t<
 AccessHandle<T, Traits>::publish(
   PublishExprParts&&... parts
 ) const {
-
-  using detail::HandleUse;
+  _check_use_exists("publish()");
   DARMA_ASSERT_MESSAGE(
-    current_use_.get() != nullptr,
-    "publish() called on handle after release"
-  );
-  DARMA_ASSERT_MESSAGE(
-    current_use_->use->scheduling_permissions_ != frontend::Permissions::None,
+    get_current_use()->use()->scheduling_permissions_ != frontend::Permissions::None,
     "publish() called on handle that can't schedule at least read usage on data (most likely "
       "because it was already released"
   );
 
+  using detail::HandleUse;
 
   using namespace darma_runtime::detail;
   using parser = detail::kwarg_parser<

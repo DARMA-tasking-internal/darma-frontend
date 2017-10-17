@@ -82,20 +82,35 @@ class HandleUse
       return nullptr;
     }
 
+    HandleUse with_different_permissions(
+      frontend::Permissions different_scheduling_permissions,
+      frontend::Permissions different_immediate_permissions
+    ) {
+      using namespace flow_relationships;
+      auto rv = HandleUse(
+        handle_,
+        different_scheduling_permissions,
+        different_immediate_permissions,
+        same_flow(&in_flow_),
+        same_flow(&out_flow_),
+        same_anti_flow(&anti_in_flow_),
+        same_anti_flow(&anti_out_flow_),
+        coherence_mode_
+      );
+      rv.establishes_alias_ = establishes_alias_;
+      rv.data_ = data_;
+      return std::move(rv);
+    }
+
     ~HandleUse() = default;
 };
 
 struct migrated_use_arg_t { };
 static constexpr migrated_use_arg_t migrated_use_arg = { };
 
-struct UseHolderBase {
-  bool is_registered = false;
-  bool could_be_alias = false;
-  HandleUseBase* use_base = nullptr;
-};
-
 // really belongs to AccessHandle, but we can't put this in impl/handle.h
 // because of circular header dependencies
+#ifdef OLD_CODE
 template <typename UnderlyingUse>
 struct GenericUseHolder : UseHolderBase {
   using held_use_t = managing_ptr<
@@ -224,8 +239,9 @@ struct GenericUseHolder : UseHolderBase {
     }
   }
 };
+#endif // OLD_CODE
 
-using UseHolder = GenericUseHolder<HandleUse>;
+//using UseHolder = GenericUseHolder<HandleUse>;
 
 } // end namespace detail
 

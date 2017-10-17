@@ -54,6 +54,7 @@
 #include <darma/impl/use.h> // UseHolder
 #include <darma/impl/task/task.h> // TaskBase
 #include <darma/impl/create_work/capture_permissions.h> // CapturedObjectBase
+#include <darma/impl/use/use_holder.h>
 
 // TODO move this to access_handle directory when we're at a stable merge point
 
@@ -65,10 +66,9 @@ struct AccessHandleBaseAttorney;
 class AccessHandleBase
   : public CapturedObjectBase
 {
-  public:
+  protected:
 
     using task_t = detail::TaskBase;
-    using use_holder_base_ptr = UseHolderBase*;
 
 
     // TODO this should be a free function
@@ -82,14 +82,59 @@ class AccessHandleBase
   protected:
 
     //------------------------------------------------------------------------------
+    // <editor-fold desc="protected ctors"> {{{2
+
+    AccessHandleBase()
+    { }
+
+    AccessHandleBase(AccessHandleBase const& other)
+      : CapturedObjectBase(other),
+        var_handle_base_(other.var_handle_base_),
+        current_use_base_(other.current_use_base_)
+    { }
+
+    AccessHandleBase(AccessHandleBase&& other) noexcept
+      : CapturedObjectBase(std::move(other)),
+        var_handle_base_(std::move(other.var_handle_base_)),
+        current_use_base_(std::move(other.current_use_base_))
+    { }
+
+    AccessHandleBase(
+      std::shared_ptr<VariableHandleBase> const& var_handle,
+      std::shared_ptr<UseHolderBase> const& use_holder
+    ) : CapturedObjectBase(),
+        var_handle_base_(var_handle),
+        current_use_base_(use_holder)
+    { }
+
+    // </editor-fold> end protected ctors }}}2
+    //------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------
+    // <editor-fold desc="assignment operator implementation"> {{{2
+
+    void _do_assignment(AccessHandleBase&& other) {
+      var_handle_base_ = std::move(other.var_handle_base_);
+      current_use_base_ = std::move(other.current_use_base_);
+    }
+
+    void _do_assignment(AccessHandleBase const& other) {
+      var_handle_base_ = other.var_handle_base_;
+      current_use_base_ = other.current_use_base_;
+    }
+
+
+    // </editor-fold> end assignment operator implementation }}}2
+    //------------------------------------------------------------------------------
+
+
+    //------------------------------------------------------------------------------
     // <editor-fold desc="protected data members"> {{{2
 
     task_t* capturing_task = nullptr;
     std::size_t lambda_capture_unpack_index = 0;
-    mutable use_holder_base_ptr current_use_base_ = nullptr;
-
-    // This is ugly, but it works for now:
-    std::shared_ptr<VariableHandleBase> var_handle_base_;
+    mutable std::shared_ptr<UseHolderBase> current_use_base_ = nullptr;
+    std::shared_ptr<VariableHandleBase> var_handle_base_ = nullptr;
 
     // </editor-fold> end protected data members }}}2
     //------------------------------------------------------------------------------
@@ -126,7 +171,7 @@ class AccessHandleBase
 
     // Copy the concrete object instance
     virtual std::shared_ptr<AccessHandleBase>
-    copy(bool check_context = true) const =0;
+    copy() const =0;
 
     virtual void
     call_make_captured_use_holder(
@@ -136,8 +181,6 @@ class AccessHandleBase
       detail::AccessHandleBase const& source,
       bool register_continuation_use
     ) =0;
-
-    virtual void replace_use_holder_with(AccessHandleBase const&) =0;
 
     // really should be something like "release_current_use_holders"...
     virtual void release_current_use() const =0;

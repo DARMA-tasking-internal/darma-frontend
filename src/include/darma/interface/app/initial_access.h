@@ -70,31 +70,15 @@ struct _initial_access_key_helper {
     using namespace darma_runtime::abstract::frontend;
     using namespace darma_runtime::detail::flow_relationships;
 
-#if _darma_has_feature(anti_flows)
-    auto use_holder = std::make_shared<UseHolder>(
-      HandleUse(
-        var_h,
-        frontend::Permissions::Modify,
-        frontend::Permissions::None,
-        initial_flow(),
-        null_flow(),
-        insignificant_flow(),
-        initial_anti_flow()
-      ), /* register in ctor = */ true, /* will be dep = */ false
+    auto use_holder = UseHolder<HandleUse>::create(
+      var_h,
+      frontend::Permissions::Modify,
+      frontend::Permissions::None,
+      initial_flow(),
+      null_flow(),
+      insignificant_flow(),
+      initial_anti_flow()
     );
-#else
-    auto use_holder = std::make_shared<UseHolder>(
-      HandleUse(
-        var_h,
-        frontend::Permissions::Modify,
-        frontend::Permissions::None,
-        initial_flow(),
-        //FlowRelationship::Initial, nullptr,
-        null_flow()
-        //FlowRelationship::Null, nullptr, false
-      ), /* register in ctor = */ true, /* will be dep = */ false
-    );
-#endif // _darma_has_feature(anti_flows)
 
     use_holder->could_be_alias = true;
 

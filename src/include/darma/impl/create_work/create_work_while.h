@@ -235,7 +235,7 @@ struct WhileDoCaptureManager<
 
         found->second = safe_static_cast<AccessHandleBase*>(
           while_details->get_captured_pointer()
-        )->copy(false);
+        )->copy();
         while_details->replace_captured_pointer(found->second.get());
 
         // at this point, we know that since the do is nested in the while (and
@@ -449,7 +449,7 @@ struct WhileDoCaptureManager<
         if(while_details.get() == nullptr) {
 
           auto& while_implicit_capture = while_implicit_captures_[key];
-          while_implicit_capture = source_and_continuing.copy(false);
+          while_implicit_capture = source_and_continuing.copy();
 
           while_details = CapturedObjectAttorney::get_capture_description(
             source_and_continuing,

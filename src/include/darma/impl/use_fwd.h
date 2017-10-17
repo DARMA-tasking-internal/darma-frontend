@@ -54,9 +54,7 @@ class HandleUseBase;
 class HandleUse;
 
 template <typename UnderlyingUse>
-struct GenericUseHolder;
-
-using UseHolder = GenericUseHolder<HandleUse>;
+class UseHolder;
 
 } // end namespace detail
 

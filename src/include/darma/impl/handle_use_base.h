@@ -103,8 +103,11 @@ class HandleUseBase
     FlowRelationshipImpl in_anti_flow_rel_;
     FlowRelationshipImpl out_anti_flow_rel_;
 
-    bool is_dependency_ = false;
-    bool is_anti_dependency_ = false;
+    // For now, at least, is_dependency and is_anti_dependency depend only
+    // on the permissions, so the returns are just computed on-the-fly
+    //bool is_dependency_ = false;
+    //bool is_anti_dependency_ = false;
+
     bool establishes_alias_ = false;
 
     // </editor-fold> end Data members }}}1
@@ -180,9 +183,17 @@ class HandleUseBase
       return out_anti_flow_rel_;
     }
 
-    bool is_dependency() const override { return is_dependency_; }
+    bool is_dependency() const override {
+      // For now, at least, is_dependency and is_anti_dependency depend only
+      // on the permissions, so just put that in here directly
+      return (int(immediate_permissions_) & int(frontend::Permissions::Read)) != 0;
+    }
 
-    bool is_anti_dependency() const override { return is_anti_dependency_; }
+    bool is_anti_dependency() const override {
+      // For now, at least, is_dependency and is_anti_dependency depend only
+      // on the permissions, so just put that in here directly
+      return (int(immediate_permissions_) & int(frontend::Permissions::Write)) != 0;
+    }
 
     void set_in_flow(types::flow_t const& new_flow) override {
       // TODO assert that the flow is allowed to be set at this point

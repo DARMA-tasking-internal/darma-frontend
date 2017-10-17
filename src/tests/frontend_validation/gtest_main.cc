@@ -47,6 +47,8 @@
 #include <mock_backend.h>
 #include "test_frontend.h"
 
+#include <darma/impl/top_level.h>
+
 namespace mock_backend {
 
 size_t MockFlow::next_index = 0;

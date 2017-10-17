@@ -66,10 +66,9 @@ AccessHandle<T, Traits>::AccessHandle(
 
   if(not result.did_capture and not result.argument_is_garbage) {
     // then we need to propagate stuff here, since no capture handler was invoked
-    var_handle_ = copied_from.var_handle_;
-    var_handle_base_ = var_handle_;
+    // in other words, we're acting like an assignment
+    this->detail::BasicAccessHandle::_do_assignment(copied_from);
     other_private_members_ = copied_from.other_private_members_;
-    current_use_ = copied_from.current_use_;
   }
 
 }
@@ -87,21 +86,18 @@ AccessHandle<T, Traits>::unpack_from_archive(Archive& ar) {
   key_t k = make_key();
   ar >> k;
 
-  var_handle_ = detail::make_shared<detail::VariableHandle<T>>(k);
-  var_handle_base_ = var_handle_;
+  var_handle_base_ = detail::make_shared<detail::VariableHandle<T>>(k);
 
-  detail::HandleUse::permissions_t immed, sched;
-
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wuninitialized"
-#endif
+  detail::HandleUse::permissions_t sched = frontend::Permissions::_invalid;
+  detail::HandleUse::permissions_t immed = frontend::Permissions::_invalid;
 
   ar >> sched >> immed;
 
   auto* backend_runtime = abstract::backend::get_backend_runtime();
 
   using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+
+  // TODO decide if unpacking here breaks encapsulation (it should probably be done in the Use ctor)
 
   auto in_flow = backend_runtime->make_unpacked_flow(
     ArchiveAccess::get_const_spot(ar)
@@ -114,7 +110,6 @@ AccessHandle<T, Traits>::unpack_from_archive(Archive& ar) {
     ArchiveAccess::get_const_spot(ar)
   );
 
-#if _darma_has_feature(anti_flows)
   auto anti_in_flow = backend_runtime->make_unpacked_anti_flow(
     ArchiveAccess::get_const_spot(ar)
   );
@@ -122,24 +117,13 @@ AccessHandle<T, Traits>::unpack_from_archive(Archive& ar) {
   auto anti_out_flow = backend_runtime->make_unpacked_anti_flow(
     ArchiveAccess::get_const_spot(ar)
   );
-#endif // _darma_has_feature(anti_flows)
 
-  // Suspended flow should always be null when packing/unpacking, so don't
-  // have to worry about it here
-
-  current_use_ = std::make_shared<detail::UseHolder>(
-    detail::migrated_use_arg,
-    detail::HandleUse(
-      var_handle_, sched, immed, std::move(in_flow), std::move(out_flow)
-#if _darma_has_feature(anti_flows)
-      , std::move(anti_in_flow), std::move(anti_out_flow)
-#endif // _darma_has_feature(anti_flows)
-    )
-  );
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
+  set_current_use(base_t::use_holder_t::recreate_migrated(
+    var_handle_base_,
+    sched, immed,
+    std::move(in_flow), std::move(out_flow),
+    std::move(anti_in_flow), std::move(anti_out_flow)
+  ));
 
 }
 

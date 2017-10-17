@@ -72,11 +72,14 @@
 #include <darma/impl/serialization/allocation.h>
 #include <darma/impl/serialization/manager.h>
 
+
 #include <darma/impl/keyword_arguments/keyword_arguments.h>
 #include <darma/interface/app/keyword_arguments/n_readers.h>
 #include <darma/interface/app/keyword_arguments/version.h>
+
 #include <darma/impl/array/indexable.h>
 #include <darma/impl/array/concept.h>
+#include <darma/impl/array/element_range.h>
 
 #include <darma/impl/access_handle/access_handle_traits.h>
 

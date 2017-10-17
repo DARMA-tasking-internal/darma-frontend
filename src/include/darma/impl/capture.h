@@ -81,26 +81,25 @@ make_captured_use_holder(
 
   // source scheduling permissions shouldn't be None at this point
   DARMA_ASSERT_MESSAGE(
-    source_and_continuing_holder->use->scheduling_permissions_ != frontend::Permissions::None,
+    source_and_continuing_holder->use()->scheduling_permissions_ != frontend::Permissions::None,
     "Can't schedule a task on a handle with leaf permissions"
   );
 
   auto* backend_runtime = abstract::backend::get_backend_runtime();
-  std::size_t saved_collection_owner = source_and_continuing_holder->use->collection_owner_;
 
   std::shared_ptr<UseHolderT> captured_use_holder;
 
   capture_semantics::apply_with_capture_case(
-    source_and_continuing_holder->use->scheduling_permissions_,
-    source_and_continuing_holder->use->immediate_permissions_,
+    source_and_continuing_holder->use()->scheduling_permissions_,
+    source_and_continuing_holder->use()->immediate_permissions_,
     requested_scheduling_permissions,
     requested_immediate_permissions,
-    source_and_continuing_holder->use->coherence_mode_,
+    source_and_continuing_holder->use()->coherence_mode_,
     [&](auto capture_case) {
-      auto* source_in = &source_and_continuing_holder->use->in_flow_;
-      auto* source_out = &source_and_continuing_holder->use->out_flow_;
-      auto* source_anti_in = &source_and_continuing_holder->use->anti_in_flow_;
-      auto* source_anti_out = &source_and_continuing_holder->use->anti_out_flow_;
+      auto* source_in = &source_and_continuing_holder->use()->in_flow_;
+      auto* source_out = &source_and_continuing_holder->use()->out_flow_;
+      auto* source_anti_in = &source_and_continuing_holder->use()->anti_in_flow_;
+      auto* source_anti_out = &source_and_continuing_holder->use()->anti_out_flow_;
 
       // make the captured use
       captured_use_holder = use_holder_maker(
@@ -126,10 +125,10 @@ make_captured_use_holder(
       // TODO this branch could/should be done statically
       if(capture_case.needs_new_continuation_use) {
 
-        auto* captured_in = &captured_use_holder->use->in_flow_;
-        auto* captured_out = &captured_use_holder->use->out_flow_;
-        auto* captured_anti_in = &captured_use_holder->use->anti_in_flow_;
-        auto* captured_anti_out = &captured_use_holder->use->anti_out_flow_;
+        auto* captured_in = &captured_use_holder->use()->in_flow_;
+        auto* captured_out = &captured_use_holder->use()->out_flow_;
+        auto* captured_anti_in = &captured_use_holder->use()->anti_in_flow_;
+        auto* captured_anti_out = &captured_use_holder->use()->anti_out_flow_;
 
         // If a new use will be made and immediate data will be accessible
         // in the continuation, we need to get the pointer here before the old
@@ -137,7 +136,7 @@ make_captured_use_holder(
         void* old_ptr = nullptr;
         if(capture_case.continuation_immediate != Permissions::None) {
           assert(capture_case.source_immediate != Permissions::None);
-          old_ptr = source_and_continuing_holder->use->data_;
+          old_ptr = source_and_continuing_holder->use()->data_;
         }
 
         // Make sure an alias isn't established on the source
@@ -165,15 +164,14 @@ make_captured_use_holder(
               source_in, source_out, captured_in, captured_out,
               source_anti_in, source_anti_out, captured_anti_in, captured_anti_out
             )
-          ),
-          register_continuation_use
+          )
         );
 
         // If a new use is made but it has access to the same data, pass the pointer
         // on to the new use
         if(capture_case.continuation_immediate != Permissions::None) {
           assert(old_ptr);
-          source_and_continuing_holder->use->data_ = old_ptr;
+          source_and_continuing_holder->use()->data_ = old_ptr;
         }
 
         // continuation can always be an alias if it's new
@@ -185,11 +183,6 @@ make_captured_use_holder(
     }
   );
 
-  // Propagate the collection owner information
-  captured_use_holder->use->collection_owner_ = saved_collection_owner;
-  // Also for the continuing, in case there's been a change
-  source_and_continuing_holder->use->collection_owner_ = saved_collection_owner;
-
   return captured_use_holder;
 }
 
@@ -199,7 +192,7 @@ make_captured_use_holder(
   std::shared_ptr<VariableHandleBase> const& var_handle,
   frontend::Permissions requested_scheduling_permissions,
   frontend::Permissions requested_immediate_permissions,
-  UseHolder* source_and_continuing_holder,
+  UseHolder<HandleUse>* source_and_continuing_holder,
   bool register_continuation_use = true
 ) {
   // TODO is_dependency_ pass through here, for use with allreduce and publish, etc?
@@ -209,11 +202,11 @@ make_captured_use_holder(
     /* Use holder maker */
     [](auto&& varhandle, auto sched, auto immed, auto&&... args) {
       using namespace darma_runtime::detail;
-      auto rv = std::make_shared<GenericUseHolder<HandleUse>>(HandleUse(
+      auto rv = UseHolder<HandleUse>::create(
         std::forward<decltype(varhandle)>(varhandle),
         sched, immed,
         std::forward<decltype(args)>(args)...
-      ), true, true);
+      );
       return rv;
     },
     /* continuing use maker */
@@ -224,7 +217,6 @@ make_captured_use_holder(
         sched, immed,
         std::forward<decltype(args)>(args)...
       );
-      rv.is_dependency_ = false;
       return rv;
     },
     register_continuation_use

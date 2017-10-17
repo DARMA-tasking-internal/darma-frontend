@@ -124,13 +124,13 @@ struct AccessHandleCaptureDescription
   void invoke_capture(TaskBase* task) override {
     // This was the old pattern; keep it for now until we get the code moved over
     assert(this->captured_);
-    this->captured_->current_use_ = detail::make_captured_use_holder(
+    this->captured_->set_current_use(detail::make_captured_use_holder(
       this->captured_->var_handle_base_,
       this->scheduling_permissions_,
       this->immediate_permissions_,
-      this->source_->current_use_.get(),
+      this->source_->get_current_use(),
       true
-    );
+    ));
     task->add_dependency(*this->captured_->current_use_base_->use_base);
   }
 };
