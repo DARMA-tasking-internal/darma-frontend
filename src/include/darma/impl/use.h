@@ -128,8 +128,8 @@ struct GenericUseHolder : UseHolderBase {
       abstract::backend::get_backend_runtime()->register_use(use_base);
       is_registered = true;
       // Delete the FlowRelationship descriptions so that they don't accidentally get used
-      use->in_flow_rel_ = HandleUseBase::FlowRelationshipImpl();
-      use->out_flow_rel_ = HandleUseBase::FlowRelationshipImpl();
+      use->in_flow_rel_ = FlowRelationshipImpl();
+      use->out_flow_rel_ = FlowRelationshipImpl();
     }
   }
 

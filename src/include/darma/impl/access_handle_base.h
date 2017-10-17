@@ -70,12 +70,6 @@ class AccessHandleBase
     using task_t = detail::TaskBase;
     using use_holder_base_ptr = UseHolderBase*;
 
-    typedef enum CaptureOp {
-      read_only_capture,
-      write_only_capture,
-      modify_capture,
-      no_capture
-    } capture_op_t;
 
     // TODO this should be a free function
     static constexpr
@@ -116,6 +110,9 @@ class AccessHandleBase
     friend class darma_runtime::AccessHandle;
 
     friend struct AccessHandleBaseAttorney;
+
+    template <typename, typename>
+    friend struct AccessHandleCaptureDescription;
 
     template <typename, typename...>
     friend struct FunctorTask;

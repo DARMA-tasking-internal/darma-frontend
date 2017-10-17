@@ -89,8 +89,8 @@ struct WhileDoCaptureManagerSetupHelper {
    */
   // We put these in a base class since they need to be constructed before other
   // members of WhileDoCaptureManager
-  std::map<types::key_t, DeferredCapture> while_captures_;
-  std::map<types::key_t, DeferredCapture> do_captures_;
+  std::map<types::key_t, std::unique_ptr<CaptureDescriptionBase>> while_captures_;
+  std::map<types::key_t, std::unique_ptr<CaptureDescriptionBase>> do_captures_;
 
   std::map<types::key_t, std::shared_ptr<detail::AccessHandleBase>> while_implicit_captures_;
 
@@ -224,32 +224,54 @@ struct WhileDoCaptureManager<
 
       std::shared_ptr<detail::AccessHandleBase> implicit_source_and_cont;
 
-      if(while_details.needs_implicit_capture) {
-        auto found = while_implicit_captures_.find(key);
-        assert(found != while_implicit_captures_.end());
+      auto found = while_implicit_captures_.find(key);
+      if(found != while_implicit_captures_.end()) {
+        // Make a new implicitly captured object for the inner while to use
 
-        // copy the shared pointer from the outer implicit capture to the local
-        // temporary that we will use as the source and continuing for the capture
+        // Keep the old one around until after the capture, though
         implicit_source_and_cont = found->second;
-        while_details.source_and_continuing = implicit_source_and_cont.get();
+        while_details->replace_source_pointer(implicit_source_and_cont.get());
 
-        // set the current implicitly captured handle to a copy of the source
-        // and continuing handle (essentially the same thing that happens when
-        // a copy of a callable is made for explicit capture)
-        found->second = implicit_source_and_cont->copy(false);
-        while_details.captured = while_implicit_captures_[key].get();
+
+        found->second = safe_static_cast<AccessHandleBase*>(
+          while_details->get_captured_pointer()
+        )->copy(false);
+        while_details->replace_captured_pointer(found->second.get());
 
         // at this point, we know that since the do is nested in the while (and
         // since this is an implicit capture, we know the while block won't
         // be making any changes), the source for the do capture with the same
         // key will be the handle implicilty captured here in the while
         auto& do_details = do_captures_[key];
-        do_details.source_and_continuing = while_details.captured;
+        do_details->replace_source_pointer(found->second.get());
       }
 
+//      if(while_details.needs_implicit_capture) {
+//        auto found = while_implicit_captures_.find(key);
+//        assert(found != while_implicit_captures_.end());
+//
+//        // copy the shared pointer from the outer implicit capture to the local
+//        // temporary that we will use as the source and continuing for the capture
+//        implicit_source_and_cont = found->second;
+//        while_details.source_and_continuing = implicit_source_and_cont.get();
+//
+//        // set the current implicitly captured handle to a copy of the source
+//        // and continuing handle (essentially the same thing that happens when
+//        // a copy of a callable is made for explicit capture)
+//        found->second = implicit_source_and_cont->copy(false);
+//        while_details.captured = while_implicit_captures_[key].get();
+//
+//        // at this point, we know that since the do is nested in the while (and
+//        // since this is an implicit capture, we know the while block won't
+//        // be making any changes), the source for the do capture with the same
+//        // key will be the handle implicilty captured here in the while
+//        auto& do_details = do_captures_[key];
+//        do_details.source_and_continuing = while_details.captured;
+//      }
+
       // Sanity checks:
-      assert(while_details.source_and_continuing != nullptr);
-      assert(while_details.captured != nullptr);
+//      assert(while_details.source_and_continuing != nullptr);
+//      assert(while_details.captured != nullptr);
 
       // Note that this function must be executed:
       //   - before the return of create_work_while(...).do_(...) if is_outermost
@@ -260,16 +282,17 @@ struct WhileDoCaptureManager<
       //     the do block, unless the do block doesn't capture the source handle)
       //
 
-      while_details.captured->call_make_captured_use_holder(
-        while_details.captured->var_handle_base_,
-        (HandleUse::permissions_t)while_details.req_sched_perms,
-        (HandleUse::permissions_t)while_details.req_immed_perms,
-        *while_details.source_and_continuing,
-        true // register all continuation uses for now...
-        //is_outermost // only register continuation uses if we're in the outermost context
-      );
-
-      while_details.captured->call_add_dependency(while_task_.get());
+      while_details->invoke_capture(while_task_.get());
+//      while_details.captured->call_make_captured_use_holder(
+//        while_details.captured->var_handle_base_,
+//        (HandleUse::permissions_t)while_details.req_sched_perms,
+//        (HandleUse::permissions_t)while_details.req_immed_perms,
+//        *while_details.source_and_continuing,
+//        true // register all continuation uses for now...
+//        //is_outermost // only register continuation uses if we're in the outermost context
+//      );
+//
+//      while_details.captured->call_add_dependency(while_task_.get());
 
       // We can now release implicit_source_and_cont (automatically release at the end
       // of this scope) which holds the source and continuing for the while
@@ -296,24 +319,27 @@ struct WhileDoCaptureManager<
       auto const& key = pair.first;
       auto& do_details = pair.second;
 
+      do_details->invoke_capture(do_task_.get());
+
       // Sanity checks:
-      assert(do_details.source_and_continuing != nullptr);
-      assert(do_details.captured != nullptr);
+//      assert(do_details.source_and_continuing != nullptr);
+//      assert(do_details.captured != nullptr);
 
       // Note that this function must be executed before the parent while task's
       // run() function returns, since source_and_continuing should be owned by
       // the parent while block.
 
-      do_details.captured->call_make_captured_use_holder(
-        do_details.captured->var_handle_base_,
-        (HandleUse::permissions_t)do_details.req_sched_perms,
-        (HandleUse::permissions_t)do_details.req_immed_perms,
-        *do_details.source_and_continuing,
-        true // yes, we do want to register continuation uses here, since the
-             // while always uses them
-      );
+//      do_details.captured->call_make_captured_use_holder(
+//        do_details.captured->var_handle_base_,
+//        (HandleUse::permissions_t)do_details.req_sched_perms,
+//        (HandleUse::permissions_t)do_details.req_immed_perms,
+//        *do_details.source_and_continuing,
+//        true // yes, we do want to register continuation uses here, since the
+//             // while always uses them
+//      );
 
-      do_details.captured->call_add_dependency(do_task_.get());
+
+//      do_details.captured->call_add_dependency(do_task_.get());
     }
 
     // Note that we do *not* clear the captures here; see note at the end of
@@ -354,27 +380,35 @@ struct WhileDoCaptureManager<
 
       if(current_capturing_task_mode_ == WhileDoCaptureMode::While) {
 
-        auto initial_permissions =
-          AccessHandleBaseAttorney::get_permissions_before_downgrades(
-            source_and_continuing,
-            // hard-coded for now; could eventually get them from the task, though
-            AccessHandleBase::read_only_capture,
-            AccessHandleBase::read_only_capture
-          );
+//        auto initial_permissions =
+//          AccessHandleBaseAttorney::get_permissions_before_downgrades(
+//            source_and_continuing,
+//            // hard-coded for now; could eventually get them from the task, though
+//            AccessHandleBase::read_only_capture,
+//            AccessHandleBase::read_only_capture
+//          );
+//
+//        auto permissions_pair =
+//          CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
+//            source_and_continuing,
+//            initial_permissions.scheduling,
+//            initial_permissions.immediate
+//          );
+//
+//        while_details.req_sched_perms = permissions_pair.scheduling;
+//        while_details.req_immed_perms = permissions_pair.immediate;
 
-        auto permissions_pair =
-          CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
-            source_and_continuing,
-            initial_permissions.scheduling,
-            initial_permissions.immediate
-          );
+//        // this time through, it's safe to set these directly
+//        while_details.captured = &captured;
+//        while_details.source_and_continuing = &source_and_continuing;
 
-        while_details.req_sched_perms = permissions_pair.scheduling;
-        while_details.req_immed_perms = permissions_pair.immediate;
-
-        // this time through, it's safe to set these directly
-        while_details.captured = &captured;
-        while_details.source_and_continuing = &source_and_continuing;
+        while_details = CapturedObjectAttorney::get_capture_description(
+          source_and_continuing,
+          captured,
+          // hard-coded for now; could eventually get them from the task, though
+          AccessHandleBase::read_only_capture,
+          AccessHandleBase::read_only_capture
+        );
 
       }
       else {
@@ -382,44 +416,90 @@ struct WhileDoCaptureManager<
 
         auto& do_details = do_captures_[key];
 
-        auto initial_permissions =
-          AccessHandleBaseAttorney::get_permissions_before_downgrades(
+//        auto initial_permissions =
+//          AccessHandleBaseAttorney::get_permissions_before_downgrades(
+//            source_and_continuing,
+//            // hard-coded for now; could eventually get them from the task, though
+//            AccessHandleBase::modify_capture,
+//            AccessHandleBase::modify_capture
+//          );
+//
+//        auto permissions_pair =
+//          CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
+//            source_and_continuing,
+//            initial_permissions.scheduling,
+//            initial_permissions.immediate
+//          );
+//
+//        do_details.req_sched_perms = permissions_pair.scheduling;
+//        do_details.req_immed_perms = permissions_pair.immediate;
+//
+//        // need to be able to schedule the do block and anything it schedules
+//        while_details.req_sched_perms |= do_details.req_immed_perms;
+//        while_details.req_sched_perms |= do_details.req_sched_perms;
+
+        do_details = CapturedObjectAttorney::get_capture_description(
+          source_and_continuing,
+          captured,
+          // hard-coded for now; could eventually get them from the task, though
+          AccessHandleBase::modify_capture,
+          AccessHandleBase::modify_capture
+        );
+
+        if(while_details.get() == nullptr) {
+
+          auto& while_implicit_capture = while_implicit_captures_[key];
+          while_implicit_capture = source_and_continuing.copy(false);
+
+          while_details = CapturedObjectAttorney::get_capture_description(
             source_and_continuing,
+            *while_implicit_capture.get(),
+            AccessHandleBase::modify_capture,
+            AccessHandleBase::no_capture
+          );
+
+          do_details = CapturedObjectAttorney::get_capture_description(
+            source_and_continuing,
+            captured,
             // hard-coded for now; could eventually get them from the task, though
             AccessHandleBase::modify_capture,
             AccessHandleBase::modify_capture
           );
 
-        auto permissions_pair =
-          CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
+          do_details->replace_source_pointer(while_implicit_capture.get());
+        }
+        else {
+          do_details = CapturedObjectAttorney::get_capture_description(
             source_and_continuing,
-            initial_permissions.scheduling,
-            initial_permissions.immediate
+            captured,
+            // hard-coded for now; could eventually get them from the task, though
+            AccessHandleBase::modify_capture,
+            AccessHandleBase::modify_capture
           );
 
-        do_details.req_sched_perms = permissions_pair.scheduling;
-        do_details.req_immed_perms = permissions_pair.immediate;
+          do_details->replace_source_pointer(
+            while_details->get_captured_pointer()
+          );
 
-        // need to be able to schedule the do block and anything it schedules
-        while_details.req_sched_perms |= do_details.req_immed_perms;
-        while_details.req_sched_perms |= do_details.req_sched_perms;
-
-        // setup details for implicit capture...
-        if(while_details.source_and_continuing == nullptr) {
-          while_details.source_and_continuing = &source_and_continuing;
-
-          // do an implicit capture
-          while_details.needs_implicit_capture = true;
-
-          auto& while_implicit_capture = while_implicit_captures_[key];
-          while_implicit_capture = source_and_continuing.copy(false);
-
-          do_details.source_and_continuing = while_implicit_capture.get();
-          while_details.captured = while_implicit_capture.get();
+          while_details->require_ability_to_schedule(*do_details.get());
         }
 
-        do_details.source_and_continuing = while_details.captured;
-        do_details.captured = &captured;
+//        // setup details for implicit capture...
+//        if(while_details.source_and_continuing == nullptr) {
+//          while_details.source_and_continuing = &source_and_continuing;
+//
+//          // do an implicit capture
+//          while_details.needs_implicit_capture = true;
+//
+//          auto& while_implicit_capture = while_implicit_captures_[key];
+//          while_implicit_capture = source_and_continuing.copy(false);
+//
+//          do_details.source_and_continuing = while_implicit_capture.get();
+//          while_details.captured = while_implicit_capture.get();
+//        }
+
+//        do_details.source_and_continuing = while_details.captured;
+//        do_details.captured = &captured;
       }
 
     }
@@ -430,23 +510,20 @@ struct WhileDoCaptureManager<
 
       if(current_capturing_task_mode_ == WhileDoCaptureMode::While) {
 
-        // Sanity check: this should be unreachable if it's an implicit capture
-        assert(!while_details.needs_implicit_capture);
-
         // The source should be the continuation of the do task (if it was
         // captured in the do task; if not, the source is just the handle
         // captured in the parent while task)
         auto found = do_captures_.find(key);
         if(found != do_captures_.end()) {
           auto& do_details = found->second;
-          while_details.source_and_continuing = do_details.source_and_continuing;
+          while_details->replace_source_pointer(do_details->get_source_pointer());
         }
         else {
-          while_details.source_and_continuing = while_details.captured;
+          while_details->replace_source_pointer(while_details->get_captured_pointer());
         }
 
         // now replace the captured variable with the one from the arguments
-        while_details.captured = &captured;
+        while_details->replace_captured_pointer(&captured);
       }
       else {
         // sanity check
@@ -454,11 +531,12 @@ struct WhileDoCaptureManager<
 
         auto& do_details = do_captures_[key];
 
+
         // The source of an inner do will always be captured in its parent while
-        do_details.source_and_continuing = while_details.captured;
+        do_details->replace_source_pointer(while_details->get_captured_pointer());
 
         // replace the captured variable with the one from the arguments
-        do_details.captured = &captured;
+        do_details->replace_captured_pointer(&captured);
       }
 
     }

@@ -52,6 +52,7 @@ namespace darma_runtime {
 namespace detail {
 
 struct CapturedObjectAttorney;
+class CaptureDescriptionBase;
 
 class CapturedObjectBase {
 
@@ -72,6 +73,13 @@ class CapturedObjectBase {
       bool TransfersSchedulingModify : 1; // currently unused
       int _unused_padding : 20;
     };
+
+    typedef enum CaptureOp {
+      read_only_capture,
+      write_only_capture,
+      modify_capture,
+      no_capture
+    } capture_op_t;
 
   protected:
 
@@ -106,7 +114,15 @@ class CapturedObjectBase {
       captured_as.info.ReadOnly = false;
     }
 
+    virtual std::unique_ptr<CaptureDescriptionBase>
+    get_capture_description(
+      CapturedObjectBase& captured,
+      capture_op_t schedule_capture_op,
+      capture_op_t immediate_capture_op
+    ) const =0;
+
     friend struct CapturedObjectAttorney;
+
 
 };
 
@@ -191,6 +207,10 @@ struct DeferredPermissionsModifications : DeferredPermissionsModificationsBase
 
   public:
 
+    DeferredPermissionsModifications(DeferredPermissionsModifications const&) = delete;
+    DeferredPermissionsModifications(DeferredPermissionsModifications&&) noexcept = default;
+    ~DeferredPermissionsModifications() override = default;
+
     template <
       typename CallableT
     >
@@ -202,8 +222,6 @@ struct DeferredPermissionsModifications : DeferredPermissionsModificationsBase
         callable
       );
     }
-
-    DeferredPermissionsModifications(DeferredPermissionsModifications&&) = default;
 
     template <typename CallableDeduced, typename... ArgsDeduced>
     DeferredPermissionsModifications(
@@ -217,8 +235,6 @@ struct DeferredPermissionsModifications : DeferredPermissionsModificationsBase
     void do_permissions_modifications() override {
       apply_permissions_modifications(callable_);
     }
-
-    ~DeferredPermissionsModifications() override = default;
 
 };
 
@@ -250,11 +266,12 @@ struct CapturedObjectAttorney {
   }
 
   static PermissionsPair
-  get_requested_capture_permissions(
+  get_and_clear_requested_capture_permissions(
     CapturedObjectBase const& obj,
     int default_scheduling,
     int default_immediate
   ) {
+
     using frontend::Permissions;
 
     PermissionsPair rv { default_scheduling, default_immediate };
@@ -278,24 +295,58 @@ struct CapturedObjectAttorney {
       rv.scheduling = (int)Permissions::None;
     }
 
-    return rv;
-  }
-
-  static PermissionsPair
-  get_and_clear_requested_capture_permissions(
-    CapturedObjectBase const& obj,
-    int default_scheduling,
-    int default_immediate
-  ) {
-
-    auto rv = CapturedObjectAttorney::get_requested_capture_permissions(
-      obj, default_scheduling, default_immediate
-    );
-
     clear_capture_state(obj);
 
     return rv;
   }
+
+  static
+  std::unique_ptr<CaptureDescriptionBase>
+  get_capture_description(
+    CapturedObjectBase const& obj,
+    CapturedObjectBase& captured,
+    CapturedObjectBase::capture_op_t schedule_capture_op,
+    CapturedObjectBase::capture_op_t immediate_capture_op
+  ) {
+    return obj.get_capture_description(
+      captured, schedule_capture_op, immediate_capture_op
+    );
+  }
+
+
+
+};
+
+class CaptureDescriptionBase {
+  protected:
+
+    frontend::permissions_t scheduling_permissions_;
+    frontend::permissions_t immediate_permissions_;
+
+    CaptureDescriptionBase(
+      frontend::permissions_t scheduling_permissions,
+      frontend::permissions_t immediate_permissions
+    ) : scheduling_permissions_(scheduling_permissions),
+        immediate_permissions_(immediate_permissions)
+    { }
+
+  public:
+
+    virtual void
+    replace_source_pointer(CapturedObjectBase const*) =0;
+
+    virtual void
+    replace_captured_pointer(CapturedObjectBase*) =0;
+
+    virtual void
+    require_ability_to_schedule(CaptureDescriptionBase const& other) =0;
+
+    virtual void
+    invoke_capture(TaskBase*) =0;
+
+    virtual CapturedObjectBase const* get_source_pointer() =0;
+
+    virtual CapturedObjectBase* get_captured_pointer() =0;
 
 };
 

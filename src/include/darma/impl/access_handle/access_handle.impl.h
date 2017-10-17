@@ -48,6 +48,7 @@
 #include <darma/interface/app/access_handle.h>
 
 #include <darma/impl/access_handle/access_handle_base.impl.h>
+#include <darma/impl/access_handle/access_handle_capture_description.h>
 
 namespace darma_runtime {
 
@@ -56,7 +57,7 @@ namespace darma_runtime {
 template <typename T, typename Traits>
 AccessHandle<T, Traits>::AccessHandle(
   AccessHandle<T, Traits> const& copied_from
-) : current_use_(current_use_base_)
+) : detail::BasicAccessHandle()
 {
 
   auto result = this->copy_capture_handler_t::handle_copy_construct(

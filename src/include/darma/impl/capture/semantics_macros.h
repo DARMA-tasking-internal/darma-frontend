@@ -136,7 +136,7 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
         << " }, and coherence mode " \
         << coherence_mode_to_string(CoherenceMode) \
     ); \
-    return HandleUseBase::FlowRelationshipImpl(); \
+    return FlowRelationshipImpl(); \
   } \
   static auto continuation_in_flow_relationship( \
     darma_runtime::types::flow_t* source_in, \

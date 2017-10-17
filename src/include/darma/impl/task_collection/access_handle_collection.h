@@ -78,6 +78,9 @@ namespace detail {
 template <typename... AccessorDetails>
 struct AccessHandleCollectionAccess;
 
+template <typename, typename>
+struct AccessHandleCollectionCaptureDescription;
+
 } // end namespace detail
 
 namespace serialization {
@@ -147,11 +150,9 @@ class AccessHandleCollection
         auto scheduling_permissions,
         auto immediate_permissions,
         auto&& in_flow_rel,
-        auto&& out_flow_rel
-#if _darma_has_feature(anti_flows)
-        , auto&& anti_in_flow_rel,
+        auto&& out_flow_rel,
+        auto&& anti_in_flow_rel,
         auto&& anti_out_flow_rel
-#endif // _darma_has_feature(anti_flows)
       ) {
         return darma_runtime::detail::CollectionManagingUse<
           std::decay_t<IndexRangeT>
@@ -160,10 +161,8 @@ class AccessHandleCollection
           scheduling_permissions, immediate_permissions,
           std::move(in_flow_rel).as_collection_relationship(),
           std::move(out_flow_rel).as_collection_relationship(),
-#if _darma_has_feature(anti_flows)
           std::move(anti_in_flow_rel).as_collection_relationship(),
           std::move(anti_out_flow_rel).as_collection_relationship(),
-#endif // _darma_has_feature(anti_flows)
           source->current_use_->use->index_range
         );
       };
@@ -173,11 +172,9 @@ class AccessHandleCollection
         auto scheduling_permissions,
         auto immediate_permissions,
         auto&& in_flow_rel,
-        auto&& out_flow_rel
- #if _darma_has_feature(anti_flows)
-        , auto&& anti_in_flow_rel,
+        auto&& out_flow_rel,
+        auto&& anti_in_flow_rel,
         auto&& anti_out_flow_rel
-#endif // _darma_has_feature(anti_flows)
       ) {
         return std::make_shared<
           darma_runtime::detail::GenericUseHolder<
@@ -190,10 +187,8 @@ class AccessHandleCollection
             scheduling_permissions, immediate_permissions,
             std::move(in_flow_rel).as_collection_relationship(),
             std::move(out_flow_rel).as_collection_relationship(),
-#if _darma_has_feature(anti_flows)
             std::move(anti_in_flow_rel).as_collection_relationship(),
             std::move(anti_out_flow_rel).as_collection_relationship(),
-#endif // _darma_has_feature(anti_flows)
             source->current_use_->use->index_range
           ), true, true
         );
@@ -310,7 +305,7 @@ class AccessHandleCollection
       >;
       using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
 
-      // TODO somehow check if we're inside a task collection, and fail if we're not
+      // TODO somehow check if we're inside a task collection, and fail unless we're not
 
       return parser()
         .with_converters(
@@ -393,6 +388,13 @@ class AccessHandleCollection
   // <editor-fold desc="AccessHandleBase pure virtual method overloads"> {{{1
 
   protected:
+
+    std::unique_ptr<detail::CaptureDescriptionBase>
+    get_capture_description(
+      CapturedObjectBase& captured,
+      capture_op_t schedule_capture_op,
+      capture_op_t immediate_capture_op
+    ) const override;
 
     void call_add_dependency(
       detail::TaskBase* task
@@ -627,6 +629,9 @@ class AccessHandleCollection
   // <editor-fold desc="friends"> {{{1
 
   private:
+
+    template <typename, typename>
+    friend struct detail::AccessHandleCollectionCaptureDescription;
 
     template <typename, typename, typename>
     friend
@@ -1231,6 +1236,8 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
 //};
 
 } // end namespace darma_runtime
+
+#include <darma/impl/task_collection/access_handle_collection_capture_description.h>
 
 #endif // _darma_has_feature(create_concurrent_work)
 

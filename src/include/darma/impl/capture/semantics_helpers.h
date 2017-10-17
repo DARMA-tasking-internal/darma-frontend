@@ -124,7 +124,7 @@ struct CaptureCase {
           << " }, and coherence mode "
           << coherence_mode_to_string(coherence_mode)
       );
-      return HandleUseBase::FlowRelationshipImpl();
+      return FlowRelationshipImpl();
     }
 
   public:

@@ -327,9 +327,7 @@ class Use {
 
     virtual bool is_dependency() const =0;
 
-#if _darma_has_feature(anti_flows)
     virtual bool is_anti_dependency() const =0;
-#endif // _darma_has_feature(anti_flows)
 
     virtual bool is_while_do_use() const {
       return false;
@@ -354,11 +352,9 @@ class UsePendingRegistration : virtual public Use {
 
     virtual void set_out_flow(types::flow_t const& new_flow) =0;
 
-#if _darma_has_feature(anti_flows)
     virtual void set_anti_in_flow(types::anti_flow_t const& new_flow) =0;
 
     virtual void set_anti_out_flow(types::anti_flow_t const& new_flow) =0;
-#endif // _darma_has_feature(anti_flows)
 
     virtual FlowRelationship const&
     get_in_flow_relationship() const =0;
@@ -366,16 +362,11 @@ class UsePendingRegistration : virtual public Use {
     virtual FlowRelationship const&
     get_out_flow_relationship() const =0;
 
-#if _darma_has_feature(anti_flows)
     virtual FlowRelationship const&
     get_anti_in_flow_relationship() const =0;
 
     virtual FlowRelationship const&
     get_anti_out_flow_relationship() const =0;
-#endif // _darma_has_feature(anti_flows)
-
-    // Deprecated; use Use::is_dependency() instead
-    virtual bool will_be_dependency() const =0;
 
   protected:
     // Deletions should only ever occur on the most derived class (i.e., done
@@ -401,14 +392,11 @@ class RegisteredUse : virtual public Use {
     virtual types::flow_t&
     get_out_flow() =0;
 
-#if _darma_has_feature(anti_flows)
     virtual types::anti_flow_t&
     get_anti_in_flow() =0;
 
     virtual types::anti_flow_t&
     get_anti_out_flow() =0;
-#endif // _darma_has_feature(anti_flows)
-
 
 };
 
@@ -416,9 +404,6 @@ class UsePendingRelease : virtual public RegisteredUse {
   public:
 
     virtual bool establishes_alias() const =0;
-
-    // Deprecated; use Use::is_dependency() instead
-    virtual bool was_dependency() const =0;
 
     // Deletions should only ever occur on the most derived class (i.e., done
     // by the translation layer itself) or on pointer to the most base class,

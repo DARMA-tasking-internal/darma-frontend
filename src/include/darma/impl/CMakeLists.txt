@@ -33,6 +33,8 @@ FILE(GLOB impl_task_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/task/*.h")
 FILE(GLOB impl_task_collection_impl_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/task_collection/impl/*.h")
+FILE(GLOB impl_use_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/use/*.h")
 FILE(GLOB impl_util_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/util/*.h")
 
@@ -53,6 +55,7 @@ install (FILES ${impl_serialization_HEADERS} DESTINATION include/darma/impl/seri
 install (FILES ${impl_task_HEADERS} DESTINATION include/darma/impl/task)
 install (FILES ${impl_task_collection_HEADERS} DESTINATION include/darma/impl/task_collection)
 install (FILES ${impl_task_collection_impl_HEADERS} DESTINATION include/darma/impl/task_collection/impl)
+install (FILES ${impl_use_HEADERS} DESTINATION include/darma/impl/use)
 install (FILES ${impl_util_HEADERS} DESTINATION include/darma/impl/util)
 
 ################################################################################

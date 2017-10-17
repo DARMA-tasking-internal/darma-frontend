@@ -377,16 +377,6 @@ class TaskBase
       AccessHandleBase const& source_and_continuing
     ) override;
 
-    void
-    do_capture(
-      AccessHandleBase& captured,
-      AccessHandleBase const& source_and_continuing,
-      frontend::permissions_t requested_scheduling,
-      frontend::permissions_t requested_immediate,
-      bool register_continuation,
-      bool copies_into_closure
-    ) override;
-
     //==========================================================================
     // <editor-fold desc="Implementation of abstract::frontend::Task"> {{{1
 

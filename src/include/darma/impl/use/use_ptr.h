@@ -45,17 +45,70 @@
 #ifndef DARMAFRONTEND_USE_PTR_H
 #define DARMAFRONTEND_USE_PTR_H
 
+#include <darma/impl/handle_use_base.h>
+
 namespace darma_runtime {
 namespace detail {
 
+class UsePtrBase {
+  protected:
 
-template <typename UnderlyingUse>
-struct UsePtr {
 
+  public:
 
 
 
 };
+
+template <typename UnderlyingUse>
+class UsePtr : public UsePtrBase {
+
+  private:
+
+    // For use in emulating private constructors that have to go through
+    // a shared_ptr interface.
+    static constexpr struct private_ctor_tag_t { } private_ctor_tag;
+
+  protected:
+
+    using underlying_ptr_t = managing_ptr<
+      std::unique_ptr<UnderlyingUse>, HandleUseBase*
+    >;
+
+    underlying_ptr_t use_;
+
+    template <typename... UseCtorArgs>
+    UsePtr(
+      private_ctor_tag_t,
+      UseCtorArgs&&... args
+    ) : use_()
+
+
+  public:
+
+
+    template <typename... UseCtorArgs>
+    std::shared_ptr<UsePtr>
+    create(UseCtorArgs&&... args) {
+
+    }
+
+
+    // UsePtr objects can't be moved or copied; they can only be constructed
+    // in place as part of a smart pointer
+    UsePtr(UsePtr&&) = delete;
+    UsePtr(UsePtr const&) = delete;
+
+
+    UnderlyingUse* use() { return use_.get(); }
+    UnderlyingUse const* use() const { return use_.get(); }
+
+};
+
+// Needs to be defined since make_shared<> binds a reference to it.
+template <typename UnderlyingUse>
+typename UsePtr<UnderlyingUse>::private_ctor_tag_t
+UsePtr<UnderlyingUse>::private_ctor_tag = { };
 
 } // end namespace detail
 } // end namespace darma_runtime

@@ -183,13 +183,13 @@ MATCHER_P(UseEstablishesAlias, value, "use->establishes_alias() = " + PrintToStr
   return arg->establishes_alias() == value;
 }
 
-MATCHER_P(UseWillBeDependency, value, "use->will_be_dependency() = " + PrintToString(value)) {
+MATCHER_P(UseWillBeDependency, value, "use->is_dependency() = " + PrintToString(value)) {
   if(arg == nullptr) {
     *result_listener << "arg is null";
     return false;
   }
-  *result_listener << "arg->will_be_dependency() = " << std::boolalpha << arg->will_be_dependency();
-  return arg->will_be_dependency() == value;
+  *result_listener << "arg->is_dependency() = " << std::boolalpha << arg->is_dependency();
+  return arg->is_dependency() == value;
 }
 
 MATCHER_P(IsUseWithHandleKey, key, "handle->get_key() = " + PrintToString(key)) {

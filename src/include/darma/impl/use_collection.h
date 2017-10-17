@@ -198,19 +198,15 @@ class CollectionManagingUseBase
       std::shared_ptr<VariableHandleBase> handle,
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions,
-      HandleUseBase::FlowRelationshipImpl&& in_rel,
-      HandleUseBase::FlowRelationshipImpl&& out_rel,
-#if _darma_has_feature(anti_flows)
-      HandleUseBase::FlowRelationshipImpl&& anti_in_rel,
-      HandleUseBase::FlowRelationshipImpl&& anti_out_rel,
-#endif // _darma_has_feature(anti_flows)
+      FlowRelationshipImpl&& in_rel,
+      FlowRelationshipImpl&& out_rel,
+      FlowRelationshipImpl&& anti_in_rel,
+      FlowRelationshipImpl&& anti_out_rel,
       MappingToTaskCollectionDeduced&& mapping
     ) : HandleUseBase(
           handle, scheduling_permissions, immediate_permissions,
-          std::move(in_rel), std::move(out_rel)
-#if _darma_has_feature(anti_flows)
-          , std::move(anti_in_rel), std::move(anti_out_rel)
-#endif // _darma_has_feature(anti_flows)
+          std::move(in_rel), std::move(out_rel),
+          std::move(anti_in_rel), std::move(anti_out_rel)
         ),
         mapping_manager(
           std::make_unique<
@@ -238,17 +234,13 @@ class CollectionManagingUseBase
       abstract::frontend::Use::permissions_t immediate_permissions,
       types::flow_t&& unpacked_in_flow,
       types::flow_t&& unpacked_out_flow,
-#if _darma_has_feature(anti_flows)
       types::anti_flow_t&& unpacked_anti_in_flow,
       types::anti_flow_t&& unpacked_anti_out_flow,
-#endif // _darma_has_feature(anti_flows)
       MappingToTaskCollectionDeduced&& mapping
     ) : HandleUseBase(
           handle, scheduling_permissions, immediate_permissions,
-          std::move(unpacked_in_flow), std::move(unpacked_out_flow)
-#if _darma_has_feature(anti_flows)
-          , std::move(unpacked_anti_in_flow), std::move(unpacked_anti_out_flow)
-#endif // _darma_has_feature(anti_flows)
+          std::move(unpacked_in_flow), std::move(unpacked_out_flow),
+          std::move(unpacked_anti_in_flow), std::move(unpacked_anti_out_flow)
         ),
         mapping_manager(
           std::make_unique<
@@ -329,12 +321,10 @@ class CollectionManagingUse
       std::shared_ptr<VariableHandleBase> handle,
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions,
-      HandleUseBase::FlowRelationshipImpl&& in_rel,
-      HandleUseBase::FlowRelationshipImpl&& out_rel,
-#if _darma_has_feature(anti_flows)
-      HandleUseBase::FlowRelationshipImpl&& anti_in_rel,
-      HandleUseBase::FlowRelationshipImpl&& anti_out_rel,
-#endif // _darma_has_feature(anti_flows)
+      FlowRelationshipImpl&& in_rel,
+      FlowRelationshipImpl&& out_rel,
+      FlowRelationshipImpl&& anti_in_rel,
+      FlowRelationshipImpl&& anti_out_rel,
       IndexRangeDeduced&& range
     ) : base_t(
           handle, scheduling_permissions, immediate_permissions,
@@ -367,12 +357,10 @@ class CollectionManagingUse
       std::shared_ptr<VariableHandleBase> handle,
       abstract::frontend::Use::permissions_t scheduling_permissions,
       abstract::frontend::Use::permissions_t immediate_permissions,
-      HandleUseBase::FlowRelationshipImpl&& in_rel,
-      HandleUseBase::FlowRelationshipImpl&& out_rel,
-#if _darma_has_feature(anti_flows)
-      HandleUseBase::FlowRelationshipImpl&& anti_in_rel,
-      HandleUseBase::FlowRelationshipImpl&& anti_out_rel,
-#endif // _darma_has_feature(anti_flows)
+      FlowRelationshipImpl&& in_rel,
+      FlowRelationshipImpl&& out_rel,
+      FlowRelationshipImpl&& anti_in_rel,
+      FlowRelationshipImpl&& anti_out_rel,
       IndexRangeDeduced&& range, MappingToTaskCollectionDeduced&& mapping
     ) : base_t(
           handle, scheduling_permissions, immediate_permissions,

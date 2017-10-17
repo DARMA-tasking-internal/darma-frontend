@@ -82,20 +82,26 @@ struct _read_access_helper {
       detail::HandleUse(
         var_h,
         frontend::Permissions::Read, frontend::Permissions::None,
-        detail::HandleUseBase::FlowRelationshipImpl(
+        detail::FlowRelationshipImpl(
           abstract::frontend::FlowRelationship::Fetching,
           /* related flow = */ nullptr,
           /* related_is_in = */ false,
           /* version key = */ &version_key,
-          /* index = */ 0
-#if _darma_has_feature(anti_flows)
-        , /* anti_related = */ nullptr,
-            /* anti_rel_is_in = */ false
-#endif // _darma_has_feature(anti_flows)
+          /* index = */ 0,
+          /* anti_related = */ nullptr,
+          /* anti_rel_is_in = */ false
         ),
-        //FlowRelationship::Fetching, nullptr,
-        null_flow()
-        //FlowRelationship::Null, nullptr, false,
+        null_flow(),
+        null_flow(),
+        detail::FlowRelationshipImpl(
+          abstract::frontend::FlowRelationship::Fetching,
+          /* related flow = */ nullptr,
+          /* related_is_in = */ false,
+          /* version key = */ &version_key,
+          /* index = */ 0,
+          /* anti_related = */ nullptr,
+          /* anti_rel_is_in = */ false
+        )
       ), true, false
     );
     use_holder->could_be_alias = true;

@@ -96,6 +96,111 @@ struct _read_access_helper;
 } // end namespace detail
 
 
+namespace detail {
+
+class BasicAccessHandle : public AccessHandleBase {
+
+  public:
+
+    BasicAccessHandle()
+      : current_use_(current_use_base_)
+    { }
+
+    BasicAccessHandle(BasicAccessHandle&& other)
+      : current_use_(current_use_base_, std::move(other.current_use_))
+    { }
+
+  protected:
+
+    using use_holder_t = detail::UseHolder;
+    using use_holder_ptr = detail::managing_ptr<
+      std::shared_ptr<use_holder_t>,
+      detail::UseHolderBase*
+    >;
+    mutable use_holder_ptr current_use_ = { current_use_base_ };
+
+
+    explicit
+    BasicAccessHandle(
+      typename use_holder_ptr::smart_ptr_t const& use_holder
+    ) : current_use_(current_use_base_, use_holder)
+    { }
+
+    explicit
+    BasicAccessHandle(
+      use_holder_ptr const& use_holder
+    ) : current_use_(current_use_base_, use_holder)
+    { }
+
+    // TODO cull these!
+
+    friend class detail::create_work_attorneys::for_AccessHandle;
+    friend class detail::access_attorneys::for_AccessHandle;
+
+    template <typename, typename, size_t, typename>
+    friend
+    struct detail::_task_collection_impl::_get_task_stored_arg_helper;
+
+    template <typename, typename, typename, typename>
+    friend
+    struct detail::_task_collection_impl::_get_storage_arg_helper;
+
+    friend class detail::TaskBase;
+
+    template <typename, typename>
+    friend
+    class AccessHandle;
+
+    template <typename, typename, typename>
+    friend
+    class AccessHandleCollection;
+
+    template <typename, typename>
+    friend struct AccessHandleCollectionCaptureDescription;
+
+    template <typename, typename>
+    friend struct AccessHandleCaptureDescription;
+
+    template <typename, typename, typename...>
+    friend
+    class detail::TaskCollectionImpl;
+
+    template <typename Op>
+    friend
+    struct detail::all_reduce_impl;
+
+    template <typename AccessHandleT>
+    friend
+    struct detail::_publish_impl;
+
+    template <typename, typename...>
+    friend struct detail::_commutative_access_impl;
+    template <typename, typename...>
+    friend struct detail::_noncommutative_access_impl;
+
+    template <typename, typename>
+    friend
+    class detail::IndexedAccessHandle;
+
+    // Analogs with different privileges are friends too
+    friend struct detail::analogous_access_handle_attorneys::AccessHandleAccess;
+
+    // Allow implicit conversion to value in the invocation of the task
+    friend struct meta::splat_tuple_access<detail::AccessHandleBase>;
+
+    template <typename, typename...>
+    friend struct detail::_initial_access_key_helper;
+
+    template <typename>
+    friend struct detail::_read_access_helper;
+
+    template <typename>
+    friend class detail::CopyCapturedObject;
+
+};
+
+} // end namespace detail
+
 // todo move this to a more appropriate place
 template <typename T>
 T darma_copy(T& lvalue) {
@@ -107,7 +212,7 @@ T darma_copy(T& lvalue) {
 
 template <typename T, typename Traits>
 class AccessHandle
-  : public detail::AccessHandleBase,
+  : public detail::BasicAccessHandle,
     private detail::CopyCapturedObject<AccessHandle<T, Traits>>
 {
   //===========================================================================
@@ -125,11 +230,6 @@ class AccessHandle
     >;
 
     using key_t = types::key_t;
-    using use_holder_t = detail::UseHolder;
-    using use_holder_ptr = detail::managing_ptr<
-      std::shared_ptr<use_holder_t>,
-      detail::UseHolderBase*
-    >;
 
     using copy_capture_handler_t = detail::CopyCapturedObject<AccessHandle>;
 
@@ -296,8 +396,7 @@ class AccessHandle
 
   public:
 
-    AccessHandle()
-      : current_use_(current_use_base_) {}
+    AccessHandle() { }
 
     AccessHandle(AccessHandle const& copied_from);
 
@@ -316,7 +415,7 @@ class AccessHandle
     >
     AccessHandle(
       AccessHandleT const& copied_from
-    ) : current_use_(current_use_base_)
+    )
     {
       auto result = this->copy_capture_handler_t::handle_compatible_analog_construct(
         copied_from
@@ -428,11 +527,10 @@ class AccessHandle
       typename=std::enable_if_t<std::is_void<_Ignored_SFINAE>::value>
     >
     AccessHandle(AccessHandle&& other)
-      : detail::AccessHandleBase(std::move(other)),
+      : detail::BasicAccessHandle(std::move(other)),
         copy_capture_handler_t(std::move(other)),
         var_handle_(std::move(other.var_handle_)),
         unfetched_(std::move(other.unfetched_)),
-        current_use_(current_use_base_, std::move(other.current_use_)),
         other_private_members_(std::move(other.other_private_members_))
     {
       var_handle_base_ = var_handle_;
@@ -462,11 +560,10 @@ class AccessHandle
           and not is_reinterpret_castable_from_access_handle<AccessHandleT>::value,
         detail::_not_a_type
       > _nat = {detail::_not_a_type_ctor_tag}
-    ) : detail::AccessHandleBase(std::move(other)),
+    ) : detail::BasicAccessHandle(std::move(other)),
         copy_capture_handler_t(),
         var_handle_(std::move(other.var_handle_)),
         unfetched_(std::move(other.unfetched_)),
-        current_use_(current_use_base_, std::move(other.current_use_)),
         other_private_members_(std::move(other.other_private_members_))
     {
       var_handle_base_ = var_handle_;
@@ -1179,6 +1276,14 @@ class AccessHandle
       current_use_ = nullptr;
     }
 
+    std::unique_ptr<detail::CaptureDescriptionBase>
+    get_capture_description(
+      detail::CapturedObjectBase& captured,
+      detail::CapturedObjectBase::capture_op_t schedule_capture_op,
+      detail::CapturedObjectBase::capture_op_t immediate_capture_op
+    ) const override;
+
+
   // </editor-fold> end AccessHandleBase pure virtual function implementations }}}1
   //============================================================================
 
@@ -1243,10 +1348,10 @@ class AccessHandle
       capturing_task->do_capture(*this, *source);
 
       if (source->current_use_) {
-        source->current_use_->use_base->already_captured = true;
+        source->current_use_->use->already_captured = true;
         // TODO this flag should be on the AccessHandleBase itself
         capturing_task->uses_to_unmark_already_captured.insert(
-          source->current_use_->use_base
+          source->current_use_->use.get()
         );
       }
     }
@@ -1268,7 +1373,7 @@ class AccessHandle
     void report_dependency(
       TaskLikeT* task
     ) {
-      task->add_dependency(*current_use_base_->use_base);
+      task->add_dependency(*current_use_->use.get());
     }
 
 
@@ -1285,7 +1390,7 @@ class AccessHandle
     AccessHandle(
       variable_handle_ptr const& var_handle,
       typename use_holder_ptr::smart_ptr_t const& use_holder
-    ) : current_use_(current_use_base_, use_holder),
+    ) : BasicAccessHandle(use_holder),
         var_handle_(var_handle)
     {
       var_handle_base_ = var_handle_;
@@ -1296,7 +1401,7 @@ class AccessHandle
       variable_handle_ptr const& var_handle,
       typename use_holder_ptr::smart_ptr_t const& use_holder,
       std::unique_ptr<types::flow_t>&& suspended_out_flow
-    ) : current_use_(current_use_base_, use_holder),
+    ) : BasicAccessHandle(use_holder),
         var_handle_(var_handle)
     {
       var_handle_base_ = var_handle_;
@@ -1307,7 +1412,7 @@ class AccessHandle
     AccessHandle(
       variable_handle_ptr const& var_handle,
       use_holder_ptr const& use_holder
-    ) : current_use_(current_use_base_, use_holder),
+    ) : BasicAccessHandle(use_holder),
         var_handle_(var_handle)
     {
       var_handle_base_ = var_handle_;
@@ -1321,7 +1426,7 @@ class AccessHandle
     AccessHandle(
       serialization::unpack_constructor_tag_t const&,
       Archive& ar
-    ) : current_use_(current_use_base_)
+    )
     {
       unpack_from_archive(ar);
     }
@@ -1354,7 +1459,6 @@ class AccessHandle
   private:
 
     mutable variable_handle_ptr var_handle_ = nullptr;
-    mutable use_holder_ptr current_use_ = { current_use_base_ };
 
     // TODO remove unfetched?
     mutable bool unfetched_ = false;
