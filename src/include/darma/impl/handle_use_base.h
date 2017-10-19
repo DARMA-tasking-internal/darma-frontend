@@ -68,9 +68,6 @@ class HandleUseBase
     public abstract::frontend::CollectionManagingUse,
     public abstract::frontend::UsePendingRegistration,
     public abstract::frontend::UsePendingRelease
-#if _darma_has_feature(create_concurrent_work_owned_by)
-    , public abstract::frontend::UniquelyOwnedUse
-#endif //_darma_has_feature(create_concurrent_work_owned_by)
 {
   public:
 
@@ -87,9 +84,6 @@ class HandleUseBase
     types::flow_t out_flow_;
     types::anti_flow_t anti_in_flow_;
     types::anti_flow_t anti_out_flow_;
-
-    // TODO this shouldn't be here...
-    std::size_t collection_owner_ = std::numeric_limits<std::size_t>::max();
 
     // for use with commutative regions; might not be needed any more?
     std::unique_ptr<types::flow_t> suspended_out_flow_ = nullptr;
@@ -220,6 +214,13 @@ class HandleUseBase
     // </editor-fold>
     //==========================================================================
 
+    //==========================================================================
+    // <editor-fold desc="Ctors and destructor"> {{{1
+
+    /**
+     * @internal
+     * @brief Initial access (or other non-cloned Use) constructor
+     */
     HandleUseBase(
       std::shared_ptr<VariableHandleBase> const& handle,
       abstract::frontend::Use::permissions_t scheduling_permissions,
@@ -239,8 +240,59 @@ class HandleUseBase
         coherence_mode_(coherence_mode)
     { }
 
+    /**
+     * @internal
+     * @brief Cloning constructor
+     */
+    HandleUseBase(
+      HandleUseBase const& clone_from,
+      abstract::frontend::Use::permissions_t scheduling_permissions,
+      abstract::frontend::Use::permissions_t immediate_permissions,
+      FlowRelationshipImpl&& in_rel,
+      FlowRelationshipImpl&& out_rel,
+      FlowRelationshipImpl&& anti_in_rel,
+      FlowRelationshipImpl&& anti_out_rel,
+      frontend::coherence_mode_t coherence_mode
+    ) : handle_(clone_from.handle_),
+        immediate_permissions_(immediate_permissions),
+        scheduling_permissions_(scheduling_permissions),
+        in_flow_rel_(std::move(in_rel)),
+        out_flow_rel_(std::move(out_rel)),
+        in_anti_flow_rel_(std::move(anti_in_rel)),
+        out_anti_flow_rel_(std::move(anti_out_rel)),
+        coherence_mode_(coherence_mode)
+    { }
 
-    // Should only be used by unpack at this point
+    /**
+     * @internal
+     * @brief Pass through to the cloning constructor with coherence mode from
+     *         the clone when coherence mode isn't given.
+     */
+    HandleUseBase(
+      HandleUseBase const& clone_from,
+      abstract::frontend::Use::permissions_t scheduling_permissions,
+      abstract::frontend::Use::permissions_t immediate_permissions,
+      FlowRelationshipImpl&& in_rel,
+      FlowRelationshipImpl&& out_rel,
+      FlowRelationshipImpl&& anti_in_rel,
+      FlowRelationshipImpl&& anti_out_rel
+    ) : HandleUseBase(
+          clone_from, scheduling_permissions, immediate_permissions,
+          std::move(in_rel), std::move(out_rel),
+          std::move(anti_in_rel), std::move(anti_out_rel),
+          /* if coherence_mode isn't given, get it from the source */
+          clone_from.coherence_mode_
+        )
+    { /* forwarding ctor, must be empty */ }
+
+    /**
+     * @internal
+     * @brief Unpacking constructor
+     *
+     * This is the only constructor that uses flow objects directly instead of
+     * `FlowRelationship` objects.  Ideally, this will change in the future
+     * (for uniformity reasons) with some changes to the backend API.
+     */
     HandleUseBase(
       std::shared_ptr<VariableHandleBase> const& handle,
       abstract::frontend::Use::permissions_t scheduling_permissions,
@@ -248,14 +300,16 @@ class HandleUseBase
       types::flow_t&& in_flow,
       types::flow_t&& out_flow,
       types::anti_flow_t&& anti_in_flow,
-      types::anti_flow_t&& anti_out_flow
+      types::anti_flow_t&& anti_out_flow,
+      frontend::CoherenceMode coherence_mode
     ) : handle_(handle),
         immediate_permissions_(immediate_permissions),
         scheduling_permissions_(scheduling_permissions),
         in_flow_(std::move(in_flow)),
         out_flow_(std::move(out_flow)),
         anti_in_flow_(std::move(anti_in_flow)),
-        anti_out_flow_(std::move(anti_out_flow))
+        anti_out_flow_(std::move(anti_out_flow)),
+        coherence_mode_(coherence_mode)
     { }
 
     HandleUseBase() = default;
@@ -265,6 +319,9 @@ class HandleUseBase
     HandleUseBase& operator=(HandleUseBase&&) = default;
 
     virtual ~HandleUseBase() = default;
+
+    // </editor-fold> end  }}}1
+    //==========================================================================
 
 };
 

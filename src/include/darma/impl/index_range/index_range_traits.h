@@ -152,6 +152,34 @@ class index_range_traits {
 
 };
 
+
+namespace detail {
+
+template <
+  typename IndexRangeArgumentsVector,
+  typename Enable=void
+>
+struct index_range_type_from_arguments_vector;
+
+template <
+  typename SingleArgumentType
+>
+struct index_range_type_from_arguments_vector<
+  tinympl::vector<SingleArgumentType>,
+  std::enable_if_t<
+    index_range_traits<std::decay_t<SingleArgumentType>>::is_index_range
+  >
+> : tinympl::identity<std::decay_t<SingleArgumentType>>
+{ };
+
+} // end namespace detail
+
+template <typename... ArgumentTypes>
+using index_range_type_from_arguments_t = typename
+  detail::index_range_type_from_arguments_vector<
+    tinympl::vector<ArgumentTypes...>
+  >::type;
+
 } // end namespace indexing
 } // end namespace darma_runtime
 

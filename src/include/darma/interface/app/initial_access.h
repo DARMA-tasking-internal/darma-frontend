@@ -77,7 +77,8 @@ struct _initial_access_key_helper {
       initial_flow(),
       null_flow(),
       insignificant_flow(),
-      initial_anti_flow()
+      initial_anti_flow(),
+      frontend::CoherenceMode::Sequential
     );
 
     use_holder->could_be_alias = true;

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      access_handle.impl.h
+//                      copy_captured_object_fwd.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,43 +42,16 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_ACCESS_HANDLE_IMPL_H
-#define DARMAFRONTEND_ACCESS_HANDLE_IMPL_H
-
-#include <darma/interface/app/access_handle.h>
-
-#include <darma/impl/access_handle/access_handle_base.impl.h>
-#include <darma/impl/access_handle/access_handle_capture_description.h>
+#ifndef DARMAFRONTEND_COPY_CAPTURED_OBJECT_FWD_H
+#define DARMAFRONTEND_COPY_CAPTURED_OBJECT_FWD_H
 
 namespace darma_runtime {
+namespace detail {
 
-//==============================================================================
+template <typename Derived>
+struct CopyCapturedObject;
 
-template <typename T, typename Traits>
-AccessHandle<T, Traits>::AccessHandle(
-  AccessHandle<T, Traits> const& copied_from
-) : detail::BasicAccessHandle()
-{
-
-  auto result = this->copy_capture_handler_t::handle_copy_construct(
-    copied_from
-  );
-
-  // If we didn't do a capture and the argument isn't garbage (e.g., from
-  // lambda serdes process), then we need to do the normal copy constructor
-  // operations
-  if(not result.did_capture and not result.argument_is_garbage) {
-    // then we need to propagate stuff here, since no capture handler was invoked
-    // in other words, we're acting like an assignment
-    this->detail::BasicAccessHandle::_do_assignment(copied_from);
-    other_private_members_ = copied_from.other_private_members_;
-  }
-
-}
-
-//==============================================================================
-
+} // end namespace detail
 } // end namespace darma_runtime
 
-
-#endif //DARMAFRONTEND_ACCESS_HANDLE_IMPL_H
+#endif //DARMAFRONTEND_COPY_CAPTURED_OBJECT_FWD_H

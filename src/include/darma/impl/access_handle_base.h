@@ -173,21 +173,21 @@ class AccessHandleBase
     virtual std::shared_ptr<AccessHandleBase>
     copy() const =0;
 
-    virtual void
-    call_make_captured_use_holder(
-      std::shared_ptr<detail::VariableHandleBase> var_handle,
-      detail::HandleUse::permissions_t req_sched,
-      detail::HandleUse::permissions_t req_immed,
-      detail::AccessHandleBase const& source,
-      bool register_continuation_use
-    ) =0;
+//    virtual void
+//    call_make_captured_use_holder(
+//      std::shared_ptr<detail::VariableHandleBase> var_handle,
+//      detail::HandleUse::permissions_t req_sched,
+//      detail::HandleUse::permissions_t req_immed,
+//      detail::AccessHandleBase const& source,
+//      bool register_continuation_use
+//    ) =0;
 
     // really should be something like "release_current_use_holders"...
     virtual void release_current_use() const =0;
 
-    virtual void call_add_dependency(
-      detail::TaskBase* task
-    );
+//    virtual void call_add_dependency(
+//      detail::TaskBase* task
+//    );
 
     // </editor-fold> end virtual methods }}}2
     //------------------------------------------------------------------------------

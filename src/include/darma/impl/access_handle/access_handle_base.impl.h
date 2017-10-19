@@ -117,10 +117,10 @@ detail::AccessHandleBase::get_captured_permissions_for(
 }
 
 
-inline void
-AccessHandleBase::call_add_dependency(TaskBase* task) {
-  task->add_dependency(*current_use_base_->use_base);
-}
+//inline void
+//AccessHandleBase::call_add_dependency(TaskBase* task) {
+//  task->add_dependency(*current_use_base_->use_base);
+//}
 
 } // end namespace detail
 } // end namespace darma_runtime

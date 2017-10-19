@@ -69,46 +69,39 @@ struct AccessHandleCollectionCaptureDescription
 
     void invoke_capture(TaskBase* task) override {
       if(this->source_->mapped_backend_index_ == this->source_->unknown_backend_index) {
-        //captured_->current_use_ = detail::make_captured_use_holder(
-        //  captured_->var_handle_base_,>
-        //  scheduling_permissions_,
-        //  immediate_permissions_,
-        //  *source_,
-        //  true
-        //  /* TODO !!! propagate IndexRange */
-        //);
-        // For now...
-        this->captured_->current_use_ = this->captured_->_call_make_captured_use_holder_impl(
+        // The cloning constructor of BasicCollectionManagingUse takes care of all of the
+        // propagation of the index range (and mapping if it exists)
+        this->captured_->set_current_use(detail::make_captured_use_holder(
           this->captured_->var_handle_base_,
           (frontend::permissions_t)std::max(
             (int)this->scheduling_permissions_, (int)this->immediate_permissions_
           ),
           frontend::Permissions::None,
-          *this->source_,
-          true // TODO don't always register continuation use
-        );
+          this->source_->get_current_use()
+        ));
         task->add_dependency(*this->captured_->current_use_base_->use_base);
       }
       else {
         for(auto&& local_holder_pair : this->source_->local_use_holders_) {
-          this->captured_->local_use_holders_[local_holder_pair.first] = detail::make_captured_use_holder(
-            this->captured_->var_handle_base_,
-            this->scheduling_permissions_,
-            this->immediate_permissions_,
-            local_holder_pair.second.get(),
-            true // TODO don't always register continuation use
+          this->captured_->local_use_holders_[local_holder_pair.first] =
+            detail::make_captured_use_holder(
+              this->captured_->var_handle_base_,
+              this->scheduling_permissions_,
+              this->immediate_permissions_,
+              local_holder_pair.second.get()
+            );
+          task->add_dependency(
+            *this->captured_->local_use_holders_[local_holder_pair.first]->use()
           );
-          task->add_dependency(*this->captured_->local_use_holders_[local_holder_pair.first]->use.get());
         }
         // Now create a captured version of the collection use
-        this->captured_->current_use_ = this->captured_->_call_make_captured_use_holder_impl(
+        this->captured_->set_current_use(detail::make_captured_use_holder(
           this->captured_->var_handle_base_,
           this->scheduling_permissions_,
           this->immediate_permissions_,
-          *this->source_,
-          true // TODO don't always register continuation use
-        );
-        task->add_dependency(*this->captured_->current_use_->use.get());
+          this->source_->get_current_use()
+        ));
+        task->add_dependency(*this->captured_->current_use_base_->use_base);
       }
     }
 };
@@ -121,8 +114,8 @@ template <typename T, typename IndexRangeT, typename Traits>
 std::unique_ptr<detail::CaptureDescriptionBase>
 AccessHandleCollection<T, IndexRangeT, Traits>::get_capture_description(
   detail::CapturedObjectBase& captured_in,
-  capture_op_t schedule_capture_op,
-  capture_op_t immediate_capture_op
+  detail::CapturedObjectBase::capture_op_t schedule_capture_op,
+  detail::CapturedObjectBase::capture_op_t immediate_capture_op
 ) const {
 
   auto* captured_ptr = detail::safe_static_cast<AccessHandleCollection<T, IndexRangeT, Traits>*>(

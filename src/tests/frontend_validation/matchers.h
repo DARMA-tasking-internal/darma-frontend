@@ -374,7 +374,7 @@ MATCHER_P(CollectionUseInGetDependencies, use, "task->get_dependencies() contain
   auto deps = arg->get_dependencies();
   if(deps.find(
     ::darma_runtime::abstract::frontend::use_cast<
-      ::darma_runtime::abstract::frontend::CollectionManagingUse*
+      ::darma_runtime::abstract::frontend::DependencyUse*
     >(use)
   ) != deps.end()) {
     return true;

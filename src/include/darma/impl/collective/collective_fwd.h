@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      access_handle.impl.h
+//                      collective_fwd.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,43 +42,26 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_ACCESS_HANDLE_IMPL_H
-#define DARMAFRONTEND_ACCESS_HANDLE_IMPL_H
-
-#include <darma/interface/app/access_handle.h>
-
-#include <darma/impl/access_handle/access_handle_base.impl.h>
-#include <darma/impl/access_handle/access_handle_capture_description.h>
+#ifndef DARMAFRONTEND_COLLECTIVE_FWD_H
+#define DARMAFRONTEND_COLLECTIVE_FWD_H
 
 namespace darma_runtime {
+namespace detail {
 
-//==============================================================================
+struct op_not_given { };
 
-template <typename T, typename Traits>
-AccessHandle<T, Traits>::AccessHandle(
-  AccessHandle<T, Traits> const& copied_from
-) : detail::BasicAccessHandle()
-{
-
-  auto result = this->copy_capture_handler_t::handle_copy_construct(
-    copied_from
-  );
-
-  // If we didn't do a capture and the argument isn't garbage (e.g., from
-  // lambda serdes process), then we need to do the normal copy constructor
-  // operations
-  if(not result.did_capture and not result.argument_is_garbage) {
-    // then we need to propagate stuff here, since no capture handler was invoked
-    // in other words, we're acting like an assignment
-    this->detail::BasicAccessHandle::_do_assignment(copied_from);
-    other_private_members_ = copied_from.other_private_members_;
-  }
-
-}
-
-//==============================================================================
-
+} // end namespace detail
 } // end namespace darma_runtime
 
 
-#endif //DARMAFRONTEND_ACCESS_HANDLE_IMPL_H
+// TODO move these to interface files!
+#include <darma/impl/keyword_arguments/macros.h>
+
+DeclareDarmaTypeTransparentKeyword(collectives, input);
+DeclareDarmaTypeTransparentKeyword(collectives, output);
+DeclareDarmaTypeTransparentKeyword(collectives, in_out);
+DeclareDarmaTypeTransparentKeyword(collectives, piece);
+DeclareDarmaTypeTransparentKeyword(collectives, n_pieces);
+DeclareDarmaTypeTransparentKeyword(collectives, tag);
+
+#endif //DARMAFRONTEND_COLLECTIVE_FWD_H

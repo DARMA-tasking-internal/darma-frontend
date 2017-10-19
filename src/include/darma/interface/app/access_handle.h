@@ -807,23 +807,23 @@ class AccessHandle
       return rv;
     }
 
-    void
-    call_make_captured_use_holder(
-      std::shared_ptr<detail::VariableHandleBase> var_handle,
-      frontend::permissions_t req_sched,
-      frontend::permissions_t req_immed,
-      detail::AccessHandleBase const& source,
-      bool register_continuation_use = true
-    ) override {
-      set_current_use(
-        darma_runtime::detail::make_captured_use_holder(
-          var_handle_base_,
-          req_sched, req_immed,
-          get_current_use(),
-          register_continuation_use
-        )
-      );
-    }
+//    void
+//    call_make_captured_use_holder(
+//      std::shared_ptr<detail::VariableHandleBase> var_handle,
+//      frontend::permissions_t req_sched,
+//      frontend::permissions_t req_immed,
+//      detail::AccessHandleBase const& source,
+//      bool register_continuation_use = true
+//    ) override {
+//      set_current_use(
+//        darma_runtime::detail::make_captured_use_holder(
+//          var_handle_base_,
+//          req_sched, req_immed,
+//          get_current_use(),
+//          register_continuation_use
+//        )
+//      );
+//    }
 
     void release_current_use() const override {
       current_use_base_ = nullptr;
@@ -878,6 +878,16 @@ class AccessHandle
       }
     }
 
+    template <typename CompatibleAccessHandleT>
+    void prepare_for_capture(
+      CompatibleAccessHandleT const& copied_from
+    ) {
+      // We should copy these over before reporting the capture
+      var_handle_base_ = copied_from.var_handle_base_; // this should probably be somewhere else
+      other_private_members_ = copied_from.other_private_members_;
+      _mark_static_capture_flags(&copied_from);
+    }
+
     template <
       typename CompatibleAccessHandleT,
       typename CaptureManagerT
@@ -891,21 +901,13 @@ class AccessHandle
         "Report capture requires an object conforming to the CaptureManager interface"
       );
 
-      // We should copy these over before reporting the capture
-      var_handle_base_ = source->var_handle_base_; // this should probably be somewhere else
-      other_private_members_ = source->other_private_members_;
-
-      _mark_static_capture_flags(source);
-
       capturing_task->do_capture(*this, *source);
 
-      if (source->current_use_base_) {
-        source->current_use_base_->use_base->already_captured = true;
-        // TODO this flag should be on the AccessHandleBase itself
-        capturing_task->uses_to_unmark_already_captured.insert(
-          source->current_use_base_->use_base
-        );
-      }
+      source->current_use_base_->use_base->already_captured = true;
+      // TODO this flag should be on the AccessHandleBase itself
+      capturing_task->uses_to_unmark_already_captured.insert(
+        source->current_use_base_->use_base
+      );
     }
 
     //--------------------------------------------------------------------------
@@ -938,18 +940,21 @@ class AccessHandle
 
     explicit
     AccessHandle(
-      variable_handle_ptr const& var_handle,
+      std::shared_ptr<detail::VariableHandleBase> const& var_handle,
       std::shared_ptr<typename base_t::use_holder_t> const& use_holder
     ) : base_t(var_handle, use_holder)
-    { }
+    {
+      assert(detail::safe_static_cast<detail::VariableHandle<T>*>(var_handle.get()) != nullptr);
+    }
 
     explicit
     AccessHandle(
-      variable_handle_ptr const& var_handle,
+      std::shared_ptr<detail::VariableHandleBase> const& var_handle,
       std::shared_ptr<typename base_t::use_holder_t> const& use_holder,
       std::unique_ptr<types::flow_t>&& suspended_out_flow
     ) : base_t(var_handle, use_holder)
     {
+      assert(detail::safe_static_cast<detail::VariableHandle<T>*>(var_handle.get()) != nullptr);
       current_use_base_->use_base->suspended_out_flow_ = std::move(suspended_out_flow);
     }
 

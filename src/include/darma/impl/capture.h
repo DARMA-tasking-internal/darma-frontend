@@ -57,10 +57,7 @@ namespace detail {
 // returns the captured UseHolder in a properly registered state
 // and with all of the proper flags set
 template <
-  typename UseHolderT,
-  typename UseMaker,
-  typename ContinuingUseMaker,
-  typename register_continuation_useIntegralConstantType=std::true_type
+  typename UseHolderT, typename UseMaker
 >
 inline auto
 make_captured_use_holder(
@@ -68,9 +65,7 @@ make_captured_use_holder(
   frontend::Permissions requested_scheduling_permissions,
   frontend::Permissions requested_immediate_permissions,
   UseHolderT* source_and_continuing_holder,
-  UseMaker&& use_holder_maker,
-  ContinuingUseMaker&& continuing_use_holder_maker,
-  bool register_continuation_use = true
+  UseMaker&& use_holder_maker
 ) {
 
   using namespace darma_runtime::detail::flow_relationships;
@@ -103,7 +98,7 @@ make_captured_use_holder(
 
       // make the captured use
       captured_use_holder = use_holder_maker(
-        var_handle,
+        *source_and_continuing_holder->use(),
         capture_case.captured_scheduling,
         capture_case.captured_immediate,
         capture_case.captured_in_flow_relationship(
@@ -144,8 +139,8 @@ make_captured_use_holder(
 
         // Make the continuation use
         source_and_continuing_holder->replace_use(
-          continuing_use_holder_maker(
-            var_handle,
+          typename std::decay_t<UseHolderT>::use_t(
+            *source_and_continuing_holder->use(),
             capture_case.continuation_scheduling,
             capture_case.continuation_immediate,
             capture_case.continuation_in_flow_relationship(
@@ -187,39 +182,26 @@ make_captured_use_holder(
 }
 
 
+template <typename UseHolderT>
 inline auto
 make_captured_use_holder(
   std::shared_ptr<VariableHandleBase> const& var_handle,
   frontend::Permissions requested_scheduling_permissions,
   frontend::Permissions requested_immediate_permissions,
-  UseHolder<HandleUse>* source_and_continuing_holder,
-  bool register_continuation_use = true
+  UseHolderT* source_and_continuing_holder
 ) {
   // TODO is_dependency_ pass through here, for use with allreduce and publish, etc?
   return make_captured_use_holder(
     var_handle, requested_scheduling_permissions, requested_immediate_permissions,
     source_and_continuing_holder,
     /* Use holder maker */
-    [](auto&& varhandle, auto sched, auto immed, auto&&... args) {
+    [](auto&&... args) {
       using namespace darma_runtime::detail;
-      auto rv = UseHolder<HandleUse>::create(
-        std::forward<decltype(varhandle)>(varhandle),
-        sched, immed,
+      auto rv = std::decay_t<UseHolderT>::create(
         std::forward<decltype(args)>(args)...
       );
       return rv;
-    },
-    /* continuing use maker */
-    [](auto&& varhandle, auto sched, auto immed, auto&&... args) {
-      using namespace darma_runtime::detail;
-      HandleUse rv(
-        std::forward<decltype(varhandle)>(varhandle),
-        sched, immed,
-        std::forward<decltype(args)>(args)...
-      );
-      return rv;
-    },
-    register_continuation_use
+    }
   );
 }
 

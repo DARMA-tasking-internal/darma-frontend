@@ -75,7 +75,7 @@ class TaskCollection
      *
      *  @return
      */
-    virtual types::handle_container_template<CollectionManagingUse*> const&
+    virtual types::handle_container_template<DependencyUse*> const&
     get_dependencies() const =0;
 
     /** @todo document this

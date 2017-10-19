@@ -701,7 +701,7 @@ TEST_F(TestCreateWork, death_schedule_only) {
         {
           tmp.set_value(42);
         },
-        "set_value\\(\\) called on handle not in immediately modifiable state.*"
+        "`set_value\\(\\)` performed on AccessHandle"
       );
     });
 

@@ -128,8 +128,7 @@ struct AccessHandleCaptureDescription
       this->captured_->var_handle_base_,
       this->scheduling_permissions_,
       this->immediate_permissions_,
-      this->source_->get_current_use(),
-      true
+      this->source_->get_current_use()
     ));
     task->add_dependency(*this->captured_->current_use_base_->use_base);
   }

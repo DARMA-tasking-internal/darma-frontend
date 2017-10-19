@@ -89,7 +89,9 @@ struct MappedHandleCollection {
     MappedHandleCollection(
       AccessHandleCollectionTDeduced&& collection,
       MappingDeduced&& mapping
-    ) : collection(std::forward<AccessHandleCollectionTDeduced>(collection)),
+    ) : collection(
+          std::forward<AccessHandleCollectionTDeduced>(collection)
+        ),
         mapping(std::forward<MappingDeduced>(mapping))
     { }
 

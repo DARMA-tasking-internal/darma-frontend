@@ -48,5 +48,7 @@
 #include "serialization/serialization.impl.h"
 #include "array/array.impl.h"
 #include "key/key.impl.h"
+#include "access_handle/access_handle.impl.h"
+#include "access_handle/access_handle_collection.impl.h"
 
 #endif //DARMAFRONTEND_DARMA_IMPL_H

@@ -142,7 +142,7 @@ struct TaskCollectionImpl
     // depends on collection_range_ being initialized already
 
     using dependencies_container_t = types::handle_container_template<
-      abstract::frontend::CollectionManagingUse*
+      abstract::frontend::DependencyUse*
     >;
 #if _darma_has_feature(task_collection_token)
     types::task_collection_token_t token_ = { };
@@ -218,24 +218,28 @@ struct TaskCollectionImpl
           typename tc_index_range_traits::mapping_to_dense_type
         >;
 
-        assert(not mcoll.collection.current_use_->is_registered);
-
-        auto incomplete_use = mcoll.collection.current_use_->use.release_smart_ptr();
-
-        mcoll.collection.current_use_ = std::make_shared<
-          GenericUseHolder<CollectionManagingUse<handle_index_range_t>>
-        >(
-          migrated_use_arg,
-          CollectionManagingUse<handle_index_range_t>(
-            std::move(*incomplete_use.get()),
-            full_mapping_t(
-              mcoll.mapping,
-              tc_index_range_traits::mapping_to_dense(tc.collection_range_)
-            )
-          )
-        );
-
-        tc.add_dependency(mcoll.collection.current_use_->use.get());
+        // TODO unpack the index range here instead so that the unmapped use doesn't get registered
+        DARMA_ASSERT_NOT_IMPLEMENTED("new task collection unpack"); // TODO implement this!!!
+//        mcoll.collection.get_current_use()->use(),
+//
+//        mcoll.collection.set_current_use(UseHolder<
+//          BasicCollectionManagingUse<handle_index_range_t>
+//        >::recreate_migrated(
+//          make_mapped_use_collection(
+//            *mcoll.collection.get_current_use()->use(),
+//            full_mapping_t(
+//              mcoll.mapping,
+//              tc_index_range_traits::mapping_to_dense(tc.collection_range_)
+//            )
+//          ),
+//
+//          migrated_use_arg,
+//          CollectionManagingUse<handle_index_range_t>(
+//            std::move(*incomplete_use.get()),
+//          )
+//        );
+//
+//        tc.add_dependency(mcoll.collection.current_use_->use.get());
 
         return 0;
       }
@@ -248,7 +252,7 @@ struct TaskCollectionImpl
         int
       >
       operator()(TaskCollectionT& tc, AccessHandleT&& ah) const {
-        tc.add_dependency(ah.current_use_->use.get());
+        tc.add_dependency(ah.current_use_base_->use_base);
         return 0;
       }
 
@@ -282,7 +286,7 @@ struct TaskCollectionImpl
   public:
 
 
-    void add_dependency(abstract::frontend::CollectionManagingUse* dep) {
+    void add_dependency(abstract::frontend::DependencyUse* dep) {
       dependencies_.insert(dep);
     }
 
@@ -332,7 +336,7 @@ struct TaskCollectionImpl
       return OptionalBoolean::Unknown;
     }
 
-    types::handle_container_template<abstract::frontend::CollectionManagingUse*> const&
+    types::handle_container_template<abstract::frontend::DependencyUse*> const&
     get_dependencies() const override {
       return dependencies_;
     }

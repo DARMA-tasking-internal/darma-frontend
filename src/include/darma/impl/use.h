@@ -69,47 +69,104 @@ class HandleUse
 {
   public:
 
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="Ctors and destructor"> {{{2
+
     HandleUse(HandleUse&&) = default;
 
-    using HandleUseBase::HandleUseBase;
+    /**
+     * @internal
+     * @brief Passes through to the initial access (or other non-cloned Use)
+     *        and unpacking constructors.
+     */
+    template <
+      typename... PassthroughArgs
+    >
+    explicit /* should never be only one argument anyway... */
+    HandleUse(
+      std::shared_ptr<VariableHandleBase> const& handle,
+      PassthroughArgs&&... passthrough_args
+    ) : HandleUseBase(
+          handle,
+          std::forward<PassthroughArgs>(passthrough_args)...
+        )
+    { }
 
-    bool manages_collection() const override {
-      return false;
-    }
+    /**
+     * @internal
+     * @brief Passes through to the cloning ctor
+     *
+     * For now, there isn't much interesting to clone from the old Use here,
+     * but I bet we'll need it in the future.
+     */
+    template <
+      typename... PassthroughArgs
+    >
+    explicit /* should never be only one argument anyway... */
+    HandleUse(
+      HandleUse const& clone_from,
+      PassthroughArgs&&... passthrough_args
+    ) : HandleUseBase(
+          clone_from,
+          std::forward<PassthroughArgs>(passthrough_args)...
+        )
+    { }
 
-    abstract::frontend::UseCollection*
-    get_managed_collection() override {
-      return nullptr;
-    }
+    ~HandleUse() override = default;
 
-    HandleUse with_different_permissions(
+    // </editor-fold> end Ctors and destructor }}}2
+    //--------------------------------------------------------------------------
+
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="cloning helper methods"> {{{2
+
+    /**
+     * @internal
+     * @brief Constructs a cloned Use with same_flow relationships for all of
+     *        the flows/anti-flows but with different permissions
+     *
+     * @param different_scheduling_permissions Scheduling permissions of the new Use to be created
+     * @param different_immediate_permissions Immediate permissions of the new Use to be created
+     * @return A new HandleUse cloned from `this` but with different permissions
+     */
+    HandleUse
+    with_different_permissions(
       frontend::Permissions different_scheduling_permissions,
       frontend::Permissions different_immediate_permissions
     ) {
       using namespace flow_relationships;
+      // Call the cloning ctor
       auto rv = HandleUse(
-        handle_,
+        *this,
         different_scheduling_permissions,
         different_immediate_permissions,
         same_flow(&in_flow_),
         same_flow(&out_flow_),
         same_anti_flow(&anti_in_flow_),
-        same_anti_flow(&anti_out_flow_),
-        coherence_mode_
+        same_anti_flow(&anti_out_flow_)
       );
       rv.establishes_alias_ = establishes_alias_;
       rv.data_ = data_;
       return std::move(rv);
     }
 
-    ~HandleUse() = default;
+    // </editor-fold> end cloning helper methods }}}2
+    //--------------------------------------------------------------------------
+
+    //--------------------------------------------------------------------------
+    // <editor-fold desc="abstract::frontend::Use method implementations"> {{{2
+
+    bool manages_collection() const override { return false; }
+
+    abstract::frontend::UseCollection*
+    get_managed_collection() override { return nullptr; }
+
+    // </editor-fold> end abstract::frontend::Use method implementations }}}2
+    //--------------------------------------------------------------------------
+
 };
 
-struct migrated_use_arg_t { };
-static constexpr migrated_use_arg_t migrated_use_arg = { };
 
-// really belongs to AccessHandle, but we can't put this in impl/handle.h
-// because of circular header dependencies
 #ifdef OLD_CODE
 template <typename UnderlyingUse>
 struct GenericUseHolder : UseHolderBase {

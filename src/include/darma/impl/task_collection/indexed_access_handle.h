@@ -78,7 +78,7 @@ template <typename ParentAHC, typename UseHolderPtr>
 class IndexedAccessHandle {
   private:
 
-    using parent_traits_t = typename ParentAHC::traits_t;
+    using parent_traits_t = typename ParentAHC::traits;
     using value_type = typename ParentAHC::value_type;
 
     //------------------------------------------------------------------------------
@@ -108,10 +108,6 @@ class IndexedAccessHandle {
         backend_index_(backend_index)
     { }
 
-    // We have to make the move ctor templated and non-default to make the
-    // error-displaying copy ctor show up (rather than a copy ctor implicitly
-    // deleted message).  Also, this is private because
-    template <typename _Ignored_SFINAE=void>
     IndexedAccessHandle(IndexedAccessHandle&& other)
       : parent_(other.parent_),
         use_holder_(other.use_holder_),
@@ -124,35 +120,6 @@ class IndexedAccessHandle {
 
   public:
 
-    //------------------------------------------------------------------------------
-    // <editor-fold desc="error-generating copy ctor"> {{{2
-
-    // Basically, if anything would cause the generation of a copy ctor, don't
-    // let it, and instead instantiate a darma static failure (because and_
-    // will try to access ::type of _darma__static_failure, which will generate
-    // the error)
-    // TODO make sure this actually generates the right error; SFINAE might stop it from doing so
-//    template <
-//      typename _for_SFINAE_only=void,
-//      typename=tinympl::and_<
-//        std::is_void<_for_SFINAE_only>,
-//        _darma__static_failure<
-//#ifdef DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS
-//          typename _darma__errors::_____cannot_capture_return_of_AccessHandleCollection_subscript_directly
-//            ::template __for_access_handle_collection_wrapping_type<AHValueType>
-//            ::__must_call__local_access__or__read_access__method_first
-//#else
-//          __________use_dash_D_DARMA_PRETTY_PRINT_COMPILE_TIME_ERRORS__to_see_a_better_error_message
-//#endif
-//        >
-//      >
-//    >
-//    IndexedAccessHandle(IndexedAccessHandle const&) { /* unreachable */ }       // LCOV_EXCL_LINE
-
-    // </editor-fold> end error-generating copy ctor }}}2
-    //------------------------------------------------------------------------------
-
-
     // Can only be called as part of `ahc[...].local_access()`; rvalue reference
     // specifier enforces this
     auto
@@ -162,7 +129,9 @@ class IndexedAccessHandle {
           " that is not local"
       );
       // TODO mangled name shortening optimization by making these traits a subclass of access_handle_traits
-      auto handle = use_holder_->use->handle_;
+
+      auto handle = use_holder_->use()->handle_;
+
       auto rv = AccessHandle<value_type,
         make_access_handle_traits_t<value_type,
           copy_assignability<false>,
@@ -172,19 +141,21 @@ class IndexedAccessHandle {
           access_handle_trait_tags::allocation_traits<
             typename parent_traits_t::allocation_traits
           >
-            // TODO set publishable to KnownTrue
+          // TODO set publishable to KnownTrue
         >
       >(
         std::static_pointer_cast<detail::VariableHandle<value_type>>(handle),
         std::move(use_holder_)
       );
-#if _darma_has_feature(task_collection_token)
+
       rv.other_private_members_.set_can_be_published_dynamic(true);
+
+      #if _darma_has_feature(task_collection_token)
       rv.other_private_members_.task_collection_token() = parent_.task_collection_token_;
-#endif // _darma_has_feature(task_collection_token)
+      #endif // _darma_has_feature(task_collection_token)
+
       return std::move(rv);
     }
-
 
     // Can only be called as part of `ahc[...].read_access(...)`; rvalue
     // reference specifier enforces this
@@ -228,9 +199,11 @@ class IndexedAccessHandle {
 
           auto* backend_runtime = abstract::backend::get_backend_runtime();
 
-          auto old_key = parent_.var_handle_->get_key();
+          auto old_key = parent_.var_handle_base_->get_key();
           auto new_handle = std::make_shared<detail::VariableHandle<value_type>>(
-            parent_.var_handle_->with_different_key(
+            detail::safe_static_cast<detail::VariableHandle<value_type> const*>(
+              parent_.var_handle_base_.get()
+            )->with_different_key(
               old_key.is_backend_generated() ?
                 // TODO shorten this
                 detail::key_traits<types::key_t>::make_awaiting_backend_assignment_key()
@@ -244,31 +217,24 @@ class IndexedAccessHandle {
           assert(use_holder_ == nullptr);
 
           // Make the use holder
-          use_holder_ = std::make_shared<typename std::pointer_traits<UseHolderPtr>::element_type>(
-            HandleUse(
-              new_handle,
-              frontend::Permissions::Read, // Read scheduling permissions
-              frontend::Permissions::None, // No immediate permissions
-              /* In flow description */
-              indexed_fetching_flow(&parent_.current_use_->use->in_flow_, &version_key, backend_index_),
-              //FlowRelationship::IndexedFetching, &parent_.current_use_->use->in_flow_,
-#if _darma_has_feature(anti_flows)
-              /* Out flow description */
-              insignificant_flow(),
-              /* Anti-In flow description */
-              insignificant_flow(),
-              /* Anti-Out flow description */
-              indexed_fetching_anti_flow(&parent_.current_use_->use->anti_out_flow_, &version_key, backend_index_)
-#else
-              /* Out flow description */
-              same_flow_as_in()
-#endif // _darma_has_feature(anti_flows)
-              //FlowRelationship::Same, nullptr, true,
+          use_holder_ = std::pointer_traits<UseHolderPtr>::element_type::create(
+            new_handle,
+            frontend::Permissions::Read, // Read scheduling permissions
+            frontend::Permissions::None, // No immediate permissions
+            /* In flow description */
+            indexed_fetching_flow(
+              &parent_.get_current_use()->use()->in_flow_, &version_key, backend_index_
+            ),
+            /* Out flow description */
+            insignificant_flow(),
+            /* Anti-In flow description */
+            insignificant_flow(),
+            /* Anti-Out flow description */
+            indexed_fetching_anti_flow(
+              &parent_.get_current_use()->use()->anti_out_flow_, &version_key, backend_index_
             )
           );
 
-          // TODO this should have a different key from the parent and from any
-          // of its siblings
           return AccessHandle<value_type,
             make_access_handle_traits_t<value_type,
               copy_assignability<true>, // statically read-only, so it doesn't
@@ -289,7 +255,6 @@ class IndexedAccessHandle {
 
     }
 
-#if 0
 #if _darma_has_feature(commutative_access_handles)
     template <typename _Ignored_SFINAE=void,
       typename=std::enable_if_t<
@@ -333,7 +298,6 @@ class IndexedAccessHandle {
       );
     };
 #endif // _darma_has_feature(commutative_access_handles)
-#endif
 
     //------------------------------------------------------------------------------
     // <editor-fold desc="friends"> {{{2

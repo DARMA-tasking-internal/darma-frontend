@@ -97,79 +97,6 @@ struct _get_storage_arg_helper {
 //==============================================================================
 // <editor-fold desc="AccessHandle-like"> {{{1
 
-
-//------------------------------------------------------------------------------
-// <editor-fold desc="unique modify case"> {{{2
-
-
-#if _darma_has_feature(create_concurrent_work_owned_by)
-template <
-  typename GivenArg,
-  typename ParamTraits,
-  typename CollectionIndexRangeT
->
-struct _get_storage_arg_helper<
-  GivenArg, ParamTraits, CollectionIndexRangeT,
-  std::enable_if_t<
-    // The argument is an access handle
-    decayed_is_access_handle<GivenArg>::value
-      and is_access_handle_captured_as_unique_modify<std::decay_t<GivenArg>>::value
-  >
->
-{
-  // If the argument is an AccessHandle, the parameter cannot modify unless it is
-  // a uniquely-owned capture (in which case the parameter still needs to be an
-  // AccessHandle):
-  static_assert(
-    not(
-      ParamTraits::is_nonconst_lvalue_reference
-        and not ParamTraits::template matches<decayed_is_access_handle>::value
-    ),
-    "Cannot pass \"plain-old\" AccessHandle to modify parameter of concurrent work"
-      " call.  Use an AccessHandleCollection instead, or pass an access handle with"
-      " an owned_by() specifier and use an AccessHandle as the function parameter"
-  );
-
-  using type = typename std::decay_t<GivenArg>
-  ::template with_traits<
-    typename std::decay_t<GivenArg>::traits
-  >;
-  using return_type = type; // readability
-
-  template <typename TaskCollectionT>
-  auto
-  operator()(TaskCollectionT& collection, GivenArg&& arg) const
-  {
-    auto rv = return_type(
-      arg.var_handle_,
-      detail::make_captured_use_holder(
-        arg.var_handle_base_,
-        /* Requested Scheduling permissions: */
-        // TODO check params(/args?) for reduced scheduling permissions
-        HandleUse::Modify,
-        /* Requested Immediate permissions: */
-        // TODO check params(/args?) for schdule-only permissions request?
-        HandleUse::Modify,
-        /* source and continuing context use holder */
-        arg.current_use_.get()
-      )
-    );
-    using collection_range_traits = typename TaskCollectionT::index_range_traits;
-    auto coll_mapping_to_dense =
-      collection_range_traits::mapping_to_dense(collection.collection_range_);
-    std::size_t backend_owning_index =
-      coll_mapping_to_dense.map_forward(arg.owning_index());
-    rv.current_use_->use->collection_owner_ = backend_owning_index;
-    rv.owning_backend_index() = backend_owning_index;
-    collection.add_dependency(rv.current_use_->use.get());
-    return rv;
-  }
-};
-#endif // _darma_has_feature(create_concurrent_work_owned_by)
-
-// </editor-fold> end unique modify case }}}2
-//------------------------------------------------------------------------------
-
 //------------------------------------------------------------------------------
 // <editor-fold desc="shared_read case"> {{{2
 
@@ -200,12 +127,15 @@ struct _get_storage_arg_helper<
       " an owned_by() specifier and use an AccessHandle as the function parameter"
   );
 
+  // Tack on the static permissions so that the copy triggers a capture by
+  // the task collection with read-only permissions
   using type = typename std::decay_t<GivenArg>::template with_traits<
     typename std::decay_t<GivenArg>::traits
-    ::template with_static_scheduling_permissions<
-      ParamTraits::template matches<decayed_is_access_handle>::value ?
-        AccessHandlePermissions::Read : AccessHandlePermissions::None
-    >::type::template with_static_immediate_permissions<
+      ::template with_static_scheduling_permissions<
+        // Allow scheduling only if the parameter is an AccessHandle
+        ParamTraits::template matches<decayed_is_access_handle>::value ?
+          AccessHandlePermissions::Read : AccessHandlePermissions::None
+      >::type::template with_static_immediate_permissions<
       // TODO check for a schedule-only AccessHandle parameter
       AccessHandlePermissions::Read
     >::type
@@ -217,7 +147,7 @@ struct _get_storage_arg_helper<
   operator()(TaskCollectionT& collection, GivenArg&& arg) const
   {
     auto rv = return_type(
-      arg.var_handle_,
+      arg.var_handle_base_,
       detail::make_captured_use_holder(
         arg.var_handle_base_,
         /* Requested Scheduling permissions: */
@@ -227,10 +157,10 @@ struct _get_storage_arg_helper<
         // TODO check params(/args?) for schdule-only permissions request
         frontend::Permissions::Read,
         /* source and continuing context use holder */
-        arg.current_use_.get()
+        arg.get_current_use()
       )
     );
-    collection.add_dependency(rv.current_use_->use.get());
+    collection.add_dependency(rv.get_current_use()->use());
     return rv;
   }
 };
@@ -287,6 +217,15 @@ struct _get_storage_arg_helper<
 
   //----------------------------------------------------------------------------
   // <editor-fold desc="required_immediate_permissions"> {{{2
+
+  // TODO finish changing the unreadable metacode below into a regular constexpr function
+  //  static constexpr auto _get_required_immediate_permissions() {
+  //    if(ParamTraits::template matches<decayed_is_access_handle_collection>::value) {
+  //      constexpr auto param_immed_perms =
+  //        _required_immediate_permissions<typename ParamTraits::type>::value;
+  //      if(param_immed_permissions)
+  //    }
+  //  }
 
   static constexpr auto required_immediate_permissions = tinympl::select_first<
     // TODO read-only AccessHandleCollection parameters (and other static permissions, including schedule-only)
@@ -452,70 +391,30 @@ struct _get_storage_arg_helper<
     using full_mapping_traits = indexing::mapping_traits<full_mapping_t>;
 
     // Custom create use holder callable for the captured use holder
-    auto captured_use_holder_maker = [&](
-      auto handle,
-      auto scheduling_permissions,
-      auto immediate_permissions,
-      auto&& in_rel,
-      auto&& out_rel
-#if _darma_has_feature(anti_flows)
-      , auto&& anti_in_rel,
-      auto&& anti_out_rel
-#endif // _darma_has_feature(anti_flows)
-    ) {
-      return std::make_shared<
-        GenericUseHolder<CollectionManagingUse<handle_range_t>>
-      >(
-        CollectionManagingUse<handle_range_t>(
-          handle,
-          scheduling_permissions, immediate_permissions,
-          std::move(in_rel).as_collection_relationship(),
-          std::move(out_rel).as_collection_relationship(),
-#if _darma_has_feature(anti_flows)
-          std::move(anti_in_rel).as_collection_relationship(),
-          std::move(anti_out_rel).as_collection_relationship(),
-#endif // _darma_has_feature(anti_flows)
-          arg.collection.get_index_range(),
+    auto captured_use_holder_maker = [&](auto&&... args) {
+      return UseHolder<BasicCollectionManagingUse<handle_range_t>>::create(
+        make_mapped_use_collection(
+          // TODO this should be easier and shouldn't break encapsulation so much
+          *safe_static_cast< UnmappedUseCollection<handle_range_t> const*>(
+            arg.collection.get_current_use()->use()->collection_.get()
+          ),
           full_mapping_t(
             arg.mapping,
             tc_index_range_traits::mapping_to_dense(collection.collection_range_)
             //, collection.collection_range_
           )
         ),
-        /* do register in ctor = */ true,
-        /* will be dependency = */ true
+        std::forward<decltype(args)>(args)...
       );
     };
 
-    // Custom create use holder callable for the continuation use
-    auto continuation_use_holder_maker = [&](
-      auto handle,
-      auto scheduling_permissions,
-      auto immediate_permissions,
-      auto&& in_rel,
-      auto&& out_rel
-#if _darma_has_feature(anti_flows)
-      , auto&& anti_in_rel,
-      auto&& anti_out_rel
-#endif // _darma_has_feature(anti_flows)
-    ) {
-      return CollectionManagingUse<handle_range_t>(
-        handle,
-        scheduling_permissions, immediate_permissions,
-        std::move(in_rel).as_collection_relationship(),
-        std::move(out_rel).as_collection_relationship(),
-#if _darma_has_feature(anti_flows)
-        std::move(anti_in_rel).as_collection_relationship(),
-        std::move(anti_out_rel).as_collection_relationship(),
-#endif // _darma_has_feature(anti_flows)
-        arg.collection.get_index_range()
-      );
-    };
+    // Continuation use doesn't need to be customized because the cloning ctor
+    // handles it now
 
     // Finally, make the return type...
     auto rv = return_type(
       handle_collection_t(
-        arg.collection.var_handle_.get_smart_ptr(),
+        arg.collection.var_handle_base_,
         darma_runtime::detail::make_captured_use_holder(
           arg.collection.var_handle_base_,
           /* Requested Scheduling permissions: */
@@ -523,15 +422,14 @@ struct _get_storage_arg_helper<
           /* Requested Immediate permissions: */
           required_immediate_permissions,
           /* source and continuing use handle */
-          arg.collection.current_use_.get(),
-          // Customization functors:
-          captured_use_holder_maker,
-          continuation_use_holder_maker
+          arg.collection.get_current_use(),
+          // Customization functor:
+          captured_use_holder_maker
         ) // end arguments to make_captured_use_holder
       ),
       arg.mapping
     );
-    collection.add_dependency(rv.collection.current_use_->use.get());
+    collection.add_dependency(rv.collection.get_current_use()->use_base);
     // RVO copy elision should happen here
     return rv;
   }

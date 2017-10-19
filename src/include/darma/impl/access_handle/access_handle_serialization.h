@@ -84,6 +84,7 @@ struct Serializer<AccessHandle<Args...>>
       ar % val.var_handle_base_->get_key();
       ar % val.get_current_use()->use()->scheduling_permissions_;
       ar % val.get_current_use()->use()->immediate_permissions_;
+      ar % val.get_current_use()->use()->coherence_mode_;
 
       auto* backend_runtime = abstract::backend::get_backend_runtime();
       ar.add_to_size_indirect(
@@ -104,12 +105,12 @@ struct Serializer<AccessHandle<Args...>>
     template <typename ArchiveT>
     void pack(AccessHandleT const& val, ArchiveT& ar) const
     {
-
       assert(handle_is_serializable_assertions(val));
 
       ar << val.var_handle_base_->get_key();
       ar << val.get_current_use()->use()->scheduling_permissions_;
       ar << val.get_current_use()->use()->immediate_permissions_;
+      ar << val.get_current_use()->use()->coherence_mode_;
 
       using detail::DependencyHandle_attorneys::ArchiveAccess;
       auto* backend_runtime = abstract::backend::get_backend_runtime();
@@ -130,7 +131,6 @@ struct Serializer<AccessHandle<Args...>>
         val.get_current_use()->use()->anti_out_flow_,
         ArchiveAccess::get_spot(ar)
       );
-
     }
 
     template <typename ArchiveT>
@@ -142,6 +142,57 @@ struct Serializer<AccessHandle<Args...>>
 };
 
 } // end namespace serialization
+
+template <typename T, typename Traits>
+template <typename Archive>
+void
+AccessHandle<T, Traits>::unpack_from_archive(Archive& ar) {
+
+  key_t k = make_key();
+  ar >> k;
+
+  var_handle_base_ = detail::make_shared<detail::VariableHandle<T>>(k);
+
+  // TODO decide if unpacking here breaks encapsulation (it should probably be done in Use ctor)
+
+  frontend::permissions_t sched = frontend::Permissions::_invalid;
+  frontend::permissions_t immed = frontend::Permissions::_invalid;
+  frontend::coherence_mode_t coherence_mode = frontend::CoherenceMode::Invalid;
+
+  ar >> sched >> immed >> coherence_mode;
+
+  auto* backend_runtime = abstract::backend::get_backend_runtime();
+
+  using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+
+  auto in_flow = backend_runtime->make_unpacked_flow(
+    ArchiveAccess::get_const_spot(ar)
+  );
+
+  // Note that the backend function advances the underlying pointer, so the
+  // pointer returned by get_spot is different in the call below from the
+  // call above
+  auto out_flow = backend_runtime->make_unpacked_flow(
+    ArchiveAccess::get_const_spot(ar)
+  );
+
+  auto anti_in_flow = backend_runtime->make_unpacked_anti_flow(
+    ArchiveAccess::get_const_spot(ar)
+  );
+
+  auto anti_out_flow = backend_runtime->make_unpacked_anti_flow(
+    ArchiveAccess::get_const_spot(ar)
+  );
+
+  set_current_use(base_t::use_holder_t::recreate_migrated(
+    var_handle_base_,
+    sched, immed,
+    std::move(in_flow), std::move(out_flow),
+    std::move(anti_in_flow), std::move(anti_out_flow),
+    coherence_mode
+  ));
+
+}
 #endif // _darma_has_feature(task_migration)
 
 // </editor-fold> end Serialization }}}1

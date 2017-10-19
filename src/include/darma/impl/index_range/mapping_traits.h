@@ -4,9 +4,7 @@
 //
 //                      mapping_traits.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
-//
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+//              Copyright (C) 2016 Sandia Corporation // // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -619,10 +617,35 @@ struct mapping_traits {
 
 };
 
+namespace detail {
+
+template <
+  typename MappingArgumentsVector,
+  typename Enable=void
+>
+struct mapping_type_from_arguments_vector;
+
+template <
+  typename SingleArgumentType
+>
+struct mapping_type_from_arguments_vector<
+  tinympl::vector<SingleArgumentType>,
+  std::enable_if_t<
+    mapping_traits<std::decay_t<SingleArgumentType>>::is_index_mapping
+  >
+> : tinympl::identity<std::decay_t<SingleArgumentType>>
+{ };
+
+} // end namespace detail
+
+template <typename... ArgumentTypes>
+using mapping_type_from_arguments_t = typename
+  detail::mapping_type_from_arguments_vector<
+    tinympl::vector<ArgumentTypes...>
+  >::type;
+
 
 } // end namespace indexing
-
-
 } // end namespace darma_runtime
 
 #endif //DARMA_IMPL_INDEX_RANGE_MAPPING_TRAITS_H

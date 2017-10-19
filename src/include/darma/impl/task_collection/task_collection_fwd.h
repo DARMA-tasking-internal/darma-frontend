@@ -96,6 +96,8 @@ template <
 >
 struct TaskCollectionImpl;
 
+template <typename IndexRangeT>
+class BasicAccessHandleCollection;
 
 } // end namespace detail
 

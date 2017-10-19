@@ -307,10 +307,12 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
           in_flow = make_initial_flow(use->get_handle());
           break;
         }
+#if _darma_has_feature(arbitrary_publish_fetch)
         case FlowRelationship::Fetching : {
           in_flow = make_fetching_flow(use->get_handle(), *in_rel.version_key());
           break;
         }
+#endif //_darma_has_feature(arbitrary_publish_fetch)
         case FlowRelationship::Null : {
           assert(false); // not allowed as in flow
           break;

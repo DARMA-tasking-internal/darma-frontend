@@ -61,6 +61,9 @@
 #include <darma/impl/array/index_range.h>
 #include <darma/impl/task_collection/create_concurrent_work.h>
 
+#include <darma/impl/access_handle/access_handle_collection.impl.h>
+
+
 // TODO test conversion/assignment to default constructed AccessHandleCollection
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -789,13 +792,13 @@ TEST_F(TestCreateConcurrentWork, many_to_one) {
 
   Mock::VerifyAndClearExpectations(mock_runtime.get());
 
-  EXPECT_THAT((*mock_runtime->task_collections.front()->get_dependencies().begin()
+  EXPECT_THAT(abstract::frontend::use_cast<abstract::frontend::CollectionManagingUse*>(*mock_runtime->task_collections.front()->get_dependencies().begin()
     )->get_managed_collection()->task_index_for(0), Eq(0));
-  EXPECT_THAT((*mock_runtime->task_collections.front()->get_dependencies().begin()
+  EXPECT_THAT(abstract::frontend::use_cast<abstract::frontend::CollectionManagingUse*>(*mock_runtime->task_collections.front()->get_dependencies().begin()
     )->get_managed_collection()->task_index_for(1), Eq(1));
-  EXPECT_THAT((*mock_runtime->task_collections.front()->get_dependencies().begin()
+  EXPECT_THAT(abstract::frontend::use_cast<abstract::frontend::CollectionManagingUse*>(*mock_runtime->task_collections.front()->get_dependencies().begin()
     )->get_managed_collection()->task_index_for(2), Eq(0));
-  EXPECT_THAT((*mock_runtime->task_collections.front()->get_dependencies().begin()
+  EXPECT_THAT(abstract::frontend::use_cast<abstract::frontend::CollectionManagingUse*>(*mock_runtime->task_collections.front()->get_dependencies().begin()
     )->get_managed_collection()->task_index_for(3), Eq(1));
 
   for(int i = 0; i < 2; ++i) {

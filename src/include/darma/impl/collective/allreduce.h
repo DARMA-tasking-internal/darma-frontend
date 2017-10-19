@@ -53,6 +53,8 @@
 
 #include <tinympl/bool.hpp>
 
+#include <darma/impl/collective/collective_fwd.h>
+
 #include <darma/impl/keyword_arguments/macros.h>
 #include <darma/impl/keyword_arguments/keyword_argument_name.h>
 #include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
@@ -69,19 +71,11 @@
 #include "details.h"
 
 
-DeclareDarmaTypeTransparentKeyword(collectives, input);
-DeclareDarmaTypeTransparentKeyword(collectives, output);
-DeclareDarmaTypeTransparentKeyword(collectives, in_out);
-DeclareDarmaTypeTransparentKeyword(collectives, piece);
-DeclareDarmaTypeTransparentKeyword(collectives, n_pieces);
-DeclareDarmaTypeTransparentKeyword(collectives, tag);
 
 namespace darma_runtime {
 
 
 namespace detail {
-
-struct op_not_given { };
 
 // Umm... this will probably need to change if the value types of InHandle and
 // OutHandle differ...
@@ -103,13 +97,13 @@ struct all_reduce_impl {
 
   size_t piece_ = abstract::frontend::CollectiveDetails::unknown_contribution();
   size_t n_pieces_ = abstract::frontend::CollectiveDetails::unknown_contribution();
-#if _darma_has_feature(task_collection_token)
+  #if _darma_has_feature(task_collection_token)
   types::task_collection_token_t token_;
-#endif // _darma_has_feature(task_collection_token)
+  #endif // _darma_has_feature(task_collection_token)
 
   all_reduce_impl()
   {
-#if _darma_has_feature(task_collection_token)
+    #if _darma_has_feature(task_collection_token)
     auto* running_task =
       detail::safe_static_cast<darma_runtime::detail::TaskBase*>(
         abstract::backend::get_backend_context()->get_running_task()
@@ -117,18 +111,18 @@ struct all_reduce_impl {
     if(running_task->parent_token_available) {
       token_ = running_task->token_;
     }
-#endif
+    #endif
   }
 
   all_reduce_impl(
     size_t piece, size_t n_pieces
-#if _darma_has_feature(task_collection_token)
+    #if _darma_has_feature(task_collection_token)
     , types::task_collection_token_t token
-#endif // _darma_has_feature(task_collection_token)
+    #endif // _darma_has_feature(task_collection_token)
   ) : piece_(piece), n_pieces_(n_pieces)
-#if _darma_has_feature(task_collection_token)
+      #if _darma_has_feature(task_collection_token)
       , token_(token)
-#endif // _darma_has_feature(task_collection_token)
+      #endif // _darma_has_feature(task_collection_token)
   { }
 
 
@@ -149,13 +143,13 @@ struct all_reduce_impl {
   ) const {
 
     DARMA_ASSERT_MESSAGE(
-      input.current_use_->use->scheduling_permissions_ != frontend::Permissions::None,
+      input.get_current_use()->use()->scheduling_permissions_ != frontend::Permissions::None,
       "allreduce() called on handle that can't schedule at least Read usage on "
         "data"
     );
     DARMA_ASSERT_MESSAGE(
-      output.current_use_->use->scheduling_permissions_ != frontend::Permissions::None
-      and output.current_use_->use->scheduling_permissions_ != frontend::Permissions::Read,
+      output.get_current_use()->use()->scheduling_permissions_ != frontend::Permissions::None
+      and output.get_current_use()->use()->scheduling_permissions_ != frontend::Permissions::Read,
       "allreduce() called on handle that can't schedule at least Write usage on "
         "data"
     );
@@ -179,7 +173,7 @@ struct all_reduce_impl {
       frontend::Permissions::None,
       /* requested_immediate_permissions */
       frontend::Permissions::Read,
-      input.current_use_.get()
+      input.get_current_use()
     );
 
     auto output_use_holder = detail::make_captured_use_holder(
@@ -189,27 +183,23 @@ struct all_reduce_impl {
       /* requested_immediate_permissions */
       // TODO change this to Write once that is implemented
       frontend::Permissions::Modify,
-      output.current_use_.get()
+      output.get_current_use()
     );
 
     _get_collective_details_t<
       Op, std::decay_t<InputHandle>, std::decay_t<OutputHandle>
     > details(piece, n_pieces
-#if _darma_has_feature(task_collection_token)
+        #if _darma_has_feature(task_collection_token)
         , token_
-#endif // _darma_has_feature(task_collection_token)
+        #endif // _darma_has_feature(task_collection_token)
     );
 
     backend_runtime->allreduce_use(
-      input_use_holder->use.release_smart_ptr(),
-      output_use_holder->use.release_smart_ptr(),
+      input_use_holder->relinquish_into_destructible_use(),
+      output_use_holder->relinquish_into_destructible_use(),
       &details, tag
     );
 
-    input_use_holder->is_registered = false;
-    input_use_holder->could_be_alias = false;
-    output_use_holder->is_registered = false;
-    output_use_holder->could_be_alias = false;
   }
 
   //============================================================================
@@ -228,12 +218,12 @@ struct all_reduce_impl {
   ) const {
 
     DARMA_ASSERT_MESSAGE(
-      in_out.current_use_->use->scheduling_permissions_ != frontend::Permissions::None,
+      in_out.get_current_use()->use()->scheduling_permissions_ != frontend::Permissions::None,
       "allreduce() called on handle that can't schedule at least read usage on "
       "data (most likely because it was already released"
     );
     DARMA_ASSERT_MESSAGE(
-      in_out.current_use_->use->scheduling_permissions_ == frontend::Permissions::Modify,
+      in_out.get_current_use()->use()->scheduling_permissions_ == frontend::Permissions::Modify,
       "Can't do an allreduce capture of a handle as in_out without Modify"
       " scheduling permissions"
     );
@@ -250,31 +240,28 @@ struct all_reduce_impl {
     _get_collective_details_t<
       Op, std::decay_t<InOutHandle>, std::decay_t<InOutHandle>
     > details(piece, n_pieces
-#if _darma_has_feature(task_collection_token)
+        #if _darma_has_feature(task_collection_token)
         , token_
-#endif // _darma_has_feature(task_collection_token)
+        #endif // _darma_has_feature(task_collection_token)
     );
 
     // This is a mod capture.  Need special behavior if we have modify
     // immediate permissions (i.e., forwarding)
 
     auto collective_use_holder = detail::make_captured_use_holder(
-      in_out.var_handle_,
+      in_out.var_handle_base_,
       /* requested_scheduling_permissions */
       frontend::Permissions::None,
       /* requested_immediate_permissions */
       frontend::Permissions::Modify,
-      in_out.current_use_.get()
+      in_out.get_current_use()
     );
 
     backend_runtime->allreduce_use(
       // Transfer ownership
-      collective_use_holder->use.release_smart_ptr(),
+      collective_use_holder->relinquish_into_destructible_use(),
       &details, tag
     );
-
-    collective_use_holder->is_registered = false;
-    collective_use_holder->could_be_alias = false;
   }
 
 };

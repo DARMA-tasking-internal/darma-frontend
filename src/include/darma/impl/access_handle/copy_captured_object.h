@@ -45,6 +45,7 @@
 #ifndef DARMAFRONTEND_IMPL_ACCESS_HANDLE_COPY_CAPTURED_OBJECT_H
 #define DARMAFRONTEND_IMPL_ACCESS_HANDLE_COPY_CAPTURED_OBJECT_H
 
+#include <darma/impl/access_handle/copy_captured_object_fwd.h>
 #include <darma/impl/task/task_base.h>
 
 namespace darma_runtime {
@@ -175,6 +176,8 @@ class CopyCapturedObject {
         source_ptr = copied_from.prev_copied_from_;
       }
 
+      static_cast<Derived*>(this)->template prepare_for_capture(*source_ptr);
+
       static_cast<Derived*>(this)->template report_capture(
         source_ptr, capturing_task
       );
@@ -206,6 +209,8 @@ class CopyCapturedObject {
           /* argument_is_garbage = */ false
         };
       }
+
+      static_cast<Derived*>(this)->template prepare_for_capture(copied_from);
 
       static_cast<Derived*>(this)->template report_capture(
         &copied_from, capturing_task

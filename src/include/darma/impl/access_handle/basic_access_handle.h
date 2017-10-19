@@ -207,6 +207,9 @@ class BasicAccessHandle : public AccessHandleBase {
     template <typename>
     friend class detail::CopyCapturedObject;
 
+    template <typename>
+    friend class BasicAccessHandleCollection;
+
   // </editor-fold> end friends }}}1
   //============================================================================
 

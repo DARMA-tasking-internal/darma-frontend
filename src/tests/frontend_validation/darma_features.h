@@ -61,5 +61,6 @@
 #define _darma_has_feature_unmanaged_data 0
 #define _darma_has_feature_darma_regions 0
 #define _darma_has_feature_mpi_interoperability 0
+#define _darma_has_feature_arbitrary_publish_fetch 0
 
 #endif //DARMA_DARMA_FEATURES_H

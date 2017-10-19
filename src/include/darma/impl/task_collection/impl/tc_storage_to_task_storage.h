@@ -174,34 +174,25 @@ struct _get_task_stored_arg_helper<
   {
     // We still need to create a new use for the task itself...
     using namespace darma_runtime::detail::flow_relationships;
-    assert(arg.current_use_->use->scheduling_permissions_ <= frontend::Permissions::Read);
-    assert(arg.current_use_->use->immediate_permissions_ <= frontend::Permissions::Read);
-    auto new_use_holder = std::make_shared<UseHolder>(
-      HandleUse(
-        arg.var_handle_,
-        arg.current_use_->use->scheduling_permissions_, // better be something like Read or less
-        arg.current_use_->use->immediate_permissions_,  // better be something like Read or less
-        same_flow(&arg.current_use_->use->in_flow_),
-        //FlowRelationship::Same, &arg.current_use_->use->in_flow_,
-#if _darma_has_feature(anti_flows)
-        // out flow
-        insignificant_flow(),
-        // anti-in flow
-        insignificant_flow(),
-        // anti-out flow
-        same_anti_flow(&arg.current_use_->use->anti_out_flow_)
-#else
-        // out flow
-        same_flow_as_in()
-        //FlowRelationship::Same, nullptr, true
-#endif // _darma_has_feature(anti_flows)
-      )
+
+    auto new_use_holder = BasicAccessHandle::use_holder_t::create(
+      arg.var_handle_base_,
+      arg.get_current_use()->use()->scheduling_permissions_, // better be something like Read or less
+      arg.get_current_use()->use()->immediate_permissions_,  // better be something like Read or less
+      same_flow(&arg.get_current_use()->use()->in_flow_),
+      //FlowRelationship::Same, &arg.current_use_->use->in_flow_,
+      // out flow
+      insignificant_flow(),
+      // anti-in flow
+      insignificant_flow(),
+      // anti-out flow
+      same_anti_flow(&arg.get_current_use()->use()->anti_out_flow_)
     );
-    new_use_holder->do_register();
-    // TODO should this be call_add_dependency, somehow?
-    task.add_dependency(*new_use_holder->use.get());
+
+    task.add_dependency(*new_use_holder->use_base);
+
     return return_type(
-      arg.var_handle_,
+      arg.var_handle_base_,
       new_use_holder
     );
   }
@@ -255,11 +246,13 @@ struct _get_task_stored_arg_helper<
     // make a copy of the handle collection for the task instance
     auto rv = arg.collection;
     rv.mapped_backend_index_ = backend_index;
-#if _darma_has_feature(task_collection_token)
+    #if _darma_has_feature(task_collection_token)
     rv.task_collection_token_ = instance.token_;
-#endif // _darma_has_feature(task_collection_token)
+    #endif // _darma_has_feature(task_collection_token)
 
+    // Here's where we want to setup the local uses
     rv._setup_local_uses(task);
+
     return rv;
   }
 
@@ -271,6 +264,7 @@ struct _get_task_stored_arg_helper<
 //==============================================================================
 // <editor-fold desc="UnmappedHandleCollection case"> {{{1
 
+// Currently unused
 template <typename Functor, typename CollectionArg, size_t Position>
 struct _get_task_stored_arg_helper<
   Functor, CollectionArg, Position,
@@ -294,9 +288,10 @@ struct _get_task_stored_arg_helper<
     TaskInstance& task
   ) const
   {
-#if _darma_has_feature(task_collection_token)
+    #if _darma_has_feature(task_collection_token)
     arg.collection.task_collection_token_ = instance.token_;
-#endif // _darma_has_feature(task_collection_token)
+    #endif // _darma_has_feature(task_collection_token)
+
     // make a copy of the handle collection for the task instance
     return arg.collection;
   }

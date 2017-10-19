@@ -63,7 +63,6 @@ class UseCollection {
     template <typename T>
     using index_iterable = std::vector<T>;  // TODO make a template alias for this in frontend/types.h
 
-#if _darma_has_feature(commutative_access_handles)
     /** @brief Indicates if this `UseCollection` is mapped over a
      * `TaskCollection` that depends on it.
      *
@@ -83,7 +82,6 @@ class UseCollection {
      */
     virtual bool
     is_mapped() const =0;
-#endif
 
     /** @todo document this
      *

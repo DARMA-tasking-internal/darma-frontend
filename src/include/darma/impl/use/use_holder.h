@@ -104,6 +104,8 @@ class UseHolder : public UseHolderBase {
 
   public:
 
+    using use_t = UnderlyingUse;
+
     // UsePtr objects can't be moved or copied; they can only be constructed
     // in place as part of a smart pointer
     UseHolder(UseHolder&&) = delete;
