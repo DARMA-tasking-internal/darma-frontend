@@ -442,6 +442,7 @@ class BasicCollectionManagingUse final /* final for now, at least */
         collection_(std::forward<UseCollectionUniquePtr>(use_collection))
     { }
 
+
     /**
      * @internal
      * @brief creates a cloned use with a different collection
@@ -456,9 +457,19 @@ class BasicCollectionManagingUse final /* final for now, at least */
     BasicCollectionManagingUse(
       UseCollectionUniquePtr&& new_collection,
       BasicCollectionManagingUse const& clone_from,
+      frontend::Permissions scheduling,
+      frontend::Permissions immediate,
+      FlowRelationshipImpl&& in_rel,
+      FlowRelationshipImpl&& out_rel,
+      FlowRelationshipImpl&& anti_in_rel,
+      FlowRelationshipImpl&& anti_out_rel,
       PassthroughArgs&&... passthrough_args
     ) : HandleUseBase(
-          clone_from,
+          clone_from, scheduling, immediate,
+          std::move(in_rel).as_collection_relationship(),
+          std::move(out_rel).as_collection_relationship(),
+          std::move(anti_in_rel).as_collection_relationship(),
+          std::move(anti_out_rel).as_collection_relationship(),
           std::forward<PassthroughArgs>(passthrough_args)...
         ),
         collection_(
@@ -474,16 +485,13 @@ class BasicCollectionManagingUse final /* final for now, at least */
      * through to the base cloning constructor
      */
     template <
-      typename PassthroughArg1,
       typename... PassthroughArgs
     >
     BasicCollectionManagingUse(
       BasicCollectionManagingUse const& clone_from,
-      PassthroughArg1&& passthrough_arg1,
       PassthroughArgs&&... passthrough_args
     ) : BasicCollectionManagingUse(
-          clone_from, clone_from.collection_->clone(),
-          std::forward<PassthroughArg1>(passthrough_arg1),
+          clone_from.collection_->clone(), clone_from,
           std::forward<PassthroughArgs>(passthrough_args)...
         )
     { /* forwarding ctor, must be empty */}
@@ -492,6 +500,19 @@ class BasicCollectionManagingUse final /* final for now, at least */
 
     // </editor-fold> end Constructors and Destructor }}}2
     //--------------------------------------------------------------------------
+
+
+    /**
+     * @internal
+     * @warning Only call this before the Use is registered; otherwise it won't
+     *          convey the information to the backend
+     * @param new_collection
+     */
+    void set_collection(
+      std::unique_ptr<BasicUseCollection<IndexRange>> new_collection
+    ) {
+      collection_ = std::move(new_collection);
+    }
 
 
     //--------------------------------------------------------------------------

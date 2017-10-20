@@ -175,6 +175,32 @@ struct _get_storage_arg_helper<
 //==============================================================================
 // <editor-fold desc="MappedHandleCollection version"> {{{1
 
+
+template <typename MappingT, typename IndexRangeT>
+struct _captured_use_with_mapping_maker {
+  UnmappedUseCollection<IndexRangeT> const* source_collection_;
+  MappingT mapping_;
+  _captured_use_with_mapping_maker(
+    MappingT&& mapping,
+    UnmappedUseCollection<IndexRangeT> const* src_coll
+  ) : source_collection_(src_coll), mapping_(std::move(mapping))
+  { }
+
+  template <typename... Args>
+  auto operator()(
+    Args&&... args
+  ) {
+    return UseHolder<BasicCollectionManagingUse<IndexRangeT>>::create(
+      make_mapped_use_collection(
+        *source_collection_,
+        std::move(mapping_)
+      ),
+      std::forward<decltype(args)>(args)...
+    );
+  }
+};
+
+
 template <typename GivenArg, typename ParamTraits, typename CollectionIndexRangeT>
 struct _get_storage_arg_helper<
   GivenArg, ParamTraits, CollectionIndexRangeT,
@@ -390,29 +416,30 @@ struct _get_storage_arg_helper<
     >;
     using full_mapping_traits = indexing::mapping_traits<full_mapping_t>;
 
-    // Custom create use holder callable for the captured use holder
-    auto captured_use_holder_maker = [&](auto&&... args) {
-      return UseHolder<BasicCollectionManagingUse<handle_range_t>>::create(
-        make_mapped_use_collection(
-          // TODO this should be easier and shouldn't break encapsulation so much
-          *safe_static_cast< UnmappedUseCollection<handle_range_t> const*>(
-            arg.collection.get_current_use()->use()->collection_.get()
-          ),
-          full_mapping_t(
-            arg.mapping,
-            tc_index_range_traits::mapping_to_dense(collection.collection_range_)
-            //, collection.collection_range_
-          )
-        ),
-        std::forward<decltype(args)>(args)...
-      );
-    };
+//    // Custom create use holder callable for the captured use holder
+//    auto captured_use_holder_maker = [&](auto&&... args) {
+//      return UseHolder<BasicCollectionManagingUse<handle_range_t>>::create(
+//        make_mapped_use_collection(
+//          // TODO this should be easier and shouldn't break encapsulation so much
+//          *safe_static_cast< UnmappedUseCollection<handle_range_t> const*>(
+//            arg.collection.get_current_use()->use()->collection_.get()
+//          ),
+//          full_mapping_t(
+//            arg.mapping,
+//            tc_index_range_traits::mapping_to_dense(collection.collection_range_)
+//            //, collection.collection_range_
+//          )
+//        ),
+//        std::forward<decltype(args)>(args)...
+//      );
+//    };
 
     // Continuation use doesn't need to be customized because the cloning ctor
     // handles it now
 
     // Finally, make the return type...
     auto rv = return_type(
+      // TODO !!! this is causing the compilation time to blow up.  Do this some other way!
       handle_collection_t(
         arg.collection.var_handle_base_,
         darma_runtime::detail::make_captured_use_holder(
@@ -424,7 +451,16 @@ struct _get_storage_arg_helper<
           /* source and continuing use handle */
           arg.collection.get_current_use(),
           // Customization functor:
-          captured_use_holder_maker
+          _captured_use_with_mapping_maker<full_mapping_t, handle_range_t>(
+            full_mapping_t(
+              arg.mapping,
+              tc_index_range_traits::mapping_to_dense(collection.collection_range_)
+              //, collection.collection_range_
+            ),
+            safe_static_cast< UnmappedUseCollection<handle_range_t> const* >(
+              arg.collection.get_current_use()->use()->collection_.get()
+            )
+          )
         ) // end arguments to make_captured_use_holder
       ),
       arg.mapping

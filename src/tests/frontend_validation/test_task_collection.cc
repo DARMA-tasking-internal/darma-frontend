@@ -102,7 +102,8 @@ TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
 
   mock_runtime->save_tasks = true;
 
-  MockFlow finit, fnull, fout_coll, f_in_idx[4], f_out_idx[4];
+  DECLARE_MOCK_FLOWS(finit, fnull, fout_coll);
+  MockFlow f_in_idx[4], f_out_idx[4];
   use_t* use_idx[4];
   use_t* use_init = nullptr;
   use_t* use_coll = nullptr, *use_coll_cont = nullptr;

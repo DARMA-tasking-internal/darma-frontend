@@ -112,47 +112,47 @@ class HandleUseBase
     // <editor-fold desc="abstract::frontend::Use implementation">
 
     std::shared_ptr<abstract::frontend::Handle const>
-    get_handle() const override {
+    get_handle() const final {
       return handle_;
     }
 
     types::flow_t&
-    get_in_flow() override {
+    get_in_flow() final {
       return in_flow_;
     }
 
     types::flow_t&
-    get_out_flow() override {
+    get_out_flow() final {
       return out_flow_;
     }
 
     types::anti_flow_t&
-    get_anti_in_flow() override {
+    get_anti_in_flow() final {
       return anti_in_flow_;
     }
 
     types::anti_flow_t&
-    get_anti_out_flow() override {
+    get_anti_out_flow() final {
       return anti_out_flow_;
     }
 
     frontend::permissions_t
-    immediate_permissions() const override {
+    immediate_permissions() const final {
       return immediate_permissions_;
     }
 
     frontend::permissions_t
-    scheduling_permissions() const override {
+    scheduling_permissions() const final {
       return scheduling_permissions_;
     }
 
     frontend::coherence_mode_t
-    coherence_mode() const override {
+    coherence_mode() const final {
       return coherence_mode_;
     }
 
     void*&
-    get_data_pointer_reference() override {
+    get_data_pointer_reference() final {
       return data_;
     }
 
@@ -163,53 +163,53 @@ class HandleUseBase
     }
 #endif // _darma_has_feature(create_concurrent_work_owned_by)
 
-    FlowRelationshipImpl const& get_in_flow_relationship() const override {
+    FlowRelationshipImpl const& get_in_flow_relationship() const final {
       return in_flow_rel_;
     }
-    FlowRelationshipImpl const& get_out_flow_relationship() const override {
+    FlowRelationshipImpl const& get_out_flow_relationship() const final {
       return out_flow_rel_;
     }
 
-    FlowRelationshipImpl const& get_anti_in_flow_relationship() const override {
+    FlowRelationshipImpl const& get_anti_in_flow_relationship() const final {
       return in_anti_flow_rel_;
     }
-    FlowRelationshipImpl const& get_anti_out_flow_relationship() const override {
+    FlowRelationshipImpl const& get_anti_out_flow_relationship() const final {
       return out_anti_flow_rel_;
     }
 
-    bool is_dependency() const override {
+    bool is_dependency() const final {
       // For now, at least, is_dependency and is_anti_dependency depend only
       // on the permissions, so just put that in here directly
       return (int(immediate_permissions_) & int(frontend::Permissions::Read)) != 0;
     }
 
-    bool is_anti_dependency() const override {
+    bool is_anti_dependency() const final {
       // For now, at least, is_dependency and is_anti_dependency depend only
       // on the permissions, so just put that in here directly
       return (int(immediate_permissions_) & int(frontend::Permissions::Write)) != 0;
     }
 
-    void set_in_flow(types::flow_t const& new_flow) override {
+    void set_in_flow(types::flow_t const& new_flow) final {
       // TODO assert that the flow is allowed to be set at this point
       in_flow_ = new_flow;
     }
 
-    void set_out_flow(types::flow_t const& new_flow) override {
+    void set_out_flow(types::flow_t const& new_flow) final {
       // TODO assert that the flow is allowed to be set at this point
       out_flow_ = new_flow;
     }
 
-    void set_anti_in_flow(types::anti_flow_t const& new_flow) override {
+    void set_anti_in_flow(types::anti_flow_t const& new_flow) final {
       // TODO assert that the flow is allowed to be set at this point
       anti_in_flow_ = new_flow;
     }
 
-    void set_anti_out_flow(types::anti_flow_t const& new_flow) override {
+    void set_anti_out_flow(types::anti_flow_t const& new_flow) final {
       // TODO assert that the flow is allowed to be set at this point
       anti_out_flow_ = new_flow;
     }
 
-    bool establishes_alias() const override { return establishes_alias_; }
+    bool establishes_alias() const final { return establishes_alias_; }
 
     // </editor-fold>
     //==========================================================================

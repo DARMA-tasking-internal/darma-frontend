@@ -307,11 +307,11 @@ struct managed_swap_storage {
     }
     inline constexpr value_type&& value() && {
       assert(active_ || !"Can't call value() on null managed_swap_storage!");
-      return *active_;
+      return std::move(*active_);
     }
     inline constexpr value_type const && value() const && {
       assert(active_ || !"Can't call value() on null managed_swap_storage!");
-      return *active_;
+      return std::move(*active_);
     }
 
     inline constexpr value_type const* get() const { return active_; }

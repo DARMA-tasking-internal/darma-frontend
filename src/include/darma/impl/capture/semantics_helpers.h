@@ -59,6 +59,147 @@ namespace darma_runtime {
 namespace detail {
 namespace capture_semantics {
 
+struct CaptureCaseInput {
+  frontend::permissions_t source_scheduling;
+  frontend::permissions_t source_immediate;
+  frontend::permissions_t captured_scheduling;
+  frontend::permissions_t captured_immediate;
+  frontend::coherence_mode_t coherence_mode;
+};
+
+struct CaptureCaseInputHash {
+  std::size_t operator()(CaptureCaseInput const& c) const {
+    using underlying_permissions_t = std::underlying_type_t<frontend::permissions_t>;
+    using underlying_coherence_mode_t = std::underlying_type_t<frontend::coherence_mode_t>;
+    auto rv = std::hash<underlying_permissions_t>()((underlying_permissions_t)c.source_scheduling);
+    darma_runtime::detail::hash_combine(rv, (underlying_permissions_t)c.source_immediate);
+    darma_runtime::detail::hash_combine(rv, (underlying_permissions_t)c.captured_scheduling);
+    darma_runtime::detail::hash_combine(rv, (underlying_permissions_t)c.captured_immediate);
+    darma_runtime::detail::hash_combine(rv, (underlying_coherence_mode_t)c.coherence_mode);
+    return rv;
+  }
+};
+
+struct CaptureCaseInputEqual {
+  bool operator()(CaptureCaseInput const& a, CaptureCaseInput const& b) const {
+    return a.source_immediate == b.source_immediate
+      and a.captured_immediate == b.captured_immediate
+      and a.source_scheduling == b.source_scheduling
+      and a.captured_scheduling == b.captured_scheduling
+      and a.coherence_mode == b.coherence_mode;
+  }
+};
+
+struct CaptureCaseOutput {
+  typedef FlowRelationshipImpl (*captured_relationship_generator)(types::flow_t*, types::flow_t*);
+  typedef FlowRelationshipImpl (*continuation_relationship_generator)(
+    types::flow_t*, types::flow_t*, types::flow_t*, types::flow_t*
+  );
+  typedef FlowRelationshipImpl (*captured_anti_relationship_generator)(
+    types::flow_t*, types::flow_t*, types::anti_flow_t*, types::anti_flow_t*
+  );
+  typedef FlowRelationshipImpl (*continuation_anti_relationship_generator)(
+    types::flow_t*, types::flow_t*, types::flow_t*, types::flow_t*,
+    types::anti_flow_t*, types::anti_flow_t*, types::anti_flow_t*, types::anti_flow_t*
+  );
+
+  frontend::permissions_t continuation_scheduling;
+  frontend::permissions_t continuation_immediate;
+  captured_relationship_generator captured_in_flow_relationship;
+  captured_relationship_generator captured_out_flow_relationship;
+  captured_anti_relationship_generator captured_anti_in_flow_relationship;
+  captured_anti_relationship_generator captured_anti_out_flow_relationship;
+  continuation_relationship_generator continuation_in_flow_relationship;
+  continuation_relationship_generator continuation_out_flow_relationship;
+  continuation_anti_relationship_generator continuation_anti_in_flow_relationship;
+  continuation_anti_relationship_generator continuation_anti_out_flow_relationship;
+  bool needs_new_continuation_use;
+  bool could_be_alias;
+};
+
+using capture_case_table_t = std::unordered_map<
+  CaptureCaseInput,
+  CaptureCaseOutput,
+  CaptureCaseInputHash,
+  CaptureCaseInputEqual
+>;
+
+template <typename _force_same_across_compilation_units=void>
+capture_case_table_t&
+get_capture_case_table() {
+  static capture_case_table_t static_table = { };
+  return static_table;
+}
+
+template <typename CaptureCaseT>
+struct CaptureCaseRegistrar {
+  size_t index;
+  CaptureCaseRegistrar() {
+    constexpr auto input = CaptureCaseInput{
+      CaptureCaseT::source_scheduling(),
+      CaptureCaseT::source_immediate(),
+      CaptureCaseT::captured_scheduling(),
+      CaptureCaseT::captured_immediate(),
+      CaptureCaseT::coherence_mode()
+    };
+    auto& table = capture_semantics::get_capture_case_table();
+    auto found = table.find(input);
+    assert(found == table.end() || !"Duplicate capture case");
+    index = table.size();
+    table[input] = {
+      CaptureCaseT::continuation_scheduling(),
+      CaptureCaseT::continuation_immediate(),
+      &CaptureCaseT::captured_in_flow,
+      &CaptureCaseT::captured_out_flow,
+      &CaptureCaseT::captured_anti_in_flow,
+      &CaptureCaseT::captured_anti_out_flow,
+      &CaptureCaseT::continuation_in_flow,
+      &CaptureCaseT::continuation_out_flow,
+      &CaptureCaseT::continuation_anti_in_flow,
+      &CaptureCaseT::continuation_anti_out_flow,
+      CaptureCaseT::needs_continuation_use(),
+      CaptureCaseT::establishes_alias()
+    };
+  }
+};
+
+template <typename CaptureCaseT>
+struct CaptureCaseRegistrarWrapper {
+  static CaptureCaseRegistrar<CaptureCaseT> registrar;
+};
+
+template <typename CaptureCaseT>
+CaptureCaseRegistrar<CaptureCaseT> CaptureCaseRegistrarWrapper<CaptureCaseT>::registrar = { };
+
+template <typename CaptureCaseT>
+size_t
+register_capture_case() {
+  return CaptureCaseRegistrarWrapper<CaptureCaseT>::registrar.index;
+}
+
+
+inline auto _capture_case_not_implemented(
+  frontend::permissions_t source_scheduling,
+  frontend::permissions_t source_immediate,
+  frontend::permissions_t captured_scheduling,
+  frontend::permissions_t captured_immediate,
+  frontend::coherence_mode_t coherence_mode
+) {
+  DARMA_ASSERT_NOT_IMPLEMENTED(
+    "Capture case with source permissions { "
+      << permissions_to_string(source_scheduling)
+      << ", "
+      << permissions_to_string(source_immediate)
+      << " }, captured permissions { "
+      << permissions_to_string(captured_scheduling)
+      << ", "
+      << permissions_to_string(captured_immediate)
+      << " }, and coherence mode "
+      << coherence_mode_to_string(coherence_mode)
+  );
+  return FlowRelationshipImpl();
+}
+
 /*******************************************************************************
  * @internal
  * @brief Basic class template that gets specialized for known Use-Flow capture
@@ -99,32 +240,30 @@ template <
 >
 struct CaptureCase {
   public:
-    static constexpr auto source_scheduling = SourceSchedulingIn;
-    static constexpr auto source_immediate = SourceImmediateIn;
-    static constexpr auto captured_scheduling = CapturedSchedulingIn;
-    static constexpr auto captured_immediate = CapturedImmediateIn;
-    static constexpr auto continuation_scheduling = frontend::Permissions::_invalid;
-    static constexpr auto continuation_immediate = frontend::Permissions::_invalid;
-    static constexpr auto coherence_mode = CoherenceModeIn;
-    static constexpr auto could_be_alias = false;
-    static constexpr auto needs_new_continuation_use = false;
-    static constexpr auto is_valid_capture_case = false;
+
+    // These are static methods rather than data members because their return
+    // values might be bound to (rvalue) references in perfect forwarding
+    // contexts, and if they were data members I would have to instantiate them,
+    // which is a pain.
+
+    static inline constexpr auto source_scheduling() { return SourceSchedulingIn; }
+    static inline constexpr auto source_immediate() { return SourceImmediateIn; }
+    static inline constexpr auto captured_scheduling() { return CapturedSchedulingIn; }
+    static inline constexpr auto captured_immediate() { return CapturedImmediateIn; }
+    static inline constexpr auto continuation_scheduling() { return frontend::Permissions::_invalid; }
+    static inline constexpr auto continuation_immediate() { return frontend::Permissions::_invalid; }
+    static inline constexpr auto coherence_mode() { return CoherenceModeIn; }
+    static inline constexpr auto could_be_alias() { return false; }
+    static inline constexpr auto needs_new_continuation_use() { return false; }
+    static inline constexpr auto is_valid_capture_case() { return false; }
 
   private:
     static auto _case_not_implemented() {
-      DARMA_ASSERT_NOT_IMPLEMENTED(
-        "Capture case with source permissions { "
-          << permissions_to_string(source_scheduling)
-          << ", "
-          << permissions_to_string(source_immediate)
-          << " }, captured permissions { "
-          << permissions_to_string(captured_scheduling)
-          << ", "
-          << permissions_to_string(captured_immediate)
-          << " }, and coherence mode "
-          << coherence_mode_to_string(coherence_mode)
+      return capture_semantics::_capture_case_not_implemented(
+        SourceSchedulingIn, SourceImmediateIn,
+        CapturedSchedulingIn, CapturedImmediateIn,
+        CoherenceModeIn
       );
-      return FlowRelationshipImpl();
     }
 
   public:
@@ -255,7 +394,11 @@ struct CaptureCase {
       types::anti_flow_t* captured_anti_in,
       types::anti_flow_t* captured_anti_out
     ) { return _case_not_implemented(); }
+    static const size_t _index;
 };
+
+
+
 
 //==============================================================================
 // <editor-fold desc="Implementation details"> {{{1

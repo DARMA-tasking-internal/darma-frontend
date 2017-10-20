@@ -334,29 +334,31 @@ struct _polymorphic_serialization_adapter_impl : BaseT {
     ) : BaseT(std::forward<Args>(args)...)
     { }
 
-  size_t get_packed_size() const override {
-    serialization::SimplePackUnpackArchive ar;
-    using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-    ArchiveAccess::start_sizing(ar);
-    //serialization::Serializer<concrete_t>().compute_size(
-    serialization::detail::serializability_traits<concrete_t>::template compute_size(
-      *static_cast<concrete_t const*>(this),
-      ar
-    );
-    return ArchiveAccess::get_size(ar) + polymorphic_details_t::registry_frontmatter_size;
-  }
+  public:
 
-  void pack(char* buffer) const override {
-    polymorphic_details_t::add_registry_frontmatter_in_place(buffer);
-    buffer += polymorphic_details_t::registry_frontmatter_size;
-    serialization::SimplePackUnpackArchive ar;
-    using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-    ArchiveAccess::start_packing_with_buffer(ar, buffer);
-    //serialization::Serializer<concrete_t>().pack(
-    serialization::detail::serializability_traits<concrete_t>::template pack(
-      *static_cast<concrete_t const*>(this), ar
-    );
-  }
+    size_t get_packed_size() const override {
+      serialization::SimplePackUnpackArchive ar;
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+      ArchiveAccess::start_sizing(ar);
+      //serialization::Serializer<concrete_t>().compute_size(
+      serialization::detail::serializability_traits<concrete_t>::template compute_size(
+        *static_cast<concrete_t const*>(this),
+        ar
+      );
+      return ArchiveAccess::get_size(ar) + polymorphic_details_t::registry_frontmatter_size;
+    }
+
+    void pack(char* buffer) const override {
+      polymorphic_details_t::add_registry_frontmatter_in_place(buffer);
+      buffer += polymorphic_details_t::registry_frontmatter_size;
+      serialization::SimplePackUnpackArchive ar;
+      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+      ArchiveAccess::start_packing_with_buffer(ar, buffer);
+      //serialization::Serializer<concrete_t>().pack(
+      serialization::detail::serializability_traits<concrete_t>::template pack(
+        *static_cast<concrete_t const*>(this), ar
+      );
+    }
 
 };
 

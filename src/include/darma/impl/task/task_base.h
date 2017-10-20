@@ -444,15 +444,15 @@ class TaskBase
       calling_line = other.calling_line;
     }
 
-    std::string const& get_calling_filename() const override {
+    std::string const& get_calling_filename() const final {
       return calling_file;
     }
 
-    size_t get_calling_line_number() const override {
+    size_t get_calling_line_number() const final {
       return calling_line;
     }
 
-    std::string const& get_calling_function_name() const override {
+    std::string const& get_calling_function_name() const final {
       return calling_function;
     }
 
@@ -493,7 +493,6 @@ class TaskBase
     //--------------------------------------------------------------------------
 
     #endif // _darma_has_feature(create_parallel_for)
-
     // </editor-fold> end _darma_has_feature(create_parallel_for) }}}2
     //------------------------------------------------------------------------------
 
@@ -501,7 +500,7 @@ class TaskBase
     // <editor-fold desc="_darma_has_feature(mark_parallel_tasks)"> {{{2
     #if _darma_has_feature(mark_parallel_tasks)
 
-    bool is_data_parallel_task() const override {
+    bool is_data_parallel_task() const final {
       return is_data_parallel_task_;
     }
 
@@ -600,6 +599,8 @@ class NonMigratableTaskBase
 
 };
 
+// This is a convenient, template-free place to force template instantiation
+// of all of the known capture cases, but it doesn't really belong here...
 
 } // end namespace detail
 

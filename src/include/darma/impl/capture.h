@@ -84,99 +84,100 @@ make_captured_use_holder(
 
   std::shared_ptr<UseHolderT> captured_use_holder;
 
-  capture_semantics::apply_with_capture_case(
+  capture_semantics::CaptureCaseInput case_in {
     source_and_continuing_holder->use()->scheduling_permissions_,
     source_and_continuing_holder->use()->immediate_permissions_,
     requested_scheduling_permissions,
     requested_immediate_permissions,
     source_and_continuing_holder->use()->coherence_mode_,
-    [&](auto capture_case) {
-      auto* source_in = &source_and_continuing_holder->use()->in_flow_;
-      auto* source_out = &source_and_continuing_holder->use()->out_flow_;
-      auto* source_anti_in = &source_and_continuing_holder->use()->anti_in_flow_;
-      auto* source_anti_out = &source_and_continuing_holder->use()->anti_out_flow_;
+  };
+  auto& table = capture_semantics::get_capture_case_table<>();
+  auto found = table.find(case_in);
+  assert(found != table.end());
+  auto& capture_case = found->second;
+  auto& capture_case_in = found->first;
 
-      // make the captured use
-      captured_use_holder = use_holder_maker(
-        *source_and_continuing_holder->use(),
-        capture_case.captured_scheduling,
-        capture_case.captured_immediate,
-        capture_case.captured_in_flow_relationship(
-          source_in, source_out
-        ),
-        capture_case.captured_out_flow_relationship(
-          source_in, source_out
-        ),
-        capture_case.captured_anti_in_flow_relationship(
-          source_in, source_out, source_anti_in, source_anti_out
-        ),
-        capture_case.captured_anti_out_flow_relationship(
-          source_in, source_out, source_anti_in, source_anti_out
-        )
-      );
+  auto* source_in = &source_and_continuing_holder->use()->in_flow_;
+  auto* source_out = &source_and_continuing_holder->use()->out_flow_;
+  auto* source_anti_in = &source_and_continuing_holder->use()->anti_in_flow_;
+  auto* source_anti_out = &source_and_continuing_holder->use()->anti_out_flow_;
 
-      captured_use_holder->could_be_alias = capture_case.could_be_alias;
-
-      // TODO this branch could/should be done statically
-      if(capture_case.needs_new_continuation_use) {
-
-        auto* captured_in = &captured_use_holder->use()->in_flow_;
-        auto* captured_out = &captured_use_holder->use()->out_flow_;
-        auto* captured_anti_in = &captured_use_holder->use()->anti_in_flow_;
-        auto* captured_anti_out = &captured_use_holder->use()->anti_out_flow_;
-
-        // If a new use will be made and immediate data will be accessible
-        // in the continuation, we need to get the pointer here before the old
-        // use goes away so that we can give it to the new use.
-        void* old_ptr = nullptr;
-        if(capture_case.continuation_immediate != Permissions::None) {
-          assert(capture_case.source_immediate != Permissions::None);
-          old_ptr = source_and_continuing_holder->use()->data_;
-        }
-
-        // Make sure an alias isn't established on the source
-        source_and_continuing_holder->could_be_alias = false;
-
-        // Make the continuation use
-        source_and_continuing_holder->replace_use(
-          typename std::decay_t<UseHolderT>::use_t(
-            *source_and_continuing_holder->use(),
-            capture_case.continuation_scheduling,
-            capture_case.continuation_immediate,
-            capture_case.continuation_in_flow_relationship(
-              source_in, source_out,
-              captured_in, captured_out
-            ),
-            capture_case.continuation_out_flow_relationship(
-              source_in, source_out,
-              captured_in, captured_out
-            ),
-            capture_case.continuation_anti_in_flow_relationship(
-              source_in, source_out, captured_in, captured_out,
-              source_anti_in, source_anti_out, captured_anti_in, captured_anti_out
-            ),
-            capture_case.continuation_anti_out_flow_relationship(
-              source_in, source_out, captured_in, captured_out,
-              source_anti_in, source_anti_out, captured_anti_in, captured_anti_out
-            )
-          )
-        );
-
-        // If a new use is made but it has access to the same data, pass the pointer
-        // on to the new use
-        if(capture_case.continuation_immediate != Permissions::None) {
-          assert(old_ptr);
-          source_and_continuing_holder->use()->data_ = old_ptr;
-        }
-
-        // continuation can always be an alias if it's new
-        source_and_continuing_holder->could_be_alias = true;
-
-      }
-
-
-    }
+  // make the captured use
+  captured_use_holder = use_holder_maker(
+    *source_and_continuing_holder->use(),
+    capture_case_in.captured_scheduling,
+    capture_case_in.captured_immediate,
+    capture_case.captured_in_flow_relationship(
+      source_in, source_out
+    ),
+    capture_case.captured_out_flow_relationship(
+      source_in, source_out
+    ),
+    capture_case.captured_anti_in_flow_relationship(
+      source_in, source_out, source_anti_in, source_anti_out
+    ),
+    capture_case.captured_anti_out_flow_relationship(
+      source_in, source_out, source_anti_in, source_anti_out
+    )
   );
+
+  captured_use_holder->could_be_alias = capture_case.could_be_alias;
+
+  if(capture_case.needs_new_continuation_use) {
+
+    auto* captured_in = &captured_use_holder->use()->in_flow_;
+    auto* captured_out = &captured_use_holder->use()->out_flow_;
+    auto* captured_anti_in = &captured_use_holder->use()->anti_in_flow_;
+    auto* captured_anti_out = &captured_use_holder->use()->anti_out_flow_;
+
+    // If a new use will be made and immediate data will be accessible
+    // in the continuation, we need to get the pointer here before the old
+    // use goes away so that we can give it to the new use.
+    void* old_ptr = nullptr;
+    if(capture_case.continuation_immediate != Permissions::None) {
+      assert(capture_case_in.source_immediate != Permissions::None);
+      old_ptr = source_and_continuing_holder->use()->data_;
+    }
+
+    // Make sure an alias isn't established on the source
+    source_and_continuing_holder->could_be_alias = false;
+
+    // Make the continuation use
+    source_and_continuing_holder->replace_use(
+      typename std::decay_t<UseHolderT>::use_t(
+        *source_and_continuing_holder->use(),
+        capture_case.continuation_scheduling,
+        capture_case.continuation_immediate,
+        capture_case.continuation_in_flow_relationship(
+          source_in, source_out,
+          captured_in, captured_out
+        ),
+        capture_case.continuation_out_flow_relationship(
+          source_in, source_out,
+          captured_in, captured_out
+        ),
+        capture_case.continuation_anti_in_flow_relationship(
+          source_in, source_out, captured_in, captured_out,
+          source_anti_in, source_anti_out, captured_anti_in, captured_anti_out
+        ),
+        capture_case.continuation_anti_out_flow_relationship(
+          source_in, source_out, captured_in, captured_out,
+          source_anti_in, source_anti_out, captured_anti_in, captured_anti_out
+        )
+      )
+    );
+
+    // If a new use is made but it has access to the same data, pass the pointer
+    // on to the new use
+    if(capture_case.continuation_immediate != Permissions::None) {
+      assert(old_ptr);
+      source_and_continuing_holder->use()->data_ = old_ptr;
+    }
+
+    // continuation can always be an alias if it's new
+    source_and_continuing_holder->could_be_alias = true;
+
+  }
 
   return captured_use_holder;
 }

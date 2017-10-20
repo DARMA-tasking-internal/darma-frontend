@@ -392,7 +392,7 @@ class AccessHandleCollection
     )
     {
       auto capture_management_result =
-        this->copy_capture_handler_t::handle_copy_construct(other);
+        this->copy_capture_handler_t::handle_compatible_analog_construct(other);
 
       // If we didn't do a capture and the argument isn't garbage (e.g., from
       // lambda serdes process), then we need to do the normal copy constructor

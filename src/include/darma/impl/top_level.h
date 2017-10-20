@@ -52,6 +52,8 @@
 #include <functional>
 #include <darma/interface/frontend/top_level_task.h>
 
+#include <darma/impl/capture/semantics.h>
+
 
 namespace darma_runtime {
 
@@ -129,13 +131,30 @@ struct TopLevelTaskImpl
     }
 };
 
+// Force instantiation of some registered classes
+inline
+int _force_template_instantiation() {
+
+  // This is a convenient, template-free place to force template instantiation
+  // of all of the known capture cases, but it doesn't really belong here...
+  static int _force_instantiate = capture_semantics::apply_with_capture_case(
+    frontend::Permissions::None, frontend::Permissions::None,
+    frontend::Permissions::None, frontend::Permissions::None,
+    frontend::CoherenceMode::Sequential,
+    [](auto capture_case) { return 1; }
+  );
+  return _force_instantiate;
+}
+
 } // end namespace detail
 
 namespace frontend {
 
+
 inline
 std::unique_ptr<abstract::frontend::TopLevelTask<darma_runtime::detail::TaskBase>>
 darma_top_level_setup(int& argc, char**& argv) {
+  detail::_force_template_instantiation();
   std::vector<std::string> cl_args;
   cl_args.reserve(argc);
   for(int i = 0; i < argc; ++i) cl_args.emplace_back(argv[i]);
@@ -147,6 +166,7 @@ darma_top_level_setup(int& argc, char**& argv) {
 inline
 std::unique_ptr<abstract::frontend::TopLevelTask<darma_runtime::detail::TaskBase>>
 darma_top_level_setup(std::vector<std::string>&& args) {
+  detail::_force_template_instantiation();
   auto tlt = std::make_unique<darma_runtime::detail::TopLevelTaskImpl>();
   tlt->set_command_line_arguments(std::move(args));
   return { std::move(tlt) };

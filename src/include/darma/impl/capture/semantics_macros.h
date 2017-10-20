@@ -63,12 +63,12 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
   (_coherence_mode), (_source_sched), (_source_immed), (_capt_sched), (_capt_immed), \
   (_capt_in), (_capt_out), (_capt_anti_in), (_capt_anti_out), _could_be_alias \
 ) /* { */ \
-  static constexpr auto ContinuationScheduling = darma_runtime::frontend::Permissions::_cont_sched; \
-  static constexpr auto ContinuationImmediate = darma_runtime::frontend::Permissions::_cont_immed; \
-  static constexpr auto continuation_scheduling = darma_runtime::frontend::Permissions::_cont_sched; \
-  static constexpr auto continuation_immediate = darma_runtime::frontend::Permissions::_cont_immed; \
-  static constexpr auto needs_new_continuation_use = true; \
-  static constexpr auto is_valid_capture_case = true; \
+  static constexpr auto ContinuationScheduling() { return darma_runtime::frontend::Permissions::_cont_sched; } \
+  static constexpr auto ContinuationImmediate() { return darma_runtime::frontend::Permissions::_cont_immed; } \
+  static constexpr auto continuation_scheduling() { return darma_runtime::frontend::Permissions::_cont_sched; } \
+  static constexpr auto continuation_immediate() { return darma_runtime::frontend::Permissions::_cont_immed; } \
+  static constexpr auto needs_new_continuation_use() { return true; } \
+  static constexpr auto is_valid_capture_case() { return true; } \
   static auto continuation_in_flow_relationship( \
     darma_runtime::types::flow_t* source_in, \
     darma_runtime::types::flow_t* source_out, \
@@ -101,6 +101,7 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
     darma_runtime::types::anti_flow_t* captured_anti_in, \
     darma_runtime::types::anti_flow_t* captured_anti_out \
   ) { using namespace darma_runtime::detail::flow_relationships; return _cont_anti_out; } \
+  static const size_t _index; \
 };
 
 /*******************************************************************************
@@ -117,27 +118,17 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
   (_coherence_mode), (_source_sched), (_source_immed), (_capt_sched), (_capt_immed), \
   (_capt_in), (_capt_out), (_capt_anti_in), (_capt_anti_out), _could_be_alias \
 ) /* { */ \
-  static constexpr auto ContinuationScheduling = darma_runtime::frontend::Permissions::_invalid; \
-  static constexpr auto ContinuationImmediate = darma_runtime::frontend::Permissions::_invalid; \
-  static constexpr auto continuation_scheduling = darma_runtime::frontend::Permissions::_invalid; \
-  static constexpr auto continuation_immediate = darma_runtime::frontend::Permissions::_invalid; \
-  static constexpr auto needs_new_continuation_use = false; \
-  static constexpr auto is_valid_capture_case = true; \
-  static auto _case_not_implemented() { \
-    DARMA_ASSERT_NOT_IMPLEMENTED( \
-      "Continuation for capture case with source permissions { " \
-        << permissions_to_string(SourceScheduling) \
-        << ", " \
-        << permissions_to_string(SourceImmediate) \
-        << " }, captured permissions { " \
-        << permissions_to_string(CapturedScheduling) \
-        << ", " \
-        << permissions_to_string(CapturedImmediate) \
-        << " }, and coherence mode " \
-        << coherence_mode_to_string(CoherenceMode) \
-    ); \
-    return FlowRelationshipImpl(); \
-  } \
+  static constexpr auto continuation_scheduling() { return darma_runtime::frontend::Permissions::_invalid; } \
+  static constexpr auto continuation_immediate() { return darma_runtime::frontend::Permissions::_invalid; } \
+  static constexpr auto needs_new_continuation_use() { return false; } \
+  static constexpr auto is_valid_capture_case() { return true; } \
+    static auto _case_not_implemented() { \
+      return capture_semantics::_capture_case_not_implemented( \
+        SourceSchedulingIn, SourceImmediateIn, \
+        CapturedSchedulingIn, CapturedImmediateIn, \
+        CoherenceModeIn \
+      ); \
+    } \
   static auto continuation_in_flow_relationship( \
     darma_runtime::types::flow_t* source_in, \
     darma_runtime::types::flow_t* source_out, \
@@ -170,6 +161,7 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
     darma_runtime::types::anti_flow_t* captured_anti_in, \
     darma_runtime::types::anti_flow_t* captured_anti_out \
   ) { return _case_not_implemented(); } \
+  static const size_t _index; \
 };
 
 /*******************************************************************************
@@ -191,6 +183,8 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
 #define _darma_impl_COHERENCE_MODE_SET(...) _darma_PP_FOR_EACH(_darma_impl_PREFIX_COHERENCE_MODE, __VA_ARGS__)
 #define _darma_impl_PREFIX_PERMISSIONS(perm) darma_runtime::frontend::Permissions::perm
 #define _darma_impl_PREFIX_COHERENCE_MODE(mode) darma_runtime::frontend::CoherenceMode::mode
+#define _darma_impl_TYPE_WRAP_PERMISSIONS(perm) std::integral_constant<darma_runtime::frontend::permissions_t, darma_runtime::frontend::Permissions::perm>
+#define _darma_impl_TYPE_WRAP_COHERENCE_MODE(mode) std::integral_constant<darma_runtime::frontend::coherence_mode_t, darma_runtime::frontend::CoherenceMode::mode>
 
 #define _darma_CAPTURE_CASE_BASIC_IMPL( \
    _coherence_mode, \
@@ -216,17 +210,12 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
        and _impl::_coherence_mode_case_mfn< _darma_impl_COHERENCE_MODE_SET _coherence_mode >::template apply<CoherenceModeIn>::value \
    > \
  > { \
-   static constexpr auto SourceScheduling = SourceSchedulingIn; \
-   static constexpr auto SourceImmediate = SourceImmediateIn; \
-   static constexpr auto source_scheduling = SourceSchedulingIn; \
-   static constexpr auto source_immediate = SourceImmediateIn; \
-   static constexpr auto CapturedScheduling = CapturedSchedulingIn; \
-   static constexpr auto CapturedImmediate = CapturedImmediateIn; \
-   static constexpr auto captured_scheduling = CapturedSchedulingIn; \
-   static constexpr auto captured_immediate = CapturedImmediateIn; \
-   static constexpr auto CoherenceMode = CoherenceModeIn; \
-   static constexpr auto coherence_mode = CoherenceModeIn; \
-   static constexpr auto could_be_alias = _could_be_alias; \
+   static constexpr auto source_scheduling() { return SourceSchedulingIn; } \
+   static constexpr auto source_immediate() { return SourceImmediateIn; } \
+   static constexpr auto captured_scheduling() { return CapturedSchedulingIn; } \
+   static constexpr auto captured_immediate() { return CapturedImmediateIn; } \
+   static constexpr auto coherence_mode() { return CoherenceModeIn; } \
+   static constexpr auto could_be_alias() { return _could_be_alias; } \
    static auto captured_in_flow_relationship( \
      darma_runtime::types::flow_t* source_in, \
      darma_runtime::types::flow_t* source_out \
@@ -248,6 +237,7 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
      darma_runtime::types::anti_flow_t* source_anti_out \
    ) { using namespace darma_runtime::detail::flow_relationships; return _darma_REMOVE_PARENS _capt_anti_out ; } \
  /* } */
+
 
 /** @} */
 
