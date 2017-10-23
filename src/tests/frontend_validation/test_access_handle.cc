@@ -409,7 +409,7 @@ TEST_F(TestAccessHandle, death_publish_released) {
       tmp.publish();
 
     },
-    "publish\\(\\) called on handle after release"
+    "Invalid operation `publish\\(\\)`"
   );
 
 }
@@ -431,7 +431,7 @@ TEST_F(TestAccessHandle, death_get_value) {
       auto tmp = initial_access<int>("hello");
       tmp.get_value();
     },
-    "get_value\\(\\) called on handle not in immediately readable state.*"
+    "Invalid operation `get_value\\(\\)`"
   );
 
 }
@@ -453,7 +453,7 @@ TEST_F(TestAccessHandle, death_set_value) {
       auto tmp = initial_access<int>("hello");
       tmp.set_value(10);
     },
-    "set_value\\(\\) called on handle not in immediately modifiable state.*"
+    "Invalid operation `set_value\\(\\)`"
   );
 
 }
@@ -475,7 +475,7 @@ TEST_F(TestAccessHandle, death_get_reference) {
       auto tmp = initial_access<int>("hello");
       tmp.get_reference();
     },
-    "get_reference\\(\\) called on handle not in immediately modifiable state.*"
+    "Invalid operation `get_reference\\(\\)`"
   );
 
 }
@@ -501,7 +501,7 @@ TEST_F(TestAccessHandle, death_set_value_2) {
 
       run_all_tasks();
     },
-    "set_value\\(\\) called on handle not in immediately modifiable state.*"
+    "Invalid operation `set_value\\(\\)`"
   );
 
 }
@@ -529,7 +529,7 @@ TEST_F(TestAccessHandle, death_get_value_after_release) {
 
       run_all_tasks();
     },
-    "get_value\\(\\) called on handle in context without immediate permissions"
+    "Invalid operation `get_value\\(\\)`"
   );
 
 }
@@ -557,7 +557,7 @@ TEST_F(TestAccessHandle, death_emplace_value_after_release) {
 
       run_all_tasks();
     },
-    "emplace_value\\(\\) called on handle in context without immediate permissions"
+    "Invalid operation `emplace_value\\(\\)`"
   );
 
 }
@@ -580,7 +580,7 @@ TEST_F(TestAccessHandle, death_dereference) {
       *tmp = 5;
       std::cout << *tmp;
     },
-    "handle dereferenced in state without immediate access to data"
+    "Invalid operation `operator\\*\\(\\)`"
   );
 
 }
@@ -602,7 +602,7 @@ TEST_F(TestAccessHandle, death_dereference_arrow) {
       auto tmp = initial_access<std::string>("hello");
       std::cout << tmp->size();
     },
-    "handle dereferenced in state without immediate access to data"
+    "Invalid operation `operator->\\(\\)`"
   );
 
 }

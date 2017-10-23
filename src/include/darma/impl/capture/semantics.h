@@ -284,7 +284,6 @@ _darma_CAPTURE_CASE_NO_NEW_CONTINUATION_USE(
 // %    MM -> { NR } -> MR   %
 // %    MM -> { RR } -> MR   %
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%
-// TODO transfer pointer to continuation use? or should we just make the backend do that...
 _darma_CAPTURE_CASE(
   /* ---------- pattern parameters ---------- */
   Sequential,
@@ -437,22 +436,31 @@ _darma_CAPTURE_CASE(
 );
 
 
-// Instantiate the registry-creating static variable now that all partial specializations are defined
-template <
-  frontend::permissions_t SourceSchedulingIn, frontend::permissions_t SourceImmediateIn,
-  frontend::permissions_t CapturedSchedulingIn, frontend::permissions_t CapturedImmediateIn,
-  frontend::coherence_mode_t CoherenceModeIn,
-  typename Enable
->
-const size_t CaptureCase<
-  SourceSchedulingIn, SourceImmediateIn,
-  CapturedSchedulingIn, CapturedImmediateIn,
-  CoherenceModeIn, Enable
->::_index = register_capture_case<CaptureCase<
-  SourceSchedulingIn, SourceImmediateIn,
-  CapturedSchedulingIn, CapturedImmediateIn,
-  CoherenceModeIn, Enable
->>();
+//// Instantiate the registry-creating static variable now that all partial specializations are defined
+//template <
+//  frontend::permissions_t SourceSchedulingIn, frontend::permissions_t SourceImmediateIn,
+//  frontend::permissions_t CapturedSchedulingIn, frontend::permissions_t CapturedImmediateIn,
+//  frontend::coherence_mode_t CoherenceModeIn,
+//  typename Enable
+//>
+//const size_t CaptureCase<
+//  SourceSchedulingIn, SourceImmediateIn,
+//  CapturedSchedulingIn, CapturedImmediateIn,
+//  CoherenceModeIn, Enable
+//>::_index = register_capture_case<CaptureCase<
+//  SourceSchedulingIn, SourceImmediateIn,
+//  CapturedSchedulingIn, CapturedImmediateIn,
+//  CoherenceModeIn, Enable
+//>>();
+
+// and force instantiation of all capture cases so that the registry is created.
+static int _force_instantiate_capture_cases = capture_semantics::apply_with_capture_case(
+  frontend::Permissions::None, frontend::Permissions::None,
+  frontend::Permissions::None, frontend::Permissions::None,
+  frontend::CoherenceMode::Sequential,
+  [](auto capture_case) { return capture_case._make_index_to_force_registration(); }
+);
+
 
 } // end namespace capture_semantics
 } // end namespace detail

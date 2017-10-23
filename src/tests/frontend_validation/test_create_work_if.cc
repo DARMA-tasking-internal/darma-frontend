@@ -49,6 +49,7 @@
 
 #include <darma.h>
 #include <darma/interface/app/create_work_if.h>
+#include <darma/impl/top_level.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 

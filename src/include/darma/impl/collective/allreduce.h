@@ -168,7 +168,7 @@ struct all_reduce_impl {
     // output handle
 
     auto input_use_holder = detail::make_captured_use_holder(
-      input.var_handle_,
+      input.var_handle_base_,
       /* requested_scheduling_permissions */
       frontend::Permissions::None,
       /* requested_immediate_permissions */
@@ -177,7 +177,7 @@ struct all_reduce_impl {
     );
 
     auto output_use_holder = detail::make_captured_use_holder(
-      output.var_handle_,
+      output.var_handle_base_,
       /* requested_scheduling_permissions */
       frontend::Permissions::None,
       /* requested_immediate_permissions */

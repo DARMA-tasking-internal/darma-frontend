@@ -241,6 +241,7 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
   using namespace darma_runtime::keyword_arguments_for_task_creation;
   using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
+  using darma_runtime::frontend::Permissions;
 
   mock_runtime->save_tasks = true;
 
@@ -333,7 +334,9 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
     EXPECT_RELEASE_USE(use_idx[i]);
 
     EXPECT_CALL(*mock_runtime, allreduce_use_gmock_proxy(
-      Eq(ByRef(use_allred[i])),
+      // Can't just use Eq(ByRef(use_allred[i])), since address is allowed to change
+      // upon transfer of ownership.
+      IsUseWithFlows(f_fwd_allred[i], f_allred_out[i], Permissions::None, Permissions::Modify),
 #if _darma_has_feature(task_collection_token)
       Truly([](auto const* details) {
         return details->get_task_collection_token().name == "my_token_2";
@@ -371,6 +374,7 @@ TEST_F(TestCreateConcurrentWork, fetch) {
   using namespace darma_runtime::keyword_arguments_for_task_creation;
   using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
+  using darma_runtime::frontend::Permissions;
 
   mock_runtime->save_tasks = true;
 
@@ -472,7 +476,9 @@ TEST_F(TestCreateConcurrentWork, fetch) {
 #endif // _darma_has_feature(anti_flows)
       EXPECT_RELEASE_USE(use_idx[i]);
       EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(
-        Eq(ByRef(use_pub[i])),
+        // Can't just use Eq(ByRef(use_pub[i])), since address is allowed to change
+        // upon transfer of ownership.
+        IsUseWithFlows(f_pub[i], nullptr, Permissions::None, Permissions::Read),
 #if _darma_has_feature(task_collection_token)
         HasTaskCollectionTokenNamed("my_token")
 #else

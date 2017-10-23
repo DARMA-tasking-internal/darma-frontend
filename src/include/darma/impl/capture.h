@@ -84,7 +84,7 @@ make_captured_use_holder(
 
   std::shared_ptr<UseHolderT> captured_use_holder;
 
-  capture_semantics::CaptureCaseInput case_in {
+  capture_semantics::CaptureCaseInput capture_case_in {
     source_and_continuing_holder->use()->scheduling_permissions_,
     source_and_continuing_holder->use()->immediate_permissions_,
     requested_scheduling_permissions,
@@ -92,10 +92,11 @@ make_captured_use_holder(
     source_and_continuing_holder->use()->coherence_mode_,
   };
   auto& table = capture_semantics::get_capture_case_table<>();
-  auto found = table.find(case_in);
-  assert(found != table.end());
+  auto found = table.find(capture_case_in);
+  if(found == table.end()) {
+    _capture_case_not_implemented(capture_case_in);
+  }
   auto& capture_case = found->second;
-  auto& capture_case_in = found->first;
 
   auto* source_in = &source_and_continuing_holder->use()->in_flow_;
   auto* source_out = &source_and_continuing_holder->use()->out_flow_;

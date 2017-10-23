@@ -48,6 +48,8 @@
 #include <vector>
 
 #include <darma/impl/collective/allreduce.h>
+#include <darma/interface/app/initial_access.h>
+#include <darma/interface/app/create_work.h>
 
 #include "test_frontend.h"
 
@@ -122,6 +124,7 @@ TEST_P(Test_simple_allreduce, overloads) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_collectives;
   using namespace mock_backend;
+  using darma_runtime::frontend::Permissions;
 
   mock_runtime->save_tasks = true;
 
@@ -155,7 +158,9 @@ TEST_P(Test_simple_allreduce, overloads) {
     EXPECT_RELEASE_USE(use_cont);
 
     EXPECT_CALL(*mock_runtime, allreduce_use_gmock_proxy(
-      Eq(ByRef(reduce_use)),
+      // Can't just use Eq(ByRef(reduce_use)), since address is allowed to change
+      // upon transfer of ownership.
+      IsUseWithFlows(f_task_out, f_collect_out, Permissions::None, Permissions::Modify),
       IsCollectiveDetailsWithReduceOp(0, 10,
         // Check that the correct reduce op is getting used also...
         detail::_impl::_get_static_reduce_op_instance<
@@ -217,6 +222,7 @@ TEST_P(Test_different_inout_allreduce, overload) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_collectives;
   using namespace mock_backend;
+  using darma_runtime::frontend::Permissions;
 
   mock_runtime->save_tasks = true;
 
@@ -244,11 +250,7 @@ TEST_P(Test_different_inout_allreduce, overload) {
   EXPECT_CALL(*mock_runtime, make_next_flow(f_out_init))
     .WillOnce(Return(f_collect_out));
 
-#if _darma_has_feature(anti_flows)
   EXPECT_REGISTER_USE(reduce_in_use, f_task_out, nullptr, None, Read);
-#else
-  EXPECT_REGISTER_USE(reduce_in_use, f_task_out, f_task_out, None, Read);
-#endif // _darma_has_feature(anti_flows)
 
   EXPECT_REGISTER_USE(reduce_out_use, f_out_init, f_collect_out, None, Modify);
   EXPECT_RELEASE_USE(use_out_initial);
@@ -256,7 +258,12 @@ TEST_P(Test_different_inout_allreduce, overload) {
   EXPECT_REGISTER_USE(use_out_cont, f_collect_out, f_out_null, Modify, None);
 
   EXPECT_CALL(*mock_runtime, allreduce_use_gmock_proxy(
-    Eq(ByRef(reduce_in_use)), Eq(ByRef(reduce_out_use)),
+    // Can't just use Eq(ByRef(reduce_in_use)), since address is allowed to change
+    // upon transfer of ownership.
+    IsUseWithFlows(f_task_out, nullptr, Permissions::None, Permissions::Read),
+    // Can't just use Eq(ByRef(reduce_out_use)), since address is allowed to change
+    // upon transfer of ownership.
+    IsUseWithFlows(f_out_init, f_collect_out, Permissions::None, Permissions::Modify),
     IsCollectiveDetailsWithReduceOp(0, 10,
       // Check that the correct reduce op is getting used also...
       detail::_impl::_get_static_reduce_op_instance<

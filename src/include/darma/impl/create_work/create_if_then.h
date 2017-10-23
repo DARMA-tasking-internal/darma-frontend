@@ -71,21 +71,18 @@ struct _not_a_lambda { };
 
 struct IfThenElseCaptureManagerSetupHelper {
 
-  struct DeferredCapture {
-    AccessHandleBase const* source_and_continuing = nullptr;
-    AccessHandleBase* captured = nullptr;
-    int req_sched_perms = (int)frontend::Permissions::None;
-    int req_immed_perms = (int)frontend::Permissions::None;
-  };
+//  struct DeferredCapture {
+//    AccessHandleBase const* source_and_continuing = nullptr;
+//    AccessHandleBase* captured = nullptr;
+//    int req_sched_perms = (int)frontend::Permissions::None;
+//    int req_immed_perms = (int)frontend::Permissions::None;
+//  };
 
-  /* TODO we might be able to stick some extra fields on AccessHandleBase rather
-   * than using maps here
-   */
   // We put these in a base class since they need to be constructed before other
   // members of WhileDoCaptureManager
-  std::map<types::key_t, DeferredCapture> if_captures_;
-  std::map<types::key_t, DeferredCapture> then_captures_;
-  std::map<types::key_t, DeferredCapture> else_captures_;
+  std::map<types::key_t, std::unique_ptr<CaptureDescriptionBase>> if_captures_;
+  std::map<types::key_t, std::unique_ptr<CaptureDescriptionBase>> then_captures_;
+  std::map<types::key_t, std::unique_ptr<CaptureDescriptionBase>> else_captures_;
 
   std::map<types::key_t, std::shared_ptr<detail::AccessHandleBase>> if_implicit_captures_;
 
@@ -150,7 +147,7 @@ struct IfThenElseCaptureManager<
 
     template <typename TaskPtrT>
     void _execute_captures(
-      std::map<types::key_t, DeferredCapture>& captures,
+      std::map<types::key_t, std::unique_ptr<CaptureDescriptionBase>>& captures,
       TaskPtrT& task
     ) {
       // See notes in WhileDoCaptureManager::execute_while_captures
@@ -158,21 +155,24 @@ struct IfThenElseCaptureManager<
         auto const& key = pair.first;
         auto& details = pair.second;
 
-        std::shared_ptr<detail::AccessHandleBase> implicit_source_and_cont;
+//        std::shared_ptr<detail::AccessHandleBase> implicit_source_and_cont;
+//
+//        // Sanity checks:
+//        assert(details.source_and_continuing != nullptr);
+//        assert(details.captured != nullptr);
+//
+//        details.captured->call_make_captured_use_holder(
+//          details.captured->var_handle_base_,
+//          (HandleUse::permissions_t)details.req_sched_perms,
+//          (HandleUse::permissions_t)details.req_immed_perms,
+//          *details.source_and_continuing,
+//          true // register all continuation uses for now...
+//        );
+//
+//        details.captured->call_add_dependency(task.get());
 
-        // Sanity checks:
-        assert(details.source_and_continuing != nullptr);
-        assert(details.captured != nullptr);
+        details->invoke_capture(task.get());
 
-        details.captured->call_make_captured_use_holder(
-          details.captured->var_handle_base_,
-          (HandleUse::permissions_t)details.req_sched_perms,
-          (HandleUse::permissions_t)details.req_immed_perms,
-          *details.source_and_continuing,
-          true // register all continuation uses for now...
-        );
-
-        details.captured->call_add_dependency(task.get());
       }
     }
 
@@ -305,28 +305,36 @@ struct IfThenElseCaptureManager<
 
       if(current_capturing_mode_ == CaptureMode::If) {
 
-        auto initial_permissions =
-          AccessHandleBaseAttorney::get_permissions_before_downgrades(
-            source_and_continuing,
-            // hard-coded for now; could eventually get them from the task, though
-            AccessHandleBase::read_only_capture,
-            AccessHandleBase::read_only_capture
-          );
+//        auto initial_permissions =
+//          AccessHandleBaseAttorney::get_permissions_before_downgrades(
+//            source_and_continuing,
+//            // hard-coded for now; could eventually get them from the task, though
+//            AccessHandleBase::read_only_capture,
+//            AccessHandleBase::read_only_capture
+//          );
+//
+//        auto permissions_pair =
+//          CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
+//            source_and_continuing,
+//            initial_permissions.scheduling,
+//            initial_permissions.immediate
+//          );
+//        if_details.req_sched_perms = permissions_pair.scheduling;
+//        if_details.req_immed_perms = permissions_pair.immediate;
+//
+//        if_details.captured = &captured;
+//        if_details.source_and_continuing = &source_and_continuing;
 
-        auto permissions_pair =
-          CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
-            source_and_continuing,
-            initial_permissions.scheduling,
-            initial_permissions.immediate
-          );
-        if_details.req_sched_perms = permissions_pair.scheduling;
-        if_details.req_immed_perms = permissions_pair.immediate;
-
-        if_details.captured = &captured;
-        if_details.source_and_continuing = &source_and_continuing;
+        if_details = CapturedObjectAttorney::get_capture_description(
+          source_and_continuing,
+          captured,
+          // hard-coded for now; could eventually get them from the task, though
+          AccessHandleBase::read_only_capture,
+          AccessHandleBase::read_only_capture
+        );
       }
       else {
-        DeferredCapture* details = nullptr;
+        std::unique_ptr<CaptureDescriptionBase>* details = nullptr;
         if(current_capturing_mode_ == CaptureMode::Then) {
           details = &then_captures_[key];
         }
@@ -335,41 +343,71 @@ struct IfThenElseCaptureManager<
           details = &else_captures_[key];
         }
 
-        auto initial_permissions =
-          AccessHandleBaseAttorney::get_permissions_before_downgrades(
+//        auto initial_permissions =
+//          AccessHandleBaseAttorney::get_permissions_before_downgrades(
+//            source_and_continuing,
+//            // hard-coded for now; could eventually get them from the task, though
+//            AccessHandleBase::modify_capture,
+//            AccessHandleBase::modify_capture
+//          );
+//
+//        auto permissions_pair =
+//          CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
+//            source_and_continuing,
+//            initial_permissions.scheduling,
+//            initial_permissions.immediate
+//          );
+//
+//        details->req_sched_perms = permissions_pair.scheduling;
+//        details->req_immed_perms = permissions_pair.immediate;
+
+        (*details) = CapturedObjectAttorney::get_capture_description(
+          source_and_continuing,
+          captured,
+          // hard-coded for now; could eventually get them from the task, though
+          AccessHandleBase::modify_capture,
+          AccessHandleBase::modify_capture
+        );
+
+        if(if_details.get() == nullptr) {
+          auto& if_implicit_capture = if_implicit_captures_[key];
+          if_implicit_capture = source_and_continuing.copy();
+
+          if_details = CapturedObjectAttorney::get_capture_description(
             source_and_continuing,
-            // hard-coded for now; could eventually get them from the task, though
+            *if_implicit_capture,
+            // TODO @bug proper downgrades on the modify_capture here (THIS IS A BUG)
             AccessHandleBase::modify_capture,
-            AccessHandleBase::modify_capture
+            AccessHandleBase::no_capture
           );
 
-        auto permissions_pair =
-          CapturedObjectAttorney::get_and_clear_requested_capture_permissions(
-            source_and_continuing,
-            initial_permissions.scheduling,
-            initial_permissions.immediate
+          (*details)->replace_source_pointer(if_implicit_capture.get());
+        }
+        else {
+          (*details)->replace_source_pointer(
+            if_details->get_captured_pointer()
           );
 
-        details->req_sched_perms = permissions_pair.scheduling;
-        details->req_immed_perms = permissions_pair.immediate;
+          if_details->require_ability_to_schedule(*details->get());
+        }
 
         // The if has to be able to both schedule the then/else *and* schedule
         // anything that the then/else schedules (because scheduling permissions
         // must be propatated outwards
-        if_details.req_sched_perms |= details->req_immed_perms;
-        if_details.req_sched_perms |= details->req_sched_perms;
-
-        // handle implicit capture in the if:
-        if(if_details.source_and_continuing == nullptr) {
-          if_details.source_and_continuing = &source_and_continuing;
-
-          auto& if_implicit_capture = if_implicit_captures_[key];
-          if_implicit_capture = source_and_continuing.copy();
-          if_details.captured = if_implicit_capture.get();
-        }
-
-        details->source_and_continuing = if_details.captured;
-        details->captured = &captured;
+//        if_details.req_sched_perms |= details->req_immed_perms;
+//        if_details.req_sched_perms |= details->req_sched_perms;
+//
+//        // handle implicit capture in the if:
+//        if(if_details.source_and_continuing == nullptr) {
+//          if_details.source_and_continuing = &source_and_continuing;
+//
+//          auto& if_implicit_capture = if_implicit_captures_[key];
+//          if_implicit_capture = source_and_continuing.copy();
+//          if_details.captured = if_implicit_capture.get();
+//        }
+//
+//        details->source_and_continuing = if_details.captured;
+//        details->captured = &captured;
       }
 
     }

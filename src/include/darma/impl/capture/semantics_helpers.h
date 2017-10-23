@@ -146,19 +146,19 @@ struct CaptureCaseRegistrar {
     auto found = table.find(input);
     assert(found == table.end() || !"Duplicate capture case");
     index = table.size();
-    table[input] = {
+    table[input] = CaptureCaseOutput{
       CaptureCaseT::continuation_scheduling(),
       CaptureCaseT::continuation_immediate(),
-      &CaptureCaseT::captured_in_flow,
-      &CaptureCaseT::captured_out_flow,
-      &CaptureCaseT::captured_anti_in_flow,
-      &CaptureCaseT::captured_anti_out_flow,
-      &CaptureCaseT::continuation_in_flow,
-      &CaptureCaseT::continuation_out_flow,
-      &CaptureCaseT::continuation_anti_in_flow,
-      &CaptureCaseT::continuation_anti_out_flow,
-      CaptureCaseT::needs_continuation_use(),
-      CaptureCaseT::establishes_alias()
+      &CaptureCaseT::captured_in_flow_relationship,
+      &CaptureCaseT::captured_out_flow_relationship,
+      &CaptureCaseT::captured_anti_in_flow_relationship,
+      &CaptureCaseT::captured_anti_out_flow_relationship,
+      &CaptureCaseT::continuation_in_flow_relationship,
+      &CaptureCaseT::continuation_out_flow_relationship,
+      &CaptureCaseT::continuation_anti_in_flow_relationship,
+      &CaptureCaseT::continuation_anti_out_flow_relationship,
+      CaptureCaseT::needs_new_continuation_use(),
+      CaptureCaseT::could_be_alias()
     };
   }
 };
@@ -178,26 +178,23 @@ register_capture_case() {
 }
 
 
-inline auto _capture_case_not_implemented(
-  frontend::permissions_t source_scheduling,
-  frontend::permissions_t source_immediate,
-  frontend::permissions_t captured_scheduling,
-  frontend::permissions_t captured_immediate,
-  frontend::coherence_mode_t coherence_mode
+inline void _capture_case_not_implemented(
+  CaptureCaseInput const& case_in
 ) {
   DARMA_ASSERT_NOT_IMPLEMENTED(
     "Capture case with source permissions { "
-      << permissions_to_string(source_scheduling)
+      << permissions_to_string(case_in.source_scheduling)
       << ", "
-      << permissions_to_string(source_immediate)
+      << permissions_to_string(case_in.source_immediate)
       << " }, captured permissions { "
-      << permissions_to_string(captured_scheduling)
+      << permissions_to_string(case_in.captured_scheduling)
       << ", "
-      << permissions_to_string(captured_immediate)
+      << permissions_to_string(case_in.captured_immediate)
       << " }, and coherence mode "
-      << coherence_mode_to_string(coherence_mode)
+      << coherence_mode_to_string(case_in.coherence_mode)
+      << ".  Number of known cases is " << get_capture_case_table().size()
+      << "."
   );
-  return FlowRelationshipImpl();
 }
 
 /*******************************************************************************
@@ -246,155 +243,160 @@ struct CaptureCase {
     // contexts, and if they were data members I would have to instantiate them,
     // which is a pain.
 
-    static inline constexpr auto source_scheduling() { return SourceSchedulingIn; }
-    static inline constexpr auto source_immediate() { return SourceImmediateIn; }
-    static inline constexpr auto captured_scheduling() { return CapturedSchedulingIn; }
-    static inline constexpr auto captured_immediate() { return CapturedImmediateIn; }
-    static inline constexpr auto continuation_scheduling() { return frontend::Permissions::_invalid; }
-    static inline constexpr auto continuation_immediate() { return frontend::Permissions::_invalid; }
-    static inline constexpr auto coherence_mode() { return CoherenceModeIn; }
-    static inline constexpr auto could_be_alias() { return false; }
-    static inline constexpr auto needs_new_continuation_use() { return false; }
-    static inline constexpr auto is_valid_capture_case() { return false; }
-
-  private:
-    static auto _case_not_implemented() {
-      return capture_semantics::_capture_case_not_implemented(
-        SourceSchedulingIn, SourceImmediateIn,
-        CapturedSchedulingIn, CapturedImmediateIn,
-        CoherenceModeIn
-      );
+//    static inline constexpr auto source_scheduling() { return SourceSchedulingIn; }
+//    static inline constexpr auto source_immediate() { return SourceImmediateIn; }
+//    static inline constexpr auto captured_scheduling() { return CapturedSchedulingIn; }
+//    static inline constexpr auto captured_immediate() { return CapturedImmediateIn; }
+//    static inline constexpr auto continuation_scheduling() { return frontend::Permissions::_invalid; }
+//    static inline constexpr auto continuation_immediate() { return frontend::Permissions::_invalid; }
+//    static inline constexpr auto coherence_mode() { return CoherenceModeIn; }
+//    static inline constexpr auto could_be_alias() { return false; }
+//    static inline constexpr auto needs_new_continuation_use() { return false; }
+//    static inline constexpr auto is_valid_capture_case() { return false; }
+//
+//  private:
+//    static auto _case_not_implemented() {
+//      capture_semantics::_capture_case_not_implemented(
+//        CaptureCaseInput{
+//          SourceSchedulingIn, SourceImmediateIn,
+//          CapturedSchedulingIn, CapturedImmediateIn,
+//          CoherenceModeIn
+//        }
+//      );
+//      return FlowRelationshipImpl(); // unreachable, but it makes auto work
+//    }
+//
+//  public:
+//    /***************************************************************************
+//     *
+//     * @param source_in
+//     * @param source_out
+//     * @return
+//     **************************************************************************/
+//    static auto captured_in_flow_relationship(
+//      types::flow_t* source_in,
+//      types::flow_t* source_out
+//    ) { return _case_not_implemented(); }
+//
+//    /***************************************************************************
+//     *
+//     * @param source_in
+//     * @param source_out
+//     * @return
+//     **************************************************************************/
+//    static auto captured_out_flow_relationship(
+//      types::flow_t* source_in,
+//      types::flow_t* source_out
+//    ) { return _case_not_implemented(); }
+//
+//    /***************************************************************************
+//     *
+//     * @param source_in
+//     * @param source_out
+//     * @param source_anti_in
+//     * @param source_anti_out
+//     * @return
+//     **************************************************************************/
+//    static auto captured_anti_in_flow_relationship(
+//      types::flow_t* source_in,
+//      types::flow_t* source_out,
+//      types::anti_flow_t* source_anti_in,
+//      types::anti_flow_t* source_anti_out
+//    ) { return _case_not_implemented(); }
+//
+//    /***************************************************************************
+//     *
+//     * @param source_in
+//     * @param source_out
+//     * @param source_anti_in
+//     * @param source_anti_out
+//     * @return
+//     **************************************************************************/
+//    static auto captured_anti_out_flow_relationship(
+//      types::flow_t* source_in,
+//      types::flow_t* source_out,
+//      types::anti_flow_t* source_anti_in,
+//      types::anti_flow_t* source_anti_out
+//    ) { return _case_not_implemented(); }
+//
+//    /***************************************************************************
+//     *
+//     * @param source_in
+//     * @param source_out
+//     * @param captured_in
+//     * @param captured_out
+//     * @return
+//     **************************************************************************/
+//    static auto continuation_in_flow_relationship(
+//      types::flow_t* source_in,
+//      types::flow_t* source_out,
+//      types::flow_t* captured_in,
+//      types::flow_t* captured_out
+//    ) { return _case_not_implemented(); }
+//
+//    /***************************************************************************
+//     *
+//     * @param source_in
+//     * @param source_out
+//     * @param captured_in
+//     * @param captured_out
+//     * @return
+//     **************************************************************************/
+//    static auto continuation_out_flow_relationship(
+//      types::flow_t* source_in,
+//      types::flow_t* source_out,
+//      types::flow_t* captured_in,
+//      types::flow_t* captured_out
+//    ) { return _case_not_implemented(); }
+//
+//    /***************************************************************************
+//     *
+//     * @param source_in
+//     * @param source_out
+//     * @param captured_in
+//     * @param captured_out
+//     * @param source_anti_in
+//     * @param source_anti_out
+//     * @param captured_anti_in
+//     * @param captured_anti_out
+//     * @return
+//     **************************************************************************/
+//    static auto continuation_anti_in_flow_relationship(
+//      types::flow_t* source_in,
+//      types::flow_t* source_out,
+//      types::flow_t* captured_in,
+//      types::flow_t* captured_out,
+//      types::anti_flow_t* source_anti_in,
+//      types::anti_flow_t* source_anti_out,
+//      types::anti_flow_t* captured_anti_in,
+//      types::anti_flow_t* captured_anti_out
+//    ) { return _case_not_implemented(); }
+//
+//    /***************************************************************************
+//     *
+//     * @param source_in
+//     * @param source_out
+//     * @param captured_in
+//     * @param captured_out
+//     * @param source_anti_in
+//     * @param source_anti_out
+//     * @param captured_anti_in
+//     * @param captured_anti_out
+//     * @return
+//     **************************************************************************/
+//    static auto continuation_anti_out_flow_relationship(
+//      types::flow_t* source_in,
+//      types::flow_t* source_out,
+//      types::flow_t* captured_in,
+//      types::flow_t* captured_out,
+//      types::anti_flow_t* source_anti_in,
+//      types::anti_flow_t* source_anti_out,
+//      types::anti_flow_t* captured_anti_in,
+//      types::anti_flow_t* captured_anti_out
+//    ) { return _case_not_implemented(); }
+    static size_t _make_index_to_force_registration() {
+      return 0; // Don't register an unimplemented capture case.
     }
-
-  public:
-    /***************************************************************************
-     *
-     * @param source_in
-     * @param source_out
-     * @return
-     **************************************************************************/
-    static auto captured_in_flow_relationship(
-      types::flow_t* source_in,
-      types::flow_t* source_out
-    ) { return _case_not_implemented(); }
-
-    /***************************************************************************
-     *
-     * @param source_in
-     * @param source_out
-     * @return
-     **************************************************************************/
-    static auto captured_out_flow_relationship(
-      types::flow_t* source_in,
-      types::flow_t* source_out
-    ) { return _case_not_implemented(); }
-
-    /***************************************************************************
-     *
-     * @param source_in
-     * @param source_out
-     * @param source_anti_in
-     * @param source_anti_out
-     * @return
-     **************************************************************************/
-    static auto captured_anti_in_flow_relationship(
-      types::flow_t* source_in,
-      types::flow_t* source_out,
-      types::anti_flow_t* source_anti_in,
-      types::anti_flow_t* source_anti_out
-    ) { return _case_not_implemented(); }
-
-    /***************************************************************************
-     *
-     * @param source_in
-     * @param source_out
-     * @param source_anti_in
-     * @param source_anti_out
-     * @return
-     **************************************************************************/
-    static auto captured_anti_out_flow_relationship(
-      types::flow_t* source_in,
-      types::flow_t* source_out,
-      types::anti_flow_t* source_anti_in,
-      types::anti_flow_t* source_anti_out
-    ) { return _case_not_implemented(); }
-
-    /***************************************************************************
-     *
-     * @param source_in
-     * @param source_out
-     * @param captured_in
-     * @param captured_out
-     * @return
-     **************************************************************************/
-    static auto continuation_in_flow_relationship(
-      types::flow_t* source_in,
-      types::flow_t* source_out,
-      types::flow_t* captured_in,
-      types::flow_t* captured_out
-    ) { return _case_not_implemented(); }
-
-    /***************************************************************************
-     *
-     * @param source_in
-     * @param source_out
-     * @param captured_in
-     * @param captured_out
-     * @return
-     **************************************************************************/
-    static auto continuation_out_flow_relationship(
-      types::flow_t* source_in,
-      types::flow_t* source_out,
-      types::flow_t* captured_in,
-      types::flow_t* captured_out
-    ) { return _case_not_implemented(); }
-
-    /***************************************************************************
-     *
-     * @param source_in
-     * @param source_out
-     * @param captured_in
-     * @param captured_out
-     * @param source_anti_in
-     * @param source_anti_out
-     * @param captured_anti_in
-     * @param captured_anti_out
-     * @return
-     **************************************************************************/
-    static auto continuation_anti_in_flow_relationship(
-      types::flow_t* source_in,
-      types::flow_t* source_out,
-      types::flow_t* captured_in,
-      types::flow_t* captured_out,
-      types::anti_flow_t* source_anti_in,
-      types::anti_flow_t* source_anti_out,
-      types::anti_flow_t* captured_anti_in,
-      types::anti_flow_t* captured_anti_out
-    ) { return _case_not_implemented(); }
-
-    /***************************************************************************
-     *
-     * @param source_in
-     * @param source_out
-     * @param captured_in
-     * @param captured_out
-     * @param source_anti_in
-     * @param source_anti_out
-     * @param captured_anti_in
-     * @param captured_anti_out
-     * @return
-     **************************************************************************/
-    static auto continuation_anti_out_flow_relationship(
-      types::flow_t* source_in,
-      types::flow_t* source_out,
-      types::flow_t* captured_in,
-      types::flow_t* captured_out,
-      types::anti_flow_t* source_anti_in,
-      types::anti_flow_t* source_anti_out,
-      types::anti_flow_t* captured_anti_in,
-      types::anti_flow_t* captured_anti_out
-    ) { return _case_not_implemented(); }
-    static const size_t _index;
 };
 
 
