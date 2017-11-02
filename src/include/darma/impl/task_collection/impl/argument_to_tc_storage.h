@@ -439,7 +439,6 @@ struct _get_storage_arg_helper<
 
     // Finally, make the return type...
     auto rv = return_type(
-      // TODO !!! this is causing the compilation time to blow up.  Do this some other way!
       handle_collection_t(
         arg.collection.var_handle_base_,
         darma_runtime::detail::make_captured_use_holder(
