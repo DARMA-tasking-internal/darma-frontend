@@ -153,7 +153,7 @@ struct access_handle_collection_traits {
     struct _is_convertible_from_ahc_impl {
       using type = typename tinympl::and_<
         typename permissions_traits
-          ::template is_convertible_from<typename AHC::traits_t::permissions_traits>,
+          ::template is_convertible_from<typename AHC::traits::permissions_traits>,
         typename semantic_traits
           ::template is_convertible_from<typename AHC::semantic_traits>,
         typename allocation_traits

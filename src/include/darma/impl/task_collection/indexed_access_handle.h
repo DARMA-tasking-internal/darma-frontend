@@ -259,7 +259,7 @@ class IndexedAccessHandle {
     template <typename _Ignored_SFINAE=void,
       typename=std::enable_if_t<
         std::is_void<_Ignored_SFINAE>::value
-          and ParentAHC::traits_t::permissions_traits::static_scheduling_permissions
+          and ParentAHC::traits::permissions_traits::static_scheduling_permissions
             == AccessHandlePermissions::Commutative
       >
     >

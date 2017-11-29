@@ -547,6 +547,7 @@ TEST_F(TestCreateConcurrentWork, fetch) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifdef NOT_YET_REIMPLEMENTED
 TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
   using namespace ::testing;
@@ -712,6 +713,7 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
   mock_runtime->task_collections.front().reset(nullptr);
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -943,17 +945,16 @@ TEST_F(TestCreateConcurrentWork, simple_sq_brkt_same) {
   EXPECT_CALL(*mock_runtime, make_forwarding_flow(f_in_idx))
     .WillOnce(Return(f_pub));
 
-#if _darma_has_feature(anti_flows)
   EXPECT_REGISTER_USE(use_pub, f_pub, nullptr, None, Read);
-#else
-  EXPECT_REGISTER_USE(use_pub, f_pub, f_pub, None, Read);
-#endif // _darma_has_feature(anti_flows)
 
   EXPECT_REGISTER_USE(use_pub_cont, f_pub, f_out_idx, Modify, Read);
 
   EXPECT_RELEASE_USE(use_idx);
 
-  EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(Eq(ByRef(use_pub)), _));
+  EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(
+    IsUseWithFlows(f_pub, nullptr, frontend::Permissions::None, frontend::Permissions::Read),
+    _)
+  );
 
   EXPECT_RELEASE_USE(use_pub_cont);
 
@@ -1564,6 +1565,7 @@ TEST_F(TestCreateConcurrentWork, handle_reduce)
 
   using namespace ::testing;
   using namespace darma_runtime;
+  using namespace darma_runtime::frontend;
   using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace darma_runtime::keyword_arguments_for_task_creation;
   using namespace darma_runtime::keyword_arguments_for_collectives;
@@ -1636,19 +1638,15 @@ TEST_F(TestCreateConcurrentWork, handle_reduce)
 
   EXPECT_REGISTER_USE_COLLECTION(use_coll_collective,
     fout_coll,
-#if _darma_has_feature(anti_flows)
     nullptr,
-#else
-    fout_coll,
-#endif // _darma_has_feature(anti_flows)
     None,
     Read,
     4);
   EXPECT_REGISTER_USE(use_tmp_collective, finit_tmp, fout_tmp, None, Modify);
 
   EXPECT_CALL(*mock_runtime, reduce_collection_use_gmock_proxy(
-    Eq(ByRef(use_coll_collective)),
-    Eq(ByRef(use_tmp_collective)),
+    IsUseWithFlows(fout_coll, nullptr, Permissions::None, Permissions::Read),
+    IsUseWithFlows(finit_tmp, fout_tmp, Permissions::None, Permissions::Modify),
     _,
     make_key("myred")
   ));
@@ -1764,11 +1762,7 @@ TEST_F(TestCreateConcurrentWork, simple_read_only)
     make_key("hello"),
     4);
 
-#if _darma_has_feature(anti_flows)
   EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, nullptr, Read, Read, 4);
-#else
-  EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, finit, Read, Read, 4);
-#endif // _darma_has_feature(anti_flows)
 
   EXPECT_FLOW_ALIAS(finit, fnull);
 

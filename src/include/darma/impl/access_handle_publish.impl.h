@@ -79,6 +79,13 @@ struct _publish_impl {
     _impl(version, n_readers, out);
   }
 
+  template <typename T, typename Traits>
+  void _impl(
+    AccessHandle<T, Traits> version, size_t n_readers, bool is_publish_out
+  ) {
+    _impl(make_key(version.get_value()), n_readers, is_publish_out);
+  }
+
   void _impl(
     types::key_t version, size_t n_readers, bool is_publish_out
   ) {
