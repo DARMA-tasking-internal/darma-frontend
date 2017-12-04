@@ -59,7 +59,7 @@
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/frontend/task.h>
 
-#include <darma/impl/serialization/traits.h>
+#include <darma/serialization/traits.h>
 #include <darma/impl/capture/functor_traits.h>
 #include <darma/impl/util.h>
 #include <darma/impl/handle.h>

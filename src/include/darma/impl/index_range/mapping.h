@@ -52,7 +52,7 @@
 #include <darma/impl/util/not_a_type.h>
 
 #include <darma/impl/meta/detection.h>
-#include <darma/impl/serialization/as_pod.h>
+#include <darma/serialization/as_pod.h>
 #include "mapping_traits.h"
 
 namespace darma_runtime {

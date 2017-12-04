@@ -51,7 +51,7 @@
 
 #include <darma/impl/handle_fwd.h>
 #include <darma/impl/util/optional_boolean.h>
-#include <darma/impl/serialization/allocator.h>
+#include <darma/serialization/allocator.h>
 #include <darma/impl/meta/conditional_members.h>
 
 namespace darma_runtime {

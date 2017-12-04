@@ -51,7 +51,7 @@
 #include <unordered_map>
 #include <typeindex>
 
-#include <darma/impl/serialization/as_pod.h>
+#include <darma/serialization/as_pod.h>
 
 
 namespace darma_runtime {

@@ -57,7 +57,7 @@
 
 #include <darma/impl/use.h> // HandleUse, CollectionManagingUse
 
-#include <darma/impl/serialization/serializer_attorneys.h>
+#include <darma/serialization/serializer_attorneys.h>
 
 namespace darma_runtime {
 namespace detail {

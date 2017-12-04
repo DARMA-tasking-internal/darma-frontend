@@ -50,7 +50,7 @@
 #include <map>
 #include <unordered_set>
 #include <unordered_map>
-#include <darma/impl/serialization/allocator.h>
+#include <darma/serialization/allocator.h>
 
 namespace darma_runtime {
 

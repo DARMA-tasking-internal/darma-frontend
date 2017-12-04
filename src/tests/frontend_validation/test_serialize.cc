@@ -49,13 +49,13 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include <darma/impl/serialization/nonintrusive.h>
-#include <darma/impl/serialization/archive.h>
+#include <darma/serialization/nonintrusive.h>
+#include <darma/serialization/archive.h>
 #include <darma/impl/handle.h>
 
 #include "mock_backend.h"
 
-#include <darma/impl/serialization/allocator.impl.h>
+#include <darma/serialization/allocator.impl.h>
 
 #include <test_frontend.h>
 

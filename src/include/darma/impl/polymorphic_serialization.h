@@ -55,8 +55,8 @@
 #include <darma/interface/frontend/polymorphic_serializable_object.h>
 #include <cassert>
 #include <darma/impl/meta/detection.h>
-#include <darma/impl/serialization/archive.h>
-#include <darma/impl/serialization/manager.h>
+#include <darma/serialization/archive.h>
+#include <darma/serialization/manager.h>
 
 #include <darma/interface/backend/runtime.h>
 

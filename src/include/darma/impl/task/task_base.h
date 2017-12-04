@@ -85,7 +85,7 @@
 #include <darma/impl/capture/callable_traits.h>
 #include <darma/impl/handle.h>
 #include <darma/impl/capture/functor_traits.h>
-#include <darma/impl/serialization/nonintrusive.h>
+#include <darma/serialization/nonintrusive.h>
 #include <darma/impl/use.h>
 #include <darma/impl/util/smart_pointers.h>
 #include <darma/impl/capture.h>
