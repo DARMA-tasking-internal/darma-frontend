@@ -95,10 +95,15 @@ struct AccessHandleCollectionCaptureDescription
           );
         }
         // Now create a captured version of the collection use
+        // When a collection that has already been mapped is captured,
+        // the only thing you can do with it that's not expressed by the
+        // local use holders is invoke read_access() on other indices that it
+        // knows about.  Thus, for now, it is always requesting Read scheduling,
+        // None immediate permissions
         this->captured_->set_current_use(detail::make_captured_use_holder(
           this->captured_->var_handle_base_,
-          this->scheduling_permissions_,
-          this->immediate_permissions_,
+          frontend::Permissions::Read,
+          frontend::Permissions::None,
           this->source_->get_current_use()
         ));
         task->add_dependency(*this->captured_->current_use_base_->use_base);

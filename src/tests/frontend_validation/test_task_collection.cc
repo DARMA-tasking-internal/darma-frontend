@@ -2051,6 +2051,7 @@ TEST_F(TestCreateConcurrentWork, simple_commutative) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifdef DISABLED_UNTIL_ISSUE_68_IS_RESOLVED
 TEST_F(TestCreateConcurrentWork, nested_reverse) {
 
   using namespace ::testing;
@@ -2062,9 +2063,9 @@ TEST_F(TestCreateConcurrentWork, nested_reverse) {
 
   DECLARE_MOCK_FLOWS(finit, fouter_out, fnull);
 
-  MockFlow f_in_idx[4], f_out_idx[4], f_inner_out[4];
+  MockFlow f_in_idx[4], f_out_idx[4], f_inner_out[4], f_inner_coll[4], f_inner_coll_out[4];
   use_t* use_init, *use_coll, *use_coll_cont;
-  use_t* use_idx[4], *use_inner_cap[4], *use_inner_cont[4];
+  use_t* use_idx[4], *use_inner_cap[4], *use_inner_cont[4], *use_inner_coll[4], *use_inner_coll_cont[4];
   int values[4];
 
 
@@ -2150,6 +2151,14 @@ TEST_F(TestCreateConcurrentWork, nested_reverse) {
       Modify, None, false
     );
 
+    // Also expect the collection use to be registered, but only with permissions
+    // to fetch (since the other permissions are expressed by the local uses)
+    EXPECT_NEW_REGISTER_USE_COLLECTION(use_inner_coll[i],
+      finit, Same, &(finit),
+      nullptr, Insignificant, nullptr, false,
+      Read, None, false, 4
+    );
+
     EXPECT_NEW_RELEASE_USE(use_idx[i], false);
 
     EXPECT_REGISTER_TASK(use_inner_cap[i]);
@@ -2160,6 +2169,7 @@ TEST_F(TestCreateConcurrentWork, nested_reverse) {
     created_task = nullptr;
 
     EXPECT_NEW_RELEASE_USE(use_inner_cap[i], false);
+    EXPECT_NEW_RELEASE_USE(use_inner_coll[i], false);
 
     // Now run the task that got added to the queue
     run_one_task();
@@ -2173,9 +2183,11 @@ TEST_F(TestCreateConcurrentWork, nested_reverse) {
   mock_runtime->task_collections.front().reset(nullptr);
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if DISABLE_DEPRECATED_TEST // See issue #
 TEST_F(TestCreateConcurrentWork, mappings_same) {
 
   using namespace ::testing;
@@ -2283,3 +2295,4 @@ TEST_F(TestCreateConcurrentWork, mappings_same) {
   mock_runtime->task_collections.pop_front();
 
 }
+#endif
