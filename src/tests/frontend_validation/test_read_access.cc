@@ -43,6 +43,8 @@
 */
 
 
+#ifdef OLD_CODE
+
 #include <gtest/gtest.h>
 
 #include "mock_backend.h"
@@ -100,3 +102,4 @@ TEST_F(TestReadAccess, call_sequence) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#endif // OLD_CODE

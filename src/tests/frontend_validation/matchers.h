@@ -129,18 +129,20 @@ MATCHER_P4(IsUseWithFlows, f_in, f_out, scheduling_permissions, immediate_permis
     return false;
   }
 
+  auto* arg_cast = darma_runtime::abstract::frontend::use_cast<darma_runtime::abstract::frontend::RegisteredUse*>(arg);
+
 #if DARMA_SAFE_TEST_FRONTEND_PRINTERS
   *result_listener << "arg (unprinted for safety)";
 #else
-  *result_listener << "arg->get_in_flow(): " << PrintToString(arg->get_in_flow()) + ", arg->get_out_flow(): "
-    + PrintToString(arg->get_out_flow())
+  *result_listener << "arg->get_in_flow(): " << PrintToString(arg_cast->get_in_flow()) + ", arg->get_out_flow(): "
+    + PrintToString(arg_cast->get_out_flow())
     << ", arg->scheduling_permissions(): " << permissions_to_string(arg->scheduling_permissions())
       + ", arg->immediate_permissions(): " + permissions_to_string(arg->immediate_permissions());
 #endif
 
   using namespace mock_backend;
-  if(f_in != arg->get_in_flow()) return false;
-  if(f_out != arg->get_out_flow()) return false;
+  if(f_in != arg_cast->get_in_flow()) return false;
+  if(f_out != arg_cast->get_out_flow()) return false;
   if(immediate_permissions != ::darma_runtime::frontend::Permissions::_notGiven) {
     if(immediate_permissions != (arg->immediate_permissions())) return false;
   }

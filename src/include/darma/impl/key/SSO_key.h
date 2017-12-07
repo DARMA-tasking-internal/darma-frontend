@@ -53,9 +53,9 @@
 #include <darma/impl/key_concept.h>
 #include <darma/impl/key/bytes_convert.h>
 #include <darma/impl/meta/tuple_for_each.h>
-#include <darma/impl/serialization/range.h>
-#include <darma/impl/serialization/manager.h>
-#include <darma/impl/serialization/allocator.h>
+#include <darma/serialization/range.h>
+#include <darma/serialization/manager.h>
+#include <darma/serialization/allocator.h>
 #include "SSO_key_fwd.h"
 
 

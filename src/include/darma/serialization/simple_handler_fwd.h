@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          darma.h
-//                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      simple_handler_fwd.h
+//                         DARMA
+//              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,33 +42,18 @@
 //@HEADER
 */
 
-#ifndef SRC_DARMA_DARMA_H_
-#define SRC_DARMA_DARMA_H_
+#ifndef DARMAFRONTEND_SIMPLE_HANDLER_FWD_H
+#define DARMAFRONTEND_SIMPLE_HANDLER_FWD_H
 
-#include <darma_types.h>
-#include "handle.h"
-#include "darma/impl/task/task.h"
-#include "runtime.h"
-#include "spmd.h"
-#include "darma/impl/create_work/create_work.h"
-#include <darma/impl/collective/allreduce.h>
-#include <darma/impl/top_level.h>
-#include <darma/interface/defaults/darma_main.h>
-#include "parallel_for.h"
-#include "darma/impl/create_work/create_if_then.h"
-#include "darma/impl/create_work/create_work_while.h"
+#include <memory>
 
-#include <darma/serialization/policy_aware_archive.h>
+namespace darma_runtime {
+namespace serialization {
 
-#include "array/index_range.h"
-#include "index_range/mapping.h"
-#include "task_collection/task_collection.h"
-#include "task_collection/create_concurrent_work.h"
-#include "commutative_access.h"
+template <typename Allocator=std::allocator<char>>
+struct SimpleSerializationHandler;
 
-#include "darma.impl.h"
+} // end namespace serialization
+} // end namespace darma_runtime
 
-namespace darma = darma_runtime;
-
-#endif /* SRC_DARMA_DARMA_H_ */
-
+#endif //DARMAFRONTEND_SIMPLE_HANDLER_FWD_H

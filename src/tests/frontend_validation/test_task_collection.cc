@@ -241,6 +241,7 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
   using namespace darma_runtime::keyword_arguments_for_task_creation;
   using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
+  using darma_runtime::frontend::Permissions;
 
   mock_runtime->save_tasks = true;
 
@@ -333,7 +334,9 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
     EXPECT_RELEASE_USE(use_idx[i]);
 
     EXPECT_CALL(*mock_runtime, allreduce_use_gmock_proxy(
-      Eq(ByRef(use_allred[i])),
+      // Can't just use Eq(ByRef(use_allred[i])), since address is allowed to change
+      // upon transfer of ownership.
+      IsUseWithFlows(f_fwd_allred[i], f_allred_out[i], Permissions::None, Permissions::Modify),
 #if _darma_has_feature(task_collection_token)
       Truly([](auto const* details) {
         return details->get_task_collection_token().name == "my_token_2";
@@ -371,6 +374,7 @@ TEST_F(TestCreateConcurrentWork, fetch) {
   using namespace darma_runtime::keyword_arguments_for_task_creation;
   using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
+  using darma_runtime::frontend::Permissions;
 
   mock_runtime->save_tasks = true;
 
@@ -472,7 +476,9 @@ TEST_F(TestCreateConcurrentWork, fetch) {
 #endif // _darma_has_feature(anti_flows)
       EXPECT_RELEASE_USE(use_idx[i]);
       EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(
-        Eq(ByRef(use_pub[i])),
+        // Can't just use Eq(ByRef(use_pub[i])), since address is allowed to change
+        // upon transfer of ownership.
+        IsUseWithFlows(f_pub[i], nullptr, Permissions::None, Permissions::Read),
 #if _darma_has_feature(task_collection_token)
         HasTaskCollectionTokenNamed("my_token")
 #else
@@ -541,6 +547,7 @@ TEST_F(TestCreateConcurrentWork, fetch) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifdef NOT_YET_REIMPLEMENTED
 TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
   using namespace ::testing;
@@ -706,6 +713,7 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
   mock_runtime->task_collections.front().reset(nullptr);
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -937,17 +945,16 @@ TEST_F(TestCreateConcurrentWork, simple_sq_brkt_same) {
   EXPECT_CALL(*mock_runtime, make_forwarding_flow(f_in_idx))
     .WillOnce(Return(f_pub));
 
-#if _darma_has_feature(anti_flows)
   EXPECT_REGISTER_USE(use_pub, f_pub, nullptr, None, Read);
-#else
-  EXPECT_REGISTER_USE(use_pub, f_pub, f_pub, None, Read);
-#endif // _darma_has_feature(anti_flows)
 
   EXPECT_REGISTER_USE(use_pub_cont, f_pub, f_out_idx, Modify, Read);
 
   EXPECT_RELEASE_USE(use_idx);
 
-  EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(Eq(ByRef(use_pub)), _));
+  EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(
+    IsUseWithFlows(f_pub, nullptr, frontend::Permissions::None, frontend::Permissions::Read),
+    _)
+  );
 
   EXPECT_RELEASE_USE(use_pub_cont);
 
@@ -1558,6 +1565,7 @@ TEST_F(TestCreateConcurrentWork, handle_reduce)
 
   using namespace ::testing;
   using namespace darma_runtime;
+  using namespace darma_runtime::frontend;
   using namespace darma_runtime::keyword_arguments_for_publication;
   using namespace darma_runtime::keyword_arguments_for_task_creation;
   using namespace darma_runtime::keyword_arguments_for_collectives;
@@ -1630,19 +1638,15 @@ TEST_F(TestCreateConcurrentWork, handle_reduce)
 
   EXPECT_REGISTER_USE_COLLECTION(use_coll_collective,
     fout_coll,
-#if _darma_has_feature(anti_flows)
     nullptr,
-#else
-    fout_coll,
-#endif // _darma_has_feature(anti_flows)
     None,
     Read,
     4);
   EXPECT_REGISTER_USE(use_tmp_collective, finit_tmp, fout_tmp, None, Modify);
 
   EXPECT_CALL(*mock_runtime, reduce_collection_use_gmock_proxy(
-    Eq(ByRef(use_coll_collective)),
-    Eq(ByRef(use_tmp_collective)),
+    IsUseWithFlows(fout_coll, nullptr, Permissions::None, Permissions::Read),
+    IsUseWithFlows(finit_tmp, fout_tmp, Permissions::None, Permissions::Modify),
     _,
     make_key("myred")
   ));
@@ -1758,11 +1762,7 @@ TEST_F(TestCreateConcurrentWork, simple_read_only)
     make_key("hello"),
     4);
 
-#if _darma_has_feature(anti_flows)
   EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, nullptr, Read, Read, 4);
-#else
-  EXPECT_REGISTER_USE_COLLECTION(use_coll, finit, finit, Read, Read, 4);
-#endif // _darma_has_feature(anti_flows)
 
   EXPECT_FLOW_ALIAS(finit, fnull);
 
@@ -2051,6 +2051,7 @@ TEST_F(TestCreateConcurrentWork, simple_commutative) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifdef DISABLED_UNTIL_ISSUE_68_IS_RESOLVED
 TEST_F(TestCreateConcurrentWork, nested_reverse) {
 
   using namespace ::testing;
@@ -2062,9 +2063,9 @@ TEST_F(TestCreateConcurrentWork, nested_reverse) {
 
   DECLARE_MOCK_FLOWS(finit, fouter_out, fnull);
 
-  MockFlow f_in_idx[4], f_out_idx[4], f_inner_out[4];
+  MockFlow f_in_idx[4], f_out_idx[4], f_inner_out[4], f_inner_coll[4], f_inner_coll_out[4];
   use_t* use_init, *use_coll, *use_coll_cont;
-  use_t* use_idx[4], *use_inner_cap[4], *use_inner_cont[4];
+  use_t* use_idx[4], *use_inner_cap[4], *use_inner_cont[4], *use_inner_coll[4], *use_inner_coll_cont[4];
   int values[4];
 
 
@@ -2150,6 +2151,14 @@ TEST_F(TestCreateConcurrentWork, nested_reverse) {
       Modify, None, false
     );
 
+    // Also expect the collection use to be registered, but only with permissions
+    // to fetch (since the other permissions are expressed by the local uses)
+    EXPECT_NEW_REGISTER_USE_COLLECTION(use_inner_coll[i],
+      finit, Same, &(finit),
+      nullptr, Insignificant, nullptr, false,
+      Read, None, false, 4
+    );
+
     EXPECT_NEW_RELEASE_USE(use_idx[i], false);
 
     EXPECT_REGISTER_TASK(use_inner_cap[i]);
@@ -2160,6 +2169,7 @@ TEST_F(TestCreateConcurrentWork, nested_reverse) {
     created_task = nullptr;
 
     EXPECT_NEW_RELEASE_USE(use_inner_cap[i], false);
+    EXPECT_NEW_RELEASE_USE(use_inner_coll[i], false);
 
     // Now run the task that got added to the queue
     run_one_task();
@@ -2173,9 +2183,11 @@ TEST_F(TestCreateConcurrentWork, nested_reverse) {
   mock_runtime->task_collections.front().reset(nullptr);
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if DISABLE_DEPRECATED_TEST // See issue #
 TEST_F(TestCreateConcurrentWork, mappings_same) {
 
   using namespace ::testing;
@@ -2283,3 +2295,4 @@ TEST_F(TestCreateConcurrentWork, mappings_same) {
   mock_runtime->task_collections.pop_front();
 
 }
+#endif

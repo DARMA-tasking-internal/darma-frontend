@@ -51,7 +51,7 @@
 
 #include "archive.h"
 
-#include <darma/impl/serialization/allocator.h>
+#include <darma/serialization/allocator.h>
 #include <darma/impl/util/compressed_pair.h>
 
 

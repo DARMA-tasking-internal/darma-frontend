@@ -321,6 +321,7 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
           in_flow = make_next_flow(*in_rel.related_flow());
           break;
         }
+        case FlowRelationship::ForwardingCollection : // for now, just ignored the collection part
         case FlowRelationship::Forwarding : {
           in_flow = make_forwarding_flow(*in_rel.related_flow());
           break;

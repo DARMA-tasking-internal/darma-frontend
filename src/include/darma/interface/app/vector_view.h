@@ -50,7 +50,7 @@
 #include <type_traits>
 
 #include <darma/impl/darma_assert.h>
-#include <darma/impl/serialization/nonintrusive.h>
+#include <darma/serialization/nonintrusive.h>
 
 namespace darma_runtime {
 

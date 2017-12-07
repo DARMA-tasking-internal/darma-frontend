@@ -101,7 +101,9 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
     darma_runtime::types::anti_flow_t* captured_anti_in, \
     darma_runtime::types::anti_flow_t* captured_anti_out \
   ) { using namespace darma_runtime::detail::flow_relationships; return _cont_anti_out; } \
-  static const size_t _index; \
+  static size_t _make_index_to_force_registration() { \
+    return capture_semantics::register_capture_case<CaptureCase>(); \
+  } \
 };
 
 /*******************************************************************************
@@ -123,11 +125,14 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
   static constexpr auto needs_new_continuation_use() { return false; } \
   static constexpr auto is_valid_capture_case() { return true; } \
     static auto _case_not_implemented() { \
-      return capture_semantics::_capture_case_not_implemented( \
-        SourceSchedulingIn, SourceImmediateIn, \
-        CapturedSchedulingIn, CapturedImmediateIn, \
-        CoherenceModeIn \
+      capture_semantics::_capture_case_not_implemented( \
+        capture_semantics::CaptureCaseInput{ \
+          SourceSchedulingIn, SourceImmediateIn, \
+          CapturedSchedulingIn, CapturedImmediateIn, \
+          CoherenceModeIn \
+        } \
       ); \
+      return FlowRelationshipImpl(); /* unreachable, but needed for return type deduction*/ \
     } \
   static auto continuation_in_flow_relationship( \
     darma_runtime::types::flow_t* source_in, \
@@ -161,7 +166,9 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
     darma_runtime::types::anti_flow_t* captured_anti_in, \
     darma_runtime::types::anti_flow_t* captured_anti_out \
   ) { return _case_not_implemented(); } \
-  static const size_t _index; \
+  static size_t _make_index_to_force_registration() { \
+    return capture_semantics::register_capture_case<CaptureCase>(); \
+  } \
 };
 
 /*******************************************************************************

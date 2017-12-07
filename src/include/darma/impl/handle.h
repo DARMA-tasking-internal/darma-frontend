@@ -65,12 +65,12 @@
 #include <darma/impl/task/task_fwd.h>
 #include <darma/impl/util.h>
 #include <darma/impl/darma_assert.h>
-#include <darma/impl/serialization/archive.h>
-#include <darma/impl/serialization/policy_aware_archive.h>
-#include <darma/impl/serialization/nonintrusive.h>
-#include <darma/impl/serialization/traits.h>
-#include <darma/impl/serialization/allocation.h>
-#include <darma/impl/serialization/manager.h>
+#include <darma/serialization/archive.h>
+#include <darma/serialization/policy_aware_archive.h>
+#include <darma/serialization/nonintrusive.h>
+#include <darma/serialization/traits.h>
+#include <darma/serialization/allocation.h>
+#include <darma/serialization/manager.h>
 
 
 #include <darma/impl/keyword_arguments/keyword_arguments.h>

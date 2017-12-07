@@ -76,14 +76,6 @@ namespace detail {
 
 struct WhileDoCaptureManagerSetupHelper {
 
-  struct DeferredCapture {
-    AccessHandleBase const* source_and_continuing = nullptr;
-    AccessHandleBase* captured = nullptr;
-    bool needs_implicit_capture = false;
-    int req_sched_perms = (int)frontend::Permissions::None;
-    int req_immed_perms = (int)frontend::Permissions::None;
-  };
-
   /* TODO we might be able to stick some extra fields on AccessHandleBase rather
    * than using maps here
    */
@@ -458,24 +450,9 @@ struct WhileDoCaptureManager<
             AccessHandleBase::no_capture
           );
 
-          do_details = CapturedObjectAttorney::get_capture_description(
-            source_and_continuing,
-            captured,
-            // hard-coded for now; could eventually get them from the task, though
-            AccessHandleBase::modify_capture,
-            AccessHandleBase::modify_capture
-          );
-
           do_details->replace_source_pointer(while_implicit_capture.get());
         }
         else {
-          do_details = CapturedObjectAttorney::get_capture_description(
-            source_and_continuing,
-            captured,
-            // hard-coded for now; could eventually get them from the task, though
-            AccessHandleBase::modify_capture,
-            AccessHandleBase::modify_capture
-          );
 
           do_details->replace_source_pointer(
             while_details->get_captured_pointer()

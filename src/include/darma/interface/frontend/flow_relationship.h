@@ -95,6 +95,9 @@ class FlowRelationship {
     static constexpr auto SameCollection =
       flow_relationship_description_t(Same)
         | flow_relationship_description_t(Collection);
+    static constexpr auto ForwardingCollection =
+      flow_relationship_description_t(Forwarding)
+        | flow_relationship_description_t(Collection);
 #if _darma_has_feature(anti_flows)
     static constexpr auto InsignificantCollection =
       flow_relationship_description_t(Insignificant)

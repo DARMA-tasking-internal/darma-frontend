@@ -45,7 +45,7 @@
 #ifndef DARMAFRONTEND_DARMA_IMPL_H
 #define DARMAFRONTEND_DARMA_IMPL_H
 
-#include "serialization/serialization.impl.h"
+#include <darma/serialization/serialization.impl.h>
 #include "array/array.impl.h"
 #include "key/key.impl.h"
 #include "access_handle/access_handle.impl.h"

@@ -221,7 +221,7 @@ struct _get_storage_arg_helper<
 
   template <typename AHC>
   using _required_immediate_permissions_archetype = typename std::integral_constant<
-    access_handle_permissions_t, AHC::traits_t::permissions_traits::required_immediate_permissions
+    access_handle_permissions_t, AHC::traits::permissions_traits::required_immediate_permissions
   >;
 
   template <typename AHC>
@@ -232,7 +232,7 @@ struct _get_storage_arg_helper<
 
   template <typename AHC>
   using _required_scheduling_permissions_archetype = typename std::integral_constant<
-    access_handle_permissions_t, AHC::traits_t::permissions_traits::required_scheduling_permissions
+    access_handle_permissions_t, AHC::traits::permissions_traits::required_scheduling_permissions
   >;
 
   template <typename AHC>
@@ -439,7 +439,6 @@ struct _get_storage_arg_helper<
 
     // Finally, make the return type...
     auto rv = return_type(
-      // TODO !!! this is causing the compilation time to blow up.  Do this some other way!
       handle_collection_t(
         arg.collection.var_handle_base_,
         darma_runtime::detail::make_captured_use_holder(

@@ -60,7 +60,7 @@
 #include <darma/impl/task/task.h>
 #include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 #include <darma/impl/util.h>
-#include <darma/impl/serialization/traits.h>
+#include <darma/serialization/traits.h>
 #include <darma/impl/use.h>
 #include <darma/impl/publication_details.h>
 #include <darma/impl/flow_handling.h>
