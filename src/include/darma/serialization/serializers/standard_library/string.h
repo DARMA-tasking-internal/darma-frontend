@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      nonintrusive.h
+//                      string.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,24 +42,59 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_NONINTRUSIVE_H
-#define DARMAFRONTEND_NONINTRUSIVE_H
+#ifndef DARMAFRONTEND_SERIALIZATION_SERIALIZERS_STANDARD_LIBRARY_STRING_H
+#define DARMAFRONTEND_SERIALIZATION_SERIALIZERS_STANDARD_LIBRARY_STRING_H
+
+#include <darma/serialization/nonintrusive.h>
+#include <darma/serialization/serialization_traits.h>
+
+#include <darma/serialization/serializers/arithmetic_types.h>
+
+#include <string>
 
 namespace darma_runtime {
 namespace serialization {
 
-template <typename T, typename Enable=void>
-struct Serializer_enabled_if {
-  /* default case has nothing implemented */
+// TODO strings with non-standard/non-empty allocators ?
+
+//==============================================================================
+
+template <typename CharT, typename Traits>
+struct Serializer<std::basic_string<CharT, Traits>> {
+
+  static_assert(is_directly_serializable<CharT>::value,
+    "CharT of std::basic_string must be directly serializable"
+  );
+
+  using string_t = std::basic_string<CharT, Traits>;
+
+  template <typename Archive>
+  static void get_packed_size(string_t const& obj, Archive& ar) {
+    ar | obj.size();
+    ar.add_to_size_raw(sizeof(CharT) * obj.size());
+  }
+
+  template <typename Archive>
+  static void pack(string_t const& obj, Archive& ar) {
+    ar | obj.size();
+    ar.pack_data_raw(obj.data(), obj.data() + obj.size());
+  }
+
+  template <typename Archive>
+  static void unpack(void* allocated, Archive& ar) {
+    auto size = ar.template unpack_next_item_as<typename string_t::size_type>();
+    auto& obj = *(new (allocated) string_t(size, static_cast<CharT>(0)));
+    ar.template unpack_data_raw<CharT const>(
+      // Const cast probably always allowed given the nonconst overload was added
+      // to C++17
+      const_cast<CharT*>(obj.data()), size
+    );
+  }
 };
 
-template <typename T>
-struct Serializer : Serializer_enabled_if<T, void> {
-  /* default case has nothing implemented */
-};
-
+//==============================================================================
 
 } // end namespace serialization
 } // end namespace darma_runtime
 
-#endif //DARMAFRONTEND_NONINTRUSIVE_H
+#endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_STANDARD_LIBRARY_STRING_H

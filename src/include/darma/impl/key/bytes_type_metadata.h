@@ -51,7 +51,7 @@
 #include <unordered_map>
 #include <typeindex>
 
-#include <darma/serialization/as_pod.h>
+#include <darma/serialization/direct_serialization.h>
 
 
 namespace darma_runtime {
@@ -271,7 +271,7 @@ category_extension_bytes_value(const void* md) {
 namespace serialization {
 
 template <>
-struct serialize_as_pod<darma_runtime::detail::bytes_type_metadata> : std::true_type { };
+struct is_directly_serializable<darma_runtime::detail::bytes_type_metadata> : std::true_type { };
 
 } // end namespace serialization
 

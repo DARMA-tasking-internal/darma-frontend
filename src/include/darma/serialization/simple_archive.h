@@ -45,9 +45,9 @@
 #ifndef DARMAFRONTEND_SIZING_ARCHIVE_H
 #define DARMAFRONTEND_SIZING_ARCHIVE_H
 
-#include "traits.h"
-#include "serialization_buffer.h"
-#include "simple_handler_fwd.h"
+#include <darma/serialization/serialization_traits.h>
+#include <darma/serialization/serialization_buffer.h>
+#include <darma/serialization/simple_handler_fwd.h>
 
 #include <cstddef>
 
@@ -59,7 +59,7 @@ class SimpleSizingArchive {
 
     std::size_t size_ = 0;
 
-    size_t get_current_size() const { return size_; }
+    SimpleSizingArchive() = default;
 
     template <typename>
     friend struct SimpleSerializationHandler;
@@ -68,8 +68,7 @@ class SimpleSizingArchive {
 
     template <typename T>
     inline auto& _ask_serializer_for_size(T const& obj) & {
-      using traits = detail::serializability_traits<T>;
-      traits::compute_size(obj, *this);
+      darma_compute_size(obj, *this);
       return *this;
     }
 
@@ -95,14 +94,16 @@ class SimpleSizingArchive {
 
 };
 
+template <typename SerializationBuffer=DynamicSerializationBuffer<std::allocator<char>>>
 class SimplePackingArchive {
   protected:
 
     char* data_spot_ = nullptr;
+    SerializationBuffer buffer_;
 
     template <typename BufferT>
-    explicit SimplePackingArchive(BufferT& buffer)
-      : data_spot_(buffer.data())
+    explicit SimplePackingArchive(BufferT&& buffer)
+      : data_spot_(buffer.data()), buffer_(std::forward<BufferT>(buffer))
     { }
 
     template <typename>
@@ -112,8 +113,7 @@ class SimplePackingArchive {
 
     template <typename T>
     inline auto& _ask_serializer_to_pack(T const& obj) & {
-      using traits = detail::serializability_traits<T>;
-      traits::pack(obj, *this);
+      darma_pack(obj, *this);
       return *this;
     }
 
@@ -144,7 +144,7 @@ class SimplePackingArchive {
 
 };
 
-template <typename Allocator>
+template <typename Allocator=std::allocator<char>>
 class SimpleUnpackingArchive {
   protected:
 
@@ -167,8 +167,7 @@ class SimpleUnpackingArchive {
 
     template <typename T>
     inline auto& _ask_serializer_to_unpack(T const& obj) & {
-      using traits = detail::serializability_traits<T>;
-      traits::unpack(obj, *this);
+      darma_unpack<T>(obj, *this);
       return *this;
     }
 
@@ -181,11 +180,11 @@ class SimpleUnpackingArchive {
     template <typename RawDataType, typename OutputIterator>
     void unpack_data_raw(OutputIterator dest, size_t n_items) {
       // Check that OutputIterator is an output iterator
-      static_assert(meta::is_output_iterator<OutputIterator>::value,
-        "OutputIterator must be an output iterator."
-      );
+      //static_assert(meta::is_output_iterator<OutputIterator>::value,
+      //  "OutputIterator must be an output iterator."
+      //);
 
-      std::move(
+      std::copy(
         reinterpret_cast<RawDataType*>(data_spot_.first()),
         reinterpret_cast<RawDataType*>(data_spot_.first()) + n_items,
         dest
@@ -199,11 +198,30 @@ class SimpleUnpackingArchive {
     }
 
     template <typename T>
-    inline auto& operator%(T const& obj) & {
+    inline auto& operator<<(T const& obj) & {
       return _ask_serializer_to_unpack(obj);
     }
 
-    auto const& allocator() const {
+    template <typename T>
+    inline T unpack_next_item_as() & {
+      using allocator_t = typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
+      auto alloc = allocator_t(get_allocator());
+      auto* storage = std::allocator_traits<allocator_t>::allocate(
+        alloc, 1
+      );
+      darma_unpack<T>(storage, *this);
+      return *reinterpret_cast<T*>(storage);
+    }
+
+    template <typename T>
+    inline void unpack_next_item_at(void* allocated) & {
+      darma_unpack<T>(allocated, *this);
+    }
+
+    auto const& get_allocator() const {
+      return data_spot_.second();
+    }
+    auto& get_allocator() {
       return data_spot_.second();
     }
 

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      nonintrusive.h
+//                      array.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,24 +42,73 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_NONINTRUSIVE_H
-#define DARMAFRONTEND_NONINTRUSIVE_H
+#ifndef DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ARRAY_H
+#define DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ARRAY_H
+
+#include <darma/serialization/nonintrusive.h>
+#include <darma/serialization/serialization_traits.h>
+#include <cstdint>
 
 namespace darma_runtime {
 namespace serialization {
 
-template <typename T, typename Enable=void>
-struct Serializer_enabled_if {
-  /* default case has nothing implemented */
+template <typename T, size_t N>
+struct is_directly_serializable<T[N]> : is_directly_serializable<T> { };
+
+// Directly serializable T specialization of T[N]  (This is an
+// optimization for performance purposes only)
+template <typename T, size_t N>
+struct Serializer_enabled_if<
+  T[N], std::enable_if_t<is_directly_serializable<T>::value>
+>
+{
+  template <typename SizingArchive>
+  static void get_packed_size(T const& obj, SizingArchive& ar) {
+    ar.add_to_size_raw(sizeof(T) * N);
+  }
+
+  template <typename PackingArchive>
+  static void pack(T const& obj, PackingArchive& ar) {
+    ar.pack_data_raw(&obj, &obj + N);
+  }
+
+  template <typename UnpackingArchive>
+  static void unpack(void* allocated, UnpackingArchive& ar) {
+    ar.unpack_data_raw<T>(static_cast<T*>(allocated), N);
+  }
 };
 
-template <typename T>
-struct Serializer : Serializer_enabled_if<T, void> {
-  /* default case has nothing implemented */
-};
+// Basic case: T not directly serializable. Can't really optimize further
+// than just unpacking each item one at a time
+template <typename T, size_t N>
+struct Serializer_enabled_if<
+  T[N], std::enable_if_t<is_directly_serializable<T>::value>
+>
+{
+  template <typename SizingArchive>
+  static void get_packed_size(T obj[N], SizingArchive& ar) {
+    for(int64_t i = 0; i < N; ++i) {
+      ar % obj[i];
+    }
+  }
 
+  template <typename PackingArchive>
+  static void pack(T const& obj, PackingArchive& ar) {
+    for(int64_t i = 0; i < N; ++i) {
+      ar << obj[i];
+    }
+  }
+
+  template <typename UnpackingArchive>
+  static void unpack(void* allocated, UnpackingArchive& ar) {
+    char* allocated_ptr = static_cast<char*>(allocated);
+    for(int64_t i = 0; i < N; ++i, allocated_ptr += sizeof(T)) {
+      ar.unpack_next_item_at<T>(allocated_ptr);
+    }
+  }
+};
 
 } // end namespace serialization
 } // end namespace darma_runtime
 
-#endif //DARMAFRONTEND_NONINTRUSIVE_H
+#endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ARRAY_H

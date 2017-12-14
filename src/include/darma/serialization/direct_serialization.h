@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      nonintrusive.h
+//                      direct_serialization.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,24 +42,39 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_NONINTRUSIVE_H
-#define DARMAFRONTEND_NONINTRUSIVE_H
+#ifndef DARMAFRONTEND_DIRECT_SERIALIZATION_H
+#define DARMAFRONTEND_DIRECT_SERIALIZATION_H
+
+#include <darma/serialization/serialization_traits.h>
+#include <darma/serialization/nonintrusive.h>
+
+#include <type_traits>
 
 namespace darma_runtime {
 namespace serialization {
 
-template <typename T, typename Enable=void>
-struct Serializer_enabled_if {
-  /* default case has nothing implemented */
-};
-
 template <typename T>
-struct Serializer : Serializer_enabled_if<T, void> {
-  /* default case has nothing implemented */
-};
+struct Serializer_enabled_if<
+  T, std::enable_if_t<is_directly_serializable<T>::value>
+>
+{
+  template <typename SizingArchive>
+  static void get_packed_size(T const& obj, SizingArchive& ar) {
+    ar.add_to_size_raw(sizeof(T));
+  }
 
+  template <typename PackingArchive>
+  static void pack(T const& obj, PackingArchive& ar) {
+    ar.pack_data_raw(&obj, &obj + 1);
+  }
+
+  template <typename UnpackingArchive>
+  static void unpack(void* allocated, UnpackingArchive& ar) {
+    ar.template unpack_data_raw<const T>(static_cast<T*>(allocated), 1);
+  }
+};
 
 } // end namespace serialization
 } // end namespace darma_runtime
 
-#endif //DARMAFRONTEND_NONINTRUSIVE_H
+#endif //DARMAFRONTEND_DIRECT_SERIALIZATION_H

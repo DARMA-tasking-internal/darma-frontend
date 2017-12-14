@@ -14,7 +14,7 @@ endif()
 find_package ( Threads REQUIRED )
 
 include_directories( ${DARMA_FE_REPO_ROOT}/src/tests/meta )
-set(metatestfiles gtest_main.cc )
+set(metatestfiles gtest_main.cc ../serialization/test_simple_std_map.cc ../serialization/test_serialization_common.h ../serialization/test_simple_common.h)
 function(add_unit_test test_name)
     set(metatestfiles "${metatestfiles};${test_name}.cc" PARENT_SCOPE)
     add_executable(${test_name} ${test_name}.cc gtest_main.cc)

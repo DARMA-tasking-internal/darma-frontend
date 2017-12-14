@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      nonintrusive.h
+//                      all.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,24 +42,18 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_NONINTRUSIVE_H
-#define DARMAFRONTEND_NONINTRUSIVE_H
+#ifndef DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ALL_H
+#define DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ALL_H
 
-namespace darma_runtime {
-namespace serialization {
+#include <darma/serialization/serializers/arithmetic_types.h>
+#include <darma/serialization/serializers/array.h>
+#include <darma/serialization/serializers/const.h>
 
-template <typename T, typename Enable=void>
-struct Serializer_enabled_if {
-  /* default case has nothing implemented */
-};
+#include <darma/serialization/serializers/standard_library/map.h>
+#include <darma/serialization/serializers/standard_library/set.h>
+#include <darma/serialization/serializers/standard_library/string.h>
+#include <darma/serialization/serializers/standard_library/vector.h>
+#include <darma/serialization/serializers/standard_library/pair.h>
+#include <darma/serialization/serializers/standard_library/tuple.h>
 
-template <typename T>
-struct Serializer : Serializer_enabled_if<T, void> {
-  /* default case has nothing implemented */
-};
-
-
-} // end namespace serialization
-} // end namespace darma_runtime
-
-#endif //DARMAFRONTEND_NONINTRUSIVE_H
+#endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ALL_H

@@ -70,7 +70,7 @@
 #include <darma/serialization/nonintrusive.h>
 #include <darma/serialization/traits.h>
 #include <darma/serialization/allocation.h>
-#include <darma/serialization/manager.h>
+#include <darma/impl/serialization/manager.h>
 
 
 #include <darma/impl/keyword_arguments/keyword_arguments.h>

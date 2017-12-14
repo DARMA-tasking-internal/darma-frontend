@@ -50,7 +50,7 @@
 #include <darma/impl/key_concept.h>
 #include <darma/impl/util/static_assertions.h>
 #include <darma/serialization/policy_aware_archive.h>
-#include <darma/serialization/manager.h>
+#include <darma/impl/serialization/manager.h>
 
 
 #include <darma/impl/darma.h>

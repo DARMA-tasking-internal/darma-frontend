@@ -45,82 +45,142 @@
 #ifndef DARMAFRONTEND_SIMPLE_HANDLER_H
 #define DARMAFRONTEND_SIMPLE_HANDLER_H
 
+#include <darma/impl/util/not_a_type.h>
+
 #include "simple_archive.h"
 
 namespace darma_runtime {
 namespace serialization {
 
-/// A simple, allocator-aware serialization handler
+/// A simple, allocator-aware serialization handler that only works with stateless allocators
 template <typename Allocator>
 struct SimpleSerializationHandler {
 
   private:
 
+    using this_t = SimpleSerializationHandler<Allocator>;
+
     using char_allocator_t =
-    typename std::allocator_traits<Allocator>::template rebind_alloc<char>::type;
+      typename std::allocator_traits<Allocator>::template rebind_alloc<char>;
+
+    template <typename Archive>
+    static inline void _apply_compute_size_recursively(Archive& ar) { }
+
+    template <typename Archive, typename T, typename... Ts>
+    static inline void
+    _apply_compute_size_recursively(Archive& ar, T const& obj, Ts const&... rest) {
+      // invoke the customization point as an unqualified name, allowing ADL
+      darma_compute_size(obj, ar);
+      this_t::_apply_compute_size_recursively(ar, rest...);
+    };
+
+    template <typename Archive>
+    static inline void _apply_pack_recursively(Archive& ar) { }
+
+    template <typename Archive, typename T, typename... Ts>
+    static inline void
+    _apply_pack_recursively(Archive& ar, T const& obj, Ts const&... rest) {
+      // invoke the customization point as an unqualified name, allowing ADL
+      darma_pack(obj, ar);
+      this_t::_apply_pack_recursively(ar, rest...);
+    };
+
+    static_assert(std::is_empty<Allocator>::value,
+      "SimpleSerializationHandler only works with stateless Allocators"
+    );
+
+    using sizing_archive_t = SimpleSizingArchive;
+    using unpacking_archive_t = SimpleUnpackingArchive<Allocator>;
+    using serialization_buffer_t = DynamicSerializationBuffer<char_allocator_t>;
 
   public:
+
+
+    //==========================================================================
+    // <editor-fold desc="archive creation"> {{{1
+
+    static auto
+    make_sizing_archive() {
+      return SimpleSizingArchive{};
+    }
+
+    // Disabled for now, until I get the time to implement the concepts for
+    // SizingArchive and SerializationBuffer so that I can distinguish between
+    // this one and the SerializationBuffer overload
+    //template <typename CompatibleSizingArchive>
+    //static auto
+    //make_packing_archive(
+    //  CompatibleSizingArchive&& ar,
+    //  std::enable_if_t<
+    //    std::is_rvalue_reference<CompatibleSizingArchive&&>::value,
+    //    darma_runtime::detail::_not_a_type
+    //  > = { }
+    //) {
+    //  auto size = SimpleSerializationHandler::get_size(ar);
+    //  ar.size_ = 0; // set size to zero as part of expiring the archive
+    //  return make_packing_archive(size);
+    //}
+
+    static auto
+    make_packing_archive(size_t size) {
+      serialization_buffer_t buffer(size);
+      return SimplePackingArchive<serialization_buffer_t>(std::move(buffer));
+    }
+
+    template <typename SerializationBuffer>
+    static auto
+    make_packing_archive(
+      SerializationBuffer&& buffer,
+      // Enforce move semantics on a forwarding reference template
+      std::enable_if_t<
+        std::is_rvalue_reference<SerializationBuffer&&>::value,
+        darma_runtime::detail::_not_a_type
+      > = { }
+    ) {
+      return SimplePackingArchive<std::decay_t<SerializationBuffer>>(std::move(buffer));
+    }
+
+    template <typename SerializationBuffer>
+    static auto
+    make_unpacking_archive(SerializationBuffer const& buffer) {
+      return SimpleUnpackingArchive<char_allocator_t>(buffer, char_allocator_t{});
+    }
+
+    // </editor-fold> end archive creation }}}1
+    //==========================================================================
+
+    static std::size_t get_size(sizing_archive_t& ar) { return ar.size_; }
+
+    template <typename CompatiblePackingArchive>
+    static auto
+    extract_buffer(
+      CompatiblePackingArchive&& ar,
+      // Enforce move semantics on a forwarding reference template
+      std::enable_if_t<
+        std::is_rvalue_reference<CompatiblePackingArchive&&>::value,
+        darma_runtime::detail::_not_a_type
+      > = { }
+    ) {
+      ar.data_spot_ = nullptr;  // As part of expiring the Archive
+      return std::move(ar.buffer_);
+    }
 
     //==========================================================================
     // <editor-fold desc="serialize() overloads"> {{{1
 
-    template <typename T>
+    template <typename... Ts>
     static
-    DynamicSerializationBuffer<char_allocator_t>
-    serialize(
-      T const& object
-    ) {
-      return SimpleSerializationHandler::serialize(object, Allocator());
-
-    }
-
-    template <typename T>
-    static
-    DynamicSerializationBuffer<char_allocator_t>
-    serialize(T const& object, Allocator const& alloc) {
-      size_t packed_size = 0;
+    serialization_buffer_t
+    serialize(Ts const&... objects) {
+      size_t size;
       {
-        SimpleSizingArchive ar;
-        ar | object;
-        packed_size = ar.get_current_size();
+        auto s_ar = this_t::make_sizing_archive();
+        this_t::_apply_compute_size_recursively(s_ar, objects...);
+        size = this_t::get_size(s_ar);
       }
-
-      DynamicSerializationBuffer<char_allocator_t> packed_buffer(packed_size, alloc);
-
-      {
-        SimplePackingArchive ar(packed_buffer);
-        ar | object;
-      }
-
-      return packed_buffer;
-    }
-
-    template <typename BufferT, typename T>
-    static
-    BufferT
-    serialize(T const& object) {
-      return SimpleSerializationHandler::serialize<BufferT, T>(object, Allocator());
-    }
-
-    template <typename BufferT, typename T, typename... BufferCtorArgs>
-    static
-    BufferT
-    serialize(T const& object, Allocator const& alloc, BufferCtorArgs&&... args) {
-      size_t packed_size = 0;
-      {
-        SimpleSizingArchive ar;
-        ar | object;
-        packed_size = ar.get_current_size();
-      }
-
-      BufferT packed_buffer(packed_size, alloc, std::forward<BufferCtorArgs>(args)...);
-
-      {
-        SimplePackingArchive ar(packed_buffer);
-        ar | object;
-      }
-
-      return packed_buffer;
+      auto p_ar = this_t::make_packing_archive(size);
+      this_t::_apply_pack_recursively(p_ar, objects...);
+      return this_t::extract_buffer(std::move(p_ar));
     }
 
     // </editor-fold> end serialize() overloads }}}1
@@ -130,44 +190,24 @@ struct SimpleSerializationHandler {
     //==========================================================================
     // <editor-fold desc="deserialize() overloads"> {{{1
 
-    template <typename T, typename Buffer>
-    static
-    std::enable_if<
-      std::is_copy_constructible<T>::value or std::is_move_constructible<T>::value,
-      T
-    >
-    deserialize(Buffer const& buffer) {
-      return deserialize(buffer, Allocator());
+    template <typename T, typename SerializationBuffer>
+    static T deserialize(SerializationBuffer const& buffer) {
+      using allocator_t = typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
+      allocator_t alloc{};
+      auto* dest = std::allocator_traits<allocator_t>::allocate(alloc, 1);
+      this_t::template deserialize<T>(buffer, dest);
+      auto rv = std::move(*dest);
+      std::allocator_traits<allocator_t>::destroy(alloc, dest);
+      std::allocator_traits<allocator_t>::deallocate(alloc, dest, 1);
+      return rv;
     }
 
-    template <typename T, typename Buffer>
-    static
-    std::enable_if<
-      std::is_copy_constructible<T>::value or std::is_move_constructible<T>::value,
-      T
-    >
-    deserialize(Buffer const& buffer, Allocator const& alloc) {
-      char* rv_as_bytes = std::allocator_traits<char_allocator_t>::allocate(
-        alloc, sizeof(T)
-      );
-      deserialize(buffer, rv_as_bytes, alloc);
-      return *reinterpret_cast<T*>(rv_as_bytes);
-    }
-
-    template <typename T, typename Buffer>
+    template <typename T, typename SerializationBuffer>
     static void
-    deserialize(Buffer const& buffer, char* destination) {
-      deserialize(buffer, destination, Allocator());
-    }
-
-    template <typename T, typename Buffer>
-    static void
-    deserialize(Buffer const& buffer, char* destination, Allocator const& alloc) {
-      SimpleUnpackingArchive<Allocator> ar(buffer, alloc);
-
-      using traits = detail::serializability_traits<T>;
-      // TODO clean this sequence up w.r.t. reconstruction
-      traits::unpack(destination, ar);
+    deserialize(SerializationBuffer const& buffer, void* destination) {
+      auto ar = this_t::make_unpacking_archive(buffer);
+      // invoke the customization point as an unqualified name, allowing ADL
+      darma_unpack<T>(destination, ar);
     }
 
     // </editor-fold> end deserialize() overloads }}}1

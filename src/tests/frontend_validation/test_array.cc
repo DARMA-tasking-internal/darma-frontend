@@ -48,7 +48,7 @@
 
 #include <darma/impl/array/index_decomposition.h>
 #include <darma/impl/array/indexable.h>
-#include <darma/serialization/manager.h>
+#include <darma/impl/serialization/manager.h>
 
 using namespace darma_runtime;
 using namespace darma_runtime::detail;

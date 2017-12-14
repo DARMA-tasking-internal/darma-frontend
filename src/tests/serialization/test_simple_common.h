@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      nonintrusive.h
+//                      test_simple_common.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,24 +42,13 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_NONINTRUSIVE_H
-#define DARMAFRONTEND_NONINTRUSIVE_H
+#ifndef DARMAFRONTEND_TEST_SIMPLE_COMMON_H
+#define DARMAFRONTEND_TEST_SIMPLE_COMMON_H
 
-namespace darma_runtime {
-namespace serialization {
+#include "test_serialization_common.h"
 
-template <typename T, typename Enable=void>
-struct Serializer_enabled_if {
-  /* default case has nothing implemented */
-};
+class TestSimpleSerializationHandler
+  : public TestSerialize
+{ };
 
-template <typename T>
-struct Serializer : Serializer_enabled_if<T, void> {
-  /* default case has nothing implemented */
-};
-
-
-} // end namespace serialization
-} // end namespace darma_runtime
-
-#endif //DARMAFRONTEND_NONINTRUSIVE_H
+#endif //DARMAFRONTEND_TEST_SIMPLE_COMMON_H

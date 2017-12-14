@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      nonintrusive.h
+//                      test_simple_archive.cc
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,24 +42,25 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_NONINTRUSIVE_H
-#define DARMAFRONTEND_NONINTRUSIVE_H
 
-namespace darma_runtime {
-namespace serialization {
+#include <darma/serialization/serializers/standard_library/map.h>
+#include <darma/serialization/serializers/arithmetic_types.h>
 
-template <typename T, typename Enable=void>
-struct Serializer_enabled_if {
-  /* default case has nothing implemented */
-};
+#include <darma/serialization/simple_handler.h>
 
-template <typename T>
-struct Serializer : Serializer_enabled_if<T, void> {
-  /* default case has nothing implemented */
-};
+#include "test_simple_common.h"
 
+using namespace darma_runtime::serialization;
+using namespace ::testing;
 
-} // end namespace serialization
-} // end namespace darma_runtime
+STATIC_ASSERT_SIZABLE(SimpleSizingArchive, std::map<int, int>);
+STATIC_ASSERT_PACKABLE(SimplePackingArchive<>, std::map<int, int>);
+STATIC_ASSERT_UNPACKABLE(SimpleUnpackingArchive<>, std::map<int, int>);
 
-#endif //DARMAFRONTEND_NONINTRUSIVE_H
+TEST_F(TestSimpleSerializationHandler, map_int_int) {
+  using T = std::map<int, int>;
+  T input{{1, 2}, {3, 4}, {5, 6}};
+  auto buffer = SimpleSerializationHandler<>::serialize(input);
+  auto output = SimpleSerializationHandler<>::deserialize<T>(buffer);
+  EXPECT_THAT(input, ContainerEq(output));
+}

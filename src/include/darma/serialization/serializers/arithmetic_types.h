@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      nonintrusive.h
+//                      arithmetic_types.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,24 +42,25 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_NONINTRUSIVE_H
-#define DARMAFRONTEND_NONINTRUSIVE_H
+#ifndef DARMAFRONTEND_ARITHMETIC_TYPES_H
+#define DARMAFRONTEND_ARITHMETIC_TYPES_H
+
+#include <darma/serialization/nonintrusive.h>
+#include <darma/serialization/serialization_traits.h>
+#include <darma/serialization/direct_serialization.h>
+
+#include <type_traits>
 
 namespace darma_runtime {
 namespace serialization {
 
-template <typename T, typename Enable=void>
-struct Serializer_enabled_if {
-  /* default case has nothing implemented */
-};
-
 template <typename T>
-struct Serializer : Serializer_enabled_if<T, void> {
-  /* default case has nothing implemented */
-};
-
+struct is_directly_serializable_enabled_if<
+  T, std::enable_if_t<std::is_arithmetic<T>::value>
+> : std::true_type
+{ };
 
 } // end namespace serialization
 } // end namespace darma_runtime
 
-#endif //DARMAFRONTEND_NONINTRUSIVE_H
+#endif //DARMAFRONTEND_ARITHMETIC_TYPES_H

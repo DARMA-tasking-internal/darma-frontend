@@ -57,25 +57,46 @@ namespace serialization {
 
 template <typename Allocator=std::allocator<char>>
 struct DynamicSerializationBuffer {
+
+    static_assert(
+      sizeof(typename std::allocator_traits<Allocator>::value_type) == sizeof(char),
+      "Allocator given to DynamicSerialziationBuffer must allocate objects of size 1 byte"
+    );
+
   public:
+
+    explicit
+    DynamicSerializationBuffer(
+      size_t size
+    ) : end_(
+          std::piecewise_construct,
+          std::forward_as_tuple(nullptr),
+          std::forward_as_tuple(Allocator{})
+        ),
+        begin_(std::allocator_traits<Allocator>::allocate(allocator(), size))
+    {
+      end_.first() = begin_ + size;
+    }
 
     DynamicSerializationBuffer(
       size_t size,
-      Allocator const& alloc
-    ) : begin_(std::allocator_traits<Allocator>::allocate(alloc, size)),
-        end_(
+      Allocator& alloc
+    ) : end_(
           std::piecewise_construct,
-          std::forward_as_tuple(begin_ + size),
+          std::forward_as_tuple(nullptr),
           std::forward_as_tuple(alloc)
-        )
-    { }
+        ),
+        begin_(std::allocator_traits<Allocator>::allocate(alloc, size))
+    {
+      end_.first() = begin_ + size;
+    }
 
     DynamicSerializationBuffer(
       DynamicSerializationBuffer&& other
     ) : begin_(other.begin_),
         end_(std::move(other.end_))
     {
-      other.begin_ = nullptr;
+      other.begin_ = other.end_.first() = nullptr;
     }
 
     char* data() { return begin_; }
@@ -83,6 +104,7 @@ struct DynamicSerializationBuffer {
 
     size_t capacity() const { return end_.first() - begin_; }
 
+    Allocator& allocator() { return end_.second(); }
     Allocator const& allocator() const { return end_.second(); }
 
     ~DynamicSerializationBuffer() {
@@ -94,8 +116,9 @@ struct DynamicSerializationBuffer {
     }
 
   private:
-    char* begin_ = nullptr;
+    // end_ must be first so that the allocator can be used to initialize begin_;
     darma_runtime::detail::compressed_pair<char*, Allocator> end_ = nullptr;
+    char* begin_ = nullptr;
 };
 
 struct NonOwningSerializationBuffer {

@@ -49,7 +49,7 @@
 #include <darma/interface/frontend/serialization_manager.h>
 #include <darma/interface/frontend/array_concept_manager.h>
 #include <darma/interface/frontend/array_movement_manager.h>
-#include <darma/serialization/manager.h>
+#include <darma/impl/serialization/manager.h>
 
 #include "index_decomposition.h"
 #include "indexable.h"

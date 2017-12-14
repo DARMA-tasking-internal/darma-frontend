@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      nonintrusive.h
+//                      const.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,24 +42,40 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_NONINTRUSIVE_H
-#define DARMAFRONTEND_NONINTRUSIVE_H
+#ifndef DARMAFRONTEND_CONST_H
+#define DARMAFRONTEND_CONST_H
+
+#include <darma/serialization/nonintrusive.h>
+#include <darma/serialization/serialization_traits.h>
 
 namespace darma_runtime {
 namespace serialization {
 
-template <typename T, typename Enable=void>
-struct Serializer_enabled_if {
-  /* default case has nothing implemented */
-};
+template <typename T, typename Archive>
+struct is_sizable_with_archive<T const, Archive>
+  : is_sizable_with_archive<T, Archive>
+{ };
+
+template <typename T, typename Archive>
+struct is_packable_with_archive<T const, Archive>
+  : is_packable_with_archive<T, Archive>
+{ };
+
+template <typename T, typename Archive>
+struct is_unpackable_with_archive<T const, Archive>
+  : is_unpackable_with_archive<T, Archive>
+{ };
 
 template <typename T>
-struct Serializer : Serializer_enabled_if<T, void> {
-  /* default case has nothing implemented */
+struct Serializer<T const>
+  : Serializer<T>
+{
+  using Serializer<T>::get_packed_size;
+  using Serializer<T>::pack;
+  using Serializer<T>::unpack;
 };
-
 
 } // end namespace serialization
 } // end namespace darma_runtime
 
-#endif //DARMAFRONTEND_NONINTRUSIVE_H
+#endif //DARMAFRONTEND_CONST_H

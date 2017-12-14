@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      nonintrusive.h
-//                         DARMA
-//              Copyright (C) 2017 Sandia Corporation
+//                       run_all_tests.cc
+//                         dharma_new
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,24 +42,18 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_NONINTRUSIVE_H
-#define DARMAFRONTEND_NONINTRUSIVE_H
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
-namespace darma_runtime {
-namespace serialization {
+static int main_return_value = 0;
 
-template <typename T, typename Enable=void>
-struct Serializer_enabled_if {
-  /* default case has nothing implemented */
-};
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  ::testing::InitGoogleMock(&argc, argv);
+  main_return_value = RUN_ALL_TESTS();
+  return main_return_value;
+}
 
-template <typename T>
-struct Serializer : Serializer_enabled_if<T, void> {
-  /* default case has nothing implemented */
-};
-
-
-} // end namespace serialization
-} // end namespace darma_runtime
-
-#endif //DARMAFRONTEND_NONINTRUSIVE_H
+void darma_top_level(std::vector<std::string>) {
+  // do nothing in here for now
+}
