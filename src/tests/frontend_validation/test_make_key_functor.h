@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                      make_key_functor.h
-//                         DARMA
+//                          test_make_key_functor.h
+//                         darma_new
 //              Copyright (C) 2017 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
@@ -42,86 +42,36 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_MAKE_KEY_FUNCTOR_H_
-#define DARMA_IMPL_MAKE_KEY_FUNCTOR_H_
+#ifndef SRC_TESTS_FRONTEND_VALIDATION_TEST_MAKE_KEY_FUNCTOR_H_
+#define SRC_TESTS_FRONTEND_VALIDATION_TEST_MAKE_KEY_FUNCTOR_H_
 
-#include <cstdlib>     // size_t
-#include <type_traits> // decay_t
-
-#include <tinympl/select.hpp>
-#include <darma/impl/access_handle_base.h>
-#include <darma/impl/handle_attorneys.h>
-#include <darma/interface/app/access_handle.h>
+#include <darma/impl/make_key_functor.h>
+#include <darma/impl/keyword_arguments/parse.h>
 
 namespace darma_runtime {
-namespace detail {
 
-struct _make_key_functor {
+template <typename... Args> 
+auto
+check_test_make_key_functor(
+  Args... args
+) {
 
-  private:
-  
-    struct variadic_is_ah_tag {};
-    struct variadic_no_ah_tag {};
-
-  private:
-
-    // Process all arguments but access handles
-    template <typename T>
-    inline decltype(auto) 
-    _get_arg_impl(
-      variadic_no_ah_tag,
-      T&& arg
-    ) const {
-      return std::forward<T>(arg);
-    }
-
-    // Process access handles
-    template <typename T>
-    inline decltype(auto) 
-    _get_arg_impl(
-      variadic_is_ah_tag,
-      T&& ah
-    ) const {
-      return ah.get_value(); 
-    }
-  
-  private:
-
-    // Dispatch tag evaluation
-    template <typename T> using variadic_tag = tinympl::select_first_t<
-      detail::decayed_is_access_handle<T>,
-      /* => */ variadic_is_ah_tag,
-      std::true_type,
-      /* => */ variadic_no_ah_tag
-    >;
-
-    template <typename... Args, 
-      size_t... Idxs
+  using namespace darma_runtime::detail;
+  using parser = detail::kwarg_parser<
+    overload_description<
+      _keyword<converted_parameter, keyword_tags_for_publication::version>
     >
-    inline auto
-    _impl(
-      std::tuple<Args...>&& args_tuple,
-      std::integer_sequence<size_t, Idxs...>
-    ) const {
-      return make_key(_get_arg_impl(variadic_tag<decltype(std::get<Idxs>(args_tuple))>{}, std::get<Idxs>(args_tuple))...);
-    } 
+  >;
 
-  public:
+  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
 
-    _make_key_functor() = default;
+  return parser()
+         .with_converters(_make_key_functor{})
+         .parse_args(std::forward<Args>(args)...)
+         .invoke([](types::key_t version){return version;});
+ 
+}
 
-    template <typename... Args>
-    auto 
-    operator()(
-      Args&&... args
-    ) const && {
-      return _impl(std::forward_as_tuple(std::forward<Args>(args)...),
-                   std::index_sequence_for<Args...>{});
-    }
-
-};
-
-}  // End namespace detail
-}  // End namespace darma_runtime
+} // End namespace darma_runtime
 
 #endif
