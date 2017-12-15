@@ -101,11 +101,11 @@ struct Serializer_enabled_if<
 
   template <typename Archive>
   static void unpack(void* allocated, Archive& ar) {
-    auto size = ar.unpack_next_item_as<typename vector_t::size_type>();
+    auto size = ar.template unpack_next_item_as<typename vector_t::size_type>();
     auto& obj = *(new (allocated) vector_t());
     obj.reserve(size);
     for(int64_t i = 0; i < size; ++i) {
-      obj.emplace_back(ar.unpack_next_item_as<T>());
+      obj.emplace_back(ar.template unpack_next_item_as<T>());
     }
   }
 };
@@ -135,9 +135,9 @@ struct Serializer_enabled_if<
 
   template <typename Archive>
   static void unpack(void* allocated, Archive& ar) {
-    auto size = ar.unpack_next_item_as<typename vector_t::size_type>();
+    auto size = ar.template unpack_next_item_as<typename vector_t::size_type>();
     auto& obj = *(new (allocated) vector_t(size));
-    ar.unpack_data_raw(obj.data(), size);
+    ar.template unpack_data_raw<T const>(obj.data(), size);
   }
 };
 

@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      test_simple_std_pair.cc
+//                      test_simple_std_string.cc
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,9 +42,8 @@
 //@HEADER
 */
 
-#include <darma/serialization/serializers/standard_library/pair.h>
+#include <darma/serialization/serializers/standard_library/tuple.h>
 #include <darma/serialization/serializers/arithmetic_types.h>
-
 #include <darma/serialization/serializers/standard_library/string.h>
 
 #include <darma/serialization/simple_handler.h>
@@ -54,27 +53,26 @@
 using namespace darma_runtime::serialization;
 using namespace ::testing;
 
-STATIC_ASSERT_DIRECTLY_SERIALIZABLE(std::pair<int, int>);
-STATIC_ASSERT_SIZABLE(SimpleSizingArchive, std::pair<int, int>);
-STATIC_ASSERT_PACKABLE(SimplePackingArchive<>, std::pair<int, int>);
-STATIC_ASSERT_UNPACKABLE(SimpleUnpackingArchive<>, std::pair<int, int>);
+STATIC_ASSERT_DIRECTLY_SERIALIZABLE(std::tuple<int, double, float>);
+STATIC_ASSERT_SIZABLE(SimpleSizingArchive, std::tuple<int, double, float>);
+STATIC_ASSERT_PACKABLE(SimplePackingArchive<>, std::tuple<int, double, float>);
+STATIC_ASSERT_UNPACKABLE(SimpleUnpackingArchive<>, std::tuple<int, double, float>);
 
-STATIC_ASSERT_DIRECTLY_SERIALIZABLE(std::pair<const int, int>);
-STATIC_ASSERT_SIZABLE(SimpleSizingArchive, std::pair<const int, int>);
-STATIC_ASSERT_PACKABLE(SimplePackingArchive<>, std::pair<const int, int>);
-STATIC_ASSERT_UNPACKABLE(SimpleUnpackingArchive<>, std::pair<const int, int>);
+STATIC_ASSERT_SIZABLE(SimpleSizingArchive, std::tuple<int, std::string, float>);
+STATIC_ASSERT_PACKABLE(SimplePackingArchive<>, std::tuple<int, std::string, float>);
+STATIC_ASSERT_UNPACKABLE(SimpleUnpackingArchive<>, std::tuple<int, std::string, float>);
 
-TEST_F(TestSimpleSerializationHandler, pair_int_int) {
-  using T = std::pair<int, int>;
-  T input{1, 2};
+TEST_F(TestSimpleSerializationHandler, tuple_int_double_float) {
+  using T = std::tuple<int, double, float>;
+  T input{42, 2.71828, 3.14};
   auto buffer = SimpleSerializationHandler<>::serialize(input);
   auto output = SimpleSerializationHandler<>::deserialize<T>(buffer);
   EXPECT_THAT(input, Eq(output));
 }
 
-TEST_F(TestSimpleSerializationHandler, pair_string_double) {
-  using T = std::pair<std::string, double>;
-  T input{"hello", 3.14};
+TEST_F(TestSimpleSerializationHandler, tuple_int_string_float) {
+  using T = std::tuple<int, std::string, float>;
+  T input{42, "hello", 3.14};
   auto buffer = SimpleSerializationHandler<>::serialize(input);
   auto output = SimpleSerializationHandler<>::deserialize<T>(buffer);
   EXPECT_THAT(input, Eq(output));

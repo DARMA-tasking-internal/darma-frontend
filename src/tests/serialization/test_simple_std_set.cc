@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      test_simple_std_pair.cc
+//                      test_simple_std_string.cc
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,7 +42,7 @@
 //@HEADER
 */
 
-#include <darma/serialization/serializers/standard_library/pair.h>
+#include <darma/serialization/serializers/standard_library/set.h>
 #include <darma/serialization/serializers/arithmetic_types.h>
 
 #include <darma/serialization/serializers/standard_library/string.h>
@@ -54,28 +54,26 @@
 using namespace darma_runtime::serialization;
 using namespace ::testing;
 
-STATIC_ASSERT_DIRECTLY_SERIALIZABLE(std::pair<int, int>);
-STATIC_ASSERT_SIZABLE(SimpleSizingArchive, std::pair<int, int>);
-STATIC_ASSERT_PACKABLE(SimplePackingArchive<>, std::pair<int, int>);
-STATIC_ASSERT_UNPACKABLE(SimpleUnpackingArchive<>, std::pair<int, int>);
+STATIC_ASSERT_SIZABLE(SimpleSizingArchive, std::set<int>);
+STATIC_ASSERT_PACKABLE(SimplePackingArchive<>, std::set<int>);
+STATIC_ASSERT_UNPACKABLE(SimpleUnpackingArchive<>, std::set<int>);
 
-STATIC_ASSERT_DIRECTLY_SERIALIZABLE(std::pair<const int, int>);
-STATIC_ASSERT_SIZABLE(SimpleSizingArchive, std::pair<const int, int>);
-STATIC_ASSERT_PACKABLE(SimplePackingArchive<>, std::pair<const int, int>);
-STATIC_ASSERT_UNPACKABLE(SimpleUnpackingArchive<>, std::pair<const int, int>);
+STATIC_ASSERT_SIZABLE(SimpleSizingArchive, std::set<std::string>);
+STATIC_ASSERT_PACKABLE(SimplePackingArchive<>, std::set<std::string>);
+STATIC_ASSERT_UNPACKABLE(SimpleUnpackingArchive<>, std::set<std::string>);
 
-TEST_F(TestSimpleSerializationHandler, pair_int_int) {
-  using T = std::pair<int, int>;
-  T input{1, 2};
+TEST_F(TestSimpleSerializationHandler, set_int) {
+  using T = std::set<int>;
+  T input{1, 2, 3, 4, 5};
   auto buffer = SimpleSerializationHandler<>::serialize(input);
   auto output = SimpleSerializationHandler<>::deserialize<T>(buffer);
-  EXPECT_THAT(input, Eq(output));
+  EXPECT_THAT(input, ContainerEq(output));
 }
 
-TEST_F(TestSimpleSerializationHandler, pair_string_double) {
-  using T = std::pair<std::string, double>;
-  T input{"hello", 3.14};
+TEST_F(TestSimpleSerializationHandler, set_string) {
+  using T = std::set<std::string>;
+  T input{"hello", "there", "world", "goodbye"};
   auto buffer = SimpleSerializationHandler<>::serialize(input);
   auto output = SimpleSerializationHandler<>::deserialize<T>(buffer);
-  EXPECT_THAT(input, Eq(output));
+  EXPECT_THAT(input, ContainerEq(output));
 }

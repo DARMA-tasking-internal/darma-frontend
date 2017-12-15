@@ -58,8 +58,7 @@ namespace serialization {
 template <typename... Ts, typename Archive>
 struct is_sizable_with_archive<std::tuple<Ts...>, Archive>
   : tinympl::and_<
-      is_sizable_with_archive<T, Archive>,
-      is_sizable_with_archive<U, Archive>
+      is_sizable_with_archive<Ts, Archive>...
     >
 { };
 
@@ -77,10 +76,10 @@ struct is_unpackable_with_archive<std::tuple<Ts...>, Archive>
     >
 { };
 
-template <typename... Ts, typename Archive>
+template <typename... Ts>
 struct is_directly_serializable<std::tuple<Ts...>>
   : tinympl::and_<
-      is_directly_serializable<Ts, Archive>...
+      is_directly_serializable<Ts>...
     >
 { };
 
@@ -96,10 +95,11 @@ struct Serializer_enabled_if<
 {
   using tuple_t = std::tuple<Ts...>;
   using idxs_t = std::index_sequence_for<Ts...>;
+  using this_t = Serializer_enabled_if;
 
   //============================================================================
 
-  template <typename Archive, typename Arg, typename... Args>
+  template <typename Archive>
   inline static void _apply_bar_op_recursively(Archive& ar) { }
 
   template <typename Archive, typename Arg, typename... Args>
@@ -107,7 +107,7 @@ struct Serializer_enabled_if<
     Archive& ar, Arg const& arg, Args const&... args
   ) {
     ar | arg;
-    _apply_bar_op_recursively(ar, args...);
+    this_t::_apply_bar_op_recursively(ar, args...);
   };
 
   template <typename Archive, size_t... Idxs>
@@ -115,37 +115,37 @@ struct Serializer_enabled_if<
     tuple_t const& obj, Archive& ar, std::integer_sequence<size_t, Idxs...>
   ) {
     // Can't do simple fold emulation here because order matters
-    _apply_bar_op_recursively(ar, std::get<Idxs>(obj)...);
+    this_t::_apply_bar_op_recursively(ar, std::get<Idxs>(obj)...);
   };
 
   template <typename Archive>
   static void get_packed_size(tuple_t const& obj, Archive& ar) {
-    _apply_bar_op_impl(obj, ar, idxs_t{});
+    this_t::_apply_bar_op_impl(obj, ar, idxs_t{});
   }
 
   template <typename Archive>
   static void pack(tuple_t const& obj, Archive& ar) {
-    _apply_bar_op_impl(obj, ar, idxs_t{});
+    this_t::_apply_bar_op_impl(obj, ar, idxs_t{});
   }
 
   //============================================================================
 
-  template <typename Archive, typename Arg, typename... Args>
+  template <typename Archive>
   inline static void _apply_unpack_recursively(Archive& ar) { }
 
-  template <size_t Idx, typename Archive, typename Arg, typename... Args>
+  template <typename Archive, typename Arg, typename... Args>
   inline static void _apply_unpack_recursively(
     Archive& ar, Arg& arg, Args&... args
   ) {
-    ar.unpack_next_item_at<Arg>(&arg);
-    _apply_unpack_recursively(ar, args...);
+    ar.template unpack_next_item_at<Arg>(&arg);
+    this_t::_apply_unpack_recursively(ar, args...);
   };
 
   template <typename Archive, size_t... Idxs>
   static void _apply_unpack_impl(
     tuple_t& obj, Archive& ar, std::integer_sequence<size_t, Idxs...>
   ) {
-    _apply_unpack_recursively(ar, std::get<Idxs>(obj)...);
+    this_t::_apply_unpack_recursively(ar, std::get<Idxs>(obj)...);
   }
 
   template <typename Archive>

@@ -20,9 +20,13 @@ set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
 endfunction()
 
 add_serialization_test(test_simple_arithmetic_types)
+add_serialization_test(test_simple_std_string)
 add_serialization_test(test_simple_std_pair)
 add_serialization_test(test_simple_std_map)
-add_serialization_test(test_simple_std_string)
+add_serialization_test(test_simple_std_vector)
+add_serialization_test(test_simple_std_tuple)
+add_serialization_test(test_simple_std_set)
+add_serialization_test(test_simple_array)
 
 add_executable(run_all_serialization_tests ${serializationtestfiles} gtest_main.cc)
 

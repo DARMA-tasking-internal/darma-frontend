@@ -68,7 +68,7 @@ struct get_serializer_style {
 
   template <typename U, typename UArchive>
   using _intrusive_serialize_archetype = decltype(
-    std::declval<U>().serialize(std::declval<UArchive&>())
+    std::declval<U&>().serialize(std::declval<UArchive&>())
   );
 
   static constexpr auto uses_intrusive_serialize = tinympl::is_detected_exact<void,
@@ -83,7 +83,7 @@ struct get_serializer_style {
 
   template <typename U, typename UArchive>
   using _intrusive_get_packed_size_archetype = decltype(
-    std::declval<U const>().get_packed_size(std::declval<UArchive&>())
+    std::declval<U const&>().get_packed_size(std::declval<UArchive&>())
   );
 
   // Needs to be templated so that it doesn't get generated unless Archive::is_sizing() is true
@@ -94,7 +94,7 @@ struct get_serializer_style {
 
   template <typename U, typename UArchive>
   using _intrusive_pack_archetype = decltype(
-    std::declval<U const>().pack(std::declval<UArchive&>())
+    std::declval<U const&>().pack(std::declval<UArchive&>())
   );
 
   // Needs to be templated so that it doesn't get generated unless Archive::is_packing() is true
@@ -105,7 +105,7 @@ struct get_serializer_style {
 
   template <typename U, typename UArchive>
   using _intrusive_unpack_archetype = decltype(
-    std::declval<U const>().unpack(std::declval<void*>(), std::declval<UArchive&>())
+    std::declval<U const&>().unpack(std::declval<void*>(), std::declval<UArchive&>())
   );
 
   // Needs to be templated so that it doesn't get generated unless Archive::is_unpacking() is true
@@ -148,7 +148,7 @@ struct get_serializer_style {
   template <typename U, typename UArchive>
   using _nonintrusive_get_packed_size_archetype = decltype(
     darma_runtime::serialization::Serializer<U>::get_packed_size(
-      std::declval<U const>(), std::declval<UArchive&>()
+      std::declval<U const&>(), std::declval<UArchive&>()
     )
   );
 
@@ -161,7 +161,7 @@ struct get_serializer_style {
   template <typename U, typename UArchive>
   using _nonintrusive_pack_archetype = decltype(
     darma_runtime::serialization::Serializer<U>::pack(
-      std::declval<U const>(), std::declval<UArchive&>()
+      std::declval<U const&>(), std::declval<UArchive&>()
     )
   );
 

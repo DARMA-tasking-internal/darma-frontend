@@ -52,10 +52,15 @@
 
 #include <string>
 
+#ifndef DARMA_SERIALIZATION_STRING_UNPACK_MAX_STACK_ALLOCATION
+#  define DARMA_SERIALIZATION_STRING_UNPACK_STACK_ALLOCATION_MAX 1024
+#endif
+
 namespace darma_runtime {
 namespace serialization {
 
 // TODO strings with non-standard/non-empty allocators ?
+// TODO make a specialization of unpack takes advantage of the fact that (most) output archives can provide an iterator
 
 //==============================================================================
 
@@ -85,10 +90,28 @@ struct Serializer<std::basic_string<CharT, Traits>> {
     auto size = ar.template unpack_next_item_as<typename string_t::size_type>();
     auto& obj = *(new (allocated) string_t(size, static_cast<CharT>(0)));
     ar.template unpack_data_raw<CharT const>(
-      // Const cast probably always allowed given the nonconst overload was added
-      // to C++17
+      // This is probably safe everywhere, given that the nonconst version of
+      // data() was added to C++17
       const_cast<CharT*>(obj.data()), size
     );
+    // If the const cast ever doesn't work, we'd need to do something like this:
+    //
+    //   auto size = ar.template unpack_next_item_as<typename string_t::size_type>();
+    //   if(size <= DARMA_SERIALIZATION_STRING_UNPACK_STACK_ALLOCATION_MAX) {        // [[likely]] {
+    //     CharT tmp[size];
+    //     ar.template unpack_data_raw<CharT const>(tmp, size);
+    //     new (allocated) string_t(tmp, size);
+    //   }
+    //   else{
+    //     using alloc_traits = std::allocator_traits<typename Archive::allocator_type>;
+    //     auto& alloc = ar.get_allocator();
+    //     auto n_to_alloc =
+    //       size * (sizeof(typename alloc_traits::value_type) / sizeof(CharT) + 1);
+    //     auto* tmp = alloc_traits::allocate(alloc, n_to_alloc);
+    //     ar.template unpack_data_raw<CharT const>(reinterpret_cast<CharT*>(tmp), size);
+    //     new (allocated) string_t(tmp, size);
+    //     alloc_traits::deallocate(alloc, tmp, n_to_alloc);
+    //   }
   }
 };
 

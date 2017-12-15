@@ -117,7 +117,7 @@ struct Serializer_enabled_if<
     // it's faster and it works with every implementation I've ever heard of
     auto* obj_ptr = static_cast<pair_t*>(allocated);
     ar.template unpack_next_item_at<T>(&obj_ptr->first);
-    ar.template unpack_next_item_at<T>(&obj_ptr->second);
+    ar.template unpack_next_item_at<U>(&obj_ptr->second);
   }
 };
 

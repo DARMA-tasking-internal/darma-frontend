@@ -127,9 +127,12 @@ class SimplePackingArchive {
     void pack_data_raw(InputIterator begin, InputIterator end) {
       using value_type =
         std::remove_const_t<std::remove_reference_t<decltype(*begin)>>;
-      std::copy(begin, end, reinterpret_cast<value_type*>(data_spot_));
-      const size_t sz = sizeof(value_type);
-      data_spot_ += std::distance(begin, end) * sizeof(value_type);
+      // std::copy(begin, end, reinterpret_cast<value_type*>(data_spot_));
+      // Use memcpy, since copy invokes the assignment operator, and "raw"
+      // implies that this isn't necessary
+      auto size = std::distance(begin, end) * sizeof(value_type);
+      std::memcpy(data_spot_, static_cast<void const*>(begin), size);
+      data_spot_ += size;
     }
 
     template <typename T>
@@ -138,7 +141,7 @@ class SimplePackingArchive {
     }
 
     template <typename T>
-    inline auto& operator>>(T const& obj) & {
+    inline auto& operator<<(T const& obj) & {
       return _ask_serializer_to_pack(obj);
     }
 
@@ -173,6 +176,10 @@ class SimpleUnpackingArchive {
 
   public:
 
+    using allocator_type = Allocator;
+
+    // TODO Generate an iterator? (Maybe not for all types of archives)
+
     static constexpr bool is_sizing() { return false; }
     static constexpr bool is_packing() { return false; }
     static constexpr bool is_unpacking() { return true; }
@@ -184,13 +191,22 @@ class SimpleUnpackingArchive {
       //  "OutputIterator must be an output iterator."
       //);
 
-      std::copy(
-        reinterpret_cast<RawDataType*>(data_spot_.first()),
-        reinterpret_cast<RawDataType*>(data_spot_.first()) + n_items,
-        dest
+      //std::copy(
+      //  reinterpret_cast<RawDataType*>(data_spot_.first()),
+      //  reinterpret_cast<RawDataType*>(data_spot_.first()) + n_items,
+      //  dest
+      //);
+
+      std::memcpy(
+        static_cast<void*>(dest),
+        data_spot_.first(),
+        n_items * sizeof(RawDataType)
       );
+
       data_spot_.first() += n_items * sizeof(RawDataType);
     }
+
+
 
     template <typename T>
     inline auto& operator|(T const& obj) & {
@@ -198,7 +214,7 @@ class SimpleUnpackingArchive {
     }
 
     template <typename T>
-    inline auto& operator<<(T const& obj) & {
+    inline auto& operator>>(T const& obj) & {
       return _ask_serializer_to_unpack(obj);
     }
 

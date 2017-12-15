@@ -57,43 +57,44 @@ struct is_directly_serializable<T[N]> : is_directly_serializable<T> { };
 
 // Directly serializable T specialization of T[N]  (This is an
 // optimization for performance purposes only)
-template <typename T, size_t N>
-struct Serializer_enabled_if<
-  T[N], std::enable_if_t<is_directly_serializable<T>::value>
->
-{
-  template <typename SizingArchive>
-  static void get_packed_size(T const& obj, SizingArchive& ar) {
-    ar.add_to_size_raw(sizeof(T) * N);
-  }
-
-  template <typename PackingArchive>
-  static void pack(T const& obj, PackingArchive& ar) {
-    ar.pack_data_raw(&obj, &obj + N);
-  }
-
-  template <typename UnpackingArchive>
-  static void unpack(void* allocated, UnpackingArchive& ar) {
-    ar.unpack_data_raw<T>(static_cast<T*>(allocated), N);
-  }
-};
+// This should just use the direct serializer; no need to give it here as well
+//template <typename T, size_t N>
+//struct Serializer_enabled_if<
+//  T[N], std::enable_if_t<is_directly_serializable<T>::value>
+//>
+//{
+//  template <typename SizingArchive>
+//  static void get_packed_size(T const& obj, SizingArchive& ar) {
+//    ar.add_to_size_raw(sizeof(T) * N);
+//  }
+//
+//  template <typename PackingArchive>
+//  static void pack(T const& obj, PackingArchive& ar) {
+//    ar.pack_data_raw(&obj, &obj + N);
+//  }
+//
+//  template <typename UnpackingArchive>
+//  static void unpack(void* allocated, UnpackingArchive& ar) {
+//    ar.template unpack_data_raw<T>(static_cast<T*>(allocated), N);
+//  }
+//};
 
 // Basic case: T not directly serializable. Can't really optimize further
 // than just unpacking each item one at a time
 template <typename T, size_t N>
 struct Serializer_enabled_if<
-  T[N], std::enable_if_t<is_directly_serializable<T>::value>
+  T[N], std::enable_if_t<not is_directly_serializable<T>::value>
 >
 {
   template <typename SizingArchive>
-  static void get_packed_size(T obj[N], SizingArchive& ar) {
+  static void get_packed_size(T const obj[N], SizingArchive& ar) {
     for(int64_t i = 0; i < N; ++i) {
       ar % obj[i];
     }
   }
 
   template <typename PackingArchive>
-  static void pack(T const& obj, PackingArchive& ar) {
+  static void pack(T const obj[N], PackingArchive& ar) {
     for(int64_t i = 0; i < N; ++i) {
       ar << obj[i];
     }
@@ -103,7 +104,7 @@ struct Serializer_enabled_if<
   static void unpack(void* allocated, UnpackingArchive& ar) {
     char* allocated_ptr = static_cast<char*>(allocated);
     for(int64_t i = 0; i < N; ++i, allocated_ptr += sizeof(T)) {
-      ar.unpack_next_item_at<T>(allocated_ptr);
+      ar.template unpack_next_item_at<T>(allocated_ptr);
     }
   }
 };

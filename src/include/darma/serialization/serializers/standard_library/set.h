@@ -107,10 +107,10 @@ struct Serializer<std::set<Key, Compare>> {
 
   template <typename Archive>
   static void unpack(void* allocated, Archive& ar) {
-    auto size = ar.unpack_next_item_as<typename set_t::size_type>();
+    auto size = ar.template unpack_next_item_as<typename set_t::size_type>();
     auto& obj = *(new (allocated) set_t());
     for(int64_t i = 0; i < size; ++i) {
-      obj.emplace(ar.unpack_next_item_as<Key>());
+      obj.emplace(ar.template unpack_next_item_as<Key>());
     }
   }
 
