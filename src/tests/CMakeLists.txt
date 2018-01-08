@@ -8,5 +8,6 @@ set_darma_compiler_flags()
 add_subdirectory(tinympl)
 add_subdirectory(meta)
 add_subdirectory(frontend_validation)
+add_subdirectory(frontend_compilation_benchmark)
 add_subdirectory(serialization)
 
