@@ -54,6 +54,26 @@ namespace detail {
 //==============================================================================
 // Implementation of ctor
 
+namespace _impl {
+
+template <typename SSOKeyT, typename ComponentCountOrdinal>
+struct _do_add_component {
+  char*& buffer;
+  SSOKeyT& this_;
+  ComponentCountOrdinal actual_component_count = 0;
+
+  _do_add_component(SSOKeyT& in_key, char*& in_buffer)
+    : this_(in_key), buffer(in_buffer) { }
+
+  template <typename T>
+  void operator()(T&& arg) {
+    actual_component_count +=
+      darma_runtime::detail::_impl::sso_key_add(this_, buffer, std::forward<T>(arg));
+  }
+};
+
+} // end namespace _impl
+
 template <
   size_t BufferSize,
   typename BackendAssignedKeyType,
@@ -90,23 +110,20 @@ SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdin
     repr.as_long = _long();
     repr.as_long.size = buffer_size;
     repr.as_long.data = buffer = buffer_start = static_cast<char*>(
-      abstract::backend::get_backend_memory_manager()->allocate(
-        buffer_size, serialization::detail::DefaultMemoryRequirementDetails{}
-      )
+      abstract::backend::get_backend_memory_manager()->allocate(buffer_size)
     );
   }
   // Skip over the number of components; we'll come back to it
   buffer += sizeof(ComponentCountOrdinal);
   ComponentCountOrdinal actual_component_count = 0;
+  // use out-of-line functor to avoid lambda instantiation proliferation and
+  // speed up compile times, even though this makes the code a bit less readable
+  auto component_adder = _impl::_do_add_component<SSOKey, ComponentCountOrdinal>(*this, buffer);
   meta::tuple_for_each(
-    std::forward_as_tuple(std::forward<Args>(args)...),
-    [&](auto&& arg) {
-      actual_component_count +=
-        darma_runtime::detail::_impl::sso_key_add(*this, buffer, std::forward<decltype(arg)>(arg));
-    }
+    std::forward_as_tuple(std::forward<Args>(args)...), component_adder
   );
   *reinterpret_cast<ComponentCountOrdinal*>(buffer_start) =
-    actual_component_count;
+    component_adder.actual_component_count;
 }
 
 template <
@@ -146,9 +163,7 @@ SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdin
     case _impl::Long: {
       repr.as_long.size = other.repr.as_long.size;
       repr.as_long.data = static_cast<char*>(
-        abstract::backend::get_backend_memory_manager()->allocate(
-          repr.as_long.size, serialization::detail::DefaultMemoryRequirementDetails{}
-        )
+        abstract::backend::get_backend_memory_manager()->allocate(repr.as_long.size)
       );
       ::memcpy(repr.as_long.data, other.repr.as_long.data, repr.as_long.size);
       break;

@@ -70,6 +70,7 @@ TEST(TestIndexDecomposition, vector_simple) {
 
 }
 
+#ifdef OLD_SERIALIZATION_INTERFACE_UPDATE_THIS
 TEST(TestIndexDecomposition, vector_pack) {
 
   using namespace ::testing;
@@ -96,3 +97,4 @@ TEST(TestIndexDecomposition, vector_pack) {
   ASSERT_THAT(v2, ElementsAre(3, 1, 4, 1, 5, 9, 2, 6));
 
 }
+#endif

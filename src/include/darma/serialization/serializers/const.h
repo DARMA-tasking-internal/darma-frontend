@@ -70,7 +70,7 @@ template <typename T>
 struct Serializer<T const>
   : Serializer<T>
 {
-  using Serializer<T>::get_packed_size;
+  using Serializer<T>::compute_size;
   using Serializer<T>::pack;
   using Serializer<T>::unpack;
 };

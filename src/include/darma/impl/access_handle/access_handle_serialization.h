@@ -48,6 +48,10 @@
 #include <darma/impl/feature_testing_macros.h>
 
 #include <darma/interface/app/access_handle.h>
+#include <darma/serialization/pointer_reference_archive.h>
+#include <darma/serialization/pointer_reference_handler.h>
+
+#include <darma/impl/compatibility.h>
 
 namespace darma_runtime {
 
@@ -57,6 +61,68 @@ namespace darma_runtime {
 #if _darma_has_feature(task_migration)
 namespace serialization {
 
+template <>
+struct Serializer<types::flow_t> {
+
+  using serialization_handler_t = SimpleSerializationHandler<std::allocator<types::flow_t>>;
+
+  static void compute_size(types::flow_t const& obj, SimpleSizingArchive& ar) {
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
+    auto size = backend_runtime->get_packed_flow_size(obj);
+    ar.add_to_size_raw(size);
+  }
+
+  template <typename SerializationBuffer>
+  static void pack(
+    types::flow_t const& obj, PointerReferencePackingArchive<SerializationBuffer>& ar
+  ) {
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
+    backend_runtime->pack_flow(
+      const_cast<types::flow_t&>(obj),
+      ar.data_pointer_reference()
+    );
+  }
+
+  template <typename Allocator>
+  static void unpack(void* allocated, PointerReferenceUnpackingArchive<Allocator>& ar) {
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
+    new (allocated) types::flow_t{
+      backend_runtime->make_unpacked_flow(ar.data_pointer_reference())
+    };
+  }
+};
+
+template <>
+struct Serializer<types::anti_flow_t> {
+
+  using serialization_handler_t = SimpleSerializationHandler<std::allocator<types::anti_flow_t>>;
+
+  static void compute_size(types::anti_flow_t const& obj, SimpleSizingArchive& ar) {
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
+    auto size = backend_runtime->get_packed_anti_flow_size(obj);
+    ar.add_to_size_raw(size);
+  }
+
+  template <typename SerializationBuffer>
+  static void pack(types::anti_flow_t const& obj, PointerReferencePackingArchive<SerializationBuffer>& ar) {
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
+    backend_runtime->pack_anti_flow(
+      const_cast<types::anti_flow_t&>(obj),
+      ar.data_pointer_reference()
+    );
+  }
+
+  template <typename Allocator>
+  static void unpack(void* allocated, PointerReferenceUnpackingArchive<Allocator>& ar) {
+    auto* backend_runtime = abstract::backend::get_backend_runtime();
+    new (allocated) types::anti_flow_t{
+      backend_runtime->make_unpacked_anti_flow(ar.data_pointer_reference())
+    };
+  }
+};
+
+
+// TODO if we add operator==() to the requirements of flow_t, we don't have to pack the outflow when it's the same as the inflow
 template <typename... Args>
 struct Serializer<AccessHandle<Args...>>
 {
@@ -64,7 +130,7 @@ struct Serializer<AccessHandle<Args...>>
   private:
     using AccessHandleT = AccessHandle<Args...>;
 
-    bool handle_is_serializable_assertions(AccessHandleT const& val) const
+    static bool handle_is_serializable_assertions(AccessHandleT const& val)
     {
       // The handle has to be set up and valid
       assert(val.var_handle_base_.get() != nullptr);
@@ -76,7 +142,7 @@ struct Serializer<AccessHandle<Args...>>
 
   public:
     template <typename ArchiveT>
-    void compute_size(AccessHandleT const& val, ArchiveT& ar) const
+    static void compute_size(AccessHandleT const& val, ArchiveT& ar)
     {
 
       assert(handle_is_serializable_assertions(val));
@@ -86,24 +152,23 @@ struct Serializer<AccessHandle<Args...>>
       ar % val.get_current_use()->use()->immediate_permissions_;
       ar % val.get_current_use()->use()->coherence_mode_;
 
-      auto* backend_runtime = abstract::backend::get_backend_runtime();
-      ar.add_to_size_indirect(
-        backend_runtime->get_packed_flow_size(val.get_current_use()->use()->in_flow_)
-      );
-      ar.add_to_size_indirect(
-        backend_runtime->get_packed_flow_size(val.get_current_use()->use()->out_flow_)
-      );
-      ar.add_to_size_indirect(
-        backend_runtime->get_packed_anti_flow_size(val.get_current_use()->use()->anti_in_flow_)
-      );
-      ar.add_to_size_indirect(
-        backend_runtime->get_packed_anti_flow_size(val.get_current_use()->use()->anti_out_flow_)
-      );
+      ar % val.get_current_use()->use()->in_flow_
+         % val.get_current_use()->use()->out_flow_
+         % val.get_current_use()->use()->anti_in_flow_
+         % val.get_current_use()->use()->anti_out_flow_;
 
     }
 
     template <typename ArchiveT>
-    void pack(AccessHandleT const& val, ArchiveT& ar) const
+    static void pack(
+      AccessHandleT const& val,
+      ArchiveT& ar,
+      std::enable_if_t<
+        is_packable_with_archive<types::flow_t, ArchiveT>::value
+        and is_packable_with_archive<types::anti_flow_t, ArchiveT>::value,
+        darma_runtime::detail::_not_a_type
+      > = { }
+    )
     {
       assert(handle_is_serializable_assertions(val));
 
@@ -112,34 +177,83 @@ struct Serializer<AccessHandle<Args...>>
       ar << val.get_current_use()->use()->immediate_permissions_;
       ar << val.get_current_use()->use()->coherence_mode_;
 
-      using detail::DependencyHandle_attorneys::ArchiveAccess;
       auto* backend_runtime = abstract::backend::get_backend_runtime();
-      // TODO if we add operator==() to the requirements of flow_t, we don't have to pack the outflow when it's the same as the inflow
-      backend_runtime->pack_flow(
-        val.get_current_use()->use()->in_flow_,
-        ArchiveAccess::get_spot(ar)
-      );
-      backend_runtime->pack_flow(
-        val.get_current_use()->use()->out_flow_,
-        ArchiveAccess::get_spot(ar)
-      );
-      backend_runtime->pack_anti_flow(
-        val.get_current_use()->use()->anti_in_flow_,
-        ArchiveAccess::get_spot(ar)
-      );
-      backend_runtime->pack_anti_flow(
-        val.get_current_use()->use()->anti_out_flow_,
-        ArchiveAccess::get_spot(ar)
-      );
+      ar << val.get_current_use()->use()->in_flow_
+         << val.get_current_use()->use()->out_flow_
+         << val.get_current_use()->use()->anti_in_flow_
+         << val.get_current_use()->use()->anti_out_flow_;
     }
 
-    template <typename ArchiveT>
-    void unpack(void* allocated, ArchiveT& ar) const
+    template <typename ConvertiblePackingArchive>
+    _darma_requires(requires(ConvertiblePackingArchive a) {
+      PointerReferenceSerializationHandler<>::make_packing_archive(ar);
+    })
+    static void pack(
+      AccessHandleT const& val,
+      ConvertiblePackingArchive& ar,
+      std::enable_if_t<
+        not is_packable_with_archive<types::flow_t, ConvertiblePackingArchive>::value
+          or not is_packable_with_archive<types::anti_flow_t, ConvertiblePackingArchive>::value,
+        darma_runtime::detail::_not_a_type
+      > = { }
+    )
+    {
+      // Packing flows uses pointer references, so we need to convert to an archive
+      // that exposes the pointer (unless the archive type can serialize flows directly
+      auto ptr_ar = PointerReferenceSerializationHandler<>::make_packing_archive_referencing(ar);
+      // need to assert this to avoid infinite recursion
+      static_assert(serialization::is_packable_with_archive<
+        types::flow_t, std::decay_t<decltype(ptr_ar)>
+      >::value, "Don't know how to pack flows");
+      static_assert(serialization::is_packable_with_archive<
+        types::anti_flow_t, std::decay_t<decltype(ptr_ar)>
+      >::value, "Don't know how to pack anti-flows");
+      ptr_ar << val;
+    }
+
+    template <
+      typename ArchiveT,
+      typename=std::enable_if_t<
+        is_unpackable_with_archive<types::flow_t, ArchiveT>::value
+          and is_unpackable_with_archive<types::anti_flow_t, ArchiveT>::value
+      >
+    >
+    static void unpack(void* allocated, ArchiveT& ar)
     {
       // Call an unpacking constructor
-      new(allocated) AccessHandleT(serialization::unpack_constructor_tag, ar);
+      auto ah_ptr = new (allocated) AccessHandleT{};
+      ah_ptr->unpack_from_archive(ar);
+    }
+
+    template <
+      typename ConvertibleUnpackingArchive
+    >
+    _darma_requires(requires(ConvertibleUnpackingArchive a) {
+      PointerReferenceSerializationHandler<>::make_unpacking_archive(ar);
+    })
+    static void unpack(
+      void* allocated,
+      ConvertibleUnpackingArchive& ar,
+      std::enable_if_t<
+        not is_unpackable_with_archive<types::flow_t, ConvertibleUnpackingArchive>::value
+          or not is_unpackable_with_archive<types::anti_flow_t, ConvertibleUnpackingArchive>::value,
+        darma_runtime::detail::_not_a_type
+      > = { }
+    )
+    {
+      // Unpacking flows uses pointer references, so we need to convert to an archive
+      // that exposes the pointer (unless the archive type can serialize flows directly
+      auto ptr_ar = PointerReferenceSerializationHandler<>::make_unpacking_archive_referencing(ar);
+      static_assert(serialization::is_unpackable_with_archive<
+        types::flow_t, std::decay_t<decltype(ptr_ar)>
+      >::value, "Don't know how to unpack flows");
+      static_assert(serialization::is_unpackable_with_archive<
+        types::anti_flow_t, std::decay_t<decltype(ptr_ar)>
+      >::value, "Don't know how to unpack anti-flows");
+      darma_unpack(allocated_buffer_for<AccessHandleT>(allocated), ptr_ar);
     }
 };
+
 
 } // end namespace serialization
 
@@ -148,41 +262,24 @@ template <typename Archive>
 void
 AccessHandle<T, Traits>::unpack_from_archive(Archive& ar) {
 
-  key_t k = make_key();
-  ar >> k;
+  using serialization_handler_t = darma_runtime::serialization::SimpleSerializationHandler<std::allocator<char>>;
+
+  key_t k = ar.template unpack_next_item_as<key_t>();
 
   var_handle_base_ = detail::make_shared<detail::VariableHandle<T>>(k);
 
   // TODO decide if unpacking here breaks encapsulation (it should probably be done in Use ctor)
 
-  frontend::permissions_t sched = frontend::Permissions::_invalid;
-  frontend::permissions_t immed = frontend::Permissions::_invalid;
-  frontend::coherence_mode_t coherence_mode = frontend::CoherenceMode::Invalid;
-
-  ar >> sched >> immed >> coherence_mode;
+  frontend::permissions_t sched = ar.template unpack_next_item_as<frontend::permissions_t>();
+  frontend::permissions_t immed = ar.template unpack_next_item_as<frontend::permissions_t>();
+  frontend::coherence_mode_t coherence_mode = ar.template unpack_next_item_as<frontend::coherence_mode_t>();
 
   auto* backend_runtime = abstract::backend::get_backend_runtime();
 
-  using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-
-  auto in_flow = backend_runtime->make_unpacked_flow(
-    ArchiveAccess::get_const_spot(ar)
-  );
-
-  // Note that the backend function advances the underlying pointer, so the
-  // pointer returned by get_spot is different in the call below from the
-  // call above
-  auto out_flow = backend_runtime->make_unpacked_flow(
-    ArchiveAccess::get_const_spot(ar)
-  );
-
-  auto anti_in_flow = backend_runtime->make_unpacked_anti_flow(
-    ArchiveAccess::get_const_spot(ar)
-  );
-
-  auto anti_out_flow = backend_runtime->make_unpacked_anti_flow(
-    ArchiveAccess::get_const_spot(ar)
-  );
+  auto in_flow = ar.template unpack_next_item_as<types::flow_t>();
+  auto out_flow = ar.template unpack_next_item_as<types::flow_t>();
+  auto anti_in_flow = ar.template unpack_next_item_as<types::anti_flow_t>();
+  auto anti_out_flow = ar.template unpack_next_item_as<types::anti_flow_t>();
 
   set_current_use(base_t::use_holder_t::recreate_migrated(
     var_handle_base_,

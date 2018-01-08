@@ -48,6 +48,8 @@
 #include <darma/impl/util/not_a_type.h>
 
 #include "simple_archive.h"
+#include "simple_handler_fwd.h"
+#include "pointer_reference_handler_fwd.h"
 
 namespace darma_runtime {
 namespace serialization {
@@ -92,6 +94,36 @@ struct SimpleSerializationHandler {
     using sizing_archive_t = SimpleSizingArchive;
     using unpacking_archive_t = SimpleUnpackingArchive<Allocator>;
     using serialization_buffer_t = DynamicSerializationBuffer<char_allocator_t>;
+
+    // Not part of the interface; only applicable to SimpleSerializationHandler
+    // Used by PointerReferenceSerializationHandler to adapt from archive types
+    template <typename T, typename CompatiblePackingOrUnpackingArchive>
+    /* requires requires(CompatiblePackingOrUnpackingArchive a) { a._data_spot() => char*& } */
+    static T*&
+    _data_spot_reference_as(
+      CompatiblePackingOrUnpackingArchive& ar
+    ) {
+      return static_cast<T*&>(*reinterpret_cast<T**>(&ar._data_spot()));
+    }
+
+    // Not part of the interface; only applicable to SimpleSerializationHandler
+    // Used by PointerReferenceSerializationHandler to adapt from archive types
+    template <typename T, typename CompatiblePackingOrUnpackingArchive>
+    /* requires
+     *   requires(CompatiblePackingOrUnpackingArchive a) { a._data_spot() => char*&; }
+     *   || requires(CompatiblePackingOrUnpackingArchive a) { a._data_spot() => char const*&; }
+     * */
+    static std::add_const_t<T>*&
+    _const_data_spot_reference_as(
+      CompatiblePackingOrUnpackingArchive& ar
+    ) {
+      return static_cast<
+        std::add_const_t<T>*&
+      >(*reinterpret_cast<T const**>(&const_cast<char const*&>(ar._data_spot())));
+    }
+
+    template <typename>
+    friend struct PointerReferenceSerializationHandler;
 
   public:
 
@@ -152,6 +184,10 @@ struct SimpleSerializationHandler {
     static std::size_t get_size(sizing_archive_t& ar) { return ar.size_; }
 
     template <typename CompatiblePackingArchive>
+    /* requires requires(CompatiblePackingArchive a) {
+     *   a._data_spot() => NullableType;
+     *   a.buffer_;
+     * } */
     static auto
     extract_buffer(
       CompatiblePackingArchive&& ar,
@@ -161,8 +197,17 @@ struct SimpleSerializationHandler {
         darma_runtime::detail::_not_a_type
       > = { }
     ) {
-      ar.data_spot_ = nullptr;  // As part of expiring the Archive
+      ar._data_spot() = nullptr;  // As part of expiring the Archive
       return std::move(ar.buffer_);
+    }
+
+    template <typename CompatiblePackingOrUnpackingArchive>
+    /* requires requires(CompatibleUnpackingArchive a) { a._data_spot() => char*; } */
+    static char*
+    get_archive_data_pointer(
+      CompatiblePackingOrUnpackingArchive const& ar
+    ) {
+      return ar._data_spot();
     }
 
     //==========================================================================
@@ -212,6 +257,7 @@ struct SimpleSerializationHandler {
 
     // </editor-fold> end deserialize() overloads }}}1
     //==========================================================================
+
 
 };
 

@@ -145,8 +145,6 @@ class SerializationManagerForType
 
   protected:
 
-    typedef serialization::detail::serializability_traits<T> serdes_traits;
-
     // just use simple archive and handler for now
     using serialization_handler_t = SimpleSerializationHandler<std::allocator<T>>;
 
@@ -159,7 +157,7 @@ class SerializationManagerForType
     ) const override {
       auto ar = serialization_handler_t::make_sizing_archive();
       // call the customization point, allow ADL
-      compute_size(*static_cast<T const*>(object_data), ar);
+      darma_compute_size(*static_cast<T const*>(object_data), ar);
       return serialization_handler_t::get_size(ar);
     }
 
@@ -176,7 +174,7 @@ class SerializationManagerForType
         )
       );
       // call the customization point, allow ADL
-      pack(*static_cast<T const*>(object_data), ar);
+      darma_pack(*static_cast<T const*>(object_data), ar);
     }
 
     void
@@ -187,12 +185,14 @@ class SerializationManagerForType
     ) const override {
       auto ar = serialization_handler_t::make_unpacking_archive(
         // Capacity unknown, but it doesn't matter
-        NonOwningSerializationBuffer(
+        ConstNonOwningSerializationBuffer(
           serialized_data, std::numeric_limits<size_t>::max()
         )
       );
       // call the customization point, allow ADL
-      unpack<T>(object_dest, ar);
+      darma_unpack(
+        darma_runtime::serialization::allocated_buffer_for<T>(object_dest), ar
+      );
     }
 
   private:

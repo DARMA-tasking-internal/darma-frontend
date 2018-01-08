@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      sizing_archive.h
+//                      pointer_reference_archive.h
 //                         DARMA
-//              Copyright (C) 2017 Sandia Corporation
+//              Copyright (C) 2018 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,91 +42,54 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_SIZING_ARCHIVE_H
-#define DARMAFRONTEND_SIZING_ARCHIVE_H
+#ifndef DARMAFRONTEND_SERIALIZATION_POINTER_REFERENCE_ARCHIVE_H
+#define DARMAFRONTEND_SERIALIZATION_POINTER_REFERENCE_ARCHIVE_H
 
-#include <darma/serialization/serialization_traits.h>
-#include <darma/serialization/serialization_buffer.h>
-#include <darma/serialization/simple_handler_fwd.h>
-
-#include "simple_handler_fwd.h"
 #include "pointer_reference_handler_fwd.h"
 
-#include <cstddef>
+#include <darma/serialization/simple_archive.h>
 
-#ifndef DARMA_SERIALIZATION_SIMPLE_ARCHIVE_UNPACK_STACK_ALLOCATION_MAX
-#  define DARMA_SERIALIZATION_SIMPLE_ARCHIVE_UNPACK_STACK_ALLOCATION_MAX 1024
-#endif
+#include <cassert>
 
 namespace darma_runtime {
 namespace serialization {
 
-class SimpleSizingArchive {
-  protected:
+namespace detail {
 
-    std::size_t size_ = 0;
+struct _not_a_serialization_buffer { };
 
-    SimpleSizingArchive() = default;
+} // end namespace detail
 
-    template <typename>
-    friend struct SimpleSerializationHandler;
-
+template <typename SerializationBuffer=detail::_not_a_serialization_buffer>
+class PointerReferencePackingArchive {
   private:
 
-    template <typename T>
-    inline auto& _ask_serializer_for_size(T const& obj) & {
-      darma_compute_size(obj, *this);
-      return *this;
-    }
+    darma_runtime::detail::compressed_pair<char*&, SerializationBuffer> data_spot_;
 
-  public:
-
-    static constexpr bool is_sizing() { return true; }
-    static constexpr bool is_packing() { return false; }
-    static constexpr bool is_unpacking() { return false; }
-
-    void add_to_size_raw(size_t size) {
-      size_ += size;
-    }
-
-    template <typename T>
-    inline auto& operator|(T const& obj) & {
-      return _ask_serializer_for_size(obj);
-    }
-
-    template <typename T>
-    inline auto& operator%(T const& obj) & {
-      return _ask_serializer_for_size(obj);
-    }
-
-};
-
-template <typename SerializationBuffer=DynamicSerializationBuffer<std::allocator<char>>>
-class SimplePackingArchive {
-  protected:
-
-    char* data_spot_ = nullptr;
-    SerializationBuffer buffer_;
-
-    template <typename BufferT>
-    explicit SimplePackingArchive(BufferT&& buffer)
-      : data_spot_(buffer.data()), buffer_(std::forward<BufferT>(buffer))
+    template <typename... SerializationBufferCtorArgs>
+    PointerReferencePackingArchive(
+      char*& ptr, SerializationBufferCtorArgs&&... args
+    ) : data_spot_(
+          std::piecewise_construct,
+          std::forward_as_tuple(ptr),
+          std::forward_as_tuple(std::forward<SerializationBufferCtorArgs>(args)...)
+        )
     { }
 
-    char*& _data_spot() { return data_spot_; }
+    // Put this here to do the messy casting for interfacing with a void* in one place
+    explicit
+    PointerReferencePackingArchive(void*& ptr)
+      : PointerReferencePackingArchive(*reinterpret_cast<char**>(&ptr))
+    { }
+
+    char*& _data_spot() { return data_spot_.first(); }
 
     template <typename>
-    friend struct SimpleSerializationHandler;
-
-  private:
-
-    template <typename T>
-    inline auto& _ask_serializer_to_pack(T const& obj) & {
-      darma_pack(obj, *this);
-      return *this;
-    }
+    friend struct PointerReferenceSerializationHandler;
 
   public:
+
+    PointerReferencePackingArchive(PointerReferencePackingArchive&&) = default;
 
     static constexpr bool is_sizing() { return false; }
     static constexpr bool is_packing() { return true; }
@@ -136,52 +99,69 @@ class SimplePackingArchive {
     void pack_data_raw(ContiguousIterator begin, ContiguousIterator end) {
       using value_type =
         std::remove_const_t<std::remove_reference_t<decltype(*begin)>>;
-      // std::copy(begin, end, reinterpret_cast<value_type*>(data_spot_));
-      // Use memcpy, since copy invokes the assignment operator, and "raw"
-      // implies that this isn't necessary
+      // Use memcpy instead of std::copy, since copy invokes the assignment
+      // operator, and "raw" implies that this isn't necessary
       auto size = std::distance(begin, end) * sizeof(value_type);
-      std::memcpy(data_spot_, static_cast<void const*>(begin), size);
-      data_spot_ += size;
+      assert(size >= 0);
+      std::memcpy(_data_spot(), static_cast<void const*>(begin), size);
+      _data_spot() += size;
     }
 
     template <typename T>
     inline auto& operator|(T const& obj) & {
-      return _ask_serializer_to_pack(obj);
+      return this->operator<<(obj);
     }
 
     template <typename T>
     inline auto& operator<<(T const& obj) & {
-      return _ask_serializer_to_pack(obj);
+      darma_pack(obj, *this);
+      return *this;
     }
 
+    void*& data_pointer_reference() { return *reinterpret_cast<void**>(&data_spot_.first()); }
 };
 
-template <typename Allocator=std::allocator<char>>
-class SimpleUnpackingArchive {
+template <typename Allocator = std::allocator<char>>
+class PointerReferenceUnpackingArchive {
   public:
 
     using allocator_type = typename std::allocator_traits<Allocator>::template rebind_alloc<char>;
 
-  protected:
+  private:
 
-    darma_runtime::detail::compressed_pair<char const*, allocator_type> data_spot_;
+    darma_runtime::detail::compressed_pair<char const*&, Allocator> data_spot_;
 
-    template <typename BufferT>
-    explicit SimpleUnpackingArchive(
-      BufferT const& buffer, allocator_type const& alloc
-    ) : data_spot_(
+    explicit
+    PointerReferenceUnpackingArchive(char const*& ptr)
+      : data_spot_(
           std::piecewise_construct,
-          std::forward_as_tuple(buffer.data()),
-          std::forward_as_tuple(alloc)
+          std::forward_as_tuple(ptr),
+          std::forward_as_tuple(allocator_type{})
         )
     { }
+
+    // Put this here to do the messy casting for interfacing with a void* in one place
+    explicit
+    PointerReferenceUnpackingArchive(char*& ptr)
+      : PointerReferenceUnpackingArchive(*const_cast<char const**>(&ptr))
+    { /* forwarding ctor, must be empty */ }
+
+    // Put this here to do the messy casting for interfacing with a void* in one place
+    explicit
+    PointerReferenceUnpackingArchive(void const*& ptr)
+      : PointerReferenceUnpackingArchive(*reinterpret_cast<char const**>(&ptr))
+    { /* forwarding ctor, must be empty */ }
+
+    // Put this here to do the messy casting for interfacing with a void* in one place
+    explicit
+    PointerReferenceUnpackingArchive(void*& ptr)
+      : PointerReferenceUnpackingArchive(*reinterpret_cast<char const**>(const_cast<void const**>(&ptr)))
+    { /* forwarding ctor, must be empty */ }
 
     char const*& _data_spot() { return data_spot_.first(); }
 
     template <typename>
-    friend struct SimpleSerializationHandler;
-
-  private:
+    friend struct PointerReferenceSerializationHandler;
 
     template <typename T>
     inline auto& _ask_serializer_to_unpack(
@@ -192,9 +172,6 @@ class SimpleUnpackingArchive {
         darma_runtime::detail::_not_a_type
       > = { }
     ) & {
-      // This seems slow (though the optimizer might get rid of it anyway,
-      // but since these overloads are given an already-constructed object, and
-      // the customization points take an allocated, uninitialized buffer
       auto* buffer = static_cast<void*>(&obj);
       using rebound_alloc = typename std::allocator_traits<allocator_type>::template rebind_alloc<T>;
       rebound_alloc alloc{get_allocator()};
@@ -211,9 +188,6 @@ class SimpleUnpackingArchive {
         darma_runtime::detail::_not_a_type
       > = { }
     ) & {
-      // This seems slow (though the optimizer might get rid of it anyway,
-      // but since these overloads are given an already-constructed object, and
-      // the customization points take an allocated, uninitialized buffer
       auto* buffer = static_cast<void*>(&obj);
       darma_unpack(allocated_buffer_for<T>(buffer), *this);
       return *this;
@@ -221,24 +195,20 @@ class SimpleUnpackingArchive {
 
   public:
 
-
-    // TODO Generate an iterator? (Maybe not for all types of archives)
+    PointerReferenceUnpackingArchive(PointerReferenceUnpackingArchive&&) = default;
 
     static constexpr bool is_sizing() { return false; }
     static constexpr bool is_packing() { return false; }
     static constexpr bool is_unpacking() { return true; }
 
     template <typename RawDataType>
-    void unpack_data_raw(void* allocated_dest, size_t n_items = 1) {
-      std::memcpy(
-        allocated_dest,
-        data_spot_.first(),
-        n_items * sizeof(RawDataType)
-      );
-      data_spot_.first() += n_items * sizeof(RawDataType);
+    void unpack_data_raw(void* allocated_dest, size_t n_items) {
+      // Use memcpy instead of std::copy, since copy invokes the assignment
+      // operator, and "raw" implies that this isn't necessary
+      size_t size = n_items * sizeof(RawDataType);
+      std::memcpy(allocated_dest, data_spot_.first(), size);
+      data_spot_.first() += size;
     }
-
-
 
     template <typename T>
     inline auto& operator|(T& obj) & {
@@ -249,8 +219,6 @@ class SimpleUnpackingArchive {
     inline auto& operator>>(T& obj) & {
       return _ask_serializer_to_unpack(obj);
     }
-
-    // TODO move these to a mixin so code isn't duplicated between this and PointerReference*Archive?
 
     template <typename T>
     inline T unpack_next_item_as(
@@ -306,13 +274,16 @@ class SimpleUnpackingArchive {
     }
 
     template <typename NeededAllocatorT>
-    NeededAllocatorT get_allocator_as() const {
+    NeededAllocatorT const& get_allocator_as() const {
       // Let's hope this is a compatible type
       return data_spot_.second();
     }
+
+    void const*& data_pointer_reference() { return *reinterpret_cast<void const**>(&data_spot_.first()); }
+
 };
 
 } // end namespace serialization
 } // end namespace darma_runtime
 
-#endif //DARMAFRONTEND_SIZING_ARCHIVE_H
+#endif //DARMAFRONTEND_SERIALIZATION_POINTER_REFERENCE_ARCHIVE_H

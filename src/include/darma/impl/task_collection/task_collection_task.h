@@ -283,15 +283,18 @@ struct TaskCollectionTaskImpl
 
 #if _darma_has_feature(task_migration)
   template <typename ArchiveT>
-  void serialize(ArchiveT&) {
+  void compute_size(ArchiveT&) const {
     DARMA_ASSERT_NOT_IMPLEMENTED("Migration of task collection tasks");
   }
   template <typename ArchiveT>
-  static TaskCollectionTaskImpl& reconstruct(void* allocated, ArchiveT& ar) {
+  void pack(ArchiveT&) const {
     DARMA_ASSERT_NOT_IMPLEMENTED("Migration of task collection tasks");
-    // unreachable, but helps avoid compiler warnings
-    return *reinterpret_cast<TaskCollectionTaskImpl*>(allocated);
   }
+  template <typename ArchiveT>
+  static void unpack(void* allocated, ArchiveT&) {
+    DARMA_ASSERT_NOT_IMPLEMENTED("Migration of task collection tasks");
+  }
+
   bool is_migratable() const override {
     return false;
   }

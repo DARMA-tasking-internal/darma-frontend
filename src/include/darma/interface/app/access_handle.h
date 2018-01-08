@@ -60,7 +60,6 @@
 #include <darma/impl/task/task.h>
 #include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
 #include <darma/impl/util.h>
-#include <darma/serialization/traits.h>
 #include <darma/impl/use.h>
 #include <darma/impl/publication_details.h>
 #include <darma/impl/flow_handling.h>
@@ -800,7 +799,7 @@ class AccessHandle
     std::shared_ptr<detail::AccessHandleBase>
     copy() const override {
       auto rv = std::allocate_shared<AccessHandle>(
-        darma_runtime::serialization::darma_allocator<AccessHandle>{}
+        std::allocator<AccessHandle>{}
       );
       rv->base_t::_do_assignment(*this);
       rv->other_private_members_ = other_private_members_;
@@ -957,23 +956,6 @@ class AccessHandle
       assert(detail::safe_static_cast<detail::VariableHandle<T>*>(var_handle.get()) != nullptr);
       current_use_base_->use_base->suspended_out_flow_ = std::move(suspended_out_flow);
     }
-
-    //--------------------------------------------------------------------------
-    // <editor-fold desc="DARMA feature: task_migration"> {{{2
-    #if _darma_has_feature(task_migration)
-
-    template <typename Archive>
-    AccessHandle(
-      serialization::unpack_constructor_tag_t const&,
-      Archive& ar
-    )
-    {
-      unpack_from_archive(ar);
-    }
-
-    #endif // _darma_has_feature(task_migration)
-    // </editor-fold> end DARMA feature: task_migration }}}2
-    //--------------------------------------------------------------------------
 
   // </editor-fold> end private ctors }}}1
   //============================================================================

@@ -90,7 +90,7 @@ struct Serializer<std::set<Key, Compare>> {
   using set_t = std::set<Key, Compare>;
 
   template <typename Archive>
-  static void get_packed_size(set_t const& obj, Archive& ar) {
+  static void compute_size(set_t const& obj, Archive& ar) {
     ar | obj.size();
     for(auto&& val : obj) {
       ar | val;

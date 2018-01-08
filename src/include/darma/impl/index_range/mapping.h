@@ -52,7 +52,6 @@
 #include <darma/impl/util/not_a_type.h>
 
 #include <darma/impl/meta/detection.h>
-#include <darma/serialization/as_pod.h>
 #include "mapping_traits.h"
 
 namespace darma_runtime {
@@ -62,6 +61,8 @@ namespace detail {
 struct not_an_index_range { };
 
 } // end namespace detail
+
+// TODO constrain serialization
 
 template <
   typename Mapping1, typename Mapping2,
@@ -101,10 +102,6 @@ struct CompositeMapping {
 
     using _traits_1 = indexing::mapping_traits<Mapping1>;
     using _traits_2 = indexing::mapping_traits<Mapping2>;
-    using _serdes_traits_1 = serialization::detail::serializability_traits<Mapping1>;
-    using _serdes_traits_2 = serialization::detail::serializability_traits<Mapping2>;
-    using _serdes_traits_m1to = serialization::detail::serializability_traits<M1ToRange>;
-    using _serdes_traits_m2from = serialization::detail::serializability_traits<M2FromRange>;
 
     template <typename ArchiveT>
     void _serialize(ArchiveT& ar,
@@ -141,19 +138,7 @@ struct CompositeMapping {
   public:
 
     template <typename ArchiveT>
-    std::enable_if_t<
-      _serdes_traits_1::template is_serializable_with_archive<ArchiveT>::value
-      and _serdes_traits_2::template is_serializable_with_archive<ArchiveT>::value
-      and (
-        std::is_same<M1ToRange, detail::not_an_index_range>::value
-          or _serdes_traits_m1to::template is_serializable_with_archive<ArchiveT>::value
-      )
-      and (
-        std::is_same<M2FromRange, detail::not_an_index_range>::value
-          or _serdes_traits_m2from::template is_serializable_with_archive<ArchiveT>::value
-      )
-    >
-    serialize(ArchiveT& ar) {
+    void serialize(ArchiveT& ar) {
       _serialize(ar,
         typename std::is_same<M1ToRange, detail::not_an_index_range>::type{},
         typename std::is_same<M2FromRange, detail::not_an_index_range>::type{}
@@ -421,11 +406,7 @@ struct ReverseMapping {
     }
 
     template <typename ArchiveT>
-    std::enable_if_t<
-      serialization::detail::serializability_traits<Mapping>
-        ::template is_serializable_with_archive<ArchiveT>::value
-    >
-    serialize(ArchiveT& ar) {
+    void serialize(ArchiveT& ar) {
       ar | m1_;
     }
 
@@ -495,7 +476,7 @@ struct NullMapping {
 namespace serialization {
 
 template <typename T>
-struct serialize_as_pod_if<T,
+struct is_directly_serializable_enabled_if<T,
   std::enable_if_t<
     indexing::mapping_traits<T>::is_index_mapping
     and std::is_empty<T>::value

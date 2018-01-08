@@ -59,7 +59,6 @@
 #include <darma/interface/backend/runtime.h>
 #include <darma/interface/frontend/task.h>
 
-#include <darma/serialization/traits.h>
 #include <darma/impl/capture/functor_traits.h>
 #include <darma/impl/util.h>
 #include <darma/impl/handle.h>
@@ -67,6 +66,7 @@
 
 #include <darma/impl/util/static_assertions.h>
 
+#ifdef DARMA_OLD_CODE_DISABLED_REMOVE_THIS
 //==============================================================================
 // <editor-fold desc="Errors for calls with unserializable arguments">
 
@@ -465,6 +465,7 @@ class FunctorRunnable
 
 } // end namespace detail
 } // end namespace darma_runtime
+#endif
 
 
 #endif //DARMA_IMPL_RUNNABLE_H

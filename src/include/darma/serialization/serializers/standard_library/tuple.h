@@ -119,7 +119,7 @@ struct Serializer_enabled_if<
   };
 
   template <typename Archive>
-  static void get_packed_size(tuple_t const& obj, Archive& ar) {
+  static void compute_size(tuple_t const& obj, Archive& ar) {
     this_t::_apply_bar_op_impl(obj, ar, idxs_t{});
   }
 

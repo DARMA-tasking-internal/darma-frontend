@@ -123,10 +123,13 @@ struct DynamicSerializationBuffer {
 
 struct NonOwningSerializationBuffer {
 
+    explicit
     NonOwningSerializationBuffer(
-      char* begin,
-      size_t size
-    ) : begin_(begin),
+      void* begin,
+      size_t size = std::numeric_limits<size_t>::max()
+    ) : begin_(
+          static_cast<char*>(begin)
+        ),
         end_(begin_ + size)
     { }
 
@@ -138,6 +141,26 @@ struct NonOwningSerializationBuffer {
   private:
     char* begin_ = nullptr;
     char* end_ = nullptr;
+};
+
+struct ConstNonOwningSerializationBuffer {
+
+    ConstNonOwningSerializationBuffer(
+      void const* begin,
+      size_t size = std::numeric_limits<size_t>::max()
+    ) : begin_(
+          static_cast<char const*>(begin)
+        ),
+        end_(begin_ + size)
+    { }
+
+    char const* data() const { return begin_; }
+
+    size_t capacity() const { return end_ - begin_; }
+
+  private:
+    char const* begin_ = nullptr;
+    char const* end_ = nullptr;
 };
 
 template <size_t N>

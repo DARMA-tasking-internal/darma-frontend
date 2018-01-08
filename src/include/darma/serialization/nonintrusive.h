@@ -42,8 +42,8 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_NONINTRUSIVE_H
-#define DARMAFRONTEND_NONINTRUSIVE_H
+#ifndef DARMAFRONTEND_SERIALIZATION_NONINTRUSIVE_H
+#define DARMAFRONTEND_SERIALIZATION_NONINTRUSIVE_H
 
 namespace darma_runtime {
 namespace serialization {
@@ -62,4 +62,4 @@ struct Serializer : Serializer_enabled_if<T, void> {
 } // end namespace serialization
 } // end namespace darma_runtime
 
-#endif //DARMAFRONTEND_NONINTRUSIVE_H
+#endif //DARMAFRONTEND_SERIALIZATION_NONINTRUSIVE_H

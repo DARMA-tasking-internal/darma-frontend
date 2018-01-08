@@ -102,7 +102,7 @@ struct Serializer_enabled_if<
   using pair_t = std::pair<T, U>;
 
   template <typename Archive>
-  static void get_packed_size(pair_t const& obj, Archive& ar) {
+  static void compute_size(pair_t const& obj, Archive& ar) {
     ar % obj.first % obj.second;
   }
 

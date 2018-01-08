@@ -83,8 +83,8 @@ struct Serializer_enabled_if<
 {
   using vector_t = std::vector<T>;
 
-  template <typename Archive>
-  static void get_packed_size(vector_t const& obj, Archive& ar) {
+  template <typename SizingArchive>
+  static void compute_size(vector_t const& obj, SizingArchive& ar) {
     ar | obj.size();
     for(auto&& val : obj) {
       ar | val;
@@ -102,7 +102,9 @@ struct Serializer_enabled_if<
   template <typename Archive>
   static void unpack(void* allocated, Archive& ar) {
     auto size = ar.template unpack_next_item_as<typename vector_t::size_type>();
-    auto& obj = *(new (allocated) vector_t());
+    auto& obj = *(new (allocated) vector_t(
+      ar.template get_allocator_as<typename vector_t::allocator_type>())
+    );
     obj.reserve(size);
     for(int64_t i = 0; i < size; ++i) {
       obj.emplace_back(ar.template unpack_next_item_as<T>());
@@ -122,7 +124,7 @@ struct Serializer_enabled_if<
   using vector_t = std::vector<T>;
 
   template <typename Archive>
-  static void get_packed_size(vector_t const& obj, Archive& ar) {
+  static void compute_size(vector_t const& obj, Archive& ar) {
     ar | obj.size();
     ar.add_to_size_raw(sizeof(T) * obj.size());
   }
@@ -136,7 +138,9 @@ struct Serializer_enabled_if<
   template <typename Archive>
   static void unpack(void* allocated, Archive& ar) {
     auto size = ar.template unpack_next_item_as<typename vector_t::size_type>();
-    auto& obj = *(new (allocated) vector_t(size));
+    auto& obj = *(new (allocated) vector_t(
+      size, ar.template get_allocator_as<typename vector_t::allocator_type>()
+    ));
     ar.template unpack_data_raw<T const>(obj.data(), size);
   }
 };

@@ -74,6 +74,9 @@
 #include <darma/interface/frontend/task.h>
 #include <darma/interface/frontend/unpack_task.h>
 
+#include <darma/serialization/serializers/arithmetic_types.h>
+#include <darma/serialization/serializers/standard_library/string.h> // for task calling file and function
+
 #include <darma/impl/handle_fwd.h>
 
 #include <darma/impl/access_handle_base.h>
@@ -139,12 +142,19 @@ class CaptureManager {
       uses_to_unmark_already_captured.clear();
     }
 
+    typedef enum struct SerializerMode {
+      None,
+      Sizing,
+      Packing,
+      Unpacking
+    } SerializerMode;
+
     std::set<HandleUseBase*> uses_to_unmark_already_captured;
     bool is_double_copy_capture = false;
     AccessHandleBase::capture_op_t scheduling_capture_op = AccessHandleBase::CaptureOp::modify_capture;
     AccessHandleBase::capture_op_t immediate_capture_op = AccessHandleBase::CaptureOp::modify_capture;
     mutable std::size_t lambda_serdes_computed_size = 0;
-    mutable serialization::detail::SerializerMode lambda_serdes_mode = serialization::detail::SerializerMode::None;
+    mutable SerializerMode lambda_serdes_mode = SerializerMode::None;
     mutable char* lambda_serdes_buffer = nullptr;
 
     get_deps_container_t dependencies_;

@@ -48,6 +48,8 @@
 #include <darma/impl/handle.h>
 #include <darma/interface/app/initial_access.h>
 
+#include <darma/serialization/serializers/all.h>
+
 #include "mock_backend.h"
 #include "test_frontend.h"
 

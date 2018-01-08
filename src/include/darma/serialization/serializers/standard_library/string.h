@@ -74,7 +74,7 @@ struct Serializer<std::basic_string<CharT, Traits>> {
   using string_t = std::basic_string<CharT, Traits>;
 
   template <typename Archive>
-  static void get_packed_size(string_t const& obj, Archive& ar) {
+  static void compute_size(string_t const& obj, Archive& ar) {
     ar | obj.size();
     ar.add_to_size_raw(sizeof(CharT) * obj.size());
   }

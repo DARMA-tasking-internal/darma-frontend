@@ -87,7 +87,7 @@ struct Serializer_enabled_if<
 >
 {
   template <typename SizingArchive>
-  static void get_packed_size(T const obj[N], SizingArchive& ar) {
+  static void compute_size(T const obj[N], SizingArchive& ar) {
     for(int64_t i = 0; i < N; ++i) {
       ar % obj[i];
     }

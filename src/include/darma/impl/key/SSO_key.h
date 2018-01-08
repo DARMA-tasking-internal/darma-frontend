@@ -53,9 +53,13 @@
 #include <darma/impl/key_concept.h>
 #include <darma/impl/key/bytes_convert.h>
 #include <darma/impl/meta/tuple_for_each.h>
-#include <darma/serialization/old/range.h>
 #include <darma/impl/serialization/manager.h>
-#include <darma/serialization/allocator.h>
+
+#include <darma/serialization/nonintrusive.h>
+#include <darma/serialization/serializers/arithmetic_types.h>
+#include <darma/serialization/serializers/array.h>
+#include <darma/serialization/serializers/enum.h>
+
 #include "SSO_key_fwd.h"
 
 
@@ -331,12 +335,11 @@ class SSOKey
           repr.as_long = _long{};
           // don't really need to store size since range does it
           ar >> repr.as_long.size;
-          auto* range_end = repr.as_long.data + repr.as_long.size;
-          ar >> serialization::range(
-            repr.as_long.data,
-            range_end
-          );
-          assert(range_end - repr.as_long.data == repr.as_long.size);
+          using alloc_t = typename std::allocator_traits<typename Archive::allocator_type>
+            ::template rebind_alloc<char>;
+          alloc_t alloc = ar.template get_allocator_as<alloc_t>();
+          repr.as_long.data = std::allocator_traits<alloc_t>::allocate(alloc, repr.as_long.size);
+          ar.template unpack_data_raw<char>(repr.as_long.data, repr.as_long.size);
           break;
         }
         case darma_runtime::detail::_impl::NeedsBackendAssignedKey: {
@@ -754,14 +757,16 @@ struct Serializer<
     BufferSize,
     BackendAssignedKeyType,
     PieceSizeOrdinal,
-    ComponentCountOrdinal>> {
+    ComponentCountOrdinal
+  >
+> {
   using sso_key_t = darma_runtime::detail::SSOKey<
     BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal
   >;
   using key_traits_t = darma_runtime::detail::key_traits<sso_key_t>;
 
   template <typename ArchiveT>
-  void compute_size(sso_key_t const& val, ArchiveT& ar) const {
+  static void compute_size(sso_key_t const& val, ArchiveT& ar) {
     DARMA_ASSERT_MESSAGE(
       not key_traits_t::needs_backend_key(val),
       "Cannot compute size of a key that is awaiting a backend assigned value."
@@ -780,10 +785,7 @@ struct Serializer<
       case darma_runtime::detail::_impl::Long:
         // don't really need to store size since range does it
         ar % val.repr.as_long.size;
-        ar % serialization::range(
-          (const_cast<char*&>(val.repr.as_long.data)),
-          val.repr.as_long.data + val.repr.as_long.size
-        );
+        ar.add_to_size_raw(val.repr.as_long.size);
         break;
       case darma_runtime::detail::_impl::NeedsBackendAssignedKey:
         DARMA_ASSERT_UNREACHABLE_FAILURE("NeedsBackendAssignedKey");            // LCOV_EXCL_LINE
@@ -792,7 +794,7 @@ struct Serializer<
   }
 
   template <typename ArchiveT>
-  void pack(sso_key_t const& val, ArchiveT& ar) const {
+  static void pack(sso_key_t const& val, ArchiveT& ar)  {
     DARMA_ASSERT_MESSAGE(
       not key_traits_t::needs_backend_key(val),
       "Cannot pack a key that is awaiting a backend assigned value."
@@ -811,7 +813,7 @@ struct Serializer<
       case darma_runtime::detail::_impl::Long:
         // don't really need to store size since range does it
         ar << val.repr.as_long.size;
-        ar << serialization::range(
+        ar.pack_data_raw(
           (const_cast<char*&>(val.repr.as_long.data)),
           val.repr.as_long.data + val.repr.as_long.size
         );
@@ -823,7 +825,7 @@ struct Serializer<
   }
 
   template <typename ArchiveT>
-  void unpack(void* allocated, ArchiveT& ar) const {
+  static void unpack(void* allocated, ArchiveT& ar)  {
     new (allocated) sso_key_t(
       typename sso_key_t::unpack_ctor_tag{}, ar
     );

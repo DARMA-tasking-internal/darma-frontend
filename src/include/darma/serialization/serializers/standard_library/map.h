@@ -91,7 +91,7 @@ struct Serializer<std::map<Key, T, Compare>> {
   using map_t = std::map<Key, T, Compare>;
 
   template <typename Archive>
-  static void get_packed_size(map_t const& obj, Archive& ar) {
+  static void compute_size(map_t const& obj, Archive& ar) {
     ar | obj.size();
     for(auto&& val : obj) {
       ar | val;

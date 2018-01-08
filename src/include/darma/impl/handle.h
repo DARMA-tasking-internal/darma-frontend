@@ -65,11 +65,7 @@
 #include <darma/impl/task/task_fwd.h>
 #include <darma/impl/util.h>
 #include <darma/impl/darma_assert.h>
-#include <darma/serialization/archive.h>
-#include <darma/serialization/policy_aware_archive.h>
 #include <darma/serialization/nonintrusive.h>
-#include <darma/serialization/traits.h>
-#include <darma/serialization/allocation.h>
 #include <darma/impl/serialization/manager.h>
 
 
@@ -232,38 +228,34 @@ class VariableHandle
     ////////////////////////////////////////////////////////////
     // ArrayMovementManager implementation <editor-fold desc="ArrayMovementManager implementation">
 
+    // just use simple archive and handler for now
+    using serialization_handler_t =
+      darma_runtime::serialization::SimpleSerializationHandler<std::allocator<T>>;
+
     size_t
     get_packed_size(
       void const* obj,
       size_t offset, size_t n_elem,
-      abstract::backend::SerializationPolicy* ser_pol
+      abstract::backend::SerializationPolicy*
     ) const override {
-      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-      auto ar = _ser_man_impl_t::_get_best_compatible_archive(
-        tinympl::identity<typename _ser_man_impl_t::best_compatible_archive_t>(),
-        ser_pol
-      );
-      ArchiveAccess::start_sizing(ar);
+      auto ar = serialization_handler_t::make_sizing_archive();
       IndexingTraits<T>::get_packed_size(
         *static_cast<T const*>(obj), ar, offset, n_elem
       );
-      return ArchiveAccess::get_size(ar);
+      return serialization_handler_t::get_size(ar);
     }
 
     void
     pack_elements(
       void const* obj, void* buffer,
       size_t offset, size_t n_elem,
-      abstract::backend::SerializationPolicy* ser_pol
-    ) const override
-    {
-      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-      auto ar = _ser_man_impl_t::_get_best_compatible_archive(
-        tinympl::identity<typename _ser_man_impl_t::best_compatible_archive_t>(),
-        ser_pol
-      );
-      ArchiveAccess::start_packing_with_buffer(
-        ar, buffer
+      abstract::backend::SerializationPolicy*
+    ) const override {
+      auto ar = serialization_handler_t::make_packing_archive(
+        // Capacity unknown, but it doesn't matter
+        darma_runtime::serialization::NonOwningSerializationBuffer(
+          buffer, std::numeric_limits<size_t>::max()
+        )
       );
       IndexingTraits<T>::pack_elements(
         *static_cast<T const*>(obj), ar,
@@ -278,14 +270,13 @@ class VariableHandle
       abstract::backend::SerializationPolicy* ser_pol
     ) const override
     {
-      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-      auto ar = _ser_man_impl_t::_get_best_compatible_archive(
-        tinympl::identity<typename _ser_man_impl_t::best_compatible_archive_t>(),
-        ser_pol
+      auto ar = serialization_handler_t::make_unpacking_archive(
+        // Capacity unknown, but it doesn't matter
+        darma_runtime::serialization::ConstNonOwningSerializationBuffer(
+          buffer, std::numeric_limits<size_t>::max()
+        )
       );
-      ArchiveAccess::start_unpacking_with_buffer(
-        ar, buffer
-      );
+      // call the customization point, allow ADL
       IndexingTraits<T>::unpack_elements(
         *static_cast<T*>(obj), ar,
         offset, n_elem

@@ -45,7 +45,7 @@ add_unit_test(test_create_work_while)
 add_unit_test(test_anti_flows)
 add_unit_test(test_lambda_migrate)
 
-add_executable(run_all_frontend_tests ${frontendtestfiles})
+add_executable(run_all_frontend_tests ${frontendtestfiles} gtest_main.cc)
 
 function(add_oo_tag_generate_step target tag)
     set(DEST_FOLDER ${PROJECT_BINARY_DIR}/include)

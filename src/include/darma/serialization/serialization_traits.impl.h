@@ -45,15 +45,17 @@
 #ifndef DARMAFRONTEND_SERIALIZATION_SERIALIZATION_TRAITS_IMPL_H
 #define DARMAFRONTEND_SERIALIZATION_SERIALIZATION_TRAITS_IMPL_H
 
-#include <type_traits>
+#include <darma/serialization/nonintrusive.h>
+#include <darma/serialization/serialization_traits.h>
+
+#include <darma/impl/util/static_assertions.h>
 
 #include <tinympl/detection.hpp>
 #include <tinympl/bool.hpp>
 #include <tinympl/logical_and.hpp>
 #include <tinympl/logical_or.hpp>
 
-#include <darma/serialization/nonintrusive.h>
-#include <darma/serialization/serialization_traits.h>
+#include <type_traits>
 
 namespace darma_runtime {
 namespace serialization {
@@ -82,14 +84,14 @@ struct get_serializer_style {
   // <editor-fold desc="serializer_style::intrusive_pack_unpack"> {{{2
 
   template <typename U, typename UArchive>
-  using _intrusive_get_packed_size_archetype = decltype(
-    std::declval<U const&>().get_packed_size(std::declval<UArchive&>())
+  using _intrusive_compute_size_archetype = decltype(
+    std::declval<U const&>().compute_size(std::declval<UArchive&>())
   );
 
   // Needs to be templated so that it doesn't get generated unless Archive::is_sizing() is true
   template <typename U, typename UArchive>
-  using _has_intrusive_get_packed_size = tinympl::is_detected_exact<void,
-    _intrusive_get_packed_size_archetype, U, UArchive
+  using _has_intrusive_compute_size = tinympl::is_detected_exact<void,
+    _intrusive_compute_size_archetype, U, UArchive
   >;
 
   template <typename U, typename UArchive>
@@ -118,7 +120,7 @@ struct get_serializer_style {
     // Only generate (even in unevaluated context) if is_sizing() is true
     tinympl::or_<
       tinympl::bool_<!Archive::is_sizing()>,
-      _has_intrusive_get_packed_size<T, Archive>
+      _has_intrusive_compute_size<T, Archive>
     >,
     // Only generate (even in unevaluated context) if is_packing() is true
     tinympl::or_<
@@ -146,16 +148,16 @@ struct get_serializer_style {
   // <editor-fold desc="serializer_style::nonintrusive_pack_unpack"> {{{2
 
   template <typename U, typename UArchive>
-  using _nonintrusive_get_packed_size_archetype = decltype(
-    darma_runtime::serialization::Serializer<U>::get_packed_size(
+  using _nonintrusive_compute_size_archetype = decltype(
+    darma_runtime::serialization::Serializer<U>::compute_size(
       std::declval<U const&>(), std::declval<UArchive&>()
     )
   );
 
   // Needs to be templated so that it doesn't get generated unless Archive::is_sizing() is true
   template <typename U, typename UArchive>
-  using _has_nonintrusive_get_packed_size = tinympl::is_detected_exact<void,
-    _nonintrusive_get_packed_size_archetype, U, UArchive
+  using _has_nonintrusive_compute_size = tinympl::is_detected_exact<void,
+    _nonintrusive_compute_size_archetype, U, UArchive
   >;
 
   template <typename U, typename UArchive>
@@ -188,7 +190,7 @@ struct get_serializer_style {
     // Only generate (even in unevaluated context) if is_sizing() is true
     tinympl::or_<
       tinympl::bool_<!Archive::is_sizing()>,
-      _has_nonintrusive_get_packed_size<T, Archive>
+      _has_nonintrusive_compute_size<T, Archive>
     >,
     // Only generate (even in unevaluated context) if is_packing() is true
     tinympl::or_<
@@ -242,7 +244,7 @@ std::enable_if_t<
     and not impl::get_serializer_style<T, SizingArchive>::uses_multiple_styles
 >
 compute_size_impl(T const& obj, SizingArchive& ar) {
-  obj.get_packed_size(ar);
+  obj.compute_size(ar);
 };
 
 template <typename T, typename SizingArchive>
@@ -252,7 +254,43 @@ std::enable_if_t<
     and not impl::get_serializer_style<T, SizingArchive>::uses_multiple_styles
 >
 compute_size_impl(T const& obj, SizingArchive& ar) {
-  darma_runtime::serialization::Serializer<T>::get_packed_size(obj, ar);
+  darma_runtime::serialization::Serializer<T>::compute_size(obj, ar);
+};
+
+template <typename T, typename SizingArchive>
+std::enable_if_t<
+  not darma_runtime::serialization::is_sizable_with_archive<T, SizingArchive>::value
+    and impl::get_serializer_style<T, SizingArchive>::unserializable
+>
+compute_size_impl(T const& obj, SizingArchive& ar) {
+  struct ___serialization_failed_because_type___ { };
+  struct ___is_not_sizable_with_archive_of_type___ { };
+  struct ___because_no_valid_serialization_specification_styles_are_detected___ { };
+  typename _darma__static_failure<
+    _____________________________________________________________________,
+    ___serialization_failed_because_type___, T,
+    ___is_not_sizable_with_archive_of_type___, SizingArchive,
+    ___because_no_valid_serialization_specification_styles_are_detected___,
+    _____________________________________________________________________
+  >::type _failure;
+};
+
+template <typename T, typename SizingArchive>
+std::enable_if_t<
+  not darma_runtime::serialization::is_sizable_with_archive<T, SizingArchive>::value
+    and impl::get_serializer_style<T, SizingArchive>::uses_multiple_styles
+>
+compute_size_impl(T const& obj, SizingArchive& ar) {
+  struct ___serialization_failed_because_type___ { };
+  struct ___is_not_sizable_with_archive_of_type___ { };
+  struct ___because_more_than_on_serialization_specification_style_is_detected___ { };
+  typename _darma__static_failure<
+    _____________________________________________________________________,
+    ___serialization_failed_because_type___, T,
+    ___is_not_sizable_with_archive_of_type___, SizingArchive,
+    ___because_more_than_on_serialization_specification_style_is_detected___,
+    _____________________________________________________________________
+  >::type _failure;
 };
 
 // </editor-fold> end compute_size() customization point default implementation }}}1
@@ -292,6 +330,21 @@ pack_impl(T const& obj, PackingArchive& ar) {
   darma_runtime::serialization::Serializer<T>::pack(obj, ar);
 };
 
+template <typename T, typename PackingArchive>
+std::enable_if_t<
+  not darma_runtime::serialization::is_packable_with_archive<T, PackingArchive>::value
+>
+pack_impl(T const& obj, PackingArchive& ar) {
+  struct ___serialization_failed_because_type___ { };
+  struct ___is_not_packable_with_archive_of_type___ { };
+  typename _darma__static_failure<
+    _____________________________________________________________________,
+    ___serialization_failed_because_type___, T,
+    ___is_not_packable_with_archive_of_type___, PackingArchive,
+    _____________________________________________________________________
+  >::type _failure;
+};
+
 // </editor-fold> end pack() customization point default implementation }}}1
 //==============================================================================
 
@@ -314,7 +367,7 @@ template <typename T, typename UnpackingArchive>
 std::enable_if_t<
   darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
     and impl::get_serializer_style<T, UnpackingArchive>::uses_intrusive_pack_unpack
-    and not impl::get_serializer_style<T, UnpackingArchive>::uses_multiple_styles
+    //and not impl::get_serializer_style<T, UnpackingArchive>::uses_multiple_styles
 >
 unpack_impl(void* allocated, UnpackingArchive& ar) {
   T::unpack(allocated, ar);
@@ -324,20 +377,68 @@ template <typename T, typename UnpackingArchive>
 std::enable_if_t<
   darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
     and impl::get_serializer_style<T, UnpackingArchive>::uses_nonintrusive
-    and not impl::get_serializer_style<T, UnpackingArchive>::uses_multiple_styles
+    //and not impl::get_serializer_style<T, UnpackingArchive>::uses_multiple_styles
 >
 unpack_impl(void* allocated, UnpackingArchive& ar) {
   darma_runtime::serialization::Serializer<T>::unpack(allocated, ar);
+}
+
+template <typename T, typename UnpackingArchive>
+std::enable_if_t<
+  darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
+    and impl::get_serializer_style<T, UnpackingArchive>::uses_intrusive_serialize
+    and not impl::get_serializer_style<T, UnpackingArchive>::uses_multiple_styles
+    and not std::is_default_constructible<T>::value
+>
+unpack_impl(void* allocated, UnpackingArchive& ar) {
+  struct ___serialization_failed_because_type___ { };
+  struct ___is_not_unpackable_with_archive_of_type___ { };
+  struct ___because_intrusive_serialize_is_given_for_non_default_constructible_type___ { };
+  typename _darma__static_failure<
+    _____________________________________________________________________,
+    ___serialization_failed_because_type___, T,
+    ___is_not_unpackable_with_archive_of_type___, UnpackingArchive,
+    ___because_intrusive_serialize_is_given_for_non_default_constructible_type___,
+    _____________________________________________________________________
+  >::type _failure;
 };
 
-//template <typename T, typename UnpackingArchive>
-//std::enable_if_t<
-//  darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
-//    and impl::get_serializer_style<T, UnpackingArchive>::uses_multiple_styles
-//>
-//void unpack(void* allocated, UnpackingArchive& ar) {
-//  // TODO this should produce a compile-time readable error
-//};
+template <typename T, typename UnpackingArchive>
+std::enable_if_t<
+  not darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
+    and impl::get_serializer_style<T, UnpackingArchive>::uses_multiple_styles
+>
+unpack_impl(void* allocated, UnpackingArchive& ar) {
+  // TODO this should produce a compile-time readable error
+  struct ___serialization_failed_because_type___ { };
+  struct ___is_not_unpackable_with_archive_of_type___ { };
+  struct ___because_more_than_on_serialization_specification_style_is_detected___ { };
+  typename _darma__static_failure<
+    _____________________________________________________________________,
+    ___serialization_failed_because_type___, T,
+    ___is_not_unpackable_with_archive_of_type___, UnpackingArchive,
+    ___because_more_than_on_serialization_specification_style_is_detected___,
+    _____________________________________________________________________
+  >::type _failure;
+}
+
+template <typename T, typename UnpackingArchive>
+std::enable_if_t<
+  not darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
+    and impl::get_serializer_style<T, UnpackingArchive>::unserializable
+>
+unpack_impl(void* allocated, UnpackingArchive& ar) {
+  struct ___serialization_failed_because_type___ { };
+  struct ___is_not_unpackable_with_archive_of_type___ { };
+  struct ___because_no_valid_serialization_specification_styles_are_detected___ { };
+  typename _darma__static_failure<
+    _____________________________________________________________________,
+    ___serialization_failed_because_type___, T,
+    ___is_not_unpackable_with_archive_of_type___, UnpackingArchive,
+    ___because_no_valid_serialization_specification_styles_are_detected___,
+    _____________________________________________________________________
+  >::type _failure;
+}
 
 // </editor-fold> end unpack() customization point default implementation }}}1
 //==============================================================================

@@ -58,6 +58,8 @@
 #include <darma/impl/meta/has_op.h>
 #include <darma/impl/polymorphic_serialization.h>
 
+#include <darma/serialization/serializers/standard_library/set.h>
+
 namespace darma_runtime {
 
 namespace detail {

@@ -47,16 +47,18 @@
 
 #include "task_fwd.h"
 
-#include <darma/serialization/traits.h>
 #include <darma/impl/capture/functor_traits.h>
 #include <darma/impl/util.h>
 #include <darma/impl/handle.h>
 #include <darma/impl/util/smart_pointers.h>
 #include <darma/impl/polymorphic_serialization.h>
-#include <type_traits>
+
+#include <darma/serialization/serializers/standard_library/tuple.h>
 
 #include "task_base.h"
 #include "task_ctor_helper.h"
+
+#include <type_traits>
 
 namespace darma_runtime {
 namespace detail {
@@ -305,23 +307,42 @@ struct FunctorTask
 
   public:
 
-    template <typename ArchiveT>
-    void serialize(ArchiveT& ar) {
-      if(not ar.is_unpacking()) {
-        // Need to pack in this order for reconstruct
-        ar | this->stored_args_;
-        this->TaskBase::template do_serialize(ar);
-      }
-      else {
-        // unpack of args happens in reconstruct, so only need to invoke the base
-        // TODO serdes framework should work better with class hierarchies
-        // there should be something here that allows me to call unpack instead of
-        // calling serialize
-        this->TaskBase::template do_serialize(ar);
+    template <typename SizingArchive>
+    void compute_size(SizingArchive& ar) const {
+      ar | this->stored_args_;
+      const_cast<FunctorTask*>(this)->TaskBase::do_serialize(ar);
+    }
 
-       // Now we need to iterate over the arguments and add the uses as dependencies
-        _unpack_deps(std::index_sequence_for<Args...>{});
-      }
+    template <typename PackingArchive>
+    void pack(PackingArchive& ar) const {
+      ar | this->stored_args_;
+      const_cast<FunctorTask*>(this)->TaskBase::do_serialize(ar);
+    }
+
+    template <typename UnpackingArchiveT>
+    static void unpack(void* allocated, UnpackingArchiveT& ar) {
+
+      using alloc_t = typename std::allocator_traits<typename UnpackingArchiveT::allocator_type>
+        ::template rebind_alloc<stored_args_tuple_t>;
+      auto alloc = ar.template get_allocator_as<alloc_t>();
+
+      auto* allocated_args = std::allocator_traits<alloc_t>::allocate(alloc, 1);
+      ar.template unpack_next_item_at<stored_args_tuple_t>(allocated_args);
+      auto& stored_args_unpacked = *static_cast<stored_args_tuple_t*>(allocated_args);
+
+      auto* rv = new (allocated) FunctorTask(std::move(stored_args_unpacked));
+
+      std::allocator_traits<alloc_t>::destroy(alloc, &stored_args_unpacked);
+      std::allocator_traits<alloc_t>::deallocate(alloc, allocated_args, 1);
+
+      // unpack of args happens in reconstruct, so only need to invoke the base
+      // TODO serdes framework should work better with class hierarchies
+      // there should be something here that allows me to call unpack instead of
+      // calling serialize
+      rv->TaskBase::do_serialize(ar);
+
+      // Now we need to iterate over the arguments and add the uses as dependencies
+      rv->_unpack_deps(std::index_sequence_for<Args...>{});
     }
 
     // </editor-fold> end Serialization }}}1
@@ -344,8 +365,7 @@ FunctorTask<Functor, Args...>::reconstruct(
 ) {
 
   auto* allocated_args = abstract::backend::get_backend_memory_manager()->allocate(
-    sizeof(stored_args_tuple_t),
-    serialization::detail::DefaultMemoryRequirementDetails{}
+    sizeof(stored_args_tuple_t)
   );
 
   ar.template unpack_item<stored_args_tuple_t>(allocated_args);

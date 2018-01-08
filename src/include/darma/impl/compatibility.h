@@ -72,4 +72,11 @@
 #  define DARMA_ATTRIBUTE_DEPRECATED_WITH_MESSAGE(...)
 #endif
 
+#ifdef DARMA_HAVE_CONCEPTS
+#  define _darma_requires(...) requires __VA_ARGS__
+#else
+#  define _darma_requires(...)
+#endif
+
+
 #endif /* FRONTEND_INCLUDE_DARMA_COMPATIBILITY_H_ */

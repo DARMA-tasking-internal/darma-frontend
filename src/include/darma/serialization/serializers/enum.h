@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      darma.impl.h
+//                      enum.h
 //                         DARMA
-//              Copyright (C) 2017 Sandia Corporation
+//              Copyright (C) 2018 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,12 +42,25 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_DARMA_IMPL_H
-#define DARMAFRONTEND_DARMA_IMPL_H
+#ifndef DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ENUM_H
+#define DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ENUM_H
 
-#include "array/array.impl.h"
-#include "key/key.impl.h"
-#include "access_handle/access_handle.impl.h"
-#include "access_handle/access_handle_collection.impl.h"
+#include <darma/serialization/nonintrusive.h>
+#include <darma/serialization/serialization_traits.h>
+#include <darma/serialization/direct_serialization.h>
 
-#endif //DARMAFRONTEND_DARMA_IMPL_H
+#include <type_traits>
+
+namespace darma_runtime {
+namespace serialization {
+
+template <typename T>
+struct is_directly_serializable_enabled_if<
+  T, std::enable_if_t<std::is_enum<T>::value>
+> : std::true_type
+{ };
+
+} // end namespace serialization
+} // end namespace darma_runtime
+
+#endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ENUM_H

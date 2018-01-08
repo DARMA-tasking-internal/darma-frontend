@@ -152,17 +152,27 @@ struct TaskCollectionImpl
     args_tuple_t args_stored_;
 
     template <typename Archive>
-    static TaskCollectionImpl&
-    reconstruct(void* allocated, Archive& ar) {
-      using args_tuple_traits = darma_runtime::serialization::detail
-        ::serializability_traits<args_tuple_t>;
-      using range_serdes_traits = darma_runtime::serialization::detail
-        ::serializability_traits<IndexRangeT>;
+    void compute_size(Archive& ar) const {
+      ar | collection_range_;
+      ar | args_stored_;
+      ar | name_;
+      // nothing to pack for dependencies.  They'll be handled later
+    }
 
+    template <typename Archive>
+    void pack(Archive& ar) const {
+      ar | collection_range_;
+      ar | args_stored_;
+      ar | name_;
+      // nothing to pack for dependencies.  They'll be handled later
+    }
+
+    template <typename Archive>
+    static void unpack(void* allocated, Archive& ar) {
       // Need to call ctor to initialize vtable
       auto* rv_ptr = new (allocated) TaskCollectionImpl();
 
-      // TODO figure out (yet another) way around the default constructibility issue
+      // TODO deal with range default constructibility?
 
       // No default constructibility requirement on index range, so unpack it here...
       ar >> rv_ptr->collection_range_;
@@ -173,26 +183,13 @@ struct TaskCollectionImpl
       // for dependencies_, just reconstruct directly; it was never packed
       new (&rv_ptr->dependencies_) dependencies_container_t();
 
-      return *rv_ptr;
-    }
+      // Unpacking.
+      // collection_range_ already unpacked in reconstruct
+      // args_stored_ already unpacked in reconstruct
+      ar >> rv_ptr->name_;
 
-    template <typename Archive>
-    void serialize(Archive& ar) {
-      if(not ar.is_unpacking()) {
-        ar | collection_range_;
-        ar | args_stored_;
-        ar | name_;
-        // nothing to pack for dependencies.  They'll be handled later
-      }
-      else {
-        // Unpacking.
-        // collection_range_ already unpacked in reconstruct
-        // args_stored_ already unpacked in reconstruct
-        ar >> name_;
-
-        // need to set up dependencies here...
-        _unpack_deps(std::index_sequence_for<Args...>{});
-      }
+      // need to set up dependencies here...
+      rv_ptr->_unpack_deps(std::index_sequence_for<Args...>{});
     }
 
   private:

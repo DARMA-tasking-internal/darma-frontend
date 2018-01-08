@@ -397,6 +397,23 @@ class MemoryManager {
      *
      *  @param n_bytes The number of bytes to allocate
      *
+     *  @return A pointer to the beginning of the allocated region.  Any
+     *  accesses to memory in the region `[rv, rv+n_bytes)` (where `rv` is the
+     *  returned pointer) must be valid until deallocated is called with the
+     *  `rv` and the same `n_bytes` argument
+     */
+    virtual void*
+    allocate(size_t n_bytes) =0;
+
+    /** @brief Request that the backend allocate a contiguous piece of memory of
+     *  size `n_bytes` and with the hinted attributes described by `details`.
+     *
+     *  @remark The backend is free to block, raise an exception, or even abort
+     *  if the allocation is not possible.  However, it must not return an
+     *  invalid pointer.
+     *
+     *  @param n_bytes The number of bytes to allocate
+     *
      *  @param details Catagorical hints (for performance purposes) about the
      *  way the memory to be allocated will be used in its lifetime
      *

@@ -263,27 +263,20 @@ template <typename T>
 struct Serializer<::darma_runtime::vector_view<T>> {
   private:
 
-    // TODO: Packability is what's important, not serializability...
-    template <typename Archive>
-    using enable_if_serializable_with = std::enable_if_t<
-      detail::serializability_traits<T>
-        ::template is_serializable_with_archive<Archive>::value
-    >;
-
     using view_t = ::darma_runtime::vector_view<T>;
 
   public:
 
     template <typename Archive>
-    enable_if_serializable_with<Archive>
-    compute_size(view_t const& v, Archive& ar) const {
-      ar % serialization::range(v.begin(), v.end());
+    static void compute_size(view_t const& v, Archive& ar) {
+      ar % size_t{};
+      ar.add_to_size_raw(std::distance(v.begin(), v.end()) * sizeof(T));
     }
 
     template <typename Archive>
-    enable_if_serializable_with<Archive>
-    pack(view_t const& v, Archive& ar) const {
-      ar << serialization::range(v.begin(), v.end());
+    static void pack(view_t const& v, Archive& ar) {
+      ar << std::distance(v.begin(), v.end());
+      ar.pack_data_raw(v.begin(), v.end());
     }
 
     // Can't be unpacked

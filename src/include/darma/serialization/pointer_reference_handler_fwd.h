@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      darma.impl.h
+//                      pointer_reference_handler_fwd.h
 //                         DARMA
-//              Copyright (C) 2017 Sandia Corporation
+//              Copyright (C) 2018 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,12 +42,17 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_DARMA_IMPL_H
-#define DARMAFRONTEND_DARMA_IMPL_H
+#ifndef DARMAFRONTEND_POINTER_REFERENCE_HANDLER_FWD_H
+#define DARMAFRONTEND_POINTER_REFERENCE_HANDLER_FWD_H
 
-#include "array/array.impl.h"
-#include "key/key.impl.h"
-#include "access_handle/access_handle.impl.h"
-#include "access_handle/access_handle_collection.impl.h"
+#include <darma/serialization/simple_handler_fwd.h>
 
-#endif //DARMAFRONTEND_DARMA_IMPL_H
+namespace darma_runtime {
+namespace serialization {
+
+template <typename FallbackHandler=SimpleSerializationHandler<std::allocator<char>>>
+struct PointerReferenceSerializationHandler;
+
+}} // end namespace darma_runtime::serialization
+
+#endif //DARMAFRONTEND_POINTER_REFERENCE_HANDLER_FWD_H

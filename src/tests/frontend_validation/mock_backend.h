@@ -184,6 +184,7 @@ class MockRuntime
       use_t*, publication_details_t*)
     );
 
+    MOCK_METHOD1(allocate, void*(size_t));
     MOCK_METHOD2(allocate, void*(size_t,
       darma_runtime::abstract::frontend::MemoryRequirementDetails const&));
     MOCK_METHOD2(deallocate, void(void*, size_t));
@@ -242,6 +243,10 @@ class MockRuntime
         .WillByDefault(::testing::Return(top_level_task.get()));
       ON_CALL(*this, allocate(::testing::_, ::testing::_))
         .WillByDefault(::testing::Invoke([](auto size, auto const& details) {
+          return ::operator new(size);
+        }));
+      ON_CALL(*this, allocate(::testing::_))
+        .WillByDefault(::testing::Invoke([](auto size) {
           return ::operator new(size);
         }));
       ON_CALL(*this, deallocate(::testing::_,::testing:: _))

@@ -51,8 +51,8 @@
 
 #include <darma/impl/handle_fwd.h>
 #include <darma/impl/util/optional_boolean.h>
-#include <darma/serialization/allocator.h>
 #include <darma/impl/meta/conditional_members.h>
+#include <darma/impl/util/constexpr_if.h>
 
 namespace darma_runtime {
 namespace detail {
@@ -314,7 +314,7 @@ struct access_handle_semantic_traits {
 
 template <
   typename T,
-  typename Allocator = darma::serialization::darma_allocator<T>,
+  typename Allocator = std::allocator<T>,
   bool UseAllocatorForHandleItself = true
 >
 struct access_handle_allocation_traits {

@@ -64,7 +64,6 @@
 #include <darma/interface/frontend/top_level.h>
 #include <darma/impl/handle_attorneys.h>
 
-#include <darma/serialization/serialization.impl.h>
 #include <darma/impl/key/key.impl.h>
 #include <darma/impl/array/array.impl.h>
 #include <darma/impl/top_level.h>

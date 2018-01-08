@@ -45,8 +45,6 @@
 #ifndef DARMA_IMPL_ARRAY_INDEXABLE_H
 #define DARMA_IMPL_ARRAY_INDEXABLE_H
 
-#include <darma/serialization/traits.h>
-
 #include "array_fwd.h"
 #include "index_decomposition.h"
 
@@ -73,8 +71,6 @@ struct IndexingTraits {
         std::declval<T&>(), size_t(), size_t()
       )
     );
-
-    using ser_des_traits = serialization::detail::serializability_traits<T>;
 
   public:
 

@@ -57,8 +57,6 @@
 
 #include <darma/impl/use.h> // HandleUse, CollectionManagingUse
 
-#include <darma/serialization/serializer_attorneys.h>
-
 namespace darma_runtime {
 namespace detail {
 
@@ -95,20 +93,20 @@ struct MappedHandleCollection {
         mapping(std::forward<MappingDeduced>(mapping))
     { }
 
-    // Just the compute_size and pack
     template <typename ArchiveT>
-    void serialize(ArchiveT& ar) const {
-      assert(not ar.is_unpacking());
-
+    void compute_size(ArchiveT& ar) const {
       ar | mapping;
-
       ar | collection;
-
     }
 
     template <typename ArchiveT>
-    static MappedHandleCollection&
-    reconstruct(void* allocated, ArchiveT& ar) {
+    void pack(ArchiveT& ar) const {
+      ar | mapping;
+      ar | collection;
+    }
+
+    template <typename ArchiveT>
+    static void unpack(void* allocated, ArchiveT& ar) {
       // just for offsets
       auto* rv_uninitialized = reinterpret_cast<MappedHandleCollection*>(allocated);
 
@@ -119,15 +117,7 @@ struct MappedHandleCollection {
       // and unpack it in unpack
       new (&rv_uninitialized->collection) AccessHandleCollectionT();
 
-      return *rv_uninitialized;
-    }
-
-    template <typename ArchiveT>
-    void unpack(ArchiveT& ar) {
-      // Mapping already unpacked in reconstruct()
-
-      ar >> collection;
-
+      ar >> rv_uninitialized->collection;
     }
 
 };

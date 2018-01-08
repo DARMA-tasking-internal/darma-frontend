@@ -59,7 +59,7 @@ struct Serializer_enabled_if<
 >
 {
   template <typename SizingArchive>
-  static void get_packed_size(T const& obj, SizingArchive& ar) {
+  static void compute_size(T const& obj, SizingArchive& ar) {
     ar.add_to_size_raw(sizeof(T));
   }
 

@@ -48,6 +48,9 @@
 #include <darma/impl/access_handle/copy_captured_object_fwd.h>
 #include <darma/impl/task/task_base.h>
 
+#include <darma/serialization/simple_handler.h>
+#include <darma/serialization/pointer_reference_handler.h>
+
 namespace darma_runtime {
 namespace detail {
 
@@ -56,46 +59,34 @@ class CopyCapturedObject {
 
   private:
 
+    using serialization_handler_t = darma_runtime::serialization::SimpleSerializationHandler<std::allocator<char>>;
+    using ptr_serialization_handler_t =
+      darma_runtime::serialization::PointerReferenceSerializationHandler<serialization_handler_t>;
+
     Derived const* prev_copied_from_ = nullptr;
     CaptureManager* capturing_task = nullptr;
 
     void
     _handle_lambda_compute_size(Derived const& copied_from) {
-      using serdes_traits_t = darma_runtime::serialization::detail::serializability_traits<Derived>;
-      using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-
-      serialization::SimplePackUnpackArchive ar;
-      ArchiveAccess::start_sizing(ar);
-      serdes_traits_t::compute_size(copied_from, ar);
-      capturing_task->lambda_serdes_computed_size += ArchiveAccess::get_size(ar);
+      auto ar = serialization_handler_t::make_sizing_archive();
+      compute_size(copied_from, ar);
+      capturing_task->lambda_serdes_computed_size += serialization_handler_t::get_size(ar);
     }
 
     void
     _handle_lambda_pack(Derived const& copied_from) {
-      using serdes_traits_t = darma_runtime::serialization::detail::serializability_traits<Derived>;
-      using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-
-      serialization::SimplePackUnpackArchive ar;
-      ArchiveAccess::start_packing_with_buffer(ar, capturing_task->lambda_serdes_buffer);
-      serdes_traits_t::pack(copied_from, ar);
-
-      // Advance the buffer
-      capturing_task->lambda_serdes_buffer = static_cast<char*>(ArchiveAccess::get_spot(ar));
+      auto ptr_ar = ptr_serialization_handler_t::make_packing_archive(
+        capturing_task->lambda_serdes_buffer
+      );
+      pack(copied_from, ptr_ar);
     }
 
     void
     _handle_lambda_unpack() {
-      using serdes_traits_t = darma_runtime::serialization::detail::serializability_traits<Derived>;
-      using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-
-      serialization::SimplePackUnpackArchive ar;
-      ArchiveAccess::start_unpacking_with_buffer(ar, capturing_task->lambda_serdes_buffer);
-
-      static_cast<Derived*>(this)->template unpack_from_archive(ar);
-
-      // Advance the buffer
-      capturing_task->lambda_serdes_buffer = static_cast<char*>(ArchiveAccess::get_spot(ar));
-
+      auto ptr_ar = ptr_serialization_handler_t::make_unpacking_archive(
+        capturing_task->lambda_serdes_buffer
+      );
+      static_cast<Derived*>(this)->template unpack_from_archive(ptr_ar);
       static_cast<Derived*>(this)->template report_dependency(capturing_task);
     }
 
@@ -103,14 +94,14 @@ class CopyCapturedObject {
     _handle_lambda_serdes(Derived const& copied_from) {
       using namespace serialization::detail; // verbosity considerations
       // we're in lambda serdes.  Handle that seperately
-      if(capturing_task->lambda_serdes_mode == SerializerMode::Unpacking) {
+      if(capturing_task->lambda_serdes_mode == CaptureManager::SerializerMode::Unpacking) {
         // if we're unpacking, don't even pass the object so we don't make a mistake
         _handle_lambda_unpack();
       }
-      else if(capturing_task->lambda_serdes_mode == SerializerMode::Sizing) {
+      else if(capturing_task->lambda_serdes_mode == CaptureManager::SerializerMode::Sizing) {
         _handle_lambda_compute_size(copied_from);
       }
-      else if(capturing_task->lambda_serdes_mode == SerializerMode::Packing) {
+      else if(capturing_task->lambda_serdes_mode == CaptureManager::SerializerMode::Packing) {
         _handle_lambda_pack(copied_from);
       }
     }
@@ -152,7 +143,7 @@ class CopyCapturedObject {
 
       // make sure it's not a capture for Lambda serdes
       // this only happens in the lambda case, so it's not necessary for the analogous type version
-      if(capturing_task->lambda_serdes_mode != serialization::detail::SerializerMode::None) {
+      if(capturing_task->lambda_serdes_mode != CaptureManager::SerializerMode::None) {
 
         _handle_lambda_serdes(copied_from);
 

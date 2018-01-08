@@ -156,9 +156,26 @@ void darma_pack(T const& obj, PackingArchive& ar) {
   pack(obj, ar);
 };
 
+/**
+ *  A non-owning pointer wrapper class for the first argument to `unpack()` and
+ *  `darma_unpack()` that allows argument dependent lookup (ADL) to be used with
+ *  these functions (since the specification of explicit template parameters
+ *  disables ADL).
+ *
+ *  @tparam T The type of the data to be unpacked.  Note that the namespace of
+ *            T will be added to the ADL namespace set
+ */
+template <typename T>
+struct allocated_buffer_for {
+  allocated_buffer_for(void* allocated) : pointer(allocated) { }
+  allocated_buffer_for(allocated_buffer_for&&) = default;
+  void* pointer;
+  operator void*() { return pointer; }
+};
+
 template <typename T, typename UnpackingArchive>
-void unpack(void* allocated, UnpackingArchive& ar) {
-  impl::unpack_impl<T>(allocated, ar);
+void unpack(allocated_buffer_for<T> allocated, UnpackingArchive& ar) {
+  impl::unpack_impl<T>(allocated.pointer, ar);
 };
 
 /**
@@ -175,8 +192,8 @@ void unpack(void* allocated, UnpackingArchive& ar) {
  *
  */
 template <typename T, typename UnpackingArchive>
-void darma_unpack(void* allocated, UnpackingArchive& ar) {
-  unpack<T>(allocated, ar);
+void darma_unpack(allocated_buffer_for<T> allocated, UnpackingArchive& ar) {
+  unpack<T>(allocated.pointer, ar);
 };
 
 } // end namespace serialization

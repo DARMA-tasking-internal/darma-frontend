@@ -58,8 +58,6 @@
 #include "darma/impl/create_work/create_if_then.h"
 #include "darma/impl/create_work/create_work_while.h"
 
-#include <darma/serialization/policy_aware_archive.h>
-
 #include "array/index_range.h"
 #include "index_range/mapping.h"
 #include "task_collection/task_collection.h"

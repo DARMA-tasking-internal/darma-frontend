@@ -55,7 +55,6 @@
 #include <darma/interface/frontend/polymorphic_serializable_object.h>
 #include <cassert>
 #include <darma/impl/meta/detection.h>
-#include <darma/serialization/archive.h>
 #include <darma/impl/serialization/manager.h>
 
 #include <darma/interface/backend/runtime.h>
@@ -319,12 +318,13 @@ struct polymorphic_serialization_details {
   };
 };
 
-template <typename Details, typename BaseT>
+template <typename Details, typename BaseT, typename SerializationHandler>
 struct _polymorphic_serialization_adapter_impl : BaseT {
 
   private:
     using polymorphic_details_t = Details;
     using concrete_t = typename Details::concrete_t;
+    using serialization_handler_t = SerializationHandler;
 
   protected:
     // Perfect forwarding ctor
@@ -337,27 +337,23 @@ struct _polymorphic_serialization_adapter_impl : BaseT {
   public:
 
     size_t get_packed_size() const override {
-      serialization::SimplePackUnpackArchive ar;
-      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-      ArchiveAccess::start_sizing(ar);
-      //serialization::Serializer<concrete_t>().compute_size(
-      serialization::detail::serializability_traits<concrete_t>::template compute_size(
-        *static_cast<concrete_t const*>(this),
-        ar
-      );
-      return ArchiveAccess::get_size(ar) + polymorphic_details_t::registry_frontmatter_size;
+      auto ar = serialization_handler_t::make_sizing_archive();
+      // call the customization point, allow ADL
+      darma_compute_size(*static_cast<concrete_t const*>(this), ar);
+      return serialization_handler_t::get_size(ar) + polymorphic_details_t::registry_frontmatter_size;
     }
 
     void pack(char* buffer) const override {
       polymorphic_details_t::add_registry_frontmatter_in_place(buffer);
       buffer += polymorphic_details_t::registry_frontmatter_size;
-      serialization::SimplePackUnpackArchive ar;
-      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-      ArchiveAccess::start_packing_with_buffer(ar, buffer);
-      //serialization::Serializer<concrete_t>().pack(
-      serialization::detail::serializability_traits<concrete_t>::template pack(
-        *static_cast<concrete_t const*>(this), ar
+      auto ar = serialization_handler_t::make_packing_archive(
+        // Capacity unknown, but it doesn't matter
+        darma_runtime::serialization::NonOwningSerializationBuffer(
+          buffer, std::numeric_limits<size_t>::max()
+        )
       );
+      // call the customization point, allow ADL
+      darma_pack(*static_cast<concrete_t const*>(this), ar);
     }
 
 };
@@ -366,17 +362,23 @@ struct _polymorphic_serialization_adapter_impl : BaseT {
 // <editor-fold desc="PolymorphicSerializationAdapter"> {{{1
 
 // Adapter for single abstract base
-template <typename ConcreteT, typename AbstractT, typename BaseT = AbstractT>
+template <typename ConcreteT, typename AbstractT, typename BaseT = AbstractT,
+  typename SerializationHandler =
+    darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+>
 struct PolymorphicSerializationAdapter
   : _polymorphic_serialization_adapter_impl<
       typename polymorphic_serialization_details<ConcreteT>::template with_abstract_bases<AbstractT>,
-      BaseT
+      BaseT,
+      SerializationHandler
     >
 {
   private:
+    using serialization_handler_t = SerializationHandler;
     using impl_t = _polymorphic_serialization_adapter_impl<
       typename polymorphic_serialization_details<ConcreteT>::template with_abstract_bases<AbstractT>,
-      BaseT
+      BaseT,
+      serialization_handler_t
     >;
 
   protected:
@@ -389,24 +391,28 @@ struct PolymorphicSerializationAdapter
 
   public:
 
-    // TODO this doesn't work if the class defines an unpack method templated on an Archive type
     static
     std::unique_ptr<AbstractT>
     _darma_static_polymorphic_serializable_adapter_unpack(char const* buffer) {
-      serialization::SimplePackUnpackArchive ar;
-      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-      ArchiveAccess::start_unpacking_with_buffer(ar, buffer);
 
       // TODO ask the abstract object for an allocator?
+      // There's no way to use make_unique here; we just have to allocate and then
+      // construct the unique_ptr from the pointer we allocate
       void* allocated_spot = darma_runtime::abstract::backend::get_backend_memory_manager()
-        ->allocate(
-          sizeof(ConcreteT),
-          darma_runtime::serialization::detail::DefaultMemoryRequirementDetails{}
-        );
+        ->allocate(sizeof(ConcreteT));
 
-      serialization::detail::serializability_traits<ConcreteT>::template unpack(
-        allocated_spot, ar
+      auto ar = serialization_handler_t::make_unpacking_archive(
+        // Capacity unknown, but it doesn't matter
+        darma_runtime::serialization::ConstNonOwningSerializationBuffer(
+          buffer, std::numeric_limits<size_t>::max()
+        )
       );
+
+      // call the customization point, allow ADL
+      darma_unpack(
+        darma_runtime::serialization::allocated_buffer_for<ConcreteT>(allocated_spot), ar
+      );
+
       std::unique_ptr<ConcreteT> rv(reinterpret_cast<ConcreteT*>(allocated_spot));
 
       return std::move(rv);
@@ -415,10 +421,11 @@ struct PolymorphicSerializationAdapter
 
 // Adapter for multiple abstract bases
 template <typename ConcreteT, typename BaseT, typename... AbstractTypes>
-struct PolymorphicSerializationAdapter<ConcreteT, tinympl::vector<AbstractTypes...>, BaseT>
-  : _polymorphic_serialization_adapter_impl<
+struct PolymorphicSerializationAdapter<ConcreteT, tinympl::vector<AbstractTypes...>, BaseT,
+  darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+> : _polymorphic_serialization_adapter_impl<
       typename polymorphic_serialization_details<ConcreteT>::template with_abstract_bases<AbstractTypes...>,
-      BaseT
+      BaseT, darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
     >
 {
   private:
@@ -426,8 +433,10 @@ struct PolymorphicSerializationAdapter<ConcreteT, tinympl::vector<AbstractTypes.
       typename polymorphic_serialization_details<ConcreteT>::template with_abstract_bases<
         AbstractTypes...
       >,
-      BaseT
+      BaseT,
+      darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
     >;
+    using serialization_handler_t = darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>;
 
   protected:
 
@@ -448,20 +457,24 @@ struct PolymorphicSerializationAdapter<ConcreteT, tinympl::vector<AbstractTypes.
     static
     std::unique_ptr<AbstractT>
     _darma_static_polymorphic_serializable_adapter_unpack_as(char const* buffer) {
-      serialization::SimplePackUnpackArchive ar;
-      using serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
-      ArchiveAccess::start_unpacking_with_buffer(ar, buffer);
 
       // TODO ask the abstract object for an allocator?
+      // There's no way to use make_unique here; we just have to allocate and then
+      // construct the unique_ptr from the pointer we allocate
       void* allocated_spot = darma_runtime::abstract::backend::get_backend_memory_manager()
-        ->allocate(
-          sizeof(ConcreteT),
-          darma_runtime::serialization::detail::DefaultMemoryRequirementDetails{}
-        );
+        ->allocate(sizeof(ConcreteT));
 
-      serialization::Serializer<ConcreteT>().unpack(
-        allocated_spot, ar
+      auto ar = serialization_handler_t::make_unpacking_archive(
+        // Capacity unknown, but it doesn't matter
+        darma_runtime::serialization::ConstNonOwningSerializationBuffer(
+          buffer, std::numeric_limits<size_t>::max()
+        )
       );
+
+      darma_unpack(
+        darma_runtime::serialization::allocated_buffer_for<ConcreteT>(allocated_spot), ar
+      );
+
       std::unique_ptr<ConcreteT> rv(reinterpret_cast<ConcreteT*>(allocated_spot));
 
       return std::move(rv);

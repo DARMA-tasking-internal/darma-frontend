@@ -50,22 +50,13 @@
 #include <gmock/gmock.h>
 
 #include <darma/serialization/nonintrusive.h>
-#include <darma/serialization/archive.h>
 #include <darma/impl/handle.h>
 
 #include "mock_backend.h"
 
-#include <darma/serialization/allocator.impl.h>
-
 #include <test_frontend.h>
 
 
-using namespace darma_runtime;
-using namespace darma_runtime::detail;
-using namespace darma_runtime::serialization;
-using namespace darma_runtime::serialization::detail;
-
-template <typename T> using Ser = typename serializability_traits<T>::serializer;
 
 ////////////////////////////////////////////////////////////////////////////////
 

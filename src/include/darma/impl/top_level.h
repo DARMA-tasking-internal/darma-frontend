@@ -52,6 +52,9 @@
 #include <functional>
 #include <darma/interface/frontend/top_level_task.h>
 
+#include <darma/serialization/serializers/standard_library/string.h> // for arguments
+#include <darma/serialization/serializers/standard_library/vector.h> // for arguments
+
 #include <darma/impl/capture/semantics.h>
 
 
