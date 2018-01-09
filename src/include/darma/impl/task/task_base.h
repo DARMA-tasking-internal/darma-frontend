@@ -622,6 +622,12 @@ make_running_task_to_return_when_unpacking() {
   return std::make_unique<darma_runtime::detail::EmptyTask>();
 }
 
+inline
+std::unique_ptr<abstract::frontend::Task>
+make_running_task_to_return_with_top_level_runtime_instance() {
+  return std::make_unique<darma_runtime::detail::EmptyTask>();
+}
+
 } // end namespace frontend
 
 } // end namespace darma_runtime

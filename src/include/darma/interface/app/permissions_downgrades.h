@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      darma_region.h
+//                      permissions_downgrades.h
 //                         DARMA
-//              Copyright (C) 2017 Sandia Corporation
+//              Copyright (C) 2018 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,66 +42,11 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_DARMA_REGION_H
-#define DARMAFRONTEND_DARMA_REGION_H
-
-#include <darma/impl/feature_testing_macros.h>
-
-#if _darma_has_feature(darma_regions)
-
-#include <darma_types.h>
-#include <darma/interface/backend/runtime.h>
+#ifndef DARMAFRONTEND_INTERFACE_APP_PERMISSIONS_DOWNGRADES_H
+#define DARMAFRONTEND_INTERFACE_APP_PERMISSIONS_DOWNGRADES_H
 
 namespace darma_runtime {
-namespace experimental {
 
-namespace _impl {
-
-template <typename AlwaysVoid=void>
-auto&
-_get_default_instance_token_ptr() {
-  static auto _rv = std::make_unique<
-    darma_runtime::types::runtime_instance_token_t
-  >(
-    darma_runtime::backend::initialize_runtime_instance()
-  );
-  return _rv;
-}
-
-auto&
-get_default_instance_token() {
-  return *_get_default_instance_token_ptr<>().get();
-}
-
-
-} // end namespace _impl
-
-template <typename Callable>
-auto
-darma_region(Callable&& callable) {
-  auto done_promise = std::make_shared<std::promise<void>>();
-  auto done_future = done_promise->get_future();
-  backend::register_runtime_instance_quiescence_callback(
-    _impl::get_default_instance_token(),
-    std::function<void()>([done_promise=std::move(done_promise)]() mutable {
-      done_promise->set_value();
-    })
-  );
-  backend::with_active_runtime_instance(
-    _impl::get_default_instance_token(),
-    std::forward<Callable>(callable)
-  );
-  return done_future;
-}
-
-auto
-darma_initialize(int& argc, char**& argv) {
-  backend::initialize_runtime_arguments(argc, argv);
-}
-
-} // end namespace experimental
 } // end namespace darma_runtime
 
-#endif // _darma_has_feature(darma_regions)
-
-#endif //DARMAFRONTEND_DARMA_REGION_H
+#endif //DARMAFRONTEND_INTERFACE_APP_PERMISSIONS_DOWNGRADES_H
